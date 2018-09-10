@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: rds-secret
+type: Opaque
+data:
+  rdsPassword: cGFzc3dvcmRvcnNvbWV0aGluZw==
+---
+apiVersion: aws.project-conductor.io/v1alpha1
+kind: RDS
+metadata:
+  labels:
+    controller-tools.k8s.io: "1.0"
+  name: rdssample
+spec:
+  class: db.t2.small # type of the db instance
+  engine: postgres # what engine to use postgres, mysql, aurora-postgresql etc.
+  name: pgsql # name of the database at the provider
+  password: # link to database secret
+    key: rdsPassword # the key in the secret
+    name: rds-secret # the name of the secret
+  username: postgres # Database username
+  size: 10 # size in BG
+  backupretentionperiod: 10 # days to keep backup, 0 means diable
+  encrypted: true # should the database be encrypted
+  #iops: 1000 # number of iops
+  multiaz: true # multi AZ support
+  storagetype: gp2 # type of the underlying storage
