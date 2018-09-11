@@ -1,0 +1,63 @@
+version: 2
+
+jobs:
+  build:
+    machine:
+      docker_layer_caching: true
+
+    steps:
+    - checkout
+
+    - run:
+        name: Update Submodules
+        command: git submodule sync && git submodule update --init --recursive
+
+    - restore_cache:
+        keys:
+          - vendor-{{ checksum "Gopkg.toml" }}-{{ checksum "Gopkg.lock" }}
+
+    - run:
+        name: Prepare
+        command: |
+          git config --global user.name "upbound-bot"
+          echo "machine github.com login upbound-bot password $GITHUB_UPBOUND_BOT" > ~/.netrc
+
+    - run:
+        name: Build validation
+        command: ./build/run make -j$(nproc) build.all
+
+    - run:
+        name: Unit Tests
+        command: ./build/run make -j$(nproc) test
+
+    - store_test_results:
+        path: _output/tests
+
+    - run:
+        name: Publish
+        command: |
+          docker login -u $DOCKER_USER -p $DOCKER_PASS
+          ./build/run make -j$(nproc) publish BRANCH_NAME=${CIRCLE_BRANCH} AWS_ACCESS_KEY_ID=${AWS_KEY_ID} AWS_SECRET_ACCESS_KEY=${AWS_KEY_SECRET} GIT_API_TOKEN=${GITHUB_UPBOUND_BOT}
+          if [ "${CIRCLE_BRANCH}" == "master" ]; then
+            ./build/run make -j$(nproc) promote BRANCH_NAME=master CHANNEL=master AWS_ACCESS_KEY_ID=${AWS_KEY_ID} AWS_SECRET_ACCESS_KEY=${AWS_KEY_SECRET}
+            crumb="$(curl ${JENKINS_CRUMB_URL} --user ${JENKINS_USER}:${JENKINS_TOKEN})"
+            curl -H ".crumb:${crumb}" -X POST ${JENKINS_DEPLOY_URL} --user ${JENKINS_USER}:${JENKINS_TOKEN} -d "Content-Length:0"
+          fi
+        environment:
+          JENKINS_CRUMB_URL: https://jenkins.upbound.io/crumbIssuer/api/xml\?xpath\=concat\(//crumbRequestField,%22:%22,//crumb\)
+          JENKINS_DEPLOY_URL: https://jenkins.upbound.io/job/upbound/job/cloud/job/dev/job/master/buildWithParameters
+
+    - save_cache:
+        when: on_success
+        key: vendor-{{ checksum "Gopkg.toml" }}-{{ checksum "Gopkg.lock" }}
+        paths:
+          - vendor/
+          - ".cache"
+
+    - run:
+        name: Cleanup
+        when: always
+        command: |
+          make -j$(nproc) clean
+          make -j$(nproc) prune PRUNE_HOURS=48 PRUNE_KEEP=48
+          docker images
