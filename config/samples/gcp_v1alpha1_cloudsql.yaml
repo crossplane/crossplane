@@ -1,9 +1,9 @@
-apiVersion: gcp.project-conductor.io/v1alpha1
+apiVersion: gcp.conductor.io/v1alpha1
 kind: CloudSql
 metadata:
   labels:
     controller-tools.k8s.io: "1.0"
-  name: cloudsql-sample-25601
+  name: cloudsql-sample-95246
 spec:
   projectID: long-disk-191221
   tier: db-n1-standard-1

@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Project Conductor Authors.
+Copyright 2018 The Conductor Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,13 +20,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/service/rds/rdsiface"
 	"github.com/onsi/gomega"
-	awsv1alpha1 "github.com/upbound/project-conductor/pkg/apis/aws/v1alpha1"
+	awsv1alpha1 "github.com/upbound/conductor/pkg/apis/aws/v1alpha1"
 	"golang.org/x/net/context"
 	appsv1 "k8s.io/api/apps/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -39,9 +42,21 @@ var depKey = types.NamespacedName{Name: "foo-deployment", Namespace: "default"}
 
 const timeout = time.Second * 5
 
+type mockEC2Client struct {
+	ec2iface.EC2API
+}
+
+type mockRDSClient struct {
+	rdsiface.RDSAPI
+}
+
 func TestReconcile(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	instance := &awsv1alpha1.RDS{ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "default"}}
+
+	clientset := fake.NewSimpleClientset()
+	ec2Client := &mockEC2Client{}
+	rdsClient := &mockRDSClient{}
 
 	// Setup the Manager and Controller.  Wrap the Controller Reconcile function so it writes each request to a
 	// channel when it is finished.
@@ -49,8 +64,7 @@ func TestReconcile(t *testing.T) {
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 	c = mgr.GetClient()
 
-	reconciler, err := newReconciler(mgr)
-	g.Expect(err).NotTo(gomega.HaveOccurred())
+	reconciler := newReconciler(mgr, clientset, ec2Client, rdsClient)
 
 	recFn, requests := SetupTestReconcile(reconciler)
 	g.Expect(add(mgr, recFn)).NotTo(gomega.HaveOccurred())

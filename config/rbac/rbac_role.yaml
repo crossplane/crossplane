@@ -17,7 +17,7 @@ rules:
   - patch
   - delete
 - apiGroups:
-  - gcp.project-conductor.io
+  - gcp.conductor.io
   resources:
   - cloudsqls
   verbs:
@@ -43,7 +43,7 @@ rules:
   verbs:
   - get
 - apiGroups:
-  - aws.project-conductor.io
+  - aws.conductor.io
   resources:
   - rdss
   verbs:

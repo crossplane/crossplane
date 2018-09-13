@@ -6,7 +6,7 @@ type: Opaque
 data:
   rdsPassword: cGFzc3dvcmRvcnNvbWV0aGluZw==
 ---
-apiVersion: aws.project-conductor.io/v1alpha1
+apiVersion: aws.conductor.io/v1alpha1
 kind: RDS
 metadata:
   labels:

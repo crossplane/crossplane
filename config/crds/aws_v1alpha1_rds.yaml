@@ -4,9 +4,9 @@ metadata:
   creationTimestamp: null
   labels:
     controller-tools.k8s.io: "1.0"
-  name: rdss.aws.project-conductor.io
+  name: rdss.aws.conductor.io
 spec:
-  group: aws.project-conductor.io
+  group: aws.conductor.io
   names:
     kind: RDS
     plural: rdss

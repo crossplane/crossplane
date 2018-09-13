@@ -1,5 +1,5 @@
 apiVersion: apps/v1
-kind: StatefulSet
+kind: Deployment
 metadata:
   name: controller-manager
   namespace: system
@@ -8,7 +8,7 @@ spec:
     spec:
       containers:
       # Change the value of image field below to your controller image URL
-      - image: upbound/project-conductor:latest
+      - image: upbound/conductor:latest
         name: manager
       imagePullSecrets:
         - name: regcred

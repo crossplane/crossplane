@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Project Conductor Authors.
+Copyright 2018 The Conductor Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,13 +20,16 @@ import (
 	"testing"
 	"time"
 
+	"net/http"
+
 	"github.com/onsi/gomega"
-	gcpv1alpha1 "github.com/upbound/project-conductor/pkg/apis/gcp/v1alpha1"
+	gcpv1alpha1 "github.com/upbound/conductor/pkg/apis/gcp/v1alpha1"
 	"golang.org/x/net/context"
 	appsv1 "k8s.io/api/apps/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -43,14 +46,16 @@ func TestReconcile(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	instance := &gcpv1alpha1.CloudSql{ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "default"}}
 
+	clientset := fake.NewSimpleClientset()
+	hc := &http.Client{}
+
 	// Setup the Manager and Controller.  Wrap the Controller Reconcile function so it writes each request to a
 	// channel when it is finished.
 	mgr, err := manager.New(cfg, manager.Options{})
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 	c = mgr.GetClient()
 
-	reconciler, err := newReconciler(mgr)
-	g.Expect(err).NotTo(gomega.HaveOccurred())
+	reconciler := newReconciler(mgr, clientset, hc)
 
 	recFn, requests := SetupTestReconcile(reconciler)
 	g.Expect(add(mgr, recFn)).NotTo(gomega.HaveOccurred())

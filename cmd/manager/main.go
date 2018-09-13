@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Project Conductor Authors.
+Copyright 2018 The Conductor Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,9 +19,8 @@ package main
 import (
 	"log"
 
-	"github.com/upbound/project-conductor/pkg/apis"
-	"github.com/upbound/project-conductor/pkg/controller"
-	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	"github.com/upbound/conductor/pkg/apis"
+	"github.com/upbound/conductor/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/runtime/signals"

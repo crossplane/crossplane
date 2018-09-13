@@ -4,9 +4,9 @@ metadata:
   creationTimestamp: null
   labels:
     controller-tools.k8s.io: "1.0"
-  name: cloudsqls.gcp.project-conductor.io
+  name: cloudsqls.gcp.conductor.io
 spec:
-  group: gcp.project-conductor.io
+  group: gcp.conductor.io
   names:
     kind: CloudSql
     plural: cloudsqls

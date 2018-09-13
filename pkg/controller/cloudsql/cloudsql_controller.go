@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Project Conductor Authors.
+Copyright 2018 The Conductor Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,8 +23,9 @@ import (
 	"net/http"
 	"time"
 
-	gcpv1alpha1 "github.com/upbound/project-conductor/pkg/apis/gcp/v1alpha1"
-	"github.com/upbound/project-conductor/pkg/clients"
+	gcpv1alpha1 "github.com/upbound/conductor/pkg/apis/gcp/v1alpha1"
+	gcpclients "github.com/upbound/conductor/pkg/clients/gcp"
+	k8sclients "github.com/upbound/conductor/pkg/clients/kubernetes"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/sqladmin/v1beta4"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -45,34 +46,28 @@ import (
 
 // Add creates a new CloudSql Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
-// USER ACTION REQUIRED: update cmd/manager/main.go to call this gcp.Add(mgr) to install this Controller
 func Add(mgr manager.Manager) error {
-	r, err := newReconciler(mgr)
+	clientset, err := k8sclients.GetClientset()
 	if err != nil {
 		return err
 	}
 
-	return add(mgr, r)
+	hc, err := google.DefaultClient(context.Background(), sqladmin.SqlserviceAdminScope)
+	if err != nil {
+		return err
+	}
+
+	return add(mgr, newReconciler(mgr, clientset, hc))
 }
 
 // newReconciler returns a new reconcile.Reconciler
-func newReconciler(mgr manager.Manager) (reconcile.Reconciler, error) {
-	clientset, err := clients.GetClientset()
-	if err != nil {
-		return nil, err
-	}
-
-	hc, err := google.DefaultClient(context.Background(), sqladmin.SqlserviceAdminScope)
-	if err != nil {
-		return nil, err
-	}
-
+func newReconciler(mgr manager.Manager, clientset kubernetes.Interface, hc *http.Client) reconcile.Reconciler {
 	return &ReconcileCloudSql{
 		Client:        mgr.GetClient(),
 		Clientset:     clientset,
 		gcpHTTPClient: hc,
 		scheme:        mgr.GetScheme(),
-	}, nil
+	}
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
@@ -109,7 +104,7 @@ type ReconcileCloudSql struct {
 // a Deployment as an example
 // Automatically generate RBAC rules to allow the Controller to read and write Deployments
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=gcp.project-conductor.io,resources=cloudsqls,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=gcp.conductor.io,resources=cloudsqls,verbs=get;list;watch;create;update;patch;delete
 func (r *ReconcileCloudSql) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	// Fetch the CloudSql instance
 	instance := &gcpv1alpha1.CloudSql{}
@@ -152,7 +147,7 @@ func (r *ReconcileCloudSql) Reconcile(request reconcile.Request) (reconcile.Resu
 		// cloud sql instance is already created and the CRD status is in agreement
 		log.Printf("cloud sql instance %s already exists and matches CRD, ID %s", instance.Name, instance.Status.ProviderID)
 		return reconcile.Result{}, nil
-	} else if err != nil && !clients.IsGoogleAPINotFound(err) {
+	} else if err != nil && !gcpclients.IsNotFound(err) {
 		err = fmt.Errorf("failed to get cloud sql instance %s: %+v", instance.Name, err)
 		log.Printf("%+v", err)
 		return reconcile.Result{}, err

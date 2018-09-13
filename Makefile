@@ -1,6 +1,6 @@
 
 # Image URL to use all building/pushing image targets
-IMG ?= upbound/project-conductor:latest
+IMG ?= upbound/conductor:latest
 
 all: test manager
 
@@ -9,8 +9,8 @@ test: generate fmt vet manifests
 	go test ./pkg/... ./cmd/... -coverprofile cover.out
 
 # Build manager binary
-manager: generate fmt vet
-	go build -o bin/manager github.com/upbound/project-conductor/cmd/manager
+build: generate fmt vet
+	go build -o bin/manager github.com/upbound/conductor/cmd/manager
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
 run: generate fmt vet
@@ -25,6 +25,7 @@ deploy: manifests
 	kubectl apply -f config/crds
 	kustomize build config/default | kubectl apply -f -
 
+# Clean up all deployed resources (tear-down)
 clean-deploy: manifests
 	-kubectl delete -f config/samples
 	-kustomize build config/default | kubectl delete -f -
