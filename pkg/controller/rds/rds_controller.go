@@ -45,9 +45,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
-	"github.com/aws/aws-sdk-go-v2/service/ec2/ec2iface"
 	"github.com/aws/aws-sdk-go-v2/service/rds"
-	"github.com/aws/aws-sdk-go-v2/service/rds/rdsiface"
 	awsv1alpha1 "github.com/upbound/conductor/pkg/apis/aws/v1alpha1"
 	awsclients "github.com/upbound/conductor/pkg/clients/aws"
 	k8sclients "github.com/upbound/conductor/pkg/clients/kubernetes"
@@ -71,18 +69,18 @@ func Add(mgr manager.Manager) error {
 		return err
 	}
 
-	ec2client, err := awsclients.EC2ClientFromClientset(clientset)
+	ec2client, err := awsclients.NewEC2ClientFromClientset(clientset)
 	if err != nil {
 		return err
 	}
 
-	rdsClient := rds.New(ec2client.Config)
+	rdsClient := awsclients.NewRDSClient(rds.New(ec2client.Config))
 
 	return add(mgr, newReconciler(mgr, clientset, ec2client, rdsClient))
 }
 
 // newReconciler returns a new reconcile.Reconciler
-func newReconciler(mgr manager.Manager, clientset kubernetes.Interface, ec2client ec2iface.EC2API, rdsClient rdsiface.RDSAPI) reconcile.Reconciler {
+func newReconciler(mgr manager.Manager, clientset kubernetes.Interface, ec2client awsclients.EC2API, rdsClient awsclients.RDSAPI) reconcile.Reconciler {
 	return &ReconcileRDS{
 		Client:    mgr.GetClient(),
 		Clientset: clientset,
@@ -116,8 +114,8 @@ var _ reconcile.Reconciler = &ReconcileRDS{}
 type ReconcileRDS struct {
 	client.Client
 	Clientset kubernetes.Interface
-	EC2       ec2iface.EC2API
-	RDS       rdsiface.RDSAPI
+	EC2       awsclients.EC2API
+	RDS       awsclients.RDSAPI
 	scheme    *runtime.Scheme
 }
 
@@ -143,9 +141,8 @@ func (r *ReconcileRDS) Reconcile(request reconcile.Request) (reconcile.Result, e
 
 	// search for the RDS instance in AWS
 	log.Printf("Trying to find db instance %v\n", instance.Name)
-	k := &rds.DescribeDBInstancesInput{DBInstanceIdentifier: aws.String(instance.Name)}
-	res := r.RDS.DescribeDBInstancesRequest(k)
-	_, err = res.Send()
+	describeInput := &rds.DescribeDBInstancesInput{DBInstanceIdentifier: aws.String(instance.Name)}
+	_, err = r.RDS.DescribeDBInstances(describeInput)
 	if err != nil && strings.Contains(err.Error(), rds.ErrCodeDBInstanceNotFoundFault) {
 		// seems like we didn't find a database with this name, let's create one
 		log.Printf("DB instance %v not found, will try to create it now...", instance.Name)
@@ -185,8 +182,7 @@ func (r *ReconcileRDS) Reconcile(request reconcile.Request) (reconcile.Result, e
 
 		// make the call to create the RDS instance in AWS
 		log.Printf("creating DB with request: %+v", input)
-		res := r.RDS.CreateDBInstanceRequest(input)
-		_, err = res.Send()
+		_, err = r.RDS.CreateDBInstance(input)
 		if err != nil {
 			err = fmt.Errorf("failed call to CreateDBInstance for db instance %s: %+v", instance.Name, err)
 			log.Printf("%+v", err)
@@ -204,7 +200,7 @@ func (r *ReconcileRDS) Reconcile(request reconcile.Request) (reconcile.Result, e
 	// wait until the RDS instance is available, this could take a long time if we just created it
 	log.Printf("Waiting for db instance %s to become available", instance.Name)
 	time.Sleep(250 * time.Millisecond)
-	err = r.RDS.WaitUntilDBInstanceAvailable(k)
+	err = r.RDS.WaitUntilDBInstanceAvailable(describeInput)
 	if err != nil {
 		err = fmt.Errorf("something went wrong in WaitUntilDBInstanceAvailable for db instance %s: %v", instance.Name, err)
 		log.Printf("%+v", err)
@@ -241,15 +237,13 @@ func (r *ReconcileRDS) ensureSubnets(db *awsv1alpha1.RDS, subnets []string) (str
 	if len(subnets) == 0 {
 		return "", fmt.Errorf("Error: unable to continue due to lack of subnets, perhaps we couldn't lookup the subnets")
 	}
+
 	subnetDescription := "subnet for " + db.Name + " in namespace " + db.Namespace
 	subnetName := db.Name + "-subnet"
 
-	svc := r.RDS
-
-	sf := &rds.DescribeDBSecurityGroupsInput{DBSecurityGroupName: aws.String(subnetName)}
-	log.Printf("DescribeDBSecurityGroupsRequest for %+v", sf)
-	res := svc.DescribeDBSecurityGroupsRequest(sf)
-	_, err := res.Send()
+	input := &rds.DescribeDBSecurityGroupsInput{DBSecurityGroupName: aws.String(subnetName)}
+	log.Printf("DescribeDBSecurityGroups for %+v", input)
+	_, err := r.RDS.DescribeDBSecurityGroups(input)
 	if err != nil {
 		// assume we didn't find it..
 		subnet := &rds.CreateDBSubnetGroupInput{
@@ -258,8 +252,7 @@ func (r *ReconcileRDS) ensureSubnets(db *awsv1alpha1.RDS, subnets []string) (str
 			SubnetIds:                subnets,
 			Tags:                     []rds.Tag{{Key: aws.String("DBName"), Value: aws.String(db.Name)}},
 		}
-		res := svc.CreateDBSubnetGroupRequest(subnet)
-		_, err := res.Send()
+		_, err := r.RDS.CreateDBSubnetGroup(subnet)
 		if err != nil && !strings.Contains(err.Error(), rds.ErrCodeDBSubnetGroupAlreadyExistsFault) {
 			return "", fmt.Errorf("failed call to CreateDBSubnetGroup: %+v", err)
 		}
@@ -291,8 +284,7 @@ func (r *ReconcileRDS) getSubnets(public bool) ([]string, error) {
 		}
 		log.Printf("Found VPC %v will search for subnet in that VPC\n", *vpcID)
 
-		res := r.EC2.DescribeSubnetsRequest(&ec2.DescribeSubnetsInput{Filters: []ec2.Filter{{Name: aws.String("vpc-id"), Values: []string{*vpcID}}}})
-		subnets, err := res.Send()
+		subnets, err := r.EC2.DescribeSubnets(&ec2.DescribeSubnetsInput{Filters: []ec2.Filter{{Name: aws.String("vpc-id"), Values: []string{*vpcID}}}})
 		if err != nil {
 			return nil, fmt.Errorf("unable to describe subnet in VPC %v: %+v", *vpcID, err)
 		}
@@ -363,8 +355,7 @@ func (r *ReconcileRDS) describeInstances(name string) (*ec2.DescribeInstancesOut
 		},
 	}
 	log.Printf("trying to describe instance-id %s", name)
-	req := r.EC2.DescribeInstancesRequest(params)
-	res, err := req.Send()
+	res, err := r.EC2.DescribeInstances(params)
 	if err != nil {
 		return nil, fmt.Errorf("unable to describe AWS instance %+v: %+v", params, err)
 	}
@@ -376,9 +367,8 @@ func (r *ReconcileRDS) describeInstances(name string) (*ec2.DescribeInstancesOut
 }
 
 func (r *ReconcileRDS) getCreatedRDSInstance(name string) (*rds.DBInstance, error) {
-	k := &rds.DescribeDBInstancesInput{DBInstanceIdentifier: aws.String(name)}
-	res := r.RDS.DescribeDBInstancesRequest(k)
-	instance, err := res.Send()
+	input := &rds.DescribeDBInstancesInput{DBInstanceIdentifier: aws.String(name)}
+	instance, err := r.RDS.DescribeDBInstances(input)
 	if err != nil {
 		return nil, fmt.Errorf("wasn't able to describe the db instance with id %s. err: %+v", name, err)
 	}

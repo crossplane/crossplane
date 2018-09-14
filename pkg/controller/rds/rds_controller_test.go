@@ -20,13 +20,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/service/ec2/ec2iface"
-	"github.com/aws/aws-sdk-go-v2/service/rds/rdsiface"
+	"github.com/aws/aws-sdk-go-v2/service/rds"
 	"github.com/onsi/gomega"
 	awsv1alpha1 "github.com/upbound/conductor/pkg/apis/aws/v1alpha1"
+	awsclients "github.com/upbound/conductor/pkg/clients/aws"
 	"golang.org/x/net/context"
-	appsv1 "k8s.io/api/apps/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/fake"
@@ -38,16 +36,34 @@ import (
 var c client.Client
 
 var expectedRequest = reconcile.Request{NamespacedName: types.NamespacedName{Name: "foo", Namespace: "default"}}
-var depKey = types.NamespacedName{Name: "foo-deployment", Namespace: "default"}
 
 const timeout = time.Second * 5
 
 type mockEC2Client struct {
-	ec2iface.EC2API
+	awsclients.EC2API
 }
 
 type mockRDSClient struct {
-	rdsiface.RDSAPI
+	awsclients.RDSAPI
+}
+
+func (m *mockRDSClient) DescribeDBInstances(input *rds.DescribeDBInstancesInput) (*rds.DescribeDBInstancesOutput, error) {
+	id := *input.DBInstanceIdentifier
+	arn := "fooARN"
+	status := "created"
+	return &rds.DescribeDBInstancesOutput{
+		DBInstances: []rds.DBInstance{
+			{
+				DBInstanceIdentifier: &id,
+				DBInstanceArn:        &arn,
+				DBInstanceStatus:     &status,
+			},
+		},
+	}, nil
+}
+
+func (m *mockRDSClient) WaitUntilDBInstanceAvailable(input *rds.DescribeDBInstancesInput) error {
+	return nil
 }
 
 func TestReconcile(t *testing.T) {
@@ -70,29 +86,22 @@ func TestReconcile(t *testing.T) {
 	g.Expect(add(mgr, recFn)).NotTo(gomega.HaveOccurred())
 	defer close(StartTestManager(mgr, g))
 
-	// Create the RDS object and expect the Reconcile and Deployment to be created
+	// Create the RDS object, defer its clean up, and wait for the Reconcile to run
 	err = c.Create(context.TODO(), instance)
-	// The instance object may not be a valid object because it might be missing some required fields.
-	// Please modify the instance object by adding required fields and then remove the following if statement.
-	if apierrors.IsInvalid(err) {
-		t.Logf("failed to create object, got an invalid object error: %v", err)
-		return
-	}
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 	defer c.Delete(context.TODO(), instance)
 	g.Eventually(requests, timeout).Should(gomega.Receive(gomega.Equal(expectedRequest)))
 
-	deploy := &appsv1.Deployment{}
-	g.Eventually(func() error { return c.Get(context.TODO(), depKey, deploy) }, timeout).
-		Should(gomega.Succeed())
-
-	// Delete the Deployment and expect Reconcile to be called for Deployment deletion
-	g.Expect(c.Delete(context.TODO(), deploy)).NotTo(gomega.HaveOccurred())
+	// wait on a 2nd reconcile request that is caused by the first reconcile updating the CRD status
 	g.Eventually(requests, timeout).Should(gomega.Receive(gomega.Equal(expectedRequest)))
-	g.Eventually(func() error { return c.Get(context.TODO(), depKey, deploy) }, timeout).
-		Should(gomega.Succeed())
 
-	// Manually delete Deployment since GC isn't enabled in the test control plane
-	g.Expect(c.Delete(context.TODO(), deploy)).To(gomega.Succeed())
-
+	// verify that the CRD status was updated with details about the external RDS instance
+	updatedInstance := &awsv1alpha1.RDS{}
+	c.Get(context.TODO(), expectedRequest.NamespacedName, updatedInstance)
+	expectedStatus := awsv1alpha1.RDSStatus{
+		Message:    "RDS instance foo exists: [foo, fooARN]",
+		State:      "created",
+		ProviderID: "fooARN",
+	}
+	g.Expect(updatedInstance.Status).To(gomega.Equal(expectedStatus))
 }

@@ -24,21 +24,24 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws/external"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/pkg/errors"
-	k8sclients "github.com/upbound/conductor/pkg/clients/kubernetes"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
-func EC2Client() (*ec2.EC2, error) {
-	clientset, err := k8sclients.GetClientset()
-	if err != nil {
-		return nil, err
-	}
-
-	return EC2ClientFromClientset(clientset)
+type EC2API interface {
+	DescribeSubnets(*ec2.DescribeSubnetsInput) (*ec2.DescribeSubnetsOutput, error)
+	DescribeInstances(*ec2.DescribeInstancesInput) (*ec2.DescribeInstancesOutput, error)
 }
 
-func EC2ClientFromClientset(clientset kubernetes.Interface) (*ec2.EC2, error) {
+type EC2Client struct {
+	*ec2.EC2
+}
+
+func NewEC2Client(ec2Client *ec2.EC2) *EC2Client {
+	return &EC2Client{ec2Client}
+}
+
+func NewEC2ClientFromClientset(clientset kubernetes.Interface) (*EC2Client, error) {
 	log.Printf("getting ec2 client from clientset...")
 
 	nodes, err := clientset.Core().Nodes().List(metav1.ListOptions{})
@@ -65,5 +68,13 @@ func EC2ClientFromClientset(clientset kubernetes.Interface) (*ec2.EC2, error) {
 	// Set the AWS Region that the service clients should use
 	cfg.Region = region
 	cfg.HTTPClient.Timeout = 5 * time.Second
-	return ec2.New(cfg), nil
+	return NewEC2Client(ec2.New(cfg)), nil
+}
+
+func (e *EC2Client) DescribeSubnets(input *ec2.DescribeSubnetsInput) (*ec2.DescribeSubnetsOutput, error) {
+	return e.DescribeSubnetsRequest(input).Send()
+}
+
+func (e *EC2Client) DescribeInstances(input *ec2.DescribeInstancesInput) (*ec2.DescribeInstancesOutput, error) {
+	return e.DescribeInstancesRequest(input).Send()
 }
