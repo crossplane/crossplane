@@ -1,0 +1,11 @@
+replicas: 1
+
+deploymentStrategy: RollingUpdate
+
+image:
+  repository: upbound/conductor
+  tag: %%VERSION%%
+  pullPolicy: Always
+
+imagePullSecrets:
+- dockerhub
