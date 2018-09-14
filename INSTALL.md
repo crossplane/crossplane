@@ -22,7 +22,13 @@ The following tools are need on the host:
 
 ## Build
 
-You can build the Conductor binaries and all container images for the host platform by simply running the
+First ensure that you have the build submodule synced and updated:
+
+```
+git submodule sync && git submodule update --init --recursive
+```
+
+You can then build the Conductor binaries and all container images for the host platform by simply running the
 command below. Building in parallel with the `-j` option is recommended.
 
 ```

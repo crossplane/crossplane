@@ -16,55 +16,58 @@ quickly spin up a Kubernetes cluster.The Local framework is designed to install 
 
 ### Install Kubernetes
 You can choose any Kubernetes flavor of your choice.  The test framework only depends on kubectl being configured.
-The framework also provides scripts to install Kubernetes. There are two scripts to start the cluster:
-- **Minikube** (recommended for MacOS): Run [minikube.sh](/build/local/minikube.sh) to setup a single-node Minikube Kubernetes.
-    - Minikube v0.28.2 and higher is supported. Older minikube versions do not have cephfs or rbd tools installed.ster using kubeadm
+The framework also provides scripts to install Kubernetes.
+
+- **Minikube** (recommended for MacOS): Run [minikube.sh](./minikube.sh) to setup a single-node Minikube Kubernetes.
+  - Minikube v0.28.2 and higher is supported
 
 #### Minikube (recommended for MacOS)
 Starting the cluster on Minikube is as simple as running:
 ```console
-build/local/minikube.sh up
+cluster/local/minikube.sh up
 ```
 
 To copy Conductor image generated from your local build into the Minikube VM, run the following commands after `minikube.sh up` succeeded:
 ```
-build/local/minikube.sh helm-install
+cluster/local/minikube.sh helm-install
 ```
 
 Stopping the cluster and destroying the Minikube VM can be done with:
 ```console
-build/local/minikube.sh clean
+cluster/local/minikube.sh clean
 ```
 
 For complete list of subcommands supported by `minikube.sh`, run:
 ```console
-buld/local/minikube.sh
+cluster/local/minikube.sh
 ```
 
 ## Run Tests
 From the project root do the following:
 #### 1. Build conductor:
-Run `make build`
+```
+make build
+```
 
 #### 2. Start Kubernetes
 ```
-build/local/minikube.sh up
+cluster/local/minikube.sh up
 ```
 
 #### 3. Install Conductor
 ```
-build/local/minikube.sh helm-install
+cluster/local/minikube.sh helm-install
 ```
 
 #### 4. Interact with Conductor
-Create and/or delete external resources CRD's
+Use `kubectl` to create and/or delete external resources CRD's in your Minikube cluster
 
 #### 5. Uninstall Conductor
 ```
-build/local/minikube.sh helm-delete
+cluster/local/minikube.sh helm-delete
 ```  
 
 #### 6. Stop Kubernetes
 ```
-build/local/minikube.sh down
+cluster/local/minikube.sh down
 ```
