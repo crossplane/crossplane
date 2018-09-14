@@ -6,6 +6,12 @@ pipeline {
         timestamps()
     }
 
+    environment {
+        DOCKER = credentials('dockerhub-upboundci')
+        AWS = credentials('aws-upbound-bot')
+        GITHUB_UPBOUND_BOT = credentials('github-upbound-jenkins')
+    }
+
     stages {
 
         stage('Prepare') {
@@ -34,12 +40,6 @@ pipeline {
         }
 
         stage('Publish') {
-
-            environment {
-                DOCKER = credentials('dockerhub-upboundci')
-                AWS = credentials('aws-upbound-bot')
-                GITHUB_UPBOUND_BOT = credentials('github-upbound-jenkins')
-            }
 
             steps {
                 sh 'docker login -u="${DOCKER_USR}" -p="${DOCKER_PSW}"'
