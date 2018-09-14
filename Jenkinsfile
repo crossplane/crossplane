@@ -59,15 +59,6 @@ pipeline {
             }
         }
 
-        stage('Deploy') {
-            when {
-                branch 'master'
-            }
-
-            steps {
-                build job: 'upbound/cloud/dev/master', parameters: [string(name: 'action', value: 'up')], quietPeriod: 30
-            }
-        }
     }
 
     post {
