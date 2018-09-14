@@ -55,6 +55,10 @@ This is a rough outline of what a contributor's workflow looks like:
 - Make sure all tests pass, and add any new tests as appropriate.
 - Submit a pull request to the original repository.
 
+## Building
+
+Details about building conductor can be found in [INSTALL.md](INSTALL.md).
+
 ## Coding Style
 
 Conductor projects are written in golang and follows the style guidelines dictated by
@@ -170,4 +174,7 @@ To verify that new artifacts run:
 ```bash
 make build test
 ```
-To locally test new types/controllers please refer to [Local Build](/cluster/local/README.md) instructions.
+
+## Local Build and Test
+
+To learn more about the developer iteration workflow, including how to locally test new types/controllers, please refer to the [Local Build](cluster/local/README.md) instructions.

@@ -36,7 +36,7 @@ Name | Details | API Group | Status
 ### Official Releases
 
 Official releases of Conductor can be found on the [releases page](https://github.com/upbound/conductor/releases).
-Please note that it is **strongly recommended** that you use [official releases](https://github.com/upbound/concuctor/releases) of Conductor, as unreleased versions from the master branch are subject to changes and incompatibilities that will not be supported in the official releases.
+Please note that it is **strongly recommended** that you use [official releases](https://github.com/upbound/conductor/releases) of Conductor, as unreleased versions from the master branch are subject to changes and incompatibilities that will not be supported in the official releases.
 Builds from the master branch can have functionality changed and even removed at any time without compatibility support and without prior notice.
 
 ## Licensing
