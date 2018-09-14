@@ -3,17 +3,16 @@
 set -e
 
 scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
 # shellcheck disable=SC1090
 projectdir="${scriptdir}/../.."
 
-source "${projectdir}/build/common.sh"
+# get the build environment variables from the special build.vars target in the main makefile
+eval $(make --no-print-directory -C ${scriptdir}/../.. build.vars)
 
-PROJECT_NAME='conductor'
-BUILD_REGISTRY=${BUILD_REGISTRY:-upbound}
 BUILD_IMAGE="${BUILD_REGISTRY}/${PROJECT_NAME}-amd64"
 MINIKUBE_IMAGE="upbound/${PROJECT_NAME}:master"
 DEFAULT_NAMESPACE="conductor-system"
-
 
 function wait_for_ssh() {
     local tries=100
