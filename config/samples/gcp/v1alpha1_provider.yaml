@@ -1,0 +1,13 @@
+apiVersion: gcp.conductor.io/v1alpha1
+kind: Provider
+metadata:
+  name: provider-sample
+spec:
+  credentialsSecretRef:
+    name: secret-name
+    key: credentials.json
+  projectID: my-google-project
+  permissions:
+  - container.clusters.create
+  - container.clusters.delete
+  - container.clusters.get
