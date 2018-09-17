@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -25,14 +26,24 @@ import (
 
 // RDSInstanceSpec defines the desired state of RDSInstance
 type RDSInstanceSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	MasterUsername        string               `json:"masterUsername"`
+	MasterPassword        v1.SecretKeySelector `json:"masterPasswordSecretRef"`
+	Engine                string               `json:"engine"` // "postgres"
+	Class                 string               `json:"class"`  // like "db.t2.micro"
+	Size                  int64                `json:"size"`   // size in gb
+	MultiAZ               bool                 `json:"multiaz,omitempty"`
+	PubliclyAccessible    bool                 `json:"publicaccess,omitempty"`
+	StorageEncrypted      bool                 `json:"encrypted,omitempty"`
+	StorageType           string               `json:"storagetype,omitempty"`
+	Iops                  int64                `json:"iops,omitempty"`
+	BackupRetentionPeriod int64                `json:"backupretentionperiod,omitempty"` // between 0 and 35, zero means disable
 }
 
 // RDSInstanceStatus defines the observed state of RDSInstance
 type RDSInstanceStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	State      string `json:"state,omitempty"`
+	Message    string `json:"message,omitempty"`
+	ProviderID string `json:"providerID,omitempty"` // the external ID to identify this resource in the cloud provider
 }
 
 // +genclient

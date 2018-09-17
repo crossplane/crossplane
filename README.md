@@ -30,8 +30,10 @@ More details about API versioning and status in Kubernetes can be found on the K
 * **Stable:** Features will appear in released software for many subsequent versions and support for upgrading between versions will be provided with software automation in the vast majority of scenarios.
 
 
-Name | Details | API Group | Status
------|---------|-----------|-------
+| Name | Details | API Group | Status |
+| ----- | --------- | ----------- | -------- |
+| AWS Database | Database storage services in AWS | database.aws.conductor.io/v1alpha1 | Alpha |
+| GCP Database | Database storage services in GCP | database.gcp.conductor.io/v1alpha1 | Alpha |
 
 ### Official Releases
 

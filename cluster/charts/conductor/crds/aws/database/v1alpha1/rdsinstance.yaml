@@ -20,8 +20,47 @@ spec:
         metadata:
           type: object
         spec:
+          properties:
+            backupretentionperiod:
+              format: int64
+              type: integer
+            class:
+              type: string
+            encrypted:
+              type: boolean
+            engine:
+              type: string
+            iops:
+              format: int64
+              type: integer
+            masterPasswordSecretRef:
+              type: object
+            masterUsername:
+              type: string
+            multiaz:
+              type: boolean
+            publicaccess:
+              type: boolean
+            size:
+              format: int64
+              type: integer
+            storagetype:
+              type: string
+          required:
+          - masterUsername
+          - masterPasswordSecretRef
+          - engine
+          - class
+          - size
           type: object
         status:
+          properties:
+            message:
+              type: string
+            providerID:
+              type: string
+            state:
+              type: string
           type: object
   version: v1alpha1
 status:

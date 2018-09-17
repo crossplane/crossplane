@@ -9,29 +9,19 @@ metadata:
     heritage: {{ .Release.Service }}
 rules:
 - apiGroups:
-  - apps
+  - ""
   resources:
-  - deployments
+  - nodes
   verbs:
   - get
   - list
   - watch
-  - create
-  - update
-  - patch
-  - delete
 - apiGroups:
-  - rds.aws.conductor.io
+  - ""
   resources:
-  - instances
+  - secrets
   verbs:
   - get
-  - list
-  - watch
-  - create
-  - update
-  - patch
-  - delete
 - apiGroups:
   - apps
   resources:
@@ -45,14 +35,14 @@ rules:
   - patch
   - delete
 - apiGroups:
-  - cloudsql.gcp.conductor.io
+  - database.aws.conductor.io
   resources:
-  - instances
+  - "*"
   verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - patch
-  - delete
+  - "*"
+- apiGroups:
+  - database.gcp.conductor.io
+  resources:
+  - "*"
+  verbs:
+  - "*"

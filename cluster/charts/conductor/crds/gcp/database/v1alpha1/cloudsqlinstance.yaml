@@ -21,8 +21,32 @@ spec:
         metadata:
           type: object
         spec:
+          properties:
+            databaseVersion:
+              type: string
+            projectID:
+              type: string
+            region:
+              type: string
+            storageType:
+              type: string
+            tier:
+              type: string
+          required:
+          - projectID
+          - tier
+          - region
+          - databaseVersion
+          - storageType
           type: object
         status:
+          properties:
+            message:
+              type: string
+            providerID:
+              type: string
+            state:
+              type: string
           type: object
   version: v1alpha1
 status:
