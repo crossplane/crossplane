@@ -18,11 +18,13 @@ package gcp
 
 import (
 	"github.com/upbound/conductor/pkg/controller/gcp/database"
+	"github.com/upbound/conductor/pkg/controller/gcp/provider"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
 func init() {
 	// AddToManagerFuncs is a list of functions to create controllers and add them to a manager.
+	AddToManagerFuncs = append(AddToManagerFuncs, provider.Add)
 	AddToManagerFuncs = append(AddToManagerFuncs, database.AddCloudsqlInstance)
 }
 

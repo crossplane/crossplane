@@ -22,11 +22,13 @@ package gcp
 
 import (
 	databasev1alpha1 "github.com/upbound/conductor/pkg/apis/gcp/database/v1alpha1"
+	"github.com/upbound/conductor/pkg/apis/gcp/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
 func init() {
 	// Register the types with the Scheme so the components can map objects to GroupVersionKinds and back
+	AddToSchemes = append(AddToSchemes, v1alpha1.SchemeBuilder.AddToScheme)
 	AddToSchemes = append(AddToSchemes, databasev1alpha1.SchemeBuilder.AddToScheme)
 }
 
