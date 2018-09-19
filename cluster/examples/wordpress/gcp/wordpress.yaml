@@ -1,0 +1,143 @@
+---
+# GCP Admin service account secret - used to provision GCP resources
+apiVersion: v1
+kind: Secret
+metadata:
+  name: gcp-provider-creds
+  namespace: demo
+type: Opaque
+data:
+  credentials.json: base64encrytpeddata
+---
+# GCP SQL user service account - used by application cloudsql-proxy side car
+# - list cloudsql intances
+# - connect to a cloudsql instance
+apiVersion: v1
+kind: Secret
+metadata:
+  name: gcp-sql-creds
+  namespace: demo
+type: Opaque
+data:
+  credentials.json: base64encrytpeddata
+---
+# Database credentials - used by cloudsql provider to bootstrap database instance
+#  and by the application to establish connection
+apiVersion: v1
+kind: Secret
+metadata:
+  name: database-credentials
+  namespace: demo
+type: Opaque
+data:
+  username: base64encrytpeddata
+  password: base64encrytpeddata
+---
+apiVersion: gcp.conductor.io/v1alpha1
+kind: Provider
+metadata:
+  name: gcp-provider
+spec:
+  credentialsSecretRef:
+    name: gcp-provider-creds
+    key: credentials.json
+  projectID: demo-google-project
+  permissions:
+  # blank permission means - no validation (on permissions)
+---
+apiVersion: database.gcp.conductor.io/v1alpha1
+kind: CloudsqlInstance
+metadata:
+  labels:
+  name: cloudsql-demo-20049 # TODO: is this instance the same as instance name?
+spec:
+  # somewhere here we need gcp-provider-reference
+  projectID: demo-google-project # TODO: same as in Provider
+  tier: db-n1-standard-1
+  region: us-west2
+  databaseVersion: MYSQL_5_7
+  storageType: PD_SSD
+  databaseName: demo-database ## TODO: do we support this?
+  databaseSecretName: demo-database-connection # Secret created by ClousqlInstance controller
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: demo-dabase-connection # Created as a result of ClousqlInstance processing
+  namespace: demo
+type: Opaque
+data:
+  name: demo-database # <--- database name
+  username: base64encrytpeddata # <-- comes from the `database-credentials`
+  password: base64encrytpeddata # <-- same as above
+  instance: demo-google-project:us-west2:cloudsql-demo20049 # <-- generated (suffix part)
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: wordpress
+  labels:
+    app: wordpress
+spec:
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: wordpress
+        tier: frontend
+    spec:
+      containers:
+      - name: cloudsql-proxy
+        image: gcr.io/cloudsql-docker/gce-proxy:1.11
+        command: ["/cloud_sql_proxy"]
+        env:
+        - name: INSTANCE
+          valueFrom:
+            secretKeyRef:
+              name: demo-database-connection
+              key: instance
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /secrets/cloudsql/credentials.json
+      - name: wordpress
+        image: wordpress:4.6.1-apache
+        env:
+        # managed posgresql environment variables
+        - name: WORDPRESS_DB_HOST
+          value: 127.0.0.1  # cloudsql-proxy sidecar
+        - name: WORDPRESS_DB_NAME
+          valueFrom:
+            secretKeyRef:
+              name: demo-database-connection
+              key: name
+        - name: WORDPRESS_DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: demo-database-connection
+              key: username
+        - name: WORDPRESS_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: demo-database-connection
+              key: password
+        ports:
+        - containerPort: 80
+          name: wordpress
+      volumes:
+      - name: cloudsql-instance-credentials
+        secret:
+          secretName: gcp-sql-creds
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wordpress
+  labels:
+    app: wordpress
+spec:
+  ports:
+  - port: 80
+  selector:
+    app: wordpress
+    tier: frontend
+  type: LoadBalancer
