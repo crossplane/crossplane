@@ -18,57 +18,64 @@ package database
 
 import (
 	"context"
+	"fmt"
 	"log"
-	"reflect"
+	"time"
 
 	databasev1alpha1 "github.com/upbound/conductor/pkg/apis/gcp/database/v1alpha1"
-	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
+	gcpclients "github.com/upbound/conductor/pkg/clients/gcp"
+	"google.golang.org/api/sqladmin/v1beta4"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
-// AddCloudsqlInstance creates a new CloudsqlInstance Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
-// and Start it when the Manager is Started.
-// USER ACTION REQUIRED: update cmd/manager/main.go to call this cloudsql.AddCloudsqlInstance(mgr) to install this Controller
+// AddCloudsqlInstance creates a new CloudsqlInstance Controller and adds it to the Manager with default RBAC.
+// The Manager will set fields on the Controller and Start it when the Manager is Started.
 func AddCloudsqlInstance(mgr manager.Manager) error {
-	return addCloudsqlInstanceReconciler(mgr, newCloudsqlInstanceReconciler(mgr))
+	clientset, err := kubernetes.NewForConfig(mgr.GetConfig())
+	if err != nil {
+		return fmt.Errorf("failed to get clientset: %+v", err)
+	}
+
+	cloudSQLClient, err := gcpclients.NewCloudSQLClient(clientset)
+	if err != nil {
+		return fmt.Errorf("failed to get CloudSQL client: %+v", err)
+	}
+
+	r := newCloudsqlInstanceReconciler(mgr, cloudSQLClient, NewReconcileCloudsqlInstanceOptions())
+	return addCloudsqlInstanceReconciler(mgr, r)
 }
 
 // newCloudsqlInstanceReconciler returns a new reconcile.Reconciler
-func newCloudsqlInstanceReconciler(mgr manager.Manager) reconcile.Reconciler {
-	return &ReconcileCloudsqlInstance{Client: mgr.GetClient(), scheme: mgr.GetScheme()}
+func newCloudsqlInstanceReconciler(mgr manager.Manager, cloudSQLClient gcpclients.CloudSQLAPI,
+	options ReconcileCloudsqlInstanceOptions) reconcile.Reconciler {
+
+	return &ReconcileCloudsqlInstance{
+		Client:         mgr.GetClient(),
+		cloudSQLClient: cloudSQLClient,
+		scheme:         mgr.GetScheme(),
+		options:        options,
+	}
 }
 
 // addCloudsqlInstanceReconciler adds a new Controller to mgr with r as the reconcile.Reconciler
 func addCloudsqlInstanceReconciler(mgr manager.Manager, r reconcile.Reconciler) error {
 	// Create a new controller
-	c, err := controller.New("instance-controller", mgr, controller.Options{Reconciler: r})
+	c, err := controller.New("CloudsqlInstance-controller", mgr, controller.Options{Reconciler: r})
 	if err != nil {
 		return err
 	}
 
 	// Watch for changes to CloudsqlInstance
+	log.Printf("watching for changes to CloudSQL instances...")
 	err = c.Watch(&source.Kind{Type: &databasev1alpha1.CloudsqlInstance{}}, &handler.EnqueueRequestForObject{})
-	if err != nil {
-		return err
-	}
-
-	// TODO(user): Modify this to be the types you create
-	// Uncomment watch a Deployment created by CloudsqlInstance - change this for objects you create
-	err = c.Watch(&source.Kind{Type: &appsv1.Deployment{}}, &handler.EnqueueRequestForOwner{
-		IsController: true,
-		OwnerType:    &databasev1alpha1.CloudsqlInstance{},
-	})
 	if err != nil {
 		return err
 	}
@@ -81,16 +88,27 @@ var _ reconcile.Reconciler = &ReconcileCloudsqlInstance{}
 // ReconcileCloudsqlInstance reconciles a CloudsqlInstance object
 type ReconcileCloudsqlInstance struct {
 	client.Client
-	scheme *runtime.Scheme
+	cloudSQLClient gcpclients.CloudSQLAPI
+	scheme         *runtime.Scheme
+	options        ReconcileCloudsqlInstanceOptions
+}
+
+// ReconcileCloudsqlInstanceOptions represent options to configure the CloudSQL reconciler
+type ReconcileCloudsqlInstanceOptions struct {
+	PostCreateSleepTime time.Duration
+	WaitSleepTime       time.Duration
+}
+
+// NewReconcileCloudsqlInstanceOptions creates a new ReconcileCloudsqlInstanceOptions object with the default options
+func NewReconcileCloudsqlInstanceOptions() ReconcileCloudsqlInstanceOptions {
+	return ReconcileCloudsqlInstanceOptions{
+		PostCreateSleepTime: 5 * time.Second,
+		WaitSleepTime:       20 * time.Second,
+	}
 }
 
 // Reconcile reads that state of the cluster for a CloudsqlInstance object and makes changes based on the state read
 // and what is in the CloudsqlInstance.Spec
-// TODO(user): Modify this Reconcile function to implement your Controller logic.  The scaffolding writes
-// a Deployment as an example
-// Automatically generate RBAC rules to allow the Controller to read and write Deployments
-// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=cloudsql.gcp.conductor.io,resources=instances,verbs=get;list;watch;create;update;patch;delete
 func (r *ReconcileCloudsqlInstance) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	// Fetch the CloudsqlInstance instance
 	instance := &databasev1alpha1.CloudsqlInstance{}
@@ -102,60 +120,103 @@ func (r *ReconcileCloudsqlInstance) Reconcile(request reconcile.Request) (reconc
 			return reconcile.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
+		log.Printf("failed to get object at start of reconcile loop: %+v", err)
 		return reconcile.Result{}, err
 	}
 
-	// TODO(user): Change this to be the object type created by your controller
-	// Define the desired Deployment object
-	deploy := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      instance.Name + "-deployment",
-			Namespace: instance.Namespace,
-		},
-		Spec: appsv1.DeploymentSpec{
-			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{"deployment": instance.Name + "-deployment"},
-			},
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"deployment": instance.Name + "-deployment"}},
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{
-							Name:  "nginx",
-							Image: "nginx",
-						},
-					},
-				},
-			},
-		},
-	}
-	if err := controllerutil.SetControllerReference(instance, deploy, r.scheme); err != nil {
-		return reconcile.Result{}, err
-	}
-
-	// TODO(user): Change this for the object type created by your controller
-	// Check if the Deployment already exists
-	found := &appsv1.Deployment{}
-	err = r.Get(context.TODO(), types.NamespacedName{Name: deploy.Name, Namespace: deploy.Namespace}, found)
-	if err != nil && errors.IsNotFound(err) {
-		log.Printf("Creating Deployment %s/%s\n", deploy.Namespace, deploy.Name)
-		err = r.Create(context.TODO(), deploy)
-		if err != nil {
+	cloudSQLInstance, err := r.cloudSQLClient.GetInstance(instance.Spec.ProjectID, instance.Name)
+	if err != nil {
+		if !gcpclients.IsNotFound(err) {
+			err = fmt.Errorf("failed to get cloud sql instance %s: %+v", instance.Name, err)
+			log.Printf("%+v", err)
 			return reconcile.Result{}, err
 		}
-	} else if err != nil {
-		return reconcile.Result{}, err
-	}
 
-	// TODO(user): Change this for the object type created by your controller
-	// Update the found object and write the result back if there are any changes
-	if !reflect.DeepEqual(deploy.Spec, found.Spec) {
-		found.Spec = deploy.Spec
-		log.Printf("Updating Deployment %s/%s\n", deploy.Namespace, deploy.Name)
-		err = r.Update(context.TODO(), found)
+		// seems like we didn't find a cloud sql instance with this name, let's create one
+		cloudSQLInstance = &sqladmin.DatabaseInstance{
+			Name:            instance.Name,
+			Region:          instance.Spec.Region,
+			DatabaseVersion: instance.Spec.DatabaseVersion,
+			Settings: &sqladmin.Settings{
+				Tier:         instance.Spec.Tier,
+				DataDiskType: instance.Spec.StorageType,
+			},
+		}
+
+		log.Printf("cloud sql instance %s not found, will try to create it now: %+v", instance.Name, cloudSQLInstance)
+		createOp, err := r.cloudSQLClient.CreateInstance(instance.Spec.ProjectID, cloudSQLInstance)
 		if err != nil {
+			err = fmt.Errorf("failed to start create operation for cloud sql instance %s: %+v", instance.Name, err)
+			log.Printf("%+v", err)
 			return reconcile.Result{}, err
 		}
+
+		log.Printf("started create of cloud sql instance %s: %+v", instance.Name, createOp)
+		log.Printf("sleep a bit after creating the cloud sql instance...")
+		time.Sleep(r.options.PostCreateSleepTime)
 	}
-	return reconcile.Result{}, nil
+
+	// wait for the cloud sql instance to be RUNNABLE
+	maxRetries := 50
+	for i := 0; i <= maxRetries; i++ {
+		cloudSQLInstance, err = r.cloudSQLClient.GetInstance(instance.Spec.ProjectID, instance.Name)
+		if err != nil {
+			log.Printf("failed to get cloud sql instance %s, waiting %v: %+v",
+				instance.Name, r.options.WaitSleepTime, err)
+		} else {
+			// cloud sql instance has been created, update the CRD status now
+			if err := r.updateStatus(instance, getStatusMessage(instance, cloudSQLInstance), cloudSQLInstance); err != nil {
+				// updating the CRD status failed, return the error and try the next reconcile loop
+				return reconcile.Result{}, err
+			}
+
+			if cloudSQLInstance.State == "RUNNABLE" {
+				// CRD status updated and cloud sql instance in RUNNABLE state, we are all good
+				log.Printf("cloud sql instance %s successfully created and in the RUNNABLE state. %+v",
+					instance.Name, cloudSQLInstance)
+				return reconcile.Result{}, nil
+			}
+
+			log.Printf("cloud sql instance %s created but still in %s state, waiting %v",
+				instance.Name, cloudSQLInstance.State, r.options.WaitSleepTime)
+		}
+
+		<-time.After(r.options.WaitSleepTime)
+	}
+
+	// the retry loop completed without finding the created cloud sql instance, report this as an error
+	err = fmt.Errorf("gave up waiting for cloud sql instance %s: %+v", instance.Name, err)
+	log.Printf("%+v", err)
+	return reconcile.Result{}, err
+}
+
+func (r *ReconcileCloudsqlInstance) updateStatus(instance *databasev1alpha1.CloudsqlInstance, message string,
+	cloudSQLInstance *sqladmin.DatabaseInstance) error {
+
+	instance.Status = databasev1alpha1.CloudsqlInstanceStatus{
+		Message:    message,
+		State:      cloudSQLInstance.State,
+		ProviderID: cloudSQLInstance.SelfLink,
+	}
+	err := r.Update(context.TODO(), instance)
+	if err != nil {
+		err = fmt.Errorf("failed to update status of CRD instance %s: %+v", instance.Name, err)
+		log.Printf("%+v", err)
+		return err
+	}
+
+	return nil
+}
+
+func getStatusMessage(instance *databasev1alpha1.CloudsqlInstance, cloudSQLInstance *sqladmin.DatabaseInstance) string {
+	switch cloudSQLInstance.State {
+	case "RUNNABLE":
+		return fmt.Sprintf("Cloud SQL instance %s is running", instance.Name)
+	case "PENDING_CREATE":
+		return fmt.Sprintf("Cloud SQL instance %s is being created", instance.Name)
+	case "FAILED":
+		return fmt.Sprintf("Cloud SQL instance %s failed to be created", instance.Name)
+	default:
+		return fmt.Sprintf("Cloud SQL instance %s is in an unknown state %s", instance.Name, cloudSQLInstance.State)
+	}
 }

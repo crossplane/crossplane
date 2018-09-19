@@ -8,6 +8,35 @@
   version = "v0.27.0"
 
 [[projects]]
+  name = "github.com/aws/aws-sdk-go-v2"
+  packages = [
+    ".",
+    "aws",
+    "aws/awserr",
+    "aws/defaults",
+    "aws/ec2metadata",
+    "aws/ec2rolecreds",
+    "aws/endpointcreds",
+    "aws/endpoints",
+    "aws/external",
+    "aws/signer/v4",
+    "aws/stscreds",
+    "internal/awsutil",
+    "internal/sdk",
+    "private/protocol",
+    "private/protocol/ec2query",
+    "private/protocol/query",
+    "private/protocol/query/queryutil",
+    "private/protocol/rest",
+    "private/protocol/xml/xmlutil",
+    "service/ec2",
+    "service/rds",
+    "service/sts"
+  ]
+  revision = "ff1a530c31507c97cf5edbee226e604ca08661cc"
+  version = "v2.0.0-preview.4"
+
+[[projects]]
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
   revision = "8991bc29aa16c548c550c7ff78260e27b9ab7c73"
@@ -27,6 +56,12 @@
   packages = ["."]
   revision = "0ca9ea5df5451ffdf184b4428c902747c2c11cd7"
   version = "v1.0.0"
+
+[[projects]]
+  name = "github.com/go-ini/ini"
+  packages = ["."]
+  revision = "5cf292cae48347c2490ac1a58fe36735fb78df7e"
+  version = "v1.38.2"
 
 [[projects]]
   branch = "master"
@@ -142,6 +177,11 @@
   packages = ["."]
   revision = "76626ae9c91c4f2a10f34cad8ce83ea42c93bb75"
   version = "v1.0"
+
+[[projects]]
+  name = "github.com/jmespath/go-jmespath"
+  packages = ["."]
+  revision = "0b12d6b5"
 
 [[projects]]
   name = "github.com/joho/godotenv"
@@ -374,6 +414,17 @@
     "internal/fastwalk"
   ]
   revision = "677d2ff680c188ddb7dcd2bfa6bc7d3f2f2f75b2"
+
+[[projects]]
+  branch = "master"
+  name = "google.golang.org/api"
+  packages = [
+    "gensupport",
+    "googleapi",
+    "googleapi/internal/uritemplates",
+    "sqladmin/v1beta4"
+  ]
+  revision = "003c13302b3ea5ae44344459ba080364bd46155f"
 
 [[projects]]
   name = "google.golang.org/appengine"
@@ -668,6 +719,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "30bf4877934445daeb259e8dea39074dba0c7eecdd263f36bf9cee1719571962"
+  inputs-digest = "d414ec2a402e8e594297d5d46f917e13ad0b86de62df7a1e64240877ef5b5c31"
   solver-name = "gps-cdcl"
   solver-version = 1

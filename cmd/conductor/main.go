@@ -63,7 +63,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	log.Printf("Starting the Cmd.")
+	log.Printf("Starting the manager.")
 
 	// Start the Cmd
 	log.Fatal(mgr.Start(signals.SetupSignalHandler()))

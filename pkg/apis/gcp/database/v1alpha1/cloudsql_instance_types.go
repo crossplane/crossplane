@@ -25,14 +25,18 @@ import (
 
 // CloudsqlInstanceSpec defines the desired state of CloudsqlInstance
 type CloudsqlInstanceSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	ProjectID       string `json:"projectID"`
+	Tier            string `json:"tier"`
+	Region          string `json:"region"`
+	DatabaseVersion string `json:"databaseVersion"`
+	StorageType     string `json:"storageType"`
 }
 
 // CloudsqlInstanceStatus defines the observed state of CloudsqlInstance
 type CloudsqlInstanceStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	State      string `json:"state,omitempty"`
+	Message    string `json:"message,omitempty"`
+	ProviderID string `json:"providerID,omitempty"` // the external ID to identify this resource in the cloud provider
 }
 
 // +genclient
