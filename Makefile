@@ -45,3 +45,8 @@ include build/makelib/image.mk
 # Targets
 
 # run `make help` to see the targets and options
+
+# Generate manifests e.g. CRD, RBAC etc.
+manifests:
+	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go all
+

@@ -858,7 +858,7 @@
   ]
   pruneopts = "T"
   revision = "bfd3eefb7f22ed714b2acd38730c36992ee6af70"
-  version = "v0.1.5"
+  source = "https://github.com/ichekrygin/controller-tools.git"
 
 [[projects]]
   branch = "master"
