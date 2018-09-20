@@ -1,0 +1,23 @@
+---
+# GCP Admin service account secret - used by GCP Provider
+apiVersion: v1
+kind: Secret
+metadata:
+  name: gcp-provider-creds
+  namespace: demo
+type: Opaque
+data:
+  credentials.json: base64encrytpeddata
+---
+# GCP Provider with service account secret reference - used to provision sql resources
+apiVersion: gcp.conductor.io/v1alpha1
+kind: Provider
+metadata:
+  name: gcp-sql-provider
+spec:
+  credentialsSecretRef:
+    name: gcp-provider-creds
+    key: credentials.json
+  projectID: demo-google-project
+  requiredPermissions:
+  - cloudsql.amdin

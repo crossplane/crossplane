@@ -1,14 +1,4 @@
 ---
-# GCP Admin service account secret - used to provision GCP resources
-apiVersion: v1
-kind: Secret
-metadata:
-  name: gcp-provider-creds
-  namespace: demo
-type: Opaque
-data:
-  credentials.json: base64encrytpeddata
----
 # GCP SQL user service account - used by application cloudsql-proxy side car
 # - list cloudsql intances
 # - connect to a cloudsql instance
@@ -21,37 +11,13 @@ type: Opaque
 data:
   credentials.json: base64encrytpeddata
 ---
-# Database user credentials - used by cloudsql provider to bootstrap database instance
-#  and by the application to establish connection
-apiVersion: v1
-kind: Secret
-metadata:
-  name: database-user
-  namespace: demo
-type: Opaque
-data:
-  username: base64encrytpeddata
-  password: base64encrytpeddata
----
-apiVersion: gcp.conductor.io/v1alpha1
-kind: Provider
-metadata:
-  name: gcp-provider
-spec:
-  credentialsSecretRef:
-    name: gcp-provider-creds
-    key: credentials.json
-  projectID: demo-google-project
-  permissions:
-  # blank permission means - no validation (on permissions)
----
 apiVersion: database.gcp.conductor.io/v1alpha1
 kind: CloudsqlInstance
 metadata:
   labels:
   name: cloudsql-demo
 spec:
-  provider: gcp-provider
+  provider: gcp-sql-provider
   #TODO we need to add CloudqlInstance functionality to get credentials from a given GCP Provider
 
   tier: db-n1-standard-1

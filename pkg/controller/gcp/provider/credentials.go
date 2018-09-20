@@ -22,8 +22,8 @@ import (
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
-	cloudresourcemanager "google.golang.org/api/cloudresourcemanager/v1"
-	container "google.golang.org/api/container/v1"
+	"google.golang.org/api/cloudresourcemanager/v1"
+	"google.golang.org/api/container/v1"
 )
 
 // Validator - defines provider validation functions
