@@ -20,4 +20,4 @@ spec:
     key: credentials.json
   projectID: demo-google-project
   requiredPermissions:
-  - cloudsql.amdin
+  - cloudsql.admin
