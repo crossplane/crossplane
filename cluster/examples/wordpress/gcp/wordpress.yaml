@@ -59,18 +59,6 @@ spec:
   databaseName: demo-database ## TODO: do we support this?
   databaseSecretName: demo-database-connection # Secret created by ClousqlInstance controller
 ---
-apiVersion: v1
-kind: Secret
-metadata:
-  name: demo-dabase-connection # Created as a result of ClousqlInstance processing
-  namespace: demo
-type: Opaque
-data:
-  name: demo-database # <--- database name
-  username: base64encrytpeddata # <-- comes from the `database-credentials`
-  password: base64encrytpeddata # <-- same as above
-  instance: demo-google-project:us-west2:cloudsql-demo20049 # <-- generated (suffix part)
----
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
