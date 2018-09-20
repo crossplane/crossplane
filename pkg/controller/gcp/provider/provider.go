@@ -122,7 +122,7 @@ func (r *ReconcileProvider) Reconcile(request reconcile.Request) (reconcile.Resu
 	}
 
 	// Validate credentials
-	if err := r.Validate(data, instance.Spec.Permissions, instance.Spec.ProjectID); err != nil {
+	if err := r.Validate(data, instance.Spec.RequiredPermissions, instance.Spec.ProjectID); err != nil {
 		setInvalid(&instance.Status, err.Error(), "")
 		return reconcile.Result{}, r.Update(ctx, instance)
 	}

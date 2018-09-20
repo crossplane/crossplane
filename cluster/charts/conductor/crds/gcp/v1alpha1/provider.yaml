@@ -28,7 +28,7 @@ spec:
               type: object
             projectID:
               type: string
-            permissions:
+            requiredPermissions:
               type: array
               items:
                 type: string
