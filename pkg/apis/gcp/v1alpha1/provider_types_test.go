@@ -38,8 +38,8 @@ func TestStorageProvider(t *testing.T) {
 				LocalObjectReference: v1.LocalObjectReference{Name: "u-235"},
 				Key:                  "credentials.json",
 			},
-			ProjectID:   "manhattan",
-			Permissions: []string{"crate", "update", "delete"},
+			ProjectID:           "manhattan",
+			RequiredPermissions: []string{"crate", "update", "delete"},
 		},
 	}
 	g := gomega.NewGomegaWithT(t)

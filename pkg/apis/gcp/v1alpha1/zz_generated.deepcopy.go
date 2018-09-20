@@ -105,8 +105,8 @@ func (in *ProviderList) DeepCopyObject() runtime.Object {
 func (in *ProviderSpec) DeepCopyInto(out *ProviderSpec) {
 	*out = *in
 	in.SecretKey.DeepCopyInto(&out.SecretKey)
-	if in.Permissions != nil {
-		in, out := &in.Permissions, &out.Permissions
+	if in.RequiredPermissions != nil {
+		in, out := &in.RequiredPermissions, &out.RequiredPermissions
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
