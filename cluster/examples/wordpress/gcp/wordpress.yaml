@@ -49,10 +49,9 @@ apiVersion: database.gcp.conductor.io/v1alpha1
 kind: CloudsqlInstance
 metadata:
   labels:
-  name: cloudsql-demo-20049 # TODO: is this instance the same as instance name?
+  name: cloudsql-demo
 spec:
   # somewhere here we need gcp-provider-reference
-  projectID: demo-google-project # TODO: same as in Provider
   tier: db-n1-standard-1
   region: us-west2
   databaseVersion: MYSQL_5_7
