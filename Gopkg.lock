@@ -845,7 +845,7 @@
   version = "v0.1.2"
 
 [[projects]]
-  digest = "1:6dfe024674229af3c6e3791718837798eeada8ea41628e61e31f0774ffea41b3"
+  digest = "1:9e2b92080751b2963fbd67c5c7b9f49bd6d4cf49642b9190e2e2ac1a31802b12"
   name = "sigs.k8s.io/controller-tools"
   packages = [
     "cmd/controller-gen",
@@ -857,8 +857,8 @@
     "pkg/util",
   ]
   pruneopts = "T"
-  revision = "bfd3eefb7f22ed714b2acd38730c36992ee6af70"
-  version = "v0.1.5"
+  revision = "ba491ab01a0edca2eb6a4891b8dc9a14711af19b"
+  source = "https://github.com/upbound/controller-tools.git"
 
 [[projects]]
   branch = "master"
