@@ -35,9 +35,12 @@ import (
 var cfg *rest.Config
 
 func TestMain(m *testing.M) {
+	crdRootPath := filepath.Join("..", "..", "..", "..", "cluster", "charts", "conductor", "crds", "gcp")
 	t := &envtest.Environment{
-		CRDDirectoryPaths: []string{filepath.Join("..", "..", "..", "..",
-			"cluster", "charts", "conductor", "crds", "gcp", "database", "v1alpha1")},
+		CRDDirectoryPaths: []string{
+			filepath.Join(crdRootPath, "v1alpha1"),
+			filepath.Join(crdRootPath, "database", "v1alpha1"),
+		},
 	}
 	gcp.AddToScheme(scheme.Scheme)
 

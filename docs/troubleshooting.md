@@ -30,19 +30,19 @@ export PROJECT_ID=$(gcloud config get-value project)
 
 ### Create Service Account
 
-First the service account must be created, you can skip this step is you are reusing an existing account.
+After configuring `gcloud`, the service account must be created, you can skip this step is you are reusing an existing account.
 
 ```bash
-# skip this if the account has already been created
-gcloud iam service-accounts create conductor-gcp --display-name "conductor-gcp"
+# optional, skip this if the account has already been created
+gcloud iam service-accounts create conductor-gcp-provider --display-name "conductor-gcp-provider"
 ```
 
 ### Create Service Account Key File
 
-Next create a local file called `key.json` with all the credentials information stored in it.
+Next create a local file called `conductor-gcp-provider-key.json` with all the credentials information stored in it.
 
 ```bash
-gcloud iam service-accounts keys create key.json --iam-account conductor-gcp@${PROJECT_ID}.iam.gserviceaccount.com
+gcloud iam service-accounts keys create conductor-gcp-provider-key.json --iam-account conductor-gcp-provider@${PROJECT_ID}.iam.gserviceaccount.com
 ```
 
 ### Bind Roles to Service Account
@@ -52,18 +52,17 @@ Currently, Conductor requires only one role for its operations, this list will c
 * CloudSQL Admin: Full management of Cloud SQL instances and related objects.
 
 ```bash
-gcloud projects add-iam-policy-binding ${PROJECT_ID} --member "serviceAccount:conductor-gcp@${PROJECT_ID}.iam.gserviceaccount.com" --role "roles/cloudsql.admin" 
+gcloud projects add-iam-policy-binding ${PROJECT_ID} --member "serviceAccount:conductor-gcp-provider@${PROJECT_ID}.iam.gserviceaccount.com" --role "roles/cloudsql.admin"
 ```
 
-### GCP Service Account Secret
+### (Optional) GCP Service Account Secret
 
-Once the service account key.json is obtained, store its contents into a Kubernetes secret:
+If the example you are walking through does not create a Kubernetes secret, you can create one yourself now that you have obtained the service account JSON key file:
 
 ```bash
-kubectl -n conductor-system create secret generic gcp-service-account-creds --from-file credentials.json=key.json
+# optional, skip if the example does this for you
+kubectl -n conductor-system create secret generic gcp-service-account-creds --from-file credentials.json=conductor-gcp-provider-key.json
 ```
-
-**Note**: The Helm chart values file for this project uses: `gkeProviderSecret: gcp-service-account-creds`. 
 
 ## GKE RBAC
 

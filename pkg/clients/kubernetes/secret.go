@@ -23,11 +23,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-const (
-	// PodNamespaceEnvVarName is the name of an env var that represents the namespace a pod is running in
-	PodNamespaceEnvVarName = "POD_NAMESPACE"
-)
-
 // GetSecret will return the data from the given secret
 func GetSecret(clientset kubernetes.Interface, namespace string, name string, key string) (string, error) {
 	secret, err := clientset.CoreV1().Secrets(namespace).Get(name, metav1.GetOptions{})
