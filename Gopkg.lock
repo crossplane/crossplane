@@ -31,9 +31,12 @@
     "private/protocol/query",
     "private/protocol/query/queryutil",
     "private/protocol/rest",
+    "private/protocol/restxml",
+    "private/protocol/xml",
     "private/protocol/xml/xmlutil",
     "service/ec2",
     "service/rds",
+    "service/s3",
     "service/sts",
   ]
   pruneopts = "T"
@@ -880,7 +883,9 @@
     "github.com/aws/aws-sdk-go-v2/aws/external",
     "github.com/aws/aws-sdk-go-v2/service/ec2",
     "github.com/aws/aws-sdk-go-v2/service/rds",
+    "github.com/aws/aws-sdk-go-v2/service/s3",
     "github.com/emicklei/go-restful",
+    "github.com/go-ini/ini",
     "github.com/onsi/ginkgo",
     "github.com/onsi/gomega",
     "golang.org/x/net/context",

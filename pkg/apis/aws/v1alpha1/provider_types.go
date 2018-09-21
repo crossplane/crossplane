@@ -33,7 +33,11 @@ type ProviderSpec struct {
 	Region string `json:"region"`
 
 	// AWS Credentials file
+	corev1.LocalObjectReference
 	SecretKey corev1.SecretKeySelector `json:"credentialsSecretRef"`
+
+	// AWS Credentials profile
+	Profile string `json:"credentialsProfile"`
 }
 
 // +genclient

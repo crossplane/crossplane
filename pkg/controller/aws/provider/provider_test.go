@@ -17,11 +17,12 @@ limitations under the License.
 package provider
 
 import (
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"testing"
 	"time"
 
 	. "github.com/onsi/gomega"
-	"github.com/upbound/conductor/pkg/apis/gcp/v1alpha1"
+	"github.com/upbound/conductor/pkg/apis/aws/v1alpha1"
 	"golang.org/x/net/context"
 	"k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -65,7 +66,7 @@ func (mm *MockManager) GetClient() client.Client {
 type MockValidator struct{}
 
 // Validate - never fails
-func (mv *MockValidator) Validate(secret []byte, permissions []string, projectID string) error {
+func (mv *MockValidator) Validate(config *aws.Config) error {
 	return nil
 }
 
@@ -92,7 +93,7 @@ func TestReconcile(t *testing.T) {
 				LocalObjectReference: v1.LocalObjectReference{Name: "foo-bar"},
 				Key:                  "credentials.json",
 			},
-			ProjectID: "projectfoo",
+			Region: "us-west-2",
 		},
 	}
 
@@ -132,14 +133,4 @@ func TestReconcile(t *testing.T) {
 	// Manually delete Deployment since GC isn't enabled in the test control plane
 	g.Expect(c.Delete(context.TODO(), instance)).To(Succeed())
 
-}
-
-func TestMissingPermissions(t *testing.T) {
-	g := NewGomegaWithT(t)
-
-	g.Expect(getMissingPermissions([]string{}, []string{})).To(BeNil())
-	g.Expect(getMissingPermissions([]string{"a"}, []string{})).To(Equal([]string{"a"}))
-	g.Expect(getMissingPermissions([]string{"a", "a"}, []string{})).To(Equal([]string{"a", "a"}))
-	g.Expect(getMissingPermissions([]string{"a", "a"}, []string{"a"})).To(BeNil())
-	g.Expect(getMissingPermissions([]string{"a", "b"}, []string{"a"})).To(Equal([]string{"b"}))
 }
