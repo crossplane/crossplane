@@ -20,7 +20,10 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/upbound/conductor/pkg/controller/core/provider"
+
 	"github.com/upbound/conductor/pkg/apis/gcp/v1alpha1"
+	_ "github.com/upbound/conductor/pkg/controller/core/provider"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -117,16 +120,16 @@ func (r *ReconcileProvider) Reconcile(request reconcile.Request) (reconcile.Resu
 	// Retrieve credentials.json
 	data, ok := secret.Data[instance.Spec.SecretKey.Key]
 	if !ok {
-		setInvalid(&instance.Status, fmt.Sprintf("invalid GCP Provider secret, %s data is not found", instance.Spec.SecretKey.Key), "")
+		provider.SetInvalid(&instance.Status, fmt.Sprintf("invalid GCP Provider secret, %s data is not found", instance.Spec.SecretKey.Key), "")
 		return reconcile.Result{}, r.Update(ctx, instance)
 	}
 
 	// Validate credentials
 	if err := r.Validate(data, instance.Spec.RequiredPermissions, instance.Spec.ProjectID); err != nil {
-		setInvalid(&instance.Status, err.Error(), "")
+		provider.SetInvalid(&instance.Status, err.Error(), "")
 		return reconcile.Result{}, r.Update(ctx, instance)
 	}
 
-	setValid(&instance.Status, "Valid")
+	provider.SetValid(&instance.Status, "Valid")
 	return reconcile.Result{}, r.Update(ctx, instance)
 }

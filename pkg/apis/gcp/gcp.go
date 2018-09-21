@@ -14,9 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Generate deepcopy for apis
-//go:generate go run ../../../vendor/k8s.io/code-generator/cmd/deepcopy-gen/main.go -O zz_generated.deepcopy -i ./... -h ../../../hack/boilerplate.go.txt
-
 // Package gcp contains Kubernetes API for GCP cloud provider.
 package gcp
 
