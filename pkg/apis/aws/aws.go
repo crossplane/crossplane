@@ -14,20 +14,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Generate deepcopy for apis
-//go:generate go run ../../../vendor/k8s.io/code-generator/cmd/deepcopy-gen/main.go -O zz_generated.deepcopy -i ./... -h ../../../hack/boilerplate.go.txt
-
 // Package aws contains Kubernetes API groups for AWS cloud provider.
 package aws
 
 import (
 	database "github.com/upbound/conductor/pkg/apis/aws/database/v1alpha1"
+	aws "github.com/upbound/conductor/pkg/apis/aws/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
 func init() {
 	// Register the types with the Scheme so the components can map objects to GroupVersionKinds and back
 	AddToSchemes = append(AddToSchemes, database.SchemeBuilder.AddToScheme)
+	AddToSchemes = append(AddToSchemes, aws.SchemeBuilder.AddToScheme)
 }
 
 // AddToSchemes may be used to add all resources defined in the project to a Scheme

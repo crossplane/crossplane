@@ -14,10 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package v1alpha1 contains API Schema definitions for the database v1alpha1 API group
+// Package v1alpha1 contains API Schema definitions for the conductor core v1alpha1 API group
 // +k8s:openapi-gen=true
 // +k8s:deepcopy-gen=package,register
-// +k8s:conversion-gen=github.com/upbound/conductor/pkg/apis/aws/database
+// +k8s:conversion-gen=github.com/upbound/conductor/pkg/apis/core
 // +k8s:defaulter-gen=TypeMeta
-// +groupName=database.aws.conductor.io
+// +groupName=core.conductor.io
 package v1alpha1
