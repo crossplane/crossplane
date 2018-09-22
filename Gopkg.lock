@@ -848,7 +848,7 @@
   version = "v0.1.2"
 
 [[projects]]
-  digest = "1:6dfe024674229af3c6e3791718837798eeada8ea41628e61e31f0774ffea41b3"
+  digest = "1:12730c607dac5ff500c57bd86d461556a9ec18f58e81925390bb3922d81dbe76"
   name = "sigs.k8s.io/controller-tools"
   packages = [
     "cmd/controller-gen",
@@ -860,7 +860,7 @@
     "pkg/util",
   ]
   pruneopts = "T"
-  revision = "bfd3eefb7f22ed714b2acd38730c36992ee6af70"
+  revision = "a2e6c5192e5eecd21b624847c1be289dc664178a"
   source = "https://github.com/ichekrygin/controller-tools.git"
 
 [[projects]]

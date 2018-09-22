@@ -30,6 +30,9 @@ func CredentialsIDSecret(data []byte, profile string) (string, string, error) {
 	}
 
 	secret, err := iniProfile.GetKey(external.AWSSecreteAccessKeyEnvVar)
+	if err != nil {
+		return "", "", err
+	}
 
 	return id.Value(), secret.Value(), err
 }
@@ -38,7 +41,7 @@ func CredentialsIDSecret(data []byte, profile string) (string, string, error) {
 func Config(data []byte, profile, region string) (*aws.Config, error) {
 	id, secret, err := CredentialsIDSecret(data, profile)
 	if err != nil {
-		return aws.NewConfig(), err
+		return nil, err
 	}
 
 	creds := aws.Credentials{

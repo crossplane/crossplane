@@ -17,10 +17,10 @@ limitations under the License.
 package provider
 
 import (
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"testing"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	. "github.com/onsi/gomega"
 	"github.com/upbound/conductor/pkg/apis/aws/v1alpha1"
 	"golang.org/x/net/context"
@@ -124,13 +124,4 @@ func TestReconcile(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 	defer c.Delete(context.TODO(), instance)
 	g.Eventually(requests, timeout).Should(Receive(Equal(expectedRequest)))
-
-	// Fetch created instance
-	created := &v1alpha1.Provider{}
-	err = c.Get(context.TODO(), expectedRequest.NamespacedName, created)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	// Manually delete Deployment since GC isn't enabled in the test control plane
-	g.Expect(c.Delete(context.TODO(), instance)).To(Succeed())
-
 }
