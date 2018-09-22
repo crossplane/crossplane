@@ -48,6 +48,8 @@ func TestConfig(t *testing.T) {
 	g.Expect(config).NotTo(BeNil())
 }
 
+// TestValidate - reads AWS configuration from the local file.
+// The file path is provided via TEST_AWS_CREDENTIALS_FILE environment variable, otherwise the test is skipped.
 func TestValidate(t *testing.T) {
 	g := NewGomegaWithT(t)
 
