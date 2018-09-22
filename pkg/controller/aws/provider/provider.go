@@ -39,13 +39,13 @@ import (
 )
 
 const (
-	RECORDER_NAME = "aws.provider"
+	recorderName = "aws.provider"
 )
 
 // Add creates a new Provider Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
-	return add(mgr, newReconciler(mgr, &ProviderValidator{}))
+	return add(mgr, newReconciler(mgr, &ConfigurationValidator{}))
 }
 
 var _ reconcile.Reconciler = &ReconcileProvider{}
@@ -66,7 +66,7 @@ func newReconciler(mgr manager.Manager, validator Validator) reconcile.Reconcile
 		Validator:  validator,
 		scheme:     mgr.GetScheme(),
 		kubeclient: kubernetes.NewForConfigOrDie(mgr.GetConfig()),
-		recorder:   mgr.GetRecorder(RECORDER_NAME),
+		recorder:   mgr.GetRecorder(recorderName),
 	}
 }
 
@@ -139,14 +139,15 @@ func (r *ReconcileProvider) Reconcile(request reconcile.Request) (reconcile.Resu
 	return reconcile.Result{}, r.Update(ctx, instance)
 }
 
-// Credentials - defines provider validation functions
+// Validator - defines provider validation functions
 type Validator interface {
 	Validate(*aws.Config) error
 }
 
-type ProviderValidator struct{}
+// ConfigurationValidator - validates AWS Configuration
+type ConfigurationValidator struct{}
 
 // Validate AWS credentials secret
-func (pc *ProviderValidator) Validate(config *aws.Config) error {
+func (pc *ConfigurationValidator) Validate(config *aws.Config) error {
 	return awsclient.ValidateConfig(config)
 }

@@ -7,13 +7,13 @@ import (
 	"github.com/go-ini/ini"
 )
 
-// CredentialsIdSecret retrieves AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY from the data which contains
+// CredentialsIDSecret retrieves AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY from the data which contains
 // aws credentials under given profile
 // Example:
 // [default]
 // aws_access_key_id = <YOUR_ACCESS_KEY_ID>
 // aws_secret_access_key = <YOUR_SECRET_ACCESS_KEY>
-func CredentialsIdSecret(data []byte, profile string) (string, string, error) {
+func CredentialsIDSecret(data []byte, profile string) (string, string, error) {
 	config, err := ini.InsensitiveLoad(data)
 	if err != nil {
 		return "", "", err
@@ -36,7 +36,7 @@ func CredentialsIdSecret(data []byte, profile string) (string, string, error) {
 
 // Config - AWS configuration which can be used to issue requests against AWS API
 func Config(data []byte, profile, region string) (*aws.Config, error) {
-	id, secret, err := CredentialsIdSecret(data, profile)
+	id, secret, err := CredentialsIDSecret(data, profile)
 	if err != nil {
 		return aws.NewConfig(), err
 	}
@@ -55,7 +55,7 @@ func Config(data []byte, profile, region string) (*aws.Config, error) {
 	return &config, err
 }
 
-// Validate - validates AWS configuration by issuing list s3 buckets request
+// ValidateConfig - validates AWS configuration by issuing list s3 buckets request
 // TODO: find a better way to validate credentials
 func ValidateConfig(config *aws.Config) error {
 	svc := s3.New(*config)

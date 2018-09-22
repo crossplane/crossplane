@@ -22,13 +22,13 @@ func TestCredentialsIdSecret(t *testing.T) {
 	credentials := []byte(fmt.Sprintf(awsCredentialsFileFormat, testProfile, testID, testSecret))
 
 	// valid profile
-	id, secret, err := CredentialsIdSecret([]byte(credentials), testProfile)
+	id, secret, err := CredentialsIDSecret([]byte(credentials), testProfile)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(id).To(Equal(testID))
 	g.Expect(secret).To(Equal(testSecret))
 
 	// invalid profile - foo does not exist
-	id, secret, err = CredentialsIdSecret([]byte(credentials), "foo")
+	id, secret, err = CredentialsIDSecret([]byte(credentials), "foo")
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(id).To(Equal(""))
 	g.Expect(secret).To(Equal(""))
