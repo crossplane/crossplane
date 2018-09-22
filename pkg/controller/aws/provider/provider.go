@@ -118,7 +118,7 @@ func (r *ReconcileProvider) Reconcile(request reconcile.Request) (reconcile.Resu
 	// Retrieve credentials.json
 	data, ok := secret.Data[instance.Spec.SecretKey.Key]
 	if !ok {
-		provider.SetInvalid(&instance.Status, fmt.Sprintf("invalid AWS Provider secret, %s data is not found", instance.Spec.SecretKey.Key), "")
+		provider.SetInvalid(&instance.Status, fmt.Sprintf("invalid AWS Provider secret, data key [%s] is not found", instance.Spec.SecretKey.Key), "")
 		return reconcile.Result{}, r.Update(ctx, instance)
 	}
 

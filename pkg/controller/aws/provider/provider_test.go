@@ -17,17 +17,20 @@ limitations under the License.
 package provider
 
 import (
+	"fmt"
+	"io/ioutil"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	. "github.com/onsi/gomega"
 	"github.com/upbound/conductor/pkg/apis/aws/v1alpha1"
+	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
+	"github.com/upbound/conductor/pkg/controller/core/provider"
 	"golang.org/x/net/context"
 	"k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -41,27 +44,6 @@ var expectedRequest = reconcile.Request{NamespacedName: types.NamespacedName{Nam
 
 const timeout = time.Minute * 5
 
-// MockClient - kubernetes client
-type MockClient struct {
-	client.Client
-}
-
-// Update - mock update that never fails
-func (mr *MockClient) Update(ctx context.Context, obj runtime.Object) error {
-	return nil
-}
-
-// MockManager - controller manager
-type MockManager struct {
-	manager.Manager
-	realManager manager.Manager
-}
-
-// GetClient - return mocked client
-func (mm *MockManager) GetClient() client.Client {
-	return &MockClient{mm.realManager.GetClient()}
-}
-
 // MockValidator - validates credentials
 type MockValidator struct{}
 
@@ -70,32 +52,37 @@ func (mv *MockValidator) Validate(config *aws.Config) error {
 	return nil
 }
 
-func TestReconcile(t *testing.T) {
-	g := NewGomegaWithT(t)
-
-	secret := &v1.Secret{
+func Secret(key, profile, id, secret string) *v1.Secret {
+	return &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo-bar",
 			Namespace: "default",
 		},
 		Data: map[string][]byte{
-			"credentials.json": []byte("Zm9vLWJhcgo="),
+			key: []byte(fmt.Sprintf("[%s]\naws_access_key_id = %s\naws_secret_access_key = %s", profile, id, secret)),
 		},
 	}
+}
 
-	instance := &v1alpha1.Provider{
+func Provider(key, profile, region string) *v1alpha1.Provider {
+	return &v1alpha1.Provider{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
-			Namespace: secret.Namespace,
+			Namespace: "default",
 		},
 		Spec: v1alpha1.ProviderSpec{
 			SecretKey: v1.SecretKeySelector{
 				LocalObjectReference: v1.LocalObjectReference{Name: "foo-bar"},
-				Key:                  "credentials.json",
+				Key:                  key,
 			},
-			Region: "us-west-2",
+			Profile: profile,
+			Region:  region,
 		},
 	}
+}
+
+func TestReconcileNoSecret(t *testing.T) {
+	g := NewGomegaWithT(t)
 
 	// Setup the Manager and Controller.  Wrap the Controller Reconcile function so it writes each request to a
 	// channel when it is finished.
@@ -103,25 +90,230 @@ func TestReconcile(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 	c = mgr.GetClient()
 	k = kubernetes.NewForConfigOrDie(mgr.GetConfig())
+	r := newReconciler(mgr, &ConfigurationValidator{})
+	recFn, requests := SetupTestReconcile(r)
+	g.Expect(add(mgr, recFn)).NotTo(HaveOccurred())
+	defer close(StartTestManager(mgr, g))
 
-	mm := &MockManager{mgr, mgr}
-	r := newReconciler(mm, &MockValidator{})
+	// Create instance - secret doesn't exit yet
+	instance := Provider("credentials", "default", "us-west-2")
+	err = c.Create(context.TODO(), instance)
+	g.Expect(err).NotTo(HaveOccurred())
+	defer c.Delete(context.TODO(), instance)
+	g.Eventually(requests, timeout).Should(Receive(Equal(expectedRequest)))
 
+	// Assert
+	reconciledInstance := &v1alpha1.Provider{}
+	err = c.Get(context.TODO(), expectedRequest.NamespacedName, reconciledInstance)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(reconciledInstance.Status.Conditions).To(BeNil())
+}
+
+func TestReconcileInvalidSecretDataKey(t *testing.T) {
+	g := NewGomegaWithT(t)
+
+	// Setup the Manager and Controller.  Wrap the Controller Reconcile function so it writes each request to a
+	// channel when it is finished.
+	mgr, err := manager.New(cfg, manager.Options{})
+	g.Expect(err).NotTo(HaveOccurred())
+	c = mgr.GetClient()
+	k = kubernetes.NewForConfigOrDie(mgr.GetConfig())
+	r := newReconciler(mgr, &ConfigurationValidator{})
 	recFn, requests := SetupTestReconcile(r)
 	g.Expect(add(mgr, recFn)).NotTo(HaveOccurred())
 	defer close(StartTestManager(mgr, g))
 
 	// Create secret
-	_, err = k.CoreV1().Secrets(secret.Namespace).Create(secret)
+	secret := Secret("creds", "default", "test-id", "test-secret")
+	secret, err = k.CoreV1().Secrets(secret.Namespace).Create(secret)
 	g.Expect(err).NotTo(HaveOccurred())
+	defer k.CoreV1().Secrets(secret.Namespace).Delete(secret.Name, &metav1.DeleteOptions{})
 
-	// Create the Provider object and expect the Reconcile to run
+	// Create instance - secret doesn't exit yet
+	instance := Provider("credentials", "default", "us-west-2")
 	err = c.Create(context.TODO(), instance)
-	if apierrors.IsInvalid(err) {
-		t.Logf("failed to create object, got an invalid object error: %v", err)
-		return
-	}
 	g.Expect(err).NotTo(HaveOccurred())
 	defer c.Delete(context.TODO(), instance)
 	g.Eventually(requests, timeout).Should(Receive(Equal(expectedRequest)))
+
+	// Assert
+	reconciledInstance := &v1alpha1.Provider{}
+	err = c.Get(context.TODO(), expectedRequest.NamespacedName, reconciledInstance)
+	g.Expect(err).NotTo(HaveOccurred())
+	condition := provider.GetCondition(reconciledInstance.Status, corev1alpha1.Valid)
+	g.Expect(condition).To(BeNil())
+	condition = provider.GetCondition(reconciledInstance.Status, corev1alpha1.Invalid)
+	g.Expect(condition.Status).To(Equal(v1.ConditionTrue))
+	g.Expect(condition.Reason).To(Equal("invalid AWS Provider secret, data key [credentials] is not found"))
+}
+
+func TestReconcileInvalidSecretCredentialsProfile(t *testing.T) {
+	g := NewGomegaWithT(t)
+
+	// Setup the Manager and Controller.  Wrap the Controller Reconcile function so it writes each request to a
+	// channel when it is finished.
+	mgr, err := manager.New(cfg, manager.Options{})
+	g.Expect(err).NotTo(HaveOccurred())
+	c = mgr.GetClient()
+	k = kubernetes.NewForConfigOrDie(mgr.GetConfig())
+	r := newReconciler(mgr, &ConfigurationValidator{})
+	recFn, requests := SetupTestReconcile(r)
+	g.Expect(add(mgr, recFn)).NotTo(HaveOccurred())
+	defer close(StartTestManager(mgr, g))
+
+	// Create secret
+	secret := Secret("credentials", "default", "test-id", "test-secret")
+	secret, err = k.CoreV1().Secrets(secret.Namespace).Create(secret)
+	g.Expect(err).NotTo(HaveOccurred())
+	defer k.CoreV1().Secrets(secret.Namespace).Delete(secret.Name, &metav1.DeleteOptions{})
+
+	// Create instance - secret doesn't exit yet
+	instance := Provider("credentials", "foo-bar", "us-west-2")
+	err = c.Create(context.TODO(), instance)
+	g.Expect(err).NotTo(HaveOccurred())
+	defer c.Delete(context.TODO(), instance)
+	g.Eventually(requests, timeout).Should(Receive(Equal(expectedRequest)))
+
+	// Assert
+	reconciledInstance := &v1alpha1.Provider{}
+	err = c.Get(context.TODO(), expectedRequest.NamespacedName, reconciledInstance)
+	g.Expect(err).NotTo(HaveOccurred())
+	condition := provider.GetCondition(reconciledInstance.Status, corev1alpha1.Valid)
+	g.Expect(condition).To(BeNil())
+	condition = provider.GetCondition(reconciledInstance.Status, corev1alpha1.Invalid)
+	g.Expect(condition.Status).To(Equal(v1.ConditionTrue))
+	g.Expect(condition.Reason).To(Equal("section 'foo-bar' does not exist"))
+}
+
+func TestReconcileInvalidCredentials(t *testing.T) {
+	g := NewGomegaWithT(t)
+
+	// Setup the Manager and Controller.  Wrap the Controller Reconcile function so it writes each request to a
+	// channel when it is finished.
+	mgr, err := manager.New(cfg, manager.Options{})
+	g.Expect(err).NotTo(HaveOccurred())
+	c = mgr.GetClient()
+	k = kubernetes.NewForConfigOrDie(mgr.GetConfig())
+	r := newReconciler(mgr, &ConfigurationValidator{})
+	recFn, requests := SetupTestReconcile(r)
+	g.Expect(add(mgr, recFn)).NotTo(HaveOccurred())
+	defer close(StartTestManager(mgr, g))
+
+	// Create secret
+	secret := Secret("credentials", "default", "test-id", "test-secret")
+	secret, err = k.CoreV1().Secrets(secret.Namespace).Create(secret)
+	g.Expect(err).NotTo(HaveOccurred())
+	defer k.CoreV1().Secrets(secret.Namespace).Delete(secret.Name, &metav1.DeleteOptions{})
+
+	// Create instance - secret doesn't exit yet
+	instance := Provider("credentials", "default", "us-west-2")
+	err = c.Create(context.TODO(), instance)
+	g.Expect(err).NotTo(HaveOccurred())
+	defer c.Delete(context.TODO(), instance)
+	g.Eventually(requests, timeout).Should(Receive(Equal(expectedRequest)))
+
+	// Assert
+	reconciledInstance := &v1alpha1.Provider{}
+	err = c.Get(context.TODO(), expectedRequest.NamespacedName, reconciledInstance)
+	g.Expect(err).NotTo(HaveOccurred())
+	condition := provider.GetCondition(reconciledInstance.Status, corev1alpha1.Valid)
+	g.Expect(condition).To(BeNil())
+	condition = provider.GetCondition(reconciledInstance.Status, corev1alpha1.Invalid)
+	g.Expect(condition.Status).To(Equal(v1.ConditionTrue))
+	g.Expect(condition.Reason).To(And(
+		ContainSubstring("InvalidAccessKeyId: The AWS Access Key Id you provided does not exist in our records."),
+		ContainSubstring("status code: 403")))
+}
+
+func TestReconcileValidMock(t *testing.T) {
+	g := NewGomegaWithT(t)
+
+	// Setup the Manager and Controller.  Wrap the Controller Reconcile function so it writes each request to a
+	// channel when it is finished.
+	mgr, err := manager.New(cfg, manager.Options{})
+	g.Expect(err).NotTo(HaveOccurred())
+	c = mgr.GetClient()
+	k = kubernetes.NewForConfigOrDie(mgr.GetConfig())
+	r := newReconciler(mgr, &MockValidator{})
+	recFn, requests := SetupTestReconcile(r)
+	g.Expect(add(mgr, recFn)).NotTo(HaveOccurred())
+	defer close(StartTestManager(mgr, g))
+
+	// Create secret
+	secret := Secret("credentials", "default", "test-id", "test-secret")
+	secret, err = k.CoreV1().Secrets(secret.Namespace).Create(secret)
+	g.Expect(err).NotTo(HaveOccurred())
+	defer k.CoreV1().Secrets(secret.Namespace).Delete(secret.Name, &metav1.DeleteOptions{})
+
+	// Create instance - secret doesn't exit yet
+	instance := Provider("credentials", "default", "us-west-2")
+	err = c.Create(context.TODO(), instance)
+	g.Expect(err).NotTo(HaveOccurred())
+	defer c.Delete(context.TODO(), instance)
+	g.Eventually(requests, timeout).Should(Receive(Equal(expectedRequest)))
+
+	// Assert
+	reconciledInstance := &v1alpha1.Provider{}
+	err = c.Get(context.TODO(), expectedRequest.NamespacedName, reconciledInstance)
+	g.Expect(err).NotTo(HaveOccurred())
+	condition := provider.GetCondition(reconciledInstance.Status, corev1alpha1.Invalid)
+	g.Expect(condition).To(BeNil())
+	condition = provider.GetCondition(reconciledInstance.Status, corev1alpha1.Valid)
+	g.Expect(condition.Status).To(Equal(v1.ConditionTrue))
+}
+
+// TestValidate - reads AWS configuration from the local file.
+// The file path is provided via TEST_AWS_CREDENTIALS_FILE environment variable, otherwise the test is skipped.
+func TestReconcileValid(t *testing.T) {
+	g := NewGomegaWithT(t)
+
+	awsCredsFile := os.Getenv("TEST_AWS_CREDENTIALS_FILE")
+	if awsCredsFile == "" {
+		t.Log("not found: TEST_AWS_CREDENTIALS_FILE")
+		t.Skip()
+	}
+
+	data, err := ioutil.ReadFile(awsCredsFile)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// Setup the Manager and Controller.  Wrap the Controller Reconcile function so it writes each request to a
+	// channel when it is finished.
+	mgr, err := manager.New(cfg, manager.Options{})
+	g.Expect(err).NotTo(HaveOccurred())
+	c = mgr.GetClient()
+	k = kubernetes.NewForConfigOrDie(mgr.GetConfig())
+	r := newReconciler(mgr, &ConfigurationValidator{})
+	recFn, requests := SetupTestReconcile(r)
+	g.Expect(add(mgr, recFn)).NotTo(HaveOccurred())
+	defer close(StartTestManager(mgr, g))
+
+	// Create secret
+	secret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo-bar",
+			Namespace: "default",
+		},
+		Data: map[string][]byte{
+			"credentials": data,
+		},
+	}
+	secret, err = k.CoreV1().Secrets(secret.Namespace).Create(secret)
+	g.Expect(err).NotTo(HaveOccurred())
+	defer k.CoreV1().Secrets(secret.Namespace).Delete(secret.Name, &metav1.DeleteOptions{})
+
+	// Create instance - secret doesn't exit yet
+	instance := Provider("credentials", "default", "us-west-2")
+	err = c.Create(context.TODO(), instance)
+	g.Expect(err).NotTo(HaveOccurred())
+	defer c.Delete(context.TODO(), instance)
+	g.Eventually(requests, timeout).Should(Receive(Equal(expectedRequest)))
+
+	// Assert
+	reconciledInstance := &v1alpha1.Provider{}
+	err = c.Get(context.TODO(), expectedRequest.NamespacedName, reconciledInstance)
+	g.Expect(err).NotTo(HaveOccurred())
+	condition := provider.GetCondition(reconciledInstance.Status, corev1alpha1.Invalid)
+	g.Expect(condition).To(BeNil())
+	condition = provider.GetCondition(reconciledInstance.Status, corev1alpha1.Valid)
+	g.Expect(condition.Status).To(Equal(v1.ConditionTrue))
 }
