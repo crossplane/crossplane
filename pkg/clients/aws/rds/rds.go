@@ -3,12 +3,10 @@ package rds
 import (
 	"strings"
 
-	"github.com/aws/aws-sdk-go-v2/service/rds/rdsiface"
-
-	"github.com/upbound/conductor/pkg/apis/aws/database/v1alpha1"
-
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/rds"
+	"github.com/aws/aws-sdk-go-v2/service/rds/rdsiface"
+	"github.com/upbound/conductor/pkg/apis/aws/database/v1alpha1"
 )
 
 type DBInstanceStatus int
