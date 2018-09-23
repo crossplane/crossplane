@@ -1,6 +1,7 @@
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
+  creationTimestamp: null
   labels:
     controller-tools.k8s.io: "1.0"
   name: rdsinstances.database.aws.conductor.io
@@ -21,40 +22,35 @@ spec:
           type: object
         spec:
           properties:
-            backupretentionperiod:
-              format: int64
-              type: integer
             class:
               type: string
-            encrypted:
-              type: boolean
+            connectionSecretRef:
+              type: object
             engine:
               type: string
-            iops:
-              format: int64
-              type: integer
-            masterPasswordSecretRef:
-              type: object
             masterUsername:
               type: string
-            multiaz:
-              type: boolean
-            publicaccess:
-              type: boolean
+            providerRef:
+              type: object
+            securityGroups:
+              items:
+                type: string
+              type: array
             size:
               format: int64
               type: integer
-            storagetype:
-              type: string
           required:
           - masterUsername
-          - masterPasswordSecretRef
           - engine
           - class
           - size
+          - providerRef
+          - connectionSecretRef
           type: object
         status:
           properties:
+            instanceName:
+              type: string
             message:
               type: string
             providerID:
@@ -67,5 +63,5 @@ status:
   acceptedNames:
     kind: ""
     plural: ""
-  conditions: null
-  storedVersions: null
+  conditions: []
+  storedVersions: []

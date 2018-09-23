@@ -22,6 +22,8 @@ rules:
   - secrets
   verbs:
   - get
+  - list
+  - watch
   - create
   - update
 - apiGroups:
@@ -37,18 +39,9 @@ rules:
   - patch
   - delete
 - apiGroups:
-  - gcp.conductor.io
-  resources:
-  - "*"
-  verbs:
-  - "*"
-- apiGroups:
+  - aws.conductor.io
   - database.aws.conductor.io
-  resources:
-  - "*"
-  verbs:
-  - "*"
-- apiGroups:
+  - gcp.conductor.io
   - database.gcp.conductor.io
   resources:
   - "*"

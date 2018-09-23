@@ -1,0 +1,20 @@
+---
+# AWS Credentials secret - used by AWS Provider
+apiVersion: v1
+kind: Secret
+metadata:
+  name: demo-aws-provider
+type: Opaque
+data:
+  credentials.json: base64encrytpeawscredentials
+---
+# AWS Provider with credential secret reference - used to provision aws resources
+apiVersion: aws.conductor.io/v1alpha1
+kind: Provider
+metadata:
+  name: demo-aws-provider
+spec:
+  credentialsSecretRef:
+    key: credentials
+    name: demo-aws-provider
+  region: us-east-1

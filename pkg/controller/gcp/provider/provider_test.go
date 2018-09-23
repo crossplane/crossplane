@@ -38,7 +38,7 @@ var c client.Client
 var k kubernetes.Interface
 var expectedRequest = reconcile.Request{NamespacedName: types.NamespacedName{Name: "foo", Namespace: "default"}}
 
-const timeout = time.Minute * 5
+const timeout = 5 * time.Second
 
 // MockClient - kubernetes client
 type MockClient struct {

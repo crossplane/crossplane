@@ -18,12 +18,14 @@ package aws
 
 import (
 	"github.com/upbound/conductor/pkg/controller/aws/database"
+	"github.com/upbound/conductor/pkg/controller/aws/provider"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
 func init() {
 	// AddToManagerFuncs is a list of functions to create controllers and add them to a manager.
-	AddToManagerFuncs = append(AddToManagerFuncs, database.AddCloudsqlInstance)
+	AddToManagerFuncs = append(AddToManagerFuncs, database.Add)
+	AddToManagerFuncs = append(AddToManagerFuncs, provider.Add)
 }
 
 // AddToManagerFuncs is a list of functions to add all Controllers to the Manager
