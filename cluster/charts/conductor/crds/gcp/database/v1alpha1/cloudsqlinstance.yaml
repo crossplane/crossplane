@@ -22,10 +22,12 @@ spec:
           type: object
         spec:
           properties:
+            connectionSecretRef:
+              type: object
             databaseVersion:
               type: string
-            projectID:
-              type: string
+            providerRef:
+              type: object
             region:
               type: string
             storageType:
@@ -33,14 +35,19 @@ spec:
             tier:
               type: string
           required:
-          - projectID
+          - providerRef
           - tier
           - region
           - databaseVersion
           - storageType
+          - connectionSecretRef
           type: object
         status:
           properties:
+            connectionName:
+              type: string
+            instanceName:
+              type: string
             message:
               type: string
             providerID:
@@ -53,5 +60,5 @@ status:
   acceptedNames:
     kind: ""
     plural: ""
-  conditions: null
-  storedVersions: null
+  conditions: []
+  storedVersions: []

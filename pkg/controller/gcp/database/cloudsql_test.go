@@ -21,6 +21,8 @@ import (
 
 	gcpclients "github.com/upbound/conductor/pkg/clients/gcp"
 	sqladmin "google.golang.org/api/sqladmin/v1beta4"
+	"k8s.io/api/core/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 // mockCloudSQLClient provides a mock implementation of the CloudSQLAPI interface for unit testing purposes
@@ -48,6 +50,10 @@ func (m *mockCloudSQLClient) CreateInstance(project string, databaseinstance *sq
 	return &sqladmin.Operation{}, nil
 }
 
+func (m *mockCloudSQLClient) ListUsers(project string, instance string) (*sqladmin.UsersListResponse, error) {
+	return &sqladmin.UsersListResponse{}, nil
+}
+
 // CreateMockDatabaseInstance creates a simple test instance of a CloudSQL database instance object
 func createMockDatabaseInstance(project, instance, state string) *sqladmin.DatabaseInstance {
 	return &sqladmin.DatabaseInstance{
@@ -55,4 +61,12 @@ func createMockDatabaseInstance(project, instance, state string) *sqladmin.Datab
 		State:    state,
 		SelfLink: fmt.Sprintf("https://www.googleapis.com/sql/v1beta4/projects/%s/instances/%s", project, instance),
 	}
+}
+
+type mockCloudSQLClientFactory struct {
+	mockClient *mockCloudSQLClient
+}
+
+func (m *mockCloudSQLClientFactory) CreateAPIInstance(kubernetes.Interface, string, v1.SecretKeySelector) (gcpclients.CloudSQLAPI, error) {
+	return m.mockClient, nil
 }

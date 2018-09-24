@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -25,18 +26,27 @@ import (
 
 // CloudsqlInstanceSpec defines the desired state of CloudsqlInstance
 type CloudsqlInstanceSpec struct {
-	ProjectID       string `json:"projectID"`
-	Tier            string `json:"tier"`
-	Region          string `json:"region"`
-	DatabaseVersion string `json:"databaseVersion"`
-	StorageType     string `json:"storageType"`
+	ProviderRef         v1.LocalObjectReference `json:"providerRef"`
+	Tier                string                  `json:"tier"`
+	Region              string                  `json:"region"`
+	DatabaseVersion     string                  `json:"databaseVersion"`
+	StorageType         string                  `json:"storageType"`
+	ConnectionSecretRef v1.LocalObjectReference `json:"connectionSecretRef"`
 }
 
 // CloudsqlInstanceStatus defines the observed state of CloudsqlInstance
 type CloudsqlInstanceStatus struct {
-	State      string `json:"state,omitempty"`
-	Message    string `json:"message,omitempty"`
-	ProviderID string `json:"providerID,omitempty"` // the external ID to identify this resource in the cloud provider
+	State   string `json:"state,omitempty"`
+	Message string `json:"message,omitempty"`
+
+	// the external ID to identify this resource in the cloud provider
+	ProviderID string `json:"providerID,omitempty"`
+
+	// Connection name of the Cloud SQL instance used in connection strings.
+	ConnectionName string `json:"connectionName,omitempty"`
+
+	// Name of the Cloud SQL instance. This does not include the project ID.
+	InstanceName string `json:"instanceName,omitempty"`
 }
 
 // +genclient

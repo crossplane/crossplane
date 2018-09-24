@@ -21,38 +21,40 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 
 	k8sclients "github.com/upbound/conductor/pkg/clients/kubernetes"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	googleapi "google.golang.org/api/googleapi"
+	"k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
 // GetGoogleClient returns a client object that can be used to interact with the Google API
-func GetGoogleClient(clientset kubernetes.Interface, scopes ...string) (*http.Client, error) {
+func GetGoogleClient(clientset kubernetes.Interface, namespace string, secretKey v1.SecretKeySelector,
+	scopes ...string) (*http.Client, error) {
+
 	var hc *http.Client
 
-	// 1) look for a secret in the same namespace we are running in that has the credentials JSON
-	// TODO: allow the user to specify where their google credentials secret is stored
-	gcpSecretData, err := k8sclients.GetSecret(
-		clientset, os.Getenv(k8sclients.PodNamespaceEnvVarName), "gcp-service-account-creds", "credentials.json")
+	// 1) look for a secret that has the credentials JSON
+	gcpSecretData, err := k8sclients.GetSecret(clientset, namespace, secretKey.Name, secretKey.Key)
 	if err == nil {
 		var creds *google.Credentials
 		creds, err = google.CredentialsFromJSON(context.Background(), []byte(gcpSecretData), scopes...)
 		if err == nil {
 			hc = oauth2.NewClient(context.Background(), creds.TokenSource)
-			log.Printf("google client created from secret gcp-service-account-creds")
+			log.Printf("google client created from secret %s", secretKey.Name)
 		}
 	}
 
 	// 2) try the default Google client
 	if hc == nil {
-		log.Printf("failed to get google client from secret gcp-service-account-creds, will try default client: %+v", err)
+		log.Printf("failed to get google client from secret %s, will try default client: %+v", secretKey.Name, err)
 		hc, err = google.DefaultClient(context.Background(), scopes...)
 		if err != nil {
 			log.Printf("failed to get default google client: %+v", err)
+		} else {
+			log.Printf("default google client created")
 		}
 	}
 

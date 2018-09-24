@@ -33,9 +33,3 @@ spec:
           requests:
             cpu: 100m
             memory: 20Mi
-        env:
-        # The pod namespace to pass with the downward API
-        - name: POD_NAMESPACE
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.namespace
