@@ -26,7 +26,7 @@ import (
 	"google.golang.org/api/container/v1"
 )
 
-// Validator - defines provider validation functions
+// Credentials - defines provider validation functions
 type Validator interface {
 	Validate(secret []byte, permissions []string, projectID string) error
 }

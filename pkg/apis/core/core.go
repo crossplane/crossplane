@@ -14,5 +14,5 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package aws contains Kubernetes API groups for AWS cloud provider.
+// Package core contains Kubernetes API groups for AWS cloud provider.
 package core

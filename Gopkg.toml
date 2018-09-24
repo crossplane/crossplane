@@ -34,7 +34,7 @@ required = [
 [[constraint]]
   name="sigs.k8s.io/controller-tools"
   source = "https://github.com/ichekrygin/controller-tools.git"
-  revision = "bfd3eefb7f22ed714b2acd38730c36992ee6af70"
+  revision = "a2e6c5192e5eecd21b624847c1be289dc664178a"
 
 # For dependency below: Refer to issue https://github.com/golang/dep/issues/1799
 [[override]]

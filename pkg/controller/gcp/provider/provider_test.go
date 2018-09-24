@@ -20,14 +20,13 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/apimachinery/pkg/runtime"
-
 	. "github.com/onsi/gomega"
 	"github.com/upbound/conductor/pkg/apis/gcp/v1alpha1"
 	"golang.org/x/net/context"
 	"k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"

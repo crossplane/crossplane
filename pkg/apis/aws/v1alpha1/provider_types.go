@@ -34,6 +34,9 @@ type ProviderSpec struct {
 
 	// AWS Credentials file
 	SecretKey corev1.SecretKeySelector `json:"credentialsSecretRef"`
+
+	// AWS Credentials profile
+	Profile string `json:"credentialsProfile"`
 }
 
 // +genclient
