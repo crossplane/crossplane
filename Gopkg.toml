@@ -27,7 +27,7 @@ required = [
   name="sigs.k8s.io/controller-runtime"
   version="v0.1.1"
 
-[[constraint]]
+[[override]]
   name="sigs.k8s.io/controller-tools"
   source = "https://github.com/ichekrygin/controller-tools.git"
   revision = "c0553d47d88e84c5e3248d4a171449bf140be05d"
