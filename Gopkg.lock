@@ -27,15 +27,14 @@
     "internal/awsutil",
     "internal/sdk",
     "private/protocol",
-    "private/protocol/ec2query",
     "private/protocol/query",
     "private/protocol/query/queryutil",
     "private/protocol/rest",
     "private/protocol/restxml",
     "private/protocol/xml",
     "private/protocol/xml/xmlutil",
-    "service/ec2",
     "service/rds",
+    "service/rds/rdsiface",
     "service/s3",
     "service/sts",
   ]
@@ -661,6 +660,7 @@
     "pkg/util/json",
     "pkg/util/mergepatch",
     "pkg/util/net",
+    "pkg/util/rand",
     "pkg/util/runtime",
     "pkg/util/sets",
     "pkg/util/strategicpatch",
@@ -848,7 +848,7 @@
   version = "v0.1.2"
 
 [[projects]]
-  digest = "1:12730c607dac5ff500c57bd86d461556a9ec18f58e81925390bb3922d81dbe76"
+  digest = "1:4b9e106ec4da06d6d5787a5d5ac1c2f08a38fc5aff287375b98b95dbd42e7181"
   name = "sigs.k8s.io/controller-tools"
   packages = [
     "cmd/controller-gen",
@@ -860,7 +860,7 @@
     "pkg/util",
   ]
   pruneopts = "T"
-  revision = "a2e6c5192e5eecd21b624847c1be289dc664178a"
+  revision = "fe397b1c87ef4524abf55a7de80f223194146b5e"
   source = "https://github.com/ichekrygin/controller-tools.git"
 
 [[projects]]
@@ -881,8 +881,8 @@
     "github.com/aws/aws-sdk-go-v2",
     "github.com/aws/aws-sdk-go-v2/aws",
     "github.com/aws/aws-sdk-go-v2/aws/external",
-    "github.com/aws/aws-sdk-go-v2/service/ec2",
     "github.com/aws/aws-sdk-go-v2/service/rds",
+    "github.com/aws/aws-sdk-go-v2/service/rds/rdsiface",
     "github.com/aws/aws-sdk-go-v2/service/s3",
     "github.com/emicklei/go-restful",
     "github.com/go-ini/ini",
@@ -902,6 +902,7 @@
     "k8s.io/apimachinery/pkg/runtime",
     "k8s.io/apimachinery/pkg/runtime/schema",
     "k8s.io/apimachinery/pkg/types",
+    "k8s.io/apimachinery/pkg/util/rand",
     "k8s.io/client-go/kubernetes",
     "k8s.io/client-go/kubernetes/fake",
     "k8s.io/client-go/kubernetes/scheme",

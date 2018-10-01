@@ -54,6 +54,7 @@ type CloudsqlInstanceStatus struct {
 
 // CloudsqlInstance is the Schema for the instances API
 // +k8s:openapi-gen=true
+// +groupName=database.gcp
 type CloudsqlInstance struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

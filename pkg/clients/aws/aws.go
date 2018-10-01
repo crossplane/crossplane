@@ -1,10 +1,16 @@
 package aws
 
 import (
+	"fmt"
+	"io/ioutil"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/external"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/go-ini/ini"
+	"github.com/upbound/conductor/pkg/apis/aws/v1alpha1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 // CredentialsIDSecret retrieves AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY from the data which contains
@@ -37,8 +43,8 @@ func CredentialsIDSecret(data []byte, profile string) (string, string, error) {
 	return id.Value(), secret.Value(), err
 }
 
-// Config - AWS configuration which can be used to issue requests against AWS API
-func Config(data []byte, profile, region string) (*aws.Config, error) {
+// LoadConfig - AWS configuration which can be used to issue requests against AWS API
+func LoadConfig(data []byte, profile, region string) (*aws.Config, error) {
 	id, secret, err := CredentialsIDSecret(data, profile)
 	if err != nil {
 		return nil, err
@@ -64,4 +70,28 @@ func ValidateConfig(config *aws.Config) error {
 	svc := s3.New(*config)
 	_, err := svc.ListBucketsRequest(nil).Send()
 	return err
+}
+
+// Config - crate AWS Config based on credentials data using [default] profile
+func Config(p *v1alpha1.Provider, client kubernetes.Interface) (*aws.Config, error) {
+	secret, err := client.CoreV1().Secrets(p.Namespace).Get(p.Spec.Secret.Name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	data, found := secret.Data[p.Spec.Secret.Key]
+	if !found {
+		return nil, fmt.Errorf("invalid AWS Provider secret, data key [%s] is not found", p.Spec.Secret.Key)
+	}
+
+	return LoadConfig(data, ini.DEFAULT_SECTION, p.Spec.Region)
+}
+
+// ConfigFromFile - create AWS Config based on credential file using [default] profile
+func ConfigFromFile(file, region string) (*aws.Config, error) {
+	data, err := ioutil.ReadFile(file)
+	if err != nil {
+		return nil, err
+	}
+
+	return LoadConfig(data, ini.DEFAULT_SECTION, region)
 }

@@ -22,8 +22,6 @@ spec:
           type: object
         spec:
           properties:
-            credentialsProfile:
-              type: string
             credentialsSecretRef:
               type: object
             region:
@@ -31,7 +29,6 @@ spec:
           required:
           - region
           - credentialsSecretRef
-          - credentialsProfile
           type: object
         status:
           type: object

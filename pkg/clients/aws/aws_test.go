@@ -2,9 +2,10 @@ package aws
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"testing"
+
+	"github.com/go-ini/ini"
 
 	. "github.com/onsi/gomega"
 )
@@ -34,7 +35,7 @@ func TestCredentialsIdSecret(t *testing.T) {
 	g.Expect(secret).To(Equal(""))
 }
 
-func TestConfig(t *testing.T) {
+func TestLoadConfig(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	testProfile := "default"
@@ -43,7 +44,7 @@ func TestConfig(t *testing.T) {
 	testRegion := "us-west-2"
 	credentials := []byte(fmt.Sprintf(awsCredentialsFileFormat, testProfile, testID, testSecret))
 
-	config, err := Config([]byte(credentials), testProfile, testRegion)
+	config, err := LoadConfig([]byte(credentials), testProfile, testRegion)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(config).NotTo(BeNil())
 }
@@ -60,10 +61,7 @@ func TestValidate(t *testing.T) {
 	}
 	t.Logf("using: %s", awsCredsFile)
 
-	data, err := ioutil.ReadFile(awsCredsFile)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	config, err := Config(data, "default", "us-west-2")
+	config, err := ConfigFromFile(awsCredsFile, "us-west-2")
 	g.Expect(err).NotTo(HaveOccurred())
 
 	err = ValidateConfig(config)
@@ -75,7 +73,7 @@ func TestValidateInvalid(t *testing.T) {
 
 	data := []byte(fmt.Sprintf("[%s]\naws_access_key_id = %s\naws_secret_access_key = %s", "default", "foo", "barr"))
 
-	config, err := Config(data, "default", "us-west-2")
+	config, err := LoadConfig(data, ini.DEFAULT_SECTION, "us-west-2")
 	g.Expect(err).NotTo(HaveOccurred())
 
 	err = ValidateConfig(config)

@@ -20,6 +20,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/go-ini/ini"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/upbound/conductor/pkg/apis/aws/v1alpha1"
 	awsclient "github.com/upbound/conductor/pkg/clients/aws"
@@ -109,21 +111,21 @@ func (r *ReconcileProvider) Reconcile(request reconcile.Request) (reconcile.Resu
 	}
 
 	// Fetch Provider Secret
-	secret, err := r.kubeclient.CoreV1().Secrets(request.Namespace).Get(instance.Spec.SecretKey.Name, metav1.GetOptions{})
+	secret, err := r.kubeclient.CoreV1().Secrets(instance.Namespace).Get(instance.Spec.Secret.Name, metav1.GetOptions{})
 	if err != nil {
 		r.recorder.Event(instance, corev1.EventTypeWarning, "Error", err.Error())
 		return reconcile.Result{}, err
 	}
 
-	// Retrieve credentials.json
-	data, ok := secret.Data[instance.Spec.SecretKey.Key]
+	// Retrieve credentials data
+	data, ok := secret.Data[instance.Spec.Secret.Key]
 	if !ok {
-		provider.SetInvalid(&instance.Status, fmt.Sprintf("invalid AWS Provider secret, data key [%s] is not found", instance.Spec.SecretKey.Key), "")
+		provider.SetInvalid(&instance.Status, fmt.Sprintf("invalid AWS Provider secret, data key [%s] is not found", instance.Spec.Secret.Key), "")
 		return reconcile.Result{}, r.Update(ctx, instance)
 	}
 
 	// Load aws configuration
-	config, err := awsclient.Config(data, instance.Spec.Profile, instance.Spec.Region)
+	config, err := awsclient.LoadConfig(data, ini.DEFAULT_SECTION, instance.Spec.Region)
 	if err != nil {
 		provider.SetInvalid(&instance.Status, err.Error(), "")
 		return reconcile.Result{}, r.Update(ctx, instance)

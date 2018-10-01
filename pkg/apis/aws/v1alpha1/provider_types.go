@@ -33,10 +33,7 @@ type ProviderSpec struct {
 	Region string `json:"region"`
 
 	// AWS Credentials file
-	SecretKey corev1.SecretKeySelector `json:"credentialsSecretRef"`
-
-	// AWS Credentials profile
-	Profile string `json:"credentialsProfile"`
+	Secret corev1.SecretKeySelector `json:"credentialsSecretRef"`
 }
 
 // +genclient
@@ -44,6 +41,7 @@ type ProviderSpec struct {
 
 // Provider is the Schema for the instances API
 // +k8s:openapi-gen=true
+// +groupName=aws
 type Provider struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

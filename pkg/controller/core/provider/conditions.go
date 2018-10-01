@@ -22,7 +22,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// NewCondition creates a new replication controller condition.
+// NewCondition creates a provider condition.
 func NewCondition(condType conductorcorev1alpha1.ProviderConditionType, status corev1.ConditionStatus, reason, msg string) *conductorcorev1alpha1.ProviderCondition {
 	return &conductorcorev1alpha1.ProviderCondition{
 		Type:               condType,
@@ -33,7 +33,7 @@ func NewCondition(condType conductorcorev1alpha1.ProviderConditionType, status c
 	}
 }
 
-// GetCondition returns a credentials controller condition with the provided type if it exists.
+// GetCondition returns a provider condition with the provided type if it exists.
 func GetCondition(status conductorcorev1alpha1.ProviderStatus, conditionType conductorcorev1alpha1.ProviderConditionType) *conductorcorev1alpha1.ProviderCondition {
 	for _, c := range status.Conditions {
 		if c.Type == conditionType {

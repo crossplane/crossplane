@@ -20,8 +20,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/go-ini/ini"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	. "github.com/onsi/gomega"
@@ -29,7 +32,7 @@ import (
 	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
 	"github.com/upbound/conductor/pkg/controller/core/provider"
 	"golang.org/x/net/context"
-	"k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -42,7 +45,7 @@ var c client.Client
 var k kubernetes.Interface
 var expectedRequest = reconcile.Request{NamespacedName: types.NamespacedName{Name: "foo", Namespace: "default"}}
 
-const timeout = time.Minute * 5
+const timeout = 5 * time.Second
 
 // MockValidator - validates credentials
 type MockValidator struct{}
@@ -53,32 +56,31 @@ func (mv *MockValidator) Validate(config *aws.Config) error {
 }
 
 // Secret helper function to create AWS provider secret
-func Secret(key, profile, id, secret string) *v1.Secret {
-	return &v1.Secret{
+func Secret(key, profile, id, secret string) *corev1.Secret {
+	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo-bar",
 			Namespace: "default",
 		},
 		Data: map[string][]byte{
-			key: []byte(fmt.Sprintf("[%s]\naws_access_key_id = %s\naws_secret_access_key = %s", profile, id, secret)),
+			key: []byte(fmt.Sprintf("[%s]\naws_access_key_id = %s\naws_secret_access_key = %s", strings.ToLower(profile), id, secret)),
 		},
 	}
 }
 
 // Provider helper function to create AWS provider instance
-func Provider(key, profile, region string) *v1alpha1.Provider {
+func Provider(key, region string) *v1alpha1.Provider {
 	return &v1alpha1.Provider{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
 			Namespace: "default",
 		},
 		Spec: v1alpha1.ProviderSpec{
-			SecretKey: v1.SecretKeySelector{
-				LocalObjectReference: v1.LocalObjectReference{Name: "foo-bar"},
+			Secret: corev1.SecretKeySelector{
+				LocalObjectReference: corev1.LocalObjectReference{Name: "foo-bar"},
 				Key:                  key,
 			},
-			Profile: profile,
-			Region:  region,
+			Region: region,
 		},
 	}
 }
@@ -99,7 +101,7 @@ func TestReconcileNoSecret(t *testing.T) {
 	defer close(StartTestManager(mgr, g))
 
 	// Create instance
-	instance := Provider("credentials", "default", "us-west-2")
+	instance := Provider("credentials", "us-west-2")
 	err = c.Create(context.TODO(), instance)
 	g.Expect(err).NotTo(HaveOccurred())
 	defer c.Delete(context.TODO(), instance)
@@ -129,13 +131,13 @@ func TestReconcileInvalidSecretDataKey(t *testing.T) {
 	defer close(StartTestManager(mgr, g))
 
 	// Create secret
-	secret := Secret("creds", "default", "test-id", "test-secret")
+	secret := Secret("creds", ini.DEFAULT_SECTION, "test-id", "test-secret")
 	secret, err = k.CoreV1().Secrets(secret.Namespace).Create(secret)
 	g.Expect(err).NotTo(HaveOccurred())
 	defer k.CoreV1().Secrets(secret.Namespace).Delete(secret.Name, &metav1.DeleteOptions{})
 
 	// Create instance
-	instance := Provider("credentials", "default", "us-west-2")
+	instance := Provider("credentials", "us-west-2")
 	err = c.Create(context.TODO(), instance)
 	g.Expect(err).NotTo(HaveOccurred())
 	defer c.Delete(context.TODO(), instance)
@@ -148,7 +150,7 @@ func TestReconcileInvalidSecretDataKey(t *testing.T) {
 	condition := provider.GetCondition(reconciledInstance.Status, corev1alpha1.Valid)
 	g.Expect(condition).To(BeNil())
 	condition = provider.GetCondition(reconciledInstance.Status, corev1alpha1.Invalid)
-	g.Expect(condition.Status).To(Equal(v1.ConditionTrue))
+	g.Expect(condition.Status).To(Equal(corev1.ConditionTrue))
 	g.Expect(condition.Reason).To(Equal("invalid AWS Provider secret, data key [credentials] is not found"))
 }
 
@@ -168,13 +170,13 @@ func TestReconcileInvalidSecretCredentialsProfile(t *testing.T) {
 	defer close(StartTestManager(mgr, g))
 
 	// Create secret
-	secret := Secret("credentials", "default", "test-id", "test-secret")
+	secret := Secret("credentials", "foo-bar", "test-id", "test-secret")
 	secret, err = k.CoreV1().Secrets(secret.Namespace).Create(secret)
 	g.Expect(err).NotTo(HaveOccurred())
 	defer k.CoreV1().Secrets(secret.Namespace).Delete(secret.Name, &metav1.DeleteOptions{})
 
 	// Create instance
-	instance := Provider("credentials", "foo-bar", "us-west-2")
+	instance := Provider("credentials", "us-west-2")
 	err = c.Create(context.TODO(), instance)
 	g.Expect(err).NotTo(HaveOccurred())
 	defer c.Delete(context.TODO(), instance)
@@ -187,8 +189,9 @@ func TestReconcileInvalidSecretCredentialsProfile(t *testing.T) {
 	condition := provider.GetCondition(reconciledInstance.Status, corev1alpha1.Valid)
 	g.Expect(condition).To(BeNil())
 	condition = provider.GetCondition(reconciledInstance.Status, corev1alpha1.Invalid)
-	g.Expect(condition.Status).To(Equal(v1.ConditionTrue))
-	g.Expect(condition.Reason).To(Equal("section 'foo-bar' does not exist"))
+	g.Expect(condition).NotTo(BeNil())
+	g.Expect(condition.Status).To(Equal(corev1.ConditionTrue))
+	g.Expect(condition.Reason).To(ContainSubstring("error when getting key of section 'default'"))
 }
 
 // TestReconcileInvalidCredentials - AWS Provider secret contains invalid AWS credentials
@@ -207,13 +210,13 @@ func TestReconcileInvalidCredentials(t *testing.T) {
 	defer close(StartTestManager(mgr, g))
 
 	// Create secret
-	secret := Secret("credentials", "default", "test-id", "test-secret")
+	secret := Secret("credentials", ini.DEFAULT_SECTION, "test-id", "test-secret")
 	secret, err = k.CoreV1().Secrets(secret.Namespace).Create(secret)
 	g.Expect(err).NotTo(HaveOccurred())
 	defer k.CoreV1().Secrets(secret.Namespace).Delete(secret.Name, &metav1.DeleteOptions{})
 
 	// Create instance - secret doesn't exit yet
-	instance := Provider("credentials", "default", "us-west-2")
+	instance := Provider("credentials", "us-west-2")
 	err = c.Create(context.TODO(), instance)
 	g.Expect(err).NotTo(HaveOccurred())
 	defer c.Delete(context.TODO(), instance)
@@ -226,7 +229,8 @@ func TestReconcileInvalidCredentials(t *testing.T) {
 	condition := provider.GetCondition(reconciledInstance.Status, corev1alpha1.Valid)
 	g.Expect(condition).To(BeNil())
 	condition = provider.GetCondition(reconciledInstance.Status, corev1alpha1.Invalid)
-	g.Expect(condition.Status).To(Equal(v1.ConditionTrue))
+	g.Expect(condition).NotTo(BeNil())
+	g.Expect(condition.Status).To(Equal(corev1.ConditionTrue))
 	g.Expect(condition.Reason).To(And(
 		ContainSubstring("InvalidAccessKeyId: The AWS Access Key Id you provided does not exist in our records."),
 		ContainSubstring("status code: 403")))
@@ -248,13 +252,13 @@ func TestReconcileValidMock(t *testing.T) {
 	defer close(StartTestManager(mgr, g))
 
 	// Create secret
-	secret := Secret("credentials", "default", "test-id", "test-secret")
+	secret := Secret("credentials", ini.DEFAULT_SECTION, "test-id", "test-secret")
 	secret, err = k.CoreV1().Secrets(secret.Namespace).Create(secret)
 	g.Expect(err).NotTo(HaveOccurred())
 	defer k.CoreV1().Secrets(secret.Namespace).Delete(secret.Name, &metav1.DeleteOptions{})
 
 	// Create instance - secret doesn't exit yet
-	instance := Provider("credentials", "default", "us-west-2")
+	instance := Provider("credentials", "us-west-2")
 	err = c.Create(context.TODO(), instance)
 	g.Expect(err).NotTo(HaveOccurred())
 	defer c.Delete(context.TODO(), instance)
@@ -267,7 +271,7 @@ func TestReconcileValidMock(t *testing.T) {
 	condition := provider.GetCondition(reconciledInstance.Status, corev1alpha1.Invalid)
 	g.Expect(condition).To(BeNil())
 	condition = provider.GetCondition(reconciledInstance.Status, corev1alpha1.Valid)
-	g.Expect(condition.Status).To(Equal(v1.ConditionTrue))
+	g.Expect(condition.Status).To(Equal(corev1.ConditionTrue))
 }
 
 // TestReconcileValid - reads AWS configuration from the local file.
@@ -296,7 +300,7 @@ func TestReconcileValid(t *testing.T) {
 	defer close(StartTestManager(mgr, g))
 
 	// Create secret
-	secret := &v1.Secret{
+	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo-bar",
 			Namespace: "default",
@@ -310,7 +314,7 @@ func TestReconcileValid(t *testing.T) {
 	defer k.CoreV1().Secrets(secret.Namespace).Delete(secret.Name, &metav1.DeleteOptions{})
 
 	// Create instance - secret doesn't exit yet
-	instance := Provider("credentials", "default", "us-west-2")
+	instance := Provider("credentials", "us-west-2")
 	err = c.Create(context.TODO(), instance)
 	g.Expect(err).NotTo(HaveOccurred())
 	defer c.Delete(context.TODO(), instance)
@@ -323,5 +327,5 @@ func TestReconcileValid(t *testing.T) {
 	condition := provider.GetCondition(reconciledInstance.Status, corev1alpha1.Invalid)
 	g.Expect(condition).To(BeNil())
 	condition = provider.GetCondition(reconciledInstance.Status, corev1alpha1.Valid)
-	g.Expect(condition.Status).To(Equal(v1.ConditionTrue))
+	g.Expect(condition.Status).To(Equal(corev1.ConditionTrue))
 }

@@ -21,20 +21,16 @@ required = [
 [prune]
   go-tests = true
 
-[[constraint]]
-  name = "github.com/aws/aws-sdk-go-v2"
-  version = "v2.0.0-preview.4"
-
 # STANZAS BELOW ARE GENERATED AND MAY BE WRITTEN - DO NOT MODIFY BELOW THIS LINE.
 
 [[constraint]]
   name="sigs.k8s.io/controller-runtime"
   version="v0.1.1"
 
-[[constraint]]
+[[override]]
   name="sigs.k8s.io/controller-tools"
   source = "https://github.com/ichekrygin/controller-tools.git"
-  revision = "a2e6c5192e5eecd21b624847c1be289dc664178a"
+  revision = "fe397b1c87ef4524abf55a7de80f223194146b5e"
 
 # For dependency below: Refer to issue https://github.com/golang/dep/issues/1799
 [[override]]

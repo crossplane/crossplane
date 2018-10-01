@@ -10,8 +10,6 @@ spec:
   names:
     kind: Provider
     plural: providers
-    shortNames:
-    - creds
   scope: Namespaced
   validation:
     openAPIV3Schema:
@@ -29,12 +27,19 @@ spec:
             projectID:
               type: string
             requiredPermissions:
-              type: array
               items:
                 type: string
+              type: array
           required:
           - credentialsSecretRef
           - projectID
+          type: object
         status:
           type: object
   version: v1alpha1
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
