@@ -23,6 +23,7 @@ package apis
 import (
 	"github.com/upbound/conductor/pkg/apis/aws"
 	"github.com/upbound/conductor/pkg/apis/azure"
+	"github.com/upbound/conductor/pkg/apis/compute"
 	"github.com/upbound/conductor/pkg/apis/core"
 	"github.com/upbound/conductor/pkg/apis/gcp"
 	"github.com/upbound/conductor/pkg/apis/storage"
@@ -33,6 +34,7 @@ func init() {
 	// Register the types with the Scheme so the components can map objects to GroupVersionKinds and back
 	AddToSchemes = append(AddToSchemes, aws.AddToScheme)
 	AddToSchemes = append(AddToSchemes, azure.AddToScheme)
+	AddToSchemes = append(AddToSchemes, compute.AddToScheme)
 	AddToSchemes = append(AddToSchemes, core.AddToScheme)
 	AddToSchemes = append(AddToSchemes, gcp.AddToScheme)
 	AddToSchemes = append(AddToSchemes, storage.AddToScheme)

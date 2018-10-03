@@ -30,10 +30,11 @@ import (
 )
 
 const (
-	Group          = "compute.gcp.conductor.io"
-	Version        = "v1alpha1"
-	APIVersion     = Group + "/" + Version
-	GKEClusterKind = "gkecluster"
+	Group                    = "compute.gcp.conductor.io"
+	Version                  = "v1alpha1"
+	APIVersion               = Group + "/" + Version
+	GKEClusterKind           = "gkecluster"
+	GKEClusterKindAPIVersion = GKEClusterKind + "." + APIVersion
 )
 
 var (

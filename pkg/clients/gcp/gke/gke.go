@@ -92,7 +92,7 @@ func (c *ClusterClient) GetCluster(zone, name string) (*container.Cluster, error
 func (c *ClusterClient) DeleteCluster(zone, name string) error {
 	_, err := c.client.Projects.Zones.Clusters.Delete(c.creds.ProjectID, zone, name).Do()
 	if err != nil {
-		if gcp.IsNotFound(err) {
+		if gcp.IsErrorNotFound(err) {
 			return nil
 		}
 		return err

@@ -135,12 +135,6 @@ spec:
               type: string
             zone:
               type: string
-          required:
-          - clusterVersion
-          - machineType
-          - numNodes
-          - zone
-          - providerRef
           type: object
         status:
           properties:
