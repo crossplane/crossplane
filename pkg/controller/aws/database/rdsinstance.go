@@ -20,14 +20,12 @@ import (
 	"context"
 	"log"
 
-	"github.com/upbound/conductor/pkg/util"
-
 	databasev1alpha1 "github.com/upbound/conductor/pkg/apis/aws/database/v1alpha1"
 	awsv1alpha1 "github.com/upbound/conductor/pkg/apis/aws/v1alpha1"
 	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
 	"github.com/upbound/conductor/pkg/clients/aws"
 	"github.com/upbound/conductor/pkg/clients/aws/rds"
-	coreprovider "github.com/upbound/conductor/pkg/controller/core/provider"
+	"github.com/upbound/conductor/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -122,7 +120,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	ctx := context.Background()
 
 	// Failed condition
-	failed := *databasev1alpha1.NewCondition(databasev1alpha1.Failed, "", "")
+	failed := *corev1alpha1.NewCondition(corev1alpha1.Failed, "", "")
 
 	err := r.Get(ctx, request.NamespacedName, instance)
 	if err != nil {
@@ -154,7 +152,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	}
 
 	// Check provider status
-	if pc := coreprovider.GetCondition(p.Status, corev1alpha1.Invalid); pc != nil && pc.Status == corev1.ConditionTrue {
+	if pc := p.Status.GetCondition(corev1alpha1.Invalid); pc != nil && pc.Status == corev1.ConditionTrue {
 		SetCondition(&instance.Status, &failed, errorProviderStatusInvalid, pc.Reason)
 		return reconcile.Result{Requeue: true}, r.Update(ctx, instance)
 	}
@@ -222,14 +220,14 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 
 	// Update status - if changed
 	conditionType := rds.ConditionType(db.Status)
-	requeue := conditionType != databasev1alpha1.Running
+	requeue := conditionType != corev1alpha1.Running
 
 	if instance.Status.State != db.Status {
 		instance.Status.State = db.Status
 		instance.Status.ProviderID = db.ARN
 		instance.Status.UnsetAllConditions()
 
-		condition := databasev1alpha1.NewCondition(conditionType, "", "")
+		condition := corev1alpha1.NewCondition(conditionType, "", "")
 		instance.Status.SetCondition(*condition)
 
 		// Requeue this request until database is in Running state
@@ -251,7 +249,7 @@ var RDSService = func(p *awsv1alpha1.Provider, k kubernetes.Interface) (rds.Serv
 	return rds.NewClient(config), nil
 }
 
-func SetCondition(status *databasev1alpha1.RDSInstanceStatus, condition *databasev1alpha1.RDSInstanceCondition, reason, msg string) {
+func SetCondition(status *databasev1alpha1.RDSInstanceStatus, condition *corev1alpha1.Condition, reason, msg string) {
 	condition.Reason = reason
 	condition.Message = msg
 	condition.Status = corev1.ConditionTrue

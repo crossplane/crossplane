@@ -21,7 +21,7 @@ import (
 	"testing"
 
 	. "github.com/onsi/gomega"
-	databasev1alpha1 "github.com/upbound/conductor/pkg/apis/aws/database/v1alpha1"
+	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -65,7 +65,7 @@ func TestReconcileWithCreds(t *testing.T) {
 	status := ri.Status
 	g.Expect(status.InstanceName).NotTo(BeEmpty())
 	g.Expect(status.Conditions).NotTo(BeEmpty())
-	condition := status.GetCondition(databasev1alpha1.Creating)
+	condition := status.GetCondition(corev1alpha1.Creating)
 	g.Expect(condition).NotTo(BeNil())
 	g.Expect(condition.Status).To(Equal(corev1.ConditionTrue))
 

@@ -30,7 +30,6 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/upbound/conductor/pkg/apis/aws/v1alpha1"
 	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
-	"github.com/upbound/conductor/pkg/controller/core/provider"
 	"golang.org/x/net/context"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -147,9 +146,9 @@ func TestReconcileInvalidSecretDataKey(t *testing.T) {
 	reconciledInstance := &v1alpha1.Provider{}
 	err = c.Get(context.TODO(), expectedRequest.NamespacedName, reconciledInstance)
 	g.Expect(err).NotTo(HaveOccurred())
-	condition := provider.GetCondition(reconciledInstance.Status, corev1alpha1.Valid)
+	condition := reconciledInstance.Status.GetCondition(corev1alpha1.Valid)
 	g.Expect(condition).To(BeNil())
-	condition = provider.GetCondition(reconciledInstance.Status, corev1alpha1.Invalid)
+	condition = reconciledInstance.Status.GetCondition(corev1alpha1.Invalid)
 	g.Expect(condition.Status).To(Equal(corev1.ConditionTrue))
 	g.Expect(condition.Reason).To(Equal("invalid AWS Provider secret, data key [credentials] is not found"))
 }
@@ -186,9 +185,9 @@ func TestReconcileInvalidSecretCredentialsProfile(t *testing.T) {
 	reconciledInstance := &v1alpha1.Provider{}
 	err = c.Get(context.TODO(), expectedRequest.NamespacedName, reconciledInstance)
 	g.Expect(err).NotTo(HaveOccurred())
-	condition := provider.GetCondition(reconciledInstance.Status, corev1alpha1.Valid)
+	condition := reconciledInstance.Status.GetCondition(corev1alpha1.Valid)
 	g.Expect(condition).To(BeNil())
-	condition = provider.GetCondition(reconciledInstance.Status, corev1alpha1.Invalid)
+	condition = reconciledInstance.Status.GetCondition(corev1alpha1.Invalid)
 	g.Expect(condition).NotTo(BeNil())
 	g.Expect(condition.Status).To(Equal(corev1.ConditionTrue))
 	g.Expect(condition.Reason).To(ContainSubstring("error when getting key of section 'default'"))
@@ -226,9 +225,9 @@ func TestReconcileInvalidCredentials(t *testing.T) {
 	reconciledInstance := &v1alpha1.Provider{}
 	err = c.Get(context.TODO(), expectedRequest.NamespacedName, reconciledInstance)
 	g.Expect(err).NotTo(HaveOccurred())
-	condition := provider.GetCondition(reconciledInstance.Status, corev1alpha1.Valid)
+	condition := reconciledInstance.Status.GetCondition(corev1alpha1.Valid)
 	g.Expect(condition).To(BeNil())
-	condition = provider.GetCondition(reconciledInstance.Status, corev1alpha1.Invalid)
+	condition = reconciledInstance.Status.GetCondition(corev1alpha1.Invalid)
 	g.Expect(condition).NotTo(BeNil())
 	g.Expect(condition.Status).To(Equal(corev1.ConditionTrue))
 	g.Expect(condition.Reason).To(And(
@@ -268,9 +267,9 @@ func TestReconcileValidMock(t *testing.T) {
 	reconciledInstance := &v1alpha1.Provider{}
 	err = c.Get(context.TODO(), expectedRequest.NamespacedName, reconciledInstance)
 	g.Expect(err).NotTo(HaveOccurred())
-	condition := provider.GetCondition(reconciledInstance.Status, corev1alpha1.Invalid)
+	condition := reconciledInstance.Status.GetCondition(corev1alpha1.Invalid)
 	g.Expect(condition).To(BeNil())
-	condition = provider.GetCondition(reconciledInstance.Status, corev1alpha1.Valid)
+	condition = reconciledInstance.Status.GetCondition(corev1alpha1.Valid)
 	g.Expect(condition.Status).To(Equal(corev1.ConditionTrue))
 }
 
@@ -324,8 +323,8 @@ func TestReconcileValid(t *testing.T) {
 	reconciledInstance := &v1alpha1.Provider{}
 	err = c.Get(context.TODO(), expectedRequest.NamespacedName, reconciledInstance)
 	g.Expect(err).NotTo(HaveOccurred())
-	condition := provider.GetCondition(reconciledInstance.Status, corev1alpha1.Invalid)
+	condition := reconciledInstance.Status.GetCondition(corev1alpha1.Invalid)
 	g.Expect(condition).To(BeNil())
-	condition = provider.GetCondition(reconciledInstance.Status, corev1alpha1.Valid)
+	condition = reconciledInstance.Status.GetCondition(corev1alpha1.Valid)
 	g.Expect(condition.Status).To(Equal(corev1.ConditionTrue))
 }
