@@ -19,53 +19,68 @@ package database
 import (
 	"context"
 	"flag"
-	"log"
-	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/upbound/conductor/pkg/test"
 
 	. "github.com/onsi/gomega"
 	"github.com/upbound/conductor/pkg/apis/aws"
 	databasev1alpha1 "github.com/upbound/conductor/pkg/apis/aws/database/v1alpha1"
 	awsv1alpha1 "github.com/upbound/conductor/pkg/apis/aws/v1alpha1"
-	"github.com/upbound/conductor/pkg/clients/aws/rds"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 const (
-	timeout           = 5 * time.Minute
-	instanceName      = "foo"
-	instanceNamespace = "default"
-	dbMasterUserName  = "testuser"
-	dbEngine          = "mysql"
-	dbClass           = "db.t2.small"
-	dbSize            = int64(10)
+	timeout        = 5 * time.Second
+	namespace      = "default"
+	instanceName   = "test-db-instance"
+	secretName     = "test-secret"
+	secretDataKey  = "credentials"
+	providerName   = "test-provider"
+	providerRegion = "us-east-1"
+	masterUserName = "testuser"
+	engine         = "mysql"
+	class          = "db.t2.small"
+	size           = int64(10)
 )
 
 var (
+	// used for integration tests with real aws credentials
+	awsCredsFile = flag.String("aws-creds", "", "run integration tests that require .aws/credentials")
+	crds         = []string{
+		filepath.Join("..", "..", "..", "..", "cluster", "charts", "conductor", "crds", "aws", "database", "v1alpha1"),
+		filepath.Join("..", "..", "..", "..", "cluster", "charts", "conductor", "crds", "aws", "v1alpha1"),
+	}
 	ctx             = context.TODO()
-	awsCredsFile    = flag.String("aws-creds", "", "run integration tests that require .aws/credentials")
 	cfg             *rest.Config
-	expectedRequest = reconcile.Request{NamespacedName: types.NamespacedName{Name: instanceName, Namespace: instanceNamespace}}
+	expectedRequest = reconcile.Request{NamespacedName: types.NamespacedName{Name: instanceName, Namespace: namespace}}
 )
 
 func init() {
 	flag.Parse()
 }
 
+func TestMain(m *testing.M) {
+	aws.AddToScheme(scheme.Scheme)
+
+	t := test.NewTestEnv(crds, namespace)
+	cfg = t.Start()
+	t.StopAndExit(m.Run())
+}
+
 type TestManager struct {
 	manager     manager.Manager
 	requests    chan reconcile.Request
-	reconciler  Reconciler
+	reconciler  *Reconciler
 	recFunction reconcile.Reconciler
 }
 
@@ -77,14 +92,14 @@ func NewTestManager() (*TestManager, error) {
 		return nil, err
 	}
 
-	r := Reconciler{
+	r := &Reconciler{
 		Client:     mgr.GetClient(),
 		scheme:     mgr.GetScheme(),
 		kubeclient: kubernetes.NewForConfigOrDie(mgr.GetConfig()),
 		recorder:   mgr.GetRecorder(recorderName),
 	}
 
-	recFn, requests := SetupTestReconcile(&r)
+	recFn, requests := SetupTestReconcile(r)
 	if err = add(mgr, recFn); err != nil {
 		return nil, err
 	}
@@ -102,7 +117,7 @@ func (tm *TestManager) createSecret(s *corev1.Secret) (*corev1.Secret, error) {
 }
 
 func (tm *TestManager) getSecret(name string) (*corev1.Secret, error) {
-	return tm.reconciler.kubeclient.CoreV1().Secrets(instanceNamespace).Get(name, metav1.GetOptions{})
+	return tm.reconciler.kubeclient.CoreV1().Secrets(namespace).Get(name, metav1.GetOptions{})
 }
 
 func (tm *TestManager) deleteSecret(s *corev1.Secret) error {
@@ -110,44 +125,24 @@ func (tm *TestManager) deleteSecret(s *corev1.Secret) error {
 }
 
 func (tm *TestManager) createProvider(p *awsv1alpha1.Provider) (*awsv1alpha1.Provider, error) {
-	return p, tm.reconciler.Client.Create(ctx, p)
+	return p, tm.reconciler.Create(ctx, p)
 }
 
 func (tm *TestManager) deleteProvider(p *awsv1alpha1.Provider) error {
-	return tm.reconciler.Client.Delete(ctx, p)
+	return tm.reconciler.Delete(ctx, p)
 }
 
 func (tm *TestManager) createInstance(i *databasev1alpha1.RDSInstance) (*databasev1alpha1.RDSInstance, error) {
-	return i, tm.reconciler.Client.Create(context.TODO(), i)
+	return i, tm.reconciler.Create(context.TODO(), i)
 }
 
 func (tm *TestManager) getInstance() (*databasev1alpha1.RDSInstance, error) {
 	i := &databasev1alpha1.RDSInstance{}
-	return i, tm.reconciler.Client.Get(ctx, expectedRequest.NamespacedName, i)
+	return i, tm.reconciler.Get(ctx, expectedRequest.NamespacedName, i)
 }
 
 func (tm *TestManager) deleteInstance(i *databasev1alpha1.RDSInstance) error {
-	return tm.reconciler.Client.Delete(context.TODO(), i)
-}
-
-func TestMain(m *testing.M) {
-
-	t := &envtest.Environment{
-		CRDDirectoryPaths: []string{
-			filepath.Join("..", "..", "..", "..", "cluster", "charts", "conductor", "crds", "aws", "database", "v1alpha1"),
-			filepath.Join("..", "..", "..", "..", "cluster", "charts", "conductor", "crds", "aws", "v1alpha1"),
-		},
-	}
-	aws.AddToScheme(scheme.Scheme)
-
-	var err error
-	if cfg, err = t.Start(); err != nil {
-		log.Fatal(err)
-	}
-
-	code := m.Run()
-	t.Stop()
-	os.Exit(code)
+	return tm.reconciler.Delete(context.TODO(), i)
 }
 
 // SetupTestReconcile returns a reconcile.Reconcile implementation that delegates to inner and
@@ -171,49 +166,45 @@ func StartTestManager(mgr manager.Manager, g *GomegaWithT) chan struct{} {
 	return stop
 }
 
-func TSecret(data []byte) *corev1.Secret {
+func testSecret(data []byte) *corev1.Secret {
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "foo-bar",
-			Namespace: "default",
+			Name:      secretName,
+			Namespace: namespace,
 		},
 		Data: map[string][]byte{
-			"credentials": data,
+			secretDataKey: data,
 		},
 	}
 }
 
-func TProvider(s *corev1.Secret) *awsv1alpha1.Provider {
+func testProvider(s *corev1.Secret) *awsv1alpha1.Provider {
 	return &awsv1alpha1.Provider{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test",
+			Name:      providerName,
 			Namespace: s.Namespace,
 		},
 		Spec: awsv1alpha1.ProviderSpec{
 			Secret: corev1.SecretKeySelector{
 				LocalObjectReference: corev1.LocalObjectReference{Name: s.Name},
-				Key:                  "credentials",
+				Key:                  secretDataKey,
 			},
-			Region: "us-east-1",
+			Region: providerRegion,
 		},
 	}
 }
 
-func TInstance(p *awsv1alpha1.Provider) *databasev1alpha1.RDSInstance {
+func testInstance(p *awsv1alpha1.Provider) *databasev1alpha1.RDSInstance {
 	return &databasev1alpha1.RDSInstance{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "RDSInstance",
-			APIVersion: "database.aws.conductor.io/v1alpha1",
-		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      instanceName,
-			Namespace: instanceNamespace,
+			Namespace: namespace,
 		},
 		Spec: databasev1alpha1.RDSInstanceSpec{
-			MasterUsername: dbMasterUserName,
-			Engine:         dbEngine,
-			Class:          dbClass,
-			Size:           dbSize,
+			MasterUsername: masterUserName,
+			Engine:         engine,
+			Class:          class,
+			Size:           size,
 			ProviderRef: corev1.LocalObjectReference{
 				Name: p.Name,
 			},
@@ -222,25 +213,4 @@ func TInstance(p *awsv1alpha1.Provider) *databasev1alpha1.RDSInstance {
 			},
 		},
 	}
-}
-
-type MockRDS struct {
-	MockGetInstance    func(string) (*rds.Instance, error)
-	MockCreateInstance func(name, password string, spec *databasev1alpha1.RDSInstanceSpec) (*rds.Instance, error)
-	MockDeleteInstance func(name string) (*rds.Instance, error)
-}
-
-// GetInstance finds RDS Instance by name
-func (m *MockRDS) GetInstance(name string) (*rds.Instance, error) {
-	return m.MockGetInstance(name)
-}
-
-// CreateInstance creates RDS Instance with provided Specification
-func (m *MockRDS) CreateInstance(name, password string, spec *databasev1alpha1.RDSInstanceSpec) (*rds.Instance, error) {
-	return m.MockCreateInstance(name, password, spec)
-}
-
-// DeleteInstance deletes RDS Instance
-func (m *MockRDS) DeleteInstance(name string) (*rds.Instance, error) {
-	return m.MockDeleteInstance(name)
 }

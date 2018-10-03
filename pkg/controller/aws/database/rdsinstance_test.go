@@ -39,10 +39,10 @@ func TestReconcileMissingProvider(t *testing.T) {
 	defer close(StartTestManager(mgr.manager, g))
 
 	// Provider (define, but not create)
-	p := TProvider(TSecret([]byte("testdata")))
+	p := testProvider(testSecret([]byte("testdata")))
 
 	// Create RDS Instance
-	i, err := mgr.createInstance(TInstance(p))
+	i, err := mgr.createInstance(testInstance(p))
 	g.Expect(err).NotTo(HaveOccurred())
 	defer mgr.deleteInstance(i)
 
@@ -71,19 +71,19 @@ func TestReconcileInvalidProvider(t *testing.T) {
 	defer close(StartTestManager(mgr.manager, g))
 
 	// Create Provider secret
-	s, err := mgr.createSecret(TSecret([]byte("testdata")))
+	s, err := mgr.createSecret(testSecret([]byte("testdata")))
 	g.Expect(err).NotTo(HaveOccurred())
 	defer mgr.deleteSecret(s)
 
 	// Create Provider with invalid state
-	p := TProvider(s)
+	p := testProvider(s)
 	p.Status.SetInvalid("test-reason", "")
 	p, err = mgr.createProvider(p)
 	g.Expect(err).NotTo(HaveOccurred())
 	defer mgr.deleteProvider(p)
 
 	// Create RDS Instance
-	i, err := mgr.createInstance(TInstance(p))
+	i, err := mgr.createInstance(testInstance(p))
 	g.Expect(err).NotTo(HaveOccurred())
 	defer mgr.deleteInstance(i)
 
@@ -112,17 +112,17 @@ func TestReconcileRDSClientError(t *testing.T) {
 	defer close(StartTestManager(mgr.manager, g))
 
 	// Create Provider secret
-	s, err := mgr.createSecret(TSecret([]byte("testdata")))
+	s, err := mgr.createSecret(testSecret([]byte("testdata")))
 	g.Expect(err).NotTo(HaveOccurred())
 	defer mgr.deleteSecret(s)
 
 	// Create Provider
-	p, err := mgr.createProvider(TProvider(s))
+	p, err := mgr.createProvider(testProvider(s))
 	g.Expect(err).NotTo(HaveOccurred())
 	defer mgr.deleteProvider(p)
 
 	// Create RDS Instance
-	i, err := mgr.createInstance(TInstance(p))
+	i, err := mgr.createInstance(testInstance(p))
 	g.Expect(err).NotTo(HaveOccurred())
 	defer mgr.deleteInstance(i)
 
@@ -155,23 +155,23 @@ func TestReconcileGetInstanceError(t *testing.T) {
 	defer close(StartTestManager(mgr.manager, g))
 
 	// Create Provider secret
-	s, err := mgr.createSecret(TSecret([]byte("testdata")))
+	s, err := mgr.createSecret(testSecret([]byte("testdata")))
 	g.Expect(err).NotTo(HaveOccurred())
 	defer mgr.deleteSecret(s)
 
 	// Create Provider
-	p, err := mgr.createProvider(TProvider(s))
+	p, err := mgr.createProvider(testProvider(s))
 	g.Expect(err).NotTo(HaveOccurred())
 	defer mgr.deleteProvider(p)
 
 	// Create RDS Instance
-	i, err := mgr.createInstance(TInstance(p))
+	i, err := mgr.createInstance(testInstance(p))
 	g.Expect(err).NotTo(HaveOccurred())
 	defer mgr.deleteInstance(i)
 
 	// Mock RDS Client
 	RDSService = func(p *awsv1alpha1.Provider, k kubernetes.Interface) (rds.Service, error) {
-		m := &MockRDS{}
+		m := &rds.MockClient{}
 		// return error on get instance
 		m.MockGetInstance = func(name string) (*rds.Instance, error) {
 			return nil, fmt.Errorf("test-get-instance-error")
@@ -203,17 +203,17 @@ func TestReconcile(t *testing.T) {
 	defer close(StartTestManager(mgr.manager, g))
 
 	// Create Provider secret
-	s, err := mgr.createSecret(TSecret([]byte("testdata")))
+	s, err := mgr.createSecret(testSecret([]byte("testdata")))
 	g.Expect(err).NotTo(HaveOccurred())
 	defer mgr.deleteSecret(s)
 
 	// Create Provider
-	p, err := mgr.createProvider(TProvider(s))
+	p, err := mgr.createProvider(testProvider(s))
 	g.Expect(err).NotTo(HaveOccurred())
 	defer mgr.deleteProvider(p)
 
 	// Create instance
-	i, err := mgr.createInstance(TInstance(p))
+	i, err := mgr.createInstance(testInstance(p))
 	g.Expect(err).NotTo(HaveOccurred())
 	defer mgr.deleteInstance(i)
 
@@ -224,7 +224,7 @@ func TestReconcile(t *testing.T) {
 		Status: rds.DBInstanceStatusCreating.String(), // to avoid requeue
 	}
 
-	m := &MockRDS{}
+	m := &rds.MockClient{}
 	m.MockGetInstance = func(name string) (*rds.Instance, error) {
 		if len(createdPassword) > 0 {
 			return mi, nil
@@ -293,13 +293,14 @@ func TestApplyConnectionSecret(t *testing.T) {
 	defer close(StartTestManager(mgr.manager, g))
 
 	// Create new secret
-	s := TSecret([]byte("testdata"))
+	s := testSecret([]byte("testdata"))
+	defer mgr.deleteSecret(s)
 	cs, err := mgr.reconciler.ApplyConnectionSecret(s)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(cs.Data).To(Equal(s.Data))
 
 	// Create another secret with the same name but different data
-	ns := TSecret([]byte("foo-bar"))
+	ns := testSecret([]byte("testdata-new"))
 	cs, err = mgr.reconciler.ApplyConnectionSecret(ns)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(cs.Data).To(Equal(ns.Data))

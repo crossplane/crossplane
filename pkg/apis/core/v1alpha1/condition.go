@@ -25,15 +25,15 @@ import (
 type ConditionType string
 
 const (
-	// Pending means that the instance create request has been received and waiting to be fulfilled
+	// Pending means that the resource create request has been received and waiting to be fulfilled
 	Pending ConditionType = "Pending"
-	// Creating means that the DB instance create request has been processed and DB Instance is being created
+	// Creating means that the DB resource create request has been processed and managed resource is being created
 	Creating ConditionType = "Creating"
-	// Deleting means that the instance is being deleted.
+	// Deleting means that the resource is being deleted.
 	Deleting ConditionType = "Deleting"
-	// Failed means that the instance creation has failed.
+	// Failed means that the resource creation has failed.
 	Failed ConditionType = "Failed"
-	// Running means that the instance creation has been successful.
+	// Running means that the resource creation has been successful.
 	Running ConditionType = "Running"
 )
 
@@ -46,7 +46,7 @@ type Condition struct {
 	Message            string
 }
 
-// ConditionedStatus defines the observed state of RDSInstance
+// ConditionedStatus defines the observed state of RDSresource
 type ConditionedStatus struct {
 	// Conditions indicate state for particular aspects of a CustomResourceDefinition
 	Conditions []Condition
@@ -96,7 +96,7 @@ func (in *ConditionedStatus) RemoveCondition(condType ConditionType) {
 	in.Conditions = FilterOutCondition(in.Conditions, condType)
 }
 
-// NewCondition creates a new RDS instance condition.
+// NewCondition creates a new RDS resource condition.
 func NewCondition(condType ConditionType, reason, msg string) *Condition {
 	return &Condition{
 		Type:               condType,

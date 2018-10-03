@@ -20,9 +20,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/go-ini/ini"
-
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/go-ini/ini"
 	"github.com/upbound/conductor/pkg/apis/aws/v1alpha1"
 	awsclient "github.com/upbound/conductor/pkg/clients/aws"
 	corev1 "k8s.io/api/core/v1"
@@ -49,10 +48,10 @@ func Add(mgr manager.Manager) error {
 	return add(mgr, newReconciler(mgr, &ConfigurationValidator{}))
 }
 
-var _ reconcile.Reconciler = &ReconcileProvider{}
+var _ reconcile.Reconciler = &Reconciler{}
 
-// ReconcileProvider reconciles a Provider object
-type ReconcileProvider struct {
+// Reconciler reconciles a Provider object
+type Reconciler struct {
 	client.Client
 	Validator
 	scheme     *runtime.Scheme
@@ -62,7 +61,7 @@ type ReconcileProvider struct {
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager, validator Validator) reconcile.Reconciler {
-	return &ReconcileProvider{
+	return &Reconciler{
 		Client:     mgr.GetClient(),
 		Validator:  validator,
 		scheme:     mgr.GetScheme(),
@@ -93,7 +92,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 // Automatically generate RBAC rules to allow the Controller to read and write Deployments
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=aws.conductor.io,resources=provider,verbs=get;list;watch;create;update;patch;delete
-func (r *ReconcileProvider) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	ctx := context.TODO()
 
 	// Fetch the Provider instance
