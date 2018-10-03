@@ -32,8 +32,8 @@ import (
 )
 
 const (
-	DEFAULT_NAMESPACE               = "default"
-	TEST_ASSET_USE_EXISTING_CLUSTER = "USE_EXISTING_CLUSTER"
+	DefaultNamespace            = "default"
+	TestAssetUseExistingCluster = "USE_EXISTING_CLUSTER"
 )
 
 var (
@@ -96,7 +96,7 @@ func (te *TestEnv) Start() *rest.Config {
 // Stop - stops test environment performing additional cleanup (if needed)
 func (te *TestEnv) Stop() {
 	defer te.Environment.Stop()
-	if te.namespace != DEFAULT_NAMESPACE {
+	if te.namespace != DefaultNamespace {
 		k := kubernetes.NewForConfigOrDie(te.cfg)
 		dp := metav1.DeletePropagationForeground
 		err := k.CoreV1().Namespaces().Delete(te.namespace, &metav1.DeleteOptions{PropagationPolicy: &dp})
@@ -114,7 +114,7 @@ func (te *TestEnv) StopAndExit(code int) {
 
 // UseExistingCluster - checks if USE_EXISTING_CLUSTER environment variable is set
 func UseExistingCluster() bool {
-	env, err := strconv.ParseBool(os.Getenv(TEST_ASSET_USE_EXISTING_CLUSTER))
+	env, err := strconv.ParseBool(os.Getenv(TestAssetUseExistingCluster))
 	if err != nil {
 		return false
 	}

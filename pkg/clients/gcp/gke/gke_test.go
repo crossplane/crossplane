@@ -14,10 +14,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package v1alpha1 contains API Schema definitions for the container v1alpha1 API group
-// +k8s:openapi-gen=true
-// +k8s:deepcopy-gen=package,register
-// +k8s:conversion-gen=github.com/upbound/conductor/pkg/apis/gcp/container
-// +k8s:defaulter-gen=TypeMeta
-// +groupName=container.gcp.conductor.io
-package v1alpha1
+package gke
+
+import (
+	"testing"
+
+	. "github.com/onsi/gomega"
+	"golang.org/x/oauth2/google"
+)
+
+func TestNewClusterClient(t *testing.T) {
+	g := NewGomegaWithT(t)
+
+	c, err := NewClusterClient(&google.Credentials{})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(c).NotTo(BeNil())
+}

@@ -66,7 +66,7 @@ var (
 
 // AddCloudsqlInstance creates a new CloudsqlInstance Controller and adds it to the Manager with default RBAC.
 // The Manager will set fields on the Controller and Start it when the Manager is Started.
-func AddCloudsqlInstance(mgr manager.Manager) error {
+func Add(mgr manager.Manager) error {
 	clientset, err := kubernetes.NewForConfig(mgr.GetConfig())
 	if err != nil {
 		return fmt.Errorf("failed to create clientset: %+v", err)
@@ -223,7 +223,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 
 		conditionMessage := fmt.Sprintf("cloud sql instance %s is in the %s state", instance.Name, conditionType)
 		log.Printf(conditionMessage)
-		instance.Status.SetCondition(*corev1alpha1.NewCondition(conditionType, conditionStateChanged, conditionMessage))
+		instance.Status.SetCondition(corev1alpha1.NewCondition(conditionType, conditionStateChanged, conditionMessage))
 		return reconcile.Result{Requeue: true}, r.Update(context.TODO(), instance)
 	}
 
@@ -292,7 +292,7 @@ func (r *Reconciler) handleDeletion(cloudSQLClient gcpclients.CloudSQLAPI,
 }
 
 func (r *Reconciler) markAsDeleting(instance *databasev1alpha1.CloudsqlInstance) (reconcile.Result, error) {
-	instance.Status.SetCondition(*corev1alpha1.NewCondition(corev1alpha1.Deleting, "", ""))
+	instance.Status.SetCondition(corev1alpha1.NewCondition(corev1alpha1.Deleting, "", ""))
 	util.RemoveFinalizer(&instance.ObjectMeta, finalizer)
 	return reconcile.Result{}, r.Update(context.TODO(), instance)
 }
@@ -391,7 +391,7 @@ func (r *Reconciler) initRootUser(cloudSQLClient gcpclients.CloudSQLAPI,
 // fail - helper function to set fail condition with reason and message
 func (r *Reconciler) fail(instance *databasev1alpha1.CloudsqlInstance, reason, msg string) (reconcile.Result, error) {
 	log.Printf("instance %s failed: '%s' %s", instance.Name, reason, msg)
-	instance.Status.SetCondition(*corev1alpha1.NewCondition(corev1alpha1.Failed, reason, msg))
+	instance.Status.SetCondition(corev1alpha1.NewCondition(corev1alpha1.Failed, reason, msg))
 	return reconcile.Result{Requeue: true}, r.Update(context.TODO(), instance)
 }
 

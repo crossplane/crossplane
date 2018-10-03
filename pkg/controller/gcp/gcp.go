@@ -17,6 +17,7 @@ limitations under the License.
 package gcp
 
 import (
+	"github.com/upbound/conductor/pkg/controller/gcp/compute"
 	"github.com/upbound/conductor/pkg/controller/gcp/database"
 	"github.com/upbound/conductor/pkg/controller/gcp/provider"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -25,7 +26,8 @@ import (
 func init() {
 	// AddToManagerFuncs is a list of functions to create controllers and add them to a manager.
 	AddToManagerFuncs = append(AddToManagerFuncs, provider.Add)
-	AddToManagerFuncs = append(AddToManagerFuncs, database.AddCloudsqlInstance)
+	AddToManagerFuncs = append(AddToManagerFuncs, database.Add)
+	AddToManagerFuncs = append(AddToManagerFuncs, compute.Add)
 }
 
 // AddToManagerFuncs is a list of functions to add all Controllers to the Manager

@@ -564,6 +564,7 @@
   name = "google.golang.org/api"
   packages = [
     "cloudresourcemanager/v1",
+    "container/v1",
     "gensupport",
     "googleapi",
     "googleapi/internal/uritemplates",
@@ -944,10 +945,12 @@
     "github.com/go-ini/ini",
     "github.com/onsi/ginkgo",
     "github.com/onsi/gomega",
+    "github.com/onsi/gomega/types",
     "golang.org/x/net/context",
     "golang.org/x/oauth2",
     "golang.org/x/oauth2/google",
     "google.golang.org/api/cloudresourcemanager/v1",
+    "google.golang.org/api/container/v1",
     "google.golang.org/api/googleapi",
     "google.golang.org/api/sqladmin/v1beta4",
     "k8s.io/api/core/v1",

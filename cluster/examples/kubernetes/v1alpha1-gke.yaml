@@ -1,0 +1,13 @@
+apiVersion: compute.gcp.conductor.io/v1alpha1
+kind: GKECluster
+metadata:
+  name: demo-cluster
+spec:
+  providerRef:
+    name: gcp-provider
+  connectionSecretRef:
+    name: gke
+  clusterVersion: 1.10.9-gke.0
+  machineType: n1-standard-1
+  numNodes: 1
+  zone: us-central1-a

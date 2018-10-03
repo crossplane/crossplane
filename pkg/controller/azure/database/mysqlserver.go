@@ -204,7 +204,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 
 		conditionMessage := fmt.Sprintf("MySQL Server instance %s is in the %s state", instance.Name, conditionType)
 		log.Printf(conditionMessage)
-		instance.Status.SetCondition(*corev1alpha1.NewCondition(conditionType, conditionStateChanged, conditionMessage))
+		instance.Status.SetCondition(corev1alpha1.NewCondition(conditionType, conditionStateChanged, conditionMessage))
 		return reconcile.Result{Requeue: true}, r.Update(ctx, instance)
 	}
 
@@ -317,7 +317,7 @@ func (r *Reconciler) handleDeletion(mysqlServersClient azureclients.MySQLServerA
 
 func (r *Reconciler) markAsDeleting(instance *databasev1alpha1.MysqlServer) (reconcile.Result, error) {
 	ctx := context.Background()
-	instance.Status.SetCondition(*corev1alpha1.NewCondition(corev1alpha1.Deleting, "", ""))
+	instance.Status.SetCondition(corev1alpha1.NewCondition(corev1alpha1.Deleting, "", ""))
 	util.RemoveFinalizer(&instance.ObjectMeta, finalizer)
 	return reconcile.Result{}, r.Update(ctx, instance)
 }
@@ -351,7 +351,7 @@ func (r *Reconciler) fail(instance *databasev1alpha1.MysqlServer, reason, msg st
 	ctx := context.Background()
 
 	log.Printf("instance %s failed: '%s': %s", instance.Name, reason, msg)
-	instance.Status.SetCondition(*corev1alpha1.NewCondition(corev1alpha1.Failed, reason, msg))
+	instance.Status.SetCondition(corev1alpha1.NewCondition(corev1alpha1.Failed, reason, msg))
 	return reconcile.Result{Requeue: true}, r.Update(ctx, instance)
 }
 
