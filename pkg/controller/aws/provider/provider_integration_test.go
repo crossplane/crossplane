@@ -17,6 +17,7 @@ limitations under the License.
 package provider
 
 import (
+	"io/ioutil"
 	"testing"
 
 	. "github.com/onsi/gomega"
@@ -25,17 +26,24 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-func TestReconcile(t *testing.T) {
+// TestReconcileValid - - run reconciliation loop with actual aws credentials (if provided, otherwise - skipped)
+func TestReconcileWithCreds(t *testing.T) {
 	g := NewGomegaWithT(t)
+
+	// retrieve aws credentials
+	if *awsCredsFile == "" {
+		t.Skip()
+	}
+	data, err := ioutil.ReadFile(*awsCredsFile)
+	g.Expect(err).NotTo(HaveOccurred())
 
 	// create and start manager
 	mgr, err := NewTestManager()
-	mgr.reconciler.Validator = &MockValidator{}
 	g.Expect(err).NotTo(HaveOccurred())
 	defer close(StartTestManager(mgr, g))
 
 	// Create secret
-	s, err := mgr.createSecret(testSecret([]byte("Zm9vLWJhcgo=")))
+	s, err := mgr.createSecret(testSecret(data))
 	g.Expect(err).NotTo(HaveOccurred())
 	defer mgr.deleteSecret(s)
 
@@ -50,18 +58,8 @@ func TestReconcile(t *testing.T) {
 	// Assert
 	rp, err := mgr.getProvider()
 	g.Expect(err).NotTo(HaveOccurred())
-	condition := provider.GetCondition(rp.Status, corev1alpha1.Valid)
-	g.Expect(condition).NotTo(BeNil())
+	condition := provider.GetCondition(rp.Status, corev1alpha1.Invalid)
+	g.Expect(condition).To(BeNil())
+	condition = provider.GetCondition(rp.Status, corev1alpha1.Valid)
 	g.Expect(condition.Status).To(Equal(corev1.ConditionTrue))
-
-}
-
-func TestMissingPermissions(t *testing.T) {
-	g := NewGomegaWithT(t)
-
-	g.Expect(getMissingPermissions([]string{}, []string{})).To(BeNil())
-	g.Expect(getMissingPermissions([]string{"a"}, []string{})).To(Equal([]string{"a"}))
-	g.Expect(getMissingPermissions([]string{"a", "a"}, []string{})).To(Equal([]string{"a", "a"}))
-	g.Expect(getMissingPermissions([]string{"a", "a"}, []string{"a"})).To(BeNil())
-	g.Expect(getMissingPermissions([]string{"a", "b"}, []string{"a"})).To(Equal([]string{"b"}))
 }

@@ -4,12 +4,11 @@ import (
 	"flag"
 	"testing"
 
-	"k8s.io/apimachinery/pkg/util/rand"
-
 	"github.com/aws/aws-sdk-go-v2/aws"
 	. "github.com/onsi/gomega"
 	"github.com/upbound/conductor/pkg/apis/aws/database/v1alpha1"
 	awsclient "github.com/upbound/conductor/pkg/clients/aws"
+	"k8s.io/apimachinery/pkg/util/rand"
 )
 
 var (

@@ -41,17 +41,17 @@ func TestReconcileWithCreds(t *testing.T) {
 	defer close(StartTestManager(mgr.manager, g))
 
 	// Create Provider secret
-	s, err := mgr.createSecret(TSecret(data))
+	s, err := mgr.createSecret(testSecret(data))
 	g.Expect(err).NotTo(HaveOccurred())
 	defer mgr.deleteSecret(s)
 
 	// Create Provider
-	p, err := mgr.createProvider(TProvider(s))
+	p, err := mgr.createProvider(testProvider(s))
 	g.Expect(err).NotTo(HaveOccurred())
 	defer mgr.deleteProvider(p)
 
 	// Create RDS Instance
-	i, err := mgr.createInstance(TInstance(p))
+	i, err := mgr.createInstance(testInstance(p))
 	g.Expect(err).NotTo(HaveOccurred())
 	defer mgr.deleteInstance(i)
 

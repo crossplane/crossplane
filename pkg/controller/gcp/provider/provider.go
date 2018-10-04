@@ -39,7 +39,7 @@ import (
 )
 
 const (
-	RECORDER_NAME = "gcp.provider"
+	recorderName = "gcp.provider"
 )
 
 // Add creates a new Provider Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
@@ -48,10 +48,10 @@ func Add(mgr manager.Manager) error {
 	return add(mgr, newReconciler(mgr, &CredentialsValidator{}))
 }
 
-var _ reconcile.Reconciler = &ReconcileProvider{}
+var _ reconcile.Reconciler = &Reconciler{}
 
-// ReconcileProvider reconciles a Provider object
-type ReconcileProvider struct {
+// Reconciler reconciles a Provider object
+type Reconciler struct {
 	client.Client
 	Validator
 	scheme     *runtime.Scheme
@@ -61,12 +61,12 @@ type ReconcileProvider struct {
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager, validator Validator) reconcile.Reconciler {
-	return &ReconcileProvider{
+	return &Reconciler{
 		Client:     mgr.GetClient(),
 		Validator:  validator,
 		scheme:     mgr.GetScheme(),
 		kubeclient: kubernetes.NewForConfigOrDie(mgr.GetConfig()),
-		recorder:   mgr.GetRecorder(RECORDER_NAME),
+		recorder:   mgr.GetRecorder(recorderName),
 	}
 }
 
@@ -94,7 +94,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 // Automatically generate RBAC rules to allow the Controller to read and write Deployments
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=cloudsql.gcp.conductor.io,resources=instances,verbs=get;list;watch;create;update;patch;delete
-func (r *ReconcileProvider) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	ctx := context.TODO()
 
 	// Fetch the Provider instance

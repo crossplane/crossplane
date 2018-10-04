@@ -41,8 +41,6 @@ const (
 	Running RDSInstanceConditionType = "Running"
 )
 
-type RDSDBInstanceStatus string
-
 // RDSInstanceSpec defines the desired state of RDSInstance
 type RDSInstanceSpec struct {
 	MasterUsername string   `json:"masterUsername"`
@@ -140,12 +138,6 @@ type RDSInstanceCondition struct {
 	LastTransitionTime metav1.Time
 	Reason             string
 	Message            string
-}
-
-// ProviderStatus defines the observed state of Provider
-type ProviderStatus struct {
-	// Conditions indicate state for particular aspects of a CustomResourceDefinition
-	Conditions []RDSInstanceCondition
 }
 
 // NewCondition creates a new RDS instance condition.
