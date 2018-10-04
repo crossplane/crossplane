@@ -16,7 +16,7 @@ limitations under the License.
 
 // NOTE: Boilerplate only.  Ignore this file.
 
-// Package v1alpha1 contains API Schema definitions for the database v1alpha1 API group
+// Package v1alpha1 contains API Schema definitions for the container v1alpha1 API group
 // +k8s:openapi-gen=true
 // +k8s:deepcopy-gen=package,register
 // +k8s:conversion-gen=github.com/upbound/conductor/pkg/aws/apis/aws/container

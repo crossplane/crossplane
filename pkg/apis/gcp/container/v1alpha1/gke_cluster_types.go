@@ -32,7 +32,7 @@ type GKEClusterSpec struct {
 	ClusterSubnetwork         map[string]string `json:"createSubnetwork,omitempty"`          //--create-subnetwork
 	DiskSize                  string            `json:"diskSize,omitempty"`                  //--disk-size
 	EnableAutorepair          bool              `json:"enableAutorepair,omitempty"`          //--enable-autorepair
-	EnableAutoupgrade         bool              `json:"enableAutoupgraid,omitempty"`         //--enable-autoupgrade
+	EnableAutoupgrade         bool              `json:"enableAutoupgrade,omitempty"`         //--enable-autoupgrade
 	EnableCloudLogging        bool              `json:"enableCloudLogging,omitempty"`        //--no-enable-cloud-logging]
 	EnableCloudMonitoring     bool              `json:"enableCloudMonitoring,omitempty"`     //--no-enable-cloud-monitoring
 	EnableIPAlias             bool              `json:"enableIPAlias,omitempty"`             //--enable-ip-alias

@@ -79,7 +79,6 @@ type EKSClusterSpec struct {
 	// the command inputs and returns a sample output JSON for that command.
 	GenerateCLISkeleton string `json:"generateCLISkeleton,omitempty"`
 
-
 	// ProviderRef - reference to GCP provider object
 	ProviderRef v1.LocalObjectReference `json:"providerRef"`
 
