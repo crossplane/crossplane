@@ -45,3 +45,69 @@ type ProviderStatus struct {
 	// Conditions indicate state for particular aspects of a CustomResourceDefinition
 	Conditions []ProviderCondition
 }
+
+// NewCondition creates a provider condition.
+func NewProviderCondition(condType ProviderConditionType, status corev1.ConditionStatus, reason, msg string) *ProviderCondition {
+	return &ProviderCondition{
+		Type:               condType,
+		Status:             status,
+		LastTransitionTime: metav1.Now(),
+		Reason:             reason,
+		Message:            msg,
+	}
+}
+
+// GetCondition returns a provider condition with the provided type if it exists.
+func (in *ProviderStatus) GetCondition(conditionType ProviderConditionType) *ProviderCondition {
+	for _, c := range in.Conditions {
+		if c.Type == conditionType {
+			return &c
+		}
+	}
+	return nil
+}
+
+// SetCondition adds/replaces the given condition in the credentials controller status.
+func (in *ProviderStatus) SetCondition(condition ProviderCondition) {
+	current := in.GetCondition(condition.Type)
+	if current != nil && current.Status == condition.Status && current.Reason == condition.Reason {
+		return
+	}
+	newConditions := FilterOutProviderCondition(in.Conditions, condition.Type)
+	in.Conditions = append(newConditions, condition)
+}
+
+// SetInvalid condition and unset valid condition
+func (in *ProviderStatus) SetInvalid(reason, msg string) {
+	in.SetCondition(*NewProviderCondition(Invalid, corev1.ConditionTrue, reason, msg))
+
+	if valid := in.GetCondition(Valid); valid != nil {
+		in.SetCondition(*NewProviderCondition(Valid, corev1.ConditionFalse, "", valid.Message))
+	}
+}
+
+// SetValid condition and unset invalid condition
+func (in *ProviderStatus) SetValid(msg string) {
+	in.SetCondition(*NewProviderCondition(Valid, corev1.ConditionTrue, "", msg))
+
+	if invalid := in.GetCondition(Invalid); invalid != nil {
+		in.SetCondition(*NewProviderCondition(Invalid, corev1.ConditionFalse, invalid.Reason, invalid.Message))
+	}
+}
+
+// RemoveCondition removes the condition with the provided type from the credentials controller status.
+func (in *ProviderStatus) RemoveCondition(condType ProviderConditionType) {
+	in.Conditions = FilterOutProviderCondition(in.Conditions, condType)
+}
+
+// FilterOutProviderCondition returns a new slice of credentials controller conditions without conditions with the provided type.
+func FilterOutProviderCondition(conditions []ProviderCondition, condType ProviderConditionType) []ProviderCondition {
+	var newConditions []ProviderCondition
+	for _, c := range conditions {
+		if c.Type == condType {
+			continue
+		}
+		newConditions = append(newConditions, c)
+	}
+	return newConditions
+}

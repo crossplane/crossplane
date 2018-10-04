@@ -22,7 +22,6 @@ import (
 
 	. "github.com/onsi/gomega"
 	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
-	"github.com/upbound/conductor/pkg/controller/core/provider"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -58,8 +57,8 @@ func TestReconcileWithCreds(t *testing.T) {
 	// Assert
 	rp, err := mgr.getProvider()
 	g.Expect(err).NotTo(HaveOccurred())
-	condition := provider.GetCondition(rp.Status, corev1alpha1.Invalid)
+	condition := rp.Status.GetCondition(corev1alpha1.Invalid)
 	g.Expect(condition).To(BeNil())
-	condition = provider.GetCondition(rp.Status, corev1alpha1.Valid)
+	condition = rp.Status.GetCondition(corev1alpha1.Valid)
 	g.Expect(condition.Status).To(Equal(corev1.ConditionTrue))
 }

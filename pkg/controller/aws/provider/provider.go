@@ -24,7 +24,6 @@ import (
 	"github.com/go-ini/ini"
 	"github.com/upbound/conductor/pkg/apis/aws/v1alpha1"
 	awsclient "github.com/upbound/conductor/pkg/clients/aws"
-	"github.com/upbound/conductor/pkg/controller/core/provider"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -119,24 +118,24 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	// Retrieve credentials data
 	data, ok := secret.Data[instance.Spec.Secret.Key]
 	if !ok {
-		provider.SetInvalid(&instance.Status, fmt.Sprintf("invalid AWS Provider secret, data key [%s] is not found", instance.Spec.Secret.Key), "")
+		instance.Status.SetInvalid(fmt.Sprintf("invalid AWS Provider secret, data key [%s] is not found", instance.Spec.Secret.Key), "")
 		return reconcile.Result{}, r.Update(ctx, instance)
 	}
 
 	// Load aws configuration
 	config, err := awsclient.LoadConfig(data, ini.DEFAULT_SECTION, instance.Spec.Region)
 	if err != nil {
-		provider.SetInvalid(&instance.Status, err.Error(), "")
+		instance.Status.SetInvalid(err.Error(), "")
 		return reconcile.Result{}, r.Update(ctx, instance)
 	}
 
 	// Validate aws configuration
 	if err := r.Validate(config); err != nil {
-		provider.SetInvalid(&instance.Status, err.Error(), "")
+		instance.Status.SetInvalid(err.Error(), "")
 		return reconcile.Result{}, r.Update(ctx, instance)
 	}
 
-	provider.SetValid(&instance.Status, "Valid")
+	instance.Status.SetValid("Valid")
 	return reconcile.Result{}, r.Update(ctx, instance)
 }
 
