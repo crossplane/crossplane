@@ -34,9 +34,9 @@ parameters:
   providerRef:
     name: demo-aws-provider
 ---
-# MySQL Instance of a given class
+# Database Instance of a given class
 apiVersion: database.conductor.io/v1alpha1
-kind: MySqlInstance
+kind: DatabaseInstance
 metadata:
   name: wordpress-mysq
 spec:
