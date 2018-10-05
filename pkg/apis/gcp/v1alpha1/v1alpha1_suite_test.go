@@ -17,40 +17,42 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"context"
 	"log"
-	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/upbound/conductor/pkg/test"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/envtest"
 )
 
-var cfg *rest.Config
-var c client.Client
+const (
+	namespace     = "default"
+	name          = "test-provider"
+	secretDataKey = "credentials.json"
+)
+
+var (
+	cfg  *rest.Config
+	c    client.Client
+	crds = []string{filepath.Join("..", "..", "..", "..", "cluster", "charts", "conductor", "crds", "gcp", "v1alpha1")}
+	ctx  = context.TODO()
+)
 
 func TestMain(m *testing.M) {
-	t := &envtest.Environment{
-		CRDDirectoryPaths: []string{filepath.Join("..", "..", "..", "..",
-			"cluster", "charts", "conductor", "crds", "gcp", "v1alpha1")},
-	}
-
 	err := SchemeBuilder.AddToScheme(scheme.Scheme)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	if cfg, err = t.Start(); err != nil {
-		log.Fatal(err)
-	}
+	t := test.NewTestEnv(crds, namespace)
+	cfg = t.Start()
 
 	if c, err = client.New(cfg, client.Options{Scheme: scheme.Scheme}); err != nil {
 		log.Fatal(err)
 	}
 
-	code := m.Run()
-	t.Stop()
-	os.Exit(code)
+	t.StopAndExit(m.Run())
 }

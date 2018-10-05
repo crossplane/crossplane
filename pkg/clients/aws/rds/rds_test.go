@@ -4,12 +4,12 @@ import (
 	"flag"
 	"testing"
 
-	"k8s.io/apimachinery/pkg/util/rand"
-
 	"github.com/aws/aws-sdk-go-v2/aws"
 	. "github.com/onsi/gomega"
-	"github.com/upbound/conductor/pkg/apis/aws/database/v1alpha1"
+	databasev1alpha1 "github.com/upbound/conductor/pkg/apis/aws/database/v1alpha1"
+	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
 	awsclient "github.com/upbound/conductor/pkg/clients/aws"
+	"k8s.io/apimachinery/pkg/util/rand"
 )
 
 var (
@@ -46,7 +46,7 @@ func TestIntegrationCreateInstance(t *testing.T) {
 
 	rds := NewClient(config)
 
-	spec := &v1alpha1.RDSInstanceSpec{
+	spec := &databasev1alpha1.RDSInstanceSpec{
 		MasterUsername: "masteruser",
 		Engine:         "mysql",
 		Class:          "db.t2.small",
@@ -69,11 +69,11 @@ func TestIntegrationGetInstance(t *testing.T) {
 
 	rds := NewClient(config)
 
-	intanceName := TestRDSInstanceName
-	db, err := rds.GetInstance(intanceName)
+	instanceName := TestRDSInstanceName
+	db, err := rds.GetInstance(instanceName)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(db).NotTo(BeNil())
-	g.Expect(db.Name).To(Equal(intanceName))
+	g.Expect(db.Name).To(Equal(instanceName))
 	g.Expect(db.Status).To(Or(Equal(DBInstanceStatusCreating.String())))
 
 }
@@ -82,20 +82,20 @@ func TestIntegrationDeleteInstance(t *testing.T) {
 	g, config := ConfigOrSkip(t)
 	rds := NewClient(config)
 
-	intanceName := TestRDSInstanceName
-	db, err := rds.DeleteInstance(intanceName)
+	instanceName := TestRDSInstanceName
+	db, err := rds.DeleteInstance(instanceName)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(db).NotTo(BeNil())
-	g.Expect(db.Name).To(Equal(intanceName))
+	g.Expect(db.Name).To(Equal(instanceName))
 	g.Expect(db.Status).To(Equal(DBInstanceStatusDeleting.String()))
 }
 
 func TestConditionType(t *testing.T) {
 	g := NewGomegaWithT(t)
 
-	g.Expect(ConditionType(DBInstanceStatusAvailable.String())).To(Equal(v1alpha1.Running))
-	g.Expect(ConditionType(DBInstanceStatusCreating.String())).To(Equal(v1alpha1.Creating))
-	g.Expect(ConditionType(DBInstanceStatusDeleting.String())).To(Equal(v1alpha1.Deleting))
-	g.Expect(ConditionType(DBInstanceStatusFailed.String())).To(Equal(v1alpha1.Failed))
-	g.Expect(ConditionType("foobar")).To(Equal(v1alpha1.Pending))
+	g.Expect(ConditionType(DBInstanceStatusAvailable.String())).To(Equal(corev1alpha1.Running))
+	g.Expect(ConditionType(DBInstanceStatusCreating.String())).To(Equal(corev1alpha1.Creating))
+	g.Expect(ConditionType(DBInstanceStatusDeleting.String())).To(Equal(corev1alpha1.Deleting))
+	g.Expect(ConditionType(DBInstanceStatusFailed.String())).To(Equal(corev1alpha1.Failed))
+	g.Expect(ConditionType("foobar")).To(Equal(corev1alpha1.Pending))
 }

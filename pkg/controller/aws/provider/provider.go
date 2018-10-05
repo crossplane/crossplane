@@ -20,12 +20,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/go-ini/ini"
-
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/go-ini/ini"
 	"github.com/upbound/conductor/pkg/apis/aws/v1alpha1"
 	awsclient "github.com/upbound/conductor/pkg/clients/aws"
-	"github.com/upbound/conductor/pkg/controller/core/provider"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -50,10 +48,10 @@ func Add(mgr manager.Manager) error {
 	return add(mgr, newReconciler(mgr, &ConfigurationValidator{}))
 }
 
-var _ reconcile.Reconciler = &ReconcileProvider{}
+var _ reconcile.Reconciler = &Reconciler{}
 
-// ReconcileProvider reconciles a Provider object
-type ReconcileProvider struct {
+// Reconciler reconciles a Provider object
+type Reconciler struct {
 	client.Client
 	Validator
 	scheme     *runtime.Scheme
@@ -63,7 +61,7 @@ type ReconcileProvider struct {
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager, validator Validator) reconcile.Reconciler {
-	return &ReconcileProvider{
+	return &Reconciler{
 		Client:     mgr.GetClient(),
 		Validator:  validator,
 		scheme:     mgr.GetScheme(),
@@ -94,7 +92,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 // Automatically generate RBAC rules to allow the Controller to read and write Deployments
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=aws.conductor.io,resources=provider,verbs=get;list;watch;create;update;patch;delete
-func (r *ReconcileProvider) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	ctx := context.TODO()
 
 	// Fetch the Provider instance
@@ -120,24 +118,24 @@ func (r *ReconcileProvider) Reconcile(request reconcile.Request) (reconcile.Resu
 	// Retrieve credentials data
 	data, ok := secret.Data[instance.Spec.Secret.Key]
 	if !ok {
-		provider.SetInvalid(&instance.Status, fmt.Sprintf("invalid AWS Provider secret, data key [%s] is not found", instance.Spec.Secret.Key), "")
+		instance.Status.SetInvalid(fmt.Sprintf("invalid AWS Provider secret, data key [%s] is not found", instance.Spec.Secret.Key), "")
 		return reconcile.Result{}, r.Update(ctx, instance)
 	}
 
 	// Load aws configuration
 	config, err := awsclient.LoadConfig(data, ini.DEFAULT_SECTION, instance.Spec.Region)
 	if err != nil {
-		provider.SetInvalid(&instance.Status, err.Error(), "")
+		instance.Status.SetInvalid(err.Error(), "")
 		return reconcile.Result{}, r.Update(ctx, instance)
 	}
 
 	// Validate aws configuration
 	if err := r.Validate(config); err != nil {
-		provider.SetInvalid(&instance.Status, err.Error(), "")
+		instance.Status.SetInvalid(err.Error(), "")
 		return reconcile.Result{}, r.Update(ctx, instance)
 	}
 
-	provider.SetValid(&instance.Status, "Valid")
+	instance.Status.SetValid("Valid")
 	return reconcile.Result{}, r.Update(ctx, instance)
 }
 

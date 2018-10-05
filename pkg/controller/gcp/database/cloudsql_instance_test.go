@@ -24,39 +24,14 @@ import (
 
 	"github.com/onsi/gomega"
 	databasev1alpha1 "github.com/upbound/conductor/pkg/apis/gcp/database/v1alpha1"
-	gcpv1alpha1 "github.com/upbound/conductor/pkg/apis/gcp/v1alpha1"
-	"golang.org/x/net/context"
-	googleapi "google.golang.org/api/googleapi"
-	sqladmin "google.golang.org/api/sqladmin/v1beta4"
-	"k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
+	"google.golang.org/api/googleapi"
+	"google.golang.org/api/sqladmin/v1beta4"
 	"k8s.io/client-go/kubernetes/fake"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
-
-var c client.Client
-
-var expectedRequest = reconcile.Request{NamespacedName: types.NamespacedName{Name: "foo", Namespace: "default"}}
-
-const timeout = time.Second * 5
 
 func TestReconcile(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	provider := &gcpv1alpha1.Provider{
-		ObjectMeta: metav1.ObjectMeta{Name: "foo-provider", Namespace: "default"},
-		Spec: gcpv1alpha1.ProviderSpec{
-			ProjectID: "foo-project",
-		},
-	}
-	instance := &databasev1alpha1.CloudsqlInstance{
-		ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "default"},
-		Spec: databasev1alpha1.CloudsqlInstanceSpec{
-			ProviderRef: v1.LocalObjectReference{Name: "foo-provider"},
-		},
-	}
 
 	clientset := fake.NewSimpleClientset()
 	cloudSQLClient := &mockCloudSQLClient{}
@@ -87,21 +62,23 @@ func TestReconcile(t *testing.T) {
 	// channel when it is finished.
 	mgr, err := manager.New(cfg, manager.Options{})
 	g.Expect(err).NotTo(gomega.HaveOccurred())
-	c = mgr.GetClient()
+	c := mgr.GetClient()
 
 	recFn, requests := SetupTestReconcile(newCloudsqlInstanceReconciler(mgr, cloudSQLClientFactory, clientset, options))
 	g.Expect(addCloudsqlInstanceReconciler(mgr, recFn)).NotTo(gomega.HaveOccurred())
 	defer close(StartTestManager(mgr, g))
 
 	// create the provider object and defer its cleanup
-	err = c.Create(context.TODO(), provider)
+	provider := testProvider(testSecret([]byte("testdata")))
+	err = c.Create(ctx, provider)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
-	defer c.Delete(context.TODO(), provider)
+	defer c.Delete(ctx, provider)
 
 	// Create the CloudSQL object, defer its clean up, and wait for the Reconcile to run
-	err = c.Create(context.TODO(), instance)
+	instance := testInstance(provider)
+	err = c.Create(ctx, instance)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
-	defer c.Delete(context.TODO(), instance)
+	defer c.Delete(ctx, instance)
 	g.Eventually(requests, timeout).Should(gomega.Receive(gomega.Equal(expectedRequest)))
 
 	// wait on a 2nd reconcile request that is caused by the first reconcile updating the CRD status
@@ -109,12 +86,12 @@ func TestReconcile(t *testing.T) {
 
 	// verify that the CRD status was updated with details about the external CloudSQL instance
 	updatedInstance := &databasev1alpha1.CloudsqlInstance{}
-	c.Get(context.TODO(), expectedRequest.NamespacedName, updatedInstance)
+	c.Get(ctx, expectedRequest.NamespacedName, updatedInstance)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 	expectedStatus := databasev1alpha1.CloudsqlInstanceStatus{
-		Message:      "Cloud SQL instance foo is running",
+		Message:      fmt.Sprintf("Cloud SQL instance %s is running", instanceName),
 		State:        "RUNNABLE",
-		ProviderID:   fmt.Sprintf("https://www.googleapis.com/sql/v1beta4/projects/foo-project/instances/foo-%s", updatedInstance.UID),
+		ProviderID:   fmt.Sprintf("https://www.googleapis.com/sql/v1beta4/projects/%s/instances/%s-%s", providerProject, instanceName, updatedInstance.UID),
 		InstanceName: fmt.Sprintf("%s-%s", updatedInstance.Name, updatedInstance.UID),
 	}
 	g.Expect(updatedInstance.Status).To(gomega.Equal(expectedStatus))

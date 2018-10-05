@@ -17,41 +17,52 @@ limitations under the License.
 package database
 
 import (
-	"log"
-	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/onsi/gomega"
 	"github.com/upbound/conductor/pkg/apis/gcp"
-
+	databasev1alpha1 "github.com/upbound/conductor/pkg/apis/gcp/database/v1alpha1"
+	gcpv1alpha1 "github.com/upbound/conductor/pkg/apis/gcp/v1alpha1"
+	"github.com/upbound/conductor/pkg/test"
+	"golang.org/x/net/context"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-var cfg *rest.Config
+const (
+	timeout         = 5 * time.Second
+	namespace       = "default"
+	instanceName    = "test-db-instance"
+	secretName      = "test-secret"
+	secretDataKey   = "credentials"
+	providerName    = "test-provider"
+	providerProject = "test-project"
+)
+
+var (
+	crdRootPath = filepath.Join("..", "..", "..", "..", "cluster", "charts", "conductor", "crds", "gcp")
+	crds        = []string{
+		filepath.Join(crdRootPath, "v1alpha1"),
+		filepath.Join(crdRootPath, "database", "v1alpha1"),
+	}
+	ctx             = context.TODO()
+	cfg             *rest.Config
+	expectedRequest = reconcile.Request{NamespacedName: types.NamespacedName{Name: instanceName, Namespace: namespace}}
+)
 
 func TestMain(m *testing.M) {
-	crdRootPath := filepath.Join("..", "..", "..", "..", "cluster", "charts", "conductor", "crds", "gcp")
-	t := &envtest.Environment{
-		CRDDirectoryPaths: []string{
-			filepath.Join(crdRootPath, "v1alpha1"),
-			filepath.Join(crdRootPath, "database", "v1alpha1"),
-		},
-	}
 	gcp.AddToScheme(scheme.Scheme)
 
-	var err error
-	if cfg, err = t.Start(); err != nil {
-		log.Fatal(err)
-	}
-
-	code := m.Run()
-	t.Stop()
-	os.Exit(code)
+	t := test.NewTestEnv(crds, namespace)
+	cfg = t.Start()
+	t.StopAndExit(m.Run())
 }
 
 // SetupTestReconcile returns a reconcile.Reconcile implementation that delegates to inner and
@@ -73,4 +84,41 @@ func StartTestManager(mgr manager.Manager, g *gomega.GomegaWithT) chan struct{} 
 		g.Expect(mgr.Start(stop)).NotTo(gomega.HaveOccurred())
 	}()
 	return stop
+}
+
+func testSecret(data []byte) *corev1.Secret {
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: namespace,
+		},
+		Data: map[string][]byte{
+			secretDataKey: data,
+		},
+	}
+}
+
+func testProvider(s *corev1.Secret) *gcpv1alpha1.Provider {
+	return &gcpv1alpha1.Provider{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      providerName,
+			Namespace: s.Namespace,
+		},
+		Spec: gcpv1alpha1.ProviderSpec{
+			SecretKey: corev1.SecretKeySelector{
+				LocalObjectReference: corev1.LocalObjectReference{Name: secretName},
+				Key:                  secretDataKey,
+			},
+			ProjectID: providerProject,
+		},
+	}
+}
+
+func testInstance(p *gcpv1alpha1.Provider) *databasev1alpha1.CloudsqlInstance {
+	return &databasev1alpha1.CloudsqlInstance{
+		ObjectMeta: metav1.ObjectMeta{Name: instanceName, Namespace: namespace},
+		Spec: databasev1alpha1.CloudsqlInstanceSpec{
+			ProviderRef: corev1.LocalObjectReference{Name: p.Name},
+		},
+	}
 }

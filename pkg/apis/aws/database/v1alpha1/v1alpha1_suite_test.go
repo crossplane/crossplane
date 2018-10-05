@@ -18,39 +18,40 @@ package v1alpha1
 
 import (
 	"log"
-	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/upbound/conductor/pkg/test"
+	"golang.org/x/net/context"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/envtest"
 )
 
-var cfg *rest.Config
-var c client.Client
+const (
+	namespace = "default"
+	name      = "test-instance"
+)
+
+var (
+	crds = []string{filepath.Join("..", "..", "..", "..", "..", "cluster", "charts", "conductor", "crds", "aws", "database", "v1alpha1")}
+	ctx  = context.TODO()
+	cfg  *rest.Config
+	c    client.Client
+)
 
 func TestMain(m *testing.M) {
-	t := &envtest.Environment{
-		CRDDirectoryPaths: []string{filepath.Join("..", "..", "..", "..", "..",
-			"cluster", "charts", "conductor", "crds", "aws", "database", "v1alpha1")},
-	}
-
 	err := SchemeBuilder.AddToScheme(scheme.Scheme)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	if cfg, err = t.Start(); err != nil {
-		log.Fatal(err)
-	}
+	t := test.NewTestEnv(crds, namespace)
+	cfg = t.Start()
 
 	if c, err = client.New(cfg, client.Options{Scheme: scheme.Scheme}); err != nil {
 		log.Fatal(err)
 	}
 
-	code := m.Run()
-	t.Stop()
-	os.Exit(code)
+	t.StopAndExit(m.Run())
 }

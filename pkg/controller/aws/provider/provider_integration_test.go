@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package database
+package provider
 
 import (
 	"io/ioutil"
@@ -25,10 +25,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-// TestReconcileWithCreds - run reconciliation loop with actual aws credentials (if provided, otherwise - skipped)
+// TestReconcileWithCreds - - run reconciliation loop with actual aws credentials (if provided, otherwise - skipped)
 func TestReconcileWithCreds(t *testing.T) {
 	g := NewGomegaWithT(t)
 
+	// retrieve aws credentials
 	if *awsCredsFile == "" {
 		t.Skip()
 	}
@@ -38,49 +39,26 @@ func TestReconcileWithCreds(t *testing.T) {
 	// create and start manager
 	mgr, err := NewTestManager()
 	g.Expect(err).NotTo(HaveOccurred())
-	defer close(StartTestManager(mgr.manager, g))
+	defer close(StartTestManager(mgr, g))
 
-	// Create Provider secret
+	// Create secret
 	s, err := mgr.createSecret(testSecret(data))
 	g.Expect(err).NotTo(HaveOccurred())
 	defer mgr.deleteSecret(s)
 
-	// Create Provider
-	p, err := mgr.createProvider(testProvider(s))
-	g.Expect(err).NotTo(HaveOccurred())
+	// Create provider
+	p := testProvider(s)
+	g.Expect(mgr.createProvider(p)).NotTo(HaveOccurred())
 	defer mgr.deleteProvider(p)
 
-	// Create RDS Instance
-	i, err := mgr.createInstance(testInstance(p))
-	g.Expect(err).NotTo(HaveOccurred())
-	defer mgr.deleteInstance(i)
-
-	// Initial Loop
+	// Reconcile loop
 	g.Eventually(mgr.requests, timeout).Should(Receive(Equal(expectedRequest)))
-	ri, err := mgr.getInstance()
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(ri).NotTo(BeNil())
 
-	// Assert CRD
-	status := ri.Status
-	g.Expect(status.InstanceName).NotTo(BeEmpty())
-	g.Expect(status.Conditions).NotTo(BeEmpty())
-	condition := status.GetCondition(corev1alpha1.Creating)
-	g.Expect(condition).NotTo(BeNil())
+	// Assert
+	rp, err := mgr.getProvider()
+	g.Expect(err).NotTo(HaveOccurred())
+	condition := rp.Status.GetCondition(corev1alpha1.Invalid)
+	g.Expect(condition).To(BeNil())
+	condition = rp.Status.GetCondition(corev1alpha1.Valid)
 	g.Expect(condition.Status).To(Equal(corev1.ConditionTrue))
-
-	// Assert using rds client
-	rds, err := RDSService(p, mgr.reconciler.kubeclient)
-	g.Expect(err).NotTo(HaveOccurred())
-	db, err := rds.GetInstance(status.InstanceName)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(db).NotTo(BeNil())
-
-	// Delete Instance
-	mgr.deleteInstance(i)
-	g.Eventually(mgr.requests, timeout).Should(Receive(Equal(expectedRequest)))
-
-	// Cleanup
-	db, err = rds.DeleteInstance(ri.Status.InstanceName)
-	g.Expect(err).NotTo(HaveOccurred())
 }

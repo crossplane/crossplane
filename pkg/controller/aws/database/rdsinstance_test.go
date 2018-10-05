@@ -23,8 +23,8 @@ import (
 	. "github.com/onsi/gomega"
 	databasev1alpha1 "github.com/upbound/conductor/pkg/apis/aws/database/v1alpha1"
 	awsv1alpha1 "github.com/upbound/conductor/pkg/apis/aws/v1alpha1"
+	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
 	"github.com/upbound/conductor/pkg/clients/aws/rds"
-	"github.com/upbound/conductor/pkg/controller/core/provider"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -39,10 +39,10 @@ func TestReconcileMissingProvider(t *testing.T) {
 	defer close(StartTestManager(mgr.manager, g))
 
 	// Provider (define, but not create)
-	p := TProvider(TSecret([]byte("testdata")))
+	p := testProvider(testSecret([]byte("testdata")))
 
 	// Create RDS Instance
-	i, err := mgr.createInstance(TInstance(p))
+	i, err := mgr.createInstance(testInstance(p))
 	g.Expect(err).NotTo(HaveOccurred())
 	defer mgr.deleteInstance(i)
 
@@ -52,7 +52,7 @@ func TestReconcileMissingProvider(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(ri).NotTo(BeNil())
 	g.Expect(ri.Status.Conditions).NotTo(BeEmpty())
-	c := ri.Status.GetCondition(databasev1alpha1.Failed)
+	c := ri.Status.GetCondition(corev1alpha1.Failed)
 	g.Expect(c).NotTo(BeNil())
 	g.Expect(c.Status).To(Equal(corev1.ConditionTrue))
 	g.Expect(c.Reason).To(Equal(errorFetchingAwsProvider))
@@ -71,19 +71,19 @@ func TestReconcileInvalidProvider(t *testing.T) {
 	defer close(StartTestManager(mgr.manager, g))
 
 	// Create Provider secret
-	s, err := mgr.createSecret(TSecret([]byte("testdata")))
+	s, err := mgr.createSecret(testSecret([]byte("testdata")))
 	g.Expect(err).NotTo(HaveOccurred())
 	defer mgr.deleteSecret(s)
 
 	// Create Provider with invalid state
-	p := TProvider(s)
-	provider.SetInvalid(&p.Status, "test-reason", "")
+	p := testProvider(s)
+	p.Status.SetInvalid("test-reason", "")
 	p, err = mgr.createProvider(p)
 	g.Expect(err).NotTo(HaveOccurred())
 	defer mgr.deleteProvider(p)
 
 	// Create RDS Instance
-	i, err := mgr.createInstance(TInstance(p))
+	i, err := mgr.createInstance(testInstance(p))
 	g.Expect(err).NotTo(HaveOccurred())
 	defer mgr.deleteInstance(i)
 
@@ -93,7 +93,7 @@ func TestReconcileInvalidProvider(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(ri).NotTo(BeNil())
 	g.Expect(ri.Status.Conditions).NotTo(BeEmpty())
-	c := ri.Status.GetCondition(databasev1alpha1.Failed)
+	c := ri.Status.GetCondition(corev1alpha1.Failed)
 	g.Expect(c).NotTo(BeNil())
 	g.Expect(c.Status).To(Equal(corev1.ConditionTrue))
 	g.Expect(c.Reason).To(Equal(errorProviderStatusInvalid))
@@ -112,17 +112,17 @@ func TestReconcileRDSClientError(t *testing.T) {
 	defer close(StartTestManager(mgr.manager, g))
 
 	// Create Provider secret
-	s, err := mgr.createSecret(TSecret([]byte("testdata")))
+	s, err := mgr.createSecret(testSecret([]byte("testdata")))
 	g.Expect(err).NotTo(HaveOccurred())
 	defer mgr.deleteSecret(s)
 
 	// Create Provider
-	p, err := mgr.createProvider(TProvider(s))
+	p, err := mgr.createProvider(testProvider(s))
 	g.Expect(err).NotTo(HaveOccurred())
 	defer mgr.deleteProvider(p)
 
 	// Create RDS Instance
-	i, err := mgr.createInstance(TInstance(p))
+	i, err := mgr.createInstance(testInstance(p))
 	g.Expect(err).NotTo(HaveOccurred())
 	defer mgr.deleteInstance(i)
 
@@ -137,7 +137,7 @@ func TestReconcileRDSClientError(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(ri).NotTo(BeNil())
 	g.Expect(ri.Status.Conditions).NotTo(BeEmpty())
-	c := ri.Status.GetCondition(databasev1alpha1.Failed)
+	c := ri.Status.GetCondition(corev1alpha1.Failed)
 	g.Expect(c).NotTo(BeNil())
 	g.Expect(c.Status).To(Equal(corev1.ConditionTrue))
 	g.Expect(c.Reason).To(Equal(errorRDSClient))
@@ -155,23 +155,23 @@ func TestReconcileGetInstanceError(t *testing.T) {
 	defer close(StartTestManager(mgr.manager, g))
 
 	// Create Provider secret
-	s, err := mgr.createSecret(TSecret([]byte("testdata")))
+	s, err := mgr.createSecret(testSecret([]byte("testdata")))
 	g.Expect(err).NotTo(HaveOccurred())
 	defer mgr.deleteSecret(s)
 
 	// Create Provider
-	p, err := mgr.createProvider(TProvider(s))
+	p, err := mgr.createProvider(testProvider(s))
 	g.Expect(err).NotTo(HaveOccurred())
 	defer mgr.deleteProvider(p)
 
 	// Create RDS Instance
-	i, err := mgr.createInstance(TInstance(p))
+	i, err := mgr.createInstance(testInstance(p))
 	g.Expect(err).NotTo(HaveOccurred())
 	defer mgr.deleteInstance(i)
 
 	// Mock RDS Client
 	RDSService = func(p *awsv1alpha1.Provider, k kubernetes.Interface) (rds.Service, error) {
-		m := &MockRDS{}
+		m := &rds.MockClient{}
 		// return error on get instance
 		m.MockGetInstance = func(name string) (*rds.Instance, error) {
 			return nil, fmt.Errorf("test-get-instance-error")
@@ -185,7 +185,7 @@ func TestReconcileGetInstanceError(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(ri).NotTo(BeNil())
 	g.Expect(ri.Status.Conditions).NotTo(BeEmpty())
-	c := ri.Status.GetCondition(databasev1alpha1.Failed)
+	c := ri.Status.GetCondition(corev1alpha1.Failed)
 	g.Expect(c).NotTo(BeNil())
 	g.Expect(c.Status).To(Equal(corev1.ConditionTrue))
 	g.Expect(c.Reason).To(Equal(errorGetDbInstance))
@@ -203,17 +203,17 @@ func TestReconcile(t *testing.T) {
 	defer close(StartTestManager(mgr.manager, g))
 
 	// Create Provider secret
-	s, err := mgr.createSecret(TSecret([]byte("testdata")))
+	s, err := mgr.createSecret(testSecret([]byte("testdata")))
 	g.Expect(err).NotTo(HaveOccurred())
 	defer mgr.deleteSecret(s)
 
 	// Create Provider
-	p, err := mgr.createProvider(TProvider(s))
+	p, err := mgr.createProvider(testProvider(s))
 	g.Expect(err).NotTo(HaveOccurred())
 	defer mgr.deleteProvider(p)
 
 	// Create instance
-	i, err := mgr.createInstance(TInstance(p))
+	i, err := mgr.createInstance(testInstance(p))
 	g.Expect(err).NotTo(HaveOccurred())
 	defer mgr.deleteInstance(i)
 
@@ -224,7 +224,7 @@ func TestReconcile(t *testing.T) {
 		Status: rds.DBInstanceStatusCreating.String(), // to avoid requeue
 	}
 
-	m := &MockRDS{}
+	m := &rds.MockClient{}
 	m.MockGetInstance = func(name string) (*rds.Instance, error) {
 		if len(createdPassword) > 0 {
 			return mi, nil
@@ -247,7 +247,7 @@ func TestReconcile(t *testing.T) {
 	g.Expect(ri).NotTo(BeNil())
 	g.Expect(ri.Status.Conditions).NotTo(BeEmpty())
 	// assert creating condition
-	c := ri.Status.GetCondition(databasev1alpha1.Creating)
+	c := ri.Status.GetCondition(corev1alpha1.Creating)
 	g.Expect(c).NotTo(BeNil())
 	g.Expect(c.Status).To(Equal(corev1.ConditionTrue))
 	// assert connection secret
@@ -265,12 +265,12 @@ func TestReconcile(t *testing.T) {
 	}
 
 	// wait for running state
-	c = ri.Status.GetCondition(databasev1alpha1.Running)
+	c = ri.Status.GetCondition(corev1alpha1.Running)
 	for c == nil || c.Status != corev1.ConditionTrue {
 		g.Eventually(mgr.requests, timeout).Should(Receive(Equal(expectedRequest)))
 		ri, err = mgr.getInstance()
 		g.Expect(err).NotTo(HaveOccurred())
-		c = ri.Status.GetCondition(databasev1alpha1.Running)
+		c = ri.Status.GetCondition(corev1alpha1.Running)
 		t.Logf("conditions: %v", ri.Status.Conditions)
 	}
 
@@ -293,13 +293,14 @@ func TestApplyConnectionSecret(t *testing.T) {
 	defer close(StartTestManager(mgr.manager, g))
 
 	// Create new secret
-	s := TSecret([]byte("testdata"))
+	s := testSecret([]byte("testdata"))
+	defer mgr.deleteSecret(s)
 	cs, err := mgr.reconciler.ApplyConnectionSecret(s)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(cs.Data).To(Equal(s.Data))
 
 	// Create another secret with the same name but different data
-	ns := TSecret([]byte("foo-bar"))
+	ns := testSecret([]byte("testdata-new"))
 	cs, err = mgr.reconciler.ApplyConnectionSecret(ns)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(cs.Data).To(Equal(ns.Data))

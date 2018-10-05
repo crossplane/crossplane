@@ -20,10 +20,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/upbound/conductor/pkg/controller/core/provider"
-
 	"github.com/upbound/conductor/pkg/apis/gcp/v1alpha1"
-	_ "github.com/upbound/conductor/pkg/controller/core/provider"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,7 +36,7 @@ import (
 )
 
 const (
-	RECORDER_NAME = "gcp.provider"
+	recorderName = "gcp.provider"
 )
 
 // Add creates a new Provider Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
@@ -48,10 +45,10 @@ func Add(mgr manager.Manager) error {
 	return add(mgr, newReconciler(mgr, &CredentialsValidator{}))
 }
 
-var _ reconcile.Reconciler = &ReconcileProvider{}
+var _ reconcile.Reconciler = &Reconciler{}
 
-// ReconcileProvider reconciles a Provider object
-type ReconcileProvider struct {
+// Reconciler reconciles a Provider object
+type Reconciler struct {
 	client.Client
 	Validator
 	scheme     *runtime.Scheme
@@ -61,12 +58,12 @@ type ReconcileProvider struct {
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager, validator Validator) reconcile.Reconciler {
-	return &ReconcileProvider{
+	return &Reconciler{
 		Client:     mgr.GetClient(),
 		Validator:  validator,
 		scheme:     mgr.GetScheme(),
 		kubeclient: kubernetes.NewForConfigOrDie(mgr.GetConfig()),
-		recorder:   mgr.GetRecorder(RECORDER_NAME),
+		recorder:   mgr.GetRecorder(recorderName),
 	}
 }
 
@@ -94,7 +91,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 // Automatically generate RBAC rules to allow the Controller to read and write Deployments
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=cloudsql.gcp.conductor.io,resources=instances,verbs=get;list;watch;create;update;patch;delete
-func (r *ReconcileProvider) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	ctx := context.TODO()
 
 	// Fetch the Provider instance
@@ -120,16 +117,16 @@ func (r *ReconcileProvider) Reconcile(request reconcile.Request) (reconcile.Resu
 	// Retrieve credentials.json
 	data, ok := secret.Data[instance.Spec.SecretKey.Key]
 	if !ok {
-		provider.SetInvalid(&instance.Status, fmt.Sprintf("invalid GCP Provider secret, %s data is not found", instance.Spec.SecretKey.Key), "")
+		instance.Status.SetInvalid(fmt.Sprintf("invalid GCP Provider secret, %s data is not found", instance.Spec.SecretKey.Key), "")
 		return reconcile.Result{}, r.Update(ctx, instance)
 	}
 
 	// Validate credentials
 	if err := r.Validate(data, instance.Spec.RequiredPermissions, instance.Spec.ProjectID); err != nil {
-		provider.SetInvalid(&instance.Status, err.Error(), "")
+		instance.Status.SetInvalid(err.Error(), "")
 		return reconcile.Result{}, r.Update(ctx, instance)
 	}
 
-	provider.SetValid(&instance.Status, "Valid")
+	instance.Status.SetValid("Valid")
 	return reconcile.Result{}, r.Update(ctx, instance)
 }

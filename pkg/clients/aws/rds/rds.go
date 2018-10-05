@@ -3,12 +3,11 @@ package rds
 import (
 	"strings"
 
-	"github.com/aws/aws-sdk-go-v2/service/rds/rdsiface"
-
-	"github.com/upbound/conductor/pkg/apis/aws/database/v1alpha1"
-
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/rds"
+	"github.com/aws/aws-sdk-go-v2/service/rds/rdsiface"
+	"github.com/upbound/conductor/pkg/apis/aws/database/v1alpha1"
+	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
 )
 
 type DBInstanceStatus int
@@ -28,7 +27,7 @@ func (s DBInstanceStatus) String() string {
 	return [...]string{"available", "creating", "deleting", "failed"}[s]
 }
 
-// Instance conductor repsentation of the to AWS DBInstance
+// Instance conductor representation of the to AWS DBInstance
 type Instance struct {
 	Name     string
 	ARN      string
@@ -134,17 +133,17 @@ func CreateDBInstanceInput(name, password string, spec *v1alpha1.RDSInstanceSpec
 }
 
 // ConditionType based on DBInstance status
-func ConditionType(status string) v1alpha1.RDSInstanceConditionType {
+func ConditionType(status string) corev1alpha1.ConditionType {
 	switch status {
 	case DBInstanceStatusAvailable.String():
-		return v1alpha1.Running
+		return corev1alpha1.Running
 	case DBInstanceStatusCreating.String():
-		return v1alpha1.Creating
+		return corev1alpha1.Creating
 	case DBInstanceStatusDeleting.String():
-		return v1alpha1.Deleting
+		return corev1alpha1.Deleting
 	case DBInstanceStatusFailed.String():
-		return v1alpha1.Failed
+		return corev1alpha1.Failed
 	default:
-		return v1alpha1.Pending
+		return corev1alpha1.Pending
 	}
 }
