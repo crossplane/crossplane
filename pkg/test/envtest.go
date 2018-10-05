@@ -14,6 +14,7 @@ import (
 )
 
 const (
+	DEFAULT_NAMESPACE               = "default"
 	TEST_ASSET_USE_EXISTING_CLUSTER = "USE_EXISTING_CLUSTER"
 )
 
@@ -71,7 +72,7 @@ func (te *TestEnv) Start() *rest.Config {
 // Stop - stops test environment performing additional cleanup (if needed)
 func (te *TestEnv) Stop() {
 	defer te.Environment.Stop()
-	if te.namespace != "default" {
+	if te.namespace != DEFAULT_NAMESPACE {
 		k := kubernetes.NewForConfigOrDie(te.cfg)
 		dp := metav1.DeletePropagationForeground
 		err := k.CoreV1().Namespaces().Delete(te.namespace, &metav1.DeleteOptions{PropagationPolicy: &dp})
