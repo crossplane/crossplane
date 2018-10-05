@@ -26,8 +26,29 @@ import (
 	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
 	"github.com/upbound/conductor/pkg/clients/aws/rds"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/kubernetes"
 )
+
+func waitForDeleted(g *GomegaWithT, mgr *TestManager) {
+	var condition *corev1alpha1.Condition
+
+	ri, err := mgr.getInstance()
+	if err != nil && !errors.IsNotFound(err) {
+		g.Expect(err).NotTo(HaveOccurred())
+	}
+
+	for condition = ri.Status.GetCondition(corev1alpha1.Deleting); condition == nil; {
+		g.Eventually(mgr.requests, timeout).Should(Receive(Equal(expectedRequest)))
+		ri, err = mgr.getInstance()
+		if err != nil {
+			if errors.IsNotFound(err) {
+				break
+			}
+			g.Expect(err).NotTo(HaveOccurred())
+		}
+	}
+}
 
 // TestReconcile - Missing Provider
 func TestReconcileMissingProvider(t *testing.T) {
@@ -271,7 +292,6 @@ func TestReconcile(t *testing.T) {
 		ri, err = mgr.getInstance()
 		g.Expect(err).NotTo(HaveOccurred())
 		c = ri.Status.GetCondition(corev1alpha1.Running)
-		t.Logf("conditions: %v", ri.Status.Conditions)
 	}
 
 	// wait for endpoint value in secret
@@ -279,9 +299,15 @@ func TestReconcile(t *testing.T) {
 		g.Eventually(mgr.requests, timeout).Should(Receive(Equal(expectedRequest)))
 		cs, err = mgr.getSecret(ri.Spec.ConnectionSecretRef.Name)
 		g.Expect(err).NotTo(HaveOccurred())
-		t.Logf("waiting: %s", cs.Data[connectionSecretEndpointKey])
 	}
 
+	// Test Delete
+	m.MockDeleteInstance = func(name string) (*rds.Instance, error) {
+		return nil, nil
+	}
+	// Cleanup
+	g.Expect(mgr.deleteInstance(i)).NotTo(HaveOccurred())
+	waitForDeleted(g, mgr)
 }
 
 func TestApplyConnectionSecret(t *testing.T) {
