@@ -25,7 +25,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-// TestReconcileValid - - run reconciliation loop with actual aws credentials (if provided, otherwise - skipped)
+// TestReconcileWithCreds - - run reconciliation loop with actual aws credentials (if provided, otherwise - skipped)
 func TestReconcileWithCreds(t *testing.T) {
 	g := NewGomegaWithT(t)
 
