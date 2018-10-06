@@ -33,7 +33,7 @@ func TestStorageProvider(t *testing.T) {
 			Namespace: namespace,
 		},
 		Spec: ProviderSpec{
-			SecretKey: v1.SecretKeySelector{
+			Secret: v1.SecretKeySelector{
 				LocalObjectReference: v1.LocalObjectReference{Name: "u-235"},
 				Key:                  secretDataKey,
 			},

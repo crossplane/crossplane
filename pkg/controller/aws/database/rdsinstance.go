@@ -254,7 +254,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 // RDSService - creates new instance of RDS client based on provider information
 var RDSService = func(p *awsv1alpha1.Provider, k kubernetes.Interface) (rds.Service, error) {
 	// Get Provider's AWS Config
-	config, err := aws.Config(p, k)
+	config, err := aws.Config(k, p)
 	if err != nil {
 		return nil, err
 	}

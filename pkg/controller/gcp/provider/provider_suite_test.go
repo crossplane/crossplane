@@ -21,8 +21,6 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/client-go/kubernetes"
-
 	"github.com/onsi/gomega"
 	"github.com/upbound/conductor/pkg/apis/gcp"
 	gcpv1alpha1 "github.com/upbound/conductor/pkg/apis/gcp/v1alpha1"
@@ -31,6 +29,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -163,7 +162,7 @@ func testProvider(s *corev1.Secret) *gcpv1alpha1.Provider {
 			Namespace: s.Namespace,
 		},
 		Spec: gcpv1alpha1.ProviderSpec{
-			SecretKey: corev1.SecretKeySelector{
+			Secret: corev1.SecretKeySelector{
 				LocalObjectReference: corev1.LocalObjectReference{Name: secretName},
 				Key:                  secretDataKey,
 			},
@@ -175,7 +174,7 @@ func testProvider(s *corev1.Secret) *gcpv1alpha1.Provider {
 // MockValidator - validates credentials
 type MockValidator struct{}
 
-// Validate - never fails
-func (mv *MockValidator) Validate(secret []byte, permissions []string, projectID string) error {
+// Validate - always valid
+func (mv *MockValidator) Validate(k kubernetes.Interface, p *gcpv1alpha1.Provider) error {
 	return nil
 }

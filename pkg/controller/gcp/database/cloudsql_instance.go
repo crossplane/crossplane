@@ -165,7 +165,7 @@ func (r *ReconcileCloudsqlInstance) Reconcile(request reconcile.Request) (reconc
 	// TODO: locking around access to this Cloud SQL client member
 	if r.cloudSQLClient == nil {
 		// we don't already have a Cloud SQL client, let's create one now
-		c, err := r.cloudSQLAPIFactory.CreateAPIInstance(r.clientset, provider.Namespace, provider.Spec.SecretKey)
+		c, err := r.cloudSQLAPIFactory.CreateAPIInstance(r.clientset, provider.Namespace, provider.Spec.Secret)
 		if err != nil {
 			err = fmt.Errorf("failed to get cloud sql client: %+v", err)
 			log.Printf("%+v", err)
