@@ -1,0 +1,52 @@
+/*
+Copyright 2018 The Conductor Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package util
+
+import "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+// RemoveFinalizer - from the list of kubernetes object finalizers
+func RemoveFinalizer(o *v1.ObjectMeta, finalizer string) {
+	finalizers := o.Finalizers
+	for index, f := range finalizers {
+		if f == finalizer {
+			finalizers = append(finalizers[:index], finalizers[index+1:]...)
+		}
+	}
+	o.Finalizers = finalizers
+}
+
+// AddFinalizer - add finalizer (if it wasn't added before)
+func AddFinalizer(o *v1.ObjectMeta, finalizer string) {
+	finalizers := o.Finalizers
+	for _, f := range finalizers {
+		if f == finalizer {
+			return
+		}
+	}
+	o.Finalizers = append(finalizers, finalizer)
+}
+
+// HasFinalizer - check if given instance has a given finalizer
+func HasFinalizer(o *v1.ObjectMeta, finalizer string) bool {
+	finalizers := o.Finalizers
+	for _, f := range finalizers {
+		if f == finalizer {
+			return true
+		}
+	}
+	return false
+}

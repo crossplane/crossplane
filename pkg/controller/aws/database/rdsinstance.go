@@ -43,6 +43,7 @@ import (
 
 const (
 	recorderName = "aws.rds.instance"
+	finalizer    = "finalizer.rds.aws.conductor.io"
 
 	errorFetchingAwsProvider        = "Failed to fetch AWS Provider"
 	errorProviderStatusInvalid      = "Provider status is invalid"
@@ -52,6 +53,7 @@ const (
 	errorRetrievingConnectionSecret = "Failed to retrieve connection secret"
 	errorCreatingDbInstance         = "Failed to create DBInstance"
 	errorCreatingConnectionSecret   = "Failed to create connection secret"
+	errorDeletingDbInstance         = "Failed to delete DBInstance"
 
 	connectionSecretUsernameKey = "Username"
 	connectionSecretPasswordKey = "Password"
@@ -112,15 +114,18 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	return nil
 }
 
+// fail - helper function to set fail condition with reason and message
+func (r *Reconciler) fail(instance *databasev1alpha1.RDSInstance, reason, msg string) (reconcile.Result, error) {
+	instance.Status.SetCondition(*corev1alpha1.NewCondition(corev1alpha1.Failed, reason, msg))
+	return reconcile.Result{Requeue: true}, r.Update(context.TODO(), instance)
+}
+
 // Reconcile reads that state of the cluster for a Instance object and makes changes based on the state read
 // and what is in the Instance.Spec
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	// Fetch the CRD instance
 	instance := &databasev1alpha1.RDSInstance{}
 	ctx := context.Background()
-
-	// Failed condition
-	failed := *corev1alpha1.NewCondition(corev1alpha1.Failed, "", "")
 
 	err := r.Get(ctx, request.NamespacedName, instance)
 	if err != nil {
@@ -147,28 +152,43 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	}
 	err = r.Get(ctx, providerNamespacedName, p)
 	if err != nil {
-		SetCondition(&instance.Status, &failed, errorFetchingAwsProvider, err.Error())
-		return reconcile.Result{Requeue: true}, r.Update(ctx, instance)
+		return r.fail(instance, errorFetchingAwsProvider, err.Error())
 	}
 
 	// Check provider status
 	if pc := p.Status.GetCondition(corev1alpha1.Invalid); pc != nil && pc.Status == corev1.ConditionTrue {
-		SetCondition(&instance.Status, &failed, errorProviderStatusInvalid, pc.Reason)
-		return reconcile.Result{Requeue: true}, r.Update(ctx, instance)
+		return r.fail(instance, errorProviderStatusInvalid, pc.Reason)
 	}
 
 	// Create new RDS Client
 	svc, err := RDSService(p, r.kubeclient)
 	if err != nil {
-		SetCondition(&instance.Status, &failed, errorRDSClient, err.Error())
-		return reconcile.Result{Requeue: true}, r.Update(ctx, instance)
+		return r.fail(instance, errorRDSClient, err.Error())
 	}
 
 	// Search for the RDS instance in AWS
 	db, err := svc.GetInstance(instance.Status.InstanceName)
 	if err != nil {
-		SetCondition(&instance.Status, &failed, errorGetDbInstance, err.Error())
-		return reconcile.Result{Requeue: true}, r.Update(ctx, instance)
+		return r.fail(instance, errorGetDbInstance, err.Error())
+	}
+
+	// Check for deletion
+	if instance.DeletionTimestamp != nil && instance.Status.GetCondition(corev1alpha1.Deleting) == nil {
+		if _, err = svc.DeleteInstance(instance.Status.InstanceName); err != nil {
+			return r.fail(instance, errorDeletingDbInstance, err.Error())
+		}
+
+		instance.Status.SetCondition(*corev1alpha1.NewCondition(corev1alpha1.Deleting, "", ""))
+		util.RemoveFinalizer(&instance.ObjectMeta, finalizer)
+		return reconcile.Result{}, r.Update(ctx, instance)
+	}
+
+	// Add finalizer
+	if !util.HasFinalizer(&instance.ObjectMeta, finalizer) {
+		util.AddFinalizer(&instance.ObjectMeta, finalizer)
+		if err := r.Update(ctx, instance); err != nil {
+			return reconcile.Result{}, err
+		}
 	}
 
 	// Next 3 steps need to be performed all together
@@ -179,42 +199,36 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 		// generate new password
 		password, err := util.GeneratePassword(20)
 		if err != nil {
-			SetCondition(&instance.Status, &failed, errorCreatingPassword, err.Error())
-			return reconcile.Result{Requeue: true}, err
+			return r.fail(instance, errorCreatingPassword, err.Error())
 		}
 
 		_, err = r.ApplyConnectionSecret(NewConnectionSecret(instance, password))
 		if err != nil {
-			SetCondition(&instance.Status, &failed, errorCreatingConnectionSecret, err.Error())
-			return reconcile.Result{Requeue: true}, r.Update(ctx, instance)
+			return r.fail(instance, errorCreatingConnectionSecret, err.Error())
 		}
 
 		// Create DB Instance
 		db, err = svc.CreateInstance(instance.Status.InstanceName, password, &instance.Spec)
 		if err != nil {
-			SetCondition(&instance.Status, &failed, errorCreatingDbInstance, err.Error())
-			return reconcile.Result{Requeue: true}, r.Update(ctx, instance)
+			return r.fail(instance, errorCreatingDbInstance, err.Error())
 		}
 	} else {
 		// Search for connection secret
 		connSecret, err := r.kubeclient.CoreV1().Secrets(instance.Namespace).Get(instance.Spec.ConnectionSecretRef.Name, metav1.GetOptions{})
 		if err != nil {
 			if errors.IsNotFound(err) {
-				SetCondition(&instance.Status, &failed, errorRetrievingConnectionSecret, err.Error())
 				// There is nothing we can do to recover connect secret password.
 				// Nothing, short of re-creating the database instance.
 				// TODO: come up with better database instance password persistence
-				return reconcile.Result{}, r.Update(ctx, instance)
+				return r.fail(instance, errorRetrievingConnectionSecret, err.Error())
 			} else {
-				SetCondition(&instance.Status, &failed, errorRetrievingConnectionSecret, err.Error())
-				return reconcile.Result{Requeue: true}, r.Update(ctx, instance)
+				return r.fail(instance, errorRetrievingConnectionSecret, err.Error())
 			}
 		}
 		connSecret.Data[connectionSecretEndpointKey] = []byte(db.Endpoint)
 		_, err = r.ApplyConnectionSecret(connSecret)
 		if err != nil {
-			SetCondition(&instance.Status, &failed, errorCreatingConnectionSecret, err.Error())
-			return reconcile.Result{Requeue: true}, r.Update(ctx, instance)
+			return r.fail(instance, errorCreatingConnectionSecret, err.Error())
 		}
 	}
 
@@ -247,13 +261,6 @@ var RDSService = func(p *awsv1alpha1.Provider, k kubernetes.Interface) (rds.Serv
 
 	// Create new RDS Client
 	return rds.NewClient(config), nil
-}
-
-func SetCondition(status *databasev1alpha1.RDSInstanceStatus, condition *corev1alpha1.Condition, reason, msg string) {
-	condition.Reason = reason
-	condition.Message = msg
-	condition.Status = corev1.ConditionTrue
-	status.SetCondition(*condition)
 }
 
 func NewConnectionSecret(instance *databasev1alpha1.RDSInstance, password string) *corev1.Secret {
