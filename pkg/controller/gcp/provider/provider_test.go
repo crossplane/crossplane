@@ -54,13 +54,3 @@ func TestReconcile(t *testing.T) {
 	g.Expect(condition.Status).To(Equal(corev1.ConditionTrue))
 
 }
-
-func TestMissingPermissions(t *testing.T) {
-	g := NewGomegaWithT(t)
-
-	g.Expect(getMissingPermissions([]string{}, []string{})).To(BeNil())
-	g.Expect(getMissingPermissions([]string{"a"}, []string{})).To(Equal([]string{"a"}))
-	g.Expect(getMissingPermissions([]string{"a", "a"}, []string{})).To(Equal([]string{"a", "a"}))
-	g.Expect(getMissingPermissions([]string{"a", "a"}, []string{"a"})).To(BeNil())
-	g.Expect(getMissingPermissions([]string{"a", "b"}, []string{"a"})).To(Equal([]string{"b"}))
-}

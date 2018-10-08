@@ -30,7 +30,7 @@ type ProviderSpec struct {
 	// Important: Run "make generate" to regenerate code after modifying this file
 
 	// GCP ServiceAccount json secret key reference
-	SecretKey corev1.SecretKeySelector `json:"credentialsSecretRef"`
+	Secret corev1.SecretKeySelector `json:"credentialsSecretRef"`
 
 	// GCP ProjectID (name)
 	ProjectID string `json:"projectID"`

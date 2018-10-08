@@ -18,12 +18,10 @@ package provider
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/upbound/conductor/pkg/apis/gcp/v1alpha1"
-	corev1 "k8s.io/api/core/v1"
+	"github.com/upbound/conductor/pkg/clients/gcp"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
@@ -39,13 +37,13 @@ const (
 	recorderName = "gcp.provider"
 )
 
+var _ reconcile.Reconciler = &Reconciler{}
+
 // Add creates a new Provider Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
-	return add(mgr, newReconciler(mgr, &CredentialsValidator{}))
+	return add(mgr, newReconciler(mgr, &ProviderValidator{}))
 }
-
-var _ reconcile.Reconciler = &Reconciler{}
 
 // Reconciler reconciles a Provider object
 type Reconciler struct {
@@ -86,8 +84,6 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 // Reconcile reads that state of the cluster for a Provider object and makes changes based on the state read
 // and what is in the Provider.Spec
-// TODO(user): Modify this Reconcile function to implement your Controller logic.  The scaffolding writes
-// a Deployment as an example
 // Automatically generate RBAC rules to allow the Controller to read and write Deployments
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=cloudsql.gcp.conductor.io,resources=instances,verbs=get;list;watch;create;update;patch;delete
@@ -107,26 +103,40 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 		return reconcile.Result{}, err
 	}
 
-	// Fetch Provider Secret
-	secret, err := r.kubeclient.CoreV1().Secrets(request.Namespace).Get(instance.Spec.SecretKey.Name, metav1.GetOptions{})
+	err = r.Validate(r.kubeclient, instance)
 	if err != nil {
-		r.recorder.Event(instance, corev1.EventTypeWarning, "Error", err.Error())
-		return reconcile.Result{}, err
-	}
-
-	// Retrieve credentials.json
-	data, ok := secret.Data[instance.Spec.SecretKey.Key]
-	if !ok {
-		instance.Status.SetInvalid(fmt.Sprintf("invalid GCP Provider secret, %s data is not found", instance.Spec.SecretKey.Key), "")
-		return reconcile.Result{}, r.Update(ctx, instance)
-	}
-
-	// Validate credentials
-	if err := r.Validate(data, instance.Spec.RequiredPermissions, instance.Spec.ProjectID); err != nil {
-		instance.Status.SetInvalid(err.Error(), "")
-		return reconcile.Result{}, r.Update(ctx, instance)
+		instance.Status.SetInvalid("Invalid credentials", err.Error())
+		return reconcile.Result{Requeue: true}, r.Update(ctx, instance)
 	}
 
 	instance.Status.SetValid("Valid")
 	return reconcile.Result{}, r.Update(ctx, instance)
+}
+
+// Credentials - defines provider validation functions
+type Validator interface {
+	Validate(kubernetes.Interface, *v1alpha1.Provider) error
+}
+
+// CredentialsValidator - provides functionality for validating provider credentials
+type ProviderValidator struct{}
+
+// Validate GCP credentials secret
+func (pv *ProviderValidator) Validate(k kubernetes.Interface, p *v1alpha1.Provider) error {
+	// Retrieve credentials
+	creds, err := gcp.ProviderCredentials(k, p)
+	if err != nil {
+		return err
+	}
+
+	if len(p.Spec.RequiredPermissions) == 0 {
+		return nil
+	}
+
+	err = gcp.TestPermissions(creds, p.Spec.RequiredPermissions)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

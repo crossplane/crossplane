@@ -105,7 +105,7 @@ func testProvider(s *corev1.Secret) *gcpv1alpha1.Provider {
 			Namespace: s.Namespace,
 		},
 		Spec: gcpv1alpha1.ProviderSpec{
-			SecretKey: corev1.SecretKeySelector{
+			Secret: corev1.SecretKeySelector{
 				LocalObjectReference: corev1.LocalObjectReference{Name: secretName},
 				Key:                  secretDataKey,
 			},

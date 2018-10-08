@@ -73,7 +73,7 @@ func ValidateConfig(config *aws.Config) error {
 }
 
 // Config - crate AWS Config based on credentials data using [default] profile
-func Config(p *v1alpha1.Provider, client kubernetes.Interface) (*aws.Config, error) {
+func Config(client kubernetes.Interface, p *v1alpha1.Provider) (*aws.Config, error) {
 	secret, err := client.CoreV1().Secrets(p.Namespace).Get(p.Spec.Secret.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err

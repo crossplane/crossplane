@@ -19,16 +19,22 @@ package gcp
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 
+	gcpv1alpha1 "github.com/upbound/conductor/pkg/apis/gcp/v1alpha1"
 	k8sclients "github.com/upbound/conductor/pkg/clients/kubernetes"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
-	googleapi "google.golang.org/api/googleapi"
+	"google.golang.org/api/cloudresourcemanager/v1"
+	"google.golang.org/api/googleapi"
 	"k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
+
+const DefaultScope = cloudresourcemanager.CloudPlatformScope
 
 // GetGoogleClient returns a client object that can be used to interact with the Google API
 func GetGoogleClient(clientset kubernetes.Interface, namespace string, secretKey v1.SecretKeySelector,
@@ -72,4 +78,122 @@ func IsNotFound(err error) bool {
 	}
 	googleapiErr, ok := err.(*googleapi.Error)
 	return ok && googleapiErr.Code == http.StatusNotFound
+}
+
+// ProviderCredentials return google credentials based on the provider's credentials secret data
+func ProviderCredentials(client kubernetes.Interface, p *gcpv1alpha1.Provider, scopes ...string) (*google.Credentials, error) {
+	// retrieve provider secret
+	secret, err := client.CoreV1().Secrets(p.Namespace).Get(p.Spec.Secret.Name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	data, found := secret.Data[p.Spec.Secret.Key]
+	if !found {
+		return nil, fmt.Errorf("invalid provider secret, data key [%s] is not found", p.Spec.Secret.Key)
+	}
+
+	return google.CredentialsFromJSON(context.Background(), data, scopes...)
+}
+
+// CredentialsFromFile retrieve google service account credentials from the provided json file
+func CredentialsFromFile(file string, scopes ...string) (*google.Credentials, error) {
+	data, err := ioutil.ReadFile(file)
+	if err != nil {
+		return nil, err
+	}
+
+	return google.CredentialsFromJSON(context.Background(), data, scopes...)
+}
+
+// ProjectInfo represent GCP Project information
+type ProjectInfo struct {
+	// Name: The user-assigned display name of the Project.
+	Name string
+	// ID: The unique, user-assigned ID of the Project.
+	ID string
+	// Number: The number uniquely identifying the project.
+	Number int64
+	// CreateTime: Project Creation time.
+	CreateTime string
+	// Labels: The labels associated with this Project.
+	Labels map[string]string
+}
+
+// Project returns project information
+func Project(creds *google.Credentials) (*ProjectInfo, error) {
+	ctx := context.Background()
+
+	// Create an authenticated client.
+	client := oauth2.NewClient(ctx, creds.TokenSource)
+
+	// Create a cloud resource manager client from which we can make API calls.
+	crmService, err := cloudresourcemanager.New(client)
+	if err != nil {
+		return nil, err
+	}
+
+	// Retrieve project information
+	p, err := crmService.Projects.Get(creds.ProjectID).Context(context.Background()).Do()
+	if err != nil {
+		return nil, err
+	}
+	return &ProjectInfo{
+		Name:       p.Name,
+		ID:         p.ProjectId,
+		Number:     p.ProjectNumber,
+		CreateTime: p.CreateTime,
+		Labels:     p.Labels,
+	}, nil
+}
+
+// TestPermissions tests service account permission using provided credentials and assert that it has
+// all the provided permissions.
+// - return nil - if all permissions are found
+// - return an error - if one or more expected permissions are not found
+func TestPermissions(creds *google.Credentials, permissions []string) error {
+	ctx := context.Background()
+
+	// Create an authenticated client.
+	client := oauth2.NewClient(ctx, creds.TokenSource)
+
+	// Create a cloud resource manager client from which we can make API calls.
+	crmService, err := cloudresourcemanager.New(client)
+	if err != nil {
+		return err
+	}
+
+	if len(permissions) > 0 {
+		req := &cloudresourcemanager.TestIamPermissionsRequest{
+			Permissions: permissions,
+		}
+
+		// Get the permissions for the provider user over the project ID.
+		rs, err := crmService.Projects.TestIamPermissions(creds.ProjectID, req).Context(ctx).Do()
+		if err != nil {
+			return err
+		}
+
+		missing := getMissingPermissions(permissions, rs.Permissions)
+		if len(missing) > 0 {
+			return fmt.Errorf("missing permissions: %v", missing)
+		}
+	}
+	return nil
+}
+
+// getMissingPermissions - returns a slice of expected permissions that are not found in the actual permissions set
+func getMissingPermissions(expected, actual []string) (missing []string) {
+	for _, p := range expected {
+		found := false
+		for _, pp := range actual {
+			if found = p == pp; found {
+				break
+			}
+		}
+		if !found {
+			missing = append(missing, p)
+		}
+	}
+	return
 }
