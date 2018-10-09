@@ -1,50 +1,14 @@
----
-# AWS Credentials secret - used by AWS Provider
-apiVersion: v1
-kind: Secret
-metadata:
-  name: demo-aws-provider
-type: Opaque
-data:
-  credentials.json: base64encrytpeawscredentials
----
-# AWS Provider with credential secret reference - used to provision aws resources
-apiVersion: aws.conductor.io/v1alpha1
-kind: Provider
-metadata:
-  name: demo-aws-provider
-spec:
-  credentialsSecretRef:
-    key: credentials
-    name: demo-aws-provider
-  region: us-east-1
----
-# Kubernetes MySqlInstanceClass - used by admins
-apiVersion: database.conductor.io/v1alpha1
-kind: MySqlInstanceClass
-metadata:
-  name: mysql-standard
-provisioner: database.aws.conductor.io/v1alpha1
-parameters:
-  class: db.t2.small
-  engine: mysql
-  securityGroups:
-  #  - vpc-default-sg - default security group for your VPC
-  #  - vpc-rds-sg - security group to allow RDS connection
-  providerRef:
-    name: demo-aws-provider
----
 # Database Instance of a given class
 apiVersion: database.conductor.io/v1alpha1
-kind: DatabaseInstance
+kind: MySqlInstance
 metadata:
   name: wordpress-mysq
 spec:
-  className: mysql-standard
-  masterUsername: masteruser
-  size: 20
-  connectionSecretRef:
-    name: demo-rds-connection
+  className: mysql-local
+  # connectionSecretRef is optiontioanl
+  # defaults to the instance name + '-connection', i.e. 'wordpress-mysql-connection'
+  # connectionSecretRef:
+  #  name: demo-rds-connection
 ---
 # Wordpress Deployment
 apiVersion: extensions/v1beta1
