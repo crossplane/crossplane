@@ -1,4 +1,5 @@
-# Database Instance of a given class
+# MySqlInstance creates a mysql database instance of the specified class
+create# Database Instance of a given class
 apiVersion: database.conductor.io/v1alpha1
 kind: MySqlInstance
 metadata:
@@ -31,18 +32,21 @@ spec:
         env:
         - name: WORDPRESS_DB_HOST
           valueFrom:
+            # secret created by MySqlInstance
             secretKeyRef:
-              name: test-conn
+              name: wordpress-mysql-connection
               key: Endpoint
         - name: WORDPRESS_DB_USER
           valueFrom:
+            # secret created by MySqlInstance
             secretKeyRef:
-              name: test-conn
+              name: wordpress-mysql-connection
               key: Username
         - name: WORDPRESS_DB_PASSWORD
           valueFrom:
+            # secret created by MySqlInstance
             secretKeyRef:
-              name: test-conn
+              name: wordpress-mysql-connection
               key: Password
         ports:
         - containerPort: 80

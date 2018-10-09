@@ -4,7 +4,7 @@ kind: MySqlInstance
 metadata:
   name: wordpress-mysq
 spec:
-  className: mysql-local
+  className: mysql-incluster
   # connectionSecretRef is optiontioanl
   # defaults to the instance name + '-connection', i.e. 'wordpress-mysql-connection'
   # connectionSecretRef:
@@ -31,16 +31,19 @@ spec:
         env:
         - name: WORDPRESS_DB_HOST
           valueFrom:
+            # secret created by MySqlInstance
             secretKeyRef:
               name: test-conn
               key: Endpoint
         - name: WORDPRESS_DB_USER
           valueFrom:
+            # secret created by MySqlInstance
             secretKeyRef:
-              name: test-conn
+              name: wordpress-mysql-connection
               key: Username
         - name: WORDPRESS_DB_PASSWORD
           valueFrom:
+            # secret created by MySqlInstance
             secretKeyRef:
               name: test-conn
               key: Password
