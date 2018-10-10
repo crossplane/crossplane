@@ -83,45 +83,6 @@ To provide the separation of concerns, we can "abstract" managed resource CRD vi
 ### Class
 Resource Classes are defined by Cluster/System administrators and tailored/configured with specific primitives for a given managed resource
 
-#### Definition
-```yaml
-apiVersion: apiextensions.k8s.io/v1beta1
-kind: CustomResourceDefinition
-metadata:
-  name: classes.resource.conductor.io
-spec:
-  group: resource.conductor.io
-  names:
-    kind: Class
-    plural: classes
-  scope: Not-Namespaced 
-  validation:
-    openAPIV3Schema:
-      properties:
-        apiVersion:
-          type: string
-        kind:
-          type: string
-        metadata:
-          type: object
-        spec:
-          properties:
-            apiVersion:
-              type: string
-            kind:
-              type: string
-          type: object
-        status:
-          type: object
-  version: v1alpha1
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: []
-  storedVersions: []
-```
-
 #### Examples
 
 ##### Spec-less
@@ -234,3 +195,108 @@ Results in:
     - **Note**: assuming we adopted naming convention in [TODO-2]()
 
 ## Implementation
+We will use Kubernetes Operator(s) to implement Class-Claim paradigm
+
+### Resource Class
+
+```yaml
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: classes.resource.conductor.io
+spec:
+  group: resource.conductor.io
+  names:
+    kind: Class
+    plural: classes
+  scope: Not-Namespaced 
+  validation:
+    openAPIV3Schema:
+      properties:
+        apiVersion:
+          type: string
+        kind:
+          type: string
+        metadata:
+          type: object
+        spec:
+          properties:
+            apiVersion:
+              type: string
+            kind:
+              type: string
+          type: object
+        status:
+          type: object
+  version: v1alpha1
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+```
+
+What makes this CRD special is that its specification (spec) is defined by two section:
+- Declared (Defined in Type):
+    - apiVesion - version of the Class Resource (RDSInstance, GKECluster, etc)
+    - kind - same as above 
+- Undeclared: declared resource type specification
+
+Because we need to define different CRD Resources as classes, we cannot provide "strong typed" definition. This is the main/only reason why we need to use "undeclared" spec section.
+
+```go
+// ClassSpec defines specification of this Class
+type ClassSpec struct {
+	metav1.TypeMeta `json:",inline"`
+}
+``` 
+
+As you can see, the `ClassSpec` contains only inline `TypeMeta`, which provides following properties:
+- `apiVersion`
+- `kind`
+
+This implies that we cannot use only `Client` interface provided by `controller-runtime`:
+```go
+import "sigs.k8s.io/controller-runtime/pkg/client"
+...
+c, err := client.New(cfg, client.Options{Scheme: scheme.Scheme})
+...
+instance := &Class{}
+c.Get(context.TODO(), key, instance)
+```
+
+If we were, then trying to retrieve following Class Instance:
+```yaml
+apiVersion: resource.conductor.io/v1alpha1
+kind: Class
+metadata:
+  name: mysql-pricey
+spec:
+  # apiVersion + Kind- required, type must be installed prior
+  apiVersion: database.aws.conductor.io/v1alpha1
+  kind: RDSInstance
+  # spec - a generic blob - not part of the Class type definition, however, must be a valid spec for above apiVersion + kind
+  spec:
+    providerRef:
+      name: my-aws-provider
+    class: db.m4.xlarge
+    engine: mysql
+    masterUsername: masteruser
+    securityGroups:
+    #  - vpc-default-sg - default security group for your VPC
+    #  - vpc-rds-sg - security group to allow RDS connection
+    size: 100
+``` 
+Would result in:
+```yaml
+apiVersion: resource.conductor.io/v1alpha1
+kind: Class
+metadata:
+  name: mysql-pricey
+spec:
+  # apiVersion + Kind- required, type must be installed prior
+  apiVersion: database.aws.conductor.io/v1alpha1
+  kind: RDSInstance
+
+```
