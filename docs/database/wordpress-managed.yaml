@@ -1,0 +1,69 @@
+# MySqlInstance creates a mysql database instance of the specified class
+create# Database Instance of a given class
+apiVersion: database.conductor.io/v1alpha1
+kind: MySqlInstance
+metadata:
+  name: wordpress-mysq
+spec:
+  className: mysql-managed
+  # connectionSecretRef is optiontioanl
+  # defaults to the instance name + '-connection', i.e. 'wordpress-mysql-connection'
+  # connectionSecretRef:
+  #  name: demo-rds-connection
+---
+# Wordpress Deployment
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: wordpress
+  labels:
+    app: wordpress
+spec:
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: wordpress
+    spec:
+      containers:
+      - name: wordpress
+        image: wordpress:4.6.1-apache
+        env:
+        - name: WORDPRESS_DB_HOST
+          valueFrom:
+            # secret created by MySqlInstance
+            secretKeyRef:
+              name: wordpress-mysql-connection
+              key: Endpoint
+        - name: WORDPRESS_DB_USER
+          valueFrom:
+            # secret created by MySqlInstance
+            secretKeyRef:
+              name: wordpress-mysql-connection
+              key: Username
+        - name: WORDPRESS_DB_PASSWORD
+          valueFrom:
+            # secret created by MySqlInstance
+            secretKeyRef:
+              name: wordpress-mysql-connection
+              key: Password
+        ports:
+        - containerPort: 80
+          name: wordpress
+---
+# Wordpress Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: wordpress
+  labels:
+    app: wordpress
+spec:
+  ports:
+  - port: 80
+  selector:
+    app: wordpress
+    tier: frontend
+  type: LoadBalancer
+ 

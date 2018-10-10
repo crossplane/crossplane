@@ -14,22 +14,5 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package core contains Kubernetes API groups for AWS cloud provider.
-package core
-
-import (
-	"github.com/upbound/conductor/pkg/apis/core/resource/v1alpha1"
-	"k8s.io/apimachinery/pkg/runtime"
-)
-
-func init() {
-	AddToSchemes = append(AddToSchemes, v1alpha1.SchemeBuilder.AddToScheme)
-}
-
-// AddToSchemes may be used to add all resources defined in the project to a Scheme
-var AddToSchemes runtime.SchemeBuilder
-
-// AddToScheme adds all Resources to the Scheme
-func AddToScheme(s *runtime.Scheme) error {
-	return AddToSchemes.AddToScheme(s)
-}
+// Package resource contains resource API versions
+package resource

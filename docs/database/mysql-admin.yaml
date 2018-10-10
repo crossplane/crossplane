@@ -1,0 +1,57 @@
+---
+# AWS Credentials secret - used by AWS Provider
+apiVersion: v1
+kind: Secret
+metadata:
+  name: demo-aws-provider
+type: Opaque
+data:
+  credentials.json: base64encrytpeawscredentials
+---
+# AWS Provider with credential secret reference - used to provision aws resources
+apiVersion: aws.conductor.io/v1alpha1
+kind: Provider
+metadata:
+  name: demo-aws-provider
+spec:
+  credentialsSecretRef:
+    key: credentials
+    name: demo-aws-provider
+  region: us-east-1
+---
+# MySQL - Managed Class
+apiVersion: database.conductor.io/v1alpha1
+kind: MySqlClass
+metadata:
+  name: mysql-managed
+spec:
+  # Template to create managed (RDS) instance
+  template:
+    apiVersion: database.aws.conductor.io/v1alpha1
+    kind: RDSInstance
+    spec:
+      providerRef:
+        name: demo-aws-provider
+      class: db.t2.small
+      engine: mysql
+      securityGroups:
+      #  - vpc-default-sg - default security group for your VPC
+      #  - vpc-rds-sg - security group to allow RDS connection
+      size: 20
+      masterUsername: masteruser
+---
+# MySQL - Local Class
+apiVersion: database.conductor.io/v1alpha1
+kind: MySqlClass
+metadata:
+  name: mysql-local
+spec:
+  # Template to create local mysql instance
+  template:
+    apiVersion: database.local.conductor.io/v1alpha1
+    kind: MySql
+    spec:
+      persistance:
+        enabled: true
+      ssl:
+        enabled: false
