@@ -208,13 +208,13 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 		}
 
 		// Create DB Instance
-		db, err = svc.CreateInstance(instance.Status.InstanceName, password, &instance.Spec)
+		db, err = svc.CreateInstance(instance.Status.InstanceName, password, &instance.Spec.RDSInstanceConfiguration)
 		if err != nil {
 			return r.fail(instance, errorCreatingDbInstance, err.Error())
 		}
 	} else {
 		// Search for connection secret
-		connSecret, err := r.kubeclient.CoreV1().Secrets(instance.Namespace).Get(instance.Spec.ConnectionSecretRef.Name, metav1.GetOptions{})
+		connSecret, err := r.kubeclient.CoreV1().Secrets(instance.Namespace).Get(instance.Spec.ConnectionSecret, metav1.GetOptions{})
 		if err != nil {
 			if errors.IsNotFound(err) {
 				// There is nothing we can do to recover connect secret password.
@@ -273,7 +273,7 @@ func NewConnectionSecret(instance *databasev1alpha1.RDSInstance, password string
 
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      instance.Spec.ConnectionSecretRef.Name,
+			Name:      instance.Spec.ConnectionSecret,
 			Namespace: instance.Namespace,
 			OwnerReferences: []metav1.OwnerReference{
 				{

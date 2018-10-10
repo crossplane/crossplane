@@ -51,7 +51,7 @@ func NewInstance(instance *rds.DBInstance) *Instance {
 
 // Service defines RDS Client operations
 type Service interface {
-	CreateInstance(name, password string, spec *v1alpha1.RDSInstanceSpec) (*Instance, error)
+	CreateInstance(name, password string, config *v1alpha1.RDSInstanceConfiguration) (*Instance, error)
 	GetInstance(name string) (*Instance, error)
 	DeleteInstance(name string) (*Instance, error)
 }
@@ -86,7 +86,7 @@ func (c *Client) GetInstance(name string) (*Instance, error) {
 }
 
 // CreateInstance creates RDS Instance with provided Specification
-func (c *Client) CreateInstance(name, password string, spec *v1alpha1.RDSInstanceSpec) (*Instance, error) {
+func (c *Client) CreateInstance(name, password string, spec *v1alpha1.RDSInstanceConfiguration) (*Instance, error) {
 	input := CreateDBInstanceInput(name, password, spec)
 	output, err := c.rds.CreateDBInstanceRequest(input).Send()
 	if err != nil {
@@ -117,8 +117,8 @@ func IsErrNotFound(err error) bool {
 	return strings.Contains(err.Error(), rds.ErrCodeDBInstanceNotFoundFault)
 }
 
-// CreateDBInstanceInput from RDSInstanceSpec
-func CreateDBInstanceInput(name, password string, spec *v1alpha1.RDSInstanceSpec) *rds.CreateDBInstanceInput {
+// CreateDBInstanceInput from RDSInstanceConfiguration
+func CreateDBInstanceInput(name, password string, spec *v1alpha1.RDSInstanceConfiguration) *rds.CreateDBInstanceInput {
 	return &rds.CreateDBInstanceInput{
 		DBInstanceIdentifier:  aws.String(name),
 		AllocatedStorage:      aws.Int64(spec.Size),

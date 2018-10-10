@@ -859,7 +859,7 @@
     "pkg/util",
   ]
   pruneopts = "T"
-  revision = "41f36afa0662ee408687cfe70c13420ff2523b74"
+  revision = "1bfbcc3ef7e7acd051cbcce068c5b8776017a77a"
   source = "https://github.com/ichekrygin/controller-tools.git"
 
 [[projects]]

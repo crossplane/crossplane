@@ -4,12 +4,12 @@ metadata:
   creationTimestamp: null
   labels:
     controller-tools.k8s.io: "1.0"
-  name: rdsinstances.database.aws.conductor.io
+  name: rdsinstanceclaims.database.aws.conductor.io
 spec:
   group: database.aws.conductor.io
   names:
-    kind: RDSInstance
-    plural: rdsinstances
+    kind: RDSInstanceClaim
+    plural: rdsinstanceclaims
   scope: Namespaced
   validation:
     openAPIV3Schema:
@@ -24,14 +24,14 @@ spec:
           properties:
             class:
               type: string
+            classRef:
+              type: object
             connectionSecretName:
               type: string
             engine:
               type: string
             masterUsername:
               type: string
-            providerRef:
-              type: object
             securityGroups:
               items:
                 type: string
@@ -45,17 +45,9 @@ spec:
           - class
           - size
           - connectionSecretName
+          - classRef
           type: object
         status:
-          properties:
-            instanceName:
-              type: string
-            message:
-              type: string
-            providerID:
-              type: string
-            state:
-              type: string
           type: object
   version: v1alpha1
 status:

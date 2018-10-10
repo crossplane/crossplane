@@ -46,7 +46,7 @@ func TestIntegrationCreateInstance(t *testing.T) {
 
 	rds := NewClient(config)
 
-	spec := &databasev1alpha1.RDSInstanceSpec{
+	spec := &databasev1alpha1.RDSInstanceConfiguration{
 		MasterUsername: "masteruser",
 		Engine:         "mysql",
 		Class:          "db.t2.small",

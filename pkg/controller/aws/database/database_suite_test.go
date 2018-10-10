@@ -28,6 +28,7 @@ import (
 	"github.com/upbound/conductor/pkg/apis/aws"
 	databasev1alpha1 "github.com/upbound/conductor/pkg/apis/aws/database/v1alpha1"
 	awsv1alpha1 "github.com/upbound/conductor/pkg/apis/aws/v1alpha1"
+	conductorcorev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -196,15 +197,17 @@ func testInstance(p *awsv1alpha1.Provider) *databasev1alpha1.RDSInstance {
 			Namespace: namespace,
 		},
 		Spec: databasev1alpha1.RDSInstanceSpec{
-			MasterUsername: masterUserName,
-			Engine:         engine,
-			Class:          class,
-			Size:           size,
-			ProviderRef: corev1.LocalObjectReference{
-				Name: p.Name,
+			ProviderReference: conductorcorev1alpha1.ProviderReference{
+				ProviderRef: corev1.LocalObjectReference{Name: p.Name},
 			},
-			ConnectionSecretRef: corev1.LocalObjectReference{
-				Name: p.Name,
+			RDSInstanceConfiguration: databasev1alpha1.RDSInstanceConfiguration{
+				MasterUsername: masterUserName,
+				Engine:         engine,
+				Class:          class,
+				Size:           size,
+			},
+			RDSInstanceConnectionSecret: databasev1alpha1.RDSInstanceConnectionSecret{
+				ConnectionSecret: instanceName,
 			},
 		},
 	}

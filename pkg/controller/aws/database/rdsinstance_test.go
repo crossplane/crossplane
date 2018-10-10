@@ -252,7 +252,7 @@ func TestReconcile(t *testing.T) {
 		}
 		return nil, nil
 	}
-	m.MockCreateInstance = func(name, password string, spec *databasev1alpha1.RDSInstanceSpec) (*rds.Instance, error) {
+	m.MockCreateInstance = func(name, password string, spec *databasev1alpha1.RDSInstanceConfiguration) (*rds.Instance, error) {
 		createdPassword = password
 		mi.Name = name
 		return mi, nil
@@ -272,7 +272,7 @@ func TestReconcile(t *testing.T) {
 	g.Expect(c).NotTo(BeNil())
 	g.Expect(c.Status).To(Equal(corev1.ConditionTrue))
 	// assert connection secret
-	cs, err := mgr.getSecret(ri.Spec.ConnectionSecretRef.Name)
+	cs, err := mgr.getSecret(ri.Spec.ConnectionSecret)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(cs.Data[connectionSecretUsernameKey]).To(Equal([]byte(i.Spec.MasterUsername)))
 	g.Expect(cs.Data[connectionSecretPasswordKey]).To(Equal([]byte(createdPassword)))
@@ -297,7 +297,7 @@ func TestReconcile(t *testing.T) {
 	// wait for endpoint value in secret
 	for string(cs.Data[connectionSecretEndpointKey]) != mi.Endpoint {
 		g.Eventually(mgr.requests, timeout).Should(Receive(Equal(expectedRequest)))
-		cs, err = mgr.getSecret(ri.Spec.ConnectionSecretRef.Name)
+		cs, err = mgr.getSecret(ri.Spec.ConnectionSecret)
 		g.Expect(err).NotTo(HaveOccurred())
 	}
 

@@ -31,6 +31,11 @@ const (
 	Invalid ProviderConditionType = "Invalid"
 )
 
+// ProviderReference provide consistent definition of the provider reference spec
+type ProviderReference struct {
+	ProviderRef corev1.LocalObjectReference `json:"providerRef,omitempty"`
+}
+
 // ProviderCondition contains details for the current condition of this pod.
 type ProviderCondition struct {
 	Type               ProviderConditionType
