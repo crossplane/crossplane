@@ -34,6 +34,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+// DefaultScope is the default scope to use for a GCP client
 const DefaultScope = cloudresourcemanager.CloudPlatformScope
 
 // GetGoogleClient returns a client object that can be used to interact with the Google API

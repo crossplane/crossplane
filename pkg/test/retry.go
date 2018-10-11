@@ -14,20 +14,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package util
+package test
 
 import (
-	"crypto/rand"
-	"encoding/base64"
+	"time"
+
+	"k8s.io/apimachinery/pkg/util/wait"
 )
 
-// GeneratePassword generates a password using random data of the given length, then encodes to
-// a base64 string.
-func GeneratePassword(dataLen int) (string, error) {
-	randData := make([]byte, dataLen)
-	if _, err := rand.Read(randData); err != nil {
-		return "", err
-	}
-
-	return base64.StdEncoding.EncodeToString(randData), nil
+// DefaultRetry is the recommended retry parameters for unit testing scenarios where a condition is being
+// tested multiple times before it is expected to succeed.
+var DefaultRetry = wait.Backoff{
+	Steps:    500,
+	Duration: 10 * time.Millisecond,
+	Factor:   1.0,
+	Jitter:   0.1,
 }
