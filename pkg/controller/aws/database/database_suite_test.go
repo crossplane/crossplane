@@ -54,7 +54,7 @@ const (
 
 var (
 	// used for integration tests with real aws credentials
-	awsCredsFile = flag.String("aws-creds", "", "run integration tests that require .aws/credentials")
+	awsCredsFile    = flag.String("aws-creds", "", "run integration tests that require .aws/credentials")
 	ctx             = context.TODO()
 	cfg             *rest.Config
 	expectedRequest = reconcile.Request{NamespacedName: types.NamespacedName{Name: instanceName, Namespace: namespace}}

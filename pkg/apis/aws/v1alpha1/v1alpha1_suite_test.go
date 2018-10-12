@@ -33,9 +33,9 @@ const (
 )
 
 var (
-	ctx  = context.TODO()
-	cfg  *rest.Config
-	c    client.Client
+	ctx = context.TODO()
+	cfg *rest.Config
+	c   client.Client
 )
 
 func TestMain(m *testing.M) {
