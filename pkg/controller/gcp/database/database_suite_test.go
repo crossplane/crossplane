@@ -17,7 +17,6 @@ limitations under the License.
 package database
 
 import (
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -47,11 +46,6 @@ const (
 )
 
 var (
-	crdRootPath = filepath.Join("..", "..", "..", "..", "cluster", "charts", "conductor", "crds", "gcp")
-	crds        = []string{
-		filepath.Join(crdRootPath, "v1alpha1"),
-		filepath.Join(crdRootPath, "database", "v1alpha1"),
-	}
 	ctx             = context.TODO()
 	cfg             *rest.Config
 	expectedRequest = reconcile.Request{NamespacedName: types.NamespacedName{Name: instanceName, Namespace: namespace}}
@@ -60,7 +54,7 @@ var (
 func TestMain(m *testing.M) {
 	gcp.AddToScheme(scheme.Scheme)
 
-	t := test.NewTestEnv(crds, namespace)
+	t := test.NewTestEnv(namespace, test.CRDs())
 	cfg = t.Start()
 	t.StopAndExit(m.Run())
 }

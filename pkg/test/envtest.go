@@ -3,6 +3,8 @@ package test
 import (
 	"log"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strconv"
 
 	corev1 "k8s.io/api/core/v1"
@@ -18,6 +20,11 @@ const (
 	TEST_ASSET_USE_EXISTING_CLUSTER = "USE_EXISTING_CLUSTER"
 )
 
+var (
+	_, b, _, _ = runtime.Caller(0)
+	crds       = filepath.Join(filepath.Dir(filepath.Dir(filepath.Dir(b))), "cluster", "charts", "conductor", "crds")
+)
+
 // TestEnv - wrapper for controller-runtime envtest with additional functionality
 type TestEnv struct {
 	envtest.Environment
@@ -27,7 +34,7 @@ type TestEnv struct {
 }
 
 // NewTestEnv - create new test environment instance
-func NewTestEnv(crds []string, namespace string) *TestEnv {
+func NewTestEnv(namespace string, crds ...string) *TestEnv {
 	t := envtest.Environment{
 		UseExistingCluster: UseExistingCluster(),
 	}
@@ -105,4 +112,9 @@ func CheckCRDFiles(crds []string) error {
 		}
 	}
 	return nil
+}
+
+// CRDs path to project crds location
+func CRDs() string {
+	return crds
 }
