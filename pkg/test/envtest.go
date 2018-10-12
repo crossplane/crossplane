@@ -39,10 +39,11 @@ func NewTestEnv(namespace string, crds ...string) *TestEnv {
 		UseExistingCluster: UseExistingCluster(),
 	}
 	if !t.UseExistingCluster {
-		if err := CheckCRDFiles(crds); err != nil {
+		if crds, err := CheckCRDFiles(crds); err != nil {
 			log.Panic(err)
+		} else {
+			t.CRDDirectoryPaths = crds
 		}
-		t.CRDDirectoryPaths = crds
 	}
 	if len(namespace) == 0 {
 		namespace = "default"
@@ -105,13 +106,46 @@ func UseExistingCluster() bool {
 }
 
 // CheckCRDFiles - validates that all crds files are found.
-func CheckCRDFiles(crds []string) error {
+func CheckCRDFiles(crds []string) ([]string, error) {
+	var rs []string
+
 	for _, path := range crds {
-		if _, err := os.Stat(path); os.IsNotExist(err) {
-			return err
+		_, err := os.Stat(path)
+		if os.IsNotExist(err) {
+			return nil, err
 		}
+		files, err := Expand(path)
+		if err != nil {
+			return nil, err
+		}
+		rs = append(rs, files...)
 	}
-	return nil
+	return rs, nil
+}
+
+// Expand recursively and returns list of all sub-directories (if any)
+func Expand(path string) ([]string, error) {
+	var rs []string
+
+	fi, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		return nil, err
+	}
+	if fi.Mode().IsDir() {
+		files, err := filepath.Glob(filepath.Join(path, "*"))
+		if err != nil {
+			return nil, err
+		}
+		for _, f := range files {
+			exp, err := Expand(f)
+			if err != nil {
+				return nil, err
+			}
+			rs = append(rs, exp...)
+		}
+		rs = append(rs, path)
+	}
+	return rs, nil
 }
 
 // CRDs path to project crds location

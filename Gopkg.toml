@@ -30,7 +30,7 @@ required = [
 [[override]]
   name="sigs.k8s.io/controller-tools"
   source = "https://github.com/ichekrygin/controller-tools.git"
-  revision = "fe397b1c87ef4524abf55a7de80f223194146b5e"
+  revision = "41f36afa0662ee408687cfe70c13420ff2523b74"
 
 # For dependency below: Refer to issue https://github.com/golang/dep/issues/1799
 [[override]]
