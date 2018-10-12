@@ -19,7 +19,6 @@ package v1alpha1
 import (
 	"context"
 	"log"
-	"path/filepath"
 	"testing"
 
 	"github.com/upbound/conductor/pkg/test"
@@ -35,10 +34,9 @@ const (
 )
 
 var (
-	cfg  *rest.Config
-	c    client.Client
-	crds = []string{filepath.Join("..", "..", "..", "..", "cluster", "charts", "conductor", "crds", "gcp", "v1alpha1")}
-	ctx  = context.TODO()
+	cfg *rest.Config
+	c   client.Client
+	ctx = context.TODO()
 )
 
 func TestMain(m *testing.M) {
@@ -47,7 +45,7 @@ func TestMain(m *testing.M) {
 		log.Fatal(err)
 	}
 
-	t := test.NewTestEnv(crds, namespace)
+	t := test.NewTestEnv(namespace, test.CRDs())
 	cfg = t.Start()
 
 	if c, err = client.New(cfg, client.Options{Scheme: scheme.Scheme}); err != nil {

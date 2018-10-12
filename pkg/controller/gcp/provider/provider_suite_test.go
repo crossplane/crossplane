@@ -17,7 +17,6 @@ limitations under the License.
 package provider
 
 import (
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -47,7 +46,6 @@ const (
 )
 
 var (
-	crds            = []string{filepath.Join("..", "..", "..", "..", "cluster", "charts", "conductor", "crds", "gcp", "v1alpha1")}
 	ctx             = context.TODO()
 	cfg             *rest.Config
 	expectedRequest = reconcile.Request{NamespacedName: types.NamespacedName{Name: providerName, Namespace: namespace}}
@@ -56,7 +54,7 @@ var (
 func TestMain(m *testing.M) {
 	gcp.AddToScheme(scheme.Scheme)
 
-	t := test.NewTestEnv(crds, namespace)
+	t := test.NewTestEnv(namespace, test.CRDs())
 	cfg = t.Start()
 	t.StopAndExit(m.Run())
 

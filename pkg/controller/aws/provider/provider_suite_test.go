@@ -19,7 +19,6 @@ package provider
 import (
 	"flag"
 	"fmt"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -51,9 +50,7 @@ const (
 )
 
 var (
-	// used for integration tests with real aws credentials
 	awsCredsFile    = flag.String("aws-creds", "", "run integration tests that require .aws/credentials")
-	crds            = []string{filepath.Join("..", "..", "..", "..", "cluster", "charts", "conductor", "crds", "aws", "v1alpha1")}
 	ctx             = context.TODO()
 	cfg             *rest.Config
 	expectedRequest = reconcile.Request{NamespacedName: types.NamespacedName{Name: providerName, Namespace: namespace}}
@@ -66,7 +63,7 @@ func init() {
 func TestMain(m *testing.M) {
 	awsapis.AddToScheme(scheme.Scheme)
 
-	t := test.NewTestEnv(crds, namespace)
+	t := test.NewTestEnv(namespace, test.CRDs())
 	cfg = t.Start()
 	t.StopAndExit(m.Run())
 }
