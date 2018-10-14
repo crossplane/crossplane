@@ -21,8 +21,10 @@ import (
 	"time"
 
 	awsapis "github.com/upbound/conductor/pkg/apis/aws"
+	azureapis "github.com/upbound/conductor/pkg/apis/azure"
 	gcpapis "github.com/upbound/conductor/pkg/apis/gcp"
 	awscontroller "github.com/upbound/conductor/pkg/controller/aws"
+	azurecontroller "github.com/upbound/conductor/pkg/controller/azure"
 	gcpcontroller "github.com/upbound/conductor/pkg/controller/gcp"
 
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -48,7 +50,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	log.Printf("Registering Components.")
+	log.Printf("Adding schemes")
 
 	// Setup Scheme for all resources
 	if err := awsapis.AddToScheme(mgr.GetScheme()); err != nil {
@@ -59,6 +61,12 @@ func main() {
 		log.Fatal(err)
 	}
 
+	if err := azureapis.AddToScheme(mgr.GetScheme()); err != nil {
+		log.Fatal(err)
+	}
+
+	log.Printf("Adding controllers")
+
 	// Setup all Controllers
 	if err := awscontroller.AddToManager(mgr); err != nil {
 		log.Fatal(err)
@@ -68,7 +76,11 @@ func main() {
 		log.Fatal(err)
 	}
 
-	log.Printf("Starting the manager.")
+	if err := azurecontroller.AddToManager(mgr); err != nil {
+		log.Fatal(err)
+	}
+
+	log.Printf("Starting the manager")
 
 	// Start the Cmd
 	log.Fatal(mgr.Start(signals.SetupSignalHandler()))

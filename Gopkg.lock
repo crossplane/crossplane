@@ -10,6 +10,36 @@
   version = "v0.27.0"
 
 [[projects]]
+  digest = "1:9b80949393e2c31abfc7a16d7e6ea8dace7e6757af86024adb7a00aa52a68fb6"
+  name = "github.com/Azure/azure-sdk-for-go"
+  packages = [
+    ".",
+    "services/resources/mgmt/2018-05-01/resources",
+    "version",
+  ]
+  pruneopts = "T"
+  revision = "6d20bdbae88c06c36d72eb512295417693bfdf4e"
+  version = "v21.1.0"
+
+[[projects]]
+  digest = "1:7d091af9b30b7320dc50d6da27b2ed686b4eb483031dc12f3533982ba0808205"
+  name = "github.com/Azure/go-autorest"
+  packages = [
+    "autorest",
+    "autorest/adal",
+    "autorest/azure",
+    "autorest/azure/auth",
+    "autorest/date",
+    "autorest/to",
+    "autorest/validation",
+    "logger",
+    "version",
+  ]
+  pruneopts = "T"
+  revision = "9bc4033dd347c7f416fca46b2f42a043dc1fbdf6"
+  version = "v10.15.5"
+
+[[projects]]
   digest = "1:368ef9a22c5fc8d8c5ea73d56275672f6b7653e2f37c10798146a04bfef22e33"
   name = "github.com/aws/aws-sdk-go-v2"
   packages = [
@@ -49,6 +79,22 @@
   pruneopts = "T"
   revision = "8991bc29aa16c548c550c7ff78260e27b9ab7c73"
   version = "v1.1.1"
+
+[[projects]]
+  digest = "1:6b014c67cb522566c30ef02116f9acb50cd60954708cf92c6654e2985696db18"
+  name = "github.com/dgrijalva/jwt-go"
+  packages = ["."]
+  pruneopts = "T"
+  revision = "06ea1031745cb8b3dab3f6a236daf2b0aa468b7e"
+  version = "v3.2.0"
+
+[[projects]]
+  branch = "master"
+  digest = "1:e608bc2d867c3ded40ccea5417715393a50704ac24004afa87431a0e1976e50d"
+  name = "github.com/dimchansky/utfbom"
+  packages = ["."]
+  pruneopts = "T"
+  revision = "5448fe645cb1964ba70ac8f9f2ffe975e61a536c"
 
 [[projects]]
   digest = "1:0ffd93121f3971aea43f6a26b3eaaa64c8af20fb0ff0731087d8dab7164af5a8"
@@ -405,7 +451,11 @@
   branch = "master"
   digest = "1:62fac8c414ce3fb59b87102ebebb04edd0287a721c0cd6b36f4dc866a42cf772"
   name = "golang.org/x/crypto"
-  packages = ["ssh/terminal"]
+  packages = [
+    "pkcs12",
+    "pkcs12/internal/rc2",
+    "ssh/terminal",
+  ]
   pruneopts = "T"
   revision = "0e37d006457bf46f9e6692014ba72ef82c33022c"
 
@@ -877,6 +927,10 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/Azure/azure-sdk-for-go",
+    "github.com/Azure/azure-sdk-for-go/services/resources/mgmt/2018-05-01/resources",
+    "github.com/Azure/go-autorest/autorest",
+    "github.com/Azure/go-autorest/autorest/azure/auth",
     "github.com/aws/aws-sdk-go-v2",
     "github.com/aws/aws-sdk-go-v2/aws",
     "github.com/aws/aws-sdk-go-v2/aws/external",

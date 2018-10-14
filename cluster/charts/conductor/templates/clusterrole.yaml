@@ -41,6 +41,8 @@ rules:
 - apiGroups:
   - aws.conductor.io
   - database.aws.conductor.io
+  - azure.conductor.io
+  - database.azure.conductor.io
   - gcp.conductor.io
   - database.gcp.conductor.io
   resources:
