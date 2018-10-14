@@ -55,7 +55,7 @@ data:
   Username:         db-user-name
   Password:         db-user-password
   ConnectionString: db-connection-string
-type: core.conductor.io/dbconnection
+type: dbconnection.v1alpha1.core.conductor.io
 ```
 
 - name: 
