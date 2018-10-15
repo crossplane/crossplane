@@ -26,8 +26,6 @@ spec:
               type: string
             classRef:
               type: object
-            connectionSecretName:
-              type: string
             engine:
               type: string
             masterUsername:
@@ -39,12 +37,19 @@ spec:
             size:
               format: int64
               type: integer
+            template:
+              properties:
+                connectionSecretName:
+                  type: string
+              required:
+              - connectionSecretName
+              type: object
           required:
           - masterUsername
           - engine
           - class
           - size
-          - connectionSecretName
+          - template
           - classRef
           type: object
         status:

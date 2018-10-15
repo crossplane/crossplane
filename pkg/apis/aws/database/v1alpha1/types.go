@@ -89,7 +89,7 @@ type RDSInstanceList struct {
 // RDSInstanceClassSpec
 type RDSInstanceClassSpec struct {
 	conductorcorev1alpha1.ProviderReference `json:",inline"`
-	RDSInstanceConfiguration                `json:",inline"`
+	RDSInstanceConfiguration                `json:"template"`
 }
 
 // RDSInstanceClassStatus
@@ -124,7 +124,7 @@ type RDSInstanceClassList struct {
 // RDSInstanceClaimSpec
 type RDSInstanceClaimSpec struct {
 	RDSInstanceConfiguration    `json:",inline"`
-	RDSInstanceConnectionSecret `json:",inline"`
+	RDSInstanceConnectionSecret `json:"template"`
 
 	ClassRef corev1.LocalObjectReference `json:"classRef"`
 }

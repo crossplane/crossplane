@@ -1,4 +1,4 @@
-# Resource Creation/Consumption Model
+# Database Class Claim
 This document proposes a model for how resources managed by Conductor will be created and consumed.
 
 ## Objective
@@ -89,12 +89,13 @@ metadata:
 spec:
   providerRef:
     name: my-aws-provider
-  class: db.t2.small
-  engine: postresql
-  masterUsername: masteruser
-  securityGroups:
-  #  - vpc-default-sg - default security group for your VPC
-  #  - vpc-rds-sg - security group to allow RDS connection
+  template:    
+    class: db.t2.small
+    engine: postresql
+    masterUsername: masteruser
+    securityGroups:
+    #  - vpc-default-sg - default security group for your VPC
+    #  - vpc-rds-sg - security group to allow RDS connection
     size: 10
 ```
 #### Pricey Instance
@@ -106,13 +107,14 @@ metadata:
 spec:
   providerRef:
     name: my-aws-provider
-  class: db.m4.xlarge
-  engine: mysql
-  masterUsername: masteruser
-  securityGroups:
-  #  - vpc-default-sg - default security group for your VPC
-  #  - vpc-rds-sg - security group to allow RDS connection
-  size: 100
+  template:
+    class: db.m4.xlarge
+    engine: mysql
+    masterUsername: masteruser
+    securityGroups:
+    #  - vpc-default-sg - default security group for your VPC
+    #  - vpc-rds-sg - security group to allow RDS connection
+    size: 100
 ```
 
 ### RDSInstanceClaim

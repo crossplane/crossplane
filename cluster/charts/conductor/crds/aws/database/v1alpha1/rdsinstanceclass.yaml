@@ -22,26 +22,31 @@ spec:
           type: object
         spec:
           properties:
-            class:
-              type: string
-            engine:
-              type: string
-            masterUsername:
-              type: string
             providerRef:
               type: object
-            securityGroups:
-              items:
-                type: string
-              type: array
-            size:
-              format: int64
-              type: integer
+            template:
+              properties:
+                class:
+                  type: string
+                engine:
+                  type: string
+                masterUsername:
+                  type: string
+                securityGroups:
+                  items:
+                    type: string
+                  type: array
+                size:
+                  format: int64
+                  type: integer
+              required:
+              - masterUsername
+              - engine
+              - class
+              - size
+              type: object
           required:
-          - masterUsername
-          - engine
-          - class
-          - size
+          - template
           type: object
         status:
           type: object
