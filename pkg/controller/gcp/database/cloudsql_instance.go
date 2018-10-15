@@ -22,6 +22,7 @@ import (
 	"log"
 	"time"
 
+	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
 	databasev1alpha1 "github.com/upbound/conductor/pkg/apis/gcp/database/v1alpha1"
 	gcpv1alpha1 "github.com/upbound/conductor/pkg/apis/gcp/v1alpha1"
 	gcpclients "github.com/upbound/conductor/pkg/clients/gcp"
@@ -43,6 +44,8 @@ import (
 )
 
 const (
+	finalizer = "finalizer.cloudsqlinstances.database.gcp.conductor.io"
+
 	connectionSecretRefFmt    = "%s-connection"
 	connectionInstanceKey     = "instance"
 	connectionDatabaseNameKey = "name"
@@ -50,6 +53,19 @@ const (
 	connectionPasswordKey     = "password"
 	rootUserName              = "root"
 	passwordDataLen           = 20
+
+	errorSettingInstanceName    = "failed to set instance name"
+	errorFetchingGCPProvider    = "failed to fetch GCP Provider"
+	errorFetchingCloudSQLClient = "failed to fetch CloudSQL client"
+	errorFetchingInstance       = "failed to fetch instance"
+	errorCreatingInstance       = "failed to create instance"
+	errorDeletingInstance       = "failed to delete instance"
+	errorInitRootUser           = "failed to initialize root user"
+	conditionStateChanged       = "instance state changed"
+)
+
+var (
+	_ reconcile.Reconciler = &Reconciler{}
 )
 
 // AddCloudsqlInstance creates a new CloudsqlInstance Controller and adds it to the Manager with default RBAC.
@@ -60,15 +76,15 @@ func AddCloudsqlInstance(mgr manager.Manager) error {
 		return fmt.Errorf("failed to create clientset: %+v", err)
 	}
 
-	r := newCloudsqlInstanceReconciler(mgr, &gcpclients.CloudSQLClientFactory{}, clientset, NewReconcileCloudsqlInstanceOptions())
+	r := newCloudsqlInstanceReconciler(mgr, &gcpclients.CloudSQLClientFactory{}, clientset, NewReconcilerOptions())
 	return addCloudsqlInstanceReconciler(mgr, r)
 }
 
 // newCloudsqlInstanceReconciler returns a new reconcile.Reconciler
 func newCloudsqlInstanceReconciler(mgr manager.Manager, cloudSQLAPIFactory gcpclients.CloudSQLAPIFactory,
-	clientset kubernetes.Interface, options ReconcileCloudsqlInstanceOptions) reconcile.Reconciler {
+	clientset kubernetes.Interface, options ReconcilerOptions) *Reconciler {
 
-	return &ReconcileCloudsqlInstance{
+	return &Reconciler{
 		Client:             mgr.GetClient(),
 		cloudSQLAPIFactory: cloudSQLAPIFactory,
 		clientset:          clientset,
@@ -95,36 +111,31 @@ func addCloudsqlInstanceReconciler(mgr manager.Manager, r reconcile.Reconciler) 
 	return nil
 }
 
-var _ reconcile.Reconciler = &ReconcileCloudsqlInstance{}
-
-// ReconcileCloudsqlInstance reconciles a CloudsqlInstance object
-type ReconcileCloudsqlInstance struct {
+// Reconciler reconciles a CloudsqlInstance object
+type Reconciler struct {
 	client.Client
 	clientset          kubernetes.Interface
 	cloudSQLAPIFactory gcpclients.CloudSQLAPIFactory
-	cloudSQLClient     gcpclients.CloudSQLAPI
 	config             *rest.Config
 	scheme             *runtime.Scheme
-	options            ReconcileCloudsqlInstanceOptions
+	options            ReconcilerOptions
 }
 
-// ReconcileCloudsqlInstanceOptions represent options to configure the CloudSQL reconciler
-type ReconcileCloudsqlInstanceOptions struct {
-	PostCreateSleepTime time.Duration
-	WaitSleepTime       time.Duration
+// ReconcilerOptions represent options to configure the CloudSQL reconciler
+type ReconcilerOptions struct {
+	WaitSleepTime time.Duration
 }
 
-// NewReconcileCloudsqlInstanceOptions creates a new ReconcileCloudsqlInstanceOptions object with the default options
-func NewReconcileCloudsqlInstanceOptions() ReconcileCloudsqlInstanceOptions {
-	return ReconcileCloudsqlInstanceOptions{
-		PostCreateSleepTime: 5 * time.Second,
-		WaitSleepTime:       10 * time.Second,
+// NewReconcilerOptions creates a new ReconcilerOptions object with the default options
+func NewReconcilerOptions() ReconcilerOptions {
+	return ReconcilerOptions{
+		WaitSleepTime: 10 * time.Second,
 	}
 }
 
 // Reconcile reads that state of the cluster for a CloudsqlInstance object and makes changes based on the state read
 // and what is in the CloudsqlInstance.Spec
-func (r *ReconcileCloudsqlInstance) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	instance := &databasev1alpha1.CloudsqlInstance{}
 	var cloudSQLInstance *sqladmin.DatabaseInstance
 
@@ -143,10 +154,10 @@ func (r *ReconcileCloudsqlInstance) Reconcile(request reconcile.Request) (reconc
 
 	if instance.Status.InstanceName == "" {
 		// we haven't generated a unique instance name yet, let's do that now
-		instance.Status.InstanceName = fmt.Sprintf("%s-%s", instance.Name, string(instance.UID))
+		instance.Status.InstanceName = instance.Name + "-" + string(instance.UID)
 		log.Printf("cloud sql instance %s does not yet have an instance name, setting it to %s", instance.Name, instance.Status.InstanceName)
-		if err := r.updateStatus(instance, getStatusMessage(instance, cloudSQLInstance), cloudSQLInstance); err != nil {
-			return reconcile.Result{}, err
+		if err := r.Update(context.TODO(), instance); err != nil {
+			return r.fail(instance, errorSettingInstanceName, err.Error())
 		}
 	}
 
@@ -156,104 +167,142 @@ func (r *ReconcileCloudsqlInstance) Reconcile(request reconcile.Request) (reconc
 		Namespace: instance.Namespace,
 		Name:      instance.Spec.ProviderRef.Name,
 	}
-	err = r.Get(context.TODO(), providerNamespacedName, provider)
-	if err != nil {
-		log.Printf("failed to get provider %+v: %+v", providerNamespacedName, err)
-		return reconcile.Result{}, err
+	if err = r.Get(context.TODO(), providerNamespacedName, provider); err != nil {
+		return r.fail(instance, errorFetchingGCPProvider, fmt.Sprintf("failed to get provider %+v: %+v", providerNamespacedName, err))
 	}
 
-	// TODO: locking around access to this Cloud SQL client member
-	if r.cloudSQLClient == nil {
-		// we don't already have a Cloud SQL client, let's create one now
-		c, err := r.cloudSQLAPIFactory.CreateAPIInstance(r.clientset, provider.Namespace, provider.Spec.Secret)
-		if err != nil {
-			err = fmt.Errorf("failed to get cloud sql client: %+v", err)
-			log.Printf("%+v", err)
+	// create a Cloud SQL client during each reconciliation loop since each instance can have different creds
+	cloudSQLClient, err := r.cloudSQLAPIFactory.CreateAPIInstance(r.clientset, provider.Namespace, provider.Spec.Secret)
+	if err != nil {
+		return r.fail(instance, errorFetchingCloudSQLClient, fmt.Sprintf("failed to get cloud sql client: %+v", err))
+	}
+
+	// check for CRD deletion and handle it if needed
+	if instance.DeletionTimestamp != nil {
+		if instance.Status.GetCondition(corev1alpha1.Deleting) == nil {
+			// we haven't started the deletion of the CloudSQL resource yet, do it now
+			log.Printf("cloud sql instance %s has been deleted, running finalizer now", instance.Name)
+			return r.handleDeletion(cloudSQLClient, instance, provider)
+		}
+		// we already started the deletion of the CloudSQL resource, nothing more to do
+		return reconcile.Result{}, nil
+	}
+
+	// Add finalizer to the CRD if it doesn't already exist
+	if !util.HasFinalizer(&instance.ObjectMeta, finalizer) {
+		util.AddFinalizer(&instance.ObjectMeta, finalizer)
+		if err := r.Update(context.TODO(), instance); err != nil {
+			log.Printf("failed to add finalizer to instance %s: %+v", instance.Name, err)
 			return reconcile.Result{}, err
 		}
-		r.cloudSQLClient = c
 	}
 
-	cloudSQLInstance, err = r.cloudSQLClient.GetInstance(provider.Spec.ProjectID, instance.Status.InstanceName)
+	// retrieve the CloudSQL instance from GCP to get the latest status
+	cloudSQLInstance, err = cloudSQLClient.GetInstance(provider.Spec.ProjectID, instance.Status.InstanceName)
 	if err != nil {
 		if !gcpclients.IsNotFound(err) {
-			err = fmt.Errorf("failed to get cloud sql instance %s: %+v", instance.Name, err)
-			log.Printf("%+v", err)
-			return reconcile.Result{}, err
+			return r.fail(instance, errorFetchingInstance, fmt.Sprintf("failed to get cloud sql instance %s: %+v", instance.Name, err))
 		}
 
 		// seems like we didn't find a cloud sql instance with this name, let's create one
-		cloudSQLInstance = &sqladmin.DatabaseInstance{
-			Name:            instance.Status.InstanceName,
-			Region:          instance.Spec.Region,
-			DatabaseVersion: instance.Spec.DatabaseVersion,
-			Settings: &sqladmin.Settings{
-				Tier:         instance.Spec.Tier,
-				DataDiskType: instance.Spec.StorageType,
-			},
-		}
-
-		log.Printf("cloud sql instance %s not found, will try to create it now: %+v", instance.Name, cloudSQLInstance)
-		createOp, err := r.cloudSQLClient.CreateInstance(provider.Spec.ProjectID, cloudSQLInstance)
-		if err != nil {
-			err = fmt.Errorf("failed to start create operation for cloud sql instance %s: %+v", instance.Name, err)
-			log.Printf("%+v", err)
-			return reconcile.Result{}, err
-		}
-
-		log.Printf("started create of cloud sql instance %s, operation %s %s", instance.Name, createOp.Name, createOp.Status)
-		log.Printf("sleep a bit after creating the cloud sql instance...")
-		time.Sleep(r.options.PostCreateSleepTime)
+		return r.handleCreation(cloudSQLClient, instance, provider)
 	}
 
-	// wait for the cloud sql instance to be RUNNABLE
-	running := false
-	maxRetries := 50
-	for i := 0; i <= maxRetries; i++ {
-		cloudSQLInstance, err = r.cloudSQLClient.GetInstance(provider.Spec.ProjectID, instance.Status.InstanceName)
-		if err != nil {
-			log.Printf("failed to get cloud sql instance %s, waiting %v: %+v",
-				instance.Name, r.options.WaitSleepTime, err)
-		} else {
-			// cloud sql instance has been created, update the CRD status now
-			if err := r.updateStatus(instance, getStatusMessage(instance, cloudSQLInstance), cloudSQLInstance); err != nil {
-				// updating the CRD status failed, return the error and try the next reconcile loop
-				return reconcile.Result{}, err
-			}
+	stateChanged := instance.Status.State != cloudSQLInstance.State
+	conditionType := gcpclients.CloudSQLConditionType(cloudSQLInstance.State)
 
-			if cloudSQLInstance.State == "RUNNABLE" {
-				// CRD status updated and cloud sql instance in RUNNABLE state, we are all good
-				log.Printf("cloud sql instance %s successfully created and in the RUNNABLE state", instance.Name)
-				running = true
-				break
-			}
-
-			log.Printf("cloud sql instance %s created but still in %s state, waiting %v",
-				instance.Name, cloudSQLInstance.State, r.options.WaitSleepTime)
-		}
-
-		<-time.After(r.options.WaitSleepTime)
-	}
-
-	if !running {
-		// the retry loop completed without finding the created cloud sql instance, report this as an error
-		err = fmt.Errorf("gave up waiting for cloud sql instance %s: %+v", instance.Name, err)
-		log.Printf("%+v", err)
+	// cloud sql instance exists, update the CRD status now with its latest status
+	if err := r.updateStatus(instance, getStatusMessage(instance, cloudSQLInstance), cloudSQLInstance); err != nil {
+		// updating the CRD status failed, return the error and try the next reconcile loop
+		log.Printf("failed to update status of instance %s: %+v", instance.Name, err)
 		return reconcile.Result{}, err
+	}
+
+	if stateChanged {
+		// the state of the instance has changed, let's set a corresponding condition on the CRD and then
+		// requeue another reconiliation attempt
+		if conditionType == corev1alpha1.Running {
+			// when we hit the running condition, clear out all old conditions first
+			instance.Status.UnsetAllConditions()
+		}
+
+		conditionMessage := fmt.Sprintf("cloud sql instance %s is in the %s state", instance.Name, conditionType)
+		log.Printf(conditionMessage)
+		instance.Status.SetCondition(*corev1alpha1.NewCondition(conditionType, conditionStateChanged, conditionMessage))
+		return reconcile.Result{Requeue: true}, r.Update(context.TODO(), instance)
+	}
+
+	if conditionType != corev1alpha1.Running {
+		// the instance isn't running still, requeue another reconciliation attempt
+		return reconcile.Result{Requeue: true}, nil
 	}
 
 	// ensure the root user is initialized
-	err = r.initRootUser(instance, provider)
-	if err != nil {
-		err = fmt.Errorf("failed to init root user for cloud sql instance %s: %+v", instance.Name, err)
-		log.Printf("%+v", err)
-		return reconcile.Result{}, err
+	if err = r.initRootUser(cloudSQLClient, instance, provider); err != nil {
+		return r.fail(instance, errorInitRootUser, fmt.Sprintf("failed to init root user for cloud sql instance %s: %+v", instance.Name, err))
 	}
 
 	return reconcile.Result{}, nil
 }
 
-func (r *ReconcileCloudsqlInstance) initRootUser(instance *databasev1alpha1.CloudsqlInstance, provider *gcpv1alpha1.Provider) error {
+// handleCreation performs the operation to create the given CloudSQL instance in GCP
+func (r *Reconciler) handleCreation(cloudSQLClient gcpclients.CloudSQLAPI,
+	instance *databasev1alpha1.CloudsqlInstance, provider *gcpv1alpha1.Provider) (reconcile.Result, error) {
+
+	cloudSQLInstance := &sqladmin.DatabaseInstance{
+		Name:            instance.Status.InstanceName,
+		Region:          instance.Spec.Region,
+		DatabaseVersion: instance.Spec.DatabaseVersion,
+		Settings: &sqladmin.Settings{
+			Tier:         instance.Spec.Tier,
+			DataDiskType: instance.Spec.StorageType,
+		},
+	}
+
+	log.Printf("cloud sql instance %s not found, will try to create it now: %+v", instance.Name, cloudSQLInstance)
+	createOp, err := cloudSQLClient.CreateInstance(provider.Spec.ProjectID, cloudSQLInstance)
+	if err != nil {
+		return r.fail(instance, errorCreatingInstance, fmt.Sprintf("failed to start create operation for cloud sql instance %s: %+v", instance.Name, err))
+	}
+
+	log.Printf("started create of cloud sql instance %s, operation %s %s", instance.Name, createOp.Name, createOp.Status)
+	return reconcile.Result{Requeue: true}, nil
+}
+
+// handleDeletion performs the operation to delete the given CloudSQL instance in GCP
+func (r *Reconciler) handleDeletion(cloudSQLClient gcpclients.CloudSQLAPI,
+	instance *databasev1alpha1.CloudsqlInstance, provider *gcpv1alpha1.Provider) (reconcile.Result, error) {
+
+	// first get the latest status of the CloudSQL resource that needs to be deleted
+	_, err := cloudSQLClient.GetInstance(provider.Spec.ProjectID, instance.Status.InstanceName)
+	if err != nil {
+		if !gcpclients.IsNotFound(err) {
+			return r.fail(instance, errorFetchingInstance, fmt.Sprintf("failed to get cloud sql instance %s for deletion: %+v", instance.Name, err))
+		}
+
+		// CloudSQL instance doesn't exist, it's already deleted
+		return r.markAsDeleting(instance)
+	}
+
+	// attempt to delete the CloudSQL instance now
+	deleteOp, err := cloudSQLClient.DeleteInstance(provider.Spec.ProjectID, instance.Status.InstanceName)
+	if err != nil {
+		return r.fail(instance, errorDeletingInstance, fmt.Sprintf("failed to start delete operation for cloud sql instance %s: %+v", instance.Name, err))
+	}
+
+	log.Printf("started deletion of cloud sql instance %s, operation %s %s", instance.Name, deleteOp.Name, deleteOp.Status)
+	return r.markAsDeleting(instance)
+}
+
+func (r *Reconciler) markAsDeleting(instance *databasev1alpha1.CloudsqlInstance) (reconcile.Result, error) {
+	instance.Status.SetCondition(*corev1alpha1.NewCondition(corev1alpha1.Deleting, "", ""))
+	util.RemoveFinalizer(&instance.ObjectMeta, finalizer)
+	return reconcile.Result{}, r.Update(context.TODO(), instance)
+}
+
+func (r *Reconciler) initRootUser(cloudSQLClient gcpclients.CloudSQLAPI,
+	instance *databasev1alpha1.CloudsqlInstance, provider *gcpv1alpha1.Provider) error {
+
 	if instance.Spec.ConnectionSecretRef.Name == "" {
 		// the user hasn't specified the name of the secret they want the connection information
 		// stored in, generate one now
@@ -273,7 +322,7 @@ func (r *ReconcileCloudsqlInstance) initRootUser(instance *databasev1alpha1.Clou
 	}
 	log.Printf("user '%s' is not initialized yet: %+v", rootUserName, err)
 
-	users, err := r.cloudSQLClient.ListUsers(provider.Spec.ProjectID, instance.Status.InstanceName)
+	users, err := cloudSQLClient.ListUsers(provider.Spec.ProjectID, instance.Status.InstanceName)
 	if err != nil {
 		return fmt.Errorf("failed to list users: %+v", err)
 	}
@@ -298,20 +347,20 @@ func (r *ReconcileCloudsqlInstance) initRootUser(instance *databasev1alpha1.Clou
 
 	// update the user via Cloud SQL API
 	log.Printf("updating user '%s'", rootUser.Name)
-	updateUserOp, err := r.cloudSQLClient.UpdateUser(provider.Spec.ProjectID, instance.Status.InstanceName, rootUser.Host, rootUser.Name, rootUser)
+	updateUserOp, err := cloudSQLClient.UpdateUser(provider.Spec.ProjectID, instance.Status.InstanceName, rootUser.Host, rootUser.Name, rootUser)
 	if err != nil {
 		return fmt.Errorf("failed to start update user operation for user '%s': %+v", rootUser.Name, err)
 	}
 
 	// wait for the update user operation to complete
 	log.Printf("waiting for update user operation %s to complete for user '%s'", updateUserOp.Name, rootUser.Name)
-	updateUserOp, err = r.waitUntilOperationCompletes(updateUserOp.Name, provider)
+	updateUserOp, err = gcpclients.WaitUntilOperationCompletes(updateUserOp.Name, provider, cloudSQLClient, r.options.WaitSleepTime)
 	if err != nil {
 		return fmt.Errorf("failed to wait until update user operation %s completed for user '%s': %+v", updateUserOp.Name, rootUser.Name, err)
 	}
 
 	log.Printf("update user operation for user '%s' completed. status: %s, errors: %+v", rootUser.Name, updateUserOp.Status, updateUserOp.Error)
-	if !isOperationSuccessful(updateUserOp) {
+	if !gcpclients.IsOperationSuccessful(updateUserOp) {
 		// the operation completed, but it failed
 		m := fmt.Sprintf("update user operation for user '%s' failed: %+v", rootUser.Name, updateUserOp)
 		if updateUserOp.Error != nil && len(updateUserOp.Error.Errors) > 0 {
@@ -342,7 +391,14 @@ func (r *ReconcileCloudsqlInstance) initRootUser(instance *databasev1alpha1.Clou
 	return nil
 }
 
-func (r *ReconcileCloudsqlInstance) updateStatus(instance *databasev1alpha1.CloudsqlInstance, message string,
+// fail - helper function to set fail condition with reason and message
+func (r *Reconciler) fail(instance *databasev1alpha1.CloudsqlInstance, reason, msg string) (reconcile.Result, error) {
+	log.Printf("instance %s failed: '%s' %s", instance.Name, reason, msg)
+	instance.Status.SetCondition(*corev1alpha1.NewCondition(corev1alpha1.Failed, reason, msg))
+	return reconcile.Result{Requeue: true}, r.Update(context.TODO(), instance)
+}
+
+func (r *Reconciler) updateStatus(instance *databasev1alpha1.CloudsqlInstance, message string,
 	cloudSQLInstance *sqladmin.DatabaseInstance) error {
 
 	var state, providerID, connectionName string
@@ -353,49 +409,18 @@ func (r *ReconcileCloudsqlInstance) updateStatus(instance *databasev1alpha1.Clou
 	}
 
 	instance.Status = databasev1alpha1.CloudsqlInstanceStatus{
-		Message:        message,
-		State:          state,
-		ProviderID:     providerID,
-		ConnectionName: connectionName,
-		InstanceName:   instance.Status.InstanceName,
+		ConditionedStatus: instance.Status.ConditionedStatus,
+		Message:           message,
+		State:             state,
+		ProviderID:        providerID,
+		ConnectionName:    connectionName,
+		InstanceName:      instance.Status.InstanceName,
 	}
-	err := r.Update(context.TODO(), instance)
-	if err != nil {
-		err = fmt.Errorf("failed to update status of CRD instance %s: %+v", instance.Name, err)
-		log.Printf("%+v", err)
-		return err
+	if err := r.Update(context.TODO(), instance); err != nil {
+		return fmt.Errorf("failed to update status of CRD instance %s: %+v", instance.Name, err)
 	}
 
 	return nil
-}
-
-func (r *ReconcileCloudsqlInstance) waitUntilOperationCompletes(operationID string, provider *gcpv1alpha1.Provider) (*sqladmin.Operation, error) {
-	var err error
-	var op *sqladmin.Operation
-
-	maxRetries := 50
-	for i := 0; i <= maxRetries; i++ {
-		op, err = r.cloudSQLClient.GetOperation(provider.Spec.ProjectID, operationID)
-		if err != nil {
-			log.Printf("failed to get cloud sql operation %s, waiting %v: %+v",
-				operationID, r.options.WaitSleepTime, err)
-		} else if isOperationComplete(op) {
-			// the operation has completed, simply return it
-			return op, nil
-		}
-
-		<-time.After(r.options.WaitSleepTime)
-	}
-
-	return nil, fmt.Errorf("cloud sql operation %s did not complete in the allowed time period: %+v", operationID, op)
-}
-
-func isOperationComplete(op *sqladmin.Operation) bool {
-	return op.EndTime != "" && op.Status == "DONE"
-}
-
-func isOperationSuccessful(op *sqladmin.Operation) bool {
-	return op.Error == nil || len(op.Error.Errors) == 0
 }
 
 func getStatusMessage(instance *databasev1alpha1.CloudsqlInstance, cloudSQLInstance *sqladmin.DatabaseInstance) string {

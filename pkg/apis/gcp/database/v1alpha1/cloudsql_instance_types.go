@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"github.com/upbound/conductor/pkg/apis/core/v1alpha1"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -36,6 +37,7 @@ type CloudsqlInstanceSpec struct {
 
 // CloudsqlInstanceStatus defines the observed state of CloudsqlInstance
 type CloudsqlInstanceStatus struct {
+	v1alpha1.ConditionedStatus
 	State   string `json:"state,omitempty"`
 	Message string `json:"message,omitempty"`
 

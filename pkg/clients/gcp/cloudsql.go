@@ -18,7 +18,11 @@ package gcp
 
 import (
 	"fmt"
+	"log"
+	"time"
 
+	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
+	gcpv1alpha1 "github.com/upbound/conductor/pkg/apis/gcp/v1alpha1"
 	"google.golang.org/api/sqladmin/v1beta4"
 	"k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
@@ -28,6 +32,7 @@ import (
 type CloudSQLAPI interface {
 	GetInstance(project string, instance string) (*sqladmin.DatabaseInstance, error)
 	CreateInstance(project string, databaseinstance *sqladmin.DatabaseInstance) (*sqladmin.Operation, error)
+	DeleteInstance(project string, instance string) (*sqladmin.Operation, error)
 	ListUsers(project string, instance string) (*sqladmin.UsersListResponse, error)
 	UpdateUser(project string, instance string, host string, name string, user *sqladmin.User) (*sqladmin.Operation, error)
 	GetOperation(project string, operationID string) (*sqladmin.Operation, error)
@@ -63,14 +68,22 @@ func (c *CloudSQLClient) CreateInstance(project string, databaseinstance *sqladm
 	return c.Instances.Insert(project, databaseinstance).Do()
 }
 
+// DeleteInstance deletes the given CloudSQL instance
+func (c *CloudSQLClient) DeleteInstance(project string, instance string) (*sqladmin.Operation, error) {
+	return c.Instances.Delete(project, instance).Do()
+}
+
+// ListUsers lists all the users for the given CloudSQL instance
 func (c *CloudSQLClient) ListUsers(project string, instance string) (*sqladmin.UsersListResponse, error) {
 	return c.Users.List(project, instance).Do()
 }
 
+// UpdateUser updates the given user for the given CloudSQL instance
 func (c *CloudSQLClient) UpdateUser(project string, instance string, host string, name string, user *sqladmin.User) (*sqladmin.Operation, error) {
 	return c.Users.Update(project, instance, host, name, user).Do()
 }
 
+// GetOperation retrieves the latest status for the given operation
 func (c *CloudSQLClient) GetOperation(project string, operationID string) (*sqladmin.Operation, error) {
 	return c.Operations.Get(project, operationID).Do()
 }
@@ -80,9 +93,11 @@ type CloudSQLAPIFactory interface {
 	CreateAPIInstance(kubernetes.Interface, string, v1.SecretKeySelector) (CloudSQLAPI, error)
 }
 
+// CloudSQLClientFactory will create a real CloudSQL client that talks to GCP
 type CloudSQLClientFactory struct {
 }
 
+// CreateAPIInstance instantiates a real CloudSQL client that talks to GCP
 func (c *CloudSQLClientFactory) CreateAPIInstance(clientset kubernetes.Interface, namespace string,
 	secretKey v1.SecretKeySelector) (CloudSQLAPI, error) {
 
@@ -92,4 +107,46 @@ func (c *CloudSQLClientFactory) CreateAPIInstance(clientset kubernetes.Interface
 	}
 
 	return cloudSQLClient, nil
+}
+
+func WaitUntilOperationCompletes(operationID string, provider *gcpv1alpha1.Provider,
+	cloudSQLClient CloudSQLAPI, waitTime time.Duration) (*sqladmin.Operation, error) {
+
+	var err error
+	var op *sqladmin.Operation
+
+	maxRetries := 50
+	for i := 0; i <= maxRetries; i++ {
+		op, err = cloudSQLClient.GetOperation(provider.Spec.ProjectID, operationID)
+		if err != nil {
+			log.Printf("failed to get cloud sql operation %s, waiting %v: %+v", operationID, waitTime, err)
+		} else if IsOperationComplete(op) {
+			// the operation has completed, simply return it
+			return op, nil
+		}
+
+		<-time.After(waitTime)
+	}
+
+	return nil, fmt.Errorf("cloud sql operation %s did not complete in the allowed time period: %+v", operationID, op)
+}
+
+func IsOperationComplete(op *sqladmin.Operation) bool {
+	return op.EndTime != "" && op.Status == "DONE"
+}
+
+func IsOperationSuccessful(op *sqladmin.Operation) bool {
+	return op.Error == nil || len(op.Error.Errors) == 0
+}
+
+// CloudSQLConditionType converts the given CloudSQL state string into a corresponding condition type
+func CloudSQLConditionType(state string) corev1alpha1.ConditionType {
+	switch state {
+	case "RUNNABLE":
+		return corev1alpha1.Running
+	case "PENDING_CREATE":
+		return corev1alpha1.Creating
+	default:
+		return corev1alpha1.Failed
+	}
 }
