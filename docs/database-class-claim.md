@@ -41,8 +41,6 @@ spec:
     #  - vpc-default-sg - default security group for your VPC
     #  - vpc-rds-sg - security group to allow RDS connection
     size: 20
-status:
-  bindings: ## List of [active] bindings to this database instance   
 ```
 
 Submitting above CRD to Conductor enabled Kubernetes cluster will result in RDSInstance creation on AWS cloud provider, 
