@@ -176,3 +176,159 @@ bound together.
 equal to "" is always interpreted to be requesting a `RDSInstance` with no class, so it can only be bound to 
 `DefaultRDSInstanceClass` if such has been defined. If there `DefaultRDSInstnaceClass`, `RDSInstanceClaim` will end up
 in the failed to bound state.
+
+
+## Other Thoughts
+
+### RDSInstance
+RDSInstance is a base building block for using Managed RDS DB Instance on AWS
+
+- Input: RDSInstance (spec)
+    ```yaml
+    apiVersion: database.aws.conductor.io/v1alpha1
+    kind: RDSInstance
+    metadata:
+      name: demo-rds
+    spec:
+      ## Cloud Provider Reference
+      providerRef:
+        name: demo-aws-provider
+      ## Database Specs
+      class: db.t2.small
+      engine: mysql
+      masterUsername: masteruser
+      securityGroups:
+      #  - vpc-default-sg - default security group for your VPC
+      #  - vpc-rds-sg - security group to allow RDS connection
+      size: 20
+      ## RDSInstance Master User Password Secret Name
+      masterUserPasswordSecretName: demo-rds-password
+    ```
+- Output: 
+    - Kubernetes Service: 
+        ```yaml
+        kind: Service
+        apiVersion: v1
+        metadata:
+          name: demo-rds
+        spec:
+          type: ExternalName
+          externalName: my-db.cdgefbnnyfl5.us-east-1.rds.amazonaws.com
+        ```
+    - Kubernetes Secret
+        ```yaml
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: demo-rds
+        data:
+          Password: password
+        ```
+- Requirements
+    - AWS Provider        
+- Lifecycle Sequence
+    - User creates RDSInstance
+    - User creates a Deployment providing:
+        - database service name
+        - database master user name
+        - database master user password secret reference
+    - User deletes a Deployment
+    - User deletes RDSInstance
+        - all RDSInstance artifacts (service, secret, etc) are removed automatically
+ 
+### RDSInstanceBinding
+RDSInstanceBinding leverages existing RDSInstances to create and use (bind) specific Database with the specific Database User account
+
+- Input: RDSInstanceBinding
+    ```yaml
+    apiVersion: database.aws.conductor.io/v1alpha1
+    kind: RDSInstanceBinding
+    metadata:
+      name: demo-rds-sockshop
+    spec:
+      ## RDSInstance Reference
+      rdsInstanceRef:
+      ## Binding Specs
+      databaseName: shockshop
+      databaseUser: shockshop-user
+    ```
+- Output:
+    - Kubernetes Secret
+        ```yaml
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: demo-rds-sockshop
+        data:
+          Password: password
+        ```
+- Requirements
+    - RDSInstance
+- Lifecycle Sequence
+    - User creates RDSInstanceBinding
+    - User creates a Deployment providing:
+        - database service name
+        - database name (same as in binding)
+        - database user name (same as in binding)
+        - database user password secret reference
+    - User deletes Deployment
+    - User deletes RDSInstanceBinding
+        - RDSInstanceBinding password secret deleted automatically
+     
+
+### RDSInstanceClass
+RDSInstanceClass provide a separation of concerts and facilitates dynamic provisioning of RDSInstances
+
+- Input:
+    ```yaml
+    apiVersion: database.aws.conductor.io/v1alpha1
+    kind: RDSInstanceClass
+    metadata:
+      name: postress-dev
+    spec:
+      providerRef:
+        name: my-aws-provider
+      template:    
+        class: db.t2.small
+        engine: postresql
+        masterUsername: masteruser
+        securityGroups:
+        #  - vpc-default-sg - default security group for your VPC
+        #  - vpc-rds-sg - security group to allow RDS connection
+        size: 10
+    ```
+- Output: None
+    - RDSInstanceClass acts merely as RDSInstance Template data placeholder and does create any additional resource, hence,
+    does not require an active reconciliation.
+- Requirements:
+    - AWS Provider
+- Lifecycle Sequence
+    - User creates RDSInstanceClass
+    - User deletes RDSInstanceClass
+    
+### RDSInstanceClaim
+RDSInstanceClaim provides a mechanism of selecting existing RDSInstance for binding or creating new one based on the RDSInstanceClass specification.
+
+- Input: 
+    ```yaml
+    apiVersion: database.aws.conductor.io/v1alpha1
+    kind: RDSInstanceClaim
+    metadata:
+      name: demo-postgress
+    spec:
+      rdsInstanceClassName: postgres-dev
+      resources:
+        binding:
+          name: demo-database
+          user: demo-user      
+    ```
+- Output:
+    - Existing RDSInstance
+    If RDSInstance found with matching class definition, RDSInstanceClaim will attempt to create RDSInstanceBinding. 
+    For RDSInstanceBinding output see [RDSInstanceBinding section](#RDSInstanceBinding)    
+    - New RDSInstance                   
+    If no RDSInstance found matching class definition, new RDSInstance will be created. Upon successful RDSInstance creation, 
+    RDSInstanceBinding will be created as well. For RDSInstance output see [RDSInstance section](#RDSInstance). For 
+    `RDSInstanceBinding` see [RDSInstanceBinding section](#RDSInstanceBinding).    
+- Lifecycle Sequence:
+    
