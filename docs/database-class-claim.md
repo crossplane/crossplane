@@ -32,15 +32,14 @@ spec:
   ## Cloud Provider Reference
   providerRef:
     name: demo-aws-provider
-  template:
-    ## Database Specs
-    class: db.t2.small
-    engine: mysql
-    masterUsername: masteruser
-    securityGroups:
-    #  - vpc-default-sg - default security group for your VPC
-    #  - vpc-rds-sg - security group to allow RDS connection
-    size: 20
+  ## Database Specs
+  class: db.t2.small
+  engine: mysql
+  masterUsername: masteruser
+  securityGroups:
+  #  - vpc-default-sg - default security group for your VPC
+  #  - vpc-rds-sg - security group to allow RDS connection
+  size: 20
 ```
 
 Submitting above CRD to Conductor enabled Kubernetes cluster will result in RDSInstance creation on AWS cloud provider, 
