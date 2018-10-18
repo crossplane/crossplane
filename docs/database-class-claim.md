@@ -28,13 +28,12 @@ This design proposal is inspired and influenced by Kubernetes `PersistentVolume`
 - `CloudSQLInstance`: GCP Managed database instance resource
 - `AzureSQLIntance`: (Not sure if this is correct terminology) 
 
-`PD` is defined at the cluster-level, i.e. `non-namespaced` resource.
-
 ```yaml
     apiVersion: database.core.conductor.io/v1alpha1
     kind: PersistentDatabase
     metadata:
       name: my-name
+      namespace: conductor-system
     spec:
       # Generic Database specs
       # Database engine type, must be supported by the database plugin underlying the PersistentDatabase
@@ -73,10 +72,6 @@ This design proposal is inspired and influenced by Kubernetes `PersistentVolume`
 
 ## Plugins
 Conductor provides support fo following `PersistentDatabase` plugins:
-
-**IMPORTANT**: While Plugins are cluster-level resources, the plugins' artifacts (`secret`) __**are namespaced resources**__
-
-***Convention***: All conductor system resources artifacts are stored in the `conductor-system` namespace
   
 ### RDSInstance(Provisioner)
 `RDSInstance` is AWS managed database resource.  
@@ -90,6 +85,7 @@ apiVersion: database.aws.conductor.io/v1alpha1
 kind: RDSInstance
 metadata:
   name: demo-rds
+  namespace: conductor-system
 spec:
   # AWS Provider Reference
   providerRef:
@@ -111,6 +107,7 @@ apiVersion: database.aws.conductor.io/v1alpha1
 kind: RDSInstance
 metadata:
   name: demo-rds
+  namespace: conductor-system
 ### Same spec definition as above
 status:      
   ## Upon successful provisioning RDSDBInstance endpoint is recorded into status
@@ -137,6 +134,7 @@ apiVersion: database.gcp.conductor.io/v1alpha1
 kind: CloudsqlInstance
 metadata:
   name: cloudsql-demo
+  namespace: conductor-system
 spec:
   # GCP provider Reference
   providerRef:
@@ -165,8 +163,6 @@ To dynamically provision a `PersistentData` with pre defined configurations, clu
 - `parameters` a sub-set of all values which will be used by a given provisioner. Note: the remaining values (for a complete set) are 
 provided in `PVC` 
 
-**Note** similar to `PersistentData`, `DatabaseClass` is a **non-namespaced** resource, i.e. defined at the cluster-level
-
 **Important** There is no validation on neither `provisioner` nor `parameters` values at the class creation time. If `provisioner` or `parameters` values
 are invalid or yield incorrect/incomplete combination - volume creation will fail at provisioning time.
 
@@ -175,6 +171,7 @@ apiVersion: database.core.conductor.io/v1alpha1
 kind: DatabaseClass
 metadata:
   name: standard
+  namespace: conductor-system  
 spec:
   # Parameters holds the parameters for the provisioner that should create databases of this database class.
   parameters: # object
@@ -199,6 +196,7 @@ apiVersion: database.core.conductor.io/v1alpha1
 kind: DatabaseClass
 metadata:
   name: standard
+  namespace: conductor-system
 spec:
   parameters:
     providerRef:
@@ -220,6 +218,7 @@ apiVersion: database.core.conductor.io/v1alpha1
 kind: DatabaseClass
 metadata:
   name: standard
+  namespace: conductor-system
 spec:
   parameters:
     providerRef:
@@ -285,6 +284,7 @@ apiVersion: database.core.conductor.io/v1alpha1
 kind: DatabaseClass
 metadata:
   name: standard
+  namespace: conductor-system
 spec:
   parameters:
     providerRef:
@@ -305,6 +305,7 @@ apiVersion: database.core.conductor.io/v1alpha1
 kind: PersistentDatabase
 metadata:
   name: demo-mysql
+  namespace: conductor-system
 spec:
   engine: mysql
   version: 5.7 
