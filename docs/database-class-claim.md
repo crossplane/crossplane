@@ -1,7 +1,7 @@
 # Database Class Claim
 This document proposes a model for how resources managed by Conductor will be created and consumed.
 
-## Objective
+# Objective
 A well defined abstraction model for managed resource definitions, including their instantiation and consumption, that 
 facilitates a flexible and robust mechanism to support a "separation of concerns" between cluster administrators and 
 application developers. Application developers should be able to focus on the high-level general needs of their application deployment
@@ -13,26 +13,85 @@ specific operating environments ("databases should use AWS db.t2.small instances
 administrator
 
 
-## Overview
+# Overview
 Conductor leverages Kubernetes Operator (CRD's and Controllers) to provision, update and delete resources managed by the cloud providers.
 
+# Terminology
+This design proposal is inspired and influenced by Kubernetes `PersistentVolume`(`PV`), `PersistentVolumeClaim`(`PVC`), and `StorageClass`(`SC`) with respective:
+- `PersistentDatabase` (`PD`)
+- `PersistentDataClaim` (`PDC`)
+- `DatabaseClass` (`DC`)
 
-### RDSInstance
-RDSInstance represents a managed resource hasted by AWS Cloud provider. 
-RDSInstance may host one or many RDSInstanceDatabase(s), as well as support one ore many RDSInstanceUser(s) with various 
-permission levels.
+# PersistentDatabase
+`RDSInstance` represents a database resource, which could be represented (actualized) by any of following supported databases:
+- `RDSInstance`: AWS Managed database instance resource
+- `CloudSQLInstance`: GCP Managed database instance resource
+- `AzureSQLIntance`: (Not sure if this is correct terminlogy) 
 
+`PD` is defined at the cluster-level, i.e. `non-namespaced` resource.
 
+```yaml
+    apiVersion: database.core.conductor.io/v1alpha1
+    kind: PersistentDatabase
+    metadata:
+      name: my-name
+    spec:
+      # Generic Database specs
+      # Database engine type, must be supported by the database plugin underlying the PersistentDatabase
+      # - mysql
+      # - postgres
+      engine:
+      # Database version for a given type (engine), musst be supported by the database plugin
+      version: 
+      # A description of the persistent database's resources and capacity
+      capacity: # Object
+      
+      # Supported Database plugins. must be one of the following:
+      awsRDSInstance:      # object
+      azureSQLIntance:     # object
+      gcpCloudSQLInstance: # object
+      
+      # ClaimRef(erence) part of a bi-directional binding between PersistentDatabase and PersistentDatabaseClaim.
+      # Expected to be non-nil when bound. claim.DatabaseName is the authoritative bind between PD and PDC.
+      claimRef: # ObjectReference
+                  
+      # Name of DatabaseClass to which this persistent database belongs. 
+      # Empty value means that this database does not belong to any DatabaseClass.          
+      databaseClassName: 
+      
+      # What happens to a persistent volume when released from its claim. Valid options are 
+      # - Retain (default for manually created PersistentDatabases), 
+      # - Delete (default for dynamically provisioned PersistentDatabases), 
+      persistentDatabaseReclaimPolicy: Delete
+      
+    status:
+      phase: Bound/Unbound/Failed
+```
+
+## Plugins
+Conductor provides support fo following `PersistentDatabase` plugins:
+
+**IMPORTANT**: While Plugins are cluster-level resources, the plugins' artifacts (`secret`) __**are namespaced resources**__
+
+***Convention***: All conductor system resources artifacts are stored in the `conductor-system` namespace
+  
+### RDSInstance(Provisioner)
+`RDSInstance` is AWS managed database resource.  
+
+Requirements:
+- AWS Provider        
+
+#### Input
 ```yaml
 apiVersion: database.aws.conductor.io/v1alpha1
 kind: RDSInstance
 metadata:
   name: demo-rds
 spec:
-  ## Cloud Provider Reference
+  # AWS Provider Reference
   providerRef:
-    name: demo-aws-provider
-  ## Database Specs
+    name: my-aws-provider
+  # RDS Database Create Input as defined in https://docs.aws.amazon.com/cli/latest/reference/rds/create-db-instance.html
   class: db.t2.small
   engine: mysql
   masterUsername: masteruser
@@ -41,294 +100,274 @@ spec:
   #  - vpc-rds-sg - security group to allow RDS connection
   size: 20
 ```
-
-Submitting above CRD to Conductor enabled Kubernetes cluster will result in RDSInstance creation on AWS cloud provider, 
-identified by the Cloud Provider Reference.
-- `providerRef.name`: name of the cloud (in this case AWS) provider
-- `template`: RDS Instance create parameters. Note: the initial implementation only supports properties defined above, 
-however, the vision is to support a [full set](https://docs.aws.amazon.com/cli/latest/reference/rds/create-db-instance.html)
-(or as close to it as possible).
-
-### RDSInstanceBinding
-To consume the database resource, the user must create an RDSInstanceBinding with following specs:
+#### Output:
+RDSInstance (same as the above, but with the updated status)
 ```yaml
 apiVersion: database.aws.conductor.io/v1alpha1
-kind: RDSInstanceBinding
+kind: RDSInstance
 metadata:
   name: demo-rds
-spec:
-  instanceRef:
-    name: demo-rds
-  database: 
-    name: demo-database
-    user: demo-user
-    passord: demo-password # Optional, random generated if not provided
-    passwordSecretName: demo-rds # Optional, if not provided RDSInstanceBinding will be used for the secret name
-    reclaimPolicy: retains
+### Same spec definition as above
+status:      
+  ## Upon successful provisioning RDSDBInstance endpoint is recorded into status
+  endpoint: my-db.cdgefbnnyfl5.us-east-1.rds.amazonaws.com
+  ## RDSInstanceSpecific status/phases:
+  phase: # Pending, Running, Terminating, etc.
 ```
-- `instanceRef.name`: name of the RDSInstance object to establish binding to
-- `database`: database reference
-    - `name`: name of the database that, will be created (if doesn't exist)
-    - `user`: name of the database user, will be created (if doesn't exist)
-    - `password`: database user's password value, will be randomly generated if not provided
-**Note**: password values provided via binding definition are not securely stored and should not be use in production
-systems. 
-    - `connectionSecretName`: name of the Kubernetes secret object that will be created as a result of the binding and 
-    contain database connection properties [see section below](#RDSInstanceBindingConnectionSecret). 
-    **Note**: if secret value is not provided, RDSInstanceBinding name will be used as a secret name value.  
-    - `reclaimPolicy`: supported polices: 
-        - `retain`: database and user information left intact and are subject for manual reclamation 
-        - `delete`: database and user information is deleted from the `RDSInstance`
-        
-    **Note/Important** - we need to decide how to address database/user collision, i.e. do we allow bindings to existing 
-    database/user resources, and if so - what is the reclamation ramifications. 
 
-### RDSInstanceBindingConnectionSecret
-RDS Instance Binding will store connection information inside created secret.  
-
+`RDSInstance` Secret contains intance's master user password:
 ```yaml
 apiVersion: v1
 kind: Secret
 metadata:
-  name: name
-  namespace: namespace
+  name: demo-rds-961bn
+  namespace: conductor-system
 data:
-  URL:              db-connection-url
-  Username:         db-user-name
-  Password:         db-user-password
-type: dbconnection.v1alpha1.core.conductor.io
+  Password: cGFzc3dvcmQK
 ```
 
-- name: 
-    - can either be set as an explicit value by using the `connectionSecretName` value from the RDSInstanceSpec
-    - if `connectionSecretName` is not provided, use RDSInstance name for the connection secret name
-- namespace: 
-    - the same namespace as RDSInstance
-- data:
-    - URL: (required) database host:port or otherwise endpoint for establishing the connection
-    - Username: (required) database user name
-    - Password: (required) database user password
-- type: `core.conductor.io/dbconnection` 
-    - The underlying CustomSecretDefinition (CSD) type that this Secret should conform to. Validation of this secret can
-     be performed against the schema defined by CSD type stored in this field.
+### CloudSQLInstance(Provisioner)
+#### Input
+```yaml
+apiVersion: database.gcp.conductor.io/v1alpha1
+kind: CloudsqlInstance
+metadata:
+  name: cloudsql-demo
+spec:
+  # GCP provider Reference
+  providerRef:
+    name: my-gcp-provider
+  
+  # GCP Database Create Input as defined in: https://cloud.google.com/sdk/gcloud/reference/sql/instances/create
+  databaseVersion: MYSQL_5_7
+  memory: 9GiB
+  region: us-west2
+  storageType: PD_SSD
+  storageSize: 10GB
+  tier: db-n1-standard-1
+```
 
+### AzureSQLInstance
+    
+    **TODO**
 
-## Class - Claim Concept
-To provide the separation of concerns, we can "abstract" managed resource CRD via Resource Class and Resource Claim.
+# DatabaseClass
+To dynamically provision a `PersistentData` with pre defined configurations, cluster administrators can define `DatabasClass`'es
 
-### RDSInstanceClass
-RDSInstanceClass provides a way for administrators to describe the "classes" of RDSInstances they offer. Different 
-classes might map to quality-of-service levels, or to replication/backup policies, or to arbitrary policies supported 
-by RDS resource adn determined by the cluster administrator. Kubernetes itself is unopinionated about what classes 
-represent. This concept is inspired by [Kubernetes Storage Classes](https://kubernetes.io/docs/concepts/storage/storage-classes/) 
+`DatabaseClass` provides both: 
+- `provisioner` which will be used to create new Database Instance, and must be one of the following (as of this writing):
+    - `RDSInstance(Provisioner)`
+    - `CloudSQLInstance(Provisioner)`
+- `parameters` a sub-set of all values which will be used by a given provisioner. Note: the remaining values (for a complete set) are 
+provided in `PVC` 
 
-Each `RDSInstanceClass` contains the fields `parameters` and `reclaimPolicy`
+**Note** similar to `PersistentData`, `DatabaseClass` is a **non-namespaced** recsource, i.e. defined at the cluster-level
 
-    **Note**: as we generalize this concept into `MySqlDatabaseClass`, we can specify an additional field: provisioner
-
-The name of a `RDSInstnaceClass` object is significant, and is how users can request a particular class. Administrators 
-set the name and other parameters of a class when first creating `RDSInstanceClass` objects, and the objects cannot be 
-updated once they are created.
-
-Administrators can specify a default `RDSInstanceClass` just for `RDSInstanceClaim`s that don’t request any particular 
-class to bind to.
+**Important** There is no validation on neither `provisioner` nor `parameters` values at the class creation time. If `provisioner` or `parameters` values
+are invalid or yield incorrect/incomplete combination - volume creation will fail at provisioning time.
 
 ```yaml
-apiVersion: database.aws.conductor.io/v1alpha1
-kind: RDSInstanceClass
+apiVersion: database.core.conductor.io/v1alpha1
+kind: DatabaseClass
 metadata:
   name: standard
 spec:
-  providerRef:
-    name: my-aws-provider
-  template:    
+  # Parameters holds the parameters for the provisioner that should create databases of this database class.
+  parameters: # object
+  
+  # Provisioner indicates the type of the provisioner, could be one of the following:
+  # - v1apha1.database.aws.conductor.io/RDSInstance(Provisioner)
+  # - v1apha1.database.gcp.conductor.io/CloudSQLInstance(Provisioner)
+  # - v1apha1.database.azure.conductor.io/AzureSQLInstance(Provisioner)
+  provisioner: # string 
+  
+  # Dynamically provisioned PersistentDatabases of this storage class are created with this reclaimPolicy. Defaults to Delete.
+  reclaimPolicy: Delete
+  
+  # DatabaseBindingMode indicates how PersistentDatabaseClaims should be provisioned and bound. When unset, DatabaseBindingImmediate is used. 
+  # TBD: This field is only honored by servers that enable the DatabaseScheduling feature.
+  databaseBindingMode: Immediate 
+```
+
+## Example: DatabaseClassForRDS
+```yaml
+apiVersion: database.core.conductor.io/v1alpha1
+kind: DatabaseClass
+metadata:
+  name: standard
+spec:
+  parameters:
+    providerRef:
+      name: demo-aws-provider
     class: db.t2.small
-    engine: postresql
+    engine: mysql
     masterUsername: masteruser
     securityGroups:
     #  - vpc-default-sg - default security group for your VPC
     #  - vpc-rds-sg - security group to allow RDS connection
-    size: 10
+  provisioner: v1alpha1.database.aws.conductor.io/RDSInstance(Provisioner) 
+  reclaimPolicy: Retain
+  databaseBindingMode: Immediate 
 ```
 
-### RDSInstanceClaim
-Each `RDSInstanceClaim` contains a spec and status, which is the specification and status of the claim.
+## Example: DatabaseClassForCloudSQL
+```yaml
+apiVersion: database.core.conductor.io/v1alpha1
+kind: DatabaseClass
+metadata:
+  name: standard
+spec:
+  parameters:
+    providerRef:
+      name: my-gcp-provider
+    region: us-west2
+    storageType: PD_SSD
+    tier: db-n1-standard-1  
+  provisioner: v1alpha1.database.gcp.conductor.io/CloudSQLInstance(Provisioner) 
+  reclaimPolicy: Retain
+  databaseBindingMode: Immediate 
+```
+
+# PersistentDatabaseClaim
+To consume the database resource, the user must request (claim) on of the available Database instances
+
+**Note** Unlike `DatabaseClass` or `PersistentDatabase`, `Perc` is a `namespaced` resource and typically provisioned into the same namespace
+as the consuming application (deployoment/pod) 
 
 ```yaml
-apiVersion: database.aws.conductor.io/v1alpha1
+apiVersion: database.core.conductor.io/v1alpha1
 kind: RDSInstanceClaim
 metadata:
-  name: myclaim
+  name: my-claim
+  namespace: demo
 spec:
-  binding:
-    name: demo-database
-    user: demo-user      
-  # reference to the resource class instance
-  instanceClassName: standard
+  # Name of the DatabaseClass required by the claim
+  databaseClassName: string 
+  # Database engine: mysql, postgres. Must be supported by databaseClass
+  databseEngine: mysql
+  # DatabaseName is the binding reference to the PersistentDatabase backing this claim.
+  databaseName: string
+  # Database version specific to a given engine.
+  databaseVersion: string
+  # Resources represents the minimum resources the database should have
+  resources:
+    requests: 
+      size: 10
+      memory:
+  # A label query over databases to consider for binding.
+  selector: # LabelSelector
 ```
 
-- `binding` defines binding information for a given database/user, see [RDSInstanceBinding](#RDSInstanceBinding) section.
-- `className`  A claim can request a particular class by specifying the name of a `RDSInstanceClass` using attribute 
-`instanceClassName`. Only `RDSInstanceClaim`s of the requested class, ones with the same `instanceClassName` can be 
-bound together.
+## Example: PersistentDatabaseClaimForRDS
 
-`RDSInstanceClaim` don’t necessarily have to request a class. A `RDSInstanceClaim` with its `instanceClassName` set 
-equal to "" is always interpreted to be requesting a `RDSInstance` with no class, so it can only be bound to 
-`DefaultRDSInstanceClass` if such has been defined. If there `DefaultRDSInstnaceClass`, `RDSInstanceClaim` will end up
-in the failed to bound state.
-
-
-## Other Thoughts
-
-### RDSInstance
-RDSInstance is a base building block for using Managed RDS DB Instance on AWS
-
-- Input: RDSInstance (spec)
-    ```yaml
-    apiVersion: database.aws.conductor.io/v1alpha1
-    kind: RDSInstance
-    metadata:
-      name: demo-rds
-    spec:
-      ## Cloud Provider Reference
-      providerRef:
-        name: demo-aws-provider
-      ## Database Specs
-      class: db.t2.small
-      engine: mysql
-      masterUsername: masteruser
-      securityGroups:
-      #  - vpc-default-sg - default security group for your VPC
-      #  - vpc-rds-sg - security group to allow RDS connection
+Input: `PersistentDatabaseClaim`
+```yaml
+apiVersion: database.core.conductor.io/v1alpha1
+kind: RDSInstanceClaim
+metadata:
+  name: demo-mysql
+  namespace: demo
+spec:
+  databaseClassName: standard  
+  databseEngine: mysql
+  databaseVersion: 5.7
+  resources:
+    requests: 
       size: 20
-      ## RDSInstance Master User Password Secret Name
-      masterUserPasswordSecretName: demo-rds-password
-    ```
-- Output: 
-    - Kubernetes Service: 
-        ```yaml
-        kind: Service
-        apiVersion: v1
-        metadata:
-          name: demo-rds
-        spec:
-          type: ExternalName
-          externalName: my-db.cdgefbnnyfl5.us-east-1.rds.amazonaws.com
-        ```
-    - Kubernetes Secret
-        ```yaml
-        apiVersion: v1
-        kind: Secret
-        metadata:
-          name: demo-rds
-        data:
-          Password: password
-        ```
-- Requirements
-    - AWS Provider        
-- Lifecycle Sequence
-    - User creates RDSInstance
-    - User creates a Deployment providing:
-        - database service name
-        - database master user name
-        - database master user password secret reference
-    - User deletes a Deployment
-    - User deletes RDSInstance
-        - all RDSInstance artifacts (service, secret, etc) are removed automatically
+```
+
+Input: `DatabaseClass`
+```yaml
+apiVersion: database.core.conductor.io/v1alpha1
+kind: DatabaseClass
+metadata:
+  name: standard
+spec:
+  parameters:
+    providerRef:
+      name: demo-aws-provider
+    class: db.t2.small
+    engine: mysql
+    masterUsername: masteruser
+  provisioner: v1alpha1.database.aws.conductor.io/RDSInstance(Provisioner) 
+  reclaimPolicy: Retain
+  databaseBindingMode: Immediate 
+```
+
+Condition: no database instances are running (available)
+
+Output: `PercistentDatabase`
+```yaml
+apiVersion: database.core.conductor.io/v1alpha1
+kind: PersistentDatabase
+metadata:
+  name: demo-mysql
+spec:
+  engine: mysql
+  version: 5.7 
+  capacity:
+    size: 10
+  awsRDSInstance:
+    ## TODO - not 100% what goes here, seems like the actual RDSInstanceSpec
+    providerRef:
+      name: my-aws-provider
+    class: db.t2.small
+    engine: mysql
+    masterUsername: masteruser
+    size: 20    
+  claimRef: 
+    name: demo-mysql
+    namespace: demo
+    # other fields
+  databaseClassName: standard 
+  persistentDatabaseReclaimPolicy: Delete 
+```
  
-### RDSInstanceBinding
-RDSInstanceBinding leverages existing RDSInstances to create and use (bind) specific Database with the specific Database User account
+Output: `RDSInstance(Provisioner)`
+```yaml
+apiVersion: database.aws.conductor.io/v1alpha1
+kind: RDSInstance
+metadata:
+  name: demo-mysql
+spec:
+  providerRef:
+    name: my-aws-provider
+  class: db.t2.small
+  engine: mysql
+  masterUsername: masteruser
+  size: 20
+```
 
-- Input: RDSInstanceBinding
-    ```yaml
-    apiVersion: database.aws.conductor.io/v1alpha1
-    kind: RDSInstanceBinding
-    metadata:
-      name: demo-rds-sockshop
-    spec:
-      ## RDSInstance Reference
-      rdsInstanceRef:
-      ## Binding Specs
-      databaseName: shockshop
-      databaseUser: shockshop-user
-    ```
-- Output:
-    - Kubernetes Secret
-        ```yaml
-        apiVersion: v1
-        kind: Secret
-        metadata:
-          name: demo-rds-sockshop
-        data:
-          Password: password
-        ```
-- Requirements
-    - RDSInstance
-- Lifecycle Sequence
-    - User creates RDSInstanceBinding
-    - User creates a Deployment providing:
-        - database service name
-        - database name (same as in binding)
-        - database user name (same as in binding)
-        - database user password secret reference
-    - User deletes Deployment
-    - User deletes RDSInstanceBinding
-        - RDSInstanceBinding password secret deleted automatically
-     
+Output: `Secret` in `conductor-system` namespace
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: demo-rds-961bn
+  namespace: conductor-system
+data:
+  Password: cGFzc3dvcmQK
+```
 
-### RDSInstanceClass
-RDSInstanceClass provide a separation of concerts and facilitates dynamic provisioning of RDSInstances
+Output `Secret` in application's namespace
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: demo-rds-933bn
+  namespace: demo
+data:
+  Password: cGFzc3dvcmQK
+```
 
-- Input:
-    ```yaml
-    apiVersion: database.aws.conductor.io/v1alpha1
-    kind: RDSInstanceClass
-    metadata:
-      name: postress-dev
-    spec:
-      providerRef:
-        name: my-aws-provider
-      template:    
-        class: db.t2.small
-        engine: postresql
-        masterUsername: masteruser
-        securityGroups:
-        #  - vpc-default-sg - default security group for your VPC
-        #  - vpc-rds-sg - security group to allow RDS connection
-        size: 10
-    ```
-- Output: None
-    - RDSInstanceClass acts merely as RDSInstance Template data placeholder and does create any additional resource, hence,
-    does not require an active reconciliation.
-- Requirements:
-    - AWS Provider
-- Lifecycle Sequence
-    - User creates RDSInstanceClass
-    - User deletes RDSInstanceClass
-    
-### RDSInstanceClaim
-RDSInstanceClaim provides a mechanism of selecting existing RDSInstance for binding or creating new one based on the RDSInstanceClass specification.
-
-- Input: 
-    ```yaml
-    apiVersion: database.aws.conductor.io/v1alpha1
-    kind: RDSInstanceClaim
-    metadata:
-      name: demo-postgress
-    spec:
-      rdsInstanceClassName: postgres-dev
-      resources:
-        binding:
-          name: demo-database
-          user: demo-user      
-    ```
-- Output:
-    - Existing RDSInstance
-    If RDSInstance found with matching class definition, RDSInstanceClaim will attempt to create RDSInstanceBinding. 
-    For RDSInstanceBinding output see [RDSInstanceBinding section](#RDSInstanceBinding)    
-    - New RDSInstance                   
-    If no RDSInstance found matching class definition, new RDSInstance will be created. Upon successful RDSInstance creation, 
-    RDSInstanceBinding will be created as well. For RDSInstance output see [RDSInstance section](#RDSInstance). For 
-    `RDSInstanceBinding` see [RDSInstanceBinding section](#RDSInstanceBinding).    
-- Lifecycle Sequence:
-    
+Output: `Service` in application's namespace
+```yaml
+kind: Service
+apiVersion: v1
+metadata:
+  name: demo-rds-933bn
+  namespace: demo
+spec:
+  type: ExternalName
+  externalName: my-db.cdgefbnnyfl5.us-east-1.rds.amazonaws.com
+```
