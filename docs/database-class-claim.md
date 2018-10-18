@@ -299,7 +299,7 @@ spec:
 
 Condition: no database instances are running (available)
 
-Output: `PercistentDatabase`
+Output: `PersistentDatabase`
 ```yaml
 apiVersion: database.core.conductor.io/v1alpha1
 kind: PersistentDatabase
