@@ -1,5 +1,7 @@
 required = [
     "github.com/aws/aws-sdk-go-v2",
+    "github.com/Azure/azure-sdk-for-go",
+    "github.com/Azure/go-autorest/autorest",
     "github.com/emicklei/go-restful",
     "github.com/onsi/ginkgo", # for test framework
     "github.com/onsi/gomega", # for test matchers

@@ -78,3 +78,13 @@ To work around this, you will you need to run a command **one time** that is **s
 ```console
 kubectl create clusterrolebinding dev-cluster-admin-binding --clusterrole=cluster-admin --user=<googleEmail>
 ```
+
+## Targeting Microsoft Azure
+
+In order to manage resources in Azure, you must provide credentials for a Azure service principal that Conductor can use to authenticate.
+
+First create a JSON file that contains all the information needed to connect and authenticate to Azure:
+
+```console
+az ad sp create-for-rbac --sdk-auth > conductor-azure-provider-key.json
+```

@@ -102,7 +102,6 @@ func addCloudsqlInstanceReconciler(mgr manager.Manager, r reconcile.Reconciler) 
 	}
 
 	// Watch for changes to CloudsqlInstance
-	log.Printf("watching for changes to CloudSQL instances...")
 	err = c.Watch(&source.Kind{Type: &databasev1alpha1.CloudsqlInstance{}}, &handler.EnqueueRequestForObject{})
 	if err != nil {
 		return err

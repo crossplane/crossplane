@@ -28,14 +28,8 @@ import (
 type ProviderSpec struct {
 	// Important: Run "make generate" to regenerate code after modifying this file
 
-	// GCP ServiceAccount json secret key reference
-	Secret corev1.SecretKeySelector `json:"credentialsSecretRef"`
-
-	// GCP ProjectID (name)
-	ProjectID string `json:"projectID"`
-
-	// RequiredPermissions  - list of granted GCP permissions this provider's service account is expected to have
-	RequiredPermissions []string `json:"requiredPermissions,omitempty"`
+	// Azure service principal credentials json secret key reference
+	AuthSecret corev1.SecretKeySelector `json:"credentialsSecretRef"`
 }
 
 // +genclient
@@ -43,7 +37,7 @@ type ProviderSpec struct {
 
 // Provider is the Schema for the instances API
 // +k8s:openapi-gen=true
-// +groupName=gcp
+// +groupName=azure
 type Provider struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
