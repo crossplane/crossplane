@@ -19,14 +19,14 @@ Conductor leverages Kubernetes Operator (CRD's and Controllers) to provision, up
 # Terminology
 This design proposal is inspired and influenced by Kubernetes `PersistentVolume`(`PV`), `PersistentVolumeClaim`(`PVC`), and `StorageClass`(`SC`) with respective:
 - `PersistentDatabase` (`PD`)
-- `PersistentDataClaim` (`PDC`)
+- `PersistentDatabaseClaim` (`PDC`)
 - `DatabaseClass` (`DC`)
 
 # PersistentDatabase
-`RDSInstance` represents a database resource, which could be represented (actualized) by any of following supported databases:
+`PresistentDatabase` represents a database resource, which could be represented (actualized) by any of following supported databases:
 - `RDSInstance`: AWS Managed database instance resource
 - `CloudSQLInstance`: GCP Managed database instance resource
-- `AzureSQLIntance`: (Not sure if this is correct terminlogy) 
+- `AzureSQLIntance`: (Not sure if this is correct terminology) 
 
 `PD` is defined at the cluster-level, i.e. `non-namespaced` resource.
 
@@ -41,7 +41,7 @@ This design proposal is inspired and influenced by Kubernetes `PersistentVolume`
       # - mysql
       # - postgres
       engine:
-      # Database version for a given type (engine), musst be supported by the database plugin
+      # Database version for a given type (engine), must be supported by the database plugin
       version: 
       # A description of the persistent database's resources and capacity
       capacity: # Object
@@ -65,6 +65,9 @@ This design proposal is inspired and influenced by Kubernetes `PersistentVolume`
       persistentDatabaseReclaimPolicy: Delete
       
     status:
+      # Reference to the database instance
+      databaseInstanceRef: # ObjectReference
+      # PD phase/status 
       phase: Bound/Unbound/Failed
 ```
 
@@ -99,6 +102,7 @@ spec:
   #  - vpc-default-sg - default security group for your VPC
   #  - vpc-rds-sg - security group to allow RDS connection
   size: 20
+  
 ```
 #### Output:
 RDSInstance (same as the above, but with the updated status)
@@ -115,7 +119,7 @@ status:
   phase: # Pending, Running, Terminating, etc.
 ```
 
-`RDSInstance` Secret contains intance's master user password:
+`RDSInstance` Secret contains instance's master user password:
 ```yaml
 apiVersion: v1
 kind: Secret
@@ -161,7 +165,7 @@ To dynamically provision a `PersistentData` with pre defined configurations, clu
 - `parameters` a sub-set of all values which will be used by a given provisioner. Note: the remaining values (for a complete set) are 
 provided in `PVC` 
 
-**Note** similar to `PersistentData`, `DatabaseClass` is a **non-namespaced** recsource, i.e. defined at the cluster-level
+**Note** similar to `PersistentData`, `DatabaseClass` is a **non-namespaced** resource, i.e. defined at the cluster-level
 
 **Important** There is no validation on neither `provisioner` nor `parameters` values at the class creation time. If `provisioner` or `parameters` values
 are invalid or yield incorrect/incomplete combination - volume creation will fail at provisioning time.
@@ -176,9 +180,9 @@ spec:
   parameters: # object
   
   # Provisioner indicates the type of the provisioner, could be one of the following:
-  # - v1apha1.database.aws.conductor.io/RDSInstance(Provisioner)
-  # - v1apha1.database.gcp.conductor.io/CloudSQLInstance(Provisioner)
-  # - v1apha1.database.azure.conductor.io/AzureSQLInstance(Provisioner)
+  # - v1alpha1.database.aws.conductor.io/RDSInstance(Provisioner)
+  # - v1alpha1.database.gcp.conductor.io/CloudSQLInstance(Provisioner)
+  # - v1alpha1.database.azure.conductor.io/AzureSQLInstance(Provisioner)
   provisioner: # string 
   
   # Dynamically provisioned PersistentDatabases of this storage class are created with this reclaimPolicy. Defaults to Delete.
@@ -232,7 +236,7 @@ spec:
 To consume the database resource, the user must request (claim) on of the available Database instances
 
 **Note** Unlike `DatabaseClass` or `PersistentDatabase`, `Perc` is a `namespaced` resource and typically provisioned into the same namespace
-as the consuming application (deployoment/pod) 
+as the consuming application (deployment/pod) 
 
 ```yaml
 apiVersion: database.core.conductor.io/v1alpha1
@@ -253,7 +257,6 @@ spec:
   resources:
     requests: 
       size: 10
-      memory:
   # A label query over databases to consider for binding.
   selector: # LabelSelector
 ```
@@ -329,6 +332,7 @@ apiVersion: database.aws.conductor.io/v1alpha1
 kind: RDSInstance
 metadata:
   name: demo-mysql
+  namespace: demo
 spec:
   providerRef:
     name: my-aws-provider
