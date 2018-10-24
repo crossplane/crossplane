@@ -19,33 +19,94 @@ package v1alpha1
 import (
 	"testing"
 
-	"github.com/onsi/gomega"
+	. "github.com/onsi/gomega"
+	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
-func TestStorageRDSInstance(t *testing.T) {
-	g := gomega.NewGomegaWithT(t)
+func TestStorage(t *testing.T) {
+	g := NewGomegaWithT(t)
 
 	key := types.NamespacedName{Name: name, Namespace: namespace}
 	created := &RDSInstance{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace}}
 
 	// Test Create
 	fetched := &RDSInstance{}
-	g.Expect(c.Create(ctx, created)).NotTo(gomega.HaveOccurred())
+	g.Expect(c.Create(ctx, created)).NotTo(HaveOccurred())
 
-	g.Expect(c.Get(ctx, key, fetched)).NotTo(gomega.HaveOccurred())
-	g.Expect(fetched).To(gomega.Equal(created))
+	g.Expect(c.Get(ctx, key, fetched)).NotTo(HaveOccurred())
+	g.Expect(fetched).To(Equal(created))
 
 	// Test Updating the Labels
 	updated := fetched.DeepCopy()
 	updated.Labels = map[string]string{"hello": "world"}
-	g.Expect(c.Update(ctx, updated)).NotTo(gomega.HaveOccurred())
+	g.Expect(c.Update(ctx, updated)).NotTo(HaveOccurred())
 
-	g.Expect(c.Get(ctx, key, fetched)).NotTo(gomega.HaveOccurred())
-	g.Expect(fetched).To(gomega.Equal(updated))
+	g.Expect(c.Get(ctx, key, fetched)).NotTo(HaveOccurred())
+	g.Expect(fetched).To(Equal(updated))
 
 	// Test Delete
-	g.Expect(c.Delete(ctx, fetched)).NotTo(gomega.HaveOccurred())
-	g.Expect(c.Get(ctx, key, fetched)).To(gomega.HaveOccurred())
+	g.Expect(c.Delete(ctx, fetched)).NotTo(HaveOccurred())
+	g.Expect(c.Get(ctx, key, fetched)).To(HaveOccurred())
+}
+
+func TestNewRDSInstanceSpec(t *testing.T) {
+	g := NewGomegaWithT(t)
+
+	m := make(map[string]string)
+	exp := &RDSInstanceSpec{ReclaimPolicy: corev1alpha1.ReclaimRetain}
+
+	g.Expect(NewRDSInstanceSpec(m)).To(Equal(exp))
+
+	val := "master"
+	m["masterUsername"] = val
+	exp.MasterUsername = val
+	g.Expect(NewRDSInstanceSpec(m)).To(Equal(exp))
+
+	val = "password"
+	m["password"] = val
+	g.Expect(NewRDSInstanceSpec(m)).To(Equal(exp))
+
+	val = "5.7"
+	m["engineVersion"] = val
+	exp.EngineVersion = val
+	g.Expect(NewRDSInstanceSpec(m)).To(Equal(exp))
+
+	val = "100"
+	m["size"] = val
+	exp.Size = int64(100)
+	g.Expect(NewRDSInstanceSpec(m)).To(Equal(exp))
+	// invalid size value
+	val = "100ab"
+	m["size"] = val
+	exp.Size = int64(0) // value is not set
+	g.Expect(NewRDSInstanceSpec(m)).To(Equal(exp))
+
+	val = "one,two,tree"
+	m["securityGroups"] = val
+	exp.SecurityGroups = []string{"one", "two", "tree"}
+	g.Expect(NewRDSInstanceSpec(m)).To(Equal(exp))
+}
+
+func TestIsAvailable(t *testing.T) {
+	g := NewGomegaWithT(t)
+	r := &RDSInstance{}
+	g.Expect(r.IsAvailable()).To(BeFalse())
+
+	r.Status.State = "foo"
+	g.Expect(r.IsAvailable()).To(BeFalse())
+
+	r.Status.State = RDSInstanceStateAvailable.String()
+	g.Expect(r.IsAvailable()).To(BeTrue())
+}
+
+func TestConditionType(t *testing.T) {
+	g := NewGomegaWithT(t)
+
+	g.Expect(ConditionType(RDSInstanceStateAvailable.String())).To(Equal(corev1alpha1.Running))
+	g.Expect(ConditionType(RDSInstanceStateCreating.String())).To(Equal(corev1alpha1.Creating))
+	g.Expect(ConditionType(RDSInstanceStateDeleting.String())).To(Equal(corev1alpha1.Deleting))
+	g.Expect(ConditionType(RDSInstanceStateFailed.String())).To(Equal(corev1alpha1.Failed))
+	g.Expect(ConditionType("foobar")).To(Equal(corev1alpha1.Pending))
 }

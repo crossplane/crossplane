@@ -46,15 +46,24 @@ type Condition struct {
 	Message            string
 }
 
-// ConditionedStatus defines the observed state of RDSresource
+// Conditionable defines set of functionality to operate on Conditions
+type Conditionable interface {
+	GetCondition(ConditionType) *Condition
+	SetCondition(Condition)
+	RemoveCondition(ConditionType)
+	UnsetCondition(ConditionType)
+	UnsetAllConditions()
+}
+
+// ConditionedStatus defines the observed state of RDS resource
 type ConditionedStatus struct {
 	// Conditions indicate state for particular aspects of a CustomResourceDefinition
 	Conditions []Condition
 }
 
 // GetCondition returns a provider condition with the provided type if it exists.
-func (in *ConditionedStatus) GetCondition(conditionType ConditionType) *Condition {
-	for _, c := range in.Conditions {
+func (c *ConditionedStatus) GetCondition(conditionType ConditionType) *Condition {
+	for _, c := range c.Conditions {
 		if c.Type == conditionType {
 			return &c
 		}
@@ -63,37 +72,37 @@ func (in *ConditionedStatus) GetCondition(conditionType ConditionType) *Conditio
 }
 
 // SetCondition adds/replaces the given condition in the credentials controller status.
-func (in *ConditionedStatus) SetCondition(condition Condition) {
-	current := in.GetCondition(condition.Type)
+func (c *ConditionedStatus) SetCondition(condition Condition) {
+	current := c.GetCondition(condition.Type)
 	if current != nil && current.Status == condition.Status && current.Reason == condition.Reason {
 		return
 	}
-	newConditions := FilterOutCondition(in.Conditions, condition.Type)
-	in.Conditions = append(newConditions, condition)
+	newConditions := FilterOutCondition(c.Conditions, condition.Type)
+	c.Conditions = append(newConditions, condition)
 }
 
 // UnsetCondition set condition status to false with the given type - if found.
-func (in *ConditionedStatus) UnsetCondition(conditionType ConditionType) {
-	current := in.GetCondition(conditionType)
+func (c *ConditionedStatus) UnsetCondition(conditionType ConditionType) {
+	current := c.GetCondition(conditionType)
 	if current != nil && current.Status == corev1.ConditionTrue {
 		current.Status = corev1.ConditionFalse
-		in.SetCondition(*current)
+		c.SetCondition(*current)
 	}
 }
 
 // UnsetAllConditions set conditions status to false on all conditions
-func (in *ConditionedStatus) UnsetAllConditions() {
+func (c *ConditionedStatus) UnsetAllConditions() {
 	var newConditions []Condition
-	for _, c := range in.Conditions {
+	for _, c := range c.Conditions {
 		c.Status = corev1.ConditionFalse
 		newConditions = append(newConditions, c)
 	}
-	in.Conditions = newConditions
+	c.Conditions = newConditions
 }
 
 // RemoveCondition removes the condition with the provided type from the credentials controller status.
-func (in *ConditionedStatus) RemoveCondition(condType ConditionType) {
-	in.Conditions = FilterOutCondition(in.Conditions, condType)
+func (c *ConditionedStatus) RemoveCondition(condType ConditionType) {
+	c.Conditions = FilterOutCondition(c.Conditions, condType)
 }
 
 // NewCondition creates a new RDS resource condition.

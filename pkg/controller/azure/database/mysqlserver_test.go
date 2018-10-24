@@ -247,7 +247,7 @@ func assertMySQLServerStatus(g *gomega.GomegaWithT, c client.Client, expectedSta
 	g.Expect(instance.Status.RunningOperation).To(gomega.Equal(expectedStatus.RunningOperation))
 
 	// assert the expected status conditions
-	test.AssertConditions(g, expectedStatus.Conditions, instance.Status.ConditionedStatus)
+	corev1alpha1.AssertConditions(g, expectedStatus.Conditions, instance.Status.ConditionedStatus)
 }
 
 func assertConnectionSecret(g *gomega.GomegaWithT, c client.Client, connectionSecret *v1.Secret) {

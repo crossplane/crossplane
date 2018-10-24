@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package database
+package rds
 
 import (
 	"fmt"
@@ -243,7 +243,7 @@ func TestReconcile(t *testing.T) {
 	var createdPassword string
 	mi := &rds.Instance{
 		ARN:    "test-arn",
-		Status: rds.DBInstanceStatusCreating.String(), // to avoid requeue
+		Status: databasev1alpha1.RDSInstanceStateCreating.String(), // to avoid requeue
 	}
 
 	m := &rds.MockClient{}
@@ -273,7 +273,7 @@ func TestReconcile(t *testing.T) {
 	g.Expect(c).NotTo(BeNil())
 	g.Expect(c.Status).To(Equal(corev1.ConditionTrue))
 	// assert connection secret
-	cs, err := mgr.getSecret(ri.Spec.ConnectionSecretRef.Name)
+	cs, err := mgr.getSecret(ri.ConnectionSecretName())
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(cs.Data[coredbv1alpha1.ConnectionSecretUserKey]).To(Equal([]byte(i.Spec.MasterUsername)))
 	g.Expect(cs.Data[coredbv1alpha1.ConnectionSecretPasswordKey]).To(Equal([]byte(createdPassword)))
@@ -281,7 +281,7 @@ func TestReconcile(t *testing.T) {
 
 	// Set endpoint and update status to running
 	mi.Endpoint = "Test Endpoint"
-	mi.Status = rds.DBInstanceStatusAvailable.String()
+	mi.Status = databasev1alpha1.RDSInstanceStateAvailable.String()
 	m.MockGetInstance = func(name string) (*rds.Instance, error) {
 		return mi, nil
 	}
@@ -298,7 +298,7 @@ func TestReconcile(t *testing.T) {
 	// wait for endpoint value in secret
 	for string(cs.Data[coredbv1alpha1.ConnectionSecretEndpointKey]) != mi.Endpoint {
 		g.Eventually(mgr.requests, timeout).Should(Receive(Equal(expectedRequest)))
-		cs, err = mgr.getSecret(ri.Spec.ConnectionSecretRef.Name)
+		cs, err = mgr.getSecret(ri.ConnectionSecretName())
 		g.Expect(err).NotTo(HaveOccurred())
 	}
 
@@ -309,26 +309,4 @@ func TestReconcile(t *testing.T) {
 	// Cleanup
 	g.Expect(mgr.deleteInstance(i)).NotTo(HaveOccurred())
 	waitForDeleted(g, mgr)
-}
-
-func TestApplyConnectionSecret(t *testing.T) {
-	g := NewGomegaWithT(t)
-
-	// create and start manager
-	mgr, err := NewTestManager()
-	g.Expect(err).NotTo(HaveOccurred())
-	defer close(StartTestManager(mgr.manager, g))
-
-	// Create new secret
-	s := testSecret([]byte("testdata"))
-	defer mgr.deleteSecret(s)
-	cs, err := mgr.reconciler.ApplyConnectionSecret(s)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(cs.Data).To(Equal(s.Data))
-
-	// Create another secret with the same name but different data
-	ns := testSecret([]byte("testdata-new"))
-	cs, err = mgr.reconciler.ApplyConnectionSecret(ns)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(cs.Data).To(Equal(ns.Data))
 }

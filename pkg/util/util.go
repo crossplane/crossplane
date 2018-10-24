@@ -1,0 +1,73 @@
+/*
+Copyright 2018 The Conductor Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package util
+
+import (
+	"fmt"
+
+	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/client-go/kubernetes"
+
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/rand"
+)
+
+const (
+	// https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+	maxNameLength          = 253
+	randomLength           = 5
+	maxGeneratedNameLength = maxNameLength - randomLength
+)
+
+// GenerateName  returns the name plus a random suffix of five alphanumerics
+// when a name is requested. The string is guaranteed to not exceed the length of a standard Kubernetes
+// name (253 characters)
+//  GenerateName("foo-")
+// would return value similar to: "foo-a1b2c".
+// If base string length exceeds 248 (253 - 5) characters, it will be truncated to 248 characters before
+// adding random suffix
+//  GenerateName("foo...ververylongstringof253chars")
+// would return value similar to: "foo...ververylongstringof253x8y9z"
+func GenerateName(base string) string {
+	if len(base) > maxGeneratedNameLength {
+		base = base[:maxGeneratedNameLength]
+	}
+	return fmt.Sprintf("%s%s", base, rand.String(randomLength))
+}
+
+// ObjectToOwnerReference converts core ObjectReference to meta OwnerReference
+func ObjectToOwnerReference(r *corev1.ObjectReference) *metav1.OwnerReference {
+	return &metav1.OwnerReference{
+		APIVersion: r.APIVersion,
+		Kind:       r.Kind,
+		Name:       r.Name,
+		UID:        r.UID,
+	}
+}
+
+// ApplySecret creates or updates if exist kubernetes secret
+func ApplySecret(c kubernetes.Interface, s *corev1.Secret) (*corev1.Secret, error) {
+	_, err := c.CoreV1().Secrets(s.Namespace).Get(s.Name, metav1.GetOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return c.CoreV1().Secrets(s.Namespace).Create(s)
+		}
+		return nil, err
+	}
+	return c.CoreV1().Secrets(s.Namespace).Update(s)
+}

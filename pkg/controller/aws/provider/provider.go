@@ -42,13 +42,19 @@ const (
 	recorderName = "aws.provider"
 )
 
+var (
+	ctx                      = context.Background()
+	_   reconcile.Reconciler = &Reconciler{}
+
+	result        = reconcile.Result{}
+	resultRequeue = reconcile.Result{Requeue: true}
+)
+
 // Add creates a new Provider Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
 	return add(mgr, newReconciler(mgr, &ConfigurationValidator{}))
 }
-
-var _ reconcile.Reconciler = &Reconciler{}
 
 // Reconciler reconciles a Provider object
 type Reconciler struct {
@@ -93,8 +99,6 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=aws.conductor.io,resources=provider,verbs=get;list;watch;create;update;patch;delete
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	ctx := context.TODO()
-
 	// Fetch the Provider instance
 	instance := &v1alpha1.Provider{}
 	err := r.Get(ctx, request.NamespacedName, instance)
@@ -102,41 +106,42 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 		if errors.IsNotFound(err) {
 			// Object not found, return.  Created objects are automatically garbage collected.
 			// For additional cleanup logic use finalizers.
-			return reconcile.Result{}, nil
+			return result, nil
 		}
 		// Error reading the object - requeue the request.
-		return reconcile.Result{}, err
+		return result, err
 	}
 
 	// Fetch Provider Secret
 	secret, err := r.kubeclient.CoreV1().Secrets(instance.Namespace).Get(instance.Spec.Secret.Name, metav1.GetOptions{})
 	if err != nil {
 		r.recorder.Event(instance, corev1.EventTypeWarning, "Error", err.Error())
-		return reconcile.Result{}, err
+		return resultRequeue, err
 	}
 
 	// Retrieve credentials data
 	data, ok := secret.Data[instance.Spec.Secret.Key]
 	if !ok {
 		instance.Status.SetInvalid(fmt.Sprintf("invalid AWS Provider secret, data key [%s] is not found", instance.Spec.Secret.Key), "")
-		return reconcile.Result{}, r.Update(ctx, instance)
+		return result, r.Update(ctx, instance)
 	}
 
 	// Load aws configuration
 	config, err := awsclient.LoadConfig(data, ini.DEFAULT_SECTION, instance.Spec.Region)
 	if err != nil {
 		instance.Status.SetInvalid(err.Error(), "")
-		return reconcile.Result{}, r.Update(ctx, instance)
+		return result, r.Update(ctx, instance)
 	}
 
 	// Validate aws configuration
 	if err := r.Validate(config); err != nil {
 		instance.Status.SetInvalid(err.Error(), "")
-		return reconcile.Result{}, r.Update(ctx, instance)
+		return result, r.Update(ctx, instance)
 	}
 
 	instance.Status.SetValid("Valid")
-	return reconcile.Result{}, r.Update(ctx, instance)
+
+	return result, r.Update(ctx, instance)
 }
 
 // Validator - defines provider validation functions

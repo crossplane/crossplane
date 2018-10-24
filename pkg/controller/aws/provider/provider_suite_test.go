@@ -28,7 +28,6 @@ import (
 	awsapis "github.com/upbound/conductor/pkg/apis/aws"
 	awsv1alpha1 "github.com/upbound/conductor/pkg/apis/aws/v1alpha1"
 	"github.com/upbound/conductor/pkg/test"
-	"golang.org/x/net/context"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -51,7 +50,6 @@ const (
 
 var (
 	awsCredsFile    = flag.String("aws-creds", "", "run integration tests that require .aws/credentials")
-	ctx             = context.TODO()
 	cfg             *rest.Config
 	expectedRequest = reconcile.Request{NamespacedName: types.NamespacedName{Name: providerName, Namespace: namespace}}
 )

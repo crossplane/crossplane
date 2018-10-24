@@ -14,10 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package database
+package rds
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	databasev1alpha1 "github.com/upbound/conductor/pkg/apis/aws/database/v1alpha1"
@@ -58,7 +59,8 @@ const (
 )
 
 var (
-	_ reconcile.Reconciler = &Reconciler{}
+	_   reconcile.Reconciler = &Reconciler{}
+	ctx                      = context.Background()
 )
 
 // Add creates a new Instance Controller and adds it to the Manager with default RBAC.
@@ -122,7 +124,6 @@ func (r *Reconciler) fail(instance *databasev1alpha1.RDSInstance, reason, msg st
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	// Fetch the CRD instance
 	instance := &databasev1alpha1.RDSInstance{}
-	ctx := context.Background()
 
 	err := r.Get(ctx, request.NamespacedName, instance)
 	if err != nil {
@@ -138,7 +139,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 
 	// Generate DBInstance Name
 	if instance.Status.InstanceName == "" {
-		instance.Status.InstanceName = instance.Name + "-" + string(instance.UID)
+		instance.Status.InstanceName = fmt.Sprintf("%s-%s", instance.Spec.Engine, instance.UID)
 	}
 
 	// Fetch AWS Provider
@@ -201,7 +202,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 			return r.fail(instance, errorCreatingPassword, err.Error())
 		}
 
-		_, err = r.ApplyConnectionSecret(NewConnectionSecret(instance, password))
+		_, err = util.ApplySecret(r.kubeclient, NewConnectionSecret(instance, password))
 		if err != nil {
 			return r.fail(instance, errorCreatingConnectionSecret, err.Error())
 		}
@@ -213,7 +214,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 		}
 	} else {
 		// Search for connection secret
-		connSecret, err := r.kubeclient.CoreV1().Secrets(instance.Namespace).Get(instance.Spec.ConnectionSecretRef.Name, metav1.GetOptions{})
+		connSecret, err := r.kubeclient.CoreV1().Secrets(instance.Namespace).Get(instance.ConnectionSecretName(), metav1.GetOptions{})
 		if err != nil {
 			if errors.IsNotFound(err) {
 				// There is nothing we can do to recover connect secret password.
@@ -224,15 +225,16 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 				return r.fail(instance, errorRetrievingConnectionSecret, err.Error())
 			}
 		}
+		instance.SetEndpoint(db.Endpoint)
 		connSecret.Data[coredbv1alpha1.ConnectionSecretEndpointKey] = []byte(db.Endpoint)
-		_, err = r.ApplyConnectionSecret(connSecret)
+		_, err = util.ApplySecret(r.kubeclient, connSecret)
 		if err != nil {
 			return r.fail(instance, errorCreatingConnectionSecret, err.Error())
 		}
 	}
 
 	// Update status - if changed
-	conditionType := rds.ConditionType(db.Status)
+	conditionType := databasev1alpha1.ConditionType(db.Status)
 	requeue := conditionType != corev1alpha1.Running
 
 	if instance.Status.State != db.Status {
@@ -272,16 +274,9 @@ func NewConnectionSecret(instance *databasev1alpha1.RDSInstance, password string
 
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      instance.Spec.ConnectionSecretRef.Name,
-			Namespace: instance.Namespace,
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					APIVersion: instance.APIVersion,
-					Kind:       instance.Kind,
-					Name:       instance.Name,
-					UID:        instance.UID,
-				},
-			},
+			Name:            instance.ConnectionSecretName(),
+			Namespace:       instance.Namespace,
+			OwnerReferences: []metav1.OwnerReference{instance.OwnerReference()},
 		},
 
 		Data: map[string][]byte{

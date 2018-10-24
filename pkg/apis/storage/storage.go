@@ -14,28 +14,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Generate deepcopy for apis
-//go:generate go run ../../vendor/k8s.io/code-generator/cmd/deepcopy-gen/main.go -O zz_generated.deepcopy -i ./... -h ../../hack/boilerplate.go.txt
-
-// Package apis contains Kubernetes API groups
-package apis
+// Package core contains Kubernetes API groups for AWS cloud provider.
+package storage
 
 import (
-	"github.com/upbound/conductor/pkg/apis/aws"
-	"github.com/upbound/conductor/pkg/apis/azure"
-	"github.com/upbound/conductor/pkg/apis/core"
-	"github.com/upbound/conductor/pkg/apis/gcp"
-	"github.com/upbound/conductor/pkg/apis/storage"
+	"github.com/upbound/conductor/pkg/apis/storage/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
 func init() {
 	// Register the types with the Scheme so the components can map objects to GroupVersionKinds and back
-	AddToSchemes = append(AddToSchemes, aws.AddToScheme)
-	AddToSchemes = append(AddToSchemes, azure.AddToScheme)
-	AddToSchemes = append(AddToSchemes, core.AddToScheme)
-	AddToSchemes = append(AddToSchemes, gcp.AddToScheme)
-	AddToSchemes = append(AddToSchemes, storage.AddToScheme)
+	AddToSchemes = append(AddToSchemes, v1alpha1.SchemeBuilder.AddToScheme)
 }
 
 // AddToSchemes may be used to add all resources defined in the project to a Scheme

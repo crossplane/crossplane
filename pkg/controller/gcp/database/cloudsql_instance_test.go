@@ -198,7 +198,7 @@ func assertCloudsqlInstanceStatus(g *gomega.GomegaWithT, c client.Client, expect
 	g.Expect(instance.Status.InstanceName).To(gomega.Equal(expectedStatus.InstanceName))
 
 	// assert the expected status conditions
-	test.AssertConditions(g, expectedStatus.Conditions, instance.Status.ConditionedStatus)
+	corev1alpha1.AssertConditions(g, expectedStatus.Conditions, instance.Status.ConditionedStatus)
 }
 
 func assertConnectionSecret(g *gomega.GomegaWithT, c client.Client, connectionSecret *v1.Secret) {

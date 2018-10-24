@@ -17,14 +17,14 @@ limitations under the License.
 package aws
 
 import (
-	"github.com/upbound/conductor/pkg/controller/aws/database"
 	"github.com/upbound/conductor/pkg/controller/aws/provider"
+	"github.com/upbound/conductor/pkg/controller/aws/rds"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
 func init() {
 	// AddToManagerFuncs is a list of functions to create controllers and add them to a manager.
-	AddToManagerFuncs = append(AddToManagerFuncs, database.Add)
+	AddToManagerFuncs = append(AddToManagerFuncs, rds.Add)
 	AddToManagerFuncs = append(AddToManagerFuncs, provider.Add)
 }
 

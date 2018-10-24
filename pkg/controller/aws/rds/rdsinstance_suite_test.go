@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package database
+package rds
 
 import (
 	"context"
@@ -55,7 +55,6 @@ const (
 var (
 	// used for integration tests with real aws credentials
 	awsCredsFile    = flag.String("aws-creds", "", "run integration tests that require .aws/credentials")
-	ctx             = context.TODO()
 	cfg             *rest.Config
 	expectedRequest = reconcile.Request{NamespacedName: types.NamespacedName{Name: instanceName, Namespace: namespace}}
 )
@@ -203,7 +202,7 @@ func testInstance(p *awsv1alpha1.Provider) *databasev1alpha1.RDSInstance {
 			ProviderRef: corev1.LocalObjectReference{
 				Name: p.Name,
 			},
-			ConnectionSecretRef: corev1.LocalObjectReference{
+			ConnectionSecretRef: &corev1.LocalObjectReference{
 				Name: p.Name,
 			},
 		},
