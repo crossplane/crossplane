@@ -17,7 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"github.com/upbound/conductor/pkg/apis/core/v1alpha1"
+	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -34,13 +34,17 @@ type RDSInstanceSpec struct {
 	Size           int64    `json:"size"`                     // size in gb
 	SecurityGroups []string `json:"securityGroups,omitempty"` // VPC Security groups
 
-	ProviderRef         corev1.LocalObjectReference `json:"providerRef"`
+	ClaimRef      corev1.ObjectReference      `json:"claimRef,omitempty"`
+	ClassName     string                      `json:"className,omitempty"`
+	ProviderRef   corev1.LocalObjectReference `json:"providerRef,omitempty"`
+	ReclaimPolicy corev1alpha1.ReclaimPolicy  `json:"reclaimPolicy,omitempty"`
+
 	ConnectionSecretRef corev1.LocalObjectReference `json:"connectionSecretRef"`
 }
 
 // RDSInstanceStatus defines the observed state of RDSInstance
 type RDSInstanceStatus struct {
-	v1alpha1.ConditionedStatus
+	corev1alpha1.ConditionedStatus
 	State        string `json:"state,omitempty"`
 	Message      string `json:"message,omitempty"`
 	ProviderID   string `json:"providerID,omitempty"`   // the external ID to identify this resource in the cloud provider
