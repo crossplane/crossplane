@@ -2,13 +2,15 @@
 
 In this document we propose a model for managing cloud infrastructure across a set of disparate cloud providers and services, ranging from low level infrastructure like servers and clusters to higher level infrastructure like databases, buckets and message queues.
 
-We use a declarative management approach in which each piece of infrastructure is modeled as a *Resource* that abstracts the underlying implementation details. We enable full lifecycle management of resources through a set of controllers that provision, manage, scale, failover, and actively respond to external changes that deviate from the desired configuration state.
+We use a declarative management approach in which each piece of infrastructure is modeled as a *resource* that is consumed by applications and users. We enable full lifecycle management of resources through a set of controllers that provision, manage, scale, failover, and actively respond to external changes that deviate from the desired configuration.
 
-Applications wanting to consume resources express their intent using *resource claims*. Claims are requests for resources and have granular requirements and limits. A *scheduler* is responsible for matching claims and resources. The scheduler can be tailored to specific workloads enabling availability, performance, cost and capacity optimizations.
+Every resource has an abstract definition that is not tied to a specific cloud provider or service, and represents the application's request. An abstract resource maybe be have multiple implementations across different cloud providers and services. The abstraction of resources enables a higher degree of workload portability, separation of concerns, and enables a scheduler to optimize the deployment and placement of applications and their resources.
 
-Resources can be statically or dynamically provisioned. Resources and claims enable a higher degree of workload portability, and separation of concern by letting application owners express their resource requirements abstractly, and cluster owners define the implementation.
+Application and users consume abstract resources and administrators provision concrete resources. Abstract resources can be explicitly bound to concrete ones, or matched using a criteria that honors constraints and capabilities. We support both static and dynamic provisioning of concrete resources.
 
-Our approach is heavily influenced by the design of the Kubernetes scheduler, and persistent volumes.
+Abstract and concrete resources can expose a set of capabilities including capacity, region, performance, and cost that can be used by an extensible scheduler to select among alternative implementations and deployments enabled by the administrator.
+
+Our approach is heavily influenced by the design of the Kubernetes scheduler, and persistent volumes. We use Custom Resource Definitions (CRDs) and other extension facilities in Kubernetes for our implementation. It's our goal to provide an experience that is Kubernetes native, and aligns with existing principles and practices within the ecosystem.
 
 ## Goals:
 - A higher degree of workload portability via resource abstractions.
@@ -16,214 +18,195 @@ Our approach is heavily influenced by the design of the Kubernetes scheduler, an
 - Static and dynamic provisioning of resources.
 - Late binding of resources to applications.
 - Advanced scheduling techniques via resource requirements, limits and quotas.
-- Lifecycle management and orchestration via controllers.
-- Rich extensibility to enable wider adoption.
+- Lifecycle management of resources via controllers.
+- A rich extensibility approach.
 - Leverage as much of the Kubernetes infrastructure as possible.
 - Avoid creating another plugin model like CSI or volume plugins.
 
 ## Non-Goals:
 - Replace managed services in cloud providers.
 
-# Resources, Claims and Classes
+# Resources
 
-A *resource* is a piece of infrastructure. To the extent possible we model *abstract* resources that are not tied to a specific provider or implementation. Resources are created as CustomResourceDefinitions (CRDs) in Kubernetes. For a given abstract resource there are likely multiple CRDs involved, one for the abstract resource which is implementation independent, and one or more CRDs for the implementation of the resource.
+A *resource* is a generic term used for any object managed by Kubernetes. For example, a `Pod` and a `PersistentVolume` are resources. For Conductor, we use the same terminology for infrastructure and cloud resources and we model them using CRDs. Every resource has a `spec` that represents its desired configuration, and a `status` that represents its actual or observed state.
 
-For example, a `RelationalDatabase` is an abstract resource that can be used to implement a relational database like MySQL or PostgreSQL. The implementation of the database can come from a managed service without a public cloud provider or run as a set of containers in a Kubernetes cluster. Let's look at an example of a the `RelationalDatabase`:
+We differentiate between two kinds of resources:
 
-```yaml
-apiVersion: storage.conductor.io/v1alpha1
-kind: RelationalDatabase
-metadata:
-  name: database-445
-  namespace: conductor-system
-spec:
-  # the following configuration applies to all relational databases regardless of implementation
-  engine: mysql
-  version: 5.6
-  highly-available: true
-  capacity:
-    storage: 50Gi
-  reclaimPolicy: Delete
-  # a template for the implementation of the relational database resource.
-  # this template will be provisioned when an instance of the RelationalDatabase resource is created.
-  template:
-    apiVersion: database.aws.conductor.io/v1alpha1
-    kind: RDSInstance
-    metadata:
-      label: foo
-    spec:
-      class: db.t2.small
-      masterUsername: masteruser
-status:
-  phase: Created
-  implementationRef: rds-instance-6763d
-```
+- **Abstract** - these are resources that represent a "request" for a piece of infrastructure, and are not tied to a specific implementation, provider or service. They are "logical" definitions from the perspective of the application consuming the resource. Abstract resources are similar to a `Pod` or a `PersistentResourceClaim` in the core Kubernetes API, in that they do not identify the implementation and instead the application and user's request for consuming resources.
 
-A *claim* represents a request to provision and consume a resource by an application. It also acts as the claim checks to the resource. A *scheduler* is responsible for *binding* claims to resources based on criteria and using various scheduling techniques and optimizations.
+- **Concrete** - these represent an actual piece of infrastructure in a give cloud provider or service. Concrete resources have all the config information to provision and manage the resource. A concrete resource can implement one or more abstract resources. A `Node` and a `PersistentVolume` are examples of concrete resources in the Kubernetes API.
+
+Application developers define the abstract resource and they are typically in the same namespace as the application. Let's look at an abstract resource for a MySQL instance:
 
 ```yaml
 apiVersion: storage.conductor.io/v1alpha1
-kind: RelationalDatabaseClaim
+kind: MySQLInstance
 metadata:
   name: wordpress-db
   namespace: wordpress
 spec:
-  # the following are requirements that will be matched against the resource, or used when
-  # dynamically provisioning a resource
-  engine: mysql
+  # the following is desired configuration of the abstract resource. The configuration
+  # uses fields that common across all implementations of MySQL. These will be matched
+  # against the config of concrete resources.
   version: ">= 5.6"
-  # specifies any quantities or limit requests on resources. These are matched
-  # against the capacity section of a resource and checked against quotas and limits.
-  resources:
-    requests:
+  masterUsername: masteruser
+  # the following are requirements and hints that apply to all kinds of abstract resources.
+  # they are used by a scheduler that can choose among equivalent concrete resources that
+  # have been made available by the administrator. They are typically represented in terms
+  # of quantities, cost and other generic capabilities of all resources.
+  requirements:
+    capacity:
       storage: 25Gi
-  # optional resourceClass name that can select among a class of available resources
-  class: performance
-  # optional resource name that can be used to bind to a specific resource
-  # instead of relying on the scheduler. When a claim is bound this is set by the scheduler.
-  resourceName: database-445
-  # optional selector to further filter the resources
-  selector:
+    region: north-america
+    cost: free-tier
+  # optional resource class name that is used during dynamic provisioning of an abstract
+  # resource. The class identifies a "profile" of an concrete resource.
+  resourceClass: performance
+  # optional resource name that can identify a specific concrete resource to bind to.
+  resourceName: rds-instance-445
+  # optional selector to further filter the concrete resources
+  resourceSelector:
     matchExpressions:
       - {key: environment, operator: In, values: [dev]}
-status:
-  phase: Bound
 ```
 
-A *class* represents a "profile" for a resource. Creating a class does not actually create the resource, instead when a claim is matched against a class, the resource can be dynamically created. An administrator might create different classes based on quality-of-service levels, or service plans, or to arbitrary policies determined by the administrators. A class does not have a spec or status, it's merely configuration.
+The abstract resource can be implemented by multiple concrete resources. An administrator typically defines these concrete resources and they go in a different system-wide namespace. Let's look at the resource for an RDS instance in AWS:
 
 ```yaml
-apiVersion: storage.conductor.io/v1alpha1
-kind: RelationalDatabaseClass
+apiVersion: storage.aws.conductor.io/v1alpha1
+kind: RDSInstance
 metadata:
-  name: slow
+  name: rds-instance-445
   namespace: conductor-system
-reclaimPolicy: Retain
+spec:
+  # the following is desired configuration of the concrete resource. The configuration
+  # will be used when provisioning the external resource in AWS.
+  engine: mysql
+  version: 5.9
+  masterUsername: masteruser
+  instance-type: db.m4.xlarge
+  vpc: vpc-223-551
+  securityGroups:
+    - sg-2323-4445
+    - sg-2323-4445
+  multizone: true
+  # this specifies what happens to this resource when it's no longer used by the abstract resource
+  rebindPolicy: Delete
+  # an optional resource class name that is used during dynamic provisioning of an abstract
+  # resource. The class identifies a "profile" of an concrete resource.
+  resourceClass: performance
+  # the following are generic capabilities of this resource. They are not tied to the kind of
+  # resource like MySQL or RDS. Instead they represent quantities, cost and other generic
+  # that can be used by a scheduler.
+  capabilities:
+    capacity:
+      storage: 50Gi
+    region: north-america
+    cost: free-tier
+```
+
+There can be multiple concrete resources that implement the abstract one. For example, let's look at another concrete resource for a CloudSQL instance in GCP:
+
+```yaml
+apiVersion: database.gcp.conductor.io/v1alpha1
+kind: CloudSQLInstance
+metadata:
+  name: cloudsql-instance-787
+spec:
+  # these properties are specific to CloudSQLInstance
+  databaseVersion: MYSQL_5_7
+  tier: db-n1-standard-1
+  region: us-west2
+  storageType: PD_SSD
+  masterUsername: masteruser
+  # these properties apply to all concrete resource
+  rebindPolicy: Delete
+  resourceClass: performance
+  capabilities:
+    capacity:
+      storage: 50Gi
+    region: north-america
+    cost: free-tier
+```
+
+To support dynamic provisioning and an optimizing scheduler, the administrator can define a class of resource instead of a concrete one. When an abstract resource is requested it can be matched against these classes. Let's look at an example of a `ResourceClass`.
+
+```yaml
+apiVersion: core.conductor.io/v1alpha1
+kind: ResourceClass
+metadata:
+  name: rds-performance
+  namespace: conductor-system
+# the following are generic capabilities of this resource. They are not tied to the kind of
+# resource like MySQL or RDS. Instead they represent quantities, cost and other generic
+# that can be used by a scheduler.
+capabilities:
+  capacity:
+    storage: 50Gi
+  region: north-america
+  cost: free-tier
+supportedResources:
+  - MySqlInstance.v1alpha1.storage.conductor.io
+  - MySqlInstance.v1beta1.storage.conductor.io
+# this specifies what happens to this resource when it's no longer used by the abstract resource
+rebindPolicy: Delete
 # a template for the underlying resource implementation that will be used when a resource
-# is dynamically provisioned
+# is dynamically provisioned. some of these properties might get overriden by the ones in the
+# the abstract resource spec.
 template:
   apiVersion: database.aws.conductor.io/v1alpha1
   kind: RDSInstance
-  metadata:
-    label: foo
   spec:
-    class: db.t2.small
     engine: mysql
+    version: 5.9
     masterUsername: masteruser
+    instance-type: db.m4.xlarge
+    vpc: vpc-223-551
+    securityGroups:
+      - sg-2323-4445
+      - sg-2323-4445
 ```
 
 # Lifecycle of a Resource
 
-The interactions of resources, classes and claims follow this lifecycle:
+Resources adhere to the following lifecycle:
 
 ## Provisioning
-Resources are provisioned either statically or dynamically.
+Concrete resources are provisioned either statically or dynamically.
 
-An administrator can statically provision a resource for consumption by applications. Resources carry the implementation details required to provision them. Once provisioned they are available for binding by claims.
+An administrator can statically provision a concrete resource for consumption by applications. Concrete resources carry the all implementation details required to provision them externally in a cloud provider or service. Once provisioned they are available for binding to abstract resources.
 
-An administrator can enable dynamic resource provisioning, where if a claim can not find a matching resource, a new resource is provisioned. The claim must specify the *resource class* to use when dynamically provisioning.
+An administrator can enable dynamic resource provisioning, where if an abstract resource can not find a matching concrete resource, a new one is provisioned.
 
 ## Binding
 
-Binding is when a claim is matched with a resource. A claim can be explicitly bound by setting the `resourceName` property, otherwise the scheduler will attempt to find a matching resource based on criteria including configuration requirements, resource classes, quotas, limits and others.
+Binding is when an abstract resource is matched with a concrete resource. Multiple abstract resources can be bound to the same concrete resource. An abstract resource can be explicitly bound by setting the `resourceName` property on it, or it will be bound based on a criteria including its configuration requirements.
 
-Claims can remain unbound indefinitely if a matching resource is not found, but will become bound once a resource becomes available. Depending on the resource, multiple claims can be bound to the same resource.
+Abstract resources can remain unbound indefinitely if a matching resource is not found, but will become bound once a matching concrete resource becomes available.
 
 ## Using
 
-Applications can consume resource directly from Pods. One a claim is bound, connection information is automatically generated in the same namespace as the claim. This can include `Service`, `ConfigMap` and/or `Secret` objects. A pod 
+Applications can consume resource directly from Pods. One an abstract resource is bound, connection information is automatically generated in the same namespace as the abstract resource. This can include `Service`, `ConfigMap` and/or `Secret` objects. A pod can connect to the resource by using environment variables or volumes based on the configmaps and secrets. Every abstract resource defines it own format for secrets and configmaps.
 
-## Reclaiming
+## Rebinding
 
-When an application is done with their resource, the should delete the claim object. This would release the claim on the resource and based on the reclaim policy would tell the controller what to do with the resource. Resources that are dynamically provisioned inherit their `reclaimPolicy` from the resource class. We currently support the following reclaim policies:
+When an application is done with the abstract resource, the should delete it. This would release the binding and based on the rebind policy would tell the controller what to do with the resource. Resources that are dynamically provisioned inherit their `rebindPolicy` from the resource class. We currently support the following rebind policies:
 
-### Retained
+### Retain
 
-The `Retain` reclaim policy allows for manual reclamation of the resource. When the claim is deleted, the resource will still exist in a `Released` state. It will not be available for another claim since there might be persistent state remaining on the volume. An administrator can manually reclaim the resource volume with the following steps.
-1. Delete the resource. The concrete resource implementation will not be deleted and as a result any external infrastructure will still exist.
-2. Manually clean up the data on the associated storage asset accordingly.
-3. Manually delete the associated external infrastructure, or if you want to reuse it, create a new resource with the storage asset definition.
+The `Retain` rebind policy allows for manual reuse the resource. When the abstract resource is deleted, the resource will still exist in a `Released` state. It will not be available for another binding since there might be persistent or sensitive state remaining on it. An administrator can manually make the resources available again by following these steps:
+1. Delete the concrete resource. Any external infrastructure will not be deleted.
+2. Manually clean up the data on the external resource.
+3. Manually delete the associated external infrastructure, or if you want to reuse it, create a new concrete resource with the storage asset definition.
 
 ### Delete
 
-For resource that support `Delete` reclaim policy, the underlying resource will be immediately deleted when the claim is released. 
+For resource that support `Delete` rebind policy, the underlying resource will be immediately deleted when the claim is released. This will also delete any external infrastructure associated with the concrete resource.
 
-# Resource
+-------------
 
-Every resource contains a spec and status. The spec defines the declarative state of the resource, and status defines it's actual state. Because every abstract resource is implemented as separate CRD, we only show the config that is common across all of them here:
-
-```yaml
-apiVersion: [category].conductor.io/v1alpha1
-kind: [abstractResourceKind]
-metadata:
-  name: database-445
-  namespace: conductor-system
-spec:
-  [config for the abstract resource]
-  # these are quantities and capacities
-  capacity:
-    storage: 50Gi
-  # what happens to the resource when a claim is released
-  reclaimPolicy: Retain
-  # a template for the underlying resource implementation
-  template:
-    apiVersion: [concreteResourceGroup]
-    kind: [concreteResourceKind]
-    metadata:
-    spec:
-      [config for the concrete resource]
-```
-
-TODO: can the implementation spec reference something from the containing resource spec? Like size. what about other capabilities? Should we do this via a scoped template language?
-
-# Claim
-
-A claim is a request for a resource and acts as a claim check for it. Claims are defined by applications when they want to consume resources. Instead of showing every claim type, we show a general
-
-```yaml
-apiVersion: storage.conductor.io/v1alpha1
-kind: <ClaimName>
-metadata:
-  name: my-database
-spec:
-  resources:
-    # specifies any quantities or limit requests on resources. These are matched
-    # against the capacity section of a resource
-  requests:
-    # requests for functionality that are matched against the capabilities section
-    # of a resource
-  # a claim can request a particular class by specifying a name.
-  class: slow
-  # claims can specify a selector to further filter the resources
-  selector:
-    matchLabels:
-      release: "stable"
-    matchExpressions:
-      - {key: environment, operator: In, values: [dev]}
-```
-
-# Resource Class
-
-Resource claims are designed for portability, and as such they can not specify provider or implementation specific requirements. Instead we use the concept of a *resource class* to enable varying implementations or "classes" of resources. Different classes might map to quality-of-service levels, or service plans, or to arbitrary policies determined by the administrators. An administrator can define a resource class as follows:
-
-```yaml
-apiVersion: storage.conductor.io/v1alpha1
-kind: <ClassName>
-metadata:
-  name: slow
-spec:
-  # No relational database properties
-  # resource wide properties
-  reclaimPolicy: Retain
-  # a template for the underlying resource implementation
-  template:
-    apiVersion: database.aws.conductor.io/v1alpha1
-    kind: RDSInstance
-    metadata:
-      label: foo
-    spec:
-      class: db.t2.small
-      engine: mysql
-      masterUsername: masteruser
-```
-
+TODO:
+- show examples and use cases
+- show the type structures
+- `status` fields
+- how does a concrete resource point at an external resource in AWS, GCP, Azure. can we set that manually
