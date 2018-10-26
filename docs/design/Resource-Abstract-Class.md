@@ -2,8 +2,8 @@
 We have been discussing 3 constructs modeled after or inspired by Kubernetes PV,PVC,StorageClass.
 
 ## [Resource]Instance
-Resource could be any of cloud provider managed resources: RDSInstance, CloudSQLInstance, EKS, GKE, etc...
-This construct is modeled after or inspired by the Kubernetes PersistentVolume construct.
+Resource could be any of cloud provider managed resources: `RDSInstance`, `CloudSQLInstance`, `EKS`, `GKE`, etc...
+This construct is modeled after or inspired by the Kubernetes `PersistentVolume` construct.
 
 ```go
 type PersistentVolumeSpec struct {
@@ -44,18 +44,18 @@ type PersistentVolumeSpec struct {
 }
 ```
 
-ResourceInstance provides a concrete definition of the underlying cloud resource. For all intended purpose, the 
-ResourceInstance is answering `WHAT` question, i.e. "What is the resource", or "What is the resource definition".
+A `ResourceInstance` provides a concrete definition of the underlying cloud resource. For all intended purpose, the 
+`ResourceInstance` is answering `WHAT` question, i.e. "What is the resource", or "What is the resource definition".
 
-ResourceInstance status is intended to contain all the necessary information reflecting resource status and all other
-dynamically generated properties, like: `IP Adress`, Endpoint, Password. As an implementation choice, we do not store
+A `ResourceInstance` status is intended to contain all the necessary information reflecting resource status and all other
+dynamically generated properties, like: `IP Adress`, `Endpoint`, `Password`. As an implementation choice, we do not store
 any sensitive information in the resource status, like `Password`, and instead leveraging Kubernetes Secrets as a storage
 medium.  
 
-ResourceInstance is a "system" resource and requires user to have elevated "system" privileges to create and manage this
+A `ResourceInstance` is a "system" resource and requires user to have elevated "system" privileges to create and manage this
 resource (typically cluster administrator). 
 
-In summary, ResourceInstance could be described by following attributes:
+In summary, a `ResourceInstance` could be described by following attributes:
 - Cloud resource definition
 - Cloud resource state
 - Kubernetes system resource
@@ -103,17 +103,17 @@ type PersistentVolumeClaimSpec struct {
 }
 ```
 
-AbstractResource intended to provide the means to consume the concrete resource from the Application domain. For that
-purpose AbstractResource is defined in the same namespace as the consuming application, in contrast to the `ResourceInstance`
+An `AbstractInstance` intended to provide the means to consume the concrete resource from the Application domain. For that
+purpose `AbstractInstance` is defined in the same namespace as the consuming application, in contrast to the `ResourceInstance`
 which is defined at the "system" level.
 
-The `AbstractResource` provides the utilization which could be classified by two aspectes:
+The `AbstractInstance` provides the utilization which could be classified by two phases:
 - Binding - find and match or create the `ResourceInstance` and bind to it
 - Usage - provide additional parameters to handle specialized usage of this resource as it pertains to a consuming application.
 
 ### Binding
 #### Static
-In the static binding context, the `AbstractResource` is intended to find an available `ResourceInstance` and if one is found bind to it.
+In the static binding context, the `AbstractInstance` is intended to find an available `ResourceInstance` and if one is found bind to it.
 
 The `AbstractInstance` provides two ways of finding a `ResourceInstance`:
 - `VolumeName`: direct link to the `ResourceInstance` with the same name
@@ -124,7 +124,7 @@ The `AbstractInstance` provides two ways of finding a `ResourceInstance`:
 Once the one or more `ResourceInstances` are found as a list of candidates, this list is evaluated against the `ResourceRequirements`
 to match on the available resources using the "minimum" set of the required attributes.
 
-In the end, the `AbstractResource` if bound to one of the `ResourceInstance` from the list of available candidates.
+In the end, the `AbstractInstance` is bound to one of the `ResourceInstance` from the list of available candidates.
 
 #### Dynamic
 If `AbstractInstance` did not find any existing (static) `ResourceInstances` available for binding, it provides a path to 
@@ -132,7 +132,7 @@ create a new `ResourceInstance` using `ResourceClasssName` attribute, which poin
 
 If `ResourceClassName` is not provided, the `AbstractInstance` may use a `default` `ResourceClass` if one is defined.
 
-In the end, the `AbstractResource` is bound to a newly created `ResourceInstance`
+In the end, the `AbstractInstance` is bound to a newly created `ResourceInstance`
 
 **Note** it is also expected that the `AbstractInstance` may be left in `Unbound` state, because it neither found
 any matching instances nor was able to dynamically provision any new instances.
@@ -147,11 +147,11 @@ In the example above - case of `PVC` those are:
 - `VolumeMode` - what file system should be exposed to the client application to be used against a given volume.
 - `DataSource` - as it appears needed to further refine how this volume handles snap-shot (`VolumeSnapshotDataSource`)
 
-In our case, the `AbstractResource` provides ability (explicit or implicit) to define secret/service name for application to
-interract with the `ResourceInstance`. 
+In our case, the `AbstractInstance` provides ability (explicit or implicit) to define secret/service name for application to
+interact with the `ResourceInstance`. 
 
 The main point here being, the "usage" attributes do not alter of "WHAT" the `ResourceInstance` is. 
-This true for the `Dynamic` and even more so for `Static` provisionning.
+This true for the `Dynamic` and even more so for `Static` provisioning.
 - `Dynamic` - all `ResourceInstance` attributes are expected to be defined in the `ResourceClass` (see below)
 - `Static` - the `ResourceInstance` already created (up-and-running), hence, by definition there should be no changes to this instance.
 
@@ -163,11 +163,11 @@ Is it a `definition`, is it a `usage`, possibly both?
 Let's take a look at some of them, and hopefully we gain some clarity:
 
 1. Example: `MySQL` engine - clearly it is a defining attribute, to the point that it dictates the client implementation (wire protocol), 
-thus we promoted `MySQLIsntance` as a defined type.
-2. Example: `MySQL` engine version. This is were we appears to be have difference of the opinions. I think there is a strong case to
+thus we promoted `MySQLIsntance` as a stand-alone defined type.
+1. Example: `MySQL` engine version. This is were we appears to be have difference of the opinions. I think there is a strong case to
 treat `engine-version` as a defining attribute, i.e. it is closer (if not entirely in) to Database definition, than to how the client application
 intended to use it.
-3. Example: `Mysql` master user name. This one is not so clear cut. On one hand - `masterUsername` appears to be a part of the
+1. Example: `Mysql` master user name. This one is not so clear cut. On one hand - `masterUsername` appears to be a part of the
 Database definition. On another hand it does have a strong usage aspect - since, after all it is used by the client application to connect
 to the database. 
 
@@ -233,19 +233,21 @@ type StorageClass struct {
 ```
 
 The expectation (in my understanding) from the `ResourceClass` is to provide a `complete` or "nearly" `complete` resource definition.
+Similar to the `ResourceInstance`, the `ResourceClass` is a "system" resource, hence, it requires cluster user with elevated 
+privileges (typically cluster admin).
 
 # Challenges
 It appears from our discussions the most (if not entire) disagreement is about how we classify some of the  `ResourceInstance`, i.e.
 weather or not the given attribute signifies "definition", "usage", or both. 
 
-In that spirit, base on our last discussion, it appears we have proposed that the `ResourceClass` may not contain a **complete** set of 
+In that spirit, base on our last discussion, it appears we have proposed that the `ResourceClass` may **not** contain a **complete** set of 
 attributes. Even more so, the union of `ResourceClass` and `AbstractInstance` may not produce the complete set of the attributes, and
 ultimately it is up to the provisioner to deal with the `attributes` interpretation. 
 
 1. I think we can make a strong case for the `ResourceClass` to provide a complete definition for a given `ResourceInstance`.
 
 Pros:
-- it provides the cleanest separation between the `AbstractResource` and `ResourceClass`, where:
+- it provides the cleanest separation between the `AbstractInstance` and `ResourceClass`, where:
     - `ResourceClass` defines all (every single one) attributes
     - `AbstractClass` deals with the usage (secret/services) + binding/matching for static defined `ResourceInstances`
 - it provides the cleanest application integration model: as application developer all I need to know/provide is the
@@ -255,13 +257,13 @@ Pros:
     
     In both cases, I know how to consume or how to customize consumption, but I do not provide any additional information as pertains to 
     resource definition
-    
+        
 Cons:
 - it could be **too** restrictive, i.e. the cluster administrator bears the full burden of defining each and every `ResourceClass`, 
 whereas application owner has no say on how to further customize the resource. 
     - Note: I could (and did) see use cases where this "con" was the exact goal/motive behind the separation of concerns. 
 
-1. I think we can make a case for loose attribute completeness in both `ResourceClass` and `AbstractInstance`, however, as long as we 
+2. I think we can make a case for loose attribute completeness in both `ResourceClass` and `AbstractInstance`, however, as long as we 
 clearly define the authority of the values. From our last discussion, it appears there is the option that the ultimate authority 
 should lie with the provisioner implementation
 
@@ -269,10 +271,10 @@ Pros:
 - Administrator does not have to provide an exhaustive definition for the `ResourceInstance` and instead has to fill in only the "important" attributes.
 - Application owner can chose to provide some attributes he/she thinks are important, granted that any collisions with attributes defined in the  
 `ResourceClass` will be resolved in favor of the `ResourceClass` 
-    - **Note** this last point wasn't entirely clear after yesterdays meeting, and would be nice to confirm.
+    - **Note** this last point was not entirely clear after yesterdays meeting, and would be nice to confirm.
 
 Cons:
-- There is no definition way to say what to expect in term of the resulting `ResourceInstance` from the "incomplete" definition 
+- There is no definitive way when comes down to the resulting `ResourceInstance` from the "incomplete" definition 
 of both `ResourceCalss` and `AbstractInstance`.
 - There is "strong" reliance on "documentation" as for the behaviour on what to expect in terms of:
     - incomplete definition 
@@ -281,7 +283,8 @@ of both `ResourceCalss` and `AbstractInstance`.
     
 Separate Cons on delegating properties interpreting logic to the provisioner implementation:
 - Opaque: the application owner expected to know the implementation details of a given provider via documentation or worse, code.
-- Unclear authority and inconsistency with provided definition: For example, if the application owner request the `MySQLInstance` for a `ResourceClass` (mysql, 5.7), but
+- Unclear authority and inconsistency with provided definition: 
+    - For example, if the application owner request the `MySQLInstance` for a `ResourceClass` (mysql, 5.7), but
 due to the logic inside the provisioner it may get back `MySQLInstance` version 5.8, or even worse `PostgresInstance` - after all, 
 it is entirely up to provisioner implementation to decide!
 
