@@ -45,32 +45,22 @@ metadata:
   name: wordpress-db
   namespace: wordpress
 spec:
-  # the following is desired configuration of the abstract resource. The configuration
-  # uses fields that common across all implementations of MySQL. These will be matched
-  # against the config of concrete resources.
+  # the following is the configuration of the abstract resource. The configuration
+  # uses fields that are common across all implementations of MySQL, and/or represent
+  # abstractions on-top of specific implementations.
   version: ">= 5.6"
   masterUsername: masteruser
-  # the following are requirements and hints that apply to all kinds of abstract resources.
-  # they are used by a scheduler that can choose among equivalent concrete resources that
-  # have been made available by the administrator. They are typically represented in terms
-  # of quantities, cost and other generic capabilities of all resources.
-  requirements:
-    capacity:
-      storage: 25Gi
-    region: north-america
-    cost: free-tier
-  # optional resource class name that is used during dynamic provisioning of an abstract
-  # resource. The class identifies a "profile" of an concrete resource.
-  resourceClass: performance
-  # optional resource name that can identify a specific concrete resource to bind to.
-  resourceName: rds-instance-445
-  # optional selector to further filter the concrete resources
-  resourceSelector:
-    matchExpressions:
-      - {key: environment, operator: In, values: [dev]}
+  highly-available: true
+  upgradePolicy: minor
+  maintenanceSchedule: weekly
+  encrypted: true
+  # the following is a list of requests for compute, memory and storage resources. this
+  # follows the Kubernetes resource model.
+  resources:
+    storage: 25Gi
 ```
 
-The abstract resource can be implemented by multiple concrete resources. An administrator typically defines these concrete resources and they go in a different system-wide namespace. Let's look at the resource for an RDS instance in AWS:
+The abstract resource can be implemented by multiple concrete resources. An administrator typically defines these concrete resources in a different system-wide namespace. Let's look at the resource for an RDS instance in AWS:
 
 ```yaml
 apiVersion: storage.aws.conductor.io/v1alpha1
@@ -79,30 +69,19 @@ metadata:
   name: rds-instance-445
   namespace: conductor-system
 spec:
-  # the following is desired configuration of the concrete resource. The configuration
+  # the following is configuration of the concrete resource. The configuration
   # will be used when provisioning the external resource in AWS.
   engine: mysql
   version: 5.9
   masterUsername: masteruser
   instance-type: db.m4.xlarge
-  vpc: vpc-223-551
-  securityGroups:
-    - sg-2323-4445
-    - sg-2323-4445
+  preferredMaintenanceWindow: weekly
+  autoMinorVersionUpgrade: true
   multizone: true
-  # this specifies what happens to this resource when it's no longer used by the abstract resource
-  rebindPolicy: Delete
-  # an optional resource class name that is used during dynamic provisioning of an abstract
-  # resource. The class identifies a "profile" of an concrete resource.
-  resourceClass: performance
-  # the following are generic capabilities of this resource. They are not tied to the kind of
-  # resource like MySQL or RDS. Instead they represent quantities, cost and other generic
-  # that can be used by a scheduler.
-  capabilities:
-    capacity:
-      storage: 50Gi
-    region: north-america
-    cost: free-tier
+  vpc: vpc-223-551
+  vpcSecurityGroups:
+    - sg-2323-4445
+    - sg-2323-4445
 ```
 
 There can be multiple concrete resources that implement the abstract one. For example, let's look at another concrete resource for a CloudSQL instance in GCP:
@@ -113,23 +92,26 @@ kind: CloudSQLInstance
 metadata:
   name: cloudsql-instance-787
 spec:
-  # these properties are specific to CloudSQLInstance
+  # these properties are specific to CloudSQLInstance in GCP. The configuration
+  # will be used when provisioning external resources in GCP.
   databaseVersion: MYSQL_5_7
   tier: db-n1-standard-1
   region: us-west2
   storageType: PD_SSD
   masterUsername: masteruser
-  # these properties apply to all concrete resource
-  rebindPolicy: Delete
-  resourceClass: performance
-  capabilities:
-    capacity:
-      storage: 50Gi
-    region: north-america
-    cost: free-tier
+  maintenanceWindow: weekly
 ```
 
-To support dynamic provisioning and an optimizing scheduler, the administrator can define a class of resource instead of a concrete one. When an abstract resource is requested it can be matched against these classes. Let's look at an example of a `ResourceClass`.
+# Provisioning
+
+A concrete resource can be statically or dynamically provisioned.
+
+## Static Provisioning
+An administrator can create a number of concrete resources that carry all implementation details required to provision them externally in a cloud provider or service. Once provisioned they are available for binding to abstract resources.
+
+## Dynamic Provisioning
+
+An administrator can enable dynamic resource provisioning, where if an abstract resource can not find a matching concrete resource, a new one is provisioned and bound. To enable dynamic provisioning the administrator needs to create one or more `ResourceClass` objects:
 
 ```yaml
 apiVersion: core.conductor.io/v1alpha1
@@ -137,76 +119,30 @@ kind: ResourceClass
 metadata:
   name: rds-performance
   namespace: conductor-system
-# the following are generic capabilities of this resource. They are not tied to the kind of
-# resource like MySQL or RDS. Instead they represent quantities, cost and other generic
-# that can be used by a scheduler.
-capabilities:
-  capacity:
-    storage: 50Gi
-  region: north-america
-  cost: free-tier
-supportedResources:
-  - MySqlInstance.v1alpha1.storage.conductor.io
-  - MySqlInstance.v1beta1.storage.conductor.io
-# this specifies what happens to this resource when it's no longer used by the abstract resource
-rebindPolicy: Delete
-# a template for the underlying resource implementation that will be used when a resource
-# is dynamically provisioned. some of these properties might get overriden by the ones in the
-# the abstract resource spec.
-template:
-  apiVersion: database.aws.conductor.io/v1alpha1
-  kind: RDSInstance
-  spec:
-    engine: mysql
-    version: 5.9
-    masterUsername: masteruser
-    instance-type: db.m4.xlarge
-    vpc: vpc-223-551
-    securityGroups:
-      - sg-2323-4445
-      - sg-2323-4445
+provisioner: RDSInstance.database.aws.conductor.io
+parameters:
+  # a set of parameters that are passed to the provisioner when creating the concrete
+  # resource dynamically.
+  engine: mysql
+  instance-type: db.m4.xlarge
+  vpc: vpc-223-551
+  securityGroups:
+    - sg-2323-4445
+    - sg-2323-4445
 ```
 
-# Lifecycle of a Resource
+# Binding
 
-Resources adhere to the following lifecycle:
+An abstract resource can bind to a concrete resource explicitly by setting the `resourceName` configuration in it's spec:
 
-## Provisioning
-Concrete resources are provisioned either statically or dynamically.
-
-An administrator can statically provision a concrete resource for consumption by applications. Concrete resources carry the all implementation details required to provision them externally in a cloud provider or service. Once provisioned they are available for binding to abstract resources.
-
-An administrator can enable dynamic resource provisioning, where if an abstract resource can not find a matching concrete resource, a new one is provisioned.
-
-## Binding
-
-Binding is when an abstract resource is matched with a concrete resource. Multiple abstract resources can be bound to the same concrete resource. An abstract resource can be explicitly bound by setting the `resourceName` property on it, or it will be bound based on a criteria including its configuration requirements.
-
-Abstract resources can remain unbound indefinitely if a matching resource is not found, but will become bound once a matching concrete resource becomes available.
-
-## Using
-
-Applications can consume resource directly from Pods. One an abstract resource is bound, connection information is automatically generated in the same namespace as the abstract resource. This can include `Service`, `ConfigMap` and/or `Secret` objects. A pod can connect to the resource by using environment variables or volumes based on the configmaps and secrets. Every abstract resource defines it own format for secrets and configmaps.
-
-## Rebinding
-
-When an application is done with the abstract resource, the should delete it. This would release the binding and based on the rebind policy would tell the controller what to do with the resource. Resources that are dynamically provisioned inherit their `rebindPolicy` from the resource class. We currently support the following rebind policies:
-
-### Retain
-
-The `Retain` rebind policy allows for manual reuse the resource. When the abstract resource is deleted, the resource will still exist in a `Released` state. It will not be available for another binding since there might be persistent or sensitive state remaining on it. An administrator can manually make the resources available again by following these steps:
-1. Delete the concrete resource. Any external infrastructure will not be deleted.
-2. Manually clean up the data on the external resource.
-3. Manually delete the associated external infrastructure, or if you want to reuse it, create a new concrete resource with the storage asset definition.
-
-### Delete
-
-For resource that support `Delete` rebind policy, the underlying resource will be immediately deleted when the claim is released. This will also delete any external infrastructure associated with the concrete resource.
-
--------------
-
-TODO:
-- show examples and use cases
-- show the type structures
-- `status` fields
-- how does a concrete resource point at an external resource in AWS, GCP, Azure. can we set that manually
+```yaml
+apiVersion: storage.conductor.io/v1alpha1
+kind: MySQLInstance
+metadata:
+  name: wordpress-db
+  namespace: wordpress
+spec:
+  # manually bind to a concrete resource 
+  resourceName: rds-instance-445
+```
+Or it can be bound by matching the abstract resource config to the available concrete resource configs. A control loop will attempt this matching and bind the resource.
