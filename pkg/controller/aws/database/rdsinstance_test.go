@@ -23,6 +23,7 @@ import (
 	. "github.com/onsi/gomega"
 	databasev1alpha1 "github.com/upbound/conductor/pkg/apis/aws/database/v1alpha1"
 	awsv1alpha1 "github.com/upbound/conductor/pkg/apis/aws/v1alpha1"
+	coredbv1alpha1 "github.com/upbound/conductor/pkg/apis/core/database/v1alpha1"
 	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
 	"github.com/upbound/conductor/pkg/clients/aws/rds"
 	corev1 "k8s.io/api/core/v1"
@@ -274,9 +275,9 @@ func TestReconcile(t *testing.T) {
 	// assert connection secret
 	cs, err := mgr.getSecret(ri.Spec.ConnectionSecretRef.Name)
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(cs.Data[connectionSecretUsernameKey]).To(Equal([]byte(i.Spec.MasterUsername)))
-	g.Expect(cs.Data[connectionSecretPasswordKey]).To(Equal([]byte(createdPassword)))
-	g.Expect(cs.Data[connectionSecretEndpointKey]).To(BeNil())
+	g.Expect(cs.Data[coredbv1alpha1.ConnectionSecretUserKey]).To(Equal([]byte(i.Spec.MasterUsername)))
+	g.Expect(cs.Data[coredbv1alpha1.ConnectionSecretPasswordKey]).To(Equal([]byte(createdPassword)))
+	g.Expect(cs.Data[coredbv1alpha1.ConnectionSecretEndpointKey]).To(BeNil())
 
 	// Set endpoint and update status to running
 	mi.Endpoint = "Test Endpoint"
@@ -295,7 +296,7 @@ func TestReconcile(t *testing.T) {
 	}
 
 	// wait for endpoint value in secret
-	for string(cs.Data[connectionSecretEndpointKey]) != mi.Endpoint {
+	for string(cs.Data[coredbv1alpha1.ConnectionSecretEndpointKey]) != mi.Endpoint {
 		g.Eventually(mgr.requests, timeout).Should(Receive(Equal(expectedRequest)))
 		cs, err = mgr.getSecret(ri.Spec.ConnectionSecretRef.Name)
 		g.Expect(err).NotTo(HaveOccurred())

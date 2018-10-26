@@ -22,6 +22,7 @@ import (
 	"log"
 	"time"
 
+	coredbv1alpha1 "github.com/upbound/conductor/pkg/apis/core/database/v1alpha1"
 	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
 	databasev1alpha1 "github.com/upbound/conductor/pkg/apis/gcp/database/v1alpha1"
 	gcpv1alpha1 "github.com/upbound/conductor/pkg/apis/gcp/v1alpha1"
@@ -46,13 +47,8 @@ import (
 const (
 	finalizer = "finalizer.cloudsqlinstances.database.gcp.conductor.io"
 
-	connectionSecretRefFmt    = "%s-connection"
-	connectionInstanceKey     = "instance"
-	connectionDatabaseNameKey = "name"
-	connectionUserKey         = "username"
-	connectionPasswordKey     = "password"
-	rootUserName              = "root"
-	passwordDataLen           = 20
+	rootUserName    = "root"
+	passwordDataLen = 20
 
 	errorSettingInstanceName    = "failed to set instance name"
 	errorFetchingGCPProvider    = "failed to fetch GCP Provider"
@@ -211,7 +207,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	conditionType := gcpclients.CloudSQLConditionType(cloudSQLInstance.State)
 
 	// cloud sql instance exists, update the CRD status now with its latest status
-	if err := r.updateStatus(instance, getStatusMessage(instance, cloudSQLInstance), cloudSQLInstance); err != nil {
+	if err := r.updateStatus(instance, gcpclients.CloudSQLStatusMessage(instance.Name, cloudSQLInstance), cloudSQLInstance); err != nil {
 		// updating the CRD status failed, return the error and try the next reconcile loop
 		log.Printf("failed to update status of instance %s: %+v", instance.Name, err)
 		return reconcile.Result{}, err
@@ -307,7 +303,7 @@ func (r *Reconciler) initRootUser(cloudSQLClient gcpclients.CloudSQLAPI,
 	if instance.Spec.ConnectionSecretRef.Name == "" {
 		// the user hasn't specified the name of the secret they want the connection information
 		// stored in, generate one now
-		secretName := fmt.Sprintf(connectionSecretRefFmt, instance.Name)
+		secretName := fmt.Sprintf(coredbv1alpha1.ConnectionSecretRefFmt, instance.Name)
 		log.Printf("connection secret ref for cloud sql instance %s is empty, setting it to %s", instance.Name, secretName)
 		instance.Spec.ConnectionSecretRef.Name = secretName
 		if err := r.Update(context.TODO(), instance); err != nil {
@@ -378,9 +374,9 @@ func (r *Reconciler) initRootUser(cloudSQLClient gcpclients.CloudSQLAPI,
 			OwnerReferences: []metav1.OwnerReference{createOwnerRef(instance)},
 		},
 		Data: map[string][]byte{
-			connectionInstanceKey: []byte(instance.Status.ConnectionName),
-			connectionUserKey:     []byte(rootUser.Name),
-			connectionPasswordKey: []byte(password),
+			coredbv1alpha1.ConnectionSecretEndpointKey: []byte(instance.Status.Endpoint),
+			coredbv1alpha1.ConnectionSecretUserKey:     []byte(rootUser.Name),
+			coredbv1alpha1.ConnectionSecretPasswordKey: []byte(password),
 		},
 	}
 	log.Printf("creating connection secret %s for user '%s'", connectionSecret.Name, rootUser.Name)
@@ -402,11 +398,11 @@ func (r *Reconciler) fail(instance *databasev1alpha1.CloudsqlInstance, reason, m
 func (r *Reconciler) updateStatus(instance *databasev1alpha1.CloudsqlInstance, message string,
 	cloudSQLInstance *sqladmin.DatabaseInstance) error {
 
-	var state, providerID, connectionName string
+	var state, providerID, endpoint string
 	if cloudSQLInstance != nil {
 		state = cloudSQLInstance.State
 		providerID = cloudSQLInstance.SelfLink
-		connectionName = cloudSQLInstance.ConnectionName
+		endpoint = cloudSQLInstance.ConnectionName
 	}
 
 	instance.Status = databasev1alpha1.CloudsqlInstanceStatus{
@@ -414,7 +410,7 @@ func (r *Reconciler) updateStatus(instance *databasev1alpha1.CloudsqlInstance, m
 		Message:           message,
 		State:             state,
 		ProviderID:        providerID,
-		ConnectionName:    connectionName,
+		Endpoint:          endpoint,
 		InstanceName:      instance.Status.InstanceName,
 	}
 	if err := r.Update(context.TODO(), instance); err != nil {
@@ -422,23 +418,6 @@ func (r *Reconciler) updateStatus(instance *databasev1alpha1.CloudsqlInstance, m
 	}
 
 	return nil
-}
-
-func getStatusMessage(instance *databasev1alpha1.CloudsqlInstance, cloudSQLInstance *sqladmin.DatabaseInstance) string {
-	if cloudSQLInstance == nil {
-		return fmt.Sprintf("Cloud SQL instance %s has not yet been created", instance.Name)
-	}
-
-	switch cloudSQLInstance.State {
-	case "RUNNABLE":
-		return fmt.Sprintf("Cloud SQL instance %s is running", instance.Name)
-	case "PENDING_CREATE":
-		return fmt.Sprintf("Cloud SQL instance %s is being created", instance.Name)
-	case "FAILED":
-		return fmt.Sprintf("Cloud SQL instance %s failed to be created", instance.Name)
-	default:
-		return fmt.Sprintf("Cloud SQL instance %s is in an unknown state %s", instance.Name, cloudSQLInstance.State)
-	}
 }
 
 func createOwnerRef(instance *databasev1alpha1.CloudsqlInstance) metav1.OwnerReference {

@@ -22,6 +22,7 @@ import (
 
 	databasev1alpha1 "github.com/upbound/conductor/pkg/apis/aws/database/v1alpha1"
 	awsv1alpha1 "github.com/upbound/conductor/pkg/apis/aws/v1alpha1"
+	coredbv1alpha1 "github.com/upbound/conductor/pkg/apis/core/database/v1alpha1"
 	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
 	"github.com/upbound/conductor/pkg/clients/aws"
 	"github.com/upbound/conductor/pkg/clients/aws/rds"
@@ -54,10 +55,6 @@ const (
 	errorCreatingDbInstance         = "Failed to create DBInstance"
 	errorCreatingConnectionSecret   = "Failed to create connection secret"
 	errorDeletingDbInstance         = "Failed to delete DBInstance"
-
-	connectionSecretUsernameKey = "Username"
-	connectionSecretPasswordKey = "Password"
-	connectionSecretEndpointKey = "Endpoint"
 )
 
 var (
@@ -227,7 +224,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 				return r.fail(instance, errorRetrievingConnectionSecret, err.Error())
 			}
 		}
-		connSecret.Data[connectionSecretEndpointKey] = []byte(db.Endpoint)
+		connSecret.Data[coredbv1alpha1.ConnectionSecretEndpointKey] = []byte(db.Endpoint)
 		_, err = r.ApplyConnectionSecret(connSecret)
 		if err != nil {
 			return r.fail(instance, errorCreatingConnectionSecret, err.Error())
@@ -288,8 +285,8 @@ func NewConnectionSecret(instance *databasev1alpha1.RDSInstance, password string
 		},
 
 		Data: map[string][]byte{
-			connectionSecretUsernameKey: []byte(instance.Spec.MasterUsername),
-			connectionSecretPasswordKey: []byte(password),
+			coredbv1alpha1.ConnectionSecretUserKey:     []byte(instance.Spec.MasterUsername),
+			coredbv1alpha1.ConnectionSecretPasswordKey: []byte(password),
 		},
 	}
 }
