@@ -48,7 +48,7 @@ spec:
   # the following is the configuration of the abstract resource. The configuration
   # uses fields that are common across all implementations of MySQL, and/or represent
   # abstractions on-top of specific implementations.
-  version: ">= 5.6"
+  version: 5.6
   masterUsername: masteruser
   highly-available: true
   upgradePolicy: minor
@@ -78,6 +78,8 @@ spec:
   preferredMaintenanceWindow: weekly
   autoMinorVersionUpgrade: true
   multizone: true
+  resources:
+    storage: 50Gi
   vpc: vpc-223-551
   vpcSecurityGroups:
     - sg-2323-4445
@@ -100,6 +102,8 @@ spec:
   storageType: PD_SSD
   masterUsername: masteruser
   maintenanceWindow: weekly
+  resources:
+    storage: 50Gi
 ```
 
 # Provisioning
