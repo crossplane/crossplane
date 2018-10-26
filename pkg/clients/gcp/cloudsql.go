@@ -150,3 +150,21 @@ func CloudSQLConditionType(state string) corev1alpha1.ConditionType {
 		return corev1alpha1.Failed
 	}
 }
+
+// CloudSQLStatusMessage returns a status message based on the state of the given instance
+func CloudSQLStatusMessage(instanceName string, cloudSQLInstance *sqladmin.DatabaseInstance) string {
+	if cloudSQLInstance == nil {
+		return fmt.Sprintf("Cloud SQL instance %s has not yet been created", instanceName)
+	}
+
+	switch cloudSQLInstance.State {
+	case "RUNNABLE":
+		return fmt.Sprintf("Cloud SQL instance %s is running", instanceName)
+	case "PENDING_CREATE":
+		return fmt.Sprintf("Cloud SQL instance %s is being created", instanceName)
+	case "FAILED":
+		return fmt.Sprintf("Cloud SQL instance %s failed to be created", instanceName)
+	default:
+		return fmt.Sprintf("Cloud SQL instance %s is in an unknown state %s", instanceName, cloudSQLInstance.State)
+	}
+}

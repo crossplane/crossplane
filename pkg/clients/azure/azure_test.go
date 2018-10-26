@@ -17,7 +17,10 @@ limitations under the License.
 package azure
 
 import (
+	"net/http"
 	"testing"
+
+	"github.com/Azure/go-autorest/autorest"
 
 	"github.com/onsi/gomega"
 	"github.com/upbound/conductor/pkg/apis/azure/v1alpha1"
@@ -81,4 +84,22 @@ func TestNewClient(t *testing.T) {
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 	g.Expect(client).NotTo(gomega.BeNil())
 	g.Expect(client.SubscriptionID).To(gomega.Equal("bf1b0e59-93da-42e0-82c6-5a1d94227911"))
+}
+
+func TestIsNotFound(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	cases := []struct {
+		err      error
+		expected bool
+	}{
+		{nil, false},
+		{autorest.DetailedError{}, false},
+		{autorest.DetailedError{StatusCode: http.StatusNotFound}, true},
+	}
+
+	for _, tt := range cases {
+		actual := IsNotFound(tt.err)
+		g.Expect(actual).To(gomega.Equal(tt.expected))
+	}
 }
