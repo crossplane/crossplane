@@ -34,11 +34,10 @@ type RDSInstanceSpec struct {
 	Size           int64    `json:"size"`                     // size in gb
 	SecurityGroups []string `json:"securityGroups,omitempty"` // VPC Security groups
 
-	ClaimRef      corev1.ObjectReference      `json:"claimRef,omitempty"`
-	ClassName     string                      `json:"className,omitempty"`
-	ProviderRef   corev1.LocalObjectReference `json:"providerRef,omitempty"`
-	ReclaimPolicy corev1alpha1.ReclaimPolicy  `json:"reclaimPolicy,omitempty"`
-
+	ClaimRef            corev1.ObjectReference      `json:"claimRef,omitempty"`
+	ClassName           string                      `json:"className,omitempty"`
+	ProviderRef         corev1.LocalObjectReference `json:"providerRef"`
+	ReclaimPolicy       corev1alpha1.ReclaimPolicy  `json:"reclaimPolicy,omitempty"`
 	ConnectionSecretRef corev1.LocalObjectReference `json:"connectionSecretRef"`
 }
 
