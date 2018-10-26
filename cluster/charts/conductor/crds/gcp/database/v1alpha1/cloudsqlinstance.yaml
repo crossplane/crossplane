@@ -46,7 +46,7 @@ spec:
           type: object
         status:
           properties:
-            connectionName:
+            endpoint:
               type: string
             instanceName:
               type: string

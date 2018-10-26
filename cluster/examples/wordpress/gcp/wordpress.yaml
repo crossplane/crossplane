@@ -53,7 +53,7 @@ spec:
           valueFrom:
             secretKeyRef:
               name: demo-database-connection
-              key: instance
+              key: endpoint
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: /secrets/cloudsql/credentials.json
       - name: wordpress

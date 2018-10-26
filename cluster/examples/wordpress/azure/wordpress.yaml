@@ -1,19 +1,26 @@
-apiVersion: database.aws.conductor.io/v1alpha1
-kind: RDSInstance
+apiVersion: database.azure.conductor.io/v1alpha1
+kind: MysqlServer
 metadata:
-  name: demo-rds
+  labels:
+  name: conductor-wordpress-mysql
 spec:
-  class: db.t2.small
+  providerRef:
+    name: azure-sql-provider
   connectionSecretRef:
     name: demo-database-connection
-  engine: mysql
-  masterUsername: masteruser
-  providerRef:
-    name: demo-aws-provider
-  securityGroups:
-#  - vpc-default-sg - default security group for your VPC
-#  - vpc-rds-sg - security group to allow RDS connection
-  size: 20
+  resourceGroupName: group-westus-1
+  location: West US
+  pricingTier:
+    tier: Basic
+    vcores: 1
+    family: Gen4
+  storageProfile:
+    storageGB: 25
+    backupRetentionDays: 7
+    geoRedundantBackup: false
+  adminLoginName: myadmin
+  version: "5.7"
+  sslEnforced: false
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
