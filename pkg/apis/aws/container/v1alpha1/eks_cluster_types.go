@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -84,6 +85,9 @@ type EKSClusterSpec struct {
 
 	// ConnectionSecretRef - reference to EKS Cluster connection secret which will be created and contain connection related data
 	ConnectionSecretRef v1.LocalObjectReference `json:"connectionSecretRef"`
+
+	// ReclaimPolicy identifies how to handle the cloud resource after the deletion of this type
+	ReclaimPolicy corev1alpha1.ReclaimPolicy `json:"reclaimPolicy,omitempty"`
 }
 
 type EKSClusterStatus struct {

@@ -17,7 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"github.com/upbound/conductor/pkg/apis/core/v1alpha1"
+	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -32,11 +32,14 @@ type CloudsqlInstanceSpec struct {
 	DatabaseVersion     string                  `json:"databaseVersion"`
 	StorageType         string                  `json:"storageType"`
 	ConnectionSecretRef v1.LocalObjectReference `json:"connectionSecretRef"`
+
+	// ReclaimPolicy identifies how to handle the cloud resource after the deletion of this type
+	ReclaimPolicy corev1alpha1.ReclaimPolicy `json:"reclaimPolicy,omitempty"`
 }
 
 // CloudsqlInstanceStatus defines the observed state of CloudsqlInstance
 type CloudsqlInstanceStatus struct {
-	v1alpha1.ConditionedStatus
+	corev1alpha1.ConditionedStatus
 	State   string `json:"state,omitempty"`
 	Message string `json:"message,omitempty"`
 

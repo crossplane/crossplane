@@ -34,6 +34,8 @@ spec:
               type: string
             providerRef:
               type: object
+            reclaimPolicy:
+              type: string
             resourcesVPCConfig:
               type: string
             roleARN:

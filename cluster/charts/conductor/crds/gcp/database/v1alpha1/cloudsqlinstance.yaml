@@ -28,6 +28,8 @@ spec:
               type: string
             providerRef:
               type: object
+            reclaimPolicy:
+              type: string
             region:
               type: string
             storageType:
