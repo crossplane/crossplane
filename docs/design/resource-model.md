@@ -25,6 +25,7 @@ Our approach is heavily influenced by the design of the Kubernetes scheduler, an
 
 ## Non-Goals:
 - Replace managed services in cloud providers.
+- Run all platform services on Kubernetes.
 
 # Resources
 
@@ -32,11 +33,11 @@ A *resource* is a generic term used for any object managed by Kubernetes. For ex
 
 We differentiate between two kinds of resources:
 
-- **Abstract** - these are resources that represent a "request" for a piece of infrastructure, and are not tied to a specific implementation, provider or service. They are "logical" definitions from the perspective of the application consuming the resource. Abstract resources are similar to a `Pod` or a `PersistentResourceClaim` in the core Kubernetes API, in that they do not identify the implementation and instead the application and user's request for consuming resources.
+- **Abstract** - these are resources that represent a "request" for a piece of infrastructure, and are not tied to a specific implementation, provider or service. They are "logical" definitions from the perspective of the application consuming the resource. Abstract resources are similar to a `Pod` or a `PersistentResourceClaim` in the core Kubernetes API, in that their configuration captures the application and user's request for resources.
 
 - **Concrete** - these represent an actual piece of infrastructure in a give cloud provider or service. Concrete resources have all the config information to provision and manage the resource. A concrete resource can implement one or more abstract resources. A `Node` and a `PersistentVolume` are examples of concrete resources in the Kubernetes API.
 
-Application developers define the abstract resource and they are typically in the same namespace as the application. Let's look at an abstract resource for a MySQL instance:
+Application developers define the abstract resource and they are typically in the same namespace as the application. Let's look at an example of a MySQL instance:
 
 ```yaml
 apiVersion: storage.conductor.io/v1alpha1
@@ -49,7 +50,6 @@ spec:
   # uses fields that are common across all implementations of MySQL, and/or represent
   # abstractions on-top of specific implementations.
   version: 5.6
-  masterUsername: masteruser
   highly-available: true
   upgradePolicy: minor
   maintenanceSchedule: weekly
@@ -60,7 +60,7 @@ spec:
     storage: 25Gi
 ```
 
-The abstract resource can be implemented by multiple concrete resources. An administrator typically defines these concrete resources in a different system-wide namespace. Let's look at the resource for an RDS instance in AWS:
+An abstract resource can be implemented by multiple concrete resources. An administrator typically defines these concrete resources in a different system-wide namespace. Let's look at the resource for an RDS instance in AWS:
 
 ```yaml
 apiVersion: storage.aws.conductor.io/v1alpha1
@@ -150,3 +150,90 @@ spec:
   resourceName: rds-instance-445
 ```
 Or it can be bound by matching the abstract resource config to the available concrete resource configs. A control loop will attempt this matching and bind the resource.
+
+# Examples
+
+## Wordpress
+
+In this example we will show how to create a portable wordpress application that can be run on any of the supported cloud providers. The application includes a container that runs the wordpress application, a mysql database instance, and an object store bucket for storing logs.
+
+Let's start by creating the configuration for the MySQL database instance. This is an whole server instance running MySQL and depending on the cloud provider might end up running as a managed service.
+
+```yaml
+apiVersion: storage.conductor.io/v1alpha1
+kind: MySQLInstance
+metadata:
+  name: wordpress-db
+  namespace: demo
+spec:
+  version: 5.7
+  highly-available: true
+  upgradePolicy: minor
+  encrypted: true
+  resources:
+    storage: 100Gi
+```
+
+The `spec` specifies the requirements or requests of the wordpress application, and are independent of any implementation.
+
+Next we will define an object storage bucket that wordpress will use for storing logs:
+
+```yaml
+apiVersion: storage.conductor.io/v1alpha1
+kind: Bucket
+metadata:
+  name: wordpress-logs
+  namespace: demo
+spec:
+  versioning: false
+  logging: false
+```
+
+Similarly, the `spec` defines the requirements for the bucket which are independent of implementation or cloud provider.
+
+Finally, let's create a `Workload` configuration that wraps a set of standard Kubernetes configurations that are will eventually run on a target Kubernetes cluster.
+
+```yaml
+apiVersion: container.conductor.io/v1alpha1
+kind: Workload
+metadata:
+  name: wordpress
+  namespace: demo
+spec:
+  # the namespace to create on a target cluster
+  targetNamespace: wordpress
+  # this is a template for a deployment to be created on a target cluster
+  deployment:
+    metadata:
+      name: wordpress
+      labels:
+        app: wordpress
+    strategy:
+      type: Recreate
+    template:
+      metadata:
+        labels:
+          app: wordpress
+      spec:
+        containers:
+        - name: wordpress
+          image: wordpress:4.6.1-apache
+          ports:
+          - containerPort: 80
+            name: wordpress
+          # these are the resources that are consumed by the container, and their connection
+          # information will be injected into the environment.
+          resources:
+            - wordpress-db
+            - wordpress-logs
+  # this is a template for a service to be created on a target cluster
+  service:
+    metadata:
+      name: wordpress
+    spec:
+      ports:
+        - port: 80
+      selector:
+        app: wordpress
+      type: LoadBalancer
+```
