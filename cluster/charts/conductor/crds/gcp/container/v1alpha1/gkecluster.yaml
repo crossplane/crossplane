@@ -111,6 +111,8 @@ spec:
               type: boolean
             providerRef:
               type: object
+            reclaimPolicy:
+              type: string
             scopes:
               items:
                 type: string

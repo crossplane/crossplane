@@ -174,8 +174,10 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 
 	// Check for deletion
 	if instance.DeletionTimestamp != nil && instance.Status.GetCondition(corev1alpha1.Deleting) == nil {
-		if _, err = svc.DeleteInstance(instance.Status.InstanceName); err != nil {
-			return r.fail(instance, errorDeletingDbInstance, err.Error())
+		if instance.Spec.ReclaimPolicy == corev1alpha1.ReclaimDelete {
+			if _, err = svc.DeleteInstance(instance.Status.InstanceName); err != nil {
+				return r.fail(instance, errorDeletingDbInstance, err.Error())
+			}
 		}
 
 		instance.Status.SetCondition(*corev1alpha1.NewCondition(corev1alpha1.Deleting, "", ""))

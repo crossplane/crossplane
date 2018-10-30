@@ -283,13 +283,15 @@ func (r *Reconciler) handleDeletion(cloudSQLClient gcpclients.CloudSQLAPI,
 		return r.markAsDeleting(instance)
 	}
 
-	// attempt to delete the CloudSQL instance now
-	deleteOp, err := cloudSQLClient.DeleteInstance(provider.Spec.ProjectID, instance.Status.InstanceName)
-	if err != nil {
-		return r.fail(instance, errorDeletingInstance, fmt.Sprintf("failed to start delete operation for cloud sql instance %s: %+v", instance.Name, err))
-	}
+	if instance.Spec.ReclaimPolicy == corev1alpha1.ReclaimDelete {
+		// attempt to delete the CloudSQL instance now
+		deleteOp, err := cloudSQLClient.DeleteInstance(provider.Spec.ProjectID, instance.Status.InstanceName)
+		if err != nil {
+			return r.fail(instance, errorDeletingInstance, fmt.Sprintf("failed to start delete operation for cloud sql instance %s: %+v", instance.Name, err))
+		}
 
-	log.Printf("started deletion of cloud sql instance %s, operation %s %s", instance.Name, deleteOp.Name, deleteOp.Status)
+		log.Printf("started deletion of cloud sql instance %s, operation %s %s", instance.Name, deleteOp.Name, deleteOp.Status)
+	}
 	return r.markAsDeleting(instance)
 }
 

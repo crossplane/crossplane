@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	"github.com/upbound/conductor/pkg/apis/core/v1alpha1"
+	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -36,6 +37,9 @@ type RDSInstanceSpec struct {
 
 	ProviderRef         corev1.LocalObjectReference `json:"providerRef"`
 	ConnectionSecretRef corev1.LocalObjectReference `json:"connectionSecretRef"`
+
+	// ReclaimPolicy identifies how to handle the cloud resource after the deletion of this type
+	ReclaimPolicy corev1alpha1.ReclaimPolicy `json:"reclaimPolicy,omitempty"`
 }
 
 // RDSInstanceStatus defines the observed state of RDSInstance

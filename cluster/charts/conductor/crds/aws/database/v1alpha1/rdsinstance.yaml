@@ -32,6 +32,8 @@ spec:
               type: string
             providerRef:
               type: object
+            reclaimPolicy:
+              type: string
             securityGroups:
               items:
                 type: string
