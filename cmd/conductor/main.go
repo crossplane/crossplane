@@ -21,10 +21,7 @@ import (
 	"time"
 
 	"github.com/upbound/conductor/pkg/apis"
-	awscontroller "github.com/upbound/conductor/pkg/controller/aws"
-	azurecontroller "github.com/upbound/conductor/pkg/controller/azure"
-	gcpcontroller "github.com/upbound/conductor/pkg/controller/gcp"
-
+	"github.com/upbound/conductor/pkg/controller"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -58,15 +55,7 @@ func main() {
 	log.Printf("Adding controllers")
 
 	// Setup all Controllers
-	if err := awscontroller.AddToManager(mgr); err != nil {
-		log.Fatal(err)
-	}
-
-	if err := gcpcontroller.AddToManager(mgr); err != nil {
-		log.Fatal(err)
-	}
-
-	if err := azurecontroller.AddToManager(mgr); err != nil {
+	if err := controller.AddToManager(mgr); err != nil {
 		log.Fatal(err)
 	}
 
