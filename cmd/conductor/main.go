@@ -20,9 +20,7 @@ import (
 	"log"
 	"time"
 
-	awsapis "github.com/upbound/conductor/pkg/apis/aws"
-	azureapis "github.com/upbound/conductor/pkg/apis/azure"
-	gcpapis "github.com/upbound/conductor/pkg/apis/gcp"
+	"github.com/upbound/conductor/pkg/apis"
 	awscontroller "github.com/upbound/conductor/pkg/controller/aws"
 	azurecontroller "github.com/upbound/conductor/pkg/controller/azure"
 	gcpcontroller "github.com/upbound/conductor/pkg/controller/gcp"
@@ -53,15 +51,7 @@ func main() {
 	log.Printf("Adding schemes")
 
 	// Setup Scheme for all resources
-	if err := awsapis.AddToScheme(mgr.GetScheme()); err != nil {
-		log.Fatal(err)
-	}
-
-	if err := gcpapis.AddToScheme(mgr.GetScheme()); err != nil {
-		log.Fatal(err)
-	}
-
-	if err := azureapis.AddToScheme(mgr.GetScheme()); err != nil {
+	if err := apis.AddToScheme(mgr.GetScheme()); err != nil {
 		log.Fatal(err)
 	}
 
