@@ -19,3 +19,27 @@ limitations under the License.
 
 // Package apis contains Kubernetes API groups
 package apis
+
+import (
+	"github.com/upbound/conductor/pkg/apis/aws"
+	"github.com/upbound/conductor/pkg/apis/azure"
+	"github.com/upbound/conductor/pkg/apis/core"
+	"github.com/upbound/conductor/pkg/apis/gcp"
+	"k8s.io/apimachinery/pkg/runtime"
+)
+
+func init() {
+	// Register the types with the Scheme so the components can map objects to GroupVersionKinds and back
+	AddToSchemes = append(AddToSchemes, aws.AddToScheme)
+	AddToSchemes = append(AddToSchemes, azure.AddToScheme)
+	AddToSchemes = append(AddToSchemes, core.AddToScheme)
+	AddToSchemes = append(AddToSchemes, gcp.AddToScheme)
+}
+
+// AddToSchemes may be used to add all resources defined in the project to a Scheme
+var AddToSchemes runtime.SchemeBuilder
+
+// AddToScheme adds all Resources to the Scheme
+func AddToScheme(s *runtime.Scheme) error {
+	return AddToSchemes.AddToScheme(s)
+}

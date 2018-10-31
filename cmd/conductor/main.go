@@ -20,13 +20,8 @@ import (
 	"log"
 	"time"
 
-	awsapis "github.com/upbound/conductor/pkg/apis/aws"
-	azureapis "github.com/upbound/conductor/pkg/apis/azure"
-	gcpapis "github.com/upbound/conductor/pkg/apis/gcp"
-	awscontroller "github.com/upbound/conductor/pkg/controller/aws"
-	azurecontroller "github.com/upbound/conductor/pkg/controller/azure"
-	gcpcontroller "github.com/upbound/conductor/pkg/controller/gcp"
-
+	"github.com/upbound/conductor/pkg/apis"
+	"github.com/upbound/conductor/pkg/controller"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -53,30 +48,14 @@ func main() {
 	log.Printf("Adding schemes")
 
 	// Setup Scheme for all resources
-	if err := awsapis.AddToScheme(mgr.GetScheme()); err != nil {
-		log.Fatal(err)
-	}
-
-	if err := gcpapis.AddToScheme(mgr.GetScheme()); err != nil {
-		log.Fatal(err)
-	}
-
-	if err := azureapis.AddToScheme(mgr.GetScheme()); err != nil {
+	if err := apis.AddToScheme(mgr.GetScheme()); err != nil {
 		log.Fatal(err)
 	}
 
 	log.Printf("Adding controllers")
 
 	// Setup all Controllers
-	if err := awscontroller.AddToManager(mgr); err != nil {
-		log.Fatal(err)
-	}
-
-	if err := gcpcontroller.AddToManager(mgr); err != nil {
-		log.Fatal(err)
-	}
-
-	if err := azurecontroller.AddToManager(mgr); err != nil {
+	if err := controller.AddToManager(mgr); err != nil {
 		log.Fatal(err)
 	}
 
