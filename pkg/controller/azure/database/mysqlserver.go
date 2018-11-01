@@ -118,9 +118,10 @@ type Reconciler struct {
 // and what is in the MysqlServer.Spec
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	instance := &databasev1alpha1.MysqlServer{}
+	ctx := context.Background()
 
 	// Fetch the MysqlServer instance
-	err := r.Get(context.TODO(), request.NamespacedName, instance)
+	err := r.Get(ctx, request.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Object not found, return.  Created objects are automatically garbage collected.
@@ -138,7 +139,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 		Namespace: instance.Namespace,
 		Name:      instance.Spec.ProviderRef.Name,
 	}
-	if err = r.Get(context.TODO(), providerNamespacedName, provider); err != nil {
+	if err = r.Get(ctx, providerNamespacedName, provider); err != nil {
 		return r.fail(instance, errorFetchingAzureProvider, fmt.Sprintf("failed to get provider %+v: %+v", providerNamespacedName, err))
 	}
 
@@ -162,7 +163,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	// Add finalizer to the CRD if it doesn't already exist
 	if !util.HasFinalizer(&instance.ObjectMeta, finalizer) {
 		util.AddFinalizer(&instance.ObjectMeta, finalizer)
-		if err := r.Update(context.TODO(), instance); err != nil {
+		if err := r.Update(ctx, instance); err != nil {
 			log.Printf("failed to add finalizer to instance %s: %+v", instance.Name, err)
 			return reconcile.Result{}, err
 		}
@@ -174,7 +175,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	}
 
 	// Get latest MySQL Server instance from Azure to check the latest status
-	server, err := mysqlServersClient.Get(context.TODO(), instance.Spec.ResourceGroupName, instance.Name)
+	server, err := mysqlServersClient.Get(ctx, instance.Spec.ResourceGroupName, instance.Name)
 	if err != nil {
 		if !azureclients.IsNotFound(err) {
 			return r.fail(instance, errorFetchingInstance, fmt.Sprintf("failed to get MySQL Server instance %s: %+v", instance.Name, err))
@@ -204,7 +205,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 		conditionMessage := fmt.Sprintf("MySQL Server instance %s is in the %s state", instance.Name, conditionType)
 		log.Printf(conditionMessage)
 		instance.Status.SetCondition(*corev1alpha1.NewCondition(conditionType, conditionStateChanged, conditionMessage))
-		return reconcile.Result{Requeue: true}, r.Update(context.TODO(), instance)
+		return reconcile.Result{Requeue: true}, r.Update(ctx, instance)
 	}
 
 	if conditionType != corev1alpha1.Running {
@@ -222,6 +223,8 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 
 // handle the creation of the given MySQL Server instance
 func (r *Reconciler) handleCreation(mysqlServersClient azureclients.MySQLServerAPI, instance *databasev1alpha1.MysqlServer) (reconcile.Result, error) {
+	ctx := context.Background()
+
 	// generate a password for the admin user
 	adminPassword, err := util.GeneratePassword(passwordDataLen)
 	if err != nil {
@@ -269,33 +272,28 @@ func (r *Reconciler) handleCreation(mysqlServersClient azureclients.MySQLServerA
 
 	// make the API call to start the create server operation
 	log.Printf("starting create of MySQL Server instance %s", instance.Name)
-	createFuture, err := mysqlServersClient.Create(context.TODO(), instance.Spec.ResourceGroupName, instance.Name, createParams)
+	createOp, err := mysqlServersClient.CreateBegin(ctx, instance.Spec.ResourceGroupName, instance.Name, createParams)
 	if err != nil {
 		return r.fail(instance, errorCreatingInstance, fmt.Sprintf("failed to start create operation for MySQL Server instance %s: %+v", instance.Name, err))
 	}
 
-	// marshal the create operation to JSON so we can save it in the CRD status
-	createFutureJSON, err := mysqlServersClient.MarshalCreateFuture(createFuture)
-	if err != nil {
-		return r.fail(instance, errorCreatingInstance, fmt.Sprintf("failed to marshal create operation for MySQL Server instance %s: %+v", instance.Name, err))
-	}
-
-	log.Printf("started create of MySQL Server instance %s, operation: %s", instance.Name, string(createFutureJSON))
+	log.Printf("started create of MySQL Server instance %s, operation: %s", instance.Name, string(createOp))
 
 	// save the create operation to the CRD status
-	instance.Status.RunningOperation = string(createFutureJSON)
+	instance.Status.RunningOperation = string(createOp)
 
 	// TODO: if this update fails to update the CRD status with the create operation, we exit the reconcile and
 	// we'll probably have leaked an Azure MySQL Server resource.  We may need to retry updating the CRD and
 	// ensure that the create operation is persisted, otherwise we'll have no way of tracking its completion.
-	return reconcile.Result{Requeue: true}, r.Update(context.TODO(), instance)
+	return reconcile.Result{Requeue: true}, r.Update(ctx, instance)
 }
 
 // handle the deletion of the given MySQL Server instance
 func (r *Reconciler) handleDeletion(mysqlServersClient azureclients.MySQLServerAPI, instance *databasev1alpha1.MysqlServer) (reconcile.Result, error) {
+	ctx := context.Background()
 
 	// first get the latest status of the MySQL Server resource that needs to be deleted
-	_, err := mysqlServersClient.Get(context.TODO(), instance.Spec.ResourceGroupName, instance.Name)
+	_, err := mysqlServersClient.Get(ctx, instance.Spec.ResourceGroupName, instance.Name)
 	if err != nil {
 		if !azureclients.IsNotFound(err) {
 			return r.fail(instance, errorFetchingInstance, fmt.Sprintf("failed to get MySQL Server instance %s for deletion: %+v", instance.Name, err))
@@ -307,7 +305,7 @@ func (r *Reconciler) handleDeletion(mysqlServersClient azureclients.MySQLServerA
 	}
 
 	// attempt to delete the MySQL Server instance now
-	deleteFuture, err := mysqlServersClient.Delete(context.TODO(), instance.Spec.ResourceGroupName, instance.Name)
+	deleteFuture, err := mysqlServersClient.Delete(ctx, instance.Spec.ResourceGroupName, instance.Name)
 	if err != nil {
 		return r.fail(instance, errorDeletingInstance, fmt.Sprintf("failed to start delete operation for MySQL Server instance %s: %+v", instance.Name, err))
 	}
@@ -318,22 +316,20 @@ func (r *Reconciler) handleDeletion(mysqlServersClient azureclients.MySQLServerA
 }
 
 func (r *Reconciler) markAsDeleting(instance *databasev1alpha1.MysqlServer) (reconcile.Result, error) {
+	ctx := context.Background()
 	instance.Status.SetCondition(*corev1alpha1.NewCondition(corev1alpha1.Deleting, "", ""))
 	util.RemoveFinalizer(&instance.ObjectMeta, finalizer)
-	return reconcile.Result{}, r.Update(context.TODO(), instance)
+	return reconcile.Result{}, r.Update(ctx, instance)
 }
 
 // handle a running operation for the given MySQL Server instance
 func (r *Reconciler) handleRunningOperation(mysqlServersClient azureclients.MySQLServerAPI, instance *databasev1alpha1.MysqlServer) (reconcile.Result, error) {
-	// unmarshal the saved running operation into a future object
-	createFuture := &mysql.ServersCreateFuture{}
-	if err := mysqlServersClient.UnmarshalCreateFuture(createFuture, []byte(instance.Status.RunningOperation)); err != nil {
-		return r.fail(instance, errorCreatingInstance, fmt.Sprintf("failed to unmarshal create operation for MySQL Server instance %s: %+v", instance.Name, err))
-	}
+	ctx := context.Background()
 
-	// check if the operation is done yet
-	done, err := mysqlServersClient.CreateDone(createFuture)
+	// check if the operation is done yet and if there was any error
+	done, err := mysqlServersClient.CreateEnd([]byte(instance.Status.RunningOperation))
 	if !done {
+		// not done yet, check again on the next reconcile
 		log.Printf("waiting on create of MySQL Server instance %s, err: %+v", instance.Name, err)
 		return reconcile.Result{Requeue: true}, err
 	}
@@ -341,23 +337,27 @@ func (r *Reconciler) handleRunningOperation(mysqlServersClient azureclients.MySQ
 	// the operation is done, clear out the running operation on the CRD status
 	instance.Status.RunningOperation = ""
 
-	// check the result of the completed operation
-	if _, err := mysqlServersClient.CreateResult(createFuture); err != nil {
+	if err != nil {
+		// the operation completed, but there was an error
 		return r.fail(instance, errorCreatingInstance, fmt.Sprintf("failure result returned from create operation for MySQL Server instance %s: %+v", instance.Name, err))
 	}
 
 	log.Printf("MySQL Server instance %s successfully created", instance.Name)
-	return reconcile.Result{Requeue: true}, r.Update(context.TODO(), instance)
+	return reconcile.Result{Requeue: true}, r.Update(ctx, instance)
 }
 
 // fail - helper function to set fail condition with reason and message
 func (r *Reconciler) fail(instance *databasev1alpha1.MysqlServer, reason, msg string) (reconcile.Result, error) {
+	ctx := context.Background()
+
 	log.Printf("instance %s failed: '%s': %s", instance.Name, reason, msg)
 	instance.Status.SetCondition(*corev1alpha1.NewCondition(corev1alpha1.Failed, reason, msg))
-	return reconcile.Result{Requeue: true}, r.Update(context.TODO(), instance)
+	return reconcile.Result{Requeue: true}, r.Update(ctx, instance)
 }
 
 func (r *Reconciler) updateStatus(instance *databasev1alpha1.MysqlServer, message string, server mysql.Server) error {
+	ctx := context.Background()
+
 	var providerID string
 	if server.ID != nil {
 		providerID = *server.ID
@@ -377,7 +377,7 @@ func (r *Reconciler) updateStatus(instance *databasev1alpha1.MysqlServer, messag
 		RunningOperation:  instance.Status.RunningOperation,
 	}
 
-	if err := r.Update(context.TODO(), instance); err != nil {
+	if err := r.Update(ctx, instance); err != nil {
 		return fmt.Errorf("failed to update status of CRD instance %s: %+v", instance.Name, err)
 	}
 
@@ -385,13 +385,15 @@ func (r *Reconciler) updateStatus(instance *databasev1alpha1.MysqlServer, messag
 }
 
 func (r *Reconciler) createOrUpdateConnectionSecret(instance *databasev1alpha1.MysqlServer, password string) error {
+	ctx := context.Background()
+
 	if instance.Spec.ConnectionSecretRef.Name == "" {
 		// the user hasn't specified the name of the secret they want the connection information
 		// stored in, generate one now
 		secretName := fmt.Sprintf(coredbv1alpha1.ConnectionSecretRefFmt, instance.Name)
 		log.Printf("connection secret ref for MySQL Server instance %s is empty, setting it to %s", instance.Name, secretName)
 		instance.Spec.ConnectionSecretRef.Name = secretName
-		if err := r.Update(context.TODO(), instance); err != nil {
+		if err := r.Update(ctx, instance); err != nil {
 			return fmt.Errorf("failed to set connection secret ref: %+v", err)
 		}
 	}

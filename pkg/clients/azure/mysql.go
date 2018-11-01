@@ -36,20 +36,20 @@ var (
 	}
 )
 
+// MySQLServerAPI represents the API interface for a MySQL Server client
 type MySQLServerAPI interface {
 	Get(ctx context.Context, resourceGroupName string, serverName string) (mysql.Server, error)
-	Create(ctx context.Context, resourceGroupName string, serverName string, parameters mysql.ServerForCreate) (mysql.ServersCreateFuture, error)
-	CreateDone(createFuture *mysql.ServersCreateFuture) (bool, error)
-	CreateResult(createFuture *mysql.ServersCreateFuture) (mysql.Server, error)
-	MarshalCreateFuture(createFuture mysql.ServersCreateFuture) ([]byte, error)
-	UnmarshalCreateFuture(createFuture *mysql.ServersCreateFuture, data []byte) error
+	CreateBegin(ctx context.Context, resourceGroupName string, serverName string, parameters mysql.ServerForCreate) ([]byte, error)
+	CreateEnd(createOp []byte) (bool, error)
 	Delete(ctx context.Context, resourceGroupName string, serverName string) (mysql.ServersDeleteFuture, error)
 }
 
+// MySQLServerClient is the concreate implementation of the MySQLServerAPI interface that calls Azure API.
 type MySQLServerClient struct {
 	mysql.ServersClient
 }
 
+// NewMySQLServerClient creates and initializes a MySQLServerClient instance.
 func NewMySQLServerClient(provider *v1alpha1.Provider, clientset kubernetes.Interface) (*MySQLServerClient, error) {
 	client, err := NewClient(provider, clientset)
 	if err != nil {
@@ -63,32 +63,57 @@ func NewMySQLServerClient(provider *v1alpha1.Provider, clientset kubernetes.Inte
 	return &MySQLServerClient{mysqlServersClient}, nil
 }
 
-func (c *MySQLServerClient) CreateDone(createFuture *mysql.ServersCreateFuture) (bool, error) {
-	return createFuture.Done(c.Client)
-}
+// CreateBegin begins the create operation for a MySQL Server with the given properties
+func (c *MySQLServerClient) CreateBegin(ctx context.Context, resourceGroupName string, serverName string,
+	parameters mysql.ServerForCreate) ([]byte, error) {
 
-func (c *MySQLServerClient) CreateResult(createFuture *mysql.ServersCreateFuture) (mysql.Server, error) {
-	return createFuture.Result(c.ServersClient)
-}
-
-func (c *MySQLServerClient) MarshalCreateFuture(createFuture mysql.ServersCreateFuture) ([]byte, error) {
-	return createFuture.MarshalJSON()
-}
-
-func (c *MySQLServerClient) UnmarshalCreateFuture(createFuture *mysql.ServersCreateFuture, data []byte) error {
-	if createFuture == nil {
-		return fmt.Errorf("cannot unmarshal a nil ServersCreateFuture")
+	// make the call to the MySQL Server Create API
+	createFuture, err := c.Create(ctx, resourceGroupName, serverName, parameters)
+	if err != nil {
+		return nil, err
 	}
-	return createFuture.UnmarshalJSON(data)
+
+	// serialize the create operation
+	createFutureJSON, err := createFuture.MarshalJSON()
+	if err != nil {
+		return nil, err
+	}
+
+	return createFutureJSON, nil
 }
 
+// CreateEnd checks to see if the given create operation is completed and if any error has occurred.
+func (c *MySQLServerClient) CreateEnd(createOp []byte) (done bool, err error) {
+	// unmarshal the given create complete data into a future object
+	createFuture := &mysql.ServersCreateFuture{}
+	if err = createFuture.UnmarshalJSON(createOp); err != nil {
+		return false, err
+	}
+
+	// check if the operation is done yet
+	done, err = createFuture.Done(c.Client)
+	if !done {
+		return false, err
+	}
+
+	// check the result of the completed operation
+	if _, err = createFuture.Result(c.ServersClient); err != nil {
+		return true, err
+	}
+
+	return true, nil
+}
+
+// MySQLServerAPIFactory is an interface that can create instances of the MySQLServerAPI interface
 type MySQLServerAPIFactory interface {
 	CreateAPIInstance(*v1alpha1.Provider, kubernetes.Interface) (MySQLServerAPI, error)
 }
 
+// MySQLServerClientFactory implements the MySQLServerAPIFactory by returning the concrete MySQLServerClient implementation
 type MySQLServerClientFactory struct {
 }
 
+// CreateAPIInstance returns a concrete MySQLServerClient implementation
 func (f *MySQLServerClientFactory) CreateAPIInstance(provider *v1alpha1.Provider, clientset kubernetes.Interface) (MySQLServerAPI, error) {
 	return NewMySQLServerClient(provider, clientset)
 }

@@ -44,13 +44,10 @@ import (
 )
 
 type mockMySQLServerClient struct {
-	MockGet                   func(ctx context.Context, resourceGroupName string, serverName string) (mysql.Server, error)
-	MockCreate                func(ctx context.Context, resourceGroupName string, serverName string, parameters mysql.ServerForCreate) (mysql.ServersCreateFuture, error)
-	MockCreateDone            func(createFuture *mysql.ServersCreateFuture) (bool, error)
-	MockCreateResult          func(createFuture *mysql.ServersCreateFuture) (mysql.Server, error)
-	MockMarshalCreateFuture   func(createFuture mysql.ServersCreateFuture) ([]byte, error)
-	MockUnmarshalCreateFuture func(createFuture *mysql.ServersCreateFuture, data []byte) error
-	MockDelete                func(ctx context.Context, resourceGroupName string, serverName string) (mysql.ServersDeleteFuture, error)
+	MockGet         func(ctx context.Context, resourceGroupName string, serverName string) (mysql.Server, error)
+	MockCreateBegin func(ctx context.Context, resourceGroupName string, serverName string, parameters mysql.ServerForCreate) ([]byte, error)
+	MockCreateEnd   func(createOp []byte) (bool, error)
+	MockDelete      func(ctx context.Context, resourceGroupName string, serverName string) (mysql.ServersDeleteFuture, error)
 }
 
 func (m *mockMySQLServerClient) Get(ctx context.Context, resourceGroupName string, serverName string) (mysql.Server, error) {
@@ -60,39 +57,18 @@ func (m *mockMySQLServerClient) Get(ctx context.Context, resourceGroupName strin
 	return mysql.Server{}, nil
 }
 
-func (m *mockMySQLServerClient) Create(ctx context.Context, resourceGroupName string, serverName string, parameters mysql.ServerForCreate) (mysql.ServersCreateFuture, error) {
-	if m.MockCreate != nil {
-		return m.MockCreate(ctx, resourceGroupName, serverName, parameters)
-	}
-	return mysql.ServersCreateFuture{}, nil
-}
-
-func (m *mockMySQLServerClient) CreateDone(createFuture *mysql.ServersCreateFuture) (bool, error) {
-	if m.MockCreateDone != nil {
-		return m.MockCreateDone(createFuture)
-	}
-	return true, nil
-}
-
-func (m *mockMySQLServerClient) CreateResult(createFuture *mysql.ServersCreateFuture) (mysql.Server, error) {
-	if m.MockCreateResult != nil {
-		return m.MockCreateResult(createFuture)
-	}
-	return mysql.Server{}, nil
-}
-
-func (m *mockMySQLServerClient) MarshalCreateFuture(createFuture mysql.ServersCreateFuture) ([]byte, error) {
-	if m.MockMarshalCreateFuture != nil {
-		return m.MockMarshalCreateFuture(createFuture)
+func (m *mockMySQLServerClient) CreateBegin(ctx context.Context, resourceGroupName string, serverName string, parameters mysql.ServerForCreate) ([]byte, error) {
+	if m.MockCreateBegin != nil {
+		return m.MockCreateBegin(ctx, resourceGroupName, serverName, parameters)
 	}
 	return nil, nil
 }
 
-func (m *mockMySQLServerClient) UnmarshalCreateFuture(createFuture *mysql.ServersCreateFuture, data []byte) error {
-	if m.MockUnmarshalCreateFuture != nil {
-		return m.MockUnmarshalCreateFuture(createFuture, data)
+func (m *mockMySQLServerClient) CreateEnd(createOp []byte) (bool, error) {
+	if m.MockCreateEnd != nil {
+		return m.MockCreateEnd(createOp)
 	}
-	return nil
+	return true, nil
 }
 
 func (m *mockMySQLServerClient) Delete(ctx context.Context, resourceGroupName string, serverName string) (mysql.ServersDeleteFuture, error) {
@@ -135,7 +111,7 @@ func TestReconcile(t *testing.T) {
 			},
 		}, nil
 	}
-	mysqlServerClient.MockMarshalCreateFuture = func(createFuture mysql.ServersCreateFuture) ([]byte, error) {
+	mysqlServerClient.MockCreateBegin = func(ctx context.Context, resourceGroupName string, serverName string, parameters mysql.ServerForCreate) ([]byte, error) {
 		return []byte("mocked marshalled create future"), nil
 	}
 

@@ -63,7 +63,10 @@ type MysqlServerStatus struct {
 	// Endpoint of the MySQL Server instance used in connection strings
 	Endpoint string `json:"endpoint,omitempty"`
 
-	// RunningOperation stores any currently running operation for this instance
+	// RunningOperation stores any current long running operation for this instance across
+	// reconciliation attempts.  This will be a serialized Azure MySQL Server API object that will
+	// be used to check the status and completion of the operation during each reconciliation.
+	// Once the operation has completed, this field will be cleared out.
 	RunningOperation string `json:"runningOperation,omitempty"`
 }
 

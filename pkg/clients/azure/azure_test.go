@@ -21,7 +21,6 @@ import (
 	"testing"
 
 	"github.com/Azure/go-autorest/autorest"
-
 	"github.com/onsi/gomega"
 	"github.com/upbound/conductor/pkg/apis/azure/v1alpha1"
 	"k8s.io/api/core/v1"
