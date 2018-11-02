@@ -428,9 +428,11 @@ func (r *Reconciler) createOrUpdateConnectionSecret(instance *databasev1alpha1.M
 
 	// fill in all of the connection details on the secret's data
 	connectionSecret.Data = map[string][]byte{
-		coredbv1alpha1.ConnectionSecretEndpointKey: []byte(instance.Status.Endpoint),
 		coredbv1alpha1.ConnectionSecretUserKey:     []byte(fmt.Sprintf("%s@%s", instance.Spec.AdminLoginName, instance.Name)),
 		coredbv1alpha1.ConnectionSecretPasswordKey: []byte(password),
+	}
+	if instance.Status.Endpoint != "" {
+		connectionSecret.Data[coredbv1alpha1.ConnectionSecretEndpointKey] = []byte(instance.Status.Endpoint)
 	}
 
 	if secretExists {
