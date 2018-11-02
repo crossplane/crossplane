@@ -46,8 +46,8 @@ type CloudsqlInstanceStatus struct {
 	// the external ID to identify this resource in the cloud provider
 	ProviderID string `json:"providerID,omitempty"`
 
-	// Connection name of the Cloud SQL instance used in connection strings.
-	ConnectionName string `json:"connectionName,omitempty"`
+	// Endpoint of the Cloud SQL instance used in connection strings.
+	Endpoint string `json:"endpoint,omitempty"`
 
 	// Name of the Cloud SQL instance. This does not include the project ID.
 	InstanceName string `json:"instanceName,omitempty"`

@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/onsi/gomega"
+	coredbv1alpha1 "github.com/upbound/conductor/pkg/apis/core/database/v1alpha1"
 	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
 	databasev1alpha1 "github.com/upbound/conductor/pkg/apis/gcp/database/v1alpha1"
 	"github.com/upbound/conductor/pkg/test"
@@ -105,11 +106,11 @@ func TestReconcile(t *testing.T) {
 	// CRD conditions show the transition from creating to running
 	expectedInstanceName := fmt.Sprintf("test-db-instance-%s", instance.UID)
 	expectedStatus := databasev1alpha1.CloudsqlInstanceStatus{
-		Message:        "Cloud SQL instance test-db-instance is running",
-		State:          "RUNNABLE",
-		ProviderID:     fmt.Sprintf("https://www.googleapis.com/sql/v1beta4/projects/%s/instances/test-db-instance-%s", providerProject, instance.UID),
-		ConnectionName: fmt.Sprintf("%s:us-west2:%s", providerProject, expectedInstanceName),
-		InstanceName:   expectedInstanceName,
+		Message:      "Cloud SQL instance test-db-instance is running",
+		State:        "RUNNABLE",
+		ProviderID:   fmt.Sprintf("https://www.googleapis.com/sql/v1beta4/projects/%s/instances/test-db-instance-%s", providerProject, instance.UID),
+		Endpoint:     fmt.Sprintf("%s:us-west2:%s", providerProject, expectedInstanceName),
+		InstanceName: expectedInstanceName,
 		ConditionedStatus: corev1alpha1.ConditionedStatus{
 			Conditions: []corev1alpha1.Condition{
 				{
@@ -131,7 +132,7 @@ func TestReconcile(t *testing.T) {
 
 	// wait for the connection information to be stored in a secret, then verify it
 	var connectionSecret *v1.Secret
-	connectionSecretName := fmt.Sprintf(connectionSecretRefFmt, "test-db-instance")
+	connectionSecretName := fmt.Sprintf(coredbv1alpha1.ConnectionSecretRefFmt, "test-db-instance")
 	for {
 		if connectionSecret, err = r.clientset.CoreV1().Secrets(namespace).Get(connectionSecretName, metav1.GetOptions{}); err == nil {
 			break
@@ -193,7 +194,7 @@ func assertCloudsqlInstanceStatus(g *gomega.GomegaWithT, c client.Client, expect
 	g.Expect(instance.Status.Message).To(gomega.Equal(expectedStatus.Message))
 	g.Expect(instance.Status.State).To(gomega.Equal(expectedStatus.State))
 	g.Expect(instance.Status.ProviderID).To(gomega.Equal(expectedStatus.ProviderID))
-	g.Expect(instance.Status.ConnectionName).To(gomega.Equal(expectedStatus.ConnectionName))
+	g.Expect(instance.Status.Endpoint).To(gomega.Equal(expectedStatus.Endpoint))
 	g.Expect(instance.Status.InstanceName).To(gomega.Equal(expectedStatus.InstanceName))
 
 	// assert the expected status conditions
@@ -205,7 +206,7 @@ func assertConnectionSecret(g *gomega.GomegaWithT, c client.Client, connectionSe
 	err := c.Get(ctx, expectedRequest.NamespacedName, instance)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
-	g.Expect(string(connectionSecret.Data[connectionInstanceKey])).To(gomega.Equal(instance.Status.ConnectionName))
-	g.Expect(string(connectionSecret.Data[connectionUserKey])).To(gomega.Equal("root"))
-	g.Expect(string(connectionSecret.Data[connectionPasswordKey])).NotTo(gomega.BeEmpty())
+	g.Expect(string(connectionSecret.Data[coredbv1alpha1.ConnectionSecretEndpointKey])).To(gomega.Equal(instance.Status.Endpoint))
+	g.Expect(string(connectionSecret.Data[coredbv1alpha1.ConnectionSecretUserKey])).To(gomega.Equal("root"))
+	g.Expect(string(connectionSecret.Data[coredbv1alpha1.ConnectionSecretPasswordKey])).NotTo(gomega.BeEmpty())
 }

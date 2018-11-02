@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 
 	"github.com/Azure/azure-sdk-for-go/services/resources/mgmt/2018-05-01/resources"
 	"github.com/Azure/go-autorest/autorest"
@@ -27,6 +28,11 @@ import (
 	"github.com/upbound/conductor/pkg/apis/azure/v1alpha1"
 	k8sclients "github.com/upbound/conductor/pkg/clients/kubernetes"
 	"k8s.io/client-go/kubernetes"
+)
+
+const (
+	// UserAgent is the user agent extension that identifies the Conductor Azure client
+	UserAgent = "conductor-azure-client"
 )
 
 // Client struct that represents the information needed to connect to the Azure services as a client
@@ -79,8 +85,23 @@ func NewClient(provider *v1alpha1.Provider, clientset kubernetes.Interface) (*Cl
 func ValidateClient(client *Client) error {
 	groupsClient := resources.NewGroupsClient(client.SubscriptionID)
 	groupsClient.Authorizer = client.Authorizer
-	groupsClient.AddToUserAgent("conductor-azure-client")
+	groupsClient.AddToUserAgent(UserAgent)
 
 	_, err := groupsClient.ListComplete(context.TODO(), "", nil)
 	return err
+}
+
+// IsNotFound returns a value indicating whether the given error represents that the resource was not found.
+func IsNotFound(err error) bool {
+	detailedError, ok := err.(autorest.DetailedError)
+	if !ok {
+		return false
+	}
+
+	statusCode, ok := detailedError.StatusCode.(int)
+	if !ok {
+		return false
+	}
+
+	return statusCode == http.StatusNotFound
 }
