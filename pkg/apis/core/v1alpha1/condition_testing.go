@@ -14,17 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package test
+package v1alpha1
 
-import (
-	"github.com/onsi/gomega"
-	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
-)
+import "github.com/onsi/gomega"
 
 // AssertConditions verifies the given expected conditions against the given actual conditions.
 // This is helpful for unit tests since the Condition type has a timestamp that makes full
 // object equal comparisons difficult.
-func AssertConditions(g *gomega.GomegaWithT, expected []corev1alpha1.Condition, actual corev1alpha1.ConditionedStatus) {
+func AssertConditions(g *gomega.GomegaWithT, expected []Condition, actual ConditionedStatus) {
 	for _, ec := range expected {
 		// find the condition of the matching type, it should exist
 		ac := actual.GetCondition(ec.Type)

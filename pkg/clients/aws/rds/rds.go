@@ -23,25 +23,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/rds"
 	"github.com/aws/aws-sdk-go-v2/service/rds/rdsiface"
 	"github.com/upbound/conductor/pkg/apis/aws/database/v1alpha1"
-	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
 )
-
-type DBInstanceStatus int
-
-const (
-	// The instance is healthy and available
-	DBInstanceStatusAvailable DBInstanceStatus = iota
-	// The instance is being created. The instance is inaccessible while it is being created.
-	DBInstanceStatusCreating
-	// The instance is being deleted.
-	DBInstanceStatusDeleting
-	// The instance has failed and Amazon RDS can't recover it. Perform a point-in-time restore to the latest restorable time of the instance to recover the data.
-	DBInstanceStatusFailed
-)
-
-func (s DBInstanceStatus) String() string {
-	return [...]string{"available", "creating", "deleting", "failed"}[s]
-}
 
 // Instance conductor representation of the to AWS DBInstance
 type Instance struct {
@@ -140,26 +122,11 @@ func CreateDBInstanceInput(name, password string, spec *v1alpha1.RDSInstanceSpec
 		AllocatedStorage:      aws.Int64(spec.Size),
 		DBInstanceClass:       aws.String(spec.Class),
 		Engine:                aws.String(spec.Engine),
+		EngineVersion:         aws.String(spec.EngineVersion),
 		MasterUsername:        aws.String(spec.MasterUsername),
 		MasterUserPassword:    aws.String(password),
 		BackupRetentionPeriod: aws.Int64(0),
 		VpcSecurityGroupIds:   spec.SecurityGroups,
 		PubliclyAccessible:    aws.Bool(true),
-	}
-}
-
-// ConditionType based on DBInstance status
-func ConditionType(status string) corev1alpha1.ConditionType {
-	switch status {
-	case DBInstanceStatusAvailable.String():
-		return corev1alpha1.Running
-	case DBInstanceStatusCreating.String():
-		return corev1alpha1.Creating
-	case DBInstanceStatusDeleting.String():
-		return corev1alpha1.Deleting
-	case DBInstanceStatusFailed.String():
-		return corev1alpha1.Failed
-	default:
-		return corev1alpha1.Pending
 	}
 }

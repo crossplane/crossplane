@@ -22,11 +22,17 @@ spec:
           type: object
         spec:
           properties:
+            claimRef:
+              type: object
             class:
               type: string
+            classRef:
+              type: object
             connectionSecretRef:
               type: object
             engine:
+              type: string
+            engineVersion:
               type: string
             masterUsername:
               type: string
@@ -47,10 +53,11 @@ spec:
           - class
           - size
           - providerRef
-          - connectionSecretRef
           type: object
         status:
           properties:
+            endpoint:
+              type: string
             instanceName:
               type: string
             message:

@@ -23,7 +23,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	. "github.com/onsi/gomega"
 	databasev1alpha1 "github.com/upbound/conductor/pkg/apis/aws/database/v1alpha1"
-	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
 	awsclient "github.com/upbound/conductor/pkg/clients/aws"
 	"k8s.io/apimachinery/pkg/util/rand"
 )
@@ -77,7 +76,7 @@ func TestIntegrationCreateInstance(t *testing.T) {
 	g.Expect(db).NotTo(BeNil())
 	g.Expect(db.Name).To(Equal(instanceName))
 	g.Expect(db.ARN).NotTo(And(BeNil(), BeEmpty()))
-	g.Expect(db.Status).To(Equal(DBInstanceStatusCreating.String()))
+	g.Expect(db.Status).To(Equal(databasev1alpha1.RDSInstanceStateCreating.String()))
 }
 
 func TestIntegrationGetInstance(t *testing.T) {
@@ -90,7 +89,7 @@ func TestIntegrationGetInstance(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(db).NotTo(BeNil())
 	g.Expect(db.Name).To(Equal(instanceName))
-	g.Expect(db.Status).To(Or(Equal(DBInstanceStatusCreating.String())))
+	g.Expect(db.Status).To(Or(Equal(databasev1alpha1.RDSInstanceStateCreating.String())))
 
 }
 
@@ -103,15 +102,5 @@ func TestIntegrationDeleteInstance(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(db).NotTo(BeNil())
 	g.Expect(db.Name).To(Equal(instanceName))
-	g.Expect(db.Status).To(Equal(DBInstanceStatusDeleting.String()))
-}
-
-func TestConditionType(t *testing.T) {
-	g := NewGomegaWithT(t)
-
-	g.Expect(ConditionType(DBInstanceStatusAvailable.String())).To(Equal(corev1alpha1.Running))
-	g.Expect(ConditionType(DBInstanceStatusCreating.String())).To(Equal(corev1alpha1.Creating))
-	g.Expect(ConditionType(DBInstanceStatusDeleting.String())).To(Equal(corev1alpha1.Deleting))
-	g.Expect(ConditionType(DBInstanceStatusFailed.String())).To(Equal(corev1alpha1.Failed))
-	g.Expect(ConditionType("foobar")).To(Equal(corev1alpha1.Pending))
+	g.Expect(db.Status).To(Equal(databasev1alpha1.RDSInstanceStateDeleting.String()))
 }

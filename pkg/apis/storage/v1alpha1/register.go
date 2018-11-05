@@ -19,9 +19,9 @@ limitations under the License.
 // Package v1alpha1 contains API Schema definitions for the conductor core v1alpha1 API group
 // +k8s:openapi-gen=true
 // +k8s:deepcopy-gen=package,register
-// +k8s:conversion-gen=github.com/upbound/conductor/pkg/apis/core
+// +k8s:conversion-gen=github.com/upbound/conductor/pkg/apis/storage
 // +k8s:defaulter-gen=TypeMeta
-// +groupName=core.conductor.io
+// +groupName=storage.conductor.io
 package v1alpha1
 
 import (
@@ -30,20 +30,20 @@ import (
 )
 
 const (
-	Group             = "core.conductor.io"
+	Group             = "storage.conductor.io"
 	Version           = "v1alpha1"
-	ResourceClassKind = "resourceclass"
 	APIVersion        = Group + "/" + Version
+	MySQLInstanceKind = "mysqlinstance"
 )
 
 var (
 	// SchemeGroupVersion is group version used to register these objects
-	SchemeGroupVersion = schema.GroupVersion{Group: "core.conductor.io", Version: "v1alpha1"}
+	SchemeGroupVersion = schema.GroupVersion{Group: Group, Version: Version}
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
 )
 
 func init() {
-	SchemeBuilder.Register(&ResourceClass{}, &ResourceClassList{})
+	SchemeBuilder.Register(&MySQLInstance{}, &MySQLInstanceList{})
 }

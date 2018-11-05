@@ -14,22 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controller
+package storage
 
 import (
-	"github.com/upbound/conductor/pkg/controller/aws"
-	"github.com/upbound/conductor/pkg/controller/azure"
-	"github.com/upbound/conductor/pkg/controller/gcp"
-	"github.com/upbound/conductor/pkg/controller/storage"
+	"github.com/upbound/conductor/pkg/controller/storage/mysql"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
 func init() {
-	// AddToManagerFuncs is a list of functions to create controllers and add them to a manager.
-	AddToManagerFuncs = append(AddToManagerFuncs, aws.AddToManager)
-	AddToManagerFuncs = append(AddToManagerFuncs, azure.AddToManager)
-	AddToManagerFuncs = append(AddToManagerFuncs, gcp.AddToManager)
-	AddToManagerFuncs = append(AddToManagerFuncs, storage.AddToManager)
+	AddToManagerFuncs = append(AddToManagerFuncs, mysql.Add)
 }
 
 // AddToManagerFuncs is a list of functions to add all Controllers to the Manager
