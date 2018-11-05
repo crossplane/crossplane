@@ -25,19 +25,25 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"reflect"
-
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/runtime/scheme"
 )
 
+const (
+	Group                = "database.gcp.conductor.io"
+	Version              = "v1alpha1"
+	APIVersion           = Group + "/" + Version
+	CloudsqlInstanceKind = "cloudsqlinstance"
+)
+
 var (
 	// SchemeGroupVersion is group version used to register these objects
-	SchemeGroupVersion = schema.GroupVersion{Group: "database.gcp.conductor.io", Version: "v1alpha1"}
+	SchemeGroupVersion = schema.GroupVersion{Group: Group, Version: Group}
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
-
-	// CloudsqlInstanceKind is the Kind of the CloudsqlInstance type
-	CloudsqlInstanceKind = reflect.TypeOf(CloudsqlInstance{}).Name()
 )
+
+func init() {
+	SchemeBuilder.Register(&CloudsqlInstance{}, &CloudsqlInstanceList{})
+}

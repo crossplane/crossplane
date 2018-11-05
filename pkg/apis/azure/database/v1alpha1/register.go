@@ -25,19 +25,25 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"reflect"
-
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/runtime/scheme"
 )
 
+const (
+	Group           = "database.azure.conductor.io"
+	Version         = "v1alpha1"
+	APIVersion      = Group + "/" + Version
+	MysqlServerKind = "mysqlserver"
+)
+
 var (
 	// SchemeGroupVersion is group version used to register these objects
-	SchemeGroupVersion = schema.GroupVersion{Group: "database.azure.conductor.io", Version: "v1alpha1"}
+	SchemeGroupVersion = schema.GroupVersion{Group: Group, Version: Version}
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
-
-	// MysqlServerKind is the Kind of the MysqlServer type
-	MysqlServerKind = reflect.TypeOf(MysqlServer{}).Name()
 )
+
+func init() {
+	SchemeBuilder.Register(&MysqlServer{}, &MysqlServerList{})
+}

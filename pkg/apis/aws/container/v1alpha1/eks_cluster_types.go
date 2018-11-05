@@ -117,7 +117,3 @@ type EKSClusterList struct {
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []EKSCluster `json:"items"`
 }
-
-func init() {
-	SchemeBuilder.Register(&EKSCluster{}, &EKSClusterList{})
-}

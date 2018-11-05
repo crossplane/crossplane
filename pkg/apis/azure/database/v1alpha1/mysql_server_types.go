@@ -92,7 +92,3 @@ type MysqlServerList struct {
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []MysqlServer `json:"items"`
 }
-
-func init() {
-	SchemeBuilder.Register(&MysqlServer{}, &MysqlServerList{})
-}

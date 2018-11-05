@@ -29,9 +29,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/runtime/scheme"
 )
 
+const (
+	Group      = "database.core.conductor.io"
+	Version    = "v1alpha1"
+	APIVersion = Group + "/" + Version
+)
+
 var (
 	// SchemeGroupVersion is group version used to register these objects
-	SchemeGroupVersion = schema.GroupVersion{Group: "database.core.conductor.io", Version: "v1alpha1"}
+	SchemeGroupVersion = schema.GroupVersion{Group: Group, Version: Version}
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
