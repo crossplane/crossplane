@@ -422,7 +422,7 @@ func (r *Reconciler) updateStatus(instance *databasev1alpha1.CloudsqlInstance, m
 
 func createOwnerRef(instance *databasev1alpha1.CloudsqlInstance) metav1.OwnerReference {
 	return metav1.OwnerReference{
-		APIVersion: databasev1alpha1.SchemeGroupVersion.String(),
+		APIVersion: databasev1alpha1.APIVersion,
 		Kind:       databasev1alpha1.CloudsqlInstanceKind,
 		Name:       instance.Name,
 		UID:        instance.UID,

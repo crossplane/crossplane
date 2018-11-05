@@ -110,7 +110,3 @@ type GKEClusterList struct {
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []GKECluster `json:"items"`
 }
-
-func init() {
-	SchemeBuilder.Register(&GKECluster{}, &GKEClusterList{})
-}
