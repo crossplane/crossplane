@@ -8,6 +8,10 @@ Install Conductor in a GKE cluster first, for example with the following `helm` 
 helm install --name conductor --namespace conductor-system ${GOPATH}/src/github.com/upbound/conductor/cluster/charts/conductor
 ```
 
+## Wordpress on AWS 
+
+Follow the instructions in the [AWS quickstart](quickstart-aws.md) to start the process of running Wordpress on AWS
+
 ## Wordpress on Google Cloud Platform (GCP)
 
 Follow the instructions in the [GCP quickstart](quickstart-gcp.md) to start the process of running Wordpress on Google Cloud Platform.
