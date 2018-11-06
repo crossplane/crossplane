@@ -26,7 +26,7 @@ import (
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/azure/auth"
 	"github.com/upbound/conductor/pkg/apis/azure/v1alpha1"
-	k8sclients "github.com/upbound/conductor/pkg/clients/kubernetes"
+	"github.com/upbound/conductor/pkg/util"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -53,16 +53,15 @@ type credentials struct {
 // NewClient will look up the Azure credential information from the given provider and return a client
 // that can be used to connect to Azure services.
 func NewClient(provider *v1alpha1.Provider, clientset kubernetes.Interface) (*Client, error) {
-	// first get the secret that should contain all the auth/creds information
-	secretKey := provider.Spec.AuthSecret
-	azureSecretData, err := k8sclients.GetSecret(clientset, provider.Namespace, secretKey.Name, secretKey.Key)
+	// first get the secret data that should contain all the auth/creds information
+	azureSecretData, err := util.SecretData(clientset, provider.Namespace, provider.Spec.AuthSecret)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get azure client secret: %+v", err)
 	}
 
 	// load credentials from json data
 	creds := credentials{}
-	err = json.Unmarshal([]byte(azureSecretData), &creds)
+	err = json.Unmarshal(azureSecretData, &creds)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal azure client secret data: %+v", err)
 	}

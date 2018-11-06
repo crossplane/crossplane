@@ -17,7 +17,6 @@ limitations under the License.
 package aws
 
 import (
-	"fmt"
 	"io/ioutil"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -25,7 +24,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/go-ini/ini"
 	"github.com/upbound/conductor/pkg/apis/aws/v1alpha1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/upbound/conductor/pkg/util"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -90,13 +89,9 @@ func ValidateConfig(config *aws.Config) error {
 
 // Config - crate AWS Config based on credentials data using [default] profile
 func Config(client kubernetes.Interface, p *v1alpha1.Provider) (*aws.Config, error) {
-	secret, err := client.CoreV1().Secrets(p.Namespace).Get(p.Spec.Secret.Name, metav1.GetOptions{})
+	data, err := util.SecretData(client, p.Namespace, p.Spec.Secret)
 	if err != nil {
 		return nil, err
-	}
-	data, found := secret.Data[p.Spec.Secret.Key]
-	if !found {
-		return nil, fmt.Errorf("invalid AWS Provider secret, data key [%s] is not found", p.Spec.Secret.Key)
 	}
 
 	return LoadConfig(data, ini.DEFAULT_SECTION, p.Spec.Region)

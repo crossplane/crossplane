@@ -71,3 +71,19 @@ func ApplySecret(c kubernetes.Interface, s *corev1.Secret) (*corev1.Secret, erro
 	}
 	return c.CoreV1().Secrets(s.Namespace).Update(s)
 }
+
+// SecretData returns secret data value for a given secret/key combination or error if secret or key is not found
+func SecretData(client kubernetes.Interface, namespace string, ks corev1.SecretKeySelector) ([]byte, error) {
+	// find secret
+	secret, err := client.CoreV1().Secrets(namespace).Get(ks.Name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	// retrieve data
+	data, ok := secret.Data[ks.Key]
+	if !ok {
+		return nil, fmt.Errorf("secet data is not found for key [%s]", ks.Key)
+	}
+
+	return data, nil
+}

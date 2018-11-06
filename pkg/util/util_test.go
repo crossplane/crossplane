@@ -86,3 +86,52 @@ func TestApplySecretUpdate(t *testing.T) {
 	g.Expect(a[0].GetVerb()).To(Equal("get"))
 	g.Expect(a[1].GetVerb()).To(Equal("update"))
 }
+
+func TestSecretData(t *testing.T) {
+	g := NewGomegaWithT(t)
+
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: "bar",
+		},
+		Data: map[string][]byte{
+			"test-key": []byte("test-data"),
+		},
+	}
+
+	client := fake.NewSimpleClientset(secret)
+
+	// test data key is found
+	key := corev1.SecretKeySelector{
+		Key: "test-key",
+		LocalObjectReference: corev1.LocalObjectReference{
+			Name: secret.Name,
+		},
+	}
+	data, err := SecretData(client, secret.Namespace, key)
+	g.Expect(data).To(Equal(secret.Data["test-key"]))
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// test data key is not found
+	key = corev1.SecretKeySelector{
+		Key: "test-key-bad",
+		LocalObjectReference: corev1.LocalObjectReference{
+			Name: secret.Name,
+		},
+	}
+	data, err = SecretData(client, secret.Namespace, key)
+	g.Expect(data).To(BeNil())
+	g.Expect(err).To(HaveOccurred())
+
+	// test secret is not found
+	key = corev1.SecretKeySelector{
+		Key: "test-key",
+		LocalObjectReference: corev1.LocalObjectReference{
+			Name: "wrong-secret-name",
+		},
+	}
+	data, err = SecretData(client, secret.Namespace, key)
+	g.Expect(data).To(BeNil())
+	g.Expect(err).To(HaveOccurred())
+}
