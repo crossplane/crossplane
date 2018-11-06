@@ -22,12 +22,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/upbound/conductor/pkg/test"
-
 	. "github.com/onsi/gomega"
 	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
 	"github.com/upbound/conductor/pkg/apis/storage"
 	. "github.com/upbound/conductor/pkg/apis/storage/v1alpha1"
+	"github.com/upbound/conductor/pkg/test"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -166,9 +165,9 @@ func (mr *MockRecorder) AnnotatedEventf(object runtime.Object, annotations map[s
 }
 
 type MockResourceHandler struct {
-	MockProvision func(*corev1alpha1.ResourceClass, *MySQLInstance, client.Client) (corev1alpha1.Resource, error)
-	MockFind      func(types.NamespacedName, client.Client) (corev1alpha1.Resource, error)
-	MockDelete    func(types.NamespacedName, client.Client, bool) error
+	MockProvision     func(*corev1alpha1.ResourceClass, *MySQLInstance, client.Client) (corev1alpha1.Resource, error)
+	MockFind          func(types.NamespacedName, client.Client) (corev1alpha1.Resource, error)
+	MockSetBindStatus func(types.NamespacedName, client.Client, bool) error
 }
 
 func (mrh *MockResourceHandler) provision(class *corev1alpha1.ResourceClass, instance *MySQLInstance, c client.Client) (corev1alpha1.Resource, error) {
@@ -180,5 +179,5 @@ func (mrh *MockResourceHandler) find(n types.NamespacedName, c client.Client) (c
 }
 
 func (mrh *MockResourceHandler) setBindStatus(n types.NamespacedName, c client.Client, s bool) error {
-	return mrh.MockDelete(n, c, s)
+	return mrh.MockSetBindStatus(n, c, s)
 }

@@ -51,6 +51,7 @@ const (
 	errorRetrievingResourceClass    = "Failed to retrieve resource class"
 	errorRetrievingResourceInstance = "Failed to retrieve resource instance"
 	errorRetrievingResourceSecret   = "Failed to retrieve resource secret"
+	errorApplyingInstanceSecret     = "Failed to apply instance secret"
 	waitResourceIsNotAvailable      = "Waiting for resource to become available"
 )
 
@@ -210,7 +211,7 @@ func (r *Reconciler) _bind(instance *mysqlv1alpha1.MySQLInstance) (reconcile.Res
 		OwnerReferences: []metav1.OwnerReference{instance.OwnerReference()},
 	}
 	if _, err := util.ApplySecret(r.kubeclient, secret); err != nil {
-		return r.fail(instance, "", err.Error())
+		return r.fail(instance, errorApplyingInstanceSecret, err.Error())
 	}
 
 	// update resource binding status
@@ -235,14 +236,19 @@ func (r *Reconciler) _delete(instance *mysqlv1alpha1.MySQLInstance) (reconcile.R
 		// fail and do not requeue
 		err := fmt.Errorf("provisioner [%s] is not defined", instance.Status.Provisioner)
 		r.recorder.Event(instance, corev1.EventTypeWarning, "Fail", err.Error())
-		return result, err
+		instance.Status.SetCondition(*corev1alpha1.NewCondition(corev1alpha1.Failed, errorResourceHandlerIsNotFound, err.Error()))
+		return result, r.Update(ctx, instance)
 	}
 
 	// update resource binding status
 	resNName := namespaceNameFromObjectRef(instance.Spec.ResourceRef)
+
+	// TODO: decide how to handle resource binding status update error
+	// - ignore the error for now
 	handler.setBindStatus(resNName, r.Client, false)
 
 	// update instance status and remove finalizer
+	instance.Status.UnsetAllConditions()
 	instance.Status.SetCondition(*corev1alpha1.NewCondition(corev1alpha1.Deleting, "", ""))
 	util.RemoveFinalizer(&instance.ObjectMeta, finalizer)
 	return reconcile.Result{}, r.Update(ctx, instance)
