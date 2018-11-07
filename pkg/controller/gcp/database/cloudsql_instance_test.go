@@ -120,10 +120,10 @@ func TestReconcile(t *testing.T) {
 					Message: "cloud sql instance test-db-instance is in the Creating state",
 				},
 				{
-					Type:    corev1alpha1.Running,
+					Type:    corev1alpha1.Ready,
 					Status:  v1.ConditionTrue,
 					Reason:  conditionStateChanged,
-					Message: "cloud sql instance test-db-instance is in the Running state",
+					Message: "cloud sql instance test-db-instance is in the Ready state",
 				},
 			},
 		},

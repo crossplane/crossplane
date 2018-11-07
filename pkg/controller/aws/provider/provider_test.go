@@ -17,169 +17,212 @@ limitations under the License.
 package provider
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
-	"github.com/go-ini/ini"
 	. "github.com/onsi/gomega"
-	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
+	. "github.com/upbound/conductor/pkg/apis/aws/v1alpha1"
+	. "k8s.io/client-go/kubernetes/fake"
+	. "sigs.k8s.io/controller-runtime/pkg/client/fake"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	apisaws "github.com/upbound/conductor/pkg/apis/aws"
+	awsv1alpha1 "github.com/upbound/conductor/pkg/apis/aws/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes/scheme"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-// TestReconcileNoSecret - AWS Provider instance refers to non-existent secret
-func TestReconcileNoSecret(t *testing.T) {
-	g := NewGomegaWithT(t)
+const (
+	namespace      = "default"
+	secretName     = "test-secret"
+	secretDataKey  = "credentials"
+	providerName   = "test-provider"
+	providerRegion = "us-east-1"
+)
 
-	// create and start manager
-	mgr, err := NewTestManager()
-	g.Expect(err).NotTo(HaveOccurred())
-	defer close(StartTestManager(mgr, g))
+var (
+	key = types.NamespacedName{
+		Namespace: namespace,
+		Name:      providerName,
+	}
+	request = reconcile.Request{
+		NamespacedName: key,
+	}
+)
 
-	// Create instance
-	p := testProvider(testSecret([]byte("test-secret-data")))
-	g.Expect(mgr.createProvider(p)).NotTo(HaveOccurred())
-	defer mgr.deleteProvider(p)
-
-	// Reconcile loop
-	g.Eventually(mgr.requests, timeout).Should(Receive(Equal(expectedRequest)))
-
-	// Assert
-	rp, err := mgr.getProvider()
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(rp.Status.Conditions).To(BeNil())
+func init() {
+	apisaws.AddToScheme(scheme.Scheme)
 }
 
-// TestReconcileInvalidSecretDataKey - AWS Provider is configured with secret key that does not exist in the
-// actual secret
-func TestReconcileInvalidSecretDataKey(t *testing.T) {
-	g := NewGomegaWithT(t)
-
-	// create and start manager
-	mgr, err := NewTestManager()
-	g.Expect(err).NotTo(HaveOccurred())
-	defer close(StartTestManager(mgr, g))
-
-	// Create secret with invalid data key
-	s := testSecret(testSecretData(ini.DEFAULT_SECTION, "test-id", "test-secret"))
-	s.Data["invalid-key"] = s.Data[secretDataKey]
-	delete(s.Data, secretDataKey)
-	s, err = mgr.createSecret(s)
-	g.Expect(err).NotTo(HaveOccurred())
-	defer mgr.deleteSecret(s)
-
-	// Create provider
-	p := testProvider(s)
-	g.Expect(mgr.createProvider(p)).NotTo(HaveOccurred())
-	defer mgr.deleteProvider(p)
-
-	// Reconcile loop
-	g.Eventually(mgr.requests, timeout).Should(Receive(Equal(expectedRequest)))
-
-	// Assert
-	rp, err := mgr.getProvider()
-	g.Expect(err).NotTo(HaveOccurred())
-	condition := rp.Status.GetCondition(corev1alpha1.Valid)
-	g.Expect(condition).To(BeNil())
-	condition = rp.Status.GetCondition(corev1alpha1.Invalid)
-	g.Expect(condition.Status).To(Equal(corev1.ConditionTrue))
-	g.Expect(condition.Reason).To(Equal("invalid AWS Provider secret, data key [credentials] is not found"))
+func testSecretData(profile, id, secret string) []byte {
+	return []byte(fmt.Sprintf("[%s]\naws_access_key_id = %s\naws_secret_access_key = %s", strings.ToLower(profile), id, secret))
 }
 
-// TestReconcileInvalidSecretCredentialsProfile - AWS Provider is configured with non-existent AwS credentials profile
-func TestReconcileInvalidSecretCredentialsProfile(t *testing.T) {
-	g := NewGomegaWithT(t)
-
-	// create and start manager
-	mgr, err := NewTestManager()
-	g.Expect(err).NotTo(HaveOccurred())
-	defer close(StartTestManager(mgr, g))
-
-	// Create secret
-	s, err := mgr.createSecret(testSecret(testSecretData("invalid-profile", "test-id", "test-secret")))
-	g.Expect(err).NotTo(HaveOccurred())
-	defer mgr.deleteSecret(s)
-
-	// Create provider
-	p := testProvider(s)
-	g.Expect(mgr.createProvider(p)).NotTo(HaveOccurred())
-	defer mgr.deleteProvider(p)
-
-	// Reconcile loop
-	g.Eventually(mgr.requests, timeout).Should(Receive(Equal(expectedRequest)))
-
-	// Assert
-	rp, err := mgr.getProvider()
-	g.Expect(err).NotTo(HaveOccurred())
-	condition := rp.Status.GetCondition(corev1alpha1.Valid)
-	g.Expect(condition).To(BeNil())
-	condition = rp.Status.GetCondition(corev1alpha1.Invalid)
-	g.Expect(condition).NotTo(BeNil())
-	g.Expect(condition.Status).To(Equal(corev1.ConditionTrue))
-	g.Expect(condition.Reason).To(ContainSubstring("error when getting key of section 'default'"))
+func testSecret(data []byte) *corev1.Secret {
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: namespace,
+		},
+		Data: map[string][]byte{
+			secretDataKey: data,
+		},
+	}
 }
 
-// TestReconcileInvalidCredentials - AWS Provider secret contains invalid AWS credentials
-func TestReconcileInvalidCredentials(t *testing.T) {
-	g := NewGomegaWithT(t)
-
-	// create and start manager
-	mgr, err := NewTestManager()
-	g.Expect(err).NotTo(HaveOccurred())
-	defer close(StartTestManager(mgr, g))
-
-	// Create secret
-	s, err := mgr.createSecret(testSecret(testSecretData(ini.DEFAULT_SECTION, "test-id", "test-secret")))
-	g.Expect(err).NotTo(HaveOccurred())
-	defer mgr.deleteSecret(s)
-
-	// Create provider
-	p := testProvider(s)
-	g.Expect(mgr.createProvider(p)).NotTo(HaveOccurred())
-	defer mgr.deleteProvider(p)
-
-	// Reconcile loop
-	g.Eventually(mgr.requests, timeout).Should(Receive(Equal(expectedRequest)))
-
-	// Assert
-	rp, err := mgr.getProvider()
-	g.Expect(err).NotTo(HaveOccurred())
-	condition := rp.Status.GetCondition(corev1alpha1.Valid)
-	g.Expect(condition).To(BeNil())
-	condition = rp.Status.GetCondition(corev1alpha1.Invalid)
-	g.Expect(condition).NotTo(BeNil())
-	g.Expect(condition.Status).To(Equal(corev1.ConditionTrue))
-	g.Expect(condition.Reason).To(And(
-		ContainSubstring("InvalidAccessKeyId: The AWS Access Key Id you provided does not exist in our records."),
-		ContainSubstring("status code: 403")))
+func testProvider() *awsv1alpha1.Provider {
+	return &awsv1alpha1.Provider{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      providerName,
+			Namespace: namespace,
+		},
+		Spec: awsv1alpha1.ProviderSpec{
+			Secret: corev1.SecretKeySelector{
+				LocalObjectReference: corev1.LocalObjectReference{Name: secretName},
+				Key:                  secretDataKey,
+			},
+			Region: providerRegion,
+		},
+	}
 }
 
-// TestReconcileValidMock - valid reconciliation loop with Validation mock
-func TestReconcileValidMock(t *testing.T) {
+func TestReconcileObjectNotFound(t *testing.T) {
 	g := NewGomegaWithT(t)
 
-	// create and start manager
-	mgr, err := NewTestManager()
-	mgr.reconciler.Validator = &MockValidator{}
-	g.Expect(err).NotTo(HaveOccurred())
-	defer close(StartTestManager(mgr, g))
+	r := &Reconciler{
+		Client: NewFakeClient(),
+	}
+	rs, err := r.Reconcile(request)
+	g.Expect(rs).To(Equal(result))
+	g.Expect(err).To(BeNil())
+}
 
-	// Create secret
-	s, err := mgr.createSecret(testSecret(testSecretData(ini.DEFAULT_SECTION, "test-id", "test-secret")))
-	g.Expect(err).NotTo(HaveOccurred())
-	defer mgr.deleteSecret(s)
+func TestReconcileSecretNotFound(t *testing.T) {
+	g := NewGomegaWithT(t)
 
-	// Create provider
-	p := testProvider(s)
-	g.Expect(mgr.createProvider(p)).NotTo(HaveOccurred())
-	defer mgr.deleteProvider(p)
+	// test objects
+	tp := testProvider()
 
-	// Reconcile loop
-	g.Eventually(mgr.requests, timeout).Should(Receive(Equal(expectedRequest)))
+	r := &Reconciler{
+		Client:     NewFakeClient(tp),
+		kubeclient: NewSimpleClientset(),
+	}
 
-	// Assert
-	rp, err := mgr.getProvider()
-	g.Expect(err).NotTo(HaveOccurred())
-	condition := rp.Status.GetCondition(corev1alpha1.Invalid)
-	g.Expect(condition).To(BeNil())
-	condition = rp.Status.GetCondition(corev1alpha1.Valid)
-	g.Expect(condition.Status).To(Equal(corev1.ConditionTrue))
+	rs, err := r.Reconcile(request)
+	g.Expect(rs).To(Equal(resultRequeue))
+	g.Expect(err).To(BeNil())
+
+	rp := &Provider{}
+	err = r.Get(ctx, key, rp)
+	g.Expect(err).To(BeNil())
+	g.Expect(rp.Status.IsReady()).To(BeFalse())
+	g.Expect(rp.Status.IsFailed()).To(BeTrue())
+}
+
+func TestReconcileSecretKeyNotFound(t *testing.T) {
+	g := NewGomegaWithT(t)
+
+	ts := testSecret([]byte("data-is-not-used"))
+	// change key
+	ts.Data["testkey"] = ts.Data[secretDataKey]
+	delete(ts.Data, secretDataKey)
+
+	tp := testProvider()
+
+	r := &Reconciler{
+		Client:     NewFakeClient(tp),
+		kubeclient: NewSimpleClientset(ts),
+	}
+
+	rs, err := r.Reconcile(request)
+	g.Expect(rs).To(Equal(resultRequeue))
+	g.Expect(err).To(BeNil())
+
+	rp := &Provider{}
+	err = r.Get(ctx, key, rp)
+	g.Expect(err).To(BeNil())
+	g.Expect(rp.Status.IsReady()).To(BeFalse())
+	g.Expect(rp.Status.IsFailed()).To(BeTrue())
+}
+
+func TestReconcileInvalidationPassed(t *testing.T) {
+	g := NewGomegaWithT(t)
+
+	ts := testSecret([]byte(testSecretData("default", "test-id", "test-secret")))
+	tp := testProvider()
+
+	r := &Reconciler{
+		Client:     NewFakeClient(tp),
+		kubeclient: NewSimpleClientset(ts),
+		validate: func(config *aws.Config) error {
+			return nil
+		},
+	}
+
+	rs, err := r.Reconcile(request)
+	g.Expect(rs).To(Equal(result))
+	g.Expect(err).To(BeNil())
+
+	// assert provider status
+	rp := &Provider{}
+	err = r.Get(ctx, key, rp)
+	g.Expect(err).To(BeNil())
+	g.Expect(rp.Status.IsReady()).To(BeTrue())
+	g.Expect(rp.Status.IsFailed()).To(BeFalse())
+}
+
+func TestReconcileInvalidCredentialsFormat(t *testing.T) {
+	g := NewGomegaWithT(t)
+
+	ts := testSecret([]byte("test"))
+	tp := testProvider()
+
+	r := &Reconciler{
+		Client:     NewFakeClient(tp),
+		kubeclient: NewSimpleClientset(ts),
+		validate: func(config *aws.Config) error {
+			return nil
+		},
+	}
+
+	rs, err := r.Reconcile(request)
+	g.Expect(rs).To(Equal(resultRequeue))
+	g.Expect(err).To(BeNil())
+
+	// assert provider status
+	rp := &Provider{}
+	err = r.Get(ctx, key, rp)
+	g.Expect(err).To(BeNil())
+	g.Expect(rp.Status.IsReady()).To(BeFalse())
+	g.Expect(rp.Status.IsFailed()).To(BeTrue())
+}
+
+func TestReconcileValidationFailed(t *testing.T) {
+	g := NewGomegaWithT(t)
+
+	ts := testSecret([]byte(testSecretData("default", "test-id", "test-secret")))
+	tp := testProvider()
+
+	r := &Reconciler{
+		Client:     NewFakeClient(tp),
+		kubeclient: NewSimpleClientset(ts),
+		validate: func(config *aws.Config) error {
+			return fmt.Errorf("test-error")
+		},
+	}
+
+	rs, err := r.Reconcile(request)
+	g.Expect(rs).To(Equal(resultRequeue))
+	g.Expect(err).To(BeNil())
+
+	// assert provider status
+	rp := &Provider{}
+	err = r.Get(ctx, key, rp)
+	g.Expect(err).To(BeNil())
+	g.Expect(rp.Status.IsReady()).To(BeFalse())
+	g.Expect(rp.Status.IsFailed()).To(BeTrue())
 }

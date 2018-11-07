@@ -33,8 +33,8 @@ const (
 	Deleting ConditionType = "Deleting"
 	// Failed means that the resource creation has failed.
 	Failed ConditionType = "Failed"
-	// Running means that the resource creation has been successful.
-	Running ConditionType = "Running"
+	// Ready means that the resource creation has been successful.
+	Ready ConditionType = "Ready"
 )
 
 // Condition contains details for the current condition of this pod.
@@ -61,8 +61,8 @@ type ConditionedStatus struct {
 	Conditions []Condition
 }
 
-// GetCondition returns a provider condition with the provided type if it exists.
-func (c *ConditionedStatus) GetCondition(conditionType ConditionType) *Condition {
+// Condition returns a provider condition with the provided type if it exists.
+func (c *ConditionedStatus) Condition(conditionType ConditionType) *Condition {
 	for _, c := range c.Conditions {
 		if c.Type == conditionType {
 			return &c
@@ -71,9 +71,25 @@ func (c *ConditionedStatus) GetCondition(conditionType ConditionType) *Condition
 	return nil
 }
 
+// IsCondition of provided type is present and set to true
+func (c *ConditionedStatus) IsCondition(ctype ConditionType) bool {
+	condition := c.Condition(ctype)
+	return condition != nil && condition.Status == corev1.ConditionTrue
+}
+
+// IsReady
+func (c *ConditionedStatus) IsReady() bool {
+	return c.IsCondition(Ready)
+}
+
+// IsFailed
+func (c *ConditionedStatus) IsFailed() bool {
+	return c.IsCondition(Failed)
+}
+
 // SetCondition adds/replaces the given condition in the credentials controller status.
 func (c *ConditionedStatus) SetCondition(condition Condition) {
-	current := c.GetCondition(condition.Type)
+	current := c.Condition(condition.Type)
 	if current != nil && current.Status == condition.Status && current.Reason == condition.Reason {
 		return
 	}
@@ -81,9 +97,19 @@ func (c *ConditionedStatus) SetCondition(condition Condition) {
 	c.Conditions = append(newConditions, condition)
 }
 
+// SetFailed set failed as active condition
+func (c *ConditionedStatus) SetFailed(reason, msg string) {
+	c.SetCondition(*NewCondition(Failed, reason, msg))
+}
+
+// SetReady set ready as active condition
+func (c *ConditionedStatus) SetReady() {
+	c.SetCondition(*NewCondition(Ready, "", ""))
+}
+
 // UnsetCondition set condition status to false with the given type - if found.
 func (c *ConditionedStatus) UnsetCondition(conditionType ConditionType) {
-	current := c.GetCondition(conditionType)
+	current := c.Condition(conditionType)
 	if current != nil && current.Status == corev1.ConditionTrue {
 		current.Status = corev1.ConditionFalse
 		c.SetCondition(*current)

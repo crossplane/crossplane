@@ -167,10 +167,10 @@ func TestReconcile(t *testing.T) {
 		ConditionedStatus: corev1alpha1.ConditionedStatus{
 			Conditions: []corev1alpha1.Condition{
 				{
-					Type:    corev1alpha1.Running,
+					Type:    corev1alpha1.Ready,
 					Status:  v1.ConditionTrue,
 					Reason:  conditionStateChanged,
-					Message: "MySQL Server instance test-db-instance is in the Running state",
+					Message: "MySQL Server instance test-db-instance is in the Ready state",
 				},
 			},
 		},

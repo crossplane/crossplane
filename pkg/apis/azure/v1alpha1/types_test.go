@@ -33,7 +33,7 @@ func TestStorageProvider(t *testing.T) {
 			Namespace: namespace,
 		},
 		Spec: ProviderSpec{
-			AuthSecret: v1.SecretKeySelector{
+			Secret: v1.SecretKeySelector{
 				LocalObjectReference: v1.LocalObjectReference{Name: "azure-provider-creds"},
 				Key:                  secretDataKey,
 			},

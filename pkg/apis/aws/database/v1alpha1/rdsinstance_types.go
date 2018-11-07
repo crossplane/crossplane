@@ -66,7 +66,7 @@ func (s RDSInstanceState) String() string {
 func ConditionType(status string) corev1alpha1.ConditionType {
 	switch status {
 	case RDSInstanceStateAvailable.String():
-		return corev1alpha1.Running
+		return corev1alpha1.Ready
 	case RDSInstanceStateCreating.String():
 		return corev1alpha1.Creating
 	case RDSInstanceStateDeleting.String():

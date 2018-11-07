@@ -24,7 +24,7 @@ import "github.com/onsi/gomega"
 func AssertConditions(g *gomega.GomegaWithT, expected []Condition, actual ConditionedStatus) {
 	for _, ec := range expected {
 		// find the condition of the matching type, it should exist
-		ac := actual.GetCondition(ec.Type)
+		ac := actual.Condition(ec.Type)
 		g.Expect(ac).NotTo(gomega.BeNil())
 
 		// compare the individual properties of the actual condition. note that we skip timestamp here since

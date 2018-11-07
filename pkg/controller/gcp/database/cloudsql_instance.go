@@ -174,7 +174,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 
 	// check for CRD deletion and handle it if needed
 	if instance.DeletionTimestamp != nil {
-		if instance.Status.GetCondition(corev1alpha1.Deleting) == nil {
+		if instance.Status.Condition(corev1alpha1.Deleting) == nil {
 			// we haven't started the deletion of the CloudSQL resource yet, do it now
 			log.Printf("cloud sql instance %s has been deleted, running finalizer now", instance.Name)
 			return r.handleDeletion(cloudSQLClient, instance, provider)
@@ -216,7 +216,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	if stateChanged {
 		// the state of the instance has changed, let's set a corresponding condition on the CRD and then
 		// requeue another reconiliation attempt
-		if conditionType == corev1alpha1.Running {
+		if conditionType == corev1alpha1.Ready {
 			// when we hit the running condition, clear out all old conditions first
 			instance.Status.UnsetAllConditions()
 		}
@@ -227,7 +227,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 		return reconcile.Result{Requeue: true}, r.Update(context.TODO(), instance)
 	}
 
-	if conditionType != corev1alpha1.Running {
+	if conditionType != corev1alpha1.Ready {
 		// the instance isn't running still, requeue another reconciliation attempt
 		return reconcile.Result{Requeue: true}, nil
 	}

@@ -18,9 +18,8 @@ package provider
 
 import (
 	"context"
-	"fmt"
 
-	"github.com/upbound/conductor/pkg/apis/azure/v1alpha1"
+	. "github.com/upbound/conductor/pkg/apis/azure/v1alpha1"
 	azureclient "github.com/upbound/conductor/pkg/clients/azure"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -35,54 +34,71 @@ import (
 )
 
 const (
-	recorderName        = "azure.provider"
+	controllerName      = "azure.provider"
 	errorCreatingClient = "Failed to create Azure client"
 	errorTestingClient  = "Failed testing Azure client"
+)
+
+var (
+	ctx           = context.Background()
+	result        = reconcile.Result{}
+	resultRequeue = reconcile.Result{Requeue: true}
 )
 
 // Add creates a new Provider Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
-	return add(mgr, newReconciler(mgr, &ConfigurationValidator{}))
+	return add(mgr, newReconciler(mgr))
 }
-
-var _ reconcile.Reconciler = &Reconciler{}
 
 // Reconciler reconciles a Provider object
 type Reconciler struct {
 	client.Client
-	Validator
 	scheme     *runtime.Scheme
 	kubeclient kubernetes.Interface
 	recorder   record.EventRecorder
+
+	validate func(*azureclient.Client) error
 }
 
 // newReconciler returns a new reconcile.Reconciler
-func newReconciler(mgr manager.Manager, validator Validator) reconcile.Reconciler {
-	return &Reconciler{
+func newReconciler(mgr manager.Manager) reconcile.Reconciler {
+	r := &Reconciler{
 		Client:     mgr.GetClient(),
-		Validator:  validator,
 		scheme:     mgr.GetScheme(),
 		kubeclient: kubernetes.NewForConfigOrDie(mgr.GetConfig()),
-		recorder:   mgr.GetRecorder(recorderName),
+		recorder:   mgr.GetRecorder(controllerName),
 	}
+	r.validate = r._validate
+	return r
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
 func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	// Create a new controller
-	c, err := controller.New("instance-controller", mgr, controller.Options{Reconciler: r})
+	c, err := controller.New(controllerName, mgr, controller.Options{Reconciler: r})
 	if err != nil {
 		return err
 	}
 
 	// Watch for changes to Provider
-	err = c.Watch(&source.Kind{Type: &v1alpha1.Provider{}}, &handler.EnqueueRequestForObject{})
+	err = c.Watch(&source.Kind{Type: &Provider{}}, &handler.EnqueueRequestForObject{})
 	if err != nil {
 		return err
 	}
 
 	return nil
+}
+
+// fail - helper function to set fail condition with reason and message
+func (r *Reconciler) fail(instance *Provider, reason, msg string) (reconcile.Result, error) {
+	instance.Status.UnsetAllConditions()
+	instance.Status.SetFailed(reason, msg)
+	return resultRequeue, r.Update(context.TODO(), instance)
+}
+
+func (r *Reconciler) _validate(client *azureclient.Client) error {
+	return azureclient.ValidateClient(client)
 }
 
 // Reconcile reads that state of the cluster for a Provider object and makes changes based on the state read
@@ -91,7 +107,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	ctx := context.TODO()
 
 	// Fetch the Provider instance
-	instance := &v1alpha1.Provider{}
+	instance := &Provider{}
 	err := r.Get(ctx, request.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -106,29 +122,17 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	// Retrieve azure client from the given provider config
 	client, err := azureclient.NewClient(instance, r.kubeclient)
 	if err != nil {
-		instance.Status.SetInvalid(errorCreatingClient, fmt.Sprintf("failed to get Azure client: %+v", err))
-		return reconcile.Result{}, r.Update(ctx, instance)
+		return r.fail(instance, errorCreatingClient, err.Error())
 	}
 
 	// Validate azure client
-	if err := r.Validate(client); err != nil {
-		instance.Status.SetInvalid(errorTestingClient, fmt.Sprintf("Azure client failed validation test: %+v", err))
-		return reconcile.Result{}, r.Update(ctx, instance)
+	if err := r.validate(client); err != nil {
+		return r.fail(instance, errorTestingClient, err.Error())
 	}
 
-	instance.Status.SetValid("The Azure provider information is valid")
-	return reconcile.Result{}, r.Update(ctx, instance)
-}
+	// Update status condition
+	instance.Status.UnsetAllConditions()
+	instance.Status.SetReady()
 
-// Validator - defines provider validation functions
-type Validator interface {
-	Validate(*azureclient.Client) error
-}
-
-// ConfigurationValidator - validates Azure client
-type ConfigurationValidator struct{}
-
-// Validate Azure client
-func (pc *ConfigurationValidator) Validate(client *azureclient.Client) error {
-	return azureclient.ValidateClient(client)
+	return result, r.Update(ctx, instance)
 }

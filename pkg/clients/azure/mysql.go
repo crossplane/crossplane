@@ -122,7 +122,7 @@ func (f *MySQLServerClientFactory) CreateAPIInstance(provider *v1alpha1.Provider
 func MySQLServerConditionType(state mysql.ServerState) corev1alpha1.ConditionType {
 	switch state {
 	case mysql.ServerStateReady:
-		return corev1alpha1.Running
+		return corev1alpha1.Ready
 	default:
 		return corev1alpha1.Failed
 	}

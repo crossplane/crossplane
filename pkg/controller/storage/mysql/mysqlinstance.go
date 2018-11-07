@@ -222,7 +222,7 @@ func (r *Reconciler) _bind(instance *mysqlv1alpha1.MySQLInstance) (reconcile.Res
 
 	// update conditions
 	instance.Status.UnsetAllConditions()
-	instance.Status.SetCondition(*corev1alpha1.NewCondition(corev1alpha1.Running, "", ""))
+	instance.Status.SetCondition(*corev1alpha1.NewCondition(corev1alpha1.Ready, "", ""))
 
 	return result, r.Update(ctx, instance)
 }
@@ -280,7 +280,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	}
 
 	// Check for deletion
-	if instance.DeletionTimestamp != nil && instance.Status.GetCondition(corev1alpha1.Deleting) == nil {
+	if instance.DeletionTimestamp != nil && instance.Status.Condition(corev1alpha1.Deleting) == nil {
 		return r.delete(instance)
 	}
 
