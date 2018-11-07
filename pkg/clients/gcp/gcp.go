@@ -24,13 +24,12 @@ import (
 	"net/http"
 
 	gcpv1alpha1 "github.com/upbound/conductor/pkg/apis/gcp/v1alpha1"
-	k8sclients "github.com/upbound/conductor/pkg/clients/kubernetes"
+	"github.com/upbound/conductor/pkg/util"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/cloudresourcemanager/v1"
 	"google.golang.org/api/googleapi"
 	"k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -44,10 +43,10 @@ func GetGoogleClient(clientset kubernetes.Interface, namespace string, secretKey
 	var hc *http.Client
 
 	// 1) look for a secret that has the credentials JSON
-	gcpSecretData, err := k8sclients.GetSecret(clientset, namespace, secretKey.Name, secretKey.Key)
+	gcpSecretData, err := util.SecretData(clientset, namespace, secretKey)
 	if err == nil {
 		var creds *google.Credentials
-		creds, err = google.CredentialsFromJSON(context.Background(), []byte(gcpSecretData), scopes...)
+		creds, err = google.CredentialsFromJSON(context.Background(), gcpSecretData, scopes...)
 		if err == nil {
 			hc = oauth2.NewClient(context.Background(), creds.TokenSource)
 			log.Printf("google client created from secret %s", secretKey.Name)
@@ -83,15 +82,10 @@ func IsNotFound(err error) bool {
 
 // ProviderCredentials return google credentials based on the provider's credentials secret data
 func ProviderCredentials(client kubernetes.Interface, p *gcpv1alpha1.Provider, scopes ...string) (*google.Credentials, error) {
-	// retrieve provider secret
-	secret, err := client.CoreV1().Secrets(p.Namespace).Get(p.Spec.Secret.Name, metav1.GetOptions{})
+	// retrieve provider secret data
+	data, err := util.SecretData(client, p.Namespace, p.Spec.Secret)
 	if err != nil {
 		return nil, err
-	}
-
-	data, found := secret.Data[p.Spec.Secret.Key]
-	if !found {
-		return nil, fmt.Errorf("invalid provider secret, data key [%s] is not found", p.Spec.Secret.Key)
 	}
 
 	return google.CredentialsFromJSON(context.Background(), data, scopes...)
