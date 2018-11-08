@@ -154,8 +154,8 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	}
 
 	// Check provider status
-	if pc := p.Status.GetCondition(corev1alpha1.Invalid); pc != nil && pc.Status == corev1.ConditionTrue {
-		return r.fail(instance, errorProviderStatusInvalid, pc.Reason)
+	if !p.IsValid() {
+		return r.fail(instance, errorProviderStatusInvalid, "")
 	}
 
 	// Create new RDS Client
@@ -171,7 +171,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	}
 
 	// Check for deletion
-	if instance.DeletionTimestamp != nil && instance.Status.GetCondition(corev1alpha1.Deleting) == nil {
+	if instance.DeletionTimestamp != nil && instance.Status.Condition(corev1alpha1.Deleting) == nil {
 		if instance.Spec.ReclaimPolicy == corev1alpha1.ReclaimDelete {
 			if _, err = svc.DeleteInstance(instance.Status.InstanceName); err != nil {
 				return r.fail(instance, errorDeletingDbInstance, err.Error())
@@ -235,7 +235,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 
 	// Update status - if changed
 	conditionType := databasev1alpha1.ConditionType(db.Status)
-	requeue := conditionType != corev1alpha1.Running
+	requeue := conditionType != corev1alpha1.Ready
 
 	if instance.Status.State != db.Status {
 		instance.Status.State = db.Status
@@ -245,7 +245,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 		condition := corev1alpha1.NewCondition(conditionType, "", "")
 		instance.Status.SetCondition(*condition)
 
-		// Requeue this request until database is in Running state
+		// Requeue this request until database is in Ready state
 		return reconcile.Result{Requeue: requeue}, r.Update(ctx, instance)
 	}
 

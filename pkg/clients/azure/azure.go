@@ -54,7 +54,7 @@ type credentials struct {
 // that can be used to connect to Azure services.
 func NewClient(provider *v1alpha1.Provider, clientset kubernetes.Interface) (*Client, error) {
 	// first get the secret data that should contain all the auth/creds information
-	azureSecretData, err := util.SecretData(clientset, provider.Namespace, provider.Spec.AuthSecret)
+	azureSecretData, err := util.SecretData(clientset, provider.Namespace, provider.Spec.Secret)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get azure client secret: %+v", err)
 	}

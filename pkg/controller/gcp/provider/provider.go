@@ -19,8 +19,9 @@ package provider
 import (
 	"context"
 
-	"github.com/upbound/conductor/pkg/apis/gcp/v1alpha1"
+	gcpv1alpha1 "github.com/upbound/conductor/pkg/apis/gcp/v1alpha1"
 	"github.com/upbound/conductor/pkg/clients/gcp"
+	"golang.org/x/oauth2/google"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -34,109 +35,109 @@ import (
 )
 
 const (
-	recorderName = "gcp.provider"
+	controllerName          = "gcp.provider"
+	errorRetrievingSecret   = "Failed retrieving provider secret"
+	errorInvalidCredentials = "Invalid provider credentials"
 )
 
-var _ reconcile.Reconciler = &Reconciler{}
+var (
+	ctx           = context.Background()
+	result        = reconcile.Result{}
+	resultRequeue = reconcile.Result{Requeue: true}
+)
 
 // Add creates a new Provider Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
-	return add(mgr, newReconciler(mgr, &ProviderValidator{}))
+	return add(mgr, newReconciler(mgr))
 }
 
 // Reconciler reconciles a Provider object
 type Reconciler struct {
 	client.Client
-	Validator
 	scheme     *runtime.Scheme
 	kubeclient kubernetes.Interface
 	recorder   record.EventRecorder
+
+	validate func(*google.Credentials, []string) error
 }
 
 // newReconciler returns a new reconcile.Reconciler
-func newReconciler(mgr manager.Manager, validator Validator) reconcile.Reconciler {
-	return &Reconciler{
+func newReconciler(mgr manager.Manager) reconcile.Reconciler {
+	r := &Reconciler{
 		Client:     mgr.GetClient(),
-		Validator:  validator,
 		scheme:     mgr.GetScheme(),
 		kubeclient: kubernetes.NewForConfigOrDie(mgr.GetConfig()),
-		recorder:   mgr.GetRecorder(recorderName),
+		recorder:   mgr.GetRecorder(controllerName),
 	}
+	r.validate = r._validate
+	return r
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
 func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	// Create a new controller
-	c, err := controller.New("instance-controller", mgr, controller.Options{Reconciler: r})
+	c, err := controller.New(controllerName, mgr, controller.Options{Reconciler: r})
 	if err != nil {
 		return err
 	}
 
 	// Watch for changes to Provider
-	err = c.Watch(&source.Kind{Type: &v1alpha1.Provider{}}, &handler.EnqueueRequestForObject{})
+	err = c.Watch(&source.Kind{Type: &gcpv1alpha1.Provider{}}, &handler.EnqueueRequestForObject{})
 	if err != nil {
 		return err
 	}
 
 	return nil
+}
+
+// fail - helper function to set fail condition with reason and message
+func (r *Reconciler) fail(instance *gcpv1alpha1.Provider, reason, msg string) (reconcile.Result, error) {
+	instance.Status.UnsetAllConditions()
+	instance.Status.SetFailed(reason, msg)
+	return resultRequeue, r.Update(context.TODO(), instance)
+}
+
+func (r *Reconciler) _validate(creds *google.Credentials, permissions []string) error {
+	if len(permissions) == 0 {
+		return nil
+	}
+
+	return gcp.TestPermissions(creds, permissions)
 }
 
 // Reconcile reads that state of the cluster for a Provider object and makes changes based on the state read
 // and what is in the Provider.Spec
 // Automatically generate RBAC rules to allow the Controller to read and write Deployments
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=cloudsql.gcp.conductor.io,resources=instances,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=gcp.conductor.io,resources=provider,verbs=get;list;watch;create;update;patch;delete
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	ctx := context.TODO()
-
 	// Fetch the Provider instance
-	instance := &v1alpha1.Provider{}
+	instance := &gcpv1alpha1.Provider{}
 	err := r.Get(ctx, request.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Object not found, return.  Created objects are automatically garbage collected.
 			// For additional cleanup logic use finalizers.
-			return reconcile.Result{}, nil
+			return result, nil
 		}
 		// Error reading the object - requeue the request.
-		return reconcile.Result{}, err
+		return result, err
 	}
 
-	err = r.Validate(r.kubeclient, instance)
+	creds, err := gcp.ProviderCredentials(r.kubeclient, instance)
 	if err != nil {
-		instance.Status.SetInvalid("Invalid credentials", err.Error())
-		return reconcile.Result{Requeue: true}, r.Update(ctx, instance)
+		return r.fail(instance, errorRetrievingSecret, err.Error())
 	}
 
-	instance.Status.SetValid("Valid")
-	return reconcile.Result{}, r.Update(ctx, instance)
-}
-
-// Credentials - defines provider validation functions
-type Validator interface {
-	Validate(kubernetes.Interface, *v1alpha1.Provider) error
-}
-
-// CredentialsValidator - provides functionality for validating provider credentials
-type ProviderValidator struct{}
-
-// Validate GCP credentials secret
-func (pv *ProviderValidator) Validate(k kubernetes.Interface, p *v1alpha1.Provider) error {
-	// Retrieve credentials
-	creds, err := gcp.ProviderCredentials(k, p)
+	err = r.validate(creds, instance.Spec.RequiredPermissions)
 	if err != nil {
-		return err
+		return r.fail(instance, errorInvalidCredentials, err.Error())
 	}
 
-	if len(p.Spec.RequiredPermissions) == 0 {
-		return nil
-	}
+	// Update status condition
+	instance.Status.UnsetAllConditions()
+	instance.Status.SetReady()
 
-	err = gcp.TestPermissions(creds, p.Spec.RequiredPermissions)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return result, r.Update(ctx, instance)
 }

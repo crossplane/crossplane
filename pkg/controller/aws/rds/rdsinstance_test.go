@@ -39,7 +39,7 @@ func waitForDeleted(g *GomegaWithT, mgr *TestManager) {
 		g.Expect(err).NotTo(HaveOccurred())
 	}
 
-	for condition = ri.Status.GetCondition(corev1alpha1.Deleting); condition == nil; {
+	for condition = ri.Status.Condition(corev1alpha1.Deleting); condition == nil; {
 		g.Eventually(mgr.requests, timeout).Should(Receive(Equal(expectedRequest)))
 		ri, err = mgr.getInstance()
 		if err != nil {
@@ -74,7 +74,7 @@ func TestReconcileMissingProvider(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(ri).NotTo(BeNil())
 	g.Expect(ri.Status.Conditions).NotTo(BeEmpty())
-	c := ri.Status.GetCondition(corev1alpha1.Failed)
+	c := ri.Status.Condition(corev1alpha1.Failed)
 	g.Expect(c).NotTo(BeNil())
 	g.Expect(c.Status).To(Equal(corev1.ConditionTrue))
 	g.Expect(c.Reason).To(Equal(errorFetchingAwsProvider))
@@ -99,7 +99,8 @@ func TestReconcileInvalidProvider(t *testing.T) {
 
 	// Create Provider with invalid state
 	p := testProvider(s)
-	p.Status.SetInvalid("test-reason", "")
+	p.Status.UnsetAllConditions()
+	p.Status.SetFailed("test-reason", "")
 	p, err = mgr.createProvider(p)
 	g.Expect(err).NotTo(HaveOccurred())
 	defer mgr.deleteProvider(p)
@@ -115,7 +116,7 @@ func TestReconcileInvalidProvider(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(ri).NotTo(BeNil())
 	g.Expect(ri.Status.Conditions).NotTo(BeEmpty())
-	c := ri.Status.GetCondition(corev1alpha1.Failed)
+	c := ri.Status.Condition(corev1alpha1.Failed)
 	g.Expect(c).NotTo(BeNil())
 	g.Expect(c.Status).To(Equal(corev1.ConditionTrue))
 	g.Expect(c.Reason).To(Equal(errorProviderStatusInvalid))
@@ -159,7 +160,7 @@ func TestReconcileRDSClientError(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(ri).NotTo(BeNil())
 	g.Expect(ri.Status.Conditions).NotTo(BeEmpty())
-	c := ri.Status.GetCondition(corev1alpha1.Failed)
+	c := ri.Status.Condition(corev1alpha1.Failed)
 	g.Expect(c).NotTo(BeNil())
 	g.Expect(c.Status).To(Equal(corev1.ConditionTrue))
 	g.Expect(c.Reason).To(Equal(errorRDSClient))
@@ -207,7 +208,7 @@ func TestReconcileGetInstanceError(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(ri).NotTo(BeNil())
 	g.Expect(ri.Status.Conditions).NotTo(BeEmpty())
-	c := ri.Status.GetCondition(corev1alpha1.Failed)
+	c := ri.Status.Condition(corev1alpha1.Failed)
 	g.Expect(c).NotTo(BeNil())
 	g.Expect(c.Status).To(Equal(corev1.ConditionTrue))
 	g.Expect(c.Reason).To(Equal(errorGetDbInstance))
@@ -269,7 +270,7 @@ func TestReconcile(t *testing.T) {
 	g.Expect(ri).NotTo(BeNil())
 	g.Expect(ri.Status.Conditions).NotTo(BeEmpty())
 	// assert creating condition
-	c := ri.Status.GetCondition(corev1alpha1.Creating)
+	c := ri.Status.Condition(corev1alpha1.Creating)
 	g.Expect(c).NotTo(BeNil())
 	g.Expect(c.Status).To(Equal(corev1.ConditionTrue))
 	// assert connection secret
@@ -287,12 +288,12 @@ func TestReconcile(t *testing.T) {
 	}
 
 	// wait for running state
-	c = ri.Status.GetCondition(corev1alpha1.Running)
+	c = ri.Status.Condition(corev1alpha1.Ready)
 	for c == nil || c.Status != corev1.ConditionTrue {
 		g.Eventually(mgr.requests, timeout).Should(Receive(Equal(expectedRequest)))
 		ri, err = mgr.getInstance()
 		g.Expect(err).NotTo(HaveOccurred())
-		c = ri.Status.GetCondition(corev1alpha1.Running)
+		c = ri.Status.Condition(corev1alpha1.Ready)
 	}
 
 	// wait for endpoint value in secret

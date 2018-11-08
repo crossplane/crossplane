@@ -54,7 +54,7 @@ func TestNewClient(t *testing.T) {
 			Namespace: namespace,
 		},
 		Spec: v1alpha1.ProviderSpec{
-			AuthSecret: v1.SecretKeySelector{
+			Secret: v1.SecretKeySelector{
 				LocalObjectReference: v1.LocalObjectReference{Name: "azure-provider-creds"},
 				Key:                  "creds",
 			},
@@ -69,11 +69,11 @@ func TestNewClient(t *testing.T) {
 	// create the auth secret now
 	authSecret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      provider.Spec.AuthSecret.Name,
+			Name:      provider.Spec.Secret.Name,
 			Namespace: namespace,
 		},
 		Data: map[string][]byte{
-			provider.Spec.AuthSecret.Key: []byte(authData),
+			provider.Spec.Secret.Key: []byte(authData),
 		},
 	}
 	clientset.CoreV1().Secrets(namespace).Create(authSecret)

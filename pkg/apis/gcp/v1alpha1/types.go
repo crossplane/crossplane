@@ -17,22 +17,28 @@ limitations under the License.
 package v1alpha1
 
 import (
-	conductorcorev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
+	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
 // ProviderSpec defines the desired state of Provider
 type ProviderSpec struct {
 	// Important: Run "make generate" to regenerate code after modifying this file
 
-	// AWS Region
-	Region string `json:"region"`
-
-	// AWS Credentials file
+	// GCP ServiceAccount json secret key reference
 	Secret corev1.SecretKeySelector `json:"credentialsSecretRef"`
+
+	// GCP ProjectID (name)
+	ProjectID string `json:"projectID"`
+
+	// RequiredPermissions  - list of granted GCP permissions this provider's service account is expected to have
+	RequiredPermissions []string `json:"requiredPermissions,omitempty"`
+}
+
+// ProviderStatus
+type ProviderStatus struct {
+	corev1alpha1.ConditionedStatus
 }
 
 // +genclient
@@ -40,13 +46,13 @@ type ProviderSpec struct {
 
 // Provider is the Schema for the instances API
 // +k8s:openapi-gen=true
-// +groupName=aws
+// +groupName=gcp
 type Provider struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   ProviderSpec                         `json:"spec,omitempty"`
-	Status conductorcorev1alpha1.ProviderStatus `json:"status,omitempty"`
+	Spec   ProviderSpec   `json:"spec,omitempty"`
+	Status ProviderStatus `json:"status,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -56,4 +62,9 @@ type ProviderList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []Provider `json:"items"`
+}
+
+// IsValid returns true if provider is valid (in ready state)
+func (p *Provider) IsValid() bool {
+	return p.Status.IsReady()
 }

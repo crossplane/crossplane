@@ -98,7 +98,7 @@ func testProvider(s *corev1.Secret) *azurev1alpha1.Provider {
 			Namespace: s.Namespace,
 		},
 		Spec: azurev1alpha1.ProviderSpec{
-			AuthSecret: corev1.SecretKeySelector{
+			Secret: corev1.SecretKeySelector{
 				LocalObjectReference: corev1.LocalObjectReference{Name: secretName},
 				Key:                  secretDataKey,
 			},

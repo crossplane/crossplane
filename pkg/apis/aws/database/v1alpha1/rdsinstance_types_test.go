@@ -104,7 +104,7 @@ func TestIsAvailable(t *testing.T) {
 func TestConditionType(t *testing.T) {
 	g := NewGomegaWithT(t)
 
-	g.Expect(ConditionType(RDSInstanceStateAvailable.String())).To(Equal(corev1alpha1.Running))
+	g.Expect(ConditionType(RDSInstanceStateAvailable.String())).To(Equal(corev1alpha1.Ready))
 	g.Expect(ConditionType(RDSInstanceStateCreating.String())).To(Equal(corev1alpha1.Creating))
 	g.Expect(ConditionType(RDSInstanceStateDeleting.String())).To(Equal(corev1alpha1.Deleting))
 	g.Expect(ConditionType(RDSInstanceStateFailed.String())).To(Equal(corev1alpha1.Failed))

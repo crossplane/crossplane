@@ -143,7 +143,7 @@ func IsOperationSuccessful(op *sqladmin.Operation) bool {
 func CloudSQLConditionType(state string) corev1alpha1.ConditionType {
 	switch state {
 	case "RUNNABLE":
-		return corev1alpha1.Running
+		return corev1alpha1.Ready
 	case "PENDING_CREATE":
 		return corev1alpha1.Creating
 	default:

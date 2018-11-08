@@ -32,7 +32,7 @@ func TestMySQLServerConditionType(t *testing.T) {
 		state    mysql.ServerState
 		expected corev1alpha1.ConditionType
 	}{
-		{mysql.ServerStateReady, corev1alpha1.Running},
+		{mysql.ServerStateReady, corev1alpha1.Ready},
 		{mysql.ServerStateDisabled, corev1alpha1.Failed},
 		{mysql.ServerStateDropping, corev1alpha1.Failed},
 	}

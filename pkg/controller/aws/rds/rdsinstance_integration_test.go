@@ -65,7 +65,7 @@ func TestReconcileWithCreds(t *testing.T) {
 	status := ri.Status
 	g.Expect(status.InstanceName).NotTo(BeEmpty())
 	g.Expect(status.Conditions).NotTo(BeEmpty())
-	condition := status.GetCondition(corev1alpha1.Creating)
+	condition := status.Condition(corev1alpha1.Creating)
 	g.Expect(condition).NotTo(BeNil())
 	g.Expect(condition.Status).To(Equal(corev1.ConditionTrue))
 

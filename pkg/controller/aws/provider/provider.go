@@ -18,15 +18,13 @@ package provider
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/go-ini/ini"
-	"github.com/upbound/conductor/pkg/apis/aws/v1alpha1"
+	awsv1alpha1 "github.com/upbound/conductor/pkg/apis/aws/v1alpha1"
 	awsclient "github.com/upbound/conductor/pkg/clients/aws"
-	corev1 "k8s.io/api/core/v1"
+	"github.com/upbound/conductor/pkg/util"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
@@ -39,13 +37,13 @@ import (
 )
 
 const (
-	recorderName = "aws.provider"
+	controllerName          = "aws.provider"
+	errorRetrievingSecret   = "Failed retrieving provider secret"
+	errorInvalidCredentials = "Invalid provider credentials"
 )
 
 var (
-	ctx                      = context.Background()
-	_   reconcile.Reconciler = &Reconciler{}
-
+	ctx           = context.Background()
 	result        = reconcile.Result{}
 	resultRequeue = reconcile.Result{Requeue: true}
 )
@@ -53,44 +51,57 @@ var (
 // Add creates a new Provider Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
-	return add(mgr, newReconciler(mgr, &ConfigurationValidator{}))
+	return add(mgr, newReconciler(mgr))
 }
 
 // Reconciler reconciles a Provider object
 type Reconciler struct {
 	client.Client
-	Validator
 	scheme     *runtime.Scheme
 	kubeclient kubernetes.Interface
 	recorder   record.EventRecorder
+
+	validate func(*aws.Config) error
 }
 
 // newReconciler returns a new reconcile.Reconciler
-func newReconciler(mgr manager.Manager, validator Validator) reconcile.Reconciler {
-	return &Reconciler{
+func newReconciler(mgr manager.Manager) reconcile.Reconciler {
+	r := &Reconciler{
 		Client:     mgr.GetClient(),
-		Validator:  validator,
 		scheme:     mgr.GetScheme(),
 		kubeclient: kubernetes.NewForConfigOrDie(mgr.GetConfig()),
-		recorder:   mgr.GetRecorder(recorderName),
+		recorder:   mgr.GetRecorder(controllerName),
 	}
+	r.validate = r._validate
+	return r
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
 func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	// Create a new controller
-	c, err := controller.New("instance-controller", mgr, controller.Options{Reconciler: r})
+	c, err := controller.New(controllerName, mgr, controller.Options{Reconciler: r})
 	if err != nil {
 		return err
 	}
 
 	// Watch for changes to Provider
-	err = c.Watch(&source.Kind{Type: &v1alpha1.Provider{}}, &handler.EnqueueRequestForObject{})
+	err = c.Watch(&source.Kind{Type: &awsv1alpha1.Provider{}}, &handler.EnqueueRequestForObject{})
 	if err != nil {
 		return err
 	}
 
 	return nil
+}
+
+// fail - helper function to set fail condition with reason and message
+func (r *Reconciler) fail(instance *awsv1alpha1.Provider, reason, msg string) (reconcile.Result, error) {
+	instance.Status.UnsetAllConditions()
+	instance.Status.SetFailed(reason, msg)
+	return resultRequeue, r.Update(context.TODO(), instance)
+}
+
+func (r *Reconciler) _validate(config *aws.Config) error {
+	return awsclient.ValidateConfig(config)
 }
 
 // Reconcile reads that state of the cluster for a Provider object and makes changes based on the state read
@@ -100,7 +111,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 // +kubebuilder:rbac:groups=aws.conductor.io,resources=provider,verbs=get;list;watch;create;update;patch;delete
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	// Fetch the Provider instance
-	instance := &v1alpha1.Provider{}
+	instance := &awsv1alpha1.Provider{}
 	err := r.Get(ctx, request.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -113,46 +124,25 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	}
 
 	// Fetch Provider Secret
-	secret, err := r.kubeclient.CoreV1().Secrets(instance.Namespace).Get(instance.Spec.Secret.Name, metav1.GetOptions{})
+	data, err := util.SecretData(r.kubeclient, instance.Namespace, instance.Spec.Secret)
 	if err != nil {
-		r.recorder.Event(instance, corev1.EventTypeWarning, "Error", err.Error())
-		return resultRequeue, err
-	}
-
-	// Retrieve credentials data
-	data, ok := secret.Data[instance.Spec.Secret.Key]
-	if !ok {
-		instance.Status.SetInvalid(fmt.Sprintf("invalid AWS Provider secret, data key [%s] is not found", instance.Spec.Secret.Key), "")
-		return result, r.Update(ctx, instance)
+		return r.fail(instance, errorRetrievingSecret, err.Error())
 	}
 
 	// Load aws configuration
 	config, err := awsclient.LoadConfig(data, ini.DEFAULT_SECTION, instance.Spec.Region)
 	if err != nil {
-		instance.Status.SetInvalid(err.Error(), "")
-		return result, r.Update(ctx, instance)
+		return r.fail(instance, errorInvalidCredentials, err.Error())
 	}
 
 	// Validate aws configuration
-	if err := r.Validate(config); err != nil {
-		instance.Status.SetInvalid(err.Error(), "")
-		return result, r.Update(ctx, instance)
+	if err := r.validate(config); err != nil {
+		return r.fail(instance, errorInvalidCredentials, err.Error())
 	}
 
-	instance.Status.SetValid("Valid")
+	// Update status condition
+	instance.Status.UnsetAllConditions()
+	instance.Status.SetReady()
 
 	return result, r.Update(ctx, instance)
-}
-
-// Validator - defines provider validation functions
-type Validator interface {
-	Validate(*aws.Config) error
-}
-
-// ConfigurationValidator - validates AWS Configuration
-type ConfigurationValidator struct{}
-
-// Validate AWS credentials secret
-func (pc *ConfigurationValidator) Validate(config *aws.Config) error {
-	return awsclient.ValidateConfig(config)
 }

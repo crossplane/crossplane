@@ -39,7 +39,7 @@ import (
 )
 
 const (
-	timeout        = 5 * time.Second
+	timeout        = 5 * time.Minute
 	namespace      = "default"
 	instanceName   = "test-db-instance"
 	secretName     = "test-secret"
@@ -173,7 +173,7 @@ func testSecret(data []byte) *corev1.Secret {
 }
 
 func testProvider(s *corev1.Secret) *awsv1alpha1.Provider {
-	return &awsv1alpha1.Provider{
+	p := &awsv1alpha1.Provider{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      providerName,
 			Namespace: s.Namespace,
@@ -186,6 +186,8 @@ func testProvider(s *corev1.Secret) *awsv1alpha1.Provider {
 			Region: providerRegion,
 		},
 	}
+	p.Status.SetReady()
+	return p
 }
 
 func testInstance(p *awsv1alpha1.Provider) *databasev1alpha1.RDSInstance {
