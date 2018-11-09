@@ -21,9 +21,10 @@ import (
 	"fmt"
 
 	awsdatabasev1alpha1 "github.com/upbound/conductor/pkg/apis/aws/database/v1alpha1"
+	azuredbv1alpha1 "github.com/upbound/conductor/pkg/apis/azure/database/v1alpha1"
 	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
+	gcpdbv1alpha1 "github.com/upbound/conductor/pkg/apis/gcp/database/v1alpha1"
 	mysqlv1alpha1 "github.com/upbound/conductor/pkg/apis/storage/v1alpha1"
-	"github.com/upbound/conductor/pkg/clients/aws/rds"
 	"github.com/upbound/conductor/pkg/util"
 	"k8s.io/api/core/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -42,7 +43,7 @@ import (
 )
 
 const (
-	controllerName = "rds-mysql-storage"
+	controllerName = "mysql-storage"
 	finalizer      = "finalizer.mysql.storage.conductor.io"
 
 	errorResourceClassNotDefined    = "Resource class is not provided"
@@ -52,6 +53,7 @@ const (
 	errorRetrievingResourceInstance = "Failed to retrieve resource instance"
 	errorRetrievingResourceSecret   = "Failed to retrieve resource secret"
 	errorApplyingInstanceSecret     = "Failed to apply instance secret"
+	errorSettingResourceBindStatus  = "Failed to set resource binding status"
 	waitResourceIsNotAvailable      = "Waiting for resource to become available"
 )
 
@@ -65,8 +67,17 @@ var (
 	// map of supported resource handlers
 	handlers = map[string]ResourceHandler{
 		awsdatabasev1alpha1.RDSInstanceKindAPIVersion: &RDSInstanceHandler{},
+		azuredbv1alpha1.MysqlServerKindAPIVersion:     &AzureMySQLServerHandler{},
+		gcpdbv1alpha1.CloudsqlInstanceKindAPIVersion:  &CloudSQLServerHandler{},
 	}
 )
+
+// ResourceHandler defines resource handing functions
+type ResourceHandler interface {
+	provision(*corev1alpha1.ResourceClass, *mysqlv1alpha1.MySQLInstance, client.Client) (corev1alpha1.Resource, error)
+	find(types.NamespacedName, client.Client) (corev1alpha1.Resource, error)
+	setBindStatus(types.NamespacedName, client.Client, bool) error
+}
 
 // Add creates a new Instance Controller and adds it to the Manager with default RBAC.
 // The Manager will set fields on the Controller and Start it when the Manager is Started.
@@ -188,7 +199,7 @@ func (r *Reconciler) _bind(instance *mysqlv1alpha1.MySQLInstance) (reconcile.Res
 		return r.fail(instance, errorRetrievingResourceInstance, "")
 	}
 
-	// check for rds instance state and requeue if not running
+	// check for resource instance state and requeue if not running
 	if !resource.IsAvailable() {
 		instance.Status.UnsetAllConditions()
 		instance.Status.SetCondition(*corev1alpha1.NewCondition(corev1alpha1.Pending, waitResourceIsNotAvailable, "Resource is not in running state"))
@@ -215,7 +226,9 @@ func (r *Reconciler) _bind(instance *mysqlv1alpha1.MySQLInstance) (reconcile.Res
 	}
 
 	// update resource binding status
-	handler.setBindStatus(resNName, r.Client, true)
+	if err := handler.setBindStatus(resNName, r.Client, true); err != nil {
+		return r.fail(instance, errorSettingResourceBindStatus, err.Error())
+	}
 
 	// set instance binding status
 	instance.Status.SetBound()
@@ -299,80 +312,4 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 
 	// bind to the resource
 	return r.bind(instance)
-}
-
-// ResourceHandler defines resource handing functions
-type ResourceHandler interface {
-	provision(*corev1alpha1.ResourceClass, *mysqlv1alpha1.MySQLInstance, client.Client) (corev1alpha1.Resource, error)
-	find(types.NamespacedName, client.Client) (corev1alpha1.Resource, error)
-	setBindStatus(types.NamespacedName, client.Client, bool) error
-}
-
-// RDSInstanceHandler handles RDS Instance functionality
-type RDSInstanceHandler struct{}
-
-// find RDSInstance
-func (r *RDSInstanceHandler) find(name types.NamespacedName, c client.Client) (corev1alpha1.Resource, error) {
-	rdsInstance := &awsdatabasev1alpha1.RDSInstance{}
-	err := c.Get(ctx, name, rdsInstance)
-	return rdsInstance, err
-}
-
-// provision create new RDSInstance
-func (r *RDSInstanceHandler) provision(class *corev1alpha1.ResourceClass, instance *mysqlv1alpha1.MySQLInstance, c client.Client) (corev1alpha1.Resource, error) {
-	// construct RDSInstance Spec from class definition
-	rdsInstanceSpec := awsdatabasev1alpha1.NewRDSInstanceSpec(class.Parameters)
-
-	// TODO: it is not clear if all concrete resource use the same constant value for database engine
-	// if they do - we will need to refactor this value into constant.
-	rdsInstanceSpec.Engine = "mysql"
-
-	// translate mysql spec fields to RDSInstance
-	rdsInstanceSpec.EngineVersion = instance.Spec.EngineVersion
-
-	// assign provider reference and reclaim policy from the resource class
-	rdsInstanceSpec.ProviderRef = class.ProviderRef
-	rdsInstanceSpec.ReclaimPolicy = class.ReclaimPolicy
-
-	// set class and claim references
-	rdsInstanceSpec.ClassRef = class.ObjectReference()
-	rdsInstanceSpec.ClaimRef = instance.ObjectReference()
-
-	// create and save RDSInstance
-	rdsInstance := &awsdatabasev1alpha1.RDSInstance{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: awsdatabasev1alpha1.APIVersion,
-			Kind:       awsdatabasev1alpha1.RDSInstanceKind,
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace:       class.Namespace,
-			Name:            util.GenerateName(instance.Name),
-			OwnerReferences: []metav1.OwnerReference{instance.OwnerReference()},
-		},
-		Spec: *rdsInstanceSpec,
-	}
-
-	err := c.Create(ctx, rdsInstance)
-	return rdsInstance, err
-}
-
-// bind updates resource state binding phase
-// - state = true: bound
-// - state = false: unbound
-func (r RDSInstanceHandler) setBindStatus(name types.NamespacedName, c client.Client, state bool) error {
-	rdsInstance := &awsdatabasev1alpha1.RDSInstance{}
-	err := c.Get(ctx, name, rdsInstance)
-	if err != nil {
-		// TODO:
-		if rds.IsErrNotFound(err) && !state {
-			return nil
-		}
-		return err
-	}
-	if state {
-		rdsInstance.Status.Phase = corev1alpha1.BindingStateBound
-	} else {
-		rdsInstance.Status.Phase = corev1alpha1.BindingStateBound
-	}
-	return c.Update(ctx, rdsInstance)
 }

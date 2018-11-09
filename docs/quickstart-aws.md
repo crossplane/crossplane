@@ -36,13 +36,13 @@ kubectl create namespace demo
 Deploy the AWS provider secret to your cluster:
 
 ```console
-sed "s/BASE64ENCODED_AWS_PROVIDER_CREDS/`cat ~/.aws/credentials|base64|tr -d '\n'`/g" cluster/examples/wordpress/aws/provider.yaml | kubectl -n demo create -f -
+sed "s/BASE64ENCODED_AWS_PROVIDER_CREDS/`cat ~/.aws/credentials|base64|tr -d '\n'`/g" cluster/examples/wordpress/aws/class/provider.yaml | kubectl create -f -
 ```
 
 Now deploy all the Wordpress resources, including the RDS database, with the following single command:
 
 ```console
-kubectl -n demo create -f cluster/examples/wordpress/aws/wordpress.yaml
+kubectl -n demo create -f cluster/examples/wordpress/aws/class/wordpress.yaml
 ```
 
 Now you can proceed back to the main quickstart to [wait for the resources to become ready](./quickstart.md#waiting-for-completion).

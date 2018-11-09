@@ -26,7 +26,7 @@ import (
 	"github.com/onsi/gomega"
 	coredbv1alpha1 "github.com/upbound/conductor/pkg/apis/core/database/v1alpha1"
 	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
-	databasev1alpha1 "github.com/upbound/conductor/pkg/apis/gcp/database/v1alpha1"
+	dbv1alpha1 "github.com/upbound/conductor/pkg/apis/gcp/database/v1alpha1"
 	"github.com/upbound/conductor/pkg/test"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/sqladmin/v1beta4"
@@ -62,10 +62,10 @@ func TestReconcile(t *testing.T) {
 		} else if getInstanceCallCount >= 2 && getInstanceCallCount <= getInstanceCallCountBeforeRunning {
 			// for a few GET calls, return PENDING_CREATE, simulating that the instance is in the process of
 			// being created.  This will exercise the requeueing of the reconciliation loop.
-			return createMockDatabaseInstance(project, instance, "PENDING_CREATE"), nil
+			return createMockDatabaseInstance(project, instance, dbv1alpha1.StatePendingCreate), nil
 		}
 		// Finally we simulate that the create operation has completed and the instance is RUNNABLE
-		return createMockDatabaseInstance(project, instance, "RUNNABLE"), nil
+		return createMockDatabaseInstance(project, instance, dbv1alpha1.StateRunnable), nil
 	}
 	cloudSQLClient.MockCreateInstance = createInstanceDefault
 	cloudSQLClient.MockDeleteInstance = deleteInstanceDefault
@@ -105,9 +105,9 @@ func TestReconcile(t *testing.T) {
 	// verify that the CRD status was updated with details about the external CloudSQL instance and that the
 	// CRD conditions show the transition from creating to running
 	expectedInstanceName := fmt.Sprintf("test-db-instance-%s", instance.UID)
-	expectedStatus := databasev1alpha1.CloudsqlInstanceStatus{
+	expectedStatus := dbv1alpha1.CloudsqlInstanceStatus{
 		Message:      "Cloud SQL instance test-db-instance is running",
-		State:        "RUNNABLE",
+		State:        dbv1alpha1.StateRunnable,
 		ProviderID:   fmt.Sprintf("https://www.googleapis.com/sql/v1beta4/projects/%s/instances/test-db-instance-%s", providerProject, instance.UID),
 		Endpoint:     fmt.Sprintf("%s:us-west2:%s", providerProject, expectedInstanceName),
 		InstanceName: expectedInstanceName,
@@ -149,8 +149,8 @@ func TestReconcile(t *testing.T) {
 	cleanupCloudsqlInstance(g, c, requests, instance)
 }
 
-func cleanupCloudsqlInstance(g *gomega.GomegaWithT, c client.Client, requests chan reconcile.Request, instance *databasev1alpha1.CloudsqlInstance) {
-	deletedInstance := &databasev1alpha1.CloudsqlInstance{}
+func cleanupCloudsqlInstance(g *gomega.GomegaWithT, c client.Client, requests chan reconcile.Request, instance *dbv1alpha1.CloudsqlInstance) {
+	deletedInstance := &dbv1alpha1.CloudsqlInstance{}
 	if err := c.Get(ctx, expectedRequest.NamespacedName, deletedInstance); errors.IsNotFound(err) {
 		// instance has already been deleted, bail out
 		return
@@ -162,7 +162,7 @@ func cleanupCloudsqlInstance(g *gomega.GomegaWithT, c client.Client, requests ch
 
 	// wait for the deletion timestamp to be set
 	err = wait.ExponentialBackoff(test.DefaultRetry, func() (done bool, err error) {
-		deletedInstance := &databasev1alpha1.CloudsqlInstance{}
+		deletedInstance := &dbv1alpha1.CloudsqlInstance{}
 		c.Get(ctx, expectedRequest.NamespacedName, deletedInstance)
 		if deletedInstance.DeletionTimestamp != nil {
 			return true, nil
@@ -176,7 +176,7 @@ func cleanupCloudsqlInstance(g *gomega.GomegaWithT, c client.Client, requests ch
 
 	// wait for the finalizer to run and the instance to be deleted for good
 	err = wait.ExponentialBackoff(test.DefaultRetry, func() (done bool, err error) {
-		deletedInstance := &databasev1alpha1.CloudsqlInstance{}
+		deletedInstance := &dbv1alpha1.CloudsqlInstance{}
 		if err := c.Get(ctx, expectedRequest.NamespacedName, deletedInstance); errors.IsNotFound(err) {
 			return true, nil
 		}
@@ -185,8 +185,8 @@ func cleanupCloudsqlInstance(g *gomega.GomegaWithT, c client.Client, requests ch
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 }
 
-func assertCloudsqlInstanceStatus(g *gomega.GomegaWithT, c client.Client, expectedStatus databasev1alpha1.CloudsqlInstanceStatus) {
-	instance := &databasev1alpha1.CloudsqlInstance{}
+func assertCloudsqlInstanceStatus(g *gomega.GomegaWithT, c client.Client, expectedStatus dbv1alpha1.CloudsqlInstanceStatus) {
+	instance := &dbv1alpha1.CloudsqlInstance{}
 	err := c.Get(ctx, expectedRequest.NamespacedName, instance)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
@@ -202,7 +202,7 @@ func assertCloudsqlInstanceStatus(g *gomega.GomegaWithT, c client.Client, expect
 }
 
 func assertConnectionSecret(g *gomega.GomegaWithT, c client.Client, connectionSecret *v1.Secret) {
-	instance := &databasev1alpha1.CloudsqlInstance{}
+	instance := &dbv1alpha1.CloudsqlInstance{}
 	err := c.Get(ctx, expectedRequest.NamespacedName, instance)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 

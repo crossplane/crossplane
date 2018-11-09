@@ -369,12 +369,13 @@ func (r *Reconciler) updateStatus(instance *databasev1alpha1.MysqlServer, messag
 	}
 
 	instance.Status = databasev1alpha1.MysqlServerStatus{
-		ConditionedStatus: instance.Status.ConditionedStatus,
-		Message:           message,
-		State:             string(server.UserVisibleState),
-		ProviderID:        providerID,
-		Endpoint:          endpoint,
-		RunningOperation:  instance.Status.RunningOperation,
+		ConditionedStatus:  instance.Status.ConditionedStatus,
+		BindingStatusPhase: instance.Status.BindingStatusPhase,
+		Message:            message,
+		State:              string(server.UserVisibleState),
+		ProviderID:         providerID,
+		Endpoint:           endpoint,
+		RunningOperation:   instance.Status.RunningOperation,
 	}
 
 	if err := r.Update(ctx, instance); err != nil {
@@ -385,21 +386,8 @@ func (r *Reconciler) updateStatus(instance *databasev1alpha1.MysqlServer, messag
 }
 
 func (r *Reconciler) createOrUpdateConnectionSecret(instance *databasev1alpha1.MysqlServer, password string) error {
-	ctx := context.Background()
-
-	if instance.Spec.ConnectionSecretRef.Name == "" {
-		// the user hasn't specified the name of the secret they want the connection information
-		// stored in, generate one now
-		secretName := fmt.Sprintf(coredbv1alpha1.ConnectionSecretRefFmt, instance.Name)
-		log.Printf("connection secret ref for MySQL Server instance %s is empty, setting it to %s", instance.Name, secretName)
-		instance.Spec.ConnectionSecretRef.Name = secretName
-		if err := r.Update(ctx, instance); err != nil {
-			return fmt.Errorf("failed to set connection secret ref: %+v", err)
-		}
-	}
-
 	// first check if secret already exists
-	secretName := instance.Spec.ConnectionSecretRef.Name
+	secretName := instance.ConnectionSecretName()
 	secretExists := false
 	connectionSecret, err := r.clientset.CoreV1().Secrets(instance.Namespace).Get(secretName, metav1.GetOptions{})
 	if err != nil {
@@ -411,7 +399,7 @@ func (r *Reconciler) createOrUpdateConnectionSecret(instance *databasev1alpha1.M
 			ObjectMeta: metav1.ObjectMeta{
 				Name:            secretName,
 				Namespace:       instance.Namespace,
-				OwnerReferences: []metav1.OwnerReference{createOwnerRef(instance)},
+				OwnerReferences: []metav1.OwnerReference{instance.OwnerReference()},
 			},
 		}
 	} else {
@@ -478,13 +466,4 @@ func isSecretDataKeySet(key string, data map[string][]byte) bool {
 	// the key has been set if it exists and its value is not an empty string
 	val, ok := data[key]
 	return ok && string(val) != ""
-}
-
-func createOwnerRef(instance *databasev1alpha1.MysqlServer) metav1.OwnerReference {
-	return metav1.OwnerReference{
-		APIVersion: databasev1alpha1.SchemeGroupVersion.String(),
-		Kind:       databasev1alpha1.MysqlServerKind,
-		Name:       instance.Name,
-		UID:        instance.UID,
-	}
 }

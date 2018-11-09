@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"time"
 
+	dbv1alpha1 "github.com/upbound/conductor/pkg/apis/gcp/database/v1alpha1"
 	gcpclients "github.com/upbound/conductor/pkg/clients/gcp"
 	sqladmin "google.golang.org/api/sqladmin/v1beta4"
 	"k8s.io/api/core/v1"
@@ -84,7 +85,7 @@ func (m *mockCloudSQLClient) GetOperation(project string, operationID string) (*
 }
 
 func getInstanceDefault(project string, instance string) (*sqladmin.DatabaseInstance, error) {
-	return createMockDatabaseInstance(project, instance, "RUNNABLE"), nil
+	return createMockDatabaseInstance(project, instance, dbv1alpha1.StateRunnable), nil
 }
 
 func createInstanceDefault(project string, databaseinstance *sqladmin.DatabaseInstance) (*sqladmin.Operation, error) {

@@ -30,10 +30,11 @@ import (
 )
 
 const (
-	Group           = "database.azure.conductor.io"
-	Version         = "v1alpha1"
-	APIVersion      = Group + "/" + Version
-	MysqlServerKind = "mysqlserver"
+	Group                     = "database.azure.conductor.io"
+	Version                   = "v1alpha1"
+	APIVersion                = Group + "/" + Version
+	MysqlServerKind           = "mysqlserver"
+	MysqlServerKindAPIVersion = MysqlServerKind + "." + APIVersion
 )
 
 var (

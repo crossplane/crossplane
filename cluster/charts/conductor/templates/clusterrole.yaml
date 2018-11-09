@@ -19,6 +19,15 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - events
+  verbs:
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ""
+  resources:
   - secrets
   verbs:
   - get
@@ -39,6 +48,8 @@ rules:
   - patch
   - delete
 - apiGroups:
+  - storage.conductor.io
+  - core.conductor.io
   - aws.conductor.io
   - database.aws.conductor.io
   - azure.conductor.io

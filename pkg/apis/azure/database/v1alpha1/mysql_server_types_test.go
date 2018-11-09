@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/onsi/gomega"
+	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -47,4 +48,93 @@ func TestStorageMysqlServer(t *testing.T) {
 	// Test Delete
 	g.Expect(c.Delete(ctx, fetched)).NotTo(gomega.HaveOccurred())
 	g.Expect(c.Get(ctx, key, fetched)).To(gomega.HaveOccurred())
+}
+
+func TestNewMySQLServerSpec(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	m := make(map[string]string)
+	exp := &MysqlServerSpec{ReclaimPolicy: corev1alpha1.ReclaimRetain}
+
+	g.Expect(NewMySQLServerSpec(m)).To(gomega.Equal(exp))
+
+	val := "admin"
+	m["adminLoginName"] = val
+	exp.AdminLoginName = val
+	g.Expect(NewMySQLServerSpec(m)).To(gomega.Equal(exp))
+
+	val = "rg1"
+	m["resourceGroupName"] = val
+	exp.ResourceGroupName = val
+	g.Expect(NewMySQLServerSpec(m)).To(gomega.Equal(exp))
+
+	val = "loc1"
+	m["location"] = val
+	exp.Location = val
+	g.Expect(NewMySQLServerSpec(m)).To(gomega.Equal(exp))
+
+	val = "5.6"
+	m["version"] = val
+	exp.Version = val
+	g.Expect(NewMySQLServerSpec(m)).To(gomega.Equal(exp))
+
+	val = "true"
+	m["sslEnforced"] = val
+	exp.SSLEnforced = true
+	g.Expect(NewMySQLServerSpec(m)).To(gomega.Equal(exp))
+	// invalid sslEnforced value
+	val = "not a bool"
+	m["sslEnforced"] = val
+	exp.SSLEnforced = false // value is not set
+	g.Expect(NewMySQLServerSpec(m)).To(gomega.Equal(exp))
+
+	val = "Basic"
+	m["tier"] = val
+	exp.PricingTier.Tier = val
+	g.Expect(NewMySQLServerSpec(m)).To(gomega.Equal(exp))
+
+	val = "4"
+	m["vcores"] = val
+	exp.PricingTier.VCores = 4
+	g.Expect(NewMySQLServerSpec(m)).To(gomega.Equal(exp))
+	// invalid vcores value
+	val = "not a number"
+	m["vcores"] = val
+	exp.PricingTier.VCores = 0 // value is not set
+	g.Expect(NewMySQLServerSpec(m)).To(gomega.Equal(exp))
+
+	val = "Gen4"
+	m["family"] = val
+	exp.PricingTier.Family = val
+	g.Expect(NewMySQLServerSpec(m)).To(gomega.Equal(exp))
+
+	val = "100"
+	m["storageGB"] = val
+	exp.StorageProfile.StorageGB = 100
+	g.Expect(NewMySQLServerSpec(m)).To(gomega.Equal(exp))
+	// invalid storageGB value
+	val = "not a number"
+	m["storageGB"] = val
+	exp.StorageProfile.StorageGB = 0 // value is not set
+	g.Expect(NewMySQLServerSpec(m)).To(gomega.Equal(exp))
+
+	val = "14"
+	m["backupRetentionDays"] = val
+	exp.StorageProfile.BackupRetentionDays = 14
+	g.Expect(NewMySQLServerSpec(m)).To(gomega.Equal(exp))
+	// invalid backupRetentionDays value
+	val = "not a number"
+	m["backupRetentionDays"] = val
+	exp.StorageProfile.BackupRetentionDays = 0 // value is not set
+	g.Expect(NewMySQLServerSpec(m)).To(gomega.Equal(exp))
+
+	val = "true"
+	m["geoRedundantBackup"] = val
+	exp.StorageProfile.GeoRedundantBackup = true
+	g.Expect(NewMySQLServerSpec(m)).To(gomega.Equal(exp))
+	// invalid geoRedundantBackup value
+	val = "not a bool"
+	m["geoRedundantBackup"] = val
+	exp.StorageProfile.GeoRedundantBackup = false // value is not set
+	g.Expect(NewMySQLServerSpec(m)).To(gomega.Equal(exp))
 }
