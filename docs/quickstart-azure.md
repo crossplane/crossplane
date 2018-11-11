@@ -33,13 +33,13 @@ kubectl create namespace demo
 Deploy the Azure provider object to your cluster:
 
 ```console
-sed "s/BASE64ENCODED_AZURE_PROVIDER_CREDS/`cat conductor-azure-provider-key.json|base64|tr -d '\n'`/g" cluster/examples/wordpress/azure/provider.yaml | kubectl -n demo create -f -
+sed "s/BASE64ENCODED_AZURE_PROVIDER_CREDS/`cat conductor-azure-provider-key.json|base64|tr -d '\n'`/g" cluster/examples/wordpress/azure/class/provider.yaml | kubectl create -f -
 ```
 
 Now deploy all the Wordpress resources, including the SQL database, with the following single command:
 
 ```console
-kubectl -n demo create -f cluster/examples/wordpress/azure/wordpress.yaml
+kubectl -n demo create -f cluster/examples/wordpress/azure/class/wordpress.yaml
 ```
 
 Now you can proceed back to the main quickstart to [wait for the resources to become ready](./quickstart.md#waiting-for-completion).

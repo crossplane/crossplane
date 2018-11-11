@@ -17,7 +17,14 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"github.com/upbound/conductor/pkg/apis/core/v1alpha1"
+	"fmt"
+	"log"
+	"strconv"
+
+	"github.com/Azure/azure-sdk-for-go/services/mysql/mgmt/2017-12-01/mysql"
+	coredbv1alpha1 "github.com/upbound/conductor/pkg/apis/core/database/v1alpha1"
+	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
+	"github.com/upbound/conductor/pkg/util"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -40,20 +47,28 @@ type MysqlServer struct {
 
 // MysqlServerSpec defines the desired state of MysqlServer
 type MysqlServerSpec struct {
+	ResourceGroupName string             `json:"resourceGroupName"`
+	Location          string             `json:"location"`
+	PricingTier       PricingTierSpec    `json:"pricingTier"`
+	StorageProfile    StorageProfileSpec `json:"storageProfile"`
+	AdminLoginName    string             `json:"adminLoginName"`
+	Version           string             `json:"version"`
+	SSLEnforced       bool               `json:"sslEnforced,omitempty"`
+
+	// Kubernetes object references
+	ClaimRef            *v1.ObjectReference     `json:"claimRef,omitempty"`
+	ClassRef            *v1.ObjectReference     `json:"classRef,omitempty"`
 	ProviderRef         v1.LocalObjectReference `json:"providerRef"`
 	ConnectionSecretRef v1.LocalObjectReference `json:"connectionSecretRef,omitempty"`
-	ResourceGroupName   string                  `json:"resourceGroupName"`
-	Location            string                  `json:"location"`
-	PricingTier         PricingTierSpec         `json:"pricingTier"`
-	StorageProfile      StorageProfileSpec      `json:"storageProfile"`
-	AdminLoginName      string                  `json:"adminLoginName"`
-	Version             string                  `json:"version"`
-	SSLEnforced         bool                    `json:"sslEnforced,omitempty"`
+
+	// ReclaimPolicy identifies how to handle the cloud resource after the deletion of this type
+	ReclaimPolicy corev1alpha1.ReclaimPolicy `json:"reclaimPolicy,omitempty"`
 }
 
 // MysqlServerStatus defines the observed state of MysqlServer
 type MysqlServerStatus struct {
-	v1alpha1.ConditionedStatus
+	corev1alpha1.ConditionedStatus
+	corev1alpha1.BindingStatusPhase
 	State   string `json:"state,omitempty"`
 	Message string `json:"message,omitempty"`
 
@@ -91,4 +106,143 @@ type MysqlServerList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []MysqlServer `json:"items"`
+}
+
+// NewMySQLServerSpec creates a new MySQLServerSpec based on the given properties map
+func NewMySQLServerSpec(properties map[string]string) *MysqlServerSpec {
+	spec := &MysqlServerSpec{
+		ReclaimPolicy: corev1alpha1.ReclaimRetain,
+	}
+
+	val, ok := properties["adminLoginName"]
+	if ok {
+		spec.AdminLoginName = val
+	}
+
+	val, ok = properties["resourceGroupName"]
+	if ok {
+		spec.ResourceGroupName = val
+	}
+
+	val, ok = properties["location"]
+	if ok {
+		spec.Location = val
+	}
+
+	val, ok = properties["version"]
+	if ok {
+		spec.Version = val
+	}
+
+	val, ok = properties["sslEnforced"]
+	if ok {
+		if sslEnforced, err := strconv.ParseBool(val); err == nil {
+			spec.SSLEnforced = sslEnforced
+		}
+	}
+
+	val, ok = properties["tier"]
+	if ok {
+		spec.PricingTier.Tier = val
+	}
+
+	val, ok = properties["vcores"]
+	if ok {
+		if vcores, err := strconv.Atoi(val); err == nil {
+			spec.PricingTier.VCores = vcores
+		}
+	}
+
+	val, ok = properties["family"]
+	if ok {
+		spec.PricingTier.Family = val
+	}
+
+	val, ok = properties["storageGB"]
+	if ok {
+		if storageGB, err := strconv.Atoi(val); err == nil {
+			spec.StorageProfile.StorageGB = storageGB
+		}
+	}
+
+	val, ok = properties["backupRetentionDays"]
+	if ok {
+		if backupRetentionDays, err := strconv.Atoi(val); err == nil {
+			spec.StorageProfile.BackupRetentionDays = backupRetentionDays
+		}
+	}
+
+	val, ok = properties["geoRedundantBackup"]
+	if ok {
+		if geoRedundantBackup, err := strconv.ParseBool(val); err == nil {
+			spec.StorageProfile.GeoRedundantBackup = geoRedundantBackup
+		}
+	}
+
+	return spec
+}
+
+// ConnectionSecretName returns a secret name from the reference
+func (m *MysqlServer) ConnectionSecretName() string {
+	if m.Spec.ConnectionSecretRef.Name == "" {
+		// the user hasn't specified the name of the secret they want the connection information
+		// stored in, generate one now
+		secretName := fmt.Sprintf(coredbv1alpha1.ConnectionSecretRefFmt, m.Name)
+		log.Printf("connection secret ref for MySQL Server instance %s is empty, setting it to %s", m.Name, secretName)
+		m.Spec.ConnectionSecretRef.Name = secretName
+	}
+
+	return m.Spec.ConnectionSecretRef.Name
+}
+
+// Endpoint returns the MySQL Server endpoint for connection
+func (m *MysqlServer) Endpoint() string {
+	return m.Status.Endpoint
+}
+
+// ObjectReference to this MySQL Server instance
+func (m *MysqlServer) ObjectReference() *v1.ObjectReference {
+	if m.Kind == "" {
+		m.Kind = MysqlServerKind
+	}
+	if m.APIVersion == "" {
+		m.APIVersion = APIVersion
+	}
+	return &v1.ObjectReference{
+		APIVersion:      m.APIVersion,
+		Kind:            m.Kind,
+		Name:            m.Name,
+		Namespace:       m.Namespace,
+		ResourceVersion: m.ResourceVersion,
+		UID:             m.UID,
+	}
+}
+
+// OwnerReference to use this instance as an owner
+func (m *MysqlServer) OwnerReference() metav1.OwnerReference {
+	return *util.ObjectToOwnerReference(m.ObjectReference())
+}
+
+// IsAvailable for usage/binding
+func (m *MysqlServer) IsAvailable() bool {
+	return m.Status.State == string(mysql.ServerStateReady)
+}
+
+// IsBound determines if the resource is in a bound binding state
+func (m *MysqlServer) IsBound() bool {
+	return m.Status.Phase == corev1alpha1.BindingStateBound
+}
+
+// SetBound sets the binding state of this resource
+func (m *MysqlServer) SetBound(state bool) {
+	if state {
+		m.Status.Phase = corev1alpha1.BindingStateBound
+	} else {
+		m.Status.Phase = corev1alpha1.BindingStateUnbound
+	}
+}
+
+// ValidVersionValues returns the valid set of engine version values.
+func ValidVersionValues() []string {
+	return []string{"5.6", "5.7"}
 }

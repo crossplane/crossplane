@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/onsi/gomega"
+	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -47,4 +48,33 @@ func TestStorageCloudsqlInstance(t *testing.T) {
 	// Test Delete
 	g.Expect(c.Delete(ctx, fetched)).NotTo(gomega.HaveOccurred())
 	g.Expect(c.Get(ctx, key, fetched)).To(gomega.HaveOccurred())
+}
+
+func TestNewCloudSQLInstanceSpec(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	m := make(map[string]string)
+	exp := &CloudsqlInstanceSpec{ReclaimPolicy: corev1alpha1.ReclaimRetain}
+
+	g.Expect(NewCloudSQLInstanceSpec(m)).To(gomega.Equal(exp))
+
+	val := "db-n1-standard-1"
+	m["tier"] = val
+	exp.Tier = val
+	g.Expect(NewCloudSQLInstanceSpec(m)).To(gomega.Equal(exp))
+
+	val = "us-west2"
+	m["region"] = val
+	exp.Region = val
+	g.Expect(NewCloudSQLInstanceSpec(m)).To(gomega.Equal(exp))
+
+	val = "MYSQL_5_7"
+	m["databaseVersion"] = val
+	exp.DatabaseVersion = val
+	g.Expect(NewCloudSQLInstanceSpec(m)).To(gomega.Equal(exp))
+
+	val = "PD_SSD"
+	m["storageType"] = val
+	exp.StorageType = val
+	g.Expect(NewCloudSQLInstanceSpec(m)).To(gomega.Equal(exp))
 }

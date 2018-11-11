@@ -1,3 +1,15 @@
+---
+# GCP SQL user service account - used by application cloudsql-proxy side car
+# - list cloudsql intances
+# - connect to a cloudsql instance
+apiVersion: v1
+kind: Secret
+metadata:
+  name: gcp-sql-creds
+type: Opaque
+data:
+  credentials.json: BASE64ENCODED_GCP_SQL_CREDS
+---
 apiVersion: storage.conductor.io/v1alpha1
 kind: MySQLInstance
 metadata:
@@ -24,14 +36,27 @@ spec:
         tier: frontend
     spec:
       containers:
-      - name: wordpress
-        image: wordpress:4.6.1-apache
+      - name: cloudsql-proxy
+        image: gcr.io/cloudsql-docker/gce-proxy:1.11
+        command: ["/cloud_sql_proxy", "-dir=/cloudsql", "-instances=$(INSTANCES)=tcp:3306"]
+        volumeMounts:
+        - name: cloudsql-instance-credentials
+          mountPath: /secrets/cloudsql
+          readOnly: true
         env:
-        - name: WORDPRESS_DB_HOST
+        - name: INSTANCES
           valueFrom:
             secretKeyRef:
               name: mysql-instance
               key: endpoint
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /secrets/cloudsql/credentials.json
+      - name: wordpress
+        image: wordpress:4.6.1-apache
+        env:
+        # managed posgresql environment variables
+        - name: WORDPRESS_DB_HOST
+          value: 127.0.0.1  # cloudsql-proxy sidecar
         - name: WORDPRESS_DB_USER
           valueFrom:
             secretKeyRef:
@@ -45,6 +70,10 @@ spec:
         ports:
         - containerPort: 80
           name: wordpress
+      volumes:
+      - name: cloudsql-instance-credentials
+        secret:
+          secretName: gcp-sql-creds
 ---
 apiVersion: v1
 kind: Service

@@ -24,6 +24,10 @@ spec:
           properties:
             adminLoginName:
               type: string
+            claimRef:
+              type: object
+            classRef:
+              type: object
             connectionSecretRef:
               type: object
             location:
@@ -44,6 +48,8 @@ spec:
               type: object
             providerRef:
               type: object
+            reclaimPolicy:
+              type: string
             resourceGroupName:
               type: string
             sslEnforced:
@@ -64,13 +70,13 @@ spec:
             version:
               type: string
           required:
-          - providerRef
           - resourceGroupName
           - location
           - pricingTier
           - storageProfile
           - adminLoginName
           - version
+          - providerRef
           type: object
         status:
           properties:

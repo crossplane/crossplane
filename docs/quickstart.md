@@ -37,11 +37,12 @@ kubectl -n conductor-system logs -f $(kubectl -n conductor-system get pod -l app
 
 You can also watch the resources over time with the following watch command:
 ```console
-watch -t -n1 'echo CONDUCTOR-SYSTEM PODS && kubectl get pods -n conductor-system -o wide && echo && \
+watch -t -n1 "echo CONDUCTOR-SYSTEM PODS && kubectl get pods -n conductor-system -o wide && echo && \
     echo PODS && kubectl get pods -n demo -o wide && echo && \
-    echo SERVICES && kubectl -n demo get svc -o wide \
-    && echo && echo DATABASES && kubectl -n demo get ${DATABASE_TYPE} \
-    && echo && echo NODES && kubectl get nodes -o wide'
+    echo SERVICES && kubectl -n demo get svc -o wide && echo && \
+    echo MYSQL CLAIMS && kubectl -n demo get mysqlinstance mysql-instance -o jsonpath='{.metadata.name}{\"\t\"}{.status.bindingPhase}{\"\t\"}{range .status.Conditions[*]}{.Type}{\"=\"}{.Status}{\"\t\"}{end}' && echo && echo &&\
+    echo MYSQL INSTANCES && kubectl -n conductor-system get ${DATABASE_TYPE} -o jsonpath='{range .items[*]}{.metadata.name}{\"\t\"}{.status.bindingPhase}{\"\t\"}{.status.state}{\"\t\"}{range .status.Conditions[*]}{.Type}{\"=\"}{.Status}{\"\t\"}{end}{end}' && echo && \
+    echo && echo NODES && kubectl get nodes -o wide"
 ```
 
 Once the Wordpress pod is in the `Running` status and the Wordpress service has a valid `EXTERNAL-IP`, we can move to the next section to connect to it.

@@ -28,12 +28,18 @@ import (
 
 // RDSInstanceSpec defines the desired state of RDSInstance
 type RDSInstanceSpec struct {
-	MasterUsername string   `json:"masterUsername"`
-	Engine         string   `json:"engine"`
-	EngineVersion  string   `json:"engineVersion,omitempty"`
-	Class          string   `json:"class"`                    // like "db.t2.micro"
-	Size           int64    `json:"size"`                     // size in gb
-	SecurityGroups []string `json:"securityGroups,omitempty"` // VPC Security groups
+	MasterUsername string `json:"masterUsername"`
+	Engine         string `json:"engine"`
+	EngineVersion  string `json:"engineVersion,omitempty"`
+	Class          string `json:"class"` // like "db.t2.micro"
+	Size           int64  `json:"size"`  // size in gb
+
+	// VPC Security groups that will allow the RDS instance to be accessed over the network.
+	// You can consider the following groups:
+	// 1) A default group that allows all communication amongst instances in that group
+	// 2) A RDS specific group that allows port 3306 from allowed sources (clients and instances
+	//	  that are expected to connect to the database.
+	SecurityGroups []string `json:"securityGroups,omitempty"`
 
 	// Kubernetes object references
 	ClaimRef            *corev1.ObjectReference      `json:"claimRef,omitempty"`
@@ -220,5 +226,22 @@ func (r *RDSInstance) SetBound(state bool) {
 		r.Status.Phase = corev1alpha1.BindingStateBound
 	} else {
 		r.Status.Phase = corev1alpha1.BindingStateUnbound
+	}
+}
+
+// ValidVersionValues returns the valid set of engine version values.
+func ValidVersionValues() map[string]string {
+	return map[string]string{
+		"5.7":    "5.7.21", // default value for 5.7
+		"5.7.21": "5.7.21",
+		"5.7.19": "5.7.19",
+		"5.7.16": "5.7.16",
+		"5.6":    "5.6.39", // default value for 5.6
+		"5.6.39": "5.6.39",
+		"5.6.37": "5.6.37",
+		"5.6.35": "5.6.35",
+		"5.6.34": "5.6.34",
+		"5.6.29": "5.6.29",
+		"5.6.27": "5.6.27",
 	}
 }

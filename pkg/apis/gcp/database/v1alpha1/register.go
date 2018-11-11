@@ -30,10 +30,11 @@ import (
 )
 
 const (
-	Group                = "database.gcp.conductor.io"
-	Version              = "v1alpha1"
-	APIVersion           = Group + "/" + Version
-	CloudsqlInstanceKind = "cloudsqlinstance"
+	Group                          = "database.gcp.conductor.io"
+	Version                        = "v1alpha1"
+	APIVersion                     = Group + "/" + Version
+	CloudsqlInstanceKind           = "cloudsqlinstance"
+	CloudsqlInstanceKindAPIVersion = CloudsqlInstanceKind + "." + APIVersion
 )
 
 var (

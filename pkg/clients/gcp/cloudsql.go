@@ -22,6 +22,7 @@ import (
 	"time"
 
 	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
+	dbv1alpha1 "github.com/upbound/conductor/pkg/apis/gcp/database/v1alpha1"
 	gcpv1alpha1 "github.com/upbound/conductor/pkg/apis/gcp/v1alpha1"
 	"google.golang.org/api/sqladmin/v1beta4"
 	"k8s.io/api/core/v1"
@@ -142,9 +143,9 @@ func IsOperationSuccessful(op *sqladmin.Operation) bool {
 // CloudSQLConditionType converts the given CloudSQL state string into a corresponding condition type
 func CloudSQLConditionType(state string) corev1alpha1.ConditionType {
 	switch state {
-	case "RUNNABLE":
+	case dbv1alpha1.StateRunnable:
 		return corev1alpha1.Ready
-	case "PENDING_CREATE":
+	case dbv1alpha1.StatePendingCreate:
 		return corev1alpha1.Creating
 	default:
 		return corev1alpha1.Failed
@@ -158,11 +159,11 @@ func CloudSQLStatusMessage(instanceName string, cloudSQLInstance *sqladmin.Datab
 	}
 
 	switch cloudSQLInstance.State {
-	case "RUNNABLE":
+	case dbv1alpha1.StateRunnable:
 		return fmt.Sprintf("Cloud SQL instance %s is running", instanceName)
-	case "PENDING_CREATE":
+	case dbv1alpha1.StatePendingCreate:
 		return fmt.Sprintf("Cloud SQL instance %s is being created", instanceName)
-	case "FAILED":
+	case dbv1alpha1.StateFailed:
 		return fmt.Sprintf("Cloud SQL instance %s failed to be created", instanceName)
 	default:
 		return fmt.Sprintf("Cloud SQL instance %s is in an unknown state %s", instanceName, cloudSQLInstance.State)

@@ -22,6 +22,10 @@ spec:
           type: object
         spec:
           properties:
+            claimRef:
+              type: object
+            classRef:
+              type: object
             connectionSecretRef:
               type: object
             databaseVersion:
@@ -37,12 +41,11 @@ spec:
             tier:
               type: string
           required:
-          - providerRef
           - tier
           - region
           - databaseVersion
           - storageType
-          - connectionSecretRef
+          - providerRef
           type: object
         status:
           properties:

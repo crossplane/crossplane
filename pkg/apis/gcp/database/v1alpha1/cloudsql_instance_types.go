@@ -17,21 +17,41 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"fmt"
+	"log"
+
+	coredbv1alpha1 "github.com/upbound/conductor/pkg/apis/core/database/v1alpha1"
 	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
+	"github.com/upbound/conductor/pkg/util"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+const (
+	// StateRunnable represents a CloudSQL instance in a running, available, and ready state
+	StateRunnable = "RUNNABLE"
+
+	// StatePendingCreate represents a CloudSQL instance that is in the process of being created
+	StatePendingCreate = "PENDING_CREATE"
+
+	// StateFailed  represents a CloudSQL instance has failed in some way
+	StateFailed = "FAILED"
 )
 
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
 // CloudsqlInstanceSpec defines the desired state of CloudsqlInstance
 type CloudsqlInstanceSpec struct {
+	Tier            string `json:"tier"`
+	Region          string `json:"region"`
+	DatabaseVersion string `json:"databaseVersion"`
+	StorageType     string `json:"storageType"`
+
+	// Kubernetes object references
+	ClaimRef            *v1.ObjectReference     `json:"claimRef,omitempty"`
+	ClassRef            *v1.ObjectReference     `json:"classRef,omitempty"`
 	ProviderRef         v1.LocalObjectReference `json:"providerRef"`
-	Tier                string                  `json:"tier"`
-	Region              string                  `json:"region"`
-	DatabaseVersion     string                  `json:"databaseVersion"`
-	StorageType         string                  `json:"storageType"`
-	ConnectionSecretRef v1.LocalObjectReference `json:"connectionSecretRef"`
+	ConnectionSecretRef v1.LocalObjectReference `json:"connectionSecretRef,omitempty"`
 
 	// ReclaimPolicy identifies how to handle the cloud resource after the deletion of this type
 	ReclaimPolicy corev1alpha1.ReclaimPolicy `json:"reclaimPolicy,omitempty"`
@@ -40,6 +60,7 @@ type CloudsqlInstanceSpec struct {
 // CloudsqlInstanceStatus defines the observed state of CloudsqlInstance
 type CloudsqlInstanceStatus struct {
 	corev1alpha1.ConditionedStatus
+	corev1alpha1.BindingStatusPhase
 	State   string `json:"state,omitempty"`
 	Message string `json:"message,omitempty"`
 
@@ -74,4 +95,102 @@ type CloudsqlInstanceList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []CloudsqlInstance `json:"items"`
+}
+
+// NewCloudSQLInstanceSpec creates a new CloudSQLInstanceSpec based on the given properties map
+func NewCloudSQLInstanceSpec(properties map[string]string) *CloudsqlInstanceSpec {
+	spec := &CloudsqlInstanceSpec{
+		ReclaimPolicy: corev1alpha1.ReclaimRetain,
+	}
+
+	val, ok := properties["tier"]
+	if ok {
+		spec.Tier = val
+	}
+
+	val, ok = properties["region"]
+	if ok {
+		spec.Region = val
+	}
+
+	val, ok = properties["databaseVersion"]
+	if ok {
+		spec.DatabaseVersion = val
+	}
+
+	val, ok = properties["storageType"]
+	if ok {
+		spec.StorageType = val
+	}
+
+	return spec
+}
+
+// ConnectionSecretName returns a secret name from the reference
+func (c *CloudsqlInstance) ConnectionSecretName() string {
+	if c.Spec.ConnectionSecretRef.Name == "" {
+		// the user hasn't specified the name of the secret they want the connection information
+		// stored in, generate one now
+		secretName := fmt.Sprintf(coredbv1alpha1.ConnectionSecretRefFmt, c.Name)
+		log.Printf("connection secret ref for CloudSQL instance %s is empty, setting it to %s", c.Name, secretName)
+		c.Spec.ConnectionSecretRef.Name = secretName
+	}
+
+	return c.Spec.ConnectionSecretRef.Name
+}
+
+// Endpoint returns the CloudSQL instance endpoint for connection
+func (c *CloudsqlInstance) Endpoint() string {
+	return c.Status.Endpoint
+}
+
+// ObjectReference to this CloudSQL instance instance
+func (c *CloudsqlInstance) ObjectReference() *v1.ObjectReference {
+	if c.Kind == "" {
+		c.Kind = CloudsqlInstanceKind
+	}
+	if c.APIVersion == "" {
+		c.APIVersion = APIVersion
+	}
+	return &v1.ObjectReference{
+		APIVersion:      c.APIVersion,
+		Kind:            c.Kind,
+		Name:            c.Name,
+		Namespace:       c.Namespace,
+		ResourceVersion: c.ResourceVersion,
+		UID:             c.UID,
+	}
+}
+
+// OwnerReference to use this instance as an owner
+func (c *CloudsqlInstance) OwnerReference() metav1.OwnerReference {
+	return *util.ObjectToOwnerReference(c.ObjectReference())
+}
+
+// IsAvailable for usage/binding
+func (c *CloudsqlInstance) IsAvailable() bool {
+	return c.Status.State == StateRunnable
+}
+
+// IsBound determines if the resource is in a bound binding state
+func (c *CloudsqlInstance) IsBound() bool {
+	return c.Status.Phase == corev1alpha1.BindingStateBound
+}
+
+// SetBound sets the binding state of this resource
+func (c *CloudsqlInstance) SetBound(state bool) {
+	if state {
+		c.Status.Phase = corev1alpha1.BindingStateBound
+	} else {
+		c.Status.Phase = corev1alpha1.BindingStateUnbound
+	}
+}
+
+// ValidVersionValues returns the valid set of engine version values.
+func ValidVersionValues() map[string]string {
+	return map[string]string{
+		"5.5": "MYSQL_5_5",
+		"5.6": "MYSQL_5_6",
+		"5.7": "MYSQL_5_7",
+	}
 }

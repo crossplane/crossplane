@@ -300,19 +300,14 @@ func (r *Reconciler) markAsDeleting(instance *databasev1alpha1.CloudsqlInstance)
 func (r *Reconciler) initRootUser(cloudSQLClient gcpclients.CloudSQLAPI,
 	instance *databasev1alpha1.CloudsqlInstance, provider *gcpv1alpha1.Provider) error {
 
-	if instance.Spec.ConnectionSecretRef.Name == "" {
-		// the user hasn't specified the name of the secret they want the connection information
-		// stored in, generate one now
-		secretName := fmt.Sprintf(coredbv1alpha1.ConnectionSecretRefFmt, instance.Name)
-		log.Printf("connection secret ref for cloud sql instance %s is empty, setting it to %s", instance.Name, secretName)
-		instance.Spec.ConnectionSecretRef.Name = secretName
-		if err := r.Update(context.TODO(), instance); err != nil {
-			return fmt.Errorf("failed to set connection secret ref: %+v", err)
-		}
+	// first ensure the connection secret name has been set
+	secretName, err := r.ensureConnectionSecretNameSet(instance)
+	if err != nil {
+		return err
 	}
 
-	// first check if the root user has already been initialized
-	connectionSecret, err := r.clientset.CoreV1().Secrets(instance.Namespace).Get(instance.Spec.ConnectionSecretRef.Name, metav1.GetOptions{})
+	// check if the root user has already been initialized
+	connectionSecret, err := r.clientset.CoreV1().Secrets(instance.Namespace).Get(secretName, metav1.GetOptions{})
 	if err == nil {
 		// we already have a password for the root user, we are done
 		return nil
@@ -369,9 +364,9 @@ func (r *Reconciler) initRootUser(cloudSQLClient gcpclients.CloudSQLAPI,
 	// save the user and connection info to a secret
 	connectionSecret = &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            instance.Spec.ConnectionSecretRef.Name,
+			Name:            secretName,
 			Namespace:       instance.Namespace,
-			OwnerReferences: []metav1.OwnerReference{createOwnerRef(instance)},
+			OwnerReferences: []metav1.OwnerReference{instance.OwnerReference()},
 		},
 		Data: map[string][]byte{
 			coredbv1alpha1.ConnectionSecretEndpointKey: []byte(instance.Status.Endpoint),
@@ -406,12 +401,13 @@ func (r *Reconciler) updateStatus(instance *databasev1alpha1.CloudsqlInstance, m
 	}
 
 	instance.Status = databasev1alpha1.CloudsqlInstanceStatus{
-		ConditionedStatus: instance.Status.ConditionedStatus,
-		Message:           message,
-		State:             state,
-		ProviderID:        providerID,
-		Endpoint:          endpoint,
-		InstanceName:      instance.Status.InstanceName,
+		ConditionedStatus:  instance.Status.ConditionedStatus,
+		BindingStatusPhase: instance.Status.BindingStatusPhase,
+		Message:            message,
+		State:              state,
+		ProviderID:         providerID,
+		Endpoint:           endpoint,
+		InstanceName:       instance.Status.InstanceName,
 	}
 	if err := r.Update(context.TODO(), instance); err != nil {
 		return fmt.Errorf("failed to update status of CRD instance %s: %+v", instance.Name, err)
@@ -420,11 +416,19 @@ func (r *Reconciler) updateStatus(instance *databasev1alpha1.CloudsqlInstance, m
 	return nil
 }
 
-func createOwnerRef(instance *databasev1alpha1.CloudsqlInstance) metav1.OwnerReference {
-	return metav1.OwnerReference{
-		APIVersion: databasev1alpha1.APIVersion,
-		Kind:       databasev1alpha1.CloudsqlInstanceKind,
-		Name:       instance.Name,
-		UID:        instance.UID,
+func (r *Reconciler) ensureConnectionSecretNameSet(instance *databasev1alpha1.CloudsqlInstance) (string, error) {
+	// if the secret name doesn't already exist, we'll need to update the instance with it
+	updateNeeded := instance.Spec.ConnectionSecretRef.Name == ""
+
+	// get or create the connection secret name
+	secretName := instance.ConnectionSecretName()
+
+	// if an update on the instance was needed, do it now
+	if updateNeeded {
+		if err := r.Update(context.TODO(), instance); err != nil {
+			return "", fmt.Errorf("failed to set connection secret ref: %+v", err)
+		}
 	}
+
+	return secretName, nil
 }
