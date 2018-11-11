@@ -18,14 +18,20 @@ package v1alpha1
 
 import (
 	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
-	"k8s.io/api/core/v1"
+	"github.com/upbound/conductor/pkg/util"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type clusterAddon string
+const (
+	ClusterStateProvisioning = "PROVISIONING"
+	ClusterStateRunning      = "RUNNING"
+	ClusterStateStopping     = "STOPPING"
+)
 
+// GKEClusterSpec
 type GKEClusterSpec struct {
-	Addons                    []clusterAddon    `json:"addons,omitempty"`                    //--adons
+	Addons                    []string          `json:"addons,omitempty"`                    //--adons
 	Async                     bool              `json:"async,omitempty"`                     //--async
 	ClusterIPV4CIDR           string            `json:"clusterIPV4CIDR,omitempty"`           //--cluster-ipv4-cidr
 	ClusterSecondaryRangeName string            `json:"clusterSecondaryRangeName,omitempty"` //--cluster-secondary-range-name
@@ -73,27 +79,29 @@ type GKEClusterSpec struct {
 	EnableCloudEndpoints bool     `json:"enableCloudEndpoints,omitempty"`     //--enable-cloud-endpoints
 	Scopes               []string `json:"scopes,omitempty"`                   //--scopes=[SCOPE,…]; default="gke-default"
 
-	// ProviderRef - reference to GCP provider object
-	ProviderRef v1.LocalObjectReference `json:"providerRef"`
-
-	// ConnectionSecretRef - reference to GKE Cluster connection secret which will be created and contain connection related data
-	ConnectionSecretRef v1.LocalObjectReference `json:"connectionSecretRef"`
+	// Kubernetes object references
+	ClaimRef            *corev1.ObjectReference      `json:"claimRef,omitempty"`
+	ClassRef            *corev1.ObjectReference      `json:"classRef,omitempty"`
+	ConnectionSecretRef *corev1.LocalObjectReference `json:"connectionSecretRef,omitempty"`
+	ProviderRef         corev1.LocalObjectReference  `json:"providerRef"`
 
 	// ReclaimPolicy identifies how to handle the cloud resource after the deletion of this type
 	ReclaimPolicy corev1alpha1.ReclaimPolicy `json:"reclaimPolicy,omitempty"`
 }
 
+// GKEClusterStatus
 type GKEClusterStatus struct {
-	State   string `json:"state,omitempty"`
-	Message string `json:"message,omitempty"`
+	corev1alpha1.ConditionedStatus
+	ClusterName string `json:"clusterName"`
+	Endpoint    string `json:"endpoint"`
+	State       string `json:"state,omitempty"`
 }
 
-// +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // GKECluster is the Schema for the instances API
 // +k8s:openapi-gen=true
-// +groupName=container.gcp
+// +groupName=compute.gcp
 type GKECluster struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -109,4 +117,53 @@ type GKEClusterList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []GKECluster `json:"items"`
+}
+
+// ObjectReference to this instance
+func (g *GKECluster) ObjectReference() *corev1.ObjectReference {
+	apiVersion := g.TypeMeta.APIVersion
+	if apiVersion == "" {
+		apiVersion = APIVersion
+	}
+	kind := g.TypeMeta.Kind
+	if kind == "" {
+		kind = GKEClusterKind
+	}
+
+	return &corev1.ObjectReference{
+		APIVersion:      apiVersion,
+		Kind:            kind,
+		Name:            g.Name,
+		Namespace:       g.Namespace,
+		ResourceVersion: g.ResourceVersion,
+		UID:             g.UID,
+	}
+}
+
+// OwnerReference to use this instance as an owner
+func (g *GKECluster) OwnerReference() metav1.OwnerReference {
+	return *util.ObjectToOwnerReference(g.ObjectReference())
+}
+
+func (g *GKECluster) ConnectionSecret() *corev1.Secret {
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace:       g.Namespace,
+			Name:            g.ConnectionSecretName(),
+			OwnerReferences: []metav1.OwnerReference{g.OwnerReference()},
+		},
+	}
+}
+
+// ConnectionSecretName returns a secret name from the reference
+func (g *GKECluster) ConnectionSecretName() string {
+	if g.Spec.ConnectionSecretRef == nil {
+		g.Spec.ConnectionSecretRef = &corev1.LocalObjectReference{
+			Name: g.Name,
+		}
+	} else if g.Spec.ConnectionSecretRef.Name == "" {
+		g.Spec.ConnectionSecretRef.Name = g.Name
+	}
+
+	return g.Spec.ConnectionSecretRef.Name
 }

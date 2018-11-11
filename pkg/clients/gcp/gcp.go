@@ -80,6 +80,24 @@ func IsNotFound(err error) bool {
 	return ok && googleapiErr.Code == http.StatusNotFound
 }
 
+// IsAlreadyExists gets a value indicating whether the given error represents a "conflict" response from the Google API
+func IsAlreadyExists(err error) bool {
+	if err == nil {
+		return false
+	}
+	googleapiErr, ok := err.(*googleapi.Error)
+	return ok && googleapiErr.Code == http.StatusConflict
+}
+
+// IsBadRequest gets a value indicating whether the given error represents a "bad request" response from the Google API
+func IsBadRequest(err error) bool {
+	if err == nil {
+		return false
+	}
+	googleapiErr, ok := err.(*googleapi.Error)
+	return ok && googleapiErr.Code == http.StatusBadRequest
+}
+
 // ProviderCredentials return google credentials based on the provider's credentials secret data
 func ProviderCredentials(client kubernetes.Interface, p *gcpv1alpha1.Provider, scopes ...string) (*google.Credentials, error) {
 	// retrieve provider secret data

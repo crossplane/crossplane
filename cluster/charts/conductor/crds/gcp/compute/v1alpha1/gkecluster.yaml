@@ -4,9 +4,9 @@ metadata:
   creationTimestamp: null
   labels:
     controller-tools.k8s.io: "1.0"
-  name: gkeclusters.container.gcp.conductor.io
+  name: gkeclusters.compute.gcp.conductor.io
 spec:
-  group: container.gcp.conductor.io
+  group: compute.gcp.conductor.io
   names:
     kind: GKECluster
     plural: gkeclusters
@@ -28,6 +28,10 @@ spec:
               type: array
             async:
               type: boolean
+            claimRef:
+              type: object
+            classRef:
+              type: object
             clusterSecondaryRangeName:
               type: string
             clusterVersion:
@@ -137,14 +141,18 @@ spec:
           - numNodes
           - zone
           - providerRef
-          - connectionSecretRef
           type: object
         status:
           properties:
-            message:
+            clusterName:
+              type: string
+            endpoint:
               type: string
             state:
               type: string
+          required:
+          - clusterName
+          - endpoint
           type: object
   version: v1alpha1
 status:

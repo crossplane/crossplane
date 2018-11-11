@@ -115,7 +115,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 // fail - helper function to set fail condition with reason and message
 func (r *Reconciler) fail(instance *databasev1alpha1.RDSInstance, reason, msg string) (reconcile.Result, error) {
-	instance.Status.SetCondition(*corev1alpha1.NewCondition(corev1alpha1.Failed, reason, msg))
+	instance.Status.SetCondition(corev1alpha1.NewCondition(corev1alpha1.Failed, reason, msg))
 	return reconcile.Result{Requeue: true}, r.Update(context.TODO(), instance)
 }
 
@@ -178,7 +178,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 			}
 		}
 
-		instance.Status.SetCondition(*corev1alpha1.NewCondition(corev1alpha1.Deleting, "", ""))
+		instance.Status.SetCondition(corev1alpha1.NewCondition(corev1alpha1.Deleting, "", ""))
 		util.RemoveFinalizer(&instance.ObjectMeta, finalizer)
 		return reconcile.Result{}, r.Update(ctx, instance)
 	}
@@ -243,7 +243,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 		instance.Status.UnsetAllConditions()
 
 		condition := corev1alpha1.NewCondition(conditionType, "", "")
-		instance.Status.SetCondition(*condition)
+		instance.Status.SetCondition(condition)
 
 		// Requeue this request until database is in Ready state
 		return reconcile.Result{Requeue: requeue}, r.Update(ctx, instance)

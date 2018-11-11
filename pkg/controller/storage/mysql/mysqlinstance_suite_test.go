@@ -19,10 +19,6 @@ package mysql
 import (
 	"context"
 	"flag"
-	"testing"
-	"time"
-
-	. "github.com/onsi/gomega"
 	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
 	"github.com/upbound/conductor/pkg/apis/storage"
 	. "github.com/upbound/conductor/pkg/apis/storage/v1alpha1"
@@ -30,25 +26,20 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"testing"
 )
 
 const (
-	timeout = 5 * time.Second
-
 	namespace = "default"
 	name      = "test-mysqlinstance"
 )
 
 var (
-	cfg             *rest.Config
-	expectedRequest = reconcile.Request{NamespacedName: types.NamespacedName{Name: name, Namespace: namespace}}
+	cfg *rest.Config
 )
 
 func init() {
@@ -61,62 +52,6 @@ func TestMain(m *testing.M) {
 	t := test.NewTestEnv(namespace, test.CRDs())
 	cfg = t.Start()
 	t.StopAndExit(m.Run())
-}
-
-type TestManager struct {
-	manager     manager.Manager
-	requests    chan reconcile.Request
-	reconciler  *Reconciler
-	recFunction reconcile.Reconciler
-}
-
-func NewTestManager() (*TestManager, error) {
-	// Setup the Manager and Controller.  Wrap the Controller Reconcile function so it writes each request to a
-	// channel when it is finished.
-	mgr, err := manager.New(cfg, manager.Options{})
-	if err != nil {
-		return nil, err
-	}
-
-	r := &Reconciler{
-		Client:     mgr.GetClient(),
-		scheme:     mgr.GetScheme(),
-		kubeclient: kubernetes.NewForConfigOrDie(mgr.GetConfig()),
-		recorder:   mgr.GetRecorder(controllerName),
-	}
-
-	recFn, requests := SetupTestReconcile(r)
-	if err = add(mgr, recFn); err != nil {
-		return nil, err
-	}
-
-	return &TestManager{
-		manager:     mgr,
-		reconciler:  r,
-		recFunction: recFn,
-		requests:    requests,
-	}, nil
-}
-
-// SetupTestReconcile returns a reconcile.Reconcile implementation that delegates to inner and
-// writes the request to requests after Reconcile is finished.
-func SetupTestReconcile(inner reconcile.Reconciler) (reconcile.Reconciler, chan reconcile.Request) {
-	requests := make(chan reconcile.Request)
-	fn := reconcile.Func(func(req reconcile.Request) (reconcile.Result, error) {
-		result, err := inner.Reconcile(req)
-		requests <- req
-		return result, err
-	})
-	return fn, requests
-}
-
-// StartTestManager adds recFn
-func StartTestManager(mgr manager.Manager, g *GomegaWithT) chan struct{} {
-	stop := make(chan struct{})
-	go func() {
-		g.Expect(mgr.Start(stop)).NotTo(HaveOccurred())
-	}()
-	return stop
 }
 
 func testInstance() *MySQLInstance {

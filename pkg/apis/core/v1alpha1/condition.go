@@ -97,14 +97,19 @@ func (c *ConditionedStatus) SetCondition(condition Condition) {
 	c.Conditions = append(newConditions, condition)
 }
 
-// SetFailed set failed as active condition
+// SetFailed set failed as an active condition
 func (c *ConditionedStatus) SetFailed(reason, msg string) {
-	c.SetCondition(*NewCondition(Failed, reason, msg))
+	c.SetCondition(NewCondition(Failed, reason, msg))
 }
 
-// SetReady set ready as active condition
+// SetReady set ready as an active condition
 func (c *ConditionedStatus) SetReady() {
-	c.SetCondition(*NewCondition(Ready, "", ""))
+	c.SetCondition(NewCondition(Ready, "", ""))
+}
+
+// SetCreating set creating as an active condition
+func (c *ConditionedStatus) SetCreating() {
+	c.SetCondition(NewCondition(Creating, "", ""))
 }
 
 // UnsetCondition set condition status to false with the given type - if found.
@@ -132,8 +137,8 @@ func (c *ConditionedStatus) RemoveCondition(condType ConditionType) {
 }
 
 // NewCondition creates a new RDS resource condition.
-func NewCondition(condType ConditionType, reason, msg string) *Condition {
-	return &Condition{
+func NewCondition(condType ConditionType, reason, msg string) Condition {
+	return Condition{
 		Type:               condType,
 		Status:             corev1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),

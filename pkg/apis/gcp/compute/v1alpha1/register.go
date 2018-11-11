@@ -19,9 +19,9 @@ limitations under the License.
 // Package v1alpha1 contains API Schema definitions for the container v1alpha1 API group
 // +k8s:openapi-gen=true
 // +k8s:deepcopy-gen=package,register
-// +k8s:conversion-gen=github.com/upbound/conductor/pkg/gcp/apis/gcp/container
+// +k8s:conversion-gen=github.com/upbound/conductor/pkg/gcp/apis/gcp/compute
 // +k8s:defaulter-gen=TypeMeta
-// +groupName=container.gcp.conductor.io
+// +groupName=compute.gcp.conductor.io
 package v1alpha1
 
 import (
@@ -30,9 +30,10 @@ import (
 )
 
 const (
-	Group      = "container.gcp.conductor.io"
-	Version    = "v1alpha1"
-	APIVersion = Group + "/" + Version
+	Group          = "compute.gcp.conductor.io"
+	Version        = "v1alpha1"
+	APIVersion     = Group + "/" + Version
+	GKEClusterKind = "gkecluster"
 )
 
 var (

@@ -130,7 +130,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 // fail - helper function to set fail condition with reason and message
 func (r *Reconciler) fail(instance *mysqlv1alpha1.MySQLInstance, reason, msg string) (reconcile.Result, error) {
-	instance.Status.SetCondition(*corev1alpha1.NewCondition(corev1alpha1.Failed, reason, msg))
+	instance.Status.SetCondition(corev1alpha1.NewCondition(corev1alpha1.Failed, reason, msg))
 	return resultRequeue, r.Update(ctx, instance)
 }
 
@@ -156,7 +156,7 @@ func (r *Reconciler) _provision(instance *mysqlv1alpha1.MySQLInstance) (reconcil
 		// handler is not found - fail and do not requeue
 		err := fmt.Errorf("handler [%s] is not defined", class.Provisioner)
 		r.recorder.Event(instance, corev1.EventTypeWarning, "Fail", err.Error())
-		instance.Status.SetCondition(*corev1alpha1.NewCondition(corev1alpha1.Failed, errorResourceHandlerIsNotFound, err.Error()))
+		instance.Status.SetCondition(corev1alpha1.NewCondition(corev1alpha1.Failed, errorResourceHandlerIsNotFound, err.Error()))
 		return result, r.Update(ctx, instance)
 	}
 
@@ -171,7 +171,7 @@ func (r *Reconciler) _provision(instance *mysqlv1alpha1.MySQLInstance) (reconcil
 
 	// set status values
 	instance.Status.Provisioner = class.Provisioner
-	instance.Status.SetCondition(*corev1alpha1.NewCondition(corev1alpha1.Creating, "", ""))
+	instance.Status.SetCondition(corev1alpha1.NewCondition(corev1alpha1.Creating, "", ""))
 
 	// update instance
 	return result, r.Update(ctx, instance)
@@ -187,7 +187,7 @@ func (r *Reconciler) _bind(instance *mysqlv1alpha1.MySQLInstance) (reconcile.Res
 		// fail and do not requeue
 		err := fmt.Errorf("provisioner [%s] is not defined", instance.Status.Provisioner)
 		r.recorder.Event(instance, corev1.EventTypeWarning, "Fail", err.Error())
-		instance.Status.SetCondition(*corev1alpha1.NewCondition(corev1alpha1.Failed, errorResourceHandlerIsNotFound, err.Error()))
+		instance.Status.SetCondition(corev1alpha1.NewCondition(corev1alpha1.Failed, errorResourceHandlerIsNotFound, err.Error()))
 		return result, r.Update(ctx, instance)
 	}
 
@@ -202,7 +202,7 @@ func (r *Reconciler) _bind(instance *mysqlv1alpha1.MySQLInstance) (reconcile.Res
 	// check for resource instance state and requeue if not running
 	if !resource.IsAvailable() {
 		instance.Status.UnsetAllConditions()
-		instance.Status.SetCondition(*corev1alpha1.NewCondition(corev1alpha1.Pending, waitResourceIsNotAvailable, "Resource is not in running state"))
+		instance.Status.SetCondition(corev1alpha1.NewCondition(corev1alpha1.Pending, waitResourceIsNotAvailable, "Resource is not in running state"))
 		return resultRequeue, r.Update(ctx, instance)
 	}
 
@@ -235,7 +235,7 @@ func (r *Reconciler) _bind(instance *mysqlv1alpha1.MySQLInstance) (reconcile.Res
 
 	// update conditions
 	instance.Status.UnsetAllConditions()
-	instance.Status.SetCondition(*corev1alpha1.NewCondition(corev1alpha1.Ready, "", ""))
+	instance.Status.SetCondition(corev1alpha1.NewCondition(corev1alpha1.Ready, "", ""))
 
 	return result, r.Update(ctx, instance)
 }
@@ -249,7 +249,7 @@ func (r *Reconciler) _delete(instance *mysqlv1alpha1.MySQLInstance) (reconcile.R
 		// fail and do not requeue
 		err := fmt.Errorf("provisioner [%s] is not defined", instance.Status.Provisioner)
 		r.recorder.Event(instance, corev1.EventTypeWarning, "Fail", err.Error())
-		instance.Status.SetCondition(*corev1alpha1.NewCondition(corev1alpha1.Failed, errorResourceHandlerIsNotFound, err.Error()))
+		instance.Status.SetCondition(corev1alpha1.NewCondition(corev1alpha1.Failed, errorResourceHandlerIsNotFound, err.Error()))
 		return result, r.Update(ctx, instance)
 	}
 
@@ -262,7 +262,7 @@ func (r *Reconciler) _delete(instance *mysqlv1alpha1.MySQLInstance) (reconcile.R
 
 	// update instance status and remove finalizer
 	instance.Status.UnsetAllConditions()
-	instance.Status.SetCondition(*corev1alpha1.NewCondition(corev1alpha1.Deleting, "", ""))
+	instance.Status.SetCondition(corev1alpha1.NewCondition(corev1alpha1.Deleting, "", ""))
 	util.RemoveFinalizer(&instance.ObjectMeta, finalizer)
 	return reconcile.Result{}, r.Update(ctx, instance)
 
