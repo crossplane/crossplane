@@ -121,12 +121,12 @@ func (r *Reconciler) fail(instance *gcpcomputev1alpha1.GKECluster, reason, msg s
 func (r *Reconciler) connectionSecret(instance *gcpcomputev1alpha1.GKECluster, cluster *container.Cluster) *corev1.Secret {
 	secret := instance.ConnectionSecret()
 	data := make(map[string][]byte)
-	data[corev1alpha1.ResourceConnectionSecretEndpointKey] = []byte(cluster.Endpoint)
-	data[corev1alpha1.ResourceConnectionSecretUserKey] = []byte(cluster.MasterAuth.Username)
-	data[corev1alpha1.ResourceConnectionSecretPasswordKey] = []byte(cluster.MasterAuth.Password)
-	data[corev1alpha1.ResourceConnectionSecretCAKey] = []byte(cluster.MasterAuth.ClusterCaCertificate)
-	data[corev1alpha1.ResourceConnectionSecretClientCertKey] = []byte(cluster.MasterAuth.ClientCertificate)
-	data[corev1alpha1.ResourceConnectionSecretClientKeyKey] = []byte(cluster.MasterAuth.ClientKey)
+	data[corev1alpha1.ResourceCredentialsSecretEndpointKey] = []byte(cluster.Endpoint)
+	data[corev1alpha1.ResourceCredentialsSecretUserKey] = []byte(cluster.MasterAuth.Username)
+	data[corev1alpha1.ResourceCredentialsSecretPasswordKey] = []byte(cluster.MasterAuth.Password)
+	data[corev1alpha1.ResourceCredentialsSecretCAKey] = []byte(cluster.MasterAuth.ClusterCaCertificate)
+	data[corev1alpha1.ResourceCredentialsSecretClientCertKey] = []byte(cluster.MasterAuth.ClientCertificate)
+	data[corev1alpha1.ResourceCredentialsSecretClientKeyKey] = []byte(cluster.MasterAuth.ClientKey)
 	secret.Data = data
 
 	return secret

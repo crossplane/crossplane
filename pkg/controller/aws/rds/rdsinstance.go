@@ -23,7 +23,6 @@ import (
 
 	databasev1alpha1 "github.com/upbound/conductor/pkg/apis/aws/database/v1alpha1"
 	awsv1alpha1 "github.com/upbound/conductor/pkg/apis/aws/v1alpha1"
-	coredbv1alpha1 "github.com/upbound/conductor/pkg/apis/core/database/v1alpha1"
 	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
 	"github.com/upbound/conductor/pkg/clients/aws"
 	"github.com/upbound/conductor/pkg/clients/aws/rds"
@@ -226,7 +225,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 			}
 		}
 		instance.SetEndpoint(db.Endpoint)
-		connSecret.Data[coredbv1alpha1.ConnectionSecretEndpointKey] = []byte(db.Endpoint)
+		connSecret.Data[corev1alpha1.ResourceCredentialsSecretEndpointKey] = []byte(db.Endpoint)
 		_, err = util.ApplySecret(r.kubeclient, connSecret)
 		if err != nil {
 			return r.fail(instance, errorCreatingConnectionSecret, err.Error())
@@ -280,8 +279,8 @@ func NewConnectionSecret(instance *databasev1alpha1.RDSInstance, password string
 		},
 
 		Data: map[string][]byte{
-			coredbv1alpha1.ConnectionSecretUserKey:     []byte(instance.Spec.MasterUsername),
-			coredbv1alpha1.ConnectionSecretPasswordKey: []byte(password),
+			corev1alpha1.ResourceCredentialsSecretUserKey:     []byte(instance.Spec.MasterUsername),
+			corev1alpha1.ResourceCredentialsSecretPasswordKey: []byte(password),
 		},
 	}
 }

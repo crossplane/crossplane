@@ -24,7 +24,6 @@ import (
 	"github.com/Azure/azure-sdk-for-go/services/mysql/mgmt/2017-12-01/mysql"
 	databasev1alpha1 "github.com/upbound/conductor/pkg/apis/azure/database/v1alpha1"
 	azurev1alpha1 "github.com/upbound/conductor/pkg/apis/azure/v1alpha1"
-	coredbv1alpha1 "github.com/upbound/conductor/pkg/apis/core/database/v1alpha1"
 	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
 	azureclients "github.com/upbound/conductor/pkg/clients/azure"
 	"github.com/upbound/conductor/pkg/util"
@@ -411,16 +410,16 @@ func (r *Reconciler) createOrUpdateConnectionSecret(instance *databasev1alpha1.M
 		}
 
 		// reuse the password that has already been set
-		password = string(connectionSecret.Data[coredbv1alpha1.ConnectionSecretPasswordKey])
+		password = string(connectionSecret.Data[corev1alpha1.ResourceCredentialsSecretPasswordKey])
 	}
 
 	// fill in all of the connection details on the secret's data
 	connectionSecret.Data = map[string][]byte{
-		coredbv1alpha1.ConnectionSecretUserKey:     []byte(fmt.Sprintf("%s@%s", instance.Spec.AdminLoginName, instance.Name)),
-		coredbv1alpha1.ConnectionSecretPasswordKey: []byte(password),
+		corev1alpha1.ResourceCredentialsSecretUserKey:     []byte(fmt.Sprintf("%s@%s", instance.Spec.AdminLoginName, instance.Name)),
+		corev1alpha1.ResourceCredentialsSecretPasswordKey: []byte(password),
 	}
 	if instance.Status.Endpoint != "" {
-		connectionSecret.Data[coredbv1alpha1.ConnectionSecretEndpointKey] = []byte(instance.Status.Endpoint)
+		connectionSecret.Data[corev1alpha1.ResourceCredentialsSecretEndpointKey] = []byte(instance.Status.Endpoint)
 	}
 
 	if secretExists {
@@ -443,15 +442,15 @@ func isConnectionSecretCompleted(connectionSecret *v1.Secret) bool {
 		return false
 	}
 
-	if !isSecretDataKeySet(coredbv1alpha1.ConnectionSecretEndpointKey, connectionSecret.Data) {
+	if !isSecretDataKeySet(corev1alpha1.ResourceCredentialsSecretEndpointKey, connectionSecret.Data) {
 		return false
 	}
 
-	if !isSecretDataKeySet(coredbv1alpha1.ConnectionSecretUserKey, connectionSecret.Data) {
+	if !isSecretDataKeySet(corev1alpha1.ResourceCredentialsSecretUserKey, connectionSecret.Data) {
 		return false
 	}
 
-	if !isSecretDataKeySet(coredbv1alpha1.ConnectionSecretPasswordKey, connectionSecret.Data) {
+	if !isSecretDataKeySet(corev1alpha1.ResourceCredentialsSecretPasswordKey, connectionSecret.Data) {
 		return false
 	}
 

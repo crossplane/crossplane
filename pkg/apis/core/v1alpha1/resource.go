@@ -19,18 +19,18 @@ package v1alpha1
 import corev1 "k8s.io/api/core/v1"
 
 const (
-	// ResourceConnectionSecretEndpointKey is the key inside a connection secret for the connection endpoint
-	ResourceConnectionSecretEndpointKey = "endpoint"
-	// ResourceConnectionSecretUserKey is the key inside a connection secret for the connection user
-	ResourceConnectionSecretUserKey = "username"
-	// ResourceConnectionSecretPasswordKey is the key inside a connection secret for the connection password
-	ResourceConnectionSecretPasswordKey = "password"
-	// ResourceConnectionSecretCAKey is the key inside a connection secret for the server CA certificate
-	ResourceConnectionSecretCAKey = "clusterCA"
-	// ResourceConnectionSecretClientCertKey is the key inside a connection secret for the client certificate
-	ResourceConnectionSecretClientCertKey = "clientCert"
-	// ResourceConnectionSecretClientKeyKey is the key inside a connection secret for the client key
-	ResourceConnectionSecretClientKeyKey = "clientKey"
+	// ResourceCredentialsSecretEndpointKey is the key inside a connection secret for the connection endpoint
+	ResourceCredentialsSecretEndpointKey = "endpoint"
+	// ResourceCredentialsSecretUserKey is the key inside a connection secret for the connection user
+	ResourceCredentialsSecretUserKey = "username"
+	// ResourceCredentialsSecretPasswordKey is the key inside a connection secret for the connection password
+	ResourceCredentialsSecretPasswordKey = "password"
+	// ResourceCredentialsSecretCAKey is the key inside a connection secret for the server CA certificate
+	ResourceCredentialsSecretCAKey = "clusterCA"
+	// ResourceCredentialsSecretClientCertKey is the key inside a connection secret for the client certificate
+	ResourceCredentialsSecretClientCertKey = "clientCert"
+	// ResourceCredentialsSecretClientKeyKey is the key inside a connection secret for the client key
+	ResourceCredentialsSecretClientKeyKey = "clientKey"
 )
 
 // Resource defines operations supported by managed resource

@@ -22,7 +22,6 @@ import (
 	"log"
 	"time"
 
-	coredbv1alpha1 "github.com/upbound/conductor/pkg/apis/core/database/v1alpha1"
 	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
 	databasev1alpha1 "github.com/upbound/conductor/pkg/apis/gcp/database/v1alpha1"
 	gcpv1alpha1 "github.com/upbound/conductor/pkg/apis/gcp/v1alpha1"
@@ -369,9 +368,9 @@ func (r *Reconciler) initRootUser(cloudSQLClient gcpclients.CloudSQLAPI,
 			OwnerReferences: []metav1.OwnerReference{instance.OwnerReference()},
 		},
 		Data: map[string][]byte{
-			coredbv1alpha1.ConnectionSecretEndpointKey: []byte(instance.Status.Endpoint),
-			coredbv1alpha1.ConnectionSecretUserKey:     []byte(rootUser.Name),
-			coredbv1alpha1.ConnectionSecretPasswordKey: []byte(password),
+			corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(instance.Status.Endpoint),
+			corev1alpha1.ResourceCredentialsSecretUserKey:     []byte(rootUser.Name),
+			corev1alpha1.ResourceCredentialsSecretPasswordKey: []byte(password),
 		},
 	}
 	log.Printf("creating connection secret %s for user '%s'", connectionSecret.Name, rootUser.Name)
