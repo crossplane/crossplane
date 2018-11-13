@@ -2,5 +2,6 @@
 /.work
 /_output
 /config/
+/config
 cover.out
 /vendor

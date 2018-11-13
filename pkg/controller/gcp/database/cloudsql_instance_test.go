@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/onsi/gomega"
-	coredbv1alpha1 "github.com/upbound/conductor/pkg/apis/core/database/v1alpha1"
 	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
 	dbv1alpha1 "github.com/upbound/conductor/pkg/apis/gcp/database/v1alpha1"
 	"github.com/upbound/conductor/pkg/test"
@@ -132,9 +131,8 @@ func TestReconcile(t *testing.T) {
 
 	// wait for the connection information to be stored in a secret, then verify it
 	var connectionSecret *v1.Secret
-	connectionSecretName := fmt.Sprintf(coredbv1alpha1.ConnectionSecretRefFmt, "test-db-instance")
 	for {
-		if connectionSecret, err = r.clientset.CoreV1().Secrets(namespace).Get(connectionSecretName, metav1.GetOptions{}); err == nil {
+		if connectionSecret, err = r.clientset.CoreV1().Secrets(namespace).Get(instanceName, metav1.GetOptions{}); err == nil {
 			break
 		}
 	}
@@ -206,7 +204,7 @@ func assertConnectionSecret(g *gomega.GomegaWithT, c client.Client, connectionSe
 	err := c.Get(ctx, expectedRequest.NamespacedName, instance)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
-	g.Expect(string(connectionSecret.Data[coredbv1alpha1.ConnectionSecretEndpointKey])).To(gomega.Equal(instance.Status.Endpoint))
-	g.Expect(string(connectionSecret.Data[coredbv1alpha1.ConnectionSecretUserKey])).To(gomega.Equal("root"))
-	g.Expect(string(connectionSecret.Data[coredbv1alpha1.ConnectionSecretPasswordKey])).NotTo(gomega.BeEmpty())
+	g.Expect(string(connectionSecret.Data[corev1alpha1.ResourceCredentialsSecretEndpointKey])).To(gomega.Equal(instance.Status.Endpoint))
+	g.Expect(string(connectionSecret.Data[corev1alpha1.ResourceCredentialsSecretUserKey])).To(gomega.Equal("root"))
+	g.Expect(string(connectionSecret.Data[corev1alpha1.ResourceCredentialsSecretPasswordKey])).NotTo(gomega.BeEmpty())
 }

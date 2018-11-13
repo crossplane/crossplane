@@ -17,10 +17,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"fmt"
-	"log"
-
-	coredbv1alpha1 "github.com/upbound/conductor/pkg/apis/core/database/v1alpha1"
 	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
 	"github.com/upbound/conductor/pkg/util"
 	"k8s.io/api/core/v1"
@@ -131,9 +127,7 @@ func (c *CloudsqlInstance) ConnectionSecretName() string {
 	if c.Spec.ConnectionSecretRef.Name == "" {
 		// the user hasn't specified the name of the secret they want the connection information
 		// stored in, generate one now
-		secretName := fmt.Sprintf(coredbv1alpha1.ConnectionSecretRefFmt, c.Name)
-		log.Printf("connection secret ref for CloudSQL instance %s is empty, setting it to %s", c.Name, secretName)
-		c.Spec.ConnectionSecretRef.Name = secretName
+		c.Spec.ConnectionSecretRef.Name = c.Name
 	}
 
 	return c.Spec.ConnectionSecretRef.Name

@@ -17,12 +17,9 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"fmt"
-	"log"
 	"strconv"
 
 	"github.com/Azure/azure-sdk-for-go/services/mysql/mgmt/2017-12-01/mysql"
-	coredbv1alpha1 "github.com/upbound/conductor/pkg/apis/core/database/v1alpha1"
 	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
 	"github.com/upbound/conductor/pkg/util"
 	"k8s.io/api/core/v1"
@@ -187,9 +184,7 @@ func (m *MysqlServer) ConnectionSecretName() string {
 	if m.Spec.ConnectionSecretRef.Name == "" {
 		// the user hasn't specified the name of the secret they want the connection information
 		// stored in, generate one now
-		secretName := fmt.Sprintf(coredbv1alpha1.ConnectionSecretRefFmt, m.Name)
-		log.Printf("connection secret ref for MySQL Server instance %s is empty, setting it to %s", m.Name, secretName)
-		m.Spec.ConnectionSecretRef.Name = secretName
+		m.Spec.ConnectionSecretRef.Name = m.Name
 	}
 
 	return m.Spec.ConnectionSecretRef.Name
