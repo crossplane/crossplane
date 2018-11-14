@@ -71,8 +71,8 @@ func GetGoogleClient(clientset kubernetes.Interface, namespace string, secretKey
 	return nil, fmt.Errorf("failed to get google client: %+v", err)
 }
 
-// IsNotFound gets a value indicating whether the given error represents a "not found" response from the Google API
-func IsNotFound(err error) bool {
+// IsErrorNotFound gets a value indicating whether the given error represents a "not found" response from the Google API
+func IsErrorNotFound(err error) bool {
 	if err == nil {
 		return false
 	}
@@ -80,8 +80,8 @@ func IsNotFound(err error) bool {
 	return ok && googleapiErr.Code == http.StatusNotFound
 }
 
-// IsAlreadyExists gets a value indicating whether the given error represents a "conflict" response from the Google API
-func IsAlreadyExists(err error) bool {
+// IsErrorAlreadyExists gets a value indicating whether the given error represents a "conflict" response from the Google API
+func IsErrorAlreadyExists(err error) bool {
 	if err == nil {
 		return false
 	}
@@ -89,8 +89,8 @@ func IsAlreadyExists(err error) bool {
 	return ok && googleapiErr.Code == http.StatusConflict
 }
 
-// IsBadRequest gets a value indicating whether the given error represents a "bad request" response from the Google API
-func IsBadRequest(err error) bool {
+// IsErrorBadRequest gets a value indicating whether the given error represents a "bad request" response from the Google API
+func IsErrorBadRequest(err error) bool {
 	if err == nil {
 		return false
 	}

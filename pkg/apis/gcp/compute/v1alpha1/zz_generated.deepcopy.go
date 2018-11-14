@@ -170,6 +170,7 @@ func (in *GKEClusterSpec) DeepCopy() *GKEClusterSpec {
 func (in *GKEClusterStatus) DeepCopyInto(out *GKEClusterStatus) {
 	*out = *in
 	in.ConditionedStatus.DeepCopyInto(&out.ConditionedStatus)
+	out.BindingStatusPhase = in.BindingStatusPhase
 	return
 }
 

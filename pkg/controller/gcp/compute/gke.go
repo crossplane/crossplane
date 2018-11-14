@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -161,8 +161,8 @@ func (r *Reconciler) _create(instance *gcpcomputev1alpha1.GKECluster, client gke
 	clusterName := fmt.Sprintf("%s%s", clusterNamePrefix, instance.UID)
 
 	_, err := client.CreateCluster(clusterName, instance.Spec)
-	if err != nil && !gcp.IsAlreadyExists(err) {
-		if gcp.IsBadRequest(err) {
+	if err != nil && !gcp.IsErrorAlreadyExists(err) {
+		if gcp.IsErrorBadRequest(err) {
 			instance.Status.SetFailed(errorCreatingCluster, err.Error())
 			// do not requeue on bad requests
 			return result, r.Update(ctx, instance)
@@ -192,6 +192,9 @@ func (r *Reconciler) _sync(instance *gcpcomputev1alpha1.GKECluster, client gke.C
 		return r.fail(instance, errorClusterConnectionSecret, err.Error())
 	}
 
+	// update resource status
+	instance.Status.Endpoint = cluster.Endpoint
+	instance.Status.State = gcpcomputev1alpha1.ClusterStateRunning
 	instance.Status.UnsetAllConditions()
 	instance.Status.SetReady()
 
@@ -229,14 +232,14 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	}
 
 	// Create GKE Client
-	client, err := r.connect(instance)
+	gkeClient, err := r.connect(instance)
 	if err != nil {
 		return r.fail(instance, errorClusterClient, err.Error())
 	}
 
 	// Check for deletion
 	if instance.DeletionTimestamp != nil {
-		return r.delete(instance, client)
+		return r.delete(instance, gkeClient)
 	}
 
 	// Add finalizer
@@ -249,9 +252,9 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 
 	// Create cluster instance
 	if instance.Status.ClusterName == "" {
-		return r.create(instance, client)
+		return r.create(instance, gkeClient)
 	}
 
 	// Sync cluster instance status with cluster status
-	return r.sync(instance, client)
+	return r.sync(instance, gkeClient)
 }

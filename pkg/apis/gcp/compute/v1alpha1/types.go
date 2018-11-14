@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,6 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"strconv"
+
 	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
 	"github.com/upbound/conductor/pkg/util"
 	corev1 "k8s.io/api/core/v1"
@@ -26,7 +28,9 @@ import (
 const (
 	ClusterStateProvisioning = "PROVISIONING"
 	ClusterStateRunning      = "RUNNING"
-	ClusterStateStopping     = "STOPPING"
+
+	DefaultReclaimPolicy = corev1alpha1.ReclaimRetain
+	DefaultNumberOfNodes = int64(1)
 )
 
 // GKEClusterSpec
@@ -35,7 +39,7 @@ type GKEClusterSpec struct {
 	Async                     bool              `json:"async,omitempty"`                     //--async
 	ClusterIPV4CIDR           string            `json:"clusterIPV4CIDR,omitempty"`           //--cluster-ipv4-cidr
 	ClusterSecondaryRangeName string            `json:"clusterSecondaryRangeName,omitempty"` //--cluster-secondary-range-name
-	ClusterVersion            string            `json:"clusterVersion"`                      //--cluster-version
+	ClusterVersion            string            `json:"clusterVersion,omitempty"`            //--cluster-version
 	ClusterSubnetwork         map[string]string `json:"createSubnetwork,omitempty"`          //--create-subnetwork
 	DiskSize                  string            `json:"diskSize,omitempty"`                  //--disk-size
 	EnableAutorepair          bool              `json:"enableAutorepair,omitempty"`          //--enable-autorepair
@@ -50,7 +54,7 @@ type GKEClusterSpec struct {
 	NoIssueClientCertificates bool              `json:"noIssueClientCertificates,omitempty"` //--no-issue-client-certificate
 	Labels                    map[string]string `json:"labels,omitempty"`                    //--labels
 	LocalSSDCount             int64             `json:"localSSDCount,omitempty"`             //--local-ssd-count
-	MachineType               string            `json:"machineType"`                         //--machine-types
+	MachineType               string            `json:"machineType,omitempty"`               //--machine-types
 	MaintenanceWindow         string            `json:"maintenanceWindow,omitempty"`         //--maintenance-window, example: '12:43'
 	MaxNodesPerPool           int64             `json:"maxNodesPerPool,omitempty"`           //--max-nodes-per-pool
 	MinCPUPlatform            string            `json:"minCPUPlatform,omitempty"`            //--min-cpu-platform
@@ -59,13 +63,13 @@ type GKEClusterSpec struct {
 	NodeLocations             []string          `json:"nodeLocations,omitempty"`             //--node-locations=ZONE,[ZONE,…]
 	NodeTaints                []string          `json:"nodeTaints,omitempty"`                //--node-taints=[NODE_TAINT,…]
 	NodeVersion               []string          `json:"nodeVersion,omitempty"`               //--node-version=NODE_VERSION
-	NumNodes                  int64             `json:"numNodes"`                            //--num-nodes=NUM_NODES; default=3
+	NumNodes                  int64             `json:"numNodes,omitempty"`                  //--num-nodes=NUM_NODES; default=3
 	Preemtible                bool              `json:"preemtible,omitempty"`                //--preemptible
 	ServiceIPV4CIDR           string            `json:"serviceIPV4CIDR,omitempty"`           //--services-ipv4-cidr=CIDR
 	ServiceSecondaryRangeName string            `json:"serviceSecondaryRangeName,omitempty"` //--services-secondary-range-name=NAME
 	Subnetwork                string            `json:"subnetwork,omitempty"`                //--subnetwork=SUBNETWORK
 	Tags                      []string          `json:"tags,omitempty"`                      //--tags=TAG,[TAG,…]
-	Zone                      string            `json:"zone"`                                //--zone
+	Zone                      string            `json:"zone,omitempty"`                      //--zone
 	// Cluster Autoscaling
 	EnableAutoscaling bool  `json:"enableAutoscaling,omitempty"` //--enable-autoscaling
 	MaxNodes          int64 `json:"maxNodes,omitempty"`          //--max-nodes
@@ -83,7 +87,7 @@ type GKEClusterSpec struct {
 	ClaimRef            *corev1.ObjectReference      `json:"claimRef,omitempty"`
 	ClassRef            *corev1.ObjectReference      `json:"classRef,omitempty"`
 	ConnectionSecretRef *corev1.LocalObjectReference `json:"connectionSecretRef,omitempty"`
-	ProviderRef         corev1.LocalObjectReference  `json:"providerRef"`
+	ProviderRef         corev1.LocalObjectReference  `json:"providerRef,omitempty"`
 
 	// ReclaimPolicy identifies how to handle the cloud resource after the deletion of this type
 	ReclaimPolicy corev1alpha1.ReclaimPolicy `json:"reclaimPolicy,omitempty"`
@@ -92,6 +96,7 @@ type GKEClusterSpec struct {
 // GKEClusterStatus
 type GKEClusterStatus struct {
 	corev1alpha1.ConditionedStatus
+	corev1alpha1.BindingStatusPhase
 	ClusterName string `json:"clusterName"`
 	Endpoint    string `json:"endpoint"`
 	State       string `json:"state,omitempty"`
@@ -119,7 +124,25 @@ type GKEClusterList struct {
 	Items           []GKECluster `json:"items"`
 }
 
-// ObjectReference to this instance
+// NewGKEClusterSpec from properties map
+func NewGKEClusterSpec(properties map[string]string) *GKEClusterSpec {
+	spec := &GKEClusterSpec{
+		ReclaimPolicy: DefaultReclaimPolicy,
+		Zone:          properties["zone"],
+		MachineType:   properties["machineType"],
+		NumNodes:      DefaultNumberOfNodes,
+	}
+
+	// assign nodes from properties
+	n, err := strconv.Atoi(properties["numNodes"])
+	if err == nil {
+		spec.NumNodes = int64(n)
+	}
+
+	return spec
+}
+
+// ObjectReference to this RDSInstance
 func (g *GKECluster) ObjectReference() *corev1.ObjectReference {
 	apiVersion := g.TypeMeta.APIVersion
 	if apiVersion == "" {
@@ -166,4 +189,32 @@ func (g *GKECluster) ConnectionSecretName() string {
 	}
 
 	return g.Spec.ConnectionSecretRef.Name
+}
+
+func (g *GKECluster) Endpoint() string {
+	return g.Status.Endpoint
+}
+
+// State returns rds instance state value saved in the status (could be empty)
+func (g *GKECluster) State() string {
+	return g.Status.State
+}
+
+// IsAvailable for usage/binding
+func (g *GKECluster) IsAvailable() bool {
+	return g.State() == ClusterStateRunning
+}
+
+// IsBound
+func (g *GKECluster) IsBound() bool {
+	return g.Status.Phase == corev1alpha1.BindingStateBound
+}
+
+// SetBound
+func (g *GKECluster) SetBound(state bool) {
+	if state {
+		g.Status.Phase = corev1alpha1.BindingStateBound
+	} else {
+		g.Status.Phase = corev1alpha1.BindingStateUnbound
+	}
 }

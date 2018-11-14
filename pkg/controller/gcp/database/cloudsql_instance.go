@@ -194,7 +194,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	// retrieve the CloudSQL instance from GCP to get the latest status
 	cloudSQLInstance, err = cloudSQLClient.GetInstance(provider.Spec.ProjectID, instance.Status.InstanceName)
 	if err != nil {
-		if !gcpclients.IsNotFound(err) {
+		if !gcpclients.IsErrorNotFound(err) {
 			return r.fail(instance, errorFetchingInstance, fmt.Sprintf("failed to get cloud sql instance %s: %+v", instance.Name, err))
 		}
 
@@ -270,7 +270,7 @@ func (r *Reconciler) handleDeletion(cloudSQLClient gcpclients.CloudSQLAPI,
 	// first get the latest status of the CloudSQL resource that needs to be deleted
 	_, err := cloudSQLClient.GetInstance(provider.Spec.ProjectID, instance.Status.InstanceName)
 	if err != nil {
-		if !gcpclients.IsNotFound(err) {
+		if !gcpclients.IsErrorNotFound(err) {
 			return r.fail(instance, errorFetchingInstance, fmt.Sprintf("failed to get cloud sql instance %s for deletion: %+v", instance.Name, err))
 		}
 

@@ -22,7 +22,6 @@ import (
 
 	"github.com/upbound/conductor/pkg/apis"
 	"github.com/upbound/conductor/pkg/controller"
-	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/runtime/signals"
