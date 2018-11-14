@@ -112,6 +112,11 @@ func (c *ConditionedStatus) SetCreating() {
 	c.SetCondition(NewCondition(Creating, "", ""))
 }
 
+// SetDeleting set creating as an active condition
+func (c *ConditionedStatus) SetDeleting() {
+	c.SetCondition(NewCondition(Deleting, "", ""))
+}
+
 // UnsetCondition set condition status to false with the given type - if found.
 func (c *ConditionedStatus) UnsetCondition(conditionType ConditionType) {
 	current := c.Condition(conditionType)

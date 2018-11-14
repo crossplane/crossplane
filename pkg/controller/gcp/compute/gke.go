@@ -46,11 +46,10 @@ const (
 	finalizer         = "finalizer." + controllerName
 	clusterNamePrefix = "gke-"
 
-	errorClusterClient           = "Failed to create cluster client"
-	errorCreatingCluster         = "Failed to create new cluster"
-	errorUpdatingCluster         = "Failed to update cluster"
-	errorDeletingCluster         = "Failed to delete cluster"
-	errorClusterConnectionSecret = "Failed to create/update cluster connection secret"
+	errorClusterClient = "Failed to create cluster client"
+	errorCreateCluster = "Failed to create new cluster"
+	errorSyncCluster   = "Failed to sync cluster state"
+	errorDeleteCluster = "Failed to delete cluster"
 )
 
 var (
@@ -163,11 +162,11 @@ func (r *Reconciler) _create(instance *gcpcomputev1alpha1.GKECluster, client gke
 	_, err := client.CreateCluster(clusterName, instance.Spec)
 	if err != nil && !gcp.IsErrorAlreadyExists(err) {
 		if gcp.IsErrorBadRequest(err) {
-			instance.Status.SetFailed(errorCreatingCluster, err.Error())
+			instance.Status.SetFailed(errorCreateCluster, err.Error())
 			// do not requeue on bad requests
 			return result, r.Update(ctx, instance)
 		}
-		return r.fail(instance, errorCreatingCluster, err.Error())
+		return r.fail(instance, errorCreateCluster, err.Error())
 	}
 
 	instance.Status.UnsetAllConditions()
@@ -180,7 +179,7 @@ func (r *Reconciler) _create(instance *gcpcomputev1alpha1.GKECluster, client gke
 func (r *Reconciler) _sync(instance *gcpcomputev1alpha1.GKECluster, client gke.Client) (reconcile.Result, error) {
 	cluster, err := client.GetCluster(instance.Spec.Zone, instance.Status.ClusterName)
 	if err != nil {
-		return r.fail(instance, errorUpdatingCluster, err.Error())
+		return r.fail(instance, errorSyncCluster, err.Error())
 	}
 
 	if cluster.Status != gcpcomputev1alpha1.ClusterStateRunning {
@@ -189,7 +188,7 @@ func (r *Reconciler) _sync(instance *gcpcomputev1alpha1.GKECluster, client gke.C
 
 	// create connection secret
 	if _, err := util.ApplySecret(r.kubeclient, r.connectionSecret(instance, cluster)); err != nil {
-		return r.fail(instance, errorClusterConnectionSecret, err.Error())
+		return r.fail(instance, errorSyncCluster, err.Error())
 	}
 
 	// update resource status
@@ -207,7 +206,7 @@ func (r *Reconciler) _sync(instance *gcpcomputev1alpha1.GKECluster, client gke.C
 func (r *Reconciler) _delete(instance *gcpcomputev1alpha1.GKECluster, client gke.Client) (reconcile.Result, error) {
 	if instance.Spec.ReclaimPolicy == corev1alpha1.ReclaimDelete {
 		if err := client.DeleteCluster(instance.Spec.Zone, instance.Status.ClusterName); err != nil {
-			return r.fail(instance, errorDeletingCluster, err.Error())
+			return r.fail(instance, errorDeleteCluster, err.Error())
 		}
 	}
 	util.RemoveFinalizer(&instance.ObjectMeta, finalizer)

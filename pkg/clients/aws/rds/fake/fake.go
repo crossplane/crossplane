@@ -14,27 +14,30 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package rds
+package fake
 
-import "github.com/upbound/conductor/pkg/apis/aws/database/v1alpha1"
+import (
+	"github.com/upbound/conductor/pkg/apis/aws/database/v1alpha1"
+	"github.com/upbound/conductor/pkg/clients/aws/rds"
+)
 
-type MockClient struct {
-	MockGetInstance    func(string) (*Instance, error)
-	MockCreateInstance func(name, password string, spec *v1alpha1.RDSInstanceSpec) (*Instance, error)
-	MockDeleteInstance func(name string) (*Instance, error)
+type MockRDSClient struct {
+	MockGetInstance    func(string) (*rds.Instance, error)
+	MockCreateInstance func(string, string, *v1alpha1.RDSInstanceSpec) (*rds.Instance, error)
+	MockDeleteInstance func(name string) (*rds.Instance, error)
 }
 
 // GetInstance finds RDS Instance by name
-func (m *MockClient) GetInstance(name string) (*Instance, error) {
+func (m *MockRDSClient) GetInstance(name string) (*rds.Instance, error) {
 	return m.MockGetInstance(name)
 }
 
 // CreateInstance creates RDS Instance with provided Specification
-func (m *MockClient) CreateInstance(name, password string, spec *v1alpha1.RDSInstanceSpec) (*Instance, error) {
+func (m *MockRDSClient) CreateInstance(name, password string, spec *v1alpha1.RDSInstanceSpec) (*rds.Instance, error) {
 	return m.MockCreateInstance(name, password, spec)
 }
 
 // DeleteInstance deletes RDS Instance
-func (m *MockClient) DeleteInstance(name string) (*Instance, error) {
+func (m *MockRDSClient) DeleteInstance(name string) (*rds.Instance, error) {
 	return m.MockDeleteInstance(name)
 }

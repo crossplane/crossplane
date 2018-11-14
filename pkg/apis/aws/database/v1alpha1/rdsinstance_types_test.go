@@ -97,16 +97,6 @@ func TestIsAvailable(t *testing.T) {
 	r.Status.State = "foo"
 	g.Expect(r.IsAvailable()).To(BeFalse())
 
-	r.Status.State = RDSInstanceStateAvailable.String()
+	r.Status.State = string(RDSInstanceStateAvailable)
 	g.Expect(r.IsAvailable()).To(BeTrue())
-}
-
-func TestConditionType(t *testing.T) {
-	g := NewGomegaWithT(t)
-
-	g.Expect(ConditionType(RDSInstanceStateAvailable.String())).To(Equal(corev1alpha1.Ready))
-	g.Expect(ConditionType(RDSInstanceStateCreating.String())).To(Equal(corev1alpha1.Creating))
-	g.Expect(ConditionType(RDSInstanceStateDeleting.String())).To(Equal(corev1alpha1.Deleting))
-	g.Expect(ConditionType(RDSInstanceStateFailed.String())).To(Equal(corev1alpha1.Failed))
-	g.Expect(ConditionType("foobar")).To(Equal(corev1alpha1.Pending))
 }

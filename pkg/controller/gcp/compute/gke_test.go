@@ -72,8 +72,8 @@ func testCluster() *GKECluster {
 	}
 }
 
-// assertCluster a helper function to check on cluster and its status
-func assertCluster(g *GomegaWithT, r *Reconciler, s corev1alpha1.ConditionedStatus) *GKECluster {
+// assertResource a helper function to check on cluster and its status
+func assertResource(g *GomegaWithT, r *Reconciler, s corev1alpha1.ConditionedStatus) *GKECluster {
 	rc := &GKECluster{}
 	err := r.Get(ctx, key, rc)
 	g.Expect(err).To(BeNil())
@@ -101,13 +101,13 @@ func TestSyncClusterGetError(t *testing.T) {
 	}
 
 	expectedStatus := corev1alpha1.ConditionedStatus{}
-	expectedStatus.SetFailed(errorUpdatingCluster, testError)
+	expectedStatus.SetFailed(errorSyncCluster, testError)
 
 	rs, err := r._sync(tc, cl)
 	g.Expect(rs).To(Equal(resultRequeue))
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(called).To(BeTrue())
-	assertCluster(g, r, expectedStatus)
+	assertResource(g, r, expectedStatus)
 }
 
 func TestSyncClusterNotReady(t *testing.T) {
@@ -136,7 +136,7 @@ func TestSyncClusterNotReady(t *testing.T) {
 	g.Expect(rs).To(Equal(resultRequeue))
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(called).To(BeTrue())
-	assertCluster(g, r, expectedStatus)
+	assertResource(g, r, expectedStatus)
 }
 
 func TestSyncApplySecretError(t *testing.T) {
@@ -176,13 +176,13 @@ func TestSyncApplySecretError(t *testing.T) {
 	}
 
 	expectedStatus := corev1alpha1.ConditionedStatus{}
-	expectedStatus.SetFailed(errorClusterConnectionSecret, testError)
+	expectedStatus.SetFailed(errorSyncCluster, testError)
 
 	rs, err := r._sync(tc, cl)
 	g.Expect(rs).To(Equal(resultRequeue))
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(called).To(BeTrue())
-	assertCluster(g, r, expectedStatus)
+	assertResource(g, r, expectedStatus)
 }
 
 func TestSync(t *testing.T) {
@@ -223,7 +223,7 @@ func TestSync(t *testing.T) {
 	g.Expect(rs).To(Equal(result))
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(called).To(BeTrue())
-	assertCluster(g, r, expectedStatus)
+	assertResource(g, r, expectedStatus)
 }
 
 func TestDeleteReclaimDelete(t *testing.T) {
@@ -255,7 +255,7 @@ func TestDeleteReclaimDelete(t *testing.T) {
 	g.Expect(rs).To(Equal(result))
 	g.Expect(err).To(BeNil())
 	g.Expect(called).To(BeTrue())
-	assertCluster(g, r, expectedStatus)
+	assertResource(g, r, expectedStatus)
 
 	// repeat the same for cluster in 'failing' condition
 	reason := "test-reason"
@@ -270,7 +270,7 @@ func TestDeleteReclaimDelete(t *testing.T) {
 	g.Expect(rs).To(Equal(result))
 	g.Expect(err).To(BeNil())
 	g.Expect(called).To(BeTrue())
-	assertCluster(g, r, expectedStatus)
+	assertResource(g, r, expectedStatus)
 }
 
 func TestDeleteReclaimRetain(t *testing.T) {
@@ -304,7 +304,7 @@ func TestDeleteReclaimRetain(t *testing.T) {
 	expectedStatus.SetReady()
 	expectedStatus.UnsetAllConditions()
 
-	assertCluster(g, r, expectedStatus)
+	assertResource(g, r, expectedStatus)
 }
 
 func TestDeleteFailed(t *testing.T) {
@@ -339,9 +339,9 @@ func TestDeleteFailed(t *testing.T) {
 	expectedStatus := corev1alpha1.ConditionedStatus{}
 	expectedStatus.SetReady()
 	expectedStatus.UnsetAllConditions()
-	expectedStatus.SetFailed(errorDeletingCluster, testError)
+	expectedStatus.SetFailed(errorDeleteCluster, testError)
 
-	assertCluster(g, r, expectedStatus)
+	assertResource(g, r, expectedStatus)
 }
 
 func TestReconcileObjectNotFound(t *testing.T) {
@@ -380,7 +380,7 @@ func TestReconcileClientError(t *testing.T) {
 	g.Expect(err).To(BeNil())
 	g.Expect(called).To(BeTrue())
 
-	assertCluster(g, r, expectedStatus)
+	assertResource(g, r, expectedStatus)
 }
 
 func TestReconcileDelete(t *testing.T) {
@@ -409,7 +409,7 @@ func TestReconcileDelete(t *testing.T) {
 	g.Expect(rs).To(Equal(result))
 	g.Expect(err).To(BeNil())
 	g.Expect(called).To(BeTrue())
-	assertCluster(g, r, corev1alpha1.ConditionedStatus{})
+	assertResource(g, r, corev1alpha1.ConditionedStatus{})
 }
 
 func TestReconcileCreate(t *testing.T) {
@@ -434,7 +434,7 @@ func TestReconcileCreate(t *testing.T) {
 	g.Expect(err).To(BeNil())
 	g.Expect(called).To(BeTrue())
 
-	rc := assertCluster(g, r, corev1alpha1.ConditionedStatus{})
+	rc := assertResource(g, r, corev1alpha1.ConditionedStatus{})
 	g.Expect(rc.Finalizers).To(HaveLen(1))
 	g.Expect(rc.Finalizers).To(ContainElement(finalizer))
 }
@@ -465,7 +465,7 @@ func TestReconcileSync(t *testing.T) {
 	g.Expect(err).To(BeNil())
 	g.Expect(called).To(BeTrue())
 
-	rc := assertCluster(g, r, corev1alpha1.ConditionedStatus{})
+	rc := assertResource(g, r, corev1alpha1.ConditionedStatus{})
 	g.Expect(rc.Finalizers).To(HaveLen(1))
 	g.Expect(rc.Finalizers).To(ContainElement(finalizer))
 }
