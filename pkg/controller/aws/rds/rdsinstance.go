@@ -210,6 +210,8 @@ func (r *Reconciler) _sync(instance *databasev1alpha1.RDSInstance, client rds.Cl
 		return r.fail(instance, errorSyncResource, err.Error())
 	}
 
+	instance.Status.State = db.Status
+
 	instance.Status.UnsetAllConditions()
 	switch db.Status {
 	case string(databasev1alpha1.RDSInstanceStateCreating):

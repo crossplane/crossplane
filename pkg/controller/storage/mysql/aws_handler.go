@@ -22,7 +22,6 @@ import (
 	awsdbv1alpha1 "github.com/upbound/conductor/pkg/apis/aws/database/v1alpha1"
 	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
 	mysqlv1alpha1 "github.com/upbound/conductor/pkg/apis/storage/v1alpha1"
-	"github.com/upbound/conductor/pkg/util"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -47,6 +46,7 @@ func (h *RDSInstanceHandler) provision(class *corev1alpha1.ResourceClass, instan
 	// TODO: it is not clear if all concrete resource use the same constant value for database engine
 	// if they do - we will need to refactor this value into constant.
 	rdsInstanceSpec.Engine = "mysql"
+	rdsInstanceName := fmt.Sprintf("%s-%s", rdsInstanceSpec.Engine, instance.UID)
 
 	// translate mysql spec fields to RDSInstance instance spec
 	if err := translateToRDSInstance(instance.Spec, rdsInstanceSpec); err != nil {
@@ -69,7 +69,7 @@ func (h *RDSInstanceHandler) provision(class *corev1alpha1.ResourceClass, instan
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:       class.Namespace,
-			Name:            util.GenerateName(instance.Name),
+			Name:            rdsInstanceName,
 			OwnerReferences: []metav1.OwnerReference{instance.OwnerReference()},
 		},
 		Spec: *rdsInstanceSpec,

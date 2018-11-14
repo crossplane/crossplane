@@ -97,158 +97,85 @@ func assertResource(g *GomegaWithT, r *Reconciler, s corev1alpha1.ConditionedSta
 	return resource
 }
 
-func TestSyncClusterGetError(t *testing.T) {
+func TestSyncClusterError(t *testing.T) {
 	g := NewGomegaWithT(t)
 
-	tr := testResource()
+	assert := func(instance *RDSInstance, client rds.Client, expectedResult reconcile.Result, expectedStatus corev1alpha1.ConditionedStatus) {
+		r := &Reconciler{
+			Client:     NewFakeClient(instance),
+			kubeclient: NewSimpleClientset(),
+		}
 
-	r := &Reconciler{
-		Client:     NewFakeClient(tr),
-		kubeclient: NewSimpleClientset(),
+		rs, err := r._sync(instance, client)
+
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(rs).To(Equal(expectedResult))
+		assertResource(g, r, expectedStatus)
 	}
 
-	called := false
+	// get error
 	testError := "test-resource-retrieve-error"
-
 	cl := &MockRDSClient{
 		MockGetInstance: func(s string) (instance *rds.Instance, e error) {
-			called = true
 			return nil, fmt.Errorf(testError)
 		},
 	}
-
 	expectedStatus := corev1alpha1.ConditionedStatus{}
 	expectedStatus.SetFailed(errorSyncResource, testError)
+	assert(testResource(), cl, resultRequeue, expectedStatus)
 
-	rs, err := r._sync(tr, cl)
-	g.Expect(rs).To(Equal(resultRequeue))
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(called).To(BeTrue())
-	assertResource(g, r, expectedStatus)
-}
-
-func TestSyncClusterStateCreating(t *testing.T) {
-	g := NewGomegaWithT(t)
-
-	tr := testResource()
-
-	r := &Reconciler{
-		Client:     NewFakeClient(tr),
-		kubeclient: NewSimpleClientset(),
-	}
-
-	called := false
-
-	cl := &MockRDSClient{
+	// instance is not ready
+	cl = &MockRDSClient{
 		MockGetInstance: func(s string) (instance *rds.Instance, e error) {
-			called = true
 			return &rds.Instance{
 				Status: string(RDSInstanceStateCreating),
 			}, nil
 		},
 	}
-
-	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus = corev1alpha1.ConditionedStatus{}
 	expectedStatus.SetCreating()
+	assert(testResource(), cl, resultRequeue, expectedStatus)
 
-	rs, err := r._sync(tr, cl)
-	g.Expect(rs).To(Equal(resultRequeue))
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(called).To(BeTrue())
-	assertResource(g, r, expectedStatus)
-}
-
-func TestSyncClusterStateFailed(t *testing.T) {
-	g := NewGomegaWithT(t)
-
-	tr := testResource()
-
-	r := &Reconciler{
-		Client:     NewFakeClient(tr),
-		kubeclient: NewSimpleClientset(),
-	}
-
-	called := false
-
-	cl := &MockRDSClient{
+	// instance in failed state
+	cl = &MockRDSClient{
 		MockGetInstance: func(s string) (instance *rds.Instance, e error) {
-			called = true
 			return &rds.Instance{
 				Status: string(RDSInstanceStateFailed),
 			}, nil
 		},
 	}
-
-	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus = corev1alpha1.ConditionedStatus{}
 	expectedStatus.SetFailed(errorSyncResource, "resource is in failed state")
+	assert(testResource(), cl, result, expectedStatus)
 
-	rs, err := r._sync(tr, cl)
-	g.Expect(rs).To(Equal(result))
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(called).To(BeTrue())
-	assertResource(g, r, expectedStatus)
-}
-
-func TestSyncClusterStateDeleting(t *testing.T) {
-	g := NewGomegaWithT(t)
-
-	tr := testResource()
-
-	r := &Reconciler{
-		Client:     NewFakeClient(tr),
-		kubeclient: NewSimpleClientset(),
-	}
-
-	called := false
-
-	cl := &MockRDSClient{
+	// instance is in deleting state
+	cl = &MockRDSClient{
 		MockGetInstance: func(s string) (instance *rds.Instance, e error) {
-			called = true
 			return &rds.Instance{
 				Status: string(RDSInstanceStateDeleting),
 			}, nil
 		},
 	}
 
-	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus = corev1alpha1.ConditionedStatus{}
 	expectedStatus.SetFailed(errorSyncResource, fmt.Sprintf("unexpected resource status: %s", RDSInstanceStateDeleting))
+	assert(testResource(), cl, resultRequeue, expectedStatus)
 
-	rs, err := r._sync(tr, cl)
-	g.Expect(rs).To(Equal(resultRequeue))
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(called).To(BeTrue())
-	assertResource(g, r, expectedStatus)
-}
-
-func TestSyncClusterGetSecretFailure(t *testing.T) {
-	g := NewGomegaWithT(t)
-
-	tr := testResource()
-
-	r := &Reconciler{
-		Client:     NewFakeClient(tr),
-		kubeclient: NewSimpleClientset(),
-	}
-
-	called := false
-	cl := &MockRDSClient{
+	// failed to retrieve instance secret
+	cl = &MockRDSClient{
 		MockGetInstance: func(s string) (instance *rds.Instance, e error) {
-			called = true
 			return &rds.Instance{
 				Status: string(RDSInstanceStateAvailable),
 			}, nil
 		},
 	}
 
-	expectedStatus := corev1alpha1.ConditionedStatus{}
+	tr := testResource()
+	expectedStatus = corev1alpha1.ConditionedStatus{}
 	expectedStatus.SetReady()
 	expectedStatus.SetFailed(errorSyncResource, fmt.Sprintf("secrets \"%s\" not found", tr.Name))
+	assert(tr, cl, resultRequeue, expectedStatus)
 
-	rs, err := r._sync(tr, cl)
-	g.Expect(rs).To(Equal(resultRequeue))
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(called).To(BeTrue())
-	assertResource(g, r, expectedStatus)
 }
 
 func TestSyncClusterUpdateSecretFailure(t *testing.T) {
@@ -317,7 +244,8 @@ func TestSyncCluster(t *testing.T) {
 	g.Expect(rs).To(Equal(result))
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(called).To(BeTrue())
-	assertResource(g, r, expectedStatus)
+	rr := assertResource(g, r, expectedStatus)
+	g.Expect(rr.Status.State).To(Equal(string(RDSInstanceStateAvailable)))
 }
 
 func TestDelete(t *testing.T) {
@@ -476,7 +404,6 @@ func TestConnect(t *testing.T) {
 	c, err = r._connect(tr)
 	g.Expect(c).To(BeNil())
 	g.Expect(err).To(Not(BeNil()))
-	t.Logf("e: %v", err)
 }
 
 func TestReconcile(t *testing.T) {

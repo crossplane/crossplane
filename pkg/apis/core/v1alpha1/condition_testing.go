@@ -94,6 +94,9 @@ func (csm *ConditionedStatusMatcher) Match(actual interface{}) (success bool, er
 
 	for _, ce := range e.Conditions {
 		ca := a.Condition(ce.Type)
+		if ca == nil {
+			return false, nil
+		}
 		cm := &ConditionMatcher{ce}
 		ok, err := cm.Match(*ca)
 		if !ok {
