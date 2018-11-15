@@ -27,11 +27,14 @@ spec:
     spec: {}
     status:
       loadBalancer: {}
-  bucketResources:
+  resources:
     - name: my-bucket
+      apiGroup: v1alpha1
+      kind: Bucket
       # implicit secret name, defaulted to: `my-bucket`
-  mySqlResources:
     - name: my-database
+      # apiVersion is omitted
+      kind: MySQLinstance
       # explicit secret name (different from the resource name)
       secretName: my-database
 status:
