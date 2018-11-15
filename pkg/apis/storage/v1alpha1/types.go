@@ -88,3 +88,49 @@ func (m *MySQLInstance) ObjectReference() *corev1.ObjectReference {
 func (m *MySQLInstance) OwnerReference() metav1.OwnerReference {
 	return *util.ObjectToOwnerReference(m.ObjectReference())
 }
+
+// BucketSpec defines the desired state of Bucket
+type BucketSpec struct {
+	ClassRef    *corev1.ObjectReference `json:"classReference,omitempty"`
+	ResourceRef *corev1.ObjectReference `json:"resourceName,omitempty"`
+	Selector    metav1.LabelSelector    `json:"selector,omitempty"`
+
+	// Bucket properties
+	Name string `json:"name,omitempty"`
+	// PredefinedACL is one of
+	// private, publicRead, publicReadWrite(*), AuthenticatedRead(*)
+	// * Not available on Azure
+	PredefinedACL string `json:"predefinedACL,omitempty"`
+}
+
+// BucketClaimStatus
+type BucketClaimStatus struct {
+	corev1alpha1.ConditionedStatus
+	corev1alpha1.BindingStatusPhase
+	// Provisioner is the driver that was used to provision the concrete resource
+	// This is an optionally-prefixed name, like a label key.
+	// For example: "S3Bucket.storage.aws.conductor.io/v1alpha1" or "GoogleBucket.storage.gcp.conductor.io/v1alpha1".
+	Provisioner string `json:"provisioner,omitempty"`
+}
+
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// Bucket is the Schema for the Bucket API
+// +k8s:openapi-gen=true
+type Bucket struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec   BucketSpec        `json:"spec,omitempty"`
+	Status BucketClaimStatus `json:"status,omitempty"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// BucketList contains a list of Buckets
+type BucketList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []Bucket `json:"items"`
+}

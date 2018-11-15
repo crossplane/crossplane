@@ -34,7 +34,7 @@ type GoogleBucketSpec struct {
 	Location string `json:"location,omitempty"`
 
 	// PredefinedACL is OneOf - private, authenticatedRead, projectPrivate, publicRead, publicReadWrite
-	PredefinedACL *string `json:"cannedACL,omitempty"`
+	PredefinedACL *string `json:"predefinedACL,omitempty"`
 
 	//StorageClass one of
 	// MULTI_REGIONAL, REGIONAL, STANDARD, NEARLINE, COLDLINE, and DURABLE_REDUCED_AVAILABILITY.
