@@ -20,7 +20,7 @@ spec:
         spec:
           containers: null
   targetNamespace: target-default
-  targetSservice:
+  targetService:
     metadata:
       name: my-service
       namespace: target-default
