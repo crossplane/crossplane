@@ -36,4 +36,3 @@ spec:
       secretName: my-database
 status:
   Conditions: null
-  https://github.com/upbound/conductor/pulls
