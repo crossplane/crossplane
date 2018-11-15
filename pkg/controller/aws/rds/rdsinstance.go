@@ -43,23 +43,19 @@ import (
 )
 
 const (
-	recorderName = "aws.rds.instance"
-	finalizer    = "finalizer.rds.aws.conductor.io"
+	controllerName = "rds.aws.conductor.io"
+	finalizer      = "finalizer." + controllerName
 
-	errorFetchingAwsProvider        = "Failed to fetch AWS Provider"
-	errorProviderStatusInvalid      = "Provider status is invalid"
-	errorRDSClient                  = "Failed to create RDS client"
-	errorGetDbInstance              = "Failed to retrieve DBInstance"
-	errorCreatingPassword           = "Failed to generate DBInstance password"
-	errorRetrievingConnectionSecret = "Failed to retrieve connection secret"
-	errorCreatingDbInstance         = "Failed to create DBInstance"
-	errorCreatingConnectionSecret   = "Failed to create connection secret"
-	errorDeletingDbInstance         = "Failed to delete DBInstance"
+	errorResourceClient = "Failed to create rds client"
+	errorCreateResource = "Failed to crate resource"
+	errorSyncResource   = "Failed to sync resource state"
+	errorDeleteResource = "Failed to delete resource"
 )
 
 var (
-	_   reconcile.Reconciler = &Reconciler{}
-	ctx                      = context.Background()
+	ctx           = context.Background()
+	result        = reconcile.Result{}
+	resultRequeue = reconcile.Result{Requeue: true}
 )
 
 // Add creates a new Instance Controller and adds it to the Manager with default RBAC.
@@ -74,16 +70,26 @@ type Reconciler struct {
 	scheme     *runtime.Scheme
 	kubeclient kubernetes.Interface
 	recorder   record.EventRecorder
+
+	connect func(*databasev1alpha1.RDSInstance) (rds.Client, error)
+	create  func(*databasev1alpha1.RDSInstance, rds.Client) (reconcile.Result, error)
+	sync    func(*databasev1alpha1.RDSInstance, rds.Client) (reconcile.Result, error)
+	delete  func(*databasev1alpha1.RDSInstance, rds.Client) (reconcile.Result, error)
 }
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
-	return &Reconciler{
+	r := &Reconciler{
 		Client:     mgr.GetClient(),
 		scheme:     mgr.GetScheme(),
 		kubeclient: kubernetes.NewForConfigOrDie(mgr.GetConfig()),
-		recorder:   mgr.GetRecorder(recorderName),
+		recorder:   mgr.GetRecorder(controllerName),
 	}
+	r.connect = r._connect
+	r.create = r._create
+	r.sync = r._sync
+	r.delete = r._delete
+	return r
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
@@ -118,152 +124,8 @@ func (r *Reconciler) fail(instance *databasev1alpha1.RDSInstance, reason, msg st
 	return reconcile.Result{Requeue: true}, r.Update(context.TODO(), instance)
 }
 
-// Reconcile reads that state of the cluster for a Instance object and makes changes based on the state read
-// and what is in the Instance.Spec
-func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	// Fetch the CRD instance
-	instance := &databasev1alpha1.RDSInstance{}
-
-	err := r.Get(ctx, request.NamespacedName, instance)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			// Object not found, return.  Created objects are automatically garbage collected.
-			// For additional cleanup logic use finalizers.
-			return reconcile.Result{}, nil
-		}
-		// Error reading the object - requeue the request.
-		log.Printf("failed to get object at start of reconcile loop: %+v", err)
-		return reconcile.Result{}, err
-	}
-
-	// Generate DBInstance Name
-	if instance.Status.InstanceName == "" {
-		instance.Status.InstanceName = fmt.Sprintf("%s-%s", instance.Spec.Engine, instance.UID)
-	}
-
-	// Fetch AWS Provider
-	p := &awsv1alpha1.Provider{}
-	providerNamespacedName := types.NamespacedName{
-		Namespace: instance.Namespace,
-		Name:      instance.Spec.ProviderRef.Name,
-	}
-	err = r.Get(ctx, providerNamespacedName, p)
-	if err != nil {
-		return r.fail(instance, errorFetchingAwsProvider, err.Error())
-	}
-
-	// Check provider status
-	if !p.IsValid() {
-		return r.fail(instance, errorProviderStatusInvalid, "")
-	}
-
-	// Create new RDS Client
-	svc, err := RDSService(p, r.kubeclient)
-	if err != nil {
-		return r.fail(instance, errorRDSClient, err.Error())
-	}
-
-	// Search for the RDS instance in AWS
-	db, err := svc.GetInstance(instance.Status.InstanceName)
-	if err != nil {
-		return r.fail(instance, errorGetDbInstance, err.Error())
-	}
-
-	// Check for deletion
-	if instance.DeletionTimestamp != nil && instance.Status.Condition(corev1alpha1.Deleting) == nil {
-		if instance.Spec.ReclaimPolicy == corev1alpha1.ReclaimDelete {
-			if _, err = svc.DeleteInstance(instance.Status.InstanceName); err != nil {
-				return r.fail(instance, errorDeletingDbInstance, err.Error())
-			}
-		}
-
-		instance.Status.SetCondition(corev1alpha1.NewCondition(corev1alpha1.Deleting, "", ""))
-		util.RemoveFinalizer(&instance.ObjectMeta, finalizer)
-		return reconcile.Result{}, r.Update(ctx, instance)
-	}
-
-	// Add finalizer
-	if !util.HasFinalizer(&instance.ObjectMeta, finalizer) {
-		util.AddFinalizer(&instance.ObjectMeta, finalizer)
-		if err := r.Update(ctx, instance); err != nil {
-			return reconcile.Result{}, err
-		}
-	}
-
-	// Next 3 steps need to be performed all together
-	// 1. Generate Password
-	// 2. Save password into connection secret
-	// 3. Create new database with the generated password
-	if db == nil {
-		// generate new password
-		password, err := util.GeneratePassword(20)
-		if err != nil {
-			return r.fail(instance, errorCreatingPassword, err.Error())
-		}
-
-		_, err = util.ApplySecret(r.kubeclient, NewConnectionSecret(instance, password))
-		if err != nil {
-			return r.fail(instance, errorCreatingConnectionSecret, err.Error())
-		}
-
-		// Create DB Instance
-		db, err = svc.CreateInstance(instance.Status.InstanceName, password, &instance.Spec)
-		if err != nil {
-			return r.fail(instance, errorCreatingDbInstance, err.Error())
-		}
-	} else {
-		// Search for connection secret
-		connSecret, err := r.kubeclient.CoreV1().Secrets(instance.Namespace).Get(instance.ConnectionSecretName(), metav1.GetOptions{})
-		if err != nil {
-			if errors.IsNotFound(err) {
-				// There is nothing we can do to recover connect secret password.
-				// Nothing, short of re-creating the database instance.
-				// TODO: come up with better database instance password persistence
-				return r.fail(instance, errorRetrievingConnectionSecret, err.Error())
-			} else {
-				return r.fail(instance, errorRetrievingConnectionSecret, err.Error())
-			}
-		}
-		instance.SetEndpoint(db.Endpoint)
-		connSecret.Data[corev1alpha1.ResourceCredentialsSecretEndpointKey] = []byte(db.Endpoint)
-		_, err = util.ApplySecret(r.kubeclient, connSecret)
-		if err != nil {
-			return r.fail(instance, errorCreatingConnectionSecret, err.Error())
-		}
-	}
-
-	// Update status - if changed
-	conditionType := databasev1alpha1.ConditionType(db.Status)
-	requeue := conditionType != corev1alpha1.Ready
-
-	if instance.Status.State != db.Status {
-		instance.Status.State = db.Status
-		instance.Status.ProviderID = db.ARN
-		instance.Status.UnsetAllConditions()
-
-		condition := corev1alpha1.NewCondition(conditionType, "", "")
-		instance.Status.SetCondition(condition)
-
-		// Requeue this request until database is in Ready state
-		return reconcile.Result{Requeue: requeue}, r.Update(ctx, instance)
-	}
-
-	return reconcile.Result{Requeue: requeue}, nil
-}
-
-// RDSService - creates new instance of RDS client based on provider information
-var RDSService = func(p *awsv1alpha1.Provider, k kubernetes.Interface) (rds.Service, error) {
-	// Get Provider's AWS Config
-	config, err := aws.Config(k, p)
-	if err != nil {
-		return nil, err
-	}
-
-	// Create new RDS Client
-	return rds.NewClient(config), nil
-}
-
-func NewConnectionSecret(instance *databasev1alpha1.RDSInstance, password string) *corev1.Secret {
+// connectionSecret return secret object for this resource
+func connectionSecret(instance *databasev1alpha1.RDSInstance, password string) *corev1.Secret {
 	if instance.APIVersion == "" {
 		instance.APIVersion = "database.aws.conductor.io/v1alpha1"
 	}
@@ -285,13 +147,150 @@ func NewConnectionSecret(instance *databasev1alpha1.RDSInstance, password string
 	}
 }
 
-func (r *Reconciler) ApplyConnectionSecret(s *corev1.Secret) (*corev1.Secret, error) {
-	_, err := r.kubeclient.CoreV1().Secrets(s.Namespace).Get(s.Name, metav1.GetOptions{})
+func (r *Reconciler) _connect(instance *databasev1alpha1.RDSInstance) (rds.Client, error) {
+	// Fetch AWS Provider
+	p := &awsv1alpha1.Provider{}
+	providerNamespacedName := types.NamespacedName{
+		Namespace: instance.Namespace,
+		Name:      instance.Spec.ProviderRef.Name,
+	}
+	err := r.Get(ctx, providerNamespacedName, p)
 	if err != nil {
-		if errors.IsNotFound(err) {
-			return r.kubeclient.CoreV1().Secrets(s.Namespace).Create(s)
-		}
 		return nil, err
 	}
-	return r.kubeclient.CoreV1().Secrets(s.Namespace).Update(s)
+
+	// Check provider status
+	if !p.IsValid() {
+		return nil, fmt.Errorf("provider is not ready")
+	}
+
+	// Get Provider's AWS Config
+	config, err := aws.Config(r.kubeclient, p)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create new RDS RDSClient
+	return rds.NewClient(config), nil
+}
+
+func (r *Reconciler) _create(instance *databasev1alpha1.RDSInstance, client rds.Client) (reconcile.Result, error) {
+	resourceName := fmt.Sprintf("%s-%s", instance.Spec.Engine, instance.UID)
+
+	// generate new password
+	password, err := util.GeneratePassword(20)
+	if err != nil {
+		return r.fail(instance, errorCreateResource, err.Error())
+	}
+
+	_, err = util.ApplySecret(r.kubeclient, connectionSecret(instance, password))
+	if err != nil {
+		return r.fail(instance, errorCreateResource, err.Error())
+	}
+
+	// Create DB Instance
+	_, err = client.CreateInstance(resourceName, password, &instance.Spec)
+	if err != nil {
+		return r.fail(instance, errorCreateResource, err.Error())
+	}
+
+	instance.Status.UnsetAllConditions()
+	instance.Status.SetCreating()
+	instance.Status.InstanceName = resourceName
+
+	util.AddFinalizer(&instance.ObjectMeta, finalizer)
+
+	return resultRequeue, r.Update(ctx, instance)
+}
+
+func (r *Reconciler) _sync(instance *databasev1alpha1.RDSInstance, client rds.Client) (reconcile.Result, error) {
+	// Search for the RDS instance in AWS
+	db, err := client.GetInstance(instance.Status.InstanceName)
+	if err != nil {
+		return r.fail(instance, errorSyncResource, err.Error())
+	}
+
+	instance.Status.State = db.Status
+
+	instance.Status.UnsetAllConditions()
+	switch db.Status {
+	case string(databasev1alpha1.RDSInstanceStateCreating):
+		instance.Status.SetCreating()
+		return resultRequeue, r.Update(ctx, instance)
+	case string(databasev1alpha1.RDSInstanceStateFailed):
+		instance.Status.SetFailed(errorSyncResource, "resource is in failed state")
+		return result, r.Update(ctx, instance)
+	case string(databasev1alpha1.RDSInstanceStateAvailable):
+		instance.Status.SetReady()
+	default:
+		return r.fail(instance, errorSyncResource, fmt.Sprintf("unexpected resource status: %s", db.Status))
+	}
+
+	// Retrieve connection secret that was created during resource create phase
+	connSecret, err := r.kubeclient.CoreV1().Secrets(instance.Namespace).Get(instance.ConnectionSecretName(), metav1.GetOptions{})
+	if err != nil {
+		return r.fail(instance, errorSyncResource, err.Error())
+	}
+
+	// Save resource endpoint
+	instance.SetEndpoint(db.Endpoint)
+	instance.Status.ProviderID = db.ARN
+
+	// Update resource secret
+	connSecret.Data[corev1alpha1.ResourceCredentialsSecretEndpointKey] = []byte(db.Endpoint)
+	_, err = util.ApplySecret(r.kubeclient, connSecret)
+	if err != nil {
+		return r.fail(instance, errorSyncResource, err.Error())
+	}
+
+	return result, r.Update(ctx, instance)
+}
+
+func (r *Reconciler) _delete(instance *databasev1alpha1.RDSInstance, client rds.Client) (reconcile.Result, error) {
+	if instance.Spec.ReclaimPolicy == corev1alpha1.ReclaimDelete {
+		if _, err := client.DeleteInstance(instance.Status.InstanceName); err != nil {
+			return r.fail(instance, errorDeleteResource, err.Error())
+		}
+	}
+
+	instance.Status.SetCondition(corev1alpha1.NewCondition(corev1alpha1.Deleting, "", ""))
+	util.RemoveFinalizer(&instance.ObjectMeta, finalizer)
+	return result, r.Update(ctx, instance)
+}
+
+// Reconcile reads that state of the cluster for a Instance object and makes changes based on the state read
+// and what is in the Instance.Spec
+func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+	// Fetch the CRD instance
+	instance := &databasev1alpha1.RDSInstance{}
+
+	err := r.Get(ctx, request.NamespacedName, instance)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// Object not found, return.  Created objects are automatically garbage collected.
+			// For additional cleanup logic use finalizers.
+			return reconcile.Result{}, nil
+		}
+		// Error reading the object - requeue the request.
+		log.Printf("failed to get object at start of reconcile loop: %+v", err)
+		return reconcile.Result{}, err
+	}
+
+	rdsClient, err := r.connect(instance)
+	if err != nil {
+		return r.fail(instance, errorResourceClient, err.Error())
+	}
+
+	// Check for deletion
+	if instance.DeletionTimestamp != nil {
+		return r.delete(instance, rdsClient)
+	}
+
+	// Create cluster instance
+	if instance.Status.InstanceName == "" {
+		return r.create(instance, rdsClient)
+	}
+
+	// Sync cluster instance status with cluster status
+	return r.sync(instance, rdsClient)
 }

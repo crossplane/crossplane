@@ -17,6 +17,7 @@ limitations under the License.
 package rds
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -39,6 +40,7 @@ func NewInstance(instance *rds.DBInstance) *Instance {
 	if instance.Endpoint != nil {
 		endpoint = aws.StringValue(instance.Endpoint.Address)
 	}
+
 	return &Instance{
 		Name:     aws.StringValue(instance.DBInstanceIdentifier),
 		ARN:      aws.StringValue(instance.DBInstanceArn),
@@ -47,27 +49,37 @@ func NewInstance(instance *rds.DBInstance) *Instance {
 	}
 }
 
-// Service defines RDS Client operations
-type Service interface {
-	CreateInstance(name, password string, spec *v1alpha1.RDSInstanceSpec) (*Instance, error)
+// Client defines RDS RDSClient operations
+type Client interface {
+	CreateInstance(string, string, *v1alpha1.RDSInstanceSpec) (*Instance, error)
 	GetInstance(name string) (*Instance, error)
 	DeleteInstance(name string) (*Instance, error)
 }
 
-// Client implements RDS Client
-type Client struct {
+// RDSClient implements RDS RDSClient
+type RDSClient struct {
 	rds rdsiface.RDSAPI
 }
 
-// NewClient creates new RDS Client with provided AWS Configurations/Credentials
-func NewClient(config *aws.Config) Service {
-	return &Client{rds.New(*config)}
+// NewClient creates new RDS RDSClient with provided AWS Configurations/Credentials
+func NewClient(config *aws.Config) Client {
+	return &RDSClient{rds.New(*config)}
+}
+
+// CreateInstance creates RDS Instance with provided Specification
+func (r *RDSClient) CreateInstance(name, password string, spec *v1alpha1.RDSInstanceSpec) (*Instance, error) {
+	input := CreateDBInstanceInput(name, password, spec)
+	output, err := r.rds.CreateDBInstanceRequest(input).Send()
+	if err != nil {
+		return nil, err
+	}
+	return NewInstance(output.DBInstance), nil
 }
 
 // GetInstance finds RDS Instance by name
-func (c *Client) GetInstance(name string) (*Instance, error) {
-	input := &rds.DescribeDBInstancesInput{DBInstanceIdentifier: &name}
-	output, err := c.rds.DescribeDBInstancesRequest(input).Send()
+func (r *RDSClient) GetInstance(name string) (*Instance, error) {
+	input := rds.DescribeDBInstancesInput{DBInstanceIdentifier: &name}
+	output, err := r.rds.DescribeDBInstancesRequest(&input).Send()
 	if err != nil {
 		if IsErrNotFound(err) {
 			return nil, nil
@@ -77,29 +89,19 @@ func (c *Client) GetInstance(name string) (*Instance, error) {
 
 	outputCount := len(output.DBInstances)
 	if outputCount == 0 || outputCount > 1 {
-		return nil, nil // TODO: or maybe error
+		return nil, fmt.Errorf("rds instance [%s] is not found", name)
 	}
 
 	return NewInstance(&output.DBInstances[0]), nil
 }
 
-// CreateInstance creates RDS Instance with provided Specification
-func (c *Client) CreateInstance(name, password string, spec *v1alpha1.RDSInstanceSpec) (*Instance, error) {
-	input := CreateDBInstanceInput(name, password, spec)
-	output, err := c.rds.CreateDBInstanceRequest(input).Send()
-	if err != nil {
-		return nil, err
-	}
-	return NewInstance(output.DBInstance), nil
-}
-
 // DeleteInstance deletes RDS Instance
-func (c *Client) DeleteInstance(name string) (*Instance, error) {
-	input := &rds.DeleteDBInstanceInput{
+func (r *RDSClient) DeleteInstance(name string) (*Instance, error) {
+	input := rds.DeleteDBInstanceInput{
 		DBInstanceIdentifier: &name,
 		SkipFinalSnapshot:    aws.Bool(true),
 	}
-	output, err := c.rds.DeleteDBInstanceRequest(input).Send()
+	output, err := r.rds.DeleteDBInstanceRequest(&input).Send()
 	if err != nil {
 		if IsErrNotFound(err) {
 			return nil, nil

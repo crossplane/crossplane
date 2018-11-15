@@ -21,292 +21,457 @@ import (
 	"testing"
 
 	. "github.com/onsi/gomega"
-	databasev1alpha1 "github.com/upbound/conductor/pkg/apis/aws/database/v1alpha1"
+	"github.com/upbound/conductor/pkg/apis/aws"
+	. "github.com/upbound/conductor/pkg/apis/aws/database/v1alpha1"
 	awsv1alpha1 "github.com/upbound/conductor/pkg/apis/aws/v1alpha1"
 	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
 	"github.com/upbound/conductor/pkg/clients/aws/rds"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/client-go/kubernetes"
+	. "github.com/upbound/conductor/pkg/clients/aws/rds/fake"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	. "k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/kubernetes/scheme"
+	. "k8s.io/client-go/testing"
+	. "sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-func waitForDeleted(g *GomegaWithT, mgr *TestManager) {
-	var condition *corev1alpha1.Condition
+const (
+	namespace    = "default"
+	providerName = "test-provider"
+	instanceName = "test-instance"
 
-	ri, err := mgr.getInstance()
-	if err != nil && !errors.IsNotFound(err) {
+	masterUserName = "testuser"
+	engine         = "mysql"
+	class          = "db.t2.small"
+	size           = int64(10)
+)
+
+var (
+	key = types.NamespacedName{
+		Namespace: namespace,
+		Name:      instanceName,
+	}
+	request = reconcile.Request{
+		NamespacedName: key,
+	}
+)
+
+func init() {
+	if err := aws.AddToScheme(scheme.Scheme); err != nil {
+		panic(err)
+	}
+}
+
+func testProvider() *awsv1alpha1.Provider {
+	return &awsv1alpha1.Provider{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      providerName,
+			Namespace: namespace,
+		},
+	}
+}
+
+func testResource() *RDSInstance {
+	return &RDSInstance{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      instanceName,
+			Namespace: namespace,
+		},
+		Spec: RDSInstanceSpec{
+			MasterUsername: masterUserName,
+			Engine:         engine,
+			Class:          class,
+			Size:           size,
+		},
+	}
+}
+
+// assertResource a helper function to check on cluster and its status
+func assertResource(g *GomegaWithT, r *Reconciler, s corev1alpha1.ConditionedStatus) *RDSInstance {
+	resource := &RDSInstance{}
+	err := r.Get(ctx, key, resource)
+	g.Expect(err).To(BeNil())
+	g.Expect(resource.Status.ConditionedStatus).Should(corev1alpha1.MatchConditionedStatus(s))
+	return resource
+}
+
+func TestSyncClusterError(t *testing.T) {
+	g := NewGomegaWithT(t)
+
+	assert := func(instance *RDSInstance, client rds.Client, expectedResult reconcile.Result, expectedStatus corev1alpha1.ConditionedStatus) {
+		r := &Reconciler{
+			Client:     NewFakeClient(instance),
+			kubeclient: NewSimpleClientset(),
+		}
+
+		rs, err := r._sync(instance, client)
+
 		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(rs).To(Equal(expectedResult))
+		assertResource(g, r, expectedStatus)
 	}
 
-	for condition = ri.Status.Condition(corev1alpha1.Deleting); condition == nil; {
-		g.Eventually(mgr.requests, timeout).Should(Receive(Equal(expectedRequest)))
-		ri, err = mgr.getInstance()
-		if err != nil {
-			if errors.IsNotFound(err) {
-				break
-			}
-			g.Expect(err).NotTo(HaveOccurred())
-		}
+	// get error
+	testError := "test-resource-retrieve-error"
+	cl := &MockRDSClient{
+		MockGetInstance: func(s string) (instance *rds.Instance, e error) {
+			return nil, fmt.Errorf(testError)
+		},
 	}
-}
+	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetFailed(errorSyncResource, testError)
+	assert(testResource(), cl, resultRequeue, expectedStatus)
 
-// TestReconcile - Missing Provider
-func TestReconcileMissingProvider(t *testing.T) {
-	g := NewGomegaWithT(t)
+	// instance is not ready
+	cl = &MockRDSClient{
+		MockGetInstance: func(s string) (instance *rds.Instance, e error) {
+			return &rds.Instance{
+				Status: string(RDSInstanceStateCreating),
+			}, nil
+		},
+	}
+	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetCreating()
+	assert(testResource(), cl, resultRequeue, expectedStatus)
 
-	// create and start manager
-	mgr, err := NewTestManager()
-	g.Expect(err).NotTo(HaveOccurred())
-	defer close(StartTestManager(mgr.manager, g))
+	// instance in failed state
+	cl = &MockRDSClient{
+		MockGetInstance: func(s string) (instance *rds.Instance, e error) {
+			return &rds.Instance{
+				Status: string(RDSInstanceStateFailed),
+			}, nil
+		},
+	}
+	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetFailed(errorSyncResource, "resource is in failed state")
+	assert(testResource(), cl, result, expectedStatus)
 
-	// Provider (define, but not create)
-	p := testProvider(testSecret([]byte("testdata")))
-
-	// Create RDS Instance
-	i, err := mgr.createInstance(testInstance(p))
-	g.Expect(err).NotTo(HaveOccurred())
-	defer mgr.deleteInstance(i)
-
-	// Initial Loop
-	g.Eventually(mgr.requests, timeout).Should(Receive(Equal(expectedRequest)))
-	ri, err := mgr.getInstance()
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(ri).NotTo(BeNil())
-	g.Expect(ri.Status.Conditions).NotTo(BeEmpty())
-	c := ri.Status.Condition(corev1alpha1.Failed)
-	g.Expect(c).NotTo(BeNil())
-	g.Expect(c.Status).To(Equal(corev1.ConditionTrue))
-	g.Expect(c.Reason).To(Equal(errorFetchingAwsProvider))
-
-	// Assert Requeue
-	g.Eventually(mgr.requests, timeout).Should(Receive(Equal(expectedRequest)))
-}
-
-// TestReconcile - Invalid Provider
-func TestReconcileInvalidProvider(t *testing.T) {
-	g := NewGomegaWithT(t)
-
-	// create and start manager
-	mgr, err := NewTestManager()
-	g.Expect(err).NotTo(HaveOccurred())
-	defer close(StartTestManager(mgr.manager, g))
-
-	// Create Provider secret
-	s, err := mgr.createSecret(testSecret([]byte("testdata")))
-	g.Expect(err).NotTo(HaveOccurred())
-	defer mgr.deleteSecret(s)
-
-	// Create Provider with invalid state
-	p := testProvider(s)
-	p.Status.UnsetAllConditions()
-	p.Status.SetFailed("test-reason", "")
-	p, err = mgr.createProvider(p)
-	g.Expect(err).NotTo(HaveOccurred())
-	defer mgr.deleteProvider(p)
-
-	// Create RDS Instance
-	i, err := mgr.createInstance(testInstance(p))
-	g.Expect(err).NotTo(HaveOccurred())
-	defer mgr.deleteInstance(i)
-
-	// Initial Loop
-	g.Eventually(mgr.requests, timeout).Should(Receive(Equal(expectedRequest)))
-	ri, err := mgr.getInstance()
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(ri).NotTo(BeNil())
-	g.Expect(ri.Status.Conditions).NotTo(BeEmpty())
-	c := ri.Status.Condition(corev1alpha1.Failed)
-	g.Expect(c).NotTo(BeNil())
-	g.Expect(c.Status).To(Equal(corev1.ConditionTrue))
-	g.Expect(c.Reason).To(Equal(errorProviderStatusInvalid))
-
-	// Assert Requeue
-	g.Eventually(mgr.requests, timeout).Should(Receive(Equal(expectedRequest)))
-	g.Expect(mgr.deleteSecret(s)).NotTo(HaveOccurred())
-}
-
-func TestReconcileRDSClientError(t *testing.T) {
-	g := NewGomegaWithT(t)
-
-	// create and start manager
-	mgr, err := NewTestManager()
-	g.Expect(err).NotTo(HaveOccurred())
-	defer close(StartTestManager(mgr.manager, g))
-
-	// Create Provider secret
-	s, err := mgr.createSecret(testSecret([]byte("testdata")))
-	g.Expect(err).NotTo(HaveOccurred())
-	defer mgr.deleteSecret(s)
-
-	// Create Provider
-	p, err := mgr.createProvider(testProvider(s))
-	g.Expect(err).NotTo(HaveOccurred())
-	defer mgr.deleteProvider(p)
-
-	// Create RDS Instance
-	i, err := mgr.createInstance(testInstance(p))
-	g.Expect(err).NotTo(HaveOccurred())
-	defer mgr.deleteInstance(i)
-
-	// RDS Client, returns error on client creation
-	RDSService = func(p *awsv1alpha1.Provider, k kubernetes.Interface) (rds.Service, error) {
-		return nil, fmt.Errorf("test-error")
+	// instance is in deleting state
+	cl = &MockRDSClient{
+		MockGetInstance: func(s string) (instance *rds.Instance, e error) {
+			return &rds.Instance{
+				Status: string(RDSInstanceStateDeleting),
+			}, nil
+		},
 	}
 
-	// Initial Loop
-	g.Eventually(mgr.requests, timeout).Should(Receive(Equal(expectedRequest)))
-	ri, err := mgr.getInstance()
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(ri).NotTo(BeNil())
-	g.Expect(ri.Status.Conditions).NotTo(BeEmpty())
-	c := ri.Status.Condition(corev1alpha1.Failed)
-	g.Expect(c).NotTo(BeNil())
-	g.Expect(c.Status).To(Equal(corev1.ConditionTrue))
-	g.Expect(c.Reason).To(Equal(errorRDSClient))
+	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetFailed(errorSyncResource, fmt.Sprintf("unexpected resource status: %s", RDSInstanceStateDeleting))
+	assert(testResource(), cl, resultRequeue, expectedStatus)
 
-	// Assert Requeue
-	g.Eventually(mgr.requests, timeout).Should(Receive(Equal(expectedRequest)))
-}
-
-func TestReconcileGetInstanceError(t *testing.T) {
-	g := NewGomegaWithT(t)
-
-	// create and start manager
-	mgr, err := NewTestManager()
-	g.Expect(err).NotTo(HaveOccurred())
-	defer close(StartTestManager(mgr.manager, g))
-
-	// Create Provider secret
-	s, err := mgr.createSecret(testSecret([]byte("testdata")))
-	g.Expect(err).NotTo(HaveOccurred())
-	defer mgr.deleteSecret(s)
-
-	// Create Provider
-	p, err := mgr.createProvider(testProvider(s))
-	g.Expect(err).NotTo(HaveOccurred())
-	defer mgr.deleteProvider(p)
-
-	// Create RDS Instance
-	i, err := mgr.createInstance(testInstance(p))
-	g.Expect(err).NotTo(HaveOccurred())
-	defer mgr.deleteInstance(i)
-
-	// Mock RDS Client
-	RDSService = func(p *awsv1alpha1.Provider, k kubernetes.Interface) (rds.Service, error) {
-		m := &rds.MockClient{}
-		// return error on get instance
-		m.MockGetInstance = func(name string) (*rds.Instance, error) {
-			return nil, fmt.Errorf("test-get-instance-error")
-		}
-		return m, nil
+	// failed to retrieve instance secret
+	cl = &MockRDSClient{
+		MockGetInstance: func(s string) (instance *rds.Instance, e error) {
+			return &rds.Instance{
+				Status: string(RDSInstanceStateAvailable),
+			}, nil
+		},
 	}
 
-	// Initial Loop
-	g.Eventually(mgr.requests, timeout).Should(Receive(Equal(expectedRequest)))
-	ri, err := mgr.getInstance()
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(ri).NotTo(BeNil())
-	g.Expect(ri.Status.Conditions).NotTo(BeEmpty())
-	c := ri.Status.Condition(corev1alpha1.Failed)
-	g.Expect(c).NotTo(BeNil())
-	g.Expect(c.Status).To(Equal(corev1.ConditionTrue))
-	g.Expect(c.Reason).To(Equal(errorGetDbInstance))
+	tr := testResource()
+	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetReady()
+	expectedStatus.SetFailed(errorSyncResource, fmt.Sprintf("secrets \"%s\" not found", tr.Name))
+	assert(tr, cl, resultRequeue, expectedStatus)
 
-	// Assert Requeue
-	g.Eventually(mgr.requests, timeout).Should(Receive(Equal(expectedRequest)))
+}
+
+func TestSyncClusterUpdateSecretFailure(t *testing.T) {
+	g := NewGomegaWithT(t)
+
+	tr := testResource()
+	ts := connectionSecret(tr, "testPassword")
+
+	testError := "test-error-create-secret"
+	kc := NewSimpleClientset(ts)
+	kc.PrependReactor("update", "secrets", func(Action) (handled bool, ret runtime.Object, err error) {
+		return true, nil, fmt.Errorf(testError)
+	})
+
+	r := &Reconciler{
+		Client:     NewFakeClient(tr),
+		kubeclient: kc,
+	}
+
+	called := false
+	cl := &MockRDSClient{
+		MockGetInstance: func(s string) (instance *rds.Instance, e error) {
+			called = true
+			return &rds.Instance{
+				Status: string(RDSInstanceStateAvailable),
+			}, nil
+		},
+	}
+
+	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetReady()
+	expectedStatus.SetFailed(errorSyncResource, testError)
+
+	rs, err := r._sync(tr, cl)
+	g.Expect(rs).To(Equal(resultRequeue))
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(called).To(BeTrue())
+	assertResource(g, r, expectedStatus)
+}
+
+func TestSyncCluster(t *testing.T) {
+	g := NewGomegaWithT(t)
+
+	tr := testResource()
+	ts := connectionSecret(tr, "testPassword")
+
+	r := &Reconciler{
+		Client:     NewFakeClient(tr),
+		kubeclient: NewSimpleClientset(ts),
+	}
+
+	called := false
+	cl := &MockRDSClient{
+		MockGetInstance: func(s string) (instance *rds.Instance, e error) {
+			called = true
+			return &rds.Instance{
+				Status: string(RDSInstanceStateAvailable),
+			}, nil
+		},
+	}
+
+	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetReady()
+
+	rs, err := r._sync(tr, cl)
+	g.Expect(rs).To(Equal(result))
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(called).To(BeTrue())
+	rr := assertResource(g, r, expectedStatus)
+	g.Expect(rr.Status.State).To(Equal(string(RDSInstanceStateAvailable)))
+}
+
+func TestDelete(t *testing.T) {
+	g := NewGomegaWithT(t)
+
+	tr := testResource()
+
+	r := &Reconciler{
+		Client:     NewFakeClient(tr),
+		kubeclient: NewSimpleClientset(),
+	}
+
+	cl := &MockRDSClient{}
+
+	// test delete w/ reclaim policy
+	tr.Spec.ReclaimPolicy = corev1alpha1.ReclaimRetain
+	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetDeleting()
+
+	rs, err := r._delete(tr, cl)
+	g.Expect(rs).To(Equal(result))
+	g.Expect(err).NotTo(HaveOccurred())
+	assertResource(g, r, expectedStatus)
+
+	// test delete w/ delete policy
+	tr.Spec.ReclaimPolicy = corev1alpha1.ReclaimDelete
+	called := false
+	cl.MockDeleteInstance = func(name string) (instance *rds.Instance, e error) {
+		called = true
+		return nil, nil
+	}
+
+	rs, err = r._delete(tr, cl)
+	g.Expect(rs).To(Equal(result))
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(called).To(BeTrue())
+	assertResource(g, r, expectedStatus)
+
+	// test delete w/ delete policy and delete error
+	testError := "test-delete-error"
+	called = false
+	cl.MockDeleteInstance = func(name string) (instance *rds.Instance, e error) {
+		called = true
+		return nil, fmt.Errorf(testError)
+	}
+	expectedStatus.SetFailed(errorDeleteResource, testError)
+
+	rs, err = r._delete(tr, cl)
+	g.Expect(rs).To(Equal(resultRequeue))
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(called).To(BeTrue())
+	assertResource(g, r, expectedStatus)
+}
+
+func TestCreate(t *testing.T) {
+	g := NewGomegaWithT(t)
+
+	tr := testResource()
+
+	tk := NewSimpleClientset()
+
+	r := &Reconciler{
+		Client:     NewFakeClient(tr),
+		kubeclient: tk,
+	}
+
+	called := false
+	cl := &MockRDSClient{
+		MockCreateInstance: func(s string, s2 string, spec *RDSInstanceSpec) (instance *rds.Instance, e error) {
+			called = true
+			return nil, nil
+		},
+	}
+
+	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetCreating()
+
+	rs, err := r._create(testResource(), cl)
+	g.Expect(rs).To(Equal(resultRequeue))
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(called).To(BeTrue())
+	assertResource(g, r, expectedStatus)
+	// assertSecret
+	g.Expect(tk.Actions()).To(HaveLen(2))
+	g.Expect(tk.Actions()[0].GetVerb()).To(Equal("get"))
+	g.Expect(tk.Actions()[1].GetVerb()).To(Equal("create"))
+	s, err := tk.CoreV1().Secrets(tr.Namespace).Get(tr.Name, metav1.GetOptions{})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(s).NotTo(BeNil())
+}
+
+func TestCreateFail(t *testing.T) {
+	g := NewGomegaWithT(t)
+	tr := testResource()
+	tk := NewSimpleClientset()
+	cl := &MockRDSClient{}
+
+	r := &Reconciler{
+		Client:     NewFakeClient(tr),
+		kubeclient: tk,
+	}
+
+	// test apply secret error
+	testError := "test-get-secret-error"
+	tk.PrependReactor("get", "secrets", func(action Action) (handled bool, ret runtime.Object, err error) {
+		return true, nil, fmt.Errorf(testError)
+	})
+
+	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetFailed(errorCreateResource, testError)
+
+	rs, err := r._create(tr, cl)
+	g.Expect(rs).To(Equal(resultRequeue))
+	g.Expect(err).NotTo(HaveOccurred())
+	assertResource(g, r, expectedStatus)
+
+	// test create resource error
+	tr = testResource()
+	r.kubeclient = NewSimpleClientset()
+	called := false
+	testError = "test-create-error"
+	cl.MockCreateInstance = func(s string, s2 string, spec *RDSInstanceSpec) (instance *rds.Instance, e error) {
+		called = true
+		return nil, fmt.Errorf(testError)
+	}
+
+	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetFailed(errorCreateResource, testError)
+
+	rs, err = r._create(tr, cl)
+	g.Expect(rs).To(Equal(resultRequeue))
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(called).To(BeTrue())
+	assertResource(g, r, expectedStatus)
+}
+
+func TestConnect(t *testing.T) {
+	g := NewGomegaWithT(t)
+
+	tp := testProvider()
+	tr := testResource()
+
+	r := &Reconciler{
+		Client:     NewFakeClient(tp),
+		kubeclient: NewSimpleClientset(),
+	}
+
+	// provider status is not ready
+	c, err := r._connect(tr)
+	g.Expect(c).To(BeNil())
+	g.Expect(err).To(And(Not(BeNil()), MatchError("provider is not ready")))
+
+	// error getting aws config - secret is not found
+	tp.Status.SetReady()
+	r.Client = NewFakeClient(tp)
+	c, err = r._connect(tr)
+	g.Expect(c).To(BeNil())
+	g.Expect(err).To(Not(BeNil()))
 }
 
 func TestReconcile(t *testing.T) {
 	g := NewGomegaWithT(t)
 
-	// create and start manager
-	mgr, err := NewTestManager()
-	g.Expect(err).NotTo(HaveOccurred())
-	defer close(StartTestManager(mgr.manager, g))
+	tr := testResource()
 
-	// Create Provider secret
-	s, err := mgr.createSecret(testSecret([]byte("testdata")))
-	g.Expect(err).NotTo(HaveOccurred())
-	defer mgr.deleteSecret(s)
-
-	// Create Provider
-	p, err := mgr.createProvider(testProvider(s))
-	g.Expect(err).NotTo(HaveOccurred())
-	defer mgr.deleteProvider(p)
-
-	// Create instance
-	i, err := mgr.createInstance(testInstance(p))
-	g.Expect(err).NotTo(HaveOccurred())
-	defer mgr.deleteInstance(i)
-
-	// Mock RDS Client
-	var createdPassword string
-	mi := &rds.Instance{
-		ARN:    "test-arn",
-		Status: databasev1alpha1.RDSInstanceStateCreating.String(), // to avoid requeue
+	r := &Reconciler{
+		Client:     NewFakeClient(tr),
+		kubeclient: NewSimpleClientset(),
 	}
 
-	m := &rds.MockClient{}
-	m.MockGetInstance = func(name string) (*rds.Instance, error) {
-		if len(createdPassword) > 0 {
-			return mi, nil
-		}
+	// test connect error
+	called := false
+	testError := "test-connect-error"
+	r.connect = func(instance *RDSInstance) (client rds.Client, e error) {
+		called = true
+		return nil, fmt.Errorf(testError)
+	}
+
+	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetFailed(errorResourceClient, testError)
+
+	rs, err := r.Reconcile(request)
+	g.Expect(rs).To(Equal(resultRequeue))
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(called).To(BeTrue())
+	assertResource(g, r, expectedStatus)
+
+	// test delete
+	r.connect = func(instance *RDSInstance) (client rds.Client, e error) {
+		t := metav1.Now()
+		instance.DeletionTimestamp = &t
 		return nil, nil
 	}
-	m.MockCreateInstance = func(name, password string, spec *databasev1alpha1.RDSInstanceSpec) (*rds.Instance, error) {
-		createdPassword = password
-		mi.Name = name
-		return mi, nil
+	called = false
+	r.delete = func(instance *RDSInstance, client rds.Client) (i reconcile.Result, e error) {
+		called = true
+		return result, nil
 	}
-	RDSService = func(p *awsv1alpha1.Provider, k kubernetes.Interface) (rds.Service, error) {
-		return m, nil
-	}
+	rs, err = r.Reconcile(request)
+	g.Expect(called).To(BeTrue())
 
-	// Initial Loop
-	g.Eventually(mgr.requests, timeout).Should(Receive(Equal(expectedRequest)))
-	ri, err := mgr.getInstance()
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(ri).NotTo(BeNil())
-	g.Expect(ri.Status.Conditions).NotTo(BeEmpty())
-	// assert creating condition
-	c := ri.Status.Condition(corev1alpha1.Creating)
-	g.Expect(c).NotTo(BeNil())
-	g.Expect(c.Status).To(Equal(corev1.ConditionTrue))
-	// assert connection secret
-	cs, err := mgr.getSecret(ri.ConnectionSecretName())
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(cs.Data[corev1alpha1.ResourceCredentialsSecretUserKey]).To(Equal([]byte(i.Spec.MasterUsername)))
-	g.Expect(cs.Data[corev1alpha1.ResourceCredentialsSecretPasswordKey]).To(Equal([]byte(createdPassword)))
-	g.Expect(cs.Data[corev1alpha1.ResourceCredentialsSecretEndpointKey]).To(BeNil())
-
-	// Set endpoint and update status to running
-	mi.Endpoint = "Test Endpoint"
-	mi.Status = databasev1alpha1.RDSInstanceStateAvailable.String()
-	m.MockGetInstance = func(name string) (*rds.Instance, error) {
-		return mi, nil
-	}
-
-	// wait for running state
-	c = ri.Status.Condition(corev1alpha1.Ready)
-	for c == nil || c.Status != corev1.ConditionTrue {
-		g.Eventually(mgr.requests, timeout).Should(Receive(Equal(expectedRequest)))
-		ri, err = mgr.getInstance()
-		g.Expect(err).NotTo(HaveOccurred())
-		c = ri.Status.Condition(corev1alpha1.Ready)
-	}
-
-	// wait for endpoint value in secret
-	for string(cs.Data[corev1alpha1.ResourceCredentialsSecretEndpointKey]) != mi.Endpoint {
-		g.Eventually(mgr.requests, timeout).Should(Receive(Equal(expectedRequest)))
-		cs, err = mgr.getSecret(ri.ConnectionSecretName())
-		g.Expect(err).NotTo(HaveOccurred())
-	}
-
-	// Test Delete
-	m.MockDeleteInstance = func(name string) (*rds.Instance, error) {
+	// test create
+	r.connect = func(instance *RDSInstance) (client rds.Client, e error) {
 		return nil, nil
 	}
-	// Cleanup
-	g.Expect(mgr.deleteInstance(i)).NotTo(HaveOccurred())
-	waitForDeleted(g, mgr)
+	called = false
+	r.delete = r._delete
+	r.create = func(instance *RDSInstance, client rds.Client) (i reconcile.Result, e error) {
+		called = true
+		return result, nil
+	}
+	rs, err = r.Reconcile(request)
+	g.Expect(called).To(BeTrue())
+
+	// test sync
+	r.connect = func(instance *RDSInstance) (client rds.Client, e error) {
+		instance.Status.InstanceName = "foo"
+		return nil, nil
+	}
+	called = false
+	r.create = r._create
+	r.sync = func(instance *RDSInstance, client rds.Client) (i reconcile.Result, e error) {
+		called = true
+		return result, nil
+	}
+	rs, err = r.Reconcile(request)
+	g.Expect(called).To(BeTrue())
+
 }

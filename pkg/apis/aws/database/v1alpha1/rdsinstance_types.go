@@ -51,38 +51,18 @@ type RDSInstanceSpec struct {
 	ReclaimPolicy corev1alpha1.ReclaimPolicy `json:"reclaimPolicy,omitempty"`
 }
 
-type RDSInstanceState int
+type RDSInstanceState string
 
 const (
 	// The instance is healthy and available
-	RDSInstanceStateAvailable RDSInstanceState = iota
+	RDSInstanceStateAvailable RDSInstanceState = "available"
 	// The instance is being created. The instance is inaccessible while it is being created.
-	RDSInstanceStateCreating
+	RDSInstanceStateCreating RDSInstanceState = "creating"
 	// The instance is being deleted.
-	RDSInstanceStateDeleting
+	RDSInstanceStateDeleting RDSInstanceState = "deleting"
 	// The instance has failed and Amazon RDS can't recover it. Perform a point-in-time restore to the latest restorable time of the instance to recover the data.
-	RDSInstanceStateFailed
+	RDSInstanceStateFailed RDSInstanceState = "failed"
 )
-
-func (s RDSInstanceState) String() string {
-	return [...]string{"available", "creating", "deleting", "failed"}[s]
-}
-
-// ConditionType based on DBInstance status
-func ConditionType(status string) corev1alpha1.ConditionType {
-	switch status {
-	case RDSInstanceStateAvailable.String():
-		return corev1alpha1.Ready
-	case RDSInstanceStateCreating.String():
-		return corev1alpha1.Creating
-	case RDSInstanceStateDeleting.String():
-		return corev1alpha1.Deleting
-	case RDSInstanceStateFailed.String():
-		return corev1alpha1.Failed
-	default:
-		return corev1alpha1.Pending
-	}
-}
 
 // RDSInstanceStatus defines the observed state of RDSInstance
 type RDSInstanceStatus struct {
@@ -212,7 +192,7 @@ func (r *RDSInstance) SetState(s string) {
 
 // IsAvailable for usage/binding
 func (r *RDSInstance) IsAvailable() bool {
-	return r.State() == RDSInstanceStateAvailable.String()
+	return r.State() == string(RDSInstanceStateAvailable)
 }
 
 // IsBound
