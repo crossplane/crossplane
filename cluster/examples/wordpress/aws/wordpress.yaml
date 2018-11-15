@@ -1,3 +1,15 @@
+apiVersion: storage.aws.conductor.io/v1alpha1
+kind: S3Bucket
+metadata:
+  name: demo-bucket
+spec:
+  name: wordpress-demo-e401ddfa-4729-4b72-bcef-94922203b547
+  region: us-west-1
+  predefinedACL: private
+  versioning: false
+  providerRef:
+    name: demo-aws-provider
+---
 apiVersion: database.aws.conductor.io/v1alpha1
 kind: RDSInstance
 metadata:

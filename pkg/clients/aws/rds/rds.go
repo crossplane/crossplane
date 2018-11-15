@@ -33,7 +33,7 @@ type Instance struct {
 	Endpoint string
 }
 
-// CreateInstance returns new Instance structure
+// NewInstance returns new Instance structure
 func NewInstance(instance *rds.DBInstance) *Instance {
 	endpoint := ""
 	if instance.Endpoint != nil {

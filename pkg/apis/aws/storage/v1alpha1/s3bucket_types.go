@@ -17,6 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
+	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -25,16 +27,19 @@ import (
 
 // S3BucketSpec defines the desired state of S3Bucket
 type S3BucketSpec struct {
-	Name string `json:"name,omitempty"`
+	Name   string `json:"name,omitempty"`
 	Region string `json:"region,omitempty"`
-	// PredefinedACL is OneOf - private, public-read, public-read-write, authenticated-read bucket-owner-read bucket-owner-full-control aws-exec-read log-delivery-write
-	PredefinedACL  string `json:"predefinedACL,omitempty"`
-	Versioning bool `json:"versioning"`
+	// PredefinedACL is one of:
+	// private, public-read, public-read-write, authenticated-read bucket-owner-read
+	// bucket-owner-full-control, aws-exec-read, log-delivery-write
+	PredefinedACL string                  `json:"predefinedACL,omitempty"`
+	Versioning    bool                    `json:"versioning"`
+	ProviderRef   v1.LocalObjectReference `json:"providerRef"`
 }
 
 // S3BucketStatus defines the observed state of S3Bucket
 type S3BucketStatus struct {
-	State      string `json:"state,omitempty"`
+	corev1alpha1.ConditionedStatus
 	Message    string `json:"message,omitempty"`
 	ProviderID string `json:"providerID,omitempty"` // the external ID to identify this resource in the cloud provider
 }
@@ -42,7 +47,7 @@ type S3BucketStatus struct {
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// S3Bucket is the Schema for the instances API
+// S3Bucket is the Schema for the S3Bucket API
 // +k8s:openapi-gen=true
 type S3Bucket struct {
 	metav1.TypeMeta   `json:",inline"`

@@ -17,7 +17,7 @@ limitations under the License.
 // Package v1alpha1 contains API Schema definitions for the storage v1alpha1 API group
 // +k8s:openapi-gen=true
 // +k8s:deepcopy-gen=package,register
-// +k8s:conversion-gen=github.com/upbound/conductor/pkg/apis/aws/database
+// +k8s:conversion-gen=github.com/upbound/conductor/pkg/apis/aws/storage
 // +k8s:defaulter-gen=TypeMeta
 // +groupName=storage.aws.conductor.io
 package v1alpha1

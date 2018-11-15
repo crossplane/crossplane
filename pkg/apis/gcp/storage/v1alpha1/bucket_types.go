@@ -17,6 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
+	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -29,19 +31,22 @@ type GoogleBucketSpec struct {
 
 	// Location - See authoritative list https://developers.google.com/storage/docs/bucket-locations
 	// Which you use is dependent on whether it's multi_region or not.
-	Location string `json:"region,omitempty"`
+	Location string `json:"location,omitempty"`
 
 	// PredefinedACL is OneOf - private, authenticatedRead, projectPrivate, publicRead, publicReadWrite
 	PredefinedACL *string `json:"cannedACL,omitempty"`
 
-	//StorageClass one of MULTI_REGIONAL, REGIONAL, STANDARD, NEARLINE, COLDLINE, and DURABLE_REDUCED_AVAILABILITY. If this value is not specified when the bucket is created, it will default to STANDARD
-	StorageClass *string `json:"storageClass,omitempty"`
-	Versioning   bool    `json:"versioning,omitempty"`
+	//StorageClass one of
+	// MULTI_REGIONAL, REGIONAL, STANDARD, NEARLINE, COLDLINE, and DURABLE_REDUCED_AVAILABILITY.
+	// If this value is not specified when the bucket is created, it will default to STANDARD
+	StorageClass *string                 `json:"storageClass,omitempty"`
+	Versioning   bool                    `json:"versioning,omitempty"`
+	ProviderRef  v1.LocalObjectReference `json:"providerRef"`
 }
 
-// S3BucketStatus defines the observed state of RDSInstance
-type S3BucketStatus struct {
-	State      string `json:"state,omitempty"`
+// S3BucketStatus defines the observed state of GoogleBucket
+type GoogleBucketStatus struct {
+	corev1alpha1.ConditionedStatus
 	Message    string `json:"message,omitempty"`
 	ProviderID string `json:"providerID,omitempty"` // the external ID to identify this resource in the cloud provider
 }
@@ -49,14 +54,14 @@ type S3BucketStatus struct {
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// GoogleBucket is the Schema for the instances API
+// GoogleBucket is the Schema for the GoogleBucket API
 // +k8s:openapi-gen=true
 type GoogleBucket struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   GoogleBucketSpec   `json:"spec,omitempty"`
-	Status S3BucketStatus `json:"status,omitempty"`
+	Spec   GoogleBucketSpec `json:"spec,omitempty"`
+	Status GoogleBucketStatus   `json:"status,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
