@@ -1,0 +1,39 @@
+apiVersion: compute.conductor.io/v1alpha1
+kind: Workload
+metadata:
+  name: my-workload
+  namespace: default
+spec:
+  classReference:
+    name: cluster-class
+    namespace: conductor-system
+      secretName: my-bucket-creds
+  clusterVersion: 1.0.1
+  selector: {}
+  targetDeployment:
+    metadata:
+      name: my-deployment
+      namespace: target-default
+    spec:
+      strategy: {}
+      template:
+        spec:
+          containers: null
+  targetNamespace: target-default
+  targetSservice:
+    metadata:
+      name: my-service
+      namespace: target-default
+    spec: {}
+    status:
+      loadBalancer: {}
+  bucketResources:
+    - name: my-bucket
+      # implicit secret name, defaulted to: `my-bucket`
+  mySqlResources:
+    - name: my-database
+      # explicit secret name (different from the resource name)
+      secretName: my-database
+status:
+  Conditions: null
+  https://github.com/upbound/conductor/pulls

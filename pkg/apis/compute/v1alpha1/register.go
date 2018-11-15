@@ -34,6 +34,7 @@ const (
 	Version                = "v1alpha1"
 	APIVersion             = Group + "/" + Version
 	KubernetesInstanceKind = "kubernetesclusters"
+	WorkloadKind           = "workloads"
 )
 
 var (
@@ -46,4 +47,5 @@ var (
 
 func init() {
 	SchemeBuilder.Register(&KubernetesCluster{}, &KubernetesClusterList{})
+	SchemeBuilder.Register(&Workload{}, &WorkloadList{})
 }

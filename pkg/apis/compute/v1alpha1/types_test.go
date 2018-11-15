@@ -23,6 +23,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/upbound/conductor/pkg/test"
 	"golang.org/x/net/context"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -40,6 +41,8 @@ var (
 	ctx = context.TODO()
 	cfg *rest.Config
 	c   client.Client
+
+	key = types.NamespacedName{Name: name, Namespace: namespace}
 )
 
 func TestMain(m *testing.M) {
@@ -58,10 +61,9 @@ func TestMain(m *testing.M) {
 	t.StopAndExit(m.Run())
 }
 
-func TestStorage(t *testing.T) {
+func TestKubernetes(t *testing.T) {
 	g := NewGomegaWithT(t)
 
-	key := types.NamespacedName{Name: name, Namespace: namespace}
 	created := &KubernetesCluster{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
 		Spec: KubernetesClusterSpec{
@@ -74,6 +76,67 @@ func TestStorage(t *testing.T) {
 
 	// Test Create
 	fetched := &KubernetesCluster{}
+	g.Expect(c.Create(ctx, created)).NotTo(HaveOccurred())
+
+	g.Expect(c.Get(ctx, key, fetched)).NotTo(HaveOccurred())
+	g.Expect(fetched).To(Equal(created))
+
+	// Test Updating the Labels
+	updated := fetched.DeepCopy()
+	updated.Labels = map[string]string{"hello": "world"}
+	updated.Spec.ResourceRef = &corev1.ObjectReference{
+		Name:      "test-class",
+		Namespace: "test-resource",
+	}
+	g.Expect(c.Update(ctx, updated)).NotTo(HaveOccurred())
+
+	g.Expect(c.Get(ctx, key, fetched)).NotTo(HaveOccurred())
+	g.Expect(fetched).To(Equal(updated))
+
+	// Test Delete
+	g.Expect(c.Delete(ctx, fetched)).NotTo(HaveOccurred())
+	g.Expect(c.Get(ctx, key, fetched)).To(HaveOccurred())
+}
+
+func TestWorkload(t *testing.T) {
+	g := NewGomegaWithT(t)
+
+	om := metav1.ObjectMeta{
+		Namespace: namespace,
+		Name:      name,
+	}
+
+	created := &Workload{
+		ObjectMeta: om,
+		Spec: WorkloadSpec{
+			TargetNamespace: namespace,
+			TargetDeployment: &appsv1.Deployment{
+				ObjectMeta: om,
+			},
+			TargetService: &corev1.Service{
+				ObjectMeta: om,
+			},
+			ClassRef: &corev1.ObjectReference{
+				Name:      "test-class",
+				Namespace: "test-system",
+			},
+			ClusterVersion: "1.0.1",
+			MySQLResourceReferences: []ResourceReference{
+				{
+					LocalObjectReference: corev1.LocalObjectReference{Name: "mysql-database"},
+					SecretName:           "mysql-database-creds",
+				},
+			},
+			BucketResourceReferences: []ResourceReference{
+				{
+					LocalObjectReference: corev1.LocalObjectReference{Name: "my-bucket"},
+				},
+			},
+		},
+	}
+
+	// Test Create
+	fetched := &Workload{}
 	g.Expect(c.Create(ctx, created)).NotTo(HaveOccurred())
 
 	g.Expect(c.Get(ctx, key, fetched)).NotTo(HaveOccurred())
