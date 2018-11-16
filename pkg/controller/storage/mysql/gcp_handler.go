@@ -18,6 +18,7 @@ package mysql
 
 import (
 	"fmt"
+	"strings"
 
 	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
 	gcpdbv1alpha1 "github.com/upbound/conductor/pkg/apis/gcp/database/v1alpha1"
@@ -44,10 +45,12 @@ func (h *CloudSQLServerHandler) provision(class *corev1alpha1.ResourceClass, ins
 	// construct CloudSQL instance spec from class definition/parameters
 	cloudsqlInstanceSpec := gcpdbv1alpha1.NewCloudSQLInstanceSpec(class.Parameters)
 
-	// translate mysql spec fields to CloudSQL instance spec
-	if err := translateToCloudSQL(instance.Spec, cloudsqlInstanceSpec); err != nil {
+	// assign cloudsql fields
+	ver, err := resolveClassInstanceValues(cloudsqlInstanceSpec.DatabaseVersion, instance.Spec.EngineVersion)
+	if err != nil {
 		return nil, err
 	}
+	cloudsqlInstanceSpec.DatabaseVersion = translateVersion(ver)
 
 	// assign provider reference and reclaim policy from the resource class
 	cloudsqlInstanceSpec.ProviderRef = class.ProviderRef
@@ -71,7 +74,7 @@ func (h *CloudSQLServerHandler) provision(class *corev1alpha1.ResourceClass, ins
 		Spec: *cloudsqlInstanceSpec,
 	}
 
-	err := c.Create(ctx, cloudsqlInstance)
+	err = c.Create(ctx, cloudsqlInstance)
 	return cloudsqlInstance, err
 }
 
@@ -97,17 +100,6 @@ func (h *CloudSQLServerHandler) setBindStatus(name types.NamespacedName, c clien
 	return c.Update(ctx, cloudsqlInstance)
 }
 
-func translateToCloudSQL(instanceSpec mysqlv1alpha1.MySQLInstanceSpec, cloudsqlSpec *gcpdbv1alpha1.CloudsqlInstanceSpec) error {
-	if instanceSpec.EngineVersion != "" {
-		// the user has specified an engine version on the abstract spec, check if it's valid
-		version, ok := gcpdbv1alpha1.ValidVersionValues()[instanceSpec.EngineVersion]
-		if !ok {
-			return fmt.Errorf("invalid engine version %s", instanceSpec.EngineVersion)
-		}
-
-		// specified engine version on the abstract instance spec is valid, set it on the concrete spec
-		cloudsqlSpec.DatabaseVersion = version
-	}
-
-	return nil
+func translateVersion(version string) string {
+	return fmt.Sprintf("MYSQL_%s", strings.Replace(version, ".", "_", -1))
 }

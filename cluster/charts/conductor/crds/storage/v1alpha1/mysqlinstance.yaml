@@ -26,10 +26,16 @@ spec:
               type: object
             engineVersion:
               type: string
+              description: MySQL engine version
+              enum:
+                - "5.6"
+                - "5.7"
             resourceName:
               type: object
             selector:
               type: object
+          required:
+          - engineVersion
           type: object
         status:
           properties:

@@ -319,3 +319,24 @@ func TestReconciler_Reconcile(t *testing.T) {
 	g.Expect(err).To(BeNil())
 	g.Expect(rfFlag).To(BeTrue())
 }
+
+func TestResolveClassInstanceValues(t *testing.T) {
+	g := NewGomegaWithT(t)
+
+	f := func(cv, iv, expV string, expErr bool) {
+		v, err := resolveClassInstanceValues(cv, iv)
+		g.Expect(v).To(Equal(expV))
+		if expErr {
+			g.Expect(err).To(HaveOccurred())
+			g.Expect(err).To(MatchError(fmt.Errorf("mysql instance value [%s] does not match the one defined in the resource class [%s]", iv, cv)))
+		} else {
+			g.Expect(err).NotTo(HaveOccurred())
+		}
+	}
+
+	f("", "", "", false)
+	f("a", "", "a", false)
+	f("", "b", "b", false)
+	f("ab", "ab", "ab", false)
+	f("ab", "ba", "", true)
+}

@@ -48,8 +48,8 @@ func (h *RDSInstanceHandler) provision(class *corev1alpha1.ResourceClass, instan
 	rdsInstanceSpec.Engine = "mysql"
 	rdsInstanceName := fmt.Sprintf("%s-%s", rdsInstanceSpec.Engine, instance.UID)
 
-	// translate mysql spec fields to RDSInstance instance spec
-	if err := translateToRDSInstance(instance.Spec, rdsInstanceSpec); err != nil {
+	var err error
+	if rdsInstanceSpec.EngineVersion, err = resolveClassInstanceValues(rdsInstanceSpec.EngineVersion, instance.Spec.EngineVersion); err != nil {
 		return nil, err
 	}
 
@@ -75,7 +75,7 @@ func (h *RDSInstanceHandler) provision(class *corev1alpha1.ResourceClass, instan
 		Spec: *rdsInstanceSpec,
 	}
 
-	err := c.Create(ctx, rdsInstance)
+	err = c.Create(ctx, rdsInstance)
 	return rdsInstance, err
 }
 
@@ -99,19 +99,4 @@ func (h RDSInstanceHandler) setBindStatus(name types.NamespacedName, c client.Cl
 		rdsInstance.Status.SetUnbound()
 	}
 	return c.Update(ctx, rdsInstance)
-}
-
-func translateToRDSInstance(instanceSpec mysqlv1alpha1.MySQLInstanceSpec, rdsSpec *awsdbv1alpha1.RDSInstanceSpec) error {
-	if instanceSpec.EngineVersion != "" {
-		// the user has specified an engine version on the abstract spec, check if it's valid
-		version, ok := awsdbv1alpha1.ValidVersionValues()[instanceSpec.EngineVersion]
-		if !ok {
-			return fmt.Errorf("invalid engine version %s", instanceSpec.EngineVersion)
-		}
-
-		// specified engine version on the abstract instance spec is valid, set it on the concrete spec
-		rdsSpec.EngineVersion = version
-	}
-
-	return nil
 }

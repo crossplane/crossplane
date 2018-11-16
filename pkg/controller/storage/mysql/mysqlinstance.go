@@ -150,18 +150,18 @@ func (r *Reconciler) _provision(instance *mysqlv1alpha1.MySQLInstance) (reconcil
 		return r.fail(instance, errorRetrievingResourceClass, err.Error())
 	}
 
-	// find handler for this class
-	handler, ok := handlers[class.Provisioner]
+	// find resourceHandler for this class
+	resourceHandler, ok := handlers[class.Provisioner]
 	if !ok {
-		// handler is not found - fail and do not requeue
-		err := fmt.Errorf("handler [%s] is not defined", class.Provisioner)
+		// resourceHandler is not found - fail and do not requeue
+		err := fmt.Errorf("resourceHandler [%s] is not defined", class.Provisioner)
 		r.recorder.Event(instance, corev1.EventTypeWarning, "Fail", err.Error())
 		instance.Status.SetCondition(corev1alpha1.NewCondition(corev1alpha1.Failed, errorResourceHandlerIsNotFound, err.Error()))
 		return result, r.Update(ctx, instance)
 	}
 
 	// create new resource
-	res, err := handler.provision(class, instance, r.Client)
+	res, err := resourceHandler.provision(class, instance, r.Client)
 	if err != nil {
 		return r.fail(instance, errorResourceProvisioning, err.Error())
 	}
@@ -180,7 +180,7 @@ func (r *Reconciler) _provision(instance *mysqlv1alpha1.MySQLInstance) (reconcil
 // _bind KubernetesCluster to a concrete Resource
 func (r *Reconciler) _bind(instance *mysqlv1alpha1.MySQLInstance) (reconcile.Result, error) {
 	// retrieve finding function for this resource
-	handler, ok := handlers[instance.Status.Provisioner]
+	resourceHandler, ok := handlers[instance.Status.Provisioner]
 	if !ok {
 		// finder function is not found, this condition should never happened
 		// provisioner and finder should be added together for the same resource kind/version
@@ -193,7 +193,7 @@ func (r *Reconciler) _bind(instance *mysqlv1alpha1.MySQLInstance) (reconcile.Res
 
 	// find resource instance
 	resNName := namespaceNameFromObjectRef(instance.Spec.ResourceRef)
-	resource, err := handler.find(resNName, r.Client)
+	resource, err := resourceHandler.find(resNName, r.Client)
 	if err != nil {
 		// failed to retrieve the resource - requeue
 		return r.fail(instance, errorRetrievingResourceInstance, "")
@@ -226,7 +226,7 @@ func (r *Reconciler) _bind(instance *mysqlv1alpha1.MySQLInstance) (reconcile.Res
 	}
 
 	// update resource binding status
-	if err := handler.setBindStatus(resNName, r.Client, true); err != nil {
+	if err := resourceHandler.setBindStatus(resNName, r.Client, true); err != nil {
 		return r.fail(instance, errorSettingResourceBindStatus, err.Error())
 	}
 
@@ -242,7 +242,7 @@ func (r *Reconciler) _bind(instance *mysqlv1alpha1.MySQLInstance) (reconcile.Res
 
 func (r *Reconciler) _delete(instance *mysqlv1alpha1.MySQLInstance) (reconcile.Result, error) {
 	// retrieve finding function for this resource
-	handler, ok := handlers[instance.Status.Provisioner]
+	resourceHandler, ok := handlers[instance.Status.Provisioner]
 	if !ok {
 		// finder function is not found, this condition should never happened
 		// provisioner and finder should be added together for the same resource kind/version
@@ -258,7 +258,7 @@ func (r *Reconciler) _delete(instance *mysqlv1alpha1.MySQLInstance) (reconcile.R
 
 	// TODO: decide how to handle resource binding status update error
 	// - ignore the error for now
-	handler.setBindStatus(resNName, r.Client, false)
+	_ = resourceHandler.setBindStatus(resNName, r.Client, false)
 
 	// update instance status and remove finalizer
 	instance.Status.UnsetAllConditions()
@@ -312,4 +312,20 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 
 	// bind to the resource
 	return r.bind(instance)
+}
+
+// resolveClassInstanceValues validates instance value against resource class properties.
+// if both values are defined, then the instance value is validated against the resource class value and expected to match
+// TODO: the "matching" process will be further refined once we implement constraint policies at the resource class level
+func resolveClassInstanceValues(classValue, instanceValue string) (string, error) {
+	if classValue == "" {
+		return instanceValue, nil
+	}
+	if instanceValue == "" {
+		return classValue, nil
+	}
+	if classValue != instanceValue {
+		return "", fmt.Errorf("mysql instance value [%s] does not match the one defined in the resource class [%s]", instanceValue, classValue)
+	}
+	return instanceValue, nil
 }

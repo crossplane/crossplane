@@ -66,9 +66,43 @@ func NewClient(config *aws.Config) Client {
 	return &RDSClient{rds.New(*config)}
 }
 
+// TranslateDatabaseEngineVersion returns a default database version for a given database engine, version combination,
+// For example: (the actual return values may be different)
+// - mysql, 5.7         - returns 5.7.23
+// - mysql, 5.6         - returns 5.6.40
+// - mysql, 5.6.35      - returns 5.6.35
+// - postgres, 9.6      - returns 9.6.9
+// - postgres, 9.6.1    - returns 9.6.1
+// - postgres, 10       - returns 10.4
+func (r *RDSClient) TranslateDatabaseEngineVersion(spec *v1alpha1.RDSInstanceSpec, defaultOnly bool) (*string, error) {
+	input := rds.DescribeDBEngineVersionsInput{
+		Engine:        aws.String(spec.Engine),
+		EngineVersion: aws.String(spec.EngineVersion),
+		DefaultOnly:   aws.Bool(defaultOnly),
+	}
+	output, err := r.rds.DescribeDBEngineVersionsRequest(&input).Send()
+	if err != nil {
+		return nil, err
+	}
+	if len(output.DBEngineVersions) == 0 {
+		return nil, fmt.Errorf("error translating database engin version")
+	} else if len(output.DBEngineVersions) > 1 {
+		return r.TranslateDatabaseEngineVersion(spec, true)
+	}
+	return output.DBEngineVersions[0].EngineVersion, nil
+}
+
 // CreateInstance creates RDS Instance with provided Specification
 func (r *RDSClient) CreateInstance(name, password string, spec *v1alpha1.RDSInstanceSpec) (*Instance, error) {
 	input := CreateDBInstanceInput(name, password, spec)
+
+	// attempt to translate database engine version
+	if version, err := r.TranslateDatabaseEngineVersion(spec, false); err != nil {
+		return nil, err
+	} else {
+		input.EngineVersion = version
+	}
+
 	output, err := r.rds.CreateDBInstanceRequest(input).Send()
 	if err != nil {
 		return nil, err

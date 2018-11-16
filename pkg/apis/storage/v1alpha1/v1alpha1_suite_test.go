@@ -20,6 +20,8 @@ import (
 	"log"
 	"testing"
 
+	"k8s.io/apimachinery/pkg/types"
+
 	"github.com/upbound/conductor/pkg/test"
 	"golang.org/x/net/context"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -36,6 +38,7 @@ var (
 	ctx = context.TODO()
 	cfg *rest.Config
 	c   client.Client
+	key = types.NamespacedName{Name: name, Namespace: namespace}
 )
 
 func TestMain(m *testing.M) {

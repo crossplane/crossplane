@@ -22,13 +22,11 @@ import (
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 )
 
 func TestStorage(t *testing.T) {
 	g := NewGomegaWithT(t)
 
-	key := types.NamespacedName{Name: name, Namespace: namespace}
 	created := &MySQLInstance{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
 		Spec: MySQLInstanceSpec{
@@ -36,6 +34,7 @@ func TestStorage(t *testing.T) {
 				Name:      "test-class",
 				Namespace: "test-system",
 			},
+			EngineVersion: "5.6",
 		},
 	}
 
@@ -61,4 +60,42 @@ func TestStorage(t *testing.T) {
 	// Test Delete
 	g.Expect(c.Delete(ctx, fetched)).NotTo(HaveOccurred())
 	g.Expect(c.Get(ctx, key, fetched)).To(HaveOccurred())
+}
+
+func TestEngineVersion(t *testing.T) {
+	g := NewGomegaWithT(t)
+
+	validate := func(version string, expectedValid bool) {
+		created := &MySQLInstance{
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+			Spec: MySQLInstanceSpec{
+				ClassRef: &corev1.ObjectReference{
+					Name:      "test-class",
+					Namespace: "test-system",
+				},
+				EngineVersion: version,
+			},
+		}
+
+		fetched := &MySQLInstance{}
+
+		if expectedValid {
+			g.Expect(c.Create(ctx, created)).NotTo(HaveOccurred())
+			g.Expect(c.Get(ctx, key, fetched)).NotTo(HaveOccurred())
+			g.Expect(fetched).To(Equal(created))
+			g.Expect(c.Delete(ctx, fetched)).NotTo(HaveOccurred())
+			g.Expect(c.Get(ctx, key, fetched)).To(HaveOccurred())
+		} else {
+			g.Expect(c.Create(ctx, created)).To(HaveOccurred())
+		}
+	}
+
+	// Test Create: valid versions
+	validate("5.6", true)
+	validate("5.7", true)
+
+	// Test Create: invalid versions
+	validate("", false)
+	validate("5.8", false)
+	validate("5.6.40", false)
 }
