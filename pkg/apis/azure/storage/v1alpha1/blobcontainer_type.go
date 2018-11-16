@@ -27,7 +27,7 @@ import (
 
 // BlobContainerSpec defines the desired state of S3Bucket
 type BlobContainerSpec struct {
-	Name   string `json:"name,omitempty"`
+	Name     string `json:"name,omitempty"`
 	Location string `json:"location,omitempty"`
 	// Storage - one of
 	// Locally redundant storage (LRS)
@@ -36,9 +36,9 @@ type BlobContainerSpec struct {
 	Storage string `json:"location,omitempty"`
 	// AccessTier hot or cold
 	AccessTier string `json:"accessTier,omitempty"`
-	// PredefinedACL is one Of
-	// private, full-public-read, public-read-blobs-only
-	PredefinedACL string `json:"predefinedACL,omitempty"`
+	// PredefinedACL
+	// One of: private, full-public-read, public-read-blobs-only
+	PredefinedACL string                  `json:"predefinedACL,omitempty"`
 	ProviderRef   v1.LocalObjectReference `json:"providerRef"`
 }
 

@@ -33,7 +33,8 @@ type GoogleBucketSpec struct {
 	// Which you use is dependent on whether it's multi_region or not.
 	Location string `json:"location,omitempty"`
 
-	// PredefinedACL is OneOf - private, authenticatedRead, projectPrivate, publicRead, publicReadWrite
+	// PredefinedACL
+	// One of: private, authenticatedRead, projectPrivate, publicRead, publicReadWrite
 	PredefinedACL *string `json:"predefinedACL,omitempty"`
 
 	//StorageClass one of
@@ -60,8 +61,8 @@ type GoogleBucket struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   GoogleBucketSpec `json:"spec,omitempty"`
-	Status GoogleBucketStatus   `json:"status,omitempty"`
+	Spec   GoogleBucketSpec   `json:"spec,omitempty"`
+	Status GoogleBucketStatus `json:"status,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
