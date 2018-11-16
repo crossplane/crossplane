@@ -169,6 +169,8 @@ func (r *Reconciler) _create(instance *gcpcomputev1alpha1.GKECluster, client gke
 		return r.fail(instance, errorCreateCluster, err.Error())
 	}
 
+	instance.Status.State = gcpcomputev1alpha1.ClusterStateProvisioning
+
 	instance.Status.UnsetAllConditions()
 	instance.Status.SetCreating()
 	instance.Status.ClusterName = clusterName
