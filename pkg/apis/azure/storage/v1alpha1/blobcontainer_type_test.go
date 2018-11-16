@@ -25,7 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-func TestStorageRDSInstance(t *testing.T) {
+func TestStorageAzureBlobContainer(t *testing.T) {
 	key := types.NamespacedName{Name: "foo", Namespace: "default"}
 	created := &BlobContainer{ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "default"}}
 	g := gomega.NewGomegaWithT(t)

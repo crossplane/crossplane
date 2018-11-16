@@ -29,11 +29,12 @@ import (
 type BlobContainerSpec struct {
 	Name     string `json:"name,omitempty"`
 	Location string `json:"location,omitempty"`
-	// Storage - one of
+	// Storage
+	// One of:
 	// Locally redundant storage (LRS)
 	// Geo-redundant storage (GRS)
 	// Read-access geo-redundant storage (RA-GRS)
-	Storage string `json:"location,omitempty"`
+	Storage string `json:"storage,omitempty"`
 	// AccessTier hot or cold
 	AccessTier string `json:"accessTier,omitempty"`
 	// PredefinedACL
@@ -54,6 +55,7 @@ type BlobContainerStatus struct {
 
 // BlobContainer is the Schema for the Container API
 // +k8s:openapi-gen=true
+// +groupName=storage.azure
 type BlobContainer struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

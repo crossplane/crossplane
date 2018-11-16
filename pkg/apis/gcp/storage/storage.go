@@ -14,5 +14,5 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package storage contains AWS storage API versions
+// Package storage contains Google storage API versions
 package storage

@@ -49,6 +49,7 @@ type S3BucketStatus struct {
 
 // S3Bucket is the Schema for the S3Bucket API
 // +k8s:openapi-gen=true
+// +groupName=storage.aws
 type S3Bucket struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

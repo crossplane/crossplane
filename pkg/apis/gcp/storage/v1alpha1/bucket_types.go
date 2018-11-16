@@ -25,7 +25,7 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// GoogleBucketSpec defines the desired state of S3Bucket
+// GoogleBucketSpec defines the desired state of GoogleBucket
 type GoogleBucketSpec struct {
 	Name string `json:"name,omitempty"`
 
@@ -45,7 +45,7 @@ type GoogleBucketSpec struct {
 	ProviderRef  v1.LocalObjectReference `json:"providerRef"`
 }
 
-// S3BucketStatus defines the observed state of GoogleBucket
+// GoogleBucketStatus defines the observed state of GoogleBucket
 type GoogleBucketStatus struct {
 	corev1alpha1.ConditionedStatus
 	Message    string `json:"message,omitempty"`
@@ -57,6 +57,7 @@ type GoogleBucketStatus struct {
 
 // GoogleBucket is the Schema for the GoogleBucket API
 // +k8s:openapi-gen=true
+// +groupName=storage.gcp
 type GoogleBucket struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -67,7 +68,7 @@ type GoogleBucket struct {
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// GoogleBucketList contains a list of S3Buckets
+// GoogleBucketList contains a list of GoogleBuckets
 type GoogleBucketList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

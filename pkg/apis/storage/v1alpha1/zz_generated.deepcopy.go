@@ -117,6 +117,11 @@ func (in *BucketSpec) DeepCopyInto(out *BucketSpec) {
 		**out = **in
 	}
 	in.Selector.DeepCopyInto(&out.Selector)
+	if in.LocalPermissions != nil {
+		in, out := &in.LocalPermissions, &out.LocalPermissions
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 

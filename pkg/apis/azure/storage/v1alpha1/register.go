@@ -21,7 +21,7 @@ limitations under the License.
 // +k8s:deepcopy-gen=package,register
 // +k8s:conversion-gen=github.com/upbound/conductor/pkg/apis/azure/storage
 // +k8s:defaulter-gen=TypeMeta
-// +groupName=storage.aws.conductor.io
+// +groupName=storage.azure.conductor.io
 package v1alpha1
 
 import (
