@@ -115,6 +115,8 @@ func (in *GCPBucketSpec) DeepCopy() *GCPBucketSpec {
 func (in *GCPBucketStatus) DeepCopyInto(out *GCPBucketStatus) {
 	*out = *in
 	in.ConditionedStatus.DeepCopyInto(&out.ConditionedStatus)
+	out.BindingStatusPhase = in.BindingStatusPhase
+	out.ConnectionSecretRef = in.ConnectionSecretRef
 	return
 }
 

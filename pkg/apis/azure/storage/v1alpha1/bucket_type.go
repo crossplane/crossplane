@@ -47,8 +47,9 @@ type AzureBucketSpec struct {
 type AzureBucketStatus struct {
 	corev1alpha1.ConditionedStatus
 	corev1alpha1.BindingStatusPhase
-	Message    string `json:"message,omitempty"`
-	ProviderID string `json:"providerID,omitempty"` // the external ID to identify this resource in the cloud provider
+	Message             string                  `json:"message,omitempty"`
+	ProviderID          string                  `json:"providerID,omitempty"` // the external ID to identify this resource in the cloud provider
+	ConnectionSecretRef v1.LocalObjectReference `json:"connectionSecretRef,omitempty"`
 }
 
 // +genclient

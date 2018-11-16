@@ -106,6 +106,7 @@ func (in *S3BucketStatus) DeepCopyInto(out *S3BucketStatus) {
 	*out = *in
 	in.ConditionedStatus.DeepCopyInto(&out.ConditionedStatus)
 	out.BindingStatusPhase = in.BindingStatusPhase
+	out.ConnectionSecretRef = in.ConnectionSecretRef
 	return
 }
 

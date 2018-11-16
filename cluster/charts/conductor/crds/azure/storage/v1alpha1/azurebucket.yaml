@@ -39,6 +39,8 @@ spec:
           type: object
         status:
           properties:
+            connectionSecretRef:
+              type: object
             message:
               type: string
             providerID:
