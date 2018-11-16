@@ -32,9 +32,10 @@ type S3BucketSpec struct {
 	// CannedACL is one of:
 	// private, public-read, public-read-write, authenticated-read bucket-owner-read
 	// bucket-owner-full-control, aws-exec-read, log-delivery-write
-	CannedACL   string                  `json:"cannedACL,omitempty"`
-	Versioning  bool                    `json:"versioning"`
-	ProviderRef v1.LocalObjectReference `json:"providerRef"`
+	CannedACL                    string                  `json:"cannedACL,omitempty"`
+	Versioning                   bool                    `json:"versioning"`
+	ConnectionSecretNameOverride string                  `json:"connectionSecretNameOverride,omitempty"`
+	ProviderRef                  v1.LocalObjectReference `json:"providerRef"`
 }
 
 // S3BucketStatus defines the observed state of S3Bucket

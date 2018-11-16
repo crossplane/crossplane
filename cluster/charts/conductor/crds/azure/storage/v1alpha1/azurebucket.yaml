@@ -24,6 +24,8 @@ spec:
           properties:
             accessTier:
               type: string
+            connectionSecretNameOverride:
+              type: string
             location:
               type: string
             name:

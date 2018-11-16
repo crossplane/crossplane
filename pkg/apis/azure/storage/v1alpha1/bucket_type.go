@@ -39,8 +39,9 @@ type AzureBucketSpec struct {
 	AccessTier string `json:"accessTier,omitempty"`
 	// PredefinedACL
 	// One of: private, full-public-read, public-read-blobs-only
-	PredefinedACL string                  `json:"predefinedACL,omitempty"`
-	ProviderRef   v1.LocalObjectReference `json:"providerRef"`
+	PredefinedACL                string                  `json:"predefinedACL,omitempty"`
+	ConnectionSecretNameOverride string                  `json:"connectionSecretNameOverride,omitempty"`
+	ProviderRef                  v1.LocalObjectReference `json:"providerRef"`
 }
 
 // AzureBucketStatus defines the observed state of AzureBucket

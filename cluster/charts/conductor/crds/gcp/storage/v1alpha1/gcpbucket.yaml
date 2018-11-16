@@ -22,6 +22,8 @@ spec:
           type: object
         spec:
           properties:
+            connectionSecretNameOverride:
+              type: string
             location:
               type: string
             name:

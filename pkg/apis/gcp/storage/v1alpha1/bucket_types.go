@@ -40,9 +40,10 @@ type GCPBucketSpec struct {
 	//StorageClass one of
 	// MULTI_REGIONAL, REGIONAL, STANDARD, NEARLINE, COLDLINE, and DURABLE_REDUCED_AVAILABILITY.
 	// If this value is not specified when the bucket is created, it will default to STANDARD
-	StorageClass *string                 `json:"storageClass,omitempty"`
-	Versioning   bool                    `json:"versioning,omitempty"`
-	ProviderRef  v1.LocalObjectReference `json:"providerRef"`
+	StorageClass                 *string                 `json:"storageClass,omitempty"`
+	Versioning                   bool                    `json:"versioning,omitempty"`
+	ConnectionSecretNameOverride string                  `json:"connectionSecretNameOverride,omitempty"`
+	ProviderRef                  v1.LocalObjectReference `json:"providerRef"`
 }
 
 // GoogleBucketStatus defines the observed state of GoogleBucket

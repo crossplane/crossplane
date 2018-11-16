@@ -24,6 +24,8 @@ spec:
           properties:
             cannedACL:
               type: string
+            connectionSecretNameOverride:
+              type: string
             name:
               type: string
             providerRef:
