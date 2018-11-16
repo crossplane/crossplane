@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"k8s.io/apimachinery/pkg/types"
 	"log"
 	"testing"
 
@@ -36,6 +37,7 @@ var (
 	ctx = context.TODO()
 	cfg *rest.Config
 	c   client.Client
+	key = types.NamespacedName{Name: name, Namespace: namespace}
 )
 
 func TestMain(m *testing.M) {

@@ -17,8 +17,6 @@ limitations under the License.
 package mysql
 
 import (
-	"fmt"
-
 	azuredbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/database/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	mysqlv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
@@ -44,8 +42,9 @@ func (h *AzureMySQLServerHandler) provision(class *corev1alpha1.ResourceClass, i
 	// construct Azure MySQL Server spec from class definition/parameters
 	mysqlServerSpec := azuredbv1alpha1.NewMySQLServerSpec(class.Parameters)
 
-	// translate mysql spec fields to Azure MySQLServer spec
-	if err := translateValuesToAzureMySQLServer(instance.Spec, mysqlServerSpec); err != nil {
+	// validate and assign version
+	var err error
+	if mysqlServerSpec.Version, err = resolveClassInstanceValues(mysqlServerSpec.Version, instance.Spec.EngineVersion); err != nil {
 		return nil, err
 	}
 
@@ -71,7 +70,7 @@ func (h *AzureMySQLServerHandler) provision(class *corev1alpha1.ResourceClass, i
 		Spec: *mysqlServerSpec,
 	}
 
-	err := c.Create(ctx, mysqlServer)
+	err = c.Create(ctx, mysqlServer)
 	return mysqlServer, err
 }
 
@@ -95,25 +94,4 @@ func (h *AzureMySQLServerHandler) setBindStatus(name types.NamespacedName, c cli
 		mysqlServer.Status.SetUnbound()
 	}
 	return c.Update(ctx, mysqlServer)
-}
-
-func translateValuesToAzureMySQLServer(instanceSpec mysqlv1alpha1.MySQLInstanceSpec, mysqlServerSpec *azuredbv1alpha1.MysqlServerSpec) error {
-	if instanceSpec.EngineVersion != "" {
-		// the user has specified an engine version on the abstract spec, check if it's valid
-		valid := false
-		for _, validVersion := range azuredbv1alpha1.ValidVersionValues() {
-			if instanceSpec.EngineVersion == validVersion {
-				valid = true
-				break
-			}
-		}
-		if !valid {
-			return fmt.Errorf("invalid engine version %s", instanceSpec.EngineVersion)
-		}
-
-		// specified engine version on the abstract instance spec is valid, set it on the concrete spec
-		mysqlServerSpec.Version = instanceSpec.EngineVersion
-	}
-
-	return nil
 }
