@@ -98,9 +98,14 @@ type BucketSpec struct {
 	// Bucket properties
 	Name string `json:"name,omitempty"`
 	// PredefinedACL is one of
-	// private, publicRead, publicReadWrite(*), AuthenticatedRead(*)
+	// one of: private, publicRead, publicReadWrite(*), AuthenticatedRead(*)
 	// * Not available on Azure
 	PredefinedACL string `json:"predefinedACL,omitempty"`
+
+	// LocalPermissions are the permissions granted on the bucket for the provider specific
+	// bucket service account.
+	// one of: read, write
+	LocalPermissions []string `json:"localPermissions,omitempty"`
 }
 
 // BucketClaimStatus
