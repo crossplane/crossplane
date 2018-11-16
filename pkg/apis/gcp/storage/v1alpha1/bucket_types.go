@@ -25,8 +25,8 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// GoogleBucketSpec defines the desired state of GoogleBucket
-type GoogleBucketSpec struct {
+// GCPBucketSpec defines the desired state of GCPBucket
+type GCPBucketSpec struct {
 	Name string `json:"name,omitempty"`
 
 	// Location - See authoritative list https://developers.google.com/storage/docs/bucket-locations
@@ -46,7 +46,7 @@ type GoogleBucketSpec struct {
 }
 
 // GoogleBucketStatus defines the observed state of GoogleBucket
-type GoogleBucketStatus struct {
+type GCPBucketStatus struct {
 	corev1alpha1.ConditionedStatus
 	Message    string `json:"message,omitempty"`
 	ProviderID string `json:"providerID,omitempty"` // the external ID to identify this resource in the cloud provider
@@ -55,26 +55,26 @@ type GoogleBucketStatus struct {
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// GoogleBucket is the Schema for the GoogleBucket API
+// GCPBucket is the Schema for the GCPBucket API
 // +k8s:openapi-gen=true
 // +groupName=storage.gcp
-type GoogleBucket struct {
+type GCPBucket struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   GoogleBucketSpec   `json:"spec,omitempty"`
-	Status GoogleBucketStatus `json:"status,omitempty"`
+	Spec   GCPBucketSpec   `json:"spec,omitempty"`
+	Status GCPBucketStatus `json:"status,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// GoogleBucketList contains a list of GoogleBuckets
-type GoogleBucketList struct {
+// GCPBucketList contains a list of GCPBuckets
+type GCPBucketList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []GoogleBucket `json:"items"`
+	Items           []GCPBucket `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&GoogleBucket{}, &GoogleBucketList{})
+	SchemeBuilder.Register(&GCPBucket{}, &GCPBucketList{})
 }

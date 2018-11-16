@@ -4,12 +4,12 @@ metadata:
   creationTimestamp: null
   labels:
     controller-tools.k8s.io: "1.0"
-  name: blobcontainers.storage.azure.conductor.io
+  name: azurebuckets.storage.azure.conductor.io
 spec:
   group: storage.azure.conductor.io
   names:
-    kind: BlobContainer
-    plural: blobcontainers
+    kind: AzureBucket
+    plural: azurebuckets
   scope: Namespaced
   validation:
     openAPIV3Schema:
@@ -32,6 +32,8 @@ spec:
               type: string
             providerRef:
               type: object
+            storage:
+              type: string
           required:
           - providerRef
           type: object

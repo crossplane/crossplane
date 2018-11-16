@@ -25,13 +25,13 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-func TestStorageAzureBlobContainer(t *testing.T) {
+func TestStorageAzureBucket(t *testing.T) {
 	key := types.NamespacedName{Name: "foo", Namespace: "default"}
-	created := &BlobContainer{ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "default"}}
+	created := &AzureBucket{ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "default"}}
 	g := gomega.NewGomegaWithT(t)
 
 	// Test Create
-	fetched := &BlobContainer{}
+	fetched := &AzureBucket{}
 	g.Expect(c.Create(context.TODO(), created)).NotTo(gomega.HaveOccurred())
 
 	g.Expect(c.Get(context.TODO(), key, fetched)).NotTo(gomega.HaveOccurred())

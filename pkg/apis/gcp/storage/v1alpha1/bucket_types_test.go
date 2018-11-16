@@ -25,13 +25,13 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-func TestStorageGoogleBucket(t *testing.T) {
+func TestStorageGCPBucket(t *testing.T) {
 	key := types.NamespacedName{Name: "foo", Namespace: "default"}
-	created := &GoogleBucket{ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "default"}}
+	created := &GCPBucket{ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "default"}}
 	g := gomega.NewGomegaWithT(t)
 
 	// Test Create
-	fetched := &GoogleBucket{}
+	fetched := &GCPBucket{}
 	g.Expect(c.Create(context.TODO(), created)).NotTo(gomega.HaveOccurred())
 
 	g.Expect(c.Get(context.TODO(), key, fetched)).NotTo(gomega.HaveOccurred())

@@ -4,12 +4,12 @@ metadata:
   creationTimestamp: null
   labels:
     controller-tools.k8s.io: "1.0"
-  name: googlebuckets.storage.gcp.conductor.io
+  name: gcpbuckets.storage.gcp.conductor.io
 spec:
   group: storage.gcp.conductor.io
   names:
-    kind: GoogleBucket
-    plural: googlebuckets
+    kind: GCPBucket
+    plural: gcpbuckets
   scope: Namespaced
   validation:
     openAPIV3Schema:

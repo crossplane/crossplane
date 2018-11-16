@@ -25,8 +25,8 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// BlobContainerSpec defines the desired state of S3Bucket
-type BlobContainerSpec struct {
+// AzureBucketSpec defines the desired state of AzureBucket
+type AzureBucketSpec struct {
 	Name     string `json:"name,omitempty"`
 	Location string `json:"location,omitempty"`
 	// Storage
@@ -43,9 +43,10 @@ type BlobContainerSpec struct {
 	ProviderRef   v1.LocalObjectReference `json:"providerRef"`
 }
 
-// BlobContainerStatus defines the observed state of BlobContainer
-type BlobContainerStatus struct {
+// AzureBucketStatus defines the observed state of AzureBucket
+type AzureBucketStatus struct {
 	corev1alpha1.ConditionedStatus
+	corev1alpha1.BindingStatusPhase
 	Message    string `json:"message,omitempty"`
 	ProviderID string `json:"providerID,omitempty"` // the external ID to identify this resource in the cloud provider
 }
@@ -53,25 +54,25 @@ type BlobContainerStatus struct {
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// BlobContainer is the Schema for the Container API
+// AzureBucket is the Schema for the Bucket API
 // +k8s:openapi-gen=true
 // +groupName=storage.azure
-type BlobContainer struct {
+type AzureBucket struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Spec              BlobContainerSpec   `json:"spec,omitempty"`
-	Status            BlobContainerStatus `json:"status,omitempty"`
+	Spec              AzureBucketSpec   `json:"spec,omitempty"`
+	Status            AzureBucketStatus `json:"status,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// BlobContainerList contains a list of BlobContainers
-type BlobContainerList struct {
+// AzureBucketList contains a list of AzureBuckets
+type AzureBucketList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []BlobContainer `json:"items"`
+	Items           []AzureBucket `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&BlobContainer{}, &BlobContainerList{})
+	SchemeBuilder.Register(&AzureBucket{}, &AzureBucketList{})
 }
