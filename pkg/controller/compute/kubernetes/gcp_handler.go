@@ -31,14 +31,14 @@ import (
 type GKEClusterHandler struct{}
 
 // find GKECluster resource
-func (r *GKEClusterHandler) find(name types.NamespacedName, c client.Client) (corev1alpha1.Resource, error) {
+func (r *GKEClusterHandler) find(name types.NamespacedName, c client.Client) (corev1alpha1.ConcreteResource, error) {
 	instance := &gcpcomputev1alpha1.GKECluster{}
 	err := c.Get(ctx, name, instance)
 	return instance, err
 }
 
 // provision create new GKECluster
-func (r *GKEClusterHandler) provision(class *corev1alpha1.ResourceClass, instance *computev1alpha1.KubernetesCluster, c client.Client) (corev1alpha1.Resource, error) {
+func (r *GKEClusterHandler) provision(class *corev1alpha1.ResourceClass, instance *computev1alpha1.KubernetesCluster, c client.Client) (corev1alpha1.ConcreteResource, error) {
 	// construct GKECluster Spec from class definition
 	resourceInstance := gcpcomputev1alpha1.NewGKEClusterSpec(class.Parameters)
 

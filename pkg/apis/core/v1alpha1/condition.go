@@ -48,11 +48,15 @@ type Condition struct {
 
 // Conditionable defines set of functionality to operate on Conditions
 type Conditionable interface {
-	GetCondition(ConditionType) *Condition
+	Condition(ConditionType) *Condition
 	SetCondition(Condition)
 	RemoveCondition(ConditionType)
 	UnsetCondition(ConditionType)
 	UnsetAllConditions()
+}
+
+type ConditionedStatusObject interface {
+	ConditionedStatus() Conditionable
 }
 
 // ConditionedStatus defines the observed state of RDS resource

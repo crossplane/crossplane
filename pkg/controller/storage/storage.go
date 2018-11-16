@@ -17,12 +17,13 @@ limitations under the License.
 package storage
 
 import (
-	"github.com/crossplaneio/crossplane/pkg/controller/storage/mysql"
+	"github.com/crossplaneio/crossplane/pkg/controller/storage/sql"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
 func init() {
-	AddToManagerFuncs = append(AddToManagerFuncs, mysql.Add)
+	AddToManagerFuncs = append(AddToManagerFuncs, sql.AddMySQL)
+	AddToManagerFuncs = append(AddToManagerFuncs, sql.AddPostgreSQL)
 }
 
 // AddToManagerFuncs is a list of functions to add all Controllers to the Manager

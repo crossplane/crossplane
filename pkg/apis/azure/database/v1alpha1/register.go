@@ -30,11 +30,13 @@ import (
 )
 
 const (
-	Group                     = "database.azure.crossplane.io"
-	Version                   = "v1alpha1"
-	APIVersion                = Group + "/" + Version
-	MysqlServerKind           = "mysqlserver"
-	MysqlServerKindAPIVersion = MysqlServerKind + "." + APIVersion
+	Group                          = "database.azure.crossplane.io"
+	Version                        = "v1alpha1"
+	APIVersion                     = Group + "/" + Version
+	MysqlServerKind                = "mysqlserver"
+	PostgresqlServerKind           = "postgresqlserver"
+	MysqlServerKindAPIVersion      = MysqlServerKind + "." + APIVersion
+	PostgresqlServerKindAPIVersion = PostgresqlServerKind + "." + APIVersion
 )
 
 var (
@@ -47,4 +49,5 @@ var (
 
 func init() {
 	SchemeBuilder.Register(&MysqlServer{}, &MysqlServerList{})
+	SchemeBuilder.Register(&PostgresqlServer{}, &PostgresqlServerList{})
 }

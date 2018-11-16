@@ -32,50 +32,50 @@ import (
 )
 
 const (
-	mysqlFinalizer = "finalizer.mysqlservers.database.azure.crossplane.io"
+	postgresqlFinalizer = "finalizer.postgresqlservers.database.azure.crossplane.io"
 )
 
 var (
-	_ reconcile.Reconciler = &MySQLReconciler{}
+	_ reconcile.Reconciler = &PostgreSQLReconciler{}
 )
 
-// AddMysqlServer creates a new MysqlServer Controller and adds it to the Manager with default RBAC.
+// AddPostgreSQLServer creates a new PostgreSQLServer Controller and adds it to the Manager with default RBAC.
 // The Manager will set fields on the Controller and Start it when the Manager is Started.
-func AddMysqlServer(mgr manager.Manager) error {
+func AddPostgreSQLServer(mgr manager.Manager) error {
 	clientset, err := kubernetes.NewForConfig(mgr.GetConfig())
 	if err != nil {
 		return fmt.Errorf("failed to create clientset: %+v", err)
 	}
 
-	r := newMysqlServerReconciler(mgr, &azureclients.MySQLServerClientFactory{}, clientset)
-	return addMysqlServerReconciler(mgr, r)
+	r := newPostgreSQLServerReconciler(mgr, &azureclients.PostgreSQLServerClientFactory{}, clientset)
+	return addPostgreSQLServerReconciler(mgr, r)
 }
 
-// newMysqlServerReconciler returns a new reconcile.Reconciler
-func newMysqlServerReconciler(mgr manager.Manager, sqlServerAPIFactory azureclients.SQLServerAPIFactory,
-	clientset kubernetes.Interface) *MySQLReconciler {
+// newPostgreSQLServerReconciler returns a new reconcile.Reconciler
+func newPostgreSQLServerReconciler(mgr manager.Manager, sqlServerAPIFactory azureclients.SQLServerAPIFactory,
+	clientset kubernetes.Interface) *PostgreSQLReconciler {
 
-	return &MySQLReconciler{
+	return &PostgreSQLReconciler{
 		SQLReconciler: &SQLReconciler{
 			Client:              mgr.GetClient(),
 			clientset:           clientset,
 			sqlServerAPIFactory: sqlServerAPIFactory,
 			scheme:              mgr.GetScheme(),
-			finalizer:           mysqlFinalizer,
+			finalizer:           postgresqlFinalizer,
 		},
 	}
 }
 
-// addMysqlServerReconciler adds a new Controller to mgr with r as the reconcile.Reconciler
-func addMysqlServerReconciler(mgr manager.Manager, r reconcile.Reconciler) error {
+// addPostgreSQLServerReconciler adds a new Controller to mgr with r as the reconcile.Reconciler
+func addPostgreSQLServerReconciler(mgr manager.Manager, r reconcile.Reconciler) error {
 	// Create a new controller
-	c, err := controller.New("MysqlServer-controller", mgr, controller.Options{Reconciler: r})
+	c, err := controller.New("PostgreSQLServer-controller", mgr, controller.Options{Reconciler: r})
 	if err != nil {
 		return err
 	}
 
-	// Watch for changes to MysqlServer
-	err = c.Watch(&source.Kind{Type: &azuredbv1alpha1.MysqlServer{}}, &handler.EnqueueRequestForObject{})
+	// Watch for changes to PostgreSQLServer
+	err = c.Watch(&source.Kind{Type: &azuredbv1alpha1.PostgresqlServer{}}, &handler.EnqueueRequestForObject{})
 	if err != nil {
 		return err
 	}
@@ -83,17 +83,17 @@ func addMysqlServerReconciler(mgr manager.Manager, r reconcile.Reconciler) error
 	return nil
 }
 
-// MySQLReconciler reconciles a MysqlServer object
-type MySQLReconciler struct {
+// PostgreSQLReconciler reconciles a PostgreSQLServer object
+type PostgreSQLReconciler struct {
 	*SQLReconciler
 }
 
-// Reconcile reads that state of the cluster for a MysqlServer object and makes changes based on the state read
-// and what is in the MysqlServer.Spec
-func (r *MySQLReconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	instance := &azuredbv1alpha1.MysqlServer{}
+// Reconcile reads that state of the cluster for a PostgreSQLServer object and makes changes based on the state read
+// and what is in the PostgreSQLServer.Spec
+func (r *PostgreSQLReconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+	instance := &azuredbv1alpha1.PostgresqlServer{}
 
-	// Fetch the MysqlServer instance
+	// Fetch the PostgresqlServer instance
 	err := r.Get(ctx, request.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {

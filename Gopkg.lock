@@ -15,6 +15,7 @@
   packages = [
     ".",
     "services/mysql/mgmt/2017-12-01/mysql",
+    "services/postgresql/mgmt/2017-12-01/postgresql",
     "services/resources/mgmt/2018-05-01/resources",
     "version",
   ]
@@ -978,8 +979,10 @@
   input-imports = [
     "github.com/Azure/azure-sdk-for-go",
     "github.com/Azure/azure-sdk-for-go/services/mysql/mgmt/2017-12-01/mysql",
+    "github.com/Azure/azure-sdk-for-go/services/postgresql/mgmt/2017-12-01/postgresql",
     "github.com/Azure/azure-sdk-for-go/services/resources/mgmt/2018-05-01/resources",
     "github.com/Azure/go-autorest/autorest",
+    "github.com/Azure/go-autorest/autorest/azure",
     "github.com/Azure/go-autorest/autorest/azure/auth",
     "github.com/aws/aws-sdk-go-v2",
     "github.com/aws/aws-sdk-go-v2/aws",

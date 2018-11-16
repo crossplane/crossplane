@@ -14,15 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package mysql
+package sql
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 
 	awsdbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/database/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	mysqlv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
+	storagev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -32,28 +33,24 @@ import (
 // RDSInstanceHandler handles RDS Instance functionality
 type RDSInstanceHandler struct{}
 
-// find RDSInstance
-func (h *RDSInstanceHandler) find(name types.NamespacedName, c client.Client) (corev1alpha1.Resource, error) {
+// Find RDSInstance
+func (h *RDSInstanceHandler) Find(name types.NamespacedName, c client.Client) (corev1alpha1.ConcreteResource, error) {
 	rdsInstance := &awsdbv1alpha1.RDSInstance{}
 	err := c.Get(ctx, name, rdsInstance)
 	return rdsInstance, err
 }
 
-// provision create new RDSInstance
-func (h *RDSInstanceHandler) provision(class *corev1alpha1.ResourceClass, instance *mysqlv1alpha1.MySQLInstance, c client.Client) (corev1alpha1.Resource, error) {
+// Provision create new RDSInstance
+func (h *RDSInstanceHandler) Provision(class *corev1alpha1.ResourceClass, instance corev1alpha1.AbstractResource, c client.Client) (corev1alpha1.ConcreteResource, error) {
 	// construct RDSInstance Spec from class definition
 	rdsInstanceSpec := awsdbv1alpha1.NewRDSInstanceSpec(class.Parameters)
 
-	// TODO: it is not clear if all concrete resource use the same constant value for database engine
-	// if they do - we will need to refactor this value into constant.
-	rdsInstanceSpec.Engine = "mysql"
-	rdsInstanceName := fmt.Sprintf("%s-%s", rdsInstanceSpec.Engine, instance.UID)
-
-	// validate engine version value (if needed)
-	var err error
-	if rdsInstanceSpec.EngineVersion, err = validateEngineVersion(instance.Spec.EngineVersion, rdsInstanceSpec.EngineVersion); err != nil {
+	// resolve the resource class params and the abstract instance values
+	if err := resolveAWSClassInstanceValues(rdsInstanceSpec, instance); err != nil {
 		return nil, err
 	}
+
+	rdsInstanceName := fmt.Sprintf("%s-%s", rdsInstanceSpec.Engine, instance.GetObjectMeta().UID)
 
 	// assign provider reference and reclaim policy from the resource class
 	rdsInstanceSpec.ProviderRef = class.ProviderRef
@@ -77,15 +74,15 @@ func (h *RDSInstanceHandler) provision(class *corev1alpha1.ResourceClass, instan
 		Spec: *rdsInstanceSpec,
 	}
 
-	err = c.Create(ctx, rdsInstance)
+	err := c.Create(ctx, rdsInstance)
 	return rdsInstance, err
 }
 
-// bind updates resource state binding phase
+// Bind updates resource state binding phase
 // - state = true: bound
 // - state = false: unbound
 // TODO: this setBindStatus function could be refactored to 1 common implementation for all providers
-func (h RDSInstanceHandler) setBindStatus(name types.NamespacedName, c client.Client, state bool) error {
+func (h RDSInstanceHandler) SetBindStatus(name types.NamespacedName, c client.Client, state bool) error {
 	rdsInstance := &awsdbv1alpha1.RDSInstance{}
 	err := c.Get(ctx, name, rdsInstance)
 	if err != nil {
@@ -101,6 +98,31 @@ func (h RDSInstanceHandler) setBindStatus(name types.NamespacedName, c client.Cl
 		rdsInstance.Status.SetUnbound()
 	}
 	return c.Update(ctx, rdsInstance)
+}
+
+func resolveAWSClassInstanceValues(rdsInstanceSpec *awsdbv1alpha1.RDSInstanceSpec, instance corev1alpha1.AbstractResource) error {
+	var engineVersion string
+
+	switch instance.(type) {
+	case *storagev1alpha1.MySQLInstance:
+		// translate mysql spec fields to RDSInstance instance spec
+		rdsInstanceSpec.Engine = awsdbv1alpha1.MysqlEngine
+		engineVersion = instance.(*storagev1alpha1.MySQLInstance).Spec.EngineVersion
+	case *storagev1alpha1.PostgreSQLInstance:
+		// translate postgres spec fields to RDSInstance instance spec
+		rdsInstanceSpec.Engine = awsdbv1alpha1.PostgresqlEngine
+		engineVersion = instance.(*storagev1alpha1.PostgreSQLInstance).Spec.EngineVersion
+	default:
+		return fmt.Errorf("unexpected instance type: %+v", reflect.TypeOf(instance))
+	}
+
+	resolvedEngineVersion, err := validateEngineVersion(rdsInstanceSpec.EngineVersion, engineVersion)
+	if err != nil {
+		return err
+	}
+
+	rdsInstanceSpec.EngineVersion = resolvedEngineVersion
+	return nil
 }
 
 // validateEngineVersion compares class and instance engine values and returns an engine value or error

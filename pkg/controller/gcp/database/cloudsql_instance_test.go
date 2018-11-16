@@ -208,3 +208,18 @@ func assertConnectionSecret(g *gomega.GomegaWithT, c client.Client, connectionSe
 	g.Expect(string(connectionSecret.Data[corev1alpha1.ResourceCredentialsSecretUserKey])).To(gomega.Equal("root"))
 	g.Expect(string(connectionSecret.Data[corev1alpha1.ResourceCredentialsSecretPasswordKey])).NotTo(gomega.BeEmpty())
 }
+
+func TestGetDefaultDBUserName(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	user, err := getDefaultDBUserName("foo")
+	g.Expect(err).To(gomega.HaveOccurred())
+
+	user, err = getDefaultDBUserName("MYSQL_5_6")
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+	g.Expect(user).To(gomega.Equal(mysqlDefaultUserName))
+
+	user, err = getDefaultDBUserName("POSTGRES_9_6")
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+	g.Expect(user).To(gomega.Equal(postgresqlDefaultUserName))
+}

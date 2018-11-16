@@ -24,7 +24,8 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/services/mysql/mgmt/2017-12-01/mysql"
 	"github.com/Azure/go-autorest/autorest"
-	databasev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/database/v1alpha1"
+	azurerest "github.com/Azure/go-autorest/autorest/azure"
+	azuredbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/database/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	azureclients "github.com/crossplaneio/crossplane/pkg/clients/azure"
@@ -42,22 +43,22 @@ import (
 )
 
 type mockMySQLServerClient struct {
-	MockGet         func(ctx context.Context, resourceGroupName string, serverName string) (mysql.Server, error)
-	MockCreateBegin func(ctx context.Context, resourceGroupName string, serverName string, parameters mysql.ServerForCreate) ([]byte, error)
+	MockGet         func(ctx context.Context, instance azuredbv1alpha1.SqlServer) (*azureclients.SQLServer, error)
+	MockCreateBegin func(ctx context.Context, instance azuredbv1alpha1.SqlServer, adminPassword string) ([]byte, error)
 	MockCreateEnd   func(createOp []byte) (bool, error)
-	MockDelete      func(ctx context.Context, resourceGroupName string, serverName string) (mysql.ServersDeleteFuture, error)
+	MockDelete      func(ctx context.Context, instance azuredbv1alpha1.SqlServer) (azurerest.Future, error)
 }
 
-func (m *mockMySQLServerClient) Get(ctx context.Context, resourceGroupName string, serverName string) (mysql.Server, error) {
+func (m *mockMySQLServerClient) Get(ctx context.Context, instance azuredbv1alpha1.SqlServer) (*azureclients.SQLServer, error) {
 	if m.MockGet != nil {
-		return m.MockGet(ctx, resourceGroupName, serverName)
+		return m.MockGet(ctx, instance)
 	}
-	return mysql.Server{}, nil
+	return &azureclients.SQLServer{}, nil
 }
 
-func (m *mockMySQLServerClient) CreateBegin(ctx context.Context, resourceGroupName string, serverName string, parameters mysql.ServerForCreate) ([]byte, error) {
+func (m *mockMySQLServerClient) CreateBegin(ctx context.Context, instance azuredbv1alpha1.SqlServer, adminPassword string) ([]byte, error) {
 	if m.MockCreateBegin != nil {
-		return m.MockCreateBegin(ctx, resourceGroupName, serverName, parameters)
+		return m.MockCreateBegin(ctx, instance, adminPassword)
 	}
 	return nil, nil
 }
@@ -69,18 +70,18 @@ func (m *mockMySQLServerClient) CreateEnd(createOp []byte) (bool, error) {
 	return true, nil
 }
 
-func (m *mockMySQLServerClient) Delete(ctx context.Context, resourceGroupName string, serverName string) (mysql.ServersDeleteFuture, error) {
+func (m *mockMySQLServerClient) Delete(ctx context.Context, instance azuredbv1alpha1.SqlServer) (azurerest.Future, error) {
 	if m.MockDelete != nil {
-		return m.MockDelete(ctx, resourceGroupName, serverName)
+		return m.MockDelete(ctx, instance)
 	}
-	return mysql.ServersDeleteFuture{}, nil
+	return azurerest.Future{}, nil
 }
 
 type mockMySQLServerClientFactory struct {
 	mockClient *mockMySQLServerClient
 }
 
-func (m *mockMySQLServerClientFactory) CreateAPIInstance(*v1alpha1.Provider, kubernetes.Interface) (azureclients.MySQLServerAPI, error) {
+func (m *mockMySQLServerClientFactory) CreateAPIInstance(*v1alpha1.Provider, kubernetes.Interface) (azureclients.SQLServerAPI, error) {
 	return m.mockClient, nil
 }
 
@@ -92,24 +93,21 @@ func TestReconcile(t *testing.T) {
 	mysqlServerClientFactory := &mockMySQLServerClientFactory{mockClient: mysqlServerClient}
 
 	getCallCount := 0
-	mysqlServerClient.MockGet = func(ctx context.Context, resourceGroupName string, serverName string) (mysql.Server, error) {
+	mysqlServerClient.MockGet = func(ctx context.Context, instance azuredbv1alpha1.SqlServer) (*azureclients.SQLServer, error) {
 		getCallCount++
 		if getCallCount <= 1 {
 			// first GET should return not found, which will cause the reconcile loop to try to create the instance
-			return mysql.Server{}, autorest.DetailedError{StatusCode: http.StatusNotFound}
+			return nil, autorest.DetailedError{StatusCode: http.StatusNotFound}
 		}
 		// subsequent GET calls should return the created instance
-		fqdn := instanceName + ".mydomain.azure.msft.com"
-		id := instanceName + "-azure-id"
-		return mysql.Server{
-			ID: &id,
-			ServerProperties: &mysql.ServerProperties{
-				UserVisibleState:         mysql.ServerStateReady,
-				FullyQualifiedDomainName: &fqdn,
-			},
+		instanceName := instance.GetObjectMeta().Name
+		return &azureclients.SQLServer{
+			State: string(mysql.ServerStateReady),
+			ID:    instanceName + "-azure-id",
+			FQDN:  instanceName + ".mydomain.azure.msft.com",
 		}, nil
 	}
-	mysqlServerClient.MockCreateBegin = func(ctx context.Context, resourceGroupName string, serverName string, parameters mysql.ServerForCreate) ([]byte, error) {
+	mysqlServerClient.MockCreateBegin = func(ctx context.Context, instance azuredbv1alpha1.SqlServer, adminPassword string) ([]byte, error) {
 		return []byte("mocked marshalled create future"), nil
 	}
 
@@ -140,14 +138,14 @@ func TestReconcile(t *testing.T) {
 	g.Eventually(requests, timeout).Should(gomega.Receive(gomega.Equal(expectedRequest)))
 
 	// after the first reconcile, the create operation should be saved on the running operation field
-	expectedStatus := databasev1alpha1.MysqlServerStatus{
+	expectedStatus := azuredbv1alpha1.SQLServerStatus{
 		RunningOperation: "mocked marshalled create future",
 	}
 	assertMySQLServerStatus(g, c, expectedStatus)
 
 	// second reconcile should finish the create operation and clear out the running operation field
 	g.Eventually(requests, timeout).Should(gomega.Receive(gomega.Equal(expectedRequest)))
-	expectedStatus = databasev1alpha1.MysqlServerStatus{
+	expectedStatus = azuredbv1alpha1.SQLServerStatus{
 		RunningOperation: "",
 	}
 	assertMySQLServerStatus(g, c, expectedStatus)
@@ -157,8 +155,8 @@ func TestReconcile(t *testing.T) {
 
 	// verify that the CRD status was updated with details about the external MySQL Server and that the
 	// CRD conditions show the transition from creating to running
-	expectedStatus = databasev1alpha1.MysqlServerStatus{
-		Message:    "MySQL Server instance test-db-instance is ready",
+	expectedStatus = azuredbv1alpha1.SQLServerStatus{
+		Message:    "SQL Server instance test-db-instance is ready",
 		State:      "Ready",
 		ProviderID: instanceName + "-azure-id",
 		Endpoint:   instanceName + ".mydomain.azure.msft.com",
@@ -168,7 +166,7 @@ func TestReconcile(t *testing.T) {
 					Type:    corev1alpha1.Ready,
 					Status:  v1.ConditionTrue,
 					Reason:  conditionStateChanged,
-					Message: "MySQL Server instance test-db-instance is in the Ready state",
+					Message: "SQL Server instance test-db-instance is in the Ready state",
 				},
 			},
 		},
@@ -189,14 +187,14 @@ func TestReconcile(t *testing.T) {
 	// verify that a finalizer was added to the CRD
 	c.Get(ctx, expectedRequest.NamespacedName, instance)
 	g.Expect(len(instance.Finalizers)).To(gomega.Equal(1))
-	g.Expect(instance.Finalizers[0]).To(gomega.Equal(finalizer))
+	g.Expect(instance.Finalizers[0]).To(gomega.Equal(mysqlFinalizer))
 
 	// test deletion of the instance
 	cleanupMySQLServer(g, c, requests, instance)
 }
 
-func cleanupMySQLServer(g *gomega.GomegaWithT, c client.Client, requests chan reconcile.Request, instance *databasev1alpha1.MysqlServer) {
-	deletedInstance := &databasev1alpha1.MysqlServer{}
+func cleanupMySQLServer(g *gomega.GomegaWithT, c client.Client, requests chan reconcile.Request, instance *azuredbv1alpha1.MysqlServer) {
+	deletedInstance := &azuredbv1alpha1.MysqlServer{}
 	if err := c.Get(ctx, expectedRequest.NamespacedName, deletedInstance); errors.IsNotFound(err) {
 		// instance has already been deleted, bail out
 		return
@@ -208,7 +206,7 @@ func cleanupMySQLServer(g *gomega.GomegaWithT, c client.Client, requests chan re
 
 	// wait for the deletion timestamp to be set
 	err = wait.ExponentialBackoff(test.DefaultRetry, func() (done bool, err error) {
-		deletedInstance := &databasev1alpha1.MysqlServer{}
+		deletedInstance := &azuredbv1alpha1.MysqlServer{}
 		c.Get(ctx, expectedRequest.NamespacedName, deletedInstance)
 		if deletedInstance.DeletionTimestamp != nil {
 			return true, nil
@@ -222,7 +220,7 @@ func cleanupMySQLServer(g *gomega.GomegaWithT, c client.Client, requests chan re
 
 	// wait for the finalizer to run and the instance to be deleted for good
 	err = wait.ExponentialBackoff(test.DefaultRetry, func() (done bool, err error) {
-		deletedInstance := &databasev1alpha1.MysqlServer{}
+		deletedInstance := &azuredbv1alpha1.MysqlServer{}
 		if err := c.Get(ctx, expectedRequest.NamespacedName, deletedInstance); errors.IsNotFound(err) {
 			return true, nil
 		}
@@ -231,8 +229,8 @@ func cleanupMySQLServer(g *gomega.GomegaWithT, c client.Client, requests chan re
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 }
 
-func assertMySQLServerStatus(g *gomega.GomegaWithT, c client.Client, expectedStatus databasev1alpha1.MysqlServerStatus) {
-	instance := &databasev1alpha1.MysqlServer{}
+func assertMySQLServerStatus(g *gomega.GomegaWithT, c client.Client, expectedStatus azuredbv1alpha1.SQLServerStatus) {
+	instance := &azuredbv1alpha1.MysqlServer{}
 	err := c.Get(ctx, expectedRequest.NamespacedName, instance)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
@@ -248,7 +246,7 @@ func assertMySQLServerStatus(g *gomega.GomegaWithT, c client.Client, expectedSta
 }
 
 func assertConnectionSecret(g *gomega.GomegaWithT, c client.Client, connectionSecret *v1.Secret) {
-	instance := &databasev1alpha1.MysqlServer{}
+	instance := &azuredbv1alpha1.MysqlServer{}
 	err := c.Get(ctx, expectedRequest.NamespacedName, instance)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 

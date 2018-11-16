@@ -1,0 +1,9 @@
+apiVersion: storage.crossplane.io/v1alpha1
+kind: PostgreSQLInstance
+metadata:
+  name: postgresql-instance
+spec:
+  classReference:
+    name: standard
+    namespace: crossplane-system
+  engineVersion: "9.6"

@@ -26,6 +26,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	// The engine value for MySQL
+	MysqlEngine = "mysql"
+
+	// The engine value for PostgreSQL
+	PostgresqlEngine = "postgres"
+)
+
 // RDSInstanceSpec defines the desired state of RDSInstance
 type RDSInstanceSpec struct {
 	MasterUsername string `json:"masterUsername"`

@@ -10,5 +10,6 @@ spec:
   region: us-west2
   databaseVersion: MYSQL_5_7
   storageType: PD_SSD
+  storageGB: 10
   connectionSecretRef:
     name: demo-database-connection

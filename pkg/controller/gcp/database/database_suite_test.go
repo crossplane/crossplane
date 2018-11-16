@@ -112,7 +112,8 @@ func testInstance(p *gcpv1alpha1.Provider) *databasev1alpha1.CloudsqlInstance {
 	return &databasev1alpha1.CloudsqlInstance{
 		ObjectMeta: metav1.ObjectMeta{Name: instanceName, Namespace: namespace},
 		Spec: databasev1alpha1.CloudsqlInstanceSpec{
-			ProviderRef: corev1.LocalObjectReference{Name: p.Name},
+			ProviderRef:     corev1.LocalObjectReference{Name: p.Name},
+			DatabaseVersion: "MYSQL_5_6",
 		},
 	}
 }

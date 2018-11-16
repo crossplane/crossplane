@@ -22,9 +22,10 @@ import (
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
-func TestStorage(t *testing.T) {
+func TestMySQLInstanceStorage(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	created := &MySQLInstance{
@@ -40,6 +41,44 @@ func TestStorage(t *testing.T) {
 
 	// Test Create
 	fetched := &MySQLInstance{}
+	g.Expect(c.Create(ctx, created)).NotTo(HaveOccurred())
+
+	g.Expect(c.Get(ctx, key, fetched)).NotTo(HaveOccurred())
+	g.Expect(fetched).To(Equal(created))
+
+	// Test Updating the Labels
+	updated := fetched.DeepCopy()
+	updated.Labels = map[string]string{"hello": "world"}
+	updated.Spec.ResourceRef = &corev1.ObjectReference{
+		Name:      "test-class",
+		Namespace: "test-resource",
+	}
+	g.Expect(c.Update(ctx, updated)).NotTo(HaveOccurred())
+
+	g.Expect(c.Get(ctx, key, fetched)).NotTo(HaveOccurred())
+	g.Expect(fetched).To(Equal(updated))
+
+	// Test Delete
+	g.Expect(c.Delete(ctx, fetched)).NotTo(HaveOccurred())
+	g.Expect(c.Get(ctx, key, fetched)).To(HaveOccurred())
+}
+
+func TestPostgreSQLInstanceStorage(t *testing.T) {
+	g := NewGomegaWithT(t)
+
+	key := types.NamespacedName{Name: name, Namespace: namespace}
+	created := &PostgreSQLInstance{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+		Spec: PostgreSQLInstanceSpec{
+			ClassRef: &corev1.ObjectReference{
+				Name:      "test-class",
+				Namespace: "test-system",
+			},
+		},
+	}
+
+	// Test Create
+	fetched := &PostgreSQLInstance{}
 	g.Expect(c.Create(ctx, created)).NotTo(HaveOccurred())
 
 	g.Expect(c.Get(ctx, key, fetched)).NotTo(HaveOccurred())

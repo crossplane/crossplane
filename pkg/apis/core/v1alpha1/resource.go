@@ -16,7 +16,11 @@ limitations under the License.
 
 package v1alpha1
 
-import corev1 "k8s.io/api/core/v1"
+import (
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	runtime "k8s.io/apimachinery/pkg/runtime"
+)
 
 const (
 	// ResourceCredentialsSecretEndpointKey is the key inside a connection secret for the connection endpoint
@@ -35,8 +39,30 @@ const (
 	ResourceCredentialsToken = "token"
 )
 
-// Resource defines operations supported by managed resource
-type Resource interface {
+// AbstractResource defines an abstract resource that can be provisioned and bound to a concrete resource.
+type AbstractResource interface {
+	runtime.Object
+	ResourceStatus() *AbstractResourceStatus
+	GetObjectMeta() *metav1.ObjectMeta
+	OwnerReference() metav1.OwnerReference
+	ObjectReference() *corev1.ObjectReference
+	ClassRef() *corev1.ObjectReference
+	ResourceRef() *corev1.ObjectReference
+	SetResourceRef(*corev1.ObjectReference)
+}
+
+// AbstractResourceStatus represents the status of an abstract resource
+type AbstractResourceStatus struct {
+	ConditionedStatus
+	BindingStatusPhase
+	// Provisioner is the driver that was used to provision the concrete resource
+	// This is an optionally-prefixed name, like a label key.
+	// For example: "RDSInstance.database.aws.crossplane.io/v1alpha1" or "CloudSQLInstance.database.gcp.crossplane.io/v1alpha1".
+	Provisioner string `json:"provisioner,omitempty"`
+}
+
+// ConcreteResource defines a concrete resource that can be provisioned and bound to an abstract resource.
+type ConcreteResource interface {
 	// Resource connection secret name
 	ConnectionSecretName() string
 	// Resource endpoint for connection
@@ -54,7 +80,7 @@ type Resource interface {
 // BasicResource base structure that implements Resource interface
 // +k8s:deepcopy-gen=false
 type BasicResource struct {
-	Resource
+	ConcreteResource
 	connectionSecretName string
 	endpoint             string
 	namespace            string
