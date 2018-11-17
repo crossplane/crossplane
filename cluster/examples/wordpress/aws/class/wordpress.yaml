@@ -1,4 +1,12 @@
 apiVersion: storage.conductor.io/v1alpha1
+kind: Bucket
+metadata:
+  name: demo-bucket
+spec:
+  name: wordpress-demo-e401ddfa-4729-4b72-bcef-94922203b547
+  predefinedACL: private
+---
+apiVersion: storage.conductor.io/v1alpha1
 kind: MySQLInstance
 metadata:
   name: mysql-instance
