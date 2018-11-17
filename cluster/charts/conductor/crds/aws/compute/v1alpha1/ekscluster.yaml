@@ -22,6 +22,10 @@ spec:
           type: object
         spec:
           properties:
+            claimRef:
+              type: object
+            classRef:
+              type: object
             cliInput:
               type: string
             clientRequestToken:
@@ -38,7 +42,7 @@ spec:
               type: string
             roleARN:
               type: string
-            securityGroups:
+            securityGroupIds:
               items:
                 type: string
               type: array
@@ -49,15 +53,18 @@ spec:
           required:
           - roleARN
           - subnetIds
-          - securityGroups
-          - clientRequestToken
-          - clusterVersion
+          - securityGroupIds
           - providerRef
-          - connectionSecretRef
           type: object
         status:
           properties:
+            endpoint:
+              type: string
             message:
+              type: string
+            providerID:
+              type: string
+            resourceName:
               type: string
             state:
               type: string

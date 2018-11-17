@@ -190,7 +190,7 @@ func (r *Reconciler) _create(instance *databasev1alpha1.RDSInstance, client rds.
 
 	// Create DB Instance
 	_, err = client.CreateInstance(resourceName, password, &instance.Spec)
-	if err != nil {
+	if err != nil && !rds.IsErrorAlreadyExists(err) {
 		return r.fail(instance, errorCreateResource, err.Error())
 	}
 
@@ -248,7 +248,7 @@ func (r *Reconciler) _sync(instance *databasev1alpha1.RDSInstance, client rds.Cl
 
 func (r *Reconciler) _delete(instance *databasev1alpha1.RDSInstance, client rds.Client) (reconcile.Result, error) {
 	if instance.Spec.ReclaimPolicy == corev1alpha1.ReclaimDelete {
-		if _, err := client.DeleteInstance(instance.Status.InstanceName); err != nil {
+		if _, err := client.DeleteInstance(instance.Status.InstanceName); err != nil && !rds.IsErrorNotFound(err) {
 			return r.fail(instance, errorDeleteResource, err.Error())
 		}
 	}

@@ -81,9 +81,6 @@ func (r *RDSClient) GetInstance(name string) (*Instance, error) {
 	input := rds.DescribeDBInstancesInput{DBInstanceIdentifier: &name}
 	output, err := r.rds.DescribeDBInstancesRequest(&input).Send()
 	if err != nil {
-		if IsErrNotFound(err) {
-			return nil, nil
-		}
 		return nil, err
 	}
 
@@ -103,17 +100,18 @@ func (r *RDSClient) DeleteInstance(name string) (*Instance, error) {
 	}
 	output, err := r.rds.DeleteDBInstanceRequest(&input).Send()
 	if err != nil {
-		if IsErrNotFound(err) {
-			return nil, nil
-		}
 		return nil, err
 	}
 
 	return NewInstance(output.DBInstance), nil
 }
 
+func IsErrorAlreadyExists(err error) bool {
+	return strings.Contains(err.Error(), rds.ErrCodeDBClusterAlreadyExistsFault)
+}
+
 // IsErrorNotFound helper function to test for ErrCodeDBInstanceNotFoundFault error
-func IsErrNotFound(err error) bool {
+func IsErrorNotFound(err error) bool {
 	return strings.Contains(err.Error(), rds.ErrCodeDBInstanceNotFoundFault)
 }
 
