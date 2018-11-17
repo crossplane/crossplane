@@ -18,6 +18,7 @@ limitations under the License.
 package aws
 
 import (
+	compute "github.com/upbound/conductor/pkg/apis/aws/compute/v1alpha1"
 	database "github.com/upbound/conductor/pkg/apis/aws/database/v1alpha1"
 	aws "github.com/upbound/conductor/pkg/apis/aws/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -25,6 +26,7 @@ import (
 
 func init() {
 	// Register the types with the Scheme so the components can map objects to GroupVersionKinds and back
+	AddToSchemes = append(AddToSchemes, compute.SchemeBuilder.AddToScheme)
 	AddToSchemes = append(AddToSchemes, database.SchemeBuilder.AddToScheme)
 	AddToSchemes = append(AddToSchemes, aws.SchemeBuilder.AddToScheme)
 }

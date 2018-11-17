@@ -41,7 +41,7 @@
   version = "v10.15.5"
 
 [[projects]]
-  digest = "1:368ef9a22c5fc8d8c5ea73d56275672f6b7653e2f37c10798146a04bfef22e33"
+  digest = "1:2677c05f1e2a63f216970cc01d9e6391e842477677adb17a7b73e7a48265aef9"
   name = "github.com/aws/aws-sdk-go-v2"
   packages = [
     ".",
@@ -56,22 +56,29 @@
     "aws/signer/v4",
     "aws/stscreds",
     "internal/awsutil",
+    "internal/ini",
     "internal/sdk",
     "private/protocol",
+    "private/protocol/json",
+    "private/protocol/json/jsonutil",
+    "private/protocol/jsonrpc",
     "private/protocol/query",
     "private/protocol/query/queryutil",
     "private/protocol/rest",
+    "private/protocol/restjson",
     "private/protocol/restxml",
     "private/protocol/xml",
     "private/protocol/xml/xmlutil",
+    "service/eks",
+    "service/eks/eksiface",
     "service/rds",
     "service/rds/rdsiface",
     "service/s3",
     "service/sts",
   ]
   pruneopts = "T"
-  revision = "ff1a530c31507c97cf5edbee226e604ca08661cc"
-  version = "v2.0.0-preview.4"
+  revision = "d52522b5f4b95591ff6528d7c54923951aadf099"
+  version = "v2.0.0-preview.5"
 
 [[projects]]
   digest = "1:9f42202ac457c462ad8bb9642806d275af9ab4850cf0b1960b9c6f083d4a309a"
@@ -977,9 +984,12 @@
     "github.com/aws/aws-sdk-go-v2",
     "github.com/aws/aws-sdk-go-v2/aws",
     "github.com/aws/aws-sdk-go-v2/aws/external",
+    "github.com/aws/aws-sdk-go-v2/service/eks",
+    "github.com/aws/aws-sdk-go-v2/service/eks/eksiface",
     "github.com/aws/aws-sdk-go-v2/service/rds",
     "github.com/aws/aws-sdk-go-v2/service/rds/rdsiface",
     "github.com/aws/aws-sdk-go-v2/service/s3",
+    "github.com/aws/aws-sdk-go-v2/service/sts",
     "github.com/emicklei/go-restful",
     "github.com/go-ini/ini",
     "github.com/onsi/ginkgo",

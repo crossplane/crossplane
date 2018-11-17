@@ -18,11 +18,24 @@ package v1alpha1
 
 import (
 	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
-	"k8s.io/api/core/v1"
+	"github.com/upbound/conductor/pkg/util"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type clusterAddon string
+const (
+
+	// The resource is being created. The resource is inaccessible while it is being created.
+	ClusterStatusCreating = "CREATING"
+	// The resource is created and in active state
+	ClusterStatusActive = "ACTIVE"
+
+	// TODO: Deleting and Failed currently not used. Implement usage or remove
+	// The resource is being deleted
+	// ClusterStatusDeleting = "DELETING"
+	// The resource is in failed state
+	// ClusterStatusFailed = "FAILED"
+)
 
 type EKSClusterSpec struct {
 	// RoleARN --role-arn
@@ -45,20 +58,20 @@ type EKSClusterSpec struct {
 	// subnetIds=string,string,
 	SubnetIds []string `json:"subnetIds"`
 	// Syntax:
-	// securityGroupsIdsIds=string,string,
-	SecurityGroups []string `json:"securityGroups"`
+	// securityGroupsIds=string,string,
+	SecurityGroupsIds []string `json:"securityGroupIds"`
 
 	// ClientRequestToken
 	// --client-request-token (string)
 	// Unique, case-sensitive identifier you provide to ensure the  idempo-
 	// tency of the request.
-	ClientRequestToken string `json:"clientRequestToken"`
+	ClientRequestToken string `json:"clientRequestToken,omitempty"`
 
 	// ClusterVersion --kubernetes-version (string)
-	// The desired Kubernetes version for your cluster. If you do not spec-
+	// The desired Kubernetes version for your clustee. If you do not spec-
 	// ify a value here, the latest version  available  in  Amazon  EKS  is
 	// used.
-	ClusterVersion string `json:"clusterVersion"`
+	ClusterVersion string `json:"clusterVersion,omitempty"`
 
 	// CLIInput --cli-input-json  (string) Performs service operation based on the JSON
 	// string provided. The JSON string follows the format provided by  --gen-
@@ -75,25 +88,32 @@ type EKSClusterSpec struct {
 	// the command inputs and returns a sample output JSON for that command.
 	GenerateCLISkeleton string `json:"generateCLISkeleton,omitempty"`
 
-	// ProviderRef - reference to GCP provider object
-	ProviderRef v1.LocalObjectReference `json:"providerRef"`
-
-	// ConnectionSecretRef - reference to EKS Cluster connection secret which will be created and contain connection related data
-	ConnectionSecretRef v1.LocalObjectReference `json:"connectionSecretRef"`
+	// Kubernetes object references
+	ClaimRef            *corev1.ObjectReference      `json:"claimRef,omitempty"`
+	ClassRef            *corev1.ObjectReference      `json:"classRef,omitempty"`
+	ConnectionSecretRef *corev1.LocalObjectReference `json:"connectionSecretRef,omitempty"`
+	ProviderRef         corev1.LocalObjectReference  `json:"providerRef"`
 
 	// ReclaimPolicy identifies how to handle the cloud resource after the deletion of this type
 	ReclaimPolicy corev1alpha1.ReclaimPolicy `json:"reclaimPolicy,omitempty"`
 }
 
 type EKSClusterStatus struct {
-	State   string `json:"state,omitempty"`
-	Message string `json:"message,omitempty"`
+	corev1alpha1.ConditionedStatus
+	corev1alpha1.BindingStatusPhase
+
+	// State of the cluster (see status constants above)
+	State string `json:"state,omitempty"`
+	// ClusterName identifier
+	ClusterName string `json:"resourceName,omitempty"`
+	// Endpoint for cluster
+	Endpoint string `json:"endpoint,omitempty"`
 }
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// EKSCluster is the Schema for the instances API
+// EKSCluster is the Schema for the resources API
 // +k8s:openapi-gen=true
 // +groupName=compute.aws
 type EKSCluster struct {
@@ -111,4 +131,87 @@ type EKSClusterList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []EKSCluster `json:"items"`
+}
+
+// NewEKSClusterSpec from properties map
+// TODO: will be using once abstract resource support is added
+func NewEKSClusterSpec(properties map[string]string) *EKSClusterSpec {
+	spec := &EKSClusterSpec{
+		ReclaimPolicy: corev1alpha1.ReclaimRetain,
+	}
+	// TODO: complete spec fields assignment
+	return spec
+}
+
+// ConnectionSecret with this cluster owner reference
+func (e *EKSCluster) ConnectionSecret() *corev1.Secret {
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace:       e.Namespace,
+			Name:            e.ConnectionSecretName(),
+			OwnerReferences: []metav1.OwnerReference{e.OwnerReference()},
+		},
+	}
+}
+
+// ConnectionSecretName returns a secret name from the reference
+func (e *EKSCluster) ConnectionSecretName() string {
+	if e.Spec.ConnectionSecretRef == nil {
+		e.Spec.ConnectionSecretRef = &corev1.LocalObjectReference{
+			Name: e.Name,
+		}
+	} else if e.Spec.ConnectionSecretRef.Name == "" {
+		e.Spec.ConnectionSecretRef.Name = e.Name
+	}
+
+	return e.Spec.ConnectionSecretRef.Name
+}
+
+// Endpoint returns rds resource endpoint value saved in the status (could be empty)
+func (e *EKSCluster) Endpoint() string {
+	return e.Status.Endpoint
+}
+
+// SetEndpoint sets status endpoint field
+func (e *EKSCluster) SetEndpoint(s string) {
+	e.Status.Endpoint = s
+}
+
+// ObjectReference to this EKSCluster
+func (e *EKSCluster) ObjectReference() *corev1.ObjectReference {
+	return util.ObjectReference(e.ObjectMeta, util.IfEmptyString(e.APIVersion, APIVersion), util.IfEmptyString(e.Kind, EKSClusterKind))
+}
+
+// OwnerReference to use this resource as an owner
+func (e *EKSCluster) OwnerReference() metav1.OwnerReference {
+	return *util.ObjectToOwnerReference(e.ObjectReference())
+}
+
+// State returns rds resource state value saved in the status (could be empty)
+func (e *EKSCluster) State() string {
+	return e.Status.State
+}
+
+// SetState sets status state field
+func (e *EKSCluster) SetState(s string) {
+	e.Status.State = s
+}
+
+// IsAvailable for usage/binding
+func (e *EKSCluster) IsAvailable() bool {
+	return e.State() == ClusterStatusActive
+}
+
+// IsBound
+func (e *EKSCluster) IsBound() bool {
+	return e.Status.Phase == corev1alpha1.BindingStateBound
+}
+
+// SetBound
+func (e *EKSCluster) SetBound(state bool) {
+	if state {
+		e.Status.Phase = corev1alpha1.BindingStateBound
+	} else {
+		e.Status.Phase = corev1alpha1.BindingStateUnbound
+	}
 }

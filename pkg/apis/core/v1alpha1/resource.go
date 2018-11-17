@@ -31,6 +31,8 @@ const (
 	ResourceCredentialsSecretClientCertKey = "clientCert"
 	// ResourceCredentialsSecretClientKeyKey is the key inside a connection secret for the client key
 	ResourceCredentialsSecretClientKeyKey = "clientKey"
+	// ResourceCredentialsToken
+	ResourceCredentialsToken = "token"
 )
 
 // Resource defines operations supported by managed resource
