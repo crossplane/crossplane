@@ -41,17 +41,12 @@ type EKSClusterSpec struct {
 	// specify  up  to  5  security groups, but we recommend that you use a
 	// dedicated security group for your cluster control plane.
 	//
-	//	Shorthand Syntax:
-	//
-	//	subnetIds=string,string,securityGroupIds=string,string
-	//
-	//	JSON Syntax:
-	//
-	//	{
-	//		"subnetIds": ["string", ...],
-	//		"securityGroupIds": ["string", ...]
-	//	}
-	ResourcesVPCConfig string `json:"resourcesVPCConfig"`
+	// Syntax:
+	// subnetIds=string,string,
+	SubnetIds []string `json:"subnetIds"`
+	// Syntax:
+	// securityGroupsIdsIds=string,string,
+	SecurityGroups []string `json:"securityGroups"`
 
 	// ClientRequestToken
 	// --client-request-token (string)
@@ -100,7 +95,7 @@ type EKSClusterStatus struct {
 
 // EKSCluster is the Schema for the instances API
 // +k8s:openapi-gen=true
-// +groupName=container.gcp
+// +groupName=compute.aws
 type EKSCluster struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

@@ -15,4 +15,4 @@ limitations under the License.
 */
 
 // Package container contains GCP container API versions
-package container
+package compute
