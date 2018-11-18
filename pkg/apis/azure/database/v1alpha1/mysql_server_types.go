@@ -197,20 +197,7 @@ func (m *MysqlServer) Endpoint() string {
 
 // ObjectReference to this MySQL Server instance
 func (m *MysqlServer) ObjectReference() *v1.ObjectReference {
-	if m.Kind == "" {
-		m.Kind = MysqlServerKind
-	}
-	if m.APIVersion == "" {
-		m.APIVersion = APIVersion
-	}
-	return &v1.ObjectReference{
-		APIVersion:      m.APIVersion,
-		Kind:            m.Kind,
-		Name:            m.Name,
-		Namespace:       m.Namespace,
-		ResourceVersion: m.ResourceVersion,
-		UID:             m.UID,
-	}
+	return util.ObjectReference(m.ObjectMeta, util.IfEmptyString(m.APIVersion, APIVersion), util.IfEmptyString(m.Kind, MysqlServerKind))
 }
 
 // OwnerReference to use this instance as an owner

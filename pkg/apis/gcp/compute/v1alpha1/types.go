@@ -144,23 +144,7 @@ func NewGKEClusterSpec(properties map[string]string) *GKEClusterSpec {
 
 // ObjectReference to this RDSInstance
 func (g *GKECluster) ObjectReference() *corev1.ObjectReference {
-	apiVersion := g.TypeMeta.APIVersion
-	if apiVersion == "" {
-		apiVersion = APIVersion
-	}
-	kind := g.TypeMeta.Kind
-	if kind == "" {
-		kind = GKEClusterKind
-	}
-
-	return &corev1.ObjectReference{
-		APIVersion:      apiVersion,
-		Kind:            kind,
-		Name:            g.Name,
-		Namespace:       g.Namespace,
-		ResourceVersion: g.ResourceVersion,
-		UID:             g.UID,
-	}
+	return util.ObjectReference(g.ObjectMeta, util.IfEmptyString(g.APIVersion, APIVersion), util.IfEmptyString(g.Kind, GKEClusterKind))
 }
 
 // OwnerReference to use this instance as an owner

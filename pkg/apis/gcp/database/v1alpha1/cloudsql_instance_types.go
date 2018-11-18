@@ -140,20 +140,7 @@ func (c *CloudsqlInstance) Endpoint() string {
 
 // ObjectReference to this CloudSQL instance instance
 func (c *CloudsqlInstance) ObjectReference() *v1.ObjectReference {
-	if c.Kind == "" {
-		c.Kind = CloudsqlInstanceKind
-	}
-	if c.APIVersion == "" {
-		c.APIVersion = APIVersion
-	}
-	return &v1.ObjectReference{
-		APIVersion:      c.APIVersion,
-		Kind:            c.Kind,
-		Name:            c.Name,
-		Namespace:       c.Namespace,
-		ResourceVersion: c.ResourceVersion,
-		UID:             c.UID,
-	}
+	return util.ObjectReference(c.ObjectMeta, util.IfEmptyString(c.APIVersion, APIVersion), util.IfEmptyString(c.Kind, CloudsqlInstanceKind))
 }
 
 // OwnerReference to use this instance as an owner

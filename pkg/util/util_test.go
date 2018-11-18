@@ -135,3 +135,34 @@ func TestSecretData(t *testing.T) {
 	g.Expect(data).To(BeNil())
 	g.Expect(err).To(HaveOccurred())
 }
+
+func TestObjectReference(t *testing.T) {
+	g := NewGomegaWithT(t)
+	api := "test-api"
+	kind := "test-kind"
+	om := metav1.ObjectMeta{
+		Namespace:       "test-namespace",
+		Name:            "test-name",
+		ResourceVersion: "test-resource-version",
+		UID:             "test-uid",
+	}
+
+	ex := &corev1.ObjectReference{
+		APIVersion:      api,
+		Kind:            kind,
+		Namespace:       om.Namespace,
+		Name:            om.Name,
+		ResourceVersion: om.ResourceVersion,
+		UID:             om.UID,
+	}
+
+	g.Expect(ObjectReference(om, api, kind)).To(Equal(ex))
+}
+
+func TestIfEmptyString(t *testing.T) {
+	g := NewGomegaWithT(t)
+	g.Expect(IfEmptyString("", "foo")).To(Equal("foo"))
+	g.Expect(IfEmptyString("foo", "bar")).To(Equal("foo"))
+	g.Expect(IfEmptyString("foo", "foo")).To(Equal("foo"))
+	g.Expect(IfEmptyString("", "")).To(BeEmpty())
+}
