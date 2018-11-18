@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"github.com/upbound/conductor/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -86,17 +87,5 @@ type ResourceClassList struct {
 
 // ObjectReference to this mysql instance
 func (r *ResourceClass) ObjectReference() *corev1.ObjectReference {
-	if r.Kind == "" {
-		r.Kind = ResourceClassKind
-	}
-	if r.APIVersion == "" {
-		r.APIVersion = APIVersion
-	}
-	return &corev1.ObjectReference{
-		APIVersion: r.APIVersion,
-		Kind:       r.Kind,
-		Name:       r.Name,
-		Namespace:  r.Namespace,
-		UID:        r.UID,
-	}
+	return util.ObjectReference(r.ObjectMeta, util.IfEmptyString(r.APIVersion, APIVersion), util.IfEmptyString(r.Kind, ResourceClassKind))
 }

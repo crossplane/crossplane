@@ -50,6 +50,18 @@ func GenerateName(base string) string {
 	return fmt.Sprintf("%s%s", base, rand.String(randomLength))
 }
 
+// ObjectReference from provided ObjectMeta, apiVersion and kind
+func ObjectReference(o metav1.ObjectMeta, apiVersion, kind string) *corev1.ObjectReference {
+	return &corev1.ObjectReference{
+		APIVersion:      apiVersion,
+		Kind:            kind,
+		Name:            o.Name,
+		Namespace:       o.Namespace,
+		ResourceVersion: o.ResourceVersion,
+		UID:             o.UID,
+	}
+}
+
 // ObjectToOwnerReference converts core ObjectReference to meta OwnerReference
 func ObjectToOwnerReference(r *corev1.ObjectReference) *metav1.OwnerReference {
 	return &metav1.OwnerReference{
@@ -86,4 +98,12 @@ func SecretData(client kubernetes.Interface, namespace string, ks corev1.SecretK
 	}
 
 	return data, nil
+}
+
+// IfEmptyString test input string and if empty, i.e = "", return a replacement string
+func IfEmptyString(s, r string) string {
+	if s == "" {
+		return r
+	}
+	return s
 }

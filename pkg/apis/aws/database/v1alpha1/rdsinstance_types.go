@@ -159,20 +159,7 @@ func (r *RDSInstance) SetEndpoint(s string) {
 
 // ObjectReference to this RDSInstance
 func (r *RDSInstance) ObjectReference() *corev1.ObjectReference {
-	if r.Kind == "" {
-		r.Kind = RDSInstanceKind
-	}
-	if r.APIVersion == "" {
-		r.APIVersion = APIVersion
-	}
-	return &corev1.ObjectReference{
-		APIVersion:      r.APIVersion,
-		Kind:            r.Kind,
-		Name:            r.Name,
-		Namespace:       r.Namespace,
-		ResourceVersion: r.ResourceVersion,
-		UID:             r.UID,
-	}
+	return util.ObjectReference(r.ObjectMeta, util.IfEmptyString(r.APIVersion, APIVersion), util.IfEmptyString(r.Kind, RDSInstanceKind))
 }
 
 // OwnerReference to use this instance as an owner

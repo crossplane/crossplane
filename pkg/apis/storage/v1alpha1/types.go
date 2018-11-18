@@ -69,19 +69,7 @@ type MySQLInstanceList struct {
 
 // ObjectReference to using this object as a reference
 func (m *MySQLInstance) ObjectReference() *corev1.ObjectReference {
-	if m.Kind == "" {
-		m.Kind = MySQLInstanceKind
-	}
-	if m.APIVersion == "" {
-		m.APIVersion = APIVersion
-	}
-	return &corev1.ObjectReference{
-		APIVersion: m.APIVersion,
-		Kind:       m.Kind,
-		Name:       m.Name,
-		Namespace:  m.Namespace,
-		UID:        m.UID,
-	}
+	return util.ObjectReference(m.ObjectMeta, util.IfEmptyString(m.APIVersion, APIVersion), util.IfEmptyString(m.Kind, MySQLInstanceKind))
 }
 
 // OwnerReference to use this object as an owner
