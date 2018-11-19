@@ -206,6 +206,14 @@
   revision = "24818f796faf91cd76ec7bddd72458fbced7a6c1"
 
 [[projects]]
+  digest = "1:3a26588bc48b96825977c1b3df964f8fd842cd6860cc26370588d3563433cf11"
+  name = "github.com/google/uuid"
+  packages = ["."]
+  pruneopts = "T"
+  revision = "d460ce9f8df2e77fb1ba55ca87fafed96c607494"
+  version = "v1.0.0"
+
+[[projects]]
   digest = "1:35735e2255fa34521c2a1355fb2a3a2300bc9949f487be1c1ce8ee8efcfa2d04"
   name = "github.com/googleapis/gnostic"
   packages = [
@@ -301,6 +309,14 @@
   version = "v1.0.0"
 
 [[projects]]
+  branch = "master"
+  digest = "1:fc2b04b0069d6b10bdef96d278fe20c345794009685ed3c8c7f1a6dc023eefec"
+  name = "github.com/mattbaird/jsonpatch"
+  packages = ["."]
+  pruneopts = "T"
+  revision = "81af80346b1a01caae0cbc27fd3c1ba5b11e189f"
+
+[[projects]]
   digest = "1:33422d238f147d247752996a26574ac48dcf472976eda7f5134015f06bf16563"
   name = "github.com/modern-go/concurrent"
   packages = ["."]
@@ -365,6 +381,14 @@
   pruneopts = "T"
   revision = "7615b9433f86a8bdf29709bf288bc4fd0636a369"
   version = "v1.4.2"
+
+[[projects]]
+  digest = "1:e5d0bd87abc2781d14e274807a470acd180f0499f8bf5bb18606e9ec22ad9de9"
+  name = "github.com/pborman/uuid"
+  packages = ["."]
+  pruneopts = "T"
+  revision = "adf5a7427709b9deb95d29d3fa8a2bf9cfd388f1"
+  version = "v1.2"
 
 [[projects]]
   branch = "master"
@@ -629,6 +653,7 @@
   digest = "1:75905606c2db8d9526ccff0acf5655759afe3d901d1d64868bd87985b4a46e36"
   name = "k8s.io/api"
   packages = [
+    "admission/v1beta1",
     "admissionregistration/v1alpha1",
     "admissionregistration/v1beta1",
     "apps/v1",
@@ -715,6 +740,7 @@
     "pkg/util/runtime",
     "pkg/util/sets",
     "pkg/util/strategicpatch",
+    "pkg/util/uuid",
     "pkg/util/validation",
     "pkg/util/validation/field",
     "pkg/util/wait",
@@ -734,6 +760,7 @@
   packages = [
     "discovery",
     "discovery/fake",
+    "dynamic",
     "kubernetes",
     "kubernetes/fake",
     "kubernetes/scheme",
@@ -800,18 +827,18 @@
     "pkg/apis/clientauthentication/v1beta1",
     "pkg/version",
     "plugin/pkg/client/auth/exec",
-    "plugin/pkg/client/auth/gcp",
     "rest",
     "rest/watch",
     "restmapper",
     "testing",
-    "third_party/forked/golang/template",
     "tools/auth",
     "tools/cache",
     "tools/clientcmd",
     "tools/clientcmd/api",
     "tools/clientcmd/api/latest",
     "tools/clientcmd/api/v1",
+    "tools/leaderelection",
+    "tools/leaderelection/resourcelock",
     "tools/metrics",
     "tools/pager",
     "tools/record",
@@ -823,7 +850,6 @@
     "util/flowcontrol",
     "util/homedir",
     "util/integer",
-    "util/jsonpath",
     "util/retry",
     "util/workqueue",
   ]
@@ -868,7 +894,7 @@
   revision = "e3762e86a74c878ffed47484592986685639c2cd"
 
 [[projects]]
-  digest = "1:38d4fe1026d0fe6b42835fd684dcb6b320d5f6be21b021a641fc228060300051"
+  digest = "1:ca3f51201a90f3a23bf35938ee910d2fb3095ece453cf56c8b723e935c194ebd"
   name = "sigs.k8s.io/controller-runtime"
   packages = [
     "pkg/cache",
@@ -884,7 +910,9 @@
     "pkg/handler",
     "pkg/internal/controller",
     "pkg/internal/recorder",
+    "pkg/leaderelection",
     "pkg/manager",
+    "pkg/patch",
     "pkg/predicate",
     "pkg/reconcile",
     "pkg/recorder",
@@ -894,25 +922,36 @@
     "pkg/runtime/signals",
     "pkg/source",
     "pkg/source/internal",
+    "pkg/webhook",
+    "pkg/webhook/admission",
+    "pkg/webhook/admission/types",
+    "pkg/webhook/internal/cert",
+    "pkg/webhook/internal/cert/generator",
+    "pkg/webhook/internal/cert/writer",
+    "pkg/webhook/internal/cert/writer/atomic",
+    "pkg/webhook/types",
   ]
   pruneopts = "T"
-  revision = "2ef903b2a5ed4cf8adde14a27994a291388a1789"
-  version = "v0.1.2"
+  revision = "5fd1e9e9fac5261e9ad9d47c375afc014fc31d21"
+  version = "v0.1.7"
 
 [[projects]]
-  digest = "1:ddebdab9c149e675ed4b4a054ede657d228854bc7c95b33caa08c11c07863004"
+  digest = "1:f457acc2073104c82dbff491aafbecc842c89e16b408484f59e80928c4a6f937"
   name = "sigs.k8s.io/controller-tools"
   packages = [
     "cmd/controller-gen",
     "pkg/crd/generator",
     "pkg/crd/util",
+    "pkg/generate/internal",
     "pkg/generate/rbac",
+    "pkg/generate/webhook",
+    "pkg/generate/webhook/internal",
     "pkg/internal/codegen",
     "pkg/internal/codegen/parse",
     "pkg/util",
   ]
   pruneopts = "T"
-  revision = "1bfbcc3ef7e7acd051cbcce068c5b8776017a77a"
+  revision = "a66851e578e3787e044521fb2b96ee59db11c975"
   source = "https://github.com/ichekrygin/controller-tools.git"
 
 [[projects]]
@@ -953,6 +992,7 @@
     "google.golang.org/api/container/v1",
     "google.golang.org/api/googleapi",
     "google.golang.org/api/sqladmin/v1beta4",
+    "k8s.io/api/apps/v1",
     "k8s.io/api/core/v1",
     "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1",
     "k8s.io/apimachinery/pkg/api/errors",
@@ -966,7 +1006,6 @@
     "k8s.io/client-go/kubernetes",
     "k8s.io/client-go/kubernetes/fake",
     "k8s.io/client-go/kubernetes/scheme",
-    "k8s.io/client-go/plugin/pkg/client/auth/gcp",
     "k8s.io/client-go/rest",
     "k8s.io/client-go/testing",
     "k8s.io/client-go/tools/record",

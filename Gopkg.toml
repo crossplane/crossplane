@@ -7,7 +7,6 @@ required = [
     "github.com/onsi/gomega", # for test matchers
     "google.golang.org/api/sqladmin/v1beta4",
     "golang.org/x/oauth2/google",
-    "k8s.io/client-go/plugin/pkg/client/auth/gcp", # for development against gcp
     "k8s.io/code-generator/cmd/deepcopy-gen", # for go generate
     "sigs.k8s.io/controller-tools/cmd/controller-gen", # for crd/rbac generation
     "sigs.k8s.io/controller-runtime/pkg/client/config",
@@ -27,15 +26,15 @@ required = [
 
 [[constraint]]
   name="sigs.k8s.io/controller-runtime"
-  version="v0.1.1"
+  version="v0.1.7"
 
 [[override]]
   name="sigs.k8s.io/controller-tools"
   source = "https://github.com/ichekrygin/controller-tools.git"
-  revision = "1bfbcc3ef7e7acd051cbcce068c5b8776017a77a"
+  revision = "a66851e578e3787e044521fb2b96ee59db11c975"
 
 # For dependency below: Refer to issue https://github.com/golang/dep/issues/1799
 [[override]]
-name = "gopkg.in/fsnotify.v1"
-source = "https://github.com/fsnotify/fsnotify.git"
-version="v1.4.7"
+  name = "gopkg.in/fsnotify.v1"
+  source = "https://github.com/fsnotify/fsnotify.git"
+  version="v1.4.7"
