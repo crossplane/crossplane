@@ -4,17 +4,17 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: azure-provider-creds
-  namespace: conductor-system
+  namespace: crossplane-system
 type: Opaque
 data:
   credentials: BASE64ENCODED_AZURE_PROVIDER_CREDS
 ---
 # Azure Provider with service principal secret reference - used to provision sql resources
-apiVersion: azure.conductor.io/v1alpha1
+apiVersion: azure.crossplane.io/v1alpha1
 kind: Provider
 metadata:
   name: azure-sql-provider
-  namespace: conductor-system
+  namespace: crossplane-system
 spec:
   credentialsSecretRef:
     name: azure-provider-creds
@@ -22,11 +22,11 @@ spec:
 ---
 # ResourceClass that defines the blueprint for how a "standard" Azure MySQL Server
 # should be dynamically provisioned
-apiVersion: core.conductor.io/v1alpha1
+apiVersion: core.crossplane.io/v1alpha1
 kind: ResourceClass
 metadata:
   name: standard
-  namespace: conductor-system
+  namespace: crossplane-system
 parameters:
   adminLoginName: myadmin
   resourceGroupName: group-westus-1
@@ -38,7 +38,7 @@ parameters:
   storageGB: "25"
   backupRetentionDays: "7"
   geoRedundantBackup: "false"
-provisioner: mysqlserver.database.azure.conductor.io/v1alpha1
+provisioner: mysqlserver.database.azure.crossplane.io/v1alpha1
 providerRef:
   name: azure-sql-provider
 reclaimPolicy: Delete

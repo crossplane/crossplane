@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Conductor Authors.
+Copyright 2018 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,10 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package v1alpha1 contains API Schema definitions for the conductor core v1alpha1 API group
+// Package v1alpha1 contains API Schema definitions for the crossplane core v1alpha1 API group
 // +k8s:openapi-gen=true
 // +k8s:deepcopy-gen=package,register
-// +k8s:conversion-gen=github.com/upbound/conductor/pkg/apis/storage
+// +k8s:conversion-gen=github.com/crossplaneio/crossplane/pkg/apis/storage
 // +k8s:defaulter-gen=TypeMeta
-// +groupName=storage.conductor.io
+// +groupName=storage.crossplane.io
 package v1alpha1

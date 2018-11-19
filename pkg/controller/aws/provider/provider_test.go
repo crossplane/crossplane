@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Conductor Authors.
+Copyright 2018 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,14 +21,14 @@ import (
 	"strings"
 	"testing"
 
+	. "github.com/crossplaneio/crossplane/pkg/apis/aws/v1alpha1"
 	. "github.com/onsi/gomega"
-	. "github.com/upbound/conductor/pkg/apis/aws/v1alpha1"
 	. "k8s.io/client-go/kubernetes/fake"
 	. "sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	apisaws "github.com/upbound/conductor/pkg/apis/aws"
-	awsv1alpha1 "github.com/upbound/conductor/pkg/apis/aws/v1alpha1"
+	apisaws "github.com/crossplaneio/crossplane/pkg/apis/aws"
+	awsv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"

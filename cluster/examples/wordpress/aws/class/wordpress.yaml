@@ -1,4 +1,4 @@
-apiVersion: storage.conductor.io/v1alpha1
+apiVersion: storage.crossplane.io/v1alpha1
 kind: Bucket
 metadata:
   name: demo-bucket
@@ -6,14 +6,14 @@ spec:
   name: wordpress-demo-e401ddfa-4729-4b72-bcef-94922203b547
   predefinedACL: private
 ---
-apiVersion: storage.conductor.io/v1alpha1
+apiVersion: storage.crossplane.io/v1alpha1
 kind: MySQLInstance
 metadata:
   name: mysql-instance
 spec:
   classReference:
     name: standard
-    namespace: conductor-system
+    namespace: crossplane-system
   engineVersion: "5.7"
 ---
 apiVersion: extensions/v1beta1

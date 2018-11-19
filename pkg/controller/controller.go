@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Conductor Authors.
+Copyright 2018 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,11 +17,11 @@ limitations under the License.
 package controller
 
 import (
-	"github.com/upbound/conductor/pkg/controller/aws"
-	"github.com/upbound/conductor/pkg/controller/azure"
-	"github.com/upbound/conductor/pkg/controller/compute"
-	"github.com/upbound/conductor/pkg/controller/gcp"
-	"github.com/upbound/conductor/pkg/controller/storage"
+	"github.com/crossplaneio/crossplane/pkg/controller/aws"
+	"github.com/crossplaneio/crossplane/pkg/controller/azure"
+	"github.com/crossplaneio/crossplane/pkg/controller/compute"
+	"github.com/crossplaneio/crossplane/pkg/controller/gcp"
+	"github.com/crossplaneio/crossplane/pkg/controller/storage"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 

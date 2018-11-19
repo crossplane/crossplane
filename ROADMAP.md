@@ -1,12 +1,12 @@
 # Roadmap
 
-This document defines a high level roadmap for Conductor development and upcoming releases.
+This document defines a high level roadmap for Crossplane development and upcoming releases.
 The features and themes included in each milestone are optimistic in the sense that many do not have clear owners yet.
 Community and contributor involvement is vital for successfully implementing all desired items for each release.
-We hope that the items listed below will inspire further engagement from the community to keep Conductor progressing and shipping exciting and valuable features.
+We hope that the items listed below will inspire further engagement from the community to keep Crossplane progressing and shipping exciting and valuable features.
 
 Any dates listed below and the specific issues that will ship in a given milestone are subject to change but should give a general idea of what we are planning.
-We use the [milestone](https://github.com/upbound/conductor/milestones) feature in Github so look there for the most up-to-date and issue plan.
+We use the [milestone](https://github.com/crossplaneio/crossplane/milestones) feature in Github so look there for the most up-to-date and issue plan.
 
 ## v0.1
 
@@ -26,7 +26,7 @@ We use the [milestone](https://github.com/upbound/conductor/milestones) feature 
   * New isolated jenkins instance (similar to Rook's jenkins)
   * Developer unit testing with high code coverage
   * Integration testing pipeline
-  * Artifact publishing (container images, conductor helm chart, etc.)
+  * Artifact publishing (container images, crossplane helm chart, etc.)
 * Documentation
   * User guides, quick-starts, walkthroughs
   * Godocs developer docs for source code/packages/libraries

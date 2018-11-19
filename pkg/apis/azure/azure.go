@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Conductor Authors.
+Copyright 2018 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,8 +18,8 @@ limitations under the License.
 package azure
 
 import (
-	databasev1alpha1 "github.com/upbound/conductor/pkg/apis/azure/database/v1alpha1"
-	azure "github.com/upbound/conductor/pkg/apis/azure/v1alpha1"
+	databasev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/database/v1alpha1"
+	azure "github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 

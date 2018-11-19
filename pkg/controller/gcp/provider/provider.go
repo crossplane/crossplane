@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Conductor Authors.
+Copyright 2018 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,8 +19,8 @@ package provider
 import (
 	"context"
 
-	gcpv1alpha1 "github.com/upbound/conductor/pkg/apis/gcp/v1alpha1"
-	"github.com/upbound/conductor/pkg/clients/gcp"
+	gcpv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/clients/gcp"
 	"golang.org/x/oauth2/google"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -110,7 +110,7 @@ func (r *Reconciler) _validate(creds *google.Credentials, permissions []string) 
 // and what is in the Provider.Spec
 // Automatically generate RBAC rules to allow the Controller to read and write Deployments
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=gcp.conductor.io,resources=provider,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=gcp.crossplane.io,resources=provider,verbs=get;list;watch;create;update;patch;delete
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	// Fetch the Provider instance
 	instance := &gcpv1alpha1.Provider{}

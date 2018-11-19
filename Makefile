@@ -1,8 +1,8 @@
 # ====================================================================================
 # Setup Project
 
-PROJECT_NAME := conductor
-PROJECT_REPO := github.com/upbound/$(PROJECT_NAME)
+PROJECT_NAME := crossplane
+PROJECT_REPO := github.com/crossplaneio/$(PROJECT_NAME)
 
 PLATFORMS ?= linux_amd64
 include build/makelib/common.mk
@@ -10,7 +10,7 @@ include build/makelib/common.mk
 # ====================================================================================
 # Setup Output
 
-S3_BUCKET ?= upbound.releases/conductor
+S3_BUCKET ?= upbound.releases/crossplane
 include build/makelib/output.mk
 
 # ====================================================================================
@@ -21,7 +21,7 @@ include build/makelib/output.mk
 # to half the number of CPU cores.
 GO_TEST_PARALLEL := $(shell echo $$(( $(NPROCS) / 2 )))
 
-GO_STATIC_PACKAGES = $(GO_PROJECT)/cmd/conductor
+GO_STATIC_PACKAGES = $(GO_PROJECT)/cmd/crossplane
 GO_LDFLAGS += -X $(GO_PROJECT)/pkg/version.Version=$(VERSION)
 include build/makelib/golang.mk
 
@@ -30,8 +30,8 @@ include build/makelib/golang.mk
 
 HELM_BASE_URL = https://charts.upbound.io
 HELM_S3_BUCKET = upbound.charts
-HELM_CHARTS = conductor
-HELM_CHART_LINT_ARGS_conductor = --set nameOverride='',imagePullSecrets=''
+HELM_CHARTS = crossplane
+HELM_CHART_LINT_ARGS_crossplane = --set nameOverride='',imagePullSecrets=''
 include build/makelib/helm.mk
 
 # ====================================================================================
@@ -43,7 +43,7 @@ include build/makelib/kubebuilder.mk
 # Setup Images
 
 DOCKER_REGISTRY = upbound
-IMAGES = conductor
+IMAGES = crossplane
 include build/makelib/image.mk
 
 # ====================================================================================
@@ -53,4 +53,4 @@ include build/makelib/image.mk
 
 # Generate manifests e.g. CRD, RBAC etc.
 manifests:
-	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd --output-dir cluster/charts/conductor/crds --nested
+	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd --output-dir cluster/charts/crossplane/crds --nested

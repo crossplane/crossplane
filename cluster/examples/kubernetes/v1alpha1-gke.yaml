@@ -1,4 +1,4 @@
-apiVersion: compute.gcp.conductor.io/v1alpha1
+apiVersion: compute.gcp.crossplane.io/v1alpha1
 kind: GKECluster
 metadata:
   name: demo-cluster

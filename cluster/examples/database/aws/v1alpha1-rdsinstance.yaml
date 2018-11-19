@@ -1,4 +1,4 @@
-apiVersion: database.aws.conductor.io/v1alpha1
+apiVersion: database.aws.crossplane.io/v1alpha1
 kind: RDSInstance
 metadata:
   name: demo-rds

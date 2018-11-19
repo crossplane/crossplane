@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Conductor Authors.
+Copyright 2018 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,8 +17,8 @@ limitations under the License.
 package fake
 
 import (
-	"github.com/upbound/conductor/pkg/apis/aws/compute/v1alpha1"
-	"github.com/upbound/conductor/pkg/clients/aws/eks"
+	"github.com/crossplaneio/crossplane/pkg/apis/aws/compute/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/clients/aws/eks"
 )
 
 type MockEKSClient struct {

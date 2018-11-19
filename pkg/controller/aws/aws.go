@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Conductor Authors.
+Copyright 2018 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,9 +17,9 @@ limitations under the License.
 package aws
 
 import (
-	"github.com/upbound/conductor/pkg/controller/aws/compute"
-	"github.com/upbound/conductor/pkg/controller/aws/provider"
-	"github.com/upbound/conductor/pkg/controller/aws/rds"
+	"github.com/crossplaneio/crossplane/pkg/controller/aws/compute"
+	"github.com/crossplaneio/crossplane/pkg/controller/aws/provider"
+	"github.com/crossplaneio/crossplane/pkg/controller/aws/rds"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 

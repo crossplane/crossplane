@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Conductor Authors.
+Copyright 2018 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"github.com/upbound/conductor/pkg/util"
+	"github.com/crossplaneio/crossplane/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -62,7 +62,7 @@ type ResourceClass struct {
 
 	// Provisioner is the driver expected to handle this ResourceClass.
 	// This is an optionally-prefixed name, like a label key.
-	// For example: "RDSInstance.database.aws.conductor.io/v1alpha1" or "CloudSQLInstance.database.gcp.conductor.io/v1alpha1".
+	// For example: "RDSInstance.database.aws.crossplane.io/v1alpha1" or "CloudSQLInstance.database.gcp.crossplane.io/v1alpha1".
 	// This value may not be empty.
 	Provisioner string `json:"provisioner"`
 

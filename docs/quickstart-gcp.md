@@ -12,8 +12,8 @@ Google service account credentials are needed for two separate accounts, these m
 Please refer to the [targeting GCP section](./troubleshooting.md#targeting-google-cloud-platform-gcp) for details on how to create these accounts with the required roles from the table above.
 After the accounts are created, you should have two JSON key files on your local filesystem:
 
-* `conductor-gcp-provider-key.json`
-* `conductor-gcp-sql-key.json`
+* `crossplane-gcp-provider-key.json`
+* `crossplane-gcp-sql-key.json`
 
 ## Set environment variables
 
@@ -35,13 +35,13 @@ kubectl create namespace demo
 Deploy the GCP provider object to your cluster:
 
 ```console
-sed "s/BASE64ENCODED_GCP_PROVIDER_CREDS/`cat conductor-gcp-provider-key.json|base64|tr -d '\n'`/g" cluster/examples/wordpress/gcp/class/provider.yaml | kubectl create -f -
+sed "s/BASE64ENCODED_GCP_PROVIDER_CREDS/`cat crossplane-gcp-provider-key.json|base64|tr -d '\n'`/g" cluster/examples/wordpress/gcp/class/provider.yaml | kubectl create -f -
 ```
 
 Now deploy all the Wordpress resources, including the Cloud SQL database, with the following single command:
 
 ```console
-sed "s/BASE64ENCODED_GCP_SQL_CREDS/`cat conductor-gcp-sql-key.json|base64|tr -d '\n'`/g" cluster/examples/wordpress/gcp/class/wordpress.yaml | kubectl -n demo create -f -
+sed "s/BASE64ENCODED_GCP_SQL_CREDS/`cat crossplane-gcp-sql-key.json|base64|tr -d '\n'`/g" cluster/examples/wordpress/gcp/class/wordpress.yaml | kubectl -n demo create -f -
 ```
 
 Now you can proceed back to the main quickstart to [wait for the resources to become ready](./quickstart.md#waiting-for-completion).

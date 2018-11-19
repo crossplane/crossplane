@@ -12,7 +12,7 @@ eval $(make --no-print-directory -C ${scriptdir}/../.. build.vars)
 
 BUILD_IMAGE="${BUILD_REGISTRY}/${PROJECT_NAME}-amd64"
 MINIKUBE_IMAGE="upbound/${PROJECT_NAME}:master"
-DEFAULT_NAMESPACE="conductor-system"
+DEFAULT_NAMESPACE="crossplane-system"
 
 function wait_for_ssh() {
     local tries=100

@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Conductor Authors.
+Copyright 2018 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,12 +20,12 @@ import (
 	"fmt"
 	"testing"
 
+	. "github.com/crossplaneio/crossplane/pkg/apis/gcp/v1alpha1"
 	. "github.com/onsi/gomega"
-	. "github.com/upbound/conductor/pkg/apis/gcp/v1alpha1"
 	. "k8s.io/client-go/kubernetes/fake"
 	. "sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	"github.com/upbound/conductor/pkg/apis/gcp"
+	"github.com/crossplaneio/crossplane/pkg/apis/gcp"
 	"golang.org/x/oauth2/google"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

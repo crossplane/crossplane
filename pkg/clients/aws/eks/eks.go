@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Conductor Authors.
+Copyright 2018 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/eks"
 	"github.com/aws/aws-sdk-go-v2/service/eks/eksiface"
-	awscomputev1alpha1 "github.com/upbound/conductor/pkg/apis/aws/compute/v1alpha1"
+	awscomputev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/compute/v1alpha1"
 )
 
 const (
@@ -34,7 +34,7 @@ const (
 	v1Prefix        = "k8s-aws-v1."
 )
 
-// Cluster conductor representation of the to AWS EKS Cluster
+// Cluster crossplane representation of the to AWS EKS Cluster
 type Cluster struct {
 	Name     string
 	ARN      string
@@ -61,13 +61,13 @@ type Client interface {
 	ConnectionToken(string) (string, error)
 }
 
-// EKSClient conductor eks client
+// EKSClient crossplane eks client
 type EKSClient struct {
 	eks eksiface.EKSAPI
 	sts *sts.STS
 }
 
-// NewClient return new instance of the conductor client for a specific AWS configuration
+// NewClient return new instance of the crossplane client for a specific AWS configuration
 func NewClient(config *aws.Config) Client {
 	return &EKSClient{eks.New(*config), sts.New(*config)}
 }

@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Conductor Authors.
+Copyright 2018 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,12 +21,12 @@ limitations under the License.
 package apis
 
 import (
-	"github.com/upbound/conductor/pkg/apis/aws"
-	"github.com/upbound/conductor/pkg/apis/azure"
-	"github.com/upbound/conductor/pkg/apis/compute"
-	"github.com/upbound/conductor/pkg/apis/core"
-	"github.com/upbound/conductor/pkg/apis/gcp"
-	"github.com/upbound/conductor/pkg/apis/storage"
+	"github.com/crossplaneio/crossplane/pkg/apis/aws"
+	"github.com/crossplaneio/crossplane/pkg/apis/azure"
+	"github.com/crossplaneio/crossplane/pkg/apis/compute"
+	"github.com/crossplaneio/crossplane/pkg/apis/core"
+	"github.com/crossplaneio/crossplane/pkg/apis/gcp"
+	"github.com/crossplaneio/crossplane/pkg/apis/storage"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
