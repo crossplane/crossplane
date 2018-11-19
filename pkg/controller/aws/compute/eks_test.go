@@ -80,6 +80,67 @@ func assertResource(g *GomegaWithT, r *Reconciler, s corev1alpha1.ConditionedSta
 	return rc
 }
 
+func TestCreate(t *testing.T) {
+	g := NewGomegaWithT(t)
+
+	test := func(cluster *EKSCluster, client eks.Client, expectedResult reconcile.Result, expectedStatus corev1alpha1.ConditionedStatus) *EKSCluster {
+		r := &Reconciler{
+			Client:     NewFakeClient(cluster),
+			kubeclient: NewSimpleClientset(),
+		}
+
+		rs, err := r._create(cluster, client)
+		g.Expect(rs).To(Equal(expectedResult))
+		g.Expect(err).To(BeNil())
+		return assertResource(g, r, expectedStatus)
+	}
+
+	// new cluster
+	cluster := testCluster()
+	cluster.ObjectMeta.UID = types.UID("test-uid")
+
+	client := &fake.MockEKSClient{
+		MockCreate: func(string, EKSClusterSpec) (*eks.Cluster, error) { return nil, nil },
+	}
+
+	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetCreating()
+
+	reconciledCluster := test(cluster, client, resultRequeue, expectedStatus)
+	g.Expect(reconciledCluster.Finalizers).To(ContainElement(finalizer))
+	g.Expect(reconciledCluster.Status.ClusterName).To(Equal(fmt.Sprintf("%s%s", clusterNamePrefix, cluster.UID)))
+	g.Expect(reconciledCluster.State()).To(Equal(ClusterStatusCreating))
+
+	// cluster create error - bad request
+	cluster = testCluster()
+	cluster.ObjectMeta.UID = types.UID("test-uid")
+	client.MockCreate = func(string, EKSClusterSpec) (*eks.Cluster, error) {
+		return nil, fmt.Errorf("InvalidParameterException")
+	}
+	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetFailed(errorCreateCluster, "InvalidParameterException")
+
+	reconciledCluster = test(cluster, client, result, expectedStatus)
+	g.Expect(reconciledCluster.Finalizers).To(BeEmpty())
+	g.Expect(reconciledCluster.Status.ClusterName).To(BeEmpty())
+	g.Expect(reconciledCluster.State()).To(BeEmpty())
+
+	// cluster create error - other
+	cluster = testCluster()
+	cluster.ObjectMeta.UID = types.UID("test-uid")
+	testError := "test-create-error"
+	client.MockCreate = func(string, EKSClusterSpec) (*eks.Cluster, error) {
+		return nil, fmt.Errorf(testError)
+	}
+	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetFailed(errorCreateCluster, testError)
+
+	reconciledCluster = test(cluster, client, resultRequeue, expectedStatus)
+	g.Expect(reconciledCluster.Finalizers).To(BeEmpty())
+	g.Expect(reconciledCluster.Status.ClusterName).To(BeEmpty())
+	g.Expect(reconciledCluster.State()).To(BeEmpty())
+}
+
 func TestSync(t *testing.T) {
 	g := NewGomegaWithT(t)
 
@@ -196,122 +257,60 @@ func TestSecret(t *testing.T) {
 	g.Expect(err).To(And(HaveOccurred(), MatchError(testError)))
 }
 
-func TestDeleteReclaimDelete(t *testing.T) {
+func TestDelete(t *testing.T) {
 	g := NewGomegaWithT(t)
 
-	tc := testCluster()
-	tc.Finalizers = []string{finalizer}
-	tc.Spec.ReclaimPolicy = corev1alpha1.ReclaimDelete
-	tc.Status.SetReady()
+	test := func(cluster *EKSCluster, client eks.Client, expectedResult reconcile.Result, expectedStatus corev1alpha1.ConditionedStatus) *EKSCluster {
+		r := &Reconciler{
+			Client:     NewFakeClient(cluster),
+			kubeclient: NewSimpleClientset(),
+		}
 
-	r := &Reconciler{
-		Client:     NewFakeClient(tc),
-		kubeclient: NewSimpleClientset(),
+		rs, err := r._delete(cluster, client)
+		g.Expect(rs).To(Equal(expectedResult))
+		g.Expect(err).To(BeNil())
+		return assertResource(g, r, expectedStatus)
 	}
 
-	called := false
-	cl := &fake.MockEKSClient{}
-	cl.MockDelete = func(string) error {
-		called = true
-		return nil
-	}
+	// reclaim - delete
+	cluster := testCluster()
+	cluster.Finalizers = []string{finalizer}
+	cluster.Spec.ReclaimPolicy = corev1alpha1.ReclaimDelete
+	cluster.Status.SetReady()
 
-	// expected to have a cond condition set to inactive
+	client := &fake.MockEKSClient{}
+	client.MockDelete = func(string) error { return nil }
+
 	expectedStatus := corev1alpha1.ConditionedStatus{}
 	expectedStatus.SetReady()
-	expectedStatus.UnsetAllConditions()
+	expectedStatus.SetDeleting()
 
-	rs, err := r._delete(tc, cl)
-	g.Expect(rs).To(Equal(result))
-	g.Expect(err).To(BeNil())
-	g.Expect(called).To(BeTrue())
-	assertResource(g, r, expectedStatus)
+	reconciledCluster := test(cluster, client, result, expectedStatus)
+	g.Expect(reconciledCluster.Finalizers).To(BeEmpty())
 
-	// repeat the same for cluster in 'failing' condition
-	reason := "test-reason"
-	msg := "test-msg"
-	tc.Status.SetFailed(reason, msg)
+	// reclaim - retain
+	cluster.Spec.ReclaimPolicy = corev1alpha1.ReclaimRetain
+	cluster.Status.RemoveAllConditions()
+	cluster.Status.SetReady()
+	cluster.Finalizers = []string{finalizer}
+	client.MockDelete = nil // should not be called
 
-	// expected to have both ready and fail condition inactive
-	expectedStatus.SetFailed(reason, msg)
-	expectedStatus.UnsetAllConditions()
+	reconciledCluster = test(cluster, client, result, expectedStatus)
+	g.Expect(reconciledCluster.Finalizers).To(BeEmpty())
 
-	rs, err = r._delete(tc, cl)
-	g.Expect(rs).To(Equal(result))
-	g.Expect(err).To(BeNil())
-	g.Expect(called).To(BeTrue())
-	assertResource(g, r, expectedStatus)
-}
-
-func TestDeleteReclaimRetain(t *testing.T) {
-	g := NewGomegaWithT(t)
-
-	tc := testCluster()
-	tc.Spec.ReclaimPolicy = corev1alpha1.ReclaimRetain
-	tc.Finalizers = []string{finalizer}
-	tc.Status.SetReady()
-
-	r := &Reconciler{
-		Client:     NewFakeClient(tc),
-		kubeclient: NewSimpleClientset(),
-	}
-
-	called := false
-	cl := &fake.MockEKSClient{}
-	cl.MockDelete = func(string) error {
-		called = true
-		return nil
-	}
-
-	rs, err := r._delete(tc, cl)
-	g.Expect(rs).To(Equal(result))
-	g.Expect(err).To(BeNil())
-	// there should be no delete calls on eks client since policy is set to Retain
-	g.Expect(called).To(BeFalse())
-
-	// expected to have all conditions set to inactive
-	expectedStatus := corev1alpha1.ConditionedStatus{}
-	expectedStatus.SetReady()
-	expectedStatus.UnsetAllConditions()
-
-	assertResource(g, r, expectedStatus)
-}
-
-func TestDeleteFailed(t *testing.T) {
-	g := NewGomegaWithT(t)
-
-	tc := testCluster()
-	tc.Spec.ReclaimPolicy = corev1alpha1.ReclaimDelete
-	tc.Finalizers = []string{finalizer}
-	tc.Status.SetReady()
-
-	r := &Reconciler{
-		Client:     NewFakeClient(tc),
-		kubeclient: NewSimpleClientset(),
-	}
-
+	// reclaim - delete, delete error
+	cluster.Spec.ReclaimPolicy = corev1alpha1.ReclaimDelete
+	cluster.Status.RemoveAllConditions()
+	cluster.Status.SetReady()
+	cluster.Finalizers = []string{finalizer}
 	testError := "test-delete-error"
-
-	called := false
-	cl := &fake.MockEKSClient{}
-	cl.MockDelete = func(string) error {
-		called = true
-		return fmt.Errorf(testError)
-	}
-
-	rs, err := r._delete(tc, cl)
-	g.Expect(rs).To(Equal(resultRequeue))
-	g.Expect(err).To(BeNil())
-	// there should be no delete calls on eks client since policy is set to Retain
-	g.Expect(called).To(BeTrue())
-
-	// expected status
-	expectedStatus := corev1alpha1.ConditionedStatus{}
+	client.MockDelete = func(string) error { return fmt.Errorf(testError) }
+	expectedStatus = corev1alpha1.ConditionedStatus{}
 	expectedStatus.SetReady()
-	expectedStatus.UnsetAllConditions()
 	expectedStatus.SetFailed(errorDeleteCluster, testError)
 
-	assertResource(g, r, expectedStatus)
+	reconciledCluster = test(cluster, client, resultRequeue, expectedStatus)
+	g.Expect(reconciledCluster.Finalizers).To(ContainElement(finalizer))
 }
 
 func TestReconcileObjectNotFound(t *testing.T) {
@@ -404,9 +403,7 @@ func TestReconcileCreate(t *testing.T) {
 	g.Expect(err).To(BeNil())
 	g.Expect(called).To(BeTrue())
 
-	rc := assertResource(g, r, corev1alpha1.ConditionedStatus{})
-	g.Expect(rc.Finalizers).To(HaveLen(1))
-	g.Expect(rc.Finalizers).To(ContainElement(finalizer))
+	assertResource(g, r, corev1alpha1.ConditionedStatus{})
 }
 
 func TestReconcileSync(t *testing.T) {

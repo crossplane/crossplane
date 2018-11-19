@@ -123,8 +123,7 @@ func (e *EKSClient) ConnectionToken(name string) (string, error) {
 
 // IsErrorNotFound helper function
 func IsErrorAlreadyExists(err error) bool {
-	// TODO: this needs to be refined, most likely incorrect
-	return strings.Contains(err.Error(), eks.ErrCodeServerException)
+	return strings.Contains(err.Error(), eks.ErrCodeResourceInUseException)
 }
 
 // IsErrorNotFound helper function

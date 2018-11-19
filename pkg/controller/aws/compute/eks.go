@@ -111,7 +111,6 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 // fail - helper function to set fail condition with reason and message
 func (r *Reconciler) fail(instance *awscomputev1alpha1.EKSCluster, reason, msg string) (reconcile.Result, error) {
-	instance.Status.UnsetAllConditions()
 	instance.Status.SetFailed(reason, msg)
 	return resultRequeue, r.Update(context.TODO(), instance)
 }
@@ -156,8 +155,11 @@ func (r *Reconciler) _create(instance *awscomputev1alpha1.EKSCluster, client eks
 		return r.fail(instance, errorCreateCluster, err.Error())
 	}
 
-	instance.Status.State = awscomputev1alpha1.ClusterStatusCreating
+	// Add finalizer
+	util.AddFinalizer(&instance.ObjectMeta, finalizer)
 
+	// Update status
+	instance.Status.State = awscomputev1alpha1.ClusterStatusCreating
 	instance.Status.UnsetAllConditions()
 	instance.Status.SetCreating()
 	instance.Status.ClusterName = clusterName
@@ -182,10 +184,8 @@ func (r *Reconciler) _sync(instance *awscomputev1alpha1.EKSCluster, client eks.C
 	// update resource status
 	instance.Status.Endpoint = cluster.Endpoint
 	instance.Status.State = awscomputev1alpha1.ClusterStatusActive
-	instance.Status.UnsetAllConditions()
 	instance.Status.SetReady()
 
-	// TODO: figure out how we going to handle cluster statuses other than RUNNING
 	return result, r.Update(ctx, instance)
 }
 
@@ -218,7 +218,7 @@ func (r *Reconciler) _delete(instance *awscomputev1alpha1.EKSCluster, client eks
 		}
 	}
 	util.RemoveFinalizer(&instance.ObjectMeta, finalizer)
-	instance.Status.UnsetAllConditions()
+	instance.Status.SetDeleting()
 	return result, r.Update(ctx, instance)
 }
 
@@ -247,14 +247,6 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	// Check for deletion
 	if instance.DeletionTimestamp != nil {
 		return r.delete(instance, eksClient)
-	}
-
-	// Add finalizer
-	if !util.HasFinalizer(&instance.ObjectMeta, finalizer) {
-		util.AddFinalizer(&instance.ObjectMeta, finalizer)
-		if err := r.Update(ctx, instance); err != nil {
-			return resultRequeue, err
-		}
 	}
 
 	// Create cluster instance

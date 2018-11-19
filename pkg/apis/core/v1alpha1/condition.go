@@ -141,6 +141,11 @@ func (c *ConditionedStatus) RemoveCondition(condType ConditionType) {
 	c.Conditions = FilterOutCondition(c.Conditions, condType)
 }
 
+// RemoveAllConditions removes all condition entries
+func (c *ConditionedStatus) RemoveAllConditions() {
+	c.Conditions = []Condition{}
+}
+
 // NewCondition creates a new RDS resource condition.
 func NewCondition(condType ConditionType, reason, msg string) Condition {
 	return Condition{
