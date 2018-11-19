@@ -15,12 +15,12 @@ This proposal explores the idea of a Custom Secret Definition (CSD).
 We borrow heavily from CRDs in this design. Here's an example, CSD:
 
 ```yaml
-apiVersion: core.conductor.io/v1alpha1
+apiVersion: core.crossplane.io/v1alpha1
 kind: CustomSecretDefinition
 metadata:
-  name: mysql.database.conductor.io
+  name: mysql.database.crossplane.io
 spec:
-  group: database.conductor.io
+  group: database.crossplane.io
   names:
     kind: mysql
   version: v1alpha1
@@ -43,7 +43,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: mysecret
-type: mysql.v1alpha1.database.conductor.io
+type: mysql.v1alpha1.database.crossplane.io
 data:
   username: YWRtaW4=
   password: MWYyZDFlMmU2N2Rm

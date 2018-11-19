@@ -1,11 +1,11 @@
-# Conductor Quickstart
+# Crossplane Quickstart
 
-## Install Conductor
+## Install Crossplane
 
-Install Conductor in a GKE cluster first, for example with the following `helm` command after setting your preferred values for `image.repository` and `image.tag` in the `values.yaml` file:
+Install Crossplane in a GKE cluster first, for example with the following `helm` command after setting your preferred values for `image.repository` and `image.tag` in the `values.yaml` file:
 
 ```bash
-helm install --name conductor --namespace conductor-system ${GOPATH}/src/github.com/upbound/conductor/cluster/charts/conductor
+helm install --name crossplane --namespace crossplane-system ${GOPATH}/src/github.com/crossplaneio/crossplane/cluster/charts/crossplane
 ```
 
 ## Wordpress on AWS 
@@ -29,19 +29,19 @@ kubectl -n demo get pod
 ```
 
 While the database is being deployed, you'll see the Wordpress pod in the `CreateContainerConfigError` status for awhile.
-Follow along with the database deployment progress by watching the Conductor logs:
+Follow along with the database deployment progress by watching the Crossplane logs:
 
 ```console
-kubectl -n conductor-system logs -f $(kubectl -n conductor-system get pod -l app=conductor -o jsonpath='{.items[0].metadata.name}')
+kubectl -n crossplane-system logs -f $(kubectl -n crossplane-system get pod -l app=crossplane -o jsonpath='{.items[0].metadata.name}')
 ```
 
 You can also watch the resources over time with the following watch command:
 ```console
-watch -t -n1 "echo CONDUCTOR-SYSTEM PODS && kubectl get pods -n conductor-system -o wide && echo && \
+watch -t -n1 "echo crossplane-system PODS && kubectl get pods -n crossplane-system -o wide && echo && \
     echo PODS && kubectl get pods -n demo -o wide && echo && \
     echo SERVICES && kubectl -n demo get svc -o wide && echo && \
     echo MYSQL CLAIMS && kubectl -n demo get mysqlinstance mysql-instance -o jsonpath='{.metadata.name}{\"\t\"}{.status.bindingPhase}{\"\t\"}{range .status.Conditions[*]}{.Type}{\"=\"}{.Status}{\"\t\"}{end}' && echo && echo &&\
-    echo MYSQL INSTANCES && kubectl -n conductor-system get ${DATABASE_TYPE} -o jsonpath='{range .items[*]}{.metadata.name}{\"\t\"}{.status.bindingPhase}{\"\t\"}{.status.state}{\"\t\"}{range .status.Conditions[*]}{.Type}{\"=\"}{.Status}{\"\t\"}{end}{end}' && echo && \
+    echo MYSQL INSTANCES && kubectl -n crossplane-system get ${DATABASE_TYPE} -o jsonpath='{range .items[*]}{.metadata.name}{\"\t\"}{.status.bindingPhase}{\"\t\"}{.status.state}{\"\t\"}{range .status.Conditions[*]}{.Type}{\"=\"}{.Status}{\"\t\"}{end}{end}' && echo && \
     echo && echo NODES && kubectl get nodes -o wide"
 ```
 

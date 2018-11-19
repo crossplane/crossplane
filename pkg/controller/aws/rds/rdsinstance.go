@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Conductor Authors.
+Copyright 2018 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,12 +21,12 @@ import (
 	"fmt"
 	"log"
 
-	databasev1alpha1 "github.com/upbound/conductor/pkg/apis/aws/database/v1alpha1"
-	awsv1alpha1 "github.com/upbound/conductor/pkg/apis/aws/v1alpha1"
-	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
-	"github.com/upbound/conductor/pkg/clients/aws"
-	"github.com/upbound/conductor/pkg/clients/aws/rds"
-	"github.com/upbound/conductor/pkg/util"
+	databasev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/database/v1alpha1"
+	awsv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/clients/aws"
+	"github.com/crossplaneio/crossplane/pkg/clients/aws/rds"
+	"github.com/crossplaneio/crossplane/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -43,7 +43,7 @@ import (
 )
 
 const (
-	controllerName = "rds.aws.conductor.io"
+	controllerName = "rds.aws.crossplane.io"
 	finalizer      = "finalizer." + controllerName
 
 	errorResourceClient = "Failed to create rds client"
@@ -127,7 +127,7 @@ func (r *Reconciler) fail(instance *databasev1alpha1.RDSInstance, reason, msg st
 // connectionSecret return secret object for this resource
 func connectionSecret(instance *databasev1alpha1.RDSInstance, password string) *corev1.Secret {
 	if instance.APIVersion == "" {
-		instance.APIVersion = "database.aws.conductor.io/v1alpha1"
+		instance.APIVersion = "database.aws.crossplane.io/v1alpha1"
 	}
 	if instance.Kind == "" {
 		instance.Kind = "RDSInstance"

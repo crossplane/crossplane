@@ -1,6 +1,6 @@
 ## How to Contribute
 
-The Conductor project is under [Apache 2.0 license](LICENSE). We accept contributions via
+The Crossplane project is under [Apache 2.0 license](LICENSE). We accept contributions via
 GitHub pull requests. This document outlines some of the conventions related to
 development workflow, commit message formatting, contact points and other
 resources to make it easier to get your contribution accepted.
@@ -57,11 +57,11 @@ This is a rough outline of what a contributor's workflow looks like:
 
 ## Building
 
-Details about building conductor can be found in [INSTALL.md](INSTALL.md).
+Details about building crossplane can be found in [INSTALL.md](INSTALL.md).
 
 ## Coding Style
 
-Conductor projects are written in golang and follows the style guidelines dictated by
+Crossplane projects are written in golang and follows the style guidelines dictated by
 the go fmt as well as go vet tools.
 
 ## Comments
@@ -72,13 +72,13 @@ be created if they do not yet exist and updated if they do.
 
 The goal of comments is to make the code more readable and grokkable by future developers. Once you
 have made your code as understandable as possible, add comments to make sure future developers can
-understand (A) what this piece of code's responsibility is within Conductor's architecture and (B) why it
+understand (A) what this piece of code's responsibility is within Crossplane's architecture and (B) why it
 was written as it was.
 
 The below blog entry explains more the why's and how's of this guideline.
 https://blog.codinghorror.com/code-tells-you-how-comments-tell-you-why/
 
-For Go, Conductor follows standard godoc guidelines.
+For Go, Crossplane follows standard godoc guidelines.
 A concise godoc guideline can be found here: https://blog.golang.org/godoc-documenting-go-code
 
 ## Commit Messages
@@ -112,9 +112,9 @@ git tools.
 ## Adding New Resources
 
 ### Project Organization
-The Conductor project is based on and intially created by using [Kubebuilder is a framework for building Kubernetes APIs](https://github.com/kubernetes-sigs/kubebuilder).
+The Crossplane project is based on and intially created by using [Kubebuilder is a framework for building Kubernetes APIs](https://github.com/kubernetes-sigs/kubebuilder).
 
-The Conductor project organizes resources (api types and controllers) by grouping them by Cloud Provider with further sub-group by resource type 
+The Crossplane project organizes resources (api types and controllers) by grouping them by Cloud Provider with further sub-group by resource type 
 
 The Kubebuilder framework does not provide good support for projects with multiple groups and group tiers which contain resources with overlapping names. 
 For example:
@@ -168,7 +168,7 @@ There are several different ways you can approach the creation of the new resour
 Good ol' copy & paste of existing resource for both apis and controller (if new controller is needed) and update to tailor your needs.
 
 #### Kubebuilder With New Project
-Create and Initialize a new (temporary) kubebuilder project and create new resources: apis and controller(s), then copy them into Conductor project following the established project organization.
+Create and Initialize a new (temporary) kubebuilder project and create new resources: apis and controller(s), then copy them into Crossplane project following the established project organization.
 
 To verify that new artifacts run: 
 ```bash

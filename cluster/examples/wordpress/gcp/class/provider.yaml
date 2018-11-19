@@ -4,17 +4,17 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: gcp-provider-creds
-  namespace: conductor-system
+  namespace: crossplane-system
 type: Opaque
 data:
   credentials.json: BASE64ENCODED_GCP_PROVIDER_CREDS
 ---
 # GCP Provider with service account secret reference - used to provision sql resources
-apiVersion: gcp.conductor.io/v1alpha1
+apiVersion: gcp.crossplane.io/v1alpha1
 kind: Provider
 metadata:
   name: gcp-sql-provider
-  namespace: conductor-system
+  namespace: crossplane-system
 spec:
   credentialsSecretRef:
     name: gcp-provider-creds
@@ -25,16 +25,16 @@ spec:
 ---
 # ResourceClass that defines the blueprint for how a "standard" CloudSQL instance
 # should be dynamically provisioned
-apiVersion: core.conductor.io/v1alpha1
+apiVersion: core.crossplane.io/v1alpha1
 kind: ResourceClass
 metadata:
   name: standard
-  namespace: conductor-system
+  namespace: crossplane-system
 parameters:
   tier: db-n1-standard-1
   region: us-west2
   storageType: PD_SSD
-provisioner: cloudsqlinstance.database.gcp.conductor.io/v1alpha1
+provisioner: cloudsqlinstance.database.gcp.crossplane.io/v1alpha1
 providerRef:
   name: gcp-sql-provider
 reclaimPolicy: Delete

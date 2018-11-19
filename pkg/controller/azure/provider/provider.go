@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Conductor Authors.
+Copyright 2018 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,8 +19,8 @@ package provider
 import (
 	"context"
 
-	. "github.com/upbound/conductor/pkg/apis/azure/v1alpha1"
-	azureclient "github.com/upbound/conductor/pkg/clients/azure"
+	. "github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
+	azureclient "github.com/crossplaneio/crossplane/pkg/clients/azure"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"

@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Conductor Authors.
+Copyright 2018 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,9 +19,9 @@ limitations under the License.
 // Package v1alpha1 contains API Schema definitions for the gcp v1alpha1 API group
 // +k8s:openapi-gen=true
 // +k8s:deepcopy-gen=package,register
-// +k8s:conversion-gen=github.com/upbound/conductor/pkg/gcp/apis/gcp
+// +k8s:conversion-gen=github.com/crossplaneio/crossplane/pkg/gcp/apis/gcp
 // +k8s:defaulter-gen=TypeMeta
-// +groupName=gcp.conductor.io
+// +groupName=gcp.crossplane.io
 package v1alpha1
 
 import (
@@ -30,7 +30,7 @@ import (
 )
 
 const (
-	Group      = "gcp.conductor.io"
+	Group      = "gcp.crossplane.io"
 	Version    = "v1alpha1"
 	APIVersion = Group + "/" + Version
 )

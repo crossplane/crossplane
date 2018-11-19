@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Conductor Authors.
+Copyright 2018 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,9 +18,9 @@ limitations under the License.
 package gcp
 
 import (
-	computev1alpha1 "github.com/upbound/conductor/pkg/apis/gcp/compute/v1alpha1"
-	databasev1alpha1 "github.com/upbound/conductor/pkg/apis/gcp/database/v1alpha1"
-	"github.com/upbound/conductor/pkg/apis/gcp/v1alpha1"
+	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/compute/v1alpha1"
+	databasev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/database/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/apis/gcp/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 

@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Conductor Authors.
+Copyright 2018 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,11 +20,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/crossplaneio/crossplane/pkg/apis/gcp"
+	databasev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/database/v1alpha1"
+	gcpv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/test"
 	"github.com/onsi/gomega"
-	"github.com/upbound/conductor/pkg/apis/gcp"
-	databasev1alpha1 "github.com/upbound/conductor/pkg/apis/gcp/database/v1alpha1"
-	gcpv1alpha1 "github.com/upbound/conductor/pkg/apis/gcp/v1alpha1"
-	"github.com/upbound/conductor/pkg/test"
 	"golang.org/x/net/context"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

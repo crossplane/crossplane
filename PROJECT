@@ -1,3 +1,3 @@
 version: "1"
-domain: conductor.io
-repo: github.com/upbound/conductor
+domain: crossplane.io
+repo: github.com/crossplaneio/crossplane

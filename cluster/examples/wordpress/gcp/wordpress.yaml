@@ -10,11 +10,11 @@ type: Opaque
 data:
   credentials.json: BASE64ENCODED_GCP_SQL_CREDS
 ---
-apiVersion: database.gcp.conductor.io/v1alpha1
+apiVersion: database.gcp.crossplane.io/v1alpha1
 kind: CloudsqlInstance
 metadata:
   labels:
-  name: conductor-wordpress-cloudsql
+  name: crossplane-wordpress-cloudsql
 spec:
   providerRef:
     name: gcp-sql-provider

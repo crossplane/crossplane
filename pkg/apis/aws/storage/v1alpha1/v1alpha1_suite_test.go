@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Conductor Authors.
+Copyright 2018 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -34,7 +34,7 @@ var c client.Client
 func TestMain(m *testing.M) {
 	t := &envtest.Environment{
 		CRDDirectoryPaths: []string{filepath.Join("..", "..", "..", "..", "..",
-			"cluster", "charts", "conductor", "crds", "aws", "storage", "v1alpha1")},
+			"cluster", "charts", "crossplane", "crds", "aws", "storage", "v1alpha1")},
 	}
 
 	err := SchemeBuilder.AddToScheme(scheme.Scheme)

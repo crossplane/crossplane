@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Conductor Authors.
+Copyright 2018 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,13 +20,13 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/crossplaneio/crossplane/pkg/apis/aws"
+	. "github.com/crossplaneio/crossplane/pkg/apis/aws/database/v1alpha1"
+	awsv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/clients/aws/rds"
+	. "github.com/crossplaneio/crossplane/pkg/clients/aws/rds/fake"
 	. "github.com/onsi/gomega"
-	"github.com/upbound/conductor/pkg/apis/aws"
-	. "github.com/upbound/conductor/pkg/apis/aws/database/v1alpha1"
-	awsv1alpha1 "github.com/upbound/conductor/pkg/apis/aws/v1alpha1"
-	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
-	"github.com/upbound/conductor/pkg/clients/aws/rds"
-	. "github.com/upbound/conductor/pkg/clients/aws/rds/fake"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"

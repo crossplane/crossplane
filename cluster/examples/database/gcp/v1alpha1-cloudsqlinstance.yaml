@@ -1,4 +1,4 @@
-apiVersion: database.gcp.conductor.io/v1alpha1
+apiVersion: database.gcp.crossplane.io/v1alpha1
 kind: CloudsqlInstance
 metadata:
   labels:

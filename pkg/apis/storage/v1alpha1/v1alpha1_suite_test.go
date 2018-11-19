@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Conductor Authors.
+Copyright 2018 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ import (
 	"log"
 	"testing"
 
-	"github.com/upbound/conductor/pkg/test"
+	"github.com/crossplaneio/crossplane/pkg/test"
 	"golang.org/x/net/context"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"

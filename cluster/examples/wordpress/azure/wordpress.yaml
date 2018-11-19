@@ -1,8 +1,8 @@
-apiVersion: database.azure.conductor.io/v1alpha1
+apiVersion: database.azure.crossplane.io/v1alpha1
 kind: MysqlServer
 metadata:
   labels:
-  name: conductor-wordpress-mysql
+  name: crossplane-wordpress-mysql
 spec:
   providerRef:
     name: azure-sql-provider

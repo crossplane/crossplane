@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Conductor Authors.
+Copyright 2018 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@ limitations under the License.
 // Package v1alpha1 contains API Schema definitions for the database v1alpha1 API group
 // +k8s:openapi-gen=true
 // +k8s:deepcopy-gen=package,register
-// +k8s:conversion-gen=github.com/upbound/conductor/pkg/apis/azure/database
+// +k8s:conversion-gen=github.com/crossplaneio/crossplane/pkg/apis/azure/database
 // +k8s:defaulter-gen=TypeMeta
-// +groupName=database.azure.conductor.io
+// +groupName=database.azure.crossplane.io
 package v1alpha1

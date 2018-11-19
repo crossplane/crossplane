@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Conductor Authors.
+Copyright 2018 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,12 +20,12 @@ import (
 	"context"
 	"fmt"
 
-	awsdatabasev1alpha1 "github.com/upbound/conductor/pkg/apis/aws/database/v1alpha1"
-	azuredbv1alpha1 "github.com/upbound/conductor/pkg/apis/azure/database/v1alpha1"
-	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
-	gcpdbv1alpha1 "github.com/upbound/conductor/pkg/apis/gcp/database/v1alpha1"
-	mysqlv1alpha1 "github.com/upbound/conductor/pkg/apis/storage/v1alpha1"
-	"github.com/upbound/conductor/pkg/util"
+	awsdatabasev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/database/v1alpha1"
+	azuredbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/database/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	gcpdbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/database/v1alpha1"
+	mysqlv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/util"
 	"k8s.io/api/core/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -44,7 +44,7 @@ import (
 
 const (
 	controllerName = "mysql-storage"
-	finalizer      = "finalizer.mysql.storage.conductor.io"
+	finalizer      = "finalizer.mysql.storage.crossplane.io"
 
 	errorResourceClassNotDefined    = "Resource class is not provided"
 	errorResourceProvisioning       = "Failed to _provision new resource"

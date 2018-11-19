@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Conductor Authors.
+Copyright 2018 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,10 +20,10 @@ import (
 	"context"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	awsv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/v1alpha1"
+	awsclient "github.com/crossplaneio/crossplane/pkg/clients/aws"
+	"github.com/crossplaneio/crossplane/pkg/util"
 	"github.com/go-ini/ini"
-	awsv1alpha1 "github.com/upbound/conductor/pkg/apis/aws/v1alpha1"
-	awsclient "github.com/upbound/conductor/pkg/clients/aws"
-	"github.com/upbound/conductor/pkg/util"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -108,7 +108,7 @@ func (r *Reconciler) _validate(config *aws.Config) error {
 // and what is in the Provider.Spec
 // Automatically generate RBAC rules to allow the Controller to read and write Deployments
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=aws.conductor.io,resources=provider,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=aws.crossplane.io,resources=provider,verbs=get;list;watch;create;update;patch;delete
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	// Fetch the Provider instance
 	instance := &awsv1alpha1.Provider{}

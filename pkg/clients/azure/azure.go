@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Conductor Authors.
+Copyright 2018 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,14 +25,14 @@ import (
 	"github.com/Azure/azure-sdk-for-go/services/resources/mgmt/2018-05-01/resources"
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/azure/auth"
-	"github.com/upbound/conductor/pkg/apis/azure/v1alpha1"
-	"github.com/upbound/conductor/pkg/util"
+	"github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/util"
 	"k8s.io/client-go/kubernetes"
 )
 
 const (
-	// UserAgent is the user agent extension that identifies the Conductor Azure client
-	UserAgent = "conductor-azure-client"
+	// UserAgent is the user agent extension that identifies the Crossplane Azure client
+	UserAgent = "crossplane-azure-client"
 )
 
 // Client struct that represents the information needed to connect to the Azure services as a client

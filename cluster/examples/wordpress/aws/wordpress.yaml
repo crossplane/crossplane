@@ -1,4 +1,4 @@
-apiVersion: storage.aws.conductor.io/v1alpha1
+apiVersion: storage.aws.crossplane.io/v1alpha1
 kind: S3Bucket
 metadata:
   name: demo-bucket
@@ -9,7 +9,7 @@ spec:
   providerRef:
     name: demo-aws-provider
 ---
-apiVersion: database.aws.conductor.io/v1alpha1
+apiVersion: database.aws.crossplane.io/v1alpha1
 kind: RDSInstance
 metadata:
   name: demo-rds

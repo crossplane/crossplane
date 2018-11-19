@@ -4,8 +4,8 @@ import (
 	"flag"
 	"testing"
 
+	"github.com/crossplaneio/crossplane/pkg/clients/gcp"
 	. "github.com/onsi/gomega"
-	"github.com/upbound/conductor/pkg/clients/gcp"
 	"golang.org/x/oauth2/google"
 )
 

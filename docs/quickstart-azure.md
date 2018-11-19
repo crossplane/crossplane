@@ -11,7 +11,7 @@ Azure service principal credentials are needed for an admin account, which must 
 Please refer to the [targeting Azure section](./troubleshooting.md#targeting-microsoft-azure) for details on how to create this account with the required permissions from the table above.
 After the account is created, you should have 1 file on your local filesystem:
 
-* `conductor-azure-provider-key.json`
+* `crossplane-azure-provider-key.json`
 
 ## Set environment variables
 
@@ -33,7 +33,7 @@ kubectl create namespace demo
 Deploy the Azure provider object to your cluster:
 
 ```console
-sed "s/BASE64ENCODED_AZURE_PROVIDER_CREDS/`cat conductor-azure-provider-key.json|base64|tr -d '\n'`/g" cluster/examples/wordpress/azure/class/provider.yaml | kubectl create -f -
+sed "s/BASE64ENCODED_AZURE_PROVIDER_CREDS/`cat crossplane-azure-provider-key.json|base64|tr -d '\n'`/g" cluster/examples/wordpress/azure/class/provider.yaml | kubectl create -f -
 ```
 
 Now deploy all the Wordpress resources, including the SQL database, with the following single command:

@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Conductor Authors.
+Copyright 2018 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,12 +20,12 @@ import (
 	"context"
 	"fmt"
 
-	awscomputev1alpha1 "github.com/upbound/conductor/pkg/apis/aws/compute/v1alpha1"
-	awsv1alpha1 "github.com/upbound/conductor/pkg/apis/aws/v1alpha1"
-	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
-	"github.com/upbound/conductor/pkg/clients/aws"
-	"github.com/upbound/conductor/pkg/clients/aws/eks"
-	"github.com/upbound/conductor/pkg/util"
+	awscomputev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/compute/v1alpha1"
+	awsv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/clients/aws"
+	"github.com/crossplaneio/crossplane/pkg/clients/aws/eks"
+	"github.com/crossplaneio/crossplane/pkg/util"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -40,7 +40,7 @@ import (
 )
 
 const (
-	controllerName    = "eks.compute.aws.conductor.io"
+	controllerName    = "eks.compute.aws.crossplane.io"
 	finalizer         = "finalizer." + controllerName
 	clusterNamePrefix = "eks-"
 

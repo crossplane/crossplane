@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Conductor Authors.
+Copyright 2018 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,8 +17,8 @@ limitations under the License.
 package azure
 
 import (
-	"github.com/upbound/conductor/pkg/controller/azure/database"
-	"github.com/upbound/conductor/pkg/controller/azure/provider"
+	"github.com/crossplaneio/crossplane/pkg/controller/azure/database"
+	"github.com/crossplaneio/crossplane/pkg/controller/azure/provider"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 

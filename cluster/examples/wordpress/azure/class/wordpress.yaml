@@ -1,11 +1,11 @@
-apiVersion: storage.conductor.io/v1alpha1
+apiVersion: storage.crossplane.io/v1alpha1
 kind: MySQLInstance
 metadata:
   name: mysql-instance
 spec:
   classReference:
     name: standard
-    namespace: conductor-system
+    namespace: crossplane-system
   engineVersion: "5.7"
 ---
 apiVersion: extensions/v1beta1

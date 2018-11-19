@@ -1,4 +1,4 @@
-apiVersion: compute.conductor.io/v1alpha1
+apiVersion: compute.crossplane.io/v1alpha1
 kind: Workload
 metadata:
   name: my-workload
@@ -6,7 +6,7 @@ metadata:
 spec:
   classReference:
     name: cluster-class
-    namespace: conductor-system
+    namespace: crossplane-system
       secretName: my-bucket-creds
   clusterVersion: 1.0.1
   selector: {}

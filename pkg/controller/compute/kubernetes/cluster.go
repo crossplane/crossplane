@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Conductor Authors.
+Copyright 2018 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,10 +20,10 @@ import (
 	"context"
 	"fmt"
 
-	computev1alpha1 "github.com/upbound/conductor/pkg/apis/compute/v1alpha1"
-	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
-	gcpcomputev1alpha1 "github.com/upbound/conductor/pkg/apis/gcp/compute/v1alpha1"
-	"github.com/upbound/conductor/pkg/util"
+	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/compute/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	gcpcomputev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/compute/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/util"
 	"k8s.io/api/core/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -41,7 +41,7 @@ import (
 )
 
 const (
-	controllerName = "kubernetes.compute.conductor.io"
+	controllerName = "kubernetes.compute.crossplane.io"
 	finalizer      = "finalizer." + controllerName
 
 	errorResourceClassNotDefined       = "Resource class is not provided"
