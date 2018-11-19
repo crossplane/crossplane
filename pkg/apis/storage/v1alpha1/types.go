@@ -78,6 +78,16 @@ func (m *MySQLInstance) OwnerReference() metav1.OwnerReference {
 	return *util.ObjectToOwnerReference(m.ObjectReference())
 }
 
+//LocalPermissionType - Base type for LocalPermissions
+type LocalPermissionType string
+
+const (
+	// ReadPermission will grant read objects in a bucket
+	ReadPermission LocalPermissionType = "read"
+	// WritePermission will grant write/delete objects in a bucket
+	WritePermission LocalPermissionType = "write"
+)
+
 // BucketSpec defines the desired state of Bucket
 type BucketSpec struct {
 	ClassRef    *corev1.ObjectReference `json:"classReference,omitempty"`
@@ -93,7 +103,7 @@ type BucketSpec struct {
 
 	// LocalPermissions are the permissions granted on the bucket for the provider specific
 	// bucket service account.
-	// one of: read, write
+	// List of permissions for the local account read, write
 	LocalPermissions []string `json:"localPermissions,omitempty"`
 }
 
