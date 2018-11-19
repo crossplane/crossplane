@@ -21,10 +21,10 @@ const (
 
 // Service defines S3 Client operations
 type Service interface {
-	Create(spec *v1alpha1.S3BucketSpec, localPermissions []storage.LocalPermissionType) (*iam.AccessKey, error)
+	Create(spec *v1alpha1.S3BucketSpec) (*iam.AccessKey, error)
 	UpdateBucketACL(spec *v1alpha1.S3BucketSpec) error
 	UpdateVersioning(spec *v1alpha1.S3BucketSpec) error
-	UpdatePolicyDocument(spec *v1alpha1.S3BucketSpec, localPermissions []storage.LocalPermissionType) error
+	UpdatePolicyDocument(spec *v1alpha1.S3BucketSpec) error
 	Delete(spec *v1alpha1.S3BucketSpec) error
 }
 
@@ -40,7 +40,7 @@ func NewClient(config *aws.Config) Service {
 }
 
 // Create creates s3 bucket with provided specification, and returns access keys per localPermissions
-func (c *Client) Create(spec *v1alpha1.S3BucketSpec, localPermissions []storage.LocalPermissionType) (*iam.AccessKey, error) {
+func (c *Client) Create(spec *v1alpha1.S3BucketSpec) (*iam.AccessKey, error) {
 	input := CreateBucketInput(spec)
 	_, err := c.s3.CreateBucketRequest(input).Send()
 	if err != nil {
@@ -59,7 +59,7 @@ func (c *Client) Create(spec *v1alpha1.S3BucketSpec, localPermissions []storage.
 		return nil, fmt.Errorf("Could not update versioning, %s", err.Error())
 	}
 
-	policyDocument, err := getPolicyDocument(spec, localPermissions)
+	policyDocument, err := getPolicyDocument(spec)
 	if err != nil {
 		return nil, fmt.Errorf("Could not update policy, %s", err.Error())
 	}
@@ -91,8 +91,8 @@ func (c *Client) UpdateVersioning(spec *v1alpha1.S3BucketSpec) error {
 }
 
 // UpdatePolicyDocument based on localPermissions
-func (c *Client) UpdatePolicyDocument(spec *v1alpha1.S3BucketSpec, localPermissions []storage.LocalPermissionType) error {
-	policyDocument, err := getPolicyDocument(spec, localPermissions)
+func (c *Client) UpdatePolicyDocument(spec *v1alpha1.S3BucketSpec) error {
+	policyDocument, err := getPolicyDocument(spec)
 	if err != nil {
 		return fmt.Errorf("Could not generate policy, %s", err.Error())
 	}
@@ -146,7 +146,7 @@ func getBucketUsername(spec *v1alpha1.S3BucketSpec) *string {
 	return &username
 }
 
-func getPolicyDocument(spec *v1alpha1.S3BucketSpec, localPermissions []storage.LocalPermissionType) (*string, error) {
+func getPolicyDocument(spec *v1alpha1.S3BucketSpec) (*string, error) {
 	bucketARN := fmt.Sprintf(bucketObjectARN, spec.Name)
 	read := iamc.StatementEntry{
 		Sid:    "conductor-read",
@@ -173,11 +173,14 @@ func getPolicyDocument(spec *v1alpha1.S3BucketSpec, localPermissions []storage.L
 		Statement: []iamc.StatementEntry{},
 	}
 
-	for _, perm := range localPermissions {
-		if perm == storage.ReadPermission {
+	for _, perm := range spec.LocalPermissions {
+		localPerm := storage.LocalPermissionType(perm)
+		if localPerm == storage.ReadPermission {
 			policy.Statement = append(policy.Statement, read)
-		} else if perm == storage.WritePermission {
+		} else if localPerm == storage.WritePermission {
 			policy.Statement = append(policy.Statement, write)
+		} else {
+			return nil, fmt.Errorf("Unknown permission, %s", perm)
 		}
 	}
 
