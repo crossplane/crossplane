@@ -63,11 +63,11 @@ func TestEKSCluster(t *testing.T) {
 	created := &EKSCluster{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
 		Spec: EKSClusterSpec{
-			ClusterVersion: "1.1.1",
-			RoleARN:        "test-arn",
-			SubnetIds:      []string{"one", "two"},
-			SecurityGroups: []string{"sg-1", "sg-2"},
-			ReclaimPolicy:  corev1alpha1.ReclaimRetain,
+			ClusterVersion:    "1.1.1",
+			RoleARN:           "test-arn",
+			SubnetIds:         []string{"one", "two"},
+			SecurityGroupsIds: []string{"sg-1", "sg-2"},
+			ReclaimPolicy:     corev1alpha1.ReclaimRetain,
 		},
 	}
 	g := NewGomegaWithT(t)

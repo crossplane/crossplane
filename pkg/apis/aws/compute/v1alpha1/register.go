@@ -30,9 +30,10 @@ import (
 )
 
 const (
-	Group      = "compute.aws.conductor.io"
-	Version    = "v1alpha1"
-	APIVersion = Group + "/" + Version
+	Group          = "compute.aws.conductor.io"
+	Version        = "v1alpha1"
+	APIVersion     = Group + "/" + Version
+	EKSClusterKind = "eksclusters"
 )
 
 var (
