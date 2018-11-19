@@ -44,6 +44,8 @@ type GCPBucketSpec struct {
 	Versioning                   bool                    `json:"versioning,omitempty"`
 	ConnectionSecretNameOverride string                  `json:"connectionSecretNameOverride,omitempty"`
 	ProviderRef                  v1.LocalObjectReference `json:"providerRef"`
+	ClaimRef                     *v1.ObjectReference     `json:"claimRef,omitempty"`
+	ClassRef                     *v1.ObjectReference     `json:"classRef,omitempty"`
 }
 
 // GoogleBucketStatus defines the observed state of GoogleBucket

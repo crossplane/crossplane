@@ -24,12 +24,22 @@ spec:
           properties:
             cannedACL:
               type: string
+            claimRef:
+              type: object
+            classRef:
+              type: object
             connectionSecretNameOverride:
               type: string
+            localPermissions:
+              items:
+                type: string
+              type: array
             name:
               type: string
             providerRef:
               type: object
+            reclaimPolicy:
+              type: string
             region:
               type: string
             versioning:
@@ -37,6 +47,7 @@ spec:
           required:
           - versioning
           - providerRef
+          - localPermissions
           type: object
         status:
           properties:

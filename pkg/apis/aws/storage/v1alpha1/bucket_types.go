@@ -18,6 +18,10 @@ package v1alpha1
 
 import (
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"fmt"
+	"strconv"
+
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/upbound/conductor/pkg/util"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,26 +31,12 @@ import (
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
 const (
-	Group                     = "storage.aws.conductor.io"
-	Version                   = "v1alpha1"
-	APIVersion                = Group + "/" + Version
+	Group                  = "storage.aws.conductor.io"
+	Version                = "v1alpha1"
+	APIVersion             = Group + "/" + Version
 	S3BucketKind           = "s3bucket"
 	S3BucketKindAPIVersion = S3BucketKind + "." + APIVersion
 )
-
-type S3BucketState string
-
-const (
-	// S3BucketStateAvailable - The bucket is created and available
-	S3BucketStateAvailable S3BucketState = "available"
-	// S3BucketStateCreating - The bucket is being created
-	S3BucketStateCreating S3BucketState = "creating"
-	// S3BucketStateDeleting - The bucket and user are deleting
-	S3BucketStateDeleting S3BucketState = "deleting"
-	// S3BucketStateFailed - Failed to create S3Bucket or user
-	S3BucketStateFailed S3BucketState = "failed"
-)
-
 
 // S3BucketSpec defines the desired state of S3Bucket
 type S3BucketSpec struct {
@@ -60,6 +50,8 @@ type S3BucketSpec struct {
 	ConnectionSecretNameOverride string                  `json:"connectionSecretNameOverride,omitempty"`
 	ProviderRef                  v1.LocalObjectReference `json:"providerRef"`
 	LocalPermissions             []string                `json:"localPermissions"`
+	ClaimRef                     *v1.ObjectReference     `json:"claimRef,omitempty"`
+	ClassRef                     *v1.ObjectReference     `json:"classRef,omitempty"`
 	// ReclaimPolicy identifies how to handle the cloud resource after the deletion of this type
 	ReclaimPolicy corev1alpha1.ReclaimPolicy `json:"reclaimPolicy,omitempty"`
 }
@@ -71,6 +63,38 @@ type S3BucketStatus struct {
 	Message             string                  `json:"message,omitempty"`
 	ProviderID          string                  `json:"providerID,omitempty"` // the external ID to identify this resource in the cloud provider
 	ConnectionSecretRef v1.LocalObjectReference `json:"connectionSecretRef,omitempty"`
+}
+
+// NewS3BucketSpec from properties map
+func NewS3BucketSpec(properties map[string]string) *S3BucketSpec {
+	spec := &S3BucketSpec{
+		CannedACL:  string(s3.BucketCannedACLPrivate),
+		Versioning: false,
+	}
+
+	val, ok := properties["predefinedACL"]
+	if ok {
+		spec.CannedACL = val
+	}
+
+	val, ok = properties["versioning"]
+	if ok {
+		if versioning, err := strconv.ParseBool(val); err != nil {
+			spec.Versioning = versioning
+		}
+	}
+
+	val, ok = properties["region"]
+	if ok {
+		spec.Region = val
+	}
+
+	val, ok = properties["connectionSecretNameOverride"]
+	if ok {
+		spec.ConnectionSecretNameOverride = val
+	}
+
+	return spec
 }
 
 // +genclient
@@ -97,37 +121,61 @@ type S3BucketList struct {
 }
 
 // ObjectReference to this S3Bucket
-func (r *S3Bucket) ObjectReference() *v1.ObjectReference {
-	if r.Kind == "" {
-		r.Kind = S3BucketKind
+func (b *S3Bucket) ObjectReference() *v1.ObjectReference {
+	if b.Kind == "" {
+		b.Kind = S3BucketKind
 	}
-	if r.APIVersion == "" {
-		r.APIVersion = APIVersion
+	if b.APIVersion == "" {
+		b.APIVersion = APIVersion
 	}
 	return &v1.ObjectReference{
-		APIVersion:      r.APIVersion,
-		Kind:            r.Kind,
-		Name:            r.Name,
-		Namespace:       r.Namespace,
-		ResourceVersion: r.ResourceVersion,
-		UID:             r.UID,
+		APIVersion:      b.APIVersion,
+		Kind:            b.Kind,
+		Name:            b.Name,
+		Namespace:       b.Namespace,
+		ResourceVersion: b.ResourceVersion,
+		UID:             b.UID,
 	}
 }
 
 // ConnectionSecretName returns a secret name from the reference
-func (r *S3Bucket) ConnectionSecretName() string {
-	if r.Spec.ConnectionSecretNameOverride != "" {
-		return r.Spec.ConnectionSecretNameOverride
-	} else if r.Status.ConnectionSecretRef.Name != "" {
-		return r.Status.ConnectionSecretRef.Name
+func (b *S3Bucket) ConnectionSecretName() string {
+	if b.Spec.ConnectionSecretNameOverride != "" {
+		return b.Spec.ConnectionSecretNameOverride
+	} else if b.Status.ConnectionSecretRef.Name != "" {
+		return b.Status.ConnectionSecretRef.Name
 	}
 
-	return util.GenerateName(r.Spec.Name)
+	return util.GenerateName(b.Spec.Name)
 }
 
 // OwnerReference to use this instance as an owner
-func (r *S3Bucket) OwnerReference() metav1.OwnerReference {
-	return *util.ObjectToOwnerReference(r.ObjectReference())
+func (b *S3Bucket) OwnerReference() metav1.OwnerReference {
+	return *util.ObjectToOwnerReference(b.ObjectReference())
+}
+
+// Endpoint returns the endpoint for the bucket
+func (b *S3Bucket) Endpoint() string {
+	return fmt.Sprintf("https://%s.s3-%s.amazonaws.com/", b.Spec.Name, b.Spec.Region)
+}
+
+// IsAvailable for usage/binding
+func (b *S3Bucket) IsAvailable() bool {
+	return b.Status.IsCondition(corev1alpha1.Ready)
+}
+
+// IsBound
+func (b *S3Bucket) IsBound() bool {
+	return b.Status.Phase == corev1alpha1.BindingStateBound
+}
+
+// SetBound
+func (r *S3Bucket) SetBound(state bool) {
+	if state {
+		r.Status.Phase = corev1alpha1.BindingStateBound
+	} else {
+		r.Status.Phase = corev1alpha1.BindingStateUnbound
+	}
 }
 
 func init() {

@@ -44,7 +44,7 @@ import (
 )
 
 const (
-	controllerName = "storage.aws.conductor.io"
+	controllerName = "s3bucket.aws.conductor.io"
 	finalizer      = "finalizer." + controllerName
 
 	errorResourceClient = "Failed to create s3 client"

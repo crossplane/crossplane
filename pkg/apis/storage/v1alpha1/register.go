@@ -34,6 +34,7 @@ const (
 	Version           = "v1alpha1"
 	APIVersion        = Group + "/" + Version
 	MySQLInstanceKind = "mysqlinstance"
+	BucketKind        = "s3bucket"
 )
 
 var (

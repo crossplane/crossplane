@@ -14,17 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package mysql
+package bucket
 
 import (
 	"context"
 	"fmt"
 
-	awsdatabasev1alpha1 "github.com/upbound/conductor/pkg/apis/aws/database/v1alpha1"
-	azuredbv1alpha1 "github.com/upbound/conductor/pkg/apis/azure/database/v1alpha1"
+	awsbucketv1alpha1 "github.com/upbound/conductor/pkg/apis/aws/storage/v1alpha1"
 	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
-	gcpdbv1alpha1 "github.com/upbound/conductor/pkg/apis/gcp/database/v1alpha1"
-	mysqlv1alpha1 "github.com/upbound/conductor/pkg/apis/storage/v1alpha1"
+	bucketv1alpha1 "github.com/upbound/conductor/pkg/apis/storage/v1alpha1"
 	"github.com/upbound/conductor/pkg/util"
 	"k8s.io/api/core/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -43,8 +41,8 @@ import (
 )
 
 const (
-	controllerName = "mysql-storage"
-	finalizer      = "finalizer.mysql.storage.conductor.io"
+	controllerName = "bucket.storage.conductor.io"
+	finalizer      = "finalizer." + controllerName
 
 	errorResourceClassNotDefined    = "Resource class is not provided"
 	errorResourceProvisioning       = "Failed to _provision new resource"
@@ -66,15 +64,13 @@ var (
 
 	// map of supported resource handlers
 	handlers = map[string]ResourceHandler{
-		awsdatabasev1alpha1.RDSInstanceKindAPIVersion: &RDSInstanceHandler{},
-		azuredbv1alpha1.MysqlServerKindAPIVersion:     &AzureMySQLServerHandler{},
-		gcpdbv1alpha1.CloudsqlInstanceKindAPIVersion:  &CloudSQLServerHandler{},
+		awsbucketv1alpha1.S3BucketKindAPIVersion: &S3BucketHandler{},
 	}
 )
 
 // ResourceHandler defines resource handing functions
 type ResourceHandler interface {
-	provision(*corev1alpha1.ResourceClass, *mysqlv1alpha1.MySQLInstance, client.Client) (corev1alpha1.Resource, error)
+	provision(*corev1alpha1.ResourceClass, *bucketv1alpha1.Bucket, client.Client) (corev1alpha1.Resource, error)
 	find(types.NamespacedName, client.Client) (corev1alpha1.Resource, error)
 	setBindStatus(types.NamespacedName, client.Client, bool) error
 }
@@ -92,9 +88,9 @@ type Reconciler struct {
 	kubeclient kubernetes.Interface
 	recorder   record.EventRecorder
 
-	provision func(instance *mysqlv1alpha1.MySQLInstance) (reconcile.Result, error)
-	bind      func(*mysqlv1alpha1.MySQLInstance) (reconcile.Result, error)
-	delete    func(instance *mysqlv1alpha1.MySQLInstance) (reconcile.Result, error)
+	provision func(bucket *bucketv1alpha1.Bucket) (reconcile.Result, error)
+	bind      func(bucket *bucketv1alpha1.Bucket) (reconcile.Result, error)
+	delete    func(bucket *bucketv1alpha1.Bucket) (reconcile.Result, error)
 }
 
 // newReconciler returns a new reconcile.Reconciler
@@ -120,7 +116,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	}
 
 	// Watch for changes to Instance
-	err = c.Watch(&source.Kind{Type: &mysqlv1alpha1.MySQLInstance{}}, &handler.EnqueueRequestForObject{})
+	err = c.Watch(&source.Kind{Type: &bucketv1alpha1.Bucket{}}, &handler.EnqueueRequestForObject{})
 	if err != nil {
 		return err
 	}
@@ -129,13 +125,13 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 }
 
 // fail - helper function to set fail condition with reason and message
-func (r *Reconciler) fail(instance *mysqlv1alpha1.MySQLInstance, reason, msg string) (reconcile.Result, error) {
+func (r *Reconciler) fail(instance *bucketv1alpha1.Bucket, reason, msg string) (reconcile.Result, error) {
 	instance.Status.SetCondition(corev1alpha1.NewCondition(corev1alpha1.Failed, reason, msg))
 	return resultRequeue, r.Update(ctx, instance)
 }
 
 // _provision based on class and parameters
-func (r *Reconciler) _provision(instance *mysqlv1alpha1.MySQLInstance) (reconcile.Result, error) {
+func (r *Reconciler) _provision(instance *bucketv1alpha1.Bucket) (reconcile.Result, error) {
 	instance.Status.SetUnbound()
 
 	classRef := instance.Spec.ClassRef
@@ -151,7 +147,7 @@ func (r *Reconciler) _provision(instance *mysqlv1alpha1.MySQLInstance) (reconcil
 	}
 
 	// find handler for this class
-	handler, ok := handlers[class.Provisioner]
+	resourceHandler, ok := handlers[class.Provisioner]
 	if !ok {
 		// handler is not found - fail and do not requeue
 		err := fmt.Errorf("handler [%s] is not defined", class.Provisioner)
@@ -161,7 +157,7 @@ func (r *Reconciler) _provision(instance *mysqlv1alpha1.MySQLInstance) (reconcil
 	}
 
 	// create new resource
-	res, err := handler.provision(class, instance, r.Client)
+	res, err := resourceHandler.provision(class, instance, r.Client)
 	if err != nil {
 		return r.fail(instance, errorResourceProvisioning, err.Error())
 	}
@@ -178,9 +174,9 @@ func (r *Reconciler) _provision(instance *mysqlv1alpha1.MySQLInstance) (reconcil
 }
 
 // _bind KubernetesCluster to a concrete Resource
-func (r *Reconciler) _bind(instance *mysqlv1alpha1.MySQLInstance) (reconcile.Result, error) {
+func (r *Reconciler) _bind(instance *bucketv1alpha1.Bucket) (reconcile.Result, error) {
 	// retrieve finding function for this resource
-	handler, ok := handlers[instance.Status.Provisioner]
+	resourceHandler, ok := handlers[instance.Status.Provisioner]
 	if !ok {
 		// finder function is not found, this condition should never happened
 		// provisioner and finder should be added together for the same resource kind/version
@@ -193,7 +189,7 @@ func (r *Reconciler) _bind(instance *mysqlv1alpha1.MySQLInstance) (reconcile.Res
 
 	// find resource instance
 	resNName := namespaceNameFromObjectRef(instance.Spec.ResourceRef)
-	resource, err := handler.find(resNName, r.Client)
+	resource, err := resourceHandler.find(resNName, r.Client)
 	if err != nil {
 		// failed to retrieve the resource - requeue
 		return r.fail(instance, errorRetrievingResourceInstance, "")
@@ -226,7 +222,7 @@ func (r *Reconciler) _bind(instance *mysqlv1alpha1.MySQLInstance) (reconcile.Res
 	}
 
 	// update resource binding status
-	if err := handler.setBindStatus(resNName, r.Client, true); err != nil {
+	if err := resourceHandler.setBindStatus(resNName, r.Client, true); err != nil {
 		return r.fail(instance, errorSettingResourceBindStatus, err.Error())
 	}
 
@@ -240,9 +236,9 @@ func (r *Reconciler) _bind(instance *mysqlv1alpha1.MySQLInstance) (reconcile.Res
 	return result, r.Update(ctx, instance)
 }
 
-func (r *Reconciler) _delete(instance *mysqlv1alpha1.MySQLInstance) (reconcile.Result, error) {
+func (r *Reconciler) _delete(instance *bucketv1alpha1.Bucket) (reconcile.Result, error) {
 	// retrieve finding function for this resource
-	handler, ok := handlers[instance.Status.Provisioner]
+	resourceHandler, ok := handlers[instance.Status.Provisioner]
 	if !ok {
 		// finder function is not found, this condition should never happened
 		// provisioner and finder should be added together for the same resource kind/version
@@ -258,7 +254,7 @@ func (r *Reconciler) _delete(instance *mysqlv1alpha1.MySQLInstance) (reconcile.R
 
 	// TODO: decide how to handle resource binding status update error
 	// - ignore the error for now
-	handler.setBindStatus(resNName, r.Client, false)
+	resourceHandler.setBindStatus(resNName, r.Client, false)
 
 	// update instance status and remove finalizer
 	instance.Status.UnsetAllConditions()
@@ -280,7 +276,7 @@ func namespaceNameFromObjectRef(or *v1.ObjectReference) types.NamespacedName {
 // and what is in the Instance.Spec
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	// fetch the CRD instance
-	instance := &mysqlv1alpha1.MySQLInstance{}
+	instance := &bucketv1alpha1.Bucket{}
 
 	err := r.Get(ctx, request.NamespacedName, instance)
 	if err != nil {
