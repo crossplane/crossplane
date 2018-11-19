@@ -22,34 +22,35 @@ spec:
           type: object
         spec:
           properties:
-            bucketResources:
-              items:
-                properties:
-                  name:
-                    type: string
-                  secretName:
-                    type: string
-                required:
-                - secretName
-                type: object
-              type: array
             classReference:
               type: object
             clusterVersion:
               type: string
-            mySqlResources:
+            resourceName:
+              type: object
+            resources:
               items:
                 properties:
+                  apiVersion:
+                    type: string
+                  fieldPath:
+                    type: string
+                  kind:
+                    type: string
                   name:
                     type: string
+                  namespace:
+                    type: string
+                  resourceVersion:
+                    type: string
                   secretName:
+                    type: string
+                  uid:
                     type: string
                 required:
                 - secretName
                 type: object
               type: array
-            resourceName:
-              type: object
             selector:
               type: object
             targetDeployment:
@@ -59,8 +60,7 @@ spec:
             targetService:
               type: object
           required:
-          - mySqlResources
-          - bucketResources
+          - resources
           type: object
         status:
           properties:

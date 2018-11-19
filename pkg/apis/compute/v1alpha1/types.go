@@ -95,7 +95,7 @@ func (kc *KubernetesCluster) OwnerReference() metav1.OwnerReference {
 // TODO: Note, currently resource reference is a general type, however, this will be change in the future and replaced with concrete resource types
 type ResourceReference struct {
 	// reference to a resource object in the same namespace
-	corev1.LocalObjectReference `json:",inline"`
+	corev1.ObjectReference `json:",inline"`
 	// name of the generated resource secret
 	SecretName string `json:"secretName"`
 }
@@ -113,11 +113,8 @@ type WorkloadSpec struct {
 	// cluster properties
 	ClusterVersion string `json:"clusterVersion,omitempty"`
 
-	// MySQL resource references
-	MySQLResourceReferences []ResourceReference `json:"mySqlResources"`
-
-	// Bucket resource references
-	BucketResourceReferences []ResourceReference `json:"bucketResources"`
+	// Resources
+	Resources []ResourceReference `json:"resources"`
 }
 
 // WorkloadStatus

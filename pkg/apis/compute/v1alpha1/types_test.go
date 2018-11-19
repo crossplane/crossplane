@@ -121,15 +121,13 @@ func TestWorkload(t *testing.T) {
 				Namespace: "test-system",
 			},
 			ClusterVersion: "1.0.1",
-			MySQLResourceReferences: []ResourceReference{
+			Resources: []ResourceReference{
 				{
-					LocalObjectReference: corev1.LocalObjectReference{Name: "mysql-database"},
-					SecretName:           "mysql-database-creds",
+					ObjectReference: corev1.ObjectReference{Name: "mysql-database"},
+					SecretName:      "mysql-database-creds",
 				},
-			},
-			BucketResourceReferences: []ResourceReference{
 				{
-					LocalObjectReference: corev1.LocalObjectReference{Name: "my-bucket"},
+					ObjectReference: corev1.ObjectReference{Name: "my-bucket"},
 				},
 			},
 		},
