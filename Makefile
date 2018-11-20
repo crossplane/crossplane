@@ -10,7 +10,7 @@ include build/makelib/common.mk
 # ====================================================================================
 # Setup Output
 
-S3_BUCKET ?= upbound.releases/crossplane
+S3_BUCKET ?= crossplane.releases/crossplane
 include build/makelib/output.mk
 
 # ====================================================================================
@@ -28,8 +28,8 @@ include build/makelib/golang.mk
 # ====================================================================================
 # Setup Helm
 
-HELM_BASE_URL = https://charts.upbound.io
-HELM_S3_BUCKET = upbound.charts
+HELM_BASE_URL = https://charts.crossplane.io
+HELM_S3_BUCKET = crossplane.charts
 HELM_CHARTS = crossplane
 HELM_CHART_LINT_ARGS_crossplane = --set nameOverride='',imagePullSecrets=''
 include build/makelib/helm.mk
@@ -42,7 +42,7 @@ include build/makelib/kubebuilder.mk
 # ====================================================================================
 # Setup Images
 
-DOCKER_REGISTRY = upbound
+DOCKER_REGISTRY = crossplane
 IMAGES = crossplane
 include build/makelib/image.mk
 
