@@ -17,35 +17,24 @@ limitations under the License.
 package mysql
 
 import (
-	"testing"
-
-	awsdbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/database/v1alpha1"
-	mysqlv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
 	. "github.com/onsi/gomega"
+	"testing"
 )
 
-func TestTranslateToRDSInstance(t *testing.T) {
+func TestValidEngineVersion(t *testing.T) {
 	g := NewGomegaWithT(t)
 
-	// no value set on the abstract spec, no error returned and existing value on concrete spec should be maintained
-	instanceSpec := mysqlv1alpha1.MySQLInstanceSpec{}
-	rdsSpec := &awsdbv1alpha1.RDSInstanceSpec{EngineVersion: "5.6.29"}
-	err := translateToRDSInstance(instanceSpec, rdsSpec)
-	g.Expect(err).NotTo(HaveOccurred())
-	expectedCloudsqlInstanceSpec := &awsdbv1alpha1.RDSInstanceSpec{EngineVersion: "5.6.29"}
-	g.Expect(expectedCloudsqlInstanceSpec).To(Equal(rdsSpec))
+	valid := func(class, instance, expected string) {
+		v, err := validateEngineVersion(class, instance)
+		g.Expect(v).To(Equal(expected))
+		g.Expect(err).NotTo(HaveOccurred())
+	}
+	valid("", "", "")
+	valid("5.6", "", "5.6")
+	valid("", "5.7", "5.7")
+	valid("5.6.45", "5.6", "5.6.45")
 
-	// valid value on the abstract spec, no error returned and new (translated) value should be set on concrete spec
-	instanceSpec = mysqlv1alpha1.MySQLInstanceSpec{EngineVersion: "5.7"}
-	rdsSpec = &awsdbv1alpha1.RDSInstanceSpec{EngineVersion: "5.6.29"}
-	err = translateToRDSInstance(instanceSpec, rdsSpec)
-	g.Expect(err).NotTo(HaveOccurred())
-	expectedCloudsqlInstanceSpec = &awsdbv1alpha1.RDSInstanceSpec{EngineVersion: "5.7.21"}
-	g.Expect(expectedCloudsqlInstanceSpec).To(Equal(rdsSpec))
-
-	// invalid value on the abstract spec, should return error
-	instanceSpec = mysqlv1alpha1.MySQLInstanceSpec{EngineVersion: "badVersion"}
-	rdsSpec = &awsdbv1alpha1.RDSInstanceSpec{}
-	err = translateToRDSInstance(instanceSpec, rdsSpec)
-	g.Expect(err).To(HaveOccurred())
+	v, err := validateEngineVersion("5.6", "5.7")
+	g.Expect(v).To(BeEmpty())
+	g.Expect(err).To(And(HaveOccurred(), MatchError("invalid class: [5.6], instance: [5.7] values combination")))
 }

@@ -69,6 +69,7 @@ func NewClient(config *aws.Config) Client {
 // CreateInstance creates RDS Instance with provided Specification
 func (r *RDSClient) CreateInstance(name, password string, spec *v1alpha1.RDSInstanceSpec) (*Instance, error) {
 	input := CreateDBInstanceInput(name, password, spec)
+
 	output, err := r.rds.CreateDBInstanceRequest(input).Send()
 	if err != nil {
 		return nil, err

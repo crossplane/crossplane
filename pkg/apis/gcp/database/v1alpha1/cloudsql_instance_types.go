@@ -166,12 +166,3 @@ func (c *CloudsqlInstance) SetBound(state bool) {
 		c.Status.Phase = corev1alpha1.BindingStateUnbound
 	}
 }
-
-// ValidVersionValues returns the valid set of engine version values.
-func ValidVersionValues() map[string]string {
-	return map[string]string{
-		"5.5": "MYSQL_5_5",
-		"5.6": "MYSQL_5_6",
-		"5.7": "MYSQL_5_7",
-	}
-}

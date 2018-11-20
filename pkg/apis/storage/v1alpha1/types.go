@@ -32,7 +32,7 @@ type MySQLInstanceSpec struct {
 	Selector    metav1.LabelSelector    `json:"selector,omitempty"`
 
 	// mysql instance properties
-	EngineVersion string `json:"engineVersion,omitempty"`
+	EngineVersion string `json:"engineVersion"`
 }
 
 // MySQLInstanceClaimStatus

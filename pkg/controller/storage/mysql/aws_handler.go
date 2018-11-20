@@ -18,6 +18,7 @@ package mysql
 
 import (
 	"fmt"
+	"strings"
 
 	awsdbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/database/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
@@ -48,8 +49,9 @@ func (h *RDSInstanceHandler) provision(class *corev1alpha1.ResourceClass, instan
 	rdsInstanceSpec.Engine = "mysql"
 	rdsInstanceName := fmt.Sprintf("%s-%s", rdsInstanceSpec.Engine, instance.UID)
 
-	// translate mysql spec fields to RDSInstance instance spec
-	if err := translateToRDSInstance(instance.Spec, rdsInstanceSpec); err != nil {
+	// validate engine version value (if needed)
+	var err error
+	if rdsInstanceSpec.EngineVersion, err = validateEngineVersion(instance.Spec.EngineVersion, rdsInstanceSpec.EngineVersion); err != nil {
 		return nil, err
 	}
 
@@ -75,7 +77,7 @@ func (h *RDSInstanceHandler) provision(class *corev1alpha1.ResourceClass, instan
 		Spec: *rdsInstanceSpec,
 	}
 
-	err := c.Create(ctx, rdsInstance)
+	err = c.Create(ctx, rdsInstance)
 	return rdsInstance, err
 }
 
@@ -101,17 +103,22 @@ func (h RDSInstanceHandler) setBindStatus(name types.NamespacedName, c client.Cl
 	return c.Update(ctx, rdsInstance)
 }
 
-func translateToRDSInstance(instanceSpec mysqlv1alpha1.MySQLInstanceSpec, rdsSpec *awsdbv1alpha1.RDSInstanceSpec) error {
-	if instanceSpec.EngineVersion != "" {
-		// the user has specified an engine version on the abstract spec, check if it's valid
-		version, ok := awsdbv1alpha1.ValidVersionValues()[instanceSpec.EngineVersion]
-		if !ok {
-			return fmt.Errorf("invalid engine version %s", instanceSpec.EngineVersion)
-		}
-
-		// specified engine version on the abstract instance spec is valid, set it on the concrete spec
-		rdsSpec.EngineVersion = version
+// validateEngineVersion compares class and instance engine values and returns an engine value or error
+// if class values is empty - instance value returned (could be an empty string),
+// otherwise if instance value is not a prefix of the class value - return an error
+// else return class value
+// Examples:
+// class: "", instance: "" - result: ""
+// class: 5.6, instance: "" - result: 5.6
+// class: "", instance: 5.7 - result: 5.7
+// class: 5.6.45, instance 5.6 - result: 5.6.45
+// class: 5.6, instance 5.7 - result error
+func validateEngineVersion(class, instance string) (string, error) {
+	if class == "" {
+		return instance, nil
 	}
-
-	return nil
+	if strings.HasPrefix(class, instance) {
+		return class, nil
+	}
+	return "", fmt.Errorf("invalid class: [%s], instance: [%s] values combination", class, instance)
 }

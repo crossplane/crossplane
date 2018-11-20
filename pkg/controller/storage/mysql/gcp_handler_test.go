@@ -19,33 +19,11 @@ package mysql
 import (
 	"testing"
 
-	gcpdbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/database/v1alpha1"
-	mysqlv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
 	. "github.com/onsi/gomega"
 )
 
-func TestTranslateToCloudSQL(t *testing.T) {
+func TestTranslateVersion(t *testing.T) {
 	g := NewGomegaWithT(t)
-
-	// no value set on the abstract spec, no error returned and existing value on concrete spec should be maintained
-	instanceSpec := mysqlv1alpha1.MySQLInstanceSpec{}
-	cloudsqlSpec := &gcpdbv1alpha1.CloudsqlInstanceSpec{DatabaseVersion: "MYSQL_5_6"}
-	err := translateToCloudSQL(instanceSpec, cloudsqlSpec)
-	g.Expect(err).NotTo(HaveOccurred())
-	expectedCloudsqlInstanceSpec := &gcpdbv1alpha1.CloudsqlInstanceSpec{DatabaseVersion: "MYSQL_5_6"}
-	g.Expect(expectedCloudsqlInstanceSpec).To(Equal(cloudsqlSpec))
-
-	// valid value on the abstract spec, no error returned and new (translated) value should be set on concrete spec
-	instanceSpec = mysqlv1alpha1.MySQLInstanceSpec{EngineVersion: "5.7"}
-	cloudsqlSpec = &gcpdbv1alpha1.CloudsqlInstanceSpec{DatabaseVersion: "MYSQL_5_6"}
-	err = translateToCloudSQL(instanceSpec, cloudsqlSpec)
-	g.Expect(err).NotTo(HaveOccurred())
-	expectedCloudsqlInstanceSpec = &gcpdbv1alpha1.CloudsqlInstanceSpec{DatabaseVersion: "MYSQL_5_7"}
-	g.Expect(expectedCloudsqlInstanceSpec).To(Equal(cloudsqlSpec))
-
-	// invalid value on the abstract spec, should return error
-	instanceSpec = mysqlv1alpha1.MySQLInstanceSpec{EngineVersion: "badVersion"}
-	cloudsqlSpec = &gcpdbv1alpha1.CloudsqlInstanceSpec{}
-	err = translateToCloudSQL(instanceSpec, cloudsqlSpec)
-	g.Expect(err).To(HaveOccurred())
+	g.Expect(translateVersion("5.6")).To(Equal("MYSQL_5_6"))
+	g.Expect(translateVersion("foo.bar.baz")).To(Equal("MYSQL_foo_bar_baz"))
 }
