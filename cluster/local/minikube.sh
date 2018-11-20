@@ -11,7 +11,7 @@ projectdir="${scriptdir}/../.."
 eval $(make --no-print-directory -C ${scriptdir}/../.. build.vars)
 
 BUILD_IMAGE="${BUILD_REGISTRY}/${PROJECT_NAME}-amd64"
-MINIKUBE_IMAGE="upbound/${PROJECT_NAME}:master"
+MINIKUBE_IMAGE="${DOCKER_REGISTRY}/${PROJECT_NAME}:master"
 DEFAULT_NAMESPACE="crossplane-system"
 
 function wait_for_ssh() {
@@ -93,7 +93,7 @@ case "${1:-}" in
   helm-install)
     echo " copying image for helm"
     helm_tag="$(cat _output/version)"
-    copy_image_to_cluster ${BUILD_IMAGE} "upbound/${PROJECT_NAME}:${helm_tag}"
+    copy_image_to_cluster ${BUILD_IMAGE} "${DOCKER_REGISTRY}/${PROJECT_NAME}:${helm_tag}"
 
     [ "$2" ] && ns=$2 || ns="${DEFAULT_NAMESPACE}"
     echo "installing helm package(s) into \"$ns\" namespace"
