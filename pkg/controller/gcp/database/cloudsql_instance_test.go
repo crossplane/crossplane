@@ -103,12 +103,12 @@ func TestReconcile(t *testing.T) {
 
 	// verify that the CRD status was updated with details about the external CloudSQL instance and that the
 	// CRD conditions show the transition from creating to running
-	expectedInstanceName := fmt.Sprintf("test-db-instance-%s", instance.UID)
+	expectedInstanceName := fmt.Sprintf("cloudsql-%s", instance.UID)
 	expectedStatus := dbv1alpha1.CloudsqlInstanceStatus{
 		Message:      "Cloud SQL instance test-db-instance is running",
 		State:        dbv1alpha1.StateRunnable,
-		ProviderID:   fmt.Sprintf("https://www.googleapis.com/sql/v1beta4/projects/%s/instances/test-db-instance-%s", providerProject, instance.UID),
-		Endpoint:     fmt.Sprintf("%s:us-west2:%s", providerProject, expectedInstanceName),
+		ProviderID:   fmt.Sprintf("https://www.googleapis.com/sql/v1beta4/projects/%s/instances/cloudsql-%s", providerProject, instance.UID),
+		Endpoint:     "10.0.0.1",
 		InstanceName: expectedInstanceName,
 		ConditionedStatus: corev1alpha1.ConditionedStatus{
 			Conditions: []corev1alpha1.Condition{

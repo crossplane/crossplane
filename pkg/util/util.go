@@ -22,6 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/kubernetes"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
@@ -72,6 +73,36 @@ func ObjectToOwnerReference(r *corev1.ObjectReference) *metav1.OwnerReference {
 	}
 }
 
+// ApplyDeployment creates or updates existing deployment
+func ApplyDeployment(c kubernetes.Interface, d *appsv1.Deployment) (*appsv1.Deployment, error) {
+	dd, err := c.AppsV1().Deployments(d.Namespace).Create(d)
+	if err != nil {
+		if errors.IsAlreadyExists(err) {
+			return c.AppsV1().Deployments(d.Namespace).Update(d)
+		}
+		return nil, err
+	}
+	return dd, nil
+}
+
+// ApplyService creates or updates existing service
+func ApplyService(c kubernetes.Interface, s *corev1.Service) (*corev1.Service, error) {
+	ss, err := c.CoreV1().Services(s.Namespace).Create(s)
+	if err != nil {
+		if errors.IsAlreadyExists(err) {
+			// retrieve the existing server to grab `ClusterIP` value
+			ss, err := c.CoreV1().Services(s.Namespace).Get(s.Name, metav1.GetOptions{})
+			if err != nil {
+				return nil, err
+			}
+			s.Spec.ClusterIP = ss.Spec.ClusterIP
+			return c.CoreV1().Services(s.Namespace).Update(s)
+		}
+		return nil, err
+	}
+	return ss, nil
+}
+
 // ApplySecret creates or updates if exist kubernetes secret
 func ApplySecret(c kubernetes.Interface, s *corev1.Secret) (*corev1.Secret, error) {
 	_, err := c.CoreV1().Secrets(s.Namespace).Get(s.Name, metav1.GetOptions{})
@@ -98,6 +129,17 @@ func SecretData(client kubernetes.Interface, namespace string, ks corev1.SecretK
 	}
 
 	return data, nil
+}
+
+// LatestDeploymentCondition
+func LatestDeploymentCondition(conditions []appsv1.DeploymentCondition) appsv1.DeploymentCondition {
+	var latest appsv1.DeploymentCondition
+	for _, c := range conditions {
+		if c.Status == corev1.ConditionTrue && c.LastUpdateTime.After(latest.LastUpdateTime.Time) {
+			latest = c
+		}
+	}
+	return latest
 }
 
 // IfEmptyString test input string and if empty, i.e = "", return a replacement string

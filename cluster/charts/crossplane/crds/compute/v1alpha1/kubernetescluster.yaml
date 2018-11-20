@@ -33,6 +33,8 @@ spec:
           type: object
         status:
           properties:
+            credentialsSecret:
+              type: object
             provisioner:
               type: string
           type: object

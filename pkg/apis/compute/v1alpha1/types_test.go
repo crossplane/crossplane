@@ -109,6 +109,10 @@ func TestWorkload(t *testing.T) {
 	created := &Workload{
 		ObjectMeta: om,
 		Spec: WorkloadSpec{
+			TargetCluster: corev1.ObjectReference{
+				Namespace: "default",
+				Name:      "test-cluster",
+			},
 			TargetNamespace: namespace,
 			TargetDeployment: &appsv1.Deployment{
 				ObjectMeta: om,
@@ -116,11 +120,6 @@ func TestWorkload(t *testing.T) {
 			TargetService: &corev1.Service{
 				ObjectMeta: om,
 			},
-			ClassRef: &corev1.ObjectReference{
-				Name:      "test-class",
-				Namespace: "test-system",
-			},
-			ClusterVersion: "1.0.1",
 			Resources: []ResourceReference{
 				{
 					ObjectReference: corev1.ObjectReference{Name: "mysql-database"},
@@ -143,10 +142,6 @@ func TestWorkload(t *testing.T) {
 	// Test Updating the Labels
 	updated := fetched.DeepCopy()
 	updated.Labels = map[string]string{"hello": "world"}
-	updated.Spec.ResourceRef = &corev1.ObjectReference{
-		Name:      "test-class",
-		Namespace: "test-resource",
-	}
 	g.Expect(c.Update(ctx, updated)).NotTo(HaveOccurred())
 
 	g.Expect(c.Get(ctx, key, fetched)).NotTo(HaveOccurred())

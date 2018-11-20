@@ -22,12 +22,6 @@ spec:
           type: object
         spec:
           properties:
-            classReference:
-              type: object
-            clusterVersion:
-              type: string
-            resourceName:
-              type: object
             resources:
               items:
                 properties:
@@ -51,7 +45,7 @@ spec:
                 - secretName
                 type: object
               type: array
-            selector:
+            targetCluster:
               type: object
             targetDeployment:
               type: object
@@ -60,11 +54,19 @@ spec:
             targetService:
               type: object
           required:
+          - targetCluster
+          - targetNamespace
+          - targetDeployment
+          - targetService
           - resources
           type: object
         status:
           properties:
-            provisioner:
+            deployment:
+              type: object
+            service:
+              type: object
+            state:
               type: string
           type: object
   version: v1alpha1
