@@ -1,3 +1,8 @@
+---
+title: Quick Start Guides
+weight: 110
+indent: true
+---
 # Crossplane Quickstart
 
 ## Install Crossplane
