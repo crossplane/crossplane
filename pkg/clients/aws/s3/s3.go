@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/upbound/conductor/pkg/util"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/awserr"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
@@ -15,17 +17,19 @@ import (
 )
 
 const (
-	bucketUser      = "conductor-bucket-%s"
-	bucketObjectARN = "arn:aws:s3:::%s/*"
+	bucketUser           = "conductor-bucket-%s"
+	bucketObjectARN      = "arn:aws:s3:::%s"
+	maxIAMUsernameLength = 64
 )
 
 // Service defines S3 Client operations
 type Service interface {
-	Create(spec *v1alpha1.S3BucketSpec) (*iam.AccessKey, error)
+	CreateBucket(spec *v1alpha1.S3BucketSpec) error
+	CreateUser(username *string, spec *v1alpha1.S3BucketSpec) (*iam.AccessKey, error)
 	UpdateBucketACL(spec *v1alpha1.S3BucketSpec) error
 	UpdateVersioning(spec *v1alpha1.S3BucketSpec) error
-	UpdatePolicyDocument(spec *v1alpha1.S3BucketSpec) error
-	Delete(spec *v1alpha1.S3BucketSpec) error
+	UpdatePolicyDocument(username *string, spec *v1alpha1.S3BucketSpec) error
+	Delete(bucket *v1alpha1.S3Bucket) error
 }
 
 // Client implements S3 Client
@@ -40,30 +44,40 @@ func NewClient(config *aws.Config) Service {
 }
 
 // Create creates s3 bucket with provided specification, and returns access keys per localPermissions
-func (c *Client) Create(spec *v1alpha1.S3BucketSpec) (*iam.AccessKey, error) {
+func (c *Client) CreateBucket(spec *v1alpha1.S3BucketSpec) error {
 	input := CreateBucketInput(spec)
 	_, err := c.s3.CreateBucketRequest(input).Send()
 	if err != nil {
 		if isErrorAlreadyExists(err) {
 			err = c.UpdateBucketACL(spec)
 			if err != nil {
-				return nil, err
+				return err
 			}
 		} else {
-			return nil, err
+			return err
 		}
 	}
 
 	err = c.UpdateVersioning(spec)
 	if err != nil {
-		return nil, fmt.Errorf("Could not update versioning, %s", err.Error())
+		return fmt.Errorf("could not update versioning, %s", err.Error())
 	}
 
+	return nil
+}
+
+// CreateUser - Create as user to access bucket per permissions in BucketSpec
+func (c *Client) CreateUser(username *string, spec *v1alpha1.S3BucketSpec) (*iam.AccessKey, error) {
 	policyDocument, err := getPolicyDocument(spec)
 	if err != nil {
-		return nil, fmt.Errorf("Could not update policy, %s", err.Error())
+		return nil, fmt.Errorf("could not update policy, %s", err.Error())
 	}
-	return c.iamClient.Create(getBucketUsername(spec), policyDocument)
+	accessKeys, err := c.iamClient.Create(username, policyDocument)
+	if err != nil {
+		return nil, fmt.Errorf("could not create user %s", err)
+	}
+
+	return accessKeys, nil
 }
 
 // UpdateBucketACL - Updated CannedACL on Bucket
@@ -73,11 +87,7 @@ func (c *Client) UpdateBucketACL(spec *v1alpha1.S3BucketSpec) error {
 		Bucket: &spec.Name,
 	}
 	_, err := c.s3.PutBucketAclRequest(input).Send()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 // UpdateVersioning configuration for Bucket
@@ -91,40 +101,44 @@ func (c *Client) UpdateVersioning(spec *v1alpha1.S3BucketSpec) error {
 }
 
 // UpdatePolicyDocument based on localPermissions
-func (c *Client) UpdatePolicyDocument(spec *v1alpha1.S3BucketSpec) error {
+func (c *Client) UpdatePolicyDocument(username *string, spec *v1alpha1.S3BucketSpec) error {
 	policyDocument, err := getPolicyDocument(spec)
 	if err != nil {
-		return fmt.Errorf("Could not generate policy, %s", err.Error())
+		return fmt.Errorf("could not generate policy, %s", err.Error())
 	}
-	err = c.iamClient.UpdatePolicy(getBucketUsername(spec), policyDocument)
+	err = c.iamClient.UpdatePolicy(username, policyDocument)
 	if err != nil {
-		return fmt.Errorf("Could not update policy, %s", err.Error())
+		return fmt.Errorf("could not update policy, %s", err.Error())
 	}
 	return nil
 }
 
-// DeleteBucket deletes s3 bucket, and related IAM
-func (c *Client) Delete(spec *v1alpha1.S3BucketSpec) error {
+// Delete deletes s3 bucket, and related IAM
+func (c *Client) Delete(bucket *v1alpha1.S3Bucket) error {
 	input := &s3.DeleteBucketInput{
-		Bucket: &spec.Name,
+		Bucket: &bucket.Spec.Name,
 	}
 	_, err := c.s3.DeleteBucketRequest(input).Send()
 	if err != nil && !isErrorNotFound(err) {
 		return err
 	}
 
-	return c.iamClient.Delete(getBucketUsername(spec))
+	if bucket.Status.IAMUsername != nil {
+		return c.iamClient.Delete(bucket.Status.IAMUsername)
+	}
+
+	return nil
 }
 
-// IsErrorAlreadyExists helper function to test for ErrCodeEntityAlreadyExistsException error
+// isErrorAlreadyExists helper function to test for ErrCodeBucketAlreadyOwnedByYou error
 func isErrorAlreadyExists(err error) bool {
-	if bucketErr, ok := err.(awserr.Error); ok && bucketErr.Code() == s3.ErrCodeBucketAlreadyExists {
+	if bucketErr, ok := err.(awserr.Error); ok && bucketErr.Code() == s3.ErrCodeBucketAlreadyOwnedByYou {
 		return true
 	}
 	return false
 }
 
-// IsErrorNotFound helper function to test for ErrCodeNoSuchEntityException error
+// isErrorNotFound helper function to test for ErrCodeNoSuchEntityException error
 func isErrorNotFound(err error) bool {
 	if bucketErr, ok := err.(awserr.Error); ok && bucketErr.Code() == s3.ErrCodeNoSuchBucket {
 		return true
@@ -141,31 +155,32 @@ func CreateBucketInput(spec *v1alpha1.S3BucketSpec) *s3.CreateBucketInput {
 	}
 }
 
-func getBucketUsername(spec *v1alpha1.S3BucketSpec) *string {
-	username := fmt.Sprintf(bucketUser, spec.Name)
+// GenerateBucketUsername - Genereates a username that is within AWS size specifications, and adds a random suffix
+func GenerateBucketUsername(spec *v1alpha1.S3BucketSpec) *string {
+	username := util.GenerateNameMaxLength(fmt.Sprintf(bucketUser, spec.Name), maxIAMUsernameLength)
 	return &username
 }
 
 func getPolicyDocument(spec *v1alpha1.S3BucketSpec) (*string, error) {
 	bucketARN := fmt.Sprintf(bucketObjectARN, spec.Name)
 	read := iamc.StatementEntry{
-		Sid:    "conductor-read",
+		Sid:    "conductorRead",
 		Effect: "Allow",
 		Action: []string{
 			"s3:Get*",
 			"s3:List*",
 		},
-		Resource: bucketARN,
+		Resource: []string{bucketARN, bucketARN + "/*"},
 	}
 
 	write := iamc.StatementEntry{
-		Sid:    "conductor-write",
+		Sid:    "conductorWrite",
 		Effect: "Allow",
 		Action: []string{
 			"s3:DeleteObject",
 			"s3:Put*",
 		},
-		Resource: bucketARN,
+		Resource: []string{bucketARN + "/*"},
 	}
 
 	policy := iamc.PolicyDocument{
@@ -174,19 +189,18 @@ func getPolicyDocument(spec *v1alpha1.S3BucketSpec) (*string, error) {
 	}
 
 	for _, perm := range spec.LocalPermissions {
-		localPerm := storage.LocalPermissionType(perm)
-		if localPerm == storage.ReadPermission {
+		if perm == storage.ReadPermission {
 			policy.Statement = append(policy.Statement, read)
-		} else if localPerm == storage.WritePermission {
+		} else if perm == storage.WritePermission {
 			policy.Statement = append(policy.Statement, write)
 		} else {
-			return nil, fmt.Errorf("Unknown permission, %s", perm)
+			return nil, fmt.Errorf("unknown permission, %s", perm)
 		}
 	}
 
 	b, err := json.Marshal(&policy)
 	if err != nil {
-		return nil, fmt.Errorf("Error marshaling policy, %s", err.Error())
+		return nil, fmt.Errorf("error marshaling policy, %s", err.Error())
 	}
 
 	policyString := string(b)

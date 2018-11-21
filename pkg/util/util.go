@@ -50,6 +50,14 @@ func GenerateName(base string) string {
 	return fmt.Sprintf("%s%s", base, rand.String(randomLength))
 }
 
+func GenerateNameMaxLength(base string, maxLength int) string {
+	baseMaxLength := maxLength - randomLength
+	if len(base) > baseMaxLength {
+		base = base[:baseMaxLength]
+	}
+	return fmt.Sprintf("%s%s", base, rand.String(randomLength))
+}
+
 // ObjectReference from provided ObjectMeta, apiVersion and kind
 func ObjectReference(o metav1.ObjectMeta, apiVersion, kind string) *corev1.ObjectReference {
 	return &corev1.ObjectReference{

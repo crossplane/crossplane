@@ -20,8 +20,10 @@ import (
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	storagev1alpha1 "github.com/upbound/conductor/pkg/apis/storage/v1alpha1"
 	"github.com/upbound/conductor/pkg/util"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,28 +32,36 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-const (
-	Group                  = "storage.aws.conductor.io"
-	Version                = "v1alpha1"
-	APIVersion             = Group + "/" + Version
-	S3BucketKind           = "s3bucket"
-	S3BucketKindAPIVersion = S3BucketKind + "." + APIVersion
+var (
+	predefinedACLMap = map[storagev1alpha1.PredefinedACL]s3.ObjectCannedACL{
+		storagev1alpha1.ACLPrivate:           s3.ObjectCannedACLPrivate,
+		storagev1alpha1.ACLPublicRead:        s3.ObjectCannedACLPublicRead,
+		storagev1alpha1.ACLPublicReadWrite:   s3.ObjectCannedACLPublicReadWrite,
+		storagev1alpha1.ACLAuthenticatedRead: s3.ObjectCannedACLAuthenticatedRead,
+	}
 )
+
+func GetALCMap() map[storagev1alpha1.PredefinedACL]s3.ObjectCannedACL {
+	return predefinedACLMap
+}
 
 // S3BucketSpec defines the desired state of S3Bucket
 type S3BucketSpec struct {
+	// +kubebuilder:validation:MaxLength=63
+	// +kubebuilder:validation:MinLength=3
 	Name   string `json:"name,omitempty"`
-	Region string `json:"region,omitempty"`
-	// CannedACL is one of:
-	// private, public-read, public-read-write, authenticated-read bucket-owner-read
-	// bucket-owner-full-control, aws-exec-read, log-delivery-write
-	CannedACL                    string                  `json:"cannedACL,omitempty"`
-	Versioning                   bool                    `json:"versioning"`
+	Region string `json:"region"`
+	// +kubebuilder:validation:Enum=private,public-read,public-read-write,authenticated-read,aws-exec-read,bucket-owner-read,bucket-owner-full-control
+	CannedACL  s3.ObjectCannedACL `json:"cannedACL,omitempty"`
+	Versioning bool               `json:"versioning"`
+	// +kubebuilder:validation:MaxLength=255
+	// +kubebuilder:validation:MinLength=1
 	ConnectionSecretNameOverride string                  `json:"connectionSecretNameOverride,omitempty"`
 	ProviderRef                  v1.LocalObjectReference `json:"providerRef"`
-	LocalPermissions             []string                `json:"localPermissions"`
-	ClaimRef                     *v1.ObjectReference     `json:"claimRef,omitempty"`
-	ClassRef                     *v1.ObjectReference     `json:"classRef,omitempty"`
+	// +kubebuilder:validation:Enum=read,write
+	LocalPermissions []storagev1alpha1.LocalPermissionType `json:"localPermissions,omitempty"`
+	ClaimRef         *v1.ObjectReference                   `json:"claimRef,omitempty"`
+	ClassRef         *v1.ObjectReference                   `json:"classRef,omitempty"`
 	// ReclaimPolicy identifies how to handle the cloud resource after the deletion of this type
 	ReclaimPolicy corev1alpha1.ReclaimPolicy `json:"reclaimPolicy,omitempty"`
 }
@@ -63,18 +73,35 @@ type S3BucketStatus struct {
 	Message             string                  `json:"message,omitempty"`
 	ProviderID          string                  `json:"providerID,omitempty"` // the external ID to identify this resource in the cloud provider
 	ConnectionSecretRef v1.LocalObjectReference `json:"connectionSecretRef,omitempty"`
+	IAMUsername         *string                 `json:"iamUsername,omitempty"`
 }
 
 // NewS3BucketSpec from properties map
 func NewS3BucketSpec(properties map[string]string) *S3BucketSpec {
 	spec := &S3BucketSpec{
-		CannedACL:  string(s3.BucketCannedACLPrivate),
+		CannedACL:  s3.ObjectCannedACLPrivate,
 		Versioning: false,
 	}
 
-	val, ok := properties["predefinedACL"]
+	val, ok := properties["localPermissions"]
 	if ok {
-		spec.CannedACL = val
+		for _, perm := range strings.Split(val, ",") {
+			spec.LocalPermissions = append(spec.LocalPermissions, storagev1alpha1.LocalPermissionType(perm))
+		}
+	}
+
+	val, ok = properties["predefinedACL"]
+	if ok {
+		acl, ok := predefinedACLMap[storagev1alpha1.PredefinedACL(val)]
+		if ok {
+			spec.CannedACL = acl
+		}
+
+	}
+
+	val, ok = properties["s3CannedACL"]
+	if ok {
+		spec.CannedACL = s3.ObjectCannedACL(val)
 	}
 
 	val, ok = properties["versioning"]
@@ -84,14 +111,14 @@ func NewS3BucketSpec(properties map[string]string) *S3BucketSpec {
 		}
 	}
 
-	val, ok = properties["region"]
-	if ok {
-		spec.Region = val
-	}
-
 	val, ok = properties["connectionSecretNameOverride"]
 	if ok {
 		spec.ConnectionSecretNameOverride = val
+	}
+
+	val, ok = properties["region"]
+	if ok {
+		spec.Region = val
 	}
 
 	return spec
@@ -176,8 +203,4 @@ func (r *S3Bucket) SetBound(state bool) {
 	} else {
 		r.Status.Phase = corev1alpha1.BindingStateUnbound
 	}
-}
-
-func init() {
-	SchemeBuilder.Register(&S3Bucket{}, &S3BucketList{})
 }

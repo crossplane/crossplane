@@ -90,9 +90,27 @@ func (c *Client) Delete(username *string) error {
 	if err != nil {
 		return err
 	}
+
+	_, err = c.iam.DetachUserPolicyRequest(&iam.DetachUserPolicyInput{PolicyArn: policyARN, UserName: username}).Send()
+	if err != nil && !isErrorNotFound(err) {
+		return err
+	}
+
 	_, err = c.iam.DeletePolicyRequest(&iam.DeletePolicyInput{PolicyArn: policyARN}).Send()
 	if err != nil && !isErrorNotFound(err) {
 		return err
+	}
+
+	keys, err := c.iam.ListAccessKeysRequest(&iam.ListAccessKeysInput{UserName: username}).Send()
+	if err != nil {
+		return err
+	}
+
+	for _, key := range keys.AccessKeyMetadata {
+		_, err = c.iam.DeleteAccessKeyRequest(&iam.DeleteAccessKeyInput{AccessKeyId: key.AccessKeyId, UserName: username}).Send()
+		if err != nil {
+			return err
+		}
 	}
 
 	_, err = c.iam.DeleteUserRequest(&iam.DeleteUserInput{UserName: username}).Send()
@@ -197,5 +215,5 @@ type StatementEntry struct {
 	Sid      string
 	Effect   string
 	Action   []string
-	Resource string
+	Resource []string
 }

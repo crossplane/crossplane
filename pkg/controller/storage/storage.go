@@ -18,10 +18,12 @@ package storage
 
 import (
 	"github.com/crossplaneio/crossplane/pkg/controller/storage/mysql"
+	"github.com/upbound/conductor/pkg/controller/storage/bucket"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
 func init() {
+	AddToManagerFuncs = append(AddToManagerFuncs, bucket.Add)
 	AddToManagerFuncs = append(AddToManagerFuncs, mysql.Add)
 }
 

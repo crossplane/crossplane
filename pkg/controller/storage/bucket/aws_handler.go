@@ -42,6 +42,16 @@ func (h *S3BucketHandler) find(name types.NamespacedName, c client.Client) (core
 func (h *S3BucketHandler) provision(class *corev1alpha1.ResourceClass, instance *bucketv1alpha1.Bucket, c client.Client) (corev1alpha1.Resource, error) {
 	// construct RDSInstance Spec from class definition
 	bucketSpec := s3Bucketv1alpha1.NewS3BucketSpec(class.Parameters)
+	bucketSpec.Name = instance.Spec.Name
+
+	if instance.Spec.LocalPermissions != nil {
+		bucketSpec.LocalPermissions = instance.Spec.LocalPermissions
+	}
+
+	if instance.Spec.PredefinedACL != nil {
+		bucketSpec.CannedACL = s3Bucketv1alpha1.GetALCMap()[*instance.Spec.PredefinedACL]
+	}
+
 	bucketObjectName := fmt.Sprintf("%s-%s", "bucket", instance.UID)
 
 	// assign provider reference and reclaim policy from the resource class

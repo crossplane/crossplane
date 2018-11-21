@@ -136,7 +136,6 @@ func (r *Reconciler) _provision(instance *bucketv1alpha1.Bucket) (reconcile.Resu
 
 	classRef := instance.Spec.ClassRef
 	if classRef == nil {
-		// TODO: add support for default mysql resource class, until then - fail
 		return r.fail(instance, errorResourceClassNotDefined, "")
 	}
 
@@ -276,9 +275,9 @@ func namespaceNameFromObjectRef(or *v1.ObjectReference) types.NamespacedName {
 // and what is in the Instance.Spec
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	// fetch the CRD instance
-	instance := &bucketv1alpha1.Bucket{}
+	bucket := &bucketv1alpha1.Bucket{}
 
-	err := r.Get(ctx, request.NamespacedName, instance)
+	err := r.Get(ctx, request.NamespacedName, bucket)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Object not found, return.  Created objects are automatically garbage collected.
@@ -289,23 +288,23 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	}
 
 	// Check for deletion
-	if instance.DeletionTimestamp != nil && instance.Status.Condition(corev1alpha1.Deleting) == nil {
-		return r.delete(instance)
+	if bucket.DeletionTimestamp != nil && bucket.Status.Condition(corev1alpha1.Deleting) == nil {
+		return r.delete(bucket)
 	}
 
 	// Add finalizer
-	if !util.HasFinalizer(&instance.ObjectMeta, finalizer) {
-		util.AddFinalizer(&instance.ObjectMeta, finalizer)
-		if err := r.Update(ctx, instance); err != nil {
+	if !util.HasFinalizer(&bucket.ObjectMeta, finalizer) {
+		util.AddFinalizer(&bucket.ObjectMeta, finalizer)
+		if err := r.Update(ctx, bucket); err != nil {
 			return resultRequeue, err
 		}
 	}
 
 	// check if instance reference is set, if not - create new instance
-	if instance.Spec.ResourceRef == nil {
-		return r.provision(instance)
+	if bucket.Spec.ResourceRef == nil {
+		return r.provision(bucket)
 	}
 
 	// bind to the resource
-	return r.bind(instance)
+	return r.bind(bucket)
 }

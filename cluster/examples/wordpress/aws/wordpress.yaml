@@ -4,10 +4,15 @@ metadata:
   name: demo-bucket
 spec:
   name: wordpress-demo-e401ddfa-4729-4b72-bcef-94922203b547
-  predefinedACL: private
+  cannedACL: public-read
   versioning: false
+  region: us-west-1
+  localPermissions:
+    - read
+    - write
   providerRef:
     name: demo-aws-provider
+  reclaimPolicy: Delete
 ---
 apiVersion: database.aws.crossplane.io/v1alpha1
 kind: RDSInstance

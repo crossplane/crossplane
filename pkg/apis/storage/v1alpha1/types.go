@@ -78,7 +78,7 @@ func (m *MySQLInstance) OwnerReference() metav1.OwnerReference {
 	return *util.ObjectToOwnerReference(m.ObjectReference())
 }
 
-//LocalPermissionType - Base type for LocalPermissions
+// LocalPermissionType - Base type for LocalPermissions
 type LocalPermissionType string
 
 const (
@@ -88,6 +88,15 @@ const (
 	WritePermission LocalPermissionType = "write"
 )
 
+type PredefinedACL string
+
+const (
+	ACLPrivate           PredefinedACL = "private"
+	ACLPublicRead        PredefinedACL = "publicRead"
+	ACLPublicReadWrite   PredefinedACL = "publicReadWrite"
+	ACLAuthenticatedRead PredefinedACL = "authenticatedRead"
+)
+
 // BucketSpec defines the desired state of Bucket
 type BucketSpec struct {
 	ClassRef    *corev1.ObjectReference `json:"classReference,omitempty"`
@@ -95,16 +104,17 @@ type BucketSpec struct {
 	Selector    metav1.LabelSelector    `json:"selector,omitempty"`
 
 	// Bucket properties
+	// +kubebuilder:validation:MaxLength=63
+	// +kubebuilder:validation:MinLength=3
 	Name string `json:"name,omitempty"`
-	// PredefinedACL is one of
-	// one of: private, publicRead, publicReadWrite(*), AuthenticatedRead(*)
-	// * Not available on Azure
-	PredefinedACL string `json:"predefinedACL,omitempty"`
+	// +kubebuilder:validation:Enum=private,publicRead,publicReadWrite,authenticatedRead
+	PredefinedACL *PredefinedACL `json:"predefinedACL,omitempty"`
 
 	// LocalPermissions are the permissions granted on the bucket for the provider specific
 	// bucket service account.
 	// List of permissions for the local account read, write
-	LocalPermissions []string `json:"localPermissions,omitempty"`
+	// +kubebuilder:validation:Enum=read,write
+	LocalPermissions []LocalPermissionType `json:"localPermissions,omitempty"`
 }
 
 // BucketClaimStatus

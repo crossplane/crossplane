@@ -46,6 +46,6 @@ var (
 )
 
 func init() {
-	SchemeBuilder.Register(&MySQLInstance{}, &MySQLInstanceList{})
 	SchemeBuilder.Register(&Bucket{}, &BucketList{})
+	SchemeBuilder.Register(&MySQLInstance{}, &MySQLInstanceList{})
 }

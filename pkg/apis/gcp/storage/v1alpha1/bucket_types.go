@@ -79,7 +79,3 @@ type GCPBucketList struct {
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []GCPBucket `json:"items"`
 }
-
-func init() {
-	SchemeBuilder.Register(&GCPBucket{}, &GCPBucketList{})
-}

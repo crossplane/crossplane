@@ -1,10 +1,28 @@
+apiVersion: core.crossplane.io/v1alpha1
+kind: ResourceClass
+metadata:
+  name: standard
+  namespace: conductor-system
+parameters:
+  versioning: "false"
+  predefinedACL: private
+  region: us-west-1
+  localPermissions: read,write
+provisioner: s3bucket.storage.aws.conductor.io/v1alpha1
+providerRef:
+  name: aws-provider
+reclaimPolicy: Delete
+---
 apiVersion: storage.crossplane.io/v1alpha1
 kind: Bucket
 metadata:
-  name: demo-bucket
+  name: demo-bucket-2
 spec:
   name: wordpress-demo-e401ddfa-4729-4b72-bcef-94922203b547
   predefinedACL: private
+  classReference:
+    name: standard-bucket
+    namespace: conductor-system
 ---
 apiVersion: storage.crossplane.io/v1alpha1
 kind: MySQLInstance

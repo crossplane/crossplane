@@ -20,6 +20,8 @@ limitations under the License.
 package v1alpha1
 
 import (
+	storagev1alpha1 "github.com/upbound/conductor/pkg/apis/storage/v1alpha1"
+	v1 "k8s.io/api/core/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -28,7 +30,7 @@ func (in *S3Bucket) DeepCopyInto(out *S3Bucket) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
 	in.ObjectMeta.DeepCopyInto(&out.ObjectMeta)
-	out.Spec = in.Spec
+	in.Spec.DeepCopyInto(&out.Spec)
 	in.Status.DeepCopyInto(&out.Status)
 	return
 }
@@ -88,6 +90,21 @@ func (in *S3BucketList) DeepCopyObject() runtime.Object {
 func (in *S3BucketSpec) DeepCopyInto(out *S3BucketSpec) {
 	*out = *in
 	out.ProviderRef = in.ProviderRef
+	if in.LocalPermissions != nil {
+		in, out := &in.LocalPermissions, &out.LocalPermissions
+		*out = make([]storagev1alpha1.LocalPermissionType, len(*in))
+		copy(*out, *in)
+	}
+	if in.ClaimRef != nil {
+		in, out := &in.ClaimRef, &out.ClaimRef
+		*out = new(v1.ObjectReference)
+		**out = **in
+	}
+	if in.ClassRef != nil {
+		in, out := &in.ClassRef, &out.ClassRef
+		*out = new(v1.ObjectReference)
+		**out = **in
+	}
 	return
 }
 
@@ -107,6 +124,11 @@ func (in *S3BucketStatus) DeepCopyInto(out *S3BucketStatus) {
 	in.ConditionedStatus.DeepCopyInto(&out.ConditionedStatus)
 	out.BindingStatusPhase = in.BindingStatusPhase
 	out.ConnectionSecretRef = in.ConnectionSecretRef
+	if in.IAMUsername != nil {
+		in, out := &in.IAMUsername, &out.IAMUsername
+		*out = new(string)
+		**out = **in
+	}
 	return
 }
 

@@ -26,11 +26,21 @@ spec:
               type: object
             localPermissions:
               items:
+                enum:
+                - read
+                - write
                 type: string
               type: array
             name:
+              maxLength: 63
+              minLength: 3
               type: string
             predefinedACL:
+              enum:
+              - private
+              - publicRead
+              - publicReadWrite
+              - authenticatedRead
               type: string
             resourceName:
               type: object

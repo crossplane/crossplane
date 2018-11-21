@@ -117,9 +117,14 @@ func (in *BucketSpec) DeepCopyInto(out *BucketSpec) {
 		**out = **in
 	}
 	in.Selector.DeepCopyInto(&out.Selector)
+	if in.PredefinedACL != nil {
+		in, out := &in.PredefinedACL, &out.PredefinedACL
+		*out = new(PredefinedACL)
+		**out = **in
+	}
 	if in.LocalPermissions != nil {
 		in, out := &in.LocalPermissions, &out.LocalPermissions
-		*out = make([]string, len(*in))
+		*out = make([]LocalPermissionType, len(*in))
 		copy(*out, *in)
 	}
 	return

@@ -19,14 +19,14 @@ package s3
 import (
 	"context"
 	"fmt"
-	"github.com/aws/aws-sdk-go-v2/service/iam"
-	"github.com/upbound/conductor/pkg/clients/aws/s3"
 	"log"
 
+	"github.com/aws/aws-sdk-go-v2/service/iam"
 	bucketv1alpha1 "github.com/upbound/conductor/pkg/apis/aws/storage/v1alpha1"
 	awsv1alpha1 "github.com/upbound/conductor/pkg/apis/aws/v1alpha1"
 	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
 	"github.com/upbound/conductor/pkg/clients/aws"
+	"github.com/upbound/conductor/pkg/clients/aws/s3"
 	"github.com/upbound/conductor/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -48,7 +48,7 @@ const (
 	finalizer      = "finalizer." + controllerName
 
 	errorResourceClient = "Failed to create s3 client"
-	errorCreateResource = "Failed to crate resource"
+	errorCreateResource = "Failed to create resource"
 	errorSyncResource   = "Failed to sync resource state"
 	errorDeleteResource = "Failed to delete resource"
 )
@@ -65,7 +65,7 @@ func Add(mgr manager.Manager) error {
 	return add(mgr, newReconciler(mgr))
 }
 
-// Reconciler reconciles a Instance object
+// Reconciler reconciles a S3Bucket object
 type Reconciler struct {
 	client.Client
 	scheme     *runtime.Scheme
@@ -96,7 +96,7 @@ func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
 func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	// Create a new controller
-	c, err := controller.New("s3bucket-controller", mgr, controller.Options{Reconciler: r})
+	c, err := controller.New(controllerName, mgr, controller.Options{Reconciler: r})
 	if err != nil {
 		return err
 	}
@@ -144,6 +144,7 @@ func connectionSecret(bucket *bucketv1alpha1.S3Bucket, accessKey *iam.AccessKey)
 		Data: map[string][]byte{
 			corev1alpha1.ResourceCredentialsSecretUserKey:     []byte(*accessKey.AccessKeyId),
 			corev1alpha1.ResourceCredentialsSecretPasswordKey: []byte(*accessKey.SecretAccessKey),
+			corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(bucket.Endpoint()),
 		},
 	}
 }
@@ -171,7 +172,10 @@ func (r *Reconciler) _connect(instance *bucketv1alpha1.S3Bucket) (s3.Service, er
 		return nil, err
 	}
 
-	// Create new RDS RDSClient
+	// Bucket Region and client region must match.
+	config.Region = instance.Spec.Region
+
+	// Create new S3 S3Client
 	return s3.NewClient(config), nil
 }
 
@@ -184,13 +188,23 @@ func (r *Reconciler) _create(bucket *bucketv1alpha1.S3Bucket, client s3.Service)
 
 func (r *Reconciler) _sync(bucket *bucketv1alpha1.S3Bucket, client s3.Service) (reconcile.Result, error) {
 	if bucket.Status.IsCondition(corev1alpha1.Creating) && !bucket.Status.IsCondition(corev1alpha1.Ready) {
-		permissions, err := client.Create(&bucket.Spec)
+		err := client.CreateBucket(&bucket.Spec)
 		if err != nil {
 			return r.fail(bucket, errorCreateResource, err.Error())
 		}
 
-		secret := connectionSecret(bucket, permissions)
+		if bucket.Status.IAMUsername == nil {
+			bucket.Status.IAMUsername = s3.GenerateBucketUsername(&bucket.Spec)
+		}
+		accessKeys, err := client.CreateUser(bucket.Status.IAMUsername, &bucket.Spec)
+		if err != nil {
+			return r.fail(bucket, errorCreateResource, err.Error())
+		}
+
+		secret := connectionSecret(bucket, accessKeys)
+		secret.OwnerReferences = append(secret.OwnerReferences, bucket.OwnerReference())
 		bucket.Status.ConnectionSecretRef = corev1.LocalObjectReference{Name: secret.Name}
+
 		_, err = util.ApplySecret(r.kubeclient, secret)
 		if err != nil {
 			return r.fail(bucket, errorCreateResource, err.Error())
@@ -206,7 +220,7 @@ func (r *Reconciler) _sync(bucket *bucketv1alpha1.S3Bucket, client s3.Service) (
 
 func (r *Reconciler) _delete(bucket *bucketv1alpha1.S3Bucket, client s3.Service) (reconcile.Result, error) {
 	if bucket.Spec.ReclaimPolicy == corev1alpha1.ReclaimDelete {
-		if err := client.Delete(&bucket.Spec); err != nil {
+		if err := client.Delete(bucket); err != nil {
 			return r.fail(bucket, errorDeleteResource, err.Error())
 		}
 	}
@@ -232,11 +246,6 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 		// Error reading the object - requeue the request.
 		log.Printf("failed to get object at start of reconcile loop: %+v", err)
 		return result, err
-	}
-
-	// Failure will result in no retries.
-	if bucket.Status.IsCondition(corev1alpha1.Failed) {
-		return result, nil
 	}
 
 	s3Client, err := r.connect(bucket)
