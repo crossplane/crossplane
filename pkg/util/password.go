@@ -29,5 +29,5 @@ func GeneratePassword(dataLen int) (string, error) {
 		return "", err
 	}
 
-	return base64.StdEncoding.EncodeToString(randData), nil
+	return base64.RawURLEncoding.EncodeToString(randData), nil
 }
