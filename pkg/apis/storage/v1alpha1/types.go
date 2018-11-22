@@ -32,6 +32,7 @@ type MySQLInstanceSpec struct {
 	Selector    metav1.LabelSelector    `json:"selector,omitempty"`
 
 	// mysql instance properties
+	// +kubebuilder:validation:Enum=5.6,5.7
 	EngineVersion string `json:"engineVersion"`
 }
 
