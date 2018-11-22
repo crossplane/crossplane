@@ -17,14 +17,14 @@ limitations under the License.
 package v1alpha1
 
 import (
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	storagev1alpha1 "github.com/upbound/conductor/pkg/apis/storage/v1alpha1"
-	"github.com/upbound/conductor/pkg/util"
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	storagev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/util"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -97,11 +97,6 @@ func NewS3BucketSpec(properties map[string]string) *S3BucketSpec {
 			spec.CannedACL = acl
 		}
 
-	}
-
-	val, ok = properties["s3CannedACL"]
-	if ok {
-		spec.CannedACL = s3.ObjectCannedACL(val)
 	}
 
 	val, ok = properties["versioning"]
@@ -183,7 +178,7 @@ func (b *S3Bucket) OwnerReference() metav1.OwnerReference {
 
 // Endpoint returns the endpoint for the bucket
 func (b *S3Bucket) Endpoint() string {
-	return fmt.Sprintf("https://%s.s3-%s.amazonaws.com/", b.Spec.Name, b.Spec.Region)
+	return fmt.Sprintf("https://s3-%s.amazonaws.com", b.Spec.Region)
 }
 
 // IsAvailable for usage/binding

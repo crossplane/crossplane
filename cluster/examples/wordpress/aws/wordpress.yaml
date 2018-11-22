@@ -1,18 +1,70 @@
 apiVersion: storage.aws.crossplane.io/v1alpha1
 kind: S3Bucket
 metadata:
-  name: demo-bucket
+  name: fluent-log-bucket
+  namespace: crossplane-system
 spec:
-  name: wordpress-demo-e401ddfa-4729-4b72-bcef-94922203b547
-  cannedACL: public-read
+  name: fluent-log-demo-e401ddfa
+  cannedACL: private
   versioning: false
   region: us-west-1
+  connectionSecretNameOverride: fluent-log-demo
   localPermissions:
-    - read
-    - write
+  - read
+  - write
   providerRef:
     name: demo-aws-provider
   reclaimPolicy: Delete
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: td-agent-config
+  namespace: crossplane-system
+data:
+  td-agent.conf: |
+    <source>
+      @type tail
+      format none
+      time_key time
+      path /mnt/log/apache2/access.log
+      pos_file /var/log/td-agent/access.log.pos
+      time_format %Y-%m-%dT%H:%M:%S
+      tag file.access.log
+      read_from_head true
+    </source>
+
+    <source>
+      @type tail
+      format none
+      time_key time
+      path /mnt/log/apache2/error.log
+      pos_file /var/log/td-agent/error.log.pos
+      time_format %Y-%m-%dT%H:%M:%S
+      tag file.error.log
+      read_from_head true
+    </source>
+
+    <match file.**>
+      @type s3
+
+      aws_key_id "#{ENV['KEY_ID']}"
+      aws_sec_key "#{ENV['SEC_KEY']}"
+      s3_bucket   "#{ENV['BUCKET']}"
+      s3_region   "#{ENV['REGION']}"
+      #s3_endpoint "#{ENV['ENDPOINT']}"
+
+      path logs/
+
+      <buffer tag,time>
+        @type file
+        path /var/log/td-agent/buffer/s3
+        timekey 3600 # 1 hour partition
+        timekey_wait 1m
+        timekey_use_utc true # use utc
+        chunk_limit_size 256m
+      </buffer>
+    </match>
 ---
 apiVersion: database.aws.crossplane.io/v1alpha1
 kind: RDSInstance
@@ -27,8 +79,8 @@ spec:
   providerRef:
     name: demo-aws-provider
   securityGroups:
-#  - vpc-default-sg - default security group for your VPC
-#  - vpc-rds-sg - security group to allow RDS connection
+   - vpc-default-sg - default security group for your VPC
+   - vpc-rds-sg - security group to allow RDS connection
   size: 20
 ---
 apiVersion: extensions/v1beta1
@@ -68,6 +120,42 @@ spec:
         ports:
         - containerPort: 80
           name: wordpress
+      - name: fluentd
+        image: fluentd:local
+        env:
+        - name: FLUENTD_ARGS
+          value: -c /etc/td-agent/td-agent.conf
+        - name: KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: fluent-log-demo
+              key: username
+        - name: SEC_KEY
+          valueFrom:
+            secretKeyRef:
+              name: fluent-log-demo
+              key: password
+        - name: ENDPOINT
+          valueFrom:
+            secretKeyRef:
+              name: fluent-log-demo
+              key: endpoint
+        - name: REGION
+          value: us-west-1
+        - name: BUCKET
+          value: fluent-log-demo-e401ddfa
+        volumeMounts:
+        - name: log-storage
+          readOnly: true
+          mountPath: /mnt/log
+        - name: td-agent-config
+          mountPath: /etc/td-agent/
+      volumes:
+      - name: td-agent-config
+        configMap:
+          name: td-agent-config
+      - name: log-storage
+        emptyDir: {}
 ---
 apiVersion: v1
 kind: Service

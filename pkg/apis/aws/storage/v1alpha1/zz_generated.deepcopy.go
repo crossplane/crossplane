@@ -20,7 +20,7 @@ limitations under the License.
 package v1alpha1
 
 import (
-	storagev1alpha1 "github.com/upbound/conductor/pkg/apis/storage/v1alpha1"
+	storagev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
 	v1 "k8s.io/api/core/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )

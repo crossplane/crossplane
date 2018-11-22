@@ -30,7 +30,7 @@ import (
 )
 
 const (
-	Group                  = "storage.aws.conductor.io"
+	Group                  = "storage.aws.crossplane.io"
 	Version                = "v1alpha1"
 	APIVersion             = Group + "/" + Version
 	S3BucketKind           = "s3bucket"

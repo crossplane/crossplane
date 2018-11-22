@@ -20,6 +20,7 @@ package aws
 import (
 	compute "github.com/crossplaneio/crossplane/pkg/apis/aws/compute/v1alpha1"
 	database "github.com/crossplaneio/crossplane/pkg/apis/aws/database/v1alpha1"
+	storage "github.com/crossplaneio/crossplane/pkg/apis/aws/storage/v1alpha1"
 	awsv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 )

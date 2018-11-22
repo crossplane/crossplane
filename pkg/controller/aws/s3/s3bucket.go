@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Conductor Authors.
+Copyright 2018 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,12 +22,12 @@ import (
 	"log"
 
 	"github.com/aws/aws-sdk-go-v2/service/iam"
-	bucketv1alpha1 "github.com/upbound/conductor/pkg/apis/aws/storage/v1alpha1"
-	awsv1alpha1 "github.com/upbound/conductor/pkg/apis/aws/v1alpha1"
-	corev1alpha1 "github.com/upbound/conductor/pkg/apis/core/v1alpha1"
-	"github.com/upbound/conductor/pkg/clients/aws"
-	"github.com/upbound/conductor/pkg/clients/aws/s3"
-	"github.com/upbound/conductor/pkg/util"
+	bucketv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/storage/v1alpha1"
+	awsv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/clients/aws"
+	"github.com/crossplaneio/crossplane/pkg/clients/aws/s3"
+	"github.com/crossplaneio/crossplane/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -44,7 +44,7 @@ import (
 )
 
 const (
-	controllerName = "s3bucket.aws.conductor.io"
+	controllerName = "s3bucket.aws.crossplane.io"
 	finalizer      = "finalizer." + controllerName
 
 	errorResourceClient = "Failed to create s3 client"

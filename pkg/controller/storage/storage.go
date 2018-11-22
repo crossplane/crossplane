@@ -17,8 +17,8 @@ limitations under the License.
 package storage
 
 import (
+	"github.com/crossplaneio/crossplane/pkg/controller/storage/bucket"
 	"github.com/crossplaneio/crossplane/pkg/controller/storage/mysql"
-	"github.com/upbound/conductor/pkg/controller/storage/bucket"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 

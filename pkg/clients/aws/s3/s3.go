@@ -4,20 +4,20 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/upbound/conductor/pkg/util"
+	"github.com/crossplaneio/crossplane/pkg/util"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/awserr"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/s3iface"
-	"github.com/upbound/conductor/pkg/apis/aws/storage/v1alpha1"
-	storage "github.com/upbound/conductor/pkg/apis/storage/v1alpha1"
-	iamc "github.com/upbound/conductor/pkg/clients/aws/iam"
+	"github.com/crossplaneio/crossplane/pkg/apis/aws/storage/v1alpha1"
+	storage "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
+	iamc "github.com/crossplaneio/crossplane/pkg/clients/aws/iam"
 )
 
 const (
-	bucketUser           = "conductor-bucket-%s"
+	bucketUser           = "crossplane-bucket-%s"
 	bucketObjectARN      = "arn:aws:s3:::%s"
 	maxIAMUsernameLength = 64
 )
@@ -164,7 +164,7 @@ func GenerateBucketUsername(spec *v1alpha1.S3BucketSpec) *string {
 func getPolicyDocument(spec *v1alpha1.S3BucketSpec) (*string, error) {
 	bucketARN := fmt.Sprintf(bucketObjectARN, spec.Name)
 	read := iamc.StatementEntry{
-		Sid:    "conductorRead",
+		Sid:    "crossplaneRead",
 		Effect: "Allow",
 		Action: []string{
 			"s3:Get*",
@@ -174,7 +174,7 @@ func getPolicyDocument(spec *v1alpha1.S3BucketSpec) (*string, error) {
 	}
 
 	write := iamc.StatementEntry{
-		Sid:    "conductorWrite",
+		Sid:    "crossplaneWrite",
 		Effect: "Allow",
 		Action: []string{
 			"s3:DeleteObject",
