@@ -74,7 +74,6 @@ type Reconciler struct {
 
 	connect func(*bucketv1alpha1.S3Bucket) (s3.Service, error)
 	create  func(*bucketv1alpha1.S3Bucket, s3.Service) (reconcile.Result, error)
-	sync    func(*bucketv1alpha1.S3Bucket, s3.Service) (reconcile.Result, error)
 	delete  func(*bucketv1alpha1.S3Bucket, s3.Service) (reconcile.Result, error)
 }
 
@@ -88,7 +87,6 @@ func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 	}
 	r.connect = r._connect
 	r.create = r._create
-	r.sync = r._sync
 	r.delete = r._delete
 	return r
 }
@@ -181,41 +179,32 @@ func (r *Reconciler) _connect(instance *bucketv1alpha1.S3Bucket) (s3.Service, er
 
 func (r *Reconciler) _create(bucket *bucketv1alpha1.S3Bucket, client s3.Service) (reconcile.Result, error) {
 	bucket.Status.UnsetAllConditions()
-	bucket.Status.SetCreating()
 	util.AddFinalizer(&bucket.ObjectMeta, finalizer)
-	return resultRequeue, r.Update(ctx, bucket)
-}
-
-func (r *Reconciler) _sync(bucket *bucketv1alpha1.S3Bucket, client s3.Service) (reconcile.Result, error) {
-	if bucket.Status.IsCondition(corev1alpha1.Creating) && !bucket.Status.IsCondition(corev1alpha1.Ready) {
-		err := client.CreateBucket(&bucket.Spec)
-		if err != nil {
-			return r.fail(bucket, errorCreateResource, err.Error())
-		}
-
-		if bucket.Status.IAMUsername == nil {
-			bucket.Status.IAMUsername = s3.GenerateBucketUsername(&bucket.Spec)
-		}
-		accessKeys, err := client.CreateUser(bucket.Status.IAMUsername, &bucket.Spec)
-		if err != nil {
-			return r.fail(bucket, errorCreateResource, err.Error())
-		}
-
-		secret := connectionSecret(bucket, accessKeys)
-		secret.OwnerReferences = append(secret.OwnerReferences, bucket.OwnerReference())
-		bucket.Status.ConnectionSecretRef = corev1.LocalObjectReference{Name: secret.Name}
-
-		_, err = util.ApplySecret(r.kubeclient, secret)
-		if err != nil {
-			return r.fail(bucket, errorCreateResource, err.Error())
-		}
-
-		bucket.Status.UnsetCondition(corev1alpha1.Creating)
-		bucket.Status.SetReady()
-		return result, r.Update(ctx, bucket)
+	err := client.CreateBucket(&bucket.Spec)
+	if err != nil {
+		return r.fail(bucket, errorCreateResource, err.Error())
 	}
 
-	return result, nil
+	if bucket.Status.IAMUsername == nil {
+		bucket.Status.IAMUsername = s3.GenerateBucketUsername(&bucket.Spec)
+	}
+	accessKeys, err := client.CreateUser(bucket.Status.IAMUsername, &bucket.Spec)
+	if err != nil {
+		return r.fail(bucket, errorCreateResource, err.Error())
+	}
+
+	secret := connectionSecret(bucket, accessKeys)
+	secret.OwnerReferences = append(secret.OwnerReferences, bucket.OwnerReference())
+	bucket.Status.ConnectionSecretRef = corev1.LocalObjectReference{Name: secret.Name}
+
+	_, err = util.ApplySecret(r.kubeclient, secret)
+	if err != nil {
+		return r.fail(bucket, errorCreateResource, err.Error())
+	}
+
+	bucket.Status.UnsetCondition(corev1alpha1.Creating)
+	bucket.Status.SetReady()
+	return result, r.Update(ctx, bucket)
 }
 
 func (r *Reconciler) _delete(bucket *bucketv1alpha1.S3Bucket, client s3.Service) (reconcile.Result, error) {
@@ -259,10 +248,10 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	}
 
 	// Create s3 bucket
-	if !bucket.Status.IsCondition(corev1alpha1.Ready) && !bucket.Status.IsCondition(corev1alpha1.Creating) {
+	if !bucket.Status.IsCondition(corev1alpha1.Ready) {
 		return r.create(bucket, s3Client)
 	}
 
 	// Initialize the bucket, status update is a noop currently.
-	return r.sync(bucket, s3Client)
+	return result, nil
 }
