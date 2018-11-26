@@ -148,7 +148,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 
 	if instance.Status.InstanceName == "" {
 		// we haven't generated a unique instance name yet, let's do that now
-		instance.Status.InstanceName = instance.Name + "-" + string(instance.UID)
+		instance.Status.InstanceName = "cloudsql-" + string(instance.UID)
 		log.Printf("cloud sql instance %s does not yet have an instance name, setting it to %s", instance.Name, instance.Status.InstanceName)
 		if err := r.Update(context.TODO(), instance); err != nil {
 			return r.fail(instance, errorSettingInstanceName, err.Error())
@@ -250,6 +250,12 @@ func (r *Reconciler) handleCreation(cloudSQLClient gcpclients.CloudSQLAPI,
 		Settings: &sqladmin.Settings{
 			Tier:         instance.Spec.Tier,
 			DataDiskType: instance.Spec.StorageType,
+			IpConfiguration: &sqladmin.IpConfiguration{
+				AuthorizedNetworks: []*sqladmin.AclEntry{
+					// TODO: we need to come up with better AuthorizedNetworks handing, for now a short cut - open to all
+					{Value: "0.0.0.0/0"},
+				},
+			},
 		},
 	}
 
@@ -396,18 +402,16 @@ func (r *Reconciler) updateStatus(instance *databasev1alpha1.CloudsqlInstance, m
 	if cloudSQLInstance != nil {
 		state = cloudSQLInstance.State
 		providerID = cloudSQLInstance.SelfLink
-		endpoint = cloudSQLInstance.ConnectionName
+		if len(cloudSQLInstance.IpAddresses) > 0 {
+			endpoint = cloudSQLInstance.IpAddresses[0].IpAddress
+		}
 	}
 
-	instance.Status = databasev1alpha1.CloudsqlInstanceStatus{
-		ConditionedStatus:  instance.Status.ConditionedStatus,
-		BindingStatusPhase: instance.Status.BindingStatusPhase,
-		Message:            message,
-		State:              state,
-		ProviderID:         providerID,
-		Endpoint:           endpoint,
-		InstanceName:       instance.Status.InstanceName,
-	}
+	instance.Status.Message = message
+	instance.Status.State = state
+	instance.Status.ProviderID = providerID
+	instance.Status.Endpoint = endpoint
+
 	if err := r.Update(context.TODO(), instance); err != nil {
 		return fmt.Errorf("failed to update status of CRD instance %s: %+v", instance.Name, err)
 	}

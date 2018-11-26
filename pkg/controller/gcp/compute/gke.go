@@ -18,6 +18,7 @@ package compute
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
@@ -117,18 +118,32 @@ func (r *Reconciler) fail(instance *gcpcomputev1alpha1.GKECluster, reason, msg s
 }
 
 // connectionSecret return secret object for cluster instance
-func (r *Reconciler) connectionSecret(instance *gcpcomputev1alpha1.GKECluster, cluster *container.Cluster) *corev1.Secret {
+func (r *Reconciler) connectionSecret(instance *gcpcomputev1alpha1.GKECluster, cluster *container.Cluster) (*corev1.Secret, error) {
 	secret := instance.ConnectionSecret()
+
 	data := make(map[string][]byte)
 	data[corev1alpha1.ResourceCredentialsSecretEndpointKey] = []byte(cluster.Endpoint)
 	data[corev1alpha1.ResourceCredentialsSecretUserKey] = []byte(cluster.MasterAuth.Username)
 	data[corev1alpha1.ResourceCredentialsSecretPasswordKey] = []byte(cluster.MasterAuth.Password)
-	data[corev1alpha1.ResourceCredentialsSecretCAKey] = []byte(cluster.MasterAuth.ClusterCaCertificate)
-	data[corev1alpha1.ResourceCredentialsSecretClientCertKey] = []byte(cluster.MasterAuth.ClientCertificate)
-	data[corev1alpha1.ResourceCredentialsSecretClientKeyKey] = []byte(cluster.MasterAuth.ClientKey)
+
+	if val, err := base64.StdEncoding.DecodeString(cluster.MasterAuth.ClusterCaCertificate); err != nil {
+		return nil, err
+	} else {
+		data[corev1alpha1.ResourceCredentialsSecretCAKey] = val
+	}
+	if val, err := base64.StdEncoding.DecodeString(cluster.MasterAuth.ClientCertificate); err != nil {
+		return nil, err
+	} else {
+		data[corev1alpha1.ResourceCredentialsSecretClientCertKey] = val
+	}
+	if val, err := base64.StdEncoding.DecodeString(cluster.MasterAuth.ClientKey); err != nil {
+		return nil, err
+	} else {
+		data[corev1alpha1.ResourceCredentialsSecretClientKeyKey] = val
+	}
 	secret.Data = data
 
-	return secret
+	return secret, nil
 }
 
 func (r *Reconciler) _connect(instance *gcpcomputev1alpha1.GKECluster) (gke.Client, error) {
@@ -189,7 +204,13 @@ func (r *Reconciler) _sync(instance *gcpcomputev1alpha1.GKECluster, client gke.C
 	}
 
 	// create connection secret
-	if _, err := util.ApplySecret(r.kubeclient, r.connectionSecret(instance, cluster)); err != nil {
+	secret, err := r.connectionSecret(instance, cluster)
+	if err != nil {
+		return r.fail(instance, errorSyncCluster, err.Error())
+	}
+
+	// save secret
+	if _, err := util.ApplySecret(r.kubeclient, secret); err != nil {
 		return r.fail(instance, errorSyncCluster, err.Error())
 	}
 

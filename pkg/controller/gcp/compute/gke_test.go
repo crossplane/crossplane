@@ -17,6 +17,7 @@ limitations under the License.
 package compute
 
 import (
+	"encoding/base64"
 	"fmt"
 	"testing"
 
@@ -51,6 +52,14 @@ var (
 	}
 	request = reconcile.Request{
 		NamespacedName: key,
+	}
+
+	masterAuth = &container.MasterAuth{
+		Username:             "test-user",
+		Password:             "test-pass",
+		ClusterCaCertificate: base64.StdEncoding.EncodeToString([]byte("test-ca")),
+		ClientCertificate:    base64.StdEncoding.EncodeToString([]byte("test-cert")),
+		ClientKey:            base64.StdEncoding.EncodeToString([]byte("test-key")),
 	}
 )
 
@@ -156,13 +165,7 @@ func TestSyncApplySecretError(t *testing.T) {
 
 	called := false
 
-	auth := &container.MasterAuth{
-		Username:             "test-user",
-		Password:             "test-pass",
-		ClusterCaCertificate: "test-ca",
-		ClientCertificate:    "test-cert",
-		ClientKey:            "test-key",
-	}
+	auth := masterAuth
 	endpoint := "test-ep"
 
 	cl := fake.NewGKEClient()
@@ -197,13 +200,7 @@ func TestSync(t *testing.T) {
 
 	called := false
 
-	auth := &container.MasterAuth{
-		Username:             "test-user",
-		Password:             "test-pass",
-		ClusterCaCertificate: "test-ca",
-		ClientCertificate:    "test-cert",
-		ClientKey:            "test-key",
-	}
+	auth := masterAuth
 	endpoint := "test-ep"
 
 	cl := fake.NewGKEClient()

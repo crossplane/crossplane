@@ -23,7 +23,6 @@ import (
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	gcpdbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/database/v1alpha1"
 	mysqlv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/util"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -68,7 +67,7 @@ func (h *CloudSQLServerHandler) provision(class *corev1alpha1.ResourceClass, ins
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:       class.Namespace,
-			Name:            util.GenerateName(instance.Name),
+			Name:            fmt.Sprintf("mysql-%s", instance.UID),
 			OwnerReferences: []metav1.OwnerReference{instance.OwnerReference()},
 		},
 		Spec: *cloudsqlInstanceSpec,

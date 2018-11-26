@@ -115,6 +115,9 @@ func createMockDatabaseInstance(project, instance, state string) *sqladmin.Datab
 		ConnectionName: fmt.Sprintf("%s:us-west2:%s", project, instance),
 		State:          state,
 		SelfLink:       fmt.Sprintf("https://www.googleapis.com/sql/v1beta4/projects/%s/instances/%s", project, instance),
+		IpAddresses: []*sqladmin.IpMapping{
+			{IpAddress: "10.0.0.1"},
+		},
 	}
 }
 

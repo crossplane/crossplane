@@ -43,7 +43,8 @@ type KubernetesClusterStatus struct {
 	// Provisioner is the driver that was used to provision the concrete resource
 	// This is an optionally-prefixed name, like a label key.
 	// For example: "EKScluster.compute.aws.crossplane.io/v1alpha1" or "GKECluster.compute.gcp.crossplane.io/v1alpha1".
-	Provisioner string `json:"provisioner,omitempty"`
+	Provisioner          string                      `json:"provisioner,omitempty"`
+	CredentialsSecretRef corev1.LocalObjectReference `json:"credentialsSecret,omitempty"`
 }
 
 // +genclient
@@ -100,18 +101,19 @@ type ResourceReference struct {
 	SecretName string `json:"secretName"`
 }
 
+type WorkloadState string
+
+const (
+	WorkloadStateCreating WorkloadState = "CREATING"
+	WorkloadStateRunning  WorkloadState = "RUNNING"
+)
+
 // WorkloadSpec
 type WorkloadSpec struct {
-	TargetNamespace  string             `json:"targetNamespace,omitempty"`
-	TargetDeployment *appsv1.Deployment `json:"targetDeployment,omitempty"`
-	TargetService    *corev1.Service    `json:"targetService,omitempty"`
-
-	ClassRef    *corev1.ObjectReference `json:"classReference,omitempty"`
-	ResourceRef *corev1.ObjectReference `json:"resourceName,omitempty"`
-	Selector    metav1.LabelSelector    `json:"selector,omitempty"`
-
-	// cluster properties
-	ClusterVersion string `json:"clusterVersion,omitempty"`
+	TargetCluster    corev1.ObjectReference `json:"targetCluster"`
+	TargetNamespace  string                 `json:"targetNamespace"`
+	TargetDeployment *appsv1.Deployment     `json:"targetDeployment"`
+	TargetService    *corev1.Service        `json:"targetService"`
 
 	// Resources
 	Resources []ResourceReference `json:"resources"`
@@ -120,11 +122,9 @@ type WorkloadSpec struct {
 // WorkloadStatus
 type WorkloadStatus struct {
 	corev1alpha1.ConditionedStatus
-	corev1alpha1.BindingStatusPhase
-	// Provisioner is the driver that was used to provision the concrete resource
-	// This is an optionally-prefixed name, like a label key.
-	// For example: "EKScluster.compute.aws.crossplane.io/v1alpha1" or "GKECluster.compute.gcp.crossplane.io/v1alpha1".
-	Provisioner string `json:"provisioner,omitempty"`
+	appsv1.DeploymentStatus `json:"deployment,omitempty"`
+	corev1.ServiceStatus    `json:"service,omitempty"`
+	State                   WorkloadState `json:"state,omitempty"`
 }
 
 // +genclient

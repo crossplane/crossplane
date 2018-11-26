@@ -226,7 +226,7 @@ func (r *Reconciler) _bind(instance *computev1alpha1.KubernetesCluster) (reconci
 
 	// set instance binding status
 	instance.Status.SetBound()
-
+	instance.Status.CredentialsSecretRef = corev1.LocalObjectReference{Name: secret.Name}
 	// update conditions
 	instance.Status.UnsetAllConditions()
 	instance.Status.SetCondition(corev1alpha1.NewCondition(corev1alpha1.Ready, "", ""))
