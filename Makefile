@@ -47,6 +47,15 @@ IMAGES = crossplane
 include build/makelib/image.mk
 
 # ====================================================================================
+# Setup Docs
+
+SOURCE_DOCS_DIR = docs
+DEST_DOCS_DIR = docs
+DOCS_GIT_REPO = https://$(GIT_API_TOKEN)@github.com/crossplaneio/crossplaneio.github.io.git
+include build/makelib/docs.mk
+
+
+# ====================================================================================
 # Targets
 
 # run `make help` to see the targets and options
