@@ -55,7 +55,11 @@ func TestNewRDSInstanceSpec(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	m := make(map[string]string)
-	exp := &RDSInstanceSpec{ReclaimPolicy: corev1alpha1.ReclaimRetain}
+	exp := &RDSInstanceSpec{
+		Policy: corev1alpha1.Policy{
+			ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		},
+	}
 
 	g.Expect(NewRDSInstanceSpec(m)).To(Equal(exp))
 

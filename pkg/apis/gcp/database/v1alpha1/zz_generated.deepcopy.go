@@ -100,6 +100,7 @@ func (in *CloudsqlInstanceSpec) DeepCopyInto(out *CloudsqlInstanceSpec) {
 	}
 	out.ProviderRef = in.ProviderRef
 	out.ConnectionSecretRef = in.ConnectionSecretRef
+	out.Policy = in.Policy
 	return
 }
 

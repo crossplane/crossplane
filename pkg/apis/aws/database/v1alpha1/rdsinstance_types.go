@@ -47,8 +47,7 @@ type RDSInstanceSpec struct {
 	ConnectionSecretRef *corev1.LocalObjectReference `json:"connectionSecretRef,omitempty"`
 	ProviderRef         corev1.LocalObjectReference  `json:"providerRef"`
 
-	// ReclaimPolicy identifies how to handle the cloud resource after the deletion of this type
-	ReclaimPolicy corev1alpha1.ReclaimPolicy `json:"reclaimPolicy,omitempty"`
+	corev1alpha1.Policy `json:",inline"`
 }
 
 type RDSInstanceState string
@@ -101,7 +100,9 @@ type RDSInstanceList struct {
 // NewRDSInstanceSpec from properties map
 func NewRDSInstanceSpec(properties map[string]string) *RDSInstanceSpec {
 	spec := &RDSInstanceSpec{
-		ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		Policy: corev1alpha1.Policy{
+			ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		},
 	}
 
 	val, ok := properties["masterUsername"]

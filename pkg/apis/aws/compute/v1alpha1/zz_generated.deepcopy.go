@@ -114,6 +114,7 @@ func (in *EKSClusterSpec) DeepCopyInto(out *EKSClusterSpec) {
 		**out = **in
 	}
 	out.ProviderRef = in.ProviderRef
+	out.Policy = in.Policy
 	return
 }
 

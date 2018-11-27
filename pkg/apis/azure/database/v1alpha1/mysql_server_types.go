@@ -58,8 +58,7 @@ type MysqlServerSpec struct {
 	ProviderRef         v1.LocalObjectReference `json:"providerRef"`
 	ConnectionSecretRef v1.LocalObjectReference `json:"connectionSecretRef,omitempty"`
 
-	// ReclaimPolicy identifies how to handle the cloud resource after the deletion of this type
-	ReclaimPolicy corev1alpha1.ReclaimPolicy `json:"reclaimPolicy,omitempty"`
+	corev1alpha1.Policy `json:",inline"`
 }
 
 // MysqlServerStatus defines the observed state of MysqlServer
@@ -108,7 +107,9 @@ type MysqlServerList struct {
 // NewMySQLServerSpec creates a new MySQLServerSpec based on the given properties map
 func NewMySQLServerSpec(properties map[string]string) *MysqlServerSpec {
 	spec := &MysqlServerSpec{
-		ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		Policy: corev1alpha1.Policy{
+			ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		},
 	}
 
 	val, ok := properties["adminLoginName"]

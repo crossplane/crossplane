@@ -67,7 +67,9 @@ func TestEKSCluster(t *testing.T) {
 			RoleARN:           "test-arn",
 			SubnetIds:         []string{"one", "two"},
 			SecurityGroupsIds: []string{"sg-1", "sg-2"},
-			ReclaimPolicy:     corev1alpha1.ReclaimRetain,
+			Policy: corev1alpha1.Policy{
+				ReclaimPolicy: corev1alpha1.ReclaimRetain,
+			},
 		},
 	}
 	g := NewGomegaWithT(t)

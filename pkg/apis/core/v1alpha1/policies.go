@@ -26,3 +26,11 @@ const (
 	// The default policy is Retain.
 	ReclaimRetain ReclaimPolicy = "Retain"
 )
+
+// Policy type to be embedded in a resource spec
+type Policy struct {
+	// ReclaimPolicy is the reclaim policy that dynamically provisioned
+	// ResourceInstances of this resource class are created with
+	// +kubebuilder:validation:Enum=Retain,Delete
+	ReclaimPolicy ReclaimPolicy `json:"reclaimPolicy,omitempty"`
+}

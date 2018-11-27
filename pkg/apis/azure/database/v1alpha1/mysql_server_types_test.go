@@ -54,7 +54,8 @@ func TestNewMySQLServerSpec(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	m := make(map[string]string)
-	exp := &MysqlServerSpec{ReclaimPolicy: corev1alpha1.ReclaimRetain}
+	exp := &MysqlServerSpec{}
+	exp.Policy.ReclaimPolicy = corev1alpha1.ReclaimRetain
 
 	g.Expect(NewMySQLServerSpec(m)).To(gomega.Equal(exp))
 

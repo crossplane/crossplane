@@ -116,6 +116,9 @@ spec:
             providerRef:
               type: object
             reclaimPolicy:
+              enum:
+              - Retain
+              - Delete
               type: string
             scopes:
               items:

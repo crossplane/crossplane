@@ -29,10 +29,10 @@ func TestStorage(t *testing.T) {
 
 	key := types.NamespacedName{Name: name, Namespace: namespace}
 	created := &ResourceClass{
-		ObjectMeta:    metav1.ObjectMeta{Name: name, Namespace: namespace},
-		Provisioner:   "test-provisioner",
-		ReclaimPolicy: ReclaimDelete,
-		Parameters:    map[string]string{"foo": "bar", "baz": ""},
+		ObjectMeta:  metav1.ObjectMeta{Name: name, Namespace: namespace},
+		Provisioner: "test-provisioner",
+		Policy:      Policy{ReclaimPolicy: ReclaimDelete},
+		Parameters:  map[string]string{"foo": "bar", "baz": ""},
 	}
 
 	// Test Create

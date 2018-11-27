@@ -49,8 +49,7 @@ type CloudsqlInstanceSpec struct {
 	ProviderRef         v1.LocalObjectReference `json:"providerRef"`
 	ConnectionSecretRef v1.LocalObjectReference `json:"connectionSecretRef,omitempty"`
 
-	// ReclaimPolicy identifies how to handle the cloud resource after the deletion of this type
-	ReclaimPolicy corev1alpha1.ReclaimPolicy `json:"reclaimPolicy,omitempty"`
+	corev1alpha1.Policy `json:",inline"`
 }
 
 // CloudsqlInstanceStatus defines the observed state of CloudsqlInstance
@@ -96,7 +95,9 @@ type CloudsqlInstanceList struct {
 // NewCloudSQLInstanceSpec creates a new CloudSQLInstanceSpec based on the given properties map
 func NewCloudSQLInstanceSpec(properties map[string]string) *CloudsqlInstanceSpec {
 	spec := &CloudsqlInstanceSpec{
-		ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		Policy: corev1alpha1.Policy{
+			ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		},
 	}
 
 	val, ok := properties["tier"]

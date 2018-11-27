@@ -109,6 +109,7 @@ func (in *RDSInstanceSpec) DeepCopyInto(out *RDSInstanceSpec) {
 		**out = **in
 	}
 	out.ProviderRef = in.ProviderRef
+	out.Policy = in.Policy
 	return
 }
 

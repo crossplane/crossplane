@@ -70,10 +70,7 @@ type ResourceClass struct {
 	// to provision the concrete cloud resource
 	ProviderRef corev1.LocalObjectReference `json:"providerRef"`
 
-	// reclaimPolicy is the reclaim policy that dynamically provisioned
-	// ResourceInstances of this resource class are created with
-	// +optional
-	ReclaimPolicy ReclaimPolicy `json:"reclaimPolicy,omitempty"`
+	Policy `json:",inline"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

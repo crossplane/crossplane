@@ -102,6 +102,7 @@ func (in *MysqlServerSpec) DeepCopyInto(out *MysqlServerSpec) {
 	}
 	out.ProviderRef = in.ProviderRef
 	out.ConnectionSecretRef = in.ConnectionSecretRef
+	out.Policy = in.Policy
 	return
 }
 

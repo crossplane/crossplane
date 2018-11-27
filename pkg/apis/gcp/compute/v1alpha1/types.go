@@ -89,8 +89,7 @@ type GKEClusterSpec struct {
 	ConnectionSecretRef *corev1.LocalObjectReference `json:"connectionSecretRef,omitempty"`
 	ProviderRef         corev1.LocalObjectReference  `json:"providerRef,omitempty"`
 
-	// ReclaimPolicy identifies how to handle the cloud resource after the deletion of this type
-	ReclaimPolicy corev1alpha1.ReclaimPolicy `json:"reclaimPolicy,omitempty"`
+	corev1alpha1.Policy `json:",inline"`
 }
 
 // GKEClusterStatus
@@ -127,10 +126,12 @@ type GKEClusterList struct {
 // NewGKEClusterSpec from properties map
 func NewGKEClusterSpec(properties map[string]string) *GKEClusterSpec {
 	spec := &GKEClusterSpec{
-		ReclaimPolicy: DefaultReclaimPolicy,
-		Zone:          properties["zone"],
-		MachineType:   properties["machineType"],
-		NumNodes:      DefaultNumberOfNodes,
+		Zone:        properties["zone"],
+		MachineType: properties["machineType"],
+		NumNodes:    DefaultNumberOfNodes,
+		Policy: corev1alpha1.Policy{
+			ReclaimPolicy: DefaultReclaimPolicy,
+		},
 	}
 
 	// assign nodes from properties

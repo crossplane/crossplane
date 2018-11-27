@@ -153,6 +153,7 @@ func (in *GKEClusterSpec) DeepCopyInto(out *GKEClusterSpec) {
 		**out = **in
 	}
 	out.ProviderRef = in.ProviderRef
+	out.Policy = in.Policy
 	return
 }
 

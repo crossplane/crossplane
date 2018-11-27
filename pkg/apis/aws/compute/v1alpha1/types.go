@@ -94,8 +94,7 @@ type EKSClusterSpec struct {
 	ConnectionSecretRef *corev1.LocalObjectReference `json:"connectionSecretRef,omitempty"`
 	ProviderRef         corev1.LocalObjectReference  `json:"providerRef"`
 
-	// ReclaimPolicy identifies how to handle the cloud resource after the deletion of this type
-	ReclaimPolicy corev1alpha1.ReclaimPolicy `json:"reclaimPolicy,omitempty"`
+	corev1alpha1.Policy `json:",inline"`
 }
 
 type EKSClusterStatus struct {
@@ -137,8 +136,9 @@ type EKSClusterList struct {
 // TODO: will be using once abstract resource support is added
 func NewEKSClusterSpec(properties map[string]string) *EKSClusterSpec {
 	spec := &EKSClusterSpec{
-		ReclaimPolicy: corev1alpha1.ReclaimRetain,
-	}
+		Policy: corev1alpha1.Policy{
+			ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		}}
 	// TODO: complete spec fields assignment
 	return spec
 }

@@ -27,6 +27,9 @@ spec:
         provisioner:
           type: string
         reclaimPolicy:
+          enum:
+          - Retain
+          - Delete
           type: string
       required:
       - provisioner

@@ -54,8 +54,11 @@ func TestNewCloudSQLInstanceSpec(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	m := make(map[string]string)
-	exp := &CloudsqlInstanceSpec{ReclaimPolicy: corev1alpha1.ReclaimRetain}
-
+	exp := &CloudsqlInstanceSpec{
+		Policy: corev1alpha1.Policy{
+			ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		},
+	}
 	g.Expect(NewCloudSQLInstanceSpec(m)).To(gomega.Equal(exp))
 
 	val := "db-n1-standard-1"
