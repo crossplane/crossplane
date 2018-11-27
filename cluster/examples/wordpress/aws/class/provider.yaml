@@ -31,4 +31,4 @@ parameters:
 provisioner: rdsinstance.database.aws.crossplane.io/v1alpha1
 providerRef:
   name: aws-provider
-reclaimPolicy: Delete
+reclaimPolicy: delete

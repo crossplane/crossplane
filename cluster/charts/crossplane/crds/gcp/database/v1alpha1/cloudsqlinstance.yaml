@@ -33,6 +33,9 @@ spec:
             providerRef:
               type: object
             reclaimPolicy:
+              enum:
+              - delete
+              - retain
               type: string
             region:
               type: string

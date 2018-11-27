@@ -11,4 +11,4 @@ parameters:
 provisioner: mysql.rds.aws.crossplane.io
 providerRef:
   name: demo-aws-provider
-reclaimPolicy: Delete
+reclaimPolicy: delete

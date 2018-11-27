@@ -73,6 +73,7 @@ type ResourceClass struct {
 	// reclaimPolicy is the reclaim policy that dynamically provisioned
 	// ResourceInstances of this resource class are created with
 	// +optional
+	// +kubebuilder:validation:Enum=delete,retain
 	ReclaimPolicy ReclaimPolicy `json:"reclaimPolicy,omitempty"`
 }
 

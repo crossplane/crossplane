@@ -21,8 +21,8 @@ type ReclaimPolicy string
 
 const (
 	// ReclaimDelete means the cloud provider resource backing this custom resource (CR) will be deleted upon CR deletion
-	ReclaimDelete ReclaimPolicy = "Delete"
+	ReclaimDelete ReclaimPolicy = "delete"
 	// ReclaimRetain means the cloud provider resource backing this custom resource (CR) will be will be left in its current phase upon CR deletion for manual reclamation by the administrator.
 	// The default policy is Retain.
-	ReclaimRetain ReclaimPolicy = "Retain"
+	ReclaimRetain ReclaimPolicy = "retain"
 )

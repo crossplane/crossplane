@@ -59,6 +59,7 @@ type MysqlServerSpec struct {
 	ConnectionSecretRef v1.LocalObjectReference `json:"connectionSecretRef,omitempty"`
 
 	// ReclaimPolicy identifies how to handle the cloud resource after the deletion of this type
+	// +kubebuilder:validation:Enum=delete,retain
 	ReclaimPolicy corev1alpha1.ReclaimPolicy `json:"reclaimPolicy,omitempty"`
 }
 

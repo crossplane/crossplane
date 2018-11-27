@@ -41,4 +41,4 @@ parameters:
 provisioner: mysqlserver.database.azure.crossplane.io/v1alpha1
 providerRef:
   name: azure-sql-provider
-reclaimPolicy: Delete
+reclaimPolicy: delete
