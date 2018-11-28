@@ -17,9 +17,9 @@ limitations under the License.
 package kubernetes
 
 import (
+	awscomputev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/compute/v1alpha1"
 	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/compute/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	gcpcomputev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/compute/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/util"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,20 +27,20 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// GCP GKE handler handles Kubernetes cluster functionality
-type GKEClusterHandler struct{}
+// AWSClusterHandler AWS EKS handler handles Kubernetes cluster functionality
+type AWSClusterHandler struct{}
 
-// find GKECluster resource
-func (r *GKEClusterHandler) find(name types.NamespacedName, c client.Client) (corev1alpha1.Resource, error) {
-	instance := &gcpcomputev1alpha1.GKECluster{}
+// find EKSCluster resource
+func (r *AWSClusterHandler) find(name types.NamespacedName, c client.Client) (corev1alpha1.Resource, error) {
+	instance := &awscomputev1alpha1.EKSCluster{}
 	err := c.Get(ctx, name, instance)
 	return instance, err
 }
 
-// provision create new GKECluster
-func (r *GKEClusterHandler) provision(class *corev1alpha1.ResourceClass, instance *computev1alpha1.KubernetesCluster, c client.Client) (corev1alpha1.Resource, error) {
-	// construct GKECluster Spec from class definition
-	resourceInstance := gcpcomputev1alpha1.NewGKEClusterSpec(class.Parameters)
+// provision create new EKSCluster
+func (r *AWSClusterHandler) provision(class *corev1alpha1.ResourceClass, instance *computev1alpha1.KubernetesCluster, c client.Client) (corev1alpha1.Resource, error) {
+	// construct EKSCluster Spec from class definition
+	resourceInstance := awscomputev1alpha1.NewEKSClusterSpec(class.Parameters)
 
 	// assign provider reference and reclaim policy from the resource class
 	resourceInstance.ProviderRef = class.ProviderRef
@@ -50,8 +50,8 @@ func (r *GKEClusterHandler) provision(class *corev1alpha1.ResourceClass, instanc
 	resourceInstance.ClassRef = class.ObjectReference()
 	resourceInstance.ClaimRef = instance.ObjectReference()
 
-	// create and save GKECluster
-	cluster := &gcpcomputev1alpha1.GKECluster{
+	// create and save EKSCluster
+	cluster := &awscomputev1alpha1.EKSCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:       class.Namespace,
 			Name:            util.GenerateName(instance.Name + "-"),
@@ -67,8 +67,8 @@ func (r *GKEClusterHandler) provision(class *corev1alpha1.ResourceClass, instanc
 // bind updates resource state binding phase
 // - state = true: bound
 // - state = false: unbound
-func (r GKEClusterHandler) setBindStatus(name types.NamespacedName, c client.Client, state bool) error {
-	instance := &gcpcomputev1alpha1.GKECluster{}
+func (r AWSClusterHandler) setBindStatus(name types.NamespacedName, c client.Client, state bool) error {
+	instance := &awscomputev1alpha1.EKSCluster{}
 	err := c.Get(ctx, name, instance)
 	if err != nil {
 		if errors.IsNotFound(err) && !state {

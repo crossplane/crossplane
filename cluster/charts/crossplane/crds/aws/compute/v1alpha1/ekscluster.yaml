@@ -32,13 +32,19 @@ spec:
               type: string
             clusterVersion:
               type: string
-            connectionSecretRef:
-              type: object
+            connectionSecretNameOverride:
+              type: string
             generateCLISkeleton:
               type: string
             providerRef:
               type: object
             reclaimPolicy:
+              type: string
+            region:
+              enum:
+              - us-west-2
+              - us-east-1
+              - eu-west-1
               type: string
             roleARN:
               type: string
@@ -50,14 +56,131 @@ spec:
               items:
                 type: string
               type: array
+            vpcId:
+              type: string
+            workerNodes:
+              properties:
+                bootstrapArguments:
+                  type: string
+                clusterControlPlaneSecurityGroup:
+                  type: string
+                keyName:
+                  type: string
+                nodeAutoScalingGroupMaxSize:
+                  format: int64
+                  type: integer
+                nodeAutoScalingGroupMinSize:
+                  format: int64
+                  type: integer
+                nodeGroupName:
+                  type: string
+                nodeImageId:
+                  type: string
+                nodeInstanceType:
+                  enum:
+                  - t2.small
+                  - t2.medium
+                  - t2.large
+                  - t2.xlarge
+                  - t2.2xlarge
+                  - t3.nano
+                  - t3.micro
+                  - t3.small
+                  - t3.medium
+                  - t3.large
+                  - t3.xlarge
+                  - t3.2xlarge
+                  - m3.medium
+                  - m3.large
+                  - m3.xlarge
+                  - m3.2xlarge
+                  - m4.large
+                  - m4.xlarge
+                  - m4.2xlarge
+                  - m4.4xlarge
+                  - m4.10xlarge
+                  - m5.large
+                  - m5.xlarge
+                  - m5.2xlarge
+                  - m5.4xlarge
+                  - m5.12xlarge
+                  - m5.24xlarge
+                  - c4.large
+                  - c4.xlarge
+                  - c4.2xlarge
+                  - c4.4xlarge
+                  - c4.8xlarge
+                  - c5.large
+                  - c5.xlarge
+                  - c5.2xlarge
+                  - c5.4xlarge
+                  - c5.9xlarge
+                  - c5.18xlarge
+                  - i3.large
+                  - i3.xlarge
+                  - i3.2xlarge
+                  - i3.4xlarge
+                  - i3.8xlarge
+                  - i3.16xlarge
+                  - r3.xlarge
+                  - r3.2xlarge
+                  - r3.4xlarge
+                  - r3.8xlarge
+                  - r4.large
+                  - r4.xlarge
+                  - r4.2xlarge
+                  - r4.4xlarge
+                  - r4.8xlarge
+                  - r4.16xlarge
+                  - x1.16xlarge
+                  - x1.32xlarge
+                  - p2.xlarge
+                  - p2.8xlarge
+                  - p2.16xlarge
+                  - p3.2xlarge
+                  - p3.8xlarge
+                  - p3.16xlarge
+                  - r5.large
+                  - r5.xlarge
+                  - r5.2xlarge
+                  - r5.4xlarge
+                  - r5.12xlarge
+                  - r5.24xlarge
+                  - r5d.large
+                  - r5d.xlarge
+                  - r5d.2xlarge
+                  - r5d.4xlarge
+                  - r5d.12xlarge
+                  - r5d.24xlarge
+                  - z1d.large
+                  - z1d.xlarge
+                  - z1d.2xlarge
+                  - z1d.3xlarge
+                  - z1d.6xlarge
+                  - z1d.12xlarge
+                  type: string
+                nodeVolumeSize:
+                  format: int64
+                  type: integer
+              required:
+              - keyName
+              - nodeInstanceType
+              type: object
           required:
+          - region
           - roleARN
+          - vpcId
           - subnetIds
           - securityGroupIds
+          - workerNodes
           - providerRef
           type: object
         status:
           properties:
+            cloudformationStackId:
+              type: string
+            connectionSecretRef:
+              type: object
             endpoint:
               type: string
             resourceName:

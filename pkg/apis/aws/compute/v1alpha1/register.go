@@ -30,10 +30,11 @@ import (
 )
 
 const (
-	Group          = "compute.aws.crossplane.io"
-	Version        = "v1alpha1"
-	APIVersion     = Group + "/" + Version
-	EKSClusterKind = "eksclusters"
+	Group                    = "compute.aws.crossplane.io"
+	Version                  = "v1alpha1"
+	APIVersion               = Group + "/" + Version
+	EKSClusterKind           = "eksclusters"
+	EKSClusterKindAPIVersion = EKSClusterKind + "." + APIVersion
 )
 
 var (
