@@ -17,9 +17,11 @@ limitations under the License.
 package compute
 
 import (
+	"encoding/base64"
 	"fmt"
 	"testing"
 
+	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
 	"github.com/crossplaneio/crossplane/pkg/apis/aws"
 	. "github.com/crossplaneio/crossplane/pkg/apis/aws/compute/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
@@ -67,6 +69,7 @@ func testCluster() *EKSCluster {
 			ProviderRef: corev1.LocalObjectReference{
 				Name: providerName,
 			},
+			ConnectionSecretNameOverride: clusterName,
 		},
 	}
 }
@@ -98,18 +101,24 @@ func TestCreate(t *testing.T) {
 	// new cluster
 	cluster := testCluster()
 	cluster.ObjectMeta.UID = types.UID("test-uid")
+	fakeStackID := "fake-stack-id"
+	mockClusterWorker := eks.ClusterWorkers{
+		WorkerStackID: fakeStackID,
+	}
 
 	client := &fake.MockEKSClient{
-		MockCreate: func(string, EKSClusterSpec) (*eks.Cluster, error) { return nil, nil },
+		MockCreate:            func(string, EKSClusterSpec) (*eks.Cluster, error) { return nil, nil },
+		MockCreateWorkerNodes: func(string, EKSClusterSpec) (*eks.ClusterWorkers, error) { return &mockClusterWorker, nil },
 	}
 
 	expectedStatus := corev1alpha1.ConditionedStatus{}
 	expectedStatus.SetCreating()
 
 	reconciledCluster := test(cluster, client, resultRequeue, expectedStatus)
-	g.Expect(reconciledCluster.Finalizers).To(ContainElement(finalizer))
+
 	g.Expect(reconciledCluster.Status.ClusterName).To(Equal(fmt.Sprintf("%s%s", clusterNamePrefix, cluster.UID)))
 	g.Expect(reconciledCluster.State()).To(Equal(ClusterStatusCreating))
+	g.Expect(reconciledCluster.Status.CloudFormationStackID).To(Equal(fakeStackID))
 
 	// cluster create error - bad request
 	cluster = testCluster()
@@ -124,6 +133,7 @@ func TestCreate(t *testing.T) {
 	g.Expect(reconciledCluster.Finalizers).To(BeEmpty())
 	g.Expect(reconciledCluster.Status.ClusterName).To(BeEmpty())
 	g.Expect(reconciledCluster.State()).To(BeEmpty())
+	g.Expect(reconciledCluster.Status.CloudFormationStackID).To(BeEmpty())
 
 	// cluster create error - other
 	cluster = testCluster()
@@ -139,10 +149,26 @@ func TestCreate(t *testing.T) {
 	g.Expect(reconciledCluster.Finalizers).To(BeEmpty())
 	g.Expect(reconciledCluster.Status.ClusterName).To(BeEmpty())
 	g.Expect(reconciledCluster.State()).To(BeEmpty())
+	g.Expect(reconciledCluster.Status.CloudFormationStackID).To(BeEmpty())
+
+	// cluster createWorkerNodes error - other
+	client = &fake.MockEKSClient{
+		MockCreate: func(string, EKSClusterSpec) (*eks.Cluster, error) { return nil, nil },
+		MockCreateWorkerNodes: func(string, EKSClusterSpec) (*eks.ClusterWorkers, error) {
+			return nil, fmt.Errorf("fake-error-worker-nodes")
+		},
+	}
+
+	reconciledCluster = test(cluster, client, resultRequeue, expectedStatus)
+	g.Expect(reconciledCluster.Finalizers).To(BeEmpty())
+	g.Expect(reconciledCluster.Status.ClusterName).To(BeEmpty())
+	g.Expect(reconciledCluster.State()).To(BeEmpty())
+	g.Expect(reconciledCluster.Status.CloudFormationStackID).To(BeEmpty())
 }
 
 func TestSync(t *testing.T) {
 	g := NewGomegaWithT(t)
+	fakeStackID := "fake-stack-id"
 
 	test := func(cl *fake.MockEKSClient, sec func(*eks.Cluster, *EKSCluster, eks.Client) error,
 		rslt reconcile.Result, exp corev1alpha1.ConditionedStatus) {
@@ -166,6 +192,14 @@ func TestSync(t *testing.T) {
 			return nil, fmt.Errorf(testError)
 		},
 	}
+
+	cl.MockGetWorkerNodes = func(string) (*eks.ClusterWorkers, error) {
+		return &eks.ClusterWorkers{
+			WorkersStatus: cloudformation.StackStatusCreateInProgress,
+			WorkerReason:  "",
+			WorkerStackID: fakeStackID}, nil
+	}
+
 	expectedStatus := corev1alpha1.ConditionedStatus{}
 	expectedStatus.SetFailed(errorSyncCluster, testError)
 	test(cl, nil, resultRequeue, expectedStatus)
@@ -179,13 +213,26 @@ func TestSync(t *testing.T) {
 	expectedStatus = corev1alpha1.ConditionedStatus{}
 	test(cl, nil, resultRequeue, expectedStatus)
 
-	// cluster is ready, but secret failed
+	// cluster is ready, but workers still creating
+	testError = "test-create-wait-on-workers"
 	cl.MockGet = func(string) (*eks.Cluster, error) {
 		return &eks.Cluster{
 			Status: ClusterStatusActive,
 		}, nil
 	}
+
+	expectedStatus = corev1alpha1.ConditionedStatus{}
+	test(cl, nil, resultRequeue, expectedStatus)
+
+	// cluster is ready, but secret failed
 	testError = "test-create-secret-error"
+	cl.MockGetWorkerNodes = func(string) (*eks.ClusterWorkers, error) {
+		return &eks.ClusterWorkers{
+			WorkersStatus: cloudformation.StackStatusCreateComplete,
+			WorkerReason:  "",
+			WorkerStackID: fakeStackID}, nil
+	}
+
 	fSec := func(*eks.Cluster, *EKSCluster, eks.Client) error {
 		return fmt.Errorf(testError)
 	}
@@ -214,11 +261,11 @@ func TestSecret(t *testing.T) {
 			return "", fmt.Errorf(testError)
 		},
 	}
-
+	clusterCA := []byte("test-ca")
 	cluster := &eks.Cluster{
 		Status:   ClusterStatusActive,
 		Endpoint: "test-ep",
-		CA:       "test-ca",
+		CA:       base64.StdEncoding.EncodeToString(clusterCA),
 	}
 
 	kc := NewSimpleClientset()
@@ -240,7 +287,7 @@ func TestSecret(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 	data := make(map[string][]byte)
 	data[corev1alpha1.ResourceCredentialsSecretEndpointKey] = []byte(cluster.Endpoint)
-	data[corev1alpha1.ResourceCredentialsSecretCAKey] = []byte(cluster.CA)
+	data[corev1alpha1.ResourceCredentialsSecretCAKey] = clusterCA
 	data[corev1alpha1.ResourceCredentialsToken] = []byte("test-token")
 	secret.Data = data
 	expSec := tc.ConnectionSecret()
@@ -276,10 +323,12 @@ func TestDelete(t *testing.T) {
 	cluster := testCluster()
 	cluster.Finalizers = []string{finalizer}
 	cluster.Spec.ReclaimPolicy = corev1alpha1.ReclaimDelete
+	cluster.Status.CloudFormationStackID = "fake-stack-id"
 	cluster.Status.SetReady()
 
 	client := &fake.MockEKSClient{}
 	client.MockDelete = func(string) error { return nil }
+	client.MockDeleteWorkerNodes = func(string) error { return nil }
 
 	expectedStatus := corev1alpha1.ConditionedStatus{}
 	expectedStatus.SetReady()
@@ -307,7 +356,37 @@ func TestDelete(t *testing.T) {
 	client.MockDelete = func(string) error { return fmt.Errorf(testError) }
 	expectedStatus = corev1alpha1.ConditionedStatus{}
 	expectedStatus.SetReady()
-	expectedStatus.SetFailed(errorDeleteCluster, testError)
+	expectedStatus.SetFailed(errorDeleteCluster, fmt.Sprintf("Master Delete Error: %s", testError))
+
+	reconciledCluster = test(cluster, client, resultRequeue, expectedStatus)
+	g.Expect(reconciledCluster.Finalizers).To(ContainElement(finalizer))
+
+	// reclaim - delete, delete error with worker
+	cluster.Spec.ReclaimPolicy = corev1alpha1.ReclaimDelete
+	cluster.Status.RemoveAllConditions()
+	cluster.Status.SetReady()
+	cluster.Finalizers = []string{finalizer}
+	testErrorWorker := "test-delete-error-worker"
+	client.MockDelete = func(string) error { return nil }
+	client.MockDeleteWorkerNodes = func(string) error { return fmt.Errorf(testErrorWorker) }
+	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetReady()
+	expectedStatus.SetFailed(errorDeleteCluster, fmt.Sprintf("Worker Delete Error: %s", testErrorWorker))
+
+	reconciledCluster = test(cluster, client, resultRequeue, expectedStatus)
+	g.Expect(reconciledCluster.Finalizers).To(ContainElement(finalizer))
+
+	// reclaim - delete, delete error in cluster and cluster workers
+	cluster.Spec.ReclaimPolicy = corev1alpha1.ReclaimDelete
+	cluster.Status.RemoveAllConditions()
+	cluster.Status.SetReady()
+	cluster.Finalizers = []string{finalizer}
+	client.MockDelete = func(string) error { return nil }
+	client.MockDelete = func(string) error { return fmt.Errorf(testError) }
+	client.MockDeleteWorkerNodes = func(string) error { return fmt.Errorf(testErrorWorker) }
+	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetReady()
+	expectedStatus.SetFailed(errorDeleteCluster, fmt.Sprintf("Master Delete Error: %s, Worker Delete Error: %s", testError, testErrorWorker))
 
 	reconciledCluster = test(cluster, client, resultRequeue, expectedStatus)
 	g.Expect(reconciledCluster.Finalizers).To(ContainElement(finalizer))

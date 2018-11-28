@@ -18,12 +18,15 @@ package compute
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
+	"strings"
 
 	awscomputev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/compute/v1alpha1"
 	awsv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/clients/aws"
+	cloudformationclient "github.com/crossplaneio/crossplane/pkg/clients/aws/cloudformation"
 	"github.com/crossplaneio/crossplane/pkg/clients/aws/eks"
 	"github.com/crossplaneio/crossplane/pkg/util"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -138,6 +141,11 @@ func (r *Reconciler) _connect(instance *awscomputev1alpha1.EKSCluster) (eks.Clie
 		return nil, err
 	}
 
+	// Connection Region must be with Spec.Region
+	if string(instance.Spec.Region) != config.Region {
+		config.Region = string(instance.Spec.Region)
+	}
+
 	// Create new EKS Client
 	return eks.NewClient(config), nil
 }
@@ -145,6 +153,7 @@ func (r *Reconciler) _connect(instance *awscomputev1alpha1.EKSCluster) (eks.Clie
 func (r *Reconciler) _create(instance *awscomputev1alpha1.EKSCluster, client eks.Client) (reconcile.Result, error) {
 	clusterName := fmt.Sprintf("%s%s", clusterNamePrefix, instance.UID)
 
+	// Create Master
 	_, err := client.Create(clusterName, instance.Spec)
 	if err != nil && !eks.IsErrorAlreadyExists(err) {
 		if eks.IsErrorBadRequest(err) {
@@ -155,8 +164,12 @@ func (r *Reconciler) _create(instance *awscomputev1alpha1.EKSCluster, client eks
 		return r.fail(instance, errorCreateCluster, err.Error())
 	}
 
-	// Add finalizer
-	util.AddFinalizer(&instance.ObjectMeta, finalizer)
+	// Create workers
+	clusterWorkers, err := client.CreateWorkerNodes(clusterName, instance.Spec)
+	if err != nil {
+		return r.fail(instance, errorCreateCluster, err.Error())
+	}
+	instance.Status.CloudFormationStackID = clusterWorkers.WorkerStackID
 
 	// Update status
 	instance.Status.State = awscomputev1alpha1.ClusterStatusCreating
@@ -173,7 +186,12 @@ func (r *Reconciler) _sync(instance *awscomputev1alpha1.EKSCluster, client eks.C
 		return r.fail(instance, errorSyncCluster, err.Error())
 	}
 
-	if cluster.Status != awscomputev1alpha1.ClusterStatusActive {
+	clusterWorker, err := client.GetWorkerNodes(instance.Status.CloudFormationStackID)
+	if err != nil {
+		return r.fail(instance, errorSyncCluster, err.Error())
+	}
+
+	if cluster.Status != awscomputev1alpha1.ClusterStatusActive || !cloudformationclient.IsCompletedState(clusterWorker.WorkersStatus) {
 		return resultRequeue, nil
 	}
 
@@ -195,10 +213,16 @@ func (r *Reconciler) _secret(cluster *eks.Cluster, instance *awscomputev1alpha1.
 		return err
 	}
 
+	// Avoid double base64 encoding on secret
+	caData, err := base64.StdEncoding.DecodeString(cluster.CA)
+	if err != nil {
+		return err
+	}
+
 	secret := instance.ConnectionSecret()
 	data := make(map[string][]byte)
 	data[corev1alpha1.ResourceCredentialsSecretEndpointKey] = []byte(cluster.Endpoint)
-	data[corev1alpha1.ResourceCredentialsSecretCAKey] = []byte(cluster.CA)
+	data[corev1alpha1.ResourceCredentialsSecretCAKey] = caData
 	data[corev1alpha1.ResourceCredentialsToken] = []byte(token)
 	secret.Data = data
 
@@ -207,16 +231,31 @@ func (r *Reconciler) _secret(cluster *eks.Cluster, instance *awscomputev1alpha1.
 		return err
 	}
 
+	// Set secret reference
+	instance.SetConnectionSecretReference(secret)
+
 	return nil
 }
 
 // _delete check reclaim policy and if needed delete the eks cluster resource
 func (r *Reconciler) _delete(instance *awscomputev1alpha1.EKSCluster, client eks.Client) (reconcile.Result, error) {
 	if instance.Spec.ReclaimPolicy == corev1alpha1.ReclaimDelete {
+		var deleteErrors []string
 		if err := client.Delete(instance.Status.ClusterName); err != nil && !eks.IsErrorNotFound(err) {
-			return r.fail(instance, errorDeleteCluster, err.Error())
+			deleteErrors = append(deleteErrors, fmt.Sprintf("Master Delete Error: %s", err.Error()))
+		}
+
+		if instance.Status.CloudFormationStackID != "" {
+			if err := client.DeleteWorkerNodes(instance.Status.CloudFormationStackID); err != nil && !cloudformationclient.IsErrorNotFound(err) {
+				deleteErrors = append(deleteErrors, fmt.Sprintf("Worker Delete Error: %s", err.Error()))
+			}
+		}
+
+		if len(deleteErrors) > 0 {
+			return r.fail(instance, errorDeleteCluster, strings.Join(deleteErrors, ", "))
 		}
 	}
+
 	util.RemoveFinalizer(&instance.ObjectMeta, finalizer)
 	instance.Status.SetDeleting()
 	return result, r.Update(ctx, instance)
@@ -243,6 +282,9 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	if err != nil {
 		return r.fail(instance, errorClusterClient, err.Error())
 	}
+
+	// Add finalizer
+	util.AddFinalizer(&instance.ObjectMeta, finalizer)
 
 	// Check for deletion
 	if instance.DeletionTimestamp != nil {
