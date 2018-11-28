@@ -21,11 +21,15 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/clients/aws/eks"
 )
 
+// MockEKSClient mock client for EKS
 type MockEKSClient struct {
-	MockCreate          func(string, v1alpha1.EKSClusterSpec) (*eks.Cluster, error)
-	MockGet             func(string) (*eks.Cluster, error)
-	MockDelete          func(name string) error
-	MockConnectionToken func(string) (string, error)
+	MockCreate            func(string, v1alpha1.EKSClusterSpec) (*eks.Cluster, error)
+	MockGet               func(string) (*eks.Cluster, error)
+	MockDelete            func(name string) error
+	MockConnectionToken   func(string) (string, error)
+	MockCreateWorkerNodes func(string, v1alpha1.EKSClusterSpec) (*eks.ClusterWorkers, error)
+	MockGetWorkerNodes    func(string) (*eks.ClusterWorkers, error)
+	MockDeleteWorkerNodes func(string) error
 }
 
 // Create EKS Cluster with provided Specification
@@ -33,16 +37,32 @@ func (m *MockEKSClient) Create(name string, spec v1alpha1.EKSClusterSpec) (*eks.
 	return m.MockCreate(name, spec)
 }
 
-// Get EKS Cluster by name
+// Get mock EKS Cluster by name
 func (m *MockEKSClient) Get(name string) (*eks.Cluster, error) {
 	return m.MockGet(name)
 }
 
-// Delete EKS Cluster
+// Delete mock EKS Cluster
 func (m *MockEKSClient) Delete(name string) error {
 	return m.MockDelete(name)
 }
 
+// ConnectionToken mock
 func (m *MockEKSClient) ConnectionToken(name string) (string, error) {
 	return m.MockConnectionToken(name)
+}
+
+// CreateWorkerNodes mock
+func (m *MockEKSClient) CreateWorkerNodes(name string, spec v1alpha1.EKSClusterSpec) (*eks.ClusterWorkers, error) {
+	return m.MockCreateWorkerNodes(name, spec)
+}
+
+// GetWorkerNodes mock
+func (m *MockEKSClient) GetWorkerNodes(stackID string) (*eks.ClusterWorkers, error) {
+	return m.MockGetWorkerNodes(stackID)
+}
+
+// DeleteWorkerNodes mock
+func (m *MockEKSClient) DeleteWorkerNodes(stackID string) error {
+	return m.MockDeleteWorkerNodes(stackID)
 }
