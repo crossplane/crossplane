@@ -19,6 +19,8 @@ package v1alpha1
 import (
 	"context"
 	"log"
+	"strconv"
+	"strings"
 	"testing"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
@@ -59,15 +61,29 @@ func TestMain(m *testing.M) {
 }
 
 func TestEKSCluster(t *testing.T) {
+	autoscaleSize := 1
+	volSize := 20
 	key := types.NamespacedName{Name: name, Namespace: namespace}
 	created := &EKSCluster{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
 		Spec: EKSClusterSpec{
-			ClusterVersion:    "1.1.1",
-			RoleARN:           "test-arn",
-			SubnetIds:         []string{"one", "two"},
-			SecurityGroupsIds: []string{"sg-1", "sg-2"},
-			ReclaimPolicy:     corev1alpha1.ReclaimRetain,
+			Region:           "us-west-2",
+			ClusterVersion:   "1.1.1",
+			RoleARN:          "test-arn",
+			SubnetIds:        []string{"one", "two"},
+			SecurityGroupIds: []string{"sg-1", "sg-2"},
+			WorkerNodes: WorkerNodesSpec{
+				KeyName:                          "test-key-name",
+				NodeImageID:                      "ami-id-test",
+				NodeInstanceType:                 "t2.small",
+				NodeAutoScalingGroupMinSize:      &autoscaleSize,
+				NodeAutoScalingGroupMaxSize:      &autoscaleSize,
+				NodeVolumeSize:                   &volSize,
+				BootstrapArguments:               "test-bootstrap",
+				NodeGroupName:                    "special-group-name",
+				ClusterControlPlaneSecurityGroup: "sg-cluster-sec-group",
+			},
+			ReclaimPolicy: corev1alpha1.ReclaimRetain,
 		},
 	}
 	g := NewGomegaWithT(t)
@@ -90,4 +106,114 @@ func TestEKSCluster(t *testing.T) {
 	// Test Delete
 	g.Expect(c.Delete(ctx, fetched)).NotTo(HaveOccurred())
 	g.Expect(c.Get(ctx, key, fetched)).To(HaveOccurred())
+
+	// Test create w/invalid region
+	badRegion := created.DeepCopy()
+	badRegion.Spec.Region = "bad-region"
+	g.Expect(c.Create(ctx, badRegion)).To(MatchError(ContainSubstring("spec.region in body should be one of [us-west-2 us-east-1 eu-west-1]")))
+
+	// Test create w/invalid instance type
+	badInstanceType := created.DeepCopy()
+	badInstanceType.Spec.WorkerNodes.NodeInstanceType = "xs-bad-type"
+	g.Expect(c.Create(ctx, badInstanceType)).To(MatchError(ContainSubstring("spec.workerNodes.nodeInstanceType in body should be one of [t2.small")))
+}
+
+func TestNewEKSClusterSpec(t *testing.T) {
+	g := NewGomegaWithT(t)
+
+	m := make(map[string]string)
+	exp := &EKSClusterSpec{ReclaimPolicy: corev1alpha1.ReclaimRetain}
+	g.Expect(NewEKSClusterSpec(m)).To(Equal(exp))
+
+	val := "test-region"
+	m["region"] = val
+	exp.Region = EKSRegion(val)
+	g.Expect(NewEKSClusterSpec(m)).To(Equal(exp))
+
+	val = "test-arm"
+	m["roleARN"] = val
+	exp.RoleARN = val
+	g.Expect(NewEKSClusterSpec(m)).To(Equal(exp))
+
+	val = "test-vpc"
+	m["vpcId"] = val
+	exp.VpcID = val
+	g.Expect(NewEKSClusterSpec(m)).To(Equal(exp))
+
+	val = "test-subnet-1-id,test-subnet-2-id"
+	m["subnetIds"] = val
+	exp.SubnetIds = append(exp.SubnetIds, strings.Split(val, ",")...)
+	g.Expect(NewEKSClusterSpec(m)).To(Equal(exp))
+
+	val = "test-sg-1-id,test-sg-2-id"
+	m["securityGroupIds"] = val
+	exp.SecurityGroupIds = append(exp.SecurityGroupIds, strings.Split(val, ",")...)
+	g.Expect(NewEKSClusterSpec(m)).To(Equal(exp))
+
+	val = "1.10.1"
+	m["clusterVersion"] = val
+	exp.ClusterVersion = val
+	g.Expect(NewEKSClusterSpec(m)).To(Equal(exp))
+
+	val = "key-name-test"
+	m["workerKeyName"] = val
+	exp.WorkerNodes.KeyName = val
+	g.Expect(NewEKSClusterSpec(m)).To(Equal(exp))
+
+	val = "test-node-image-id"
+	m["workerNodeImageId"] = val
+	exp.WorkerNodes.NodeImageID = val
+	g.Expect(NewEKSClusterSpec(m)).To(Equal(exp))
+
+	val = "test-node-instance-type"
+	m["workerNodeInstanceType"] = val
+	exp.WorkerNodes.NodeInstanceType = val
+	g.Expect(NewEKSClusterSpec(m)).To(Equal(exp))
+
+	minSize := 5
+	val = strconv.Itoa(minSize)
+	m["workerNodeAutoScalingGroupMinSize"] = ""
+	exp.WorkerNodes.NodeAutoScalingGroupMinSize = nil
+	g.Expect(NewEKSClusterSpec(m)).To(Equal(exp))
+	m["workerNodeAutoScalingGroupMinSize"] = val
+	exp.WorkerNodes.NodeAutoScalingGroupMinSize = &minSize
+	g.Expect(NewEKSClusterSpec(m)).To(Equal(exp))
+
+	maxSize := 10
+	val = strconv.Itoa(maxSize)
+	m["workerNodeAutoScalingGroupMaxSize"] = ""
+	exp.WorkerNodes.NodeAutoScalingGroupMaxSize = nil
+	g.Expect(NewEKSClusterSpec(m)).To(Equal(exp))
+	m["workerNodeAutoScalingGroupMaxSize"] = val
+	exp.WorkerNodes.NodeAutoScalingGroupMaxSize = &maxSize
+	g.Expect(NewEKSClusterSpec(m)).To(Equal(exp))
+
+	volSize := 20
+	val = strconv.Itoa(volSize)
+	m["workerNodeVolumeSize"] = ""
+	exp.WorkerNodes.NodeVolumeSize = nil
+	g.Expect(NewEKSClusterSpec(m)).To(Equal(exp))
+	m["workerNodeVolumeSize"] = val
+	exp.WorkerNodes.NodeVolumeSize = &volSize
+	g.Expect(NewEKSClusterSpec(m)).To(Equal(exp))
+
+	val = "test-bootstrap-args"
+	m["workerBootstrapArguments"] = val
+	exp.WorkerNodes.BootstrapArguments = val
+	g.Expect(NewEKSClusterSpec(m)).To(Equal(exp))
+
+	val = "test-node-group-name"
+	m["workerNodeGroupName"] = val
+	exp.WorkerNodes.NodeGroupName = val
+	g.Expect(NewEKSClusterSpec(m)).To(Equal(exp))
+
+	val = "cp-security-group"
+	m["workerClusterControlPlaneSecurityGroup"] = val
+	exp.WorkerNodes.ClusterControlPlaneSecurityGroup = val
+	g.Expect(NewEKSClusterSpec(m)).To(Equal(exp))
+
+	val = "conn-secret-name-override-test"
+	m["connectionSecretNameOverride"] = val
+	exp.ConnectionSecretNameOverride = val
+	g.Expect(NewEKSClusterSpec(m)).To(Equal(exp))
 }
