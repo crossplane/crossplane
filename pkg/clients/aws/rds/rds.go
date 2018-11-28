@@ -32,6 +32,7 @@ type Instance struct {
 	ARN      string
 	Status   string
 	Endpoint string
+	VpcID    string
 }
 
 // NewInstance returns new Instance structure
@@ -41,11 +42,17 @@ func NewInstance(instance *rds.DBInstance) *Instance {
 		endpoint = aws.StringValue(instance.Endpoint.Address)
 	}
 
+	VpcID := ""
+	if instance.DBSubnetGroup != nil {
+		VpcID = aws.StringValue(instance.DBSubnetGroup.VpcId)
+	}
+
 	return &Instance{
 		Name:     aws.StringValue(instance.DBInstanceIdentifier),
 		ARN:      aws.StringValue(instance.DBInstanceArn),
 		Status:   aws.StringValue(instance.DBInstanceStatus),
 		Endpoint: endpoint,
+		VpcID:    VpcID,
 	}
 }
 
