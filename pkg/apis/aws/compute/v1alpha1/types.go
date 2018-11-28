@@ -63,6 +63,128 @@ var (
 	}
 )
 
+type SecurityGroupSpec struct {
+	// The name of the security group.
+	Name string `json:"name"`
+
+	// Description A description of the security group.
+	Description string `json:"groupDescription"`
+
+	// IpPermissions One or more inbound rules associated with the security group.
+	IpPermissions []IpPermission `json:"ipPermissions"`
+
+	// IpPermissionsEgress [EC2-VPC] One or more outbound rules associated with the security group.
+	IpPermissionsEgress []IpPermission `json:"ipPermissionsEgress"`
+
+	// Tags Any tags assigned to the security group.
+	Tags []Tag `json:"tags"`
+
+	// VpcID  [EC2-VPC] The ID of the VPC for the security group.
+	VpcID string `json:"vpcId"`
+
+	// Kubernetes object references
+	ClaimRef    *corev1.ObjectReference     `json:"claimRef,omitempty"`
+	ClassRef    *corev1.ObjectReference     `json:"classRef,omitempty"`
+	ProviderRef corev1.LocalObjectReference `json:"providerRef"`
+	// ReclaimPolicy identifies how to handle the cloud resource after the deletion of this type
+	ReclaimPolicy corev1alpha1.ReclaimPolicy `json:"reclaimPolicy,omitempty"`
+}
+
+type SecurityGroupStatus struct {
+	corev1alpha1.ConditionedStatus
+	corev1alpha1.BindingStatusPhase
+
+	// SecurityGroupID The ID of the security group.
+	SecurityGroupID string `json:"groupId"`
+}
+
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// SecurityGroup is the Schema for the resources API
+// +k8s:openapi-gen=true
+// +groupName=compute.aws
+type SecurityGroup struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec   SecurityGroupSpec   `json:"spec,omitempty"`
+	Status SecurityGroupStatus `json:"status,omitempty"`
+}
+
+// Describes a tag.
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/ec2-2016-11-15/Tag
+type Tag struct {
+	// Key of the tag.
+	//
+	// Constraints: Tag keys are case-sensitive and accept a maximum of 127 Unicode
+	// characters. May not begin with aws:.
+	Key *string `json:"key"`
+
+	// Value of the tag.
+	//
+	// Constraints: Tag values are case-sensitive and accept a maximum of 255 Unicode
+	// characters.
+	Value *string `json:"value"`
+}
+
+type IpPermission struct {
+	// FromPort The start of port range for the TCP and UDP protocols, or an ICMP/ICMPv6
+	// type number. A value of -1 indicates all ICMP/ICMPv6 types. If you specify
+	// all ICMP/ICMPv6 types, you must specify all codes.
+	FromPort *int64 `json:"fromPort"`
+
+	// IpProtocol name (tcp, udp, icmp) or number (see Protocol Numbers (http://www.iana.org/assignments/protocol-numbers/protocol-numbers.xhtml)).
+	//
+	// Use -1 to specify all protocols. When authorizing security
+	// group rules, specifying -1 or a protocol number other than tcp, udp, icmp,
+	// or 58 (ICMPv6) allows traffic on all ports, regardless of any port range
+	// you specify. For tcp, udp, and icmp, you must specify a port range. For 58
+	// (ICMPv6), you can optionally specify a port range; if you don't, traffic
+	// for all types and codes is allowed when authorizing rules.
+	IpProtocol *string `json:"ipProtocol"`
+
+	// One or more IPv4 ranges.
+	IpRanges []IpRange `json:"ipRanges"`
+
+	// Ipv6Ranges One or more IPv6 ranges.
+	Ipv6Ranges []Ipv6Range `json:"ipv6Ranges"`
+
+	// ToPort The end of port range for the TCP and UDP protocols, or an ICMP/ICMPv6 code.
+	// A value of -1 indicates all ICMP/ICMPv6 codes for the specified ICMP type.
+	// If you specify all ICMP/ICMPv6 types, you must specify all codes.
+	ToPort *int64 `json:"toPort" type:"integer"`
+}
+
+type IpRange struct {
+	// CidrIp IPv4 CIDR range. You can either specify a CIDR range or a source security
+	// group, not both. To specify a single IPv4 address, use the /32 prefix length.
+	CidrIp *string `json:"cidrIp"`
+
+	// Description for the security group rule that references this IPv4 address
+	// range.
+	//
+	// Constraints: Up to 255 characters in length. Allowed characters are a-z,
+	// A-Z, 0-9, spaces, and ._-:/()#,@[]+=;{}!$*
+	Description *string `json:"description"`
+}
+
+// [EC2-VPC only] Describes an IPv6 range.
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/ec2-2016-11-15/Ipv6Range
+type Ipv6Range struct {
+
+	// CidrIpv6 IPv6 CIDR range. You can either specify a CIDR range or a source security
+	// group, not both. To specify a single IPv6 address, use the /128 prefix length.
+	CidrIpv6 *string `json:"cidrIpv6"`
+
+	// Description for the security group rule that references this IPv6 address
+	// range.
+	//
+	// Constraints: Up to 255 characters in length. Allowed characters are a-z,
+	// A-Z, 0-9, spaces, and ._-:/()#,@[]+=;{}!$*
+	Description *string `locationName:"description" type:"string"`
+}
+
 type EKSClusterSpec struct {
 	// Configuration of this Spec is dependent on the readme as described here
 	// https://docs.aws.amazon.com/eks/latest/userguide/getting-started.html
