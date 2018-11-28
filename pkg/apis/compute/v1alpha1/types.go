@@ -26,6 +26,51 @@ import (
 
 //----------------------------------------------------------------------------------------------------------------------
 
+type NetworkProtocol string
+
+const (
+	TCPProtocol  NetworkProtocol = "TCP"
+	UDPProtocol  NetworkProtocol = "UDP"
+	ICMPProtocol NetworkProtocol = "ICMP"
+	AllProtocol  NetworkProtocol = "All"
+)
+
+// NetworkAccessSpec
+type NetworkAccessSpec struct {
+	ClassRef    *corev1.ObjectReference `json:"classReference,omitempty"`
+	ResourceRef *corev1.ObjectReference `json:"resourceName,omitempty"`
+	Selector    metav1.LabelSelector    `json:"selector,omitempty"`
+
+	Description       string                        `json:"description,omitempty"`
+	FromPort          int                           `json:"fromPort"`
+	ToPort            int                           `json:"toPort,omitempty"`
+	Protocol          NetworkProtocol               `json:"protocol,omitempty"`
+	CIRDs             []CIDR                        `json:"cidrs,omitempty"`
+}
+
+type NetworkAccessStatus struct {
+	corev1alpha1.ConditionedStatus
+	corev1alpha1.BindingStatusPhase
+}
+
+type CIDR struct {
+	// GCP doesn't support IPv6.
+	Cidr string `json:"cidr"`
+}
+
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// NetworkAccess is the Schema for the instances API
+// +k8s:openapi-gen=true
+type NetworkAccess struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec   NetworkAccessSpec   `json:"spec,omitempty"`
+	Status NetworkAccessStatus `json:"status,omitempty"`
+}
+
 // KubernetesClusterSpec
 type KubernetesClusterSpec struct {
 	ClassRef    *corev1.ObjectReference `json:"classReference,omitempty"`
