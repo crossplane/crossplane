@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 
+	awscomputev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/compute/v1alpha1"
 	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/compute/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	gcpcomputev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/compute/v1alpha1"
@@ -63,6 +64,7 @@ var (
 	// map of supported resource handlers
 	handlers = map[string]ResourceHandler{
 		gcpcomputev1alpha1.GKEClusterKindAPIVersion: &GKEClusterHandler{},
+		awscomputev1alpha1.EKSClusterKindAPIVersion: &AWSClusterHandler{},
 	}
 )
 
