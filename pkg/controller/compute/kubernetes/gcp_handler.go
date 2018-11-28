@@ -20,8 +20,8 @@ import (
 	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/compute/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	gcpcomputev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/compute/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/clients/gcp"
 	"github.com/crossplaneio/crossplane/pkg/util"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -71,15 +71,15 @@ func (r GKEClusterHandler) setBindStatus(name types.NamespacedName, c client.Cli
 	instance := &gcpcomputev1alpha1.GKECluster{}
 	err := c.Get(ctx, name, instance)
 	if err != nil {
-		if gcp.IsErrorNotFound(err) && !state {
+		if errors.IsNotFound(err) && !state {
 			return nil
 		}
 		return err
 	}
 	if state {
-		instance.Status.Phase = corev1alpha1.BindingStateBound
+		instance.Status.SetBound()
 	} else {
-		instance.Status.Phase = corev1alpha1.BindingStateBound
+		instance.Status.SetUnbound()
 	}
 	return c.Update(ctx, instance)
 }
