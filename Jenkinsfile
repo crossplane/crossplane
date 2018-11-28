@@ -23,6 +23,7 @@ pipeline {
 
         stage('Build validation'){
             steps {
+                sh './build/run make vendor.check'
                 sh './build/run make -j$(nproc) build.all'
             }
         }
