@@ -17,14 +17,24 @@ limitations under the License.
 package fake
 
 import (
+	awsrds "github.com/aws/aws-sdk-go-v2/service/rds"
 	"github.com/crossplaneio/crossplane/pkg/apis/aws/database/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/clients/aws/rds"
 )
 
 type MockRDSClient struct {
-	MockGetInstance    func(string) (*rds.Instance, error)
-	MockCreateInstance func(string, string, *v1alpha1.RDSInstanceSpec) (*rds.Instance, error)
-	MockDeleteInstance func(name string) (*rds.Instance, error)
+	MockGetVpcId                    func(spec *v1alpha1.RDSInstanceSpec) (*string, error)
+	MockDescribeInstanceSubnetGroup func(string) (*awsrds.DBSubnetGroup, error)
+	MockGetInstance                 func(string) (*rds.Instance, error)
+	MockCreateInstance              func(string, string, *v1alpha1.RDSInstanceSpec) (*rds.Instance, error)
+	MockDeleteInstance              func(name string) (*rds.Instance, error)
+}
+
+func (m *MockRDSClient) GetVpcId(spec *v1alpha1.RDSInstanceSpec) (*string, error) {
+	return m.MockGetVpcId(spec)
+}
+func (m *MockRDSClient) DescribeInstanceSubnetGroup(name string) (*awsrds.DBSubnetGroup, error) {
+	return m.MockDescribeInstanceSubnetGroup(name)
 }
 
 // GetInstance finds RDS Instance by name

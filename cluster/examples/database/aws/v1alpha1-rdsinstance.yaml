@@ -10,7 +10,4 @@ spec:
   masterUsername: masteruser
   providerRef:
     name: demo-aws-provider
-  securityGroups:
-  #  - vpc-default-sg - default security group for your VPC
-  #  - vpc-rds-sg - security group to allow RDS connection
   size: 20

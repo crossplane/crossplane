@@ -65,7 +65,9 @@ func NewInstance(instance *rds.DBInstance) *Instance {
 
 // Client defines RDS RDSClient operations
 type Client interface {
+	GetVpcId(spec *v1alpha1.RDSInstanceSpec) (*string, error)
 	CreateInstance(string, string, *v1alpha1.RDSInstanceSpec) (*Instance, error)
+	DescribeInstanceSubnetGroup(name string) (*rds.DBSubnetGroup, error)
 	GetInstance(name string) (*Instance, error)
 	DeleteInstance(name string) (*Instance, error)
 }
@@ -133,22 +135,17 @@ func (r *RDSClient) DescribeInstanceSubnetGroup(name string) (*rds.DBSubnetGroup
 
 // CreateInstance creates RDS Instance with provided Specification
 func (r *RDSClient) CreateInstance(name, password string, spec *v1alpha1.RDSInstanceSpec) (*Instance, error) {
-	if len(spec.SecurityGroups) == 0 {
-		vpcID, err := r.GetVpcId(spec)
-		if err != nil {
-			return nil, err
-		}
-		// Create security group
-		// TODO - naming of security group
-		// TODO - Do we want to always create a security group in addition, that's for our access to keep
-		// 	it separate?
-		groupID, err := r.ec2.CreateSecurityGroup(*vpcID, fmt.Sprintf("crossplane-rds-%s", name), "Security group for RDS Database")
-		if err != nil {
-			return nil, err
-		}
-		spec.SecurityGroups = append(spec.SecurityGroups, *groupID)
+	vpcID, err := r.GetVpcId(spec)
+	if err != nil {
+		return nil, err
 	}
 
+	groupID, err := r.ec2.CreateSecurityGroup(*vpcID, fmt.Sprintf("cp-rds-%s", name), "Crossplane Security group for RDS Database")
+	if err != nil {
+		return nil, err
+	}
+
+	spec.SecurityGroups = append(spec.SecurityGroups, *groupID)
 	input := CreateDBInstanceInput(name, password, spec)
 
 	output, err := r.rds.CreateDBInstanceRequest(input).Send()

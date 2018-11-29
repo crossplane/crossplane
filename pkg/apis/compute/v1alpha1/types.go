@@ -41,11 +41,11 @@ type NetworkAccessSpec struct {
 	ResourceRef *corev1.ObjectReference `json:"resourceName,omitempty"`
 	Selector    metav1.LabelSelector    `json:"selector,omitempty"`
 
-	Description       string                        `json:"description,omitempty"`
-	FromPort          int                           `json:"fromPort"`
-	ToPort            int                           `json:"toPort,omitempty"`
-	Protocol          NetworkProtocol               `json:"protocol,omitempty"`
-	CIRDs             []CIDR                        `json:"cidrs,omitempty"`
+	Description string          `json:"description,omitempty"`
+	FromPort    int             `json:"fromPort"`
+	ToPort      int             `json:"toPort,omitempty"`
+	Protocol    NetworkProtocol `json:"protocol,omitempty"`
+	CIRDs       []CIDR          `json:"cidrs,omitempty"`
 }
 
 type NetworkAccessStatus struct {

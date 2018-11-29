@@ -47,4 +47,5 @@ var (
 
 func init() {
 	SchemeBuilder.Register(&EKSCluster{}, &EKSClusterList{})
+	SchemeBuilder.Register(&SecurityGroup{}, &SecurityGroupList{})
 }

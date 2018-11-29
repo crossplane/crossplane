@@ -18,6 +18,7 @@ package ec2
 
 import (
 	"fmt"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/ec2iface"
@@ -29,10 +30,10 @@ type Client interface {
 	CreateSecurityGroup(vpcID string, groupName string, description string) (groupID *string, err error)
 	GetSecurityGroups(groupIDs []string) ([]ec2.SecurityGroup, error)
 	DeleteSecurityGroup(groupID string) error
-	CreateIngress(groupID string, sourceSecurityGroup *string, IpPermissions []ec2.IpPermission) error
-	CreateEgress(groupID string, sourceSecurityGroup *string, IpPermissions []ec2.IpPermission) error
-	RevokeEgress(groupID string, sourceSecurityGroup *string, IpPermissions []ec2.IpPermission) error
-	RevokeIngress(groupID string, sourceSecurityGroup *string, IpPermissions []ec2.IpPermission) error
+	CreateIngress(groupID string, IpPermissions []ec2.IpPermission) error
+	CreateEgress(groupID string, IpPermissions []ec2.IpPermission) error
+	RevokeEgress(groupID string, IpPermissions []ec2.IpPermission) error
+	RevokeIngress(groupID string, IpPermissions []ec2.IpPermission) error
 }
 
 // EC2Client implements EC2 Client
@@ -45,7 +46,7 @@ func NewClient(config *aws.Config) Client {
 	return &EC2Client{ec2.New(*config)}
 }
 
-// CreateSecurityGroup
+// GetDefaultVpcID
 func (c *EC2Client) GetDefaultVpcID() (*string, error) {
 	response, err := c.ec2.DescribeAccountAttributesRequest(&ec2.DescribeAccountAttributesInput{
 		AttributeNames: []ec2.AccountAttributeName{ec2.AccountAttributeNameDefaultVpc},
@@ -69,8 +70,8 @@ func (c *EC2Client) GetDefaultVpcID() (*string, error) {
 // CreateSecurityGroup
 func (c *EC2Client) CreateSecurityGroup(vpcID string, groupName string, description string) (*string, error) {
 	response, err := c.ec2.CreateSecurityGroupRequest(&ec2.CreateSecurityGroupInput{
-		VpcId: &vpcID,
-		GroupName: &groupName,
+		VpcId:       &vpcID,
+		GroupName:   &groupName,
 		Description: &description,
 	}).Send()
 	if err != nil {
@@ -99,41 +100,36 @@ func (c *EC2Client) DeleteSecurityGroup(groupID string) error {
 }
 
 // CreateIngress
-func (c *EC2Client) CreateIngress(groupID string, sourceSecurityGroup *string, IpPermissions []ec2.IpPermission) error {
+func (c *EC2Client) CreateIngress(groupID string, IpPermissions []ec2.IpPermission) error {
 	_, err := c.ec2.AuthorizeSecurityGroupIngressRequest(&ec2.AuthorizeSecurityGroupIngressInput{
-		GroupId: &groupID,
-		SourceSecurityGroupName: sourceSecurityGroup,
+		GroupId:       &groupID,
 		IpPermissions: IpPermissions,
 	}).Send()
 	return err
 }
 
 // CreateIngress
-func (c *EC2Client) CreateEgress(groupID string, sourceSecurityGroup *string, IpPermissions []ec2.IpPermission) error {
+func (c *EC2Client) CreateEgress(groupID string, IpPermissions []ec2.IpPermission) error {
 	_, err := c.ec2.AuthorizeSecurityGroupEgressRequest(&ec2.AuthorizeSecurityGroupEgressInput{
-		GroupId: &groupID,
-		SourceSecurityGroupName: sourceSecurityGroup,
+		GroupId:       &groupID,
 		IpPermissions: IpPermissions,
 	}).Send()
 	return err
 }
 
 // RevokeIngress
-func (c *EC2Client) RevokeIngress(groupID string, sourceSecurityGroup *string, IpPermissions []ec2.IpPermission) error {
+func (c *EC2Client) RevokeIngress(groupID string, IpPermissions []ec2.IpPermission) error {
 	_, err := c.ec2.RevokeSecurityGroupIngressRequest(&ec2.RevokeSecurityGroupIngressInput{
-		GroupId: &groupID,
-		SourceSecurityGroupName: sourceSecurityGroup,
+		GroupId:       &groupID,
 		IpPermissions: IpPermissions,
 	}).Send()
 	return err
 }
 
-
 // CreateEgress
-func (c *EC2Client) RevokeEgress(groupID string, sourceSecurityGroup *string, IpPermissions []ec2.IpPermission) error {
-	_, err :=c.ec2.RevokeSecurityGroupEgressRequest(&ec2.RevokeSecurityGroupEgressInput{
-		GroupId: &groupID,
-		SourceSecurityGroupName: sourceSecurityGroup,
+func (c *EC2Client) RevokeEgress(groupID string, IpPermissions []ec2.IpPermission) error {
+	_, err := c.ec2.RevokeSecurityGroupEgressRequest(&ec2.RevokeSecurityGroupEgressInput{
+		GroupId:       &groupID,
 		IpPermissions: IpPermissions,
 	}).Send()
 	return err
