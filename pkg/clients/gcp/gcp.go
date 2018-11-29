@@ -49,7 +49,6 @@ func GetGoogleClient(clientset kubernetes.Interface, namespace string, secretKey
 		creds, err = google.CredentialsFromJSON(context.Background(), gcpSecretData, scopes...)
 		if err == nil {
 			hc = oauth2.NewClient(context.Background(), creds.TokenSource)
-			log.Printf("google client created from secret %s", secretKey.Name)
 		}
 	}
 
