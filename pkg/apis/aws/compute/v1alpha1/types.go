@@ -21,6 +21,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/util"
 	corev1 "k8s.io/api/core/v1"
@@ -64,23 +65,30 @@ var (
 )
 
 type SecurityGroupSpec struct {
-	// The name of the security group.
+	// GroupID The ID of the security group
+	GroupID string `json:"groupId,omitempty"`
+
+	// Region of the security group.
+	Region string `json:"region"`
+
+	// VpcID  [EC2-VPC] The ID of the VPC for the security group.
+	// TODO: We can set default on create.
+	VpcID string `json:"vpcId"`
+
+	// Name of the security group.
 	Name string `json:"name"`
 
 	// Description A description of the security group.
 	Description string `json:"groupDescription"`
 
 	// IpPermissions One or more inbound rules associated with the security group.
-	IpPermissions []IpPermission `json:"ipPermissions"`
+	IpPermissions []IpPermission `json:"ipPermissions,omitempty"`
 
 	// IpPermissionsEgress [EC2-VPC] One or more outbound rules associated with the security group.
-	IpPermissionsEgress []IpPermission `json:"ipPermissionsEgress"`
+	IpPermissionsEgress []IpPermission `json:"ipPermissionsEgress,omitempty"`
 
 	// Tags Any tags assigned to the security group.
-	Tags []Tag `json:"tags"`
-
-	// VpcID  [EC2-VPC] The ID of the VPC for the security group.
-	VpcID string `json:"vpcId"`
+	Tags []Tag `json:"tags,omitempty"`
 
 	// Kubernetes object references
 	ClaimRef    *corev1.ObjectReference     `json:"claimRef,omitempty"`
@@ -93,9 +101,6 @@ type SecurityGroupSpec struct {
 type SecurityGroupStatus struct {
 	corev1alpha1.ConditionedStatus
 	corev1alpha1.BindingStatusPhase
-
-	// SecurityGroupID The ID of the security group.
-	SecurityGroupID string `json:"groupId"`
 }
 
 // +genclient
@@ -110,6 +115,15 @@ type SecurityGroup struct {
 
 	Spec   SecurityGroupSpec   `json:"spec,omitempty"`
 	Status SecurityGroupStatus `json:"status,omitempty"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// SecurityGroupList contains a list of SecurityGroup items
+type SecurityGroupList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []SecurityGroup `json:"items"`
 }
 
 // Describes a tag.
@@ -134,6 +148,11 @@ type IpPermission struct {
 	// all ICMP/ICMPv6 types, you must specify all codes.
 	FromPort *int64 `json:"fromPort"`
 
+	// ToPort The end of port range for the TCP and UDP protocols, or an ICMP/ICMPv6 code.
+	// A value of -1 indicates all ICMP/ICMPv6 codes for the specified ICMP type.
+	// If you specify all ICMP/ICMPv6 types, you must specify all codes.
+	ToPort *int64 `json:"toPort"`
+
 	// IpProtocol name (tcp, udp, icmp) or number (see Protocol Numbers (http://www.iana.org/assignments/protocol-numbers/protocol-numbers.xhtml)).
 	//
 	// Use -1 to specify all protocols. When authorizing security
@@ -145,15 +164,137 @@ type IpPermission struct {
 	IpProtocol *string `json:"ipProtocol"`
 
 	// One or more IPv4 ranges.
-	IpRanges []IpRange `json:"ipRanges"`
+	IpRanges []IpRange `json:"ipRanges,omitempty"`
 
 	// Ipv6Ranges One or more IPv6 ranges.
-	Ipv6Ranges []Ipv6Range `json:"ipv6Ranges"`
+	Ipv6Ranges []Ipv6Range `json:"ipv6Ranges,omitempty"`
 
-	// ToPort The end of port range for the TCP and UDP protocols, or an ICMP/ICMPv6 code.
-	// A value of -1 indicates all ICMP/ICMPv6 codes for the specified ICMP type.
-	// If you specify all ICMP/ICMPv6 types, you must specify all codes.
-	ToPort *int64 `json:"toPort" type:"integer"`
+	// One or more security group and AWS account ID pairs.
+	SecurityGroupsIDs []string `json:"securityGroupsIds,omitempty"`
+}
+
+func (p *IpPermission) Export() (permission ec2.IpPermission) {
+	permission.FromPort = p.FromPort
+	permission.ToPort = p.ToPort
+	permission.IpProtocol = p.IpProtocol
+
+	for _, ipRange := range p.IpRanges {
+		permission.IpRanges = append(permission.IpRanges, ec2.IpRange{CidrIp: ipRange.CidrIp, Description: ipRange.Description})
+	}
+
+	for _, ipRange := range p.Ipv6Ranges {
+		permission.Ipv6Ranges = append(permission.Ipv6Ranges, ec2.Ipv6Range{CidrIpv6: ipRange.CidrIpv6, Description: ipRange.Description})
+	}
+
+	for _, groupID := range p.SecurityGroupsIDs {
+		permission.UserIdGroupPairs = append(permission.UserIdGroupPairs, ec2.UserIdGroupPair{GroupId: &groupID})
+	}
+	return
+}
+
+func (p *IpPermission) Load(permission ec2.IpPermission) {
+	p.FromPort = permission.FromPort
+	p.ToPort = permission.ToPort
+	p.IpProtocol = permission.IpProtocol
+	for _, ipRange := range permission.IpRanges {
+		p.IpRanges = append(p.IpRanges, IpRange{CidrIp: ipRange.CidrIp, Description: ipRange.Description})
+	}
+
+	for _, ipRange := range permission.Ipv6Ranges {
+		p.Ipv6Ranges = append(p.Ipv6Ranges, Ipv6Range{CidrIpv6: ipRange.CidrIpv6, Description: ipRange.Description})
+	}
+
+	for _, userGroups := range permission.UserIdGroupPairs {
+		if userGroups.GroupId != nil {
+			p.SecurityGroupsIDs = append(p.SecurityGroupsIDs, *userGroups.GroupId)
+		}
+	}
+}
+
+func (p *IpPermission) Diff(remotePermission ec2.IpPermission) (*ec2.IpPermission, *ec2.IpPermission) {
+	granted := false
+	revoked := false
+
+	grant := &ec2.IpPermission{FromPort: p.FromPort, ToPort: p.ToPort, IpProtocol: p.IpProtocol}
+	revoke := &ec2.IpPermission{FromPort: p.FromPort, ToPort: p.ToPort, IpProtocol: p.IpProtocol}
+
+	// IPV4 diff
+	remoteRanges := make(map[string]ec2.IpRange)
+	for _, remoteRange := range remotePermission.IpRanges {
+		remoteRanges[*remoteRange.CidrIp] = remoteRange
+	}
+
+	for _, ipRange := range p.IpRanges {
+		if _, found := remoteRanges[*ipRange.CidrIp]; !found {
+			grant.IpRanges = append(grant.IpRanges, ec2.IpRange{CidrIp: ipRange.CidrIp, Description: ipRange.Description})
+			granted = true
+			delete(remoteRanges, *ipRange.CidrIp)
+		}
+	}
+
+	for _, ipRange := range remoteRanges {
+		revoked = true
+		revoke.IpRanges = append(revoke.IpRanges, ipRange)
+	}
+
+	// IPV6 diff
+	ipv6remoteRanges := make(map[string]ec2.Ipv6Range)
+	for _, remoteRange := range remotePermission.Ipv6Ranges {
+		revoked = true
+		ipv6remoteRanges[*remoteRange.CidrIpv6] = remoteRange
+	}
+
+	for _, ipRange := range p.Ipv6Ranges {
+		if _, found := remoteRanges[*ipRange.CidrIpv6]; !found {
+			granted = true
+			grant.Ipv6Ranges = append(grant.Ipv6Ranges, ec2.Ipv6Range{CidrIpv6: ipRange.CidrIpv6, Description: ipRange.Description})
+			delete(ipv6remoteRanges, *ipRange.CidrIpv6)
+		}
+	}
+
+	for _, ipRange := range ipv6remoteRanges {
+		revoked = true
+		revoke.Ipv6Ranges = append(revoke.Ipv6Ranges, ipRange)
+	}
+
+	// Security group diff
+	remoteSecurityGroups := make(map[string]ec2.UserIdGroupPair)
+	for _, userGroup := range remotePermission.UserIdGroupPairs {
+		if userGroup.GroupId != nil {
+			remoteSecurityGroups[*userGroup.GroupId] = userGroup
+		}
+	}
+
+	for _, groupID := range p.SecurityGroupsIDs {
+		if _, found := remoteSecurityGroups[groupID]; !found {
+			granted = true
+			grant.UserIdGroupPairs = append(grant.UserIdGroupPairs, ec2.UserIdGroupPair{GroupId: &groupID})
+			delete(remoteSecurityGroups, groupID)
+		}
+	}
+
+	for _, userIDGroup := range remoteSecurityGroups {
+		revoked = true
+		revoke.UserIdGroupPairs = append(revoke.UserIdGroupPairs, userIDGroup)
+	}
+
+	if !granted {
+		grant = nil
+	}
+
+	if !revoked {
+		revoke = nil
+	}
+
+	return grant, revoke
+}
+
+func (p *IpPermission) Key() string {
+	return fmt.Sprintf("%d,%d,%s", *p.FromPort, *p.ToPort, *p.IpProtocol)
+}
+
+func Key(perm *ec2.IpPermission) string {
+	return fmt.Sprintf("%d,%d,%s", *perm.FromPort, *perm.ToPort, *perm.IpProtocol)
 }
 
 type IpRange struct {

@@ -1,0 +1,18 @@
+apiVersion: compute.aws.crossplane.io/v1alpha1
+kind: SecurityGroup
+metadata:
+  name: demo-security-group
+spec:
+  providerRef:
+    name: demo-aws-provider
+  name: demo-security-group-named
+  groupDescription: "conductor-demo-security-group"
+  region: us-west-2
+  vpcId: # vpc-01
+  ipPermissions:
+  - fromPort: 0
+    toPort: 10
+    ipProtocol: tcp
+    ipRanges:
+    - cidrIp: 0.0.0.0/0
+      description: "test-security-rule"
