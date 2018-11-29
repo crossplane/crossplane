@@ -38,16 +38,22 @@ const (
 // Client struct that represents the information needed to connect to the Azure services as a client
 type Client struct {
 	autorest.Authorizer
-	SubscriptionID string
+	SubscriptionID                 string
+	clientID                       string
+	clientSecret                   string
+	tenantID                       string
+	activeDirectoryEndpointURL     string
+	activeDirectoryGraphResourceID string
 }
 
 type credentials struct {
-	ClientID                   string `json:"clientId"`
-	ClientSecret               string `json:"clientSecret"`
-	TenantID                   string `json:"tenantId"`
-	SubscriptionID             string `json:"subscriptionId"`
-	ActiveDirectoryEndpointURL string `json:"activeDirectoryEndpointUrl"`
-	ResourceManagerEndpointURL string `json:"resourceManagerEndpointUrl"`
+	ClientID                       string `json:"clientId"`
+	ClientSecret                   string `json:"clientSecret"`
+	TenantID                       string `json:"tenantId"`
+	SubscriptionID                 string `json:"subscriptionId"`
+	ActiveDirectoryEndpointURL     string `json:"activeDirectoryEndpointUrl"`
+	ResourceManagerEndpointURL     string `json:"resourceManagerEndpointUrl"`
+	ActiveDirectoryGraphResourceID string `json:"activeDirectoryGraphResourceId"`
 }
 
 // NewClient will look up the Azure credential information from the given provider and return a client
@@ -76,7 +82,15 @@ func NewClient(provider *v1alpha1.Provider, clientset kubernetes.Interface) (*Cl
 		return nil, fmt.Errorf("failed to get authorizer from config: %+v", err)
 	}
 
-	return &Client{Authorizer: authorizer, SubscriptionID: creds.SubscriptionID}, nil
+	return &Client{
+		Authorizer:                     authorizer,
+		SubscriptionID:                 creds.SubscriptionID,
+		clientID:                       creds.ClientID,
+		clientSecret:                   creds.ClientSecret,
+		tenantID:                       creds.TenantID,
+		activeDirectoryEndpointURL:     creds.ActiveDirectoryEndpointURL,
+		activeDirectoryGraphResourceID: creds.ActiveDirectoryGraphResourceID,
+	}, nil
 }
 
 // ValidateClient verifies if the given client is valid by testing if it can make an Azure service API call
