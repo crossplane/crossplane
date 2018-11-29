@@ -1,0 +1,82 @@
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  creationTimestamp: null
+  labels:
+    controller-tools.k8s.io: "1.0"
+  name: aksclusters.compute.azure.crossplane.io
+spec:
+  group: compute.azure.crossplane.io
+  names:
+    kind: AKSCluster
+    plural: aksclusters
+  scope: Namespaced
+  validation:
+    openAPIV3Schema:
+      properties:
+        apiVersion:
+          type: string
+        kind:
+          type: string
+        metadata:
+          type: object
+        spec:
+          properties:
+            claimRef:
+              type: object
+            classRef:
+              type: object
+            connectionSecretRef:
+              type: object
+            disableRBAC:
+              type: boolean
+            dnsNamePrefix:
+              type: string
+            location:
+              type: string
+            nodeCount:
+              format: int64
+              type: integer
+            nodeVMSize:
+              type: string
+            providerRef:
+              type: object
+            reclaimPolicy:
+              type: string
+            resourceGroupName:
+              type: string
+            version:
+              type: string
+          required:
+          - resourceGroupName
+          - location
+          - version
+          - nodeCount
+          - nodeVMSize
+          - dnsNamePrefix
+          - disableRBAC
+          type: object
+        status:
+          properties:
+            appObjectID:
+              type: string
+            clusterName:
+              type: string
+            endpoint:
+              type: string
+            runningOperation:
+              type: string
+            servicePrincipalID:
+              type: string
+            state:
+              type: string
+          required:
+          - endpoint
+          type: object
+  version: v1alpha1
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
