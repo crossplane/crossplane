@@ -28,11 +28,13 @@ import (
 
 // RDSInstanceSpec defines the desired state of RDSInstance
 type RDSInstanceSpec struct {
-	MasterUsername string `json:"masterUsername"`
-	Engine         string `json:"engine"`
-	EngineVersion  string `json:"engineVersion,omitempty"`
-	Class          string `json:"class"` // like "db.t2.micro"
-	Size           int64  `json:"size"`  // size in gb
+	MasterUsername     string `json:"masterUsername"`
+	Engine             string `json:"engine"`
+	EngineVersion      string `json:"engineVersion,omitempty"`
+	Class              string `json:"class"` // like "db.t2.micro"
+	Size               int64  `json:"size"`  // size in gb
+	DBSubnetGroupName  string `json:"dbSubnetGroupName"`
+	PubliclyAccessible *bool  `json:"publiclyAccessible,omitempty"`
 
 	// Specifies a DB subnet group for the DB instance. The new DB instance is created
 	// in the VPC associated with the DB subnet group. If no DB subnet group is
