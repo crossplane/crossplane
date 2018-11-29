@@ -33,7 +33,7 @@ parameters:
   workerNodeInstanceType: m3.medium
   workerNodeGroupName: demo-nodes
   workerClusterControlPlaneSecurityGroup: #sg-01
-provisioner: eksclusters.compute.aws.crossplane.io/v1alpha1
+provisioner: ekscluster.compute.aws.crossplane.io/v1alpha1
 providerRef:
   name: demo-aws-provider
 reclaimPolicy: Delete
