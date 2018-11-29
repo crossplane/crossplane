@@ -64,7 +64,7 @@ func (h *AzureMySQLServerHandler) provision(class *corev1alpha1.ResourceClass, i
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:       class.Namespace,
-			Name:            util.GenerateName(instance.Name),
+			Name:            util.GenerateName(instance.Name + "-"),
 			OwnerReferences: []metav1.OwnerReference{instance.OwnerReference()},
 		},
 		Spec: *mysqlServerSpec,

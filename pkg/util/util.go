@@ -125,7 +125,7 @@ func SecretData(client kubernetes.Interface, namespace string, ks corev1.SecretK
 	// retrieve data
 	data, ok := secret.Data[ks.Key]
 	if !ok {
-		return nil, fmt.Errorf("secet data is not found for key [%s]", ks.Key)
+		return nil, fmt.Errorf("secret data is not found for key [%s]", ks.Key)
 	}
 
 	return data, nil
