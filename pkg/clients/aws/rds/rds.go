@@ -20,6 +20,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/aws/aws-sdk-go-v2/aws/awserr"
+	"github.com/crossplaneio/crossplane/pkg/clients/aws/ec2"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/rds"
 	"github.com/aws/aws-sdk-go-v2/service/rds/rdsiface"
@@ -34,6 +37,10 @@ type Instance struct {
 	Endpoint string
 	VpcID    string
 }
+
+const (
+	defaultSubgroupName = "default"
+)
 
 // NewInstance returns new Instance structure
 func NewInstance(instance *rds.DBInstance) *Instance {
@@ -66,15 +73,82 @@ type Client interface {
 // RDSClient implements RDS RDSClient
 type RDSClient struct {
 	rds rdsiface.RDSAPI
+	ec2 ec2.Client
 }
 
 // NewClient creates new RDS RDSClient with provided AWS Configurations/Credentials
 func NewClient(config *aws.Config) Client {
-	return &RDSClient{rds.New(*config)}
+	return &RDSClient{rds.New(*config), ec2.NewClient(config)}
+}
+
+// GetVpcId - Detect the VPC ID where an RDS instance will be provisioned based on
+// 1. User provided DBSubnetGroup's VPC
+// 2. Lookup DBSubnetGroup of name default and check it's VPC
+// 3. Lookup default vpc of this account.
+func (r *RDSClient) GetVpcId(spec *v1alpha1.RDSInstanceSpec) (*string, error) {
+	// Create default security groups
+	//
+	// Detect VPC where database will be created.
+	var vpcID *string
+	if spec.DBSubnetGroupName != "" {
+		response, err := r.DescribeInstanceSubnetGroup(spec.DBSubnetGroupName)
+		if err != nil {
+			return nil, err
+		}
+		vpcID = response.VpcId
+	} else {
+		response, err := r.DescribeInstanceSubnetGroup(defaultSubgroupName)
+		if err != nil {
+			if !IsErrorDBSubnetNotFound(err) {
+				return nil, err
+			}
+			// try to fetch default vpc
+			vpcID, err = r.ec2.GetDefaultVpcID()
+			if err != nil {
+				return nil, err
+			}
+
+		}
+		vpcID = response.VpcId
+	}
+	return vpcID, nil
+}
+
+// DescribeInstanceSubnetGroup get details about a dbsubnet group
+func (r *RDSClient) DescribeInstanceSubnetGroup(name string) (*rds.DBSubnetGroup, error) {
+	output, err := r.rds.DescribeDBSubnetGroupsRequest(&rds.DescribeDBSubnetGroupsInput{
+		DBSubnetGroupName: aws.String(name),
+	}).Send()
+
+	if err != nil {
+		return nil, err
+	}
+
+	if len(output.DBSubnetGroups) == 0 || len(output.DBSubnetGroups) > 1 {
+		return nil, fmt.Errorf("unexpected response")
+	}
+
+	return &output.DBSubnetGroups[0], nil
 }
 
 // CreateInstance creates RDS Instance with provided Specification
 func (r *RDSClient) CreateInstance(name, password string, spec *v1alpha1.RDSInstanceSpec) (*Instance, error) {
+	if len(spec.SecurityGroups) == 0 {
+		vpcID, err := r.GetVpcId(spec)
+		if err != nil {
+			return nil, err
+		}
+		// Create security group
+		// TODO - naming of security group
+		// TODO - Do we want to always create a security group in addition, that's for our access to keep
+		// 	it separate?
+		groupID, err := r.ec2.CreateSecurityGroup(*vpcID, fmt.Sprintf("crossplane-rds-%s", name), "Security group for RDS Database")
+		if err != nil {
+			return nil, err
+		}
+		spec.SecurityGroups = append(spec.SecurityGroups, *groupID)
+	}
+
 	input := CreateDBInstanceInput(name, password, spec)
 
 	output, err := r.rds.CreateDBInstanceRequest(input).Send()
@@ -123,8 +197,25 @@ func IsErrorNotFound(err error) bool {
 	return strings.Contains(err.Error(), rds.ErrCodeDBInstanceNotFoundFault)
 }
 
+func IsErrorDBSubnetNotFound(err error) bool {
+	if cloudformationErr, ok := err.(awserr.Error); ok && cloudformationErr.Code() == rds.ErrCodeDBSubnetGroupNotFoundFault {
+		return true
+	}
+	return false
+}
+
 // CreateDBInstanceInput from RDSInstanceSpec
 func CreateDBInstanceInput(name, password string, spec *v1alpha1.RDSInstanceSpec) *rds.CreateDBInstanceInput {
+	publicallyAccessible := aws.Bool(true)
+	if spec.PubliclyAccessible != nil {
+		publicallyAccessible = spec.PubliclyAccessible
+	}
+
+	var dbSubnetGroupName *string
+	if spec.DBSubnetGroupName != "" {
+		dbSubnetGroupName = &spec.DBSubnetGroupName
+	}
+
 	return &rds.CreateDBInstanceInput{
 		DBInstanceIdentifier:  aws.String(name),
 		AllocatedStorage:      aws.Int64(spec.Size),
@@ -135,6 +226,7 @@ func CreateDBInstanceInput(name, password string, spec *v1alpha1.RDSInstanceSpec
 		MasterUserPassword:    aws.String(password),
 		BackupRetentionPeriod: aws.Int64(0),
 		VpcSecurityGroupIds:   spec.SecurityGroups,
-		PubliclyAccessible:    aws.Bool(true),
+		PubliclyAccessible:    publicallyAccessible,
+		DBSubnetGroupName:     dbSubnetGroupName,
 	}
 }

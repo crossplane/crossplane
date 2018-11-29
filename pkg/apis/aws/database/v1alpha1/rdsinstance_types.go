@@ -28,11 +28,13 @@ import (
 
 // RDSInstanceSpec defines the desired state of RDSInstance
 type RDSInstanceSpec struct {
-	MasterUsername string `json:"masterUsername"`
-	Engine         string `json:"engine"`
-	EngineVersion  string `json:"engineVersion,omitempty"`
-	Class          string `json:"class"` // like "db.t2.micro"
-	Size           int64  `json:"size"`  // size in gb
+	MasterUsername     string `json:"masterUsername"`
+	Engine             string `json:"engine"`
+	EngineVersion      string `json:"engineVersion,omitempty"`
+	Class              string `json:"class"` // like "db.t2.micro"
+	Size               int64  `json:"size"`  // size in gb
+	DBSubnetGroupName  string `json:"dbSubnetGroupName"`
+	PubliclyAccessible *bool  `json:"publiclyAccessible,omitempty"`
 
 	// VPC Security groups that will allow the RDS instance to be accessed over the network.
 	// You can consider the following groups:

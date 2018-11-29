@@ -17,6 +17,7 @@ limitations under the License.
 package ec2
 
 import (
+	"fmt"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/ec2iface"
@@ -24,7 +25,8 @@ import (
 
 // Client defines EC2 EC2Client operations
 type Client interface {
-	CreateSecurityGroup(vpcID string, groupName string, description string) (*string, error)
+	GetDefaultVpcID() (*string, error)
+	CreateSecurityGroup(vpcID string, groupName string, description string) (groupID *string, err error)
 	GetSecurityGroups(groupIDs []string) ([]ec2.SecurityGroup, error)
 	DeleteSecurityGroup(groupID string) error
 	CreateIngress(groupID string, sourceSecurityGroup *string, IpPermissions []ec2.IpPermission) error
@@ -44,13 +46,38 @@ func NewClient(config *aws.Config) Client {
 }
 
 // CreateSecurityGroup
+func (c *EC2Client) GetDefaultVpcID() (*string, error) {
+	response, err := c.ec2.DescribeAccountAttributesRequest(&ec2.DescribeAccountAttributesInput{
+		AttributeNames: []ec2.AccountAttributeName{ec2.AccountAttributeNameDefaultVpc},
+	}).Send()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, attr := range response.AccountAttributes {
+		if *attr.AttributeName == string(ec2.AccountAttributeNameDefaultVpc) {
+			if len(attr.AttributeValues) == 1 && attr.AttributeValues[0].AttributeValue != nil {
+				vpcID := attr.AttributeValues[0].AttributeValue
+				return vpcID, nil
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("no default vpc found")
+}
+
+// CreateSecurityGroup
 func (c *EC2Client) CreateSecurityGroup(vpcID string, groupName string, description string) (*string, error) {
 	response, err := c.ec2.CreateSecurityGroupRequest(&ec2.CreateSecurityGroupInput{
 		VpcId: &vpcID,
 		GroupName: &groupName,
 		Description: &description,
 	}).Send()
-	return response.GroupId, err
+	if err != nil {
+		return nil, err
+	}
+
+	return response.GroupId, nil
 }
 
 func (c *EC2Client) GetSecurityGroups(groupIDs []string) ([]ec2.SecurityGroup, error) {
