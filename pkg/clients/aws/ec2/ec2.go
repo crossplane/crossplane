@@ -18,8 +18,8 @@ package ec2
 
 import (
 	"fmt"
-
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/awserr"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/ec2iface"
 )
@@ -28,7 +28,7 @@ import (
 type Client interface {
 	GetDefaultVpcID() (*string, error)
 	CreateSecurityGroup(vpcID string, groupName string, description string) (groupID *string, err error)
-	GetSecurityGroups(groupIDs []string) ([]ec2.SecurityGroup, error)
+	GetSecurityGroup(groupName string, vpcID string) (*ec2.SecurityGroup, error)
 	DeleteSecurityGroup(groupID string) error
 	CreateIngress(groupID string, IpPermissions []ec2.IpPermission) error
 	CreateEgress(groupID string, IpPermissions []ec2.IpPermission) error
@@ -81,14 +81,30 @@ func (c *EC2Client) CreateSecurityGroup(vpcID string, groupName string, descript
 	return response.GroupId, nil
 }
 
-func (c *EC2Client) GetSecurityGroups(groupIDs []string) ([]ec2.SecurityGroup, error) {
+func (c *EC2Client) GetSecurityGroup(groupName string, vpcID string) (*ec2.SecurityGroup, error) {
+	vpcFilter := "vpc-id"
+	groupNameFilter := "group-name"
 	response, err := c.ec2.DescribeSecurityGroupsRequest(&ec2.DescribeSecurityGroupsInput{
-		GroupIds: groupIDs,
+		Filters: []ec2.Filter{
+			{
+				Name: &vpcFilter,
+				Values: []string{vpcID},
+			},
+			{
+				Name: &groupNameFilter,
+				Values: []string{groupName},
+			},
+		},
 	}).Send()
 	if err != nil {
 		return nil, err
 	}
-	return response.SecurityGroups, nil
+
+	if len(response.SecurityGroups) != 1 {
+		return nil, fmt.Errorf("security group not found")
+	}
+
+	return &response.SecurityGroups[0], nil
 }
 
 // DeleteSecurityGroup
@@ -133,4 +149,12 @@ func (c *EC2Client) RevokeEgress(groupID string, IpPermissions []ec2.IpPermissio
 		IpPermissions: IpPermissions,
 	}).Send()
 	return err
+}
+
+// IsErrorAlreadyExists helper function
+func IsErrorSecurityGroupAlreadyExists(err error) bool {
+	if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() == "InvalidGroup.Duplicate" {
+		return true
+	}
+	return false
 }

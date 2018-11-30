@@ -140,12 +140,17 @@ func (r *RDSClient) CreateInstance(name, password string, spec *v1alpha1.RDSInst
 		return nil, err
 	}
 
-	groupID, err := r.ec2.CreateSecurityGroup(*vpcID, fmt.Sprintf("cp-rds-%s", name), "Crossplane Security group for RDS Database")
-	if err != nil {
-		return nil, err
+	spec.vpcID = vpcID
+
+	if len(spec.SecurityGroups) == 0 {
+
+		groupID, err := r.ec2.CreateSecurityGroup(*vpcID, name, "Default crossplane security group for RDS Database")
+		if err != nil && !ec2.IsErrorSecurityGroupAlreadyExists(err) {
+			return nil, err
+		}
+		spec.SecurityGroups = append(spec.SecurityGroups, aws.StringValue(groupID))
 	}
 
-	spec.SecurityGroups = append(spec.SecurityGroups, *groupID)
 	input := CreateDBInstanceInput(name, password, spec)
 
 	output, err := r.rds.CreateDBInstanceRequest(input).Send()

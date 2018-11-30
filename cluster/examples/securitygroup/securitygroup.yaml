@@ -6,7 +6,7 @@ spec:
   providerRef:
     name: demo-aws-provider
   name: demo-security-group-named
-  groupDescription: "conductor-demo-security-group"
+  groupDescription: crossplane demo security group
   region: us-west-2
   vpcId: # vpc-01
   ipPermissions:
@@ -15,4 +15,4 @@ spec:
     ipProtocol: tcp
     ipRanges:
     - cidrIp: 0.0.0.0/0
-      description: "test-security-rule"
+      description: Test wide open ip permission
