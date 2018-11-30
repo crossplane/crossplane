@@ -36,6 +36,8 @@ spec:
               type: string
             nodeCount:
               format: int64
+              maximum: 100
+              minimum: 0
               type: integer
             nodeVMSize:
               type: string
@@ -51,10 +53,8 @@ spec:
           - resourceGroupName
           - location
           - version
-          - nodeCount
           - nodeVMSize
           - dnsNamePrefix
-          - disableRBAC
           type: object
         status:
           properties:

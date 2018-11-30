@@ -19,6 +19,7 @@ package v1alpha1
 import (
 	"strconv"
 
+	"github.com/Azure/go-autorest/autorest/to"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/util"
 	corev1 "k8s.io/api/core/v1"
@@ -36,13 +37,31 @@ const (
 
 // AKSClusterSpec is the spec for AKS cluster resources
 type AKSClusterSpec struct {
+	// ResourceGroupName is the name of the resource group that the cluster will be created in
 	ResourceGroupName string `json:"resourceGroupName"` //--resource-group
-	Location          string `json:"location"`          //--location
-	Version           string `json:"version"`           //--kubernetes-version
-	NodeCount         int    `json:"nodeCount"`         //--node-count
-	NodeVMSize        string `json:"nodeVMSize"`        //--node-vm-size
-	DNSNamePrefix     string `json:"dnsNamePrefix"`     //--dns-name-prefix
-	DisableRBAC       bool   `json:"disableRBAC"`       //--disable-rbac
+
+	// Location is the Azure location that the cluster will be created in
+	Location string `json:"location"` //--location
+
+	// Version is the Kubernetes version that will be deployed to the cluster
+	Version string `json:"version"` //--kubernetes-version
+
+	// NodeCount is the number of nodes that the cluster will initially be created with.  This can
+	// be scaled over time and defaults to 1.
+	// +kubebuilder:validation:Maximum=100
+	// +kubebuilder:validation:Minimum=0
+	NodeCount *int `json:"nodeCount,omitempty"` //--node-count
+
+	// NodeVMSize is the name of the worker node VM size, e.g., Standard_B2s, Standard_F2s_v2, etc.
+	// This value cannot be changed after cluster creation.
+	NodeVMSize string `json:"nodeVMSize"` //--node-vm-size
+
+	// DNSNamePrefix is the DNS name prefix to use with the hosted Kubernetes API server FQDN. You
+	// will use this to connect to the Kubernetes API when managing containers after creating the cluster.
+	DNSNamePrefix string `json:"dnsNamePrefix"` //--dns-name-prefix
+
+	// DisableRBAC determines whether RBAC will be disabled or enabled in the cluster.
+	DisableRBAC bool `json:"disableRBAC,omitempty"` //--disable-rbac
 
 	// Kubernetes object references
 	ClaimRef            *corev1.ObjectReference      `json:"claimRef,omitempty"`
@@ -62,7 +81,7 @@ type AKSClusterStatus struct {
 	ClusterName string `json:"clusterName,omitempty"`
 	// State is the current state of the cluster
 	State string `json:"state,omitempty"`
-	// the external ID to identify this resource in the cloud provider
+	// ProviderID is the external ID to identify this resource in the cloud provider
 	ProviderID string `json:"providerID,omitempty"`
 	// Endpoint is the endpoint where the cluster can be reached
 	Endpoint string `json:"endpoint"`
@@ -104,7 +123,7 @@ type AKSClusterList struct {
 func NewAKSClusterSpec(properties map[string]string) *AKSClusterSpec {
 	spec := &AKSClusterSpec{
 		ReclaimPolicy: DefaultReclaimPolicy,
-		NodeCount:     DefaultNodeCount,
+		NodeCount:     to.IntPtr(DefaultNodeCount),
 	}
 
 	val, ok := properties["resourceGroupName"]
@@ -125,7 +144,7 @@ func NewAKSClusterSpec(properties map[string]string) *AKSClusterSpec {
 	val, ok = properties["nodeCount"]
 	if ok {
 		if nodeCount, err := strconv.Atoi(val); err == nil {
-			spec.NodeCount = nodeCount
+			spec.NodeCount = to.IntPtr(nodeCount)
 		}
 	}
 

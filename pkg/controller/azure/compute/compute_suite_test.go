@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/crossplaneio/crossplane/pkg/apis/azure"
 	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/compute/v1alpha1"
 	azurev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
@@ -115,7 +116,7 @@ func testInstance(p *azurev1alpha1.Provider) *computev1alpha1.AKSCluster {
 			ResourceGroupName: "rg1",
 			Location:          "loc1",
 			Version:           "1.11.4",
-			NodeCount:         3,
+			NodeCount:         to.IntPtr(3),
 			NodeVMSize:        "Standard_F2s_v2",
 			DNSNamePrefix:     "crossplane-aks",
 			DisableRBAC:       false,

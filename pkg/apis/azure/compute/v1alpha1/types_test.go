@@ -21,6 +21,7 @@ import (
 	"log"
 	"testing"
 
+	"github.com/Azure/go-autorest/autorest/to"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/test"
 	. "github.com/onsi/gomega"
@@ -64,7 +65,7 @@ func TestAKSCluster(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
 		Spec: AKSClusterSpec{
 			Version:           "1.1.1",
-			NodeCount:         1,
+			NodeCount:         to.IntPtr(1),
 			NodeVMSize:        "Standard_B2s",
 			ResourceGroupName: "rg1",
 			Location:          "West US",
@@ -98,7 +99,7 @@ func TestNewAKSClusterSpec(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	m := make(map[string]string)
-	exp := &AKSClusterSpec{ReclaimPolicy: corev1alpha1.ReclaimRetain, NodeCount: 1} // default values
+	exp := &AKSClusterSpec{ReclaimPolicy: corev1alpha1.ReclaimRetain, NodeCount: to.IntPtr(1)} // default values
 
 	g.Expect(NewAKSClusterSpec(m)).To(Equal(exp))
 
@@ -119,12 +120,12 @@ func TestNewAKSClusterSpec(t *testing.T) {
 
 	val = "4"
 	m["nodeCount"] = val
-	exp.NodeCount = 4
+	exp.NodeCount = to.IntPtr(4)
 	g.Expect(NewAKSClusterSpec(m)).To(Equal(exp))
 	// invalid nodeCount value
 	val = "not a number"
 	m["nodeCount"] = val
-	exp.NodeCount = 1 // value is not changed from default
+	exp.NodeCount = to.IntPtr(1) // value is not changed from default
 	g.Expect(NewAKSClusterSpec(m)).To(Equal(exp))
 
 	val = "Standard_B2s"

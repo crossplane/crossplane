@@ -117,8 +117,12 @@ func (c *AKSClusterClient) CreateOrUpdateBegin(ctx context.Context, instance com
 	spec := instance.Spec
 
 	agentPoolProfileName := fmt.Sprintf(AgentPoolProfileNameFmt, instance.Name)
-	nodeCount := int32(spec.NodeCount)
 	enableRBAC := !spec.DisableRBAC
+
+	nodeCount := int32(computev1alpha1.DefaultNodeCount)
+	if spec.NodeCount != nil {
+		nodeCount = int32(*spec.NodeCount)
+	}
 
 	createParams := containerservice.ManagedCluster{
 		Name:     &clusterName,
