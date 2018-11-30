@@ -33,7 +33,7 @@ const (
 	Group                    = "compute.aws.crossplane.io"
 	Version                  = "v1alpha1"
 	APIVersion               = Group + "/" + Version
-	EKSClusterKind           = "eksclusters"
+	EKSClusterKind           = "ekscluster"
 	EKSClusterKindAPIVersion = EKSClusterKind + "." + APIVersion
 )
 
