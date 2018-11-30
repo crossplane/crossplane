@@ -166,3 +166,18 @@ func TestIfEmptyString(t *testing.T) {
 	g.Expect(IfEmptyString("foo", "foo")).To(Equal("foo"))
 	g.Expect(IfEmptyString("", "")).To(BeEmpty())
 }
+
+func TestGenerateName(t *testing.T) {
+	g := NewGomegaWithT(t)
+
+	name := GenerateName("foo")
+	g.Expect(name).Should(MatchRegexp("foo-[a-zA-z0-9]{5}"))
+
+	// 247 chars, the max allowed (should not be truncated)
+	name = GenerateName("CnYC4iprdKJhGNWmG4mAjX4BgiLAzQx1p6CbZVA0mqtVN81FOX0UFkf7IqEDDio24C2nOuqiXcIZziBUJEoynoihLiGS68ZxnQzro3oHF7XNWFwWZBTf5ij52pg5F7qjcsnvZmMC4Qui4c5j8m60G2F6m9MZk6EYw68mXj5PbiB93PD9bnJYdWgkLV3MFy4LJYUM3AbpiLvjVDZRrjoS2s3mLKB3mOIM8pIY0qPI5CqknsYsWWQck9k")
+	g.Expect(name).Should(MatchRegexp("CnYC4iprdKJhGNWmG4mAjX4BgiLAzQx1p6CbZVA0mqtVN81FOX0UFkf7IqEDDio24C2nOuqiXcIZziBUJEoynoihLiGS68ZxnQzro3oHF7XNWFwWZBTf5ij52pg5F7qjcsnvZmMC4Qui4c5j8m60G2F6m9MZk6EYw68mXj5PbiB93PD9bnJYdWgkLV3MFy4LJYUM3AbpiLvjVDZRrjoS2s3mLKB3mOIM8pIY0qPI5CqknsYsWWQck9k-[a-zA-z0-9]{5}"))
+
+	// 248 chars, 1 over the max allowed (should get its last char truncated)
+	name = GenerateName("CnYC4iprdKJhGNWmG4mAjX4BgiLAzQx1p6CbZVA0mqtVN81FOX0UFkf7IqEDDio24C2nOuqiXcIZziBUJEoynoihLiGS68ZxnQzro3oHF7XNWFwWZBTf5ij52pg5F7qjcsnvZmMC4Qui4c5j8m60G2F6m9MZk6EYw68mXj5PbiB93PD9bnJYdWgkLV3MFy4LJYUM3AbpiLvjVDZRrjoS2s3mLKB3mOIM8pIY0qPI5CqknsYsWWQck9kZ")
+	g.Expect(name).Should(MatchRegexp("CnYC4iprdKJhGNWmG4mAjX4BgiLAzQx1p6CbZVA0mqtVN81FOX0UFkf7IqEDDio24C2nOuqiXcIZziBUJEoynoihLiGS68ZxnQzro3oHF7XNWFwWZBTf5ij52pg5F7qjcsnvZmMC4Qui4c5j8m60G2F6m9MZk6EYw68mXj5PbiB93PD9bnJYdWgkLV3MFy4LJYUM3AbpiLvjVDZRrjoS2s3mLKB3mOIM8pIY0qPI5CqknsYsWWQck9k-[a-zA-z0-9]{5}"))
+}

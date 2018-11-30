@@ -16,12 +16,12 @@ limitations under the License.
 
 // NOTE: Boilerplate only.  Ignore this file.
 
-// Package v1alpha1 contains API Schema definitions for the database v1alpha1 API group
+// Package v1alpha1 contains API Schema definitions for the container v1alpha1 API group
 // +k8s:openapi-gen=true
 // +k8s:deepcopy-gen=package,register
-// +k8s:conversion-gen=github.com/crossplaneio/crossplane/pkg/azure/apis/azure/database
+// +k8s:conversion-gen=github.com/crossplaneio/crossplane/pkg/azure/apis/azure/compute
 // +k8s:defaulter-gen=TypeMeta
-// +groupName=database.azure.crossplane.io
+// +groupName=compute.azure.crossplane.io
 package v1alpha1
 
 import (
@@ -31,15 +31,15 @@ import (
 
 const (
 	// Group is the API Group for these resources
-	Group = "database.azure.crossplane.io"
+	Group = "compute.azure.crossplane.io"
 	// Version is the version of the API group
 	Version = "v1alpha1"
 	// APIVersion is the full version of this API group
 	APIVersion = Group + "/" + Version
-	// MysqlServerKind is the kind for the Azure MySQl Server resource
-	MysqlServerKind = "mysqlserver"
-	// MysqlServerKindAPIVersion is the full kind and version for the Azure MySQl Server resource
-	MysqlServerKindAPIVersion = MysqlServerKind + "." + APIVersion
+	// AKSClusterKind is the kind for the AKS cluster resource
+	AKSClusterKind = "akscluster"
+	// AKSClusterKindAPIVersion is the full kind and version for the AKS cluster resource
+	AKSClusterKindAPIVersion = AKSClusterKind + "." + APIVersion
 )
 
 var (
@@ -51,5 +51,5 @@ var (
 )
 
 func init() {
-	SchemeBuilder.Register(&MysqlServer{}, &MysqlServerList{})
+	SchemeBuilder.Register(&AKSCluster{}, &AKSClusterList{})
 }

@@ -32,23 +32,22 @@ const (
 	// https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
 	maxNameLength          = 253
 	randomLength           = 5
-	maxGeneratedNameLength = maxNameLength - randomLength
+	maxGeneratedNameLength = maxNameLength - randomLength - 1
 )
 
-// GenerateName  returns the name plus a random suffix of five alphanumerics
-// when a name is requested. The string is guaranteed to not exceed the length of a standard Kubernetes
-// name (253 characters)
-//  GenerateName("foo-")
-// would return value similar to: "foo-a1b2c".
-// If base string length exceeds 248 (253 - 5) characters, it will be truncated to 248 characters before
+// GenerateName returns the given base name plus a random suffix of five alphanumerics and a hyphen separator.
+// The string is guaranteed to not exceed the length of a standard Kubernetes name (253 characters).
+// e.g., GenerateName("foo") would return a value similar to: "foo-a1b2c".
+//
+// If base string length exceeds 247 (253 - 6) characters, it will be truncated to 247 characters before
 // adding random suffix
-//  GenerateName("foo...ververylongstringof253chars")
-// would return value similar to: "foo...ververylongstringof253x8y9z"
+// e.g., GenerateName("foo...ververylongstringof253chars") would return value similar to:
+//   "foo...ververylongstringof25-x8y9z"
 func GenerateName(base string) string {
 	if len(base) > maxGeneratedNameLength {
 		base = base[:maxGeneratedNameLength]
 	}
-	return fmt.Sprintf("%s%s", base, rand.String(randomLength))
+	return fmt.Sprintf("%s-%s", base, rand.String(randomLength))
 }
 
 // ObjectReference from provided ObjectMeta, apiVersion and kind
@@ -125,7 +124,7 @@ func SecretData(client kubernetes.Interface, namespace string, ks corev1.SecretK
 	// retrieve data
 	data, ok := secret.Data[ks.Key]
 	if !ok {
-		return nil, fmt.Errorf("secet data is not found for key [%s]", ks.Key)
+		return nil, fmt.Errorf("secret data is not found for key [%s]", ks.Key)
 	}
 
 	return data, nil

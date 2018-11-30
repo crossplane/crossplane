@@ -14,5 +14,29 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package compute contains AWS container API versions
-package compute
+package util
+
+import (
+	"testing"
+
+	. "github.com/onsi/gomega"
+)
+
+func TestToLowerRemoveSpaces(t *testing.T) {
+	g := NewGomegaWithT(t)
+
+	cases := []struct {
+		input    string
+		expected string
+	}{
+		{"", ""},
+		{"FOO", "foo"},
+		{"FoO bAr", "foobar"},
+		{"Foo-Bar", "foo-bar"},
+	}
+
+	for _, tt := range cases {
+		actual := ToLowerRemoveSpaces(tt.input)
+		g.Expect(actual).To(Equal(tt.expected))
+	}
+}

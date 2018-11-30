@@ -19,15 +19,35 @@ package util
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/hex"
 )
 
 // GeneratePassword generates a password using random data of the given length, then encodes to
 // a base64 string.
 func GeneratePassword(dataLen int) (string, error) {
-	randData := make([]byte, dataLen)
-	if _, err := rand.Read(randData); err != nil {
+	randData, err := generateRandomData(dataLen)
+	if err != nil {
 		return "", err
 	}
 
 	return base64.RawURLEncoding.EncodeToString(randData), nil
+}
+
+// GenerateHex generates a hex string using random data of the given length.
+func GenerateHex(dataLen int) (string, error) {
+	randData, err := generateRandomData(dataLen)
+	if err != nil {
+		return "", err
+	}
+
+	return hex.EncodeToString(randData), nil
+}
+
+func generateRandomData(dataLen int) ([]byte, error) {
+	randData := make([]byte, dataLen)
+	if _, err := rand.Read(randData); err != nil {
+		return nil, err
+	}
+
+	return randData, nil
 }

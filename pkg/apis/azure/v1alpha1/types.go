@@ -32,7 +32,7 @@ type ProviderSpec struct {
 	Secret corev1.SecretKeySelector `json:"credentialsSecretRef"`
 }
 
-// ProviderStatus
+// ProviderStatus is the status for this provider
 type ProviderStatus struct {
 	corev1alpha1.ConditionedStatus
 }

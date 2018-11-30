@@ -14,5 +14,5 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package compute contains AWS container API versions
+// Package compute contains Azure container API versions
 package compute

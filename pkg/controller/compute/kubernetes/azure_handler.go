@@ -19,7 +19,7 @@ package kubernetes
 import (
 	"fmt"
 
-	awscomputev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/compute/v1alpha1"
+	azurecomputev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/compute/v1alpha1"
 	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/compute/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -28,20 +28,20 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// AWSClusterHandler AWS EKS handler handles Kubernetes cluster functionality
-type AWSClusterHandler struct{}
+// AKSClusterHandler handles Kubernetes cluster functionality
+type AKSClusterHandler struct{}
 
-// find EKSCluster resource
-func (r *AWSClusterHandler) find(name types.NamespacedName, c client.Client) (corev1alpha1.Resource, error) {
-	instance := &awscomputev1alpha1.EKSCluster{}
+// find AKSCluster resource
+func (r *AKSClusterHandler) find(name types.NamespacedName, c client.Client) (corev1alpha1.Resource, error) {
+	instance := &azurecomputev1alpha1.AKSCluster{}
 	err := c.Get(ctx, name, instance)
 	return instance, err
 }
 
-// provision create new EKSCluster
-func (r *AWSClusterHandler) provision(class *corev1alpha1.ResourceClass, instance *computev1alpha1.KubernetesCluster, c client.Client) (corev1alpha1.Resource, error) {
-	// construct EKSCluster Spec from class definition
-	resourceInstance := awscomputev1alpha1.NewEKSClusterSpec(class.Parameters)
+// provision a new AKSCluster
+func (r *AKSClusterHandler) provision(class *corev1alpha1.ResourceClass, instance *computev1alpha1.KubernetesCluster, c client.Client) (corev1alpha1.Resource, error) {
+	// construct AKSCluster Spec from class definition
+	resourceInstance := azurecomputev1alpha1.NewAKSClusterSpec(class.Parameters)
 
 	// assign provider reference and reclaim policy from the resource class
 	resourceInstance.ProviderRef = class.ProviderRef
@@ -51,11 +51,11 @@ func (r *AWSClusterHandler) provision(class *corev1alpha1.ResourceClass, instanc
 	resourceInstance.ClassRef = class.ObjectReference()
 	resourceInstance.ClaimRef = instance.ObjectReference()
 
-	// create and save EKSCluster
-	cluster := &awscomputev1alpha1.EKSCluster{
+	// create and save AKSCluster
+	cluster := &azurecomputev1alpha1.AKSCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:       class.Namespace,
-			Name:            fmt.Sprintf("eks-%s", instance.UID),
+			Name:            fmt.Sprintf("aks-%s", instance.UID),
 			OwnerReferences: []metav1.OwnerReference{instance.OwnerReference()},
 		},
 		Spec: *resourceInstance,
@@ -68,8 +68,8 @@ func (r *AWSClusterHandler) provision(class *corev1alpha1.ResourceClass, instanc
 // bind updates resource state binding phase
 // - state = true: bound
 // - state = false: unbound
-func (r AWSClusterHandler) setBindStatus(name types.NamespacedName, c client.Client, state bool) error {
-	instance := &awscomputev1alpha1.EKSCluster{}
+func (r AKSClusterHandler) setBindStatus(name types.NamespacedName, c client.Client, state bool) error {
+	instance := &azurecomputev1alpha1.AKSCluster{}
 	err := c.Get(ctx, name, instance)
 	if err != nil {
 		if errors.IsNotFound(err) && !state {

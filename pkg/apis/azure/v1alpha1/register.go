@@ -30,8 +30,11 @@ import (
 )
 
 const (
-	Group      = "azure.crossplane.io"
-	Version    = "v1alpha1"
+	// Group is the API Group for these resources
+	Group = "azure.crossplane.io"
+	// Version is the version of the API group
+	Version = "v1alpha1"
+	// APIVersion is the full version of this API group
 	APIVersion = Group + "/" + Version
 )
 

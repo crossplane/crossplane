@@ -31,6 +31,8 @@ const (
 	ResourceCredentialsSecretClientCertKey = "clientCert"
 	// ResourceCredentialsSecretClientKeyKey is the key inside a connection secret for the client key
 	ResourceCredentialsSecretClientKeyKey = "clientKey"
+	// ResourceCredentialsSecretClusterConfigFile is the key inside a connection secret for the full cluster configuration file
+	ResourceCredentialsSecretClusterConfigFile = "clusterConfig"
 	// ResourceCredentialsToken
 	ResourceCredentialsToken = "token"
 )

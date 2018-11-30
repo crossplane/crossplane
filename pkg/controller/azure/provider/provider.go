@@ -19,7 +19,7 @@ package provider
 import (
 	"context"
 
-	. "github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
 	azureclient "github.com/crossplaneio/crossplane/pkg/clients/azure"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -82,7 +82,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	}
 
 	// Watch for changes to Provider
-	err = c.Watch(&source.Kind{Type: &Provider{}}, &handler.EnqueueRequestForObject{})
+	err = c.Watch(&source.Kind{Type: &v1alpha1.Provider{}}, &handler.EnqueueRequestForObject{})
 	if err != nil {
 		return err
 	}
@@ -91,7 +91,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 }
 
 // fail - helper function to set fail condition with reason and message
-func (r *Reconciler) fail(instance *Provider, reason, msg string) (reconcile.Result, error) {
+func (r *Reconciler) fail(instance *v1alpha1.Provider, reason, msg string) (reconcile.Result, error) {
 	instance.Status.UnsetAllConditions()
 	instance.Status.SetFailed(reason, msg)
 	return resultRequeue, r.Update(context.TODO(), instance)
@@ -107,7 +107,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	ctx := context.TODO()
 
 	// Fetch the Provider instance
-	instance := &Provider{}
+	instance := &v1alpha1.Provider{}
 	err := r.Get(ctx, request.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {

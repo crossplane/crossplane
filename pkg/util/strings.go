@@ -14,5 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package compute contains AWS container API versions
-package compute
+package util
+
+import (
+	"strings"
+)
+
+func ToLowerRemoveSpaces(input string) string {
+	return strings.ToLower(strings.Replace(input, " ", "", -1))
+}
