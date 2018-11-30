@@ -1,5 +1,6 @@
 ---
 title: Design
+toc: true
 weight: 320
 indent: true
 ---

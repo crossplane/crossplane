@@ -1,5 +1,6 @@
 ---
 title: Contribute
+toc: true
 weight: 170
 ---
 # Contributing

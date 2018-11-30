@@ -1,5 +1,6 @@
 ---
 title: Deploy
+toc: true
 weight: 130
 indent: true
 ---

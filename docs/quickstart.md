@@ -1,5 +1,6 @@
 ---
 title: Quick Start Guides
+toc: true
 weight: 110
 indent: true
 ---
