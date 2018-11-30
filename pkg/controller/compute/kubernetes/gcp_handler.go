@@ -17,10 +17,11 @@ limitations under the License.
 package kubernetes
 
 import (
+	"fmt"
+
 	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/compute/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	gcpcomputev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/compute/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/util"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -54,7 +55,7 @@ func (r *GKEClusterHandler) provision(class *corev1alpha1.ResourceClass, instanc
 	cluster := &gcpcomputev1alpha1.GKECluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:       class.Namespace,
-			Name:            util.GenerateName(instance.Name + "-"),
+			Name:            fmt.Sprintf("gke-%s", instance.UID),
 			OwnerReferences: []metav1.OwnerReference{instance.OwnerReference()},
 		},
 		Spec: *resourceInstance,
