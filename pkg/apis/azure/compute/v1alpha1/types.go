@@ -56,11 +56,18 @@ type AKSClusterSpec struct {
 type AKSClusterStatus struct {
 	corev1alpha1.ConditionedStatus
 	corev1alpha1.BindingStatusPhase
-	Endpoint            string `json:"endpoint"`
-	State               string `json:"state,omitempty"`
-	ClusterName         string `json:"clusterName,omitempty"`
+	// ClusterName is the name of the cluster as registered with the cloud provider
+	ClusterName string `json:"clusterName,omitempty"`
+	// State is the current state of the cluster
+	State string `json:"state,omitempty"`
+	// the external ID to identify this resource in the cloud provider
+	ProviderID string `json:"providerID,omitempty"`
+	// Endpoint is the endpoint where the cluster can be reached
+	Endpoint string `json:"endpoint"`
+	// ApplicationObjectID is the object ID of the AD application the cluster uses for Azure APIs
 	ApplicationObjectID string `json:"appObjectID,omitempty"`
-	ServicePrincipalID  string `json:"servicePrincipalID,omitempty"`
+	// ServicePrincipalID is the ID of the service principal the AD application uses
+	ServicePrincipalID string `json:"servicePrincipalID,omitempty"`
 
 	// RunningOperation stores any current long running operation for this instance across
 	// reconciliation attempts.  This will be a serialized Azure AKS cluster API object that will

@@ -64,6 +64,8 @@ spec:
               type: string
             endpoint:
               type: string
+            providerID:
+              type: string
             runningOperation:
               type: string
             servicePrincipalID:

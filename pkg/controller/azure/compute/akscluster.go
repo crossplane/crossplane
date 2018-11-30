@@ -290,6 +290,9 @@ func (r *Reconciler) sync(instance *computev1alpha1.AKSCluster, aksClient *azure
 	}
 
 	// update resource status
+	if cluster.ID != nil {
+		instance.Status.ProviderID = *cluster.ID
+	}
 	if cluster.ProvisioningState != nil {
 		instance.Status.State = *cluster.ProvisioningState
 	}
@@ -310,7 +313,7 @@ func (r *Reconciler) delete(instance *computev1alpha1.AKSCluster, aksClient *azu
 		// delete the AKS cluster
 		log.Printf("deleting AKS cluster %s", instance.Name)
 		deleteFuture, err := aksClient.AKSClusterAPI.Delete(ctx, *instance)
-		if err != nil {
+		if err != nil && !azureclients.IsNotFound(err) {
 			return r.fail(instance, errorDeletingCluster, fmt.Sprintf("failed to delete AKS cluster %s: %+v", instance.Name, err))
 		}
 		deleteFutureJSON, _ := deleteFuture.MarshalJSON()
@@ -318,13 +321,15 @@ func (r *Reconciler) delete(instance *computev1alpha1.AKSCluster, aksClient *azu
 
 		// delete the service principal
 		log.Printf("deleting service principal for AKS cluster %s", instance.Name)
-		if err := aksClient.ServicePrincipalAPI.DeleteServicePrincipal(ctx, instance.Status.ServicePrincipalID); err != nil {
+		err = aksClient.ServicePrincipalAPI.DeleteServicePrincipal(ctx, instance.Status.ServicePrincipalID)
+		if err != nil && !azureclients.IsNotFound(err) {
 			return r.fail(instance, errorDeletingCluster, fmt.Sprintf("failed to service principal: %+v", err))
 		}
 
 		// delete the AD application
 		log.Printf("deleting app for AKS cluster %s", instance.Name)
-		if err := aksClient.ApplicationAPI.DeleteApplication(ctx, instance.Status.ApplicationObjectID); err != nil {
+		err = aksClient.ApplicationAPI.DeleteApplication(ctx, instance.Status.ApplicationObjectID)
+		if err != nil && !azureclients.IsNotFound(err) {
 			return r.fail(instance, errorDeletingCluster, fmt.Sprintf("failed to AD application: %+v", err))
 		}
 	}
@@ -391,10 +396,11 @@ func (r *Reconciler) setConnectionSecret(instance *computev1alpha1.AKSCluster, a
 		return err
 	}
 
-	kubeconfigs := *clusterCreds.Kubeconfigs
-	if len(kubeconfigs) == 0 {
+	if clusterCreds.Kubeconfigs == nil || len(*clusterCreds.Kubeconfigs) == 0 {
 		return fmt.Errorf("zero kubeconfig credentials returned")
 	}
+
+	kubeconfigs := *clusterCreds.Kubeconfigs
 
 	// create the connection secret with the credentials data now
 	connectionSecret := instance.ConnectionSecret()
