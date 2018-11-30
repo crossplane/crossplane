@@ -19,11 +19,12 @@ package securitygroup
 import (
 	"context"
 	"fmt"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	awsec2 "github.com/aws/aws-sdk-go-v2/service/ec2"
 	awscomputev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/compute/v1alpha1"
 	awsv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/clients/aws"
+	awsClient "github.com/crossplaneio/crossplane/pkg/clients/aws"
 	"github.com/crossplaneio/crossplane/pkg/clients/aws/ec2"
 	"github.com/crossplaneio/crossplane/pkg/util"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -130,7 +131,7 @@ func (r *Reconciler) _connect(instance *awscomputev1alpha1.SecurityGroup) (ec2.C
 	}
 
 	// Get Provider's AWS Config
-	config, err := aws.Config(r.kubeclient, p)
+	config, err := awsClient.Config(r.kubeclient, p)
 	if err != nil {
 		return nil, err
 	}
@@ -142,12 +143,27 @@ func (r *Reconciler) _connect(instance *awscomputev1alpha1.SecurityGroup) (ec2.C
 }
 
 func (r *Reconciler) _create(instance *awscomputev1alpha1.SecurityGroup, client ec2.Client) (reconcile.Result, error) {
-	groupID, err := client.CreateSecurityGroup(instance.Spec.VpcID, instance.Spec.Name, instance.Spec.Description)
-	if err != nil {
-		return r.fail(instance, errorCreateSecurityGroup, err.Error())
+	if instance.Spec.VpcID == "" {
+		vpcID, err := client.GetDefaultVpcID()
+		if err != nil {
+			return r.fail(instance, errorCreateSecurityGroup, err.Error())
+		}
+		instance.Spec.VpcID = *vpcID
 	}
 
-	instance.Spec.GroupID = *groupID
+	if secGroup, err := client.GetSecurityGroup(instance.Spec.Name, instance.Spec.VpcID); err == nil {
+		instance.Spec.GroupID = aws.StringValue(secGroup.GroupId)
+		// Preexisting group so we set retain do we don't wipe out a common group
+		instance.Spec.ReclaimPolicy = corev1alpha1.ReclaimRetain
+		// Merge remote permissions so we don't wipe out security group.
+		instance.Spec.Merge(secGroup.IpPermissions)
+	} else {
+		groupID, err := client.CreateSecurityGroup(instance.Spec.VpcID, instance.Spec.Name, instance.Spec.Description)
+		if err != nil {
+			return r.fail(instance, errorCreateSecurityGroup, err.Error())
+		}
+		instance.Spec.GroupID = *groupID
+	}
 
 	// Update status
 	instance.Status.UnsetAllConditions()
@@ -157,18 +173,13 @@ func (r *Reconciler) _create(instance *awscomputev1alpha1.SecurityGroup, client 
 }
 
 func (r *Reconciler) _sync(instance *awscomputev1alpha1.SecurityGroup, client ec2.Client) (reconcile.Result, error) {
-
-	securityGroups, err := client.GetSecurityGroups([]string{instance.Spec.GroupID})
+	securityGroup, err := client.GetSecurityGroup(instance.Spec.Name, instance.Spec.VpcID)
 	if err != nil {
 		return r.fail(instance, errorSyncSecurityGroup, err.Error())
 	}
 
-	if len(securityGroups) != 1 {
-		return r.fail(instance, errorSyncSecurityGroup, "unexpected result from security group")
-	}
-
 	remotePermissions := make(map[string]awsec2.IpPermission)
-	for _, perm := range securityGroups[0].IpPermissions {
+	for _, perm := range securityGroup.IpPermissions {
 		remotePermissions[awscomputev1alpha1.Key(&perm)] = perm
 	}
 	grants := make([]awsec2.IpPermission, 0)

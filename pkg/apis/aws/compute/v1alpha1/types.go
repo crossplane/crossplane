@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	"fmt"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"strconv"
 	"strings"
 
@@ -72,7 +73,7 @@ type SecurityGroupSpec struct {
 	Region string `json:"region"`
 
 	// VpcID  [EC2-VPC] The ID of the VPC for the security group.
-	// TODO: We can set default on create.
+	// Will choose default for region if none is set.
 	VpcID string `json:"vpcId"`
 
 	// Name of the security group.
@@ -96,6 +97,32 @@ type SecurityGroupSpec struct {
 	ProviderRef corev1.LocalObjectReference `json:"providerRef"`
 	// ReclaimPolicy identifies how to handle the cloud resource after the deletion of this type
 	ReclaimPolicy corev1alpha1.ReclaimPolicy `json:"reclaimPolicy,omitempty"`
+}
+
+func (spec *SecurityGroupSpec) Merge(permissions []ec2.IpPermission) {
+	remotePermissions := make(map[string]ec2.IpPermission)
+	for _, perm := range permissions {
+		remotePermissions[Key(&perm)] = perm
+	}
+	for i, localPermission := range spec.IpPermissions {
+		key := localPermission.Key()
+		if remotePerm, found := remotePermissions[key]; found {
+			// Diff and add the remote to the local definition.
+			_, remoteOnly := localPermission.Diff(remotePerm)
+			if remoteOnly != nil {
+				localPermission.Load(*remoteOnly)
+				spec.IpPermissions[i] = localPermission
+			}
+			delete(remotePermissions, key)
+		}
+	}
+
+	// Add the rest that weren't defined locally
+	for _, remotePermission := range remotePermissions {
+		perm := IpPermission{}
+		perm.Load(remotePermission)
+		spec.IpPermissions = append(spec.IpPermissions, perm)
+	}
 }
 
 type SecurityGroupStatus struct {
@@ -146,12 +173,12 @@ type IpPermission struct {
 	// FromPort The start of port range for the TCP and UDP protocols, or an ICMP/ICMPv6
 	// type number. A value of -1 indicates all ICMP/ICMPv6 types. If you specify
 	// all ICMP/ICMPv6 types, you must specify all codes.
-	FromPort *int64 `json:"fromPort"`
+	FromPort int64 `json:"fromPort"`
 
 	// ToPort The end of port range for the TCP and UDP protocols, or an ICMP/ICMPv6 code.
 	// A value of -1 indicates all ICMP/ICMPv6 codes for the specified ICMP type.
 	// If you specify all ICMP/ICMPv6 types, you must specify all codes.
-	ToPort *int64 `json:"toPort"`
+	ToPort int64 `json:"toPort"`
 
 	// IpProtocol name (tcp, udp, icmp) or number (see Protocol Numbers (http://www.iana.org/assignments/protocol-numbers/protocol-numbers.xhtml)).
 	//
@@ -161,7 +188,7 @@ type IpPermission struct {
 	// you specify. For tcp, udp, and icmp, you must specify a port range. For 58
 	// (ICMPv6), you can optionally specify a port range; if you don't, traffic
 	// for all types and codes is allowed when authorizing rules.
-	IpProtocol *string `json:"ipProtocol"`
+	IpProtocol string `json:"ipProtocol"`
 
 	// One or more IPv4 ranges.
 	IpRanges []IpRange `json:"ipRanges,omitempty"`
@@ -174,16 +201,16 @@ type IpPermission struct {
 }
 
 func (p *IpPermission) Export() (permission ec2.IpPermission) {
-	permission.FromPort = p.FromPort
-	permission.ToPort = p.ToPort
-	permission.IpProtocol = p.IpProtocol
+	permission.FromPort = &p.FromPort
+	permission.ToPort = &p.ToPort
+	permission.IpProtocol = &p.IpProtocol
 
 	for _, ipRange := range p.IpRanges {
-		permission.IpRanges = append(permission.IpRanges, ec2.IpRange{CidrIp: ipRange.CidrIp, Description: ipRange.Description})
+		permission.IpRanges = append(permission.IpRanges, ec2.IpRange{CidrIp: &ipRange.CidrIp, Description: &ipRange.Description})
 	}
 
 	for _, ipRange := range p.Ipv6Ranges {
-		permission.Ipv6Ranges = append(permission.Ipv6Ranges, ec2.Ipv6Range{CidrIpv6: ipRange.CidrIpv6, Description: ipRange.Description})
+		permission.Ipv6Ranges = append(permission.Ipv6Ranges, ec2.Ipv6Range{CidrIpv6: &ipRange.CidrIpv6, Description: &ipRange.Description})
 	}
 
 	for _, groupID := range p.SecurityGroupsIDs {
@@ -193,15 +220,15 @@ func (p *IpPermission) Export() (permission ec2.IpPermission) {
 }
 
 func (p *IpPermission) Load(permission ec2.IpPermission) {
-	p.FromPort = permission.FromPort
-	p.ToPort = permission.ToPort
-	p.IpProtocol = permission.IpProtocol
+	p.FromPort = *permission.FromPort
+	p.ToPort = *permission.ToPort
+	p.IpProtocol = *permission.IpProtocol
 	for _, ipRange := range permission.IpRanges {
-		p.IpRanges = append(p.IpRanges, IpRange{CidrIp: ipRange.CidrIp, Description: ipRange.Description})
+		p.IpRanges = append(p.IpRanges, IpRange{CidrIp: aws.StringValue(ipRange.CidrIp), Description: aws.StringValue(ipRange.Description)})
 	}
 
 	for _, ipRange := range permission.Ipv6Ranges {
-		p.Ipv6Ranges = append(p.Ipv6Ranges, Ipv6Range{CidrIpv6: ipRange.CidrIpv6, Description: ipRange.Description})
+		p.Ipv6Ranges = append(p.Ipv6Ranges,  Ipv6Range{CidrIpv6: aws.StringValue(ipRange.CidrIpv6), Description: aws.StringValue(ipRange.Description)})
 	}
 
 	for _, userGroups := range permission.UserIdGroupPairs {
@@ -215,8 +242,8 @@ func (p *IpPermission) Diff(remotePermission ec2.IpPermission) (*ec2.IpPermissio
 	granted := false
 	revoked := false
 
-	grant := &ec2.IpPermission{FromPort: p.FromPort, ToPort: p.ToPort, IpProtocol: p.IpProtocol}
-	revoke := &ec2.IpPermission{FromPort: p.FromPort, ToPort: p.ToPort, IpProtocol: p.IpProtocol}
+	grant := &ec2.IpPermission{FromPort: &p.FromPort, ToPort: &p.ToPort, IpProtocol: &p.IpProtocol}
+	revoke := &ec2.IpPermission{FromPort: &p.FromPort, ToPort: &p.ToPort, IpProtocol: &p.IpProtocol}
 
 	// IPV4 diff
 	remoteRanges := make(map[string]ec2.IpRange)
@@ -225,12 +252,17 @@ func (p *IpPermission) Diff(remotePermission ec2.IpPermission) (*ec2.IpPermissio
 	}
 
 	for _, ipRange := range p.IpRanges {
-		if _, found := remoteRanges[*ipRange.CidrIp]; !found {
-			grant.IpRanges = append(grant.IpRanges, ec2.IpRange{CidrIp: ipRange.CidrIp, Description: ipRange.Description})
+		_, found := remoteRanges[ipRange.CidrIp]
+		if found {
+			// Duplicate so ignore
+			delete(remoteRanges, ipRange.CidrIp)
+		} else {
+			// Doesn't exist in remote so grant.
+			grant.IpRanges = append(grant.IpRanges, ec2.IpRange{CidrIp: &ipRange.CidrIp, Description: &ipRange.Description})
 			granted = true
-			delete(remoteRanges, *ipRange.CidrIp)
 		}
 	}
+
 
 	for _, ipRange := range remoteRanges {
 		revoked = true
@@ -245,10 +277,12 @@ func (p *IpPermission) Diff(remotePermission ec2.IpPermission) (*ec2.IpPermissio
 	}
 
 	for _, ipRange := range p.Ipv6Ranges {
-		if _, found := remoteRanges[*ipRange.CidrIpv6]; !found {
+		_, found := remoteRanges[ipRange.CidrIpv6]
+		if found {
+			delete(ipv6remoteRanges, ipRange.CidrIpv6)
+		} else {
 			granted = true
-			grant.Ipv6Ranges = append(grant.Ipv6Ranges, ec2.Ipv6Range{CidrIpv6: ipRange.CidrIpv6, Description: ipRange.Description})
-			delete(ipv6remoteRanges, *ipRange.CidrIpv6)
+			grant.Ipv6Ranges = append(grant.Ipv6Ranges, ec2.Ipv6Range{CidrIpv6: &ipRange.CidrIpv6, Description: &ipRange.Description})
 		}
 	}
 
@@ -266,10 +300,12 @@ func (p *IpPermission) Diff(remotePermission ec2.IpPermission) (*ec2.IpPermissio
 	}
 
 	for _, groupID := range p.SecurityGroupsIDs {
-		if _, found := remoteSecurityGroups[groupID]; !found {
+		_, found := remoteSecurityGroups[groupID]
+		if found {
+			delete(remoteSecurityGroups, groupID)
+		} else {
 			granted = true
 			grant.UserIdGroupPairs = append(grant.UserIdGroupPairs, ec2.UserIdGroupPair{GroupId: &groupID})
-			delete(remoteSecurityGroups, groupID)
 		}
 	}
 
@@ -290,7 +326,7 @@ func (p *IpPermission) Diff(remotePermission ec2.IpPermission) (*ec2.IpPermissio
 }
 
 func (p *IpPermission) Key() string {
-	return fmt.Sprintf("%d,%d,%s", *p.FromPort, *p.ToPort, *p.IpProtocol)
+	return fmt.Sprintf("%d,%d,%s", p.FromPort, p.ToPort, p.IpProtocol)
 }
 
 func Key(perm *ec2.IpPermission) string {
@@ -300,14 +336,14 @@ func Key(perm *ec2.IpPermission) string {
 type IpRange struct {
 	// CidrIp IPv4 CIDR range. You can either specify a CIDR range or a source security
 	// group, not both. To specify a single IPv4 address, use the /32 prefix length.
-	CidrIp *string `json:"cidrIp"`
+	CidrIp string `json:"cidrIp"`
 
 	// Description for the security group rule that references this IPv4 address
 	// range.
 	//
 	// Constraints: Up to 255 characters in length. Allowed characters are a-z,
 	// A-Z, 0-9, spaces, and ._-:/()#,@[]+=;{}!$*
-	Description *string `json:"description"`
+	Description string `json:"description"`
 }
 
 // [EC2-VPC only] Describes an IPv6 range.
@@ -316,14 +352,14 @@ type Ipv6Range struct {
 
 	// CidrIpv6 IPv6 CIDR range. You can either specify a CIDR range or a source security
 	// group, not both. To specify a single IPv6 address, use the /128 prefix length.
-	CidrIpv6 *string `json:"cidrIpv6"`
+	CidrIpv6 string `json:"cidrIpv6"`
 
 	// Description for the security group rule that references this IPv6 address
 	// range.
 	//
 	// Constraints: Up to 255 characters in length. Allowed characters are a-z,
 	// A-Z, 0-9, spaces, and ._-:/()#,@[]+=;{}!$*
-	Description *string `locationName:"description" type:"string"`
+	Description string `locationName:"description" type:"string"`
 }
 
 type EKSClusterSpec struct {
