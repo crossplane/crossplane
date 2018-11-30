@@ -87,6 +87,11 @@ func TestNewRDSInstanceSpec(t *testing.T) {
 	m["securityGroups"] = val
 	exp.SecurityGroups = []string{"one", "two", "tree"}
 	g.Expect(NewRDSInstanceSpec(m)).To(Equal(exp))
+
+	val = "test-subnetgroup"
+	m["subnetGroupName"] = val
+	exp.SubnetGroupName = val
+	g.Expect(NewRDSInstanceSpec(m)).To(Equal(exp))
 }
 
 func TestIsAvailable(t *testing.T) {

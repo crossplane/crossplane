@@ -47,6 +47,8 @@ spec:
             size:
               format: int64
               type: integer
+            subnetGroupName:
+              type: string
           required:
           - masterUsername
           - engine

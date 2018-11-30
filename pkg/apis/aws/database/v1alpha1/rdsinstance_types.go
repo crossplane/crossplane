@@ -34,6 +34,11 @@ type RDSInstanceSpec struct {
 	Class          string `json:"class"` // like "db.t2.micro"
 	Size           int64  `json:"size"`  // size in gb
 
+	// Specifies a DB subnet group for the DB instance. The new DB instance is created
+	// in the VPC associated with the DB subnet group. If no DB subnet group is
+	// specified, then the new DB instance is not created in a VPC.
+	SubnetGroupName string `json:"subnetGroupName,omitempty"`
+
 	// VPC Security groups that will allow the RDS instance to be accessed over the network.
 	// You can consider the following groups:
 	// 1) A default group that allows all communication amongst instances in that group
@@ -131,6 +136,11 @@ func NewRDSInstanceSpec(properties map[string]string) *RDSInstanceSpec {
 		spec.SecurityGroups = append(spec.SecurityGroups, strings.Split(val, ",")...)
 	}
 
+	val, ok = properties["subnetGroupName"]
+	if ok {
+		spec.SubnetGroupName = val
+	}
+
 	return spec
 }
 
@@ -193,22 +203,5 @@ func (r *RDSInstance) SetBound(state bool) {
 		r.Status.Phase = corev1alpha1.BindingStateBound
 	} else {
 		r.Status.Phase = corev1alpha1.BindingStateUnbound
-	}
-}
-
-// ValidVersionValues returns the valid set of engine version values.
-func ValidVersionValues() map[string]string {
-	return map[string]string{
-		"5.7":    "5.7.21", // default value for 5.7
-		"5.7.21": "5.7.21",
-		"5.7.19": "5.7.19",
-		"5.7.16": "5.7.16",
-		"5.6":    "5.6.39", // default value for 5.6
-		"5.6.39": "5.6.39",
-		"5.6.37": "5.6.37",
-		"5.6.35": "5.6.35",
-		"5.6.34": "5.6.34",
-		"5.6.29": "5.6.29",
-		"5.6.27": "5.6.27",
 	}
 }
