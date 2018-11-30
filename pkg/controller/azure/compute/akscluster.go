@@ -231,7 +231,7 @@ func (r *Reconciler) create(instance *computev1alpha1.AKSCluster, aksClient *azu
 
 	// start the creation of the AKS cluster
 	log.Printf("starting create of AKS cluster %s", instance.Name)
-	clusterName := util.GenerateName(instance.Name + "-")
+	clusterName := util.GenerateName(instance.Name)
 	createOp, err := aksClient.AKSClusterAPI.CreateOrUpdateBegin(ctx, *instance, clusterName, *app.AppID, spSecret)
 	if err != nil {
 		return r.fail(instance, errorCreatingCluster, fmt.Sprintf("failed to start create operation for AKS cluster %s: %+v", instance.Name, err))

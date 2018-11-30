@@ -17,10 +17,11 @@ limitations under the License.
 package kubernetes
 
 import (
+	"fmt"
+
 	azurecomputev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/compute/v1alpha1"
 	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/compute/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/util"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -54,7 +55,7 @@ func (r *AKSClusterHandler) provision(class *corev1alpha1.ResourceClass, instanc
 	cluster := &azurecomputev1alpha1.AKSCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:       class.Namespace,
-			Name:            util.GenerateName(instance.Name + "-"),
+			Name:            fmt.Sprintf("aks-%s", instance.UID),
 			OwnerReferences: []metav1.OwnerReference{instance.OwnerReference()},
 		},
 		Spec: *resourceInstance,
