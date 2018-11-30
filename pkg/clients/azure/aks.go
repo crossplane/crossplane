@@ -36,19 +36,23 @@ const (
 //---------------------------------------------------------------------------------------------------------------------
 // AKS Setup API interfaces, clients, factories
 
+// AKSSetupClient is a type that implements all of the AKS setup interface
 type AKSSetupClient struct {
 	AKSClusterAPI
 	ApplicationAPI
 	ServicePrincipalAPI
 }
 
+// AKSSetupAPIFactory is an interface that can create instances of the AKSSetupClient
 type AKSSetupAPIFactory interface {
 	CreateSetupClient(*v1alpha1.Provider, kubernetes.Interface) (*AKSSetupClient, error)
 }
 
+// AKSSetupClientFactory implements the AKSSetupAPIFactory interface by returning real clients that talk to Azure APIs
 type AKSSetupClientFactory struct {
 }
 
+// CreateSetupClient creates and returns an AKS setup client that is ready to talk to Azure APIs
 func (f *AKSSetupClientFactory) CreateSetupClient(provider *v1alpha1.Provider, clientset kubernetes.Interface) (*AKSSetupClient, error) {
 	aksClusterClient, err := NewAKSClusterClient(provider, clientset)
 	if err != nil {
@@ -178,6 +182,7 @@ func (c *AKSClusterClient) Delete(ctx context.Context, instance computev1alpha1.
 	return c.ManagedClustersClient.Delete(ctx, instance.Spec.ResourceGroupName, instance.Status.ClusterName)
 }
 
+// ListClusterAdminCredentials will return the admin credentials used to connect to the given AKS cluster
 func (c *AKSClusterClient) ListClusterAdminCredentials(ctx context.Context, instance computev1alpha1.AKSCluster) (containerservice.CredentialResults, error) {
 	return c.ManagedClustersClient.ListClusterAdminCredentials(ctx, instance.Spec.ResourceGroupName, instance.Status.ClusterName)
 }

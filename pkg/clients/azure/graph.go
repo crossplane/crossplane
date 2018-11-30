@@ -52,6 +52,7 @@ type ApplicationClient struct {
 	graphrbac.ApplicationsClient
 }
 
+// ApplicationParameters are the parameters used to create an AD application
 type ApplicationParameters struct {
 	Name          string
 	DNSNamePrefix string
@@ -79,6 +80,7 @@ func NewApplicationClient(provider *v1alpha1.Provider, clientset kubernetes.Inte
 	return &ApplicationClient{appClient}, nil
 }
 
+// CreateApplication creates a new AD application with the given parameters
 func (c *ApplicationClient) CreateApplication(ctx context.Context, appParams ApplicationParameters) (*graphrbac.Application, error) {
 	if appParams.ObjectID != "" {
 		// the caller has already created the app, fetch and return it
@@ -123,6 +125,7 @@ func (c *ApplicationClient) CreateApplication(ctx context.Context, appParams App
 	return &app, nil
 }
 
+// DeleteApplication will delete the given AD application
 func (c *ApplicationClient) DeleteApplication(ctx context.Context, appObjectID string) error {
 	_, err := c.ApplicationsClient.Delete(ctx, appObjectID)
 	return err
@@ -142,6 +145,7 @@ type ServicePrincipalClient struct {
 	graphrbac.ServicePrincipalsClient
 }
 
+// NewServicePrincipalClient creates and initializes a ServicePrincipalClient instance.
 func NewServicePrincipalClient(provider *v1alpha1.Provider, clientset kubernetes.Interface) (*ServicePrincipalClient, error) {
 	client, err := NewClient(provider, clientset)
 	if err != nil {
@@ -160,6 +164,7 @@ func NewServicePrincipalClient(provider *v1alpha1.Provider, clientset kubernetes
 	return &ServicePrincipalClient{spClient}, nil
 }
 
+// CreateServicePrincipal creates a new service principal linked to the given AD application
 func (c *ServicePrincipalClient) CreateServicePrincipal(ctx context.Context, spID, appID string) (*graphrbac.ServicePrincipal, error) {
 	if spID != "" {
 		// the caller has already created the service principal, fetch and return it
@@ -180,6 +185,7 @@ func (c *ServicePrincipalClient) CreateServicePrincipal(ctx context.Context, spI
 	return &sp, nil
 }
 
+// DeleteServicePrincipal will delete the given service principal
 func (c *ServicePrincipalClient) DeleteServicePrincipal(ctx context.Context, spID string) error {
 	_, err := c.ServicePrincipalsClient.Delete(ctx, spID)
 	return err

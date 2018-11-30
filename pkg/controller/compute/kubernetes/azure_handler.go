@@ -27,7 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// Azure AKS handler handles Kubernetes cluster functionality
+// AKSClusterHandler handles Kubernetes cluster functionality
 type AKSClusterHandler struct{}
 
 // find AKSCluster resource

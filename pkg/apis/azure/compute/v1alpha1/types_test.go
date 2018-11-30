@@ -98,7 +98,7 @@ func TestNewAKSClusterSpec(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	m := make(map[string]string)
-	exp := &AKSClusterSpec{ReclaimPolicy: corev1alpha1.ReclaimRetain}
+	exp := &AKSClusterSpec{ReclaimPolicy: corev1alpha1.ReclaimRetain, NodeCount: 1} // default values
 
 	g.Expect(NewAKSClusterSpec(m)).To(Equal(exp))
 
@@ -124,7 +124,7 @@ func TestNewAKSClusterSpec(t *testing.T) {
 	// invalid nodeCount value
 	val = "not a number"
 	m["nodeCount"] = val
-	exp.NodeCount = 0 // value is not set
+	exp.NodeCount = 1 // value is not changed from default
 	g.Expect(NewAKSClusterSpec(m)).To(Equal(exp))
 
 	val = "Standard_B2s"

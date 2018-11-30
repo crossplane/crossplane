@@ -26,13 +26,15 @@ import (
 )
 
 const (
+	// ClusterProvisioningStateSucceeded is the state for a cluster that has succeeded provisioning
 	ClusterProvisioningStateSucceeded = "Succeeded"
-
+	// DefaultReclaimPolicy is the default reclaim policy to use
 	DefaultReclaimPolicy = corev1alpha1.ReclaimRetain
-	DefaultNodeCount     = 1
+	// DefaultNodeCount is the default node count for a cluster
+	DefaultNodeCount = 1
 )
 
-// AKSClusterSpec
+// AKSClusterSpec is the spec for AKS cluster resources
 type AKSClusterSpec struct {
 	ResourceGroupName string `json:"resourceGroupName"` //--resource-group
 	Location          string `json:"location"`          //--location
@@ -52,7 +54,7 @@ type AKSClusterSpec struct {
 	ReclaimPolicy corev1alpha1.ReclaimPolicy `json:"reclaimPolicy,omitempty"`
 }
 
-// AKSClusterStatus
+// AKSClusterStatus is the status for AKS cluster resources
 type AKSClusterStatus struct {
 	corev1alpha1.ConditionedStatus
 	corev1alpha1.BindingStatusPhase
@@ -101,7 +103,8 @@ type AKSClusterList struct {
 // NewAKSClusterSpec creates a new AKSClusterSpec based on the given properties map
 func NewAKSClusterSpec(properties map[string]string) *AKSClusterSpec {
 	spec := &AKSClusterSpec{
-		ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		ReclaimPolicy: DefaultReclaimPolicy,
+		NodeCount:     DefaultNodeCount,
 	}
 
 	val, ok := properties["resourceGroupName"]
@@ -156,6 +159,7 @@ func (a *AKSCluster) OwnerReference() metav1.OwnerReference {
 	return *util.ObjectToOwnerReference(a.ObjectReference())
 }
 
+// ConnectionSecret returns a secret object for this resource
 func (a *AKSCluster) ConnectionSecret() *corev1.Secret {
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -179,6 +183,7 @@ func (a *AKSCluster) ConnectionSecretName() string {
 	return a.Spec.ConnectionSecretRef.Name
 }
 
+// Endpoint returns the current endpoint of this resource
 func (a *AKSCluster) Endpoint() string {
 	return a.Status.Endpoint
 }
@@ -193,12 +198,12 @@ func (a *AKSCluster) IsAvailable() bool {
 	return a.State() == ClusterProvisioningStateSucceeded
 }
 
-// IsBound
+// IsBound returns if the resource is currently bound
 func (a *AKSCluster) IsBound() bool {
 	return a.Status.Phase == corev1alpha1.BindingStateBound
 }
 
-// SetBound
+// SetBound sets the binding state of this resource
 func (a *AKSCluster) SetBound(state bool) {
 	if state {
 		a.Status.Phase = corev1alpha1.BindingStateBound
