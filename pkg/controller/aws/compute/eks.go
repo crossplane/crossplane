@@ -59,6 +59,7 @@ const (
 	errorDeleteCluster   = "Failed to delete cluster"
 	eksAuthConfigMapName = "aws-auth"
 	eksAuthMapRolesKey   = "mapRoles"
+	eksAuthMapUsersKey   = "mapUsers"
 )
 
 var (
@@ -184,7 +185,7 @@ func (r *Reconciler) _create(instance *awscomputev1alpha1.EKSCluster, client eks
 }
 
 // generateAWSAuthConfigMap generates the configmap for configure auth
-func generateAWSAuthConfigMap(workerARN string) (*v1.ConfigMap, error) {
+func generateAWSAuthConfigMap(instance *awscomputev1alpha1.EKSCluster, workerARN string) (*v1.ConfigMap, error) {
 	data := map[string]string{}
 	defaultRole := awscomputev1alpha1.MapRole{
 		RoleARN:  workerARN,
@@ -193,12 +194,26 @@ func generateAWSAuthConfigMap(workerARN string) (*v1.ConfigMap, error) {
 	}
 
 	// Serialize mapRoles
-	roles := []awscomputev1alpha1.MapRole{defaultRole}
+	roles := make([]awscomputev1alpha1.MapRole, len(instance.Spec.MapRoles))
+	for i, role := range instance.Spec.MapRoles {
+		roles[i] = role
+	}
+	roles = append(roles, defaultRole)
 	rolesMarshalled, err := yaml.Marshal(roles)
 	if err != nil {
 		return nil, err
 	}
+
 	data[eksAuthMapRolesKey] = string(rolesMarshalled)
+
+	// Serialize mapUsers
+	if len(instance.Spec.MapUsers) > 0 {
+		usersMarshalled, err := yaml.Marshal(instance.Spec.MapUsers)
+		if err != nil {
+			return nil, err
+		}
+		data[eksAuthMapUsersKey] = string(usersMarshalled)
+	}
 
 	name := eksAuthConfigMapName
 	namespace := "kube-system"
@@ -209,15 +224,13 @@ func generateAWSAuthConfigMap(workerARN string) (*v1.ConfigMap, error) {
 		},
 		Data: data,
 	}
+
 	return &cm, nil
 }
 
 // _awsauth generates an aws-auth configmap and pushes it to the remote eks cluster to configure auth
 func (r *Reconciler) _awsauth(cluster *eks.Cluster, instance *awscomputev1alpha1.EKSCluster, client eks.Client, workerARN string) error {
-	cm, err := generateAWSAuthConfigMap(workerARN)
-	if err != nil {
-		return err
-	}
+	cm, err := generateAWSAuthConfigMap(instance, workerARN)
 
 	// Sync aws-auth to remote eks cluster to configure it's auth.
 	token, err := client.ConnectionToken(instance.Status.ClusterName)
@@ -230,6 +243,7 @@ func (r *Reconciler) _awsauth(cluster *eks.Cluster, instance *awscomputev1alpha1
 	if err != nil {
 		return err
 	}
+
 	c := rest.Config{
 		Host: cluster.Endpoint,
 		TLSClientConfig: rest.TLSClientConfig{

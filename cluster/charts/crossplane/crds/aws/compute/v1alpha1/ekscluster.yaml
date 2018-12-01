@@ -36,6 +36,40 @@ spec:
               type: string
             generateCLISkeleton:
               type: string
+            mapRoles:
+              items:
+                properties:
+                  groups:
+                    items:
+                      type: string
+                    type: array
+                  rolearn:
+                    type: string
+                  username:
+                    type: string
+                required:
+                - rolearn
+                - username
+                - groups
+                type: object
+              type: array
+            mapUsers:
+              items:
+                properties:
+                  groups:
+                    items:
+                      type: string
+                    type: array
+                  userarn:
+                    type: string
+                  username:
+                    type: string
+                required:
+                - userarn
+                - username
+                - groups
+                type: object
+              type: array
             providerRef:
               type: object
             reclaimPolicy:

@@ -21,14 +21,13 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/ghodss/yaml"
-
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
 	"github.com/crossplaneio/crossplane/pkg/apis/aws"
 	. "github.com/crossplaneio/crossplane/pkg/apis/aws/compute/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/clients/aws/eks"
 	"github.com/crossplaneio/crossplane/pkg/clients/aws/eks/fake"
+	"github.com/ghodss/yaml"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -88,27 +87,55 @@ func assertResource(g *GomegaWithT, r *Reconciler, s corev1alpha1.ConditionedSta
 func TestGenerateEksAuth(t *testing.T) {
 	g := NewGomegaWithT(t)
 	arnName := "test-arn"
+	var expectRoles []MapRole
+	var expectUsers []MapUser
 
-	defaultRole := MapRole{
+	defaultMapRole := MapRole{
 		RoleARN:  arnName,
 		Username: "system:node:{{EC2PrivateDNSName}}",
 		Groups:   []string{"system:bootstrappers", "system:nodes"},
 	}
-	expectRoles := []MapRole{defaultRole}
 
-	cm, err := generateAWSAuthConfigMap(arnName)
+	exampleMapRole := MapRole{
+		RoleARN:  "arn:aws:iam::000000000000:role/KubernetesAdmin",
+		Username: "kubernetes-admin",
+		Groups:   []string{"system:masters"},
+	}
+
+	exampleMapUser := MapUser{
+		UserARN:  "arn:aws:iam::000000000000:user/Alice",
+		Username: "alice",
+		Groups:   []string{"system:masters"},
+	}
+
+	expectRoles = append(expectRoles, exampleMapRole)
+	expectUsers = append(expectUsers, exampleMapUser)
+
+	cluster := testCluster()
+	cluster.Spec.MapRoles = expectRoles
+	cluster.Spec.MapUsers = expectUsers
+
+	// Default is included by so we don't add it to spec
+	expectRoles = append(expectRoles, defaultMapRole)
+
+	cm, err := generateAWSAuthConfigMap(cluster, arnName)
 	g.Expect(err).To(BeNil())
 
 	g.Expect(cm.Name).To(Equal("aws-auth"))
 	g.Expect(cm.Namespace).To(Equal("kube-system"))
 
-	outputRoles := make([]MapRole, 0)
-	if val, ok := cm.Data["mapRoles"]; ok {
-		err = yaml.Unmarshal([]byte(val), &outputRoles)
-		g.Expect(err).To(BeNil())
-	}
+	var outputRoles []MapRole
+	val, _ := cm.Data["mapRoles"]
+	err = yaml.Unmarshal([]byte(val), &outputRoles)
+	g.Expect(err).To(BeNil())
+
+	var outputUsers []MapUser
+	val, _ = cm.Data["mapUsers"]
+	err = yaml.Unmarshal([]byte(val), &outputUsers)
+	g.Expect(err).To(BeNil())
 
 	g.Expect(outputRoles).To(Equal(expectRoles))
+	g.Expect(outputUsers).To(Equal(expectUsers))
 }
 
 func TestCreate(t *testing.T) {
