@@ -33,8 +33,8 @@ const (
 	ResourceCredentialsSecretClientKeyKey = "clientKey"
 	// ResourceCredentialsSecretClusterConfigFile is the key inside a connection secret for the full cluster configuration file
 	ResourceCredentialsSecretClusterConfigFile = "clusterConfig"
-	// ResourceCredentialsToken
-	ResourceCredentialsToken = "token"
+	// ResourceCredentialsTokenKey is the key inside a connection secret for the bearer token value
+	ResourceCredentialsTokenKey = "token"
 )
 
 // Resource defines operations supported by managed resource

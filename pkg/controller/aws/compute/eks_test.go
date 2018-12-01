@@ -288,7 +288,7 @@ func TestSecret(t *testing.T) {
 	data := make(map[string][]byte)
 	data[corev1alpha1.ResourceCredentialsSecretEndpointKey] = []byte(cluster.Endpoint)
 	data[corev1alpha1.ResourceCredentialsSecretCAKey] = clusterCA
-	data[corev1alpha1.ResourceCredentialsToken] = []byte("test-token")
+	data[corev1alpha1.ResourceCredentialsTokenKey] = []byte("test-token")
 	secret.Data = data
 	expSec := tc.ConnectionSecret()
 	expSec.Data = data
