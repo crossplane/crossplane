@@ -34,6 +34,7 @@ import (
 const (
 	clusterIDHeader = "x-k8s-aws-id"
 	v1Prefix        = "k8s-aws-v1."
+	CloudFormationNodeInstanceRole = "NodeInstanceRole"
 )
 
 // Cluster crossplane representation of the AWS EKS Cluster
@@ -66,14 +67,16 @@ type ClusterWorkers struct {
 	WorkersStatus cloudformation.StackStatus
 	WorkerReason  string
 	WorkerStackID string
+	WorkerARN     string
 }
 
 // NewClusterWorkers returns crossplane representation of the AWS EKS cluster worker nodes
-func NewClusterWorkers(workerStackID string, workerStatus cloudformation.StackStatus, workerReason string) *ClusterWorkers {
+func NewClusterWorkers(workerStackID string, workerStatus cloudformation.StackStatus, workerReason string, workerARN string) *ClusterWorkers {
 	return &ClusterWorkers{
 		WorkerStackID: workerStackID,
 		WorkersStatus: workerStatus,
 		WorkerReason:  workerReason,
+		WorkerARN:     workerARN,
 	}
 }
 
@@ -165,7 +168,7 @@ func (e *EKSClient) CreateWorkerNodes(name string, spec awscomputev1alpha1.EKSCl
 		return nil, err
 	}
 
-	return NewClusterWorkers(*stackID, cloudformation.StackStatusCreateInProgress, ""), nil
+	return NewClusterWorkers(*stackID, cloudformation.StackStatusCreateInProgress, "", ""), nil
 }
 
 // Get an existing EKS cluster
@@ -181,17 +184,22 @@ func (e *EKSClient) Get(name string) (*Cluster, error) {
 
 // GetWorkerNodes information about existing cloud formation stack
 func (e *EKSClient) GetWorkerNodes(stackID string) (*ClusterWorkers, error) {
-	status, reason, err := e.cloudformation.DescribeStack(&stackID)
+	status, output, reason, err := e.cloudformation.DescribeStack(&stackID)
 	if err != nil {
 		return nil, err
 	}
 
-	if reason == nil {
-		defaultReason := ""
-		reason = &defaultReason
+	nodeARN := ""
+	if output != nil {
+		for _, item := range output {
+			if aws.StringValue(item.OutputKey) == CloudFormationNodeInstanceRole {
+				nodeARN = aws.StringValue(item.OutputValue)
+				break
+			}
+		}
 	}
 
-	return NewClusterWorkers(stackID, *status, *reason), nil
+	return NewClusterWorkers(stackID, *status, aws.StringValue(reason), nodeARN), nil
 }
 
 // Delete a EKS cluster

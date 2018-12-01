@@ -132,6 +132,8 @@ type EKSClusterSpec struct {
 	// ConnectionSecretNameOverride set this override the generated name of Status.ConnectionSecretRef.Name
 	ConnectionSecretNameOverride string `json:"connectionSecretNameOverride,omitempty"`
 
+	MapRoles []MapRole `json:"mapRoles,omitempty"`
+
 	// Kubernetes object references
 	ClaimRef    *corev1.ObjectReference     `json:"claimRef,omitempty"`
 	ClassRef    *corev1.ObjectReference     `json:"classRef,omitempty"`
@@ -139,6 +141,12 @@ type EKSClusterSpec struct {
 
 	// ReclaimPolicy identifies how to handle the cloud resource after the deletion of this type
 	ReclaimPolicy corev1alpha1.ReclaimPolicy `json:"reclaimPolicy,omitempty"`
+}
+
+type MapRole struct {
+	RoleARN  string   `json:"rolearn"`
+	Username string   `json:"username"`
+	Groups   []string `json:"groups"`
 }
 
 //WorkerNodesSpec - Worker node spec used to define cloudformation template that provisions workers for cluster
