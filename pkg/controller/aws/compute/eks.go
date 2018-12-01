@@ -223,7 +223,7 @@ func (r *Reconciler) _secret(cluster *eks.Cluster, instance *awscomputev1alpha1.
 	data := make(map[string][]byte)
 	data[corev1alpha1.ResourceCredentialsSecretEndpointKey] = []byte(cluster.Endpoint)
 	data[corev1alpha1.ResourceCredentialsSecretCAKey] = caData
-	data[corev1alpha1.ResourceCredentialsToken] = []byte(token)
+	data[corev1alpha1.ResourceCredentialsTokenKey] = []byte(token)
 	secret.Data = data
 
 	// create connection secret

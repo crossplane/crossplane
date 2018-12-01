@@ -137,6 +137,7 @@ func (r *Reconciler) _connect(instance *computev1alpha1.Workload) (kubernetes.In
 	ca, _ := s.Data[corev1alpha1.ResourceCredentialsSecretCAKey]
 	cert, _ := s.Data[corev1alpha1.ResourceCredentialsSecretClientCertKey]
 	key, _ := s.Data[corev1alpha1.ResourceCredentialsSecretClientKeyKey]
+	token, _ := s.Data[corev1alpha1.ResourceCredentialsTokenKey]
 
 	config := &rest.Config{
 		Host:     string(host) + ":443",
@@ -148,6 +149,7 @@ func (r *Reconciler) _connect(instance *computev1alpha1.Workload) (kubernetes.In
 			CertData:   cert,
 			KeyData:    key,
 		},
+		BearerToken: string(token),
 	}
 
 	return kubernetes.NewForConfig(config)
