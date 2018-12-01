@@ -45,4 +45,4 @@ Now deploy all the Wordpress resources, including the RDS database, with the fol
 kubectl -n demo create -f cluster/examples/wordpress/aws/class/wordpress.yaml
 ```
 
-Now you can proceed back to the main quickstart to [wait for the resources to become ready](./quickstart.md#waiting-for-completion).
+Now you can proceed back to the main quickstart to [wait for the resources to become ready](quickstart.md#waiting-for-completion).
