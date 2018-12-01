@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/ghodss/yaml"
+
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
 	"github.com/crossplaneio/crossplane/pkg/apis/aws"
 	. "github.com/crossplaneio/crossplane/pkg/apis/aws/compute/v1alpha1"
@@ -83,6 +85,32 @@ func assertResource(g *GomegaWithT, r *Reconciler, s corev1alpha1.ConditionedSta
 	return rc
 }
 
+func TestGenerateEksAuth(t *testing.T) {
+	g := NewGomegaWithT(t)
+	arnName := "test-arn"
+
+	defaultRole := MapRole{
+		RoleARN:  arnName,
+		Username: "system:node:{{EC2PrivateDNSName}}",
+		Groups:   []string{"system:bootstrappers", "system:nodes"},
+	}
+	expectRoles := []MapRole{defaultRole}
+
+	cm, err := generateAWSAuthConfigMap(arnName)
+	g.Expect(err).To(BeNil())
+
+	g.Expect(cm.Name).To(Equal("aws-auth"))
+	g.Expect(cm.Namespace).To(Equal("kube-system"))
+
+	outputRoles := make([]MapRole, 0)
+	if val, ok := cm.Data["mapRoles"]; ok {
+		err = yaml.Unmarshal([]byte(val), &outputRoles)
+		g.Expect(err).To(BeNil())
+	}
+
+	g.Expect(outputRoles).To(Equal(expectRoles))
+}
+
 func TestCreate(t *testing.T) {
 	g := NewGomegaWithT(t)
 
@@ -101,14 +129,9 @@ func TestCreate(t *testing.T) {
 	// new cluster
 	cluster := testCluster()
 	cluster.ObjectMeta.UID = types.UID("test-uid")
-	fakeStackID := "fake-stack-id"
-	mockClusterWorker := eks.ClusterWorkers{
-		WorkerStackID: fakeStackID,
-	}
 
 	client := &fake.MockEKSClient{
-		MockCreate:            func(string, EKSClusterSpec) (*eks.Cluster, error) { return nil, nil },
-		MockCreateWorkerNodes: func(string, EKSClusterSpec) (*eks.ClusterWorkers, error) { return &mockClusterWorker, nil },
+		MockCreate: func(string, EKSClusterSpec) (*eks.Cluster, error) { return nil, nil },
 	}
 
 	expectedStatus := corev1alpha1.ConditionedStatus{}
@@ -118,7 +141,6 @@ func TestCreate(t *testing.T) {
 
 	g.Expect(reconciledCluster.Status.ClusterName).To(Equal(fmt.Sprintf("%s%s", clusterNamePrefix, cluster.UID)))
 	g.Expect(reconciledCluster.State()).To(Equal(ClusterStatusCreating))
-	g.Expect(reconciledCluster.Status.CloudFormationStackID).To(Equal(fakeStackID))
 
 	// cluster create error - bad request
 	cluster = testCluster()
@@ -150,39 +172,31 @@ func TestCreate(t *testing.T) {
 	g.Expect(reconciledCluster.Status.ClusterName).To(BeEmpty())
 	g.Expect(reconciledCluster.State()).To(BeEmpty())
 	g.Expect(reconciledCluster.Status.CloudFormationStackID).To(BeEmpty())
-
-	// cluster createWorkerNodes error - other
-	client = &fake.MockEKSClient{
-		MockCreate: func(string, EKSClusterSpec) (*eks.Cluster, error) { return nil, nil },
-		MockCreateWorkerNodes: func(string, EKSClusterSpec) (*eks.ClusterWorkers, error) {
-			return nil, fmt.Errorf("fake-error-worker-nodes")
-		},
-	}
-
-	reconciledCluster = test(cluster, client, resultRequeue, expectedStatus)
-	g.Expect(reconciledCluster.Finalizers).To(BeEmpty())
-	g.Expect(reconciledCluster.Status.ClusterName).To(BeEmpty())
-	g.Expect(reconciledCluster.State()).To(BeEmpty())
-	g.Expect(reconciledCluster.Status.CloudFormationStackID).To(BeEmpty())
 }
 
 func TestSync(t *testing.T) {
 	g := NewGomegaWithT(t)
 	fakeStackID := "fake-stack-id"
 
-	test := func(cl *fake.MockEKSClient, sec func(*eks.Cluster, *EKSCluster, eks.Client) error,
-		rslt reconcile.Result, exp corev1alpha1.ConditionedStatus) {
-		tc := testCluster()
+	test := func(tc *EKSCluster, cl *fake.MockEKSClient, sec func(*eks.Cluster, *EKSCluster, eks.Client) error, auth func(*eks.Cluster, *EKSCluster, eks.Client, string) error,
+		rslt reconcile.Result, exp corev1alpha1.ConditionedStatus) *EKSCluster {
 		r := &Reconciler{
 			Client:     NewFakeClient(tc),
 			kubeclient: NewSimpleClientset(),
 			secret:     sec,
+			awsauth:    auth,
 		}
 
 		rs, err := r._sync(tc, cl)
 		g.Expect(rs).To(Equal(rslt))
 		g.Expect(err).NotTo(HaveOccurred())
-		assertResource(g, r, exp)
+		return assertResource(g, r, exp)
+	}
+
+	fakeWorkerARN := "fake-worker-arn"
+	mockClusterWorker := eks.ClusterWorkers{
+		WorkerStackID: fakeStackID,
+		WorkerARN:     fakeWorkerARN,
 	}
 
 	// error retrieving the cluster
@@ -191,6 +205,7 @@ func TestSync(t *testing.T) {
 		MockGet: func(string) (*eks.Cluster, error) {
 			return nil, fmt.Errorf(testError)
 		},
+		MockCreateWorkerNodes: func(string, EKSClusterSpec) (*eks.ClusterWorkers, error) { return &mockClusterWorker, nil },
 	}
 
 	cl.MockGetWorkerNodes = func(string) (*eks.ClusterWorkers, error) {
@@ -202,7 +217,8 @@ func TestSync(t *testing.T) {
 
 	expectedStatus := corev1alpha1.ConditionedStatus{}
 	expectedStatus.SetFailed(errorSyncCluster, testError)
-	test(cl, nil, resultRequeue, expectedStatus)
+	tc := testCluster()
+	test(tc, cl, nil, nil, resultRequeue, expectedStatus)
 
 	// cluster is not ready
 	cl.MockGet = func(string) (*eks.Cluster, error) {
@@ -211,9 +227,10 @@ func TestSync(t *testing.T) {
 		}, nil
 	}
 	expectedStatus = corev1alpha1.ConditionedStatus{}
-	test(cl, nil, resultRequeue, expectedStatus)
+	tc = testCluster()
+	test(tc, cl, nil, nil, resultRequeue, expectedStatus)
 
-	// cluster is ready, but workers still creating
+	// cluster is ready, but lets create workers that error
 	testError = "test-create-wait-on-workers"
 	cl.MockGet = func(string) (*eks.Cluster, error) {
 		return &eks.Cluster{
@@ -221,8 +238,54 @@ func TestSync(t *testing.T) {
 		}, nil
 	}
 
+	testError = "fake-error-worker-nodes"
+	cl.MockCreateWorkerNodes = func(string, EKSClusterSpec) (*eks.ClusterWorkers, error) {
+		return nil, fmt.Errorf(testError)
+	}
+
 	expectedStatus = corev1alpha1.ConditionedStatus{}
-	test(cl, nil, resultRequeue, expectedStatus)
+	expectedStatus.SetFailed(errorSyncCluster, testError)
+	tc = testCluster()
+	reconciledCluster := test(tc, cl, nil, nil, resultRequeue, expectedStatus)
+	g.Expect(reconciledCluster.Status.CloudFormationStackID).To(BeEmpty())
+
+	// cluster is ready, lets create workers
+	testError = "test-create-wait-on-workers"
+	cl.MockGet = func(string) (*eks.Cluster, error) {
+		return &eks.Cluster{
+			Status: ClusterStatusActive,
+		}, nil
+	}
+
+	cl.MockCreateWorkerNodes = func(string, EKSClusterSpec) (*eks.ClusterWorkers, error) {
+		return &eks.ClusterWorkers{WorkerStackID: fakeStackID}, nil
+	}
+
+	expectedStatus = corev1alpha1.ConditionedStatus{}
+	tc = testCluster()
+	reconciledCluster = test(tc, cl, nil, nil, resultRequeue, expectedStatus)
+	g.Expect(reconciledCluster.Status.CloudFormationStackID).To(Equal(fakeStackID))
+
+	// cluster is ready, but auth sync failed
+	testError = "test-create-auth-config-error"
+	cl.MockGetWorkerNodes = func(string) (*eks.ClusterWorkers, error) {
+		return &eks.ClusterWorkers{
+			WorkersStatus: cloudformation.StackStatusCreateComplete,
+			WorkerReason:  "",
+			WorkerStackID: fakeStackID,
+			WorkerARN:     fakeWorkerARN,
+		}, nil
+	}
+
+	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetFailed(errorSyncCluster, fmt.Sprintf("failed to set auth map on eks: %s", testError))
+	tc = testCluster()
+	tc.Status.CloudFormationStackID = fakeStackID
+	auth := func(*eks.Cluster, *EKSCluster, eks.Client, string) error {
+		return fmt.Errorf(testError)
+
+	}
+	test(tc, cl, nil, auth, resultRequeue, expectedStatus)
 
 	// cluster is ready, but secret failed
 	testError = "test-create-secret-error"
@@ -230,7 +293,13 @@ func TestSync(t *testing.T) {
 		return &eks.ClusterWorkers{
 			WorkersStatus: cloudformation.StackStatusCreateComplete,
 			WorkerReason:  "",
-			WorkerStackID: fakeStackID}, nil
+			WorkerStackID: fakeStackID,
+			WorkerARN:     fakeWorkerARN,
+		}, nil
+	}
+
+	auth = func(*eks.Cluster, *EKSCluster, eks.Client, string) error {
+		return nil
 	}
 
 	fSec := func(*eks.Cluster, *EKSCluster, eks.Client) error {
@@ -238,7 +307,9 @@ func TestSync(t *testing.T) {
 	}
 	expectedStatus = corev1alpha1.ConditionedStatus{}
 	expectedStatus.SetFailed(errorSyncCluster, testError)
-	test(cl, fSec, resultRequeue, expectedStatus)
+	tc = testCluster()
+	tc.Status.CloudFormationStackID = fakeStackID
+	test(tc, cl, fSec, auth, resultRequeue, expectedStatus)
 
 	// cluster is ready
 	fSec = func(*eks.Cluster, *EKSCluster, eks.Client) error {
@@ -246,7 +317,9 @@ func TestSync(t *testing.T) {
 	}
 	expectedStatus = corev1alpha1.ConditionedStatus{}
 	expectedStatus.SetReady()
-	test(cl, fSec, result, expectedStatus)
+	tc = testCluster()
+	tc.Status.CloudFormationStackID = fakeStackID
+	test(tc, cl, fSec, auth, result, expectedStatus)
 }
 
 func TestSecret(t *testing.T) {

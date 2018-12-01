@@ -28,7 +28,7 @@ import (
 // Client interface to perform CloudFormation operations
 type Client interface {
 	CreateStack(stackName *string, templateBody *string, parameters map[string]string) (stackID *string, err error)
-	DescribeStack(stackID *string) (status *cf.StackStatus, reason *string, err error)
+	GetStack(stackID *string) (stack *cf.Stack, err error)
 	DeleteStack(stackID *string) error
 }
 
@@ -59,20 +59,19 @@ func (c *CloudFormationClient) CreateStack(stackName *string, templateBody *stri
 }
 
 // DescribeStack Get stack info
-func (c *CloudFormationClient) DescribeStack(stackID *string) (status *cf.StackStatus, reason *string, err error) {
+func (c *CloudFormationClient) GetStack(stackID *string) (stack *cf.Stack, err error) {
 	describeStackResponse, err := c.cloudformation.DescribeStacksRequest(&cf.DescribeStacksInput{StackName: stackID}).Send()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	// If fetching by name, then this might be a list.
 	// Since we're fetching by ID, it's either not found err above, or there's an item right here.
 	if len(describeStackResponse.Stacks) == 0 {
-		return nil, nil, fmt.Errorf("stack unexpectedly not in response")
+		return nil, fmt.Errorf("stack unexpectedly not in response")
 	}
 
-	stack := describeStackResponse.Stacks[0]
-	return &stack.StackStatus, stack.StackStatusReason, nil
+	return &describeStackResponse.Stacks[0], nil
 }
 
 // DeleteStack deletes a stack
