@@ -20,10 +20,11 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"strings"
+
 	"github.com/ghodss/yaml"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"strings"
 
 	awscomputev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/compute/v1alpha1"
 	awsv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/v1alpha1"
@@ -33,6 +34,7 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/clients/aws/eks"
 	"github.com/crossplaneio/crossplane/pkg/util"
 	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -81,7 +83,7 @@ type Reconciler struct {
 	sync    func(*awscomputev1alpha1.EKSCluster, eks.Client) (reconcile.Result, error)
 	delete  func(*awscomputev1alpha1.EKSCluster, eks.Client) (reconcile.Result, error)
 	secret  func(*eks.Cluster, *awscomputev1alpha1.EKSCluster, eks.Client) error
-	awsauth  func(*eks.Cluster, *awscomputev1alpha1.EKSCluster, eks.Client, string) error
+	awsauth func(*eks.Cluster, *awscomputev1alpha1.EKSCluster, eks.Client, string) error
 }
 
 // newReconciler returns a new reconcile.Reconciler
@@ -181,9 +183,9 @@ func (r *Reconciler) _create(instance *awscomputev1alpha1.EKSCluster, client eks
 
 func (r *Reconciler) _awsauth(cluster *eks.Cluster, instance *awscomputev1alpha1.EKSCluster, client eks.Client, workerARN string) error {
 	defaultRole := awscomputev1alpha1.MapRole{
-		RoleARN: workerARN,
-		Username: "system:node: system:node:{{EC2PrivateDNSName}}",
-		Groups: []string{"system:bootstrappers", "system:nodes"},
+		RoleARN:  workerARN,
+		Username: "system:node:{{EC2PrivateDNSName}}",
+		Groups:   []string{"system:bootstrappers", "system:nodes"},
 	}
 
 	token, err := client.ConnectionToken(instance.Status.ClusterName)
@@ -195,6 +197,7 @@ func (r *Reconciler) _awsauth(cluster *eks.Cluster, instance *awscomputev1alpha1
 	for i, role := range instance.Spec.MapRoles {
 		roles[i] = role
 	}
+
 	roles = append(roles, defaultRole)
 	rolesMarshalled, err := yaml.Marshal(roles)
 	if err != nil {
@@ -210,9 +213,8 @@ func (r *Reconciler) _awsauth(cluster *eks.Cluster, instance *awscomputev1alpha1
 	namespace := "kube-system"
 	cm := v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
+			Name:      name,
 			Namespace: namespace,
-
 		},
 		Data: map[string]string{
 			"mapRoles": string(rolesMarshalled),
@@ -233,7 +235,13 @@ func (r *Reconciler) _awsauth(cluster *eks.Cluster, instance *awscomputev1alpha1
 		return err
 	}
 
-	_, err = clientset.CoreV1().ConfigMaps("kube-system").Update(&cm)
+	_, err = clientset.CoreV1().ConfigMaps(cm.Namespace).Create(&cm)
+	if err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			_, err = clientset.CoreV1().ConfigMaps(cm.Namespace).Update(&cm)
+		}
+	}
+
 	return err
 }
 
@@ -267,7 +275,7 @@ func (r *Reconciler) _sync(instance *awscomputev1alpha1.EKSCluster, client eks.C
 	}
 
 	if err := r.awsauth(cluster, instance, client, clusterWorker.WorkerARN); err != nil {
-		return  r.fail(instance, errorSyncCluster, fmt.Sprintf("failed to set auth map on eks: %s", err.Error()))
+		return r.fail(instance, errorSyncCluster, fmt.Sprintf("failed to set auth map on eks: %s", err.Error()))
 	}
 
 	if err := r.secret(cluster, instance, client); err != nil {

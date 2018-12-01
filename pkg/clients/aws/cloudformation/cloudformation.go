@@ -62,13 +62,13 @@ func (c *CloudFormationClient) CreateStack(stackName *string, templateBody *stri
 func (c *CloudFormationClient) DescribeStack(stackID *string) (status *cf.StackStatus, output []cf.Output, reason *string, err error) {
 	describeStackResponse, err := c.cloudformation.DescribeStacksRequest(&cf.DescribeStacksInput{StackName: stackID}).Send()
 	if err != nil {
-		return nil, nil,nil, err
+		return nil, nil, nil, err
 	}
 
 	// If fetching by name, then this might be a list.
 	// Since we're fetching by ID, it's either not found err above, or there's an item right here.
 	if len(describeStackResponse.Stacks) == 0 {
-		return nil, nil,nil, fmt.Errorf("stack unexpectedly not in response")
+		return nil, nil, nil, fmt.Errorf("stack unexpectedly not in response")
 	}
 
 	stack := describeStackResponse.Stacks[0]

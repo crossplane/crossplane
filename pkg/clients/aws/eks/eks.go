@@ -32,8 +32,8 @@ import (
 )
 
 const (
-	clusterIDHeader = "x-k8s-aws-id"
-	v1Prefix        = "k8s-aws-v1."
+	clusterIDHeader                = "x-k8s-aws-id"
+	v1Prefix                       = "k8s-aws-v1."
 	CloudFormationNodeInstanceRole = "NodeInstanceRole"
 )
 
