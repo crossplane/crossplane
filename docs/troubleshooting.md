@@ -1,3 +1,9 @@
+---
+title: Troubleshoot
+toc: true
+weight: 160
+indent: true
+---
 # Troubleshooting
 
 ## General Kubernetes debugging
