@@ -62,7 +62,7 @@ spec:
               ports:
                 - containerPort: 80
                   name: wordpress
-  targetNamespace: foo
+  targetNamespace: demo
   targetService:
     apiVersion: v1
     kind: Service

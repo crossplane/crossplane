@@ -126,10 +126,6 @@ Create cluster
 kubectl create -f cluster/examples/workloads/wordpress-aws/cluster.yaml
 ```
 
-Create workload
-```console
-kubectl create -f cluster/examples/workloads/wordpress-aws/workload.yaml
-```
 
 Note: It will take about 10 minutes for the EKSCluster to become active, with about another 5 for the nodes to be started and join the cluster.
 
@@ -152,7 +148,7 @@ eks-8f1f32c7-f6b4-11e8-844c-025000000001   ACTIVE     <none>        https://B922
 Now that the target EKS cluster is ready, we can deploy the Workload that contains all the Wordpress resources, including the SQL database, with the following single command:
 
 ```console
-kubectl create -f cluster/examples/workloads/wordpress-${provider}/workload.yaml
+kubectl -n demo create -f cluster/examples/workloads/wordpress-${provider}/workload.yaml
 ```
 
 This will also take awhile to complete, since the MySQL database needs to be deployed before the Wordpress pod can consume it.
@@ -172,7 +168,7 @@ mysql-2a0be04f-f748-11e8-844c-025000000001   available   standard-mysql   <none>
 Now we can watch the Wordpress pod come online and a public IP address will get assigned to it:
 
 ```console
-kubectl get workload -o custom-columns=NAME:.metadata.name,CLUSTER:.spec.targetCluster.name,NAMESPACE:.spec.targetNamespace,DEPLOYMENT:.spec.targetDeployment.metadata.name,SERVICE-EXTERNAL-IP:.status.service.loadBalancer.ingress[0].ip
+kubectl -n demo get workload -o custom-columns=NAME:.metadata.name,CLUSTER:.spec.targetCluster.name,NAMESPACE:.spec.targetNamespace,DEPLOYMENT:.spec.targetDeployment.metadata.name,SERVICE-EXTERNAL-IP:.status.service.loadBalancer.ingress[0].ip
 ```
 
 When a public IP address has been assigned, you'll see output similar to the following:
@@ -215,7 +211,7 @@ kubectl get nodes
 First delete the workload, which will delete Wordpress and the MySQL database:
 
 ```console
-kubectl delete -f cluster/examples/workloads/wordpress-${provider}/workload.yaml
+kubectl -n demo delete -f cluster/examples/workloads/wordpress-${provider}/workload.yaml
 ```
 
 Then delete the EKS cluster:
