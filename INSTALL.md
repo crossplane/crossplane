@@ -1,7 +1,6 @@
 # Building and Installing Crossplane
 
-Crossplane is composed of golang project and can be built directly with standard `golang` tools. We currently support
-two different platforms for building:
+Crossplane is composed of golang project and can be built directly with standard `golang` tools. We currently support two different platforms for building:
 
   * Linux: most modern distros should work although most testing has been done on Ubuntu
   * Mac: macOS 10.6+ is supported
@@ -28,8 +27,7 @@ First ensure that you have the build submodule synced and updated:
 git submodule sync && git submodule update --init --recursive
 ```
 
-You can then build the Crossplane binaries and all container images for the host platform by simply running the
-command below. Building in parallel with the `-j` option is recommended.
+You can then build the Crossplane binaries and all container images for the host platform by simply running the command below. Building in parallel with the `-j` option is recommended.
 
 ```
 make -j4
@@ -45,13 +43,11 @@ Official Crossplane builds are done inside a build container. This ensures that 
 > build/run make -j4
 ```
 
-The first run of `build/run` will build the container itself and could take a few
-minutes to complete.
+The first run of `build/run` will build the container itself and could take a few minutes to complete, but subsequent builds should go much faster.
 
 ### Resetting the build container
 
-If you're running the build container on the Mac using Docker for Mac, the build
-container will rely on rsync to copy source to and from the host. To reset the build container and it's persistent volumes, you can run the below command. You should not have to do this often unless something is broken or stale with your build container:
+If you're running the build container on macOS using Docker for Mac, the build container will rely on rsync to copy source to and from the host. To reset the build container and it's persistent volumes, you can run the below command. You should not have to do this often unless something is broken or stale with your build container:
 
 ```
 build/reset
@@ -130,13 +126,13 @@ systemctl enable update-binfmt.service
 # Install
 
 ## Local
-Please refer to [Local Build & Install](/cluster/local/README.md) documentation on how to deploy locally built Crossplane image onto Kubernetes cluster running on Minikube 
+Please refer to [Local Build & Install](/cluster/local/README.md) documentation on how to deploy locally built Crossplane image onto Kubernetes cluster running on minikube or using docker for mac.
 
 # Improving Build Speed
 
 ## Image Caching and Pruning
 
-Doing a complete build of Crossplane and the dependent packages can take a long time (more than an hour on a typical macbook). To speed things up we rely heavily on image caching in docker. Docker support content-addressable images by default and we use that effectively when building images. Images are factored to increase reusability across builds. We also tag and timestamp images that should remain in the cache to help future builds.
+Doing a complete build of Crossplane and the dependent packages can take a long time. To speed things up we rely heavily on image caching in docker. Docker support content-addressable images by default and we use that effectively when building images. Images are factored to increase reusability across builds. We also tag and timestamp images that should remain in the cache to help future builds.
 
 ### Pruning the cache
 
@@ -146,8 +142,12 @@ To prune the number of cached images run `make prune`. There are two options tha
 - `PRUNE_KEEP` - the minimum number of cached images to keep in the cache. Default is 24 images.
 
 ## CI workflow and options
-Every PR and every merge to master triggers the CI process in [TBD](http://TBD).
-The Jenkins CI will build, run unit tests, run integration tests and Publish artifacts- On every commit to PR and master.
-If any of the CI stages fail, then the process is aborted and no artifacts are published.
-On every successful build Artifacts are pushed to a [s3 bucket](https://release.crossplane.io/). On every successful master build,
-images are uploaded to docker hub in addition.
+
+Every PR and every merge to master triggers the CI process in [Jenkins](https://jenkinsci.upbound.io/blue).
+The Jenkins CI will build, run unit tests, run integration tests and Publish artifacts- On every commit to PR and master. If any of the CI stages fail, then the process is aborted and no artifacts are published.
+
+On every successful build Artifacts are pushed to a [s3 bucket](https://releases.crossplane.io/). On every successful master build, images are uploaded to docker hub in addition.
+
+Based on nature of the PR, it may not be required to run full regression or users may want to skip build all together for trivial changes like documentation changes. Based on the PR body text, Jenkins will skip the build or skip some tests:
+
+  * [skip ci] - if this text is found in the body of PR, then Jenkins will skip the build process and accept the commit

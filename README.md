@@ -1,23 +1,47 @@
-# Project Crossplane (codename)
+<p align="center"><img src="docs/media/logo.svg" alt="Crossplane" height="100"></p>
 
-## What is Crossplane?
+[![Build Status](https://jenkinsci.upbound.io/buildStatus/icon?job=crossplane/build/master)](https://jenkinsci.upbound.io/blue/organizations/jenkins/crossplane%2Fbuild/activity)
+[![GitHub release](https://img.shields.io/github/release/crossplane/crossplane/all.svg?style=flat-square)](https://github.com/crossplaneio/crossplane/releases)
+[![Docker Pulls](https://img.shields.io/docker/pulls/crossplane/crossplane.svg)](https://img.shields.io/docker/pulls/crossplane/crossplane.svg)
+[![Go Report Card](https://goreportcard.com/badge/github.com/crossplaneio/crossplane)](https://goreportcard.com/report/github.com/crossplaneio/crossplane)
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fcrossplaneio%2Fcrossplane.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fcrossplaneio%2Fcrossplane?ref=badge_shield)
+[![Slack](https://crossplane-slackin.herokuapp.com/badge.svg)](https://crossplane-slackin.herokuapp.com/badge.svg)
+[![Twitter Follow](https://img.shields.io/twitter/follow/crossplane_io.svg?style=social&label=Follow)](https://twitter.com/intent/follow?screen_name=crossplane_io&user_id=788180534543339520)
 
-Crossplane is an open source **external-resource-definition** for Kubernetes , providing the platform, framework, and support for a diverse set of the managed resources offered by major cloud providers (Currently focused on AWS and GCP)
+## Overview
 
-Crossplane turns storage software into self-managing, self-scaling, and self-healing of managed cloud resources. Crossplane extends the facilities provided by Kubernetes such container management, scheduling and orchestration to the external resources.
+Crossplane is an open source multicloud control plane. It introduces workload and resource abstractions on-top of existing managed services that enables a high degree of workload portability across cloud providers. A single crossplane enables the provisioning and full-lifecycle management of services and infrastructure across a wide range of providers, offerings, vendors, regions, and clusters. Crossplane offers a universal API for cloud computing, a workload scheduler, and a set of smart controllers that can automate work across clouds.
 
-Crossplane integrates deeply into cloud native environments leveraging extension points and providing a seamless experience for scheduling, lifecycle management, resource management, security, monitoring, and user experience.
+<h4 align="center"><img src="docs/media/arch.png" alt="Crossplane" height="400"></h4>
 
-For more details about the cloud providers and resources currently supported by Crossplane, please refer to the [project status section](#project-status) below.
-We plan to continue adding support for other cloud providers and resource based on community demand and engagement in future releases. See our [roadmap](ROADMAP.md) for more details.
+Crossplane presents a declarative management style API that covers a wide range of portable abstractions including databases, message queues, buckets, data pipelines, serverless, clusters, and many more coming. It’s based on the declarative resource model of the popular [Kubernetes](https://github.com/kubernetes/kubernetes) project, and applies many of the lessons learned in container orchestration to multicloud workload and resource orchestration.
+
+Crossplane supports a clean separation of concerns between developers and administrators. Developers define workloads without having to worry about implementation details, environment constraints, and policies. Administrators can define environment specifics, and policies. The separation of concern leads to a higher degree of reusability and reduces complexity.
+
+Crossplane includes a workload scheduler that can factor a number of criteria including capabilities, availability, reliability, cost, regions, and performance while deploying workloads and their resources. The scheduler works alongside specialized resource controllers to ensure policies set by administrators are honored.
+
+For a deeper dive into Crossplane, see the [architecture](https://docs.google.com/document/d/1whncqdUeU2cATGEJhHvzXWC9xdK29Er45NJeoemxebo/edit?usp=sharing) document.
+
+## Getting Started and Documentation
+
+For getting started guides, installation, deployment, and administration, see our [Documentation](https://crossplane.io/docs).
 
 ## Contributing
 
-We welcome contributions. See [Contributing](CONTRIBUTING.md) to get started.
+Crossplane is a community driven project and we welcome contributions. See [Contributing](CONTRIBUTING.md) to get started.
 
 ## Report a Bug
 
 For filing bugs, suggesting improvements, or requesting new features, please open an [issue](https://github.com/crossplaneio/crossplane/issues).
+
+## Contact
+
+Please use the following to reach members of the community:
+
+- Slack: Join our [slack channel](https://slack.crossplane.io)
+- Forums: [crossplane-dev](https://groups.google.com/forum/#!forum/crossplane-dev)
+- Twitter: [@crossplane_io](https://twitter.com/crossplane_io)
+- Email: [info@crossplane.io](mailto:info@crossplane.io)
 
 ## Community Meeting
 
@@ -34,19 +58,30 @@ Anyone who wants to discuss the direction of the project, design and implementat
 
 ## Project Status
 
-The status of each storage provider supported by Crossplane can be found in the table below.
-Each API group is assigned its own individual status to reflect their varying maturity and stability.
-More details about API versioning and status in Kubernetes can be found on the Kubernetes [API versioning page](https://kubernetes.io/docs/concepts/overview/kubernetes-api/#api-versioning), but the key difference between the statuses are summarized below:
+The project is an early preview. We realize that it's going to take a village to arrive at the vision of a multicloud control plane, and we wanted to open this up early to get your help and feedback. Please see the [Roadmap](ROADMAP.md) for details on what we are planning for future releases.
+
+### API Status
+
+Each API supported by Crossplane is assigned its own individual status to reflect the varying maturity and stability. More details about API versioning and status in Kubernetes can be found on the Kubernetes [API versioning page](https://kubernetes.io/docs/concepts/overview/kubernetes-api/#api-versioning), but the key difference between the statuses are summarized below:
 
 * **Alpha:** The API may change in incompatible ways in a later software release without notice, recommended for use only in short-lived testing clusters, due to increased risk of bugs and lack of long-term support.
 * **Beta:** Support for the overall features will not be dropped, though details may change. Support for upgrading or migrating between versions will be provided, either through automation or manual steps.
 * **Stable:** Features will appear in released software for many subsequent versions and support for upgrading between versions will be provided with software automation in the vast majority of scenarios.
 
 
-| Name | Details | API Group | Status |
-| ----- | --------- | ----------- | -------- |
-| AWS Database | Database storage services in AWS | database.aws.crossplane.io/v1alpha1 | Alpha |
-| GCP Database | Database storage services in GCP | database.gcp.crossplane.io/v1alpha1 | Alpha |
+| Cloud | Name | Details | API Group | Status |
+| ----- | ----- | --------- | ----------- | -------- |
+|  All  | Compute | Compute services | compute.crossplane.io/v1alpha1 | Alpha |
+|  All  | Storage | Storage services | storage.crossplane.io/v1alpha1 | Alpha |
+|  AWS  | Compute | Compute services | compute.aws.crossplane.io/v1alpha1 | Alpha |
+|  AWS  | Database | Database services | database.aws.crossplane.io/v1alpha1 | Alpha |
+|  AWS  | Storage | Storage services | storage.aws.crossplane.io/v1alpha1 | Alpha |
+| Azure | Compute | Compute services | compute.azure.crossplane.io/v1alpha1 | Alpha |
+| Azure | Database | Database services | database.azure.crossplane.io/v1alpha1 | Alpha |
+| Azure | Storage | Storage services | storage.azure.crossplane.io/v1alpha1 | Alpha |
+|  GCP  | Compute | Compute services | compute.gcp.crossplane.io/v1alpha1 | Alpha |
+|  GCP  | Database | Database services | database.gcp.crossplane.io/v1alpha1 | Alpha |
+|  GCP  | Storage | Storage services | storage.gcp.crossplane.io/v1alpha1 | Alpha |
 
 ### Official Releases
 
