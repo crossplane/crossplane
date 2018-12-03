@@ -88,6 +88,8 @@ spec:
               type: string
             runningOperation:
               type: string
+            runningOperationType:
+              type: string
             state:
               type: string
           type: object

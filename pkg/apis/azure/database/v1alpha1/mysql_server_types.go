@@ -26,6 +26,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	// OperationCreateServer is the operation type for creating a new mysql server
+	OperationCreateServer = "createServer"
+	// OperationCreateFirewallRules is the operation type for creating a firewall rule
+	OperationCreateFirewallRules = "createFirewallRules"
+)
+
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
 // +genclient
@@ -80,6 +87,9 @@ type MysqlServerStatus struct {
 	// be used to check the status and completion of the operation during each reconciliation.
 	// Once the operation has completed, this field will be cleared out.
 	RunningOperation string `json:"runningOperation,omitempty"`
+
+	// RunningOperationType is the type of the currently running operation
+	RunningOperationType string `json:"runningOperationType,omitempty"`
 }
 
 // PricingTierSpec represents the performance and cost oriented properties of the server
