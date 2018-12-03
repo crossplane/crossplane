@@ -120,14 +120,18 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	}
 
 	// Retrieve azure client from the given provider config
-	client, err := azureclient.NewClient(instance, r.kubeclient)
+	azureClient, err := azureclient.NewClient(instance, r.kubeclient)
 	if err != nil {
 		return r.fail(instance, errorCreatingClient, err.Error())
 	}
 
 	// Validate azure client
-	if err := r.validate(client); err != nil {
+	if err := r.validate(azureClient); err != nil {
 		return r.fail(instance, errorTestingClient, err.Error())
+	}
+
+	if instance.Status.IsReady() {
+		return result, nil
 	}
 
 	// Update status condition
