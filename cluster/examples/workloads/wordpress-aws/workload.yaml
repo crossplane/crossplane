@@ -1,0 +1,87 @@
+apiVersion: compute.crossplane.io/v1alpha1
+kind: KubernetesCluster
+metadata:
+  name: demo-cluster
+  namespace: default
+spec:
+  classReference:
+    name: standard-cluster
+    namespace: crossplane-system
+---
+## WordPress MySQL Database Instance
+apiVersion: storage.crossplane.io/v1alpha1
+kind: MySQLInstance
+metadata:
+  name: demo-mysql
+  namespace: default
+spec:
+  classReference:
+    name: standard-mysql
+    namespace: crossplane-system
+  engineVersion: "5.7"
+---
+## WordPress Workload
+apiVersion: compute.crossplane.io/v1alpha1
+kind: Workload
+metadata:
+  name: test-workload
+  namespace: default
+spec:
+  resources:
+  - name: demo-mysql
+    secretName: demo-mysql
+  targetCluster:
+    name: demo-cluster
+    namespace: default
+  targetDeployment:
+    apiVersion: extensions/v1beta1
+    kind: Deployment
+    metadata:
+      name: wordpress
+      labels:
+        app: wordpress
+    spec:
+      selector:
+        app: wordpress
+      strategy:
+        type: Recreate
+      template:
+        metadata:
+          labels:
+            app: wordpress
+        spec:
+          containers:
+            - name: wordpress
+              image: wordpress:4.6.1-apache
+              env:
+                - name: WORDPRESS_DB_HOST
+                  valueFrom:
+                    secretKeyRef:
+                      name: demo-mysql
+                      key: endpoint
+                - name: WORDPRESS_DB_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: demo-mysql
+                      key: username
+                - name: WORDPRESS_DB_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: demo-mysql
+                      key: password
+              ports:
+                - containerPort: 80
+                  name: wordpress
+  targetNamespace: foo
+  targetService:
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: wordpress
+    spec:
+      ports:
+        - port: 80
+      selector:
+        app: wordpress
+      type: LoadBalancer
+
