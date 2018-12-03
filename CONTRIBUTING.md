@@ -88,9 +88,10 @@ questions: what changed and why. The subject line should feature the what and
 the body of the commit should describe the why.
 
 ```
-ceph: update MON to use rocksdb
+aws: add support for replication to RDS
 
-this enables us to remove leveldb from the codebase.
+this commit enables fail-over logic for RDS, across multiple zones. it
+enables setting up replication between databases across zones.
 ```
 
 The format can be described more formally as follows:
