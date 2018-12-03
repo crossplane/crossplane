@@ -17,12 +17,14 @@ pipeline {
         stage('Prepare') {
             steps {
                 script {
-                    def pr_number = sh (script: "echo ${env.BRANCH_NAME} | grep -o -E '[0-9]+' ",returnStdout: true)
-                    def json = sh (script: "curl -s https://api.github.com/repos/crossplaneio/crossplane/pulls/${pr_number}", returnStdout: true).trim()
-                    def body = evaluateJson(json,'${json.body}')
-                    if (body.contains("[skip ci]")) {
-                        echo ("'[skip ci]' spotted in PR body text.")
-                        env.shouldBuild = "false"
+                    if (env.BRANCH_NAME =~ /^PR-\d+$/) {
+                        def pr_number = sh (script: "echo ${env.BRANCH_NAME} | grep -o -E '[0-9]+' ", returnStdout: true)
+                        def json = sh (script: "curl -s https://api.github.com/repos/crossplaneio/crossplane/pulls/${pr_number}", returnStdout: true).trim()
+                        def body = evaluateJson(json,'${json.body}')
+                        if (body.contains("[skip ci]")) {
+                            echo ("'[skip ci]' spotted in PR body text.")
+                            env.shouldBuild = "false"
+                        }
                     }
                 }
                 sh 'git config --global user.name "upbound-bot"'
@@ -30,7 +32,7 @@ pipeline {
             }
         }
 
-        stage('Build validation'){
+        stage('Build'){
             when {
                 expression {
                     return env.shouldBuild != "false"
