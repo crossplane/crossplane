@@ -118,7 +118,7 @@ func (c *AKSClusterClient) Get(ctx context.Context, instance computev1alpha1.AKS
 func (c *AKSClusterClient) CreateOrUpdateBegin(ctx context.Context, instance computev1alpha1.AKSCluster, clusterName, appID, spSecret string) ([]byte, error) {
 	spec := instance.Spec
 
-	agentPoolProfileName := fmt.Sprintf(AgentPoolProfileNameFmt, instance.Name)
+	agentPoolProfileName := fmt.Sprintf(AgentPoolProfileNameFmt, clusterName)
 	enableRBAC := !spec.DisableRBAC
 
 	nodeCount := int32(computev1alpha1.DefaultNodeCount)
