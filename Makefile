@@ -4,7 +4,7 @@
 PROJECT_NAME := crossplane
 PROJECT_REPO := github.com/crossplaneio/$(PROJECT_NAME)
 
-PLATFORMS ?= linux_amd64
+PLATFORMS ?= linux_amd64 linux_arm64
 include build/makelib/common.mk
 
 # ====================================================================================
@@ -53,7 +53,6 @@ SOURCE_DOCS_DIR = docs
 DEST_DOCS_DIR = docs
 DOCS_GIT_REPO = https://$(GIT_API_TOKEN)@github.com/crossplaneio/crossplaneio.github.io.git
 include build/makelib/docs.mk
-
 
 # ====================================================================================
 # Targets
