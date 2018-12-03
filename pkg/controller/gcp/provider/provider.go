@@ -135,6 +135,10 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 		return r.fail(instance, errorInvalidCredentials, err.Error())
 	}
 
+	if instance.Status.IsReady() {
+		return result, nil
+	}
+
 	// Update status condition
 	instance.Status.UnsetAllConditions()
 	instance.Status.SetReady()
