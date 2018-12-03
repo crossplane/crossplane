@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/Azure/go-autorest/autorest/to"
+
 	"github.com/Azure/azure-sdk-for-go/services/mysql/mgmt/2017-12-01/mysql"
 	databasev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/database/v1alpha1"
 	azurev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
@@ -32,6 +34,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	apitypes "k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -47,6 +50,7 @@ const (
 
 	passwordDataLen            = 20
 	backupRetentionDaysDefault = int32(7)
+	firewallRuleName           = "crossbound-mysql-firewall-rule"
 
 	errorFetchingAzureProvider   = "failed to fetch Azure Provider"
 	errorCreatingClient          = "Failed to create Azure client"
@@ -174,7 +178,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	}
 
 	// Get latest MySQL Server instance from Azure to check the latest status
-	server, err := mysqlServersClient.Get(ctx, instance.Spec.ResourceGroupName, instance.Name)
+	server, err := mysqlServersClient.GetServer(ctx, instance.Spec.ResourceGroupName, instance.Name)
 	if err != nil {
 		if !azureclients.IsNotFound(err) {
 			return r.fail(instance, errorFetchingInstance, fmt.Sprintf("failed to get MySQL Server instance %s: %+v", instance.Name, err))
@@ -182,6 +186,14 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 
 		// the given mysql server instance does not exist, create it now
 		return r.handleCreation(mysqlServersClient, instance)
+	}
+
+	if _, err := mysqlServersClient.GetFirewallRule(ctx, instance.Spec.ResourceGroupName, instance.Name, firewallRuleName); err != nil {
+		if !azureclients.IsNotFound(err) {
+			return r.fail(instance, errorFetchingInstance, fmt.Sprintf("failed to get firewall rule for MySQL Server instance %s: %+v", instance.Name, err))
+		}
+
+		return r.handleFirewallRuleCreation(mysqlServersClient, instance)
 	}
 
 	// MySQL Server instance exists, update the CRD status now with its latest status
@@ -271,7 +283,7 @@ func (r *Reconciler) handleCreation(mysqlServersClient azureclients.MySQLServerA
 
 	// make the API call to start the create server operation
 	log.Printf("starting create of MySQL Server instance %s", instance.Name)
-	createOp, err := mysqlServersClient.CreateBegin(ctx, instance.Spec.ResourceGroupName, instance.Name, createParams)
+	createOp, err := mysqlServersClient.CreateServerBegin(ctx, instance.Spec.ResourceGroupName, instance.Name, createParams)
 	if err != nil {
 		return r.fail(instance, errorCreatingInstance, fmt.Sprintf("failed to start create operation for MySQL Server instance %s: %+v", instance.Name, err))
 	}
@@ -280,11 +292,31 @@ func (r *Reconciler) handleCreation(mysqlServersClient azureclients.MySQLServerA
 
 	// save the create operation to the CRD status
 	instance.Status.RunningOperation = string(createOp)
+	instance.Status.RunningOperationType = databasev1alpha1.OperationCreateServer
 
-	// TODO: if this update fails to update the CRD status with the create operation, we exit the reconcile and
-	// we'll probably have leaked an Azure MySQL Server resource.  We may need to retry updating the CRD and
-	// ensure that the create operation is persisted, otherwise we'll have no way of tracking its completion.
-	return reconcile.Result{Requeue: true}, r.Update(ctx, instance)
+	// wait until the important status fields we just set have become committed/consistent
+	updateWaitErr := wait.ExponentialBackoff(util.DefaultUpdateRetry, func() (done bool, err error) {
+		if err := r.Update(ctx, instance); err != nil {
+			return false, nil
+		}
+
+		// the update went through, let's do a get to verify the fields are committed/consistent
+		fetchedInstance := &databasev1alpha1.MysqlServer{}
+		if err := r.Get(ctx, apitypes.NamespacedName{Name: instance.Name, Namespace: instance.Namespace}, fetchedInstance); err != nil {
+			return false, nil
+		}
+
+		if fetchedInstance.Status.RunningOperation != "" {
+			// the running operation field has been committed, we can stop retrying
+			return true, nil
+		}
+
+		// the instance hasn't reached consistency yet, retry
+		log.Printf("MySQL Server instance %s hasn't reached consistency yet, retrying", instance.Name)
+		return false, nil
+	})
+
+	return reconcile.Result{Requeue: true}, updateWaitErr
 }
 
 // handle the deletion of the given MySQL Server instance
@@ -292,7 +324,7 @@ func (r *Reconciler) handleDeletion(mysqlServersClient azureclients.MySQLServerA
 	ctx := context.Background()
 
 	// first get the latest status of the MySQL Server resource that needs to be deleted
-	_, err := mysqlServersClient.Get(ctx, instance.Spec.ResourceGroupName, instance.Name)
+	_, err := mysqlServersClient.GetServer(ctx, instance.Spec.ResourceGroupName, instance.Name)
 	if err != nil {
 		if !azureclients.IsNotFound(err) {
 			return r.fail(instance, errorFetchingInstance, fmt.Sprintf("failed to get MySQL Server instance %s for deletion: %+v", instance.Name, err))
@@ -304,7 +336,7 @@ func (r *Reconciler) handleDeletion(mysqlServersClient azureclients.MySQLServerA
 	}
 
 	// attempt to delete the MySQL Server instance now
-	deleteFuture, err := mysqlServersClient.Delete(ctx, instance.Spec.ResourceGroupName, instance.Name)
+	deleteFuture, err := mysqlServersClient.DeleteServer(ctx, instance.Spec.ResourceGroupName, instance.Name)
 	if err != nil {
 		return r.fail(instance, errorDeletingInstance, fmt.Sprintf("failed to start delete operation for MySQL Server instance %s: %+v", instance.Name, err))
 	}
@@ -321,27 +353,70 @@ func (r *Reconciler) markAsDeleting(instance *databasev1alpha1.MysqlServer) (rec
 	return reconcile.Result{}, r.Update(ctx, instance)
 }
 
+func (r *Reconciler) handleFirewallRuleCreation(mysqlServersClient azureclients.MySQLServerAPI, instance *databasev1alpha1.MysqlServer) (reconcile.Result, error) {
+	ctx := context.Background()
+
+	createParams := mysql.FirewallRule{
+		Name: to.StringPtr(firewallRuleName),
+		FirewallRuleProperties: &mysql.FirewallRuleProperties{
+			// TODO: this firewall rules allows inbound access to the Azure MySQL Server from anywhere.
+			// we need to better model/abstract tighter inbound access rules.
+			StartIPAddress: to.StringPtr("0.0.0.0"),
+			EndIPAddress:   to.StringPtr("255.255.255.255"),
+		},
+	}
+
+	log.Printf("starting create of firewall rules for MySQL Server instance %s", instance.Name)
+	createOp, err := mysqlServersClient.CreateFirewallRulesBegin(ctx, instance.Spec.ResourceGroupName, instance.Name, firewallRuleName, createParams)
+	if err != nil {
+		return r.fail(instance, errorCreatingInstance, fmt.Sprintf("failed to start create firewall rules operation for MySQL Server instance %s: %+v", instance.Name, err))
+	}
+
+	log.Printf("started create of firewall rules for MySQL Server instance %s, operation: %s", instance.Name, string(createOp))
+
+	// save the create operation to the CRD status
+	instance.Status.RunningOperation = string(createOp)
+	instance.Status.RunningOperationType = databasev1alpha1.OperationCreateFirewallRules
+
+	return reconcile.Result{Requeue: true}, r.Update(ctx, instance)
+}
+
 // handle a running operation for the given MySQL Server instance
 func (r *Reconciler) handleRunningOperation(mysqlServersClient azureclients.MySQLServerAPI, instance *databasev1alpha1.MysqlServer) (reconcile.Result, error) {
 	ctx := context.Background()
 
+	var done bool
+	var err error
+	opType := instance.Status.RunningOperationType
+
 	// check if the operation is done yet and if there was any error
-	done, err := mysqlServersClient.CreateEnd([]byte(instance.Status.RunningOperation))
+	switch opType {
+	case databasev1alpha1.OperationCreateServer:
+		done, err = mysqlServersClient.CreateServerEnd([]byte(instance.Status.RunningOperation))
+	case databasev1alpha1.OperationCreateFirewallRules:
+		done, err = mysqlServersClient.CreateFirewallRulesEnd([]byte(instance.Status.RunningOperation))
+	default:
+		return r.fail(instance, errorCreatingInstance,
+			fmt.Sprintf("unknown running operation type for MySQL Server instance %s: %s", instance.Name, opType))
+	}
+
 	if !done {
 		// not done yet, check again on the next reconcile
-		log.Printf("waiting on create of MySQL Server instance %s, err: %+v", instance.Name, err)
+		log.Printf("waiting on create operation type %s for MySQL Server instance %s, err: %+v",
+			instance.Status.RunningOperationType, instance.Name, err)
 		return reconcile.Result{Requeue: true}, err
 	}
 
 	// the operation is done, clear out the running operation on the CRD status
 	instance.Status.RunningOperation = ""
+	instance.Status.RunningOperationType = ""
 
 	if err != nil {
 		// the operation completed, but there was an error
 		return r.fail(instance, errorCreatingInstance, fmt.Sprintf("failure result returned from create operation for MySQL Server instance %s: %+v", instance.Name, err))
 	}
 
-	log.Printf("MySQL Server instance %s successfully created", instance.Name)
+	log.Printf("successfully finished operation type %s for MySQL Server instance %s", opType, instance.Name)
 	return reconcile.Result{Requeue: true}, r.Update(ctx, instance)
 }
 
@@ -368,13 +443,14 @@ func (r *Reconciler) updateStatus(instance *databasev1alpha1.MysqlServer, messag
 	}
 
 	instance.Status = databasev1alpha1.MysqlServerStatus{
-		ConditionedStatus:  instance.Status.ConditionedStatus,
-		BindingStatusPhase: instance.Status.BindingStatusPhase,
-		Message:            message,
-		State:              string(server.UserVisibleState),
-		ProviderID:         providerID,
-		Endpoint:           endpoint,
-		RunningOperation:   instance.Status.RunningOperation,
+		ConditionedStatus:    instance.Status.ConditionedStatus,
+		BindingStatusPhase:   instance.Status.BindingStatusPhase,
+		Message:              message,
+		State:                string(server.UserVisibleState),
+		ProviderID:           providerID,
+		Endpoint:             endpoint,
+		RunningOperation:     instance.Status.RunningOperation,
+		RunningOperationType: instance.Status.RunningOperationType,
 	}
 
 	if err := r.Update(ctx, instance); err != nil {
