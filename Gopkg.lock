@@ -647,7 +647,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:6511064c08bff306dd24fa83ea82e160009fa7572240b70173b25d1dbc3e1872"
+  digest = "1:d3955eca8c7b31e6a90e8b92d12caebbba42b92c43c3a0eabac7de911b2745d0"
   name = "golang.org/x/tools"
   packages = [
     "go/ast/astutil",
@@ -656,7 +656,7 @@
     "internal/gopathwalk",
   ]
   pruneopts = "UT"
-  revision = "d0ca3933b724e6be513276cc2edb34e10d667438"
+  revision = "99b2a93e1f84a3dfa8da651b94e2e176187fc2a9"
 
 [[projects]]
   branch = "master"
@@ -1144,6 +1144,8 @@
     "k8s.io/client-go/kubernetes/scheme",
     "k8s.io/client-go/rest",
     "k8s.io/client-go/testing",
+    "k8s.io/client-go/tools/clientcmd",
+    "k8s.io/client-go/tools/clientcmd/api/v1",
     "k8s.io/client-go/tools/record",
     "k8s.io/code-generator/cmd/deepcopy-gen",
     "sigs.k8s.io/controller-runtime/pkg/client",

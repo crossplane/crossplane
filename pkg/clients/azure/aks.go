@@ -19,10 +19,10 @@ package azure
 import (
 	"context"
 	"fmt"
-
-	"github.com/Azure/go-autorest/autorest/to"
+	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/services/containerservice/mgmt/2018-03-31/containerservice"
+	"github.com/Azure/go-autorest/autorest/to"
 	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/compute/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
 	"k8s.io/client-go/kubernetes"
@@ -31,6 +31,8 @@ import (
 const (
 	// AgentPoolProfileNameFmt is a format string for the name of the automatically created cluster agent pool profile
 	AgentPoolProfileNameFmt = "%s-nodepool"
+
+	maxClusterNameLen = 31
 )
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -189,4 +191,13 @@ func (c *AKSClusterClient) Delete(ctx context.Context, instance computev1alpha1.
 // ListClusterAdminCredentials will return the admin credentials used to connect to the given AKS cluster
 func (c *AKSClusterClient) ListClusterAdminCredentials(ctx context.Context, instance computev1alpha1.AKSCluster) (containerservice.CredentialResults, error) {
 	return c.ManagedClustersClient.ListClusterAdminCredentials(ctx, instance.Spec.ResourceGroupName, instance.Status.ClusterName)
+}
+
+// SanitizeClusterName sanitizes the given AKS cluster name
+func SanitizeClusterName(name string) string {
+	if len(name) > maxClusterNameLen {
+		name = name[:maxClusterNameLen]
+	}
+
+	return strings.TrimSuffix(name, "-")
 }
