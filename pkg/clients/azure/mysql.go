@@ -38,15 +38,19 @@ var (
 
 // MySQLServerAPI represents the API interface for a MySQL Server client
 type MySQLServerAPI interface {
-	Get(ctx context.Context, resourceGroupName string, serverName string) (mysql.Server, error)
-	CreateBegin(ctx context.Context, resourceGroupName string, serverName string, parameters mysql.ServerForCreate) ([]byte, error)
-	CreateEnd(createOp []byte) (bool, error)
-	Delete(ctx context.Context, resourceGroupName string, serverName string) (mysql.ServersDeleteFuture, error)
+	GetServer(ctx context.Context, resourceGroupName string, serverName string) (mysql.Server, error)
+	CreateServerBegin(ctx context.Context, resourceGroupName string, serverName string, parameters mysql.ServerForCreate) ([]byte, error)
+	CreateServerEnd(createOp []byte) (bool, error)
+	DeleteServer(ctx context.Context, resourceGroupName string, serverName string) (mysql.ServersDeleteFuture, error)
+	GetFirewallRule(ctx context.Context, resourceGroupName string, serverName string, firewallRuleName string) (result mysql.FirewallRule, err error)
+	CreateFirewallRulesBegin(ctx context.Context, resourceGroupName string, serverName string, firewallRuleName string, parameters mysql.FirewallRule) ([]byte, error)
+	CreateFirewallRulesEnd(createOp []byte) (bool, error)
 }
 
 // MySQLServerClient is the concreate implementation of the MySQLServerAPI interface that calls Azure API.
 type MySQLServerClient struct {
 	mysql.ServersClient
+	mysql.FirewallRulesClient
 }
 
 // NewMySQLServerClient creates and initializes a MySQLServerClient instance.
@@ -60,11 +64,23 @@ func NewMySQLServerClient(provider *v1alpha1.Provider, clientset kubernetes.Inte
 	mysqlServersClient.Authorizer = client.Authorizer
 	mysqlServersClient.AddToUserAgent(UserAgent)
 
-	return &MySQLServerClient{mysqlServersClient}, nil
+	firewallRulesClient := mysql.NewFirewallRulesClient(client.SubscriptionID)
+	firewallRulesClient.Authorizer = client.Authorizer
+	firewallRulesClient.AddToUserAgent(UserAgent)
+
+	return &MySQLServerClient{
+		ServersClient:       mysqlServersClient,
+		FirewallRulesClient: firewallRulesClient,
+	}, nil
 }
 
-// CreateBegin begins the create operation for a MySQL Server with the given properties
-func (c *MySQLServerClient) CreateBegin(ctx context.Context, resourceGroupName string, serverName string,
+// GetServer returns the given MySQL Server
+func (c *MySQLServerClient) GetServer(ctx context.Context, resourceGroupName string, serverName string) (mysql.Server, error) {
+	return c.ServersClient.Get(ctx, resourceGroupName, serverName)
+}
+
+// CreateServerBegin begins the create operation for a MySQL Server with the given properties
+func (c *MySQLServerClient) CreateServerBegin(ctx context.Context, resourceGroupName string, serverName string,
 	parameters mysql.ServerForCreate) ([]byte, error) {
 
 	// make the call to the MySQL Server Create API
@@ -82,8 +98,8 @@ func (c *MySQLServerClient) CreateBegin(ctx context.Context, resourceGroupName s
 	return createFutureJSON, nil
 }
 
-// CreateEnd checks to see if the given create operation is completed and if any error has occurred.
-func (c *MySQLServerClient) CreateEnd(createOp []byte) (done bool, err error) {
+// CreateServerEnd checks to see if the given create operation is completed and if any error has occurred.
+func (c *MySQLServerClient) CreateServerEnd(createOp []byte) (done bool, err error) {
 	// unmarshal the given create complete data into a future object
 	createFuture := &mysql.ServersCreateFuture{}
 	if err = createFuture.UnmarshalJSON(createOp); err != nil {
@@ -91,13 +107,64 @@ func (c *MySQLServerClient) CreateEnd(createOp []byte) (done bool, err error) {
 	}
 
 	// check if the operation is done yet
-	done, err = createFuture.Done(c.Client)
+	done, err = createFuture.Done(c.ServersClient.Client)
 	if !done {
 		return false, err
 	}
 
 	// check the result of the completed operation
 	if _, err = createFuture.Result(c.ServersClient); err != nil {
+		return true, err
+	}
+
+	return true, nil
+}
+
+// DeleteServer deletes the given MySQL Server
+func (c *MySQLServerClient) DeleteServer(ctx context.Context, resourceGroupName string, serverName string) (mysql.ServersDeleteFuture, error) {
+	return c.ServersClient.Delete(ctx, resourceGroupName, serverName)
+}
+
+// GetFirewallRule gets the given firewall rule
+func (c *MySQLServerClient) GetFirewallRule(ctx context.Context, resourceGroupName string, serverName string, firewallRuleName string) (result mysql.FirewallRule, err error) {
+	return c.FirewallRulesClient.Get(ctx, resourceGroupName, serverName, firewallRuleName)
+}
+
+// CreateFirewallRulesBegin begins the create operation for a firewall rule
+func (c *MySQLServerClient) CreateFirewallRulesBegin(ctx context.Context, resourceGroupName string, serverName string,
+	firewallRuleName string, parameters mysql.FirewallRule) ([]byte, error) {
+
+	// make the call to the MySQL Server Create API
+	createFuture, err := c.FirewallRulesClient.CreateOrUpdate(ctx, resourceGroupName, serverName, firewallRuleName, parameters)
+	if err != nil {
+		return nil, err
+	}
+
+	// serialize the create operation
+	createFutureJSON, err := createFuture.MarshalJSON()
+	if err != nil {
+		return nil, err
+	}
+
+	return createFutureJSON, nil
+}
+
+// CreateFirewallRulesEnd checks to see if the given create operation is completed and if any error has occurred.
+func (c *MySQLServerClient) CreateFirewallRulesEnd(createOp []byte) (done bool, err error) {
+	// unmarshal the given create complete data into a future object
+	createFuture := &mysql.FirewallRulesCreateOrUpdateFuture{}
+	if err = createFuture.UnmarshalJSON(createOp); err != nil {
+		return false, err
+	}
+
+	// check if the operation is done yet
+	done, err = createFuture.Done(c.FirewallRulesClient.Client)
+	if !done {
+		return false, err
+	}
+
+	// check the result of the completed operation
+	if _, err = createFuture.Result(c.FirewallRulesClient); err != nil {
 		return true, err
 	}
 

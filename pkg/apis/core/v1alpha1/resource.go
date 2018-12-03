@@ -31,10 +31,10 @@ const (
 	ResourceCredentialsSecretClientCertKey = "clientCert"
 	// ResourceCredentialsSecretClientKeyKey is the key inside a connection secret for the client key
 	ResourceCredentialsSecretClientKeyKey = "clientKey"
-	// ResourceCredentialsSecretClusterConfigFile is the key inside a connection secret for the full cluster configuration file
-	ResourceCredentialsSecretClusterConfigFile = "clusterConfig"
 	// ResourceCredentialsTokenKey is the key inside a connection secret for the bearer token value
 	ResourceCredentialsTokenKey = "token"
+	// ResourceCredentialsSecretKubeconfigFileKey is the key inside a connection secret for the full kubeconfig file
+	ResourceCredentialsSecretKubeconfigFileKey = "kubeconfig"
 )
 
 // Resource defines operations supported by managed resource

@@ -32,6 +32,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -115,7 +116,7 @@ func AddAKSClusterReconciler(mgr manager.Manager, r reconcile.Reconciler) error 
 // Reconcile reads that state of the cluster for a AKSCluster object and makes changes based on the state read
 // and what is in its spec.
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	// Fetch the Provider instance
+	// Fetch the CRD instance
 	instance := &computev1alpha1.AKSCluster{}
 	err := r.Get(ctx, request.NamespacedName, instance)
 	if err != nil {
@@ -231,7 +232,7 @@ func (r *Reconciler) create(instance *computev1alpha1.AKSCluster, aksClient *azu
 
 	// start the creation of the AKS cluster
 	log.Printf("starting create of AKS cluster %s", instance.Name)
-	clusterName := util.GenerateName(instance.Name)
+	clusterName := azureclients.SanitizeClusterName(instance.Name)
 	createOp, err := aksClient.AKSClusterAPI.CreateOrUpdateBegin(ctx, *instance, clusterName, *app.AppID, spSecret)
 	if err != nil {
 		return r.fail(instance, errorCreatingCluster, fmt.Sprintf("failed to start create operation for AKS cluster %s: %+v", instance.Name, err))
@@ -247,10 +248,29 @@ func (r *Reconciler) create(instance *computev1alpha1.AKSCluster, aksClient *azu
 	instance.Status.SetCreating()
 	instance.Status.ClusterName = clusterName
 
-	// TODO: if this update fails to update the CRD status with the create operation, we exit the reconcile and
-	// we'll probably have leaked an Azure AKS cluster resource.  We may need to retry updating the CRD and
-	// ensure that the create operation is persisted, otherwise we'll have no way of tracking its completion.
-	return resultRequeue, r.Update(ctx, instance)
+	// wait until the important status fields we just set have become committed/consistent
+	updateWaitErr := wait.ExponentialBackoff(util.DefaultUpdateRetry, func() (done bool, err error) {
+		if err := r.Update(ctx, instance); err != nil {
+			return false, nil
+		}
+
+		// the update went through, let's do a get to verify the fields are committed/consistent
+		fetchedInstance := &computev1alpha1.AKSCluster{}
+		if err := r.Get(ctx, types.NamespacedName{Name: instance.Name, Namespace: instance.Namespace}, fetchedInstance); err != nil {
+			return false, nil
+		}
+
+		if fetchedInstance.Status.RunningOperation != "" && fetchedInstance.Status.ClusterName != "" {
+			// both the running operation field and the cluster name field have been committed, we can stop retrying
+			return true, nil
+		}
+
+		// the instance hasn't reached consistency yet, retry
+		log.Printf("AKS cluster %s hasn't reached consistency yet, retrying", instance.Name)
+		return false, nil
+	})
+
+	return resultRequeue, updateWaitErr
 }
 
 func (r *Reconciler) waitForCompletion(instance *computev1alpha1.AKSCluster, aksClient *azureclients.AKSSetupClient) (reconcile.Result, error) {
@@ -332,6 +352,8 @@ func (r *Reconciler) delete(instance *computev1alpha1.AKSCluster, aksClient *azu
 		if err != nil && !azureclients.IsNotFound(err) {
 			return r.fail(instance, errorDeletingCluster, fmt.Sprintf("failed to AD application: %+v", err))
 		}
+
+		log.Printf("all resources deleted for AKS cluster %s", instance.Name)
 	}
 
 	util.RemoveFinalizer(&instance.ObjectMeta, finalizer)
@@ -401,12 +423,13 @@ func (r *Reconciler) setConnectionSecret(instance *computev1alpha1.AKSCluster, a
 	}
 
 	kubeconfigs := *clusterCreds.Kubeconfigs
+	kubeconfigData := map[string][]byte{
+		corev1alpha1.ResourceCredentialsSecretKubeconfigFileKey: *kubeconfigs[0].Value,
+	}
 
 	// create the connection secret with the credentials data now
 	connectionSecret := instance.ConnectionSecret()
-	connectionSecret.Data = map[string][]byte{
-		corev1alpha1.ResourceCredentialsSecretClusterConfigFile: *kubeconfigs[0].Value,
-	}
+	connectionSecret.Data = kubeconfigData
 
 	if _, err := r.clientset.CoreV1().Secrets(instance.Namespace).Create(connectionSecret); err != nil {
 		return err

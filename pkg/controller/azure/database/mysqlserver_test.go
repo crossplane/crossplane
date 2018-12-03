@@ -42,38 +42,62 @@ import (
 )
 
 type mockMySQLServerClient struct {
-	MockGet         func(ctx context.Context, resourceGroupName string, serverName string) (mysql.Server, error)
-	MockCreateBegin func(ctx context.Context, resourceGroupName string, serverName string, parameters mysql.ServerForCreate) ([]byte, error)
-	MockCreateEnd   func(createOp []byte) (bool, error)
-	MockDelete      func(ctx context.Context, resourceGroupName string, serverName string) (mysql.ServersDeleteFuture, error)
+	MockGetServer                func(ctx context.Context, resourceGroupName string, serverName string) (mysql.Server, error)
+	MockCreateServerBegin        func(ctx context.Context, resourceGroupName string, serverName string, parameters mysql.ServerForCreate) ([]byte, error)
+	MockCreateServerEnd          func(createOp []byte) (bool, error)
+	MockDeleteServer             func(ctx context.Context, resourceGroupName string, serverName string) (mysql.ServersDeleteFuture, error)
+	MockGetFirewallRule          func(ctx context.Context, resourceGroupName string, serverName string, firewallRuleName string) (result mysql.FirewallRule, err error)
+	MockCreateFirewallRulesBegin func(ctx context.Context, resourceGroupName string, serverName string, firewallRuleName string, parameters mysql.FirewallRule) ([]byte, error)
+	MockCreateFirewallRulesEnd   func(createOp []byte) (bool, error)
 }
 
-func (m *mockMySQLServerClient) Get(ctx context.Context, resourceGroupName string, serverName string) (mysql.Server, error) {
-	if m.MockGet != nil {
-		return m.MockGet(ctx, resourceGroupName, serverName)
+func (m *mockMySQLServerClient) GetServer(ctx context.Context, resourceGroupName string, serverName string) (mysql.Server, error) {
+	if m.MockGetServer != nil {
+		return m.MockGetServer(ctx, resourceGroupName, serverName)
 	}
 	return mysql.Server{}, nil
 }
 
-func (m *mockMySQLServerClient) CreateBegin(ctx context.Context, resourceGroupName string, serverName string, parameters mysql.ServerForCreate) ([]byte, error) {
-	if m.MockCreateBegin != nil {
-		return m.MockCreateBegin(ctx, resourceGroupName, serverName, parameters)
+func (m *mockMySQLServerClient) CreateServerBegin(ctx context.Context, resourceGroupName string, serverName string, parameters mysql.ServerForCreate) ([]byte, error) {
+	if m.MockCreateServerBegin != nil {
+		return m.MockCreateServerBegin(ctx, resourceGroupName, serverName, parameters)
 	}
 	return nil, nil
 }
 
-func (m *mockMySQLServerClient) CreateEnd(createOp []byte) (bool, error) {
-	if m.MockCreateEnd != nil {
-		return m.MockCreateEnd(createOp)
+func (m *mockMySQLServerClient) CreateServerEnd(createOp []byte) (bool, error) {
+	if m.MockCreateServerEnd != nil {
+		return m.MockCreateServerEnd(createOp)
 	}
 	return true, nil
 }
 
-func (m *mockMySQLServerClient) Delete(ctx context.Context, resourceGroupName string, serverName string) (mysql.ServersDeleteFuture, error) {
-	if m.MockDelete != nil {
-		return m.MockDelete(ctx, resourceGroupName, serverName)
+func (m *mockMySQLServerClient) DeleteServer(ctx context.Context, resourceGroupName string, serverName string) (mysql.ServersDeleteFuture, error) {
+	if m.MockDeleteServer != nil {
+		return m.MockDeleteServer(ctx, resourceGroupName, serverName)
 	}
 	return mysql.ServersDeleteFuture{}, nil
+}
+
+func (m *mockMySQLServerClient) GetFirewallRule(ctx context.Context, resourceGroupName string, serverName string, firewallRuleName string) (result mysql.FirewallRule, err error) {
+	if m.MockGetFirewallRule != nil {
+		return m.MockGetFirewallRule(ctx, resourceGroupName, serverName, firewallRuleName)
+	}
+	return mysql.FirewallRule{}, nil
+}
+
+func (m *mockMySQLServerClient) CreateFirewallRulesBegin(ctx context.Context, resourceGroupName string, serverName string, firewallRuleName string, parameters mysql.FirewallRule) ([]byte, error) {
+	if m.MockCreateFirewallRulesBegin != nil {
+		return m.MockCreateFirewallRulesBegin(ctx, resourceGroupName, serverName, firewallRuleName, parameters)
+	}
+	return nil, nil
+}
+
+func (m *mockMySQLServerClient) CreateFirewallRulesEnd(createOp []byte) (bool, error) {
+	if m.MockCreateFirewallRulesEnd != nil {
+		return m.MockCreateFirewallRulesEnd(createOp)
+	}
+	return true, nil
 }
 
 type mockMySQLServerClientFactory struct {
@@ -92,7 +116,7 @@ func TestReconcile(t *testing.T) {
 	mysqlServerClientFactory := &mockMySQLServerClientFactory{mockClient: mysqlServerClient}
 
 	getCallCount := 0
-	mysqlServerClient.MockGet = func(ctx context.Context, resourceGroupName string, serverName string) (mysql.Server, error) {
+	mysqlServerClient.MockGetServer = func(ctx context.Context, resourceGroupName string, serverName string) (mysql.Server, error) {
 		getCallCount++
 		if getCallCount <= 1 {
 			// first GET should return not found, which will cause the reconcile loop to try to create the instance
@@ -109,8 +133,21 @@ func TestReconcile(t *testing.T) {
 			},
 		}, nil
 	}
-	mysqlServerClient.MockCreateBegin = func(ctx context.Context, resourceGroupName string, serverName string, parameters mysql.ServerForCreate) ([]byte, error) {
+	mysqlServerClient.MockCreateServerBegin = func(ctx context.Context, resourceGroupName string, serverName string, parameters mysql.ServerForCreate) ([]byte, error) {
 		return []byte("mocked marshalled create future"), nil
+	}
+
+	getFirewallCallCount := 0
+	mysqlServerClient.MockGetFirewallRule = func(ctx context.Context, resourceGroupName string, serverName string, firewallRuleName string) (result mysql.FirewallRule, err error) {
+		getFirewallCallCount++
+		if getFirewallCallCount <= 1 {
+			// first GET should return not found, which will cause the reconcile loop to try to create the firewall rule
+			return mysql.FirewallRule{}, autorest.DetailedError{StatusCode: http.StatusNotFound}
+		}
+		return mysql.FirewallRule{}, nil
+	}
+	mysqlServerClient.MockCreateFirewallRulesBegin = func(ctx context.Context, resourceGroupName string, serverName string, firewallRuleName string, parameters mysql.FirewallRule) ([]byte, error) {
+		return []byte("mocked marshalled firewall create future"), nil
 	}
 
 	// Setup the Manager and Controller.  Wrap the Controller Reconcile function so it writes each request to a
@@ -136,23 +173,39 @@ func TestReconcile(t *testing.T) {
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 	defer cleanupMySQLServer(g, c, requests, instance)
 
-	// first reconcile loop should start the create operation
+	// 1st reconcile loop should start the create operation
 	g.Eventually(requests, timeout).Should(gomega.Receive(gomega.Equal(expectedRequest)))
 
 	// after the first reconcile, the create operation should be saved on the running operation field
 	expectedStatus := databasev1alpha1.MysqlServerStatus{
-		RunningOperation: "mocked marshalled create future",
+		RunningOperation:     "mocked marshalled create future",
+		RunningOperationType: databasev1alpha1.OperationCreateServer,
 	}
 	assertMySQLServerStatus(g, c, expectedStatus)
 
-	// second reconcile should finish the create operation and clear out the running operation field
+	// 2nd reconcile should finish the create server operation and clear out the running operation field
 	g.Eventually(requests, timeout).Should(gomega.Receive(gomega.Equal(expectedRequest)))
 	expectedStatus = databasev1alpha1.MysqlServerStatus{
 		RunningOperation: "",
 	}
 	assertMySQLServerStatus(g, c, expectedStatus)
 
-	// third reconcile should find the MySQL Server instance from Azure and update the full status of the CRD
+	// 3rd reconcile should see that there is no firewall rule yet and try to create it
+	g.Eventually(requests, timeout).Should(gomega.Receive(gomega.Equal(expectedRequest)))
+	expectedStatus = databasev1alpha1.MysqlServerStatus{
+		RunningOperation:     "mocked marshalled firewall create future",
+		RunningOperationType: databasev1alpha1.OperationCreateFirewallRules,
+	}
+	assertMySQLServerStatus(g, c, expectedStatus)
+
+	// 4th reconcile should finish the create firewall operation and clear out the running operation field
+	g.Eventually(requests, timeout).Should(gomega.Receive(gomega.Equal(expectedRequest)))
+	expectedStatus = databasev1alpha1.MysqlServerStatus{
+		RunningOperation: "",
+	}
+	assertMySQLServerStatus(g, c, expectedStatus)
+
+	// 5th reconcile should find the MySQL Server instance from Azure and update the full status of the CRD
 	g.Eventually(requests, timeout).Should(gomega.Receive(gomega.Equal(expectedRequest)))
 
 	// verify that the CRD status was updated with details about the external MySQL Server and that the
@@ -242,6 +295,7 @@ func assertMySQLServerStatus(g *gomega.GomegaWithT, c client.Client, expectedSta
 	g.Expect(instance.Status.ProviderID).To(gomega.Equal(expectedStatus.ProviderID))
 	g.Expect(instance.Status.Endpoint).To(gomega.Equal(expectedStatus.Endpoint))
 	g.Expect(instance.Status.RunningOperation).To(gomega.Equal(expectedStatus.RunningOperation))
+	g.Expect(instance.Status.RunningOperationType).To(gomega.Equal(expectedStatus.RunningOperationType))
 
 	// assert the expected status conditions
 	corev1alpha1.AssertConditions(g, expectedStatus.Conditions, instance.Status.ConditionedStatus)

@@ -202,7 +202,7 @@ func TestReconcile(t *testing.T) {
 	// 4) "creating" condition
 	expectedStatus := computev1alpha1.AKSClusterStatus{
 		RunningOperation:    "mocked marshalled create future",
-		ClusterName:         instanceName + "-",
+		ClusterName:         instanceName,
 		ApplicationObjectID: "182f8c4a-ad89-4b25-b947-d4026ab183a1",
 		ServicePrincipalID:  "da804153-3faa-4c73-9fcb-0961387a31f9",
 		ConditionedStatus: corev1alpha1.ConditionedStatus{
@@ -227,7 +227,7 @@ func TestReconcile(t *testing.T) {
 	g.Eventually(requests, timeout).Should(gomega.Receive(gomega.Equal(expectedRequest)))
 	expectedStatus = computev1alpha1.AKSClusterStatus{
 		RunningOperation:    "",
-		ClusterName:         instanceName + "-",
+		ClusterName:         instanceName,
 		ApplicationObjectID: "182f8c4a-ad89-4b25-b947-d4026ab183a1",
 		ServicePrincipalID:  "da804153-3faa-4c73-9fcb-0961387a31f9",
 		ConditionedStatus: corev1alpha1.ConditionedStatus{
@@ -247,7 +247,7 @@ func TestReconcile(t *testing.T) {
 	// verify that the CRD status was updated with details about the external AKS cluster and that the
 	// CRD conditions show the transition from creating to running
 	expectedStatus = computev1alpha1.AKSClusterStatus{
-		ClusterName:         instanceName + "-",
+		ClusterName:         instanceName,
 		State:               "Succeeded",
 		ProviderID:          "fcb4e97a-c3ea-4466-9b02-e728d8e6764f",
 		Endpoint:            "crossplane-aks.foo.azure.com",
@@ -272,7 +272,7 @@ func TestReconcile(t *testing.T) {
 	var connectionSecret *v1.Secret
 	for {
 		if connectionSecret, err = r.clientset.CoreV1().Secrets(namespace).Get(instanceName, metav1.GetOptions{}); err == nil {
-			if string(connectionSecret.Data[corev1alpha1.ResourceCredentialsSecretClusterConfigFile]) != "" {
+			if string(connectionSecret.Data[corev1alpha1.ResourceCredentialsSecretKubeconfigFileKey]) != "" {
 				break
 			}
 		}
@@ -346,5 +346,5 @@ func assertConnectionSecret(g *gomega.GomegaWithT, c client.Client, connectionSe
 	instance := &computev1alpha1.AKSCluster{}
 	err := c.Get(ctx, expectedRequest.NamespacedName, instance)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
-	g.Expect(string(connectionSecret.Data[corev1alpha1.ResourceCredentialsSecretClusterConfigFile])).To(gomega.Equal(clusterConfigData))
+	g.Expect(string(connectionSecret.Data[corev1alpha1.ResourceCredentialsSecretKubeconfigFileKey])).To(gomega.Equal(clusterConfigData))
 }
