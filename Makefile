@@ -10,7 +10,7 @@ include build/makelib/common.mk
 # ====================================================================================
 # Setup Output
 
-S3_BUCKET ?= crossplane.releases/crossplane
+S3_BUCKET ?= crossplane.releases
 include build/makelib/output.mk
 
 # ====================================================================================
