@@ -8,7 +8,7 @@ Azure service principal credentials are needed for an admin account, which must 
 | ----- | --------- | ----------- |
 | SQL admin | Service principal that can perform SQL admin operations such as creating a new database instance | `TODO` |
 
-Please refer to the [targeting Azure section](./troubleshooting.md#targeting-microsoft-azure) for details on how to create this account with the required permissions from the table above.
+Please refer to the [targeting Azure section](../../troubleshooting.md#targeting-microsoft-azure) for details on how to create this account with the required permissions from the table above.
 After the account is created, you should have 1 file on your local filesystem:
 
 * `crossplane-azure-provider-key.json`
@@ -42,4 +42,4 @@ Now deploy all the Wordpress resources, including the SQL database, with the fol
 kubectl -n demo create -f cluster/examples/wordpress/azure/class/wordpress.yaml
 ```
 
-Now you can proceed back to the main quickstart to [wait for the resources to become ready](./quickstart.md#waiting-for-completion).
+Now you can proceed back to the main quickstart to [wait for the resources to become ready](quickstart.md#waiting-for-completion).

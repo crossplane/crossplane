@@ -1,0 +1,10 @@
+## Kubernetes cluster instance using "standard-cluster" resource class
+apiVersion: compute.crossplane.io/v1alpha1
+kind: KubernetesCluster
+metadata:
+  name: demo-gke-cluster
+  namespace: crossplane-system
+spec:
+  classReference:
+    name: standard-cluster
+    namespace: crossplane-system

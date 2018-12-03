@@ -9,7 +9,7 @@ Google service account credentials are needed for two separate accounts, these m
 | SQL admin | Service account that can perform Cloud SQL admin operations such as creating a new database instance | `roles/cloudsql.admin` |
 | SQL client | Service account that can connect to Cloud SQL databases and run SQL commands | `roles/cloudsql.client` |
 
-Please refer to the [targeting GCP section](./troubleshooting.md#targeting-google-cloud-platform-gcp) for details on how to create these accounts with the required roles from the table above.
+Please refer to the [targeting GCP section](../../troubleshooting.md#targeting-google-cloud-platform-gcp) for details on how to create these accounts with the required roles from the table above.
 After the accounts are created, you should have two JSON key files on your local filesystem:
 
 * `crossplane-gcp-provider-key.json`
@@ -44,4 +44,4 @@ Now deploy all the Wordpress resources, including the Cloud SQL database, with t
 sed "s/BASE64ENCODED_GCP_SQL_CREDS/`cat crossplane-gcp-sql-key.json|base64|tr -d '\n'`/g" cluster/examples/wordpress/gcp/class/wordpress.yaml | kubectl -n demo create -f -
 ```
 
-Now you can proceed back to the main quickstart to [wait for the resources to become ready](./quickstart.md#waiting-for-completion).
+Now you can proceed back to the main quickstart to [wait for the resources to become ready](quickstart.md#waiting-for-completion).
