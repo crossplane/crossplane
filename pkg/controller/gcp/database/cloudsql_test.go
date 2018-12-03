@@ -34,7 +34,7 @@ type mockCloudSQLClient struct {
 	MockCreateInstance func(project string, databaseinstance *sqladmin.DatabaseInstance) (*sqladmin.Operation, error)
 	MockDeleteInstance func(project string, instance string) (*sqladmin.Operation, error)
 	MockListUsers      func(project string, instance string) (*sqladmin.UsersListResponse, error)
-	MockUpdateUser     func(project string, instance string, host string, name string, user *sqladmin.User) (*sqladmin.Operation, error)
+	MockUpdateUser     func(project string, instance string, name string, user *sqladmin.User) (*sqladmin.Operation, error)
 	MockGetOperation   func(project string, operationID string) (*sqladmin.Operation, error)
 }
 
@@ -70,9 +70,9 @@ func (m *mockCloudSQLClient) ListUsers(project string, instance string) (*sqladm
 	return nil, nil
 }
 
-func (m *mockCloudSQLClient) UpdateUser(project string, instance string, host string, name string, user *sqladmin.User) (*sqladmin.Operation, error) {
+func (m *mockCloudSQLClient) UpdateUser(project string, instance string, name string, user *sqladmin.User) (*sqladmin.Operation, error) {
 	if m.MockUpdateUser != nil {
-		return m.MockUpdateUser(project, instance, host, name, user)
+		return m.MockUpdateUser(project, instance, name, user)
 	}
 	return nil, nil
 }
@@ -100,7 +100,7 @@ func listUsersDefault(project string, instance string) (*sqladmin.UsersListRespo
 	return &sqladmin.UsersListResponse{Items: []*sqladmin.User{{Name: "root"}}}, nil
 }
 
-func updateUserDefault(project string, instance string, host string, name string, user *sqladmin.User) (*sqladmin.Operation, error) {
+func updateUserDefault(project string, instance string, name string, user *sqladmin.User) (*sqladmin.Operation, error) {
 	return &sqladmin.Operation{Name: "updateuser-op-123", Status: "RUNNING"}, nil
 }
 
