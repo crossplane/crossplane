@@ -344,7 +344,7 @@ func (r *Reconciler) initRootUser(cloudSQLClient gcpclients.CloudSQLAPI,
 
 	// update the user via Cloud SQL API
 	log.Printf("updating user '%s'", rootUser.Name)
-	updateUserOp, err := cloudSQLClient.UpdateUser(provider.Spec.ProjectID, instance.Status.InstanceName, rootUser.Host, rootUser.Name, rootUser)
+	updateUserOp, err := cloudSQLClient.UpdateUser(provider.Spec.ProjectID, instance.Status.InstanceName, rootUser.Name, rootUser)
 	if err != nil {
 		return fmt.Errorf("failed to start update user operation for user '%s': %+v", rootUser.Name, err)
 	}

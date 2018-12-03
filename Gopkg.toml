@@ -1,28 +1,43 @@
+# Gopkg.toml 
+#
+# Add constraints for packages that are a direct dependency
+# of this project (i.e. they are imported by golang source code)
+# and you want to ensure that only a specific version is needed.
+# if you don't need a specific version don't add the constraint here.
+# Constraints are of the form:
+#
+# [[constraint]]
+#   name = "github.com/user/project"
+#   version = "1.0.0"
+#
+# [[constraint]]
+#   name = "github.com/user/project2"
+#   revision = "8991bc29aa16c548c550c7ff78260e27b9ab7c73"
+#
+# revision constraints are preferred to version constraints.
+#
+# add overrides for packages that are not used directly but
+# you want to ensure that are at a specific version. for example,
+#
+# [[override]]
+#  name = "github.com/x/y"
+#  version = "2.4.0"
+
+ignored = [
+    "github.com/crossplaneio/crossplane/.cache",
+    "github.com/crossplaneio/crossplane/.work",
+    "github.com/crossplaneio/crossplane/_output",
+    "github.com/crossplaneio/crossplane/build",
+    ]
+
 required = [
-    "github.com/aws/aws-sdk-go-v2",
-    "github.com/Azure/azure-sdk-for-go",
-    "github.com/Azure/go-autorest/autorest",
-    "github.com/emicklei/go-restful",
-    "github.com/onsi/ginkgo", # for test framework
-    "github.com/onsi/gomega", # for test matchers
-    "google.golang.org/api/sqladmin/v1beta4",
-    "golang.org/x/oauth2/google",
     "k8s.io/code-generator/cmd/deepcopy-gen", # for go generate
     "sigs.k8s.io/controller-tools/cmd/controller-gen", # for crd/rbac generation
-    "sigs.k8s.io/controller-runtime/pkg/client/config",
-    "sigs.k8s.io/controller-runtime/pkg/controller",
-    "sigs.k8s.io/controller-runtime/pkg/handler",
-    "sigs.k8s.io/controller-runtime/pkg/manager",
-    "sigs.k8s.io/controller-runtime/pkg/runtime/signals",
-    "sigs.k8s.io/controller-runtime/pkg/source",
-    "sigs.k8s.io/testing_frameworks/integration", # for integration testing
-  	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1",
     ]
 
 [prune]
   go-tests = true
-
-# STANZAS BELOW ARE GENERATED AND MAY BE WRITTEN - DO NOT MODIFY BELOW THIS LINE.
+  unused-packages = true
 
 [[constraint]]
   name="sigs.k8s.io/controller-runtime"

@@ -35,7 +35,7 @@ type CloudSQLAPI interface {
 	CreateInstance(project string, databaseinstance *sqladmin.DatabaseInstance) (*sqladmin.Operation, error)
 	DeleteInstance(project string, instance string) (*sqladmin.Operation, error)
 	ListUsers(project string, instance string) (*sqladmin.UsersListResponse, error)
-	UpdateUser(project string, instance string, host string, name string, user *sqladmin.User) (*sqladmin.Operation, error)
+	UpdateUser(project string, instance string, name string, user *sqladmin.User) (*sqladmin.Operation, error)
 	GetOperation(project string, operationID string) (*sqladmin.Operation, error)
 }
 
@@ -80,8 +80,8 @@ func (c *CloudSQLClient) ListUsers(project string, instance string) (*sqladmin.U
 }
 
 // UpdateUser updates the given user for the given CloudSQL instance
-func (c *CloudSQLClient) UpdateUser(project string, instance string, host string, name string, user *sqladmin.User) (*sqladmin.Operation, error) {
-	return c.Users.Update(project, instance, host, name, user).Do()
+func (c *CloudSQLClient) UpdateUser(project string, instance string, name string, user *sqladmin.User) (*sqladmin.Operation, error) {
+	return c.Users.Update(project, instance, name, user).Do()
 }
 
 // GetOperation retrieves the latest status for the given operation
