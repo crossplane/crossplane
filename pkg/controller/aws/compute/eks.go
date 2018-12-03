@@ -22,17 +22,23 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/ghodss/yaml"
+	"k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	awscomputev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/compute/v1alpha1"
 	awsv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/clients/aws"
+	awsClient "github.com/crossplaneio/crossplane/pkg/clients/aws"
 	cloudformationclient "github.com/crossplaneio/crossplane/pkg/clients/aws/cloudformation"
 	"github.com/crossplaneio/crossplane/pkg/clients/aws/eks"
 	"github.com/crossplaneio/crossplane/pkg/util"
 	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -47,10 +53,12 @@ const (
 	finalizer         = "finalizer." + controllerName
 	clusterNamePrefix = "eks-"
 
-	errorClusterClient = "Failed to create cluster client"
-	errorCreateCluster = "Failed to create new cluster"
-	errorSyncCluster   = "Failed to sync cluster state"
-	errorDeleteCluster = "Failed to delete cluster"
+	errorClusterClient   = "Failed to create cluster client"
+	errorCreateCluster   = "Failed to create new cluster"
+	errorSyncCluster     = "Failed to sync cluster state"
+	errorDeleteCluster   = "Failed to delete cluster"
+	eksAuthConfigMapName = "aws-auth"
+	eksAuthMapRolesKey   = "mapRoles"
 )
 
 var (
@@ -77,6 +85,7 @@ type Reconciler struct {
 	sync    func(*awscomputev1alpha1.EKSCluster, eks.Client) (reconcile.Result, error)
 	delete  func(*awscomputev1alpha1.EKSCluster, eks.Client) (reconcile.Result, error)
 	secret  func(*eks.Cluster, *awscomputev1alpha1.EKSCluster, eks.Client) error
+	awsauth func(*eks.Cluster, *awscomputev1alpha1.EKSCluster, eks.Client, string) error
 }
 
 // newReconciler returns a new reconcile.Reconciler
@@ -92,6 +101,7 @@ func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 	r.sync = r._sync
 	r.delete = r._delete
 	r.secret = r._secret
+	r.awsauth = r._awsauth
 	return r
 }
 
@@ -136,7 +146,7 @@ func (r *Reconciler) _connect(instance *awscomputev1alpha1.EKSCluster) (eks.Clie
 	}
 
 	// Get Provider's AWS Config
-	config, err := aws.Config(r.kubeclient, p)
+	config, err := awsClient.Config(r.kubeclient, p)
 	if err != nil {
 		return nil, err
 	}
@@ -164,13 +174,6 @@ func (r *Reconciler) _create(instance *awscomputev1alpha1.EKSCluster, client eks
 		return r.fail(instance, errorCreateCluster, err.Error())
 	}
 
-	// Create workers
-	clusterWorkers, err := client.CreateWorkerNodes(clusterName, instance.Spec)
-	if err != nil {
-		return r.fail(instance, errorCreateCluster, err.Error())
-	}
-	instance.Status.CloudFormationStackID = clusterWorkers.WorkerStackID
-
 	// Update status
 	instance.Status.State = awscomputev1alpha1.ClusterStatusCreating
 	instance.Status.UnsetAllConditions()
@@ -180,10 +183,95 @@ func (r *Reconciler) _create(instance *awscomputev1alpha1.EKSCluster, client eks
 	return resultRequeue, r.Update(ctx, instance)
 }
 
+// generateAWSAuthConfigMap generates the configmap for configure auth
+func generateAWSAuthConfigMap(workerARN string) (*v1.ConfigMap, error) {
+	data := map[string]string{}
+	defaultRole := awscomputev1alpha1.MapRole{
+		RoleARN:  workerARN,
+		Username: "system:node:{{EC2PrivateDNSName}}",
+		Groups:   []string{"system:bootstrappers", "system:nodes"},
+	}
+
+	// Serialize mapRoles
+	roles := []awscomputev1alpha1.MapRole{defaultRole}
+	rolesMarshalled, err := yaml.Marshal(roles)
+	if err != nil {
+		return nil, err
+	}
+	data[eksAuthMapRolesKey] = string(rolesMarshalled)
+
+	name := eksAuthConfigMapName
+	namespace := "kube-system"
+	cm := v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Data: data,
+	}
+	return &cm, nil
+}
+
+// _awsauth generates an aws-auth configmap and pushes it to the remote eks cluster to configure auth
+func (r *Reconciler) _awsauth(cluster *eks.Cluster, instance *awscomputev1alpha1.EKSCluster, client eks.Client, workerARN string) error {
+	cm, err := generateAWSAuthConfigMap(workerARN)
+	if err != nil {
+		return err
+	}
+
+	// Sync aws-auth to remote eks cluster to configure it's auth.
+	token, err := client.ConnectionToken(instance.Status.ClusterName)
+	if err != nil {
+		return err
+	}
+
+	// Client to eks cluster
+	caData, err := base64.StdEncoding.DecodeString(cluster.CA)
+	if err != nil {
+		return err
+	}
+	c := rest.Config{
+		Host: cluster.Endpoint,
+		TLSClientConfig: rest.TLSClientConfig{
+			CAData: caData,
+		},
+		BearerToken: token,
+	}
+
+	clientset, err := kubernetes.NewForConfig(&c)
+	if err != nil {
+		return err
+	}
+
+	// Create or update aws-auth configmap on eks cluster
+	_, err = clientset.CoreV1().ConfigMaps(cm.Namespace).Create(cm)
+	if err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			_, err = clientset.CoreV1().ConfigMaps(cm.Namespace).Update(cm)
+		}
+	}
+
+	return err
+}
+
 func (r *Reconciler) _sync(instance *awscomputev1alpha1.EKSCluster, client eks.Client) (reconcile.Result, error) {
 	cluster, err := client.Get(instance.Status.ClusterName)
 	if err != nil {
 		return r.fail(instance, errorSyncCluster, err.Error())
+	}
+
+	if cluster.Status != awscomputev1alpha1.ClusterStatusActive {
+		return resultRequeue, nil
+	}
+
+	// Create workers
+	if instance.Status.CloudFormationStackID == "" {
+		clusterWorkers, err := client.CreateWorkerNodes(instance.Status.ClusterName, instance.Spec)
+		if err != nil {
+			return r.fail(instance, errorSyncCluster, err.Error())
+		}
+		instance.Status.CloudFormationStackID = clusterWorkers.WorkerStackID
+		return resultRequeue, r.Update(ctx, instance)
 	}
 
 	clusterWorker, err := client.GetWorkerNodes(instance.Status.CloudFormationStackID)
@@ -191,8 +279,12 @@ func (r *Reconciler) _sync(instance *awscomputev1alpha1.EKSCluster, client eks.C
 		return r.fail(instance, errorSyncCluster, err.Error())
 	}
 
-	if cluster.Status != awscomputev1alpha1.ClusterStatusActive || !cloudformationclient.IsCompletedState(clusterWorker.WorkersStatus) {
-		return resultRequeue, nil
+	if !cloudformationclient.IsCompletedState(clusterWorker.WorkersStatus) {
+		return resultRequeue, r.Update(ctx, instance)
+	}
+
+	if err := r.awsauth(cluster, instance, client, clusterWorker.WorkerARN); err != nil {
+		return r.fail(instance, errorSyncCluster, fmt.Sprintf("failed to set auth map on eks: %s", err.Error()))
 	}
 
 	if err := r.secret(cluster, instance, client); err != nil {

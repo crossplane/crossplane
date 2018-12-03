@@ -141,6 +141,16 @@ type EKSClusterSpec struct {
 	ReclaimPolicy corev1alpha1.ReclaimPolicy `json:"reclaimPolicy,omitempty"`
 }
 
+// MapRole maps an aws role to kubernetes groups
+// see: https://docs.aws.amazon.com/eks/latest/userguide/add-user-role.html
+// https://github.com/kubernetes-sigs/aws-iam-authenticator/blob/master/README.md
+// TODO: support MapRole and MapUser in the EKSSpec
+type MapRole struct {
+	RoleARN  string   `json:"rolearn"`
+	Username string   `json:"username"`
+	Groups   []string `json:"groups"`
+}
+
 //WorkerNodesSpec - Worker node spec used to define cloudformation template that provisions workers for cluster
 type WorkerNodesSpec struct {
 	// KeyName The EC2 Key Pair to allow SSH access to the instances

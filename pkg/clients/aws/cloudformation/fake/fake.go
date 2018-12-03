@@ -22,9 +22,9 @@ import (
 
 // MockCloudFormationClient mock
 type MockCloudFormationClient struct {
-	MockCreateStack   func(stackName *string, templateBody *string, parameters map[string]string) (stackID *string, err error)
-	MockDescribeStack func(stackID *string) (status *cloudformation.StackStatus, reason *string, err error)
-	MockDeleteStack   func(stackID *string) error
+	MockCreateStack func(stackName *string, templateBody *string, parameters map[string]string) (stackID *string, err error)
+	MockGetStack    func(stackID *string) (status *cloudformation.Stack, err error)
+	MockDeleteStack func(stackID *string) error
 }
 
 // CreateStack mock
@@ -33,8 +33,8 @@ func (m *MockCloudFormationClient) CreateStack(stackName *string, templateBody *
 }
 
 // DescribeStack mock
-func (m *MockCloudFormationClient) DescribeStack(stackID *string) (status *cloudformation.StackStatus, reason *string, err error) {
-	return m.MockDescribeStack(stackID)
+func (m *MockCloudFormationClient) GetStack(stackID *string) (status *cloudformation.Stack, err error) {
+	return m.MockGetStack(stackID)
 }
 
 // DeleteStack mock
