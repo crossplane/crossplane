@@ -69,7 +69,9 @@ kubectl create namespace demo
 1. Choose Create stack.
 1. For Choose a template, select Specify an Amazon S3 template URL.
 1. Paste the following URL into the text area and choose Next:
-    > https://amazon-eks.s3-us-west-2.amazonaws.com/cloudformation/2018-11-07/amazon-eks-vpc-sample.yaml
+    ```
+    https://amazon-eks.s3-us-west-2.amazonaws.com/cloudformation/2018-11-07/amazon-eks-vpc-sample.yaml
+    ```
 1. On the Specify Details page, fill out the parameters accordingly, and then choose Next.
     ```
     * Stack name: Choose a stack name for your AWS CloudFormation stack. For example, you can call it eks-vpc.
@@ -81,8 +83,8 @@ kubectl create namespace demo
 1. (Optional) On the Options page, tag your stack resources. Choose Next.
 1. On the Review page, choose Create.
 1. When your stack is created, select it in the console and choose Outputs.
-1. Replace EKS_VPC, EKS_ROLE_ARN, EKS_SUBNETS, EKS_SECURITY_GROUP in cluster/examples/workloads/wordpress-aws/provider.yaml with values from previous step (vpcId, subnetIds, securityGroupIds). Note EKS_SECURITY_GROUP needs to be replaced twice in file.
-1. Replace REGION in cluster/examples/workloads/wordpress-aws/provider.yaml with the region you selected in VPC creation.
+1. Replace `EKS_VPC`, `EKS_ROLE_ARN`, `EKS_SUBNETS`, `EKS_SECURITY_GROUP` in cluster/examples/workloads/wordpress-aws/provider.yaml with values from previous step (vpcId, subnetIds, securityGroupIds). Note `EKS_SECURITY_GROUP` needs to be replaced twice in file.
+1. Replace `REGION` in cluster/examples/workloads/wordpress-aws/provider.yaml with the region you selected in VPC creation.
 
 ### Create an RDS subnet group
 1. Navigate to aws console in same region as eks clsuter
@@ -93,7 +95,7 @@ kubectl create namespace demo
 1. Select the VPC created in the EKS VPC step
 1. Click `Add all subnets related to this VPC`
 1. Click Create
-1. Replace DBSubnet name in cluster/examples/workloads/wordpress-aws/provider.yaml in RDS_SUBNET_GROUP
+1. Replace `RDS_SUBNET_GROUP` in cluster/examples/workloads/wordpress-aws/provider.yaml in DBSubnetgroup name you just created.
 
 ### Create an RDS Security Group (demo only)
 
@@ -106,9 +108,9 @@ is **NOT RECOMMENDED** for production system.
 1. On the Inbound Rules tab, choose Edit.
     - For Type, choose `MYSQL/Aurora`
     - For Port Range, type `3306`
-    - For Source, choose `Anywere` from drop down or type: `0.0.0.0/0`
+    - For Source, choose `Anywhere` from drop down or type: `0.0.0.0/0`
 1. Choose Add another rule if you need to add more IP addresses or different port ranges.
-1. Replace RDS_SECURITY_GROUP in cluster/examples/workloads/wordpress-aws/provider.yaml with the security group we just created.
+1. Replace `RDS_SECURITY_GROUP` in cluster/examples/workloads/wordpress-aws/provider.yaml with the security group we just created.
 
 ## Deploy Wordpress Resources
 
@@ -228,8 +230,5 @@ Finally, delete the provider credentials:
 kubectl delete -f cluster/examples/workloads/wordpress-${provider}/provider.yaml
 ```
 
-
 > Note: There may still be an ELB that was not properly cleaned up, and you will need
 to go to EC2 > ELBs and delete it manually.
-
-Now you can proceed back to the main quickstart to [wait for the resources to become ready](quickstart.md#waiting-for-completion).
