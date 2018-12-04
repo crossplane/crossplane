@@ -1,8 +1,13 @@
-## Microsoft Azure
+# Adding Microsoft Azure to Crossplane
 
-Azure service principal credentials are needed for an admin account, which must be created before starting this Wordpress Workload example.
+In this guide, we will walk through the steps necessary to configure your Azure account to be ready for integration with Crossplane.
+The general steps we will take are summarized below:
 
-### Preparing your Microsoft Azure Account
+* Create a new service principal (account) that Crossplane will use to create and manage Azure resources
+* Add the required permissions to the account
+* Consent to the permissions using an administrator account
+
+## Preparing your Microsoft Azure Account
 
 In order to manage resources in Azure, you must provide credentials for a Azure service principal that Crossplane can use to authenticate.
 This assumes that you have already [set up the Azure CLI client](https://docs.microsoft.com/en-us/cli/azure/authenticate-azure-cli?view=azure-cli-latest) with your credentials.
@@ -14,13 +19,13 @@ Create a JSON file that contains all the information needed to connect and authe
 az ad sp create-for-rbac --sdk-auth --role Owner > crossplane-azure-provider-key.json
 ```
 
-Save the `clientID` value from the JSON file we just created to an environment variable:
+Take note of the `clientID` value from the JSON file that we just created, and save it to an environment variable:
 
 ```console
 export AZURE_CLIENT_ID=<clientId value from json file>
 ```
 
-Now add the required permissions to the service principal we created that allow us to manage the necessary resources in Azure:
+Now add the required permissions to the service principal that will allow it to manage the necessary resources in Azure:
 
 ```console
 # add required Azure Active Directory permissions
@@ -40,12 +45,17 @@ After these steps are completed, you should have the following file on your loca
 
 * `crossplane-azure-provider-key.json`
 
-## Grant Consent to application
-1. `echo ${AZURE_CLIENT_ID}` and note id
-1. Navigate to azure console: https://portal.azure.com
-1. Click Azure Active Directory
+## Grant Consent to Application Permissions
+
+One more step is required to fully grant the permissions to the new service principal.
+From the Azure Portal, you need to grant consent for the permissions using an admin account.
+The steps to perform this action are listed below:
+
+1. `echo ${AZURE_CLIENT_ID}` and note this ID value
+1. Navigate to the Azure Portal: https://portal.azure.com
+1. Click `Azure Active Directory`, or find it in the `All services` list
 1. Click `App registrations (Preview)`
-1. Click on app item where client id matches step 1
+1. Click on the application from the list where the application (client) ID matches the value from step 1
 1. Click `API permissions`
 1. Click `Grant admin consent for Default Directory`
 1. Click `Yes`

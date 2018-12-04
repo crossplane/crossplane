@@ -1,37 +1,30 @@
-# WordPress Crossplane Workload on GCP
+# Deploying a WordPress Workload on GCP
 
-Deploy WordPress application as a Workload into a dynamically provisioned Kubernetes cluster on GKE, 
-and backed by dynamically provisioned MySQL (CloudSQL) using Crossplane deployed on Minikube cluster 
+This guide will walk you through how to use Crossplane to deploy a stateful workload in a portable way to GCP.
+In this environment, the following components will be dynamically provisioned and configured during this guide:
 
-## GCP Setup
+* GKE Kubernetes cluster
+* CloudSQL database
+* WordPress application
 
-For this demo we must have a Google Cloud service account key in `json` format, which
-corresponds to an active/valid GCP Service Account and has been granted the following roles:
-- `Service Account User`: needed to have access to the service account information
-- `Cloud SQL Admin`: needed to access (create/retrieve/connect/delete) CloudSQL instances
-- `Kubernetes Engine User`: needed to access (create/connect/delete) GKE instances
+## Pre-requisites
 
-## WordPress Example
-In the course of this demonstration we will show how to prepare and provision a sample application: WordPress which
-uses MySQL backend database. 
+Before starting this guide, you should have already [configured your GCP account](../../cloud-providers/gcp/gcp-provider.md) for usage by Crossplane.
 
-We will use local (`minikube`) Kubernetes cluster to host `Crossplane` (`Crossplane cluster`) 
+You should have a `key.json` file on your local filesystem, preferably at the root of where you cloned the [Crossplane repo](https://github.com/crossplaneio/crossplane).
 
-To demonstrate `Crossplane` concept of `separation of concerns` during this demo we will assume two identities:
-1. Administrator (cluster or cloud) - responsible for setting up credentials and defining resource classes
-2. Application Owner (developer) - responsible for defining and deploying application and its dependencies
+## Administrator Tasks
 
-### As Administrator
-you will perform following tasks:
+This section covers the tasks performed by the cluster or cloud administrator, which includes:
 
-- Create Cloud provider credentials
-- Define Resource classes
+- Import GCP provider credentials
+- Define Resource classes for cluster and database resources
 - Create a target Kubernetes cluster (using dynamic provisioning with the cluster resource class)
 
 **Note**: all artifacts created by the administrator are stored/hosted in the `crossplane-system` namespace, which has
-a restricted access, i.e. `Application Owner(s)` do not have access to them.
+restricted access, i.e. `Application Owner(s)` should not have access to them.
 
-For the next steps, make sure your `kubectl` context points to the `Crossplane` cluster
+For the next steps, make sure your `kubectl` context points to the cluster where `Crossplane` was deployed.
 
 - Export Project ID
 
@@ -45,7 +38,7 @@ For the next steps, make sure your `kubectl` context points to the `Crossplane` 
     sed "s/BASE64ENCODED_CREDS/`cat key.json|base64 | tr -d '\n'`/g;s/DEMO_PROJECT_ID/$DEMO_PROJECT_ID/g" cluster/examples/workloads/wordpress-gcp/provider.yaml | kubectl create -f -
     ``` 
  
-    - Verify that GCP Provider is in READY state
+    - Verify that GCP Provider is in `Ready` state
         ```bash
         kubectl -n crossplane-system get providers.gcp.crossplane.io -o custom-columns=NAME:.metadata.name,STATUS:.status.Conditions[0].Type,PROJECT-ID:.spec.projectID
         ```
@@ -61,13 +54,13 @@ For the next steps, make sure your `kubectl` context points to the `Crossplane` 
         ```
         Your output should be:
         ```bash
-        NAME               PROVISIONER                                            PROVIDER       RECLAIM-POLICY                            
-        standard-cluster   gkecluster.compute.gcp.crossplane.io/v1alpha1          gcp-provider   Delete                                    
-        standard-mysql     cloudsqlinstance.database.gcp.crossplane.io/v1alpha1   gcp-provider   Delete 
+        NAME               PROVISIONER                                            PROVIDER       RECLAIM-POLICY
+        standard-cluster   gkecluster.compute.gcp.crossplane.io/v1alpha1          gcp-provider   Delete
+        standard-mysql     cloudsqlinstance.database.gcp.crossplane.io/v1alpha1   gcp-provider   Delete
         ```
 - Create a target Kubernetes cluster where `Application Owner(s)` will deploy their `WorkLoad(s)`
    
-    As administrator, you will create a Kubernetes cluster leveraging existing Kubernetes cluster `ResourceClass` and 
+    As administrator, you will create a Kubernetes cluster leveraging the Kubernetes cluster `ResourceClass` that was created earlier and 
     `Crossplane` Kubernetes cluster dynamic provisioning.
     ```bash
     kubectl apply -f cluster/examples/workloads/wordpress-gcp/kubernetes.yaml
@@ -84,7 +77,7 @@ For the next steps, make sure your `kubectl` context points to the `Crossplane` 
         demo-gke-cluster   standard-cluster   gke-67419e79-f5b3-11e8-9cec-9cb6d08bde99
         ```
   
-    - Verify that Target GKE cluster was successfully created
+    - Verify that the target GKE cluster was successfully created
         ```bash
         kubectl -n crossplane-system get gkecluster -o custom-columns=NAME:.metadata.name,STATE:.status.state,CLUSTERNAME:.status.clusterName,ENDPOINT:.status.endpoint,LOCATION:.spec.zone,CLUSTERCLASS:.spec.classRef.name,RECLAIMPOLICY:.spec.reclaimPolicy
         ```
@@ -93,114 +86,22 @@ For the next steps, make sure your `kubectl` context points to the `Crossplane` 
         ```bash
         NAME                                       STATE     CLUSTERNAME                                ENDPOINT        LOCATION        CLUSTERCLASS       RECLAIMPOLICY
         gke-67419e79-f5b3-11e8-9cec-9cb6d08bde99   RUNNING   gke-6742fe8d-f5b3-11e8-9cec-9cb6d08bde99   146.148.93.40   us-central1-a   standard-cluster   Delete
-        ```       
+        ```
 
-To recap, as administrator user, you have:
+To recap the operations that we just performed as the administrator:
+
 - Defined a `Provider` with Google Service Account credentials
-- Defined `ResourceClasses` for `KubernetesCluster` and `CloudSQLInstance`
+- Defined `ResourceClasses` for `KubernetesCluster` and `MySQLInstance`
 - Provisioned (dynamically) a GKE Cluster using the `ResourceClass`
 
-### As Application Owner
-you will perform following tasks
+## Application Developer Tasks
 
-- Define Workload in terms of Resources and Payload (Deployment/Service) which will be deployed onto a Target Kubernetes Cluster
-- Define dependency resource requirements, in this case `MySQL` database
+This section covers the tasks performed by the application developer, which includes:
 
-#### MySQL 
-First, let's take a look at the dependency resource
-```yaml
-## WordPress MySQL Database Instance
-apiVersion: storage.crossplane.io/v1alpha1
-kind: MySQLInstance
-metadata:
-  name: demo
-  namespace: default
-spec:
-  classReference:
-    name: standard-mysql
-    namespace: crossplane-system
-  engineVersion: "5.7"
-```
+- Define Workload in terms of Resources and Payload (Deployment/Service) which will be deployed into the target Kubernetes Cluster
+- Define the dependency resource requirements, in this case a `MySQL` database
 
-This will request to create a `MySQLInstance` version 5.7, which will be fulfilled by the `standard-mysql` ResourceClass.
-
-Note, the Application Owner is not aware of any further specifics when it comes down to `MySQLInstance` beyond the engine version.
-
-#### Workload
-```yaml
-## WordPress Workload
-apiVersion: compute.crossplane.io/v1alpha1
-kind: Workload
-metadata:
-  name: demo
-  namespace: default
-spec:
-  resources:
-  - name: demo
-    secretName: demo
-  targetCluster:
-    name: demo-gke-cluster
-    namespace: crossplane-system
-  targetDeployment:
-    apiVersion: extensions/v1beta1
-    kind: Deployment
-    metadata:
-      name: wordpress
-      labels:
-        app: wordpress
-    spec:
-      selector:
-        app: wordpress
-      strategy:
-        type: Recreate
-      template:
-        metadata:
-          labels:
-            app: wordpress
-        spec:
-          containers:
-            - name: wordpress
-              image: wordpress:4.6.1-apache
-              env:
-                - name: WORDPRESS_DB_HOST
-                  valueFrom:
-                    secretKeyRef:
-                      name: demo
-                      key: endpoint
-                - name: WORDPRESS_DB_USER
-                  valueFrom:
-                    secretKeyRef:
-                      name: demo
-                      key: username
-                - name: WORDPRESS_DB_PASSWORD
-                  valueFrom:
-                    secretKeyRef:
-                      name: demo
-                      key: password
-              ports:
-                - containerPort: 80
-                  name: wordpress
-  targetNamespace: demo
-  targetService:
-    apiVersion: v1
-    kind: Service
-    metadata:
-      name: wordpress
-    spec:
-      ports:
-        - port: 80
-      selector:
-        app: wordpress
-      type: LoadBalancer
-```
-   
-The `Workload` definition spawns multiple constructs and kubernetes object. 
-- Resources: list of the resources required by the payload application.
-- TargetCluster: the cluster where the payload application and all its requirements should be deployed.
-- TargetNamespace: the namespace on the target cluster
-- Workload Payload:
-    - TargetDeployment
-    - TargetService
+Let's begin deploying the workload as the application developer:
     
 - Deploy workload
     ```bash
@@ -242,8 +143,12 @@ The `Workload` definition spawns multiple constructs and kubernetes object.
     
 - Verify that `WordPress` service is accessible via `SERVICE-EXTERNAL-IP` by:
     - Navigate in your browser to `SERVICE-EXTERNAL-IP`
-    
+
+At this point, you should see the setup page for WordPress in your web browser.
+
 ## Clean Up
+
+Once you are done with this example, you can clean up all its artifacts with the following commands:
 
 - Remove `Workload` 
 ```bash
@@ -255,7 +160,7 @@ kubectl delete -f cluster/examples/workloads/wordpress-gcp/workload.yaml
 kubectl delete -f cluster/examples/workloads/wordpress-gcp/kubernetes.yaml
 ```
 
-- Remove GCP Provider and ResourceClasses
+- Remove GCP `Provider` and `ResourceClasses`
 ```bash
 kubectl delete -f cluster/examples/workloads/wordpress-gcp/provider.yaml
 ```

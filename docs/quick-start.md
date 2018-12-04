@@ -12,6 +12,6 @@ The Workload will be deployed into the target Kubernetes cluster, and be configu
 
 The general steps for this example are as follows:
 
-1. Set up a cloud provider and add it to Crossplane: [Adding a Cloud Provider](cloud-providers.md)
 1. Install Crossplane so it is ready to manage resources on your behalf: [Install Crossplane](install-crossplane.md)
+1. Set up a cloud provider and add it to Crossplane: [Adding a Cloud Provider](cloud-providers.md)
 1. Deploy a portable workload to the cloud provider: [Deploying Workloads](deploy.md)

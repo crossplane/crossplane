@@ -12,6 +12,8 @@ Crossplane includes a workload scheduler that can factor a number of criteria in
 
 For a deeper dive into Crossplane, see the [architecture](https://docs.google.com/document/d/1whncqdUeU2cATGEJhHvzXWC9xdK29Er45NJeoemxebo/edit?usp=sharing) document.
 
+## Table of Contents
+
 * [Quick Start Guide](quick-start.md)
 * [Getting Started](getting-started.md)
   * [Installing Crossplane](install-crossplane.md)
