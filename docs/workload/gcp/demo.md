@@ -129,7 +129,7 @@ For the next steps, make sure your `kubectl` context points to the `Crossplane` 
 
 - Patch and Apply `provider.yaml`:
     ```bash
-    sed "s/BASE64ENCODED_CREDS/`cat key.json|base64 -w0`/g;s/DEMO_PROJECT_ID/$DEMO_PROJECT_ID/g" cluster/examples/workloads/wordpress-gcp/provider.yaml | kubectl create -f -
+    sed "s/BASE64ENCODED_CREDS/`cat key.json|base64 | tr -d '\n'`/g;s/DEMO_PROJECT_ID/$DEMO_PROJECT_ID/g" cluster/examples/workloads/wordpress-gcp/provider.yaml | kubectl create -f -
     ``` 
  
     - Verify that GCP Provider is in READY state
