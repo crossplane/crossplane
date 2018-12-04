@@ -24,7 +24,7 @@ For a deeper dive into Crossplane, see the [architecture](https://docs.google.co
 
 ## Getting Started and Documentation
 
-For getting started guides, installation, deployment, and administration, see our [Documentation](https://crossplane.io/docs).
+For getting started guides, installation, deployment, and administration, see our [Documentation](https://crossplane.io/docs/latest).
 
 ## Contributing
 
