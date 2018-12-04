@@ -1,9 +1,3 @@
-## Crossplane System Namespace
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: crossplane-system
----
 ## GCP Service Account Credentials
 apiVersion: v1
 data:
