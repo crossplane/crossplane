@@ -1,4 +1,4 @@
-<p align="center"><img src="docs/media/logo.svg" alt="Crossplane" height="100"></p>
+<p align="center"><img src="docs/media/banner.png" alt="Crossplane"></p>
 
 [![Build Status](https://jenkinsci.upbound.io/buildStatus/icon?job=crossplane/build/master)](https://jenkinsci.upbound.io/blue/organizations/jenkins/crossplane%2Fbuild/activity)
 [![GitHub release](https://img.shields.io/github/release/crossplane/crossplane/all.svg?style=flat-square)](https://github.com/crossplaneio/crossplane/releases)
