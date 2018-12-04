@@ -1,8 +1,3 @@
----
-title: Welcome
-toc: true
-weight: 110
----
 # Crossplane
 
 Crossplane is an open source multicloud control plane. It introduces workload and resource abstractions on-top of existing managed services that enables a high degree of workload portability across cloud providers. A single crossplane enables the provisioning and full-lifecycle management of services and infrastructure across a wide range of providers, offerings, vendors, regions, and clusters. Crossplane offers a universal API for cloud computing, a workload scheduler, and a set of smart controllers that can automate work across clouds.
@@ -19,7 +14,7 @@ For a deeper dive into Crossplane, see the [architecture](https://docs.google.co
 
 * [Quick Start Guide](quick-start.md)
 * [Getting Started](getting-started.md)
-  * [Installing Crossplane Software](install-crossplane.md)
+  * [Installing Crossplane](install-crossplane.md)
   * [Adding Your Cloud Providers](cloud-providers.md)
   * [Deploying Workloads](deploy.md)
   * [Running Resources](running-resources.md)
