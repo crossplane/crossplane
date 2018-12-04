@@ -3,7 +3,6 @@ apiVersion: storage.crossplane.io/v1alpha1
 kind: MySQLInstance
 metadata:
   name: demo-mysql
-  namespace: default
 spec:
   classReference:
     name: standard-mysql
@@ -14,8 +13,7 @@ spec:
 apiVersion: compute.crossplane.io/v1alpha1
 kind: Workload
 metadata:
-  name: test-workload
-  namespace: default
+  name: demo-workload
 spec:
   resources:
   - name: demo-mysql
