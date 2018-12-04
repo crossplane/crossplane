@@ -39,3 +39,13 @@ Operation failed with status: 'Conflict'. Details: 409 Client Error: Conflict fo
 After these steps are completed, you should have the following file on your local filesystem:
 
 * `crossplane-azure-provider-key.json`
+
+## Grant Consent to application
+1. `echo ${AZURE_CLIENT_ID}` and note id
+1. Navigate to azure console: https://portal.azure.com
+1. Click Azure Active Directory
+1. Click `App registrations (Preview)`
+1. Click on app item where client id matches step 1
+1. Click `API permissions`
+1. Click `Grant admin consent for Default Directory`
+1. Click `Yes`

@@ -5,9 +5,9 @@ weight: 410
 ---
 # Concepts
 
-## Resources and Workloads
-
 ## Control Plane
+
+## Resources and Workloads
 
 ## Resource Claims and Resource Classes
 
