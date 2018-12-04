@@ -27,7 +27,7 @@ parameters:
   class: db.t2.small
   masterUsername: masteruser
   securityGroups: RDS_SECURITY_GROUP #sg-1,sg-2
-  subnetGroupName: RDS_SUBNET_GROUP # eks-db-subnets
+  subnetGroupName: RDS_SUBNET_GROUP_NAME # eks-db-subnets
   size: "20"
 provisioner: rdsinstance.database.aws.crossplane.io/v1alpha1
 providerRef:

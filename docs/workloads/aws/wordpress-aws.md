@@ -27,11 +27,6 @@ restricted access, i.e. `Application Owner(s)` should not have access to them.
 
 For the next steps, make sure your `kubectl` context points to the cluster where `Crossplane` was deployed.
 
-### Create credentials
-
-1. Get base64 encoded credentials with `cat ~/.aws/credentials|base64|tr -d '\n'`
-1. Replace `BASE64ENCODED_AWS_PROVIDER_CREDS` in `cluster/examples/workloads/wordpress-aws/provider.yaml` with value from previous step.
-
 ### Configure EKS Cluster Pre-requisites
 
 EKS cluster deployment is somewhat of an arduous process right now.
@@ -39,8 +34,11 @@ A number of artifacts and configuration needs to be set up within the AWS consol
 We anticipate that AWS will make improvements on this user experience in the near future.
 
 #### Create a named keypair
-* You can either reuse an existing ec2 key pair or create a new key pair with [these steps](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html)
-* Replace your key pair name in `cluster/examples/workloads/wordpress-aws/provider.yaml` in `EKS_WORKER_KEY_NAME`
+1. Find an existing ec2 key pair or create a new key pair with [these steps](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html)
+1. Export key pair name
+    ```console
+    export EKS_WORKER_KEY_NAME=replace-with-key-name
+    ```
 
 #### Create your Amazon EKS Service Role
 [Original Source Guide](https://docs.aws.amazon.com/eks/latest/userguide/getting-started.html)
@@ -48,9 +46,13 @@ We anticipate that AWS will make improvements on this user experience in the nea
 1. Open the [IAM console](https://console.aws.amazon.com/iam/).
 1. Choose Roles, then Create role.
 1. Choose EKS from the list of services, then Allows Amazon EKS to manage your clusters on your behalf for your use case, then Next: Permissions.
+1. Choose Next: Tags.
 1. Choose Next: Review.
 1. For Role name, enter a unique name for your role, such as eksServiceRole, then choose Create role.
-1. Replace `EKS_ROLE_ARN` in `cluster/examples/workloads/wordpress-aws/provider.yaml` with role arn from previous step.
+1. Export role arn
+    ```console
+    export EKS_ROLE_ARN=replace-with-full-role-arn
+    ```
 
 #### Create your Amazon EKS Cluster VPC
 [Original Source Guide](https://docs.aws.amazon.com/eks/latest/userguide/getting-started.html)
@@ -62,6 +64,10 @@ We anticipate that AWS will make improvements on this user experience in the nea
      * US West (Oregon) (us-west-2)
      * US East (N. Virginia) (us-east-1)
      * EU (Ireland) (eu-west-1)
+    ```
+1. Export region
+    ```console
+    export REGION=replace-with-region-of-eks
     ```
 
 1. Choose Create stack.
@@ -81,8 +87,12 @@ We anticipate that AWS will make improvements on this user experience in the nea
 1. (Optional) On the Options page, tag your stack resources. Choose Next.
 1. On the Review page, choose Create.
 1. When your stack is created, select it in the console and choose Outputs.
-1. Replace `EKS_VPC`, `EKS_ROLE_ARN`, `EKS_SUBNETS`, `EKS_SECURITY_GROUP` in `cluster/examples/workloads/wordpress-aws/provider.yaml` with values from previous step (vpcId, subnetIds, securityGroupIds). Note `EKS_SECURITY_GROUP` needs to be replaced twice in file.
-1. Replace `REGION` in `cluster/examples/workloads/wordpress-aws/provider.yaml` with the region you selected in VPC creation.
+1. Using values from outputs, export the following variables.
+    ```console
+    export EKS_VPC=replace-with-eks-vpcId
+    export EKS_SUBNETS=replace-with-eks-subnetIds01,replace-with-eks-subnetIds02,replace-with-eks-subnetIds03
+    export EKS_SECURITY_GROUP=replace-with-eks-securityGroupId
+    ```
 
 #### Create an RDS subnet group
 1. Navigate to aws console in same region as the EKS clsuter
@@ -93,22 +103,33 @@ We anticipate that AWS will make improvements on this user experience in the nea
 1. Select the VPC created in the EKS VPC step
 1. Click `Add all subnets related to this VPC`
 1. Click Create
-1. Replace `RDS_SUBNET_GROUP` in `cluster/examples/workloads/wordpress-aws/provider.yaml` with the `DBSubnetgroup` name you just created.
+1. Export the db subnet group name
+    ```console
+    export RDS_SUBNET_GROUP_NAME=replace-with-DBSubnetgroup-name
+    ```
 
 #### Create an RDS Security Group (example only)
 
 **Note**: This will make your RDS instance visible from Anywhere on the internet.
 This if for **EXAMPLE PURPOSES ONLY**, and is **NOT RECOMMENDED** for production system.
 
-1. Navigate to ec2 in the region of the EKS cluster
-1. Navigate to security groups
-1. Select the same VPC from the EKS cluster.
+1. Navigate to ec2 in the same region as the EKS cluster
+1. Click: security groups
+1. Click `Create Security Group`
+1. Name it, ex. `demo-rds-public-visibility`
+1. Give it a description
+1. Select the same VPC as the EKS cluster.
 1. On the Inbound Rules tab, choose Edit.
     - For Type, choose `MYSQL/Aurora`
     - For Port Range, type `3306`
     - For Source, choose `Anywhere` from drop down or type: `0.0.0.0/0`
 1. Choose Add another rule if you need to add more IP addresses or different port ranges.
-1. Replace `RDS_SECURITY_GROUP` in `cluster/examples/workloads/wordpress-aws/provider.yaml` with the security group we just created.
+1. Click: Create
+1. Export the security gorup id
+    ```console
+    export RDS_SECURITY_GROUP=replace-with-security-group-id
+    ```
+
 
 ### Deploy all Workload Resources
 
@@ -116,7 +137,7 @@ Now deploy all the workload resources, including the RDS database and EKS cluste
 
 Create provider:
 ```console
-kubectl create -f cluster/examples/workloads/wordpress-aws/provider.yaml
+sed -e "s|BASE64ENCODED_AWS_PROVIDER_CREDS|`cat ~/.aws/credentials|base64|tr -d '\n'`|g;s|EKS_WORKER_KEY_NAME|$EKS_WORKER_KEY_NAME|g;s|EKS_ROLE_ARN|$EKS_ROLE_ARN|g;s|REGION|$REGION|g;s|EKS_VPC|$EKS_VPC|g;s|EKS_SUBNETS|$EKS_SUBNETS|g;s|EKS_SECURITY_GROUP|$EKS_SECURITY_GROUP|g;s|RDS_SUBNET_GROUP_NAME|$RDS_SUBNET_GROUP_NAME|g;s|RDS_SECURITY_GROUP|$RDS_SECURITY_GROUP|g" cluster/examples/workloads/wordpress-aws/provider.yaml | kubectl create -f -
 ```
 
 Create cluster:
@@ -148,7 +169,7 @@ This section covers the tasks performed by the application developer, which incl
 Now that the EKS cluster is ready, let's begin deploying the workload as the application developer:
 
 ```console
-kubectl -n demo create -f cluster/examples/workloads/wordpress-aws/workload.yaml
+kubectl create -f cluster/examples/workloads/wordpress-aws/workload.yaml
 ```
 
 This will also take awhile to complete, since the MySQL database needs to be deployed before the WordPress pod can consume it.
@@ -210,7 +231,7 @@ kubectl get nodes
 First delete the workload, which will delete WordPress and the MySQL database:
 
 ```console
-kubectl -n demo delete -f cluster/examples/workloads/wordpress-aws/workload.yaml
+kubectl delete -f cluster/examples/workloads/wordpress-aws/workload.yaml
 ```
 
 Then delete the EKS cluster:
