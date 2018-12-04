@@ -2,7 +2,7 @@
 apiVersion: storage.crossplane.io/v1alpha1
 kind: MySQLInstance
 metadata:
-  name: demo-mysql
+  name: demo
   namespace: default
 spec:
   classReference:
@@ -14,14 +14,14 @@ spec:
 apiVersion: compute.crossplane.io/v1alpha1
 kind: Workload
 metadata:
-  name: test-workload
+  name: demo
   namespace: default
 spec:
   resources:
-  - name: demo-mysql
-    secretName: demo-mysql
+  - name: demo
+    secretName: demo
   targetCluster:
-    name: demo-cluster
+    name: demo-gke-cluster
     namespace: crossplane-system
   targetDeployment:
     apiVersion: extensions/v1beta1
@@ -47,17 +47,17 @@ spec:
                 - name: WORDPRESS_DB_HOST
                   valueFrom:
                     secretKeyRef:
-                      name: demo-mysql
+                      name: demo
                       key: endpoint
                 - name: WORDPRESS_DB_USER
                   valueFrom:
                     secretKeyRef:
-                      name: demo-mysql
+                      name: demo
                       key: username
                 - name: WORDPRESS_DB_PASSWORD
                   valueFrom:
                     secretKeyRef:
-                      name: demo-mysql
+                      name: demo
                       key: password
               ports:
                 - containerPort: 80
@@ -74,4 +74,3 @@ spec:
       selector:
         app: wordpress
       type: LoadBalancer
-
