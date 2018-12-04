@@ -35,7 +35,7 @@ For the next steps, make sure your `kubectl` context points to the cluster where
 - Next, create the AKS cluster that will eventually be the target cluster for your Workload deployment:
 
     ```console
-    kubectl create -f cluster/examples/workloads/wordpress-${provider}/cluster.yaml
+    kubectl create -f cluster/examples/workloads/wordpress-azure/cluster.yaml
     ```
 
     It will take a while (~15 minutes) for the AKS cluster to be deployed and becoming ready. You can keep an eye on its status with the following command:
@@ -69,7 +69,7 @@ Let's begin deploying the workload as the application developer:
 - Now that the target AKS cluster is ready, we can deploy the Workload that contains all the Wordpress resources, including the SQL database, with the following single command:
 
     ```console
-    kubectl create -f cluster/examples/workloads/wordpress-${provider}/workload.yaml
+    kubectl create -f cluster/examples/workloads/wordpress-azure/workload.yaml
     ```
 
     This will also take awhile to complete, since the MySQL database needs to be deployed before the Wordpress pod can consume it.
@@ -112,17 +112,17 @@ Let's begin deploying the workload as the application developer:
 First delete the workload, which will delete Wordpress and the MySQL database:
 
 ```console
-kubectl delete -f cluster/examples/workloads/wordpress-${provider}/workload.yaml
+kubectl delete -f cluster/examples/workloads/wordpress-azure/workload.yaml
 ```
 
 Then delete the AKS cluster:
 
 ```console
-kubectl delete -f cluster/examples/workloads/wordpress-${provider}/cluster.yaml
+kubectl delete -f cluster/examples/workloads/wordpress-azure/cluster.yaml
 ```
 
 Finally, delete the provider credentials:
 
 ```console
-kubectl delete -f cluster/examples/workloads/wordpress-${provider}/provider.yaml
+kubectl delete -f cluster/examples/workloads/wordpress-azure/provider.yaml
 ```
