@@ -1,11 +1,17 @@
 ---
 title: Deploy
 toc: true
-weight: 130
+weight: 340
 indent: true
 ---
-# Deploy
+# Deploying Workloads
 
-Thank you for your time and effort to help us improve Crossplane! Here are a few steps to get started. If you have any questions, don’t hesitate to reach out to us on our [Slack](https://crossplaneio.slack.com) dev channel.
+* [Crossplane Workload on Google Cloud Platform (GCP)](#crossplane-workload-on-google-cloud-platform-gcp)
+* [Crossplane Workload on Microsoft Azure](#crossplane-workload-on-microsoft-azure)
+* [Crossplane Workload on Amazon Web Services (AWS)](#crossplane-workload-on-amazon-web-services-aws)
 
-## Improving the docs
+## Crossplane Workload on Google Cloud Platform (GCP)
+
+## Crossplane Workload on Microsoft Azure
+
+## Crossplane Workload on Amazon Web Services (AWS)

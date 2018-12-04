@@ -1,6 +1,6 @@
 ---
-title: FAQS
+title: FAQs
 toc: true
-weight: 400
+weight: 510
 ---
-# FAQS
+# Frequently Asked Questions (FAQs)
