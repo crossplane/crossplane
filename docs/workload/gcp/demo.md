@@ -129,7 +129,7 @@ For the next steps, make sure your `kubectl` context points to the `Crossplane` 
 
 - Patch and Apply `provider.yaml`:
     ```bash
-    sed "s/BASE64ENCODED_CREDS/`cat key.json|base64 -w0`/g;s/DEMO_PROJECT_ID/$DEMO_PROJECT_ID/g" config/workload/gcp/provider.yaml | kubectl create -f -
+    sed "s/BASE64ENCODED_CREDS/`cat key.json|base64 -w0`/g;s/DEMO_PROJECT_ID/$DEMO_PROJECT_ID/g" cluster/examples/workloads/wordpress-gcp/provider.yaml | kubectl create -f -
     ``` 
  
     - Verify that GCP Provider is in READY state
@@ -144,7 +144,7 @@ For the next steps, make sure your `kubectl` context points to the `Crossplane` 
     
     - Verify that Resource Classes have been created
         ```bash
-        kubectl get resourceclass -o custom-columns=NAME:metadata.name,PROVISIONER:.provisioner,PROVIDER:.providerRef.name,RECLAIM-POLICY:.reclaimPolicy
+        kubectl -n crossplane-system get resourceclass -o custom-columns=NAME:metadata.name,PROVISIONER:.provisioner,PROVIDER:.providerRef.name,RECLAIM-POLICY:.reclaimPolicy
         ```
         Your output should be:
         ```bash
@@ -157,7 +157,7 @@ For the next steps, make sure your `kubectl` context points to the `Crossplane` 
     As administrator, you will create a Kubernetes cluster leveraging existing Kubernetes cluster `ResourceClass` and 
     `Crossplane` Kubernetes cluster dynamic provisioning.
     ```bash
-    kubectl apply -f config/workload/gcp/kubernetes.yaml
+    kubectl apply -f cluster/examples/workloads/wordpress-gcp/kubernetes.yaml
     ``` 
     
     - Verify that Kubernetes Cluster resource was created
@@ -291,7 +291,7 @@ The `Workload` definition spawns multiple constructs and kubernetes object.
     
 - Deploy workload
     ```bash
-    kubectl apply -f config/workload/gcp/workload.yaml
+    kubectl apply -f cluster/examples/workloads/wordpress-gcp/workload.yaml
     ```
 - Wait for `MySQLInstance` to be in `Bound` State
    
@@ -334,17 +334,17 @@ The `Workload` definition spawns multiple constructs and kubernetes object.
 
 - Remove `Workload` 
 ```bash
-kubectl delete -f config/workload/gcp/workload.yaml
+kubectl delete -f cluster/examples/workloads/wordpress-gcp/workload.yaml
 ```
 
 - Remove `KubernetesCluster`
 ```bash
-kubectl delete -f config/workload/gcp/kubernetes.yaml
+kubectl delete -f cluster/examples/workloads/wordpress-gcp/kubernetes.yaml
 ```
 
 - Remove GCP Provider and ResourceClasses
 ```bash
-kubectl delete -f config/workload/gcp/provider.yaml
+kubectl delete -f cluster/examples/workloads/wordpress-gcp/provider.yaml
 ```
 
 - Delete Google Project

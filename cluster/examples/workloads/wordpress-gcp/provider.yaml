@@ -1,7 +1,13 @@
+## Crossplane System Namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: crossplane-system
+---
 ## GCP Service Account Credentials
 apiVersion: v1
 data:
-  credentials.json: BASE64ENCODED_GCP_PROVIDER_CREDS
+  credentials.json: BASE64ENCODED_CREDS
 kind: Secret
 metadata:
   namespace: crossplane-system
@@ -18,7 +24,7 @@ spec:
   credentialsSecretRef:
     name: gcp-provider-creds
     key: credentials.json
-  projectID: my-project-123456
+  projectID: DEMO_PROJECT_ID
 ---
 ## Crossplane Kubernetes Cluster Resource Class for GCP
 apiVersion: core.crossplane.io/v1alpha1
@@ -49,14 +55,3 @@ provisioner: cloudsqlinstance.database.gcp.crossplane.io/v1alpha1
 providerRef:
   name: gcp-provider
 reclaimPolicy: Delete
----
-## Kubernetes cluster instance using "standard-cluster" resource class
-apiVersion: compute.crossplane.io/v1alpha1
-kind: KubernetesCluster
-metadata:
-  name: demo-cluster
-  namespace: crossplane-system
-spec:
-  classReference:
-    name: standard-cluster
-    namespace: crossplane-system
