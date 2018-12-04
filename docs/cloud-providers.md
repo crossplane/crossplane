@@ -6,12 +6,6 @@ indent: true
 ---
 # Adding Your Cloud Providers
 
-* [Google Cloud Platform (GCP)](#google-cloud-platform-gcp)
-* [Microsoft Azure](#microsoft-azure)
-* [Amazon Web Services (AWS)](#amazon-web-services-aws)
-
-## Google Cloud Platform (GCP)
-
-## Microsoft Azure
-
-## Amazon Web Services (AWS)
+* [Google Cloud Platform (GCP)](cloud-providers/gcp/gcp-provider.md)
+* [Microsoft Azure](cloud-providers/azure/azure-provider.md)
+* [Amazon Web Services (AWS)](cloud-providers/aws/aws-provider.md)
