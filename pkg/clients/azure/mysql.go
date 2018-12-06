@@ -25,6 +25,7 @@ import (
 	databasev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/database/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/util"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -55,18 +56,32 @@ type MySQLServerClient struct {
 
 // NewMySQLServerClient creates and initializes a MySQLServerClient instance.
 func NewMySQLServerClient(provider *v1alpha1.Provider, clientset kubernetes.Interface) (*MySQLServerClient, error) {
-	client, err := NewClient(provider, clientset)
+	data, err := util.SecretData(clientset, provider.Namespace, provider.Spec.Secret)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create Azure client: %+v", err)
+		return nil, err
+	}
+
+	client, err := NewClientCredentialsConfig(data)
+	if err != nil {
+		return nil, err
+	}
+
+	authorizer, err := client.Authorizer()
+	if err != nil {
+		return nil, err
 	}
 
 	mysqlServersClient := mysql.NewServersClient(client.SubscriptionID)
-	mysqlServersClient.Authorizer = client.Authorizer
-	mysqlServersClient.AddToUserAgent(UserAgent)
+	mysqlServersClient.Authorizer = authorizer
+	if err := mysqlServersClient.AddToUserAgent(UserAgent); err != nil {
+		return nil, err
+	}
 
 	firewallRulesClient := mysql.NewFirewallRulesClient(client.SubscriptionID)
-	firewallRulesClient.Authorizer = client.Authorizer
-	firewallRulesClient.AddToUserAgent(UserAgent)
+	firewallRulesClient.Authorizer = authorizer
+	if err := firewallRulesClient.AddToUserAgent(UserAgent); err != nil {
+		return nil, err
+	}
 
 	return &MySQLServerClient{
 		ServersClient:       mysqlServersClient,

@@ -82,6 +82,8 @@ spec:
           properties:
             appObjectID:
               type: string
+            applicationSecret:
+              type: object
             clusterName:
               type: string
             endpoint:
@@ -89,9 +91,7 @@ spec:
             providerID:
               type: string
             runningOperation:
-              type: string
-            servicePrincipalID:
-              type: string
+              type: object
             state:
               type: string
           required:

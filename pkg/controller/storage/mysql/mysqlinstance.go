@@ -235,10 +235,9 @@ func (r *Reconciler) _bind(instance *mysqlv1alpha1.MySQLInstance) (reconcile.Res
 	instance.Status.SetBound()
 
 	// update conditions
-	if !instance.Status.IsReady() {
-		instance.Status.UnsetAllConditions()
-		instance.Status.SetReady()
-	}
+	instance.Status.UnsetAllConditions()
+	instance.Status.SetReady()
+
 	return result, r.Update(ctx, instance)
 }
 

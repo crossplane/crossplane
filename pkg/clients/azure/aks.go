@@ -19,185 +19,206 @@ package azure
 import (
 	"context"
 	"fmt"
-	"strings"
+	"net/http"
 
 	"github.com/Azure/azure-sdk-for-go/services/containerservice/mgmt/2018-03-31/containerservice"
+	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/to"
-	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/compute/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
-	"k8s.io/client-go/kubernetes"
+	"github.com/crossplaneio/crossplane/pkg/apis/azure/compute/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 const (
-	// AgentPoolProfileNameFmt is a format string for the name of the automatically created cluster agent pool profile
 	AgentPoolProfileNameFmt = "%s-nodepool"
-
-	maxClusterNameLen = 31
+	MaxClusterNameLength    = 31
 )
 
-//---------------------------------------------------------------------------------------------------------------------
-// AKS Setup API interfaces, clients, factories
+// AKSClientAPI interface for AKS Cluster client
+type AKSClientAPI interface {
+	CreateCluster(ctx context.Context, name string, clientID string, clientSecret string, spec v1alpha1.AKSClusterSpec) (*v1alpha1.AKSClusterFuture, error)
+	GetCluster(ctx context.Context, group string, name string) (containerservice.ManagedCluster, error)
+	DeleteCluster(ctx context.Context, group string, name string) error
+	ListCredentials(group string, name string) (containerservice.CredentialResult, error)
 
-// AKSSetupClient is a type that implements all of the AKS setup interface
-type AKSSetupClient struct {
-	AKSClusterAPI
-	ApplicationAPI
-	ServicePrincipalAPI
+	WaitForCompletion(context.Context, *v1alpha1.AKSClusterFuture) error
+	DoneWithContext(context.Context, *v1alpha1.AKSClusterFuture) (bool, error)
+	GetResult(future *v1alpha1.AKSClusterFuture) (*http.Response, error)
 }
 
-// AKSSetupAPIFactory is an interface that can create instances of the AKSSetupClient
-type AKSSetupAPIFactory interface {
-	CreateSetupClient(*v1alpha1.Provider, kubernetes.Interface) (*AKSSetupClient, error)
+// AKSClient implementing AKSClientAPI interface
+type AKSClient struct {
+	*containerservice.ManagedClustersClient
+	*ClientCredentialsConfig
 }
 
-// AKSSetupClientFactory implements the AKSSetupAPIFactory interface by returning real clients that talk to Azure APIs
-type AKSSetupClientFactory struct {
-}
-
-// CreateSetupClient creates and returns an AKS setup client that is ready to talk to Azure APIs
-func (f *AKSSetupClientFactory) CreateSetupClient(provider *v1alpha1.Provider, clientset kubernetes.Interface) (*AKSSetupClient, error) {
-	aksClusterClient, err := NewAKSClusterClient(provider, clientset)
+// NewAKSClient return AKS client implementation
+func NewAKSClient(config *ClientCredentialsConfig) (AKSClientAPI, error) {
+	authorizer, err := config.Authorizer()
 	if err != nil {
 		return nil, err
 	}
-
-	appClient, err := NewApplicationClient(provider, clientset)
-	if err != nil {
+	aksClient := containerservice.NewManagedClustersClient(config.SubscriptionID)
+	aksClient.Authorizer = authorizer
+	if err := aksClient.AddToUserAgent(UserAgent); err != nil {
 		return nil, err
 	}
 
-	spClient, err := NewServicePrincipalClient(provider, clientset)
-	if err != nil {
-		return nil, err
-	}
-
-	return &AKSSetupClient{
-		AKSClusterAPI:       aksClusterClient,
-		ApplicationAPI:      appClient,
-		ServicePrincipalAPI: spClient,
+	return &AKSClient{
+		ManagedClustersClient:   &aksClient,
+		ClientCredentialsConfig: config,
 	}, nil
 }
 
-//---------------------------------------------------------------------------------------------------------------------
-// AKS Cluster API interfaces and clients
-
-// AKSClusterAPI represents the API interface for a AKS Cluster client
-type AKSClusterAPI interface {
-	Get(ctx context.Context, instance computev1alpha1.AKSCluster) (containerservice.ManagedCluster, error)
-	CreateOrUpdateBegin(ctx context.Context, instance computev1alpha1.AKSCluster, clusterName, appID, spSecret string) ([]byte, error)
-	CreateOrUpdateEnd(op []byte) (bool, error)
-	Delete(ctx context.Context, instance computev1alpha1.AKSCluster) (containerservice.ManagedClustersDeleteFuture, error)
-	ListClusterAdminCredentials(ctx context.Context, instance computev1alpha1.AKSCluster) (containerservice.CredentialResults, error)
-}
-
-// AKSClusterClient is the concreate implementation of the AKSClusterAPI interface that calls Azure API.
-type AKSClusterClient struct {
-	containerservice.ManagedClustersClient
-}
-
-// NewAKSClusterClient creates and initializes a AKSClusterClient instance.
-func NewAKSClusterClient(provider *v1alpha1.Provider, clientset kubernetes.Interface) (*AKSClusterClient, error) {
-	client, err := NewClient(provider, clientset)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create Azure client: %+v", err)
-	}
-
-	aksClustersClient := containerservice.NewManagedClustersClient(client.SubscriptionID)
-	aksClustersClient.Authorizer = client.Authorizer
-	aksClustersClient.AddToUserAgent(UserAgent)
-
-	return &AKSClusterClient{aksClustersClient}, nil
-}
-
-// Get returns the AKS cluster details for the given instance
-func (c *AKSClusterClient) Get(ctx context.Context, instance computev1alpha1.AKSCluster) (containerservice.ManagedCluster, error) {
-	return c.ManagedClustersClient.Get(ctx, instance.Spec.ResourceGroupName, instance.Status.ClusterName)
-}
-
-// CreateOrUpdateBegin begins the create/update operation for a AKS Cluster with the given properties
-func (c *AKSClusterClient) CreateOrUpdateBegin(ctx context.Context, instance computev1alpha1.AKSCluster, clusterName, appID, spSecret string) ([]byte, error) {
-	spec := instance.Spec
-
-	agentPoolProfileName := fmt.Sprintf(AgentPoolProfileNameFmt, clusterName)
-	enableRBAC := !spec.DisableRBAC
-
-	nodeCount := int32(computev1alpha1.DefaultNodeCount)
+// CreateCluster new AKS Cluster with given name and specs
+func (a *AKSClient) CreateCluster(ctx context.Context, name, clientID, clientSecret string, spec v1alpha1.AKSClusterSpec) (*v1alpha1.AKSClusterFuture, error) {
+	nodeCount := int32(v1alpha1.DefaultNodeCount)
 	if spec.NodeCount != nil {
 		nodeCount = int32(*spec.NodeCount)
 	}
 
-	createParams := containerservice.ManagedCluster{
-		Name:     &clusterName,
-		Location: &spec.Location,
-		ManagedClusterProperties: &containerservice.ManagedClusterProperties{
-			KubernetesVersion: &spec.Version,
-			DNSPrefix:         &spec.DNSNamePrefix,
-			AgentPoolProfiles: &[]containerservice.ManagedClusterAgentPoolProfile{
-				{
-					Name:   &agentPoolProfileName,
-					Count:  &nodeCount,
-					VMSize: containerservice.VMSizeTypes(spec.NodeVMSize),
+	agentPoolProfileName := fmt.Sprintf(AgentPoolProfileNameFmt, name)
+	enableRBAC := !spec.DisableRBAC
+
+	// create (or update) - for now we care about creation only
+	f, err := a.CreateOrUpdate(
+		ctx,
+		spec.ResourceGroupName,
+		name,
+		containerservice.ManagedCluster{
+			Name:     &name,
+			Location: util.String(spec.Location),
+			ManagedClusterProperties: &containerservice.ManagedClusterProperties{
+				KubernetesVersion: &spec.Version,
+				DNSPrefix:         &name,
+				AgentPoolProfiles: &[]containerservice.ManagedClusterAgentPoolProfile{
+					{
+						Count:  to.Int32Ptr(nodeCount),
+						Name:   to.StringPtr(agentPoolProfileName),
+						VMSize: containerservice.VMSizeTypes(spec.NodeVMSize),
+					},
 				},
+				ServicePrincipalProfile: &containerservice.ManagedClusterServicePrincipalProfile{
+					ClientID: to.StringPtr(clientID),
+					Secret:   to.StringPtr(clientSecret),
+				},
+				EnableRBAC: &enableRBAC,
 			},
-			ServicePrincipalProfile: &containerservice.ManagedClusterServicePrincipalProfile{
-				ClientID: to.StringPtr(appID),
-				Secret:   to.StringPtr(spSecret),
-			},
-			EnableRBAC: &enableRBAC,
 		},
-	}
-
-	createFuture, err := c.CreateOrUpdate(ctx, instance.Spec.ResourceGroupName, clusterName, createParams)
+	)
 	if err != nil {
 		return nil, err
 	}
 
-	// serialize the create operation
-	createFutureJSON, err := createFuture.MarshalJSON()
+	af := v1alpha1.AKSClusterFuture(f)
+
+	return &af, nil
+}
+
+// GetCluster AKS cluster with given group and name values
+func (a *AKSClient) GetCluster(ctx context.Context, group, name string) (containerservice.ManagedCluster, error) {
+	return a.ManagedClustersClient.Get(context.Background(), group, name)
+}
+
+// DeleteCluster AKS cluster with given group and name values
+func (a *AKSClient) DeleteCluster(ctx context.Context, group, name string) error {
+	_, err := a.ManagedClustersClient.Delete(context.Background(), group, name)
+	return err
+}
+
+// ListCredentials for AKS Kubernetes cluster
+func (a *AKSClient) ListCredentials(group, name string) (containerservice.CredentialResult, error) {
+	creds, err := a.ListClusterAdminCredentials(context.Background(), group, name)
+	if err != nil {
+		return containerservice.CredentialResult{}, nil
+	}
+	if creds.Kubeconfigs == nil || len(*creds.Kubeconfigs) == 0 {
+		return containerservice.CredentialResult{}, fmt.Errorf("cluster admin credentials are not found")
+	}
+
+	return (*creds.Kubeconfigs)[0], nil
+}
+
+// WaitForCompletion waits for cluster future operation to finish
+func (a *AKSClient) WaitForCompletion(ctx context.Context, future *v1alpha1.AKSClusterFuture) error {
+	return future.WaitForCompletionRef(ctx, a.Client)
+}
+
+// DoneWithContext check if cluster future operation is completed
+func (a *AKSClient) DoneWithContext(ctx context.Context, future *v1alpha1.AKSClusterFuture) (bool, error) {
+	return future.DoneWithContext(ctx, a.Client)
+}
+
+// GetResult of the AKS Cluster operation (future)
+func (a *AKSClient) GetResult(future *v1alpha1.AKSClusterFuture) (*http.Response, error) {
+	sender := autorest.DecorateSender(a, autorest.DoRetryForStatusCodes(a.RetryAttempts, a.RetryDuration, autorest.StatusCodesForRetry...))
+	return future.GetResult(sender)
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+
+// AKSClientsetAPI collection of three clients needed to operate on AD Application, ServicePrincipal and AKS Cluster
+type AKSClientsetAPI interface {
+	ApplicationAPI
+	ServicePrincipalAPI
+	AKSClientAPI
+	Delete(context.Context, string, string, string) error
+}
+
+// AKSClientset
+type AKSClientset struct {
+	ApplicationAPI
+	ServicePrincipalAPI
+	AKSClientAPI
+}
+
+// NewAKSClientset
+func NewAKSClientset(config *ClientCredentialsConfig) (AKSClientsetAPI, error) {
+	appClient, err := NewApplicationClient(config)
 	if err != nil {
 		return nil, err
 	}
 
-	return createFutureJSON, nil
-}
-
-// CreateOrUpdateEnd checks to see if the given create/update operation is completed and if any error has occurred.
-func (c *AKSClusterClient) CreateOrUpdateEnd(op []byte) (done bool, err error) {
-	// unmarshal the given create complete data into a future object
-	future := &containerservice.ManagedClustersCreateOrUpdateFuture{}
-	if err = future.UnmarshalJSON(op); err != nil {
-		return false, err
+	spClient, err := NewServicePrincipalClient(config)
+	if err != nil {
+		return nil, err
 	}
 
-	// check if the operation is done yet
-	done, err = future.Done(c.Client)
-	if !done {
-		return false, err
+	aksClient, err := NewAKSClient(config)
+	if err != nil {
+		return nil, err
 	}
 
-	// check the result of the completed operation
-	if _, err = future.Result(c.ManagedClustersClient); err != nil {
-		return true, err
+	return &AKSClientset{
+		ApplicationAPI:      appClient,
+		ServicePrincipalAPI: spClient,
+		AKSClientAPI:        aksClient,
+	}, nil
+}
+
+// Delete cluster and AD App
+// Note: service principal is automatically deleted with AD App, hence no need for a dedicated delete call
+func (a *AKSClientset) Delete(ctx context.Context, group, name, appID string) error {
+	if err := a.DeleteCluster(ctx, group, name); err != nil && !IsErrorNotFound(err) {
+		return err
 	}
 
-	return true, nil
-}
-
-// Delete begins the deletion operator for the given AKS cluster instance
-func (c *AKSClusterClient) Delete(ctx context.Context, instance computev1alpha1.AKSCluster) (containerservice.ManagedClustersDeleteFuture, error) {
-	return c.ManagedClustersClient.Delete(ctx, instance.Spec.ResourceGroupName, instance.Status.ClusterName)
-}
-
-// ListClusterAdminCredentials will return the admin credentials used to connect to the given AKS cluster
-func (c *AKSClusterClient) ListClusterAdminCredentials(ctx context.Context, instance computev1alpha1.AKSCluster) (containerservice.CredentialResults, error) {
-	return c.ManagedClustersClient.ListClusterAdminCredentials(ctx, instance.Spec.ResourceGroupName, instance.Status.ClusterName)
-}
-
-// SanitizeClusterName sanitizes the given AKS cluster name
-func SanitizeClusterName(name string) string {
-	if len(name) > maxClusterNameLen {
-		name = name[:maxClusterNameLen]
+	if err := a.DeleteApplication(ctx, appID); err != nil && !IsErrorNotFound(err) {
+		return err
 	}
 
-	return strings.TrimSuffix(name, "-")
+	return nil
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+// AKSClientsetFactoryAPI creates new AKSClientset instance
+type AKSClientsetFactoryAPI interface {
+	NewAKSClientset(*ClientCredentialsConfig) (AKSClientsetAPI, error)
+}
+
+// AKSClientsetFactory
+type AKSClientsetFactory struct{}
+
+// NewAKSClientset
+func (a *AKSClientsetFactory) NewAKSClientset(config *ClientCredentialsConfig) (AKSClientsetAPI, error) {
+	return NewAKSClientset(config)
 }

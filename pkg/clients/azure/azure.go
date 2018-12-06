@@ -19,32 +19,18 @@ package azure
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/Azure/azure-sdk-for-go/services/resources/mgmt/2018-05-01/resources"
 	"github.com/Azure/go-autorest/autorest"
+	"github.com/Azure/go-autorest/autorest/adal"
 	"github.com/Azure/go-autorest/autorest/azure/auth"
-	"github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/util"
-	"k8s.io/client-go/kubernetes"
 )
 
 const (
 	// UserAgent is the user agent extension that identifies the Crossplane Azure client
 	UserAgent = "crossplane-azure-client"
 )
-
-// Client struct that represents the information needed to connect to the Azure services as a client
-type Client struct {
-	autorest.Authorizer
-	SubscriptionID                 string
-	clientID                       string
-	clientSecret                   string
-	tenantID                       string
-	activeDirectoryEndpointURL     string
-	activeDirectoryGraphResourceID string
-}
 
 type credentials struct {
 	ClientID                       string `json:"clientId"`
@@ -56,20 +42,17 @@ type credentials struct {
 	ActiveDirectoryGraphResourceID string `json:"activeDirectoryGraphResourceId"`
 }
 
-// NewClient will look up the Azure credential information from the given provider and return a client
-// that can be used to connect to Azure services.
-func NewClient(provider *v1alpha1.Provider, clientset kubernetes.Interface) (*Client, error) {
-	// first get the secret data that should contain all the auth/creds information
-	azureSecretData, err := util.SecretData(clientset, provider.Namespace, provider.Spec.Secret)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get azure client secret: %+v", err)
-	}
+type ClientCredentialsConfig struct {
+	*auth.ClientCredentialsConfig
+	SubscriptionID                 string
+	ActiveDirectoryGraphResourceID string
+}
 
-	// load credentials from json data
+func NewClientCredentialsConfig(data []byte) (*ClientCredentialsConfig, error) {
+	// parse credentials
 	creds := credentials{}
-	err = json.Unmarshal(azureSecretData, &creds)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal azure client secret data: %+v", err)
+	if err := json.Unmarshal(data, &creds); err != nil {
+		return nil, err
 	}
 
 	// create a config object from the loaded credentials data
@@ -77,35 +60,51 @@ func NewClient(provider *v1alpha1.Provider, clientset kubernetes.Interface) (*Cl
 	config.AADEndpoint = creds.ActiveDirectoryEndpointURL
 	config.Resource = creds.ResourceManagerEndpointURL
 
-	authorizer, err := config.Authorizer()
+	return &ClientCredentialsConfig{
+		ClientCredentialsConfig:        &config,
+		SubscriptionID:                 creds.SubscriptionID,
+		ActiveDirectoryGraphResourceID: creds.ActiveDirectoryGraphResourceID,
+	}, nil
+}
+
+func (c *ClientCredentialsConfig) NewGraphAuthorizer() (autorest.Authorizer, error) {
+	oauthConfig, err := adal.NewOAuthConfig(c.AADEndpoint, c.TenantID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get authorizer from config: %+v", err)
+		return nil, err
 	}
 
-	return &Client{
-		Authorizer:                     authorizer,
-		SubscriptionID:                 creds.SubscriptionID,
-		clientID:                       creds.ClientID,
-		clientSecret:                   creds.ClientSecret,
-		tenantID:                       creds.TenantID,
-		activeDirectoryEndpointURL:     creds.ActiveDirectoryEndpointURL,
-		activeDirectoryGraphResourceID: creds.ActiveDirectoryGraphResourceID,
-	}, nil
+	token, err := adal.NewServicePrincipalToken(*oauthConfig, c.ClientID, c.ClientSecret, c.ActiveDirectoryGraphResourceID)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := token.Refresh(); err != nil {
+		return nil, err
+	}
+
+	return autorest.NewBearerAuthorizer(token), nil
 }
 
 // ValidateClient verifies if the given client is valid by testing if it can make an Azure service API call
 // TODO: is there a better way to validate the Azure client?
-func ValidateClient(client *Client) error {
-	groupsClient := resources.NewGroupsClient(client.SubscriptionID)
-	groupsClient.Authorizer = client.Authorizer
-	groupsClient.AddToUserAgent(UserAgent)
+func ValidateClient(config *ClientCredentialsConfig) error {
+	authorizer, err := config.Authorizer()
+	if err != nil {
+		return err
+	}
 
-	_, err := groupsClient.ListComplete(context.TODO(), "", nil)
+	groupsClient := resources.NewGroupsClient(config.SubscriptionID)
+	groupsClient.Authorizer = authorizer
+	if err := groupsClient.AddToUserAgent(UserAgent); err != nil {
+		return err
+	}
+
+	_, err = groupsClient.ListComplete(context.TODO(), "", nil)
 	return err
 }
 
-// IsNotFound returns a value indicating whether the given error represents that the resource was not found.
-func IsNotFound(err error) bool {
+// IsErrorNotFound returns a value indicating whether the given error represents that the resource was not found.
+func IsErrorNotFound(err error) bool {
 	detailedError, ok := err.(autorest.DetailedError)
 	if !ok {
 		return false
@@ -117,4 +116,19 @@ func IsNotFound(err error) bool {
 	}
 
 	return statusCode == http.StatusNotFound
+}
+
+// IsBadRequest returns a value indicating whether the given error represents bad request.
+func IsErrorBadRequest(err error) bool {
+	detailedError, ok := err.(autorest.DetailedError)
+	if !ok {
+		return false
+	}
+
+	statusCode, ok := detailedError.StatusCode.(int)
+	if !ok {
+		return false
+	}
+
+	return statusCode == http.StatusBadRequest
 }

@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 
 	awscomputev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/compute/v1alpha1"
 	azurecomputev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/compute/v1alpha1"
@@ -55,7 +56,6 @@ const (
 	errorRetrievingResourceSecret      = "Failed to retrieve resource secret"
 	errorApplyingInstanceSecret        = "Failed to apply instance secret"
 	errorUpdatingResourceBindingStatus = "Failed to update resource binding status"
-	waitResourceIsNotAvailable         = "Waiting for resource to become available"
 )
 
 var (
@@ -200,9 +200,7 @@ func (r *Reconciler) _bind(instance *computev1alpha1.KubernetesCluster) (reconci
 
 	// check for the instance state and requeue if not running
 	if !resource.IsAvailable() {
-		instance.Status.UnsetAllConditions()
-		instance.Status.SetCondition(corev1alpha1.NewCondition(corev1alpha1.Pending, waitResourceIsNotAvailable, "Resource is not in running state"))
-		return resultRequeue, r.Update(ctx, instance)
+		return reconcile.Result{RequeueAfter: 15 * time.Second}, r.Update(ctx, instance)
 	}
 
 	// Object reference to the resource: needed to retrieve resource's namespace to retrieve resource's secret
@@ -235,8 +233,8 @@ func (r *Reconciler) _bind(instance *computev1alpha1.KubernetesCluster) (reconci
 	// update conditions
 	if !instance.Status.IsReady() {
 		instance.Status.UnsetAllConditions()
-		instance.Status.SetReady()
 	}
+	instance.Status.SetReady()
 
 	return result, r.Update(ctx, instance)
 }

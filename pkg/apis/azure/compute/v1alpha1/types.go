@@ -19,6 +19,7 @@ package v1alpha1
 import (
 	"strconv"
 
+	"github.com/Azure/azure-sdk-for-go/services/containerservice/mgmt/2018-03-31/containerservice"
 	"github.com/Azure/go-autorest/autorest/to"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/util"
@@ -27,13 +28,24 @@ import (
 )
 
 const (
-	// ClusterProvisioningStateSucceeded is the state for a cluster that has succeeded provisioning
-	ClusterProvisioningStateSucceeded = "Succeeded"
+	// ClusterStateCreating is in the provisioning state
+	ClusterStateCreating = "Creating"
+	// ClusterStateSucceeded is the state for a cluster that has succeeded provisioning
+	ClusterStateSucceeded = "Succeeded"
+	// ClusterStatedFailed
+	ClusterStateFailed = "Failed"
+
 	// DefaultReclaimPolicy is the default reclaim policy to use
 	DefaultReclaimPolicy = corev1alpha1.ReclaimRetain
 	// DefaultNodeCount is the default node count for a cluster
 	DefaultNodeCount = 1
 )
+
+type AKSClusterFuture containerservice.ManagedClustersCreateOrUpdateFuture
+
+func (in *AKSClusterFuture) DeepCopyInto(out *AKSClusterFuture) {
+	*out = *in
+}
 
 // AKSClusterSpec is the spec for AKS cluster resources
 type AKSClusterSpec struct {
@@ -85,16 +97,15 @@ type AKSClusterStatus struct {
 	ProviderID string `json:"providerID,omitempty"`
 	// Endpoint is the endpoint where the cluster can be reached
 	Endpoint string `json:"endpoint"`
+
 	// ApplicationObjectID is the object ID of the AD application the cluster uses for Azure APIs
 	ApplicationObjectID string `json:"appObjectID,omitempty"`
-	// ServicePrincipalID is the ID of the service principal the AD application uses
-	ServicePrincipalID string `json:"servicePrincipalID,omitempty"`
+	// ApplicationSecret contains AD application KeyID and Password
+	ApplicationSecret corev1.SecretKeySelector `json:"applicationSecret,omitempty"`
 
 	// RunningOperation stores any current long running operation for this instance across
-	// reconciliation attempts.  This will be a serialized Azure AKS cluster API object that will
-	// be used to check the status and completion of the operation during each reconciliation.
-	// Once the operation has completed, this field will be cleared out.
-	RunningOperation string `json:"runningOperation,omitempty"`
+	// reconciliation attempts.
+	RunningOperation *AKSClusterFuture `json:"runningOperation,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -221,7 +232,7 @@ func (a *AKSCluster) State() string {
 
 // IsAvailable for usage/binding
 func (a *AKSCluster) IsAvailable() bool {
-	return a.State() == ClusterProvisioningStateSucceeded
+	return a.State() == ClusterStateSucceeded
 }
 
 // IsBound returns if the resource is currently bound

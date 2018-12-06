@@ -153,3 +153,25 @@ func IfEmptyString(s, r string) string {
 	}
 	return s
 }
+
+// String returns a string pointer to a given string
+func String(s string) *string {
+	return &s
+}
+
+// StringValue returns a string value for a given string pointer
+func StringValue(s *string) string {
+	if s != nil {
+		return *s
+	}
+	return ""
+}
+
+// TrimToSize - a helper function to trim string to a desired length
+func TrimToSize(text string, length int) string {
+	if len(text) > length {
+		text = text[:length]
+	}
+
+	return text
+}

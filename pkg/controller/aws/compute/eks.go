@@ -287,6 +287,7 @@ func (r *Reconciler) _sync(instance *awscomputev1alpha1.EKSCluster, client eks.C
 		return r.fail(instance, errorSyncCluster, fmt.Sprintf("failed to set auth map on eks: %s", err.Error()))
 	}
 
+	// create or update connection secret
 	if err := r.secret(cluster, instance, client); err != nil {
 		return r.fail(instance, errorSyncCluster, err.Error())
 	}
@@ -305,7 +306,6 @@ func (r *Reconciler) _secret(cluster *eks.Cluster, instance *awscomputev1alpha1.
 		return err
 	}
 
-	// Avoid double base64 encoding on secret
 	caData, err := base64.StdEncoding.DecodeString(cluster.CA)
 	if err != nil {
 		return err

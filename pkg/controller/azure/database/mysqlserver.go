@@ -56,7 +56,6 @@ const (
 	errorFetchingInstance        = "failed to fetch instance"
 	errorDeletingInstance        = "failed to delete instance"
 	errorCreatingInstance        = "failed to create instance"
-	errorWaitingForCreate        = "failed to wait for completion of create instance"
 	errorCreatingPassword        = "failed to create password"
 	errorSettingConnectionSecret = "failed to set connection secret"
 	conditionStateChanged        = "instance state changed"
@@ -180,7 +179,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	// Get latest MySQL Server instance from Azure to check the latest status
 	server, err := mysqlServersClient.GetServer(ctx, instance.Spec.ResourceGroupName, instance.Name)
 	if err != nil {
-		if !azureclients.IsNotFound(err) {
+		if !azureclients.IsErrorNotFound(err) {
 			return r.fail(instance, errorFetchingInstance, fmt.Sprintf("failed to get MySQL Server instance %s: %+v", instance.Name, err))
 		}
 
@@ -189,7 +188,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	}
 
 	if _, err := mysqlServersClient.GetFirewallRule(ctx, instance.Spec.ResourceGroupName, instance.Name, firewallRuleName); err != nil {
-		if !azureclients.IsNotFound(err) {
+		if !azureclients.IsErrorNotFound(err) {
 			return r.fail(instance, errorFetchingInstance, fmt.Sprintf("failed to get firewall rule for MySQL Server instance %s: %+v", instance.Name, err))
 		}
 
@@ -326,7 +325,7 @@ func (r *Reconciler) handleDeletion(mysqlServersClient azureclients.MySQLServerA
 	// first get the latest status of the MySQL Server resource that needs to be deleted
 	_, err := mysqlServersClient.GetServer(ctx, instance.Spec.ResourceGroupName, instance.Name)
 	if err != nil {
-		if !azureclients.IsNotFound(err) {
+		if !azureclients.IsErrorNotFound(err) {
 			return r.fail(instance, errorFetchingInstance, fmt.Sprintf("failed to get MySQL Server instance %s for deletion: %+v", instance.Name, err))
 		}
 
