@@ -116,6 +116,7 @@ func AddAKSClusterReconciler(mgr manager.Manager, r reconcile.Reconciler) error 
 // Reconcile reads that state of the cluster for a AKSCluster object and makes changes based on the state read
 // and what is in its spec.
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+	log.Printf("reconciling %s: %v", computev1alpha1.AKSClusterKindAPIVersion, request)
 	// Fetch the CRD instance
 	instance := &computev1alpha1.AKSCluster{}
 	err := r.Get(ctx, request.NamespacedName, instance)
@@ -319,7 +320,8 @@ func (r *Reconciler) sync(instance *computev1alpha1.AKSCluster, aksClient *azure
 	if cluster.Fqdn != nil {
 		instance.Status.Endpoint = *cluster.Fqdn
 	}
-	if instance.IsAvailable() {
+
+	if !instance.Status.IsReady() {
 		instance.Status.UnsetAllConditions()
 		instance.Status.SetReady()
 	}

@@ -18,6 +18,7 @@ package provider
 
 import (
 	"context"
+	"log"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/v1alpha1"
@@ -110,6 +111,7 @@ func (r *Reconciler) _validate(config *aws.Config) error {
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=aws.crossplane.io,resources=provider,verbs=get;list;watch;create;update;patch;delete
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+	log.Printf("reconciling %s: %v", awsv1alpha1.ProviderKindAPIVersion, request)
 	// Fetch the Provider instance
 	instance := &awsv1alpha1.Provider{}
 	err := r.Get(ctx, request.NamespacedName, instance)
@@ -140,13 +142,11 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 		return r.fail(instance, errorInvalidCredentials, err.Error())
 	}
 
-	if instance.Status.IsReady() {
-		return result, nil
+	if !instance.Status.IsReady() {
+		// Update status condition
+		instance.Status.UnsetAllConditions()
+		instance.Status.SetReady()
 	}
-
-	// Update status condition
-	instance.Status.UnsetAllConditions()
-	instance.Status.SetReady()
 
 	return result, r.Update(ctx, instance)
 }

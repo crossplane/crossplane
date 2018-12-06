@@ -30,10 +30,11 @@ import (
 )
 
 const (
-	Group        = "aws.crossplane.io"
-	Version      = "v1alpha1"
-	APIVersion   = Group + "/" + Version
-	ProviderKind = "provider"
+	Group                  = "aws.crossplane.io"
+	Version                = "v1alpha1"
+	APIVersion             = Group + "/" + Version
+	ProviderKind           = "provider"
+	ProviderKindAPIVersion = ProviderKind + "." + APIVersion
 )
 
 var (

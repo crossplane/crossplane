@@ -21,9 +21,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/Azure/go-autorest/autorest/to"
-
 	"github.com/Azure/azure-sdk-for-go/services/mysql/mgmt/2017-12-01/mysql"
+	"github.com/Azure/go-autorest/autorest/to"
 	databasev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/database/v1alpha1"
 	azurev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
@@ -120,6 +119,7 @@ type Reconciler struct {
 // Reconcile reads that state of the cluster for a MysqlServer object and makes changes based on the state read
 // and what is in the MysqlServer.Spec
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+	log.Printf("reconciling %s: %v", databasev1alpha1.MysqlServerKindAPIVersion, request)
 	instance := &databasev1alpha1.MysqlServer{}
 	ctx := context.Background()
 

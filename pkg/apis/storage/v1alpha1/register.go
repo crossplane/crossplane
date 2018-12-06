@@ -30,10 +30,11 @@ import (
 )
 
 const (
-	Group             = "storage.crossplane.io"
-	Version           = "v1alpha1"
-	APIVersion        = Group + "/" + Version
-	MySQLInstanceKind = "mysqlinstance"
+	Group                       = "storage.crossplane.io"
+	Version                     = "v1alpha1"
+	APIVersion                  = Group + "/" + Version
+	MySQLInstanceKind           = "mysqlinstance"
+	MySQLInstanceKindAPIVersion = MySQLInstanceKind + "." + APIVersion
 )
 
 var (
