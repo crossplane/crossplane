@@ -6,6 +6,19 @@ metadata:
     controller-tools.k8s.io: "1.0"
   name: rdsinstances.database.aws.crossplane.io
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .status.state
+    name: STATUS
+    type: string
+  - JSONPath: .spec.classRef.name
+    name: CLASS
+    type: string
+  - JSONPath: .spec.engineVersion
+    name: VERSION
+    type: string
+  - JSONPath: .metadata.creationTimestamp
+    name: AGE
+    type: date
   group: database.aws.crossplane.io
   names:
     kind: RDSInstance

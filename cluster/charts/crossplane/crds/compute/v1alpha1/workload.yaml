@@ -6,6 +6,22 @@ metadata:
     controller-tools.k8s.io: "1.0"
   name: workloads.compute.crossplane.io
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .status.state
+    name: STATUS
+    type: string
+  - JSONPath: .spec.targetCluster.name
+    name: CLUSTER
+    type: string
+  - JSONPath: .spec.targetNamespace
+    name: NAMESPACE
+    type: string
+  - JSONPath: .spec.targetDeployment.metadata.name
+    name: DEPLOYMENT
+    type: string
+  - JSONPath: .status.service.loadBalancer.ingress[0].ip
+    name: SERVICE-EXTERNAL-IP
+    type: string
   group: compute.crossplane.io
   names:
     kind: Workload

@@ -6,6 +6,19 @@ metadata:
     controller-tools.k8s.io: "1.0"
   name: mysqlinstances.storage.crossplane.io
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .status.bindingPhase
+    name: STATUS
+    type: string
+  - JSONPath: .spec.classReference.name
+    name: CLASS
+    type: string
+  - JSONPath: .spec.engineVersion
+    name: VERSION
+    type: string
+  - JSONPath: .metadata.creationTimestamp
+    name: AGE
+    type: date
   group: storage.crossplane.io
   names:
     kind: MySQLInstance

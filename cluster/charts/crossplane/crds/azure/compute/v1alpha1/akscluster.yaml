@@ -6,6 +6,28 @@ metadata:
     controller-tools.k8s.io: "1.0"
   name: aksclusters.compute.azure.crossplane.io
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .status.state
+    name: STATUS
+    type: string
+  - JSONPath: .status.clusterName
+    name: CLUSTER-NAME
+    type: string
+  - JSONPath: .status.endpoint
+    name: ENDPOINT
+    type: string
+  - JSONPath: .spec.classRef.name
+    name: CLUSTER-CLASS
+    type: string
+  - JSONPath: .spec.location
+    name: LOCATION
+    type: string
+  - JSONPath: .spec.reclaimPolicy
+    name: RECLAIM-POLICY
+    type: string
+  - JSONPath: .metadata.creationTimestamp
+    name: AGE
+    type: date
   group: compute.azure.crossplane.io
   names:
     kind: AKSCluster

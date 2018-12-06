@@ -6,6 +6,19 @@ metadata:
     controller-tools.k8s.io: "1.0"
   name: cloudsqlinstances.database.gcp.crossplane.io
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .status.state
+    name: STATUS
+    type: string
+  - JSONPath: .spec.classRef.name
+    name: CLASS
+    type: string
+  - JSONPath: .spec.databaseVersion
+    name: VERSION
+    type: string
+  - JSONPath: .metadata.creationTimestamp
+    name: AGE
+    type: date
   group: database.gcp.crossplane.io
   names:
     kind: CloudsqlInstance

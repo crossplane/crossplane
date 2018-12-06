@@ -48,6 +48,10 @@ type ResourceList map[ResourceName]resource.Quantity
 
 // ResourceClass is the Schema for the instances API
 // +k8s:openapi-gen=true
+// +kubebuilder:printcolumn:name="PROVISIONER",type="string",JSONPath=".provisioner"
+// +kubebuilder:printcolumn:name="PROVIDER-REF",type="string",JSONPath=".providerRef.name"
+// +kubebuilder:printcolumn:name="RECLAIM-POLICY",type="string",JSONPath=".reclaimPolicy"
+// +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 type ResourceClass struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

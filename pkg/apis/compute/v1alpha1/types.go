@@ -52,6 +52,11 @@ type KubernetesClusterStatus struct {
 
 // KubernetesCluster is the Schema for the instances API
 // +k8s:openapi-gen=true
+// +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.bindingPhase"
+// +kubebuilder:printcolumn:name="CLASS",type="string",JSONPath=".spec.classReference.name"
+// +kubebuilder:printcolumn:name="CLUSTER-CLASS",type="string",JSONPath=".spec.classReference.name"
+// +kubebuilder:printcolumn:name="CLUSTER-REF",type="string",JSONPath=".spec.resourceName.name"
+// +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 type KubernetesCluster struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -132,6 +137,11 @@ type WorkloadStatus struct {
 
 // Workload is the Schema for the instances API
 // +k8s:openapi-gen=true
+// +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.state"
+// +kubebuilder:printcolumn:name="CLUSTER",type="string",JSONPath=".spec.targetCluster.name"
+// +kubebuilder:printcolumn:name="NAMESPACE",type="string",JSONPath=".spec.targetNamespace"
+// +kubebuilder:printcolumn:name="DEPLOYMENT",type="string",JSONPath=".spec.targetDeployment.metadata.name"
+// +kubebuilder:printcolumn:name="SERVICE-EXTERNAL-IP",type="string",JSONPath=".status.service.loadBalancer.ingress[0].ip"
 type Workload struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
