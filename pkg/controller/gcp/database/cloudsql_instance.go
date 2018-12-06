@@ -130,6 +130,7 @@ func NewReconcilerOptions() ReconcilerOptions {
 // Reconcile reads that state of the cluster for a CloudsqlInstance object and makes changes based on the state read
 // and what is in the CloudsqlInstance.Spec
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+	log.Printf("reconciling %s: %v", databasev1alpha1.CloudsqlInstanceKindAPIVersion, request)
 	instance := &databasev1alpha1.CloudsqlInstance{}
 	var cloudSQLInstance *sqladmin.DatabaseInstance
 

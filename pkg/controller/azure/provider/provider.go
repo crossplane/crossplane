@@ -18,6 +18,7 @@ package provider
 
 import (
 	"context"
+	"log"
 
 	"github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
 	azureclient "github.com/crossplaneio/crossplane/pkg/clients/azure"
@@ -104,6 +105,7 @@ func (r *Reconciler) _validate(client *azureclient.Client) error {
 // Reconcile reads that state of the cluster for a Provider object and makes changes based on the state read
 // and what is in the Provider.Spec
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+	log.Printf("reconciling %s: %v", v1alpha1.ProviderKindAPIVersion, request)
 	ctx := context.TODO()
 
 	// Fetch the Provider instance

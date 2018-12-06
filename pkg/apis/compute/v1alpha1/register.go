@@ -30,11 +30,13 @@ import (
 )
 
 const (
-	Group                  = "compute.crossplane.io"
-	Version                = "v1alpha1"
-	APIVersion             = Group + "/" + Version
-	KubernetesInstanceKind = "kubernetesclusters"
-	WorkloadKind           = "workloads"
+	Group                            = "compute.crossplane.io"
+	Version                          = "v1alpha1"
+	APIVersion                       = Group + "/" + Version
+	KubernetesInstanceKind           = "kubernetescluster"
+	KubernetesInstanceKindAPIVersion = KubernetesInstanceKind + "." + APIVersion
+	WorkloadKind                     = "workload"
+	WorkloadKindAPIVersion           = WorkloadKind + "." + APIVersion
 )
 
 var (

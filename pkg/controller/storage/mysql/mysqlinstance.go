@@ -19,6 +19,7 @@ package mysql
 import (
 	"context"
 	"fmt"
+	"log"
 
 	awsdatabasev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/database/v1alpha1"
 	azuredbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/database/v1alpha1"
@@ -234,9 +235,10 @@ func (r *Reconciler) _bind(instance *mysqlv1alpha1.MySQLInstance) (reconcile.Res
 	instance.Status.SetBound()
 
 	// update conditions
-	instance.Status.UnsetAllConditions()
-	instance.Status.SetCondition(corev1alpha1.NewCondition(corev1alpha1.Ready, "", ""))
-
+	if !instance.Status.IsReady() {
+		instance.Status.UnsetAllConditions()
+		instance.Status.SetReady()
+	}
 	return result, r.Update(ctx, instance)
 }
 
@@ -262,7 +264,7 @@ func (r *Reconciler) _delete(instance *mysqlv1alpha1.MySQLInstance) (reconcile.R
 
 	// update instance status and remove finalizer
 	instance.Status.UnsetAllConditions()
-	instance.Status.SetCondition(corev1alpha1.NewCondition(corev1alpha1.Deleting, "", ""))
+	instance.Status.SetDeleting()
 	util.RemoveFinalizer(&instance.ObjectMeta, finalizer)
 	return reconcile.Result{}, r.Update(ctx, instance)
 
@@ -279,6 +281,7 @@ func namespaceNameFromObjectRef(or *v1.ObjectReference) types.NamespacedName {
 // Reconcile reads that state of the cluster for a Instance object and makes changes based on the state read
 // and what is in the Instance.Spec
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+	log.Printf("reconciling %s: %v", mysqlv1alpha1.MySQLInstanceKindAPIVersion, request)
 	// fetch the CRD instance
 	instance := &mysqlv1alpha1.MySQLInstance{}
 

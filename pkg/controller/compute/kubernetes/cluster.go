@@ -19,6 +19,7 @@ package kubernetes
 import (
 	"context"
 	"fmt"
+	"log"
 
 	awscomputev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/compute/v1alpha1"
 	azurecomputev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/compute/v1alpha1"
@@ -232,8 +233,10 @@ func (r *Reconciler) _bind(instance *computev1alpha1.KubernetesCluster) (reconci
 	instance.Status.SetBound()
 	instance.Status.CredentialsSecretRef = corev1.LocalObjectReference{Name: secret.Name}
 	// update conditions
-	instance.Status.UnsetAllConditions()
-	instance.Status.SetCondition(corev1alpha1.NewCondition(corev1alpha1.Ready, "", ""))
+	if !instance.Status.IsReady() {
+		instance.Status.UnsetAllConditions()
+		instance.Status.SetReady()
+	}
 
 	return result, r.Update(ctx, instance)
 }
@@ -259,7 +262,7 @@ func (r *Reconciler) _delete(instance *computev1alpha1.KubernetesCluster) (recon
 
 	// update instance status and remove finalizer
 	instance.Status.UnsetAllConditions()
-	instance.Status.SetCondition(corev1alpha1.NewCondition(corev1alpha1.Deleting, "", ""))
+	instance.Status.SetDeleting()
 	util.RemoveFinalizer(&instance.ObjectMeta, finalizer)
 	return reconcile.Result{}, r.Update(ctx, instance)
 
@@ -276,6 +279,7 @@ func namespaceNameFromObjectRef(or *v1.ObjectReference) types.NamespacedName {
 // Reconcile reads that state of the cluster for a Instance object and makes changes based on the state read
 // and what is in the Instance.Spec
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+	log.Printf("reconciling %s: %v", computev1alpha1.KubernetesInstanceKindAPIVersion, request)
 	// fetch the CRD instance
 	instance := &computev1alpha1.KubernetesCluster{}
 

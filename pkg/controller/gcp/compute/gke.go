@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"log"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	gcpcomputev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/compute/v1alpha1"
@@ -240,6 +241,7 @@ func (r *Reconciler) _delete(instance *gcpcomputev1alpha1.GKECluster, client gke
 // Reconcile reads that state of the cluster for a Provider object and makes changes based on the state read
 // and what is in the Provider.Spec
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+	log.Printf("reconciling %s: %v", gcpcomputev1alpha1.GKEClusterKindAPIVersion, request)
 	// Fetch the Provider instance
 	instance := &gcpcomputev1alpha1.GKECluster{}
 	err := r.Get(ctx, request.NamespacedName, instance)
