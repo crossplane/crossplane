@@ -25,8 +25,8 @@ Git even has a -s command line option to append this automatically to your
 commit message:
 
 ```
+git commit -s -m 'This is my commit message'
 ```
-$ git commit -s -m 'This is my commit message'
 
 If you have already made a commit and forgot to include the sign-off, you can amend your last commit
 to add the sign-off with the following command, which can then be force pushed.
@@ -88,10 +88,10 @@ questions: what changed and why. The subject line should feature the what and
 the body of the commit should describe the why.
 
 ```
-aws: add support for replication to RDS
+aws: add support for RDS controller
 
-this commit enables fail-over logic for RDS, across multiple zones. it
-enables setting up replication between databases across zones.
+this commit enables controllers and apis for RDS. It
+enables provisioning a RDS database.
 ```
 
 The format can be described more formally as follows:
@@ -166,7 +166,7 @@ In addition both groups contain types with the same name: `Instance`
 ### Creating New Resource
 There are several different ways you can approach the creation of the new resources:
 #### Manual
-Good ol' copy & paste of existing resource for both apis and controller (if new controller is needed) and update to tailor your needs.
+Good ol' copy & paste of existing resource for both apis and controller (if new controller is needed for your resource) and update the copied code to tailor your needs.
 
 #### Kubebuilder With New Project
 Create and Initialize a new (temporary) kubebuilder project and create new resources: apis and controller(s), then copy them into Crossplane project following the established project organization.
