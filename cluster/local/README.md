@@ -6,7 +6,7 @@ quickly spin up a Kubernetes cluster.The Local framework is designed to install 
 
 ## Requirements
 1. Docker version => 1.2 && < 17.0
-2. Ubuntu 16 (the framework has only been tested on this version)
+2. Ubuntu 16, Fedora 29 (the framework has only been tested on these versions of linux distributions)
 3. Kubernetes with kubectl configured
 4. Crossplane
 
@@ -62,12 +62,17 @@ cluster/local/minikube.sh helm-install
 #### 4. Interact with Crossplane
 Use `kubectl` to create and/or delete external resources CRD's in your Minikube cluster
 
-#### 5. Uninstall Crossplane
+#### 5. Run tests locally
+```
+make test
+```
+
+#### 6. Uninstall Crossplane
 ```
 cluster/local/minikube.sh helm-delete
 ```  
 
-#### 6. Stop Kubernetes
+#### 7. Stop Kubernetes
 ```
 cluster/local/minikube.sh down
 ```
