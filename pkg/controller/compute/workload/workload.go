@@ -274,8 +274,7 @@ func (r *Reconciler) _delete(instance *computev1alpha1.Workload, client kubernet
 	// delete resources secrets
 	for _, resource := range instance.Spec.Resources {
 		secretName := util.IfEmptyString(resource.SecretName, resource.Name)
-		err = client.CoreV1().Secrets(ns).Delete(secretName, &metav1.DeleteOptions{})
-		if err != nil {
+		if err := client.CoreV1().Secrets(ns).Delete(secretName, &metav1.DeleteOptions{}); err != nil && !errors.IsNotFound(err) {
 			return r.fail(instance, errorDeleting, err.Error())
 		}
 	}
