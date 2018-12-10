@@ -271,18 +271,18 @@ func (r *Reconciler) _delete(instance *computev1alpha1.Workload, client kubernet
 		return r.fail(instance, errorDeleting, err.Error())
 	}
 
+	// delete deployment
+	err = client.AppsV1().Deployments(ns).Delete(instance.Spec.TargetDeployment.Name, &metav1.DeleteOptions{})
+	if err != nil && !errors.IsNotFound(err) {
+		return r.fail(instance, errorDeleting, err.Error())
+	}
+
 	// delete resources secrets
 	for _, resource := range instance.Spec.Resources {
 		secretName := util.IfEmptyString(resource.SecretName, resource.Name)
 		if err := client.CoreV1().Secrets(ns).Delete(secretName, &metav1.DeleteOptions{}); err != nil && !errors.IsNotFound(err) {
 			return r.fail(instance, errorDeleting, err.Error())
 		}
-	}
-
-	// delete deployment
-	err = client.AppsV1().Deployments(ns).Delete(instance.Spec.TargetDeployment.Name, &metav1.DeleteOptions{})
-	if err != nil && !errors.IsNotFound(err) {
-		return r.fail(instance, errorDeleting, err.Error())
 	}
 
 	instance.Status.SetCondition(corev1alpha1.NewCondition(corev1alpha1.Deleting, "", ""))
