@@ -19,20 +19,18 @@ package util
 import (
 	"fmt"
 
-	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/client-go/kubernetes"
-
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
+	"k8s.io/client-go/kubernetes"
 )
 
 const (
 	// https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-	maxNameLength          = 253
-	randomLength           = 5
-	maxGeneratedNameLength = maxNameLength - randomLength - 1
+	maxNameLength = 253
+	randomLength  = 5
 )
 
 // GenerateName returns the given base name plus a random suffix of five alphanumerics and a hyphen separator.
@@ -44,8 +42,15 @@ const (
 // e.g., GenerateName("foo...ververylongstringof253chars") would return value similar to:
 //   "foo...ververylongstringof25-x8y9z"
 func GenerateName(base string) string {
-	if len(base) > maxGeneratedNameLength {
-		base = base[:maxGeneratedNameLength]
+	return GenerateNameMaxLength(base, maxNameLength)
+}
+
+// GenerateNameMaxLength returns the given base name with a dash and random 5 character suffix.
+// basename will be trimmed as necessary to meet the  limits of maxLength.
+func GenerateNameMaxLength(base string, maxLength int) string {
+	baseMaxLength := maxLength - randomLength - 1
+	if len(base) > baseMaxLength {
+		base = base[:baseMaxLength]
 	}
 	return fmt.Sprintf("%s-%s", base, rand.String(randomLength))
 }
