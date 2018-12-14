@@ -24,6 +24,10 @@ spec:
           properties:
             classReference:
               type: object
+            connectionSecretNameOverride:
+              maxLength: 255
+              minLength: 1
+              type: string
             localPermission:
               enum:
               - Read

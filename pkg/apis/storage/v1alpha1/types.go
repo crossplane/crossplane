@@ -116,6 +116,10 @@ type BucketSpec struct {
 	// bucket service account that is available in a secret after provisioning.
 	// +kubebuilder:validation:Enum=Read,Write,ReadWrite
 	LocalPermission *LocalPermissionType `json:"localPermission,omitempty"`
+
+	// +kubebuilder:validation:MaxLength=255
+	// +kubebuilder:validation:MinLength=1
+	ConnectionSecretNameOverride string `json:"connectionSecretNameOverride,omitempty"`
 }
 
 // BucketClaimStatus

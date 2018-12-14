@@ -34,7 +34,7 @@ const (
 	Version                = "v1alpha1"
 	APIVersion             = Group + "/" + Version
 	S3BucketKind           = "S3Bucket"
-	S3BucketKindAPIVersion = S3BucketKind + "." + APIVersion
+	S3BucketKindAPIVersion = "s3bucket" + "." + APIVersion
 )
 
 var (

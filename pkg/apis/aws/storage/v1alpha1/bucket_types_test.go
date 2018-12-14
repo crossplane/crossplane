@@ -117,11 +117,6 @@ func TestNewS3BucketSpec(t *testing.T) {
 	exp.Versioning = trueVal
 	g.Expect(NewS3BucketSpec(m)).To(Equal(exp))
 
-	val = "test-secret-name"
-	m["connectionSecretNameOverride"] = val
-	exp.ConnectionSecretNameOverride = val
-	g.Expect(NewS3BucketSpec(m)).To(Equal(exp))
-
 	acl := s3.BucketCannedACLAuthenticatedRead
 	exp.CannedACL = &acl
 	m["cannedACL"] = string(s3.BucketCannedACLAuthenticatedRead)

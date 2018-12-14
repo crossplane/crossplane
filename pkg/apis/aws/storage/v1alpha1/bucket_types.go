@@ -96,11 +96,6 @@ func NewS3BucketSpec(properties map[string]string) *S3BucketSpec {
 		}
 	}
 
-	val, ok = properties["connectionSecretNameOverride"]
-	if ok {
-		spec.ConnectionSecretNameOverride = val
-	}
-
 	val, ok = properties["region"]
 	if ok {
 		spec.Region = val

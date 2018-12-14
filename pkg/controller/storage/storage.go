@@ -17,11 +17,13 @@ limitations under the License.
 package storage
 
 import (
+	"github.com/crossplaneio/crossplane/pkg/controller/storage/bucket"
 	"github.com/crossplaneio/crossplane/pkg/controller/storage/mysql"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
 func init() {
+	AddToManagerFuncs = append(AddToManagerFuncs, bucket.Add)
 	AddToManagerFuncs = append(AddToManagerFuncs, mysql.Add)
 }
 
