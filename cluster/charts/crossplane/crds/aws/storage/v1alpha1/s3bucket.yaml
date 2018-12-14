@@ -23,25 +23,56 @@ spec:
         spec:
           properties:
             cannedACL:
+              enum:
+              - private
+              - public-read
+              - public-read-write
+              - authenticated-read
+              - log-delivery-write
+              - aws-exec-read
               type: string
+            claimRef:
+              type: object
+            classRef:
+              type: object
             connectionSecretNameOverride:
+              maxLength: 255
+              minLength: 1
+              type: string
+            localPermission:
+              enum:
+              - Read
+              - Write
+              - ReadWrite
               type: string
             name:
+              maxLength: 63
+              minLength: 3
               type: string
             providerRef:
               type: object
+            reclaimPolicy:
+              type: string
             region:
               type: string
             versioning:
               type: boolean
           required:
-          - versioning
+          - region
+          - localPermission
           - providerRef
           type: object
         status:
           properties:
             connectionSecretRef:
               type: object
+            iamUsername:
+              type: string
+            lastLocalPermission:
+              type: string
+            lastUserPolicyVersion:
+              format: int64
+              type: integer
             message:
               type: string
             providerID:

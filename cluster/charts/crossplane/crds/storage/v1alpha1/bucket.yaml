@@ -24,13 +24,22 @@ spec:
           properties:
             classReference:
               type: object
-            localPermissions:
-              items:
-                type: string
-              type: array
+            localPermission:
+              enum:
+              - Read
+              - Write
+              - ReadWrite
+              type: string
             name:
+              maxLength: 63
+              minLength: 3
               type: string
             predefinedACL:
+              enum:
+              - Private
+              - PublicRead
+              - PublicReadWrite
+              - AuthenticatedRead
               type: string
             resourceName:
               type: object
