@@ -128,12 +128,9 @@ func (c *ConditionedStatus) UnsetCondition(conditionType ConditionType) {
 
 // UnsetAllConditions set conditions status to false on all conditions
 func (c *ConditionedStatus) UnsetAllConditions() {
-	var newConditions []Condition
-	for _, c := range c.Conditions {
-		c.Status = corev1.ConditionFalse
-		newConditions = append(newConditions, c)
+	for i := range c.Conditions {
+		c.Conditions[i].Status = corev1.ConditionFalse
 	}
-	c.Conditions = newConditions
 }
 
 // RemoveCondition removes the condition with the provided type from the credentials controller status.
