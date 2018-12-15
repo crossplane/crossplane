@@ -17,17 +17,49 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"log"
 	"testing"
 
+	"github.com/crossplaneio/crossplane/pkg/test"
 	"github.com/onsi/gomega"
 	"golang.org/x/net/context"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+const (
+	namespace = "default"
+	name      = "test-instance"
+)
+
+var (
+	ctx = context.TODO()
+	cfg *rest.Config
+	c   client.Client
+)
+
+func TestMain(m *testing.M) {
+	err := SchemeBuilder.AddToScheme(scheme.Scheme)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	t := test.NewTestEnv(namespace, test.CRDs())
+	cfg = t.Start()
+
+	if c, err = client.New(cfg, client.Options{Scheme: scheme.Scheme}); err != nil {
+		log.Fatal(err)
+	}
+
+	t.StopAndExit(m.Run())
+}
+
 func TestStorageS3Bucket(t *testing.T) {
-	key := types.NamespacedName{Name: "foo", Namespace: "default"}
-	created := &S3Bucket{ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "default"}}
+	key := types.NamespacedName{Name: name, Namespace: namespace}
+	created := &S3Bucket{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace}}
 	g := gomega.NewGomegaWithT(t)
 
 	// Test Create
