@@ -52,14 +52,18 @@ const (
 	EKSRegionUSEast2 EKSRegion = "us-east-2"
 	// EKSRegionEUWest1 - eu-west-1 (Ireland) region for eks cluster
 	EKSRegionEUWest1 EKSRegion = "eu-west-1"
+	// EKSRegionEUNorth - EU (Stockholm) region for eks cluster
+	EKSRegionEUNorth1 EKSRegion = "eu-north-1"
 )
 
 var (
+	// TODO: this is 1.11 k8s amis
 	workerNodeRegionAMI = map[EKSRegion]string{
-		EKSRegionUSWest2: "ami-0f54a2f7d2e9c88b3",
-		EKSRegionUSEast1: "ami-0a0b913ef3249b655",
-		EKSRegionUSEast2: "ami-0958a76db2d150238",
-		EKSRegionEUWest1: "ami-00c3b2d35bddd4f5c",
+		EKSRegionUSWest2: "ami-094fa4044a2a3cf52",
+		EKSRegionUSEast1: "ami-0b4eb1d8782fc3aea",
+		EKSRegionUSEast2: "ami-053cbe66e0033ebcf",
+		EKSRegionEUWest1: "ami-0a9006fb385703b54",
+		EKSRegionEUNorth1: "ami-082e6cf1c07e60241",
 	}
 )
 
@@ -69,7 +73,7 @@ type EKSClusterSpec struct {
 	// https://docs.aws.amazon.com/eks/latest/userguide/getting-started.html
 
 	// Region for EKS Cluster
-	// +kubebuilder:validation:Enum=us-west-2,us-east-1,eu-west-1
+	// +kubebuilder:validation:Enum=us-west-2,us-east-1,us-east-2,eu-west-1,eu-north-1
 	Region EKSRegion `json:"region"`
 
 	// RoleARN --role-arn
@@ -110,6 +114,7 @@ type EKSClusterSpec struct {
 	// The desired Kubernetes version for your cluster. If you do not spec-
 	// ify a value here, the latest version  available  in  Amazon  EKS  is
 	// used.
+	// +kubebuilder:validation:Enum=1.10,1.11
 	ClusterVersion string `json:"clusterVersion,omitempty"`
 
 	// CLIInput --cli-input-json  (string) Performs service operation based on the JSON
@@ -127,8 +132,8 @@ type EKSClusterSpec struct {
 	// the command inputs and returns a sample output JSON for that command.
 	GenerateCLISkeleton string `json:"generateCLISkeleton,omitempty"`
 
-	// WorkerNodes configuration for cloudformation
-	WorkerNodes WorkerNodesSpec `json:"workerNodes"`
+	// NodePools reference to node pools that are attached to this cluster
+	NodePools []corev1.ObjectReference `json:"nodePools"`
 
 	// ConnectionSecretNameOverride set this override the generated name of Status.ConnectionSecretRef.Name
 	ConnectionSecretNameOverride string `json:"connectionSecretNameOverride,omitempty"`
@@ -183,8 +188,11 @@ type MapUser struct {
 	Groups   []string `json:"groups"`
 }
 
-//WorkerNodesSpec - Worker node spec used to define cloudformation template that provisions workers for cluster
-type WorkerNodesSpec struct {
+//EKSNodePoolSpec - Worker node spec used to define cloudformation template that provisions workers for cluster
+type EKSNodePoolSpec struct {
+	// ClusterRef reference to kubernetes master
+	ClusterRef corev1.LocalObjectReference `json:"clusterRef"`
+
 	// KeyName The EC2 Key Pair to allow SSH access to the instances
 	KeyName string `json:"keyName"`
 
@@ -210,6 +218,7 @@ type WorkerNodesSpec struct {
 
 	// BootstrapArguments Arguments to pass to the bootstrap script. See files/bootstrap.sh in https://github.com/awslabs/amazon-eks-ami
 	// Default: ""
+	// TODO: --kubelet-extra-args '--node-labels=spotfleet=true --register-with-taints=spotInstance=true:PreferNoSchedule'
 	BootstrapArguments string `json:"bootstrapArguments,omitempty"`
 
 	// NodeGroupName Unique identifier for the Node Group.
@@ -218,6 +227,31 @@ type WorkerNodesSpec struct {
 	// ClusterControlPlaneSecurityGroup The security group of the cluster control plane.
 	ClusterControlPlaneSecurityGroup string `json:"clusterControlPlaneSecurityGroup,omitempty"`
 }
+
+// EKSClusterStatus schema of the status of eks cluster
+type EKSNodePoolStatus struct {
+	corev1alpha1.ConditionedStatus
+	corev1alpha1.BindingStatusPhase
+	// State of the NodePool (see status constants above)
+	State string `json:"state,omitempty"`
+	// CloudFormationStackID Stack-id
+	CloudFormationStackID string `json:"cloudformationStackId,omitempty"`
+}
+
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// EKSNodePool is the Schema for the resources API
+// +k8s:openapi-gen=true
+// +groupName=compute.aws
+type EKSNodePool struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec   EKSNodePoolSpec   `json:"spec,omitempty"`
+	Status EKSNodePoolStatus `json:"status,omitempty"`
+}
+
 
 // EKSClusterStatus schema of the status of eks cluster
 type EKSClusterStatus struct {
