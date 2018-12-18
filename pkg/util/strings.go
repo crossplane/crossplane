@@ -23,3 +23,22 @@ import (
 func ToLowerRemoveSpaces(input string) string {
 	return strings.ToLower(strings.Replace(input, " ", "", -1))
 }
+
+// IfEmptyString test input string and if empty, i.e = "", return a replacement string
+func IfEmptyString(s, r string) string {
+	if s == "" {
+		return r
+	}
+	return s
+}
+
+func String(s string) *string {
+	return &s
+}
+
+func StringValue(s *string) string {
+	if s != nil {
+		return *s
+	}
+	return ""
+}

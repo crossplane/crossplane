@@ -27,8 +27,11 @@ import (
 )
 
 const (
-	// ClusterProvisioningStateSucceeded is the state for a cluster that has succeeded provisioning
-	ClusterProvisioningStateSucceeded = "Succeeded"
+	// ClusterStateProvisioning is in the provisioning state
+	ClusterStateProvisioning = "Provisioning"
+	// ClusterStateSucceeded is the state for a cluster that has succeeded provisioning
+	ClusterStateSucceeded = "Succeeded"
+
 	// DefaultReclaimPolicy is the default reclaim policy to use
 	DefaultReclaimPolicy = corev1alpha1.ReclaimRetain
 	// DefaultNodeCount is the default node count for a cluster
@@ -214,7 +217,7 @@ func (a *AKSCluster) State() string {
 
 // IsAvailable for usage/binding
 func (a *AKSCluster) IsAvailable() bool {
-	return a.State() == ClusterProvisioningStateSucceeded
+	return a.State() == ClusterStateSucceeded
 }
 
 // IsBound returns if the resource is currently bound

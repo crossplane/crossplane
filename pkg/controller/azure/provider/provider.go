@@ -22,6 +22,7 @@ import (
 
 	"github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
 	azureclient "github.com/crossplaneio/crossplane/pkg/clients/azure"
+	"github.com/crossplaneio/crossplane/pkg/util"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -59,7 +60,7 @@ type Reconciler struct {
 	kubeclient kubernetes.Interface
 	recorder   record.EventRecorder
 
-	validate func(*azureclient.Client) error
+	validate func(*azureclient.ClientCredentialsConfig) error
 }
 
 // newReconciler returns a new reconcile.Reconciler
@@ -98,8 +99,8 @@ func (r *Reconciler) fail(instance *v1alpha1.Provider, reason, msg string) (reco
 	return resultRequeue, r.Update(context.TODO(), instance)
 }
 
-func (r *Reconciler) _validate(client *azureclient.Client) error {
-	return azureclient.ValidateClient(client)
+func (r *Reconciler) _validate(config *azureclient.ClientCredentialsConfig) error {
+	return azureclient.ValidateClient(config)
 }
 
 // Reconcile reads that state of the cluster for a Provider object and makes changes based on the state read
@@ -122,7 +123,12 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	}
 
 	// Retrieve azure client from the given provider config
-	azureClient, err := azureclient.NewClient(instance, r.kubeclient)
+	data, err := util.SecretData(r.kubeclient, instance.Namespace, instance.Spec.Secret)
+	if err != nil {
+		return r.fail(instance, errorCreatingClient, err.Error())
+	}
+
+	azureClient, err := azureclient.NewClientCredentialsConfig(data)
 	if err != nil {
 		return r.fail(instance, errorCreatingClient, err.Error())
 	}

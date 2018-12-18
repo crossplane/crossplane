@@ -140,11 +140,3 @@ func LatestDeploymentCondition(conditions []appsv1.DeploymentCondition) appsv1.D
 	}
 	return latest
 }
-
-// IfEmptyString test input string and if empty, i.e = "", return a replacement string
-func IfEmptyString(s, r string) string {
-	if s == "" {
-		return r
-	}
-	return s
-}

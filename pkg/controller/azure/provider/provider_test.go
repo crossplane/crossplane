@@ -64,7 +64,7 @@ var (
 )
 
 func init() {
-	azure.AddToScheme(scheme.Scheme)
+	_ = azure.AddToScheme(scheme.Scheme)
 }
 
 func testSecret(data []byte) *corev1.Secret {
@@ -162,7 +162,7 @@ func TestReconcileValidationPassed(t *testing.T) {
 	r := &Reconciler{
 		Client:     NewFakeClient(tp),
 		kubeclient: NewSimpleClientset(ts),
-		validate: func(*azureclient.Client) error {
+		validate: func(*azureclient.ClientCredentialsConfig) error {
 			return nil
 		},
 	}
@@ -188,7 +188,7 @@ func TestReconcileValidationFailed(t *testing.T) {
 	r := &Reconciler{
 		Client:     NewFakeClient(tp),
 		kubeclient: NewSimpleClientset(ts),
-		validate: func(*azureclient.Client) error {
+		validate: func(*azureclient.ClientCredentialsConfig) error {
 			return fmt.Errorf("test-error")
 		},
 	}

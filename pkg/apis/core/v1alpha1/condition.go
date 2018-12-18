@@ -87,6 +87,16 @@ func (c *ConditionedStatus) IsFailed() bool {
 	return c.IsCondition(Failed)
 }
 
+// IsDeleting
+func (c *ConditionedStatus) IsDeleting() bool {
+	return c.IsCondition(Deleting)
+}
+
+// IsCreating
+func (c *ConditionedStatus) IsCreating() bool {
+	return c.IsCondition(Creating)
+}
+
 // SetCondition adds/replaces the given condition in the credentials controller status.
 func (c *ConditionedStatus) SetCondition(condition Condition) {
 	current := c.Condition(condition.Type)

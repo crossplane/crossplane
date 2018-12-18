@@ -18,11 +18,10 @@
   version = "v0.2.0"
 
 [[projects]]
-  digest = "1:e145de14731610c29ae203b55e4c407340ae91190e8536b2b08b6543f257df0b"
+  digest = "1:825dfbf2b4aadac1dd915922f9d5b60e3ca2cb6bd9d5cfcf67ec384c19cbc4d3"
   name = "github.com/Azure/azure-sdk-for-go"
   packages = [
     "services/containerservice/mgmt/2018-03-31/containerservice",
-    "services/graphrbac/1.6/graphrbac",
     "services/mysql/mgmt/2017-12-01/mysql",
     "services/resources/mgmt/2018-05-01/resources",
     "version",
@@ -1098,13 +1097,10 @@
   analyzer-version = 1
   input-imports = [
     "github.com/Azure/azure-sdk-for-go/services/containerservice/mgmt/2018-03-31/containerservice",
-    "github.com/Azure/azure-sdk-for-go/services/graphrbac/1.6/graphrbac",
     "github.com/Azure/azure-sdk-for-go/services/mysql/mgmt/2017-12-01/mysql",
     "github.com/Azure/azure-sdk-for-go/services/resources/mgmt/2018-05-01/resources",
     "github.com/Azure/go-autorest/autorest",
-    "github.com/Azure/go-autorest/autorest/adal",
     "github.com/Azure/go-autorest/autorest/azure/auth",
-    "github.com/Azure/go-autorest/autorest/date",
     "github.com/Azure/go-autorest/autorest/to",
     "github.com/aws/aws-sdk-go-v2/aws",
     "github.com/aws/aws-sdk-go-v2/aws/awserr",
@@ -1119,7 +1115,6 @@
     "github.com/aws/aws-sdk-go-v2/service/sts",
     "github.com/ghodss/yaml",
     "github.com/go-ini/ini",
-    "github.com/google/uuid",
     "github.com/onsi/gomega",
     "github.com/onsi/gomega/types",
     "golang.org/x/net/context",
