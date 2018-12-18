@@ -21,33 +21,33 @@ import (
 )
 
 type MockIAMClient struct {
-	MockCreateUser            func(username *string) (*iam.AccessKey, error)
-	MockDeleteUser            func(username *string) error
-	MockGetPolicyVersion      func(username *string) (*string, error)
-	MockCreatePolicyAndAttach func(username *string, policyName *string, policyDocument *string) (*string, error)
-	MockUpdatePolicy          func(username *string, policyDocument *string) (*string, error)
-	MockDeletePolicyAndDetach func(username *string, policyName *string) error
+	MockCreateUser            func(username string) (*iam.AccessKey, error)
+	MockDeleteUser            func(username string) error
+	MockGetPolicyVersion      func(username string) (string, error)
+	MockCreatePolicyAndAttach func(username string, policyName string, policyDocument string) (string, error)
+	MockUpdatePolicy          func(username string, policyDocument string) (string, error)
+	MockDeletePolicyAndDetach func(username string, policyName string) error
 }
 
-func (m *MockIAMClient) CreateUser(username *string) (*iam.AccessKey, error) {
+func (m *MockIAMClient) CreateUser(username string) (*iam.AccessKey, error) {
 	return m.MockCreateUser(username)
 }
-func (m *MockIAMClient) DeleteUser(username *string) error {
+func (m *MockIAMClient) DeleteUser(username string) error {
 	return m.MockDeleteUser(username)
 }
 
-func (m *MockIAMClient) GetPolicyVersion(username *string) (*string, error) {
+func (m *MockIAMClient) GetPolicyVersion(username string) (string, error) {
 	return m.MockGetPolicyVersion(username)
 }
 
-func (m *MockIAMClient) CreatePolicyAndAttach(username *string, policyName *string, policyDocument *string) (*string, error) {
+func (m *MockIAMClient) CreatePolicyAndAttach(username string, policyName string, policyDocument string) (string, error) {
 	return m.MockCreatePolicyAndAttach(username, policyName, policyDocument)
 }
 
-func (m *MockIAMClient) UpdatePolicy(username *string, policyDocument *string) (*string, error) {
+func (m *MockIAMClient) UpdatePolicy(username string, policyDocument string) (string, error) {
 	return m.MockUpdatePolicy(username, policyDocument)
 }
 
-func (m *MockIAMClient) DeletePolicyAndDetach(username *string, policyName *string) error {
+func (m *MockIAMClient) DeletePolicyAndDetach(username string, policyName string) error {
 	return m.MockDeletePolicyAndDetach(username, policyName)
 }

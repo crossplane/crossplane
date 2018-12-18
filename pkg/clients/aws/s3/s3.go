@@ -25,17 +25,17 @@ const (
 type Service interface {
 	CreateOrUpdateBucket(spec *v1alpha1.S3BucketSpec) error
 	GetBucketInfo(username string, spec *v1alpha1.S3BucketSpec) (*Bucket, error)
-	CreateUser(username *string, spec *v1alpha1.S3BucketSpec) (*iam.AccessKey, *string, error)
+	CreateUser(username string, spec *v1alpha1.S3BucketSpec) (*iam.AccessKey, string, error)
 	UpdateBucketACL(spec *v1alpha1.S3BucketSpec) error
 	UpdateVersioning(spec *v1alpha1.S3BucketSpec) error
-	UpdatePolicyDocument(username *string, spec *v1alpha1.S3BucketSpec) (*string, error)
-	Delete(bucket *v1alpha1.S3Bucket) error
+	UpdatePolicyDocument(username string, spec *v1alpha1.S3BucketSpec) (string, error)
+	DeleteBucket(bucket *v1alpha1.S3Bucket) error
 }
 
 // Client implements S3 Client
 type Client struct {
 	s3        s3iface.S3API
-	iamClient iamc.Service
+	iamClient iamc.Client
 }
 
 // NewClient creates new S3 Client with provided AWS Configurations/Credentials
@@ -49,21 +49,10 @@ func (c *Client) CreateOrUpdateBucket(spec *v1alpha1.S3BucketSpec) error {
 	_, err := c.s3.CreateBucketRequest(input).Send()
 	if err != nil {
 		if isErrorAlreadyExists(err) {
-			err = c.UpdateBucketACL(spec)
-			if err != nil {
-				return err
-			}
-		} else {
-			return err
+			return c.UpdateBucketACL(spec)
 		}
 	}
-
-	err = c.UpdateVersioning(spec)
-	if err != nil {
-		return fmt.Errorf("could not update versioning, %s", err.Error())
-	}
-
-	return nil
+	return err
 }
 
 // Bucket represents crossplane metadata about the bucket
@@ -80,29 +69,29 @@ func (c *Client) GetBucketInfo(username string, spec *v1alpha1.S3BucketSpec) (*B
 		return nil, err
 	}
 	bucket.Versioning = bucketVersioning.Status == s3.BucketVersioningStatusEnabled
-	policyVersion, err := c.iamClient.GetPolicyVersion(aws.String(username))
+	policyVersion, err := c.iamClient.GetPolicyVersion(username)
 	if err != nil {
 		return nil, err
 	}
-	bucket.UserPolicyVersion = aws.StringValue(policyVersion)
+	bucket.UserPolicyVersion = policyVersion
 
 	return &bucket, err
 }
 
 // CreateUser - Create as user to access bucket per permissions in BucketSpec returing access key and policy version
-func (c *Client) CreateUser(username *string, spec *v1alpha1.S3BucketSpec) (*iam.AccessKey, *string, error) {
+func (c *Client) CreateUser(username string, spec *v1alpha1.S3BucketSpec) (*iam.AccessKey, string, error) {
 	policyDocument, err := newPolicyDocument(spec)
 	if err != nil {
-		return nil, nil, fmt.Errorf("could not update policy, %s", err.Error())
+		return nil, "", fmt.Errorf("could not update policy, %s", err.Error())
 	}
 	accessKeys, err := c.iamClient.CreateUser(username)
 	if err != nil {
-		return nil, nil, fmt.Errorf("could not create user %s", err)
+		return nil, "", fmt.Errorf("could not create user %s", err)
 	}
 
 	currentVersion, err := c.iamClient.CreatePolicyAndAttach(username, username, policyDocument)
 	if err != nil {
-		return nil, nil, fmt.Errorf("could not create policy %s", err)
+		return nil, "", fmt.Errorf("could not create policy %s", err)
 	}
 
 	return accessKeys, currentVersion, nil
@@ -138,20 +127,20 @@ func (c *Client) UpdateVersioning(spec *v1alpha1.S3BucketSpec) error {
 }
 
 // UpdatePolicyDocument based on localPermissions
-func (c *Client) UpdatePolicyDocument(username *string, spec *v1alpha1.S3BucketSpec) (*string, error) {
+func (c *Client) UpdatePolicyDocument(username string, spec *v1alpha1.S3BucketSpec) (string, error) {
 	policyDocument, err := newPolicyDocument(spec)
 	if err != nil {
-		return nil, fmt.Errorf("could not generate policy, %s", err.Error())
+		return "", fmt.Errorf("could not generate policy, %s", err.Error())
 	}
 	currentVersion, err := c.iamClient.UpdatePolicy(username, policyDocument)
 	if err != nil {
-		return nil, fmt.Errorf("could not update policy, %s", err.Error())
+		return "", fmt.Errorf("could not update policy, %s", err.Error())
 	}
 	return currentVersion, nil
 }
 
-// Delete deletes s3 bucket, and related IAM
-func (c *Client) Delete(bucket *v1alpha1.S3Bucket) error {
+// DeleteBucket deletes s3 bucket, and related IAM
+func (c *Client) DeleteBucket(bucket *v1alpha1.S3Bucket) error {
 	input := &s3.DeleteBucketInput{
 		Bucket: &bucket.Spec.Name,
 	}
@@ -160,7 +149,7 @@ func (c *Client) Delete(bucket *v1alpha1.S3Bucket) error {
 		return err
 	}
 
-	if bucket.Status.IAMUsername != nil {
+	if bucket.Status.IAMUsername != "" {
 		err := c.iamClient.DeletePolicyAndDetach(bucket.Status.IAMUsername, bucket.Status.IAMUsername)
 		if err != nil {
 			return err
@@ -201,12 +190,11 @@ func CreateBucketInput(spec *v1alpha1.S3BucketSpec) *s3.CreateBucketInput {
 }
 
 // GenerateBucketUsername - Genereates a username that is within AWS size specifications, and adds a random suffix
-func GenerateBucketUsername(spec *v1alpha1.S3BucketSpec) *string {
-	username := util.GenerateNameMaxLength(fmt.Sprintf(bucketUser, spec.Name), maxIAMUsernameLength)
-	return &username
+func GenerateBucketUsername(spec *v1alpha1.S3BucketSpec) string {
+	return util.GenerateNameMaxLength(fmt.Sprintf(bucketUser, spec.Name), maxIAMUsernameLength)
 }
 
-func newPolicyDocument(spec *v1alpha1.S3BucketSpec) (*string, error) {
+func newPolicyDocument(spec *v1alpha1.S3BucketSpec) (string, error) {
 	bucketARN := fmt.Sprintf(bucketObjectARN, spec.Name)
 	read := iamc.StatementEntry{
 		Sid:    "crossplaneRead",
@@ -234,22 +222,22 @@ func newPolicyDocument(spec *v1alpha1.S3BucketSpec) (*string, error) {
 	}
 
 	if spec.LocalPermission != nil {
-		if *spec.LocalPermission == storage.ReadOnlyPermission {
+		switch *spec.LocalPermission {
+		case storage.ReadOnlyPermission:
 			policy.Statement = append(policy.Statement, read)
-		} else if *spec.LocalPermission == storage.WriteOnlyPermission {
-			policy.Statement = append(policy.Statement, read)
-		} else if *spec.LocalPermission == storage.ReadWritePermission {
+		case storage.WriteOnlyPermission:
+			policy.Statement = append(policy.Statement, write)
+		case storage.ReadWritePermission:
 			policy.Statement = append(policy.Statement, read, write)
-		} else {
-			return nil, fmt.Errorf("unknown permission, %s", *spec.LocalPermission)
+		default:
+			return "", fmt.Errorf("unknown permission, %s", *spec.LocalPermission)
 		}
 	}
 
 	b, err := json.Marshal(&policy)
 	if err != nil {
-		return nil, fmt.Errorf("error marshaling policy, %s", err.Error())
+		return "", fmt.Errorf("error marshaling policy, %s", err.Error())
 	}
 
-	policyString := string(b)
-	return &policyString, nil
+	return string(b), nil
 }

@@ -181,7 +181,7 @@ func (r *Reconciler) _create(bucket *bucketv1alpha1.S3Bucket, client s3.Service)
 	}
 
 	// Set username for iam user
-	if bucket.Status.IAMUsername == nil {
+	if bucket.Status.IAMUsername == "" {
 		bucket.Status.IAMUsername = s3.GenerateBucketUsername(&bucket.Spec)
 	}
 
@@ -192,7 +192,7 @@ func (r *Reconciler) _create(bucket *bucketv1alpha1.S3Bucket, client s3.Service)
 	}
 
 	// Set user policy version in status so we can detect policy drift
-	err = bucket.SetUserPolicyVersion(util.StringValue(currentVersion))
+	err = bucket.SetUserPolicyVersion(currentVersion)
 	if err != nil {
 		return r.fail(bucket, errorCreateResource, err.Error())
 	}
@@ -214,10 +214,10 @@ func (r *Reconciler) _create(bucket *bucketv1alpha1.S3Bucket, client s3.Service)
 }
 
 func (r *Reconciler) _sync(bucket *bucketv1alpha1.S3Bucket, client s3.Service) (reconcile.Result, error) {
-	if bucket.Status.IAMUsername == nil {
+	if bucket.Status.IAMUsername == "" {
 		return r.fail(bucket, errorSyncResource, "username not set, .Status.IAMUsername")
 	}
-	bucketInfo, err := client.GetBucketInfo(util.StringValue(bucket.Status.IAMUsername), &bucket.Spec)
+	bucketInfo, err := client.GetBucketInfo(bucket.Status.IAMUsername, &bucket.Spec)
 	if err != nil {
 		return r.fail(bucket, errorSyncResource, err.Error())
 	}
@@ -245,7 +245,7 @@ func (r *Reconciler) _sync(bucket *bucketv1alpha1.S3Bucket, client s3.Service) (
 		if err != nil {
 			return r.fail(bucket, errorSyncResource, err.Error())
 		}
-		err = bucket.SetUserPolicyVersion(util.StringValue(currentVersion))
+		err = bucket.SetUserPolicyVersion(currentVersion)
 		if err != nil {
 			return r.fail(bucket, errorSyncResource, err.Error())
 		}
@@ -259,7 +259,7 @@ func (r *Reconciler) _sync(bucket *bucketv1alpha1.S3Bucket, client s3.Service) (
 
 func (r *Reconciler) _delete(bucket *bucketv1alpha1.S3Bucket, client s3.Service) (reconcile.Result, error) {
 	if bucket.Spec.ReclaimPolicy == corev1alpha1.ReclaimDelete {
-		if err := client.Delete(bucket); err != nil {
+		if err := client.DeleteBucket(bucket); err != nil {
 			return r.fail(bucket, errorDeleteResource, err.Error())
 		}
 	}
@@ -298,7 +298,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	}
 
 	// Create s3 bucket
-	if bucket.Status.IAMUsername == nil {
+	if bucket.Status.IAMUsername == "" {
 		return r.create(bucket, s3Client)
 	}
 

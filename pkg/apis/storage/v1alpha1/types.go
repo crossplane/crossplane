@@ -162,18 +162,5 @@ func (b *Bucket) OwnerReference() metav1.OwnerReference {
 
 // ObjectReference to this S3Bucket
 func (b *Bucket) ObjectReference() *corev1.ObjectReference {
-	if b.Kind == "" {
-		b.Kind = BucketKind
-	}
-	if b.APIVersion == "" {
-		b.APIVersion = APIVersion
-	}
-	return &corev1.ObjectReference{
-		APIVersion:      b.APIVersion,
-		Kind:            b.Kind,
-		Name:            b.Name,
-		Namespace:       b.Namespace,
-		ResourceVersion: b.ResourceVersion,
-		UID:             b.UID,
-	}
+	return util.ObjectReference(b.ObjectMeta, util.IfEmptyString(b.APIVersion, APIVersion), util.IfEmptyString(b.Kind, BucketKind))
 }

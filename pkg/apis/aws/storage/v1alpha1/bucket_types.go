@@ -66,7 +66,7 @@ type S3BucketStatus struct {
 	Message               string                              `json:"message,omitempty"`
 	ProviderID            string                              `json:"providerID,omitempty"` // the external ID to identify this resource in the cloud provider
 	ConnectionSecretRef   v1.LocalObjectReference             `json:"connectionSecretRef,omitempty"`
-	IAMUsername           *string                             `json:"iamUsername,omitempty"`
+	IAMUsername           string                              `json:"iamUsername,omitempty"`
 	LastUserPolicyVersion int                                 `json:"lastUserPolicyVersion,omitempty"`
 	LastLocalPermission   storagev1alpha1.LocalPermissionType `json:"lastLocalPermission,omitempty"`
 }
@@ -129,20 +129,7 @@ type S3BucketList struct {
 
 // ObjectReference to this S3Bucket
 func (b *S3Bucket) ObjectReference() *v1.ObjectReference {
-	if b.Kind == "" {
-		b.Kind = S3BucketKind
-	}
-	if b.APIVersion == "" {
-		b.APIVersion = APIVersion
-	}
-	return &v1.ObjectReference{
-		APIVersion:      b.APIVersion,
-		Kind:            b.Kind,
-		Name:            b.Name,
-		Namespace:       b.Namespace,
-		ResourceVersion: b.ResourceVersion,
-		UID:             b.UID,
-	}
+	return util.ObjectReference(b.ObjectMeta, util.IfEmptyString(b.APIVersion, APIVersion), util.IfEmptyString(b.Kind, S3BucketKind))
 }
 
 func (b *S3Bucket) SetUserPolicyVersion(policyVersion string) error {
@@ -183,12 +170,6 @@ func (b *S3Bucket) ConnectionSecretName() string {
 
 // OwnerReference to use this instance as an owner
 func (b *S3Bucket) OwnerReference() metav1.OwnerReference {
-	if b.APIVersion == "" {
-		b.APIVersion = APIVersion
-	}
-	if b.Kind == "" {
-		b.Kind = S3BucketKind
-	}
 	return *util.ObjectToOwnerReference(b.ObjectReference())
 }
 
@@ -208,10 +189,10 @@ func (b *S3Bucket) IsBound() bool {
 }
 
 // SetBound
-func (r *S3Bucket) SetBound(state bool) {
+func (b *S3Bucket) SetBound(state bool) {
 	if state {
-		r.Status.Phase = corev1alpha1.BindingStateBound
+		b.Status.Phase = corev1alpha1.BindingStateBound
 	} else {
-		r.Status.Phase = corev1alpha1.BindingStateUnbound
+		b.Status.Phase = corev1alpha1.BindingStateUnbound
 	}
 }

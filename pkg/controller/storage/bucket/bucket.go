@@ -253,7 +253,7 @@ func (r *Reconciler) _delete(instance *bucketv1alpha1.Bucket) (reconcile.Result,
 
 	// TODO: decide how to handle resource binding status update error
 	// - ignore the error for now
-	resourceHandler.setBindStatus(resNName, r.Client, false)
+	_ = resourceHandler.setBindStatus(resNName, r.Client, false)
 
 	// update instance status and remove finalizer
 	instance.Status.UnsetAllConditions()
@@ -293,11 +293,9 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	}
 
 	// Add finalizer
-	if !util.HasFinalizer(&bucket.ObjectMeta, finalizer) {
-		util.AddFinalizer(&bucket.ObjectMeta, finalizer)
-		if err := r.Update(ctx, bucket); err != nil {
-			return resultRequeue, err
-		}
+	util.AddFinalizer(&bucket.ObjectMeta, finalizer)
+	if err := r.Update(ctx, bucket); err != nil {
+		return resultRequeue, err
 	}
 
 	// check if instance reference is set, if not - create new instance

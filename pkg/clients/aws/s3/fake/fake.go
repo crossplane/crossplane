@@ -25,10 +25,10 @@ import (
 type MockS3Client struct {
 	MockCreateOrUpdateBucket func(spec *v1alpha1.S3BucketSpec) error
 	MockGetBucketInfo        func(username string, spec *v1alpha1.S3BucketSpec) (*client.Bucket, error)
-	MockCreateUser           func(username *string, spec *v1alpha1.S3BucketSpec) (*iam.AccessKey, *string, error)
+	MockCreateUser           func(username string, spec *v1alpha1.S3BucketSpec) (*iam.AccessKey, string, error)
 	MockUpdateBucketACL      func(spec *v1alpha1.S3BucketSpec) error
 	MockUpdateVersioning     func(spec *v1alpha1.S3BucketSpec) error
-	MockUpdatePolicyDocument func(username *string, spec *v1alpha1.S3BucketSpec) (*string, error)
+	MockUpdatePolicyDocument func(username string, spec *v1alpha1.S3BucketSpec) (string, error)
 	MockDelete               func(bucket *v1alpha1.S3Bucket) error
 }
 
@@ -41,7 +41,7 @@ func (m *MockS3Client) GetBucketInfo(username string, spec *v1alpha1.S3BucketSpe
 	return m.MockGetBucketInfo(username, spec)
 }
 
-func (m *MockS3Client) CreateUser(username *string, spec *v1alpha1.S3BucketSpec) (*iam.AccessKey, *string, error) {
+func (m *MockS3Client) CreateUser(username string, spec *v1alpha1.S3BucketSpec) (*iam.AccessKey, string, error) {
 	return m.MockCreateUser(username, spec)
 }
 
@@ -53,10 +53,10 @@ func (m *MockS3Client) UpdateVersioning(spec *v1alpha1.S3BucketSpec) error {
 	return m.MockUpdateVersioning(spec)
 }
 
-func (m *MockS3Client) UpdatePolicyDocument(username *string, spec *v1alpha1.S3BucketSpec) (*string, error) {
+func (m *MockS3Client) UpdatePolicyDocument(username string, spec *v1alpha1.S3BucketSpec) (string, error) {
 	return m.MockUpdatePolicyDocument(username, spec)
 }
 
-func (m *MockS3Client) Delete(bucket *v1alpha1.S3Bucket) error {
+func (m *MockS3Client) DeleteBucket(bucket *v1alpha1.S3Bucket) error {
 	return m.MockDelete(bucket)
 }

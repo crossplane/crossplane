@@ -130,11 +130,6 @@ func (in *S3BucketStatus) DeepCopyInto(out *S3BucketStatus) {
 	in.ConditionedStatus.DeepCopyInto(&out.ConditionedStatus)
 	out.BindingStatusPhase = in.BindingStatusPhase
 	out.ConnectionSecretRef = in.ConnectionSecretRef
-	if in.IAMUsername != nil {
-		in, out := &in.IAMUsername, &out.IAMUsername
-		*out = new(string)
-		**out = **in
-	}
 	return
 }
 
