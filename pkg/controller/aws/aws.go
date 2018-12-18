@@ -20,6 +20,7 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/controller/aws/compute"
 	"github.com/crossplaneio/crossplane/pkg/controller/aws/provider"
 	"github.com/crossplaneio/crossplane/pkg/controller/aws/rds"
+	"github.com/crossplaneio/crossplane/pkg/controller/aws/s3"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
@@ -28,6 +29,7 @@ func init() {
 	AddToManagerFuncs = append(AddToManagerFuncs, compute.Add)
 	AddToManagerFuncs = append(AddToManagerFuncs, rds.Add)
 	AddToManagerFuncs = append(AddToManagerFuncs, provider.Add)
+	AddToManagerFuncs = append(AddToManagerFuncs, s3.Add)
 }
 
 // AddToManagerFuncs is a list of functions to add all Controllers to the Manager

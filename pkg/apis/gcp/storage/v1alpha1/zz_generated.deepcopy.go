@@ -20,6 +20,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	v1 "k8s.io/api/core/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -98,6 +99,16 @@ func (in *GCPBucketSpec) DeepCopyInto(out *GCPBucketSpec) {
 		**out = **in
 	}
 	out.ProviderRef = in.ProviderRef
+	if in.ClaimRef != nil {
+		in, out := &in.ClaimRef, &out.ClaimRef
+		*out = new(v1.ObjectReference)
+		**out = **in
+	}
+	if in.ClassRef != nil {
+		in, out := &in.ClassRef, &out.ClassRef
+		*out = new(v1.ObjectReference)
+		**out = **in
+	}
 	return
 }
 

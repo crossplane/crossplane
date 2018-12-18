@@ -20,7 +20,8 @@ package aws
 import (
 	compute "github.com/crossplaneio/crossplane/pkg/apis/aws/compute/v1alpha1"
 	database "github.com/crossplaneio/crossplane/pkg/apis/aws/database/v1alpha1"
-	aws "github.com/crossplaneio/crossplane/pkg/apis/aws/v1alpha1"
+	storage "github.com/crossplaneio/crossplane/pkg/apis/aws/storage/v1alpha1"
+	awsv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -28,7 +29,8 @@ func init() {
 	// Register the types with the Scheme so the components can map objects to GroupVersionKinds and back
 	AddToSchemes = append(AddToSchemes, compute.SchemeBuilder.AddToScheme)
 	AddToSchemes = append(AddToSchemes, database.SchemeBuilder.AddToScheme)
-	AddToSchemes = append(AddToSchemes, aws.SchemeBuilder.AddToScheme)
+	AddToSchemes = append(AddToSchemes, awsv1alpha1.SchemeBuilder.AddToScheme)
+	AddToSchemes = append(AddToSchemes, storage.SchemeBuilder.AddToScheme)
 }
 
 // AddToSchemes may be used to add all resources defined in the project to a Scheme

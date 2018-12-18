@@ -51,10 +51,11 @@
   version = "v11.2.8"
 
 [[projects]]
-  digest = "1:66cf0e5bd38be53c0ff67f9026c10434c765bab6f68f4d858a6a832b700194ad"
+  digest = "1:d78fe64768a72df500d7610b9c03965a019d5dc9077a7df05eb26de63e0ed47a"
   name = "github.com/aws/aws-sdk-go-v2"
   packages = [
     "aws",
+    "aws/arn",
     "aws/awserr",
     "aws/defaults",
     "aws/ec2metadata",
@@ -82,9 +83,12 @@
     "service/cloudformation/cloudformationiface",
     "service/eks",
     "service/eks/eksiface",
+    "service/iam",
+    "service/iam/iamiface",
     "service/rds",
     "service/rds/rdsiface",
     "service/s3",
+    "service/s3/s3iface",
     "service/sts",
   ]
   pruneopts = "UT"
@@ -1107,15 +1111,19 @@
     "github.com/Azure/go-autorest/autorest/date",
     "github.com/Azure/go-autorest/autorest/to",
     "github.com/aws/aws-sdk-go-v2/aws",
+    "github.com/aws/aws-sdk-go-v2/aws/arn",
     "github.com/aws/aws-sdk-go-v2/aws/awserr",
     "github.com/aws/aws-sdk-go-v2/aws/external",
     "github.com/aws/aws-sdk-go-v2/service/cloudformation",
     "github.com/aws/aws-sdk-go-v2/service/cloudformation/cloudformationiface",
     "github.com/aws/aws-sdk-go-v2/service/eks",
     "github.com/aws/aws-sdk-go-v2/service/eks/eksiface",
+    "github.com/aws/aws-sdk-go-v2/service/iam",
+    "github.com/aws/aws-sdk-go-v2/service/iam/iamiface",
     "github.com/aws/aws-sdk-go-v2/service/rds",
     "github.com/aws/aws-sdk-go-v2/service/rds/rdsiface",
     "github.com/aws/aws-sdk-go-v2/service/s3",
+    "github.com/aws/aws-sdk-go-v2/service/s3/s3iface",
     "github.com/aws/aws-sdk-go-v2/service/sts",
     "github.com/ghodss/yaml",
     "github.com/go-ini/ini",

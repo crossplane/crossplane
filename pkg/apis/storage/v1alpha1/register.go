@@ -34,6 +34,7 @@ const (
 	Version           = "v1alpha1"
 	APIVersion        = Group + "/" + Version
 	MySQLInstanceKind = "mysqlinstance"
+	BucketKind        = "bucket"
 )
 
 var (
@@ -45,6 +46,6 @@ var (
 )
 
 func init() {
-	SchemeBuilder.Register(&MySQLInstance{}, &MySQLInstanceList{})
 	SchemeBuilder.Register(&Bucket{}, &BucketList{})
+	SchemeBuilder.Register(&MySQLInstance{}, &MySQLInstanceList{})
 }

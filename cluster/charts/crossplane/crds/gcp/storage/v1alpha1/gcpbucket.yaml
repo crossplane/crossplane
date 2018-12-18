@@ -22,6 +22,10 @@ spec:
           type: object
         spec:
           properties:
+            claimRef:
+              type: object
+            classRef:
+              type: object
             connectionSecretNameOverride:
               type: string
             location:

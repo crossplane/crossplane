@@ -78,6 +78,27 @@ func (m *MySQLInstance) OwnerReference() metav1.OwnerReference {
 	return *util.ObjectToOwnerReference(m.ObjectReference())
 }
 
+// LocalPermissionType - Base type for LocalPermissions
+type LocalPermissionType string
+
+const (
+	// ReadOnlyPermission will grant read objects in a bucket
+	ReadOnlyPermission LocalPermissionType = "Read"
+	// WriteOnlyPermission will grant write/delete objects in a bucket
+	WriteOnlyPermission LocalPermissionType = "Write"
+	// ReadWritePermission LocalPermissionType Grant both read and write permissions
+	ReadWritePermission LocalPermissionType = "ReadWrite"
+)
+
+type PredefinedACL string
+
+const (
+	ACLPrivate           PredefinedACL = "Private"
+	ACLPublicRead        PredefinedACL = "PublicRead"
+	ACLPublicReadWrite   PredefinedACL = "PublicReadWrite"
+	ACLAuthenticatedRead PredefinedACL = "AuthenticatedRead"
+)
+
 // BucketSpec defines the desired state of Bucket
 type BucketSpec struct {
 	ClassRef    *corev1.ObjectReference `json:"classReference,omitempty"`
@@ -85,16 +106,20 @@ type BucketSpec struct {
 	Selector    metav1.LabelSelector    `json:"selector,omitempty"`
 
 	// Bucket properties
+	// +kubebuilder:validation:MaxLength=63
+	// +kubebuilder:validation:MinLength=3
 	Name string `json:"name,omitempty"`
-	// PredefinedACL is one of
-	// one of: private, publicRead, publicReadWrite(*), AuthenticatedRead(*)
-	// * Not available on Azure
-	PredefinedACL string `json:"predefinedACL,omitempty"`
+	// +kubebuilder:validation:Enum=Private,PublicRead,PublicReadWrite,AuthenticatedRead
+	PredefinedACL *PredefinedACL `json:"predefinedACL,omitempty"`
 
-	// LocalPermissions are the permissions granted on the bucket for the provider specific
-	// bucket service account.
-	// one of: read, write
-	LocalPermissions []string `json:"localPermissions,omitempty"`
+	// LocalPermission is the permissions granted on the bucket for the provider specific
+	// bucket service account that is available in a secret after provisioning.
+	// +kubebuilder:validation:Enum=Read,Write,ReadWrite
+	LocalPermission *LocalPermissionType `json:"localPermission,omitempty"`
+
+	// +kubebuilder:validation:MaxLength=255
+	// +kubebuilder:validation:MinLength=1
+	ConnectionSecretNameOverride string `json:"connectionSecretNameOverride,omitempty"`
 }
 
 // BucketClaimStatus
@@ -128,4 +153,14 @@ type BucketList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []Bucket `json:"items"`
+}
+
+// OwnerReference to use this instance as an owner
+func (b *Bucket) OwnerReference() metav1.OwnerReference {
+	return *util.ObjectToOwnerReference(b.ObjectReference())
+}
+
+// ObjectReference to this S3Bucket
+func (b *Bucket) ObjectReference() *corev1.ObjectReference {
+	return util.ObjectReference(b.ObjectMeta, util.IfEmptyString(b.APIVersion, APIVersion), util.IfEmptyString(b.Kind, BucketKind))
 }
