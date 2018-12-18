@@ -1,8 +1,10 @@
+---
 ## WordPress MySQL Database Instance
 apiVersion: storage.crossplane.io/v1alpha1
 kind: MySQLInstance
 metadata:
   name: demo-mysql
+  namespace: default
 spec:
   classReference:
     name: standard-mysql
@@ -13,11 +15,12 @@ spec:
 apiVersion: compute.crossplane.io/v1alpha1
 kind: Workload
 metadata:
-  name: demo-workload
+  name: test-workload
+  namespace: default
 spec:
   resources:
-  - name: demo-mysql
-    secretName: demo-mysql
+    - name: demo-mysql
+      secretName: demo-mysql
   targetCluster:
     name: demo-cluster
     namespace: crossplane-system
@@ -72,4 +75,3 @@ spec:
       selector:
         app: wordpress
       type: LoadBalancer
-
