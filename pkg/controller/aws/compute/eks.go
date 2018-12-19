@@ -20,11 +20,8 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"log"
 	"strings"
-
-	"github.com/ghodss/yaml"
-	"k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	awscomputev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/compute/v1alpha1"
 	awsv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/v1alpha1"
@@ -33,8 +30,11 @@ import (
 	cloudformationclient "github.com/crossplaneio/crossplane/pkg/clients/aws/cloudformation"
 	"github.com/crossplaneio/crossplane/pkg/clients/aws/eks"
 	"github.com/crossplaneio/crossplane/pkg/util"
+	"github.com/ghodss/yaml"
+	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -356,6 +356,7 @@ func (r *Reconciler) _delete(instance *awscomputev1alpha1.EKSCluster, client eks
 // Reconcile reads that state of the cluster for a Provider object and makes changes based on the state read
 // and what is in the Provider.Spec
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+	log.Printf("reconciling %s: %v", awscomputev1alpha1.EKSClusterKindAPIVersion, request)
 	// Fetch the Provider instance
 	instance := &awscomputev1alpha1.EKSCluster{}
 	err := r.Get(ctx, request.NamespacedName, instance)

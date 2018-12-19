@@ -35,7 +35,9 @@ const (
 	// Version is the version of the API group
 	Version = "v1alpha1"
 	// APIVersion is the full version of this API group
-	APIVersion = Group + "/" + Version
+	APIVersion             = Group + "/" + Version
+	ProviderKind           = "provider"
+	ProviderKindAPIVersion = ProviderKind + "." + APIVersion
 )
 
 var (

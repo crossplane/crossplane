@@ -19,6 +19,7 @@ package bucket
 import (
 	"context"
 	"fmt"
+	"log"
 
 	awsbucketv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/storage/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
@@ -274,6 +275,8 @@ func namespaceNameFromObjectRef(or *v1.ObjectReference) types.NamespacedName {
 // Reconcile reads that state of the cluster for a Instance object and makes changes based on the state read
 // and what is in the Instance.Spec
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+	log.Printf("reconciling %s: %v", bucketv1alpha1.BucketKindApiVersion, request)
+
 	// fetch the CRD instance
 	bucket := &bucketv1alpha1.Bucket{}
 
