@@ -86,7 +86,7 @@ type Client interface {
 	Create(string, awscomputev1alpha1.EKSClusterSpec) (*Cluster, error)
 	Get(string) (*Cluster, error)
 	Delete(string) error
-	CreateWorkerNodes(name string, spec awscomputev1alpha1.EKSClusterSpec) (*ClusterWorkers, error)
+	CreateWorkerNodes(name string, spec awscomputev1alpha1.EKSClusterSpec, nodeSpec awscomputev1alpha1.EKSNodePoolSpec) (*ClusterWorkers, error)
 	GetWorkerNodes(stackID string) (*ClusterWorkers, error)
 	DeleteWorkerNodes(stackID string) error
 	ConnectionToken(string) (string, error)
@@ -125,41 +125,38 @@ func (e *eksClient) Create(name string, spec awscomputev1alpha1.EKSClusterSpec) 
 }
 
 // CreateWorkerNodes new EKS cluster workers nodes
-func (e *eksClient) CreateWorkerNodes(name string, spec awscomputev1alpha1.EKSClusterSpec) (*ClusterWorkers, error) {
+func (e *eksClient) CreateWorkerNodes(name string, spec awscomputev1alpha1.EKSClusterSpec, nodeSpec awscomputev1alpha1.EKSNodePoolSpec) (*ClusterWorkers, error) {
 	// Cloud formation create workers
-	nodeImageID := spec.WorkerNodes.NodeImageID
-	if nodeImageID == "" {
-		amiID, err := awscomputev1alpha1.GetRegionAMI(spec.Region)
-		if err != nil {
-			return nil, err
-		}
-		nodeImageID = amiID
-	}
 	subnetIds := strings.Join(spec.SubnetIds, ",")
 	parameters := map[string]string{
-		"ClusterName":                      name,
+		"ClusterName":                      nodeSpec.ClusterName,
 		"VpcId":                            spec.VpcID,
 		"Subnets":                          subnetIds,
-		"KeyName":                          spec.WorkerNodes.KeyName,
-		"NodeImageId":                      nodeImageID,
-		"NodeInstanceType":                 spec.WorkerNodes.NodeInstanceType,
-		"BootstrapArguments":               spec.WorkerNodes.BootstrapArguments,
-		"NodeGroupName":                    spec.WorkerNodes.NodeGroupName,
-		"ClusterControlPlaneSecurityGroup": spec.WorkerNodes.ClusterControlPlaneSecurityGroup,
+		"KeyName":                          nodeSpec.KeyName,
+		"NodeImageId":                      nodeSpec.NodeImageID,
+		"NodeInstanceType":                 nodeSpec.NodeInstanceType,
+		"BootstrapArguments":               nodeSpec.BootstrapArguments,
+		"NodeGroupName":                    nodeSpec.NodeGroupName,
+		"ClusterControlPlaneSecurityGroup": nodeSpec.ClusterControlPlaneSecurityGroup,
 	}
 
-	if spec.WorkerNodes.NodeAutoScalingGroupMinSize != nil {
-		nodeAutoScalingGroupMinSize := strconv.Itoa(*spec.WorkerNodes.NodeAutoScalingGroupMinSize)
+	if nodeSpec.NodeAutoScalingGroupMinSize != nil {
+		nodeAutoScalingGroupMinSize := strconv.Itoa(*nodeSpec.NodeAutoScalingGroupMinSize)
 		parameters["NodeAutoScalingGroupMinSize"] = nodeAutoScalingGroupMinSize
 	}
 
-	if spec.WorkerNodes.NodeAutoScalingGroupMaxSize != nil {
-		nodeAutoScalingGroupMaxSize := strconv.Itoa(*spec.WorkerNodes.NodeAutoScalingGroupMaxSize)
+	if nodeSpec.NodeAutoScalingGroupMaxSize != nil {
+		nodeAutoScalingGroupMaxSize := strconv.Itoa(*nodeSpec.NodeAutoScalingGroupMaxSize)
 		parameters["NodeAutoScalingGroupMaxSize"] = nodeAutoScalingGroupMaxSize
 	}
 
-	if spec.WorkerNodes.NodeVolumeSize != nil {
-		nodeVolumeSize := strconv.Itoa(*spec.WorkerNodes.NodeVolumeSize)
+	if nodeSpec.NodeAutoScalingGroupMaxSize != nil {
+		nodeAutoScalingGroupMaxSize := strconv.Itoa(*nodeSpec.NodeAutoScalingGroupMaxSize)
+		parameters["NodeAutoScalingGroupDesiredCapacity"] = nodeAutoScalingGroupMaxSize
+	}
+
+	if nodeSpec.NodeVolumeSize != nil {
+		nodeVolumeSize := strconv.Itoa(*nodeSpec.NodeVolumeSize)
 		parameters["NodeVolumeSize"] = nodeVolumeSize
 	}
 
@@ -250,7 +247,7 @@ const (
 	// Specifically: https://amazon-eks.s3-us-west-2.amazonaws.com/cloudformation/2018-11-07/amazon-eks-nodegroup.yaml
 	workerCloudFormationTemplate = `---
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Amazon EKS - Node Group - Released 2018-08-30'
+Description: 'Amazon EKS - Node Group'
 
 Parameters:
 
@@ -265,7 +262,7 @@ Parameters:
   NodeInstanceType:
     Description: EC2 instance type for the node instances
     Type: String
-    Default: t2.medium
+    Default: t3.medium
     AllowedValues:
     - t2.small
     - t2.medium
@@ -356,7 +353,12 @@ Parameters:
 
   NodeAutoScalingGroupMaxSize:
     Type: Number
-    Description: Maximum size of Node Group ASG.
+    Description: Maximum size of Node Group ASG. Set to at least 1 greater than NodeAutoScalingGroupDesiredCapacity.
+    Default: 4
+
+  NodeAutoScalingGroupDesiredCapacity:
+    Type: Number
+    Description: Desired capacity of Node Group ASG.
     Default: 3
 
   NodeVolumeSize:
@@ -404,6 +406,7 @@ Metadata:
         Parameters:
           - NodeGroupName
           - NodeAutoScalingGroupMinSize
+          - NodeAutoScalingGroupDesiredCapacity
           - NodeAutoScalingGroupMaxSize
           - NodeInstanceType
           - NodeImageId
@@ -523,7 +526,7 @@ Resources:
   NodeGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
-      DesiredCapacity: !Ref NodeAutoScalingGroupMaxSize
+      DesiredCapacity: !Ref NodeAutoScalingGroupDesiredCapacity
       LaunchConfigurationName: !Ref NodeLaunchConfig
       MinSize: !Ref NodeAutoScalingGroupMinSize
       MaxSize: !Ref NodeAutoScalingGroupMaxSize
@@ -538,8 +541,9 @@ Resources:
         PropagateAtLaunch: 'true'
     UpdatePolicy:
       AutoScalingRollingUpdate:
-        MinInstancesInService: '1'
         MaxBatchSize: '1'
+        MinInstancesInService: !Ref NodeAutoScalingGroupDesiredCapacity
+        PauseTime: 'PT5M'
 
   NodeLaunchConfig:
     Type: AWS::AutoScaling::LaunchConfiguration
@@ -575,5 +579,6 @@ Outputs:
   NodeSecurityGroup:
     Description: The security group for the node group
     Value: !Ref NodeSecurityGroup
+
 `
 )

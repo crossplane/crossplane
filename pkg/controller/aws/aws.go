@@ -31,6 +31,7 @@ func init() {
 	AddToManagerFuncs = append(AddToManagerFuncs,
 		cache.Add,
 		compute.Add,
+		compute.AddNodePoolReconciler,
 		rds.Add,
 		provider.Add,
 		s3.Add,

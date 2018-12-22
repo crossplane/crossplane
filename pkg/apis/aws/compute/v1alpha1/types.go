@@ -17,7 +17,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -39,32 +38,18 @@ const (
 	// ClusterStatusFailed = "FAILED"
 )
 
+
+type KubernetesVersion string
+
 // EKSRegion represents an EKS enabled AWS region.
 type EKSRegion string
 
 // EKS regions.
 const (
-	// EKSRegionUSWest2 - us-west-2 (Oregon) region for eks cluster
-	EKSRegionUSWest2 EKSRegion = "us-west-2"
-	// EKSRegionUSEast1 - us-east-1 (N. Virginia) region for eks cluster
-	EKSRegionUSEast1 EKSRegion = "us-east-1"
-	// EKSRegionUSEast2 - us-east-2 (Ohio) region for eks worker only
-	EKSRegionUSEast2 EKSRegion = "us-east-2"
-	// EKSRegionEUWest1 - eu-west-1 (Ireland) region for eks cluster
-	EKSRegionEUWest1 EKSRegion = "eu-west-1"
-	// EKSRegionEUNorth - EU (Stockholm) region for eks cluster
-	EKSRegionEUNorth1 EKSRegion = "eu-north-1"
-)
-
-var (
-	// TODO: this is 1.11 k8s amis
-	workerNodeRegionAMI = map[EKSRegion]string{
-		EKSRegionUSWest2: "ami-094fa4044a2a3cf52",
-		EKSRegionUSEast1: "ami-0b4eb1d8782fc3aea",
-		EKSRegionUSEast2: "ami-053cbe66e0033ebcf",
-		EKSRegionEUWest1: "ami-0a9006fb385703b54",
-		EKSRegionEUNorth1: "ami-082e6cf1c07e60241",
-	}
+	defaultNodeAutoScalingGroupMinSize     = 1
+	defaultNodeAutoScalingGroupMaxSize     = 4
+	defaultNodeAutoScalingGroupDesiredSize = 3
+	defaultVolumeSize                      = 20
 )
 
 // EKSClusterSpec specifies the configuration for an EKS cluster.
@@ -73,7 +58,6 @@ type EKSClusterSpec struct {
 	// https://docs.aws.amazon.com/eks/latest/userguide/getting-started.html
 
 	// Region for EKS Cluster
-	// +kubebuilder:validation:Enum=us-west-2,us-east-1,us-east-2,eu-west-1,eu-north-1
 	Region EKSRegion `json:"region"`
 
 	// RoleARN --role-arn
@@ -132,8 +116,8 @@ type EKSClusterSpec struct {
 	// the command inputs and returns a sample output JSON for that command.
 	GenerateCLISkeleton string `json:"generateCLISkeleton,omitempty"`
 
-	// NodePools reference to node pools that are attached to this cluster
-	NodePools []corev1.ObjectReference `json:"nodePools"`
+	// NodePools node pools that are attached to this cluster
+	NodePools []corev1.LocalObjectReference `json:"nodePools"`
 
 	// ConnectionSecretNameOverride set this override the generated name of Status.ConnectionSecretRef.Name
 	ConnectionSecretNameOverride string `json:"connectionSecretNameOverride,omitempty"`
@@ -190,6 +174,12 @@ type MapUser struct {
 
 //EKSNodePoolSpec - Worker node spec used to define cloudformation template that provisions workers for cluster
 type EKSNodePoolSpec struct {
+	// ClusterName is the name of the masterNode
+	ClusterName string `json:"resourceName,omitempty"`
+
+	// Region for EKS Cluster
+	Region EKSRegion `json:"region"`
+
 	// ClusterRef reference to kubernetes master
 	ClusterRef corev1.LocalObjectReference `json:"clusterRef"`
 
@@ -197,8 +187,8 @@ type EKSNodePoolSpec struct {
 	KeyName string `json:"keyName"`
 
 	// NodeImageId The EC2 Key Pair to allow SSH access to the instances
-	// defaults to region standard AMI
-	NodeImageID string `json:"nodeImageId,omitempty"`
+	// Please see https://docs.aws.amazon.com/eks/latest/userguide/eks-optimized-ami.html
+	NodeImageID string `json:"nodeImageId"`
 
 	// NodeInstanceType EC2 instance type for the node instances
 	// +kubebuilder:validation:Enum=t2.small,t2.medium,t2.large,t2.xlarge,t2.2xlarge,t3.nano,t3.micro,t3.small,t3.medium,t3.large,t3.xlarge,t3.2xlarge,m3.medium,m3.large,m3.xlarge,m3.2xlarge,m4.large,m4.xlarge,m4.2xlarge,m4.4xlarge,m4.10xlarge,m5.large,m5.xlarge,m5.2xlarge,m5.4xlarge,m5.12xlarge,m5.24xlarge,c4.large,c4.xlarge,c4.2xlarge,c4.4xlarge,c4.8xlarge,c5.large,c5.xlarge,c5.2xlarge,c5.4xlarge,c5.9xlarge,c5.18xlarge,i3.large,i3.xlarge,i3.2xlarge,i3.4xlarge,i3.8xlarge,i3.16xlarge,r3.xlarge,r3.2xlarge,r3.4xlarge,r3.8xlarge,r4.large,r4.xlarge,r4.2xlarge,r4.4xlarge,r4.8xlarge,r4.16xlarge,x1.16xlarge,x1.32xlarge,p2.xlarge,p2.8xlarge,p2.16xlarge,p3.2xlarge,p3.8xlarge,p3.16xlarge,r5.large,r5.xlarge,r5.2xlarge,r5.4xlarge,r5.12xlarge,r5.24xlarge,r5d.large,r5d.xlarge,r5d.2xlarge,r5d.4xlarge,r5d.12xlarge,r5d.24xlarge,z1d.large,z1d.xlarge,z1d.2xlarge,z1d.3xlarge,z1d.6xlarge,z1d.12xlarge
@@ -209,8 +199,12 @@ type EKSNodePoolSpec struct {
 	NodeAutoScalingGroupMinSize *int `json:"nodeAutoScalingGroupMinSize,omitempty"`
 
 	// NodeAutoScalingGroupMaxSize Maximum size of Node Group ASG.
-	// Default: 3
+	// Default: 4
 	NodeAutoScalingGroupMaxSize *int `json:"nodeAutoScalingGroupMaxSize,omitempty"`
+
+	// NodeAutoScalingGroupDesiredCapacity Desired capacity of Node Group ASG.
+	// Default: 3
+	NodeAutoScalingGroupDesiredCapacity *int `json:"nodeAutoScalingGroupDesiredCapacity,omitempty"`
 
 	// NodeVolumeSize Node volume size in GB
 	// Default: 20
@@ -226,6 +220,105 @@ type EKSNodePoolSpec struct {
 
 	// ClusterControlPlaneSecurityGroup The security group of the cluster control plane.
 	ClusterControlPlaneSecurityGroup string `json:"clusterControlPlaneSecurityGroup,omitempty"`
+
+	// Kubernetes object references
+	ClaimRef    *corev1.ObjectReference     `json:"claimRef,omitempty"`
+	ClassRef    *corev1.ObjectReference     `json:"classRef,omitempty"`
+	ProviderRef corev1.LocalObjectReference `json:"providerRef"`
+
+	// ReclaimPolicy identifies how to handle the cloud resource after the deletion of this type
+	ReclaimPolicy corev1alpha1.ReclaimPolicy `json:"reclaimPolicy,omitempty"`
+}
+
+func (e *EKSNodePoolSpec) ApplyDefaultsIfNotSet() {
+	if e.NodeAutoScalingGroupMinSize == nil {
+		size := defaultNodeAutoScalingGroupMinSize
+		e.NodeAutoScalingGroupMinSize = &size
+	}
+
+	if e.NodeAutoScalingGroupMaxSize == nil {
+		size := defaultNodeAutoScalingGroupMaxSize
+		e.NodeAutoScalingGroupMaxSize = &size
+	}
+
+	if e.NodeAutoScalingGroupDesiredCapacity == nil {
+		size := defaultNodeAutoScalingGroupDesiredSize
+		e.NodeAutoScalingGroupMaxSize = &size
+	}
+
+	if e.NodeVolumeSize == nil {
+		size := defaultVolumeSize
+		e.NodeVolumeSize = &size
+	}
+}
+
+// NewEKSNodePoolSpec from properties map
+func NewEKSNodePoolSpec(properties map[string]string) *EKSNodePoolSpec {
+	spec := &EKSNodePoolSpec{}
+
+	val, ok := properties["clusterRef"]
+	if ok {
+		spec.ClusterRef.Name = val
+	}
+
+	val, ok = properties["keyName"]
+	if ok {
+		spec.KeyName = val
+	}
+
+	val, ok = properties["imageId"]
+	if ok {
+		spec.NodeImageID = val
+	}
+
+	val, ok = properties["instanceType"]
+	if ok {
+		spec.NodeInstanceType = val
+	}
+
+	val, ok = properties["autoScalingGroupMinSize"]
+	if ok {
+		if size, err := strconv.Atoi(val); err == nil {
+			spec.NodeAutoScalingGroupMinSize = &size
+		}
+	}
+
+	val, ok = properties["autoScalingGroupMaxSize"]
+	if ok {
+		if size, err := strconv.Atoi(val); err == nil {
+			spec.NodeAutoScalingGroupMaxSize = &size
+		}
+	}
+
+	val, ok = properties["autoScalingGroupDesiredCapacity"]
+	if ok {
+		if size, err := strconv.Atoi(val); err == nil {
+			spec.NodeAutoScalingGroupDesiredCapacity = &size
+		}
+	}
+
+	val, ok = properties["volumeSize"]
+	if ok {
+		if size, err := strconv.Atoi(val); err == nil {
+			spec.NodeVolumeSize = &size
+		}
+	}
+
+	val, ok = properties["bootstrapArguments"]
+	if ok {
+		spec.BootstrapArguments = val
+	}
+
+	val, ok = properties["groupName"]
+	if ok {
+		spec.NodeGroupName = val
+	}
+	val, ok = properties["clusterControlPlaneSecurityGroup"]
+	if ok {
+		spec.ClusterControlPlaneSecurityGroup = val
+	}
+
+	return spec
 }
 
 // EKSClusterStatus schema of the status of eks cluster
@@ -236,6 +329,9 @@ type EKSNodePoolStatus struct {
 	State string `json:"state,omitempty"`
 	// CloudFormationStackID Stack-id
 	CloudFormationStackID string `json:"cloudformationStackId,omitempty"`
+
+	// NodeInstanceRole - This role must be added to mapRoles aws-auth configmap in cluster.
+	NodeInstanceRoleARN string `json:"NodeInstanceRoleARN,omitempty"`
 }
 
 // +genclient
@@ -252,7 +348,6 @@ type EKSNodePool struct {
 	Status EKSNodePoolStatus `json:"status,omitempty"`
 }
 
-
 // EKSClusterStatus schema of the status of eks cluster
 type EKSClusterStatus struct {
 	corev1alpha1.ConditionedStatus
@@ -264,8 +359,9 @@ type EKSClusterStatus struct {
 	ClusterName string `json:"resourceName,omitempty"`
 	// Endpoint for cluster
 	Endpoint string `json:"endpoint,omitempty"`
-	// CloudFormationStackID Stack-id
-	CloudFormationStackID string `json:"cloudformationStackId,omitempty"`
+
+	//AttachedNodePools map of nodepool names to nodeInstanceARN that must be added in configmap
+	AttachedNodePools map[string]string `json:"attachedNodePools,omitempty"`
 
 	ConnectionSecretRef corev1.LocalObjectReference `json:"connectionSecretRef,omitempty"`
 }
@@ -311,27 +407,7 @@ func NewEKSClusterSpec(properties map[string]string) *EKSClusterSpec {
 		ClusterVersion:   properties["clusterVersion"],
 		SubnetIds:        parseSlice(properties["subnetIds"]),
 		SecurityGroupIds: parseSlice(properties["securityGroupIds"]),
-		WorkerNodes: WorkerNodesSpec{
-			KeyName:                          properties["workerKeyName"],
-			NodeImageID:                      properties["workerNodeImageId"],
-			NodeInstanceType:                 properties["workerNodeInstanceType"],
-			BootstrapArguments:               properties["workerBootstrapArguments"],
-			NodeGroupName:                    properties["workerNodeGroupName"],
-			ClusterControlPlaneSecurityGroup: properties["workerClusterControlPlaneSecurityGroup"],
-		},
 		ConnectionSecretNameOverride: properties["connectionSecretNameOverride"],
-	}
-
-	if size, err := strconv.Atoi(properties["workerNodeAutoScalingGroupMinSize"]); err == nil {
-		spec.WorkerNodes.NodeAutoScalingGroupMinSize = &size
-	}
-
-	if size, err := strconv.Atoi(properties["workerNodeAutoScalingGroupMaxSize"]); err == nil {
-		spec.WorkerNodes.NodeAutoScalingGroupMaxSize = &size
-	}
-
-	if size, err := strconv.Atoi(properties["workerNodeVolumeSize"]); err == nil {
-		spec.WorkerNodes.NodeVolumeSize = &size
 	}
 
 	return spec
@@ -409,12 +485,4 @@ func (e *EKSCluster) IsBound() bool {
 // SetBound specifies whether this cluster is bound to a resource claim.
 func (e *EKSCluster) SetBound(bound bool) {
 	e.Status.SetBound(bound)
-}
-
-// GetRegionAMI returns the default ami id for a given EKS region
-func GetRegionAMI(region EKSRegion) (string, error) {
-	if val, ok := workerNodeRegionAMI[region]; ok {
-		return val, nil
-	}
-	return "", fmt.Errorf("not a valid EKS region, %s", string(region))
 }

@@ -20,10 +20,16 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"strings"
 
+	awscomputev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/compute/v1alpha1"
+	awsv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	awsClient "github.com/crossplaneio/crossplane/pkg/clients/aws"
+	"github.com/crossplaneio/crossplane/pkg/clients/aws/eks"
+	"github.com/crossplaneio/crossplane/pkg/logging"
+	"github.com/crossplaneio/crossplane/pkg/util"
 	"github.com/ghodss/yaml"
-	v1 "k8s.io/api/core/v1"
+	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -38,15 +44,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
-
-	awscomputev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/compute/v1alpha1"
-	awsv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	awsClient "github.com/crossplaneio/crossplane/pkg/clients/aws"
-	cloudformationclient "github.com/crossplaneio/crossplane/pkg/clients/aws/cloudformation"
-	"github.com/crossplaneio/crossplane/pkg/clients/aws/eks"
-	"github.com/crossplaneio/crossplane/pkg/logging"
-	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 const (
@@ -76,7 +73,7 @@ func Add(mgr manager.Manager) error {
 	return add(mgr, newReconciler(mgr))
 }
 
-// Reconciler reconciles a Provider object
+// Reconciler reconciles an EKSCluster object
 type Reconciler struct {
 	client.Client
 	scheme     *runtime.Scheme
@@ -88,7 +85,7 @@ type Reconciler struct {
 	sync    func(*awscomputev1alpha1.EKSCluster, eks.Client) (reconcile.Result, error)
 	delete  func(*awscomputev1alpha1.EKSCluster, eks.Client) (reconcile.Result, error)
 	secret  func(*eks.Cluster, *awscomputev1alpha1.EKSCluster, eks.Client) error
-	awsauth func(*eks.Cluster, *awscomputev1alpha1.EKSCluster, eks.Client, string) error
+	awsauth func(*eks.Cluster, *awscomputev1alpha1.EKSCluster, eks.Client, map[string]string) error
 }
 
 // newReconciler returns a new reconcile.Reconciler
@@ -187,19 +184,19 @@ func (r *Reconciler) _create(instance *awscomputev1alpha1.EKSCluster, client eks
 }
 
 // generateAWSAuthConfigMap generates the configmap for configure auth
-func generateAWSAuthConfigMap(instance *awscomputev1alpha1.EKSCluster, workerARN string) (*v1.ConfigMap, error) {
+func generateAWSAuthConfigMap(instance *awscomputev1alpha1.EKSCluster, clusterNodeARN map[string]string) (*v1.ConfigMap, error) {
 	data := map[string]string{}
-	defaultRole := awscomputev1alpha1.MapRole{
-		RoleARN:  workerARN,
-		Username: "system:node:{{EC2PrivateDNSName}}",
-		Groups:   []string{"system:bootstrappers", "system:nodes"},
+	var roles []awscomputev1alpha1.MapRole
+	for _, arn := range clusterNodeARN {
+		defaultNodeRole := awscomputev1alpha1.MapRole{
+			RoleARN:  arn,
+			Username: "system:node:{{EC2PrivateDNSName}}",
+			Groups:   []string{"system:bootstrappers", "system:nodes"},
+		}
+		roles = append(roles, defaultNodeRole)
 	}
 
 	// Serialize mapRoles
-	roles := make([]awscomputev1alpha1.MapRole, len(instance.Spec.MapRoles))
-	copy(roles, instance.Spec.MapRoles)
-	roles = append(roles, defaultRole)
-
 	rolesMarshalled, err := yaml.Marshal(roles)
 	if err != nil {
 		return nil, err
@@ -230,8 +227,8 @@ func generateAWSAuthConfigMap(instance *awscomputev1alpha1.EKSCluster, workerARN
 }
 
 // _awsauth generates an aws-auth configmap and pushes it to the remote eks cluster to configure auth
-func (r *Reconciler) _awsauth(cluster *eks.Cluster, instance *awscomputev1alpha1.EKSCluster, client eks.Client, workerARN string) error {
-	cm, err := generateAWSAuthConfigMap(instance, workerARN)
+func (r *Reconciler) _awsauth(cluster *eks.Cluster, instance *awscomputev1alpha1.EKSCluster, client eks.Client, workerARNs map[string]string) error {
+	cm, err := generateAWSAuthConfigMap(instance, workerARNs)
 	if err != nil {
 		return err
 	}
@@ -278,35 +275,60 @@ func (r *Reconciler) _sync(instance *awscomputev1alpha1.EKSCluster, client eks.C
 		return r.fail(instance, errorSyncCluster, err.Error())
 	}
 
+	// Wait for EKS master to be ready
 	if cluster.Status != awscomputev1alpha1.ClusterStatusActive {
 		return resultRequeue, nil
 	}
 
-	// Create workers
-	if instance.Status.CloudFormationStackID == "" {
-		clusterWorkers, err := client.CreateWorkerNodes(instance.Status.ClusterName, instance.Spec)
-		if err != nil {
-			return r.fail(instance, errorSyncCluster, err.Error())
+	// Check for new NodePools
+	updatedPoolsList := false
+	visitedNodePools := map[string]bool{}
+	for _, nodePoolRef := range instance.Spec.NodePools {
+		nodePoolName := nodePoolRef.Name
+		_, ok := instance.Status.AttachedNodePools[nodePoolName]
+		if ok {
+			visitedNodePools[nodePoolName] = true
+		} else {
+			nodePool := &awscomputev1alpha1.EKSNodePool{}
+			nodePoolNamespacedName := types.NamespacedName{
+				Namespace: instance.Namespace,
+				Name:      nodePoolName,
+			}
+			err := r.Get(ctx, nodePoolNamespacedName, nodePool)
+			if err != nil {
+				if errors.IsNotFound(err) {
+					//log.Printf("eks node pool not found: %s", nodePoolName)
+					continue
+				}
+				return r.fail(instance, errorSyncCluster, err.Error())
+			}
+
+			if nodePool.Status.IsReady() {
+				instance.Status.AttachedNodePools[nodePoolName] = nodePool.Status.NodeInstanceRoleARN
+				updatedPoolsList = true
+				visitedNodePools[nodePoolName] = true
+			}
 		}
-		instance.Status.CloudFormationStackID = clusterWorkers.WorkerStackID
-		return resultRequeue, r.Update(ctx, instance)
 	}
 
-	clusterWorker, err := client.GetWorkerNodes(instance.Status.CloudFormationStackID)
-	if err != nil {
-		return r.fail(instance, errorSyncCluster, err.Error())
+	// Remove Node pools from status that are no longer in spec
+	for nodeName := range instance.Status.AttachedNodePools {
+		if _, visited := visitedNodePools[nodeName]; !visited {
+			delete(instance.Status.AttachedNodePools, nodeName)
+			updatedPoolsList = true
+		}
 	}
 
-	if !cloudformationclient.IsCompletedState(clusterWorker.WorkersStatus) {
-		return resultRequeue, r.Update(ctx, instance)
-	}
-
-	if err := r.awsauth(cluster, instance, client, clusterWorker.WorkerARN); err != nil {
-		return r.fail(instance, errorSyncCluster, fmt.Sprintf("failed to set auth map on eks: %s", err.Error()))
-	}
-
+	// Update connection secret for EKS Master
 	if err := r.secret(cluster, instance, client); err != nil {
 		return r.fail(instance, errorSyncCluster, err.Error())
+	}
+
+	// Update the configmap in EKS master granting node pools access
+	if updatedPoolsList {
+		if err := r.awsauth(cluster, instance, client, instance.Status.AttachedNodePools); err != nil {
+			return r.fail(instance, errorSyncCluster, fmt.Sprintf("failed to set auth map on eks: %s", err.Error()))
+		}
 	}
 
 	// update resource status
@@ -350,19 +372,8 @@ func (r *Reconciler) _secret(cluster *eks.Cluster, instance *awscomputev1alpha1.
 // _delete check reclaim policy and if needed delete the eks cluster resource
 func (r *Reconciler) _delete(instance *awscomputev1alpha1.EKSCluster, client eks.Client) (reconcile.Result, error) {
 	if instance.Spec.ReclaimPolicy == corev1alpha1.ReclaimDelete {
-		var deleteErrors []string
 		if err := client.Delete(instance.Status.ClusterName); err != nil && !eks.IsErrorNotFound(err) {
-			deleteErrors = append(deleteErrors, fmt.Sprintf("Master Delete Error: %s", err.Error()))
-		}
-
-		if instance.Status.CloudFormationStackID != "" {
-			if err := client.DeleteWorkerNodes(instance.Status.CloudFormationStackID); err != nil && !cloudformationclient.IsErrorNotFound(err) {
-				deleteErrors = append(deleteErrors, fmt.Sprintf("Worker Delete Error: %s", err.Error()))
-			}
-		}
-
-		if len(deleteErrors) > 0 {
-			return r.fail(instance, errorDeleteCluster, strings.Join(deleteErrors, ", "))
+			return r.fail(instance, errorDeleteCluster, fmt.Sprintf("Master Delete Error: %s", err.Error()))
 		}
 	}
 

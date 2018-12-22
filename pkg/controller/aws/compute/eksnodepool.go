@@ -18,13 +18,7 @@ package compute
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
-	"strings"
-
-	"github.com/ghodss/yaml"
-	"k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	awscomputev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/compute/v1alpha1"
 	awsv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/v1alpha1"
@@ -34,11 +28,9 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/clients/aws/eks"
 	"github.com/crossplaneio/crossplane/pkg/util"
 	"k8s.io/apimachinery/pkg/api/errors"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -49,33 +41,35 @@ import (
 )
 
 const (
-	nodepoolControllerName    = "eksnodepool.compute.aws.crossplane.io"
-	nodepoolFinalizer         = "finalizer." + nodepoolControllerName
+	nodepoolControllerName = "eksnodepool.compute.aws.crossplane.io"
+	nodepoolFinalizer      = "finalizer." + nodepoolControllerName
 
+	errorClusterReferenceNotFound = "Failed to get ClusterRef"
+	errorClusterReferenceWait     = "Waiting for ClusterRef Ready state"
 )
 
-// Add creates a new Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
+// AddNodePoolReconciler creates a new Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
-func Add(mgr manager.Manager) error {
-	return add(mgr, newReconciler(mgr))
+func AddNodePoolReconciler(mgr manager.Manager) error {
+	return addNodeReconciler(mgr, newNodeReconciler(mgr))
 }
 
-// Reconciler reconciles a Provider object
-type Reconciler struct {
+// NodeReconciler reconciles an EKSNodePool object
+type NodeReconciler struct {
 	client.Client
 	scheme     *runtime.Scheme
 	kubeclient kubernetes.Interface
 	recorder   record.EventRecorder
 
 	connect func(pool *awscomputev1alpha1.EKSNodePool) (eks.Client, error)
-	create  func(*awscomputev1alpha1.EKSNodePool, eks.Client) (reconcile.Result, error)
+	create  func(*awscomputev1alpha1.EKSCluster, *awscomputev1alpha1.EKSNodePool, eks.Client) (reconcile.Result, error)
 	sync    func(*awscomputev1alpha1.EKSNodePool, eks.Client) (reconcile.Result, error)
 	delete  func(*awscomputev1alpha1.EKSNodePool, eks.Client) (reconcile.Result, error)
 }
 
 // newReconciler returns a new reconcile.Reconciler
-func newReconciler(mgr manager.Manager) reconcile.Reconciler {
-	r := &Reconciler{
+func newNodeReconciler(mgr manager.Manager) reconcile.Reconciler {
+	r := &NodeReconciler{
 		Client:     mgr.GetClient(),
 		scheme:     mgr.GetScheme(),
 		kubeclient: kubernetes.NewForConfigOrDie(mgr.GetConfig()),
@@ -89,7 +83,7 @@ func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
-func add(mgr manager.Manager, r reconcile.Reconciler) error {
+func addNodeReconciler(mgr manager.Manager, r reconcile.Reconciler) error {
 	// Create a new controller
 	c, err := controller.New(nodepoolControllerName, mgr, controller.Options{Reconciler: r})
 	if err != nil {
@@ -97,7 +91,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	}
 
 	// Watch for changes to Provider
-	err = c.Watch(&source.Kind{Type: &awscomputev1alpha1.EKSCluster{}}, &handler.EnqueueRequestForObject{})
+	err = c.Watch(&source.Kind{Type: &awscomputev1alpha1.EKSNodePool{}}, &handler.EnqueueRequestForObject{})
 	if err != nil {
 		return err
 	}
@@ -106,12 +100,12 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 }
 
 // fail - helper function to set fail condition with reason and message
-func (r *Reconciler) fail(instance *awscomputev1alpha1.EKSNodePool, reason, msg string) (reconcile.Result, error) {
+func (r *NodeReconciler) fail(instance *awscomputev1alpha1.EKSNodePool, reason, msg string) (reconcile.Result, error) {
 	instance.Status.SetFailed(reason, msg)
 	return resultRequeue, r.Update(context.TODO(), instance)
 }
 
-func (r *Reconciler) _connect(instance *awscomputev1alpha1.EKSNodePool) (eks.Client, error) {
+func (r *NodeReconciler) _connect(instance *awscomputev1alpha1.EKSNodePool) (eks.Client, error) {
 	// Fetch Provider
 	p := &awsv1alpha1.Provider{}
 	providerNamespacedName := types.NamespacedName{
@@ -143,27 +137,28 @@ func (r *Reconciler) _connect(instance *awscomputev1alpha1.EKSNodePool) (eks.Cli
 	return eks.NewClient(config), nil
 }
 
-func (r *Reconciler) _create(instance *awscomputev1alpha1.EKSNodePool, client eks.Client) (reconcile.Result, error) {
-	clusterName := fmt.Sprintf("%s%s", clusterNamePrefix, instance.UID)
+func (r *NodeReconciler) _create(cluster *awscomputev1alpha1.EKSCluster, instance *awscomputev1alpha1.EKSNodePool, client eks.Client) (reconcile.Result, error) {
+	// Requirement of matching names for nodepool to connect to master.
+	instance.ClusterName = cluster.Status.ClusterName
 
 	if instance.Status.CloudFormationStackID == "" {
-		clusterWorkers, err := client.CreateWorkerNodes(instance.Status.ClusterName, instance.Spec)
+		clusterWorkers, err := client.CreateWorkerNodes(instance.Name, cluster.Spec, instance.Spec)
 		if err != nil {
 			return r.fail(instance, errorSyncCluster, err.Error())
 		}
 		instance.Status.CloudFormationStackID = clusterWorkers.WorkerStackID
 		return resultRequeue, r.Update(ctx, instance)
 	}
+
 	// Update status
-	instance.Status.State = awscomputev1alpha1.ClusterStatusCreating
+	instance.Status.State = awscomputev1alpha1.NodePoolStatusCreating
 	instance.Status.UnsetAllConditions()
 	instance.Status.SetCreating()
-	instance.Status.ClusterName = clusterName
 
 	return resultRequeue, r.Update(ctx, instance)
 }
 
-func (r *Reconciler) _sync(instance *awscomputev1alpha1.EKSNodePool, client eks.Client) (reconcile.Result, error) {
+func (r *NodeReconciler) _sync(instance *awscomputev1alpha1.EKSNodePool, client eks.Client) (reconcile.Result, error) {
 	clusterWorker, err := client.GetWorkerNodes(instance.Status.CloudFormationStackID)
 	if err != nil {
 		return r.fail(instance, errorSyncCluster, err.Error())
@@ -173,28 +168,20 @@ func (r *Reconciler) _sync(instance *awscomputev1alpha1.EKSNodePool, client eks.
 		return resultRequeue, r.Update(ctx, instance)
 	}
 
-	instance.Status.State = awscomputev1alpha1.ClusterStatusActive
+	instance.Status.NodeInstanceRoleARN = clusterWorker.WorkerARN
+	instance.Status.State = awscomputev1alpha1.NodePoolStatusActive
 	instance.Status.SetReady()
 
 	return result, r.Update(ctx, instance)
 }
 
 // _delete check reclaim policy and if needed delete the eks cluster resource
-func (r *Reconciler) _delete(instance *awscomputev1alpha1.EKSNodePool, client eks.Client) (reconcile.Result, error) {
+func (r *NodeReconciler) _delete(instance *awscomputev1alpha1.EKSNodePool, client eks.Client) (reconcile.Result, error) {
 	if instance.Spec.ReclaimPolicy == corev1alpha1.ReclaimDelete {
-		var deleteErrors []string
-		if err := client.Delete(instance.Status.ClusterName); err != nil && !eks.IsErrorNotFound(err) {
-			deleteErrors = append(deleteErrors, fmt.Sprintf("Master Delete Error: %s", err.Error()))
-		}
-
 		if instance.Status.CloudFormationStackID != "" {
 			if err := client.DeleteWorkerNodes(instance.Status.CloudFormationStackID); err != nil && !cloudformationclient.IsErrorNotFound(err) {
-				deleteErrors = append(deleteErrors, fmt.Sprintf("Worker Delete Error: %s", err.Error()))
+				return r.fail(instance, errorDeleteCluster, fmt.Sprintf("worker Delete Error: %s", err.Error()))
 			}
-		}
-
-		if len(deleteErrors) > 0 {
-			return r.fail(instance, errorDeleteCluster, strings.Join(deleteErrors, ", "))
 		}
 	}
 
@@ -205,7 +192,7 @@ func (r *Reconciler) _delete(instance *awscomputev1alpha1.EKSNodePool, client ek
 
 // Reconcile reads that state of the cluster for a Provider object and makes changes based on the state read
 // and what is in the Provider.Spec
-func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+func (r *NodeReconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	// Fetch the Provider instance
 	instance := &awscomputev1alpha1.EKSNodePool{}
 	err := r.Get(ctx, request.NamespacedName, instance)
@@ -233,9 +220,23 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 		return r.delete(instance, eksClient)
 	}
 
-	// Create cluster instance
+	// Create nodepool when EKSCluster is in Ready() state
 	if instance.Status.CloudFormationStackID == "" {
-		return r.create(instance, eksClient)
+		cluster := &awscomputev1alpha1.EKSCluster{}
+		clusterNamespacedName := types.NamespacedName{
+			Namespace: instance.Namespace,
+			Name:      instance.Spec.ClusterRef.Name,
+		}
+		err := r.Get(ctx, clusterNamespacedName, cluster)
+		if err != nil {
+			return r.fail(instance, errorClusterReferenceNotFound, "could not fetch the cluster reference. Can not create nodepool")
+		}
+
+		// If master EKS node IsReady we provision the node pool
+		if cluster.Status.IsReady() {
+			return r.create(cluster, instance, eksClient)
+		}
+		return r.fail(instance, errorClusterReferenceWait, "waiting for cluster to be ready before creating nodepool")
 	}
 
 	// Sync cluster instance status with cluster status
