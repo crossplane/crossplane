@@ -6,6 +6,19 @@ metadata:
     controller-tools.k8s.io: "1.0"
   name: resourceclasses.core.crossplane.io
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .provisioner
+    name: PROVISIONER
+    type: string
+  - JSONPath: .providerRef.name
+    name: PROVIDER-REF
+    type: string
+  - JSONPath: .reclaimPolicy
+    name: RECLAIM-POLICY
+    type: string
+  - JSONPath: .metadata.creationTimestamp
+    name: AGE
+    type: date
   group: core.crossplane.io
   names:
     kind: ResourceClass

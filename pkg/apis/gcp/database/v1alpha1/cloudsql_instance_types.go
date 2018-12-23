@@ -76,6 +76,10 @@ type CloudsqlInstanceStatus struct {
 // CloudsqlInstance is the Schema for the instances API
 // +k8s:openapi-gen=true
 // +groupName=database.gcp
+// +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.state"
+// +kubebuilder:printcolumn:name="CLASS",type="string",JSONPath=".spec.classRef.name"
+// +kubebuilder:printcolumn:name="VERSION",type="string",JSONPath=".spec.databaseVersion"
+// +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 type CloudsqlInstance struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

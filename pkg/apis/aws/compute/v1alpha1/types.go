@@ -210,6 +210,13 @@ type EKSClusterStatus struct {
 // EKSCluster is the Schema for the resources API
 // +k8s:openapi-gen=true
 // +groupName=compute.aws
+// +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.state"
+// +kubebuilder:printcolumn:name="CLUSTER-NAME",type="string",JSONPath=".status.clusterName"
+// +kubebuilder:printcolumn:name="ENDPOINT",type="string",JSONPath=".status.endpoint"
+// +kubebuilder:printcolumn:name="CLUSTER-CLASS",type="string",JSONPath=".spec.classRef.name"
+// +kubebuilder:printcolumn:name="LOCATION",type="string",JSONPath=".spec.location"
+// +kubebuilder:printcolumn:name="RECLAIM-POLICY",type="string",JSONPath=".spec.reclaimPolicy"
+// +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 type EKSCluster struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

@@ -6,6 +6,22 @@ metadata:
     controller-tools.k8s.io: "1.0"
   name: buckets.storage.crossplane.io
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .status.bindingPhase
+    name: STATUS
+    type: string
+  - JSONPath: .spec.classReference.name
+    name: CLASS
+    type: string
+  - JSONPath: .spec.predefinedACL
+    name: PREDEFINED-ACL
+    type: string
+  - JSONPath: .spec.localPermission
+    name: LOCAL-PERMISSION
+    type: string
+  - JSONPath: .metadata.creationTimestamp
+    name: AGE
+    type: date
   group: storage.crossplane.io
   names:
     kind: Bucket

@@ -6,6 +6,19 @@ metadata:
     controller-tools.k8s.io: "1.0"
   name: s3buckets.storage.aws.crossplane.io
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .spec.classRef.name
+    name: CLASS
+    type: string
+  - JSONPath: .spec.cannedACL
+    name: PREDEFINED-ACL
+    type: string
+  - JSONPath: .spec.localPermission
+    name: LOCAL-PERMISSION
+    type: string
+  - JSONPath: .metadata.creationTimestamp
+    name: AGE
+    type: date
   group: storage.aws.crossplane.io
   names:
     kind: S3Bucket

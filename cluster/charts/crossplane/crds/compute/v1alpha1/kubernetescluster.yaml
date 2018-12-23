@@ -6,6 +6,22 @@ metadata:
     controller-tools.k8s.io: "1.0"
   name: kubernetesclusters.compute.crossplane.io
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .status.bindingPhase
+    name: STATUS
+    type: string
+  - JSONPath: .spec.classReference.name
+    name: CLASS
+    type: string
+  - JSONPath: .spec.classReference.name
+    name: CLUSTER-CLASS
+    type: string
+  - JSONPath: .spec.resourceName.name
+    name: CLUSTER-REF
+    type: string
+  - JSONPath: .metadata.creationTimestamp
+    name: AGE
+    type: date
   group: compute.crossplane.io
   names:
     kind: KubernetesCluster
