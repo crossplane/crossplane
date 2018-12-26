@@ -11,7 +11,7 @@ import (
 
 var (
 	// gcpCredsFile - retrieve gcp credentials from the file
-	gcpCredsFile = flag.String("gcp-creds", "", "run integration tests that require key.json")
+	gcpCredsFile = flag.String("gcp-creds", "", "run integration tests that require crossplane-gcp-provider-key.json")
 )
 
 func init() {

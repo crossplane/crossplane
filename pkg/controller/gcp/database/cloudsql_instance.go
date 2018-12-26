@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
@@ -44,10 +45,10 @@ import (
 )
 
 const (
-	finalizer = "finalizer.cloudsqlinstances.database.gcp.crossplane.io"
-
-	rootUserName    = "root"
-	passwordDataLen = 20
+	finalizer                 = "finalizer.cloudsqlinstances.database.gcp.crossplane.io"
+	mysqlDefaultUserName      = "root"
+	postgresqlDefaultUserName = "postgres"
+	passwordDataLen           = 20
 
 	errorSettingInstanceName    = "failed to set instance name"
 	errorFetchingGCPProvider    = "failed to fetch GCP Provider"
@@ -55,7 +56,7 @@ const (
 	errorFetchingInstance       = "failed to fetch instance"
 	errorCreatingInstance       = "failed to create instance"
 	errorDeletingInstance       = "failed to delete instance"
-	errorInitRootUser           = "failed to initialize root user"
+	errorInitDefaultUser        = "failed to initialize default user"
 	conditionStateChanged       = "instance state changed"
 )
 
@@ -232,9 +233,9 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 		return reconcile.Result{Requeue: true}, nil
 	}
 
-	// ensure the root user is initialized
-	if err = r.initRootUser(cloudSQLClient, instance, provider); err != nil {
-		return r.fail(instance, errorInitRootUser, fmt.Sprintf("failed to init root user for cloud sql instance %s: %+v", instance.Name, err))
+	// ensure the default user is initialized
+	if err = r.initDefaultUser(cloudSQLClient, instance, provider); err != nil {
+		return r.fail(instance, errorInitDefaultUser, fmt.Sprintf("failed to init default user for cloud sql instance %s: %+v", instance.Name, err))
 	}
 
 	return reconcile.Result{}, nil
@@ -249,8 +250,9 @@ func (r *Reconciler) handleCreation(cloudSQLClient gcpclients.CloudSQLAPI,
 		Region:          instance.Spec.Region,
 		DatabaseVersion: instance.Spec.DatabaseVersion,
 		Settings: &sqladmin.Settings{
-			Tier:         instance.Spec.Tier,
-			DataDiskType: instance.Spec.StorageType,
+			Tier:           instance.Spec.Tier,
+			DataDiskType:   instance.Spec.StorageType,
+			DataDiskSizeGb: instance.Spec.StorageGB,
 			IpConfiguration: &sqladmin.IpConfiguration{
 				AuthorizedNetworks: []*sqladmin.AclEntry{
 					// TODO: we need to come up with better AuthorizedNetworks handing, for now a short cut - open to all
@@ -303,8 +305,14 @@ func (r *Reconciler) markAsDeleting(instance *databasev1alpha1.CloudsqlInstance)
 	return reconcile.Result{}, r.Update(context.TODO(), instance)
 }
 
-func (r *Reconciler) initRootUser(cloudSQLClient gcpclients.CloudSQLAPI,
+func (r *Reconciler) initDefaultUser(cloudSQLClient gcpclients.CloudSQLAPI,
 	instance *databasev1alpha1.CloudsqlInstance, provider *gcpv1alpha1.Provider) error {
+
+	// get the default database user name depending on the database version in use
+	defaultUserName, err := getDefaultDBUserName(instance.Spec.DatabaseVersion)
+	if err != nil {
+		return err
+	}
 
 	// first ensure the connection secret name has been set
 	secretName, err := r.ensureConnectionSecretNameSet(instance)
@@ -312,55 +320,55 @@ func (r *Reconciler) initRootUser(cloudSQLClient gcpclients.CloudSQLAPI,
 		return err
 	}
 
-	// check if the root user has already been initialized
+	// check if the default user has already been initialized
 	connectionSecret, err := r.clientset.CoreV1().Secrets(instance.Namespace).Get(secretName, metav1.GetOptions{})
 	if err == nil {
-		// we already have a password for the root user, we are done
+		// we already have a password for the default user, we are done
 		return nil
 	}
-	log.Printf("user '%s' is not initialized yet: %+v", rootUserName, err)
+	log.Printf("user '%s' is not initialized yet: %+v", defaultUserName, err)
 
 	users, err := cloudSQLClient.ListUsers(provider.Spec.ProjectID, instance.Status.InstanceName)
 	if err != nil {
 		return fmt.Errorf("failed to list users: %+v", err)
 	}
 
-	var rootUser *sqladmin.User
+	var defaultUser *sqladmin.User
 	for i := range users.Items {
-		if users.Items[i].Name == rootUserName {
-			rootUser = users.Items[i]
+		if users.Items[i].Name == defaultUserName {
+			defaultUser = users.Items[i]
 			break
 		}
 	}
 
-	if rootUser == nil {
-		return fmt.Errorf("failed to find user '%s'", rootUserName)
+	if defaultUser == nil {
+		return fmt.Errorf("failed to find user '%s'", defaultUserName)
 	}
 
 	password, err := util.GeneratePassword(passwordDataLen)
 	if err != nil {
-		return fmt.Errorf("failed to generate password for user '%s': %+v", rootUser.Name, err)
+		return fmt.Errorf("failed to generate password for user '%s': %+v", defaultUser.Name, err)
 	}
-	rootUser.Password = password
+	defaultUser.Password = password
 
 	// update the user via Cloud SQL API
-	log.Printf("updating user '%s'", rootUser.Name)
-	updateUserOp, err := cloudSQLClient.UpdateUser(provider.Spec.ProjectID, instance.Status.InstanceName, rootUser.Name, rootUser)
+	log.Printf("updating user '%s'", defaultUser.Name)
+	updateUserOp, err := cloudSQLClient.UpdateUser(provider.Spec.ProjectID, instance.Status.InstanceName, defaultUser.Name, defaultUser)
 	if err != nil {
-		return fmt.Errorf("failed to start update user operation for user '%s': %+v", rootUser.Name, err)
+		return fmt.Errorf("failed to start update user operation for user '%s': %+v", defaultUser.Name, err)
 	}
 
 	// wait for the update user operation to complete
-	log.Printf("waiting for update user operation %s to complete for user '%s'", updateUserOp.Name, rootUser.Name)
+	log.Printf("waiting for update user operation %s to complete for user '%s'", updateUserOp.Name, defaultUser.Name)
 	updateUserOp, err = gcpclients.WaitUntilOperationCompletes(updateUserOp.Name, provider, cloudSQLClient, r.options.WaitSleepTime)
 	if err != nil {
-		return fmt.Errorf("failed to wait until update user operation %s completed for user '%s': %+v", updateUserOp.Name, rootUser.Name, err)
+		return fmt.Errorf("failed to wait until update user operation %s completed for user '%s': %+v", updateUserOp.Name, defaultUser.Name, err)
 	}
 
-	log.Printf("update user operation for user '%s' completed. status: %s, errors: %+v", rootUser.Name, updateUserOp.Status, updateUserOp.Error)
+	log.Printf("update user operation for user '%s' completed. status: %s, errors: %+v", defaultUser.Name, updateUserOp.Status, updateUserOp.Error)
 	if !gcpclients.IsOperationSuccessful(updateUserOp) {
 		// the operation completed, but it failed
-		m := fmt.Sprintf("update user operation for user '%s' failed: %+v", rootUser.Name, updateUserOp)
+		m := fmt.Sprintf("update user operation for user '%s' failed: %+v", defaultUser.Name, updateUserOp)
 		if updateUserOp.Error != nil && len(updateUserOp.Error.Errors) > 0 {
 			m = fmt.Sprintf("%s. errors: %+v", m, updateUserOp.Error.Errors)
 		}
@@ -376,16 +384,16 @@ func (r *Reconciler) initRootUser(cloudSQLClient gcpclients.CloudSQLAPI,
 		},
 		Data: map[string][]byte{
 			corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(instance.Status.Endpoint),
-			corev1alpha1.ResourceCredentialsSecretUserKey:     []byte(rootUser.Name),
+			corev1alpha1.ResourceCredentialsSecretUserKey:     []byte(defaultUser.Name),
 			corev1alpha1.ResourceCredentialsSecretPasswordKey: []byte(password),
 		},
 	}
-	log.Printf("creating connection secret %s for user '%s'", connectionSecret.Name, rootUser.Name)
+	log.Printf("creating connection secret %s for user '%s'", connectionSecret.Name, defaultUser.Name)
 	if _, err := r.clientset.CoreV1().Secrets(instance.Namespace).Create(connectionSecret); err != nil {
 		return fmt.Errorf("failed to update connection secret %s: %+v", connectionSecret.Name, err)
 	}
 
-	log.Printf("user '%s' initialized", rootUser.Name)
+	log.Printf("user '%s' initialized", defaultUser.Name)
 	return nil
 }
 
@@ -435,4 +443,14 @@ func (r *Reconciler) ensureConnectionSecretNameSet(instance *databasev1alpha1.Cl
 	}
 
 	return secretName, nil
+}
+
+func getDefaultDBUserName(dbVersion string) (string, error) {
+	if strings.HasPrefix(dbVersion, databasev1alpha1.PostgresqlDBVersionPrefix) {
+		return postgresqlDefaultUserName, nil
+	} else if strings.HasPrefix(dbVersion, databasev1alpha1.MysqlDBVersionPrefix) {
+		return mysqlDefaultUserName, nil
+	}
+
+	return "", fmt.Errorf("database version does not match any known types: %s", dbVersion)
 }

@@ -21,11 +21,10 @@ import (
 	"time"
 
 	"github.com/crossplaneio/crossplane/pkg/apis/azure"
-	databasev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/database/v1alpha1"
+	azuredbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/database/v1alpha1"
 	azurev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/test"
 	"github.com/onsi/gomega"
-	"golang.org/x/net/context"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -45,7 +44,6 @@ const (
 )
 
 var (
-	ctx             = context.TODO()
 	cfg             *rest.Config
 	expectedRequest = reconcile.Request{NamespacedName: types.NamespacedName{Name: instanceName, Namespace: namespace}}
 )
@@ -106,13 +104,13 @@ func testProvider(s *corev1.Secret) *azurev1alpha1.Provider {
 	}
 }
 
-func testInstance(p *azurev1alpha1.Provider) *databasev1alpha1.MysqlServer {
-	return &databasev1alpha1.MysqlServer{
+func testInstance(p *azurev1alpha1.Provider) *azuredbv1alpha1.MysqlServer {
+	return &azuredbv1alpha1.MysqlServer{
 		ObjectMeta: metav1.ObjectMeta{Name: instanceName, Namespace: namespace},
-		Spec: databasev1alpha1.MysqlServerSpec{
+		Spec: azuredbv1alpha1.SQLServerSpec{
 			ProviderRef:    corev1.LocalObjectReference{Name: p.Name},
 			AdminLoginName: "myadmin",
-			PricingTier: databasev1alpha1.PricingTierSpec{
+			PricingTier: azuredbv1alpha1.PricingTierSpec{
 				Tier: "Basic", VCores: 1, Family: "Gen4",
 			},
 		},
