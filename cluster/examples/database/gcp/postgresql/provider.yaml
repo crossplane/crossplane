@@ -22,20 +22,3 @@ spec:
   projectID: long-disk-191221
   requiredPermissions:
   - cloudsql.admin
----
-# ResourceClass that defines the blueprint for how a "standard" CloudSQL instance
-# should be dynamically provisioned
-apiVersion: core.crossplane.io/v1alpha1
-kind: ResourceClass
-metadata:
-  name: standard
-  namespace: crossplane-system
-parameters:
-  tier: db-n1-standard-1
-  region: us-west2
-  storageType: PD_SSD
-  storageGB: "10"
-provisioner: cloudsqlinstance.database.gcp.crossplane.io/v1alpha1
-providerRef:
-  name: gcp-sql-provider
-reclaimPolicy: Delete
