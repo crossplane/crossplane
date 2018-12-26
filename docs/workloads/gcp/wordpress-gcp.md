@@ -11,7 +11,7 @@ In this environment, the following components will be dynamically provisioned an
 
 Before starting this guide, you should have already [configured your GCP account](../../cloud-providers/gcp/gcp-provider.md) for usage by Crossplane.
 
-You should have a `key.json` file on your local filesystem, preferably at the root of where you cloned the [Crossplane repo](https://github.com/crossplaneio/crossplane).
+You should have a `crossplane-gcp-provider-key.json` file on your local filesystem, preferably at the root of where you cloned the [Crossplane repo](https://github.com/crossplaneio/crossplane).
 
 ## Administrator Tasks
 
@@ -35,7 +35,7 @@ For the next steps, make sure your `kubectl` context points to the cluster where
 
 - Patch and Apply `provider.yaml`:
     ```bash
-    sed "s/BASE64ENCODED_CREDS/`cat key.json|base64 | tr -d '\n'`/g;s/DEMO_PROJECT_ID/$DEMO_PROJECT_ID/g" cluster/examples/workloads/wordpress-gcp/provider.yaml | kubectl create -f -
+    sed "s/BASE64ENCODED_CREDS/`cat crossplane-gcp-provider-key.json|base64 | tr -d '\n'`/g;s/DEMO_PROJECT_ID/$DEMO_PROJECT_ID/g" cluster/examples/workloads/wordpress-gcp/provider.yaml | kubectl create -f -
     ``` 
  
     - Verify that GCP Provider is in `Ready` state

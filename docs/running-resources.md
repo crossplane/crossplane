@@ -9,6 +9,13 @@ indent: true
 Crossplane enables you to run a number of different resources in a portable and cloud agnostic way, allowing you to author an application that runs without modifications on multiple environments and cloud providers.
 A single Crossplane enables the provisioning and full-lifecycle management of infrastructure across a wide range of providers, vendors, regions, and offerings.
 
+## Guides
+
+The list below contains some direct links to user guides that will walk you through how to deploy specific types of resources into your environments.
+
+* [Workload user guides - WordPress application, MySQL database, Kubernetes cluster](deploy.md#guides)
+* [PostgreSQL database](postgresql.md)
+
 ## Running Databases
 
 Database managed services can be statically or dynamically provisioned by Crossplane in AWS, GCP, and Azure.
