@@ -27,7 +27,6 @@ import (
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	gcpcomputev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/compute/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/util"
-	"k8s.io/api/core/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -137,7 +136,7 @@ func (r *Reconciler) _provision(instance *computev1alpha1.KubernetesCluster) (re
 
 	// retrieve classRef for this instance
 	class := &corev1alpha1.ResourceClass{}
-	if err := r.Get(ctx, namespaceNameFromObjectRef(classRef), class); err != nil {
+	if err := r.Get(ctx, util.NamespaceNameFromObjectRef(classRef), class); err != nil {
 		return r.fail(instance, errorRetrievingResourceClass, err.Error())
 	}
 
@@ -191,7 +190,7 @@ func (r *Reconciler) _bind(instance *computev1alpha1.KubernetesCluster) (reconci
 	}
 
 	// find resource instance
-	resNName := namespaceNameFromObjectRef(instance.Spec.ResourceRef)
+	resNName := util.NamespaceNameFromObjectRef(instance.Spec.ResourceRef)
 	resource, err := resourceHandler.find(resNName, r.Client)
 	if err != nil {
 		// failed to retrieve the resource - requeue
@@ -255,7 +254,7 @@ func (r *Reconciler) _delete(instance *computev1alpha1.KubernetesCluster) (recon
 	}
 
 	// update resource binding status
-	resNName := namespaceNameFromObjectRef(instance.Spec.ResourceRef)
+	resNName := util.NamespaceNameFromObjectRef(instance.Spec.ResourceRef)
 	if err := resourceHandler.setBindStatus(resNName, r.Client, false); err != nil {
 		r.recorder.Event(instance, corev1.EventTypeWarning, "Failed to reset resource binding status", err.Error())
 	}
@@ -266,14 +265,6 @@ func (r *Reconciler) _delete(instance *computev1alpha1.KubernetesCluster) (recon
 	util.RemoveFinalizer(&instance.ObjectMeta, finalizer)
 	return reconcile.Result{}, r.Update(ctx, instance)
 
-}
-
-// namespaceNameFromObjectRef helper function to create NamespacedName
-func namespaceNameFromObjectRef(or *v1.ObjectReference) types.NamespacedName {
-	return types.NamespacedName{
-		Namespace: or.Namespace,
-		Name:      or.Name,
-	}
 }
 
 // Reconcile reads that state of the cluster for a Instance object and makes changes based on the state read
