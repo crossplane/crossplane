@@ -110,4 +110,14 @@ func TestNewCloudSQLInstanceSpec(t *testing.T) {
 	m["storageType"] = val
 	exp.StorageType = val
 	g.Expect(NewCloudSQLInstanceSpec(m)).To(gomega.Equal(exp))
+
+	val = "100"
+	m["storageGB"] = val
+	exp.StorageGB = 100
+	g.Expect(NewCloudSQLInstanceSpec(m)).To(gomega.Equal(exp))
+	// invalid storageGB value
+	val = "not a number"
+	m["storageGB"] = val
+	exp.StorageGB = 0 // value is not set
+	g.Expect(NewCloudSQLInstanceSpec(m)).To(gomega.Equal(exp))
 }

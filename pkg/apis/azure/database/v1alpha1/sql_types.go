@@ -20,6 +20,7 @@ import (
 	"strconv"
 
 	"github.com/Azure/azure-sdk-for-go/services/mysql/mgmt/2017-12-01/mysql"
+	"github.com/Azure/azure-sdk-for-go/services/postgresql/mgmt/2017-12-01/postgresql"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/util"
 	"k8s.io/api/core/v1"
@@ -32,6 +33,15 @@ const (
 	// OperationCreateFirewallRules is the operation type for creating a firewall rule
 	OperationCreateFirewallRules = "createFirewallRules"
 )
+
+type SqlServer interface {
+	corev1alpha1.Resource
+	GetObjectMeta() *metav1.ObjectMeta
+	OwnerReference() metav1.OwnerReference
+	GetSpec() *SQLServerSpec
+	GetStatus() *SQLServerStatus
+	SetStatus(*SQLServerStatus)
+}
 
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
@@ -49,12 +59,48 @@ type MysqlServer struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   MysqlServerSpec   `json:"spec,omitempty"`
-	Status MysqlServerStatus `json:"status,omitempty"`
+	Spec   SQLServerSpec   `json:"spec,omitempty"`
+	Status SQLServerStatus `json:"status,omitempty"`
 }
 
-// MysqlServerSpec defines the desired state of MysqlServer
-type MysqlServerSpec struct {
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// MysqlServerList contains a list of MysqlServer
+type MysqlServerList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []MysqlServer `json:"items"`
+}
+
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// PostgresqlServer is the Schema for the instances API
+// +k8s:openapi-gen=true
+// +groupName=database.azure
+// +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.state"
+// +kubebuilder:printcolumn:name="CLASS",type="string",JSONPath=".spec.classRef.name"
+// +kubebuilder:printcolumn:name="VERSION",type="string",JSONPath=".spec.version"
+// +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
+type PostgresqlServer struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec   SQLServerSpec   `json:"spec,omitempty"`
+	Status SQLServerStatus `json:"status,omitempty"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// PostgresqlServerList contains a list of PostgresqlServer
+type PostgresqlServerList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []PostgresqlServer `json:"items"`
+}
+
+// SQLServerSpec defines the desired state of SQLServer
+type SQLServerSpec struct {
 	ResourceGroupName string             `json:"resourceGroupName"`
 	Location          string             `json:"location"`
 	PricingTier       PricingTierSpec    `json:"pricingTier"`
@@ -73,8 +119,8 @@ type MysqlServerSpec struct {
 	ReclaimPolicy corev1alpha1.ReclaimPolicy `json:"reclaimPolicy,omitempty"`
 }
 
-// MysqlServerStatus defines the observed state of MysqlServer
-type MysqlServerStatus struct {
+// SQLServerStatus defines the observed state of SQLServer
+type SQLServerStatus struct {
 	corev1alpha1.ConditionedStatus
 	corev1alpha1.BindingStatusPhase
 	State   string `json:"state,omitempty"`
@@ -110,18 +156,9 @@ type StorageProfileSpec struct {
 	GeoRedundantBackup  bool `json:"geoRedundantBackup,omitempty"`
 }
 
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
-// MysqlServerList contains a list of MysqlServer
-type MysqlServerList struct {
-	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []MysqlServer `json:"items"`
-}
-
-// NewMySQLServerSpec creates a new MySQLServerSpec based on the given properties map
-func NewMySQLServerSpec(properties map[string]string) *MysqlServerSpec {
-	spec := &MysqlServerSpec{
+// NewSQLServerSpec creates a new SQLServerSpec based on the given properties map
+func NewSQLServerSpec(properties map[string]string) *SQLServerSpec {
+	spec := &SQLServerSpec{
 		ReclaimPolicy: corev1alpha1.ReclaimRetain,
 	}
 
@@ -193,6 +230,25 @@ func NewMySQLServerSpec(properties map[string]string) *MysqlServerSpec {
 	return spec
 }
 
+//---------------------------------------------------------------------------------------------------------------------
+// MysqlServer
+
+func (m *MysqlServer) GetObjectMeta() *metav1.ObjectMeta {
+	return &m.ObjectMeta
+}
+
+func (m *MysqlServer) GetSpec() *SQLServerSpec {
+	return &m.Spec
+}
+
+func (m *MysqlServer) GetStatus() *SQLServerStatus {
+	return &m.Status
+}
+
+func (m *MysqlServer) SetStatus(status *SQLServerStatus) {
+	m.Status = *status
+}
+
 // ConnectionSecretName returns a secret name from the reference
 func (m *MysqlServer) ConnectionSecretName() string {
 	if m.Spec.ConnectionSecretRef.Name == "" {
@@ -202,11 +258,6 @@ func (m *MysqlServer) ConnectionSecretName() string {
 	}
 
 	return m.Spec.ConnectionSecretRef.Name
-}
-
-// Endpoint returns the MySQL Server endpoint for connection
-func (m *MysqlServer) Endpoint() string {
-	return m.Status.Endpoint
 }
 
 // ObjectReference to this MySQL Server instance
@@ -238,7 +289,71 @@ func (m *MysqlServer) SetBound(state bool) {
 	}
 }
 
-// ValidVersionValues returns the valid set of engine version values.
-func ValidVersionValues() []string {
+//---------------------------------------------------------------------------------------------------------------------
+// PostgresqlServer
+
+func (p *PostgresqlServer) GetObjectMeta() *metav1.ObjectMeta {
+	return &p.ObjectMeta
+}
+
+func (p *PostgresqlServer) GetSpec() *SQLServerSpec {
+	return &p.Spec
+}
+
+func (p *PostgresqlServer) GetStatus() *SQLServerStatus {
+	return &p.Status
+}
+
+func (p *PostgresqlServer) SetStatus(status *SQLServerStatus) {
+	p.Status = *status
+}
+
+// ConnectionSecretName returns a secret name from the reference
+func (p *PostgresqlServer) ConnectionSecretName() string {
+	if p.Spec.ConnectionSecretRef.Name == "" {
+		// the user hasn't specified the name of the secret they want the connection information
+		// stored in, generate one now
+		p.Spec.ConnectionSecretRef.Name = p.Name
+	}
+
+	return p.Spec.ConnectionSecretRef.Name
+}
+
+// ObjectReference to this PostgreSQL Server instance
+func (p *PostgresqlServer) ObjectReference() *v1.ObjectReference {
+	return util.ObjectReference(p.ObjectMeta, util.IfEmptyString(p.APIVersion, APIVersion), util.IfEmptyString(p.Kind, PostgresqlServerKind))
+}
+
+// OwnerReference to use this instance as an owner
+func (p *PostgresqlServer) OwnerReference() metav1.OwnerReference {
+	return *util.ObjectToOwnerReference(p.ObjectReference())
+}
+
+// IsAvailable for usage/binding
+func (p *PostgresqlServer) IsAvailable() bool {
+	return p.Status.State == string(postgresql.ServerStateReady)
+}
+
+// IsBound determines if the resource is in a bound binding state
+func (p *PostgresqlServer) IsBound() bool {
+	return p.Status.Phase == corev1alpha1.BindingStateBound
+}
+
+// SetBound sets the binding state of this resource
+func (p *PostgresqlServer) SetBound(state bool) {
+	if state {
+		p.Status.Phase = corev1alpha1.BindingStateBound
+	} else {
+		p.Status.Phase = corev1alpha1.BindingStateUnbound
+	}
+}
+
+// ValidMySQLVersionValues returns the valid set of engine version values.
+func ValidMySQLVersionValues() []string {
 	return []string{"5.6", "5.7"}
+}
+
+// ValidPostgreSQLVersionValues returns the valid set of engine version values.
+func ValidPostgreSQLVersionValues() []string {
+	return []string{"9.5", "9.6", "10", "10.0", "10.2"}
 }

@@ -209,11 +209,6 @@ func (a *AKSCluster) ConnectionSecretName() string {
 	return a.Spec.ConnectionSecretRef.Name
 }
 
-// Endpoint returns the current endpoint of this resource
-func (a *AKSCluster) Endpoint() string {
-	return a.Status.Endpoint
-}
-
 // State returns instance state value saved in the status (could be empty)
 func (a *AKSCluster) State() string {
 	return a.Status.State

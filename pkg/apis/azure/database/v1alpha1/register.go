@@ -38,8 +38,12 @@ const (
 	APIVersion = Group + "/" + Version
 	// MysqlServerKind is the kind for the Azure MySQl Server resource
 	MysqlServerKind = "mysqlserver"
+	// PostgresqlServerKind is the kind for the Azure PostgreSQL Server resource
+	PostgresqlServerKind = "postgresqlserver"
 	// MysqlServerKindAPIVersion is the full kind and version for the Azure MySQl Server resource
 	MysqlServerKindAPIVersion = MysqlServerKind + "." + APIVersion
+	// PostgresqlServerKindAPIVersion is the full kind and version for the Azure PostgreSQL Server resource
+	PostgresqlServerKindAPIVersion = PostgresqlServerKind + "." + APIVersion
 )
 
 var (
@@ -52,4 +56,5 @@ var (
 
 func init() {
 	SchemeBuilder.Register(&MysqlServer{}, &MysqlServerList{})
+	SchemeBuilder.Register(&PostgresqlServer{}, &PostgresqlServerList{})
 }
