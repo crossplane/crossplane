@@ -48,7 +48,7 @@ type Condition struct {
 
 // Conditionable defines set of functionality to operate on Conditions
 type Conditionable interface {
-	GetCondition(ConditionType) *Condition
+	Condition(ConditionType) *Condition
 	SetCondition(Condition)
 	RemoveCondition(ConditionType)
 	UnsetCondition(ConditionType)
@@ -110,6 +110,11 @@ func (c *ConditionedStatus) SetReady() {
 // SetCreating set creating as an active condition
 func (c *ConditionedStatus) SetCreating() {
 	c.SetCondition(NewCondition(Creating, "", ""))
+}
+
+// SetPending set pending as an active condition
+func (c *ConditionedStatus) SetPending() {
+	c.SetCondition(NewCondition(Pending, "", ""))
 }
 
 // SetDeleting set creating as an active condition

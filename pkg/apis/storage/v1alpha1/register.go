@@ -30,13 +30,15 @@ import (
 )
 
 const (
-	Group                       = "storage.crossplane.io"
-	Version                     = "v1alpha1"
-	APIVersion                  = Group + "/" + Version
-	MySQLInstanceKind           = "mysqlinstance"
-	MySQLInstanceKindAPIVersion = MySQLInstanceKind + "." + APIVersion
-	BucketKind                  = "bucket"
-	BucketKindApiVersion        = BucketKind + "." + APIVersion
+	Group                            = "storage.crossplane.io"
+	Version                          = "v1alpha1"
+	APIVersion                       = Group + "/" + Version
+	MySQLInstanceKind                = "mysqlinstance"
+	MySQLInstanceKindAPIVersion      = MySQLInstanceKind + "." + APIVersion
+	PostgreSQLInstanceKind           = "postgresqlinstance"
+	PostgreSQLInstanceKindAPIVersion = PostgreSQLInstanceKind + "." + APIVersion
+	BucketKind                       = "bucket"
+	BucketKindApiVersion             = BucketKind + "." + APIVersion
 )
 
 var (
@@ -50,4 +52,5 @@ var (
 func init() {
 	SchemeBuilder.Register(&Bucket{}, &BucketList{})
 	SchemeBuilder.Register(&MySQLInstance{}, &MySQLInstanceList{})
+	SchemeBuilder.Register(&PostgreSQLInstance{}, &PostgreSQLInstanceList{})
 }

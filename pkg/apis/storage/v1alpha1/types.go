@@ -23,7 +23,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-//----------------------------------------------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------------------------------------------
+// MySQLInstance
 
 // MySQLInstanceSpec
 type MySQLInstanceSpec struct {
@@ -36,20 +37,10 @@ type MySQLInstanceSpec struct {
 	EngineVersion string `json:"engineVersion"`
 }
 
-// MySQLInstanceClaimStatus
-type MySQLInstanceClaimStatus struct {
-	corev1alpha1.ConditionedStatus
-	corev1alpha1.BindingStatusPhase
-	// Provisioner is the driver that was used to provision the concrete resrouce
-	// This is an optionally-prefixed name, like a label key.
-	// For example: "RDSInstance.database.aws.crossplane.io/v1alpha1" or "CloudSQLInstance.database.gcp.crossplane.io/v1alpha1".
-	Provisioner string `json:"provisioner,omitempty"`
-}
-
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// MySQLInstance is the Schema for the instances API
+// MySQLInstance is the CRD type for abstract MySQL database instances
 // +k8s:openapi-gen=true
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.bindingPhase"
 // +kubebuilder:printcolumn:name="CLASS",type="string",JSONPath=".spec.classReference.name"
@@ -59,13 +50,13 @@ type MySQLInstance struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   MySQLInstanceSpec        `json:"spec,omitempty"`
-	Status MySQLInstanceClaimStatus `json:"status,omitempty"`
+	Spec   MySQLInstanceSpec                `json:"spec,omitempty"`
+	Status corev1alpha1.ResourceClaimStatus `json:"status,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// MySQLInstanceList contains a list of RDSInstance
+// MySQLInstanceList contains a list of MySQLInstance
 type MySQLInstanceList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
@@ -82,6 +73,110 @@ func (m *MySQLInstance) OwnerReference() metav1.OwnerReference {
 	return *util.ObjectToOwnerReference(m.ObjectReference())
 }
 
+func (m *MySQLInstance) ClaimStatus() *corev1alpha1.ResourceClaimStatus {
+	return &m.Status
+}
+
+func (m *MySQLInstance) GetObjectMeta() *metav1.ObjectMeta {
+	return &m.ObjectMeta
+}
+
+func (m *MySQLInstance) ClassRef() *corev1.ObjectReference {
+	return m.Spec.ClassRef
+}
+
+func (m *MySQLInstance) ResourceRef() *corev1.ObjectReference {
+	return m.Spec.ResourceRef
+}
+
+func (m *MySQLInstance) SetResourceRef(ref *corev1.ObjectReference) {
+	m.Spec.ResourceRef = ref
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+// PostgreSQLInstance
+
+// PostgreSQLInstanceSpec
+type PostgreSQLInstanceSpec struct {
+	ClassRef    *corev1.ObjectReference `json:"classReference,omitempty"`
+	ResourceRef *corev1.ObjectReference `json:"resourceName,omitempty"`
+	Selector    metav1.LabelSelector    `json:"selector,omitempty"`
+
+	// postgresql instance properties
+	// +kubebuilder:validation:Enum=9.6
+	EngineVersion string `json:"engineVersion,omitempty"`
+}
+
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// PostgreSQLInstance is the CRD type for abstract PostgreSQL database instances
+// +k8s:openapi-gen=true
+// +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.bindingPhase"
+// +kubebuilder:printcolumn:name="CLASS",type="string",JSONPath=".spec.classReference.name"
+// +kubebuilder:printcolumn:name="VERSION",type="string",JSONPath=".spec.engineVersion"
+// +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
+type PostgreSQLInstance struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec   PostgreSQLInstanceSpec           `json:"spec,omitempty"`
+	Status corev1alpha1.ResourceClaimStatus `json:"status,omitempty"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// PostgreSQLInstanceList contains a list of PostgreSQLInstance
+type PostgreSQLInstanceList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []PostgreSQLInstance `json:"items"`
+}
+
+// ObjectReference to using this object as a reference
+func (p *PostgreSQLInstance) ObjectReference() *corev1.ObjectReference {
+	if p.Kind == "" {
+		p.Kind = PostgreSQLInstanceKind
+	}
+	if p.APIVersion == "" {
+		p.APIVersion = APIVersion
+	}
+	return &corev1.ObjectReference{
+		APIVersion: p.APIVersion,
+		Kind:       p.Kind,
+		Name:       p.Name,
+		Namespace:  p.Namespace,
+		UID:        p.UID,
+	}
+}
+
+// OwnerReference to use this object as an owner
+func (p *PostgreSQLInstance) OwnerReference() metav1.OwnerReference {
+	return *util.ObjectToOwnerReference(p.ObjectReference())
+}
+
+func (p *PostgreSQLInstance) ClaimStatus() *corev1alpha1.ResourceClaimStatus {
+	return &p.Status
+}
+
+func (p *PostgreSQLInstance) GetObjectMeta() *metav1.ObjectMeta {
+	return &p.ObjectMeta
+}
+
+func (p *PostgreSQLInstance) ClassRef() *corev1.ObjectReference {
+	return p.Spec.ClassRef
+}
+
+func (p *PostgreSQLInstance) ResourceRef() *corev1.ObjectReference {
+	return p.Spec.ResourceRef
+}
+
+func (p *PostgreSQLInstance) SetResourceRef(ref *corev1.ObjectReference) {
+	p.Spec.ResourceRef = ref
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+// Bucket
 // LocalPermissionType - Base type for LocalPermissions
 type LocalPermissionType string
 
