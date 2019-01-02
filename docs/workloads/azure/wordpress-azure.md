@@ -11,7 +11,10 @@ In this environment, the following components will be dynamically provisioned an
 
 Before starting this guide, you should have already [configured your Azure account](../../cloud-providers/azure/azure-provider.md) for usage by Crossplane.
 
-You should have a `crossplane-azure-provider-key.json` file on your local filesystem, preferably at the root of where you cloned the [Crossplane repo](https://github.com/crossplaneio/crossplane).
+- You should have a `crossplane-azure-provider-key.json` file on your local filesystem, preferably at the root of where you cloned the [Crossplane repo](https://github.com/crossplaneio/crossplane).
+- You should have a azure resource group with name `group-westus-1`. If not, change the value of `resourceGroupName` to an existing resource group in `cluster/examples/workloads/wordpress-azure/provider.yaml`
+
+
 
 ## Administrator Tasks
 
