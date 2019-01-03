@@ -36,10 +36,6 @@ type BindingStatus interface {
 	IsUnbound() bool
 }
 
-type BindingStatusObject interface {
-	BindingStatus() BindingStatus
-}
-
 // BindingStatusPhase defines field(s) representing resource status
 type BindingStatusPhase struct {
 	Phase BindingState `json:"bindingPhase,omitempty"` // binding status of the instance
