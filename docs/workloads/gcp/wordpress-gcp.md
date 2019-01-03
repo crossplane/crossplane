@@ -171,5 +171,5 @@ kubectl delete -f cluster/examples/workloads/wordpress-gcp/provider.yaml
 gcloud projects list
 
 # delete demo project
-gcloud projects delete [demo-project-id
+gcloud projects delete [demo-project-id]
 ```
