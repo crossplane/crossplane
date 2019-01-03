@@ -25,7 +25,7 @@ import (
 	"github.com/onsi/gomega"
 )
 
-func TestMySQLServerConditionType(t *testing.T) {
+func TestSQLServerConditionType(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	cases := []struct {
@@ -38,31 +38,31 @@ func TestMySQLServerConditionType(t *testing.T) {
 	}
 
 	for _, tt := range cases {
-		actual := MySQLServerConditionType(tt.state)
+		actual := SQLServerConditionType(string(tt.state))
 		g.Expect(actual).To(gomega.Equal(tt.expected))
 	}
 }
 
-func TestMySQLServerStatusMessage(t *testing.T) {
+func TestSQLServerStatusMessage(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	cases := []struct {
 		state           mysql.ServerState
 		expectedMessage string
 	}{
-		{mysql.ServerStateDisabled, "MySQL Server instance foo is disabled"},
-		{mysql.ServerStateDropping, "MySQL Server instance foo is dropping"},
-		{mysql.ServerStateReady, "MySQL Server instance foo is ready"},
-		{mysql.ServerState("FooState"), "MySQL Server instance foo is in an unknown state FooState"},
+		{mysql.ServerStateDisabled, "SQL Server instance foo is disabled"},
+		{mysql.ServerStateDropping, "SQL Server instance foo is dropping"},
+		{mysql.ServerStateReady, "SQL Server instance foo is ready"},
+		{mysql.ServerState("FooState"), "SQL Server instance foo is in an unknown state FooState"},
 	}
 
 	for _, tt := range cases {
-		message := MySQLServerStatusMessage("foo", tt.state)
+		message := SQLServerStatusMessage("foo", string(tt.state))
 		g.Expect(message).To(gomega.Equal(tt.expectedMessage))
 	}
 }
 
-func TestMySQLServerSkuName(t *testing.T) {
+func TestSQLServerSkuName(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	cases := []struct {
@@ -81,7 +81,7 @@ func TestMySQLServerSkuName(t *testing.T) {
 	}
 
 	for _, tt := range cases {
-		skuName, err := MySQLServerSkuName(tt.pricingTier)
+		skuName, err := SQLServerSkuName(tt.pricingTier)
 		if tt.expectedErr != "" {
 			g.Expect(err).To(gomega.HaveOccurred())
 			g.Expect(err.Error()).To(gomega.Equal(tt.expectedErr))

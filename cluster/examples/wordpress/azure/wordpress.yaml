@@ -13,7 +13,7 @@ spec:
   pricingTier:
     tier: Basic
     vcores: 1
-    family: Gen4
+    family: Gen5
   storageProfile:
     storageGB: 25
     backupRetentionDays: 7

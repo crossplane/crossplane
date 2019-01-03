@@ -354,16 +354,6 @@ func (e *EKSCluster) SetConnectionSecretReference(secret *corev1.Secret) {
 	e.Status.ConnectionSecretRef.Name = secret.Name
 }
 
-// Endpoint returns rds resource endpoint value saved in the status (could be empty)
-func (e *EKSCluster) Endpoint() string {
-	return e.Status.Endpoint
-}
-
-// SetEndpoint sets status endpoint field
-func (e *EKSCluster) SetEndpoint(s string) {
-	e.Status.Endpoint = s
-}
-
 // ObjectReference to this EKSCluster
 func (e *EKSCluster) ObjectReference() *corev1.ObjectReference {
 	return util.ObjectReference(e.ObjectMeta, util.IfEmptyString(e.APIVersion, APIVersion), util.IfEmptyString(e.Kind, EKSClusterKind))

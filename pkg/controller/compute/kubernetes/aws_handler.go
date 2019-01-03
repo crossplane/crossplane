@@ -60,6 +60,7 @@ func (r *AWSClusterHandler) provision(class *corev1alpha1.ResourceClass, instanc
 		},
 		Spec: *resourceInstance,
 	}
+	cluster.Status.SetUnbound()
 
 	err := c.Create(ctx, cluster)
 	return cluster, err

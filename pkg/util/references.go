@@ -14,16 +14,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package mysql
+package util
 
 import (
-	"testing"
-
-	. "github.com/onsi/gomega"
+	"k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
-func TestTranslateVersion(t *testing.T) {
-	g := NewGomegaWithT(t)
-	g.Expect(translateVersion("5.6")).To(Equal("MYSQL_5_6"))
-	g.Expect(translateVersion("foo.bar.baz")).To(Equal("MYSQL_foo_bar_baz"))
+// NamespaceNameFromObjectRef helper function to create NamespacedName
+func NamespaceNameFromObjectRef(or *v1.ObjectReference) types.NamespacedName {
+	return types.NamespacedName{
+		Namespace: or.Namespace,
+		Name:      or.Name,
+	}
 }

@@ -54,6 +54,7 @@ rules:
   - aws.crossplane.io
   - compute.aws.crossplane.io
   - database.aws.crossplane.io
+  - storage.aws.crossplane.io
   - azure.crossplane.io
   - compute.azure.crossplane.io
   - database.azure.crossplane.io

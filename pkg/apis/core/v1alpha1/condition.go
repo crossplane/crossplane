@@ -25,15 +25,17 @@ import (
 type ConditionType string
 
 const (
-	// Pending means that the resource create request has been received and waiting to be fulfilled
+	// Pending means that the resource create request has been received and is waiting to be fulfilled.
 	Pending ConditionType = "Pending"
-	// Creating means that the DB resource create request has been processed and managed resource is being created
+	// Creating means that the resource create request has been accepted and the resource is in
+	// the process of being created.
 	Creating ConditionType = "Creating"
-	// Deleting means that the resource is being deleted.
+	// Deleting means that the resource is in the process of being deleted.
 	Deleting ConditionType = "Deleting"
-	// Failed means that the resource creation has failed.
+	// Failed means that the resource is in a failure state, for example it failed to be created.
 	Failed ConditionType = "Failed"
-	// Ready means that the resource creation has been successful.
+	// Ready means that the resource creation has been successful and the resource is ready to
+	// accept requests and perform operations.
 	Ready ConditionType = "Ready"
 )
 
@@ -48,7 +50,7 @@ type Condition struct {
 
 // Conditionable defines set of functionality to operate on Conditions
 type Conditionable interface {
-	GetCondition(ConditionType) *Condition
+	Condition(ConditionType) *Condition
 	SetCondition(Condition)
 	RemoveCondition(ConditionType)
 	UnsetCondition(ConditionType)
@@ -110,6 +112,11 @@ func (c *ConditionedStatus) SetReady() {
 // SetCreating set creating as an active condition
 func (c *ConditionedStatus) SetCreating() {
 	c.SetCondition(NewCondition(Creating, "", ""))
+}
+
+// SetPending set pending as an active condition
+func (c *ConditionedStatus) SetPending() {
+	c.SetCondition(NewCondition(Pending, "", ""))
 }
 
 // SetDeleting set creating as an active condition

@@ -18,12 +18,13 @@
   version = "v0.2.0"
 
 [[projects]]
-  digest = "1:e145de14731610c29ae203b55e4c407340ae91190e8536b2b08b6543f257df0b"
+  digest = "1:a330c56a23f12930dd3bc6d9b80b655a2cf384291a952e57025dc99a5c8c775d"
   name = "github.com/Azure/azure-sdk-for-go"
   packages = [
     "services/containerservice/mgmt/2018-03-31/containerservice",
     "services/graphrbac/1.6/graphrbac",
     "services/mysql/mgmt/2017-12-01/mysql",
+    "services/postgresql/mgmt/2017-12-01/postgresql",
     "services/resources/mgmt/2018-05-01/resources",
     "version",
   ]
@@ -1104,9 +1105,11 @@
     "github.com/Azure/azure-sdk-for-go/services/containerservice/mgmt/2018-03-31/containerservice",
     "github.com/Azure/azure-sdk-for-go/services/graphrbac/1.6/graphrbac",
     "github.com/Azure/azure-sdk-for-go/services/mysql/mgmt/2017-12-01/mysql",
+    "github.com/Azure/azure-sdk-for-go/services/postgresql/mgmt/2017-12-01/postgresql",
     "github.com/Azure/azure-sdk-for-go/services/resources/mgmt/2018-05-01/resources",
     "github.com/Azure/go-autorest/autorest",
     "github.com/Azure/go-autorest/autorest/adal",
+    "github.com/Azure/go-autorest/autorest/azure",
     "github.com/Azure/go-autorest/autorest/azure/auth",
     "github.com/Azure/go-autorest/autorest/date",
     "github.com/Azure/go-autorest/autorest/to",

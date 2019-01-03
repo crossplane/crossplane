@@ -182,10 +182,6 @@ func (g *GKECluster) ConnectionSecretName() string {
 	return g.Spec.ConnectionSecretRef.Name
 }
 
-func (g *GKECluster) Endpoint() string {
-	return g.Status.Endpoint
-}
-
 // State returns rds instance state value saved in the status (could be empty)
 func (g *GKECluster) State() string {
 	return g.Status.State

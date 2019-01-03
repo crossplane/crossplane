@@ -17,6 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"strconv"
+
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/util"
 	"k8s.io/api/core/v1"
@@ -32,16 +34,32 @@ const (
 
 	// StateFailed  represents a CloudSQL instance has failed in some way
 	StateFailed = "FAILED"
+
+	// The version prefix for MySQL versions
+	MysqlDBVersionPrefix = "MYSQL"
+
+	// The version prefix for PostgreSQL versions
+	PostgresqlDBVersionPrefix = "POSTGRES"
 )
 
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
 // CloudsqlInstanceSpec defines the desired state of CloudsqlInstance
 type CloudsqlInstanceSpec struct {
-	Tier            string `json:"tier"`
-	Region          string `json:"region"`
+	Region      string `json:"region"`
+	StorageType string `json:"storageType"`
+	StorageGB   int64  `json:"storageGB"`
+
+	// The database engine (MySQL or PostgreSQL) and its specific version to use, e.g., MYSQL_5_7 or POSTGRES_9_6.
 	DatabaseVersion string `json:"databaseVersion"`
-	StorageType     string `json:"storageType"`
+
+	// MySQL and PostgreSQL use different machine types.  MySQL only allows a predefined set of machine types,
+	// while PostgreSQL can only use custom machine instance types and shared-core instance types. For the full
+	// set of MySQL machine types, see https://cloud.google.com/sql/pricing#2nd-gen-instance-pricing. For more
+	// information on custom machine types that can be used with PostgreSQL, see the examples on
+	// https://cloud.google.com/sql/docs/postgres/create-instance?authuser=1#machine-types and the naming rules
+	// on https://cloud.google.com/sql/docs/postgres/create-instance#create-2ndgen-curl.
+	Tier string `json:"tier"`
 
 	// Kubernetes object references
 	ClaimRef            *v1.ObjectReference     `json:"claimRef,omitempty"`
@@ -123,6 +141,13 @@ func NewCloudSQLInstanceSpec(properties map[string]string) *CloudsqlInstanceSpec
 		spec.StorageType = val
 	}
 
+	val, ok = properties["storageGB"]
+	if ok {
+		if storageGB, err := strconv.Atoi(val); err == nil {
+			spec.StorageGB = int64(storageGB)
+		}
+	}
+
 	return spec
 }
 
@@ -135,11 +160,6 @@ func (c *CloudsqlInstance) ConnectionSecretName() string {
 	}
 
 	return c.Spec.ConnectionSecretRef.Name
-}
-
-// Endpoint returns the CloudSQL instance endpoint for connection
-func (c *CloudsqlInstance) Endpoint() string {
-	return c.Status.Endpoint
 }
 
 // ObjectReference to this CloudSQL instance instance

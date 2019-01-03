@@ -26,6 +26,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	// The engine value for MySQL
+	MysqlEngine = "mysql"
+
+	// The engine value for PostgreSQL
+	PostgresqlEngine = "postgres"
+)
+
 // RDSInstanceSpec defines the desired state of RDSInstance
 type RDSInstanceSpec struct {
 	MasterUsername string `json:"masterUsername"`
@@ -159,16 +167,6 @@ func (r *RDSInstance) ConnectionSecretName() string {
 	}
 
 	return r.Spec.ConnectionSecretRef.Name
-}
-
-// Endpoint returns rds instance endpoint value saved in the status (could be empty)
-func (r *RDSInstance) Endpoint() string {
-	return r.Status.Endpoint
-}
-
-// SetEndpoint sets status endpoint field
-func (r *RDSInstance) SetEndpoint(s string) {
-	r.Status.Endpoint = s
 }
 
 // ObjectReference to this RDSInstance

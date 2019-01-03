@@ -40,8 +40,8 @@ gcloud --project $EXAMPLE_PROJECT_ID iam service-accounts create example-123 --d
 # export service account email
 export EXAMPLE_SA="example-123@$EXAMPLE_PROJECT_ID.iam.gserviceaccount.com"
 
-# create service account key (this will create a `key.json` file in your current working directory)
-gcloud --project $EXAMPLE_PROJECT_ID iam service-accounts keys create --iam-account $EXAMPLE_SA key.json 
+# create service account key (this will create a `crossplane-gcp-provider-key.json` file in your current working directory)
+gcloud --project $EXAMPLE_PROJECT_ID iam service-accounts keys create --iam-account $EXAMPLE_SA crossplane-gcp-provider-key.json
 
 # assign roles
 gcloud projects add-iam-policy-binding $EXAMPLE_PROJECT_ID --member "serviceAccount:$EXAMPLE_SA" --role="roles/iam.serviceAccountUser"
@@ -80,7 +80,7 @@ Create a GCP example project which we will use to host our example GKE cluster, 
         - Click `Create`
             - This should show `Private key saved to your computer` confirmation dialog
             - You also should see `crossplane-example-1234-[suffix].json` file in your browser's Download directory
-            - Save (copy or move) this file into example (this) directory, with new name `key.json`
+            - Save (copy or move) this file into example (this) directory, with new name `crossplane-gcp-provider-key.json`
 - Enable `Cloud SQL API`
     - Navigate to [Cloud SQL Admin API](https://console.developers.google.com/apis/api/sqladmin.googleapis.com/overview)
     - Click `Enable`

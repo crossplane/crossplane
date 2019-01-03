@@ -34,7 +34,7 @@ parameters:
   sslEnforced: "false"
   tier: Basic
   vcores: "1"
-  family: Gen4
+  family: Gen5
   storageGB: "25"
   backupRetentionDays: "7"
   geoRedundantBackup: "false"

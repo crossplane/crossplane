@@ -51,7 +51,7 @@ function check_context() {
 }
 
 # configure minikube
-KUBE_VERSION=${KUBE_VERSION:-"v1.10.0"}
+KUBE_VERSION=${KUBE_VERSION:-"v1.13.1"}
 MEMORY=${MEMORY:-"3000"}
 DRIVER=${DRIVER:-virtualbox}
 

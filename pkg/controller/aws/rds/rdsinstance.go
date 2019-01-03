@@ -233,7 +233,7 @@ func (r *Reconciler) _sync(instance *databasev1alpha1.RDSInstance, client rds.Cl
 	}
 
 	// Save resource endpoint
-	instance.SetEndpoint(db.Endpoint)
+	instance.Status.Endpoint = db.Endpoint
 	instance.Status.ProviderID = db.ARN
 
 	// Update resource secret
