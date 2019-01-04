@@ -18,8 +18,8 @@ The steps to follow below are from the [AWS SDK for GO](https://docs.aws.amazon.
 1. Choose your IAM user name (not the check box).
 1. Open the Security credentials tab, and then choose Create access key.
 1. To see the new access key, choose Show. Your credentials resemble the following:
-    - Access key ID: AKIAIOSFODNN7EXAMPLE
-    - Secret access key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+  - Access key ID: AKIAIOSFODNN7EXAMPLE
+  - Secret access key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
 1. To download the key pair, choose Download .csv file.
 
 Then convert the `*.csv` file to the below format and save it to `~/.aws/credentials`:

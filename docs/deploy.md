@@ -132,5 +132,5 @@ This `Workload` definition contains multiple components that informs Crossplane 
 - TargetCluster: the cluster where the payload application and all its requirements should be deployed
 - TargetNamespace: the namespace on the target cluster
 - Workload Payload:
-    - TargetDeployment
-    - TargetService
+  - TargetDeployment
+  - TargetService
