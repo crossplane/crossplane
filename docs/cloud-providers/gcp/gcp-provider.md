@@ -58,42 +58,42 @@ Create a GCP example project which we will use to host our example GKE cluster, 
 - Login into [GCP Console](https://console.cloud.google.com)
 - Create a new project (either stand alone or under existing organization)
 - Create Example Service Account
-    - Navigate to: [Create Service Account](https://console.cloud.google.com/iam-admin/serviceaccounts)
-    - `Service Account Name`: type "example"
-    - `Service Account ID`: leave auto assigned
-    - `Service Account Description`: type "Crossplane example"
-    - Click `Create` button
-        - This should advance to the next section `2 Grant this service account to project (optional)`
-    - We will assign this account 3 roles:
-        - `Service Account User`
-        - `Cloud SQL Admin`
-        - `Kubernetes Engine Admin`
-    - Click `Create` button
-        - This should advance to the next section `3 Grant users access to this service account (optional)`
-    - We don't need to assign any user or admin roles to this account for the example purposes, so you can leave following two fields blank:
-        - `Service account users role`
-        - `Service account admins role`
-    - Next, we will create and export service account key
-        - Click `+ Create Key` button.
-            - This should open a `Create Key` side panel
-        - Select `json` for the Key type (should be selected by default)
-        - Click `Create`
-            - This should show `Private key saved to your computer` confirmation dialog
-            - You also should see `crossplane-example-1234-[suffix].json` file in your browser's Download directory
-            - Save (copy or move) this file into example (this) directory, with new name `crossplane-gcp-provider-key.json`
+  - Navigate to: [Create Service Account](https://console.cloud.google.com/iam-admin/serviceaccounts)
+  - `Service Account Name`: type "example"
+  - `Service Account ID`: leave auto assigned
+  - `Service Account Description`: type "Crossplane example"
+  - Click `Create` button
+    - This should advance to the next section `2 Grant this service account to project (optional)`
+  - We will assign this account 3 roles:
+    - `Service Account User`
+    - `Cloud SQL Admin`
+    - `Kubernetes Engine Admin`
+  - Click `Create` button
+    - This should advance to the next section `3 Grant users access to this service account (optional)`
+  - We don't need to assign any user or admin roles to this account for the example purposes, so you can leave following two fields blank:
+    - `Service account users role`
+    - `Service account admins role`
+  - Next, we will create and export service account key
+    - Click `+ Create Key` button.
+      - This should open a `Create Key` side panel
+    - Select `json` for the Key type (should be selected by default)
+    - Click `Create`
+      - This should show `Private key saved to your computer` confirmation dialog
+      - You also should see `crossplane-example-1234-[suffix].json` file in your browser's Download directory
+      - Save (copy or move) this file into example (this) directory, with new name `crossplane-gcp-provider-key.json`
 - Enable `Cloud SQL API`
-    - Navigate to [Cloud SQL Admin API](https://console.developers.google.com/apis/api/sqladmin.googleapis.com/overview)
-    - Click `Enable`
+  - Navigate to [Cloud SQL Admin API](https://console.developers.google.com/apis/api/sqladmin.googleapis.com/overview)
+  - Click `Enable`
 - Enable `Kubernetes Engine API`
-    - Navigate to [Kubernetes Engine API](https://console.developers.google.com/apis/api/container.googleapis.com/overview)
-    - Click `Enable`
+  - Navigate to [Kubernetes Engine API](https://console.developers.google.com/apis/api/container.googleapis.com/overview)
+  - Click `Enable`
 
 ## Enable Billing
 
 No matter what option you chose to configure the previous steps, you will need to enable billing for your account in order to create and use Kubernetes clusters with GKE.
 
 - Go to [GCP Console](https://console.cloud.google.com)
-    - Select example project
-    - Click `Enable Billing`
+  - Select example project
+  - Click `Enable Billing`
 - Go to [Kubernetes Clusters](https://console.cloud.google.com/kubernetes/list)
-    - Click `Enable Billing`
+  - Click `Enable Billing`
