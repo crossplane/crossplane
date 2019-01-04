@@ -1,41 +1,41 @@
 # Deploying a WordPress Workload on AWS
 
-This guide will walk you through how to use Crossplane to deploy a stateful workload in a portable way to AWS.
-In this environment, the following components will be dynamically provisioned and configured during this guide:
+This guide walks you through how to use Crossplane to deploy a stateful workload in a portable way on AWS.
+The following components are dynamically provisioned and configured during this guide:
 
-* EKS Kubernetes cluster
-* RDS MySQL database
-* WordPress application
+* An EKS Kubernetes cluster
+* An RDS MySQL database
+* A sample WordPress application
 
 ## Pre-requisites
 
-Before starting this guide, you should have already [configured your AWS account](../../cloud-providers/aws/aws-provider.md) for usage by Crossplane.
+Before starting this guide, you should have already [configured your AWS account](../../cloud-providers/aws/aws-provider.md) for use with Crossplane.
 
-You should have a `~/.aws/credentials` file on your local filesystem.
+You should also have an AWS credentials file at `~/.aws/credentials` already on your local filesystem.
 
 ## Administrator Tasks
 
-This section covers the tasks performed by the cluster or cloud administrator, which includes:
+This section covers tasks performed by the cluster or cloud administrator.  These include:
 
-- Import AWS provider credentials
-- Define Resource classes for cluster and database resources
-- Create all EKS pre-requisite artifacts
-- Create a target EKS Kubernetes cluster (using dynamic provisioning with the cluster resource class)
+- Importing AWS provider credentials
+- Defining resource classes for cluster and database resources
+- Creating all EKS pre-requisite artifacts
+- Creating a target EKS cluster (using dynamic provisioning with the cluster resource class)
 
-**Note**: all artifacts created by the administrator are stored/hosted in the `crossplane-system` namespace, which has
+> Note: All artifacts created by the administrator are stored/hosted in the `crossplane-system` namespace, which has
 restricted access, i.e. `Application Owner(s)` should not have access to them.
 
-For the next steps, make sure your `kubectl` context points to the cluster where `Crossplane` was deployed.
+To successfully follow this guide, make sure your `kubectl` context points to the cluster where `Crossplane` was deployed.
 
-### Configure EKS Cluster Pre-requisites
+### Configuring EKS Cluster Pre-requisites
 
 EKS cluster deployment is somewhat of an arduous process right now.
-A number of artifacts and configuration needs to be set up within the AWS console first before proceeding with the provisioning of an EKS cluster using Crossplane.
+A number of artifacts and configurations need to be set up within the AWS console prior to provisioning an EKS cluster using Crossplane.
 We anticipate that AWS will make improvements on this user experience in the near future.
 
 #### Create a named keypair
-1. Find an existing ec2 key pair or create a new key pair with [these steps](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html)
-1. Export key pair name
+1. Use an existing ec2 key pair or create a new key pair by following [these steps](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html)
+1. Export the key pair name as the EKS_WORKER_KEY_NAME environment variable
     ```console
     export EKS_WORKER_KEY_NAME=replace-with-key-name
     ```
@@ -45,11 +45,11 @@ We anticipate that AWS will make improvements on this user experience in the nea
 
 1. Open the [IAM console](https://console.aws.amazon.com/iam/).
 1. Choose Roles, then Create role.
-1. Choose EKS from the list of services, then Allows Amazon EKS to manage your clusters on your behalf for your use case, then Next: Permissions.
+1. Choose EKS from the list of services, then "Allows EKS to manage clusters on your behalf", then Next: Permissions.
 1. Choose Next: Tags.
 1. Choose Next: Review.
-1. For Role name, enter a unique name for your role, such as eksServiceRole, then choose Create role.
-1. Export role arn
+1. For the Role name, enter a unique name for your role, such as eksServiceRole, then choose Create role.
+1. Set the EKS_ROLE_ARN environment variable to the name of your role ARN
     ```console
     export EKS_ROLE_ARN=replace-with-full-role-arn
     ```
@@ -59,24 +59,23 @@ We anticipate that AWS will make improvements on this user experience in the nea
 
 1. Open the [AWS CloudFormation console](https://console.aws.amazon.com/cloudformation).
 1. From the navigation bar, select a Region that supports Amazon EKS.
-    ```> Note
-     Amazon EKS is available in the following Regions at this time:
-     * US West (Oregon) (us-west-2)
-     * US East (N. Virginia) (us-east-1)
-     * EU (Ireland) (eu-west-1)
-    ```
-1. Export region
+    > Note: Amazon EKS is available in the following Regions at this time:
+     > * US West (Oregon) (us-west-2)
+     > * US East (N. Virginia) (us-east-1)
+     > * EU (Ireland) (eu-west-1)
+    
+1. Set the REGION environment variable to your region
     ```console
-    export REGION=replace-with-region-of-eks
+    export REGION=replace-with-region
     ```
 
 1. Choose Create stack.
 1. For Choose a template, select Specify an Amazon S3 template URL.
-1. Paste the following URL into the text area and choose Next:
+1. Paste the following URL into the text area and choose Next.
     ```
     https://amazon-eks.s3-us-west-2.amazonaws.com/cloudformation/2018-11-07/amazon-eks-vpc-sample.yaml
     ```
-1. On the Specify Details page, fill out the parameters accordingly, and then choose Next.
+1. On the Specify Details page, fill out the parameters accordingly, and choose Next.
     ```
     * Stack name: Choose a stack name for your AWS CloudFormation stack. For example, you can call it eks-vpc.
     * VpcBlock: Choose a CIDR range for your VPC. You may leave the default value.
@@ -84,10 +83,10 @@ We anticipate that AWS will make improvements on this user experience in the nea
     * Subnet02Block: Choose a CIDR range for subnet 2. You may leave the default value.
     * Subnet03Block: Choose a CIDR range for subnet 3. You may leave the default value.
     ```
-1. (Optional) On the Options page, tag your stack resources. Choose Next.
+1. (Optional) On the Options page, tag your stack resources and choose Next.
 1. On the Review page, choose Create.
 1. When your stack is created, select it in the console and choose Outputs.
-1. Using values from outputs, export the following variables.
+1. Using values from outputs, export the following environment variables.
     ```console
     export EKS_VPC=replace-with-eks-vpcId
     export EKS_SUBNETS=replace-with-eks-subnetIds01,replace-with-eks-subnetIds02,replace-with-eks-subnetIds03
@@ -95,7 +94,7 @@ We anticipate that AWS will make improvements on this user experience in the nea
     ```
 
 #### Create an RDS subnet group
-1. Navigate to aws console in same region as the EKS clsuter
+1. Navigate to the aws console in same region as the EKS clsuter
 1. Navigate to `RDS` service
 1. Navigate to `Subnet groups` in left hand pane
 1. Click `Create DB Subnet Group`
@@ -110,8 +109,8 @@ We anticipate that AWS will make improvements on this user experience in the nea
 
 #### Create an RDS Security Group (example only)
 
-**Note**: This will make your RDS instance visible from Anywhere on the internet.
-This if for **EXAMPLE PURPOSES ONLY**, and is **NOT RECOMMENDED** for production system.
+> Note: This will make your RDS instance visible from anywhere on the internet.
+This is for **EXAMPLE PURPOSES ONLY** and is **NOT RECOMMENDED** for production system.
 
 1. Navigate to ec2 in the same region as the EKS cluster
 1. Click: security groups
@@ -125,7 +124,7 @@ This if for **EXAMPLE PURPOSES ONLY**, and is **NOT RECOMMENDED** for production
     - For Source, choose `Anywhere` from drop down or type: `0.0.0.0/0`
 1. Choose Add another rule if you need to add more IP addresses or different port ranges.
 1. Click: Create
-1. Export the security gorup id
+1. Export the security group id
     ```console
     export RDS_SECURITY_GROUP=replace-with-security-group-id
     ```
@@ -133,7 +132,7 @@ This if for **EXAMPLE PURPOSES ONLY**, and is **NOT RECOMMENDED** for production
 
 ### Deploy all Workload Resources
 
-Now deploy all the workload resources, including the RDS database and EKS cluster with the following single commands:
+Now deploy all the workload resources, including the RDS database and EKS cluster with the following commands:
 
 Create provider:
 ```console
@@ -145,14 +144,15 @@ Create cluster:
 kubectl create -f cluster/examples/workloads/wordpress-aws/cluster.yaml
 ```
 
-It will take a while (~15 minutes) for the EKS cluster to be deployed and becoming ready.
+It will take a while (~15 minutes) for the EKS cluster to be deployed and become available.
 You can keep an eye on its status with the following command:
 
 ```console
 kubectl -n crossplane-system get ekscluster -o custom-columns=NAME:.metadata.name,STATE:.status.state,CLUSTERNAME:.status.clusterName,ENDPOINT:.status.endpoint,LOCATION:.spec.location,CLUSTERCLASS:.spec.classRef.name,RECLAIMPOLICY:.spec.reclaimPolicy
 ```
 
-Once the cluster is done provisioning, you should see output similar to the following (note the `STATE` field is `ACTIVE` and the `ENDPOINT` field has a value):
+Once the cluster is done provisioning, you should see output similar to the following
+> Note:  the `STATE` field is `ACTIVE` and the `ENDPOINT` field has a value):
 
 ```console
 NAME                                       STATE      CLUSTERNAME   ENDPOINT                                                                   LOCATION   CLUSTERCLASS       RECLAIMPOLICY
@@ -161,10 +161,10 @@ eks-8f1f32c7-f6b4-11e8-844c-025000000001   ACTIVE     <none>        https://B922
 
 ## Application Developer Tasks
 
-This section covers the tasks performed by the application developer, which includes:
+This section covers tasks performed by an application developer.  These include:
 
-- Define Workload in terms of Resources and Payload (Deployment/Service) which will be deployed into the target Kubernetes Cluster
-- Define the dependency resource requirements, in this case a `MySQL` database
+- Defining a Workload in terms of Resources and Payload (Deployment/Service) which will be deployed into the target Kubernetes Cluster
+- Defining the resource's dependency requirements, in this case a `MySQL` database
 
 Now that the EKS cluster is ready, let's begin deploying the workload as the application developer:
 
@@ -179,7 +179,7 @@ You can follow along with the MySQL database deployment with the following:
 kubectl -n crossplane-system get rdsinstance -o custom-columns=NAME:.metadata.name,STATUS:.status.state,CLASS:.spec.classRef.name,VERSION:.spec.version
 ```
 
-Once the `STATUS` column is `available` like below, then the WordPress pod should be able to connect to it:
+Once the `STATUS` column is `available` as seen below, the WordPress pod should be able to connect to it:
 
 ```console
 NAME                                         STATUS      CLASS            VERSION
@@ -205,9 +205,9 @@ Once WordPress is running and has a public IP address through its service, we ca
 echo "http://$(kubectl get workload test-workload -o jsonpath='{.status.service.loadBalancer.ingress[0].ip}')"
 ```
 
-Paste that URL into your browser and you should see WordPress running and ready for you to walk through the setup experience. You may need to wait a few minutes for this to become active in the AWS load balancer.
+Paste that URL into your browser and you should see WordPress running and ready for you to walk through its setup experience. You may need to wait a few minutes for this to become accessible via the AWS load balancer.
 
-## Connect to your EKSCluster (optional)
+## Connecting to your EKSCluster (optional)
 
 Requires:
  * awscli
