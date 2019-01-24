@@ -161,6 +161,7 @@ pkg
 In above example we have two groups with sub-group (tiers):
 - aws/rds
 - gcp/cloudsql
+
 In addition both groups contain types with the same name: `Instance`
 
 ### Creating New Resource
