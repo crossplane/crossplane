@@ -19,9 +19,7 @@ package workload
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"log"
-	"os"
 	"strings"
 
 	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/compute/v1alpha1"
@@ -34,7 +32,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	kubectl "k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -132,16 +129,6 @@ func (r *Reconciler) _connect(instance *computev1alpha1.Workload) (kubernetes.In
 	s, err := r.kubeclient.CoreV1().Secrets(k.Namespace).Get(k.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
-	}
-
-	if kubeconfig, ok := s.Data[corev1alpha1.ResourceCredentialsSecretKubeconfigFileKey]; ok {
-		// we have a full kubeconfig, just load that in its entirety
-		config, err := getRestConfigFromKubeconfig(kubeconfig)
-		if err != nil {
-			return nil, err
-		}
-
-		return kubernetes.NewForConfig(config)
 	}
 
 	// read the individual connection config fields
@@ -325,24 +312,4 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 
 	// sync the resource
 	return r.sync(instance, targetClient)
-}
-
-// getRestConfigFromKubeconfig converts the given raw kubeconfig into a restful config
-func getRestConfigFromKubeconfig(kubeconfig []byte) (*rest.Config, error) {
-	// open a temp file that we'll write the raw kubeconfig data to
-	kubeconfigTempFile, err := ioutil.TempFile(os.TempDir(), "")
-	if err != nil {
-		return nil, err
-	}
-	defer os.Remove(kubeconfigTempFile.Name())
-
-	// write the raw data to the temp file, then close the file
-	if _, err := kubeconfigTempFile.Write(kubeconfig); err != nil {
-		return nil, err
-	}
-	if err := kubeconfigTempFile.Close(); err != nil {
-		return nil, err
-	}
-
-	return kubectl.BuildConfigFromFlags("", kubeconfigTempFile.Name())
 }

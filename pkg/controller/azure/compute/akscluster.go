@@ -35,6 +35,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -305,9 +306,13 @@ func (r *Reconciler) sync(instance *computev1alpha1.AKSCluster, aksClient *azure
 		return r.fail(instance, errorSyncingCluster, err.Error())
 	}
 
-	// create the connection secret
-	if err := r.setConnectionSecret(instance, aksClient); err != nil {
-		return r.fail(instance, errorSyncingCluster, fmt.Sprintf("failed to set connection secret for AKS cluster %s: %+v", instance.Name, err))
+	secret, err := r.connectionSecret(instance, aksClient)
+	if err != nil {
+		return r.fail(instance, errorSyncingCluster, err.Error())
+	}
+
+	if _, err := util.ApplySecret(r.clientset, secret); err != nil {
+		return r.fail(instance, errorSyncingCluster, err.Error())
 	}
 
 	// update resource status
@@ -404,39 +409,44 @@ func (r *Reconciler) servicePrincipalSecret(instance *computev1alpha1.AKSCluster
 	return newSPSecretValue.String(), nil
 }
 
-func (r *Reconciler) setConnectionSecret(instance *computev1alpha1.AKSCluster, aksClient *azureclients.AKSSetupClient) error {
-	secretName := instance.ConnectionSecretName()
-	_, err := r.clientset.CoreV1().Secrets(instance.Namespace).Get(secretName, metav1.GetOptions{})
-	if err == nil {
-		// secret is already created, nothing more to do
-		return nil
-	} else if !errors.IsNotFound(err) {
-		return err
-	}
-
-	// the secret doesn't exist yet, create it now. First look up the cluster's admin credentials
-	clusterCreds, err := aksClient.AKSClusterAPI.ListClusterAdminCredentials(ctx, *instance)
+func (r *Reconciler) connectionSecret(instance *computev1alpha1.AKSCluster, client *azureclients.AKSSetupClient) (*v1.Secret, error) {
+	creds, err := client.ListClusterAdminCredentials(ctx, *instance)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	if clusterCreds.Kubeconfigs == nil || len(*clusterCreds.Kubeconfigs) == 0 {
-		return fmt.Errorf("zero kubeconfig credentials returned")
+	// TODO(negz): It's not clear in what case this would contain more than one kubeconfig file.
+	// https://docs.microsoft.com/en-us/rest/api/aks/managedclusters/listclusteradmincredentials#credentialresults
+	if creds.Kubeconfigs == nil || len(*creds.Kubeconfigs) == 0 || (*creds.Kubeconfigs)[0].Value == nil {
+		return nil, fmt.Errorf("zero kubeconfig credentials returned")
+	}
+	// Azure's generated Godoc claims Value is a 'base64 encoded kubeconfig'.
+	// This is true on the wire, but not true in the actual struct because
+	// encoding/json automatically base64 encodes and decodes byte slices.
+	kcfg, err := clientcmd.Load(*(*creds.Kubeconfigs)[0].Value)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse kubeconfig file: %+v", err)
 	}
 
-	kubeconfigs := *clusterCreds.Kubeconfigs
-	kubeconfigData := map[string][]byte{
-		corev1alpha1.ResourceCredentialsSecretKubeconfigFileKey: *kubeconfigs[0].Value,
+	kctx, ok := kcfg.Contexts[instance.Status.ClusterName]
+	if !ok {
+		return nil, fmt.Errorf("context configuration is not found for cluster: %s", instance.Status.ClusterName)
+	}
+	cluster, ok := kcfg.Clusters[kctx.Cluster]
+	if !ok {
+		return nil, fmt.Errorf("cluster configuration is not found: %s", kctx.Cluster)
+	}
+	auth, ok := kcfg.AuthInfos[kctx.AuthInfo]
+	if !ok {
+		return nil, fmt.Errorf("auth-info configuration is not found: %s", kctx.AuthInfo)
 	}
 
-	// create the connection secret with the credentials data now
-	connectionSecret := instance.ConnectionSecret()
-	connectionSecret.Data = kubeconfigData
-
-	if _, err := r.clientset.CoreV1().Secrets(instance.Namespace).Create(connectionSecret); err != nil {
-		return err
+	secret := instance.ConnectionSecret()
+	secret.Data = map[string][]byte{
+		corev1alpha1.ResourceCredentialsSecretEndpointKey:   []byte(cluster.Server),
+		corev1alpha1.ResourceCredentialsSecretCAKey:         cluster.CertificateAuthorityData,
+		corev1alpha1.ResourceCredentialsSecretClientCertKey: auth.ClientCertificateData,
+		corev1alpha1.ResourceCredentialsSecretClientKeyKey:  auth.ClientKeyData,
 	}
-
-	log.Printf("created connection secret for AKS cluster %s", instance.Name)
-	return nil
+	return secret, nil
 }
