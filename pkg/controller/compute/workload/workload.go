@@ -20,7 +20,7 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"strings"
+	"net/url"
 
 	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/compute/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
@@ -132,28 +132,30 @@ func (r *Reconciler) _connect(instance *computev1alpha1.Workload) (kubernetes.In
 	}
 
 	// read the individual connection config fields
-	host, ok := s.Data[corev1alpha1.ResourceCredentialsSecretEndpointKey]
-	if !ok {
-		return nil, fmt.Errorf("kubernetes cluster endpoint/host is not found")
-	}
-	hostName := string(host)
-	if !strings.HasSuffix(hostName, ":443") {
-		hostName = hostName + ":443"
-	}
-
 	user, _ := s.Data[corev1alpha1.ResourceCredentialsSecretUserKey]
 	pass, _ := s.Data[corev1alpha1.ResourceCredentialsSecretPasswordKey]
 	ca, _ := s.Data[corev1alpha1.ResourceCredentialsSecretCAKey]
 	cert, _ := s.Data[corev1alpha1.ResourceCredentialsSecretClientCertKey]
 	key, _ := s.Data[corev1alpha1.ResourceCredentialsSecretClientKeyKey]
 	token, _ := s.Data[corev1alpha1.ResourceCredentialsTokenKey]
+	host, ok := s.Data[corev1alpha1.ResourceCredentialsSecretEndpointKey]
+	if !ok {
+		return nil, fmt.Errorf("kubernetes cluster endpoint/host is not found")
+	}
+	u, err := url.Parse(string(host))
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse Kubernetes endpoint as URL: %+v", err)
+	}
 
 	config := &rest.Config{
-		Host:     hostName,
+		Host:     u.String(),
 		Username: string(user),
 		Password: string(pass),
 		TLSClientConfig: rest.TLSClientConfig{
-			ServerName: "kubernetes",
+			// This field's godoc claims clients will use 'the hostname used to
+			// contact the server' when it is left unset. In practice clients
+			// appear to use the URL, including scheme and port.
+			ServerName: u.Hostname(),
 			CAData:     ca,
 			CertData:   cert,
 			KeyData:    key,
