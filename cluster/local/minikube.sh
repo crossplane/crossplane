@@ -79,7 +79,9 @@ case "${1:-}" in
     minikube ssh
     ;;
   update)
+    helm_tag="$(cat _output/version)"
     copy_image_to_cluster ${BUILD_IMAGE} ${MINIKUBE_IMAGE}
+    copy_image_to_cluster ${BUILD_IMAGE} "${DOCKER_REGISTRY}/${PROJECT_NAME}:${helm_tag}"
     ;;
   restart)
     if check_context; then
@@ -91,13 +93,19 @@ case "${1:-}" in
     fi
     ;;
   helm-install)
-    echo " copying image for helm"
+    echo "copying image for helm"
     helm_tag="$(cat _output/version)"
     copy_image_to_cluster ${BUILD_IMAGE} "${DOCKER_REGISTRY}/${PROJECT_NAME}:${helm_tag}"
 
     [ "$2" ] && ns=$2 || ns="${DEFAULT_NAMESPACE}"
     echo "installing helm package(s) into \"$ns\" namespace"
     helm install --name ${PROJECT_NAME} --namespace ${ns} ${projectdir}/cluster/charts/${PROJECT_NAME} --set image.pullPolicy=Never,imagePullSecrets=''
+    ;;
+  helm-upgrade)
+    echo "copying image for helm"
+    helm_tag="$(cat _output/version)"
+    copy_image_to_cluster ${BUILD_IMAGE} "${DOCKER_REGISTRY}/${PROJECT_NAME}:${helm_tag}"
+    helm upgrade ${PROJECT_NAME} ${projectdir}/cluster/charts/${PROJECT_NAME}
     ;;
   helm-delete)
     echo "removing helm package"
@@ -118,6 +126,7 @@ case "${1:-}" in
     echo "  $0 update - push project docker images to minikube docker" >&2
     echo "  $0 restart project deployment pod(s) in specified namespace [default: \"${DEFAULT_NAMESPACE}\"]" >&2
     echo "  $0 helm-install package(s) into provided namespace [default: \"${DEFAULT_NAMESPACE}\"]" >&2
+    echo "  $0 helm-upgrade - deploy the latest docker images and helm charts to minikube" >&2
     echo "  $0 helm-delete package(s)" >&2
     echo "  $0 helm-list all package(s)" >&2
 esac
