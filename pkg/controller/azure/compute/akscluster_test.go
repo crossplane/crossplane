@@ -160,9 +160,8 @@ func TestReconcile(t *testing.T) {
 		}, nil
 	}
 	mockAKSSetupClient.MockListClusterAdminCredentials = func(ctx context.Context, instance computev1alpha1.AKSCluster) (containerservice.CredentialResults, error) {
-		val := []byte(clusterConfigData)
 		return containerservice.CredentialResults{
-			Kubeconfigs: &[]containerservice.CredentialResult{{Value: &val}},
+			Kubeconfigs: &[]containerservice.CredentialResult{{Value: &kubecfg}},
 		}, nil
 	}
 
@@ -272,7 +271,7 @@ func TestReconcile(t *testing.T) {
 	var connectionSecret *v1.Secret
 	for {
 		if connectionSecret, err = r.clientset.CoreV1().Secrets(namespace).Get(instanceName, metav1.GetOptions{}); err == nil {
-			if string(connectionSecret.Data[corev1alpha1.ResourceCredentialsSecretKubeconfigFileKey]) != "" {
+			if string(connectionSecret.Data[corev1alpha1.ResourceCredentialsSecretEndpointKey]) != "" {
 				break
 			}
 		}
@@ -346,5 +345,10 @@ func assertConnectionSecret(g *gomega.GomegaWithT, c client.Client, connectionSe
 	instance := &computev1alpha1.AKSCluster{}
 	err := c.Get(ctx, expectedRequest.NamespacedName, instance)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
-	g.Expect(string(connectionSecret.Data[corev1alpha1.ResourceCredentialsSecretKubeconfigFileKey])).To(gomega.Equal(clusterConfigData))
+	g.Expect(connectionSecret.Data).Should(gomega.Equal(map[string][]byte{
+		corev1alpha1.ResourceCredentialsSecretEndpointKey:   []byte(clientEndpoint),
+		corev1alpha1.ResourceCredentialsSecretCAKey:         []byte(clientCAdata),
+		corev1alpha1.ResourceCredentialsSecretClientCertKey: []byte(clientCert),
+		corev1alpha1.ResourceCredentialsSecretClientKeyKey:  []byte(clientKey),
+	}))
 }

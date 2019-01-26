@@ -17,6 +17,8 @@ limitations under the License.
 package compute
 
 import (
+	"encoding/base64"
+	"fmt"
 	"testing"
 	"time"
 
@@ -37,18 +39,53 @@ import (
 )
 
 const (
-	timeout           = 5 * time.Second
-	namespace         = "test-compute-namespace"
-	instanceName      = "test-compute-instance"
-	secretName        = "test-secret"
-	secretDataKey     = "credentials"
-	providerName      = "test-provider"
-	clusterConfigData = "mocked cluster config data"
+	timeout       = 5 * time.Second
+	namespace     = "test-compute-namespace"
+	instanceName  = "test-compute-instance"
+	secretName    = "test-secret"
+	secretDataKey = "credentials"
+	providerName  = "test-provider"
+
+	clientEndpoint = "https://example.org"
+	clientCAdata   = "DEFINITELYPEMENCODED"
+	clientCert     = "SOMUCHPEM"
+	clientKey      = "WOWVERYENCODED"
 )
+
+const kubeconfigTemplate = `
+---
+apiVersion: v1
+kind: Config
+contexts:
+- context:
+    cluster: aks
+    user: aks
+  name: %s
+clusters:
+- cluster:
+    server: %s
+    certificate-authority-data: %s
+  name: aks
+users:
+- name: aks
+  user:
+    client-certificate-data: %s
+    client-key-data: %s
+current-context: aks
+preferences: {}
+`
 
 var (
 	cfg             *rest.Config
 	expectedRequest = reconcile.Request{NamespacedName: types.NamespacedName{Name: instanceName, Namespace: namespace}}
+
+	kubecfg = []byte(fmt.Sprintf(kubeconfigTemplate,
+		instanceName,
+		clientEndpoint,
+		base64.StdEncoding.EncodeToString([]byte(clientCAdata)),
+		base64.StdEncoding.EncodeToString([]byte(clientCert)),
+		base64.StdEncoding.EncodeToString([]byte(clientKey)),
+	))
 )
 
 func TestMain(m *testing.M) {
