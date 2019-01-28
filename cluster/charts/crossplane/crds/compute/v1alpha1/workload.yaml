@@ -44,6 +44,8 @@ spec:
           type: object
         spec:
           properties:
+            clusterSelector:
+              type: object
             resources:
               description: Resources
               items:
@@ -87,8 +89,6 @@ spec:
                 - secretName
                 type: object
               type: array
-            targetCluster:
-              type: object
             targetDeployment:
               type: object
             targetNamespace:
@@ -96,13 +96,14 @@ spec:
             targetService:
               type: object
           required:
-          - targetCluster
           - targetNamespace
           - targetDeployment
           - targetService
           type: object
         status:
           properties:
+            clusterRef:
+              type: object
             deployment:
               type: object
             deploymentRef:

@@ -25,6 +25,7 @@ import (
 	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/compute/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/util"
+	errs "github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -35,8 +36,10 @@ import (
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
@@ -55,7 +58,7 @@ const (
 
 var (
 	ctx           = context.Background()
-	result        = reconcile.Result{}
+	resultDone    = reconcile.Result{}
 	resultRequeue = reconcile.Result{Requeue: true}
 )
 
@@ -99,6 +102,15 @@ func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 	return r
 }
 
+// CreatePredicate accepts Workload instances with set `Status.Cluster` reference value
+func CreatePredicate(event event.CreateEvent) bool {
+	wl, ok := event.Object.(*computev1alpha1.Workload)
+	if !ok {
+		return false
+	}
+	return wl.Status.Cluster != nil
+}
+
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
 func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	// Create a new controller
@@ -108,7 +120,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	}
 
 	// Watch for changes to Instance
-	err = c.Watch(&source.Kind{Type: &computev1alpha1.Workload{}}, &handler.EnqueueRequestForObject{})
+	err = c.Watch(&source.Kind{Type: &computev1alpha1.Workload{}}, &handler.EnqueueRequestForObject{}, &predicate.Funcs{CreateFunc: CreatePredicate})
 	if err != nil {
 		return err
 	}
@@ -125,7 +137,10 @@ func (r *Reconciler) fail(instance *computev1alpha1.Workload, reason, msg string
 
 // _connect establish connection to the target cluster
 func (r *Reconciler) _connect(instance *computev1alpha1.Workload) (kubernetes.Interface, error) {
-	ref := instance.Spec.TargetCluster
+	ref := instance.Status.Cluster
+	if ref == nil {
+		return nil, errs.New("workload is not scheduled")
+	}
 
 	k := &computev1alpha1.KubernetesCluster{}
 
@@ -306,7 +321,7 @@ func (r *Reconciler) _create(instance *computev1alpha1.Workload, client kubernet
 	instance.Status.State = computev1alpha1.WorkloadStateCreating
 
 	// update instance
-	return result, r.Update(ctx, instance)
+	return resultDone, r.Update(ctx, instance)
 }
 
 // _sync Workload status
@@ -331,7 +346,7 @@ func (r *Reconciler) _sync(instance *computev1alpha1.Workload, client kubernetes
 	if util.LatestDeploymentCondition(dd.Status.Conditions).Type == appsv1.DeploymentAvailable {
 		instance.Status.State = computev1alpha1.WorkloadStateRunning
 		instance.Status.SetCondition(corev1alpha1.NewCondition(corev1alpha1.Ready, "", ""))
-		return result, r.Update(ctx, instance)
+		return resultDone, r.Update(ctx, instance)
 	}
 
 	return resultRequeue, r.Update(ctx, instance)
@@ -380,9 +395,13 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 		if errors.IsNotFound(err) {
 			// Object not found, return.  Created objects are automatically garbage collected.
 			// For additional cleanup logic use finalizers.
-			return result, nil
+			return resultDone, nil
 		}
-		return result, err
+		return resultDone, err
+	}
+
+	if instance.Status.Cluster == nil {
+		return resultDone, nil
 	}
 
 	// target cluster client
@@ -396,11 +415,9 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 		return r.delete(instance, targetClient)
 	}
 
-	// Check if target cluster is assigned
 	if instance.Status.State == "" {
 		return r.create(instance, targetClient)
 	}
 
-	// sync the resource
 	return r.sync(instance, targetClient)
 }

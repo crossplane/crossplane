@@ -115,10 +115,11 @@ const (
 
 // WorkloadSpec
 type WorkloadSpec struct {
-	TargetCluster    corev1.ObjectReference `json:"targetCluster"`
-	TargetNamespace  string                 `json:"targetNamespace"`
-	TargetDeployment *appsv1.Deployment     `json:"targetDeployment"`
-	TargetService    *corev1.Service        `json:"targetService"`
+	ClusterSelector map[string]string `json:"clusterSelector,omitempty"`
+
+	TargetNamespace  string             `json:"targetNamespace"`
+	TargetDeployment *appsv1.Deployment `json:"targetDeployment"`
+	TargetService    *corev1.Service    `json:"targetService"`
 
 	// Resources
 	Resources []ResourceReference `json:"resources,omitempty"`
@@ -127,6 +128,8 @@ type WorkloadSpec struct {
 // WorkloadStatus
 type WorkloadStatus struct {
 	corev1alpha1.ConditionedStatus
+
+	Cluster                 *corev1.ObjectReference `json:"clusterRef,omitempty"`
 	appsv1.DeploymentStatus `json:"deployment,omitempty"`
 	corev1.ServiceStatus    `json:"service,omitempty"`
 	State                   WorkloadState           `json:"state,omitempty"`
