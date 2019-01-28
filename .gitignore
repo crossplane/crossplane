@@ -5,3 +5,5 @@
 /config
 cover.out
 /vendor
+.DS_Store
+.idea/
