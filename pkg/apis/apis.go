@@ -23,6 +23,7 @@ package apis
 import (
 	"github.com/crossplaneio/crossplane/pkg/apis/aws"
 	"github.com/crossplaneio/crossplane/pkg/apis/azure"
+	"github.com/crossplaneio/crossplane/pkg/apis/cache"
 	"github.com/crossplaneio/crossplane/pkg/apis/compute"
 	"github.com/crossplaneio/crossplane/pkg/apis/core"
 	"github.com/crossplaneio/crossplane/pkg/apis/gcp"
@@ -34,6 +35,7 @@ func init() {
 	// Register the types with the Scheme so the components can map objects to GroupVersionKinds and back
 	AddToSchemes = append(AddToSchemes, aws.AddToScheme)
 	AddToSchemes = append(AddToSchemes, azure.AddToScheme)
+	AddToSchemes = append(AddToSchemes, cache.AddToScheme)
 	AddToSchemes = append(AddToSchemes, compute.AddToScheme)
 	AddToSchemes = append(AddToSchemes, core.AddToScheme)
 	AddToSchemes = append(AddToSchemes, gcp.AddToScheme)
