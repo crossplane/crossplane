@@ -28,18 +28,36 @@ spec:
     openAPIV3Schema:
       properties:
         apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources'
           type: string
         kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
           type: string
         metadata:
           type: object
         parameters:
+          description: Parameters holds parameters for the provisioner. These values
+            are opaque to the  system and are passed directly to the provisioner.  The
+            only validation done on keys is that they are not empty.  The maximum
+            number of parameters is 512, with a cumulative max size of 256K
           type: object
         providerRef:
+          description: ProvierRef is the reference to cloud provider that will be
+            used to provision the concrete cloud resource
           type: object
         provisioner:
+          description: 'Provisioner is the driver expected to handle this ResourceClass.
+            This is an optionally-prefixed name, like a label key. For example: "RDSInstance.database.aws.crossplane.io/v1alpha1"
+            or "CloudSQLInstance.database.gcp.crossplane.io/v1alpha1". This value
+            may not be empty.'
           type: string
         reclaimPolicy:
+          description: reclaimPolicy is the reclaim policy that dynamically provisioned
+            ResourceInstances of this resource class are created with
           type: string
       required:
       - provisioner
