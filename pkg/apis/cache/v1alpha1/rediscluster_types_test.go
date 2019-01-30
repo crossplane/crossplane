@@ -20,39 +20,102 @@ import (
 	"testing"
 
 	"github.com/onsi/gomega"
-	"golang.org/x/net/context"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 )
 
-func TestStorageRedisCluster(t *testing.T) {
-	key := types.NamespacedName{
-		Name:      "foo",
-		Namespace: "default",
-	}
-	created := &RedisCluster{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "foo",
-			Namespace: "default",
-		}}
+func TestRedisClusterStorage(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
+
+	created := &RedisCluster{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+		Spec: RedisClusterSpec{
+			ClassRef: &corev1.ObjectReference{
+				Name:      "test-class",
+				Namespace: "test-system",
+			},
+			EngineVersion: "3.2",
+		},
+	}
 
 	// Test Create
 	fetched := &RedisCluster{}
-	g.Expect(c.Create(context.TODO(), created)).NotTo(gomega.HaveOccurred())
+	g.Expect(c.Create(ctx, created)).NotTo(gomega.HaveOccurred())
 
-	g.Expect(c.Get(context.TODO(), key, fetched)).NotTo(gomega.HaveOccurred())
+	g.Expect(c.Get(ctx, key, fetched)).NotTo(gomega.HaveOccurred())
 	g.Expect(fetched).To(gomega.Equal(created))
 
 	// Test Updating the Labels
 	updated := fetched.DeepCopy()
 	updated.Labels = map[string]string{"hello": "world"}
-	g.Expect(c.Update(context.TODO(), updated)).NotTo(gomega.HaveOccurred())
+	updated.Spec.ResourceRef = &corev1.ObjectReference{
+		Name:      "test-class",
+		Namespace: "test-resource",
+	}
+	g.Expect(c.Update(ctx, updated)).NotTo(gomega.HaveOccurred())
 
-	g.Expect(c.Get(context.TODO(), key, fetched)).NotTo(gomega.HaveOccurred())
+	g.Expect(c.Get(ctx, key, fetched)).NotTo(gomega.HaveOccurred())
 	g.Expect(fetched).To(gomega.Equal(updated))
 
 	// Test Delete
-	g.Expect(c.Delete(context.TODO(), fetched)).NotTo(gomega.HaveOccurred())
-	g.Expect(c.Get(context.TODO(), key, fetched)).To(gomega.HaveOccurred())
+	g.Expect(c.Delete(ctx, fetched)).NotTo(gomega.HaveOccurred())
+	g.Expect(c.Get(ctx, key, fetched)).To(gomega.HaveOccurred())
+}
+
+func TestEngineVersion(t *testing.T) {
+	cases := []struct {
+		name    string
+		version string
+		valid   bool
+	}{
+		{
+			name:    "ValidVersion",
+			version: "3.2",
+			valid:   true,
+		},
+		{
+			name:    "InvalidVersion",
+			version: "0.0",
+			valid:   false,
+		},
+		{
+			name:    "PatchVersionIsInvalid",
+			version: "3.2.1",
+			valid:   false,
+		},
+		{
+			name:    "EmptyVersionIsInvalid",
+			version: "",
+			valid:   false,
+		},
+	}
+
+	g := gomega.NewGomegaWithT(t)
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			created := &RedisCluster{
+				ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+				Spec: RedisClusterSpec{
+					ClassRef: &corev1.ObjectReference{
+						Name:      "test-class",
+						Namespace: "test-system",
+					},
+					EngineVersion: tc.version,
+				},
+			}
+
+			fetched := &RedisCluster{}
+
+			if !tc.valid {
+				g.Expect(c.Create(ctx, created)).To(gomega.HaveOccurred())
+				return
+			}
+			g.Expect(c.Create(ctx, created)).NotTo(gomega.HaveOccurred())
+			g.Expect(c.Get(ctx, key, fetched)).NotTo(gomega.HaveOccurred())
+			g.Expect(fetched).To(gomega.Equal(created))
+			g.Expect(c.Delete(ctx, fetched)).NotTo(gomega.HaveOccurred())
+			g.Expect(c.Get(ctx, key, fetched)).To(gomega.HaveOccurred())
+		})
+	}
 }

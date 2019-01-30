@@ -29,18 +29,23 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/runtime/scheme"
 )
 
+// GroupVersionKind metadata.
+const (
+	Group                      = "cache.crossplane.io"
+	Version                    = "v1alpha1"
+	APIVersion                 = Group + "/" + Version
+	RedisClusterKind           = "rediscluster"
+	RedisClusterKindAPIVersion = RedisClusterKind + "." + APIVersion
+)
+
 var (
 	// SchemeGroupVersion is group version used to register these objects
-	SchemeGroupVersion = schema.GroupVersion{Group: "cache.crossplane.io", Version: "v1alpha1"}
+	SchemeGroupVersion = schema.GroupVersion{Group: Group, Version: Version}
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
-
-	// AddToScheme is required by pkg/client/...
-	AddToScheme = SchemeBuilder.AddToScheme
 )
 
-// Resource is required by pkg/client/listers/...
-func Resource(resource string) schema.GroupResource {
-	return SchemeGroupVersion.WithResource(resource).GroupResource()
+func init() {
+	SchemeBuilder.Register(&RedisCluster{}, &RedisClusterList{})
 }
