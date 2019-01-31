@@ -41,12 +41,12 @@ required = [
 
 [[constraint]]
   name="sigs.k8s.io/controller-runtime"
-  version="v0.1.7"
+  version="v0.1.10"
 
 [[override]]
   name="sigs.k8s.io/controller-tools"
   source = "https://github.com/ichekrygin/controller-tools.git"
-  revision = "1843ed367c89eda7dfb0935aa78f0243e22c3870"
+  revision = "af34042b08d62ea4bf345eabcf2b5a7d9252a4a1"
 
 # For dependency below: Refer to issue https://github.com/golang/dep/issues/1799
 [[override]]

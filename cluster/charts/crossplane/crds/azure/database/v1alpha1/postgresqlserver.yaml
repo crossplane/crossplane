@@ -28,8 +28,14 @@ spec:
     openAPIV3Schema:
       properties:
         apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources'
           type: string
         kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
           type: string
         metadata:
           type: object
@@ -38,6 +44,7 @@ spec:
             adminLoginName:
               type: string
             claimRef:
+              description: Kubernetes object references
               type: object
             classRef:
               type: object
@@ -62,6 +69,8 @@ spec:
             providerRef:
               type: object
             reclaimPolicy:
+              description: ReclaimPolicy identifies how to handle the cloud resource
+                after the deletion of this type
               type: string
             resourceGroupName:
               type: string
@@ -94,14 +103,25 @@ spec:
         status:
           properties:
             endpoint:
+              description: Endpoint of the MySQL Server instance used in connection
+                strings
               type: string
             message:
               type: string
             providerID:
+              description: the external ID to identify this resource in the cloud
+                provider
               type: string
             runningOperation:
+              description: RunningOperation stores any current long running operation
+                for this instance across reconciliation attempts.  This will be a
+                serialized Azure MySQL Server API object that will be used to check
+                the status and completion of the operation during each reconciliation.
+                Once the operation has completed, this field will be cleared out.
               type: string
             runningOperationType:
+              description: RunningOperationType is the type of the currently running
+                operation
               type: string
             state:
               type: string
