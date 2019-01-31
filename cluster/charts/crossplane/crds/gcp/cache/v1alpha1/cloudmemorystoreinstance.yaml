@@ -1,0 +1,100 @@
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  creationTimestamp: null
+  labels:
+    controller-tools.k8s.io: "1.0"
+  name: cloudmemorystoreinstances.cache.gcp.crossplane.io
+spec:
+  additionalPrinterColumns:
+  - JSONPath: .status.state
+    name: STATUS
+    type: string
+  - JSONPath: .spec.classRef.name
+    name: CLASS
+    type: string
+  - JSONPath: .spec.redisVersion
+    name: VERSION
+    type: string
+  - JSONPath: .metadata.creationTimestamp
+    name: AGE
+    type: date
+  group: cache.gcp.crossplane.io
+  names:
+    kind: CloudMemorystoreInstance
+    plural: cloudmemorystoreinstances
+  scope: Namespaced
+  validation:
+    openAPIV3Schema:
+      properties:
+        apiVersion:
+          type: string
+        kind:
+          type: string
+        metadata:
+          type: object
+        spec:
+          properties:
+            alternativeLocationId:
+              type: string
+            authorizedNetwork:
+              type: string
+            claimRef:
+              type: object
+            classRef:
+              type: object
+            connectionSecretRef:
+              type: object
+            locationId:
+              type: string
+            memorySizeGb:
+              format: int64
+              type: integer
+            providerRef:
+              type: object
+            reclaimPolicy:
+              type: string
+            redisConfigs:
+              type: object
+            redisVersion:
+              enum:
+              - REDIS_3_2
+              type: string
+            region:
+              type: string
+            reservedIpRange:
+              type: string
+            tier:
+              enum:
+              - BASIC
+              - STANDARD_HA
+              type: string
+          required:
+          - region
+          - tier
+          - memorySizeGb
+          - providerRef
+          type: object
+        status:
+          properties:
+            currentLocationId:
+              type: string
+            endpoint:
+              type: string
+            message:
+              type: string
+            port:
+              format: int64
+              type: integer
+            providerID:
+              type: string
+            state:
+              type: string
+          type: object
+  version: v1alpha1
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
