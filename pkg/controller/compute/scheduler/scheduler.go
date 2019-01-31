@@ -104,7 +104,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 func (r *Reconciler) fail(instance *computev1alpha1.Workload, reason, msg string) (reconcile.Result, error) {
 	log.Printf("%s: %s", reason, msg)
 	instance.Status.SetCondition(corev1alpha1.NewCondition(corev1alpha1.Failed, reason, msg))
-	return resultRequeue, r.Update(ctx, instance)
+	return resultRequeue, r.Status().Update(ctx, instance)
 }
 
 // _schedule assigns Workload to a matching cluster. If the workload matches more than one cluster use

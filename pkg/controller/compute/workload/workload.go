@@ -132,7 +132,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 func (r *Reconciler) fail(instance *computev1alpha1.Workload, reason, msg string) (reconcile.Result, error) {
 	log.Printf("%s: %s", reason, msg)
 	instance.Status.SetCondition(corev1alpha1.NewCondition(corev1alpha1.Failed, reason, msg))
-	return resultRequeue, r.Update(ctx, instance)
+	return resultRequeue, r.Status().Update(ctx, instance)
 }
 
 // _connect establish connection to the target cluster
@@ -321,7 +321,7 @@ func (r *Reconciler) _create(instance *computev1alpha1.Workload, client kubernet
 	instance.Status.State = computev1alpha1.WorkloadStateCreating
 
 	// update instance
-	return resultDone, r.Update(ctx, instance)
+	return resultDone, r.Status().Update(ctx, instance)
 }
 
 // _sync Workload status
@@ -346,10 +346,10 @@ func (r *Reconciler) _sync(instance *computev1alpha1.Workload, client kubernetes
 	if util.LatestDeploymentCondition(dd.Status.Conditions).Type == appsv1.DeploymentAvailable {
 		instance.Status.State = computev1alpha1.WorkloadStateRunning
 		instance.Status.SetCondition(corev1alpha1.NewCondition(corev1alpha1.Ready, "", ""))
-		return resultDone, r.Update(ctx, instance)
+		return resultDone, r.Status().Update(ctx, instance)
 	}
 
-	return resultRequeue, r.Update(ctx, instance)
+	return resultRequeue, r.Status().Update(ctx, instance)
 }
 
 // _delete workload
@@ -380,7 +380,7 @@ func (r *Reconciler) _delete(instance *computev1alpha1.Workload, client kubernet
 
 	instance.Status.SetCondition(corev1alpha1.NewCondition(corev1alpha1.Deleting, "", ""))
 	util.RemoveFinalizer(&instance.ObjectMeta, finalizer)
-	return reconcile.Result{}, r.Update(ctx, instance)
+	return reconcile.Result{}, r.Status().Update(ctx, instance)
 }
 
 // Reconcile reads that state of the cluster for a Instance object and makes changes based on the state read

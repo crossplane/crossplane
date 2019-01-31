@@ -142,6 +142,7 @@ type WorkloadStatus struct {
 
 // Workload is the Schema for the instances API
 // +k8s:openapi-gen=true
+// +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.state"
 // +kubebuilder:printcolumn:name="CLUSTER",type="string",JSONPath=".spec.targetCluster.name"
 // +kubebuilder:printcolumn:name="NAMESPACE",type="string",JSONPath=".spec.targetNamespace"
