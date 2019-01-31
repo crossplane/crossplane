@@ -30,7 +30,7 @@ import (
 
 const (
 	// AgentPoolProfileNameFmt is a format string for the name of the automatically created cluster agent pool profile
-	AgentPoolProfileNameFmt = "%s-nodepool"
+	AgentPoolProfileName = "agentpool"
 
 	maxClusterNameLen = 31
 )
@@ -118,7 +118,6 @@ func (c *AKSClusterClient) Get(ctx context.Context, instance computev1alpha1.AKS
 func (c *AKSClusterClient) CreateOrUpdateBegin(ctx context.Context, instance computev1alpha1.AKSCluster, clusterName, appID, spSecret string) ([]byte, error) {
 	spec := instance.Spec
 
-	agentPoolProfileName := fmt.Sprintf(AgentPoolProfileNameFmt, clusterName)
 	enableRBAC := !spec.DisableRBAC
 
 	nodeCount := int32(computev1alpha1.DefaultNodeCount)
@@ -134,7 +133,7 @@ func (c *AKSClusterClient) CreateOrUpdateBegin(ctx context.Context, instance com
 			DNSPrefix:         &spec.DNSNamePrefix,
 			AgentPoolProfiles: &[]containerservice.ManagedClusterAgentPoolProfile{
 				{
-					Name:   &agentPoolProfileName,
+					Name:   to.StringPtr(AgentPoolProfileName),
 					Count:  &nodeCount,
 					VMSize: containerservice.VMSizeTypes(spec.NodeVMSize),
 				},
