@@ -92,12 +92,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	}
 
 	// Watch for changes to Instance
-	err = c.Watch(&source.Kind{Type: &computev1alpha1.Workload{}}, &handler.EnqueueRequestForObject{}, &predicate.Funcs{CreateFunc: CreatePredicate})
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return c.Watch(&source.Kind{Type: &computev1alpha1.Workload{}}, &handler.EnqueueRequestForObject{}, &predicate.Funcs{CreateFunc: CreatePredicate})
 }
 
 // fail - helper function to set fail condition with reason and message
@@ -113,8 +108,7 @@ func (r *Reconciler) _schedule(instance *computev1alpha1.Workload) (reconcile.Re
 
 	clusters := &computev1alpha1.KubernetesClusterList{}
 
-	err := r.List(context.Background(), client.MatchingLabels(instance.Spec.ClusterSelector), clusters)
-	if err != nil {
+	if err := r.List(context.Background(), client.MatchingLabels(instance.Spec.ClusterSelector), clusters); err != nil {
 		return resultDone, err
 	}
 

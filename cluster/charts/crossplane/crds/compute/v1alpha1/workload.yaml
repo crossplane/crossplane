@@ -27,6 +27,8 @@ spec:
     kind: Workload
     plural: workloads
   scope: Namespaced
+  subresources:
+    status: {}
   validation:
     openAPIV3Schema:
       properties:

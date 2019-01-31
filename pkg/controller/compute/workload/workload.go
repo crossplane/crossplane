@@ -25,7 +25,6 @@ import (
 	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/compute/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/util"
-	errs "github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -139,7 +138,7 @@ func (r *Reconciler) fail(instance *computev1alpha1.Workload, reason, msg string
 func (r *Reconciler) _connect(instance *computev1alpha1.Workload) (kubernetes.Interface, error) {
 	ref := instance.Status.Cluster
 	if ref == nil {
-		return nil, errs.New("workload is not scheduled")
+		return nil, fmt.Errorf("workload is not scheduled")
 	}
 
 	k := &computev1alpha1.KubernetesCluster{}
@@ -321,7 +320,7 @@ func (r *Reconciler) _create(instance *computev1alpha1.Workload, client kubernet
 	instance.Status.State = computev1alpha1.WorkloadStateCreating
 
 	// update instance
-	return resultDone, r.Status().Update(ctx, instance)
+	return resultDone, r.Update(ctx, instance)
 }
 
 // _sync Workload status
@@ -380,7 +379,7 @@ func (r *Reconciler) _delete(instance *computev1alpha1.Workload, client kubernet
 
 	instance.Status.SetCondition(corev1alpha1.NewCondition(corev1alpha1.Deleting, "", ""))
 	util.RemoveFinalizer(&instance.ObjectMeta, finalizer)
-	return reconcile.Result{}, r.Status().Update(ctx, instance)
+	return resultDone, r.Status().Update(ctx, instance)
 }
 
 // Reconcile reads that state of the cluster for a Instance object and makes changes based on the state read

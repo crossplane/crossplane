@@ -3,6 +3,8 @@ kind: KubernetesCluster
 metadata:
   name: demo-cluster
   namespace: crossplane-system
+  labels:
+    provider: aws
 spec:
   classReference:
     name: standard-cluster

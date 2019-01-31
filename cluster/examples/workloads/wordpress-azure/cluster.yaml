@@ -5,6 +5,8 @@ kind: KubernetesCluster
 metadata:
   name: demo-cluster
   namespace: crossplane-system
+  labels:
+    provider: azure
 spec:
   classReference:
     name: standard-cluster

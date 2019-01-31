@@ -109,10 +109,6 @@ func TestWorkload(t *testing.T) {
 	created := &Workload{
 		ObjectMeta: om,
 		Spec: WorkloadSpec{
-			TargetCluster: corev1.ObjectReference{
-				Namespace: "default",
-				Name:      "test-cluster",
-			},
 			TargetNamespace: namespace,
 			TargetDeployment: &appsv1.Deployment{
 				ObjectMeta: om,
