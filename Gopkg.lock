@@ -2,9 +2,14 @@
 
 
 [[projects]]
-  digest = "1:5ad08b0e14866764a6d7475eb11c9cf05cad9a52c442593bdfa544703ff77f61"
+  digest = "1:ee166421b30eb00f7f3948284455e589ee5092fd4445bdfe845d95900bd6f4ab"
   name = "cloud.google.com/go"
-  packages = ["compute/metadata"]
+  packages = [
+    "compute/metadata",
+    "longrunning",
+    "longrunning/autogen",
+    "redis/apiv1",
+  ]
   pruneopts = "UT"
   revision = "74b12019e2aa53ec27882158f59192d7cd6d1998"
   version = "v0.33.1"
@@ -18,19 +23,22 @@
   version = "v0.2.0"
 
 [[projects]]
-  digest = "1:a330c56a23f12930dd3bc6d9b80b655a2cf384291a952e57025dc99a5c8c775d"
+  digest = "1:c29b936e4303a39012e88311f21d163c80105ceb2508e30c8bcc21789ef05108"
   name = "github.com/Azure/azure-sdk-for-go"
   packages = [
+    "profiles/latest/redis/mgmt/redis/redisapi",
     "services/containerservice/mgmt/2018-03-31/containerservice",
     "services/graphrbac/1.6/graphrbac",
     "services/mysql/mgmt/2017-12-01/mysql",
     "services/postgresql/mgmt/2017-12-01/postgresql",
+    "services/redis/mgmt/2018-03-01/redis",
+    "services/redis/mgmt/2018-03-01/redis/redisapi",
     "services/resources/mgmt/2018-05-01/resources",
     "version",
   ]
   pruneopts = "UT"
-  revision = "07f918ba2d513bbc5b75bc4caac845e10f27449e"
-  version = "v23.0.0"
+  revision = "2ea98fc438b9d78aa2ab32bab44c7f68e506385e"
+  version = "v25.1.0"
 
 [[projects]]
   digest = "1:fc6ffc4546e74d5ef8477f97e2e733eb482c3015c8703d14d7dbd2bb72103963"
@@ -60,7 +68,7 @@
   version = "1.0.0"
 
 [[projects]]
-  digest = "1:d78fe64768a72df500d7610b9c03965a019d5dc9077a7df05eb26de63e0ed47a"
+  digest = "1:378174897ec9eb7ba43e1d824887022a208b2d8b2de365c63c66a20301e8a578"
   name = "github.com/aws/aws-sdk-go-v2"
   packages = [
     "aws",
@@ -92,6 +100,8 @@
     "service/cloudformation/cloudformationiface",
     "service/eks",
     "service/eks/eksiface",
+    "service/elasticache",
+    "service/elasticache/elasticacheiface",
     "service/iam",
     "service/iam/iamiface",
     "service/rds",
@@ -190,6 +200,14 @@
   version = "v0.1.0"
 
 [[projects]]
+  digest = "1:7f89e0c888fb99c61055c646f5678aae645b0b0a1443d9b2dcd9964d850827ce"
+  name = "github.com/go-test/deep"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "6592d9cc0a499ad2d5f574fde80a2b5c5cc3b4f5"
+  version = "v1.0.1"
+
+[[projects]]
   digest = "1:07829a6a0523929f5edc92b2a2dbb05ef3f335780bac9f06c44aa27c6cfc467a"
   name = "github.com/gobuffalo/envy"
   packages = ["."]
@@ -217,13 +235,15 @@
   revision = "c65c006176ff7ff98bb916961c7abbc6b0afc0aa"
 
 [[projects]]
-  digest = "1:8f0705fa33e8957018611cc81c65cb373b626c092d39931bb86882489fc4c3f4"
+  digest = "1:82db3b76eba1b5f200b304fd5593770998f3e7362d09172c9632d14e952bb0d8"
   name = "github.com/golang/protobuf"
   packages = [
     "proto",
+    "protoc-gen-go/descriptor",
     "ptypes",
     "ptypes/any",
     "ptypes/duration",
+    "ptypes/empty",
     "ptypes/timestamp",
     "ptypes/wrappers",
   ]
@@ -254,6 +274,17 @@
   pruneopts = "UT"
   revision = "9b3b1e0f5f99ae461456d768e7d301a7acdaa2d8"
   version = "v1.1.0"
+
+[[projects]]
+  digest = "1:cd9864c6366515827a759931746738ede6079faa08df9c584596370d6add135c"
+  name = "github.com/googleapis/gax-go"
+  packages = [
+    ".",
+    "v2",
+  ]
+  pruneopts = "UT"
+  revision = "c8a15bac9b9fe955bd9f900272f9a306465d28cf"
+  version = "v2.0.3"
 
 [[projects]]
   digest = "1:65c4414eeb350c47b8de71110150d0ea8a281835b1f386eacaa3ad7325929c21"
@@ -549,13 +580,14 @@
   version = "v1.0.3"
 
 [[projects]]
-  digest = "1:2ae8314c44cd413cfdb5b1df082b350116dd8d2fff973e62c01b285b7affd89e"
+  digest = "1:86b11d1e4dd05cd44d14b1e30b0497f98a37f696e8740ae88383de56d766cb34"
   name = "go.opencensus.io"
   packages = [
     ".",
     "exemplar",
     "internal",
     "internal/tagencoding",
+    "plugin/ocgrpc",
     "plugin/ochttp",
     "plugin/ochttp/propagation/b3",
     "plugin/ochttp/propagation/tracecontext",
@@ -726,7 +758,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:5fe62394d9846375688aee5455390823ba42d7ff9e1a4a3c3b27895d46b3f5da"
+  digest = "1:8da68ee26647249d3ac63ea9704455bdef1eba26cc20521a2200fccebdb64078"
   name = "google.golang.org/api"
   packages = [
     "cloudresourcemanager/v1",
@@ -734,14 +766,22 @@
     "gensupport",
     "googleapi",
     "googleapi/internal/uritemplates",
+    "googleapi/transport",
+    "internal",
+    "iterator",
+    "option",
     "sqladmin/v1beta4",
     "support/bundler",
+    "transport",
+    "transport/grpc",
+    "transport/http",
+    "transport/http/internal/propagation",
   ]
   pruneopts = "UT"
   revision = "af4fc4062c262223ddc2d92f5f35a93690db383a"
 
 [[projects]]
-  digest = "1:d2a8db567a76203e3b41c1f632d86485ffd57f8e650a0d1b19d240671c2fddd7"
+  digest = "1:b13819327be647014031c6a194299da87ca35313bfc01fdc1da7bd3ddf08cbce"
   name = "google.golang.org/appengine"
   packages = [
     ".",
@@ -752,7 +792,9 @@
     "internal/log",
     "internal/modules",
     "internal/remote_api",
+    "internal/socket",
     "internal/urlfetch",
+    "socket",
     "urlfetch",
   ]
   pruneopts = "UT"
@@ -761,14 +803,20 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:077c1c599507b3b3e9156d17d36e1e61928ee9b53a5b420f10f28ebd4a0b275c"
+  digest = "1:a21c9157e3d41a79e3d24e501171a13538787ccdae19fdd9d0b1005975a067df"
   name = "google.golang.org/genproto"
-  packages = ["googleapis/rpc/status"]
+  packages = [
+    "googleapis/api/annotations",
+    "googleapis/cloud/redis/v1",
+    "googleapis/longrunning",
+    "googleapis/rpc/status",
+    "protobuf/field_mask",
+  ]
   pruneopts = "UT"
   revision = "bd91e49a0898e27abb88c339b432fa53d7497ac0"
 
 [[projects]]
-  digest = "1:c3ad9841823db6da420a5625b367913b4ff54bbe60e8e3c98bd20e243e62e2d2"
+  digest = "1:1ac2802a1ffa70fe39243e22aab53dd3386396fc98de2417ff744d87b079e78c"
   name = "google.golang.org/grpc"
   packages = [
     ".",
@@ -778,6 +826,7 @@
     "codes",
     "connectivity",
     "credentials",
+    "credentials/oauth",
     "encoding",
     "encoding/proto",
     "grpclog",
@@ -1185,10 +1234,14 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "cloud.google.com/go/redis/apiv1",
+    "github.com/Azure/azure-sdk-for-go/profiles/latest/redis/mgmt/redis/redisapi",
     "github.com/Azure/azure-sdk-for-go/services/containerservice/mgmt/2018-03-31/containerservice",
     "github.com/Azure/azure-sdk-for-go/services/graphrbac/1.6/graphrbac",
     "github.com/Azure/azure-sdk-for-go/services/mysql/mgmt/2017-12-01/mysql",
     "github.com/Azure/azure-sdk-for-go/services/postgresql/mgmt/2017-12-01/postgresql",
+    "github.com/Azure/azure-sdk-for-go/services/redis/mgmt/2018-03-01/redis",
+    "github.com/Azure/azure-sdk-for-go/services/redis/mgmt/2018-03-01/redis/redisapi",
     "github.com/Azure/azure-sdk-for-go/services/resources/mgmt/2018-05-01/resources",
     "github.com/Azure/go-autorest/autorest",
     "github.com/Azure/go-autorest/autorest/adal",
@@ -1204,6 +1257,8 @@
     "github.com/aws/aws-sdk-go-v2/service/cloudformation/cloudformationiface",
     "github.com/aws/aws-sdk-go-v2/service/eks",
     "github.com/aws/aws-sdk-go-v2/service/eks/eksiface",
+    "github.com/aws/aws-sdk-go-v2/service/elasticache",
+    "github.com/aws/aws-sdk-go-v2/service/elasticache/elasticacheiface",
     "github.com/aws/aws-sdk-go-v2/service/iam",
     "github.com/aws/aws-sdk-go-v2/service/iam/iamiface",
     "github.com/aws/aws-sdk-go-v2/service/rds",
@@ -1213,16 +1268,22 @@
     "github.com/aws/aws-sdk-go-v2/service/sts",
     "github.com/ghodss/yaml",
     "github.com/go-ini/ini",
+    "github.com/go-test/deep",
     "github.com/google/uuid",
+    "github.com/googleapis/gax-go",
     "github.com/onsi/gomega",
     "github.com/onsi/gomega/types",
+    "github.com/pkg/errors",
     "golang.org/x/net/context",
     "golang.org/x/oauth2",
     "golang.org/x/oauth2/google",
     "google.golang.org/api/cloudresourcemanager/v1",
     "google.golang.org/api/container/v1",
     "google.golang.org/api/googleapi",
+    "google.golang.org/api/option",
     "google.golang.org/api/sqladmin/v1beta4",
+    "google.golang.org/genproto/googleapis/cloud/redis/v1",
+    "google.golang.org/genproto/protobuf/field_mask",
     "k8s.io/api/apps/v1",
     "k8s.io/api/core/v1",
     "k8s.io/apimachinery/pkg/api/errors",
