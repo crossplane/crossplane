@@ -248,6 +248,16 @@ func (in *WorkloadStatus) DeepCopyInto(out *WorkloadStatus) {
 	in.ConditionedStatus.DeepCopyInto(&out.ConditionedStatus)
 	in.DeploymentStatus.DeepCopyInto(&out.DeploymentStatus)
 	in.ServiceStatus.DeepCopyInto(&out.ServiceStatus)
+	if in.Deployment != nil {
+		in, out := &in.Deployment, &out.Deployment
+		*out = new(v1.ObjectReference)
+		**out = **in
+	}
+	if in.Service != nil {
+		in, out := &in.Service, &out.Service
+		*out = new(v1.ObjectReference)
+		**out = **in
+	}
 	return
 }
 

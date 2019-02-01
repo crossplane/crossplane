@@ -49,6 +49,8 @@ const (
 	errorCreating      = "Failed to create"
 	errorSynchronizing = "Failed to sync"
 	errorDeleting      = "Failed to delete"
+
+	workloadReferenceLabelKey = "workloadRef"
 )
 
 var (
@@ -74,20 +76,26 @@ type Reconciler struct {
 	create  func(*computev1alpha1.Workload, kubernetes.Interface) (reconcile.Result, error)
 	sync    func(*computev1alpha1.Workload, kubernetes.Interface) (reconcile.Result, error)
 	delete  func(*computev1alpha1.Workload, kubernetes.Interface) (reconcile.Result, error)
+
+	propagateDeployment func(kubernetes.Interface, *appsv1.Deployment, string, string) (*appsv1.Deployment, error)
+	propagateService    func(kubernetes.Interface, *corev1.Service, string, string) (*corev1.Service, error)
 }
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 	r := &Reconciler{
-		Client:     mgr.GetClient(),
-		scheme:     mgr.GetScheme(),
-		kubeclient: kubernetes.NewForConfigOrDie(mgr.GetConfig()),
-		recorder:   mgr.GetRecorder(controllerName),
+		Client:              mgr.GetClient(),
+		scheme:              mgr.GetScheme(),
+		kubeclient:          kubernetes.NewForConfigOrDie(mgr.GetConfig()),
+		recorder:            mgr.GetRecorder(controllerName),
+		propagateDeployment: propagateDeployment,
+		propagateService:    propagateService,
 	}
 	r.connect = r._connect
 	r.create = r._create
 	r.sync = r._sync
 	r.delete = r._delete
+
 	return r
 }
 
@@ -166,6 +174,85 @@ func (r *Reconciler) _connect(instance *computev1alpha1.Workload) (kubernetes.In
 	return kubernetes.NewForConfig(config)
 }
 
+func addWorkloadReferenceLabel(m *metav1.ObjectMeta, uid string) {
+	if m.Labels == nil {
+		m.Labels = make(map[string]string)
+	}
+	m.Labels[workloadReferenceLabelKey] = uid
+}
+
+func getWorkloadReferenceLabel(m metav1.ObjectMeta) string {
+	if m.Labels == nil {
+		return ""
+	}
+	return m.Labels[workloadReferenceLabelKey]
+}
+
+// propagateDeployment to the target cluster
+func propagateDeployment(k kubernetes.Interface, d *appsv1.Deployment, ns, uid string) (*appsv1.Deployment, error) {
+	// Update deployment selector - typically selector value is not provided and if it is not
+	// matching template the deployment create operation will fail
+	if d.Spec.Selector == nil {
+		d.Spec.Selector = &metav1.LabelSelector{}
+	}
+	d.Spec.Selector.MatchLabels = d.Spec.Template.Labels
+
+	// If deployment namespace value is not provided - default it to the workload target namespace
+	d.Namespace = util.IfEmptyString(d.Namespace, ns)
+
+	addWorkloadReferenceLabel(&d.ObjectMeta, uid)
+
+	// Check if target deployment already exists on the target cluster
+	dd, err := k.AppsV1().Deployments(d.Namespace).Get(d.Name, metav1.GetOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			dd = nil
+		} else {
+			return nil, err
+		}
+	}
+
+	if dd == nil {
+		return k.AppsV1().Deployments(d.Namespace).Create(d)
+	}
+
+	l := getWorkloadReferenceLabel(dd.ObjectMeta)
+	if l == string(uid) {
+		return k.AppsV1().Deployments(d.Namespace).Update(d)
+	}
+
+	return nil, fmt.Errorf("cannot propagate, deployment %s/%s already exists", d.Namespace, d.Name)
+}
+
+// propagateService to the target cluster
+func propagateService(k kubernetes.Interface, s *corev1.Service, ns, uid string) (*corev1.Service, error) {
+	// If service namespace vlaue is not provided - default it to the workload target namespace
+	s.Namespace = util.IfEmptyString(s.Namespace, ns)
+
+	addWorkloadReferenceLabel(&s.ObjectMeta, uid)
+
+	// check if service already exists
+	ss, err := k.CoreV1().Services(s.Namespace).Get(s.Name, metav1.GetOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			ss = nil
+		} else {
+			return nil, err
+		}
+	}
+
+	if ss == nil {
+		return k.CoreV1().Services(s.Namespace).Create(s)
+	}
+
+	l := getWorkloadReferenceLabel(ss.ObjectMeta)
+	if l == string(uid) {
+		return k.CoreV1().Services(s.Namespace).Update(s)
+	}
+
+	return nil, fmt.Errorf("cannot propagate, service %s/%s already exists", s.Namespace, s.Name)
+}
+
 // _create workload
 func (r *Reconciler) _create(instance *computev1alpha1.Workload, client kubernetes.Interface) (reconcile.Result, error) {
 	instance.Status.SetCreating()
@@ -178,6 +265,8 @@ func (r *Reconciler) _create(instance *computev1alpha1.Workload, client kubernet
 	if err != nil && !errors.IsAlreadyExists(err) {
 		return r.fail(instance, errorCreating, err.Error())
 	}
+
+	uid := string(instance.UID)
 
 	// propagate resources secrets
 	for _, resource := range instance.Spec.Resources {
@@ -193,6 +282,7 @@ func (r *Reconciler) _create(instance *computev1alpha1.Workload, client kubernet
 			Name:      sec.Name,
 			Namespace: targetNamespace,
 		}
+		addWorkloadReferenceLabel(&sec.ObjectMeta, uid)
 		_, err = util.ApplySecret(client, sec)
 		if err != nil {
 			return r.fail(instance, errorCreating, err.Error())
@@ -200,21 +290,18 @@ func (r *Reconciler) _create(instance *computev1alpha1.Workload, client kubernet
 	}
 
 	// propagate deployment
-	d := instance.Spec.TargetDeployment
-	d.Spec.Selector.MatchLabels = d.Spec.Template.Labels
-	d.Namespace = util.IfEmptyString(d.Namespace, targetNamespace)
-	_, err = util.ApplyDeployment(client, d)
+	d, err := r.propagateDeployment(client, instance.Spec.TargetDeployment, targetNamespace, uid)
 	if err != nil {
 		return r.fail(instance, errorCreating, err.Error())
 	}
+	instance.Status.Deployment = util.ObjectReference(d.ObjectMeta, d.APIVersion, d.Kind)
 
 	// propagate service
-	s := instance.Spec.TargetService
-	s.Namespace = util.IfEmptyString(s.Namespace, targetNamespace)
-	_, err = util.ApplyService(client, s)
+	s, err := r.propagateService(client, instance.Spec.TargetService, targetNamespace, uid)
 	if err != nil {
 		return r.fail(instance, errorCreating, err.Error())
 	}
+	instance.Status.Service = util.ObjectReference(s.ObjectMeta, s.APIVersion, s.Kind)
 
 	instance.Status.State = computev1alpha1.WorkloadStateCreating
 
@@ -255,15 +342,17 @@ func (r *Reconciler) _delete(instance *computev1alpha1.Workload, client kubernet
 	ns := instance.Spec.TargetNamespace
 
 	// delete service
-	err := client.CoreV1().Services(ns).Delete(instance.Spec.TargetService.Name, &metav1.DeleteOptions{})
-	if err != nil && !errors.IsNotFound(err) {
-		return r.fail(instance, errorDeleting, err.Error())
+	if s := instance.Status.Service; s != nil {
+		if err := client.CoreV1().Services(s.Namespace).Delete(s.Name, &metav1.DeleteOptions{}); err != nil && !errors.IsNotFound(err) {
+			return r.fail(instance, errorDeleting, err.Error())
+		}
 	}
 
 	// delete deployment
-	err = client.AppsV1().Deployments(ns).Delete(instance.Spec.TargetDeployment.Name, &metav1.DeleteOptions{})
-	if err != nil && !errors.IsNotFound(err) {
-		return r.fail(instance, errorDeleting, err.Error())
+	if d := instance.Status.Deployment; d != nil {
+		if err := client.AppsV1().Deployments(d.Namespace).Delete(d.Name, &metav1.DeleteOptions{}); err != nil && !errors.IsNotFound(err) {
+			return r.fail(instance, errorDeleting, err.Error())
+		}
 	}
 
 	// delete resources secrets

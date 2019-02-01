@@ -77,36 +77,6 @@ func ObjectToOwnerReference(r *corev1.ObjectReference) *metav1.OwnerReference {
 	}
 }
 
-// ApplyDeployment creates or updates existing deployment
-func ApplyDeployment(c kubernetes.Interface, d *appsv1.Deployment) (*appsv1.Deployment, error) {
-	dd, err := c.AppsV1().Deployments(d.Namespace).Create(d)
-	if err != nil {
-		if errors.IsAlreadyExists(err) {
-			return c.AppsV1().Deployments(d.Namespace).Update(d)
-		}
-		return nil, err
-	}
-	return dd, nil
-}
-
-// ApplyService creates or updates existing service
-func ApplyService(c kubernetes.Interface, s *corev1.Service) (*corev1.Service, error) {
-	ss, err := c.CoreV1().Services(s.Namespace).Create(s)
-	if err != nil {
-		if errors.IsAlreadyExists(err) {
-			// retrieve the existing server to grab `ClusterIP` value
-			ss, err := c.CoreV1().Services(s.Namespace).Get(s.Name, metav1.GetOptions{})
-			if err != nil {
-				return nil, err
-			}
-			s.Spec.ClusterIP = ss.Spec.ClusterIP
-			return c.CoreV1().Services(s.Namespace).Update(s)
-		}
-		return nil, err
-	}
-	return ss, nil
-}
-
 // ApplySecret creates or updates if exist kubernetes secret
 func ApplySecret(c kubernetes.Interface, s *corev1.Secret) (*corev1.Secret, error) {
 	_, err := c.CoreV1().Secrets(s.Namespace).Get(s.Name, metav1.GetOptions{})

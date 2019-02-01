@@ -100,13 +100,16 @@ spec:
           - targetNamespace
           - targetDeployment
           - targetService
-          - resources
           type: object
         status:
           properties:
             deployment:
               type: object
+            deploymentRef:
+              type: object
             service:
+              type: object
+            serviceRef:
               type: object
             state:
               type: string
