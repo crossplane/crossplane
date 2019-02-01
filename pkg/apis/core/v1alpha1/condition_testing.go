@@ -59,11 +59,11 @@ func (cm *ConditionMatcher) Match(actual interface{}) (success bool, err error) 
 }
 
 func (cm *ConditionMatcher) FailureMessage(actual interface{}) (message string) {
-	return fmt.Sprintf("Expected\n\t%#v\nto mach, actual\n\t%#v", cm.expected, actual)
+	return fmt.Sprintf("Expected\n\t%#v\nto match, actual\n\t%#v", cm.expected, actual)
 }
 
 func (cm *ConditionMatcher) NegatedFailureMessage(actual interface{}) (message string) {
-	return fmt.Sprintf("Expected\n\t%#v\nnot to mach, actual\n\t%#v", cm.expected, actual)
+	return fmt.Sprintf("Expected\n\t%#v\nnot to match, actual\n\t%#v", cm.expected, actual)
 }
 
 func MatchCondition(expected interface{}) types.GomegaMatcher {
