@@ -1,0 +1,161 @@
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  creationTimestamp: null
+  labels:
+    controller-tools.k8s.io: "1.0"
+  name: replicationgroups.cache.aws.crossplane.io
+spec:
+  additionalPrinterColumns:
+  - JSONPath: .status.state
+    name: STATUS
+    type: string
+  - JSONPath: .spec.classRef.name
+    name: CLASS
+    type: string
+  - JSONPath: .status.redisVersion
+    name: VERSION
+    type: string
+  - JSONPath: .metadata.creationTimestamp
+    name: AGE
+    type: date
+  group: cache.aws.crossplane.io
+  names:
+    kind: ReplicationGroup
+    plural: replicationgroups
+  scope: Namespaced
+  validation:
+    openAPIV3Schema:
+      properties:
+        apiVersion:
+          type: string
+        kind:
+          type: string
+        metadata:
+          type: object
+        spec:
+          properties:
+            atRestEncryptionEnabled:
+              type: boolean
+            authEnabled:
+              description: AuthEnabled enables mandatory authentication when connecting
+                to the managed replication group. AuthEnabled requires TransitEncryptionEnabled
+                to be true.  While ReplicationGroupSpec mirrors the fields of the
+                upstream replication group object as closely as possible, we expose
+                a boolean here rather than requiring the operator pass in a string
+                authentication token. Crossplane will generate a token automatically
+                and expose it via a Secret.
+              type: boolean
+            automaticFailoverEnabled:
+              type: boolean
+            cacheNodeType:
+              type: string
+            cacheParameterGroupName:
+              type: string
+            cacheSecurityGroupNames:
+              items:
+                type: string
+              type: array
+            cacheSubnetGroupName:
+              type: string
+            claimRef:
+              type: object
+            classRef:
+              type: object
+            connectionSecretRef:
+              type: object
+            engineVersion:
+              type: string
+            nodeGroupConfiguration:
+              items:
+                properties:
+                  primaryAvailabilityZone:
+                    type: string
+                  replicaAvailabilityZones:
+                    items:
+                      type: string
+                    type: array
+                  replicaCount:
+                    format: int64
+                    type: integer
+                  slots:
+                    type: string
+                type: object
+              type: array
+            notificationTopicArn:
+              type: string
+            numCacheClusters:
+              format: int64
+              type: integer
+            numNodeGroups:
+              format: int64
+              type: integer
+            port:
+              format: int64
+              type: integer
+            preferredCacheClusterAzs:
+              items:
+                type: string
+              type: array
+            preferredMaintenanceWindow:
+              type: string
+            providerRef:
+              type: object
+            reclaimPolicy:
+              type: string
+            replicasPerNodeGroup:
+              format: int64
+              type: integer
+            securityGroupIds:
+              items:
+                type: string
+              type: array
+            snapshotArns:
+              items:
+                type: string
+              type: array
+            snapshotName:
+              type: string
+            snapshotRetentionLimit:
+              format: int64
+              type: integer
+            snapshotWindow:
+              type: string
+            transitEncryptionEnabled:
+              type: boolean
+          required:
+          - cacheNodeType
+          - providerRef
+          type: object
+        status:
+          properties:
+            clusterEnabled:
+              type: boolean
+            endpoint:
+              type: string
+            groupName:
+              description: Groupname of the Replication Group.
+              type: string
+            memberClusters:
+              items:
+                type: string
+              type: array
+            message:
+              type: string
+            port:
+              format: int64
+              type: integer
+            providerID:
+              description: ProviderID is the external ID to identify this resource
+                in the cloud provider
+              type: string
+            state:
+              type: string
+          type: object
+  version: v1alpha1
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
