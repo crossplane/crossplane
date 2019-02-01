@@ -18,6 +18,7 @@ limitations under the License.
 package aws
 
 import (
+	cache "github.com/crossplaneio/crossplane/pkg/apis/aws/cache/v1alpha1"
 	compute "github.com/crossplaneio/crossplane/pkg/apis/aws/compute/v1alpha1"
 	database "github.com/crossplaneio/crossplane/pkg/apis/aws/database/v1alpha1"
 	storage "github.com/crossplaneio/crossplane/pkg/apis/aws/storage/v1alpha1"
@@ -27,6 +28,7 @@ import (
 
 func init() {
 	// Register the types with the Scheme so the components can map objects to GroupVersionKinds and back
+	AddToSchemes = append(AddToSchemes, cache.SchemeBuilder.AddToScheme)
 	AddToSchemes = append(AddToSchemes, compute.SchemeBuilder.AddToScheme)
 	AddToSchemes = append(AddToSchemes, database.SchemeBuilder.AddToScheme)
 	AddToSchemes = append(AddToSchemes, awsv1alpha1.SchemeBuilder.AddToScheme)

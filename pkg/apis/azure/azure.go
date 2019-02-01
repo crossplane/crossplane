@@ -18,6 +18,7 @@ limitations under the License.
 package azure
 
 import (
+	cachev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/cache/v1alpha1"
 	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/compute/v1alpha1"
 	databasev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/database/v1alpha1"
 	azure "github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
@@ -27,6 +28,7 @@ import (
 func init() {
 	// Register the types with the Scheme so the components can map objects to GroupVersionKinds and back
 	AddToSchemes = append(AddToSchemes, azure.SchemeBuilder.AddToScheme)
+	AddToSchemes = append(AddToSchemes, cachev1alpha1.SchemeBuilder.AddToScheme)
 	AddToSchemes = append(AddToSchemes, databasev1alpha1.SchemeBuilder.AddToScheme)
 	AddToSchemes = append(AddToSchemes, computev1alpha1.SchemeBuilder.AddToScheme)
 }
