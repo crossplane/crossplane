@@ -27,7 +27,7 @@ We don’t know yet. We are open to doing so but we’d like to revisit this aft
 
 ### Does using multicloud mean you will use the lowest common denominator across clouds?
 
-Not necessarily. There are numerous best of breed cloud offerings that run on multiple clouds. For example, CockroachDB and ElasticSearch are world class implementations of platform software and run well on cloud providers. They compete with managed services offered by a cloud provider. We believe that by having a open control plane for they to integrate with, and providing a common API, CLI and UI for all of these services, that more of these offerings will exist and get first-class experience in the cloud.
+Not necessarily. There are numerous best of breed cloud offerings that run on multiple clouds. For example, CockroachDB and ElasticSearch are world class implementations of platform software and run well on cloud providers. They compete with managed services offered by a cloud provider. We believe that by having an open control plane for them to integrate with, and providing a common API, CLI and UI for all of these services, that more of these offerings will exist and get first-class experience in the cloud.
 
 ### How are resources and claims related to PersistentVolumes in Kubernetes?
 
@@ -39,7 +39,7 @@ We modeled workload scheduling after the Pod scheduler in Kubernetes. We believe
 
 ### Can I use Crossplane to consistently provision and manage multiple Kubernetes clusters?
 
-Crossplane includes an portable API for Kubernetes clusters that will include common configuration including node pools, auto-scalers, taints, admission controllers, etc. These will be applied to the specific implementations within the cloud providers like EKS, GKE and AKS. We see the Kubernetes Cluster API to be something that will be used by administrators and not developers.
+Crossplane includes a portable API for Kubernetes clusters that will include common configuration including node pools, auto-scalers, taints, admission controllers, etc. These will be applied to the specific implementations within the cloud providers like EKS, GKE and AKS. We see the Kubernetes Cluster API to be something that will be used by administrators and not developers.
 
 ### Other attempts at building a higher level API on-top of a multitude of inconsistent lower level APIs have not been successful, will Crossplane not have the same issues?
 
