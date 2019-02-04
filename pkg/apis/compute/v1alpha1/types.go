@@ -121,7 +121,7 @@ type WorkloadSpec struct {
 	TargetService    *corev1.Service        `json:"targetService"`
 
 	// Resources
-	Resources []ResourceReference `json:"resources"`
+	Resources []ResourceReference `json:"resources,omitempty"`
 }
 
 // WorkloadStatus
@@ -129,7 +129,9 @@ type WorkloadStatus struct {
 	corev1alpha1.ConditionedStatus
 	appsv1.DeploymentStatus `json:"deployment,omitempty"`
 	corev1.ServiceStatus    `json:"service,omitempty"`
-	State                   WorkloadState `json:"state,omitempty"`
+	State                   WorkloadState           `json:"state,omitempty"`
+	Deployment              *corev1.ObjectReference `json:"deploymentRef,omitempty"`
+	Service                 *corev1.ObjectReference `json:"serviceRef,omitempty"`
 }
 
 // +genclient
