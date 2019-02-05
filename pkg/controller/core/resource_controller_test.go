@@ -364,7 +364,7 @@ func TestResolveClassClaimValues(t *testing.T) {
 		g.Expect(v).To(Equal(expV))
 		if expErr {
 			g.Expect(err).To(HaveOccurred())
-			g.Expect(err).To(MatchError(fmt.Errorf("mysql claim value [%s] does not match the one defined in the resource class [%s]", iv, cv)))
+			g.Expect(err).To(MatchError(fmt.Errorf("claim value [%s] does not match the one defined in the resource class [%s]", iv, cv)))
 		} else {
 			g.Expect(err).NotTo(HaveOccurred())
 		}

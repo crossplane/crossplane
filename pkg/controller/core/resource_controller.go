@@ -307,7 +307,7 @@ func ResolveClassClaimValues(classValue, claimValue string) (string, error) {
 		return classValue, nil
 	}
 	if classValue != claimValue {
-		return "", fmt.Errorf("mysql claim value [%s] does not match the one defined in the resource class [%s]", claimValue, classValue)
+		return "", fmt.Errorf("claim value [%s] does not match the one defined in the resource class [%s]", claimValue, classValue)
 	}
 	return claimValue, nil
 }
