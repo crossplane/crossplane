@@ -4,6 +4,8 @@ kind: KubernetesCluster
 metadata:
   name: demo-gke-cluster
   namespace: crossplane-system
+  labels:
+    provider: gcp
 spec:
   classReference:
     name: standard-cluster

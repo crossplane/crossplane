@@ -18,12 +18,11 @@ metadata:
   name: test-workload
   namespace: default
 spec:
+  clusterSelector:
+    provider: azure
   resources:
   - name: demo-mysql
     secretName: demo-mysql
-  targetCluster:
-    name: demo-cluster
-    namespace: crossplane-system
   targetDeployment:
     apiVersion: extensions/v1beta1
     kind: Deployment

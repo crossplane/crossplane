@@ -17,12 +17,11 @@ metadata:
   name: demo
   namespace: default
 spec:
+  clusterSelector:
+    provider: gcp
   resources:
   - name: demo
     secretName: demo
-  targetCluster:
-    name: demo-gke-cluster
-    namespace: crossplane-system
   targetDeployment:
     apiVersion: extensions/v1beta1
     kind: Deployment
