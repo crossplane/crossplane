@@ -35,9 +35,12 @@ const (
 	// Version is the version of the API group
 	Version = "v1alpha1"
 	// APIVersion is the full version of this API group
-	APIVersion             = Group + "/" + Version
-	ProviderKind           = "provider"
-	ProviderKindAPIVersion = ProviderKind + "." + APIVersion
+	APIVersion        = Group + "/" + Version
+	ProviderKind      = "provider"
+	ResourceGroupKind = "resourcegroup"
+
+	ResourceGroupKindAPIVersion = ResourceGroupKind + "." + APIVersion
+	ProviderKindAPIVersion      = ProviderKind + "." + APIVersion
 )
 
 var (
@@ -50,4 +53,5 @@ var (
 
 func init() {
 	SchemeBuilder.Register(&Provider{}, &ProviderList{})
+	SchemeBuilder.Register(&ResourceGroup{}, &ResourceGroupList{})
 }

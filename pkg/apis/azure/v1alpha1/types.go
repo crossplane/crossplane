@@ -19,6 +19,7 @@ package v1alpha1
 import (
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -63,4 +64,42 @@ type ProviderList struct {
 // IsValid returns true if provider is valid (in ready state)
 func (p *Provider) IsValid() bool {
 	return p.Status.IsReady()
+}
+
+// ResourceGroupSpec defines the desired state of Resource Group
+type ResourceGroupSpec struct {
+	// Important: Run "make generate" to regenerate code after modifying this file
+	Name string `json:"name,omitempty"`
+
+	// See official list of valid regions - https://azure.microsoft.com/en-us/global-infrastructure/regions/
+	Location    string                  `json:"location,omitempty"`
+	ProviderRef v1.LocalObjectReference `json:"providerRef"`
+}
+
+// ResourceGroupStatus is the status for this resource group
+type ResourceGroupStatus struct {
+	corev1alpha1.ConditionedStatus
+}
+
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// ResourceGroup is the Schema for the instances API
+// +k8s:openapi-gen=true
+// +groupName=azure
+type ResourceGroup struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec   ResourceGroupSpec   `json:"spec,omitempty"`
+	Status ResourceGroupStatus `json:"status,omitempty"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// ResourceGroupList contains a list of Resource Groups
+type ResourceGroupList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []ResourceGroup `json:"items"`
 }
