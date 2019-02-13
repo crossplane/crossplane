@@ -48,17 +48,21 @@ rules:
   - patch
   - delete
 - apiGroups:
+  - cache.crossplane.io
   - compute.crossplane.io
   - core.crossplane.io
   - storage.crossplane.io
   - aws.crossplane.io
+  - cache.aws.crossplane.io
   - compute.aws.crossplane.io
   - database.aws.crossplane.io
   - storage.aws.crossplane.io
   - azure.crossplane.io
+  - cache.azure.crossplane.io
   - compute.azure.crossplane.io
   - database.azure.crossplane.io
   - gcp.crossplane.io
+  - cache.gcp.crossplane.io
   - compute.gcp.crossplane.io
   - database.gcp.crossplane.io
   resources:
