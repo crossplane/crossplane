@@ -569,7 +569,7 @@ func Test_create_Failures(t *testing.T) {
 		},
 	}
 
-	expStatus.SetFailed(errorCreating, "test deployment propagation error")
+	expStatus.SetFailed(errorCreating, testError)
 
 	rs, err = r._create(tw, client)
 	g.Expect(err).ShouldNot(HaveOccurred())
@@ -584,7 +584,7 @@ func Test_create_Failures(t *testing.T) {
 	r.propagateService = func(i kubernetes.Interface, deployment *corev1.Service, s string, s2 string) (*corev1.Service, error) {
 		return nil, fmt.Errorf(testError)
 	}
-	expStatus.SetFailed(errorCreating, "test deployment propagation error")
+	expStatus.SetFailed(errorCreating, testError)
 
 	rs, err = r._create(tw, client)
 	g.Expect(err).ShouldNot(HaveOccurred())

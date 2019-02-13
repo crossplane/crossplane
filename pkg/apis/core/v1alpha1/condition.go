@@ -48,6 +48,16 @@ type Condition struct {
 	Message            string
 }
 
+// Equal returns true if the condition is identical to the supplied condition,
+// ignoring the LastTransitionTime. github.com/go-test/deep uses this method to
+// test equality.
+func (c Condition) Equal(other Condition) bool {
+	return c.Type == other.Type &&
+		c.Status == other.Status &&
+		c.Reason == other.Reason &&
+		c.Message == other.Message
+}
+
 // Conditionable defines set of functionality to operate on Conditions
 type Conditionable interface {
 	Condition(ConditionType) *Condition
@@ -92,7 +102,7 @@ func (c *ConditionedStatus) IsFailed() bool {
 // SetCondition adds/replaces the given condition in the credentials controller status.
 func (c *ConditionedStatus) SetCondition(condition Condition) {
 	current := c.Condition(condition.Type)
-	if current != nil && current.Status == condition.Status && current.Reason == condition.Reason {
+	if current != nil && current.Equal(condition) {
 		return
 	}
 	newConditions := FilterOutCondition(c.Conditions, condition.Type)
@@ -150,7 +160,7 @@ func (c *ConditionedStatus) RemoveAllConditions() {
 	c.Conditions = []Condition{}
 }
 
-// NewCondition creates a new RDS resource condition.
+// NewCondition creates a new resource condition.
 func NewCondition(condType ConditionType, reason, msg string) Condition {
 	return Condition{
 		Type:               condType,

@@ -52,10 +52,7 @@ func (cm *ConditionMatcher) Match(actual interface{}) (success bool, err error) 
 		return false, fmt.Errorf("actual value is not a Condition: %v", actual)
 	}
 
-	return e.Type == a.Type &&
-		e.Status == a.Status &&
-		e.Reason == a.Reason &&
-		e.Message == a.Message, nil
+	return e.Equal(a), nil
 }
 
 func (cm *ConditionMatcher) FailureMessage(actual interface{}) (message string) {
