@@ -19,7 +19,6 @@ package kubernetes
 import (
 	"fmt"
 
-	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/compute/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	gcpcomputev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/compute/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -31,15 +30,15 @@ import (
 // GCP GKE handler handles Kubernetes cluster functionality
 type GKEClusterHandler struct{}
 
-// find GKECluster resource
-func (r *GKEClusterHandler) find(name types.NamespacedName, c client.Client) (corev1alpha1.Resource, error) {
+// Find GKECluster resource
+func (r *GKEClusterHandler) Find(name types.NamespacedName, c client.Client) (corev1alpha1.Resource, error) {
 	instance := &gcpcomputev1alpha1.GKECluster{}
 	err := c.Get(ctx, name, instance)
 	return instance, err
 }
 
 // provision create new GKECluster
-func (r *GKEClusterHandler) provision(class *corev1alpha1.ResourceClass, instance *computev1alpha1.KubernetesCluster, c client.Client) (corev1alpha1.Resource, error) {
+func (r *GKEClusterHandler) Provision(class *corev1alpha1.ResourceClass, claim corev1alpha1.ResourceClaim, c client.Client) (corev1alpha1.Resource, error) {
 	// construct GKECluster Spec from class definition
 	resourceInstance := gcpcomputev1alpha1.NewGKEClusterSpec(class.Parameters)
 
@@ -49,14 +48,14 @@ func (r *GKEClusterHandler) provision(class *corev1alpha1.ResourceClass, instanc
 
 	// set class and claim references
 	resourceInstance.ClassRef = class.ObjectReference()
-	resourceInstance.ClaimRef = instance.ObjectReference()
+	resourceInstance.ClaimRef = claim.ObjectReference()
 
 	// create and save GKECluster
 	cluster := &gcpcomputev1alpha1.GKECluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:       class.Namespace,
-			Name:            fmt.Sprintf("gke-%s", instance.UID),
-			OwnerReferences: []metav1.OwnerReference{instance.OwnerReference()},
+			Name:            fmt.Sprintf("gke-%s", claim.GetObjectMeta().UID),
+			OwnerReferences: []metav1.OwnerReference{claim.OwnerReference()},
 		},
 		Spec: *resourceInstance,
 	}
@@ -66,10 +65,11 @@ func (r *GKEClusterHandler) provision(class *corev1alpha1.ResourceClass, instanc
 	return cluster, err
 }
 
-// bind updates resource state binding phase
+// SetBindStatus updates resource state binding phase
 // - state = true: bound
 // - state = false: unbound
-func (r GKEClusterHandler) setBindStatus(name types.NamespacedName, c client.Client, state bool) error {
+// TODO: this setBindStatus function could be refactored to 1 common implementation for all providers
+func (r GKEClusterHandler) SetBindStatus(name types.NamespacedName, c client.Client, state bool) error {
 	instance := &gcpcomputev1alpha1.GKECluster{}
 	err := c.Get(ctx, name, instance)
 	if err != nil {

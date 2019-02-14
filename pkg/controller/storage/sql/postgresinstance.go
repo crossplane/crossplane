@@ -21,7 +21,6 @@ import (
 
 	storagev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
 	corecontroller "github.com/crossplaneio/crossplane/pkg/controller/core"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -61,7 +60,7 @@ func addPostgreSQL(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
-	// Watch for changes to Instance
+	// Watch for changes to PostgreSQLInstance
 	err = c.Watch(&source.Kind{Type: &storagev1alpha1.PostgreSQLInstance{}}, &handler.EnqueueRequestForObject{})
 	if err != nil {
 		return err
@@ -74,17 +73,11 @@ func addPostgreSQL(mgr manager.Manager, r reconcile.Reconciler) error {
 // and what is in the Instance.Spec
 func (r *PostgreSQLReconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	log.Printf("reconciling %s: %v", storagev1alpha1.PostgreSQLInstanceKindAPIVersion, request)
+
 	// fetch the CRD instance
 	instance := &storagev1alpha1.PostgreSQLInstance{}
-
-	err := r.Get(ctx, request.NamespacedName, instance)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			// Object not found, return.  Created objects are automatically garbage collected.
-			// For additional cleanup logic use finalizers.
-			return corecontroller.Result, nil
-		}
-		return corecontroller.Result, err
+	if err := r.Get(ctx, request.NamespacedName, instance); err != nil {
+		return corecontroller.HandleGetClaimError(err)
 	}
 
 	return r.DoReconcile(instance)

@@ -23,6 +23,8 @@ import (
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/util"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -34,16 +36,17 @@ import (
 )
 
 const (
-	errorResourceClassNotDefined   = "Resource class is not provided"
-	errorResourceProvisioning      = "Failed to provision new resource"
-	errorResourceHandlerIsNotFound = "Resource handler is not found"
-	errorRetrievingHandler         = "Failed to retrieve handler"
-	errorRetrievingResourceClass   = "Failed to retrieve resource class"
-	errorRetrievingResource        = "Failed to retrieve resource"
-	errorRetrievingResourceSecret  = "Failed to retrieve resource secret"
-	errorApplyingResourceSecret    = "Failed to apply resource secret"
-	errorSettingResourceBindStatus = "Failed to set resource binding status"
-	waitResourceIsNotAvailable     = "Waiting for resource to become available"
+	errorResourceClassNotDefined     = "Resource class is not provided"
+	errorResourceProvisioning        = "Failed to provision new resource"
+	errorResourceHandlerIsNotFound   = "Resource handler is not found"
+	errorRetrievingHandler           = "Failed to retrieve handler"
+	errorRetrievingResourceClass     = "Failed to retrieve resource class"
+	errorRetrievingResource          = "Failed to retrieve resource"
+	errorRetrievingResourceSecret    = "Failed to retrieve resource secret"
+	errorApplyingResourceSecret      = "Failed to apply resource secret"
+	errorSettingResourceBindStatus   = "Failed to set resource binding status"
+	errorResettingResourceBindStatus = "Failed to reset resource binding status"
+	waitResourceIsNotAvailable       = "Waiting for resource to become available"
 )
 
 var (
@@ -75,6 +78,7 @@ type Reconciler struct {
 	getHandler  func(claim corev1alpha1.ResourceClaim) (ResourceHandler, error)
 }
 
+// NewReconciler initializes and returns a new Reconciler instance.
 func NewReconciler(mgr manager.Manager, controllerName, finalizerName string, handlers map[string]ResourceHandler) *Reconciler {
 	r := &Reconciler{
 		Client:        mgr.GetClient(),
@@ -91,6 +95,17 @@ func NewReconciler(mgr manager.Manager, controllerName, finalizerName string, ha
 	r.getHandler = r._getHandler
 
 	return r
+}
+
+// HandleGetClaimError is a helper function to handle an error that was returned from a GET
+// operation on a concrete claim type.
+func HandleGetClaimError(err error) (reconcile.Result, error) {
+	if errors.IsNotFound(err) {
+		// Object not found, return.  Created objects are automatically garbage collected.
+		// For additional cleanup logic use finalizers.
+		return Result, nil
+	}
+	return Result, err
 }
 
 // _reconcile runs the main reconcile loop of this controller, given the requested claim
@@ -156,7 +171,7 @@ func (r *Reconciler) _provision(claim corev1alpha1.ResourceClaim, handler Resour
 	return Result, r.Update(ctx, claim)
 }
 
-// _bind KubernetesCluster to a concrete Resource
+// _bind the given resource claim to a concrete Resource
 func (r *Reconciler) _bind(claim corev1alpha1.ResourceClaim, handler ResourceHandler) (reconcile.Result, error) {
 	// find resource instance
 	resNName := util.NamespaceNameFromObjectRef(claim.ResourceRef())
@@ -182,7 +197,7 @@ func (r *Reconciler) _bind(claim corev1alpha1.ResourceClaim, handler ResourceHan
 		return r.fail(claim, errorRetrievingResourceSecret, err.Error())
 	}
 
-	// replace secret metadata with the consumer's metadata (same as in service)
+	// replace secret metadata with the consuming claim's metadata (same as in service)
 	secret.ObjectMeta = metav1.ObjectMeta{
 		Namespace:       claim.GetObjectMeta().Namespace,
 		Name:            claim.GetObjectMeta().Name,
@@ -201,6 +216,9 @@ func (r *Reconciler) _bind(claim corev1alpha1.ResourceClaim, handler ResourceHan
 	claimStatus := claim.ClaimStatus()
 	claimStatus.SetBound()
 
+	// save a local reference to the credentials secret in the claim's status
+	claimStatus.CredentialsSecretRef = corev1.LocalObjectReference{Name: secret.Name}
+
 	// update conditions
 	if !claimStatus.IsReady() {
 		claimStatus.UnsetAllConditions()
@@ -210,13 +228,16 @@ func (r *Reconciler) _bind(claim corev1alpha1.ResourceClaim, handler ResourceHan
 	return Result, r.Update(ctx, claim)
 }
 
+// _delete the given resource claim
 func (r *Reconciler) _delete(claim corev1alpha1.ResourceClaim, handler ResourceHandler) (reconcile.Result, error) {
 	// update resource binding status
 	resNName := util.NamespaceNameFromObjectRef(claim.ResourceRef())
 
 	// TODO: decide how to handle resource binding status update error
-	// - ignore the error for now
-	_ = handler.SetBindStatus(resNName, r.Client, false)
+	// - record an event for the error for now
+	if err := handler.SetBindStatus(resNName, r.Client, false); err != nil {
+		r.recorder.Event(claim, corev1.EventTypeWarning, errorResettingResourceBindStatus, err.Error())
+	}
 
 	// update claim status and remove finalizer
 	claimStatus := claim.ClaimStatus()

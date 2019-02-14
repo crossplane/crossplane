@@ -36,17 +36,6 @@ type KubernetesClusterSpec struct {
 	ClusterVersion string `json:"clusterVersion,omitempty"`
 }
 
-// KubernetesClusterStatus
-type KubernetesClusterStatus struct {
-	corev1alpha1.ConditionedStatus
-	corev1alpha1.BindingStatusPhase
-	// Provisioner is the driver that was used to provision the concrete resource
-	// This is an optionally-prefixed name, like a label key.
-	// For example: "EKScluster.compute.aws.crossplane.io/v1alpha1" or "GKECluster.compute.gcp.crossplane.io/v1alpha1".
-	Provisioner          string                      `json:"provisioner,omitempty"`
-	CredentialsSecretRef corev1.LocalObjectReference `json:"credentialsSecret,omitempty"`
-}
-
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
@@ -61,8 +50,8 @@ type KubernetesCluster struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   KubernetesClusterSpec   `json:"spec,omitempty"`
-	Status KubernetesClusterStatus `json:"status,omitempty"`
+	Spec   KubernetesClusterSpec            `json:"spec,omitempty"`
+	Status corev1alpha1.ResourceClaimStatus `json:"status,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -94,6 +83,26 @@ func (kc *KubernetesCluster) ObjectReference() *corev1.ObjectReference {
 // OwnerReference to use this object as an owner
 func (kc *KubernetesCluster) OwnerReference() metav1.OwnerReference {
 	return *util.ObjectToOwnerReference(kc.ObjectReference())
+}
+
+func (kc *KubernetesCluster) ClaimStatus() *corev1alpha1.ResourceClaimStatus {
+	return &kc.Status
+}
+
+func (kc *KubernetesCluster) GetObjectMeta() *metav1.ObjectMeta {
+	return &kc.ObjectMeta
+}
+
+func (kc *KubernetesCluster) ClassRef() *corev1.ObjectReference {
+	return kc.Spec.ClassRef
+}
+
+func (kc *KubernetesCluster) ResourceRef() *corev1.ObjectReference {
+	return kc.Spec.ResourceRef
+}
+
+func (kc *KubernetesCluster) SetResourceRef(ref *corev1.ObjectReference) {
+	kc.Spec.ResourceRef = ref
 }
 
 // ResourceReference is generic resource represented by the resource name and the secret name that will be generated

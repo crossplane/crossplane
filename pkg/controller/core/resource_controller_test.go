@@ -221,6 +221,7 @@ func TestBind(t *testing.T) {
 	g.Expect(rs).To(Equal(Result))
 	assertConditionUnset(g, claim, corev1alpha1.Failed, errorSettingResourceBindStatus)
 	assertConditionSet(g, claim, corev1alpha1.Ready, "")
+	g.Expect(claim.Status.CredentialsSecretRef.Name).To(Equal(claim.Name))
 	g.Expect(claim.Status.BindingStatusPhase.Phase).To(Equal(corev1alpha1.BindingStateBound))
 }
 

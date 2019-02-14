@@ -79,7 +79,7 @@ func (h *RDSInstanceHandler) Provision(class *corev1alpha1.ResourceClass, claim 
 	return rdsInstance, err
 }
 
-// Bind updates resource state binding phase
+// SetBindStatus updates resource state binding phase
 // - state = true: bound
 // - state = false: unbound
 // TODO: this setBindStatus function could be refactored to 1 common implementation for all providers
