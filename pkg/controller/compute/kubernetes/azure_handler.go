@@ -20,7 +20,6 @@ import (
 	"fmt"
 
 	azurecomputev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/compute/v1alpha1"
-	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/compute/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,15 +30,15 @@ import (
 // AKSClusterHandler handles Kubernetes cluster functionality
 type AKSClusterHandler struct{}
 
-// find AKSCluster resource
-func (r *AKSClusterHandler) find(name types.NamespacedName, c client.Client) (corev1alpha1.Resource, error) {
+// Find AKSCluster resource
+func (r *AKSClusterHandler) Find(name types.NamespacedName, c client.Client) (corev1alpha1.Resource, error) {
 	instance := &azurecomputev1alpha1.AKSCluster{}
 	err := c.Get(ctx, name, instance)
 	return instance, err
 }
 
 // provision a new AKSCluster
-func (r *AKSClusterHandler) provision(class *corev1alpha1.ResourceClass, instance *computev1alpha1.KubernetesCluster, c client.Client) (corev1alpha1.Resource, error) {
+func (r *AKSClusterHandler) Provision(class *corev1alpha1.ResourceClass, claim corev1alpha1.ResourceClaim, c client.Client) (corev1alpha1.Resource, error) {
 	// construct AKSCluster Spec from class definition
 	resourceInstance := azurecomputev1alpha1.NewAKSClusterSpec(class.Parameters)
 
@@ -49,14 +48,14 @@ func (r *AKSClusterHandler) provision(class *corev1alpha1.ResourceClass, instanc
 
 	// set class and claim references
 	resourceInstance.ClassRef = class.ObjectReference()
-	resourceInstance.ClaimRef = instance.ObjectReference()
+	resourceInstance.ClaimRef = claim.ObjectReference()
 
 	// create and save AKSCluster
 	cluster := &azurecomputev1alpha1.AKSCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:       class.Namespace,
-			Name:            fmt.Sprintf("aks-%s", instance.UID),
-			OwnerReferences: []metav1.OwnerReference{instance.OwnerReference()},
+			Name:            fmt.Sprintf("aks-%s", claim.GetObjectMeta().GetUID()),
+			OwnerReferences: []metav1.OwnerReference{claim.OwnerReference()},
 		},
 		Spec: *resourceInstance,
 	}
@@ -66,19 +65,18 @@ func (r *AKSClusterHandler) provision(class *corev1alpha1.ResourceClass, instanc
 	return cluster, err
 }
 
-// bind updates resource state binding phase
-// - state = true: bound
-// - state = false: unbound
-func (r AKSClusterHandler) setBindStatus(name types.NamespacedName, c client.Client, state bool) error {
+// SetBindStatus updates resource state binding phase
+// TODO: this SetBindStatus function could be refactored to 1 common implementation for all providers
+func (r AKSClusterHandler) SetBindStatus(name types.NamespacedName, c client.Client, bound bool) error {
 	instance := &azurecomputev1alpha1.AKSCluster{}
 	err := c.Get(ctx, name, instance)
 	if err != nil {
-		if errors.IsNotFound(err) && !state {
+		if errors.IsNotFound(err) && !bound {
 			return nil
 		}
 		return err
 	}
-	if state {
+	if bound {
 		instance.Status.SetBound()
 	} else {
 		instance.Status.SetUnbound()

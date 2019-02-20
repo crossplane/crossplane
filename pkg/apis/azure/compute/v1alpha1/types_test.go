@@ -113,7 +113,7 @@ func TestNewAKSClusterSpec(t *testing.T) {
 	exp.Location = val
 	g.Expect(NewAKSClusterSpec(m)).To(Equal(exp))
 
-	val = "1.11.1"
+	val = "1.12.5"
 	m["version"] = val
 	exp.Version = val
 	g.Expect(NewAKSClusterSpec(m)).To(Equal(exp))

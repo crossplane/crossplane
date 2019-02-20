@@ -19,30 +19,30 @@ package util
 import "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 // RemoveFinalizer - from the list of kubernetes object finalizers
-func RemoveFinalizer(o *v1.ObjectMeta, finalizer string) {
-	finalizers := o.Finalizers
+func RemoveFinalizer(o v1.Object, finalizer string) {
+	finalizers := o.GetFinalizers()
 	for index, f := range finalizers {
 		if f == finalizer {
 			finalizers = append(finalizers[:index], finalizers[index+1:]...)
 		}
 	}
-	o.Finalizers = finalizers
+	o.SetFinalizers(finalizers)
 }
 
 // AddFinalizer - add finalizer (if it wasn't added before)
-func AddFinalizer(o *v1.ObjectMeta, finalizer string) {
-	finalizers := o.Finalizers
+func AddFinalizer(o v1.Object, finalizer string) {
+	finalizers := o.GetFinalizers()
 	for _, f := range finalizers {
 		if f == finalizer {
 			return
 		}
 	}
-	o.Finalizers = append(finalizers, finalizer)
+	o.SetFinalizers(append(finalizers, finalizer))
 }
 
 // HasFinalizer - check if given instance has a given finalizer
-func HasFinalizer(o *v1.ObjectMeta, finalizer string) bool {
-	finalizers := o.Finalizers
+func HasFinalizer(o v1.Object, finalizer string) bool {
+	finalizers := o.GetFinalizers()
 	for _, f := range finalizers {
 		if f == finalizer {
 			return true

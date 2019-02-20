@@ -18,6 +18,7 @@ package bucket
 
 import (
 	"fmt"
+	"reflect"
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3Bucketv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/storage/v1alpha1"
@@ -42,7 +43,7 @@ var (
 type S3BucketHandler struct{}
 
 // find S3BUCKET
-func (h *S3BucketHandler) find(name types.NamespacedName, c client.Client) (corev1alpha1.Resource, error) {
+func (h *S3BucketHandler) Find(name types.NamespacedName, c client.Client) (corev1alpha1.Resource, error) {
 	s3Bucket := &s3Bucketv1alpha1.S3Bucket{}
 	err := c.Get(ctx, name, s3Bucket)
 	return s3Bucket, err
@@ -63,6 +64,7 @@ func (h *S3BucketHandler) newS3Bucket(class *corev1alpha1.ResourceClass, instanc
 		},
 		Spec: *bucketSpec,
 	}
+	bucket.Status.SetUnbound()
 
 	bucket.Spec.ProviderRef = class.ProviderRef
 	bucket.Spec.ReclaimPolicy = class.ReclaimPolicy
@@ -75,21 +77,26 @@ func (h *S3BucketHandler) newS3Bucket(class *corev1alpha1.ResourceClass, instanc
 }
 
 // provision creates a new S3Bucket
-func (h *S3BucketHandler) provision(class *corev1alpha1.ResourceClass, instance *bucketv1alpha1.Bucket, c client.Client) (corev1alpha1.Resource, error) {
+func (h *S3BucketHandler) Provision(class *corev1alpha1.ResourceClass, claim corev1alpha1.ResourceClaim, c client.Client) (corev1alpha1.Resource, error) {
 	// construct S3Bucket Spec from class definition
 	bucketSpec := s3Bucketv1alpha1.NewS3BucketSpec(class.Parameters)
 
-	// Making connection secret override configurable from parameters doesn't make sense, so we take the value from the instance.
-	bucketSpec.ConnectionSecretNameOverride = instance.Spec.ConnectionSecretNameOverride
+	bucket, ok := claim.(*bucketv1alpha1.Bucket)
+	if !ok {
+		return nil, fmt.Errorf("unexpected claim type: %+v", reflect.TypeOf(claim))
+	}
 
-	val, err := resolveClassInstanceValues(bucketSpec.Name, instance.Spec.Name)
+	// Making connection secret override configurable from parameters doesn't make sense, so we take the value from the instance.
+	bucketSpec.ConnectionSecretNameOverride = bucket.Spec.ConnectionSecretNameOverride
+
+	val, err := resolveClassInstanceValues(bucketSpec.Name, bucket.Spec.Name)
 	if err != nil {
 		return nil, err
 	}
 	bucketSpec.Name = val
 
 	// translate and set predefinedACL
-	instanceACL, err := translateACL(instance.Spec.PredefinedACL)
+	instanceACL, err := translateACL(bucket.Spec.PredefinedACL)
 	if err != nil {
 		return nil, err
 	}
@@ -103,32 +110,30 @@ func (h *S3BucketHandler) provision(class *corev1alpha1.ResourceClass, instance 
 		bucketSpec.CannedACL = cannedACL
 	}
 
-	bucketSpec.LocalPermission, err = resolveClassInstanceLocalPermissions(bucketSpec.LocalPermission, instance.Spec.LocalPermission)
+	bucketSpec.LocalPermission, err = resolveClassInstanceLocalPermissions(bucketSpec.LocalPermission, bucket.Spec.LocalPermission)
 	if err != nil {
 		return nil, err
 	}
 
-	bucket := h.newS3Bucket(class, instance, bucketSpec)
-	err = c.Create(ctx, bucket)
+	s3bucket := h.newS3Bucket(class, bucket, bucketSpec)
 
-	return bucket, err
+	err = c.Create(ctx, s3bucket)
+	return s3bucket, err
 }
 
-// bind updates resource state binding phase
-// - state = true: bound
-// - state = false: unbound
-// TODO: this setBindStatus function could be refactored to 1 common implementation for all providers
-func (h S3BucketHandler) setBindStatus(name types.NamespacedName, c client.Client, state bool) error {
+// SetBindStatus updates resource state binding phase
+// TODO: this SetBindStatus function could be refactored to 1 common implementation for all providers
+func (h S3BucketHandler) SetBindStatus(name types.NamespacedName, c client.Client, bound bool) error {
 	s3Bucket := &s3Bucketv1alpha1.S3Bucket{}
 	err := c.Get(ctx, name, s3Bucket)
 	if err != nil {
 		// TODO: the CRD is not found and the binding state is supposed to be unbound. is this OK?
-		if errors.IsNotFound(err) && !state {
+		if errors.IsNotFound(err) && !bound {
 			return nil
 		}
 		return err
 	}
-	if state {
+	if bound {
 		s3Bucket.Status.SetBound()
 	} else {
 		s3Bucket.Status.SetUnbound()

@@ -152,7 +152,7 @@ func testInstance(p *azurev1alpha1.Provider) *computev1alpha1.AKSCluster {
 			ProviderRef:       corev1.LocalObjectReference{Name: p.Name},
 			ResourceGroupName: "rg1",
 			Location:          "loc1",
-			Version:           "1.11.4",
+			Version:           "1.12.5",
 			NodeCount:         to.IntPtr(3),
 			NodeVMSize:        "Standard_F2s_v2",
 			DNSNamePrefix:     "crossplane-aks",

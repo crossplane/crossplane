@@ -59,10 +59,9 @@ type Resource interface {
 // ResourceClaim defines a resource claim that can be provisioned and bound to a concrete resource.
 type ResourceClaim interface {
 	runtime.Object
+	metav1.ObjectMetaAccessor
 	// The status of this resource claim
 	ClaimStatus() *ResourceClaimStatus
-	// Gets the object meta for this resource claim
-	GetObjectMeta() *metav1.ObjectMeta
 	// Gets an owner reference that points to this claim
 	OwnerReference() metav1.OwnerReference
 	// Kubernetes object reference to this resource
@@ -130,10 +129,15 @@ func (r *ResourceClass) ObjectReference() *corev1.ObjectReference {
 type ResourceClaimStatus struct {
 	ConditionedStatus
 	BindingStatusPhase
+
 	// Provisioner is the driver that was used to provision the concrete resource
 	// This is an optionally-prefixed name, like a label key.
 	// For example: "RDSInstance.database.aws.crossplane.io/v1alpha1" or "CloudSQLInstance.database.gcp.crossplane.io/v1alpha1".
 	Provisioner string `json:"provisioner,omitempty"`
+
+	// CredentialsSecretRef is a local reference to the generated secret containing the credentials
+	// for this resource claim.
+	CredentialsSecretRef corev1.LocalObjectReference `json:"credentialsSecret,omitempty"`
 }
 
 // ResourceName is the name identifying various resources in a ResourceList.

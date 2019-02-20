@@ -30,7 +30,7 @@ metadata:
 parameters:
   resourceGroupName: group-westus-1
   location: West US 2
-  version: "1.11.4"
+  version: "1.12.5"
   nodeCount: "1"
   nodeVMSize: Standard_B2s
   dnsNamePrefix: crossplane-aks

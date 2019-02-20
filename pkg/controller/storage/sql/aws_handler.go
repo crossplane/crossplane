@@ -50,7 +50,7 @@ func (h *RDSInstanceHandler) Provision(class *corev1alpha1.ResourceClass, claim 
 		return nil, err
 	}
 
-	rdsInstanceName := fmt.Sprintf("%s-%s", rdsInstanceSpec.Engine, claim.GetObjectMeta().UID)
+	rdsInstanceName := fmt.Sprintf("%s-%s", rdsInstanceSpec.Engine, claim.GetObjectMeta().GetUID())
 
 	// assign provider reference and reclaim policy from the resource class
 	rdsInstanceSpec.ProviderRef = class.ProviderRef
@@ -79,21 +79,19 @@ func (h *RDSInstanceHandler) Provision(class *corev1alpha1.ResourceClass, claim 
 	return rdsInstance, err
 }
 
-// Bind updates resource state binding phase
-// - state = true: bound
-// - state = false: unbound
-// TODO: this setBindStatus function could be refactored to 1 common implementation for all providers
-func (h RDSInstanceHandler) SetBindStatus(name types.NamespacedName, c client.Client, state bool) error {
+// SetBindStatus updates resource state binding phase
+// TODO: this SetBindStatus function could be refactored to 1 common implementation for all providers
+func (h RDSInstanceHandler) SetBindStatus(name types.NamespacedName, c client.Client, bound bool) error {
 	rdsInstance := &awsdbv1alpha1.RDSInstance{}
 	err := c.Get(ctx, name, rdsInstance)
 	if err != nil {
 		// TODO: the CRD is not found and the binding state is supposed to be unbound. is this OK?
-		if errors.IsNotFound(err) && !state {
+		if errors.IsNotFound(err) && !bound {
 			return nil
 		}
 		return err
 	}
-	if state {
+	if bound {
 		rdsInstance.Status.SetBound()
 	} else {
 		rdsInstance.Status.SetUnbound()

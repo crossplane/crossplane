@@ -77,10 +77,6 @@ func (m *MySQLInstance) ClaimStatus() *corev1alpha1.ResourceClaimStatus {
 	return &m.Status
 }
 
-func (m *MySQLInstance) GetObjectMeta() *metav1.ObjectMeta {
-	return &m.ObjectMeta
-}
-
 func (m *MySQLInstance) ClassRef() *corev1.ObjectReference {
 	return m.Spec.ClassRef
 }
@@ -159,10 +155,6 @@ func (p *PostgreSQLInstance) ClaimStatus() *corev1alpha1.ResourceClaimStatus {
 	return &p.Status
 }
 
-func (p *PostgreSQLInstance) GetObjectMeta() *metav1.ObjectMeta {
-	return &p.ObjectMeta
-}
-
 func (p *PostgreSQLInstance) ClassRef() *corev1.ObjectReference {
 	return p.Spec.ClassRef
 }
@@ -221,16 +213,6 @@ type BucketSpec struct {
 	ConnectionSecretNameOverride string `json:"connectionSecretNameOverride,omitempty"`
 }
 
-// BucketClaimStatus
-type BucketClaimStatus struct {
-	corev1alpha1.ConditionedStatus
-	corev1alpha1.BindingStatusPhase
-	// Provisioner is the driver that was used to provision the concrete resource
-	// This is an optionally-prefixed name, like a label key.
-	// For example: "S3Bucket.storage.aws.crossplane.io/v1alpha1" or "GoogleBucket.storage.gcp.crossplane.io/v1alpha1".
-	Provisioner string `json:"provisioner,omitempty"`
-}
-
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
@@ -246,8 +228,8 @@ type Bucket struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   BucketSpec        `json:"spec,omitempty"`
-	Status BucketClaimStatus `json:"status,omitempty"`
+	Spec   BucketSpec                       `json:"spec,omitempty"`
+	Status corev1alpha1.ResourceClaimStatus `json:"status,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -267,4 +249,20 @@ func (b *Bucket) OwnerReference() metav1.OwnerReference {
 // ObjectReference to this S3Bucket
 func (b *Bucket) ObjectReference() *corev1.ObjectReference {
 	return util.ObjectReference(b.ObjectMeta, util.IfEmptyString(b.APIVersion, APIVersion), util.IfEmptyString(b.Kind, BucketKind))
+}
+
+func (b *Bucket) ClaimStatus() *corev1alpha1.ResourceClaimStatus {
+	return &b.Status
+}
+
+func (b *Bucket) ClassRef() *corev1.ObjectReference {
+	return b.Spec.ClassRef
+}
+
+func (b *Bucket) ResourceRef() *corev1.ObjectReference {
+	return b.Spec.ResourceRef
+}
+
+func (b *Bucket) SetResourceRef(ref *corev1.ObjectReference) {
+	b.Spec.ResourceRef = ref
 }

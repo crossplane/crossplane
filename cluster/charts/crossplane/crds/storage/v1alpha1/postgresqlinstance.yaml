@@ -55,6 +55,10 @@ spec:
           type: object
         status:
           properties:
+            credentialsSecret:
+              description: CredentialsSecretRef is a local reference to the generated
+                secret containing the credentials for this resource claim.
+              type: object
             provisioner:
               description: 'Provisioner is the driver that was used to provision the
                 concrete resource This is an optionally-prefixed name, like a label

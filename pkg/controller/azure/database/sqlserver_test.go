@@ -127,7 +127,7 @@ func TestReconcile(t *testing.T) {
 			return nil, autorest.DetailedError{StatusCode: http.StatusNotFound}
 		}
 		// subsequent GET calls should return the created instance
-		instanceName := instance.GetObjectMeta().Name
+		instanceName := instance.GetObjectMeta().GetName()
 		return &azureclients.SQLServer{
 			State: string(mysql.ServerStateReady),
 			ID:    instanceName + "-azure-id",

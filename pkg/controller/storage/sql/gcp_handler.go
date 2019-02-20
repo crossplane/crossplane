@@ -62,9 +62,9 @@ func (h *CloudSQLServerHandler) Provision(class *corev1alpha1.ResourceClass, cla
 	var cloudsqlInstanceName string
 	switch claim.(type) {
 	case *storagev1alpha1.MySQLInstance:
-		cloudsqlInstanceName = fmt.Sprintf("mysql-%s", claim.GetObjectMeta().UID)
+		cloudsqlInstanceName = fmt.Sprintf("mysql-%s", claim.GetObjectMeta().GetUID())
 	case *storagev1alpha1.PostgreSQLInstance:
-		cloudsqlInstanceName = fmt.Sprintf("postgresql-%s", claim.GetObjectMeta().UID)
+		cloudsqlInstanceName = fmt.Sprintf("postgresql-%s", claim.GetObjectMeta().GetUID())
 	default:
 		return nil, fmt.Errorf("unexpected claim type: %+v", reflect.TypeOf(claim))
 	}
@@ -89,20 +89,18 @@ func (h *CloudSQLServerHandler) Provision(class *corev1alpha1.ResourceClass, cla
 }
 
 // SetBindStatus updates resource state binding phase
-// - state = true: bound
-// - state = false: unbound
-// TODO: this setBindStatus function could be refactored to 1 common implementation for all providers
-func (h *CloudSQLServerHandler) SetBindStatus(name types.NamespacedName, c client.Client, state bool) error {
+// TODO: this SetBindStatus function could be refactored to 1 common implementation for all providers
+func (h *CloudSQLServerHandler) SetBindStatus(name types.NamespacedName, c client.Client, bound bool) error {
 	cloudsqlInstance := &gcpdbv1alpha1.CloudsqlInstance{}
 	err := c.Get(ctx, name, cloudsqlInstance)
 	if err != nil {
 		// TODO: the CRD is not found and the binding state is supposed to be unbound. is this OK?
-		if errors.IsNotFound(err) && !state {
+		if errors.IsNotFound(err) && !bound {
 			return nil
 		}
 		return err
 	}
-	if state {
+	if bound {
 		cloudsqlInstance.Status.SetBound()
 	} else {
 		cloudsqlInstance.Status.SetUnbound()

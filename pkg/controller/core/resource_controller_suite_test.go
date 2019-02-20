@@ -100,10 +100,6 @@ func (t *testResourceClaim) ClaimStatus() *corev1alpha1.ResourceClaimStatus {
 	return &t.Status
 }
 
-func (t *testResourceClaim) GetObjectMeta() *metav1.ObjectMeta {
-	return &t.ObjectMeta
-}
-
 func (t *testResourceClaim) ClassRef() *corev1.ObjectReference {
 	return t.Spec.ClassRef
 }
