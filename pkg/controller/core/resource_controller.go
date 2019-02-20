@@ -116,12 +116,12 @@ func (r *Reconciler) _reconcile(claim corev1alpha1.ResourceClaim) (reconcile.Res
 		return r.fail(claim, errorRetrievingHandler, err.Error())
 	} else if handler == nil {
 		// handler is not found - log this but don't fail, let an external provisioner handle it
-		log.Printf("handler for claim %s is unknown, ignoring reconcile to allow external provisioners to handle it", claim.GetObjectMeta().Name)
+		log.Printf("handler for claim %s is unknown, ignoring reconcile to allow external provisioners to handle it", claim.GetObjectMeta().GetName())
 		return Result, nil
 	}
 
 	// Check for deletion
-	if claim.GetObjectMeta().DeletionTimestamp != nil && claim.ClaimStatus().Condition(corev1alpha1.Deleting) == nil {
+	if claim.GetObjectMeta().GetDeletionTimestamp() != nil && claim.ClaimStatus().Condition(corev1alpha1.Deleting) == nil {
 		return r.delete(claim, handler)
 	}
 
@@ -199,8 +199,8 @@ func (r *Reconciler) _bind(claim corev1alpha1.ResourceClaim, handler ResourceHan
 
 	// replace secret metadata with the consuming claim's metadata (same as in service)
 	secret.ObjectMeta = metav1.ObjectMeta{
-		Namespace:       claim.GetObjectMeta().Namespace,
-		Name:            claim.GetObjectMeta().Name,
+		Namespace:       claim.GetObjectMeta().GetNamespace(),
+		Name:            claim.GetObjectMeta().GetName(),
 		OwnerReferences: []metav1.OwnerReference{claim.OwnerReference()},
 	}
 	if _, err := util.ApplySecret(r.kubeclient, secret); err != nil {
@@ -212,7 +212,7 @@ func (r *Reconciler) _bind(claim corev1alpha1.ResourceClaim, handler ResourceHan
 		return r.fail(claim, errorSettingResourceBindStatus, err.Error())
 	}
 
-	// set instance binding status
+	// set claim binding status
 	claimStatus := claim.ClaimStatus()
 	claimStatus.SetBound()
 

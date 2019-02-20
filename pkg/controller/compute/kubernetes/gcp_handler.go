@@ -54,7 +54,7 @@ func (r *GKEClusterHandler) Provision(class *corev1alpha1.ResourceClass, claim c
 	cluster := &gcpcomputev1alpha1.GKECluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:       class.Namespace,
-			Name:            fmt.Sprintf("gke-%s", claim.GetObjectMeta().UID),
+			Name:            fmt.Sprintf("gke-%s", claim.GetObjectMeta().GetUID()),
 			OwnerReferences: []metav1.OwnerReference{claim.OwnerReference()},
 		},
 		Spec: *resourceInstance,
@@ -66,19 +66,17 @@ func (r *GKEClusterHandler) Provision(class *corev1alpha1.ResourceClass, claim c
 }
 
 // SetBindStatus updates resource state binding phase
-// - state = true: bound
-// - state = false: unbound
-// TODO: this setBindStatus function could be refactored to 1 common implementation for all providers
-func (r GKEClusterHandler) SetBindStatus(name types.NamespacedName, c client.Client, state bool) error {
+// TODO: this SetBindStatus function could be refactored to 1 common implementation for all providers
+func (r GKEClusterHandler) SetBindStatus(name types.NamespacedName, c client.Client, bound bool) error {
 	instance := &gcpcomputev1alpha1.GKECluster{}
 	err := c.Get(ctx, name, instance)
 	if err != nil {
-		if errors.IsNotFound(err) && !state {
+		if errors.IsNotFound(err) && !bound {
 			return nil
 		}
 		return err
 	}
-	if state {
+	if bound {
 		instance.Status.SetBound()
 	} else {
 		instance.Status.SetUnbound()

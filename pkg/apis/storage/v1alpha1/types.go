@@ -77,10 +77,6 @@ func (m *MySQLInstance) ClaimStatus() *corev1alpha1.ResourceClaimStatus {
 	return &m.Status
 }
 
-func (m *MySQLInstance) GetObjectMeta() *metav1.ObjectMeta {
-	return &m.ObjectMeta
-}
-
 func (m *MySQLInstance) ClassRef() *corev1.ObjectReference {
 	return m.Spec.ClassRef
 }
@@ -157,10 +153,6 @@ func (p *PostgreSQLInstance) OwnerReference() metav1.OwnerReference {
 
 func (p *PostgreSQLInstance) ClaimStatus() *corev1alpha1.ResourceClaimStatus {
 	return &p.Status
-}
-
-func (p *PostgreSQLInstance) GetObjectMeta() *metav1.ObjectMeta {
-	return &p.ObjectMeta
 }
 
 func (p *PostgreSQLInstance) ClassRef() *corev1.ObjectReference {
@@ -261,10 +253,6 @@ func (b *Bucket) ObjectReference() *corev1.ObjectReference {
 
 func (b *Bucket) ClaimStatus() *corev1alpha1.ResourceClaimStatus {
 	return &b.Status
-}
-
-func (b *Bucket) GetObjectMeta() *metav1.ObjectMeta {
-	return &b.ObjectMeta
 }
 
 func (b *Bucket) ClassRef() *corev1.ObjectReference {

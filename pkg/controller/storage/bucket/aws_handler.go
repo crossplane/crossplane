@@ -121,21 +121,19 @@ func (h *S3BucketHandler) Provision(class *corev1alpha1.ResourceClass, claim cor
 	return s3bucket, err
 }
 
-// bind updates resource state binding phase
-// - state = true: bound
-// - state = false: unbound
-// TODO: this setBindStatus function could be refactored to 1 common implementation for all providers
-func (h S3BucketHandler) SetBindStatus(name types.NamespacedName, c client.Client, state bool) error {
+// SetBindStatus updates resource state binding phase
+// TODO: this SetBindStatus function could be refactored to 1 common implementation for all providers
+func (h S3BucketHandler) SetBindStatus(name types.NamespacedName, c client.Client, bound bool) error {
 	s3Bucket := &s3Bucketv1alpha1.S3Bucket{}
 	err := c.Get(ctx, name, s3Bucket)
 	if err != nil {
 		// TODO: the CRD is not found and the binding state is supposed to be unbound. is this OK?
-		if errors.IsNotFound(err) && !state {
+		if errors.IsNotFound(err) && !bound {
 			return nil
 		}
 		return err
 	}
-	if state {
+	if bound {
 		s3Bucket.Status.SetBound()
 	} else {
 		s3Bucket.Status.SetUnbound()

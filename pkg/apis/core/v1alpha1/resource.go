@@ -59,10 +59,9 @@ type Resource interface {
 // ResourceClaim defines a resource claim that can be provisioned and bound to a concrete resource.
 type ResourceClaim interface {
 	runtime.Object
+	metav1.ObjectMetaAccessor
 	// The status of this resource claim
 	ClaimStatus() *ResourceClaimStatus
-	// Gets the object meta for this resource claim
-	GetObjectMeta() *metav1.ObjectMeta
 	// Gets an owner reference that points to this claim
 	OwnerReference() metav1.OwnerReference
 	// Kubernetes object reference to this resource

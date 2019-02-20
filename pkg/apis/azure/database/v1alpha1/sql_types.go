@@ -36,7 +36,7 @@ const (
 
 type SqlServer interface {
 	corev1alpha1.Resource
-	GetObjectMeta() *metav1.ObjectMeta
+	metav1.ObjectMetaAccessor
 	OwnerReference() metav1.OwnerReference
 	GetSpec() *SQLServerSpec
 	GetStatus() *SQLServerStatus
@@ -233,10 +233,6 @@ func NewSQLServerSpec(properties map[string]string) *SQLServerSpec {
 //---------------------------------------------------------------------------------------------------------------------
 // MysqlServer
 
-func (m *MysqlServer) GetObjectMeta() *metav1.ObjectMeta {
-	return &m.ObjectMeta
-}
-
 func (m *MysqlServer) GetSpec() *SQLServerSpec {
 	return &m.Spec
 }
@@ -291,10 +287,6 @@ func (m *MysqlServer) SetBound(state bool) {
 
 //---------------------------------------------------------------------------------------------------------------------
 // PostgresqlServer
-
-func (p *PostgresqlServer) GetObjectMeta() *metav1.ObjectMeta {
-	return &p.ObjectMeta
-}
 
 func (p *PostgresqlServer) GetSpec() *SQLServerSpec {
 	return &p.Spec

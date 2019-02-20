@@ -96,7 +96,7 @@ func NewMySQLServerClient(provider *v1alpha1.Provider, clientset kubernetes.Inte
 
 // GetServer retrieves the requested MySQL Server
 func (c *MySQLServerClient) GetServer(ctx context.Context, instance azuredbv1alpha1.SqlServer) (*SQLServer, error) {
-	server, err := c.ServersClient.Get(ctx, instance.GetSpec().ResourceGroupName, instance.GetObjectMeta().Name)
+	server, err := c.ServersClient.Get(ctx, instance.GetSpec().ResourceGroupName, instance.GetObjectMeta().GetName())
 	if err != nil {
 		return nil, err
 	}
@@ -152,7 +152,7 @@ func (c *MySQLServerClient) CreateServerBegin(ctx context.Context, instance azur
 	}
 
 	// make the call to the MySQL Server Create API
-	createFuture, err := c.Create(ctx, instance.GetSpec().ResourceGroupName, instance.GetObjectMeta().Name, createParams)
+	createFuture, err := c.Create(ctx, instance.GetSpec().ResourceGroupName, instance.GetObjectMeta().GetName(), createParams)
 	if err != nil {
 		return nil, err
 	}
@@ -190,13 +190,13 @@ func (c *MySQLServerClient) CreateServerEnd(createOp []byte) (done bool, err err
 
 // Delete deletes the given MySQLServer resource
 func (c *MySQLServerClient) DeleteServer(ctx context.Context, instance azuredbv1alpha1.SqlServer) (azurerest.Future, error) {
-	result, err := c.ServersClient.Delete(ctx, instance.GetSpec().ResourceGroupName, instance.GetObjectMeta().Name)
+	result, err := c.ServersClient.Delete(ctx, instance.GetSpec().ResourceGroupName, instance.GetObjectMeta().GetName())
 	return result.Future, err
 }
 
 // GetFirewallRule gets the given firewall rule
 func (c *MySQLServerClient) GetFirewallRule(ctx context.Context, instance azuredbv1alpha1.SqlServer, firewallRuleName string) error {
-	_, err := c.FirewallRulesClient.Get(ctx, instance.GetSpec().ResourceGroupName, instance.GetObjectMeta().Name, firewallRuleName)
+	_, err := c.FirewallRulesClient.Get(ctx, instance.GetSpec().ResourceGroupName, instance.GetObjectMeta().GetName(), firewallRuleName)
 	return err
 }
 
@@ -214,7 +214,7 @@ func (c *MySQLServerClient) CreateFirewallRulesBegin(ctx context.Context, instan
 	}
 
 	createFuture, err := c.FirewallRulesClient.CreateOrUpdate(ctx, instance.GetSpec().ResourceGroupName,
-		instance.GetObjectMeta().Name, firewallRuleName, createParams)
+		instance.GetObjectMeta().GetName(), firewallRuleName, createParams)
 	if err != nil {
 		return nil, err
 	}
@@ -282,7 +282,7 @@ func NewPostgreSQLServerClient(provider *v1alpha1.Provider, clientset kubernetes
 
 // GetServer retrieves the requested PostgreSQL Server
 func (c *PostgreSQLServerClient) GetServer(ctx context.Context, instance azuredbv1alpha1.SqlServer) (*SQLServer, error) {
-	server, err := c.ServersClient.Get(ctx, instance.GetSpec().ResourceGroupName, instance.GetObjectMeta().Name)
+	server, err := c.ServersClient.Get(ctx, instance.GetSpec().ResourceGroupName, instance.GetObjectMeta().GetName())
 	if err != nil {
 		return nil, err
 	}
@@ -338,7 +338,7 @@ func (c *PostgreSQLServerClient) CreateServerBegin(ctx context.Context, instance
 	}
 
 	// make the call to the PostgreSQL Server Create API
-	createFuture, err := c.Create(ctx, instance.GetSpec().ResourceGroupName, instance.GetObjectMeta().Name, createParams)
+	createFuture, err := c.Create(ctx, instance.GetSpec().ResourceGroupName, instance.GetObjectMeta().GetName(), createParams)
 	if err != nil {
 		return nil, err
 	}
@@ -376,13 +376,13 @@ func (c *PostgreSQLServerClient) CreateServerEnd(createOp []byte) (done bool, er
 
 // DeleteServer deletes the given PostgreSQL resource
 func (c *PostgreSQLServerClient) DeleteServer(ctx context.Context, instance azuredbv1alpha1.SqlServer) (azurerest.Future, error) {
-	result, err := c.ServersClient.Delete(ctx, instance.GetSpec().ResourceGroupName, instance.GetObjectMeta().Name)
+	result, err := c.ServersClient.Delete(ctx, instance.GetSpec().ResourceGroupName, instance.GetObjectMeta().GetName())
 	return result.Future, err
 }
 
 // GetFirewallRule gets the given firewall rule
 func (c *PostgreSQLServerClient) GetFirewallRule(ctx context.Context, instance azuredbv1alpha1.SqlServer, firewallRuleName string) error {
-	_, err := c.FirewallRulesClient.Get(ctx, instance.GetSpec().ResourceGroupName, instance.GetObjectMeta().Name, firewallRuleName)
+	_, err := c.FirewallRulesClient.Get(ctx, instance.GetSpec().ResourceGroupName, instance.GetObjectMeta().GetName(), firewallRuleName)
 	return err
 }
 
@@ -400,7 +400,7 @@ func (c *PostgreSQLServerClient) CreateFirewallRulesBegin(ctx context.Context, i
 	}
 
 	createFuture, err := c.FirewallRulesClient.CreateOrUpdate(ctx, instance.GetSpec().ResourceGroupName,
-		instance.GetObjectMeta().Name, firewallRuleName, createParams)
+		instance.GetObjectMeta().GetName(), firewallRuleName, createParams)
 	if err != nil {
 		return nil, err
 	}

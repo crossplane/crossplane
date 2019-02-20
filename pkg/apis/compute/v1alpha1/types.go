@@ -89,10 +89,6 @@ func (kc *KubernetesCluster) ClaimStatus() *corev1alpha1.ResourceClaimStatus {
 	return &kc.Status
 }
 
-func (kc *KubernetesCluster) GetObjectMeta() *metav1.ObjectMeta {
-	return &kc.ObjectMeta
-}
-
 func (kc *KubernetesCluster) ClassRef() *corev1.ObjectReference {
 	return kc.Spec.ClassRef
 }
