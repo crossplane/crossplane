@@ -1158,8 +1158,8 @@
     "pkg/webhook/internal",
   ]
   pruneopts = "UT"
-  revision = "af34042b08d62ea4bf345eabcf2b5a7d9252a4a1"
-  source = "https://github.com/ichekrygin/controller-tools.git"
+  revision = "9acc926ef7ce7372609b34fbafe397158e6442ef"
+  source = "https://github.com/crossplaneio/controller-tools.git"
 
 [[projects]]
   digest = "1:9070222ca967d09b3966552a161dd4420d62315964bf5e1efd8cc4c7c30ebca8"

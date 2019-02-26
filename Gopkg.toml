@@ -45,8 +45,8 @@ required = [
 
 [[override]]
   name="sigs.k8s.io/controller-tools"
-  source = "https://github.com/ichekrygin/controller-tools.git"
-  revision = "af34042b08d62ea4bf345eabcf2b5a7d9252a4a1"
+  source = "https://github.com/crossplaneio/controller-tools.git"
+  revision = "9acc926ef7ce7372609b34fbafe397158e6442ef"
 
 # For dependency below: Refer to issue https://github.com/golang/dep/issues/1799
 [[override]]
