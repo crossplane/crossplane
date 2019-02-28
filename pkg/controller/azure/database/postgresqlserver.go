@@ -111,7 +111,7 @@ func (r *PostgreSQLReconciler) Reconcile(request reconcile.Request) (reconcile.R
 
 func (r *PostgreSQLReconciler) findPostgreSQLInstance(instance azuredbv1alpha1.SqlServer) (azuredbv1alpha1.SqlServer, error) {
 	fetchedInstance := &azuredbv1alpha1.PostgresqlServer{}
-	namespacedName := apitypes.NamespacedName{Name: instance.GetObjectMeta().GetName(), Namespace: instance.GetObjectMeta().GetNamespace()}
+	namespacedName := apitypes.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
 	if err := r.Get(ctx, namespacedName, fetchedInstance); err != nil {
 		return nil, err
 	}

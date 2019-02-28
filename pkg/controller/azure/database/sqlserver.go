@@ -71,7 +71,7 @@ func (r *SQLReconciler) handleReconcile(instance azuredbv1alpha1.SqlServer) (rec
 	// look up the provider information for this instance
 	provider := &azurev1alpha1.Provider{}
 	providerNamespacedName := apitypes.NamespacedName{
-		Namespace: instance.GetObjectMeta().GetNamespace(),
+		Namespace: instance.GetNamespace(),
 		Name:      instance.GetSpec().ProviderRef.Name,
 	}
 	if err := r.Get(ctx, providerNamespacedName, provider); err != nil {
@@ -81,14 +81,14 @@ func (r *SQLReconciler) handleReconcile(instance azuredbv1alpha1.SqlServer) (rec
 	// create a SQL Server client to perform management operations in Azure with
 	sqlServersClient, err := r.sqlServerAPIFactory.CreateAPIInstance(provider, r.clientset)
 	if err != nil {
-		return r.fail(instance, errorCreatingClient, fmt.Sprintf("failed to create SQL Server client for instance %s: %+v", instance.GetObjectMeta().GetName(), err))
+		return r.fail(instance, errorCreatingClient, fmt.Sprintf("failed to create SQL Server client for instance %s: %+v", instance.GetName(), err))
 	}
 
 	// check for CRD deletion and handle it if needed
-	if instance.GetObjectMeta().GetDeletionTimestamp() != nil {
+	if instance.GetDeletionTimestamp() != nil {
 		if instance.GetStatus().Condition(corev1alpha1.Deleting) == nil {
 			// we haven't started the deletion of the SQL Server resource yet, do it now
-			log.Printf("sql server instance %s has been deleted, running finalizer now", instance.GetObjectMeta().GetName())
+			log.Printf("sql server instance %s has been deleted, running finalizer now", instance.GetName())
 			return r.handleDeletion(sqlServersClient, instance)
 		}
 		// we already started the deletion of the SQL Server resource, nothing more to do
@@ -96,10 +96,10 @@ func (r *SQLReconciler) handleReconcile(instance azuredbv1alpha1.SqlServer) (rec
 	}
 
 	// Add finalizer to the CRD if it doesn't already exist
-	if !util.HasFinalizer(instance.GetObjectMeta(), r.finalizer) {
-		util.AddFinalizer(instance.GetObjectMeta(), r.finalizer)
+	if !util.HasFinalizer(instance, r.finalizer) {
+		util.AddFinalizer(instance, r.finalizer)
 		if err := r.Update(ctx, instance); err != nil {
-			log.Printf("failed to add finalizer to instance %s: %+v", instance.GetObjectMeta().GetName(), err)
+			log.Printf("failed to add finalizer to instance %s: %+v", instance.GetName(), err)
 			return reconcile.Result{}, err
 		}
 	}
@@ -113,7 +113,7 @@ func (r *SQLReconciler) handleReconcile(instance azuredbv1alpha1.SqlServer) (rec
 	server, err := sqlServersClient.GetServer(ctx, instance)
 	if err != nil {
 		if !azureclients.IsNotFound(err) {
-			return r.fail(instance, errorFetchingInstance, fmt.Sprintf("failed to get SQL Server instance %s: %+v", instance.GetObjectMeta().GetName(), err))
+			return r.fail(instance, errorFetchingInstance, fmt.Sprintf("failed to get SQL Server instance %s: %+v", instance.GetName(), err))
 		}
 
 		// the given sql server instance does not exist, create it now
@@ -122,7 +122,7 @@ func (r *SQLReconciler) handleReconcile(instance azuredbv1alpha1.SqlServer) (rec
 
 	if err := sqlServersClient.GetFirewallRule(ctx, instance, firewallRuleName); err != nil {
 		if !azureclients.IsNotFound(err) {
-			return r.fail(instance, errorFetchingInstance, fmt.Sprintf("failed to get firewall rule for SQL Server instance %s: %+v", instance.GetObjectMeta().GetName(), err))
+			return r.fail(instance, errorFetchingInstance, fmt.Sprintf("failed to get firewall rule for SQL Server instance %s: %+v", instance.GetName(), err))
 		}
 
 		return r.handleFirewallRuleCreation(sqlServersClient, instance)
@@ -131,9 +131,9 @@ func (r *SQLReconciler) handleReconcile(instance azuredbv1alpha1.SqlServer) (rec
 	// SQL Server instance exists, update the CRD status now with its latest status
 	stateChanged := instance.GetStatus().State != string(server.State)
 	conditionType := azureclients.SQLServerConditionType(server.State)
-	if err := r.updateStatus(instance, azureclients.SQLServerStatusMessage(instance.GetObjectMeta().GetName(), server.State), server); err != nil {
+	if err := r.updateStatus(instance, azureclients.SQLServerStatusMessage(instance.GetName(), server.State), server); err != nil {
 		// updating the CRD status failed, return the error and try the next reconcile loop
-		log.Printf("failed to update status of instance %s: %+v", instance.GetObjectMeta().GetName(), err)
+		log.Printf("failed to update status of instance %s: %+v", instance.GetName(), err)
 		return reconcile.Result{}, err
 	}
 
@@ -145,7 +145,7 @@ func (r *SQLReconciler) handleReconcile(instance azuredbv1alpha1.SqlServer) (rec
 			instance.GetStatus().UnsetAllConditions()
 		}
 
-		conditionMessage := fmt.Sprintf("SQL Server instance %s is in the %s state", instance.GetObjectMeta().GetName(), conditionType)
+		conditionMessage := fmt.Sprintf("SQL Server instance %s is in the %s state", instance.GetName(), conditionType)
 		log.Printf(conditionMessage)
 		instance.GetStatus().SetCondition(corev1alpha1.NewCondition(conditionType, conditionStateChanged, conditionMessage))
 		return reconcile.Result{Requeue: true}, r.Update(ctx, instance)
@@ -158,7 +158,7 @@ func (r *SQLReconciler) handleReconcile(instance azuredbv1alpha1.SqlServer) (rec
 
 	// ensure all the connection information is set on the secret
 	if err := r.createOrUpdateConnectionSecret(instance, ""); err != nil {
-		return r.fail(instance, errorSettingConnectionSecret, fmt.Sprintf("failed to set connection secret for SQL Server instance %s: %+v", instance.GetObjectMeta().GetName(), err))
+		return r.fail(instance, errorSettingConnectionSecret, fmt.Sprintf("failed to set connection secret for SQL Server instance %s: %+v", instance.GetName(), err))
 	}
 
 	return reconcile.Result{}, nil
@@ -171,23 +171,23 @@ func (r *SQLReconciler) handleCreation(sqlServersClient azureclients.SQLServerAP
 	// generate a password for the admin user
 	adminPassword, err := util.GeneratePassword(passwordDataLen)
 	if err != nil {
-		return r.fail(instance, errorCreatingPassword, fmt.Sprintf("failed to create password for SQL Server instance %s: %+v", instance.GetObjectMeta().GetName(), err))
+		return r.fail(instance, errorCreatingPassword, fmt.Sprintf("failed to create password for SQL Server instance %s: %+v", instance.GetName(), err))
 	}
 
 	// save the password to the connection info secret, we'll update the secret later with the
 	// server FQDN once we have that
 	if err := r.createOrUpdateConnectionSecret(instance, adminPassword); err != nil {
-		return r.fail(instance, errorSettingConnectionSecret, fmt.Sprintf("failed to set connection secret for SQL Server instance %s: %+v", instance.GetObjectMeta().GetName(), err))
+		return r.fail(instance, errorSettingConnectionSecret, fmt.Sprintf("failed to set connection secret for SQL Server instance %s: %+v", instance.GetName(), err))
 	}
 
 	// make the API call to start the create server operation
-	log.Printf("starting create of SQL Server instance %s", instance.GetObjectMeta().GetName())
+	log.Printf("starting create of SQL Server instance %s", instance.GetName())
 	createOp, err := sqlServersClient.CreateServerBegin(ctx, instance, adminPassword)
 	if err != nil {
-		return r.fail(instance, errorCreatingInstance, fmt.Sprintf("failed to start create operation for SQL Server instance %s: %+v", instance.GetObjectMeta().GetName(), err))
+		return r.fail(instance, errorCreatingInstance, fmt.Sprintf("failed to start create operation for SQL Server instance %s: %+v", instance.GetName(), err))
 	}
 
-	log.Printf("started create of SQL Server instance %s, operation: %s", instance.GetObjectMeta().GetName(), string(createOp))
+	log.Printf("started create of SQL Server instance %s, operation: %s", instance.GetName(), string(createOp))
 
 	// save the create operation to the CRD status
 	status := instance.GetStatus()
@@ -213,7 +213,7 @@ func (r *SQLReconciler) handleCreation(sqlServersClient azureclients.SQLServerAP
 		}
 
 		// the instance hasn't reached consistency yet, retry
-		log.Printf("SQL Server instance %s hasn't reached consistency yet, retrying", instance.GetObjectMeta().GetName())
+		log.Printf("SQL Server instance %s hasn't reached consistency yet, retrying", instance.GetName())
 		return false, nil
 	})
 
@@ -228,42 +228,42 @@ func (r *SQLReconciler) handleDeletion(sqlServersClient azureclients.SQLServerAP
 	_, err := sqlServersClient.GetServer(ctx, instance)
 	if err != nil {
 		if !azureclients.IsNotFound(err) {
-			return r.fail(instance, errorFetchingInstance, fmt.Sprintf("failed to get SQL Server instance %s for deletion: %+v", instance.GetObjectMeta().GetName(), err))
+			return r.fail(instance, errorFetchingInstance, fmt.Sprintf("failed to get SQL Server instance %s for deletion: %+v", instance.GetName(), err))
 		}
 
 		// SQL Server instance doesn't exist, it's already deleted
-		log.Printf("SQL Server instance %s does not exist, it must be already deleted", instance.GetObjectMeta().GetName())
+		log.Printf("SQL Server instance %s does not exist, it must be already deleted", instance.GetName())
 		return r.markAsDeleting(instance)
 	}
 
 	// attempt to delete the SQL Server instance now
 	deleteFuture, err := sqlServersClient.DeleteServer(ctx, instance)
 	if err != nil {
-		return r.fail(instance, errorDeletingInstance, fmt.Sprintf("failed to start delete operation for SQL Server instance %s: %+v", instance.GetObjectMeta().GetName(), err))
+		return r.fail(instance, errorDeletingInstance, fmt.Sprintf("failed to start delete operation for SQL Server instance %s: %+v", instance.GetName(), err))
 	}
 
 	deleteFutureJSON, _ := deleteFuture.MarshalJSON()
-	log.Printf("started delete of SQL Server instance %s, operation: %s", instance.GetObjectMeta().GetName(), string(deleteFutureJSON))
+	log.Printf("started delete of SQL Server instance %s, operation: %s", instance.GetName(), string(deleteFutureJSON))
 	return r.markAsDeleting(instance)
 }
 
 func (r *SQLReconciler) markAsDeleting(instance azuredbv1alpha1.SqlServer) (reconcile.Result, error) {
 	ctx := context.Background()
 	instance.GetStatus().SetCondition(corev1alpha1.NewCondition(corev1alpha1.Deleting, "", ""))
-	util.RemoveFinalizer(instance.GetObjectMeta(), r.finalizer)
+	util.RemoveFinalizer(instance, r.finalizer)
 	return reconcile.Result{}, r.Update(ctx, instance)
 }
 
 func (r *SQLReconciler) handleFirewallRuleCreation(sqlServersClient azureclients.SQLServerAPI, instance azuredbv1alpha1.SqlServer) (reconcile.Result, error) {
 	ctx := context.Background()
 
-	log.Printf("starting create of firewall rules for SQL Server instance %s", instance.GetObjectMeta().GetName())
+	log.Printf("starting create of firewall rules for SQL Server instance %s", instance.GetName())
 	createOp, err := sqlServersClient.CreateFirewallRulesBegin(ctx, instance, firewallRuleName)
 	if err != nil {
-		return r.fail(instance, errorCreatingInstance, fmt.Sprintf("failed to start create firewall rules operation for SQL Server instance %s: %+v", instance.GetObjectMeta().GetName(), err))
+		return r.fail(instance, errorCreatingInstance, fmt.Sprintf("failed to start create firewall rules operation for SQL Server instance %s: %+v", instance.GetName(), err))
 	}
 
-	log.Printf("started create of firewall rules for SQL Server instance %s, operation: %s", instance.GetObjectMeta().GetName(), string(createOp))
+	log.Printf("started create of firewall rules for SQL Server instance %s, operation: %s", instance.GetName(), string(createOp))
 
 	// save the create operation to the CRD status
 	status := instance.GetStatus()
@@ -289,13 +289,13 @@ func (r *SQLReconciler) handleRunningOperation(sqlServersClient azureclients.SQL
 		done, err = sqlServersClient.CreateFirewallRulesEnd([]byte(instance.GetStatus().RunningOperation))
 	default:
 		return r.fail(instance, errorCreatingInstance,
-			fmt.Sprintf("unknown running operation type for SQL Server instance %s: %s", instance.GetObjectMeta().GetName(), opType))
+			fmt.Sprintf("unknown running operation type for SQL Server instance %s: %s", instance.GetName(), opType))
 	}
 
 	if !done {
 		// not done yet, check again on the next reconcile
 		log.Printf("waiting on create operation type %s for SQL Server instance %s, err: %+v",
-			instance.GetStatus().RunningOperationType, instance.GetObjectMeta().GetName(), err)
+			instance.GetStatus().RunningOperationType, instance.GetName(), err)
 		return reconcile.Result{Requeue: true}, err
 	}
 
@@ -306,10 +306,10 @@ func (r *SQLReconciler) handleRunningOperation(sqlServersClient azureclients.SQL
 
 	if err != nil {
 		// the operation completed, but there was an error
-		return r.fail(instance, errorCreatingInstance, fmt.Sprintf("failure result returned from create operation for SQL Server instance %s: %+v", instance.GetObjectMeta().GetName(), err))
+		return r.fail(instance, errorCreatingInstance, fmt.Sprintf("failure result returned from create operation for SQL Server instance %s: %+v", instance.GetName(), err))
 	}
 
-	log.Printf("successfully finished operation type %s for SQL Server instance %s", opType, instance.GetObjectMeta().GetName())
+	log.Printf("successfully finished operation type %s for SQL Server instance %s", opType, instance.GetName())
 	return reconcile.Result{Requeue: true}, r.Update(ctx, instance)
 }
 
@@ -317,7 +317,7 @@ func (r *SQLReconciler) handleRunningOperation(sqlServersClient azureclients.SQL
 func (r *SQLReconciler) fail(instance azuredbv1alpha1.SqlServer, reason, msg string) (reconcile.Result, error) {
 	ctx := context.Background()
 
-	log.Printf("instance %s failed: '%s': %s", instance.GetObjectMeta().GetName(), reason, msg)
+	log.Printf("instance %s failed: '%s': %s", instance.GetName(), reason, msg)
 	instance.GetStatus().SetCondition(corev1alpha1.NewCondition(corev1alpha1.Failed, reason, msg))
 	return reconcile.Result{Requeue: true}, r.Update(ctx, instance)
 }
@@ -339,7 +339,7 @@ func (r *SQLReconciler) updateStatus(instance azuredbv1alpha1.SqlServer, message
 	instance.SetStatus(status)
 
 	if err := r.Update(ctx, instance); err != nil {
-		return fmt.Errorf("failed to update status of CRD instance %s: %+v", instance.GetObjectMeta().GetName(), err)
+		return fmt.Errorf("failed to update status of CRD instance %s: %+v", instance.GetName(), err)
 	}
 
 	return nil
@@ -349,16 +349,16 @@ func (r *SQLReconciler) createOrUpdateConnectionSecret(instance azuredbv1alpha1.
 	// first check if secret already exists
 	secretName := instance.ConnectionSecretName()
 	secretExists := false
-	connectionSecret, err := r.clientset.CoreV1().Secrets(instance.GetObjectMeta().GetNamespace()).Get(secretName, metav1.GetOptions{})
+	connectionSecret, err := r.clientset.CoreV1().Secrets(instance.GetNamespace()).Get(secretName, metav1.GetOptions{})
 	if err != nil {
 		if !errors.IsNotFound(err) {
-			return fmt.Errorf("failed to get connection secret %s for instance %s: %+v", secretName, instance.GetObjectMeta().GetName(), err)
+			return fmt.Errorf("failed to get connection secret %s for instance %s: %+v", secretName, instance.GetName(), err)
 		}
 		// secret doesn't exist yet, create it from scratch
 		connectionSecret = &v1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:            secretName,
-				Namespace:       instance.GetObjectMeta().GetNamespace(),
+				Namespace:       instance.GetNamespace(),
 				OwnerReferences: []metav1.OwnerReference{instance.OwnerReference()},
 			},
 		}
@@ -376,7 +376,7 @@ func (r *SQLReconciler) createOrUpdateConnectionSecret(instance azuredbv1alpha1.
 
 	// fill in all of the connection details on the secret's data
 	connectionSecret.Data = map[string][]byte{
-		corev1alpha1.ResourceCredentialsSecretUserKey:     []byte(fmt.Sprintf("%s@%s", instance.GetSpec().AdminLoginName, instance.GetObjectMeta().GetName())),
+		corev1alpha1.ResourceCredentialsSecretUserKey:     []byte(fmt.Sprintf("%s@%s", instance.GetSpec().AdminLoginName, instance.GetName())),
 		corev1alpha1.ResourceCredentialsSecretPasswordKey: []byte(password),
 	}
 	if instance.GetStatus().Endpoint != "" {
@@ -384,12 +384,12 @@ func (r *SQLReconciler) createOrUpdateConnectionSecret(instance azuredbv1alpha1.
 	}
 
 	if secretExists {
-		if _, err := r.clientset.CoreV1().Secrets(instance.GetObjectMeta().GetNamespace()).Update(connectionSecret); err != nil {
+		if _, err := r.clientset.CoreV1().Secrets(instance.GetNamespace()).Update(connectionSecret); err != nil {
 			return fmt.Errorf("failed to update connection secret %s: %+v", connectionSecret.Name, err)
 		}
 		log.Printf("updated connection secret %s for user '%s'", connectionSecret.Name, instance.GetSpec().AdminLoginName)
 	} else {
-		if _, err := r.clientset.CoreV1().Secrets(instance.GetObjectMeta().GetNamespace()).Create(connectionSecret); err != nil {
+		if _, err := r.clientset.CoreV1().Secrets(instance.GetNamespace()).Create(connectionSecret); err != nil {
 			return fmt.Errorf("failed to create connection secret %s: %+v", connectionSecret.Name, err)
 		}
 		log.Printf("created connection secret %s for user '%s'", connectionSecret.Name, instance.GetSpec().AdminLoginName)

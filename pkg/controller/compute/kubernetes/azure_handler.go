@@ -54,7 +54,7 @@ func (r *AKSClusterHandler) Provision(class *corev1alpha1.ResourceClass, claim c
 	cluster := &azurecomputev1alpha1.AKSCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:       class.Namespace,
-			Name:            fmt.Sprintf("aks-%s", claim.GetObjectMeta().GetUID()),
+			Name:            fmt.Sprintf("aks-%s", claim.GetUID()),
 			OwnerReferences: []metav1.OwnerReference{claim.OwnerReference()},
 		},
 		Spec: *resourceInstance,

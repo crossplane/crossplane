@@ -54,7 +54,7 @@ func (r *GKEClusterHandler) Provision(class *corev1alpha1.ResourceClass, claim c
 	cluster := &gcpcomputev1alpha1.GKECluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:       class.Namespace,
-			Name:            fmt.Sprintf("gke-%s", claim.GetObjectMeta().GetUID()),
+			Name:            fmt.Sprintf("gke-%s", claim.GetUID()),
 			OwnerReferences: []metav1.OwnerReference{claim.OwnerReference()},
 		},
 		Spec: *resourceInstance,

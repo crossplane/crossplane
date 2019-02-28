@@ -86,7 +86,7 @@ func provisionAzureSQL(class *corev1alpha1.ResourceClass, claim corev1alpha1.Res
 	switch claim.(type) {
 	case *storagev1alpha1.MySQLInstance:
 		// create and save MySQL Server resource
-		objectMeta.Name = fmt.Sprintf("mysql-%s", claim.GetObjectMeta().GetUID())
+		objectMeta.Name = fmt.Sprintf("mysql-%s", claim.GetUID())
 		mysqlServer := &azuredbv1alpha1.MysqlServer{
 			TypeMeta: metav1.TypeMeta{
 				APIVersion: azuredbv1alpha1.APIVersion,
@@ -101,7 +101,7 @@ func provisionAzureSQL(class *corev1alpha1.ResourceClass, claim corev1alpha1.Res
 		return mysqlServer, err
 	case *storagev1alpha1.PostgreSQLInstance:
 		// create and save PostgreSQL Server resource
-		objectMeta.Name = fmt.Sprintf("postgresql-%s", claim.GetObjectMeta().GetUID())
+		objectMeta.Name = fmt.Sprintf("postgresql-%s", claim.GetUID())
 		postgresqlServer := &azuredbv1alpha1.PostgresqlServer{
 			TypeMeta: metav1.TypeMeta{
 				APIVersion: azuredbv1alpha1.APIVersion,

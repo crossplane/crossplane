@@ -62,9 +62,9 @@ func (h *CloudSQLServerHandler) Provision(class *corev1alpha1.ResourceClass, cla
 	var cloudsqlInstanceName string
 	switch claim.(type) {
 	case *storagev1alpha1.MySQLInstance:
-		cloudsqlInstanceName = fmt.Sprintf("mysql-%s", claim.GetObjectMeta().GetUID())
+		cloudsqlInstanceName = fmt.Sprintf("mysql-%s", claim.GetUID())
 	case *storagev1alpha1.PostgreSQLInstance:
-		cloudsqlInstanceName = fmt.Sprintf("postgresql-%s", claim.GetObjectMeta().GetUID())
+		cloudsqlInstanceName = fmt.Sprintf("postgresql-%s", claim.GetUID())
 	default:
 		return nil, fmt.Errorf("unexpected claim type: %+v", reflect.TypeOf(claim))
 	}

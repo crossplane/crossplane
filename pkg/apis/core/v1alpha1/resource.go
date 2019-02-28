@@ -59,7 +59,7 @@ type Resource interface {
 // ResourceClaim defines a resource claim that can be provisioned and bound to a concrete resource.
 type ResourceClaim interface {
 	runtime.Object
-	metav1.ObjectMetaAccessor
+	metav1.Object
 	// The status of this resource claim
 	ClaimStatus() *ResourceClaimStatus
 	// Gets an owner reference that points to this claim

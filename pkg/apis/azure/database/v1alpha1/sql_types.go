@@ -36,7 +36,7 @@ const (
 
 type SqlServer interface {
 	corev1alpha1.Resource
-	metav1.ObjectMetaAccessor
+	metav1.Object
 	OwnerReference() metav1.OwnerReference
 	GetSpec() *SQLServerSpec
 	GetStatus() *SQLServerStatus

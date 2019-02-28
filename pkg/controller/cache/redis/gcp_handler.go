@@ -64,7 +64,7 @@ func (h *CloudMemorystoreInstanceHandler) Provision(class *corev1alpha1.Resource
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:       class.Namespace,
-			Name:            fmt.Sprintf("redis-%s", claim.GetObjectMeta().GetUID()),
+			Name:            fmt.Sprintf("redis-%s", claim.GetUID()),
 			OwnerReferences: []metav1.OwnerReference{claim.OwnerReference()},
 		},
 		Spec: *spec,

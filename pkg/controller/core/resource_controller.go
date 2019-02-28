@@ -116,18 +116,18 @@ func (r *Reconciler) _reconcile(claim corev1alpha1.ResourceClaim) (reconcile.Res
 		return r.fail(claim, errorRetrievingHandler, err.Error())
 	} else if handler == nil {
 		// handler is not found - log this but don't fail, let an external provisioner handle it
-		log.Printf("handler for claim %s is unknown, ignoring reconcile to allow external provisioners to handle it", claim.GetObjectMeta().GetName())
+		log.Printf("handler for claim %s is unknown, ignoring reconcile to allow external provisioners to handle it", claim.GetName())
 		return Result, nil
 	}
 
 	// Check for deletion
-	if claim.GetObjectMeta().GetDeletionTimestamp() != nil && claim.ClaimStatus().Condition(corev1alpha1.Deleting) == nil {
+	if claim.GetDeletionTimestamp() != nil && claim.ClaimStatus().Condition(corev1alpha1.Deleting) == nil {
 		return r.delete(claim, handler)
 	}
 
 	// Add finalizer
-	if !util.HasFinalizer(claim.GetObjectMeta(), r.finalizerName) {
-		util.AddFinalizer(claim.GetObjectMeta(), r.finalizerName)
+	if !util.HasFinalizer(claim, r.finalizerName) {
+		util.AddFinalizer(claim, r.finalizerName)
 		if err := r.Update(ctx, claim); err != nil {
 			return ResultRequeue, err
 		}
@@ -199,8 +199,8 @@ func (r *Reconciler) _bind(claim corev1alpha1.ResourceClaim, handler ResourceHan
 
 	// replace secret metadata with the consuming claim's metadata (same as in service)
 	secret.ObjectMeta = metav1.ObjectMeta{
-		Namespace:       claim.GetObjectMeta().GetNamespace(),
-		Name:            claim.GetObjectMeta().GetName(),
+		Namespace:       claim.GetNamespace(),
+		Name:            claim.GetName(),
 		OwnerReferences: []metav1.OwnerReference{claim.OwnerReference()},
 	}
 	if _, err := util.ApplySecret(r.kubeclient, secret); err != nil {
@@ -243,7 +243,7 @@ func (r *Reconciler) _delete(claim corev1alpha1.ResourceClaim, handler ResourceH
 	claimStatus := claim.ClaimStatus()
 	claimStatus.UnsetAllConditions()
 	claimStatus.SetDeleting()
-	util.RemoveFinalizer(claim.GetObjectMeta(), r.finalizerName)
+	util.RemoveFinalizer(claim, r.finalizerName)
 	return reconcile.Result{}, r.Update(ctx, claim)
 }
 

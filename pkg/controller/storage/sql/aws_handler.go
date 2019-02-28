@@ -50,7 +50,7 @@ func (h *RDSInstanceHandler) Provision(class *corev1alpha1.ResourceClass, claim 
 		return nil, err
 	}
 
-	rdsInstanceName := fmt.Sprintf("%s-%s", rdsInstanceSpec.Engine, claim.GetObjectMeta().GetUID())
+	rdsInstanceName := fmt.Sprintf("%s-%s", rdsInstanceSpec.Engine, claim.GetUID())
 
 	// assign provider reference and reclaim policy from the resource class
 	rdsInstanceSpec.ProviderRef = class.ProviderRef
