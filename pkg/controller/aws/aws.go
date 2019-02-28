@@ -17,6 +17,7 @@ limitations under the License.
 package aws
 
 import (
+	"github.com/crossplaneio/crossplane/pkg/controller/aws/cache"
 	"github.com/crossplaneio/crossplane/pkg/controller/aws/compute"
 	"github.com/crossplaneio/crossplane/pkg/controller/aws/provider"
 	"github.com/crossplaneio/crossplane/pkg/controller/aws/rds"
@@ -26,6 +27,7 @@ import (
 
 func init() {
 	// AddToManagerFuncs is a list of functions to create controllers and add them to a manager.
+	AddToManagerFuncs = append(AddToManagerFuncs, cache.Add)
 	AddToManagerFuncs = append(AddToManagerFuncs, compute.Add)
 	AddToManagerFuncs = append(AddToManagerFuncs, rds.Add)
 	AddToManagerFuncs = append(AddToManagerFuncs, provider.Add)
