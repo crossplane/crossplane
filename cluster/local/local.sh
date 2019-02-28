@@ -24,7 +24,7 @@ function copy_image_to_cluster() {
 case "${1:-}" in
   up)
     kubectl apply -f ${scriptdir}/helm-rbac.yaml
-    helm init --service-account tiller
+    ${HELM} init --service-account tiller
     kubectl -n kube-system rollout status deploy/tiller-deploy
     copy_image_to_cluster ${BUILD_IMAGE} ${FINAL_IMAGE}
     ;;
@@ -40,14 +40,14 @@ case "${1:-}" in
 
     [ "$2" ] && ns=$2 || ns="${DEFAULT_NAMESPACE}"
     echo "installing helm package(s) into \"$ns\" namespace"
-    helm install --name ${PROJECT_NAME} --namespace ${ns} ${projectdir}/cluster/charts/${PROJECT_NAME} --set image.pullPolicy=Never,imagePullSecrets=''
+    ${HELM} install --name ${PROJECT_NAME} --namespace ${ns} ${projectdir}/cluster/charts/${PROJECT_NAME} --set image.pullPolicy=Never,imagePullSecrets=''
     ;;
   helm-delete)
     echo "removing helm package"
-    helm del --purge ${PROJECT_NAME}
+    ${HELM} del --purge ${PROJECT_NAME}
     ;;
   helm-list)
-    helm list ${PROJECT_NAME} --all
+    ${HELM} list ${PROJECT_NAME} --all
     ;;
   *)
     echo "usage:" >&2
