@@ -67,7 +67,6 @@ func (h *ReplicationGroupHandler) Provision(class *corev1alpha1.ResourceClass, c
 		},
 		Spec: *spec,
 	}
-	i.Status.SetUnbound()
 
 	return i, errors.Wrapf(c.Create(ctx, i), "cannot create instance %s/%s", i.GetNamespace(), i.GetName())
 }
@@ -82,10 +81,7 @@ func (h *ReplicationGroupHandler) SetBindStatus(n types.NamespacedName, c client
 		}
 		return errors.Wrapf(err, "cannot get instance %s", n)
 	}
-	i.Status.SetUnbound()
-	if bound {
-		i.Status.SetBound()
-	}
+	i.Status.SetBound(bound)
 	return errors.Wrapf(c.Update(ctx, i), "cannot update instance %s", n)
 }
 

@@ -221,14 +221,10 @@ func (a *AKSCluster) IsAvailable() bool {
 
 // IsBound returns if the resource is currently bound
 func (a *AKSCluster) IsBound() bool {
-	return a.Status.Phase == corev1alpha1.BindingStateBound
+	return a.Status.IsBound()
 }
 
 // SetBound sets the binding state of this resource
-func (a *AKSCluster) SetBound(state bool) {
-	if state {
-		a.Status.Phase = corev1alpha1.BindingStateBound
-	} else {
-		a.Status.Phase = corev1alpha1.BindingStateUnbound
-	}
+func (a *AKSCluster) SetBound(bound bool) {
+	a.Status.SetBound(bound)
 }

@@ -412,16 +412,12 @@ func (e *EKSCluster) IsAvailable() bool {
 
 // IsBound
 func (e *EKSCluster) IsBound() bool {
-	return e.Status.Phase == corev1alpha1.BindingStateBound
+	return e.Status.IsBound()
 }
 
 // SetBound
-func (e *EKSCluster) SetBound(state bool) {
-	if state {
-		e.Status.Phase = corev1alpha1.BindingStateBound
-	} else {
-		e.Status.Phase = corev1alpha1.BindingStateUnbound
-	}
+func (e *EKSCluster) SetBound(bound bool) {
+	e.Status.SetBound(bound)
 }
 
 // GetAMIByRegion returns the default ami id for a given EKS region

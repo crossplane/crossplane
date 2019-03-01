@@ -745,9 +745,10 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:d3955eca8c7b31e6a90e8b92d12caebbba42b92c43c3a0eabac7de911b2745d0"
+  digest = "1:2531804ba89ab2a4a5a74905edc0c0c771fa6084443e0cc00707889a076c44d1"
   name = "golang.org/x/tools"
   packages = [
+    "cmd/stringer",
     "go/ast/astutil",
     "imports",
     "internal/fastwalk",
@@ -1277,6 +1278,7 @@
     "golang.org/x/net/context",
     "golang.org/x/oauth2",
     "golang.org/x/oauth2/google",
+    "golang.org/x/tools/cmd/stringer",
     "google.golang.org/api/cloudresourcemanager/v1",
     "google.golang.org/api/container/v1",
     "google.golang.org/api/googleapi",

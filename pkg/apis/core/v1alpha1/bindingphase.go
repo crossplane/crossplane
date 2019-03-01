@@ -14,49 +14,46 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+//go:generate go run ../../../../vendor/golang.org/x/tools/cmd/stringer/stringer.go ../../../../vendor/golang.org/x/tools/cmd/stringer/importer19.go -type=BindingState -trimprefix BindingState
+
 package v1alpha1
 
 // BindingState is to identify the current binding status of given resources
-type BindingState string
+type BindingState int
 
+// MarshalJSON returns a JSON representation of a BindingState.
+func (s BindingState) MarshalJSON() ([]byte, error) {
+	return []byte(s.String()), nil
+}
+
+// Binding states.
 const (
-	// BindingStateBound signifies that resource has one ore more active bindings
-	BindingStateBound BindingState = "Bound"
-
-	// BindingStateUnbound signifies that the resource has no active bindings
-	// Default BindingState
-	BindingStateUnbound BindingState = "Unbound"
+	BindingStateUnbound BindingState = iota
+	BindingStateBound
 )
 
 // BindingStatus defines set of supported operations
 type BindingStatus interface {
-	SetBound()
-	SetUnbound()
+	SetBound(bound bool)
 	IsBound() bool
-	IsUnbound() bool
 }
 
-// BindingStatusPhase defines field(s) representing resource status
+// BindingStatusPhase defines field(s) representing resource status.
 type BindingStatusPhase struct {
-	Phase BindingState `json:"bindingPhase,omitempty"` // binding status of the instance
+	// Phase represents the binding status of a resource.
+	Phase BindingState `json:"bindingPhase,omitempty"`
 }
 
 // SetBound set binding status to Bound
-func (b *BindingStatusPhase) SetBound() {
-	b.Phase = BindingStateBound
-}
-
-// SetUnbound set binding status to Unbound
-func (b *BindingStatusPhase) SetUnbound() {
+func (b *BindingStatusPhase) SetBound(bound bool) {
+	if bound {
+		b.Phase = BindingStateBound
+		return
+	}
 	b.Phase = BindingStateUnbound
 }
 
 // IsBound returns true if status is bound
 func (b *BindingStatusPhase) IsBound() bool {
 	return b.Phase == BindingStateBound
-}
-
-// IsUnbound returns true if status is unbound
-func (b *BindingStatusPhase) IsUnbound() bool {
-	return b.Phase == BindingStateUnbound
 }

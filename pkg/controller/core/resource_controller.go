@@ -144,9 +144,8 @@ func (r *Reconciler) _reconcile(claim corev1alpha1.ResourceClaim) (reconcile.Res
 
 // _provision based on class and parameters
 func (r *Reconciler) _provision(claim corev1alpha1.ResourceClaim, handler ResourceHandler) (reconcile.Result, error) {
-	// initialize the claim to an unbound state
+	// initialize the claim
 	claimStatus := claim.ClaimStatus()
-	claimStatus.SetUnbound()
 
 	// get the resource class for this claim
 	class, err := r.getResourceClass(claim)
@@ -214,7 +213,7 @@ func (r *Reconciler) _bind(claim corev1alpha1.ResourceClaim, handler ResourceHan
 
 	// set claim binding status
 	claimStatus := claim.ClaimStatus()
-	claimStatus.SetBound()
+	claimStatus.SetBound(true)
 
 	// save a local reference to the credentials secret in the claim's status
 	claimStatus.CredentialsSecretRef = corev1.LocalObjectReference{Name: secret.Name}
