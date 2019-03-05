@@ -26,7 +26,7 @@ import (
 	"github.com/Azure/go-autorest/autorest"
 	azurerest "github.com/Azure/go-autorest/autorest/azure"
 	"github.com/onsi/gomega"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"

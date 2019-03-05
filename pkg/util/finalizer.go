@@ -16,7 +16,7 @@ limitations under the License.
 
 package util
 
-import "k8s.io/apimachinery/pkg/apis/meta/v1"
+import v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 // RemoveFinalizer - from the list of kubernetes object finalizers
 func RemoveFinalizer(o v1.Object, finalizer string) {

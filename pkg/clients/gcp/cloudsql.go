@@ -21,8 +21,8 @@ import (
 	"log"
 	"time"
 
-	"google.golang.org/api/sqladmin/v1beta4"
-	"k8s.io/api/core/v1"
+	sqladmin "google.golang.org/api/sqladmin/v1beta4"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"

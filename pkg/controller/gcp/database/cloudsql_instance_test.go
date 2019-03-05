@@ -25,8 +25,8 @@ import (
 
 	"github.com/onsi/gomega"
 	"google.golang.org/api/googleapi"
-	"google.golang.org/api/sqladmin/v1beta4"
-	"k8s.io/api/core/v1"
+	sqladmin "google.golang.org/api/sqladmin/v1beta4"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
