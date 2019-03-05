@@ -23,9 +23,10 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/services/containerservice/mgmt/2018-03-31/containerservice"
 	"github.com/Azure/go-autorest/autorest/to"
+	"k8s.io/client-go/kubernetes"
+
 	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/compute/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
-	"k8s.io/client-go/kubernetes"
 )
 
 const (

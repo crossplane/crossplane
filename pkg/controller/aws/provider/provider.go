@@ -21,9 +21,6 @@ import (
 	"log"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	awsv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/v1alpha1"
-	awsclient "github.com/crossplaneio/crossplane/pkg/clients/aws"
-	"github.com/crossplaneio/crossplane/pkg/util"
 	"github.com/go-ini/ini"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -35,6 +32,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	awsv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/v1alpha1"
+	awsclient "github.com/crossplaneio/crossplane/pkg/clients/aws"
+	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 const (

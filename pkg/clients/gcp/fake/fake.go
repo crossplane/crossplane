@@ -17,8 +17,9 @@ limitations under the License.
 package fake
 
 import (
-	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/compute/v1alpha1"
 	"google.golang.org/api/container/v1"
+
+	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/compute/v1alpha1"
 )
 
 type FakeGKEClient struct {

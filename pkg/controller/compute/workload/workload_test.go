@@ -21,9 +21,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/crossplaneio/crossplane/pkg/apis/compute"
-	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/compute/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -38,6 +35,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	"github.com/crossplaneio/crossplane/pkg/apis/compute"
+	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/compute/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 )
 
 const (

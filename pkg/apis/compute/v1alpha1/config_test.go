@@ -19,8 +19,9 @@ package v1alpha1
 import (
 	"testing"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/onsi/gomega"
+
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 )
 
 const (

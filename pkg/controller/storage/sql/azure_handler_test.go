@@ -19,9 +19,10 @@ package sql
 import (
 	"testing"
 
+	. "github.com/onsi/gomega"
+
 	azurev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/database/v1alpha1"
 	storagev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
-	. "github.com/onsi/gomega"
 )
 
 func TestResolveAzureClassInstanceValues(t *testing.T) {

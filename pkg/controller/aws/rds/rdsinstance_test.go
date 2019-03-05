@@ -20,12 +20,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/crossplaneio/crossplane/pkg/apis/aws"
-	. "github.com/crossplaneio/crossplane/pkg/apis/aws/database/v1alpha1"
-	awsv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/clients/aws/rds"
-	. "github.com/crossplaneio/crossplane/pkg/clients/aws/rds/fake"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -35,6 +29,13 @@ import (
 	. "k8s.io/client-go/testing"
 	. "sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	"github.com/crossplaneio/crossplane/pkg/apis/aws"
+	. "github.com/crossplaneio/crossplane/pkg/apis/aws/database/v1alpha1"
+	awsv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/clients/aws/rds"
+	. "github.com/crossplaneio/crossplane/pkg/clients/aws/rds/fake"
 )
 
 const (

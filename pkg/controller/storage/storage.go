@@ -17,9 +17,10 @@ limitations under the License.
 package storage
 
 import (
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+
 	"github.com/crossplaneio/crossplane/pkg/controller/storage/bucket"
 	"github.com/crossplaneio/crossplane/pkg/controller/storage/sql"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
 func init() {

@@ -23,9 +23,6 @@ import (
 	"testing"
 	"time"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	dbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/database/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/test"
 	"github.com/onsi/gomega"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/sqladmin/v1beta4"
@@ -37,6 +34,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	dbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/database/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
 func TestReconcile(t *testing.T) {

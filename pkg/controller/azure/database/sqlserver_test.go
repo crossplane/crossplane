@@ -25,11 +25,6 @@ import (
 	"github.com/Azure/azure-sdk-for-go/services/mysql/mgmt/2017-12-01/mysql"
 	"github.com/Azure/go-autorest/autorest"
 	azurerest "github.com/Azure/go-autorest/autorest/azure"
-	azuredbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/database/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	azureclients "github.com/crossplaneio/crossplane/pkg/clients/azure"
-	"github.com/crossplaneio/crossplane/pkg/test"
 	"github.com/onsi/gomega"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -40,6 +35,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	azuredbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/database/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	azureclients "github.com/crossplaneio/crossplane/pkg/clients/azure"
+	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
 type mockSQLServerClient struct {

@@ -17,10 +17,11 @@ limitations under the License.
 package compute
 
 import (
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+
 	"github.com/crossplaneio/crossplane/pkg/controller/compute/kubernetes"
 	"github.com/crossplaneio/crossplane/pkg/controller/compute/scheduler"
 	"github.com/crossplaneio/crossplane/pkg/controller/compute/workload"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
 func init() {

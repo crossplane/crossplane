@@ -25,10 +25,11 @@ import (
 	"github.com/Azure/azure-sdk-for-go/services/postgresql/mgmt/2017-12-01/postgresql"
 	azurerest "github.com/Azure/go-autorest/autorest/azure"
 	"github.com/Azure/go-autorest/autorest/to"
+	"k8s.io/client-go/kubernetes"
+
 	azuredbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/database/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"k8s.io/client-go/kubernetes"
 )
 
 const (

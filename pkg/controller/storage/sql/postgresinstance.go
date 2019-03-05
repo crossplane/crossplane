@@ -19,13 +19,14 @@ package sql
 import (
 	"log"
 
-	storagev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
-	corecontroller "github.com/crossplaneio/crossplane/pkg/controller/core"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	storagev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
+	corecontroller "github.com/crossplaneio/crossplane/pkg/controller/core"
 )
 
 const (

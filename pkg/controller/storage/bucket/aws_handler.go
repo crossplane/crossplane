@@ -21,13 +21,14 @@ import (
 	"reflect"
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	s3Bucketv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/storage/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	bucketv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	s3Bucketv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/storage/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	bucketv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
 )
 
 var (

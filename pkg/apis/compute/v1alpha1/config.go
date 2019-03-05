@@ -19,9 +19,10 @@ package v1alpha1
 import (
 	"fmt"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/ghodss/yaml"
 	kubectlv1 "k8s.io/client-go/tools/clientcmd/api/v1"
+
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 )
 
 func ParseKubeconfig(rawKubeconfig []byte) (map[string][]byte, error) {

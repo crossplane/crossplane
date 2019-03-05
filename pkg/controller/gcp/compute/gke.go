@@ -22,12 +22,6 @@ import (
 	"fmt"
 	"log"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	gcpcomputev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/compute/v1alpha1"
-	gcpv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/clients/gcp"
-	"github.com/crossplaneio/crossplane/pkg/clients/gcp/gke"
-	"github.com/crossplaneio/crossplane/pkg/util"
 	"google.golang.org/api/container/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -41,6 +35,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	gcpcomputev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/compute/v1alpha1"
+	gcpv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/clients/gcp"
+	"github.com/crossplaneio/crossplane/pkg/clients/gcp/gke"
+	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 const (

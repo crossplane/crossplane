@@ -17,15 +17,17 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"k8s.io/apimachinery/pkg/types"
 	"log"
 	"testing"
 
-	"github.com/crossplaneio/crossplane/pkg/test"
+	"k8s.io/apimachinery/pkg/types"
+
 	"golang.org/x/net/context"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
 const (

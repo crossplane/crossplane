@@ -17,12 +17,13 @@ limitations under the License.
 package aws
 
 import (
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+
 	"github.com/crossplaneio/crossplane/pkg/controller/aws/cache"
 	"github.com/crossplaneio/crossplane/pkg/controller/aws/compute"
 	"github.com/crossplaneio/crossplane/pkg/controller/aws/provider"
 	"github.com/crossplaneio/crossplane/pkg/controller/aws/rds"
 	"github.com/crossplaneio/crossplane/pkg/controller/aws/s3"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
 func init() {

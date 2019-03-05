@@ -22,10 +22,11 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/external"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/crossplaneio/crossplane/pkg/apis/aws/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/util"
 	"github.com/go-ini/ini"
 	"k8s.io/client-go/kubernetes"
+
+	"github.com/crossplaneio/crossplane/pkg/apis/aws/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 // DefaultSection for INI files.

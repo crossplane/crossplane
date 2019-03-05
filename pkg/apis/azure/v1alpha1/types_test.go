@@ -21,7 +21,6 @@ import (
 	"log"
 	"testing"
 
-	"github.com/crossplaneio/crossplane/pkg/test"
 	"github.com/onsi/gomega"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -29,6 +28,8 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
 const (

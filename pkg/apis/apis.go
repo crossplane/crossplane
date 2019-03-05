@@ -21,6 +21,8 @@ limitations under the License.
 package apis
 
 import (
+	"k8s.io/apimachinery/pkg/runtime"
+
 	"github.com/crossplaneio/crossplane/pkg/apis/aws"
 	"github.com/crossplaneio/crossplane/pkg/apis/azure"
 	"github.com/crossplaneio/crossplane/pkg/apis/cache"
@@ -28,7 +30,6 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/apis/core"
 	"github.com/crossplaneio/crossplane/pkg/apis/gcp"
 	"github.com/crossplaneio/crossplane/pkg/apis/storage"
-	"k8s.io/apimachinery/pkg/runtime"
 )
 
 func init() {

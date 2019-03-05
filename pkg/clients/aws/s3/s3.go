@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/s3iface"
+
 	"github.com/crossplaneio/crossplane/pkg/apis/aws/storage/v1alpha1"
 	storage "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
 	iamc "github.com/crossplaneio/crossplane/pkg/clients/aws/iam"

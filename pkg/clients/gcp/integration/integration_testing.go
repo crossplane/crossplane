@@ -4,9 +4,10 @@ import (
 	"flag"
 	"testing"
 
-	"github.com/crossplaneio/crossplane/pkg/clients/gcp"
 	. "github.com/onsi/gomega"
 	"golang.org/x/oauth2/google"
+
+	"github.com/crossplaneio/crossplane/pkg/clients/gcp"
 )
 
 var (

@@ -18,11 +18,12 @@ limitations under the License.
 package azure
 
 import (
+	"k8s.io/apimachinery/pkg/runtime"
+
 	cachev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/cache/v1alpha1"
 	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/compute/v1alpha1"
 	databasev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/database/v1alpha1"
 	azure "github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
-	"k8s.io/apimachinery/pkg/runtime"
 )
 
 func init() {

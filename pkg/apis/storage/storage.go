@@ -18,8 +18,9 @@ limitations under the License.
 package storage
 
 import (
-	"github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
+
+	"github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
 )
 
 func init() {

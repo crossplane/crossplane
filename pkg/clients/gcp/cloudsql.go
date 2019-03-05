@@ -21,12 +21,13 @@ import (
 	"log"
 	"time"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	dbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/database/v1alpha1"
-	gcpv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/v1alpha1"
 	"google.golang.org/api/sqladmin/v1beta4"
 	"k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
+
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	dbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/database/v1alpha1"
+	gcpv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/v1alpha1"
 )
 
 // CloudSQLAPI provides an interface for operations on CloudSQL instances

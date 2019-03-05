@@ -22,11 +22,6 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
-	"github.com/crossplaneio/crossplane/pkg/apis/aws"
-	. "github.com/crossplaneio/crossplane/pkg/apis/aws/compute/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/clients/aws/eks"
-	"github.com/crossplaneio/crossplane/pkg/clients/aws/eks/fake"
 	"github.com/ghodss/yaml"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -38,6 +33,12 @@ import (
 	. "k8s.io/client-go/testing"
 	. "sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	"github.com/crossplaneio/crossplane/pkg/apis/aws"
+	. "github.com/crossplaneio/crossplane/pkg/apis/aws/compute/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/clients/aws/eks"
+	"github.com/crossplaneio/crossplane/pkg/clients/aws/eks/fake"
 )
 
 const (

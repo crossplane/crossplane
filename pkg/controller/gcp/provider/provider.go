@@ -20,8 +20,6 @@ import (
 	"context"
 	"log"
 
-	gcpv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/clients/gcp"
 	"golang.org/x/oauth2/google"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -33,6 +31,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	gcpv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/clients/gcp"
 )
 
 const (

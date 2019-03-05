@@ -27,6 +27,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/eks"
 	"github.com/aws/aws-sdk-go-v2/service/eks/eksiface"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
+
 	awscomputev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/compute/v1alpha1"
 	cfc "github.com/crossplaneio/crossplane/pkg/clients/aws/cloudformation"
 )

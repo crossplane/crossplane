@@ -20,9 +20,10 @@ import (
 	"testing"
 
 	"github.com/Azure/azure-sdk-for-go/services/mysql/mgmt/2017-12-01/mysql"
+	"github.com/onsi/gomega"
+
 	databasev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/database/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/onsi/gomega"
 )
 
 func TestSQLServerConditionType(t *testing.T) {

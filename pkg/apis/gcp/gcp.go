@@ -18,11 +18,12 @@ limitations under the License.
 package gcp
 
 import (
+	"k8s.io/apimachinery/pkg/runtime"
+
 	cachev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/cache/v1alpha1"
 	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/compute/v1alpha1"
 	databasev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/database/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/apis/gcp/v1alpha1"
-	"k8s.io/apimachinery/pkg/runtime"
 )
 
 func init() {

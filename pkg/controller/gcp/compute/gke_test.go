@@ -21,11 +21,6 @@ import (
 	"fmt"
 	"testing"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/apis/gcp"
-	. "github.com/crossplaneio/crossplane/pkg/apis/gcp/compute/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/clients/gcp/fake"
-	"github.com/crossplaneio/crossplane/pkg/clients/gcp/gke"
 	. "github.com/onsi/gomega"
 	"google.golang.org/api/container/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -37,6 +32,12 @@ import (
 	. "k8s.io/client-go/testing"
 	. "sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/apis/gcp"
+	. "github.com/crossplaneio/crossplane/pkg/apis/gcp/compute/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/clients/gcp/fake"
+	"github.com/crossplaneio/crossplane/pkg/clients/gcp/gke"
 )
 
 const (

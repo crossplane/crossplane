@@ -19,11 +19,12 @@ package gke
 import (
 	"context"
 
-	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/compute/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/clients/gcp"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/container/v1"
+
+	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/compute/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/clients/gcp"
 )
 
 const (
