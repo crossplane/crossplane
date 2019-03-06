@@ -76,9 +76,14 @@ type ConditionedStatus struct {
 
 // Condition returns a provider condition with the provided type if it exists.
 func (c *ConditionedStatus) Condition(conditionType ConditionType) *Condition {
-	for _, c := range c.Conditions {
-		if c.Type == conditionType {
-			return &c
+	for i := range c.Conditions {
+		// This loop is written this way (as opposed to for i, cnd := range...)
+		// to avoid returning a pointer to a range variable whose content will
+		// change as the loop iterates.
+		// https://github.com/kyoh86/scopelint#whats-this
+		cnd := c.Conditions[i]
+		if cnd.Type == conditionType {
+			return &cnd
 		}
 	}
 	return nil
