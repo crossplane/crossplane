@@ -169,7 +169,7 @@ func ToInt32Ptr(i int, o ...FieldOption) *int32 {
 // ToBoolPtr converts the supplied bool for use with the Azure Go SDK.
 func ToBoolPtr(b bool, o ...FieldOption) *bool {
 	for _, fo := range o {
-		if fo == FieldRequired && b == false {
+		if fo == FieldRequired && !b {
 			return to.BoolPtr(b)
 		}
 	}

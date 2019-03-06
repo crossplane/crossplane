@@ -196,10 +196,9 @@ func generateAWSAuthConfigMap(instance *awscomputev1alpha1.EKSCluster, workerARN
 
 	// Serialize mapRoles
 	roles := make([]awscomputev1alpha1.MapRole, len(instance.Spec.MapRoles))
-	for i, role := range instance.Spec.MapRoles {
-		roles[i] = role
-	}
+	copy(roles, instance.Spec.MapRoles)
 	roles = append(roles, defaultRole)
+
 	rolesMarshalled, err := yaml.Marshal(roles)
 	if err != nil {
 		return nil, err

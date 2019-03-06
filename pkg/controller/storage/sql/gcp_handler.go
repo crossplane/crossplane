@@ -108,12 +108,12 @@ func resolveGCPClassInstanceValues(cloudsqlInstanceSpec *gcpdbv1alpha1.CloudsqlI
 	var engineVersion string
 	var versionPrefix string
 
-	switch claim.(type) {
+	switch claim := claim.(type) {
 	case *storagev1alpha1.MySQLInstance:
-		engineVersion = claim.(*storagev1alpha1.MySQLInstance).Spec.EngineVersion
+		engineVersion = claim.Spec.EngineVersion
 		versionPrefix = gcpdbv1alpha1.MysqlDBVersionPrefix
 	case *storagev1alpha1.PostgreSQLInstance:
-		engineVersion = claim.(*storagev1alpha1.PostgreSQLInstance).Spec.EngineVersion
+		engineVersion = claim.Spec.EngineVersion
 		versionPrefix = gcpdbv1alpha1.PostgresqlDBVersionPrefix
 	default:
 		return fmt.Errorf("unexpected claim type: %+v", reflect.TypeOf(claim))

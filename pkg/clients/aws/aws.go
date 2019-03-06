@@ -157,12 +157,12 @@ func Int64(v int, o ...FieldOption) *int64 {
 // Bool converts the supplied bool for use with the AWS Go SDK.
 func Bool(v bool, o ...FieldOption) *bool {
 	for _, fo := range o {
-		if fo == FieldRequired && v == false {
+		if fo == FieldRequired && !v {
 			return aws.Bool(v)
 		}
 	}
 
-	if v == false {
+	if !v {
 		return nil
 	}
 	return aws.Bool(v)

@@ -152,11 +152,11 @@ func setBindStatus(resource corev1alpha1.Resource, getErr error, c client.Client
 func resolveAzureClassInstanceValues(sqlServerSpec *azuredbv1alpha1.SQLServerSpec, claim corev1alpha1.ResourceClaim) error {
 	var engineVersion string
 
-	switch claim.(type) {
+	switch claim := claim.(type) {
 	case *storagev1alpha1.MySQLInstance:
-		engineVersion = claim.(*storagev1alpha1.MySQLInstance).Spec.EngineVersion
+		engineVersion = claim.Spec.EngineVersion
 	case *storagev1alpha1.PostgreSQLInstance:
-		engineVersion = claim.(*storagev1alpha1.PostgreSQLInstance).Spec.EngineVersion
+		engineVersion = claim.Spec.EngineVersion
 	default:
 		return fmt.Errorf("unexpected claim type: %+v", reflect.TypeOf(claim))
 	}

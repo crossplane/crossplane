@@ -126,12 +126,12 @@ func TestGenerateEksAuth(t *testing.T) {
 	g.Expect(cm.Namespace).To(Equal("kube-system"))
 
 	var outputRoles []MapRole
-	val, _ := cm.Data["mapRoles"]
+	val := cm.Data["mapRoles"]
 	err = yaml.Unmarshal([]byte(val), &outputRoles)
 	g.Expect(err).To(BeNil())
 
 	var outputUsers []MapUser
-	val, _ = cm.Data["mapUsers"]
+	val = cm.Data["mapUsers"]
 	err = yaml.Unmarshal([]byte(val), &outputUsers)
 	g.Expect(err).To(BeNil())
 

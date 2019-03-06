@@ -155,12 +155,12 @@ func (r *Reconciler) _connect(instance *computev1alpha1.Workload) (kubernetes.In
 	}
 
 	// read the individual connection config fields
-	user, _ := s.Data[corev1alpha1.ResourceCredentialsSecretUserKey]
-	pass, _ := s.Data[corev1alpha1.ResourceCredentialsSecretPasswordKey]
-	ca, _ := s.Data[corev1alpha1.ResourceCredentialsSecretCAKey]
-	cert, _ := s.Data[corev1alpha1.ResourceCredentialsSecretClientCertKey]
-	key, _ := s.Data[corev1alpha1.ResourceCredentialsSecretClientKeyKey]
-	token, _ := s.Data[corev1alpha1.ResourceCredentialsTokenKey]
+	user := s.Data[corev1alpha1.ResourceCredentialsSecretUserKey]
+	pass := s.Data[corev1alpha1.ResourceCredentialsSecretPasswordKey]
+	ca := s.Data[corev1alpha1.ResourceCredentialsSecretCAKey]
+	cert := s.Data[corev1alpha1.ResourceCredentialsSecretClientCertKey]
+	key := s.Data[corev1alpha1.ResourceCredentialsSecretClientKeyKey]
+	token := s.Data[corev1alpha1.ResourceCredentialsTokenKey]
 	host, ok := s.Data[corev1alpha1.ResourceCredentialsSecretEndpointKey]
 	if !ok {
 		return nil, fmt.Errorf("kubernetes cluster endpoint/host is not found")
