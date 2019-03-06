@@ -107,7 +107,8 @@ func (c *ConditionedStatus) SetCondition(condition Condition) {
 		return
 	}
 	newConditions := FilterOutCondition(c.Conditions, condition.Type)
-	c.Conditions = append(newConditions, condition)
+	newConditions := append(newConditions, condition)
+	c.Conditions = newConditions
 }
 
 // SetFailed set failed as an active condition
