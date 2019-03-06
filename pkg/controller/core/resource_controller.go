@@ -37,9 +37,7 @@ import (
 )
 
 const (
-	errorResourceClassNotDefined     = "Resource class is not provided"
 	errorResourceProvisioning        = "Failed to provision new resource"
-	errorResourceHandlerIsNotFound   = "Resource handler is not found"
 	errorRetrievingHandler           = "Failed to retrieve handler"
 	errorRetrievingResourceClass     = "Failed to retrieve resource class"
 	errorRetrievingResource          = "Failed to retrieve resource"

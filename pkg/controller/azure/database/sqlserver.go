@@ -28,7 +28,6 @@ import (
 	apitypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -48,7 +47,6 @@ const (
 	errorFetchingInstance        = "failed to fetch instance"
 	errorDeletingInstance        = "failed to delete instance"
 	errorCreatingInstance        = "failed to create instance"
-	errorWaitingForCreate        = "failed to wait for completion of create instance"
 	errorCreatingPassword        = "failed to create password"
 	errorSettingConnectionSecret = "failed to set connection secret"
 	conditionStateChanged        = "instance state changed"
@@ -64,7 +62,6 @@ type SQLReconciler struct {
 	clientset           kubernetes.Interface
 	sqlServerAPIFactory azureclients.SQLServerAPIFactory
 	findInstance        func(instance azuredbv1alpha1.SQLServer) (azuredbv1alpha1.SQLServer, error)
-	config              *rest.Config
 	scheme              *runtime.Scheme
 	finalizer           string
 }

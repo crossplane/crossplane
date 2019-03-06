@@ -42,7 +42,6 @@ const (
 )
 
 var (
-	ctx = context.TODO()
 	cfg *rest.Config
 	c   client.Client
 )

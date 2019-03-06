@@ -171,7 +171,6 @@ type BasicResource struct {
 
 	connectionSecretName string
 	endpoint             string
-	namespace            string
 	state                string
 	phase                BindingStatusPhase
 	objectReference      *corev1.ObjectReference

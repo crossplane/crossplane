@@ -133,10 +133,6 @@ func withSSLPort(p int) resourceModifier {
 	return func(r *v1alpha1.Redis) { r.Status.SSLPort = p }
 }
 
-func withRedisVersion(v string) resourceModifier {
-	return func(r *v1alpha1.Redis) { r.Status.RedisVersion = v }
-}
-
 func withDeletionTimestamp(t time.Time) resourceModifier {
 	return func(r *v1alpha1.Redis) { r.ObjectMeta.DeletionTimestamp = &metav1.Time{Time: t} }
 }

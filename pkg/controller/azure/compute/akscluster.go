@@ -29,7 +29,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -70,7 +69,6 @@ type Reconciler struct {
 	client.Client
 	clientset          kubernetes.Interface
 	aksSetupAPIFactory azureclients.AKSSetupAPIFactory
-	config             *rest.Config
 	scheme             *runtime.Scheme
 }
 
