@@ -132,6 +132,9 @@ func (e *elastiCache) Create(ctx context.Context, g *v1alpha1.ReplicationGroup) 
 	return true
 }
 
+// TODO(negz): This method's cyclomatic complexity is a little high. Consider
+// refactoring to reduce said complexity if you touch it.
+// nolint:gocyclo
 func (e *elastiCache) Sync(ctx context.Context, g *v1alpha1.ReplicationGroup) bool {
 	drg := e.client.DescribeReplicationGroupsRequest(elasticache.NewDescribeReplicationGroupsInput(g))
 	drg.SetContext(ctx)

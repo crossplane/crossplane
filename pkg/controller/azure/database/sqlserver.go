@@ -66,7 +66,11 @@ type SQLReconciler struct {
 	finalizer           string
 }
 
+// TODO(negz): This method's cyclomatic complexity is very high. Consider
+// refactoring it if you touch it.
+// nolint:gocyclo
 func (r *SQLReconciler) handleReconcile(instance azuredbv1alpha1.SQLServer) (reconcile.Result, error) {
+
 	// look up the provider information for this instance
 	provider := &azurev1alpha1.Provider{}
 	providerNamespacedName := apitypes.NamespacedName{

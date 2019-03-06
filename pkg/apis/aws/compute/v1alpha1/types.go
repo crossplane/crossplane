@@ -269,95 +269,50 @@ type EKSClusterList struct {
 // NewEKSClusterSpec from properties map
 func NewEKSClusterSpec(properties map[string]string) *EKSClusterSpec {
 	spec := &EKSClusterSpec{
-		ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		ReclaimPolicy:    corev1alpha1.ReclaimRetain,
+		Region:           EKSRegion(properties["region"]),
+		RoleARN:          properties["roleARN"],
+		VpcID:            properties["vpcId"],
+		ClusterVersion:   properties["clusterVersion"],
+		SubnetIds:        parseSlice(properties["subnetIds"]),
+		SecurityGroupIds: parseSlice(properties["securityGroupIds"]),
+		WorkerNodes: WorkerNodesSpec{
+			KeyName:                          properties["workerKeyName"],
+			NodeImageID:                      properties["workerNodeImageId"],
+			NodeInstanceType:                 properties["workerNodeInstanceType"],
+			BootstrapArguments:               properties["workerBootstrapArguments"],
+			NodeGroupName:                    properties["workerNodeGroupName"],
+			ClusterControlPlaneSecurityGroup: properties["workerClusterControlPlaneSecurityGroup"],
+		},
+		ConnectionSecretNameOverride: properties["connectionSecretNameOverride"],
 	}
 
-	val, ok := properties["region"]
-	if ok {
-		spec.Region = EKSRegion(val)
+	if size, err := strconv.Atoi(properties["workerNodeAutoScalingGroupMinSize"]); err == nil {
+		spec.WorkerNodes.NodeAutoScalingGroupMinSize = &size
 	}
 
-	val, ok = properties["roleARN"]
-	if ok {
-		spec.RoleARN = val
+	if size, err := strconv.Atoi(properties["workerNodeAutoScalingGroupMaxSize"]); err == nil {
+		spec.WorkerNodes.NodeAutoScalingGroupMaxSize = &size
 	}
 
-	val, ok = properties["vpcId"]
-	if ok {
-		spec.VpcID = val
-	}
-
-	val, ok = properties["subnetIds"]
-	if ok {
-		spec.SubnetIds = append(spec.SubnetIds, strings.Split(val, ",")...)
-	}
-
-	val, ok = properties["securityGroupIds"]
-	if ok {
-		spec.SecurityGroupIds = append(spec.SecurityGroupIds, strings.Split(val, ",")...)
-	}
-
-	val, ok = properties["clusterVersion"]
-	if ok {
-		spec.ClusterVersion = val
-	}
-
-	val, ok = properties["workerKeyName"]
-	if ok {
-		spec.WorkerNodes.KeyName = val
-	}
-
-	val, ok = properties["workerNodeImageId"]
-	if ok {
-		spec.WorkerNodes.NodeImageID = val
-	}
-
-	val, ok = properties["workerNodeInstanceType"]
-	if ok {
-		spec.WorkerNodes.NodeInstanceType = val
-	}
-
-	val, ok = properties["workerNodeAutoScalingGroupMinSize"]
-	if ok {
-		if size, err := strconv.Atoi(val); err == nil {
-			spec.WorkerNodes.NodeAutoScalingGroupMinSize = &size
-		}
-	}
-
-	val, ok = properties["workerNodeAutoScalingGroupMaxSize"]
-	if ok {
-		if size, err := strconv.Atoi(val); err == nil {
-			spec.WorkerNodes.NodeAutoScalingGroupMaxSize = &size
-		}
-	}
-
-	val, ok = properties["workerNodeVolumeSize"]
-	if ok {
-		if size, err := strconv.Atoi(val); err == nil {
-			spec.WorkerNodes.NodeVolumeSize = &size
-		}
-	}
-
-	val, ok = properties["workerBootstrapArguments"]
-	if ok {
-		spec.WorkerNodes.BootstrapArguments = val
-	}
-
-	val, ok = properties["workerNodeGroupName"]
-	if ok {
-		spec.WorkerNodes.NodeGroupName = val
-	}
-	val, ok = properties["workerClusterControlPlaneSecurityGroup"]
-	if ok {
-		spec.WorkerNodes.ClusterControlPlaneSecurityGroup = val
-	}
-
-	val, ok = properties["connectionSecretNameOverride"]
-	if ok {
-		spec.ConnectionSecretNameOverride = val
+	if size, err := strconv.Atoi(properties["workerNodeVolumeSize"]); err == nil {
+		spec.WorkerNodes.NodeVolumeSize = &size
 	}
 
 	return spec
+}
+
+// parseSlice parses a string of comma separated strings, for example
+// "value1, value2", into a string slice.
+func parseSlice(s string) []string {
+	if s == "" {
+		return nil
+	}
+	sl := make([]string, 0, strings.Count(s, ",")+1)
+	for _, sub := range strings.Split(s, ",") {
+		sl = append(sl, strings.TrimSpace(sub))
+	}
+	return sl
 }
 
 // ConnectionSecret with this cluster owner reference

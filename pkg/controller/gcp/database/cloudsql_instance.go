@@ -126,7 +126,10 @@ func NewReconcilerOptions() ReconcilerOptions {
 
 // Reconcile reads that state of the cluster for a CloudsqlInstance object and makes changes based on the state read
 // and what is in the CloudsqlInstance.Spec
-func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) { // nolint:gocyclo
+	// TODO(negz): This method's cyclomatic complexity is very high. Consider
+	// refactoring it if you touch it.
+
 	log.Printf("reconciling %s: %v", databasev1alpha1.CloudsqlInstanceKindAPIVersion, request)
 	instance := &databasev1alpha1.CloudsqlInstance{}
 	var cloudSQLInstance *sqladmin.DatabaseInstance
@@ -301,6 +304,9 @@ func (r *Reconciler) markAsDeleting(instance *databasev1alpha1.CloudsqlInstance)
 	return reconcile.Result{}, r.Update(context.TODO(), instance)
 }
 
+// TODO(negz): This method's cyclomatic complexity is very high. Consider
+// refactoring it if you touch it.
+// nolint:gocyclo
 func (r *Reconciler) initDefaultUser(cloudSQLClient gcpclients.CloudSQLAPI,
 	instance *databasev1alpha1.CloudsqlInstance, provider *gcpv1alpha1.Provider) error {
 

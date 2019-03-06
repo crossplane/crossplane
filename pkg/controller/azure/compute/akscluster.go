@@ -189,6 +189,9 @@ func (r *Reconciler) connect(instance *computev1alpha1.AKSCluster) (*azureclient
 	return r.aksSetupAPIFactory.CreateSetupClient(p, r.clientset)
 }
 
+// TODO(negz): This method's cyclomatic complexity is a little high. Consider
+// refactoring to reduce said complexity if you touch it.
+// nolint:gocyclo
 func (r *Reconciler) create(instance *computev1alpha1.AKSCluster, aksClient *azureclients.AKSSetupClient) (reconcile.Result, error) {
 	// create or fetch the secret for the AD application and its service principal the cluster will use for Azure APIs
 	spSecret, err := r.servicePrincipalSecret(instance)

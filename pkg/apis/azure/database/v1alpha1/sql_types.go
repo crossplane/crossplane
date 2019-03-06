@@ -161,72 +161,35 @@ type StorageProfileSpec struct {
 // NewSQLServerSpec creates a new SQLServerSpec based on the given properties map
 func NewSQLServerSpec(properties map[string]string) *SQLServerSpec {
 	spec := &SQLServerSpec{
-		ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		ReclaimPolicy:     corev1alpha1.ReclaimRetain,
+		AdminLoginName:    properties["adminLoginName"],
+		ResourceGroupName: properties["resourceGroupName"],
+		Location:          properties["location"],
+		Version:           properties["version"],
+		PricingTier: PricingTierSpec{
+			Tier:   properties["tier"],
+			Family: properties["family"],
+		},
 	}
 
-	val, ok := properties["adminLoginName"]
-	if ok {
-		spec.AdminLoginName = val
+	if sslEnforced, err := strconv.ParseBool(properties["sslEnforced"]); err == nil {
+		spec.SSLEnforced = sslEnforced
 	}
 
-	val, ok = properties["resourceGroupName"]
-	if ok {
-		spec.ResourceGroupName = val
+	if vcores, err := strconv.Atoi(properties["vcores"]); err == nil {
+		spec.PricingTier.VCores = vcores
 	}
 
-	val, ok = properties["location"]
-	if ok {
-		spec.Location = val
+	if storageGB, err := strconv.Atoi(properties["storageGB"]); err == nil {
+		spec.StorageProfile.StorageGB = storageGB
 	}
 
-	val, ok = properties["version"]
-	if ok {
-		spec.Version = val
+	if backupRetentionDays, err := strconv.Atoi(properties["backupRetentionDays"]); err == nil {
+		spec.StorageProfile.BackupRetentionDays = backupRetentionDays
 	}
 
-	val, ok = properties["sslEnforced"]
-	if ok {
-		if sslEnforced, err := strconv.ParseBool(val); err == nil {
-			spec.SSLEnforced = sslEnforced
-		}
-	}
-
-	val, ok = properties["tier"]
-	if ok {
-		spec.PricingTier.Tier = val
-	}
-
-	val, ok = properties["vcores"]
-	if ok {
-		if vcores, err := strconv.Atoi(val); err == nil {
-			spec.PricingTier.VCores = vcores
-		}
-	}
-
-	val, ok = properties["family"]
-	if ok {
-		spec.PricingTier.Family = val
-	}
-
-	val, ok = properties["storageGB"]
-	if ok {
-		if storageGB, err := strconv.Atoi(val); err == nil {
-			spec.StorageProfile.StorageGB = storageGB
-		}
-	}
-
-	val, ok = properties["backupRetentionDays"]
-	if ok {
-		if backupRetentionDays, err := strconv.Atoi(val); err == nil {
-			spec.StorageProfile.BackupRetentionDays = backupRetentionDays
-		}
-	}
-
-	val, ok = properties["geoRedundantBackup"]
-	if ok {
-		if geoRedundantBackup, err := strconv.ParseBool(val); err == nil {
-			spec.StorageProfile.GeoRedundantBackup = geoRedundantBackup
-		}
+	if geoRedundantBackup, err := strconv.ParseBool(properties["geoRedundantBackup"]); err == nil {
+		spec.StorageProfile.GeoRedundantBackup = geoRedundantBackup
 	}
 
 	return spec
