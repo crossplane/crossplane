@@ -127,7 +127,7 @@ func UseExistingCluster() bool {
 
 // CheckCRDFiles - validates that all crds files are found.
 func CheckCRDFiles(crds []string) ([]string, error) {
-	var rs []string
+	var rs []string // nolint:prealloc
 
 	for _, path := range crds {
 		_, err := os.Stat(path)
