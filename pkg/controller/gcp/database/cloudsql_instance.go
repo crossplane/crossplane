@@ -222,7 +222,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 		}
 
 		conditionMessage := fmt.Sprintf("cloud sql instance %s is in the %s state", instance.Name, conditionType)
-		log.Printf(conditionMessage)
+		log.Print(conditionMessage)
 		instance.Status.SetCondition(corev1alpha1.NewCondition(conditionType, conditionStateChanged, conditionMessage))
 		return reconcile.Result{Requeue: true}, r.Update(context.TODO(), instance)
 	}

@@ -149,7 +149,7 @@ func (r *SQLReconciler) handleReconcile(instance azuredbv1alpha1.SQLServer) (rec
 		}
 
 		conditionMessage := fmt.Sprintf("SQL Server instance %s is in the %s state", instance.GetName(), conditionType)
-		log.Printf(conditionMessage)
+		log.Print(conditionMessage)
 		instance.GetStatus().SetCondition(corev1alpha1.NewCondition(conditionType, conditionStateChanged, conditionMessage))
 		return reconcile.Result{Requeue: true}, r.Update(ctx, instance)
 	}
