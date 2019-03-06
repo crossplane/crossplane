@@ -273,16 +273,12 @@ func (m *MysqlServer) IsAvailable() bool {
 
 // IsBound determines if the resource is in a bound binding state
 func (m *MysqlServer) IsBound() bool {
-	return m.Status.Phase == corev1alpha1.BindingStateBound
+	return m.Status.IsBound()
 }
 
 // SetBound sets the binding state of this resource
-func (m *MysqlServer) SetBound(state bool) {
-	if state {
-		m.Status.Phase = corev1alpha1.BindingStateBound
-	} else {
-		m.Status.Phase = corev1alpha1.BindingStateUnbound
-	}
+func (m *MysqlServer) SetBound(bound bool) {
+	m.Status.SetBound(bound)
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -328,16 +324,12 @@ func (p *PostgresqlServer) IsAvailable() bool {
 
 // IsBound determines if the resource is in a bound binding state
 func (p *PostgresqlServer) IsBound() bool {
-	return p.Status.Phase == corev1alpha1.BindingStateBound
+	return p.Status.IsBound()
 }
 
 // SetBound sets the binding state of this resource
-func (p *PostgresqlServer) SetBound(state bool) {
-	if state {
-		p.Status.Phase = corev1alpha1.BindingStateBound
-	} else {
-		p.Status.Phase = corev1alpha1.BindingStateUnbound
-	}
+func (p *PostgresqlServer) SetBound(bound bool) {
+	p.Status.SetBound(bound)
 }
 
 // ValidMySQLVersionValues returns the valid set of engine version values.

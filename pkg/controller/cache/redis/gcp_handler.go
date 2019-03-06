@@ -69,7 +69,6 @@ func (h *CloudMemorystoreInstanceHandler) Provision(class *corev1alpha1.Resource
 		},
 		Spec: *spec,
 	}
-	i.Status.SetUnbound()
 
 	return i, errors.Wrapf(c.Create(ctx, i), "cannot create instance %s/%s", i.GetNamespace(), i.GetName())
 }
@@ -84,10 +83,7 @@ func (h *CloudMemorystoreInstanceHandler) SetBindStatus(n types.NamespacedName, 
 		}
 		return errors.Wrapf(err, "cannot get instance %s", n)
 	}
-	i.Status.SetUnbound()
-	if bound {
-		i.Status.SetBound()
-	}
+	i.Status.SetBound(bound)
 	return errors.Wrapf(c.Update(ctx, i), "cannot update instance %s", n)
 }
 

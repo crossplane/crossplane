@@ -163,12 +163,16 @@ type ResourceList map[ResourceName]resource.Quantity
 // BasicResource base structure that implements Resource interface
 // +k8s:deepcopy-gen=false
 type BasicResource struct {
+	// TODO(negz): It's not obvious why we embed this Resource interface rather
+	// than just fulfilling it. If someone knows why this is, please add a
+	// comment.
 	Resource
+
 	connectionSecretName string
 	endpoint             string
 	namespace            string
 	state                string
-	bound                bool
+	phase                BindingStatusPhase
 	objectReference      *corev1.ObjectReference
 }
 
@@ -187,14 +191,12 @@ func (br *BasicResource) IsAvailable() bool {
 	return br.state == "available"
 }
 
-// SetBound
-func (br *BasicResource) SetBound(isBound bool) {
-	br.bound = isBound
+func (br *BasicResource) IsBound() bool {
+	return br.phase.IsBound()
 }
 
-// IsBound
-func (br *BasicResource) IsBound() bool {
-	return br.bound
+func (br *BasicResource) SetBound(bound bool) {
+	br.phase.SetBound(bound)
 }
 
 // NewBasicResource new instance of base resource

@@ -194,14 +194,10 @@ func (g *GKECluster) IsAvailable() bool {
 
 // IsBound
 func (g *GKECluster) IsBound() bool {
-	return g.Status.Phase == corev1alpha1.BindingStateBound
+	return g.Status.IsBound()
 }
 
 // SetBound
-func (g *GKECluster) SetBound(state bool) {
-	if state {
-		g.Status.Phase = corev1alpha1.BindingStateBound
-	} else {
-		g.Status.Phase = corev1alpha1.BindingStateUnbound
-	}
+func (g *GKECluster) SetBound(bound bool) {
+	g.Status.SetBound(bound)
 }

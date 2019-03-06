@@ -189,14 +189,10 @@ func (b *S3Bucket) IsAvailable() bool {
 
 // IsBound
 func (b *S3Bucket) IsBound() bool {
-	return b.Status.Phase == corev1alpha1.BindingStateBound
+	return b.Status.IsBound()
 }
 
 // SetBound
-func (b *S3Bucket) SetBound(state bool) {
-	if state {
-		b.Status.Phase = corev1alpha1.BindingStateBound
-	} else {
-		b.Status.Phase = corev1alpha1.BindingStateUnbound
-	}
+func (b *S3Bucket) SetBound(bound bool) {
+	b.Status.SetBound(bound)
 }

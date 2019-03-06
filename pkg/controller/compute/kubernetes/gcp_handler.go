@@ -59,7 +59,6 @@ func (r *GKEClusterHandler) Provision(class *corev1alpha1.ResourceClass, claim c
 		},
 		Spec: *resourceInstance,
 	}
-	cluster.Status.SetUnbound()
 
 	err := c.Create(ctx, cluster)
 	return cluster, err
@@ -76,10 +75,6 @@ func (r GKEClusterHandler) SetBindStatus(name types.NamespacedName, c client.Cli
 		}
 		return err
 	}
-	if bound {
-		instance.Status.SetBound()
-	} else {
-		instance.Status.SetUnbound()
-	}
+	instance.Status.SetBound(bound)
 	return c.Update(ctx, instance)
 }

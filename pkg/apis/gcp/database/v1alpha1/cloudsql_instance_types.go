@@ -179,14 +179,10 @@ func (c *CloudsqlInstance) IsAvailable() bool {
 
 // IsBound determines if the resource is in a bound binding state
 func (c *CloudsqlInstance) IsBound() bool {
-	return c.Status.Phase == corev1alpha1.BindingStateBound
+	return c.Status.IsBound()
 }
 
 // SetBound sets the binding state of this resource
-func (c *CloudsqlInstance) SetBound(state bool) {
-	if state {
-		c.Status.Phase = corev1alpha1.BindingStateBound
-	} else {
-		c.Status.Phase = corev1alpha1.BindingStateUnbound
-	}
+func (c *CloudsqlInstance) SetBound(bound bool) {
+	c.Status.SetBound(bound)
 }

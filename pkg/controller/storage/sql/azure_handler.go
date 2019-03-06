@@ -95,7 +95,6 @@ func provisionAzureSQL(class *corev1alpha1.ResourceClass, claim corev1alpha1.Res
 			ObjectMeta: objectMeta,
 			Spec:       *sqlServerSpec,
 		}
-		mysqlServer.Status.SetUnbound()
 
 		err := c.Create(ctx, mysqlServer)
 		return mysqlServer, err
@@ -110,7 +109,6 @@ func provisionAzureSQL(class *corev1alpha1.ResourceClass, claim corev1alpha1.Res
 			ObjectMeta: objectMeta,
 			Spec:       *sqlServerSpec,
 		}
-		postgresqlServer.Status.SetUnbound()
 
 		err := c.Create(ctx, postgresqlServer)
 		return postgresqlServer, err

@@ -82,7 +82,6 @@ func (h *CloudSQLServerHandler) Provision(class *corev1alpha1.ResourceClass, cla
 		},
 		Spec: *cloudsqlInstanceSpec,
 	}
-	cloudsqlInstance.Status.SetUnbound()
 
 	err := c.Create(ctx, cloudsqlInstance)
 	return cloudsqlInstance, err
@@ -100,11 +99,7 @@ func (h *CloudSQLServerHandler) SetBindStatus(name types.NamespacedName, c clien
 		}
 		return err
 	}
-	if bound {
-		cloudsqlInstance.Status.SetBound()
-	} else {
-		cloudsqlInstance.Status.SetUnbound()
-	}
+	cloudsqlInstance.Status.SetBound(bound)
 	return c.Update(ctx, cloudsqlInstance)
 }
 

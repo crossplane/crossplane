@@ -73,7 +73,6 @@ func (h *RDSInstanceHandler) Provision(class *corev1alpha1.ResourceClass, claim 
 		},
 		Spec: *rdsInstanceSpec,
 	}
-	rdsInstance.Status.SetUnbound()
 
 	err := c.Create(ctx, rdsInstance)
 	return rdsInstance, err
@@ -91,11 +90,7 @@ func (h RDSInstanceHandler) SetBindStatus(name types.NamespacedName, c client.Cl
 		}
 		return err
 	}
-	if bound {
-		rdsInstance.Status.SetBound()
-	} else {
-		rdsInstance.Status.SetUnbound()
-	}
+	rdsInstance.Status.SetBound(bound)
 	return c.Update(ctx, rdsInstance)
 }
 

@@ -196,14 +196,10 @@ func (r *RDSInstance) IsAvailable() bool {
 
 // IsBound
 func (r *RDSInstance) IsBound() bool {
-	return r.Status.Phase == corev1alpha1.BindingStateBound
+	return r.Status.IsBound()
 }
 
 // SetBound
-func (r *RDSInstance) SetBound(state bool) {
-	if state {
-		r.Status.Phase = corev1alpha1.BindingStateBound
-	} else {
-		r.Status.Phase = corev1alpha1.BindingStateUnbound
-	}
+func (r *RDSInstance) SetBound(bound bool) {
+	r.Status.SetBound(bound)
 }

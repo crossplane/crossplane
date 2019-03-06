@@ -64,7 +64,6 @@ func (h *S3BucketHandler) newS3Bucket(class *corev1alpha1.ResourceClass, instanc
 		},
 		Spec: *bucketSpec,
 	}
-	bucket.Status.SetUnbound()
 
 	bucket.Spec.ProviderRef = class.ProviderRef
 	bucket.Spec.ReclaimPolicy = class.ReclaimPolicy
@@ -133,11 +132,7 @@ func (h S3BucketHandler) SetBindStatus(name types.NamespacedName, c client.Clien
 		}
 		return err
 	}
-	if bound {
-		s3Bucket.Status.SetBound()
-	} else {
-		s3Bucket.Status.SetUnbound()
-	}
+	s3Bucket.Status.SetBound(bound)
 	return c.Update(ctx, s3Bucket)
 }
 
