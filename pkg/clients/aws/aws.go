@@ -17,8 +17,6 @@ limitations under the License.
 package aws
 
 import (
-	"io/ioutil"
-
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/external"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -112,16 +110,6 @@ func Config(client kubernetes.Interface, p *v1alpha1.Provider) (*aws.Config, err
 	}
 
 	return LoadConfig(data, DefaultSection, p.Spec.Region)
-}
-
-// ConfigFromFile - create AWS Config based on credential file using [default] profile
-func ConfigFromFile(file, region string) (*aws.Config, error) {
-	data, err := ioutil.ReadFile(file)
-	if err != nil {
-		return nil, err
-	}
-
-	return LoadConfig(data, DefaultSection, region)
 }
 
 // String converts the supplied string for use with the AWS Go SDK.
