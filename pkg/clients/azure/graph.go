@@ -205,7 +205,9 @@ func getGraphAuthorizer(client *Client) (autorest.Authorizer, error) {
 	if err != nil {
 		return nil, err
 	}
-	token.Refresh()
+	if err := token.Refresh(); err != nil {
+		return nil, err
+	}
 
 	return autorest.NewBearerAuthorizer(token), nil
 }

@@ -95,7 +95,11 @@ func (te *Env) Start() *rest.Config {
 
 // Stop - stops test environment performing additional cleanup (if needed)
 func (te *Env) Stop() {
-	defer te.Environment.Stop()
+	defer func() {
+		if err := te.Environment.Stop(); err != nil {
+			log.Panic(err)
+		}
+	}()
 	if te.namespace != defaultNamespace {
 		k := kubernetes.NewForConfigOrDie(te.cfg)
 		dp := metav1.DeletePropagationForeground

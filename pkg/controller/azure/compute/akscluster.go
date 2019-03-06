@@ -217,7 +217,7 @@ func (r *Reconciler) create(instance *computev1alpha1.AKSCluster, aksClient *azu
 		// save the application object ID on the CRD status now
 		instance.Status.ApplicationObjectID = *app.ObjectID
 		// TODO: retry this CRD update upon conflict
-		r.Update(ctx, instance)
+		r.Update(ctx, instance) // nolint:errcheck
 	}
 
 	// create the service principal for the AD application
@@ -231,7 +231,7 @@ func (r *Reconciler) create(instance *computev1alpha1.AKSCluster, aksClient *azu
 		// save the service principal ID on the CRD status now
 		instance.Status.ServicePrincipalID = *sp.ObjectID
 		// TODO: retry this CRD update upon conflict
-		r.Update(ctx, instance)
+		r.Update(ctx, instance) // nolint:errcheck
 	}
 
 	// start the creation of the AKS cluster
