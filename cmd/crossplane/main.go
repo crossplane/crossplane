@@ -37,7 +37,7 @@ func main() {
 
 	// Re-sync resources every minutes
 	// TODO: 1 minute could be too aggressive - we will update this in the future.
-	syncPeriod := 1 * time.Minute
+	syncPeriod := 60 * time.Minute
 
 	// Create a new Cmd to provide shared dependencies and start components
 	mgr, err := manager.New(cfg, manager.Options{SyncPeriod: &syncPeriod})

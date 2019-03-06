@@ -61,6 +61,7 @@ pipeline {
                 always {
                     archiveArtifacts "_output/tests/**/*"
                     junit "_output/tests/**/*.xml"
+                    cobertura coberturaReportFile: '_output/tests/**/coverage.xml'
                 }
             }
         }
