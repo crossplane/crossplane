@@ -25,10 +25,11 @@ import (
 	"github.com/Azure/azure-sdk-for-go/services/postgresql/mgmt/2017-12-01/postgresql"
 	azurerest "github.com/Azure/go-autorest/autorest/azure"
 	"github.com/Azure/go-autorest/autorest/to"
+	"k8s.io/client-go/kubernetes"
+
 	azuredbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/database/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"k8s.io/client-go/kubernetes"
 )
 
 const (
@@ -50,17 +51,14 @@ type SQLServer struct {
 	FQDN  string
 }
 
-type FirewallRule struct {
-}
-
 // SQLServerAPI represents the API interface for a SQL Server client
 type SQLServerAPI interface {
-	GetServer(ctx context.Context, instance azuredbv1alpha1.SqlServer) (*SQLServer, error)
-	CreateServerBegin(ctx context.Context, instance azuredbv1alpha1.SqlServer, adminPassword string) ([]byte, error)
+	GetServer(ctx context.Context, instance azuredbv1alpha1.SQLServer) (*SQLServer, error)
+	CreateServerBegin(ctx context.Context, instance azuredbv1alpha1.SQLServer, adminPassword string) ([]byte, error)
 	CreateServerEnd(createOp []byte) (bool, error)
-	DeleteServer(ctx context.Context, instance azuredbv1alpha1.SqlServer) (azurerest.Future, error)
-	GetFirewallRule(ctx context.Context, instance azuredbv1alpha1.SqlServer, firewallRuleName string) (err error)
-	CreateFirewallRulesBegin(ctx context.Context, instance azuredbv1alpha1.SqlServer, firewallRuleName string) ([]byte, error)
+	DeleteServer(ctx context.Context, instance azuredbv1alpha1.SQLServer) (azurerest.Future, error)
+	GetFirewallRule(ctx context.Context, instance azuredbv1alpha1.SQLServer, firewallRuleName string) (err error)
+	CreateFirewallRulesBegin(ctx context.Context, instance azuredbv1alpha1.SQLServer, firewallRuleName string) ([]byte, error)
 	CreateFirewallRulesEnd(createOp []byte) (bool, error)
 }
 
@@ -95,7 +93,7 @@ func NewMySQLServerClient(provider *v1alpha1.Provider, clientset kubernetes.Inte
 }
 
 // GetServer retrieves the requested MySQL Server
-func (c *MySQLServerClient) GetServer(ctx context.Context, instance azuredbv1alpha1.SqlServer) (*SQLServer, error) {
+func (c *MySQLServerClient) GetServer(ctx context.Context, instance azuredbv1alpha1.SQLServer) (*SQLServer, error) {
 	server, err := c.ServersClient.Get(ctx, instance.GetSpec().ResourceGroupName, instance.GetName())
 	if err != nil {
 		return nil, err
@@ -114,8 +112,9 @@ func (c *MySQLServerClient) GetServer(ctx context.Context, instance azuredbv1alp
 	return &SQLServer{State: string(server.UserVisibleState), ID: id, FQDN: fqdn}, nil
 }
 
-// CreateBegin begins the create operation for a MySQL Server with the given properties
-func (c *MySQLServerClient) CreateServerBegin(ctx context.Context, instance azuredbv1alpha1.SqlServer, adminPassword string) ([]byte, error) {
+// CreateServerBegin begins the create operation for a MySQL Server with the
+// given properties.
+func (c *MySQLServerClient) CreateServerBegin(ctx context.Context, instance azuredbv1alpha1.SQLServer, adminPassword string) ([]byte, error) {
 	spec := instance.GetSpec()
 
 	// initialize all the parameters that specify how to configure the server during creation
@@ -166,7 +165,8 @@ func (c *MySQLServerClient) CreateServerBegin(ctx context.Context, instance azur
 	return createFutureJSON, nil
 }
 
-// CreateEnd checks to see if the given create operation is completed and if any error has occurred.
+// CreateServerEnd checks to see if the given create operation is completed and
+// if any error has occurred.
 func (c *MySQLServerClient) CreateServerEnd(createOp []byte) (done bool, err error) {
 	// unmarshal the given create complete data into a future object
 	createFuture := &mysql.ServersCreateFuture{}
@@ -188,20 +188,20 @@ func (c *MySQLServerClient) CreateServerEnd(createOp []byte) (done bool, err err
 	return true, nil
 }
 
-// Delete deletes the given MySQLServer resource
-func (c *MySQLServerClient) DeleteServer(ctx context.Context, instance azuredbv1alpha1.SqlServer) (azurerest.Future, error) {
+// DeleteServer deletes the given MySQLServer resource
+func (c *MySQLServerClient) DeleteServer(ctx context.Context, instance azuredbv1alpha1.SQLServer) (azurerest.Future, error) {
 	result, err := c.ServersClient.Delete(ctx, instance.GetSpec().ResourceGroupName, instance.GetName())
 	return result.Future, err
 }
 
 // GetFirewallRule gets the given firewall rule
-func (c *MySQLServerClient) GetFirewallRule(ctx context.Context, instance azuredbv1alpha1.SqlServer, firewallRuleName string) error {
+func (c *MySQLServerClient) GetFirewallRule(ctx context.Context, instance azuredbv1alpha1.SQLServer, firewallRuleName string) error {
 	_, err := c.FirewallRulesClient.Get(ctx, instance.GetSpec().ResourceGroupName, instance.GetName(), firewallRuleName)
 	return err
 }
 
 // CreateFirewallRulesBegin begins the create operation for a firewall rule
-func (c *MySQLServerClient) CreateFirewallRulesBegin(ctx context.Context, instance azuredbv1alpha1.SqlServer, firewallRuleName string) ([]byte, error) {
+func (c *MySQLServerClient) CreateFirewallRulesBegin(ctx context.Context, instance azuredbv1alpha1.SQLServer, firewallRuleName string) ([]byte, error) {
 
 	createParams := mysql.FirewallRule{
 		Name: to.StringPtr(firewallRuleName),
@@ -250,9 +250,6 @@ func (c *MySQLServerClient) CreateFirewallRulesEnd(createOp []byte) (done bool, 
 	return true, nil
 }
 
-//---------------------------------------------------------------------------------------------------------------------
-// PostgreSQLServerClient
-
 // PostgreSQLServerClient is the concreate implementation of the SQLServerAPI interface for PostgreSQL that calls Azure API.
 type PostgreSQLServerClient struct {
 	postgresql.ServersClient
@@ -281,7 +278,7 @@ func NewPostgreSQLServerClient(provider *v1alpha1.Provider, clientset kubernetes
 }
 
 // GetServer retrieves the requested PostgreSQL Server
-func (c *PostgreSQLServerClient) GetServer(ctx context.Context, instance azuredbv1alpha1.SqlServer) (*SQLServer, error) {
+func (c *PostgreSQLServerClient) GetServer(ctx context.Context, instance azuredbv1alpha1.SQLServer) (*SQLServer, error) {
 	server, err := c.ServersClient.Get(ctx, instance.GetSpec().ResourceGroupName, instance.GetName())
 	if err != nil {
 		return nil, err
@@ -301,7 +298,7 @@ func (c *PostgreSQLServerClient) GetServer(ctx context.Context, instance azuredb
 }
 
 // CreateServerBegin begins the create operation for a PostgreSQL Server with the given properties
-func (c *PostgreSQLServerClient) CreateServerBegin(ctx context.Context, instance azuredbv1alpha1.SqlServer, adminPassword string) ([]byte, error) {
+func (c *PostgreSQLServerClient) CreateServerBegin(ctx context.Context, instance azuredbv1alpha1.SQLServer, adminPassword string) ([]byte, error) {
 	spec := instance.GetSpec()
 
 	// initialize all the parameters that specify how to configure the server during creation
@@ -375,19 +372,19 @@ func (c *PostgreSQLServerClient) CreateServerEnd(createOp []byte) (done bool, er
 }
 
 // DeleteServer deletes the given PostgreSQL resource
-func (c *PostgreSQLServerClient) DeleteServer(ctx context.Context, instance azuredbv1alpha1.SqlServer) (azurerest.Future, error) {
+func (c *PostgreSQLServerClient) DeleteServer(ctx context.Context, instance azuredbv1alpha1.SQLServer) (azurerest.Future, error) {
 	result, err := c.ServersClient.Delete(ctx, instance.GetSpec().ResourceGroupName, instance.GetName())
 	return result.Future, err
 }
 
 // GetFirewallRule gets the given firewall rule
-func (c *PostgreSQLServerClient) GetFirewallRule(ctx context.Context, instance azuredbv1alpha1.SqlServer, firewallRuleName string) error {
+func (c *PostgreSQLServerClient) GetFirewallRule(ctx context.Context, instance azuredbv1alpha1.SQLServer, firewallRuleName string) error {
 	_, err := c.FirewallRulesClient.Get(ctx, instance.GetSpec().ResourceGroupName, instance.GetName(), firewallRuleName)
 	return err
 }
 
 // CreateFirewallRulesBegin begins the create operation for a firewall rule
-func (c *PostgreSQLServerClient) CreateFirewallRulesBegin(ctx context.Context, instance azuredbv1alpha1.SqlServer, firewallRuleName string) ([]byte, error) {
+func (c *PostgreSQLServerClient) CreateFirewallRulesBegin(ctx context.Context, instance azuredbv1alpha1.SQLServer, firewallRuleName string) ([]byte, error) {
 
 	createParams := postgresql.FirewallRule{
 		Name: to.StringPtr(firewallRuleName),
@@ -436,9 +433,6 @@ func (c *PostgreSQLServerClient) CreateFirewallRulesEnd(createOp []byte) (done b
 	return true, nil
 }
 
-//---------------------------------------------------------------------------------------------------------------------
-// SQLServerAPIFactory
-
 // SQLServerAPIFactory is an interface that can create instances of the SQLServerAPI interface
 type SQLServerAPIFactory interface {
 	CreateAPIInstance(*v1alpha1.Provider, kubernetes.Interface) (SQLServerAPI, error)
@@ -462,7 +456,6 @@ func (f *PostgreSQLServerClientFactory) CreateAPIInstance(provider *v1alpha1.Pro
 	return NewPostgreSQLServerClient(provider, clientset)
 }
 
-//---------------------------------------------------------------------------------------------------------------------
 // Helper functions
 // NOTE: These helper functions work for both MySQL and PostreSQL, but we cast everything to the MySQL types because
 // the generated Azure clients for MySQL and PostgreSQL are exactly the same content, just a different package. See:

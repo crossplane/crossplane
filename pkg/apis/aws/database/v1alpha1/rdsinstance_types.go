@@ -20,17 +20,16 @@ import (
 	"strconv"
 	"strings"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
+// SQL database engines.
 const (
-	// The engine value for MySQL
-	MysqlEngine = "mysql"
-
-	// The engine value for PostgreSQL
+	MysqlEngine      = "mysql"
 	PostgresqlEngine = "postgres"
 )
 
@@ -64,8 +63,10 @@ type RDSInstanceSpec struct {
 	ReclaimPolicy corev1alpha1.ReclaimPolicy `json:"reclaimPolicy,omitempty"`
 }
 
+// RDSInstanceState represents the state of an RDS instance.
 type RDSInstanceState string
 
+// RDS instance states.
 const (
 	// The instance is healthy and available
 	RDSInstanceStateAvailable RDSInstanceState = "available"
@@ -194,12 +195,12 @@ func (r *RDSInstance) IsAvailable() bool {
 	return r.State() == string(RDSInstanceStateAvailable)
 }
 
-// IsBound
+// IsBound returns true if this instance is bound to a resource claim.
 func (r *RDSInstance) IsBound() bool {
 	return r.Status.IsBound()
 }
 
-// SetBound
+// SetBound specifies whether this instance is bound to a resource claim.
 func (r *RDSInstance) SetBound(bound bool) {
 	r.Status.SetBound(bound)
 }

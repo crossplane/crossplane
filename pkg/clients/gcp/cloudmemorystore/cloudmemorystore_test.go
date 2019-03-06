@@ -242,11 +242,10 @@ func TestNewUpdateInstanceRequest(t *testing.T) {
 
 func TestNeedsUpdate(t *testing.T) {
 	cases := []struct {
-		name    string
-		project string
-		kube    *v1alpha1.CloudMemorystoreInstance
-		gcp     *redisv1pb.Instance
-		want    bool
+		name string
+		kube *v1alpha1.CloudMemorystoreInstance
+		gcp  *redisv1pb.Instance
+		want bool
 	}{
 		{
 			name: "NeedsLessMemory",

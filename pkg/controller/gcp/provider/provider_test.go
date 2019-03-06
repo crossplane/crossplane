@@ -20,18 +20,20 @@ import (
 	"fmt"
 	"testing"
 
-	. "github.com/crossplaneio/crossplane/pkg/apis/gcp/v1alpha1"
 	. "github.com/onsi/gomega"
 	. "k8s.io/client-go/kubernetes/fake"
 	. "sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	"github.com/crossplaneio/crossplane/pkg/apis/gcp"
+	. "github.com/crossplaneio/crossplane/pkg/apis/gcp/v1alpha1"
+
 	"golang.org/x/oauth2/google"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	"github.com/crossplaneio/crossplane/pkg/apis/gcp"
 )
 
 const (

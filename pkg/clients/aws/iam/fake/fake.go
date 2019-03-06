@@ -20,6 +20,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 )
 
+// MockIAMClient for testing.
 type MockIAMClient struct {
 	MockCreateUser            func(username string) (*iam.AccessKey, error)
 	MockDeleteUser            func(username string) error
@@ -29,25 +30,32 @@ type MockIAMClient struct {
 	MockDeletePolicyAndDetach func(username string, policyName string) error
 }
 
+// CreateUser calls the underlying MockCreateUser method.
 func (m *MockIAMClient) CreateUser(username string) (*iam.AccessKey, error) {
 	return m.MockCreateUser(username)
 }
+
+// DeleteUser calls the underlying MockDeleteUser method.
 func (m *MockIAMClient) DeleteUser(username string) error {
 	return m.MockDeleteUser(username)
 }
 
+// GetPolicyVersion calls the underlying MockGetPolicyVersion method.
 func (m *MockIAMClient) GetPolicyVersion(username string) (string, error) {
 	return m.MockGetPolicyVersion(username)
 }
 
+// CreatePolicyAndAttach calls the underlying MockCreatePolicyAndAttach method.
 func (m *MockIAMClient) CreatePolicyAndAttach(username string, policyName string, policyDocument string) (string, error) {
 	return m.MockCreatePolicyAndAttach(username, policyName, policyDocument)
 }
 
+// UpdatePolicy calls the underlying MockUpdatePolicy method.
 func (m *MockIAMClient) UpdatePolicy(username string, policyDocument string) (string, error) {
 	return m.MockUpdatePolicy(username, policyDocument)
 }
 
+// DeletePolicyAndDetach calls the underlying MockDeletePolicyAndDetach method.
 func (m *MockIAMClient) DeletePolicyAndDetach(username string, policyName string) error {
 	return m.MockDeletePolicyAndDetach(username, policyName)
 }

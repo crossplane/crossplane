@@ -20,11 +20,12 @@ import (
 	"log"
 	"time"
 
-	"github.com/crossplaneio/crossplane/pkg/apis"
-	"github.com/crossplaneio/crossplane/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/runtime/signals"
+
+	"github.com/crossplaneio/crossplane/pkg/apis"
+	"github.com/crossplaneio/crossplane/pkg/controller"
 )
 
 func main() {

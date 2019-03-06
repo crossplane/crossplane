@@ -21,10 +21,11 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/services/mysql/mgmt/2017-12-01/mysql"
 	"github.com/Azure/azure-sdk-for-go/services/postgresql/mgmt/2017-12-01/postgresql"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/util"
-	"k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -34,7 +35,8 @@ const (
 	OperationCreateFirewallRules = "createFirewallRules"
 )
 
-type SqlServer interface {
+// SQLServer represents a generic Azure SQL server.
+type SQLServer interface {
 	corev1alpha1.Resource
 	metav1.Object
 	OwnerReference() metav1.OwnerReference
@@ -159,88 +161,51 @@ type StorageProfileSpec struct {
 // NewSQLServerSpec creates a new SQLServerSpec based on the given properties map
 func NewSQLServerSpec(properties map[string]string) *SQLServerSpec {
 	spec := &SQLServerSpec{
-		ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		ReclaimPolicy:     corev1alpha1.ReclaimRetain,
+		AdminLoginName:    properties["adminLoginName"],
+		ResourceGroupName: properties["resourceGroupName"],
+		Location:          properties["location"],
+		Version:           properties["version"],
+		PricingTier: PricingTierSpec{
+			Tier:   properties["tier"],
+			Family: properties["family"],
+		},
 	}
 
-	val, ok := properties["adminLoginName"]
-	if ok {
-		spec.AdminLoginName = val
+	if sslEnforced, err := strconv.ParseBool(properties["sslEnforced"]); err == nil {
+		spec.SSLEnforced = sslEnforced
 	}
 
-	val, ok = properties["resourceGroupName"]
-	if ok {
-		spec.ResourceGroupName = val
+	if vcores, err := strconv.Atoi(properties["vcores"]); err == nil {
+		spec.PricingTier.VCores = vcores
 	}
 
-	val, ok = properties["location"]
-	if ok {
-		spec.Location = val
+	if storageGB, err := strconv.Atoi(properties["storageGB"]); err == nil {
+		spec.StorageProfile.StorageGB = storageGB
 	}
 
-	val, ok = properties["version"]
-	if ok {
-		spec.Version = val
+	if backupRetentionDays, err := strconv.Atoi(properties["backupRetentionDays"]); err == nil {
+		spec.StorageProfile.BackupRetentionDays = backupRetentionDays
 	}
 
-	val, ok = properties["sslEnforced"]
-	if ok {
-		if sslEnforced, err := strconv.ParseBool(val); err == nil {
-			spec.SSLEnforced = sslEnforced
-		}
-	}
-
-	val, ok = properties["tier"]
-	if ok {
-		spec.PricingTier.Tier = val
-	}
-
-	val, ok = properties["vcores"]
-	if ok {
-		if vcores, err := strconv.Atoi(val); err == nil {
-			spec.PricingTier.VCores = vcores
-		}
-	}
-
-	val, ok = properties["family"]
-	if ok {
-		spec.PricingTier.Family = val
-	}
-
-	val, ok = properties["storageGB"]
-	if ok {
-		if storageGB, err := strconv.Atoi(val); err == nil {
-			spec.StorageProfile.StorageGB = storageGB
-		}
-	}
-
-	val, ok = properties["backupRetentionDays"]
-	if ok {
-		if backupRetentionDays, err := strconv.Atoi(val); err == nil {
-			spec.StorageProfile.BackupRetentionDays = backupRetentionDays
-		}
-	}
-
-	val, ok = properties["geoRedundantBackup"]
-	if ok {
-		if geoRedundantBackup, err := strconv.ParseBool(val); err == nil {
-			spec.StorageProfile.GeoRedundantBackup = geoRedundantBackup
-		}
+	if geoRedundantBackup, err := strconv.ParseBool(properties["geoRedundantBackup"]); err == nil {
+		spec.StorageProfile.GeoRedundantBackup = geoRedundantBackup
 	}
 
 	return spec
 }
 
-//---------------------------------------------------------------------------------------------------------------------
-// MysqlServer
-
+// GetSpec returns the MySQL server's spec.
 func (m *MysqlServer) GetSpec() *SQLServerSpec {
 	return &m.Spec
 }
 
+// GetStatus returns the MySQL server's status.
 func (m *MysqlServer) GetStatus() *SQLServerStatus {
 	return &m.Status
 }
 
+// SetStatus sets the MySQL server's status.
 func (m *MysqlServer) SetStatus(status *SQLServerStatus) {
 	m.Status = *status
 }
@@ -281,17 +246,17 @@ func (m *MysqlServer) SetBound(bound bool) {
 	m.Status.SetBound(bound)
 }
 
-//---------------------------------------------------------------------------------------------------------------------
-// PostgresqlServer
-
+// GetSpec gets the PostgreSQL server's spec.
 func (p *PostgresqlServer) GetSpec() *SQLServerSpec {
 	return &p.Spec
 }
 
+// GetStatus gets the PostgreSQL server's status.
 func (p *PostgresqlServer) GetStatus() *SQLServerStatus {
 	return &p.Status
 }
 
+// SetStatus sets the PostgreSQL server's status.
 func (p *PostgresqlServer) SetStatus(status *SQLServerStatus) {
 	p.Status = *status
 }

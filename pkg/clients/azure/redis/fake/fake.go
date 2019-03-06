@@ -51,7 +51,7 @@ func (c *MockClient) Get(ctx context.Context, resourceGroupName string, name str
 	return c.MockGet(ctx, resourceGroupName, name)
 }
 
-// Create calls the MockClient's MockCreate method.
+// ListKeys calls the MockClient's MockListKeys method.
 func (c *MockClient) ListKeys(ctx context.Context, resourceGroupName string, name string) (result redis.AccessKeys, err error) {
 	return c.MockListKeys(ctx, resourceGroupName, name)
 }

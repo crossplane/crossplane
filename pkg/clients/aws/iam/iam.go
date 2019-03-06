@@ -14,7 +14,7 @@ const (
 	policyArn = "arn:aws:iam::%s:policy/%s"
 )
 
-// Service defines IAM Client operations
+// Client defines IAM Client operations
 type Client interface {
 	CreateUser(username string) (*iam.AccessKey, error)
 	DeleteUser(username string) error
@@ -24,19 +24,18 @@ type Client interface {
 	DeletePolicyAndDetach(username string, policyName string) error
 }
 
-// IAMClient implements IAM Client
-type IAMClient struct {
+type iamClient struct {
 	accountID *string
 	iam       iamiface.IAMAPI
 }
 
 // NewClient creates new AWS Client with provided AWS Configurations/Credentials
 func NewClient(config *aws.Config) Client {
-	return &IAMClient{iam: iam.New(*config)}
+	return &iamClient{iam: iam.New(*config)}
 }
 
 // CreateUser - Creates an IAM User, a policy, binds user to policy and returns an access key and policy version for the user.
-func (c *IAMClient) CreateUser(username string) (*iam.AccessKey, error) {
+func (c *iamClient) CreateUser(username string) (*iam.AccessKey, error) {
 	err := c.createUser(username)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create user, %s", err)
@@ -51,7 +50,7 @@ func (c *IAMClient) CreateUser(username string) (*iam.AccessKey, error) {
 }
 
 // CreatePolicyAndAttach - Creates the IAM policy and attaches it to the username
-func (c *IAMClient) CreatePolicyAndAttach(username string, policyName string, policyDocument string) (string, error) {
+func (c *iamClient) CreatePolicyAndAttach(username string, policyName string, policyDocument string) (string, error) {
 	currentVersion, err := c.createPolicy(username, policyDocument)
 	if err != nil {
 		return "", fmt.Errorf("failed to create policy, %s", err)
@@ -66,7 +65,7 @@ func (c *IAMClient) CreatePolicyAndAttach(username string, policyName string, po
 }
 
 // GetPolicyVersion get the policy document for the IAM user
-func (c *IAMClient) GetPolicyVersion(username string) (string, error) {
+func (c *iamClient) GetPolicyVersion(username string) (string, error) {
 	policyARN, err := c.getPolicyARN(username)
 	if err != nil {
 		return "", err
@@ -84,7 +83,7 @@ func (c *IAMClient) GetPolicyVersion(username string) (string, error) {
 }
 
 // UpdatePolicy - updates the policy document for the IAM user and return current policy version
-func (c *IAMClient) UpdatePolicy(policyName string, policyDocument string) (string, error) {
+func (c *iamClient) UpdatePolicy(policyName string, policyDocument string) (string, error) {
 	policyARN, err := c.getPolicyARN(policyName)
 	if err != nil {
 		return "", err
@@ -115,7 +114,7 @@ func (c *IAMClient) UpdatePolicy(policyName string, policyDocument string) (stri
 }
 
 // DeletePolicyAndDetach delete the policy of PolicyName and detach it from the username provided
-func (c *IAMClient) DeletePolicyAndDetach(username string, policyName string) error {
+func (c *iamClient) DeletePolicyAndDetach(username string, policyName string) error {
 	policyARN, err := c.getPolicyARN(username)
 	if err != nil {
 		return err
@@ -134,7 +133,7 @@ func (c *IAMClient) DeletePolicyAndDetach(username string, policyName string) er
 }
 
 // DeleteUser Policy and IAM User
-func (c *IAMClient) DeleteUser(username string) error {
+func (c *iamClient) DeleteUser(username string) error {
 	keys, err := c.iam.ListAccessKeysRequest(&iam.ListAccessKeysInput{UserName: aws.String(username)}).Send()
 	if err != nil {
 		return err
@@ -156,7 +155,7 @@ func (c *IAMClient) DeleteUser(username string) error {
 }
 
 // getAccountID - Gets the accountID of the authenticated session.
-func (c *IAMClient) getAccountID() (string, error) {
+func (c *iamClient) getAccountID() (string, error) {
 	if c.accountID == nil {
 		user, err := c.iam.GetUserRequest(&iam.GetUserInput{}).Send()
 		if err != nil {
@@ -173,7 +172,7 @@ func (c *IAMClient) getAccountID() (string, error) {
 	return aws.StringValue(c.accountID), nil
 }
 
-func (c *IAMClient) getPolicyARN(policyName string) (string, error) {
+func (c *iamClient) getPolicyARN(policyName string) (string, error) {
 	accountID, err := c.getAccountID()
 	if err != nil {
 		return "", err
@@ -182,7 +181,7 @@ func (c *IAMClient) getPolicyARN(policyName string) (string, error) {
 	return policyARN, nil
 }
 
-func (c *IAMClient) createUser(username string) error {
+func (c *iamClient) createUser(username string) error {
 	_, err := c.iam.CreateUserRequest(&iam.CreateUserInput{UserName: aws.String(username)}).Send()
 	if err != nil && isErrorAlreadyExists(err) {
 		return nil
@@ -190,7 +189,7 @@ func (c *IAMClient) createUser(username string) error {
 	return err
 }
 
-func (c *IAMClient) createAccessKey(username string) (*iam.AccessKey, error) {
+func (c *iamClient) createAccessKey(username string) (*iam.AccessKey, error) {
 	keysResponse, err := c.iam.CreateAccessKeyRequest(&iam.CreateAccessKeyInput{UserName: aws.String(username)}).Send()
 	if err != nil {
 		return nil, err
@@ -199,7 +198,7 @@ func (c *IAMClient) createAccessKey(username string) (*iam.AccessKey, error) {
 	return keysResponse.AccessKey, nil
 }
 
-func (c *IAMClient) createPolicy(policyName string, policyDocument string) (string, error) {
+func (c *iamClient) createPolicy(policyName string, policyDocument string) (string, error) {
 	response, err := c.iam.CreatePolicyRequest(&iam.CreatePolicyInput{PolicyName: aws.String(policyName), PolicyDocument: aws.String(policyDocument)}).Send()
 	if err != nil {
 		if isErrorAlreadyExists(err) {
@@ -210,7 +209,7 @@ func (c *IAMClient) createPolicy(policyName string, policyDocument string) (stri
 	return aws.StringValue(response.Policy.DefaultVersionId), nil
 }
 
-func (c *IAMClient) attachPolicyToUser(policyName string, username string) error {
+func (c *iamClient) attachPolicyToUser(policyName string, username string) error {
 	policyArn, err := c.getPolicyARN(policyName)
 	if err != nil {
 		return err

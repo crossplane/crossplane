@@ -17,21 +17,24 @@ limitations under the License.
 package aws
 
 import (
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+
 	"github.com/crossplaneio/crossplane/pkg/controller/aws/cache"
 	"github.com/crossplaneio/crossplane/pkg/controller/aws/compute"
 	"github.com/crossplaneio/crossplane/pkg/controller/aws/provider"
 	"github.com/crossplaneio/crossplane/pkg/controller/aws/rds"
 	"github.com/crossplaneio/crossplane/pkg/controller/aws/s3"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
 func init() {
 	// AddToManagerFuncs is a list of functions to create controllers and add them to a manager.
-	AddToManagerFuncs = append(AddToManagerFuncs, cache.Add)
-	AddToManagerFuncs = append(AddToManagerFuncs, compute.Add)
-	AddToManagerFuncs = append(AddToManagerFuncs, rds.Add)
-	AddToManagerFuncs = append(AddToManagerFuncs, provider.Add)
-	AddToManagerFuncs = append(AddToManagerFuncs, s3.Add)
+	AddToManagerFuncs = append(AddToManagerFuncs,
+		cache.Add,
+		compute.Add,
+		rds.Add,
+		provider.Add,
+		s3.Add,
+	)
 }
 
 // AddToManagerFuncs is a list of functions to add all Controllers to the Manager

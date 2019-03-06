@@ -20,8 +20,6 @@ import (
 	"fmt"
 	"log"
 
-	azuredbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/database/v1alpha1"
-	azureclients "github.com/crossplaneio/crossplane/pkg/clients/azure"
 	"k8s.io/apimachinery/pkg/api/errors"
 	apitypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -30,6 +28,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	azuredbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/database/v1alpha1"
+	azureclients "github.com/crossplaneio/crossplane/pkg/clients/azure"
 )
 
 const (
@@ -109,7 +110,7 @@ func (r *MySQLReconciler) Reconcile(request reconcile.Request) (reconcile.Result
 	return r.SQLReconciler.handleReconcile(instance)
 }
 
-func (r *MySQLReconciler) findMySQLInstance(instance azuredbv1alpha1.SqlServer) (azuredbv1alpha1.SqlServer, error) {
+func (r *MySQLReconciler) findMySQLInstance(instance azuredbv1alpha1.SQLServer) (azuredbv1alpha1.SQLServer, error) {
 	fetchedInstance := &azuredbv1alpha1.MysqlServer{}
 	namespacedName := apitypes.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
 	if err := r.Get(ctx, namespacedName, fetchedInstance); err != nil {

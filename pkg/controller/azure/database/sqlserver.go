@@ -21,21 +21,21 @@ import (
 	"fmt"
 	"log"
 
-	azuredbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/database/v1alpha1"
-	azurev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	azureclients "github.com/crossplaneio/crossplane/pkg/clients/azure"
-	"github.com/crossplaneio/crossplane/pkg/util"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	apitypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	azuredbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/database/v1alpha1"
+	azurev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	azureclients "github.com/crossplaneio/crossplane/pkg/clients/azure"
+	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 const (
@@ -47,7 +47,6 @@ const (
 	errorFetchingInstance        = "failed to fetch instance"
 	errorDeletingInstance        = "failed to delete instance"
 	errorCreatingInstance        = "failed to create instance"
-	errorWaitingForCreate        = "failed to wait for completion of create instance"
 	errorCreatingPassword        = "failed to create password"
 	errorSettingConnectionSecret = "failed to set connection secret"
 	conditionStateChanged        = "instance state changed"
@@ -57,17 +56,21 @@ var (
 	ctx = context.TODO()
 )
 
+// SQLReconciler reconciles SQL resource specs with Azure.
 type SQLReconciler struct {
 	client.Client
 	clientset           kubernetes.Interface
 	sqlServerAPIFactory azureclients.SQLServerAPIFactory
-	findInstance        func(instance azuredbv1alpha1.SqlServer) (azuredbv1alpha1.SqlServer, error)
-	config              *rest.Config
+	findInstance        func(instance azuredbv1alpha1.SQLServer) (azuredbv1alpha1.SQLServer, error)
 	scheme              *runtime.Scheme
 	finalizer           string
 }
 
-func (r *SQLReconciler) handleReconcile(instance azuredbv1alpha1.SqlServer) (reconcile.Result, error) {
+// TODO(negz): This method's cyclomatic complexity is very high. Consider
+// refactoring it if you touch it.
+// nolint:gocyclo
+func (r *SQLReconciler) handleReconcile(instance azuredbv1alpha1.SQLServer) (reconcile.Result, error) {
+
 	// look up the provider information for this instance
 	provider := &azurev1alpha1.Provider{}
 	providerNamespacedName := apitypes.NamespacedName{
@@ -146,7 +149,7 @@ func (r *SQLReconciler) handleReconcile(instance azuredbv1alpha1.SqlServer) (rec
 		}
 
 		conditionMessage := fmt.Sprintf("SQL Server instance %s is in the %s state", instance.GetName(), conditionType)
-		log.Printf(conditionMessage)
+		log.Print(conditionMessage)
 		instance.GetStatus().SetCondition(corev1alpha1.NewCondition(conditionType, conditionStateChanged, conditionMessage))
 		return reconcile.Result{Requeue: true}, r.Update(ctx, instance)
 	}
@@ -165,7 +168,7 @@ func (r *SQLReconciler) handleReconcile(instance azuredbv1alpha1.SqlServer) (rec
 }
 
 // handle the creation of the given SQL Server instance
-func (r *SQLReconciler) handleCreation(sqlServersClient azureclients.SQLServerAPI, instance azuredbv1alpha1.SqlServer) (reconcile.Result, error) {
+func (r *SQLReconciler) handleCreation(sqlServersClient azureclients.SQLServerAPI, instance azuredbv1alpha1.SQLServer) (reconcile.Result, error) {
 	ctx := context.Background()
 
 	// generate a password for the admin user
@@ -221,7 +224,7 @@ func (r *SQLReconciler) handleCreation(sqlServersClient azureclients.SQLServerAP
 }
 
 // handle the deletion of the given SQL Server instance
-func (r *SQLReconciler) handleDeletion(sqlServersClient azureclients.SQLServerAPI, instance azuredbv1alpha1.SqlServer) (reconcile.Result, error) {
+func (r *SQLReconciler) handleDeletion(sqlServersClient azureclients.SQLServerAPI, instance azuredbv1alpha1.SQLServer) (reconcile.Result, error) {
 	ctx := context.Background()
 
 	// first get the latest status of the SQL Server resource that needs to be deleted
@@ -247,14 +250,14 @@ func (r *SQLReconciler) handleDeletion(sqlServersClient azureclients.SQLServerAP
 	return r.markAsDeleting(instance)
 }
 
-func (r *SQLReconciler) markAsDeleting(instance azuredbv1alpha1.SqlServer) (reconcile.Result, error) {
+func (r *SQLReconciler) markAsDeleting(instance azuredbv1alpha1.SQLServer) (reconcile.Result, error) {
 	ctx := context.Background()
 	instance.GetStatus().SetCondition(corev1alpha1.NewCondition(corev1alpha1.Deleting, "", ""))
 	util.RemoveFinalizer(instance, r.finalizer)
 	return reconcile.Result{}, r.Update(ctx, instance)
 }
 
-func (r *SQLReconciler) handleFirewallRuleCreation(sqlServersClient azureclients.SQLServerAPI, instance azuredbv1alpha1.SqlServer) (reconcile.Result, error) {
+func (r *SQLReconciler) handleFirewallRuleCreation(sqlServersClient azureclients.SQLServerAPI, instance azuredbv1alpha1.SQLServer) (reconcile.Result, error) {
 	ctx := context.Background()
 
 	log.Printf("starting create of firewall rules for SQL Server instance %s", instance.GetName())
@@ -274,7 +277,7 @@ func (r *SQLReconciler) handleFirewallRuleCreation(sqlServersClient azureclients
 }
 
 // handle a running operation for the given SQL Server instance
-func (r *SQLReconciler) handleRunningOperation(sqlServersClient azureclients.SQLServerAPI, instance azuredbv1alpha1.SqlServer) (reconcile.Result, error) {
+func (r *SQLReconciler) handleRunningOperation(sqlServersClient azureclients.SQLServerAPI, instance azuredbv1alpha1.SQLServer) (reconcile.Result, error) {
 	ctx := context.Background()
 
 	var done bool
@@ -314,7 +317,7 @@ func (r *SQLReconciler) handleRunningOperation(sqlServersClient azureclients.SQL
 }
 
 // fail - helper function to set fail condition with reason and message
-func (r *SQLReconciler) fail(instance azuredbv1alpha1.SqlServer, reason, msg string) (reconcile.Result, error) {
+func (r *SQLReconciler) fail(instance azuredbv1alpha1.SQLServer, reason, msg string) (reconcile.Result, error) {
 	ctx := context.Background()
 
 	log.Printf("instance %s failed: '%s': %s", instance.GetName(), reason, msg)
@@ -322,7 +325,7 @@ func (r *SQLReconciler) fail(instance azuredbv1alpha1.SqlServer, reason, msg str
 	return reconcile.Result{Requeue: true}, r.Update(ctx, instance)
 }
 
-func (r *SQLReconciler) updateStatus(instance azuredbv1alpha1.SqlServer, message string, server *azureclients.SQLServer) error {
+func (r *SQLReconciler) updateStatus(instance azuredbv1alpha1.SQLServer, message string, server *azureclients.SQLServer) error {
 	ctx := context.Background()
 
 	oldStatus := instance.GetStatus()
@@ -345,7 +348,7 @@ func (r *SQLReconciler) updateStatus(instance azuredbv1alpha1.SqlServer, message
 	return nil
 }
 
-func (r *SQLReconciler) createOrUpdateConnectionSecret(instance azuredbv1alpha1.SqlServer, password string) error {
+func (r *SQLReconciler) createOrUpdateConnectionSecret(instance azuredbv1alpha1.SQLServer, password string) error {
 	// first check if secret already exists
 	secretName := instance.ConnectionSecretName()
 	secretExists := false

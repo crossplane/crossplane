@@ -21,13 +21,14 @@ import (
 	"reflect"
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	s3Bucketv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/storage/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	bucketv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	s3Bucketv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/storage/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	bucketv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
 )
 
 var (
@@ -42,7 +43,7 @@ var (
 // S3BucketHandler handles S3 Instance functionality
 type S3BucketHandler struct{}
 
-// find S3BUCKET
+// Find an S3 bucket.
 func (h *S3BucketHandler) Find(name types.NamespacedName, c client.Client) (corev1alpha1.Resource, error) {
 	s3Bucket := &s3Bucketv1alpha1.S3Bucket{}
 	err := c.Get(ctx, name, s3Bucket)
@@ -75,7 +76,7 @@ func (h *S3BucketHandler) newS3Bucket(class *corev1alpha1.ResourceClass, instanc
 	return bucket
 }
 
-// provision creates a new S3Bucket
+// Provision a new S3Bucket
 func (h *S3BucketHandler) Provision(class *corev1alpha1.ResourceClass, claim corev1alpha1.ResourceClaim, c client.Client) (corev1alpha1.Resource, error) {
 	// construct S3Bucket Spec from class definition
 	bucketSpec := s3Bucketv1alpha1.NewS3BucketSpec(class.Parameters)

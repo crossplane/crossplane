@@ -19,12 +19,14 @@ package v1alpha1
 import (
 	"strconv"
 
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/util"
-	"k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// CloudSQL instance states
 const (
 	// StateRunnable represents a CloudSQL instance in a running, available, and ready state
 	StateRunnable = "RUNNABLE"
@@ -34,11 +36,11 @@ const (
 
 	// StateFailed  represents a CloudSQL instance has failed in some way
 	StateFailed = "FAILED"
+)
 
-	// The version prefix for MySQL versions
-	MysqlDBVersionPrefix = "MYSQL"
-
-	// The version prefix for PostgreSQL versions
+// CloudSQL version prefixes.
+const (
+	MysqlDBVersionPrefix      = "MYSQL"
 	PostgresqlDBVersionPrefix = "POSTGRES"
 )
 

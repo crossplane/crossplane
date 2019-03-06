@@ -21,14 +21,6 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/service/iam"
-	"github.com/crossplaneio/crossplane/pkg/apis/aws"
-	. "github.com/crossplaneio/crossplane/pkg/apis/aws/storage/v1alpha1"
-	awsv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	storagev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
-	client "github.com/crossplaneio/crossplane/pkg/clients/aws/s3"
-	. "github.com/crossplaneio/crossplane/pkg/clients/aws/s3/fake"
-	"github.com/crossplaneio/crossplane/pkg/util"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -38,6 +30,15 @@ import (
 	. "k8s.io/client-go/testing"
 	. "sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	"github.com/crossplaneio/crossplane/pkg/apis/aws"
+	. "github.com/crossplaneio/crossplane/pkg/apis/aws/storage/v1alpha1"
+	awsv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	storagev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
+	client "github.com/crossplaneio/crossplane/pkg/clients/aws/s3"
+	. "github.com/crossplaneio/crossplane/pkg/clients/aws/s3/fake"
+	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 const (
@@ -464,7 +465,7 @@ func TestReconcile(t *testing.T) {
 		called = true
 		return result, nil
 	}
-	rs, err = r.Reconcile(request)
+	r.Reconcile(request)
 	g.Expect(called).To(BeTrue())
 
 	// test create
@@ -477,7 +478,7 @@ func TestReconcile(t *testing.T) {
 		called = true
 		return result, nil
 	}
-	rs, err = r.Reconcile(request)
+	r.Reconcile(request)
 	g.Expect(called).To(BeTrue())
 
 	// test sync
@@ -491,6 +492,6 @@ func TestReconcile(t *testing.T) {
 		called = true
 		return result, nil
 	}
-	rs, err = r.Reconcile(request)
+	r.Reconcile(request)
 	g.Expect(called).To(BeTrue())
 }

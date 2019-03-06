@@ -20,14 +20,15 @@ import (
 	"fmt"
 	"reflect"
 
-	azuredbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/database/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	storagev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
-	corecontroller "github.com/crossplaneio/crossplane/pkg/controller/core"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	azuredbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/database/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	storagev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
+	corecontroller "github.com/crossplaneio/crossplane/pkg/controller/core"
 )
 
 // AzureMySQLServerHandler is a dynamic provisioning handler for Azure MySQLServer
@@ -43,6 +44,7 @@ func (h *AzureMySQLServerHandler) Find(name types.NamespacedName, c client.Clien
 	return azureMySQLServer, err
 }
 
+// Find a PostgreSQL server.
 func (h *AzurePostgreSQLServerHandler) Find(name types.NamespacedName, c client.Client) (corev1alpha1.Resource, error) {
 	azurePostgreSQLServer := &azuredbv1alpha1.PostgresqlServer{}
 	err := c.Get(ctx, name, azurePostgreSQLServer)
@@ -133,7 +135,7 @@ func (h *AzurePostgreSQLServerHandler) SetBindStatus(name types.NamespacedName, 
 	return setBindStatus(postgresqlServer, err, c, bound)
 }
 
-func setBindStatus(resource corev1alpha1.Resource, getErr error, c client.Client, bound bool) error {
+func setBindStatus(resource corev1alpha1.Resource, getErr error, c client.StatusWriter, bound bool) error {
 	if getErr != nil {
 		// TODO: the CRD is not found and the binding state is supposed to be unbound. is this OK?
 		if errors.IsNotFound(getErr) && !bound {
@@ -150,11 +152,11 @@ func setBindStatus(resource corev1alpha1.Resource, getErr error, c client.Client
 func resolveAzureClassInstanceValues(sqlServerSpec *azuredbv1alpha1.SQLServerSpec, claim corev1alpha1.ResourceClaim) error {
 	var engineVersion string
 
-	switch claim.(type) {
+	switch claim := claim.(type) {
 	case *storagev1alpha1.MySQLInstance:
-		engineVersion = claim.(*storagev1alpha1.MySQLInstance).Spec.EngineVersion
+		engineVersion = claim.Spec.EngineVersion
 	case *storagev1alpha1.PostgreSQLInstance:
-		engineVersion = claim.(*storagev1alpha1.PostgreSQLInstance).Spec.EngineVersion
+		engineVersion = claim.Spec.EngineVersion
 	default:
 		return fmt.Errorf("unexpected claim type: %+v", reflect.TypeOf(claim))
 	}

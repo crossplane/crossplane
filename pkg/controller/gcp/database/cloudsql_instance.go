@@ -23,13 +23,8 @@ import (
 	"strings"
 	"time"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	databasev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/database/v1alpha1"
-	gcpv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/v1alpha1"
-	gcpclients "github.com/crossplaneio/crossplane/pkg/clients/gcp"
-	"github.com/crossplaneio/crossplane/pkg/util"
-	"google.golang.org/api/sqladmin/v1beta4"
-	"k8s.io/api/core/v1"
+	sqladmin "google.golang.org/api/sqladmin/v1beta4"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apitypes "k8s.io/apimachinery/pkg/types"
@@ -40,6 +35,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	databasev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/database/v1alpha1"
+	gcpv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/v1alpha1"
+	gcpclients "github.com/crossplaneio/crossplane/pkg/clients/gcp"
+	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 const (
@@ -62,7 +63,7 @@ var (
 	_ reconcile.Reconciler = &Reconciler{}
 )
 
-// AddCloudsqlInstance creates a new CloudsqlInstance Controller and adds it to the Manager with default RBAC.
+// Add creates a new CloudsqlInstance Controller and adds it to the Manager with default RBAC.
 // The Manager will set fields on the Controller and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
 	clientset, err := kubernetes.NewForConfig(mgr.GetConfig())
@@ -125,7 +126,10 @@ func NewReconcilerOptions() ReconcilerOptions {
 
 // Reconcile reads that state of the cluster for a CloudsqlInstance object and makes changes based on the state read
 // and what is in the CloudsqlInstance.Spec
-func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) { // nolint:gocyclo
+	// TODO(negz): This method's cyclomatic complexity is very high. Consider
+	// refactoring it if you touch it.
+
 	log.Printf("reconciling %s: %v", databasev1alpha1.CloudsqlInstanceKindAPIVersion, request)
 	instance := &databasev1alpha1.CloudsqlInstance{}
 	var cloudSQLInstance *sqladmin.DatabaseInstance
@@ -218,7 +222,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 		}
 
 		conditionMessage := fmt.Sprintf("cloud sql instance %s is in the %s state", instance.Name, conditionType)
-		log.Printf(conditionMessage)
+		log.Print(conditionMessage)
 		instance.Status.SetCondition(corev1alpha1.NewCondition(conditionType, conditionStateChanged, conditionMessage))
 		return reconcile.Result{Requeue: true}, r.Update(context.TODO(), instance)
 	}
@@ -300,6 +304,9 @@ func (r *Reconciler) markAsDeleting(instance *databasev1alpha1.CloudsqlInstance)
 	return reconcile.Result{}, r.Update(context.TODO(), instance)
 }
 
+// TODO(negz): This method's cyclomatic complexity is very high. Consider
+// refactoring it if you touch it.
+// nolint:gocyclo
 func (r *Reconciler) initDefaultUser(cloudSQLClient gcpclients.CloudSQLAPI,
 	instance *databasev1alpha1.CloudsqlInstance, provider *gcpv1alpha1.Provider) error {
 
@@ -316,8 +323,7 @@ func (r *Reconciler) initDefaultUser(cloudSQLClient gcpclients.CloudSQLAPI,
 	}
 
 	// check if the default user has already been initialized
-	connectionSecret, err := r.clientset.CoreV1().Secrets(instance.Namespace).Get(secretName, metav1.GetOptions{})
-	if err == nil {
+	if _, err := r.clientset.CoreV1().Secrets(instance.Namespace).Get(secretName, metav1.GetOptions{}); err == nil {
 		// we already have a password for the default user, we are done
 		return nil
 	}
@@ -371,7 +377,7 @@ func (r *Reconciler) initDefaultUser(cloudSQLClient gcpclients.CloudSQLAPI,
 	}
 
 	// save the user and connection info to a secret
-	connectionSecret = &v1.Secret{
+	connectionSecret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            secretName,
 			Namespace:       instance.Namespace,

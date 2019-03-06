@@ -29,7 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/runtime/scheme"
 )
 
-// GroupVersionKind metadata.
+// Kubernetes Group, Version, and Kind metadata.
 const (
 	Group               = "cache.azure.crossplane.io"
 	Version             = "v1alpha1"

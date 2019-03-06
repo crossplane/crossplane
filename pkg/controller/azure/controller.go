@@ -17,20 +17,23 @@ limitations under the License.
 package azure
 
 import (
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+
 	"github.com/crossplaneio/crossplane/pkg/controller/azure/cache"
 	"github.com/crossplaneio/crossplane/pkg/controller/azure/compute"
 	"github.com/crossplaneio/crossplane/pkg/controller/azure/database"
 	"github.com/crossplaneio/crossplane/pkg/controller/azure/provider"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
 func init() {
 	// AddToManagerFuncs is a list of functions to create controllers and add them to a manager.
-	AddToManagerFuncs = append(AddToManagerFuncs, provider.Add)
-	AddToManagerFuncs = append(AddToManagerFuncs, cache.Add)
-	AddToManagerFuncs = append(AddToManagerFuncs, database.AddMysqlServer)
-	AddToManagerFuncs = append(AddToManagerFuncs, database.AddPostgreSQLServer)
-	AddToManagerFuncs = append(AddToManagerFuncs, compute.AddAKSCluster)
+	AddToManagerFuncs = append(AddToManagerFuncs,
+		provider.Add,
+		cache.Add,
+		database.AddMysqlServer,
+		database.AddPostgreSQLServer,
+		compute.AddAKSCluster,
+	)
 }
 
 // AddToManagerFuncs is a list of functions to add all Controllers to the Manager

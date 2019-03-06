@@ -72,8 +72,9 @@ func NewReplicationGroupID(o metav1.Object) string {
 		16 character hex string, and hope we don't get a collision. ¯\_(ツ)_/¯
 	*/
 
+	// Hashes never error on write.
 	h := fnv.New64a()
-	h.Write([]byte(o.GetUID())) // nolint:gas,gosec
+	h.Write([]byte(o.GetUID())) // nolint:errcheck
 	return fmt.Sprintf("%s-%x", NamePrefix, h.Sum64())
 }
 

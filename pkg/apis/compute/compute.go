@@ -14,12 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package core contains Kubernetes API groups for cloud provider.
+// Package compute contains Kubernetes API groups for cloud compute resources.
 package compute
 
 import (
-	"github.com/crossplaneio/crossplane/pkg/apis/compute/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
+
+	"github.com/crossplaneio/crossplane/pkg/apis/compute/v1alpha1"
 )
 
 func init() {

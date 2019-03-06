@@ -19,12 +19,13 @@ package kubernetes
 import (
 	"fmt"
 
-	awscomputev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/compute/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	awscomputev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/compute/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 )
 
 // AWSClusterHandler AWS EKS handler handles Kubernetes cluster functionality
@@ -37,7 +38,7 @@ func (r *AWSClusterHandler) Find(name types.NamespacedName, c client.Client) (co
 	return instance, err
 }
 
-// provision create new EKSCluster
+// Provision a new EKSCluster
 func (r *AWSClusterHandler) Provision(class *corev1alpha1.ResourceClass, claim corev1alpha1.ResourceClaim, c client.Client) (corev1alpha1.Resource, error) {
 	// construct EKSCluster Spec from class definition
 	resourceInstance := awscomputev1alpha1.NewEKSClusterSpec(class.Parameters)

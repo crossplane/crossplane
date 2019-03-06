@@ -105,7 +105,8 @@ func SecretData(client kubernetes.Interface, namespace string, ks corev1.SecretK
 	return data, nil
 }
 
-// LatestDeploymentCondition
+// LatestDeploymentCondition returns the supplied condition with the latest
+// last update time.
 func LatestDeploymentCondition(conditions []appsv1.DeploymentCondition) appsv1.DeploymentCondition {
 	var latest appsv1.DeploymentCondition
 	for _, c := range conditions {

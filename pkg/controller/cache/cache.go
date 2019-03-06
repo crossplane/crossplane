@@ -17,8 +17,9 @@ limitations under the License.
 package cache
 
 import (
-	"github.com/crossplaneio/crossplane/pkg/controller/cache/redis"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+
+	"github.com/crossplaneio/crossplane/pkg/controller/cache/redis"
 )
 
 func init() {

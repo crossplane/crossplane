@@ -22,9 +22,6 @@ import (
 	"log"
 	"net/url"
 
-	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/compute/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/util"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -41,6 +38,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/compute/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 const (
@@ -154,12 +155,12 @@ func (r *Reconciler) _connect(instance *computev1alpha1.Workload) (kubernetes.In
 	}
 
 	// read the individual connection config fields
-	user, _ := s.Data[corev1alpha1.ResourceCredentialsSecretUserKey]
-	pass, _ := s.Data[corev1alpha1.ResourceCredentialsSecretPasswordKey]
-	ca, _ := s.Data[corev1alpha1.ResourceCredentialsSecretCAKey]
-	cert, _ := s.Data[corev1alpha1.ResourceCredentialsSecretClientCertKey]
-	key, _ := s.Data[corev1alpha1.ResourceCredentialsSecretClientKeyKey]
-	token, _ := s.Data[corev1alpha1.ResourceCredentialsTokenKey]
+	user := s.Data[corev1alpha1.ResourceCredentialsSecretUserKey]
+	pass := s.Data[corev1alpha1.ResourceCredentialsSecretPasswordKey]
+	ca := s.Data[corev1alpha1.ResourceCredentialsSecretCAKey]
+	cert := s.Data[corev1alpha1.ResourceCredentialsSecretClientCertKey]
+	key := s.Data[corev1alpha1.ResourceCredentialsSecretClientKeyKey]
+	token := s.Data[corev1alpha1.ResourceCredentialsTokenKey]
 	host, ok := s.Data[corev1alpha1.ResourceCredentialsSecretEndpointKey]
 	if !ok {
 		return nil, fmt.Errorf("kubernetes cluster endpoint/host is not found")

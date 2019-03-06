@@ -17,9 +17,10 @@ limitations under the License.
 package v1alpha1
 
 import (
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 )
 
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
@@ -35,7 +36,7 @@ type ProviderSpec struct {
 	Secret corev1.SecretKeySelector `json:"credentialsSecretRef"`
 }
 
-// ProviderStatus
+// ProviderStatus represents the status of an AWS Provider.
 type ProviderStatus struct {
 	corev1alpha1.ConditionedStatus
 }

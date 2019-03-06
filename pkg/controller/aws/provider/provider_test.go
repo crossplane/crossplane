@@ -21,19 +21,21 @@ import (
 	"strings"
 	"testing"
 
-	. "github.com/crossplaneio/crossplane/pkg/apis/aws/v1alpha1"
 	. "github.com/onsi/gomega"
 	. "k8s.io/client-go/kubernetes/fake"
 	. "sigs.k8s.io/controller-runtime/pkg/client/fake"
 
+	. "github.com/crossplaneio/crossplane/pkg/apis/aws/v1alpha1"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
-	apisaws "github.com/crossplaneio/crossplane/pkg/apis/aws"
-	awsv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	apisaws "github.com/crossplaneio/crossplane/pkg/apis/aws"
+	awsv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/v1alpha1"
 )
 
 const (

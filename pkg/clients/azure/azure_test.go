@@ -21,11 +21,12 @@ import (
 	"testing"
 
 	"github.com/Azure/go-autorest/autorest"
-	"github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
 	"github.com/onsi/gomega"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
+
+	"github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
 )
 
 const (

@@ -21,6 +21,8 @@ limitations under the License.
 package apis
 
 import (
+	"k8s.io/apimachinery/pkg/runtime"
+
 	"github.com/crossplaneio/crossplane/pkg/apis/aws"
 	"github.com/crossplaneio/crossplane/pkg/apis/azure"
 	"github.com/crossplaneio/crossplane/pkg/apis/cache"
@@ -28,18 +30,19 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/apis/core"
 	"github.com/crossplaneio/crossplane/pkg/apis/gcp"
 	"github.com/crossplaneio/crossplane/pkg/apis/storage"
-	"k8s.io/apimachinery/pkg/runtime"
 )
 
 func init() {
 	// Register the types with the Scheme so the components can map objects to GroupVersionKinds and back
-	AddToSchemes = append(AddToSchemes, aws.AddToScheme)
-	AddToSchemes = append(AddToSchemes, azure.AddToScheme)
-	AddToSchemes = append(AddToSchemes, cache.AddToScheme)
-	AddToSchemes = append(AddToSchemes, compute.AddToScheme)
-	AddToSchemes = append(AddToSchemes, core.AddToScheme)
-	AddToSchemes = append(AddToSchemes, gcp.AddToScheme)
-	AddToSchemes = append(AddToSchemes, storage.AddToScheme)
+	AddToSchemes = append(AddToSchemes,
+		aws.AddToScheme,
+		azure.AddToScheme,
+		cache.AddToScheme,
+		compute.AddToScheme,
+		core.AddToScheme,
+		gcp.AddToScheme,
+		storage.AddToScheme,
+	)
 }
 
 // AddToSchemes may be used to add all resources defined in the project to a Scheme

@@ -18,8 +18,9 @@ limitations under the License.
 package cache
 
 import (
-	"github.com/crossplaneio/crossplane/pkg/apis/cache/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
+
+	"github.com/crossplaneio/crossplane/pkg/apis/cache/v1alpha1"
 )
 
 func init() {

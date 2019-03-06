@@ -21,8 +21,6 @@ import (
 	"fmt"
 	"log"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,12 +31,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 const (
-	errorResourceClassNotDefined     = "Resource class is not provided"
 	errorResourceProvisioning        = "Failed to provision new resource"
-	errorResourceHandlerIsNotFound   = "Resource handler is not found"
 	errorRetrievingHandler           = "Failed to retrieve handler"
 	errorRetrievingResourceClass     = "Failed to retrieve resource class"
 	errorRetrievingResource          = "Failed to retrieve resource"
@@ -49,11 +48,13 @@ const (
 	waitResourceIsNotAvailable       = "Waiting for resource to become available"
 )
 
+// Commonly used reconciliation results.
 var (
 	Result        = reconcile.Result{}
 	ResultRequeue = reconcile.Result{Requeue: true}
-	ctx           = context.Background()
 )
+
+var ctx = context.Background()
 
 // ResourceHandler defines resource handing functions
 type ResourceHandler interface {

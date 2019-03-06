@@ -27,6 +27,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/eks"
 	"github.com/aws/aws-sdk-go-v2/service/eks/eksiface"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
+
 	awscomputev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/compute/v1alpha1"
 	cfc "github.com/crossplaneio/crossplane/pkg/clients/aws/cloudformation"
 )
@@ -34,7 +35,7 @@ import (
 const (
 	clusterIDHeader                = "x-k8s-aws-id"
 	v1Prefix                       = "k8s-aws-v1."
-	CloudFormationNodeInstanceRole = "NodeInstanceRole"
+	cloudFormationNodeInstanceRole = "NodeInstanceRole"
 )
 
 // Cluster crossplane representation of the AWS EKS Cluster
@@ -91,8 +92,7 @@ type Client interface {
 	ConnectionToken(string) (string, error)
 }
 
-// EKSClient crossplane eks client
-type EKSClient struct {
+type eksClient struct {
 	eks            eksiface.EKSAPI
 	sts            *sts.STS
 	cloudformation cfc.Client
@@ -100,11 +100,11 @@ type EKSClient struct {
 
 // NewClient return new instance of the crossplane client for a specific AWS configuration
 func NewClient(config *aws.Config) Client {
-	return &EKSClient{eks.New(*config), sts.New(*config), cfc.NewClient(config)}
+	return &eksClient{eks.New(*config), sts.New(*config), cfc.NewClient(config)}
 }
 
 // Create new EKS cluster
-func (e *EKSClient) Create(name string, spec awscomputev1alpha1.EKSClusterSpec) (*Cluster, error) {
+func (e *eksClient) Create(name string, spec awscomputev1alpha1.EKSClusterSpec) (*Cluster, error) {
 	input := &eks.CreateClusterInput{
 		Name:    aws.String(name),
 		RoleArn: aws.String(spec.RoleARN),
@@ -125,7 +125,7 @@ func (e *EKSClient) Create(name string, spec awscomputev1alpha1.EKSClusterSpec) 
 }
 
 // CreateWorkerNodes new EKS cluster workers nodes
-func (e *EKSClient) CreateWorkerNodes(name string, spec awscomputev1alpha1.EKSClusterSpec) (*ClusterWorkers, error) {
+func (e *eksClient) CreateWorkerNodes(name string, spec awscomputev1alpha1.EKSClusterSpec) (*ClusterWorkers, error) {
 	// Cloud formation create workers
 	nodeImageID := spec.WorkerNodes.NodeImageID
 	if nodeImageID == "" {
@@ -172,7 +172,7 @@ func (e *EKSClient) CreateWorkerNodes(name string, spec awscomputev1alpha1.EKSCl
 }
 
 // Get an existing EKS cluster
-func (e *EKSClient) Get(name string) (*Cluster, error) {
+func (e *eksClient) Get(name string) (*Cluster, error) {
 	input := &eks.DescribeClusterInput{Name: aws.String(name)}
 	output, err := e.eks.DescribeClusterRequest(input).Send()
 	if err != nil {
@@ -183,7 +183,7 @@ func (e *EKSClient) Get(name string) (*Cluster, error) {
 }
 
 // GetWorkerNodes information about existing cloud formation stack
-func (e *EKSClient) GetWorkerNodes(stackID string) (*ClusterWorkers, error) {
+func (e *eksClient) GetWorkerNodes(stackID string) (*ClusterWorkers, error) {
 	stack, err := e.cloudformation.GetStack(&stackID)
 	if err != nil {
 		return nil, err
@@ -192,7 +192,7 @@ func (e *EKSClient) GetWorkerNodes(stackID string) (*ClusterWorkers, error) {
 	nodeARN := ""
 	if stack.Outputs != nil {
 		for _, item := range stack.Outputs {
-			if aws.StringValue(item.OutputKey) == CloudFormationNodeInstanceRole {
+			if aws.StringValue(item.OutputKey) == cloudFormationNodeInstanceRole {
 				nodeARN = aws.StringValue(item.OutputValue)
 				break
 			}
@@ -203,19 +203,19 @@ func (e *EKSClient) GetWorkerNodes(stackID string) (*ClusterWorkers, error) {
 }
 
 // Delete a EKS cluster
-func (e *EKSClient) Delete(name string) error {
+func (e *eksClient) Delete(name string) error {
 	input := &eks.DeleteClusterInput{Name: aws.String(name)}
 	_, err := e.eks.DeleteClusterRequest(input).Send()
 	return err
 }
 
 // DeleteWorkerNodes deletes the cloud formation for this stack.
-func (e *EKSClient) DeleteWorkerNodes(stackID string) error {
+func (e *eksClient) DeleteWorkerNodes(stackID string) error {
 	return e.cloudformation.DeleteStack(&stackID)
 }
 
 // ConnectionToken to a cluster
-func (e *EKSClient) ConnectionToken(name string) (string, error) {
+func (e *eksClient) ConnectionToken(name string) (string, error) {
 	request := e.sts.GetCallerIdentityRequest(&sts.GetCallerIdentityInput{})
 	request.HTTPRequest.Header.Add(clusterIDHeader, name)
 

@@ -44,26 +44,19 @@ import (
 )
 
 const (
-	namespace   = "coolNamespace"
-	name        = "coolGroup"
-	uid         = types.UID("definitely-a-uuid")
-	id          = elasticacheclient.NamePrefix + "-efdd8494195d7940" // FNV-64a hash of uid
-	description = "Crossplane managed " + v1alpha1.ReplicationGroupKindAPIVersion + " " + namespace + "/" + name
+	namespace = "coolNamespace"
+	name      = "coolGroup"
+	uid       = types.UID("definitely-a-uuid")
+	id        = elasticacheclient.NamePrefix + "-efdd8494195d7940" // FNV-64a hash of uid
 
 	cacheNodeType            = "n1.super.cool"
-	atRestEncryptionEnabled  = true
 	authToken                = "coolToken"
 	autoFailoverEnabled      = true
 	cacheParameterGroupName  = "coolParamGroup"
-	cacheSubnetGroupName     = "coolSubnet"
 	engineVersion            = "5.0.0"
-	numCacheClusters         = 2
-	numNodeGroups            = 2
 	port                     = 6379
 	host                     = "172.16.0.1"
 	maintenanceWindow        = "tomorrow"
-	replicasPerNodeGroup     = 2
-	snapshotName             = "coolSnapshot"
 	snapshotRetentionLimit   = 1
 	snapshotWindow           = "thedayaftertomorrow"
 	transitEncryptionEnabled = true
@@ -127,10 +120,6 @@ func withGroupName(n string) replicationGroupModifier {
 	return func(r *v1alpha1.ReplicationGroup) { r.Status.GroupName = n }
 }
 
-func withProviderID(id string) replicationGroupModifier {
-	return func(r *v1alpha1.ReplicationGroup) { r.Status.ProviderID = id }
-}
-
 func withEndpoint(e string) replicationGroupModifier {
 	return func(r *v1alpha1.ReplicationGroup) { r.Status.Endpoint = e }
 }
@@ -145,10 +134,6 @@ func withDeletionTimestamp(t time.Time) replicationGroupModifier {
 
 func withAuth() replicationGroupModifier {
 	return func(r *v1alpha1.ReplicationGroup) { r.Spec.AuthEnabled = true }
-}
-
-func withClusterEnabled() replicationGroupModifier {
-	return func(r *v1alpha1.ReplicationGroup) { r.Status.ClusterEnabled = true }
 }
 
 func withMemberClusters(members []string) replicationGroupModifier {
@@ -1130,7 +1115,7 @@ func TestReconcile(t *testing.T) {
 						return nil
 					},
 					MockUpdate: func(_ context.Context, obj runtime.Object) error {
-						switch obj.(type) {
+						switch got := obj.(type) {
 						case *corev1.Secret:
 							return errorBoom
 						case *v1alpha1.ReplicationGroup:
@@ -1144,7 +1129,6 @@ func TestReconcile(t *testing.T) {
 										Message: errors.Wrapf(errorBoom, "cannot update secret %s/%s", namespace, connectionSecretName).Error(),
 									},
 								))
-							got := obj.(*v1alpha1.ReplicationGroup)
 							if diff := deep.Equal(want, got); diff != nil {
 								t.Errorf("kube.Update(...): want != got:\n%s", diff)
 							}

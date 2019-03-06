@@ -29,29 +29,15 @@ import (
 )
 
 const (
-	namespace         = "cool-namespace"
-	uid               = types.UID("definitely-a-uuid")
-	resourceName      = NamePrefix + "-" + string(uid)
-	resourceGroupName = "coolgroup"
-	location          = "coolplace"
-	subscription      = "totally-a-uuid"
-	qualifiedName     = "/subscriptions/" + subscription + "/resourceGroups/" + resourceGroupName + "/providers/Microsoft.Cache/Redis/" + resourceName
-	host              = "172.16.0.1"
-	port              = 6379
-	enableNonSSLPort  = true
-	subnetID          = "coolsubnet"
-	staticIP          = "172.16.0.1"
-	shardCount        = 3
-	skuName           = v1alpha1.SKUNameBasic
-	skuFamily         = v1alpha1.SKUFamilyC
-	skuCapacity       = 1
-
-	providerName       = "cool-azure"
-	providerSecretName = "cool-azure-secret"
-	providerSecretKey  = "credentials"
-	providerSecretData = "definitelyjson"
-
-	connectionSecretName = "cool-connection-secret"
+	uid              = types.UID("definitely-a-uuid")
+	resourceName     = NamePrefix + "-" + string(uid)
+	enableNonSSLPort = true
+	subnetID         = "coolsubnet"
+	staticIP         = "172.16.0.1"
+	shardCount       = 3
+	skuName          = v1alpha1.SKUNameBasic
+	skuFamily        = v1alpha1.SKUFamilyC
+	skuCapacity      = 1
 )
 
 var redisConfiguration = map[string]string{"cool": "socool"}

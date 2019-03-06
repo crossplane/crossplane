@@ -22,12 +22,6 @@ import (
 	"fmt"
 	"log"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	gcpcomputev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/compute/v1alpha1"
-	gcpv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/clients/gcp"
-	"github.com/crossplaneio/crossplane/pkg/clients/gcp/gke"
-	"github.com/crossplaneio/crossplane/pkg/util"
 	"google.golang.org/api/container/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -41,6 +35,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	gcpcomputev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/compute/v1alpha1"
+	gcpv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/clients/gcp"
+	"github.com/crossplaneio/crossplane/pkg/clients/gcp/gke"
+	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 const (
@@ -127,21 +128,24 @@ func (r *Reconciler) connectionSecret(instance *gcpcomputev1alpha1.GKECluster, c
 	data[corev1alpha1.ResourceCredentialsSecretUserKey] = []byte(cluster.MasterAuth.Username)
 	data[corev1alpha1.ResourceCredentialsSecretPasswordKey] = []byte(cluster.MasterAuth.Password)
 
-	if val, err := base64.StdEncoding.DecodeString(cluster.MasterAuth.ClusterCaCertificate); err != nil {
+	val, err := base64.StdEncoding.DecodeString(cluster.MasterAuth.ClusterCaCertificate)
+	if err != nil {
 		return nil, err
-	} else {
-		data[corev1alpha1.ResourceCredentialsSecretCAKey] = val
 	}
-	if val, err := base64.StdEncoding.DecodeString(cluster.MasterAuth.ClientCertificate); err != nil {
+	data[corev1alpha1.ResourceCredentialsSecretCAKey] = val
+
+	val, err = base64.StdEncoding.DecodeString(cluster.MasterAuth.ClientCertificate)
+	if err != nil {
 		return nil, err
-	} else {
-		data[corev1alpha1.ResourceCredentialsSecretClientCertKey] = val
 	}
-	if val, err := base64.StdEncoding.DecodeString(cluster.MasterAuth.ClientKey); err != nil {
+	data[corev1alpha1.ResourceCredentialsSecretClientCertKey] = val
+
+	val, err = base64.StdEncoding.DecodeString(cluster.MasterAuth.ClientKey)
+	if err != nil {
 		return nil, err
-	} else {
-		data[corev1alpha1.ResourceCredentialsSecretClientKeyKey] = val
 	}
+	data[corev1alpha1.ResourceCredentialsSecretClientKeyKey] = val
+
 	secret.Data = data
 
 	return secret, nil

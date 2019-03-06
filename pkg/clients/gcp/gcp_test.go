@@ -17,6 +17,7 @@ limitations under the License.
 package gcp
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -24,6 +25,7 @@ import (
 	"testing"
 
 	. "github.com/onsi/gomega"
+	"golang.org/x/oauth2/google"
 )
 
 func TestCredentialsFromFile(t *testing.T) {
@@ -64,7 +66,7 @@ func TestCredentialsFromFile(t *testing.T) {
 
 	testScope := "https://www.googleapis.com/auth/test-scope"
 
-	creds, err := CredentialsFromFile(tmpfile.Name(), []string{testScope}...)
+	creds, err := credentialsFromFile(tmpfile.Name(), []string{testScope}...)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(creds).NotTo(BeNil())
 	g.Expect(creds.ProjectID).To(Equal(projectID))
@@ -75,7 +77,7 @@ func TestCredentialsFromFileError(t *testing.T) {
 
 	testScope := "https://www.googleapis.com/auth/test-scope"
 
-	creds, err := CredentialsFromFile("file", []string{testScope}...)
+	creds, err := credentialsFromFile("file", []string{testScope}...)
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(creds).To(BeNil())
 }
@@ -88,4 +90,13 @@ func TestMissingPermissions(t *testing.T) {
 	g.Expect(getMissingPermissions([]string{"a", "a"}, []string{})).To(Equal([]string{"a", "a"}))
 	g.Expect(getMissingPermissions([]string{"a", "a"}, []string{"a"})).To(BeNil())
 	g.Expect(getMissingPermissions([]string{"a", "b"}, []string{"a"})).To(Equal([]string{"b"}))
+}
+
+func credentialsFromFile(file string, scopes ...string) (*google.Credentials, error) {
+	data, err := ioutil.ReadFile(file)
+	if err != nil {
+		return nil, err
+	}
+
+	return google.CredentialsFromJSON(context.Background(), data, scopes...)
 }

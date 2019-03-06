@@ -133,10 +133,6 @@ func withSSLPort(p int) resourceModifier {
 	return func(r *v1alpha1.Redis) { r.Status.SSLPort = p }
 }
 
-func withRedisVersion(v string) resourceModifier {
-	return func(r *v1alpha1.Redis) { r.Status.RedisVersion = v }
-}
-
 func withDeletionTimestamp(t time.Time) resourceModifier {
 	return func(r *v1alpha1.Redis) { r.ObjectMeta.DeletionTimestamp = &metav1.Time{Time: t} }
 }
@@ -984,7 +980,7 @@ func TestReconcile(t *testing.T) {
 						return nil
 					},
 					MockUpdate: func(_ context.Context, obj runtime.Object) error {
-						switch obj.(type) {
+						switch got := obj.(type) {
 						case *corev1.Secret:
 							return errorBoom
 						case *v1alpha1.Redis:
@@ -998,7 +994,6 @@ func TestReconcile(t *testing.T) {
 										Message: errors.Wrapf(errorBoom, "cannot update secret %s/%s", namespace, connectionSecretName).Error(),
 									},
 								))
-							got := obj.(*v1alpha1.Redis)
 							if diff := deep.Equal(want, got); diff != nil {
 								t.Errorf("kube.Update(...): want != got:\n%s", diff)
 							}

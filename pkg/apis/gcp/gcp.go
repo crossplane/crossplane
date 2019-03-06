@@ -18,19 +18,22 @@ limitations under the License.
 package gcp
 
 import (
+	"k8s.io/apimachinery/pkg/runtime"
+
 	cachev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/cache/v1alpha1"
 	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/compute/v1alpha1"
 	databasev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/database/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/apis/gcp/v1alpha1"
-	"k8s.io/apimachinery/pkg/runtime"
 )
 
 func init() {
 	// Register the types with the Scheme so the components can map objects to GroupVersionKinds and back
-	AddToSchemes = append(AddToSchemes, v1alpha1.SchemeBuilder.AddToScheme)
-	AddToSchemes = append(AddToSchemes, cachev1alpha1.SchemeBuilder.AddToScheme)
-	AddToSchemes = append(AddToSchemes, computev1alpha1.SchemeBuilder.AddToScheme)
-	AddToSchemes = append(AddToSchemes, databasev1alpha1.SchemeBuilder.AddToScheme)
+	AddToSchemes = append(AddToSchemes,
+		v1alpha1.SchemeBuilder.AddToScheme,
+		cachev1alpha1.SchemeBuilder.AddToScheme,
+		computev1alpha1.SchemeBuilder.AddToScheme,
+		databasev1alpha1.SchemeBuilder.AddToScheme,
+	)
 }
 
 // AddToSchemes may be used to add all resources defined in the project to a Scheme

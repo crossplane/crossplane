@@ -21,13 +21,14 @@ import (
 	"reflect"
 	"strings"
 
-	awsdbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/database/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	storagev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	awsdbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/database/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	storagev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
 )
 
 // RDSInstanceHandler handles RDS Instance functionality
@@ -97,15 +98,15 @@ func (h RDSInstanceHandler) SetBindStatus(name types.NamespacedName, c client.Cl
 func resolveAWSClassInstanceValues(rdsInstanceSpec *awsdbv1alpha1.RDSInstanceSpec, claim corev1alpha1.ResourceClaim) error {
 	var engineVersion string
 
-	switch claim.(type) {
+	switch claim := claim.(type) {
 	case *storagev1alpha1.MySQLInstance:
 		// translate mysql spec fields to RDSInstance spec
 		rdsInstanceSpec.Engine = awsdbv1alpha1.MysqlEngine
-		engineVersion = claim.(*storagev1alpha1.MySQLInstance).Spec.EngineVersion
+		engineVersion = claim.Spec.EngineVersion
 	case *storagev1alpha1.PostgreSQLInstance:
 		// translate postgres spec fields to RDSInstance spec
 		rdsInstanceSpec.Engine = awsdbv1alpha1.PostgresqlEngine
-		engineVersion = claim.(*storagev1alpha1.PostgreSQLInstance).Spec.EngineVersion
+		engineVersion = claim.Spec.EngineVersion
 	default:
 		return fmt.Errorf("unexpected claim type: %+v", reflect.TypeOf(claim))
 	}

@@ -23,15 +23,8 @@ import (
 	"log"
 	"strings"
 
-	awscomputev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/compute/v1alpha1"
-	awsv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	awsClient "github.com/crossplaneio/crossplane/pkg/clients/aws"
-	cloudformationclient "github.com/crossplaneio/crossplane/pkg/clients/aws/cloudformation"
-	"github.com/crossplaneio/crossplane/pkg/clients/aws/eks"
-	"github.com/crossplaneio/crossplane/pkg/util"
 	"github.com/ghodss/yaml"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -46,6 +39,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	awscomputev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/compute/v1alpha1"
+	awsv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	awsClient "github.com/crossplaneio/crossplane/pkg/clients/aws"
+	cloudformationclient "github.com/crossplaneio/crossplane/pkg/clients/aws/cloudformation"
+	"github.com/crossplaneio/crossplane/pkg/clients/aws/eks"
+	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 const (
@@ -195,10 +196,9 @@ func generateAWSAuthConfigMap(instance *awscomputev1alpha1.EKSCluster, workerARN
 
 	// Serialize mapRoles
 	roles := make([]awscomputev1alpha1.MapRole, len(instance.Spec.MapRoles))
-	for i, role := range instance.Spec.MapRoles {
-		roles[i] = role
-	}
+	copy(roles, instance.Spec.MapRoles)
 	roles = append(roles, defaultRole)
+
 	rolesMarshalled, err := yaml.Marshal(roles)
 	if err != nil {
 		return nil, err
@@ -231,6 +231,9 @@ func generateAWSAuthConfigMap(instance *awscomputev1alpha1.EKSCluster, workerARN
 // _awsauth generates an aws-auth configmap and pushes it to the remote eks cluster to configure auth
 func (r *Reconciler) _awsauth(cluster *eks.Cluster, instance *awscomputev1alpha1.EKSCluster, client eks.Client, workerARN string) error {
 	cm, err := generateAWSAuthConfigMap(instance, workerARN)
+	if err != nil {
+		return err
+	}
 
 	// Sync aws-auth to remote eks cluster to configure it's auth.
 	token, err := client.ConnectionToken(instance.Status.ClusterName)

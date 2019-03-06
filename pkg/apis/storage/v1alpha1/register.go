@@ -29,6 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/runtime/scheme"
 )
 
+// Kubernetes Group, Version, and Kind metadata.
 const (
 	Group                            = "storage.crossplane.io"
 	Version                          = "v1alpha1"
@@ -38,7 +39,7 @@ const (
 	PostgreSQLInstanceKind           = "postgresqlinstance"
 	PostgreSQLInstanceKindAPIVersion = PostgreSQLInstanceKind + "." + APIVersion
 	BucketKind                       = "bucket"
-	BucketKindApiVersion             = BucketKind + "." + APIVersion
+	BucketKindAPIVersion             = BucketKind + "." + APIVersion
 )
 
 var (

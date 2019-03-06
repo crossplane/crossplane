@@ -17,11 +17,12 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"github.com/crossplaneio/crossplane/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
+
+	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 const (
@@ -170,7 +171,6 @@ type BasicResource struct {
 
 	connectionSecretName string
 	endpoint             string
-	namespace            string
 	state                string
 	phase                BindingStatusPhase
 	objectReference      *corev1.ObjectReference
@@ -186,15 +186,18 @@ func (br *BasicResource) ObjectReference() *corev1.ObjectReference {
 	return br.objectReference
 }
 
-// IsAvailable
+// IsAvailable returns true if this resource is available.
 func (br *BasicResource) IsAvailable() bool {
 	return br.state == "available"
 }
 
+// IsBound returns true if this resource is currently bound to a resource claim.
 func (br *BasicResource) IsBound() bool {
 	return br.phase.IsBound()
 }
 
+// SetBound specifies whether this resource is currently bound to a resource
+// claim.
 func (br *BasicResource) SetBound(bound bool) {
 	br.phase.SetBound(bound)
 }

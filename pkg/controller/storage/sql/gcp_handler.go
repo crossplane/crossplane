@@ -21,14 +21,15 @@ import (
 	"reflect"
 	"strings"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	gcpdbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/database/v1alpha1"
-	storagev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
-	corecontroller "github.com/crossplaneio/crossplane/pkg/controller/core"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	gcpdbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/database/v1alpha1"
+	storagev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
+	corecontroller "github.com/crossplaneio/crossplane/pkg/controller/core"
 )
 
 // CloudSQLServerHandler is a dynamic provisioning handler for CloudSQL resource
@@ -107,12 +108,12 @@ func resolveGCPClassInstanceValues(cloudsqlInstanceSpec *gcpdbv1alpha1.CloudsqlI
 	var engineVersion string
 	var versionPrefix string
 
-	switch claim.(type) {
+	switch claim := claim.(type) {
 	case *storagev1alpha1.MySQLInstance:
-		engineVersion = claim.(*storagev1alpha1.MySQLInstance).Spec.EngineVersion
+		engineVersion = claim.Spec.EngineVersion
 		versionPrefix = gcpdbv1alpha1.MysqlDBVersionPrefix
 	case *storagev1alpha1.PostgreSQLInstance:
-		engineVersion = claim.(*storagev1alpha1.PostgreSQLInstance).Spec.EngineVersion
+		engineVersion = claim.Spec.EngineVersion
 		versionPrefix = gcpdbv1alpha1.PostgresqlDBVersionPrefix
 	default:
 		return fmt.Errorf("unexpected claim type: %+v", reflect.TypeOf(claim))

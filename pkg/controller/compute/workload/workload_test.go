@@ -21,9 +21,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/crossplaneio/crossplane/pkg/apis/compute"
-	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/compute/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -38,6 +35,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	"github.com/crossplaneio/crossplane/pkg/apis/compute"
+	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/compute/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 )
 
 const (
@@ -131,7 +132,7 @@ func TestReconcileNotScheduled(t *testing.T) {
 	rs, err := r.Reconcile(request)
 	g.Expect(err).ShouldNot(HaveOccurred())
 	g.Expect(rs).Should(Equal(resultDone))
-	g.Expect(r.Get(nil, key, w)).ShouldNot(HaveOccurred())
+	g.Expect(r.Get(ctx, key, w)).ShouldNot(HaveOccurred())
 	g.Expect(w.Status.ConditionedStatus).Should(corev1alpha1.MatchConditionedStatus(expCondition))
 }
 
@@ -152,7 +153,7 @@ func TestReconcileClientError(t *testing.T) {
 	rs, err := r.Reconcile(request)
 	g.Expect(err).ShouldNot(HaveOccurred())
 	g.Expect(rs).Should(Equal(resultRequeue))
-	g.Expect(r.Get(nil, key, w)).ShouldNot(HaveOccurred())
+	g.Expect(r.Get(ctx, key, w)).ShouldNot(HaveOccurred())
 	g.Expect(w.Status.ConditionedStatus).Should(corev1alpha1.MatchConditionedStatus(expCondition))
 }
 
@@ -265,8 +266,8 @@ func TestConnectNoClusterSecretHostValue(t *testing.T) {
 		Client:     fake.NewFakeClient(w),
 		kubeclient: NewSimpleClientset(s),
 	}
-	g.Expect(r.Client.Create(nil, c)).ShouldNot(HaveOccurred())
-	g.Expect(r.Client.Get(nil, key, c)).ShouldNot(HaveOccurred())
+	g.Expect(r.Client.Create(ctx, c)).ShouldNot(HaveOccurred())
+	g.Expect(r.Client.Get(ctx, key, c)).ShouldNot(HaveOccurred())
 	w.Status.Cluster = c.ObjectReference()
 
 	_, err := r._connect(w)
@@ -287,8 +288,8 @@ func TestConnectInvalidSecretHostValue(t *testing.T) {
 		Client:     fake.NewFakeClient(w),
 		kubeclient: NewSimpleClientset(s),
 	}
-	g.Expect(r.Client.Create(nil, c)).ShouldNot(HaveOccurred())
-	g.Expect(r.Client.Get(nil, key, c)).ShouldNot(HaveOccurred())
+	g.Expect(r.Client.Create(ctx, c)).ShouldNot(HaveOccurred())
+	g.Expect(r.Client.Get(ctx, key, c)).ShouldNot(HaveOccurred())
 	w.Status.Cluster = c.ObjectReference()
 
 	_, err := r._connect(w)
@@ -309,8 +310,8 @@ func TestConnect(t *testing.T) {
 		Client:     fake.NewFakeClient(w),
 		kubeclient: NewSimpleClientset(s),
 	}
-	g.Expect(r.Client.Create(nil, c)).ShouldNot(HaveOccurred())
-	g.Expect(r.Client.Get(nil, key, c)).ShouldNot(HaveOccurred())
+	g.Expect(r.Client.Create(ctx, c)).ShouldNot(HaveOccurred())
+	g.Expect(r.Client.Get(ctx, key, c)).ShouldNot(HaveOccurred())
 	w.Status.Cluster = c.ObjectReference()
 
 	k, err := r._connect(w)
@@ -322,7 +323,7 @@ func Test_addWorkloadReferenceLabel(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	// test workload with test testUid value
-	testUid := "test-testUid"
+	testUID := "test-testUid"
 
 	type args struct {
 		m   *metav1.ObjectMeta
@@ -332,10 +333,10 @@ func Test_addWorkloadReferenceLabel(t *testing.T) {
 		name string
 		args args
 	}{
-		{"Nil labels", args{&metav1.ObjectMeta{}, testUid}},
-		{"Empty labels", args{&metav1.ObjectMeta{Labels: make(map[string]string)}, testUid}},
-		{"Label added", args{&metav1.ObjectMeta{Labels: map[string]string{"foo": "bar"}}, testUid}},
-		{"Label updated", args{&metav1.ObjectMeta{Labels: map[string]string{workloadReferenceLabelKey: "foo-bar"}}, testUid}},
+		{"Nil labels", args{&metav1.ObjectMeta{}, testUID}},
+		{"Empty labels", args{&metav1.ObjectMeta{Labels: make(map[string]string)}, testUID}},
+		{"Label added", args{&metav1.ObjectMeta{Labels: map[string]string{"foo": "bar"}}, testUID}},
+		{"Label updated", args{&metav1.ObjectMeta{Labels: map[string]string{workloadReferenceLabelKey: "foo-bar"}}, testUID}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
