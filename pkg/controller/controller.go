@@ -29,12 +29,14 @@ import (
 
 func init() {
 	// AddToManagerFuncs is a list of functions to create controllers and add them to a manager.
-	AddToManagerFuncs = append(AddToManagerFuncs, aws.AddToManager)
-	AddToManagerFuncs = append(AddToManagerFuncs, azure.AddToManager)
-	AddToManagerFuncs = append(AddToManagerFuncs, cache.AddToManager)
-	AddToManagerFuncs = append(AddToManagerFuncs, compute.AddToManager)
-	AddToManagerFuncs = append(AddToManagerFuncs, gcp.AddToManager)
-	AddToManagerFuncs = append(AddToManagerFuncs, storage.AddToManager)
+	AddToManagerFuncs = append(AddToManagerFuncs,
+		aws.AddToManager,
+		azure.AddToManager,
+		cache.AddToManager,
+		compute.AddToManager,
+		gcp.AddToManager,
+		storage.AddToManager,
+	)
 }
 
 // AddToManagerFuncs is a list of functions to add all Controllers to the Manager

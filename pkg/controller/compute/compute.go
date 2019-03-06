@@ -25,9 +25,11 @@ import (
 )
 
 func init() {
-	AddToManagerFuncs = append(AddToManagerFuncs, kubernetes.Add)
-	AddToManagerFuncs = append(AddToManagerFuncs, scheduler.Add)
-	AddToManagerFuncs = append(AddToManagerFuncs, workload.Add)
+	AddToManagerFuncs = append(AddToManagerFuncs,
+		kubernetes.Add,
+		scheduler.Add,
+		workload.Add,
+	)
 }
 
 // AddToManagerFuncs is a list of functions to add all Controllers to the Manager

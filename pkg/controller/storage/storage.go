@@ -24,9 +24,11 @@ import (
 )
 
 func init() {
-	AddToManagerFuncs = append(AddToManagerFuncs, bucket.Add)
-	AddToManagerFuncs = append(AddToManagerFuncs, sql.AddMySQL)
-	AddToManagerFuncs = append(AddToManagerFuncs, sql.AddPostgreSQL)
+	AddToManagerFuncs = append(AddToManagerFuncs,
+		bucket.Add,
+		sql.AddMySQL,
+		sql.AddPostgreSQL,
+	)
 }
 
 // AddToManagerFuncs is a list of functions to add all Controllers to the Manager

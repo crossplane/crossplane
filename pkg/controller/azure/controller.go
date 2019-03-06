@@ -27,11 +27,13 @@ import (
 
 func init() {
 	// AddToManagerFuncs is a list of functions to create controllers and add them to a manager.
-	AddToManagerFuncs = append(AddToManagerFuncs, provider.Add)
-	AddToManagerFuncs = append(AddToManagerFuncs, cache.Add)
-	AddToManagerFuncs = append(AddToManagerFuncs, database.AddMysqlServer)
-	AddToManagerFuncs = append(AddToManagerFuncs, database.AddPostgreSQLServer)
-	AddToManagerFuncs = append(AddToManagerFuncs, compute.AddAKSCluster)
+	AddToManagerFuncs = append(AddToManagerFuncs,
+		provider.Add,
+		cache.Add,
+		database.AddMysqlServer,
+		database.AddPostgreSQLServer,
+		compute.AddAKSCluster,
+	)
 }
 
 // AddToManagerFuncs is a list of functions to add all Controllers to the Manager

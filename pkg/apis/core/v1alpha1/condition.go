@@ -107,7 +107,7 @@ func (c *ConditionedStatus) SetCondition(condition Condition) {
 		return
 	}
 	newConditions := FilterOutCondition(c.Conditions, condition.Type)
-	newConditions := append(newConditions, condition)
+	newConditions = append(newConditions, condition)
 	c.Conditions = newConditions
 }
 

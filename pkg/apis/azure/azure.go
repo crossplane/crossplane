@@ -28,10 +28,12 @@ import (
 
 func init() {
 	// Register the types with the Scheme so the components can map objects to GroupVersionKinds and back
-	AddToSchemes = append(AddToSchemes, azure.SchemeBuilder.AddToScheme)
-	AddToSchemes = append(AddToSchemes, cachev1alpha1.SchemeBuilder.AddToScheme)
-	AddToSchemes = append(AddToSchemes, databasev1alpha1.SchemeBuilder.AddToScheme)
-	AddToSchemes = append(AddToSchemes, computev1alpha1.SchemeBuilder.AddToScheme)
+	AddToSchemes = append(AddToSchemes,
+		azure.SchemeBuilder.AddToScheme,
+		cachev1alpha1.SchemeBuilder.AddToScheme,
+		databasev1alpha1.SchemeBuilder.AddToScheme,
+		computev1alpha1.SchemeBuilder.AddToScheme,
+	)
 }
 
 // AddToSchemes may be used to add all resources defined in the project to a Scheme
