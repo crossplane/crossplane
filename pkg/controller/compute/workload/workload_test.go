@@ -132,7 +132,7 @@ func TestReconcileNotScheduled(t *testing.T) {
 	rs, err := r.Reconcile(request)
 	g.Expect(err).ShouldNot(HaveOccurred())
 	g.Expect(rs).Should(Equal(resultDone))
-	g.Expect(r.Get(nil, key, w)).ShouldNot(HaveOccurred())
+	g.Expect(r.Get(ctx, key, w)).ShouldNot(HaveOccurred())
 	g.Expect(w.Status.ConditionedStatus).Should(corev1alpha1.MatchConditionedStatus(expCondition))
 }
 
@@ -153,7 +153,7 @@ func TestReconcileClientError(t *testing.T) {
 	rs, err := r.Reconcile(request)
 	g.Expect(err).ShouldNot(HaveOccurred())
 	g.Expect(rs).Should(Equal(resultRequeue))
-	g.Expect(r.Get(nil, key, w)).ShouldNot(HaveOccurred())
+	g.Expect(r.Get(ctx, key, w)).ShouldNot(HaveOccurred())
 	g.Expect(w.Status.ConditionedStatus).Should(corev1alpha1.MatchConditionedStatus(expCondition))
 }
 
@@ -266,8 +266,8 @@ func TestConnectNoClusterSecretHostValue(t *testing.T) {
 		Client:     fake.NewFakeClient(w),
 		kubeclient: NewSimpleClientset(s),
 	}
-	g.Expect(r.Client.Create(nil, c)).ShouldNot(HaveOccurred())
-	g.Expect(r.Client.Get(nil, key, c)).ShouldNot(HaveOccurred())
+	g.Expect(r.Client.Create(ctx, c)).ShouldNot(HaveOccurred())
+	g.Expect(r.Client.Get(ctx, key, c)).ShouldNot(HaveOccurred())
 	w.Status.Cluster = c.ObjectReference()
 
 	_, err := r._connect(w)
@@ -288,8 +288,8 @@ func TestConnectInvalidSecretHostValue(t *testing.T) {
 		Client:     fake.NewFakeClient(w),
 		kubeclient: NewSimpleClientset(s),
 	}
-	g.Expect(r.Client.Create(nil, c)).ShouldNot(HaveOccurred())
-	g.Expect(r.Client.Get(nil, key, c)).ShouldNot(HaveOccurred())
+	g.Expect(r.Client.Create(ctx, c)).ShouldNot(HaveOccurred())
+	g.Expect(r.Client.Get(ctx, key, c)).ShouldNot(HaveOccurred())
 	w.Status.Cluster = c.ObjectReference()
 
 	_, err := r._connect(w)
@@ -310,8 +310,8 @@ func TestConnect(t *testing.T) {
 		Client:     fake.NewFakeClient(w),
 		kubeclient: NewSimpleClientset(s),
 	}
-	g.Expect(r.Client.Create(nil, c)).ShouldNot(HaveOccurred())
-	g.Expect(r.Client.Get(nil, key, c)).ShouldNot(HaveOccurred())
+	g.Expect(r.Client.Create(ctx, c)).ShouldNot(HaveOccurred())
+	g.Expect(r.Client.Get(ctx, key, c)).ShouldNot(HaveOccurred())
 	w.Status.Cluster = c.ObjectReference()
 
 	k, err := r._connect(w)
