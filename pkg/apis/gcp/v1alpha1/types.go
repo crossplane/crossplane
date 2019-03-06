@@ -37,7 +37,7 @@ type ProviderSpec struct {
 	RequiredPermissions []string `json:"requiredPermissions,omitempty"`
 }
 
-// ProviderStatus
+// ProviderStatus represents the status of a GCP Provider.
 type ProviderStatus struct {
 	corev1alpha1.ConditionedStatus
 }

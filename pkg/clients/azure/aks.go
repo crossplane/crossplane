@@ -30,14 +30,12 @@ import (
 )
 
 const (
-	// AgentPoolProfileNameFmt is a format string for the name of the automatically created cluster agent pool profile
+	// AgentPoolProfileName is a format string for the name of the automatically
+	// created cluster agent pool profile
 	AgentPoolProfileName = "agentpool"
 
 	maxClusterNameLen = 31
 )
-
-//---------------------------------------------------------------------------------------------------------------------
-// AKS Setup API interfaces, clients, factories
 
 // AKSSetupClient is a type that implements all of the AKS setup interface
 type AKSSetupClient struct {
@@ -78,9 +76,6 @@ func (f *AKSSetupClientFactory) CreateSetupClient(provider *v1alpha1.Provider, c
 		ServicePrincipalAPI: spClient,
 	}, nil
 }
-
-//---------------------------------------------------------------------------------------------------------------------
-// AKS Cluster API interfaces and clients
 
 // AKSClusterAPI represents the API interface for a AKS Cluster client
 type AKSClusterAPI interface {

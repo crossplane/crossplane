@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package core contains Kubernetes API groups for AWS cloud provider.
+// Package storage contains Kubernetes API groups for cloud provider storage.
 package storage
 
 import (

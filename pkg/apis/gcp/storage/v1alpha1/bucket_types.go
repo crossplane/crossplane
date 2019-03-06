@@ -49,7 +49,7 @@ type GCPBucketSpec struct {
 	ClassRef                     *v1.ObjectReference     `json:"classRef,omitempty"`
 }
 
-// GoogleBucketStatus defines the observed state of GoogleBucket
+// GCPBucketStatus defines the observed state of GoogleBucket
 type GCPBucketStatus struct {
 	corev1alpha1.ConditionedStatus
 	corev1alpha1.BindingStatusPhase

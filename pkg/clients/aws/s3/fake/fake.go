@@ -23,6 +23,7 @@ import (
 	client "github.com/crossplaneio/crossplane/pkg/clients/aws/s3"
 )
 
+// MockS3Client for testing.
 type MockS3Client struct {
 	MockCreateOrUpdateBucket func(spec *v1alpha1.S3BucketSpec) error
 	MockGetBucketInfo        func(username string, spec *v1alpha1.S3BucketSpec) (*client.Bucket, error)
@@ -33,31 +34,37 @@ type MockS3Client struct {
 	MockDelete               func(bucket *v1alpha1.S3Bucket) error
 }
 
-// CreateBucket mock
+// CreateOrUpdateBucket calls the underlying MockCreateOrUpdateBucket method.
 func (m *MockS3Client) CreateOrUpdateBucket(spec *v1alpha1.S3BucketSpec) error {
 	return m.MockCreateOrUpdateBucket(spec)
 }
 
+// GetBucketInfo calls the underlying MockGetBucketInfo method.
 func (m *MockS3Client) GetBucketInfo(username string, spec *v1alpha1.S3BucketSpec) (*client.Bucket, error) {
 	return m.MockGetBucketInfo(username, spec)
 }
 
+// CreateUser calls the underlying MockCreateUser method.
 func (m *MockS3Client) CreateUser(username string, spec *v1alpha1.S3BucketSpec) (*iam.AccessKey, string, error) {
 	return m.MockCreateUser(username, spec)
 }
 
+// UpdateBucketACL calls the underlying MockUpdateBucketACL method.
 func (m *MockS3Client) UpdateBucketACL(spec *v1alpha1.S3BucketSpec) error {
 	return m.MockUpdateBucketACL(spec)
 }
 
+// UpdateVersioning calls the underlying MockUpdateVersioning method.
 func (m *MockS3Client) UpdateVersioning(spec *v1alpha1.S3BucketSpec) error {
 	return m.MockUpdateVersioning(spec)
 }
 
+// UpdatePolicyDocument calls the underlying MockUpdatePolicyDocument method.
 func (m *MockS3Client) UpdatePolicyDocument(username string, spec *v1alpha1.S3BucketSpec) (string, error) {
 	return m.MockUpdatePolicyDocument(username, spec)
 }
 
+// DeleteBucket calls the underlying MockDeleteBucket method.
 func (m *MockS3Client) DeleteBucket(bucket *v1alpha1.S3Bucket) error {
 	return m.MockDelete(bucket)
 }

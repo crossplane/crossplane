@@ -58,7 +58,7 @@ func (c *CloudFormationClient) CreateStack(stackName *string, templateBody *stri
 	return createStackResponse.StackId, nil
 }
 
-// DescribeStack Get stack info
+// GetStack info
 func (c *CloudFormationClient) GetStack(stackID *string) (stack *cf.Stack, err error) {
 	describeStackResponse, err := c.cloudformation.DescribeStacksRequest(&cf.DescribeStacksInput{StackName: stackID}).Send()
 	if err != nil {

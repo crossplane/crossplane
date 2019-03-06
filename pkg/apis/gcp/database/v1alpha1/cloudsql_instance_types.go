@@ -26,6 +26,7 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
+// CloudSQL instance states
 const (
 	// StateRunnable represents a CloudSQL instance in a running, available, and ready state
 	StateRunnable = "RUNNABLE"
@@ -35,11 +36,11 @@ const (
 
 	// StateFailed  represents a CloudSQL instance has failed in some way
 	StateFailed = "FAILED"
+)
 
-	// The version prefix for MySQL versions
-	MysqlDBVersionPrefix = "MYSQL"
-
-	// The version prefix for PostgreSQL versions
+// CloudSQL version prefixes.
+const (
+	MysqlDBVersionPrefix      = "MYSQL"
 	PostgresqlDBVersionPrefix = "POSTGRES"
 )
 

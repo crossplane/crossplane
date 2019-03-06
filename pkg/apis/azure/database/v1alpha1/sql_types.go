@@ -35,6 +35,7 @@ const (
 	OperationCreateFirewallRules = "createFirewallRules"
 )
 
+// SqlServer represents a generic Azure SQL server.
 type SqlServer interface {
 	corev1alpha1.Resource
 	metav1.Object
@@ -231,17 +232,17 @@ func NewSQLServerSpec(properties map[string]string) *SQLServerSpec {
 	return spec
 }
 
-//---------------------------------------------------------------------------------------------------------------------
-// MysqlServer
-
+// GetSpec returns the MySQL server's spec.
 func (m *MysqlServer) GetSpec() *SQLServerSpec {
 	return &m.Spec
 }
 
+// GetStatus returns the MySQL server's status.
 func (m *MysqlServer) GetStatus() *SQLServerStatus {
 	return &m.Status
 }
 
+// SetStatus sets the MySQL server's status.
 func (m *MysqlServer) SetStatus(status *SQLServerStatus) {
 	m.Status = *status
 }
@@ -282,17 +283,17 @@ func (m *MysqlServer) SetBound(bound bool) {
 	m.Status.SetBound(bound)
 }
 
-//---------------------------------------------------------------------------------------------------------------------
-// PostgresqlServer
-
+// GetSpec gets the PostgreSQL server's spec.
 func (p *PostgresqlServer) GetSpec() *SQLServerSpec {
 	return &p.Spec
 }
 
+// GetStatus gets the PostgreSQL server's status.
 func (p *PostgresqlServer) GetStatus() *SQLServerStatus {
 	return &p.Status
 }
 
+// SetStatus sets the PostgreSQL server's status.
 func (p *PostgresqlServer) SetStatus(status *SQLServerStatus) {
 	p.Status = *status
 }

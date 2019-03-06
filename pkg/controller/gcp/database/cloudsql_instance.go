@@ -63,7 +63,7 @@ var (
 	_ reconcile.Reconciler = &Reconciler{}
 )
 
-// AddCloudsqlInstance creates a new CloudsqlInstance Controller and adds it to the Manager with default RBAC.
+// Add creates a new CloudsqlInstance Controller and adds it to the Manager with default RBAC.
 // The Manager will set fields on the Controller and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
 	clientset, err := kubernetes.NewForConfig(mgr.GetConfig())

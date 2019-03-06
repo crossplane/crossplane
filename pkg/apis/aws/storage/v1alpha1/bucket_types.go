@@ -137,6 +137,7 @@ func (b *S3Bucket) ObjectReference() *v1.ObjectReference {
 	return util.ObjectReference(b.ObjectMeta, util.IfEmptyString(b.APIVersion, APIVersion), util.IfEmptyString(b.Kind, S3BucketKind))
 }
 
+// SetUserPolicyVersion specifies this bucket's policy version.
 func (b *S3Bucket) SetUserPolicyVersion(policyVersion string) error {
 	policyInt, err := strconv.Atoi(policyVersion[1:])
 	if err != nil {
@@ -148,6 +149,8 @@ func (b *S3Bucket) SetUserPolicyVersion(policyVersion string) error {
 	return nil
 }
 
+// HasPolicyChanged returns true if the bucket's policy is older than the
+// supplied version.
 func (b *S3Bucket) HasPolicyChanged(policyVersion string) (bool, error) {
 	if *b.Spec.LocalPermission != b.Status.LastLocalPermission {
 		return true, nil
@@ -188,12 +191,12 @@ func (b *S3Bucket) IsAvailable() bool {
 	return b.Status.IsCondition(corev1alpha1.Ready)
 }
 
-// IsBound
+// IsBound returns true if this bucket is bound to a resource claim.
 func (b *S3Bucket) IsBound() bool {
 	return b.Status.IsBound()
 }
 
-// SetBound
+// SetBound specifies whether this bucket is bound to a resource claim.
 func (b *S3Bucket) SetBound(bound bool) {
 	b.Status.SetBound(bound)
 }

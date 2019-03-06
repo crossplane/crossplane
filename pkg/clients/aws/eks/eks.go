@@ -35,7 +35,7 @@ import (
 const (
 	clusterIDHeader                = "x-k8s-aws-id"
 	v1Prefix                       = "k8s-aws-v1."
-	CloudFormationNodeInstanceRole = "NodeInstanceRole"
+	cloudFormationNodeInstanceRole = "NodeInstanceRole"
 )
 
 // Cluster crossplane representation of the AWS EKS Cluster
@@ -193,7 +193,7 @@ func (e *EKSClient) GetWorkerNodes(stackID string) (*ClusterWorkers, error) {
 	nodeARN := ""
 	if stack.Outputs != nil {
 		for _, item := range stack.Outputs {
-			if aws.StringValue(item.OutputKey) == CloudFormationNodeInstanceRole {
+			if aws.StringValue(item.OutputKey) == cloudFormationNodeInstanceRole {
 				nodeARN = aws.StringValue(item.OutputValue)
 				break
 			}

@@ -36,12 +36,13 @@ func AssertConditions(g *gomega.GomegaWithT, expected []Condition, actual Condit
 	}
 }
 
-// ConditionMatcher
+// ConditionMatcher is a gomega matcher for Conditions.
 // +k8s:deepcopy-gen=false
 type ConditionMatcher struct {
 	expected interface{}
 }
 
+// Match returns true if the underlying condition matches the supplied one.
 func (cm *ConditionMatcher) Match(actual interface{}) (success bool, err error) {
 	e, ok := cm.expected.(Condition)
 	if !ok {
@@ -55,26 +56,31 @@ func (cm *ConditionMatcher) Match(actual interface{}) (success bool, err error) 
 	return e.Equal(a), nil
 }
 
+// FailureMessage is printed when conditions do not match.
 func (cm *ConditionMatcher) FailureMessage(actual interface{}) (message string) {
 	return fmt.Sprintf("Expected\n\t%#v\nto match, actual\n\t%#v", cm.expected, actual)
 }
 
+// NegatedFailureMessage is printed when conditions match unexpectedly.
 func (cm *ConditionMatcher) NegatedFailureMessage(actual interface{}) (message string) {
 	return fmt.Sprintf("Expected\n\t%#v\nnot to match, actual\n\t%#v", cm.expected, actual)
 }
 
+// MatchCondition returns a new gomga matcher for Conditions.
 func MatchCondition(expected interface{}) types.GomegaMatcher {
 	return &ConditionMatcher{
 		expected: expected,
 	}
 }
 
-// ConditionedStatusMatcher
+// ConditionedStatusMatcher is a gomega matcher for ConditionedStatuses.
 // +k8s:deepcopy-gen=false
 type ConditionedStatusMatcher struct {
 	expected interface{}
 }
 
+// Match returns true if the underlying conditioned status matches the supplied
+// one.
 func (csm *ConditionedStatusMatcher) Match(actual interface{}) (success bool, err error) {
 	e, ok := csm.expected.(ConditionedStatus)
 	if !ok {
@@ -104,14 +110,18 @@ func (csm *ConditionedStatusMatcher) Match(actual interface{}) (success bool, er
 	return true, nil
 }
 
+// FailureMessage is printed when conditioned statuses do not match.
 func (csm *ConditionedStatusMatcher) FailureMessage(actual interface{}) (message string) {
 	return fmt.Sprintf("Expected\n\t%#v\nto mach, actual\n\t%#v", csm.expected, actual)
 }
 
+// NegatedFailureMessage is printed when conditioned statuses match
+// unexpectedly.
 func (csm *ConditionedStatusMatcher) NegatedFailureMessage(actual interface{}) (message string) {
 	return fmt.Sprintf("Expected\n\t%#v\nnot to mach, actual\n\t%#v", csm.expected, actual)
 }
 
+// MatchConditionedStatus returns a new gomega matcher for conditioned statuses.
 func MatchConditionedStatus(expected interface{}) types.GomegaMatcher {
 	return &ConditionedStatusMatcher{
 		expected: expected,

@@ -44,6 +44,7 @@ func (h *AzureMySQLServerHandler) Find(name types.NamespacedName, c client.Clien
 	return azureMySQLServer, err
 }
 
+// Find a PostgreSQL server.
 func (h *AzurePostgreSQLServerHandler) Find(name types.NamespacedName, c client.Client) (corev1alpha1.Resource, error) {
 	azurePostgreSQLServer := &azuredbv1alpha1.PostgresqlServer{}
 	err := c.Get(ctx, name, azurePostgreSQLServer)

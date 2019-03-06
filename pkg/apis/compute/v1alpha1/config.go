@@ -25,6 +25,8 @@ import (
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 )
 
+// ParseKubeconfig returns a map representing the configuration of either the
+// configured current context, or the first context of a kubeconfig file.
 func ParseKubeconfig(rawKubeconfig []byte) (map[string][]byte, error) {
 	// unmarshal the raw kubeconfig into a strongly typed kubeconfig struct
 	kubeconfig := &kubectlv1.Config{}

@@ -14,7 +14,7 @@ const (
 	policyArn = "arn:aws:iam::%s:policy/%s"
 )
 
-// Service defines IAM Client operations
+// Client defines IAM Client operations
 type Client interface {
 	CreateUser(username string) (*iam.AccessKey, error)
 	DeleteUser(username string) error

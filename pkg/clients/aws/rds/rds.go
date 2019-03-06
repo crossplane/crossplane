@@ -108,6 +108,8 @@ func (r *RDSClient) DeleteInstance(name string) (*Instance, error) {
 	return NewInstance(output.DBInstance), nil
 }
 
+// IsErrorAlreadyExists returns true if the supplied error indicates a cluster
+// does already exists.
 func IsErrorAlreadyExists(err error) bool {
 	return strings.Contains(err.Error(), rds.ErrCodeDBClusterAlreadyExistsFault)
 }

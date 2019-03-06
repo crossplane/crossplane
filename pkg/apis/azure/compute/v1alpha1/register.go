@@ -29,16 +29,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/runtime/scheme"
 )
 
+// Kubernetes Group, Version, and Kind metadata.
 const (
-	// Group is the API Group for these resources
-	Group = "compute.azure.crossplane.io"
-	// Version is the version of the API group
-	Version = "v1alpha1"
-	// APIVersion is the full version of this API group
-	APIVersion = Group + "/" + Version
-	// AKSClusterKind is the kind for the AKS cluster resource
-	AKSClusterKind = "akscluster"
-	// AKSClusterKindAPIVersion is the full kind and version for the AKS cluster resource
+	Group                    = "compute.azure.crossplane.io"
+	Version                  = "v1alpha1"
+	APIVersion               = Group + "/" + Version
+	AKSClusterKind           = "akscluster"
 	AKSClusterKindAPIVersion = AKSClusterKind + "." + APIVersion
 )
 

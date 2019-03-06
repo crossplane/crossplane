@@ -38,7 +38,7 @@ func (r *AKSClusterHandler) Find(name types.NamespacedName, c client.Client) (co
 	return instance, err
 }
 
-// provision a new AKSCluster
+// Provision a new AKSCluster
 func (r *AKSClusterHandler) Provision(class *corev1alpha1.ResourceClass, claim corev1alpha1.ResourceClaim, c client.Client) (corev1alpha1.Resource, error) {
 	// construct AKSCluster Spec from class definition
 	resourceInstance := azurecomputev1alpha1.NewAKSClusterSpec(class.Parameters)

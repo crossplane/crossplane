@@ -50,11 +50,13 @@ const (
 	waitResourceIsNotAvailable       = "Waiting for resource to become available"
 )
 
+// Commonly used reconciliation results.
 var (
 	Result        = reconcile.Result{}
 	ResultRequeue = reconcile.Result{Requeue: true}
-	ctx           = context.Background()
 )
+
+var ctx = context.Background()
 
 // ResourceHandler defines resource handing functions
 type ResourceHandler interface {

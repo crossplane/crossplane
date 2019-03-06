@@ -38,7 +38,7 @@ func (r *AWSClusterHandler) Find(name types.NamespacedName, c client.Client) (co
 	return instance, err
 }
 
-// provision create new EKSCluster
+// Provision a new EKSCluster
 func (r *AWSClusterHandler) Provision(class *corev1alpha1.ResourceClass, claim corev1alpha1.ResourceClaim, c client.Client) (corev1alpha1.Resource, error) {
 	// construct EKSCluster Spec from class definition
 	resourceInstance := awscomputev1alpha1.NewEKSClusterSpec(class.Parameters)

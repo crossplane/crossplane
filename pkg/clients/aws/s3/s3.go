@@ -44,7 +44,8 @@ func NewClient(config *aws.Config) Service {
 	return &Client{s3: s3.New(*config), iamClient: iamc.NewClient(config)}
 }
 
-// Create creates s3 bucket with provided specification, and returns access keys with permissions of localPermission
+// CreateOrUpdateBucket creates or updates the supplied S3 bucket with provided
+// specification, and returns access keys with permissions of localPermission
 func (c *Client) CreateOrUpdateBucket(spec *v1alpha1.S3BucketSpec) error {
 	input := CreateBucketInput(spec)
 	_, err := c.s3.CreateBucketRequest(input).Send()
@@ -178,7 +179,7 @@ func isErrorNotFound(err error) bool {
 	return false
 }
 
-// CreateS3Bucket from S3BucketSpec
+// CreateBucketInput returns a CreateBucketInput from the supplied S3BucketSpec.
 func CreateBucketInput(spec *v1alpha1.S3BucketSpec) *s3.CreateBucketInput {
 	bucketInput := &s3.CreateBucketInput{
 		CreateBucketConfiguration: &s3.CreateBucketConfiguration{LocationConstraint: s3.BucketLocationConstraint(spec.Region)},

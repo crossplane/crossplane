@@ -28,7 +28,7 @@ import (
 	gcpcomputev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/compute/v1alpha1"
 )
 
-// GCP GKE handler handles Kubernetes cluster functionality
+// A GKEClusterHandler handles Kubernetes cluster functionality
 type GKEClusterHandler struct{}
 
 // Find GKECluster resource
@@ -38,7 +38,7 @@ func (r *GKEClusterHandler) Find(name types.NamespacedName, c client.Client) (co
 	return instance, err
 }
 
-// provision create new GKECluster
+// Provision a new GKECluster
 func (r *GKEClusterHandler) Provision(class *corev1alpha1.ResourceClass, claim corev1alpha1.ResourceClaim, c client.Client) (corev1alpha1.Resource, error) {
 	// construct GKECluster Spec from class definition
 	resourceInstance := gcpcomputev1alpha1.NewGKEClusterSpec(class.Parameters)

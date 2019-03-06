@@ -28,6 +28,7 @@ import (
 )
 
 const (
+	// DefaultScope used by the GKE API.
 	DefaultScope = container.CloudPlatformScope
 )
 
@@ -57,7 +58,7 @@ func NewClusterClient(creds *google.Credentials) (*ClusterClient, error) {
 	}, nil
 }
 
-// CreateCluster
+// CreateCluster creates a new GKE cluster.
 func (c *ClusterClient) CreateCluster(name string, spec computev1alpha1.GKEClusterSpec) (*container.Cluster, error) {
 	zone := spec.Zone
 

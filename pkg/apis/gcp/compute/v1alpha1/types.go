@@ -26,15 +26,19 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
+// Cluster states.
 const (
 	ClusterStateProvisioning = "PROVISIONING"
 	ClusterStateRunning      = "RUNNING"
+)
 
+// Defaults for GKE resources.
+const (
 	DefaultReclaimPolicy = corev1alpha1.ReclaimRetain
 	DefaultNumberOfNodes = int64(1)
 )
 
-// GKEClusterSpec
+// GKEClusterSpec specifies the configuration of a GKE cluster.
 type GKEClusterSpec struct {
 	Addons                    []string          `json:"addons,omitempty"`                    //--adons
 	Async                     bool              `json:"async,omitempty"`                     //--async
@@ -94,7 +98,7 @@ type GKEClusterSpec struct {
 	ReclaimPolicy corev1alpha1.ReclaimPolicy `json:"reclaimPolicy,omitempty"`
 }
 
-// GKEClusterStatus
+// GKEClusterStatus represents the status of a GKE cluster.
 type GKEClusterStatus struct {
 	corev1alpha1.ConditionedStatus
 	corev1alpha1.BindingStatusPhase
@@ -160,6 +164,7 @@ func (g *GKECluster) OwnerReference() metav1.OwnerReference {
 	return *util.ObjectToOwnerReference(g.ObjectReference())
 }
 
+// ConnectionSecret returns the connection secret for this GKE cluster.
 func (g *GKECluster) ConnectionSecret() *corev1.Secret {
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -193,12 +198,12 @@ func (g *GKECluster) IsAvailable() bool {
 	return g.State() == ClusterStateRunning
 }
 
-// IsBound
+// IsBound returns true if this GKE cluster is bound to a resource claim.
 func (g *GKECluster) IsBound() bool {
 	return g.Status.IsBound()
 }
 
-// SetBound
+// SetBound specifies whether this GKE cluster is bound to a resource claim.
 func (g *GKECluster) SetBound(bound bool) {
 	g.Status.SetBound(bound)
 }

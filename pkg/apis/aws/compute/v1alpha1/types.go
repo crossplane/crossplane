@@ -28,22 +28,21 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
+// Cluster statuses.
 const (
-
-	// The resource is being created. The resource is inaccessible while it is being created.
+	// The resource is inaccessible while it is being created.
 	ClusterStatusCreating = "CREATING"
-	// The resource is created and in active state
-	ClusterStatusActive = "ACTIVE"
+	ClusterStatusActive   = "ACTIVE"
 
 	// TODO: Deleting and Failed currently not used. Implement usage or remove
-	// The resource is being deleted
 	// ClusterStatusDeleting = "DELETING"
-	// The resource is in failed state
 	// ClusterStatusFailed = "FAILED"
 )
 
+// EKSRegion represents an EKS enabled AWS region.
 type EKSRegion string
 
+// EKS regions.
 const (
 	// EKSRegionUSWest2 - us-west-2 (Oregon) region for eks cluster
 	EKSRegionUSWest2 EKSRegion = "us-west-2"
@@ -64,6 +63,7 @@ var (
 	}
 )
 
+// EKSClusterSpec specifies the configuration for an EKS cluster.
 type EKSClusterSpec struct {
 	// Configuration of this Spec is dependent on the readme as described here
 	// https://docs.aws.amazon.com/eks/latest/userguide/getting-started.html
@@ -411,17 +411,17 @@ func (e *EKSCluster) IsAvailable() bool {
 	return e.State() == ClusterStatusActive
 }
 
-// IsBound
+// IsBound returns true if this cluster is bound to a resource claim.
 func (e *EKSCluster) IsBound() bool {
 	return e.Status.IsBound()
 }
 
-// SetBound
+// SetBound specifies whether this cluster is bound to a resource claim.
 func (e *EKSCluster) SetBound(bound bool) {
 	e.Status.SetBound(bound)
 }
 
-// GetAMIByRegion returns the default ami id for a given EKS region
+// GetRegionAMI returns the default ami id for a given EKS region
 func GetRegionAMI(region EKSRegion) (string, error) {
 	if val, ok := workerNodeRegionAMI[region]; ok {
 		return val, nil

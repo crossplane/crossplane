@@ -111,6 +111,8 @@ func (c *CloudSQLClientFactory) CreateAPIInstance(clientset kubernetes.Interface
 	return cloudSQLClient, nil
 }
 
+// WaitUntilOperationCompletes waits until the supplied operation is complete,
+// returning an error if it does not complete within the supplied duration.
 func WaitUntilOperationCompletes(operationID string, provider *gcpv1alpha1.Provider,
 	cloudSQLClient CloudSQLAPI, waitTime time.Duration) (*sqladmin.Operation, error) {
 
@@ -133,10 +135,12 @@ func WaitUntilOperationCompletes(operationID string, provider *gcpv1alpha1.Provi
 	return nil, fmt.Errorf("cloud sql operation %s did not complete in the allowed time period: %+v", operationID, op)
 }
 
+// IsOperationComplete returns true if the supplied operation is complete.
 func IsOperationComplete(op *sqladmin.Operation) bool {
 	return op.EndTime != "" && op.Status == "DONE"
 }
 
+// IsOperationSuccessful returns true if the supplied operation was successful.
 func IsOperationSuccessful(op *sqladmin.Operation) bool {
 	return op.Error == nil || len(op.Error.Errors) == 0
 }

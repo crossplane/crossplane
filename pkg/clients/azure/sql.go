@@ -51,9 +51,6 @@ type SQLServer struct {
 	FQDN  string
 }
 
-type FirewallRule struct {
-}
-
 // SQLServerAPI represents the API interface for a SQL Server client
 type SQLServerAPI interface {
 	GetServer(ctx context.Context, instance azuredbv1alpha1.SqlServer) (*SQLServer, error)
@@ -115,7 +112,8 @@ func (c *MySQLServerClient) GetServer(ctx context.Context, instance azuredbv1alp
 	return &SQLServer{State: string(server.UserVisibleState), ID: id, FQDN: fqdn}, nil
 }
 
-// CreateBegin begins the create operation for a MySQL Server with the given properties
+// CreateServerBegin begins the create operation for a MySQL Server with the
+// given properties.
 func (c *MySQLServerClient) CreateServerBegin(ctx context.Context, instance azuredbv1alpha1.SqlServer, adminPassword string) ([]byte, error) {
 	spec := instance.GetSpec()
 
@@ -167,7 +165,8 @@ func (c *MySQLServerClient) CreateServerBegin(ctx context.Context, instance azur
 	return createFutureJSON, nil
 }
 
-// CreateEnd checks to see if the given create operation is completed and if any error has occurred.
+// CreateServerEnd checks to see if the given create operation is completed and
+// if any error has occurred.
 func (c *MySQLServerClient) CreateServerEnd(createOp []byte) (done bool, err error) {
 	// unmarshal the given create complete data into a future object
 	createFuture := &mysql.ServersCreateFuture{}
@@ -189,7 +188,7 @@ func (c *MySQLServerClient) CreateServerEnd(createOp []byte) (done bool, err err
 	return true, nil
 }
 
-// Delete deletes the given MySQLServer resource
+// DeleteServer deletes the given MySQLServer resource
 func (c *MySQLServerClient) DeleteServer(ctx context.Context, instance azuredbv1alpha1.SqlServer) (azurerest.Future, error) {
 	result, err := c.ServersClient.Delete(ctx, instance.GetSpec().ResourceGroupName, instance.GetName())
 	return result.Future, err
@@ -250,9 +249,6 @@ func (c *MySQLServerClient) CreateFirewallRulesEnd(createOp []byte) (done bool, 
 
 	return true, nil
 }
-
-//---------------------------------------------------------------------------------------------------------------------
-// PostgreSQLServerClient
 
 // PostgreSQLServerClient is the concreate implementation of the SQLServerAPI interface for PostgreSQL that calls Azure API.
 type PostgreSQLServerClient struct {
@@ -437,9 +433,6 @@ func (c *PostgreSQLServerClient) CreateFirewallRulesEnd(createOp []byte) (done b
 	return true, nil
 }
 
-//---------------------------------------------------------------------------------------------------------------------
-// SQLServerAPIFactory
-
 // SQLServerAPIFactory is an interface that can create instances of the SQLServerAPI interface
 type SQLServerAPIFactory interface {
 	CreateAPIInstance(*v1alpha1.Provider, kubernetes.Interface) (SQLServerAPI, error)
@@ -463,7 +456,6 @@ func (f *PostgreSQLServerClientFactory) CreateAPIInstance(provider *v1alpha1.Pro
 	return NewPostgreSQLServerClient(provider, clientset)
 }
 
-//---------------------------------------------------------------------------------------------------------------------
 // Helper functions
 // NOTE: These helper functions work for both MySQL and PostreSQL, but we cast everything to the MySQL types because
 // the generated Azure clients for MySQL and PostgreSQL are exactly the same content, just a different package. See:

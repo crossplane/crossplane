@@ -187,15 +187,18 @@ func (br *BasicResource) ObjectReference() *corev1.ObjectReference {
 	return br.objectReference
 }
 
-// IsAvailable
+// IsAvailable returns true if this resource is available.
 func (br *BasicResource) IsAvailable() bool {
 	return br.state == "available"
 }
 
+// IsBound returns true if this resource is currently bound to a resource claim.
 func (br *BasicResource) IsBound() bool {
 	return br.phase.IsBound()
 }
 
+// SetBound specifies whether this resource is currently bound to a resource
+// claim.
 func (br *BasicResource) SetBound(bound bool) {
 	br.phase.SetBound(bound)
 }

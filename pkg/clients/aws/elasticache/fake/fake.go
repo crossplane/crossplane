@@ -35,18 +35,32 @@ type MockClient struct {
 	MockDescribeCacheClustersRequest func(*elasticache.DescribeCacheClustersInput) elasticache.DescribeCacheClustersRequest
 }
 
+// DescribeReplicationGroupsRequest calls the underlying
+// MockDescribeReplicationGroupsRequest method.
 func (c *MockClient) DescribeReplicationGroupsRequest(i *elasticache.DescribeReplicationGroupsInput) elasticache.DescribeReplicationGroupsRequest {
 	return c.MockDescribeReplicationGroupsRequest(i)
 }
+
+// CreateReplicationGroupRequest calls the underlying
+// MockCreateReplicationGroupRequest method.
 func (c *MockClient) CreateReplicationGroupRequest(i *elasticache.CreateReplicationGroupInput) elasticache.CreateReplicationGroupRequest {
 	return c.MockCreateReplicationGroupRequest(i)
 }
+
+// ModifyReplicationGroupRequest calls the underlying
+// MockModifyReplicationGroupRequest method.
 func (c *MockClient) ModifyReplicationGroupRequest(i *elasticache.ModifyReplicationGroupInput) elasticache.ModifyReplicationGroupRequest {
 	return c.MockModifyReplicationGroupRequest(i)
 }
+
+// DeleteReplicationGroupRequest calls the underlying
+// MockDeleteReplicationGroupRequest method.
 func (c *MockClient) DeleteReplicationGroupRequest(i *elasticache.DeleteReplicationGroupInput) elasticache.DeleteReplicationGroupRequest {
 	return c.MockDeleteReplicationGroupRequest(i)
 }
+
+// DescribeCacheClustersRequest calls the underlying
+// MockDescribeCacheClustersRequest method.
 func (c *MockClient) DescribeCacheClustersRequest(i *elasticache.DescribeCacheClustersInput) elasticache.DescribeCacheClustersRequest {
 	return c.MockDescribeCacheClustersRequest(i)
 }

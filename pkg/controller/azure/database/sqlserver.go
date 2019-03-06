@@ -58,6 +58,7 @@ var (
 	ctx = context.TODO()
 )
 
+// SQLReconciler reconciles SQL resource specs with Azure.
 type SQLReconciler struct {
 	client.Client
 	clientset           kubernetes.Interface

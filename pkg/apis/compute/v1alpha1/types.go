@@ -25,9 +25,7 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
-//----------------------------------------------------------------------------------------------------------------------
-
-// KubernetesClusterSpec
+// KubernetesClusterSpec specifies the configuration of a Kubernetes cluster.
 type KubernetesClusterSpec struct {
 	ClassRef    *corev1.ObjectReference `json:"classReference,omitempty"`
 	ResourceRef *corev1.ObjectReference `json:"resourceName,omitempty"`
@@ -57,7 +55,7 @@ type KubernetesCluster struct {
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// KubernetesClusterList contains a list of RDSInstance
+// KubernetesClusterList contains a list of KubernetesClusters.
 type KubernetesClusterList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
@@ -86,18 +84,22 @@ func (kc *KubernetesCluster) OwnerReference() metav1.OwnerReference {
 	return *util.ObjectToOwnerReference(kc.ObjectReference())
 }
 
+// ClaimStatus returns the claim status of this Kubernetes cluster.
 func (kc *KubernetesCluster) ClaimStatus() *corev1alpha1.ResourceClaimStatus {
 	return &kc.Status
 }
 
+// ClassRef returns the resource class used by this Kubernetes cluster.
 func (kc *KubernetesCluster) ClassRef() *corev1.ObjectReference {
 	return kc.Spec.ClassRef
 }
 
+// ResourceRef returns the resource claimed by this Kubernetes cluster.
 func (kc *KubernetesCluster) ResourceRef() *corev1.ObjectReference {
 	return kc.Spec.ResourceRef
 }
 
+// SetResourceRef sets the resource claimed by this Kubernetes cluster.
 func (kc *KubernetesCluster) SetResourceRef(ref *corev1.ObjectReference) {
 	kc.Spec.ResourceRef = ref
 }
@@ -112,14 +114,16 @@ type ResourceReference struct {
 	SecretName string `json:"secretName"`
 }
 
+// WorkloadState represents the state of a workload.
 type WorkloadState string
 
+// Workload states.
 const (
 	WorkloadStateCreating WorkloadState = "CREATING"
 	WorkloadStateRunning  WorkloadState = "RUNNING"
 )
 
-// WorkloadSpec
+// WorkloadSpec specifies the configuration of a workload.
 type WorkloadSpec struct {
 	ClusterSelector map[string]string `json:"clusterSelector,omitempty"`
 
@@ -131,7 +135,7 @@ type WorkloadSpec struct {
 	Resources []ResourceReference `json:"resources,omitempty"`
 }
 
-// WorkloadStatus
+// WorkloadStatus represents the status of a workload.
 type WorkloadStatus struct {
 	corev1alpha1.ConditionedStatus
 
@@ -164,7 +168,7 @@ type Workload struct {
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// WorkloadList contains a list of RDSInstance
+// WorkloadList contains a list of Workloads.
 type WorkloadList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

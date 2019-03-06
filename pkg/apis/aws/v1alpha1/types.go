@@ -36,7 +36,7 @@ type ProviderSpec struct {
 	Secret corev1.SecretKeySelector `json:"credentialsSecretRef"`
 }
 
-// ProviderStatus
+// ProviderStatus represents the status of an AWS Provider.
 type ProviderStatus struct {
 	corev1alpha1.ConditionedStatus
 }
