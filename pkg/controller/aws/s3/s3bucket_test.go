@@ -465,7 +465,7 @@ func TestReconcile(t *testing.T) {
 		called = true
 		return result, nil
 	}
-	rs, err = r.Reconcile(request)
+	r.Reconcile(request)
 	g.Expect(called).To(BeTrue())
 
 	// test create
@@ -478,7 +478,7 @@ func TestReconcile(t *testing.T) {
 		called = true
 		return result, nil
 	}
-	rs, err = r.Reconcile(request)
+	r.Reconcile(request)
 	g.Expect(called).To(BeTrue())
 
 	// test sync
@@ -492,6 +492,6 @@ func TestReconcile(t *testing.T) {
 		called = true
 		return result, nil
 	}
-	rs, err = r.Reconcile(request)
+	r.Reconcile(request)
 	g.Expect(called).To(BeTrue())
 }

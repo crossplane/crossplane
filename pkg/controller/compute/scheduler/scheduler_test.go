@@ -104,7 +104,7 @@ func TestReconcile(t *testing.T) {
 	r.schedule = func(workload *Workload) (result reconcile.Result, e error) {
 		return resultDone, fmt.Errorf("test-error")
 	}
-	rs, err = r.Reconcile(request)
+	_, err = r.Reconcile(request)
 	g.Expect(err).Should(HaveOccurred())
 	g.Expect(err).Should(MatchError("test-error"))
 

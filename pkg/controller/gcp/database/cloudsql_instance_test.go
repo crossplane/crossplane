@@ -215,6 +215,7 @@ func TestGetDefaultDBUserName(t *testing.T) {
 
 	user, err := getDefaultDBUserName("foo")
 	g.Expect(err).To(gomega.HaveOccurred())
+	g.Expect(user).To(gomega.Equal(""))
 
 	user, err = getDefaultDBUserName("MYSQL_5_6")
 	g.Expect(err).NotTo(gomega.HaveOccurred())

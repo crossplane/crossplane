@@ -231,6 +231,9 @@ func generateAWSAuthConfigMap(instance *awscomputev1alpha1.EKSCluster, workerARN
 // _awsauth generates an aws-auth configmap and pushes it to the remote eks cluster to configure auth
 func (r *Reconciler) _awsauth(cluster *eks.Cluster, instance *awscomputev1alpha1.EKSCluster, client eks.Client, workerARN string) error {
 	cm, err := generateAWSAuthConfigMap(instance, workerARN)
+	if err != nil {
+		return err
+	}
 
 	// Sync aws-auth to remote eks cluster to configure it's auth.
 	token, err := client.ConnectionToken(instance.Status.ClusterName)
