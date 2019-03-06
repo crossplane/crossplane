@@ -323,7 +323,7 @@ func Test_addWorkloadReferenceLabel(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	// test workload with test testUid value
-	testUid := "test-testUid"
+	testUID := "test-testUid"
 
 	type args struct {
 		m   *metav1.ObjectMeta
@@ -333,10 +333,10 @@ func Test_addWorkloadReferenceLabel(t *testing.T) {
 		name string
 		args args
 	}{
-		{"Nil labels", args{&metav1.ObjectMeta{}, testUid}},
-		{"Empty labels", args{&metav1.ObjectMeta{Labels: make(map[string]string)}, testUid}},
-		{"Label added", args{&metav1.ObjectMeta{Labels: map[string]string{"foo": "bar"}}, testUid}},
-		{"Label updated", args{&metav1.ObjectMeta{Labels: map[string]string{workloadReferenceLabelKey: "foo-bar"}}, testUid}},
+		{"Nil labels", args{&metav1.ObjectMeta{}, testUID}},
+		{"Empty labels", args{&metav1.ObjectMeta{Labels: make(map[string]string)}, testUID}},
+		{"Label added", args{&metav1.ObjectMeta{Labels: map[string]string{"foo": "bar"}}, testUID}},
+		{"Label updated", args{&metav1.ObjectMeta{Labels: map[string]string{workloadReferenceLabelKey: "foo-bar"}}, testUID}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

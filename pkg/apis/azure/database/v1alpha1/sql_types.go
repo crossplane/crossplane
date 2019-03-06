@@ -35,8 +35,8 @@ const (
 	OperationCreateFirewallRules = "createFirewallRules"
 )
 
-// SqlServer represents a generic Azure SQL server.
-type SqlServer interface {
+// SQLServer represents a generic Azure SQL server.
+type SQLServer interface {
 	corev1alpha1.Resource
 	metav1.Object
 	OwnerReference() metav1.OwnerReference

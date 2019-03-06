@@ -110,7 +110,7 @@ func (r *PostgreSQLReconciler) Reconcile(request reconcile.Request) (reconcile.R
 	return r.SQLReconciler.handleReconcile(instance)
 }
 
-func (r *PostgreSQLReconciler) findPostgreSQLInstance(instance azuredbv1alpha1.SqlServer) (azuredbv1alpha1.SqlServer, error) {
+func (r *PostgreSQLReconciler) findPostgreSQLInstance(instance azuredbv1alpha1.SQLServer) (azuredbv1alpha1.SQLServer, error) {
 	fetchedInstance := &azuredbv1alpha1.PostgresqlServer{}
 	namespacedName := apitypes.NamespacedName{Name: instance.GetName(), Namespace: instance.GetNamespace()}
 	if err := r.Get(ctx, namespacedName, fetchedInstance); err != nil {

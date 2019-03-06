@@ -44,23 +44,23 @@ import (
 )
 
 type mockSQLServerClient struct {
-	MockGetServer                func(ctx context.Context, instance azuredbv1alpha1.SqlServer) (*azureclients.SQLServer, error)
-	MockCreateServerBegin        func(ctx context.Context, instance azuredbv1alpha1.SqlServer, adminPassword string) ([]byte, error)
+	MockGetServer                func(ctx context.Context, instance azuredbv1alpha1.SQLServer) (*azureclients.SQLServer, error)
+	MockCreateServerBegin        func(ctx context.Context, instance azuredbv1alpha1.SQLServer, adminPassword string) ([]byte, error)
 	MockCreateServerEnd          func(createOp []byte) (bool, error)
-	MockDeleteServer             func(ctx context.Context, instance azuredbv1alpha1.SqlServer) (azurerest.Future, error)
-	MockGetFirewallRule          func(ctx context.Context, instance azuredbv1alpha1.SqlServer, firewallRuleName string) error
-	MockCreateFirewallRulesBegin func(ctx context.Context, instance azuredbv1alpha1.SqlServer, firewallRuleName string) ([]byte, error)
+	MockDeleteServer             func(ctx context.Context, instance azuredbv1alpha1.SQLServer) (azurerest.Future, error)
+	MockGetFirewallRule          func(ctx context.Context, instance azuredbv1alpha1.SQLServer, firewallRuleName string) error
+	MockCreateFirewallRulesBegin func(ctx context.Context, instance azuredbv1alpha1.SQLServer, firewallRuleName string) ([]byte, error)
 	MockCreateFirewallRulesEnd   func(createOp []byte) (bool, error)
 }
 
-func (m *mockSQLServerClient) GetServer(ctx context.Context, instance azuredbv1alpha1.SqlServer) (*azureclients.SQLServer, error) {
+func (m *mockSQLServerClient) GetServer(ctx context.Context, instance azuredbv1alpha1.SQLServer) (*azureclients.SQLServer, error) {
 	if m.MockGetServer != nil {
 		return m.MockGetServer(ctx, instance)
 	}
 	return &azureclients.SQLServer{}, nil
 }
 
-func (m *mockSQLServerClient) CreateServerBegin(ctx context.Context, instance azuredbv1alpha1.SqlServer, adminPassword string) ([]byte, error) {
+func (m *mockSQLServerClient) CreateServerBegin(ctx context.Context, instance azuredbv1alpha1.SQLServer, adminPassword string) ([]byte, error) {
 	if m.MockCreateServerBegin != nil {
 		return m.MockCreateServerBegin(ctx, instance, adminPassword)
 	}
@@ -74,21 +74,21 @@ func (m *mockSQLServerClient) CreateServerEnd(createOp []byte) (bool, error) {
 	return true, nil
 }
 
-func (m *mockSQLServerClient) DeleteServer(ctx context.Context, instance azuredbv1alpha1.SqlServer) (azurerest.Future, error) {
+func (m *mockSQLServerClient) DeleteServer(ctx context.Context, instance azuredbv1alpha1.SQLServer) (azurerest.Future, error) {
 	if m.MockDeleteServer != nil {
 		return m.MockDeleteServer(ctx, instance)
 	}
 	return azurerest.Future{}, nil
 }
 
-func (m *mockSQLServerClient) GetFirewallRule(ctx context.Context, instance azuredbv1alpha1.SqlServer, firewallRuleName string) error {
+func (m *mockSQLServerClient) GetFirewallRule(ctx context.Context, instance azuredbv1alpha1.SQLServer, firewallRuleName string) error {
 	if m.MockGetFirewallRule != nil {
 		return m.MockGetFirewallRule(ctx, instance, firewallRuleName)
 	}
 	return nil
 }
 
-func (m *mockSQLServerClient) CreateFirewallRulesBegin(ctx context.Context, instance azuredbv1alpha1.SqlServer, firewallRuleName string) ([]byte, error) {
+func (m *mockSQLServerClient) CreateFirewallRulesBegin(ctx context.Context, instance azuredbv1alpha1.SQLServer, firewallRuleName string) ([]byte, error) {
 	if m.MockCreateFirewallRulesBegin != nil {
 		return m.MockCreateFirewallRulesBegin(ctx, instance, firewallRuleName)
 	}
@@ -121,7 +121,7 @@ func TestReconcile(t *testing.T) {
 	sqlServerClientFactory := &mockSQLServerClientFactory{mockClient: sqlServerClient}
 
 	getCallCount := 0
-	sqlServerClient.MockGetServer = func(ctx context.Context, instance azuredbv1alpha1.SqlServer) (*azureclients.SQLServer, error) {
+	sqlServerClient.MockGetServer = func(ctx context.Context, instance azuredbv1alpha1.SQLServer) (*azureclients.SQLServer, error) {
 		getCallCount++
 		if getCallCount <= 1 {
 			// first GET should return not found, which will cause the reconcile loop to try to create the instance
@@ -135,12 +135,12 @@ func TestReconcile(t *testing.T) {
 			FQDN:  instanceName + ".mydomain.azure.msft.com",
 		}, nil
 	}
-	sqlServerClient.MockCreateServerBegin = func(ctx context.Context, instance azuredbv1alpha1.SqlServer, adminPassword string) ([]byte, error) {
+	sqlServerClient.MockCreateServerBegin = func(ctx context.Context, instance azuredbv1alpha1.SQLServer, adminPassword string) ([]byte, error) {
 		return []byte("mocked marshalled create future"), nil
 	}
 
 	getFirewallCallCount := 0
-	sqlServerClient.MockGetFirewallRule = func(ctx context.Context, instance azuredbv1alpha1.SqlServer, firewallRuleName string) error {
+	sqlServerClient.MockGetFirewallRule = func(ctx context.Context, instance azuredbv1alpha1.SQLServer, firewallRuleName string) error {
 		getFirewallCallCount++
 		if getFirewallCallCount <= 1 {
 			// first GET should return not found, which will cause the reconcile loop to try to create the firewall rule
@@ -148,7 +148,7 @@ func TestReconcile(t *testing.T) {
 		}
 		return nil
 	}
-	sqlServerClient.MockCreateFirewallRulesBegin = func(ctx context.Context, instance azuredbv1alpha1.SqlServer, firewallRuleName string) ([]byte, error) {
+	sqlServerClient.MockCreateFirewallRulesBegin = func(ctx context.Context, instance azuredbv1alpha1.SQLServer, firewallRuleName string) ([]byte, error) {
 		return []byte("mocked marshalled firewall create future"), nil
 	}
 

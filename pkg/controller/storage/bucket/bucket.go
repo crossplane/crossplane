@@ -84,7 +84,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 // Reconcile reads that state of the cluster for a Instance object and makes changes based on the state read
 // and what is in the Instance.Spec
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	log.Printf("reconciling %s: %v", bucketv1alpha1.BucketKindApiVersion, request)
+	log.Printf("reconciling %s: %v", bucketv1alpha1.BucketKindAPIVersion, request)
 
 	// fetch the CRD instance
 	instance := &bucketv1alpha1.Bucket{}

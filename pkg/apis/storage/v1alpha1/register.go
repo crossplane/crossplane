@@ -39,7 +39,7 @@ const (
 	PostgreSQLInstanceKind           = "postgresqlinstance"
 	PostgreSQLInstanceKindAPIVersion = PostgreSQLInstanceKind + "." + APIVersion
 	BucketKind                       = "bucket"
-	BucketKindApiVersion             = BucketKind + "." + APIVersion
+	BucketKindAPIVersion             = BucketKind + "." + APIVersion
 )
 
 var (
