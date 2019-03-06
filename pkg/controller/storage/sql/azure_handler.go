@@ -135,7 +135,7 @@ func (h *AzurePostgreSQLServerHandler) SetBindStatus(name types.NamespacedName, 
 	return setBindStatus(postgresqlServer, err, c, bound)
 }
 
-func setBindStatus(resource corev1alpha1.Resource, getErr error, c client.Client, bound bool) error {
+func setBindStatus(resource corev1alpha1.Resource, getErr error, c client.StatusWriter, bound bool) error {
 	if getErr != nil {
 		// TODO: the CRD is not found and the binding state is supposed to be unbound. is this OK?
 		if errors.IsNotFound(getErr) && !bound {
