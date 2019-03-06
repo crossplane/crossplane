@@ -50,7 +50,7 @@ func init() {
 
 func TestMain(m *testing.M) {
 	storage.AddToScheme(scheme.Scheme)
-	t := test.NewTestEnv(namespace, test.CRDs())
+	t := test.NewEnv(namespace, test.CRDs())
 	cfg = t.Start()
 	t.StopAndExit(m.Run())
 }

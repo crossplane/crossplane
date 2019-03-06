@@ -50,7 +50,7 @@ func TestMain(m *testing.M) {
 		log.Fatal(err)
 	}
 
-	t := test.NewTestEnv(namespace, test.CRDs())
+	t := test.NewEnv(namespace, test.CRDs())
 	cfg = t.Start()
 
 	if c, err = client.New(cfg, client.Options{Scheme: scheme.Scheme}); err != nil {

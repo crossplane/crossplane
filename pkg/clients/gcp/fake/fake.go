@@ -22,29 +22,29 @@ import (
 	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/compute/v1alpha1"
 )
 
-// FakeGKEClient for mocking.
-type FakeGKEClient struct {
+// GKEClient for mocking.
+type GKEClient struct {
 	MockCreateCluster func(string, computev1alpha1.GKEClusterSpec) (*container.Cluster, error)
 	MockGetCluster    func(string, string) (*container.Cluster, error)
 	MockDeleteCluster func(string, string) error
 }
 
 // CreateCluster calls the underlying MockCreateCluster method.
-func (f *FakeGKEClient) CreateCluster(name string, spec computev1alpha1.GKEClusterSpec) (*container.Cluster, error) {
+func (f *GKEClient) CreateCluster(name string, spec computev1alpha1.GKEClusterSpec) (*container.Cluster, error) {
 	return f.MockCreateCluster(name, spec)
 }
 
 // GetCluster calls the underlying MockGetCluster method.
-func (f *FakeGKEClient) GetCluster(zone, name string) (*container.Cluster, error) {
+func (f *GKEClient) GetCluster(zone, name string) (*container.Cluster, error) {
 	return f.MockGetCluster(zone, name)
 }
 
 // DeleteCluster calls the underlying MockDeleteCluster method.
-func (f *FakeGKEClient) DeleteCluster(zone, name string) error {
+func (f *GKEClient) DeleteCluster(zone, name string) error {
 	return f.MockDeleteCluster(zone, name)
 }
 
 // NewGKEClient returns a fake GKE client for testing.
-func NewGKEClient() *FakeGKEClient {
-	return &FakeGKEClient{}
+func NewGKEClient() *GKEClient {
+	return &GKEClient{}
 }

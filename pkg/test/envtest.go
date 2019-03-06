@@ -41,16 +41,16 @@ var (
 	crds       = filepath.Join(filepath.Dir(filepath.Dir(filepath.Dir(b))), "cluster", "charts", "crossplane", "crds")
 )
 
-// TestEnv - wrapper for controller-runtime envtest with additional functionality
-type TestEnv struct {
+// Env - wrapper for controller-runtime envtest with additional functionality
+type Env struct {
 	envtest.Environment
 
 	namespace string
 	cfg       *rest.Config
 }
 
-// NewTestEnv - create new test environment instance
-func NewTestEnv(namespace string, crds ...string) *TestEnv {
+// NewEnv - create new test environment instance
+func NewEnv(namespace string, crds ...string) *Env {
 	t := envtest.Environment{
 		UseExistingCluster: UseExistingCluster(),
 	}
@@ -64,14 +64,14 @@ func NewTestEnv(namespace string, crds ...string) *TestEnv {
 	if len(namespace) == 0 {
 		namespace = "default"
 	}
-	return &TestEnv{
+	return &Env{
 		Environment: t,
 		namespace:   namespace,
 	}
 }
 
 // Start - starts and bootstraps test environment ang returns Kubernetes config instance
-func (te *TestEnv) Start() *rest.Config {
+func (te *Env) Start() *rest.Config {
 	cfg, err := te.Environment.Start()
 	if err != nil {
 		log.Fatal(err)
@@ -94,7 +94,7 @@ func (te *TestEnv) Start() *rest.Config {
 }
 
 // Stop - stops test environment performing additional cleanup (if needed)
-func (te *TestEnv) Stop() {
+func (te *Env) Stop() {
 	defer te.Environment.Stop()
 	if te.namespace != defaultNamespace {
 		k := kubernetes.NewForConfigOrDie(te.cfg)
@@ -107,7 +107,7 @@ func (te *TestEnv) Stop() {
 }
 
 // StopAndExit - stops and exists, typically used as a last call in TestMain
-func (te *TestEnv) StopAndExit(code int) {
+func (te *Env) StopAndExit(code int) {
 	te.Stop()
 	os.Exit(code)
 }
