@@ -89,6 +89,7 @@ pipeline {
                 always {
                     archiveArtifacts "_output/tests/**/*"
                     junit "_output/tests/**/unit-tests.xml"
+                    cobertura autoUpdateHealth: false, autoUpdateStability: false, coberturaReportFile: '_output/tests/**/coverage.xml', enableNewApi: false, failUnhealthy: false, failUnstable: false, maxNumberOfBuilds: 0, onlyStable: false, sourceEncoding: 'ASCII', zoomCoverageChart: false, classCoverageTargets: '50, 0, 0', conditionalCoverageTargets: '70, 0, 0', lineCoverageTargets: '40, 0, 0', methodCoverageTargets: '30, 0, 0', packageCoverageTargets: '80, 0, 0'
                 }
             }
         }
