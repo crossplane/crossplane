@@ -11,6 +11,7 @@ pipeline {
     }
 
     environment {
+        RUNNING_IN_CI = 'true'
         DOCKER = credentials('dockerhub-upboundci')
         AWS = credentials('aws-upbound-bot')
         GITHUB_UPBOUND_BOT = credentials('github-upbound-jenkins')
