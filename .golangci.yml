@@ -108,6 +108,7 @@ linters:
     - interfacer
     - goconst
     - goimports
+    - gofmt  # We enable this as well as goimports for its simplify mode.
     - prealloc
     - golint
   enable-all: false
