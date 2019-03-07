@@ -52,17 +52,49 @@ This is a rough outline of what a contributor's workflow looks like:
 - Make your changes and arrange them in readable commits.
 - Make sure your commit messages are in the proper format (see below).
 - Push your changes to the branch in your fork of the repository.
-- Make sure all tests pass, and add any new tests as appropriate.
+- Make sure all linters and tests pass, and add any new tests as appropriate.
 - Submit a pull request to the original repository.
 
 ## Building
 
 Details about building crossplane can be found in [INSTALL.md](INSTALL.md).
 
-## Coding Style
+## Coding Style and Linting
 
-Crossplane projects are written in golang and follows the style guidelines dictated by
-the go fmt as well as go vet tools.
+Crossplane projects are written in Go. Coding style is enforced by
+[golangci-lint](https://github.com/golangci/golangci-lint). Crossplane's linter
+configuration is [documented here](.golangci.yml). Builds will fail locally and
+in CI if linter warnings are introduced:
+
+```bash
+$ make build
+==> Linting /REDACTED/go/src/github.com/crossplaneio/crossplane/cluster/charts/crossplane
+[INFO] Chart.yaml: icon is recommended
+
+1 chart(s) linted, no failures
+20:31:42 [ .. ] helm dep crossplane 0.1.0-136.g2dfb012.dirty
+No requirements found in /REDACTED/go/src/github.com/crossplaneio/crossplane/cluster/charts/crossplane/charts.
+20:31:42 [ OK ] helm dep crossplane 0.1.0-136.g2dfb012.dirty
+20:31:42 [ .. ] golangci-lint
+pkg/clients/azure/redis/redis.go:35:7: exported const `NamePrefix` should have comment or be unexported (golint)
+const NamePrefix = "acr"
+      ^
+20:31:55 [FAIL]
+make[2]: *** [go.lint] Error 1
+make[1]: *** [build.all] Error 2
+make: *** [build] Error 2
+```
+
+Note that Jenkins builds will not output linter warnings in the build log.
+Instead `upbound-bot` will leave comments on your pull request when a build
+fails due to linter warnings. You can run `make lint` locally to help determine
+whether you've fixed any linter warnings detected by Jenkins.
+
+In some cases linter warnings will be false positives. `golangci-lint` supports
+`//nolint[:lintername]` comment directives in order to quell them. Please
+include an explanatory comment if you must add a `//nolint` comment. You may
+also submit a PR against [`.golangci.yml`](.golangci.yml) if you feel
+particular linter warning should be permanently disabled.
 
 ## Comments
 
