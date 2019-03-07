@@ -14,6 +14,7 @@ pipeline {
         DOCKER = credentials('dockerhub-upboundci')
         AWS = credentials('aws-upbound-bot')
         GITHUB_UPBOUND_BOT = credentials('github-upbound-jenkins')
+        CODECOV_TOKEN = credentials('codecov-crossplane')
     }
 
     stages {
@@ -82,6 +83,7 @@ pipeline {
                         }
                     }
                 }
+                curl -s https://codecov.io/bash | bash
             }
         }
     }
