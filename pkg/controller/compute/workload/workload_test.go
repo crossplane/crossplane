@@ -343,7 +343,7 @@ func Test_addWorkloadReferenceLabel(t *testing.T) {
 			addWorkloadReferenceLabel(tt.args.m, tt.args.uid)
 		})
 		g.Expect(tt.args.m.Labels).ShouldNot(BeNil())
-		g.Expect(tt.args.m.Labels).Should(HaveKeyWithValue(workloadReferenceLabelKey, string(tt.args.uid)))
+		g.Expect(tt.args.m.Labels).Should(HaveKeyWithValue(workloadReferenceLabelKey, tt.args.uid))
 	}
 }
 

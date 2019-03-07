@@ -104,7 +104,7 @@ func (c *Client) UpdateBucketACL(spec *v1alpha1.S3BucketSpec) error {
 	var err error
 	if spec.CannedACL != nil {
 		input := &s3.PutBucketAclInput{
-			ACL:    s3.BucketCannedACL(*spec.CannedACL),
+			ACL:    *spec.CannedACL,
 			Bucket: &spec.Name,
 		}
 		_, err = c.s3.PutBucketAclRequest(input).Send()
@@ -186,7 +186,7 @@ func CreateBucketInput(spec *v1alpha1.S3BucketSpec) *s3.CreateBucketInput {
 		Bucket:                    &spec.Name,
 	}
 	if spec.CannedACL != nil {
-		bucketInput.ACL = s3.BucketCannedACL(*spec.CannedACL)
+		bucketInput.ACL = *spec.CannedACL
 	}
 	return bucketInput
 }
