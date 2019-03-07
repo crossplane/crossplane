@@ -84,7 +84,7 @@ pipeline {
                     }
                 }
                 script {
-                    sh 'curl -s https://codecov.io/bash -t ${CODECOV_TOKEN} | bash'
+                    sh 'curl -s https://codecov.io/bash -t ${CODECOV_TOKEN} -f _output/tests/**/coverage.txt | bash'
                 }
             }
         }
