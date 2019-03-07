@@ -60,7 +60,7 @@ pipeline {
             post {
                 always {
                     archiveArtifacts "_output/tests/**/*"
-                    junit "_output/tests/**/*.xml"
+                    junit "_output/tests/**/unit-tests.xml"
                 }
             }
         }
