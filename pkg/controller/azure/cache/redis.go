@@ -55,8 +55,8 @@ const (
 	reconcileTimeout = 1 * time.Minute
 )
 
-// A creater can create resources in an external store - e.g. the Azure API.
-type creater interface {
+// A creator can create resources in an external store - e.g. the Azure API.
+type creator interface {
 	// Create the supplied resource in the external store. Returns true if the
 	// resource requires further reconciliation.
 	Create(ctx context.Context, r *v1alpha1.Redis) (requeue bool)
@@ -86,7 +86,7 @@ type keyer interface {
 // store - e.g. the Azure API. It can also return keys (i.e. credentials) for
 // resources.
 type createsyncdeletekeyer interface {
-	creater
+	creator
 	syncer
 	deleter
 	keyer
