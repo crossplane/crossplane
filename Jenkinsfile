@@ -12,6 +12,8 @@ pipeline {
 
     environment {
         RUNNING_IN_CI = 'true'
+        REPOSITORY_NAME = "${env.GIT_URL.tokenize('/')[3].split('\\.')[0]}"
+        REPOSITORY_OWNER = "${env.GIT_URL.tokenize('/')[2]}"
         DOCKER = credentials('dockerhub-upboundci')
         AWS = credentials('aws-upbound-bot')
         GITHUB_UPBOUND_BOT = credentials('github-upbound-jenkins')
@@ -46,6 +48,31 @@ pipeline {
             steps {
                 sh './build/run make vendor.check'
                 sh './build/run make -j\$(nproc) build.all'
+            }
+            post {
+                always {
+                    archiveArtifacts "_output/lint/**/*"
+                    ViolationsToGitHub([
+                        gitHubUrl: env.GIT_URL,
+                        repositoryName: env.REPOSITORY_NAME,
+                        repositoryOwner: env.REPOSITORY_OWNER,
+                        pullRequestId: env.CHANGE_ID,
+                        oAuth2Token: env.GITHUB_UPBOUND_BOT_PSW,
+
+                        createCommentWithAllSingleFileComments: false,
+                        createSingleFileComments: true,
+                        keepOldComments: false,
+                        commentOnlyChangedContent: true,
+                        commentTemplate: readFile('hack/linter-violation.tmpl'),
+
+                        violationConfigs: [[
+                            reporter: 'make lint',
+                            parser: 'CHECKSTYLE',
+                            // This is a regex run against the absolute path of the file.
+                            pattern: '.*/_output/lint/.+/checkstyle\\.xml\$',
+                        ]]
+                    ])
+                }
             }
         }
 
