@@ -83,7 +83,9 @@ pipeline {
                         }
                     }
                 }
-                curl -s https://codecov.io/bash | bash
+                script {
+                    curl -s https://codecov.io/bash -t ${CODECOV_TOKEN} | bash
+                }
             }
         }
     }
