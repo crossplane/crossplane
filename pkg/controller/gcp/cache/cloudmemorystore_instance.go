@@ -53,8 +53,8 @@ const (
 	reconcileTimeout = 1 * time.Minute
 )
 
-// A creater can create instances in an external store - e.g. the GCP API.
-type creater interface {
+// A creator can create instances in an external store - e.g. the GCP API.
+type creator interface {
 	// Create the supplied instance in the external store. Returns true if the
 	// instance requires further reconciliation.
 	Create(ctx context.Context, i *v1alpha1.CloudMemorystoreInstance) (requeue bool)
@@ -77,7 +77,7 @@ type deleter interface {
 // A createsyncdeleter an create, sync, and delete instances in an external
 // store - e.g. the GCP API.
 type createsyncdeleter interface {
-	creater
+	creator
 	syncer
 	deleter
 }

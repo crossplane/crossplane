@@ -26,7 +26,7 @@ import (
 var _ client.Client = &MockClient{}
 
 // MockClient implements controller-runtime's Client interface, allowing each
-// method to be overriden for testing. The controller-runtime provides a fake
+// method to be overridden for testing. The controller-runtime provides a fake
 // client, but it is has surprising side effects (e.g. silently calling
 // os.Exit(1)) and does not allow us control over the errors it returns.
 type MockClient struct {

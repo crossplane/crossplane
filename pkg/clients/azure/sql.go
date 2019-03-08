@@ -482,7 +482,7 @@ func SQLServerStatusMessage(instanceName string, state string) string {
 	case mysql.ServerStateReady:
 		return fmt.Sprintf("SQL Server instance %s is ready", instanceName)
 	default:
-		return fmt.Sprintf("SQL Server instance %s is in an unknown state %s", instanceName, string(state))
+		return fmt.Sprintf("SQL Server instance %s is in an unknown state %s", instanceName, state)
 	}
 }
 

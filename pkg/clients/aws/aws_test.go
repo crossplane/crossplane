@@ -38,13 +38,13 @@ func TestCredentialsIdSecret(t *testing.T) {
 	credentials := []byte(fmt.Sprintf(awsCredentialsFileFormat, testProfile, testID, testSecret))
 
 	// valid profile
-	id, secret, err := CredentialsIDSecret([]byte(credentials), testProfile)
+	id, secret, err := CredentialsIDSecret(credentials, testProfile)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(id).To(Equal(testID))
 	g.Expect(secret).To(Equal(testSecret))
 
 	// invalid profile - foo does not exist
-	id, secret, err = CredentialsIDSecret([]byte(credentials), "foo")
+	id, secret, err = CredentialsIDSecret(credentials, "foo")
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(id).To(Equal(""))
 	g.Expect(secret).To(Equal(""))
@@ -59,7 +59,7 @@ func TestLoadConfig(t *testing.T) {
 	testRegion := "us-west-2"
 	credentials := []byte(fmt.Sprintf(awsCredentialsFileFormat, testProfile, testID, testSecret))
 
-	config, err := LoadConfig([]byte(credentials), testProfile, testRegion)
+	config, err := LoadConfig(credentials, testProfile, testRegion)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(config).NotTo(BeNil())
 }

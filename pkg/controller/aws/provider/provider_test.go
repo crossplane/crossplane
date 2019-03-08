@@ -154,7 +154,7 @@ func TestReconcileSecretKeyNotFound(t *testing.T) {
 func TestReconcileInvalidationPassed(t *testing.T) {
 	g := NewGomegaWithT(t)
 
-	ts := testSecret([]byte(testSecretData("default", "test-id", "test-secret")))
+	ts := testSecret(testSecretData("default", "test-id", "test-secret"))
 	tp := testProvider()
 
 	r := &Reconciler{
@@ -206,7 +206,7 @@ func TestReconcileInvalidCredentialsFormat(t *testing.T) {
 func TestReconcileValidationFailed(t *testing.T) {
 	g := NewGomegaWithT(t)
 
-	ts := testSecret([]byte(testSecretData("default", "test-id", "test-secret")))
+	ts := testSecret(testSecretData("default", "test-id", "test-secret"))
 	tp := testProvider()
 
 	r := &Reconciler{

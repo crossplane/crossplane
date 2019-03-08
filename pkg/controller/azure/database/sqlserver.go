@@ -132,7 +132,7 @@ func (r *SQLReconciler) handleReconcile(instance azuredbv1alpha1.SQLServer) (rec
 	}
 
 	// SQL Server instance exists, update the CRD status now with its latest status
-	stateChanged := instance.GetStatus().State != string(server.State)
+	stateChanged := instance.GetStatus().State != server.State
 	conditionType := azureclients.SQLServerConditionType(server.State)
 	if err := r.updateStatus(instance, azureclients.SQLServerStatusMessage(instance.GetName(), server.State), server); err != nil {
 		// updating the CRD status failed, return the error and try the next reconcile loop
@@ -333,7 +333,7 @@ func (r *SQLReconciler) updateStatus(instance azuredbv1alpha1.SQLServer, message
 		ConditionedStatus:    oldStatus.ConditionedStatus,
 		BindingStatusPhase:   oldStatus.BindingStatusPhase,
 		Message:              message,
-		State:                string(server.State),
+		State:                server.State,
 		ProviderID:           server.ID,
 		Endpoint:             server.FQDN,
 		RunningOperation:     oldStatus.RunningOperation,

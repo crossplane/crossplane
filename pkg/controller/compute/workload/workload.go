@@ -231,8 +231,7 @@ func propagateDeployment(k kubernetes.Interface, d *appsv1.Deployment, ns, uid s
 		return k.AppsV1().Deployments(d.Namespace).Create(d)
 	}
 
-	l := getWorkloadReferenceLabel(dd.ObjectMeta)
-	if l == string(uid) {
+	if getWorkloadReferenceLabel(dd.ObjectMeta) == uid {
 		return k.AppsV1().Deployments(d.Namespace).Update(d)
 	}
 
@@ -260,8 +259,7 @@ func propagateService(k kubernetes.Interface, s *corev1.Service, ns, uid string)
 		return k.CoreV1().Services(s.Namespace).Create(s)
 	}
 
-	l := getWorkloadReferenceLabel(ss.ObjectMeta)
-	if l == string(uid) {
+	if getWorkloadReferenceLabel(ss.ObjectMeta) == uid {
 		return k.CoreV1().Services(s.Namespace).Update(s)
 	}
 
