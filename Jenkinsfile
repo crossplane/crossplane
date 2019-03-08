@@ -17,6 +17,7 @@ pipeline {
         DOCKER = credentials('dockerhub-upboundci')
         AWS = credentials('aws-upbound-bot')
         GITHUB_UPBOUND_BOT = credentials('github-upbound-jenkins')
+        CODECOV_TOKEN = credentials('codecov-crossplane')
     }
 
     stages {
@@ -89,6 +90,21 @@ pipeline {
                 always {
                     archiveArtifacts "_output/tests/**/*"
                     junit "_output/tests/**/unit-tests.xml"
+                    cobertura coberturaReportFile: '_output/tests/**/coverage.xml',
+                            classCoverageTargets: '50, 0, 0',
+                            conditionalCoverageTargets: '70, 0, 0',
+                            lineCoverageTargets: '40, 0, 0',
+                            methodCoverageTargets: '30, 0, 0',
+                            packageCoverageTargets: '80, 0, 0',
+                            autoUpdateHealth: false,
+                            autoUpdateStability: false,
+                            enableNewApi: false,
+                            failUnhealthy: false,
+                            failUnstable: false,
+                            maxNumberOfBuilds: 0,
+                            onlyStable: false,
+                            sourceEncoding: 'ASCII',
+                            zoomCoverageChart: false
                 }
             }
         }
@@ -108,6 +124,9 @@ pipeline {
                             sh "./build/run make -j\$(nproc) promote BRANCH_NAME=master CHANNEL=master AWS_ACCESS_KEY_ID=${AWS_USR} AWS_SECRET_ACCESS_KEY=${AWS_PSW}"
                         }
                     }
+                }
+                script {
+                    sh 'curl -s https://codecov.io/bash | bash -s -- -c -f _output/tests/**/coverage.txt -F unittests'
                 }
             }
         }
