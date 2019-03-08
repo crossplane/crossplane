@@ -90,7 +90,21 @@ pipeline {
                 always {
                     archiveArtifacts "_output/tests/**/*"
                     junit "_output/tests/**/unit-tests.xml"
-                    cobertura autoUpdateHealth: false, autoUpdateStability: false, coberturaReportFile: '_output/tests/**/coverage.xml', enableNewApi: false, failUnhealthy: false, failUnstable: false, maxNumberOfBuilds: 0, onlyStable: false, sourceEncoding: 'ASCII', zoomCoverageChart: false, classCoverageTargets: '50, 0, 0', conditionalCoverageTargets: '70, 0, 0', lineCoverageTargets: '40, 0, 0', methodCoverageTargets: '30, 0, 0', packageCoverageTargets: '80, 0, 0'
+                    cobertura coberturaReportFile: '_output/tests/**/coverage.xml',
+                            classCoverageTargets: '50, 0, 0',
+                            conditionalCoverageTargets: '70, 0, 0',
+                            lineCoverageTargets: '40, 0, 0',
+                            methodCoverageTargets: '30, 0, 0',
+                            packageCoverageTargets: '80, 0, 0',
+                            autoUpdateHealth: false,
+                            autoUpdateStability: false,
+                            enableNewApi: false,
+                            failUnhealthy: false,
+                            failUnstable: false,
+                            maxNumberOfBuilds: 0,
+                            onlyStable: false,
+                            sourceEncoding: 'ASCII',
+                            zoomCoverageChart: false
                 }
             }
         }
@@ -112,7 +126,7 @@ pipeline {
                     }
                 }
                 script {
-                    sh 'curl -s https://codecov.collibra.com/bash | bash -s -- -c -f _output/tests/**/coverage.txt -F unittests'
+                    sh 'curl -s https://codecov.io/bash | bash -s -- -c -f _output/tests/**/coverage.txt -F unittests'
                 }
             }
         }
