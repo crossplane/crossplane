@@ -112,7 +112,7 @@ pipeline {
                     }
                 }
                 script {
-                    sh 'curl -s https://codecov.collibra.com/bash | bash -s -- -c -f _output/tests/**/coverage.txt'
+                    sh 'curl -s https://codecov.collibra.com/bash | bash -s -- -c -f _output/tests/**/coverage.txt -F unittests'
                 }
             }
         }
