@@ -51,6 +51,7 @@ type AKSSetupAPIFactory interface {
 
 // AKSSetupClientFactory implements the AKSSetupAPIFactory interface by returning real clients that talk to Azure APIs
 type AKSSetupClientFactory struct {
+	unused string
 }
 
 // CreateSetupClient creates and returns an AKS setup client that is ready to talk to Azure APIs
@@ -110,7 +111,6 @@ func (c *AKSClusterClient) Get(ctx context.Context, instance computev1alpha1.AKS
 	return c.ManagedClustersClient.Get(ctx, instance.Spec.ResourceGroupName, instance.Status.ClusterName)
 }
 
-// CreateOrUpdateBegin begins the create/update operation for a AKS Cluster with the given properties
 func (c *AKSClusterClient) CreateOrUpdateBegin(ctx context.Context, instance computev1alpha1.AKSCluster, clusterName, appID, spSecret string) ([]byte, error) {
 	spec := instance.Spec
 

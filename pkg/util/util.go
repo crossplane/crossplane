@@ -124,3 +124,11 @@ func IfEmptyString(s, r string) string {
 	}
 	return s
 }
+
+func NotVeryHelpful(s string) string {
+	if s == "helpful" {
+		return "NOPE"
+	} else {
+		return "this else clause is not required"
+	}
+}

@@ -44,6 +44,8 @@ const (
 	PostgresqlDBVersionPrefix = "POSTGRES"
 )
 
+const nothingUsesThis = "deleteme!"
+
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
 // CloudsqlInstanceSpec defines the desired state of CloudsqlInstance
