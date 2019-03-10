@@ -19,7 +19,7 @@ package azure
 import (
 	"context"
 	"fmt"
-	"strings"
+	"regexp"
 
 	"github.com/Azure/azure-sdk-for-go/services/resources/mgmt/2018-05-01/resources"
 )
@@ -36,6 +36,26 @@ func CreateOrUpdateGroup(client *Client, name string, location string) error {
 	return err
 }
 
+// CheckExistence checks to see if the resource group already exists
+func CheckExistence(client *Client, name string, location string) (bool, error) {
+	groupsClient := resources.NewGroupsClient(client.SubscriptionID)
+	groupsClient.Authorizer = client.Authorizer
+	groupsClient.AddToUserAgent(UserAgent)
+	res, err := groupsClient.CheckExistence(context.TODO(), name)
+	if res.Response.StatusCode == 204 {
+		return true, err
+	}
+	return false, err
+}
+
+// DeleteGroup deletes a resource group and its associated resources
+func DeleteGroup(client *Client, name string, location string) (resources.GroupsDeleteFuture, error) {
+	groupsClient := resources.NewGroupsClient(client.SubscriptionID)
+	groupsClient.Authorizer = client.Authorizer
+	groupsClient.AddToUserAgent(UserAgent)
+	return groupsClient.Delete(context.TODO(), name)
+}
+
 // CheckResourceGroupName checks to make sure Resource Group name adheres to
 func CheckResourceGroupName(name string) error {
 	if len(name) == 0 {
@@ -44,8 +64,8 @@ func CheckResourceGroupName(name string) error {
 	if len(name) > 90 {
 		return fmt.Errorf("name of resource group may not be longer than 90 characters")
 	}
-	if strings.HasSuffix(name, ".") {
-		return fmt.Errorf("name of resource group may not end in a period")
+	if matched, _ := regexp.MatchString(`^[-\w\._\(\)]+$`, name); matched == false {
+		return fmt.Errorf("name of resource group is not well-formed per https://docs.microsoft.com/en-us/rest/api/resources/resourcegroups/createorupdate")
 	}
 	return nil
 }

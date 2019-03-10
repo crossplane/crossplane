@@ -32,8 +32,7 @@ spec:
               description: See official list of valid regions - https://azure.microsoft.com/en-us/global-infrastructure/regions/
               type: string
             name:
-              description: 'Important: Run "make generate" to regenerate code after
-                modifying this file'
+              description: Name of the resource group
               type: string
             providerRef:
               type: object
@@ -41,6 +40,11 @@ spec:
           - providerRef
           type: object
         status:
+          properties:
+            name:
+              type: string
+          required:
+          - name
           type: object
   version: v1alpha1
 status:

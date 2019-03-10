@@ -18,7 +18,6 @@ package v1alpha1
 
 import (
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
@@ -70,15 +69,17 @@ func (p *Provider) IsValid() bool {
 // ResourceGroupSpec defines the desired state of Resource Group
 type ResourceGroupSpec struct {
 	// Important: Run "make generate" to regenerate code after modifying this file
-	Name string `json:"name,omitempty"`
 
+	// Name of the resource group
+	Name string `json:"name,omitempty"`
 	// See official list of valid regions - https://azure.microsoft.com/en-us/global-infrastructure/regions/
-	Location    string                  `json:"location,omitempty"`
-	ProviderRef v1.LocalObjectReference `json:"providerRef"`
+	Location    string                      `json:"location,omitempty"`
+	ProviderRef corev1.LocalObjectReference `json:"providerRef"`
 }
 
 // ResourceGroupStatus is the status for this resource group
 type ResourceGroupStatus struct {
+	Name string `json:"name"`
 	corev1alpha1.ConditionedStatus
 }
 
