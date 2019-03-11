@@ -1,6 +1,7 @@
 <p align="center"><img src="docs/media/banner.png" alt="Crossplane"></p>
 
 [![Build Status](https://jenkinsci.upbound.io/buildStatus/icon?job=crossplane/build/master)](https://jenkinsci.upbound.io/blue/organizations/jenkins/crossplane%2Fbuild/activity)
+[![codecov](https://codecov.io/gh/crossplaneio/crossplane/branch/master/graph/badge.svg)](https://codecov.io/gh/crossplaneio/crossplane/branch/master/graph/badge.svg)
 [![GitHub release](https://img.shields.io/github/release/crossplaneio/crossplane/all.svg?style=flat-square)](https://github.com/crossplaneio/crossplane/releases)
 [![Docker Pulls](https://img.shields.io/docker/pulls/crossplane/crossplane.svg)](https://img.shields.io/docker/pulls/crossplane/crossplane.svg)
 [![Go Report Card](https://goreportcard.com/badge/github.com/crossplaneio/crossplane)](https://goreportcard.com/report/github.com/crossplaneio/crossplane)
