@@ -155,6 +155,9 @@ func replicationGroup(rm ...replicationGroupModifier) *v1alpha1.ReplicationGroup
 			ProviderRef:                corev1.LocalObjectReference{Name: providerName},
 			ConnectionSecretRef:        corev1.LocalObjectReference{Name: connectionSecretName},
 		},
+		Status: v1alpha1.ReplicationGroupStatus{
+			ClusterEnabled: true,
+		},
 	}
 
 	for _, m := range rm {
@@ -343,6 +346,7 @@ func TestSync(t *testing.T) {
 									CacheNodeType:          aws.String(cacheNodeType),
 									SnapshotRetentionLimit: aws.Int64(snapshotRetentionLimit),
 									SnapshotWindow:         aws.String(snapshotWindow),
+									ClusterEnabled:         aws.Bool(true),
 									ConfigurationEndpoint:  &elasticache.Endpoint{Address: aws.String(host), Port: aws.Int64(port)},
 								}},
 							},
@@ -395,6 +399,7 @@ func TestSync(t *testing.T) {
 									CacheNodeType:          aws.String(cacheNodeType),
 									SnapshotRetentionLimit: aws.Int64(snapshotRetentionLimit),
 									SnapshotWindow:         aws.String(snapshotWindow),
+									ClusterEnabled:         aws.Bool(true),
 									ConfigurationEndpoint:  &elasticache.Endpoint{Address: aws.String(host), Port: aws.Int64(port)},
 								}},
 							},
@@ -452,6 +457,7 @@ func TestSync(t *testing.T) {
 									CacheNodeType:          aws.String(cacheNodeType),
 									SnapshotRetentionLimit: aws.Int64(snapshotRetentionLimit),
 									SnapshotWindow:         aws.String(snapshotWindow),
+									ClusterEnabled:         aws.Bool(true),
 									ConfigurationEndpoint:  &elasticache.Endpoint{Address: aws.String(host), Port: aws.Int64(port)},
 								}},
 							},
@@ -531,6 +537,7 @@ func TestSync(t *testing.T) {
 							Data: &elasticache.DescribeReplicationGroupsOutput{
 								ReplicationGroups: []elasticache.ReplicationGroup{{
 									Status:         aws.String(v1alpha1.StatusAvailable),
+									ClusterEnabled: aws.Bool(true),
 									MemberClusters: []string{cacheClusterID},
 								}},
 							},
@@ -579,6 +586,7 @@ func TestSync(t *testing.T) {
 									CacheNodeType:          aws.String(cacheNodeType),
 									SnapshotRetentionLimit: aws.Int64(snapshotRetentionLimit),
 									SnapshotWindow:         aws.String(snapshotWindow),
+									ClusterEnabled:         aws.Bool(true),
 									ConfigurationEndpoint:  &elasticache.Endpoint{Address: aws.String(host), Port: aws.Int64(port)},
 								}},
 							},
