@@ -168,10 +168,9 @@ func (e *elastiCache) Sync(ctx context.Context, g *v1alpha1.ReplicationGroup) bo
 		return true
 	}
 
-	if replicationGroup.ConfigurationEndpoint != nil {
-		g.Status.Endpoint = aws.StringValue(replicationGroup.ConfigurationEndpoint.Address)
-		g.Status.Port = aws.Int64Value(replicationGroup.ConfigurationEndpoint.Port)
-	}
+	ep := elasticache.ConnectionEndpoint(replicationGroup)
+	g.Status.Endpoint = ep.Address
+	g.Status.Port = ep.Port
 	g.Status.ProviderID = aws.StringValue(replicationGroup.ReplicationGroupId)
 	g.Status.ClusterEnabled = aws.BoolValue(replicationGroup.ClusterEnabled)
 	g.Status.MemberClusters = replicationGroup.MemberClusters

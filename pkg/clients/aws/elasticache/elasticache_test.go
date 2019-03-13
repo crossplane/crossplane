@@ -45,6 +45,7 @@ const (
 	notificationTopicARN     = "arn:aws:sns:cooltopic"
 	numCacheClusters         = 2
 	numNodeGroups            = 2
+	host                     = "coolhost"
 	port                     = 6379
 	maintenanceWindow        = "tomorrow"
 	replicasPerNodeGroup     = 2
@@ -590,4 +591,61 @@ func TestCacheClusterNeedsUpdate(t *testing.T) {
 		})
 	}
 
+}
+
+func TestConnectionEndpoint(t *testing.T) {
+	cases := []struct {
+		name string
+		rg   elasticache.ReplicationGroup
+		want Endpoint
+	}{
+		{
+			name: "ClusterModeEnabled",
+			rg: elasticache.ReplicationGroup{
+				ClusterEnabled: aws.Bool(true),
+				ConfigurationEndpoint: &elasticache.Endpoint{
+					Address: aws.String(host),
+					Port:    aws.Int64(port),
+				},
+			},
+			want: Endpoint{Address: host, Port: port},
+		},
+		{
+			name: "ClusterModeEnabledMissingConfigurationEndpoint",
+			rg: elasticache.ReplicationGroup{
+				ClusterEnabled: aws.Bool(true),
+			},
+			want: Endpoint{},
+		},
+		{
+			name: "ClusterModeDisabled",
+			rg: elasticache.ReplicationGroup{
+				NodeGroups: []elasticache.NodeGroup{{
+					PrimaryEndpoint: &elasticache.Endpoint{
+						Address: aws.String(host),
+						Port:    aws.Int64(port),
+					}},
+				},
+			},
+			want: Endpoint{Address: host, Port: port},
+		},
+		{
+			name: "ClusterModeDisabledMissingPrimaryEndpoint",
+			rg:   elasticache.ReplicationGroup{NodeGroups: []elasticache.NodeGroup{{}}},
+			want: Endpoint{},
+		},
+		{
+			name: "ClusterModeDisabledMissingNodeGroups",
+			rg:   elasticache.ReplicationGroup{},
+			want: Endpoint{},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := ConnectionEndpoint(tc.rg)
+			if diff := deep.Equal(tc.want, got); diff != nil {
+				t.Errorf("ConnectionEndpoint(...): want != got:\n%s", diff)
+			}
+		})
+	}
 }

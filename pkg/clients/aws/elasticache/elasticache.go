@@ -273,3 +273,39 @@ func sgNamesNeedUpdate(kube []string, cc []elasticache.CacheSecurityGroupMembers
 
 	return false
 }
+
+// Endpoint represents the address and port used to connect to an ElastiCache
+// Replication Group.
+type Endpoint struct {
+	Address string
+	Port    int
+}
+
+func newEndpoint(e *elasticache.Endpoint) Endpoint {
+	if e == nil {
+		return Endpoint{}
+	}
+
+	return Endpoint{Address: aws.StringValue(e.Address), Port: aws.Int64Value(e.Port)}
+}
+
+// ConnectionEndpoint returns the connection endpoint for a Replication Group.
+// https://docs.aws.amazon.com/AmazonElastiCache/latest/red-ug/Endpoints.html
+func ConnectionEndpoint(rg elasticache.ReplicationGroup) Endpoint {
+	// "Cluster enabled" Replication Groups have multiple node groups, and an
+	// explicit configuration endpoint that should be used for read and write.
+	if aws.BoolValue(rg.ClusterEnabled) {
+		return newEndpoint(rg.ConfigurationEndpoint)
+	}
+
+	// "Cluster disabled" Replication Groups have a single node group, with a
+	// primary endpoint that should be used for write. Any node's endpoint can
+	// be used for read, but we support only a single endpoint so we return the
+	// primary's.
+	if len(rg.NodeGroups) == 1 {
+		return newEndpoint(rg.NodeGroups[0].PrimaryEndpoint)
+	}
+
+	// If the AWS API docs are to be believed we should never get here.
+	return Endpoint{}
+}
