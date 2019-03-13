@@ -18,12 +18,14 @@ limitations under the License.
 
 package v1alpha1
 
+import "encoding/json"
+
 // BindingState is to identify the current binding status of given resources
 type BindingState int
 
 // MarshalJSON returns a JSON representation of a BindingState.
 func (s BindingState) MarshalJSON() ([]byte, error) {
-	return []byte(s.String()), nil
+	return json.Marshal(s.String())
 }
 
 // Binding states.
