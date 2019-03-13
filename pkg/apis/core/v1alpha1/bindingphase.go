@@ -18,7 +18,11 @@ limitations under the License.
 
 package v1alpha1
 
-import "encoding/json"
+import (
+	"encoding/json"
+
+	"github.com/pkg/errors"
+)
 
 // BindingState is to identify the current binding status of given resources
 type BindingState int
@@ -26,6 +30,23 @@ type BindingState int
 // MarshalJSON returns a JSON representation of a BindingState.
 func (s BindingState) MarshalJSON() ([]byte, error) {
 	return json.Marshal(s.String())
+}
+
+// UnmarshalJSON returns a BindingState from its JSON representation.
+func (s *BindingState) UnmarshalJSON(b []byte) error {
+	var ss string
+	if err := json.Unmarshal(b, &ss); err != nil {
+		return err
+	}
+	switch ss {
+	case BindingStateUnbound.String():
+		*s = BindingStateUnbound
+	case BindingStateBound.String():
+		*s = BindingStateBound
+	default:
+		return errors.Errorf("unknown binding state %s", ss)
+	}
+	return nil
 }
 
 // Binding states.
