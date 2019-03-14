@@ -61,8 +61,10 @@ const (
 // A creator can create resources in an external store - e.g. the AWS API.
 type creator interface {
 	// Create the supplied resource in the external store. Returns true if the
-	// resource requires further reconciliation.
-	Create(ctx context.Context, r *v1alpha1.ReplicationGroup) (requeue bool)
+	// resource requires further reconciliation, and an authentication token
+	// used to connect to the Redis endpoint. The authentication token will be
+	// an empty string if no token is required.
+	Create(ctx context.Context, r *v1alpha1.ReplicationGroup) (requeue bool, authToken string)
 }
 
 // A syncer can sync resources with an external store - e.g. the AWS API.
@@ -79,49 +81,38 @@ type deleter interface {
 	Delete(ctx context.Context, r *v1alpha1.ReplicationGroup) (requeue bool)
 }
 
-// A keyer can read the primary access key for the supplied resource.
-type keyer interface {
-	// Key returns the primary access key for the supplied resource.
-	Key() (key string)
-}
-
-// A createsyncdeletekeyer an create, sync, and delete resources in an external
-// store - e.g. the AWS API. It can also return keys (i.e. credentials) for
-// resources.
-type createsyncdeletekeyer interface {
+// A createsyncdeleter can create, sync, and delete resources in an external
+// store - e.g. the AWS API.
+type createsyncdeleter interface {
 	creator
 	syncer
 	deleter
-	keyer
 }
 
 // elastiCache is a createsyncdeleter using the AWS Replication Group API.
-type elastiCache struct {
-	client    elasticache.Client
-	authToken string
-}
+type elastiCache struct{ client elasticache.Client }
 
-func (e *elastiCache) Create(ctx context.Context, g *v1alpha1.ReplicationGroup) bool {
-
+func (e *elastiCache) Create(ctx context.Context, g *v1alpha1.ReplicationGroup) (bool, string) {
 	// Our create request will fail if auth is enabled but transit encryption is
 	// not. We don't check for the latter here because it's less surprising to
 	// submit the request as the operator intended and let the resource
 	// transition to failed with an explanatory message from AWS explaining that
 	// transit encryption is required.
+	var authToken string
 	if g.Spec.AuthEnabled {
 		at, err := util.GeneratePassword(maxAuthTokenData)
 		if err != nil {
 			g.Status.SetFailed(reasonCreatingResource, err.Error())
-			return true
+			return true, authToken
 		}
-		e.authToken = at
+		authToken = at
 	}
 
-	req := e.client.CreateReplicationGroupRequest(elasticache.NewCreateReplicationGroupInput(g, e.authToken))
+	req := e.client.CreateReplicationGroupRequest(elasticache.NewCreateReplicationGroupInput(g, authToken))
 	req.SetContext(ctx)
 	if _, err := req.Send(); err != nil {
 		g.Status.SetFailed(reasonCreatingResource, err.Error())
-		return true
+		return true, authToken
 	}
 
 	g.Status.GroupName = elasticache.NewReplicationGroupID(g)
@@ -129,7 +120,7 @@ func (e *elastiCache) Create(ctx context.Context, g *v1alpha1.ReplicationGroup) 
 	g.Status.SetCreating()
 	util.AddFinalizer(&g.ObjectMeta, finalizerName)
 
-	return true
+	return true, authToken
 }
 
 // TODO(negz): This method's cyclomatic complexity is a little high. Consider
@@ -229,14 +220,10 @@ func (e *elastiCache) Delete(ctx context.Context, g *v1alpha1.ReplicationGroup) 
 	return false
 }
 
-func (e *elastiCache) Key() string {
-	return e.authToken
-}
-
 // A connecter returns a createsyncdeletekeyer that can create, sync, and delete
 // AWS Replication Group resources with an external store - for example the AWS API.
 type connecter interface {
-	Connect(context.Context, *v1alpha1.ReplicationGroup) (createsyncdeletekeyer, error)
+	Connect(context.Context, *v1alpha1.ReplicationGroup) (createsyncdeleter, error)
 }
 
 // providerConnecter is a connecter that returns a createsyncdeleter
@@ -249,7 +236,7 @@ type providerConnecter struct {
 // Connect returns a createsyncdeletekeyer backed by the AWS API. AWS
 // credentials are read from the Crossplane Provider referenced by the supplied
 // ReplicationGroup.
-func (c *providerConnecter) Connect(ctx context.Context, g *v1alpha1.ReplicationGroup) (createsyncdeletekeyer, error) {
+func (c *providerConnecter) Connect(ctx context.Context, g *v1alpha1.ReplicationGroup) (createsyncdeleter, error) {
 	p := &awsv1alpha1.Provider{}
 	n := types.NamespacedName{Namespace: g.GetNamespace(), Name: g.Spec.ProviderRef.Name}
 	if err := c.kube.Get(ctx, n, p); err != nil {
@@ -321,10 +308,15 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	// The group is unnamed. Assume it has not been created in AWS.
 	if rd.Status.GroupName == "" {
-		return reconcile.Result{Requeue: client.Create(ctx, rd)}, errors.Wrapf(r.kube.Update(ctx, rd), "cannot update resource %s", req.NamespacedName)
+		requeue, authToken := client.Create(ctx, rd)
+		if err := r.upsertSecret(ctx, connectionSecretWithPassword(rd, authToken)); err != nil {
+			rd.Status.SetFailed(reasonSyncingSecret, err.Error())
+			requeue = true
+		}
+		return reconcile.Result{Requeue: requeue}, errors.Wrapf(r.kube.Update(ctx, rd), "cannot update resource %s", req.NamespacedName)
 	}
 
-	if err := r.upsertSecret(ctx, connectionSecret(rd, client.Key())); err != nil {
+	if err := r.upsertSecret(ctx, connectionSecret(rd)); err != nil {
 		rd.Status.SetFailed(reasonSyncingSecret, err.Error())
 		return reconcile.Result{Requeue: true}, errors.Wrapf(r.kube.Update(ctx, rd), "cannot update resource %s", req.NamespacedName)
 	}
@@ -333,19 +325,30 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	return reconcile.Result{Requeue: client.Sync(ctx, rd)}, errors.Wrapf(r.kube.Update(ctx, rd), "cannot update resource %s", req.NamespacedName)
 }
 
-func (r *Reconciler) upsertSecret(ctx context.Context, s *corev1.Secret) error {
-	n := types.NamespacedName{Namespace: s.GetNamespace(), Name: s.GetName()}
-	if err := r.kube.Get(ctx, n, &corev1.Secret{}); err != nil {
+func (r *Reconciler) upsertSecret(ctx context.Context, new *corev1.Secret) error {
+	n := types.NamespacedName{Namespace: new.GetNamespace(), Name: new.GetName()}
+	existing := &corev1.Secret{}
+	if err := r.kube.Get(ctx, n, existing); err != nil {
 		if kerrors.IsNotFound(err) {
-			return errors.Wrapf(r.kube.Create(ctx, s), "cannot create secret %s", n)
+			return errors.Wrapf(r.kube.Create(ctx, new), "cannot create secret %s", n)
 		}
 		return errors.Wrapf(err, "cannot get secret %s", n)
 	}
-	return errors.Wrapf(r.kube.Update(ctx, s), "cannot update secret %s", n)
+
+	// If a key is set in both the existing and new secrets the new key wins,
+	// but we preserve any keys set in the existing secret that aren't set in
+	// the new secret.
+	for k, v := range existing.Data {
+		if _, ok := new.Data[k]; !ok {
+			new.Data[k] = v
+		}
+	}
+
+	return errors.Wrapf(r.kube.Update(ctx, new), "cannot update secret %s", n)
 }
 
-func connectionSecret(g *v1alpha1.ReplicationGroup, password string) *corev1.Secret {
-	s := &corev1.Secret{
+func connectionSecret(g *v1alpha1.ReplicationGroup) *corev1.Secret {
+	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            g.ConnectionSecretName(),
 			Namespace:       g.Namespace,
@@ -353,11 +356,16 @@ func connectionSecret(g *v1alpha1.ReplicationGroup, password string) *corev1.Sec
 		},
 
 		// TODO(negz): Include the ports here too?
-		Data: map[string][]byte{corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(g.Status.Endpoint)},
+		Data: map[string][]byte{
+			corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(g.Status.Endpoint),
+		},
 	}
+}
+
+func connectionSecretWithPassword(g *v1alpha1.ReplicationGroup, password string) *corev1.Secret {
+	s := connectionSecret(g)
 	if password != "" {
 		s.Data[corev1alpha1.ResourceCredentialsSecretPasswordKey] = []byte(password)
 	}
-
 	return s
 }
