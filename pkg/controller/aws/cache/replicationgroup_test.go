@@ -173,14 +173,14 @@ var _ reconcile.Reconciler = &Reconciler{}
 func TestCreate(t *testing.T) {
 	cases := []struct {
 		name        string
-		csdk        createsyncdeletekeyer
+		csd         createsyncdeleter
 		r           *v1alpha1.ReplicationGroup
 		want        *v1alpha1.ReplicationGroup
 		wantRequeue bool
 	}{
 		{
 			name: "SuccessfulCreate",
-			csdk: &elastiCache{client: &fake.MockClient{
+			csd: &elastiCache{client: &fake.MockClient{
 				MockCreateReplicationGroupRequest: func(_ *elasticache.CreateReplicationGroupInput) elasticache.CreateReplicationGroupRequest {
 					return elasticache.CreateReplicationGroupRequest{
 						Request: &aws.Request{HTTPRequest: &http.Request{}, Data: &elasticache.CreateReplicationGroupOutput{}},
@@ -198,7 +198,7 @@ func TestCreate(t *testing.T) {
 		},
 		{
 			name: "FailedCreate",
-			csdk: &elastiCache{client: &fake.MockClient{
+			csd: &elastiCache{client: &fake.MockClient{
 				MockCreateReplicationGroupRequest: func(_ *elasticache.CreateReplicationGroupInput) elasticache.CreateReplicationGroupRequest {
 					return elasticache.CreateReplicationGroupRequest{
 						Request: &aws.Request{HTTPRequest: &http.Request{}, Error: errorBoom},
@@ -220,10 +220,10 @@ func TestCreate(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			gotRequeue := tc.csdk.Create(ctx, tc.r)
+			gotRequeue, _ := tc.csd.Create(ctx, tc.r)
 
 			if gotRequeue != tc.wantRequeue {
-				t.Errorf("tc.csdk.Create(...): want: %t got: %t", tc.wantRequeue, gotRequeue)
+				t.Errorf("tc.csd.Create(...): want: %t got: %t", tc.wantRequeue, gotRequeue)
 			}
 
 			if diff := deep.Equal(tc.want, tc.r); diff != nil {
@@ -236,14 +236,14 @@ func TestCreate(t *testing.T) {
 func TestSync(t *testing.T) {
 	cases := []struct {
 		name        string
-		csdk        createsyncdeletekeyer
+		csd         createsyncdeleter
 		r           *v1alpha1.ReplicationGroup
 		want        *v1alpha1.ReplicationGroup
 		wantRequeue bool
 	}{
 		{
 			name: "SuccessfulSyncWhileGroupCreating",
-			csdk: &elastiCache{client: &fake.MockClient{
+			csd: &elastiCache{client: &fake.MockClient{
 				MockDescribeReplicationGroupsRequest: func(_ *elasticache.DescribeReplicationGroupsInput) elasticache.DescribeReplicationGroupsRequest {
 					return elasticache.DescribeReplicationGroupsRequest{
 						Request: &aws.Request{
@@ -283,7 +283,7 @@ func TestSync(t *testing.T) {
 		},
 		{
 			name: "SuccessfulSyncWhileGroupDeleting",
-			csdk: &elastiCache{client: &fake.MockClient{
+			csd: &elastiCache{client: &fake.MockClient{
 				MockDescribeReplicationGroupsRequest: func(_ *elasticache.DescribeReplicationGroupsInput) elasticache.DescribeReplicationGroupsRequest {
 					return elasticache.DescribeReplicationGroupsRequest{
 						Request: &aws.Request{
@@ -308,7 +308,7 @@ func TestSync(t *testing.T) {
 		},
 		{
 			name: "SuccessfulSyncWhileGroupModifying",
-			csdk: &elastiCache{client: &fake.MockClient{
+			csd: &elastiCache{client: &fake.MockClient{
 				MockDescribeReplicationGroupsRequest: func(_ *elasticache.DescribeReplicationGroupsInput) elasticache.DescribeReplicationGroupsRequest {
 					return elasticache.DescribeReplicationGroupsRequest{
 						Request: &aws.Request{
@@ -333,7 +333,7 @@ func TestSync(t *testing.T) {
 		},
 		{
 			name: "SuccessfulSyncWhileGroupAvailableAndDoesNotNeedUpdate",
-			csdk: &elastiCache{client: &fake.MockClient{
+			csd: &elastiCache{client: &fake.MockClient{
 				MockDescribeReplicationGroupsRequest: func(_ *elasticache.DescribeReplicationGroupsInput) elasticache.DescribeReplicationGroupsRequest {
 					return elasticache.DescribeReplicationGroupsRequest{
 						Request: &aws.Request{
@@ -386,7 +386,7 @@ func TestSync(t *testing.T) {
 		},
 		{
 			name: "SuccessfulSyncWhileGroupAvailableAndNeedsUpdate",
-			csdk: &elastiCache{client: &fake.MockClient{
+			csd: &elastiCache{client: &fake.MockClient{
 				MockDescribeReplicationGroupsRequest: func(_ *elasticache.DescribeReplicationGroupsInput) elasticache.DescribeReplicationGroupsRequest {
 					return elasticache.DescribeReplicationGroupsRequest{
 						Request: &aws.Request{
@@ -444,7 +444,7 @@ func TestSync(t *testing.T) {
 		},
 		{
 			name: "SuccessfulSyncWhileGroupAvailableAndCacheClustersNeedUpdate",
-			csdk: &elastiCache{client: &fake.MockClient{
+			csd: &elastiCache{client: &fake.MockClient{
 				MockDescribeReplicationGroupsRequest: func(_ *elasticache.DescribeReplicationGroupsInput) elasticache.DescribeReplicationGroupsRequest {
 					return elasticache.DescribeReplicationGroupsRequest{
 						Request: &aws.Request{
@@ -502,7 +502,7 @@ func TestSync(t *testing.T) {
 		},
 		{
 			name: "FailedDescribeReplicationGroups",
-			csdk: &elastiCache{client: &fake.MockClient{
+			csd: &elastiCache{client: &fake.MockClient{
 				MockDescribeReplicationGroupsRequest: func(_ *elasticache.DescribeReplicationGroupsInput) elasticache.DescribeReplicationGroupsRequest {
 					return elasticache.DescribeReplicationGroupsRequest{
 						Request: &aws.Request{HTTPRequest: &http.Request{}, Error: errorBoom},
@@ -529,7 +529,7 @@ func TestSync(t *testing.T) {
 		},
 		{
 			name: "FailedDescribeCacheClusters",
-			csdk: &elastiCache{client: &fake.MockClient{
+			csd: &elastiCache{client: &fake.MockClient{
 				MockDescribeReplicationGroupsRequest: func(_ *elasticache.DescribeReplicationGroupsInput) elasticache.DescribeReplicationGroupsRequest {
 					return elasticache.DescribeReplicationGroupsRequest{
 						Request: &aws.Request{
@@ -573,7 +573,7 @@ func TestSync(t *testing.T) {
 		},
 		{
 			name: "FailedModifyReplicationGroup",
-			csdk: &elastiCache{client: &fake.MockClient{
+			csd: &elastiCache{client: &fake.MockClient{
 				MockDescribeReplicationGroupsRequest: func(_ *elasticache.DescribeReplicationGroupsInput) elasticache.DescribeReplicationGroupsRequest {
 					return elasticache.DescribeReplicationGroupsRequest{
 						Request: &aws.Request{
@@ -639,7 +639,7 @@ func TestSync(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			gotRequeue := tc.csdk.Sync(ctx, tc.r)
+			gotRequeue := tc.csd.Sync(ctx, tc.r)
 
 			if gotRequeue != tc.wantRequeue {
 				t.Errorf("tc.csd.Sync(...): want: %t got: %t", tc.wantRequeue, gotRequeue)
@@ -655,14 +655,14 @@ func TestSync(t *testing.T) {
 func TestDelete(t *testing.T) {
 	cases := []struct {
 		name        string
-		csdk        createsyncdeletekeyer
+		csd         createsyncdeleter
 		r           *v1alpha1.ReplicationGroup
 		want        *v1alpha1.ReplicationGroup
 		wantRequeue bool
 	}{
 		{
 			name: "ReclaimRetainSuccessfulDelete",
-			csdk: &elastiCache{},
+			csd:  &elastiCache{},
 			r:    replicationGroup(withFinalizers(finalizerName), withReclaimPolicy(corev1alpha1.ReclaimRetain)),
 			want: replicationGroup(
 				withReclaimPolicy(corev1alpha1.ReclaimRetain),
@@ -672,7 +672,7 @@ func TestDelete(t *testing.T) {
 		},
 		{
 			name: "ReclaimDeleteSuccessfulDelete",
-			csdk: &elastiCache{client: &fake.MockClient{
+			csd: &elastiCache{client: &fake.MockClient{
 				MockDeleteReplicationGroupRequest: func(_ *elasticache.DeleteReplicationGroupInput) elasticache.DeleteReplicationGroupRequest {
 					return elasticache.DeleteReplicationGroupRequest{
 						Request: &aws.Request{HTTPRequest: &http.Request{}, Data: &elasticache.DeleteReplicationGroupOutput{}},
@@ -688,7 +688,7 @@ func TestDelete(t *testing.T) {
 		},
 		{
 			name: "ReclaimDeleteFailedDelete",
-			csdk: &elastiCache{client: &fake.MockClient{
+			csd: &elastiCache{client: &fake.MockClient{
 				MockDeleteReplicationGroupRequest: func(_ *elasticache.DeleteReplicationGroupInput) elasticache.DeleteReplicationGroupRequest {
 					return elasticache.DeleteReplicationGroupRequest{
 						Request: &aws.Request{HTTPRequest: &http.Request{}, Error: errorBoom},
@@ -714,7 +714,7 @@ func TestDelete(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			gotRequeue := tc.csdk.Delete(ctx, tc.r)
+			gotRequeue := tc.csd.Delete(ctx, tc.r)
 
 			if gotRequeue != tc.wantRequeue {
 				t.Errorf("tc.csd.Delete(...): want: %t got: %t", tc.wantRequeue, gotRequeue)
@@ -726,41 +726,13 @@ func TestDelete(t *testing.T) {
 		})
 	}
 }
-func TestKey(t *testing.T) {
-	cases := []struct {
-		name string
-		csdk createsyncdeletekeyer
-		want string
-	}{
-		{
-			name: "AuthTokenSet",
-			csdk: &elastiCache{authToken: authToken},
-			want: authToken,
-		},
-		{
-			name: "AuthTokenUnset",
-			csdk: &elastiCache{},
-			want: "",
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			got := tc.csdk.Key()
-
-			if got != tc.want {
-				t.Errorf("tc.csd.Key(...): want: %s got: %s", tc.want, got)
-			}
-		})
-	}
-}
 
 func TestConnect(t *testing.T) {
 	cases := []struct {
 		name    string
 		conn    connecter
 		i       *v1alpha1.ReplicationGroup
-		want    createsyncdeletekeyer
+		want    createsyncdeleter
 		wantErr error
 	}{
 		{
@@ -866,34 +838,29 @@ func TestConnect(t *testing.T) {
 }
 
 type mockConnector struct {
-	MockConnect func(ctx context.Context, i *v1alpha1.ReplicationGroup) (createsyncdeletekeyer, error)
+	MockConnect func(ctx context.Context, i *v1alpha1.ReplicationGroup) (createsyncdeleter, error)
 }
 
-func (c *mockConnector) Connect(ctx context.Context, i *v1alpha1.ReplicationGroup) (createsyncdeletekeyer, error) {
+func (c *mockConnector) Connect(ctx context.Context, i *v1alpha1.ReplicationGroup) (createsyncdeleter, error) {
 	return c.MockConnect(ctx, i)
 }
 
-type mockCSDK struct {
-	MockCreate func(ctx context.Context, g *v1alpha1.ReplicationGroup) bool
+type mockCSD struct {
+	MockCreate func(ctx context.Context, g *v1alpha1.ReplicationGroup) (bool, string)
 	MockSync   func(ctx context.Context, g *v1alpha1.ReplicationGroup) bool
 	MockDelete func(ctx context.Context, g *v1alpha1.ReplicationGroup) bool
-	MockKey    func() string
 }
 
-func (csdk *mockCSDK) Create(ctx context.Context, g *v1alpha1.ReplicationGroup) bool {
-	return csdk.MockCreate(ctx, g)
+func (csd *mockCSD) Create(ctx context.Context, g *v1alpha1.ReplicationGroup) (bool, string) {
+	return csd.MockCreate(ctx, g)
 }
 
-func (csdk *mockCSDK) Sync(ctx context.Context, g *v1alpha1.ReplicationGroup) bool {
-	return csdk.MockSync(ctx, g)
+func (csd *mockCSD) Sync(ctx context.Context, g *v1alpha1.ReplicationGroup) bool {
+	return csd.MockSync(ctx, g)
 }
 
-func (csdk *mockCSDK) Delete(ctx context.Context, g *v1alpha1.ReplicationGroup) bool {
-	return csdk.MockDelete(ctx, g)
-}
-
-func (csdk *mockCSDK) Key() string {
-	return csdk.MockKey()
+func (csd *mockCSD) Delete(ctx context.Context, g *v1alpha1.ReplicationGroup) bool {
+	return csd.MockDelete(ctx, g)
 }
 
 func TestReconcile(t *testing.T) {
@@ -907,8 +874,8 @@ func TestReconcile(t *testing.T) {
 		{
 			name: "SuccessfulDelete",
 			rec: &Reconciler{
-				connecter: &mockConnector{MockConnect: func(_ context.Context, _ *v1alpha1.ReplicationGroup) (createsyncdeletekeyer, error) {
-					return &mockCSDK{MockDelete: func(_ context.Context, _ *v1alpha1.ReplicationGroup) bool { return false }}, nil
+				connecter: &mockConnector{MockConnect: func(_ context.Context, _ *v1alpha1.ReplicationGroup) (createsyncdeleter, error) {
+					return &mockCSD{MockDelete: func(_ context.Context, _ *v1alpha1.ReplicationGroup) bool { return false }}, nil
 				}},
 				kube: &test.MockClient{
 					MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
@@ -925,14 +892,20 @@ func TestReconcile(t *testing.T) {
 		{
 			name: "SuccessfulCreate",
 			rec: &Reconciler{
-				connecter: &mockConnector{MockConnect: func(_ context.Context, _ *v1alpha1.ReplicationGroup) (createsyncdeletekeyer, error) {
-					return &mockCSDK{MockCreate: func(_ context.Context, _ *v1alpha1.ReplicationGroup) bool { return true }}, nil
+				connecter: &mockConnector{MockConnect: func(_ context.Context, _ *v1alpha1.ReplicationGroup) (createsyncdeleter, error) {
+					return &mockCSD{MockCreate: func(_ context.Context, _ *v1alpha1.ReplicationGroup) (bool, string) { return true, "" }}, nil
 				}},
 				kube: &test.MockClient{
 					MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
-						*obj.(*v1alpha1.ReplicationGroup) = *(replicationGroup())
+						switch key {
+						case client.ObjectKey{Namespace: namespace, Name: name}:
+							*obj.(*v1alpha1.ReplicationGroup) = *(replicationGroup())
+						case client.ObjectKey{Namespace: namespace, Name: connectionSecretName}:
+							return kerrors.NewNotFound(schema.GroupResource{}, connectionSecretName)
+						}
 						return nil
 					},
+					MockCreate: func(_ context.Context, _ runtime.Object) error { return nil },
 					MockUpdate: func(_ context.Context, _ runtime.Object) error { return nil },
 				},
 			},
@@ -943,10 +916,9 @@ func TestReconcile(t *testing.T) {
 		{
 			name: "SuccessfulSync",
 			rec: &Reconciler{
-				connecter: &mockConnector{MockConnect: func(_ context.Context, _ *v1alpha1.ReplicationGroup) (createsyncdeletekeyer, error) {
-					return &mockCSDK{
+				connecter: &mockConnector{MockConnect: func(_ context.Context, _ *v1alpha1.ReplicationGroup) (createsyncdeleter, error) {
+					return &mockCSD{
 						MockSync: func(_ context.Context, _ *v1alpha1.ReplicationGroup) bool { return false },
-						MockKey:  func() string { return "" },
 					}, nil
 				}},
 				kube: &test.MockClient{
@@ -955,12 +927,14 @@ func TestReconcile(t *testing.T) {
 						case client.ObjectKey{Namespace: namespace, Name: name}:
 							*obj.(*v1alpha1.ReplicationGroup) = *(replicationGroup(withGroupName(name), withEndpoint(host)))
 						case client.ObjectKey{Namespace: namespace, Name: connectionSecretName}:
-							return kerrors.NewNotFound(schema.GroupResource{}, connectionSecretName)
+							*obj.(*corev1.Secret) = corev1.Secret{
+								ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: connectionSecretName},
+								Data:       map[string][]byte{corev1alpha1.ResourceCredentialsSecretPasswordKey: []byte(authToken)},
+							}
 						}
 						return nil
 					},
 					MockUpdate: func(_ context.Context, _ runtime.Object) error { return nil },
-					MockCreate: func(_ context.Context, _ runtime.Object) error { return nil },
 				},
 			},
 			req:     reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
@@ -998,7 +972,7 @@ func TestReconcile(t *testing.T) {
 		{
 			name: "FailedToConnect",
 			rec: &Reconciler{
-				connecter: &mockConnector{MockConnect: func(_ context.Context, _ *v1alpha1.ReplicationGroup) (createsyncdeletekeyer, error) {
+				connecter: &mockConnector{MockConnect: func(_ context.Context, _ *v1alpha1.ReplicationGroup) (createsyncdeleter, error) {
 					return nil, errorBoom
 				}},
 				kube: &test.MockClient{
@@ -1028,10 +1002,48 @@ func TestReconcile(t *testing.T) {
 			wantErr: nil,
 		},
 		{
-			name: "FailedToGetConnectionSecret",
+			name: "FailedToGetConnectionSecretDuringCreate",
 			rec: &Reconciler{
-				connecter: &mockConnector{MockConnect: func(_ context.Context, _ *v1alpha1.ReplicationGroup) (createsyncdeletekeyer, error) {
-					return &mockCSDK{MockKey: func() string { return "" }}, nil
+				connecter: &mockConnector{MockConnect: func(_ context.Context, _ *v1alpha1.ReplicationGroup) (createsyncdeleter, error) {
+					return &mockCSD{MockCreate: func(_ context.Context, _ *v1alpha1.ReplicationGroup) (bool, string) { return true, authToken }}, nil
+				}},
+				kube: &test.MockClient{
+					MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
+						switch key {
+						case types.NamespacedName{Namespace: namespace, Name: connectionSecretName}:
+							return errorBoom
+						case types.NamespacedName{Namespace: namespace, Name: name}:
+							*obj.(*v1alpha1.ReplicationGroup) = *(replicationGroup())
+						}
+						return nil
+					},
+					MockUpdate: func(_ context.Context, obj runtime.Object) error {
+						want := replicationGroup(
+							withConditions(
+								corev1alpha1.Condition{
+									Type:    corev1alpha1.Failed,
+									Status:  corev1.ConditionTrue,
+									Reason:  reasonSyncingSecret,
+									Message: errors.Wrapf(errorBoom, "cannot get secret %s/%s", namespace, connectionSecretName).Error(),
+								},
+							))
+						got := obj.(*v1alpha1.ReplicationGroup)
+						if diff := deep.Equal(want, got); diff != nil {
+							t.Errorf("kube.Update(...): want != got:\n%s", diff)
+						}
+						return nil
+					},
+				},
+			},
+			req:     reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
+			want:    reconcile.Result{Requeue: true},
+			wantErr: nil,
+		},
+		{
+			name: "FailedToGetConnectionSecretDuringSync",
+			rec: &Reconciler{
+				connecter: &mockConnector{MockConnect: func(_ context.Context, _ *v1alpha1.ReplicationGroup) (createsyncdeleter, error) {
+					return nil, nil
 				}},
 				kube: &test.MockClient{
 					MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
@@ -1066,89 +1078,6 @@ func TestReconcile(t *testing.T) {
 			want:    reconcile.Result{Requeue: true},
 			wantErr: nil,
 		},
-		{
-			name: "FailedToCreateConnectionSecret",
-			rec: &Reconciler{
-				connecter: &mockConnector{MockConnect: func(_ context.Context, _ *v1alpha1.ReplicationGroup) (createsyncdeletekeyer, error) {
-					return &mockCSDK{MockKey: func() string { return "" }}, nil
-				}},
-				kube: &test.MockClient{
-					MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
-						switch key {
-						case types.NamespacedName{Namespace: namespace, Name: connectionSecretName}:
-							return kerrors.NewNotFound(schema.GroupResource{}, connectionSecretName)
-						case types.NamespacedName{Namespace: namespace, Name: name}:
-							*obj.(*v1alpha1.ReplicationGroup) = *(replicationGroup(withGroupName(name)))
-						}
-						return nil
-					},
-					MockUpdate: func(_ context.Context, obj runtime.Object) error {
-						want := replicationGroup(
-							withGroupName(name),
-							withConditions(
-								corev1alpha1.Condition{
-									Type:    corev1alpha1.Failed,
-									Status:  corev1.ConditionTrue,
-									Reason:  reasonSyncingSecret,
-									Message: errors.Wrapf(errorBoom, "cannot create secret %s/%s", namespace, connectionSecretName).Error(),
-								},
-							))
-						got := obj.(*v1alpha1.ReplicationGroup)
-						if diff := deep.Equal(want, got); diff != nil {
-							t.Errorf("kube.Update(...): want != got:\n%s", diff)
-						}
-						return nil
-					},
-					MockCreate: func(_ context.Context, obj runtime.Object) error { return errorBoom },
-				},
-			},
-			req:     reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
-			want:    reconcile.Result{Requeue: true},
-			wantErr: nil,
-		},
-		{
-			name: "FailedToUpdateConnectionSecret",
-			rec: &Reconciler{
-				connecter: &mockConnector{MockConnect: func(_ context.Context, _ *v1alpha1.ReplicationGroup) (createsyncdeletekeyer, error) {
-					return &mockCSDK{MockKey: func() string { return "" }}, nil
-				}},
-				kube: &test.MockClient{
-					MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
-						switch key {
-						case types.NamespacedName{Namespace: namespace, Name: connectionSecretName}:
-							return nil
-						case types.NamespacedName{Namespace: namespace, Name: name}:
-							*obj.(*v1alpha1.ReplicationGroup) = *(replicationGroup(withGroupName(name)))
-						}
-						return nil
-					},
-					MockUpdate: func(_ context.Context, obj runtime.Object) error {
-						switch got := obj.(type) {
-						case *corev1.Secret:
-							return errorBoom
-						case *v1alpha1.ReplicationGroup:
-							want := replicationGroup(
-								withGroupName(name),
-								withConditions(
-									corev1alpha1.Condition{
-										Type:    corev1alpha1.Failed,
-										Status:  corev1.ConditionTrue,
-										Reason:  reasonSyncingSecret,
-										Message: errors.Wrapf(errorBoom, "cannot update secret %s/%s", namespace, connectionSecretName).Error(),
-									},
-								))
-							if diff := deep.Equal(want, got); diff != nil {
-								t.Errorf("kube.Update(...): want != got:\n%s", diff)
-							}
-						}
-						return nil
-					},
-				},
-			},
-			req:     reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
-			want:    reconcile.Result{Requeue: true},
-			wantErr: nil,
-		},
 	}
 
 	for _, tc := range cases {
@@ -1166,7 +1095,7 @@ func TestReconcile(t *testing.T) {
 	}
 }
 
-func TestConnectionSecret(t *testing.T) {
+func TestConnectionSecretWithPassword(t *testing.T) {
 	cases := []struct {
 		name     string
 		r        *v1alpha1.ReplicationGroup
@@ -1194,13 +1123,33 @@ func TestConnectionSecret(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:     "EmptyPassword",
+			r:        replicationGroup(withEndpoint(host)),
+			password: "",
+			want: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      connectionSecretName,
+					Namespace: namespace,
+					OwnerReferences: []metav1.OwnerReference{{
+						APIVersion: v1alpha1.APIVersion,
+						Kind:       v1alpha1.ReplicationGroupKind,
+						Name:       name,
+						UID:        uid,
+					}},
+				},
+				Data: map[string][]byte{
+					corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(host),
+				},
+			},
+		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := connectionSecret(tc.r, tc.password)
+			got := connectionSecretWithPassword(tc.r, tc.password)
 			if diff := deep.Equal(tc.want, got); diff != nil {
-				t.Errorf("connectionSecret(...): want != got:\n%s", diff)
+				t.Errorf("connectionSecretWithPassword(...): want != got:\n%s", diff)
 			}
 		})
 	}
