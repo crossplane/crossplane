@@ -7,8 +7,11 @@ metadata:
   name: aksclusters.compute.azure.crossplane.io
 spec:
   additionalPrinterColumns:
-  - JSONPath: .status.state
+  - JSONPath: .status.bindingPhase
     name: STATUS
+    type: string
+  - JSONPath: .status.state
+    name: STATE
     type: string
   - JSONPath: .status.clusterName
     name: CLUSTER-NAME

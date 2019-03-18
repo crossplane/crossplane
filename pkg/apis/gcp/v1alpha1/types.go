@@ -48,6 +48,8 @@ type ProviderStatus struct {
 // Provider is the Schema for the instances API
 // +k8s:openapi-gen=true
 // +groupName=gcp
+// +kubebuilder:printcolumn:name="PROJECT-ID",type="string",JSONPath=".spec.projectID"
+// +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 type Provider struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

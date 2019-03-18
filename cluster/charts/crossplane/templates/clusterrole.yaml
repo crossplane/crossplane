@@ -65,6 +65,7 @@ rules:
   - cache.gcp.crossplane.io
   - compute.gcp.crossplane.io
   - database.gcp.crossplane.io
+  - storage.gcp.crossplane.io
   resources:
   - "*"
   verbs:
