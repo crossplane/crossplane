@@ -18,7 +18,6 @@ package provider
 
 import (
 	"context"
-	"log"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -33,6 +32,7 @@ import (
 
 	"github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
 	azureclient "github.com/crossplaneio/crossplane/pkg/clients/azure"
+	"github.com/crossplaneio/crossplane/pkg/log"
 )
 
 const (
@@ -42,6 +42,7 @@ const (
 )
 
 var (
+	logger        = log.Log.WithName("controller." + controllerName)
 	ctx           = context.Background()
 	result        = reconcile.Result{}
 	resultRequeue = reconcile.Result{Requeue: true}
@@ -106,7 +107,7 @@ func (r *Reconciler) _validate(client *azureclient.Client) error {
 // Reconcile reads that state of the cluster for a Provider object and makes changes based on the state read
 // and what is in the Provider.Spec
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	log.Printf("reconciling %s: %v", v1alpha1.ProviderKindAPIVersion, request)
+	logger.V(1).Info("reconciling", "kind", v1alpha1.ProviderKindAPIVersion, "request", request)
 	ctx := context.TODO()
 
 	// Fetch the Provider instance

@@ -19,7 +19,6 @@ package database
 import (
 	"context"
 	"fmt"
-	"log"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -35,10 +34,13 @@ import (
 	azurev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	azureclients "github.com/crossplaneio/crossplane/pkg/clients/azure"
+	"github.com/crossplaneio/crossplane/pkg/log"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 const (
+	controllerName = "database.azure.crossplane.io"
+
 	passwordDataLen  = 20
 	firewallRuleName = "crossplane-sql-firewall-rule"
 
@@ -53,7 +55,8 @@ const (
 )
 
 var (
-	ctx = context.TODO()
+	logger = log.Log.WithName("controller." + controllerName)
+	ctx    = context.TODO()
 )
 
 // SQLReconciler reconciles SQL resource specs with Azure.
@@ -91,7 +94,7 @@ func (r *SQLReconciler) handleReconcile(instance azuredbv1alpha1.SQLServer) (rec
 	if instance.GetDeletionTimestamp() != nil {
 		if instance.GetStatus().Condition(corev1alpha1.Deleting) == nil {
 			// we haven't started the deletion of the SQL Server resource yet, do it now
-			log.Printf("sql server instance %s has been deleted, running finalizer now", instance.GetName())
+			logger.V(1).Info("sql server has been deleted, running finalizer now", "instance", instance)
 			return r.handleDeletion(sqlServersClient, instance)
 		}
 		// we already started the deletion of the SQL Server resource, nothing more to do
@@ -102,7 +105,7 @@ func (r *SQLReconciler) handleReconcile(instance azuredbv1alpha1.SQLServer) (rec
 	if !util.HasFinalizer(instance, r.finalizer) {
 		util.AddFinalizer(instance, r.finalizer)
 		if err := r.Update(ctx, instance); err != nil {
-			log.Printf("failed to add finalizer to instance %s: %+v", instance.GetName(), err)
+			logger.Error(err, "failed to add finalizer to instance", "instance", instance)
 			return reconcile.Result{}, err
 		}
 	}
@@ -136,7 +139,7 @@ func (r *SQLReconciler) handleReconcile(instance azuredbv1alpha1.SQLServer) (rec
 	conditionType := azureclients.SQLServerConditionType(server.State)
 	if err := r.updateStatus(instance, azureclients.SQLServerStatusMessage(instance.GetName(), server.State), server); err != nil {
 		// updating the CRD status failed, return the error and try the next reconcile loop
-		log.Printf("failed to update status of instance %s: %+v", instance.GetName(), err)
+		logger.Error(err, "failed to update status of instance", "instance", instance)
 		return reconcile.Result{}, err
 	}
 
@@ -149,7 +152,7 @@ func (r *SQLReconciler) handleReconcile(instance azuredbv1alpha1.SQLServer) (rec
 		}
 
 		conditionMessage := fmt.Sprintf("SQL Server instance %s is in the %s state", instance.GetName(), conditionType)
-		log.Print(conditionMessage)
+		logger.V(1).Info("SQL server state changed", "instance", instance, "condition", conditionType)
 		instance.GetStatus().SetCondition(corev1alpha1.NewCondition(conditionType, conditionStateChanged, conditionMessage))
 		return reconcile.Result{Requeue: true}, r.Update(ctx, instance)
 	}
@@ -184,13 +187,13 @@ func (r *SQLReconciler) handleCreation(sqlServersClient azureclients.SQLServerAP
 	}
 
 	// make the API call to start the create server operation
-	log.Printf("starting create of SQL Server instance %s", instance.GetName())
+	logger.V(1).Info("starting create of SQL Server instance", "instance", instance)
 	createOp, err := sqlServersClient.CreateServerBegin(ctx, instance, adminPassword)
 	if err != nil {
 		return r.fail(instance, errorCreatingInstance, fmt.Sprintf("failed to start create operation for SQL Server instance %s: %+v", instance.GetName(), err))
 	}
 
-	log.Printf("started create of SQL Server instance %s, operation: %s", instance.GetName(), string(createOp))
+	logger.V(1).Info("started create of SQL Server instance", "instance", instance, "operation", string(createOp))
 
 	// save the create operation to the CRD status
 	status := instance.GetStatus()
@@ -216,7 +219,7 @@ func (r *SQLReconciler) handleCreation(sqlServersClient azureclients.SQLServerAP
 		}
 
 		// the instance hasn't reached consistency yet, retry
-		log.Printf("SQL Server instance %s hasn't reached consistency yet, retrying", instance.GetName())
+		logger.V(1).Info("SQL Server instance hasn't reached consistency yet, retrying", "instance", instance)
 		return false, nil
 	})
 
@@ -235,7 +238,7 @@ func (r *SQLReconciler) handleDeletion(sqlServersClient azureclients.SQLServerAP
 		}
 
 		// SQL Server instance doesn't exist, it's already deleted
-		log.Printf("SQL Server instance %s does not exist, it must be already deleted", instance.GetName())
+		logger.V(1).Info("SQL Server instance does not exist, it must be already deleted", "instance", instance)
 		return r.markAsDeleting(instance)
 	}
 
@@ -246,7 +249,7 @@ func (r *SQLReconciler) handleDeletion(sqlServersClient azureclients.SQLServerAP
 	}
 
 	deleteFutureJSON, _ := deleteFuture.MarshalJSON()
-	log.Printf("started delete of SQL Server instance %s, operation: %s", instance.GetName(), string(deleteFutureJSON))
+	logger.V(1).Info("started delete of SQL Server instance", "instance", instance.GetName(), "operation", string(deleteFutureJSON))
 	return r.markAsDeleting(instance)
 }
 
@@ -260,13 +263,13 @@ func (r *SQLReconciler) markAsDeleting(instance azuredbv1alpha1.SQLServer) (reco
 func (r *SQLReconciler) handleFirewallRuleCreation(sqlServersClient azureclients.SQLServerAPI, instance azuredbv1alpha1.SQLServer) (reconcile.Result, error) {
 	ctx := context.Background()
 
-	log.Printf("starting create of firewall rules for SQL Server instance %s", instance.GetName())
+	logger.V(1).Info("starting create of firewall rules for SQL Server instance", "instance", instance)
 	createOp, err := sqlServersClient.CreateFirewallRulesBegin(ctx, instance, firewallRuleName)
 	if err != nil {
 		return r.fail(instance, errorCreatingInstance, fmt.Sprintf("failed to start create firewall rules operation for SQL Server instance %s: %+v", instance.GetName(), err))
 	}
 
-	log.Printf("started create of firewall rules for SQL Server instance %s, operation: %s", instance.GetName(), string(createOp))
+	logger.V(1).Info("started create of firewall rules for SQL Server instance", "instance", instance.GetName(), "operation", string(createOp))
 
 	// save the create operation to the CRD status
 	status := instance.GetStatus()
@@ -297,8 +300,9 @@ func (r *SQLReconciler) handleRunningOperation(sqlServersClient azureclients.SQL
 
 	if !done {
 		// not done yet, check again on the next reconcile
-		log.Printf("waiting on create operation type %s for SQL Server instance %s, err: %+v",
-			instance.GetStatus().RunningOperationType, instance.GetName(), err)
+		logger.Error(err, "waiting on create operation for SQL Server instance",
+			"instance", instance,
+			"operation", instance.GetStatus().RunningOperationType)
 		return reconcile.Result{Requeue: true}, err
 	}
 
@@ -312,7 +316,7 @@ func (r *SQLReconciler) handleRunningOperation(sqlServersClient azureclients.SQL
 		return r.fail(instance, errorCreatingInstance, fmt.Sprintf("failure result returned from create operation for SQL Server instance %s: %+v", instance.GetName(), err))
 	}
 
-	log.Printf("successfully finished operation type %s for SQL Server instance %s", opType, instance.GetName())
+	logger.V(1).Info("successfully finished operation type for SQL Server", "instance", instance.GetName(), "operation", opType)
 	return reconcile.Result{Requeue: true}, r.Update(ctx, instance)
 }
 
@@ -320,7 +324,6 @@ func (r *SQLReconciler) handleRunningOperation(sqlServersClient azureclients.SQL
 func (r *SQLReconciler) fail(instance azuredbv1alpha1.SQLServer, reason, msg string) (reconcile.Result, error) {
 	ctx := context.Background()
 
-	log.Printf("instance %s failed: '%s': %s", instance.GetName(), reason, msg)
 	instance.GetStatus().SetCondition(corev1alpha1.NewCondition(corev1alpha1.Failed, reason, msg))
 	return reconcile.Result{Requeue: true}, r.Update(ctx, instance)
 }
@@ -390,12 +393,16 @@ func (r *SQLReconciler) createOrUpdateConnectionSecret(instance azuredbv1alpha1.
 		if _, err := r.clientset.CoreV1().Secrets(instance.GetNamespace()).Update(connectionSecret); err != nil {
 			return fmt.Errorf("failed to update connection secret %s: %+v", connectionSecret.Name, err)
 		}
-		log.Printf("updated connection secret %s for user '%s'", connectionSecret.Name, instance.GetSpec().AdminLoginName)
+		logger.V(1).Info("updated connection secret",
+			"secret", connectionSecret,
+			"username", instance.GetSpec().AdminLoginName)
 	} else {
 		if _, err := r.clientset.CoreV1().Secrets(instance.GetNamespace()).Create(connectionSecret); err != nil {
 			return fmt.Errorf("failed to create connection secret %s: %+v", connectionSecret.Name, err)
 		}
-		log.Printf("created connection secret %s for user '%s'", connectionSecret.Name, instance.GetSpec().AdminLoginName)
+		logger.V(1).Info("created connection secret",
+			"secret", connectionSecret,
+			"username", instance.GetSpec().AdminLoginName)
 	}
 
 	return nil

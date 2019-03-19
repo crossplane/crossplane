@@ -19,7 +19,6 @@ package compute
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"github.com/google/uuid"
 	v1 "k8s.io/api/core/v1"
@@ -41,6 +40,7 @@ import (
 	azurev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	azureclients "github.com/crossplaneio/crossplane/pkg/clients/azure"
+	"github.com/crossplaneio/crossplane/pkg/log"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
@@ -58,6 +58,7 @@ const (
 )
 
 var (
+	logger                             = log.Log.WithName("controller." + controllerName)
 	_             reconcile.Reconciler = &Reconciler{}
 	ctx                                = context.Background()
 	result                             = reconcile.Result{}
@@ -116,7 +117,7 @@ func AddAKSClusterReconciler(mgr manager.Manager, r reconcile.Reconciler) error 
 // Reconcile reads that state of the cluster for a AKSCluster object and makes changes based on the state read
 // and what is in its spec.
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	log.Printf("reconciling %s: %v", computev1alpha1.AKSClusterKindAPIVersion, request)
+	logger.V(1).Info("reconciling", "kind", computev1alpha1.AKSClusterKindAPIVersion, "request", request)
 	// Fetch the CRD instance
 	instance := &computev1alpha1.AKSCluster{}
 	err := r.Get(ctx, request.NamespacedName, instance)
@@ -140,7 +141,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	if instance.DeletionTimestamp != nil {
 		if instance.Status.Condition(corev1alpha1.Deleting) == nil {
 			// we haven't started the deletion of the AKS cluster yet, do it now
-			log.Printf("AKS cluster %s has been deleted, running finalizer now", instance.Name)
+			logger.V(1).Info("AKS cluster has been deleted, running finalizer now", "instance", instance)
 			return r.delete(instance, aksClient)
 		}
 		// we already started the deletion of the AKS cluster, nothing more to do
@@ -207,7 +208,7 @@ func (r *Reconciler) create(instance *computev1alpha1.AKSCluster, aksClient *azu
 		ObjectID:      instance.Status.ApplicationObjectID,
 		ClientSecret:  spSecret,
 	}
-	log.Printf("starting create of app for AKS cluster %s", instance.Name)
+	logger.V(1).Info("starting create of app for AKS cluster", "instance", instance)
 	app, err := aksClient.ApplicationAPI.CreateApplication(ctx, appParams)
 	if err != nil {
 		return r.fail(instance, errorCreatingCluster, fmt.Sprintf("failed to create app for AKS cluster %s: %+v", instance.Name, err))
@@ -221,7 +222,7 @@ func (r *Reconciler) create(instance *computev1alpha1.AKSCluster, aksClient *azu
 	}
 
 	// create the service principal for the AD application
-	log.Printf("starting create of service principal for AKS cluster %s", instance.Name)
+	logger.V(1).Info("starting create of service principal for AKS cluster", "instance", instance)
 	sp, err := aksClient.ServicePrincipalAPI.CreateServicePrincipal(ctx, instance.Status.ServicePrincipalID, *app.AppID)
 	if err != nil {
 		return r.fail(instance, errorCreatingCluster, fmt.Sprintf("failed to create service principal for AKS cluster %s: %+v", instance.Name, err))
@@ -235,14 +236,14 @@ func (r *Reconciler) create(instance *computev1alpha1.AKSCluster, aksClient *azu
 	}
 
 	// start the creation of the AKS cluster
-	log.Printf("starting create of AKS cluster %s", instance.Name)
+	logger.V(1).Info("starting create of AKS cluster", "instance", instance)
 	clusterName := azureclients.SanitizeClusterName(instance.Name)
 	createOp, err := aksClient.AKSClusterAPI.CreateOrUpdateBegin(ctx, *instance, clusterName, *app.AppID, spSecret)
 	if err != nil {
 		return r.fail(instance, errorCreatingCluster, fmt.Sprintf("failed to start create operation for AKS cluster %s: %+v", instance.Name, err))
 	}
 
-	log.Printf("started create of AKS cluster %s, operation: %s", instance.Name, string(createOp))
+	logger.V(1).Info("started create of AKS cluster", "instance", instance, "operation", string(createOp))
 
 	// save the create operation to the CRD status
 	instance.Status.RunningOperation = string(createOp)
@@ -270,7 +271,7 @@ func (r *Reconciler) create(instance *computev1alpha1.AKSCluster, aksClient *azu
 		}
 
 		// the instance hasn't reached consistency yet, retry
-		log.Printf("AKS cluster %s hasn't reached consistency yet, retrying", instance.Name)
+		logger.V(1).Info("AKS cluster hasn't reached consistency yet, retrying", "instance", instance)
 		return false, nil
 	})
 
@@ -282,7 +283,7 @@ func (r *Reconciler) waitForCompletion(instance *computev1alpha1.AKSCluster, aks
 	done, err := aksClient.AKSClusterAPI.CreateOrUpdateEnd([]byte(instance.Status.RunningOperation))
 	if !done {
 		// not done yet, check again on the next reconcile
-		log.Printf("waiting on create of AKS cluster %s, err: %+v", instance.Name, err)
+		logger.Error(err, "waiting on create of AKS cluster", "instance", instance)
 		return resultRequeue, err
 	}
 
@@ -294,7 +295,7 @@ func (r *Reconciler) waitForCompletion(instance *computev1alpha1.AKSCluster, aks
 		return r.fail(instance, errorCreatingCluster, fmt.Sprintf("failure result returned from create operation for AKS cluster %s: %+v", instance.Name, err))
 	}
 
-	log.Printf("AKS cluster %s successfully created", instance.Name)
+	logger.V(1).Info("AKS cluster successfully created", "instance", instance)
 	return resultRequeue, r.Update(ctx, instance)
 }
 
@@ -340,29 +341,29 @@ func (r *Reconciler) sync(instance *computev1alpha1.AKSCluster, aksClient *azure
 func (r *Reconciler) delete(instance *computev1alpha1.AKSCluster, aksClient *azureclients.AKSSetupClient) (reconcile.Result, error) {
 	if instance.Spec.ReclaimPolicy == corev1alpha1.ReclaimDelete {
 		// delete the AKS cluster
-		log.Printf("deleting AKS cluster %s", instance.Name)
+		logger.V(1).Info("deleting AKS cluster", "instance", instance)
 		deleteFuture, err := aksClient.AKSClusterAPI.Delete(ctx, *instance)
 		if err != nil && !azureclients.IsNotFound(err) {
 			return r.fail(instance, errorDeletingCluster, fmt.Sprintf("failed to delete AKS cluster %s: %+v", instance.Name, err))
 		}
 		deleteFutureJSON, _ := deleteFuture.MarshalJSON()
-		log.Printf("started delete of AKS cluster %s, operation: %s", instance.Name, string(deleteFutureJSON))
+		logger.V(1).Info("started delete of AKS cluster", "instance", instance, "operation", string(deleteFutureJSON))
 
 		// delete the service principal
-		log.Printf("deleting service principal for AKS cluster %s", instance.Name)
+		logger.V(1).Info("deleting service principal for AKS cluster", "instance", instance)
 		err = aksClient.ServicePrincipalAPI.DeleteServicePrincipal(ctx, instance.Status.ServicePrincipalID)
 		if err != nil && !azureclients.IsNotFound(err) {
 			return r.fail(instance, errorDeletingCluster, fmt.Sprintf("failed to service principal: %+v", err))
 		}
 
 		// delete the AD application
-		log.Printf("deleting app for AKS cluster %s", instance.Name)
+		logger.V(1).Info("deleting app for AKS cluster", "instance", instance)
 		err = aksClient.ApplicationAPI.DeleteApplication(ctx, instance.Status.ApplicationObjectID)
 		if err != nil && !azureclients.IsNotFound(err) {
 			return r.fail(instance, errorDeletingCluster, fmt.Sprintf("failed to AD application: %+v", err))
 		}
 
-		log.Printf("all resources deleted for AKS cluster %s", instance.Name)
+		logger.V(1).Info("all resources deleted for AKS cluster", "instance", instance)
 	}
 
 	util.RemoveFinalizer(&instance.ObjectMeta, finalizer)
@@ -373,7 +374,6 @@ func (r *Reconciler) delete(instance *computev1alpha1.AKSCluster, aksClient *azu
 
 // fail - helper function to set fail condition with reason and message
 func (r *Reconciler) fail(instance *computev1alpha1.AKSCluster, reason, msg string) (reconcile.Result, error) {
-	log.Printf("%s: %s", reason, msg)
 	instance.Status.UnsetAllConditions()
 	instance.Status.SetFailed(reason, msg)
 	return resultRequeue, r.Update(ctx, instance)

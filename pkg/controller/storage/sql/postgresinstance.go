@@ -17,8 +17,6 @@ limitations under the License.
 package sql
 
 import (
-	"log"
-
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -73,7 +71,7 @@ func addPostgreSQL(mgr manager.Manager, r reconcile.Reconciler) error {
 // Reconcile reads that state of the cluster for a PostgreSQLInstance object and makes changes based on the state read
 // and what is in the Instance.Spec
 func (r *PostgreSQLReconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	log.Printf("reconciling %s: %v", storagev1alpha1.PostgreSQLInstanceKindAPIVersion, request)
+	logger.V(1).Info("reconciling", "kind", storagev1alpha1.PostgreSQLInstanceKindAPIVersion, "request", request)
 
 	// fetch the CRD instance
 	instance := &storagev1alpha1.PostgreSQLInstance{}

@@ -19,7 +19,6 @@ package gcp
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 
 	"golang.org/x/oauth2"
@@ -30,8 +29,11 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	gcpv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/log"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
+
+var logger = log.Log.WithName("clients.gcp")
 
 // DefaultScope is the default scope to use for a GCP client
 const DefaultScope = cloudresourcemanager.CloudPlatformScope
@@ -54,12 +56,12 @@ func GetGoogleClient(clientset kubernetes.Interface, namespace string, secretKey
 
 	// 2) try the default Google client
 	if hc == nil {
-		log.Printf("failed to get google client from secret %s, will try default client: %+v", secretKey.Name, err)
+		logger.Error(err, "failed to get google client from secret, will try default client", "secret", secretKey.Name)
 		hc, err = google.DefaultClient(context.Background(), scopes...)
 		if err != nil {
-			log.Printf("failed to get default google client: %+v", err)
+			logger.Error(err, "failed to get default google client")
 		} else {
-			log.Printf("default google client created")
+			logger.V(1).Info("default google client created")
 		}
 	}
 

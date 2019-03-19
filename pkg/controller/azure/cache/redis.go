@@ -18,7 +18,6 @@ package cache
 
 import (
 	"context"
-	"log"
 	"time"
 
 	"github.com/pkg/errors"
@@ -38,6 +37,7 @@ import (
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/clients/azure"
 	"github.com/crossplaneio/crossplane/pkg/clients/azure/redis"
+	"github.com/crossplaneio/crossplane/pkg/log"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
@@ -54,6 +54,8 @@ const (
 
 	reconcileTimeout = 1 * time.Minute
 )
+
+var logger = log.Log.WithName("controller." + controllerName)
 
 // A creator can create resources in an external store - e.g. the Azure API.
 type creator interface {
@@ -244,7 +246,7 @@ func Add(mgr manager.Manager) error {
 
 // Reconcile Google Azure Cache resources with the Azure API.
 func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) {
-	log.Printf("reconciling %s: %v", v1alpha1.RedisKindAPIVersion, req)
+	logger.V(1).Info("reconciling", "kind", v1alpha1.RedisKindAPIVersion, "request", req)
 
 	ctx, cancel := context.WithTimeout(context.Background(), reconcileTimeout)
 	defer cancel()

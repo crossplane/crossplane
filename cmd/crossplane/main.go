@@ -17,22 +17,31 @@ limitations under the License.
 package main
 
 import (
-	"log"
+	"os"
 	"time"
 
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	runtimelog "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"sigs.k8s.io/controller-runtime/pkg/runtime/signals"
 
 	"github.com/crossplaneio/crossplane/pkg/apis"
 	"github.com/crossplaneio/crossplane/pkg/controller"
+	"github.com/crossplaneio/crossplane/pkg/log"
 )
 
+// TODO(negz): Make this configurable.
+const development = false
+
 func main() {
+	log.SetLogger(runtimelog.ZapLogger(development))
+	logger := log.Log
+
 	// Get a config to talk to the apiserver
 	cfg, err := config.GetConfig()
 	if err != nil {
-		log.Fatal(err)
+		logger.Error(err, "Cannot get config")
+		os.Exit(1)
 	}
 
 	// Re-sync resources every minutes
@@ -42,25 +51,31 @@ func main() {
 	// Create a new Cmd to provide shared dependencies and start components
 	mgr, err := manager.New(cfg, manager.Options{SyncPeriod: &syncPeriod})
 	if err != nil {
-		log.Fatal(err)
+		logger.Error(err, "Cannot create manager")
+		os.Exit(1)
 	}
 
-	log.Printf("Adding schemes")
+	logger.Info("Adding schemes")
 
 	// Setup Scheme for all resources
 	if err := apis.AddToScheme(mgr.GetScheme()); err != nil {
-		log.Fatal(err)
+		logger.Error(err, "Cannot add APIs to scheme")
+		os.Exit(1)
 	}
 
-	log.Printf("Adding controllers")
+	logger.Info("Adding controllers")
 
 	// Setup all Controllers
 	if err := controller.AddToManager(mgr); err != nil {
-		log.Fatal(err)
+		logger.Error(err, "Cannot add controllers to manager")
+		os.Exit(1)
 	}
 
-	log.Printf("Starting the manager")
+	logger.Info("Starting the manager")
 
 	// Start the Cmd
-	log.Fatal(mgr.Start(signals.SetupSignalHandler()))
+	if err := mgr.Start(signals.SetupSignalHandler()); err != nil {
+		logger.Error(err, "Cannot start controller")
+		os.Exit(1)
+	}
 }

@@ -22,11 +22,14 @@ import (
 	awsdbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/database/v1alpha1"
 	azuredbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/database/v1alpha1"
 	gcpdbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/database/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
 	corecontroller "github.com/crossplaneio/crossplane/pkg/controller/core"
+	"github.com/crossplaneio/crossplane/pkg/log"
 )
 
 var (
-	ctx = context.Background()
+	logger = log.Log.WithName(v1alpha1.Group)
+	ctx    = context.Background()
 
 	// map of supported resource handlers
 	handlers = map[string]corecontroller.ResourceHandler{
