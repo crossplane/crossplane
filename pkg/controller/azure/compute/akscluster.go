@@ -21,20 +21,14 @@ import (
 	"fmt"
 	"log"
 
-	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/compute/v1alpha1"
-	azurev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	azureclients "github.com/crossplaneio/crossplane/pkg/clients/azure"
-	"github.com/crossplaneio/crossplane/pkg/util"
 	"github.com/google/uuid"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -42,6 +36,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/compute/v1alpha1"
+	azurev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	azureclients "github.com/crossplaneio/crossplane/pkg/clients/azure"
+	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 const (
@@ -69,7 +69,6 @@ type Reconciler struct {
 	client.Client
 	clientset          kubernetes.Interface
 	aksSetupAPIFactory azureclients.AKSSetupAPIFactory
-	config             *rest.Config
 	scheme             *runtime.Scheme
 }
 
@@ -190,6 +189,9 @@ func (r *Reconciler) connect(instance *computev1alpha1.AKSCluster) (*azureclient
 	return r.aksSetupAPIFactory.CreateSetupClient(p, r.clientset)
 }
 
+// TODO(negz): This method's cyclomatic complexity is a little high. Consider
+// refactoring to reduce said complexity if you touch it.
+// nolint:gocyclo
 func (r *Reconciler) create(instance *computev1alpha1.AKSCluster, aksClient *azureclients.AKSSetupClient) (reconcile.Result, error) {
 	// create or fetch the secret for the AD application and its service principal the cluster will use for Azure APIs
 	spSecret, err := r.servicePrincipalSecret(instance)
@@ -215,7 +217,7 @@ func (r *Reconciler) create(instance *computev1alpha1.AKSCluster, aksClient *azu
 		// save the application object ID on the CRD status now
 		instance.Status.ApplicationObjectID = *app.ObjectID
 		// TODO: retry this CRD update upon conflict
-		r.Update(ctx, instance)
+		r.Update(ctx, instance) // nolint:errcheck
 	}
 
 	// create the service principal for the AD application
@@ -229,7 +231,7 @@ func (r *Reconciler) create(instance *computev1alpha1.AKSCluster, aksClient *azu
 		// save the service principal ID on the CRD status now
 		instance.Status.ServicePrincipalID = *sp.ObjectID
 		// TODO: retry this CRD update upon conflict
-		r.Update(ctx, instance)
+		r.Update(ctx, instance) // nolint:errcheck
 	}
 
 	// start the creation of the AKS cluster

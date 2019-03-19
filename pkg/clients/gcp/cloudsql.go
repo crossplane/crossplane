@@ -21,12 +21,13 @@ import (
 	"log"
 	"time"
 
+	sqladmin "google.golang.org/api/sqladmin/v1beta4"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/kubernetes"
+
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	dbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/database/v1alpha1"
 	gcpv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/v1alpha1"
-	"google.golang.org/api/sqladmin/v1beta4"
-	"k8s.io/api/core/v1"
-	"k8s.io/client-go/kubernetes"
 )
 
 // CloudSQLAPI provides an interface for operations on CloudSQL instances
@@ -110,6 +111,8 @@ func (c *CloudSQLClientFactory) CreateAPIInstance(clientset kubernetes.Interface
 	return cloudSQLClient, nil
 }
 
+// WaitUntilOperationCompletes waits until the supplied operation is complete,
+// returning an error if it does not complete within the supplied duration.
 func WaitUntilOperationCompletes(operationID string, provider *gcpv1alpha1.Provider,
 	cloudSQLClient CloudSQLAPI, waitTime time.Duration) (*sqladmin.Operation, error) {
 
@@ -132,10 +135,12 @@ func WaitUntilOperationCompletes(operationID string, provider *gcpv1alpha1.Provi
 	return nil, fmt.Errorf("cloud sql operation %s did not complete in the allowed time period: %+v", operationID, op)
 }
 
+// IsOperationComplete returns true if the supplied operation is complete.
 func IsOperationComplete(op *sqladmin.Operation) bool {
 	return op.EndTime != "" && op.Status == "DONE"
 }
 
+// IsOperationSuccessful returns true if the supplied operation was successful.
 func IsOperationSuccessful(op *sqladmin.Operation) bool {
 	return op.Error == nil || len(op.Error.Errors) == 0
 }

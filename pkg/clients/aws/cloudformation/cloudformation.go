@@ -32,18 +32,17 @@ type Client interface {
 	DeleteStack(stackID *string) error
 }
 
-// CloudFormationClient crossplane eks client
-type CloudFormationClient struct {
+type cloudFormationClient struct {
 	cloudformation cfiface.CloudFormationAPI
 }
 
 // NewClient return new instance of the crossplane client for a specific AWS configuration
 func NewClient(config *aws.Config) Client {
-	return &CloudFormationClient{cf.New(*config)}
+	return &cloudFormationClient{cf.New(*config)}
 }
 
 // CreateStack - Creates a stack
-func (c *CloudFormationClient) CreateStack(stackName *string, templateBody *string, parameters map[string]string) (stackID *string, err error) {
+func (c *cloudFormationClient) CreateStack(stackName *string, templateBody *string, parameters map[string]string) (stackID *string, err error) {
 	cfParams := make([]cf.Parameter, 0)
 	for k, v := range parameters {
 		if v != "" {
@@ -58,8 +57,8 @@ func (c *CloudFormationClient) CreateStack(stackName *string, templateBody *stri
 	return createStackResponse.StackId, nil
 }
 
-// DescribeStack Get stack info
-func (c *CloudFormationClient) GetStack(stackID *string) (stack *cf.Stack, err error) {
+// GetStack info
+func (c *cloudFormationClient) GetStack(stackID *string) (stack *cf.Stack, err error) {
 	describeStackResponse, err := c.cloudformation.DescribeStacksRequest(&cf.DescribeStacksInput{StackName: stackID}).Send()
 	if err != nil {
 		return nil, err
@@ -75,7 +74,7 @@ func (c *CloudFormationClient) GetStack(stackID *string) (stack *cf.Stack, err e
 }
 
 // DeleteStack deletes a stack
-func (c *CloudFormationClient) DeleteStack(stackID *string) error {
+func (c *cloudFormationClient) DeleteStack(stackID *string) error {
 	_, err := c.cloudformation.DeleteStackRequest(&cf.DeleteStackInput{StackName: stackID}).Send()
 	return err
 }
@@ -83,13 +82,6 @@ func (c *CloudFormationClient) DeleteStack(stackID *string) error {
 // IsErrorNotFound - not found error
 func IsErrorNotFound(err error) bool {
 	if cloudformationErr, ok := err.(awserr.Error); ok && cloudformationErr.Code() == cf.ErrCodeStackInstanceNotFoundException {
-		return true
-	}
-	return false
-}
-
-func isErrorAlreadyExists(err error) bool {
-	if cloudformationErr, ok := err.(awserr.Error); ok && cloudformationErr.Code() == cf.ErrCodeAlreadyExistsException {
 		return true
 	}
 	return false

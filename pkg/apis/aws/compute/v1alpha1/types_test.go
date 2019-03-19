@@ -23,14 +23,15 @@ import (
 	"strings"
 	"testing"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/test"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
 const (
@@ -50,7 +51,7 @@ func TestMain(m *testing.M) {
 		log.Fatal(err)
 	}
 
-	t := test.NewTestEnv(namespace, test.CRDs())
+	t := test.NewEnv(namespace, test.CRDs())
 	cfg = t.Start()
 
 	if c, err = client.New(cfg, client.Options{Scheme: scheme.Scheme}); err != nil {

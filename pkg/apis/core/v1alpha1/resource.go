@@ -17,11 +17,12 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"github.com/crossplaneio/crossplane/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
+
+	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 const (
@@ -59,10 +60,9 @@ type Resource interface {
 // ResourceClaim defines a resource claim that can be provisioned and bound to a concrete resource.
 type ResourceClaim interface {
 	runtime.Object
+	metav1.Object
 	// The status of this resource claim
 	ClaimStatus() *ResourceClaimStatus
-	// Gets the object meta for this resource claim
-	GetObjectMeta() *metav1.ObjectMeta
 	// Gets an owner reference that points to this claim
 	OwnerReference() metav1.OwnerReference
 	// Kubernetes object reference to this resource
@@ -130,10 +130,15 @@ func (r *ResourceClass) ObjectReference() *corev1.ObjectReference {
 type ResourceClaimStatus struct {
 	ConditionedStatus
 	BindingStatusPhase
+
 	// Provisioner is the driver that was used to provision the concrete resource
 	// This is an optionally-prefixed name, like a label key.
 	// For example: "RDSInstance.database.aws.crossplane.io/v1alpha1" or "CloudSQLInstance.database.gcp.crossplane.io/v1alpha1".
 	Provisioner string `json:"provisioner,omitempty"`
+
+	// CredentialsSecretRef is a local reference to the generated secret containing the credentials
+	// for this resource claim.
+	CredentialsSecretRef corev1.LocalObjectReference `json:"credentialsSecret,omitempty"`
 }
 
 // ResourceName is the name identifying various resources in a ResourceList.
@@ -159,12 +164,15 @@ type ResourceList map[ResourceName]resource.Quantity
 // BasicResource base structure that implements Resource interface
 // +k8s:deepcopy-gen=false
 type BasicResource struct {
+	// TODO(negz): It's not obvious why we embed this Resource interface rather
+	// than just fulfilling it. If someone knows why this is, please add a
+	// comment.
 	Resource
+
 	connectionSecretName string
 	endpoint             string
-	namespace            string
 	state                string
-	bound                bool
+	phase                BindingStatusPhase
 	objectReference      *corev1.ObjectReference
 }
 
@@ -178,19 +186,20 @@ func (br *BasicResource) ObjectReference() *corev1.ObjectReference {
 	return br.objectReference
 }
 
-// IsAvailable
+// IsAvailable returns true if this resource is available.
 func (br *BasicResource) IsAvailable() bool {
 	return br.state == "available"
 }
 
-// SetBound
-func (br *BasicResource) SetBound(isBound bool) {
-	br.bound = isBound
+// IsBound returns true if this resource is currently bound to a resource claim.
+func (br *BasicResource) IsBound() bool {
+	return br.phase.IsBound()
 }
 
-// IsBound
-func (br *BasicResource) IsBound() bool {
-	return br.bound
+// SetBound specifies whether this resource is currently bound to a resource
+// claim.
+func (br *BasicResource) SetBound(bound bool) {
+	br.phase.SetBound(bound)
 }
 
 // NewBasicResource new instance of base resource

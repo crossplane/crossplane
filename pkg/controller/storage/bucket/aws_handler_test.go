@@ -23,16 +23,17 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	s3Bucketv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/storage/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/apis/storage"
-	. "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/test"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	s3Bucketv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/storage/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/apis/storage"
+	. "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
 const (
@@ -49,7 +50,7 @@ func init() {
 
 func TestMain(m *testing.M) {
 	storage.AddToScheme(scheme.Scheme)
-	t := test.NewTestEnv(namespace, test.CRDs())
+	t := test.NewEnv(namespace, test.CRDs())
 	cfg = t.Start()
 	t.StopAndExit(m.Run())
 }
@@ -107,12 +108,12 @@ func TestTranslateACL(t *testing.T) {
 	g.Expect(err).To(And(HaveOccurred(), MatchError(fmt.Sprintf("PredefinedACL %s, not available in s3", aclName))))
 }
 
-func getBucketTestObjects() (instance *Bucket, class *corev1alpha1.ResourceClass, bucketSpec *s3Bucketv1alpha1.S3BucketSpec) {
+func getBucketTestObjects() (claim *Bucket, class *corev1alpha1.ResourceClass, bucketSpec *s3Bucketv1alpha1.S3BucketSpec) {
 	bucketSpec = &s3Bucketv1alpha1.S3BucketSpec{
 		ReclaimPolicy: corev1alpha1.ReclaimDelete,
 	}
-	instance = &Bucket{}
-	instance.UID = "uuid-test"
+	claim = &Bucket{}
+	claim.UID = "uuid-test"
 	class = &corev1alpha1.ResourceClass{
 		ReclaimPolicy: corev1alpha1.ReclaimDelete,
 	}
@@ -124,69 +125,62 @@ func TestProvision(t *testing.T) {
 	mc := &MockClient{}
 	handler := S3BucketHandler{}
 
-	valid := func(class *corev1alpha1.ResourceClass, instance *Bucket, expected *s3Bucketv1alpha1.S3Bucket) {
+	valid := func(class *corev1alpha1.ResourceClass, claim *Bucket, expected *s3Bucketv1alpha1.S3Bucket) {
 		var rtObj runtime.Object
 		mc.MockCreate = func(ctx context.Context, obj runtime.Object) error {
 			rtObj = obj
 			return nil
 		}
 
-		_, err := handler.provision(class, instance, mc)
+		_, err := handler.Provision(class, claim, mc)
 		g.Expect(err).To(BeNil())
-		g.Expect(rtObj).To(Equal(expected))
+		g.Expect(expected).To(Equal(rtObj))
 	}
 
 	// Setup defaults objects
-	instance, class, bucketSpec := getBucketTestObjects()
-	expected := handler.newS3Bucket(class, instance, bucketSpec)
-	valid(class, instance, expected)
+	claim, class, bucketSpec := getBucketTestObjects()
+	expected := handler.newS3Bucket(class, claim, bucketSpec)
+	valid(class, claim, expected)
 
 	// Test canned acl from class param
-	instance, class, bucketSpec = getBucketTestObjects()
+	claim, class, bucketSpec = getBucketTestObjects()
 	class.Parameters = map[string]string{"cannedACL": string(s3.ObjectCannedACLPublicReadWrite)}
 	perm := s3.BucketCannedACLPublicReadWrite
 	bucketSpec.CannedACL = &perm
-	expected = handler.newS3Bucket(class, instance, bucketSpec)
-	valid(class, instance, expected)
+	expected = handler.newS3Bucket(class, claim, bucketSpec)
+	valid(class, claim, expected)
 
-	// Instance public read write -> bucketspec publicreadwrite
-	instance, class, bucketSpec = getBucketTestObjects()
+	// claim public read write -> bucketspec publicreadwrite
+	claim, class, bucketSpec = getBucketTestObjects()
 	perm = s3.BucketCannedACLPublicReadWrite
-	instancePerm := ACLPublicReadWrite
-	instance.Spec.PredefinedACL = &instancePerm
+	claimPerm := ACLPublicReadWrite
+	claim.Spec.PredefinedACL = &claimPerm
 	bucketSpec.CannedACL = &perm
-	expected = handler.newS3Bucket(class, instance, bucketSpec)
-	valid(class, instance, expected)
+	expected = handler.newS3Bucket(class, claim, bucketSpec)
+	valid(class, claim, expected)
 
-	// Test name from instance
-	instance, class, bucketSpec = getBucketTestObjects()
+	// Test name from claim
+	claim, class, bucketSpec = getBucketTestObjects()
 	name := "test-name"
-	instance.Spec.Name = name
+	claim.Spec.Name = name
 	bucketSpec.Name = name
-	expected = handler.newS3Bucket(class, instance, bucketSpec)
-	valid(class, instance, expected)
+	expected = handler.newS3Bucket(class, claim, bucketSpec)
+	valid(class, claim, expected)
 
 	// Test localPermission from param
-	instance, class, bucketSpec = getBucketTestObjects()
+	claim, class, bucketSpec = getBucketTestObjects()
 	localPerm := ReadWritePermission
 	class.Parameters = map[string]string{"localPermission": string(localPerm)}
 	bucketSpec.LocalPermission = &localPerm
-	expected = handler.newS3Bucket(class, instance, bucketSpec)
-	valid(class, instance, expected)
+	expected = handler.newS3Bucket(class, claim, bucketSpec)
+	valid(class, claim, expected)
 
-	// Test localPermission from instance
-	instance, class, bucketSpec = getBucketTestObjects()
-	instance.Spec.LocalPermission = &localPerm
+	// Test localPermission from claim
+	claim, class, bucketSpec = getBucketTestObjects()
+	claim.Spec.LocalPermission = &localPerm
 	bucketSpec.LocalPermission = &localPerm
-	expected = handler.newS3Bucket(class, instance, bucketSpec)
-	valid(class, instance, expected)
-
-	// Test localPermission from instance
-	instance, class, bucketSpec = getBucketTestObjects()
-	instance.Spec.LocalPermission = &localPerm
-	bucketSpec.LocalPermission = &localPerm
-	expected = handler.newS3Bucket(class, instance, bucketSpec)
-	valid(class, instance, expected)
+	expected = handler.newS3Bucket(class, claim, bucketSpec)
+	valid(class, claim, expected)
 }
 
 // MockClient controller-runtime client

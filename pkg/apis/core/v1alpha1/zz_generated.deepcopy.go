@@ -84,6 +84,7 @@ func (in *ResourceClaimStatus) DeepCopyInto(out *ResourceClaimStatus) {
 	*out = *in
 	in.ConditionedStatus.DeepCopyInto(&out.ConditionedStatus)
 	out.BindingStatusPhase = in.BindingStatusPhase
+	out.CredentialsSecretRef = in.CredentialsSecretRef
 	return
 }
 

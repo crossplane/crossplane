@@ -32,7 +32,7 @@ func (m *MockCloudFormationClient) CreateStack(stackName *string, templateBody *
 	return m.MockCreateStack(stackName, templateBody, parameters)
 }
 
-// DescribeStack mock
+// GetStack mock
 func (m *MockCloudFormationClient) GetStack(stackID *string) (status *cloudformation.Stack, err error) {
 	return m.MockGetStack(stackID)
 }

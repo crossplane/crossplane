@@ -20,14 +20,15 @@ import (
 	"fmt"
 	"reflect"
 
-	azuredbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/database/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	storagev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
-	corecontroller "github.com/crossplaneio/crossplane/pkg/controller/core"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	azuredbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/database/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	storagev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
+	corecontroller "github.com/crossplaneio/crossplane/pkg/controller/core"
 )
 
 // AzureMySQLServerHandler is a dynamic provisioning handler for Azure MySQLServer
@@ -43,6 +44,7 @@ func (h *AzureMySQLServerHandler) Find(name types.NamespacedName, c client.Clien
 	return azureMySQLServer, err
 }
 
+// Find a PostgreSQL server.
 func (h *AzurePostgreSQLServerHandler) Find(name types.NamespacedName, c client.Client) (corev1alpha1.Resource, error) {
 	azurePostgreSQLServer := &azuredbv1alpha1.PostgresqlServer{}
 	err := c.Get(ctx, name, azurePostgreSQLServer)
@@ -86,7 +88,7 @@ func provisionAzureSQL(class *corev1alpha1.ResourceClass, claim corev1alpha1.Res
 	switch claim.(type) {
 	case *storagev1alpha1.MySQLInstance:
 		// create and save MySQL Server resource
-		objectMeta.Name = fmt.Sprintf("mysql-%s", claim.GetObjectMeta().UID)
+		objectMeta.Name = fmt.Sprintf("mysql-%s", claim.GetUID())
 		mysqlServer := &azuredbv1alpha1.MysqlServer{
 			TypeMeta: metav1.TypeMeta{
 				APIVersion: azuredbv1alpha1.APIVersion,
@@ -95,13 +97,12 @@ func provisionAzureSQL(class *corev1alpha1.ResourceClass, claim corev1alpha1.Res
 			ObjectMeta: objectMeta,
 			Spec:       *sqlServerSpec,
 		}
-		mysqlServer.Status.SetUnbound()
 
 		err := c.Create(ctx, mysqlServer)
 		return mysqlServer, err
 	case *storagev1alpha1.PostgreSQLInstance:
 		// create and save PostgreSQL Server resource
-		objectMeta.Name = fmt.Sprintf("postgresql-%s", claim.GetObjectMeta().UID)
+		objectMeta.Name = fmt.Sprintf("postgresql-%s", claim.GetUID())
 		postgresqlServer := &azuredbv1alpha1.PostgresqlServer{
 			TypeMeta: metav1.TypeMeta{
 				APIVersion: azuredbv1alpha1.APIVersion,
@@ -110,7 +111,6 @@ func provisionAzureSQL(class *corev1alpha1.ResourceClass, claim corev1alpha1.Res
 			ObjectMeta: objectMeta,
 			Spec:       *sqlServerSpec,
 		}
-		postgresqlServer.Status.SetUnbound()
 
 		err := c.Create(ctx, postgresqlServer)
 		return postgresqlServer, err
@@ -120,35 +120,31 @@ func provisionAzureSQL(class *corev1alpha1.ResourceClass, claim corev1alpha1.Res
 }
 
 // SetBindStatus updates resource state binding phase
-// - state = true: bound
-// - state = false: unbound
-// TODO: this setBindStatus function could be refactored to 1 common implementation for all providers
-func (h *AzureMySQLServerHandler) SetBindStatus(name types.NamespacedName, c client.Client, state bool) error {
+// TODO: this SetBindStatus function could be refactored to 1 common implementation for all providers
+func (h *AzureMySQLServerHandler) SetBindStatus(name types.NamespacedName, c client.Client, bound bool) error {
 	mysqlServer := &azuredbv1alpha1.MysqlServer{}
 	err := c.Get(ctx, name, mysqlServer)
-	return setBindStatus(mysqlServer, err, c, state)
+	return setBindStatus(mysqlServer, err, c, bound)
 }
 
 // SetBindStatus updates resource state binding phase
-// - state = true: bound
-// - state = false: unbound
-// TODO: this setBindStatus function could be refactored to 1 common implementation for all providers
-func (h *AzurePostgreSQLServerHandler) SetBindStatus(name types.NamespacedName, c client.Client, state bool) error {
+// TODO: this SetBindStatus function could be refactored to 1 common implementation for all providers
+func (h *AzurePostgreSQLServerHandler) SetBindStatus(name types.NamespacedName, c client.Client, bound bool) error {
 	postgresqlServer := &azuredbv1alpha1.PostgresqlServer{}
 	err := c.Get(ctx, name, postgresqlServer)
-	return setBindStatus(postgresqlServer, err, c, state)
+	return setBindStatus(postgresqlServer, err, c, bound)
 }
 
-func setBindStatus(resource corev1alpha1.Resource, getErr error, c client.Client, state bool) error {
+func setBindStatus(resource corev1alpha1.Resource, getErr error, c client.StatusWriter, bound bool) error {
 	if getErr != nil {
 		// TODO: the CRD is not found and the binding state is supposed to be unbound. is this OK?
-		if errors.IsNotFound(getErr) && !state {
+		if errors.IsNotFound(getErr) && !bound {
 			return nil
 		}
 		return getErr
 	}
 
-	resource.SetBound(state)
+	resource.SetBound(bound)
 
 	return c.Update(ctx, resource)
 }
@@ -156,11 +152,11 @@ func setBindStatus(resource corev1alpha1.Resource, getErr error, c client.Client
 func resolveAzureClassInstanceValues(sqlServerSpec *azuredbv1alpha1.SQLServerSpec, claim corev1alpha1.ResourceClaim) error {
 	var engineVersion string
 
-	switch claim.(type) {
+	switch claim := claim.(type) {
 	case *storagev1alpha1.MySQLInstance:
-		engineVersion = claim.(*storagev1alpha1.MySQLInstance).Spec.EngineVersion
+		engineVersion = claim.Spec.EngineVersion
 	case *storagev1alpha1.PostgreSQLInstance:
-		engineVersion = claim.(*storagev1alpha1.PostgreSQLInstance).Spec.EngineVersion
+		engineVersion = claim.Spec.EngineVersion
 	default:
 		return fmt.Errorf("unexpected claim type: %+v", reflect.TypeOf(claim))
 	}

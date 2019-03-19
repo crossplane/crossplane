@@ -21,8 +21,8 @@ import (
 	"fmt"
 	"log"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/util"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -31,26 +31,30 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 const (
-	errorResourceClassNotDefined   = "Resource class is not provided"
-	errorResourceProvisioning      = "Failed to provision new resource"
-	errorResourceHandlerIsNotFound = "Resource handler is not found"
-	errorRetrievingHandler         = "Failed to retrieve handler"
-	errorRetrievingResourceClass   = "Failed to retrieve resource class"
-	errorRetrievingResource        = "Failed to retrieve resource"
-	errorRetrievingResourceSecret  = "Failed to retrieve resource secret"
-	errorApplyingResourceSecret    = "Failed to apply resource secret"
-	errorSettingResourceBindStatus = "Failed to set resource binding status"
-	waitResourceIsNotAvailable     = "Waiting for resource to become available"
+	errorResourceProvisioning        = "Failed to provision new resource"
+	errorRetrievingHandler           = "Failed to retrieve handler"
+	errorRetrievingResourceClass     = "Failed to retrieve resource class"
+	errorRetrievingResource          = "Failed to retrieve resource"
+	errorRetrievingResourceSecret    = "Failed to retrieve resource secret"
+	errorApplyingResourceSecret      = "Failed to apply resource secret"
+	errorSettingResourceBindStatus   = "Failed to set resource binding status"
+	errorResettingResourceBindStatus = "Failed to reset resource binding status"
+	waitResourceIsNotAvailable       = "Waiting for resource to become available"
 )
 
+// Commonly used reconciliation results.
 var (
 	Result        = reconcile.Result{}
 	ResultRequeue = reconcile.Result{Requeue: true}
-	ctx           = context.Background()
 )
+
+var ctx = context.Background()
 
 // ResourceHandler defines resource handing functions
 type ResourceHandler interface {
@@ -75,6 +79,7 @@ type Reconciler struct {
 	getHandler  func(claim corev1alpha1.ResourceClaim) (ResourceHandler, error)
 }
 
+// NewReconciler initializes and returns a new Reconciler instance.
 func NewReconciler(mgr manager.Manager, controllerName, finalizerName string, handlers map[string]ResourceHandler) *Reconciler {
 	r := &Reconciler{
 		Client:        mgr.GetClient(),
@@ -93,6 +98,17 @@ func NewReconciler(mgr manager.Manager, controllerName, finalizerName string, ha
 	return r
 }
 
+// HandleGetClaimError is a helper function to handle an error that was returned from a GET
+// operation on a concrete claim type.
+func HandleGetClaimError(err error) (reconcile.Result, error) {
+	if errors.IsNotFound(err) {
+		// Object not found, return.  Created objects are automatically garbage collected.
+		// For additional cleanup logic use finalizers.
+		return Result, nil
+	}
+	return Result, err
+}
+
 // _reconcile runs the main reconcile loop of this controller, given the requested claim
 func (r *Reconciler) _reconcile(claim corev1alpha1.ResourceClaim) (reconcile.Result, error) {
 	// get the resource handler for this claim
@@ -101,18 +117,18 @@ func (r *Reconciler) _reconcile(claim corev1alpha1.ResourceClaim) (reconcile.Res
 		return r.fail(claim, errorRetrievingHandler, err.Error())
 	} else if handler == nil {
 		// handler is not found - log this but don't fail, let an external provisioner handle it
-		log.Printf("handler for claim %s is unknown, ignoring reconcile to allow external provisioners to handle it", claim.GetObjectMeta().Name)
+		log.Printf("handler for claim %s is unknown, ignoring reconcile to allow external provisioners to handle it", claim.GetName())
 		return Result, nil
 	}
 
 	// Check for deletion
-	if claim.GetObjectMeta().DeletionTimestamp != nil && claim.ClaimStatus().Condition(corev1alpha1.Deleting) == nil {
+	if claim.GetDeletionTimestamp() != nil && claim.ClaimStatus().Condition(corev1alpha1.Deleting) == nil {
 		return r.delete(claim, handler)
 	}
 
 	// Add finalizer
-	if !util.HasFinalizer(claim.GetObjectMeta(), r.finalizerName) {
-		util.AddFinalizer(claim.GetObjectMeta(), r.finalizerName)
+	if !util.HasFinalizer(claim, r.finalizerName) {
+		util.AddFinalizer(claim, r.finalizerName)
 		if err := r.Update(ctx, claim); err != nil {
 			return ResultRequeue, err
 		}
@@ -129,9 +145,8 @@ func (r *Reconciler) _reconcile(claim corev1alpha1.ResourceClaim) (reconcile.Res
 
 // _provision based on class and parameters
 func (r *Reconciler) _provision(claim corev1alpha1.ResourceClaim, handler ResourceHandler) (reconcile.Result, error) {
-	// initialize the claim to an unbound state
+	// initialize the claim
 	claimStatus := claim.ClaimStatus()
-	claimStatus.SetUnbound()
 
 	// get the resource class for this claim
 	class, err := r.getResourceClass(claim)
@@ -156,7 +171,7 @@ func (r *Reconciler) _provision(claim corev1alpha1.ResourceClaim, handler Resour
 	return Result, r.Update(ctx, claim)
 }
 
-// _bind KubernetesCluster to a concrete Resource
+// _bind the given resource claim to a concrete Resource
 func (r *Reconciler) _bind(claim corev1alpha1.ResourceClaim, handler ResourceHandler) (reconcile.Result, error) {
 	// find resource instance
 	resNName := util.NamespaceNameFromObjectRef(claim.ResourceRef())
@@ -182,10 +197,10 @@ func (r *Reconciler) _bind(claim corev1alpha1.ResourceClaim, handler ResourceHan
 		return r.fail(claim, errorRetrievingResourceSecret, err.Error())
 	}
 
-	// replace secret metadata with the consumer's metadata (same as in service)
+	// replace secret metadata with the consuming claim's metadata (same as in service)
 	secret.ObjectMeta = metav1.ObjectMeta{
-		Namespace:       claim.GetObjectMeta().Namespace,
-		Name:            claim.GetObjectMeta().Name,
+		Namespace:       claim.GetNamespace(),
+		Name:            claim.GetName(),
 		OwnerReferences: []metav1.OwnerReference{claim.OwnerReference()},
 	}
 	if _, err := util.ApplySecret(r.kubeclient, secret); err != nil {
@@ -197,9 +212,12 @@ func (r *Reconciler) _bind(claim corev1alpha1.ResourceClaim, handler ResourceHan
 		return r.fail(claim, errorSettingResourceBindStatus, err.Error())
 	}
 
-	// set instance binding status
+	// set claim binding status
 	claimStatus := claim.ClaimStatus()
-	claimStatus.SetBound()
+	claimStatus.SetBound(true)
+
+	// save a local reference to the credentials secret in the claim's status
+	claimStatus.CredentialsSecretRef = corev1.LocalObjectReference{Name: secret.Name}
 
 	// update conditions
 	if !claimStatus.IsReady() {
@@ -210,19 +228,22 @@ func (r *Reconciler) _bind(claim corev1alpha1.ResourceClaim, handler ResourceHan
 	return Result, r.Update(ctx, claim)
 }
 
+// _delete the given resource claim
 func (r *Reconciler) _delete(claim corev1alpha1.ResourceClaim, handler ResourceHandler) (reconcile.Result, error) {
 	// update resource binding status
 	resNName := util.NamespaceNameFromObjectRef(claim.ResourceRef())
 
 	// TODO: decide how to handle resource binding status update error
-	// - ignore the error for now
-	_ = handler.SetBindStatus(resNName, r.Client, false)
+	// - record an event for the error for now
+	if err := handler.SetBindStatus(resNName, r.Client, false); err != nil {
+		r.recorder.Event(claim, corev1.EventTypeWarning, errorResettingResourceBindStatus, err.Error())
+	}
 
 	// update claim status and remove finalizer
 	claimStatus := claim.ClaimStatus()
 	claimStatus.UnsetAllConditions()
 	claimStatus.SetDeleting()
-	util.RemoveFinalizer(claim.GetObjectMeta(), r.finalizerName)
+	util.RemoveFinalizer(claim, r.finalizerName)
 	return reconcile.Result{}, r.Update(ctx, claim)
 }
 
@@ -286,7 +307,7 @@ func ResolveClassClaimValues(classValue, claimValue string) (string, error) {
 		return classValue, nil
 	}
 	if classValue != claimValue {
-		return "", fmt.Errorf("mysql claim value [%s] does not match the one defined in the resource class [%s]", claimValue, classValue)
+		return "", fmt.Errorf("claim value [%s] does not match the one defined in the resource class [%s]", claimValue, classValue)
 	}
 	return claimValue, nil
 }

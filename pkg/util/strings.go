@@ -20,6 +20,8 @@ import (
 	"strings"
 )
 
+// ToLowerRemoveSpaces returns the supplied string in lowercase with all spaces
+// (not all whitespace) removed.
 func ToLowerRemoveSpaces(input string) string {
 	return strings.ToLower(strings.Replace(input, " ", "", -1))
 }

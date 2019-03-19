@@ -20,11 +20,11 @@ import (
 	"fmt"
 	"time"
 
-	dbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/database/v1alpha1"
-	gcpclients "github.com/crossplaneio/crossplane/pkg/clients/gcp"
 	sqladmin "google.golang.org/api/sqladmin/v1beta4"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
+
+	gcpclients "github.com/crossplaneio/crossplane/pkg/clients/gcp"
 )
 
 // mockCloudSQLClient provides a mock implementation of the CloudSQLAPI interface for unit testing purposes
@@ -82,10 +82,6 @@ func (m *mockCloudSQLClient) GetOperation(project string, operationID string) (*
 		return m.MockGetOperation(project, operationID)
 	}
 	return nil, nil
-}
-
-func getInstanceDefault(project string, instance string) (*sqladmin.DatabaseInstance, error) {
-	return createMockDatabaseInstance(project, instance, dbv1alpha1.StateRunnable), nil
 }
 
 func createInstanceDefault(project string, databaseinstance *sqladmin.DatabaseInstance) (*sqladmin.Operation, error) {

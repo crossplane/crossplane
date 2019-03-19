@@ -20,9 +20,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/crossplaneio/crossplane/pkg/apis/compute"
-	. "github.com/crossplaneio/crossplane/pkg/apis/compute/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,6 +28,10 @@ import (
 	. "sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	"github.com/crossplaneio/crossplane/pkg/apis/compute"
+	. "github.com/crossplaneio/crossplane/pkg/apis/compute/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 )
 
 const (
@@ -103,7 +104,7 @@ func TestReconcile(t *testing.T) {
 	r.schedule = func(workload *Workload) (result reconcile.Result, e error) {
 		return resultDone, fmt.Errorf("test-error")
 	}
-	rs, err = r.Reconcile(request)
+	_, err = r.Reconcile(request)
 	g.Expect(err).Should(HaveOccurred())
 	g.Expect(err).Should(MatchError("test-error"))
 

@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/s3iface"
+
 	"github.com/crossplaneio/crossplane/pkg/apis/aws/storage/v1alpha1"
 	storage "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
 	iamc "github.com/crossplaneio/crossplane/pkg/clients/aws/iam"
@@ -43,7 +44,8 @@ func NewClient(config *aws.Config) Service {
 	return &Client{s3: s3.New(*config), iamClient: iamc.NewClient(config)}
 }
 
-// Create creates s3 bucket with provided specification, and returns access keys with permissions of localPermission
+// CreateOrUpdateBucket creates or updates the supplied S3 bucket with provided
+// specification, and returns access keys with permissions of localPermission
 func (c *Client) CreateOrUpdateBucket(spec *v1alpha1.S3BucketSpec) error {
 	input := CreateBucketInput(spec)
 	_, err := c.s3.CreateBucketRequest(input).Send()
@@ -102,7 +104,7 @@ func (c *Client) UpdateBucketACL(spec *v1alpha1.S3BucketSpec) error {
 	var err error
 	if spec.CannedACL != nil {
 		input := &s3.PutBucketAclInput{
-			ACL:    s3.BucketCannedACL(*spec.CannedACL),
+			ACL:    *spec.CannedACL,
 			Bucket: &spec.Name,
 		}
 		_, err = c.s3.PutBucketAclRequest(input).Send()
@@ -177,14 +179,14 @@ func isErrorNotFound(err error) bool {
 	return false
 }
 
-// CreateS3Bucket from S3BucketSpec
+// CreateBucketInput returns a CreateBucketInput from the supplied S3BucketSpec.
 func CreateBucketInput(spec *v1alpha1.S3BucketSpec) *s3.CreateBucketInput {
 	bucketInput := &s3.CreateBucketInput{
 		CreateBucketConfiguration: &s3.CreateBucketConfiguration{LocationConstraint: s3.BucketLocationConstraint(spec.Region)},
 		Bucket:                    &spec.Name,
 	}
 	if spec.CannedACL != nil {
-		bucketInput.ACL = s3.BucketCannedACL(*spec.CannedACL)
+		bucketInput.ACL = *spec.CannedACL
 	}
 	return bucketInput
 }

@@ -21,6 +21,7 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/clients/aws/rds"
 )
 
+// MockRDSClient for testing.
 type MockRDSClient struct {
 	MockGetInstance    func(string) (*rds.Instance, error)
 	MockCreateInstance func(string, string, *v1alpha1.RDSInstanceSpec) (*rds.Instance, error)

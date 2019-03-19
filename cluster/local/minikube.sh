@@ -64,7 +64,7 @@ case "${1:-}" in
     minikube addons enable ingress
 
     kubectl apply -f ${scriptdir}/helm-rbac.yaml
-    helm init --service-account tiller
+    ${HELM} init --service-account tiller
     kubectl -n kube-system rollout status deploy/tiller-deploy
     kubectl -n kube-system rollout status deploy/nginx-ingress-controller
     kubectl -n kube-system rollout status deploy/default-http-backend
@@ -99,20 +99,20 @@ case "${1:-}" in
 
     [ "$2" ] && ns=$2 || ns="${DEFAULT_NAMESPACE}"
     echo "installing helm package(s) into \"$ns\" namespace"
-    helm install --name ${PROJECT_NAME} --namespace ${ns} ${projectdir}/cluster/charts/${PROJECT_NAME} --set image.pullPolicy=Never,imagePullSecrets=''
+    ${HELM} install --name ${PROJECT_NAME} --namespace ${ns} ${projectdir}/cluster/charts/${PROJECT_NAME} --set image.pullPolicy=Never,imagePullSecrets=''
     ;;
   helm-upgrade)
     echo "copying image for helm"
     helm_tag="$(cat _output/version)"
     copy_image_to_cluster ${BUILD_IMAGE} "${DOCKER_REGISTRY}/${PROJECT_NAME}:${helm_tag}"
-    helm upgrade ${PROJECT_NAME} ${projectdir}/cluster/charts/${PROJECT_NAME}
+    ${HELM} upgrade ${PROJECT_NAME} ${projectdir}/cluster/charts/${PROJECT_NAME}
     ;;
   helm-delete)
     echo "removing helm package"
-    helm del --purge ${PROJECT_NAME}
+    ${HELM} del --purge ${PROJECT_NAME}
     ;;
   helm-list)
-    helm list ${PROJECT_NAME} --all
+    ${HELM} list ${PROJECT_NAME} --all
     ;;
   clean)
     minikube delete

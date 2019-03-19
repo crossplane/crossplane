@@ -18,7 +18,6 @@ package aws
 
 import (
 	"fmt"
-	"os"
 	"testing"
 
 	"github.com/go-ini/ini"
@@ -39,13 +38,13 @@ func TestCredentialsIdSecret(t *testing.T) {
 	credentials := []byte(fmt.Sprintf(awsCredentialsFileFormat, testProfile, testID, testSecret))
 
 	// valid profile
-	id, secret, err := CredentialsIDSecret([]byte(credentials), testProfile)
+	id, secret, err := CredentialsIDSecret(credentials, testProfile)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(id).To(Equal(testID))
 	g.Expect(secret).To(Equal(testSecret))
 
 	// invalid profile - foo does not exist
-	id, secret, err = CredentialsIDSecret([]byte(credentials), "foo")
+	id, secret, err = CredentialsIDSecret(credentials, "foo")
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(id).To(Equal(""))
 	g.Expect(secret).To(Equal(""))
@@ -60,28 +59,9 @@ func TestLoadConfig(t *testing.T) {
 	testRegion := "us-west-2"
 	credentials := []byte(fmt.Sprintf(awsCredentialsFileFormat, testProfile, testID, testSecret))
 
-	config, err := LoadConfig([]byte(credentials), testProfile, testRegion)
+	config, err := LoadConfig(credentials, testProfile, testRegion)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(config).NotTo(BeNil())
-}
-
-// TestValidate - reads AWS configuration from the local file.
-// The file path is provided via TEST_AWS_CREDENTIALS_FILE environment variable, otherwise the test is skipped.
-func TestValidate(t *testing.T) {
-	g := NewGomegaWithT(t)
-
-	awsCredsFile := os.Getenv("TEST_AWS_CREDENTIALS_FILE")
-	if awsCredsFile == "" {
-		t.Log("not found: TEST_AWS_CREDENTIALS_FILE")
-		t.Skip()
-	}
-	t.Logf("using: %s", awsCredsFile)
-
-	config, err := ConfigFromFile(awsCredsFile, "us-west-2")
-	g.Expect(err).NotTo(HaveOccurred())
-
-	err = ValidateConfig(config)
-	g.Expect(err).NotTo(HaveOccurred())
 }
 
 func TestValidateInvalid(t *testing.T) {

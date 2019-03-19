@@ -19,12 +19,14 @@ package v1alpha1
 import (
 	"strconv"
 
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/util"
-	"k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// CloudSQL instance states
 const (
 	// StateRunnable represents a CloudSQL instance in a running, available, and ready state
 	StateRunnable = "RUNNABLE"
@@ -34,11 +36,11 @@ const (
 
 	// StateFailed  represents a CloudSQL instance has failed in some way
 	StateFailed = "FAILED"
+)
 
-	// The version prefix for MySQL versions
-	MysqlDBVersionPrefix = "MYSQL"
-
-	// The version prefix for PostgreSQL versions
+// CloudSQL version prefixes.
+const (
+	MysqlDBVersionPrefix      = "MYSQL"
 	PostgresqlDBVersionPrefix = "POSTGRES"
 )
 
@@ -179,14 +181,10 @@ func (c *CloudsqlInstance) IsAvailable() bool {
 
 // IsBound determines if the resource is in a bound binding state
 func (c *CloudsqlInstance) IsBound() bool {
-	return c.Status.Phase == corev1alpha1.BindingStateBound
+	return c.Status.IsBound()
 }
 
 // SetBound sets the binding state of this resource
-func (c *CloudsqlInstance) SetBound(state bool) {
-	if state {
-		c.Status.Phase = corev1alpha1.BindingStateBound
-	} else {
-		c.Status.Phase = corev1alpha1.BindingStateUnbound
-	}
+func (c *CloudsqlInstance) SetBound(bound bool) {
+	c.Status.SetBound(bound)
 }

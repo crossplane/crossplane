@@ -17,16 +17,14 @@ limitations under the License.
 package v1alpha1
 
 import (
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
-//---------------------------------------------------------------------------------------------------------------------
-// MySQLInstance
-
-// MySQLInstanceSpec
+// MySQLInstanceSpec specifies the configuration of a MySQL instance.
 type MySQLInstanceSpec struct {
 	ClassRef    *corev1.ObjectReference `json:"classReference,omitempty"`
 	ResourceRef *corev1.ObjectReference `json:"resourceName,omitempty"`
@@ -73,30 +71,28 @@ func (m *MySQLInstance) OwnerReference() metav1.OwnerReference {
 	return *util.ObjectToOwnerReference(m.ObjectReference())
 }
 
+// ClaimStatus returns the status of this resource claim.
 func (m *MySQLInstance) ClaimStatus() *corev1alpha1.ResourceClaimStatus {
 	return &m.Status
 }
 
-func (m *MySQLInstance) GetObjectMeta() *metav1.ObjectMeta {
-	return &m.ObjectMeta
-}
-
+// ClassRef returns the resource class used by this resource claim.
 func (m *MySQLInstance) ClassRef() *corev1.ObjectReference {
 	return m.Spec.ClassRef
 }
 
+// ResourceRef returns the resource claimed by this resource claim.
 func (m *MySQLInstance) ResourceRef() *corev1.ObjectReference {
 	return m.Spec.ResourceRef
 }
 
+// SetResourceRef specifies the resource claimed by this resource claim.
 func (m *MySQLInstance) SetResourceRef(ref *corev1.ObjectReference) {
 	m.Spec.ResourceRef = ref
 }
 
-//---------------------------------------------------------------------------------------------------------------------
-// PostgreSQLInstance
-
-// PostgreSQLInstanceSpec
+// PostgreSQLInstanceSpec specifies the configuration of this
+// PostgreSQLInstance.
 type PostgreSQLInstanceSpec struct {
 	ClassRef    *corev1.ObjectReference `json:"classReference,omitempty"`
 	ResourceRef *corev1.ObjectReference `json:"resourceName,omitempty"`
@@ -155,28 +151,26 @@ func (p *PostgreSQLInstance) OwnerReference() metav1.OwnerReference {
 	return *util.ObjectToOwnerReference(p.ObjectReference())
 }
 
+// ClaimStatus returns the status of this resource claim.
 func (p *PostgreSQLInstance) ClaimStatus() *corev1alpha1.ResourceClaimStatus {
 	return &p.Status
 }
 
-func (p *PostgreSQLInstance) GetObjectMeta() *metav1.ObjectMeta {
-	return &p.ObjectMeta
-}
-
+// ClassRef returns the resource class used by this resource claim.
 func (p *PostgreSQLInstance) ClassRef() *corev1.ObjectReference {
 	return p.Spec.ClassRef
 }
 
+// ResourceRef returns the resource claimed by this resource claim.
 func (p *PostgreSQLInstance) ResourceRef() *corev1.ObjectReference {
 	return p.Spec.ResourceRef
 }
 
+// SetResourceRef specifies the resource claimed by this resource claim.
 func (p *PostgreSQLInstance) SetResourceRef(ref *corev1.ObjectReference) {
 	p.Spec.ResourceRef = ref
 }
 
-//---------------------------------------------------------------------------------------------------------------------
-// Bucket
 // LocalPermissionType - Base type for LocalPermissions
 type LocalPermissionType string
 
@@ -189,8 +183,10 @@ const (
 	ReadWritePermission LocalPermissionType = "ReadWrite"
 )
 
+// PredefinedACL represents predefied bucket ACLs.
 type PredefinedACL string
 
+// Predefined ACLs.
 const (
 	ACLPrivate           PredefinedACL = "Private"
 	ACLPublicRead        PredefinedACL = "PublicRead"
@@ -221,16 +217,6 @@ type BucketSpec struct {
 	ConnectionSecretNameOverride string `json:"connectionSecretNameOverride,omitempty"`
 }
 
-// BucketClaimStatus
-type BucketClaimStatus struct {
-	corev1alpha1.ConditionedStatus
-	corev1alpha1.BindingStatusPhase
-	// Provisioner is the driver that was used to provision the concrete resource
-	// This is an optionally-prefixed name, like a label key.
-	// For example: "S3Bucket.storage.aws.crossplane.io/v1alpha1" or "GoogleBucket.storage.gcp.crossplane.io/v1alpha1".
-	Provisioner string `json:"provisioner,omitempty"`
-}
-
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
@@ -246,8 +232,8 @@ type Bucket struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   BucketSpec        `json:"spec,omitempty"`
-	Status BucketClaimStatus `json:"status,omitempty"`
+	Spec   BucketSpec                       `json:"spec,omitempty"`
+	Status corev1alpha1.ResourceClaimStatus `json:"status,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -267,4 +253,24 @@ func (b *Bucket) OwnerReference() metav1.OwnerReference {
 // ObjectReference to this S3Bucket
 func (b *Bucket) ObjectReference() *corev1.ObjectReference {
 	return util.ObjectReference(b.ObjectMeta, util.IfEmptyString(b.APIVersion, APIVersion), util.IfEmptyString(b.Kind, BucketKind))
+}
+
+// ClaimStatus returns the status of this resource claim.
+func (b *Bucket) ClaimStatus() *corev1alpha1.ResourceClaimStatus {
+	return &b.Status
+}
+
+// ClassRef returns the resource class used by this resource claim.
+func (b *Bucket) ClassRef() *corev1.ObjectReference {
+	return b.Spec.ClassRef
+}
+
+// ResourceRef returns the resource claimed by this resource claim.
+func (b *Bucket) ResourceRef() *corev1.ObjectReference {
+	return b.Spec.ResourceRef
+}
+
+// SetResourceRef specifies the resource claimed by this resource claim.
+func (b *Bucket) SetResourceRef(ref *corev1.ObjectReference) {
+	b.Spec.ResourceRef = ref
 }

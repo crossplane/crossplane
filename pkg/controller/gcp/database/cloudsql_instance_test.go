@@ -23,13 +23,10 @@ import (
 	"testing"
 	"time"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	dbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/database/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/test"
 	"github.com/onsi/gomega"
 	"google.golang.org/api/googleapi"
-	"google.golang.org/api/sqladmin/v1beta4"
-	"k8s.io/api/core/v1"
+	sqladmin "google.golang.org/api/sqladmin/v1beta4"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -37,6 +34,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	dbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/database/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
 func TestReconcile(t *testing.T) {
@@ -214,6 +215,7 @@ func TestGetDefaultDBUserName(t *testing.T) {
 
 	user, err := getDefaultDBUserName("foo")
 	g.Expect(err).To(gomega.HaveOccurred())
+	g.Expect(user).To(gomega.Equal(""))
 
 	user, err = getDefaultDBUserName("MYSQL_5_6")
 	g.Expect(err).NotTo(gomega.HaveOccurred())

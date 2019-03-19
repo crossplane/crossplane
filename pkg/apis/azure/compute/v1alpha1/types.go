@@ -20,10 +20,11 @@ import (
 	"strconv"
 
 	"github.com/Azure/go-autorest/autorest/to"
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 const (
@@ -221,14 +222,10 @@ func (a *AKSCluster) IsAvailable() bool {
 
 // IsBound returns if the resource is currently bound
 func (a *AKSCluster) IsBound() bool {
-	return a.Status.Phase == corev1alpha1.BindingStateBound
+	return a.Status.IsBound()
 }
 
 // SetBound sets the binding state of this resource
-func (a *AKSCluster) SetBound(state bool) {
-	if state {
-		a.Status.Phase = corev1alpha1.BindingStateBound
-	} else {
-		a.Status.Phase = corev1alpha1.BindingStateUnbound
-	}
+func (a *AKSCluster) SetBound(bound bool) {
+	a.Status.SetBound(bound)
 }

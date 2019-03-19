@@ -19,18 +19,18 @@ package gcp
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 
-	gcpv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/util"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/cloudresourcemanager/v1"
 	"google.golang.org/api/googleapi"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
+
+	gcpv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 // DefaultScope is the default scope to use for a GCP client
@@ -101,16 +101,6 @@ func IsErrorBadRequest(err error) bool {
 func ProviderCredentials(client kubernetes.Interface, p *gcpv1alpha1.Provider, scopes ...string) (*google.Credentials, error) {
 	// retrieve provider secret data
 	data, err := util.SecretData(client, p.Namespace, p.Spec.Secret)
-	if err != nil {
-		return nil, err
-	}
-
-	return google.CredentialsFromJSON(context.Background(), data, scopes...)
-}
-
-// CredentialsFromFile retrieve google service account credentials from the provided json file
-func CredentialsFromFile(file string, scopes ...string) (*google.Credentials, error) {
-	data, err := ioutil.ReadFile(file)
 	if err != nil {
 		return nil, err
 	}

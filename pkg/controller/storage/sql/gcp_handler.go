@@ -21,14 +21,15 @@ import (
 	"reflect"
 	"strings"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	gcpdbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/database/v1alpha1"
-	storagev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
-	corecontroller "github.com/crossplaneio/crossplane/pkg/controller/core"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	gcpdbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/database/v1alpha1"
+	storagev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
+	corecontroller "github.com/crossplaneio/crossplane/pkg/controller/core"
 )
 
 // CloudSQLServerHandler is a dynamic provisioning handler for CloudSQL resource
@@ -62,9 +63,9 @@ func (h *CloudSQLServerHandler) Provision(class *corev1alpha1.ResourceClass, cla
 	var cloudsqlInstanceName string
 	switch claim.(type) {
 	case *storagev1alpha1.MySQLInstance:
-		cloudsqlInstanceName = fmt.Sprintf("mysql-%s", claim.GetObjectMeta().UID)
+		cloudsqlInstanceName = fmt.Sprintf("mysql-%s", claim.GetUID())
 	case *storagev1alpha1.PostgreSQLInstance:
-		cloudsqlInstanceName = fmt.Sprintf("postgresql-%s", claim.GetObjectMeta().UID)
+		cloudsqlInstanceName = fmt.Sprintf("postgresql-%s", claim.GetUID())
 	default:
 		return nil, fmt.Errorf("unexpected claim type: %+v", reflect.TypeOf(claim))
 	}
@@ -82,31 +83,24 @@ func (h *CloudSQLServerHandler) Provision(class *corev1alpha1.ResourceClass, cla
 		},
 		Spec: *cloudsqlInstanceSpec,
 	}
-	cloudsqlInstance.Status.SetUnbound()
 
 	err := c.Create(ctx, cloudsqlInstance)
 	return cloudsqlInstance, err
 }
 
 // SetBindStatus updates resource state binding phase
-// - state = true: bound
-// - state = false: unbound
-// TODO: this setBindStatus function could be refactored to 1 common implementation for all providers
-func (h *CloudSQLServerHandler) SetBindStatus(name types.NamespacedName, c client.Client, state bool) error {
+// TODO: this SetBindStatus function could be refactored to 1 common implementation for all providers
+func (h *CloudSQLServerHandler) SetBindStatus(name types.NamespacedName, c client.Client, bound bool) error {
 	cloudsqlInstance := &gcpdbv1alpha1.CloudsqlInstance{}
 	err := c.Get(ctx, name, cloudsqlInstance)
 	if err != nil {
 		// TODO: the CRD is not found and the binding state is supposed to be unbound. is this OK?
-		if errors.IsNotFound(err) && !state {
+		if errors.IsNotFound(err) && !bound {
 			return nil
 		}
 		return err
 	}
-	if state {
-		cloudsqlInstance.Status.SetBound()
-	} else {
-		cloudsqlInstance.Status.SetUnbound()
-	}
+	cloudsqlInstance.Status.SetBound(bound)
 	return c.Update(ctx, cloudsqlInstance)
 }
 
@@ -114,12 +108,12 @@ func resolveGCPClassInstanceValues(cloudsqlInstanceSpec *gcpdbv1alpha1.CloudsqlI
 	var engineVersion string
 	var versionPrefix string
 
-	switch claim.(type) {
+	switch claim := claim.(type) {
 	case *storagev1alpha1.MySQLInstance:
-		engineVersion = claim.(*storagev1alpha1.MySQLInstance).Spec.EngineVersion
+		engineVersion = claim.Spec.EngineVersion
 		versionPrefix = gcpdbv1alpha1.MysqlDBVersionPrefix
 	case *storagev1alpha1.PostgreSQLInstance:
-		engineVersion = claim.(*storagev1alpha1.PostgreSQLInstance).Spec.EngineVersion
+		engineVersion = claim.Spec.EngineVersion
 		versionPrefix = gcpdbv1alpha1.PostgresqlDBVersionPrefix
 	default:
 		return fmt.Errorf("unexpected claim type: %+v", reflect.TypeOf(claim))

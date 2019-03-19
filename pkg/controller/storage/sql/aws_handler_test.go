@@ -19,9 +19,10 @@ package sql
 import (
 	"testing"
 
+	. "github.com/onsi/gomega"
+
 	awsdbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/database/v1alpha1"
 	storagev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
-	. "github.com/onsi/gomega"
 )
 
 func TestResolveAWSClassInstanceValues(t *testing.T) {

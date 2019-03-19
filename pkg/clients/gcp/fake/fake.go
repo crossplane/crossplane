@@ -17,28 +17,34 @@ limitations under the License.
 package fake
 
 import (
-	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/compute/v1alpha1"
 	"google.golang.org/api/container/v1"
+
+	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/compute/v1alpha1"
 )
 
-type FakeGKEClient struct {
+// GKEClient for mocking.
+type GKEClient struct {
 	MockCreateCluster func(string, computev1alpha1.GKEClusterSpec) (*container.Cluster, error)
 	MockGetCluster    func(string, string) (*container.Cluster, error)
 	MockDeleteCluster func(string, string) error
 }
 
-func (f *FakeGKEClient) CreateCluster(name string, spec computev1alpha1.GKEClusterSpec) (*container.Cluster, error) {
+// CreateCluster calls the underlying MockCreateCluster method.
+func (f *GKEClient) CreateCluster(name string, spec computev1alpha1.GKEClusterSpec) (*container.Cluster, error) {
 	return f.MockCreateCluster(name, spec)
 }
 
-func (f *FakeGKEClient) GetCluster(zone, name string) (*container.Cluster, error) {
+// GetCluster calls the underlying MockGetCluster method.
+func (f *GKEClient) GetCluster(zone, name string) (*container.Cluster, error) {
 	return f.MockGetCluster(zone, name)
 }
 
-func (f *FakeGKEClient) DeleteCluster(zone, name string) error {
+// DeleteCluster calls the underlying MockDeleteCluster method.
+func (f *GKEClient) DeleteCluster(zone, name string) error {
 	return f.MockDeleteCluster(zone, name)
 }
 
-func NewGKEClient() *FakeGKEClient {
-	return &FakeGKEClient{}
+// NewGKEClient returns a fake GKE client for testing.
+func NewGKEClient() *GKEClient {
+	return &GKEClient{}
 }

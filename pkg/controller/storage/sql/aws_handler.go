@@ -21,13 +21,14 @@ import (
 	"reflect"
 	"strings"
 
-	awsdbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/database/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	storagev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	awsdbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/database/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	storagev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
 )
 
 // RDSInstanceHandler handles RDS Instance functionality
@@ -50,7 +51,7 @@ func (h *RDSInstanceHandler) Provision(class *corev1alpha1.ResourceClass, claim 
 		return nil, err
 	}
 
-	rdsInstanceName := fmt.Sprintf("%s-%s", rdsInstanceSpec.Engine, claim.GetObjectMeta().UID)
+	rdsInstanceName := fmt.Sprintf("%s-%s", rdsInstanceSpec.Engine, claim.GetUID())
 
 	// assign provider reference and reclaim policy from the resource class
 	rdsInstanceSpec.ProviderRef = class.ProviderRef
@@ -73,46 +74,39 @@ func (h *RDSInstanceHandler) Provision(class *corev1alpha1.ResourceClass, claim 
 		},
 		Spec: *rdsInstanceSpec,
 	}
-	rdsInstance.Status.SetUnbound()
 
 	err := c.Create(ctx, rdsInstance)
 	return rdsInstance, err
 }
 
-// Bind updates resource state binding phase
-// - state = true: bound
-// - state = false: unbound
-// TODO: this setBindStatus function could be refactored to 1 common implementation for all providers
-func (h RDSInstanceHandler) SetBindStatus(name types.NamespacedName, c client.Client, state bool) error {
+// SetBindStatus updates resource state binding phase
+// TODO: this SetBindStatus function could be refactored to 1 common implementation for all providers
+func (h RDSInstanceHandler) SetBindStatus(name types.NamespacedName, c client.Client, bound bool) error {
 	rdsInstance := &awsdbv1alpha1.RDSInstance{}
 	err := c.Get(ctx, name, rdsInstance)
 	if err != nil {
 		// TODO: the CRD is not found and the binding state is supposed to be unbound. is this OK?
-		if errors.IsNotFound(err) && !state {
+		if errors.IsNotFound(err) && !bound {
 			return nil
 		}
 		return err
 	}
-	if state {
-		rdsInstance.Status.SetBound()
-	} else {
-		rdsInstance.Status.SetUnbound()
-	}
+	rdsInstance.Status.SetBound(bound)
 	return c.Update(ctx, rdsInstance)
 }
 
 func resolveAWSClassInstanceValues(rdsInstanceSpec *awsdbv1alpha1.RDSInstanceSpec, claim corev1alpha1.ResourceClaim) error {
 	var engineVersion string
 
-	switch claim.(type) {
+	switch claim := claim.(type) {
 	case *storagev1alpha1.MySQLInstance:
 		// translate mysql spec fields to RDSInstance spec
 		rdsInstanceSpec.Engine = awsdbv1alpha1.MysqlEngine
-		engineVersion = claim.(*storagev1alpha1.MySQLInstance).Spec.EngineVersion
+		engineVersion = claim.Spec.EngineVersion
 	case *storagev1alpha1.PostgreSQLInstance:
 		// translate postgres spec fields to RDSInstance spec
 		rdsInstanceSpec.Engine = awsdbv1alpha1.PostgresqlEngine
-		engineVersion = claim.(*storagev1alpha1.PostgreSQLInstance).Spec.EngineVersion
+		engineVersion = claim.Spec.EngineVersion
 	default:
 		return fmt.Errorf("unexpected claim type: %+v", reflect.TypeOf(claim))
 	}

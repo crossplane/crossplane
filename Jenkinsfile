@@ -11,9 +11,13 @@ pipeline {
     }
 
     environment {
+        RUNNING_IN_CI = 'true'
+        REPOSITORY_NAME = "${env.GIT_URL.tokenize('/')[3].split('\\.')[0]}"
+        REPOSITORY_OWNER = "${env.GIT_URL.tokenize('/')[2]}"
         DOCKER = credentials('dockerhub-upboundci')
         AWS = credentials('aws-upbound-bot')
         GITHUB_UPBOUND_BOT = credentials('github-upbound-jenkins')
+        CODECOV_TOKEN = credentials('codecov-crossplane')
     }
 
     stages {
@@ -46,6 +50,31 @@ pipeline {
                 sh './build/run make vendor.check'
                 sh './build/run make -j\$(nproc) build.all'
             }
+            post {
+                always {
+                    archiveArtifacts "_output/lint/**/*"
+                    ViolationsToGitHub([
+                        gitHubUrl: env.GIT_URL,
+                        repositoryName: env.REPOSITORY_NAME,
+                        repositoryOwner: env.REPOSITORY_OWNER,
+                        pullRequestId: env.CHANGE_ID,
+                        oAuth2Token: env.GITHUB_UPBOUND_BOT_PSW,
+
+                        createCommentWithAllSingleFileComments: false,
+                        createSingleFileComments: true,
+                        keepOldComments: false,
+                        commentOnlyChangedContent: true,
+                        commentTemplate: readFile('hack/linter-violation.tmpl'),
+
+                        violationConfigs: [[
+                            reporter: 'make lint',
+                            parser: 'CHECKSTYLE',
+                            // This is a regex run against the absolute path of the file.
+                            pattern: '.*/_output/lint/.+/checkstyle\\.xml\$',
+                        ]]
+                    ])
+                }
+            }
         }
 
         stage('Unit Tests') {
@@ -60,7 +89,22 @@ pipeline {
             post {
                 always {
                     archiveArtifacts "_output/tests/**/*"
-                    junit "_output/tests/**/*.xml"
+                    junit "_output/tests/**/unit-tests.xml"
+                    cobertura coberturaReportFile: '_output/tests/**/coverage.xml',
+                            classCoverageTargets: '50, 0, 0',
+                            conditionalCoverageTargets: '70, 0, 0',
+                            lineCoverageTargets: '40, 0, 0',
+                            methodCoverageTargets: '30, 0, 0',
+                            packageCoverageTargets: '80, 0, 0',
+                            autoUpdateHealth: false,
+                            autoUpdateStability: false,
+                            enableNewApi: false,
+                            failUnhealthy: false,
+                            failUnstable: false,
+                            maxNumberOfBuilds: 0,
+                            onlyStable: false,
+                            sourceEncoding: 'ASCII',
+                            zoomCoverageChart: false
                 }
             }
         }
@@ -80,6 +124,9 @@ pipeline {
                             sh "./build/run make -j\$(nproc) promote BRANCH_NAME=master CHANNEL=master AWS_ACCESS_KEY_ID=${AWS_USR} AWS_SECRET_ACCESS_KEY=${AWS_PSW}"
                         }
                     }
+                }
+                script {
+                    sh 'curl -s https://codecov.io/bash | bash -s -- -c -f _output/tests/**/coverage.txt -F unittests'
                 }
             }
         }

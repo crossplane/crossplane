@@ -23,6 +23,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/rds"
 	"github.com/aws/aws-sdk-go-v2/service/rds/rdsiface"
+
 	"github.com/crossplaneio/crossplane/pkg/apis/aws/database/v1alpha1"
 )
 
@@ -56,18 +57,17 @@ type Client interface {
 	DeleteInstance(name string) (*Instance, error)
 }
 
-// RDSClient implements RDS RDSClient
-type RDSClient struct {
+type rdsClient struct {
 	rds rdsiface.RDSAPI
 }
 
 // NewClient creates new RDS RDSClient with provided AWS Configurations/Credentials
 func NewClient(config *aws.Config) Client {
-	return &RDSClient{rds.New(*config)}
+	return &rdsClient{rds.New(*config)}
 }
 
 // CreateInstance creates RDS Instance with provided Specification
-func (r *RDSClient) CreateInstance(name, password string, spec *v1alpha1.RDSInstanceSpec) (*Instance, error) {
+func (r *rdsClient) CreateInstance(name, password string, spec *v1alpha1.RDSInstanceSpec) (*Instance, error) {
 	input := CreateDBInstanceInput(name, password, spec)
 
 	output, err := r.rds.CreateDBInstanceRequest(input).Send()
@@ -78,7 +78,7 @@ func (r *RDSClient) CreateInstance(name, password string, spec *v1alpha1.RDSInst
 }
 
 // GetInstance finds RDS Instance by name
-func (r *RDSClient) GetInstance(name string) (*Instance, error) {
+func (r *rdsClient) GetInstance(name string) (*Instance, error) {
 	input := rds.DescribeDBInstancesInput{DBInstanceIdentifier: &name}
 	output, err := r.rds.DescribeDBInstancesRequest(&input).Send()
 	if err != nil {
@@ -94,7 +94,7 @@ func (r *RDSClient) GetInstance(name string) (*Instance, error) {
 }
 
 // DeleteInstance deletes RDS Instance
-func (r *RDSClient) DeleteInstance(name string) (*Instance, error) {
+func (r *rdsClient) DeleteInstance(name string) (*Instance, error) {
 	input := rds.DeleteDBInstanceInput{
 		DBInstanceIdentifier: &name,
 		SkipFinalSnapshot:    aws.Bool(true),
@@ -107,6 +107,8 @@ func (r *RDSClient) DeleteInstance(name string) (*Instance, error) {
 	return NewInstance(output.DBInstance), nil
 }
 
+// IsErrorAlreadyExists returns true if the supplied error indicates a cluster
+// does already exists.
 func IsErrorAlreadyExists(err error) bool {
 	return strings.Contains(err.Error(), rds.ErrCodeDBClusterAlreadyExistsFault)
 }

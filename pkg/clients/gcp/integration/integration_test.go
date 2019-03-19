@@ -21,8 +21,9 @@ package integration
 import (
 	"testing"
 
-	. "github.com/crossplaneio/crossplane/pkg/clients/gcp"
 	. "github.com/onsi/gomega"
+
+	. "github.com/crossplaneio/crossplane/pkg/clients/gcp"
 )
 
 func TestProject(t *testing.T) {

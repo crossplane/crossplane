@@ -32,8 +32,8 @@ import (
 )
 
 const (
-	DefaultNamespace            = "default"
-	TestAssetUseExistingCluster = "USE_EXISTING_CLUSTER"
+	defaultNamespace            = "default"
+	testAssetUseExistingCluster = "USE_EXISTING_CLUSTER"
 )
 
 var (
@@ -41,16 +41,16 @@ var (
 	crds       = filepath.Join(filepath.Dir(filepath.Dir(filepath.Dir(b))), "cluster", "charts", "crossplane", "crds")
 )
 
-// TestEnv - wrapper for controller-runtime envtest with additional functionality
-type TestEnv struct {
+// Env - wrapper for controller-runtime envtest with additional functionality
+type Env struct {
 	envtest.Environment
 
 	namespace string
 	cfg       *rest.Config
 }
 
-// NewTestEnv - create new test environment instance
-func NewTestEnv(namespace string, crds ...string) *TestEnv {
+// NewEnv - create new test environment instance
+func NewEnv(namespace string, crds ...string) *Env {
 	t := envtest.Environment{
 		UseExistingCluster: UseExistingCluster(),
 	}
@@ -64,14 +64,14 @@ func NewTestEnv(namespace string, crds ...string) *TestEnv {
 	if len(namespace) == 0 {
 		namespace = "default"
 	}
-	return &TestEnv{
+	return &Env{
 		Environment: t,
 		namespace:   namespace,
 	}
 }
 
 // Start - starts and bootstraps test environment ang returns Kubernetes config instance
-func (te *TestEnv) Start() *rest.Config {
+func (te *Env) Start() *rest.Config {
 	cfg, err := te.Environment.Start()
 	if err != nil {
 		log.Fatal(err)
@@ -94,9 +94,13 @@ func (te *TestEnv) Start() *rest.Config {
 }
 
 // Stop - stops test environment performing additional cleanup (if needed)
-func (te *TestEnv) Stop() {
-	defer te.Environment.Stop()
-	if te.namespace != DefaultNamespace {
+func (te *Env) Stop() {
+	defer func() {
+		if err := te.Environment.Stop(); err != nil {
+			log.Panic(err)
+		}
+	}()
+	if te.namespace != defaultNamespace {
 		k := kubernetes.NewForConfigOrDie(te.cfg)
 		dp := metav1.DeletePropagationForeground
 		err := k.CoreV1().Namespaces().Delete(te.namespace, &metav1.DeleteOptions{PropagationPolicy: &dp})
@@ -107,14 +111,14 @@ func (te *TestEnv) Stop() {
 }
 
 // StopAndExit - stops and exists, typically used as a last call in TestMain
-func (te *TestEnv) StopAndExit(code int) {
+func (te *Env) StopAndExit(code int) {
 	te.Stop()
 	os.Exit(code)
 }
 
 // UseExistingCluster - checks if USE_EXISTING_CLUSTER environment variable is set
 func UseExistingCluster() bool {
-	env, err := strconv.ParseBool(os.Getenv(TestAssetUseExistingCluster))
+	env, err := strconv.ParseBool(os.Getenv(testAssetUseExistingCluster))
 	if err != nil {
 		return false
 	}
@@ -123,7 +127,7 @@ func UseExistingCluster() bool {
 
 // CheckCRDFiles - validates that all crds files are found.
 func CheckCRDFiles(crds []string) ([]string, error) {
-	var rs []string
+	var rs []string // nolint:prealloc
 
 	for _, path := range crds {
 		_, err := os.Stat(path)

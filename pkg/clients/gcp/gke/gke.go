@@ -19,14 +19,16 @@ package gke
 import (
 	"context"
 
-	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/compute/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/clients/gcp"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/container/v1"
+
+	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/compute/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/clients/gcp"
 )
 
 const (
+	// DefaultScope used by the GKE API.
 	DefaultScope = container.CloudPlatformScope
 )
 
@@ -56,7 +58,7 @@ func NewClusterClient(creds *google.Credentials) (*ClusterClient, error) {
 	}, nil
 }
 
-// CreateCluster
+// CreateCluster creates a new GKE cluster.
 func (c *ClusterClient) CreateCluster(name string, spec computev1alpha1.GKEClusterSpec) (*container.Cluster, error) {
 	zone := spec.Zone
 

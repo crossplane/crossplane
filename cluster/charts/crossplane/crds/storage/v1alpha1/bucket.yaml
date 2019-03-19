@@ -78,11 +78,15 @@ spec:
           type: object
         status:
           properties:
+            credentialsSecret:
+              description: CredentialsSecretRef is a local reference to the generated
+                secret containing the credentials for this resource claim.
+              type: object
             provisioner:
               description: 'Provisioner is the driver that was used to provision the
                 concrete resource This is an optionally-prefixed name, like a label
-                key. For example: "S3Bucket.storage.aws.crossplane.io/v1alpha1" or
-                "GoogleBucket.storage.gcp.crossplane.io/v1alpha1".'
+                key. For example: "RDSInstance.database.aws.crossplane.io/v1alpha1"
+                or "CloudSQLInstance.database.gcp.crossplane.io/v1alpha1".'
               type: string
           type: object
   version: v1alpha1

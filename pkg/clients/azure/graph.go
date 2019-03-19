@@ -26,10 +26,11 @@ import (
 	"github.com/Azure/go-autorest/autorest/adal"
 	"github.com/Azure/go-autorest/autorest/date"
 	"github.com/Azure/go-autorest/autorest/to"
-	"github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/util"
 	"github.com/google/uuid"
 	"k8s.io/client-go/kubernetes"
+
+	"github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 const (
@@ -204,7 +205,9 @@ func getGraphAuthorizer(client *Client) (autorest.Authorizer, error) {
 	if err != nil {
 		return nil, err
 	}
-	token.Refresh()
+	if err := token.Refresh(); err != nil {
+		return nil, err
+	}
 
 	return autorest.NewBearerAuthorizer(token), nil
 }

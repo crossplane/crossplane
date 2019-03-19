@@ -20,16 +20,17 @@ import (
 	"fmt"
 	"testing"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/fake"
 	. "k8s.io/client-go/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 )
 
 var (
@@ -221,6 +222,7 @@ func TestBind(t *testing.T) {
 	g.Expect(rs).To(Equal(Result))
 	assertConditionUnset(g, claim, corev1alpha1.Failed, errorSettingResourceBindStatus)
 	assertConditionSet(g, claim, corev1alpha1.Ready, "")
+	g.Expect(claim.Status.CredentialsSecretRef.Name).To(Equal(claim.Name))
 	g.Expect(claim.Status.BindingStatusPhase.Phase).To(Equal(corev1alpha1.BindingStateBound))
 }
 
@@ -363,7 +365,7 @@ func TestResolveClassClaimValues(t *testing.T) {
 		g.Expect(v).To(Equal(expV))
 		if expErr {
 			g.Expect(err).To(HaveOccurred())
-			g.Expect(err).To(MatchError(fmt.Errorf("mysql claim value [%s] does not match the one defined in the resource class [%s]", iv, cv)))
+			g.Expect(err).To(MatchError(fmt.Errorf("claim value [%s] does not match the one defined in the resource class [%s]", iv, cv)))
 		} else {
 			g.Expect(err).NotTo(HaveOccurred())
 		}

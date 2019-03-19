@@ -24,6 +24,7 @@ import (
 // ConditionType type for possible conditions the resource could be in.
 type ConditionType string
 
+// Resource conditions.
 const (
 	// Pending means that the resource create request has been received and is waiting to be fulfilled.
 	Pending ConditionType = "Pending"
@@ -48,6 +49,16 @@ type Condition struct {
 	Message            string
 }
 
+// Equal returns true if the condition is identical to the supplied condition,
+// ignoring the LastTransitionTime. github.com/go-test/deep uses this method to
+// test equality.
+func (c Condition) Equal(other Condition) bool {
+	return c.Type == other.Type &&
+		c.Status == other.Status &&
+		c.Reason == other.Reason &&
+		c.Message == other.Message
+}
+
 // Conditionable defines set of functionality to operate on Conditions
 type Conditionable interface {
 	Condition(ConditionType) *Condition
@@ -65,9 +76,14 @@ type ConditionedStatus struct {
 
 // Condition returns a provider condition with the provided type if it exists.
 func (c *ConditionedStatus) Condition(conditionType ConditionType) *Condition {
-	for _, c := range c.Conditions {
-		if c.Type == conditionType {
-			return &c
+	for i := range c.Conditions {
+		// This loop is written this way (as opposed to for i, cnd := range...)
+		// to avoid returning a pointer to a range variable whose content will
+		// change as the loop iterates.
+		// https://github.com/kyoh86/scopelint#whats-this
+		cnd := c.Conditions[i]
+		if cnd.Type == conditionType {
+			return &cnd
 		}
 	}
 	return nil
@@ -79,12 +95,12 @@ func (c *ConditionedStatus) IsCondition(ctype ConditionType) bool {
 	return condition != nil && condition.Status == corev1.ConditionTrue
 }
 
-// IsReady
+// IsReady returns true if the status is currently ready.
 func (c *ConditionedStatus) IsReady() bool {
 	return c.IsCondition(Ready)
 }
 
-// IsFailed
+// IsFailed returns true if the status is currently failed.
 func (c *ConditionedStatus) IsFailed() bool {
 	return c.IsCondition(Failed)
 }
@@ -92,11 +108,12 @@ func (c *ConditionedStatus) IsFailed() bool {
 // SetCondition adds/replaces the given condition in the credentials controller status.
 func (c *ConditionedStatus) SetCondition(condition Condition) {
 	current := c.Condition(condition.Type)
-	if current != nil && current.Status == condition.Status && current.Reason == condition.Reason {
+	if current != nil && current.Equal(condition) {
 		return
 	}
 	newConditions := FilterOutCondition(c.Conditions, condition.Type)
-	c.Conditions = append(newConditions, condition)
+	newConditions = append(newConditions, condition)
+	c.Conditions = newConditions
 }
 
 // SetFailed set failed as an active condition
@@ -150,7 +167,7 @@ func (c *ConditionedStatus) RemoveAllConditions() {
 	c.Conditions = []Condition{}
 }
 
-// NewCondition creates a new RDS resource condition.
+// NewCondition creates a new resource condition.
 func NewCondition(condType ConditionType, reason, msg string) Condition {
 	return Condition{
 		Type:               condType,
@@ -161,9 +178,10 @@ func NewCondition(condType ConditionType, reason, msg string) Condition {
 	}
 }
 
-// FilterOutProviderCondition returns a new slice of credentials controller conditions without conditions with the provided type.
+// FilterOutCondition returns a new slice of credentials controller conditions
+// without conditions with the provided type.
 func FilterOutCondition(conditions []Condition, condType ConditionType) []Condition {
-	var newConditions []Condition
+	var newConditions []Condition // nolint:prealloc
 	for _, c := range conditions {
 		if c.Type == condType {
 			continue

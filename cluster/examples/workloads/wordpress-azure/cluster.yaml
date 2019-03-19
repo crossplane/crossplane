@@ -11,4 +11,4 @@ spec:
   classReference:
     name: standard-cluster
     namespace: crossplane-system
-  clusterVersion: "1.11"
+  clusterVersion: "1.12"

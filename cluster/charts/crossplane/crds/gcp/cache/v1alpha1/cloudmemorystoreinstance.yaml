@@ -1,0 +1,153 @@
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  creationTimestamp: null
+  labels:
+    controller-tools.k8s.io: "1.0"
+  name: cloudmemorystoreinstances.cache.gcp.crossplane.io
+spec:
+  additionalPrinterColumns:
+  - JSONPath: .status.state
+    name: STATUS
+    type: string
+  - JSONPath: .spec.classRef.name
+    name: CLASS
+    type: string
+  - JSONPath: .spec.redisVersion
+    name: VERSION
+    type: string
+  - JSONPath: .metadata.creationTimestamp
+    name: AGE
+    type: date
+  group: cache.gcp.crossplane.io
+  names:
+    kind: CloudMemorystoreInstance
+    plural: cloudmemorystoreinstances
+  scope: Namespaced
+  validation:
+    openAPIV3Schema:
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          properties:
+            alternativeLocationId:
+              description: AlternativeLocationID is only applicable to STANDARD_HA
+                tier, which protects the instance against zonal failures by provisioning
+                it across two zones. If provided, it must be a different zone from
+                the one provided in locationId.
+              type: string
+            authorizedNetwork:
+              description: AuthorizedNetwork specifies the full name of the Google
+                Compute Engine network to which the instance is connected. If left
+                unspecified, the default network will be used.
+              type: string
+            claimRef:
+              description: Kubernetes object references
+              type: object
+            classRef:
+              type: object
+            connectionSecretRef:
+              type: object
+            locationId:
+              description: LocationID specifies the zone where the instance will be
+                provisioned. If not provided, the service will choose a zone for the
+                instance. For STANDARD_HA tier, instances will be created across two
+                zones for protection against zonal failures.
+              type: string
+            memorySizeGb:
+              description: MemorySizeGB specifies the Redis memory size in GiB.
+              format: int64
+              type: integer
+            providerRef:
+              type: object
+            reclaimPolicy:
+              description: ReclaimPolicy identifies how to handle the cloud resource
+                after the deletion of this type
+              type: string
+            redisConfigs:
+              description: 'RedisConfigs specifies Redis configuration parameters,
+                according to http://redis.io/topics/config. Currently, the only supported
+                parameters are: * maxmemory-policy * notify-keyspace-events'
+              type: object
+            redisVersion:
+              description: RedisVersion specifies the version of Redis software. If
+                not provided, latest supported version will be used. Updating the
+                version will perform an upgrade/downgrade to the new version. Currently,
+                the supported values are REDIS_3_2 for Redis 3.2.
+              enum:
+              - REDIS_3_2
+              type: string
+            region:
+              description: Region in which to create this CloudMemorystore cluster.
+              type: string
+            reservedIpRange:
+              description: ReservedIPRange specifies the CIDR range of internal addresses
+                that are reserved for this instance. If not provided, the service
+                will choose an unused /29 block, for example, 10.0.0.0/29 or 192.168.0.0/29.
+                Ranges must be unique and non-overlapping with existing subnets in
+                an authorized network.
+              type: string
+            tier:
+              description: Tier specifies the replication level of the Redis cluster.
+                BASIC provides a single Redis instance with no high availability.
+                STANDARD_HA provides a cluster of two Redis instances in distinct
+                availability zones. https://cloud.google.com/memorystore/docs/redis/redis-tiers
+              enum:
+              - BASIC
+              - STANDARD_HA
+              type: string
+          required:
+          - region
+          - tier
+          - memorySizeGb
+          - providerRef
+          type: object
+        status:
+          properties:
+            currentLocationId:
+              description: CurrentLocationID is the current zone where the Redis endpoint
+                is placed. For Basic Tier instances, this will always be the same
+                as the locationId provided by the user at creation time. For Standard
+                Tier instances, this can be either locationId or alternativeLocationId
+                and can change after a failover event.
+              type: string
+            endpoint:
+              description: Endpoint of the Cloud Memorystore instance used in connection
+                strings.
+              type: string
+            instanceName:
+              description: InstanceName of the Cloud Memorystore instance. Does not
+                include the project and location (region) IDs. e.g. 'foo', not 'projects/fooproj/locations/us-foo1/instances/foo'
+              type: string
+            message:
+              type: string
+            port:
+              description: Port at which the Cloud Memorystore instance endpoint is
+                listening.
+              format: int64
+              type: integer
+            providerID:
+              description: ProviderID is the external ID to identify this resource
+                in the cloud provider
+              type: string
+            state:
+              type: string
+          type: object
+  version: v1alpha1
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

@@ -18,8 +18,9 @@ limitations under the License.
 package core
 
 import (
-	"github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
+
+	"github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 )
 
 func init() {

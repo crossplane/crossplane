@@ -17,15 +17,30 @@ limitations under the License.
 package aws
 
 import (
-	"io/ioutil"
-
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/external"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/crossplaneio/crossplane/pkg/apis/aws/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/util"
 	"github.com/go-ini/ini"
 	"k8s.io/client-go/kubernetes"
+
+	"github.com/crossplaneio/crossplane/pkg/apis/aws/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/util"
+)
+
+// DefaultSection for INI files.
+const DefaultSection = ini.DEFAULT_SECTION
+
+// A FieldOption determines how common Go types are translated to the types
+// required by the Azure Go SDK.
+type FieldOption int
+
+// Field options.
+const (
+	// FieldRequired causes zero values to be converted to a pointer to the zero
+	// value, rather than a nil pointer. Azure Go SDK types use pointer fields,
+	// with a nil pointer indicating an unset field. Our ToPtr functions return
+	// a nil pointer for a zero values, unless FieldRequired is set.
+	FieldRequired FieldOption = iota
 )
 
 // CredentialsIDSecret retrieves AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY from the data which contains
@@ -94,15 +109,67 @@ func Config(client kubernetes.Interface, p *v1alpha1.Provider) (*aws.Config, err
 		return nil, err
 	}
 
-	return LoadConfig(data, ini.DEFAULT_SECTION, p.Spec.Region)
+	return LoadConfig(data, DefaultSection, p.Spec.Region)
 }
 
-// ConfigFromFile - create AWS Config based on credential file using [default] profile
-func ConfigFromFile(file, region string) (*aws.Config, error) {
-	data, err := ioutil.ReadFile(file)
-	if err != nil {
-		return nil, err
+// String converts the supplied string for use with the AWS Go SDK.
+func String(v string, o ...FieldOption) *string {
+	for _, fo := range o {
+		if fo == FieldRequired && v == "" {
+			return aws.String(v)
+		}
 	}
 
-	return LoadConfig(data, ini.DEFAULT_SECTION, region)
+	if v == "" {
+		return nil
+	}
+
+	return aws.String(v)
+}
+
+// Int64 converts the supplied int for use with the AWS Go SDK.
+func Int64(v int, o ...FieldOption) *int64 {
+	for _, fo := range o {
+		if fo == FieldRequired && v == 0 {
+			return aws.Int64(int64(v))
+		}
+	}
+
+	if v == 0 {
+		return nil
+	}
+
+	return aws.Int64(int64(v))
+}
+
+// Bool converts the supplied bool for use with the AWS Go SDK.
+func Bool(v bool, o ...FieldOption) *bool {
+	for _, fo := range o {
+		if fo == FieldRequired && !v {
+			return aws.Bool(v)
+		}
+	}
+
+	if !v {
+		return nil
+	}
+	return aws.Bool(v)
+}
+
+// StringValue converts the supplied string pointer to a string, returning the
+// empty string if the pointer is nil.
+func StringValue(v *string) string {
+	return aws.StringValue(v)
+}
+
+// Int64Value converts the supplied int64 pointer to an int, returning zero if
+// the pointer is nil.
+func Int64Value(v *int64) int {
+	return int(aws.Int64Value(v))
+}
+
+// BoolValue converts the supplied bool pointer to a bool, returning false if
+// the pointer is nil.
+func BoolValue(v *bool) bool {
+	return aws.BoolValue(v)
 }

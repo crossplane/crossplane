@@ -23,20 +23,19 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/services/containerservice/mgmt/2018-03-31/containerservice"
 	"github.com/Azure/go-autorest/autorest/to"
+	"k8s.io/client-go/kubernetes"
+
 	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/compute/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
-	"k8s.io/client-go/kubernetes"
 )
 
 const (
-	// AgentPoolProfileNameFmt is a format string for the name of the automatically created cluster agent pool profile
+	// AgentPoolProfileName is a format string for the name of the automatically
+	// created cluster agent pool profile
 	AgentPoolProfileName = "agentpool"
 
 	maxClusterNameLen = 31
 )
-
-//---------------------------------------------------------------------------------------------------------------------
-// AKS Setup API interfaces, clients, factories
 
 // AKSSetupClient is a type that implements all of the AKS setup interface
 type AKSSetupClient struct {
@@ -77,9 +76,6 @@ func (f *AKSSetupClientFactory) CreateSetupClient(provider *v1alpha1.Provider, c
 		ServicePrincipalAPI: spClient,
 	}, nil
 }
-
-//---------------------------------------------------------------------------------------------------------------------
-// AKS Cluster API interfaces and clients
 
 // AKSClusterAPI represents the API interface for a AKS Cluster client
 type AKSClusterAPI interface {

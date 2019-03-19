@@ -20,8 +20,6 @@ import (
 	"context"
 	"log"
 
-	"github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
-	azureclient "github.com/crossplaneio/crossplane/pkg/clients/azure"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -32,6 +30,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	"github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
+	azureclient "github.com/crossplaneio/crossplane/pkg/clients/azure"
 )
 
 const (

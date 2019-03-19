@@ -23,11 +23,6 @@ import (
 	"time"
 
 	"github.com/Azure/go-autorest/autorest/to"
-	"github.com/crossplaneio/crossplane/pkg/apis/azure"
-	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/compute/v1alpha1"
-	azurev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/test"
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -36,6 +31,12 @@ import (
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	"github.com/crossplaneio/crossplane/pkg/apis/azure"
+	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/compute/v1alpha1"
+	azurev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
 const (
@@ -91,7 +92,7 @@ var (
 func TestMain(m *testing.M) {
 	azure.AddToScheme(scheme.Scheme)
 
-	t := test.NewTestEnv(namespace, test.CRDs())
+	t := test.NewEnv(namespace, test.CRDs())
 	cfg = t.Start()
 	t.StopAndExit(m.Run())
 }
@@ -152,7 +153,7 @@ func testInstance(p *azurev1alpha1.Provider) *computev1alpha1.AKSCluster {
 			ProviderRef:       corev1.LocalObjectReference{Name: p.Name},
 			ResourceGroupName: "rg1",
 			Location:          "loc1",
-			Version:           "1.11.4",
+			Version:           "1.12.5",
 			NodeCount:         to.IntPtr(3),
 			NodeVMSize:        "Standard_F2s_v2",
 			DNSNamePrefix:     "crossplane-aks",
