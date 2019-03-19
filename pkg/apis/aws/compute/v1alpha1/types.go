@@ -20,16 +20,22 @@ import (
 	"strconv"
 	"strings"
 
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/util"
+	"github.com/ghodss/yaml"
+	"k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // Cluster statuses.
 const (
 	// The resource is inaccessible while it is being created.
+	eksAuthConfigMapName = "aws-auth"
+	eksAuthMapRolesKey   = "mapRoles"
+	eksAuthMapUsersKey   = "mapUsers"
+
+	// The resource is being created. The resource is inaccessible while it is being created.
 	ClusterStatusCreating = "CREATING"
 	ClusterStatusActive   = "ACTIVE"
 
@@ -37,7 +43,6 @@ const (
 	// ClusterStatusDeleting = "DELETING"
 	// ClusterStatusFailed = "FAILED"
 )
-
 
 type KubernetesVersion string
 
@@ -52,7 +57,7 @@ const (
 	defaultVolumeSize                      = 20
 )
 
-// EKSClusterSpec specifies the configuration for an EKS cluster.
+// EKSClusterSpec specifies the configuration for an EKS clquster.
 type EKSClusterSpec struct {
 	// Configuration of this Spec is dependent on the readme as described here
 	// https://docs.aws.amazon.com/eks/latest/userguide/getting-started.html
@@ -152,6 +157,54 @@ type EKSClusterSpec struct {
 
 	// ReclaimPolicy identifies how to handle the cloud resource after the deletion of this type
 	ReclaimPolicy corev1alpha1.ReclaimPolicy `json:"reclaimPolicy,omitempty"`
+}
+
+// generateAWSAuthConfigMap generates the configmap for configure auth
+func (r *EKSCluster) GenerateAWSAuthConfigMap(clusterNodeARN map[string]string) (*v1.ConfigMap, error) {
+	data := map[string]string{}
+	var roles []MapRole
+
+	// Copy spec roles
+	roles = append(roles, r.Spec.MapRoles...)
+
+	// Generate system roles needed for nodes to communicate with master
+	for _, arn := range clusterNodeARN {
+		defaultNodeRole := MapRole{
+			RoleARN:  arn,
+			Username: "system:node:{{EC2PrivateDNSName}}",
+			Groups:   []string{"system:bootstrappers", "system:nodes"},
+		}
+		roles = append(roles, defaultNodeRole)
+	}
+
+	// Serialize mapRoles
+	rolesMarshalled, err := yaml.Marshal(roles)
+	if err != nil {
+		return nil, err
+	}
+
+	data[eksAuthMapRolesKey] = string(rolesMarshalled)
+
+	// Serialize mapUsers
+	if len(r.Spec.MapUsers) > 0 {
+		usersMarshalled, err := yaml.Marshal(r.Spec.MapUsers)
+		if err != nil {
+			return nil, err
+		}
+		data[eksAuthMapUsersKey] = string(usersMarshalled)
+	}
+
+	name := eksAuthConfigMapName
+	namespace := "kube-system"
+	cm := v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Data: data,
+	}
+
+	return &cm, nil
 }
 
 // MapRole maps an aws role to kubernetes groups
@@ -360,9 +413,6 @@ type EKSClusterStatus struct {
 	// Endpoint for cluster
 	Endpoint string `json:"endpoint,omitempty"`
 
-	//AttachedNodePools map of nodepool names to nodeInstanceARN that must be added in configmap
-	AttachedNodePools map[string]string `json:"attachedNodePools,omitempty"`
-
 	ConnectionSecretRef corev1.LocalObjectReference `json:"connectionSecretRef,omitempty"`
 }
 
@@ -400,13 +450,13 @@ type EKSClusterList struct {
 // NewEKSClusterSpec from properties map
 func NewEKSClusterSpec(properties map[string]string) *EKSClusterSpec {
 	spec := &EKSClusterSpec{
-		ReclaimPolicy:    corev1alpha1.ReclaimRetain,
-		Region:           EKSRegion(properties["region"]),
-		RoleARN:          properties["roleARN"],
-		VpcID:            properties["vpcId"],
-		ClusterVersion:   properties["clusterVersion"],
-		SubnetIds:        parseSlice(properties["subnetIds"]),
-		SecurityGroupIds: parseSlice(properties["securityGroupIds"]),
+		ReclaimPolicy:                corev1alpha1.ReclaimRetain,
+		Region:                       EKSRegion(properties["region"]),
+		RoleARN:                      properties["roleARN"],
+		VpcID:                        properties["vpcId"],
+		ClusterVersion:               properties["clusterVersion"],
+		SubnetIds:                    parseSlice(properties["subnetIds"]),
+		SecurityGroupIds:             parseSlice(properties["securityGroupIds"]),
 		ConnectionSecretNameOverride: properties["connectionSecretNameOverride"],
 	}
 

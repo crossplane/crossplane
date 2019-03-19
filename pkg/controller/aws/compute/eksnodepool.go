@@ -19,7 +19,6 @@ package compute
 import (
 	"context"
 	"fmt"
-
 	awscomputev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/compute/v1alpha1"
 	awsv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
@@ -32,8 +31,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
+	"log"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -65,6 +66,7 @@ type NodeReconciler struct {
 	create  func(*awscomputev1alpha1.EKSCluster, *awscomputev1alpha1.EKSNodePool, eks.Client) (reconcile.Result, error)
 	sync    func(*awscomputev1alpha1.EKSNodePool, eks.Client) (reconcile.Result, error)
 	delete  func(*awscomputev1alpha1.EKSNodePool, eks.Client) (reconcile.Result, error)
+	awsauth func(*eks.Cluster, *awscomputev1alpha1.EKSCluster, eks.Client, map[string]string) error
 }
 
 // newReconciler returns a new reconcile.Reconciler
@@ -79,6 +81,7 @@ func newNodeReconciler(mgr manager.Manager) reconcile.Reconciler {
 	r.create = r._create
 	r.sync = r._sync
 	r.delete = r._delete
+
 	return r
 }
 
@@ -96,7 +99,56 @@ func addNodeReconciler(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
+	// On events from Cluster -> reconcile related node pools
+	err = c.Watch(
+		&source.Kind{Type: &awscomputev1alpha1.EKSCluster{}},
+		&handler.EnqueueRequestsFromMapFunc{
+			ToRequests: &nodePoolMapper{},
+		})
+	if err != nil {
+		return err
+	}
+
 	return nil
+}
+
+type nodePoolMapper struct {
+}
+
+func (m *nodePoolMapper) Map(mapObject handler.MapObject) []reconcile.Request {
+	var result []reconcile.Request
+
+	cluster, ok := mapObject.Object.(*awscomputev1alpha1.EKSCluster)
+	if !ok {
+		log.Printf("failed to cast to runtimeObject to EKSCluster: %+v", mapObject)
+		return result
+	}
+
+	namespace := mapObject.Meta.GetNamespace()
+	// TODO: remove client and figure out how to convert runtime.Object to actual type.
+	//cluster := &awscomputev1alpha1.EKSCluster{}
+	//clusterNamespacedName := types.NamespacedName{
+	//	Namespace: namespace,
+	//	Name:      mapObject.Meta.GetName(),
+	//}
+	//err := m.Get(ctx, clusterNamespacedName, cluster)
+	//if err != nil {
+	//	return result
+	//}
+
+	// If Cluster.IsReady() -> notify it's nodePools to start creating.
+	// TODO: check that this just happened.
+	if cluster.Status.IsReady() {
+		for _, nodePool := range cluster.Spec.NodePools {
+			req := reconcile.Request{NamespacedName: types.NamespacedName{
+				Name:      nodePool.Name,
+				Namespace: namespace,
+			}}
+			result = append(result, req)
+		}
+	}
+
+	return result
 }
 
 // fail - helper function to set fail condition with reason and message
@@ -156,6 +208,16 @@ func (r *NodeReconciler) _create(cluster *awscomputev1alpha1.EKSCluster, instanc
 	instance.Status.SetCreating()
 
 	return resultRequeue, r.Update(ctx, instance)
+}
+
+func (r *NodeReconciler) getEKSCluster(instance *awscomputev1alpha1.EKSNodePool) (*awscomputev1alpha1.EKSCluster, error) {
+	cluster := &awscomputev1alpha1.EKSCluster{}
+	clusterNamespacedName := types.NamespacedName{
+		Namespace: instance.Namespace,
+		Name:      instance.Spec.ClusterRef.Name,
+	}
+	err := r.Get(ctx, clusterNamespacedName, cluster)
+	return cluster, err
 }
 
 func (r *NodeReconciler) _sync(instance *awscomputev1alpha1.EKSNodePool, client eks.Client) (reconcile.Result, error) {
@@ -220,23 +282,26 @@ func (r *NodeReconciler) Reconcile(request reconcile.Request) (reconcile.Result,
 		return r.delete(instance, eksClient)
 	}
 
-	// Create nodepool when EKSCluster is in Ready() state
+	// Create nodepool when EKSCluster is in Ready() state.
+	// Creating too early means the nodes won't connect.
+	// Assuming there is tls certs that get copied into nodepool on init.
 	if instance.Status.CloudFormationStackID == "" {
-		cluster := &awscomputev1alpha1.EKSCluster{}
-		clusterNamespacedName := types.NamespacedName{
-			Namespace: instance.Namespace,
-			Name:      instance.Spec.ClusterRef.Name,
-		}
-		err := r.Get(ctx, clusterNamespacedName, cluster)
+		cluster, err := r.getEKSCluster(instance)
 		if err != nil {
 			return r.fail(instance, errorClusterReferenceNotFound, "could not fetch the cluster reference. Can not create nodepool")
+		}
+
+		if err := controllerutil.SetControllerReference(cluster, instance, r.scheme); err != nil {
+			return result, err
 		}
 
 		// If master EKS node IsReady we provision the node pool
 		if cluster.Status.IsReady() {
 			return r.create(cluster, instance, eksClient)
 		}
-		return r.fail(instance, errorClusterReferenceWait, "waiting for cluster to be ready before creating nodepool")
+
+		// We sleep until EKSCluster requeues when EKSCluster is ready.
+		return result, nil
 	}
 
 	// Sync cluster instance status with cluster status

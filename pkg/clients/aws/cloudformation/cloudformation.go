@@ -29,6 +29,7 @@ import (
 type Client interface {
 	CreateStack(stackName *string, templateBody *string, parameters map[string]string) (stackID *string, err error)
 	GetStack(stackID *string) (stack *cf.Stack, err error)
+	UpdateStack(stackID *string, templateBody *string, parameters map[string]string) error
 	DeleteStack(stackID *string) error
 }
 
@@ -71,6 +72,19 @@ func (c *cloudFormationClient) GetStack(stackID *string) (stack *cf.Stack, err e
 	}
 
 	return &describeStackResponse.Stacks[0], nil
+}
+
+// UpdateStack
+func (c *CloudFormationClient) UpdateStack(stackID *string, templateBody *string, parameters map[string]string) error {
+	cfParams := make([]cf.Parameter, 0)
+	for k, v := range parameters {
+		if v != "" {
+			cfParams = append(cfParams, cf.Parameter{ParameterKey: aws.String(k), ParameterValue: aws.String(v)})
+		}
+	}
+
+	_, err := c.cloudformation.UpdateStackRequest(&cf.UpdateStackInput{StackName: stackID, Capabilities: []cf.Capability{cf.CapabilityCapabilityIam}, TemplateBody: templateBody, Parameters: cfParams}).Send()
+	return err
 }
 
 // DeleteStack deletes a stack

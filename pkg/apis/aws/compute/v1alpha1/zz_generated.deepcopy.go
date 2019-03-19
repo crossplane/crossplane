@@ -146,13 +146,6 @@ func (in *EKSClusterStatus) DeepCopyInto(out *EKSClusterStatus) {
 	*out = *in
 	in.ConditionedStatus.DeepCopyInto(&out.ConditionedStatus)
 	out.BindingStatusPhase = in.BindingStatusPhase
-	if in.AttachedNodePools != nil {
-		in, out := &in.AttachedNodePools, &out.AttachedNodePools
-		*out = make(map[string]string, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
-		}
-	}
 	out.ConnectionSecretRef = in.ConnectionSecretRef
 	return
 }

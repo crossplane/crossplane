@@ -20,7 +20,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-
 	awscomputev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/compute/v1alpha1"
 	awsv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
@@ -28,11 +27,8 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/clients/aws/eks"
 	"github.com/crossplaneio/crossplane/pkg/logging"
 	"github.com/crossplaneio/crossplane/pkg/util"
-	"github.com/ghodss/yaml"
-	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -51,13 +47,10 @@ const (
 	finalizer         = "finalizer." + controllerName
 	clusterNamePrefix = "eks-"
 
-	errorClusterClient   = "Failed to create cluster client"
-	errorCreateCluster   = "Failed to create new cluster"
-	errorSyncCluster     = "Failed to sync cluster state"
-	errorDeleteCluster   = "Failed to delete cluster"
-	eksAuthConfigMapName = "aws-auth"
-	eksAuthMapRolesKey   = "mapRoles"
-	eksAuthMapUsersKey   = "mapUsers"
+	errorClusterClient = "Failed to create cluster client"
+	errorCreateCluster = "Failed to create new cluster"
+	errorSyncCluster   = "Failed to sync cluster state"
+	errorDeleteCluster = "Failed to delete cluster"
 )
 
 var (
@@ -113,8 +106,19 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
-	// Watch for changes to Provider
+	// Watch for changes to Cluster
 	err = c.Watch(&source.Kind{Type: &awscomputev1alpha1.EKSCluster{}}, &handler.EnqueueRequestForObject{})
+	if err != nil {
+		return err
+	}
+
+	// Notify when a nodepool that's owned by this cluster gets updated.
+	err = c.Watch(
+		&source.Kind{Type: &awscomputev1alpha1.EKSNodePool{}},
+		&handler.EnqueueRequestForOwner{
+			IsController: true,
+			OwnerType:    &awscomputev1alpha1.EKSCluster{},
+		})
 	if err != nil {
 		return err
 	}
@@ -183,55 +187,8 @@ func (r *Reconciler) _create(instance *awscomputev1alpha1.EKSCluster, client eks
 	return resultRequeue, r.Update(ctx, instance)
 }
 
-// generateAWSAuthConfigMap generates the configmap for configure auth
-func generateAWSAuthConfigMap(instance *awscomputev1alpha1.EKSCluster, clusterNodeARN map[string]string) (*v1.ConfigMap, error) {
-	data := map[string]string{}
-	var roles []awscomputev1alpha1.MapRole
-	for _, arn := range clusterNodeARN {
-		defaultNodeRole := awscomputev1alpha1.MapRole{
-			RoleARN:  arn,
-			Username: "system:node:{{EC2PrivateDNSName}}",
-			Groups:   []string{"system:bootstrappers", "system:nodes"},
-		}
-		roles = append(roles, defaultNodeRole)
-	}
-
-	// Serialize mapRoles
-	rolesMarshalled, err := yaml.Marshal(roles)
-	if err != nil {
-		return nil, err
-	}
-
-	data[eksAuthMapRolesKey] = string(rolesMarshalled)
-
-	// Serialize mapUsers
-	if len(instance.Spec.MapUsers) > 0 {
-		usersMarshalled, err := yaml.Marshal(instance.Spec.MapUsers)
-		if err != nil {
-			return nil, err
-		}
-		data[eksAuthMapUsersKey] = string(usersMarshalled)
-	}
-
-	name := eksAuthConfigMapName
-	namespace := "kube-system"
-	cm := v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
-		Data: data,
-	}
-
-	return &cm, nil
-}
-
 // _awsauth generates an aws-auth configmap and pushes it to the remote eks cluster to configure auth
 func (r *Reconciler) _awsauth(cluster *eks.Cluster, instance *awscomputev1alpha1.EKSCluster, client eks.Client, workerARNs map[string]string) error {
-	cm, err := generateAWSAuthConfigMap(instance, workerARNs)
-	if err != nil {
-		return err
-	}
 
 	// Sync aws-auth to remote eks cluster to configure it's auth.
 	token, err := client.ConnectionToken(instance.Status.ClusterName)
@@ -254,6 +211,11 @@ func (r *Reconciler) _awsauth(cluster *eks.Cluster, instance *awscomputev1alpha1
 	}
 
 	clientset, err := kubernetes.NewForConfig(&c)
+	if err != nil {
+		return err
+	}
+
+	cm, err := instance.GenerateAWSAuthConfigMap(workerARNs)
 	if err != nil {
 		return err
 	}
@@ -324,17 +286,13 @@ func (r *Reconciler) _sync(instance *awscomputev1alpha1.EKSCluster, client eks.C
 		return r.fail(instance, errorSyncCluster, err.Error())
 	}
 
-	// Update the configmap in EKS master granting node pools access
-	if updatedPoolsList {
-		if err := r.awsauth(cluster, instance, client, instance.Status.AttachedNodePools); err != nil {
-			return r.fail(instance, errorSyncCluster, fmt.Sprintf("failed to set auth map on eks: %s", err.Error()))
-		}
-	}
-
 	// update resource status
 	instance.Status.Endpoint = cluster.Endpoint
 	instance.Status.State = awscomputev1alpha1.ClusterStatusActive
 	instance.Status.SetReady()
+
+	// TODO: loop node pools and reconcile
+	instance.Spec.NodePools
 
 	return result, r.Update(ctx, instance)
 }
@@ -390,7 +348,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	instance := &awscomputev1alpha1.EKSCluster{}
 	err := r.Get(ctx, request.NamespacedName, instance)
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			// Object not found, return.  Created objects are automatically garbage collected.
 			// For additional cleanup logic use finalizers.
 			return reconcile.Result{}, nil

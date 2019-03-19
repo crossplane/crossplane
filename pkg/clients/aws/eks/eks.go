@@ -69,15 +69,17 @@ type ClusterWorkers struct {
 	WorkerReason  string
 	WorkerStackID string
 	WorkerARN     string
+	Parameters    []cloudformation.Parameter
 }
 
 // NewClusterWorkers returns crossplane representation of the AWS EKS cluster worker nodes
-func NewClusterWorkers(workerStackID string, workerStatus cloudformation.StackStatus, workerReason string, workerARN string) *ClusterWorkers {
+func NewClusterWorkers(workerStackID string, workerStatus cloudformation.StackStatus, workerReason string, workerARN string, parameters []cloudformation.Parameter) *ClusterWorkers {
 	return &ClusterWorkers{
 		WorkerStackID: workerStackID,
 		WorkersStatus: workerStatus,
 		WorkerReason:  workerReason,
 		WorkerARN:     workerARN,
+		Parameters:  parameters,
 	}
 }
 
@@ -165,7 +167,7 @@ func (e *eksClient) CreateWorkerNodes(name string, spec awscomputev1alpha1.EKSCl
 		return nil, err
 	}
 
-	return NewClusterWorkers(*stackID, cloudformation.StackStatusCreateInProgress, "", ""), nil
+	return NewClusterWorkers(*stackID, cloudformation.StackStatusCreateInProgress, "", "", parameters), nil
 }
 
 // Get an existing EKS cluster
@@ -196,7 +198,10 @@ func (e *eksClient) GetWorkerNodes(stackID string) (*ClusterWorkers, error) {
 		}
 	}
 
-	return NewClusterWorkers(stackID, stack.StackStatus, aws.StringValue(stack.StackStatusReason), nodeARN), nil
+	parameters map[string]string
+
+
+	return NewClusterWorkers(stackID, stack.StackStatus, aws.StringValue(stack.StackStatusReason), nodeARN, stack.Parameters), nil
 }
 
 // Delete a EKS cluster
