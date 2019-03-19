@@ -2,13 +2,19 @@
 
 
 [[projects]]
-  digest = "1:ee166421b30eb00f7f3948284455e589ee5092fd4445bdfe845d95900bd6f4ab"
+  digest = "1:932392f79dd119434f9b5d7d6af2b8f6ba34a283631709e00c26470f8ef5ec23"
   name = "cloud.google.com/go"
   packages = [
     "compute/metadata",
+    "iam",
+    "internal",
+    "internal/optional",
+    "internal/trace",
+    "internal/version",
     "longrunning",
     "longrunning/autogen",
     "redis/apiv1",
+    "storage",
   ]
   pruneopts = "UT"
   revision = "74b12019e2aa53ec27882158f59192d7cd6d1998"
@@ -759,7 +765,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:8da68ee26647249d3ac63ea9704455bdef1eba26cc20521a2200fccebdb64078"
+  digest = "1:1bd37eb74acf7ca48b8407a3d0b90da4cf5c744f019f72c888a933a5b9a3f34b"
   name = "google.golang.org/api"
   packages = [
     "cloudresourcemanager/v1",
@@ -772,6 +778,7 @@
     "iterator",
     "option",
     "sqladmin/v1beta4",
+    "storage/v1",
     "support/bundler",
     "transport",
     "transport/grpc",
@@ -804,12 +811,14 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:a21c9157e3d41a79e3d24e501171a13538787ccdae19fdd9d0b1005975a067df"
+  digest = "1:bf21a3a82fb3cfb68707fff7123e1ab558ad63d21b2aaba0adfe2f63fbab003b"
   name = "google.golang.org/genproto"
   packages = [
     "googleapis/api/annotations",
     "googleapis/cloud/redis/v1",
+    "googleapis/iam/v1",
     "googleapis/longrunning",
+    "googleapis/rpc/code",
     "googleapis/rpc/status",
     "protobuf/field_mask",
   ]
@@ -1236,6 +1245,7 @@
   analyzer-version = 1
   input-imports = [
     "cloud.google.com/go/redis/apiv1",
+    "cloud.google.com/go/storage",
     "github.com/Azure/azure-sdk-for-go/profiles/latest/redis/mgmt/redis/redisapi",
     "github.com/Azure/azure-sdk-for-go/services/containerservice/mgmt/2018-03-31/containerservice",
     "github.com/Azure/azure-sdk-for-go/services/graphrbac/1.6/graphrbac",
@@ -1284,6 +1294,7 @@
     "google.golang.org/api/googleapi",
     "google.golang.org/api/option",
     "google.golang.org/api/sqladmin/v1beta4",
+    "google.golang.org/api/storage/v1",
     "google.golang.org/genproto/googleapis/cloud/redis/v1",
     "google.golang.org/genproto/protobuf/field_mask",
     "k8s.io/api/apps/v1",

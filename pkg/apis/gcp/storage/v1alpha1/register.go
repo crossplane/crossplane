@@ -29,6 +29,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/runtime/scheme"
 )
 
+// Kubernetes Group, Version, and Kind metadata.
+const (
+	Group                = "storage.gcp.crossplane.io"
+	Version              = "v1alpha1"
+	APIVersion           = Group + "/" + Version
+	BucketKind           = "bucket"
+	BucketKindAPIVersion = BucketKind + "." + APIVersion
+)
+
 var (
 	// SchemeGroupVersion is group version used to register these objects
 	SchemeGroupVersion = schema.GroupVersion{Group: "storage.gcp.crossplane.io", Version: "v1alpha1"}
@@ -38,5 +47,5 @@ var (
 )
 
 func init() {
-	SchemeBuilder.Register(&GCPBucket{}, &GCPBucketList{})
+	SchemeBuilder.Register(&Bucket{}, &BucketList{})
 }
