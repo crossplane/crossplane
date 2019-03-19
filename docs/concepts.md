@@ -18,7 +18,7 @@ In Crossplane, a *resource* represents an external piece of infrastructure rangi
 Resources are represented as persistent object within the crossplane, and they typically manage one or more pieces of external infrastructure within a cloud provider or cloud offering.
 Resources can also represent local or in-cluster services.
 
-We model *workloads* as a schedulable units of work that the user intends to run on a cloud provider.
+We model *workloads* as schedulable units of work that the user intends to run on a cloud provider.
 Crossplane will support multiple types of workloads including container and serverless.
 You can think of workloads as units that run **your** code and applications.
 Every type of workload has a different kind of payload.
