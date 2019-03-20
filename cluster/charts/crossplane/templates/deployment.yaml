@@ -24,6 +24,10 @@ spec:
       serviceAccountName: {{ template "name" . }}
       containers:
       - image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        args:
+        {{- range $arg := .Values.args }}
+        - {{ $arg }}
+        {{- end }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         name: {{ .Chart.Name }}
         resources:
