@@ -18,8 +18,10 @@ package main
 
 import (
 	"os"
+	"path/filepath"
 	"time"
 
+	"gopkg.in/alecthomas/kingpin.v2"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	runtimelog "sigs.k8s.io/controller-runtime/pkg/runtime/log"
@@ -30,18 +32,28 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/log"
 )
 
-// TODO(negz): Make this configurable.
-const development = false
-
 func main() {
-	log.SetLogger(runtimelog.ZapLogger(development))
-	logger := log.Log
+	var (
+		logger = log.Log
+
+		app   = kingpin.New(filepath.Base(os.Args[0]), "An open source multicloud control plane.").DefaultEnvars()
+		debug = app.Flag("debug", "Run with debug logging.").Short('d').Bool()
+	)
+	kingpin.MustParse(app.Parse(os.Args[1:]))
+
+	zl := runtimelog.ZapLogger(*debug)
+	log.SetLogger(zl)
+	if *debug {
+		// The controller-runtime runs with a no-op logger by default. It is
+		// *very* verbose even at info level, so we only provide it a real
+		// logger when we're running in debug mode.
+		runtimelog.SetLogger(zl)
+	}
 
 	// Get a config to talk to the apiserver
 	cfg, err := config.GetConfig()
 	if err != nil {
-		logger.Error(err, "Cannot get config")
-		os.Exit(1)
+		kingpin.FatalIfError(err, "Cannot get config")
 	}
 
 	// Re-sync resources every minutes
@@ -51,31 +63,25 @@ func main() {
 	// Create a new Cmd to provide shared dependencies and start components
 	mgr, err := manager.New(cfg, manager.Options{SyncPeriod: &syncPeriod})
 	if err != nil {
-		logger.Error(err, "Cannot create manager")
-		os.Exit(1)
+		kingpin.FatalIfError(err, "Cannot create manager")
 	}
 
 	logger.Info("Adding schemes")
 
 	// Setup Scheme for all resources
 	if err := apis.AddToScheme(mgr.GetScheme()); err != nil {
-		logger.Error(err, "Cannot add APIs to scheme")
-		os.Exit(1)
+		kingpin.FatalIfError(err, "Cannot add APIs to scheme")
 	}
 
 	logger.Info("Adding controllers")
 
 	// Setup all Controllers
 	if err := controller.AddToManager(mgr); err != nil {
-		logger.Error(err, "Cannot add controllers to manager")
-		os.Exit(1)
+		kingpin.FatalIfError(err, "Cannot add controllers to manager")
 	}
 
 	logger.Info("Starting the manager")
 
 	// Start the Cmd
-	if err := mgr.Start(signals.SetupSignalHandler()); err != nil {
-		logger.Error(err, "Cannot start controller")
-		os.Exit(1)
-	}
+	kingpin.FatalIfError(mgr.Start(signals.SetupSignalHandler()), "Cannot start controller")
 }
