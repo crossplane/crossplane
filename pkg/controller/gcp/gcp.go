@@ -17,21 +17,22 @@ limitations under the License.
 package gcp
 
 import (
-	"sigs.k8s.io/controller-runtime/pkg/manager"
-
 	"github.com/crossplaneio/crossplane/pkg/controller/gcp/cache"
 	"github.com/crossplaneio/crossplane/pkg/controller/gcp/compute"
 	"github.com/crossplaneio/crossplane/pkg/controller/gcp/database"
 	"github.com/crossplaneio/crossplane/pkg/controller/gcp/provider"
+	"github.com/crossplaneio/crossplane/pkg/controller/gcp/storage"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
 func init() {
 	// AddToManagerFuncs is a list of functions to create controllers and add them to a manager.
 	AddToManagerFuncs = append(AddToManagerFuncs,
-		provider.Add,
-		database.Add,
-		compute.Add,
 		cache.Add,
+		compute.Add,
+		database.Add,
+		provider.Add,
+		storage.Add,
 	)
 }
 
