@@ -63,6 +63,8 @@ const (
 	failedToCreate = "error creating"
 	// failed to update bucket resource
 	failedToUpdate = "error updating"
+	// failed to save connection secret
+	failedToSaveSecret = "error saving connection secret"
 )
 
 var (
@@ -219,6 +221,12 @@ func (bh *bucketSyncDeleter) delete(ctx context.Context) (reconcile.Result, erro
 // sync - synchronizes the state of the bucket resource with the state of the
 // bucket Kubernetes obj
 func (bh *bucketSyncDeleter) sync(ctx context.Context) (reconcile.Result, error) {
+	// crate connection secret if it doesn't exist
+	if err := bh.client.Create(ctx, bh.object.ConnectionSecret()); err != nil && !kerrors.IsAlreadyExists(err) {
+		bh.object.Status.SetFailed(failedToSaveSecret, err.Error())
+		return resultRequeue, bh.client.Status().Update(ctx, bh.object)
+	}
+
 	attrs, err := bh.Attrs(ctx)
 	if err != nil && err != storage.ErrBucketNotExist {
 		bh.object.Status.SetFailed(failedToRetrieve, err.Error())

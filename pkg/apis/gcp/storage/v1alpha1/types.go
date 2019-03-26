@@ -779,6 +779,20 @@ func (b *Bucket) ConnectionSecretName() string {
 	return util.IfEmptyString(b.Spec.ConnectionSecretNameOverride, b.Name)
 }
 
+// ConnectionSecret returns a connection secret for this bucket instance
+func (b *Bucket) ConnectionSecret() *corev1.Secret {
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace:       b.Namespace,
+			Name:            b.ConnectionSecretName(),
+			OwnerReferences: []metav1.OwnerReference{b.OwnerReference()},
+		},
+		Data: map[string][]byte{
+			corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(b.GetUID()),
+		},
+	}
+}
+
 // ObjectReference to this resource instance
 func (b *Bucket) ObjectReference() *corev1.ObjectReference {
 	return util.ObjectReference(b.ObjectMeta, util.IfEmptyString(b.APIVersion, APIVersion), util.IfEmptyString(b.Kind, BucketKind))

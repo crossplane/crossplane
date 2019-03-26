@@ -1294,7 +1294,6 @@
     "google.golang.org/api/googleapi",
     "google.golang.org/api/option",
     "google.golang.org/api/sqladmin/v1beta4",
-    "google.golang.org/api/storage/v1",
     "google.golang.org/genproto/googleapis/cloud/redis/v1",
     "google.golang.org/genproto/protobuf/field_mask",
     "k8s.io/api/apps/v1",

@@ -17,12 +17,13 @@ limitations under the License.
 package gcp
 
 import (
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+
 	"github.com/crossplaneio/crossplane/pkg/controller/gcp/cache"
 	"github.com/crossplaneio/crossplane/pkg/controller/gcp/compute"
 	"github.com/crossplaneio/crossplane/pkg/controller/gcp/database"
 	"github.com/crossplaneio/crossplane/pkg/controller/gcp/provider"
 	"github.com/crossplaneio/crossplane/pkg/controller/gcp/storage"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
 func init() {

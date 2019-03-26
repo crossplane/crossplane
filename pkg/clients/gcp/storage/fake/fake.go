@@ -8,7 +8,7 @@ import (
 	gcpstorage "github.com/crossplaneio/crossplane/pkg/clients/gcp/storage"
 )
 
-// MockBucketClient
+// MockBucketClient Client interface implementation
 type MockBucketClient struct {
 	MockAttrs  func(context.Context) (*storage.BucketAttrs, error)
 	MockCreate func(context.Context, string, *storage.BucketAttrs) error

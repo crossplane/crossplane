@@ -23,8 +23,6 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/test"
 	"github.com/go-test/deep"
 	"github.com/onsi/gomega"
 	"golang.org/x/net/context"
@@ -34,6 +32,9 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
 var (

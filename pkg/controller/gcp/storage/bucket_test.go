@@ -22,13 +22,6 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/apis/gcp"
-	"github.com/crossplaneio/crossplane/pkg/apis/gcp/storage/v1alpha1"
-	gcpv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/v1alpha1"
-	gcpstorage "github.com/crossplaneio/crossplane/pkg/clients/gcp/storage"
-	gcpstoragefake "github.com/crossplaneio/crossplane/pkg/clients/gcp/storage/fake"
-	"github.com/crossplaneio/crossplane/pkg/test"
 	"github.com/go-test/deep"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -41,6 +34,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/apis/gcp"
+	"github.com/crossplaneio/crossplane/pkg/apis/gcp/storage/v1alpha1"
+	gcpv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/v1alpha1"
+	gcpstorage "github.com/crossplaneio/crossplane/pkg/clients/gcp/storage"
+	gcpstoragefake "github.com/crossplaneio/crossplane/pkg/clients/gcp/storage/fake"
+	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
 func init() {
@@ -129,6 +130,11 @@ func newBucket(ns, name string) *bucket {
 	}}
 }
 
+func (b *bucket) withUID(uid string) *bucket {
+	b.ObjectMeta.UID = types.UID(uid)
+	return b
+}
+
 func (b *bucket) withCondition(c corev1alpha1.Condition) *bucket {
 	b.Status.ConditionedStatus.SetCondition(c)
 	return b
@@ -215,8 +221,14 @@ func (s *secret) withKeyData(key, data string) *secret {
 	return s
 }
 
+const (
+	testNamespace  = "default"
+	testBucketName = "testBucket"
+)
+
 func TestReconciler_Reconcile(t *testing.T) {
-	ns, name := "foo", "bar"
+	ns := testNamespace
+	name := testBucketName
 	key := types.NamespacedName{Namespace: ns, Name: name}
 	req := reconcile.Request{NamespacedName: key}
 	ctx := context.TODO()
@@ -313,8 +325,8 @@ func TestReconciler_Reconcile(t *testing.T) {
 
 func Test_bucketFactory_newHandler(t *testing.T) {
 	ctx := context.TODO()
-	ns := "default"
-	bucketName := "test-bucket"
+	ns := testNamespace
+	bucketName := testBucketName
 	providerName := "test-provider"
 	secretName := "test-secret"
 	secretKey := "creds"
@@ -526,13 +538,12 @@ func Test_bucketHandler_delete(t *testing.T) {
 
 func Test_bucketHandler_sync(t *testing.T) {
 	ctx := context.TODO()
-	ns := "default"
-	name := "test-bucket"
+	ns := testNamespace
+	name := testBucketName
 	type fields struct {
 		sc  gcpstorage.Client
 		cc  client.Client
 		obj *v1alpha1.Bucket
-		pid string
 	}
 	type want struct {
 		err error
@@ -545,6 +556,23 @@ func Test_bucketHandler_sync(t *testing.T) {
 		want   want
 	}{
 		{
+			name: "secret error",
+			fields: fields{
+				cc: &test.MockClient{
+					MockCreate: func(ctx context.Context, obj runtime.Object) error {
+						return errors.New("test-error-saving-secret")
+					},
+					MockStatusUpdate: func(ctx context.Context, obj runtime.Object) error { return nil },
+				},
+				obj: newBucket(ns, name).Bucket,
+			},
+			want: want{
+				err: nil,
+				res: resultRequeue,
+				obj: newBucket(ns, name).withFailedCondition(failedToSaveSecret, "test-error-saving-secret").Bucket,
+			},
+		},
+		{
 			name: "attrs error",
 			fields: fields{
 				sc: &gcpstoragefake.MockBucketClient{
@@ -553,44 +581,55 @@ func Test_bucketHandler_sync(t *testing.T) {
 					},
 				},
 				cc: &test.MockClient{
+					MockCreate: func(ctx context.Context, obj runtime.Object) error { return nil },
 					MockStatusUpdate: func(ctx context.Context, obj runtime.Object) error {
 						return nil
 					},
 				},
-				obj: newBucket(ns, name).Bucket,
+				obj: newBucket(ns, name).withUID("test-uid").Bucket,
 			},
 			want: want{
 				err: nil,
 				res: resultRequeue,
-				obj: newBucket(ns, name).withFailedCondition(failedToRetrieve, "test-attrs-error").Bucket,
+				obj: newBucket(ns, name).withUID("test-uid").withFailedCondition(failedToRetrieve, "test-attrs-error").Bucket,
 			},
 		},
 		{
 			name: "attrs not found (create)",
 			fields: fields{
+				cc: &test.MockClient{
+					MockCreate: func(ctx context.Context, obj runtime.Object) error { return nil },
+				},
 				sc: &gcpstoragefake.MockBucketClient{
 					MockAttrs: func(i context.Context) (attrs *storage.BucketAttrs, e error) {
 						return nil, storage.ErrBucketNotExist
 					},
 				},
+				obj: newBucket(ns, name).withUID("test-uid").Bucket,
 			},
 			want: want{
 				err: nil,
 				res: requeueOnSuccess,
+				obj: newBucket(ns, name).withUID("test-uid").Bucket,
 			},
 		},
 		{
 			name: "update",
 			fields: fields{
+				cc: &test.MockClient{
+					MockCreate: func(ctx context.Context, obj runtime.Object) error { return nil },
+				},
 				sc: &gcpstoragefake.MockBucketClient{
 					MockAttrs: func(i context.Context) (attrs *storage.BucketAttrs, e error) {
 						return &storage.BucketAttrs{}, nil
 					},
 				},
+				obj: newBucket(ns, name).withUID("test-uid").Bucket,
 			},
 			want: want{
 				err: nil,
 				res: requeueOnSuccess,
+				obj: newBucket(ns, name).withUID("test-uid").Bucket,
 			},
 		},
 	}
@@ -622,8 +661,8 @@ func Test_bucketHandler_sync(t *testing.T) {
 
 func Test_bucketCreateUpdater_create(t *testing.T) {
 	ctx := context.TODO()
-	ns := "default"
-	name := "test-bucket"
+	ns := testNamespace
+	name := testBucketName
 	type fields struct {
 		sc        gcpstorage.Client
 		cc        client.Client
@@ -759,8 +798,8 @@ func Test_bucketCreateUpdater_create(t *testing.T) {
 
 func Test_bucketCreateUpdater_update(t *testing.T) {
 	ctx := context.TODO()
-	ns := "default"
-	name := "test-bucket"
+	ns := testNamespace
+	name := testBucketName
 	type fields struct {
 		sc gcpstorage.Client
 		cc client.Client
