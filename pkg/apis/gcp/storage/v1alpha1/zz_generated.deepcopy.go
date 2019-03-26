@@ -261,11 +261,7 @@ func (in *BucketUpdatableAttrs) DeepCopyInto(out *BucketUpdatableAttrs) {
 			(*out)[key] = val
 		}
 	}
-	if in.Lifecycle != nil {
-		in, out := &in.Lifecycle, &out.Lifecycle
-		*out = new(Lifecycle)
-		(*in).DeepCopyInto(*out)
-	}
+	in.Lifecycle.DeepCopyInto(&out.Lifecycle)
 	if in.Logging != nil {
 		in, out := &in.Logging, &out.Logging
 		*out = new(BucketLogging)

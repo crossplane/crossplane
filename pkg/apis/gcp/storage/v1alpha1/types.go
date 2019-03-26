@@ -17,6 +17,9 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"encoding/json"
+	"strconv"
+	"strings"
 	"time"
 
 	"cloud.google.com/go/storage"
@@ -234,11 +237,7 @@ type Lifecycle struct {
 }
 
 // NewLifecycle creates a new instance of Lifecycle from the storage counterpart
-func NewLifecycle(lf *storage.Lifecycle) *Lifecycle {
-	if lf == nil {
-		return nil
-	}
-
+func NewLifecycle(lf storage.Lifecycle) *Lifecycle {
 	lifecycle := &Lifecycle{}
 
 	if l := len(lf.Rules); l > 0 {
@@ -252,12 +251,8 @@ func NewLifecycle(lf *storage.Lifecycle) *Lifecycle {
 }
 
 // CopyToLifecycle create a copy in storage format
-func CopyToLifecycle(lf *Lifecycle) storage.Lifecycle {
+func CopyToLifecycle(lf Lifecycle) storage.Lifecycle {
 	lifecycle := storage.Lifecycle{}
-
-	if lf == nil {
-		return lifecycle
-	}
 
 	if l := len(lf.Rules); l > 0 {
 		lifecycle.Rules = make([]storage.LifecycleRule, l)
@@ -526,7 +521,7 @@ type BucketUpdatableAttrs struct {
 	Labels map[string]string `json:"labels,omitempty"`
 
 	// Lifecycle is the lifecycle configuration for objects in the bucket.
-	Lifecycle *Lifecycle `json:"lifecycle,omitempty"`
+	Lifecycle Lifecycle `json:"lifecycle,omitempty"`
 
 	// The logging configuration.
 	Logging *BucketLogging `json:"logging,omitempty"`
@@ -578,7 +573,7 @@ func NewBucketUpdatableAttrs(ba *storage.BucketAttrs) *BucketUpdatableAttrs {
 		DefaultEventBasedHold:      ba.DefaultEventBasedHold,
 		Encryption:                 NewBucketEncryption(ba.Encryption),
 		Labels:                     ba.Labels,
-		Lifecycle:                  NewLifecycle(&ba.Lifecycle),
+		Lifecycle:                  *NewLifecycle(ba.Lifecycle),
 		Logging:                    NewBucketLogging(ba.Logging),
 		PredefinedACL:              ba.PredefinedACL,
 		PredefinedDefaultObjectACL: ba.PredefinedDefaultObjectACL,
@@ -611,7 +606,7 @@ func CopyToBucketAttrs(ba *BucketUpdatableAttrs) *storage.BucketAttrs {
 	}
 }
 
-// CopyToProjectTeam create a copy in storage format
+// CopyToBucketUpdateAttrs create a copy in storage format
 func CopyToBucketUpdateAttrs(ba BucketUpdatableAttrs, labels map[string]string) storage.BucketAttrsToUpdate {
 	lifecycle := CopyToLifecycle(ba.Lifecycle)
 
@@ -641,7 +636,7 @@ func CopyToBucketUpdateAttrs(ba BucketUpdatableAttrs, labels map[string]string) 
 	return update
 }
 
-// BucketSpec represents the full set of metadata for a Google Cloud Storage
+// BucketSpecAttrs represents the full set of metadata for a Google Cloud Storage
 // bucket limited to all input attributes
 type BucketSpecAttrs struct {
 	BucketUpdatableAttrs `json:",inline"`
@@ -693,7 +688,7 @@ func CopyBucketSpecAttrs(ba *BucketSpecAttrs) *storage.BucketAttrs {
 	return b
 }
 
-// BucketOutputAttr represent the subset of metadata for a Google Cloud Storage
+// BucketOutputAttrs represent the subset of metadata for a Google Cloud Storage
 // bucket limited to output (read-only) fields.
 type BucketOutputAttrs struct {
 	// Created is the creation time of the bucket.
@@ -811,4 +806,117 @@ func (b *Bucket) SetBound(state bool) {
 	} else {
 		b.Status.Phase = corev1alpha1.BindingStateUnbound
 	}
+}
+
+// NewBucketSpec constructs Spec for this resource from the properties map
+func NewBucketSpec(p map[string]string) *BucketSpec {
+	var encryption *BucketEncryption
+	if v, found := p["encryptionDefaultKmsKeyName"]; found {
+		encryption = &BucketEncryption{DefaultKMSKeyName: v}
+	}
+
+	lifecycle := &Lifecycle{}
+	if v, found := p["lifecycle"]; found {
+		lifecycle = parseLifecycle(v)
+	}
+
+	var labels map[string]string
+	if v, found := p["labels"]; found {
+		labels = parseMap(v)
+	}
+
+	var logging *BucketLogging
+	if v, found := p["logging"]; found {
+		logging = parseLogging(v)
+	}
+
+	var website *BucketWebsite
+	if v, found := p["website"]; found {
+		website = parseWebsite(v)
+	}
+
+	bua := BucketUpdatableAttrs{
+		CORS:                       parseCORSList(p["cors"]),
+		DefaultEventBasedHold:      parseBool(p["defaultEventBasedHold"]),
+		Encryption:                 encryption,
+		Labels:                     labels,
+		Lifecycle:                  *lifecycle,
+		Logging:                    logging,
+		Website:                    website,
+		PredefinedACL:              p["predefinedACL"],
+		PredefinedDefaultObjectACL: p["predefinedDefaultObjectACL"],
+	}
+
+	bsa := BucketSpecAttrs{
+		BucketUpdatableAttrs: bua,
+		ACL:                  parseACLRules(p["acl"]),
+		DefaultObjectACL:     parseACLRules(p["defaultObjectACL"]),
+		Location:             p["location"],
+		StorageClass:         p["storageClass"],
+	}
+
+	return &BucketSpec{
+		BucketSpecAttrs: bsa,
+		ReclaimPolicy:   corev1alpha1.ReclaimRetain,
+	}
+}
+
+// parseBool returns true IFF string value is "true" or "True"
+func parseBool(s string) bool {
+	b, err := strconv.ParseBool(s)
+	if err != nil {
+		return false
+	}
+	return b
+}
+
+// parseMap string encoded map values
+// example: "foo:bar,one:two" -> map[string]string{"foo":"bar","one":"two"}
+func parseMap(s string) map[string]string {
+	m := map[string]string{}
+	for _, cfg := range strings.Split(s, ",") {
+		if kv := strings.SplitN(cfg, ":", 2); len(kv) == 2 {
+			m[strings.TrimSpace(kv[0])] = strings.TrimSpace(kv[1])
+		}
+	}
+	return m
+}
+
+// parseCORSList from json encoded string, return nil on error (if any)
+func parseCORSList(s string) []CORS {
+	var list []CORS
+	_ = json.Unmarshal([]byte(s), &list) // nolint: gosec
+	return list
+}
+
+// parseLifecycle parses json encoded lifecycle string
+func parseLifecycle(s string) *Lifecycle {
+	l := &Lifecycle{}
+	_ = json.Unmarshal([]byte(s), l) // nolint: gosec
+	return l
+}
+
+// parseLogging from map encoded string value
+func parseLogging(s string) *BucketLogging {
+	m := parseMap(s)
+	return &BucketLogging{
+		LogBucket:       m["logBucket"],
+		LogObjectPrefix: m["logObjectPrefix"],
+	}
+}
+
+// parseWebsite from map encoded string value
+func parseWebsite(s string) *BucketWebsite {
+	m := parseMap(s)
+	return &BucketWebsite{
+		MainPageSuffix: m["mainPageSuffix"],
+		NotFoundPage:   m["notFoundPage"],
+	}
+}
+
+// parseACLRules from json encoded string, return nil value on error (if any)
+func parseACLRules(s string) []ACLRule {
+	var rules []ACLRule
+	_ = json.Unmarshal([]byte(s), &rules) // nolint: gosec
+	return rules
 }

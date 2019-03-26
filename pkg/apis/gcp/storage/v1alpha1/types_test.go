@@ -22,10 +22,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-
 	"cloud.google.com/go/storage"
+	"github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/test"
+	"github.com/go-test/deep"
 	"github.com/onsi/gomega"
 	"golang.org/x/net/context"
 	corev1 "k8s.io/api/core/v1"
@@ -345,24 +345,24 @@ func TestCopyToLifecyleRule(t *testing.T) {
 }
 
 var (
-	testLifecycle        = &Lifecycle{Rules: []LifecycleRule{testLifecycleRule}}
-	testStorageLifecycle = &storage.Lifecycle{Rules: []storage.LifecycleRule{testStorageLifecycleRule}}
+	testLifecycle        = Lifecycle{Rules: []LifecycleRule{testLifecycleRule}}
+	testStorageLifecycle = storage.Lifecycle{Rules: []storage.LifecycleRule{testStorageLifecycleRule}}
 )
 
 func TestNewLifecycle(t *testing.T) {
 	tests := []struct {
 		name string
-		args *storage.Lifecycle
-		want *Lifecycle
+		args storage.Lifecycle
+		want Lifecycle
 	}{
-		{"nil", nil, nil},
-		{"rules-nil", &storage.Lifecycle{Rules: nil}, &Lifecycle{Rules: nil}},
+		{"rules-nil", storage.Lifecycle{Rules: nil}, Lifecycle{Rules: nil}},
 		{"rules-val", testStorageLifecycle, testLifecycle},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewLifecycle(tt.args); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewLifecycle() = %v, want %v", got, tt.want)
+			got := NewLifecycle(tt.args)
+			if diff := deep.Equal(*got, tt.want); diff != nil {
+				t.Errorf("NewLifecycle() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
 	}
@@ -371,12 +371,11 @@ func TestNewLifecycle(t *testing.T) {
 func TestCopyToLifecycle(t *testing.T) {
 	tests := []struct {
 		name string
-		args *Lifecycle
+		args Lifecycle
 		want storage.Lifecycle
 	}{
-		{"nil", nil, storage.Lifecycle{}},
-		{"rules-nil", &Lifecycle{Rules: nil}, storage.Lifecycle{Rules: nil}},
-		{"rules-val", &Lifecycle{Rules: []LifecycleRule{testLifecycleRule}},
+		{"rules-nil", Lifecycle{Rules: nil}, storage.Lifecycle{Rules: nil}},
+		{"rules-val", Lifecycle{Rules: []LifecycleRule{testLifecycleRule}},
 			storage.Lifecycle{Rules: []storage.LifecycleRule{testStorageLifecycleRule}}},
 	}
 	for _, tt := range tests {
@@ -710,7 +709,7 @@ var (
 		DefaultEventBasedHold:      true,
 		Encryption:                 testStorageBucketEncryption,
 		Labels:                     map[string]string{"application": "crossplane"},
-		Lifecycle:                  *testStorageLifecycle,
+		Lifecycle:                  testStorageLifecycle,
 		Logging:                    testStorageBucketLogging,
 		PredefinedACL:              "test-predefined-acl",
 		PredefinedDefaultObjectACL: "test-predefined-default-object-acl",
@@ -724,7 +723,7 @@ var (
 		CORS:                       []storage.CORS{testStorageCORS},
 		DefaultEventBasedHold:      true,
 		Encryption:                 testStorageBucketEncryption,
-		Lifecycle:                  testStorageLifecycle,
+		Lifecycle:                  &testStorageLifecycle,
 		Logging:                    testStorageBucketLogging,
 		PredefinedACL:              "test-predefined-acl",
 		PredefinedDefaultObjectACL: "test-predefined-default-object-acl",
@@ -819,7 +818,7 @@ var (
 		DefaultObjectACL:           nil,
 		Encryption:                 testStorageBucketEncryption,
 		Labels:                     map[string]string{"application": "crossplane"},
-		Lifecycle:                  *testStorageLifecycle,
+		Lifecycle:                  testStorageLifecycle,
 		Location:                   "US",
 		Logging:                    testStorageBucketLogging,
 		PredefinedACL:              "test-predefined-acl",
@@ -1030,6 +1029,344 @@ func TestBucket_SetBound(t *testing.T) {
 			c.SetBound(tt.state)
 			if c.Status.Phase != tt.want {
 				t.Errorf("Bucket.SetBound(%v) = %v, want %v", tt.state, c.Status.Phase, tt.want)
+			}
+		})
+	}
+}
+
+func Test_parseBool(t *testing.T) {
+	tests := []struct {
+		name string
+		args string
+		want bool
+	}{
+		{name: "empty", args: "", want: false},
+		{name: "true", args: "true", want: true},
+		{name: "True", args: "True", want: true},
+		{name: "tRue", args: "tRue", want: false},
+		{name: "_true", args: " true", want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := parseBool(tt.args)
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("parseBool() = %v, want %v\n%s", got, tt.want, diff)
+			}
+		})
+	}
+}
+
+func Test_parseMap(t *testing.T) {
+	tests := []struct {
+		name string
+		args string
+		want map[string]string
+	}{
+		{name: "empty", args: "", want: map[string]string{}},
+		{name: "single", args: "foo:bar", want: map[string]string{"foo": "bar"}},
+		{name: "multi", args: "foo:bar, one:two", want: map[string]string{"foo": "bar", "one": "two"}},
+		{name: "dupe key", args: "foo:bar,foo:buz", want: map[string]string{"foo": "buz"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := parseMap(tt.args)
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("parseMap() = %v, want %v\n%s", got, tt.want, diff)
+			}
+		})
+	}
+}
+
+func Test_parseCORSList(t *testing.T) {
+	tests := []struct {
+		name string
+		args string
+		want []CORS
+	}{
+		{name: "empty", args: "", want: nil},
+		{name: "invalid", args: "foo", want: nil},
+		{
+			name: "valid",
+			args: `[{"maxAge":"1s","methods":["GET","POST"],"origins":["foo","bar"]}]`,
+			want: []CORS{
+				{
+					MaxAge:          metav1.Duration{Duration: 1 * time.Second},
+					Methods:         []string{"GET", "POST"},
+					Origins:         []string{"foo", "bar"},
+					ResponseHeaders: nil,
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := parseCORSList(tt.args)
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("parseCORSList() = %v, want %v\n%s", got, tt.want, diff)
+			}
+		})
+	}
+}
+
+func Test_parseLifecycle(t *testing.T) {
+	tf := func(s string) time.Time {
+		t, _ := time.Parse(time.RFC3339, s)
+		return t
+	}
+	tests := []struct {
+		name string
+		args string
+		want *Lifecycle
+	}{
+		{name: "empty", args: "", want: &Lifecycle{}},
+		{name: "invalid", args: "foo", want: &Lifecycle{}},
+		{
+			name: "valid",
+			args: `{"rules":[{"action":{"storageClass":"test-storage-class","type":"test-action-type"},` +
+				`"condition":{"ageInDays":10,"createdBefore":"2019-03-26T21:58:58Z",` +
+				`"liveness":3,"matchesStorageClasses":["foo","bar"],"numNewerVersions":42}}]}`,
+			want: &Lifecycle{
+				Rules: []LifecycleRule{
+					{
+						Action: LifecycleAction{
+							StorageClass: "test-storage-class",
+							Type:         "test-action-type",
+						},
+						Condition: LifecycleCondition{
+							AgeInDays:             10,
+							CreatedBefore:         metav1.NewTime(tf("2019-03-26T21:58:58Z")),
+							Liveness:              3,
+							MatchesStorageClasses: []string{"foo", "bar"},
+							NumNewerVersions:      42,
+						},
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := parseLifecycle(tt.args)
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("parseLifecycle() = %v, want %v\n%s", got, tt.want, diff)
+			}
+		})
+	}
+}
+
+func Test_parseLogging(t *testing.T) {
+	tests := []struct {
+		name string
+		args string
+		want *BucketLogging
+	}{
+		{name: "empty", args: "", want: &BucketLogging{}},
+		{name: "invalid", args: "foo", want: &BucketLogging{}},
+		{
+			name: "valid",
+			args: "logBucket:foo,logObjectPrefix:bar",
+			want: &BucketLogging{LogBucket: "foo", LogObjectPrefix: "bar"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := parseLogging(tt.args)
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("parseLogging() = %v, want %v\n%s", got, tt.want, diff)
+			}
+		})
+	}
+}
+
+func Test_parseWebsite(t *testing.T) {
+	tests := []struct {
+		name string
+		args string
+		want *BucketWebsite
+	}{
+		{name: "empty", args: "", want: &BucketWebsite{}},
+		{name: "invalid", args: "foo", want: &BucketWebsite{}},
+		{
+			name: "valid",
+			args: "mainPageSuffix:foo,notFoundPage:bar",
+			want: &BucketWebsite{MainPageSuffix: "foo", NotFoundPage: "bar"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := parseWebsite(tt.args)
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("parseWebsite() = %v, want %v\n%s", got, tt.want, diff)
+			}
+		})
+	}
+}
+
+func Test_parseACLRules(t *testing.T) {
+	tests := []struct {
+		name string
+		args string
+		want []ACLRule
+	}{
+		{
+			name: "empty",
+			args: "",
+			want: nil,
+		},
+		{
+			name: "invalid",
+			args: "foo",
+			want: nil,
+		},
+		{
+			name: "single rule",
+			args: `[{"Entity":"test-entity","EntityID":"42","Role":"test-role","Domain":"test-domain","Email":"test-email","ProjectTeam":{"ProjectNumber":"test-project-number","Team":"test-team"}}]`,
+			want: []ACLRule{
+				{
+					Entity:   "test-entity",
+					EntityID: "42",
+					Role:     "test-role",
+					Domain:   "test-domain",
+					Email:    "test-email",
+					ProjectTeam: &ProjectTeam{
+						ProjectNumber: "test-project-number",
+						Team:          "test-team",
+					},
+				},
+			},
+		},
+		{
+			name: "single rule",
+			args: `[{"Entity":"test-entity","EntityID":"42","Role":"test-role","Domain":"test-domain","Email":"test-email","ProjectTeam":{"ProjectNumber":"test-project-number","Team":"test-team"}},` +
+				`{"Entity":"another-entity","EntityID":"42","Role":"test-role","Domain":"test-domain","Email":"test-email","ProjectTeam":{"ProjectNumber":"test-project-number","Team":"test-team"}}]`,
+			want: []ACLRule{
+				{
+					Entity:   "test-entity",
+					EntityID: "42",
+					Role:     "test-role",
+					Domain:   "test-domain",
+					Email:    "test-email",
+					ProjectTeam: &ProjectTeam{
+						ProjectNumber: "test-project-number",
+						Team:          "test-team",
+					},
+				},
+				{
+					Entity:   "another-entity",
+					EntityID: "42",
+					Role:     "test-role",
+					Domain:   "test-domain",
+					Email:    "test-email",
+					ProjectTeam: &ProjectTeam{
+						ProjectNumber: "test-project-number",
+						Team:          "test-team",
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := parseACLRules(tt.args)
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("parseACLRules() = %v, want %v\n%s", got, tt.want, diff)
+			}
+		})
+	}
+}
+
+func TestNewBucketSpec(t *testing.T) {
+	tf := func(s string) time.Time {
+		t, _ := time.Parse(time.RFC3339, s)
+		return t
+	}
+	tests := []struct {
+		name string
+		args map[string]string
+		want *BucketSpec
+	}{
+		{name: "empty", args: map[string]string{}, want: &BucketSpec{ReclaimPolicy: v1alpha1.ReclaimRetain}},
+		{name: "invalid", args: map[string]string{"foo": "bar"}, want: &BucketSpec{ReclaimPolicy: v1alpha1.ReclaimRetain}},
+		{
+			name: "valid",
+			args: map[string]string{
+				"cors":                        `[{"maxAge":"1s","methods":["GET","POST"],"origins":["foo","bar"]}]`,
+				"defaultEventBasedHold":       "true",
+				"encryptionDefaultKmsKeyName": "test-encryption",
+				"labels":                      "foo:bar",
+				"lifecycle": `{"rules":[{"action":{"storageClass":"test-storage-class","type":"test-action-type"},` +
+					`"condition":{"ageInDays":10,"createdBefore":"2019-03-26T21:58:58Z",` +
+					`"liveness":3,"matchesStorageClasses":["foo","bar"],"numNewerVersions":42}}]}`,
+				"logging":                    "logBucket:foo,logObjectPrefix:bar",
+				"website":                    "mainPageSuffix:foo,notFoundPage:bar",
+				"predefinedACL":              "test-predefined-acl",
+				"predefinedDefaultObjectACL": "test-prefedefine-default-object-acl",
+				"acl": `[{"Entity":"test-entity","EntityID":"42","Role":"test-role","Domain":"test-domain",` +
+					`"Email":"test-email","ProjectTeam":{"ProjectNumber":"test-project-number","Team":"test-team"}}]`,
+				"location":     "test-location",
+				"storageClass": "test-storage-class",
+			},
+			want: &BucketSpec{
+				ReclaimPolicy: v1alpha1.ReclaimRetain,
+				BucketSpecAttrs: BucketSpecAttrs{
+					BucketUpdatableAttrs: BucketUpdatableAttrs{
+						CORS: []CORS{
+							{
+								MaxAge:          metav1.Duration{Duration: 1 * time.Second},
+								Methods:         []string{"GET", "POST"},
+								Origins:         []string{"foo", "bar"},
+								ResponseHeaders: nil,
+							},
+						},
+						DefaultEventBasedHold: true,
+						Encryption:            &BucketEncryption{DefaultKMSKeyName: "test-encryption"},
+						Labels:                map[string]string{"foo": "bar"},
+						Lifecycle: Lifecycle{
+							Rules: []LifecycleRule{
+								{
+									Action: LifecycleAction{
+										StorageClass: "test-storage-class",
+										Type:         "test-action-type",
+									},
+									Condition: LifecycleCondition{
+										AgeInDays:             10,
+										CreatedBefore:         metav1.NewTime(tf("2019-03-26T21:58:58Z")),
+										Liveness:              3,
+										MatchesStorageClasses: []string{"foo", "bar"},
+										NumNewerVersions:      42,
+									},
+								},
+							},
+						},
+						Logging:                    &BucketLogging{LogBucket: "foo", LogObjectPrefix: "bar"},
+						Website:                    &BucketWebsite{MainPageSuffix: "foo", NotFoundPage: "bar"},
+						PredefinedACL:              "test-predefined-acl",
+						PredefinedDefaultObjectACL: "test-prefedefine-default-object-acl",
+					},
+					ACL: []ACLRule{
+						{
+							Entity:   "test-entity",
+							EntityID: "42",
+							Role:     "test-role",
+							Domain:   "test-domain",
+							Email:    "test-email",
+							ProjectTeam: &ProjectTeam{
+								ProjectNumber: "test-project-number",
+								Team:          "test-team",
+							},
+						},
+					},
+					Location:     "test-location",
+					StorageClass: "test-storage-class",
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := NewBucketSpec(tt.args)
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("NewBucketSpec() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
 	}
