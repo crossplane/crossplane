@@ -18,5 +18,3 @@ type Client interface {
 type BucketClient struct {
 	*storage.BucketHandle
 }
-
-var _ Client = &BucketClient{}

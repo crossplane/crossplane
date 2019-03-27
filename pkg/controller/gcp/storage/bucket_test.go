@@ -394,7 +394,7 @@ func Test_bucketFactory_newHandler(t *testing.T) {
 				withSecret(secretName, secretKey).Provider,
 				newSecret(ns, secretName).withKeyData(secretKey, secretData).Secret),
 			bucket:  newBucket(ns, bucketName).withProvider("test-provider").Bucket,
-			want:    newBucketSynDeleter(&gcpstorage.BucketClient{BucketHandle: &storage.BucketHandle{}}, nil, nil, ""),
+			want:    newBucketSyncDeleter(&gcpstorage.BucketClient{BucketHandle: &storage.BucketHandle{}}, nil, nil, ""),
 			wantErr: nil,
 		},
 	}
@@ -518,7 +518,7 @@ func Test_bucketHandler_delete(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			bh := newBucketSynDeleter(tt.fields.sc, tt.fields.cc, tt.fields.obj, "")
+			bh := newBucketSyncDeleter(tt.fields.sc, tt.fields.cc, tt.fields.obj, "")
 			got, err := bh.delete(ctx)
 			if diff := deep.Equal(err, tt.want.err); diff != nil {
 				t.Errorf("bucketSyncDeleter.delete() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
@@ -638,7 +638,7 @@ func Test_bucketHandler_sync(t *testing.T) {
 			bh := &bucketSyncDeleter{
 				createupdater: newMockBucketCreateUpdater(),
 				Client:        tt.fields.sc,
-				client:        tt.fields.cc,
+				kube:          tt.fields.cc,
 				object:        tt.fields.obj,
 			}
 
@@ -775,7 +775,7 @@ func Test_bucketCreateUpdater_create(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bh := &bucketCreateUpdater{
 				Client:    tt.fields.sc,
-				client:    tt.fields.cc,
+				kube:      tt.fields.cc,
 				object:    tt.fields.obj,
 				projectID: tt.fields.projectID,
 			}
@@ -886,7 +886,7 @@ func Test_bucketCreateUpdater_update(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bh := &bucketCreateUpdater{
 				Client: tt.fields.sc,
-				client: tt.fields.cc,
+				kube:   tt.fields.cc,
 				object: tt.fields.o,
 			}
 			got, err := bh.update(ctx, tt.attrs)

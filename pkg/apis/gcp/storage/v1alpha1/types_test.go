@@ -111,10 +111,13 @@ func TestProjectTeam(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := CopyToProjectTeam(tt.args); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("CopyToProjectTeam() = %v, want %v", got, tt.want)
-			} else if got := NewProjectTeam(got); !reflect.DeepEqual(got, tt.args) {
-				t.Errorf("NewProjectTeam() = %v, want %v", got, tt.want)
+			got := CopyToProjectTeam(tt.args)
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("CopyToProjectTeam() = %v, want %v\n%s", got, tt.want, diff)
+			}
+			gotBack := NewProjectTeam(got)
+			if diff := deep.Equal(gotBack, tt.args); diff != nil {
+				t.Errorf("NewProjectTeam() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
 	}
@@ -152,10 +155,13 @@ func TestACLRule(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := CopyToACLRule(tt.args); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("CopyToACLRule() = %v, want %v", got, tt.want)
-			} else if got := NewACLRule(got); !reflect.DeepEqual(got, tt.args) {
-				t.Errorf("NewACLRule() = %v, want %v", got, tt.want)
+			got := CopyToACLRule(tt.args)
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("CopyToACLRule() = %v, want %v\n%s", got, tt.want, diff)
+			}
+			gotBack := NewACLRule(got)
+			if diff := deep.Equal(gotBack, tt.args); diff != nil {
+				t.Errorf("NewACLRule() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
 	}
@@ -173,8 +179,9 @@ func TestNewACLRules(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewACLRules(tt.args); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("CopyToACLRules() = %v, want %v", got, tt.want)
+			got := NewACLRules(tt.args)
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("CopyToACLRules() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
 	}
@@ -192,8 +199,9 @@ func TestCopyToACLRules(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := CopyToACLRules(tt.args); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("CopyToACLRules() = %v, want %v", got, tt.want)
+			got := CopyToACLRules(tt.args)
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("CopyToACLRules() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
 	}
@@ -205,7 +213,7 @@ var (
 		Type:         "SetStorageClass",
 	}
 
-	testStoreageLifecyleAction = storage.LifecycleAction{
+	testStorageLifecyleAction = storage.LifecycleAction{
 		StorageClass: "STANDARD",
 		Type:         "SetStorageClass",
 	}
@@ -217,12 +225,13 @@ func TestNewLifecyleAction(t *testing.T) {
 		args storage.LifecycleAction
 		want LifecycleAction
 	}{
-		{"val", testStoreageLifecyleAction, testLifecycleAction},
+		{"val", testStorageLifecyleAction, testLifecycleAction},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewLifecyleAction(tt.args); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewLifecyleAction() = %v, want %v", got, tt.want)
+			got := NewLifecyleAction(tt.args)
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("NewLifecyleAction() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
 	}
@@ -234,12 +243,13 @@ func TestCopyToLifecyleAction(t *testing.T) {
 		args LifecycleAction
 		want storage.LifecycleAction
 	}{
-		{"test", testLifecycleAction, testStoreageLifecyleAction},
+		{"test", testLifecycleAction, testStorageLifecyleAction},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := CopyToLifecyleAction(tt.args); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("CopyToLifecyleAction() = %v, want %v", got, tt.want)
+			got := CopyToLifecyleAction(tt.args)
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("CopyToLifecyleAction() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
 	}
@@ -275,8 +285,9 @@ func TestNewLifecycleCondition(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewLifecycleCondition(tt.args); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewLifecycleCondition() = %v, want %v", got, tt.want)
+			got := NewLifecycleCondition(tt.args)
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("NewLifecycleCondition() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
 	}
@@ -292,8 +303,9 @@ func TestCopyToLifecycleCondition(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := CopyToLifecycleCondition(tt.args); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("CopyToLifecycleCondition() = %v, want %v", got, tt.want)
+			got := CopyToLifecycleCondition(tt.args)
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("CopyToLifecycleCondition() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
 	}
@@ -306,7 +318,7 @@ var (
 	}
 
 	testStorageLifecycleRule = storage.LifecycleRule{
-		Action:    testStoreageLifecyleAction,
+		Action:    testStorageLifecyleAction,
 		Condition: testStorageLifecycleCondition,
 	}
 )
@@ -321,8 +333,9 @@ func TestNewLifecycleRule(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewLifecycleRule(tt.args); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewLifecycleRule() = %v, want %v", got, tt.want)
+			got := NewLifecycleRule(tt.args)
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("NewLifecycleRule() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
 	}
@@ -338,8 +351,9 @@ func TestCopyToLifecyleRule(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := CopyToLifecyleRule(tt.args); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("CopyToLifecyleRule() = %v, want %v", got, tt.want)
+			got := CopyToLifecyleRule(tt.args)
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("CopyToLifecyleRule() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
 	}
@@ -381,8 +395,9 @@ func TestCopyToLifecycle(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := CopyToLifecycle(tt.args); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("CopyToLifecycle() = %v, want %v", got, tt.want)
+			got := CopyToLifecycle(tt.args)
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("CopyToLifecycle() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
 	}
@@ -464,8 +479,9 @@ func TestNewRetentionPolicyStatus(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewRetentionPolicyStatus(tt.args); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewRetentionPolicyStatus() = %v, want %v", got, tt.want)
+			got := NewRetentionPolicyStatus(tt.args)
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("NewRetentionPolicyStatus() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
 	}
@@ -487,8 +503,9 @@ func TestNewBucketEncryption(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewBucketEncryption(tt.args); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewBucketEncryption() = %v, want %v", got, tt.want)
+			got := NewBucketEncryption(tt.args)
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("NewBucketEncryption() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
 	}
@@ -505,8 +522,9 @@ func TestCopyToBucketEncryption(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := CopyToBucketEncryption(tt.args); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("CopyToBucketEncryption() = %v, want %v", got, tt.want)
+			got := CopyToBucketEncryption(tt.args)
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("CopyToBucketEncryption() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
 	}
@@ -535,8 +553,9 @@ func TestNewBucketLogging(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewBucketLogging(tt.args); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewBucketLogging() = %v, want %v", got, tt.want)
+			got := NewBucketLogging(tt.args)
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("NewBucketLogging() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
 	}
@@ -553,8 +572,9 @@ func TestCopyToBucketLogging(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := CopyToBucketLogging(tt.args); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("CopyToBucketLogging() = %v, want %v", got, tt.want)
+			got := CopyToBucketLogging(tt.args)
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("CopyToBucketLogging() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
 	}
@@ -586,8 +606,9 @@ func TestNewCORS(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewCORS(tt.args); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewCORS() = %v, want %v", got, tt.want)
+			got := NewCORS(tt.args)
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("NewCORS() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
 	}
@@ -603,8 +624,9 @@ func TestCopyToCORS(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := CopyToCORS(tt.args); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("CopyToCORS() = %v, want %v", got, tt.want)
+			got := CopyToCORS(tt.args)
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("CopyToCORS() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
 	}
@@ -622,8 +644,9 @@ func TestNewCORSs(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewCORSList(tt.args); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewCORSList() = %v, want %v", got, tt.want)
+			got := NewCORSList(tt.args)
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("NewCORSList() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
 	}
@@ -641,8 +664,9 @@ func TestCopyToCORSs(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := CopyToCORSList(tt.args); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("CopyToCORSList() = %v, want %v", got, tt.want)
+			got := CopyToCORSList(tt.args)
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("CopyToCORSList() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
 	}
@@ -664,8 +688,9 @@ func TestNewBucketWebsite(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewBucketWebsite(tt.args); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewBucketWebsite() = %v, want %v", got, tt.want)
+			got := NewBucketWebsite(tt.args)
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("NewBucketWebsite() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
 	}
@@ -682,8 +707,9 @@ func TestCopyToBucketWebsite(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := CopyToBucketWebsite(tt.args); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("CopyToBucketWebsite() = %v, want %v", got, tt.want)
+			got := CopyToBucketWebsite(tt.args)
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("CopyToBucketWebsite() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
 	}
@@ -746,8 +772,9 @@ func TestNewBucketUpdateAttrs(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewBucketUpdatableAttrs(tt.args); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewBucketUpdatableAttrs() = %v, want %v", got, tt.want)
+			got := NewBucketUpdatableAttrs(tt.args)
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("NewBucketUpdatableAttrs() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
 	}
@@ -771,8 +798,8 @@ func TestCopyToBucketAttrs(t *testing.T) {
 			} else {
 				got := CopyToBucketAttrs(tt.args)
 				got.RetentionPolicy = nil
-				if !reflect.DeepEqual(got, tt.want) {
-					t.Errorf("CopyToBucketAttrs() = %+v, want %+v", got, tt.want)
+				if diff := deep.Equal(got, tt.want); diff != nil {
+					t.Errorf("CopyToBucketAttrs() = %+v, want %+v\n%s", got, tt.want, diff)
 				}
 			}
 		})
@@ -796,8 +823,9 @@ func TestCopyToBucketUpdateAttrs(t *testing.T) {
 		tt.want.SetLabel("application", "crossplane")
 		tt.want.DeleteLabel("foo")
 		t.Run(tt.name, func(t *testing.T) {
-			if got := CopyToBucketUpdateAttrs(tt.args.ba, tt.args.labels); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("CopyToBucketUpdateAttrs()\n%+v, want \n%+v", got, tt.want)
+			got := CopyToBucketUpdateAttrs(tt.args.ba, tt.args.labels)
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("CopyToBucketUpdateAttrs()\n%+v, want \n%+v\n%s", got, tt.want, diff)
 			}
 		})
 	}
@@ -843,8 +871,9 @@ func TestNewBucketSpecAttrs(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewBucketSpecAttrs(tt.args); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewBucketSpecAttrs() = \n%+v, want \n%+v", got, tt.want)
+			got := NewBucketSpecAttrs(tt.args)
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("NewBucketSpecAttrs() = \n%+v, want \n%+v\n%s", got, tt.want, diff)
 			}
 		})
 	}
@@ -864,8 +893,9 @@ func TestCopyBucketSpecAttrs(t *testing.T) {
 			if tt.args != nil && tt.args.RetentionPolicy == nil && tt.want.RetentionPolicy == nil {
 				tt.want.RetentionPolicy = &storage.RetentionPolicy{RetentionPeriod: time.Duration(0)}
 			}
-			if got := CopyBucketSpecAttrs(tt.args); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("CopyBucketSpecAttrs() = \n%+v, want \n%+v", got, tt.want)
+			got := CopyBucketSpecAttrs(tt.args)
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("CopyBucketSpecAttrs() = \n%+v, want \n%+v\n%s", got, tt.want, diff)
 			}
 		})
 	}
@@ -896,8 +926,9 @@ func TestNewBucketOutputAttrs(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewBucketOutputAttrs(tt.args); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewBucketOutputAttrs() = %v, want %v", got, tt.want)
+			got := NewBucketOutputAttrs(tt.args)
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("NewBucketOutputAttrs() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
 	}
@@ -935,8 +966,9 @@ func TestBucket_ObjectReference(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.bucket.ObjectReference(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Bucket.ObjectReference() = %v, want %v", got, tt.want)
+			got := tt.bucket.ObjectReference()
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("Bucket.ObjectReference() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
 	}
@@ -952,8 +984,9 @@ func TestBucket_OwnerReference(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.bucket.OwnerReference(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Bucket.OwnerReference() = \n%+v, want \n%+v", got, tt.want)
+			got := tt.bucket.OwnerReference()
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("Bucket.OwnerReference() = \n%+v, want \n%+v\n%s", got, tt.want, diff)
 			}
 		})
 	}
@@ -1301,7 +1334,7 @@ func TestNewBucketSpec(t *testing.T) {
 				"logging":                    "logBucket:foo,logObjectPrefix:bar",
 				"website":                    "mainPageSuffix:foo,notFoundPage:bar",
 				"predefinedACL":              "test-predefined-acl",
-				"predefinedDefaultObjectACL": "test-prefedefine-default-object-acl",
+				"predefinedDefaultObjectACL": "test-predefined-default-object-acl",
 				"acl": `[{"Entity":"test-entity","EntityID":"42","Role":"test-role","Domain":"test-domain",` +
 					`"Email":"test-email","ProjectTeam":{"ProjectNumber":"test-project-number","Team":"test-team"}}]`,
 				"location":     "test-location",
@@ -1342,7 +1375,7 @@ func TestNewBucketSpec(t *testing.T) {
 						Logging:                    &BucketLogging{LogBucket: "foo", LogObjectPrefix: "bar"},
 						Website:                    &BucketWebsite{MainPageSuffix: "foo", NotFoundPage: "bar"},
 						PredefinedACL:              "test-predefined-acl",
-						PredefinedDefaultObjectACL: "test-prefedefine-default-object-acl",
+						PredefinedDefaultObjectACL: "test-predefined-default-object-acl",
 					},
 					ACL: []ACLRule{
 						{
