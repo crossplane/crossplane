@@ -29,7 +29,26 @@
   version = "v0.2.0"
 
 [[projects]]
-  digest = "1:c29b936e4303a39012e88311f21d163c80105ceb2508e30c8bcc21789ef05108"
+  branch = "master"
+  digest = "1:d22b305e1cfa745e12c38c94fbbcbad61f9869e1e1ecb2c4e25e52a9e30f33c0"
+  name = "github.com/Azure-Samples/azure-sdk-for-go-samples"
+  packages = [
+    "internal/config",
+    "internal/iam",
+  ]
+  pruneopts = "UT"
+  revision = "99517e36d30b13486257d4f4039eb761adc2e34f"
+
+[[projects]]
+  digest = "1:d2ccb697dc13c8fbffafa37baae97594d5592ae8f7e113471084137315536e2b"
+  name = "github.com/Azure/azure-pipeline-go"
+  packages = ["pipeline"]
+  pruneopts = "UT"
+  revision = "b8e3409182fd52e74f7d7bdfbff5833591b3b655"
+  version = "v0.1.8"
+
+[[projects]]
+  digest = "1:63f1c0e523bdf3ac88130cbda4354d630e119a42e9c9f7027a1af4415c770f4b"
   name = "github.com/Azure/azure-sdk-for-go"
   packages = [
     "profiles/latest/redis/mgmt/redis/redisapi",
@@ -40,11 +59,20 @@
     "services/redis/mgmt/2018-03-01/redis",
     "services/redis/mgmt/2018-03-01/redis/redisapi",
     "services/resources/mgmt/2018-05-01/resources",
+    "services/storage/mgmt/2017-06-01/storage",
     "version",
   ]
   pruneopts = "UT"
   revision = "2ea98fc438b9d78aa2ab32bab44c7f68e506385e"
   version = "v25.1.0"
+
+[[projects]]
+  digest = "1:435043934aa0a8221e2c660e88dffe588783e9497facf6b517a465a37c58c97b"
+  name = "github.com/Azure/azure-storage-blob-go"
+  packages = ["azblob"]
+  pruneopts = "UT"
+  revision = "457680cc0804810f6d02958481e0ffdda51d5c60"
+  version = "0.5.0"
 
 [[projects]]
   digest = "1:fc6ffc4546e74d5ef8477f97e2e733eb482c3015c8703d14d7dbd2bb72103963"
@@ -386,6 +414,22 @@
   pruneopts = "UT"
   revision = "24b83195037b3bc61fcda2d28b7b0518bce293b6"
   version = "v1.0.4"
+
+[[projects]]
+  digest = "1:c78066b952f7960f7bffeb04d176e1e8d2579bd1e65067fc29f043706f11c4f3"
+  name = "github.com/marstr/collection"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "43f1d00df9bf332cbf8d26c3eecd6c348e92f7b3"
+  version = "v1.0.1"
+
+[[projects]]
+  branch = "master"
+  digest = "1:6688b117d0ac766a6ea0e0238c5eb1f866128d126c3f8a97cd209f301e51d82e"
+  name = "github.com/marstr/randname"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "d5b0f288ab8cfdaa716502900e10405f123dc0cf"
 
 [[projects]]
   digest = "1:ff5ebae34cfbf047d505ee150de27e60570e8c394b3b8fdbb720ff6ac71985fc"
@@ -1246,6 +1290,8 @@
   input-imports = [
     "cloud.google.com/go/redis/apiv1",
     "cloud.google.com/go/storage",
+    "github.com/Azure-Samples/azure-sdk-for-go-samples/internal/config",
+    "github.com/Azure-Samples/azure-sdk-for-go-samples/internal/iam",
     "github.com/Azure/azure-sdk-for-go/profiles/latest/redis/mgmt/redis/redisapi",
     "github.com/Azure/azure-sdk-for-go/services/containerservice/mgmt/2018-03-31/containerservice",
     "github.com/Azure/azure-sdk-for-go/services/graphrbac/1.6/graphrbac",
@@ -1254,6 +1300,8 @@
     "github.com/Azure/azure-sdk-for-go/services/redis/mgmt/2018-03-01/redis",
     "github.com/Azure/azure-sdk-for-go/services/redis/mgmt/2018-03-01/redis/redisapi",
     "github.com/Azure/azure-sdk-for-go/services/resources/mgmt/2018-05-01/resources",
+    "github.com/Azure/azure-sdk-for-go/services/storage/mgmt/2017-06-01/storage",
+    "github.com/Azure/azure-storage-blob-go/azblob",
     "github.com/Azure/go-autorest/autorest",
     "github.com/Azure/go-autorest/autorest/adal",
     "github.com/Azure/go-autorest/autorest/azure",
