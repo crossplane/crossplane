@@ -59,11 +59,17 @@ func TestMain(m *testing.M) {
 
 func TestStorageAzureBucket(t *testing.T) {
 	key := types.NamespacedName{Name: name, Namespace: namespace}
-	created := &AzureBucket{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace}}
+	created := &Account{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+		Spec: AccountSpec{
+			StorageAccountName: "test-name",
+			StorageAccountSpec: &StorageAccountSpec{},
+		},
+	}
 	g := gomega.NewGomegaWithT(t)
 
 	// Test Create
-	fetched := &AzureBucket{}
+	fetched := &Account{}
 	g.Expect(c.Create(context.TODO(), created)).NotTo(gomega.HaveOccurred())
 
 	g.Expect(c.Get(context.TODO(), key, fetched)).NotTo(gomega.HaveOccurred())
