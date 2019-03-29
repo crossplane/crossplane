@@ -337,7 +337,7 @@ func Test_newIPRule(t *testing.T) {
 	}
 }
 
-func Test_toStroageIPRule(t *testing.T) {
+func Test_toStorageIPRule(t *testing.T) {
 	tests := []struct {
 		name string
 		args IPRule
@@ -357,7 +357,7 @@ func Test_toStroageIPRule(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := toStroageIPRule(tt.args)
+			got := toStorageIPRule(tt.args)
 			if diff := deep.Equal(got, tt.want); diff != nil {
 				t.Errorf("IPRule.ToStroageIPRule() = %v, want %v\n%s", got, tt.want, diff)
 			}
@@ -613,7 +613,7 @@ func Test_toStorageSku(t *testing.T) {
 		args *Sku
 		want *storage.Sku
 	}{
-		{name: "emtpy", args: nil, want: nil},
+		{name: "empty", args: nil, want: nil},
 		{
 			name: "test",
 			args: &Sku{
@@ -798,7 +798,7 @@ func Test_newStorageAccountStatusProperties(t *testing.T) {
 	tests := []struct {
 		name string
 		args *storage.AccountProperties
-		want *StorageAccountStatusProperies
+		want *StorageAccountStatusProperties
 	}{
 		{name: "empty", args: nil, want: nil},
 		{
@@ -806,7 +806,7 @@ func Test_newStorageAccountStatusProperties(t *testing.T) {
 			args: &storage.AccountProperties{
 				CreationTime: &date.Time{Time: now},
 			},
-			want: &StorageAccountStatusProperies{
+			want: &StorageAccountStatusProperties{
 				CreationTime: &metav1.Time{Time: now},
 			},
 		},
@@ -947,7 +947,7 @@ func Test_toStorageAccountUpdate(t *testing.T) {
 }
 
 func Test_NewStorageAccountStatus(t *testing.T) {
-	tests := []struct {
+	var tests = []struct {
 		name string
 		args *storage.Account
 		want *StorageAccountStatus

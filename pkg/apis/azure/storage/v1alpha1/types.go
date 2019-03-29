@@ -45,7 +45,7 @@ type AccountSpec struct {
 
 // AccountStatus defines the observed state of StorageAccountStatus
 type AccountStatus struct {
-	AccountProperties StorageAccountStatusProperies `json:"properties"`
+	AccountProperties StorageAccountStatusProperties `json:"properties"`
 
 	corev1alpha1.ConditionedStatus
 	corev1alpha1.BindingStatusPhase

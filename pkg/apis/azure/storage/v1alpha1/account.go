@@ -68,7 +68,7 @@ type EnabledEncryptionServices struct {
 	Queue bool `json:"queue,omitempty"`
 }
 
-// newEnabledEncyrptionServices from the storage equivalent
+// newEnabledEncryptionServices from the storage equivalent
 func newEnabledEncryptionServices(s *storage.EncryptionServices) *EnabledEncryptionServices {
 	if s == nil {
 		return nil
@@ -214,8 +214,8 @@ func newIPRule(r storage.IPRule) IPRule {
 	}
 }
 
-// toStroageIPRule format
-func toStroageIPRule(r IPRule) storage.IPRule {
+// toStorageIPRule format
+func toStorageIPRule(r IPRule) storage.IPRule {
 	return storage.IPRule{
 		IPAddressOrRange: to.StringPtr(r.IPAddressOrRange),
 		Action:           r.Action,
@@ -322,7 +322,7 @@ func toStorageNetworkRuleSet(n *NetworkRuleSet) *storage.NetworkRuleSet {
 
 	ipRules := make([]storage.IPRule, len(n.IPRules))
 	for i, v := range n.IPRules {
-		ipRules[i] = toStroageIPRule(v)
+		ipRules[i] = toStorageIPRule(v)
 	}
 
 	return &storage.NetworkRuleSet{
@@ -371,7 +371,7 @@ type Sku struct {
 	// Kind - Indicates the type of storage account.
 	//
 	// Possible values include: 'Storage', 'BlobStorage'
-	// +kubebuilder:validation:Enum=Storage,BloobStorage
+	// +kubebuilder:validation:Enum=Storage,BlobStorage
 	Kind storage.Kind `json:"kind,omitempty"`
 
 	// Locations - The set of locations that the Sku is available.
@@ -523,7 +523,7 @@ func toStorageAccountUpdateProperties(s *StorageAccountSpecProperties) *storage.
 		return nil
 	}
 	return &storage.AccountPropertiesUpdateParameters{
-		AccessTier:             storage.AccessTier(s.AccessTier),
+		AccessTier:             s.AccessTier,
 		CustomDomain:           toStorageCustomDomain(s.CustomDomain),
 		EnableHTTPSTrafficOnly: to.BoolPtr(s.EnableHTTPSTrafficOnly),
 		Encryption:             toStorageEncryption(s.Encryption),
@@ -531,8 +531,8 @@ func toStorageAccountUpdateProperties(s *StorageAccountSpecProperties) *storage.
 	}
 }
 
-// StorageAccountStatusProperies - account status properties of the storage account.
-type StorageAccountStatusProperies struct {
+// StorageAccountStatusProperties - account status properties of the storage account.
+type StorageAccountStatusProperties struct {
 
 	// CreationTime - the creation date and time of the storage account in UTC.
 	CreationTime *metav1.Time `json:"creationTime,omitempty"`
@@ -578,7 +578,7 @@ type StorageAccountStatusProperies struct {
 }
 
 // newStorageAccountStatusProperties from the storage equivalent
-func newStorageAccountStatusProperties(s *storage.AccountProperties) *StorageAccountStatusProperies {
+func newStorageAccountStatusProperties(s *storage.AccountProperties) *StorageAccountStatusProperties {
 	if s == nil {
 		return nil
 	}
@@ -589,7 +589,7 @@ func newStorageAccountStatusProperties(s *storage.AccountProperties) *StorageAcc
 		return &metav1.Time{Time: dt.Time}
 	}
 
-	return &StorageAccountStatusProperies{
+	return &StorageAccountStatusProperties{
 		CreationTime:        tf(s.CreationTime),
 		LastGeoFailoverTime: tf(s.LastGeoFailoverTime),
 		PrimaryEndpoints:    newEndpoints(s.PrimaryEndpoints),
@@ -648,7 +648,7 @@ func NewStorageAccountSpec(a *storage.Account) *StorageAccountSpec {
 	}
 }
 
-// toStorageAccountCreate from StorageAccountSpec
+// ToStorageAccountCreate from StorageAccountSpec
 func ToStorageAccountCreate(s *StorageAccountSpec) storage.AccountCreateParameters {
 	if s == nil {
 		return storage.AccountCreateParameters{}
@@ -671,7 +671,7 @@ func ToStorageAccountCreate(s *StorageAccountSpec) storage.AccountCreateParamete
 	return acp
 }
 
-// toStorageAccountUpdate from StorageAccountSpec
+// ToStorageAccountUpdate from StorageAccountSpec
 func ToStorageAccountUpdate(s *StorageAccountSpec) storage.AccountUpdateParameters {
 	if s == nil {
 		return storage.AccountUpdateParameters{}
@@ -696,7 +696,7 @@ type StorageAccountStatus struct {
 	// Type - Resource type
 	Type string `json:"type,omitempty"`
 
-	*StorageAccountStatusProperies `json:"properties,omitempty"`
+	*StorageAccountStatusProperties `json:"properties,omitempty"`
 }
 
 // NewStorageAccountStatus from the storage Account
@@ -705,9 +705,9 @@ func NewStorageAccountStatus(a *storage.Account) *StorageAccountStatus {
 		return nil
 	}
 	return &StorageAccountStatus{
-		ID:                            to.String(a.ID),
-		Name:                          to.String(a.Name),
-		Type:                          to.String(a.Type),
-		StorageAccountStatusProperies: newStorageAccountStatusProperties(a.AccountProperties),
+		ID:                             to.String(a.ID),
+		Name:                           to.String(a.Name),
+		Type:                           to.String(a.Type),
+		StorageAccountStatusProperties: newStorageAccountStatusProperties(a.AccountProperties),
 	}
 }
