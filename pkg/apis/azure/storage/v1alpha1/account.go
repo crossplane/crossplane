@@ -50,7 +50,7 @@ func toStorageCustomDomain(c *CustomDomain) *storage.CustomDomain {
 		return nil
 	}
 	return &storage.CustomDomain{
-		Name:             to.StringPtr(c.Name),
+		Name:             toStringPtr(c.Name),
 		UseSubDomainName: to.BoolPtr(c.UseSubDomainName),
 	}
 }
@@ -191,9 +191,9 @@ func toStorageIdentity(i *Identity) *storage.Identity {
 		return nil
 	}
 	return &storage.Identity{
-		PrincipalID: to.StringPtr(i.PrincipalID),
-		TenantID:    to.StringPtr(i.TenantID),
-		Type:        to.StringPtr(i.Type),
+		PrincipalID: toStringPtr(i.PrincipalID),
+		TenantID:    toStringPtr(i.TenantID),
+		Type:        toStringPtr(i.Type),
 	}
 }
 
@@ -219,7 +219,7 @@ func newIPRule(r storage.IPRule) IPRule {
 // toStorageIPRule format
 func toStorageIPRule(r IPRule) storage.IPRule {
 	return storage.IPRule{
-		IPAddressOrRange: to.StringPtr(r.IPAddressOrRange),
+		IPAddressOrRange: toStringPtr(r.IPAddressOrRange),
 		Action:           r.Action,
 	}
 }
@@ -254,9 +254,9 @@ func toStorageKeyVaultProperties(p *KeyVaultProperties) *storage.KeyVaultPropert
 		return nil
 	}
 	return &storage.KeyVaultProperties{
-		KeyName:     to.StringPtr(p.KeyName),
-		KeyVersion:  to.StringPtr(p.KeyVersion),
-		KeyVaultURI: to.StringPtr(p.KeyVaultURI),
+		KeyName:     toStringPtr(p.KeyName),
+		KeyVersion:  toStringPtr(p.KeyVersion),
+		KeyVaultURI: toStringPtr(p.KeyVaultURI),
 	}
 }
 
@@ -276,8 +276,8 @@ type NetworkRuleSet struct {
 
 	// DefaultAction - Specifies the default action of allow or deny when no other rules match.
 	//
-	// Possible values include: 'DefaultActionAllow', 'DefaultActionDeny'
-	// +kubebuilder:validation:Enum=DefaultActionAllow,DefaultActionDeny
+	// Possible values include: 'Allow', 'Deny'
+	// +kubebuilder:validation:Enum=Allow,Deny
 	DefaultAction storage.DefaultAction `json:"defaultAction,omitempty"`
 }
 
@@ -317,21 +317,29 @@ func toStorageNetworkRuleSet(n *NetworkRuleSet) *storage.NetworkRuleSet {
 		return nil
 	}
 
-	networkRules := make([]storage.VirtualNetworkRule, len(n.VirtualNetworkRules))
-	for i, v := range n.VirtualNetworkRules {
-		networkRules[i] = toStorageVirtualNetworkRule(v)
+	var networkRules *[]storage.VirtualNetworkRule
+	if l := len(n.VirtualNetworkRules); l > 0 {
+		nr := make([]storage.VirtualNetworkRule, l)
+		for i, v := range n.VirtualNetworkRules {
+			nr[i] = toStorageVirtualNetworkRule(v)
+		}
+		networkRules = &nr
 	}
 
-	ipRules := make([]storage.IPRule, len(n.IPRules))
-	for i, v := range n.IPRules {
-		ipRules[i] = toStorageIPRule(v)
+	var ipRules *[]storage.IPRule
+	if l := len(n.IPRules); l > 0 {
+		ir := make([]storage.IPRule, len(n.IPRules))
+		for i, v := range n.IPRules {
+			ir[i] = toStorageIPRule(v)
+		}
+		ipRules = &ir
 	}
 
 	return &storage.NetworkRuleSet{
 		Bypass:              n.Bypass,
-		VirtualNetworkRules: &networkRules,
-		IPRules:             &ipRules,
 		DefaultAction:       n.DefaultAction,
+		IPRules:             ipRules,
+		VirtualNetworkRules: networkRules,
 	}
 }
 
@@ -359,8 +367,8 @@ func newSkuCapability(s storage.SKUCapability) skuCapability {
 // toStorageSkuCapability format
 func toStorageSkuCapability(s skuCapability) storage.SKUCapability {
 	return storage.SKUCapability{
-		Name:  to.StringPtr(s.Name),
-		Value: to.StringPtr(s.Value),
+		Name:  toStringPtr(s.Name),
+		Value: toStringPtr(s.Value),
 	}
 }
 
@@ -383,8 +391,8 @@ type Sku struct {
 	// Name - Gets or sets the sku name. Required for account creation; optional for update.
 	// Note that in older versions, sku name was called accountType.
 	//
-	// Possible values include: 'StandardLRS', 'StandardGRS', 'StandardRAGRS', 'StandardZRS', 'PremiumLRS'
-	// +kubebuilder:validation:Enum=StandardLRS,StandardGRS,StandardRAGRS,StandardZRS,PremiumLRS
+	// Possible values include: 'Standard_LRS', 'Standard_GRS', 'Standard_RAGRS', 'Standard_ZRS', 'Premium_LRS'
+	// +kubebuilder:validation:Enum=Standard_LRS,Standard_GRS,Standard_RAGRS,Standard_ZRS,Premium_LRS
 	Name storage.SkuName `json:"name"`
 
 	// ResourceType - The type of the resource, usually it is 'storageAccounts'.
@@ -403,9 +411,12 @@ func newSku(s *storage.Sku) *Sku {
 		return nil
 	}
 
-	capabilities := make([]skuCapability, len(*s.Capabilities))
-	for i, v := range *s.Capabilities {
-		capabilities[i] = newSkuCapability(v)
+	var capabilities []skuCapability
+	if s.Capabilities != nil {
+		capabilities = make([]skuCapability, len(*s.Capabilities))
+		for i, v := range *s.Capabilities {
+			capabilities[i] = newSkuCapability(v)
+		}
 	}
 
 	return &Sku{
@@ -424,17 +435,26 @@ func toStorageSku(s *Sku) *storage.Sku {
 		return nil
 	}
 
-	capabilities := make([]storage.SKUCapability, len(s.Capabilities))
-	for i, v := range s.Capabilities {
-		capabilities[i] = toStorageSkuCapability(v)
+	var capabilities *[]storage.SKUCapability
+	if len(s.Capabilities) > 0 {
+		cbp := make([]storage.SKUCapability, len(s.Capabilities))
+		for i, v := range s.Capabilities {
+			cbp[i] = toStorageSkuCapability(v)
+		}
+		capabilities = &cbp
+	}
+
+	var locations *[]string
+	if len(s.Locations) > 0 {
+		locations = to.StringSlicePtr(s.Locations)
 	}
 
 	return &storage.Sku{
-		Capabilities: &capabilities,
+		Capabilities: capabilities,
 		Kind:         s.Kind,
-		Locations:    to.StringSlicePtr(s.Locations),
+		Locations:    locations,
 		Name:         s.Name,
-		ResourceType: to.StringPtr(s.ResourceType),
+		ResourceType: toStringPtr(s.ResourceType),
 		Tier:         s.Tier,
 	}
 }
@@ -461,7 +481,7 @@ func newVirtualNetworkRule(s storage.VirtualNetworkRule) VirtualNetworkRule {
 // toStorageVirtualNetworkRule format
 func toStorageVirtualNetworkRule(v VirtualNetworkRule) storage.VirtualNetworkRule {
 	return storage.VirtualNetworkRule{
-		VirtualNetworkResourceID: to.StringPtr(v.VirtualNetworkResourceID),
+		VirtualNetworkResourceID: toStringPtr(v.VirtualNetworkResourceID),
 		Action:                   v.Action,
 	}
 }
@@ -665,7 +685,7 @@ func ToStorageAccountCreate(s *StorageAccountSpec) storage.AccountCreateParamete
 
 	acp := storage.AccountCreateParameters{
 		Kind:     s.Kind,
-		Location: to.StringPtr(s.Location),
+		Location: toStringPtr(s.Location),
 		Sku:      toStorageSku(s.Sku),
 		Tags:     *to.StringMapPtr(s.Tags),
 	}
@@ -719,4 +739,11 @@ func NewStorageAccountStatus(a *storage.Account) *StorageAccountStatus {
 		Type:                           to.String(a.Type),
 		StorageAccountStatusProperties: newStorageAccountStatusProperties(a.AccountProperties),
 	}
+}
+
+func toStringPtr(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
 }
