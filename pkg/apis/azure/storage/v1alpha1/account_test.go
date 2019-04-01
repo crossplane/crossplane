@@ -17,7 +17,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"reflect"
 	"testing"
 	"time"
 
@@ -555,10 +554,7 @@ func Test_toStorageSkuCapability(t *testing.T) {
 		{
 			name: "empty",
 			args: skuCapability{},
-			want: storage.SKUCapability{
-				Name:  to.StringPtr(""),
-				Value: to.StringPtr(""),
-			},
+			want: storage.SKUCapability{},
 		},
 	}
 	for _, tt := range tests {
@@ -638,7 +634,6 @@ func Test_toStorageSku(t *testing.T) {
 					},
 				},
 				Kind:         storage.Storage,
-				Locations:    &[]string{},
 				Name:         storage.PremiumLRS,
 				ResourceType: to.StringPtr("test-type"),
 				Tier:         storage.Premium,
@@ -869,19 +864,11 @@ func Test_toStorageAccountCreate(t *testing.T) {
 				StorageAccountSpecProperties: &StorageAccountSpecProperties{},
 			},
 			want: storage.AccountCreateParameters{
-				Identity: &storage.Identity{
-					PrincipalID: to.StringPtr(""),
-					TenantID:    to.StringPtr(""),
-					Type:        to.StringPtr(""),
-				},
+				Identity: &storage.Identity{},
 				Kind:     storage.BlobStorage,
 				Location: to.StringPtr("us-west"),
-				Sku: &storage.Sku{
-					Capabilities: &[]storage.SKUCapability{},
-					ResourceType: to.StringPtr(""),
-					Locations:    to.StringSlicePtr(nil),
-				},
-				Tags: map[string]*string{"foo": to.StringPtr("bar")},
+				Sku:      &storage.Sku{},
+				Tags:     map[string]*string{"foo": to.StringPtr("bar")},
 				AccountPropertiesCreateParameters: &storage.AccountPropertiesCreateParameters{
 					EnableHTTPSTrafficOnly: to.BoolPtr(false),
 				},
@@ -920,17 +907,9 @@ func Test_toStorageAccountUpdate(t *testing.T) {
 				StorageAccountSpecProperties: &StorageAccountSpecProperties{},
 			},
 			want: storage.AccountUpdateParameters{
-				Identity: &storage.Identity{
-					PrincipalID: to.StringPtr(""),
-					TenantID:    to.StringPtr(""),
-					Type:        to.StringPtr(""),
-				},
-				Sku: &storage.Sku{
-					Capabilities: &[]storage.SKUCapability{},
-					ResourceType: to.StringPtr(""),
-					Locations:    to.StringSlicePtr(nil),
-				},
-				Tags: map[string]*string{"foo": to.StringPtr("bar")},
+				Identity: &storage.Identity{},
+				Sku:      &storage.Sku{},
+				Tags:     map[string]*string{"foo": to.StringPtr("bar")},
 				AccountPropertiesUpdateParameters: &storage.AccountPropertiesUpdateParameters{
 					EnableHTTPSTrafficOnly: to.BoolPtr(false),
 				},
@@ -1041,8 +1020,27 @@ func Test_parseStorageAccountSpec(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := parseStorageAccountSpec(tt.args); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("parseStorageAccountSpec() = %v, want %v", got, tt.want)
+			got := parseStorageAccountSpec(tt.args)
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("parseStorageAccountSpec() = %v, want %v\n%s", got, tt.want, diff)
+			}
+		})
+	}
+}
+
+func Test_toStringPtr(t *testing.T) {
+	tests := []struct {
+		name string
+		args string
+		want *string
+	}{
+		{name: "empty", args: "", want: nil},
+		{name: "not-empty", args: "test", want: to.StringPtr("test")},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := toStringPtr(tt.args); got != tt.want {
+				t.Errorf("toStringPtr() = %v, want %v", got, tt.want)
 			}
 		})
 	}
