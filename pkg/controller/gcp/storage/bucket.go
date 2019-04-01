@@ -44,7 +44,7 @@ import (
 )
 
 const (
-	controllerName = "handle.storage.gcp.crossplane.io"
+	controllerName = "bucket.storage.gcp.crossplane.io"
 	finalizer      = "finalizer." + controllerName
 
 	reconcileTimeout      = 1 * time.Minute
