@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"reflect"
 	"testing"
 	"time"
 
@@ -964,6 +965,84 @@ func Test_NewStorageAccountStatus(t *testing.T) {
 			got := NewStorageAccountStatus(tt.args)
 			if diff := deep.Equal(got, tt.want); diff != nil {
 				t.Errorf("NewStorageAccountStatus() = %v, want %v\n%s", got, tt.want, diff)
+			}
+		})
+	}
+}
+
+const storageAccountSpecString = `{` +
+	`"identity":{"principalId":"test-identity-principal-id",` +
+	`"tenantId":"test-identity-tenant-id","type":"test-identity-type"},` +
+	`"kind":"BlobStorage",` +
+	`"location":"West US",` +
+	`"sku":{"capabilities":[{"name":"test-sku-name","value":"true"}],` +
+	`"kind":"BlobStorage","locations":["West US"],"name":"Standard_GRS",` +
+	`"resourceType":"storageAccounts","tier":"Standard"},` +
+	`"properties":{"accessTier":"Hot",` +
+	`"customDomain":{"name":"test-custom-domain","useSubDomainName":true},` +
+	`"supportsHttpsTrafficOnly":true,"encryption":{"services":{"blob":true},` +
+	`"keySource":"Microsoft.Keyvault"}},"tags":{"application":"crossplane"}}`
+
+var storageAccountSpec = &StorageAccountSpec{
+	Identity: &Identity{
+		PrincipalID: "test-identity-principal-id",
+		TenantID:    "test-identity-tenant-id",
+		Type:        "test-identity-type",
+	},
+	Kind:     storage.BlobStorage,
+	Location: "West US",
+	Sku: &Sku{
+		Capabilities: []skuCapability{
+			{
+				Name:  "test-sku-name",
+				Value: "true",
+			},
+		},
+		Kind: storage.BlobStorage,
+		Locations: []string{
+			"West US",
+		},
+		Name:         storage.StandardGRS,
+		ResourceType: "storageAccounts",
+		Tier:         storage.Standard,
+	},
+	StorageAccountSpecProperties: &StorageAccountSpecProperties{
+		AccessTier: storage.Hot,
+		CustomDomain: &CustomDomain{
+			Name:             "test-custom-domain",
+			UseSubDomainName: true,
+		},
+		EnableHTTPSTrafficOnly: true,
+		Encryption: &Encryption{
+			Services: &EnabledEncryptionServices{
+				Blob: true,
+			},
+			KeySource:          storage.MicrosoftKeyvault,
+			KeyVaultProperties: nil,
+		},
+		NetworkRuleSet: nil,
+	},
+	Tags: map[string]string{
+		"application": "crossplane",
+	},
+}
+
+func Test_parseStorageAccountSpec(t *testing.T) {
+	var tests = []struct {
+		name string
+		args string
+		want *StorageAccountSpec
+	}{
+		{
+			name: "parse",
+			args: storageAccountSpecString,
+			want: storageAccountSpec,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := parseStorageAccountSpec(tt.args); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("parseStorageAccountSpec() = %v, want %v", got, tt.want)
 			}
 		})
 	}
