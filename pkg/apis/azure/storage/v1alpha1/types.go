@@ -21,11 +21,16 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/crossplaneio/crossplane/pkg/util"
+
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 )
 
 // AccountSpec defines the desired state of StorageAccountStatus
 type AccountSpec struct {
+	// GroupName azure group name
+	GroupName string `json:"groupName"`
+
 	// StorageAccountName for azure blob storage
 	StorageAccountName string `json:"storageAccountName"`
 
@@ -45,7 +50,7 @@ type AccountSpec struct {
 
 // AccountStatus defines the observed state of StorageAccountStatus
 type AccountStatus struct {
-	AccountProperties StorageAccountStatusProperties `json:"properties"`
+	*StorageAccountStatus `json:"accountStatus,inline"`
 
 	corev1alpha1.ConditionedStatus
 	corev1alpha1.BindingStatusPhase
@@ -72,6 +77,65 @@ type AccountList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []Account `json:"items"`
+}
+
+// ConnectionSecretName returns a secret name from the reference
+func (a *Account) ConnectionSecretName() string {
+	return util.IfEmptyString(a.Spec.ConnectionSecretNameOverride, a.Name)
+}
+
+// ConnectionSecret returns a connection secret for this account instance
+func (a *Account) ConnectionSecret() *corev1.Secret {
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace:       a.Namespace,
+			Name:            a.ConnectionSecretName(),
+			OwnerReferences: []metav1.OwnerReference{a.OwnerReference()},
+		},
+		Data: map[string][]byte{
+			//corev1alpha1.ResourceCredentialsSecretUserKey:     []byte("user"),
+			//corev1alpha1.ResourceCredentialsSecretPasswordKey: []byte("pass"),
+			//corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(a.GetUID()),
+		},
+	}
+}
+
+// ObjectReference to this resource instance
+func (a *Account) ObjectReference() *corev1.ObjectReference {
+	return util.ObjectReference(a.ObjectMeta, util.IfEmptyString(a.APIVersion, APIVersion), util.IfEmptyString(a.Kind, AccountKind))
+}
+
+// OwnerReference to use this instance as an owner
+func (a *Account) OwnerReference() metav1.OwnerReference {
+	return *util.ObjectToOwnerReference(a.ObjectReference())
+}
+
+// IsAvailable for usage/binding
+func (a *Account) IsAvailable() bool {
+	return a.Status.IsReady()
+}
+
+// IsBound determines if the resource is in a bound binding state
+func (a *Account) IsBound() bool {
+	return a.Status.Phase == corev1alpha1.BindingStateBound
+}
+
+// SetBound sets the binding state of this resource
+func (a *Account) SetBound(state bool) {
+	if state {
+		a.Status.Phase = corev1alpha1.BindingStateBound
+	} else {
+		a.Status.Phase = corev1alpha1.BindingStateUnbound
+	}
+}
+
+// ParseAccountSpec from properties map key/values
+func ParseAccountSpec(p map[string]string) *AccountSpec {
+	return &AccountSpec{
+		ReclaimPolicy:      corev1alpha1.ReclaimRetain,
+		StorageAccountName: p["storageAccountName"],
+		StorageAccountSpec: parseStorageAccountSpec(p["storageAccountSpec"]),
+	}
 }
 
 // ContainerSpec is the schema for ContainerSpec object

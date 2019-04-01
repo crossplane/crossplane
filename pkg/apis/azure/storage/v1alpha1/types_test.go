@@ -20,14 +20,17 @@ import (
 	"log"
 	"testing"
 
+	"github.com/go-test/deep"
 	"github.com/onsi/gomega"
 	"golang.org/x/net/context"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
@@ -86,4 +89,206 @@ func TestStorageAzureBucket(t *testing.T) {
 	// Test Delete
 	g.Expect(c.Delete(context.TODO(), fetched)).NotTo(gomega.HaveOccurred())
 	g.Expect(c.Get(context.TODO(), key, fetched)).To(gomega.HaveOccurred())
+}
+
+func TestParseAccountSpec(t *testing.T) {
+	tests := []struct {
+		name string
+		args map[string]string
+		want *AccountSpec
+	}{
+		{
+			name: "parse",
+			args: map[string]string{
+				"storageAccountName": "test-account-name",
+				"storageAccountSpec": storageAccountSpecString,
+			},
+			want: &AccountSpec{
+				ReclaimPolicy:      v1alpha1.ReclaimRetain,
+				StorageAccountName: "test-account-name",
+				StorageAccountSpec: storageAccountSpec,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ParseAccountSpec(tt.args)
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("ParseAccountSpec() = %v, want %v\n%s", got, tt.want, diff)
+			}
+		})
+	}
+}
+
+func TestAccount_ConnectionSecretName(t *testing.T) {
+	tests := []struct {
+		name   string
+		bucket Account
+		want   string
+	}{
+		{"default", Account{}, ""},
+		{"named", Account{ObjectMeta: metav1.ObjectMeta{Name: "foo"}}, "foo"},
+		{"override",
+			Account{
+				ObjectMeta: metav1.ObjectMeta{Name: "foo"},
+				Spec:       AccountSpec{ConnectionSecretNameOverride: "bar"}}, "bar"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.bucket.ConnectionSecretName(); got != tt.want {
+				t.Errorf("Bucket.ConnectionSecretName() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestAccount_ConnectionSecret(t *testing.T) {
+	tests := []struct {
+		name    string
+		account Account
+		want    *corev1.Secret
+	}{
+		{
+			name: "test",
+			account: Account{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: namespace,
+					Name:      name,
+				},
+			},
+			want: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: namespace,
+					Name:      name,
+					OwnerReferences: []metav1.OwnerReference{
+						{
+							APIVersion: APIVersion,
+							Kind:       AccountKind,
+							Name:       name,
+						},
+					},
+				},
+				Data: map[string][]byte{},
+			}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.account.ConnectionSecret()
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("Bucket.ConnectionSecret() = %v, want %v\n%s", got, tt.want, diff)
+			}
+		})
+	}
+}
+
+func TestAccount_ObjectReference(t *testing.T) {
+	tests := []struct {
+		name   string
+		bucket Account
+		want   *corev1.ObjectReference
+	}{
+		{"test", Account{}, &corev1.ObjectReference{APIVersion: APIVersion, Kind: AccountKind}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.bucket.ObjectReference()
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("Account.ObjectReference() = %v, want %v\n%s", got, tt.want, diff)
+			}
+		})
+	}
+}
+
+func TestAccount_OwnerReference(t *testing.T) {
+	tests := []struct {
+		name   string
+		bucket Account
+		want   metav1.OwnerReference
+	}{
+		{"test", Account{}, metav1.OwnerReference{APIVersion: APIVersion, Kind: AccountKind}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.bucket.OwnerReference()
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("Account.OwnerReference() = \n%+v, want \n%+v\n%s", got, tt.want, diff)
+			}
+		})
+	}
+}
+
+func TestAccount_IsAvailable(t *testing.T) {
+	b := Account{}
+
+	bReady := b
+	bReady.Status.SetReady()
+
+	bReadyAndFailed := bReady
+	bReadyAndFailed.Status.SetFailed("", "")
+
+	bNotReadyAndFailed := bReadyAndFailed
+	bNotReadyAndFailed.Status.UnsetCondition(v1alpha1.Ready)
+
+	tests := []struct {
+		name   string
+		bucket Account
+		want   bool
+	}{
+		{"no conditions", b, false},
+		{"running active", bReady, true},
+		{"running and failed active", bReadyAndFailed, true},
+		{"not running and failed active", bNotReadyAndFailed, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.bucket.IsAvailable(); got != tt.want {
+				t.Errorf("Account.IsAvailable() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestAccount_IsBound(t *testing.T) {
+	tests := []struct {
+		name  string
+		phase v1alpha1.BindingState
+		want  bool
+	}{
+		{"bound", v1alpha1.BindingStateBound, true},
+		{"not-bound", v1alpha1.BindingStateUnbound, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			b := Account{
+				Status: AccountStatus{
+					BindingStatusPhase: v1alpha1.BindingStatusPhase{
+						Phase: tt.phase,
+					},
+				},
+			}
+			if got := b.IsBound(); got != tt.want {
+				t.Errorf("Account.IsBound() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestAccount_SetBound(t *testing.T) {
+	tests := []struct {
+		name  string
+		state bool
+		want  v1alpha1.BindingState
+	}{
+		{"not-bound", false, v1alpha1.BindingStateUnbound},
+		{"bound", true, v1alpha1.BindingStateBound},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &Account{}
+			c.SetBound(tt.state)
+			if c.Status.Phase != tt.want {
+				t.Errorf("Account.SetBound(%v) = %v, want %v", tt.state, c.Status.Phase, tt.want)
+			}
+		})
+	}
 }

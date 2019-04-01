@@ -17,6 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"encoding/json"
+
 	"github.com/Azure/azure-sdk-for-go/services/storage/mgmt/2017-06-01/storage"
 	"github.com/Azure/go-autorest/autorest/date"
 	"github.com/Azure/go-autorest/autorest/to"
@@ -646,6 +648,13 @@ func NewStorageAccountSpec(a *storage.Account) *StorageAccountSpec {
 		StorageAccountSpecProperties: newStorageAccountSpecProperties(a.AccountProperties),
 		Tags:                         to.StringMap(a.Tags),
 	}
+}
+
+// parseStorageAccountSpec from json encoded string
+func parseStorageAccountSpec(s string) *StorageAccountSpec {
+	sas := &StorageAccountSpec{}
+	_ = json.Unmarshal([]byte(s), sas)
+	return sas
 }
 
 // ToStorageAccountCreate from StorageAccountSpec
