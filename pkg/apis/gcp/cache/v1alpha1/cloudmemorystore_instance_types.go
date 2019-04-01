@@ -18,9 +18,8 @@ package v1alpha1
 
 import (
 	"strconv"
-	"strings"
 
-	redis "google.golang.org/genproto/googleapis/cloud/redis/v1"
+	"google.golang.org/genproto/googleapis/cloud/redis/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -182,7 +181,7 @@ func NewCloudMemorystoreInstanceSpec(properties map[string]string) *CloudMemorys
 		ReservedIPRange:       properties["reservedIpRange"],
 		AuthorizedNetwork:     properties["authorizedNetwork"],
 		RedisVersion:          properties["redisVersion"],
-		RedisConfigs:          parseMap(properties["redisConfigs"]),
+		RedisConfigs:          util.ParseMap(properties["redisConfigs"]),
 	}
 
 	if i, err := strconv.Atoi(properties["memorySizeGb"]); err == nil {
@@ -190,18 +189,6 @@ func NewCloudMemorystoreInstanceSpec(properties map[string]string) *CloudMemorys
 	}
 
 	return spec
-}
-
-// parseMap parses a string of comma separated key value pairs, for example
-// "key1: value1, key2: value2", into a string map.
-func parseMap(s string) map[string]string {
-	m := map[string]string{}
-	for _, cfg := range strings.Split(s, ",") {
-		if kv := strings.SplitN(cfg, ":", 2); len(kv) == 2 {
-			m[strings.TrimSpace(kv[0])] = strings.TrimSpace(kv[1])
-		}
-	}
-	return m
 }
 
 // ConnectionSecretName returns a secret name from the reference
