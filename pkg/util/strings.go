@@ -17,6 +17,7 @@ limitations under the License.
 package util
 
 import (
+	"strconv"
 	"strings"
 )
 
@@ -38,4 +39,25 @@ func StringValue(v *string) string {
 		return *v
 	}
 	return ""
+}
+
+// ParseMap string encoded map values
+// example: "foo:bar,one:two" -> map[string]string{"foo":"bar","one":"two"}
+func ParseMap(s string) map[string]string {
+	m := map[string]string{}
+	for _, cfg := range strings.Split(s, ",") {
+		if kv := strings.SplitN(cfg, ":", 2); len(kv) == 2 {
+			m[strings.TrimSpace(kv[0])] = strings.TrimSpace(kv[1])
+		}
+	}
+	return m
+}
+
+// ParseBool returns true IFF string value is "true" or "True"
+func ParseBool(s string) bool {
+	b, err := strconv.ParseBool(s)
+	if err != nil {
+		return false
+	}
+	return b
 }

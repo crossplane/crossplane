@@ -18,7 +18,6 @@ package v1alpha1
 
 import (
 	"strconv"
-	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/services/redis/mgmt/2018-03-01/redis"
 	v1 "k8s.io/api/core/v1"
@@ -194,7 +193,7 @@ func NewRedisSpec(properties map[string]string) *RedisSpec {
 		Location:           properties["location"],
 		StaticIP:           properties["staticIP"],
 		SubnetID:           properties["subnetId"],
-		RedisConfiguration: parseMap(properties["redisConfiguration"]),
+		RedisConfiguration: util.ParseMap(properties["redisConfiguration"]),
 
 		// TODO(negz): Remove the sku prefix here? This feels clearer, but the
 		// Azure SQL server equivalent uses bare "tier", "vcores", etc.
@@ -215,18 +214,6 @@ func NewRedisSpec(properties map[string]string) *RedisSpec {
 	}
 
 	return spec
-}
-
-// parseMap parses a string of comma separated key value pairs, for example
-// "key1: value1, key2: value2", into a string map.
-func parseMap(s string) map[string]string {
-	m := map[string]string{}
-	for _, cfg := range strings.Split(s, ",") {
-		if kv := strings.SplitN(cfg, ":", 2); len(kv) == 2 {
-			m[strings.TrimSpace(kv[0])] = strings.TrimSpace(kv[1])
-		}
-	}
-	return m
 }
 
 // ConnectionSecretName returns a secret name from the reference
