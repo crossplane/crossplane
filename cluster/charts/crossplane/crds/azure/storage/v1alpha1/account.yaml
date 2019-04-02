@@ -6,11 +6,29 @@ metadata:
     controller-tools.k8s.io: "1.0"
   name: accounts.storage.azure.crossplane.io
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .spec.resourceGroupName
+    name: RESOURCE_GROUP
+    type: string
+  - JSONPath: .spec.storageAccountName
+    name: ACCOUNT_NAME
+    type: string
+  - JSONPath: .spec.classRef.name
+    name: CLASS
+    type: string
+  - JSONPath: .spec.reclaimPolicy
+    name: RECLAIM_POLICY
+    type: string
+  - JSONPath: .metadata.creationTimestamp
+    name: AGE
+    type: date
   group: storage.azure.crossplane.io
   names:
     kind: Account
     plural: accounts
   scope: Namespaced
+  subresources:
+    status: {}
   validation:
     openAPIV3Schema:
       properties:
@@ -36,17 +54,18 @@ spec:
               description: ConnectionSecretNameOverride to generate connection secret
                 with specific name
               type: string
-            groupName:
-              description: GroupName azure group name
-              type: string
             providerRef:
               type: object
             reclaimPolicy:
               description: ReclaimPolicy identifies how to handle the cloud resource
                 after the deletion of this type
               type: string
+            resourceGroupName:
+              description: ResourceGroupName azure group name
+              type: string
             storageAccountName:
               description: StorageAccountName for azure blob storage
+              maxLength: 24
               type: string
             storageAccountSpec:
               description: StorageAccountSpec the parameters used when creating a
@@ -169,10 +188,10 @@ spec:
                         defaultAction:
                           description: 'DefaultAction - Specifies the default action
                             of allow or deny when no other rules match.  Possible
-                            values include: ''DefaultActionAllow'', ''DefaultActionDeny'''
+                            values include: ''Allow'', ''Deny'''
                           enum:
-                          - DefaultActionAllow
-                          - DefaultActionDeny
+                          - Allow
+                          - Deny
                           type: string
                         ipRules:
                           description: IPRules - Sets the IP ACL rules
@@ -254,14 +273,14 @@ spec:
                       description: 'Name - Gets or sets the sku name. Required for
                         account creation; optional for update. Note that in older
                         versions, sku name was called accountType.  Possible values
-                        include: ''StandardLRS'', ''StandardGRS'', ''StandardRAGRS'',
-                        ''StandardZRS'', ''PremiumLRS'''
+                        include: ''Standard_LRS'', ''Standard_GRS'', ''Standard_RAGRS'',
+                        ''Standard_ZRS'', ''Premium_LRS'''
                       enum:
-                      - StandardLRS
-                      - StandardGRS
-                      - StandardRAGRS
-                      - StandardZRS
-                      - PremiumLRS
+                      - Standard_LRS
+                      - Standard_GRS
+                      - Standard_RAGRS
+                      - Standard_ZRS
+                      - Premium_LRS
                       type: string
                     resourceType:
                       description: ResourceType - The type of the resource, usually
@@ -287,7 +306,7 @@ spec:
                   type: object
               type: object
           required:
-          - groupName
+          - resourceGroupName
           - storageAccountName
           - storageAccountSpec
           - providerRef
