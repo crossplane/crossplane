@@ -21,7 +21,9 @@ Crossplane supports a clean separation of concerns between developers and admini
 
 Crossplane includes a workload scheduler that can factor a number of criteria including capabilities, availability, reliability, cost, regions, and performance while deploying workloads and their resources. The scheduler works alongside specialized resource controllers to ensure policies set by administrators are honored.
 
-For a deeper dive into Crossplane, see the [architecture](https://docs.google.com/document/d/1whncqdUeU2cATGEJhHvzXWC9xdK29Er45NJeoemxebo/edit?usp=sharing) document.
+## Architecture and Vision
+
+The full architecture and vision of the Crossplane project is described in depth in the [architecture document](https://docs.google.com/document/d/1whncqdUeU2cATGEJhHvzXWC9xdK29Er45NJeoemxebo/edit?usp=sharing). It is the best place to learn more about how Crossplane fits into the Kubernetes ecosystem, the intended use cases, and comparisons to existing projects.
 
 ## Getting Started and Documentation
 
@@ -70,19 +72,19 @@ Each API supported by Crossplane is assigned its own individual status to reflec
 * **Stable:** Features will appear in released software for many subsequent versions and support for upgrading between versions will be provided with software automation in the vast majority of scenarios.
 
 
-| Cloud | Name | Details | API Group | Status |
-| ----- | ----- | --------- | ----------- | -------- |
-|  All  | Compute | Compute services | compute.crossplane.io/v1alpha1 | Alpha |
-|  All  | Storage | Storage services | storage.crossplane.io/v1alpha1 | Alpha |
-|  AWS  | Compute | Compute services | compute.aws.crossplane.io/v1alpha1 | Alpha |
-|  AWS  | Database | Database services | database.aws.crossplane.io/v1alpha1 | Alpha |
-|  AWS  | Storage | Storage services | storage.aws.crossplane.io/v1alpha1 | Alpha |
-| Azure | Compute | Compute services | compute.azure.crossplane.io/v1alpha1 | Alpha |
-| Azure | Database | Database services | database.azure.crossplane.io/v1alpha1 | Alpha |
-| Azure | Storage | Storage services | storage.azure.crossplane.io/v1alpha1 | Alpha |
-|  GCP  | Compute | Compute services | compute.gcp.crossplane.io/v1alpha1 | Alpha |
-|  GCP  | Database | Database services | database.gcp.crossplane.io/v1alpha1 | Alpha |
-|  GCP  | Storage | Storage services | storage.gcp.crossplane.io/v1alpha1 | Alpha |
+| Cloud | Name     | Details           | API Group                             | Status |
+| ----- | -------- | ----------------- | ------------------------------------- | ------ |
+| All   | Compute  | Compute services  | compute.crossplane.io/v1alpha1        | Alpha  |
+| All   | Storage  | Storage services  | storage.crossplane.io/v1alpha1        | Alpha  |
+| AWS   | Compute  | Compute services  | compute.aws.crossplane.io/v1alpha1    | Alpha  |
+| AWS   | Database | Database services | database.aws.crossplane.io/v1alpha1   | Alpha  |
+| AWS   | Storage  | Storage services  | storage.aws.crossplane.io/v1alpha1    | Alpha  |
+| Azure | Compute  | Compute services  | compute.azure.crossplane.io/v1alpha1  | Alpha  |
+| Azure | Database | Database services | database.azure.crossplane.io/v1alpha1 | Alpha  |
+| Azure | Storage  | Storage services  | storage.azure.crossplane.io/v1alpha1  | Alpha  |
+| GCP   | Compute  | Compute services  | compute.gcp.crossplane.io/v1alpha1    | Alpha  |
+| GCP   | Database | Database services | database.gcp.crossplane.io/v1alpha1   | Alpha  |
+| GCP   | Storage  | Storage services  | storage.gcp.crossplane.io/v1alpha1    | Alpha  |
 
 ### Official Releases
 
