@@ -91,8 +91,16 @@ func Add(mgr manager.Manager) error {
 		return err
 	}
 
-	// Watch for changes to Provider
-	return c.Watch(&source.Kind{Type: &v1alpha1.Bucket{}}, &handler.EnqueueRequestForObject{})
+	// Watch for changes to bucket
+	if err := c.Watch(&source.Kind{Type: &v1alpha1.Bucket{}}, &handler.EnqueueRequestForObject{}); err != nil {
+		return err
+	}
+
+	// Watch for changes to Instance Secret
+	return c.Watch(&source.Kind{Type: &corev1.Secret{}}, &handler.EnqueueRequestForOwner{
+		IsController: true,
+		OwnerType:    &v1alpha1.Bucket{},
+	})
 }
 
 // Reconcile reads that state of the cluster for a Provider obj and makes changes based on the state read
@@ -261,6 +269,9 @@ func newBucketCreateUpdater(sc gcpstorage.Client, cc client.Client, b *v1alpha1.
 // create new bucket resource and save changes back to bucket specs
 func (bh *bucketCreateUpdater) create(ctx context.Context) (reconcile.Result, error) {
 	util.AddFinalizer(&bh.object.ObjectMeta, finalizer)
+	if err := bh.kube.Update(ctx, bh.object); err != nil {
+		return resultRequeue, err
+	}
 
 	if err := bh.Create(ctx, bh.projectID, v1alpha1.CopyBucketSpecAttrs(&bh.object.Spec.BucketSpecAttrs)); err != nil {
 		bh.object.Status.SetFailed(failedToCreate, err.Error())
@@ -290,7 +301,8 @@ func (bh *bucketCreateUpdater) update(ctx context.Context, attrs *storage.Bucket
 
 	current := v1alpha1.NewBucketUpdatableAttrs(attrs)
 	if reflect.DeepEqual(*current, bh.object.Spec.BucketUpdatableAttrs) {
-		return requeueOnSuccess, nil
+		return reconcile.Result{}, nil
+		//return requeueOnSuccess, nil
 	}
 
 	attrs, err := bh.Update(ctx, v1alpha1.CopyToBucketUpdateAttrs(bh.object.Spec.BucketUpdatableAttrs, attrs.Labels))
@@ -305,5 +317,6 @@ func (bh *bucketCreateUpdater) update(ctx context.Context, attrs *storage.Bucket
 		return resultRequeue, err
 	}
 
-	return requeueOnSuccess, bh.kube.Status().Update(ctx, bh.object)
+	return reconcile.Result{}, bh.kube.Status().Update(ctx, bh.object)
+	//return requeueOnSuccess, bh.kube.Status().Update(ctx, bh.object)
 }
