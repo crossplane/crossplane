@@ -22,6 +22,7 @@ import (
 	"net/url"
 
 	"github.com/Azure/azure-storage-blob-go/azblob"
+
 	"github.com/crossplaneio/crossplane/pkg/clients/azure"
 )
 
