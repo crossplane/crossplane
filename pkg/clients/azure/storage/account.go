@@ -60,7 +60,7 @@ type AccountOperations interface {
 	Update(context.Context, storage.AccountUpdateParameters) (*storage.Account, error)
 	Get(ctx context.Context) (*storage.Account, error)
 	Delete(ctx context.Context) error
-	IsAccountNameAvailable(context.Context, string) (bool, error)
+	IsAccountNameAvailable(context.Context, string) error
 	ListKeys(context.Context) ([]storage.AccountKey, error)
 	Container(context.Context, string) (ContainerOperations, error)
 }
@@ -85,10 +85,8 @@ func NewAccountHandle(client *storage.AccountsClient, groupName, accountName str
 
 // Create create new storage account with given location
 func (a *AccountHandle) Create(ctx context.Context, params storage.AccountCreateParameters) (*storage.Account, error) {
-	if ok, err := a.IsAccountNameAvailable(ctx, a.accountName); err != nil {
+	if err := a.IsAccountNameAvailable(ctx, a.accountName); err != nil {
 		return nil, errors.Wrapf(err, "failed to check account name availability")
-	} else if !ok {
-		return nil, errors.Errorf("account name: %s is not available", a.accountName)
 	}
 
 	future, err := a.client.Create(ctx, a.groupName, a.accountName, params)
@@ -133,7 +131,7 @@ func (a *AccountHandle) Delete(ctx context.Context) error {
 }
 
 // IsAccountNameAvailable checks if AccountHandle name is not being used (Azure requires unique storage account names)
-func (a *AccountHandle) IsAccountNameAvailable(ctx context.Context, name string) (bool, error) {
+func (a *AccountHandle) IsAccountNameAvailable(ctx context.Context, name string) error {
 	result, err := a.client.CheckNameAvailability(
 		ctx,
 		storage.AccountCheckNameAvailabilityParameters{
@@ -141,10 +139,14 @@ func (a *AccountHandle) IsAccountNameAvailable(ctx context.Context, name string)
 			Type: to.StringPtr("Microsoft.Storage/storageAccounts"),
 		})
 	if err != nil {
-		return false, err
+		return err
 	}
 
-	return result.NameAvailable != nil && *result.NameAvailable, nil
+	if result.NameAvailable == nil || !*result.NameAvailable {
+		return errors.Errorf("%s - %s", result.Reason, to.String(result.Message))
+	}
+
+	return nil
 }
 
 // ListKeys for this storage account

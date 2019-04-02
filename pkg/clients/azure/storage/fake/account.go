@@ -28,10 +28,12 @@ type MockAccountOperations struct {
 	MockUpdate                 func(context.Context, storage.AccountUpdateParameters) (*storage.Account, error)
 	MockGet                    func(ctx context.Context) (*storage.Account, error)
 	MockDelete                 func(ctx context.Context) error
-	MockIsAccountNameAvailable func(context.Context, string) (bool, error)
+	MockIsAccountNameAvailable func(context.Context, string) error
 	MockListKeys               func(context.Context) ([]storage.AccountKey, error)
 	MockContainer              func(context.Context, string) (azurestorage.ContainerOperations, error)
 }
+
+var _ azurestorage.AccountOperations = &MockAccountOperations{}
 
 func NewMockAccountOperations() *MockAccountOperations {
 	return &MockAccountOperations{
@@ -47,8 +49,8 @@ func NewMockAccountOperations() *MockAccountOperations {
 		MockDelete: func(ctx context.Context) error {
 			return nil
 		},
-		MockIsAccountNameAvailable: func(i context.Context, s string) (b bool, e error) {
-			return false, nil
+		MockIsAccountNameAvailable: func(i context.Context, s string) error {
+			return nil
 		},
 		MockListKeys: func(i context.Context) ([]storage.AccountKey, error) {
 			return nil, nil
@@ -75,7 +77,7 @@ func (m *MockAccountOperations) Delete(ctx context.Context) error {
 	return m.MockDelete(ctx)
 }
 
-func (m *MockAccountOperations) IsAccountNameAvailable(ctx context.Context, name string) (bool, error) {
+func (m *MockAccountOperations) IsAccountNameAvailable(ctx context.Context, name string) error {
 	return m.MockIsAccountNameAvailable(ctx, name)
 }
 
