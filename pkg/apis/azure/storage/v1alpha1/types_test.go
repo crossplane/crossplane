@@ -60,11 +60,12 @@ func TestMain(m *testing.M) {
 	t.StopAndExit(m.Run())
 }
 
-func TestStorageAzureBucket(t *testing.T) {
+func TestAzureStorageAccount(t *testing.T) {
 	key := types.NamespacedName{Name: name, Namespace: namespace}
 	created := &Account{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
 		Spec: AccountSpec{
+			ResourceGroupName:  "test-group",
 			StorageAccountName: "test-name",
 			StorageAccountSpec: &StorageAccountSpec{},
 		},

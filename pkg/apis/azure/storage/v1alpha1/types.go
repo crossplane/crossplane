@@ -28,10 +28,11 @@ import (
 
 // AccountSpec defines the desired state of StorageAccountStatus
 type AccountSpec struct {
-	// GroupName azure group name
-	GroupName string `json:"groupName"`
+	// ResourceGroupName azure group name
+	ResourceGroupName string `json:"resourceGroupName"`
 
 	// StorageAccountName for azure blob storage
+	// +kubebuilder:validation:MaxLength=24
 	StorageAccountName string `json:"storageAccountName"`
 
 	// StorageAccountSpec the parameters used when creating a storage account.
@@ -62,7 +63,12 @@ type AccountStatus struct {
 
 // Account is the Schema for the Account API
 // +k8s:openapi-gen=true
-// +groupName=storage.azure
+// +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="RESOURCE_GROUP",type="string",JSONPath=".spec.resourceGroupName"
+// +kubebuilder:printcolumn:name="ACCOUNT_NAME",type="string",JSONPath=".spec.storageAccountName"
+// +kubebuilder:printcolumn:name="CLASS",type="string",JSONPath=".spec.classRef.name"
+// +kubebuilder:printcolumn:name="RECLAIM_POLICY",type="string",JSONPath=".spec.reclaimPolicy"
+// +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 type Account struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -92,11 +98,7 @@ func (a *Account) ConnectionSecret() *corev1.Secret {
 			Name:            a.ConnectionSecretName(),
 			OwnerReferences: []metav1.OwnerReference{a.OwnerReference()},
 		},
-		Data: map[string][]byte{
-			//corev1alpha1.ResourceCredentialsSecretUserKey:     []byte("user"),
-			//corev1alpha1.ResourceCredentialsSecretPasswordKey: []byte("pass"),
-			//corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(a.GetUID()),
-		},
+		Data: map[string][]byte{},
 	}
 }
 
