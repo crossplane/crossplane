@@ -7,8 +7,11 @@ metadata:
   name: cloudsqlinstances.database.gcp.crossplane.io
 spec:
   additionalPrinterColumns:
-  - JSONPath: .status.state
+  - JSONPath: .status.bindingPhase
     name: STATUS
+    type: string
+  - JSONPath: .status.state
+    name: STATE
     type: string
   - JSONPath: .spec.classRef.name
     name: CLASS

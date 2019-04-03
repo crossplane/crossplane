@@ -6,6 +6,13 @@ metadata:
     controller-tools.k8s.io: "1.0"
   name: providers.gcp.crossplane.io
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .spec.projectID
+    name: PROJECT-ID
+    type: string
+  - JSONPath: .metadata.creationTimestamp
+    name: AGE
+    type: date
   group: gcp.crossplane.io
   names:
     kind: Provider

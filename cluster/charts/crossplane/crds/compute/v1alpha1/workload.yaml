@@ -10,7 +10,7 @@ spec:
   - JSONPath: .status.state
     name: STATUS
     type: string
-  - JSONPath: .spec.targetCluster.name
+  - JSONPath: .status.clusterRef.name
     name: CLUSTER
     type: string
   - JSONPath: .spec.targetNamespace

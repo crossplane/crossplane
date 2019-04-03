@@ -319,7 +319,7 @@ func (r *Reconciler) _create(instance *computev1alpha1.Workload, client kubernet
 	instance.Status.State = computev1alpha1.WorkloadStateCreating
 
 	// update instance
-	return resultDone, r.Update(ctx, instance)
+	return resultDone, r.Status().Update(ctx, instance)
 }
 
 // _sync Workload status

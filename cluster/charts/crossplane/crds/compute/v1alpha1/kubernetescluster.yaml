@@ -11,9 +11,6 @@ spec:
     name: STATUS
     type: string
   - JSONPath: .spec.classReference.name
-    name: CLASS
-    type: string
-  - JSONPath: .spec.classReference.name
     name: CLUSTER-CLASS
     type: string
   - JSONPath: .spec.resourceName.name

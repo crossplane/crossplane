@@ -41,7 +41,6 @@ type KubernetesClusterSpec struct {
 // KubernetesCluster is the Schema for the instances API
 // +k8s:openapi-gen=true
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.bindingPhase"
-// +kubebuilder:printcolumn:name="CLASS",type="string",JSONPath=".spec.classReference.name"
 // +kubebuilder:printcolumn:name="CLUSTER-CLASS",type="string",JSONPath=".spec.classReference.name"
 // +kubebuilder:printcolumn:name="CLUSTER-REF",type="string",JSONPath=".spec.resourceName.name"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
@@ -154,7 +153,7 @@ type WorkloadStatus struct {
 // +k8s:openapi-gen=true
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.state"
-// +kubebuilder:printcolumn:name="CLUSTER",type="string",JSONPath=".spec.targetCluster.name"
+// +kubebuilder:printcolumn:name="CLUSTER",type="string",JSONPath=".status.clusterRef.name"
 // +kubebuilder:printcolumn:name="NAMESPACE",type="string",JSONPath=".spec.targetNamespace"
 // +kubebuilder:printcolumn:name="DEPLOYMENT",type="string",JSONPath=".spec.targetDeployment.metadata.name"
 // +kubebuilder:printcolumn:name="SERVICE-EXTERNAL-IP",type="string",JSONPath=".status.service.loadBalancer.ingress[0].ip"
