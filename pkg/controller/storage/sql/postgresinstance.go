@@ -17,8 +17,6 @@ limitations under the License.
 package sql
 
 import (
-	"log"
-
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -27,6 +25,7 @@ import (
 
 	storagev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
 	corecontroller "github.com/crossplaneio/crossplane/pkg/controller/core"
+	"github.com/crossplaneio/crossplane/pkg/logging"
 )
 
 const (
@@ -73,7 +72,7 @@ func addPostgreSQL(mgr manager.Manager, r reconcile.Reconciler) error {
 // Reconcile reads that state of the cluster for a PostgreSQLInstance object and makes changes based on the state read
 // and what is in the Instance.Spec
 func (r *PostgreSQLReconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	log.Printf("reconciling %s: %v", storagev1alpha1.PostgreSQLInstanceKindAPIVersion, request)
+	log.V(logging.Debug).Info("reconciling", "kind", storagev1alpha1.PostgreSQLInstanceKindAPIVersion, "request", request)
 
 	// fetch the CRD instance
 	instance := &storagev1alpha1.PostgreSQLInstance{}

@@ -17,8 +17,6 @@ limitations under the License.
 package redis
 
 import (
-	"log"
-
 	"github.com/pkg/errors"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -29,12 +27,15 @@ import (
 
 	cachev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/cache/v1alpha1"
 	corecontroller "github.com/crossplaneio/crossplane/pkg/controller/core"
+	"github.com/crossplaneio/crossplane/pkg/logging"
 )
 
 const (
 	controllerName = "redisclusters.cache.crossplane.io"
 	finalizerName  = "finalizer." + controllerName
 )
+
+var log = logging.Logger.WithName("controller." + controllerName)
 
 // Reconciler is the reconciler for RedisCluster objects
 type Reconciler struct {
@@ -55,7 +56,7 @@ func AddCluster(mgr manager.Manager) error {
 
 // Reconcile the desired with the actual state of a RedisCluster.
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	log.Printf("reconciling %s: %v", cachev1alpha1.RedisClusterKindAPIVersion, request)
+	log.V(logging.Debug).Info("reconciling", "kind", cachev1alpha1.RedisClusterKindAPIVersion, "request", request)
 
 	c := &cachev1alpha1.RedisCluster{}
 	if err := r.Get(ctx, request.NamespacedName, c); err != nil {

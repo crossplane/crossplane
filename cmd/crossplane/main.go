@@ -17,22 +17,43 @@ limitations under the License.
 package main
 
 import (
-	"log"
+	"os"
+	"path/filepath"
 	"time"
 
+	"gopkg.in/alecthomas/kingpin.v2"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	runtimelog "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"sigs.k8s.io/controller-runtime/pkg/runtime/signals"
 
 	"github.com/crossplaneio/crossplane/pkg/apis"
 	"github.com/crossplaneio/crossplane/pkg/controller"
+	"github.com/crossplaneio/crossplane/pkg/logging"
 )
 
 func main() {
+	var (
+		log = logging.Logger
+
+		app   = kingpin.New(filepath.Base(os.Args[0]), "An open source multicloud control plane.").DefaultEnvars()
+		debug = app.Flag("debug", "Run with debug logging.").Short('d').Bool()
+	)
+	kingpin.MustParse(app.Parse(os.Args[1:]))
+
+	zl := runtimelog.ZapLogger(*debug)
+	logging.SetLogger(zl)
+	if *debug {
+		// The controller-runtime runs with a no-op logger by default. It is
+		// *very* verbose even at info level, so we only provide it a real
+		// logger when we're running in debug mode.
+		runtimelog.SetLogger(zl)
+	}
+
 	// Get a config to talk to the apiserver
 	cfg, err := config.GetConfig()
 	if err != nil {
-		log.Fatal(err)
+		kingpin.FatalIfError(err, "Cannot get config")
 	}
 
 	// Re-sync resources every minutes
@@ -42,25 +63,25 @@ func main() {
 	// Create a new Cmd to provide shared dependencies and start components
 	mgr, err := manager.New(cfg, manager.Options{SyncPeriod: &syncPeriod})
 	if err != nil {
-		log.Fatal(err)
+		kingpin.FatalIfError(err, "Cannot create manager")
 	}
 
-	log.Printf("Adding schemes")
+	log.Info("Adding schemes")
 
 	// Setup Scheme for all resources
 	if err := apis.AddToScheme(mgr.GetScheme()); err != nil {
-		log.Fatal(err)
+		kingpin.FatalIfError(err, "Cannot add APIs to scheme")
 	}
 
-	log.Printf("Adding controllers")
+	log.Info("Adding controllers")
 
 	// Setup all Controllers
 	if err := controller.AddToManager(mgr); err != nil {
-		log.Fatal(err)
+		kingpin.FatalIfError(err, "Cannot add controllers to manager")
 	}
 
-	log.Printf("Starting the manager")
+	log.Info("Starting the manager")
 
 	// Start the Cmd
-	log.Fatal(mgr.Start(signals.SetupSignalHandler()))
+	kingpin.FatalIfError(mgr.Start(signals.SetupSignalHandler()), "Cannot start controller")
 }

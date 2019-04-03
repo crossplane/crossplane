@@ -18,7 +18,6 @@ package compute
 
 import (
 	"context"
-	"log"
 	"testing"
 
 	"github.com/Azure/azure-sdk-for-go/services/containerservice/mgmt/2018-03-31/containerservice"
@@ -189,7 +188,7 @@ func TestReconcile(t *testing.T) {
 	instance := testInstance(provider)
 	err = c.Create(ctx, instance)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
-	defer cleanupAKSCluster(g, c, requests, instance)
+	defer cleanupAKSCluster(t, g, c, requests, instance)
 
 	// first reconcile loop should start the create operation
 	g.Eventually(requests, timeout).Should(gomega.Receive(gomega.Equal(expectedRequest)))
@@ -285,17 +284,17 @@ func TestReconcile(t *testing.T) {
 	g.Expect(instance.Finalizers[0]).To(gomega.Equal(finalizer))
 
 	// test deletion of the instance
-	cleanupAKSCluster(g, c, requests, instance)
+	cleanupAKSCluster(t, g, c, requests, instance)
 }
 
-func cleanupAKSCluster(g *gomega.GomegaWithT, c client.Client, requests chan reconcile.Request, instance *computev1alpha1.AKSCluster) {
+func cleanupAKSCluster(t *testing.T, g *gomega.GomegaWithT, c client.Client, requests chan reconcile.Request, instance *computev1alpha1.AKSCluster) {
 	deletedInstance := &computev1alpha1.AKSCluster{}
 	if err := c.Get(ctx, expectedRequest.NamespacedName, deletedInstance); errors.IsNotFound(err) {
 		// instance has already been deleted, bail out
 		return
 	}
 
-	log.Printf("cleaning up AKS cluster instance %s by deleting the CRD", instance.Name)
+	t.Logf("cleaning up AKS cluster instance %s by deleting the CRD", instance.Name)
 	err := c.Delete(ctx, instance)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 

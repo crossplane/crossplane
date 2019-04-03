@@ -18,7 +18,6 @@ package database
 
 import (
 	"fmt"
-	"log"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	apitypes "k8s.io/apimachinery/pkg/types"
@@ -31,10 +30,11 @@ import (
 
 	azuredbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/database/v1alpha1"
 	azureclients "github.com/crossplaneio/crossplane/pkg/clients/azure"
+	"github.com/crossplaneio/crossplane/pkg/logging"
 )
 
 const (
-	postgresqlFinalizer = "finalizer.postgresqlservers.database.azure.crossplane.io"
+	postgresqlFinalizer = "finalizer.postgresqlservers." + controllerName
 )
 
 // AddPostgreSQLServer creates a new PostgreSQLServer Controller and adds it to the Manager with default RBAC.
@@ -69,7 +69,7 @@ func newPostgreSQLServerReconciler(mgr manager.Manager, sqlServerAPIFactory azur
 // addPostgreSQLServerReconciler adds a new Controller to mgr with r as the reconcile.Reconciler
 func addPostgreSQLServerReconciler(mgr manager.Manager, r reconcile.Reconciler) error {
 	// Create a new controller
-	c, err := controller.New("PostgreSQLServer-controller", mgr, controller.Options{Reconciler: r})
+	c, err := controller.New("postgresqlservers."+controllerName, mgr, controller.Options{Reconciler: r})
 	if err != nil {
 		return err
 	}
@@ -91,7 +91,7 @@ type PostgreSQLReconciler struct {
 // Reconcile reads that state of the cluster for a PostgreSQLServer object and makes changes based on the state read
 // and what is in the PostgreSQLServer.Spec
 func (r *PostgreSQLReconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	log.Printf("reconciling %s: %v", azuredbv1alpha1.PostgresqlServerKindAPIVersion, request)
+	log.V(logging.Debug).Info("reconciling", "kind", azuredbv1alpha1.PostgresqlServerKindAPIVersion, "request", request)
 	instance := &azuredbv1alpha1.PostgresqlServer{}
 
 	// Fetch the PostgresqlServer instance
@@ -102,8 +102,7 @@ func (r *PostgreSQLReconciler) Reconcile(request reconcile.Request) (reconcile.R
 			// For additional cleanup logic use finalizers.
 			return reconcile.Result{}, nil
 		}
-		// Error reading the object - requeue the request.
-		log.Printf("failed to get object at start of reconcile loop: %+v", err)
+		log.Error(err, "failed to get object at start of reconcile loop")
 		return reconcile.Result{}, err
 	}
 

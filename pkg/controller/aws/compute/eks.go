@@ -20,7 +20,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/ghodss/yaml"
@@ -46,6 +45,7 @@ import (
 	awsClient "github.com/crossplaneio/crossplane/pkg/clients/aws"
 	cloudformationclient "github.com/crossplaneio/crossplane/pkg/clients/aws/cloudformation"
 	"github.com/crossplaneio/crossplane/pkg/clients/aws/eks"
+	"github.com/crossplaneio/crossplane/pkg/logging"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
@@ -64,6 +64,7 @@ const (
 )
 
 var (
+	log           = logging.Logger.WithName("controller." + controllerName)
 	ctx           = context.Background()
 	result        = reconcile.Result{}
 	resultRequeue = reconcile.Result{Requeue: true}
@@ -373,7 +374,7 @@ func (r *Reconciler) _delete(instance *awscomputev1alpha1.EKSCluster, client eks
 // Reconcile reads that state of the cluster for a Provider object and makes changes based on the state read
 // and what is in the Provider.Spec
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	log.Printf("reconciling %s: %v", awscomputev1alpha1.EKSClusterKindAPIVersion, request)
+	log.V(logging.Debug).Info("reconciling", "kind", awscomputev1alpha1.EKSClusterKindAPIVersion, "request", request)
 	// Fetch the Provider instance
 	instance := &awscomputev1alpha1.EKSCluster{}
 	err := r.Get(ctx, request.NamespacedName, instance)

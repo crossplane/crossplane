@@ -18,7 +18,6 @@ package scheduler
 
 import (
 	"context"
-	"log"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -34,6 +33,7 @@ import (
 
 	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/compute/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/logging"
 )
 
 const (
@@ -43,6 +43,7 @@ const (
 )
 
 var (
+	log           = logging.Logger.WithName("controller." + controllerName)
 	ctx           = context.Background()
 	resultDone    = reconcile.Result{}
 	resultRequeue = reconcile.Result{Requeue: true}
@@ -98,7 +99,6 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 // fail - helper function to set fail condition with reason and message
 func (r *Reconciler) fail(instance *computev1alpha1.Workload, reason, msg string) (reconcile.Result, error) {
-	log.Printf("%s: %s", reason, msg)
 	instance.Status.SetCondition(corev1alpha1.NewCondition(corev1alpha1.Failed, reason, msg))
 	return resultRequeue, r.Status().Update(ctx, instance)
 }
@@ -131,7 +131,7 @@ func (r *Reconciler) _schedule(instance *computev1alpha1.Workload) (reconcile.Re
 // Reconcile reads that state of the cluster for a Instance object and makes changes based on the state read
 // and what is in the Instance.Spec
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	log.Printf("reconciling %s: %v", computev1alpha1.WorkloadKindAPIVersion, request)
+	log.V(logging.Debug).Info("reconciling", "kind", computev1alpha1.WorkloadKindAPIVersion, "request", request)
 	// fetch the CRD instance
 	instance := &computev1alpha1.Workload{}
 

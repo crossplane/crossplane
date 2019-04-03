@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"testing"
 
@@ -52,16 +51,16 @@ func TestCredentialsFromFile(t *testing.T) {
 
 	tmpfile, err := ioutil.TempFile("", "test")
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 
 	defer os.Remove(tmpfile.Name()) // clean up
 
 	if _, err := tmpfile.Write([]byte(fmt.Sprintf(content, projectID, privateKeyID, privateKeyValue, clientEmail, clientID, clientCertURL))); err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 	if err := tmpfile.Close(); err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 
 	testScope := "https://www.googleapis.com/auth/test-scope"

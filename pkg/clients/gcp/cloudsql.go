@@ -18,7 +18,6 @@ package gcp
 
 import (
 	"fmt"
-	"log"
 	"time"
 
 	sqladmin "google.golang.org/api/sqladmin/v1beta4"
@@ -123,7 +122,7 @@ func WaitUntilOperationCompletes(operationID string, provider *gcpv1alpha1.Provi
 	for i := 0; i <= maxRetries; i++ {
 		op, err = cloudSQLClient.GetOperation(provider.Spec.ProjectID, operationID)
 		if err != nil {
-			log.Printf("failed to get cloud sql operation %s, waiting %v: %+v", operationID, waitTime, err)
+			log.Error(err, "failed to get cloud sql operation", "operation", operationID, "waitTime", waitTime)
 		} else if IsOperationComplete(op) {
 			// the operation has completed, simply return it
 			return op, nil

@@ -18,7 +18,6 @@ package bucket
 
 import (
 	"context"
-	"log"
 
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -29,6 +28,7 @@ import (
 	awsbucketv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/storage/v1alpha1"
 	bucketv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
 	corecontroller "github.com/crossplaneio/crossplane/pkg/controller/core"
+	"github.com/crossplaneio/crossplane/pkg/logging"
 )
 
 const (
@@ -37,6 +37,7 @@ const (
 )
 
 var (
+	log = logging.Logger.WithName("controller." + controllerName)
 	ctx = context.Background()
 
 	// map of supported resource handlers
@@ -84,7 +85,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 // Reconcile reads that state of the cluster for a Instance object and makes changes based on the state read
 // and what is in the Instance.Spec
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	log.Printf("reconciling %s: %v", bucketv1alpha1.BucketKindAPIVersion, request)
+	log.V(logging.Debug).Info("reconciling", "kind", bucketv1alpha1.BucketKindAPIVersion, "request", request)
 
 	// fetch the CRD instance
 	instance := &bucketv1alpha1.Bucket{}

@@ -18,7 +18,6 @@ package provider
 
 import (
 	"context"
-	"log"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/go-ini/ini"
@@ -35,6 +34,7 @@ import (
 
 	awsv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/v1alpha1"
 	awsclient "github.com/crossplaneio/crossplane/pkg/clients/aws"
+	"github.com/crossplaneio/crossplane/pkg/logging"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
@@ -45,6 +45,7 @@ const (
 )
 
 var (
+	log           = logging.Logger.WithName("controller." + controllerName)
 	ctx           = context.Background()
 	result        = reconcile.Result{}
 	resultRequeue = reconcile.Result{Requeue: true}
@@ -112,7 +113,7 @@ func (r *Reconciler) _validate(config *aws.Config) error {
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=aws.crossplane.io,resources=provider,verbs=get;list;watch;create;update;patch;delete
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	log.Printf("reconciling %s: %v", awsv1alpha1.ProviderKindAPIVersion, request)
+	log.V(logging.Debug).Info("reconciling", "kind", awsv1alpha1.ProviderKindAPIVersion, "request", request)
 	// Fetch the Provider instance
 	instance := &awsv1alpha1.Provider{}
 	err := r.Get(ctx, request.NamespacedName, instance)

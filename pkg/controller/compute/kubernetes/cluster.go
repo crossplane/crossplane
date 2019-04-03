@@ -18,7 +18,6 @@ package kubernetes
 
 import (
 	"context"
-	"log"
 
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -31,6 +30,7 @@ import (
 	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/compute/v1alpha1"
 	gcpcomputev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/compute/v1alpha1"
 	corecontroller "github.com/crossplaneio/crossplane/pkg/controller/core"
+	"github.com/crossplaneio/crossplane/pkg/logging"
 )
 
 const (
@@ -40,6 +40,7 @@ const (
 
 var (
 	ctx = context.Background()
+	log = logging.Logger.WithName("controller." + controllerName)
 
 	// map of supported resource handlers
 	handlers = map[string]corecontroller.ResourceHandler{
@@ -88,7 +89,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 // Reconcile reads that state of the cluster for a Instance object and makes changes based on the state read
 // and what is in the Instance.Spec
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	log.Printf("reconciling %s: %v", computev1alpha1.KubernetesInstanceKindAPIVersion, request)
+	log.V(logging.Debug).Info("reconciling", "kind", computev1alpha1.KubernetesInstanceKindAPIVersion, "request", request)
 
 	// fetch the CRD instance
 	instance := &computev1alpha1.KubernetesCluster{}

@@ -18,7 +18,6 @@ package database
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"testing"
 
@@ -173,7 +172,7 @@ func TestReconcile(t *testing.T) {
 	instance := testInstance(provider)
 	err = c.Create(ctx, instance)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
-	defer cleanupSQLServer(g, c, requests, instance)
+	defer cleanupSQLServer(t, g, c, requests, instance)
 
 	// 1st reconcile loop should start the create operation
 	g.Eventually(requests, timeout).Should(gomega.Receive(gomega.Equal(expectedRequest)))
@@ -247,17 +246,17 @@ func TestReconcile(t *testing.T) {
 	g.Expect(instance.Finalizers[0]).To(gomega.Equal(mysqlFinalizer))
 
 	// test deletion of the instance
-	cleanupSQLServer(g, c, requests, instance)
+	cleanupSQLServer(t, g, c, requests, instance)
 }
 
-func cleanupSQLServer(g *gomega.GomegaWithT, c client.Client, requests chan reconcile.Request, instance *azuredbv1alpha1.MysqlServer) {
+func cleanupSQLServer(t *testing.T, g *gomega.GomegaWithT, c client.Client, requests chan reconcile.Request, instance *azuredbv1alpha1.MysqlServer) {
 	deletedInstance := &azuredbv1alpha1.MysqlServer{}
 	if err := c.Get(ctx, expectedRequest.NamespacedName, deletedInstance); errors.IsNotFound(err) {
 		// instance has already been deleted, bail out
 		return
 	}
 
-	log.Printf("cleaning up SQL Server instance %s by deleting the CRD", instance.Name)
+	t.Logf("cleaning up SQL Server instance %s by deleting the CRD", instance.Name)
 	err := c.Delete(ctx, instance)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
