@@ -24,6 +24,7 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	azureclient "github.com/crossplaneio/crossplane/pkg/clients/azure"
+	rgclient "github.com/crossplaneio/crossplane/pkg/clients/azure/resourcegroup"
 	"github.com/crossplaneio/crossplane/pkg/util"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -121,7 +122,7 @@ func (r *ResourceGroupReconciler) _connect(instance *v1alpha1.ResourceGroup) (*a
 }
 
 func (r *ResourceGroupReconciler) _create(instance *v1alpha1.ResourceGroup, client *azureclient.Client) (reconcile.Result, error) {
-	if err := azureclient.CreateOrUpdateGroup(client, instance.Spec.Name, instance.Spec.Location); err != nil {
+	if err := rgclient.CreateOrUpdateGroup(client, instance.Spec.Name, instance.Spec.Location); err != nil {
 		return r.fail(instance, errorCreatingClientRG, err.Error())
 	}
 
@@ -133,10 +134,9 @@ func (r *ResourceGroupReconciler) _create(instance *v1alpha1.ResourceGroup, clie
 }
 
 func (r *ResourceGroupReconciler) _sync(instance *v1alpha1.ResourceGroup, client *azureclient.Client) (reconcile.Result, error) {
-	if exists, err := azureclient.CheckExistence(client, instance.Spec.Name, instance.Spec.Location); err != nil || exists == false {
+	if exists, err := rgclient.CheckExistence(client, instance.Spec.Name, instance.Spec.Location); err != nil || exists == false {
 		return r.fail(instance, errorSyncResourceGroup, err.Error())
 	}
-
 	if !instance.Status.IsReady() {
 		instance.Status.UnsetAllConditions()
 		instance.Status.SetReady()
@@ -146,7 +146,7 @@ func (r *ResourceGroupReconciler) _sync(instance *v1alpha1.ResourceGroup, client
 }
 
 func (r *ResourceGroupReconciler) _delete(instance *v1alpha1.ResourceGroup, client *azureclient.Client) (reconcile.Result, error) {
-	deleteFuture, err := azureclient.DeleteGroup(client, instance.Spec.Name, instance.Spec.Name)
+	deleteFuture, err := rgclient.DeleteGroup(client, instance.Spec.Name, instance.Spec.Name)
 	if err != nil && !azureclient.IsNotFound(err) {
 		return r.fail(instance, errorDeletingClientRG, fmt.Sprintf("failed to delete resource group %s: %+v", instance.Name, err))
 	}
