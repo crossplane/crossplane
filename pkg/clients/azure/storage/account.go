@@ -62,7 +62,6 @@ type AccountOperations interface {
 	Delete(ctx context.Context) error
 	IsAccountNameAvailable(context.Context, string) error
 	ListKeys(context.Context) ([]storage.AccountKey, error)
-	Container(context.Context, string) (ContainerOperations, error)
 }
 
 // AccountHandle implements AccountOperations interface
@@ -157,17 +156,4 @@ func (a *AccountHandle) ListKeys(ctx context.Context) ([]storage.AccountKey, err
 	}
 
 	return *rs.Keys, nil
-}
-
-// Container creates a container handle for container (bucket) resource under this account
-func (a *AccountHandle) Container(ctx context.Context, containerName string) (ContainerOperations, error) {
-	keys, err := a.ListKeys(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if len(keys) == 0 {
-		return nil, errors.Errorf("keys not found for group: %s, account: %s", a.groupName, a.accountName)
-	}
-
-	return NewContainerHandle(a.accountName, *keys[0].Value, containerName)
 }

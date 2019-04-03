@@ -102,6 +102,7 @@ func emtpyMetaToNil(m azblob.Metadata) azblob.Metadata {
 	return m
 }
 
+// IsNotFoundError tests for azblob not found error
 func IsNotFoundError(err error) bool {
 	storageErr, ok := err.(azblob.StorageError)
 	if !ok {

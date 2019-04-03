@@ -17,12 +17,13 @@ limitations under the License.
 package azure
 
 import (
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+
 	"github.com/crossplaneio/crossplane/pkg/controller/azure/cache"
 	"github.com/crossplaneio/crossplane/pkg/controller/azure/compute"
 	"github.com/crossplaneio/crossplane/pkg/controller/azure/database"
 	"github.com/crossplaneio/crossplane/pkg/controller/azure/provider"
 	"github.com/crossplaneio/crossplane/pkg/controller/azure/storage"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
 func init() {

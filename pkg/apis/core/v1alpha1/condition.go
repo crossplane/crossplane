@@ -178,6 +178,7 @@ func NewCondition(condType ConditionType, reason, msg string) Condition {
 	}
 }
 
+// NewReadyCondition sets and activates Ready status condition
 func NewReadyCondition() Condition {
 	return NewCondition(Ready, "", "")
 }

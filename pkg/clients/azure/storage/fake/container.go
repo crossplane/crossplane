@@ -24,6 +24,7 @@ import (
 	azurestorage "github.com/crossplaneio/crossplane/pkg/clients/azure/storage"
 )
 
+// MockContainerOperations mock implementation of ContainerOperations
 type MockContainerOperations struct {
 	MockCreate func(context.Context, azblob.PublicAccessType, azblob.Metadata) error
 	MockUpdate func(context.Context, azblob.PublicAccessType, azblob.Metadata) error
@@ -33,6 +34,7 @@ type MockContainerOperations struct {
 
 var _ azurestorage.ContainerOperations = &MockContainerOperations{}
 
+// NewMockContainerOperations create new mock instance with default mocks
 func NewMockContainerOperations() *MockContainerOperations {
 	return &MockContainerOperations{
 		MockCreate: func(ctx context.Context, pat azblob.PublicAccessType, meta azblob.Metadata) error {
@@ -50,22 +52,27 @@ func NewMockContainerOperations() *MockContainerOperations {
 	}
 }
 
+// Create mock create function
 func (m *MockContainerOperations) Create(ctx context.Context, pat azblob.PublicAccessType, meta azblob.Metadata) error {
 	return m.MockCreate(ctx, pat, meta)
 }
 
+// Update mock update function
 func (m *MockContainerOperations) Update(ctx context.Context, pat azblob.PublicAccessType, meta azblob.Metadata) error {
 	return m.MockUpdate(ctx, pat, meta)
 }
 
+// Get mock get function
 func (m *MockContainerOperations) Get(ctx context.Context) (*azblob.PublicAccessType, azblob.Metadata, error) {
 	return m.MockGet(ctx)
 }
 
+// Delete mock delete function
 func (m *MockContainerOperations) Delete(ctx context.Context) error {
 	return m.MockDelete(ctx)
 }
 
-func PublicAccessType(pab azblob.PublicAccessType) *azblob.PublicAccessType {
+// PublicAccessTypePtr returns pointer of the PublicAccessType value
+func PublicAccessTypePtr(pab azblob.PublicAccessType) *azblob.PublicAccessType {
 	return &pab
 }
