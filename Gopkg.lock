@@ -29,17 +29,6 @@
   version = "v0.2.0"
 
 [[projects]]
-  branch = "master"
-  digest = "1:d22b305e1cfa745e12c38c94fbbcbad61f9869e1e1ecb2c4e25e52a9e30f33c0"
-  name = "github.com/Azure-Samples/azure-sdk-for-go-samples"
-  packages = [
-    "internal/config",
-    "internal/iam",
-  ]
-  pruneopts = "UT"
-  revision = "99517e36d30b13486257d4f4039eb761adc2e34f"
-
-[[projects]]
   digest = "1:d2ccb697dc13c8fbffafa37baae97594d5592ae8f7e113471084137315536e2b"
   name = "github.com/Azure/azure-pipeline-go"
   packages = ["pipeline"]
@@ -414,22 +403,6 @@
   pruneopts = "UT"
   revision = "24b83195037b3bc61fcda2d28b7b0518bce293b6"
   version = "v1.0.4"
-
-[[projects]]
-  digest = "1:c78066b952f7960f7bffeb04d176e1e8d2579bd1e65067fc29f043706f11c4f3"
-  name = "github.com/marstr/collection"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "43f1d00df9bf332cbf8d26c3eecd6c348e92f7b3"
-  version = "v1.0.1"
-
-[[projects]]
-  branch = "master"
-  digest = "1:6688b117d0ac766a6ea0e0238c5eb1f866128d126c3f8a97cd209f301e51d82e"
-  name = "github.com/marstr/randname"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "d5b0f288ab8cfdaa716502900e10405f123dc0cf"
 
 [[projects]]
   digest = "1:ff5ebae34cfbf047d505ee150de27e60570e8c394b3b8fdbb720ff6ac71985fc"
@@ -1290,8 +1263,6 @@
   input-imports = [
     "cloud.google.com/go/redis/apiv1",
     "cloud.google.com/go/storage",
-    "github.com/Azure-Samples/azure-sdk-for-go-samples/internal/config",
-    "github.com/Azure-Samples/azure-sdk-for-go-samples/internal/iam",
     "github.com/Azure/azure-sdk-for-go/profiles/latest/redis/mgmt/redis/redisapi",
     "github.com/Azure/azure-sdk-for-go/services/containerservice/mgmt/2018-03-31/containerservice",
     "github.com/Azure/azure-sdk-for-go/services/graphrbac/1.6/graphrbac",

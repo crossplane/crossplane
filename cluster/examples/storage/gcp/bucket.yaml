@@ -1,0 +1,14 @@
+apiVersion: storage.gcp.crossplane.io/v1alpha1
+kind: Bucket
+metadata:
+  name: demo-bucket
+  namespace: crossplane-system
+spec:
+  labels:
+    provisioner: crossplane
+  location: ASIA
+  providerRef:
+    name: demo-gcp
+  reclaimPolicy: Delete
+  requesterPays: true
+  storageClass: MULTI_REGIONAL
