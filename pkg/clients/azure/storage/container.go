@@ -19,6 +19,7 @@ package storage
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"net/url"
 
 	"github.com/Azure/azure-storage-blob-go/azblob"
@@ -28,10 +29,10 @@ import (
 
 // ContainerOperations interface to perform operations on Container resources
 type ContainerOperations interface {
-	Create(ctx context.Context, metadata azblob.Metadata, publicAccessType azblob.PublicAccessType) error
-	Update(ctx context.Context, metadata azblob.Metadata, publicAccessType azblob.PublicAccessType) error
-	Get(ctx context.Context) (azblob.Metadata, azblob.PublicAccessType, error)
-	Delete(ctx context.Context) (*azblob.ContainerDeleteResponse, error)
+	Create(ctx context.Context, publicAccessType azblob.PublicAccessType, metadata azblob.Metadata) error
+	Update(ctx context.Context, publicAccessType azblob.PublicAccessType, metadata azblob.Metadata) error
+	Get(ctx context.Context) (*azblob.PublicAccessType, azblob.Metadata, error)
+	Delete(ctx context.Context) error
 }
 
 // ContainerHandle implements ContainerOperations
@@ -64,14 +65,13 @@ func NewContainerHandle(accountName, accountKey, containerName string) (*Contain
 }
 
 // Create container resource
-func (a *ContainerHandle) Create(ctx context.Context, metadata azblob.Metadata, publicAccessType azblob.PublicAccessType) error {
+func (a *ContainerHandle) Create(ctx context.Context, publicAccessType azblob.PublicAccessType, metadata azblob.Metadata) error {
 	_, err := a.ContainerURL.Create(ctx, azblob.Metadata{}, publicAccessType)
 	return err
 }
 
 // Update container resource
-func (a *ContainerHandle) Update(ctx context.Context, metadata azblob.Metadata,
-	publicAccessType azblob.PublicAccessType) error {
+func (a *ContainerHandle) Update(ctx context.Context, publicAccessType azblob.PublicAccessType, metadata azblob.Metadata) error {
 	if _, err := a.ContainerURL.SetMetadata(ctx, metadata, azblob.ContainerAccessConditions{}); err != nil {
 		return err
 	}
@@ -80,15 +80,33 @@ func (a *ContainerHandle) Update(ctx context.Context, metadata azblob.Metadata,
 }
 
 // Get resource information
-func (a *ContainerHandle) Get(ctx context.Context) (azblob.Metadata, azblob.PublicAccessType, error) {
+func (a *ContainerHandle) Get(ctx context.Context) (*azblob.PublicAccessType, azblob.Metadata, error) {
 	rs, err := a.ContainerURL.GetProperties(ctx, azblob.LeaseAccessConditions{})
 	if err != nil {
-		return azblob.Metadata{}, azblob.PublicAccessNone, err
+		return nil, nil, err
 	}
-	return rs.NewMetadata(), rs.BlobPublicAccess(), nil
+	publicAccess := rs.BlobPublicAccess()
+	return &publicAccess, emtpyMetaToNil(rs.NewMetadata()), nil
 }
 
 // Delete deletes the named container.
-func (a *ContainerHandle) Delete(ctx context.Context) (*azblob.ContainerDeleteResponse, error) {
-	return a.ContainerURL.Delete(ctx, azblob.ContainerAccessConditions{})
+func (a *ContainerHandle) Delete(ctx context.Context) error {
+	_, err := a.ContainerURL.Delete(ctx, azblob.ContainerAccessConditions{})
+	return err
+}
+
+func emtpyMetaToNil(m azblob.Metadata) azblob.Metadata {
+	if len(m) == 0 {
+		return nil
+	}
+	return m
+}
+
+func IsNotFoundError(err error) bool {
+	storageErr, ok := err.(azblob.StorageError)
+	if !ok {
+		return false
+	}
+
+	return storageErr.Response().StatusCode == http.StatusNotFound
 }
