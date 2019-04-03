@@ -14,16 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package storage
+package account
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"reflect"
 	"time"
-
-	"github.com/go-test/deep"
 
 	"github.com/Azure/azure-sdk-for-go/services/storage/mgmt/2017-06-01/storage"
 	"github.com/Azure/go-autorest/autorest/to"
@@ -221,7 +218,6 @@ func newAccountSyncDeleter(ao azurestorage.AccountOperations, kube client.Client
 
 func (asd *accountSyncDeleter) delete(ctx context.Context) (reconcile.Result, error) {
 	if asd.acct.Spec.ReclaimPolicy == corev1alpha1.ReclaimDelete {
-		log.Printf("deleting: %v", asd.acct)
 		if err := asd.Delete(ctx); err != nil && !azure.IsNotFound(err) {
 			asd.acct.Status.SetFailed(failedToDelete, err.Error())
 			return resultRequeue, asd.kube.Status().Update(ctx, asd.acct)
@@ -234,7 +230,6 @@ func (asd *accountSyncDeleter) delete(ctx context.Context) (reconcile.Result, er
 // sync - synchronizes the state of the storage account resource with the state of the
 // account Kubernetes acct
 func (asd *accountSyncDeleter) sync(ctx context.Context) (reconcile.Result, error) {
-	log.Printf("syncing: %v", asd.acct)
 	account, err := asd.Get(ctx)
 	if err != nil && !azure.IsNotFound(err) {
 		asd.acct.Status.SetFailed(failedToRetrieve, err.Error())
@@ -277,14 +272,11 @@ func newAccountCreateUpdater(ao azurestorage.AccountOperations, kube client.Clie
 func (acu *accountCreateUpdater) create(ctx context.Context) (reconcile.Result, error) {
 	util.AddFinalizer(&acu.acct.ObjectMeta, finalizer)
 
-	log.Printf("creating: %v", acu.acct)
 	a, err := acu.Create(ctx, v1alpha1.ToStorageAccountCreate(acu.acct.Spec.StorageAccountSpec))
 	if err != nil {
 		acu.acct.Status.SetFailed(failedToCreate, err.Error())
 		return resultRequeue, acu.kube.Status().Update(ctx, acu.acct)
 	}
-
-	acu.acct.Status.SetReady()
 
 	return acu.syncback(ctx, a)
 }
@@ -294,12 +286,9 @@ func (acu *accountCreateUpdater) update(ctx context.Context, account *storage.Ac
 	if account.ProvisioningState == storage.Succeeded {
 		current := v1alpha1.NewStorageAccountSpec(account)
 		if reflect.DeepEqual(current, acu.acct.Spec.StorageAccountSpec) {
-			return requeueOnSuccess, nil
+			return updateStatusIfNotReady(ctx, acu.kube, acu.acct)
 		}
 
-		fmt.Println(deep.Equal(current, acu.acct.Spec.StorageAccountSpec))
-
-		log.Printf("updating: %v", acu.acct)
 		a, err := acu.Update(ctx, v1alpha1.ToStorageAccountUpdate(acu.acct.Spec.StorageAccountSpec))
 		if err != nil {
 			acu.acct.Status.SetFailed(failedToUpdate, err.Error())
@@ -326,23 +315,23 @@ func newAccountSyncBacker(ao azurestorage.AccountOperations, kube client.Client,
 }
 
 func (asb *accountSyncbacker) syncback(ctx context.Context, acct *storage.Account) (reconcile.Result, error) {
-	log.Printf("syncing back: %v", asb.acct)
 	asb.acct.Spec.StorageAccountSpec = v1alpha1.NewStorageAccountSpec(acct)
 	if err := asb.kube.Update(ctx, asb.acct); err != nil {
 		return resultRequeue, err
 	}
 
 	asb.acct.Status.StorageAccountStatus = v1alpha1.NewStorageAccountStatus(acct)
+	asb.acct.Status.ConnectionSecretRef = corev1.LocalObjectReference{Name: asb.acct.ConnectionSecretName()}
 
-	if acct.ProvisioningState == storage.Succeeded {
-		if err := asb.updatesecret(ctx, acct); err != nil {
-			asb.acct.Status.SetFailed(failedToSaveSecret, err.Error())
-			return resultRequeue, asb.kube.Status().Update(ctx, asb.acct)
-		}
-		return requeueOnSuccess, asb.kube.Status().Update(ctx, asb.acct)
+	if acct.ProvisioningState != storage.Succeeded {
+		return requeueOnWait, asb.kube.Status().Update(ctx, asb.acct)
 	}
 
-	return requeueOnWait, asb.kube.Status().Update(ctx, asb.acct)
+	if err := asb.updatesecret(ctx, acct); err != nil {
+		asb.acct.Status.SetFailed(failedToSaveSecret, err.Error())
+		return resultRequeue, asb.kube.Status().Update(ctx, asb.acct)
+	}
+	return updateStatusIfNotReady(ctx, asb.kube, asb.acct)
 }
 
 type accountSecretUpdater struct {
@@ -362,8 +351,6 @@ func newAccountSecretUpdater(ao azurestorage.AccountOperations, kube client.Clie
 func (asu *accountSecretUpdater) updatesecret(ctx context.Context, acct *storage.Account) error {
 	secret := asu.acct.ConnectionSecret()
 	key := types.NamespacedName{Namespace: secret.Namespace, Name: secret.Name}
-
-	log.Printf("updating secret: %s", key)
 
 	if acct.PrimaryEndpoints != nil {
 		secret.Data[corev1alpha1.ResourceCredentialsSecretEndpointKey] = []byte(to.String(acct.PrimaryEndpoints.Blob))
@@ -386,6 +373,15 @@ func (asu *accountSecretUpdater) updatesecret(ctx context.Context, acct *storage
 		}
 		return errors.Wrapf(err, "failed to create secret: %s", key)
 	}
-	return nil
 
+	return nil
+}
+
+func updateStatusIfNotReady(ctx context.Context, kube client.Client, acct *v1alpha1.Account) (reconcile.Result, error) {
+	if !acct.Status.IsReady() {
+		acct.Status.UnsetAllConditions()
+		acct.Status.SetReady()
+		return reconcile.Result{}, kube.Status().Update(ctx, acct)
+	}
+	return requeueOnSuccess, nil
 }
