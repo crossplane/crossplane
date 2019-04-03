@@ -31,17 +31,13 @@ import (
 
 // Kubernetes Group, Version, and Kind metadata.
 const (
-	// Group is the API Group for these resources
-	Group = "azure.crossplane.io"
-	// Version is the version of the API group
-	Version = "v1alpha1"
-	// APIVersion is the full version of this API group
-	APIVersion        = Group + "/" + Version
-	ProviderKind      = "provider"
-	ResourceGroupKind = "resourcegroup"
-
-	ResourceGroupKindAPIVersion = ResourceGroupKind + "." + APIVersion
+	Group                       = "azure.crossplane.io"
+	Version                     = "v1alpha1"
+	APIVersion                  = Group + "/" + Version
+	ProviderKind                = "provider"
+	ResourceGroupKind           = "resourcegroup"
 	ProviderKindAPIVersion      = ProviderKind + "." + APIVersion
+	ResourceGroupKindAPIVersion = ResourceGroupKind + "." + APIVersion
 )
 
 var (
