@@ -374,7 +374,7 @@ func (r *Reconciler) _delete(instance *awscomputev1alpha1.EKSCluster, client eks
 // Reconcile reads that state of the cluster for a Provider object and makes changes based on the state read
 // and what is in the Provider.Spec
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	logger.V(1).Info("reconciling", "kind", awscomputev1alpha1.EKSClusterKindAPIVersion, "request", request)
+	logger.V(log.Debug).Info("reconciling", "kind", awscomputev1alpha1.EKSClusterKindAPIVersion, "request", request)
 	// Fetch the Provider instance
 	instance := &awscomputev1alpha1.EKSCluster{}
 	err := r.Get(ctx, request.NamespacedName, instance)

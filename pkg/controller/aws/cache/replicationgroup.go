@@ -284,7 +284,7 @@ func Add(mgr manager.Manager) error {
 
 // Reconcile Google AWS Replication Group resources with the AWS API.
 func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) {
-	logger.V(1).Info("reconciling", "kind", v1alpha1.ReplicationGroupKindAPIVersion, "request", req)
+	logger.V(log.Debug).Info("reconciling", "kind", v1alpha1.ReplicationGroupKindAPIVersion, "request", req)
 
 	ctx, cancel := context.WithTimeout(context.Background(), reconcileTimeout)
 	defer cancel()

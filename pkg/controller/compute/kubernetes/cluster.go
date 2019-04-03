@@ -89,7 +89,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 // Reconcile reads that state of the cluster for a Instance object and makes changes based on the state read
 // and what is in the Instance.Spec
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	logger.V(1).Info("reconciling", "kind", computev1alpha1.KubernetesInstanceKindAPIVersion, "request", request)
+	logger.V(log.Debug).Info("reconciling", "kind", computev1alpha1.KubernetesInstanceKindAPIVersion, "request", request)
 
 	// fetch the CRD instance
 	instance := &computev1alpha1.KubernetesCluster{}

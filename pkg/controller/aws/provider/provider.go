@@ -113,7 +113,7 @@ func (r *Reconciler) _validate(config *aws.Config) error {
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=aws.crossplane.io,resources=provider,verbs=get;list;watch;create;update;patch;delete
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	logger.V(1).Info("reconciling", "kind", awsv1alpha1.ProviderKindAPIVersion, "request", request)
+	logger.V(log.Debug).Info("reconciling", "kind", awsv1alpha1.ProviderKindAPIVersion, "request", request)
 	// Fetch the Provider instance
 	instance := &awsv1alpha1.Provider{}
 	err := r.Get(ctx, request.NamespacedName, instance)

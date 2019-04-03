@@ -246,7 +246,7 @@ func (r *Reconciler) _delete(instance *gcpcomputev1alpha1.GKECluster, client gke
 // Reconcile reads that state of the cluster for a Provider object and makes changes based on the state read
 // and what is in the Provider.Spec
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	logger.V(1).Info("reconciling", "kind", gcpcomputev1alpha1.GKEClusterKindAPIVersion, "request", request)
+	logger.V(log.Debug).Info("reconciling", "kind", gcpcomputev1alpha1.GKEClusterKindAPIVersion, "request", request)
 	// Fetch the Provider instance
 	instance := &gcpcomputev1alpha1.GKECluster{}
 	err := r.Get(ctx, request.NamespacedName, instance)

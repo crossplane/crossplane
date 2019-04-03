@@ -263,7 +263,7 @@ func (r *Reconciler) _delete(instance *databasev1alpha1.RDSInstance, client rds.
 // Reconcile reads that state of the cluster for a Instance object and makes changes based on the state read
 // and what is in the Instance.Spec
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	logger.V(1).Info("reconciling", "kind", databasev1alpha1.RDSInstanceKindAPIVersion, "request", request)
+	logger.V(log.Debug).Info("reconciling", "kind", databasev1alpha1.RDSInstanceKindAPIVersion, "request", request)
 	// Fetch the CRD instance
 	instance := &databasev1alpha1.RDSInstance{}
 

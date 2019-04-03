@@ -107,7 +107,7 @@ func (r *Reconciler) _validate(client *azureclient.Client) error {
 // Reconcile reads that state of the cluster for a Provider object and makes changes based on the state read
 // and what is in the Provider.Spec
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	logger.V(1).Info("reconciling", "kind", v1alpha1.ProviderKindAPIVersion, "request", request)
+	logger.V(log.Debug).Info("reconciling", "kind", v1alpha1.ProviderKindAPIVersion, "request", request)
 	ctx := context.TODO()
 
 	// Fetch the Provider instance

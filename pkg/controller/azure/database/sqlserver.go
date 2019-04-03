@@ -94,7 +94,7 @@ func (r *SQLReconciler) handleReconcile(instance azuredbv1alpha1.SQLServer) (rec
 	if instance.GetDeletionTimestamp() != nil {
 		if instance.GetStatus().Condition(corev1alpha1.Deleting) == nil {
 			// we haven't started the deletion of the SQL Server resource yet, do it now
-			logger.V(1).Info("sql server has been deleted, running finalizer now", "instance", instance)
+			logger.V(log.Debug).Info("sql server has been deleted, running finalizer now", "instance", instance)
 			return r.handleDeletion(sqlServersClient, instance)
 		}
 		// we already started the deletion of the SQL Server resource, nothing more to do
@@ -152,7 +152,7 @@ func (r *SQLReconciler) handleReconcile(instance azuredbv1alpha1.SQLServer) (rec
 		}
 
 		conditionMessage := fmt.Sprintf("SQL Server instance %s is in the %s state", instance.GetName(), conditionType)
-		logger.V(1).Info("SQL server state changed", "instance", instance, "condition", conditionType)
+		logger.V(log.Debug).Info("SQL server state changed", "instance", instance, "condition", conditionType)
 		instance.GetStatus().SetCondition(corev1alpha1.NewCondition(conditionType, conditionStateChanged, conditionMessage))
 		return reconcile.Result{Requeue: true}, r.Update(ctx, instance)
 	}
@@ -187,13 +187,13 @@ func (r *SQLReconciler) handleCreation(sqlServersClient azureclients.SQLServerAP
 	}
 
 	// make the API call to start the create server operation
-	logger.V(1).Info("starting create of SQL Server instance", "instance", instance)
+	logger.V(log.Debug).Info("starting create of SQL Server instance", "instance", instance)
 	createOp, err := sqlServersClient.CreateServerBegin(ctx, instance, adminPassword)
 	if err != nil {
 		return r.fail(instance, errorCreatingInstance, fmt.Sprintf("failed to start create operation for SQL Server instance %s: %+v", instance.GetName(), err))
 	}
 
-	logger.V(1).Info("started create of SQL Server instance", "instance", instance, "operation", string(createOp))
+	logger.V(log.Debug).Info("started create of SQL Server instance", "instance", instance, "operation", string(createOp))
 
 	// save the create operation to the CRD status
 	status := instance.GetStatus()
@@ -219,7 +219,7 @@ func (r *SQLReconciler) handleCreation(sqlServersClient azureclients.SQLServerAP
 		}
 
 		// the instance hasn't reached consistency yet, retry
-		logger.V(1).Info("SQL Server instance hasn't reached consistency yet, retrying", "instance", instance)
+		logger.V(log.Debug).Info("SQL Server instance hasn't reached consistency yet, retrying", "instance", instance)
 		return false, nil
 	})
 
@@ -238,7 +238,7 @@ func (r *SQLReconciler) handleDeletion(sqlServersClient azureclients.SQLServerAP
 		}
 
 		// SQL Server instance doesn't exist, it's already deleted
-		logger.V(1).Info("SQL Server instance does not exist, it must be already deleted", "instance", instance)
+		logger.V(log.Debug).Info("SQL Server instance does not exist, it must be already deleted", "instance", instance)
 		return r.markAsDeleting(instance)
 	}
 
@@ -249,7 +249,7 @@ func (r *SQLReconciler) handleDeletion(sqlServersClient azureclients.SQLServerAP
 	}
 
 	deleteFutureJSON, _ := deleteFuture.MarshalJSON()
-	logger.V(1).Info("started delete of SQL Server instance", "instance", instance.GetName(), "operation", string(deleteFutureJSON))
+	logger.V(log.Debug).Info("started delete of SQL Server instance", "instance", instance.GetName(), "operation", string(deleteFutureJSON))
 	return r.markAsDeleting(instance)
 }
 
@@ -263,13 +263,13 @@ func (r *SQLReconciler) markAsDeleting(instance azuredbv1alpha1.SQLServer) (reco
 func (r *SQLReconciler) handleFirewallRuleCreation(sqlServersClient azureclients.SQLServerAPI, instance azuredbv1alpha1.SQLServer) (reconcile.Result, error) {
 	ctx := context.Background()
 
-	logger.V(1).Info("starting create of firewall rules for SQL Server instance", "instance", instance)
+	logger.V(log.Debug).Info("starting create of firewall rules for SQL Server instance", "instance", instance)
 	createOp, err := sqlServersClient.CreateFirewallRulesBegin(ctx, instance, firewallRuleName)
 	if err != nil {
 		return r.fail(instance, errorCreatingInstance, fmt.Sprintf("failed to start create firewall rules operation for SQL Server instance %s: %+v", instance.GetName(), err))
 	}
 
-	logger.V(1).Info("started create of firewall rules for SQL Server instance", "instance", instance.GetName(), "operation", string(createOp))
+	logger.V(log.Debug).Info("started create of firewall rules for SQL Server instance", "instance", instance.GetName(), "operation", string(createOp))
 
 	// save the create operation to the CRD status
 	status := instance.GetStatus()
@@ -316,7 +316,7 @@ func (r *SQLReconciler) handleRunningOperation(sqlServersClient azureclients.SQL
 		return r.fail(instance, errorCreatingInstance, fmt.Sprintf("failure result returned from create operation for SQL Server instance %s: %+v", instance.GetName(), err))
 	}
 
-	logger.V(1).Info("successfully finished operation type for SQL Server", "instance", instance.GetName(), "operation", opType)
+	logger.V(log.Debug).Info("successfully finished operation type for SQL Server", "instance", instance.GetName(), "operation", opType)
 	return reconcile.Result{Requeue: true}, r.Update(ctx, instance)
 }
 
@@ -393,14 +393,14 @@ func (r *SQLReconciler) createOrUpdateConnectionSecret(instance azuredbv1alpha1.
 		if _, err := r.clientset.CoreV1().Secrets(instance.GetNamespace()).Update(connectionSecret); err != nil {
 			return fmt.Errorf("failed to update connection secret %s: %+v", connectionSecret.Name, err)
 		}
-		logger.V(1).Info("updated connection secret",
+		logger.V(log.Debug).Info("updated connection secret",
 			"secret", connectionSecret,
 			"username", instance.GetSpec().AdminLoginName)
 	} else {
 		if _, err := r.clientset.CoreV1().Secrets(instance.GetNamespace()).Create(connectionSecret); err != nil {
 			return fmt.Errorf("failed to create connection secret %s: %+v", connectionSecret.Name, err)
 		}
-		logger.V(1).Info("created connection secret",
+		logger.V(log.Debug).Info("created connection secret",
 			"secret", connectionSecret,
 			"username", instance.GetSpec().AdminLoginName)
 	}

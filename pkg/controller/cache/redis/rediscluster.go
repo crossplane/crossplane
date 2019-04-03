@@ -56,7 +56,7 @@ func AddCluster(mgr manager.Manager) error {
 
 // Reconcile the desired with the actual state of a RedisCluster.
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	logger.V(1).Info("reconciling", "kind", cachev1alpha1.RedisClusterKindAPIVersion, "request", request)
+	logger.V(log.Debug).Info("reconciling", "kind", cachev1alpha1.RedisClusterKindAPIVersion, "request", request)
 
 	c := &cachev1alpha1.RedisCluster{}
 	if err := r.Get(ctx, request.NamespacedName, c); err != nil {

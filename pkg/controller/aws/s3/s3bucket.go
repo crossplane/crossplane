@@ -274,7 +274,7 @@ func (r *Reconciler) _delete(bucket *bucketv1alpha1.S3Bucket, client s3.Service)
 // Reconcile reads that state of the bucket for an Instance object and makes changes based on the state read
 // and what is in the Instance.Spec
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	logger.V(1).Info("reconciling", "kind", bucketv1alpha1.S3BucketKindAPIVersion, "request", request)
+	logger.V(log.Debug).Info("reconciling", "kind", bucketv1alpha1.S3BucketKindAPIVersion, "request", request)
 
 	// Fetch the CRD instance
 	bucket := &bucketv1alpha1.S3Bucket{}

@@ -30,6 +30,7 @@ import (
 
 	azuredbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/database/v1alpha1"
 	azureclients "github.com/crossplaneio/crossplane/pkg/clients/azure"
+	"github.com/crossplaneio/crossplane/pkg/log"
 )
 
 const (
@@ -90,7 +91,7 @@ type PostgreSQLReconciler struct {
 // Reconcile reads that state of the cluster for a PostgreSQLServer object and makes changes based on the state read
 // and what is in the PostgreSQLServer.Spec
 func (r *PostgreSQLReconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	logger.V(1).Info("reconciling", "kind", azuredbv1alpha1.PostgresqlServerKindAPIVersion, "request", request)
+	logger.V(log.Debug).Info("reconciling", "kind", azuredbv1alpha1.PostgresqlServerKindAPIVersion, "request", request)
 	instance := &azuredbv1alpha1.PostgresqlServer{}
 
 	// Fetch the PostgresqlServer instance

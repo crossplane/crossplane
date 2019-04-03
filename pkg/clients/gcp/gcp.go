@@ -61,7 +61,7 @@ func GetGoogleClient(clientset kubernetes.Interface, namespace string, secretKey
 		if err != nil {
 			logger.Error(err, "failed to get default google client")
 		} else {
-			logger.V(1).Info("default google client created")
+			logger.V(log.Debug).Info("default google client created")
 		}
 	}
 

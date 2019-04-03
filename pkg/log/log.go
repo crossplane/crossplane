@@ -23,6 +23,11 @@ import (
 	runtimelog "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
+// Logging levels.
+const (
+	Debug = 1
+)
+
 var (
 	log = runtimelog.NewDelegatingLogger(runtimelog.NullLogger{})
 

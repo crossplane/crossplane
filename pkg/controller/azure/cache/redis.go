@@ -246,7 +246,7 @@ func Add(mgr manager.Manager) error {
 
 // Reconcile Google Azure Cache resources with the Azure API.
 func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) {
-	logger.V(1).Info("reconciling", "kind", v1alpha1.RedisKindAPIVersion, "request", req)
+	logger.V(log.Debug).Info("reconciling", "kind", v1alpha1.RedisKindAPIVersion, "request", req)
 
 	ctx, cancel := context.WithTimeout(context.Background(), reconcileTimeout)
 	defer cancel()
