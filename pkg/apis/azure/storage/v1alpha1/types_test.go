@@ -101,12 +101,12 @@ func TestParseAccountSpec(t *testing.T) {
 		{
 			name: "parse",
 			args: map[string]string{
-				"storageAccountName": "test-account-name",
+				"storageAccountName": "test-TestAccount-name",
 				"storageAccountSpec": storageAccountSpecString,
 			},
 			want: &AccountSpec{
 				ReclaimPolicy:      v1alpha1.ReclaimRetain,
-				StorageAccountName: "test-account-name",
+				StorageAccountName: "test-TestAccount-name",
 				StorageAccountSpec: storageAccountSpec,
 			},
 		},
@@ -289,6 +289,73 @@ func TestAccount_SetBound(t *testing.T) {
 			c.SetBound(tt.state)
 			if c.Status.Phase != tt.want {
 				t.Errorf("Account.SetBound(%v) = %v, want %v", tt.state, c.Status.Phase, tt.want)
+			}
+		})
+	}
+}
+
+func TestContainer_GetContainerName(t *testing.T) {
+	om := metav1.ObjectMeta{
+		Namespace: "foo",
+		Name:      "bar",
+		UID:       "test-uid",
+	}
+	type fields struct {
+		ObjectMeta metav1.ObjectMeta
+		Spec       ContainerSpec
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+	}{
+		{
+			name: "no name format",
+			fields: fields{
+				ObjectMeta: om,
+				Spec:       ContainerSpec{},
+			},
+			want: "test-uid",
+		},
+		{
+			name: "format string",
+			fields: fields{
+				ObjectMeta: om,
+				Spec: ContainerSpec{
+					NameFormat: "foo-%s",
+				},
+			},
+			want: "foo-test-uid",
+		},
+		{
+			name: "constant string",
+			fields: fields{
+				ObjectMeta: om,
+				Spec: ContainerSpec{
+					NameFormat: "foo-bar",
+				},
+			},
+			want: "foo-bar",
+		},
+		{
+			name: "invalid: multiple substitutions",
+			fields: fields{
+				ObjectMeta: om,
+				Spec: ContainerSpec{
+					NameFormat: "foo-%s-bar-%s",
+				},
+			},
+			want: "foo-test-uid-bar-%!s(MISSING)",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &Container{
+				ObjectMeta: tt.fields.ObjectMeta,
+				Spec:       tt.fields.Spec,
+			}
+			if got := c.GetContainerName(); got != tt.want {
+				t.Errorf("Container.GetContainerName() = %v, want %v", got, tt.want)
 			}
 		})
 	}

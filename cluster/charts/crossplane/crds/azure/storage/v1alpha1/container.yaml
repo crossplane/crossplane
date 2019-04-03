@@ -47,6 +47,7 @@ spec:
         spec:
           properties:
             accountRef:
+              description: AccountRef reference to azure storage account object
               type: object
             claimRef:
               type: object
@@ -56,13 +57,15 @@ spec:
               description: ConnectionSecretNameOverride to generate connection secret
                 with specific name
               type: string
+            metadata:
+              description: Container metadata
+              type: object
             nameFormat:
               description: NameFormat to format container name passing it a object
                 UID If not provided, defaults to "%s", i.e. UID value
               type: string
-            providerRef:
-              type: object
             publicAccessType:
+              description: PublicAccessType
               type: string
             reclaimPolicy:
               description: ReclaimPolicy identifies how to handle the cloud resource
@@ -70,7 +73,6 @@ spec:
               type: string
           required:
           - accountRef
-          - providerRef
           type: object
         status:
           properties:

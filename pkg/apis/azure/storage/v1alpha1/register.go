@@ -52,4 +52,5 @@ var (
 
 func init() {
 	SchemeBuilder.Register(&Account{}, &AccountList{})
+	SchemeBuilder.Register(&Container{}, &ContainerList{})
 }
