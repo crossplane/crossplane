@@ -40,7 +40,7 @@ import (
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/clients/aws"
 	"github.com/crossplaneio/crossplane/pkg/clients/aws/s3"
-	"github.com/crossplaneio/crossplane/pkg/log"
+	"github.com/crossplaneio/crossplane/pkg/logging"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
@@ -55,7 +55,7 @@ const (
 )
 
 var (
-	logger        = log.Log.WithName("controller." + controllerName)
+	log           = logging.Logger.WithName("controller." + controllerName)
 	ctx           = context.Background()
 	result        = reconcile.Result{}
 	resultRequeue = reconcile.Result{Requeue: true}
@@ -274,7 +274,7 @@ func (r *Reconciler) _delete(bucket *bucketv1alpha1.S3Bucket, client s3.Service)
 // Reconcile reads that state of the bucket for an Instance object and makes changes based on the state read
 // and what is in the Instance.Spec
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	logger.V(log.Debug).Info("reconciling", "kind", bucketv1alpha1.S3BucketKindAPIVersion, "request", request)
+	log.V(logging.Debug).Info("reconciling", "kind", bucketv1alpha1.S3BucketKindAPIVersion, "request", request)
 
 	// Fetch the CRD instance
 	bucket := &bucketv1alpha1.S3Bucket{}
@@ -286,7 +286,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 			// For additional cleanup logic use finalizers.
 			return result, nil
 		}
-		logger.Error(err, "failed to get object at start of reconcile loop")
+		log.Error(err, "failed to get object at start of reconcile loop")
 		return result, err
 	}
 

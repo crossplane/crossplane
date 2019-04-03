@@ -33,7 +33,7 @@ import (
 
 	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/compute/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/log"
+	"github.com/crossplaneio/crossplane/pkg/logging"
 )
 
 const (
@@ -43,7 +43,7 @@ const (
 )
 
 var (
-	logger        = log.Log.WithName("controller." + controllerName)
+	log           = logging.Logger.WithName("controller." + controllerName)
 	ctx           = context.Background()
 	resultDone    = reconcile.Result{}
 	resultRequeue = reconcile.Result{Requeue: true}
@@ -131,7 +131,7 @@ func (r *Reconciler) _schedule(instance *computev1alpha1.Workload) (reconcile.Re
 // Reconcile reads that state of the cluster for a Instance object and makes changes based on the state read
 // and what is in the Instance.Spec
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	logger.V(log.Debug).Info("reconciling", "kind", computev1alpha1.WorkloadKindAPIVersion, "request", request)
+	log.V(logging.Debug).Info("reconciling", "kind", computev1alpha1.WorkloadKindAPIVersion, "request", request)
 	// fetch the CRD instance
 	instance := &computev1alpha1.Workload{}
 

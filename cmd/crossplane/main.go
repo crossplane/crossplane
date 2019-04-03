@@ -29,12 +29,12 @@ import (
 
 	"github.com/crossplaneio/crossplane/pkg/apis"
 	"github.com/crossplaneio/crossplane/pkg/controller"
-	"github.com/crossplaneio/crossplane/pkg/log"
+	"github.com/crossplaneio/crossplane/pkg/logging"
 )
 
 func main() {
 	var (
-		logger = log.Log
+		log = logging.Logger
 
 		app   = kingpin.New(filepath.Base(os.Args[0]), "An open source multicloud control plane.").DefaultEnvars()
 		debug = app.Flag("debug", "Run with debug logging.").Short('d').Bool()
@@ -42,7 +42,7 @@ func main() {
 	kingpin.MustParse(app.Parse(os.Args[1:]))
 
 	zl := runtimelog.ZapLogger(*debug)
-	log.SetLogger(zl)
+	logging.SetLogger(zl)
 	if *debug {
 		// The controller-runtime runs with a no-op logger by default. It is
 		// *very* verbose even at info level, so we only provide it a real
@@ -66,21 +66,21 @@ func main() {
 		kingpin.FatalIfError(err, "Cannot create manager")
 	}
 
-	logger.Info("Adding schemes")
+	log.Info("Adding schemes")
 
 	// Setup Scheme for all resources
 	if err := apis.AddToScheme(mgr.GetScheme()); err != nil {
 		kingpin.FatalIfError(err, "Cannot add APIs to scheme")
 	}
 
-	logger.Info("Adding controllers")
+	log.Info("Adding controllers")
 
 	// Setup all Controllers
 	if err := controller.AddToManager(mgr); err != nil {
 		kingpin.FatalIfError(err, "Cannot add controllers to manager")
 	}
 
-	logger.Info("Starting the manager")
+	log.Info("Starting the manager")
 
 	// Start the Cmd
 	kingpin.FatalIfError(mgr.Start(signals.SetupSignalHandler()), "Cannot start controller")

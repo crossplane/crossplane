@@ -32,7 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/log"
+	"github.com/crossplaneio/crossplane/pkg/logging"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
@@ -55,8 +55,8 @@ var (
 )
 
 var (
-	logger = log.Log.WithName(corev1alpha1.Group)
-	ctx    = context.Background()
+	log = logging.Logger.WithName(corev1alpha1.Group)
+	ctx = context.Background()
 )
 
 // ResourceHandler defines resource handing functions
@@ -120,7 +120,7 @@ func (r *Reconciler) _reconcile(claim corev1alpha1.ResourceClaim) (reconcile.Res
 		return r.fail(claim, errorRetrievingHandler, err.Error())
 	} else if handler == nil {
 		// handler is not found - log this but don't fail, let an external provisioner handle it
-		logger.Info("handler for claim is unknown, ignoring reconcile to allow external provisioners to handle it", "claim", claim.GetName())
+		log.Info("handler for claim is unknown, ignoring reconcile to allow external provisioners to handle it", "claim", claim.GetName())
 		return Result, nil
 	}
 

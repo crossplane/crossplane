@@ -14,9 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package log provides a logger that satisfies https://github.com/go-logr/logr.
+// Package logging provides a logger that satisfies https://github.com/go-logr/logr.
 // It is implemented as a light wrapper around sigs.k8s.io/controller-runtime/pkg/log
-package log
+package logging
 
 import (
 	"github.com/go-logr/logr"
@@ -29,14 +29,14 @@ const (
 )
 
 var (
-	log = runtimelog.NewDelegatingLogger(runtimelog.NullLogger{})
+	logger = runtimelog.NewDelegatingLogger(runtimelog.NullLogger{})
 
-	// Log is the base logger used by Crossplane. It delegates to another
+	// Logger is the base logger used by Crossplane. It delegates to another
 	// logr.Logger. You *must* call SetLogger to get any actual logging.
-	Log = log.WithName("crossplane")
+	Logger = logger.WithName("crossplane")
 )
 
 // SetLogger sets a concrete logging implementation for all deferred Loggers.
 func SetLogger(l logr.Logger) {
-	log.Fulfill(l)
+	logger.Fulfill(l)
 }

@@ -24,12 +24,12 @@ import (
 	gcpdbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/database/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
 	corecontroller "github.com/crossplaneio/crossplane/pkg/controller/core"
-	"github.com/crossplaneio/crossplane/pkg/log"
+	"github.com/crossplaneio/crossplane/pkg/logging"
 )
 
 var (
-	logger = log.Log.WithName(v1alpha1.Group)
-	ctx    = context.Background()
+	log = logging.Logger.WithName(v1alpha1.Group)
+	ctx = context.Background()
 
 	// map of supported resource handlers
 	handlers = map[string]corecontroller.ResourceHandler{

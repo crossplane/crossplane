@@ -37,7 +37,7 @@ import (
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/clients/aws"
 	"github.com/crossplaneio/crossplane/pkg/clients/aws/elasticache"
-	"github.com/crossplaneio/crossplane/pkg/log"
+	"github.com/crossplaneio/crossplane/pkg/logging"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
@@ -58,7 +58,7 @@ const (
 	maxAuthTokenData = 32
 )
 
-var logger = log.Log.WithName("controller." + controllerName)
+var log = logging.Logger.WithName("controller." + controllerName)
 
 // A creator can create resources in an external store - e.g. the AWS API.
 type creator interface {
@@ -284,7 +284,7 @@ func Add(mgr manager.Manager) error {
 
 // Reconcile Google AWS Replication Group resources with the AWS API.
 func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) {
-	logger.V(log.Debug).Info("reconciling", "kind", v1alpha1.ReplicationGroupKindAPIVersion, "request", req)
+	log.V(logging.Debug).Info("reconciling", "kind", v1alpha1.ReplicationGroupKindAPIVersion, "request", req)
 
 	ctx, cancel := context.WithTimeout(context.Background(), reconcileTimeout)
 	defer cancel()

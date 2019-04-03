@@ -33,7 +33,7 @@ import (
 
 	gcpv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/clients/gcp"
-	"github.com/crossplaneio/crossplane/pkg/log"
+	"github.com/crossplaneio/crossplane/pkg/logging"
 )
 
 const (
@@ -43,7 +43,7 @@ const (
 )
 
 var (
-	logger        = log.Log.WithName("controller." + controllerName)
+	log           = logging.Logger.WithName("controller." + controllerName)
 	ctx           = context.Background()
 	result        = reconcile.Result{}
 	resultRequeue = reconcile.Result{Requeue: true}
@@ -115,7 +115,7 @@ func (r *Reconciler) _validate(creds *google.Credentials, permissions []string) 
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=gcp.crossplane.io,resources=provider,verbs=get;list;watch;create;update;patch;delete
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	logger.V(log.Debug).Info("reconciling", "kind", gcpv1alpha1.ProviderKindAPIVersion, "request", request)
+	log.V(logging.Debug).Info("reconciling", "kind", gcpv1alpha1.ProviderKindAPIVersion, "request", request)
 	// Fetch the Provider instance
 	instance := &gcpv1alpha1.Provider{}
 	err := r.Get(ctx, request.NamespacedName, instance)

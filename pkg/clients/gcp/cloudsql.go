@@ -122,7 +122,7 @@ func WaitUntilOperationCompletes(operationID string, provider *gcpv1alpha1.Provi
 	for i := 0; i <= maxRetries; i++ {
 		op, err = cloudSQLClient.GetOperation(provider.Spec.ProjectID, operationID)
 		if err != nil {
-			logger.Error(err, "failed to get cloud sql operation", "operation", operationID, "waitTime", waitTime)
+			log.Error(err, "failed to get cloud sql operation", "operation", operationID, "waitTime", waitTime)
 		} else if IsOperationComplete(op) {
 			// the operation has completed, simply return it
 			return op, nil

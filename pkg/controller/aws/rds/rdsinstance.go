@@ -39,7 +39,7 @@ import (
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/clients/aws"
 	"github.com/crossplaneio/crossplane/pkg/clients/aws/rds"
-	"github.com/crossplaneio/crossplane/pkg/log"
+	"github.com/crossplaneio/crossplane/pkg/logging"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
@@ -54,7 +54,7 @@ const (
 )
 
 var (
-	logger        = log.Log.WithName("controller." + controllerName)
+	log           = logging.Logger.WithName("controller." + controllerName)
 	ctx           = context.Background()
 	result        = reconcile.Result{}
 	resultRequeue = reconcile.Result{Requeue: true}
@@ -263,7 +263,7 @@ func (r *Reconciler) _delete(instance *databasev1alpha1.RDSInstance, client rds.
 // Reconcile reads that state of the cluster for a Instance object and makes changes based on the state read
 // and what is in the Instance.Spec
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	logger.V(log.Debug).Info("reconciling", "kind", databasev1alpha1.RDSInstanceKindAPIVersion, "request", request)
+	log.V(logging.Debug).Info("reconciling", "kind", databasev1alpha1.RDSInstanceKindAPIVersion, "request", request)
 	// Fetch the CRD instance
 	instance := &databasev1alpha1.RDSInstance{}
 
@@ -274,7 +274,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 			// For additional cleanup logic use finalizers.
 			return reconcile.Result{}, nil
 		}
-		logger.Error(err, "failed to get object at start of reconcile loop")
+		log.Error(err, "failed to get object at start of reconcile loop")
 		return reconcile.Result{}, err
 	}
 

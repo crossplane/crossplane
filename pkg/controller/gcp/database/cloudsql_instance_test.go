@@ -18,7 +18,6 @@ package database
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"testing"
 	"time"
@@ -94,7 +93,7 @@ func TestReconcile(t *testing.T) {
 	instance := testInstance(provider)
 	err = c.Create(ctx, instance)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
-	defer cleanupCloudsqlInstance(g, c, requests, instance)
+	defer cleanupCloudsqlInstance(t, g, c, requests, instance)
 
 	// wait on the number of reconciliation requests that are caused by the instance status being PENDING_CREATE for a few GET calls
 	expectedReconciliationCalls := getInstanceCallCountBeforeRunning + 1
@@ -145,17 +144,17 @@ func TestReconcile(t *testing.T) {
 	g.Expect(instance.Finalizers[0]).To(gomega.Equal(finalizer))
 
 	// test deletion of the instance
-	cleanupCloudsqlInstance(g, c, requests, instance)
+	cleanupCloudsqlInstance(t, g, c, requests, instance)
 }
 
-func cleanupCloudsqlInstance(g *gomega.GomegaWithT, c client.Client, requests chan reconcile.Request, instance *dbv1alpha1.CloudsqlInstance) {
+func cleanupCloudsqlInstance(t *testing.T, g *gomega.GomegaWithT, c client.Client, requests chan reconcile.Request, instance *dbv1alpha1.CloudsqlInstance) {
 	deletedInstance := &dbv1alpha1.CloudsqlInstance{}
 	if err := c.Get(ctx, expectedRequest.NamespacedName, deletedInstance); errors.IsNotFound(err) {
 		// instance has already been deleted, bail out
 		return
 	}
 
-	log.Printf("cleaning up cloud sql instance %s by deleting the CRD", instance.Name)
+	t.Logf("cleaning up cloud sql instance %s by deleting the CRD", instance.Name)
 	err := c.Delete(ctx, instance)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 

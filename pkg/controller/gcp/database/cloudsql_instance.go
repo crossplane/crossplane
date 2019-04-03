@@ -39,7 +39,7 @@ import (
 	databasev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/database/v1alpha1"
 	gcpv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/v1alpha1"
 	gcpclients "github.com/crossplaneio/crossplane/pkg/clients/gcp"
-	"github.com/crossplaneio/crossplane/pkg/log"
+	"github.com/crossplaneio/crossplane/pkg/logging"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
@@ -64,7 +64,7 @@ var (
 	// TODO(negz): This is a test. It should live in a test file.
 	_ reconcile.Reconciler = &Reconciler{}
 
-	logger = log.Log.WithName("controller." + controllerName)
+	log = logging.Logger.WithName("controller." + controllerName)
 )
 
 // Add creates a new CloudsqlInstance Controller and adds it to the Manager with default RBAC.
@@ -134,7 +134,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	// TODO(negz): This method's cyclomatic complexity is very high. Consider
 	// refactoring it if you touch it.
 
-	logger.V(log.Debug).Info("reconciling", "kind", databasev1alpha1.CloudsqlInstanceKindAPIVersion, "request", request)
+	log.V(logging.Debug).Info("reconciling", "kind", databasev1alpha1.CloudsqlInstanceKindAPIVersion, "request", request)
 	instance := &databasev1alpha1.CloudsqlInstance{}
 	var cloudSQLInstance *sqladmin.DatabaseInstance
 
@@ -146,14 +146,14 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 			// For additional cleanup logic use finalizers.
 			return reconcile.Result{}, nil
 		}
-		logger.Error(err, "failed to get object at start of reconcile loop")
+		log.Error(err, "failed to get object at start of reconcile loop")
 		return reconcile.Result{}, err
 	}
 
 	if instance.Status.InstanceName == "" {
 		// we haven't generated a unique instance name yet, let's do that now
 		instance.Status.InstanceName = "cloudsql-" + string(instance.UID)
-		logger.V(log.Debug).Info("set cloud sql instance name", "instance", instance)
+		log.V(logging.Debug).Info("set cloud sql instance name", "instance", instance)
 		if err := r.Update(context.TODO(), instance); err != nil {
 			return r.fail(instance, errorSettingInstanceName, err.Error())
 		}
@@ -179,7 +179,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	if instance.DeletionTimestamp != nil {
 		if instance.Status.Condition(corev1alpha1.Deleting) == nil {
 			// we haven't started the deletion of the CloudSQL resource yet, do it now
-			logger.V(log.Debug).Info("cloud sql instance has been deleted, running finalizer now", "instance", instance)
+			log.V(logging.Debug).Info("cloud sql instance has been deleted, running finalizer now", "instance", instance)
 			return r.handleDeletion(cloudSQLClient, instance, provider)
 		}
 		// we already started the deletion of the CloudSQL resource, nothing more to do
@@ -190,7 +190,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	if !util.HasFinalizer(&instance.ObjectMeta, finalizer) {
 		util.AddFinalizer(&instance.ObjectMeta, finalizer)
 		if err := r.Update(context.TODO(), instance); err != nil {
-			logger.Error(err, "failed to add finalizer to instance", "instance", instance.Name)
+			log.Error(err, "failed to add finalizer to instance", "instance", instance.Name)
 			return reconcile.Result{}, err
 		}
 	}
@@ -211,7 +211,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 
 	// cloud sql instance exists, update the CRD status now with its latest status
 	if err := r.updateStatus(instance, gcpclients.CloudSQLStatusMessage(instance.Name, cloudSQLInstance), cloudSQLInstance); err != nil {
-		logger.Error(err, "failed to update status of instance", "instance", instance)
+		log.Error(err, "failed to update status of instance", "instance", instance)
 		return reconcile.Result{}, err
 	}
 
@@ -224,7 +224,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 		}
 
 		conditionMessage := fmt.Sprintf("cloud sql instance %s is in the %s state", instance.Name, conditionType)
-		logger.V(log.Debug).Info("state changed", "instance", instance, "condition", conditionType)
+		log.V(logging.Debug).Info("state changed", "instance", instance, "condition", conditionType)
 		instance.Status.SetCondition(corev1alpha1.NewCondition(conditionType, conditionStateChanged, conditionMessage))
 		return reconcile.Result{Requeue: true}, r.Update(context.TODO(), instance)
 	}
@@ -263,13 +263,13 @@ func (r *Reconciler) handleCreation(cloudSQLClient gcpclients.CloudSQLAPI,
 		},
 	}
 
-	logger.V(log.Debug).Info("cloud sql instance not found, will try to create it now", "instance", instance, "creating", cloudSQLInstance)
+	log.V(logging.Debug).Info("cloud sql instance not found, will try to create it now", "instance", instance, "creating", cloudSQLInstance)
 	createOp, err := cloudSQLClient.CreateInstance(provider.Spec.ProjectID, cloudSQLInstance)
 	if err != nil {
 		return r.fail(instance, errorCreatingInstance, fmt.Sprintf("failed to start create operation for cloud sql instance %s: %+v", instance.Name, err))
 	}
 
-	logger.V(log.Debug).Info("started create of cloud sql instance", "instance", instance, "operation", createOp)
+	log.V(logging.Debug).Info("started create of cloud sql instance", "instance", instance, "operation", createOp)
 	return reconcile.Result{Requeue: true}, nil
 }
 
@@ -295,7 +295,7 @@ func (r *Reconciler) handleDeletion(cloudSQLClient gcpclients.CloudSQLAPI,
 			return r.fail(instance, errorDeletingInstance, fmt.Sprintf("failed to start delete operation for cloud sql instance %s: %+v", instance.Name, err))
 		}
 
-		logger.V(log.Debug).Info("started deletion of cloud sql instance", "instance", instance, "operation", deleteOp)
+		log.V(logging.Debug).Info("started deletion of cloud sql instance", "instance", instance, "operation", deleteOp)
 	}
 	return r.markAsDeleting(instance)
 }
@@ -329,7 +329,7 @@ func (r *Reconciler) initDefaultUser(cloudSQLClient gcpclients.CloudSQLAPI,
 		// we already have a password for the default user, we are done
 		return nil
 	}
-	logger.Error(err, "user is not initialized yet", "username", defaultUserName)
+	log.Error(err, "user is not initialized yet", "username", defaultUserName)
 
 	users, err := cloudSQLClient.ListUsers(provider.Spec.ProjectID, instance.Status.InstanceName)
 	if err != nil {
@@ -355,20 +355,20 @@ func (r *Reconciler) initDefaultUser(cloudSQLClient gcpclients.CloudSQLAPI,
 	defaultUser.Password = password
 
 	// update the user via Cloud SQL API
-	logger.V(log.Debug).Info("updating user", "username", defaultUser.Name)
+	log.V(logging.Debug).Info("updating user", "username", defaultUser.Name)
 	updateUserOp, err := cloudSQLClient.UpdateUser(provider.Spec.ProjectID, instance.Status.InstanceName, defaultUser.Name, defaultUser)
 	if err != nil {
 		return fmt.Errorf("failed to start update user operation for user '%s': %+v", defaultUser.Name, err)
 	}
 
 	// wait for the update user operation to complete
-	logger.V(log.Debug).Info("waiting for update user operation to complete for user", "operation", updateUserOp, "username", defaultUser)
+	log.V(logging.Debug).Info("waiting for update user operation to complete for user", "operation", updateUserOp, "username", defaultUser)
 	updateUserOp, err = gcpclients.WaitUntilOperationCompletes(updateUserOp.Name, provider, cloudSQLClient, r.options.WaitSleepTime)
 	if err != nil {
 		return fmt.Errorf("failed to wait until update user operation %s completed for user '%s': %+v", updateUserOp.Name, defaultUser.Name, err)
 	}
 
-	logger.V(log.Debug).Info("update user operation completed", "username", defaultUser.Name, "operation", updateUserOp)
+	log.V(logging.Debug).Info("update user operation completed", "username", defaultUser.Name, "operation", updateUserOp)
 	if !gcpclients.IsOperationSuccessful(updateUserOp) {
 		// the operation completed, but it failed
 		m := fmt.Sprintf("update user operation for user '%s' failed: %+v", defaultUser.Name, updateUserOp)
@@ -391,12 +391,12 @@ func (r *Reconciler) initDefaultUser(cloudSQLClient gcpclients.CloudSQLAPI,
 			corev1alpha1.ResourceCredentialsSecretPasswordKey: []byte(password),
 		},
 	}
-	logger.V(log.Debug).Info("creating connection secret", "secret", connectionSecret, "username", defaultUser.Name)
+	log.V(logging.Debug).Info("creating connection secret", "secret", connectionSecret, "username", defaultUser.Name)
 	if _, err := r.clientset.CoreV1().Secrets(instance.Namespace).Create(connectionSecret); err != nil {
 		return fmt.Errorf("failed to update connection secret %s: %+v", connectionSecret.Name, err)
 	}
 
-	logger.V(log.Debug).Info("user initialized", "username", defaultUser.Name)
+	log.V(logging.Debug).Info("user initialized", "username", defaultUser.Name)
 	return nil
 }
 
