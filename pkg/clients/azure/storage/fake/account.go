@@ -20,9 +20,11 @@ import (
 	"context"
 
 	"github.com/Azure/azure-sdk-for-go/services/storage/mgmt/2017-06-01/storage"
+
 	azurestorage "github.com/crossplaneio/crossplane/pkg/clients/azure/storage"
 )
 
+// MockAccountOperations mock implementation of AccountOperations
 type MockAccountOperations struct {
 	MockCreate                 func(context.Context, storage.AccountCreateParameters) (*storage.Account, error)
 	MockUpdate                 func(context.Context, storage.AccountUpdateParameters) (*storage.Account, error)
@@ -30,11 +32,11 @@ type MockAccountOperations struct {
 	MockDelete                 func(ctx context.Context) error
 	MockIsAccountNameAvailable func(context.Context, string) error
 	MockListKeys               func(context.Context) ([]storage.AccountKey, error)
-	MockContainer              func(context.Context, string) (azurestorage.ContainerOperations, error)
 }
 
 var _ azurestorage.AccountOperations = &MockAccountOperations{}
 
+// NewMockAccountOperations returns new mock instance with default mocks
 func NewMockAccountOperations() *MockAccountOperations {
 	return &MockAccountOperations{
 		MockCreate: func(i context.Context, parameters storage.AccountCreateParameters) (account *storage.Account, e error) {
@@ -55,36 +57,35 @@ func NewMockAccountOperations() *MockAccountOperations {
 		MockListKeys: func(i context.Context) ([]storage.AccountKey, error) {
 			return nil, nil
 		},
-		MockContainer: func(i context.Context, s string) (operations azurestorage.ContainerOperations, e error) {
-			return nil, nil
-		},
 	}
 }
 
+// Create mock create
 func (m *MockAccountOperations) Create(ctx context.Context, params storage.AccountCreateParameters) (*storage.Account, error) {
 	return m.MockCreate(ctx, params)
 }
 
+// Update mock update
 func (m *MockAccountOperations) Update(ctx context.Context, params storage.AccountUpdateParameters) (*storage.Account, error) {
 	return m.MockUpdate(ctx, params)
 }
 
+// Get mock get
 func (m *MockAccountOperations) Get(ctx context.Context) (*storage.Account, error) {
 	return m.MockGet(ctx)
 }
 
+// Delete mock delete
 func (m *MockAccountOperations) Delete(ctx context.Context) error {
 	return m.MockDelete(ctx)
 }
 
+// IsAccountNameAvailable mock check
 func (m *MockAccountOperations) IsAccountNameAvailable(ctx context.Context, name string) error {
 	return m.MockIsAccountNameAvailable(ctx, name)
 }
 
+// ListKeys mock list keys
 func (m *MockAccountOperations) ListKeys(ctx context.Context) ([]storage.AccountKey, error) {
 	return m.MockListKeys(ctx)
-}
-
-func (m *MockAccountOperations) Container(ctx context.Context, name string) (azurestorage.ContainerOperations, error) {
-	return m.MockContainer(ctx, name)
 }

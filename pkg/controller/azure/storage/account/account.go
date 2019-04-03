@@ -377,7 +377,7 @@ func (asu *accountSecretUpdater) updatesecret(ctx context.Context, acct *storage
 	return nil
 }
 
-func updateStatusIfNotReady(ctx context.Context, kube client.Client, acct *v1alpha1.Account) (reconcile.Result, error) {
+func updateStatusIfNotReady(ctx context.Context, kube client.StatusClient, acct *v1alpha1.Account) (reconcile.Result, error) {
 	if !acct.Status.IsReady() {
 		acct.Status.UnsetAllConditions()
 		acct.Status.SetReady()

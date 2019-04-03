@@ -55,6 +55,3 @@ required = [
   source = "https://github.com/fsnotify/fsnotify.git"
   version="v1.4.7"
 
-[[constraint]]
-  name = "github.com/Azure/azure-storage-blob-go"
-  version = "0.5.0"

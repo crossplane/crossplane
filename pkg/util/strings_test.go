@@ -53,9 +53,6 @@ func Test_parseMap(t *testing.T) {
 		{name: "single", args: "foo:bar", want: map[string]string{"foo": "bar"}},
 		{name: "multi", args: "foo:bar, one:two", want: map[string]string{"foo": "bar", "one": "two"}},
 		{name: "dupe key", args: "foo:bar,foo:buz", want: map[string]string{"foo": "buz"}},
-		{name: "nested map",
-			args: "[foo:bar,nested:[foo:bar,fooz:booz]]",
-			want: map[string]string{"foo": "bar", "nested": "foo:bar,fooz:booz"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -24,15 +24,9 @@ import (
 
 	"github.com/Azure/azure-storage-blob-go/azblob"
 	"github.com/Azure/go-autorest/autorest"
-	"github.com/crossplaneio/crossplane/pkg/apis/azure"
-	"github.com/crossplaneio/crossplane/pkg/apis/azure/storage/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/clients/azure/storage"
-	azurestoragefake "github.com/crossplaneio/crossplane/pkg/clients/azure/storage/fake"
-	"github.com/crossplaneio/crossplane/pkg/test"
 	"github.com/go-test/deep"
 	"github.com/pkg/errors"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -42,6 +36,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	"github.com/crossplaneio/crossplane/pkg/apis/azure"
+	"github.com/crossplaneio/crossplane/pkg/apis/azure/storage/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/clients/azure/storage"
+	azurestoragefake "github.com/crossplaneio/crossplane/pkg/clients/azure/storage/fake"
+	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
 func init() {
@@ -160,11 +161,6 @@ func (c *container) withSpecPAC(pac azblob.PublicAccessType) *container {
 	return c
 }
 
-func (c *container) withSpecMetadata(meta azblob.Metadata) *container {
-	c.Container.Spec.Metadata = meta
-	return c
-}
-
 func newContainerNotFoundError(name string) error {
 	return kerrors.NewNotFound(
 		schema.GroupResource{Group: v1alpha1.Group, Resource: v1alpha1.ContainerKind}, name)
@@ -209,9 +205,6 @@ func TestReconciler_Reconcile(t *testing.T) {
 		Client           client.Client
 		syncdeleterMaker syncdeleterMaker
 	}
-	type args struct {
-		request reconcile.Request
-	}
 	type want struct {
 		err error
 		res reconcile.Result
@@ -220,7 +213,6 @@ func TestReconciler_Reconcile(t *testing.T) {
 	tests := []struct {
 		name   string
 		fields fields
-		args   args
 		want   want
 	}{
 		{
@@ -687,7 +679,7 @@ func Test_containerSyncdeleter_sync(t *testing.T) {
 				createupdater: newMockCreateUpdater(),
 				ContainerOperations: &azurestoragefake.MockContainerOperations{
 					MockGet: func(ctx context.Context) (*azblob.PublicAccessType, azblob.Metadata, error) {
-						return azurestoragefake.PublicAccessType(azblob.PublicAccessContainer), nil, nil
+						return azurestoragefake.PublicAccessTypePtr(azblob.PublicAccessContainer), nil, nil
 					},
 				},
 				container: newContainer(testNamespace, testContainerName).Container,
@@ -868,7 +860,7 @@ func Test_containerCreateUpdater_update(t *testing.T) {
 			},
 			args: args{
 				ctx:        ctx,
-				accessType: azurestoragefake.PublicAccessType(azblob.PublicAccessContainer),
+				accessType: azurestoragefake.PublicAccessTypePtr(azblob.PublicAccessContainer),
 			},
 			want: want{
 				res: reconcile.Result{},
@@ -886,7 +878,7 @@ func Test_containerCreateUpdater_update(t *testing.T) {
 			},
 			args: args{
 				ctx:        ctx,
-				accessType: azurestoragefake.PublicAccessType(azblob.PublicAccessContainer),
+				accessType: azurestoragefake.PublicAccessTypePtr(azblob.PublicAccessContainer),
 			},
 			want: want{
 				res: requeueOnSuccess,
@@ -910,7 +902,7 @@ func Test_containerCreateUpdater_update(t *testing.T) {
 			},
 			args: args{
 				ctx:        ctx,
-				accessType: azurestoragefake.PublicAccessType(azblob.PublicAccessContainer),
+				accessType: azurestoragefake.PublicAccessTypePtr(azblob.PublicAccessContainer),
 				meta: azblob.Metadata{
 					"foo": "bar",
 				},
@@ -934,7 +926,7 @@ func Test_containerCreateUpdater_update(t *testing.T) {
 			},
 			args: args{
 				ctx:        ctx,
-				accessType: azurestoragefake.PublicAccessType(azblob.PublicAccessContainer),
+				accessType: azurestoragefake.PublicAccessTypePtr(azblob.PublicAccessContainer),
 				meta: azblob.Metadata{
 					"foo": "bar",
 				},

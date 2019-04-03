@@ -17,13 +17,9 @@ limitations under the License.
 package storage
 
 import (
-	"context"
-	"fmt"
-	"io/ioutil"
 	"testing"
 
 	"github.com/Azure/azure-sdk-for-go/services/storage/mgmt/2017-06-01/storage"
-	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/go-test/deep"
 	"github.com/pkg/errors"
 )
@@ -106,52 +102,4 @@ func TestNewAccountHandle(t *testing.T) {
 			}
 		})
 	}
-}
-
-func Test(t *testing.T) {
-	fileName := "/home/illya/go/src/github.com/crossplaneio/crossplane/config/creds/aks.json"
-	groupName := "group-westus-1"
-	accountName := "upboundquickstart4"
-	ctx := context.TODO()
-
-	data, err := ioutil.ReadFile(fileName)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	sac, err := NewStorageAccountClient(data)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	ah := NewAccountHandle(sac, groupName, accountName)
-
-	//if err := ah.IsAccountNameAvailable(ctx, accountName); err != nil {
-	//	t.Fatal(err)
-	//}
-
-	//acct, err := ah.Get(ctx)
-	//if err != nil {
-	//	t.Fatal(err)
-	//}
-	//fmt.Printf("%+v\n", *acct)
-	//fmt.Printf("%+v\n", *acct.AccountProperties)
-
-	fmt.Println("creating")
-	pars := storage.AccountCreateParameters{
-		Kind:     storage.Storage,
-		Location: to.StringPtr("West US"),
-		Sku: &storage.Sku{
-			Name: storage.StandardLRS,
-			Tier: storage.Standard,
-		},
-	}
-
-	acct, err := ah.Create(ctx, pars)
-	//_, err = sac.Create(ctx, groupName, "upboundtestacct1", pars)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	fmt.Printf("%v\n", acct)
 }
