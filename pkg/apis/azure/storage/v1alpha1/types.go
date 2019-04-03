@@ -17,6 +17,9 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/Azure/azure-storage-blob-go/azblob"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -146,16 +149,20 @@ type ContainerSpec struct {
 	// If not provided, defaults to "%s", i.e. UID value
 	NameFormat string `json:"nameFormat,omitempty"`
 
+	// Container metadata
+	Metadata azblob.Metadata `json:"metadata,omitempty"`
+
+	// PublicAccessType
 	PublicAccessType azblob.PublicAccessType `json:"publicAccessType,omitempty"`
 
+	// AccountRef reference to azure storage account object
 	AccountRef corev1.LocalObjectReference `json:"accountRef"`
 
 	// ConnectionSecretNameOverride to generate connection secret with specific name
 	ConnectionSecretNameOverride string `json:"connectionSecretNameOverride,omitempty"`
 
-	ProviderRef corev1.LocalObjectReference `json:"providerRef"`
-	ClaimRef    *corev1.ObjectReference     `json:"claimRef,omitempty"`
-	ClassRef    *corev1.ObjectReference     `json:"classRef,omitempty"`
+	ClaimRef *corev1.ObjectReference `json:"claimRef,omitempty"`
+	ClassRef *corev1.ObjectReference `json:"classRef,omitempty"`
 
 	// ReclaimPolicy identifies how to handle the cloud resource after the deletion of this type
 	ReclaimPolicy corev1alpha1.ReclaimPolicy `json:"reclaimPolicy,omitempty"`
@@ -194,4 +201,27 @@ type ContainerList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []Container `json:"items"`
+}
+
+// GetContainerName based on the NameFormat spec value,
+// If name format is not provided, container name defaults to UID
+// If name format provided with '%s' value, container name will result in formatted string + UID,
+//   NOTE: only single %s substitution is supported
+// If name format does not contain '%s' substitution, i.e. a constant string, the
+// constant string value is returned back
+//
+// Examples:
+//   For all examples assume "UID" = "test-uid"
+//   1. NameFormat = "", ContainerName = "test-uid"
+//   2. NameFormat = "foo", ContainerName = "foo"
+//   3. NameFormat = "foo-%s", ContainerName = "foo-test-uid"
+//   4. NameFormat = "foo-%s-bar-%s", ContainerName = "foo-test-uild-bar-%!s(MISSING)"
+func (c *Container) GetContainerName() string {
+	if c.Spec.NameFormat == "" {
+		return string(c.GetUID())
+	}
+	if strings.Contains(c.Spec.NameFormat, "%s") {
+		return fmt.Sprintf(c.Spec.NameFormat, c.GetUID())
+	}
+	return c.Spec.NameFormat
 }
