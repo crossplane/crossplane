@@ -29,7 +29,7 @@ import (
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 )
 
-// AccountSpec defines the desired state of StorageAccountStatus
+// AccountSpec is the schema for Account object
 type AccountSpec struct {
 	// ResourceGroupName azure group name
 	ResourceGroupName string `json:"resourceGroupName"`

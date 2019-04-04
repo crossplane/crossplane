@@ -20,7 +20,7 @@ import (
 	"strconv"
 
 	"google.golang.org/genproto/googleapis/cloud/redis/v1"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
@@ -100,10 +100,10 @@ type CloudMemorystoreInstanceSpec struct {
 	RedisConfigs map[string]string `json:"redisConfigs,omitempty"`
 
 	// Kubernetes object references
-	ClaimRef            *v1.ObjectReference     `json:"claimRef,omitempty"`
-	ClassRef            *v1.ObjectReference     `json:"classRef,omitempty"`
-	ProviderRef         v1.LocalObjectReference `json:"providerRef"`
-	ConnectionSecretRef v1.LocalObjectReference `json:"connectionSecretRef,omitempty"`
+	ClaimRef            *corev1.ObjectReference     `json:"claimRef,omitempty"`
+	ClassRef            *corev1.ObjectReference     `json:"classRef,omitempty"`
+	ProviderRef         corev1.LocalObjectReference `json:"providerRef"`
+	ConnectionSecretRef corev1.LocalObjectReference `json:"connectionSecretRef,omitempty"`
 
 	// ReclaimPolicy identifies how to handle the cloud resource after the deletion of this type
 	ReclaimPolicy corev1alpha1.ReclaimPolicy `json:"reclaimPolicy,omitempty"`
@@ -201,7 +201,7 @@ func (c *CloudMemorystoreInstance) ConnectionSecretName() string {
 }
 
 // ObjectReference to this CloudMemorystore instance
-func (c *CloudMemorystoreInstance) ObjectReference() *v1.ObjectReference {
+func (c *CloudMemorystoreInstance) ObjectReference() *corev1.ObjectReference {
 	return util.ObjectReference(c.ObjectMeta, util.IfEmptyString(c.APIVersion, APIVersion), util.IfEmptyString(c.Kind, CloudMemorystoreInstanceKind))
 }
 

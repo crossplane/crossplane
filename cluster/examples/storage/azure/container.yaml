@@ -11,7 +11,3 @@ spec:
     application: crossplane
   nameFormat: 'xpl-%s'
   reclaimPolicy: Delete
-status:
-  Conditions: null
-  accountStatus: null
-  connectionSecretRef: {}

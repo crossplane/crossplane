@@ -22,24 +22,12 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/Azure/go-autorest/autorest/to"
-
 	"github.com/Azure/azure-storage-blob-go/azblob"
-
-	"github.com/crossplaneio/crossplane/pkg/clients/azure"
-
-	"github.com/crossplaneio/crossplane/pkg/util"
-
-	"github.com/crossplaneio/crossplane/pkg/clients/azure/storage"
-
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-
+	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/pkg/errors"
-	"k8s.io/apimachinery/pkg/types"
-
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
-
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -48,6 +36,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/crossplaneio/crossplane/pkg/apis/azure/storage/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/clients/azure"
+	"github.com/crossplaneio/crossplane/pkg/clients/azure/storage"
+	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 const (
@@ -96,7 +88,7 @@ func Add(mgr manager.Manager) error {
 		return err
 	}
 
-	// Watch for changes to storage account
+	// Watch for changes to storage container
 	if err := c.Watch(&source.Kind{Type: &v1alpha1.Container{}}, &handler.EnqueueRequestForObject{}); err != nil {
 		return err
 	}

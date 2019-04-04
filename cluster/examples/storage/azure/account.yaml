@@ -17,7 +17,3 @@ spec:
       tier: Standard
     tags:
       application: crossplane
-status:
-  Conditions: null
-  accountStatus: null
-  connectionSecretRef: {}
