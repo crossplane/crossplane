@@ -1,0 +1,9 @@
+# Example RedisCluster resource claim using the cloud-rediscluster resource class
+apiVersion: storage.crossplane.io/v1alpha1
+kind: Bucket
+metadata:
+  name: demo-gcp-bucket
+spec:
+  classReference:
+    name: standard-gcp-bucket
+    namespace: crossplane-system
