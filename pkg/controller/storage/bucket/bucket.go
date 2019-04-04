@@ -27,6 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	awsbucketv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/storage/v1alpha1"
+	gcpbucketv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/storage/v1alpha1"
 	bucketv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
 	corecontroller "github.com/crossplaneio/crossplane/pkg/controller/core"
 )
@@ -42,6 +43,7 @@ var (
 	// map of supported resource handlers
 	handlers = map[string]corecontroller.ResourceHandler{
 		awsbucketv1alpha1.S3BucketKindAPIVersion: &S3BucketHandler{},
+		gcpbucketv1alpha1.BucketKindAPIVersion:   &GCSBucketHandler{},
 	}
 )
 
