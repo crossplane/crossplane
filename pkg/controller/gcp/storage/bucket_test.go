@@ -337,7 +337,7 @@ func Test_bucketFactory_newHandler(t *testing.T) {
 	"private_key": "-----BEGIN PRIVATE KEY-----\n%s\n-----END PRIVATE KEY-----\n",
 	"client_email": "%s",
 	"client_id": "%s",
-	"auth_uri": "https://accounts.google.com/obj/oauth2/auth",
+	"auth_uri": "https://accounts.google.com/bucket/oauth2/auth",
 	"token_uri": "https://oauth2.googleapis.com/token",
 	"auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
 	"client_x509_cert_url": "%s"}`
@@ -388,7 +388,7 @@ func Test_bucketFactory_newHandler(t *testing.T) {
 				errors.Errorf("cannot retrieve creds from json: unexpected end of JSON input")),
 		},
 		{
-			name: "cc created",
+			name: "kube created",
 			Client: fake.NewFakeClient(newProvider(ns, providerName).
 				withCondition(corev1alpha1.NewCondition(corev1alpha1.Ready, "", "")).
 				withSecret(secretName, secretKey).Provider,
@@ -665,14 +665,14 @@ func Test_bucketCreateUpdater_create(t *testing.T) {
 	name := testBucketName
 	type fields struct {
 		sc        gcpstorage.Client
-		cc        client.Client
-		obj       *v1alpha1.Bucket
+		kube      client.Client
+		bucket    *v1alpha1.Bucket
 		projectID string
 	}
 	type want struct {
-		err error
-		res reconcile.Result
-		obj *v1alpha1.Bucket
+		err    error
+		res    reconcile.Result
+		bucket *v1alpha1.Bucket
 	}
 	tests := []struct {
 		name   string
@@ -687,17 +687,13 @@ func Test_bucketCreateUpdater_create(t *testing.T) {
 						return errors.New("test-create-error")
 					},
 				},
-				cc: &test.MockClient{
-					MockStatusUpdate: func(ctx context.Context, obj runtime.Object) error {
-						return nil
-					},
-				},
-				obj: newBucket(ns, name).Bucket,
+				kube:   test.NewMockClient(),
+				bucket: newBucket(ns, name).Bucket,
 			},
 			want: want{
 				err: nil,
 				res: resultRequeue,
-				obj: newBucket(ns, name).
+				bucket: newBucket(ns, name).
 					withFailedCondition(failedToCreate, "test-create-error").
 					withFinalizer(finalizer).
 					Bucket,
@@ -714,17 +710,13 @@ func Test_bucketCreateUpdater_create(t *testing.T) {
 						return nil, errors.New("test-attrs-error")
 					},
 				},
-				cc: &test.MockClient{
-					MockStatusUpdate: func(ctx context.Context, obj runtime.Object) error {
-						return nil
-					},
-				},
-				obj: newBucket(ns, name).Bucket,
+				kube:   test.NewMockClient(),
+				bucket: newBucket(ns, name).Bucket,
 			},
 			want: want{
 				err: nil,
 				res: resultRequeue,
-				obj: newBucket(ns, name).
+				bucket: newBucket(ns, name).
 					withCondition(corev1alpha1.NewCondition(corev1alpha1.Ready, "", "")).
 					withFailedCondition(failedToRetrieve, "test-attrs-error").
 					withFinalizer(finalizer).
@@ -735,17 +727,17 @@ func Test_bucketCreateUpdater_create(t *testing.T) {
 			name: "create success, update error",
 			fields: fields{
 				sc: gcpstoragefake.NewMockBucketClient(),
-				cc: &test.MockClient{
+				kube: &test.MockClient{
 					MockUpdate: func(ctx context.Context, obj runtime.Object) error {
 						return errors.New("test-update-error")
 					},
 				},
-				obj: newBucket(ns, name).Bucket,
+				bucket: newBucket(ns, name).Bucket,
 			},
 			want: want{
 				err: errors.New("test-update-error"),
 				res: resultRequeue,
-				obj: newBucket(ns, name).
+				bucket: newBucket(ns, name).
 					withCondition(corev1alpha1.NewCondition(corev1alpha1.Ready, "", "")).
 					withFinalizer(finalizer).
 					Bucket,
@@ -755,16 +747,16 @@ func Test_bucketCreateUpdater_create(t *testing.T) {
 			name: "create success",
 			fields: fields{
 				sc: gcpstoragefake.NewMockBucketClient(),
-				cc: &test.MockClient{
+				kube: &test.MockClient{
 					MockUpdate:       func(ctx context.Context, obj runtime.Object) error { return nil },
 					MockStatusUpdate: func(ctx context.Context, obj runtime.Object) error { return nil },
 				},
-				obj: newBucket(ns, name).Bucket,
+				bucket: newBucket(ns, name).Bucket,
 			},
 			want: want{
 				err: nil,
 				res: requeueOnSuccess,
-				obj: newBucket(ns, name).
+				bucket: newBucket(ns, name).
 					withCondition(corev1alpha1.NewCondition(corev1alpha1.Ready, "", "")).
 					withFinalizer(finalizer).
 					Bucket,
@@ -775,8 +767,8 @@ func Test_bucketCreateUpdater_create(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bh := &bucketCreateUpdater{
 				Client:    tt.fields.sc,
-				kube:      tt.fields.cc,
-				object:    tt.fields.obj,
+				kube:      tt.fields.kube,
+				bucket:    tt.fields.bucket,
 				projectID: tt.fields.projectID,
 			}
 			got, err := bh.create(ctx)
@@ -788,9 +780,11 @@ func Test_bucketCreateUpdater_create(t *testing.T) {
 				t.Errorf("bucketCreateUpdater.create() result = %v, wantRes %v\n%s", got, tt.want.res, diff)
 				return
 			}
-			if diff := deep.Equal(tt.fields.obj, tt.want.obj); diff != nil {
-				t.Errorf("bucketCreateUpdater.create() bucket = \n%+v, wantObj \n%+v\n%s", tt.fields.obj, tt.want.obj, diff)
-				return
+			if tt.want.bucket != nil {
+				if diff := deep.Equal(tt.fields.bucket, tt.want.bucket); diff != nil {
+					t.Errorf("bucketCreateUpdater.create() bucket = \n%+v, wantObj \n%+v\n%s", tt.fields.bucket, tt.want.bucket, diff)
+					return
+				}
 			}
 		})
 	}
@@ -887,7 +881,7 @@ func Test_bucketCreateUpdater_update(t *testing.T) {
 			bh := &bucketCreateUpdater{
 				Client: tt.fields.sc,
 				kube:   tt.fields.cc,
-				object: tt.fields.o,
+				bucket: tt.fields.o,
 			}
 			got, err := bh.update(ctx, tt.attrs)
 			if diff := deep.Equal(err, tt.want.err); diff != nil {

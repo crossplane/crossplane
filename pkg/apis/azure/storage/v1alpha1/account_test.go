@@ -1039,8 +1039,9 @@ func Test_toStringPtr(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := toStringPtr(tt.args); got != tt.want {
-				t.Errorf("toStringPtr() = %v, want %v", got, tt.want)
+			got := toStringPtr(tt.args)
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("toStringPtr() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
 	}
