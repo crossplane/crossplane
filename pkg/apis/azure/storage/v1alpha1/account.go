@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	"encoding/json"
+	"log"
 
 	"github.com/Azure/azure-sdk-for-go/services/storage/mgmt/2017-06-01/storage"
 	"github.com/Azure/go-autorest/autorest/date"
@@ -673,7 +674,9 @@ func NewStorageAccountSpec(a *storage.Account) *StorageAccountSpec {
 // parseStorageAccountSpec from json encoded string
 func parseStorageAccountSpec(s string) *StorageAccountSpec {
 	sas := &StorageAccountSpec{}
-	_ = json.Unmarshal([]byte(s), sas)
+	if err := json.Unmarshal([]byte(s), sas); err != nil {
+		log.Printf("error parsing storage account spec: %v\n", err)
+	}
 	return sas
 }
 
