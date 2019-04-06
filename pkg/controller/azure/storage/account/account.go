@@ -18,6 +18,7 @@ package account
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"reflect"
 	"time"
@@ -65,6 +66,8 @@ const (
 	failedToUpdate = "error updating"
 	// failed to save connection secret
 	failedToSaveSecret = "error saving connection secret"
+	// failed to sync account
+	failedToSyncCollision = "error syncing - collision"
 )
 
 var (
@@ -227,6 +230,8 @@ func (asd *accountSyncDeleter) delete(ctx context.Context) (reconcile.Result, er
 	return reconcile.Result{}, asd.kube.Update(ctx, asd.acct)
 }
 
+const uidTag = "UID"
+
 // sync - synchronizes the state of the storage account resource with the state of the
 // account Kubernetes acct
 func (asd *accountSyncDeleter) sync(ctx context.Context) (reconcile.Result, error) {
@@ -238,6 +243,13 @@ func (asd *accountSyncDeleter) sync(ctx context.Context) (reconcile.Result, erro
 
 	if account == nil {
 		return asd.create(ctx)
+	}
+
+	// for existing account check UID tag
+	if uid := to.String(account.Tags[uidTag]); uid != "" && uid != string(asd.acct.GetUID()) {
+		asd.acct.Status.SetFailed(failedToSyncCollision,
+			fmt.Sprintf("storage account: %s already exists and owned by: %s", to.String(account.Name), uid))
+		return reconcile.Result{}, asd.kube.Status().Update(ctx, asd.acct)
 	}
 
 	return asd.update(ctx, account)
@@ -272,7 +284,16 @@ func newAccountCreateUpdater(ao azurestorage.AccountOperations, kube client.Clie
 func (acu *accountCreateUpdater) create(ctx context.Context) (reconcile.Result, error) {
 	util.AddFinalizer(&acu.acct.ObjectMeta, finalizer)
 
-	a, err := acu.Create(ctx, v1alpha1.ToStorageAccountCreate(acu.acct.Spec.StorageAccountSpec))
+	// Set UID to the account storage spec
+	// TODO(illya) - this eventually needs to be in Defaulter Mutating web hook
+	if tags := acu.acct.Spec.StorageAccountSpec.Tags; tags == nil {
+		tags = make(map[string]string)
+	}
+	acu.acct.Spec.StorageAccountSpec.Tags[uidTag] = string(acu.acct.GetUID())
+
+	accountSpec := v1alpha1.ToStorageAccountCreate(acu.acct.Spec.StorageAccountSpec)
+
+	a, err := acu.Create(ctx, accountSpec)
 	if err != nil {
 		acu.acct.Status.SetFailed(failedToCreate, err.Error())
 		return resultRequeue, acu.kube.Status().Update(ctx, acu.acct)
@@ -284,6 +305,7 @@ func (acu *accountCreateUpdater) create(ctx context.Context) (reconcile.Result, 
 // update storage account resource if needed
 func (acu *accountCreateUpdater) update(ctx context.Context, account *storage.Account) (reconcile.Result, error) {
 	if account.ProvisioningState == storage.Succeeded {
+
 		current := v1alpha1.NewStorageAccountSpec(account)
 		if reflect.DeepEqual(current, acu.acct.Spec.StorageAccountSpec) {
 			return updateStatusIfNotReady(ctx, acu.kube, acu.acct)

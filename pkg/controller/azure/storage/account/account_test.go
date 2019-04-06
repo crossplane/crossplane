@@ -660,6 +660,7 @@ func Test_createupdater_create(t *testing.T) {
 		res reconcile.Result
 		obj *v1alpha1.Account
 	}
+
 	tests := []struct {
 		name   string
 		fields fields
@@ -678,11 +679,18 @@ func Test_createupdater_create(t *testing.T) {
 						return nil
 					},
 				},
-				acct: v1alpha1.NewTestAccount(ns, name).Account,
+				acct: v1alpha1.NewTestAccount(ns, name).
+					WithStorageAccountSpec(&v1alpha1.StorageAccountSpec{
+						Tags: map[string]string{},
+					}).
+					Account,
 			},
 			want: want{
 				res: resultRequeue,
 				obj: v1alpha1.NewTestAccount(ns, name).
+					WithStorageAccountSpec(&v1alpha1.StorageAccountSpec{
+						Tags: map[string]string{uidTag: ""},
+					}).
 					WithFailedCondition(failedToCreate, "test-create-error").
 					WithFinalizer(finalizer).
 					Account,
@@ -698,12 +706,21 @@ func Test_createupdater_create(t *testing.T) {
 				},
 				ao:   azurestoragefake.NewMockAccountOperations(),
 				kube: test.NewMockClient(),
-				acct: v1alpha1.NewTestAccount(ns, name).Account,
+				acct: v1alpha1.NewTestAccount(ns, name).
+					WithUID("test-uid").
+					WithStorageAccountSpec(&v1alpha1.StorageAccountSpec{
+						Tags: map[string]string{},
+					}).
+					Account,
 			},
 			want: want{
 				err: errors.New("test-syncback-error"),
 				res: resultRequeue,
 				obj: v1alpha1.NewTestAccount(ns, name).
+					WithUID("test-uid").
+					WithStorageAccountSpec(&v1alpha1.StorageAccountSpec{
+						Tags: map[string]string{uidTag: "test-uid"},
+					}).
 					WithFinalizer(finalizer).
 					Account,
 			},
