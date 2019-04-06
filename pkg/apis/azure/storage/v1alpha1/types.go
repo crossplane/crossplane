@@ -138,6 +138,7 @@ func (a *Account) SetBound(state bool) {
 func ParseAccountSpec(p map[string]string) *AccountSpec {
 	return &AccountSpec{
 		ReclaimPolicy:      corev1alpha1.ReclaimRetain,
+		ResourceGroupName:  p["resourceGroupName"],
 		StorageAccountName: p["storageAccountName"],
 		StorageAccountSpec: parseStorageAccountSpec(p["storageAccountSpec"]),
 	}
@@ -224,4 +225,55 @@ func (c *Container) GetContainerName() string {
 		return fmt.Sprintf(c.Spec.NameFormat, c.GetUID())
 	}
 	return c.Spec.NameFormat
+}
+
+// ConnectionSecretName returns a secret name from the reference
+func (c *Container) ConnectionSecretName() string {
+	return util.IfEmptyString(c.Spec.ConnectionSecretNameOverride, c.Name)
+}
+
+// ObjectReference to this resource instance
+func (c *Container) ObjectReference() *corev1.ObjectReference {
+	return util.ObjectReference(c.ObjectMeta, util.IfEmptyString(c.APIVersion, APIVersion), util.IfEmptyString(c.Kind, ContainerKind))
+}
+
+// OwnerReference to use this instance as an owner
+func (c *Container) OwnerReference() metav1.OwnerReference {
+	return *util.ObjectToOwnerReference(c.ObjectReference())
+}
+
+// IsAvailable for usage/binding
+func (c *Container) IsAvailable() bool {
+	return c.Status.IsReady()
+}
+
+// IsBound determines if the resource is in a bound binding state
+func (c *Container) IsBound() bool {
+	return c.Status.Phase == corev1alpha1.BindingStateBound
+}
+
+// SetBound sets the binding state of this resource
+func (c *Container) SetBound(state bool) {
+	if state {
+		c.Status.Phase = corev1alpha1.BindingStateBound
+	} else {
+		c.Status.Phase = corev1alpha1.BindingStateUnbound
+	}
+}
+
+// ParseContainerSpec from properties map key/values
+func ParseContainerSpec(p map[string]string) *ContainerSpec {
+	return &ContainerSpec{
+		ReclaimPolicy:    corev1alpha1.ReclaimRetain,
+		Metadata:         util.ParseMap("metadata"),
+		NameFormat:       p["nameFormat"],
+		PublicAccessType: parsePublicAccessType(p["publicAccessType"]),
+	}
+}
+
+func parsePublicAccessType(s string) azblob.PublicAccessType {
+	if s == "" {
+		return azblob.PublicAccessNone
+	}
+	return azblob.PublicAccessType(s)
 }

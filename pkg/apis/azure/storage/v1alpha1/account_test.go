@@ -879,7 +879,7 @@ func Test_toStorageAccountCreate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := ToStorageAccountCreate(tt.args)
 			if diff := deep.Equal(got, tt.want); diff != nil {
-				t.Errorf("StorageAccountSpec.toStorageAccountCreate() = %v, want %v\n%s", got, tt.want, diff)
+				t.Errorf("StorageAccountSpec.toStorageAccountCreate() = \n%v, want \n%v\n%s", got, tt.want, diff)
 			}
 		})
 	}
