@@ -200,16 +200,19 @@ type BucketSpec struct {
 	ResourceRef *corev1.ObjectReference `json:"resourceName,omitempty"`
 	Selector    metav1.LabelSelector    `json:"selector,omitempty"`
 
-	// Bucket properties
+	// Name properties
 	// +kubebuilder:validation:MaxLength=63
 	// +kubebuilder:validation:MinLength=3
 	Name string `json:"name,omitempty"`
+
 	// +kubebuilder:validation:Enum=Private,PublicRead,PublicReadWrite,AuthenticatedRead
+	// NOTE: AWS S3 and GCP Bucket values (not in Azure)
 	PredefinedACL *PredefinedACL `json:"predefinedACL,omitempty"`
 
 	// LocalPermission is the permissions granted on the bucket for the provider specific
 	// bucket service account that is available in a secret after provisioning.
 	// +kubebuilder:validation:Enum=Read,Write,ReadWrite
+	// NOTE: AWS S3 Specific value
 	LocalPermission *LocalPermissionType `json:"localPermission,omitempty"`
 
 	// +kubebuilder:validation:MaxLength=255

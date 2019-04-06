@@ -51,20 +51,21 @@ spec:
               minLength: 1
               type: string
             localPermission:
-              description: LocalPermission is the permissions granted on the bucket
+              description: 'LocalPermission is the permissions granted on the bucket
                 for the provider specific bucket service account that is available
-                in a secret after provisioning.
+                in a secret after provisioning. NOTE: AWS S3 Specific value'
               enum:
               - Read
               - Write
               - ReadWrite
               type: string
             name:
-              description: Bucket properties
+              description: Name properties
               maxLength: 63
               minLength: 3
               type: string
             predefinedACL:
+              description: 'NOTE: AWS S3 and GCP Bucket values (not in Azure)'
               enum:
               - Private
               - PublicRead
