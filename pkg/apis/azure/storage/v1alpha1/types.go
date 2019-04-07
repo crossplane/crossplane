@@ -216,7 +216,7 @@ type ContainerList struct {
 //   1. NameFormat = "", ContainerName = "test-uid"
 //   2. NameFormat = "foo", ContainerName = "foo"
 //   3. NameFormat = "foo-%s", ContainerName = "foo-test-uid"
-//   4. NameFormat = "foo-%s-bar-%s", ContainerName = "foo-test-uild-bar-%!s(MISSING)"
+//   4. NameFormat = "foo-%s-bar-%s", ContainerName = "foo-test-uid-bar-%!s(MISSING)"
 func (c *Container) GetContainerName() string {
 	if c.Spec.NameFormat == "" {
 		return string(c.GetUID())
