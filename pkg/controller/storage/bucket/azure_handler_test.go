@@ -20,13 +20,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/crossplaneio/crossplane/pkg/apis/azure"
-	"github.com/crossplaneio/crossplane/pkg/apis/azure/storage/v1alpha1"
-	v1alpha1test "github.com/crossplaneio/crossplane/pkg/apis/azure/storage/v1alpha1/test"
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	storagev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
-	buckettest "github.com/crossplaneio/crossplane/pkg/controller/storage/bucket/test"
-	"github.com/crossplaneio/crossplane/pkg/test"
 	"github.com/go-test/deep"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -36,6 +29,14 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+
+	"github.com/crossplaneio/crossplane/pkg/apis/azure"
+	"github.com/crossplaneio/crossplane/pkg/apis/azure/storage/v1alpha1"
+	v1alpha1test "github.com/crossplaneio/crossplane/pkg/apis/azure/storage/v1alpha1/test"
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	storagev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
+	buckettest "github.com/crossplaneio/crossplane/pkg/controller/storage/bucket/test"
+	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
 const (

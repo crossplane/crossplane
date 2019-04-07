@@ -17,11 +17,12 @@ limitations under the License.
 package test
 
 import (
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
 )
 
 // Bucket builder for testing purposes
