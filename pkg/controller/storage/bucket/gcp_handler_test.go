@@ -81,7 +81,7 @@ func TestGCSBucketHandler_Find(t *testing.T) {
 			},
 			want: want{
 				err: errors.Wrapf(errors.New("test-get-error"),
-					"cannot find Cloud Memorystore instance %s", nn),
+					"cannot find gcs bucket instance %s", nn),
 			},
 		},
 		{
