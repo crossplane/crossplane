@@ -101,12 +101,12 @@ func TestParseAccountSpec(t *testing.T) {
 		{
 			name: "parse",
 			args: map[string]string{
-				"storageAccountName": "test-TestAccount-name",
+				"storageAccountName": "test-account-name",
 				"storageAccountSpec": storageAccountSpecString,
 			},
 			want: &AccountSpec{
 				ReclaimPolicy:      v1alpha1.ReclaimRetain,
-				StorageAccountName: "test-TestAccount-name",
+				StorageAccountName: "test-account-name",
 				StorageAccountSpec: storageAccountSpec,
 			},
 		},
