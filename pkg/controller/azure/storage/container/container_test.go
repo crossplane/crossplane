@@ -39,6 +39,7 @@ import (
 
 	"github.com/crossplaneio/crossplane/pkg/apis/azure"
 	"github.com/crossplaneio/crossplane/pkg/apis/azure/storage/v1alpha1"
+	v1alpha1test "github.com/crossplaneio/crossplane/pkg/apis/azure/storage/v1alpha1/test"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/clients/azure/storage"
 	azurestoragefake "github.com/crossplaneio/crossplane/pkg/clients/azure/storage/fake"
@@ -99,67 +100,6 @@ func (m *mockSyncdeleteMaker) newSyncdeleter(ctx context.Context, c *v1alpha1.Co
 }
 
 var _ syncdeleterMaker = &mockSyncdeleteMaker{}
-
-type container struct {
-	*v1alpha1.Container
-}
-
-func newContainer(ns, name string) *container {
-	return &container{
-		Container: &v1alpha1.Container{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace:  ns,
-				Name:       name,
-				Finalizers: []string{},
-			},
-		},
-	}
-}
-
-func (c *container) withAccountRef(name string) *container {
-	c.Container.Spec.AccountRef = v1.LocalObjectReference{Name: name}
-	return c
-}
-
-func (c *container) withDeleteTimestamp(t time.Time) *container {
-	c.Container.ObjectMeta.DeletionTimestamp = &metav1.Time{Time: t}
-	return c
-}
-
-func (c *container) withFailedCondition(reason, msg string) *container {
-	c.Status.SetFailed(reason, msg)
-	return c
-}
-
-func (c *container) withUnsetAllConditions() *container {
-	c.Status.UnsetAllConditions()
-	return c
-}
-
-func (c *container) withReadyCondition() *container {
-	c.Status.SetReady()
-	return c
-}
-
-func (c *container) withFinalizer(f string) *container {
-	c.Container.ObjectMeta.Finalizers = append(c.Container.ObjectMeta.Finalizers, f)
-	return c
-}
-
-func (c *container) withSpecNameFormat(f string) *container {
-	c.Container.Spec.NameFormat = f
-	return c
-}
-
-func (c *container) withReclaimPolicy(p corev1alpha1.ReclaimPolicy) *container {
-	c.Container.Spec.ReclaimPolicy = p
-	return c
-}
-
-func (c *container) withSpecPAC(pac azblob.PublicAccessType) *container {
-	c.Container.Spec.PublicAccessType = pac
-	return c
-}
 
 func newContainerNotFoundError(name string) error {
 	return kerrors.NewNotFound(
@@ -247,8 +187,8 @@ func TestReconciler_Reconcile(t *testing.T) {
 		{
 			name: "syncdelete maker error",
 			fields: fields{
-				Client: fake.NewFakeClient(newContainer(testNamespace, testContainerName).
-					withFinalizer("foo.bar").Container),
+				Client: fake.NewFakeClient(v1alpha1test.NewMockContainer(testNamespace, testContainerName).
+					WithFinalizer("foo.bar").Container),
 				syncdeleterMaker: &mockSyncdeleteMaker{
 					mockNewSyncdeleter: func(ctx context.Context, c *v1alpha1.Container) (syncdeleter, error) {
 						return nil, errors.New("test-new-syncdeleter-error")
@@ -257,17 +197,17 @@ func TestReconciler_Reconcile(t *testing.T) {
 			},
 			want: want{
 				res: resultRequeue,
-				con: newContainer(testNamespace, testContainerName).
-					withFinalizer("foo.bar").
-					withFailedCondition(failedToGetHandler, "test-new-syncdeleter-error").
+				con: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
+					WithFinalizer("foo.bar").
+					WithFailedCondition(failedToGetHandler, "test-new-syncdeleter-error").
 					Container,
 			},
 		},
 		{
 			name: "delete",
 			fields: fields{
-				Client: fake.NewFakeClient(newContainer(testNamespace, testContainerName).
-					withDeleteTimestamp(time.Now()).Container),
+				Client: fake.NewFakeClient(v1alpha1test.NewMockContainer(testNamespace, testContainerName).
+					WithDeleteTimestamp(time.Now()).Container),
 				syncdeleterMaker: &mockSyncdeleteMaker{
 					mockNewSyncdeleter: func(ctx context.Context, c *v1alpha1.Container) (syncdeleter, error) {
 						return &mockSyncdeleter{
@@ -285,7 +225,7 @@ func TestReconciler_Reconcile(t *testing.T) {
 		{
 			name: "sync",
 			fields: fields{
-				Client: fake.NewFakeClient(newContainer(testNamespace, testContainerName).Container),
+				Client: fake.NewFakeClient(v1alpha1test.NewMockContainer(testNamespace, testContainerName).Container),
 				syncdeleterMaker: &mockSyncdeleteMaker{
 					mockNewSyncdeleter: func(ctx context.Context, c *v1alpha1.Container) (syncdeleter, error) {
 						return &mockSyncdeleter{
@@ -330,8 +270,8 @@ func TestReconciler_Reconcile(t *testing.T) {
 
 func Test_containerSyncdeleterMaker_newSyncdeleter(t *testing.T) {
 	key := types.NamespacedName{Namespace: testNamespace, Name: testContainerName}
-	newCont := func() *container {
-		return newContainer(testNamespace, testContainerName)
+	newCont := func() *v1alpha1test.MockContainer {
+		return v1alpha1test.NewMockContainer(testNamespace, testContainerName)
 	}
 	ctx := context.TODO()
 	testAccountKey := "dGVzdC1rZXkK"
@@ -370,7 +310,7 @@ func Test_containerSyncdeleterMaker_newSyncdeleter(t *testing.T) {
 			},
 			args: args{
 				ctx: ctx,
-				c:   newCont().withAccountRef(testAccountName).withFinalizer(finalizer).Container,
+				c:   newCont().WithSpecAccountRef(testAccountName).WithFinalizer(finalizer).Container,
 			},
 			want: want{
 				err: errors.Wrapf(newAccountNotFoundError(testAccountName),
@@ -380,14 +320,14 @@ func Test_containerSyncdeleterMaker_newSyncdeleter(t *testing.T) {
 		{
 			name: "failed to get account - not found, yes delete",
 			fields: fields{
-				Client: fake.NewFakeClient(newCont().withAccountRef(testAccountName).
-					withFinalizer(finalizer).
+				Client: fake.NewFakeClient(newCont().WithSpecAccountRef(testAccountName).
+					WithFinalizer(finalizer).
 					Container),
 			},
 			args: args{
 				ctx: ctx,
-				c: newCont().withAccountRef(testAccountName).withFinalizer(finalizer).
-					withDeleteTimestamp(time.Now()).
+				c: newCont().WithSpecAccountRef(testAccountName).WithFinalizer(finalizer).
+					WithDeleteTimestamp(time.Now()).
 					Container,
 			},
 			want: want{
@@ -399,12 +339,12 @@ func Test_containerSyncdeleterMaker_newSyncdeleter(t *testing.T) {
 			name: "account reference secret not found",
 			fields: fields{
 				Client: fake.NewFakeClient(
-					v1alpha1.NewTestAccount(testNamespace, testAccountName).WithStatusConnectionRef(testAccountName).Account,
-					newCont().withAccountRef(testAccountName).withFinalizer(finalizer).Container),
+					v1alpha1test.NewMockAccount(testNamespace, testAccountName).WithStatusConnectionRef(testAccountName).Account,
+					newCont().WithSpecAccountRef(testAccountName).WithFinalizer(finalizer).Container),
 			},
 			args: args{
 				ctx: ctx,
-				c: newCont().withAccountRef(testAccountName).withFinalizer(finalizer).
+				c: newCont().WithSpecAccountRef(testAccountName).WithFinalizer(finalizer).
 					Container,
 			},
 			want: want{
@@ -416,18 +356,18 @@ func Test_containerSyncdeleterMaker_newSyncdeleter(t *testing.T) {
 			name: "failed to create container handle",
 			fields: fields{
 				Client: fake.NewFakeClient(
-					newCont().withAccountRef(testAccountName).withFinalizer(finalizer).Container,
+					newCont().WithSpecAccountRef(testAccountName).WithFinalizer(finalizer).Container,
 					newSecret(testNamespace, testAccountName, map[string][]byte{
 						corev1alpha1.ResourceCredentialsSecretUserKey:     []byte(testAccountName),
 						corev1alpha1.ResourceCredentialsSecretPasswordKey: []byte("test-key"),
 					}),
-					v1alpha1.NewTestAccount(testNamespace, testAccountName).WithStatusConnectionRef(testAccountName).Account),
+					v1alpha1test.NewMockAccount(testNamespace, testAccountName).WithStatusConnectionRef(testAccountName).Account),
 			},
 			args: args{
 				ctx: ctx,
-				c: newCont().withAccountRef(testAccountName).
-					withFinalizer(finalizer).
-					withSpecNameFormat(testContainerName).
+				c: newCont().WithSpecAccountRef(testAccountName).
+					WithFinalizer(finalizer).
+					WithSpecNameFormat(testContainerName).
 					Container,
 			},
 			want: want{
@@ -439,18 +379,18 @@ func Test_containerSyncdeleterMaker_newSyncdeleter(t *testing.T) {
 			name: "success",
 			fields: fields{
 				Client: fake.NewFakeClient(
-					newCont().withAccountRef(testAccountName).withFinalizer(finalizer).Container,
+					newCont().WithSpecAccountRef(testAccountName).WithFinalizer(finalizer).Container,
 					newSecret(testNamespace, testAccountName, map[string][]byte{
 						corev1alpha1.ResourceCredentialsSecretUserKey:     []byte(testAccountName),
 						corev1alpha1.ResourceCredentialsSecretPasswordKey: []byte("dGVzdC1rZXkK"),
 					}),
-					v1alpha1.NewTestAccount(testNamespace, testAccountName).WithStatusConnectionRef(testAccountName).Account),
+					v1alpha1test.NewMockAccount(testNamespace, testAccountName).WithStatusConnectionRef(testAccountName).Account),
 			},
 			args: args{
 				ctx: ctx,
-				c: newCont().withAccountRef(testAccountName).
-					withFinalizer(finalizer).
-					withSpecNameFormat(testContainerName).
+				c: newCont().WithSpecAccountRef(testAccountName).
+					WithFinalizer(finalizer).
+					WithSpecNameFormat(testContainerName).
 					Container,
 			},
 			want: want{
@@ -523,15 +463,16 @@ func Test_containerSyncdeleter_delete(t *testing.T) {
 			name: "reclaim: retain",
 			fields: fields{
 				kube: test.NewMockClient(),
-				container: newContainer(testNamespace, testContainerName).
-					withReclaimPolicy(corev1alpha1.ReclaimRetain).
-					withFinalizer(finalizer).Container,
+				container: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
+					WithSpecReclaimPolicy(corev1alpha1.ReclaimRetain).
+					WithFinalizer(finalizer).Container,
 			},
 			args: args{ctx: ctx},
 			want: want{
 				res: reconcile.Result{},
-				cont: newContainer(testNamespace, testContainerName).
-					withReclaimPolicy(corev1alpha1.ReclaimRetain).Container,
+				cont: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
+					WithSpecReclaimPolicy(corev1alpha1.ReclaimRetain).
+					WithFinalizers([]string{}).Container,
 			},
 		},
 		{
@@ -543,15 +484,16 @@ func Test_containerSyncdeleter_delete(t *testing.T) {
 						return autorest.DetailedError{StatusCode: http.StatusNotFound}
 					},
 				},
-				container: newContainer(testNamespace, testContainerName).
-					withReclaimPolicy(corev1alpha1.ReclaimDelete).
-					withFinalizer(finalizer).Container,
+				container: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
+					WithSpecReclaimPolicy(corev1alpha1.ReclaimDelete).
+					WithFinalizer(finalizer).Container,
 			},
 			args: args{ctx: ctx},
 			want: want{
 				res: reconcile.Result{},
-				cont: newContainer(testNamespace, testContainerName).
-					withReclaimPolicy(corev1alpha1.ReclaimDelete).Container,
+				cont: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
+					WithSpecReclaimPolicy(corev1alpha1.ReclaimDelete).
+					WithFinalizers([]string{}).Container,
 			},
 		},
 		{
@@ -563,17 +505,17 @@ func Test_containerSyncdeleter_delete(t *testing.T) {
 						return errors.New("test-delete-error")
 					},
 				},
-				container: newContainer(testNamespace, testContainerName).
-					withReclaimPolicy(corev1alpha1.ReclaimDelete).
-					withFinalizer(finalizer).Container,
+				container: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
+					WithSpecReclaimPolicy(corev1alpha1.ReclaimDelete).
+					WithFinalizer(finalizer).Container,
 			},
 			args: args{ctx: ctx},
 			want: want{
 				res: resultRequeue,
-				cont: newContainer(testNamespace, testContainerName).
-					withReclaimPolicy(corev1alpha1.ReclaimDelete).
-					withFinalizer(finalizer).
-					withFailedCondition(failedToDelete, "test-delete-error").
+				cont: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
+					WithSpecReclaimPolicy(corev1alpha1.ReclaimDelete).
+					WithFinalizer(finalizer).
+					WithFailedCondition(failedToDelete, "test-delete-error").
 					Container,
 			},
 		},
@@ -645,14 +587,14 @@ func Test_containerSyncdeleter_sync(t *testing.T) {
 						return nil, nil, errors.New("test-get-error")
 					},
 				},
-				container: newContainer(testNamespace, testContainerName).Container,
+				container: v1alpha1test.NewMockContainer(testNamespace, testContainerName).Container,
 				kube:      test.NewMockClient(),
 			},
 			args: args{ctx: ctx},
 			want: want{
 				res: resultRequeue,
-				cont: newContainer(testNamespace, testContainerName).
-					withFailedCondition(failedToRetrieve, "test-get-error").Container,
+				cont: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
+					WithFailedCondition(failedToRetrieve, "test-get-error").Container,
 			},
 		},
 		{
@@ -664,13 +606,13 @@ func Test_containerSyncdeleter_sync(t *testing.T) {
 						return nil, nil, nil
 					},
 				},
-				container: newContainer(testNamespace, testContainerName).Container,
+				container: v1alpha1test.NewMockContainer(testNamespace, testContainerName).Container,
 				kube:      test.NewMockClient(),
 			},
 			args: args{ctx: ctx},
 			want: want{
 				res:  reconcile.Result{},
-				cont: newContainer(testNamespace, testContainerName).Container,
+				cont: v1alpha1test.NewMockContainer(testNamespace, testContainerName).Container,
 			},
 		},
 		{
@@ -682,13 +624,13 @@ func Test_containerSyncdeleter_sync(t *testing.T) {
 						return azurestoragefake.PublicAccessTypePtr(azblob.PublicAccessContainer), nil, nil
 					},
 				},
-				container: newContainer(testNamespace, testContainerName).Container,
+				container: v1alpha1test.NewMockContainer(testNamespace, testContainerName).Container,
 				kube:      test.NewMockClient(),
 			},
 			args: args{ctx: ctx},
 			want: want{
 				res:  reconcile.Result{},
-				cont: newContainer(testNamespace, testContainerName).Container,
+				cont: v1alpha1test.NewMockContainer(testNamespace, testContainerName).Container,
 			},
 		},
 	}
@@ -738,7 +680,7 @@ func Test_containerCreateUpdater_create(t *testing.T) {
 		{
 			name: "update finalizer failed",
 			fields: fields{
-				container: newContainer(testNamespace, testContainerName).Container,
+				container: v1alpha1test.NewMockContainer(testNamespace, testContainerName).Container,
 				kube: &test.MockClient{
 					MockUpdate: func(ctx context.Context, obj runtime.Object) error {
 						return errors.New("test-update-error")
@@ -749,13 +691,13 @@ func Test_containerCreateUpdater_create(t *testing.T) {
 			want: want{
 				res:  resultRequeue,
 				err:  errors.Wrapf(errors.New("test-update-error"), "failed to update container spec"),
-				cont: newContainer(testNamespace, testContainerName).withFinalizer(finalizer).Container,
+				cont: v1alpha1test.NewMockContainer(testNamespace, testContainerName).WithFinalizer(finalizer).Container,
 			},
 		},
 		{
 			name: "create failed",
 			fields: fields{
-				container: newContainer(testNamespace, testContainerName).Container,
+				container: v1alpha1test.NewMockContainer(testNamespace, testContainerName).Container,
 				ContainerOperations: &azurestoragefake.MockContainerOperations{
 					MockCreate: func(ctx context.Context, pub azblob.PublicAccessType, meta azblob.Metadata) error {
 						return errors.New("test-create-error")
@@ -766,43 +708,43 @@ func Test_containerCreateUpdater_create(t *testing.T) {
 			args: args{ctx: ctx},
 			want: want{
 				res: resultRequeue,
-				cont: newContainer(testNamespace, testContainerName).
-					withFinalizer(finalizer).
-					withFailedCondition(failedToCreate, "test-create-error").Container,
+				cont: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
+					WithFinalizer(finalizer).
+					WithFailedCondition(failedToCreate, "test-create-error").Container,
 			},
 		},
 		{
 			name: "create successful, initial status not ready",
 			fields: fields{
-				container: newContainer(testNamespace, testContainerName).
-					withFailedCondition(failedToCreate, "test-error").Container,
+				container: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
+					WithFailedCondition(failedToCreate, "test-error").Container,
 				ContainerOperations: azurestoragefake.NewMockContainerOperations(),
 				kube:                test.NewMockClient(),
 			},
 			args: args{ctx: ctx},
 			want: want{
 				res: reconcile.Result{},
-				cont: newContainer(testNamespace, testContainerName).
-					withFinalizer(finalizer).
-					withFailedCondition(failedToCreate, "test-error").
-					withUnsetAllConditions().
-					withReadyCondition().
+				cont: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
+					WithFinalizer(finalizer).
+					WithFailedCondition(failedToCreate, "test-error").
+					WithUnsetAllConditions().
+					WithReadyCondition().
 					Container,
 			},
 		},
 		{
 			name: "create successful",
 			fields: fields{
-				container:           newContainer(testNamespace, testContainerName).Container,
+				container:           v1alpha1test.NewMockContainer(testNamespace, testContainerName).Container,
 				ContainerOperations: azurestoragefake.NewMockContainerOperations(),
 				kube:                test.NewMockClient(),
 			},
 			args: args{ctx: ctx},
 			want: want{
 				res: reconcile.Result{},
-				cont: newContainer(testNamespace, testContainerName).
-					withFinalizer(finalizer).
-					withReadyCondition().
+				cont: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
+					WithFinalizer(finalizer).
+					WithReadyCondition().
 					Container,
 			},
 		},
@@ -854,8 +796,8 @@ func Test_containerCreateUpdater_update(t *testing.T) {
 		{
 			name: "no change, not ready",
 			fields: fields{
-				container: newContainer(testNamespace, testContainerName).
-					withSpecPAC(azblob.PublicAccessContainer).Container,
+				container: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
+					WithSpecPAC(azblob.PublicAccessContainer).Container,
 				kube: test.NewMockClient(),
 			},
 			args: args{
@@ -864,17 +806,17 @@ func Test_containerCreateUpdater_update(t *testing.T) {
 			},
 			want: want{
 				res: reconcile.Result{},
-				cont: newContainer(testNamespace, testContainerName).
-					withSpecPAC(azblob.PublicAccessContainer).
-					withReadyCondition().Container,
+				cont: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
+					WithSpecPAC(azblob.PublicAccessContainer).
+					WithReadyCondition().Container,
 			},
 		},
 		{
 			name: "no change, is ready",
 			fields: fields{
-				container: newContainer(testNamespace, testContainerName).
-					withSpecPAC(azblob.PublicAccessContainer).
-					withReadyCondition().Container,
+				container: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
+					WithSpecPAC(azblob.PublicAccessContainer).
+					WithReadyCondition().Container,
 			},
 			args: args{
 				ctx:        ctx,
@@ -882,17 +824,17 @@ func Test_containerCreateUpdater_update(t *testing.T) {
 			},
 			want: want{
 				res: requeueOnSuccess,
-				cont: newContainer(testNamespace, testContainerName).
-					withSpecPAC(azblob.PublicAccessContainer).
-					withReadyCondition().Container,
+				cont: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
+					WithSpecPAC(azblob.PublicAccessContainer).
+					WithReadyCondition().Container,
 			},
 		},
 		{
 			name: "container update failed",
 			fields: fields{
-				container: newContainer(testNamespace, testContainerName).
-					withSpecPAC(azblob.PublicAccessContainer).
-					withReadyCondition().Container,
+				container: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
+					WithSpecPAC(azblob.PublicAccessContainer).
+					WithReadyCondition().Container,
 				ContainerOperations: &azurestoragefake.MockContainerOperations{
 					MockUpdate: func(ctx context.Context, publicAccessType azblob.PublicAccessType, meta azblob.Metadata) error {
 						return errors.New("test-container-update-error")
@@ -909,18 +851,18 @@ func Test_containerCreateUpdater_update(t *testing.T) {
 			},
 			want: want{
 				res: resultRequeue,
-				cont: newContainer(testNamespace, testContainerName).
-					withSpecPAC(azblob.PublicAccessContainer).
-					withReadyCondition().
-					withFailedCondition(failedToUpdate, "test-container-update-error").Container,
+				cont: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
+					WithSpecPAC(azblob.PublicAccessContainer).
+					WithReadyCondition().
+					WithFailedCondition(failedToUpdate, "test-container-update-error").Container,
 			},
 		},
 		{
 			name: "container update successful",
 			fields: fields{
-				container: newContainer(testNamespace, testContainerName).
-					withSpecPAC(azblob.PublicAccessContainer).
-					withReadyCondition().Container,
+				container: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
+					WithSpecPAC(azblob.PublicAccessContainer).
+					WithReadyCondition().Container,
 				ContainerOperations: azurestoragefake.NewMockContainerOperations(),
 				kube:                test.NewMockClient(),
 			},
@@ -933,9 +875,9 @@ func Test_containerCreateUpdater_update(t *testing.T) {
 			},
 			want: want{
 				res: requeueOnSuccess,
-				cont: newContainer(testNamespace, testContainerName).
-					withSpecPAC(azblob.PublicAccessContainer).
-					withReadyCondition().Container,
+				cont: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
+					WithSpecPAC(azblob.PublicAccessContainer).
+					WithReadyCondition().Container,
 			},
 		},
 	}

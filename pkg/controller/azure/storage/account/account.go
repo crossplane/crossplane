@@ -287,7 +287,7 @@ func (acu *accountCreateUpdater) create(ctx context.Context) (reconcile.Result, 
 	// Set UID to the account storage spec
 	// TODO(illya) - this eventually needs to be in Defaulter Mutating web hook
 	if tags := acu.acct.Spec.StorageAccountSpec.Tags; tags == nil {
-		tags = make(map[string]string)
+		acu.acct.Spec.StorageAccountSpec.Tags = make(map[string]string)
 	}
 	acu.acct.Spec.StorageAccountSpec.Tags[uidTag] = string(acu.acct.GetUID())
 
