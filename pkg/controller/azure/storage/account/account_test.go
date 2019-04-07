@@ -40,6 +40,7 @@ import (
 
 	"github.com/crossplaneio/crossplane/pkg/apis/azure"
 	"github.com/crossplaneio/crossplane/pkg/apis/azure/storage/v1alpha1"
+	v1alpha1test "github.com/crossplaneio/crossplane/pkg/apis/azure/storage/v1alpha1/test"
 	azurev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	azurestorage "github.com/crossplaneio/crossplane/pkg/clients/azure/storage"
@@ -274,20 +275,20 @@ func TestReconciler_Reconcile(t *testing.T) {
 		{
 			name: "account-handler-error",
 			fields: fields{
-				client: fake.NewFakeClient(v1alpha1.NewTestAccount(ns, name).WithFinalizer("foo.bar").Account),
+				client: fake.NewFakeClient(v1alpha1test.NewMockAccount(ns, name).WithFinalizer("foo.bar").Account),
 				maker:  newMockAccountHandleMaker(nil, errors.New("handler-syncdeleterMaker-error")),
 			},
 			want: want{
 				res: resultRequeue,
-				acct: v1alpha1.NewTestAccount(ns, name).
-					WithFailedCondition(failedToGetHandler, "handler-syncdeleterMaker-error").
+				acct: v1alpha1test.NewMockAccount(ns, name).
+					WithStatusFailedCondition(failedToGetHandler, "handler-syncdeleterMaker-error").
 					WithFinalizer("foo.bar").Account,
 			},
 		},
 		{
 			name: "reconcile-delete",
 			fields: fields{
-				client: fake.NewFakeClient(v1alpha1.NewTestAccount(ns, name).
+				client: fake.NewFakeClient(v1alpha1test.NewMockAccount(ns, name).
 					WithDeleteTimestamp(metav1.NewTime(time.Now())).Account),
 				maker: newMockAccountHandleMaker(newMockAccountSyncDeleter(), nil),
 			},
@@ -296,7 +297,7 @@ func TestReconciler_Reconcile(t *testing.T) {
 		{
 			name: "reconcile-sync",
 			fields: fields{
-				client: fake.NewFakeClient(v1alpha1.NewTestAccount(ns, name).Account),
+				client: fake.NewFakeClient(v1alpha1test.NewMockAccount(ns, name).Account),
 				maker:  newMockAccountHandleMaker(newMockAccountSyncDeleter(), nil),
 			},
 			want: want{res: requeueOnSuccess},
@@ -358,7 +359,7 @@ func Test_accountHandleMaker_newHandler(t *testing.T) {
 		{
 			name: "err provider is not found",
 			kube: fake.NewFakeClient(),
-			acct: v1alpha1.NewTestAccount(ns, bucketName).WithProvider(providerName).Account,
+			acct: v1alpha1test.NewMockAccount(ns, bucketName).WithSpecProvider(providerName).Account,
 			wantErr: kerrors.NewNotFound(schema.GroupResource{
 				Group:    azurev1alpha1.Group,
 				Resource: "providers"}, "test-provider"),
@@ -367,7 +368,7 @@ func Test_accountHandleMaker_newHandler(t *testing.T) {
 			name: "provider is not ready",
 			kube: fake.NewFakeClient(newProvider(ns, providerName).
 				withCondition(corev1alpha1.NewCondition(corev1alpha1.Failed, "", "")).Provider),
-			acct:    v1alpha1.NewTestAccount(ns, bucketName).WithProvider("test-provider").Account,
+			acct:    v1alpha1test.NewMockAccount(ns, bucketName).WithSpecProvider("test-provider").Account,
 			wantErr: errors.Errorf("provider: %s is not ready", ns+"/test-provider"),
 		},
 		{
@@ -375,7 +376,7 @@ func Test_accountHandleMaker_newHandler(t *testing.T) {
 			kube: fake.NewFakeClient(newProvider(ns, providerName).
 				withCondition(corev1alpha1.NewReadyCondition()).
 				withSecret(secretName, secretKey).Provider),
-			acct: v1alpha1.NewTestAccount(ns, bucketName).WithProvider("test-provider").Account,
+			acct: v1alpha1test.NewMockAccount(ns, bucketName).WithSpecProvider("test-provider").Account,
 			wantErr: errors.WithStack(
 				errors.Errorf("cannot get provider's secret %s/%s: secrets \"%s\" not found", ns, secretName, secretName)),
 		},
@@ -385,7 +386,7 @@ func Test_accountHandleMaker_newHandler(t *testing.T) {
 				withCondition(corev1alpha1.NewReadyCondition()).
 				withSecret(secretName, secretKey).Provider,
 				newSecret(ns, secretName).Secret),
-			acct: v1alpha1.NewTestAccount(ns, bucketName).WithProvider("test-provider").Account,
+			acct: v1alpha1test.NewMockAccount(ns, bucketName).WithSpecProvider("test-provider").Account,
 			wantErr: errors.WithStack(
 				errors.Errorf("cannot create storageClient from json: cannot unmarshal Azure client secret data: unexpected end of JSON input")),
 		},
@@ -395,7 +396,7 @@ func Test_accountHandleMaker_newHandler(t *testing.T) {
 				withCondition(corev1alpha1.NewReadyCondition()).
 				withSecret(secretName, secretKey).Provider,
 				newSecret(ns, secretName).withKeyData(secretKey, secretData).Secret),
-			acct: v1alpha1.NewTestAccount(ns, bucketName).WithProvider("test-provider").Account,
+			acct: v1alpha1test.NewMockAccount(ns, bucketName).WithSpecProvider("test-provider").Account,
 			want: newAccountSyncDeleter(&azurestorage.AccountHandle{}, nil, nil),
 		},
 	}
@@ -438,8 +439,8 @@ func Test_syncdeleter_delete(t *testing.T) {
 		{
 			name: "retain-policy",
 			fields: fields{
-				acct: v1alpha1.NewTestAccount(ns, bucketName).WithReclaimPolicy(corev1alpha1.ReclaimRetain).
-					WithFinalizer(finalizer).WithFinalizer("test").Account,
+				acct: v1alpha1test.NewMockAccount(ns, bucketName).WithSpecReclaimPolicy(corev1alpha1.ReclaimRetain).
+					WithFinalizers([]string{finalizer, "test"}).Account,
 				cc: &test.MockClient{
 					MockUpdate: func(ctx context.Context, obj runtime.Object) error {
 						return nil
@@ -449,14 +450,14 @@ func Test_syncdeleter_delete(t *testing.T) {
 			want: want{
 				err: nil,
 				res: reconcile.Result{},
-				acct: v1alpha1.NewTestAccount(ns, bucketName).WithReclaimPolicy(corev1alpha1.ReclaimRetain).
+				acct: v1alpha1test.NewMockAccount(ns, bucketName).WithSpecReclaimPolicy(corev1alpha1.ReclaimRetain).
 					WithFinalizer("test").Account,
 			},
 		},
 		{
 			name: "delete-successful",
 			fields: fields{
-				acct: v1alpha1.NewTestAccount(ns, bucketName).WithReclaimPolicy(corev1alpha1.ReclaimDelete).
+				acct: v1alpha1test.NewMockAccount(ns, bucketName).WithSpecReclaimPolicy(corev1alpha1.ReclaimDelete).
 					WithFinalizer(finalizer).Account,
 				cc: &test.MockClient{
 					MockUpdate: func(ctx context.Context, obj runtime.Object) error {
@@ -466,15 +467,17 @@ func Test_syncdeleter_delete(t *testing.T) {
 				ao: azurestoragefake.NewMockAccountOperations(),
 			},
 			want: want{
-				err:  nil,
-				res:  reconcile.Result{},
-				acct: v1alpha1.NewTestAccount(ns, bucketName).WithReclaimPolicy(corev1alpha1.ReclaimDelete).Account,
+				err: nil,
+				res: reconcile.Result{},
+				acct: v1alpha1test.NewMockAccount(ns, bucketName).
+					WithFinalizers([]string{}).
+					WithSpecReclaimPolicy(corev1alpha1.ReclaimDelete).Account,
 			},
 		},
 		{
 			name: "delete-failed",
 			fields: fields{
-				acct: v1alpha1.NewTestAccount(ns, bucketName).WithReclaimPolicy(corev1alpha1.ReclaimDelete).
+				acct: v1alpha1test.NewMockAccount(ns, bucketName).WithSpecReclaimPolicy(corev1alpha1.ReclaimDelete).
 					WithFinalizer(finalizer).Account,
 				cc: &test.MockClient{
 					MockStatusUpdate: func(ctx context.Context, obj runtime.Object) error {
@@ -490,16 +493,16 @@ func Test_syncdeleter_delete(t *testing.T) {
 			want: want{
 				err: nil,
 				res: resultRequeue,
-				acct: v1alpha1.NewTestAccount(ns, bucketName).WithReclaimPolicy(corev1alpha1.ReclaimDelete).
+				acct: v1alpha1test.NewMockAccount(ns, bucketName).WithSpecReclaimPolicy(corev1alpha1.ReclaimDelete).
 					WithFinalizer(finalizer).
-					WithFailedCondition(failedToDelete, "test-delete-error").
+					WithStatusFailedCondition(failedToDelete, "test-delete-error").
 					Account,
 			},
 		},
 		{
 			name: "delete-non-existent",
 			fields: fields{
-				acct: v1alpha1.NewTestAccount(ns, bucketName).WithReclaimPolicy(corev1alpha1.ReclaimDelete).
+				acct: v1alpha1test.NewMockAccount(ns, bucketName).WithSpecReclaimPolicy(corev1alpha1.ReclaimDelete).
 					WithFinalizer(finalizer).Account,
 				cc: &test.MockClient{
 					MockUpdate: func(ctx context.Context, obj runtime.Object) error { return nil },
@@ -513,9 +516,11 @@ func Test_syncdeleter_delete(t *testing.T) {
 				},
 			},
 			want: want{
-				err:  nil,
-				res:  reconcile.Result{},
-				acct: v1alpha1.NewTestAccount(ns, bucketName).WithReclaimPolicy(corev1alpha1.ReclaimDelete).Account,
+				err: nil,
+				res: reconcile.Result{},
+				acct: v1alpha1test.NewMockAccount(ns, bucketName).
+					WithFinalizers([]string{}).
+					WithSpecReclaimPolicy(corev1alpha1.ReclaimDelete).Account,
 			},
 		},
 	}
@@ -572,11 +577,11 @@ func Test_syncdeleter_sync(t *testing.T) {
 						return nil
 					},
 				},
-				acct: v1alpha1.NewTestAccount(ns, name).WithUID("test-uid").Account,
+				acct: v1alpha1test.NewMockAccount(ns, name).WithUID("test-uid").Account,
 			},
 			want: want{
 				res:  resultRequeue,
-				acct: v1alpha1.NewTestAccount(ns, name).WithUID("test-uid").WithFailedCondition(failedToRetrieve, "test-attrs-error").Account,
+				acct: v1alpha1test.NewMockAccount(ns, name).WithUID("test-uid").WithStatusFailedCondition(failedToRetrieve, "test-attrs-error").Account,
 			},
 		},
 		{
@@ -592,11 +597,11 @@ func Test_syncdeleter_sync(t *testing.T) {
 						}
 					},
 				},
-				acct: v1alpha1.NewTestAccount(ns, name).WithUID("test-uid").Account,
+				acct: v1alpha1test.NewMockAccount(ns, name).WithUID("test-uid").Account,
 			},
 			want: want{
 				res:  requeueOnSuccess,
-				acct: v1alpha1.NewTestAccount(ns, name).WithUID("test-uid").Account,
+				acct: v1alpha1test.NewMockAccount(ns, name).WithUID("test-uid").Account,
 			},
 		},
 		{
@@ -610,11 +615,11 @@ func Test_syncdeleter_sync(t *testing.T) {
 						return &storage.Account{}, nil
 					},
 				},
-				acct: v1alpha1.NewTestAccount(ns, name).WithUID("test-uid").Account,
+				acct: v1alpha1test.NewMockAccount(ns, name).WithUID("test-uid").Account,
 			},
 			want: want{
 				res:  requeueOnSuccess,
-				acct: v1alpha1.NewTestAccount(ns, name).WithUID("test-uid").Account,
+				acct: v1alpha1test.NewMockAccount(ns, name).WithUID("test-uid").Account,
 			},
 		},
 	}
@@ -679,19 +684,19 @@ func Test_createupdater_create(t *testing.T) {
 						return nil
 					},
 				},
-				acct: v1alpha1.NewTestAccount(ns, name).
-					WithStorageAccountSpec(&v1alpha1.StorageAccountSpec{
+				acct: v1alpha1test.NewMockAccount(ns, name).
+					WithSpecStorageAccountSpec(&v1alpha1.StorageAccountSpec{
 						Tags: map[string]string{},
 					}).
 					Account,
 			},
 			want: want{
 				res: resultRequeue,
-				obj: v1alpha1.NewTestAccount(ns, name).
-					WithStorageAccountSpec(&v1alpha1.StorageAccountSpec{
+				obj: v1alpha1test.NewMockAccount(ns, name).
+					WithSpecStorageAccountSpec(&v1alpha1.StorageAccountSpec{
 						Tags: map[string]string{uidTag: ""},
 					}).
-					WithFailedCondition(failedToCreate, "test-create-error").
+					WithStatusFailedCondition(failedToCreate, "test-create-error").
 					WithFinalizer(finalizer).
 					Account,
 			},
@@ -706,9 +711,9 @@ func Test_createupdater_create(t *testing.T) {
 				},
 				ao:   azurestoragefake.NewMockAccountOperations(),
 				kube: test.NewMockClient(),
-				acct: v1alpha1.NewTestAccount(ns, name).
+				acct: v1alpha1test.NewMockAccount(ns, name).
 					WithUID("test-uid").
-					WithStorageAccountSpec(&v1alpha1.StorageAccountSpec{
+					WithSpecStorageAccountSpec(&v1alpha1.StorageAccountSpec{
 						Tags: map[string]string{},
 					}).
 					Account,
@@ -716,9 +721,9 @@ func Test_createupdater_create(t *testing.T) {
 			want: want{
 				err: errors.New("test-syncback-error"),
 				res: resultRequeue,
-				obj: v1alpha1.NewTestAccount(ns, name).
+				obj: v1alpha1test.NewMockAccount(ns, name).
 					WithUID("test-uid").
-					WithStorageAccountSpec(&v1alpha1.StorageAccountSpec{
+					WithSpecStorageAccountSpec(&v1alpha1.StorageAccountSpec{
 						Tags: map[string]string{uidTag: "test-uid"},
 					}).
 					WithFinalizer(finalizer).
@@ -796,13 +801,13 @@ func Test_bucketCreateUpdater_update(t *testing.T) {
 				AccountProperties: &storage.AccountProperties{ProvisioningState: storage.Succeeded},
 			},
 			fields: fields{
-				acct: v1alpha1.NewTestAccount(ns, name).WithStorageAccountSpec(newStoragAccountSpecWithProperties()).Account,
+				acct: v1alpha1test.NewMockAccount(ns, name).WithSpecStorageAccountSpec(newStoragAccountSpecWithProperties()).Account,
 				kube: test.NewMockClient(),
 			},
 			want: want{
 				res: reconcile.Result{},
-				acct: v1alpha1.NewTestAccount(ns, name).WithStorageAccountSpec(newStoragAccountSpecWithProperties()).
-					WithCondition(corev1alpha1.NewReadyCondition()).Account,
+				acct: v1alpha1test.NewMockAccount(ns, name).WithSpecStorageAccountSpec(newStoragAccountSpecWithProperties()).
+					WithStatusCondition(corev1alpha1.NewReadyCondition()).Account,
 			},
 		},
 		{
@@ -811,14 +816,14 @@ func Test_bucketCreateUpdater_update(t *testing.T) {
 				AccountProperties: &storage.AccountProperties{ProvisioningState: storage.Succeeded},
 			},
 			fields: fields{
-				acct: v1alpha1.NewTestAccount(ns, name).WithStorageAccountSpec(newStoragAccountSpecWithProperties()).
-					WithCondition(corev1alpha1.NewReadyCondition()).Account,
+				acct: v1alpha1test.NewMockAccount(ns, name).WithSpecStorageAccountSpec(newStoragAccountSpecWithProperties()).
+					WithStatusCondition(corev1alpha1.NewReadyCondition()).Account,
 				kube: test.NewMockClient(),
 			},
 			want: want{
 				res: requeueOnSuccess,
-				acct: v1alpha1.NewTestAccount(ns, name).WithStorageAccountSpec(newStoragAccountSpecWithProperties()).
-					WithCondition(corev1alpha1.NewReadyCondition()).Account,
+				acct: v1alpha1test.NewMockAccount(ns, name).WithSpecStorageAccountSpec(newStoragAccountSpecWithProperties()).
+					WithStatusCondition(corev1alpha1.NewReadyCondition()).Account,
 			},
 		},
 		{
@@ -828,7 +833,7 @@ func Test_bucketCreateUpdater_update(t *testing.T) {
 				Location:          to.StringPtr("test-location"),
 			},
 			fields: fields{
-				acct: v1alpha1.NewTestAccount(ns, name).WithStorageAccountSpec(newStoragAccountSpecWithProperties()).Account,
+				acct: v1alpha1test.NewMockAccount(ns, name).WithSpecStorageAccountSpec(newStoragAccountSpecWithProperties()).Account,
 				ao: &azurestoragefake.MockAccountOperations{
 					MockUpdate: func(ctx context.Context, update storage.AccountUpdateParameters) (attrs *storage.Account, e error) {
 						return nil, errors.New("test-account-update-error")
@@ -840,9 +845,9 @@ func Test_bucketCreateUpdater_update(t *testing.T) {
 			},
 			want: want{
 				res: resultRequeue,
-				acct: v1alpha1.NewTestAccount(ns, name).
-					WithStorageAccountSpec(newStoragAccountSpecWithProperties()).
-					WithFailedCondition(failedToUpdate, "test-account-update-error").Account,
+				acct: v1alpha1test.NewMockAccount(ns, name).
+					WithSpecStorageAccountSpec(newStoragAccountSpecWithProperties()).
+					WithStatusFailedCondition(failedToUpdate, "test-account-update-error").Account,
 			},
 		},
 		{
@@ -857,7 +862,7 @@ func Test_bucketCreateUpdater_update(t *testing.T) {
 						return requeueOnSuccess, nil
 					},
 				},
-				acct: v1alpha1.NewTestAccount(ns, name).WithStorageAccountSpec(newStoragAccountSpecWithProperties()).Account,
+				acct: v1alpha1test.NewMockAccount(ns, name).WithSpecStorageAccountSpec(newStoragAccountSpecWithProperties()).Account,
 				ao: &azurestoragefake.MockAccountOperations{
 					MockUpdate: func(ctx context.Context, update storage.AccountUpdateParameters) (attrs *storage.Account, e error) {
 						return &storage.Account{Location: to.StringPtr("test-location")}, nil
@@ -867,7 +872,7 @@ func Test_bucketCreateUpdater_update(t *testing.T) {
 			},
 			want: want{
 				res:  requeueOnSuccess,
-				acct: v1alpha1.NewTestAccount(ns, name).WithStorageAccountSpec(newStoragAccountSpecWithProperties()).Account,
+				acct: v1alpha1test.NewMockAccount(ns, name).WithSpecStorageAccountSpec(newStoragAccountSpecWithProperties()).Account,
 			},
 		},
 	}
@@ -920,7 +925,7 @@ func Test_accountSyncBacker_syncback(t *testing.T) {
 			name: "update-failed",
 			fields: fields{
 				secretupdater: &MockAccountSecretupdater{},
-				acct:          v1alpha1.NewTestAccount(ns, name).Account,
+				acct:          v1alpha1test.NewMockAccount(ns, name).Account,
 				kube: &test.MockClient{
 					MockUpdate: func(ctx context.Context, obj runtime.Object) error {
 						return errors.New("test-spec-update-error")
@@ -931,13 +936,13 @@ func Test_accountSyncBacker_syncback(t *testing.T) {
 			want: want{
 				err:  errors.New("test-spec-update-error"),
 				res:  resultRequeue,
-				acct: v1alpha1.NewTestAccount(ns, name).WithStorageAccountSpec(newStorageAccountSpec()).Account,
+				acct: v1alpha1test.NewMockAccount(ns, name).WithSpecStorageAccountSpec(newStorageAccountSpec()).Account,
 			},
 		},
 		{
 			name: "provision status is not succeeded",
 			fields: fields{
-				acct: v1alpha1.NewTestAccount(ns, name).Account,
+				acct: v1alpha1test.NewMockAccount(ns, name).Account,
 				kube: test.NewMockClient(),
 			},
 			acct: newStorageAccount().
@@ -945,7 +950,7 @@ func Test_accountSyncBacker_syncback(t *testing.T) {
 					withProvisioningStage(storage.Creating).AccountProperties).Account,
 			want: want{
 				res: requeueOnWait,
-				acct: v1alpha1.NewTestAccount(ns, name).WithSpecStatusFromProperties(&storage.AccountProperties{
+				acct: v1alpha1test.NewMockAccount(ns, name).WithSpecStatusFromProperties(&storage.AccountProperties{
 					ProvisioningState: storage.Creating,
 				}).WithStatusConnectionRef(name).Account,
 			},
@@ -958,15 +963,15 @@ func Test_accountSyncBacker_syncback(t *testing.T) {
 						return errors.New("test-secret-update-error")
 					},
 				},
-				acct: v1alpha1.NewTestAccount(ns, name).Account,
+				acct: v1alpha1test.NewMockAccount(ns, name).Account,
 				kube: test.NewMockClient(),
 			},
 			acct: &storage.Account{AccountProperties: &storage.AccountProperties{ProvisioningState: storage.Succeeded}},
 			want: want{
 				res: resultRequeue,
-				acct: v1alpha1.NewTestAccount(ns, name).
+				acct: v1alpha1test.NewMockAccount(ns, name).
 					WithSpecStatusFromProperties(&storage.AccountProperties{ProvisioningState: storage.Succeeded}).
-					WithFailedCondition(failedToSaveSecret, "test-secret-update-error").
+					WithStatusFailedCondition(failedToSaveSecret, "test-secret-update-error").
 					WithStatusConnectionRef(name).
 					Account,
 			},
@@ -977,16 +982,16 @@ func Test_accountSyncBacker_syncback(t *testing.T) {
 				secretupdater: &MockAccountSecretupdater{
 					MockUpdateSecret: func(ctx context.Context, a *storage.Account) error { return nil },
 				},
-				acct: v1alpha1.NewTestAccount(ns, name).WithStorageAccountSpec(v1alpha1.NewStorageAccountSpec(&storage.Account{})).Account,
+				acct: v1alpha1test.NewMockAccount(ns, name).WithSpecStorageAccountSpec(v1alpha1.NewStorageAccountSpec(&storage.Account{})).Account,
 				kube: test.NewMockClient(),
 			},
 			acct: &storage.Account{AccountProperties: &storage.AccountProperties{ProvisioningState: storage.Succeeded}},
 			want: want{
 				res: reconcile.Result{},
-				acct: v1alpha1.NewTestAccount(ns, name).
+				acct: v1alpha1test.NewMockAccount(ns, name).
 					WithSpecStatusFromProperties(&storage.AccountProperties{ProvisioningState: storage.Succeeded}).
 					WithStatusConnectionRef(name).
-					WithCondition(corev1alpha1.NewReadyCondition()).Account,
+					WithStatusCondition(corev1alpha1.NewReadyCondition()).Account,
 			},
 		},
 		{
@@ -995,17 +1000,17 @@ func Test_accountSyncBacker_syncback(t *testing.T) {
 				secretupdater: &MockAccountSecretupdater{
 					MockUpdateSecret: func(ctx context.Context, a *storage.Account) error { return nil },
 				},
-				acct: v1alpha1.NewTestAccount(ns, name).WithStorageAccountSpec(v1alpha1.NewStorageAccountSpec(&storage.Account{})).
-					WithCondition(corev1alpha1.NewReadyCondition()).Account,
+				acct: v1alpha1test.NewMockAccount(ns, name).WithSpecStorageAccountSpec(v1alpha1.NewStorageAccountSpec(&storage.Account{})).
+					WithStatusCondition(corev1alpha1.NewReadyCondition()).Account,
 				kube: test.NewMockClient(),
 			},
 			acct: &storage.Account{AccountProperties: &storage.AccountProperties{ProvisioningState: storage.Succeeded}},
 			want: want{
 				res: requeueOnSuccess,
-				acct: v1alpha1.NewTestAccount(ns, name).
+				acct: v1alpha1test.NewMockAccount(ns, name).
 					WithSpecStatusFromProperties(&storage.AccountProperties{ProvisioningState: storage.Succeeded}).
 					WithStatusConnectionRef(name).
-					WithCondition(corev1alpha1.NewReadyCondition()).Account,
+					WithStatusCondition(corev1alpha1.NewReadyCondition()).Account,
 			},
 		},
 	}
@@ -1062,7 +1067,7 @@ func Test_accountSecretUpdater_updatesecret(t *testing.T) {
 						return kerrors.NewNotFound(schema.GroupResource{Group: azurev1alpha1.Group, Resource: "secret"}, name)
 					},
 				},
-				acct: v1alpha1.NewTestAccount(ns, name).Account,
+				acct: v1alpha1test.NewMockAccount(ns, name).Account,
 			},
 			acct: &storage.Account{
 				AccountProperties: &storage.AccountProperties{
@@ -1086,7 +1091,7 @@ func Test_accountSecretUpdater_updatesecret(t *testing.T) {
 						return kerrors.NewNotFound(schema.GroupResource{Group: azurev1alpha1.Group, Resource: "secret"}, name)
 					},
 				},
-				acct: v1alpha1.NewTestAccount(ns, name).Account,
+				acct: v1alpha1test.NewMockAccount(ns, name).Account,
 			},
 			acct: &storage.Account{
 				AccountProperties: &storage.AccountProperties{
@@ -1118,7 +1123,7 @@ func Test_accountSecretUpdater_updatesecret(t *testing.T) {
 						return nil
 					},
 				},
-				acct: v1alpha1.NewTestAccount(ns, name).Account,
+				acct: v1alpha1test.NewMockAccount(ns, name).Account,
 			},
 			acct: &storage.Account{
 				AccountProperties: &storage.AccountProperties{
@@ -1149,7 +1154,7 @@ func Test_accountSecretUpdater_updatesecret(t *testing.T) {
 						return errors.New("test-create-secret-error")
 					},
 				},
-				acct: v1alpha1.NewTestAccount(ns, name).Account,
+				acct: v1alpha1test.NewMockAccount(ns, name).Account,
 			},
 			acct: &storage.Account{
 				AccountProperties: &storage.AccountProperties{
@@ -1184,7 +1189,7 @@ func Test_accountSecretUpdater_updatesecret(t *testing.T) {
 						return nil
 					},
 				},
-				acct: v1alpha1.NewTestAccount(ns, name).Account,
+				acct: v1alpha1test.NewMockAccount(ns, name).Account,
 			},
 			acct: &storage.Account{
 				AccountProperties: &storage.AccountProperties{
