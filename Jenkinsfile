@@ -115,7 +115,7 @@ pipeline {
                     scannerHome = tool 'SonarQubeScanner'
                     scannerParams = ''
                     if (env.CHANGE_ID == null) {
-                        scannerParams = "-Dsonar.branch.name=${env.BRANCH_NMAE} "
+                        scannerParams = "-Dsonar.branch.name=${BRANCH_NAME} "
 
                         if (BRANCH_NAME != 'master') {
                             scannerParams = "${scannerParams} -Dsonar.branch.target=master"
