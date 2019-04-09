@@ -25,9 +25,8 @@ pipeline {
         stage('Prepare') {
             steps {
                 script {
-                    if (env.BRANCH_NAME =~ /^PR-\d+$/) {
-                        def pr_number = sh (script: "echo ${env.BRANCH_NAME} | grep -o -E '[0-9]+' ", returnStdout: true)
-                        def json = sh (script: "curl -s https://api.github.com/repos/crossplaneio/crossplane/pulls/${pr_number}", returnStdout: true).trim()
+                    if (env.CHANGE_ID != null) {
+                        def json = sh (script: "curl -s https://api.github.com/repos/crossplaneio/crossplane/pulls/${env.CHANGE_ID}", returnStdout: true).trim()
                         def body = evaluateJson(json,'${json.body}')
                         if (body.contains("[skip ci]")) {
                             echo ("'[skip ci]' spotted in PR body text.")
@@ -116,7 +115,6 @@ pipeline {
                     scannerParams = ''
                     if (env.CHANGE_ID == null) {
                         scannerParams = "-Dsonar.branch.name=${BRANCH_NAME} "
-
                         if (BRANCH_NAME != 'master') {
                             scannerParams = "${scannerParams} -Dsonar.branch.target=master"
                         }
@@ -154,6 +152,9 @@ pipeline {
                             sh "./build/run make -j\$(nproc) promote BRANCH_NAME=master CHANNEL=master AWS_ACCESS_KEY_ID=${AWS_USR} AWS_SECRET_ACCESS_KEY=${AWS_PSW}"
                         }
                     }
+                }
+                script {
+                    sh 'curl -s https://codecov.io/bash | bash -s -- -c -f _output/tests/**/coverage.txt -F unittests'
                 }
             }
         }
