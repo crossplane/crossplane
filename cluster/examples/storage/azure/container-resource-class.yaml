@@ -1,5 +1,5 @@
 # ResourceClass that defines the blueprint for how a "standard" Azure storage
-# account should be dynamically provisioned
+# container should be dynamically provisioned
 apiVersion: core.crossplane.io/v1alpha1
 kind: ResourceClass
 metadata:

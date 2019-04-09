@@ -1,4 +1,4 @@
-# Example RedisCluster resource claim using the cloud-rediscluster resource class
+# Example StroageAccount resource claim using the storage-account resource class
 apiVersion: storage.crossplane.io/v1alpha1
 kind: Bucket
 metadata:
