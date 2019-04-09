@@ -109,6 +109,43 @@ pipeline {
             }
         }
 
+        stage('SonarQube Analysis') {
+            steps {
+                script {
+                    scannerHome = tool 'SonarQubeScanner'
+                    scannerParams = ''
+                    if (env.CHANGE_ID == null) {
+                        scannerParams = "-Dsonar.branch.name=${BRANCH_NMAE} "
+
+                        if (BRANCH_NAME != 'master') {
+                            scannerParams = "${scannerParams} -Dsonar.branch.target=master"
+                        }
+                    } else {
+                        scannerParams = "-Dsonar.pullrequest.base=master " +
+                            "-Dsonar.pullrequest.branch=${BRANCH_NAME} " +
+                            "-Dsonar.pullrequest.key=${env.CHANGE_ID} " +
+                            "-Dsonar.pullrequest.provider=GitHub " +
+                            "-Dsonar.pullrequest.github.repository=crossplaneio/crossplane"
+                    }
+                }
+
+                withSonarQubeEnv('SonarQubeCrossplane') {
+                  sh "${scannerHome}/bin/sonar-scanner " +
+                    "-Dsonar.projectKey=crossplaneio_crossplane " +
+                    "-Dsonar.organization=crossplane " +
+                    "-Dsonar.sources=. ${scannerParams}"
+                }
+            }
+        }
+
+        stage("Quality Gate") {
+            steps {
+                timeout(time: 1, unit: 'HOURS') {
+                    waitForQualityGate abortPipeline: true
+                }
+            }
+        }
+
         stage('Record Coverage') {
             when { branch 'master' }
             steps {
