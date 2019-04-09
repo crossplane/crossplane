@@ -155,9 +155,6 @@ pipeline {
                         }
                     }
                 }
-                script {
-                    sh 'curl -s https://codecov.io/bash | bash -s -- -c -f _output/tests/**/coverage.txt -F unittests'
-                }
             }
         }
     }
