@@ -25,9 +25,8 @@ pipeline {
         stage('Prepare') {
             steps {
                 script {
-                    if (env.BRANCH_NAME =~ /^PR-\d+$/) {
-                        def pr_number = sh (script: "echo ${env.BRANCH_NAME} | grep -o -E '[0-9]+' ", returnStdout: true)
-                        def json = sh (script: "curl -s https://api.github.com/repos/crossplaneio/crossplane/pulls/${pr_number}", returnStdout: true).trim()
+                    if (env.CHANGE_ID == null) {
+                        def json = sh (script: "curl -s https://api.github.com/repos/crossplaneio/crossplane/pulls/${env.CHANGE_ID}", returnStdout: true).trim()
                         def body = evaluateJson(json,'${json.body}')
                         if (body.contains("[skip ci]")) {
                             echo ("'[skip ci]' spotted in PR body text.")
