@@ -124,7 +124,7 @@ pipeline {
                         scannerParams = "-Dsonar.pullrequest.base=master " +
                             "-Dsonar.pullrequest.branch=${BRANCH_NAME} " +
                             "-Dsonar.pullrequest.key=${env.CHANGE_ID} " +
-                            "-Dsonar.pullrequest.provider=GitHub " +
+                            "-Dsonar.pullrequest.provider=github " +
                             "-Dsonar.pullrequest.github.repository=crossplaneio/crossplane"
                     }
                 }
