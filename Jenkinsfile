@@ -122,18 +122,20 @@ pipeline {
                         }
                     } else {
                         scannerParams = "-Dsonar.pullrequest.base=master " +
-                            "-Dsonar.pullrequest.branch=${BRANCH_NAME} " +
-                            "-Dsonar.pullrequest.key=${env.CHANGE_ID} " +
+                            "-Dsonar.pullrequest.branch=${env.BRANCH_NAME} " +
+                            "-Dsonar.pullrequest.key=${env.CHANGE_ID}  " +
                             "-Dsonar.pullrequest.provider=github " +
-                            "-Dsonar.pullrequest.github.repository=crossplaneio/crossplane"
+                            "-Dsonar.pullrequest.github.repository=crossplaneio/${env.projectName}"
                     }
                 }
 
                 withSonarQubeEnv('SonarQubeCrossplane') {
                   sh "${scannerHome}/bin/sonar-scanner --debug " +
-                    "-Dsonar.projectKey=crossplaneio_crossplane " +
+                    "-Dsonar.projectKey=crossplaneio_${env.projectName} " +
+                    "-Dsonar.projectName=${env.projectName} " +
                     "-Dsonar.organization=crossplane " +
-                    "-Dsonar.sources=. ${scannerParams}"
+                    "-Dsonar.sources=. ${scannerParams} " +
+                    "--Dsonar.language=go "
                 }
             }
         }
