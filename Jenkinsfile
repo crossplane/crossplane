@@ -115,7 +115,7 @@ pipeline {
                     scannerHome = tool 'SonarQubeScanner'
                     scannerParams = ''
                     if (env.CHANGE_ID == null) {
-                        scannerParams = "-Dsonar.branch.name=${BRANCH_NMAE} "
+                        scannerParams = "-Dsonar.branch.name=${BRANCH_NAME} "
 
                         if (BRANCH_NAME != 'master') {
                             scannerParams = "${scannerParams} -Dsonar.branch.target=master"
@@ -125,17 +125,16 @@ pipeline {
                             "-Dsonar.pullrequest.branch=${env.BRANCH_NAME} " +
                             "-Dsonar.pullrequest.key=${env.CHANGE_ID}  " +
                             "-Dsonar.pullrequest.provider=github " +
-                            "-Dsonar.pullrequest.github.repository=crossplaneio/${env.projectName}"
+                            "-Dsonar.pullrequest.github.repository=crossplaneio/${env.REPOSITORY_NAME}"
                     }
                 }
 
                 withSonarQubeEnv('SonarQubeCrossplane') {
                   sh "${scannerHome}/bin/sonar-scanner --debug " +
-                    "-Dsonar.projectKey=crossplaneio_${env.projectName} " +
-                    "-Dsonar.projectName=${env.projectName} " +
+                    "-Dsonar.projectKey=crossplaneio_${env.REPOSITORY_NAME} " +
+                    "-Dsonar.projectName=${env.REPOSITORY_NAME} " +
                     "-Dsonar.organization=crossplane " +
-                    "-Dsonar.sources=. ${scannerParams} " +
-                    "--Dsonar.language=go "
+                    "-Dsonar.sources=. ${scannerParams} "
                 }
             }
         }
