@@ -130,7 +130,7 @@ pipeline {
                 }
 
                 withSonarQubeEnv('SonarQubeCrossplane') {
-                  sh "${scannerHome}/bin/sonar-scanner " +
+                  sh "${scannerHome}/bin/sonar-scanner --debug " +
                     "-Dsonar.projectKey=crossplaneio_crossplane " +
                     "-Dsonar.organization=crossplane " +
                     "-Dsonar.sources=. ${scannerParams}"
