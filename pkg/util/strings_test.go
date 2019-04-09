@@ -19,6 +19,8 @@ package util
 import (
 	"testing"
 
+	"github.com/go-test/deep"
+
 	. "github.com/onsi/gomega"
 )
 
@@ -38,5 +40,48 @@ func TestToLowerRemoveSpaces(t *testing.T) {
 	for _, tt := range cases {
 		actual := ToLowerRemoveSpaces(tt.input)
 		g.Expect(actual).To(Equal(tt.expected))
+	}
+}
+
+func Test_parseMap(t *testing.T) {
+	tests := []struct {
+		name string
+		args string
+		want map[string]string
+	}{
+		{name: "empty", args: "", want: map[string]string{}},
+		{name: "single", args: "foo:bar", want: map[string]string{"foo": "bar"}},
+		{name: "multi", args: "foo:bar, one:two", want: map[string]string{"foo": "bar", "one": "two"}},
+		{name: "dupe key", args: "foo:bar,foo:buz", want: map[string]string{"foo": "buz"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ParseMap(tt.args)
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("parseMap() = %v, want %v\n%s", got, tt.want, diff)
+			}
+		})
+	}
+}
+
+func Test_parseBool(t *testing.T) {
+	tests := []struct {
+		name string
+		args string
+		want bool
+	}{
+		{name: "empty", args: "", want: false},
+		{name: "true", args: "true", want: true},
+		{name: "True", args: "True", want: true},
+		{name: "tRue", args: "tRue", want: false},
+		{name: "_true", args: " true", want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ParseBool(tt.args)
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("parseBool() = %v, want %v\n%s", got, tt.want, diff)
+			}
+		})
 	}
 }

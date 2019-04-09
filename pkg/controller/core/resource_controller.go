@@ -233,19 +233,21 @@ func (r *Reconciler) _bind(claim corev1alpha1.ResourceClaim, handler ResourceHan
 
 // _delete the given resource claim
 func (r *Reconciler) _delete(claim corev1alpha1.ResourceClaim, handler ResourceHandler) (reconcile.Result, error) {
-	// update resource binding status
-	resNName := util.NamespaceNameFromObjectRef(claim.ResourceRef())
+	if claim.ResourceRef() != nil {
+		// update resource binding status
+		resNName := util.NamespaceNameFromObjectRef(claim.ResourceRef())
 
-	// TODO: decide how to handle resource binding status update error
-	// - record an event for the error for now
-	if err := handler.SetBindStatus(resNName, r.Client, false); err != nil {
-		r.recorder.Event(claim, corev1.EventTypeWarning, errorResettingResourceBindStatus, err.Error())
+		// TODO: decide how to handle resource binding status update error
+		// - record an event for the error for now
+		if err := handler.SetBindStatus(resNName, r.Client, false); err != nil {
+			r.recorder.Event(claim, corev1.EventTypeWarning, errorResettingResourceBindStatus, err.Error())
+		}
+
+		// update claim status and remove finalizer
+		claimStatus := claim.ClaimStatus()
+		claimStatus.UnsetAllConditions()
+		claimStatus.SetDeleting()
 	}
-
-	// update claim status and remove finalizer
-	claimStatus := claim.ClaimStatus()
-	claimStatus.UnsetAllConditions()
-	claimStatus.SetDeleting()
 	util.RemoveFinalizer(claim, r.finalizerName)
 	return reconcile.Result{}, r.Update(ctx, claim)
 }

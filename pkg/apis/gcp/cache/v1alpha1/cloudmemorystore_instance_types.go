@@ -18,10 +18,9 @@ package v1alpha1
 
 import (
 	"strconv"
-	"strings"
 
-	redis "google.golang.org/genproto/googleapis/cloud/redis/v1"
-	v1 "k8s.io/api/core/v1"
+	"google.golang.org/genproto/googleapis/cloud/redis/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
@@ -101,10 +100,10 @@ type CloudMemorystoreInstanceSpec struct {
 	RedisConfigs map[string]string `json:"redisConfigs,omitempty"`
 
 	// Kubernetes object references
-	ClaimRef            *v1.ObjectReference     `json:"claimRef,omitempty"`
-	ClassRef            *v1.ObjectReference     `json:"classRef,omitempty"`
-	ProviderRef         v1.LocalObjectReference `json:"providerRef"`
-	ConnectionSecretRef v1.LocalObjectReference `json:"connectionSecretRef,omitempty"`
+	ClaimRef            *corev1.ObjectReference     `json:"claimRef,omitempty"`
+	ClassRef            *corev1.ObjectReference     `json:"classRef,omitempty"`
+	ProviderRef         corev1.LocalObjectReference `json:"providerRef"`
+	ConnectionSecretRef corev1.LocalObjectReference `json:"connectionSecretRef,omitempty"`
 
 	// ReclaimPolicy identifies how to handle the cloud resource after the deletion of this type
 	ReclaimPolicy corev1alpha1.ReclaimPolicy `json:"reclaimPolicy,omitempty"`
@@ -182,7 +181,7 @@ func NewCloudMemorystoreInstanceSpec(properties map[string]string) *CloudMemorys
 		ReservedIPRange:       properties["reservedIpRange"],
 		AuthorizedNetwork:     properties["authorizedNetwork"],
 		RedisVersion:          properties["redisVersion"],
-		RedisConfigs:          parseMap(properties["redisConfigs"]),
+		RedisConfigs:          util.ParseMap(properties["redisConfigs"]),
 	}
 
 	if i, err := strconv.Atoi(properties["memorySizeGb"]); err == nil {
@@ -190,18 +189,6 @@ func NewCloudMemorystoreInstanceSpec(properties map[string]string) *CloudMemorys
 	}
 
 	return spec
-}
-
-// parseMap parses a string of comma separated key value pairs, for example
-// "key1: value1, key2: value2", into a string map.
-func parseMap(s string) map[string]string {
-	m := map[string]string{}
-	for _, cfg := range strings.Split(s, ",") {
-		if kv := strings.SplitN(cfg, ":", 2); len(kv) == 2 {
-			m[strings.TrimSpace(kv[0])] = strings.TrimSpace(kv[1])
-		}
-	}
-	return m
 }
 
 // ConnectionSecretName returns a secret name from the reference
@@ -214,7 +201,7 @@ func (c *CloudMemorystoreInstance) ConnectionSecretName() string {
 }
 
 // ObjectReference to this CloudMemorystore instance
-func (c *CloudMemorystoreInstance) ObjectReference() *v1.ObjectReference {
+func (c *CloudMemorystoreInstance) ObjectReference() *corev1.ObjectReference {
 	return util.ObjectReference(c.ObjectMeta, util.IfEmptyString(c.APIVersion, APIVersion), util.IfEmptyString(c.Kind, CloudMemorystoreInstanceKind))
 }
 

@@ -18,8 +18,6 @@ package v1alpha1
 
 import (
 	"encoding/json"
-	"strconv"
-	"strings"
 	"time"
 
 	"cloud.google.com/go/storage"
@@ -836,7 +834,7 @@ func NewBucketSpec(p map[string]string) *BucketSpec {
 
 	var labels map[string]string
 	if v, found := p["labels"]; found {
-		labels = parseMap(v)
+		labels = util.ParseMap(v)
 	}
 
 	var logging *BucketLogging
@@ -851,7 +849,7 @@ func NewBucketSpec(p map[string]string) *BucketSpec {
 
 	bua := BucketUpdatableAttrs{
 		CORS:                       parseCORSList(p["cors"]),
-		DefaultEventBasedHold:      parseBool(p["defaultEventBasedHold"]),
+		DefaultEventBasedHold:      util.ParseBool(p["defaultEventBasedHold"]),
 		Encryption:                 encryption,
 		Labels:                     labels,
 		Lifecycle:                  *lifecycle,
@@ -875,27 +873,6 @@ func NewBucketSpec(p map[string]string) *BucketSpec {
 	}
 }
 
-// parseBool returns true IFF string value is "true" or "True"
-func parseBool(s string) bool {
-	b, err := strconv.ParseBool(s)
-	if err != nil {
-		return false
-	}
-	return b
-}
-
-// parseMap string encoded map values
-// example: "foo:bar,one:two" -> map[string]string{"foo":"bar","one":"two"}
-func parseMap(s string) map[string]string {
-	m := map[string]string{}
-	for _, cfg := range strings.Split(s, ",") {
-		if kv := strings.SplitN(cfg, ":", 2); len(kv) == 2 {
-			m[strings.TrimSpace(kv[0])] = strings.TrimSpace(kv[1])
-		}
-	}
-	return m
-}
-
 // parseCORSList from json encoded string, return nil on error (if any)
 func parseCORSList(s string) []CORS {
 	var list []CORS
@@ -912,7 +889,7 @@ func parseLifecycle(s string) *Lifecycle {
 
 // parseLogging from map encoded string value
 func parseLogging(s string) *BucketLogging {
-	m := parseMap(s)
+	m := util.ParseMap(s)
 	return &BucketLogging{
 		LogBucket:       m["logBucket"],
 		LogObjectPrefix: m["logObjectPrefix"],
@@ -921,7 +898,7 @@ func parseLogging(s string) *BucketLogging {
 
 // parseWebsite from map encoded string value
 func parseWebsite(s string) *BucketWebsite {
-	m := parseMap(s)
+	m := util.ParseMap(s)
 	return &BucketWebsite{
 		MainPageSuffix: m["mainPageSuffix"],
 		NotFoundPage:   m["notFoundPage"],

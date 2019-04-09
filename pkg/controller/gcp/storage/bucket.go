@@ -44,7 +44,7 @@ import (
 )
 
 const (
-	controllerName = "handle.storage.gcp.crossplane.io"
+	controllerName = "bucket.storage.gcp.crossplane.io"
 	finalizer      = "finalizer." + controllerName
 
 	reconcileTimeout      = 1 * time.Minute
@@ -71,7 +71,7 @@ var (
 	requeueOnSuccess = reconcile.Result{RequeueAfter: requeueAfterOnSuccess}
 )
 
-// Reconciler reconciles a GCP storage bucket obj
+// Reconciler reconciles a GCP storage bucket bucket
 type Reconciler struct {
 	client.Client
 	factory
@@ -91,11 +91,19 @@ func Add(mgr manager.Manager) error {
 		return err
 	}
 
-	// Watch for changes to Provider
-	return c.Watch(&source.Kind{Type: &v1alpha1.Bucket{}}, &handler.EnqueueRequestForObject{})
+	// Watch for changes to bucket
+	if err := c.Watch(&source.Kind{Type: &v1alpha1.Bucket{}}, &handler.EnqueueRequestForObject{}); err != nil {
+		return err
+	}
+
+	// Watch for changes to Instance Secret
+	return c.Watch(&source.Kind{Type: &corev1.Secret{}}, &handler.EnqueueRequestForOwner{
+		IsController: true,
+		OwnerType:    &v1alpha1.Bucket{},
+	})
 }
 
-// Reconcile reads that state of the cluster for a Provider obj and makes changes based on the state read
+// Reconcile reads that state of the cluster for a Provider bucket and makes changes based on the state read
 // and what is in the Provider.Spec
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	log.Printf("reconciling %s: %v", v1alpha1.BucketKindAPIVersion, request)
@@ -158,7 +166,7 @@ func (m *bucketFactory) newHandler(ctx context.Context, b *v1alpha1.Bucket) (syn
 
 	sc, err := storage.NewClient(ctx, option.WithCredentials(creds))
 	if err != nil {
-		return nil, errors.Wrapf(err, "error creating storage cc")
+		return nil, errors.Wrapf(err, "error creating storage kube")
 	}
 
 	return newBucketSyncDeleter(&gcpstorage.BucketClient{BucketHandle: sc.Bucket(string(b.GetUID()))}, m.Client, b, creds.ProjectID), nil
@@ -213,7 +221,7 @@ func (bh *bucketSyncDeleter) delete(ctx context.Context) (reconcile.Result, erro
 }
 
 // sync - synchronizes the state of the bucket resource with the state of the
-// bucket Kubernetes obj
+// bucket Kubernetes bucket
 func (bh *bucketSyncDeleter) sync(ctx context.Context) (reconcile.Result, error) {
 	// create connection secret if it doesn't exist
 	if err := bh.kube.Create(ctx, bh.object.ConnectionSecret()); err != nil && !kerrors.IsAlreadyExists(err) {
@@ -244,7 +252,7 @@ type createupdater interface {
 type bucketCreateUpdater struct {
 	gcpstorage.Client
 	kube      client.Client
-	object    *v1alpha1.Bucket
+	bucket    *v1alpha1.Bucket
 	projectID string
 }
 
@@ -253,57 +261,57 @@ func newBucketCreateUpdater(sc gcpstorage.Client, cc client.Client, b *v1alpha1.
 	return &bucketCreateUpdater{
 		Client:    sc,
 		kube:      cc,
-		object:    b,
+		bucket:    b,
 		projectID: pID,
 	}
 }
 
 // create new bucket resource and save changes back to bucket specs
 func (bh *bucketCreateUpdater) create(ctx context.Context) (reconcile.Result, error) {
-	util.AddFinalizer(&bh.object.ObjectMeta, finalizer)
+	util.AddFinalizer(&bh.bucket.ObjectMeta, finalizer)
 
-	if err := bh.Create(ctx, bh.projectID, v1alpha1.CopyBucketSpecAttrs(&bh.object.Spec.BucketSpecAttrs)); err != nil {
-		bh.object.Status.SetFailed(failedToCreate, err.Error())
-		return resultRequeue, bh.kube.Status().Update(ctx, bh.object)
+	if err := bh.Create(ctx, bh.projectID, v1alpha1.CopyBucketSpecAttrs(&bh.bucket.Spec.BucketSpecAttrs)); err != nil {
+		bh.bucket.Status.SetFailed(failedToCreate, err.Error())
+		return resultRequeue, bh.kube.Status().Update(ctx, bh.bucket)
 	}
 
-	bh.object.Status.SetReady()
+	bh.bucket.Status.SetReady()
 
 	attrs, err := bh.Attrs(ctx)
 	if err != nil {
-		bh.object.Status.SetFailed(failedToRetrieve, err.Error())
-		return resultRequeue, bh.kube.Status().Update(ctx, bh.object)
+		bh.bucket.Status.SetFailed(failedToRetrieve, err.Error())
+		return resultRequeue, bh.kube.Status().Update(ctx, bh.bucket)
 	}
 
-	bh.object.Spec.BucketSpecAttrs = v1alpha1.NewBucketSpecAttrs(attrs)
-	if err := bh.kube.Update(ctx, bh.object); err != nil {
+	bh.bucket.Spec.BucketSpecAttrs = v1alpha1.NewBucketSpecAttrs(attrs)
+	if err := bh.kube.Update(ctx, bh.bucket); err != nil {
 		return resultRequeue, err
 	}
 
-	bh.object.Status.BucketOutputAttrs = v1alpha1.NewBucketOutputAttrs(attrs)
+	bh.bucket.Status.BucketOutputAttrs = v1alpha1.NewBucketOutputAttrs(attrs)
 
-	return requeueOnSuccess, bh.kube.Status().Update(ctx, bh.object)
+	return requeueOnSuccess, bh.kube.Status().Update(ctx, bh.bucket)
 }
 
 // update bucket resource if needed
 func (bh *bucketCreateUpdater) update(ctx context.Context, attrs *storage.BucketAttrs) (reconcile.Result, error) {
 
 	current := v1alpha1.NewBucketUpdatableAttrs(attrs)
-	if reflect.DeepEqual(*current, bh.object.Spec.BucketUpdatableAttrs) {
+	if reflect.DeepEqual(*current, bh.bucket.Spec.BucketUpdatableAttrs) {
 		return requeueOnSuccess, nil
 	}
 
-	attrs, err := bh.Update(ctx, v1alpha1.CopyToBucketUpdateAttrs(bh.object.Spec.BucketUpdatableAttrs, attrs.Labels))
+	attrs, err := bh.Update(ctx, v1alpha1.CopyToBucketUpdateAttrs(bh.bucket.Spec.BucketUpdatableAttrs, attrs.Labels))
 	if err != nil {
-		bh.object.Status.SetFailed(failedToUpdate, err.Error())
-		return resultRequeue, bh.kube.Status().Update(ctx, bh.object)
+		bh.bucket.Status.SetFailed(failedToUpdate, err.Error())
+		return resultRequeue, bh.kube.Status().Update(ctx, bh.bucket)
 	}
 
 	// Sync attributes back to spec
-	bh.object.Spec.BucketSpecAttrs = v1alpha1.NewBucketSpecAttrs(attrs)
-	if err := bh.kube.Update(ctx, bh.object); err != nil {
+	bh.bucket.Spec.BucketSpecAttrs = v1alpha1.NewBucketSpecAttrs(attrs)
+	if err := bh.kube.Update(ctx, bh.bucket); err != nil {
 		return resultRequeue, err
 	}
 
-	return requeueOnSuccess, bh.kube.Status().Update(ctx, bh.object)
+	return requeueOnSuccess, bh.kube.Status().Update(ctx, bh.bucket)
 }

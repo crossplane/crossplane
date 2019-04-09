@@ -178,6 +178,11 @@ func NewCondition(condType ConditionType, reason, msg string) Condition {
 	}
 }
 
+// NewReadyCondition sets and activates Ready status condition
+func NewReadyCondition() Condition {
+	return NewCondition(Ready, "", "")
+}
+
 // FilterOutCondition returns a new slice of credentials controller conditions
 // without conditions with the provided type.
 func FilterOutCondition(conditions []Condition, condType ConditionType) []Condition {

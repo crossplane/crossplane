@@ -29,10 +29,28 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/runtime/scheme"
 )
 
+// Kubernetes Group, Version, and Kind metadata.
+const (
+	Group      = "storage.azure.crossplane.io"
+	Version    = "v1alpha1"
+	APIVersion = Group + "/" + Version
+
+	AccountKind           = "account"
+	AccountKindAPIVersion = AccountKind + "." + APIVersion
+
+	ContainerKind           = "container"
+	ContainerKindAPIVersion = ContainerKind + "." + APIVersion
+)
+
 var (
 	// SchemeGroupVersion is group version used to register these objects
-	SchemeGroupVersion = schema.GroupVersion{Group: "storage.azure.crossplane.io", Version: "v1alpha1"}
+	SchemeGroupVersion = schema.GroupVersion{Group: Group, Version: Version}
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
 )
+
+func init() {
+	SchemeBuilder.Register(&Account{}, &AccountList{})
+	SchemeBuilder.Register(&Container{}, &ContainerList{})
+}
