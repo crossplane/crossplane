@@ -1362,3 +1362,70 @@ func TestNewBucketSpec(t *testing.T) {
 		})
 	}
 }
+
+func TestBucket_GetBucketName(t *testing.T) {
+	om := metav1.ObjectMeta{
+		Namespace: "foo",
+		Name:      "bar",
+		UID:       "test-uid",
+	}
+	type fields struct {
+		ObjectMeta metav1.ObjectMeta
+		Spec       BucketSpec
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+	}{
+		{
+			name: "no name format",
+			fields: fields{
+				ObjectMeta: om,
+				Spec:       BucketSpec{},
+			},
+			want: "test-uid",
+		},
+		{
+			name: "format string",
+			fields: fields{
+				ObjectMeta: om,
+				Spec: BucketSpec{
+					NameFormat: "foo-%s",
+				},
+			},
+			want: "foo-test-uid",
+		},
+		{
+			name: "constant string",
+			fields: fields{
+				ObjectMeta: om,
+				Spec: BucketSpec{
+					NameFormat: "foo-bar",
+				},
+			},
+			want: "foo-bar",
+		},
+		{
+			name: "invalid: multiple substitutions",
+			fields: fields{
+				ObjectMeta: om,
+				Spec: BucketSpec{
+					NameFormat: "foo-%s-bar-%s",
+				},
+			},
+			want: "foo-test-uid-bar-%!s(MISSING)",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			b := &Bucket{
+				ObjectMeta: tt.fields.ObjectMeta,
+				Spec:       tt.fields.Spec,
+			}
+			if got := b.GetBucketName(); got != tt.want {
+				t.Errorf("Bucket.GetBucketName() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

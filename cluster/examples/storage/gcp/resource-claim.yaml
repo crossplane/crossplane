@@ -7,3 +7,4 @@ spec:
   classReference:
     name: standard-gcp-bucket
     namespace: crossplane-system
+  name: demo-bucket-%s

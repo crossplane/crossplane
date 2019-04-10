@@ -341,30 +341,34 @@ func Test_bucketFactory_newHandler(t *testing.T) {
 	"token_uri": "https://oauth2.googleapis.com/token",
 	"auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
 	"client_x509_cert_url": "%s"}`
-
+	type want struct {
+		err error
+		sd  syncdeleter
+	}
 	tests := []struct {
-		name    string
-		Client  client.Client
-		bucket  *v1alpha1.Bucket
-		want    syncdeleter
-		wantErr error
+		name   string
+		Client client.Client
+		bucket *v1alpha1.Bucket
+		want   want
 	}{
 		{
 			name:   "err provider is not found",
 			Client: fake.NewFakeClient(),
 			bucket: newBucket(ns, bucketName).withProvider(providerName).Bucket,
-			want:   nil,
-			wantErr: kerrors.NewNotFound(schema.GroupResource{
-				Group:    gcpv1alpha1.Group,
-				Resource: "providers"}, "test-provider"),
+			want: want{
+				err: kerrors.NewNotFound(schema.GroupResource{
+					Group:    gcpv1alpha1.Group,
+					Resource: "providers"}, "test-provider"),
+			},
 		},
 		{
 			name: "provider is not ready",
 			Client: fake.NewFakeClient(newProvider(ns, providerName).
 				withCondition(corev1alpha1.NewCondition(corev1alpha1.Failed, "", "")).Provider),
-			bucket:  newBucket(ns, bucketName).withProvider("test-provider").Bucket,
-			want:    nil,
-			wantErr: errors.Errorf("provider: %s is not ready", ns+"/test-provider"),
+			bucket: newBucket(ns, bucketName).withProvider("test-provider").Bucket,
+			want: want{
+				err: errors.Errorf("provider: %s is not ready", ns+"/test-provider"),
+			},
 		},
 		{
 			name: "provider secret is not found",
@@ -372,9 +376,10 @@ func Test_bucketFactory_newHandler(t *testing.T) {
 				withCondition(corev1alpha1.NewCondition(corev1alpha1.Ready, "", "")).
 				withSecret(secretName, secretKey).Provider),
 			bucket: newBucket(ns, bucketName).withProvider("test-provider").Bucket,
-			want:   nil,
-			wantErr: errors.WithStack(
-				errors.Errorf("cannot get provider's secret %s/%s: secrets \"%s\" not found", ns, secretName, secretName)),
+			want: want{
+				err: errors.WithStack(
+					errors.Errorf("cannot get provider's secret %s/%s: secrets \"%s\" not found", ns, secretName, secretName)),
+			},
 		},
 		{
 			name: "invalid credentials",
@@ -383,19 +388,21 @@ func Test_bucketFactory_newHandler(t *testing.T) {
 				withSecret(secretName, secretKey).Provider,
 				newSecret(ns, secretName).Secret),
 			bucket: newBucket(ns, bucketName).withProvider("test-provider").Bucket,
-			want:   nil,
-			wantErr: errors.WithStack(
-				errors.Errorf("cannot retrieve creds from json: unexpected end of JSON input")),
+			want: want{
+				err: errors.WithStack(
+					errors.Errorf("cannot retrieve creds from json: unexpected end of JSON input")),
+			},
 		},
 		{
-			name: "kube created",
+			name: "successful",
 			Client: fake.NewFakeClient(newProvider(ns, providerName).
 				withCondition(corev1alpha1.NewCondition(corev1alpha1.Ready, "", "")).
 				withSecret(secretName, secretKey).Provider,
 				newSecret(ns, secretName).withKeyData(secretKey, secretData).Secret),
-			bucket:  newBucket(ns, bucketName).withProvider("test-provider").Bucket,
-			want:    newBucketSyncDeleter(&gcpstorage.BucketClient{BucketHandle: &storage.BucketHandle{}}, nil, nil, ""),
-			wantErr: nil,
+			bucket: newBucket(ns, bucketName).withUID("test-uid").withProvider("test-provider").Bucket,
+			want: want{
+				sd: newBucketSyncDeleter(&gcpstorage.BucketClient{BucketHandle: &storage.BucketHandle{}}, nil, nil, ""),
+			},
 		},
 	}
 	for _, tt := range tests {
@@ -404,12 +411,12 @@ func Test_bucketFactory_newHandler(t *testing.T) {
 				Client: tt.Client,
 			}
 			got, err := m.newHandler(ctx, tt.bucket)
-			if diff := deep.Equal(err, tt.wantErr); diff != nil {
-				t.Errorf("bucketFactory.newHandler() error = \n%v, wantErr: \n%v\n%s", err, tt.wantErr, diff)
+			if diff := deep.Equal(err, tt.want.err); diff != nil {
+				t.Errorf("bucketFactory.newHandler() error = \n%v, wantErr: \n%v\n%s", err, tt.want.err, diff)
 				return
 			}
-			if diff := deep.Equal(got, tt.want); diff != nil {
-				t.Errorf("bucketFactory.newHandler() = \n%+v, want \n%+v\n%s", got, tt.want, diff)
+			if diff := deep.Equal(got, tt.want.sd); diff != nil {
+				t.Errorf("bucketFactory.newHandler() = \n%+v, want \n%+v\n%s", got, tt.want.sd, diff)
 			}
 		})
 	}

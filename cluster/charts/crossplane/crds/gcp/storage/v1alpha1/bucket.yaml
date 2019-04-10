@@ -184,6 +184,10 @@ spec:
                   description: A prefix for log object names.
                   type: string
               type: object
+            nameFormat:
+              description: NameFormat to format bucket name passing it a object UID
+                If not provided, defaults to "%s", i.e. UID value
+              type: string
             predefinedAcl:
               description: If not empty, applies a predefined set of access controls.
                 It should be set only when creating a bucket. It is always empty for
