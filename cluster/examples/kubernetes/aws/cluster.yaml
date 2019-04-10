@@ -3,7 +3,7 @@ kind: EKSCluster
 metadata:
   name: demo-cluster
 spec:
-  region: us-west-2
+  region: us-east-1
   roleARN: # arn:aws:iam::<account-id>:role/<role-name>
   vpcId: #vpc-01
   subnetIds:

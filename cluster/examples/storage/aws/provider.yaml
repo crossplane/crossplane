@@ -27,7 +27,7 @@ metadata:
 parameters:
   versioning: "false"
   predefinedACL: private
-  region: us-west-1
+  region: us-east-1
 provisioner: s3bucket.storage.aws.crossplane.io/v1alpha1
 providerRef:
   name: demo-aws-provider

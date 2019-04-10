@@ -24,7 +24,7 @@ metadata:
   name: standard-eks-cluster
   namespace: crossplane-system
 parameters:
-  region: us-west-2
+  region: us-east-1
   roleARN: # arn:aws:iam::<account-id>:role/<role-name>
   vpcId: #vpc-01
   subnetIds: #subnet-01,subnet-02,subnet-03
