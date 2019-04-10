@@ -256,7 +256,7 @@ func (c *Container) SetBound(state bool) {
 func ParseContainerSpec(p map[string]string) *ContainerSpec {
 	return &ContainerSpec{
 		ReclaimPolicy:    corev1alpha1.ReclaimRetain,
-		Metadata:         util.ParseMap("metadata"),
+		Metadata:         util.ParseMap(p["metadata"]),
 		NameFormat:       p["nameFormat"],
 		PublicAccessType: parsePublicAccessType(p["publicAccessType"]),
 	}
