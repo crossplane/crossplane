@@ -18,7 +18,6 @@ package storage
 
 import (
 	"context"
-	"log"
 	"reflect"
 	"time"
 
@@ -40,6 +39,7 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/apis/gcp/storage/v1alpha1"
 	gcpv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/v1alpha1"
 	gcpstorage "github.com/crossplaneio/crossplane/pkg/clients/gcp/storage"
+	"github.com/crossplaneio/crossplane/pkg/logging"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
@@ -69,6 +69,8 @@ const (
 var (
 	resultRequeue    = reconcile.Result{Requeue: true}
 	requeueOnSuccess = reconcile.Result{RequeueAfter: requeueAfterOnSuccess}
+
+	log = logging.Logger.WithName("controller." + controllerName)
 )
 
 // Reconciler reconciles a GCP storage bucket bucket
@@ -106,7 +108,7 @@ func Add(mgr manager.Manager) error {
 // Reconcile reads that state of the cluster for a Provider bucket and makes changes based on the state read
 // and what is in the Provider.Spec
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	log.Printf("reconciling %s: %v", v1alpha1.BucketKindAPIVersion, request)
+	log.V(logging.Debug).Info("reconciling", "kind", v1alpha1.BucketKindAPIVersion, "request", request)
 
 	ctx, cancel := context.WithTimeout(context.Background(), reconcileTimeout)
 	defer cancel()
