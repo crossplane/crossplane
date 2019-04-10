@@ -723,6 +723,10 @@ func NewBucketOutputAttrs(attrs *storage.BucketAttrs) BucketOutputAttrs {
 type BucketSpec struct {
 	BucketSpecAttrs `json:",inline"`
 
+	// NameFormat to format bucket name passing it a object UID
+	// If not provided, defaults to "%s", i.e. UID value
+	NameFormat string `json:"nameFormat,omitempty"`
+
 	ConnectionSecretNameOverride string                      `json:"connectionSecretNameOverride,omitempty"`
 	ProviderRef                  corev1.LocalObjectReference `json:"providerRef"`
 	ClaimRef                     *corev1.ObjectReference     `json:"claimRef,omitempty"`
@@ -799,6 +803,24 @@ func (b *Bucket) ObjectReference() *corev1.ObjectReference {
 // OwnerReference to use this instance as an owner
 func (b *Bucket) OwnerReference() metav1.OwnerReference {
 	return *util.ObjectToOwnerReference(b.ObjectReference())
+}
+
+// GetBucketName based on the NameFormat spec value,
+// If name format is not provided, bucket name defaults to UID
+// If name format provided with '%s' value, bucket name will result in formatted string + UID,
+//   NOTE: only single %s substitution is supported
+// If name format does not contain '%s' substitution, i.e. a constant string, the
+// constant string value is returned back
+//
+// Examples:
+//   For all examples assume "UID" = "test-uid"
+//   1. NameFormat = "", BucketName = "test-uid"
+//   2. NameFormat = "%s", BucketName = "test-uid"
+//   3. NameFormat = "foo", BucketName = "foo"
+//   4. NameFormat = "foo-%s", BucketName = "foo-test-uid"
+//   5. NameFormat = "foo-%s-bar-%s", BucketName = "foo-test-uid-bar-%!s(MISSING)"
+func (b *Bucket) GetBucketName() string {
+	return util.ConditionalStringFormat(b.Spec.NameFormat, string(b.GetUID()))
 }
 
 // IsAvailable for usage/binding

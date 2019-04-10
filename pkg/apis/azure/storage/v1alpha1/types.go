@@ -17,16 +17,12 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"fmt"
-	"strings"
-
 	"github.com/Azure/azure-storage-blob-go/azblob"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/crossplaneio/crossplane/pkg/util"
-
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 // AccountSpec is the schema for Account object
@@ -214,17 +210,12 @@ type ContainerList struct {
 // Examples:
 //   For all examples assume "UID" = "test-uid"
 //   1. NameFormat = "", ContainerName = "test-uid"
-//   2. NameFormat = "foo", ContainerName = "foo"
-//   3. NameFormat = "foo-%s", ContainerName = "foo-test-uid"
-//   4. NameFormat = "foo-%s-bar-%s", ContainerName = "foo-test-uid-bar-%!s(MISSING)"
+//   2. NameFormat = "%s", ContainerName = "test-uid"
+//   3. NameFormat = "foo", ContainerName = "foo"
+//   4. NameFormat = "foo-%s", ContainerName = "foo-test-uid"
+//   5. NameFormat = "foo-%s-bar-%s", ContainerName = "foo-test-uid-bar-%!s(MISSING)"
 func (c *Container) GetContainerName() string {
-	if c.Spec.NameFormat == "" {
-		return string(c.GetUID())
-	}
-	if strings.Contains(c.Spec.NameFormat, "%s") {
-		return fmt.Sprintf(c.Spec.NameFormat, c.GetUID())
-	}
-	return c.Spec.NameFormat
+	return util.ConditionalStringFormat(c.Spec.NameFormat, string(c.GetUID()))
 }
 
 // ConnectionSecretName returns a secret name from the reference

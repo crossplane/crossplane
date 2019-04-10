@@ -17,6 +17,7 @@ limitations under the License.
 package util
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 )
@@ -60,4 +61,27 @@ func ParseBool(s string) bool {
 		return false
 	}
 	return b
+}
+
+// ConditionalStringFormat returns based on the format string and substitution value.
+// If format is not provided, substitution value is returned
+// If format is provided with '%s' substitution symbol, fmt.Sprintf(fmt, val) is returned.
+//   NOTE: only single %s substitution is supported
+// If name format does not contain '%s' substitution, i.e. a constant string, the
+// constant string value is returned back
+//
+// Examples:
+//   For all examples assume "value" = "test-value"
+//   1. format = "", ContainerName = "test-value"
+//   2. format = "foo", ContainerName = "foo"
+//   3. format = "foo-%s", ContainerName = "foo-test-value"
+//   4. format = "foo-%s-bar-%s", ContainerName = "foo-test-value-bar-%!s(MISSING)"
+func ConditionalStringFormat(format string, value string) string {
+	if format == "" {
+		return value
+	}
+	if strings.Contains(format, "%s") {
+		return fmt.Sprintf(format, value)
+	}
+	return format
 }

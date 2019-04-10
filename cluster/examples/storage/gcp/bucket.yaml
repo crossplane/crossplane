@@ -7,6 +7,7 @@ spec:
   labels:
     provisioner: crossplane
   location: ASIA
+  nameFormat: demo-bucket-%s
   providerRef:
     name: demo-gcp
   reclaimPolicy: Delete

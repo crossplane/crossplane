@@ -93,7 +93,7 @@ func resolveGCSBucketClaimValues(bucket *v1alpha1.Bucket, claim corev1alpha1.Res
 
 	// Set Name bucket name if Name value is provided by Bucket Claim spec
 	if bucketClaim.Spec.Name != "" {
-		bucketClaim.Name = bucketClaim.Spec.Name
+		bucket.Spec.NameFormat = bucketClaim.Spec.Name
 	}
 
 	spec := bucket.Spec

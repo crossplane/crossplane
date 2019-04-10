@@ -169,7 +169,7 @@ func (m *bucketFactory) newHandler(ctx context.Context, b *v1alpha1.Bucket) (syn
 		return nil, errors.Wrapf(err, "error creating storage kube")
 	}
 
-	return newBucketSyncDeleter(&gcpstorage.BucketClient{BucketHandle: sc.Bucket(string(b.GetUID()))}, m.Client, b, creds.ProjectID), nil
+	return newBucketSyncDeleter(&gcpstorage.BucketClient{BucketHandle: sc.Bucket(b.GetBucketName())}, m.Client, b, creds.ProjectID), nil
 }
 
 type deleter interface {

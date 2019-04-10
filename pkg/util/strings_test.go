@@ -20,7 +20,6 @@ import (
 	"testing"
 
 	"github.com/go-test/deep"
-
 	. "github.com/onsi/gomega"
 )
 
@@ -43,7 +42,7 @@ func TestToLowerRemoveSpaces(t *testing.T) {
 	}
 }
 
-func Test_parseMap(t *testing.T) {
+func TestParseMap(t *testing.T) {
 	tests := []struct {
 		name string
 		args string
@@ -64,7 +63,7 @@ func Test_parseMap(t *testing.T) {
 	}
 }
 
-func Test_parseBool(t *testing.T) {
+func TestParseBool(t *testing.T) {
 	tests := []struct {
 		name string
 		args string
@@ -81,6 +80,83 @@ func Test_parseBool(t *testing.T) {
 			got := ParseBool(tt.args)
 			if diff := deep.Equal(got, tt.want); diff != nil {
 				t.Errorf("parseBool() = %v, want %v\n%s", got, tt.want, diff)
+			}
+		})
+	}
+}
+
+func TestConditionalStringFormat(t *testing.T) {
+	type args struct {
+		format string
+		value  string
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "no name format",
+			args: args{
+				format: "",
+				value:  "test-value",
+			},
+			want: "test-value",
+		},
+		{
+			name: "format string only",
+			args: args{
+				format: "%s",
+				value:  "test-value",
+			},
+			want: "test-value",
+		},
+		{
+			name: "format string at the beginning",
+			args: args{
+				format: "%s-foo",
+				value:  "test-value",
+			},
+			want: "test-value-foo",
+		},
+		{
+			name: "format string at the end",
+			args: args{
+				format: "foo-%s",
+				value:  "test-value",
+			},
+			want: "foo-test-value",
+		},
+		{
+			name: "format string in the middle",
+			args: args{
+				format: "foo-%s-bar",
+				value:  "test-value",
+			},
+			want: "foo-test-value-bar",
+		},
+		{
+			name: "constant string",
+			args: args{
+				format: "foo-bar",
+				value:  "test-value",
+			},
+			want: "foo-bar",
+		},
+		{
+			name: "invalid: multiple substitutions",
+			args: args{
+				format: "foo-%s-bar-%s",
+				value:  "test-value",
+			},
+			want: "foo-test-value-bar-%!s(MISSING)",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ConditionalStringFormat(tt.args.format, tt.args.value)
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("ConditionalStringFormat() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
 	}
