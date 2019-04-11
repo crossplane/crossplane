@@ -221,7 +221,7 @@ func (c *providerConnecter) Connect(ctx context.Context, r *v1alpha1.Redis) (cre
 	return &azureRedisCache{client: client}, errors.Wrap(err, "cannot create new Azure Cache client")
 }
 
-// Reconciler reconciles Rediss read from the Kubernetes API
+// Reconciler reconciles Redis read from the Kubernetes API
 // with an external store, typically the Azure API.
 type Reconciler struct {
 	connecter
