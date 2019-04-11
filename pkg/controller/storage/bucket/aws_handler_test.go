@@ -25,8 +25,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	s3Bucketv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/storage/v1alpha1"
@@ -40,18 +38,13 @@ const (
 	namespace = "default"
 )
 
-var (
-	cfg *rest.Config
-)
-
 func init() {
 	flag.Parse()
 }
 
 func TestMain(m *testing.M) {
-	storage.AddToScheme(scheme.Scheme)
-	t := test.NewEnv(namespace, test.CRDs())
-	cfg = t.Start()
+	t := test.NewEnv(namespace, storage.AddToSchemes, test.CRDs())
+	t.Start()
 	t.StopAndExit(m.Run())
 }
 

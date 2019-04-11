@@ -17,7 +17,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"log"
 	"testing"
 
 	. "github.com/onsi/gomega"
@@ -26,8 +25,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplaneio/crossplane/pkg/test"
@@ -40,25 +37,14 @@ const (
 
 var (
 	ctx = context.TODO()
-	cfg *rest.Config
 	c   client.Client
 
 	key = types.NamespacedName{Name: name, Namespace: namespace}
 )
 
 func TestMain(m *testing.M) {
-	err := SchemeBuilder.AddToScheme(scheme.Scheme)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	t := test.NewEnv(namespace, test.CRDs())
-	cfg = t.Start()
-
-	if c, err = client.New(cfg, client.Options{Scheme: scheme.Scheme}); err != nil {
-		log.Fatal(err)
-	}
-
+	t := test.NewEnv(namespace, SchemeBuilder.SchemeBuilder, test.CRDs())
+	c = t.StartClient()
 	t.StopAndExit(m.Run())
 }
 

@@ -17,7 +17,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"log"
 	"strconv"
 	"testing"
 
@@ -27,8 +26,6 @@ import (
 	"golang.org/x/net/context"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
@@ -42,23 +39,12 @@ const (
 )
 
 var (
-	cfg *rest.Config
-	c   client.Client
+	c client.Client
 )
 
 func TestMain(m *testing.M) {
-	err := SchemeBuilder.AddToScheme(scheme.Scheme)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	t := test.NewEnv(namespace, test.CRDs())
-	cfg = t.Start()
-
-	if c, err = client.New(cfg, client.Options{Scheme: scheme.Scheme}); err != nil {
-		log.Fatal(err)
-	}
-
+	t := test.NewEnv(namespace, SchemeBuilder.SchemeBuilder, test.CRDs())
+	c = t.StartClient()
 	t.StopAndExit(m.Run())
 }
 
@@ -112,9 +98,8 @@ func TestNewS3BucketSpec(t *testing.T) {
 	exp.Region = val
 	g.Expect(NewS3BucketSpec(m)).To(Equal(exp))
 
-	trueVal := true
-	m["versioning"] = strconv.FormatBool(trueVal)
-	exp.Versioning = trueVal
+	m["versioning"] = strconv.FormatBool(true)
+	exp.Versioning = true
 	g.Expect(NewS3BucketSpec(m)).To(Equal(exp))
 
 	acl := s3.BucketCannedACLAuthenticatedRead

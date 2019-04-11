@@ -14,31 +14,34 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package apis
 
 import (
-	"context"
 	"testing"
 
-	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/crossplaneio/crossplane/pkg/test"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
-const (
-	namespace = "default"
-	name      = "test-instance"
-)
-
-var (
-	ctx = context.TODO()
-	c   client.Client
-	key = types.NamespacedName{Name: name, Namespace: namespace}
-)
-
-func TestMain(m *testing.M) {
-	t := test.NewEnv(namespace, SchemeBuilder.SchemeBuilder, test.CRDs())
-	c = t.StartClient()
-	t.StopAndExit(m.Run())
+func TestAddToScheme(t *testing.T) {
+	type args struct {
+		s *runtime.Scheme
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			name:    "test",
+			args:    args{s: runtime.NewScheme()},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := AddToScheme(tt.args.s); (err != nil) != tt.wantErr {
+				t.Errorf("AddToScheme() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
 }

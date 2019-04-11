@@ -25,7 +25,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -53,9 +52,7 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	gcp.AddToScheme(scheme.Scheme)
-
-	t := test.NewEnv(namespace, test.CRDs())
+	t := test.NewEnv(namespace, gcp.AddToSchemes, test.CRDs())
 	cfg = t.Start()
 	t.StopAndExit(m.Run())
 }

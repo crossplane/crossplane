@@ -26,8 +26,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	apiruntime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 )
 
@@ -50,7 +53,11 @@ type Env struct {
 }
 
 // NewEnv - create new test environment instance
-func NewEnv(namespace string, crds ...string) *Env {
+func NewEnv(namespace string, builder apiruntime.SchemeBuilder, crds ...string) *Env {
+	if err := builder.AddToScheme(scheme.Scheme); err != nil {
+		log.Fatal(err)
+	}
+
 	t := envtest.Environment{
 		UseExistingCluster: UseExistingCluster(),
 	}
@@ -90,7 +97,20 @@ func (te *Env) Start() *rest.Config {
 			log.Fatal(err)
 		}
 	}
+
 	return cfg
+}
+
+// StartClient - starts test environment and returns instance of go-client
+func (te *Env) StartClient() client.Client {
+	cfg := te.Start()
+
+	clnt, err := client.New(cfg, client.Options{Scheme: scheme.Scheme})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return clnt
 }
 
 // Stop - stops test environment performing additional cleanup (if needed)
