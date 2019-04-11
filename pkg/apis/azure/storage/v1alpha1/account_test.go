@@ -1017,6 +1017,11 @@ func Test_parseStorageAccountSpec(t *testing.T) {
 			args: storageAccountSpecString,
 			want: storageAccountSpec,
 		},
+		{
+			name: "parse-failure",
+			args: `{`, // malformed JSON input
+			want: &StorageAccountSpec{},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
