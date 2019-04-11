@@ -43,7 +43,7 @@ import (
 )
 
 const (
-	controllerName = "account.storage.azure.crossplane.io"
+	controllerName = "container.storage.azure.crossplane.io"
 	finalizer      = "finalizer." + controllerName
 
 	reconcileTimeout      = 2 * time.Minute
@@ -70,7 +70,7 @@ var (
 	log = logging.Logger.WithName("controller." + controllerName)
 )
 
-// Reconciler reconciles a GCP storage account acct
+// Reconciler reconciles an Azure storage container
 type Reconciler struct {
 	client.Client
 	syncdeleterMaker
