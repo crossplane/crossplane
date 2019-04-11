@@ -17,7 +17,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"log"
 	"reflect"
 	"testing"
 	"time"
@@ -29,33 +28,22 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
+const namespace = "default"
+
 var (
-	cfg *rest.Config
 	c   client.Client
 	ctx = context.TODO()
 )
 
 func TestMain(m *testing.M) {
-	err := SchemeBuilder.AddToScheme(scheme.Scheme)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	t := test.NewEnv("default", test.CRDs())
-	cfg = t.Start()
-
-	if c, err = client.New(cfg, client.Options{Scheme: scheme.Scheme}); err != nil {
-		log.Fatal(err)
-	}
-
+	t := test.NewEnv(namespace, SchemeBuilder.SchemeBuilder, test.CRDs())
+	c = t.StartClient()
 	t.StopAndExit(m.Run())
 }
 
