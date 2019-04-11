@@ -65,3 +65,49 @@ type ProviderList struct {
 func (p *Provider) IsValid() bool {
 	return p.Status.IsReady()
 }
+
+// ResourceGroupSpec defines the desired state of Resource Group
+type ResourceGroupSpec struct {
+	// Important: Run "make generate" to regenerate code after modifying this file
+
+	// Name of the resource group
+	Name string `json:"name,omitempty"`
+	// See official list of valid regions - https://azure.microsoft.com/en-us/global-infrastructure/regions/
+	Location    string                      `json:"location,omitempty"`
+	ProviderRef corev1.LocalObjectReference `json:"providerRef"`
+
+	ClaimRef *corev1.ObjectReference `json:"claimRef,omitempty"`
+	ClassRef *corev1.ObjectReference `json:"classRef,omitempty"`
+
+	// ReclaimPolicy identifies how to handle the cloud resource after the deletion of this type
+	ReclaimPolicy corev1alpha1.ReclaimPolicy `json:"reclaimPolicy,omitempty"`
+}
+
+// ResourceGroupStatus is the status for this resource group
+type ResourceGroupStatus struct {
+	Name string `json:"name"`
+	corev1alpha1.ConditionedStatus
+}
+
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// ResourceGroup is the Schema for the instances API
+// +k8s:openapi-gen=true
+// +groupName=azure
+type ResourceGroup struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec   ResourceGroupSpec   `json:"spec,omitempty"`
+	Status ResourceGroupStatus `json:"status,omitempty"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// ResourceGroupList contains a list of Resource Groups
+type ResourceGroupList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []ResourceGroup `json:"items"`
+}
