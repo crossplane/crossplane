@@ -18,7 +18,6 @@ package container
 
 import (
 	"context"
-	"log"
 	"reflect"
 	"time"
 
@@ -39,11 +38,12 @@ import (
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/clients/azure"
 	"github.com/crossplaneio/crossplane/pkg/clients/azure/storage"
+	"github.com/crossplaneio/crossplane/pkg/logging"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 const (
-	controllerName = "account.storage.azure.crossplane.io"
+	controllerName = "container.storage.azure.crossplane.io"
 	finalizer      = "finalizer." + controllerName
 
 	reconcileTimeout      = 2 * time.Minute
@@ -66,9 +66,11 @@ const (
 var (
 	resultRequeue    = reconcile.Result{Requeue: true}
 	requeueOnSuccess = reconcile.Result{RequeueAfter: requeueAfterOnSuccess}
+
+	log = logging.Logger.WithName("controller." + controllerName)
 )
 
-// Reconciler reconciles a GCP storage account acct
+// Reconciler reconciles an Azure storage container
 type Reconciler struct {
 	client.Client
 	syncdeleterMaker
@@ -103,7 +105,7 @@ func Add(mgr manager.Manager) error {
 // Reconcile reads that state of the cluster for a Provider acct and makes changes based on the state read
 // and what is in the Provider.Spec
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	log.Printf("reconciling %s: %v", v1alpha1.ContainerKindAPIVersion, request)
+	log.V(logging.Debug).Info("reconciling", "kind", v1alpha1.ContainerKindAPIVersion, "request", request)
 
 	ctx, cancel := context.WithTimeout(context.Background(), reconcileTimeout)
 	defer cancel()

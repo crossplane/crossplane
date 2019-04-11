@@ -18,12 +18,17 @@ package v1alpha1
 
 import (
 	"encoding/json"
-	"log"
 
 	"github.com/Azure/azure-sdk-for-go/services/storage/mgmt/2017-06-01/storage"
 	"github.com/Azure/go-autorest/autorest/date"
 	"github.com/Azure/go-autorest/autorest/to"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/crossplaneio/crossplane/pkg/logging"
+)
+
+var (
+	log = logging.Logger.WithName(Group)
 )
 
 // CustomDomain the custom domain assigned to this storage account.
@@ -50,6 +55,7 @@ func toStorageCustomDomain(c *CustomDomain) *storage.CustomDomain {
 	if c == nil {
 		return nil
 	}
+
 	return &storage.CustomDomain{
 		Name:             toStringPtr(c.Name),
 		UseSubDomainName: to.BoolPtr(c.UseSubDomainName),
@@ -675,7 +681,7 @@ func NewStorageAccountSpec(a *storage.Account) *StorageAccountSpec {
 func parseStorageAccountSpec(s string) *StorageAccountSpec {
 	sas := &StorageAccountSpec{}
 	if err := json.Unmarshal([]byte(s), sas); err != nil {
-		log.Printf("error parsing storage account spec: %v\n", err)
+		log.Error(err, "error parsing storage account spec")
 	}
 	return sas
 }

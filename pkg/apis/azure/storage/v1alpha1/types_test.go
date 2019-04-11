@@ -17,7 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"log"
+	logcore "log"
 	"reflect"
 	"testing"
 
@@ -49,14 +49,14 @@ var (
 func TestMain(m *testing.M) {
 	err := SchemeBuilder.AddToScheme(scheme.Scheme)
 	if err != nil {
-		log.Fatal(err)
+		logcore.Fatal(err)
 	}
 
 	t := test.NewEnv(namespace, test.CRDs())
 	cfg = t.Start()
 
 	if c, err = client.New(cfg, client.Options{Scheme: scheme.Scheme}); err != nil {
-		log.Fatal(err)
+		logcore.Fatal(err)
 	}
 
 	t.StopAndExit(m.Run())
