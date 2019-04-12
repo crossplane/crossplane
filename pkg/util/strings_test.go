@@ -161,3 +161,27 @@ func TestConditionalStringFormat(t *testing.T) {
 		})
 	}
 }
+
+func TestSplit(t *testing.T) {
+	type args struct {
+		s   string
+		sep string
+	}
+	tests := []struct {
+		name string
+		args args
+		want []string
+	}{
+		{name: "empty", args: args{s: "", sep: ","}, want: []string{}},
+		{name: "comma", args: args{s: ",", sep: ","}, want: []string{}},
+		{name: "values", args: args{s: " a,,b ", sep: ","}, want: []string{"a", "b"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := Split(tt.args.s, tt.args.sep)
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("Split() = %v, want %v\n%s", got, tt.want, diff)
+			}
+		})
+	}
+}

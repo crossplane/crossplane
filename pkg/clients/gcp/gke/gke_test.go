@@ -19,14 +19,33 @@ package gke
 import (
 	"testing"
 
-	. "github.com/onsi/gomega"
+	"github.com/go-test/deep"
+
 	"golang.org/x/oauth2/google"
 )
 
 func TestNewClusterClient(t *testing.T) {
-	g := NewGomegaWithT(t)
-
-	c, err := NewClusterClient(&google.Credentials{})
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(c).NotTo(BeNil())
+	type want struct {
+		err error
+		res *ClusterClient
+	}
+	tests := []struct {
+		name string
+		args *google.Credentials
+		want want
+	}{
+		{name: "test", args: &google.Credentials{}, want: want{res: &ClusterClient{}}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := NewClusterClient(tt.args)
+			if diff := deep.Equal(err, tt.want.err); diff != nil {
+				t.Errorf("NewClusterClient() error = %v, want.err %v\n%s", err, tt.want.err, diff)
+				return
+			}
+			if diff := deep.Equal(got, tt.want.res); diff != nil {
+				t.Errorf("NewClusterClient() = %v, want %v\n%s", got, tt.want.res, diff)
+			}
+		})
+	}
 }

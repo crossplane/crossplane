@@ -22,7 +22,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
@@ -34,7 +34,7 @@ const (
 
 // Defaults for GKE resources.
 const (
-	DefaultReclaimPolicy = corev1alpha1.ReclaimRetain
+	DefaultReclaimPolicy = v1alpha1.ReclaimRetain
 	DefaultNumberOfNodes = int64(1)
 )
 
@@ -95,13 +95,13 @@ type GKEClusterSpec struct {
 	ProviderRef         corev1.LocalObjectReference  `json:"providerRef,omitempty"`
 
 	// ReclaimPolicy identifies how to handle the cloud resource after the deletion of this type
-	ReclaimPolicy corev1alpha1.ReclaimPolicy `json:"reclaimPolicy,omitempty"`
+	ReclaimPolicy v1alpha1.ReclaimPolicy `json:"reclaimPolicy,omitempty"`
 }
 
 // GKEClusterStatus represents the status of a GKE cluster.
 type GKEClusterStatus struct {
-	corev1alpha1.ConditionedStatus
-	corev1alpha1.BindingStatusPhase
+	v1alpha1.ConditionedStatus
+	v1alpha1.BindingStatusPhase
 	ClusterName string `json:"clusterName"`
 	Endpoint    string `json:"endpoint"`
 	State       string `json:"state,omitempty"`
@@ -137,22 +137,37 @@ type GKEClusterList struct {
 	Items           []GKECluster `json:"items"`
 }
 
-// NewGKEClusterSpec from properties map
-func NewGKEClusterSpec(properties map[string]string) *GKEClusterSpec {
+// ParseClusterSpec from properties map
+func ParseClusterSpec(properties map[string]string) *GKEClusterSpec {
 	spec := &GKEClusterSpec{
 		ReclaimPolicy: DefaultReclaimPolicy,
-		Zone:          properties["zone"],
-		MachineType:   properties["machineType"],
-		NumNodes:      DefaultNumberOfNodes,
 	}
 
-	// assign nodes from properties
-	n, err := strconv.Atoi(properties["numNodes"])
-	if err == nil {
-		spec.NumNodes = int64(n)
+	if len(properties) == 0 {
+		return spec
 	}
+
+	spec.EnableIPAlias = util.ParseBool(properties["enableIPAlias"])
+	spec.MachineType = properties["machineType"]
+	spec.NumNodes = parseNodesNumber(properties["numNodes"])
+	spec.Scopes = util.Split(properties["scopes"], ",")
+	spec.Zone = properties["zone"]
 
 	return spec
+}
+
+// parseNodesNumber from the input string value
+// If value is empty or invalid integer >= 0: return DefaultNumberOfNodes
+func parseNodesNumber(s string) int64 {
+	if s == "" {
+		return DefaultNumberOfNodes
+	}
+
+	n, err := strconv.ParseUint(s, 10, 64)
+	if err != nil {
+		return DefaultNumberOfNodes
+	}
+	return int64(n)
 }
 
 // ObjectReference to this RDSInstance

@@ -19,13 +19,14 @@ package kubernetes
 import (
 	"fmt"
 
-	"k8s.io/apimachinery/pkg/api/errors"
+	"github.com/pkg/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	gcpcomputev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/compute/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/apis/gcp/compute/v1alpha1"
 )
 
 // A GKEClusterHandler handles Kubernetes cluster functionality
@@ -33,15 +34,17 @@ type GKEClusterHandler struct{}
 
 // Find GKECluster resource
 func (r *GKEClusterHandler) Find(name types.NamespacedName, c client.Client) (corev1alpha1.Resource, error) {
-	instance := &gcpcomputev1alpha1.GKECluster{}
-	err := c.Get(ctx, name, instance)
-	return instance, err
+	instance := &v1alpha1.GKECluster{}
+	if err := c.Get(ctx, name, instance); err != nil {
+		return nil, errors.Wrapf(err, "failed to retrieve %s: %s", v1alpha1.GKEClusterKind, name)
+	}
+	return instance, nil
 }
 
 // Provision a new GKECluster
 func (r *GKEClusterHandler) Provision(class *corev1alpha1.ResourceClass, claim corev1alpha1.ResourceClaim, c client.Client) (corev1alpha1.Resource, error) {
 	// construct GKECluster Spec from class definition
-	resourceInstance := gcpcomputev1alpha1.NewGKEClusterSpec(class.Parameters)
+	resourceInstance := v1alpha1.ParseClusterSpec(class.Parameters)
 
 	// assign provider reference and reclaim policy from the resource class
 	resourceInstance.ProviderRef = class.ProviderRef
@@ -52,7 +55,7 @@ func (r *GKEClusterHandler) Provision(class *corev1alpha1.ResourceClass, claim c
 	resourceInstance.ClaimRef = claim.ObjectReference()
 
 	// create and save GKECluster
-	cluster := &gcpcomputev1alpha1.GKECluster{
+	cluster := &v1alpha1.GKECluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:       class.Namespace,
 			Name:            fmt.Sprintf("gke-%s", claim.GetUID()),
@@ -61,21 +64,23 @@ func (r *GKEClusterHandler) Provision(class *corev1alpha1.ResourceClass, claim c
 		Spec: *resourceInstance,
 	}
 
-	err := c.Create(ctx, cluster)
-	return cluster, err
+	if err := c.Create(ctx, cluster); err != nil {
+		return nil, errors.Wrapf(err, "failed to create cluster %s/%s", cluster.Namespace, cluster.Name)
+	}
+	return cluster, nil
 }
 
 // SetBindStatus updates resource state binding phase
 // TODO: this SetBindStatus function could be refactored to 1 common implementation for all providers
 func (r GKEClusterHandler) SetBindStatus(name types.NamespacedName, c client.Client, bound bool) error {
-	instance := &gcpcomputev1alpha1.GKECluster{}
+	instance := &v1alpha1.GKECluster{}
 	err := c.Get(ctx, name, instance)
 	if err != nil {
-		if errors.IsNotFound(err) && !bound {
+		if kerrors.IsNotFound(err) && !bound {
 			return nil
 		}
-		return err
+		return errors.Wrapf(err, "failed to retrieve cluster %s", name)
 	}
 	instance.Status.SetBound(bound)
-	return c.Update(ctx, instance)
+	return errors.Wrapf(c.Update(ctx, instance), "failed to update cluster %s", name)
 }
