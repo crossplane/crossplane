@@ -21,6 +21,7 @@ import (
 	"log"
 	"testing"
 
+	"github.com/go-test/deep"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -89,4 +90,104 @@ func TestGKECluster(t *testing.T) {
 	// Test Delete
 	g.Expect(c.Delete(ctx, fetched)).NotTo(HaveOccurred())
 	g.Expect(c.Get(ctx, key, fetched)).To(HaveOccurred())
+}
+
+func TestParseClusterSpec(t *testing.T) {
+	tests := []struct {
+		name string
+		args map[string]string
+		want *GKEClusterSpec
+	}{
+		{
+			name: "nil properties",
+			args: nil,
+			want: &GKEClusterSpec{ReclaimPolicy: DefaultReclaimPolicy},
+		},
+		{
+			name: "empty properties",
+			args: map[string]string{},
+			want: &GKEClusterSpec{ReclaimPolicy: DefaultReclaimPolicy},
+		},
+		{
+			name: "valid values",
+			args: map[string]string{
+				"enableIPAlias": "true",
+				"machineType":   "test-machine",
+				"numNodes":      "3",
+				"scopes":        "foo,bar",
+				"zone":          "test-zone",
+			},
+			want: &GKEClusterSpec{
+				ReclaimPolicy: DefaultReclaimPolicy,
+				EnableIPAlias: true,
+				MachineType:   "test-machine",
+				NumNodes:      3,
+				Scopes:        []string{"foo", "bar"},
+				Zone:          "test-zone",
+			},
+		},
+		{
+			name: "invalid values",
+			args: map[string]string{
+				"enableIPAlias": "really",
+				"machineType":   "test-machine",
+				"numNodes":      "3.3",
+				"scopes":        "foo,bar",
+				"zone":          "test-zone",
+			},
+			want: &GKEClusterSpec{
+				ReclaimPolicy: DefaultReclaimPolicy,
+				EnableIPAlias: false,
+				MachineType:   "test-machine",
+				NumNodes:      1,
+				Scopes:        []string{"foo", "bar"},
+				Zone:          "test-zone",
+			},
+		},
+		{
+			name: "defaults",
+			args: map[string]string{
+				"machineType": "test-machine",
+				"zone":        "test-zone",
+			},
+			want: &GKEClusterSpec{
+				ReclaimPolicy: DefaultReclaimPolicy,
+				EnableIPAlias: false,
+				MachineType:   "test-machine",
+				NumNodes:      1,
+				Scopes:        []string{},
+				Zone:          "test-zone",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ParseClusterSpec(tt.args)
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("ParseClusterSpec() = %v, want %v\n%s", got, tt.want, diff)
+			}
+		})
+	}
+}
+
+func Test_parseNodesNumber(t *testing.T) {
+	tests := []struct {
+		name string
+		args string
+		want int64
+	}{
+		{name: "empty", args: "", want: DefaultNumberOfNodes},
+		{name: "invalid", args: "foo", want: DefaultNumberOfNodes},
+		{name: "0", args: "0", want: int64(0)},
+		{name: "44", args: "44", want: int64(44)},
+		{name: "-44", args: "-44", want: DefaultNumberOfNodes},
+		{name: "1.2", args: "1.2", want: DefaultNumberOfNodes},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := parseNodesNumber(tt.args); got != tt.want {
+				t.Errorf("parseNodesNumber() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

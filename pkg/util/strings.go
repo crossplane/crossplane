@@ -42,6 +42,24 @@ func StringValue(v *string) string {
 	return ""
 }
 
+// Split function helper will return an empty slice on empty string and
+// removing empty entries and trimming leading and trailing spaces
+// Example: Split("a ,, b") results in []string{"a","b"}
+func Split(s, sep string) []string {
+	rs := make([]string, 0)
+	if s == "" {
+		return rs
+	}
+
+	for _, r := range strings.Split(s, sep) {
+		if rr := strings.TrimSpace(r); rr != "" {
+			rs = append(rs, rr)
+		}
+	}
+
+	return rs
+}
+
 // ParseMap string encoded map values
 // example: "foo:bar,one:two" -> map[string]string{"foo":"bar","one":"two"}
 func ParseMap(s string) map[string]string {

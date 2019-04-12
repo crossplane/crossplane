@@ -62,14 +62,22 @@ func NewClusterClient(creds *google.Credentials) (*ClusterClient, error) {
 func (c *ClusterClient) CreateCluster(name string, spec computev1alpha1.GKEClusterSpec) (*container.Cluster, error) {
 	zone := spec.Zone
 
+	var ipAllocationPolicy *container.IPAllocationPolicy
+	if spec.EnableIPAlias {
+		ipAllocationPolicy = &container.IPAllocationPolicy{UseIpAliases: spec.EnableIPAlias}
+	}
+
 	cl := &container.Cluster{
 		Name:                  name,
-		Zone:                  zone,
 		InitialClusterVersion: spec.ClusterVersion,
 		InitialNodeCount:      spec.NumNodes,
+		IpAllocationPolicy:    ipAllocationPolicy,
 		NodeConfig: &container.NodeConfig{
 			MachineType: spec.MachineType,
+			OauthScopes: spec.Scopes,
 		},
+
+		Zone: zone,
 	}
 
 	cr := &container.CreateClusterRequest{
