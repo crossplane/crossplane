@@ -42,17 +42,23 @@ func TestResourceGroupName(t *testing.T) {
 			input:       "foo.",
 			expectedErr: "name of resource group may not end in a period",
 		},
-		// longer than 90 characters, chould not be allowed
+		// longer than 90 characters, should not be allowed
 		{
 			name:        "TooLong",
 			input:       "resource-group-name-S2Ixh9w8DmsW0oMwVv4oXbC9Lv3Sn2ARwjp86fwSpb3GOmdFqVZy4la7qwO1OrGbn9uDOEzU2oL01oG4",
 			expectedErr: "name of resource group may not be longer than 90 characters",
 		},
-		// shorter than 1 character, chould not be allowed
+		// shorter than 1 character, should not be allowed
 		{
 			name:        "TooShort",
 			input:       "",
 			expectedErr: "name of resource group must be at least one character",
+		},
+		// contains an illegal character, should not be allowed
+		{
+			name:        "PoorlyFormed",
+			input:       "fo^o",
+			expectedErr: "name of resource group is not well-formed per https://docs.microsoft.com/en-us/rest/api/resources/resourcegroups/createorupdate",
 		},
 	}
 

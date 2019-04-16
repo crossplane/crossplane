@@ -79,6 +79,9 @@ func CheckResourceGroupName(name string) error {
 	if len(name) > 90 {
 		return fmt.Errorf("name of resource group may not be longer than 90 characters")
 	}
+	if name[len(name)-1:] == "." {
+		return fmt.Errorf("name of resource group may not end in a period")
+	}
 	if matched, _ := regexp.MatchString(`^[-\w\._\(\)]+$`, name); !matched {
 		return fmt.Errorf("name of resource group is not well-formed per https://docs.microsoft.com/en-us/rest/api/resources/resourcegroups/createorupdate")
 	}
