@@ -235,7 +235,7 @@ spec:
                   minimum: 0
                   type: integer
               type: object
-            serviceAccountRef:
+            serviceAccountSecretRef:
               description: ServiceAccountSecretRef contains GCP ServiceAccount secret
                 that will be used for bucket connection secret credentials
               type: object
@@ -275,7 +275,6 @@ spec:
                   type: string
               type: object
           required:
-          - serviceAccountRef
           - providerRef
           type: object
         status:

@@ -17,16 +17,24 @@ limitations under the License.
 package util
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
-	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
+	"github.com/go-test/deep"
 	. "github.com/onsi/gomega"
+	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 	ting "k8s.io/client-go/testing"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
 // TestApplySecretError applying a secret and return error
@@ -100,7 +108,7 @@ func TestSecretData(t *testing.T) {
 		},
 	}
 
-	client := fake.NewSimpleClientset(secret)
+	kube := fake.NewSimpleClientset(secret)
 
 	// test data key is found
 	key := corev1.SecretKeySelector{
@@ -109,7 +117,7 @@ func TestSecretData(t *testing.T) {
 			Name: secret.Name,
 		},
 	}
-	data, err := SecretData(client, secret.Namespace, key)
+	data, err := SecretData(kube, secret.Namespace, key)
 	g.Expect(data).To(Equal(secret.Data["test-key"]))
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -120,7 +128,7 @@ func TestSecretData(t *testing.T) {
 			Name: secret.Name,
 		},
 	}
-	data, err = SecretData(client, secret.Namespace, key)
+	data, err = SecretData(kube, secret.Namespace, key)
 	g.Expect(data).To(BeNil())
 	g.Expect(err).To(HaveOccurred())
 
@@ -131,7 +139,7 @@ func TestSecretData(t *testing.T) {
 			Name: "wrong-secret-name",
 		},
 	}
-	data, err = SecretData(client, secret.Namespace, key)
+	data, err = SecretData(kube, secret.Namespace, key)
 	g.Expect(data).To(BeNil())
 	g.Expect(err).To(HaveOccurred())
 }
@@ -180,4 +188,51 @@ func TestGenerateName(t *testing.T) {
 	// 248 chars, 1 over the max allowed (should get its last char truncated)
 	name = GenerateName("CnYC4iprdKJhGNWmG4mAjX4BgiLAzQx1p6CbZVA0mqtVN81FOX0UFkf7IqEDDio24C2nOuqiXcIZziBUJEoynoihLiGS68ZxnQzro3oHF7XNWFwWZBTf5ij52pg5F7qjcsnvZmMC4Qui4c5j8m60G2F6m9MZk6EYw68mXj5PbiB93PD9bnJYdWgkLV3MFy4LJYUM3AbpiLvjVDZRrjoS2s3mLKB3mOIM8pIY0qPI5CqknsYsWWQck9kZ")
 	g.Expect(name).Should(MatchRegexp("CnYC4iprdKJhGNWmG4mAjX4BgiLAzQx1p6CbZVA0mqtVN81FOX0UFkf7IqEDDio24C2nOuqiXcIZziBUJEoynoihLiGS68ZxnQzro3oHF7XNWFwWZBTf5ij52pg5F7qjcsnvZmMC4Qui4c5j8m60G2F6m9MZk6EYw68mXj5PbiB93PD9bnJYdWgkLV3MFy4LJYUM3AbpiLvjVDZRrjoS2s3mLKB3mOIM8pIY0qPI5CqknsYsWWQck9k-[a-zA-z0-9]{5}"))
+}
+
+func TestApply(t *testing.T) {
+	ctx := context.TODO()
+	testError := errors.New("test-error")
+	type args struct {
+		kube client.Client
+		o    runtime.Object
+	}
+	tests := []struct {
+		name string
+		args args
+		want error
+	}{
+		{
+			name: "create failed: other",
+			args: args{
+				kube: &test.MockClient{
+					MockCreate: func(ctx context.Context, obj runtime.Object) error {
+						return testError
+					},
+				},
+			},
+			want: testError,
+		},
+		{
+			name: "create failed: already exists",
+			args: args{
+				kube: &test.MockClient{
+					MockCreate: func(ctx context.Context, obj runtime.Object) error {
+						return kerrors.NewAlreadyExists(schema.GroupResource{}, "foo")
+					},
+					MockUpdate: func(ctx context.Context, obj runtime.Object) error {
+						return nil
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := Apply(ctx, tt.args.kube, tt.args.o)
+			if diff := deep.Equal(err, tt.want); diff != nil {
+				t.Errorf("Apply() error = %v, want %v\n%s", err, tt.want, diff)
+			}
+		})
+	}
 }
