@@ -59,6 +59,7 @@ func TestStorageGCPBucket(t *testing.T) {
 				Location:     "US",
 				StorageClass: "STANDARD",
 			},
+			ServiceAccountSecretRef: &corev1.LocalObjectReference{Name: "test"},
 		},
 	}
 	g := gomega.NewGomegaWithT(t)
