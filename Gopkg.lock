@@ -2,7 +2,7 @@
 
 
 [[projects]]
-  digest = "1:932392f79dd119434f9b5d7d6af2b8f6ba34a283631709e00c26470f8ef5ec23"
+  digest = "1:bdc0c72d45e6fc48e9035a948324f424ff11f1b95c141914a3bb78cb04cfdf29"
   name = "cloud.google.com/go"
   packages = [
     "compute/metadata",
@@ -17,8 +17,8 @@
     "storage",
   ]
   pruneopts = "UT"
-  revision = "74b12019e2aa53ec27882158f59192d7cd6d1998"
-  version = "v0.33.1"
+  revision = "fcb9a2d5f791d07be64506ab54434de65989d370"
+  version = "v0.37.4"
 
 [[projects]]
   digest = "1:b92928b73320648b38c93cacb9082c0fe3f8ac3383ad9bd537eef62c380e0e7a"
@@ -847,7 +847,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:bf21a3a82fb3cfb68707fff7123e1ab558ad63d21b2aaba0adfe2f63fbab003b"
+  digest = "1:25e172d8f00866e65f56c7c565444a7eebc6e092062a5589c36c93addf1980bc"
   name = "google.golang.org/genproto"
   packages = [
     "googleapis/api/annotations",
@@ -859,7 +859,7 @@
     "protobuf/field_mask",
   ]
   pruneopts = "UT"
-  revision = "bd91e49a0898e27abb88c339b432fa53d7497ac0"
+  revision = "d1146b9035b912113a38af3b138eb2af567b2c67"
 
 [[projects]]
   digest = "1:1ac2802a1ffa70fe39243e22aab53dd3386396fc98de2417ff744d87b079e78c"

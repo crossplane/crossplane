@@ -502,9 +502,40 @@ func CopyToBucketWebsite(w *BucketWebsite) *storage.BucketWebsite {
 	}
 }
 
+// BucketPolicyOnly configures access checks to use only bucket-level IAM
+// policies.
+type BucketPolicyOnly struct {
+	// Enabled specifies whether access checks use only bucket-level IAM
+	// policies. Enabled may be disabled until the locked time.
+	Enabled bool
+	// LockedTime specifies the deadline for changing Enabled from true to
+	// false.
+	LockedTime metav1.Time
+}
+
+// NewBucketPolicyOnly creates new instance based on the storage object
+func NewBucketPolicyOnly(bp storage.BucketPolicyOnly) BucketPolicyOnly {
+	return BucketPolicyOnly{
+		Enabled:    bp.Enabled,
+		LockedTime: metav1.Time{Time: bp.LockedTime},
+	}
+}
+
+// CopyToBucketPolicyOnly creates storage equivalent
+func CopyToBucketPolicyOnly(bp BucketPolicyOnly) storage.BucketPolicyOnly {
+	return storage.BucketPolicyOnly{
+		Enabled:    bp.Enabled,
+		LockedTime: bp.LockedTime.Time,
+	}
+}
+
 // BucketUpdatableAttrs represents the subset of metadata for a Google Cloud Storage
 // bucket limited to all updatable input attributes
 type BucketUpdatableAttrs struct {
+	// BucketPolicyOnly configures access checks to use only bucket-level IAM
+	// policies.
+	BucketPolicyOnly BucketPolicyOnly `json:"bucketPolicyOnly,omitempty"`
+
 	// The bucket's Cross-Origin Resource Sharing (CORS) configuration.
 	CORS []CORS `json:"cors,omitempty"`
 
@@ -567,6 +598,7 @@ func NewBucketUpdatableAttrs(ba *storage.BucketAttrs) *BucketUpdatableAttrs {
 	}
 
 	return &BucketUpdatableAttrs{
+		BucketPolicyOnly:           NewBucketPolicyOnly(ba.BucketPolicyOnly),
 		CORS:                       NewCORSList(ba.CORS),
 		DefaultEventBasedHold:      ba.DefaultEventBasedHold,
 		Encryption:                 NewBucketEncryption(ba.Encryption),
@@ -589,6 +621,7 @@ func CopyToBucketAttrs(ba *BucketUpdatableAttrs) *storage.BucketAttrs {
 	}
 
 	return &storage.BucketAttrs{
+		BucketPolicyOnly:           storage.BucketPolicyOnly{Enabled: ba.BucketPolicyOnly.Enabled},
 		CORS:                       CopyToCORSList(ba.CORS),
 		DefaultEventBasedHold:      ba.DefaultEventBasedHold,
 		Encryption:                 CopyToBucketEncryption(ba.Encryption),
@@ -606,9 +639,11 @@ func CopyToBucketAttrs(ba *BucketUpdatableAttrs) *storage.BucketAttrs {
 
 // CopyToBucketUpdateAttrs create a copy in storage format
 func CopyToBucketUpdateAttrs(ba BucketUpdatableAttrs, labels map[string]string) storage.BucketAttrsToUpdate {
+	bucketPolicyOnly := CopyToBucketPolicyOnly(ba.BucketPolicyOnly)
 	lifecycle := CopyToLifecycle(ba.Lifecycle)
 
 	update := storage.BucketAttrsToUpdate{
+		BucketPolicyOnly:           &bucketPolicyOnly,
 		CORS:                       CopyToCORSList(ba.CORS),
 		DefaultEventBasedHold:      ba.DefaultEventBasedHold,
 		Encryption:                 CopyToBucketEncryption(ba.Encryption),
@@ -689,6 +724,10 @@ func CopyBucketSpecAttrs(ba *BucketSpecAttrs) *storage.BucketAttrs {
 // BucketOutputAttrs represent the subset of metadata for a Google Cloud Storage
 // bucket limited to output (read-only) fields.
 type BucketOutputAttrs struct {
+	// BucketPolicyOnly configures access checks to use only bucket-level IAM
+	// policies.
+	BucketPolicyOnly BucketPolicyOnly `json:"bucketPolicyOnly,omitempty"`
+
 	// Created is the creation time of the bucket.
 	Created metav1.Time
 
@@ -711,6 +750,7 @@ func NewBucketOutputAttrs(attrs *storage.BucketAttrs) BucketOutputAttrs {
 		return BucketOutputAttrs{}
 	}
 	return BucketOutputAttrs{
+		BucketPolicyOnly: NewBucketPolicyOnly(attrs.BucketPolicyOnly),
 		Created: metav1.Time{
 			Time: attrs.Created,
 		},
@@ -870,6 +910,7 @@ func NewBucketSpec(p map[string]string) *BucketSpec {
 	}
 
 	bua := BucketUpdatableAttrs{
+		BucketPolicyOnly:           BucketPolicyOnly{Enabled: util.ParseBool(p["bucketPolicyOnly"])},
 		CORS:                       parseCORSList(p["cors"]),
 		DefaultEventBasedHold:      util.ParseBool(p["defaultEventBasedHold"]),
 		Encryption:                 encryption,
