@@ -449,7 +449,10 @@ func Test_bucketHandler_updateSecret(t *testing.T) {
 		{
 			name: "failure to update secret",
 			fields: fields{
-				Bucket: newBucket(testNamespace, testBucketName).withServiceAccoutnSecretRef("foo").Bucket,
+				Bucket: newBucket(testNamespace, testBucketName).
+					withServiceAccoutnSecretRef("foo").
+					withUID("test-uid").
+					Bucket,
 				kube: &test.MockClient{
 					MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
 						s, ok := obj.(*corev1.Secret)
@@ -460,7 +463,19 @@ func Test_bucketHandler_updateSecret(t *testing.T) {
 						s.Name = "foo"
 						return nil
 					},
-					MockCreate: func(ctx context.Context, obj runtime.Object) error { return testError },
+					MockCreate: func(ctx context.Context, obj runtime.Object) error {
+						// assert secret
+						s, ok := obj.(*corev1.Secret)
+						if !ok {
+							t.Errorf("bucketHandler.updateSecret() invalid type = %T, want %T",
+								obj, &corev1.Secret{})
+						}
+						if ep := string(s.Data[corev1alpha1.ResourceCredentialsSecretEndpointKey]); ep != "test-uid" {
+							t.Errorf("bucketHandler.updateSecret() endpoint = %v, want %v",
+								ep, "test-uid")
+						}
+						return testError
+					},
 				},
 			},
 			want: errors.Wrapf(testError,

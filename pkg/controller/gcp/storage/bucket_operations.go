@@ -129,6 +129,7 @@ func (bh *bucketHandler) updateSecret(ctx context.Context) error {
 			return errors.Wrapf(err, "failed to retrieve storage service account secret: %s", nn)
 		}
 	}
+	s.Data[corev1alpha1.ResourceCredentialsSecretEndpointKey] = []byte(bh.GetBucketName())
 	return errors.Wrapf(util.Apply(ctx, bh.kube, s), "failed to apply connection secret: %s/%s", s.Namespace, s.Name)
 }
 

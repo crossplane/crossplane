@@ -31,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
@@ -59,7 +60,6 @@ func TestStorageGCPBucket(t *testing.T) {
 				Location:     "US",
 				StorageClass: "STANDARD",
 			},
-			ServiceAccountSecretRef: &corev1.LocalObjectReference{Name: "test"},
 		},
 	}
 	g := gomega.NewGomegaWithT(t)
@@ -945,6 +945,44 @@ func TestBucket_ConnectionSecretName(t *testing.T) {
 	}
 }
 
+func TestBucket_ConnectionSecret(t *testing.T) {
+	bucket := Bucket{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "default",
+			Name:      "bucket",
+			UID:       "test-uid",
+		},
+	}
+	tests := []struct {
+		name   string
+		bucket Bucket
+		want   *corev1.Secret
+	}{
+		{
+			name:   "test",
+			bucket: bucket,
+			want: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace:       "default",
+					Name:            "bucket",
+					OwnerReferences: []metav1.OwnerReference{bucket.OwnerReference()},
+				},
+				Data: map[string][]byte{
+					corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(bucket.GetBucketName()),
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.bucket.ConnectionSecret()
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("Bucket.ConnectionSecret() = %v, want %v\n%s", got, tt.want, diff)
+			}
+		})
+	}
+}
+
 func TestBucket_ObjectReference(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -1255,7 +1293,7 @@ func Test_parseACLRules(t *testing.T) {
 	}
 }
 
-func TestNewBucketSpec(t *testing.T) {
+func TestParseBucketSpec(t *testing.T) {
 	tf := func(s string) time.Time {
 		t, _ := time.Parse(time.RFC3339, s)
 		return t
@@ -1283,11 +1321,11 @@ func TestNewBucketSpec(t *testing.T) {
 				"predefinedDefaultObjectACL": "test-predefined-default-object-acl",
 				"acl": `[{"Entity":"test-entity","EntityID":"42","Role":"test-role","Domain":"test-domain",` +
 					`"Email":"test-email","ProjectTeam":{"ProjectNumber":"test-project-number","Team":"test-team"}}]`,
-				"location":     "test-location",
-				"storageClass": "test-storage-class",
+				"location":                "test-location",
+				"storageClass":            "test-storage-class",
+				"serviceAccountSecretRef": "testAccount",
 			},
 			want: &BucketSpec{
-				ReclaimPolicy: v1alpha1.ReclaimRetain,
 				BucketSpecAttrs: BucketSpecAttrs{
 					BucketUpdatableAttrs: BucketUpdatableAttrs{
 						CORS: []CORS{
@@ -1339,14 +1377,16 @@ func TestNewBucketSpec(t *testing.T) {
 					Location:     "test-location",
 					StorageClass: "test-storage-class",
 				},
+				ReclaimPolicy:           v1alpha1.ReclaimRetain,
+				ServiceAccountSecretRef: &corev1.LocalObjectReference{Name: "testAccount"},
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := NewBucketSpec(tt.args)
+			got := ParseBucketSpec(tt.args)
 			if diff := deep.Equal(got, tt.want); diff != nil {
-				t.Errorf("NewBucketSpec() = %v, want %v\n%s", got, tt.want, diff)
+				t.Errorf("ParseBucketSpec() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
 	}

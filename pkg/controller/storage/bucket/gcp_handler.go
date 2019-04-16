@@ -45,7 +45,7 @@ func (h *GCSBucketHandler) Find(n types.NamespacedName, c client.Client) (corev1
 
 // Provision a new GCS Bucket resource.
 func (h *GCSBucketHandler) Provision(class *corev1alpha1.ResourceClass, claim corev1alpha1.ResourceClaim, c client.Client) (corev1alpha1.Resource, error) {
-	spec := v1alpha1.NewBucketSpec(class.Parameters)
+	spec := v1alpha1.ParseBucketSpec(class.Parameters)
 
 	spec.ProviderRef = class.ProviderRef
 	spec.ReclaimPolicy = class.ReclaimPolicy
