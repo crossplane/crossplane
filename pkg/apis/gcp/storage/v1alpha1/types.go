@@ -767,6 +767,10 @@ type BucketSpec struct {
 	// If not provided, defaults to "%s", i.e. UID value
 	NameFormat string `json:"nameFormat,omitempty"`
 
+	// ServiceAccountSecretRef contains GCP ServiceAccount secret that will be used
+	// for bucket connection secret credentials
+	ServiceAccountSecretRef *corev1.LocalObjectReference `json:"serviceAccountRef"`
+
 	ConnectionSecretNameOverride string                      `json:"connectionSecretNameOverride,omitempty"`
 	ProviderRef                  corev1.LocalObjectReference `json:"providerRef"`
 	ClaimRef                     *corev1.ObjectReference     `json:"claimRef,omitempty"`
@@ -830,7 +834,8 @@ func (b *Bucket) ConnectionSecret() *corev1.Secret {
 			OwnerReferences: []metav1.OwnerReference{b.OwnerReference()},
 		},
 		Data: map[string][]byte{
-			corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(b.GetUID()),
+			corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(b.GetBucketName()),
+			//corev1alpha1.ResourceCredentialsTokenKey
 		},
 	}
 }

@@ -235,6 +235,10 @@ spec:
                   minimum: 0
                   type: integer
               type: object
+            serviceAccountRef:
+              description: ServiceAccountSecretRef contains GCP ServiceAccount secret
+                that will be used for bucket connection secret credentials
+              type: object
             storageClass:
               description: StorageClass is the default storage class of the bucket.
                 This defines how objects in the bucket are stored and determines the
@@ -271,6 +275,7 @@ spec:
                   type: string
               type: object
           required:
+          - serviceAccountRef
           - providerRef
           type: object
         status:

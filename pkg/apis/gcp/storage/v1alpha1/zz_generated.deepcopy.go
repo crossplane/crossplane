@@ -182,6 +182,11 @@ func (in *BucketPolicyOnly) DeepCopy() *BucketPolicyOnly {
 func (in *BucketSpec) DeepCopyInto(out *BucketSpec) {
 	*out = *in
 	in.BucketSpecAttrs.DeepCopyInto(&out.BucketSpecAttrs)
+	if in.ServiceAccountSecretRef != nil {
+		in, out := &in.ServiceAccountSecretRef, &out.ServiceAccountSecretRef
+		*out = new(v1.LocalObjectReference)
+		**out = **in
+	}
 	out.ProviderRef = in.ProviderRef
 	if in.ClaimRef != nil {
 		in, out := &in.ClaimRef, &out.ClaimRef
