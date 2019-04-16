@@ -17,7 +17,11 @@ limitations under the License.
 package util
 
 import (
+	"context"
 	"fmt"
+
+	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -87,6 +91,17 @@ func ApplySecret(c kubernetes.Interface, s *corev1.Secret) (*corev1.Secret, erro
 		return nil, err
 	}
 	return c.CoreV1().Secrets(s.Namespace).Update(s)
+}
+
+// Apply a helper function to save Kubernetes API object using controller-runtime
+// client. This function will attempt to create a new object, or update
+// existing object.
+func Apply(ctx context.Context, kube client.Client, o runtime.Object) error {
+	err := kube.Create(ctx, o)
+	if err != nil && errors.IsAlreadyExists(err) {
+		return kube.Update(ctx, o)
+	}
+	return err
 }
 
 // SecretData returns secret data value for a given secret/key combination or error if secret or key is not found
