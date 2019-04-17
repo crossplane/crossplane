@@ -67,6 +67,7 @@ rules:
   - compute.gcp.crossplane.io
   - database.gcp.crossplane.io
   - storage.gcp.crossplane.io
+  - workload.crossplane.io
   resources:
   - "*"
   verbs:
