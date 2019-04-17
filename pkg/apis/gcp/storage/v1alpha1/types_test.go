@@ -132,24 +132,39 @@ var (
 	}
 )
 
-func TestACLRule(t *testing.T) {
+func TestNewBucketPolicyOnly(t *testing.T) {
 	tests := []struct {
 		name string
-		args ACLRule
-		want storage.ACLRule
+		args storage.BucketPolicyOnly
+		want BucketPolicyOnly
 	}{
-		{"default value args", ACLRule{}, storage.ACLRule{}},
-		{"values", testACLRule, testStorageACLRule},
+		{name: "default", args: storage.BucketPolicyOnly{}, want: BucketPolicyOnly{}},
+		{name: "values", args: storage.BucketPolicyOnly{Enabled: true}, want: BucketPolicyOnly{Enabled: true}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := CopyToACLRule(tt.args)
+			got := NewBucketPolicyOnly(tt.args)
 			if diff := deep.Equal(got, tt.want); diff != nil {
-				t.Errorf("CopyToACLRule() = %v, want %v\n%s", got, tt.want, diff)
+				t.Errorf("NewBucketPolicyOnly() = %v, want %v\n%s", got, tt.want, diff)
 			}
-			gotBack := NewACLRule(got)
-			if diff := deep.Equal(gotBack, tt.args); diff != nil {
-				t.Errorf("NewACLRule() = %v, want %v\n%s", got, tt.want, diff)
+		})
+	}
+}
+
+func TestCopyToBucketPolicyOnly(t *testing.T) {
+	tests := []struct {
+		name string
+		args BucketPolicyOnly
+		want storage.BucketPolicyOnly
+	}{
+		{name: "default", args: BucketPolicyOnly{}, want: storage.BucketPolicyOnly{}},
+		{name: "values", args: BucketPolicyOnly{Enabled: true}, want: storage.BucketPolicyOnly{Enabled: true}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := CopyToBucketPolicyOnly(tt.args)
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("CopyToBucketPolicyOnly() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
 	}
@@ -735,6 +750,7 @@ var (
 	}
 
 	testStorageBucketAttrsToUpdate = storage.BucketAttrsToUpdate{
+		BucketPolicyOnly:           &storage.BucketPolicyOnly{},
 		CORS:                       []storage.CORS{testStorageCORS},
 		DefaultEventBasedHold:      true,
 		Encryption:                 testStorageBucketEncryption,
@@ -804,8 +820,11 @@ func TestCopyToBucketUpdateAttrs(t *testing.T) {
 		args args
 		want storage.BucketAttrsToUpdate
 	}{
-		{"test", args{*testBucketUpdateAttrs, map[string]string{"application": "crossplane", "foo": "bar"}},
-			testStorageBucketAttrsToUpdate},
+		{
+			name: "test",
+			args: args{*testBucketUpdateAttrs, map[string]string{"application": "crossplane", "foo": "bar"}},
+			want: testStorageBucketAttrsToUpdate,
+		},
 	}
 	for _, tt := range tests {
 		tt.want.SetLabel("application", "crossplane")
@@ -939,6 +958,60 @@ func TestBucket_ConnectionSecretName(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := tt.bucket.ConnectionSecretName(); got != tt.want {
 				t.Errorf("Bucket.ConnectionSecretName() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBucket_ConnectionSecret(t *testing.T) {
+	data := map[string][]byte{v1alpha1.ResourceCredentialsSecretEndpointKey: []byte("")}
+	namedBucket := Bucket{ObjectMeta: metav1.ObjectMeta{Name: "foo"}}
+	tests := []struct {
+		name   string
+		bucket Bucket
+		want   *corev1.Secret
+	}{
+		{
+			name:   "default",
+			bucket: Bucket{},
+			want: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{new(Bucket).OwnerReference()},
+				},
+				Data: data,
+			},
+		},
+		{
+			name:   "named",
+			bucket: namedBucket,
+			want: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            "foo",
+					OwnerReferences: []metav1.OwnerReference{namedBucket.OwnerReference()},
+				},
+				Data: data,
+			},
+		},
+		{
+			name: "override",
+			bucket: Bucket{
+				ObjectMeta: metav1.ObjectMeta{Name: "foo"},
+				Spec:       BucketSpec{ConnectionSecretNameOverride: "bar"},
+			},
+			want: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            "bar",
+					OwnerReferences: []metav1.OwnerReference{namedBucket.OwnerReference()},
+				},
+				Data: data,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.bucket.ConnectionSecret()
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("Bucket.ConnectionSecretName() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
 	}
@@ -1269,6 +1342,7 @@ func TestNewBucketSpec(t *testing.T) {
 		{
 			name: "valid",
 			args: map[string]string{
+				"bucketPolicyOnly":            "true",
 				"cors":                        `[{"maxAge":"1s","methods":["GET","POST"],"origins":["foo","bar"]}]`,
 				"defaultEventBasedHold":       "true",
 				"encryptionDefaultKmsKeyName": "test-encryption",
@@ -1289,6 +1363,9 @@ func TestNewBucketSpec(t *testing.T) {
 				ReclaimPolicy: v1alpha1.ReclaimRetain,
 				BucketSpecAttrs: BucketSpecAttrs{
 					BucketUpdatableAttrs: BucketUpdatableAttrs{
+						BucketPolicyOnly: BucketPolicyOnly{
+							Enabled: true,
+						},
 						CORS: []CORS{
 							{
 								MaxAge:          metav1.Duration{Duration: 1 * time.Second},
