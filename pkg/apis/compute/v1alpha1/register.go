@@ -31,13 +31,13 @@ import (
 
 // Kubernetes Group, Version, and Kind metadata.
 const (
-	Group                            = "compute.crossplane.io"
-	Version                          = "v1alpha1"
-	APIVersion                       = Group + "/" + Version
-	KubernetesInstanceKind           = "kubernetescluster"
-	KubernetesInstanceKindAPIVersion = KubernetesInstanceKind + "." + APIVersion
-	WorkloadKind                     = "workload"
-	WorkloadKindAPIVersion           = WorkloadKind + "." + APIVersion
+	Group                           = "compute.crossplane.io"
+	Version                         = "v1alpha1"
+	APIVersion                      = Group + "/" + Version
+	KubernetesClusterKind           = "kubernetescluster"
+	KubernetesClusterKindAPIVersion = KubernetesClusterKind + "." + APIVersion
+	WorkloadKind                    = "workload"
+	WorkloadKindAPIVersion          = WorkloadKind + "." + APIVersion
 )
 
 var (
