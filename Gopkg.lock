@@ -48,8 +48,8 @@
     "services/redis/mgmt/2018-03-01/redis",
     "services/redis/mgmt/2018-03-01/redis/redisapi",
     "services/resources/mgmt/2018-05-01/resources",
-    "services/storage/mgmt/2017-06-01/storage",
     "services/resources/mgmt/2018-05-01/resources/resourcesapi",
+    "services/storage/mgmt/2017-06-01/storage",
     "version",
   ]
   pruneopts = "UT"
@@ -1349,6 +1349,7 @@
     "k8s.io/api/apps/v1",
     "k8s.io/api/core/v1",
     "k8s.io/apimachinery/pkg/api/errors",
+    "k8s.io/apimachinery/pkg/api/meta",
     "k8s.io/apimachinery/pkg/api/resource",
     "k8s.io/apimachinery/pkg/apis/meta/v1",
     "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured",
