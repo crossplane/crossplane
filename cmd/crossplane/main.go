@@ -36,9 +36,9 @@ func main() {
 	var (
 		log = logging.Logger
 
-		app         = kingpin.New(filepath.Base(os.Args[0]), "An open source multicloud control plane.").DefaultEnvars()
-		debug       = app.Flag("debug", "Run with debug logging.").Short('d').Bool()
-		syncMinutes = app.Flag("sync", "Controller manager sync period in minutes").Short('s').Default("60").Uint()
+		app        = kingpin.New(filepath.Base(os.Args[0]), "An open source multicloud control plane.").DefaultEnvars()
+		debug      = app.Flag("debug", "Run with debug logging.").Short('d').Bool()
+		syncPeriod = app.Flag("sync", "Controller manager sync interval, e.g. 1h, 30m, or 10s").Short('s').Default("1h").Duration()
 	)
 	kingpin.MustParse(app.Parse(os.Args[1:]))
 
@@ -57,12 +57,8 @@ func main() {
 		kingpin.FatalIfError(err, "Cannot get config")
 	}
 
-	// Re-sync resources based on provided duration
-	syncPeriod := time.Duration(*syncMinutes) * time.Minute
-	log.Info("Sync period", "duration", syncPeriod)
-
 	// Create a new Cmd to provide shared dependencies and start components
-	mgr, err := manager.New(cfg, manager.Options{SyncPeriod: &syncPeriod})
+	mgr, err := manager.New(cfg, manager.Options{SyncPeriod: syncPeriod})
 	if err != nil {
 		kingpin.FatalIfError(err, "Cannot create manager")
 	}
