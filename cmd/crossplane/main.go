@@ -19,7 +19,6 @@ package main
 import (
 	"os"
 	"path/filepath"
-	"time"
 
 	"gopkg.in/alecthomas/kingpin.v2"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
@@ -36,9 +35,10 @@ func main() {
 	var (
 		log = logging.Logger
 
-		app         = kingpin.New(filepath.Base(os.Args[0]), "An open source multicloud control plane.").DefaultEnvars()
-		debug       = app.Flag("debug", "Run with debug logging.").Short('d').Bool()
-		syncMinutes = app.Flag("sync", "Controller manager sync period in minutes").Short('s').Default("60").Uint()
+		app        = kingpin.New(filepath.Base(os.Args[0]), "An open source multicloud control plane.").DefaultEnvars()
+		debug      = app.Flag("debug", "Run with debug logging.").Short('d').Bool()
+		syncPeriod = app.Flag("sync", "Controller manager sync period duration such as 300ms, 1.5h or 2h45m").
+				Short('s').Default("1h").Duration()
 	)
 	kingpin.MustParse(app.Parse(os.Args[1:]))
 
@@ -57,12 +57,10 @@ func main() {
 		kingpin.FatalIfError(err, "Cannot get config")
 	}
 
-	// Re-sync resources based on provided duration
-	syncPeriod := time.Duration(*syncMinutes) * time.Minute
-	log.Info("Sync period", "duration", syncPeriod)
+	log.Info("Sync period", "duration", syncPeriod.String())
 
 	// Create a new Cmd to provide shared dependencies and start components
-	mgr, err := manager.New(cfg, manager.Options{SyncPeriod: &syncPeriod})
+	mgr, err := manager.New(cfg, manager.Options{SyncPeriod: syncPeriod})
 	if err != nil {
 		kingpin.FatalIfError(err, "Cannot create manager")
 	}
