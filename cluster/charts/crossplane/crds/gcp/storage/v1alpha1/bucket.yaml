@@ -46,6 +46,10 @@ spec:
           type: object
         spec:
           properties:
+            bucketPolicyOnly:
+              description: BucketPolicyOnly configures access checks to use only bucket-level
+                IAM policies.
+              type: object
             claimRef:
               type: object
             classRef:
@@ -273,6 +277,10 @@ spec:
           properties:
             attributes:
               properties:
+                bucketPolicyOnly:
+                  description: BucketPolicyOnly configures access checks to use only
+                    bucket-level IAM policies.
+                  type: object
                 name:
                   description: Name is the name of the bucket.
                   type: string
