@@ -473,7 +473,7 @@ func TestSync(t *testing.T) {
 			gotRequeue := tc.csdk.Sync(ctx, tc.r)
 
 			if gotRequeue != tc.wantRequeue {
-				t.Errorf("tc.csd.Sync(...): want: %t got: %t", tc.wantRequeue, gotRequeue)
+				t.Errorf("tc.csdk.Sync(...): want: %t got: %t", tc.wantRequeue, gotRequeue)
 			}
 
 			if diff := deep.Equal(tc.want, tc.r); diff != nil {
@@ -548,7 +548,7 @@ func TestDelete(t *testing.T) {
 			gotRequeue := tc.csdk.Delete(ctx, tc.r)
 
 			if gotRequeue != tc.wantRequeue {
-				t.Errorf("tc.csd.Delete(...): want: %t got: %t", tc.wantRequeue, gotRequeue)
+				t.Errorf("tc.csdk.Delete(...): want: %t got: %t", tc.wantRequeue, gotRequeue)
 			}
 
 			if diff := deep.Equal(tc.want, tc.r); diff != nil {
@@ -602,7 +602,7 @@ func TestKey(t *testing.T) {
 			gotKey := tc.csdk.Key(ctx, tc.r)
 
 			if gotKey != tc.wantKey {
-				t.Errorf("tc.csd.Key(...): want: %s got: %s", tc.wantKey, gotKey)
+				t.Errorf("tc.csdk.Key(...): want: %s got: %s", tc.wantKey, gotKey)
 			}
 
 			if diff := deep.Equal(tc.want, tc.r); diff != nil {
