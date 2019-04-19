@@ -110,11 +110,11 @@ func (bh *bucketHandler) failReconcile(ctx context.Context, reason, msg string) 
 // Controller-runtime Client operations
 //
 func (bh *bucketHandler) updateObject(ctx context.Context) error {
-	return bh.kube.Update(ctx, bh)
+	return bh.kube.Update(ctx, bh.Bucket)
 }
 
 func (bh *bucketHandler) updateStatus(ctx context.Context) error {
-	return bh.kube.Status().Update(ctx, bh)
+	return bh.kube.Status().Update(ctx, bh.Bucket)
 }
 
 func (bh *bucketHandler) getSecret(ctx context.Context, nn types.NamespacedName, s *corev1.Secret) error {
