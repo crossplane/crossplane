@@ -36,6 +36,11 @@ import (
 const (
 	controllerName = "kubernetes.compute.crossplane.io"
 	finalizer      = "finalizer." + controllerName
+
+	labelProviderKey   = "provider"
+	labelProviderAWS   = "aws"
+	labelProviderAzure = "azure"
+	labelProviderGCP   = "gcp"
 )
 
 var (
@@ -45,7 +50,7 @@ var (
 	// map of supported resource handlers
 	handlers = map[string]corecontroller.ResourceHandler{
 		gcpcomputev1alpha1.GKEClusterKindAPIVersion:   &GKEClusterHandler{},
-		awscomputev1alpha1.EKSClusterKindAPIVersion:   &AWSClusterHandler{},
+		awscomputev1alpha1.EKSClusterKindAPIVersion:   &EKSClusterHandler{},
 		azurecomputev1alpha1.AKSClusterKindAPIVersion: &AKSClusterHandler{},
 	}
 )
@@ -58,19 +63,10 @@ type Reconciler struct {
 // Add creates a new KubernetesCluster Controller and adds it to the Manager with default RBAC.
 // The Manager will set fields on the Controller and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
-	return add(mgr, newReconciler(mgr))
-}
-
-// newReconciler returns a new reconcile.Reconciler
-func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 	r := &Reconciler{
 		Reconciler: corecontroller.NewReconciler(mgr, controllerName, finalizer, handlers),
 	}
-	return r
-}
 
-// add adds a new Controller to mgr with r as the reconcile.Reconciler
-func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	// Create a new controller
 	c, err := controller.New(controllerName, mgr, controller.Options{Reconciler: r})
 	if err != nil {

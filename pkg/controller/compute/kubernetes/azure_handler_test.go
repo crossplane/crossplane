@@ -20,6 +20,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/go-test/deep"
 	"github.com/pkg/errors"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -29,13 +30,13 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/crossplaneio/crossplane/pkg/apis/azure/compute/v1alpha1"
 	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/compute/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/apis/gcp/compute/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
-func TestGKEClusterHandler_Find(t *testing.T) {
+func TestAKSClusterHandler_Find(t *testing.T) {
 	type args struct {
 		name types.NamespacedName
 		c    client.Client
@@ -61,7 +62,7 @@ func TestGKEClusterHandler_Find(t *testing.T) {
 			},
 			want: want{
 				err: errors.Wrapf(errors.New("test-get-error"),
-					"failed to retrieve %s: foo/bar", v1alpha1.GKEClusterKind),
+					"failed to retrieve %s: foo/bar", v1alpha1.AKSClusterKind),
 			},
 		},
 		{
@@ -71,25 +72,25 @@ func TestGKEClusterHandler_Find(t *testing.T) {
 				c:    test.NewMockClient(),
 			},
 			want: want{
-				res: &v1alpha1.GKECluster{},
+				res: &v1alpha1.AKSCluster{},
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r := &GKEClusterHandler{}
+			r := &AKSClusterHandler{}
 			got, err := r.Find(tt.args.name, tt.args.c)
 			if diff := deep.Equal(err, tt.want.err); diff != nil {
-				t.Errorf("GKEClusterHandler.Find() error = %v, want.err %v\n%s", err, tt.want.err, diff)
+				t.Errorf("AKSClusterHandler.Find() error = %v, want.err %v\n%s", err, tt.want.err, diff)
 			}
 			if diff := deep.Equal(got, tt.want.res); diff != nil {
-				t.Errorf("GKEClusterHandler.Find() = %v, want.res %v\n%s", got, tt.want.res, diff)
+				t.Errorf("AKSClusterHandler.Find() = %v, want.res %v\n%s", got, tt.want.res, diff)
 			}
 		})
 	}
 }
 
-func TestGKEClusterHandler_Provision(t *testing.T) {
+func TestAKSClusterHandler_Provision(t *testing.T) {
 	class := &corev1alpha1.ResourceClass{}
 	claim := &computev1alpha1.KubernetesCluster{
 		ObjectMeta: v1.ObjectMeta{
@@ -119,16 +120,17 @@ func TestGKEClusterHandler_Provision(t *testing.T) {
 				c:     test.NewMockClient(),
 			},
 			want: want{
-				res: &v1alpha1.GKECluster{
+				res: &v1alpha1.AKSCluster{
 					ObjectMeta: v1.ObjectMeta{
-						Labels:          map[string]string{labelProviderKey: labelProviderGCP},
+						Labels:          map[string]string{labelProviderKey: labelProviderAzure},
 						Namespace:       class.Namespace,
-						Name:            "gke-test-claim-uid",
+						Name:            "aks-test-claim-uid",
 						OwnerReferences: []v1.OwnerReference{claim.OwnerReference()},
 					},
-					Spec: v1alpha1.GKEClusterSpec{
-						ClassRef: class.ObjectReference(),
-						ClaimRef: claim.ObjectReference(),
+					Spec: v1alpha1.AKSClusterSpec{
+						ClassRef:  class.ObjectReference(),
+						ClaimRef:  claim.ObjectReference(),
+						NodeCount: to.IntPtr(v1alpha1.DefaultNodeCount),
 					},
 				},
 			},
@@ -146,26 +148,26 @@ func TestGKEClusterHandler_Provision(t *testing.T) {
 			},
 			want: want{
 				err: errors.Wrapf(createError,
-					"failed to create cluster %s/%s", class.Namespace, "gke-"+claim.UID),
+					"failed to create cluster %s/%s", class.Namespace, "aks-"+claim.UID),
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r := &GKEClusterHandler{}
+			r := &AKSClusterHandler{}
 			got, err := r.Provision(tt.args.class, tt.args.claim, tt.args.c)
 			if diff := deep.Equal(err, tt.want.err); diff != nil {
-				t.Errorf("GKEClusterHandler.Provision() error = %v, want.err %v\n%s", err, tt.want.err, diff)
+				t.Errorf("AKSClusterHandler.Provision() error = %v, want.err %v\n%s", err, tt.want.err, diff)
 				return
 			}
 			if diff := deep.Equal(got, tt.want.res); diff != nil {
-				t.Errorf("GKEClusterHandler.Provision() = \n%v, want.res \n%v\n%s", got, tt.want.res, diff)
+				t.Errorf("AKSClusterHandler.Provision() = \n%v, want.res \n%v\n%s", got, tt.want.res, diff)
 			}
 		})
 	}
 }
 
-func TestGKEClusterHandler_SetBindStatus(t *testing.T) {
+func TestAKSClusterHandler_SetBindStatus(t *testing.T) {
 	name := types.NamespacedName{Namespace: "foo", Name: "bar"}
 
 	getError := errors.New("test-get-error")
@@ -242,12 +244,12 @@ func TestGKEClusterHandler_SetBindStatus(t *testing.T) {
 						return nil
 					},
 					MockUpdate: func(ctx context.Context, obj runtime.Object) error {
-						cls, ok := obj.(*v1alpha1.GKECluster)
+						cls, ok := obj.(*v1alpha1.AKSCluster)
 						if !ok {
-							t.Errorf("GKEClusterHandler.SetBindStatus() unexpected object type: %T", obj)
+							t.Errorf("AKSClusterHandler.SetBindStatus() unexpected object type: %T", obj)
 						}
 						if !cls.Status.IsBound() {
-							t.Errorf("GKEClusterHandler.SetBindStatus() expected to be bound")
+							t.Errorf("AKSClusterHandler.SetBindStatus() expected to be bound")
 						}
 						return nil
 					},
@@ -258,10 +260,10 @@ func TestGKEClusterHandler_SetBindStatus(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r := GKEClusterHandler{}
+			r := AKSClusterHandler{}
 			err := r.SetBindStatus(tt.args.name, tt.args.c, tt.args.bound)
 			if diff := deep.Equal(err, tt.want); diff != nil {
-				t.Errorf("GKEClusterHandler.SetBindStatus() error = %v, want %v\n%s", err, tt.want, diff)
+				t.Errorf("AKSClusterHandler.SetBindStatus() error = %v, want %v\n%s", err, tt.want, diff)
 			}
 		})
 	}
