@@ -369,7 +369,12 @@ func Test_bucketHandler_updateObject(t *testing.T) {
 	bc := &bucketHandler{
 		Bucket: bucket,
 		kube: &test.MockClient{
-			MockUpdate: func(ctx context.Context, obj runtime.Object) error { return nil },
+			MockUpdate: func(ctx context.Context, obj runtime.Object) error {
+				if _, ok := obj.(*v1alpha1.Bucket); !ok {
+					t.Errorf("bucketHandler.updateObject() unexpected type %T, want %T", obj, bucket)
+				}
+				return nil
+			},
 		},
 	}
 	if err := bc.updateObject(ctx); err != nil {
@@ -383,7 +388,12 @@ func Test_bucketHandler_updateStatus(t *testing.T) {
 	bc := &bucketHandler{
 		Bucket: bucket,
 		kube: &test.MockClient{
-			MockStatusUpdate: func(ctx context.Context, obj runtime.Object) error { return nil },
+			MockStatusUpdate: func(ctx context.Context, obj runtime.Object) error {
+				if _, ok := obj.(*v1alpha1.Bucket); !ok {
+					t.Errorf("bucketHandler.updateStatus() unexpected type %T, want %T", obj, bucket)
+				}
+				return nil
+			},
 		},
 	}
 	if err := bc.updateStatus(ctx); err != nil {
