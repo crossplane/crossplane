@@ -767,6 +767,10 @@ type BucketSpec struct {
 	// If not provided, defaults to "%s", i.e. UID value
 	NameFormat string `json:"nameFormat,omitempty"`
 
+	// ServiceAccountSecretRef contains GCP ServiceAccount secret that will be used
+	// for bucket connection secret credentials
+	ServiceAccountSecretRef *corev1.LocalObjectReference `json:"serviceAccountSecretRef,omitempty"`
+
 	ConnectionSecretNameOverride string                      `json:"connectionSecretNameOverride,omitempty"`
 	ProviderRef                  corev1.LocalObjectReference `json:"providerRef"`
 	ClaimRef                     *corev1.ObjectReference     `json:"claimRef,omitempty"`
@@ -830,7 +834,7 @@ func (b *Bucket) ConnectionSecret() *corev1.Secret {
 			OwnerReferences: []metav1.OwnerReference{b.OwnerReference()},
 		},
 		Data: map[string][]byte{
-			corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(b.GetUID()),
+			corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(b.GetBucketName()),
 		},
 	}
 }
@@ -882,8 +886,8 @@ func (b *Bucket) SetBound(state bool) {
 	}
 }
 
-// NewBucketSpec constructs Spec for this resource from the properties map
-func NewBucketSpec(p map[string]string) *BucketSpec {
+// ParseBucketSpec constructs Spec for this resource from the properties map
+func ParseBucketSpec(p map[string]string) *BucketSpec {
 	var encryption *BucketEncryption
 	if v, found := p["encryptionDefaultKmsKeyName"]; found {
 		encryption = &BucketEncryption{DefaultKMSKeyName: v}
@@ -909,6 +913,11 @@ func NewBucketSpec(p map[string]string) *BucketSpec {
 		website = parseWebsite(v)
 	}
 
+	var serviceAccountSecretRef *corev1.LocalObjectReference
+	if v, found := p["serviceAccountSecretRef"]; found {
+		serviceAccountSecretRef = &corev1.LocalObjectReference{Name: v}
+	}
+
 	bua := BucketUpdatableAttrs{
 		BucketPolicyOnly:           BucketPolicyOnly{Enabled: util.ParseBool(p["bucketPolicyOnly"])},
 		CORS:                       parseCORSList(p["cors"]),
@@ -931,8 +940,9 @@ func NewBucketSpec(p map[string]string) *BucketSpec {
 	}
 
 	return &BucketSpec{
-		BucketSpecAttrs: bsa,
-		ReclaimPolicy:   corev1alpha1.ReclaimRetain,
+		BucketSpecAttrs:         bsa,
+		ReclaimPolicy:           corev1alpha1.ReclaimRetain,
+		ServiceAccountSecretRef: serviceAccountSecretRef,
 	}
 }
 

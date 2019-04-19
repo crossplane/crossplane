@@ -39,8 +39,6 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/apis/gcp"
 	"github.com/crossplaneio/crossplane/pkg/apis/gcp/storage/v1alpha1"
 	gcpv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/v1alpha1"
-	gcpstorage "github.com/crossplaneio/crossplane/pkg/clients/gcp/storage"
-	gcpstoragefake "github.com/crossplaneio/crossplane/pkg/clients/gcp/storage/fake"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
@@ -51,17 +49,6 @@ func init() {
 type MockBucketCreateUpdater struct {
 	MockCreate func(context.Context) (reconcile.Result, error)
 	MockUpdate func(context.Context, *storage.BucketAttrs) (reconcile.Result, error)
-}
-
-func newMockBucketCreateUpdater() *MockBucketCreateUpdater {
-	return &MockBucketCreateUpdater{
-		MockUpdate: func(i context.Context, attrs *storage.BucketAttrs) (result reconcile.Result, e error) {
-			return requeueOnSuccess, nil
-		},
-		MockCreate: func(i context.Context) (result reconcile.Result, e error) {
-			return requeueOnSuccess, nil
-		},
-	}
 }
 
 func (m *MockBucketCreateUpdater) create(ctx context.Context) (reconcile.Result, error) {
@@ -112,7 +99,7 @@ func newMockBucketFactory(rh syncdeleter, err error) *MockBucketFactory {
 	}
 }
 
-func (m *MockBucketFactory) newHandler(ctx context.Context, b *v1alpha1.Bucket) (syncdeleter, error) {
+func (m *MockBucketFactory) newSyncDeleter(ctx context.Context, b *v1alpha1.Bucket) (syncdeleter, error) {
 	return m.MockNew(ctx, b)
 }
 
@@ -135,8 +122,8 @@ func (b *bucket) withUID(uid string) *bucket {
 	return b
 }
 
-func (b *bucket) withCondition(c corev1alpha1.Condition) *bucket {
-	b.Status.ConditionedStatus.SetCondition(c)
+func (b *bucket) withServiceAccountSecretRef(name string) *bucket {
+	b.Spec.ServiceAccountSecretRef = &corev1.LocalObjectReference{Name: name}
 	return b
 }
 
@@ -157,16 +144,6 @@ func (b *bucket) withFinalizer(f string) *bucket {
 
 func (b *bucket) withProvider(name string) *bucket {
 	b.Spec.ProviderRef = corev1.LocalObjectReference{Name: name}
-	return b
-}
-
-func (b *bucket) withReclaimPolicy(policy corev1alpha1.ReclaimPolicy) *bucket {
-	b.Spec.ReclaimPolicy = policy
-	return b
-}
-
-func (b *bucket) withSpecRequesterPays(rp bool) *bucket {
-	b.Spec.BucketSpecAttrs.RequesterPays = rp
 	return b
 }
 
@@ -219,6 +196,15 @@ func (s *secret) withKeyData(key, data string) *secret {
 	}
 	s.Data[key] = []byte(data)
 	return s
+}
+
+func assertFailure(t *testing.T, gotRsn, gotMsg, wantRsn, wantMsg string) {
+	if gotRsn != wantRsn {
+		t.Errorf("bucketSyncDeleter.sync() fail reason = %s, want %s", gotRsn, wantRsn)
+	}
+	if gotMsg != wantMsg {
+		t.Errorf("bucketSyncDeleter.sync() fail msg = %s, want %s", gotMsg, wantMsg)
+	}
 }
 
 const (
@@ -401,7 +387,10 @@ func Test_bucketFactory_newHandler(t *testing.T) {
 				newSecret(ns, secretName).withKeyData(secretKey, secretData).Secret),
 			bucket: newBucket(ns, bucketName).withUID("test-uid").withProvider("test-provider").Bucket,
 			want: want{
-				sd: newBucketSyncDeleter(&gcpstorage.BucketClient{BucketHandle: &storage.BucketHandle{}}, nil, nil, ""),
+				sd: newBucketSyncDeleter(
+					newBucketClients(
+						newBucket(ns, bucketName).withUID("test-uid").withProvider("test-provider").Bucket,
+						nil, nil), ""),
 			},
 		},
 	}
@@ -410,31 +399,26 @@ func Test_bucketFactory_newHandler(t *testing.T) {
 			m := &bucketFactory{
 				Client: tt.Client,
 			}
-			got, err := m.newHandler(ctx, tt.bucket)
+			got, err := m.newSyncDeleter(ctx, tt.bucket)
 			if diff := deep.Equal(err, tt.want.err); diff != nil {
-				t.Errorf("bucketFactory.newHandler() error = \n%v, wantErr: \n%v\n%s", err, tt.want.err, diff)
+				t.Errorf("bucketFactory.newSyncDeleter() error = \n%v, wantErr: \n%v\n%s", err, tt.want.err, diff)
 				return
 			}
 			if diff := deep.Equal(got, tt.want.sd); diff != nil {
-				t.Errorf("bucketFactory.newHandler() = \n%+v, want \n%+v\n%s", got, tt.want.sd, diff)
+				t.Errorf("bucketFactory.newSyncDeleter() = \n%+v, want \n%+v\n%s", got, tt.want.sd, diff)
 			}
 		})
 	}
 }
 
-func Test_bucketHandler_delete(t *testing.T) {
+func Test_bucketSyncDeleter_delete(t *testing.T) {
 	ctx := context.TODO()
-	ns := "default"
-	bucketName := "test-bucket"
 	type fields struct {
-		sc  gcpstorage.Client
-		cc  client.Client
-		obj *v1alpha1.Bucket
+		ops operations
 	}
 	type want struct {
 		err error
 		res reconcile.Result
-		obj *v1alpha1.Bucket
 	}
 	tests := []struct {
 		name   string
@@ -444,89 +428,70 @@ func Test_bucketHandler_delete(t *testing.T) {
 		{
 			name: "retain policy",
 			fields: fields{
-				obj: newBucket(ns, bucketName).withReclaimPolicy(corev1alpha1.ReclaimRetain).
-					withFinalizer(finalizer).withFinalizer("test").Bucket,
-				cc: &test.MockClient{
-					MockUpdate: func(ctx context.Context, obj runtime.Object) error {
-						return nil
-					},
+				ops: &mockOperations{
+					mockIsReclaimDelete: func() bool { return false },
+					mockRemoveFinalizer: func() {},
+					mockUpdateObject:    func(ctx context.Context) error { return nil },
 				},
 			},
 			want: want{
-				err: nil,
 				res: reconcile.Result{},
-				obj: newBucket(ns, bucketName).withReclaimPolicy(corev1alpha1.ReclaimRetain).
-					withFinalizer("test").Bucket,
 			},
 		},
 		{
 			name: "delete successful",
 			fields: fields{
-				obj: newBucket(ns, bucketName).withReclaimPolicy(corev1alpha1.ReclaimDelete).
-					withFinalizer(finalizer).Bucket,
-				cc: &test.MockClient{
-					MockUpdate: func(ctx context.Context, obj runtime.Object) error {
-						return nil
-					},
+				ops: &mockOperations{
+					mockIsReclaimDelete: func() bool { return true },
+					mockDeleteBucket:    func(ctx context.Context) error { return nil },
+					mockRemoveFinalizer: func() {},
+					mockUpdateObject:    func(ctx context.Context) error { return nil },
 				},
-				sc: gcpstoragefake.NewMockBucketClient(),
 			},
 			want: want{
 				err: nil,
 				res: reconcile.Result{},
-				obj: newBucket(ns, bucketName).withReclaimPolicy(corev1alpha1.ReclaimDelete).Bucket,
 			},
 		},
 		{
-			name: "delete failed",
+			name: "delete failed: not found",
 			fields: fields{
-				obj: newBucket(ns, bucketName).withReclaimPolicy(corev1alpha1.ReclaimDelete).
-					withFinalizer(finalizer).Bucket,
-				cc: &test.MockClient{
-					MockStatusUpdate: func(ctx context.Context, obj runtime.Object) error {
-						return nil
-					},
-				},
-				sc: &gcpstoragefake.MockBucketClient{
-					MockDelete: func(ctx context.Context) error {
-						return errors.New("test-delete-error")
-					},
-				},
-			},
-			want: want{
-				err: nil,
-				res: resultRequeue,
-				obj: newBucket(ns, bucketName).withReclaimPolicy(corev1alpha1.ReclaimDelete).
-					withFinalizer(finalizer).
-					withFailedCondition(failedToDelete, "test-delete-error").
-					Bucket,
-			},
-		},
-		{
-			name: "delete non-existent",
-			fields: fields{
-				obj: newBucket(ns, bucketName).withReclaimPolicy(corev1alpha1.ReclaimDelete).
-					withFinalizer(finalizer).Bucket,
-				cc: &test.MockClient{
-					MockUpdate: func(ctx context.Context, obj runtime.Object) error { return nil },
-				},
-				sc: &gcpstoragefake.MockBucketClient{
-					MockDelete: func(ctx context.Context) error {
+				ops: &mockOperations{
+					mockIsReclaimDelete: func() bool { return true },
+					mockDeleteBucket: func(ctx context.Context) error {
 						return storage.ErrBucketNotExist
 					},
+					mockRemoveFinalizer: func() {},
+					mockUpdateObject:    func(ctx context.Context) error { return nil },
 				},
 			},
 			want: want{
 				err: nil,
 				res: reconcile.Result{},
-				obj: newBucket(ns, bucketName).withReclaimPolicy(corev1alpha1.ReclaimDelete).Bucket,
+			},
+		},
+		{
+			name: "delete failed: other",
+			fields: fields{
+				ops: &mockOperations{
+					mockIsReclaimDelete: func() bool { return true },
+					mockDeleteBucket: func(ctx context.Context) error {
+						return errors.New("test-error")
+					},
+					mockFailReconcile: func(ctx context.Context, reason, msg string) error {
+						return nil
+					},
+				},
+			},
+			want: want{
+				res: resultRequeue,
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			bh := newBucketSyncDeleter(tt.fields.sc, tt.fields.cc, tt.fields.obj, "")
-			got, err := bh.delete(ctx)
+			bsd := newBucketSyncDeleter(tt.fields.ops, "")
+			got, err := bsd.delete(ctx)
 			if diff := deep.Equal(err, tt.want.err); diff != nil {
 				t.Errorf("bucketSyncDeleter.delete() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
 				return
@@ -535,27 +500,24 @@ func Test_bucketHandler_delete(t *testing.T) {
 				t.Errorf("bucketSyncDeleter.delete() result = %v, wantRes %v\n%s", got, tt.want.res, diff)
 				return
 			}
-			if diff := deep.Equal(tt.fields.obj, tt.want.obj); diff != nil {
-				t.Errorf("bucketSyncDeleter.delete() bucket = \n%+v, wantObj \n%+v\n%s", tt.fields.obj, tt.want.obj, diff)
-				return
-			}
 		})
 	}
 }
 
-func Test_bucketHandler_sync(t *testing.T) {
+func Test_bucketSyncDeleter_sync(t *testing.T) {
 	ctx := context.TODO()
-	ns := testNamespace
-	name := testBucketName
+
+	secretError := errors.New("test-update-secret-error")
+	bucket404 := storage.ErrBucketNotExist
+	getAttrsError := errors.New("test-get-attributes-error")
+
 	type fields struct {
-		sc  gcpstorage.Client
-		cc  client.Client
-		obj *v1alpha1.Bucket
+		ops operations
+		cu  createupdater
 	}
 	type want struct {
 		err error
 		res reconcile.Result
-		obj *v1alpha1.Bucket
 	}
 	tests := []struct {
 		name   string
@@ -563,103 +525,83 @@ func Test_bucketHandler_sync(t *testing.T) {
 		want   want
 	}{
 		{
-			name: "secret error",
+			name: "failed to update connection secret",
 			fields: fields{
-				cc: &test.MockClient{
-					MockCreate: func(ctx context.Context, obj runtime.Object) error {
-						return errors.New("test-error-saving-secret")
-					},
-					MockStatusUpdate: func(ctx context.Context, obj runtime.Object) error { return nil },
-				},
-				obj: newBucket(ns, name).Bucket,
-			},
-			want: want{
-				err: nil,
-				res: resultRequeue,
-				obj: newBucket(ns, name).withFailedCondition(failedToSaveSecret, "test-error-saving-secret").Bucket,
-			},
-		},
-		{
-			name: "attrs error",
-			fields: fields{
-				sc: &gcpstoragefake.MockBucketClient{
-					MockAttrs: func(i context.Context) (attrs *storage.BucketAttrs, e error) {
-						return nil, errors.WithStack(errors.New("test-attrs-error"))
-					},
-				},
-				cc: &test.MockClient{
-					MockCreate: func(ctx context.Context, obj runtime.Object) error { return nil },
-					MockStatusUpdate: func(ctx context.Context, obj runtime.Object) error {
+				ops: &mockOperations{
+					mockUpdateSecret: func(ctx context.Context) error { return secretError },
+					mockFailReconcile: func(ctx context.Context, reason, msg string) error {
+						assertFailure(t, reason, msg, failedToUpdateSecret, secretError.Error())
 						return nil
 					},
 				},
-				obj: newBucket(ns, name).withUID("test-uid").Bucket,
 			},
-			want: want{
-				err: nil,
-				res: resultRequeue,
-				obj: newBucket(ns, name).withUID("test-uid").withFailedCondition(failedToRetrieve, "test-attrs-error").Bucket,
-			},
+			want: want{res: resultRequeue},
 		},
 		{
-			name: "attrs not found (create)",
+			name: "attrs error: other",
 			fields: fields{
-				cc: &test.MockClient{
-					MockCreate: func(ctx context.Context, obj runtime.Object) error { return nil },
-				},
-				sc: &gcpstoragefake.MockBucketClient{
-					MockAttrs: func(i context.Context) (attrs *storage.BucketAttrs, e error) {
-						return nil, storage.ErrBucketNotExist
+				ops: &mockOperations{
+					mockUpdateSecret: func(ctx context.Context) error { return nil },
+					mockGetAttributes: func(ctx context.Context) (*storage.BucketAttrs, error) {
+						return nil, getAttrsError
+					},
+					mockFailReconcile: func(ctx context.Context, reason, msg string) error {
+						assertFailure(t, reason, msg, failedToRetrieve, getAttrsError.Error())
+						return nil
 					},
 				},
-				obj: newBucket(ns, name).withUID("test-uid").Bucket,
 			},
-			want: want{
-				err: nil,
-				res: requeueOnSuccess,
-				obj: newBucket(ns, name).withUID("test-uid").Bucket,
-			},
+			want: want{res: resultRequeue},
 		},
 		{
-			name: "update",
+			name: "create bucket",
 			fields: fields{
-				cc: &test.MockClient{
-					MockCreate: func(ctx context.Context, obj runtime.Object) error { return nil },
-				},
-				sc: &gcpstoragefake.MockBucketClient{
-					MockAttrs: func(i context.Context) (attrs *storage.BucketAttrs, e error) {
-						return &storage.BucketAttrs{}, nil
+				ops: &mockOperations{
+					mockUpdateSecret: func(ctx context.Context) error { return nil },
+					mockGetAttributes: func(ctx context.Context) (*storage.BucketAttrs, error) {
+						return nil, bucket404
 					},
 				},
-				obj: newBucket(ns, name).withUID("test-uid").Bucket,
+				cu: &MockBucketCreateUpdater{
+					MockCreate: func(ctx context.Context) (reconcile.Result, error) {
+						return reconcile.Result{}, nil
+					},
+				},
 			},
-			want: want{
-				err: nil,
-				res: requeueOnSuccess,
-				obj: newBucket(ns, name).withUID("test-uid").Bucket,
+			want: want{res: reconcile.Result{}},
+		},
+		{
+			name: "update bucket",
+			fields: fields{
+				ops: &mockOperations{
+					mockUpdateSecret: func(ctx context.Context) error { return nil },
+					mockGetAttributes: func(ctx context.Context) (*storage.BucketAttrs, error) {
+						return &storage.BucketAttrs{}, bucket404
+					},
+				},
+				cu: &MockBucketCreateUpdater{
+					MockUpdate: func(ctx context.Context, attrs *storage.BucketAttrs) (reconcile.Result, error) {
+						return requeueOnSuccess, nil
+					},
+				},
 			},
+			want: want{res: requeueOnSuccess},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bh := &bucketSyncDeleter{
-				createupdater: newMockBucketCreateUpdater(),
-				Client:        tt.fields.sc,
-				kube:          tt.fields.cc,
-				object:        tt.fields.obj,
+				operations:    tt.fields.ops,
+				createupdater: tt.fields.cu,
 			}
 
 			got, err := bh.sync(ctx)
 			if diff := deep.Equal(err, tt.want.err); diff != nil {
-				t.Errorf("bucketSyncDeleter.delete() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
+				t.Errorf("bucketSyncDeleter.sync() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
 				return
 			}
 			if diff := deep.Equal(got, tt.want.res); diff != nil {
-				t.Errorf("bucketSyncDeleter.delete() result = %v, wantRes %v\n%s", got, tt.want.res, diff)
-				return
-			}
-			if diff := deep.Equal(tt.fields.obj, tt.want.obj); diff != nil {
-				t.Errorf("bucketSyncDeleter.delete() bucket = \n%+v, wantObj \n%+v\n%s", tt.fields.obj, tt.want.obj, diff)
+				t.Errorf("bucketSyncDeleter.sync() result = %v, wantRes %v\n%s", got, tt.want.res, diff)
 				return
 			}
 		})
@@ -668,18 +610,15 @@ func Test_bucketHandler_sync(t *testing.T) {
 
 func Test_bucketCreateUpdater_create(t *testing.T) {
 	ctx := context.TODO()
-	ns := testNamespace
-	name := testBucketName
+	testError := errors.New("test-error")
+
 	type fields struct {
-		sc        gcpstorage.Client
-		kube      client.Client
-		bucket    *v1alpha1.Bucket
+		ops       operations
 		projectID string
 	}
 	type want struct {
-		err    error
-		res    reconcile.Result
-		bucket *v1alpha1.Bucket
+		err error
+		res reconcile.Result
 	}
 	tests := []struct {
 		name   string
@@ -687,96 +626,80 @@ func Test_bucketCreateUpdater_create(t *testing.T) {
 		want   want
 	}{
 		{
-			name: "create error",
+			name: "failure to create",
 			fields: fields{
-				sc: &gcpstoragefake.MockBucketClient{
-					MockCreate: func(ctx context.Context, pid string, attrs *storage.BucketAttrs) error {
-						return errors.New("test-create-error")
-					},
-				},
-				kube:   test.NewMockClient(),
-				bucket: newBucket(ns, name).Bucket,
-			},
-			want: want{
-				err: nil,
-				res: resultRequeue,
-				bucket: newBucket(ns, name).
-					withFailedCondition(failedToCreate, "test-create-error").
-					withFinalizer(finalizer).
-					Bucket,
-			},
-		},
-		{
-			name: "create success, attrs error",
-			fields: fields{
-				sc: &gcpstoragefake.MockBucketClient{
-					MockCreate: func(ctx context.Context, pid string, attrs *storage.BucketAttrs) error {
+				ops: &mockOperations{
+					mockAddFinalizer: func() {},
+					mockCreateBucket: func(ctx context.Context, projectID string) error { return testError },
+					mockFailReconcile: func(ctx context.Context, reason, msg string) error {
+						assertFailure(t, reason, msg, failedToCreate, testError.Error())
 						return nil
 					},
-					MockAttrs: func(i context.Context) (attrs *storage.BucketAttrs, e error) {
-						return nil, errors.New("test-attrs-error")
-					},
 				},
-				kube:   test.NewMockClient(),
-				bucket: newBucket(ns, name).Bucket,
 			},
 			want: want{
-				err: nil,
 				res: resultRequeue,
-				bucket: newBucket(ns, name).
-					withCondition(corev1alpha1.NewCondition(corev1alpha1.Ready, "", "")).
-					withFailedCondition(failedToRetrieve, "test-attrs-error").
-					withFinalizer(finalizer).
-					Bucket,
 			},
 		},
 		{
-			name: "create success, update error",
+			name: "failure to get attributes",
 			fields: fields{
-				sc: gcpstoragefake.NewMockBucketClient(),
-				kube: &test.MockClient{
-					MockUpdate: func(ctx context.Context, obj runtime.Object) error {
-						return errors.New("test-update-error")
+				ops: &mockOperations{
+					mockAddFinalizer:  func() {},
+					mockCreateBucket:  func(ctx context.Context, projectID string) error { return nil },
+					mockSetReady:      func() {},
+					mockGetAttributes: func(ctx context.Context) (*storage.BucketAttrs, error) { return nil, testError },
+					mockFailReconcile: func(ctx context.Context, reason, msg string) error {
+						assertFailure(t, reason, msg, failedToRetrieve, testError.Error())
+						return nil
 					},
 				},
-				bucket: newBucket(ns, name).Bucket,
 			},
 			want: want{
-				err: errors.New("test-update-error"),
 				res: resultRequeue,
-				bucket: newBucket(ns, name).
-					withCondition(corev1alpha1.NewCondition(corev1alpha1.Ready, "", "")).
-					withFinalizer(finalizer).
-					Bucket,
 			},
 		},
 		{
-			name: "create success",
+			name: "failure to update object",
 			fields: fields{
-				sc: gcpstoragefake.NewMockBucketClient(),
-				kube: &test.MockClient{
-					MockUpdate:       func(ctx context.Context, obj runtime.Object) error { return nil },
-					MockStatusUpdate: func(ctx context.Context, obj runtime.Object) error { return nil },
+				ops: &mockOperations{
+					mockAddFinalizer:  func() {},
+					mockCreateBucket:  func(ctx context.Context, projectID string) error { return nil },
+					mockSetReady:      func() {},
+					mockGetAttributes: func(ctx context.Context) (*storage.BucketAttrs, error) { return nil, nil },
+					mockSetSpecAttrs:  func(attrs *storage.BucketAttrs) {},
+					mockUpdateObject:  func(ctx context.Context) error { return testError },
 				},
-				bucket: newBucket(ns, name).Bucket,
 			},
 			want: want{
-				err: nil,
+				err: testError,
+				res: resultRequeue,
+			},
+		},
+		{
+			name: "success",
+			fields: fields{
+				ops: &mockOperations{
+					mockAddFinalizer:   func() {},
+					mockCreateBucket:   func(ctx context.Context, projectID string) error { return nil },
+					mockSetReady:       func() {},
+					mockGetAttributes:  func(ctx context.Context) (*storage.BucketAttrs, error) { return nil, nil },
+					mockSetSpecAttrs:   func(attrs *storage.BucketAttrs) {},
+					mockUpdateObject:   func(ctx context.Context) error { return nil },
+					mockSetStatusAttrs: func(attrs *storage.BucketAttrs) {},
+					mockUpdateStatus:   func(ctx context.Context) error { return nil },
+				},
+			},
+			want: want{
 				res: requeueOnSuccess,
-				bucket: newBucket(ns, name).
-					withCondition(corev1alpha1.NewCondition(corev1alpha1.Ready, "", "")).
-					withFinalizer(finalizer).
-					Bucket,
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bh := &bucketCreateUpdater{
-				Client:    tt.fields.sc,
-				kube:      tt.fields.kube,
-				bucket:    tt.fields.bucket,
-				projectID: tt.fields.projectID,
+				operations: tt.fields.ops,
+				projectID:  tt.fields.projectID,
 			}
 			got, err := bh.create(ctx)
 			if diff := deep.Equal(err, tt.want.err); diff != nil {
@@ -787,120 +710,117 @@ func Test_bucketCreateUpdater_create(t *testing.T) {
 				t.Errorf("bucketCreateUpdater.create() result = %v, wantRes %v\n%s", got, tt.want.res, diff)
 				return
 			}
-			if tt.want.bucket != nil {
-				if diff := deep.Equal(tt.fields.bucket, tt.want.bucket); diff != nil {
-					t.Errorf("bucketCreateUpdater.create() bucket = \n%+v, wantObj \n%+v\n%s", tt.fields.bucket, tt.want.bucket, diff)
-					return
-				}
-			}
 		})
 	}
 }
 
 func Test_bucketCreateUpdater_update(t *testing.T) {
 	ctx := context.TODO()
-	ns := testNamespace
-	name := testBucketName
+	testError := errors.New("test-error")
+
 	type fields struct {
-		sc gcpstorage.Client
-		cc client.Client
-		o  *v1alpha1.Bucket
+		ops       operations
+		projectID string
 	}
 	type want struct {
-		res reconcile.Result
 		err error
-		obj *v1alpha1.Bucket
+		res reconcile.Result
 	}
 	tests := []struct {
 		name   string
 		fields fields
-		attrs  *storage.BucketAttrs
+		args   *storage.BucketAttrs
 		want   want
 	}{
 		{
-			name:  "no changes",
-			attrs: &storage.BucketAttrs{},
+			name: "no changes",
 			fields: fields{
-				o: newBucket(ns, name).Bucket,
-			},
-			want: want{
-				err: nil,
-				res: requeueOnSuccess,
-				obj: newBucket(ns, name).Bucket,
-			},
-		},
-		{
-			name:  "update failed",
-			attrs: &storage.BucketAttrs{},
-			fields: fields{
-				o: newBucket(ns, name).withSpecRequesterPays(true).Bucket,
-				sc: &gcpstoragefake.MockBucketClient{
-					MockUpdate: func(ctx context.Context, update storage.BucketAttrsToUpdate) (attrs *storage.BucketAttrs, e error) {
-						return nil, errors.New("test-bucket-update-error")
+				ops: &mockOperations{
+					mockGetSpecAttrs: func() v1alpha1.BucketUpdatableAttrs {
+						return v1alpha1.BucketUpdatableAttrs{}
 					},
 				},
-				cc: &test.MockClient{
-					MockStatusUpdate: func(ctx context.Context, obj runtime.Object) error { return nil },
-				},
+				projectID: "",
 			},
-			want: want{
-				err: nil,
-				res: resultRequeue,
-				obj: newBucket(ns, name).withSpecRequesterPays(true).
-					withFailedCondition(failedToUpdate, "test-bucket-update-error").Bucket,
-			},
+			args: &storage.BucketAttrs{},
+			want: want{res: requeueOnSuccess},
 		},
 		{
-			name:  "update back failed",
-			attrs: &storage.BucketAttrs{},
+			name: "failure to update bucket",
 			fields: fields{
-				o:  newBucket(ns, name).withSpecRequesterPays(true).Bucket,
-				sc: gcpstoragefake.NewMockBucketClient(),
-				cc: &test.MockClient{
-					MockUpdate: func(ctx context.Context, obj runtime.Object) error {
-						return errors.New("test-spec-update-error")
+				ops: &mockOperations{
+					mockGetSpecAttrs: func() v1alpha1.BucketUpdatableAttrs {
+						return v1alpha1.BucketUpdatableAttrs{RequesterPays: true}
+					},
+					mockUpdateBucket: func(ctx context.Context, labels map[string]string) (*storage.BucketAttrs, error) {
+						return nil, testError
+					},
+					mockFailReconcile: func(ctx context.Context, reason, msg string) error {
+						assertFailure(t, reason, msg, failedToUpdate, testError.Error())
+						return nil
 					},
 				},
+				projectID: "",
 			},
+			args: &storage.BucketAttrs{},
+			want: want{res: resultRequeue},
+		},
+		{
+			name: "failure to update object",
+			fields: fields{
+				ops: &mockOperations{
+					mockGetSpecAttrs: func() v1alpha1.BucketUpdatableAttrs {
+						return v1alpha1.BucketUpdatableAttrs{RequesterPays: true}
+					},
+					mockUpdateBucket: func(ctx context.Context, labels map[string]string) (*storage.BucketAttrs, error) {
+						return nil, nil
+					},
+					mockSetSpecAttrs: func(attrs *storage.BucketAttrs) {},
+					mockUpdateObject: func(ctx context.Context) error { return testError },
+				},
+				projectID: "",
+			},
+			args: &storage.BucketAttrs{},
 			want: want{
-				err: errors.New("test-spec-update-error"),
+				err: testError,
 				res: resultRequeue,
-				obj: newBucket(ns, name).withSpecRequesterPays(false).Bucket,
 			},
 		},
 		{
-			name:  "update success",
-			attrs: &storage.BucketAttrs{},
+			name: "successful",
 			fields: fields{
-				o:  newBucket(ns, name).withSpecRequesterPays(true).Bucket,
-				sc: gcpstoragefake.NewMockBucketClient(),
-				cc: test.NewMockClient(),
+				ops: &mockOperations{
+					mockGetSpecAttrs: func() v1alpha1.BucketUpdatableAttrs {
+						return v1alpha1.BucketUpdatableAttrs{RequesterPays: true}
+					},
+					mockUpdateBucket: func(ctx context.Context, labels map[string]string) (*storage.BucketAttrs, error) {
+						return nil, nil
+					},
+					mockSetSpecAttrs: func(attrs *storage.BucketAttrs) {},
+					mockUpdateObject: func(ctx context.Context) error { return nil },
+					mockUpdateStatus: func(ctx context.Context) error { return nil },
+				},
+				projectID: "",
 			},
+			args: &storage.BucketAttrs{},
 			want: want{
-				err: nil,
 				res: requeueOnSuccess,
-				obj: newBucket(ns, name).withSpecRequesterPays(false).Bucket,
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bh := &bucketCreateUpdater{
-				Client: tt.fields.sc,
-				kube:   tt.fields.cc,
-				bucket: tt.fields.o,
+				operations: tt.fields.ops,
+				projectID:  tt.fields.projectID,
 			}
-			got, err := bh.update(ctx, tt.attrs)
+			got, err := bh.update(ctx, tt.args)
 			if diff := deep.Equal(err, tt.want.err); diff != nil {
 				t.Errorf("bucketCreateUpdater.update() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
 				return
 			}
 			if diff := deep.Equal(got, tt.want.res); diff != nil {
 				t.Errorf("bucketCreateUpdater.update() result = %v, wantRes %v\n%s", got, tt.want.res, diff)
-				return
-			}
-			if diff := deep.Equal(tt.fields.o, tt.want.obj); diff != nil {
-				t.Errorf("bucketSyncDeleter.delete() bucket = \n%+v, wantObj \n%+v\n%s", tt.fields.o, tt.want.obj, diff)
 				return
 			}
 		})

@@ -35,12 +35,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/apis/gcp/storage/v1alpha1"
 	gcpv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/v1alpha1"
 	gcpstorage "github.com/crossplaneio/crossplane/pkg/clients/gcp/storage"
 	"github.com/crossplaneio/crossplane/pkg/logging"
-	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 const (
@@ -63,7 +61,7 @@ const (
 	// failed to update bucket resource
 	failedToUpdate = "error updating"
 	// failed to save connection secret
-	failedToSaveSecret = "error saving connection secret"
+	failedToUpdateSecret = "error updating connection secret"
 )
 
 var (
@@ -79,7 +77,7 @@ type Reconciler struct {
 	factory
 }
 
-// Add creates a newHandler Controller and adds it to the Manager with default RBAC.
+// Add creates a newSyncDeleter Controller and adds it to the Manager with default RBAC.
 // The Manager will set fields on the Controller and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
 	r := &Reconciler{
@@ -87,7 +85,7 @@ func Add(mgr manager.Manager) error {
 		factory: &bucketFactory{mgr.GetClient()},
 	}
 
-	// Create a newHandler controller
+	// Create a newSyncDeleter controller
 	c, err := controller.New(controllerName, mgr, controller.Options{Reconciler: r})
 	if err != nil {
 		return err
@@ -121,7 +119,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 		return reconcile.Result{}, err
 	}
 
-	bh, err := r.newHandler(ctx, b)
+	bh, err := r.newSyncDeleter(ctx, b)
 	if err != nil {
 		b.Status.SetFailed(failedToGetHandler, err.Error())
 		return resultRequeue, r.Status().Update(ctx, b)
@@ -136,14 +134,14 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 }
 
 type factory interface {
-	newHandler(context.Context, *v1alpha1.Bucket) (syncdeleter, error)
+	newSyncDeleter(context.Context, *v1alpha1.Bucket) (syncdeleter, error)
 }
 
 type bucketFactory struct {
 	client.Client
 }
 
-func (m *bucketFactory) newHandler(ctx context.Context, b *v1alpha1.Bucket) (syncdeleter, error) {
+func (m *bucketFactory) newSyncDeleter(ctx context.Context, b *v1alpha1.Bucket) (syncdeleter, error) {
 	p := &gcpv1alpha1.Provider{}
 	n := types.NamespacedName{Namespace: b.GetNamespace(), Name: b.Spec.ProviderRef.Name}
 	if err := m.Get(ctx, n, p); err != nil {
@@ -168,73 +166,59 @@ func (m *bucketFactory) newHandler(ctx context.Context, b *v1alpha1.Bucket) (syn
 
 	sc, err := storage.NewClient(ctx, option.WithCredentials(creds))
 	if err != nil {
-		return nil, errors.Wrapf(err, "error creating storage kube")
+		return nil, errors.Wrapf(err, "error creating storage client")
 	}
 
-	return newBucketSyncDeleter(&gcpstorage.BucketClient{BucketHandle: sc.Bucket(b.GetBucketName())}, m.Client, b, creds.ProjectID), nil
-}
+	ops := &bucketHandler{
+		Bucket: b,
+		gcp:    &gcpstorage.BucketClient{BucketHandle: sc.Bucket(b.GetBucketName())},
+		kube:   m.Client,
+	}
 
-type deleter interface {
-	delete(context.Context) (reconcile.Result, error)
-}
+	return &bucketSyncDeleter{
+		operations:    ops,
+		createupdater: &bucketCreateUpdater{operations: ops, projectID: creds.ProjectID},
+	}, nil
 
-type syncer interface {
-	sync(context.Context) (reconcile.Result, error)
-}
-
-type creater interface {
-	create(context.Context) (reconcile.Result, error)
-}
-
-type updater interface {
-	update(context.Context, *storage.BucketAttrs) (reconcile.Result, error)
 }
 
 type syncdeleter interface {
-	deleter
-	syncer
+	delete(context.Context) (reconcile.Result, error)
+	sync(context.Context) (reconcile.Result, error)
 }
 
 type bucketSyncDeleter struct {
+	operations
 	createupdater
-	gcpstorage.Client
-	kube   client.Client
-	object *v1alpha1.Bucket
 }
 
-func newBucketSyncDeleter(sc gcpstorage.Client, cc client.Client, b *v1alpha1.Bucket, projectID string) *bucketSyncDeleter {
+func newBucketSyncDeleter(ops operations, projectID string) *bucketSyncDeleter {
 	return &bucketSyncDeleter{
-		createupdater: newBucketCreateUpdater(sc, cc, b, projectID),
-		Client:        sc,
-		kube:          cc,
-		object:        b,
+		operations:    ops,
+		createupdater: newBucketCreateUpdater(ops, projectID),
 	}
 }
 
 func (bh *bucketSyncDeleter) delete(ctx context.Context) (reconcile.Result, error) {
-	if bh.object.Spec.ReclaimPolicy == corev1alpha1.ReclaimDelete {
-		if err := bh.Delete(ctx); err != nil && err != storage.ErrBucketNotExist {
-			bh.object.Status.SetFailed(failedToDelete, err.Error())
-			return resultRequeue, bh.kube.Status().Update(ctx, bh.object)
+	if bh.isReclaimDelete() {
+		if err := bh.deleteBucket(ctx); err != nil && err != storage.ErrBucketNotExist {
+			return resultRequeue, bh.failReconcile(ctx, failedToDelete, err.Error())
 		}
 	}
-	util.RemoveFinalizer(&bh.object.ObjectMeta, finalizer)
-	return reconcile.Result{}, bh.kube.Update(ctx, bh.object)
+	bh.removeFinalizer()
+	return reconcile.Result{}, bh.updateObject(ctx)
 }
 
 // sync - synchronizes the state of the bucket resource with the state of the
 // bucket Kubernetes bucket
 func (bh *bucketSyncDeleter) sync(ctx context.Context) (reconcile.Result, error) {
-	// create connection secret if it doesn't exist
-	if err := bh.kube.Create(ctx, bh.object.ConnectionSecret()); err != nil && !kerrors.IsAlreadyExists(err) {
-		bh.object.Status.SetFailed(failedToSaveSecret, err.Error())
-		return resultRequeue, bh.kube.Status().Update(ctx, bh.object)
+	if err := bh.updateSecret(ctx); err != nil {
+		return resultRequeue, bh.failReconcile(ctx, failedToUpdateSecret, err.Error())
 	}
 
-	attrs, err := bh.Attrs(ctx)
+	attrs, err := bh.getAttributes(ctx)
 	if err != nil && err != storage.ErrBucketNotExist {
-		bh.object.Status.SetFailed(failedToRetrieve, err.Error())
-		return resultRequeue, bh.kube.Status().Update(ctx, bh.object)
+		return resultRequeue, bh.failReconcile(ctx, failedToRetrieve, err.Error())
 	}
 
 	if attrs == nil {
@@ -246,74 +230,67 @@ func (bh *bucketSyncDeleter) sync(ctx context.Context) (reconcile.Result, error)
 
 // createupdater interface defining create and update operations on/for bucket resource
 type createupdater interface {
-	creater
-	updater
+	create(context.Context) (reconcile.Result, error)
+	update(context.Context, *storage.BucketAttrs) (reconcile.Result, error)
 }
 
 // bucketCreateUpdater implementation of createupdater interface
 type bucketCreateUpdater struct {
-	gcpstorage.Client
-	kube      client.Client
-	bucket    *v1alpha1.Bucket
+	operations
 	projectID string
 }
 
 // newBucketCreateUpdater new instance of bucketCreateUpdater
-func newBucketCreateUpdater(sc gcpstorage.Client, cc client.Client, b *v1alpha1.Bucket, pID string) *bucketCreateUpdater {
+func newBucketCreateUpdater(ops operations, pID string) *bucketCreateUpdater {
 	return &bucketCreateUpdater{
-		Client:    sc,
-		kube:      cc,
-		bucket:    b,
-		projectID: pID,
+		operations: ops,
+		projectID:  pID,
 	}
 }
 
 // create new bucket resource and save changes back to bucket specs
 func (bh *bucketCreateUpdater) create(ctx context.Context) (reconcile.Result, error) {
-	util.AddFinalizer(&bh.bucket.ObjectMeta, finalizer)
+	bh.addFinalizer()
 
-	if err := bh.Create(ctx, bh.projectID, v1alpha1.CopyBucketSpecAttrs(&bh.bucket.Spec.BucketSpecAttrs)); err != nil {
-		bh.bucket.Status.SetFailed(failedToCreate, err.Error())
-		return resultRequeue, bh.kube.Status().Update(ctx, bh.bucket)
+	if err := bh.createBucket(ctx, bh.projectID); err != nil {
+		return resultRequeue, bh.failReconcile(ctx, failedToCreate, err.Error())
 	}
 
-	bh.bucket.Status.SetReady()
+	bh.setReady()
 
-	attrs, err := bh.Attrs(ctx)
+	attrs, err := bh.getAttributes(ctx)
 	if err != nil {
-		bh.bucket.Status.SetFailed(failedToRetrieve, err.Error())
-		return resultRequeue, bh.kube.Status().Update(ctx, bh.bucket)
+		return resultRequeue, bh.failReconcile(ctx, failedToRetrieve, err.Error())
 	}
 
-	bh.bucket.Spec.BucketSpecAttrs = v1alpha1.NewBucketSpecAttrs(attrs)
-	if err := bh.kube.Update(ctx, bh.bucket); err != nil {
+	bh.setSpecAttrs(attrs)
+
+	if err := bh.updateObject(ctx); err != nil {
 		return resultRequeue, err
 	}
 
-	bh.bucket.Status.BucketOutputAttrs = v1alpha1.NewBucketOutputAttrs(attrs)
+	bh.setStatusAttrs(attrs)
 
-	return requeueOnSuccess, bh.kube.Status().Update(ctx, bh.bucket)
+	return requeueOnSuccess, bh.updateStatus(ctx)
 }
 
 // update bucket resource if needed
 func (bh *bucketCreateUpdater) update(ctx context.Context, attrs *storage.BucketAttrs) (reconcile.Result, error) {
-
 	current := v1alpha1.NewBucketUpdatableAttrs(attrs)
-	if reflect.DeepEqual(*current, bh.bucket.Spec.BucketUpdatableAttrs) {
+	if reflect.DeepEqual(*current, bh.getSpecAttrs()) {
 		return requeueOnSuccess, nil
 	}
 
-	attrs, err := bh.Update(ctx, v1alpha1.CopyToBucketUpdateAttrs(bh.bucket.Spec.BucketUpdatableAttrs, attrs.Labels))
+	attrs, err := bh.updateBucket(ctx, attrs.Labels)
 	if err != nil {
-		bh.bucket.Status.SetFailed(failedToUpdate, err.Error())
-		return resultRequeue, bh.kube.Status().Update(ctx, bh.bucket)
+		return resultRequeue, bh.failReconcile(ctx, failedToUpdate, err.Error())
 	}
 
 	// Sync attributes back to spec
-	bh.bucket.Spec.BucketSpecAttrs = v1alpha1.NewBucketSpecAttrs(attrs)
-	if err := bh.kube.Update(ctx, bh.bucket); err != nil {
+	bh.setSpecAttrs(attrs)
+	if err := bh.updateObject(ctx); err != nil {
 		return resultRequeue, err
 	}
 
-	return requeueOnSuccess, bh.kube.Status().Update(ctx, bh.bucket)
+	return requeueOnSuccess, bh.updateStatus(ctx)
 }
