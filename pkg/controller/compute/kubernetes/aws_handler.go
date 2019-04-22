@@ -19,29 +19,32 @@ package kubernetes
 import (
 	"fmt"
 
-	"k8s.io/apimachinery/pkg/api/errors"
+	"github.com/pkg/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	awscomputev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/compute/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/apis/aws/compute/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 )
 
-// AWSClusterHandler AWS EKS handler handles Kubernetes cluster functionality
-type AWSClusterHandler struct{}
+// EKSClusterHandler AWS EKS handler handles Kubernetes cluster functionality
+type EKSClusterHandler struct{}
 
 // Find EKSCluster resource
-func (r *AWSClusterHandler) Find(name types.NamespacedName, c client.Client) (corev1alpha1.Resource, error) {
-	instance := &awscomputev1alpha1.EKSCluster{}
-	err := c.Get(ctx, name, instance)
-	return instance, err
+func (r *EKSClusterHandler) Find(name types.NamespacedName, c client.Client) (corev1alpha1.Resource, error) {
+	instance := &v1alpha1.EKSCluster{}
+	if err := c.Get(ctx, name, instance); err != nil {
+		return nil, errors.Wrapf(err, "failed to retrieve %s: %s", v1alpha1.EKSClusterKind, name)
+	}
+	return instance, nil
 }
 
 // Provision a new EKSCluster
-func (r *AWSClusterHandler) Provision(class *corev1alpha1.ResourceClass, claim corev1alpha1.ResourceClaim, c client.Client) (corev1alpha1.Resource, error) {
+func (r *EKSClusterHandler) Provision(class *corev1alpha1.ResourceClass, claim corev1alpha1.ResourceClaim, c client.Client) (corev1alpha1.Resource, error) {
 	// construct EKSCluster Spec from class definition
-	resourceInstance := awscomputev1alpha1.NewEKSClusterSpec(class.Parameters)
+	resourceInstance := v1alpha1.NewEKSClusterSpec(class.Parameters)
 
 	// assign provider reference and reclaim policy from the resource class
 	resourceInstance.ProviderRef = class.ProviderRef
@@ -52,8 +55,9 @@ func (r *AWSClusterHandler) Provision(class *corev1alpha1.ResourceClass, claim c
 	resourceInstance.ClaimRef = claim.ObjectReference()
 
 	// create and save EKSCluster
-	cluster := &awscomputev1alpha1.EKSCluster{
+	cluster := &v1alpha1.EKSCluster{
 		ObjectMeta: metav1.ObjectMeta{
+			Labels:          map[string]string{labelProviderKey: labelProviderAWS},
 			Namespace:       class.Namespace,
 			Name:            fmt.Sprintf("eks-%s", claim.GetUID()),
 			OwnerReferences: []metav1.OwnerReference{claim.OwnerReference()},
@@ -61,21 +65,23 @@ func (r *AWSClusterHandler) Provision(class *corev1alpha1.ResourceClass, claim c
 		Spec: *resourceInstance,
 	}
 
-	err := c.Create(ctx, cluster)
-	return cluster, err
+	if err := c.Create(ctx, cluster); err != nil {
+		return nil, errors.Wrapf(err, "failed to create cluster %s/%s", cluster.Namespace, cluster.Name)
+	}
+	return cluster, nil
 }
 
 // SetBindStatus updates resource state binding phase
 // TODO: this SetBindStatus function could be refactored to 1 common implementation for all providers
-func (r AWSClusterHandler) SetBindStatus(name types.NamespacedName, c client.Client, bound bool) error {
-	instance := &awscomputev1alpha1.EKSCluster{}
+func (r EKSClusterHandler) SetBindStatus(name types.NamespacedName, c client.Client, bound bool) error {
+	instance := &v1alpha1.EKSCluster{}
 	err := c.Get(ctx, name, instance)
 	if err != nil {
-		if errors.IsNotFound(err) && !bound {
+		if kerrors.IsNotFound(err) && !bound {
 			return nil
 		}
-		return err
+		return errors.Wrapf(err, "failed to retrieve cluster %s", name)
 	}
 	instance.Status.SetBound(bound)
-	return c.Update(ctx, instance)
+	return errors.Wrapf(c.Update(ctx, instance), "failed to update cluster %s", name)
 }

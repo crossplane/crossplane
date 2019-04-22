@@ -57,6 +57,7 @@ func (r *GKEClusterHandler) Provision(class *corev1alpha1.ResourceClass, claim c
 	// create and save GKECluster
 	cluster := &v1alpha1.GKECluster{
 		ObjectMeta: metav1.ObjectMeta{
+			Labels:          map[string]string{labelProviderKey: labelProviderGCP},
 			Namespace:       class.Namespace,
 			Name:            fmt.Sprintf("gke-%s", claim.GetUID()),
 			OwnerReferences: []metav1.OwnerReference{claim.OwnerReference()},
