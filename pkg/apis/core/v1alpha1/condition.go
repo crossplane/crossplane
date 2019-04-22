@@ -136,7 +136,7 @@ func (c *ConditionedStatus) SetPending() {
 	c.SetCondition(NewCondition(Pending, "", ""))
 }
 
-// SetDeleting set creating as an active condition
+// SetDeleting set deleting as an active condition
 func (c *ConditionedStatus) SetDeleting() {
 	c.SetCondition(NewCondition(Deleting, "", ""))
 }
