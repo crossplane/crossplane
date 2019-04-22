@@ -19,7 +19,10 @@ package provider
 import (
 	"context"
 	"errors"
+	"net/http"
 	"testing"
+
+	"github.com/Azure/go-autorest/autorest"
 
 	"github.com/Azure/azure-sdk-for-go/services/resources/mgmt/2018-05-01/resources"
 	"github.com/go-test/deep"
@@ -167,7 +170,81 @@ func TestCreate(t *testing.T) {
 			gotRequeue := tc.csd.Create(ctx, tc.r)
 
 			if gotRequeue != tc.wantRequeue {
-				t.Errorf("tc.mock.CreateOrUpdate(...): want: %t got: %t", tc.wantRequeue, gotRequeue)
+				t.Errorf("tc.csd.CreateOrUpdate(...): want: %t got: %t", tc.wantRequeue, gotRequeue)
+			}
+
+			if diff := deep.Equal(tc.want, tc.r); diff != nil {
+				t.Errorf("r: want != got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestSync(t *testing.T) {
+	cases := []struct {
+		name        string
+		csd         createsyncdeleter
+		r           *azurev1alpha1.ResourceGroup
+		want        *azurev1alpha1.ResourceGroup
+		wantRequeue bool
+	}{
+		{
+			name: "SuccessfulSyncWhileResourceReady",
+			csd: &azureResourceGroup{client: &fakerg.MockClient{
+				MockCheckExistence: func(_ context.Context, _ string) (result autorest.Response, err error) {
+					return autorest.Response{Response: &http.Response{StatusCode: 204}}, nil
+				},
+			}},
+			r: resource(
+				withConditions(corev1alpha1.Condition{Type: corev1alpha1.Creating, Status: corev1.ConditionTrue}),
+				withFinalizers(finalizerRG),
+				withName(name),
+			),
+			want: resource(
+				withConditions(
+					corev1alpha1.Condition{Type: corev1alpha1.Creating, Status: corev1.ConditionFalse},
+					corev1alpha1.Condition{Type: corev1alpha1.Ready, Status: corev1.ConditionTrue},
+				),
+				withFinalizers(finalizerRG),
+				withName(name),
+			),
+			wantRequeue: false,
+		},
+		{
+			name: "FailedCheck",
+			csd: &azureResourceGroup{client: &fakerg.MockClient{
+				MockCheckExistence: func(_ context.Context, _ string) (result autorest.Response, err error) {
+					return autorest.Response{}, errorBoom
+				},
+			}},
+			r: resource(
+				withConditions(corev1alpha1.Condition{Type: corev1alpha1.Creating, Status: corev1.ConditionTrue}),
+				withFinalizers(finalizerRG),
+				withName(name),
+			),
+			want: resource(
+				withConditions(
+					corev1alpha1.Condition{Type: corev1alpha1.Creating, Status: corev1.ConditionTrue},
+					corev1alpha1.Condition{
+						Type:    corev1alpha1.Failed,
+						Status:  corev1.ConditionTrue,
+						Reason:  reasonSyncingResource,
+						Message: errorBoom.Error(),
+					},
+				),
+				withFinalizers(finalizerRG),
+				withName(name),
+			),
+			wantRequeue: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			gotRequeue := tc.csd.Sync(ctx, tc.r)
+
+			if gotRequeue != tc.wantRequeue {
+				t.Errorf("tc.csd.CheckExistence(...): want: %t got: %t", tc.wantRequeue, gotRequeue)
 			}
 
 			if diff := deep.Equal(tc.want, tc.r); diff != nil {

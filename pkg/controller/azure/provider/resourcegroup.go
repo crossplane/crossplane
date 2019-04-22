@@ -107,14 +107,22 @@ func (a *azureResourceGroup) Create(ctx context.Context, r *v1alpha1.ResourceGro
 }
 
 func (a *azureResourceGroup) Sync(ctx context.Context, r *v1alpha1.ResourceGroup) bool {
-	if res, err := a.client.CheckExistence(ctx, r.Spec.Name); err != nil || res.Response.StatusCode != 204 {
+	res, err := a.client.CheckExistence(ctx, r.Spec.Name)
+	if err != nil {
 		r.Status.SetFailed(reasonSyncingResource, err.Error())
 		return true
 	}
 
-	if !r.Status.IsReady() {
-		r.Status.UnsetAllConditions()
+	r.Status.UnsetAllConditions()
+
+	switch res.Response.StatusCode {
+	case 204:
 		r.Status.SetReady()
+	case 404:
+		r.Status.SetDeleting()
+		return false
+	default:
+		return true
 	}
 
 	return false
