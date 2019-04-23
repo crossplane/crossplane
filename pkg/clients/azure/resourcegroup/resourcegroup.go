@@ -31,6 +31,14 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/clients/azure"
 )
 
+// Resource grouo naming errors
+const (
+	NameTooShort  = "name of resource group must be at least one character"
+	NameTooLong   = "name of resource group may not be longer than 90 characters"
+	NameEndPeriod = "name of resource group may not end in a period"
+	NameRegex     = "name of resource group is not well-formed per https://docs.microsoft.com/en-us/rest/api/resources/resourcegroups/createorupdate"
+)
+
 // A GroupsClient handles CRUD operations for Azure Resource Group resources.
 type GroupsClient resourcesapi.GroupsClientAPI
 
@@ -74,16 +82,16 @@ func NewParameters(r *v1alpha1.ResourceGroup) resources.Group {
 // CheckResourceGroupName checks to make sure Resource Group name adheres to
 func CheckResourceGroupName(name string) error {
 	if len(name) == 0 {
-		return fmt.Errorf("name of resource group must be at least one character")
+		return fmt.Errorf(NameTooShort)
 	}
 	if len(name) > 90 {
-		return fmt.Errorf("name of resource group may not be longer than 90 characters")
+		return fmt.Errorf(NameTooLong)
 	}
 	if name[len(name)-1:] == "." {
-		return fmt.Errorf("name of resource group may not end in a period")
+		return fmt.Errorf(NameEndPeriod)
 	}
 	if matched, _ := regexp.MatchString(`^[-\w\._\(\)]+$`, name); !matched {
-		return fmt.Errorf("name of resource group is not well-formed per https://docs.microsoft.com/en-us/rest/api/resources/resourcegroups/createorupdate")
+		return fmt.Errorf(NameRegex)
 	}
 	return nil
 }

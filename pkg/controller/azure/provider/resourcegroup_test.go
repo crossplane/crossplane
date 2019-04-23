@@ -98,6 +98,10 @@ func withName(n string) resourceModifier {
 	return func(r *azurev1alpha1.ResourceGroup) { r.Status.Name = n }
 }
 
+func withSpecName(n string) resourceModifier {
+	return func(r *azurev1alpha1.ResourceGroup) { r.Spec.Name = n }
+}
+
 func withDeletionTimestamp(t time.Time) resourceModifier {
 	return func(r *v1alpha1.ResourceGroup) { r.ObjectMeta.DeletionTimestamp = &metav1.Time{Time: t} }
 }
@@ -173,6 +177,20 @@ func TestCreate(t *testing.T) {
 			)),
 			wantRequeue: true,
 		},
+		{
+			name: "FailedCreateDueToName",
+			csd:  &azureResourceGroup{client: &fakerg.MockClient{}},
+			r:    resource(withSpecName("foo.")),
+			want: resource(withConditions(
+				corev1alpha1.Condition{
+					Type:    corev1alpha1.Failed,
+					Status:  corev1.ConditionTrue,
+					Reason:  reasonCreatingResource,
+					Message: resourcegroup.NameEndPeriod,
+				},
+			), withSpecName("foo.")),
+			wantRequeue: true,
+		},
 	}
 
 	for _, tc := range cases {
@@ -242,6 +260,25 @@ func TestSync(t *testing.T) {
 						Message: azureDeletedMessage,
 					},
 				),
+				withFinalizers(finalizerRG),
+				withName(name),
+			),
+			wantRequeue: true,
+		},
+		{
+			name: "FailedSyncUnrecognizedResponse",
+			csd: &azureResourceGroup{client: &fakerg.MockClient{
+				MockCheckExistence: func(_ context.Context, _ string) (result autorest.Response, err error) {
+					return autorest.Response{Response: &http.Response{StatusCode: 400}}, nil
+				},
+			}},
+			r: resource(
+				withConditions(corev1alpha1.Condition{Type: corev1alpha1.Ready, Status: corev1.ConditionTrue}),
+				withFinalizers(finalizerRG),
+				withName(name),
+			),
+			want: resource(
+				withConditions(corev1alpha1.Condition{Type: corev1alpha1.Ready, Status: corev1.ConditionFalse}),
 				withFinalizers(finalizerRG),
 				withName(name),
 			),
