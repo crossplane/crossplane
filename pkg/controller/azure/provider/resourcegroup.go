@@ -47,6 +47,8 @@ const (
 	reasonDeletingResource = "failed to delete Azure Resource Group resource"
 	reasonSyncingResource  = "failed to sync Azure Resource Group resource"
 
+	azureDeletedMessage = "resource has been deleted on Azure"
+
 	reconcileTimeout = 1 * time.Minute
 )
 
@@ -119,8 +121,9 @@ func (a *azureResourceGroup) Sync(ctx context.Context, r *v1alpha1.ResourceGroup
 	case 204:
 		r.Status.SetReady()
 	case 404:
-		r.Status.SetDeleting()
-		return false
+		// Custom message passed to SetFailed due to Azure API returning 404 instead of error
+		r.Status.SetFailed(reasonSyncingResource, azureDeletedMessage)
+		return true
 	default:
 		return true
 	}
@@ -131,7 +134,6 @@ func (a *azureResourceGroup) Sync(ctx context.Context, r *v1alpha1.ResourceGroup
 func (a *azureResourceGroup) Delete(ctx context.Context, r *v1alpha1.ResourceGroup) bool {
 	if r.Spec.ReclaimPolicy == corev1alpha1.ReclaimDelete {
 		if _, err := a.client.Delete(ctx, r.Spec.Name); err != nil {
-
 			r.Status.SetFailed(reasonDeletingResource, err.Error())
 			return true
 		}

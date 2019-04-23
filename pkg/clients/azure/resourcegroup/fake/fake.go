@@ -46,6 +46,6 @@ func (m *MockClient) CheckExistence(ctx context.Context, resourceGroupName strin
 }
 
 // DeleteGroup calls the underlying MockDeleteGroup method.
-func (m *MockClient) DeleteGroup(ctx context.Context, resourceGroupName string) (result resources.GroupsDeleteFuture, err error) {
+func (m *MockClient) Delete(ctx context.Context, resourceGroupName string) (result resources.GroupsDeleteFuture, err error) {
 	return m.MockDelete(ctx, resourceGroupName)
 }
