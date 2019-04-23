@@ -54,8 +54,6 @@ const (
 	providerSecretName = "cool-azure-secret"
 	providerSecretKey  = "credentials"
 	providerSecretData = "definitelyjson"
-
-	connectionSecretName = "cool-connection-secret"
 )
 
 var (
