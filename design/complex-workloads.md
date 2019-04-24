@@ -1,7 +1,7 @@
 # Complex Workloads in Crossplane
 * Author: Nic Cope (negz+crossplane@upbound.io)
 * Reviewers: Crossplane Maintainers
-* Status: DRAFT
+* Status: Accepted, revision 1.0
 
 ## Background
 [Crossplane][1] is an open source multi cloud control plane. It introduces
