@@ -34,7 +34,7 @@ func TestNewClusterClient(t *testing.T) {
 		args *google.Credentials
 		want want
 	}{
-		{name: "test", args: &google.Credentials{}, want: want{res: &ClusterClient{}}},
+		{name: "Test", args: &google.Credentials{}, want: want{res: &ClusterClient{}}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

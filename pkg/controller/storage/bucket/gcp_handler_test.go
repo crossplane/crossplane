@@ -70,7 +70,7 @@ func TestGCSBucketHandler_Find(t *testing.T) {
 		want want
 	}{
 		{
-			name: "error retrieving",
+			name: "ErrorRetrieving",
 			args: args{
 				n: nn,
 				c: &test.MockClient{
@@ -85,7 +85,7 @@ func TestGCSBucketHandler_Find(t *testing.T) {
 			},
 		},
 		{
-			name: "success",
+			name: "Success",
 			args: args{
 				n: nn,
 				c: fake.NewFakeClient(&v1alpha1.Bucket{ObjectMeta: meta}),
@@ -136,7 +136,7 @@ func TestGCSBucketHandler_Provision(t *testing.T) {
 		want want
 	}{
 		{
-			name: "create successful",
+			name: "CreateSuccessful",
 			args: args{
 				class: class,
 				claim: claim,
@@ -189,7 +189,7 @@ func TestGCSBucketHandler_SetBindStatus(t *testing.T) {
 		wantErr error
 	}{
 		{
-			name: "get error: not found and not bound",
+			name: "GetErrorNotFoundAndNotBound",
 			args: args{
 				n:     nn,
 				c:     fake.NewFakeClient(),
@@ -197,7 +197,7 @@ func TestGCSBucketHandler_SetBindStatus(t *testing.T) {
 			},
 		},
 		{
-			name: "get error: not found and bound",
+			name: "GetErrorNotFoundAndBound",
 			args: args{
 				n:     nn,
 				c:     fake.NewFakeClient(),
@@ -207,7 +207,7 @@ func TestGCSBucketHandler_SetBindStatus(t *testing.T) {
 				"cannot get bucket default/testBucket"),
 		},
 		{
-			name: "update error",
+			name: "UpdateError",
 			args: args{
 				n: nn,
 				c: &test.MockClient{

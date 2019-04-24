@@ -232,13 +232,13 @@ func TestReconciler_Reconcile(t *testing.T) {
 		wantObj *v1alpha1.Bucket
 	}{
 		{
-			name:    "get err-not-found",
+			name:    "GetErrNotFound",
 			fields:  fields{fake.NewFakeClient(), nil},
 			wantRs:  rsDone,
 			wantErr: nil,
 		},
 		{
-			name: "get error other",
+			name: "GetErrorOther",
 			fields: fields{
 				client: &test.MockClient{
 					MockGet: func(context.Context, client.ObjectKey, runtime.Object) error {
@@ -250,7 +250,7 @@ func TestReconciler_Reconcile(t *testing.T) {
 			wantErr: errors.New("test-get-error"),
 		},
 		{
-			name: "bucket handler error",
+			name: "BucketHandlerError",
 			fields: fields{
 				client:  fake.NewFakeClient(newBucket(ns, name).withFinalizer("foo.bar").Bucket),
 				factory: newMockBucketFactory(nil, errors.New("handler-factory-error")),
@@ -262,7 +262,7 @@ func TestReconciler_Reconcile(t *testing.T) {
 				withFinalizer("foo.bar").Bucket,
 		},
 		{
-			name: "reconcile delete",
+			name: "ReconcileDelete",
 			fields: fields{
 				client: fake.NewFakeClient(newBucket(ns, name).
 					withDeleteTimestamp(metav1.NewTime(time.Now())).Bucket),
@@ -272,7 +272,7 @@ func TestReconciler_Reconcile(t *testing.T) {
 			wantErr: nil,
 		},
 		{
-			name: "reconcile sync",
+			name: "ReconcileSync",
 			fields: fields{
 				client:  fake.NewFakeClient(newBucket(ns, name).Bucket),
 				factory: newMockBucketFactory(newMockBucketSyncDeleter(), nil),
@@ -338,7 +338,7 @@ func Test_bucketFactory_newHandler(t *testing.T) {
 		want   want
 	}{
 		{
-			name:   "err provider is not found",
+			name:   "ErrProviderIsNotFound",
 			Client: fake.NewFakeClient(),
 			bucket: newBucket(ns, bucketName).withProvider(providerName).Bucket,
 			want: want{
@@ -348,7 +348,7 @@ func Test_bucketFactory_newHandler(t *testing.T) {
 			},
 		},
 		{
-			name: "provider is not ready",
+			name: "ProviderIsNotReady",
 			Client: fake.NewFakeClient(newProvider(ns, providerName).
 				withCondition(corev1alpha1.NewCondition(corev1alpha1.Failed, "", "")).Provider),
 			bucket: newBucket(ns, bucketName).withProvider("test-provider").Bucket,
@@ -357,7 +357,7 @@ func Test_bucketFactory_newHandler(t *testing.T) {
 			},
 		},
 		{
-			name: "provider secret is not found",
+			name: "ProviderSecretIsNotFound",
 			Client: fake.NewFakeClient(newProvider(ns, providerName).
 				withCondition(corev1alpha1.NewCondition(corev1alpha1.Ready, "", "")).
 				withSecret(secretName, secretKey).Provider),
@@ -368,7 +368,7 @@ func Test_bucketFactory_newHandler(t *testing.T) {
 			},
 		},
 		{
-			name: "invalid credentials",
+			name: "InvalidCredentials",
 			Client: fake.NewFakeClient(newProvider(ns, providerName).
 				withCondition(corev1alpha1.NewCondition(corev1alpha1.Ready, "", "")).
 				withSecret(secretName, secretKey).Provider,
@@ -380,7 +380,7 @@ func Test_bucketFactory_newHandler(t *testing.T) {
 			},
 		},
 		{
-			name: "successful",
+			name: "Successful",
 			Client: fake.NewFakeClient(newProvider(ns, providerName).
 				withCondition(corev1alpha1.NewCondition(corev1alpha1.Ready, "", "")).
 				withSecret(secretName, secretKey).Provider,
@@ -426,7 +426,7 @@ func Test_bucketSyncDeleter_delete(t *testing.T) {
 		want   want
 	}{
 		{
-			name: "retain policy",
+			name: "RetainPolicy",
 			fields: fields{
 				ops: &mockOperations{
 					mockIsReclaimDelete: func() bool { return false },
@@ -439,7 +439,7 @@ func Test_bucketSyncDeleter_delete(t *testing.T) {
 			},
 		},
 		{
-			name: "delete successful",
+			name: "DeleteSuccessful",
 			fields: fields{
 				ops: &mockOperations{
 					mockIsReclaimDelete: func() bool { return true },
@@ -454,7 +454,7 @@ func Test_bucketSyncDeleter_delete(t *testing.T) {
 			},
 		},
 		{
-			name: "delete failed: not found",
+			name: "DeleteFailedNotFound",
 			fields: fields{
 				ops: &mockOperations{
 					mockIsReclaimDelete: func() bool { return true },
@@ -471,7 +471,7 @@ func Test_bucketSyncDeleter_delete(t *testing.T) {
 			},
 		},
 		{
-			name: "delete failed: other",
+			name: "DeleteFailedOther",
 			fields: fields{
 				ops: &mockOperations{
 					mockIsReclaimDelete: func() bool { return true },
@@ -525,7 +525,7 @@ func Test_bucketSyncDeleter_sync(t *testing.T) {
 		want   want
 	}{
 		{
-			name: "failed to update connection secret",
+			name: "FailedToUpdateConnectionSecret",
 			fields: fields{
 				ops: &mockOperations{
 					mockUpdateSecret: func(ctx context.Context) error { return secretError },
@@ -538,7 +538,7 @@ func Test_bucketSyncDeleter_sync(t *testing.T) {
 			want: want{res: resultRequeue},
 		},
 		{
-			name: "attrs error: other",
+			name: "AttrsErrorOther",
 			fields: fields{
 				ops: &mockOperations{
 					mockUpdateSecret: func(ctx context.Context) error { return nil },
@@ -554,7 +554,7 @@ func Test_bucketSyncDeleter_sync(t *testing.T) {
 			want: want{res: resultRequeue},
 		},
 		{
-			name: "create bucket",
+			name: "CreateBucket",
 			fields: fields{
 				ops: &mockOperations{
 					mockUpdateSecret: func(ctx context.Context) error { return nil },
@@ -571,7 +571,7 @@ func Test_bucketSyncDeleter_sync(t *testing.T) {
 			want: want{res: reconcile.Result{}},
 		},
 		{
-			name: "update bucket",
+			name: "UpdateBucket",
 			fields: fields{
 				ops: &mockOperations{
 					mockUpdateSecret: func(ctx context.Context) error { return nil },
@@ -626,7 +626,7 @@ func Test_bucketCreateUpdater_create(t *testing.T) {
 		want   want
 	}{
 		{
-			name: "failure to create",
+			name: "FailureToCreate",
 			fields: fields{
 				ops: &mockOperations{
 					mockAddFinalizer: func() {},
@@ -642,7 +642,7 @@ func Test_bucketCreateUpdater_create(t *testing.T) {
 			},
 		},
 		{
-			name: "failure to get attributes",
+			name: "FailureToGetAttributes",
 			fields: fields{
 				ops: &mockOperations{
 					mockAddFinalizer:  func() {},
@@ -660,7 +660,7 @@ func Test_bucketCreateUpdater_create(t *testing.T) {
 			},
 		},
 		{
-			name: "failure to update object",
+			name: "FailureToUpdateObject",
 			fields: fields{
 				ops: &mockOperations{
 					mockAddFinalizer:  func() {},
@@ -677,7 +677,7 @@ func Test_bucketCreateUpdater_create(t *testing.T) {
 			},
 		},
 		{
-			name: "success",
+			name: "Success",
 			fields: fields{
 				ops: &mockOperations{
 					mockAddFinalizer:   func() {},
@@ -733,7 +733,7 @@ func Test_bucketCreateUpdater_update(t *testing.T) {
 		want   want
 	}{
 		{
-			name: "no changes",
+			name: "NoChanges",
 			fields: fields{
 				ops: &mockOperations{
 					mockGetSpecAttrs: func() v1alpha1.BucketUpdatableAttrs {
@@ -746,7 +746,7 @@ func Test_bucketCreateUpdater_update(t *testing.T) {
 			want: want{res: requeueOnSuccess},
 		},
 		{
-			name: "failure to update bucket",
+			name: "FailureToUpdateBucket",
 			fields: fields{
 				ops: &mockOperations{
 					mockGetSpecAttrs: func() v1alpha1.BucketUpdatableAttrs {
@@ -766,7 +766,7 @@ func Test_bucketCreateUpdater_update(t *testing.T) {
 			want: want{res: resultRequeue},
 		},
 		{
-			name: "failure to update object",
+			name: "FailureToUpdateObject",
 			fields: fields{
 				ops: &mockOperations{
 					mockGetSpecAttrs: func() v1alpha1.BucketUpdatableAttrs {
@@ -787,7 +787,7 @@ func Test_bucketCreateUpdater_update(t *testing.T) {
 			},
 		},
 		{
-			name: "successful",
+			name: "Successful",
 			fields: fields{
 				ops: &mockOperations{
 					mockGetSpecAttrs: func() v1alpha1.BucketUpdatableAttrs {

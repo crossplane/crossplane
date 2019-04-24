@@ -35,17 +35,17 @@ func TestAddOwnerReference(t *testing.T) {
 		want *metav1.ObjectMeta
 	}{
 		{
-			name: "meta is nil",
+			name: "MetaIsNil",
 			args: args{om: nil, or: metav1.OwnerReference{Name: "foo"}},
 			want: nil,
 		},
 		{
-			name: "meta.or is nil",
+			name: "MetaOrIsNil",
 			args: args{om: &metav1.ObjectMeta{}, or: metav1.OwnerReference{Name: "foo"}},
 			want: &metav1.ObjectMeta{OwnerReferences: []metav1.OwnerReference{{Name: "foo"}}},
 		},
 		{
-			name: "no dupes",
+			name: "NoDupes",
 			args: args{
 				om: &metav1.ObjectMeta{OwnerReferences: []metav1.OwnerReference{{Name: "bar"}}},
 				or: metav1.OwnerReference{Name: "foo"},
@@ -56,7 +56,7 @@ func TestAddOwnerReference(t *testing.T) {
 			}},
 		},
 		{
-			name: "dupes",
+			name: "Dupes",
 			args: args{
 				om: &metav1.ObjectMeta{OwnerReferences: []metav1.OwnerReference{
 					{Name: "foo"},

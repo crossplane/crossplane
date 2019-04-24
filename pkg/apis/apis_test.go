@@ -32,7 +32,7 @@ func TestAddToScheme(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:    "test",
+			name:    "Test",
 			args:    args{s: runtime.NewScheme()},
 			wantErr: false,
 		},

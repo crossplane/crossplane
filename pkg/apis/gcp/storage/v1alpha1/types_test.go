@@ -95,8 +95,8 @@ func TestProjectTeam(t *testing.T) {
 		args *ProjectTeam
 		want *storage.ProjectTeam
 	}{
-		{"nil", nil, nil},
-		{"val", testProjectTeam, testStorageProjectTeam},
+		{"Nil", nil, nil},
+		{"Val", testProjectTeam, testStorageProjectTeam},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -139,8 +139,8 @@ func TestNewBucketPolicyOnly(t *testing.T) {
 		args storage.BucketPolicyOnly
 		want BucketPolicyOnly
 	}{
-		{name: "default", args: storage.BucketPolicyOnly{}, want: BucketPolicyOnly{}},
-		{name: "values", args: storage.BucketPolicyOnly{Enabled: true}, want: BucketPolicyOnly{Enabled: true}},
+		{name: "Default", args: storage.BucketPolicyOnly{}, want: BucketPolicyOnly{}},
+		{name: "Values", args: storage.BucketPolicyOnly{Enabled: true}, want: BucketPolicyOnly{Enabled: true}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -158,8 +158,8 @@ func TestCopyToBucketPolicyOnly(t *testing.T) {
 		args BucketPolicyOnly
 		want storage.BucketPolicyOnly
 	}{
-		{name: "default", args: BucketPolicyOnly{}, want: storage.BucketPolicyOnly{}},
-		{name: "values", args: BucketPolicyOnly{Enabled: true}, want: storage.BucketPolicyOnly{Enabled: true}},
+		{name: "Default", args: BucketPolicyOnly{}, want: storage.BucketPolicyOnly{}},
+		{name: "Values", args: BucketPolicyOnly{Enabled: true}, want: storage.BucketPolicyOnly{Enabled: true}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -177,8 +177,8 @@ func TestACLRule(t *testing.T) {
 		args ACLRule
 		want storage.ACLRule
 	}{
-		{"default value args", ACLRule{}, storage.ACLRule{}},
-		{"values", testACLRule, testStorageACLRule},
+		{"DefaultValueArgs", ACLRule{}, storage.ACLRule{}},
+		{"Values", testACLRule, testStorageACLRule},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -200,9 +200,9 @@ func TestNewACLRules(t *testing.T) {
 		args []storage.ACLRule
 		want []ACLRule
 	}{
-		{"nil", nil, nil},
-		{"empty", []storage.ACLRule{}, nil},
-		{"values", []storage.ACLRule{testStorageACLRule}, []ACLRule{testACLRule}},
+		{"Nil", nil, nil},
+		{"Empty", []storage.ACLRule{}, nil},
+		{"Values", []storage.ACLRule{testStorageACLRule}, []ACLRule{testACLRule}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -220,9 +220,9 @@ func TestCopyToACLRules(t *testing.T) {
 		args []ACLRule
 		want []storage.ACLRule
 	}{
-		{"nil", nil, nil},
-		{"empty", []ACLRule{}, nil},
-		{"values", []ACLRule{testACLRule}, []storage.ACLRule{testStorageACLRule}},
+		{"Nil", nil, nil},
+		{"Empty", []ACLRule{}, nil},
+		{"Values", []ACLRule{testACLRule}, []storage.ACLRule{testStorageACLRule}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -252,7 +252,7 @@ func TestNewLifecyleAction(t *testing.T) {
 		args storage.LifecycleAction
 		want LifecycleAction
 	}{
-		{"val", testStorageLifecyleAction, testLifecycleAction},
+		{"Val", testStorageLifecyleAction, testLifecycleAction},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -270,7 +270,7 @@ func TestCopyToLifecyleAction(t *testing.T) {
 		args LifecycleAction
 		want storage.LifecycleAction
 	}{
-		{"test", testLifecycleAction, testStorageLifecyleAction},
+		{"Test", testLifecycleAction, testStorageLifecyleAction},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -308,7 +308,7 @@ func TestNewLifecycleCondition(t *testing.T) {
 		args storage.LifecycleCondition
 		want LifecycleCondition
 	}{
-		{"test", testStorageLifecycleCondition, testLifecycleCondition},
+		{"Test", testStorageLifecycleCondition, testLifecycleCondition},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -326,7 +326,7 @@ func TestCopyToLifecycleCondition(t *testing.T) {
 		args LifecycleCondition
 		want storage.LifecycleCondition
 	}{
-		{"test", testLifecycleCondition, testStorageLifecycleCondition},
+		{"Test", testLifecycleCondition, testStorageLifecycleCondition},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -356,7 +356,7 @@ func TestNewLifecycleRule(t *testing.T) {
 		args storage.LifecycleRule
 		want LifecycleRule
 	}{
-		{"test", testStorageLifecycleRule, testLifecycleRule},
+		{"Test", testStorageLifecycleRule, testLifecycleRule},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -374,7 +374,7 @@ func TestCopyToLifecyleRule(t *testing.T) {
 		args LifecycleRule
 		want storage.LifecycleRule
 	}{
-		{"test", testLifecycleRule, testStorageLifecycleRule},
+		{"Test", testLifecycleRule, testStorageLifecycleRule},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -397,8 +397,8 @@ func TestNewLifecycle(t *testing.T) {
 		args storage.Lifecycle
 		want Lifecycle
 	}{
-		{"rules-nil", storage.Lifecycle{Rules: nil}, Lifecycle{Rules: nil}},
-		{"rules-val", testStorageLifecycle, testLifecycle},
+		{"RulesNil", storage.Lifecycle{Rules: nil}, Lifecycle{Rules: nil}},
+		{"RulesVal", testStorageLifecycle, testLifecycle},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -416,8 +416,8 @@ func TestCopyToLifecycle(t *testing.T) {
 		args Lifecycle
 		want storage.Lifecycle
 	}{
-		{"rules-nil", Lifecycle{Rules: nil}, storage.Lifecycle{Rules: nil}},
-		{"rules-val", Lifecycle{Rules: []LifecycleRule{testLifecycleRule}},
+		{"RulesNil", Lifecycle{Rules: nil}, storage.Lifecycle{Rules: nil}},
+		{"RulesVal", Lifecycle{Rules: []LifecycleRule{testLifecycleRule}},
 			storage.Lifecycle{Rules: []storage.LifecycleRule{testStorageLifecycleRule}}},
 	}
 	for _, tt := range tests {
@@ -451,8 +451,8 @@ func TestNewRetentionPolicy(t *testing.T) {
 		args *storage.RetentionPolicy
 		want *RetentionPolicy
 	}{
-		{"nil", nil, nil},
-		{"val", testStorageRetentionPolicy, testRetentionPolicy},
+		{"Nil", nil, nil},
+		{"Val", testStorageRetentionPolicy, testRetentionPolicy},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -476,8 +476,8 @@ func TestCopyToRetentionPolicy(t *testing.T) {
 		args *RetentionPolicy
 		want *storage.RetentionPolicy
 	}{
-		{"nil", nil, &storage.RetentionPolicy{RetentionPeriod: time.Duration(0)}},
-		{"val", testRetentionPolicy, testStorageRetentionPolicy},
+		{"Nil", nil, &storage.RetentionPolicy{RetentionPeriod: time.Duration(0)}},
+		{"Val", testRetentionPolicy, testStorageRetentionPolicy},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -501,8 +501,8 @@ func TestNewRetentionPolicyStatus(t *testing.T) {
 		args *storage.RetentionPolicy
 		want *RetentionPolicyStatus
 	}{
-		{"nil", nil, nil},
-		{"val", testStorageRetentionPolicy, testRetentionPolicyStatus},
+		{"Nil", nil, nil},
+		{"Val", testStorageRetentionPolicy, testRetentionPolicyStatus},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -525,8 +525,8 @@ func TestNewBucketEncryption(t *testing.T) {
 		args *storage.BucketEncryption
 		want *BucketEncryption
 	}{
-		{"nil", nil, nil},
-		{"val", testStorageBucketEncryption, testBucketEncryption},
+		{"Nil", nil, nil},
+		{"Val", testStorageBucketEncryption, testBucketEncryption},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -544,8 +544,8 @@ func TestCopyToBucketEncryption(t *testing.T) {
 		args *BucketEncryption
 		want *storage.BucketEncryption
 	}{
-		{"nil", nil, nil},
-		{"val", testBucketEncryption, testStorageBucketEncryption},
+		{"Nil", nil, nil},
+		{"Val", testBucketEncryption, testStorageBucketEncryption},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -575,8 +575,8 @@ func TestNewBucketLogging(t *testing.T) {
 		args *storage.BucketLogging
 		want *BucketLogging
 	}{
-		{"nil", nil, nil},
-		{"val", testStorageBucketLogging, testBucketLogging},
+		{"Nil", nil, nil},
+		{"Val", testStorageBucketLogging, testBucketLogging},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -594,8 +594,8 @@ func TestCopyToBucketLogging(t *testing.T) {
 		args *BucketLogging
 		want *storage.BucketLogging
 	}{
-		{"nil", nil, nil},
-		{"val", testBucketLogging, testStorageBucketLogging},
+		{"Nil", nil, nil},
+		{"Val", testBucketLogging, testStorageBucketLogging},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -629,7 +629,7 @@ func TestNewCORS(t *testing.T) {
 		args storage.CORS
 		want CORS
 	}{
-		{"test", testStorageCORS, testCORS},
+		{"Test", testStorageCORS, testCORS},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -647,7 +647,7 @@ func TestCopyToCORS(t *testing.T) {
 		args CORS
 		want storage.CORS
 	}{
-		{"test", testCORS, testStorageCORS},
+		{"Test", testCORS, testStorageCORS},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -665,9 +665,9 @@ func TestNewCORSs(t *testing.T) {
 		args []storage.CORS
 		want []CORS
 	}{
-		{"nil", nil, nil},
-		{"empty", []storage.CORS{}, []CORS{}},
-		{"val", []storage.CORS{testStorageCORS}, []CORS{testCORS}},
+		{"Nil", nil, nil},
+		{"Empty", []storage.CORS{}, []CORS{}},
+		{"Val", []storage.CORS{testStorageCORS}, []CORS{testCORS}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -685,9 +685,9 @@ func TestCopyToCORSs(t *testing.T) {
 		args []CORS
 		want []storage.CORS
 	}{
-		{"nil", nil, nil},
-		{"empty", []CORS{}, []storage.CORS{}},
-		{"val", []CORS{testCORS}, []storage.CORS{testStorageCORS}},
+		{"Nil", nil, nil},
+		{"Empty", []CORS{}, []storage.CORS{}},
+		{"Val", []CORS{testCORS}, []storage.CORS{testStorageCORS}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -710,8 +710,8 @@ func TestNewBucketWebsite(t *testing.T) {
 		args *storage.BucketWebsite
 		want *BucketWebsite
 	}{
-		{"nil", nil, nil},
-		{"val", testStorageBucketWebsite, testBucketWebsite},
+		{"Nil", nil, nil},
+		{"Val", testStorageBucketWebsite, testBucketWebsite},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -729,8 +729,8 @@ func TestCopyToBucketWebsite(t *testing.T) {
 		args *BucketWebsite
 		want *storage.BucketWebsite
 	}{
-		{"nil", nil, nil},
-		{"val", testBucketWebsite, testStorageBucketWebsite},
+		{"Nil", nil, nil},
+		{"Val", testBucketWebsite, testStorageBucketWebsite},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -795,8 +795,8 @@ func TestNewBucketUpdateAttrs(t *testing.T) {
 		args *storage.BucketAttrs
 		want *BucketUpdatableAttrs
 	}{
-		{"nil", nil, nil},
-		{"val", testStorageBucketAttrs, testBucketUpdateAttrs},
+		{"Nil", nil, nil},
+		{"Val", testStorageBucketAttrs, testBucketUpdateAttrs},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -814,8 +814,8 @@ func TestCopyToBucketAttrs(t *testing.T) {
 		args *BucketUpdatableAttrs
 		want *storage.BucketAttrs
 	}{
-		{"nil", nil, nil},
-		{"val", testBucketUpdateAttrs, testStorageBucketAttrs},
+		{"Nil", nil, nil},
+		{"Val", testBucketUpdateAttrs, testStorageBucketAttrs},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -845,7 +845,7 @@ func TestCopyToBucketUpdateAttrs(t *testing.T) {
 		want storage.BucketAttrsToUpdate
 	}{
 		{
-			name: "test",
+			name: "Test",
 			args: args{*testBucketUpdateAttrs, map[string]string{"application": "crossplane", "foo": "bar"}},
 			want: testStorageBucketAttrsToUpdate,
 		},
@@ -897,8 +897,8 @@ func TestNewBucketSpecAttrs(t *testing.T) {
 		args *storage.BucketAttrs
 		want BucketSpecAttrs
 	}{
-		{"nil", nil, BucketSpecAttrs{}},
-		{"val", testStorageBucketAttrs2, *testBucketSpecAttrs},
+		{"Nil", nil, BucketSpecAttrs{}},
+		{"Val", testStorageBucketAttrs2, *testBucketSpecAttrs},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -916,8 +916,8 @@ func TestCopyBucketSpecAttrs(t *testing.T) {
 		args *BucketSpecAttrs
 		want *storage.BucketAttrs
 	}{
-		{"nil", nil, nil},
-		{"val", testBucketSpecAttrs, testStorageBucketAttrs2},
+		{"Nil", nil, nil},
+		{"Val", testBucketSpecAttrs, testStorageBucketAttrs2},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -952,8 +952,8 @@ func TestNewBucketOutputAttrs(t *testing.T) {
 		args *storage.BucketAttrs
 		want BucketOutputAttrs
 	}{
-		{"nil", nil, BucketOutputAttrs{}},
-		{"val", testStorageBucketAttrs3, testBucketOutputAttrs},
+		{"Nil", nil, BucketOutputAttrs{}},
+		{"Val", testStorageBucketAttrs3, testBucketOutputAttrs},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -971,9 +971,9 @@ func TestBucket_ConnectionSecretName(t *testing.T) {
 		bucket Bucket
 		want   string
 	}{
-		{"default", Bucket{}, ""},
-		{"named", Bucket{ObjectMeta: metav1.ObjectMeta{Name: "foo"}}, "foo"},
-		{"override",
+		{"Default", Bucket{}, ""},
+		{"Named", Bucket{ObjectMeta: metav1.ObjectMeta{Name: "foo"}}, "foo"},
+		{"Override",
 			Bucket{
 				ObjectMeta: metav1.ObjectMeta{Name: "foo"},
 				Spec:       BucketSpec{ConnectionSecretNameOverride: "bar"}}, "bar"},
@@ -1031,7 +1031,7 @@ func TestBucket_ObjectReference(t *testing.T) {
 		bucket Bucket
 		want   *corev1.ObjectReference
 	}{
-		{"test", Bucket{}, &corev1.ObjectReference{APIVersion: APIVersion, Kind: BucketKind}},
+		{"Test", Bucket{}, &corev1.ObjectReference{APIVersion: APIVersion, Kind: BucketKind}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1049,7 +1049,7 @@ func TestBucket_OwnerReference(t *testing.T) {
 		bucket Bucket
 		want   metav1.OwnerReference
 	}{
-		{"test", Bucket{}, metav1.OwnerReference{APIVersion: APIVersion, Kind: BucketKind}},
+		{"Test", Bucket{}, metav1.OwnerReference{APIVersion: APIVersion, Kind: BucketKind}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1078,10 +1078,10 @@ func TestBucket_IsAvailable(t *testing.T) {
 		bucket Bucket
 		want   bool
 	}{
-		{"no conditions", b, false},
-		{"running active", bReady, true},
-		{"running and failed active", bReadyAndFailed, true},
-		{"not running and failed active", bNotReadyAndFailed, false},
+		{"NoConditions", b, false},
+		{"RunningActive", bReady, true},
+		{"RunningAndFailedActive", bReadyAndFailed, true},
+		{"NotRunningAndFailedActive", bNotReadyAndFailed, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1098,8 +1098,8 @@ func TestBucket_IsBound(t *testing.T) {
 		phase v1alpha1.BindingState
 		want  bool
 	}{
-		{"bound", v1alpha1.BindingStateBound, true},
-		{"not-bound", v1alpha1.BindingStateUnbound, false},
+		{"Bound", v1alpha1.BindingStateBound, true},
+		{"NotBound", v1alpha1.BindingStateUnbound, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1123,8 +1123,8 @@ func TestBucket_SetBound(t *testing.T) {
 		state bool
 		want  v1alpha1.BindingState
 	}{
-		{"not-bound", false, v1alpha1.BindingStateUnbound},
-		{"bound", true, v1alpha1.BindingStateBound},
+		{"NotBound", false, v1alpha1.BindingStateUnbound},
+		{"Bound", true, v1alpha1.BindingStateBound},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1143,10 +1143,10 @@ func Test_parseCORSList(t *testing.T) {
 		args string
 		want []CORS
 	}{
-		{name: "empty", args: "", want: nil},
-		{name: "invalid", args: "foo", want: nil},
+		{name: "Empty", args: "", want: nil},
+		{name: "Invalid", args: "foo", want: nil},
 		{
-			name: "valid",
+			name: "Valid",
 			args: `[{"maxAge":"1s","methods":["GET","POST"],"origins":["foo","bar"]}]`,
 			want: []CORS{
 				{
@@ -1178,10 +1178,10 @@ func Test_parseLifecycle(t *testing.T) {
 		args string
 		want *Lifecycle
 	}{
-		{name: "empty", args: "", want: &Lifecycle{}},
-		{name: "invalid", args: "foo", want: &Lifecycle{}},
+		{name: "Empty", args: "", want: &Lifecycle{}},
+		{name: "Invalid", args: "foo", want: &Lifecycle{}},
 		{
-			name: "valid",
+			name: "Valid",
 			args: `{"rules":[{"action":{"storageClass":"test-storage-class","type":"test-action-type"},` +
 				`"condition":{"ageInDays":10,"createdBefore":"2019-03-26T21:58:58Z",` +
 				`"liveness":3,"matchesStorageClasses":["foo","bar"],"numNewerVersions":42}}]}`,
@@ -1220,10 +1220,10 @@ func Test_parseLogging(t *testing.T) {
 		args string
 		want *BucketLogging
 	}{
-		{name: "empty", args: "", want: &BucketLogging{}},
-		{name: "invalid", args: "foo", want: &BucketLogging{}},
+		{name: "Empty", args: "", want: &BucketLogging{}},
+		{name: "Invalid", args: "foo", want: &BucketLogging{}},
 		{
-			name: "valid",
+			name: "Valid",
 			args: "logBucket:foo,logObjectPrefix:bar",
 			want: &BucketLogging{LogBucket: "foo", LogObjectPrefix: "bar"},
 		},
@@ -1244,10 +1244,10 @@ func Test_parseWebsite(t *testing.T) {
 		args string
 		want *BucketWebsite
 	}{
-		{name: "empty", args: "", want: &BucketWebsite{}},
-		{name: "invalid", args: "foo", want: &BucketWebsite{}},
+		{name: "Empty", args: "", want: &BucketWebsite{}},
+		{name: "Invalid", args: "foo", want: &BucketWebsite{}},
 		{
-			name: "valid",
+			name: "Valid",
 			args: "mainPageSuffix:foo,notFoundPage:bar",
 			want: &BucketWebsite{MainPageSuffix: "foo", NotFoundPage: "bar"},
 		},
@@ -1269,17 +1269,17 @@ func Test_parseACLRules(t *testing.T) {
 		want []ACLRule
 	}{
 		{
-			name: "empty",
+			name: "Empty",
 			args: "",
 			want: nil,
 		},
 		{
-			name: "invalid",
+			name: "Invalid",
 			args: "foo",
 			want: nil,
 		},
 		{
-			name: "single rule",
+			name: "SingleRule",
 			args: `[{"Entity":"test-entity","EntityID":"42","Role":"test-role","Domain":"test-domain","Email":"test-email","ProjectTeam":{"ProjectNumber":"test-project-number","Team":"test-team"}}]`,
 			want: []ACLRule{
 				{
@@ -1296,7 +1296,7 @@ func Test_parseACLRules(t *testing.T) {
 			},
 		},
 		{
-			name: "single rule",
+			name: "SingleRule",
 			args: `[{"Entity":"test-entity","EntityID":"42","Role":"test-role","Domain":"test-domain","Email":"test-email","ProjectTeam":{"ProjectNumber":"test-project-number","Team":"test-team"}},` +
 				`{"Entity":"another-entity","EntityID":"42","Role":"test-role","Domain":"test-domain","Email":"test-email","ProjectTeam":{"ProjectNumber":"test-project-number","Team":"test-team"}}]`,
 			want: []ACLRule{
@@ -1345,10 +1345,10 @@ func TestParseBucketSpec(t *testing.T) {
 		args map[string]string
 		want *BucketSpec
 	}{
-		{name: "empty", args: map[string]string{}, want: &BucketSpec{ReclaimPolicy: v1alpha1.ReclaimRetain}},
-		{name: "invalid", args: map[string]string{"foo": "bar"}, want: &BucketSpec{ReclaimPolicy: v1alpha1.ReclaimRetain}},
+		{name: "Empty", args: map[string]string{}, want: &BucketSpec{ReclaimPolicy: v1alpha1.ReclaimRetain}},
+		{name: "Invalid", args: map[string]string{"foo": "bar"}, want: &BucketSpec{ReclaimPolicy: v1alpha1.ReclaimRetain}},
 		{
-			name: "valid",
+			name: "Valid",
 			args: map[string]string{
 				"bucketPolicyOnly":            "true",
 				"cors":                        `[{"maxAge":"1s","methods":["GET","POST"],"origins":["foo","bar"]}]`,
@@ -1454,7 +1454,7 @@ func TestBucket_GetBucketName(t *testing.T) {
 		want   string
 	}{
 		{
-			name: "no name format",
+			name: "NoNameFormat",
 			fields: fields{
 				ObjectMeta: om,
 				Spec:       BucketSpec{},
@@ -1462,7 +1462,7 @@ func TestBucket_GetBucketName(t *testing.T) {
 			want: "test-uid",
 		},
 		{
-			name: "format string",
+			name: "FormatString",
 			fields: fields{
 				ObjectMeta: om,
 				Spec: BucketSpec{
@@ -1472,7 +1472,7 @@ func TestBucket_GetBucketName(t *testing.T) {
 			want: "foo-test-uid",
 		},
 		{
-			name: "constant string",
+			name: "ConstantString",
 			fields: fields{
 				ObjectMeta: om,
 				Spec: BucketSpec{
@@ -1482,7 +1482,7 @@ func TestBucket_GetBucketName(t *testing.T) {
 			want: "foo-bar",
 		},
 		{
-			name: "invalid: multiple substitutions",
+			name: "InvalidMultipleSubstitutions",
 			fields: fields{
 				ObjectMeta: om,
 				Spec: BucketSpec{

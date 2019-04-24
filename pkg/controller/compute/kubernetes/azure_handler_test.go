@@ -51,7 +51,7 @@ func TestAKSClusterHandler_Find(t *testing.T) {
 		want want
 	}{
 		{
-			name: "failed",
+			name: "Failed",
 			args: args{
 				name: types.NamespacedName{Namespace: "foo", Name: "bar"},
 				c: &test.MockClient{
@@ -66,7 +66,7 @@ func TestAKSClusterHandler_Find(t *testing.T) {
 			},
 		},
 		{
-			name: "success",
+			name: "Success",
 			args: args{
 				name: types.NamespacedName{Namespace: "foo", Name: "bar"},
 				c:    test.NewMockClient(),
@@ -113,7 +113,7 @@ func TestAKSClusterHandler_Provision(t *testing.T) {
 		want want
 	}{
 		{
-			name: "success",
+			name: "Success",
 			args: args{
 				class: class,
 				claim: claim,
@@ -136,7 +136,7 @@ func TestAKSClusterHandler_Provision(t *testing.T) {
 			},
 		},
 		{
-			name: "failure",
+			name: "Failure",
 			args: args{
 				class: class,
 				claim: claim,
@@ -185,7 +185,7 @@ func TestAKSClusterHandler_SetBindStatus(t *testing.T) {
 		want error
 	}{
 		{
-			name: "failure",
+			name: "Failure",
 			args: args{
 				name: name,
 				c: &test.MockClient{
@@ -197,7 +197,7 @@ func TestAKSClusterHandler_SetBindStatus(t *testing.T) {
 			want: errors.Wrapf(getError, "failed to retrieve cluster %s", name),
 		},
 		{
-			name: "failure - not found, bound",
+			name: "FailureNotFoundBound",
 			args: args{
 				name: name,
 				c: &test.MockClient{
@@ -210,7 +210,7 @@ func TestAKSClusterHandler_SetBindStatus(t *testing.T) {
 			want: errors.Wrapf(getErrorNotFound, "failed to retrieve cluster %s", name),
 		},
 		{
-			name: "failure - not found, not bound",
+			name: "FailureNotFoundNotBound",
 			args: args{
 				name: name,
 				c: &test.MockClient{
@@ -221,7 +221,7 @@ func TestAKSClusterHandler_SetBindStatus(t *testing.T) {
 			},
 		},
 		{
-			name: "failed to update",
+			name: "FailedToUpdate",
 			args: args{
 				name: name,
 				c: &test.MockClient{
@@ -236,7 +236,7 @@ func TestAKSClusterHandler_SetBindStatus(t *testing.T) {
 			want: errors.Wrapf(updateError, "failed to update cluster %s", name),
 		},
 		{
-			name: "successful set bound",
+			name: "SuccessfulSetBound",
 			args: args{
 				name: name,
 				c: &test.MockClient{

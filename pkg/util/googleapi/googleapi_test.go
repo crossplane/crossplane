@@ -31,8 +31,8 @@ func TestIsErrorNotFound(t *testing.T) {
 		args error
 		want bool
 	}{
-		{name: "nil", args: nil, want: false},
-		{name: "other", args: errors.New("foo"), want: false},
+		{name: "Nil", args: nil, want: false},
+		{name: "Other", args: errors.New("foo"), want: false},
 		{name: "404", args: &googleapi.Error{Code: http.StatusNotFound}, want: true},
 	}
 	for _, tt := range tests {

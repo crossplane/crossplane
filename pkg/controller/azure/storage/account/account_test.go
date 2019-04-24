@@ -257,12 +257,12 @@ func TestReconciler_Reconcile(t *testing.T) {
 		want   want
 	}{
 		{
-			name:   "get-err-not-found",
+			name:   "GetErrNotFound",
 			fields: fields{client: fake.NewFakeClient(), maker: nil},
 			want:   want{res: rsDone},
 		},
 		{
-			name: "get-error-other",
+			name: "GetErrorOther",
 			fields: fields{
 				client: &test.MockClient{
 					MockGet: func(context.Context, client.ObjectKey, runtime.Object) error {
@@ -273,7 +273,7 @@ func TestReconciler_Reconcile(t *testing.T) {
 			want: want{res: rsDone, err: errors.New("test-get-error")},
 		},
 		{
-			name: "account-handler-error",
+			name: "AccountHandlerError",
 			fields: fields{
 				client: fake.NewFakeClient(v1alpha1test.NewMockAccount(ns, name).WithFinalizer("foo.bar").Account),
 				maker:  newMockAccountHandleMaker(nil, errors.New("handler-syncdeleterMaker-error")),
@@ -286,7 +286,7 @@ func TestReconciler_Reconcile(t *testing.T) {
 			},
 		},
 		{
-			name: "reconcile-delete",
+			name: "ReconcileDelete",
 			fields: fields{
 				client: fake.NewFakeClient(v1alpha1test.NewMockAccount(ns, name).
 					WithDeleteTimestamp(metav1.NewTime(time.Now())).Account),
@@ -295,7 +295,7 @@ func TestReconciler_Reconcile(t *testing.T) {
 			want: want{res: rsDone},
 		},
 		{
-			name: "reconcile-sync",
+			name: "ReconcileSync",
 			fields: fields{
 				client: fake.NewFakeClient(v1alpha1test.NewMockAccount(ns, name).Account),
 				maker:  newMockAccountHandleMaker(newMockAccountSyncDeleter(), nil),
@@ -357,7 +357,7 @@ func Test_accountHandleMaker_newHandler(t *testing.T) {
 		wantErr error
 	}{
 		{
-			name: "err provider is not found",
+			name: "ErrProviderIsNotFound",
 			kube: fake.NewFakeClient(),
 			acct: v1alpha1test.NewMockAccount(ns, bucketName).WithSpecProvider(providerName).Account,
 			wantErr: kerrors.NewNotFound(schema.GroupResource{
@@ -365,14 +365,14 @@ func Test_accountHandleMaker_newHandler(t *testing.T) {
 				Resource: "providers"}, "test-provider"),
 		},
 		{
-			name: "provider is not ready",
+			name: "ProviderIsNotReady",
 			kube: fake.NewFakeClient(newProvider(ns, providerName).
 				withCondition(corev1alpha1.NewCondition(corev1alpha1.Failed, "", "")).Provider),
 			acct:    v1alpha1test.NewMockAccount(ns, bucketName).WithSpecProvider("test-provider").Account,
 			wantErr: errors.Errorf("provider: %s is not ready", ns+"/test-provider"),
 		},
 		{
-			name: "provider secret is not found",
+			name: "ProviderSecretIsNotFound",
 			kube: fake.NewFakeClient(newProvider(ns, providerName).
 				withCondition(corev1alpha1.NewReadyCondition()).
 				withSecret(secretName, secretKey).Provider),
@@ -381,7 +381,7 @@ func Test_accountHandleMaker_newHandler(t *testing.T) {
 				errors.Errorf("cannot get provider's secret %s/%s: secrets \"%s\" not found", ns, secretName, secretName)),
 		},
 		{
-			name: "invalid credentials",
+			name: "InvalidCredentials",
 			kube: fake.NewFakeClient(newProvider(ns, providerName).
 				withCondition(corev1alpha1.NewReadyCondition()).
 				withSecret(secretName, secretKey).Provider,
@@ -391,7 +391,7 @@ func Test_accountHandleMaker_newHandler(t *testing.T) {
 				errors.Errorf("cannot create storageClient from json: cannot unmarshal Azure client secret data: unexpected end of JSON input")),
 		},
 		{
-			name: "kube created",
+			name: "KubeCreated",
 			kube: fake.NewFakeClient(newProvider(ns, providerName).
 				withCondition(corev1alpha1.NewReadyCondition()).
 				withSecret(secretName, secretKey).Provider,
@@ -437,7 +437,7 @@ func Test_syncdeleter_delete(t *testing.T) {
 		want   want
 	}{
 		{
-			name: "retain-policy",
+			name: "RetainPolicy",
 			fields: fields{
 				acct: v1alpha1test.NewMockAccount(ns, bucketName).WithSpecReclaimPolicy(corev1alpha1.ReclaimRetain).
 					WithFinalizers([]string{finalizer, "test"}).Account,
@@ -455,7 +455,7 @@ func Test_syncdeleter_delete(t *testing.T) {
 			},
 		},
 		{
-			name: "delete-successful",
+			name: "DeleteSuccessful",
 			fields: fields{
 				acct: v1alpha1test.NewMockAccount(ns, bucketName).WithSpecReclaimPolicy(corev1alpha1.ReclaimDelete).
 					WithFinalizer(finalizer).Account,
@@ -475,7 +475,7 @@ func Test_syncdeleter_delete(t *testing.T) {
 			},
 		},
 		{
-			name: "delete-failed",
+			name: "DeleteFailed",
 			fields: fields{
 				acct: v1alpha1test.NewMockAccount(ns, bucketName).WithSpecReclaimPolicy(corev1alpha1.ReclaimDelete).
 					WithFinalizer(finalizer).Account,
@@ -500,7 +500,7 @@ func Test_syncdeleter_delete(t *testing.T) {
 			},
 		},
 		{
-			name: "delete-non-existent",
+			name: "DeleteNonExistent",
 			fields: fields{
 				acct: v1alpha1test.NewMockAccount(ns, bucketName).WithSpecReclaimPolicy(corev1alpha1.ReclaimDelete).
 					WithFinalizer(finalizer).Account,
@@ -564,7 +564,7 @@ func Test_syncdeleter_sync(t *testing.T) {
 		want   want
 	}{
 		{
-			name: "attrs error",
+			name: "AttrsError",
 			fields: fields{
 				ao: &azurestoragefake.MockAccountOperations{
 					MockGet: func(i context.Context) (attrs *storage.Account, e error) {
@@ -585,7 +585,7 @@ func Test_syncdeleter_sync(t *testing.T) {
 			},
 		},
 		{
-			name: "attrs not found (create)",
+			name: "AttrsNotFoundCreate",
 			fields: fields{
 				kube: &test.MockClient{
 					MockCreate: func(ctx context.Context, obj runtime.Object) error { return nil },
@@ -605,7 +605,7 @@ func Test_syncdeleter_sync(t *testing.T) {
 			},
 		},
 		{
-			name: "update",
+			name: "Update",
 			fields: fields{
 				kube: &test.MockClient{
 					MockCreate: func(ctx context.Context, obj runtime.Object) error { return nil },
@@ -672,7 +672,7 @@ func Test_createupdater_create(t *testing.T) {
 		want   want
 	}{
 		{
-			name: "create failed",
+			name: "CreateFailed",
 			fields: fields{
 				ao: &azurestoragefake.MockAccountOperations{
 					MockCreate: func(ctx context.Context, params storage.AccountCreateParameters) (*storage.Account, error) {
@@ -702,7 +702,7 @@ func Test_createupdater_create(t *testing.T) {
 			},
 		},
 		{
-			name: "create successful",
+			name: "CreateSuccessful",
 			fields: fields{
 				sb: &MockAccountSyncbacker{
 					MockSyncback: func(ctx context.Context, a *storage.Account) (result reconcile.Result, e error) {
@@ -780,7 +780,7 @@ func Test_bucketCreateUpdater_update(t *testing.T) {
 		want   want
 	}{
 		{
-			name: "not ready",
+			name: "NotReady",
 			attrs: newStorageAccount().
 				withAccountProperties(newStorageAccountProperties().
 					withProvisioningStage(storage.Creating).AccountProperties).Account,
@@ -796,7 +796,7 @@ func Test_bucketCreateUpdater_update(t *testing.T) {
 			},
 		},
 		{
-			name: "no changes and not ready",
+			name: "NoChangesAndNotReady",
 			attrs: &storage.Account{
 				AccountProperties: &storage.AccountProperties{ProvisioningState: storage.Succeeded},
 			},
@@ -811,7 +811,7 @@ func Test_bucketCreateUpdater_update(t *testing.T) {
 			},
 		},
 		{
-			name: "no changes and ready",
+			name: "NoChangesAndReady",
 			attrs: &storage.Account{
 				AccountProperties: &storage.AccountProperties{ProvisioningState: storage.Succeeded},
 			},
@@ -827,7 +827,7 @@ func Test_bucketCreateUpdater_update(t *testing.T) {
 			},
 		},
 		{
-			name: "update failed",
+			name: "UpdateFailed",
 			attrs: &storage.Account{
 				AccountProperties: &storage.AccountProperties{ProvisioningState: storage.Succeeded},
 				Location:          to.StringPtr("test-location"),
@@ -851,7 +851,7 @@ func Test_bucketCreateUpdater_update(t *testing.T) {
 			},
 		},
 		{
-			name: "update success",
+			name: "UpdateSuccess",
 			attrs: &storage.Account{
 				AccountProperties: &storage.AccountProperties{ProvisioningState: storage.Succeeded},
 				Location:          to.StringPtr("test-location"),
@@ -922,7 +922,7 @@ func Test_accountSyncBacker_syncback(t *testing.T) {
 		want   want
 	}{
 		{
-			name: "update-failed",
+			name: "UpdateDailed",
 			fields: fields{
 				secretupdater: &MockAccountSecretupdater{},
 				acct:          v1alpha1test.NewMockAccount(ns, name).Account,
@@ -940,7 +940,7 @@ func Test_accountSyncBacker_syncback(t *testing.T) {
 			},
 		},
 		{
-			name: "provision status is not succeeded",
+			name: "ProvisionStatusIsNotSucceeded",
 			fields: fields{
 				acct: v1alpha1test.NewMockAccount(ns, name).Account,
 				kube: test.NewMockClient(),
@@ -956,7 +956,7 @@ func Test_accountSyncBacker_syncback(t *testing.T) {
 			},
 		},
 		{
-			name: "update secret failed",
+			name: "UpdateSecretFailed",
 			fields: fields{
 				secretupdater: &MockAccountSecretupdater{
 					MockUpdateSecret: func(ctx context.Context, a *storage.Account) error {
@@ -977,7 +977,7 @@ func Test_accountSyncBacker_syncback(t *testing.T) {
 			},
 		},
 		{
-			name: "success not ready",
+			name: "SuccessNotReady",
 			fields: fields{
 				secretupdater: &MockAccountSecretupdater{
 					MockUpdateSecret: func(ctx context.Context, a *storage.Account) error { return nil },
@@ -995,7 +995,7 @@ func Test_accountSyncBacker_syncback(t *testing.T) {
 			},
 		},
 		{
-			name: "success and ready",
+			name: "SuccessAndReady",
 			fields: fields{
 				secretupdater: &MockAccountSecretupdater{
 					MockUpdateSecret: func(ctx context.Context, a *storage.Account) error { return nil },
@@ -1055,7 +1055,7 @@ func Test_accountSecretUpdater_updatesecret(t *testing.T) {
 		wantErr error
 	}{
 		{
-			name: "failed-list-keys",
+			name: "FailedListKeys",
 			fields: fields{
 				ops: &azurestoragefake.MockAccountOperations{
 					MockListKeys: func(ctx context.Context) (keys []storage.AccountKey, e error) {
@@ -1079,7 +1079,7 @@ func Test_accountSecretUpdater_updatesecret(t *testing.T) {
 			wantErr: errors.Wrapf(errors.New("test-list-keys-error"), "failed to list account keys"),
 		},
 		{
-			name: "account-keys-list-empty",
+			name: "AccountKeysListEmpty",
 			fields: fields{
 				ops: &azurestoragefake.MockAccountOperations{
 					MockListKeys: func(ctx context.Context) (keys []storage.AccountKey, e error) {
@@ -1103,7 +1103,7 @@ func Test_accountSecretUpdater_updatesecret(t *testing.T) {
 			wantErr: errors.New("account keys are empty"),
 		},
 		{
-			name: "create-new-secret",
+			name: "CreateNewSecret",
 			fields: fields{
 				ops: &azurestoragefake.MockAccountOperations{
 					MockListKeys: func(ctx context.Context) (keys []storage.AccountKey, e error) {
@@ -1134,7 +1134,7 @@ func Test_accountSecretUpdater_updatesecret(t *testing.T) {
 			},
 		},
 		{
-			name: "create-new-secret-failed",
+			name: "CreateNewSecretFailed",
 			fields: fields{
 				ops: &azurestoragefake.MockAccountOperations{
 					MockListKeys: func(ctx context.Context) (keys []storage.AccountKey, e error) {
@@ -1166,7 +1166,7 @@ func Test_accountSecretUpdater_updatesecret(t *testing.T) {
 			wantErr: errors.Wrapf(errors.New("test-create-secret-error"), "failed to create secret: %s/%s", ns, name),
 		},
 		{
-			name: "update-existing-secret",
+			name: "UpdateExistingSecret",
 			fields: fields{
 				ops: &azurestoragefake.MockAccountOperations{
 					MockListKeys: func(ctx context.Context) (keys []storage.AccountKey, e error) {

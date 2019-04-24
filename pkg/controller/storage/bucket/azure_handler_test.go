@@ -74,7 +74,7 @@ func TestAzureAccountHandler_Find(t *testing.T) {
 		want want
 	}{
 		{
-			name: "failed",
+			name: "Failed",
 			args: args{
 				n: types.NamespacedName{Namespace: testNS, Name: testName},
 				c: fake.NewFakeClient(),
@@ -85,7 +85,7 @@ func TestAzureAccountHandler_Find(t *testing.T) {
 			},
 		},
 		{
-			name: "successful",
+			name: "Successful",
 			args: args{
 				n: types.NamespacedName{Namespace: testNS, Name: testName},
 				c: test.NewMockClient(),
@@ -126,7 +126,7 @@ func TestAzureAccountHandler_Provision(t *testing.T) {
 		want     want
 	}{
 		{
-			name: "failed values resolver",
+			name: "FailedValuesResolver",
 			args: args{
 				class: &corev1alpha1.ResourceClass{},
 				claim: &storagev1alpha1.Bucket{},
@@ -142,7 +142,7 @@ func TestAzureAccountHandler_Provision(t *testing.T) {
 			},
 		},
 		{
-			name: "failed to create",
+			name: "FailedToCreate",
 			args: args{
 				class: &corev1alpha1.ResourceClass{
 					ObjectMeta: metav1.ObjectMeta{Namespace: testNS},
@@ -166,7 +166,7 @@ func TestAzureAccountHandler_Provision(t *testing.T) {
 			},
 		},
 		{
-			name: "successful",
+			name: "Successful",
 			args: args{
 				class: &corev1alpha1.ResourceClass{
 					ObjectMeta: metav1.ObjectMeta{Namespace: testNS},
@@ -234,7 +234,7 @@ func TestAzureContainerHandler_Find(t *testing.T) {
 		want want
 	}{
 		{
-			name: "failed",
+			name: "Failed",
 			args: args{
 				n: types.NamespacedName{Namespace: testNS, Name: testName},
 				c: fake.NewFakeClient(),
@@ -245,7 +245,7 @@ func TestAzureContainerHandler_Find(t *testing.T) {
 			},
 		},
 		{
-			name: "successful",
+			name: "Successful",
 			args: args{
 				n: types.NamespacedName{Namespace: testNS, Name: testName},
 				c: test.NewMockClient(),
@@ -285,7 +285,7 @@ func TestAzureContainerHandler_Provision(t *testing.T) {
 		want want
 	}{
 		{
-			name: "failed to retrieve account",
+			name: "FailedToRetrieveAccount",
 			args: args{
 				class: &corev1alpha1.ResourceClass{
 					ObjectMeta:  metav1.ObjectMeta{Namespace: testNS},
@@ -304,7 +304,7 @@ func TestAzureContainerHandler_Provision(t *testing.T) {
 			},
 		},
 		{
-			name: "failed: not a bucket claim",
+			name: "FailedNotABucketClaim",
 			args: args{
 				class: &corev1alpha1.ResourceClass{
 					ObjectMeta:  metav1.ObjectMeta{Namespace: testNS},
@@ -318,7 +318,7 @@ func TestAzureContainerHandler_Provision(t *testing.T) {
 			},
 		},
 		{
-			name: "failed to update bucket",
+			name: "FailedToUpdateBucket",
 			args: args{
 				class: &corev1alpha1.ResourceClass{
 					ObjectMeta:  metav1.ObjectMeta{Namespace: testNS},
@@ -340,7 +340,7 @@ func TestAzureContainerHandler_Provision(t *testing.T) {
 			},
 		},
 		{
-			name: "failed to create container",
+			name: "FailedToCreateContainer",
 			args: args{
 				class: &corev1alpha1.ResourceClass{
 					ObjectMeta:  metav1.ObjectMeta{Namespace: testNS},
@@ -365,7 +365,7 @@ func TestAzureContainerHandler_Provision(t *testing.T) {
 			},
 		},
 		{
-			name: "successful",
+			name: "Successful",
 			args: args{
 				class: &corev1alpha1.ResourceClass{
 					ObjectMeta:  metav1.ObjectMeta{Namespace: testNS, Name: testName},
@@ -427,7 +427,7 @@ func TestAzureAccountHandler_SetBindStatus(t *testing.T) {
 		want want
 	}{
 		{
-			name: "failed to get account",
+			name: "FailedToGetAccount",
 			args: args{
 				n: nn,
 				c: &test.MockClient{
@@ -443,7 +443,7 @@ func TestAzureAccountHandler_SetBindStatus(t *testing.T) {
 			},
 		},
 		{
-			name: "failed to get account: not found and not bound",
+			name: "FailedToGetAccountNotFoundAndNotBound",
 			args: args{
 				n:     nn,
 				c:     fake.NewFakeClient(),
@@ -452,7 +452,7 @@ func TestAzureAccountHandler_SetBindStatus(t *testing.T) {
 			want: want{},
 		},
 		{
-			name: "failed to get account: not found and bound",
+			name: "FailedToGetAccountNotFoundAndBound",
 			args: args{
 				n:     nn,
 				c:     fake.NewFakeClient(),
@@ -464,7 +464,7 @@ func TestAzureAccountHandler_SetBindStatus(t *testing.T) {
 			},
 		},
 		{
-			name: "failed to update account",
+			name: "FailedToUpdateAccount",
 			args: args{
 				n: nn,
 				c: &test.MockClient{
@@ -483,7 +483,7 @@ func TestAzureAccountHandler_SetBindStatus(t *testing.T) {
 			},
 		},
 		{
-			name: "success",
+			name: "Success",
 			args: args{
 				n:     nn,
 				c:     fake.NewFakeClient(v1alpha1test.NewMockAccount(testNS, testName).Account),
@@ -531,7 +531,7 @@ func TestAzureContainerHandler_SetBindStatus(t *testing.T) {
 		want want
 	}{
 		{
-			name: "failed to get container",
+			name: "FailedToGetContainer",
 			args: args{
 				n: nn,
 				c: &test.MockClient{
@@ -547,7 +547,7 @@ func TestAzureContainerHandler_SetBindStatus(t *testing.T) {
 			},
 		},
 		{
-			name: "failed to get container: not found and not bound",
+			name: "FailedToGetContainerNotFoundAndNotBound",
 			args: args{
 				n:     nn,
 				c:     fake.NewFakeClient(),
@@ -556,7 +556,7 @@ func TestAzureContainerHandler_SetBindStatus(t *testing.T) {
 			want: want{},
 		},
 		{
-			name: "failed to get container: not found and bound",
+			name: "FailedToGetContainerNotFoundAndBound",
 			args: args{
 				n:     nn,
 				c:     fake.NewFakeClient(),
@@ -568,7 +568,7 @@ func TestAzureContainerHandler_SetBindStatus(t *testing.T) {
 			},
 		},
 		{
-			name: "failed to update container",
+			name: "FailedToUpdateContainer",
 			args: args{
 				n: nn,
 				c: &test.MockClient{
@@ -587,7 +587,7 @@ func TestAzureContainerHandler_SetBindStatus(t *testing.T) {
 			},
 		},
 		{
-			name: "success",
+			name: "Success",
 			args: args{
 				n:     nn,
 				c:     fake.NewFakeClient(v1alpha1test.NewMockContainer(testNS, testName).Container),
@@ -634,21 +634,21 @@ func Test_azureAccountResolver_resolve(t *testing.T) {
 		want want
 	}{
 		{
-			name: "failed - not a bucket",
+			name: "FailedNotABucket",
 			args: args{
 				claim: &storagev1alpha1.MySQLInstance{},
 			},
 			want: want{err: errors.New("unexpected claim type: *v1alpha1.MySQLInstance")},
 		},
 		{
-			name: "invalid spec: missing name",
+			name: "InvalidSpecMissingName",
 			args: args{
 				claim: &storagev1alpha1.Bucket{},
 			},
 			want: want{err: errors.New("invalid account claim:  spec, name property is required")},
 		},
 		{
-			name: "successful",
+			name: "Successful",
 			args: args{
 				account: v1alpha1test.NewMockAccount(testNS, testName).Account,
 				claim:   buckettest.NewBucket(testNS, testName).WithSpecName("account-name").Bucket,
