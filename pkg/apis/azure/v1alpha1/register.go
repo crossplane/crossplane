@@ -31,11 +31,13 @@ import (
 
 // Kubernetes Group, Version, and Kind metadata.
 const (
-	Group                  = "azure.crossplane.io"
-	Version                = "v1alpha1"
-	APIVersion             = Group + "/" + Version
-	ProviderKind           = "provider"
-	ProviderKindAPIVersion = ProviderKind + "." + APIVersion
+	Group                       = "azure.crossplane.io"
+	Version                     = "v1alpha1"
+	APIVersion                  = Group + "/" + Version
+	ProviderKind                = "provider"
+	ProviderKindAPIVersion      = ProviderKind + "." + APIVersion
+	ResourceGroupKind           = "resourcegroup"
+	ResourceGroupKindAPIVersion = ResourceGroupKind + "." + APIVersion
 )
 
 var (
@@ -48,4 +50,5 @@ var (
 
 func init() {
 	SchemeBuilder.Register(&Provider{}, &ProviderList{})
+	SchemeBuilder.Register(&ResourceGroup{}, &ResourceGroupList{})
 }
