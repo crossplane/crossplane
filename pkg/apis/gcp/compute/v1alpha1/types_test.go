@@ -85,17 +85,17 @@ func TestParseClusterSpec(t *testing.T) {
 		want *GKEClusterSpec
 	}{
 		{
-			name: "nil properties",
+			name: "NilProperties",
 			args: nil,
 			want: &GKEClusterSpec{ReclaimPolicy: DefaultReclaimPolicy},
 		},
 		{
-			name: "empty properties",
+			name: "EmptyProperties",
 			args: map[string]string{},
 			want: &GKEClusterSpec{ReclaimPolicy: DefaultReclaimPolicy},
 		},
 		{
-			name: "valid values",
+			name: "ValidValues",
 			args: map[string]string{
 				"enableIPAlias": "true",
 				"machineType":   "test-machine",
@@ -113,7 +113,7 @@ func TestParseClusterSpec(t *testing.T) {
 			},
 		},
 		{
-			name: "invalid values",
+			name: "InvalidValues",
 			args: map[string]string{
 				"enableIPAlias": "really",
 				"machineType":   "test-machine",
@@ -131,7 +131,7 @@ func TestParseClusterSpec(t *testing.T) {
 			},
 		},
 		{
-			name: "defaults",
+			name: "Defaults",
 			args: map[string]string{
 				"machineType": "test-machine",
 				"zone":        "test-zone",
@@ -162,8 +162,8 @@ func Test_parseNodesNumber(t *testing.T) {
 		args string
 		want int64
 	}{
-		{name: "empty", args: "", want: DefaultNumberOfNodes},
-		{name: "invalid", args: "foo", want: DefaultNumberOfNodes},
+		{name: "Empty", args: "", want: DefaultNumberOfNodes},
+		{name: "Invalid", args: "foo", want: DefaultNumberOfNodes},
 		{name: "0", args: "0", want: int64(0)},
 		{name: "44", args: "44", want: int64(44)},
 		{name: "-44", args: "-44", want: DefaultNumberOfNodes},

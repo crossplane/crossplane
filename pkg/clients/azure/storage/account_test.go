@@ -32,13 +32,13 @@ func TestNewStorageAccountClient(t *testing.T) {
 		wantErr error
 	}{
 		{
-			name:    "empty-data",
+			name:    "EmptyData",
 			args:    []byte{},
 			wantRes: nil,
 			wantErr: errors.WithStack(errors.New("cannot unmarshal Azure client secret data: unexpected end of JSON input")),
 		},
 		{
-			name: "success",
+			name: "Success",
 			args: []byte(`{"clientId": "0f32e96b-b9a4-49ce-a857-243a33b20e5c",
 	"clientSecret": "49d8cab5-d47a-4d1a-9133-5c5db29c345d",
 	"subscriptionId": "bf1b0e59-93da-42e0-82c6-5a1d94227911",
@@ -81,7 +81,7 @@ func TestNewAccountHandle(t *testing.T) {
 		want *AccountHandle
 	}{
 		{
-			name: "test",
+			name: "Test",
 			args: args{
 				client:      &storage.AccountsClient{},
 				groupName:   "test-group",

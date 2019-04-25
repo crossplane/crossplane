@@ -203,7 +203,7 @@ func TestApply(t *testing.T) {
 		want error
 	}{
 		{
-			name: "create failed: other",
+			name: "CreateFailedOther",
 			args: args{
 				kube: &test.MockClient{
 					MockCreate: func(ctx context.Context, obj runtime.Object) error {
@@ -214,7 +214,7 @@ func TestApply(t *testing.T) {
 			want: testError,
 		},
 		{
-			name: "create failed: already exists",
+			name: "CreateFailedAlreadyExists",
 			args: args{
 				kube: &test.MockClient{
 					MockCreate: func(ctx context.Context, obj runtime.Object) error {

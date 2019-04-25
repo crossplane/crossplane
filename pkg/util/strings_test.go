@@ -48,10 +48,10 @@ func TestParseMap(t *testing.T) {
 		args string
 		want map[string]string
 	}{
-		{name: "empty", args: "", want: map[string]string{}},
-		{name: "single", args: "foo:bar", want: map[string]string{"foo": "bar"}},
-		{name: "multi", args: "foo:bar, one:two", want: map[string]string{"foo": "bar", "one": "two"}},
-		{name: "dupe key", args: "foo:bar,foo:buz", want: map[string]string{"foo": "buz"}},
+		{name: "Empty", args: "", want: map[string]string{}},
+		{name: "Single", args: "foo:bar", want: map[string]string{"foo": "bar"}},
+		{name: "Multi", args: "foo:bar, one:two", want: map[string]string{"foo": "bar", "one": "two"}},
+		{name: "DupeKey", args: "foo:bar,foo:buz", want: map[string]string{"foo": "buz"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -69,11 +69,11 @@ func TestParseBool(t *testing.T) {
 		args string
 		want bool
 	}{
-		{name: "empty", args: "", want: false},
-		{name: "true", args: "true", want: true},
-		{name: "True", args: "True", want: true},
-		{name: "tRue", args: "tRue", want: false},
-		{name: "_true", args: " true", want: false},
+		{name: "Empty", args: "", want: false},
+		{name: "LowerTrue", args: "true", want: true},
+		{name: "UpperTrue", args: "True", want: true},
+		{name: "UpperRTrue", args: "tRue", want: false},
+		{name: "SpaceTrue", args: " true", want: false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -96,7 +96,7 @@ func TestConditionalStringFormat(t *testing.T) {
 		want string
 	}{
 		{
-			name: "no name format",
+			name: "NoNameFormat",
 			args: args{
 				format: "",
 				value:  "test-value",
@@ -104,7 +104,7 @@ func TestConditionalStringFormat(t *testing.T) {
 			want: "test-value",
 		},
 		{
-			name: "format string only",
+			name: "FormatStringOnly",
 			args: args{
 				format: "%s",
 				value:  "test-value",
@@ -112,7 +112,7 @@ func TestConditionalStringFormat(t *testing.T) {
 			want: "test-value",
 		},
 		{
-			name: "format string at the beginning",
+			name: "FormatStringAtTheBeginning",
 			args: args{
 				format: "%s-foo",
 				value:  "test-value",
@@ -120,7 +120,7 @@ func TestConditionalStringFormat(t *testing.T) {
 			want: "test-value-foo",
 		},
 		{
-			name: "format string at the end",
+			name: "FormatStringAtTheEnd",
 			args: args{
 				format: "foo-%s",
 				value:  "test-value",
@@ -128,7 +128,7 @@ func TestConditionalStringFormat(t *testing.T) {
 			want: "foo-test-value",
 		},
 		{
-			name: "format string in the middle",
+			name: "FormatStringInTheMiddle",
 			args: args{
 				format: "foo-%s-bar",
 				value:  "test-value",
@@ -136,7 +136,7 @@ func TestConditionalStringFormat(t *testing.T) {
 			want: "foo-test-value-bar",
 		},
 		{
-			name: "constant string",
+			name: "ConstantString",
 			args: args{
 				format: "foo-bar",
 				value:  "test-value",
@@ -144,7 +144,7 @@ func TestConditionalStringFormat(t *testing.T) {
 			want: "foo-bar",
 		},
 		{
-			name: "invalid: multiple substitutions",
+			name: "InvalidMultipleSubstitutions",
 			args: args{
 				format: "foo-%s-bar-%s",
 				value:  "test-value",
@@ -172,9 +172,9 @@ func TestSplit(t *testing.T) {
 		args args
 		want []string
 	}{
-		{name: "empty", args: args{s: "", sep: ","}, want: []string{}},
-		{name: "comma", args: args{s: ",", sep: ","}, want: []string{}},
-		{name: "values", args: args{s: " a,,b ", sep: ","}, want: []string{"a", "b"}},
+		{name: "Empty", args: args{s: "", sep: ","}, want: []string{}},
+		{name: "Comma", args: args{s: ",", sep: ","}, want: []string{}},
+		{name: "Values", args: args{s: " a,,b ", sep: ","}, want: []string{"a", "b"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

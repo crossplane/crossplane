@@ -333,10 +333,10 @@ func Test_addWorkloadReferenceLabel(t *testing.T) {
 		name string
 		args args
 	}{
-		{"Nil labels", args{&metav1.ObjectMeta{}, testUID}},
-		{"Empty labels", args{&metav1.ObjectMeta{Labels: make(map[string]string)}, testUID}},
-		{"Label added", args{&metav1.ObjectMeta{Labels: map[string]string{"foo": "bar"}}, testUID}},
-		{"Label updated", args{&metav1.ObjectMeta{Labels: map[string]string{workloadReferenceLabelKey: "foo-bar"}}, testUID}},
+		{"NilLabels", args{&metav1.ObjectMeta{}, testUID}},
+		{"EmptyLabels", args{&metav1.ObjectMeta{Labels: make(map[string]string)}, testUID}},
+		{"LabelAdded", args{&metav1.ObjectMeta{Labels: map[string]string{"foo": "bar"}}, testUID}},
+		{"LabelUpdated", args{&metav1.ObjectMeta{Labels: map[string]string{workloadReferenceLabelKey: "foo-bar"}}, testUID}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -358,10 +358,10 @@ func Test_getWorkloadReferenceLabel(t *testing.T) {
 		args args
 		want string
 	}{
-		{"Nil labels", args{metav1.ObjectMeta{}}, ""},
-		{"Empty labels", args{metav1.ObjectMeta{Labels: make(map[string]string)}}, ""},
-		{"Label not found", args{metav1.ObjectMeta{Labels: map[string]string{"foo": "bar"}}}, ""},
-		{"Label found", args{metav1.ObjectMeta{Labels: map[string]string{workloadReferenceLabelKey: "test-uid"}}}, "test-uid"},
+		{"NilLabels", args{metav1.ObjectMeta{}}, ""},
+		{"EmptyLabels", args{metav1.ObjectMeta{Labels: make(map[string]string)}}, ""},
+		{"LabelNotFound", args{metav1.ObjectMeta{Labels: map[string]string{"foo": "bar"}}}, ""},
+		{"LabelFound", args{metav1.ObjectMeta{Labels: map[string]string{workloadReferenceLabelKey: "test-uid"}}}, "test-uid"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -134,7 +134,7 @@ func Test_bucketHandler_addFinalizer(t *testing.T) {
 		want   []string
 	}{
 		{
-			name:   "test",
+			name:   "Test",
 			fields: fields{bucket: &v1alpha1.Bucket{}},
 			want:   []string{finalizer},
 		},
@@ -163,7 +163,7 @@ func Test_bucketHandler_removeFinalizer(t *testing.T) {
 		want   []string
 	}{
 		{
-			name: "test",
+			name: "Test",
 			fields: fields{bucket: &v1alpha1.Bucket{
 				ObjectMeta: metav1.ObjectMeta{Finalizers: []string{finalizer}},
 			}},
@@ -196,12 +196,12 @@ func Test_bucketHandler_isReclaimDelete(t *testing.T) {
 		want   bool
 	}{
 		{
-			name:   "default",
+			name:   "Default",
 			fields: fields{bucket: &v1alpha1.Bucket{}},
 			want:   false,
 		},
 		{
-			name:   "delete",
+			name:   "Delete",
 			fields: fields{bucket: &v1alpha1.Bucket{Spec: v1alpha1.BucketSpec{ReclaimPolicy: corev1alpha1.ReclaimDelete}}},
 			want:   true,
 		},
@@ -231,7 +231,7 @@ func Test_bucketHandler_getSpecAttrs(t *testing.T) {
 		want   v1alpha1.BucketUpdatableAttrs
 	}{
 		{
-			name: "test",
+			name: "Test",
 			fields: fields{bucket: &v1alpha1.Bucket{
 				Spec: v1alpha1.BucketSpec{
 					BucketSpecAttrs: v1alpha1.BucketSpecAttrs{BucketUpdatableAttrs: testBucketSpecAttrs},
@@ -265,7 +265,7 @@ func Test_bucketHandler_setSpecAttrs(t *testing.T) {
 		want   v1alpha1.BucketSpecAttrs
 	}{
 		{
-			name:   "test",
+			name:   "Test",
 			fields: fields{bucket: &v1alpha1.Bucket{}},
 			args:   &storage.BucketAttrs{Location: "foo"},
 			want:   testSpecAttrs,
@@ -296,7 +296,7 @@ func Test_bucketHandler_setStatusAttrs(t *testing.T) {
 		want   v1alpha1.BucketOutputAttrs
 	}{
 		{
-			name:   "test",
+			name:   "Test",
 			fields: fields{bucket: &v1alpha1.Bucket{}},
 			args:   &storage.BucketAttrs{Name: "foo"},
 			want:   v1alpha1.BucketOutputAttrs{Name: "foo"},
@@ -326,7 +326,7 @@ func Test_bucketHandler_setReady(t *testing.T) {
 		want   bool
 	}{
 		{
-			name:   "test",
+			name:   "Test",
 			fields: fields{bucket: &v1alpha1.Bucket{}},
 			want:   true,
 		},
@@ -448,14 +448,14 @@ func Test_bucketHandler_updateSecret(t *testing.T) {
 		want   error
 	}{
 		{
-			name: "without service account secret reference",
+			name: "WithoutServiceAccountSecretReference",
 			fields: fields{
 				Bucket: newBucket(testNamespace, testBucketName).Bucket,
 				kube:   test.NewMockClient(),
 			},
 		},
 		{
-			name: "failure to retrieve secret",
+			name: "FailureToRetrieveSecret",
 			fields: fields{
 				Bucket: newBucket(testNamespace, testBucketName).withServiceAccountSecretRef(saSecretName).Bucket,
 				kube: &test.MockClient{
@@ -468,7 +468,7 @@ func Test_bucketHandler_updateSecret(t *testing.T) {
 				"failed to retrieve storage service account secret: %s/%s", testNamespace, saSecretName),
 		},
 		{
-			name: "failure to update secret",
+			name: "FailureToUpdateSecret",
 			fields: fields{
 				Bucket: newBucket(testNamespace, testBucketName).
 					withServiceAccountSecretRef(saSecretName).
@@ -593,7 +593,7 @@ func Test_bucketHandler_getAttributes(t *testing.T) {
 		want   want
 	}{
 		{
-			name: "test",
+			name: "Test",
 			fields: fields{
 				gcp: &storagefake.MockBucketClient{
 					MockAttrs: func(ctx context.Context) (*storage.BucketAttrs, error) { return nil, nil },
