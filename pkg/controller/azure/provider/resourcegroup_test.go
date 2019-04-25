@@ -22,11 +22,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Azure/go-autorest/autorest"
-	"github.com/pkg/errors"
-
 	"github.com/Azure/azure-sdk-for-go/services/resources/mgmt/2018-05-01/resources"
+	"github.com/Azure/go-autorest/autorest"
 	"github.com/go-test/deep"
+	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -49,7 +48,6 @@ const (
 	uid         = types.UID("definitely-a-uuid")
 	name        = "cool-rg"
 	location    = "coolplace"
-	// subscription = "totally-a-uuid"
 
 	providerSecretName = "cool-azure-secret"
 	providerSecretKey  = "credentials"
@@ -133,7 +131,7 @@ func resource(rm ...resourceModifier) *azurev1alpha1.ResourceGroup {
 	return r
 }
 
-// Test that our ReconcilerRG implementation satisfies the ReconcilerRG interface.
+// Test that our ReconcilerRG implementation satisfies the Reconciler interface.
 var _ reconcile.Reconciler = &ReconcilerRG{}
 
 func TestCreate(t *testing.T) {
@@ -423,7 +421,7 @@ func TestConnect(t *testing.T) {
 					}
 					return nil
 				}},
-				newClient: func(_ context.Context, _ []byte) (resourcegroup.GroupsClient, error) {
+				newClient: func(_ []byte) (resourcegroup.GroupsClient, error) {
 					return &fakerg.MockClient{}, nil
 				},
 			},
@@ -436,7 +434,7 @@ func TestConnect(t *testing.T) {
 				kube: &test.MockClient{MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
 					return kerrors.NewNotFound(schema.GroupResource{}, providerName)
 				}},
-				newClient: func(_ context.Context, _ []byte) (resourcegroup.GroupsClient, error) {
+				newClient: func(_ []byte) (resourcegroup.GroupsClient, error) {
 					return &fakerg.MockClient{}, nil
 				},
 			},
@@ -460,7 +458,7 @@ func TestConnect(t *testing.T) {
 					}
 					return nil
 				}},
-				newClient: func(_ context.Context, _ []byte) (resourcegroup.GroupsClient, error) {
+				newClient: func(_ []byte) (resourcegroup.GroupsClient, error) {
 					return &fakerg.MockClient{}, nil
 				},
 			},
@@ -479,7 +477,7 @@ func TestConnect(t *testing.T) {
 					}
 					return nil
 				}},
-				newClient: func(_ context.Context, _ []byte) (resourcegroup.GroupsClient, error) {
+				newClient: func(_ []byte) (resourcegroup.GroupsClient, error) {
 					return &fakerg.MockClient{}, nil
 				},
 			},
@@ -498,7 +496,7 @@ func TestConnect(t *testing.T) {
 					}
 					return nil
 				}},
-				newClient: func(_ context.Context, _ []byte) (resourcegroup.GroupsClient, error) { return nil, errorBoom },
+				newClient: func(_ []byte) (resourcegroup.GroupsClient, error) { return nil, errorBoom },
 			},
 			i:       resource(),
 			want:    &azureResourceGroup{},

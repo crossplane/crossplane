@@ -1,25 +1,23 @@
-// /*
-// Copyright 2018 The Crossplane Authors.
+/*
+Copyright 2018 The Crossplane Authors.
 
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
-//     http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-// */
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
 
 package resourcegroup
 
 import (
-	"context"
 	"encoding/json"
-	"fmt"
 	"regexp"
 
 	"github.com/Azure/azure-sdk-for-go/services/resources/mgmt/2018-05-01/resources"
@@ -31,7 +29,7 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/clients/azure"
 )
 
-// Resource grouo naming errors
+// Resource group naming errors
 const (
 	NameTooShort  = "name of resource group must be at least one character"
 	NameTooLong   = "name of resource group may not be longer than 90 characters"
@@ -44,7 +42,7 @@ type GroupsClient resourcesapi.GroupsClientAPI
 
 // NewClient returns a new Azure Cache for Redis client. Credentials must be
 // passed as JSON encoded data.
-func NewClient(ctx context.Context, credentials []byte) (GroupsClient, error) {
+func NewClient(credentials []byte) (GroupsClient, error) {
 	c := azure.Credentials{}
 	if err := json.Unmarshal(credentials, &c); err != nil {
 		return nil, errors.Wrap(err, "cannot unmarshal Azure client secret data")
@@ -82,16 +80,16 @@ func NewParameters(r *v1alpha1.ResourceGroup) resources.Group {
 // CheckResourceGroupName checks to make sure Resource Group name adheres to
 func CheckResourceGroupName(name string) error {
 	if len(name) == 0 {
-		return fmt.Errorf(NameTooShort)
+		return errors.New(NameTooShort)
 	}
 	if len(name) > 90 {
-		return fmt.Errorf(NameTooLong)
+		return errors.New(NameTooLong)
 	}
 	if name[len(name)-1:] == "." {
-		return fmt.Errorf(NameEndPeriod)
+		return errors.New(NameEndPeriod)
 	}
 	if matched, _ := regexp.MatchString(`^[-\w\._\(\)]+$`, name); !matched {
-		return fmt.Errorf(NameRegex)
+		return errors.New(NameRegex)
 	}
 	return nil
 }

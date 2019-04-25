@@ -18,6 +18,7 @@ package provider
 
 import (
 	"context"
+	"net/http"
 	"time"
 
 	"github.com/pkg/errors"
@@ -118,17 +119,16 @@ func (a *azureResourceGroup) Sync(ctx context.Context, r *v1alpha1.ResourceGroup
 	r.Status.UnsetAllConditions()
 
 	switch res.Response.StatusCode {
-	case 204:
+	case http.StatusNoContent:
 		r.Status.SetReady()
-	case 404:
+		return false
+	case http.StatusNotFound:
 		// Custom message passed to SetFailed due to Azure API returning 404 instead of error
 		r.Status.SetFailed(reasonSyncingResource, azureDeletedMessage)
 		return true
-	default:
-		return true
 	}
 
-	return false
+	return true
 }
 
 func (a *azureResourceGroup) Delete(ctx context.Context, r *v1alpha1.ResourceGroup) bool {
@@ -154,7 +154,7 @@ type connecter interface {
 // authenticated using credentials read from a Crossplane Provider resource.
 type providerConnecter struct {
 	kube      client.Client
-	newClient func(ctx context.Context, creds []byte) (resourcegroup.GroupsClient, error)
+	newClient func(creds []byte) (resourcegroup.GroupsClient, error)
 }
 
 // Connect returns a createsyncdeleter backed by the Azure API. Azure
@@ -177,7 +177,7 @@ func (c *providerConnecter) Connect(ctx context.Context, r *v1alpha1.ResourceGro
 		return nil, errors.Wrapf(err, "cannot get provider secret %s", n)
 	}
 
-	client, err := c.newClient(ctx, s.Data[p.Spec.Secret.Key])
+	client, err := c.newClient(s.Data[p.Spec.Secret.Key])
 	return &azureResourceGroup{client: client}, errors.Wrap(err, "cannot create new Azure Resource Group client")
 }
 
@@ -188,7 +188,7 @@ type ReconcilerRG struct {
 	kube client.Client
 }
 
-// AddResourceGroup creates a new Resourec Group Controller and adds it to the
+// AddResourceGroup creates a new Resource Group Controller and adds it to the
 // Manager with default RBAC. The Manager will set fields on the Controller and
 // start it when the Manager is Started.
 func AddResourceGroup(mgr manager.Manager) error {
