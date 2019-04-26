@@ -19,6 +19,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -46,6 +47,11 @@ const (
 	errorSettingResourceBindStatus   = "Failed to set resource binding status"
 	errorResettingResourceBindStatus = "Failed to reset resource binding status"
 	waitResourceIsNotAvailable       = "Waiting for resource to become available"
+
+	// RequeueOnWait - requeue after duration when waiting for resource state
+	RequeueOnWait = 30 * time.Second
+	// RequeueOnSuccess - requeue after duration when resources status is successful
+	RequeueOnSuccess = 2 * time.Minute
 )
 
 // Commonly used reconciliation results.
@@ -129,14 +135,6 @@ func (r *Reconciler) _reconcile(claim corev1alpha1.ResourceClaim) (reconcile.Res
 		return r.delete(claim, handler)
 	}
 
-	// Add finalizer
-	if !util.HasFinalizer(claim, r.finalizerName) {
-		util.AddFinalizer(claim, r.finalizerName)
-		if err := r.Update(ctx, claim); err != nil {
-			return ResultRequeue, err
-		}
-	}
-
 	// check if claim reference is set, if not - provision new resource
 	if claim.ResourceRef() == nil {
 		return r.provision(claim, handler)
@@ -156,6 +154,9 @@ func (r *Reconciler) _provision(claim corev1alpha1.ResourceClaim, handler Resour
 	if err != nil {
 		return r.fail(claim, errorRetrievingResourceClass, err.Error())
 	}
+
+	// add finalizer
+	util.AddFinalizer(claim, r.finalizerName)
 
 	// create new resource
 	res, err := handler.Provision(class, claim, r.Client)
@@ -188,7 +189,7 @@ func (r *Reconciler) _bind(claim corev1alpha1.ResourceClaim, handler ResourceHan
 	if !resource.IsAvailable() {
 		claim.ClaimStatus().UnsetAllConditions()
 		claim.ClaimStatus().SetCondition(corev1alpha1.NewCondition(corev1alpha1.Pending, waitResourceIsNotAvailable, "Resource is not in running state"))
-		return ResultRequeue, r.Update(ctx, claim)
+		return reconcile.Result{RequeueAfter: RequeueOnWait}, r.Update(ctx, claim)
 	}
 
 	// Object reference to the resource: needed to retrieve resource's namespace to retrieve resource's secret
@@ -228,7 +229,7 @@ func (r *Reconciler) _bind(claim corev1alpha1.ResourceClaim, handler ResourceHan
 		claimStatus.SetReady()
 	}
 
-	return Result, r.Update(ctx, claim)
+	return reconcile.Result{RequeueAfter: RequeueOnSuccess}, r.Update(ctx, claim)
 }
 
 // _delete the given resource claim

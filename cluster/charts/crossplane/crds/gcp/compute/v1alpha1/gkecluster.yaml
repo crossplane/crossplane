@@ -22,7 +22,7 @@ spec:
   - JSONPath: .spec.classRef.name
     name: CLUSTER-CLASS
     type: string
-  - JSONPath: .spec.location
+  - JSONPath: .spec.zone
     name: LOCATION
     type: string
   - JSONPath: .spec.reclaimPolicy

@@ -76,8 +76,8 @@ func (c *ClusterClient) CreateCluster(name string, spec computev1alpha1.GKEClust
 			MachineType: spec.MachineType,
 			OauthScopes: spec.Scopes,
 		},
-
-		Zone: zone,
+		ResourceLabels: spec.Labels,
+		Zone:           zone,
 	}
 
 	cr := &container.CreateClusterRequest{

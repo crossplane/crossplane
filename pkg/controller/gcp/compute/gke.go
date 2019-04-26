@@ -21,9 +21,10 @@ import (
 	"encoding/base64"
 	"fmt"
 
+	"github.com/pkg/errors"
 	"google.golang.org/api/container/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -40,6 +41,7 @@ import (
 	gcpv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/clients/gcp"
 	"github.com/crossplaneio/crossplane/pkg/clients/gcp/gke"
+	"github.com/crossplaneio/crossplane/pkg/controller/core"
 	"github.com/crossplaneio/crossplane/pkg/logging"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
@@ -53,6 +55,11 @@ const (
 	errorCreateCluster = "Failed to create new cluster"
 	errorSyncCluster   = "Failed to sync cluster state"
 	errorDeleteCluster = "Failed to delete cluster"
+
+	requeueOnWait   = core.RequeueOnWait
+	requeueOnSucces = core.RequeueOnSuccess
+
+	updateErrorMessageFormat = "failed to update cluster object: %s"
 )
 
 var (
@@ -180,6 +187,8 @@ func (r *Reconciler) _connect(instance *gcpcomputev1alpha1.GKECluster) (gke.Clie
 func (r *Reconciler) _create(instance *gcpcomputev1alpha1.GKECluster, client gke.Client) (reconcile.Result, error) {
 	clusterName := fmt.Sprintf("%s%s", clusterNamePrefix, instance.UID)
 
+	util.AddFinalizer(&instance.ObjectMeta, finalizer)
+
 	_, err := client.CreateCluster(clusterName, instance.Spec)
 	if err != nil && !gcp.IsErrorAlreadyExists(err) {
 		if gcp.IsErrorBadRequest(err) {
@@ -191,12 +200,11 @@ func (r *Reconciler) _create(instance *gcpcomputev1alpha1.GKECluster, client gke
 	}
 
 	instance.Status.State = gcpcomputev1alpha1.ClusterStateProvisioning
-
 	instance.Status.UnsetAllConditions()
 	instance.Status.SetCreating()
 	instance.Status.ClusterName = clusterName
 
-	return resultRequeue, r.Update(ctx, instance)
+	return reconcile.Result{}, errors.Wrapf(r.Update(ctx, instance), updateErrorMessageFormat, instance.GetName())
 }
 
 func (r *Reconciler) _sync(instance *gcpcomputev1alpha1.GKECluster, client gke.Client) (reconcile.Result, error) {
@@ -206,7 +214,7 @@ func (r *Reconciler) _sync(instance *gcpcomputev1alpha1.GKECluster, client gke.C
 	}
 
 	if cluster.Status != gcpcomputev1alpha1.ClusterStateRunning {
-		return resultRequeue, nil
+		return reconcile.Result{RequeueAfter: requeueOnWait}, nil
 	}
 
 	// create connection secret
@@ -226,8 +234,8 @@ func (r *Reconciler) _sync(instance *gcpcomputev1alpha1.GKECluster, client gke.C
 	instance.Status.UnsetAllConditions()
 	instance.Status.SetReady()
 
-	// TODO: figure out how we going to handle cluster statuses other than RUNNING
-	return result, r.Update(ctx, instance)
+	return reconcile.Result{RequeueAfter: requeueOnSucces},
+		errors.Wrapf(r.Update(ctx, instance), updateErrorMessageFormat, instance.GetName())
 
 }
 
@@ -240,7 +248,7 @@ func (r *Reconciler) _delete(instance *gcpcomputev1alpha1.GKECluster, client gke
 	}
 	util.RemoveFinalizer(&instance.ObjectMeta, finalizer)
 	instance.Status.UnsetAllConditions()
-	return result, r.Update(ctx, instance)
+	return result, errors.Wrapf(r.Update(ctx, instance), updateErrorMessageFormat, instance.GetName())
 }
 
 // Reconcile reads that state of the cluster for a Provider object and makes changes based on the state read
@@ -251,12 +259,9 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	instance := &gcpcomputev1alpha1.GKECluster{}
 	err := r.Get(ctx, request.NamespacedName, instance)
 	if err != nil {
-		if errors.IsNotFound(err) {
-			// Object not found, return.  Created objects are automatically garbage collected.
-			// For additional cleanup logic use finalizers.
+		if kerrors.IsNotFound(err) {
 			return reconcile.Result{}, nil
 		}
-		// Error reading the object - requeue the request.
 		return reconcile.Result{}, err
 	}
 
@@ -269,14 +274,6 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	// Check for deletion
 	if instance.DeletionTimestamp != nil {
 		return r.delete(instance, gkeClient)
-	}
-
-	// Add finalizer
-	if !util.HasFinalizer(&instance.ObjectMeta, finalizer) {
-		util.AddFinalizer(&instance.ObjectMeta, finalizer)
-		if err := r.Update(ctx, instance); err != nil {
-			return resultRequeue, err
-		}
 	}
 
 	// Create cluster instance
