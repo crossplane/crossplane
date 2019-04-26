@@ -166,7 +166,7 @@ func TestBind(t *testing.T) {
 	}
 	rs, err = r._bind(claim, h)
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(rs).To(Equal(ResultRequeue))
+	g.Expect(rs).To(Equal(reconcile.Result{RequeueAfter: RequeueOnWait}))
 	assertConditionUnset(g, claim, corev1alpha1.Failed, errorRetrievingResource)
 	assertConditionSet(g, claim, corev1alpha1.Pending, waitResourceIsNotAvailable)
 
@@ -219,7 +219,7 @@ func TestBind(t *testing.T) {
 	h.MockSetBindStatus = func(namespacedName types.NamespacedName, i client.Client, b bool) error { return nil }
 	rs, err = r._bind(claim, h)
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(rs).To(Equal(Result))
+	g.Expect(rs).To(Equal(reconcile.Result{RequeueAfter: RequeueOnSuccess}))
 	assertConditionUnset(g, claim, corev1alpha1.Failed, errorSettingResourceBindStatus)
 	assertConditionSet(g, claim, corev1alpha1.Ready, "")
 	g.Expect(claim.Status.CredentialsSecretRef.Name).To(Equal(claim.Name))
@@ -304,19 +304,8 @@ func TestReconciler_Reconcile(t *testing.T) {
 	g.Expect(err).To(BeNil())
 	g.Expect(deleteCalled).To(BeTrue())
 
-	// 4) add finalizer failed
-	mc.MockGet = func(...interface{}) error {
-		return nil
-	}
-	mc.MockUpdate = func(...interface{}) error {
-		return fmt.Errorf("test-error")
-	}
 	r.delete = nil                // clear out the mocked delete func
 	claim.DeletionTimestamp = nil // clear out the deletion timestamp
-	rs, err = r._reconcile(claim)
-	g.Expect(rs).To(Equal(ResultRequeue))
-	g.Expect(err).NotTo(BeNil())
-	g.Expect(err.Error()).To(Equal("test-error"))
 
 	// 5) provision path
 	// mocked happy provision function

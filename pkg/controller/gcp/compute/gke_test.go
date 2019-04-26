@@ -65,7 +65,7 @@ var (
 )
 
 func init() {
-	gcp.AddToScheme(scheme.Scheme)
+	_ = gcp.AddToScheme(scheme.Scheme)
 }
 
 func testCluster() *GKECluster {
@@ -143,7 +143,7 @@ func TestSyncClusterNotReady(t *testing.T) {
 	expectedStatus := corev1alpha1.ConditionedStatus{}
 
 	rs, err := r._sync(tc, cl)
-	g.Expect(rs).To(Equal(resultRequeue))
+	g.Expect(rs).To(Equal(reconcile.Result{RequeueAfter: requeueOnWait}))
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(called).To(BeTrue())
 	assertResource(g, r, expectedStatus)
@@ -218,7 +218,7 @@ func TestSync(t *testing.T) {
 	expectedStatus.SetReady()
 
 	rs, err := r._sync(tc, cl)
-	g.Expect(rs).To(Equal(result))
+	g.Expect(rs).To(Equal(reconcile.Result{RequeueAfter: requeueOnSucces}))
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(called).To(BeTrue())
 	assertResource(g, r, expectedStatus)
@@ -431,10 +431,6 @@ func TestReconcileCreate(t *testing.T) {
 	g.Expect(rs).To(Equal(resultRequeue))
 	g.Expect(err).To(BeNil())
 	g.Expect(called).To(BeTrue())
-
-	rc := assertResource(g, r, corev1alpha1.ConditionedStatus{})
-	g.Expect(rc.Finalizers).To(HaveLen(1))
-	g.Expect(rc.Finalizers).To(ContainElement(finalizer))
 }
 
 func TestReconcileSync(t *testing.T) {

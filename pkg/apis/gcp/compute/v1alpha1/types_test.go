@@ -106,6 +106,7 @@ func TestParseClusterSpec(t *testing.T) {
 			want: &GKEClusterSpec{
 				ReclaimPolicy: DefaultReclaimPolicy,
 				EnableIPAlias: true,
+				Labels:        map[string]string{},
 				MachineType:   "test-machine",
 				NumNodes:      3,
 				Scopes:        []string{"foo", "bar"},
@@ -123,6 +124,7 @@ func TestParseClusterSpec(t *testing.T) {
 			},
 			want: &GKEClusterSpec{
 				ReclaimPolicy: DefaultReclaimPolicy,
+				Labels:        map[string]string{},
 				EnableIPAlias: false,
 				MachineType:   "test-machine",
 				NumNodes:      1,
@@ -139,6 +141,7 @@ func TestParseClusterSpec(t *testing.T) {
 			want: &GKEClusterSpec{
 				ReclaimPolicy: DefaultReclaimPolicy,
 				EnableIPAlias: false,
+				Labels:        map[string]string{},
 				MachineType:   "test-machine",
 				NumNodes:      1,
 				Scopes:        []string{},

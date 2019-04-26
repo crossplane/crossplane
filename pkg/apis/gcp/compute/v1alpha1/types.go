@@ -117,7 +117,7 @@ type GKEClusterStatus struct {
 // +kubebuilder:printcolumn:name="CLUSTER-NAME",type="string",JSONPath=".status.clusterName"
 // +kubebuilder:printcolumn:name="ENDPOINT",type="string",JSONPath=".status.endpoint"
 // +kubebuilder:printcolumn:name="CLUSTER-CLASS",type="string",JSONPath=".spec.classRef.name"
-// +kubebuilder:printcolumn:name="LOCATION",type="string",JSONPath=".spec.location"
+// +kubebuilder:printcolumn:name="LOCATION",type="string",JSONPath=".spec.zone"
 // +kubebuilder:printcolumn:name="RECLAIM-POLICY",type="string",JSONPath=".spec.reclaimPolicy"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 type GKECluster struct {
@@ -148,6 +148,7 @@ func ParseClusterSpec(properties map[string]string) *GKEClusterSpec {
 	}
 
 	spec.EnableIPAlias = util.ParseBool(properties["enableIPAlias"])
+	spec.Labels = util.ParseMap(properties["labels"])
 	spec.MachineType = properties["machineType"]
 	spec.NumNodes = parseNodesNumber(properties["numNodes"])
 	spec.Scopes = util.Split(properties["scopes"], ",")
