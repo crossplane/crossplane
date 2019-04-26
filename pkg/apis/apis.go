@@ -30,6 +30,7 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/apis/core"
 	"github.com/crossplaneio/crossplane/pkg/apis/gcp"
 	"github.com/crossplaneio/crossplane/pkg/apis/storage"
+	"github.com/crossplaneio/crossplane/pkg/apis/workload"
 )
 
 func init() {
@@ -42,6 +43,7 @@ func init() {
 		core.AddToScheme,
 		gcp.AddToScheme,
 		storage.AddToScheme,
+		workload.AddToScheme,
 	)
 }
 
