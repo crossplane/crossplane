@@ -38,6 +38,7 @@ import (
 	. "github.com/crossplaneio/crossplane/pkg/apis/gcp/compute/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/clients/gcp/fake"
 	"github.com/crossplaneio/crossplane/pkg/clients/gcp/gke"
+	"github.com/crossplaneio/crossplane/pkg/controller/core"
 )
 
 const (
@@ -143,7 +144,7 @@ func TestSyncClusterNotReady(t *testing.T) {
 	expectedStatus := corev1alpha1.ConditionedStatus{}
 
 	rs, err := r._sync(tc, cl)
-	g.Expect(rs).To(Equal(reconcile.Result{RequeueAfter: requeueOnWait}))
+	g.Expect(rs).To(Equal(core.RequeueSoon))
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(called).To(BeTrue())
 	assertResource(g, r, expectedStatus)
@@ -218,7 +219,7 @@ func TestSync(t *testing.T) {
 	expectedStatus.SetReady()
 
 	rs, err := r._sync(tc, cl)
-	g.Expect(rs).To(Equal(reconcile.Result{RequeueAfter: requeueOnSucces}))
+	g.Expect(rs).To(Equal(core.RequeueLater))
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(called).To(BeTrue())
 	assertResource(g, r, expectedStatus)

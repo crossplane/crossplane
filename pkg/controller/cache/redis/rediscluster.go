@@ -61,9 +61,9 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	c := &cachev1alpha1.RedisCluster{}
 	if err := r.Get(ctx, request.NamespacedName, c); err != nil {
 		if kerrors.IsNotFound(err) {
-			return corecontroller.Result, nil
+			return corecontroller.RequeueIfDirty, nil
 		}
-		return corecontroller.Result, errors.Wrap(err, "cannot get RedisCluster")
+		return corecontroller.RequeueIfDirty, errors.Wrap(err, "cannot get RedisCluster")
 	}
 
 	result, err := r.DoReconcile(c)

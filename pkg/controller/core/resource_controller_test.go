@@ -89,7 +89,7 @@ func TestProvision(t *testing.T) {
 	mc.MockUpdate = func(...interface{}) error { return nil }
 	rs, err := r._provision(claim, h)
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(rs).To(Equal(ResultRequeue))
+	g.Expect(rs).To(Equal(RequeueNow))
 	assertConditionSet(g, claim, corev1alpha1.Failed, errorRetrievingResourceClass)
 
 	// test: ResourceClass is not found - expected to: fail
@@ -102,7 +102,7 @@ func TestProvision(t *testing.T) {
 	}
 	rs, err = r._provision(claim, h)
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(rs).To(Equal(ResultRequeue))
+	g.Expect(rs).To(Equal(RequeueNow))
 	assertConditionSet(g, claim, corev1alpha1.Failed, errorRetrievingResourceClass)
 
 	// test: ResourceClass has test provisioner, but provisioning failed
@@ -116,7 +116,7 @@ func TestProvision(t *testing.T) {
 	}
 	rs, err = r._provision(claim, h)
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(rs).To(Equal(ResultRequeue))
+	g.Expect(rs).To(Equal(RequeueNow))
 	assertConditionSet(g, claim, corev1alpha1.Failed, errorResourceProvisioning)
 
 	// test: ResourceClass has test provisioner, no provisioning failures
@@ -129,12 +129,12 @@ func TestProvision(t *testing.T) {
 		return &corev1alpha1.BasicResource{}, nil
 	}
 	r.bind = func(corev1alpha1.ResourceClaim, ResourceHandler) (reconcile.Result, error) {
-		return Result, nil
+		return RequeueIfDirty, nil
 	}
 
 	rs, err = r._provision(claim, h)
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(rs).To(Equal(Result))
+	g.Expect(rs).To(Equal(RequeueIfDirty))
 }
 
 func TestBind(t *testing.T) {
@@ -156,7 +156,7 @@ func TestBind(t *testing.T) {
 	}
 	rs, err := r._bind(claim, h)
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(rs).To(Equal(ResultRequeue))
+	g.Expect(rs).To(Equal(RequeueNow))
 	assertConditionSet(g, claim, corev1alpha1.Failed, errorRetrievingResource)
 
 	// resource is not available
@@ -166,7 +166,7 @@ func TestBind(t *testing.T) {
 	}
 	rs, err = r._bind(claim, h)
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(rs).To(Equal(reconcile.Result{RequeueAfter: RequeueOnWait}))
+	g.Expect(rs).To(Equal(RequeueSoon))
 	assertConditionUnset(g, claim, corev1alpha1.Failed, errorRetrievingResource)
 	assertConditionSet(g, claim, corev1alpha1.Pending, waitResourceIsNotAvailable)
 
@@ -182,7 +182,7 @@ func TestBind(t *testing.T) {
 
 	rs, err = r._bind(claim, h)
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(rs).To(Equal(ResultRequeue))
+	g.Expect(rs).To(Equal(RequeueNow))
 	assertConditionSet(g, claim, corev1alpha1.Failed, errorRetrievingResourceSecret)
 
 	// error applying resource secret
@@ -199,7 +199,7 @@ func TestBind(t *testing.T) {
 	r.kubeclient = mk
 	rs, err = r._bind(claim, h)
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(rs).To(Equal(ResultRequeue))
+	g.Expect(rs).To(Equal(RequeueNow))
 	assertConditionSet(g, claim, corev1alpha1.Failed, errorApplyingResourceSecret)
 
 	// failure to set binding status
@@ -210,7 +210,7 @@ func TestBind(t *testing.T) {
 	}
 	rs, err = r._bind(claim, h)
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(rs).To(Equal(ResultRequeue))
+	g.Expect(rs).To(Equal(RequeueNow))
 	assertConditionSet(g, claim, corev1alpha1.Failed, errorSettingResourceBindStatus)
 
 	// bind
@@ -219,7 +219,7 @@ func TestBind(t *testing.T) {
 	h.MockSetBindStatus = func(namespacedName types.NamespacedName, i client.Client, b bool) error { return nil }
 	rs, err = r._bind(claim, h)
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(rs).To(Equal(reconcile.Result{RequeueAfter: RequeueOnSuccess}))
+	g.Expect(rs).To(Equal(RequeueLater))
 	assertConditionUnset(g, claim, corev1alpha1.Failed, errorSettingResourceBindStatus)
 	assertConditionSet(g, claim, corev1alpha1.Ready, "")
 	g.Expect(claim.Status.CredentialsSecretRef.Name).To(Equal(claim.Name))
@@ -246,7 +246,7 @@ func TestDelete(t *testing.T) {
 	mc.MockUpdate = func(...interface{}) error { return nil }
 	rs, err := r._delete(claim, h)
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(rs).To(Equal(Result))
+	g.Expect(rs).To(Equal(RequeueIfDirty))
 	c := claim.Status.Condition(corev1alpha1.Failed)
 	g.Expect(c).To(BeNil())
 	assertConditionSet(g, claim, corev1alpha1.Deleting, "")
@@ -273,7 +273,7 @@ func TestReconciler_Reconcile(t *testing.T) {
 	}
 	rs, err := r._reconcile(claim)
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(rs).To(Equal(ResultRequeue))
+	g.Expect(rs).To(Equal(RequeueNow))
 	assertConditionSet(g, claim, corev1alpha1.Failed, errorRetrievingHandler)
 
 	// 2) getHandler does not return an error, but also doesn't find a known handler
@@ -284,14 +284,14 @@ func TestReconciler_Reconcile(t *testing.T) {
 	}
 	rs, err = r._reconcile(claim)
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(rs).To(Equal(Result))
+	g.Expect(rs).To(Equal(RequeueIfDirty))
 
 	// 3) reconcile deleted resource
 	// mocked happy delete function
 	deleteCalled := false
 	deleteFunc := func(claim corev1alpha1.ResourceClaim, handler ResourceHandler) (reconcile.Result, error) {
 		deleteCalled = true
-		return Result, nil
+		return RequeueIfDirty, nil
 	}
 	r.getHandler = func(claim corev1alpha1.ResourceClaim) (ResourceHandler, error) {
 		return &MockResourceHandler{}, nil
@@ -300,7 +300,7 @@ func TestReconciler_Reconcile(t *testing.T) {
 	claim.DeletionTimestamp = &tm
 	r.delete = deleteFunc
 	rs, err = r._reconcile(claim)
-	g.Expect(rs).To(Equal(Result))
+	g.Expect(rs).To(Equal(RequeueIfDirty))
 	g.Expect(err).To(BeNil())
 	g.Expect(deleteCalled).To(BeTrue())
 
@@ -312,7 +312,7 @@ func TestReconciler_Reconcile(t *testing.T) {
 	provisionCalled := false
 	provisionFunc := func(claim corev1alpha1.ResourceClaim, handler ResourceHandler) (reconcile.Result, error) {
 		provisionCalled = true
-		return Result, nil
+		return RequeueIfDirty, nil
 	}
 	mc.MockGet = func(...interface{}) error {
 		return nil
@@ -322,7 +322,7 @@ func TestReconciler_Reconcile(t *testing.T) {
 	}
 	r.provision = provisionFunc
 	rs, err = r._reconcile(claim)
-	g.Expect(rs).To(Equal(Result))
+	g.Expect(rs).To(Equal(RequeueIfDirty))
 	g.Expect(err).To(BeNil())
 	g.Expect(provisionCalled).To(BeTrue())
 
@@ -331,7 +331,7 @@ func TestReconciler_Reconcile(t *testing.T) {
 	bindCalled := false
 	bindFunc := func(claim corev1alpha1.ResourceClaim, handler ResourceHandler) (reconcile.Result, error) {
 		bindCalled = true
-		return Result, nil
+		return RequeueIfDirty, nil
 	}
 	// give the resource a finalizer and a resource ref so that we'll take the bind codepath
 	claim.Finalizers = append(claim.Finalizers, "finalizer.resourcecontroller.core.crossplane.io")
@@ -341,7 +341,7 @@ func TestReconciler_Reconcile(t *testing.T) {
 	bindCalled = false
 	r.bind = bindFunc
 	rs, err = r._reconcile(claim)
-	g.Expect(rs).To(Equal(Result))
+	g.Expect(rs).To(Equal(RequeueIfDirty))
 	g.Expect(err).To(BeNil())
 	g.Expect(bindCalled).To(BeTrue())
 }

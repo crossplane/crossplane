@@ -56,9 +56,6 @@ const (
 	errorSyncCluster   = "Failed to sync cluster state"
 	errorDeleteCluster = "Failed to delete cluster"
 
-	requeueOnWait   = core.RequeueOnWait
-	requeueOnSucces = core.RequeueOnSuccess
-
 	updateErrorMessageFormat = "failed to update cluster object: %s"
 )
 
@@ -214,7 +211,7 @@ func (r *Reconciler) _sync(instance *gcpcomputev1alpha1.GKECluster, client gke.C
 	}
 
 	if cluster.Status != gcpcomputev1alpha1.ClusterStateRunning {
-		return reconcile.Result{RequeueAfter: requeueOnWait}, nil
+		return core.RequeueSoon, nil
 	}
 
 	// create connection secret
@@ -234,8 +231,7 @@ func (r *Reconciler) _sync(instance *gcpcomputev1alpha1.GKECluster, client gke.C
 	instance.Status.UnsetAllConditions()
 	instance.Status.SetReady()
 
-	return reconcile.Result{RequeueAfter: requeueOnSucces},
-		errors.Wrapf(r.Update(ctx, instance), updateErrorMessageFormat, instance.GetName())
+	return core.RequeueLater, errors.Wrapf(r.Update(ctx, instance), updateErrorMessageFormat, instance.GetName())
 
 }
 

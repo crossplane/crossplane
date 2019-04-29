@@ -284,7 +284,7 @@ func TestSync(t *testing.T) {
 				withDesiredResources(1),
 				withSubmittedResources(0),
 			),
-			wantResult: reconcile.Result{RequeueAfter: core.RequeueOnWait},
+			wantResult: core.RequeueSoon,
 		},
 		{
 			name: "PartialResourcesSubmitted",
@@ -311,7 +311,7 @@ func TestSync(t *testing.T) {
 				withDesiredResources(2),
 				withSubmittedResources(1),
 			),
-			wantResult: reconcile.Result{RequeueAfter: core.RequeueOnWait},
+			wantResult: core.RequeueSoon,
 		},
 		{
 			name: "AllResourcesSubmitted",

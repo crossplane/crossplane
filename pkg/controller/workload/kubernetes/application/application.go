@@ -158,13 +158,13 @@ func (c *localCluster) sync(ctx context.Context, app *v1alpha1.KubernetesApplica
 		// successful reconciliation".
 		app.Status.State = v1alpha1.KubernetesApplicationStateScheduled
 		app.Status.SetPending()
-		return reconcile.Result{RequeueAfter: core.RequeueOnWait}
+		return core.RequeueSoon
 	}
 
 	if app.Status.SubmittedResources < app.Status.DesiredResources {
 		app.Status.State = v1alpha1.KubernetesApplicationStatePartial
 		app.Status.SetPending()
-		return reconcile.Result{RequeueAfter: core.RequeueOnWait}
+		return core.RequeueSoon
 	}
 
 	app.Status.State = v1alpha1.KubernetesApplicationStateSubmitted

@@ -47,17 +47,41 @@ const (
 	errorSettingResourceBindStatus   = "Failed to set resource binding status"
 	errorResettingResourceBindStatus = "Failed to reset resource binding status"
 	waitResourceIsNotAvailable       = "Waiting for resource to become available"
-
-	// RequeueOnWait - requeue after duration when waiting for resource state
-	RequeueOnWait = 30 * time.Second
-	// RequeueOnSuccess - requeue after duration when resources status is successful
-	RequeueOnSuccess = 2 * time.Minute
 )
 
-// Commonly used reconciliation results.
+// Suggested reconcile results. A reconciliation that either altered the
+// requested Kubernetes object or returned an error is considered dirty.
+// Reconciliations that do not alter the object and do not return an error are
+// considered clean.
 var (
-	Result        = reconcile.Result{}
-	ResultRequeue = reconcile.Result{Requeue: true}
+	// RequeueIfDirty does not queue a new reconciliation. A reconciliation will
+	// be queued implicitly if the current reconciliation was dirty. Prefer
+	// RequeueIfDirty if either the current reconciliation is known to be dirty,
+	// or further reconciliation is not necessary until the requested object is
+	// altered outside of this controller.
+	RequeueIfDirty = reconcile.Result{Requeue: false}
+
+	// RequeueNow queues a new reconciliation immediately. Beware that immediate
+	// requeues experience exponential backoff; the object under reconciliation
+	// will be reconciled with decreasing frequency until a reconciliation
+	// returns RequeueIfDirty or RequeueLater (and no error). Prefer RequeueNow
+	// if the reconciler encounters, but does not return, an error and would
+	// like to retry reconciliation as soon as possible.
+	RequeueNow = reconcile.Result{Requeue: true}
+
+	// RequeueSoon queues a new reconciliation to be processed after a short
+	// delay. Doing so will preempt any reconciliations queued further into the
+	// future, for example due to exponential backoff. Prefer RequeueSoon when
+	// actively waiting for an external system to sync with the specified state
+	// of the requested object.
+	RequeueSoon = reconcile.Result{RequeueAfter: 30 * time.Second}
+
+	// RequeueLater queues a new reconciliation to be processed after a moderate
+	// delay. Doing so will preempt any reconciliations queued further into the
+	// future, for example due to exponential backoff. Prefer RequeueLater when
+	// _not_ actively waiting for an external system to sync with the specified
+	// state of the requested object.
+	RequeueLater = reconcile.Result{RequeueAfter: 2 * time.Minute}
 )
 
 var (
@@ -113,9 +137,9 @@ func HandleGetClaimError(err error) (reconcile.Result, error) {
 	if errors.IsNotFound(err) {
 		// Object not found, return.  Created objects are automatically garbage collected.
 		// For additional cleanup logic use finalizers.
-		return Result, nil
+		return RequeueIfDirty, nil
 	}
-	return Result, err
+	return RequeueIfDirty, err
 }
 
 // _reconcile runs the main reconcile loop of this controller, given the requested claim
@@ -127,7 +151,7 @@ func (r *Reconciler) _reconcile(claim corev1alpha1.ResourceClaim) (reconcile.Res
 	} else if handler == nil {
 		// handler is not found - log this but don't fail, let an external provisioner handle it
 		log.Info("handler for claim is unknown, ignoring reconcile to allow external provisioners to handle it", "claim", claim.GetName())
-		return Result, nil
+		return RequeueIfDirty, nil
 	}
 
 	// Check for deletion
@@ -172,7 +196,7 @@ func (r *Reconciler) _provision(claim corev1alpha1.ResourceClaim, handler Resour
 	claimStatus.SetCreating()
 
 	// update claim
-	return Result, r.Update(ctx, claim)
+	return RequeueIfDirty, r.Update(ctx, claim)
 }
 
 // _bind the given resource claim to a concrete Resource
@@ -189,7 +213,7 @@ func (r *Reconciler) _bind(claim corev1alpha1.ResourceClaim, handler ResourceHan
 	if !resource.IsAvailable() {
 		claim.ClaimStatus().UnsetAllConditions()
 		claim.ClaimStatus().SetCondition(corev1alpha1.NewCondition(corev1alpha1.Pending, waitResourceIsNotAvailable, "Resource is not in running state"))
-		return reconcile.Result{RequeueAfter: RequeueOnWait}, r.Update(ctx, claim)
+		return RequeueSoon, r.Update(ctx, claim)
 	}
 
 	// Object reference to the resource: needed to retrieve resource's namespace to retrieve resource's secret
@@ -229,7 +253,7 @@ func (r *Reconciler) _bind(claim corev1alpha1.ResourceClaim, handler ResourceHan
 		claimStatus.SetReady()
 	}
 
-	return reconcile.Result{RequeueAfter: RequeueOnSuccess}, r.Update(ctx, claim)
+	return RequeueLater, r.Update(ctx, claim)
 }
 
 // _delete the given resource claim
@@ -256,7 +280,7 @@ func (r *Reconciler) _delete(claim corev1alpha1.ResourceClaim, handler ResourceH
 // fail - helper function to set fail condition with reason and message
 func (r *Reconciler) fail(claim corev1alpha1.ResourceClaim, reason, msg string) (reconcile.Result, error) {
 	claim.ClaimStatus().SetFailed(reason, msg)
-	return ResultRequeue, r.Update(ctx, claim)
+	return RequeueNow, r.Update(ctx, claim)
 }
 
 func (r *Reconciler) _getHandler(claim corev1alpha1.ResourceClaim) (ResourceHandler, error) {
