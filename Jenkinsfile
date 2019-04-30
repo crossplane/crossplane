@@ -17,7 +17,6 @@ pipeline {
         DOCKER = credentials('dockerhub-upboundci')
         AWS = credentials('aws-upbound-bot')
         GITHUB_UPBOUND_BOT = credentials('github-upbound-jenkins')
-        CODECOV_TOKEN = credentials('codecov-crossplane')
     }
 
     stages {
@@ -152,9 +151,6 @@ pipeline {
                             sh "./build/run make -j\$(nproc) promote BRANCH_NAME=master CHANNEL=master AWS_ACCESS_KEY_ID=${AWS_USR} AWS_SECRET_ACCESS_KEY=${AWS_PSW}"
                         }
                     }
-                }
-                script {
-                    sh 'curl -s https://codecov.io/bash | bash -s -- -c -f _output/tests/**/coverage.txt -F unittests'
                 }
             }
         }
