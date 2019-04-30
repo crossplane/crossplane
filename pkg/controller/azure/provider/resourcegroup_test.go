@@ -148,7 +148,12 @@ func TestCreate(t *testing.T) {
 				MockCreateOrUpdate: func(_ context.Context, _ string, _ resources.Group) (resources.Group, error) {
 					return resources.Group{}, nil
 				},
-			}},
+			},
+				validator: &fakerg.MockValidator{
+					MockValidate: func(_ context.Context, _ string, _ string, _ resources.Deployment) {
+						return resources.DeploymentValidateResult{}, nil
+					},
+				}},
 			r: resource(),
 			want: resource(
 				withConditions(corev1alpha1.Condition{Type: corev1alpha1.Creating, Status: corev1.ConditionTrue}),
@@ -163,7 +168,12 @@ func TestCreate(t *testing.T) {
 				MockCreateOrUpdate: func(_ context.Context, _ string, _ resources.Group) (resources.Group, error) {
 					return resources.Group{}, errorBoom
 				},
-			}},
+			},
+				validator: &fakerg.MockValidator{
+					MockValidate: func(_ context.Context, _, _ string, _ resources.Deployment) {
+						return resources.DeploymentValidateResult{}, nil
+					},
+				}},
 			r: resource(),
 			want: resource(withConditions(
 				corev1alpha1.Condition{
@@ -177,8 +187,13 @@ func TestCreate(t *testing.T) {
 		},
 		{
 			name: "FailedCreateDueToName",
-			csd:  &azureResourceGroup{client: &fakerg.MockClient{}},
-			r:    resource(withSpecName("foo.")),
+			csd: &azureResourceGroup{client: &fakerg.MockClient{},
+				validator: &fakerg.MockValidator{
+					MockValidate: func(_ context.Context, _, _ string, _ resources.Deployment) {
+						return resources.DeploymentValidateResult{}, errorBoom
+					},
+				}},
+			r: resource(withSpecName("foo.")),
 			want: resource(withConditions(
 				corev1alpha1.Condition{
 					Type:    corev1alpha1.Failed,

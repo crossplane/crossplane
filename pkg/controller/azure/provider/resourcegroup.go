@@ -18,9 +18,11 @@ package provider
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"time"
 
+	"github.com/Azure/azure-sdk-for-go/services/resources/mgmt/2018-05-01/resources"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -86,14 +88,21 @@ type createsyncdeleter interface {
 
 // azureResourceGroup is a createsyncdeleter using the Azure Groups API.
 type azureResourceGroup struct {
-	client resourcegroup.GroupsClient
+	client    resourcegroup.GroupsClient
+	validator resourcegroup.DeploymentsClient
 }
 
 func (a *azureResourceGroup) Create(ctx context.Context, r *v1alpha1.ResourceGroup) bool {
-	if err := resourcegroup.CheckResourceGroupName(r.Spec.Name); err != nil {
-		r.Status.SetFailed(reasonCreatingResource, err.Error())
+	// if err := resourcegroup.CheckResourceGroupName(r.Spec.Name); err != nil {
+	// 	r.Status.SetFailed(reasonCreatingResource, err.Error())
+	// 	return true
+	// }
+	res, err := a.validator.Validate(ctx, r.Spec.Name, "test", resources.Deployment{})
+	if err != nil {
+		r.Status.SetFailed(reasonSyncingResource, err.Error())
 		return true
 	}
+	fmt.Println(res)
 
 	if _, err := a.client.CreateOrUpdate(ctx, r.Spec.Name, resourcegroup.NewParameters(r)); err != nil {
 		r.Status.SetFailed(reasonCreatingResource, err.Error())
@@ -152,8 +161,9 @@ type connecter interface {
 // providerConnecter is a connecter that returns a createsyncdeleter
 // authenticated using credentials read from a Crossplane Provider resource.
 type providerConnecter struct {
-	kube      client.Client
-	newClient func(creds []byte) (resourcegroup.GroupsClient, error)
+	kube         client.Client
+	newClient    func(creds []byte) (resourcegroup.GroupsClient, error)
+	newValidator func(creds []byte) (resourcegroup.DeploymentsClient, error)
 }
 
 // Connect returns a createsyncdeleter backed by the Azure API. Azure
@@ -177,7 +187,11 @@ func (c *providerConnecter) Connect(ctx context.Context, r *v1alpha1.ResourceGro
 	}
 
 	client, err := c.newClient(s.Data[p.Spec.Secret.Key])
-	return &azureResourceGroup{client: client}, errors.Wrap(err, "cannot create new Azure Resource Group client")
+	if err != nil {
+		return &azureResourceGroup{client: client}, errors.Wrap(err, "cannot create new Azure Resource Group client")
+	}
+	validator, err := c.newValidator(s.Data[p.Spec.Secret.Key])
+	return &azureResourceGroup{client: client, validator: validator}, errors.Wrap(err, "cannot create new Azure Resource Group client")
 }
 
 // ReconcilerRG reconciles Resource Group read from the Kubernetes API
@@ -192,7 +206,7 @@ type ReconcilerRG struct {
 // start it when the Manager is Started.
 func AddResourceGroup(mgr manager.Manager) error {
 	r := &ReconcilerRG{
-		connecter: &providerConnecter{kube: mgr.GetClient(), newClient: resourcegroup.NewClient},
+		connecter: &providerConnecter{kube: mgr.GetClient(), newClient: resourcegroup.NewClient, newValidator: resourcegroup.NewValidator},
 		kube:      mgr.GetClient(),
 	}
 	c, err := controller.New(controllerName, mgr, controller.Options{Reconciler: r})

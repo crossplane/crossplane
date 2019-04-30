@@ -40,7 +40,10 @@ const (
 // A GroupsClient handles CRUD operations for Azure Resource Group resources.
 type GroupsClient resourcesapi.GroupsClientAPI
 
-// NewClient returns a new Azure Resource Groups client. Credentials must be
+// A DeploymentsClient handles validation Azure Resource Group resources.
+type DeploymentsClient resourcesapi.DeploymentsClientAPI
+
+// NewClient returns a new Azure Groups client. Credentials must be
 // passed as JSON encoded data.
 func NewClient(credentials []byte) (GroupsClient, error) {
 	c := azure.Credentials{}
@@ -66,6 +69,34 @@ func NewClient(credentials []byte) (GroupsClient, error) {
 	}
 
 	return client, nil
+}
+
+// NewValidator returns a new Azure Deployments validtor client. Credentials must be
+// passed as JSON encoded data.
+func NewValidator(credentials []byte) (DeploymentsClient, error) {
+	c := azure.Credentials{}
+	if err := json.Unmarshal(credentials, &c); err != nil {
+		return nil, errors.Wrap(err, "cannot unmarshal Azure client secret data")
+	}
+	validator := resources.NewDeploymentsClient(c.SubscriptionID)
+
+	cfg := auth.ClientCredentialsConfig{
+		ClientID:     c.ClientID,
+		ClientSecret: c.ClientSecret,
+		TenantID:     c.TenantID,
+		AADEndpoint:  c.ActiveDirectoryEndpointURL,
+		Resource:     c.ResourceManagerEndpointURL,
+	}
+	a, err := cfg.Authorizer()
+	if err != nil {
+		return nil, errors.Wrapf(err, "cannot create Azure authorizer from credentials config")
+	}
+	validator.Authorizer = a
+	if err := validator.AddToUserAgent(azure.UserAgent); err != nil {
+		return nil, errors.Wrap(err, "cannot add to Azure client user agent")
+	}
+
+	return validator, nil
 }
 
 // NewParameters returns Resource Group resource creation parameters suitable for
