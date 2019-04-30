@@ -136,6 +136,16 @@ pipeline {
             }
         }
 
+        stage('PR Coverage to Github') {
+            when { allOf {not { branch 'master' }; expression { return env.CHANGE_ID != null }} }
+            steps {
+                script {
+                    currentBuild.result = 'SUCCESS'
+                }
+                step([$class: 'CompareCoverageAction', publishResultAs: 'comment', scmVars: [GIT_URL: env.GIT_URL]])
+            }
+        }
+
         stage('Publish') {
             when {
                 expression {
