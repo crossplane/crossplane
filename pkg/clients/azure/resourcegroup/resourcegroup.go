@@ -40,7 +40,7 @@ const (
 // A GroupsClient handles CRUD operations for Azure Resource Group resources.
 type GroupsClient resourcesapi.GroupsClientAPI
 
-// NewClient returns a new Azure Cache for Redis client. Credentials must be
+// NewClient returns a new Azure Resource Groups client. Credentials must be
 // passed as JSON encoded data.
 func NewClient(credentials []byte) (GroupsClient, error) {
 	c := azure.Credentials{}

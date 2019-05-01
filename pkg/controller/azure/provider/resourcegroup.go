@@ -76,16 +76,15 @@ type deleter interface {
 	Delete(ctx context.Context, r *v1alpha1.ResourceGroup) (requeue bool)
 }
 
-// A createsyncdeletekeyer an create, sync, and delete resources in an external
-// store - e.g. the Azure API. It can also return keys (i.e. credentials) for
-// resources.
+// A createsyncdeleter can create, sync, and delete resources in an external
+// store - e.g. the Azure API.
 type createsyncdeleter interface {
 	creator
 	syncer
 	deleter
 }
 
-// azureResourceGroup is a createsyncdeletr using the Azure Groups API.
+// azureResourceGroup is a createsyncdeleter using the Azure Groups API.
 type azureResourceGroup struct {
 	client resourcegroup.GroupsClient
 }
