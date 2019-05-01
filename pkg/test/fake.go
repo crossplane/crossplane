@@ -25,32 +25,77 @@ import (
 
 var _ client.Client = &MockClient{}
 
+// A MockGetFn is used to mock client.Client's Get implementation.
+type MockGetFn func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error
+
+// A MockListFn is used to mock client.Client's List implementation.
+type MockListFn func(ctx context.Context, opts *client.ListOptions, list runtime.Object) error
+
+// A MockCreateFn is used to mock client.Client's Create implementation.
+type MockCreateFn func(ctx context.Context, obj runtime.Object) error
+
+// A MockDeleteFn is used to mock client.Client's Delete implementation.
+type MockDeleteFn func(ctx context.Context, obj runtime.Object, opts ...client.DeleteOptionFunc) error
+
+// A MockUpdateFn is used to mock client.Client's Update implementation.
+type MockUpdateFn func(ctx context.Context, obj runtime.Object) error
+
+// A MockStatusUpdateFn is used to mock client.Client's StatusUpdate implementation.
+type MockStatusUpdateFn func(ctx context.Context, obj runtime.Object) error
+
+// NewMockGetFn returns a MockGetFn that returns the supplied error.
+func NewMockGetFn(err error) MockGetFn {
+	return func(_ context.Context, _ client.ObjectKey, _ runtime.Object) error { return err }
+}
+
+// NewMockListFn returns a MockListFn that returns the supplied error.
+func NewMockListFn(err error) MockListFn {
+	return func(_ context.Context, _ *client.ListOptions, _ runtime.Object) error { return err }
+}
+
+// NewMockCreateFn returns a MockCreateFn that returns the supplied error.
+func NewMockCreateFn(err error) MockCreateFn {
+	return func(_ context.Context, _ runtime.Object) error { return err }
+}
+
+// NewMockDeleteFn returns a MockDeleteFn that returns the supplied error.
+func NewMockDeleteFn(err error) MockDeleteFn {
+	return func(_ context.Context, _ runtime.Object, _ ...client.DeleteOptionFunc) error { return err }
+}
+
+// NewMockUpdateFn returns a MockUpdateFn that returns the supplied error.
+func NewMockUpdateFn(err error) MockUpdateFn {
+	return func(_ context.Context, _ runtime.Object) error { return err }
+}
+
+// NewMockStatusUpdateFn returns a MockStatusUpdateFn that returns the supplied error.
+func NewMockStatusUpdateFn(err error) MockStatusUpdateFn {
+	return func(_ context.Context, _ runtime.Object) error { return err }
+}
+
 // MockClient implements controller-runtime's Client interface, allowing each
 // method to be overridden for testing. The controller-runtime provides a fake
 // client, but it is has surprising side effects (e.g. silently calling
 // os.Exit(1)) and does not allow us control over the errors it returns.
 type MockClient struct {
-	MockGet          func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error
-	MockList         func(ctx context.Context, opts *client.ListOptions, list runtime.Object) error
-	MockCreate       func(ctx context.Context, obj runtime.Object) error
-	MockDelete       func(ctx context.Context, obj runtime.Object, opts ...client.DeleteOptionFunc) error
-	MockUpdate       func(ctx context.Context, obj runtime.Object) error
-	MockStatusUpdate func(ctx context.Context, obj runtime.Object) error
+	MockGet          MockGetFn
+	MockList         MockListFn
+	MockCreate       MockCreateFn
+	MockDelete       MockDeleteFn
+	MockUpdate       MockUpdateFn
+	MockStatusUpdate MockStatusUpdateFn
 }
 
 // NewMockClient returns a MockClient that does nothing when its methods are
 // called.
 func NewMockClient() *MockClient {
 	return &MockClient{
-		//MockStatusClient: &MockStatusClient{
-		//	MockUpdate: func(ctx context.Context, obj runtime.Object) error { return nil },
-		//},
-		MockGet:          func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error { return nil },
-		MockList:         func(ctx context.Context, opts *client.ListOptions, list runtime.Object) error { return nil },
-		MockCreate:       func(ctx context.Context, obj runtime.Object) error { return nil },
-		MockDelete:       func(ctx context.Context, obj runtime.Object, opts ...client.DeleteOptionFunc) error { return nil },
-		MockUpdate:       func(ctx context.Context, obj runtime.Object) error { return nil },
-		MockStatusUpdate: func(ctx context.Context, obj runtime.Object) error { return nil },
+		MockGet:          NewMockGetFn(nil),
+		MockList:         NewMockListFn(nil),
+		MockCreate:       NewMockCreateFn(nil),
+		MockDelete:       NewMockDeleteFn(nil),
+		MockUpdate:       NewMockUpdateFn(nil),
+		MockStatusUpdate: NewMockStatusUpdateFn(nil),
 	}
 }
 
@@ -88,7 +133,7 @@ func (c *MockClient) Status() client.StatusWriter {
 
 // MockStatusWriter provides mock functionality for status sub-resource
 type MockStatusWriter struct {
-	MockUpdate func(ctx context.Context, obj runtime.Object) error
+	MockUpdate MockStatusUpdateFn
 }
 
 // Update status sub-resource

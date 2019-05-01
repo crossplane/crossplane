@@ -64,7 +64,7 @@ type KubernetesClusterList struct {
 // ObjectReference to using this object as a reference
 func (kc *KubernetesCluster) ObjectReference() *corev1.ObjectReference {
 	if kc.Kind == "" {
-		kc.Kind = KubernetesInstanceKind
+		kc.Kind = KubernetesClusterKind
 	}
 	if kc.APIVersion == "" {
 		kc.APIVersion = APIVersion
@@ -177,7 +177,7 @@ type WorkloadList struct {
 // ObjectReference to using this object as a reference
 func (kc *Workload) ObjectReference() *corev1.ObjectReference {
 	if kc.Kind == "" {
-		kc.Kind = KubernetesInstanceKind
+		kc.Kind = KubernetesClusterKind
 	}
 	if kc.APIVersion == "" {
 		kc.APIVersion = APIVersion
