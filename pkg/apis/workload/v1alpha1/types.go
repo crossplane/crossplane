@@ -56,8 +56,9 @@ type KubernetesApplicationSpec struct {
 	ResourceSelector *metav1.LabelSelector `json:"resourceSelector"`
 
 	// ClusterSelector selects the clusters to which this application may be
-	// scheduled.
-	ClusterSelector *metav1.LabelSelector `json:"clusterSelector,omitempty"`
+	// scheduled. Leave both match labels and expressions empty to match any
+	// cluster.
+	ClusterSelector *metav1.LabelSelector `json:"clusterSelector"`
 
 	// TODO(negz): Use a validation webhook to ensure the below templates have
 	// unique names.

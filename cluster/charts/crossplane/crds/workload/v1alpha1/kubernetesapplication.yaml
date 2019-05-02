@@ -82,6 +82,7 @@ spec:
               type: array
           required:
           - resourceSelector
+          - clusterSelector
           - resourceTemplates
           type: object
         status:
