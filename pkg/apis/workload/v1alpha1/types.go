@@ -42,8 +42,18 @@ const (
 // A KubernetesApplicationSpec specifies the resources of a Kubernetes
 // application.
 type KubernetesApplicationSpec struct {
-	// TODO(negz): Use a validation webhook to ensure the below selector cannot
+	// TODO(negz): Use a validation webhook to ensure the below selectors cannot
 	// be updated - only set at creation time.
+
+	// TODO(negz): Use a validation webhook to ensure ResourceSelector matches
+	// the labels of all templated KubernetesApplicationResources.
+
+	// ResourceSelector selects the KubernetesApplicationResources that are
+	// managed by this KubernetesApplication. Note that a KubernetesApplication
+	// will never adopt orphaned KubernetesApplicationResources, and thus this
+	// selector serves only to help match a KubernetesApplication to its
+	// KubernetesApplicationResources.
+	ResourceSelector *metav1.LabelSelector `json:"resourceSelector"`
 
 	// ClusterSelector selects the clusters to which this application may be
 	// scheduled.

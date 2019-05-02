@@ -29,6 +29,9 @@ metadata:
   labels:
     app: wordpress-demo
 spec:
+  resourceSelector:
+    matchLabels:
+      app: wordpress-demo
   clusterSelector:
     matchLabels:
       app: wordpress-demo
@@ -60,7 +63,6 @@ spec:
           name: wordpress
           labels:
             app: wordpress
-            morelabels: arebetter
         spec:
           selector:
             matchLabels:
