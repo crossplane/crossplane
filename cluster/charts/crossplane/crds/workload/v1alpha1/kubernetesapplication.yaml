@@ -45,6 +45,13 @@ spec:
               description: ClusterSelector selects the clusters to which this application
                 may be scheduled.
               type: object
+            resourceSelector:
+              description: ResourceSelector selects the KubernetesApplicationResources
+                that are managed by this KubernetesApplication. Note that a KubernetesApplication
+                will never adopt orphaned KubernetesApplicationResources, and thus
+                this selector serves only to help match a KubernetesApplication to
+                its KubernetesApplicationResources.
+              type: object
             resourceTemplates:
               description: ResourceTemplates specifies a set of Kubernetes application
                 resources managed by this application.
@@ -74,6 +81,8 @@ spec:
                 type: object
               type: array
           required:
+          - resourceSelector
+          - clusterSelector
           - resourceTemplates
           type: object
         status:

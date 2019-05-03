@@ -43,7 +43,8 @@ var (
 	ctx = context.TODO()
 	c   client.Client
 
-	key = types.NamespacedName{Name: name, Namespace: namespace}
+	key    = types.NamespacedName{Name: name, Namespace: namespace}
+	labels = map[string]string{"cool": "super"}
 )
 
 func TestMain(m *testing.M) {
@@ -61,10 +62,14 @@ func TestKubernetesApplication(t *testing.T) {
 			Name:      name,
 		},
 		Spec: KubernetesApplicationSpec{
-			ClusterSelector: &metav1.LabelSelector{},
+			ResourceSelector: &metav1.LabelSelector{MatchLabels: labels},
+			ClusterSelector:  &metav1.LabelSelector{},
 			ResourceTemplates: []KubernetesApplicationResourceTemplate{
 				{
-					ObjectMeta: metav1.ObjectMeta{Name: name},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:   name,
+						Labels: labels,
+					},
 					Spec: KubernetesApplicationResourceSpec{
 						Secrets:  []corev1.LocalObjectReference{{Name: name}},
 						Template: resourceTemplate(),
@@ -81,9 +86,9 @@ func TestKubernetesApplication(t *testing.T) {
 	g.Expect(c.Get(ctx, key, fetched)).NotTo(HaveOccurred())
 	g.Expect(fetched).To(Equal(created))
 
-	// Test Updating the Labels
+	// Test Updating the annotations
 	updated := fetched.DeepCopy()
-	updated.Labels = map[string]string{"hello": "world"}
+	updated.Annotations = map[string]string{"hello": "world"}
 	g.Expect(c.Update(ctx, updated)).NotTo(HaveOccurred())
 
 	g.Expect(c.Get(ctx, key, fetched)).NotTo(HaveOccurred())
@@ -101,6 +106,7 @@ func TestKubernetesApplicationResource(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: namespace,
 			Name:      name,
+			Labels:    labels,
 		},
 		Spec: KubernetesApplicationResourceSpec{
 			Secrets:  []corev1.LocalObjectReference{{Name: name}},
@@ -115,9 +121,9 @@ func TestKubernetesApplicationResource(t *testing.T) {
 	g.Expect(c.Get(ctx, key, fetched)).NotTo(HaveOccurred())
 	g.Expect(fetched).To(Equal(created))
 
-	// Test Updating the Labels
+	// Test Updating the annotations
 	updated := fetched.DeepCopy()
-	updated.Labels = map[string]string{"hello": "world"}
+	updated.Annotations = map[string]string{"hello": "world"}
 	g.Expect(c.Update(ctx, updated)).NotTo(HaveOccurred())
 
 	g.Expect(c.Get(ctx, key, fetched)).NotTo(HaveOccurred())
