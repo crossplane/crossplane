@@ -24,7 +24,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/elasticache"
-	"github.com/go-test/deep"
+	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -226,7 +226,7 @@ func TestCreate(t *testing.T) {
 				t.Errorf("tc.csd.Create(...): want: %t got: %t", tc.wantRequeue, gotRequeue)
 			}
 
-			if diff := deep.Equal(tc.want, tc.r); diff != nil {
+			if diff := cmp.Diff(tc.want, tc.r); diff != "" {
 				t.Errorf("r: want != got:\n%s", diff)
 			}
 		})
@@ -645,7 +645,7 @@ func TestSync(t *testing.T) {
 				t.Errorf("tc.csd.Sync(...): want: %t got: %t", tc.wantRequeue, gotRequeue)
 			}
 
-			if diff := deep.Equal(tc.want, tc.r); diff != nil {
+			if diff := cmp.Diff(tc.want, tc.r); diff != "" {
 				t.Errorf("r: want != got:\n%s", diff)
 			}
 		})
@@ -720,7 +720,7 @@ func TestDelete(t *testing.T) {
 				t.Errorf("tc.csd.Delete(...): want: %t got: %t", tc.wantRequeue, gotRequeue)
 			}
 
-			if diff := deep.Equal(tc.want, tc.r); diff != nil {
+			if diff := cmp.Diff(tc.want, tc.r); diff != "" {
 				t.Errorf("r: want != got:\n%s", diff)
 			}
 		})
@@ -826,11 +826,11 @@ func TestConnect(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			got, gotErr := tc.conn.Connect(ctx, tc.i)
 
-			if diff := deep.Equal(tc.wantErr, gotErr); diff != nil {
+			if diff := cmp.Diff(tc.wantErr, gotErr); diff != "" {
 				t.Errorf("tc.conn.Connect(...): want error != got error:\n%s", diff)
 			}
 
-			if diff := deep.Equal(tc.want, got); diff != nil {
+			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("tc.conn.Connect(...): want != got:\n%s", diff)
 			}
 		})
@@ -990,7 +990,7 @@ func TestReconcile(t *testing.T) {
 							},
 						))
 						got := obj.(*v1alpha1.ReplicationGroup)
-						if diff := deep.Equal(want, got); diff != nil {
+						if diff := cmp.Diff(want, got); diff != "" {
 							t.Errorf("kube.Update(...): want != got:\n%s", diff)
 						}
 						return nil
@@ -1028,7 +1028,7 @@ func TestReconcile(t *testing.T) {
 								},
 							))
 						got := obj.(*v1alpha1.ReplicationGroup)
-						if diff := deep.Equal(want, got); diff != nil {
+						if diff := cmp.Diff(want, got); diff != "" {
 							t.Errorf("kube.Update(...): want != got:\n%s", diff)
 						}
 						return nil
@@ -1067,7 +1067,7 @@ func TestReconcile(t *testing.T) {
 								},
 							))
 						got := obj.(*v1alpha1.ReplicationGroup)
-						if diff := deep.Equal(want, got); diff != nil {
+						if diff := cmp.Diff(want, got); diff != "" {
 							t.Errorf("kube.Update(...): want != got:\n%s", diff)
 						}
 						return nil
@@ -1084,11 +1084,11 @@ func TestReconcile(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			gotResult, gotErr := tc.rec.Reconcile(tc.req)
 
-			if diff := deep.Equal(tc.wantErr, gotErr); diff != nil {
+			if diff := cmp.Diff(tc.wantErr, gotErr); diff != "" {
 				t.Errorf("tc.rec.Reconcile(...): want error != got error:\n%s", diff)
 			}
 
-			if diff := deep.Equal(tc.want, gotResult); diff != nil {
+			if diff := cmp.Diff(tc.want, gotResult); diff != "" {
 				t.Errorf("tc.rec.Reconcile(...): want != got:\n%s", diff)
 			}
 		})
@@ -1148,7 +1148,7 @@ func TestConnectionSecretWithPassword(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			got := connectionSecretWithPassword(tc.r, tc.password)
-			if diff := deep.Equal(tc.want, got); diff != nil {
+			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("connectionSecretWithPassword(...): want != got:\n%s", diff)
 			}
 		})

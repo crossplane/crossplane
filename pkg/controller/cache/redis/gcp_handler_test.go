@@ -20,7 +20,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/go-test/deep"
+	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 
 	cachev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/cache/v1alpha1"
@@ -88,11 +88,11 @@ func TestResolveGCPClassInstanceValues(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			gotErr := resolveGCPClassInstanceValues(tc.class, tc.claim)
-			if diff := deep.Equal(tc.wantErr, gotErr); diff != nil {
+			if diff := cmp.Diff(tc.wantErr, gotErr); diff != "" {
 				t.Errorf("want error != got error:\n %+v", diff)
 			}
 
-			if diff := deep.Equal(tc.want, tc.class); diff != nil {
+			if diff := cmp.Diff(tc.want, tc.class); diff != "" {
 				t.Errorf("want != got:\n %+v", diff)
 			}
 		})

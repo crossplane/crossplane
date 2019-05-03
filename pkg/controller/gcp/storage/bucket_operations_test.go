@@ -21,7 +21,7 @@ import (
 	"testing"
 
 	"cloud.google.com/go/storage"
-	"github.com/go-test/deep"
+	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -146,7 +146,7 @@ func Test_bucketHandler_addFinalizer(t *testing.T) {
 			}
 			bc.addFinalizer()
 			got := tt.fields.bucket.Finalizers
-			if diff := deep.Equal(got, tt.want); diff != nil {
+			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("bucketHandler.addFinalizer() = %v, want %v", got, tt.want)
 			}
 		})
@@ -177,7 +177,7 @@ func Test_bucketHandler_removeFinalizer(t *testing.T) {
 			}
 			bc.removeFinalizer()
 			got := tt.fields.bucket.Finalizers
-			if diff := deep.Equal(got, tt.want); diff != nil {
+			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("bucketHandler.removeFinalizer() = %v, want %v", got, tt.want)
 			}
 		})
@@ -246,7 +246,7 @@ func Test_bucketHandler_getSpecAttrs(t *testing.T) {
 				Bucket: tt.fields.bucket,
 			}
 			got := bh.getSpecAttrs()
-			if diff := deep.Equal(got, tt.want); diff != nil {
+			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("bucketHandler.getSpecAttrs() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
@@ -278,7 +278,7 @@ func Test_bucketHandler_setSpecAttrs(t *testing.T) {
 			}
 			bh.setSpecAttrs(tt.args)
 			got := tt.fields.bucket.Spec.BucketSpecAttrs
-			if diff := deep.Equal(got, tt.want); diff != nil {
+			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("bucketHandler.setSpecAttrs() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
@@ -309,7 +309,7 @@ func Test_bucketHandler_setStatusAttrs(t *testing.T) {
 			}
 			bh.setStatusAttrs(tt.args)
 			got := tt.fields.bucket.Status.BucketOutputAttrs
-			if diff := deep.Equal(got, tt.want); diff != nil {
+			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("bucketHandler.setStatusAttrs() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
@@ -357,7 +357,7 @@ func Test_bucketHandler_failReconcile(t *testing.T) {
 	if err := bc.failReconcile(ctx, "foo", "bar"); err != nil {
 		t.Errorf("bucketHandler.failReconcile() unexpected error %v", err)
 	}
-	if diff := deep.Equal(bucket, want); diff != nil {
+	if diff := cmp.Diff(bucket, want); diff != "" {
 		t.Errorf("bucketHandler.failReconcile() got = %v, want %v\n%s", bucket, want, diff)
 	}
 
@@ -516,7 +516,7 @@ func Test_bucketHandler_updateSecret(t *testing.T) {
 				kube:   tt.fields.kube,
 			}
 			err := bh.updateSecret(ctx)
-			if diff := deep.Equal(err, tt.want); diff != nil {
+			if diff := cmp.Diff(err, tt.want); diff != "" {
 				t.Errorf("bucketHandler.updateSecret() error = %v, wantErr %v\n%s", err, tt.want, diff)
 			}
 		})
@@ -573,7 +573,7 @@ func Test_bucketHandler_updateBucket(t *testing.T) {
 	if err != nil {
 		t.Errorf("bucketHandler.updateBucket() unexpected error %v", err)
 	}
-	if diff := deep.Equal(got, want); diff != nil {
+	if diff := cmp.Diff(got, want); diff != "" {
 		t.Errorf("bucketHandler.updateBucket() got = %v, want %v\n%s", got, want, diff)
 	}
 }
@@ -608,10 +608,10 @@ func Test_bucketHandler_getAttributes(t *testing.T) {
 				gcp: tt.fields.gcp,
 			}
 			got, err := bh.getAttributes(ctx)
-			if diff := deep.Equal(err, tt.want.err); diff != nil {
+			if diff := cmp.Diff(err, tt.want.err); diff != "" {
 				t.Errorf("bucketHandler.getAttributes() error = %v, want.err %v\n%s", err, tt.want.err, diff)
 			}
-			if diff := deep.Equal(got, tt.want.attrs); diff != nil {
+			if diff := cmp.Diff(got, tt.want.attrs); diff != "" {
 				t.Errorf("bucketHandler.getAttributes() = %v, want %v\n%s", got, tt.want.attrs, diff)
 			}
 		})

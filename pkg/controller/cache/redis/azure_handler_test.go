@@ -20,7 +20,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/go-test/deep"
+	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 
 	azurecachev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/cache/v1alpha1"
@@ -58,7 +58,7 @@ func TestResolveAzureClassValues(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			got := resolveAzureClassValues(tc.claim)
-			if diff := deep.Equal(tc.want, got); diff != nil {
+			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("want != got:\n%s", diff)
 			}
 		})

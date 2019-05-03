@@ -19,8 +19,7 @@ package gke
 import (
 	"testing"
 
-	"github.com/go-test/deep"
-
+	"github.com/google/go-cmp/cmp"
 	"golang.org/x/oauth2/google"
 )
 
@@ -39,11 +38,11 @@ func TestNewClusterClient(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := NewClusterClient(tt.args)
-			if diff := deep.Equal(err, tt.want.err); diff != nil {
+			if diff := cmp.Diff(err, tt.want.err); diff != "" {
 				t.Errorf("NewClusterClient() error = %v, want.err %v\n%s", err, tt.want.err, diff)
 				return
 			}
-			if diff := deep.Equal(got, tt.want.res); diff != nil {
+			if diff := cmp.Diff(got, tt.want.res); diff != "" {
 				t.Errorf("NewClusterClient() = %v, want %v\n%s", got, tt.want.res, diff)
 			}
 		})

@@ -25,7 +25,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/services/storage/mgmt/2017-06-01/storage"
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/to"
-	"github.com/go-test/deep"
+	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -311,11 +311,11 @@ func TestReconciler_Reconcile(t *testing.T) {
 				syncdeleterMaker: tt.fields.maker,
 			}
 			got, err := r.Reconcile(req)
-			if diff := deep.Equal(err, tt.want.err); diff != nil {
+			if diff := cmp.Diff(err, tt.want.err); diff != "" {
 				t.Errorf("Reconciler.Reconcile() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
 				return
 			}
-			if diff := deep.Equal(got, tt.want.res); diff != nil {
+			if diff := cmp.Diff(got, tt.want.res); diff != "" {
 				t.Errorf("Reconciler.Reconcile() result = %v, wantRs %v\n%s", got, tt.want.res, diff)
 			}
 			if tt.want.acct != nil {
@@ -323,7 +323,7 @@ func TestReconciler_Reconcile(t *testing.T) {
 				if err := r.Get(ctx, key, b); err != nil {
 					t.Errorf("Reconciler.Reconcile() account error: %s", err)
 				}
-				if diff := deep.Equal(b, tt.want.acct); diff != nil {
+				if diff := cmp.Diff(b, tt.want.acct); diff != "" {
 					t.Errorf("Reconciler.Reconcile() account = \n%+v, wantObj \n%+v\n%s", b, tt.want.acct, diff)
 				}
 			}
@@ -406,11 +406,11 @@ func Test_accountHandleMaker_newHandler(t *testing.T) {
 				Client: tt.kube,
 			}
 			got, err := m.newSyncdeleter(ctx, tt.acct)
-			if diff := deep.Equal(err, tt.wantErr); diff != nil {
+			if diff := cmp.Diff(err, tt.wantErr); diff != "" {
 				t.Errorf("accountSyncdeleterMaker.newSyncdeleter() error = \n%v, wantErr: \n%v\n%s", err, tt.wantErr, diff)
 				return
 			}
-			if diff := deep.Equal(got, tt.want); diff != nil {
+			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("accountSyncdeleterMaker.newSyncdeleter() = \n%+v, want \n%+v\n%s", got, tt.want, diff)
 			}
 		})
@@ -528,15 +528,15 @@ func Test_syncdeleter_delete(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bh := newAccountSyncDeleter(tt.fields.ao, tt.fields.cc, tt.fields.acct)
 			got, err := bh.delete(ctx)
-			if diff := deep.Equal(err, tt.want.err); diff != nil {
+			if diff := cmp.Diff(err, tt.want.err); diff != "" {
 				t.Errorf("accountSyncDeleter.delete() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
 				return
 			}
-			if diff := deep.Equal(got, tt.want.res); diff != nil {
+			if diff := cmp.Diff(got, tt.want.res); diff != "" {
 				t.Errorf("accountSyncDeleter.delete() result = %v, wantRes %v\n%s", got, tt.want.res, diff)
 				return
 			}
-			if diff := deep.Equal(tt.fields.acct, tt.want.acct); diff != nil {
+			if diff := cmp.Diff(tt.fields.acct, tt.want.acct); diff != "" {
 				t.Errorf("accountSyncDeleter.delete() account = \n%+v, wantObj \n%+v\n%s", tt.fields.acct, tt.want.acct, diff)
 				return
 			}
@@ -633,15 +633,15 @@ func Test_syncdeleter_sync(t *testing.T) {
 			}
 
 			got, err := bh.sync(ctx)
-			if diff := deep.Equal(err, tt.want.err); diff != nil {
+			if diff := cmp.Diff(err, tt.want.err); diff != "" {
 				t.Errorf("accountSyncDeleter.delete() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
 				return
 			}
-			if diff := deep.Equal(got, tt.want.res); diff != nil {
+			if diff := cmp.Diff(got, tt.want.res); diff != "" {
 				t.Errorf("accountSyncDeleter.delete() result = %v, wantRes %v\n%s", got, tt.want.res, diff)
 				return
 			}
-			if diff := deep.Equal(tt.fields.acct, tt.want.acct); diff != nil {
+			if diff := cmp.Diff(tt.fields.acct, tt.want.acct); diff != "" {
 				t.Errorf("accountSyncDeleter.delete() account = \n%+v, wantObj \n%+v\n%s", tt.fields.acct, tt.want.acct, diff)
 				return
 			}
@@ -741,15 +741,15 @@ func Test_createupdater_create(t *testing.T) {
 				projectID:         tt.fields.projectID,
 			}
 			got, err := bh.create(ctx)
-			if diff := deep.Equal(err, tt.want.err); diff != nil {
+			if diff := cmp.Diff(err, tt.want.err); diff != "" {
 				t.Errorf("accountCreateUpdater.create() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
 				return
 			}
-			if diff := deep.Equal(got, tt.want.res); diff != nil {
+			if diff := cmp.Diff(got, tt.want.res); diff != "" {
 				t.Errorf("accountCreateUpdater.create() result = %v, wantRes %v\n%s", got, tt.want.res, diff)
 				return
 			}
-			if diff := deep.Equal(tt.fields.acct, tt.want.obj); diff != nil {
+			if diff := cmp.Diff(tt.fields.acct, tt.want.obj); diff != "" {
 				t.Errorf("accountCreateUpdater.create() account = \n%+v, wantObj \n%+v\n%s", tt.fields.acct, tt.want.obj, diff)
 				return
 			}
@@ -885,15 +885,15 @@ func Test_bucketCreateUpdater_update(t *testing.T) {
 				acct:              tt.fields.acct,
 			}
 			got, err := bh.update(ctx, tt.attrs)
-			if diff := deep.Equal(err, tt.want.err); diff != nil {
+			if diff := cmp.Diff(err, tt.want.err); diff != "" {
 				t.Errorf("accountCreateUpdater.update() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
 				return
 			}
-			if diff := deep.Equal(got, tt.want.res); diff != nil {
+			if diff := cmp.Diff(got, tt.want.res); diff != "" {
 				t.Errorf("accountCreateUpdater.update() result = %v, wantRes %v\n%s", got, tt.want.res, diff)
 				return
 			}
-			if diff := deep.Equal(tt.fields.acct, tt.want.acct); diff != nil {
+			if diff := cmp.Diff(tt.fields.acct, tt.want.acct); diff != "" {
 				t.Errorf("accountCreateUpdater.update() account = \n%+v, wantObj \n%+v\n%s", tt.fields.acct, tt.want.acct, diff)
 				return
 			}
@@ -1022,15 +1022,15 @@ func Test_accountSyncBacker_syncback(t *testing.T) {
 				acct:          tt.fields.acct,
 			}
 			got, err := acu.syncback(ctx, tt.acct)
-			if diff := deep.Equal(err, tt.want.err); diff != nil {
+			if diff := cmp.Diff(err, tt.want.err); diff != "" {
 				t.Errorf("accountSyncBackSecretUpdater.syncback() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
 				return
 			}
-			if diff := deep.Equal(got, tt.want.res); diff != nil {
+			if diff := cmp.Diff(got, tt.want.res); diff != "" {
 				t.Errorf("accountSyncBackSecretUpdater.syncback() result = %v, wantRes %v\n%s", got, tt.want.res, diff)
 				return
 			}
-			if diff := deep.Equal(tt.fields.acct, tt.want.acct); diff != nil {
+			if diff := cmp.Diff(tt.fields.acct, tt.want.acct); diff != "" {
 				t.Errorf("accountSyncBackSecretUpdater.syncback() account = \n%+v, wantObj \n%+v\n%s", tt.fields.acct, tt.want.acct, diff)
 				return
 			}
@@ -1208,7 +1208,7 @@ func Test_accountSecretUpdater_updatesecret(t *testing.T) {
 				kube:              tt.fields.kube,
 			}
 			err := asu.updatesecret(ctx, tt.acct)
-			if diff := deep.Equal(err, tt.wantErr); diff != nil {
+			if diff := cmp.Diff(err, tt.wantErr); diff != "" {
 				t.Errorf("accountSyncBackSecretUpdater.syncback() error = %v, wantErr %v\n%s", err, tt.wantErr, diff)
 				return
 			}

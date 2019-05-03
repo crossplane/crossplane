@@ -20,7 +20,7 @@ import (
 	"testing"
 
 	"github.com/Azure/azure-sdk-for-go/services/storage/mgmt/2017-06-01/storage"
-	"github.com/go-test/deep"
+	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 )
 
@@ -56,7 +56,7 @@ func TestNewStorageAccountClient(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := NewStorageAccountClient(tt.args)
-			if diff := deep.Equal(err, tt.wantErr); diff != nil {
+			if diff := cmp.Diff(err, tt.wantErr); diff != "" {
 				t.Errorf("NewStorageAccountClient() error = %v, wantErr %v\n%s", err, tt.wantErr, diff)
 			}
 			if err != nil && got != nil {
@@ -97,7 +97,7 @@ func TestNewAccountHandle(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := NewAccountHandle(tt.args.client, tt.args.groupName, tt.args.accountName)
-			if diff := deep.Equal(got, tt.want); diff != nil {
+			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("NewAccountHandle() = %v, wantErr %v\n%s", got, tt.want, diff)
 			}
 		})

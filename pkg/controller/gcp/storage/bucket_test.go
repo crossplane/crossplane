@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/go-test/deep"
+	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -289,11 +289,11 @@ func TestReconciler_Reconcile(t *testing.T) {
 				factory: tt.fields.factory,
 			}
 			got, err := r.Reconcile(req)
-			if diff := deep.Equal(err, tt.wantErr); diff != nil {
+			if diff := cmp.Diff(err, tt.wantErr); diff != "" {
 				t.Errorf("Reconciler.Reconcile() error = %v, wantErr %v\n%s", err, tt.wantErr, diff)
 				return
 			}
-			if diff := deep.Equal(got, tt.wantRs); diff != nil {
+			if diff := cmp.Diff(got, tt.wantRs); diff != "" {
 				t.Errorf("Reconciler.Reconcile() result = %v, wantRs %v\n%s", got, tt.wantRs, diff)
 			}
 			if tt.wantObj != nil {
@@ -301,7 +301,7 @@ func TestReconciler_Reconcile(t *testing.T) {
 				if err := r.Get(ctx, key, b); err != nil {
 					t.Errorf("Reconciler.Reconcile() bucket error: %s", err)
 				}
-				if diff := deep.Equal(b, tt.wantObj); diff != nil {
+				if diff := cmp.Diff(b, tt.wantObj); diff != "" {
 					t.Errorf("Reconciler.Reconcile() bucket = \n%+v, wantObj \n%+v\n%s", b, tt.wantObj, diff)
 				}
 			}
@@ -400,11 +400,11 @@ func Test_bucketFactory_newHandler(t *testing.T) {
 				Client: tt.Client,
 			}
 			got, err := m.newSyncDeleter(ctx, tt.bucket)
-			if diff := deep.Equal(err, tt.want.err); diff != nil {
+			if diff := cmp.Diff(err, tt.want.err); diff != "" {
 				t.Errorf("bucketFactory.newSyncDeleter() error = \n%v, wantErr: \n%v\n%s", err, tt.want.err, diff)
 				return
 			}
-			if diff := deep.Equal(got, tt.want.sd); diff != nil {
+			if diff := cmp.Diff(got, tt.want.sd); diff != "" {
 				t.Errorf("bucketFactory.newSyncDeleter() = \n%+v, want \n%+v\n%s", got, tt.want.sd, diff)
 			}
 		})
@@ -492,11 +492,11 @@ func Test_bucketSyncDeleter_delete(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bsd := newBucketSyncDeleter(tt.fields.ops, "")
 			got, err := bsd.delete(ctx)
-			if diff := deep.Equal(err, tt.want.err); diff != nil {
+			if diff := cmp.Diff(err, tt.want.err); diff != "" {
 				t.Errorf("bucketSyncDeleter.delete() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
 				return
 			}
-			if diff := deep.Equal(got, tt.want.res); diff != nil {
+			if diff := cmp.Diff(got, tt.want.res); diff != "" {
 				t.Errorf("bucketSyncDeleter.delete() result = %v, wantRes %v\n%s", got, tt.want.res, diff)
 				return
 			}
@@ -596,11 +596,11 @@ func Test_bucketSyncDeleter_sync(t *testing.T) {
 			}
 
 			got, err := bh.sync(ctx)
-			if diff := deep.Equal(err, tt.want.err); diff != nil {
+			if diff := cmp.Diff(err, tt.want.err); diff != "" {
 				t.Errorf("bucketSyncDeleter.sync() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
 				return
 			}
-			if diff := deep.Equal(got, tt.want.res); diff != nil {
+			if diff := cmp.Diff(got, tt.want.res); diff != "" {
 				t.Errorf("bucketSyncDeleter.sync() result = %v, wantRes %v\n%s", got, tt.want.res, diff)
 				return
 			}
@@ -702,11 +702,11 @@ func Test_bucketCreateUpdater_create(t *testing.T) {
 				projectID:  tt.fields.projectID,
 			}
 			got, err := bh.create(ctx)
-			if diff := deep.Equal(err, tt.want.err); diff != nil {
+			if diff := cmp.Diff(err, tt.want.err); diff != "" {
 				t.Errorf("bucketCreateUpdater.create() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
 				return
 			}
-			if diff := deep.Equal(got, tt.want.res); diff != nil {
+			if diff := cmp.Diff(got, tt.want.res); diff != "" {
 				t.Errorf("bucketCreateUpdater.create() result = %v, wantRes %v\n%s", got, tt.want.res, diff)
 				return
 			}
@@ -815,11 +815,11 @@ func Test_bucketCreateUpdater_update(t *testing.T) {
 				projectID:  tt.fields.projectID,
 			}
 			got, err := bh.update(ctx, tt.args)
-			if diff := deep.Equal(err, tt.want.err); diff != nil {
+			if diff := cmp.Diff(err, tt.want.err); diff != "" {
 				t.Errorf("bucketCreateUpdater.update() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
 				return
 			}
-			if diff := deep.Equal(got, tt.want.res); diff != nil {
+			if diff := cmp.Diff(got, tt.want.res); diff != "" {
 				t.Errorf("bucketCreateUpdater.update() result = %v, wantRes %v\n%s", got, tt.want.res, diff)
 				return
 			}

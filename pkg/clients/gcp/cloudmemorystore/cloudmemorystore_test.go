@@ -18,11 +18,12 @@ package cloudmemorystore
 import (
 	"testing"
 
-	"github.com/go-test/deep"
 	redisv1pb "google.golang.org/genproto/googleapis/cloud/redis/v1"
 	"google.golang.org/genproto/protobuf/field_mask"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+
+	"github.com/google/go-cmp/cmp"
 
 	"github.com/crossplaneio/crossplane/pkg/apis/gcp/cache/v1alpha1"
 )
@@ -91,7 +92,7 @@ func TestInstanceID(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			got := NewInstanceID(tc.project, tc.i)
-			if diff := deep.Equal(tc.want, got); diff != nil {
+			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("NewInstanceID(...): want != got:\n%s", diff)
 			}
 
@@ -173,7 +174,7 @@ func TestNewCreateInstanceRequest(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			id := NewInstanceID(tc.project, tc.i)
 			got := NewCreateInstanceRequest(id, tc.i)
-			if diff := deep.Equal(tc.want, got); diff != nil {
+			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("NewCreateInstanceRequest(...): want != got:\n%v", diff)
 			}
 		})
@@ -233,7 +234,7 @@ func TestNewUpdateInstanceRequest(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			id := NewInstanceID(tc.project, tc.i)
 			got := NewUpdateInstanceRequest(id, tc.i)
-			if diff := deep.Equal(tc.want, got); diff != nil {
+			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("NewUpdateInstanceRequest(...): want != got:\n%v", diff)
 			}
 		})
@@ -329,7 +330,7 @@ func TestNewDeleteInstanceRequest(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			got := NewDeleteInstanceRequest(tc.id)
-			if diff := deep.Equal(tc.want, got); diff != nil {
+			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("NewDeleteInstanceRequest(...): want != got:\n%v", diff)
 			}
 		})
@@ -354,7 +355,7 @@ func TestNewGetInstanceRequest(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			got := NewGetInstanceRequest(tc.id)
-			if diff := deep.Equal(tc.want, got); diff != nil {
+			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("NewGetInstanceRequest(...): want != got:\n%v", diff)
 			}
 		})

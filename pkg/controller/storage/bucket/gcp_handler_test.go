@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/go-test/deep"
+	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -99,10 +99,10 @@ func TestGCSBucketHandler_Find(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			h := &GCSBucketHandler{}
 			got, err := h.Find(tt.args.n, tt.args.c)
-			if diff := deep.Equal(err, tt.want.err); diff != nil {
+			if diff := cmp.Diff(err, tt.want.err); diff != "" {
 				t.Errorf("GCSBucketHandler.Find() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
 			}
-			if diff := deep.Equal(got, tt.want.res); diff != nil {
+			if diff := cmp.Diff(got, tt.want.res); diff != "" {
 				t.Errorf("GCSBucketHandler.Find() = %v, want %v\n%s", got, tt.want.res, diff)
 			}
 		})
@@ -165,11 +165,11 @@ func TestGCSBucketHandler_Provision(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			h := &GCSBucketHandler{}
 			got, err := h.Provision(tt.args.class, tt.args.claim, tt.args.c)
-			if diff := deep.Equal(err, tt.want.err); diff != nil {
+			if diff := cmp.Diff(err, tt.want.err); diff != "" {
 				t.Errorf("GCSBucketHandler.Provision() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
 				return
 			}
-			if diff := deep.Equal(got, tt.want.res); diff != nil {
+			if diff := cmp.Diff(got, tt.want.res); diff != "" {
 				t.Errorf("GCSBucketHandler.Provision() = \n%+v, want \n%+v\n%s", got, tt.want.res, diff)
 			}
 		})
@@ -228,7 +228,7 @@ func TestGCSBucketHandler_SetBindStatus(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			h := &GCSBucketHandler{}
 			err := h.SetBindStatus(tt.args.n, tt.args.c, tt.args.bound)
-			if diff := deep.Equal(err, tt.wantErr); diff != nil {
+			if diff := cmp.Diff(err, tt.wantErr); diff != "" {
 				t.Errorf("GCSBucketHandler.SetBindStatus() error = %v, wantErr %v\n%s", err, tt.wantErr, diff)
 			}
 		})

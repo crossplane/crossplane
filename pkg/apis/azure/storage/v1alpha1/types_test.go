@@ -21,7 +21,7 @@ import (
 	"testing"
 
 	"github.com/Azure/azure-storage-blob-go/azblob"
-	"github.com/go-test/deep"
+	"github.com/google/go-cmp/cmp"
 	"github.com/onsi/gomega"
 	"golang.org/x/net/context"
 	corev1 "k8s.io/api/core/v1"
@@ -102,7 +102,7 @@ func TestParseAccountSpec(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := ParseAccountSpec(tt.args)
-			if diff := deep.Equal(got, tt.want); diff != nil {
+			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("ParseAccountSpec() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
@@ -163,7 +163,7 @@ func TestAccount_ConnectionSecret(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := tt.account.ConnectionSecret()
-			if diff := deep.Equal(got, tt.want); diff != nil {
+			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("Bucket.ConnectionSecret() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
@@ -181,7 +181,7 @@ func TestAccount_ObjectReference(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := tt.bucket.ObjectReference()
-			if diff := deep.Equal(got, tt.want); diff != nil {
+			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("Account.ObjectReference() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
@@ -199,7 +199,7 @@ func TestAccount_OwnerReference(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := tt.bucket.OwnerReference()
-			if diff := deep.Equal(got, tt.want); diff != nil {
+			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("Account.OwnerReference() = \n%+v, want \n%+v\n%s", got, tt.want, diff)
 			}
 		})
@@ -382,7 +382,7 @@ func TestContainer_ObjectReference(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := tt.bucket.ObjectReference()
-			if diff := deep.Equal(got, tt.want); diff != nil {
+			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("Container.ObjectReference() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
@@ -400,7 +400,7 @@ func TestContainer_OwnerReference(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := tt.bucket.OwnerReference()
-			if diff := deep.Equal(got, tt.want); diff != nil {
+			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("Container.OwnerReference() = \n%+v, want \n%+v\n%s", got, tt.want, diff)
 			}
 		})
@@ -518,7 +518,7 @@ func TestParseContainerSpec(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := ParseContainerSpec(tt.args.p)
-			if diff := deep.Equal(got, tt.want); diff != nil {
+			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("ParseContainerSpec() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})

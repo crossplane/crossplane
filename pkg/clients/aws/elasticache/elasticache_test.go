@@ -20,7 +20,7 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/service/elasticache"
-	"github.com/go-test/deep"
+	"github.com/google/go-cmp/cmp"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -219,7 +219,7 @@ func TestNewCreateReplicationGroupInput(t *testing.T) {
 			if err := got.Validate(); err != nil {
 				t.Errorf("NewCreateReplicationGroupInput(...): invalid input: %v", err)
 			}
-			if diff := deep.Equal(tc.want, got); diff != nil {
+			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("NewCreateReplicationGroupInput(...): want != got:\n%s", diff)
 			}
 		})
@@ -280,7 +280,7 @@ func TestNewModifyReplicationGroupInput(t *testing.T) {
 			if err := got.Validate(); err != nil {
 				t.Errorf("NewModifyReplicationGroupInput(...): invalid input: %v", err)
 			}
-			if diff := deep.Equal(tc.want, got); diff != nil {
+			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("NewModifyReplicationGroupInput(...): want != got:\n%s", diff)
 			}
 		})
@@ -307,7 +307,7 @@ func TestNewDeleteReplicationGroupInput(t *testing.T) {
 			if err := got.Validate(); err != nil {
 				t.Errorf("NewDeleteReplicationGroupInput(...): invalid input: %v", err)
 			}
-			if diff := deep.Equal(tc.want, got); diff != nil {
+			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("NewDeleteReplicationGroupInput(...): want != got:\n%s", diff)
 			}
 		})
@@ -330,7 +330,7 @@ func TestNewDescribeReplicationGroupsInput(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			got := NewDescribeReplicationGroupsInput(tc.group)
-			if diff := deep.Equal(tc.want, got); diff != nil {
+			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("NewDescribeReplicationGroupsInput(...): want != got:\n%s", diff)
 			}
 		})
@@ -353,7 +353,7 @@ func TestNewDescribeCacheClustersInput(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			got := NewDescribeCacheClustersInput(tc.cluster)
-			if diff := deep.Equal(tc.want, got); diff != nil {
+			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("NewDescribeCacheClustersInput(...): want != got:\n%s", diff)
 			}
 		})
@@ -643,7 +643,7 @@ func TestConnectionEndpoint(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			got := ConnectionEndpoint(tc.rg)
-			if diff := deep.Equal(tc.want, got); diff != nil {
+			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("ConnectionEndpoint(...): want != got:\n%s", diff)
 			}
 		})

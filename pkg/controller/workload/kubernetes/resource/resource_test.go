@@ -24,7 +24,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-test/deep"
+	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -368,7 +368,7 @@ func TestSync(t *testing.T) {
 							RemoteControllerName:      meta.GetName(),
 							RemoteControllerUID:       string(meta.GetUID()),
 						})
-						if diff := deep.Equal(want, got); diff != nil {
+						if diff := cmp.Diff(want, got); diff != "" {
 							return nil, errors.Errorf("mockSync: want != got: %s", diff)
 						}
 
@@ -385,7 +385,7 @@ func TestSync(t *testing.T) {
 							RemoteControllerName:      meta.GetName(),
 							RemoteControllerUID:       string(meta.GetUID()),
 						})
-						if diff := deep.Equal(want, got); diff != nil {
+						if diff := cmp.Diff(want, got); diff != "" {
 							return errors.Errorf("mockSync: want != got: %s", diff)
 						}
 
@@ -471,11 +471,11 @@ func TestSync(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			gotResult := tc.syncer.sync(ctx, tc.ar, tc.secrets)
 
-			if diff := deep.Equal(tc.wantResult, gotResult); diff != nil {
+			if diff := cmp.Diff(tc.wantResult, gotResult); diff != "" {
 				t.Errorf("tc.syncer.sync(...): want != got:\n%s", diff)
 			}
 
-			if diff := deep.Equal(tc.wantAR, tc.ar); diff != nil {
+			if diff := cmp.Diff(tc.wantAR, tc.ar); diff != "" {
 				t.Errorf("app: want != got:\n%s", diff)
 			}
 		})
@@ -502,7 +502,7 @@ func TestDelete(t *testing.T) {
 							RemoteControllerName:      meta.GetName(),
 							RemoteControllerUID:       string(meta.GetUID()),
 						})
-						if diff := deep.Equal(want, got); diff != nil {
+						if diff := cmp.Diff(want, got); diff != "" {
 							errors.Errorf("unstructured mockDelete: want != got: %s", diff)
 						}
 
@@ -519,7 +519,7 @@ func TestDelete(t *testing.T) {
 							RemoteControllerName:      meta.GetName(),
 							RemoteControllerUID:       string(meta.GetUID()),
 						})
-						if diff := deep.Equal(want, got); diff != nil {
+						if diff := cmp.Diff(want, got); diff != "" {
 							return errors.Errorf("secret mockDelete: want != got: %s", diff)
 						}
 
@@ -617,11 +617,11 @@ func TestDelete(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			gotResult := tc.deleter.delete(ctx, tc.ar, tc.secrets)
 
-			if diff := deep.Equal(tc.wantResult, gotResult); diff != nil {
+			if diff := cmp.Diff(tc.wantResult, gotResult); diff != "" {
 				t.Errorf("tc.deleter.delete(...): want != got:\n%s", diff)
 			}
 
-			if diff := deep.Equal(tc.wantAR, tc.ar); diff != nil {
+			if diff := cmp.Diff(tc.wantAR, tc.ar); diff != "" {
 				t.Errorf("AR: want != got:\n%s", diff)
 			}
 		})
@@ -701,11 +701,11 @@ func TestSyncUnstructured(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			gotStatus, gotErr := tc.unstructured.sync(ctx, tc.template)
 
-			if diff := deep.Equal(tc.wantErr, gotErr); diff != nil {
+			if diff := cmp.Diff(tc.wantErr, gotErr); diff != "" {
 				t.Errorf("tc.unstructured.sync(...): want error != got error:\n%s", diff)
 			}
 
-			if diff := deep.Equal(tc.wantStatus, gotStatus); diff != nil {
+			if diff := cmp.Diff(tc.wantStatus, gotStatus); diff != "" {
 				t.Errorf("tc.unstructured.sync(...): want != got:\n%s", diff)
 			}
 		})
@@ -733,7 +733,7 @@ func TestGetRemoteStatus(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			got := getRemoteStatus(tc.remote)
-			if diff := deep.Equal(tc.want, got); diff != nil {
+			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("getRemoteStatus(...): want != got:\n%s", diff)
 			}
 		})
@@ -800,7 +800,7 @@ func TestDeleteUnstructured(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			gotErr := tc.unstructured.delete(ctx, tc.template)
 
-			if diff := deep.Equal(tc.wantErr, gotErr); diff != nil {
+			if diff := cmp.Diff(tc.wantErr, gotErr); diff != "" {
 				t.Errorf("tc.unstructured.delete(...): want error != got error:\n%s", diff)
 			}
 		})
@@ -878,7 +878,7 @@ func TestSyncSecret(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			gotErr := tc.secret.sync(ctx, tc.template)
 
-			if diff := deep.Equal(tc.wantErr, gotErr); diff != nil {
+			if diff := cmp.Diff(tc.wantErr, gotErr); diff != "" {
 				t.Errorf("tc.unstructured.sync(...): want error != got error:\n%s", diff)
 			}
 		})
@@ -945,7 +945,7 @@ func TestDeleteSecret(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			gotErr := tc.secret.delete(ctx, tc.template)
 
-			if diff := deep.Equal(tc.wantErr, gotErr); diff != nil {
+			if diff := cmp.Diff(tc.wantErr, gotErr); diff != "" {
 				t.Errorf("tc.secret.delete(...): want error != got error:\n%s", diff)
 			}
 		})
@@ -978,7 +978,7 @@ func TestConnectConfig(t *testing.T) {
 								Namespace: cluster.GetNamespace(),
 								Name:      cluster.GetName(),
 							}
-							if diff := deep.Equal(want, got); diff != nil {
+							if diff := cmp.Diff(want, got); diff != "" {
 								return errors.Errorf("MockGet(Secret): want != got: %s", diff)
 							}
 							*actual = *cluster
@@ -988,7 +988,7 @@ func TestConnectConfig(t *testing.T) {
 								Namespace: cluster.GetNamespace(),
 								Name:      secret.GetName(),
 							}
-							if diff := deep.Equal(want, got); diff != nil {
+							if diff := cmp.Diff(want, got); diff != "" {
 								return errors.Errorf("MockGet(Secret): want != got: %s", diff)
 							}
 
@@ -1075,11 +1075,11 @@ func TestConnectConfig(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			gotConfig, gotErr := tc.connecter.config(ctx, tc.ar)
 
-			if diff := deep.Equal(tc.wantErr, gotErr); diff != nil {
+			if diff := cmp.Diff(tc.wantErr, gotErr); diff != "" {
 				t.Errorf("tc.connecter.config(...): want error != got error:\n%s", diff)
 			}
 
-			if diff := deep.Equal(tc.wantConfig, gotConfig); diff != nil {
+			if diff := cmp.Diff(tc.wantConfig, gotConfig); diff != "" {
 				t.Errorf("tc.connecter.config(...): want != got:\n%s", diff)
 			}
 		})
@@ -1126,11 +1126,11 @@ func TestConnect(t *testing.T) {
 
 			gotSD, gotErr := tc.connecter.connect(ctx, tc.ar)
 
-			if diff := deep.Equal(tc.wantErr, gotErr); diff != nil {
+			if diff := cmp.Diff(tc.wantErr, gotErr); diff != "" {
 				t.Errorf("tc.connecter.connect(...): want error != got error:\n%s", diff)
 			}
 
-			if diff := deep.Equal(tc.wantSD, gotSD); diff != nil {
+			if diff := cmp.Diff(tc.wantSD, gotSD); diff != "" {
 				t.Errorf("tc.connecter.connect(...): want != got:\n%s", diff)
 			}
 		})
@@ -1240,7 +1240,7 @@ func TestReconcile(t *testing.T) {
 							),
 						)
 
-						if diff := deep.Equal(want, got); diff != nil {
+						if diff := cmp.Diff(want, got); diff != "" {
 							return errors.Errorf("MockUpdate: want != got: %s", diff)
 						}
 
@@ -1308,11 +1308,11 @@ func TestReconcile(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			gotResult, gotErr := tc.rec.Reconcile(tc.req)
 
-			if diff := deep.Equal(tc.wantErr, gotErr); diff != nil {
+			if diff := cmp.Diff(tc.wantErr, gotErr); diff != "" {
 				t.Errorf("tc.rec.Reconcile(...): want error != got error:\n%s", diff)
 			}
 
-			if diff := deep.Equal(tc.wantResult, gotResult); diff != nil {
+			if diff := cmp.Diff(tc.wantResult, gotResult); diff != "" {
 				t.Errorf("tc.rec.Reconcile(...): want != got:\n%s", diff)
 			}
 		})
@@ -1371,11 +1371,11 @@ func TestGetConnectionSecrets(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			gotSecrets := tc.rec.getConnectionSecrets(ctx, tc.ar)
 
-			if diff := deep.Equal(tc.wantSecrets, gotSecrets); diff != nil {
+			if diff := cmp.Diff(tc.wantSecrets, gotSecrets); diff != "" {
 				t.Errorf("tc.rec.getConnectionSecrets(...): want != got:\n%s", diff)
 			}
 
-			if diff := deep.Equal(tc.wantAR, tc.ar); diff != nil {
+			if diff := cmp.Diff(tc.wantAR, tc.ar); diff != "" {
 				t.Errorf("AR: want != got:\n%s", diff)
 			}
 		})

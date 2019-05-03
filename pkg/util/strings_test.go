@@ -19,7 +19,7 @@ package util
 import (
 	"testing"
 
-	"github.com/go-test/deep"
+	"github.com/google/go-cmp/cmp"
 	. "github.com/onsi/gomega"
 )
 
@@ -56,7 +56,7 @@ func TestParseMap(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := ParseMap(tt.args)
-			if diff := deep.Equal(got, tt.want); diff != nil {
+			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("parseMap() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
@@ -78,7 +78,7 @@ func TestParseBool(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := ParseBool(tt.args)
-			if diff := deep.Equal(got, tt.want); diff != nil {
+			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("parseBool() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
@@ -155,7 +155,7 @@ func TestConditionalStringFormat(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := ConditionalStringFormat(tt.args.format, tt.args.value)
-			if diff := deep.Equal(got, tt.want); diff != nil {
+			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("ConditionalStringFormat() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
@@ -179,7 +179,7 @@ func TestSplit(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := Split(tt.args.s, tt.args.sep)
-			if diff := deep.Equal(got, tt.want); diff != nil {
+			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("Split() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})

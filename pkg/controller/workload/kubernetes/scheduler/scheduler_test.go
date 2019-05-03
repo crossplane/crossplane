@@ -21,7 +21,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-test/deep"
+	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -319,11 +319,11 @@ func TestSchedule(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			gotResult := tc.scheduler.schedule(ctx, tc.app)
 
-			if diff := deep.Equal(tc.wantResult, gotResult); diff != nil {
+			if diff := cmp.Diff(tc.wantResult, gotResult); diff != "" {
 				t.Errorf("tc.scheduler.Schedule(...): want != got:\n%s", diff)
 			}
 
-			if diff := deep.Equal(tc.wantApp, tc.app); diff != nil {
+			if diff := cmp.Diff(tc.wantApp, tc.app); diff != "" {
 				t.Errorf("app: want != got:\n%s", diff)
 			}
 		})
@@ -440,11 +440,11 @@ func TestReconcile(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			gotResult, gotErr := tc.rec.Reconcile(tc.req)
 
-			if diff := deep.Equal(tc.wantErr, gotErr); diff != nil {
+			if diff := cmp.Diff(tc.wantErr, gotErr); diff != "" {
 				t.Errorf("tc.rec.Reconcile(...): want error != got error:\n%s", diff)
 			}
 
-			if diff := deep.Equal(tc.wantResult, gotResult); diff != nil {
+			if diff := cmp.Diff(tc.wantResult, gotResult); diff != "" {
 				t.Errorf("tc.rec.Reconcile(...): want != got:\n%s", diff)
 			}
 		})

@@ -20,7 +20,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/go-test/deep"
+	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -173,7 +173,7 @@ func TestCreateOrUpdate(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			gotErr := CreateOrUpdate(ctx, tc.kube, tc.obj, tc.f)
 
-			if diff := deep.Equal(tc.wantErr, gotErr); diff != nil {
+			if diff := cmp.Diff(tc.wantErr, gotErr); diff != "" {
 				t.Errorf("tc.rec.Reconcile(...): want error != got error:\n%s", diff)
 			}
 		})
