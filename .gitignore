@@ -6,3 +6,11 @@
 cover.out
 /vendor
 /.vendor-new
+
+# gitlab example
+cluster/examples/gitlab/gcp/values-psql.yaml
+cluster/examples/gitlab/gcp/values-redis.yaml
+external-dns-*.tgz
+gitlab-*.tgz
+gitlab-gcp.yaml
+gitlab/
