@@ -1,0 +1,10 @@
+apiVersion: storage.crossplane.io/v1alpha1
+kind: PostgreSQLInstance
+metadata:
+  name: gitlab-postgresql
+  namespace: default
+spec:
+  classReference:
+    name: standard-gcp-postgres
+    namespace: crossplane-system
+  engineVersion: "9.6"

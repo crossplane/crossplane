@@ -1,0 +1,11 @@
+apiVersion: compute.crossplane.io/v1alpha1
+kind: KubernetesCluster
+metadata:
+  name: gitlab-gke
+  namespace: crossplane-system
+  labels:
+    provider: gcp
+spec:
+  classReference:
+    name: standard-gcp-cluster
+    namespace: crossplane-system

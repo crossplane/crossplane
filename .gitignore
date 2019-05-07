@@ -6,3 +6,10 @@
 cover.out
 /vendor
 /.vendor-new
+
+# gitlab example
+# exclude files generate by running the example
+external-dns-*.tgz
+gitlab-*.tgz
+gitlab-gcp.yaml
+gitlab/
