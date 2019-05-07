@@ -80,7 +80,7 @@ func TestAKSClusterHandler_Find(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			r := &AKSClusterHandler{}
 			got, err := r.Find(tt.args.name, tt.args.c)
-			if diff := cmp.Diff(err, tt.want.err); diff != "" {
+			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
 				t.Errorf("AKSClusterHandler.Find() error = %v, want.err %v\n%s", err, tt.want.err, diff)
 			}
 			if diff := cmp.Diff(got, tt.want.res); diff != "" {
@@ -156,7 +156,7 @@ func TestAKSClusterHandler_Provision(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			r := &AKSClusterHandler{}
 			got, err := r.Provision(tt.args.class, tt.args.claim, tt.args.c)
-			if diff := cmp.Diff(err, tt.want.err); diff != "" {
+			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
 				t.Errorf("AKSClusterHandler.Provision() error = %v, want.err %v\n%s", err, tt.want.err, diff)
 				return
 			}
@@ -262,7 +262,7 @@ func TestAKSClusterHandler_SetBindStatus(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			r := AKSClusterHandler{}
 			err := r.SetBindStatus(tt.args.name, tt.args.c, tt.args.bound)
-			if diff := cmp.Diff(err, tt.want); diff != "" {
+			if diff := cmp.Diff(err, tt.want, test.EquateErrors()); diff != "" {
 				t.Errorf("AKSClusterHandler.SetBindStatus() error = %v, want %v\n%s", err, tt.want, diff)
 			}
 		})

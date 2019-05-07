@@ -26,6 +26,7 @@ import (
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -311,7 +312,7 @@ func TestReconciler_Reconcile(t *testing.T) {
 				syncdeleterMaker: tt.fields.maker,
 			}
 			got, err := r.Reconcile(req)
-			if diff := cmp.Diff(err, tt.want.err); diff != "" {
+			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
 				t.Errorf("Reconciler.Reconcile() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
 				return
 			}
@@ -406,11 +407,17 @@ func Test_accountHandleMaker_newHandler(t *testing.T) {
 				Client: tt.kube,
 			}
 			got, err := m.newSyncdeleter(ctx, tt.acct)
-			if diff := cmp.Diff(err, tt.wantErr); diff != "" {
+			if diff := cmp.Diff(err, tt.wantErr, test.EquateErrors()); diff != "" {
 				t.Errorf("accountSyncdeleterMaker.newSyncdeleter() error = \n%v, wantErr: \n%v\n%s", err, tt.wantErr, diff)
 				return
 			}
-			if diff := cmp.Diff(got, tt.want); diff != "" {
+			// BUG(negz): This test is broken. It appears to intend to compare
+			// unexported fields, but does not. This behaviour was maintained
+			// when porting the test from https://github.com/go-test/deep to cmp.
+			if diff := cmp.Diff(got, tt.want,
+				cmpopts.IgnoreUnexported(accountSyncDeleter{}),
+				cmpopts.IgnoreUnexported(azurestorage.AccountHandle{}),
+			); diff != "" {
 				t.Errorf("accountSyncdeleterMaker.newSyncdeleter() = \n%+v, want \n%+v\n%s", got, tt.want, diff)
 			}
 		})
@@ -528,7 +535,7 @@ func Test_syncdeleter_delete(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bh := newAccountSyncDeleter(tt.fields.ao, tt.fields.cc, tt.fields.acct)
 			got, err := bh.delete(ctx)
-			if diff := cmp.Diff(err, tt.want.err); diff != "" {
+			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
 				t.Errorf("accountSyncDeleter.delete() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
 				return
 			}
@@ -633,7 +640,7 @@ func Test_syncdeleter_sync(t *testing.T) {
 			}
 
 			got, err := bh.sync(ctx)
-			if diff := cmp.Diff(err, tt.want.err); diff != "" {
+			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
 				t.Errorf("accountSyncDeleter.delete() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
 				return
 			}
@@ -741,7 +748,7 @@ func Test_createupdater_create(t *testing.T) {
 				projectID:         tt.fields.projectID,
 			}
 			got, err := bh.create(ctx)
-			if diff := cmp.Diff(err, tt.want.err); diff != "" {
+			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
 				t.Errorf("accountCreateUpdater.create() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
 				return
 			}
@@ -885,7 +892,7 @@ func Test_bucketCreateUpdater_update(t *testing.T) {
 				acct:              tt.fields.acct,
 			}
 			got, err := bh.update(ctx, tt.attrs)
-			if diff := cmp.Diff(err, tt.want.err); diff != "" {
+			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
 				t.Errorf("accountCreateUpdater.update() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
 				return
 			}
@@ -1022,7 +1029,7 @@ func Test_accountSyncBacker_syncback(t *testing.T) {
 				acct:          tt.fields.acct,
 			}
 			got, err := acu.syncback(ctx, tt.acct)
-			if diff := cmp.Diff(err, tt.want.err); diff != "" {
+			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
 				t.Errorf("accountSyncBackSecretUpdater.syncback() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
 				return
 			}
@@ -1208,7 +1215,7 @@ func Test_accountSecretUpdater_updatesecret(t *testing.T) {
 				kube:              tt.fields.kube,
 			}
 			err := asu.updatesecret(ctx, tt.acct)
-			if diff := cmp.Diff(err, tt.wantErr); diff != "" {
+			if diff := cmp.Diff(err, tt.wantErr, test.EquateErrors()); diff != "" {
 				t.Errorf("accountSyncBackSecretUpdater.syncback() error = %v, wantErr %v\n%s", err, tt.wantErr, diff)
 				return
 			}

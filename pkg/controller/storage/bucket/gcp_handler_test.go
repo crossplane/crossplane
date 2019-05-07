@@ -99,7 +99,7 @@ func TestGCSBucketHandler_Find(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			h := &GCSBucketHandler{}
 			got, err := h.Find(tt.args.n, tt.args.c)
-			if diff := cmp.Diff(err, tt.want.err); diff != "" {
+			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
 				t.Errorf("GCSBucketHandler.Find() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
 			}
 			if diff := cmp.Diff(got, tt.want.res); diff != "" {
@@ -165,7 +165,7 @@ func TestGCSBucketHandler_Provision(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			h := &GCSBucketHandler{}
 			got, err := h.Provision(tt.args.class, tt.args.claim, tt.args.c)
-			if diff := cmp.Diff(err, tt.want.err); diff != "" {
+			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
 				t.Errorf("GCSBucketHandler.Provision() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
 				return
 			}
@@ -228,7 +228,7 @@ func TestGCSBucketHandler_SetBindStatus(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			h := &GCSBucketHandler{}
 			err := h.SetBindStatus(tt.args.n, tt.args.c, tt.args.bound)
-			if diff := cmp.Diff(err, tt.wantErr); diff != "" {
+			if diff := cmp.Diff(err, tt.wantErr, test.EquateErrors()); diff != "" {
 				t.Errorf("GCSBucketHandler.SetBindStatus() error = %v, wantErr %v\n%s", err, tt.wantErr, diff)
 			}
 		})

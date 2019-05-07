@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -701,7 +702,7 @@ func TestSyncUnstructured(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			gotStatus, gotErr := tc.unstructured.sync(ctx, tc.template)
 
-			if diff := cmp.Diff(tc.wantErr, gotErr); diff != "" {
+			if diff := cmp.Diff(tc.wantErr, gotErr, test.EquateErrors()); diff != "" {
 				t.Errorf("tc.unstructured.sync(...): want error != got error:\n%s", diff)
 			}
 
@@ -800,7 +801,7 @@ func TestDeleteUnstructured(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			gotErr := tc.unstructured.delete(ctx, tc.template)
 
-			if diff := cmp.Diff(tc.wantErr, gotErr); diff != "" {
+			if diff := cmp.Diff(tc.wantErr, gotErr, test.EquateErrors()); diff != "" {
 				t.Errorf("tc.unstructured.delete(...): want error != got error:\n%s", diff)
 			}
 		})
@@ -878,7 +879,7 @@ func TestSyncSecret(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			gotErr := tc.secret.sync(ctx, tc.template)
 
-			if diff := cmp.Diff(tc.wantErr, gotErr); diff != "" {
+			if diff := cmp.Diff(tc.wantErr, gotErr, test.EquateErrors()); diff != "" {
 				t.Errorf("tc.unstructured.sync(...): want error != got error:\n%s", diff)
 			}
 		})
@@ -945,7 +946,7 @@ func TestDeleteSecret(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			gotErr := tc.secret.delete(ctx, tc.template)
 
-			if diff := cmp.Diff(tc.wantErr, gotErr); diff != "" {
+			if diff := cmp.Diff(tc.wantErr, gotErr, test.EquateErrors()); diff != "" {
 				t.Errorf("tc.secret.delete(...): want error != got error:\n%s", diff)
 			}
 		})
@@ -1075,7 +1076,7 @@ func TestConnectConfig(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			gotConfig, gotErr := tc.connecter.config(ctx, tc.ar)
 
-			if diff := cmp.Diff(tc.wantErr, gotErr); diff != "" {
+			if diff := cmp.Diff(tc.wantErr, gotErr, test.EquateErrors()); diff != "" {
 				t.Errorf("tc.connecter.config(...): want error != got error:\n%s", diff)
 			}
 
@@ -1103,10 +1104,10 @@ func TestConnect(t *testing.T) {
 			ar: kubeAR(withCluster(cluster.ObjectReference())),
 
 			// This empty struct is 'identical' to the actual, populated struct
-			// returned by tc.connecter.connect() because deep.Equal does not
-			// compare unexported fields by default. We don't inspect these
-			// unexported fields because doing so would mostly be testing
-			// controller-runtime's client.New() code, not ours.
+			// returned by tc.connecter.connect() because we do not compare
+			// unexported fields. We don't inspect these unexported fields
+			// because doing so would mostly be testing controller-runtime's
+			// client.New() code, not ours.
 			wantSD:  &remoteCluster{},
 			wantErr: nil,
 		},
@@ -1126,11 +1127,11 @@ func TestConnect(t *testing.T) {
 
 			gotSD, gotErr := tc.connecter.connect(ctx, tc.ar)
 
-			if diff := cmp.Diff(tc.wantErr, gotErr); diff != "" {
+			if diff := cmp.Diff(tc.wantErr, gotErr, test.EquateErrors()); diff != "" {
 				t.Errorf("tc.connecter.connect(...): want error != got error:\n%s", diff)
 			}
 
-			if diff := cmp.Diff(tc.wantSD, gotSD); diff != "" {
+			if diff := cmp.Diff(tc.wantSD, gotSD, cmpopts.IgnoreUnexported(remoteCluster{})); diff != "" {
 				t.Errorf("tc.connecter.connect(...): want != got:\n%s", diff)
 			}
 		})
@@ -1308,7 +1309,7 @@ func TestReconcile(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			gotResult, gotErr := tc.rec.Reconcile(tc.req)
 
-			if diff := cmp.Diff(tc.wantErr, gotErr); diff != "" {
+			if diff := cmp.Diff(tc.wantErr, gotErr, test.EquateErrors()); diff != "" {
 				t.Errorf("tc.rec.Reconcile(...): want error != got error:\n%s", diff)
 			}
 

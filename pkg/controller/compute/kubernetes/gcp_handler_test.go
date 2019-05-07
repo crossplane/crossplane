@@ -79,7 +79,7 @@ func TestGKEClusterHandler_Find(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			r := &GKEClusterHandler{}
 			got, err := r.Find(tt.args.name, tt.args.c)
-			if diff := cmp.Diff(err, tt.want.err); diff != "" {
+			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
 				t.Errorf("GKEClusterHandler.Find() error = %v, want.err %v\n%s", err, tt.want.err, diff)
 			}
 			if diff := cmp.Diff(got, tt.want.res); diff != "" {
@@ -154,7 +154,7 @@ func TestGKEClusterHandler_Provision(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			r := &GKEClusterHandler{}
 			got, err := r.Provision(tt.args.class, tt.args.claim, tt.args.c)
-			if diff := cmp.Diff(err, tt.want.err); diff != "" {
+			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
 				t.Errorf("GKEClusterHandler.Provision() error = %v, want.err %v\n%s", err, tt.want.err, diff)
 				return
 			}
@@ -260,7 +260,7 @@ func TestGKEClusterHandler_SetBindStatus(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			r := GKEClusterHandler{}
 			err := r.SetBindStatus(tt.args.name, tt.args.c, tt.args.bound)
-			if diff := cmp.Diff(err, tt.want); diff != "" {
+			if diff := cmp.Diff(err, tt.want, test.EquateErrors()); diff != "" {
 				t.Errorf("GKEClusterHandler.SetBindStatus() error = %v, want %v\n%s", err, tt.want, diff)
 			}
 		})

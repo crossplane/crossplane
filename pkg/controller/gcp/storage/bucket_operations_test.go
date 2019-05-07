@@ -516,7 +516,7 @@ func Test_bucketHandler_updateSecret(t *testing.T) {
 				kube:   tt.fields.kube,
 			}
 			err := bh.updateSecret(ctx)
-			if diff := cmp.Diff(err, tt.want); diff != "" {
+			if diff := cmp.Diff(err, tt.want, test.EquateErrors()); diff != "" {
 				t.Errorf("bucketHandler.updateSecret() error = %v, wantErr %v\n%s", err, tt.want, diff)
 			}
 		})
@@ -608,7 +608,7 @@ func Test_bucketHandler_getAttributes(t *testing.T) {
 				gcp: tt.fields.gcp,
 			}
 			got, err := bh.getAttributes(ctx)
-			if diff := cmp.Diff(err, tt.want.err); diff != "" {
+			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
 				t.Errorf("bucketHandler.getAttributes() error = %v, want.err %v\n%s", err, tt.want.err, diff)
 			}
 			if diff := cmp.Diff(got, tt.want.attrs); diff != "" {

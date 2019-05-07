@@ -230,7 +230,7 @@ func TestApply(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := Apply(ctx, tt.args.kube, tt.args.o)
-			if diff := cmp.Diff(err, tt.want); diff != "" {
+			if diff := cmp.Diff(err, tt.want, test.EquateErrors()); diff != "" {
 				t.Errorf("Apply() error = %v, want %v\n%s", err, tt.want, diff)
 			}
 		})

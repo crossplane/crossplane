@@ -173,7 +173,7 @@ func TestCreateOrUpdate(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			gotErr := CreateOrUpdate(ctx, tc.kube, tc.obj, tc.f)
 
-			if diff := cmp.Diff(tc.wantErr, gotErr); diff != "" {
+			if diff := cmp.Diff(tc.wantErr, gotErr, test.EquateErrors()); diff != "" {
 				t.Errorf("tc.rec.Reconcile(...): want error != got error:\n%s", diff)
 			}
 		})

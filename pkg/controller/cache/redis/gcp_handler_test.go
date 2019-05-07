@@ -27,6 +27,7 @@ import (
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	gcpcachev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/cache/v1alpha1"
 	storagev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
 const (
@@ -88,7 +89,7 @@ func TestResolveGCPClassInstanceValues(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			gotErr := resolveGCPClassInstanceValues(tc.class, tc.claim)
-			if diff := cmp.Diff(tc.wantErr, gotErr); diff != "" {
+			if diff := cmp.Diff(tc.wantErr, gotErr, test.EquateErrors()); diff != "" {
 				t.Errorf("want error != got error:\n %+v", diff)
 			}
 

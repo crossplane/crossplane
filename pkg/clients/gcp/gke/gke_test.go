@@ -20,7 +20,10 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"golang.org/x/oauth2/google"
+
+	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
 func TestNewClusterClient(t *testing.T) {
@@ -38,11 +41,16 @@ func TestNewClusterClient(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := NewClusterClient(tt.args)
-			if diff := cmp.Diff(err, tt.want.err); diff != "" {
+			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
 				t.Errorf("NewClusterClient() error = %v, want.err %v\n%s", err, tt.want.err, diff)
 				return
 			}
-			if diff := cmp.Diff(got, tt.want.res); diff != "" {
+
+			// TODO(negz): Do we really want to ignore unexported fields? I did
+			// so to match the previous deep.Equal semantics here, but
+			// ClusterClient _only_ has unexported fields so we're only testing
+			// that NewClusterClient returns the expected type here.
+			if diff := cmp.Diff(got, tt.want.res, cmpopts.IgnoreUnexported(ClusterClient{})); diff != "" {
 				t.Errorf("NewClusterClient() = %v, want %v\n%s", got, tt.want.res, diff)
 			}
 		})

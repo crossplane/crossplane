@@ -99,7 +99,7 @@ func TestAzureAccountHandler_Find(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			h := &AzureAccountHandler{}
 			got, err := h.Find(tt.args.n, tt.args.c)
-			if diff := cmp.Diff(err, tt.want.err); diff != "" {
+			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
 				t.Errorf("AzureAccountHandler.Find() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
 			}
 			if diff := cmp.Diff(got, tt.want.res); diff != "" {
@@ -209,7 +209,7 @@ func TestAzureAccountHandler_Provision(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			h := &AzureAccountHandler{accountResolver: tt.resolver}
 			got, err := h.Provision(tt.args.class, tt.args.claim, tt.args.c)
-			if diff := cmp.Diff(err, tt.want.err); diff != "" {
+			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
 				t.Errorf("AzureAccountHandler.Provision() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
 			}
 			if diff := cmp.Diff(got, tt.want.res); diff != "" {
@@ -259,7 +259,7 @@ func TestAzureContainerHandler_Find(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			h := &AzureContainerHandler{}
 			got, err := h.Find(tt.args.n, tt.args.c)
-			if diff := cmp.Diff(err, tt.want.err); diff != "" {
+			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
 				t.Errorf("AzureContainerHandler.Find() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
 			}
 			if diff := cmp.Diff(got, tt.want.res); diff != "" {
@@ -400,7 +400,7 @@ func TestAzureContainerHandler_Provision(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			h := &AzureContainerHandler{}
 			got, err := h.Provision(tt.args.class, tt.args.claim, tt.args.c)
-			if diff := cmp.Diff(err, tt.want.err); diff != "" {
+			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
 				t.Errorf("AzureAccountHandler.Provision() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
 			}
 			if diff := cmp.Diff(got, tt.want.res); diff != "" {
@@ -498,7 +498,7 @@ func TestAzureAccountHandler_SetBindStatus(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			h := &AzureAccountHandler{}
 			err := h.SetBindStatus(tt.args.n, tt.args.c, tt.args.bound)
-			if diff := cmp.Diff(err, tt.want.err); diff != "" {
+			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
 				t.Errorf("AzureAccountHandler.SetBindStatus() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
 			}
 			if tt.want.act != nil {
@@ -603,7 +603,7 @@ func TestAzureContainerHandler_SetBindStatus(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			h := &AzureContainerHandler{}
 			err := h.SetBindStatus(tt.args.n, tt.args.c, tt.args.bound)
-			if diff := cmp.Diff(err, tt.want.err); diff != "" {
+			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
 				t.Errorf("AzureContainerHandler.SetBindStatus() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
 			}
 			if tt.want.con != nil {
@@ -663,7 +663,7 @@ func Test_azureAccountResolver_resolve(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			a := &azureAccountResolver{}
 			err := a.resolve(tt.args.account, tt.args.claim)
-			if diff := cmp.Diff(err, tt.want.err); diff != "" {
+			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
 				t.Errorf("azureAccountResolver.resolve() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
 			}
 			if tt.want.act != nil {

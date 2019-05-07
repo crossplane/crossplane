@@ -22,6 +22,8 @@ import (
 	"github.com/Azure/azure-sdk-for-go/services/storage/mgmt/2017-06-01/storage"
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
+
+	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
 func TestNewStorageAccountClient(t *testing.T) {
@@ -56,7 +58,7 @@ func TestNewStorageAccountClient(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := NewStorageAccountClient(tt.args)
-			if diff := cmp.Diff(err, tt.wantErr); diff != "" {
+			if diff := cmp.Diff(err, tt.wantErr, test.EquateErrors()); diff != "" {
 				t.Errorf("NewStorageAccountClient() error = %v, wantErr %v\n%s", err, tt.wantErr, diff)
 			}
 			if err != nil && got != nil {
@@ -97,7 +99,7 @@ func TestNewAccountHandle(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := NewAccountHandle(tt.args.client, tt.args.groupName, tt.args.accountName)
-			if diff := cmp.Diff(got, tt.want); diff != "" {
+			if diff := cmp.Diff(got, tt.want, cmp.AllowUnexported(AccountHandle{})); diff != "" {
 				t.Errorf("NewAccountHandle() = %v, wantErr %v\n%s", got, tt.want, diff)
 			}
 		})

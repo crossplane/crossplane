@@ -22,6 +22,8 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
+
+	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
 const jsonQuote = "\""
@@ -95,7 +97,7 @@ func TestBindingStateUnmarshalJSON(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var got BindingState
 			gotErr := got.UnmarshalJSON(tc.s)
-			if diff := cmp.Diff(tc.wantErr, gotErr); diff != "" {
+			if diff := cmp.Diff(tc.wantErr, gotErr, test.EquateErrors()); diff != "" {
 				t.Errorf("BindingState.UnmarshalJSON(): want error != got error\n %+v", diff)
 			}
 

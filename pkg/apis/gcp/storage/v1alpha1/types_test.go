@@ -17,7 +17,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"reflect"
 	"testing"
 	"time"
 
@@ -819,16 +818,13 @@ func TestCopyToBucketAttrs(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.args == nil {
-				if got := CopyToBucketAttrs(tt.args); !reflect.DeepEqual(got, tt.want) {
-					t.Errorf("CopyToBucketAttrs() = %+v, want %+v", got, tt.want)
-				}
-			} else {
-				got := CopyToBucketAttrs(tt.args)
+			got := CopyToBucketAttrs(tt.args)
+			if tt.args != nil {
 				got.RetentionPolicy = nil
-				if diff := cmp.Diff(got, tt.want); diff != "" {
-					t.Errorf("CopyToBucketAttrs() = %+v, want %+v\n%s", got, tt.want, diff)
-				}
+			}
+
+			if diff := cmp.Diff(got, tt.want); diff != "" {
+				t.Errorf("CopyToBucketAttrs() = %+v, want %+v\n%s", got, tt.want, diff)
 			}
 		})
 	}
@@ -855,7 +851,7 @@ func TestCopyToBucketUpdateAttrs(t *testing.T) {
 		tt.want.DeleteLabel("foo")
 		t.Run(tt.name, func(t *testing.T) {
 			got := CopyToBucketUpdateAttrs(tt.args.ba, tt.args.labels)
-			if diff := cmp.Diff(got, tt.want); diff != "" {
+			if diff := cmp.Diff(got, tt.want, cmp.AllowUnexported(storage.BucketAttrsToUpdate{})); diff != "" {
 				t.Errorf("CopyToBucketUpdateAttrs()\n%+v, want \n%+v\n%s", got, tt.want, diff)
 			}
 		})
