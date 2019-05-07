@@ -243,14 +243,6 @@
   version = "v0.1.0"
 
 [[projects]]
-  digest = "1:7f89e0c888fb99c61055c646f5678aae645b0b0a1443d9b2dcd9964d850827ce"
-  name = "github.com/go-test/deep"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "6592d9cc0a499ad2d5f574fde80a2b5c5cc3b4f5"
-  version = "v1.0.1"
-
-[[projects]]
   digest = "1:07829a6a0523929f5edc92b2a2dbb05ef3f335780bac9f06c44aa27c6cfc467a"
   name = "github.com/gobuffalo/envy"
   packages = ["."]
@@ -301,6 +293,21 @@
   packages = ["."]
   pruneopts = "UT"
   revision = "4030bb1f1f0c35b30ca7009e9ebd06849dd45306"
+
+[[projects]]
+  digest = "1:010d46ea3c1e730897e53058d1013a963f3f987675dda87df64f891b945281db"
+  name = "github.com/google/go-cmp"
+  packages = [
+    "cmp",
+    "cmp/cmpopts",
+    "cmp/internal/diff",
+    "cmp/internal/flags",
+    "cmp/internal/function",
+    "cmp/internal/value",
+  ]
+  pruneopts = "UT"
+  revision = "6f77996f0c42f7b84e5a2b252227263f93432e9b"
+  version = "v0.3.0"
 
 [[projects]]
   branch = "master"
@@ -1328,7 +1335,8 @@
     "github.com/ghodss/yaml",
     "github.com/go-ini/ini",
     "github.com/go-logr/logr",
-    "github.com/go-test/deep",
+    "github.com/google/go-cmp/cmp",
+    "github.com/google/go-cmp/cmp/cmpopts",
     "github.com/google/uuid",
     "github.com/googleapis/gax-go",
     "github.com/onsi/gomega",

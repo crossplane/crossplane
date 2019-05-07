@@ -20,7 +20,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/go-test/deep"
+	"github.com/google/go-cmp/cmp"
 	. "github.com/onsi/gomega"
 	"golang.org/x/net/context"
 	appsv1 "k8s.io/api/apps/v1"
@@ -171,7 +171,7 @@ func TestRemoteStatus(t *testing.T) {
 				t.Fatalf("json.Unmarshal(...): %s", err)
 			}
 
-			if diff := deep.Equal(string(rs.Raw), string(tc.want)); diff != nil {
+			if diff := cmp.Diff(string(rs.Raw), string(tc.want)); diff != "" {
 				t.Errorf("json.Unmarshal(...): got != want: %s", diff)
 			}
 
@@ -180,7 +180,7 @@ func TestRemoteStatus(t *testing.T) {
 				t.Fatalf("json.Marshal(...): %s", err)
 			}
 
-			if diff := deep.Equal(string(got), string(tc.want)); diff != nil {
+			if diff := cmp.Diff(string(got), string(tc.want)); diff != "" {
 				t.Errorf("json.Marshal(...): got != want: %s", diff)
 			}
 		})

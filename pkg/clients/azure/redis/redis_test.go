@@ -20,7 +20,7 @@ import (
 	"testing"
 
 	redismgmt "github.com/Azure/azure-sdk-for-go/services/redis/mgmt/2018-03-01/redis"
-	"github.com/go-test/deep"
+	"github.com/google/go-cmp/cmp"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -108,7 +108,7 @@ func TestNewCreateParameters(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			got := NewCreateParameters(tc.r)
-			if diff := deep.Equal(tc.want, got); diff != nil {
+			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("NewCreateParameters(...): want != got\n%s", diff)
 			}
 		})
@@ -186,7 +186,7 @@ func TestNewUpdateParameters(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			got := NewUpdateParameters(tc.r)
-			if diff := deep.Equal(tc.want, got); diff != nil {
+			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("NewUpdateParameters(...): want != got\n%s", diff)
 			}
 		})

@@ -21,7 +21,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-test/deep"
+	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -387,11 +387,11 @@ func TestSync(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			gotResult := tc.syncer.sync(ctx, tc.app)
 
-			if diff := deep.Equal(tc.wantResult, gotResult); diff != nil {
+			if diff := cmp.Diff(tc.wantResult, gotResult); diff != "" {
 				t.Errorf("tc.sd.Sync(...): want != got:\n%s", diff)
 			}
 
-			if diff := deep.Equal(tc.wantApp, tc.app); diff != nil {
+			if diff := cmp.Diff(tc.wantApp, tc.app); diff != "" {
 				t.Errorf("app: want != got:\n%s", diff)
 			}
 		})
@@ -422,11 +422,11 @@ func TestDelete(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			gotResult := tc.deleter.delete(ctx, tc.app)
 
-			if diff := deep.Equal(tc.wantResult, gotResult); diff != nil {
+			if diff := cmp.Diff(tc.wantResult, gotResult); diff != "" {
 				t.Errorf("tc.sd.Sync(...): want != got:\n%s", diff)
 			}
 
-			if diff := deep.Equal(tc.wantApp, tc.app); diff != nil {
+			if diff := cmp.Diff(tc.wantApp, tc.app); diff != "" {
 				t.Errorf("app: want != got:\n%s", diff)
 			}
 		})
@@ -548,11 +548,11 @@ func TestReconcile(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			gotResult, gotErr := tc.rec.Reconcile(tc.req)
 
-			if diff := deep.Equal(tc.wantErr, gotErr); diff != nil {
+			if diff := cmp.Diff(tc.wantErr, gotErr, test.EquateErrors()); diff != "" {
 				t.Errorf("tc.rec.Reconcile(...): want error != got error:\n%s", diff)
 			}
 
-			if diff := deep.Equal(tc.wantResult, gotResult); diff != nil {
+			if diff := cmp.Diff(tc.wantResult, gotResult); diff != "" {
 				t.Errorf("tc.rec.Reconcile(...): want != got:\n%s", diff)
 			}
 		})
@@ -663,11 +663,11 @@ func TestGarbageCollect(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			gotErr := tc.gc.process(ctx, tc.app)
 
-			if diff := deep.Equal(tc.wantErr, gotErr); diff != nil {
+			if diff := cmp.Diff(tc.wantErr, gotErr, test.EquateErrors()); diff != "" {
 				t.Errorf("tc.rec.Reconcile(...): want error != got error:\n%s", diff)
 			}
 
-			if diff := deep.Equal(tc.wantApp, tc.app); diff != nil {
+			if diff := cmp.Diff(tc.wantApp, tc.app); diff != "" {
 				t.Errorf("app: want != got:\n%s", diff)
 			}
 		})
@@ -735,11 +735,11 @@ func TestSyncApplicationResource(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			gotSubmitted, gotErr := tc.ar.sync(ctx, tc.template)
 
-			if diff := deep.Equal(tc.wantErr, gotErr); diff != nil {
+			if diff := cmp.Diff(tc.wantErr, gotErr, test.EquateErrors()); diff != "" {
 				t.Errorf("tc.ar.sync(...): want error != got error:\n%s", diff)
 			}
 
-			if diff := deep.Equal(tc.wantSubmitted, gotSubmitted); diff != nil {
+			if diff := cmp.Diff(tc.wantSubmitted, gotSubmitted); diff != "" {
 				t.Errorf("tc.ar.Sync(...): want != got:\n%s", diff)
 			}
 		})
@@ -765,7 +765,7 @@ func TestRenderTemplate(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			got := renderTemplate(tc.app, tc.template)
 
-			if diff := deep.Equal(tc.want, got); diff != nil {
+			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("renderTemplate(...): want != got:\n%s", diff)
 			}
 		})
@@ -851,7 +851,7 @@ func TestHasSameController(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			got := hasSameController(tc.a, tc.b)
 
-			if diff := deep.Equal(tc.want, got); diff != nil {
+			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("hasSameController(...): want != got:\n%s", diff)
 			}
 		})
@@ -886,7 +886,7 @@ func TestGetControllerName(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			got := getControllerName(tc.obj)
 
-			if diff := deep.Equal(tc.want, got); diff != nil {
+			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("getControllerName(...): want != got:\n%s", diff)
 			}
 		})

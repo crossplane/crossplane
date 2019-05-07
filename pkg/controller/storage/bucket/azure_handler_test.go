@@ -20,7 +20,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/go-test/deep"
+	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -99,10 +99,10 @@ func TestAzureAccountHandler_Find(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			h := &AzureAccountHandler{}
 			got, err := h.Find(tt.args.n, tt.args.c)
-			if diff := deep.Equal(err, tt.want.err); diff != nil {
+			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
 				t.Errorf("AzureAccountHandler.Find() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
 			}
-			if diff := deep.Equal(got, tt.want.res); diff != nil {
+			if diff := cmp.Diff(got, tt.want.res); diff != "" {
 				t.Errorf("AzureAccountHandler.Find() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
@@ -209,10 +209,10 @@ func TestAzureAccountHandler_Provision(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			h := &AzureAccountHandler{accountResolver: tt.resolver}
 			got, err := h.Provision(tt.args.class, tt.args.claim, tt.args.c)
-			if diff := deep.Equal(err, tt.want.err); diff != nil {
+			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
 				t.Errorf("AzureAccountHandler.Provision() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
 			}
-			if diff := deep.Equal(got, tt.want.res); diff != nil {
+			if diff := cmp.Diff(got, tt.want.res); diff != "" {
 				t.Errorf("AzureAccountHandler.Provision() = \n%v, want \n%v\n%s", got, tt.want.res, diff)
 			}
 		})
@@ -259,10 +259,10 @@ func TestAzureContainerHandler_Find(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			h := &AzureContainerHandler{}
 			got, err := h.Find(tt.args.n, tt.args.c)
-			if diff := deep.Equal(err, tt.want.err); diff != nil {
+			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
 				t.Errorf("AzureContainerHandler.Find() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
 			}
-			if diff := deep.Equal(got, tt.want.res); diff != nil {
+			if diff := cmp.Diff(got, tt.want.res); diff != "" {
 				t.Errorf("AzureContainerHandler.Find() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
@@ -400,10 +400,10 @@ func TestAzureContainerHandler_Provision(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			h := &AzureContainerHandler{}
 			got, err := h.Provision(tt.args.class, tt.args.claim, tt.args.c)
-			if diff := deep.Equal(err, tt.want.err); diff != nil {
+			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
 				t.Errorf("AzureAccountHandler.Provision() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
 			}
-			if diff := deep.Equal(got, tt.want.res); diff != nil {
+			if diff := cmp.Diff(got, tt.want.res); diff != "" {
 				t.Errorf("AzureAccountHandler.Provision() = \n%v, want \n%v\n%s", got, tt.want.res, diff)
 			}
 		})
@@ -498,7 +498,7 @@ func TestAzureAccountHandler_SetBindStatus(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			h := &AzureAccountHandler{}
 			err := h.SetBindStatus(tt.args.n, tt.args.c, tt.args.bound)
-			if diff := deep.Equal(err, tt.want.err); diff != nil {
+			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
 				t.Errorf("AzureAccountHandler.SetBindStatus() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
 			}
 			if tt.want.act != nil {
@@ -506,7 +506,7 @@ func TestAzureAccountHandler_SetBindStatus(t *testing.T) {
 				if err := tt.args.c.Get(context.TODO(), nn, act); err != nil {
 					t.Errorf("AzureAccountHandler.SetBindStatus() unexected test error getting account: %s", nn)
 				}
-				if diff := deep.Equal(act, tt.want.act); diff != nil {
+				if diff := cmp.Diff(act, tt.want.act); diff != "" {
 					t.Errorf("AzureAccountHandler.SetBindStatus() = %v, want %v\n%s", act, tt.want.act, diff)
 				}
 			}
@@ -603,7 +603,7 @@ func TestAzureContainerHandler_SetBindStatus(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			h := &AzureContainerHandler{}
 			err := h.SetBindStatus(tt.args.n, tt.args.c, tt.args.bound)
-			if diff := deep.Equal(err, tt.want.err); diff != nil {
+			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
 				t.Errorf("AzureContainerHandler.SetBindStatus() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
 			}
 			if tt.want.con != nil {
@@ -611,7 +611,7 @@ func TestAzureContainerHandler_SetBindStatus(t *testing.T) {
 				if err := tt.args.c.Get(context.TODO(), nn, act); err != nil {
 					t.Errorf("AzureContainerHandler.SetBindStatus() unexected test error getting container: %s", nn)
 				}
-				if diff := deep.Equal(act, tt.want.con); diff != nil {
+				if diff := cmp.Diff(act, tt.want.con); diff != "" {
 					t.Errorf("AzureContainerHandler.SetBindStatus() = %v, want %v\n%s", act, tt.want.con, diff)
 				}
 			}
@@ -663,11 +663,11 @@ func Test_azureAccountResolver_resolve(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			a := &azureAccountResolver{}
 			err := a.resolve(tt.args.account, tt.args.claim)
-			if diff := deep.Equal(err, tt.want.err); diff != nil {
+			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
 				t.Errorf("azureAccountResolver.resolve() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
 			}
 			if tt.want.act != nil {
-				if diff := deep.Equal(tt.args.account, tt.want.act); diff != nil {
+				if diff := cmp.Diff(tt.args.account, tt.want.act); diff != "" {
 					t.Errorf("azureAccountResolver.resolve() account = %v, wantErr %v\n%s",
 						tt.args.account, tt.want.act, diff)
 				}

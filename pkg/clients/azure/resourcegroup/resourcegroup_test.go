@@ -20,7 +20,7 @@ import (
 	"testing"
 
 	"github.com/Azure/azure-sdk-for-go/services/resources/mgmt/2018-05-01/resources"
-	"github.com/go-test/deep"
+	"github.com/google/go-cmp/cmp"
 	"github.com/onsi/gomega"
 
 	"github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
@@ -56,7 +56,7 @@ func TestNewParameters(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			got := NewParameters(tc.r)
-			if diff := deep.Equal(tc.want, got); diff != nil {
+			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("NewParameters(...): want != got\n%s", diff)
 			}
 		})

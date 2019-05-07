@@ -20,9 +20,10 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 
-	"github.com/go-test/deep"
+	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
 const jsonQuote = "\""
@@ -50,7 +51,7 @@ func TestBindingStateMarshalJSON(t *testing.T) {
 			if err != nil {
 				t.Errorf("BindingState.MarshalJSON(): %v", err)
 			}
-			if diff := deep.Equal(tc.want, got); diff != nil {
+			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("BindingState.MarshalJSON(): want != got\n %+v", diff)
 			}
 		})
@@ -96,11 +97,11 @@ func TestBindingStateUnmarshalJSON(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var got BindingState
 			gotErr := got.UnmarshalJSON(tc.s)
-			if diff := deep.Equal(tc.wantErr, gotErr); diff != nil {
+			if diff := cmp.Diff(tc.wantErr, gotErr, test.EquateErrors()); diff != "" {
 				t.Errorf("BindingState.UnmarshalJSON(): want error != got error\n %+v", diff)
 			}
 
-			if diff := deep.Equal(tc.want, got); diff != nil {
+			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("BindingState.UnmarshalJSON(): want != got\n %+v", diff)
 			}
 		})

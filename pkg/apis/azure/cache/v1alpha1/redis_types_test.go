@@ -20,7 +20,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/go-test/deep"
+	"github.com/google/go-cmp/cmp"
 	"github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -170,7 +170,7 @@ func TestNewRedisSpec(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			got := NewRedisSpec(tc.properties)
-			if diff := deep.Equal(got, tc.want); diff != nil {
+			if diff := cmp.Diff(got, tc.want); diff != "" {
 				t.Errorf("got != want:\n%v", diff)
 			}
 		})

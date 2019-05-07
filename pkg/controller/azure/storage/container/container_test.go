@@ -24,7 +24,8 @@ import (
 
 	"github.com/Azure/azure-storage-blob-go/azblob"
 	"github.com/Azure/go-autorest/autorest"
-	"github.com/go-test/deep"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -248,11 +249,11 @@ func TestReconciler_Reconcile(t *testing.T) {
 				syncdeleterMaker: tt.fields.syncdeleterMaker,
 			}
 			got, err := r.Reconcile(req)
-			if diff := deep.Equal(err, tt.want.err); diff != nil {
+			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
 				t.Errorf("Reconciler.Reconcile() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
 				return
 			}
-			if diff := deep.Equal(got, tt.want.res); diff != nil {
+			if diff := cmp.Diff(got, tt.want.res); diff != "" {
 				t.Errorf("Reconciler.Reconcile() result = %v, wantRs %v\n%s", got, tt.want.res, diff)
 			}
 			if tt.want.con != nil {
@@ -260,7 +261,7 @@ func TestReconciler_Reconcile(t *testing.T) {
 				if err := tt.fields.Client.Get(ctx, key, c); err != nil {
 					t.Errorf("Reconciler.Reconcile() container error: %s", err)
 				}
-				if diff := deep.Equal(c, tt.want.con); diff != nil {
+				if diff := cmp.Diff(c, tt.want.con); diff != "" {
 					t.Errorf("Reconciler.Reconcile() container = \n%+v, wantObj \n%+v\n%s", c, tt.want.con, diff)
 				}
 			}
@@ -404,7 +405,7 @@ func Test_containerSyncdeleterMaker_newSyncdeleter(t *testing.T) {
 				Client: tt.fields.Client,
 			}
 			got, err := m.newSyncdeleter(tt.args.ctx, tt.args.c)
-			if diff := deep.Equal(err, tt.want.err); diff != nil {
+			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
 				t.Errorf("containerSyncdeleterMaker.newSyncdeleter() error = \n%v, wantErr \n%v\n%s", err, tt.want.err, diff)
 				return
 			}
@@ -419,7 +420,13 @@ func Test_containerSyncdeleterMaker_newSyncdeleter(t *testing.T) {
 					kube:                tt.fields.Client,
 					container:           tt.args.c,
 				}
-				if diff := deep.Equal(got, tt.want.syndel); diff != nil {
+				// BUG(negz): This test is broken. It appears to intend to compare
+				// unexported fields, but does not. This behaviour was maintained
+				// when porting the test from https://github.com/go-test/deep to cmp.
+				if diff := cmp.Diff(got, tt.want.syndel,
+					cmpopts.IgnoreUnexported(containerSyncdeleter{}),
+					cmpopts.IgnoreUnexported(azblob.ContainerURL{}),
+				); diff != "" {
 					t.Errorf("containerSyncdeleterMaker.newSyncdeleter() = %v, want %v\n%s", got, tt.want.syndel, diff)
 				}
 			}
@@ -428,7 +435,7 @@ func Test_containerSyncdeleterMaker_newSyncdeleter(t *testing.T) {
 				if err := tt.fields.Client.Get(tt.args.ctx, key, cont); err != nil {
 					t.Errorf("containerSyncdeleterMaker.newSyncdeleter() error validating continer: %v, expected nil", err)
 				}
-				if diff := deep.Equal(cont, tt.want.cont); diff != nil {
+				if diff := cmp.Diff(cont, tt.want.cont); diff != "" {
 					t.Errorf("containerSyncdeleterMaker.newSyncdeleter() container = %v, want %v\n%s", got, tt.want.cont, diff)
 				}
 			}
@@ -529,13 +536,13 @@ func Test_containerSyncdeleter_delete(t *testing.T) {
 				container:           tt.fields.container,
 			}
 			got, err := csd.delete(tt.args.ctx)
-			if diff := deep.Equal(err, tt.want.err); diff != nil {
+			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
 				t.Errorf("containerSyncdeleter.delete() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
 			}
-			if diff := deep.Equal(got, tt.want.res); diff != nil {
+			if diff := cmp.Diff(got, tt.want.res); diff != "" {
 				t.Errorf("containerSyncdeleter.delete() = %v, want %v\n%s", got, tt.want.res, diff)
 			}
-			if diff := deep.Equal(tt.fields.container, tt.want.cont); diff != nil {
+			if diff := cmp.Diff(tt.fields.container, tt.want.cont); diff != "" {
 				t.Errorf("containerSyncdeleter.delete() container = \n%v, want \n%v\n%s", tt.fields.container, tt.want.cont, diff)
 			}
 		})
@@ -643,13 +650,13 @@ func Test_containerSyncdeleter_sync(t *testing.T) {
 				container:           tt.fields.container,
 			}
 			got, err := csd.sync(tt.args.ctx)
-			if diff := deep.Equal(err, tt.want.err); diff != nil {
+			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
 				t.Errorf("containerSyncdeleter.sync() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
 			}
-			if diff := deep.Equal(got, tt.want.res); diff != nil {
+			if diff := cmp.Diff(got, tt.want.res); diff != "" {
 				t.Errorf("containerSyncdeleter.sync() = %v, want %v\n%s", got, tt.want.res, diff)
 			}
-			if diff := deep.Equal(tt.fields.container, tt.want.cont); diff != nil {
+			if diff := cmp.Diff(tt.fields.container, tt.want.cont); diff != "" {
 				t.Errorf("containerSyncdeleter.sync() container = \n%v, want \n%v\n%s", tt.fields.container, tt.want.cont, diff)
 			}
 		})
@@ -757,13 +764,13 @@ func Test_containerCreateUpdater_create(t *testing.T) {
 				container:           tt.fields.container,
 			}
 			got, err := ccu.create(tt.args.ctx)
-			if diff := deep.Equal(err, tt.want.err); diff != nil {
+			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
 				t.Errorf("containerCreateUpdater.create() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
 			}
-			if diff := deep.Equal(got, tt.want.res); diff != nil {
+			if diff := cmp.Diff(got, tt.want.res); diff != "" {
 				t.Errorf("containerCreateUpdater.create() = %v, want %v\n%s", got, tt.want.res, diff)
 			}
-			if diff := deep.Equal(tt.fields.container, tt.want.cont); diff != nil {
+			if diff := cmp.Diff(tt.fields.container, tt.want.cont); diff != "" {
 				t.Errorf("containerCreateUpdater.create() container = \n%v, want \n%v\n%s", tt.fields.container, tt.want.cont, diff)
 			}
 		})
@@ -889,13 +896,13 @@ func Test_containerCreateUpdater_update(t *testing.T) {
 				container:           tt.fields.container,
 			}
 			got, err := ccu.update(tt.args.ctx, tt.args.accessType, tt.args.meta)
-			if diff := deep.Equal(err, tt.want.err); diff != nil {
+			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
 				t.Errorf("containerCreateUpdater.update() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
 			}
-			if diff := deep.Equal(got, tt.want.res); diff != nil {
+			if diff := cmp.Diff(got, tt.want.res); diff != "" {
 				t.Errorf("containerCreateUpdater.update() = %v, want %v\n%s", got, tt.want.res, diff)
 			}
-			if diff := deep.Equal(tt.fields.container, tt.want.cont); diff != nil {
+			if diff := cmp.Diff(tt.fields.container, tt.want.cont); diff != "" {
 				t.Errorf("containerCreateUpdater.update() container = \n%v, want \n%v\n%s", tt.fields.container, tt.want.cont, diff)
 			}
 		})

@@ -20,7 +20,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/go-test/deep"
+	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -79,10 +79,10 @@ func TestEKSClusterHandler_Find(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			r := &EKSClusterHandler{}
 			got, err := r.Find(tt.args.name, tt.args.c)
-			if diff := deep.Equal(err, tt.want.err); diff != nil {
+			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
 				t.Errorf("EKSClusterHandler.Find() error = %v, want.err %v\n%s", err, tt.want.err, diff)
 			}
-			if diff := deep.Equal(got, tt.want.res); diff != nil {
+			if diff := cmp.Diff(got, tt.want.res); diff != "" {
 				t.Errorf("EKSClusterHandler.Find() = %v, want.res %v\n%s", got, tt.want.res, diff)
 			}
 		})
@@ -154,11 +154,11 @@ func TestEKSClusterHandler_Provision(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			r := &EKSClusterHandler{}
 			got, err := r.Provision(tt.args.class, tt.args.claim, tt.args.c)
-			if diff := deep.Equal(err, tt.want.err); diff != nil {
+			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
 				t.Errorf("EKSClusterHandler.Provision() error = %v, want.err %v\n%s", err, tt.want.err, diff)
 				return
 			}
-			if diff := deep.Equal(got, tt.want.res); diff != nil {
+			if diff := cmp.Diff(got, tt.want.res); diff != "" {
 				t.Errorf("EKSClusterHandler.Provision() = \n%v, want.res \n%v\n%s", got, tt.want.res, diff)
 			}
 		})
@@ -260,7 +260,7 @@ func TestEKSClusterHandler_SetBindStatus(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			r := EKSClusterHandler{}
 			err := r.SetBindStatus(tt.args.name, tt.args.c, tt.args.bound)
-			if diff := deep.Equal(err, tt.want); diff != nil {
+			if diff := cmp.Diff(err, tt.want, test.EquateErrors()); diff != "" {
 				t.Errorf("EKSClusterHandler.SetBindStatus() error = %v, want %v\n%s", err, tt.want, diff)
 			}
 		})

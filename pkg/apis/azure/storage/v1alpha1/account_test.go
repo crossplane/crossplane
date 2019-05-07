@@ -23,7 +23,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/services/storage/mgmt/2017-06-01/storage"
 	"github.com/Azure/go-autorest/autorest/date"
 	"github.com/Azure/go-autorest/autorest/to"
-	"github.com/go-test/deep"
+	"github.com/google/go-cmp/cmp"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -49,7 +49,7 @@ func Test_newCustomDomain(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := newCustomDomain(tt.args)
-			if diff := deep.Equal(got, tt.want); diff != nil {
+			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("newCustomDomain() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
@@ -77,7 +77,7 @@ func Test_toStorageCustomDomain(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := toStorageCustomDomain(tt.args)
-			if diff := deep.Equal(got, tt.want); diff != nil {
+			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("CustomDomain.ToStorageCustomDomain() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
@@ -111,7 +111,7 @@ func Test_newEnabledEncryptionServices(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := newEnabledEncryptionServices(tt.args)
-			if diff := deep.Equal(got, tt.want); diff != nil {
+			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("newEnabledEncryptionServices() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
@@ -143,7 +143,7 @@ func Test_toStorageEncryptedServices(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := toStorageEncryptedServices(tt.args)
-			if diff := deep.Equal(got, tt.want); diff != nil {
+			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("EnabledEncryptionServices.ToStorageEncryptedServices() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
@@ -166,7 +166,7 @@ func Test_newEncryption(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := newEncryption(tt.args)
-			if diff := deep.Equal(got, tt.want); diff != nil {
+			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("newEncryption() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
@@ -209,7 +209,7 @@ func Test_toStorageEncryption(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := toStorageEncryption(tt.args)
-			if diff := deep.Equal(got, tt.want); diff != nil {
+			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("Encryption.ToStorageEncryption() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
@@ -241,7 +241,7 @@ func Test_newEndpoints(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := newEndpoints(tt.args)
-			if diff := deep.Equal(got, tt.want); diff != nil {
+			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("newEndpoints() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
@@ -271,7 +271,7 @@ func Test_newIdentity(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := newIdentity(tt.args)
-			if diff := deep.Equal(got, tt.want); diff != nil {
+			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("newIdentity() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
@@ -302,7 +302,7 @@ func Test_toStorageIdentity(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := toStorageIdentity(tt.args)
-			if diff := deep.Equal(got, tt.want); diff != nil {
+			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("Identity.ToStorageIdentity() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
@@ -330,7 +330,7 @@ func Test_newIPRule(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := newIPRule(tt.args)
-			if diff := deep.Equal(got, tt.want); diff != nil {
+			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("newIPRule() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
@@ -358,7 +358,7 @@ func Test_toStorageIPRule(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := toStorageIPRule(tt.args)
-			if diff := deep.Equal(got, tt.want); diff != nil {
+			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("IPRule.ToStroageIPRule() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
@@ -389,7 +389,7 @@ func Test_newKeyVaultProperties(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := newKeyVaultProperties(tt.args)
-			if diff := deep.Equal(got, tt.want); diff != nil {
+			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("newKeyVaultProperties() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
@@ -420,7 +420,7 @@ func Test_toStorageKeyVaultProperties(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := toStorageKeyVaultProperties(tt.args)
-			if diff := deep.Equal(got, tt.want); diff != nil {
+			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("KeyVaultProperties.ToStorageKeyVaultProperties() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
@@ -472,7 +472,7 @@ func Test_newNetworkRuleSet(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := newNetworkRuleSet(tt.args)
-			if diff := deep.Equal(got, tt.want); diff != nil {
+			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("newNetworkRuleSet() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
@@ -520,7 +520,7 @@ func Test_toStorageNetworkRuleSet(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := toStorageNetworkRuleSet(tt.args)
-			if diff := deep.Equal(got, tt.want); diff != nil {
+			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("NetworkRuleSet.ToStorageNetworkRuleSet() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
@@ -538,7 +538,7 @@ func Test_newSkuCapability(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := newSkuCapability(tt.args)
-			if diff := deep.Equal(got, tt.want); diff != nil {
+			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("newSkuCapability() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
@@ -560,7 +560,7 @@ func Test_toStorageSkuCapability(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := toStorageSkuCapability(tt.args)
-			if diff := deep.Equal(got, tt.want); diff != nil {
+			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("skuCapability.ToStorageSkuCapability() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
@@ -597,7 +597,7 @@ func Test_newSku(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := newSku(tt.args)
-			if diff := deep.Equal(got, tt.want); diff != nil {
+			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("newSku() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
@@ -643,7 +643,7 @@ func Test_toStorageSku(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := toStorageSku(tt.args)
-			if diff := deep.Equal(got, tt.want); diff != nil {
+			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("Sku.ToStorageSku() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
@@ -661,7 +661,7 @@ func Test_newVirtualNetworkRule(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := newVirtualNetworkRule(tt.args)
-			if diff := deep.Equal(got, tt.want); diff != nil {
+			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("newVirtualNetworkRule() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
@@ -689,7 +689,7 @@ func Test_toStorageVirtualNetworkRule(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := toStorageVirtualNetworkRule(tt.args)
-			if diff := deep.Equal(got, tt.want); diff != nil {
+			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("VirtualNetworkRule.ToStorageVirtualNetworkRule() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
@@ -712,7 +712,7 @@ func Test_newStorageAccountSpecProperties(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := newStorageAccountSpecProperties(tt.args)
-			if diff := deep.Equal(got, tt.want); diff != nil {
+			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("newStorageAccountSpecProperties() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
@@ -753,7 +753,7 @@ func Test_toStorageAccountCreateProperties(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := toStorageAccountCreateProperties(tt.args)
-			if diff := deep.Equal(got, tt.want); diff != nil {
+			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("StorageAccountSpecProperties.ToStorageAccountCreateProperties() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
@@ -782,7 +782,7 @@ func Test_toStorageAccountUpdateProperties(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := toStorageAccountUpdateProperties(tt.args)
-			if diff := deep.Equal(got, tt.want); diff != nil {
+			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("StorageAccountSpecProperties.ToStorageAccountUpdateProperties() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
@@ -810,7 +810,7 @@ func Test_newStorageAccountStatusProperties(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := newStorageAccountStatusProperties(tt.args)
-			if diff := deep.Equal(got, tt.want); diff != nil {
+			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("newStorageAccountStatusProperties() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
@@ -835,7 +835,7 @@ func Test_NewStorageAccountSpec(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := NewStorageAccountSpec(tt.args)
-			if diff := deep.Equal(got, tt.want); diff != nil {
+			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("NewStorageAccountSpec() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
@@ -878,7 +878,7 @@ func Test_toStorageAccountCreate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := ToStorageAccountCreate(tt.args)
-			if diff := deep.Equal(got, tt.want); diff != nil {
+			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("StorageAccountSpec.toStorageAccountCreate() = \n%v, want \n%v\n%s", got, tt.want, diff)
 			}
 		})
@@ -919,7 +919,7 @@ func Test_toStorageAccountUpdate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := ToStorageAccountUpdate(tt.args)
-			if diff := deep.Equal(got, tt.want); diff != nil {
+			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("StorageAccountSpec.toStorageAccountUpdate() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
@@ -942,7 +942,7 @@ func Test_NewStorageAccountStatus(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := NewStorageAccountStatus(tt.args)
-			if diff := deep.Equal(got, tt.want); diff != nil {
+			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("NewStorageAccountStatus() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
@@ -1026,7 +1026,7 @@ func Test_parseStorageAccountSpec(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := parseStorageAccountSpec(tt.args)
-			if diff := deep.Equal(got, tt.want); diff != nil {
+			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("parseStorageAccountSpec() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
@@ -1045,7 +1045,7 @@ func Test_toStringPtr(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := toStringPtr(tt.args)
-			if diff := deep.Equal(got, tt.want); diff != nil {
+			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("toStringPtr() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
