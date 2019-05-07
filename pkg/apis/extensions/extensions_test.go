@@ -14,24 +14,29 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package core contains Kubernetes API groups for the Crossplane core API.
-package core
+// Package extensions contains Kubernetes API groups for Crossplane extensions.
+package extensions
 
 import (
-	"k8s.io/apimachinery/pkg/runtime"
+	"testing"
 
-	"github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	"github.com/crossplaneio/crossplane/pkg/apis/extensions/v1alpha1"
 )
 
-func init() {
-	// Register the types with the Scheme so the components can map objects to GroupVersionKinds and back
-	AddToSchemes = append(AddToSchemes, v1alpha1.SchemeBuilder.AddToScheme)
-}
-
-// AddToSchemes may be used to add all resources defined in the project to a Scheme
-var AddToSchemes runtime.SchemeBuilder
-
-// AddToScheme adds all Resources to the Scheme
-func AddToScheme(s *runtime.Scheme) error {
-	return AddToSchemes.AddToScheme(s)
+func TestAddToScheme(t *testing.T) {
+	s := runtime.NewScheme()
+	if err := AddToScheme(s); err != nil {
+		t.Errorf("AddToScheme() error = %v", err)
+	}
+	gvs := []schema.GroupVersion{
+		v1alpha1.SchemeGroupVersion,
+	}
+	for _, gv := range gvs {
+		if !s.IsVersionRegistered(gv) {
+			t.Errorf("AddToScheme() %v should be registered", gv)
+		}
+	}
 }
