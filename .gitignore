@@ -8,8 +8,7 @@ cover.out
 /.vendor-new
 
 # gitlab example
-cluster/examples/gitlab/gcp/values-psql.yaml
-cluster/examples/gitlab/gcp/values-redis.yaml
+# exclude files generate by running the example
 external-dns-*.tgz
 gitlab-*.tgz
 gitlab-gcp.yaml

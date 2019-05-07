@@ -8,4 +8,4 @@ spec:
   classReference:
     name: standard-gcp-bucket
     namespace: crossplane-system
-  name: gitlab-demo-externaldiffs
+  name: gitlab-demo-externaldiffs-%s

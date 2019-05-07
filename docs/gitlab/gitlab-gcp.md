@@ -1,7 +1,7 @@
 # Deploying GitLab in GCP
 
 This user guide will walk you through GitLab application deployment using Crossplane managed resources and
-GitLab official Helm chart.
+the official GitLab Helm chart.
 
 ## Pre-requisites
 
@@ -14,11 +14,11 @@ GitLab official Helm chart.
 ## Preparation
 
 ### Crossplane
-- Install Crossplane using stesps in [Crossplane Installation Guide](../install-crossplane.md)
+- Install Crossplane using the [Crossplane Installation Guide](../install-crossplane.md)
 - Obtain [Cloud Provider Credentials](../cloud-providers.md) 
 
 #### GCP Provider   
-It is essential to make sure that the GCP Service Account Member has the following Roles:
+It is essential to make sure that the GCP Service Account used by the Crossplane GCP Provider has the following Roles:
 
     Cloud SQL Admin
     Kubernetes Engine Admin
@@ -36,8 +36,7 @@ echo gcp-credentials.json | base64 -w0
 - Update [provider.yaml](../../cluster/examples/gitlab/gcp/provider.yaml) replacing `PROJECT_ID` with `project_id` from the credentials.json
 
 #### GCS 
-It is recommended to create a separate GCP Service Account dedicate for storage operations only, i.e., reduces IAM role set,
-for example: `StorageAdmin` only.
+It is recommended to create a separate GCP Service Account dedicated to storage operations only, i.e. with a reduced IAM role set, for example: `StorageAdmin` only.
 
 Follow the same step as for GCP credentials to create and obtain `gcs-credentials.json`
 - Generate BASE64ENCODED_GCS_PROVIDER_CREDS encrypted value:
@@ -139,10 +138,10 @@ kubectl get -f cluster/examples/gitlab/gcp/resource-claims/redis.yaml
 
 ```
 NAME         STATUS   CLUSTER-CLASS          CLUSTER-REF                                AGE
-gitlab-gke            standard-gcp-cluster   gke-af012df6-6e2a-11e9-ac37-9cb6d08bde99   4m7s
+gitlab-gke   Bound    standard-gcp-cluster   gke-af012df6-6e2a-11e9-ac37-9cb6d08bde99   4m7s
 ---
 NAME                STATUS   CLASS                   VERSION   AGE
-gitlab-postgresql            standard-gcp-postgres   9.6       5m27s
+gitlab-postgresql   Bound    standard-gcp-postgres   9.6       5m27s
 ---
 NAME           STATUS   CLASS                VERSION   AGE
 gitlab-redis   Bound    standard-gcp-redis   3.2       7m10s
@@ -176,7 +175,7 @@ gitlab-uploads         Bound    standard-gcp-bucket                             
 What we are looking for is for `STATUS` value to become `Bound` which indicates the managed resource was successfully provisioned and is ready for consumption
 
 ##### Resource Claims Connection Secrets
-Verify that every resource has a connection secret 
+Verify that every resource has created a connection secret 
 ```bash
 kubectl get secrets -n default 
 ```
@@ -196,14 +195,14 @@ gitlab-registry        Opaque                                4      7m1s
 gitlab-uploads         Opaque                                4      7m1s
 ```
 
-Note: Kubernetes cluster claim is created in "privileged" mode; thus the kubernetes cluster resource secret is located in `crossplane-system` namespace, however, will not need to use this secret for our GitLab demo deployment.
+Note: Kubernetes cluster claim is created in "privileged" mode; thus the kubernetes cluster resource secret is located in `crossplane-system` namespace, however, you will not need to use this secret for our GitLab demo deployment.
 
-At this point, all GitLab managed resources should be in ready to consume state and this completes crossplane resource provisioning phase. 
+At this point, all GitLab managed resources should be ready to consume and this completes the Crossplane resource provisioning phase. 
 
 ### GKE Cluster
-Following a set of steps will prepare the GKE Cluster for GitLab installation.
+Following the below steps will prepare the GKE Cluster for GitLab installation.
 
-- First, get GKE Cluster name by examining the Kubernetes Resource Claim
+- First, get the GKE Cluster's name by examining the Kubernetes Resource Claim
 ```bash
 kubectl get -f cluster/examples/gitlab/gcp/resource-claims/kubernetes.yaml
 ```
@@ -236,11 +235,11 @@ kubectl create clusterrolebinding cluster-admin-binding \
 ```
 
 #### External DNS
-- Fetch [Eternal-DNS](https://github.com/helm/charts/tree/master/stable/external-dns) helm chart
+- Fetch the [External-DNS](https://github.com/helm/charts/tree/master/stable/external-dns) helm chart
 ```bash
 helm fetch stable/external-dns
 ```
-If `helm fetch` command is successful, you should see a new file created in your CWD:
+If the `helm fetch` command is successful, you should see a new file created in your CWD:
 ```bash
 ls -l external-dns-*
 ```
@@ -248,7 +247,7 @@ ls -l external-dns-*
 -rw-r--r-- 1 user user 8913 May  3 23:24 external-dns-1.7.5.tgz
 ```
 
-- Render Helm chart into `yaml`, set values and apply to your GKE cluster
+- Render the Helm chart into `yaml`, and set values and apply to your GKE cluster
 ```bash
 helm template external-dns-1.7.5.tgz --name gitlab-demo --namespace kube-system  \
     --set provider=google \
@@ -260,7 +259,7 @@ helm template external-dns-1.7.5.tgz --name gitlab-demo --namespace kube-system 
 service/release-name-external-dns created
 deployment.extensions/release-name-external-dns created
 ```
-- Verify `Eternal-DNS` is up and running
+- Verify `External-DNS` is up and running
 ```bash
 kubectl get deploy,service -l release=gitlab-demo -n kube-system
 ```
@@ -273,7 +272,7 @@ service/gitlab-demo-external-dns   ClusterIP   10.75.14.226   <none>        7979
 ```
 
 #### Managed Resource Secrets
-Decide on the GKE cluster namespace where GitLab application artifacts will be deployed.
+Decide on the GKE cluster namespace where GitLab's application artifacts will be deployed.
 
 We will use: `gitlab`, and for convenience we will [set our current context](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/#setting-the-namespace-preference) to this namespace 
 ```bash
@@ -284,6 +283,8 @@ kubectl config set-context $(kubectl config current-context) --namespace=gitlab
 ##### Export and Convert Secrets
 GitLab requires to provide connection information in the specific format per cloud provider.
 In addition, we need to extract endpoints and additional managed resource properties and add them to helm values.
+
+_There is [current and ongoing effort](https://github.com/crossplaneio/gitlab-controller) to create an alternative experience to deploy GitLab Crossplane application, which alleviates integration difficulties between Crossplane platform and the GitLab Helm chart deployment._ 
 
 We will use a convenience script for this purpose.
 Note: your output may be different
@@ -328,14 +329,14 @@ secret/bucket-uploads created
 ``` 
 
 ## Install
-Render the official GitLab Helm chart with  generated values files, and your settings into a `gitlab-gcp.yaml` file.
+Render the official GitLab Helm chart with the generated values files, and your settings into a `gitlab-gcp.yaml` file.
 See [GitLab Helm Documentation](https://docs.gitlab.com/charts/installation/deployment.html) for the additional details
 
 ```bash
 helm repo add gitlab https://charts.gitlab.io/
 helm repo update
-helm fetch gitlab/gitlab
-helm template gitlab-1.8.4.tgz --name gitlab-demo --namespace gitlab \
+helm fetch gitlab/gitlab --version v1.7.1
+helm template gitlab-1.7.1.tgz --name gitlab-demo --namespace gitlab \
     -f cluster/examples/gitlab/gcp/values-buckets.yaml \
     -f cluster/examples/gitlab/gcp/values-redis.yaml \
     -f cluster/examples/gitlab/gcp/values-psql.yaml \
@@ -347,7 +348,7 @@ helm template gitlab-1.8.4.tgz --name gitlab-demo --namespace gitlab \
 Examine `gitlab-gcp.yaml` to familiarize yourself with all GitLab components.
 
 Install GitLab
-Note: your output may look differently:
+Note: your output may look different:
 ```bash
 kubectl create -f gitlab-gcp.yaml
 ```
@@ -360,16 +361,16 @@ kubectl get jobs,deployments,statefulsets
 
 It usually takes few minutes for all GitLab components to get initialized and be ready.
 
-Note: During the initialization "wait", some pods could automatically restart, but those should clear once all the 
+Note: During the initialization "wait", some pods could automatically restart, but this should stabilize once all the 
 dependent components become available.
 
-Note: The also could be intermittent `ImagePullBackOff`, but those, similar to above should clear up by themselves.
+Note: There also could be intermittent `ImagePullBackOff`, but those, similar to above should clear up by themselves.
 
 Note: It appears the `gitlab-demo-unicorn-test-runner-*` (job/pod) will Error and will not re-run, unless the pod is resubmitted. 
 
-After few minutes your out to:
+After few minutes your output for:
 ```bash
-kubeclt get pod
+kubectl get pod
 ```
 Should look similar to:
 ```bash
@@ -398,7 +399,7 @@ gitlab-demo-unicorn-test-runner-f2ttk                        0/1     Error      
 ```
 
 Note: if `ImagePullBackOff` error Pod does not get auto-cleared, consider deleting the pod. 
-New pod should come up with clear "Running" STATUS.
+A new pod should come up with "Running" STATUS.
 
 ## Use
 Retrieve the DNS name using GitLab ingress componenet:
@@ -422,6 +423,11 @@ Navigate your browser to https://gitlab-demo.upbound.app, and if everything ran 
 To remove the GitLab application from the GKE cluster: run:
 ```bash
 kubectl delete -f gitlab-gcp.yaml
+```
+
+### External-DNS
+```bash
+kubectl delete deploy,service -l app=external-dns -n kube-system
 ```
 
 ### Crossplane
@@ -453,9 +459,9 @@ Verify that all resource claims have been removed:
 ```bash
 kubectl get -Rf cluster/examples/gitlab/gcp/resource-claims
 ```
-Note: typically it may take few seconds for the crossplane to process the request.
+Note: typically it may take few seconds for Crossplane to process the request.
 By running resource and provider removal in the same command or back-to-back, we are running the risk of having orphaned resource.
-I.E., the resource that could not be cleaned up due to there the provider is no longer available. 
+I.E., a resource that could not be cleaned up because the provider is no longer available. 
 
 Delete all resource classes:
 ```bash

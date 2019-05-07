@@ -53,13 +53,17 @@ enable_multipart = False
 EOF
 }
 
-# Process crossplane bucket connection secrets and create secrets in GitLab expected format
+# Process crossplane bucket connection secrets and create secrets in GitLab expected format, as well as
+# GitLab Helm values file with bucket configuration
 buckets () {
+    declare -A buckets
+
     # use claim file names as bucket name enumerator
     for f in ./cluster/examples/gitlab/gcp/resource-claims/buckets/*; do
         bucket=$(basename ${f} .yaml)
 
         # retrieve interoperability access key and secret
+        bucket_name=$(kubectl --context=${SOURCE_CONTEXT} get secret gitlab-${bucket} -ojson | jq -r '.data.endpoint' | base64 -d)
         interop_access_key=$(kubectl --context=${SOURCE_CONTEXT} get secret gitlab-${bucket} -ojson | jq -r '.data.username' | base64 -d)
         interop_secret=$(kubectl --context=${SOURCE_CONTEXT} get secret gitlab-${bucket} -ojson | jq -r '.data.password' | base64 -d)
 
@@ -76,7 +80,46 @@ buckets () {
             value=$(generate_connection_file "${key_json}")
             kubectl create secret generic bucket-${bucket} --from-literal=connection="${value}"
         fi
+
+        buckets[${bucket}]=${bucket_name}
     done
+
+cat > ${DIR}/values-buckets.yaml << EOF
+global:
+  minio:
+    enabled: false
+  appConfig:
+    lfs:
+      bucket: ${buckets[lfs]}
+      connection:
+        secret: bucket-lfs
+    artifacts:
+      bucket: ${buckets[artifacts]}
+      connection:
+        secret: bucket-artifacts
+    uploads:
+      bucket: ${buckets[uploads]}
+      connection:
+        secret: bucket-uploads
+    packages:
+      bucket: ${buckets[packages]}
+      connection:
+        secret: bucket-packages
+    pseudonymizer:
+      configMap:
+      bucket: ${buckets[pseudonymizer]}
+      connection:
+        secret: bucket-pseudonymizer
+    backups:
+      bucket: ${buckets[backups]}
+      tmpBucket: bucketname-backups-tmp
+gitlab:
+  task-runner:
+    backups:
+      objectStorage:
+        config:
+          secret: bucket-backups
+EOF
 }
 
 # Generate the content of Helm values-psql.yaml
