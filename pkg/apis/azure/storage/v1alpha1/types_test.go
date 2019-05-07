@@ -17,7 +17,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/Azure/azure-storage-blob-go/azblob"
@@ -541,8 +540,9 @@ func Test_parsePublicAccessType(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := parsePublicAccessType(tt.args.s); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("parsePublicAccessType() = %v, want %v", got, tt.want)
+			got := parsePublicAccessType(tt.args.s)
+			if diff := cmp.Diff(got, tt.want); diff != "" {
+				t.Errorf("parsePublicAccessType(): got != want:\n%s", diff)
 			}
 		})
 	}
