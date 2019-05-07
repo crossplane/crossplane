@@ -43,7 +43,8 @@ spec:
           properties:
             clusterSelector:
               description: ClusterSelector selects the clusters to which this application
-                may be scheduled.
+                may be scheduled. Leave both match labels and expressions empty to
+                match any cluster.
               type: object
             resourceSelector:
               description: ResourceSelector selects the KubernetesApplicationResources

@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Crossplane Authors.
+Copyright 2019 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,12 +16,12 @@ limitations under the License.
 
 // NOTE: Boilerplate only.  Ignore this file.
 
-// Package v1alpha1 contains API Schema definitions for the crossplane core v1alpha1 API group
+// Package v1alpha1 contains API Schema definitions for the crossplane extensions v1alpha1 API group
 // +k8s:openapi-gen=true
 // +k8s:deepcopy-gen=package,register
-// +k8s:conversion-gen=github.com/crossplaneio/crossplane/pkg/apis/core
+// +k8s:conversion-gen=github.com/crossplaneio/crossplane/pkg/apis/extensions
 // +k8s:defaulter-gen=TypeMeta
-// +groupName=core.crossplane.io
+// +groupName=extensions.crossplane.io
 package v1alpha1
 
 import (
@@ -31,11 +31,13 @@ import (
 
 // Kubernetes Group, Version, and Kind metadata.
 const (
-	Group                       = "core.crossplane.io"
-	Version                     = "v1alpha1"
-	APIVersion                  = Group + "/" + Version
-	ResourceClassKind           = "resourceclass"
-	ResourceClassKindAPIVersion = ResourceClassKind + "." + APIVersion
+	Group                          = "extensions.crossplane.io"
+	Version                        = "v1alpha1"
+	APIVersion                     = Group + "/" + Version
+	ExtensionRequestKind           = "extensionrequest"
+	ExtensionRequestKindAPIVersion = ExtensionRequestKind + "." + APIVersion
+	ExtensionKind                  = "extension"
+	ExtensionKindAPIVersion        = ExtensionKind + "." + APIVersion
 )
 
 var (
@@ -47,5 +49,6 @@ var (
 )
 
 func init() {
-	SchemeBuilder.Register(&ResourceClass{}, &ResourceClassList{})
+	SchemeBuilder.Register(&ExtensionRequest{}, &ExtensionRequestList{})
+	SchemeBuilder.Register(&Extension{}, &ExtensionList{})
 }
