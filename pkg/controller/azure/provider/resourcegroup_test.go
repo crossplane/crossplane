@@ -104,9 +104,9 @@ func withDeletionTimestamp(t time.Time) resourceModifier {
 	return func(r *v1alpha1.ResourceGroup) { r.ObjectMeta.DeletionTimestamp = &metav1.Time{Time: t} }
 }
 
-// func withDeletionTimestamp(t time.Time) resourceModifier {
-// 	return func(r *azurev1alpha1.ResourceGroup) { r.ObjectMeta.DeletionTimestamp = &metav1.Time{Time: t} }
-// }
+func withSpecLocation(l string) resourceModifier {
+	return func(r *v1alpha1.ResourceGroup) { r.Spec.Location = l }
+}
 
 func resource(rm ...resourceModifier) *azurev1alpha1.ResourceGroup {
 	r := &azurev1alpha1.ResourceGroup{
@@ -143,15 +143,15 @@ func TestCreate(t *testing.T) {
 		wantRequeue bool
 	}{
 		{
-			name: "SuccessfulCreate",
+			name: "SuccessfulCreateNotExist",
 			csd: &azureResourceGroup{client: &fakerg.MockClient{
 				MockCreateOrUpdate: func(_ context.Context, _ string, _ resources.Group) (resources.Group, error) {
 					return resources.Group{}, nil
 				},
 			},
 				validator: &fakerg.MockValidator{
-					MockValidate: func(_ context.Context, _ string, _ string, _ resources.Deployment) {
-						return resources.DeploymentValidateResult{}, nil
+					MockValidate: func(_ context.Context, _ string, _ string, _ resources.Deployment) (resources.DeploymentValidateResult, error) {
+						return resources.DeploymentValidateResult{autorest.Response{&http.Response{StatusCode: 404}}, nil, nil}, nil
 					},
 				}},
 			r: resource(),
@@ -163,34 +163,35 @@ func TestCreate(t *testing.T) {
 			wantRequeue: true,
 		},
 		{
-			name: "FailedCreate",
+			name: "SuccessfulCreateAlreadyExists",
 			csd: &azureResourceGroup{client: &fakerg.MockClient{
 				MockCreateOrUpdate: func(_ context.Context, _ string, _ resources.Group) (resources.Group, error) {
-					return resources.Group{}, errorBoom
+					return resources.Group{}, nil
 				},
 			},
 				validator: &fakerg.MockValidator{
-					MockValidate: func(_ context.Context, _, _ string, _ resources.Deployment) {
-						return resources.DeploymentValidateResult{}, nil
+					MockValidate: func(_ context.Context, _ string, _ string, _ resources.Deployment) (resources.DeploymentValidateResult, error) {
+						return resources.DeploymentValidateResult{autorest.Response{&http.Response{StatusCode: 200}}, nil, nil}, nil
 					},
 				}},
 			r: resource(),
-			want: resource(withConditions(
-				corev1alpha1.Condition{
-					Type:    corev1alpha1.Failed,
-					Status:  corev1.ConditionTrue,
-					Reason:  reasonCreatingResource,
-					Message: errorBoom.Error(),
-				},
-			)),
+			want: resource(
+				withConditions(corev1alpha1.Condition{Type: corev1alpha1.Creating, Status: corev1.ConditionTrue}),
+				withFinalizers(finalizerRG),
+				withName(name),
+			),
 			wantRequeue: true,
 		},
 		{
 			name: "FailedCreateDueToName",
-			csd: &azureResourceGroup{client: &fakerg.MockClient{},
+			csd: &azureResourceGroup{client: &fakerg.MockClient{
+				MockCreateOrUpdate: func(_ context.Context, _ string, _ resources.Group) (resources.Group, error) {
+					return resources.Group{}, nil
+				},
+			},
 				validator: &fakerg.MockValidator{
-					MockValidate: func(_ context.Context, _, _ string, _ resources.Deployment) {
-						return resources.DeploymentValidateResult{}, errorBoom
+					MockValidate: func(_ context.Context, _, _ string, _ resources.Deployment) (resources.DeploymentValidateResult, error) {
+						return resources.DeploymentValidateResult{autorest.Response{}, nil, nil}, errorBoom
 					},
 				}},
 			r: resource(withSpecName("foo.")),
@@ -199,9 +200,32 @@ func TestCreate(t *testing.T) {
 					Type:    corev1alpha1.Failed,
 					Status:  corev1.ConditionTrue,
 					Reason:  reasonCreatingResource,
-					Message: resourcegroup.NameEndPeriod,
+					Message: errorBoom.Error(),
 				},
 			), withSpecName("foo.")),
+			wantRequeue: true,
+		},
+		{
+			name: "FailedCreateExistsWrongLocation",
+			csd: &azureResourceGroup{client: &fakerg.MockClient{
+				MockCreateOrUpdate: func(_ context.Context, _ string, _ resources.Group) (resources.Group, error) {
+					return resources.Group{}, errorBoom
+				},
+			},
+				validator: &fakerg.MockValidator{
+					MockValidate: func(_ context.Context, _, _ string, _ resources.Deployment) (resources.DeploymentValidateResult, error) {
+						return resources.DeploymentValidateResult{autorest.Response{&http.Response{StatusCode: 200}}, nil, nil}, nil
+					},
+				}},
+			r: resource(withSpecLocation("uncoolplace")),
+			want: resource(withConditions(
+				corev1alpha1.Condition{
+					Type:    corev1alpha1.Failed,
+					Status:  corev1.ConditionTrue,
+					Reason:  reasonCreatingResource,
+					Message: errorBoom.Error(),
+				},
+			), withSpecLocation("uncoolplace")),
 			wantRequeue: true,
 		},
 	}
@@ -209,7 +233,6 @@ func TestCreate(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			gotRequeue := tc.csd.Create(ctx, tc.r)
-
 			if gotRequeue != tc.wantRequeue {
 				t.Errorf("tc.csd.CreateOrUpdate(...): want: %t got: %t", tc.wantRequeue, gotRequeue)
 			}
@@ -439,6 +462,9 @@ func TestConnect(t *testing.T) {
 				newClient: func(_ []byte) (resourcegroup.GroupsClient, error) {
 					return &fakerg.MockClient{}, nil
 				},
+				newValidator: func(_ []byte) (resourcegroup.DeploymentsClient, error) {
+					return &fakerg.MockValidator{}, nil
+				},
 			},
 			i:    resource(),
 			want: &azureResourceGroup{client: &fakerg.MockClient{}},
@@ -451,6 +477,9 @@ func TestConnect(t *testing.T) {
 				}},
 				newClient: func(_ []byte) (resourcegroup.GroupsClient, error) {
 					return &fakerg.MockClient{}, nil
+				},
+				newValidator: func(_ []byte) (resourcegroup.DeploymentsClient, error) {
+					return &fakerg.MockValidator{}, nil
 				},
 			},
 			i:       resource(),
@@ -476,6 +505,9 @@ func TestConnect(t *testing.T) {
 				newClient: func(_ []byte) (resourcegroup.GroupsClient, error) {
 					return &fakerg.MockClient{}, nil
 				},
+				newValidator: func(_ []byte) (resourcegroup.DeploymentsClient, error) {
+					return &fakerg.MockValidator{}, nil
+				},
 			},
 			i:       resource(),
 			wantErr: errors.Errorf("provider %s/%s is not ready", namespaceRG, providerName),
@@ -495,12 +527,15 @@ func TestConnect(t *testing.T) {
 				newClient: func(_ []byte) (resourcegroup.GroupsClient, error) {
 					return &fakerg.MockClient{}, nil
 				},
+				newValidator: func(_ []byte) (resourcegroup.DeploymentsClient, error) {
+					return &fakerg.MockValidator{}, nil
+				},
 			},
 			i:       resource(),
 			wantErr: errors.WithStack(errors.Errorf("cannot get provider secret %s/%s:  \"%s\" not found", namespaceRG, providerSecretName, providerSecretName)),
 		},
 		{
-			name: "FailedToCreateAzureCacheClient",
+			name: "FailedToCreateAzureGroupsClient",
 			conn: &providerConnecter{
 				kube: &test.MockClient{MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
 					switch key {
@@ -512,6 +547,9 @@ func TestConnect(t *testing.T) {
 					return nil
 				}},
 				newClient: func(_ []byte) (resourcegroup.GroupsClient, error) { return nil, errorBoom },
+				newValidator: func(_ []byte) (resourcegroup.DeploymentsClient, error) {
+					return &fakerg.MockValidator{}, nil
+				},
 			},
 			i:       resource(),
 			want:    &azureResourceGroup{},

@@ -18,6 +18,7 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -39,6 +40,7 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/clients/azure/resourcegroup"
 	"github.com/crossplaneio/crossplane/pkg/logging"
 	"github.com/crossplaneio/crossplane/pkg/util"
+	azureutil "github.com/crossplaneio/crossplane/pkg/util/azureapi"
 )
 
 const (
@@ -93,16 +95,19 @@ type azureResourceGroup struct {
 }
 
 func (a *azureResourceGroup) Create(ctx context.Context, r *v1alpha1.ResourceGroup) bool {
-	// if err := resourcegroup.CheckResourceGroupName(r.Spec.Name); err != nil {
-	// 	r.Status.SetFailed(reasonCreatingResource, err.Error())
-	// 	return true
-	// }
-	res, err := a.validator.Validate(ctx, r.Spec.Name, "test", resources.Deployment{})
-	if err != nil {
-		r.Status.SetFailed(reasonSyncingResource, err.Error())
-		return true
+	var arm resources.DeploymentProperties
+	if err := json.Unmarshal([]byte(azureutil.BlankARMTemplate), &arm); err != nil {
+		fmt.Println(err)
 	}
-	fmt.Println(res)
+	res, err := a.validator.Validate(ctx, r.Spec.Name, "test", resources.Deployment{Properties: &arm})
+	if err != nil {
+		if res.Response.Response == nil {
+			// Resource group name is invalid OR ARM template is invalid OR other error
+			// As long as we verify a valid template, this is a good check for resource group name
+			r.Status.SetFailed(reasonCreatingResource, err.Error())
+			return true
+		}
+	}
 
 	if _, err := a.client.CreateOrUpdate(ctx, r.Spec.Name, resourcegroup.NewParameters(r)); err != nil {
 		r.Status.SetFailed(reasonCreatingResource, err.Error())
