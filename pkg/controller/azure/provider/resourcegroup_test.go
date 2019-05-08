@@ -467,7 +467,7 @@ func TestConnect(t *testing.T) {
 				},
 			},
 			i:    resource(),
-			want: &azureResourceGroup{client: &fakerg.MockClient{}},
+			want: &azureResourceGroup{client: &fakerg.MockClient{}, validator: &fakerg.MockValidator{}},
 		},
 		{
 			name: "FailedToGetProvider",
