@@ -100,13 +100,11 @@ func (a *azureResourceGroup) Create(ctx context.Context, r *v1alpha1.ResourceGro
 		fmt.Println(err)
 	}
 	res, err := a.validator.Validate(ctx, r.Spec.Name, "test", resources.Deployment{Properties: &arm})
-	if err != nil {
-		if res.Response.Response == nil {
-			// Resource group name is invalid OR ARM template is invalid OR other error
-			// As long as we verify a valid template, this is a good check for resource group name
-			r.Status.SetFailed(reasonCreatingResource, err.Error())
-			return true
-		}
+	if err != nil && res.Response.Response == nil {
+		// Resource group name is invalid OR ARM template is invalid OR other error
+		// As long as we verify a valid template, this is a good check for resource group name
+		r.Status.SetFailed(reasonCreatingResource, err.Error())
+		return true
 	}
 
 	if _, err := a.client.CreateOrUpdate(ctx, r.Spec.Name, resourcegroup.NewParameters(r)); err != nil {
