@@ -4,6 +4,8 @@ kind: ResourceClass
 metadata:
   name: standard-gcp-redis
   namespace: crossplane-system
+  annotations:
+    resource: rediscluster.cache.crossplane.io/v1alpha1
 parameters:
   region: us-central1
   tier: BASIC

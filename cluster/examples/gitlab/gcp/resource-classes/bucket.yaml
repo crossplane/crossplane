@@ -5,6 +5,8 @@ kind: ResourceClass
 metadata:
   name: standard-gcp-bucket
   namespace: crossplane-system
+  annotations:
+    resource: bucket.storage.crossplane.io/v1alpha1
 parameters:
   bucketPolicyOnly: "true"
   labels: "app:gitlab-demo"

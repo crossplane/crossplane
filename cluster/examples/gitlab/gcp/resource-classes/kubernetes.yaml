@@ -4,6 +4,8 @@ kind: ResourceClass
 metadata:
   name: standard-gcp-cluster
   namespace: crossplane-system
+  annotations:
+    resource: kubernetescluster.compute.crossplane.io/v1alpha1
 parameters:
   enableIPAlias: "true"
   labels: "app:gitlab,provisioner:crossplane"
