@@ -27,9 +27,10 @@ It is essential to make sure that the GCP Service Account used by the Crossplane
     Storage Admin
 
 Using GCP Service Account `gcp-credentials.json`:
-- Generate BASE64ENCODED_GCP_PROVIDER_CREDS encrypted value:
+- Generate BASE64ENCODED_GCP_PROVIDER_CREDS encoded value:
 ```bash
-echo gcp-credentials.json | base64 -w0
+cat gcp-credentials.json | base64
+#cat gcp-credentials.json | base64 -w0 # linux variant
 ```
 
 - Update [provider.yaml](../../cluster/examples/gitlab/gcp/provider.yaml) replacing `BASE64ENCODED_GCP_PROVIDER_CREDS`
@@ -39,9 +40,9 @@ echo gcp-credentials.json | base64 -w0
 It is recommended to create a separate GCP Service Account dedicated to storage operations only, i.e. with a reduced IAM role set, for example: `StorageAdmin` only.
 
 Follow the same step as for GCP credentials to create and obtain `gcs-credentials.json`
-- Generate BASE64ENCODED_GCS_PROVIDER_CREDS encrypted value:
+- Generate BASE64ENCODED_GCS_PROVIDER_CREDS encoded value:
 ```bash
-echo gcp-credentials.json | base64 -w0
+cat gcs-credentials.json | base64 -w0
 ```
 
 Otherwise, you can use `BASE64ENCODED_GCP_PROVIDER_CREDS` in place of `BASE64ENCODED_GCS_PROVIDER_CREDS`
