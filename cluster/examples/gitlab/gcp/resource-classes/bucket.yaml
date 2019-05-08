@@ -5,7 +5,7 @@ kind: ResourceClass
 metadata:
   name: standard-gcp-bucket
   namespace: crossplane-system
-  labels:
+  annotations:
     resource: bucket.storage.crossplane.io/v1alpha1
 parameters:
   bucketPolicyOnly: "true"

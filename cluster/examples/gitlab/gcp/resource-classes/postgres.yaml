@@ -5,7 +5,7 @@ kind: ResourceClass
 metadata:
   name: standard-gcp-postgres
   namespace: crossplane-system
-  labels:
+  annotations:
     resource: postgresqlinstance.storage.crossplane.io/v1alpha1
 parameters:
   tier: db-custom-1-3840
