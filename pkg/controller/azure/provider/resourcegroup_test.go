@@ -177,14 +177,18 @@ func TestCreate(t *testing.T) {
 		},
 		{
 			name: "FailedCreateDueToName",
-			csd:  &azureResourceGroup{client: &fakerg.MockClient{}},
-			r:    resource(withSpecName("foo.")),
+			csd: &azureResourceGroup{client: &fakerg.MockClient{
+				MockCreateOrUpdate: func(_ context.Context, _ string, _ resources.Group) (resources.Group, error) {
+					return resources.Group{}, errorBoom
+				},
+			}},
+			r: resource(withSpecName("foo.")),
 			want: resource(withConditions(
 				corev1alpha1.Condition{
 					Type:    corev1alpha1.Failed,
 					Status:  corev1.ConditionTrue,
 					Reason:  reasonCreatingResource,
-					Message: resourcegroup.NameEndPeriod,
+					Message: errorBoom.Error(),
 				},
 			), withSpecName("foo.")),
 			wantRequeue: true,

@@ -90,11 +90,6 @@ type azureResourceGroup struct {
 }
 
 func (a *azureResourceGroup) Create(ctx context.Context, r *v1alpha1.ResourceGroup) bool {
-	if err := resourcegroup.CheckResourceGroupName(r.Spec.Name); err != nil {
-		r.Status.SetFailed(reasonCreatingResource, err.Error())
-		return true
-	}
-
 	if _, err := a.client.CreateOrUpdate(ctx, r.Spec.Name, resourcegroup.NewParameters(r)); err != nil {
 		r.Status.SetFailed(reasonCreatingResource, err.Error())
 		return true
