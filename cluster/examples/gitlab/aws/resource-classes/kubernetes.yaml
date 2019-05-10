@@ -1,0 +1,25 @@
+---
+## Crossplane Kubernetes Cluster Resource Class for AWS
+apiVersion: core.crossplane.io/v1alpha1
+kind: ResourceClass
+metadata:
+  name: standard-aws-cluster
+  namespace: crossplane-system
+  annotations:
+    resource: kubernetescluster.compute.crossplane.io/v1alpha1
+parameters: 
+  region: us-east-1
+  roleARN: EKS_ROLE_ARN # arn:aws:iam::<account-id>:role/<role-name>
+  vpcId: EKS_VPC #vpc-01
+  subnetIds: EKS_SUBNETS #subnet-01,subnet-02,subnet-03
+  securityGroupIds: EKS_SECURITY_GROUP #sg-01
+  workerKeyName: EKS_WORKER_KEY_NAME #named ec2 keypair
+  workerNodeInstanceType: m5.large
+  workerNodeAutoScalingGroupMinSize: "1"
+  workerNodeAutoScalingGroupMaxSize: "2"
+  workerNodeGroupName: demo-nodes
+  workerClusterControlPlaneSecurityGroup: EKS_SECURITY_GROUP #sg-01
+provisioner: ekscluster.compute.aws.crossplane.io/v1alpha1
+providerRef:
+  name: demo-aws
+reclaimPolicy: Delete
