@@ -1,0 +1,11 @@
+# Example aws Bucket resource claim using the aws-bucket resource class
+apiVersion: storage.crossplane.io/v1alpha1
+kind: Bucket
+metadata:
+  name: gitlab-packages
+  namespace: default
+spec:
+  classReference:
+    name: standard-aws-bucket
+    namespace: crossplane-system
+  name: gitlab-demo-packages-%s

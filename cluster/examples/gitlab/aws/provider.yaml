@@ -1,0 +1,21 @@
+## AWS Service Account Credentials
+apiVersion: v1
+kind: Secret
+metadata:
+  name: demo-aws-creds
+  namespace: crossplane-system
+type: Opaque
+data:
+  credentials: BASE64ENCODED_AWS_PROVIDER_CREDS
+---
+## Crossplane AWS Provider
+apiVersion: aws.crossplane.io/v1alpha1
+kind: Provider
+metadata:
+  name: demo-aws
+  namespace: crossplane-system
+spec:
+  credentialsSecretRef:
+    key: credentials
+    name: demo-aws-creds
+  region: us-east-1
