@@ -14,5 +14,5 @@ parameters:
   size: "20"
 provisioner: rdsinstance.database.aws.crossplane.io/v1alpha1
 providerRef:
-  name: aws-provider
+  name: demo-aws
 reclaimPolicy: Delete
