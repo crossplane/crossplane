@@ -8,25 +8,9 @@ metadata:
   annotations:
     resource: postgresqlinstance.storage.crossplane.io/v1alpha1
 parameters:
-  tier: db-custom-1-3840
-  region: us-west2
-  storageType: PD_SSD
-  storageGB: "10"
-provisioner: rdsinstances.database.aws.crossplane.io/v1alpha1
-providerRef:
-  name: demo-aws
-reclaimPolicy: Delete
-
----
-apiVersion: core.crossplane.io/v1alpha1
-kind: ResourceClass
-metadata:
-  name: cloud-postgresql
-  namespace: crossplane-system
-parameters:
   class: db.t2.small
   masterUsername: masteruser
-  securityGroups: "sg-ab1cdefg,sg-05adsfkaj1ksdjak"
+  securityGroups: REPLACE_ME_SECGROUP_1,REPLACEME_SECGROUP_2
   size: "20"
 provisioner: rdsinstance.database.aws.crossplane.io/v1alpha1
 providerRef:
