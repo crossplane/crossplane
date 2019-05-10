@@ -83,6 +83,7 @@ pipeline {
             }
             steps {
                 sh './build/run make -j\$(nproc) test'
+                sh './build/run make -j\$(nproc) cobertura'
             }
             post {
                 always {
@@ -108,6 +109,11 @@ pipeline {
         }
 
         stage('SonarQube Analysis') {
+            when {
+                expression {
+                    return env.shouldBuild != "false"
+                }
+            }
             steps {
                 script {
                     scannerHome = tool 'SonarQubeScanner'
@@ -136,8 +142,31 @@ pipeline {
             }
         }
 
+        stage('Record Coverage') {
+            when {
+                allOf {
+                    branch 'master';
+                    expression {
+                        return env.shouldBuild != "false"
+                    }
+                }
+            }
+            steps {
+                script {
+                    currentBuild.result = 'SUCCESS'
+                 }
+                step([$class: 'MasterCoverageAction', scmVars: [GIT_URL: env.GIT_URL]])
+            }
+        }
+
         stage('PR Coverage to Github') {
-            when { allOf {not { branch 'master' }; expression { return env.CHANGE_ID != null }} }
+            when {
+                allOf {
+                    not { branch 'master' };
+                    expression { return env.CHANGE_ID != null };
+                    expression { return env.shouldBuild != "false"}
+                }
+            }
             steps {
                 script {
                     currentBuild.result = 'SUCCESS'
