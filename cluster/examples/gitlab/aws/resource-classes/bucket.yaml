@@ -1,0 +1,16 @@
+# ResourceClass that defines the blueprint for how a "standard" aws bucket
+# should be dynamically provisioned
+apiVersion: core.crossplane.io/v1alpha1
+kind: ResourceClass
+metadata:
+  name: standard-aws-bucket
+  namespace: crossplane-system
+  annotations:
+    resource: bucket.storage.crossplane.io/v1alpha1
+parameters:
+  versioning: false
+  region: us-east-1
+provisioner: s3buckets.storage.aws.crossplane.io/v1alpha1
+providerRef:
+  name: demo-aws
+reclaimPolicy: Delete
