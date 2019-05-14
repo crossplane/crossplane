@@ -40,7 +40,6 @@ import (
 
 const (
 	controllerName   = "kubernetesapplication.workload.crossplane.io"
-	finalizerName    = "finalizer." + controllerName
 	reconcileTimeout = 1 * time.Minute
 
 	reasonGCResources     = "failed to garbage collect " + v1alpha1.KubernetesApplicationResourceKind
@@ -51,16 +50,6 @@ var log = logging.Logger.WithName("controller." + controllerName)
 
 type syncer interface {
 	sync(ctx context.Context, app *v1alpha1.KubernetesApplication) reconcile.Result
-}
-
-type deleter interface {
-	delete(ctx context.Context, app *v1alpha1.KubernetesApplication) reconcile.Result
-}
-
-// A syncdeleter can sync and delete resources in a KubernetesCluster.
-type syncdeleter interface {
-	syncer
-	deleter
 }
 
 // CreatePredicate accepts KubernetesApplications that have been scheduled to a
@@ -123,8 +112,6 @@ type localCluster struct {
 }
 
 func (c *localCluster) sync(ctx context.Context, app *v1alpha1.KubernetesApplication) reconcile.Result {
-	util.AddFinalizer(app, finalizerName)
-
 	app.Status.UnsetAllConditions()
 	app.Status.DesiredResources = len(app.Spec.ResourceTemplates)
 	app.Status.SubmittedResources = 0
@@ -281,16 +268,10 @@ func (gc *applicationResourceGarbageCollector) process(ctx context.Context, app 
 	return nil
 }
 
-func (c *localCluster) delete(_ context.Context, app *v1alpha1.KubernetesApplication) reconcile.Result {
-	app.Status.SetDeleting()
-	util.RemoveFinalizer(app, finalizerName)
-	return reconcile.Result{Requeue: false}
-}
-
 // A Reconciler reconciles KubernetesApplications.
 type Reconciler struct {
 	kube  client.Client
-	local syncdeleter
+	local syncer
 }
 
 // Reconcile scheduled KubernetesApplications by managing their templated
@@ -307,10 +288,6 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			return reconcile.Result{Requeue: false}, nil
 		}
 		return reconcile.Result{Requeue: false}, errors.Wrapf(err, "cannot get %s %s", v1alpha1.KubernetesApplicationKind, req.NamespacedName)
-	}
-
-	if app.DeletionTimestamp != nil {
-		return r.local.delete(ctx, app), errors.Wrapf(r.kube.Update(ctx, app), "cannot update %s %s", v1alpha1.KubernetesApplicationKind, req.NamespacedName)
 	}
 
 	return r.local.sync(ctx, app), errors.Wrapf(r.kube.Update(ctx, app), "cannot update %s %s", v1alpha1.KubernetesApplicationKind, req.NamespacedName)
