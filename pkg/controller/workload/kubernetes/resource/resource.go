@@ -197,13 +197,18 @@ func (c *remoteCluster) sync(ctx context.Context, ar *v1alpha1.KubernetesApplica
 	setRemoteController(ar, template)
 
 	status, err := c.unstructured.sync(ctx, template)
+	// It's possible we read the remote object's status, but returned an error
+	// because we failed to update said object. We still want to reflect the
+	// latest remote status in this scenario.
+	if status != nil {
+		ar.Status.Remote = status
+	}
 	if err != nil {
 		ar.Status.State = v1alpha1.KubernetesApplicationResourceStateFailed
 		ar.Status.SetFailed(reasonSyncingResource, err.Error())
 		return reconcile.Result{Requeue: true}
 	}
 
-	ar.Status.Remote = status
 	ar.Status.SetReady()
 	ar.Status.State = v1alpha1.KubernetesApplicationResourceStateSubmitted
 	return reconcile.Result{Requeue: false}
