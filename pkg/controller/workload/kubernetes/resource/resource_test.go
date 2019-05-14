@@ -450,6 +450,32 @@ func TestSync(t *testing.T) {
 			syncer: &remoteCluster{
 				unstructured: &mockUnstructuredClient{mockSync: newMockSyncUnstructuredFn(nil, errorBoom)},
 			},
+			ar: kubeAR(
+				withTemplate(template(serviceWithoutNamespace)),
+				withFinalizers(finalizerName),
+				withRemoteStatus(remoteStatus),
+			),
+			wantAR: kubeAR(
+				withTemplate(template(serviceWithoutNamespace)),
+				withFinalizers(finalizerName),
+				withRemoteStatus(remoteStatus),
+				withConditions(
+					corev1alpha1.Condition{
+						Type:    corev1alpha1.Failed,
+						Status:  corev1.ConditionTrue,
+						Reason:  reasonSyncingResource,
+						Message: errorBoom.Error(),
+					},
+				),
+				withState(v1alpha1.KubernetesApplicationResourceStateFailed),
+			),
+			wantResult: reconcile.Result{Requeue: true},
+		},
+		{
+			name: "ResourceSyncRefreshedStatusThenFailed",
+			syncer: &remoteCluster{
+				unstructured: &mockUnstructuredClient{mockSync: newMockSyncUnstructuredFn(remoteStatus, errorBoom)},
+			},
 			ar: kubeAR(withTemplate(template(serviceWithoutNamespace))),
 			wantAR: kubeAR(
 				withTemplate(template(serviceWithoutNamespace)),
@@ -463,6 +489,7 @@ func TestSync(t *testing.T) {
 					},
 				),
 				withState(v1alpha1.KubernetesApplicationResourceStateFailed),
+				withRemoteStatus(remoteStatus),
 			),
 			wantResult: reconcile.Result{Requeue: true},
 		},
