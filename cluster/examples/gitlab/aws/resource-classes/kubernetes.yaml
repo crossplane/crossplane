@@ -1,3 +1,4 @@
+---
 ## Crossplane Kubernetes Cluster Resource Class for AWS
 apiVersion: core.crossplane.io/v1alpha1
 kind: ResourceClass
