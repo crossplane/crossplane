@@ -13,6 +13,7 @@ parameters:
   automaticFailoverEnabled: "true"
   numNodeGroups: "2"
   replicasPerNodeGroup: "2"
+  cacheSecurityGroupNames: REPLACE_ME_REDIS_SECURITY_GROUP
 provisioner: replicationgroup.cache.aws.crossplane.io/v1alpha1
 providerRef:
   name: aws-cache-provider
