@@ -5,4 +5,3 @@ metadata:
 spec:
   source: registry.hub.docker.com
   package: crossplane/sample-extension
-
