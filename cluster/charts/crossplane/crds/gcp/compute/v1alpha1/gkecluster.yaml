@@ -75,7 +75,7 @@ spec:
               type: object
             createSubnetwork:
               description: --cluster-version
-              type: object
+              type: boolean
             diskSize:
               description: --create-subnetwork
               type: string

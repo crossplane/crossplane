@@ -93,13 +93,6 @@ func (in *GKEClusterSpec) DeepCopyInto(out *GKEClusterSpec) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
-	if in.ClusterSubnetwork != nil {
-		in, out := &in.ClusterSubnetwork, &out.ClusterSubnetwork
-		*out = make(map[string]string, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
-		}
-	}
 	if in.Labels != nil {
 		in, out := &in.Labels, &out.Labels
 		*out = make(map[string]string, len(*in))
