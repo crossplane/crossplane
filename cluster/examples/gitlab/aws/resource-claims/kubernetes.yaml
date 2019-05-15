@@ -1,7 +1,7 @@
 apiVersion: compute.crossplane.io/v1alpha1
 kind: KubernetesCluster
 metadata:
-  name: gitlab-k8s
+  name: gitlab-eks
   namespace: crossplane-system
   labels:
     provider: aws

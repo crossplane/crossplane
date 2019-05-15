@@ -10,7 +10,7 @@ metadata:
 parameters:
   class: db.t2.small
   masterUsername: masteruser
-  securityGroups: REPLACE_ME_SECGROUP_1,REPLACEME_SECGROUP_2
+  securityGroups: RDS_SECURITY_GROUP
   size: "20"
 provisioner: rdsinstance.database.aws.crossplane.io/v1alpha1
 providerRef:

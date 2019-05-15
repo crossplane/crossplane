@@ -6,7 +6,7 @@ metadata:
   namespace: crossplane-system
   annotations:
     resource: kubernetescluster.compute.crossplane.io/v1alpha1
-parameters:
+parameters: 
   region: us-east-1
   roleARN: EKS_ROLE_ARN # arn:aws:iam::<account-id>:role/<role-name>
   vpcId: EKS_VPC #vpc-01
