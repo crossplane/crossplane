@@ -18,7 +18,7 @@ The following components are dynamically provisioned and configured during this 
   * For example [Minikube](https://kubernetes.io/docs/tasks/tools/install-minikube/), minimum version `v0.28+`
 * [Helm](https://docs.helm.sh/using_helm/), minimum version `v2.9.1+`.
 * [jq](https://stedolan.github.io/jq/) - commandline JSON processor `v1.5+`
-* aws cli (TODO: add link)
+* [AWS cli](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html)
 
 
 ## Preparation
@@ -209,6 +209,9 @@ Note: you can use a separate command for each claim file, or create all claims i
 kubectl create -Rf cluster/examples/gitlab/aws/resource-claims/
 ```
 ```
+kubernetescluster.compute.crossplane.io/gitlab-gke created
+postgresqlinstance.storage.crossplane.io/gitlab-postgresql created
+rediscluster.cache.crossplane.io/gitlab-redis created  
 bucket.storage.crossplane.io/gitlab-artifacts created
 bucket.storage.crossplane.io/gitlab-backups-tmp created
 bucket.storage.crossplane.io/gitlab-backups created
@@ -218,9 +221,6 @@ bucket.storage.crossplane.io/gitlab-packages created
 bucket.storage.crossplane.io/gitlab-pseudonymizer created
 bucket.storage.crossplane.io/gitlab-registry created
 bucket.storage.crossplane.io/gitlab-uploads created
-kubernetescluster.compute.crossplane.io/gitlab-gke created
-postgresqlinstance.storage.crossplane.io/gitlab-postgresql created
-rediscluster.cache.crossplane.io/gitlab-redis created  
 ```
 
 Verify that the resource claims were successfully provisioned. 

@@ -1,3 +1,4 @@
+---
 # ResourceClass that defines the blueprint for how a "standard" RDS instance
 # should be dynamically provisioned
 apiVersion: core.crossplane.io/v1alpha1
@@ -11,6 +12,7 @@ parameters:
   class: db.t2.small
   masterUsername: masteruser
   securityGroups: RDS_SECURITY_GROUP
+  subnetGroupName: RDS_SUBNET_GROUP_NAME
   size: "20"
 provisioner: rdsinstance.database.aws.crossplane.io/v1alpha1
 providerRef:
