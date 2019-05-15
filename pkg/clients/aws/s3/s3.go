@@ -181,10 +181,18 @@ func isErrorNotFound(err error) bool {
 
 // CreateBucketInput returns a CreateBucketInput from the supplied S3BucketSpec.
 func CreateBucketInput(spec *v1alpha1.S3BucketSpec) *s3.CreateBucketInput {
+	const (
+		// https://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region
+		regionWithNoConstraint = "us-east-1"
+	)
 	bucketInput := &s3.CreateBucketInput{
-		CreateBucketConfiguration: &s3.CreateBucketConfiguration{LocationConstraint: s3.BucketLocationConstraint(spec.Region)},
-		Bucket:                    &spec.Name,
+		Bucket: &spec.Name,
 	}
+
+	if spec.Region != regionWithNoConstraint {
+		bucketInput.CreateBucketConfiguration = &s3.CreateBucketConfiguration{LocationConstraint: s3.BucketLocationConstraint(spec.Region)}
+	}
+
 	if spec.CannedACL != nil {
 		bucketInput.ACL = *spec.CannedACL
 	}
