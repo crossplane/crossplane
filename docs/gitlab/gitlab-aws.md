@@ -18,6 +18,7 @@ The following components are dynamically provisioned and configured during this 
   * For example [Minikube](https://kubernetes.io/docs/tasks/tools/install-minikube/), minimum version `v0.28+`
 * [Helm](https://docs.helm.sh/using_helm/), minimum version `v2.9.1+`.
 * [jq](https://stedolan.github.io/jq/) - commandline JSON processor `v1.5+`
+* aws cli (TODO: add link)
 
 
 ## Preparation
@@ -298,15 +299,12 @@ Following the below steps will prepare the EKS Cluster for GitLab installation.
 
 - First, get the GKE Cluster's name by examining the Kubernetes Resource Claim
 ```bash
-kubectl get -f cluster/examples/gitlab/gcp/resource-claims/kubernetes.yaml
+kubectl get -f cluster/examples/gitlab/aws/resource-claims/kubernetes.yaml
 ```
 ```
 NAME         STATUS   CLUSTER-CLASS          CLUSTER-REF                                AGE
-gitlab-eks   Bound    standard-aws-cluster   gke-af012df6-6e2a-11e9-ac37-9cb6d08bde99   71m
+gitlab-eks   Bound    standard-aws-cluster   eks-af012df6-6e2a-11e9-ac37-9cb6d08bde99   71m
 ```
-
-
-====== stopping here for now.
 
 - Using `CLUSTER-REF` get GKECluster resource
 ```bash
@@ -314,23 +312,16 @@ kubectl get ekscluster [CLUSTER-REF value] -n crossplane-system
 ```
 ```
 NAME                                       STATUS   STATE     CLUSTER-NAME                               ENDPOINT          CLUSTER-CLASS          LOCATION        RECLAIM-POLICY   AGE
-eks-af012df6-6e2a-11e9-ac37-9cb6d08bde99   Bound    RUNNING   gke-af11dfb1-6e2a-11e9-ac37-9cb6d08bde99   130.211.208.249   standard-gcp-cluster   us-central1-a   Delete           72m
+eks-af012df6-6e2a-11e9-ac37-9cb6d08bde99   Bound    RUNNING   eks-af11dfb1-6e2a-11e9-ac37-9cb6d08bde99   130.211.208.249   standard-eks-cluster   us-east-1       Delete           72m
 ```
 - Record the `CLUSTER_NAME` value
-- Obtain GKE Cluster credentials
-    - Note: the easiest way to get `glcoud` command is via:
-        - Go to: https://console.cloud.google.com/kubernetes/list
-        - Click `Connect` next to cluster with `CLUSTER-NAME` value
+- Obtain EKS Cluster credentials
 ```bash
-gcloud container clusters [CLUSTER-NAME] --zone [CLUSTER-ZONE] --project my-project-123456
+aws eks --region us-east-1 update-kubeconfig --name [your-CLUSTER_NAME]
 ```
 
-Add your user account to the cluster admin role
-```bash
-kubectl create clusterrolebinding cluster-admin-binding \
-    --clusterrole cluster-admin \
-    --user [your-gcp-user-name]
-```
+
+====== stopping here for now.
 
 #### External DNS
 - Fetch the [External-DNS](https://github.com/helm/charts/tree/master/stable/external-dns) helm chart
