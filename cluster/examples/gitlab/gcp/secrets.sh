@@ -3,6 +3,14 @@
 SOURCE_CONTEXT=${1:-minikube}
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
+DECLARE_OPTS=-A
+BASE64_D_OPTS=-d
+
+if [ "$(uname)" == "Darwin" ]; then
+    DECLARE_OPTS=-a
+    BASE64_D_OPTS=-D
+fi
+
 # Generate content of GCP connection.yaml file used in GitLab bucket secrets
 #
 # $1 - GCP service account credentials key.json data
@@ -56,19 +64,19 @@ EOF
 # Process crossplane bucket connection secrets and create secrets in GitLab expected format, as well as
 # GitLab Helm values file with bucket configuration
 buckets () {
-    declare -A buckets
+    declare ${DECLARE_OPTS} buckets
 
     # use claim file names as bucket name enumerator
     for f in ./cluster/examples/gitlab/gcp/resource-claims/buckets/*; do
         bucket=$(basename ${f} .yaml)
 
         # retrieve interoperability access key and secret
-        bucket_name=$(kubectl --context=${SOURCE_CONTEXT} get secret gitlab-${bucket} -ojson | jq -r '.data.endpoint' | base64 -d)
-        interop_access_key=$(kubectl --context=${SOURCE_CONTEXT} get secret gitlab-${bucket} -ojson | jq -r '.data.username' | base64 -d)
-        interop_secret=$(kubectl --context=${SOURCE_CONTEXT} get secret gitlab-${bucket} -ojson | jq -r '.data.password' | base64 -d)
+        bucket_name=$(kubectl --context=${SOURCE_CONTEXT} get secret gitlab-${bucket} -ojson | jq -r '.data.endpoint' | base64 ${BASE64_D_OPTS})
+        interop_access_key=$(kubectl --context=${SOURCE_CONTEXT} get secret gitlab-${bucket} -ojson | jq -r '.data.username' | base64 ${BASE64_D_OPTS})
+        interop_secret=$(kubectl --context=${SOURCE_CONTEXT} get secret gitlab-${bucket} -ojson | jq -r '.data.password' | base64 ${BASE64_D_OPTS})
 
         # retrieve service account key.json
-        key_json=$(kubectl --context=${SOURCE_CONTEXT} get secret gitlab-${bucket} -ojson | jq -r '.data.token' | base64 -d)
+        key_json=$(kubectl --context=${SOURCE_CONTEXT} get secret gitlab-${bucket} -ojson | jq -r '.data.token' | base64 ${BASE64_D_OPTS})
 
         # create different secrets based on the bucket "type"
         if [[ ${bucket} == 'backups'* ]]; then
@@ -150,8 +158,8 @@ posgtresql () {
     meta='del(.metadata.namespace,.metadata.ownerReferences,.metadata.uid,.metadata.creationTimestamp,.metadata.selfLink,.metadata.resourceVersion)'
     kubectl --context=${SOURCE_CONTEXT} get secret gitlab-postgresql -o json | jq ${meta} | kubectl create -f -
 
-    host=$(kubectl get secret gitlab-postgresql -o json | jq -r '.data.endpoint' | base64 -d)
-    user=$(kubectl get secret gitlab-postgresql -o json | jq -r '.data.username' | base64 -d)
+    host=$(kubectl get secret gitlab-postgresql -o json | jq -r '.data.endpoint' | base64 ${BASE64_D_OPTS})
+    user=$(kubectl get secret gitlab-postgresql -o json | jq -r '.data.username' | base64 ${BASE64_D_OPTS})
     postgresql_values_file ${host} ${user} > ${DIR}/values-psql.yaml
 }
 
@@ -174,7 +182,7 @@ EOF
 
 # Process crossplane redis connection secret and generate Helm values file for redis.
 redis () {
-    host=$(kubectl --context=${SOURCE_CONTEXT} get secret gitlab-redis -o json | jq -r '.data.endpoint' | base64 -d)
+    host=$(kubectl --context=${SOURCE_CONTEXT} get secret gitlab-redis -o json | jq -r '.data.endpoint' | base64 ${BASE64_D_OPTS})
     redis_values_file ${host} > ${DIR}/values-redis.yaml
 }
 

@@ -219,11 +219,15 @@ kubectl get gkecluster [CLUSTER-REF value] -n crossplane-system
 NAME                                       STATUS   STATE     CLUSTER-NAME                               ENDPOINT          CLUSTER-CLASS          LOCATION        RECLAIM-POLICY   AGE
 gke-af012df6-6e2a-11e9-ac37-9cb6d08bde99   Bound    RUNNING   gke-af11dfb1-6e2a-11e9-ac37-9cb6d08bde99   130.211.208.249   standard-gcp-cluster   us-central1-a   Delete           72m
 ```
+- Record local cluster context name
+```bash
+kubect config current-context
+``` 
 - Record the `CLUSTER_NAME` value
 - Obtain GKE Cluster credentials
-    - Note: the easiest way to get `glcoud` command is via:
+    - Note: the easiest way to get `gcloud` command is via:
         - Go to: https://console.cloud.google.com/kubernetes/list
-        - Click `Connect` next to cluster with `CLUSTER-NAME` value 
+        - Click `Connect` next to cluster with `CLUSTER-NAME` value       
 ```bash
 gcloud container clusters [CLUSTER-NAME] --zone [CLUSTER-ZONE] --project my-project-123456
 ``` 
