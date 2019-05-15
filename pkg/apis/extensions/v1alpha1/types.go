@@ -23,6 +23,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 // TODO: how do we pretty print conditioned status items? There may be multiple of them, and they
@@ -34,7 +35,7 @@ import (
 // ExtensionRequest is the CRD type for a request to add an extension to Crossplane.
 // +k8s:openapi-gen=true
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.conditions[0].type"
+// +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.Conditions[?(@.Status=="True")].Type"
 // +kubebuilder:printcolumn:name="SOURCE",type="string",JSONPath=".spec.source"
 // +kubebuilder:printcolumn:name="PACKAGE",type="string",JSONPath=".spec.package"
 // +kubebuilder:printcolumn:name="CRD",type="string",JSONPath=".spec.crd"
@@ -80,14 +81,26 @@ type ExtensionRequestStatus struct {
 	ExtensionRecord *corev1.ObjectReference `json:"extensionRecord,omitempty"`
 }
 
+// ObjectReference returns the Kubernetes object reference to this resource.
+func (er *ExtensionRequest) ObjectReference() *corev1.ObjectReference {
+	return util.ObjectReference(
+		er.ObjectMeta,
+		util.IfEmptyString(er.APIVersion, APIVersion),
+		util.IfEmptyString(er.Kind, ExtensionRequestKind))
+}
+
+// OwnerReference return an owner reference that points to this extension request
+func (er *ExtensionRequest) OwnerReference() metav1.OwnerReference {
+	return *util.ObjectToOwnerReference(er.ObjectReference())
+}
+
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // Extension is the CRD type for a request to add an extension to Crossplane.
 // +k8s:openapi-gen=true
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.conditions[0].type"
-// +kubebuilder:printcolumn:name="DESCRIPTION",type="string",JSONPath=".spec.description"
+// +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.Conditions[?(@.Status=="True")].Type"
 // +kubebuilder:printcolumn:name="VERSION",type="string",JSONPath=".spec.version"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 type Extension struct {
@@ -118,6 +131,7 @@ type ExtensionSpec struct {
 // ExtensionStatus defines the observed state of Extension
 type ExtensionStatus struct {
 	corev1alpha1.ConditionedStatus
+	ControllerRef *corev1.ObjectReference `json:"controllerRef,omitempty"`
 }
 
 // AppMetadataSpec defines metadata about the extension application
@@ -187,4 +201,17 @@ type ControllerDeployment struct {
 // PermissionsSpec defines the permissions that an extension will require to operate.
 type PermissionsSpec struct {
 	Rules []rbac.PolicyRule `json:"rules,omitempty"`
+}
+
+// ObjectReference returns the Kubernetes object reference to this resource.
+func (e *Extension) ObjectReference() *corev1.ObjectReference {
+	return util.ObjectReference(
+		e.ObjectMeta,
+		util.IfEmptyString(e.APIVersion, APIVersion),
+		util.IfEmptyString(e.Kind, ExtensionKind))
+}
+
+// OwnerReference return an owner reference that points to this extension
+func (e *Extension) OwnerReference() metav1.OwnerReference {
+	return *util.ObjectToOwnerReference(e.ObjectReference())
 }

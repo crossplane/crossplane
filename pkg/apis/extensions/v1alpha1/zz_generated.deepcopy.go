@@ -336,6 +336,11 @@ func (in *ExtensionSpec) DeepCopy() *ExtensionSpec {
 func (in *ExtensionStatus) DeepCopyInto(out *ExtensionStatus) {
 	*out = *in
 	in.ConditionedStatus.DeepCopyInto(&out.ConditionedStatus)
+	if in.ControllerRef != nil {
+		in, out := &in.ControllerRef, &out.ControllerRef
+		*out = new(corev1.ObjectReference)
+		**out = **in
+	}
 	return
 }
 

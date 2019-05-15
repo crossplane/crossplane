@@ -305,7 +305,5 @@ It is a good place to start and iterate over as we learn more without investing 
 
 ## Questions and Open Issues
 
-* Is a Package CRD not needed? or are `ExtensionRequest` and `Extension` sufficient?
-* How does the user installing the extension specify what namespace its controller should run in?
 * Dependency resolution design: [#434](https://github.com/crossplaneio/crossplane/issues/434)
 * Updating/Upgrading extensions: [#435](https://github.com/crossplaneio/crossplane/issues/435)
