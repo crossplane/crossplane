@@ -8,7 +8,7 @@ metadata:
   annotations:
     resource: bucket.storage.crossplane.io/v1alpha1
 parameters:
-  versioning: false
+  versioning: "false"
   region: us-east-1
 provisioner: s3buckets.storage.aws.crossplane.io/v1alpha1
 providerRef:
