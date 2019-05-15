@@ -45,7 +45,7 @@ type GKEClusterSpec struct {
 	ClusterIPV4CIDR           string            `json:"clusterIPV4CIDR,omitempty"`           //--cluster-ipv4-cidr
 	ClusterSecondaryRangeName string            `json:"clusterSecondaryRangeName,omitempty"` //--cluster-secondary-range-name
 	ClusterVersion            string            `json:"clusterVersion,omitempty"`            //--cluster-version
-	ClusterSubnetwork         map[string]string `json:"createSubnetwork,omitempty"`          //--create-subnetwork
+	CreateSubnetwork          bool              `json:"createSubnetwork,omitempty"`          //--create-subnetwork
 	DiskSize                  string            `json:"diskSize,omitempty"`                  //--disk-size
 	EnableAutorepair          bool              `json:"enableAutorepair,omitempty"`          //--enable-autorepair
 	EnableAutoupgrade         bool              `json:"enableAutoupgrade,omitempty"`         //--enable-autoupgrade
@@ -147,12 +147,14 @@ func ParseClusterSpec(properties map[string]string) *GKEClusterSpec {
 		return spec
 	}
 
+	spec.ClusterVersion = properties["clusterVersion"]
 	spec.EnableIPAlias = util.ParseBool(properties["enableIPAlias"])
 	spec.Labels = util.ParseMap(properties["labels"])
 	spec.MachineType = properties["machineType"]
 	spec.NumNodes = parseNodesNumber(properties["numNodes"])
 	spec.Scopes = util.Split(properties["scopes"], ",")
 	spec.Zone = properties["zone"]
+	spec.CreateSubnetwork = util.ParseBool(properties["createSubnetwork"])
 
 	return spec
 }
