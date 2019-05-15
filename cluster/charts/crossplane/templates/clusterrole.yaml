@@ -51,6 +51,7 @@ rules:
   - cache.crossplane.io
   - compute.crossplane.io
   - core.crossplane.io
+  - extensions.crossplane.io
   - storage.crossplane.io
   - aws.crossplane.io
   - cache.aws.crossplane.io
