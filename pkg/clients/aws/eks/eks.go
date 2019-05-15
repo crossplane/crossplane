@@ -249,10 +249,11 @@ func IsErrorNotFound(err error) bool {
 const (
 	// workerCloudFormationTemplate taken from aws README
 	// https://docs.aws.amazon.com/eks/latest/userguide/launch-workers.html
-	// Specifically: https://amazon-eks.s3-us-west-2.amazonaws.com/cloudformation/2018-11-07/amazon-eks-nodegroup.yaml
+	// Specifically: https://amazon-eks.s3-us-west-2.amazonaws.com/cloudformation/2019-02-11/amazon-eks-nodegroup.yaml
 	workerCloudFormationTemplate = `---
-AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Amazon EKS - Node Group'
+---
+AWSTemplateFormatVersion: 2010-09-09
+Description: Amazon EKS - Node Group
 
 Parameters:
 
@@ -261,114 +262,115 @@ Parameters:
     Type: AWS::EC2::KeyPair::KeyName
 
   NodeImageId:
-    Type: AWS::EC2::Image::Id
     Description: AMI id for the node instances.
+    Type: AWS::EC2::Image::Id
 
   NodeInstanceType:
     Description: EC2 instance type for the node instances
     Type: String
     Default: t3.medium
-    AllowedValues:
-    - t2.small
-    - t2.medium
-    - t2.large
-    - t2.xlarge
-    - t2.2xlarge
-    - t3.nano
-    - t3.micro
-    - t3.small
-    - t3.medium
-    - t3.large
-    - t3.xlarge
-    - t3.2xlarge
-    - m3.medium
-    - m3.large
-    - m3.xlarge
-    - m3.2xlarge
-    - m4.large
-    - m4.xlarge
-    - m4.2xlarge
-    - m4.4xlarge
-    - m4.10xlarge
-    - m5.large
-    - m5.xlarge
-    - m5.2xlarge
-    - m5.4xlarge
-    - m5.12xlarge
-    - m5.24xlarge
-    - c4.large
-    - c4.xlarge
-    - c4.2xlarge
-    - c4.4xlarge
-    - c4.8xlarge
-    - c5.large
-    - c5.xlarge
-    - c5.2xlarge
-    - c5.4xlarge
-    - c5.9xlarge
-    - c5.18xlarge
-    - i3.large
-    - i3.xlarge
-    - i3.2xlarge
-    - i3.4xlarge
-    - i3.8xlarge
-    - i3.16xlarge
-    - r3.xlarge
-    - r3.2xlarge
-    - r3.4xlarge
-    - r3.8xlarge
-    - r4.large
-    - r4.xlarge
-    - r4.2xlarge
-    - r4.4xlarge
-    - r4.8xlarge
-    - r4.16xlarge
-    - x1.16xlarge
-    - x1.32xlarge
-    - p2.xlarge
-    - p2.8xlarge
-    - p2.16xlarge
-    - p3.2xlarge
-    - p3.8xlarge
-    - p3.16xlarge
-    - r5.large
-    - r5.xlarge
-    - r5.2xlarge
-    - r5.4xlarge
-    - r5.12xlarge
-    - r5.24xlarge
-    - r5d.large
-    - r5d.xlarge
-    - r5d.2xlarge
-    - r5d.4xlarge
-    - r5d.12xlarge
-    - r5d.24xlarge
-    - z1d.large
-    - z1d.xlarge
-    - z1d.2xlarge
-    - z1d.3xlarge
-    - z1d.6xlarge
-    - z1d.12xlarge
     ConstraintDescription: Must be a valid EC2 instance type
+    AllowedValues:
+      - t2.small
+      - t2.medium
+      - t2.large
+      - t2.xlarge
+      - t2.2xlarge
+      - t3.nano
+      - t3.micro
+      - t3.small
+      - t3.medium
+      - t3.large
+      - t3.xlarge
+      - t3.2xlarge
+      - m3.medium
+      - m3.large
+      - m3.xlarge
+      - m3.2xlarge
+      - m4.large
+      - m4.xlarge
+      - m4.2xlarge
+      - m4.4xlarge
+      - m4.10xlarge
+      - m5.large
+      - m5.xlarge
+      - m5.2xlarge
+      - m5.4xlarge
+      - m5.12xlarge
+      - m5.24xlarge
+      - c4.large
+      - c4.xlarge
+      - c4.2xlarge
+      - c4.4xlarge
+      - c4.8xlarge
+      - c5.large
+      - c5.xlarge
+      - c5.2xlarge
+      - c5.4xlarge
+      - c5.9xlarge
+      - c5.18xlarge
+      - i3.large
+      - i3.xlarge
+      - i3.2xlarge
+      - i3.4xlarge
+      - i3.8xlarge
+      - i3.16xlarge
+      - r3.xlarge
+      - r3.2xlarge
+      - r3.4xlarge
+      - r3.8xlarge
+      - r4.large
+      - r4.xlarge
+      - r4.2xlarge
+      - r4.4xlarge
+      - r4.8xlarge
+      - r4.16xlarge
+      - x1.16xlarge
+      - x1.32xlarge
+      - p2.xlarge
+      - p2.8xlarge
+      - p2.16xlarge
+      - p3.2xlarge
+      - p3.8xlarge
+      - p3.16xlarge
+      - p3dn.24xlarge
+      - r5.large
+      - r5.xlarge
+      - r5.2xlarge
+      - r5.4xlarge
+      - r5.12xlarge
+      - r5.24xlarge
+      - r5d.large
+      - r5d.xlarge
+      - r5d.2xlarge
+      - r5d.4xlarge
+      - r5d.12xlarge
+      - r5d.24xlarge
+      - z1d.large
+      - z1d.xlarge
+      - z1d.2xlarge
+      - z1d.3xlarge
+      - z1d.6xlarge
+      - z1d.12xlarge
 
   NodeAutoScalingGroupMinSize:
-    Type: Number
     Description: Minimum size of Node Group ASG.
+    Type: Number
     Default: 1
 
   NodeAutoScalingGroupMaxSize:
-    Type: Number
     Description: Maximum size of Node Group ASG. Set to at least 1 greater than NodeAutoScalingGroupDesiredCapacity.
+    Type: Number
     Default: 4
 
   NodeAutoScalingGroupDesiredCapacity:
-    Type: Number
     Description: Desired capacity of Node Group ASG.
+    Type: Number
     Default: 3
 
   NodeVolumeSize:
-    Type: Number
     Description: Node volume size
+    Type: Number
     Default: 20
 
   ClusterName:
@@ -377,8 +379,8 @@ Parameters:
 
   BootstrapArguments:
     Description: Arguments to pass to the bootstrap script. See files/bootstrap.sh in https://github.com/awslabs/amazon-eks-ami
-    Default: ""
     Type: String
+    Default: ""
 
   NodeGroupName:
     Description: Unique identifier for the Node Group.
@@ -397,17 +399,16 @@ Parameters:
     Type: List<AWS::EC2::Subnet::Id>
 
 Metadata:
+
   AWS::CloudFormation::Interface:
     ParameterGroups:
-      -
-        Label:
-          default: "EKS Cluster"
+      - Label:
+          default: EKS Cluster
         Parameters:
           - ClusterName
           - ClusterControlPlaneSecurityGroup
-      -
-        Label:
-          default: "Worker Node Configuration"
+      - Label:
+          default: Worker Node Configuration
         Parameters:
           - NodeGroupName
           - NodeAutoScalingGroupMinSize
@@ -418,9 +419,8 @@ Metadata:
           - NodeVolumeSize
           - KeyName
           - BootstrapArguments
-      -
-        Label:
-          default: "Worker Network Configuration"
+      - Label:
+          default: Worker Network Configuration
         Parameters:
           - VpcId
           - Subnets
@@ -432,20 +432,18 @@ Resources:
     Properties:
       Path: "/"
       Roles:
-      - !Ref NodeInstanceRole
+        - !Ref NodeInstanceRole
 
   NodeInstanceRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
-        Version: '2012-10-17'
+        Version: 2012-10-17
         Statement:
-        - Effect: Allow
-          Principal:
-            Service:
-            - ec2.amazonaws.com
-          Action:
-          - sts:AssumeRole
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
       Path: "/"
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
@@ -456,11 +454,10 @@ Resources:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Security group for all nodes in the cluster
-      VpcId:
-        !Ref VpcId
+      VpcId: !Ref VpcId
       Tags:
-      - Key: !Sub "kubernetes.io/cluster/${ClusterName}"
-        Value: 'owned'
+        - Key: !Sub kubernetes.io/cluster/${ClusterName}
+          Value: owned
 
   NodeSecurityGroupIngress:
     Type: AWS::EC2::SecurityGroupIngress
@@ -469,7 +466,7 @@ Resources:
       Description: Allow node to communicate with each other
       GroupId: !Ref NodeSecurityGroup
       SourceSecurityGroupId: !Ref NodeSecurityGroup
-      IpProtocol: '-1'
+      IpProtocol: -1
       FromPort: 0
       ToPort: 65535
 
@@ -535,31 +532,30 @@ Resources:
       LaunchConfigurationName: !Ref NodeLaunchConfig
       MinSize: !Ref NodeAutoScalingGroupMinSize
       MaxSize: !Ref NodeAutoScalingGroupMaxSize
-      VPCZoneIdentifier:
-        !Ref Subnets
+      VPCZoneIdentifier: !Ref Subnets
       Tags:
-      - Key: Name
-        Value: !Sub "${ClusterName}-${NodeGroupName}-Node"
-        PropagateAtLaunch: 'true'
-      - Key: !Sub 'kubernetes.io/cluster/${ClusterName}'
-        Value: 'owned'
-        PropagateAtLaunch: 'true'
+        - Key: Name
+          Value: !Sub ${ClusterName}-${NodeGroupName}-Node
+          PropagateAtLaunch: true
+        - Key: !Sub kubernetes.io/cluster/${ClusterName}
+          Value: owned
+          PropagateAtLaunch: true
     UpdatePolicy:
       AutoScalingRollingUpdate:
-        MaxBatchSize: '1'
+        MaxBatchSize: 1
         MinInstancesInService: !Ref NodeAutoScalingGroupDesiredCapacity
-        PauseTime: 'PT5M'
+        PauseTime: PT5M
 
   NodeLaunchConfig:
     Type: AWS::AutoScaling::LaunchConfiguration
     Properties:
-      AssociatePublicIpAddress: 'true'
+      AssociatePublicIpAddress: true
       IamInstanceProfile: !Ref NodeInstanceProfile
       ImageId: !Ref NodeImageId
       InstanceType: !Ref NodeInstanceType
       KeyName: !Ref KeyName
       SecurityGroups:
-      - !Ref NodeSecurityGroup
+        - !Ref NodeSecurityGroup
       BlockDeviceMappings:
         - DeviceName: /dev/xvda
           Ebs:
@@ -578,9 +574,11 @@ Resources:
                      --region ${AWS::Region}
 
 Outputs:
+
   NodeInstanceRole:
     Description: The node instance role
     Value: !GetAtt NodeInstanceRole.Arn
+
   NodeSecurityGroup:
     Description: The security group for the node group
     Value: !Ref NodeSecurityGroup
