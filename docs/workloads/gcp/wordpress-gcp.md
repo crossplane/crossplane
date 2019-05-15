@@ -42,7 +42,7 @@ For the next steps, make sure your `kubectl` context points to the cluster where
   - Verify that GCP Provider is in `Ready` state
 
     ```bash
-    kubectl -n crossplane-system get providers.gcp.crossplane.io -o custom-columns=NAME:.metadata.name,STATUS:.status.Conditions[0].Type,PROJECT-ID:.spec.projectID
+    kubectl -n crossplane-system get providers.gcp.crossplane.io -o custom-columns=NAME:.metadata.name,STATUS:'.status.Conditions[?(@.Status=="True")].Type',PROJECT-ID:.spec.projectID
     ```
 
     Your output should look similar to:
