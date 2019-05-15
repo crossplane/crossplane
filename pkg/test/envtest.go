@@ -17,7 +17,7 @@ limitations under the License.
 package test
 
 import (
-	"log"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -55,7 +55,8 @@ type Env struct {
 // NewEnv - create new test environment instance
 func NewEnv(namespace string, builder apiruntime.SchemeBuilder, crds ...string) *Env {
 	if err := builder.AddToScheme(scheme.Scheme); err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
+		os.Exit(1)
 	}
 
 	t := envtest.Environment{
@@ -63,7 +64,8 @@ func NewEnv(namespace string, builder apiruntime.SchemeBuilder, crds ...string) 
 	}
 	if !t.UseExistingCluster {
 		if crds, err := CheckCRDFiles(crds); err != nil {
-			log.Panic(err)
+			fmt.Println(err)
+			os.Exit(1)
 		} else {
 			t.CRDDirectoryPaths = crds
 		}
@@ -81,7 +83,8 @@ func NewEnv(namespace string, builder apiruntime.SchemeBuilder, crds ...string) 
 func (te *Env) Start() *rest.Config {
 	cfg, err := te.Environment.Start()
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
+		os.Exit(1)
 	}
 	te.cfg = cfg
 
@@ -94,7 +97,8 @@ func (te *Env) Start() *rest.Config {
 			},
 		})
 		if err != nil && !errors.IsAlreadyExists(err) {
-			log.Fatal(err)
+			fmt.Println(err)
+			os.Exit(1)
 		}
 	}
 
@@ -107,7 +111,8 @@ func (te *Env) StartClient() client.Client {
 
 	clnt, err := client.New(cfg, client.Options{Scheme: scheme.Scheme})
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
+		os.Exit(1)
 	}
 
 	return clnt
@@ -117,7 +122,8 @@ func (te *Env) StartClient() client.Client {
 func (te *Env) Stop() {
 	defer func() {
 		if err := te.Environment.Stop(); err != nil {
-			log.Panic(err)
+			fmt.Println(err)
+			os.Exit(1)
 		}
 	}()
 	if te.namespace != defaultNamespace {
@@ -125,7 +131,8 @@ func (te *Env) Stop() {
 		dp := metav1.DeletePropagationForeground
 		err := k.CoreV1().Namespaces().Delete(te.namespace, &metav1.DeleteOptions{PropagationPolicy: &dp})
 		if err != nil {
-			log.Panic(err)
+			fmt.Println(err)
+			os.Exit(1)
 		}
 	}
 }
