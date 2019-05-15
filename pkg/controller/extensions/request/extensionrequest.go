@@ -98,12 +98,7 @@ func Add(mgr manager.Manager) error {
 	}
 
 	// Watch for changes to ExtensionRequest
-	err = c.Watch(&source.Kind{Type: &v1alpha1.ExtensionRequest{}}, &controllerHandler.EnqueueRequestForObject{})
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return c.Watch(&source.Kind{Type: &v1alpha1.ExtensionRequest{}}, &controllerHandler.EnqueueRequestForObject{})
 }
 
 // Reconcile reads that state of the ExtensionRequest for a Instance object and makes changes based on the state read
@@ -144,7 +139,7 @@ type extensionRequestHandler struct {
 	kube         client.Client
 	jobCompleter jobCompleter
 	executorInfo executorInfo
-	i            *v1alpha1.ExtensionRequest
+	ext          *v1alpha1.ExtensionRequest
 }
 
 // jobCompleter is an interface for handling job completion
@@ -175,11 +170,11 @@ type factory interface {
 
 type handlerFactory struct{}
 
-func (f *handlerFactory) newHandler(ctx context.Context, i *v1alpha1.ExtensionRequest,
+func (f *handlerFactory) newHandler(ctx context.Context, ext *v1alpha1.ExtensionRequest,
 	kube client.Client, kubeclient kubernetes.Interface, ei executorInfo) handler {
 
 	return &extensionRequestHandler{
-		i:            i,
+		ext:          ext,
 		kube:         kube,
 		executorInfo: ei,
 		jobCompleter: &extensionRequestJobCompleter{
@@ -195,7 +190,7 @@ func (f *handlerFactory) newHandler(ctx context.Context, i *v1alpha1.ExtensionRe
 // Syncing/Creating functions
 // ************************************************************************************************
 func (h *extensionRequestHandler) sync(ctx context.Context) (reconcile.Result, error) {
-	if h.i.Status.ExtensionRecord == nil {
+	if h.ext.Status.ExtensionRecord == nil {
 		return h.create(ctx)
 	}
 
@@ -205,33 +200,33 @@ func (h *extensionRequestHandler) sync(ctx context.Context) (reconcile.Result, e
 // create performs the operation of creating the associated Extension.  This function assumes
 // that the Extension does not yet exist, so the caller should confirm that before calling.
 func (h *extensionRequestHandler) create(ctx context.Context) (reconcile.Result, error) {
-	jobRef := h.i.Status.InstallJob
+	jobRef := h.ext.Status.InstallJob
 
 	if jobRef == nil {
 		// there is no install job created yet, create it now
-		job := createInstallJob(h.i, h.executorInfo)
+		job := createInstallJob(h.ext, h.executorInfo)
 		if err := h.kube.Create(ctx, job); err != nil {
-			return fail(ctx, h.kube, h.i, reasonCreatingJob, err.Error())
+			return fail(ctx, h.kube, h.ext, reasonCreatingJob, err.Error())
+		}
+
+		jobRef = &corev1.ObjectReference{
+			Name:      job.Name,
+			Namespace: job.Namespace,
 		}
 
 		// set a Creating condition on the status and save a reference to the install job we just created
-		h.i.Status.SetCreating()
-		h.i.Status.InstallJob = &corev1.ObjectReference{
-			APIVersion: job.APIVersion,
-			Kind:       job.Kind,
-			Name:       job.Name,
-			Namespace:  job.Namespace,
-			UID:        job.ObjectMeta.UID,
-		}
+		h.ext.Status.SetCreating()
+		h.ext.Status.InstallJob = jobRef
+		log.V(logging.Debug).Info("created install job", "jobRef", jobRef)
 
-		return requeueOnSuccess, h.kube.Status().Update(ctx, h.i)
+		return requeueOnSuccess, h.kube.Status().Update(ctx, h.ext)
 	}
 
 	// the install job already exists, let's check its status and completion
 	job := &batchv1.Job{}
 	n := types.NamespacedName{Namespace: jobRef.Namespace, Name: jobRef.Name}
 	if err := h.kube.Get(ctx, n, job); err != nil {
-		return fail(ctx, h.kube, h.i, reasonFetchingJob, err.Error())
+		return fail(ctx, h.kube, h.ext, reasonFetchingJob, err.Error())
 	}
 
 	for _, c := range job.Status.Conditions {
@@ -239,29 +234,30 @@ func (h *extensionRequestHandler) create(ctx context.Context) (reconcile.Result,
 			switch c.Type {
 			case batchv1.JobComplete:
 				// the install job succeeded, process the output
-				if err := h.jobCompleter.handleJobCompletion(ctx, h.i, job); err != nil {
-					return fail(ctx, h.kube, h.i, reasonHandlingJobCompletion, err.Error())
+				if err := h.jobCompleter.handleJobCompletion(ctx, h.ext, job); err != nil {
+					return fail(ctx, h.kube, h.ext, reasonHandlingJobCompletion, err.Error())
 				}
 
 				// the install job's completion was handled successfully, this extension request is ready
-				h.i.Status.UnsetAllConditions()
-				h.i.Status.SetReady()
-				return requeueOnSuccess, h.kube.Status().Update(ctx, h.i)
+				h.ext.Status.UnsetAllConditions()
+				h.ext.Status.SetReady()
+				return requeueOnSuccess, h.kube.Status().Update(ctx, h.ext)
 			case batchv1.JobFailed:
 				// the install job failed, report the failure
-				return fail(ctx, h.kube, h.i, reasonJobFailed, c.Message)
+				return fail(ctx, h.kube, h.ext, reasonJobFailed, c.Message)
 			}
 		}
 	}
 
 	// the job hasn't completed yet, so requeue and check again next time
-	return requeueOnSuccess, h.kube.Status().Update(ctx, h.i)
+	return requeueOnSuccess, h.kube.Status().Update(ctx, h.ext)
 }
 
 func (h *extensionRequestHandler) update(ctx context.Context) (reconcile.Result, error) {
 	// TODO: should updates of the ExtensionRequest be supported? what would that even mean, they
 	// changed the package they wanted installed? Shouldn't they delete the ExtensionRequest and
 	// create a new one?
+	log.V(logging.Debug).Info("updating not supported yet", "extensionRequest", h.ext.Name)
 	return reconcile.Result{}, nil
 }
 
@@ -322,7 +318,7 @@ func createInstallJob(i *v1alpha1.ExtensionRequest, executorInfo executorInfo) *
 }
 
 func (jc *extensionRequestJobCompleter) handleJobCompletion(ctx context.Context, i *v1alpha1.ExtensionRequest, job *batchv1.Job) error {
-	extensionRecord := &v1alpha1.Extension{}
+	var extensionRecord *v1alpha1.Extension
 
 	// find the pod associated with the given job
 	podName, err := jc.findPodNameForJob(ctx, job)
@@ -355,6 +351,7 @@ func (jc *extensionRequestJobCompleter) handleJobCompletion(ctx context.Context,
 
 		if isExtensionObject(obj) {
 			// we just created the extension record, try to fetch it now so that it can be returned
+			extensionRecord = &v1alpha1.Extension{}
 			n := types.NamespacedName{Name: obj.GetName(), Namespace: obj.GetNamespace()}
 			if err := jc.kube.Get(ctx, n, extensionRecord); err != nil {
 				return fmt.Errorf("failed to retrieve created extension record %s from job %s: %+v", obj.GetName(), job.Name, err)

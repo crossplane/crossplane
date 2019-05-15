@@ -107,10 +107,7 @@ type mockFactory struct {
 }
 
 func (f *mockFactory) newHandler(ctx context.Context, r *v1alpha1.Extension, c client.Client) handler {
-	if f.MockNewHandler != nil {
-		return f.MockNewHandler(ctx, r, c)
-	}
-	return &mockHandler{}
+	return f.MockNewHandler(ctx, r, c)
 }
 
 type mockHandler struct {
@@ -328,7 +325,7 @@ func TestCreate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			handler := &extensionHandler{
 				kube: tt.clientFunc(tt.r),
-				i:    tt.r,
+				ext:  tt.r,
 			}
 
 			got, err := handler.create(ctx)
@@ -465,7 +462,7 @@ func TestProcessRBAC(t *testing.T) {
 			g := NewGomegaWithT(t)
 			handler := &extensionHandler{
 				kube: tt.clientFunc(tt.r),
-				i:    tt.r,
+				ext:  tt.r,
 			}
 
 			err := handler.processRBAC(ctx)
@@ -570,7 +567,7 @@ func TestProcessDeployment(t *testing.T) {
 			g := NewGomegaWithT(t)
 			handler := &extensionHandler{
 				kube: tt.clientFunc(tt.r),
-				i:    tt.r,
+				ext:  tt.r,
 			}
 
 			err := handler.processDeployment(ctx)
@@ -584,7 +581,7 @@ func TestProcessDeployment(t *testing.T) {
 				assertKubernetesObject(t, g, got, tt.want.d, handler.kube)
 			}
 
-			if diff := cmp.Diff(handler.i.Status.ControllerRef, tt.want.controllerRef); diff != "" {
+			if diff := cmp.Diff(handler.ext.Status.ControllerRef, tt.want.controllerRef); diff != "" {
 				t.Errorf("got != want:\n%v", diff)
 			}
 		})

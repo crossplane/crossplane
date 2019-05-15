@@ -85,7 +85,8 @@ type ExtensionRequestStatus struct {
 func (er *ExtensionRequest) ObjectReference() *corev1.ObjectReference {
 	return util.ObjectReference(
 		er.ObjectMeta,
-		util.IfEmptyString(er.APIVersion, APIVersion), util.IfEmptyString(er.Kind, ExtensionRequestKind))
+		util.IfEmptyString(er.APIVersion, APIVersion),
+		util.IfEmptyString(er.Kind, ExtensionRequestKind))
 }
 
 // OwnerReference return an owner reference that points to this extension request
@@ -206,7 +207,8 @@ type PermissionsSpec struct {
 func (e *Extension) ObjectReference() *corev1.ObjectReference {
 	return util.ObjectReference(
 		e.ObjectMeta,
-		util.IfEmptyString(e.APIVersion, APIVersion), util.IfEmptyString(e.Kind, ExtensionKind))
+		util.IfEmptyString(e.APIVersion, APIVersion),
+		util.IfEmptyString(e.Kind, ExtensionKind))
 }
 
 // OwnerReference return an owner reference that points to this extension

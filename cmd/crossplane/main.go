@@ -20,7 +20,7 @@ import (
 	"os"
 	"path/filepath"
 
-	kingpin "gopkg.in/alecthomas/kingpin.v2"
+	"gopkg.in/alecthomas/kingpin.v2"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	runtimelog "sigs.k8s.io/controller-runtime/pkg/runtime/log"

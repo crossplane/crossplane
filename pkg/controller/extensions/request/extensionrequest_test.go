@@ -239,10 +239,7 @@ type mockFactory struct {
 
 func (f *mockFactory) newHandler(ctx context.Context, i *v1alpha1.ExtensionRequest,
 	kube client.Client, kubeclient kubernetes.Interface, ei executorInfo) handler {
-	if f.MockNewHandler != nil {
-		return f.MockNewHandler(ctx, i, kube, kubeclient, ei)
-	}
-	return &mockHandler{}
+	return f.MockNewHandler(ctx, i, kube, kubeclient, ei)
 }
 
 type mockHandler struct {
@@ -423,7 +420,7 @@ func TestHandlerFactory(t *testing.T) {
 				kube:         nil,
 				jobCompleter: &extensionRequestJobCompleter{kube: nil, podLogReader: &k8sPodLogReader{kubeclient: nil}},
 				executorInfo: executorInfo{namespace: extensionSystemNamespace, image: extensionPackageImage},
-				i:            resource(),
+				ext:          resource(),
 			},
 		},
 	}
@@ -448,7 +445,7 @@ func TestCreate(t *testing.T) {
 	type want struct {
 		result reconcile.Result
 		err    error
-		i      *v1alpha1.ExtensionRequest
+		ext    *v1alpha1.ExtensionRequest
 	}
 
 	tests := []struct {
@@ -464,12 +461,12 @@ func TestCreate(t *testing.T) {
 					MockStatusUpdate: func(ctx context.Context, obj runtime.Object) error { return nil },
 				},
 				executorInfo: executorInfo{image: extensionPackageImage, namespace: extensionSystemNamespace},
-				i:            resource(),
+				ext:          resource(),
 			},
 			want: want{
 				result: requeueOnSuccess,
 				err:    nil,
-				i: resource(
+				ext: resource(
 					withConditions(corev1alpha1.Condition{Type: corev1alpha1.Creating, Status: corev1.ConditionTrue}),
 					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: extensionSystemNamespace}),
 				),
@@ -485,14 +482,14 @@ func TestCreate(t *testing.T) {
 					},
 					MockStatusUpdate: func(ctx context.Context, obj runtime.Object) error { return nil },
 				},
-				i: resource(
+				ext: resource(
 					withConditions(corev1alpha1.Condition{Type: corev1alpha1.Creating, Status: corev1.ConditionTrue}),
 					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: extensionSystemNamespace})),
 			},
 			want: want{
 				result: requeueOnSuccess,
 				err:    nil,
-				i: resource(
+				ext: resource(
 					withConditions(corev1alpha1.Condition{Type: corev1alpha1.Creating, Status: corev1.ConditionTrue}),
 					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: extensionSystemNamespace}),
 				),
@@ -513,13 +510,13 @@ func TestCreate(t *testing.T) {
 					MockHandleJobCompletion: func(ctx context.Context, i *v1alpha1.ExtensionRequest, job *batchv1.Job) error { return nil },
 				},
 				executorInfo: executorInfo{image: extensionPackageImage, namespace: extensionSystemNamespace},
-				i: resource(
+				ext: resource(
 					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: extensionSystemNamespace})),
 			},
 			want: want{
 				result: requeueOnSuccess,
 				err:    nil,
-				i: resource(
+				ext: resource(
 					withConditions(corev1alpha1.Condition{Type: corev1alpha1.Ready, Status: corev1.ConditionTrue}),
 					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: extensionSystemNamespace}),
 				),
@@ -540,13 +537,13 @@ func TestCreate(t *testing.T) {
 					MockHandleJobCompletion: func(ctx context.Context, i *v1alpha1.ExtensionRequest, job *batchv1.Job) error { return nil },
 				},
 				executorInfo: executorInfo{image: extensionPackageImage, namespace: extensionSystemNamespace},
-				i: resource(
+				ext: resource(
 					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: extensionSystemNamespace})),
 			},
 			want: want{
 				result: resultRequeue,
 				err:    nil,
-				i: resource(
+				ext: resource(
 					withConditions(corev1alpha1.Condition{
 						Type:    corev1alpha1.Failed,
 						Status:  corev1.ConditionTrue,
@@ -571,7 +568,7 @@ func TestCreate(t *testing.T) {
 				t.Errorf("create() got != want:\n%v", diff)
 			}
 
-			if diff := cmp.Diff(tt.handler.i, tt.want.i); diff != "" {
+			if diff := cmp.Diff(tt.handler.ext, tt.want.ext); diff != "" {
 				t.Errorf("create() got != want:\n%v", diff)
 			}
 		})
@@ -583,14 +580,14 @@ func TestCreate(t *testing.T) {
 // ************************************************************************************************
 func TestHandleJobCompletion(t *testing.T) {
 	type want struct {
-		i   *v1alpha1.ExtensionRequest
+		ext *v1alpha1.ExtensionRequest
 		err error
 	}
 
 	tests := []struct {
 		name string
 		jc   *extensionRequestJobCompleter
-		i    *v1alpha1.ExtensionRequest
+		ext  *v1alpha1.ExtensionRequest
 		job  *batchv1.Job
 		want want
 	}{
@@ -605,10 +602,10 @@ func TestHandleJobCompletion(t *testing.T) {
 					MockStatusUpdate: func(ctx context.Context, obj runtime.Object) error { return nil },
 				},
 			},
-			i:   resource(),
+			ext: resource(),
 			job: job(),
 			want: want{
-				i:   resource(),
+				ext: resource(),
 				err: fmt.Errorf("pod list for job %s should only have 1 item, actual: 0", resourceName),
 			},
 		},
@@ -631,10 +628,10 @@ func TestHandleJobCompletion(t *testing.T) {
 					},
 				},
 			},
-			i:   resource(),
+			ext: resource(),
 			job: job(),
 			want: want{
-				i:   resource(),
+				ext: resource(),
 				err: fmt.Errorf("failed to get logs request stream from pod %s: %+v", jobPodName, "test-pod-log-reader-error"),
 			},
 		},
@@ -662,10 +659,10 @@ func TestHandleJobCompletion(t *testing.T) {
 					},
 				},
 			},
-			i:   resource(),
+			ext: resource(),
 			job: job(),
 			want: want{
-				i:   resource(),
+				ext: resource(),
 				err: fmt.Errorf("failed to copy logs request stream from pod %s: %+v", jobPodName, "test-read-error"),
 			},
 		},
@@ -687,10 +684,10 @@ func TestHandleJobCompletion(t *testing.T) {
 					},
 				},
 			},
-			i:   resource(),
+			ext: resource(),
 			job: job(),
 			want: want{
-				i:   resource(),
+				ext: resource(),
 				err: fmt.Errorf("failed to parse output from job %s: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type map[string]interface {}", resourceName),
 			},
 		},
@@ -721,10 +718,10 @@ func TestHandleJobCompletion(t *testing.T) {
 					},
 				},
 			},
-			i:   resource(),
+			ext: resource(),
 			job: job(),
 			want: want{
-				i:   resource(withExtensionRecord(&corev1.ObjectReference{Name: resourceName, Namespace: namespace})),
+				ext: resource(withExtensionRecord(&corev1.ObjectReference{Name: resourceName, Namespace: namespace})),
 				err: nil,
 			},
 		},
@@ -732,13 +729,13 @@ func TestHandleJobCompletion(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotErr := tt.jc.handleJobCompletion(ctx, tt.i, tt.job)
+			gotErr := tt.jc.handleJobCompletion(ctx, tt.ext, tt.job)
 
 			if diff := cmp.Diff(gotErr, tt.want.err, test.EquateErrors()); diff != "" {
 				t.Errorf("handleJobCompletion() want error != got error:\n%s", diff)
 			}
 
-			if diff := cmp.Diff(tt.i, tt.want.i); diff != "" {
+			if diff := cmp.Diff(tt.ext, tt.want.ext); diff != "" {
 				t.Errorf("handleJobCompletion() got != want:\n%v", diff)
 			}
 		})

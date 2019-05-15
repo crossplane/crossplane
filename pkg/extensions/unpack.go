@@ -263,31 +263,39 @@ func readIcons(fs afero.Fs, root string) ([]v1alpha1.IconSpec, error) {
 
 	icons := make([]v1alpha1.IconSpec, len(matches))
 	for i, m := range matches {
-		// open the icon file for reading from
-		f, err := fs.Open(m)
-		if err != nil {
+		// run the loop body in a func so the defer calls happen per loop instead of after the loop
+		// https://blog.learngoprogramming.com/gotchas-of-defer-in-go-1-8d070894cb01
+		if err := func() error {
+			// open the icon file for reading from
+			f, err := fs.Open(m)
+			if err != nil {
+				return err
+			}
+			defer func() { _ = f.Close() }()
+
+			// create a base64 encoding byte stream to write to
+			b := &bytes.Buffer{}
+			w := base64.NewEncoder(base64.StdEncoding, b)
+			defer func() { _ = w.Close() }()
+
+			// read from the file stream and write it to the encoding stream
+			_, err = io.Copy(w, f)
+			if err != nil {
+				return err
+			}
+
+			// determine the media type of the icon file
+			mediaType := mime.TypeByExtension(filepath.Ext(m))
+
+			// save the base64 icon data and the media type to the icons list
+			icons[i] = v1alpha1.IconSpec{
+				Base64IconData: b.String(),
+				MediaType:      mediaType,
+			}
+
+			return nil
+		}(); err != nil {
 			return nil, err
-		}
-		defer func() { _ = f.Close() }()
-
-		// create a base64 encoding byte stream to write to
-		b := &bytes.Buffer{}
-		w := base64.NewEncoder(base64.StdEncoding, b)
-		defer func() { _ = w.Close() }()
-
-		// read from the file stream and write it to the encoding stream
-		_, err = io.Copy(w, f)
-		if err != nil {
-			return nil, err
-		}
-
-		// determine the media type of the icon file
-		mediaType := mime.TypeByExtension(filepath.Ext(m))
-
-		// save the base64 icon data and the media type to the icons list
-		icons[i] = v1alpha1.IconSpec{
-			Base64IconData: b.String(),
-			MediaType:      mediaType,
 		}
 	}
 

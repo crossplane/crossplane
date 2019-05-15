@@ -75,12 +75,7 @@ func Add(mgr manager.Manager) error {
 	}
 
 	// Watch for changes to Extension
-	err = c.Watch(&source.Kind{Type: &v1alpha1.Extension{}}, &controllerHandler.EnqueueRequestForObject{})
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return c.Watch(&source.Kind{Type: &v1alpha1.Extension{}}, &controllerHandler.EnqueueRequestForObject{})
 }
 
 // Reconcile reads that state of the Extension for a Instance object and makes changes based on the state read
@@ -113,7 +108,7 @@ type handler interface {
 
 type extensionHandler struct {
 	kube client.Client
-	i    *v1alpha1.Extension
+	ext  *v1alpha1.Extension
 }
 
 type factory interface {
@@ -122,10 +117,10 @@ type factory interface {
 
 type extensionHandlerFactory struct{}
 
-func (f *extensionHandlerFactory) newHandler(ctx context.Context, i *v1alpha1.Extension, kube client.Client) handler {
+func (f *extensionHandlerFactory) newHandler(ctx context.Context, ext *v1alpha1.Extension, kube client.Client) handler {
 	return &extensionHandler{
 		kube: kube,
-		i:    i,
+		ext:  ext,
 	}
 }
 
@@ -133,7 +128,7 @@ func (f *extensionHandlerFactory) newHandler(ctx context.Context, i *v1alpha1.Ex
 // Syncing/Creating functions
 // ************************************************************************************************
 func (h *extensionHandler) sync(ctx context.Context) (reconcile.Result, error) {
-	if h.i.Status.ControllerRef == nil {
+	if h.ext.Status.ControllerRef == nil {
 		return h.create(ctx)
 	}
 
@@ -143,35 +138,36 @@ func (h *extensionHandler) sync(ctx context.Context) (reconcile.Result, error) {
 func (h *extensionHandler) create(ctx context.Context) (reconcile.Result, error) {
 	// create RBAC permissions
 	if err := h.processRBAC(ctx); err != nil {
-		return fail(ctx, h.kube, h.i, reasonCreatingRBAC, err.Error())
+		return fail(ctx, h.kube, h.ext, reasonCreatingRBAC, err.Error())
 	}
 
 	// create controller deployment
 	if err := h.processDeployment(ctx); err != nil {
-		return fail(ctx, h.kube, h.i, reasonCreatingDeployment, err.Error())
+		return fail(ctx, h.kube, h.ext, reasonCreatingDeployment, err.Error())
 	}
 
 	// the extension has successfully been created, the extension is ready
-	h.i.Status.UnsetAllConditions()
-	h.i.Status.SetReady()
-	return requeueOnSuccess, h.kube.Status().Update(ctx, h.i)
+	h.ext.Status.UnsetAllConditions()
+	h.ext.Status.SetReady()
+	return requeueOnSuccess, h.kube.Status().Update(ctx, h.ext)
 }
 
 func (h *extensionHandler) update(ctx context.Context) (reconcile.Result, error) {
+	log.V(logging.Debug).Info("updating not supported yet", "extension", h.ext.Name)
 	return reconcile.Result{}, nil
 }
 
 func (h *extensionHandler) processRBAC(ctx context.Context) error {
-	if len(h.i.Spec.Permissions.Rules) == 0 {
+	if len(h.ext.Spec.Permissions.Rules) == 0 {
 		return nil
 	}
 
 	// create service account
 	sa := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            h.i.Name,
-			Namespace:       h.i.Namespace,
-			OwnerReferences: []metav1.OwnerReference{h.i.OwnerReference()},
+			Name:            h.ext.Name,
+			Namespace:       h.ext.Namespace,
+			OwnerReferences: []metav1.OwnerReference{h.ext.OwnerReference()},
 		},
 	}
 	if err := h.kube.Create(ctx, sa); err != nil && !kerrors.IsAlreadyExists(err) {
@@ -181,10 +177,10 @@ func (h *extensionHandler) processRBAC(ctx context.Context) error {
 	// create role
 	cr := &rbac.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            h.i.Name,
-			OwnerReferences: []metav1.OwnerReference{h.i.OwnerReference()},
+			Name:            h.ext.Name,
+			OwnerReferences: []metav1.OwnerReference{h.ext.OwnerReference()},
 		},
-		Rules: h.i.Spec.Permissions.Rules,
+		Rules: h.ext.Spec.Permissions.Rules,
 	}
 	if err := h.kube.Create(ctx, cr); err != nil && !kerrors.IsAlreadyExists(err) {
 		return fmt.Errorf("failed to create cluster role: %+v", err)
@@ -193,12 +189,12 @@ func (h *extensionHandler) processRBAC(ctx context.Context) error {
 	// create rolebinding between service account and role
 	crb := &rbac.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            h.i.Name,
-			OwnerReferences: []metav1.OwnerReference{h.i.OwnerReference()},
+			Name:            h.ext.Name,
+			OwnerReferences: []metav1.OwnerReference{h.ext.OwnerReference()},
 		},
-		RoleRef: rbac.RoleRef{APIGroup: rbac.GroupName, Kind: "ClusterRole", Name: h.i.Name},
+		RoleRef: rbac.RoleRef{APIGroup: rbac.GroupName, Kind: "ClusterRole", Name: h.ext.Name},
 		Subjects: []rbac.Subject{
-			{Name: h.i.Name, Namespace: h.i.Namespace, Kind: rbac.ServiceAccountKind},
+			{Name: h.ext.Name, Namespace: h.ext.Namespace, Kind: rbac.ServiceAccountKind},
 		},
 	}
 	if err := h.kube.Create(ctx, crb); err != nil && !kerrors.IsAlreadyExists(err) {
@@ -209,20 +205,20 @@ func (h *extensionHandler) processRBAC(ctx context.Context) error {
 }
 
 func (h *extensionHandler) processDeployment(ctx context.Context) error {
-	controllerDeployment := h.i.Spec.Controller.Deployment
+	controllerDeployment := h.ext.Spec.Controller.Deployment
 	if controllerDeployment == nil {
 		return nil
 	}
 
 	// ensure the deployment is set to use this extension's service account that we created
 	deploymentSpec := *controllerDeployment.Spec.DeepCopy()
-	deploymentSpec.Template.Spec.ServiceAccountName = h.i.Name
+	deploymentSpec.Template.Spec.ServiceAccountName = h.ext.Name
 
 	d := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            controllerDeployment.Name,
-			Namespace:       h.i.Namespace,
-			OwnerReferences: []metav1.OwnerReference{h.i.OwnerReference()},
+			Namespace:       h.ext.Namespace,
+			OwnerReferences: []metav1.OwnerReference{h.ext.OwnerReference()},
 		},
 		Spec: deploymentSpec,
 	}
@@ -231,7 +227,7 @@ func (h *extensionHandler) processDeployment(ctx context.Context) error {
 	}
 
 	// save a reference to the extension's controller
-	h.i.Status.ControllerRef = &corev1.ObjectReference{
+	h.ext.Status.ControllerRef = &corev1.ObjectReference{
 		APIVersion: d.APIVersion,
 		Kind:       d.Kind,
 		Name:       d.Name,

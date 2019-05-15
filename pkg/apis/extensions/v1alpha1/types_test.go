@@ -75,6 +75,15 @@ func TestExtensionRequest(t *testing.T) {
 	g.Expect(c.Get(ctx, key, fetched)).NotTo(HaveOccurred())
 	g.Expect(fetched).To(Equal(updated))
 
+	// Test OwnerReference
+	ownerRef := updated.OwnerReference()
+	g.Expect(ownerRef).To(Equal(metav1.OwnerReference{
+		APIVersion: "extensions.crossplane.io/v1alpha1",
+		Kind:       "extensionrequest",
+		Name:       name,
+		UID:        updated.UID,
+	}))
+
 	// Test Delete
 	g.Expect(c.Delete(ctx, fetched)).NotTo(HaveOccurred())
 	g.Expect(c.Get(ctx, key, fetched)).To(HaveOccurred())
@@ -121,6 +130,15 @@ func TestExtension(t *testing.T) {
 
 	g.Expect(c.Get(ctx, key, fetched)).NotTo(HaveOccurred())
 	g.Expect(fetched).To(Equal(updated))
+
+	// Test OwnerReference
+	ownerRef := updated.OwnerReference()
+	g.Expect(ownerRef).To(Equal(metav1.OwnerReference{
+		APIVersion: "extensions.crossplane.io/v1alpha1",
+		Kind:       "extension",
+		Name:       name,
+		UID:        updated.UID,
+	}))
 
 	// Test Delete
 	g.Expect(c.Delete(ctx, fetched)).NotTo(HaveOccurred())
