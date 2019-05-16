@@ -142,12 +142,18 @@ This is for **EXAMPLE PURPOSES ONLY** and is **NOT RECOMMENDED** for production 
     export RDS_SECURITY_GROUP=replace-with-security-group-id
     ```
 
+#### Create an Elasticache Subnet Group
+
+```console
+export REDIS_SUBNET_GROUP=replace-me-with-redis-subnet-group
+``` 
+
 #### Create a Redis security group
 
 1. TODO: add details here about redis, but open everything on tcp 6379 - No security/auth on redis typically, should not leave this running
 
 ```console
-export REDIS_SECURITY_GROUP=eplace-with-redis-securityGroupId
+export REDIS_SECURITY_GROUP=replace-with-redis-securityGroupId
 ```
 
 #### Create
@@ -179,7 +185,7 @@ Create Crossplane Resource Class needed to provision managed resources for GitLa
 
 ```bash
 ```console
-sed -e "s|REDIS_SECURITY_GROUP|$REDIS_SECURITY_GROUP|g;s|EKS_WORKER_KEY_NAME|$EKS_WORKER_KEY_NAME|g;s|EKS_ROLE_ARN|$EKS_ROLE_ARN|g;s|REGION|$REGION|g;s|EKS_VPC|$EKS_VPC|g;s|EKS_SUBNETS|$EKS_SUBNETS|g;s|EKS_SECURITY_GROUP|$EKS_SECURITY_GROUP|g;s|RDS_SUBNET_GROUP_NAME|$RDS_SUBNET_GROUP_NAME|g;s|RDS_SECURITY_GROUP|$RDS_SECURITY_GROUP|g" cluster/examples/gitlab/aws/resource-classes/* | kubectl create -f -
+sed -e "s|REDIS_SECURITY_GROUP|$REDIS_SECURITY_GROUP|g;s|REDIS_SUBNET_GROUP|$REDIS_SUBNET_GROUP|g;s|EKS_WORKER_KEY_NAME|$EKS_WORKER_KEY_NAME|g;s|EKS_ROLE_ARN|$EKS_ROLE_ARN|g;s|REGION|$REGION|g;s|EKS_VPC|$EKS_VPC|g;s|EKS_SUBNETS|$EKS_SUBNETS|g;s|EKS_SECURITY_GROUP|$EKS_SECURITY_GROUP|g;s|RDS_SUBNET_GROUP_NAME|$RDS_SUBNET_GROUP_NAME|g;s|RDS_SECURITY_GROUP|$RDS_SECURITY_GROUP|g" cluster/examples/gitlab/aws/resource-classes/* | kubectl create -f -
 ```
 ```
 resourceclass.core.crossplane.io/standard-aws-bucket created
