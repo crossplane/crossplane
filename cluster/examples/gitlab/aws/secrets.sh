@@ -16,22 +16,19 @@ fi
 # $1 - AWS service account credentials data
 #
 generate_connection_file() {
-    local json_key=$1
-
-    # retrieve project id value from the credentials json
-    project_id=$(echo ${json_key} | jq -r '.project_id')
-
-    # retrieve project id value from the credentials json
-    client_email=$(echo ${json_key} | jq -r '.client_email')
+    local access_key=$1
+    local secret_key=$2
+    local bucket=$3
 
 cat << EOF
-provider: Google
-google_project: ${project_id}
-google_client_email: ${client_email}
-google_json_key_string: |
+s3:
+  bucket: ${bucket}
+  accesskey: ${access_key}
+  secretkey: ${secret_key}
+  region: us-east-1
+  v4auth: true
+
 EOF
-    echo ${json_key} | jq '.' | awk '{printf "  %s\n", $0}'
-    echo
 }
 
 # Generate content of AWS s3cmd.properties file used in GitLab backup bucket secrets
@@ -44,19 +41,9 @@ generate_s3cmd_file () {
     local secret_key=$2
 cat << EOF
 [default]
-host_base = storage.googleapis.com
-host_bucket = storage.googleapis.com
-use_https = True
-signature_v2 = True
-
-# Access and secret key can be generated in the interoperability
-# https://console.cloud.google.com/storage/settings
-# See Docs: https://cloud.google.com/storage/docs/interoperability
 access_key = ${access_key}
 secret_key = ${secret_key}
-
-# Multipart needs to be disabled for GCS !
-enable_multipart = False
+bucket_location = us-east-1
 
 EOF
 }
@@ -71,12 +58,9 @@ buckets () {
         bucket=$(basename ${f} .yaml)
 
         # retrieve interoperability access key and secret
-        bucket_name=$(kubectl --context=${SOURCE_CONTEXT} get secret gitlab-${bucket} -ojson | jq -r '.data.endpoint' | base64 ${BASE64_D_OPTS})
+        bucket_name=$(kubectl --context=${SOURCE_CONTEXT} get secret gitlab-${bucket} -ojson | jq -r '.data.bucketName' | base64 ${BASE64_D_OPTS})
         interop_access_key=$(kubectl --context=${SOURCE_CONTEXT} get secret gitlab-${bucket} -ojson | jq -r '.data.username' | base64 ${BASE64_D_OPTS})
         interop_secret=$(kubectl --context=${SOURCE_CONTEXT} get secret gitlab-${bucket} -ojson | jq -r '.data.password' | base64 ${BASE64_D_OPTS})
-
-        # retrieve service account key.json
-        key_json=$(kubectl --context=${SOURCE_CONTEXT} get secret gitlab-${bucket} -ojson | jq -r '.data.token' | base64 ${BASE64_D_OPTS})
 
         # create different secrets based on the bucket "type"
         if [[ ${bucket} == 'backups'* ]]; then
@@ -85,7 +69,7 @@ buckets () {
             kubectl create secret generic bucket-${bucket} --from-literal=config="${value}"
         else
             # for all other buckets we generate secret in `connection.yaml` format
-            value=$(generate_connection_file "${key_json}")
+            value=$(generate_connection_file ${interop_access_key} ${interop_secret} ${bucket_name})
             kubectl create secret generic bucket-${bucket} --from-literal=connection="${value}"
         fi
 
