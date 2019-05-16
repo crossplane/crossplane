@@ -30,6 +30,10 @@ import (
 const (
 	// DefaultScope used by the GKE API.
 	DefaultScope = container.CloudPlatformScope
+
+	// TODO(negz): Is this username special? I can't see any ClusterRoleBindings
+	// that bind it to a role.
+	adminUser = "admin"
 )
 
 // Client interface to perform cluster operations
@@ -83,9 +87,15 @@ func (c *ClusterClient) CreateCluster(name string, spec computev1alpha1.GKEClust
 		},
 		ResourceLabels: spec.Labels,
 		Zone:           zone,
+
+		// As of Kubernetes 1.12 GKE must be asked to generate a client cert
+		// that will be available via the GKE MasterAuth API. The certificate is
+		// generated with CN=client - a user with no RBAC permissions. Instead
+		// we user basic auth, which is still granted full admin privileges.
 		MasterAuth: &container.MasterAuth{
+			Username: adminUser,
 			ClientCertificateConfig: &container.ClientCertificateConfig{
-				IssueClientCertificate: true,
+				IssueClientCertificate: false,
 			},
 		},
 	}
