@@ -220,7 +220,10 @@ func findResourcesFiles(fs afero.Fs, resourcesDir string) ([]string, error) {
 	return resourcesFiles, nil
 }
 
-func readResourceFile(fs afero.Fs, rf string, crdList *v1alpha1.CRDList, sw io.StringWriter) error {
+// Ignore interfacer linter check for this function signature, it wants to use io.StringWriter instead
+// of strings.Builder, but io.StringWriter is only available in go 1.12+ and we support older versions.
+// nolint:interfacer
+func readResourceFile(fs afero.Fs, rf string, crdList *v1alpha1.CRDList, sb *strings.Builder) error {
 	b, err := afero.ReadFile(fs, rf)
 	if err != nil {
 		// we weren't able to read the current resource file, surface this error
@@ -247,7 +250,7 @@ func readResourceFile(fs afero.Fs, rf string, crdList *v1alpha1.CRDList, sw io.S
 	crdList.Owned = append(crdList.Owned, crdTypeMeta)
 
 	// add the raw resource file content to the string builder
-	if _, err := sw.WriteString(yamlSeparator + string(b)); err != nil {
+	if _, err := sb.WriteString(yamlSeparator + string(b)); err != nil {
 		return err
 	}
 
