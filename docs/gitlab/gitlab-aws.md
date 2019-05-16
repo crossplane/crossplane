@@ -327,44 +327,7 @@ aws eks --region us-east-1 update-kubeconfig --name [your-CLUSTER_NAME]
 ```
 
 
-====== stopping here for now.
-
-#### External DNS
-- Fetch the [External-DNS](https://github.com/helm/charts/tree/master/stable/external-dns) helm chart
-```bash
-helm fetch stable/external-dns
-```
-If the `helm fetch` command is successful, you should see a new file created in your CWD:
-```bash
-ls -l external-dns-*
-```
-```
--rw-r--r-- 1 user user 8913 May  3 23:24 external-dns-1.7.5.tgz
-```
-
-- Render the Helm chart into `yaml`, and set values and apply to your GKE cluster
-```bash
-helm template external-dns-1.7.5.tgz --name gitlab-demo --namespace kube-system  \
-    --set provider=google \
-    --set txtOwnerId=[gke-cluster-name] \
-    --set google.project=[gcp-project-id] \
-    --set rbac.create=true | kubectl -n kube-system apply -f -
-```
-```
-service/release-name-external-dns created
-deployment.extensions/release-name-external-dns created
-```
-- Verify `External-DNS` is up and running
-```bash
-kubectl get deploy,service -l release=gitlab-demo -n kube-system
-```
-```
-NAME                                             DESIRED   CURRENT   UP-TO-DATE   AVAILABLE   AGE
-deployment.extensions/gitlab-demo-external-dns   1         1         1            1           1m
-
-NAME                               TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)    AGE
-service/gitlab-demo-external-dns   ClusterIP   10.75.14.226   <none>        7979/TCP   1m
-```
+#### External DNS TODO
 
 #### Managed Resource Secrets
 Decide on the GKE cluster namespace where GitLab's application artifacts will be deployed.
@@ -432,20 +395,20 @@ helm repo add gitlab https://charts.gitlab.io/
 helm repo update
 helm fetch gitlab/gitlab --version v1.7.1
 helm template gitlab-1.7.1.tgz --name gitlab-demo --namespace gitlab \
-    -f cluster/examples/gitlab/gcp/values-buckets.yaml \
-    -f cluster/examples/gitlab/gcp/values-redis.yaml \
-    -f cluster/examples/gitlab/gcp/values-psql.yaml \
+    -f cluster/examples/gitlab/aws/values-buckets.yaml \
+    -f cluster/examples/gitlab/aws/values-redis.yaml \
+    -f cluster/examples/gitlab/aws/values-psql.yaml \
     --set global.hosts.domain=your.domain \
     --set global.hosts.hostSuffix=demo \
-    --set certmanager-issuer.email=email@account.io > gitlab-gcp.yaml
+    --set certmanager-issuer.email=email@account.io > gitlab-aws.yaml
 ```
 
-Examine `gitlab-gcp.yaml` to familiarize yourself with all GitLab components.
+Examine `gitlab-aws.yaml` to familiarize yourself with all GitLab components.
 
 Install GitLab
 Note: your output may look different:
 ```bash
-kubectl create -f gitlab-gcp.yaml
+kubectl create -f gitlab-aws.yaml
 ```
 
 Validate GitLab components:
@@ -517,7 +480,7 @@ Navigate your browser to https://gitlab-demo.upbound.app, and if everything ran 
 ### GitLab
 To remove the GitLab application from the GKE cluster: run:
 ```bash
-kubectl delete -f gitlab-gcp.yaml
+kubectl delete -f gitlab-aws.yaml
 ```
 
 ### External-DNS
@@ -533,7 +496,7 @@ kubectl config use-context minikube
 
 Delete all managed resources by running:
 ```bash
-kubectl delete -Rf cluster/examples/gitlab/gcp/resource-claims
+kubectl delete -Rf cluster/examples/gitlab/aws/resource-claims
 ```
 ```
 bucket.storage.crossplane.io "gitlab-artifacts" deleted
@@ -552,7 +515,7 @@ rediscluster.cache.crossplane.io "gitlab-redis" deleted
 
 Verify that all resource claims have been removed:
 ```bash
-kubectl get -Rf cluster/examples/gitlab/gcp/resource-claims
+kubectl get -Rf cluster/examples/gitlab/aws/resource-claims
 ```
 Note: typically it may take few seconds for Crossplane to process the request.
 By running resource and provider removal in the same command or back-to-back, we are running the risk of having orphaned resource.
@@ -560,16 +523,16 @@ I.E., a resource that could not be cleaned up because the provider is no longer 
 
 Delete all resource classes:
 ```bash
-kubectl delete -Rf cluster/examples/gitlab/gcp/resource-classes/
+kubectl delete -Rf cluster/examples/gitlab/aws/resource-classes/
 ```
 ```
-resourceclass.core.crossplane.io "standard-gcp-bucket" deleted
-resourceclass.core.crossplane.io "standard-gcp-cluster" deleted
-resourceclass.core.crossplane.io "standard-gcp-postgres" deleted
-resourceclass.core.crossplane.io "standard-gcp-redis" deleted
+resourceclass.core.crossplane.io "standard-aws-bucket" deleted
+resourceclass.core.crossplane.io "standard-aws-cluster" deleted
+resourceclass.core.crossplane.io "standard-aws-postgres" deleted
+resourceclass.core.crossplane.io "standard-aws-redis" deleted
 ```
 
-Delete gcp-provider and secrets
+Delete aws-provider and secrets
 ```bash
-kubectl delete -f cluster/examples/gitlab/gcp/provider.yaml
+kubectl delete -f cluster/examples/gitlab/aws/provider.yaml
 ```
