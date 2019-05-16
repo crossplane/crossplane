@@ -21,7 +21,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -54,7 +53,6 @@ const (
 	reconcileTimeout      = 1 * time.Minute
 	requeueAfterOnSuccess = 10 * time.Second
 
-	extensionManagerName      = "extension-manager"
 	packageContentsVolumeName = "package-contents"
 
 	reasonCreatingJob             = "failed to create extension manager job"
@@ -217,7 +215,7 @@ func (h *extensionRequestHandler) create(ctx context.Context) (reconcile.Result,
 		// set a Creating condition on the status and save a reference to the install job we just created
 		h.ext.Status.SetCreating()
 		h.ext.Status.InstallJob = jobRef
-		log.V(logging.Debug).Info("created install job", "jobRef", jobRef)
+		log.V(logging.Debug).Info("created install job", "jobRef", jobRef, "jobOwnerRefs", job.OwnerReferences)
 
 		return requeueOnSuccess, h.kube.Status().Update(ctx, h.ext)
 	}
@@ -228,6 +226,11 @@ func (h *extensionRequestHandler) create(ctx context.Context) (reconcile.Result,
 	if err := h.kube.Get(ctx, n, job); err != nil {
 		return fail(ctx, h.kube, h.ext, reasonFetchingJob, err.Error())
 	}
+
+	log.V(logging.Debug).Info(
+		"checking install job status",
+		"job", fmt.Sprintf("%s/%s", job.Namespace, job.Name),
+		"conditions", job.Status.Conditions)
 
 	for _, c := range job.Status.Conditions {
 		if c.Status == corev1.ConditionTrue {
@@ -250,6 +253,7 @@ func (h *extensionRequestHandler) create(ctx context.Context) (reconcile.Result,
 	}
 
 	// the job hasn't completed yet, so requeue and check again next time
+	log.V(logging.Debug).Info("install job not complete", "job", fmt.Sprintf("%s/%s", job.Namespace, job.Name))
 	return requeueOnSuccess, h.kube.Status().Update(ctx, h.ext)
 }
 
@@ -265,15 +269,14 @@ func createInstallJob(i *v1alpha1.ExtensionRequest, executorInfo executorInfo) *
 	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            i.Name,
-			Namespace:       executorInfo.namespace, // job should run in same namespace as this controller
+			Namespace:       i.Namespace,
 			OwnerReferences: []metav1.OwnerReference{i.OwnerReference()},
 		},
 		Spec: batchv1.JobSpec{
 			BackoffLimit: &jobBackoff,
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
-					RestartPolicy:      corev1.RestartPolicyNever,
-					ServiceAccountName: extensionManagerName,
+					RestartPolicy: corev1.RestartPolicyNever,
 					InitContainers: []corev1.Container{
 						{
 							Name:    "extension-package",
@@ -427,9 +430,6 @@ func (jc *extensionRequestJobCompleter) createJobOutputObject(ctx context.Contex
 		return nil
 	}
 
-	log.V(logging.Debug).Info("creating object from job output", "job", job.Name, "name", obj.GetName(),
-		"namespace", obj.GetNamespace(), "apiVersion", obj.GetAPIVersion(), "kind", obj.GetKind())
-
 	if isExtensionObject(obj) {
 		// the current object is an Extension object, make sure the name and namespace are
 		// set to match the current ExtensionRequest (if they haven't already been set)
@@ -443,6 +443,15 @@ func (jc *extensionRequestJobCompleter) createJobOutputObject(ctx context.Contex
 
 	// set an owner reference on the object
 	obj.SetOwnerReferences([]metav1.OwnerReference{i.OwnerReference()})
+
+	log.V(logging.Debug).Info(
+		"creating object from job output",
+		"job", job.Name,
+		"name", obj.GetName(),
+		"namespace", obj.GetNamespace(),
+		"apiVersion", obj.GetAPIVersion(),
+		"kind", obj.GetKind(),
+		"ownerRefs", obj.GetOwnerReferences())
 
 	if err := jc.kube.Create(ctx, obj); err != nil && !kerrors.IsAlreadyExists(err) {
 		return fmt.Errorf("failed to create object %s from job output %s: %+v", obj.GetName(), job.Name, err)
@@ -465,8 +474,7 @@ func (r *k8sPodLogReader) getPodLogReader(namespace, name string) (io.ReadCloser
 
 // executorInfo represents the information needed to launch an executor for handling extension requests
 type executorInfo struct {
-	image     string
-	namespace string
+	image string
 }
 
 // executorInfoDiscovery is an interface for an entity that can discover executionInfo
@@ -518,10 +526,7 @@ func (d *executorInfoDiscoverer) discoverExecutorInfo(ctx context.Context) (*exe
 		return nil, err
 	}
 
-	return &executorInfo{
-		image:     image,
-		namespace: os.Getenv(util.PodNamespaceEnvVar),
-	}, nil
+	return &executorInfo{image: image}, nil
 }
 
 // ************************************************************************************************
