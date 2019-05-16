@@ -83,6 +83,11 @@ func (c *ClusterClient) CreateCluster(name string, spec computev1alpha1.GKEClust
 		},
 		ResourceLabels: spec.Labels,
 		Zone:           zone,
+		MasterAuth: &container.MasterAuth{
+			ClientCertificateConfig: &container.ClientCertificateConfig{
+				IssueClientCertificate: true,
+			},
+		},
 	}
 
 	cr := &container.CreateClusterRequest{
