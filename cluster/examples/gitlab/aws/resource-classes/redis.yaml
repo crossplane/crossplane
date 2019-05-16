@@ -14,11 +14,9 @@ parameters:
   automaticFailoverEnabled: "true"
   numNodeGroups: "1"
   replicasPerNodeGroup: "1"
-  cacheSecurityGroupNames: REDIS_SECURITY_GROUP
+  securityGroupIds: REDIS_SECURITY_GROUP
+  cacheSubnetGroupName: REDIS_SUBNET_GROUP
 provisioner: replicationgroup.cache.aws.crossplane.io/v1alpha1
-providerRef:
-  name: aws-cache-provider
-reclaimPolicy: Delete
 providerRef:
   name: demo-aws
 reclaimPolicy: Delete
