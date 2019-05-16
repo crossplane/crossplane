@@ -51,8 +51,7 @@ const (
 	resourceName = "cool-extensionrequest"
 	jobPodName   = "job-pod-123"
 
-	extensionSystemNamespace = "extension-system-namespace"
-	extensionPackageImage    = "cool/extension-package:rad"
+	extensionPackageImage = "cool/extension-package:rad"
 
 	podLogOutputMalformed = `)(&not valid yaml?()!`
 	podLogOutput          = `
@@ -218,7 +217,7 @@ func withJobConditions(jobConditionType batchv1.JobConditionType, message string
 func job(jm ...jobModifier) *batchv1.Job {
 	j := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: extensionSystemNamespace,
+			Namespace: namespace,
 			Name:      resourceName,
 		},
 	}
@@ -324,7 +323,7 @@ func TestReconcile(t *testing.T) {
 				},
 				executorInfoDiscovery: &mockExecutorInfoDiscoverer{
 					MockDiscoverExecutorInfo: func(ctx context.Context) (*executorInfo, error) {
-						return &executorInfo{image: extensionPackageImage, namespace: extensionSystemNamespace}, nil
+						return &executorInfo{image: extensionPackageImage}, nil
 					},
 				},
 				factory: &mockFactory{
@@ -419,7 +418,7 @@ func TestHandlerFactory(t *testing.T) {
 			want: &extensionRequestHandler{
 				kube:         nil,
 				jobCompleter: &extensionRequestJobCompleter{kube: nil, podLogReader: &k8sPodLogReader{kubeclient: nil}},
-				executorInfo: executorInfo{namespace: extensionSystemNamespace, image: extensionPackageImage},
+				executorInfo: executorInfo{image: extensionPackageImage},
 				ext:          resource(),
 			},
 		},
@@ -427,7 +426,7 @@ func TestHandlerFactory(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := tt.factory.newHandler(ctx, resource(), nil, nil, executorInfo{namespace: extensionSystemNamespace, image: extensionPackageImage})
+			got := tt.factory.newHandler(ctx, resource(), nil, nil, executorInfo{image: extensionPackageImage})
 
 			diff := cmp.Diff(got, tt.want, cmp.AllowUnexported(
 				extensionRequestHandler{}, extensionRequestJobCompleter{}, k8sPodLogReader{}, executorInfo{}))
@@ -460,7 +459,7 @@ func TestCreate(t *testing.T) {
 					MockCreate:       func(ctx context.Context, obj runtime.Object) error { return nil },
 					MockStatusUpdate: func(ctx context.Context, obj runtime.Object) error { return nil },
 				},
-				executorInfo: executorInfo{image: extensionPackageImage, namespace: extensionSystemNamespace},
+				executorInfo: executorInfo{image: extensionPackageImage},
 				ext:          resource(),
 			},
 			want: want{
@@ -468,7 +467,7 @@ func TestCreate(t *testing.T) {
 				err:    nil,
 				ext: resource(
 					withConditions(corev1alpha1.Condition{Type: corev1alpha1.Creating, Status: corev1.ConditionTrue}),
-					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: extensionSystemNamespace}),
+					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: namespace}),
 				),
 			},
 		},
@@ -484,14 +483,14 @@ func TestCreate(t *testing.T) {
 				},
 				ext: resource(
 					withConditions(corev1alpha1.Condition{Type: corev1alpha1.Creating, Status: corev1.ConditionTrue}),
-					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: extensionSystemNamespace})),
+					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: namespace})),
 			},
 			want: want{
 				result: requeueOnSuccess,
 				err:    nil,
 				ext: resource(
 					withConditions(corev1alpha1.Condition{Type: corev1alpha1.Creating, Status: corev1.ConditionTrue}),
-					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: extensionSystemNamespace}),
+					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: namespace}),
 				),
 			},
 		},
@@ -509,16 +508,16 @@ func TestCreate(t *testing.T) {
 				jobCompleter: &mockJobCompleter{
 					MockHandleJobCompletion: func(ctx context.Context, i *v1alpha1.ExtensionRequest, job *batchv1.Job) error { return nil },
 				},
-				executorInfo: executorInfo{image: extensionPackageImage, namespace: extensionSystemNamespace},
+				executorInfo: executorInfo{image: extensionPackageImage},
 				ext: resource(
-					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: extensionSystemNamespace})),
+					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: namespace})),
 			},
 			want: want{
 				result: requeueOnSuccess,
 				err:    nil,
 				ext: resource(
 					withConditions(corev1alpha1.Condition{Type: corev1alpha1.Ready, Status: corev1.ConditionTrue}),
-					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: extensionSystemNamespace}),
+					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: namespace}),
 				),
 			},
 		},
@@ -536,9 +535,9 @@ func TestCreate(t *testing.T) {
 				jobCompleter: &mockJobCompleter{
 					MockHandleJobCompletion: func(ctx context.Context, i *v1alpha1.ExtensionRequest, job *batchv1.Job) error { return nil },
 				},
-				executorInfo: executorInfo{image: extensionPackageImage, namespace: extensionSystemNamespace},
+				executorInfo: executorInfo{image: extensionPackageImage},
 				ext: resource(
-					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: extensionSystemNamespace})),
+					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: namespace})),
 			},
 			want: want{
 				result: resultRequeue,
@@ -550,7 +549,7 @@ func TestCreate(t *testing.T) {
 						Reason:  reasonJobFailed,
 						Message: "mock job failure message",
 					}),
-					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: extensionSystemNamespace}),
+					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: namespace}),
 				),
 			},
 		},
@@ -801,7 +800,7 @@ func TestDiscoverExecutorInfo(t *testing.T) {
 				},
 			},
 			want: want{
-				ei:  &executorInfo{image: "foo-image", namespace: "podNamespace"},
+				ei:  &executorInfo{image: "foo-image"},
 				err: nil,
 			},
 		},
