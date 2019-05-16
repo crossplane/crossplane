@@ -59,9 +59,13 @@ include build/makelib/docs.mk
 
 # run `make help` to see the targets and options
 
+go.test.unit: $(KUBEBUILDER)
+
 # Generate manifests e.g. CRD, RBAC etc.
-manifests:
+manifests: vendor
+	@$(INFO) Generating CRD manifests
 	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd --output-dir cluster/charts/crossplane/crds --nested
+	@$(OK) Generating CRD manifests
 
 # Generate a coverage report for cobertura applying exclusions on
 # - generated file
@@ -69,3 +73,5 @@ cobertura:
 	@cat $(GO_TEST_OUTPUT)/coverage.txt | \
 		grep -v zz_generated.deepcopy | \
 		$(GOCOVER_COBERTURA) > $(GO_TEST_OUTPUT)/cobertura-coverage.xml
+
+.PHONY: manifests cobertura

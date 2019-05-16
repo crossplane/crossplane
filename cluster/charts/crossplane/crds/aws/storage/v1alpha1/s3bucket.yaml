@@ -69,9 +69,9 @@ spec:
               - Write
               - ReadWrite
               type: string
-            name:
-              maxLength: 63
-              minLength: 3
+            nameFormat:
+              description: NameFormat to format bucket name passing it a object UID
+                If not provided, defaults to "%s", i.e. UID value
               type: string
             providerRef:
               type: object

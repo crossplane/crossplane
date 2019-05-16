@@ -184,7 +184,6 @@ sed -e "s|BASE64ENCODED_AWS_PROVIDER_CREDS|`cat ~/.aws/credentials|base64|tr -d 
 Create Crossplane Resource Class needed to provision managed resources for GitLab applications
 
 ```bash
-```console
 sed -e "s|REDIS_SECURITY_GROUP|$REDIS_SECURITY_GROUP|g;s|REDIS_SUBNET_GROUP|$REDIS_SUBNET_GROUP|g;s|EKS_WORKER_KEY_NAME|$EKS_WORKER_KEY_NAME|g;s|EKS_ROLE_ARN|$EKS_ROLE_ARN|g;s|REGION|$REGION|g;s|EKS_VPC|$EKS_VPC|g;s|EKS_SUBNETS|$EKS_SUBNETS|g;s|EKS_SECURITY_GROUP|$EKS_SECURITY_GROUP|g;s|RDS_SUBNET_GROUP_NAME|$RDS_SUBNET_GROUP_NAME|g;s|RDS_SECURITY_GROUP|$RDS_SECURITY_GROUP|g" cluster/examples/gitlab/aws/resource-classes/* | kubectl create -f -
 ```
 ```
@@ -215,7 +214,7 @@ Note: you can use a separate command for each claim file, or create all claims i
 kubectl create -Rf cluster/examples/gitlab/aws/resource-claims/
 ```
 ```
-kubernetescluster.compute.crossplane.io/gitlab-gke created
+kubernetescluster.compute.crossplane.io/gitlab-eks created
 postgresqlinstance.storage.crossplane.io/gitlab-postgresql created
 rediscluster.cache.crossplane.io/gitlab-redis created  
 bucket.storage.crossplane.io/gitlab-artifacts created
@@ -300,10 +299,10 @@ Note: Kubernetes cluster claim is created in "privileged" mode; thus the kuberne
 
 At this point, all GitLab managed resources should be ready to consume and this completes the Crossplane resource provisioning phase. 
 
-### GKE Cluster
+### EKS Cluster
 Following the below steps will prepare the EKS Cluster for GitLab installation.
 
-- First, get the GKE Cluster's name by examining the Kubernetes Resource Claim
+- First, get the EKS Cluster's name by examining the Kubernetes Resource Claim
 ```bash
 kubectl get -f cluster/examples/gitlab/aws/resource-claims/kubernetes.yaml
 ```
@@ -312,7 +311,7 @@ NAME         STATUS   CLUSTER-CLASS          CLUSTER-REF                        
 gitlab-eks   Bound    standard-aws-cluster   eks-af012df6-6e2a-11e9-ac37-9cb6d08bde99   71m
 ```
 
-- Using `CLUSTER-REF` get GKECluster resource
+- Using `CLUSTER-REF` get EKSCluster resource
 ```bash
 kubectl get ekscluster [CLUSTER-REF value] -n crossplane-system
 ```
@@ -330,7 +329,7 @@ aws eks --region us-east-1 update-kubeconfig --name [your-CLUSTER_NAME]
 #### External DNS TODO
 
 #### Managed Resource Secrets
-Decide on the GKE cluster namespace where GitLab's application artifacts will be deployed.
+Decide on the EKS cluster namespace where GitLab's application artifacts will be deployed.
 
 We will use: `gitlab`, and for convenience we will [set our current context](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/#setting-the-namespace-preference) to this namespace 
 ```bash
@@ -347,11 +346,11 @@ _There is [current and ongoing effort](https://github.com/crossplaneio/gitlab-co
 We will use a convenience script for this purpose.
 Note: your output may be different
 ```bash
-./cluster/examples/gitlab/gcp/secrets.sh [your-local-k8s-cluster-context: default=minikube]
+./cluster/examples/gitlab/aws/secrets.sh [your-local-k8s-cluster-context: default=minikube]
 ```
 ```
 Source cluster kubectl context: microk8s
-Current cluster kubectl context: gke_you-project-123456_us-central1-a_gke-a2345dfb1-asdf-11e9-ac37-9cb6d08bde99
+Current cluster kubectl context: eks_you-project-123456_us-central1-a_eks-a2345dfb1-asdf-11e9-ac37-9cb6d08bde99
 ---
 Source cluster secrets:
 NAME                   TYPE                                  DATA   AGE
@@ -387,7 +386,7 @@ secret/bucket-uploads created
 ``` 
 
 ## Install
-Render the official GitLab Helm chart with the generated values files, and your settings into a `gitlab-gcp.yaml` file.
+Render the official GitLab Helm chart with the generated values files, and your settings into a `gitlab-aws.yaml` file.
 See [GitLab Helm Documentation](https://docs.gitlab.com/charts/installation/deployment.html) for the additional details
 
 ```bash
@@ -478,7 +477,7 @@ Navigate your browser to https://gitlab-demo.upbound.app, and if everything ran 
 ## Uninstall
 
 ### GitLab
-To remove the GitLab application from the GKE cluster: run:
+To remove the GitLab application from the EKS cluster: run:
 ```bash
 kubectl delete -f gitlab-aws.yaml
 ```
@@ -508,7 +507,7 @@ bucket.storage.crossplane.io "gitlab-packages" deleted
 bucket.storage.crossplane.io "gitlab-pseudonymizer" deleted
 bucket.storage.crossplane.io "gitlab-registry" deleted
 bucket.storage.crossplane.io "gitlab-uploads" deleted
-kubernetescluster.compute.crossplane.io "gitlab-gke" deleted
+kubernetescluster.compute.crossplane.io "gitlab-eks" deleted
 postgresqlinstance.storage.crossplane.io "gitlab-postgresql" deleted
 rediscluster.cache.crossplane.io "gitlab-redis" deleted
 ```
