@@ -503,8 +503,12 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	cluster, err := r.connect(ctx, ar)
 	if err != nil {
-		// TODO(negz): If err indicates the KubernetesCluster no longer exists
-		// we should just delete the resource, or we'll be stuck forever.
+		// If we're being deleted and we can't connect to our scheduled cluster
+		// because it doesn't exist we assume the cluster was deleted.
+		if ar.GetDeletionTimestamp() != nil && kerrors.IsNotFound(errors.Cause(err)) {
+			util.RemoveFinalizer(ar, finalizerName)
+			return reconcile.Result{Requeue: false}, errors.Wrapf(r.kube.Update(ctx, ar), "cannot update %s %s", v1alpha1.KubernetesApplicationResourceKind, req.NamespacedName)
+		}
 		ar.Status.SetFailed(reasonFetchingClient, err.Error())
 		return reconcile.Result{Requeue: true}, errors.Wrapf(r.kube.Update(ctx, ar), "cannot update %s %s", v1alpha1.KubernetesApplicationResourceKind, req.NamespacedName)
 	}
