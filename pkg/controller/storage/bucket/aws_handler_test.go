@@ -156,7 +156,7 @@ func TestProvision(t *testing.T) {
 	claim, class, bucketSpec = getBucketTestObjects()
 	name := "test-name"
 	claim.Spec.Name = name
-	bucketSpec.Name = name
+	bucketSpec.NameFormat = name
 	expected = handler.newS3Bucket(class, claim, bucketSpec)
 	valid(class, claim, expected)
 

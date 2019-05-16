@@ -15,6 +15,7 @@ const (
 )
 
 // Client defines IAM Client operations
+// mockery -case snake -name Client -output fake -outpkg fake
 type Client interface {
 	CreateUser(username string) (*iam.AccessKey, error)
 	DeleteUser(username string) error

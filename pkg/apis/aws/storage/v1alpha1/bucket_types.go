@@ -34,9 +34,9 @@ import (
 
 // S3BucketSpec defines the desired state of S3Bucket
 type S3BucketSpec struct {
-	// +kubebuilder:validation:MaxLength=63
-	// +kubebuilder:validation:MinLength=3
-	Name string `json:"name,omitempty"`
+	// NameFormat to format bucket name passing it a object UID
+	// If not provided, defaults to "%s", i.e. UID value
+	NameFormat string `json:"nameFormat,omitempty"`
 
 	// Region is the aws region for the bucket
 	Region string `json:"region"`
@@ -130,6 +130,24 @@ type S3BucketList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []S3Bucket `json:"items"`
+}
+
+// GetBucketName based on the NameFormat spec value,
+// If name format is not provided, bucket name defaults to UID
+// If name format provided with '%s' value, bucket name will result in formatted string + UID,
+//   NOTE: only single %s substitution is supported
+// If name format does not contain '%s' substitution, i.e. a constant string, the
+// constant string value is returned back
+//
+// Examples:
+//   For all examples assume "UID" = "test-uid"
+//   1. NameFormat = "", BucketName = "test-uid"
+//   2. NameFormat = "%s", BucketName = "test-uid"
+//   3. NameFormat = "foo", BucketName = "foo"
+//   4. NameFormat = "foo-%s", BucketName = "foo-test-uid"
+//   5. NameFormat = "foo-%s-bar-%s", BucketName = "foo-test-uid-bar-%!s(MISSING)"
+func (b *S3Bucket) GetBucketName() string {
+	return util.ConditionalStringFormat(b.Spec.NameFormat, string(b.GetUID()))
 }
 
 // ObjectReference to this S3Bucket

@@ -57,7 +57,7 @@ func TestStorageS3Bucket(t *testing.T) {
 			Namespace: namespace,
 		},
 		Spec: S3BucketSpec{
-			Name:            "test-bucket-name",
+			NameFormat:      "test-bucket-name-%s",
 			Region:          "us-west-1",
 			LocalPermission: &perm,
 		},
