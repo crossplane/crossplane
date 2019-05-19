@@ -1,0 +1,10 @@
+apiVersion: cache.crossplane.io/v1alpha1
+kind: RedisCluster
+metadata:
+  name: gitlab-redis
+  namespace: default
+spec:
+  classReference:
+    name: standard-aws-redis
+    namespace: crossplane-system
+  engineVersion: "3.2"
