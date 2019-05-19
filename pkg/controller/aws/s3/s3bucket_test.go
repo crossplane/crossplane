@@ -126,7 +126,7 @@ func TestSyncBucketError(t *testing.T) {
 
 	// error get bucket info
 	testError = "mock get bucket info err"
-	cl.MockGetBucketInfo = func(username string, spec *S3BucketSpec) (*client.Bucket, error) {
+	cl.MockGetBucketInfo = func(username string, bucket *S3Bucket) (*client.Bucket, error) {
 		return nil, fmt.Errorf(testError)
 	}
 	expectedStatus = corev1alpha1.ConditionedStatus{}
@@ -134,12 +134,12 @@ func TestSyncBucketError(t *testing.T) {
 	assert(testResource(), cl, resultRequeue, expectedStatus)
 
 	//update versioning error
-	cl.MockGetBucketInfo = func(username string, spec *S3BucketSpec) (*client.Bucket, error) {
+	cl.MockGetBucketInfo = func(username string, bucket *S3Bucket) (*client.Bucket, error) {
 		return &client.Bucket{Versioning: true, UserPolicyVersion: "v1"}, nil
 	}
 
 	testError = "bucket-versioning-update-error"
-	cl.MockUpdateVersioning = func(spec *S3BucketSpec) error {
+	cl.MockUpdateVersioning = func(bucket *S3Bucket) error {
 		return fmt.Errorf(testError)
 	}
 	expectedStatus = corev1alpha1.ConditionedStatus{}
@@ -147,12 +147,12 @@ func TestSyncBucketError(t *testing.T) {
 	assert(testResource(), cl, resultRequeue, expectedStatus)
 
 	// update bucket acl error
-	cl.MockGetBucketInfo = func(username string, spec *S3BucketSpec) (*client.Bucket, error) {
+	cl.MockGetBucketInfo = func(username string, bucket *S3Bucket) (*client.Bucket, error) {
 		return &client.Bucket{Versioning: false, UserPolicyVersion: "v1"}, nil
 	}
 
 	testError = "bucket-acl-update-error"
-	cl.MockUpdateBucketACL = func(spec *S3BucketSpec) error {
+	cl.MockUpdateBucketACL = func(bucket *S3Bucket) error {
 		return fmt.Errorf(testError)
 	}
 
@@ -160,7 +160,7 @@ func TestSyncBucketError(t *testing.T) {
 	expectedStatus.SetFailed(errorSyncResource, testError)
 	assert(testResource(), cl, resultRequeue, expectedStatus)
 
-	cl.MockUpdateBucketACL = func(spec *S3BucketSpec) error {
+	cl.MockUpdateBucketACL = func(bucket *S3Bucket) error {
 		return nil
 	}
 
@@ -172,7 +172,7 @@ func TestSyncBucketError(t *testing.T) {
 	bucketWithPolicyChanges.Status.LastLocalPermission = storagev1alpha1.ReadOnlyPermission
 
 	testError = "policy-update-err"
-	cl.MockUpdatePolicyDocument = func(username string, spec *S3BucketSpec) (string, error) {
+	cl.MockUpdatePolicyDocument = func(username string, bucket *S3Bucket) (string, error) {
 		return "", fmt.Errorf(testError)
 	}
 	expectedStatus = corev1alpha1.ConditionedStatus{}
@@ -195,11 +195,11 @@ func TestSyncCluster(t *testing.T) {
 	updateBucketACLCalled := false
 	getBucketInfoCalled := false
 	cl := &MockS3Client{
-		MockUpdateBucketACL: func(spec *S3BucketSpec) error {
+		MockUpdateBucketACL: func(bucket *S3Bucket) error {
 			updateBucketACLCalled = true
 			return nil
 		},
-		MockGetBucketInfo: func(username string, spec *S3BucketSpec) (*client.Bucket, error) {
+		MockGetBucketInfo: func(username string, bucket *S3Bucket) (*client.Bucket, error) {
 			getBucketInfoCalled = true
 			return &client.Bucket{Versioning: false, UserPolicyVersion: "v1"}, nil
 		},
@@ -284,7 +284,7 @@ func TestCreate(t *testing.T) {
 	createOrUpdateBucketCalled := false
 	createUserCalled := false
 	cl := &MockS3Client{
-		MockCreateUser: func(username string, spec *S3BucketSpec) (*iam.AccessKey, string, error) {
+		MockCreateUser: func(username string, bucket *S3Bucket) (*iam.AccessKey, string, error) {
 			createUserCalled = true
 			fakeKey := &iam.AccessKey{
 				AccessKeyId:     util.String("fake-string"),
@@ -292,7 +292,7 @@ func TestCreate(t *testing.T) {
 			}
 			return fakeKey, "v2", nil
 		},
-		MockCreateOrUpdateBucket: func(spec *S3BucketSpec) error {
+		MockCreateOrUpdateBucket: func(bucket *S3Bucket) error {
 			createOrUpdateBucketCalled = true
 			return nil
 		},
@@ -324,14 +324,14 @@ func TestCreateFail(t *testing.T) {
 	tr := testResource()
 	tk := NewSimpleClientset()
 	cl := &MockS3Client{
-		MockCreateUser: func(username string, spec *S3BucketSpec) (*iam.AccessKey, string, error) {
+		MockCreateUser: func(username string, bucket *S3Bucket) (*iam.AccessKey, string, error) {
 			fakeKey := &iam.AccessKey{
 				AccessKeyId:     util.String("fake-string"),
 				SecretAccessKey: util.String(""),
 			}
 			return fakeKey, "v2", nil
 		},
-		MockCreateOrUpdateBucket: func(spec *S3BucketSpec) error {
+		MockCreateOrUpdateBucket: func(bucket *S3Bucket) error {
 			return nil
 		},
 	}
@@ -360,7 +360,7 @@ func TestCreateFail(t *testing.T) {
 	r.kubeclient = NewSimpleClientset()
 	testError = "test-create-user--error"
 	called := false
-	cl.MockCreateUser = func(username string, spec *S3BucketSpec) (*iam.AccessKey, string, error) {
+	cl.MockCreateUser = func(username string, bucket *S3Bucket) (*iam.AccessKey, string, error) {
 		called = true
 		return nil, "", fmt.Errorf(testError)
 	}
@@ -375,7 +375,7 @@ func TestCreateFail(t *testing.T) {
 	assertResource(g, r, expectedStatus)
 
 	// test create bucket error
-	cl.MockCreateUser = func(username string, spec *S3BucketSpec) (*iam.AccessKey, string, error) {
+	cl.MockCreateUser = func(username string, bucket *S3Bucket) (*iam.AccessKey, string, error) {
 		fakeKey := &iam.AccessKey{
 			AccessKeyId:     util.String("fake-string"),
 			SecretAccessKey: util.String(""),
@@ -387,7 +387,7 @@ func TestCreateFail(t *testing.T) {
 	r.kubeclient = NewSimpleClientset()
 	testError = "test-create-bucket--error"
 	called = false
-	cl.MockCreateOrUpdateBucket = func(spec *S3BucketSpec) error {
+	cl.MockCreateOrUpdateBucket = func(bucket *S3Bucket) error {
 		called = true
 		return fmt.Errorf(testError)
 	}

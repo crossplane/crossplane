@@ -4,11 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/crossplaneio/crossplane/pkg/clients/aws/s3/operations"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/awserr"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/aws/aws-sdk-go-v2/service/s3/s3iface"
 
 	"github.com/crossplaneio/crossplane/pkg/apis/aws/storage/v1alpha1"
 	storage "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
@@ -20,38 +21,41 @@ const (
 	bucketUser           = "crossplane-bucket-%s"
 	bucketObjectARN      = "arn:aws:s3:::%s"
 	maxIAMUsernameLength = 64
+	// https://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region
+	regionWithNoConstraint = "us-east-1"
 )
 
 // Service defines S3 Client operations
 type Service interface {
-	CreateOrUpdateBucket(spec *v1alpha1.S3BucketSpec) error
-	GetBucketInfo(username string, spec *v1alpha1.S3BucketSpec) (*Bucket, error)
-	CreateUser(username string, spec *v1alpha1.S3BucketSpec) (*iam.AccessKey, string, error)
-	UpdateBucketACL(spec *v1alpha1.S3BucketSpec) error
-	UpdateVersioning(spec *v1alpha1.S3BucketSpec) error
-	UpdatePolicyDocument(username string, spec *v1alpha1.S3BucketSpec) (string, error)
+	CreateOrUpdateBucket(bucket *v1alpha1.S3Bucket) error
+	GetBucketInfo(username string, bucket *v1alpha1.S3Bucket) (*Bucket, error)
+	CreateUser(username string, bucket *v1alpha1.S3Bucket) (*iam.AccessKey, string, error)
+	UpdateBucketACL(bucket *v1alpha1.S3Bucket) error
+	UpdateVersioning(bucket *v1alpha1.S3Bucket) error
+	UpdatePolicyDocument(username string, bucket *v1alpha1.S3Bucket) (string, error)
 	DeleteBucket(bucket *v1alpha1.S3Bucket) error
 }
 
 // Client implements S3 Client
 type Client struct {
-	s3        s3iface.S3API
+	s3        operations.Operations
 	iamClient iamc.Client
 }
 
 // NewClient creates new S3 Client with provided AWS Configurations/Credentials
 func NewClient(config *aws.Config) Service {
-	return &Client{s3: s3.New(*config), iamClient: iamc.NewClient(config)}
+	ops := operations.NewS3Operations(s3.New(*config))
+	return &Client{s3: ops, iamClient: iamc.NewClient(config)}
 }
 
 // CreateOrUpdateBucket creates or updates the supplied S3 bucket with provided
 // specification, and returns access keys with permissions of localPermission
-func (c *Client) CreateOrUpdateBucket(spec *v1alpha1.S3BucketSpec) error {
-	input := CreateBucketInput(spec)
+func (c *Client) CreateOrUpdateBucket(bucket *v1alpha1.S3Bucket) error {
+	input := CreateBucketInput(bucket)
 	_, err := c.s3.CreateBucketRequest(input).Send()
 	if err != nil {
 		if isErrorAlreadyExists(err) {
-			return c.UpdateBucketACL(spec)
+			return c.UpdateBucketACL(bucket)
 		}
 	}
 	return err
@@ -64,25 +68,25 @@ type Bucket struct {
 }
 
 // GetBucketInfo returns the status of key bucket settings including user's policy version for permission status
-func (c *Client) GetBucketInfo(username string, spec *v1alpha1.S3BucketSpec) (*Bucket, error) {
-	bucket := Bucket{}
-	bucketVersioning, err := c.s3.GetBucketVersioningRequest(&s3.GetBucketVersioningInput{Bucket: aws.String(spec.Name)}).Send()
+func (c *Client) GetBucketInfo(username string, bucket *v1alpha1.S3Bucket) (*Bucket, error) {
+	b := Bucket{}
+	bucketVersioning, err := c.s3.GetBucketVersioningRequest(&s3.GetBucketVersioningInput{Bucket: aws.String(bucket.GetBucketName())}).Send()
 	if err != nil {
 		return nil, err
 	}
-	bucket.Versioning = bucketVersioning.Status == s3.BucketVersioningStatusEnabled
+	b.Versioning = bucketVersioning.Status == s3.BucketVersioningStatusEnabled
 	policyVersion, err := c.iamClient.GetPolicyVersion(username)
 	if err != nil {
 		return nil, err
 	}
-	bucket.UserPolicyVersion = policyVersion
+	b.UserPolicyVersion = policyVersion
 
-	return &bucket, err
+	return &b, err
 }
 
 // CreateUser - Create as user to access bucket per permissions in BucketSpec returing access key and policy version
-func (c *Client) CreateUser(username string, spec *v1alpha1.S3BucketSpec) (*iam.AccessKey, string, error) {
-	policyDocument, err := newPolicyDocument(spec)
+func (c *Client) CreateUser(username string, bucket *v1alpha1.S3Bucket) (*iam.AccessKey, string, error) {
+	policyDocument, err := newPolicyDocument(bucket)
 	if err != nil {
 		return nil, "", fmt.Errorf("could not update policy, %s", err.Error())
 	}
@@ -100,27 +104,28 @@ func (c *Client) CreateUser(username string, spec *v1alpha1.S3BucketSpec) (*iam.
 }
 
 // UpdateBucketACL - Updated CannedACL on Bucket
-func (c *Client) UpdateBucketACL(spec *v1alpha1.S3BucketSpec) error {
+func (c *Client) UpdateBucketACL(bucket *v1alpha1.S3Bucket) error {
 	var err error
-	if spec.CannedACL != nil {
+	name := bucket.GetBucketName()
+	if bucket.Spec.CannedACL != nil {
 		input := &s3.PutBucketAclInput{
-			ACL:    *spec.CannedACL,
-			Bucket: &spec.Name,
+			ACL:    *bucket.Spec.CannedACL,
+			Bucket: &name,
 		}
-		_, err = c.s3.PutBucketAclRequest(input).Send()
+		_, err = c.s3.PutBucketACLRequest(input).Send()
 	}
 
 	return err
 }
 
 // UpdateVersioning configuration for Bucket
-func (c *Client) UpdateVersioning(spec *v1alpha1.S3BucketSpec) error {
+func (c *Client) UpdateVersioning(bucket *v1alpha1.S3Bucket) error {
 	versioningStatus := s3.BucketVersioningStatusSuspended
-	if spec.Versioning {
+	if bucket.Spec.Versioning {
 		versioningStatus = s3.BucketVersioningStatusEnabled
 	}
-
-	input := &s3.PutBucketVersioningInput{Bucket: &spec.Name, VersioningConfiguration: &s3.VersioningConfiguration{Status: versioningStatus}}
+	name := bucket.GetBucketName()
+	input := &s3.PutBucketVersioningInput{Bucket: &name, VersioningConfiguration: &s3.VersioningConfiguration{Status: versioningStatus}}
 	_, err := c.s3.PutBucketVersioningRequest(input).Send()
 	if err != nil {
 		return err
@@ -129,8 +134,8 @@ func (c *Client) UpdateVersioning(spec *v1alpha1.S3BucketSpec) error {
 }
 
 // UpdatePolicyDocument based on localPermissions
-func (c *Client) UpdatePolicyDocument(username string, spec *v1alpha1.S3BucketSpec) (string, error) {
-	policyDocument, err := newPolicyDocument(spec)
+func (c *Client) UpdatePolicyDocument(username string, bucket *v1alpha1.S3Bucket) (string, error) {
+	policyDocument, err := newPolicyDocument(bucket)
 	if err != nil {
 		return "", fmt.Errorf("could not generate policy, %s", err.Error())
 	}
@@ -143,8 +148,9 @@ func (c *Client) UpdatePolicyDocument(username string, spec *v1alpha1.S3BucketSp
 
 // DeleteBucket deletes s3 bucket, and related IAM
 func (c *Client) DeleteBucket(bucket *v1alpha1.S3Bucket) error {
+	name := bucket.GetBucketName()
 	input := &s3.DeleteBucketInput{
-		Bucket: &bucket.Spec.Name,
+		Bucket: &name,
 	}
 	_, err := c.s3.DeleteBucketRequest(input).Send()
 	if err != nil && !isErrorNotFound(err) {
@@ -179,33 +185,30 @@ func isErrorNotFound(err error) bool {
 	return false
 }
 
-// CreateBucketInput returns a CreateBucketInput from the supplied S3BucketSpec.
-func CreateBucketInput(spec *v1alpha1.S3BucketSpec) *s3.CreateBucketInput {
-	const (
-		// https://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region
-		regionWithNoConstraint = "us-east-1"
-	)
+// CreateBucketInput returns a CreateBucketInput from the supplied S3Bucket.
+func CreateBucketInput(bucket *v1alpha1.S3Bucket) *s3.CreateBucketInput {
+	name := bucket.GetBucketName()
 	bucketInput := &s3.CreateBucketInput{
-		Bucket: &spec.Name,
+		Bucket: &name,
 	}
 
-	if spec.Region != regionWithNoConstraint {
-		bucketInput.CreateBucketConfiguration = &s3.CreateBucketConfiguration{LocationConstraint: s3.BucketLocationConstraint(spec.Region)}
+	if bucket.Spec.Region != regionWithNoConstraint {
+		bucketInput.CreateBucketConfiguration = &s3.CreateBucketConfiguration{LocationConstraint: s3.BucketLocationConstraint(bucket.Spec.Region)}
 	}
 
-	if spec.CannedACL != nil {
-		bucketInput.ACL = *spec.CannedACL
+	if bucket.Spec.CannedACL != nil {
+		bucketInput.ACL = *bucket.Spec.CannedACL
 	}
 	return bucketInput
 }
 
 // GenerateBucketUsername - Genereates a username that is within AWS size specifications, and adds a random suffix
-func GenerateBucketUsername(spec *v1alpha1.S3BucketSpec) string {
-	return util.GenerateNameMaxLength(fmt.Sprintf(bucketUser, spec.Name), maxIAMUsernameLength)
+func GenerateBucketUsername(bucket *v1alpha1.S3Bucket) string {
+	return util.GenerateNameMaxLength(fmt.Sprintf(bucketUser, bucket.GetBucketName()), maxIAMUsernameLength)
 }
 
-func newPolicyDocument(spec *v1alpha1.S3BucketSpec) (string, error) {
-	bucketARN := fmt.Sprintf(bucketObjectARN, spec.Name)
+func newPolicyDocument(bucket *v1alpha1.S3Bucket) (string, error) {
+	bucketARN := fmt.Sprintf(bucketObjectARN, bucket.GetBucketName())
 	read := iamc.StatementEntry{
 		Sid:    "crossplaneRead",
 		Effect: "Allow",
@@ -231,8 +234,8 @@ func newPolicyDocument(spec *v1alpha1.S3BucketSpec) (string, error) {
 		Statement: []iamc.StatementEntry{},
 	}
 
-	if spec.LocalPermission != nil {
-		switch *spec.LocalPermission {
+	if bucket.Spec.LocalPermission != nil {
+		switch *bucket.Spec.LocalPermission {
 		case storage.ReadOnlyPermission:
 			policy.Statement = append(policy.Statement, read)
 		case storage.WriteOnlyPermission:
@@ -240,7 +243,7 @@ func newPolicyDocument(spec *v1alpha1.S3BucketSpec) (string, error) {
 		case storage.ReadWritePermission:
 			policy.Statement = append(policy.Statement, read, write)
 		default:
-			return "", fmt.Errorf("unknown permission, %s", *spec.LocalPermission)
+			return "", fmt.Errorf("unknown permission, %s", *bucket.Spec.LocalPermission)
 		}
 	}
 

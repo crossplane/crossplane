@@ -139,7 +139,7 @@ func connectionSecret(bucket *bucketv1alpha1.S3Bucket, accessKey *iam.AccessKey)
 		Data: map[string][]byte{
 			corev1alpha1.ResourceCredentialsSecretUserKey:     []byte(util.StringValue(accessKey.AccessKeyId)),
 			corev1alpha1.ResourceCredentialsSecretPasswordKey: []byte(util.StringValue(accessKey.SecretAccessKey)),
-			corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(bucket.Endpoint()),
+			corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(bucket.Spec.Region),
 		},
 	}
 }
@@ -177,18 +177,18 @@ func (r *Reconciler) _connect(instance *bucketv1alpha1.S3Bucket) (s3.Service, er
 func (r *Reconciler) _create(bucket *bucketv1alpha1.S3Bucket, client s3.Service) (reconcile.Result, error) {
 	bucket.Status.UnsetAllConditions()
 	util.AddFinalizer(&bucket.ObjectMeta, finalizer)
-	err := client.CreateOrUpdateBucket(&bucket.Spec)
+	err := client.CreateOrUpdateBucket(bucket)
 	if err != nil {
 		return r.fail(bucket, errorCreateResource, err.Error())
 	}
 
 	// Set username for iam user
 	if bucket.Status.IAMUsername == "" {
-		bucket.Status.IAMUsername = s3.GenerateBucketUsername(&bucket.Spec)
+		bucket.Status.IAMUsername = s3.GenerateBucketUsername(bucket)
 	}
 
 	// Get access keys for iam user
-	accessKeys, currentVersion, err := client.CreateUser(bucket.Status.IAMUsername, &bucket.Spec)
+	accessKeys, currentVersion, err := client.CreateUser(bucket.Status.IAMUsername, bucket)
 	if err != nil {
 		return r.fail(bucket, errorCreateResource, err.Error())
 	}
@@ -219,20 +219,20 @@ func (r *Reconciler) _sync(bucket *bucketv1alpha1.S3Bucket, client s3.Service) (
 	if bucket.Status.IAMUsername == "" {
 		return r.fail(bucket, errorSyncResource, "username not set, .Status.IAMUsername")
 	}
-	bucketInfo, err := client.GetBucketInfo(bucket.Status.IAMUsername, &bucket.Spec)
+	bucketInfo, err := client.GetBucketInfo(bucket.Status.IAMUsername, bucket)
 	if err != nil {
 		return r.fail(bucket, errorSyncResource, err.Error())
 	}
 
 	if bucketInfo.Versioning != bucket.Spec.Versioning {
-		err := client.UpdateVersioning(&bucket.Spec)
+		err := client.UpdateVersioning(bucket)
 		if err != nil {
 			return r.fail(bucket, errorSyncResource, err.Error())
 		}
 	}
 
 	// TODO: Detect if the bucket CannedACL has changed, possibly by managing grants list directly.
-	err = client.UpdateBucketACL(&bucket.Spec)
+	err = client.UpdateBucketACL(bucket)
 	if err != nil {
 		return r.fail(bucket, errorSyncResource, err.Error())
 	}
@@ -243,7 +243,7 @@ func (r *Reconciler) _sync(bucket *bucketv1alpha1.S3Bucket, client s3.Service) (
 		return r.fail(bucket, errorSyncResource, err.Error())
 	}
 	if changed {
-		currentVersion, err := client.UpdatePolicyDocument(bucket.Status.IAMUsername, &bucket.Spec)
+		currentVersion, err := client.UpdatePolicyDocument(bucket.Status.IAMUsername, bucket)
 		if err != nil {
 			return r.fail(bucket, errorSyncResource, err.Error())
 		}

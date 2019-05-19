@@ -25,43 +25,43 @@ import (
 
 // MockS3Client for testing.
 type MockS3Client struct {
-	MockCreateOrUpdateBucket func(spec *v1alpha1.S3BucketSpec) error
-	MockGetBucketInfo        func(username string, spec *v1alpha1.S3BucketSpec) (*client.Bucket, error)
-	MockCreateUser           func(username string, spec *v1alpha1.S3BucketSpec) (*iam.AccessKey, string, error)
-	MockUpdateBucketACL      func(spec *v1alpha1.S3BucketSpec) error
-	MockUpdateVersioning     func(spec *v1alpha1.S3BucketSpec) error
-	MockUpdatePolicyDocument func(username string, spec *v1alpha1.S3BucketSpec) (string, error)
+	MockCreateOrUpdateBucket func(bucket *v1alpha1.S3Bucket) error
+	MockGetBucketInfo        func(username string, bucket *v1alpha1.S3Bucket) (*client.Bucket, error)
+	MockCreateUser           func(username string, bucket *v1alpha1.S3Bucket) (*iam.AccessKey, string, error)
+	MockUpdateBucketACL      func(bucket *v1alpha1.S3Bucket) error
+	MockUpdateVersioning     func(bucket *v1alpha1.S3Bucket) error
+	MockUpdatePolicyDocument func(username string, bucket *v1alpha1.S3Bucket) (string, error)
 	MockDelete               func(bucket *v1alpha1.S3Bucket) error
 }
 
 // CreateOrUpdateBucket calls the underlying MockCreateOrUpdateBucket method.
-func (m *MockS3Client) CreateOrUpdateBucket(spec *v1alpha1.S3BucketSpec) error {
-	return m.MockCreateOrUpdateBucket(spec)
+func (m *MockS3Client) CreateOrUpdateBucket(bucket *v1alpha1.S3Bucket) error {
+	return m.MockCreateOrUpdateBucket(bucket)
 }
 
 // GetBucketInfo calls the underlying MockGetBucketInfo method.
-func (m *MockS3Client) GetBucketInfo(username string, spec *v1alpha1.S3BucketSpec) (*client.Bucket, error) {
-	return m.MockGetBucketInfo(username, spec)
+func (m *MockS3Client) GetBucketInfo(username string, bucket *v1alpha1.S3Bucket) (*client.Bucket, error) {
+	return m.MockGetBucketInfo(username, bucket)
 }
 
 // CreateUser calls the underlying MockCreateUser method.
-func (m *MockS3Client) CreateUser(username string, spec *v1alpha1.S3BucketSpec) (*iam.AccessKey, string, error) {
-	return m.MockCreateUser(username, spec)
+func (m *MockS3Client) CreateUser(username string, bucket *v1alpha1.S3Bucket) (*iam.AccessKey, string, error) {
+	return m.MockCreateUser(username, bucket)
 }
 
 // UpdateBucketACL calls the underlying MockUpdateBucketACL method.
-func (m *MockS3Client) UpdateBucketACL(spec *v1alpha1.S3BucketSpec) error {
-	return m.MockUpdateBucketACL(spec)
+func (m *MockS3Client) UpdateBucketACL(bucket *v1alpha1.S3Bucket) error {
+	return m.MockUpdateBucketACL(bucket)
 }
 
 // UpdateVersioning calls the underlying MockUpdateVersioning method.
-func (m *MockS3Client) UpdateVersioning(spec *v1alpha1.S3BucketSpec) error {
-	return m.MockUpdateVersioning(spec)
+func (m *MockS3Client) UpdateVersioning(bucket *v1alpha1.S3Bucket) error {
+	return m.MockUpdateVersioning(bucket)
 }
 
 // UpdatePolicyDocument calls the underlying MockUpdatePolicyDocument method.
-func (m *MockS3Client) UpdatePolicyDocument(username string, spec *v1alpha1.S3BucketSpec) (string, error) {
-	return m.MockUpdatePolicyDocument(username, spec)
+func (m *MockS3Client) UpdatePolicyDocument(username string, bucket *v1alpha1.S3Bucket) (string, error) {
+	return m.MockUpdatePolicyDocument(username, bucket)
 }
 
 // DeleteBucket calls the underlying MockDeleteBucket method.

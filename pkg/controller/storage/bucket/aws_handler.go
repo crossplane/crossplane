@@ -89,11 +89,10 @@ func (h *S3BucketHandler) Provision(class *corev1alpha1.ResourceClass, claim cor
 	// Making connection secret override configurable from parameters doesn't make sense, so we take the value from the instance.
 	bucketSpec.ConnectionSecretNameOverride = bucket.Spec.ConnectionSecretNameOverride
 
-	val, err := resolveClassInstanceValues(bucketSpec.Name, bucket.Spec.Name)
-	if err != nil {
-		return nil, err
+	// If the bucket resource claim specified a Name, use it as the NameFormat for the S3BucketSpec
+	if bucket.Spec.Name != "" {
+		bucketSpec.NameFormat = bucket.Spec.Name
 	}
-	bucketSpec.Name = val
 
 	// translate and set predefinedACL
 	instanceACL, err := translateACL(bucket.Spec.PredefinedACL)
@@ -179,20 +178,4 @@ func translateACL(acl *bucketv1alpha1.PredefinedACL) (*s3.BucketCannedACL, error
 	}
 
 	return nil, fmt.Errorf("PredefinedACL %s, not available in s3", *acl)
-}
-
-// resolveClassInstanceValues validates instance value against resource class properties.
-// if both values are defined, then the instance value is validated against the resource class value and expected to match
-// TODO: the "matching" process will be further refined once we implement constraint policies at the resource class level
-func resolveClassInstanceValues(classValue, instanceValue string) (string, error) {
-	if classValue == "" {
-		return instanceValue, nil
-	}
-	if instanceValue == "" {
-		return classValue, nil
-	}
-	if classValue != instanceValue {
-		return "", fmt.Errorf("bucket instance value [%s] does not match the one defined in the resource class [%s]", instanceValue, classValue)
-	}
-	return instanceValue, nil
 }
