@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-SOURCE_CONTEXT=${1:-minikube}
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 DECLARE_OPTS=-A
@@ -48,9 +47,9 @@ EOF
 
 s3bucket_name () {
     local bucket=$1
-    local ownerUID=$(kubectl --context=${SOURCE_CONTEXT} get secret gitlab-${bucket} -o json | jq -r '.metadata.ownerReferences[0].uid')
-    local s3bucketUID=$(kubectl --context=${SOURCE_CONTEXT} -n crossplane-system get s3bucket bucket-${ownerUID} -o json | jq -r '.metadata.uid')
-    local nameFormat=$(kubectl --context=${SOURCE_CONTEXT} -n crossplane-system get s3bucket bucket-${ownerUID} -o json | jq -r '.spec.nameFormat')
+    local ownerUID=$(kubectl  get secret gitlab-${bucket} -o json | jq -r '.metadata.ownerReferences[0].uid')
+    local s3bucketUID=$(kubectl -n crossplane-system get s3bucket bucket-${ownerUID} -o json | jq -r '.metadata.uid')
+    local nameFormat=$(kubectl -n crossplane-system get s3bucket bucket-${ownerUID} -o json | jq -r '.spec.nameFormat')
     printf ${nameFormat} ${s3bucketUID}
 }
 
@@ -64,10 +63,10 @@ buckets () {
         bucket=$(basename ${f} .yaml)
 
         # retrieve interoperability access key and secret
-        endpoint=$(kubectl --context=${SOURCE_CONTEXT} get secret gitlab-${bucket} -ojson | jq -r '.data.endpoint' | base64 ${BASE64_D_OPTS})
+        endpoint=$(kubectl get secret gitlab-${bucket} -ojson | jq -r '.data.endpoint' | base64 ${BASE64_D_OPTS})
         bucket_name=$(s3bucket_name ${bucket})
-        interop_access_key=$(kubectl --context=${SOURCE_CONTEXT} get secret gitlab-${bucket} -ojson | jq -r '.data.username' | base64 ${BASE64_D_OPTS})
-        interop_secret=$(kubectl --context=${SOURCE_CONTEXT} get secret gitlab-${bucket} -ojson | jq -r '.data.password' | base64 ${BASE64_D_OPTS})
+        interop_access_key=$(kubectl get secret gitlab-${bucket} -ojson | jq -r '.data.username' | base64 ${BASE64_D_OPTS})
+        interop_secret=$(kubectl get secret gitlab-${bucket} -ojson | jq -r '.data.password' | base64 ${BASE64_D_OPTS})
 
         # create different secrets based on the bucket "type"
         if [[ ${bucket} == 'backups'* ]]; then
@@ -146,9 +145,6 @@ EOF
 # Process crossplane postgres connection secret and generate Helm values file for postgresql in addition to creating
 # postgres secret for GitLab application
 posgtresql () {
-    meta='del(.metadata.namespace,.metadata.ownerReferences,.metadata.uid,.metadata.creationTimestamp,.metadata.selfLink,.metadata.resourceVersion)'
-    kubectl --context=${SOURCE_CONTEXT} get secret gitlab-postgresql -o json | jq ${meta} | kubectl create -f -
-
     host=$(kubectl get secret gitlab-postgresql -o json | jq -r '.data.endpoint' | base64 ${BASE64_D_OPTS})
     user=$(kubectl get secret gitlab-postgresql -o json | jq -r '.data.username' | base64 ${BASE64_D_OPTS})
     postgresql_values_file ${host} ${user} > ${DIR}/values-psql.yaml
@@ -173,21 +169,17 @@ EOF
 
 # Process crossplane redis connection secret and generate Helm values file for redis.
 redis () {
-    host=$(kubectl --context=${SOURCE_CONTEXT} get secret gitlab-redis -o json | jq -r '.data.endpoint' | base64 ${BASE64_D_OPTS})
+    host=$(kubectl get secret gitlab-redis -o json | jq -r '.data.endpoint' | base64 ${BASE64_D_OPTS})
     redis_values_file ${host} > ${DIR}/values-redis.yaml
 }
 
 #
 # Process crossplane claim connection secrets
 #
-echo "Source cluster kubectl context: ${SOURCE_CONTEXT}"
 echo "Current cluster kubectl context: $(kubectl config current-context)"
-echo ---
-echo "Source cluster secrets:"
-kubectl --context=${SOURCE_CONTEXT} get secrets
 
 echo ---
-echo "Generate PostgreSQL secret and values file"
+echo "Generate PostgreSQL values file"
 posgtresql
 
 echo ---
