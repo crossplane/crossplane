@@ -127,6 +127,9 @@ func TestGKEClusterHandler_Provision(t *testing.T) {
 						OwnerReferences: []v1.OwnerReference{claim.OwnerReference()},
 					},
 					Spec: v1alpha1.GKEClusterSpec{
+						NumNodes: 1,
+						Labels:   map[string]string{},
+						Scopes:   []string{},
 						ClassRef: class.ObjectReference(),
 						ClaimRef: claim.ObjectReference(),
 					},
@@ -158,8 +161,8 @@ func TestGKEClusterHandler_Provision(t *testing.T) {
 				t.Errorf("GKEClusterHandler.Provision() error = %v, want.err %v\n%s", err, tt.want.err, diff)
 				return
 			}
-			if diff := cmp.Diff(got, tt.want.res); diff != "" {
-				t.Errorf("GKEClusterHandler.Provision() = \n%v, want.res \n%v\n%s", got, tt.want.res, diff)
+			if diff := cmp.Diff(tt.want.res, got); diff != "" {
+				t.Errorf("GKEClusterHandler.Provision() -want, +got:\n%s", diff)
 			}
 		})
 	}

@@ -87,12 +87,24 @@ func TestParseClusterSpec(t *testing.T) {
 		{
 			name: "NilProperties",
 			args: nil,
-			want: &GKEClusterSpec{ReclaimPolicy: DefaultReclaimPolicy},
+			want: &GKEClusterSpec{
+				ReclaimPolicy: DefaultReclaimPolicy,
+				EnableIPAlias: false,
+				Labels:        map[string]string{},
+				NumNodes:      1,
+				Scopes:        []string{},
+			},
 		},
 		{
 			name: "EmptyProperties",
 			args: map[string]string{},
-			want: &GKEClusterSpec{ReclaimPolicy: DefaultReclaimPolicy},
+			want: &GKEClusterSpec{
+				ReclaimPolicy: DefaultReclaimPolicy,
+				EnableIPAlias: false,
+				Labels:        map[string]string{},
+				NumNodes:      1,
+				Scopes:        []string{},
+			},
 		},
 		{
 			name: "ValidValues",
@@ -156,8 +168,8 @@ func TestParseClusterSpec(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := ParseClusterSpec(tt.args)
-			if diff := cmp.Diff(got, tt.want); diff != "" {
-				t.Errorf("ParseClusterSpec() = %v, want %v\n%s", got, tt.want, diff)
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Errorf("ParseClusterSpec(): -want, +got\n%s", diff)
 			}
 		})
 	}

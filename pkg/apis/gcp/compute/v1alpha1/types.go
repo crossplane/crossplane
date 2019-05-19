@@ -64,6 +64,7 @@ type GKEClusterSpec struct {
 	MaxNodesPerPool           int64             `json:"maxNodesPerPool,omitempty"`           //--max-nodes-per-pool
 	MinCPUPlatform            string            `json:"minCPUPlatform,omitempty"`            //--min-cpu-platform
 	Network                   string            `json:"network,omitempty"`                   //--network
+	NodeIPV4CIDR              string            `json:"nodeIPV4CIDR,omitempty"`
 	NodeLabels                []string          `json:"nodeLabels,omitempty"`                //--node-labels [NODE_LABEL,…]
 	NodeLocations             []string          `json:"nodeLocations,omitempty"`             //--node-locations=ZONE,[ZONE,…]
 	NodeTaints                []string          `json:"nodeTaints,omitempty"`                //--node-taints=[NODE_TAINT,…]
@@ -139,24 +140,20 @@ type GKEClusterList struct {
 
 // ParseClusterSpec from properties map
 func ParseClusterSpec(properties map[string]string) *GKEClusterSpec {
-	spec := &GKEClusterSpec{
-		ReclaimPolicy: DefaultReclaimPolicy,
+	return &GKEClusterSpec{
+		ReclaimPolicy:    DefaultReclaimPolicy,
+		ClusterVersion:   properties["clusterVersion"],
+		Labels:           util.ParseMap(properties["labels"]),
+		MachineType:      properties["machineType"],
+		NumNodes:         parseNodesNumber(properties["numNodes"]),
+		Scopes:           util.Split(properties["scopes"], ","),
+		Zone:             properties["zone"],
+		EnableIPAlias:    util.ParseBool(properties["enableIPAlias"]),
+		CreateSubnetwork: util.ParseBool(properties["createSubnetwork"]),
+		ClusterIPV4CIDR:  properties["clusterIPV4CIDR"],
+		ServiceIPV4CIDR:  properties["serviceIPV4CIDR"],
+		NodeIPV4CIDR:     properties["nodeIPV4CIDR"],
 	}
-
-	if len(properties) == 0 {
-		return spec
-	}
-
-	spec.ClusterVersion = properties["clusterVersion"]
-	spec.EnableIPAlias = util.ParseBool(properties["enableIPAlias"])
-	spec.Labels = util.ParseMap(properties["labels"])
-	spec.MachineType = properties["machineType"]
-	spec.NumNodes = parseNodesNumber(properties["numNodes"])
-	spec.Scopes = util.Split(properties["scopes"], ",")
-	spec.Zone = properties["zone"]
-	spec.CreateSubnetwork = util.ParseBool(properties["createSubnetwork"])
-
-	return spec
 }
 
 // parseNodesNumber from the input string value

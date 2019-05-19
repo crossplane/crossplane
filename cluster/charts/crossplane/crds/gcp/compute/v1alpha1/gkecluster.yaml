@@ -150,7 +150,6 @@ spec:
               description: --image-type
               type: boolean
             nodeLabels:
-              description: --network
               items:
                 type: string
               type: array
