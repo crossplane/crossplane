@@ -17,7 +17,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"fmt"
 	"strconv"
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -197,11 +196,6 @@ func (b *S3Bucket) ConnectionSecretName() string {
 // OwnerReference to use this instance as an owner
 func (b *S3Bucket) OwnerReference() metav1.OwnerReference {
 	return *util.ObjectToOwnerReference(b.ObjectReference())
-}
-
-// Endpoint returns the endpoint for the bucket
-func (b *S3Bucket) Endpoint() string {
-	return fmt.Sprintf("https://s3-%s.amazonaws.com", b.Spec.Region)
 }
 
 // IsAvailable for usage/binding

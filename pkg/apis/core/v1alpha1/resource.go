@@ -40,8 +40,6 @@ const (
 	ResourceCredentialsSecretClientKeyKey = "clientKey"
 	// ResourceCredentialsTokenKey is the key inside a connection secret for the bearer token value
 	ResourceCredentialsTokenKey = "token"
-	// ResourceBucketNameKey is the key inside a connection secret for a bucket that identifies the name of the bucket
-	ResourceBucketNameKey = "bucketName"
 )
 
 // Resource defines a concrete resource that can be provisioned and bound to a resource claim.

@@ -137,10 +137,9 @@ func connectionSecret(bucket *bucketv1alpha1.S3Bucket, accessKey *iam.AccessKey)
 		},
 
 		Data: map[string][]byte{
-			corev1alpha1.ResourceBucketNameKey:                []byte(bucket.GetBucketName()),
 			corev1alpha1.ResourceCredentialsSecretUserKey:     []byte(util.StringValue(accessKey.AccessKeyId)),
 			corev1alpha1.ResourceCredentialsSecretPasswordKey: []byte(util.StringValue(accessKey.SecretAccessKey)),
-			corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(bucket.Endpoint()),
+			corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(bucket.Spec.Region),
 		},
 	}
 }
