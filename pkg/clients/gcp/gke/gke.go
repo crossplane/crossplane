@@ -64,53 +64,45 @@ func NewClusterClient(creds *google.Credentials) (*ClusterClient, error) {
 
 // CreateCluster creates a new GKE cluster.
 func (c *ClusterClient) CreateCluster(name string, spec computev1alpha1.GKEClusterSpec) (*container.Cluster, error) {
-	zone := spec.Zone
+	cr := &container.CreateClusterRequest{
+		Cluster: &container.Cluster{
+			Name:                  name,
+			InitialClusterVersion: spec.ClusterVersion,
+			InitialNodeCount:      spec.NumNodes,
+			IpAllocationPolicy: &container.IPAllocationPolicy{
+				UseIpAliases:          spec.EnableIPAlias,
+				CreateSubnetwork:      spec.CreateSubnetwork,
+				NodeIpv4CidrBlock:     spec.NodeIPV4CIDR,
+				ClusterIpv4CidrBlock:  spec.ClusterIPV4CIDR,
+				ServicesIpv4CidrBlock: spec.ServiceIPV4CIDR,
+			},
+			NodeConfig: &container.NodeConfig{
+				MachineType: spec.MachineType,
+				OauthScopes: spec.Scopes,
+			},
+			ResourceLabels: spec.Labels,
+			Zone:           spec.Zone,
 
-	// CreateSubnetwork requires UseIPAliases
-	if spec.CreateSubnetwork {
-		spec.EnableIPAlias = true
-	}
-
-	var ipAllocationPolicy *container.IPAllocationPolicy
-	if spec.EnableIPAlias {
-		ipAllocationPolicy = &container.IPAllocationPolicy{UseIpAliases: spec.EnableIPAlias, CreateSubnetwork: spec.CreateSubnetwork}
-	}
-
-	cl := &container.Cluster{
-		Name:                  name,
-		InitialClusterVersion: spec.ClusterVersion,
-		InitialNodeCount:      spec.NumNodes,
-		IpAllocationPolicy:    ipAllocationPolicy,
-		NodeConfig: &container.NodeConfig{
-			MachineType: spec.MachineType,
-			OauthScopes: spec.Scopes,
-		},
-		ResourceLabels: spec.Labels,
-		Zone:           zone,
-
-		// As of Kubernetes 1.12 GKE must be asked to generate a client cert
-		// that will be available via the GKE MasterAuth API. The certificate is
-		// generated with CN=client - a user with no RBAC permissions. Instead
-		// we user basic auth, which is still granted full admin privileges.
-		MasterAuth: &container.MasterAuth{
-			Username: adminUser,
-			ClientCertificateConfig: &container.ClientCertificateConfig{
-				IssueClientCertificate: false,
+			// As of Kubernetes 1.12 GKE must be asked to generate a client cert
+			// that will be available via the GKE MasterAuth API. The certificate is
+			// generated with CN=client - a user with no RBAC permissions. Instead
+			// we user basic auth, which is still granted full admin privileges.
+			MasterAuth: &container.MasterAuth{
+				Username: adminUser,
+				ClientCertificateConfig: &container.ClientCertificateConfig{
+					IssueClientCertificate: false,
+				},
 			},
 		},
-	}
-
-	cr := &container.CreateClusterRequest{
-		Cluster:   cl,
 		ProjectId: c.creds.ProjectID,
-		Zone:      zone,
+		Zone:      spec.Zone,
 	}
 
-	if _, err := c.client.Projects.Zones.Clusters.Create(cr.ProjectId, zone, cr).Do(); err != nil {
+	if _, err := c.client.Projects.Zones.Clusters.Create(cr.ProjectId, spec.Zone, cr).Do(); err != nil {
 		return nil, err
 	}
 
-	return c.GetCluster(zone, name)
+	return c.GetCluster(spec.Zone, name)
 }
 
 // GetCluster retrieve GKE Cluster based on provided zone and name
