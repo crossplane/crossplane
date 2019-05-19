@@ -46,6 +46,14 @@ bucket_location = ${endpoint}
 EOF
 }
 
+s3bucket_name () {
+    local bucket=$1
+    local ownerUID=$(kubectl --context=${SOURCE_CONTEXT} get secret gitlab-${bucket} -o json | jq -r '.metadata.ownerReferences[0].uid')
+    local s3bucketUID=$(kubectl --context=${SOURCE_CONTEXT} -n crossplane-system get s3bucket bucket-${ownerUID} -o json | jq -r '.metadata.uid')
+    local nameFormat=$(kubectl --context=${SOURCE_CONTEXT} -n crossplane-system get s3bucket bucket-${ownerUID} -o json | jq -r '.spec.nameFormat')
+    printf ${nameFormat} ${s3bucketUID}
+}
+
 # Process crossplane bucket connection secrets and create secrets in GitLab expected format, as well as
 # GitLab Helm values file with bucket configuration
 buckets () {
@@ -57,7 +65,7 @@ buckets () {
 
         # retrieve interoperability access key and secret
         endpoint=$(kubectl --context=${SOURCE_CONTEXT} get secret gitlab-${bucket} -ojson | jq -r '.data.endpoint' | base64 ${BASE64_D_OPTS})
-        bucket_name=$(kubectl --context=${SOURCE_CONTEXT} get secret gitlab-${bucket} -ojson | jq -r '.data.bucketName' | base64 ${BASE64_D_OPTS})
+        bucket_name=$(s3bucket_name ${bucket})
         interop_access_key=$(kubectl --context=${SOURCE_CONTEXT} get secret gitlab-${bucket} -ojson | jq -r '.data.username' | base64 ${BASE64_D_OPTS})
         interop_secret=$(kubectl --context=${SOURCE_CONTEXT} get secret gitlab-${bucket} -ojson | jq -r '.data.password' | base64 ${BASE64_D_OPTS})
 
