@@ -76,7 +76,17 @@ We anticipate that AWS will make improvements on this user experience in the nea
     > Note: Amazon EKS is available in the following Regions at this time:
      > * US West (Oregon) (us-west-2)
      > * US East (N. Virginia) (us-east-1)
+     > * US East (Ohio) (us-east-2)
+     > * EU (Frankfurt) (eu-central-1)
+     > * EU (Stockholm) (eu-north-1)
      > * EU (Ireland) (eu-west-1)
+     > * EU (London) (eu-west-2)
+     > * EU (Paris) (eu-west-3)
+     > * Asia Pacific (Tokyo) (ap-northeast-1)
+     > * Asia Pacific (Seoul) (ap-northeast-2)
+     > * Asia Pacific (Mumbai) (ap-south-1)
+     > * Asia Pacific (Singapore) (ap-southeast-1)
+     > * Asia Pacific (Sydney) (ap-southeast-2)
 
 1. Set the REGION environment variable to your region
     ```console
@@ -120,48 +130,53 @@ We anticipate that AWS will make improvements on this user experience in the nea
     ```console
     export RDS_SUBNET_GROUP_NAME=replace-with-DBSubnetgroup-name
     ```
-#### Create an RDS Security Group (example only)
+#### Create an RDS/Redis Security Group (example only)
 
-> Note: This will make your RDS instance visible from anywhere on the internet.
+> Note: This will make your RDS and Redis instance visible from anywhere on the internet.
 This is for **EXAMPLE PURPOSES ONLY** and is **NOT RECOMMENDED** for production system.
 
 1. Navigate to ec2 in the same region as the EKS cluster
 1. Click: security groups
 1. Click `Create Security Group`
-1. Name it, ex. `demo-rds-public-visibility`
+1. Name it, ex. `bad-idea-public-visibility`
 1. Give it a description
 1. Select the same VPC as the EKS cluster.
-1. On the Inbound Rules tab, choose Edit.
-    - For Type, choose `MYSQL/Aurora`
-    - For Port Range, type `3306`
+1. On the Inbound Rules tab, choose `Add Rule`.
+    - For Type, choose `Custom TCP Rule`
+    - For Port Range, type `6379`
+    - For Source, choose `Anywhere` from drop down or type: `0.0.0.0/0`
+    - Click `Add Rule` again
+    - For Type, choose `PostgreSQL`
     - For Source, choose `Anywhere` from drop down or type: `0.0.0.0/0`
 1. Choose Add another rule if you need to add more IP addresses or different port ranges.
 1. Click: Create
 1. Export the security group id
     ```console
+    export REDIS_SECURITY_GROUP=replace-with-security-group-id
     export RDS_SECURITY_GROUP=replace-with-security-group-id
     ```
 
 #### Create an Elasticache Subnet Group
+1. Navigate to the aws console in same region as the EKS cluster
+1. Navigate to `Elasticache` service
+1. Navigate to `Subnet groups` in left hand pane
+1. Click `Create Subnet Group`
+1. Name your subnet i.e. `redis-subnets`
+1. Select the VPC created in the EKS VPC step
+1. Click `Add all subnets related to this VPC`
+1. Click Create
+1. Export the db subnet group name
 
 ```console
 export REDIS_SUBNET_GROUP=replace-me-with-redis-subnet-group
 ``` 
-
-#### Create a Redis security group
-
-1. TODO: add details here about redis, but open everything on tcp 6379 - No security/auth on redis typically, should not leave this running
-
-```console
-export REDIS_SECURITY_GROUP=replace-with-redis-securityGroupId
-```
 
 #### Create
 - Create AWS provider:
 
 Create provider:
 ```console
-sed -e "s|BASE64ENCODED_AWS_PROVIDER_CREDS|`cat ~/.aws/credentials|base64|tr -d '\n'`|g;" cluster/examples/gitlab/aws/provider.yaml | kubectl create -f -
+sed -e "s|REGION|$REGION|g;s|BASE64ENCODED_AWS_PROVIDER_CREDS|`cat ~/.aws/credentials|base64|tr -d '\n'`|g;" cluster/examples/gitlab/aws/provider.yaml | kubectl create -f -
 ```
 
 - Verify AWS provider was successfully registered by the crossplane
@@ -186,6 +201,7 @@ Create Crossplane Resource Class needed to provision managed resources for GitLa
 ```bash
 sed -e "s|REDIS_SECURITY_GROUP|$REDIS_SECURITY_GROUP|g;s|REDIS_SUBNET_GROUP|$REDIS_SUBNET_GROUP|g;s|EKS_WORKER_KEY_NAME|$EKS_WORKER_KEY_NAME|g;s|EKS_ROLE_ARN|$EKS_ROLE_ARN|g;s|REGION|$REGION|g;s|EKS_VPC|$EKS_VPC|g;s|EKS_SUBNETS|$EKS_SUBNETS|g;s|EKS_SECURITY_GROUP|$EKS_SECURITY_GROUP|g;s|RDS_SUBNET_GROUP_NAME|$RDS_SUBNET_GROUP_NAME|g;s|RDS_SECURITY_GROUP|$RDS_SECURITY_GROUP|g" cluster/examples/gitlab/aws/resource-classes/* | kubectl create -f -
 ```
+
 ```
 resourceclass.core.crossplane.io/standard-aws-bucket created
 resourceclass.core.crossplane.io/standard-aws-cluster created
@@ -194,9 +210,11 @@ resourceclass.core.crossplane.io/standard-aws-redis created
 ```    
 
 Verify
+
 ```bash
 kubectl get resourceclasses -n crossplane-system
 ```
+
 ```
 NAME                    PROVISIONER                                                 PROVIDER-REF   RECLAIM-POLICY   AGE
 standard-aws-bucket     s3buckets.storage.aws.crossplane.io/v1alpha1                demo-aws       Delete           17s

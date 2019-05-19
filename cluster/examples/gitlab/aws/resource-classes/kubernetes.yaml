@@ -8,7 +8,7 @@ metadata:
   annotations:
     resource: kubernetescluster.compute.crossplane.io/v1alpha1
 parameters: 
-  region: us-east-1
+  region: REGION
   roleARN: EKS_ROLE_ARN # arn:aws:iam::<account-id>:role/<role-name>
   vpcId: EKS_VPC #vpc-01
   subnetIds: EKS_SUBNETS #subnet-01,subnet-02,subnet-03
