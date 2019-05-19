@@ -58,125 +58,91 @@ spec:
                 type: string
               type: array
             async:
-              description: --adons
               type: boolean
             claimRef:
-              description: Kubernetes object references
               type: object
             classRef:
               type: object
             clusterSecondaryRangeName:
-              description: --cluster-ipv4-cidr
               type: string
             clusterVersion:
-              description: --cluster-secondary-range-name
               type: string
             connectionSecretRef:
               type: object
             createSubnetwork:
-              description: --cluster-version
               type: boolean
             diskSize:
-              description: --create-subnetwork
               type: string
             enableAutorepair:
-              description: --disk-size
               type: boolean
             enableAutoscaling:
-              description: Cluster Autoscaling
               type: boolean
             enableAutoupgrade:
-              description: --enable-autorepair
               type: boolean
             enableBasicAuth:
-              description: --password
               type: boolean
             enableCloudEndpoints:
-              description: --service-account
               type: boolean
             enableCloudLogging:
-              description: --enable-autoupgrade
               type: boolean
             enableCloudMonitoring:
-              description: --no-enable-cloud-logging]
               type: boolean
             enableIPAlias:
-              description: --no-enable-cloud-monitoring
               type: boolean
             enableKubernetesAlpha:
-              description: --enable-ip-alias
               type: boolean
             enableLegacyAuthorization:
-              description: --enable-kubernetes-alpha
               type: boolean
             enableNetworkPolicy:
-              description: --enable-legacy-authorization
               type: boolean
             imageType:
-              description: --enable-network-policy
               type: string
             labels:
-              description: --no-issue-client-certificate
               type: object
             localSSDCount:
-              description: --labels
               format: int64
               type: integer
             machineType:
-              description: --local-ssd-count
               type: string
             maintenanceWindow:
-              description: --machine-types
               type: string
             maxNodes:
-              description: --enable-autoscaling
               format: int64
               type: integer
             maxNodesPerPool:
-              description: '--maintenance-window, example: ''12:43'''
               format: int64
               type: integer
             minCPUPlatform:
-              description: --max-nodes-per-pool
               type: string
             minNodes:
-              description: --max-nodes
               format: int64
               type: integer
             network:
-              description: --min-cpu-platform
               type: string
             noIssueClientCertificates:
-              description: --image-type
               type: boolean
             nodeLabels:
               items:
                 type: string
               type: array
             nodeLocations:
-              description: --node-labels [NODE_LABEL,…]
               items:
                 type: string
               type: array
             nodeTaints:
-              description: --node-locations=ZONE,[ZONE,…]
               items:
                 type: string
               type: array
             nodeVersion:
-              description: --node-taints=[NODE_TAINT,…]
               items:
                 type: string
               type: array
             numNodes:
-              description: --node-version=NODE_VERSION
               format: int64
               type: integer
             password:
-              description: Basic Auth
               type: string
             preemtible:
-              description: --num-nodes=NUM_NODES; default=3
               type: boolean
             providerRef:
               type: object
@@ -185,29 +151,22 @@ spec:
                 after the deletion of this type
               type: string
             scopes:
-              description: --enable-cloud-endpoints
               items:
                 type: string
               type: array
             serviceAccount:
-              description: Node Identity
               type: string
             serviceSecondaryRangeName:
-              description: --services-ipv4-cidr=CIDR
               type: string
             subnetwork:
-              description: --services-secondary-range-name=NAME
               type: string
             tags:
-              description: --subnetwork=SUBNETWORK
               items:
                 type: string
               type: array
             username:
-              description: --enable-basic-auth
               type: string
             zone:
-              description: --tags=TAG,[TAG,…]
               type: string
           type: object
         status:

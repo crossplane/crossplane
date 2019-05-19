@@ -40,56 +40,55 @@ const (
 
 // GKEClusterSpec specifies the configuration of a GKE cluster.
 type GKEClusterSpec struct {
-	Addons                    []string          `json:"addons,omitempty"`                    //--adons
-	Async                     bool              `json:"async,omitempty"`                     //--async
-	ClusterIPV4CIDR           string            `json:"clusterIPV4CIDR,omitempty"`           //--cluster-ipv4-cidr
-	ClusterSecondaryRangeName string            `json:"clusterSecondaryRangeName,omitempty"` //--cluster-secondary-range-name
-	ClusterVersion            string            `json:"clusterVersion,omitempty"`            //--cluster-version
-	CreateSubnetwork          bool              `json:"createSubnetwork,omitempty"`          //--create-subnetwork
-	DiskSize                  string            `json:"diskSize,omitempty"`                  //--disk-size
-	EnableAutorepair          bool              `json:"enableAutorepair,omitempty"`          //--enable-autorepair
-	EnableAutoupgrade         bool              `json:"enableAutoupgrade,omitempty"`         //--enable-autoupgrade
-	EnableCloudLogging        bool              `json:"enableCloudLogging,omitempty"`        //--no-enable-cloud-logging]
-	EnableCloudMonitoring     bool              `json:"enableCloudMonitoring,omitempty"`     //--no-enable-cloud-monitoring
-	EnableIPAlias             bool              `json:"enableIPAlias,omitempty"`             //--enable-ip-alias
-	EnableKubernetesAlpha     bool              `json:"enableKubernetesAlpha,omitempty"`     //--enable-kubernetes-alpha
-	EnableLegacyAuthorization bool              `json:"enableLegacyAuthorization,omitempty"` //--enable-legacy-authorization
-	EnableNetworkPolicy       bool              `json:"enableNetworkPolicy,omitempty"`       //--enable-network-policy
-	ImageType                 string            `json:"imageType,omitempty"`                 //--image-type
-	NoIssueClientCertificates bool              `json:"noIssueClientCertificates,omitempty"` //--no-issue-client-certificate
-	Labels                    map[string]string `json:"labels,omitempty"`                    //--labels
-	LocalSSDCount             int64             `json:"localSSDCount,omitempty"`             //--local-ssd-count
-	MachineType               string            `json:"machineType,omitempty"`               //--machine-types
-	MaintenanceWindow         string            `json:"maintenanceWindow,omitempty"`         //--maintenance-window, example: '12:43'
-	MaxNodesPerPool           int64             `json:"maxNodesPerPool,omitempty"`           //--max-nodes-per-pool
-	MinCPUPlatform            string            `json:"minCPUPlatform,omitempty"`            //--min-cpu-platform
-	Network                   string            `json:"network,omitempty"`                   //--network
+	Addons                    []string          `json:"addons,omitempty"`
+	Async                     bool              `json:"async,omitempty"`
+	ClusterIPV4CIDR           string            `json:"clusterIPV4CIDR,omitempty"`
+	ClusterSecondaryRangeName string            `json:"clusterSecondaryRangeName,omitempty"`
+	ClusterVersion            string            `json:"clusterVersion,omitempty"`
+	CreateSubnetwork          bool              `json:"createSubnetwork,omitempty"`
+	DiskSize                  string            `json:"diskSize,omitempty"`
+	EnableAutorepair          bool              `json:"enableAutorepair,omitempty"`
+	EnableAutoupgrade         bool              `json:"enableAutoupgrade,omitempty"`
+	EnableCloudLogging        bool              `json:"enableCloudLogging,omitempty"`
+	EnableCloudMonitoring     bool              `json:"enableCloudMonitoring,omitempty"`
+	EnableIPAlias             bool              `json:"enableIPAlias,omitempty"`
+	EnableKubernetesAlpha     bool              `json:"enableKubernetesAlpha,omitempty"`
+	EnableLegacyAuthorization bool              `json:"enableLegacyAuthorization,omitempty"`
+	EnableNetworkPolicy       bool              `json:"enableNetworkPolicy,omitempty"`
+	ImageType                 string            `json:"imageType,omitempty"`
+	NoIssueClientCertificates bool              `json:"noIssueClientCertificates,omitempty"`
+	Labels                    map[string]string `json:"labels,omitempty"`
+	LocalSSDCount             int64             `json:"localSSDCount,omitempty"`
+	MachineType               string            `json:"machineType,omitempty"`
+	MaintenanceWindow         string            `json:"maintenanceWindow,omitempty"`
+	MaxNodesPerPool           int64             `json:"maxNodesPerPool,omitempty"`
+	MinCPUPlatform            string            `json:"minCPUPlatform,omitempty"`
+	Network                   string            `json:"network,omitempty"`
 	NodeIPV4CIDR              string            `json:"nodeIPV4CIDR,omitempty"`
-	NodeLabels                []string          `json:"nodeLabels,omitempty"`                //--node-labels [NODE_LABEL,…]
-	NodeLocations             []string          `json:"nodeLocations,omitempty"`             //--node-locations=ZONE,[ZONE,…]
-	NodeTaints                []string          `json:"nodeTaints,omitempty"`                //--node-taints=[NODE_TAINT,…]
-	NodeVersion               []string          `json:"nodeVersion,omitempty"`               //--node-version=NODE_VERSION
-	NumNodes                  int64             `json:"numNodes,omitempty"`                  //--num-nodes=NUM_NODES; default=3
-	Preemtible                bool              `json:"preemtible,omitempty"`                //--preemptible
-	ServiceIPV4CIDR           string            `json:"serviceIPV4CIDR,omitempty"`           //--services-ipv4-cidr=CIDR
-	ServiceSecondaryRangeName string            `json:"serviceSecondaryRangeName,omitempty"` //--services-secondary-range-name=NAME
-	Subnetwork                string            `json:"subnetwork,omitempty"`                //--subnetwork=SUBNETWORK
-	Tags                      []string          `json:"tags,omitempty"`                      //--tags=TAG,[TAG,…]
-	Zone                      string            `json:"zone,omitempty"`                      //--zone
-	// Cluster Autoscaling
-	EnableAutoscaling bool  `json:"enableAutoscaling,omitempty"` //--enable-autoscaling
-	MaxNodes          int64 `json:"maxNodes,omitempty"`          //--max-nodes
-	MinNodes          int64 `json:"minNodes,omitempty"`          //--min-nodes
-	// Basic Auth
-	Password        string `json:"password,omitempty"`        //--password
-	EnableBasicAuth bool   `json:"enableBasicAuth,omitempty"` //--enable-basic-auth
-	Username        string `json:"username,omitempty"`        //--username (-u) default:"admin"
-	// Node Identity
-	ServiceAccount       string   `json:"serviceAccount,omitempty,omitempty"` //--service-account
-	EnableCloudEndpoints bool     `json:"enableCloudEndpoints,omitempty"`     //--enable-cloud-endpoints
-	Scopes               []string `json:"scopes,omitempty"`                   //--scopes=[SCOPE,…]; default="gke-default"
+	NodeLabels                []string          `json:"nodeLabels,omitempty"`
+	NodeLocations             []string          `json:"nodeLocations,omitempty"`
+	NodeTaints                []string          `json:"nodeTaints,omitempty"`
+	NodeVersion               []string          `json:"nodeVersion,omitempty"`
+	NumNodes                  int64             `json:"numNodes,omitempty"`
+	Preemtible                bool              `json:"preemtible,omitempty"`
+	ServiceIPV4CIDR           string            `json:"serviceIPV4CIDR,omitempty"`
+	ServiceSecondaryRangeName string            `json:"serviceSecondaryRangeName,omitempty"`
+	Subnetwork                string            `json:"subnetwork,omitempty"`
+	Tags                      []string          `json:"tags,omitempty"`
+	Zone                      string            `json:"zone,omitempty"`
 
-	// Kubernetes object references
+	EnableAutoscaling bool  `json:"enableAutoscaling,omitempty"`
+	MaxNodes          int64 `json:"maxNodes,omitempty"`
+	MinNodes          int64 `json:"minNodes,omitempty"`
+
+	Password        string `json:"password,omitempty"`
+	EnableBasicAuth bool   `json:"enableBasicAuth,omitempty"`
+	Username        string `json:"username,omitempty"`
+
+	ServiceAccount       string   `json:"serviceAccount,omitempty,omitempty"`
+	EnableCloudEndpoints bool     `json:"enableCloudEndpoints,omitempty"`
+	Scopes               []string `json:"scopes,omitempty"`
+
 	ClaimRef            *corev1.ObjectReference      `json:"claimRef,omitempty"`
 	ClassRef            *corev1.ObjectReference      `json:"classRef,omitempty"`
 	ConnectionSecretRef *corev1.LocalObjectReference `json:"connectionSecretRef,omitempty"`
