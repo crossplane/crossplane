@@ -16,7 +16,7 @@ The following components are dynamically provisioned and configured during this 
 * You should also have an AWS credentials file at `~/.aws/credentials` already on your local filesystem.
 * [Kubernetes cluster](https://kubernetes.io/docs/setup/)
   * For example [Minikube](https://kubernetes.io/docs/tasks/tools/install-minikube/), minimum version `v0.28+`
-* [Helm](https://docs.helm.sh/using_helm/), minimum version `v2.9.1+`.
+* [Helm](https://docs.helm.sh/using_helm/), minimum version `v2.10.0+`.
 * [jq](https://stedolan.github.io/jq/) - commandline JSON processor `v1.5+`
 * [AWS cli](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html)
 
@@ -340,11 +340,77 @@ eks-af012df6-6e2a-11e9-ac37-9cb6d08bde99   Bound    RUNNING   eks-af11dfb1-6e2a-
 - Record the `CLUSTER_NAME` value
 - Obtain EKS Cluster credentials
 ```bash
-aws eks --region us-east-1 update-kubeconfig --name [your-CLUSTER_NAME]
+aws eks --region $REGION update-kubeconfig --name [your-CLUSTER_NAME]
 ```
 
+#### External DNS
+- Navigate to [Route53](https://console.aws.amazon.com/route53/)
+- If you don't have a domain -> Create a Hosted Zoned
+- Export the domain
 
-#### External DNS TODO
+```
+export DOMAIN=enterdomain.com
+```
+
+#### Allow your EKS Cluster access to route 53
+- Create the policy
+```
+sed -e "s|DOMAIN|$DOMAIN|g;" ./policy.json > policy.json.final | aws iam create-policy --policy-name $DOMAIN-eks-access --policy-document file://policy.json.final
+```
+- Export the arn
+```
+export DOMAIN_POLICY_ARN=replace-me-with-arn-from-last-command
+```
+- Find your eks role name
+```
+kubectl -n kube-system get configmap aws-auth -o yaml
+```
+- Export the roleARN part after the "/", the name
+```
+export EKS_NODE_ROLE_NAME=node-role-arn-name
+```
+
+- Attach policy to previous EKS Role
+```
+aws iam attach-role-policy --policy-arn $DOMAIN_POLICY_ARN --role-name $EKS_NODE_ROLE_NAME
+```
+
+- Fetch the [External-DNS](https://github.com/helm/charts/tree/master/stable/external-dns) helm chart
+```bash
+helm fetch stable/external-dns
+```
+If the `helm fetch` command is successful, you should see a new file created in your CWD:
+```bash
+ls -l external-dns-*
+```
+```
+-rw-r--r-- 1 user user 8913 May  3 23:24 external-dns-1.7.5.tgz
+```
+
+- Render the Helm chart into `yaml`, and set values and apply to your EKS cluster
+```bash
+helm template external-dns-1.7.5.tgz --name gitlab-demo --namespace kube-system  \
+    --set provider=aws \
+    --set txtOwnerId=[eks-cluster-name] \
+    --set domainFilter=$DOMAIN \
+    --set rbac.create=true | kubectl -n kube-system apply -f -
+```
+
+```
+service/release-name-external-dns created
+deployment.extensions/release-name-external-dns created
+```
+- Verify `External-DNS` is up and running
+```bash
+kubectl get deploy,service -l release=gitlab-demo -n kube-system
+```
+```
+NAME                                             DESIRED   CURRENT   UP-TO-DATE   AVAILABLE   AGE
+deployment.extensions/gitlab-demo-external-dns   1         1         1            1           1m
+
+NAME                               TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)    AGE
+service/gitlab-demo-external-dns   ClusterIP   10.75.14.226   <none>        7979/TCP   1m
+```
 
 #### Managed Resource Secrets
 Decide on the EKS cluster namespace where GitLab's application artifacts will be deployed.

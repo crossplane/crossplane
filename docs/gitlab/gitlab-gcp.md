@@ -7,7 +7,7 @@ the official GitLab Helm chart.
 
 * [Kubernetes cluster](https://kubernetes.io/docs/setup/)
   * For example [Minikube](https://kubernetes.io/docs/tasks/tools/install-minikube/), minimum version `v0.28+`
-* [Helm](https://docs.helm.sh/using_helm/), minimum version `v2.9.1+`.
+* [Helm](https://docs.helm.sh/using_helm/), minimum version `v2.10.0+`.
 * [jq](https://stedolan.github.io/jq/) - commandline JSON processor `v1.5+`
 
 
