@@ -11,9 +11,15 @@ indent: true
 This section will walk you through how to deploy workloads to various cloud provider environments in a highly portable way.
 For detailed instructions on how to deploy workloads to your cloud provider of choice, please visit the following guides:
 
-* [Deploying a Workload on Google Cloud Platform (GCP)](workloads/gcp/wordpress-gcp.md)
-* [Deploying a Workload on Microsoft Azure](workloads/azure/wordpress-azure.md)
-* [Deploying a Workload on Amazon Web Services](workloads/aws/wordpress-aws.md)
+### GitLab Workload
+* [Deploying GitLab on Google Cloud Platform (GCP)](gitlab/gitlab-gcp.md)
+* [Deploying GitLab on Amazon Web Services (AWS)](gitlab/gitlab-aws.md)
+* Deploying GitLab on Microsoft Azure - coming soon!
+
+### Wordpress Workload
+* [Deploying Wordpress on Google Cloud Platform (GCP)](workloads/gcp/wordpress-gcp.md)
+* [Deploying Wordpress on Amazon Web Services (AWS)](workloads/aws/wordpress-aws.md)
+* [Deploying Wordpress on Microsoft Azure](workloads/azure/wordpress-azure.md)
 
 ## Workload Overview
 
