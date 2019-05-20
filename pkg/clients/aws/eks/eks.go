@@ -444,6 +444,30 @@ Resources:
         - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
         - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
 
+  Route53NodeInstancePolicy:
+    Type: AWS::IAM::Policy
+    DependsOn: NodeInstanceRole
+    Properties:
+      PolicyName: !Ref AWS::StackName
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Action:
+              - "route53:ChangeResourceRecordSets"
+            Resource:
+              - "arn:aws:route53:::hostedzone/*"
+          -
+            Effect: "Allow"
+            Action:
+              - "route53:ListHostedZones"
+              - "route53:ListResourceRecordSets"
+            Resource:
+              - "*"
+      Roles:
+        - !Ref NodeInstanceRole
+
   NodeSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
