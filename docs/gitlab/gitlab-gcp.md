@@ -217,7 +217,7 @@ At this point, all GitLab managed resources should be ready to consume and this 
 GitLab requires to provide connection information in the specific format per cloud provider.
 In addition, we need to extract endpoints and additional managed resource properties and add them to helm values.
 
-There is an ongoing effort to improve secret consumption from GitLab such that secrets produced by Crossplane controllers are directly consumed without transformation.
+There is an [ongoing effort](https://github.com/crossplaneio/crossplane/issues/489) to improve secret consumption from GitLab such that secrets produced by Crossplane controllers are directly consumed without transformation.
 
 We will use a convenience script for this purpose.
 Note: your output may be different
