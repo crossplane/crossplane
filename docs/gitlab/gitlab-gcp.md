@@ -5,16 +5,32 @@ the official GitLab Helm chart.
 
 ## Pre-requisites
 
-* [Kubernetes cluster](https://kubernetes.io/docs/setup/)
-  * For example [Minikube](https://kubernetes.io/docs/tasks/tools/install-minikube/), minimum version `v0.28+`
 * [Helm](https://docs.helm.sh/using_helm/), minimum version `v2.10.0+`.
 * [jq](https://stedolan.github.io/jq/) - commandline JSON processor `v1.5+`
 
 
 ## Preparation
 
+### GKE Cluster
+Follow [GitLab instruction](https://docs.gitlab.com/charts/installation/cloud/gke.html#scripted-cluster-creation) to create and bootstrap GKE Kubernetes cluster
+
+- Obtain GKE cluster credentials
+```bash
+gcloud container clusters get-credentials [your-gke-cluster] --zone [your-cluster-zone] --project [your-gcp-project]
+```
+
+- Configure `kubectl` current context to point to your GKE cluster where you want to deploy GitLab application.
+
+Note: this step is optional since: `gcloud container clusters get-credentials` will automatically set the current context to newly connected cluster
+```bash
+kubectl config get-contexts
+kubectl config set-context [your-cluster-context]
+```
+
+
 ### Crossplane
-- Install Crossplane using the [Crossplane Installation Guide](../install-crossplane.md)
+Using the newly provisioned cluster:
+- Install Crossplane from master channel using the [Crossplane Installation Guide](../install-crossplane.md#master)
 - Obtain [Cloud Provider Credentials](../cloud-providers.md) 
 
 #### GCP Provider   
@@ -124,15 +140,12 @@ bucket.storage.crossplane.io/gitlab-packages created
 bucket.storage.crossplane.io/gitlab-pseudonymizer created
 bucket.storage.crossplane.io/gitlab-registry created
 bucket.storage.crossplane.io/gitlab-uploads created
-kubernetescluster.compute.crossplane.io/gitlab-gke created
 postgresqlinstance.storage.crossplane.io/gitlab-postgresql created
 rediscluster.cache.crossplane.io/gitlab-redis created  
 ```
 
 Verify that the resource claims were successfully provisioned. 
 ```bash
-# check status of kubernetes cluster
-kubectl get -f cluster/examples/gitlab/gcp/resource-claims/kubernetes.yaml
 kubectl get -f cluster/examples/gitlab/gcp/resource-claims/postgres.yaml
 kubectl get -f cluster/examples/gitlab/gcp/resource-claims/redis.yaml
 ```
@@ -196,108 +209,22 @@ gitlab-registry        Opaque                                4      7m1s
 gitlab-uploads         Opaque                                4      7m1s
 ```
 
-Note: Kubernetes cluster claim is created in "privileged" mode; thus the kubernetes cluster resource secret is located in `crossplane-system` namespace, however, you will not need to use this secret for our GitLab demo deployment.
-
 At this point, all GitLab managed resources should be ready to consume and this completes the Crossplane resource provisioning phase. 
 
-### GKE Cluster
-Following the below steps will prepare the GKE Cluster for GitLab installation.
-
-- First, get the GKE Cluster's name by examining the Kubernetes Resource Claim
-```bash
-kubectl get -f cluster/examples/gitlab/gcp/resource-claims/kubernetes.yaml
-```
-```
-NAME         STATUS   CLUSTER-CLASS          CLUSTER-REF                                AGE
-gitlab-gke   Bound    standard-gcp-cluster   gke-af012df6-6e2a-11e9-ac37-9cb6d08bde99   71m
-```
-- Using `CLUSTER-REF` get GKECluster resource
-```bash
-kubectl get gkecluster [CLUSTER-REF value] -n crossplane-system
-```
-```
-NAME                                       STATUS   STATE     CLUSTER-NAME                               ENDPOINT          CLUSTER-CLASS          LOCATION        RECLAIM-POLICY   AGE
-gke-af012df6-6e2a-11e9-ac37-9cb6d08bde99   Bound    RUNNING   gke-af11dfb1-6e2a-11e9-ac37-9cb6d08bde99   130.211.208.249   standard-gcp-cluster   us-central1-a   Delete           72m
-```
-- Record local cluster context name
-```bash
-kubect config current-context
-``` 
-- Record the `CLUSTER_NAME` value
-- Obtain GKE Cluster credentials
-    - Note: the easiest way to get `gcloud` command is via:
-        - Go to: https://console.cloud.google.com/kubernetes/list
-        - Click `Connect` next to cluster with `CLUSTER-NAME` value       
-```bash
-gcloud container clusters [CLUSTER-NAME] --zone [CLUSTER-ZONE] --project my-project-123456
-``` 
-
-Add your user account to the cluster admin role
-```bash
-kubectl create clusterrolebinding cluster-admin-binding \
-    --clusterrole cluster-admin \
-    --user [your-gcp-user-name]
-```
-
-#### External DNS
-- Fetch the [External-DNS](https://github.com/helm/charts/tree/master/stable/external-dns) helm chart
-```bash
-helm fetch stable/external-dns
-```
-If the `helm fetch` command is successful, you should see a new file created in your CWD:
-```bash
-ls -l external-dns-*
-```
-```
--rw-r--r-- 1 user user 8913 May  3 23:24 external-dns-1.7.5.tgz
-```
-
-- Render the Helm chart into `yaml`, and set values and apply to your GKE cluster
-```bash
-helm template external-dns-1.7.5.tgz --name gitlab-demo --namespace kube-system  \
-    --set provider=google \
-    --set txtOwnerId=[gke-cluster-name] \
-    --set google.project=[gcp-project-id] \
-    --set rbac.create=true | kubectl -n kube-system apply -f -
-```
-```
-service/release-name-external-dns created
-deployment.extensions/release-name-external-dns created
-```
-- Verify `External-DNS` is up and running
-```bash
-kubectl get deploy,service -l release=gitlab-demo -n kube-system
-```
-```
-NAME                                             DESIRED   CURRENT   UP-TO-DATE   AVAILABLE   AGE
-deployment.extensions/gitlab-demo-external-dns   1         1         1            1           1m
-
-NAME                               TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)    AGE
-service/gitlab-demo-external-dns   ClusterIP   10.75.14.226   <none>        7979/TCP   1m
-```
-
 #### Managed Resource Secrets
-Decide on the GKE cluster namespace where GitLab's application artifacts will be deployed.
 
-We will use: `gitlab`, and for convenience we will [set our current context](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/#setting-the-namespace-preference) to this namespace 
-```bash
-kubectl create ns gitlab
-kubectl config set-context $(kubectl config current-context) --namespace=gitlab
-```
-
-##### Export and Convert Secrets
+##### Convert Secrets and Export Values
 GitLab requires to provide connection information in the specific format per cloud provider.
 In addition, we need to extract endpoints and additional managed resource properties and add them to helm values.
 
-_There is [current and ongoing effort](https://github.com/crossplaneio/gitlab-controller) to create an alternative experience to deploy GitLab Crossplane application, which alleviates integration difficulties between Crossplane platform and the GitLab Helm chart deployment._ 
+There is an ongoing effort to improve secret consumption from GitLab such that secrets produced by Crossplane controllers are directly consumed without transformation.
 
 We will use a convenience script for this purpose.
 Note: your output may be different
 ```bash
-./cluster/examples/gitlab/gcp/secrets.sh [your-local-k8s-cluster-context: default=minikube]
+./cluster/examples/gitlab/gcp/secrets.sh
 ```
 ```
-Source cluster kubectl context: microk8s
 Current cluster kubectl context: gke_you-project-123456_us-central1-a_gke-a2345dfb1-asdf-11e9-ac37-9cb6d08bde99
 ---
 Source cluster secrets:
@@ -341,7 +268,7 @@ See [GitLab Helm Documentation](https://docs.gitlab.com/charts/installation/depl
 helm repo add gitlab https://charts.gitlab.io/
 helm repo update
 helm fetch gitlab/gitlab --version v1.7.1
-helm template gitlab-1.7.1.tgz --name gitlab-demo --namespace gitlab \
+helm template gitlab-1.7.1.tgz --name gitlab-demo --namespace default \
     -f cluster/examples/gitlab/gcp/values-buckets.yaml \
     -f cluster/examples/gitlab/gcp/values-redis.yaml \
     -f cluster/examples/gitlab/gcp/values-psql.yaml \
@@ -425,21 +352,12 @@ Navigate your browser to https://gitlab-demo.upbound.app, and if everything ran 
 ## Uninstall
 
 ### GitLab
-To remove the GitLab application from the GKE cluster: run:
+To remove the GitLab application run:
 ```bash
 kubectl delete -f gitlab-gcp.yaml
 ```
 
-### External-DNS
-```bash
-kubectl delete deploy,service -l app=external-dns -n kube-system
-```
-
 ### Crossplane
-To remove Crossplane managed resources, switch back to local cluster context `minikube`:
-```bash
-kubectl config use-context minikube
-```
 
 Delete all managed resources by running:
 ```bash
@@ -455,7 +373,6 @@ bucket.storage.crossplane.io "gitlab-packages" deleted
 bucket.storage.crossplane.io "gitlab-pseudonymizer" deleted
 bucket.storage.crossplane.io "gitlab-registry" deleted
 bucket.storage.crossplane.io "gitlab-uploads" deleted
-kubernetescluster.compute.crossplane.io "gitlab-gke" deleted
 postgresqlinstance.storage.crossplane.io "gitlab-postgresql" deleted
 rediscluster.cache.crossplane.io "gitlab-redis" deleted
 ```
@@ -474,7 +391,6 @@ kubectl delete -Rf cluster/examples/gitlab/gcp/resource-classes/
 ```
 ```
 resourceclass.core.crossplane.io "standard-gcp-bucket" deleted
-resourceclass.core.crossplane.io "standard-gcp-cluster" deleted
 resourceclass.core.crossplane.io "standard-gcp-postgres" deleted
 resourceclass.core.crossplane.io "standard-gcp-redis" deleted
 ```
