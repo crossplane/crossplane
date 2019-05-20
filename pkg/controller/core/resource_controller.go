@@ -204,7 +204,7 @@ func (r *Reconciler) _bind(claim corev1alpha1.ResourceClaim, handler ResourceHan
 	// replace secret metadata with the consuming claim's metadata (same as in service)
 	secret.ObjectMeta = metav1.ObjectMeta{
 		Namespace:       claim.GetNamespace(),
-		Name:            claim.GetName(),
+		Name:            claim.ConnectionSecretName(),
 		OwnerReferences: []metav1.OwnerReference{claim.OwnerReference()},
 	}
 	if _, err := util.ApplySecret(r.kubeclient, secret); err != nil {

@@ -28,11 +28,14 @@ import (
 type RedisClusterSpec struct {
 	ClassRef    *corev1.ObjectReference `json:"classReference,omitempty"`
 	ResourceRef *corev1.ObjectReference `json:"resourceName,omitempty"`
-	Selector    metav1.LabelSelector    `json:"selector,omitempty"`
 
 	// EngineVersion specifies the desired Redis version.
 	// +kubebuilder:validation:Enum=2.6,2.8,3.2,4.0,5.0
 	EngineVersion string `json:"engineVersion"`
+
+	// +kubebuilder:validation:MaxLength=255
+	// +kubebuilder:validation:MinLength=1
+	ConnectionSecretNameOverride string `json:"connectionSecretNameOverride,omitempty"`
 }
 
 // +genclient
@@ -80,6 +83,11 @@ func (c *RedisCluster) ClaimStatus() *corev1alpha1.ResourceClaimStatus {
 // ClassRef return the reference to the resource class this claim uses.
 func (c *RedisCluster) ClassRef() *corev1.ObjectReference {
 	return c.Spec.ClassRef
+}
+
+// ConnectionSecretName return connection secret checking for overrides
+func (c *RedisCluster) ConnectionSecretName() string {
+	return util.IfEmptyString(c.Spec.ConnectionSecretNameOverride, c.Name)
 }
 
 // ResourceRef returns the reference to the resource this claim is bound to.

@@ -98,7 +98,6 @@ func (in *BucketSpec) DeepCopyInto(out *BucketSpec) {
 		*out = new(v1.ObjectReference)
 		**out = **in
 	}
-	in.Selector.DeepCopyInto(&out.Selector)
 	if in.PredefinedACL != nil {
 		in, out := &in.PredefinedACL, &out.PredefinedACL
 		*out = new(PredefinedACL)
@@ -196,7 +195,6 @@ func (in *MySQLInstanceSpec) DeepCopyInto(out *MySQLInstanceSpec) {
 		*out = new(v1.ObjectReference)
 		**out = **in
 	}
-	in.Selector.DeepCopyInto(&out.Selector)
 	return
 }
 
@@ -284,7 +282,6 @@ func (in *PostgreSQLInstanceSpec) DeepCopyInto(out *PostgreSQLInstanceSpec) {
 		*out = new(v1.ObjectReference)
 		**out = **in
 	}
-	in.Selector.DeepCopyInto(&out.Selector)
 	return
 }
 

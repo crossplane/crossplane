@@ -43,14 +43,16 @@ spec:
           properties:
             classReference:
               type: object
+            connectionSecretNameOverride:
+              maxLength: 255
+              minLength: 1
+              type: string
             engineVersion:
               description: postgresql instance properties
               enum:
               - "9.6"
               type: string
             resourceName:
-              type: object
-            selector:
               type: object
           type: object
         status:

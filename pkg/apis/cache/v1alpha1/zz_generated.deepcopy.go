@@ -98,7 +98,6 @@ func (in *RedisClusterSpec) DeepCopyInto(out *RedisClusterSpec) {
 		*out = new(v1.ObjectReference)
 		**out = **in
 	}
-	in.Selector.DeepCopyInto(&out.Selector)
 	return
 }
 

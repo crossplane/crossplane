@@ -99,7 +99,6 @@ func (in *KubernetesClusterSpec) DeepCopyInto(out *KubernetesClusterSpec) {
 		*out = new(v1.ObjectReference)
 		**out = **in
 	}
-	in.Selector.DeepCopyInto(&out.Selector)
 	return
 }
 

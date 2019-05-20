@@ -43,6 +43,10 @@ spec:
           properties:
             classReference:
               type: object
+            connectionSecretNameOverride:
+              maxLength: 255
+              minLength: 1
+              type: string
             engineVersion:
               description: EngineVersion specifies the desired Redis version.
               enum:
@@ -53,8 +57,6 @@ spec:
               - "5.0"
               type: string
             resourceName:
-              type: object
-            selector:
               type: object
           required:
           - engineVersion

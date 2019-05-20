@@ -55,9 +55,9 @@ type testResourceClaim struct {
 }
 
 type testResourceClaimSpec struct {
-	ClassRef    *corev1.ObjectReference `json:"classReference,omitempty"`
-	ResourceRef *corev1.ObjectReference `json:"resourceName,omitempty"`
-	Selector    metav1.LabelSelector    `json:"selector,omitempty"`
+	ClassRef                     *corev1.ObjectReference `json:"classReference,omitempty"`
+	ResourceRef                  *corev1.ObjectReference `json:"resourceName,omitempty"`
+	ConnectionSecretNameOverride string                  `json:"connectionSecretNameOverride,omitempty"`
 }
 
 func testClaim() *testResourceClaim {
@@ -103,6 +103,10 @@ func (t *testResourceClaim) ClaimStatus() *corev1alpha1.ResourceClaimStatus {
 
 func (t *testResourceClaim) ClassRef() *corev1.ObjectReference {
 	return t.Spec.ClassRef
+}
+
+func (t *testResourceClaim) ConnectionSecretName() string {
+	return util.IfEmptyString(t.Spec.ConnectionSecretNameOverride, t.Name)
 }
 
 func (t *testResourceClaim) ResourceRef() *corev1.ObjectReference {

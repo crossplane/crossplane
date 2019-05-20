@@ -28,11 +28,14 @@ import (
 type MySQLInstanceSpec struct {
 	ClassRef    *corev1.ObjectReference `json:"classReference,omitempty"`
 	ResourceRef *corev1.ObjectReference `json:"resourceName,omitempty"`
-	Selector    metav1.LabelSelector    `json:"selector,omitempty"`
 
 	// mysql instance properties
 	// +kubebuilder:validation:Enum=5.6,5.7
 	EngineVersion string `json:"engineVersion"`
+
+	// +kubebuilder:validation:MaxLength=255
+	// +kubebuilder:validation:MinLength=1
+	ConnectionSecretNameOverride string `json:"connectionSecretNameOverride,omitempty"`
 }
 
 // +genclient
@@ -81,6 +84,11 @@ func (m *MySQLInstance) ClassRef() *corev1.ObjectReference {
 	return m.Spec.ClassRef
 }
 
+// ConnectionSecretName return connection secret checking for overrides
+func (m *MySQLInstance) ConnectionSecretName() string {
+	return util.IfEmptyString(m.Spec.ConnectionSecretNameOverride, m.Name)
+}
+
 // ResourceRef returns the resource claimed by this resource claim.
 func (m *MySQLInstance) ResourceRef() *corev1.ObjectReference {
 	return m.Spec.ResourceRef
@@ -96,11 +104,14 @@ func (m *MySQLInstance) SetResourceRef(ref *corev1.ObjectReference) {
 type PostgreSQLInstanceSpec struct {
 	ClassRef    *corev1.ObjectReference `json:"classReference,omitempty"`
 	ResourceRef *corev1.ObjectReference `json:"resourceName,omitempty"`
-	Selector    metav1.LabelSelector    `json:"selector,omitempty"`
 
 	// postgresql instance properties
 	// +kubebuilder:validation:Enum=9.6
 	EngineVersion string `json:"engineVersion,omitempty"`
+
+	// +kubebuilder:validation:MaxLength=255
+	// +kubebuilder:validation:MinLength=1
+	ConnectionSecretNameOverride string `json:"connectionSecretNameOverride,omitempty"`
 }
 
 // +genclient
@@ -161,6 +172,11 @@ func (p *PostgreSQLInstance) ClassRef() *corev1.ObjectReference {
 	return p.Spec.ClassRef
 }
 
+// ConnectionSecretName return connection secret checking for overrides
+func (p *PostgreSQLInstance) ConnectionSecretName() string {
+	return util.IfEmptyString(p.Spec.ConnectionSecretNameOverride, p.Name)
+}
+
 // ResourceRef returns the resource claimed by this resource claim.
 func (p *PostgreSQLInstance) ResourceRef() *corev1.ObjectReference {
 	return p.Spec.ResourceRef
@@ -198,7 +214,6 @@ const (
 type BucketSpec struct {
 	ClassRef    *corev1.ObjectReference `json:"classReference,omitempty"`
 	ResourceRef *corev1.ObjectReference `json:"resourceName,omitempty"`
-	Selector    metav1.LabelSelector    `json:"selector,omitempty"`
 
 	// Name properties
 	// +kubebuilder:validation:MaxLength=63
@@ -266,6 +281,11 @@ func (b *Bucket) ClaimStatus() *corev1alpha1.ResourceClaimStatus {
 // ClassRef returns the resource class used by this resource claim.
 func (b *Bucket) ClassRef() *corev1.ObjectReference {
 	return b.Spec.ClassRef
+}
+
+// ConnectionSecretName return connection secret checking for overrides
+func (b *Bucket) ConnectionSecretName() string {
+	return util.IfEmptyString(b.Spec.ConnectionSecretNameOverride, b.Name)
 }
 
 // ResourceRef returns the resource claimed by this resource claim.

@@ -29,10 +29,13 @@ import (
 type KubernetesClusterSpec struct {
 	ClassRef    *corev1.ObjectReference `json:"classReference,omitempty"`
 	ResourceRef *corev1.ObjectReference `json:"resourceName,omitempty"`
-	Selector    metav1.LabelSelector    `json:"selector,omitempty"`
 
 	// cluster properties
 	ClusterVersion string `json:"clusterVersion,omitempty"`
+
+	// +kubebuilder:validation:MaxLength=255
+	// +kubebuilder:validation:MinLength=1
+	ConnectionSecretNameOverride string `json:"connectionSecretNameOverride,omitempty"`
 }
 
 // +genclient
@@ -91,6 +94,11 @@ func (kc *KubernetesCluster) ClaimStatus() *corev1alpha1.ResourceClaimStatus {
 // ClassRef returns the resource class used by this Kubernetes cluster.
 func (kc *KubernetesCluster) ClassRef() *corev1.ObjectReference {
 	return kc.Spec.ClassRef
+}
+
+// ConnectionSecretName return connection secret checking for overrides
+func (kc *KubernetesCluster) ConnectionSecretName() string {
+	return util.IfEmptyString(kc.Spec.ConnectionSecretNameOverride, kc.Name)
 }
 
 // ResourceRef returns the resource claimed by this Kubernetes cluster.

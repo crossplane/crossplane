@@ -74,8 +74,6 @@ spec:
               type: string
             resourceName:
               type: object
-            selector:
-              type: object
           type: object
         status:
           properties:

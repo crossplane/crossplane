@@ -46,9 +46,11 @@ spec:
             clusterVersion:
               description: cluster properties
               type: string
+            connectionSecretNameOverride:
+              maxLength: 255
+              minLength: 1
+              type: string
             resourceName:
-              type: object
-            selector:
               type: object
           type: object
         status:
