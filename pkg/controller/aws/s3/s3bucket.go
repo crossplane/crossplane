@@ -18,7 +18,6 @@ package s3
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	corev1 "k8s.io/api/core/v1"
@@ -154,11 +153,6 @@ func (r *Reconciler) _connect(instance *bucketv1alpha1.S3Bucket) (s3.Service, er
 	err := r.Get(ctx, providerNamespacedName, p)
 	if err != nil {
 		return nil, err
-	}
-
-	// Check provider status
-	if !p.IsValid() {
-		return nil, fmt.Errorf("provider is not ready")
 	}
 
 	// Get Provider's AWS Config

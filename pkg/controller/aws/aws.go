@@ -21,7 +21,6 @@ import (
 
 	"github.com/crossplaneio/crossplane/pkg/controller/aws/cache"
 	"github.com/crossplaneio/crossplane/pkg/controller/aws/compute"
-	"github.com/crossplaneio/crossplane/pkg/controller/aws/provider"
 	"github.com/crossplaneio/crossplane/pkg/controller/aws/rds"
 	"github.com/crossplaneio/crossplane/pkg/controller/aws/s3"
 )
@@ -32,7 +31,6 @@ func init() {
 		cache.Add,
 		compute.Add,
 		rds.Add,
-		provider.Add,
 		s3.Add,
 	)
 }

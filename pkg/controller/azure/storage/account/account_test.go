@@ -192,11 +192,6 @@ func newProvider(ns, name string) *provider {
 	}}
 }
 
-func (p *provider) withDeprecatedCondition(c corev1alpha1.DeprecatedCondition) *provider {
-	p.Status.DeprecatedConditionedStatus.SetDeprecatedCondition(c)
-	return p
-}
-
 func (p *provider) withSecret(name, key string) *provider {
 	p.Spec.Secret = corev1.SecretKeySelector{
 		LocalObjectReference: corev1.LocalObjectReference{
@@ -366,16 +361,8 @@ func Test_accountHandleMaker_newHandler(t *testing.T) {
 				Resource: "providers"}, "test-provider"),
 		},
 		{
-			name: "ProviderIsNotReady",
-			kube: fake.NewFakeClient(newProvider(ns, providerName).
-				withDeprecatedCondition(corev1alpha1.NewDeprecatedCondition(corev1alpha1.DeprecatedFailed, "", "")).Provider),
-			acct:    v1alpha1test.NewMockAccount(ns, bucketName).WithSpecProvider("test-provider").Account,
-			wantErr: errors.Errorf("provider: %s is not ready", ns+"/test-provider"),
-		},
-		{
 			name: "ProviderSecretIsNotFound",
 			kube: fake.NewFakeClient(newProvider(ns, providerName).
-				withDeprecatedCondition(corev1alpha1.NewReadyDeprecatedCondition()).
 				withSecret(secretName, secretKey).Provider),
 			acct: v1alpha1test.NewMockAccount(ns, bucketName).WithSpecProvider("test-provider").Account,
 			wantErr: errors.WithStack(
@@ -384,7 +371,6 @@ func Test_accountHandleMaker_newHandler(t *testing.T) {
 		{
 			name: "InvalidCredentials",
 			kube: fake.NewFakeClient(newProvider(ns, providerName).
-				withDeprecatedCondition(corev1alpha1.NewReadyDeprecatedCondition()).
 				withSecret(secretName, secretKey).Provider,
 				newSecret(ns, secretName).Secret),
 			acct: v1alpha1test.NewMockAccount(ns, bucketName).WithSpecProvider("test-provider").Account,
@@ -394,7 +380,6 @@ func Test_accountHandleMaker_newHandler(t *testing.T) {
 		{
 			name: "KubeCreated",
 			kube: fake.NewFakeClient(newProvider(ns, providerName).
-				withDeprecatedCondition(corev1alpha1.NewReadyDeprecatedCondition()).
 				withSecret(secretName, secretKey).Provider,
 				newSecret(ns, secretName).withKeyData(secretKey, secretData).Secret),
 			acct: v1alpha1test.NewMockAccount(ns, bucketName).WithSpecProvider("test-provider").Account,

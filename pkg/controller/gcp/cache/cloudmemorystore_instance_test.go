@@ -77,11 +77,6 @@ var (
 				Key:                  providerSecretKey,
 			},
 		},
-		Status: gcpv1alpha1.ProviderStatus{
-			DeprecatedConditionedStatus: corev1alpha1.DeprecatedConditionedStatus{
-				Conditions: []corev1alpha1.DeprecatedCondition{{Type: corev1alpha1.DeprecatedReady, Status: corev1.ConditionTrue}},
-			},
-		},
 	}
 
 	providerSecret = corev1.Secret{
@@ -558,31 +553,6 @@ func TestConnect(t *testing.T) {
 			},
 			i:       instance(),
 			wantErr: errors.WithStack(errors.Errorf("cannot get provider %s/%s:  \"%s\" not found", namespace, providerName, providerName)),
-		},
-		{
-			name: "FailedToAssetProviderIsValid",
-			conn: &providerConnecter{
-				kube: &test.MockClient{MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
-					// This provider does not have condition ready, and thus is
-					// deemed invalid.
-					*obj.(*gcpv1alpha1.Provider) = gcpv1alpha1.Provider{
-						ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: providerName},
-						Spec: gcpv1alpha1.ProviderSpec{
-							ProjectID: project,
-							Secret: corev1.SecretKeySelector{
-								LocalObjectReference: corev1.LocalObjectReference{Name: providerSecretName},
-								Key:                  providerSecretKey,
-							},
-						},
-					}
-					return nil
-				}},
-				newClient: func(_ context.Context, _ []byte) (cloudmemorystore.Client, error) {
-					return &fakecloudmemorystore.MockClient{}, nil
-				},
-			},
-			i:       instance(),
-			wantErr: errors.Errorf("provider %s/%s is not ready", namespace, providerName),
 		},
 		{
 			name: "FailedToGetProviderSecret",

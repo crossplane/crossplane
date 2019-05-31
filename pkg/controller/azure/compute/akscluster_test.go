@@ -178,8 +178,6 @@ func TestReconcile(t *testing.T) {
 
 	// create the provider object and defer its cleanup
 	provider := testProvider(testSecret([]byte("testdata")))
-	provider.Status.UnsetAllDeprecatedConditions()
-	provider.Status.SetReady()
 	err = c.Create(ctx, provider)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 	defer c.Delete(ctx, provider)

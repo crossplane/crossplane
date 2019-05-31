@@ -148,11 +148,6 @@ func (m *bucketFactory) newSyncDeleter(ctx context.Context, b *v1alpha1.Bucket) 
 		return nil, err
 	}
 
-	// Check provider status
-	if !p.IsValid() {
-		return nil, errors.Errorf("provider: %s is not ready", n)
-	}
-
 	s := &corev1.Secret{}
 	n = types.NamespacedName{Namespace: p.GetNamespace(), Name: p.Spec.Secret.Name}
 	if err := m.Get(ctx, n, s); err != nil {

@@ -182,11 +182,6 @@ func (r *Reconciler) connect(instance *computev1alpha1.AKSCluster) (*azureclient
 		return nil, fmt.Errorf("failed to get provider: %+v", err)
 	}
 
-	// Check provider status
-	if !p.IsValid() {
-		return nil, fmt.Errorf("provider status is invalid: %+v", p)
-	}
-
 	return r.aksSetupAPIFactory.CreateSetupClient(p, r.clientset)
 }
 

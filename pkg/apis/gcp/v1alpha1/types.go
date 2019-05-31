@@ -19,8 +19,6 @@ package v1alpha1
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 )
 
 // ProviderSpec defines the desired state of Provider
@@ -37,11 +35,6 @@ type ProviderSpec struct {
 	RequiredPermissions []string `json:"requiredPermissions,omitempty"`
 }
 
-// ProviderStatus represents the status of a GCP Provider.
-type ProviderStatus struct {
-	corev1alpha1.DeprecatedConditionedStatus
-}
-
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
@@ -54,8 +47,7 @@ type Provider struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   ProviderSpec   `json:"spec,omitempty"`
-	Status ProviderStatus `json:"status,omitempty"`
+	Spec ProviderSpec `json:"spec,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -65,9 +57,4 @@ type ProviderList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []Provider `json:"items"`
-}
-
-// IsValid returns true if provider is valid (in ready state)
-func (p *Provider) IsValid() bool {
-	return p.Status.IsReady()
 }

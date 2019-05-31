@@ -183,10 +183,6 @@ func (c *providerConnecter) Connect(ctx context.Context, i *v1alpha1.CloudMemory
 		return nil, errors.Wrapf(err, "cannot get provider %s", n)
 	}
 
-	if !p.IsValid() {
-		return nil, errors.Errorf("provider %s is not ready", n)
-	}
-
 	s := &corev1.Secret{}
 	n = types.NamespacedName{Namespace: p.Namespace, Name: p.Spec.Secret.Name}
 	if err := c.kube.Get(ctx, n, s); err != nil {

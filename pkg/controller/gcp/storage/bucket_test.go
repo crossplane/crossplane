@@ -36,7 +36,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/apis/gcp"
 	"github.com/crossplaneio/crossplane/pkg/apis/gcp/storage/v1alpha1"
 	gcpv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/v1alpha1"
@@ -159,11 +158,6 @@ func newProvider(ns, name string) *provider {
 			Name:      name,
 		},
 	}}
-}
-
-func (p *provider) withDeprecatedCondition(c corev1alpha1.DeprecatedCondition) *provider {
-	p.Status.DeprecatedConditionedStatus.SetDeprecatedCondition(c)
-	return p
 }
 
 func (p *provider) withSecret(name, key string) *provider {
@@ -349,19 +343,8 @@ func Test_bucketFactory_newHandler(t *testing.T) {
 			},
 		},
 		{
-			name: "ProviderIsNotReady",
-			Client: fake.NewFakeClient(newProvider(ns, providerName).
-				withDeprecatedCondition(corev1alpha1.NewDeprecatedCondition(corev1alpha1.DeprecatedFailed, "", "")).Provider),
-			bucket: newBucket(ns, bucketName).withProvider("test-provider").Bucket,
-			want: want{
-				err: errors.Errorf("provider: %s is not ready", ns+"/test-provider"),
-			},
-		},
-		{
-			name: "ProviderSecretIsNotFound",
-			Client: fake.NewFakeClient(newProvider(ns, providerName).
-				withDeprecatedCondition(corev1alpha1.NewDeprecatedCondition(corev1alpha1.DeprecatedReady, "", "")).
-				withSecret(secretName, secretKey).Provider),
+			name:   "ProviderSecretIsNotFound",
+			Client: fake.NewFakeClient(newProvider(ns, providerName).withSecret(secretName, secretKey).Provider),
 			bucket: newBucket(ns, bucketName).withProvider("test-provider").Bucket,
 			want: want{
 				err: errors.WithStack(
@@ -371,7 +354,6 @@ func Test_bucketFactory_newHandler(t *testing.T) {
 		{
 			name: "InvalidCredentials",
 			Client: fake.NewFakeClient(newProvider(ns, providerName).
-				withDeprecatedCondition(corev1alpha1.NewDeprecatedCondition(corev1alpha1.DeprecatedReady, "", "")).
 				withSecret(secretName, secretKey).Provider,
 				newSecret(ns, secretName).Secret),
 			bucket: newBucket(ns, bucketName).withProvider("test-provider").Bucket,
@@ -383,7 +365,6 @@ func Test_bucketFactory_newHandler(t *testing.T) {
 		{
 			name: "Successful",
 			Client: fake.NewFakeClient(newProvider(ns, providerName).
-				withDeprecatedCondition(corev1alpha1.NewDeprecatedCondition(corev1alpha1.DeprecatedReady, "", "")).
 				withSecret(secretName, secretKey).Provider,
 				newSecret(ns, secretName).withKeyData(secretKey, secretData).Secret),
 			bucket: newBucket(ns, bucketName).withUID("test-uid").withProvider("test-provider").Bucket,

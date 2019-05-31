@@ -46,7 +46,7 @@ func TestMain(m *testing.M) {
 	t.StopAndExit(m.Run())
 }
 
-func TestStorageProvider(t *testing.T) {
+func TestProvider(t *testing.T) {
 	key := types.NamespacedName{Name: name, Namespace: namespace}
 	created := &Provider{
 		ObjectMeta: metav1.ObjectMeta{
