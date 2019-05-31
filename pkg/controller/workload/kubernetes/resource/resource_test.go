@@ -55,8 +55,8 @@ const (
 
 // Frequently used conditions.
 var (
-	deleting = corev1alpha1.Condition{Type: corev1alpha1.Deleting, Status: corev1.ConditionTrue}
-	ready    = corev1alpha1.Condition{Type: corev1alpha1.Ready, Status: corev1.ConditionTrue}
+	deleting = corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedDeleting, Status: corev1.ConditionTrue}
+	ready    = corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedReady, Status: corev1.ConditionTrue}
 )
 
 var (
@@ -165,8 +165,8 @@ func withFinalizers(f ...string) kubeARModifier {
 	return func(r *v1alpha1.KubernetesApplicationResource) { r.ObjectMeta.Finalizers = f }
 }
 
-func withConditions(c ...corev1alpha1.Condition) kubeARModifier {
-	return func(r *v1alpha1.KubernetesApplicationResource) { r.Status.ConditionedStatus.Conditions = c }
+func withConditions(c ...corev1alpha1.DeprecatedCondition) kubeARModifier {
+	return func(r *v1alpha1.KubernetesApplicationResource) { r.Status.DeprecatedConditionedStatus.Conditions = c }
 }
 
 func withState(s v1alpha1.KubernetesApplicationResourceState) kubeARModifier {
@@ -414,8 +414,8 @@ func TestSync(t *testing.T) {
 			wantAR: kubeAR(
 				withFinalizers(finalizerName),
 				withConditions(
-					corev1alpha1.Condition{
-						Type:    corev1alpha1.Failed,
+					corev1alpha1.DeprecatedCondition{
+						Type:    corev1alpha1.DeprecatedFailed,
 						Status:  corev1.ConditionTrue,
 						Reason:  reasonSyncingResource,
 						Message: messageMissingTemplate,
@@ -436,8 +436,8 @@ func TestSync(t *testing.T) {
 				withTemplate(template(serviceWithoutNamespace)),
 				withFinalizers(finalizerName),
 				withConditions(
-					corev1alpha1.Condition{
-						Type:    corev1alpha1.Failed,
+					corev1alpha1.DeprecatedCondition{
+						Type:    corev1alpha1.DeprecatedFailed,
 						Status:  corev1.ConditionTrue,
 						Reason:  reasonSyncingSecret,
 						Message: errorBoom.Error(),
@@ -462,8 +462,8 @@ func TestSync(t *testing.T) {
 				withFinalizers(finalizerName),
 				withRemoteStatus(remoteStatus),
 				withConditions(
-					corev1alpha1.Condition{
-						Type:    corev1alpha1.Failed,
+					corev1alpha1.DeprecatedCondition{
+						Type:    corev1alpha1.DeprecatedFailed,
 						Status:  corev1.ConditionTrue,
 						Reason:  reasonSyncingResource,
 						Message: errorBoom.Error(),
@@ -483,8 +483,8 @@ func TestSync(t *testing.T) {
 				withTemplate(template(serviceWithoutNamespace)),
 				withFinalizers(finalizerName),
 				withConditions(
-					corev1alpha1.Condition{
-						Type:    corev1alpha1.Failed,
+					corev1alpha1.DeprecatedCondition{
+						Type:    corev1alpha1.DeprecatedFailed,
 						Status:  corev1.ConditionTrue,
 						Reason:  reasonSyncingResource,
 						Message: errorBoom.Error(),
@@ -578,8 +578,8 @@ func TestDelete(t *testing.T) {
 				withFinalizers(finalizerName),
 				withConditions(
 					deleting,
-					corev1alpha1.Condition{
-						Type:    corev1alpha1.Failed,
+					corev1alpha1.DeprecatedCondition{
+						Type:    corev1alpha1.DeprecatedFailed,
 						Status:  corev1.ConditionTrue,
 						Reason:  reasonDeletingResource,
 						Message: messageMissingTemplate,
@@ -605,8 +605,8 @@ func TestDelete(t *testing.T) {
 				withTemplate(template(serviceWithoutNamespace)),
 				withConditions(
 					deleting,
-					corev1alpha1.Condition{
-						Type:    corev1alpha1.Failed,
+					corev1alpha1.DeprecatedCondition{
+						Type:    corev1alpha1.DeprecatedFailed,
 						Status:  corev1.ConditionTrue,
 						Reason:  reasonDeletingSecret,
 						Message: errorBoom.Error(),
@@ -630,8 +630,8 @@ func TestDelete(t *testing.T) {
 				withTemplate(template(serviceWithoutNamespace)),
 				withConditions(
 					deleting,
-					corev1alpha1.Condition{
-						Type:    corev1alpha1.Failed,
+					corev1alpha1.DeprecatedCondition{
+						Type:    corev1alpha1.DeprecatedFailed,
 						Status:  corev1.ConditionTrue,
 						Reason:  reasonDeletingResource,
 						Message: errorBoom.Error(),
@@ -1261,8 +1261,8 @@ func TestReconcile(t *testing.T) {
 
 						want := kubeAR(
 							withConditions(
-								corev1alpha1.Condition{
-									Type:    corev1alpha1.Failed,
+								corev1alpha1.DeprecatedCondition{
+									Type:    corev1alpha1.DeprecatedFailed,
 									Status:  corev1.ConditionTrue,
 									Reason:  reasonFetchingClient,
 									Message: errorBoom.Error(),
@@ -1410,8 +1410,8 @@ func TestGetConnectionSecrets(t *testing.T) {
 			wantAR: kubeAR(
 				withSecrets(secretLocalObjectRef),
 				withConditions(
-					corev1alpha1.Condition{
-						Type:    corev1alpha1.Failed,
+					corev1alpha1.DeprecatedCondition{
+						Type:    corev1alpha1.DeprecatedFailed,
 						Status:  corev1.ConditionTrue,
 						Reason:  reasonGettingSecret,
 						Message: errorBoom.Error(),

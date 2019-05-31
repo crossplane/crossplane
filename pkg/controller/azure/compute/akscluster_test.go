@@ -178,7 +178,7 @@ func TestReconcile(t *testing.T) {
 
 	// create the provider object and defer its cleanup
 	provider := testProvider(testSecret([]byte("testdata")))
-	provider.Status.UnsetAllConditions()
+	provider.Status.UnsetAllDeprecatedConditions()
 	provider.Status.SetReady()
 	err = c.Create(ctx, provider)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
@@ -204,10 +204,10 @@ func TestReconcile(t *testing.T) {
 		ClusterName:         instanceName,
 		ApplicationObjectID: "182f8c4a-ad89-4b25-b947-d4026ab183a1",
 		ServicePrincipalID:  "da804153-3faa-4c73-9fcb-0961387a31f9",
-		ConditionedStatus: corev1alpha1.ConditionedStatus{
-			Conditions: []corev1alpha1.Condition{
+		DeprecatedConditionedStatus: corev1alpha1.DeprecatedConditionedStatus{
+			Conditions: []corev1alpha1.DeprecatedCondition{
 				{
-					Type:   corev1alpha1.Creating,
+					Type:   corev1alpha1.DeprecatedCreating,
 					Status: v1.ConditionTrue,
 				},
 			},
@@ -229,10 +229,10 @@ func TestReconcile(t *testing.T) {
 		ClusterName:         instanceName,
 		ApplicationObjectID: "182f8c4a-ad89-4b25-b947-d4026ab183a1",
 		ServicePrincipalID:  "da804153-3faa-4c73-9fcb-0961387a31f9",
-		ConditionedStatus: corev1alpha1.ConditionedStatus{
-			Conditions: []corev1alpha1.Condition{
+		DeprecatedConditionedStatus: corev1alpha1.DeprecatedConditionedStatus{
+			Conditions: []corev1alpha1.DeprecatedCondition{
 				{
-					Type:   corev1alpha1.Creating,
+					Type:   corev1alpha1.DeprecatedCreating,
 					Status: v1.ConditionTrue,
 				},
 			},
@@ -252,14 +252,14 @@ func TestReconcile(t *testing.T) {
 		Endpoint:            "crossplane-aks.foo.azure.com",
 		ApplicationObjectID: "182f8c4a-ad89-4b25-b947-d4026ab183a1",
 		ServicePrincipalID:  "da804153-3faa-4c73-9fcb-0961387a31f9",
-		ConditionedStatus: corev1alpha1.ConditionedStatus{
-			Conditions: []corev1alpha1.Condition{
+		DeprecatedConditionedStatus: corev1alpha1.DeprecatedConditionedStatus{
+			Conditions: []corev1alpha1.DeprecatedCondition{
 				{
-					Type:   corev1alpha1.Creating,
+					Type:   corev1alpha1.DeprecatedCreating,
 					Status: v1.ConditionFalse,
 				},
 				{
-					Type:   corev1alpha1.Ready,
+					Type:   corev1alpha1.DeprecatedReady,
 					Status: v1.ConditionTrue,
 				},
 			},
@@ -338,7 +338,7 @@ func assertAKSClusterStatus(g *gomega.GomegaWithT, c client.Client, expectedStat
 	g.Expect(instance.Status.RunningOperation).To(gomega.Equal(expectedStatus.RunningOperation))
 
 	// assert the expected status conditions
-	corev1alpha1.AssertConditions(g, expectedStatus.Conditions, instance.Status.ConditionedStatus)
+	corev1alpha1.AssertConditions(g, expectedStatus.Conditions, instance.Status.DeprecatedConditionedStatus)
 }
 
 func assertConnectionSecret(g *gomega.GomegaWithT, c client.Client, connectionSecret *v1.Secret) {

@@ -139,7 +139,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 
 	// Check for deletion
 	if instance.DeletionTimestamp != nil {
-		if instance.Status.Condition(corev1alpha1.Deleting) == nil {
+		if instance.Status.DeprecatedCondition(corev1alpha1.DeprecatedDeleting) == nil {
 			// we haven't started the deletion of the AKS cluster yet, do it now
 			log.V(logging.Debug).Info("AKS cluster has been deleted, running finalizer now", "instance", instance)
 			return r.delete(instance, aksClient)
@@ -249,7 +249,7 @@ func (r *Reconciler) create(instance *computev1alpha1.AKSCluster, aksClient *azu
 	instance.Status.RunningOperation = string(createOp)
 
 	// set the creating/provisioning state to the CRD status
-	instance.Status.UnsetAllConditions()
+	instance.Status.UnsetAllDeprecatedConditions()
 	instance.Status.SetCreating()
 	instance.Status.ClusterName = clusterName
 
@@ -330,7 +330,7 @@ func (r *Reconciler) sync(instance *computev1alpha1.AKSCluster, aksClient *azure
 	}
 
 	if !instance.Status.IsReady() {
-		instance.Status.UnsetAllConditions()
+		instance.Status.UnsetAllDeprecatedConditions()
 		instance.Status.SetReady()
 	}
 
@@ -367,14 +367,14 @@ func (r *Reconciler) delete(instance *computev1alpha1.AKSCluster, aksClient *azu
 	}
 
 	util.RemoveFinalizer(&instance.ObjectMeta, finalizer)
-	instance.Status.UnsetAllConditions()
+	instance.Status.UnsetAllDeprecatedConditions()
 	instance.Status.SetDeleting()
 	return result, r.Update(ctx, instance)
 }
 
 // fail - helper function to set fail condition with reason and message
 func (r *Reconciler) fail(instance *computev1alpha1.AKSCluster, reason, msg string) (reconcile.Result, error) {
-	instance.Status.UnsetAllConditions()
+	instance.Status.UnsetAllDeprecatedConditions()
 	instance.Status.SetFailed(reason, msg)
 	return resultRequeue, r.Update(ctx, instance)
 }

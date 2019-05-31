@@ -123,7 +123,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 // fail - helper function to set fail condition with reason and message
 func (r *Reconciler) fail(bucket *bucketv1alpha1.S3Bucket, reason, msg string) (reconcile.Result, error) {
-	bucket.Status.SetCondition(corev1alpha1.NewCondition(corev1alpha1.Failed, reason, msg))
+	bucket.Status.SetDeprecatedCondition(corev1alpha1.NewDeprecatedCondition(corev1alpha1.DeprecatedFailed, reason, msg))
 	return reconcile.Result{Requeue: true}, r.Update(context.TODO(), bucket)
 }
 
@@ -175,7 +175,7 @@ func (r *Reconciler) _connect(instance *bucketv1alpha1.S3Bucket) (s3.Service, er
 }
 
 func (r *Reconciler) _create(bucket *bucketv1alpha1.S3Bucket, client s3.Service) (reconcile.Result, error) {
-	bucket.Status.UnsetAllConditions()
+	bucket.Status.UnsetAllDeprecatedConditions()
 	util.AddFinalizer(&bucket.ObjectMeta, finalizer)
 	err := client.CreateOrUpdateBucket(bucket)
 	if err != nil {
@@ -210,7 +210,7 @@ func (r *Reconciler) _create(bucket *bucketv1alpha1.S3Bucket, client s3.Service)
 	}
 
 	// No longer creating, we're ready!
-	bucket.Status.UnsetCondition(corev1alpha1.Creating)
+	bucket.Status.UnsetDeprecatedCondition(corev1alpha1.DeprecatedCreating)
 	bucket.Status.SetReady()
 	return result, r.Update(ctx, bucket)
 }
@@ -254,7 +254,7 @@ func (r *Reconciler) _sync(bucket *bucketv1alpha1.S3Bucket, client s3.Service) (
 	}
 
 	// Sync completed, so lets unset failed conditions.
-	bucket.Status.UnsetCondition(corev1alpha1.Failed)
+	bucket.Status.UnsetDeprecatedCondition(corev1alpha1.DeprecatedFailed)
 
 	return result, r.Update(ctx, bucket)
 }
@@ -266,7 +266,7 @@ func (r *Reconciler) _delete(bucket *bucketv1alpha1.S3Bucket, client s3.Service)
 		}
 	}
 
-	bucket.Status.SetCondition(corev1alpha1.NewCondition(corev1alpha1.Deleting, "", ""))
+	bucket.Status.SetDeprecatedCondition(corev1alpha1.NewDeprecatedCondition(corev1alpha1.DeprecatedDeleting, "", ""))
 	util.RemoveFinalizer(&bucket.ObjectMeta, finalizer)
 	return result, r.Update(ctx, bucket)
 }

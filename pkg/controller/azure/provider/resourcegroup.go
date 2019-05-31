@@ -96,7 +96,7 @@ func (a *azureResourceGroup) Create(ctx context.Context, r *v1alpha1.ResourceGro
 	}
 
 	r.Status.Name = r.Spec.Name
-	r.Status.UnsetAllConditions()
+	r.Status.UnsetAllDeprecatedConditions()
 	r.Status.SetCreating()
 	util.AddFinalizer(&r.ObjectMeta, finalizerRG)
 
@@ -110,7 +110,7 @@ func (a *azureResourceGroup) Sync(ctx context.Context, r *v1alpha1.ResourceGroup
 		return true
 	}
 
-	r.Status.UnsetAllConditions()
+	r.Status.UnsetAllDeprecatedConditions()
 
 	switch res.Response.StatusCode {
 	case http.StatusNoContent:

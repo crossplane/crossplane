@@ -61,7 +61,7 @@ type S3BucketSpec struct {
 
 // S3BucketStatus defines the observed state of S3Bucket
 type S3BucketStatus struct {
-	corev1alpha1.ConditionedStatus
+	corev1alpha1.DeprecatedConditionedStatus
 	corev1alpha1.BindingStatusPhase
 	Message               string                              `json:"message,omitempty"`
 	ProviderID            string                              `json:"providerID,omitempty"` // the external ID to identify this resource in the cloud provider
@@ -200,7 +200,7 @@ func (b *S3Bucket) OwnerReference() metav1.OwnerReference {
 
 // IsAvailable for usage/binding
 func (b *S3Bucket) IsAvailable() bool {
-	return b.Status.IsCondition(corev1alpha1.Ready)
+	return b.Status.IsDeprecatedCondition(corev1alpha1.DeprecatedReady)
 }
 
 // IsBound returns true if this bucket is bound to a resource claim.

@@ -403,7 +403,7 @@ func (asu *accountSecretUpdater) updatesecret(ctx context.Context, acct *storage
 
 func updateStatusIfNotReady(ctx context.Context, kube client.StatusClient, acct *v1alpha1.Account) (reconcile.Result, error) {
 	if !acct.Status.IsReady() {
-		acct.Status.UnsetAllConditions()
+		acct.Status.UnsetAllDeprecatedConditions()
 		acct.Status.SetReady()
 		return reconcile.Result{}, kube.Status().Update(ctx, acct)
 	}

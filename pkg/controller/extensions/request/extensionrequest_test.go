@@ -149,7 +149,7 @@ spec:
   title: Sample Crossplane Extension
   version: 0.0.1
 status:
-  Conditions: null
+ Conditions: null
 `
 )
 
@@ -169,8 +169,8 @@ var _ reconcile.Reconciler = &Reconciler{}
 // ************************************************************************************************
 type resourceModifier func(*v1alpha1.ExtensionRequest)
 
-func withConditions(c ...corev1alpha1.Condition) resourceModifier {
-	return func(r *v1alpha1.ExtensionRequest) { r.Status.ConditionedStatus.Conditions = c }
+func withConditions(c ...corev1alpha1.DeprecatedCondition) resourceModifier {
+	return func(r *v1alpha1.ExtensionRequest) { r.Status.DeprecatedConditionedStatus.Conditions = c }
 }
 
 func withInstallJob(jobRef *corev1.ObjectReference) resourceModifier {
@@ -202,11 +202,11 @@ func resource(rm ...resourceModifier) *v1alpha1.ExtensionRequest {
 // Job modifiers
 type jobModifier func(*batchv1.Job)
 
-func withJobConditions(jobConditionType batchv1.JobConditionType, message string) jobModifier {
+func withJobConditions(jobDeprecatedConditionType batchv1.JobConditionType, message string) jobModifier {
 	return func(j *batchv1.Job) {
 		j.Status.Conditions = []batchv1.JobCondition{
 			{
-				Type:    jobConditionType,
+				Type:    jobDeprecatedConditionType,
 				Status:  corev1.ConditionTrue,
 				Message: message,
 			},
@@ -466,7 +466,7 @@ func TestCreate(t *testing.T) {
 				result: requeueOnSuccess,
 				err:    nil,
 				ext: resource(
-					withConditions(corev1alpha1.Condition{Type: corev1alpha1.Creating, Status: corev1.ConditionTrue}),
+					withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedCreating, Status: corev1.ConditionTrue}),
 					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: namespace}),
 				),
 			},
@@ -482,14 +482,14 @@ func TestCreate(t *testing.T) {
 					MockStatusUpdate: func(ctx context.Context, obj runtime.Object) error { return nil },
 				},
 				ext: resource(
-					withConditions(corev1alpha1.Condition{Type: corev1alpha1.Creating, Status: corev1.ConditionTrue}),
+					withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedCreating, Status: corev1.ConditionTrue}),
 					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: namespace})),
 			},
 			want: want{
 				result: requeueOnSuccess,
 				err:    nil,
 				ext: resource(
-					withConditions(corev1alpha1.Condition{Type: corev1alpha1.Creating, Status: corev1.ConditionTrue}),
+					withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedCreating, Status: corev1.ConditionTrue}),
 					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: namespace}),
 				),
 			},
@@ -516,7 +516,7 @@ func TestCreate(t *testing.T) {
 				result: requeueOnSuccess,
 				err:    nil,
 				ext: resource(
-					withConditions(corev1alpha1.Condition{Type: corev1alpha1.Ready, Status: corev1.ConditionTrue}),
+					withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedReady, Status: corev1.ConditionTrue}),
 					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: namespace}),
 				),
 			},
@@ -543,8 +543,8 @@ func TestCreate(t *testing.T) {
 				result: resultRequeue,
 				err:    nil,
 				ext: resource(
-					withConditions(corev1alpha1.Condition{
-						Type:    corev1alpha1.Failed,
+					withConditions(corev1alpha1.DeprecatedCondition{
+						Type:    corev1alpha1.DeprecatedFailed,
 						Status:  corev1.ConditionTrue,
 						Reason:  reasonJobFailed,
 						Message: "mock job failure message",

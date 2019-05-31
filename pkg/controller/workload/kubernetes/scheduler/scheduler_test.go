@@ -72,14 +72,14 @@ var (
 
 // Frequently used conditions.
 var (
-	ready   = corev1alpha1.Condition{Type: corev1alpha1.Ready, Status: corev1.ConditionTrue}
-	pending = corev1alpha1.Condition{Type: corev1alpha1.Pending, Status: corev1.ConditionTrue}
+	ready   = corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedReady, Status: corev1.ConditionTrue}
+	pending = corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedPending, Status: corev1.ConditionTrue}
 )
 
 type kubeAppModifier func(*workloadv1alpha1.KubernetesApplication)
 
-func withConditions(c ...corev1alpha1.Condition) kubeAppModifier {
-	return func(r *workloadv1alpha1.KubernetesApplication) { r.Status.ConditionedStatus.Conditions = c }
+func withConditions(c ...corev1alpha1.DeprecatedCondition) kubeAppModifier {
+	return func(r *workloadv1alpha1.KubernetesApplication) { r.Status.DeprecatedConditionedStatus.Conditions = c }
 }
 
 func withState(s workloadv1alpha1.KubernetesApplicationState) kubeAppModifier {
@@ -231,8 +231,8 @@ func TestSchedule(t *testing.T) {
 				withCluster(clusterA.ObjectReference()),
 				withState(workloadv1alpha1.KubernetesApplicationStateScheduled),
 				withConditions(
-					corev1alpha1.Condition{
-						Type:   corev1alpha1.Pending,
+					corev1alpha1.DeprecatedCondition{
+						Type:   corev1alpha1.DeprecatedPending,
 						Status: corev1.ConditionFalse,
 					},
 					ready,
@@ -256,8 +256,8 @@ func TestSchedule(t *testing.T) {
 				withState(workloadv1alpha1.KubernetesApplicationStatePending),
 				withConditions(
 					pending,
-					corev1alpha1.Condition{
-						Type:    corev1alpha1.Failed,
+					corev1alpha1.DeprecatedCondition{
+						Type:    corev1alpha1.DeprecatedFailed,
 						Status:  corev1.ConditionTrue,
 						Reason:  reasonUnschedulable,
 						Message: "\"wat\" is not a valid pod selector operator",
@@ -277,8 +277,8 @@ func TestSchedule(t *testing.T) {
 				withState(workloadv1alpha1.KubernetesApplicationStatePending),
 				withConditions(
 					pending,
-					corev1alpha1.Condition{
-						Type:    corev1alpha1.Failed,
+					corev1alpha1.DeprecatedCondition{
+						Type:    corev1alpha1.DeprecatedFailed,
 						Status:  corev1.ConditionTrue,
 						Reason:  reasonUnschedulable,
 						Message: errorBoom.Error(),
@@ -303,8 +303,8 @@ func TestSchedule(t *testing.T) {
 				withState(workloadv1alpha1.KubernetesApplicationStatePending),
 				withConditions(
 					pending,
-					corev1alpha1.Condition{
-						Type:    corev1alpha1.Failed,
+					corev1alpha1.DeprecatedCondition{
+						Type:    corev1alpha1.DeprecatedFailed,
 						Status:  corev1.ConditionTrue,
 						Reason:  reasonUnschedulable,
 						Message: errorNoclusters,

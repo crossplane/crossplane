@@ -122,7 +122,7 @@ func TestScheduleNoClusters(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	wl := testWorkload()
-	expStatus := wl.Status.ConditionedStatus
+	expStatus := wl.Status.DeprecatedConditionedStatus
 	expStatus.SetFailed(errorUnschedulable, "Cannot match to any existing cluster")
 	r := &Reconciler{
 		Client: NewFakeClient(wl),
@@ -131,7 +131,7 @@ func TestScheduleNoClusters(t *testing.T) {
 	rs, err := r._schedule(wl)
 	g.Expect(err).ShouldNot(HaveOccurred())
 	g.Expect(rs).Should(Equal(resultRequeue))
-	g.Expect(wl.Status.ConditionedStatus).Should(corev1alpha1.MatchConditionedStatus(expStatus))
+	g.Expect(wl.Status.DeprecatedConditionedStatus).Should(corev1alpha1.MatchDeprecatedConditionedStatus(expStatus))
 }
 
 // TestScheduleSingleClusterNoSelector - test workload scheduling against environment with a
@@ -141,7 +141,7 @@ func TestScheduleSingleClusterNoSelector(t *testing.T) {
 
 	wl := testWorkload()
 	cl := testCluster(namespace, clusterName)
-	expStatus := wl.Status.ConditionedStatus
+	expStatus := wl.Status.DeprecatedConditionedStatus
 	r := &Reconciler{
 		Client: NewFakeClient(wl, cl),
 	}
@@ -149,7 +149,7 @@ func TestScheduleSingleClusterNoSelector(t *testing.T) {
 	rs, err := r._schedule(wl)
 	g.Expect(err).ShouldNot(HaveOccurred())
 	g.Expect(rs).Should(Equal(resultDone))
-	g.Expect(wl.Status.ConditionedStatus).Should(corev1alpha1.MatchConditionedStatus(expStatus))
+	g.Expect(wl.Status.DeprecatedConditionedStatus).Should(corev1alpha1.MatchDeprecatedConditionedStatus(expStatus))
 	g.Expect(wl.Status.Cluster).Should(Equal(cl.ObjectReference()))
 }
 

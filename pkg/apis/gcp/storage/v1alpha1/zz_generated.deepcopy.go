@@ -246,7 +246,7 @@ func (in *BucketSpecAttrs) DeepCopy() *BucketSpecAttrs {
 func (in *BucketStatus) DeepCopyInto(out *BucketStatus) {
 	*out = *in
 	in.BucketOutputAttrs.DeepCopyInto(&out.BucketOutputAttrs)
-	in.ConditionedStatus.DeepCopyInto(&out.ConditionedStatus)
+	in.DeprecatedConditionedStatus.DeepCopyInto(&out.DeprecatedConditionedStatus)
 	out.BindingStatusPhase = in.BindingStatusPhase
 	out.ConnectionSecretRef = in.ConnectionSecretRef
 	return

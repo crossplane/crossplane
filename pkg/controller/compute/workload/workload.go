@@ -131,7 +131,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 // fail - helper function to set fail condition with reason and message
 func (r *Reconciler) fail(instance *computev1alpha1.Workload, reason, msg string) (reconcile.Result, error) {
-	instance.Status.SetCondition(corev1alpha1.NewCondition(corev1alpha1.Failed, reason, msg))
+	instance.Status.SetDeprecatedCondition(corev1alpha1.NewDeprecatedCondition(corev1alpha1.DeprecatedFailed, reason, msg))
 	return resultRequeue, r.Status().Update(ctx, instance)
 }
 
@@ -343,7 +343,7 @@ func (r *Reconciler) _sync(instance *computev1alpha1.Workload, client kubernetes
 	// TODO: decide how to better determine the workload status
 	if util.LatestDeploymentCondition(dd.Status.Conditions).Type == appsv1.DeploymentAvailable {
 		instance.Status.State = computev1alpha1.WorkloadStateRunning
-		instance.Status.SetCondition(corev1alpha1.NewCondition(corev1alpha1.Ready, "", ""))
+		instance.Status.SetDeprecatedCondition(corev1alpha1.NewDeprecatedCondition(corev1alpha1.DeprecatedReady, "", ""))
 		return resultDone, r.Status().Update(ctx, instance)
 	}
 
@@ -376,7 +376,7 @@ func (r *Reconciler) _delete(instance *computev1alpha1.Workload, client kubernet
 		}
 	}
 
-	instance.Status.SetCondition(corev1alpha1.NewCondition(corev1alpha1.Deleting, "", ""))
+	instance.Status.SetDeprecatedCondition(corev1alpha1.NewDeprecatedCondition(corev1alpha1.DeprecatedDeleting, "", ""))
 	util.RemoveFinalizer(&instance.ObjectMeta, finalizer)
 	return resultDone, r.Status().Update(ctx, instance)
 }
@@ -409,7 +409,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	}
 
 	// Check for deletion
-	if instance.DeletionTimestamp != nil && instance.Status.Condition(corev1alpha1.Deleting) == nil {
+	if instance.DeletionTimestamp != nil && instance.Status.DeprecatedCondition(corev1alpha1.DeprecatedDeleting) == nil {
 		return r.delete(instance, targetClient)
 	}
 

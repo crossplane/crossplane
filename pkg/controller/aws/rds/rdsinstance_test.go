@@ -90,18 +90,18 @@ func testResource() *RDSInstance {
 }
 
 // assertResource a helper function to check on cluster and its status
-func assertResource(g *GomegaWithT, r *Reconciler, s corev1alpha1.ConditionedStatus) *RDSInstance {
+func assertResource(g *GomegaWithT, r *Reconciler, s corev1alpha1.DeprecatedConditionedStatus) *RDSInstance {
 	resource := &RDSInstance{}
 	err := r.Get(ctx, key, resource)
 	g.Expect(err).To(BeNil())
-	g.Expect(resource.Status.ConditionedStatus).Should(corev1alpha1.MatchConditionedStatus(s))
+	g.Expect(resource.Status.DeprecatedConditionedStatus).Should(corev1alpha1.MatchDeprecatedConditionedStatus(s))
 	return resource
 }
 
 func TestSyncClusterError(t *testing.T) {
 	g := NewGomegaWithT(t)
 
-	assert := func(instance *RDSInstance, client rds.Client, expectedResult reconcile.Result, expectedStatus corev1alpha1.ConditionedStatus) {
+	assert := func(instance *RDSInstance, client rds.Client, expectedResult reconcile.Result, expectedStatus corev1alpha1.DeprecatedConditionedStatus) {
 		r := &Reconciler{
 			Client:     NewFakeClient(instance),
 			kubeclient: NewSimpleClientset(),
@@ -121,7 +121,7 @@ func TestSyncClusterError(t *testing.T) {
 			return nil, fmt.Errorf(testError)
 		},
 	}
-	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus := corev1alpha1.DeprecatedConditionedStatus{}
 	expectedStatus.SetFailed(errorSyncResource, testError)
 	assert(testResource(), cl, resultRequeue, expectedStatus)
 
@@ -133,7 +133,7 @@ func TestSyncClusterError(t *testing.T) {
 			}, nil
 		},
 	}
-	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus = corev1alpha1.DeprecatedConditionedStatus{}
 	expectedStatus.SetCreating()
 	assert(testResource(), cl, resultRequeue, expectedStatus)
 
@@ -145,7 +145,7 @@ func TestSyncClusterError(t *testing.T) {
 			}, nil
 		},
 	}
-	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus = corev1alpha1.DeprecatedConditionedStatus{}
 	expectedStatus.SetFailed(errorSyncResource, "resource is in failed state")
 	assert(testResource(), cl, result, expectedStatus)
 
@@ -158,7 +158,7 @@ func TestSyncClusterError(t *testing.T) {
 		},
 	}
 
-	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus = corev1alpha1.DeprecatedConditionedStatus{}
 	expectedStatus.SetFailed(errorSyncResource, fmt.Sprintf("unexpected resource status: %s", RDSInstanceStateDeleting))
 	assert(testResource(), cl, resultRequeue, expectedStatus)
 
@@ -172,7 +172,7 @@ func TestSyncClusterError(t *testing.T) {
 	}
 
 	tr := testResource()
-	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus = corev1alpha1.DeprecatedConditionedStatus{}
 	expectedStatus.SetReady()
 	expectedStatus.SetFailed(errorSyncResource, fmt.Sprintf("secrets \"%s\" not found", tr.Name))
 	assert(tr, cl, resultRequeue, expectedStatus)
@@ -206,7 +206,7 @@ func TestSyncClusterUpdateSecretFailure(t *testing.T) {
 		},
 	}
 
-	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus := corev1alpha1.DeprecatedConditionedStatus{}
 	expectedStatus.SetReady()
 	expectedStatus.SetFailed(errorSyncResource, testError)
 
@@ -238,7 +238,7 @@ func TestSyncCluster(t *testing.T) {
 		},
 	}
 
-	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus := corev1alpha1.DeprecatedConditionedStatus{}
 	expectedStatus.SetReady()
 
 	rs, err := r._sync(tr, cl)
@@ -263,7 +263,7 @@ func TestDelete(t *testing.T) {
 
 	// test delete w/ reclaim policy
 	tr.Spec.ReclaimPolicy = corev1alpha1.ReclaimRetain
-	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus := corev1alpha1.DeprecatedConditionedStatus{}
 	expectedStatus.SetDeleting()
 
 	rs, err := r._delete(tr, cl)
@@ -321,7 +321,7 @@ func TestCreate(t *testing.T) {
 		},
 	}
 
-	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus := corev1alpha1.DeprecatedConditionedStatus{}
 	expectedStatus.SetCreating()
 
 	rs, err := r._create(testResource(), cl)
@@ -355,7 +355,7 @@ func TestCreateFail(t *testing.T) {
 		return true, nil, fmt.Errorf(testError)
 	})
 
-	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus := corev1alpha1.DeprecatedConditionedStatus{}
 	expectedStatus.SetFailed(errorCreateResource, testError)
 
 	rs, err := r._create(tr, cl)
@@ -373,7 +373,7 @@ func TestCreateFail(t *testing.T) {
 		return nil, fmt.Errorf(testError)
 	}
 
-	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus = corev1alpha1.DeprecatedConditionedStatus{}
 	expectedStatus.SetFailed(errorCreateResource, testError)
 
 	rs, err = r._create(tr, cl)
@@ -425,7 +425,7 @@ func TestReconcile(t *testing.T) {
 		return nil, fmt.Errorf(testError)
 	}
 
-	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus := corev1alpha1.DeprecatedConditionedStatus{}
 	expectedStatus.SetFailed(errorResourceClient, testError)
 
 	rs, err := r.Reconcile(request)

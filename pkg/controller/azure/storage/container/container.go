@@ -295,7 +295,7 @@ func (ccu *containerCreateUpdater) update(ctx context.Context, accessType *azblo
 
 func (ccu *containerCreateUpdater) updateStatusIfNotReady(ctx context.Context) (reconcile.Result, error) {
 	if !ccu.container.Status.IsReady() {
-		ccu.container.Status.UnsetAllConditions()
+		ccu.container.Status.UnsetAllDeprecatedConditions()
 		ccu.container.Status.SetReady()
 		return reconcile.Result{}, ccu.kube.Status().Update(ctx, ccu.container)
 	}

@@ -52,7 +52,7 @@ type AccountSpec struct {
 type AccountStatus struct {
 	*StorageAccountStatus `json:"accountStatus,inline"`
 
-	corev1alpha1.ConditionedStatus
+	corev1alpha1.DeprecatedConditionedStatus
 	corev1alpha1.BindingStatusPhase
 	ConnectionSecretRef corev1.LocalObjectReference `json:"connectionSecretRef,omitempty"`
 }
@@ -167,7 +167,7 @@ type ContainerSpec struct {
 
 // ContainerStatus sub-resource for Container object
 type ContainerStatus struct {
-	corev1alpha1.ConditionedStatus
+	corev1alpha1.DeprecatedConditionedStatus
 	corev1alpha1.BindingStatusPhase
 	ConnectionSecretRef corev1.LocalObjectReference `json:"connectionSecretRef,omitempty"`
 	Name                string                      `json:"name,omitempty"`

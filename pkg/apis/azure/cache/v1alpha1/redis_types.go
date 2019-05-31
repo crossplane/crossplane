@@ -129,7 +129,7 @@ type SKUSpec struct {
 
 // RedisStatus defines the observed state of Redis
 type RedisStatus struct {
-	corev1alpha1.ConditionedStatus
+	corev1alpha1.DeprecatedConditionedStatus
 	corev1alpha1.BindingStatusPhase
 	State   string `json:"state,omitempty"`
 	Message string `json:"message,omitempty"`

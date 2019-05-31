@@ -122,7 +122,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 // fail - helper function to set fail condition with reason and message
 func (r *Reconciler) fail(instance *databasev1alpha1.RDSInstance, reason, msg string) (reconcile.Result, error) {
-	instance.Status.SetCondition(corev1alpha1.NewCondition(corev1alpha1.Failed, reason, msg))
+	instance.Status.SetDeprecatedCondition(corev1alpha1.NewDeprecatedCondition(corev1alpha1.DeprecatedFailed, reason, msg))
 	return reconcile.Result{Requeue: true}, r.Update(context.TODO(), instance)
 }
 
@@ -196,7 +196,7 @@ func (r *Reconciler) _create(instance *databasev1alpha1.RDSInstance, client rds.
 		return r.fail(instance, errorCreateResource, err.Error())
 	}
 
-	instance.Status.UnsetAllConditions()
+	instance.Status.UnsetAllDeprecatedConditions()
 	instance.Status.SetCreating()
 	instance.Status.InstanceName = resourceName
 
@@ -214,7 +214,7 @@ func (r *Reconciler) _sync(instance *databasev1alpha1.RDSInstance, client rds.Cl
 
 	instance.Status.State = db.Status
 
-	instance.Status.UnsetAllConditions()
+	instance.Status.UnsetAllDeprecatedConditions()
 	switch db.Status {
 	case string(databasev1alpha1.RDSInstanceStateCreating):
 		instance.Status.SetCreating()
@@ -255,7 +255,7 @@ func (r *Reconciler) _delete(instance *databasev1alpha1.RDSInstance, client rds.
 		}
 	}
 
-	instance.Status.SetCondition(corev1alpha1.NewCondition(corev1alpha1.Deleting, "", ""))
+	instance.Status.SetDeprecatedCondition(corev1alpha1.NewDeprecatedCondition(corev1alpha1.DeprecatedDeleting, "", ""))
 	util.RemoveFinalizer(&instance.ObjectMeta, finalizer)
 	return result, r.Update(ctx, instance)
 }

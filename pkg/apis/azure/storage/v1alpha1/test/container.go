@@ -129,20 +129,20 @@ func (tc *MockContainer) WithStatusSetBound(bound bool) *MockContainer {
 	return tc
 }
 
-// WithFailedCondition sets status failed condition
-func (tc *MockContainer) WithFailedCondition(reason, msg string) *MockContainer {
+// WithFailedDeprecatedCondition sets status failed condition
+func (tc *MockContainer) WithFailedDeprecatedCondition(reason, msg string) *MockContainer {
 	tc.Status.SetFailed(reason, msg)
 	return tc
 }
 
-// WithUnsetAllConditions resets all status conditions
-func (tc *MockContainer) WithUnsetAllConditions() *MockContainer {
-	tc.Status.UnsetAllConditions()
+// WithUnsetAllDeprecatedConditions resets all status conditions
+func (tc *MockContainer) WithUnsetAllDeprecatedConditions() *MockContainer {
+	tc.Status.UnsetAllDeprecatedConditions()
 	return tc
 }
 
-// WithReadyCondition sets status ready condition
-func (tc *MockContainer) WithReadyCondition() *MockContainer {
+// WithReadyDeprecatedCondition sets status ready condition
+func (tc *MockContainer) WithReadyDeprecatedCondition() *MockContainer {
 	tc.Status.SetReady()
 	return tc
 }

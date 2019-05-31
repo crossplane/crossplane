@@ -80,7 +80,7 @@ const (
 
 // RDSInstanceStatus defines the observed state of RDSInstance
 type RDSInstanceStatus struct {
-	corev1alpha1.ConditionedStatus
+	corev1alpha1.DeprecatedConditionedStatus
 	corev1alpha1.BindingStatusPhase
 	State        string `json:"state,omitempty"`
 	Message      string `json:"message,omitempty"`

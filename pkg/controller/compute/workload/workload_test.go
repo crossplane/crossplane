@@ -125,7 +125,7 @@ func TestReconcileNotScheduled(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	w := testWorkload()
-	expCondition := corev1alpha1.ConditionedStatus{}
+	expDeprecatedCondition := corev1alpha1.DeprecatedConditionedStatus{}
 	r := &Reconciler{
 		Client: fake.NewFakeClient(w),
 	}
@@ -133,7 +133,7 @@ func TestReconcileNotScheduled(t *testing.T) {
 	g.Expect(err).ShouldNot(HaveOccurred())
 	g.Expect(rs).Should(Equal(resultDone))
 	g.Expect(r.Get(ctx, key, w)).ShouldNot(HaveOccurred())
-	g.Expect(w.Status.ConditionedStatus).Should(corev1alpha1.MatchConditionedStatus(expCondition))
+	g.Expect(w.Status.DeprecatedConditionedStatus).Should(corev1alpha1.MatchDeprecatedConditionedStatus(expDeprecatedCondition))
 }
 
 func TestReconcileClientError(t *testing.T) {
@@ -142,8 +142,8 @@ func TestReconcileClientError(t *testing.T) {
 	w := testWorkload()
 	w.Status.Cluster = &corev1.ObjectReference{}
 	testError := "test-client-error"
-	expCondition := corev1alpha1.ConditionedStatus{}
-	expCondition.SetFailed(errorClusterClient, testError)
+	expDeprecatedCondition := corev1alpha1.DeprecatedConditionedStatus{}
+	expDeprecatedCondition.SetFailed(errorClusterClient, testError)
 	r := &Reconciler{
 		Client: fake.NewFakeClient(w),
 		connect: func(*computev1alpha1.Workload) (i kubernetes.Interface, e error) {
@@ -154,7 +154,7 @@ func TestReconcileClientError(t *testing.T) {
 	g.Expect(err).ShouldNot(HaveOccurred())
 	g.Expect(rs).Should(Equal(resultRequeue))
 	g.Expect(r.Get(ctx, key, w)).ShouldNot(HaveOccurred())
-	g.Expect(w.Status.ConditionedStatus).Should(corev1alpha1.MatchConditionedStatus(expCondition))
+	g.Expect(w.Status.DeprecatedConditionedStatus).Should(corev1alpha1.MatchDeprecatedConditionedStatus(expDeprecatedCondition))
 }
 
 func TestReconcileDelete(t *testing.T) {
@@ -527,13 +527,13 @@ func Test_create(t *testing.T) {
 			return ts, nil
 		},
 	}
-	expStatus := tw.Status.ConditionedStatus
+	expStatus := tw.Status.DeprecatedConditionedStatus
 	expStatus.SetCreating()
 
 	rs, err := r._create(tw, client)
 	g.Expect(err).ShouldNot(HaveOccurred())
 	g.Expect(rs).Should(Equal(resultDone))
-	g.Expect(tw.Status.ConditionedStatus).Should(corev1alpha1.MatchConditionedStatus(expStatus))
+	g.Expect(tw.Status.DeprecatedConditionedStatus).Should(corev1alpha1.MatchDeprecatedConditionedStatus(expStatus))
 	g.Expect(tw.Status.Deployment.UID).Should(Equal(td.UID))
 	g.Expect(tw.Status.Service.UID).Should(Equal(ts.UID))
 }
@@ -543,7 +543,7 @@ func Test_create_Failures(t *testing.T) {
 	tw := testWorkload()
 	client := NewSimpleClientset()
 
-	expStatus := tw.Status.ConditionedStatus
+	expStatus := tw.Status.DeprecatedConditionedStatus
 	expStatus.SetCreating()
 
 	// Target namespace error
@@ -558,7 +558,7 @@ func Test_create_Failures(t *testing.T) {
 	rs, err := r._create(tw, client)
 	g.Expect(err).ShouldNot(HaveOccurred())
 	g.Expect(rs).Should(Equal(resultRequeue))
-	g.Expect(tw.Status.ConditionedStatus).Should(corev1alpha1.MatchConditionedStatus(expStatus))
+	g.Expect(tw.Status.DeprecatedConditionedStatus).Should(corev1alpha1.MatchDeprecatedConditionedStatus(expStatus))
 	client.ReactionChain = client.ReactionChain[:0]
 
 	// Deployment propagation failure
@@ -575,7 +575,7 @@ func Test_create_Failures(t *testing.T) {
 	rs, err = r._create(tw, client)
 	g.Expect(err).ShouldNot(HaveOccurred())
 	g.Expect(rs).Should(Equal(resultRequeue))
-	g.Expect(tw.Status.ConditionedStatus).Should(corev1alpha1.MatchConditionedStatus(expStatus))
+	g.Expect(tw.Status.DeprecatedConditionedStatus).Should(corev1alpha1.MatchDeprecatedConditionedStatus(expStatus))
 
 	// Service propagation failure
 	testError = "test service propagation error"
@@ -590,5 +590,5 @@ func Test_create_Failures(t *testing.T) {
 	rs, err = r._create(tw, client)
 	g.Expect(err).ShouldNot(HaveOccurred())
 	g.Expect(rs).Should(Equal(resultRequeue))
-	g.Expect(tw.Status.ConditionedStatus).Should(corev1alpha1.MatchConditionedStatus(expStatus))
+	g.Expect(tw.Status.DeprecatedConditionedStatus).Should(corev1alpha1.MatchDeprecatedConditionedStatus(expStatus))
 }

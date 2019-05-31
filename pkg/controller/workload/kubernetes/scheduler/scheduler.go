@@ -89,7 +89,7 @@ func (s *roundRobinScheduler) schedule(ctx context.Context, app *workloadv1alpha
 
 	app.Status.Cluster = cluster.ObjectReference()
 	app.Status.State = workloadv1alpha1.KubernetesApplicationStateScheduled
-	app.Status.UnsetAllConditions()
+	app.Status.UnsetAllDeprecatedConditions()
 	app.Status.SetReady()
 
 	return reconcile.Result{Requeue: false}

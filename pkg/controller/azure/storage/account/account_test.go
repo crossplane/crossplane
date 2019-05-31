@@ -192,8 +192,8 @@ func newProvider(ns, name string) *provider {
 	}}
 }
 
-func (p *provider) withCondition(c corev1alpha1.Condition) *provider {
-	p.Status.ConditionedStatus.SetCondition(c)
+func (p *provider) withDeprecatedCondition(c corev1alpha1.DeprecatedCondition) *provider {
+	p.Status.DeprecatedConditionedStatus.SetDeprecatedCondition(c)
 	return p
 }
 
@@ -282,7 +282,7 @@ func TestReconciler_Reconcile(t *testing.T) {
 			want: want{
 				res: resultRequeue,
 				acct: v1alpha1test.NewMockAccount(ns, name).
-					WithStatusFailedCondition(failedToGetHandler, "handler-syncdeleterMaker-error").
+					WithStatusFailedDeprecatedCondition(failedToGetHandler, "handler-syncdeleterMaker-error").
 					WithFinalizer("foo.bar").Account,
 			},
 		},
@@ -368,14 +368,14 @@ func Test_accountHandleMaker_newHandler(t *testing.T) {
 		{
 			name: "ProviderIsNotReady",
 			kube: fake.NewFakeClient(newProvider(ns, providerName).
-				withCondition(corev1alpha1.NewCondition(corev1alpha1.Failed, "", "")).Provider),
+				withDeprecatedCondition(corev1alpha1.NewDeprecatedCondition(corev1alpha1.DeprecatedFailed, "", "")).Provider),
 			acct:    v1alpha1test.NewMockAccount(ns, bucketName).WithSpecProvider("test-provider").Account,
 			wantErr: errors.Errorf("provider: %s is not ready", ns+"/test-provider"),
 		},
 		{
 			name: "ProviderSecretIsNotFound",
 			kube: fake.NewFakeClient(newProvider(ns, providerName).
-				withCondition(corev1alpha1.NewReadyCondition()).
+				withDeprecatedCondition(corev1alpha1.NewReadyDeprecatedCondition()).
 				withSecret(secretName, secretKey).Provider),
 			acct: v1alpha1test.NewMockAccount(ns, bucketName).WithSpecProvider("test-provider").Account,
 			wantErr: errors.WithStack(
@@ -384,7 +384,7 @@ func Test_accountHandleMaker_newHandler(t *testing.T) {
 		{
 			name: "InvalidCredentials",
 			kube: fake.NewFakeClient(newProvider(ns, providerName).
-				withCondition(corev1alpha1.NewReadyCondition()).
+				withDeprecatedCondition(corev1alpha1.NewReadyDeprecatedCondition()).
 				withSecret(secretName, secretKey).Provider,
 				newSecret(ns, secretName).Secret),
 			acct: v1alpha1test.NewMockAccount(ns, bucketName).WithSpecProvider("test-provider").Account,
@@ -394,7 +394,7 @@ func Test_accountHandleMaker_newHandler(t *testing.T) {
 		{
 			name: "KubeCreated",
 			kube: fake.NewFakeClient(newProvider(ns, providerName).
-				withCondition(corev1alpha1.NewReadyCondition()).
+				withDeprecatedCondition(corev1alpha1.NewReadyDeprecatedCondition()).
 				withSecret(secretName, secretKey).Provider,
 				newSecret(ns, secretName).withKeyData(secretKey, secretData).Secret),
 			acct: v1alpha1test.NewMockAccount(ns, bucketName).WithSpecProvider("test-provider").Account,
@@ -502,7 +502,7 @@ func Test_syncdeleter_delete(t *testing.T) {
 				res: resultRequeue,
 				acct: v1alpha1test.NewMockAccount(ns, bucketName).WithSpecReclaimPolicy(corev1alpha1.ReclaimDelete).
 					WithFinalizer(finalizer).
-					WithStatusFailedCondition(failedToDelete, "test-delete-error").
+					WithStatusFailedDeprecatedCondition(failedToDelete, "test-delete-error").
 					Account,
 			},
 		},
@@ -588,7 +588,7 @@ func Test_syncdeleter_sync(t *testing.T) {
 			},
 			want: want{
 				res:  resultRequeue,
-				acct: v1alpha1test.NewMockAccount(ns, name).WithUID("test-uid").WithStatusFailedCondition(failedToRetrieve, "test-attrs-error").Account,
+				acct: v1alpha1test.NewMockAccount(ns, name).WithUID("test-uid").WithStatusFailedDeprecatedCondition(failedToRetrieve, "test-attrs-error").Account,
 			},
 		},
 		{
@@ -703,7 +703,7 @@ func Test_createupdater_create(t *testing.T) {
 					WithSpecStorageAccountSpec(&v1alpha1.StorageAccountSpec{
 						Tags: map[string]string{uidTag: ""},
 					}).
-					WithStatusFailedCondition(failedToCreate, "test-create-error").
+					WithStatusFailedDeprecatedCondition(failedToCreate, "test-create-error").
 					WithFinalizer(finalizer).
 					Account,
 			},
@@ -814,7 +814,7 @@ func Test_bucketCreateUpdater_update(t *testing.T) {
 			want: want{
 				res: reconcile.Result{},
 				acct: v1alpha1test.NewMockAccount(ns, name).WithSpecStorageAccountSpec(newStoragAccountSpecWithProperties()).
-					WithStatusCondition(corev1alpha1.NewReadyCondition()).Account,
+					WithStatusDeprecatedCondition(corev1alpha1.NewReadyDeprecatedCondition()).Account,
 			},
 		},
 		{
@@ -824,13 +824,13 @@ func Test_bucketCreateUpdater_update(t *testing.T) {
 			},
 			fields: fields{
 				acct: v1alpha1test.NewMockAccount(ns, name).WithSpecStorageAccountSpec(newStoragAccountSpecWithProperties()).
-					WithStatusCondition(corev1alpha1.NewReadyCondition()).Account,
+					WithStatusDeprecatedCondition(corev1alpha1.NewReadyDeprecatedCondition()).Account,
 				kube: test.NewMockClient(),
 			},
 			want: want{
 				res: requeueOnSuccess,
 				acct: v1alpha1test.NewMockAccount(ns, name).WithSpecStorageAccountSpec(newStoragAccountSpecWithProperties()).
-					WithStatusCondition(corev1alpha1.NewReadyCondition()).Account,
+					WithStatusDeprecatedCondition(corev1alpha1.NewReadyDeprecatedCondition()).Account,
 			},
 		},
 		{
@@ -854,7 +854,7 @@ func Test_bucketCreateUpdater_update(t *testing.T) {
 				res: resultRequeue,
 				acct: v1alpha1test.NewMockAccount(ns, name).
 					WithSpecStorageAccountSpec(newStoragAccountSpecWithProperties()).
-					WithStatusFailedCondition(failedToUpdate, "test-account-update-error").Account,
+					WithStatusFailedDeprecatedCondition(failedToUpdate, "test-account-update-error").Account,
 			},
 		},
 		{
@@ -978,7 +978,7 @@ func Test_accountSyncBacker_syncback(t *testing.T) {
 				res: resultRequeue,
 				acct: v1alpha1test.NewMockAccount(ns, name).
 					WithSpecStatusFromProperties(&storage.AccountProperties{ProvisioningState: storage.Succeeded}).
-					WithStatusFailedCondition(failedToSaveSecret, "test-secret-update-error").
+					WithStatusFailedDeprecatedCondition(failedToSaveSecret, "test-secret-update-error").
 					WithStatusConnectionRef(name).
 					Account,
 			},
@@ -998,7 +998,7 @@ func Test_accountSyncBacker_syncback(t *testing.T) {
 				acct: v1alpha1test.NewMockAccount(ns, name).
 					WithSpecStatusFromProperties(&storage.AccountProperties{ProvisioningState: storage.Succeeded}).
 					WithStatusConnectionRef(name).
-					WithStatusCondition(corev1alpha1.NewReadyCondition()).Account,
+					WithStatusDeprecatedCondition(corev1alpha1.NewReadyDeprecatedCondition()).Account,
 			},
 		},
 		{
@@ -1008,7 +1008,7 @@ func Test_accountSyncBacker_syncback(t *testing.T) {
 					MockUpdateSecret: func(ctx context.Context, a *storage.Account) error { return nil },
 				},
 				acct: v1alpha1test.NewMockAccount(ns, name).WithSpecStorageAccountSpec(v1alpha1.NewStorageAccountSpec(&storage.Account{})).
-					WithStatusCondition(corev1alpha1.NewReadyCondition()).Account,
+					WithStatusDeprecatedCondition(corev1alpha1.NewReadyDeprecatedCondition()).Account,
 				kube: test.NewMockClient(),
 			},
 			acct: &storage.Account{AccountProperties: &storage.AccountProperties{ProvisioningState: storage.Succeeded}},
@@ -1017,7 +1017,7 @@ func Test_accountSyncBacker_syncback(t *testing.T) {
 				acct: v1alpha1test.NewMockAccount(ns, name).
 					WithSpecStatusFromProperties(&storage.AccountProperties{ProvisioningState: storage.Succeeded}).
 					WithStatusConnectionRef(name).
-					WithStatusCondition(corev1alpha1.NewReadyCondition()).Account,
+					WithStatusDeprecatedCondition(corev1alpha1.NewReadyDeprecatedCondition()).Account,
 			},
 		},
 	}

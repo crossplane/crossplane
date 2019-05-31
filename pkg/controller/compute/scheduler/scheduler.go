@@ -99,7 +99,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 // fail - helper function to set fail condition with reason and message
 func (r *Reconciler) fail(instance *computev1alpha1.Workload, reason, msg string) (reconcile.Result, error) {
-	instance.Status.SetCondition(corev1alpha1.NewCondition(corev1alpha1.Failed, reason, msg))
+	instance.Status.SetDeprecatedCondition(corev1alpha1.NewDeprecatedCondition(corev1alpha1.DeprecatedFailed, reason, msg))
 	return resultRequeue, r.Status().Update(ctx, instance)
 }
 

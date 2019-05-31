@@ -784,7 +784,7 @@ type BucketSpec struct {
 type BucketStatus struct {
 	BucketOutputAttrs `json:"attributes"`
 
-	corev1alpha1.ConditionedStatus
+	corev1alpha1.DeprecatedConditionedStatus
 	corev1alpha1.BindingStatusPhase
 	ConnectionSecretRef corev1.LocalObjectReference `json:"connectionSecretRef,omitempty"`
 }

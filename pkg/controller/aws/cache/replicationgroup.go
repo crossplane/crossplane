@@ -118,7 +118,7 @@ func (e *elastiCache) Create(ctx context.Context, g *v1alpha1.ReplicationGroup) 
 	}
 
 	g.Status.GroupName = elasticache.NewReplicationGroupID(g)
-	g.Status.UnsetAllConditions()
+	g.Status.UnsetAllDeprecatedConditions()
 	g.Status.SetCreating()
 	util.AddFinalizer(&g.ObjectMeta, finalizerName)
 
@@ -142,7 +142,7 @@ func (e *elastiCache) Sync(ctx context.Context, g *v1alpha1.ReplicationGroup) bo
 	replicationGroup := rsp.ReplicationGroups[0]
 
 	g.Status.State = aws.StringValue(replicationGroup.Status)
-	g.Status.UnsetAllConditions()
+	g.Status.UnsetAllDeprecatedConditions()
 
 	switch g.Status.State {
 	case v1alpha1.StatusAvailable:

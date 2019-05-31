@@ -107,7 +107,7 @@ func (a *azureRedisCache) Create(ctx context.Context, r *v1alpha1.Redis) bool {
 	}
 
 	r.Status.ResourceName = n
-	r.Status.UnsetAllConditions()
+	r.Status.UnsetAllDeprecatedConditions()
 	r.Status.SetCreating()
 	util.AddFinalizer(&r.ObjectMeta, finalizerName)
 
@@ -123,7 +123,7 @@ func (a *azureRedisCache) Sync(ctx context.Context, r *v1alpha1.Redis) bool {
 	}
 
 	r.Status.State = string(cacheResource.ProvisioningState)
-	r.Status.UnsetAllConditions()
+	r.Status.UnsetAllDeprecatedConditions()
 
 	switch r.Status.State {
 	case v1alpha1.ProvisioningStateSucceeded:

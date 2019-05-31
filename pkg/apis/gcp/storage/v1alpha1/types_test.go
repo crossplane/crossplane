@@ -1067,7 +1067,7 @@ func TestBucket_IsAvailable(t *testing.T) {
 	bReadyAndFailed.Status.SetFailed("", "")
 
 	bNotReadyAndFailed := bReadyAndFailed
-	bNotReadyAndFailed.Status.UnsetCondition(v1alpha1.Ready)
+	bNotReadyAndFailed.Status.UnsetDeprecatedCondition(v1alpha1.DeprecatedReady)
 
 	tests := []struct {
 		name   string

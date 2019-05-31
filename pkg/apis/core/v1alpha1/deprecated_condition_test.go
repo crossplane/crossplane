@@ -22,21 +22,21 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestConditionedStatus_UnsetAllConditions(t *testing.T) {
+func TestDeprecatedConditionedStatus_UnsetAllDeprecatedConditions(t *testing.T) {
 	g := NewGomegaWithT(t)
 
-	cs := &ConditionedStatus{}
+	cs := &DeprecatedConditionedStatus{}
 	cs.SetReady()
 	g.Expect(cs.IsReady()).To(BeTrue())
 
-	cs.UnsetAllConditions()
+	cs.UnsetAllDeprecatedConditions()
 	g.Expect(cs.IsReady()).To(BeFalse())
 
 	cs.SetFailed("foo", "bar")
 	g.Expect(cs.IsFailed()).To(BeTrue())
 	g.Expect(cs.IsReady()).To(BeFalse())
 
-	cs.UnsetAllConditions()
+	cs.UnsetAllDeprecatedConditions()
 	cs.SetReady()
 	g.Expect(cs.IsFailed()).To(BeFalse())
 	g.Expect(cs.IsReady()).To(BeTrue())

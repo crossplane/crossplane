@@ -90,7 +90,7 @@ func TestProvision(t *testing.T) {
 	rs, err := r._provision(claim, h)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(rs).To(Equal(ResultRequeue))
-	assertConditionSet(g, claim, corev1alpha1.Failed, errorRetrievingResourceClass)
+	assertDeprecatedConditionSet(g, claim, corev1alpha1.DeprecatedFailed, errorRetrievingResourceClass)
 
 	// test: ResourceClass is not found - expected to: fail
 	claim.Spec.ClassRef = &corev1.ObjectReference{
@@ -103,7 +103,7 @@ func TestProvision(t *testing.T) {
 	rs, err = r._provision(claim, h)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(rs).To(Equal(ResultRequeue))
-	assertConditionSet(g, claim, corev1alpha1.Failed, errorRetrievingResourceClass)
+	assertDeprecatedConditionSet(g, claim, corev1alpha1.DeprecatedFailed, errorRetrievingResourceClass)
 
 	// test: ResourceClass has test provisioner, but provisioning failed
 	mc.MockGet = func(args ...interface{}) error {
@@ -117,7 +117,7 @@ func TestProvision(t *testing.T) {
 	rs, err = r._provision(claim, h)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(rs).To(Equal(ResultRequeue))
-	assertConditionSet(g, claim, corev1alpha1.Failed, errorResourceProvisioning)
+	assertDeprecatedConditionSet(g, claim, corev1alpha1.DeprecatedFailed, errorResourceProvisioning)
 
 	// test: ResourceClass has test provisioner, no provisioning failures
 	mc.MockGet = func(args ...interface{}) error {
@@ -157,7 +157,7 @@ func TestBind(t *testing.T) {
 	rs, err := r._bind(claim, h)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(rs).To(Equal(ResultRequeue))
-	assertConditionSet(g, claim, corev1alpha1.Failed, errorRetrievingResource)
+	assertDeprecatedConditionSet(g, claim, corev1alpha1.DeprecatedFailed, errorRetrievingResource)
 
 	// resource is not available
 	br := corev1alpha1.NewBasicResource(nil, "", "", "not-available")
@@ -167,8 +167,8 @@ func TestBind(t *testing.T) {
 	rs, err = r._bind(claim, h)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(rs).To(Equal(reconcile.Result{RequeueAfter: RequeueOnWait}))
-	assertConditionUnset(g, claim, corev1alpha1.Failed, errorRetrievingResource)
-	assertConditionSet(g, claim, corev1alpha1.Pending, waitResourceIsNotAvailable)
+	assertDeprecatedConditionUnset(g, claim, corev1alpha1.DeprecatedFailed, errorRetrievingResource)
+	assertDeprecatedConditionSet(g, claim, corev1alpha1.DeprecatedPending, waitResourceIsNotAvailable)
 
 	// error retrieving resource secret
 	br = corev1alpha1.NewBasicResource(
@@ -183,7 +183,7 @@ func TestBind(t *testing.T) {
 	rs, err = r._bind(claim, h)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(rs).To(Equal(ResultRequeue))
-	assertConditionSet(g, claim, corev1alpha1.Failed, errorRetrievingResourceSecret)
+	assertDeprecatedConditionSet(g, claim, corev1alpha1.DeprecatedFailed, errorRetrievingResourceSecret)
 
 	// error applying resource secret
 	sec := &corev1.Secret{
@@ -200,7 +200,7 @@ func TestBind(t *testing.T) {
 	rs, err = r._bind(claim, h)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(rs).To(Equal(ResultRequeue))
-	assertConditionSet(g, claim, corev1alpha1.Failed, errorApplyingResourceSecret)
+	assertDeprecatedConditionSet(g, claim, corev1alpha1.DeprecatedFailed, errorApplyingResourceSecret)
 
 	// failure to set binding status
 	mk = fake.NewSimpleClientset(sec)
@@ -211,7 +211,7 @@ func TestBind(t *testing.T) {
 	rs, err = r._bind(claim, h)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(rs).To(Equal(ResultRequeue))
-	assertConditionSet(g, claim, corev1alpha1.Failed, errorSettingResourceBindStatus)
+	assertDeprecatedConditionSet(g, claim, corev1alpha1.DeprecatedFailed, errorSettingResourceBindStatus)
 
 	// bind
 	mk = fake.NewSimpleClientset(sec)
@@ -220,8 +220,8 @@ func TestBind(t *testing.T) {
 	rs, err = r._bind(claim, h)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(rs).To(Equal(reconcile.Result{RequeueAfter: RequeueOnSuccess}))
-	assertConditionUnset(g, claim, corev1alpha1.Failed, errorSettingResourceBindStatus)
-	assertConditionSet(g, claim, corev1alpha1.Ready, "")
+	assertDeprecatedConditionUnset(g, claim, corev1alpha1.DeprecatedFailed, errorSettingResourceBindStatus)
+	assertDeprecatedConditionSet(g, claim, corev1alpha1.DeprecatedReady, "")
 	g.Expect(claim.Status.CredentialsSecretRef.Name).To(Equal(claim.Name))
 	g.Expect(claim.Status.BindingStatusPhase.Phase).To(Equal(corev1alpha1.BindingStateBound))
 }
@@ -247,9 +247,9 @@ func TestDelete(t *testing.T) {
 	rs, err := r._delete(claim, h)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(rs).To(Equal(Result))
-	c := claim.Status.Condition(corev1alpha1.Failed)
+	c := claim.Status.DeprecatedCondition(corev1alpha1.DeprecatedFailed)
 	g.Expect(c).To(BeNil())
-	assertConditionSet(g, claim, corev1alpha1.Deleting, "")
+	assertDeprecatedConditionSet(g, claim, corev1alpha1.DeprecatedDeleting, "")
 	g.Expect(len(claim.Finalizers)).To(Equal(0))
 	g.Expect(bindingStatus).To(BeFalse())
 }
@@ -274,7 +274,7 @@ func TestReconciler_Reconcile(t *testing.T) {
 	rs, err := r._reconcile(claim)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(rs).To(Equal(ResultRequeue))
-	assertConditionSet(g, claim, corev1alpha1.Failed, errorRetrievingHandler)
+	assertDeprecatedConditionSet(g, claim, corev1alpha1.DeprecatedFailed, errorRetrievingHandler)
 
 	// 2) getHandler does not return an error, but also doesn't find a known handler
 	// this is OK since an external provisioner may handle it instead
@@ -367,18 +367,18 @@ func TestResolveClassClaimValues(t *testing.T) {
 	f("ab", "ba", "", true)
 }
 
-func assertConditionSet(g *GomegaWithT, claim corev1alpha1.ResourceClaim, cType corev1alpha1.ConditionType, expectedReason string) {
-	assertCondition(g, claim, cType, corev1.ConditionTrue, expectedReason)
+func assertDeprecatedConditionSet(g *GomegaWithT, claim corev1alpha1.ResourceClaim, cType corev1alpha1.DeprecatedConditionType, expectedReason string) {
+	assertDeprecatedCondition(g, claim, cType, corev1.ConditionTrue, expectedReason)
 }
 
-func assertConditionUnset(g *GomegaWithT, claim corev1alpha1.ResourceClaim, cType corev1alpha1.ConditionType, expectedReason string) {
-	assertCondition(g, claim, cType, corev1.ConditionFalse, expectedReason)
+func assertDeprecatedConditionUnset(g *GomegaWithT, claim corev1alpha1.ResourceClaim, cType corev1alpha1.DeprecatedConditionType, expectedReason string) {
+	assertDeprecatedCondition(g, claim, cType, corev1.ConditionFalse, expectedReason)
 }
 
-func assertCondition(g *GomegaWithT, claim corev1alpha1.ResourceClaim, cType corev1alpha1.ConditionType,
+func assertDeprecatedCondition(g *GomegaWithT, claim corev1alpha1.ResourceClaim, cType corev1alpha1.DeprecatedConditionType,
 	expectedStatus corev1.ConditionStatus, expectedReason string) {
 
-	c := claim.ClaimStatus().Condition(cType)
+	c := claim.ClaimStatus().DeprecatedCondition(cType)
 	g.Expect(c).NotTo(BeNil())
 	g.Expect(c.Status).To(Equal(expectedStatus))
 	g.Expect(c.Reason).To(Equal(expectedReason))

@@ -122,7 +122,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 // fail - helper function to set fail condition with reason and message
 func (r *Reconciler) fail(instance *gcpcomputev1alpha1.GKECluster, reason, msg string) (reconcile.Result, error) {
-	instance.Status.UnsetAllConditions()
+	instance.Status.UnsetAllDeprecatedConditions()
 	instance.Status.SetFailed(reason, msg)
 	return resultRequeue, r.Update(context.TODO(), instance)
 }
@@ -200,7 +200,7 @@ func (r *Reconciler) _create(instance *gcpcomputev1alpha1.GKECluster, client gke
 	}
 
 	instance.Status.State = gcpcomputev1alpha1.ClusterStateProvisioning
-	instance.Status.UnsetAllConditions()
+	instance.Status.UnsetAllDeprecatedConditions()
 	instance.Status.SetCreating()
 	instance.Status.ClusterName = clusterName
 
@@ -231,7 +231,7 @@ func (r *Reconciler) _sync(instance *gcpcomputev1alpha1.GKECluster, client gke.C
 	// update resource status
 	instance.Status.Endpoint = cluster.Endpoint
 	instance.Status.State = gcpcomputev1alpha1.ClusterStateRunning
-	instance.Status.UnsetAllConditions()
+	instance.Status.UnsetAllDeprecatedConditions()
 	instance.Status.SetReady()
 
 	return reconcile.Result{RequeueAfter: requeueOnSucces},
@@ -247,7 +247,7 @@ func (r *Reconciler) _delete(instance *gcpcomputev1alpha1.GKECluster, client gke
 		}
 	}
 	util.RemoveFinalizer(&instance.ObjectMeta, finalizer)
-	instance.Status.UnsetAllConditions()
+	instance.Status.UnsetAllDeprecatedConditions()
 	return result, errors.Wrapf(r.Update(ctx, instance), updateErrorMessageFormat, instance.GetName())
 }
 

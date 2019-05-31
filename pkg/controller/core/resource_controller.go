@@ -131,7 +131,7 @@ func (r *Reconciler) _reconcile(claim corev1alpha1.ResourceClaim) (reconcile.Res
 	}
 
 	// Check for deletion
-	if claim.GetDeletionTimestamp() != nil && claim.ClaimStatus().Condition(corev1alpha1.Deleting) == nil {
+	if claim.GetDeletionTimestamp() != nil && claim.ClaimStatus().DeprecatedCondition(corev1alpha1.DeprecatedDeleting) == nil {
 		return r.delete(claim, handler)
 	}
 
@@ -187,8 +187,8 @@ func (r *Reconciler) _bind(claim corev1alpha1.ResourceClaim, handler ResourceHan
 
 	// check for resource state and requeue if not running
 	if !resource.IsAvailable() {
-		claim.ClaimStatus().UnsetAllConditions()
-		claim.ClaimStatus().SetCondition(corev1alpha1.NewCondition(corev1alpha1.Pending, waitResourceIsNotAvailable, "Resource is not in running state"))
+		claim.ClaimStatus().UnsetAllDeprecatedConditions()
+		claim.ClaimStatus().SetDeprecatedCondition(corev1alpha1.NewDeprecatedCondition(corev1alpha1.DeprecatedPending, waitResourceIsNotAvailable, "Resource is not in running state"))
 		return reconcile.Result{RequeueAfter: RequeueOnWait}, r.Update(ctx, claim)
 	}
 
@@ -225,7 +225,7 @@ func (r *Reconciler) _bind(claim corev1alpha1.ResourceClaim, handler ResourceHan
 
 	// update conditions
 	if !claimStatus.IsReady() {
-		claimStatus.UnsetAllConditions()
+		claimStatus.UnsetAllDeprecatedConditions()
 		claimStatus.SetReady()
 	}
 
@@ -246,7 +246,7 @@ func (r *Reconciler) _delete(claim corev1alpha1.ResourceClaim, handler ResourceH
 
 		// update claim status and remove finalizer
 		claimStatus := claim.ClaimStatus()
-		claimStatus.UnsetAllConditions()
+		claimStatus.UnsetAllDeprecatedConditions()
 		claimStatus.SetDeleting()
 	}
 	util.RemoveFinalizer(claim, r.finalizerName)

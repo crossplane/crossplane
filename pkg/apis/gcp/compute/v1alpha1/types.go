@@ -100,7 +100,7 @@ type GKEClusterSpec struct {
 
 // GKEClusterStatus represents the status of a GKE cluster.
 type GKEClusterStatus struct {
-	v1alpha1.ConditionedStatus
+	v1alpha1.DeprecatedConditionedStatus
 	v1alpha1.BindingStatusPhase
 	ClusterName string `json:"clusterName"`
 	Endpoint    string `json:"endpoint"`

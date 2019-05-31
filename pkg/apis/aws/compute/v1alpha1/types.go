@@ -221,7 +221,7 @@ type WorkerNodesSpec struct {
 
 // EKSClusterStatus schema of the status of eks cluster
 type EKSClusterStatus struct {
-	corev1alpha1.ConditionedStatus
+	corev1alpha1.DeprecatedConditionedStatus
 	corev1alpha1.BindingStatusPhase
 
 	// State of the cluster (see status constants above)

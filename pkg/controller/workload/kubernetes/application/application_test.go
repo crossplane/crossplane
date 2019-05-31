@@ -87,14 +87,14 @@ var (
 
 // Frequently used conditions.
 var (
-	ready   = corev1alpha1.Condition{Type: corev1alpha1.Ready, Status: corev1.ConditionTrue}
-	pending = corev1alpha1.Condition{Type: corev1alpha1.Pending, Status: corev1.ConditionTrue}
+	ready   = corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedReady, Status: corev1.ConditionTrue}
+	pending = corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedPending, Status: corev1.ConditionTrue}
 )
 
 type kubeAppModifier func(*v1alpha1.KubernetesApplication)
 
-func withConditions(c ...corev1alpha1.Condition) kubeAppModifier {
-	return func(r *v1alpha1.KubernetesApplication) { r.Status.ConditionedStatus.Conditions = c }
+func withConditions(c ...corev1alpha1.DeprecatedCondition) kubeAppModifier {
+	return func(r *v1alpha1.KubernetesApplication) { r.Status.DeprecatedConditionedStatus.Conditions = c }
 }
 
 func withState(s v1alpha1.KubernetesApplicationState) kubeAppModifier {
@@ -328,8 +328,8 @@ func TestSync(t *testing.T) {
 				withTemplates(templateA),
 				withState(v1alpha1.KubernetesApplicationStateFailed),
 				withConditions(
-					corev1alpha1.Condition{
-						Type:    corev1alpha1.Failed,
+					corev1alpha1.DeprecatedCondition{
+						Type:    corev1alpha1.DeprecatedFailed,
 						Status:  corev1.ConditionTrue,
 						Reason:  reasonGCResources,
 						Message: errorBoom.Error(),
@@ -350,8 +350,8 @@ func TestSync(t *testing.T) {
 				withTemplates(templateA),
 				withState(v1alpha1.KubernetesApplicationStateFailed),
 				withConditions(
-					corev1alpha1.Condition{
-						Type:    corev1alpha1.Failed,
+					corev1alpha1.DeprecatedCondition{
+						Type:    corev1alpha1.DeprecatedFailed,
 						Status:  corev1.ConditionTrue,
 						Reason:  reasonSyncingResource,
 						Message: errorBoom.Error(),
@@ -505,8 +505,8 @@ func TestGarbageCollect(t *testing.T) {
 			wantApp: kubeApp(
 				withTemplates(templateA),
 				withConditions(
-					corev1alpha1.Condition{
-						Type:    corev1alpha1.Failed,
+					corev1alpha1.DeprecatedCondition{
+						Type:    corev1alpha1.DeprecatedFailed,
 						Status:  corev1.ConditionTrue,
 						Reason:  reasonGCResources,
 						Message: errorBoom.Error(),
