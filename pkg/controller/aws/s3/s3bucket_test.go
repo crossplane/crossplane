@@ -90,18 +90,18 @@ func testResource() *S3Bucket {
 }
 
 // assertResource a helper function to check on cluster and its status
-func assertResource(g *GomegaWithT, r *Reconciler, s corev1alpha1.ConditionedStatus) *S3Bucket {
+func assertResource(g *GomegaWithT, r *Reconciler, s corev1alpha1.DeprecatedConditionedStatus) *S3Bucket {
 	resource := &S3Bucket{}
 	err := r.Get(ctx, key, resource)
 	g.Expect(err).To(BeNil())
-	g.Expect(resource.Status.ConditionedStatus).Should(corev1alpha1.MatchConditionedStatus(s))
+	g.Expect(resource.Status.DeprecatedConditionedStatus).Should(corev1alpha1.MatchDeprecatedConditionedStatus(s))
 	return resource
 }
 
 func TestSyncBucketError(t *testing.T) {
 	g := NewGomegaWithT(t)
 
-	assert := func(instance *S3Bucket, client client.Service, expectedResult reconcile.Result, expectedStatus corev1alpha1.ConditionedStatus) {
+	assert := func(instance *S3Bucket, client client.Service, expectedResult reconcile.Result, expectedStatus corev1alpha1.DeprecatedConditionedStatus) {
 		r := &Reconciler{
 			Client:     NewFakeClient(instance),
 			kubeclient: NewSimpleClientset(),
@@ -118,7 +118,7 @@ func TestSyncBucketError(t *testing.T) {
 	testError := "username not set, .Status.IAMUsername"
 	cl := &MockS3Client{}
 
-	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus := corev1alpha1.DeprecatedConditionedStatus{}
 	expectedStatus.SetFailed(errorSyncResource, testError)
 	noUserResource := testResource()
 	noUserResource.Status.IAMUsername = ""
@@ -129,7 +129,7 @@ func TestSyncBucketError(t *testing.T) {
 	cl.MockGetBucketInfo = func(username string, bucket *S3Bucket) (*client.Bucket, error) {
 		return nil, fmt.Errorf(testError)
 	}
-	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus = corev1alpha1.DeprecatedConditionedStatus{}
 	expectedStatus.SetFailed(errorSyncResource, testError)
 	assert(testResource(), cl, resultRequeue, expectedStatus)
 
@@ -142,7 +142,7 @@ func TestSyncBucketError(t *testing.T) {
 	cl.MockUpdateVersioning = func(bucket *S3Bucket) error {
 		return fmt.Errorf(testError)
 	}
-	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus = corev1alpha1.DeprecatedConditionedStatus{}
 	expectedStatus.SetFailed(errorSyncResource, testError)
 	assert(testResource(), cl, resultRequeue, expectedStatus)
 
@@ -156,7 +156,7 @@ func TestSyncBucketError(t *testing.T) {
 		return fmt.Errorf(testError)
 	}
 
-	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus = corev1alpha1.DeprecatedConditionedStatus{}
 	expectedStatus.SetFailed(errorSyncResource, testError)
 	assert(testResource(), cl, resultRequeue, expectedStatus)
 
@@ -175,7 +175,7 @@ func TestSyncBucketError(t *testing.T) {
 	cl.MockUpdatePolicyDocument = func(username string, bucket *S3Bucket) (string, error) {
 		return "", fmt.Errorf(testError)
 	}
-	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus = corev1alpha1.DeprecatedConditionedStatus{}
 	expectedStatus.SetFailed(errorSyncResource, testError)
 	assert(testResource(), cl, resultRequeue, expectedStatus)
 }
@@ -206,9 +206,9 @@ func TestSyncCluster(t *testing.T) {
 	}
 
 	// Successful Sync should clear failed setatus.
-	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus := corev1alpha1.DeprecatedConditionedStatus{}
 	expectedStatus.SetFailed("test", "test-msg")
-	expectedStatus.UnsetCondition(corev1alpha1.Failed)
+	expectedStatus.UnsetDeprecatedCondition(corev1alpha1.DeprecatedFailed)
 	rs, err := r._sync(tr, cl)
 	g.Expect(rs).To(Equal(result))
 	g.Expect(err).NotTo(HaveOccurred())
@@ -231,7 +231,7 @@ func TestDelete(t *testing.T) {
 
 	// test delete w/ reclaim policy
 	tr.Spec.ReclaimPolicy = corev1alpha1.ReclaimRetain
-	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus := corev1alpha1.DeprecatedConditionedStatus{}
 	expectedStatus.SetDeleting()
 
 	rs, err := r._delete(tr, cl)
@@ -298,7 +298,7 @@ func TestCreate(t *testing.T) {
 		},
 	}
 
-	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus := corev1alpha1.DeprecatedConditionedStatus{}
 	expectedStatus.SetReady()
 
 	resource := testResource()
@@ -347,7 +347,7 @@ func TestCreateFail(t *testing.T) {
 		return true, nil, fmt.Errorf(testError)
 	})
 
-	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus := corev1alpha1.DeprecatedConditionedStatus{}
 	expectedStatus.SetFailed(errorCreateResource, testError)
 
 	rs, err := r._create(tr, cl)
@@ -365,7 +365,7 @@ func TestCreateFail(t *testing.T) {
 		return nil, "", fmt.Errorf(testError)
 	}
 
-	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus = corev1alpha1.DeprecatedConditionedStatus{}
 	expectedStatus.SetFailed(errorCreateResource, testError)
 
 	rs, err = r._create(tr, cl)
@@ -392,7 +392,7 @@ func TestCreateFail(t *testing.T) {
 		return fmt.Errorf(testError)
 	}
 
-	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus = corev1alpha1.DeprecatedConditionedStatus{}
 	expectedStatus.SetFailed(errorCreateResource, testError)
 
 	rs, err = r._create(tr, cl)
@@ -445,7 +445,7 @@ func TestReconcile(t *testing.T) {
 		return nil, fmt.Errorf(testError)
 	}
 
-	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus := corev1alpha1.DeprecatedConditionedStatus{}
 	expectedStatus.SetFailed(errorResourceClient, testError)
 
 	rs, err := r.Reconcile(request)

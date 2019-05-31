@@ -114,14 +114,14 @@ func (ta *MockAccount) WithSpecStorageAccountSpec(spec *v1alpha1.StorageAccountS
 	return ta
 }
 
-// WithStatusCondition sets status condition
-func (ta *MockAccount) WithStatusCondition(c corev1alpha1.Condition) *MockAccount {
-	ta.Status.ConditionedStatus.SetCondition(c)
+// WithStatusDeprecatedCondition sets status condition
+func (ta *MockAccount) WithStatusDeprecatedCondition(c corev1alpha1.DeprecatedCondition) *MockAccount {
+	ta.Status.DeprecatedConditionedStatus.SetDeprecatedCondition(c)
 	return ta
 }
 
-// WithStatusFailedCondition sets and activates Failed condition
-func (ta *MockAccount) WithStatusFailedCondition(reason, msg string) *MockAccount {
+// WithStatusFailedDeprecatedCondition sets and activates Failed condition
+func (ta *MockAccount) WithStatusFailedDeprecatedCondition(reason, msg string) *MockAccount {
 	ta.Status.SetFailed(reason, msg)
 	return ta
 }

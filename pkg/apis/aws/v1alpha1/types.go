@@ -38,7 +38,7 @@ type ProviderSpec struct {
 
 // ProviderStatus represents the status of an AWS Provider.
 type ProviderStatus struct {
-	corev1alpha1.ConditionedStatus
+	corev1alpha1.DeprecatedConditionedStatus
 }
 
 // +genclient

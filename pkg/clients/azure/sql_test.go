@@ -26,20 +26,20 @@ import (
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 )
 
-func TestSQLServerConditionType(t *testing.T) {
+func TestSQLServerDeprecatedConditionType(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	cases := []struct {
 		state    mysql.ServerState
-		expected corev1alpha1.ConditionType
+		expected corev1alpha1.DeprecatedConditionType
 	}{
-		{mysql.ServerStateReady, corev1alpha1.Ready},
-		{mysql.ServerStateDisabled, corev1alpha1.Failed},
-		{mysql.ServerStateDropping, corev1alpha1.Failed},
+		{mysql.ServerStateReady, corev1alpha1.DeprecatedReady},
+		{mysql.ServerStateDisabled, corev1alpha1.DeprecatedFailed},
+		{mysql.ServerStateDropping, corev1alpha1.DeprecatedFailed},
 	}
 
 	for _, tt := range cases {
-		actual := SQLServerConditionType(string(tt.state))
+		actual := SQLServerDeprecatedConditionType(string(tt.state))
 		g.Expect(actual).To(gomega.Equal(tt.expected))
 	}
 }

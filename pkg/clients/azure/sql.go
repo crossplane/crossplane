@@ -462,13 +462,13 @@ func (f *PostgreSQLServerClientFactory) CreateAPIInstance(provider *v1alpha1.Pro
 // https://github.com/Azure/azure-sdk-for-go/blob/master/services/mysql/mgmt/2017-12-01/mysql/models.go
 // https://github.com/Azure/azure-sdk-for-go/blob/master/services/postgresql/mgmt/2017-12-01/postgresql/models.go
 
-// SQLServerConditionType converts the given MySQL Server state string into a corresponding condition type
-func SQLServerConditionType(state string) corev1alpha1.ConditionType {
+// SQLServerDeprecatedConditionType converts the given MySQL Server state string into a corresponding condition type
+func SQLServerDeprecatedConditionType(state string) corev1alpha1.DeprecatedConditionType {
 	switch mysql.ServerState(state) {
 	case mysql.ServerStateReady:
-		return corev1alpha1.Ready
+		return corev1alpha1.DeprecatedReady
 	default:
-		return corev1alpha1.Failed
+		return corev1alpha1.DeprecatedFailed
 	}
 }
 

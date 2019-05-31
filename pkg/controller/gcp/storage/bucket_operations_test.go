@@ -347,7 +347,7 @@ func Test_bucketHandler_setReady(t *testing.T) {
 func Test_bucketHandler_failReconcile(t *testing.T) {
 	ctx := context.TODO()
 	bucket := newBucket(testNamespace, testBucketName).Bucket
-	want := newBucket(testNamespace, testBucketName).withFailedCondition("foo", "bar").Bucket
+	want := newBucket(testNamespace, testBucketName).withFailedDeprecatedCondition("foo", "bar").Bucket
 	bc := &bucketHandler{
 		Bucket: bucket,
 		kube: &test.MockClient{

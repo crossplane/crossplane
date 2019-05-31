@@ -77,11 +77,11 @@ func testCluster() *EKSCluster {
 }
 
 // assertResource a helper function to check on cluster and its status
-func assertResource(g *GomegaWithT, r *Reconciler, s corev1alpha1.ConditionedStatus) *EKSCluster {
+func assertResource(g *GomegaWithT, r *Reconciler, s corev1alpha1.DeprecatedConditionedStatus) *EKSCluster {
 	rc := &EKSCluster{}
 	err := r.Get(ctx, key, rc)
 	g.Expect(err).To(BeNil())
-	g.Expect(rc.Status.ConditionedStatus).Should(corev1alpha1.MatchConditionedStatus(s))
+	g.Expect(rc.Status.DeprecatedConditionedStatus).Should(corev1alpha1.MatchDeprecatedConditionedStatus(s))
 	return rc
 }
 
@@ -142,7 +142,7 @@ func TestGenerateEksAuth(t *testing.T) {
 func TestCreate(t *testing.T) {
 	g := NewGomegaWithT(t)
 
-	test := func(cluster *EKSCluster, client eks.Client, expectedResult reconcile.Result, expectedStatus corev1alpha1.ConditionedStatus) *EKSCluster {
+	test := func(cluster *EKSCluster, client eks.Client, expectedResult reconcile.Result, expectedStatus corev1alpha1.DeprecatedConditionedStatus) *EKSCluster {
 		r := &Reconciler{
 			Client:     NewFakeClient(cluster),
 			kubeclient: NewSimpleClientset(),
@@ -162,7 +162,7 @@ func TestCreate(t *testing.T) {
 		MockCreate: func(string, EKSClusterSpec) (*eks.Cluster, error) { return nil, nil },
 	}
 
-	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus := corev1alpha1.DeprecatedConditionedStatus{}
 	expectedStatus.SetCreating()
 
 	reconciledCluster := test(cluster, client, resultRequeue, expectedStatus)
@@ -176,7 +176,7 @@ func TestCreate(t *testing.T) {
 	client.MockCreate = func(string, EKSClusterSpec) (*eks.Cluster, error) {
 		return nil, fmt.Errorf("InvalidParameterException")
 	}
-	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus = corev1alpha1.DeprecatedConditionedStatus{}
 	expectedStatus.SetFailed(errorCreateCluster, "InvalidParameterException")
 
 	reconciledCluster = test(cluster, client, result, expectedStatus)
@@ -192,7 +192,7 @@ func TestCreate(t *testing.T) {
 	client.MockCreate = func(string, EKSClusterSpec) (*eks.Cluster, error) {
 		return nil, fmt.Errorf(testError)
 	}
-	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus = corev1alpha1.DeprecatedConditionedStatus{}
 	expectedStatus.SetFailed(errorCreateCluster, testError)
 
 	reconciledCluster = test(cluster, client, resultRequeue, expectedStatus)
@@ -207,7 +207,7 @@ func TestSync(t *testing.T) {
 	fakeStackID := "fake-stack-id"
 
 	test := func(tc *EKSCluster, cl *fake.MockEKSClient, sec func(*eks.Cluster, *EKSCluster, eks.Client) error, auth func(*eks.Cluster, *EKSCluster, eks.Client, string) error,
-		rslt reconcile.Result, exp corev1alpha1.ConditionedStatus) *EKSCluster {
+		rslt reconcile.Result, exp corev1alpha1.DeprecatedConditionedStatus) *EKSCluster {
 		r := &Reconciler{
 			Client:     NewFakeClient(tc),
 			kubeclient: NewSimpleClientset(),
@@ -243,7 +243,7 @@ func TestSync(t *testing.T) {
 			WorkerStackID: fakeStackID}, nil
 	}
 
-	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus := corev1alpha1.DeprecatedConditionedStatus{}
 	expectedStatus.SetFailed(errorSyncCluster, testError)
 	tc := testCluster()
 	test(tc, cl, nil, nil, resultRequeue, expectedStatus)
@@ -254,7 +254,7 @@ func TestSync(t *testing.T) {
 			Status: ClusterStatusCreating,
 		}, nil
 	}
-	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus = corev1alpha1.DeprecatedConditionedStatus{}
 	tc = testCluster()
 	test(tc, cl, nil, nil, resultRequeue, expectedStatus)
 
@@ -271,7 +271,7 @@ func TestSync(t *testing.T) {
 		return nil, fmt.Errorf(testError)
 	}
 
-	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus = corev1alpha1.DeprecatedConditionedStatus{}
 	expectedStatus.SetFailed(errorSyncCluster, testError)
 	tc = testCluster()
 	reconciledCluster := test(tc, cl, nil, nil, resultRequeue, expectedStatus)
@@ -289,7 +289,7 @@ func TestSync(t *testing.T) {
 		return &eks.ClusterWorkers{WorkerStackID: fakeStackID}, nil
 	}
 
-	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus = corev1alpha1.DeprecatedConditionedStatus{}
 	tc = testCluster()
 	reconciledCluster = test(tc, cl, nil, nil, resultRequeue, expectedStatus)
 	g.Expect(reconciledCluster.Status.CloudFormationStackID).To(Equal(fakeStackID))
@@ -305,7 +305,7 @@ func TestSync(t *testing.T) {
 		}, nil
 	}
 
-	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus = corev1alpha1.DeprecatedConditionedStatus{}
 	expectedStatus.SetFailed(errorSyncCluster, fmt.Sprintf("failed to set auth map on eks: %s", testError))
 	tc = testCluster()
 	tc.Status.CloudFormationStackID = fakeStackID
@@ -333,7 +333,7 @@ func TestSync(t *testing.T) {
 	fSec := func(*eks.Cluster, *EKSCluster, eks.Client) error {
 		return fmt.Errorf(testError)
 	}
-	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus = corev1alpha1.DeprecatedConditionedStatus{}
 	expectedStatus.SetFailed(errorSyncCluster, testError)
 	tc = testCluster()
 	tc.Status.CloudFormationStackID = fakeStackID
@@ -343,7 +343,7 @@ func TestSync(t *testing.T) {
 	fSec = func(*eks.Cluster, *EKSCluster, eks.Client) error {
 		return nil
 	}
-	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus = corev1alpha1.DeprecatedConditionedStatus{}
 	expectedStatus.SetReady()
 	tc = testCluster()
 	tc.Status.CloudFormationStackID = fakeStackID
@@ -408,7 +408,7 @@ func TestSecret(t *testing.T) {
 func TestDelete(t *testing.T) {
 	g := NewGomegaWithT(t)
 
-	test := func(cluster *EKSCluster, client eks.Client, expectedResult reconcile.Result, expectedStatus corev1alpha1.ConditionedStatus) *EKSCluster {
+	test := func(cluster *EKSCluster, client eks.Client, expectedResult reconcile.Result, expectedStatus corev1alpha1.DeprecatedConditionedStatus) *EKSCluster {
 		r := &Reconciler{
 			Client:     NewFakeClient(cluster),
 			kubeclient: NewSimpleClientset(),
@@ -431,7 +431,7 @@ func TestDelete(t *testing.T) {
 	client.MockDelete = func(string) error { return nil }
 	client.MockDeleteWorkerNodes = func(string) error { return nil }
 
-	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus := corev1alpha1.DeprecatedConditionedStatus{}
 	expectedStatus.SetReady()
 	expectedStatus.SetDeleting()
 
@@ -455,7 +455,7 @@ func TestDelete(t *testing.T) {
 	cluster.Finalizers = []string{finalizer}
 	testError := "test-delete-error"
 	client.MockDelete = func(string) error { return fmt.Errorf(testError) }
-	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus = corev1alpha1.DeprecatedConditionedStatus{}
 	expectedStatus.SetReady()
 	expectedStatus.SetFailed(errorDeleteCluster, fmt.Sprintf("Master Delete Error: %s", testError))
 
@@ -470,7 +470,7 @@ func TestDelete(t *testing.T) {
 	testErrorWorker := "test-delete-error-worker"
 	client.MockDelete = func(string) error { return nil }
 	client.MockDeleteWorkerNodes = func(string) error { return fmt.Errorf(testErrorWorker) }
-	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus = corev1alpha1.DeprecatedConditionedStatus{}
 	expectedStatus.SetReady()
 	expectedStatus.SetFailed(errorDeleteCluster, fmt.Sprintf("Worker Delete Error: %s", testErrorWorker))
 
@@ -485,7 +485,7 @@ func TestDelete(t *testing.T) {
 	client.MockDelete = func(string) error { return nil }
 	client.MockDelete = func(string) error { return fmt.Errorf(testError) }
 	client.MockDeleteWorkerNodes = func(string) error { return fmt.Errorf(testErrorWorker) }
-	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus = corev1alpha1.DeprecatedConditionedStatus{}
 	expectedStatus.SetReady()
 	expectedStatus.SetFailed(errorDeleteCluster, fmt.Sprintf("Master Delete Error: %s, Worker Delete Error: %s", testError, testErrorWorker))
 
@@ -521,7 +521,7 @@ func TestReconcileClientError(t *testing.T) {
 	}
 
 	// expected to have a failed condition
-	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus := corev1alpha1.DeprecatedConditionedStatus{}
 	expectedStatus.SetFailed(errorClusterClient, testError)
 
 	rs, err := r.Reconcile(request)
@@ -558,7 +558,7 @@ func TestReconcileDelete(t *testing.T) {
 	g.Expect(rs).To(Equal(result))
 	g.Expect(err).To(BeNil())
 	g.Expect(called).To(BeTrue())
-	assertResource(g, r, corev1alpha1.ConditionedStatus{})
+	assertResource(g, r, corev1alpha1.DeprecatedConditionedStatus{})
 }
 
 func TestReconcileCreate(t *testing.T) {
@@ -583,7 +583,7 @@ func TestReconcileCreate(t *testing.T) {
 	g.Expect(err).To(BeNil())
 	g.Expect(called).To(BeTrue())
 
-	assertResource(g, r, corev1alpha1.ConditionedStatus{})
+	assertResource(g, r, corev1alpha1.DeprecatedConditionedStatus{})
 }
 
 func TestReconcileSync(t *testing.T) {
@@ -612,7 +612,7 @@ func TestReconcileSync(t *testing.T) {
 	g.Expect(err).To(BeNil())
 	g.Expect(called).To(BeTrue())
 
-	rc := assertResource(g, r, corev1alpha1.ConditionedStatus{})
+	rc := assertResource(g, r, corev1alpha1.DeprecatedConditionedStatus{})
 	g.Expect(rc.Finalizers).To(HaveLen(1))
 	g.Expect(rc.Finalizers).To(ContainElement(finalizer))
 }

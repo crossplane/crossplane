@@ -98,7 +98,7 @@ func (c *cloudMemorystore) Create(ctx context.Context, i *v1alpha1.CloudMemoryst
 	}
 
 	i.Status.InstanceName = id.Instance
-	i.Status.UnsetAllConditions()
+	i.Status.UnsetAllDeprecatedConditions()
 	i.Status.SetCreating()
 	util.AddFinalizer(&i.ObjectMeta, finalizerName)
 
@@ -114,7 +114,7 @@ func (c *cloudMemorystore) Sync(ctx context.Context, i *v1alpha1.CloudMemorystor
 	}
 
 	i.Status.State = gcpInstance.GetState().String()
-	i.Status.UnsetAllConditions()
+	i.Status.UnsetAllDeprecatedConditions()
 
 	switch i.Status.State {
 	case v1alpha1.StateReady:

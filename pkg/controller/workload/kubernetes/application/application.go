@@ -112,7 +112,7 @@ type localCluster struct {
 }
 
 func (c *localCluster) sync(ctx context.Context, app *v1alpha1.KubernetesApplication) reconcile.Result {
-	app.Status.UnsetAllConditions()
+	app.Status.UnsetAllDeprecatedConditions()
 	app.Status.DesiredResources = len(app.Spec.ResourceTemplates)
 	app.Status.SubmittedResources = 0
 

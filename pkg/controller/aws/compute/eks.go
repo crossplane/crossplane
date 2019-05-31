@@ -179,7 +179,7 @@ func (r *Reconciler) _create(instance *awscomputev1alpha1.EKSCluster, client eks
 
 	// Update status
 	instance.Status.State = awscomputev1alpha1.ClusterStatusCreating
-	instance.Status.UnsetAllConditions()
+	instance.Status.UnsetAllDeprecatedConditions()
 	instance.Status.SetCreating()
 	instance.Status.ClusterName = clusterName
 

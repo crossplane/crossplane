@@ -200,7 +200,7 @@ func TestReconciler_Reconcile(t *testing.T) {
 				res: resultRequeue,
 				con: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
 					WithFinalizer("foo.bar").
-					WithFailedCondition(failedToGetHandler, "test-new-syncdeleter-error").
+					WithFailedDeprecatedCondition(failedToGetHandler, "test-new-syncdeleter-error").
 					Container,
 			},
 		},
@@ -522,7 +522,7 @@ func Test_containerSyncdeleter_delete(t *testing.T) {
 				cont: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
 					WithSpecReclaimPolicy(corev1alpha1.ReclaimDelete).
 					WithFinalizer(finalizer).
-					WithFailedCondition(failedToDelete, "test-delete-error").
+					WithFailedDeprecatedCondition(failedToDelete, "test-delete-error").
 					Container,
 			},
 		},
@@ -601,7 +601,7 @@ func Test_containerSyncdeleter_sync(t *testing.T) {
 			want: want{
 				res: resultRequeue,
 				cont: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
-					WithFailedCondition(failedToRetrieve, "test-get-error").Container,
+					WithFailedDeprecatedCondition(failedToRetrieve, "test-get-error").Container,
 			},
 		},
 		{
@@ -717,14 +717,14 @@ func Test_containerCreateUpdater_create(t *testing.T) {
 				res: resultRequeue,
 				cont: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
 					WithFinalizer(finalizer).
-					WithFailedCondition(failedToCreate, "test-create-error").Container,
+					WithFailedDeprecatedCondition(failedToCreate, "test-create-error").Container,
 			},
 		},
 		{
 			name: "CreateSuccessfulInitialStatusNotReady",
 			fields: fields{
 				container: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
-					WithFailedCondition(failedToCreate, "test-error").Container,
+					WithFailedDeprecatedCondition(failedToCreate, "test-error").Container,
 				ContainerOperations: azurestoragefake.NewMockContainerOperations(),
 				kube:                test.NewMockClient(),
 			},
@@ -733,9 +733,9 @@ func Test_containerCreateUpdater_create(t *testing.T) {
 				res: reconcile.Result{},
 				cont: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
 					WithFinalizer(finalizer).
-					WithFailedCondition(failedToCreate, "test-error").
-					WithUnsetAllConditions().
-					WithReadyCondition().
+					WithFailedDeprecatedCondition(failedToCreate, "test-error").
+					WithUnsetAllDeprecatedConditions().
+					WithReadyDeprecatedCondition().
 					Container,
 			},
 		},
@@ -751,7 +751,7 @@ func Test_containerCreateUpdater_create(t *testing.T) {
 				res: reconcile.Result{},
 				cont: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
 					WithFinalizer(finalizer).
-					WithReadyCondition().
+					WithReadyDeprecatedCondition().
 					Container,
 			},
 		},
@@ -815,7 +815,7 @@ func Test_containerCreateUpdater_update(t *testing.T) {
 				res: reconcile.Result{},
 				cont: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
 					WithSpecPAC(azblob.PublicAccessContainer).
-					WithReadyCondition().Container,
+					WithReadyDeprecatedCondition().Container,
 			},
 		},
 		{
@@ -823,7 +823,7 @@ func Test_containerCreateUpdater_update(t *testing.T) {
 			fields: fields{
 				container: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
 					WithSpecPAC(azblob.PublicAccessContainer).
-					WithReadyCondition().Container,
+					WithReadyDeprecatedCondition().Container,
 			},
 			args: args{
 				ctx:        ctx,
@@ -833,7 +833,7 @@ func Test_containerCreateUpdater_update(t *testing.T) {
 				res: requeueOnSuccess,
 				cont: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
 					WithSpecPAC(azblob.PublicAccessContainer).
-					WithReadyCondition().Container,
+					WithReadyDeprecatedCondition().Container,
 			},
 		},
 		{
@@ -841,7 +841,7 @@ func Test_containerCreateUpdater_update(t *testing.T) {
 			fields: fields{
 				container: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
 					WithSpecPAC(azblob.PublicAccessContainer).
-					WithReadyCondition().Container,
+					WithReadyDeprecatedCondition().Container,
 				ContainerOperations: &azurestoragefake.MockContainerOperations{
 					MockUpdate: func(ctx context.Context, publicAccessType azblob.PublicAccessType, meta azblob.Metadata) error {
 						return errors.New("test-container-update-error")
@@ -860,8 +860,8 @@ func Test_containerCreateUpdater_update(t *testing.T) {
 				res: resultRequeue,
 				cont: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
 					WithSpecPAC(azblob.PublicAccessContainer).
-					WithReadyCondition().
-					WithFailedCondition(failedToUpdate, "test-container-update-error").Container,
+					WithReadyDeprecatedCondition().
+					WithFailedDeprecatedCondition(failedToUpdate, "test-container-update-error").Container,
 			},
 		},
 		{
@@ -869,7 +869,7 @@ func Test_containerCreateUpdater_update(t *testing.T) {
 			fields: fields{
 				container: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
 					WithSpecPAC(azblob.PublicAccessContainer).
-					WithReadyCondition().Container,
+					WithReadyDeprecatedCondition().Container,
 				ContainerOperations: azurestoragefake.NewMockContainerOperations(),
 				kube:                test.NewMockClient(),
 			},
@@ -884,7 +884,7 @@ func Test_containerCreateUpdater_update(t *testing.T) {
 				res: requeueOnSuccess,
 				cont: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
 					WithSpecPAC(azblob.PublicAccessContainer).
-					WithReadyCondition().Container,
+					WithReadyDeprecatedCondition().Container,
 			},
 		},
 	}

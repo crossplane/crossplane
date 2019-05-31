@@ -35,7 +35,7 @@ type ProviderSpec struct {
 
 // ProviderStatus is the status for this provider
 type ProviderStatus struct {
-	corev1alpha1.ConditionedStatus
+	corev1alpha1.DeprecatedConditionedStatus
 }
 
 // +genclient
@@ -86,7 +86,7 @@ type ResourceGroupSpec struct {
 // ResourceGroupStatus is the status for this resource group
 type ResourceGroupStatus struct {
 	Name string `json:"name"`
-	corev1alpha1.ConditionedStatus
+	corev1alpha1.DeprecatedConditionedStatus
 }
 
 // +genclient

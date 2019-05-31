@@ -69,8 +69,8 @@ var _ reconcile.Reconciler = &Reconciler{}
 // ************************************************************************************************
 type resourceModifier func(*v1alpha1.Extension)
 
-func withConditions(c ...corev1alpha1.Condition) resourceModifier {
-	return func(r *v1alpha1.Extension) { r.Status.ConditionedStatus.Conditions = c }
+func withConditions(c ...corev1alpha1.DeprecatedCondition) resourceModifier {
+	return func(r *v1alpha1.Extension) { r.Status.DeprecatedConditionedStatus.Conditions = c }
 }
 
 func withControllerSpec(cs v1alpha1.ControllerSpec) resourceModifier {
@@ -270,8 +270,8 @@ func TestCreate(t *testing.T) {
 				err:    nil,
 				r: resource(
 					withPolicyRules(defaultPolicyRules()),
-					withConditions(corev1alpha1.Condition{
-						Type:    corev1alpha1.Failed,
+					withConditions(corev1alpha1.DeprecatedCondition{
+						Type:    corev1alpha1.DeprecatedFailed,
 						Status:  corev1.ConditionTrue,
 						Reason:  reasonCreatingRBAC,
 						Message: fmt.Errorf("failed to create service account: %+v", errors.New("test-create-sa-error")).Error(),
@@ -300,8 +300,8 @@ func TestCreate(t *testing.T) {
 				r: resource(
 					withPolicyRules(defaultPolicyRules()),
 					withControllerSpec(defaultControllerSpec()),
-					withConditions(corev1alpha1.Condition{
-						Type:    corev1alpha1.Failed,
+					withConditions(corev1alpha1.DeprecatedCondition{
+						Type:    corev1alpha1.DeprecatedFailed,
 						Status:  corev1.ConditionTrue,
 						Reason:  reasonCreatingDeployment,
 						Message: fmt.Errorf("failed to create deployment: %+v", errors.New("test-create-deployment-error")).Error(),
@@ -316,7 +316,7 @@ func TestCreate(t *testing.T) {
 				result: requeueOnSuccess,
 				err:    nil,
 				r: resource(
-					withConditions(corev1alpha1.Condition{Type: corev1alpha1.Ready, Status: corev1.ConditionTrue})),
+					withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedReady, Status: corev1.ConditionTrue})),
 			},
 		},
 	}

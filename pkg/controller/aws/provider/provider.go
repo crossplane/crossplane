@@ -98,7 +98,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 // fail - helper function to set fail condition with reason and message
 func (r *Reconciler) fail(instance *awsv1alpha1.Provider, reason, msg string) (reconcile.Result, error) {
-	instance.Status.UnsetAllConditions()
+	instance.Status.UnsetAllDeprecatedConditions()
 	instance.Status.SetFailed(reason, msg)
 	return resultRequeue, r.Update(context.TODO(), instance)
 }
@@ -146,7 +146,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 
 	if !instance.Status.IsReady() {
 		// Update status condition
-		instance.Status.UnsetAllConditions()
+		instance.Status.UnsetAllDeprecatedConditions()
 		instance.Status.SetReady()
 	}
 

@@ -136,7 +136,7 @@ type WorkloadSpec struct {
 
 // WorkloadStatus represents the status of a workload.
 type WorkloadStatus struct {
-	corev1alpha1.ConditionedStatus
+	corev1alpha1.DeprecatedConditionedStatus
 
 	Cluster                 *corev1.ObjectReference `json:"clusterRef,omitempty"`
 	appsv1.DeploymentStatus `json:"deployment,omitempty"`

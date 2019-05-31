@@ -128,7 +128,7 @@ func (r *ResourceClass) ObjectReference() *corev1.ObjectReference {
 
 // ResourceClaimStatus represents the status of a resource claim
 type ResourceClaimStatus struct {
-	ConditionedStatus
+	DeprecatedConditionedStatus
 	BindingStatusPhase
 
 	// Provisioner is the driver that was used to provision the concrete resource

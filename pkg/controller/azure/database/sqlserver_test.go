@@ -216,10 +216,10 @@ func TestReconcile(t *testing.T) {
 		State:      "Ready",
 		ProviderID: instanceName + "-azure-id",
 		Endpoint:   instanceName + ".mydomain.azure.msft.com",
-		ConditionedStatus: corev1alpha1.ConditionedStatus{
-			Conditions: []corev1alpha1.Condition{
+		DeprecatedConditionedStatus: corev1alpha1.DeprecatedConditionedStatus{
+			Conditions: []corev1alpha1.DeprecatedCondition{
 				{
-					Type:    corev1alpha1.Ready,
+					Type:    corev1alpha1.DeprecatedReady,
 					Status:  v1.ConditionTrue,
 					Reason:  conditionStateChanged,
 					Message: "SQL Server instance test-db-instance is in the Ready state",
@@ -299,7 +299,7 @@ func assertSQLServerStatus(g *gomega.GomegaWithT, c client.Client, expectedStatu
 	g.Expect(instance.Status.RunningOperationType).To(gomega.Equal(expectedStatus.RunningOperationType))
 
 	// assert the expected status conditions
-	corev1alpha1.AssertConditions(g, expectedStatus.Conditions, instance.Status.ConditionedStatus)
+	corev1alpha1.AssertConditions(g, expectedStatus.Conditions, instance.Status.DeprecatedConditionedStatus)
 }
 
 func assertConnectionSecret(g *gomega.GomegaWithT, c client.Client, connectionSecret *v1.Secret) {

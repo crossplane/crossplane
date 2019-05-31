@@ -83,11 +83,11 @@ func testCluster() *GKECluster {
 }
 
 // assertResource a helper function to check on cluster and its status
-func assertResource(g *GomegaWithT, r *Reconciler, s corev1alpha1.ConditionedStatus) *GKECluster {
+func assertResource(g *GomegaWithT, r *Reconciler, s corev1alpha1.DeprecatedConditionedStatus) *GKECluster {
 	rc := &GKECluster{}
 	err := r.Get(ctx, key, rc)
 	g.Expect(err).To(BeNil())
-	g.Expect(rc.Status.ConditionedStatus).Should(corev1alpha1.MatchConditionedStatus(s))
+	g.Expect(rc.Status.DeprecatedConditionedStatus).Should(corev1alpha1.MatchDeprecatedConditionedStatus(s))
 	return rc
 }
 
@@ -110,7 +110,7 @@ func TestSyncClusterGetError(t *testing.T) {
 		return nil, fmt.Errorf(testError)
 	}
 
-	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus := corev1alpha1.DeprecatedConditionedStatus{}
 	expectedStatus.SetFailed(errorSyncCluster, testError)
 
 	rs, err := r._sync(tc, cl)
@@ -140,7 +140,7 @@ func TestSyncClusterNotReady(t *testing.T) {
 		}, nil
 	}
 
-	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus := corev1alpha1.DeprecatedConditionedStatus{}
 
 	rs, err := r._sync(tc, cl)
 	g.Expect(rs).To(Equal(reconcile.Result{RequeueAfter: requeueOnWait}))
@@ -179,7 +179,7 @@ func TestSyncApplySecretError(t *testing.T) {
 		}, nil
 	}
 
-	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus := corev1alpha1.DeprecatedConditionedStatus{}
 	expectedStatus.SetFailed(errorSyncCluster, testError)
 
 	rs, err := r._sync(tc, cl)
@@ -214,7 +214,7 @@ func TestSync(t *testing.T) {
 		}, nil
 	}
 
-	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus := corev1alpha1.DeprecatedConditionedStatus{}
 	expectedStatus.SetReady()
 
 	rs, err := r._sync(tc, cl)
@@ -245,9 +245,9 @@ func TestDeleteReclaimDelete(t *testing.T) {
 	}
 
 	// expected to have a cond condition set to inactive
-	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus := corev1alpha1.DeprecatedConditionedStatus{}
 	expectedStatus.SetReady()
-	expectedStatus.UnsetAllConditions()
+	expectedStatus.UnsetAllDeprecatedConditions()
 
 	rs, err := r._delete(tc, cl)
 	g.Expect(rs).To(Equal(result))
@@ -262,7 +262,7 @@ func TestDeleteReclaimDelete(t *testing.T) {
 
 	// expected to have both ready and fail condition inactive
 	expectedStatus.SetFailed(reason, msg)
-	expectedStatus.UnsetAllConditions()
+	expectedStatus.UnsetAllDeprecatedConditions()
 
 	rs, err = r._delete(tc, cl)
 	g.Expect(rs).To(Equal(result))
@@ -298,9 +298,9 @@ func TestDeleteReclaimRetain(t *testing.T) {
 	g.Expect(called).To(BeFalse())
 
 	// expected to have all conditions set to inactive
-	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus := corev1alpha1.DeprecatedConditionedStatus{}
 	expectedStatus.SetReady()
-	expectedStatus.UnsetAllConditions()
+	expectedStatus.UnsetAllDeprecatedConditions()
 
 	assertResource(g, r, expectedStatus)
 }
@@ -334,9 +334,9 @@ func TestDeleteFailed(t *testing.T) {
 	g.Expect(called).To(BeTrue())
 
 	// expected status
-	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus := corev1alpha1.DeprecatedConditionedStatus{}
 	expectedStatus.SetReady()
-	expectedStatus.UnsetAllConditions()
+	expectedStatus.UnsetAllDeprecatedConditions()
 	expectedStatus.SetFailed(errorDeleteCluster, testError)
 
 	assertResource(g, r, expectedStatus)
@@ -370,7 +370,7 @@ func TestReconcileClientError(t *testing.T) {
 	}
 
 	// expected to have a failed condition
-	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus := corev1alpha1.DeprecatedConditionedStatus{}
 	expectedStatus.SetFailed(errorClusterClient, testError)
 
 	rs, err := r.Reconcile(request)
@@ -407,7 +407,7 @@ func TestReconcileDelete(t *testing.T) {
 	g.Expect(rs).To(Equal(result))
 	g.Expect(err).To(BeNil())
 	g.Expect(called).To(BeTrue())
-	assertResource(g, r, corev1alpha1.ConditionedStatus{})
+	assertResource(g, r, corev1alpha1.DeprecatedConditionedStatus{})
 }
 
 func TestReconcileCreate(t *testing.T) {
@@ -459,7 +459,7 @@ func TestReconcileSync(t *testing.T) {
 	g.Expect(err).To(BeNil())
 	g.Expect(called).To(BeTrue())
 
-	rc := assertResource(g, r, corev1alpha1.ConditionedStatus{})
+	rc := assertResource(g, r, corev1alpha1.DeprecatedConditionedStatus{})
 	g.Expect(rc.Finalizers).To(HaveLen(1))
 	g.Expect(rc.Finalizers).To(ContainElement(finalizer))
 }

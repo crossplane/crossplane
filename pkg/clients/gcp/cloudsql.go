@@ -144,15 +144,15 @@ func IsOperationSuccessful(op *sqladmin.Operation) bool {
 	return op.Error == nil || len(op.Error.Errors) == 0
 }
 
-// CloudSQLConditionType converts the given CloudSQL state string into a corresponding condition type
-func CloudSQLConditionType(state string) corev1alpha1.ConditionType {
+// CloudSQLDeprecatedConditionType converts the given CloudSQL state string into a corresponding condition type
+func CloudSQLDeprecatedConditionType(state string) corev1alpha1.DeprecatedConditionType {
 	switch state {
 	case dbv1alpha1.StateRunnable:
-		return corev1alpha1.Ready
+		return corev1alpha1.DeprecatedReady
 	case dbv1alpha1.StatePendingCreate:
-		return corev1alpha1.Creating
+		return corev1alpha1.DeprecatedCreating
 	default:
-		return corev1alpha1.Failed
+		return corev1alpha1.DeprecatedFailed
 	}
 }
 

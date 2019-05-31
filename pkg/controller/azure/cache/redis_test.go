@@ -83,8 +83,8 @@ var (
 			},
 		},
 		Status: azurev1alpha1.ProviderStatus{
-			ConditionedStatus: corev1alpha1.ConditionedStatus{
-				Conditions: []corev1alpha1.Condition{{Type: corev1alpha1.Ready, Status: corev1.ConditionTrue}},
+			DeprecatedConditionedStatus: corev1alpha1.DeprecatedConditionedStatus{
+				Conditions: []corev1alpha1.DeprecatedCondition{{Type: corev1alpha1.DeprecatedReady, Status: corev1.ConditionTrue}},
 			},
 		},
 	}
@@ -97,8 +97,8 @@ var (
 
 type resourceModifier func(*v1alpha1.Redis)
 
-func withConditions(c ...corev1alpha1.Condition) resourceModifier {
-	return func(r *v1alpha1.Redis) { r.Status.ConditionedStatus.Conditions = c }
+func withConditions(c ...corev1alpha1.DeprecatedCondition) resourceModifier {
+	return func(r *v1alpha1.Redis) { r.Status.DeprecatedConditionedStatus.Conditions = c }
 }
 
 func withState(s string) resourceModifier {
@@ -193,7 +193,7 @@ func TestCreate(t *testing.T) {
 			}},
 			r: resource(),
 			want: resource(
-				withConditions(corev1alpha1.Condition{Type: corev1alpha1.Creating, Status: corev1.ConditionTrue}),
+				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedCreating, Status: corev1.ConditionTrue}),
 				withFinalizers(finalizerName),
 				withResourceName(resourceName),
 			),
@@ -208,8 +208,8 @@ func TestCreate(t *testing.T) {
 			}},
 			r: resource(),
 			want: resource(withConditions(
-				corev1alpha1.Condition{
-					Type:    corev1alpha1.Failed,
+				corev1alpha1.DeprecatedCondition{
+					Type:    corev1alpha1.DeprecatedFailed,
 					Status:  corev1.ConditionTrue,
 					Reason:  reasonCreatingResource,
 					Message: errorBoom.Error(),
@@ -252,8 +252,8 @@ func TestSync(t *testing.T) {
 			r: resource(
 				withResourceName(resourceName),
 				withConditions(
-					corev1alpha1.Condition{
-						Type:    corev1alpha1.Failed,
+					corev1alpha1.DeprecatedCondition{
+						Type:    corev1alpha1.DeprecatedFailed,
 						Status:  corev1.ConditionTrue,
 						Reason:  reasonCreatingResource,
 						Message: errorBoom.Error(),
@@ -264,13 +264,13 @@ func TestSync(t *testing.T) {
 				withState(v1alpha1.ProvisioningStateCreating),
 				withResourceName(resourceName),
 				withConditions(
-					corev1alpha1.Condition{
-						Type:    corev1alpha1.Failed,
+					corev1alpha1.DeprecatedCondition{
+						Type:    corev1alpha1.DeprecatedFailed,
 						Status:  corev1.ConditionFalse,
 						Reason:  reasonCreatingResource,
 						Message: errorBoom.Error(),
 					},
-					corev1alpha1.Condition{Type: corev1alpha1.Creating, Status: corev1.ConditionTrue},
+					corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedCreating, Status: corev1.ConditionTrue},
 				),
 			),
 			wantRequeue: true,
@@ -284,12 +284,12 @@ func TestSync(t *testing.T) {
 			}},
 			r: resource(
 				withResourceName(resourceName),
-				withConditions(corev1alpha1.Condition{Type: corev1alpha1.Deleting, Status: corev1.ConditionTrue}),
+				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedDeleting, Status: corev1.ConditionTrue}),
 			),
 			want: resource(
 				withResourceName(resourceName),
 				withState(v1alpha1.ProvisioningStateDeleting),
-				withConditions(corev1alpha1.Condition{Type: corev1alpha1.Deleting, Status: corev1.ConditionTrue}),
+				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedDeleting, Status: corev1.ConditionTrue}),
 			),
 			wantRequeue: false,
 		},
@@ -302,12 +302,12 @@ func TestSync(t *testing.T) {
 			}},
 			r: resource(
 				withResourceName(resourceName),
-				withConditions(corev1alpha1.Condition{Type: corev1alpha1.Deleting, Status: corev1.ConditionTrue}),
+				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedDeleting, Status: corev1.ConditionTrue}),
 			),
 			want: resource(
 				withResourceName(resourceName),
 				withState(v1alpha1.ProvisioningStateUpdating),
-				withConditions(corev1alpha1.Condition{Type: corev1alpha1.Deleting, Status: corev1.ConditionFalse}),
+				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedDeleting, Status: corev1.ConditionFalse}),
 			),
 			wantRequeue: true,
 		},
@@ -336,7 +336,7 @@ func TestSync(t *testing.T) {
 			}},
 			r: resource(
 				withResourceName(resourceName),
-				withConditions(corev1alpha1.Condition{Type: corev1alpha1.Ready, Status: corev1.ConditionTrue}),
+				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedReady, Status: corev1.ConditionTrue}),
 			),
 			want: resource(
 				withResourceName(resourceName),
@@ -345,7 +345,7 @@ func TestSync(t *testing.T) {
 				withEndpoint(host),
 				withPort(port),
 				withSSLPort(sslPort),
-				withConditions(corev1alpha1.Condition{Type: corev1alpha1.Ready, Status: corev1.ConditionTrue}),
+				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedReady, Status: corev1.ConditionTrue}),
 			),
 			wantRequeue: false,
 		},
@@ -380,7 +380,7 @@ func TestSync(t *testing.T) {
 			}},
 			r: resource(
 				withResourceName(resourceName),
-				withConditions(corev1alpha1.Condition{Type: corev1alpha1.Ready, Status: corev1.ConditionTrue}),
+				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedReady, Status: corev1.ConditionTrue}),
 			),
 			want: resource(
 				withResourceName(resourceName),
@@ -389,7 +389,7 @@ func TestSync(t *testing.T) {
 				withEndpoint(host),
 				withPort(port),
 				withSSLPort(sslPort),
-				withConditions(corev1alpha1.Condition{Type: corev1alpha1.Ready, Status: corev1.ConditionTrue}),
+				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedReady, Status: corev1.ConditionTrue}),
 			),
 			wantRequeue: false,
 		},
@@ -402,14 +402,14 @@ func TestSync(t *testing.T) {
 			}},
 			r: resource(
 				withResourceName(resourceName),
-				withConditions(corev1alpha1.Condition{Type: corev1alpha1.Creating, Status: corev1.ConditionTrue}),
+				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedCreating, Status: corev1.ConditionTrue}),
 			),
 			want: resource(
 				withResourceName(resourceName),
 				withConditions(
-					corev1alpha1.Condition{Type: corev1alpha1.Creating, Status: corev1.ConditionTrue},
-					corev1alpha1.Condition{
-						Type:    corev1alpha1.Failed,
+					corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedCreating, Status: corev1.ConditionTrue},
+					corev1alpha1.DeprecatedCondition{
+						Type:    corev1alpha1.DeprecatedFailed,
 						Status:  corev1.ConditionTrue,
 						Reason:  reasonSyncingResource,
 						Message: errorBoom.Error(),
@@ -445,7 +445,7 @@ func TestSync(t *testing.T) {
 				},
 			}},
 			r: resource(withResourceName(resourceName),
-				withConditions(corev1alpha1.Condition{Type: corev1alpha1.Ready, Status: corev1.ConditionTrue}),
+				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedReady, Status: corev1.ConditionTrue}),
 			),
 			want: resource(
 				withResourceName(resourceName),
@@ -455,9 +455,9 @@ func TestSync(t *testing.T) {
 				withPort(port),
 				withSSLPort(sslPort),
 				withConditions(
-					corev1alpha1.Condition{Type: corev1alpha1.Ready, Status: corev1.ConditionTrue},
-					corev1alpha1.Condition{
-						Type:    corev1alpha1.Failed,
+					corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedReady, Status: corev1.ConditionTrue},
+					corev1alpha1.DeprecatedCondition{
+						Type:    corev1alpha1.DeprecatedFailed,
 						Status:  corev1.ConditionTrue,
 						Reason:  reasonSyncingResource,
 						Message: errorBoom.Error(),
@@ -501,7 +501,7 @@ func TestDelete(t *testing.T) {
 			r: resource(withFinalizers(finalizerName), withReclaimPolicy(corev1alpha1.ReclaimRetain)),
 			want: resource(
 				withReclaimPolicy(corev1alpha1.ReclaimRetain),
-				withConditions(corev1alpha1.Condition{Type: corev1alpha1.Deleting, Status: corev1.ConditionTrue}),
+				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedDeleting, Status: corev1.ConditionTrue}),
 			),
 			wantRequeue: false,
 		},
@@ -515,7 +515,7 @@ func TestDelete(t *testing.T) {
 			r: resource(withFinalizers(finalizerName), withReclaimPolicy(corev1alpha1.ReclaimDelete)),
 			want: resource(
 				withReclaimPolicy(corev1alpha1.ReclaimDelete),
-				withConditions(corev1alpha1.Condition{Type: corev1alpha1.Deleting, Status: corev1.ConditionTrue}),
+				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedDeleting, Status: corev1.ConditionTrue}),
 			),
 			wantRequeue: false,
 		},
@@ -531,8 +531,8 @@ func TestDelete(t *testing.T) {
 				withFinalizers(finalizerName),
 				withReclaimPolicy(corev1alpha1.ReclaimDelete),
 				withConditions(
-					corev1alpha1.Condition{
-						Type:    corev1alpha1.Failed,
+					corev1alpha1.DeprecatedCondition{
+						Type:    corev1alpha1.DeprecatedFailed,
 						Status:  corev1.ConditionTrue,
 						Reason:  reasonDeletingResource,
 						Message: errorBoom.Error(),
@@ -586,8 +586,8 @@ func TestKey(t *testing.T) {
 			r: resource(),
 			want: resource(
 				withConditions(
-					corev1alpha1.Condition{
-						Type:    corev1alpha1.Failed,
+					corev1alpha1.DeprecatedCondition{
+						Type:    corev1alpha1.DeprecatedFailed,
 						Status:  corev1.ConditionTrue,
 						Reason:  reasonGettingKey,
 						Message: errorBoom.Error(),
@@ -865,8 +865,8 @@ func TestReconcile(t *testing.T) {
 					},
 					MockUpdate: func(_ context.Context, obj runtime.Object) error {
 						want := resource(withConditions(
-							corev1alpha1.Condition{
-								Type:    corev1alpha1.Failed,
+							corev1alpha1.DeprecatedCondition{
+								Type:    corev1alpha1.DeprecatedFailed,
 								Status:  corev1.ConditionTrue,
 								Reason:  reasonFetchingClient,
 								Message: errorBoom.Error(),
@@ -904,8 +904,8 @@ func TestReconcile(t *testing.T) {
 						want := resource(
 							withResourceName(resourceName),
 							withConditions(
-								corev1alpha1.Condition{
-									Type:    corev1alpha1.Failed,
+								corev1alpha1.DeprecatedCondition{
+									Type:    corev1alpha1.DeprecatedFailed,
 									Status:  corev1.ConditionTrue,
 									Reason:  reasonSyncingSecret,
 									Message: errors.Wrapf(errorBoom, "cannot get secret %s/%s", namespace, connectionSecretName).Error(),
@@ -943,8 +943,8 @@ func TestReconcile(t *testing.T) {
 						want := resource(
 							withResourceName(resourceName),
 							withConditions(
-								corev1alpha1.Condition{
-									Type:    corev1alpha1.Failed,
+								corev1alpha1.DeprecatedCondition{
+									Type:    corev1alpha1.DeprecatedFailed,
 									Status:  corev1.ConditionTrue,
 									Reason:  reasonSyncingSecret,
 									Message: errors.Wrapf(errorBoom, "cannot create secret %s/%s", namespace, connectionSecretName).Error(),
@@ -987,8 +987,8 @@ func TestReconcile(t *testing.T) {
 							want := resource(
 								withResourceName(resourceName),
 								withConditions(
-									corev1alpha1.Condition{
-										Type:    corev1alpha1.Failed,
+									corev1alpha1.DeprecatedCondition{
+										Type:    corev1alpha1.DeprecatedFailed,
 										Status:  corev1.ConditionTrue,
 										Reason:  reasonSyncingSecret,
 										Message: errors.Wrapf(errorBoom, "cannot update secret %s/%s", namespace, connectionSecretName).Error(),

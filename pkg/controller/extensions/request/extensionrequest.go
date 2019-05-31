@@ -242,7 +242,7 @@ func (h *extensionRequestHandler) create(ctx context.Context) (reconcile.Result,
 				}
 
 				// the install job's completion was handled successfully, this extension request is ready
-				h.ext.Status.UnsetAllConditions()
+				h.ext.Status.UnsetAllDeprecatedConditions()
 				h.ext.Status.SetReady()
 				return requeueOnSuccess, h.kube.Status().Update(ctx, h.ext)
 			case batchv1.JobFailed:
@@ -537,7 +537,7 @@ func (d *executorInfoDiscoverer) discoverExecutorInfo(ctx context.Context) (*exe
 func fail(ctx context.Context, kube client.StatusClient, i *v1alpha1.ExtensionRequest, reason, msg string) (reconcile.Result, error) {
 	log.V(logging.Debug).Info("failed extension request", "i", i.Name, "reason", reason, "message", msg)
 	i.Status.SetFailed(reason, msg)
-	i.Status.UnsetCondition(corev1alpha1.Ready)
+	i.Status.UnsetDeprecatedCondition(corev1alpha1.DeprecatedReady)
 	return resultRequeue, kube.Status().Update(ctx, i)
 }
 

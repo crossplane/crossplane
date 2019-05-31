@@ -177,7 +177,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 
 	// check for CRD deletion and handle it if needed
 	if instance.DeletionTimestamp != nil {
-		if instance.Status.Condition(corev1alpha1.Deleting) == nil {
+		if instance.Status.DeprecatedCondition(corev1alpha1.DeprecatedDeleting) == nil {
 			// we haven't started the deletion of the CloudSQL resource yet, do it now
 			log.V(logging.Debug).Info("cloud sql instance has been deleted, running finalizer now", "instance", instance)
 			return r.handleDeletion(cloudSQLClient, instance, provider)
@@ -207,7 +207,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	}
 
 	stateChanged := instance.Status.State != cloudSQLInstance.State
-	conditionType := gcpclients.CloudSQLConditionType(cloudSQLInstance.State)
+	conditionType := gcpclients.CloudSQLDeprecatedConditionType(cloudSQLInstance.State)
 
 	// cloud sql instance exists, update the CRD status now with its latest status
 	if err := r.updateStatus(instance, gcpclients.CloudSQLStatusMessage(instance.Name, cloudSQLInstance), cloudSQLInstance); err != nil {
@@ -218,18 +218,18 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	if stateChanged {
 		// the state of the instance has changed, let's set a corresponding condition on the CRD and then
 		// requeue another reconiliation attempt
-		if conditionType == corev1alpha1.Ready {
+		if conditionType == corev1alpha1.DeprecatedReady {
 			// when we hit the running condition, clear out all old conditions first
-			instance.Status.UnsetAllConditions()
+			instance.Status.UnsetAllDeprecatedConditions()
 		}
 
 		conditionMessage := fmt.Sprintf("cloud sql instance %s is in the %s state", instance.Name, conditionType)
 		log.V(logging.Debug).Info("state changed", "instance", instance, "condition", conditionType)
-		instance.Status.SetCondition(corev1alpha1.NewCondition(conditionType, conditionStateChanged, conditionMessage))
+		instance.Status.SetDeprecatedCondition(corev1alpha1.NewDeprecatedCondition(conditionType, conditionStateChanged, conditionMessage))
 		return reconcile.Result{Requeue: true}, r.Update(context.TODO(), instance)
 	}
 
-	if conditionType != corev1alpha1.Ready {
+	if conditionType != corev1alpha1.DeprecatedReady {
 		// the instance isn't running still, requeue another reconciliation attempt
 		return reconcile.Result{Requeue: true}, nil
 	}
@@ -301,7 +301,7 @@ func (r *Reconciler) handleDeletion(cloudSQLClient gcpclients.CloudSQLAPI,
 }
 
 func (r *Reconciler) markAsDeleting(instance *databasev1alpha1.CloudsqlInstance) (reconcile.Result, error) {
-	instance.Status.SetCondition(corev1alpha1.NewCondition(corev1alpha1.Deleting, "", ""))
+	instance.Status.SetDeprecatedCondition(corev1alpha1.NewDeprecatedCondition(corev1alpha1.DeprecatedDeleting, "", ""))
 	util.RemoveFinalizer(&instance.ObjectMeta, finalizer)
 	return reconcile.Result{}, r.Update(context.TODO(), instance)
 }
@@ -402,7 +402,7 @@ func (r *Reconciler) initDefaultUser(cloudSQLClient gcpclients.CloudSQLAPI,
 
 // fail - helper function to set fail condition with reason and message
 func (r *Reconciler) fail(instance *databasev1alpha1.CloudsqlInstance, reason, msg string) (reconcile.Result, error) {
-	instance.Status.SetCondition(corev1alpha1.NewCondition(corev1alpha1.Failed, reason, msg))
+	instance.Status.SetDeprecatedCondition(corev1alpha1.NewDeprecatedCondition(corev1alpha1.DeprecatedFailed, reason, msg))
 	return reconcile.Result{Requeue: true}, r.Update(context.TODO(), instance)
 }
 

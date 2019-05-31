@@ -92,7 +92,7 @@ func (r *SQLReconciler) handleReconcile(instance azuredbv1alpha1.SQLServer) (rec
 
 	// check for CRD deletion and handle it if needed
 	if instance.GetDeletionTimestamp() != nil {
-		if instance.GetStatus().Condition(corev1alpha1.Deleting) == nil {
+		if instance.GetStatus().DeprecatedCondition(corev1alpha1.DeprecatedDeleting) == nil {
 			// we haven't started the deletion of the SQL Server resource yet, do it now
 			log.V(logging.Debug).Info("sql server has been deleted, running finalizer now", "instance", instance)
 			return r.handleDeletion(sqlServersClient, instance)
@@ -136,7 +136,7 @@ func (r *SQLReconciler) handleReconcile(instance azuredbv1alpha1.SQLServer) (rec
 
 	// SQL Server instance exists, update the CRD status now with its latest status
 	stateChanged := instance.GetStatus().State != server.State
-	conditionType := azureclients.SQLServerConditionType(server.State)
+	conditionType := azureclients.SQLServerDeprecatedConditionType(server.State)
 	if err := r.updateStatus(instance, azureclients.SQLServerStatusMessage(instance.GetName(), server.State), server); err != nil {
 		// updating the CRD status failed, return the error and try the next reconcile loop
 		log.Error(err, "failed to update status of instance", "instance", instance)
@@ -146,18 +146,18 @@ func (r *SQLReconciler) handleReconcile(instance azuredbv1alpha1.SQLServer) (rec
 	if stateChanged {
 		// the state of the instance has changed, let's set a corresponding condition on the CRD and then
 		// requeue another reconciliation attempt
-		if conditionType == corev1alpha1.Ready {
+		if conditionType == corev1alpha1.DeprecatedReady {
 			// when we hit the running condition, clear out all old conditions first
-			instance.GetStatus().UnsetAllConditions()
+			instance.GetStatus().UnsetAllDeprecatedConditions()
 		}
 
 		conditionMessage := fmt.Sprintf("SQL Server instance %s is in the %s state", instance.GetName(), conditionType)
 		log.V(logging.Debug).Info("SQL server state changed", "instance", instance, "condition", conditionType)
-		instance.GetStatus().SetCondition(corev1alpha1.NewCondition(conditionType, conditionStateChanged, conditionMessage))
+		instance.GetStatus().SetDeprecatedCondition(corev1alpha1.NewDeprecatedCondition(conditionType, conditionStateChanged, conditionMessage))
 		return reconcile.Result{Requeue: true}, r.Update(ctx, instance)
 	}
 
-	if conditionType != corev1alpha1.Ready {
+	if conditionType != corev1alpha1.DeprecatedReady {
 		// the instance isn't running still, requeue another reconciliation attempt
 		return reconcile.Result{Requeue: true}, nil
 	}
@@ -255,7 +255,7 @@ func (r *SQLReconciler) handleDeletion(sqlServersClient azureclients.SQLServerAP
 
 func (r *SQLReconciler) markAsDeleting(instance azuredbv1alpha1.SQLServer) (reconcile.Result, error) {
 	ctx := context.Background()
-	instance.GetStatus().SetCondition(corev1alpha1.NewCondition(corev1alpha1.Deleting, "", ""))
+	instance.GetStatus().SetDeprecatedCondition(corev1alpha1.NewDeprecatedCondition(corev1alpha1.DeprecatedDeleting, "", ""))
 	util.RemoveFinalizer(instance, r.finalizer)
 	return reconcile.Result{}, r.Update(ctx, instance)
 }
@@ -324,7 +324,7 @@ func (r *SQLReconciler) handleRunningOperation(sqlServersClient azureclients.SQL
 func (r *SQLReconciler) fail(instance azuredbv1alpha1.SQLServer, reason, msg string) (reconcile.Result, error) {
 	ctx := context.Background()
 
-	instance.GetStatus().SetCondition(corev1alpha1.NewCondition(corev1alpha1.Failed, reason, msg))
+	instance.GetStatus().SetDeprecatedCondition(corev1alpha1.NewDeprecatedCondition(corev1alpha1.DeprecatedFailed, reason, msg))
 	return reconcile.Result{Requeue: true}, r.Update(ctx, instance)
 }
 
@@ -333,14 +333,14 @@ func (r *SQLReconciler) updateStatus(instance azuredbv1alpha1.SQLServer, message
 
 	oldStatus := instance.GetStatus()
 	status := &azuredbv1alpha1.SQLServerStatus{
-		ConditionedStatus:    oldStatus.ConditionedStatus,
-		BindingStatusPhase:   oldStatus.BindingStatusPhase,
-		Message:              message,
-		State:                server.State,
-		ProviderID:           server.ID,
-		Endpoint:             server.FQDN,
-		RunningOperation:     oldStatus.RunningOperation,
-		RunningOperationType: oldStatus.RunningOperationType,
+		DeprecatedConditionedStatus: oldStatus.DeprecatedConditionedStatus,
+		BindingStatusPhase:          oldStatus.BindingStatusPhase,
+		Message:                     message,
+		State:                       server.State,
+		ProviderID:                  server.ID,
+		Endpoint:                    server.FQDN,
+		RunningOperation:            oldStatus.RunningOperation,
+		RunningOperationType:        oldStatus.RunningOperationType,
 	}
 	instance.SetStatus(status)
 

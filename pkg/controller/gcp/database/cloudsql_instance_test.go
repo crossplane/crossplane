@@ -110,16 +110,16 @@ func TestReconcile(t *testing.T) {
 		ProviderID:   fmt.Sprintf("https://www.googleapis.com/sql/v1beta4/projects/%s/instances/cloudsql-%s", providerProject, instance.UID),
 		Endpoint:     "10.0.0.1",
 		InstanceName: expectedInstanceName,
-		ConditionedStatus: corev1alpha1.ConditionedStatus{
-			Conditions: []corev1alpha1.Condition{
+		DeprecatedConditionedStatus: corev1alpha1.DeprecatedConditionedStatus{
+			Conditions: []corev1alpha1.DeprecatedCondition{
 				{
-					Type:    corev1alpha1.Creating,
+					Type:    corev1alpha1.DeprecatedCreating,
 					Status:  v1.ConditionFalse,
 					Reason:  conditionStateChanged,
 					Message: "cloud sql instance test-db-instance is in the Creating state",
 				},
 				{
-					Type:    corev1alpha1.Ready,
+					Type:    corev1alpha1.DeprecatedReady,
 					Status:  v1.ConditionTrue,
 					Reason:  conditionStateChanged,
 					Message: "cloud sql instance test-db-instance is in the Ready state",
@@ -196,7 +196,7 @@ func assertCloudsqlInstanceStatus(g *gomega.GomegaWithT, c client.Client, expect
 	g.Expect(instance.Status.InstanceName).To(gomega.Equal(expectedStatus.InstanceName))
 
 	// assert the expected status conditions
-	corev1alpha1.AssertConditions(g, expectedStatus.Conditions, instance.Status.ConditionedStatus)
+	corev1alpha1.AssertConditions(g, expectedStatus.Conditions, instance.Status.DeprecatedConditionedStatus)
 }
 
 func assertConnectionSecret(g *gomega.GomegaWithT, c client.Client, connectionSecret *v1.Secret) {

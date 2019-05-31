@@ -167,7 +167,7 @@ type remoteCluster struct {
 
 func (c *remoteCluster) sync(ctx context.Context, ar *v1alpha1.KubernetesApplicationResource, secrets []corev1.Secret) reconcile.Result {
 	util.AddFinalizer(ar, finalizerName)
-	ar.Status.UnsetAllConditions()
+	ar.Status.UnsetAllDeprecatedConditions()
 
 	// Our CRD requires template to be specified, but just in case...
 	if ar.Spec.Template == nil {
@@ -215,7 +215,7 @@ func (c *remoteCluster) sync(ctx context.Context, ar *v1alpha1.KubernetesApplica
 }
 
 func (c *remoteCluster) delete(ctx context.Context, ar *v1alpha1.KubernetesApplicationResource, secrets []corev1.Secret) reconcile.Result {
-	ar.Status.UnsetAllConditions()
+	ar.Status.UnsetAllDeprecatedConditions()
 	ar.Status.SetDeleting()
 
 	// Our CRD requires template to be specified, but just in case...

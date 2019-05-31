@@ -76,7 +76,7 @@ type AKSClusterSpec struct {
 
 // AKSClusterStatus is the status for AKS cluster resources
 type AKSClusterStatus struct {
-	corev1alpha1.ConditionedStatus
+	corev1alpha1.DeprecatedConditionedStatus
 	corev1alpha1.BindingStatusPhase
 	// ClusterName is the name of the cluster as registered with the cloud provider
 	ClusterName string `json:"clusterName,omitempty"`

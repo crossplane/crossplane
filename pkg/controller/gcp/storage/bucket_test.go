@@ -128,7 +128,7 @@ func (b *bucket) withServiceAccountSecretRef(name string) *bucket {
 	return b
 }
 
-func (b *bucket) withFailedCondition(reason, msg string) *bucket {
+func (b *bucket) withFailedDeprecatedCondition(reason, msg string) *bucket {
 	b.Status.SetFailed(reason, msg)
 	return b
 }
@@ -161,8 +161,8 @@ func newProvider(ns, name string) *provider {
 	}}
 }
 
-func (p *provider) withCondition(c corev1alpha1.Condition) *provider {
-	p.Status.ConditionedStatus.SetCondition(c)
+func (p *provider) withDeprecatedCondition(c corev1alpha1.DeprecatedCondition) *provider {
+	p.Status.DeprecatedConditionedStatus.SetDeprecatedCondition(c)
 	return p
 }
 
@@ -259,7 +259,7 @@ func TestReconciler_Reconcile(t *testing.T) {
 			wantRs:  resultRequeue,
 			wantErr: nil,
 			wantObj: newBucket(ns, name).
-				withFailedCondition(failedToGetHandler, "handler-factory-error").
+				withFailedDeprecatedCondition(failedToGetHandler, "handler-factory-error").
 				withFinalizer("foo.bar").Bucket,
 		},
 		{
@@ -351,7 +351,7 @@ func Test_bucketFactory_newHandler(t *testing.T) {
 		{
 			name: "ProviderIsNotReady",
 			Client: fake.NewFakeClient(newProvider(ns, providerName).
-				withCondition(corev1alpha1.NewCondition(corev1alpha1.Failed, "", "")).Provider),
+				withDeprecatedCondition(corev1alpha1.NewDeprecatedCondition(corev1alpha1.DeprecatedFailed, "", "")).Provider),
 			bucket: newBucket(ns, bucketName).withProvider("test-provider").Bucket,
 			want: want{
 				err: errors.Errorf("provider: %s is not ready", ns+"/test-provider"),
@@ -360,7 +360,7 @@ func Test_bucketFactory_newHandler(t *testing.T) {
 		{
 			name: "ProviderSecretIsNotFound",
 			Client: fake.NewFakeClient(newProvider(ns, providerName).
-				withCondition(corev1alpha1.NewCondition(corev1alpha1.Ready, "", "")).
+				withDeprecatedCondition(corev1alpha1.NewDeprecatedCondition(corev1alpha1.DeprecatedReady, "", "")).
 				withSecret(secretName, secretKey).Provider),
 			bucket: newBucket(ns, bucketName).withProvider("test-provider").Bucket,
 			want: want{
@@ -371,7 +371,7 @@ func Test_bucketFactory_newHandler(t *testing.T) {
 		{
 			name: "InvalidCredentials",
 			Client: fake.NewFakeClient(newProvider(ns, providerName).
-				withCondition(corev1alpha1.NewCondition(corev1alpha1.Ready, "", "")).
+				withDeprecatedCondition(corev1alpha1.NewDeprecatedCondition(corev1alpha1.DeprecatedReady, "", "")).
 				withSecret(secretName, secretKey).Provider,
 				newSecret(ns, secretName).Secret),
 			bucket: newBucket(ns, bucketName).withProvider("test-provider").Bucket,
@@ -383,7 +383,7 @@ func Test_bucketFactory_newHandler(t *testing.T) {
 		{
 			name: "Successful",
 			Client: fake.NewFakeClient(newProvider(ns, providerName).
-				withCondition(corev1alpha1.NewCondition(corev1alpha1.Ready, "", "")).
+				withDeprecatedCondition(corev1alpha1.NewDeprecatedCondition(corev1alpha1.DeprecatedReady, "", "")).
 				withSecret(secretName, secretKey).Provider,
 				newSecret(ns, secretName).withKeyData(secretKey, secretData).Secret),
 			bucket: newBucket(ns, bucketName).withUID("test-uid").withProvider("test-provider").Bucket,

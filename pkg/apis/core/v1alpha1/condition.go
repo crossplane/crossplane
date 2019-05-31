@@ -17,41 +17,65 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"sort"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// ConditionType type for possible conditions the resource could be in.
+// A ConditionType represents a condition a resource could be in.
 type ConditionType string
 
-// Resource conditions.
+// Condition types.
 const (
-	// Pending means that the resource create request has been received and is waiting to be fulfilled.
-	Pending ConditionType = "Pending"
-	// Creating means that the resource create request has been accepted and the resource is in
-	// the process of being created.
-	Creating ConditionType = "Creating"
-	// Deleting means that the resource is in the process of being deleted.
-	Deleting ConditionType = "Deleting"
-	// Failed means that the resource is in a failure state, for example it failed to be created.
-	Failed ConditionType = "Failed"
-	// Ready means that the resource creation has been successful and the resource is ready to
-	// accept requests and perform operations.
+	// Ready managed resources are believed to be ready to handle work.
 	Ready ConditionType = "Ready"
+
+	// Synced managed resources are believed to be in sync with the Kubernetes
+	// resources that manage their lifecycle.
+	Synced ConditionType = "Synced"
 )
 
-// Condition contains details for the current condition of this pod.
+// A ConditionReason represents the reason a resource is in a condition.
+type ConditionReason string
+
+// Reasons a resource is or is not ready.
+const (
+	Available   ConditionReason = "Managed resource is available for use"
+	Unavailable ConditionReason = "Managed resource is not available for use"
+	Creating    ConditionReason = "Managed resource is being created"
+	Deleting    ConditionReason = "Managed resource is being deleted"
+)
+
+// Reasons a resource is or is not synced.
+const (
+	ReconcileSuccess ConditionReason = "Successfully reconciled managed resource"
+	ReconcileError   ConditionReason = "Encountered an error during managed resource reconciliation"
+)
+
+// A Condition that may apply to a managed resource.
 type Condition struct {
-	Type               ConditionType
-	Status             corev1.ConditionStatus
+	// Type of this condition. At most one of each condition type may apply to
+	// a managed resource at any point in time.
+	Type ConditionType
+
+	// Status of this condition; is it currently True, False, or Unknown?
+	Status corev1.ConditionStatus
+
+	// LastTransitionTime is the last time this condition transitioned from one
+	// status to another.
 	LastTransitionTime metav1.Time
-	Reason             string
-	Message            string
+
+	// A Reason for this condition's last transition from one status to another.
+	Reason ConditionReason
+
+	// A Message containing details about this condition's last transition from
+	// one status to another, if any.
+	Message string
 }
 
 // Equal returns true if the condition is identical to the supplied condition,
-// ignoring the LastTransitionTime. github.com/go-test/deep uses this method to
-// test equality.
+// ignoring the LastTransitionTime.
 func (c Condition) Equal(other Condition) bool {
 	return c.Type == other.Type &&
 		c.Status == other.Status &&
@@ -59,139 +83,174 @@ func (c Condition) Equal(other Condition) bool {
 		c.Message == other.Message
 }
 
-// Conditionable defines set of functionality to operate on Conditions
-type Conditionable interface {
-	Condition(ConditionType) *Condition
-	SetCondition(Condition)
-	RemoveCondition(ConditionType)
-	UnsetCondition(ConditionType)
-	UnsetAllConditions()
-}
+// NOTE(negz): Conditions are implemented as a slice rather than a map to comply
+// with Kubernetes API conventions. Ideally we'd comply by using a map that
+// marshalled to a JSON array, but doing so confuses the CRD schema generator.
+// https://github.com/kubernetes/community/blob/9bf8cd/contributors/devel/sig-architecture/api-conventions.md#lists-of-named-subobjects-preferred-over-maps
 
-// ConditionedStatus defines the observed state of RDS resource
+// A ConditionedStatus reflects the observed status of a managed resource. Only
+// one condition of each type may exist. Do not manipulate Conditions directly -
+// use the Set method.
 type ConditionedStatus struct {
-	// Conditions indicate state for particular aspects of a CustomResourceDefinition
+	// Conditions of the managed resource.
 	Conditions []Condition
 }
 
-// Condition returns a provider condition with the provided type if it exists.
-func (c *ConditionedStatus) Condition(conditionType ConditionType) *Condition {
-	for i := range c.Conditions {
-		// This loop is written this way (as opposed to for i, cnd := range...)
-		// to avoid returning a pointer to a range variable whose content will
-		// change as the loop iterates.
-		// https://github.com/kyoh86/scopelint#whats-this
-		cnd := c.Conditions[i]
-		if cnd.Type == conditionType {
-			return &cnd
+// NewConditionedStatus returns a new conditioned status with all condition
+// types with unknown statuses.
+func NewConditionedStatus() *ConditionedStatus {
+	return &ConditionedStatus{Conditions: []Condition{
+		{Type: Ready, Status: corev1.ConditionUnknown, LastTransitionTime: metav1.Now()},
+		{Type: Synced, Status: corev1.ConditionUnknown, LastTransitionTime: metav1.Now()},
+	}}
+}
+
+// Equal returns true if the status is identical to the supplied status,
+// ignoring the LastTransitionTimes and order of statuses.
+func (s *ConditionedStatus) Equal(other *ConditionedStatus) bool {
+	if s == nil || other == nil {
+		return s == nil && other == nil
+	}
+
+	if len(other.Conditions) != len(s.Conditions) {
+		return false
+	}
+
+	sc := make([]Condition, len(s.Conditions))
+	copy(sc, s.Conditions)
+
+	oc := make([]Condition, len(other.Conditions))
+	copy(oc, other.Conditions)
+
+	// We should not have more than one condition of each type.
+	sort.Slice(sc, func(i, j int) bool { return sc[i].Type < sc[j].Type })
+	sort.Slice(oc, func(i, j int) bool { return oc[i].Type < oc[j].Type })
+
+	for i := range sc {
+		if !sc[i].Equal(oc[i]) {
+			return false
 		}
 	}
-	return nil
+
+	return true
 }
 
-// IsCondition of provided type is present and set to true
-func (c *ConditionedStatus) IsCondition(ctype ConditionType) bool {
-	condition := c.Condition(ctype)
-	return condition != nil && condition.Status == corev1.ConditionTrue
-}
+// Set the supplied conditions, replacing any existing conditions of the same
+// type. This is a no-op if all supplied conditions are identical, ignoring the
+// last transition time, to those already set.
+func (s *ConditionedStatus) Set(c ...Condition) {
+	for _, new := range c {
+		exists := false
+		for i, existing := range s.Conditions {
+			if existing.Type != new.Type {
+				continue
+			}
 
-// IsReady returns true if the status is currently ready.
-func (c *ConditionedStatus) IsReady() bool {
-	return c.IsCondition(Ready)
-}
+			if existing.Equal(new) {
+				exists = true
+				continue
+			}
 
-// IsFailed returns true if the status is currently failed.
-func (c *ConditionedStatus) IsFailed() bool {
-	return c.IsCondition(Failed)
-}
-
-// SetCondition adds/replaces the given condition in the credentials controller status.
-func (c *ConditionedStatus) SetCondition(condition Condition) {
-	current := c.Condition(condition.Type)
-	if current != nil && current.Equal(condition) {
-		return
-	}
-	newConditions := FilterOutCondition(c.Conditions, condition.Type)
-	newConditions = append(newConditions, condition)
-	c.Conditions = newConditions
-}
-
-// SetFailed set failed as an active condition
-func (c *ConditionedStatus) SetFailed(reason, msg string) {
-	c.SetCondition(NewCondition(Failed, reason, msg))
-}
-
-// SetReady set ready as an active condition
-func (c *ConditionedStatus) SetReady() {
-	c.SetCondition(NewCondition(Ready, "", ""))
-}
-
-// SetCreating set creating as an active condition
-func (c *ConditionedStatus) SetCreating() {
-	c.SetCondition(NewCondition(Creating, "", ""))
-}
-
-// SetPending set pending as an active condition
-func (c *ConditionedStatus) SetPending() {
-	c.SetCondition(NewCondition(Pending, "", ""))
-}
-
-// SetDeleting set deleting as an active condition
-func (c *ConditionedStatus) SetDeleting() {
-	c.SetCondition(NewCondition(Deleting, "", ""))
-}
-
-// UnsetCondition set condition status to false with the given type - if found.
-func (c *ConditionedStatus) UnsetCondition(conditionType ConditionType) {
-	current := c.Condition(conditionType)
-	if current != nil && current.Status == corev1.ConditionTrue {
-		current.Status = corev1.ConditionFalse
-		c.SetCondition(*current)
-	}
-}
-
-// UnsetAllConditions set conditions status to false on all conditions
-func (c *ConditionedStatus) UnsetAllConditions() {
-	for i := range c.Conditions {
-		c.Conditions[i].Status = corev1.ConditionFalse
-	}
-}
-
-// RemoveCondition removes the condition with the provided type from the credentials controller status.
-func (c *ConditionedStatus) RemoveCondition(condType ConditionType) {
-	c.Conditions = FilterOutCondition(c.Conditions, condType)
-}
-
-// RemoveAllConditions removes all condition entries
-func (c *ConditionedStatus) RemoveAllConditions() {
-	c.Conditions = []Condition{}
-}
-
-// NewCondition creates a new resource condition.
-func NewCondition(condType ConditionType, reason, msg string) Condition {
-	return Condition{
-		Type:               condType,
-		Status:             corev1.ConditionTrue,
-		LastTransitionTime: metav1.Now(),
-		Reason:             reason,
-		Message:            msg,
-	}
-}
-
-// NewReadyCondition sets and activates Ready status condition
-func NewReadyCondition() Condition {
-	return NewCondition(Ready, "", "")
-}
-
-// FilterOutCondition returns a new slice of credentials controller conditions
-// without conditions with the provided type.
-func FilterOutCondition(conditions []Condition, condType ConditionType) []Condition {
-	var newConditions []Condition // nolint:prealloc
-	for _, c := range conditions {
-		if c.Type == condType {
-			continue
+			s.Conditions[i] = new
+			exists = true
 		}
-		newConditions = append(newConditions, c)
+		if !exists {
+			s.Conditions = append(s.Conditions, new)
+		}
 	}
-	return newConditions
+}
+
+// SetCreating indicates that Crossplane has an up-to-date view of the managed
+// resource, which is currently being created.
+func (s *ConditionedStatus) SetCreating() {
+	s.Set(
+		Condition{
+			Type:               Ready,
+			Status:             corev1.ConditionFalse,
+			LastTransitionTime: metav1.Now(),
+			Reason:             Creating,
+		},
+		Condition{
+			Type:               Synced,
+			Status:             corev1.ConditionTrue,
+			LastTransitionTime: metav1.Now(),
+			Reason:             ReconcileSuccess,
+		},
+	)
+}
+
+// SetDeleting indicates that Crossplane has an up-to-date view of the managed
+// resource, which is currently being deleted.
+func (s *ConditionedStatus) SetDeleting() {
+	s.Set(
+		Condition{
+			Type:               Ready,
+			Status:             corev1.ConditionFalse,
+			LastTransitionTime: metav1.Now(),
+			Reason:             Deleting,
+		},
+		Condition{
+			Type:               Synced,
+			Status:             corev1.ConditionTrue,
+			LastTransitionTime: metav1.Now(),
+			Reason:             ReconcileSuccess,
+		},
+	)
+}
+
+// SetAvailable indicates that Crossplane has an up-to-date view of the managed
+// resource, which is currently observed to be available for use.
+func (s *ConditionedStatus) SetAvailable() {
+	s.Set(
+		Condition{
+			Type:               Ready,
+			Status:             corev1.ConditionTrue,
+			LastTransitionTime: metav1.Now(),
+			Reason:             Available,
+		},
+		Condition{
+			Type:               Synced,
+			Status:             corev1.ConditionTrue,
+			LastTransitionTime: metav1.Now(),
+			Reason:             ReconcileSuccess,
+		},
+	)
+}
+
+// SetUnavailable indicates that Crossplane has an up-to-date view of the
+// managed resource, which is not currently available for use. SetUnavailable
+// should be called only when Crossplane expects the managed resource to be
+// available but knows it is not, for example because its API reports it is
+// unhealthy.
+func (s *ConditionedStatus) SetUnavailable() {
+	s.Set(
+		Condition{
+			Type:               Ready,
+			Status:             corev1.ConditionFalse,
+			LastTransitionTime: metav1.Now(),
+			Reason:             Unavailable,
+		},
+		Condition{
+			Type:               Synced,
+			Status:             corev1.ConditionTrue,
+			LastTransitionTime: metav1.Now(),
+			Reason:             ReconcileSuccess,
+		},
+	)
+}
+
+// ReconcileError indicates that Crossplane encountered an error while
+// reconciling the managed resource. This could mean Crossplane was unable to
+// update the managed resource to reflect its desired state, or that Crossplane
+// was unable to determine the current actual state of the managed resource.
+func (s *ConditionedStatus) ReconcileError(err error) {
+	s.Set(
+		Condition{
+			Type:               Synced,
+			Status:             corev1.ConditionFalse,
+			LastTransitionTime: metav1.Now(),
+			Reason:             ReconcileError,
+			Message:            err.Error(),
+		},
+	)
 }
