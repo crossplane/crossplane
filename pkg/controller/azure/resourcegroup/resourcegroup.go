@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package provider
+package resourcegroup
 
 import (
 	"context"
@@ -40,8 +40,8 @@ import (
 )
 
 const (
-	controllerNameRG = "azure.resourcegroup"
-	finalizerRG      = "finalizer." + controllerNameRG
+	controllerName = "azure.resourcegroup"
+	finalizer      = "finalizer." + controllerName
 
 	reasonFetchingClient   = "failed to fetch Azure Resource Group client"
 	reasonCreatingResource = "failed to create Azure Resource Group resource"
@@ -53,7 +53,7 @@ const (
 	reconcileTimeout = 1 * time.Minute
 )
 
-var logRG = logging.Logger.WithName("controller." + controllerNameRG)
+var log = logging.Logger.WithName("controller." + controllerName)
 
 // A creator can create resources in an external store - e.g. the Azure API.
 type creator interface {
@@ -98,7 +98,7 @@ func (a *azureResourceGroup) Create(ctx context.Context, r *v1alpha1.ResourceGro
 	r.Status.Name = r.Spec.Name
 	r.Status.UnsetAllDeprecatedConditions()
 	r.Status.SetCreating()
-	util.AddFinalizer(&r.ObjectMeta, finalizerRG)
+	util.AddFinalizer(&r.ObjectMeta, finalizer)
 
 	return true
 }
@@ -133,7 +133,7 @@ func (a *azureResourceGroup) Delete(ctx context.Context, r *v1alpha1.ResourceGro
 		}
 	}
 	r.Status.SetDeleting()
-	util.RemoveFinalizer(&r.ObjectMeta, finalizerRG)
+	util.RemoveFinalizer(&r.ObjectMeta, finalizer)
 
 	return false
 }
@@ -161,10 +161,6 @@ func (c *providerConnecter) Connect(ctx context.Context, r *v1alpha1.ResourceGro
 		return nil, errors.Wrapf(err, "cannot get provider %s", n)
 	}
 
-	if !p.IsValid() {
-		return nil, errors.Errorf("provider %s is not ready", n)
-	}
-
 	s := &corev1.Secret{}
 	n = types.NamespacedName{Namespace: p.Namespace, Name: p.Spec.Secret.Name}
 	if err := c.kube.Get(ctx, n, s); err != nil {
@@ -175,18 +171,18 @@ func (c *providerConnecter) Connect(ctx context.Context, r *v1alpha1.ResourceGro
 	return &azureResourceGroup{client: client}, errors.Wrap(err, "cannot create new Azure Resource Group client")
 }
 
-// ReconcilerRG reconciles Resource Group read from the Kubernetes API
+// Reconciler reconciles Resource Group read from the Kubernetes API
 // with an external store, typically the Azure API.
-type ReconcilerRG struct {
+type Reconciler struct {
 	connecter
 	kube client.Client
 }
 
-// AddResourceGroup creates a new Resource Group Controller and adds it to the
-// Manager with default RBAC. The Manager will set fields on the Controller and
-// start it when the Manager is Started.
-func AddResourceGroup(mgr manager.Manager) error {
-	r := &ReconcilerRG{
+// Add creates a new Resource Group Controller and adds it to the Manager. The
+// Manager will set fields on the Controller and start it when the Manager is
+// started.
+func Add(mgr manager.Manager) error {
+	r := &Reconciler{
 		connecter: &providerConnecter{kube: mgr.GetClient(), newClient: resourcegroup.NewClient},
 		kube:      mgr.GetClient(),
 	}
@@ -199,8 +195,8 @@ func AddResourceGroup(mgr manager.Manager) error {
 }
 
 // Reconcile Azure Resource Group resources with the Azure API.
-func (r *ReconcilerRG) Reconcile(req reconcile.Request) (reconcile.Result, error) {
-	logRG.V(logging.Debug).Info("reconciling", "kind", v1alpha1.ResourceGroupKindAPIVersion, "request", req)
+func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) {
+	log.V(logging.Debug).Info("reconciling", "kind", v1alpha1.ResourceGroupKindAPIVersion, "request", req)
 
 	ctx, cancel := context.WithTimeout(context.Background(), reconcileTimeout)
 	defer cancel()

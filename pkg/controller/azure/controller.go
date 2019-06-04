@@ -22,15 +22,14 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/controller/azure/cache"
 	"github.com/crossplaneio/crossplane/pkg/controller/azure/compute"
 	"github.com/crossplaneio/crossplane/pkg/controller/azure/database"
-	"github.com/crossplaneio/crossplane/pkg/controller/azure/provider"
+	"github.com/crossplaneio/crossplane/pkg/controller/azure/resourcegroup"
 	"github.com/crossplaneio/crossplane/pkg/controller/azure/storage"
 )
 
 func init() {
 	// AddToManagerFuncs is a list of functions to create controllers and add them to a manager.
 	AddToManagerFuncs = append(AddToManagerFuncs,
-		provider.Add,
-		provider.AddResourceGroup,
+		resourcegroup.Add,
 		cache.Add,
 		database.AddMysqlServer,
 		database.AddPostgreSQLServer,

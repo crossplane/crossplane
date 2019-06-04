@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package provider
+package resourcegroup
 
 import (
 	"context"
@@ -44,36 +44,33 @@ import (
 )
 
 const (
-	namespaceRG = "cool-namespace"
-	uid         = types.UID("definitely-a-uuid")
-	name        = "cool-rg"
-	location    = "coolplace"
+	namespace = "cool-namespace"
+	uid       = types.UID("definitely-a-uuid")
+	name      = "cool-rg"
+	location  = "coolplace"
 
+	providerName       = "cool-azure"
 	providerSecretName = "cool-azure-secret"
 	providerSecretKey  = "credentials"
 	providerSecretData = "definitelyjson"
 )
 
 var (
+	ctx       = context.Background()
 	errorBoom = errors.New("boom")
 
 	provider = azurev1alpha1.Provider{
-		ObjectMeta: metav1.ObjectMeta{Namespace: namespaceRG, Name: providerName},
+		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: providerName},
 		Spec: azurev1alpha1.ProviderSpec{
 			Secret: corev1.SecretKeySelector{
 				LocalObjectReference: corev1.LocalObjectReference{Name: providerSecretName},
 				Key:                  providerSecretKey,
 			},
 		},
-		Status: azurev1alpha1.ProviderStatus{
-			DeprecatedConditionedStatus: corev1alpha1.DeprecatedConditionedStatus{
-				Conditions: []corev1alpha1.DeprecatedCondition{{Type: corev1alpha1.DeprecatedReady, Status: corev1.ConditionTrue}},
-			},
-		},
 	}
 
 	providerSecret = corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Namespace: namespaceRG, Name: providerSecretName},
+		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: providerSecretName},
 		Data:       map[string][]byte{providerSecretKey: []byte(providerSecretData)},
 	}
 )
@@ -111,7 +108,7 @@ func withDeletionTimestamp(t time.Time) resourceModifier {
 func resource(rm ...resourceModifier) *azurev1alpha1.ResourceGroup {
 	r := &azurev1alpha1.ResourceGroup{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace:  namespaceRG,
+			Namespace:  namespace,
 			Name:       name,
 			UID:        uid,
 			Finalizers: []string{},
@@ -131,8 +128,8 @@ func resource(rm ...resourceModifier) *azurev1alpha1.ResourceGroup {
 	return r
 }
 
-// Test that our ReconcilerRG implementation satisfies the Reconciler interface.
-var _ reconcile.Reconciler = &ReconcilerRG{}
+// Test that our Reconciler implementation satisfies the Reconciler interface.
+var _ reconcile.Reconciler = &Reconciler{}
 
 func TestCreate(t *testing.T) {
 	cases := []struct {
@@ -152,7 +149,7 @@ func TestCreate(t *testing.T) {
 			r: resource(),
 			want: resource(
 				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedCreating, Status: corev1.ConditionTrue}),
-				withFinalizers(finalizerRG),
+				withFinalizers(finalizer),
 				withName(name),
 			),
 			wantRequeue: true,
@@ -227,7 +224,7 @@ func TestSync(t *testing.T) {
 			}},
 			r: resource(
 				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedCreating, Status: corev1.ConditionTrue}),
-				withFinalizers(finalizerRG),
+				withFinalizers(finalizer),
 				withName(name),
 			),
 			want: resource(
@@ -235,7 +232,7 @@ func TestSync(t *testing.T) {
 					corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedCreating, Status: corev1.ConditionFalse},
 					corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedReady, Status: corev1.ConditionTrue},
 				),
-				withFinalizers(finalizerRG),
+				withFinalizers(finalizer),
 				withName(name),
 			),
 			wantRequeue: false,
@@ -249,7 +246,7 @@ func TestSync(t *testing.T) {
 			}},
 			r: resource(
 				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedReady, Status: corev1.ConditionTrue}),
-				withFinalizers(finalizerRG),
+				withFinalizers(finalizer),
 				withName(name),
 			),
 			want: resource(
@@ -262,7 +259,7 @@ func TestSync(t *testing.T) {
 						Message: azureDeletedMessage,
 					},
 				),
-				withFinalizers(finalizerRG),
+				withFinalizers(finalizer),
 				withName(name),
 			),
 			wantRequeue: true,
@@ -276,12 +273,12 @@ func TestSync(t *testing.T) {
 			}},
 			r: resource(
 				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedReady, Status: corev1.ConditionTrue}),
-				withFinalizers(finalizerRG),
+				withFinalizers(finalizer),
 				withName(name),
 			),
 			want: resource(
 				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedReady, Status: corev1.ConditionFalse}),
-				withFinalizers(finalizerRG),
+				withFinalizers(finalizer),
 				withName(name),
 			),
 			wantRequeue: true,
@@ -295,7 +292,7 @@ func TestSync(t *testing.T) {
 			}},
 			r: resource(
 				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedCreating, Status: corev1.ConditionTrue}),
-				withFinalizers(finalizerRG),
+				withFinalizers(finalizer),
 				withName(name),
 			),
 			want: resource(
@@ -308,7 +305,7 @@ func TestSync(t *testing.T) {
 						Message: errorBoom.Error(),
 					},
 				),
-				withFinalizers(finalizerRG),
+				withFinalizers(finalizer),
 				withName(name),
 			),
 			wantRequeue: true,
@@ -345,7 +342,7 @@ func TestDelete(t *testing.T) {
 					return resources.GroupsDeleteFuture{}, nil
 				},
 			}},
-			r: resource(withFinalizers(finalizerRG), withReclaimPolicy(corev1alpha1.ReclaimRetain)),
+			r: resource(withFinalizers(finalizer), withReclaimPolicy(corev1alpha1.ReclaimRetain)),
 			want: resource(
 				withReclaimPolicy(corev1alpha1.ReclaimRetain),
 				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedDeleting, Status: corev1.ConditionTrue}),
@@ -359,7 +356,7 @@ func TestDelete(t *testing.T) {
 					return resources.GroupsDeleteFuture{}, nil
 				},
 			}},
-			r: resource(withFinalizers(finalizerRG), withReclaimPolicy(corev1alpha1.ReclaimDelete)),
+			r: resource(withFinalizers(finalizer), withReclaimPolicy(corev1alpha1.ReclaimDelete)),
 			want: resource(
 				withReclaimPolicy(corev1alpha1.ReclaimDelete),
 				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedDeleting, Status: corev1.ConditionTrue}),
@@ -373,9 +370,9 @@ func TestDelete(t *testing.T) {
 					return resources.GroupsDeleteFuture{}, errorBoom
 				},
 			}},
-			r: resource(withFinalizers(finalizerRG), withReclaimPolicy(corev1alpha1.ReclaimDelete)),
+			r: resource(withFinalizers(finalizer), withReclaimPolicy(corev1alpha1.ReclaimDelete)),
 			want: resource(
-				withFinalizers(finalizerRG),
+				withFinalizers(finalizer),
 				withReclaimPolicy(corev1alpha1.ReclaimDelete),
 				withConditions(
 					corev1alpha1.DeprecatedCondition{
@@ -418,9 +415,9 @@ func TestConnect(t *testing.T) {
 			conn: &providerConnecter{
 				kube: &test.MockClient{MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
 					switch key {
-					case client.ObjectKey{Namespace: namespaceRG, Name: providerName}:
+					case client.ObjectKey{Namespace: namespace, Name: providerName}:
 						*obj.(*azurev1alpha1.Provider) = provider
-					case client.ObjectKey{Namespace: namespaceRG, Name: providerSecretName}:
+					case client.ObjectKey{Namespace: namespace, Name: providerSecretName}:
 						*obj.(*corev1.Secret) = providerSecret
 					}
 					return nil
@@ -443,40 +440,16 @@ func TestConnect(t *testing.T) {
 				},
 			},
 			i:       resource(),
-			wantErr: errors.WithStack(errors.Errorf("cannot get provider %s/%s:  \"%s\" not found", namespaceRG, providerName, providerName)),
-		},
-		{
-			name: "FailedToAssetProviderIsValid",
-			conn: &providerConnecter{
-				kube: &test.MockClient{MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
-					// This provider does not have condition ready, and thus is
-					// deemed invalid.
-					*obj.(*azurev1alpha1.Provider) = azurev1alpha1.Provider{
-						ObjectMeta: metav1.ObjectMeta{Namespace: namespaceRG, Name: providerName},
-						Spec: azurev1alpha1.ProviderSpec{
-							Secret: corev1.SecretKeySelector{
-								LocalObjectReference: corev1.LocalObjectReference{Name: providerSecretName},
-								Key:                  providerSecretKey,
-							},
-						},
-					}
-					return nil
-				}},
-				newClient: func(_ []byte) (resourcegroup.GroupsClient, error) {
-					return &fakerg.MockClient{}, nil
-				},
-			},
-			i:       resource(),
-			wantErr: errors.Errorf("provider %s/%s is not ready", namespaceRG, providerName),
+			wantErr: errors.WithStack(errors.Errorf("cannot get provider %s/%s:  \"%s\" not found", namespace, providerName, providerName)),
 		},
 		{
 			name: "FailedToGetProviderSecret",
 			conn: &providerConnecter{
 				kube: &test.MockClient{MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
 					switch key {
-					case client.ObjectKey{Namespace: namespaceRG, Name: providerName}:
+					case client.ObjectKey{Namespace: namespace, Name: providerName}:
 						*obj.(*azurev1alpha1.Provider) = provider
-					case client.ObjectKey{Namespace: namespaceRG, Name: providerSecretName}:
+					case client.ObjectKey{Namespace: namespace, Name: providerSecretName}:
 						return kerrors.NewNotFound(schema.GroupResource{}, providerSecretName)
 					}
 					return nil
@@ -486,16 +459,16 @@ func TestConnect(t *testing.T) {
 				},
 			},
 			i:       resource(),
-			wantErr: errors.WithStack(errors.Errorf("cannot get provider secret %s/%s:  \"%s\" not found", namespaceRG, providerSecretName, providerSecretName)),
+			wantErr: errors.WithStack(errors.Errorf("cannot get provider secret %s/%s:  \"%s\" not found", namespace, providerSecretName, providerSecretName)),
 		},
 		{
 			name: "FailedToCreateAzureCacheClient",
 			conn: &providerConnecter{
 				kube: &test.MockClient{MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
 					switch key {
-					case client.ObjectKey{Namespace: namespaceRG, Name: providerName}:
+					case client.ObjectKey{Namespace: namespace, Name: providerName}:
 						*obj.(*azurev1alpha1.Provider) = provider
-					case client.ObjectKey{Namespace: namespaceRG, Name: providerSecretName}:
+					case client.ObjectKey{Namespace: namespace, Name: providerSecretName}:
 						*obj.(*corev1.Secret) = providerSecret
 					}
 					return nil
@@ -552,14 +525,14 @@ func (csd *mockCSD) Delete(ctx context.Context, i *v1alpha1.ResourceGroup) bool 
 func TestReconcile(t *testing.T) {
 	cases := []struct {
 		name    string
-		rec     *ReconcilerRG
+		rec     *Reconciler
 		req     reconcile.Request
 		want    reconcile.Result
 		wantErr error
 	}{
 		{
 			name: "SuccessfulDelete",
-			rec: &ReconcilerRG{
+			rec: &Reconciler{
 				connecter: &mockConnector{MockConnect: func(_ context.Context, _ *v1alpha1.ResourceGroup) (createsyncdeleter, error) {
 					return &mockCSD{MockDelete: func(_ context.Context, _ *v1alpha1.ResourceGroup) bool { return false }}, nil
 				}},
@@ -577,7 +550,7 @@ func TestReconcile(t *testing.T) {
 		},
 		{
 			name: "SuccessfulCreate",
-			rec: &ReconcilerRG{
+			rec: &Reconciler{
 				connecter: &mockConnector{MockConnect: func(_ context.Context, _ *v1alpha1.ResourceGroup) (createsyncdeleter, error) {
 					return &mockCSD{MockCreate: func(_ context.Context, _ *v1alpha1.ResourceGroup) bool { return true }}, nil
 				}},
@@ -595,7 +568,7 @@ func TestReconcile(t *testing.T) {
 		},
 		{
 			name: "SuccessfulSync",
-			rec: &ReconcilerRG{
+			rec: &Reconciler{
 				connecter: &mockConnector{MockConnect: func(_ context.Context, _ *v1alpha1.ResourceGroup) (createsyncdeleter, error) {
 					return &mockCSD{
 						MockSync: func(_ context.Context, _ *v1alpha1.ResourceGroup) bool { return false },
@@ -616,7 +589,7 @@ func TestReconcile(t *testing.T) {
 		},
 		{
 			name: "FailedToGetNonexistentResource",
-			rec: &ReconcilerRG{
+			rec: &Reconciler{
 				kube: &test.MockClient{
 					MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
 						return kerrors.NewNotFound(schema.GroupResource{}, name)
@@ -630,7 +603,7 @@ func TestReconcile(t *testing.T) {
 		},
 		{
 			name: "FailedToGetExtantResource",
-			rec: &ReconcilerRG{
+			rec: &Reconciler{
 				kube: &test.MockClient{
 					MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
 						return errorBoom
@@ -644,7 +617,7 @@ func TestReconcile(t *testing.T) {
 		},
 		{
 			name: "FailedToConnect",
-			rec: &ReconcilerRG{
+			rec: &Reconciler{
 				connecter: &mockConnector{MockConnect: func(_ context.Context, _ *v1alpha1.ResourceGroup) (createsyncdeleter, error) {
 					return nil, errorBoom
 				}},

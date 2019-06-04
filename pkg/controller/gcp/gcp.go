@@ -22,7 +22,6 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/controller/gcp/cache"
 	"github.com/crossplaneio/crossplane/pkg/controller/gcp/compute"
 	"github.com/crossplaneio/crossplane/pkg/controller/gcp/database"
-	"github.com/crossplaneio/crossplane/pkg/controller/gcp/provider"
 	"github.com/crossplaneio/crossplane/pkg/controller/gcp/storage"
 )
 
@@ -32,7 +31,6 @@ func init() {
 		cache.Add,
 		compute.Add,
 		database.Add,
-		provider.Add,
 		storage.Add,
 	)
 }

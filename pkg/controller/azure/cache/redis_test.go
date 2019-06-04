@@ -82,11 +82,6 @@ var (
 				Key:                  providerSecretKey,
 			},
 		},
-		Status: azurev1alpha1.ProviderStatus{
-			DeprecatedConditionedStatus: corev1alpha1.DeprecatedConditionedStatus{
-				Conditions: []corev1alpha1.DeprecatedCondition{{Type: corev1alpha1.DeprecatedReady, Status: corev1.ConditionTrue}},
-			},
-		},
 	}
 
 	providerSecret = corev1.Secret{
@@ -647,28 +642,6 @@ func TestConnect(t *testing.T) {
 			},
 			i:       resource(),
 			wantErr: errors.WithStack(errors.Errorf("cannot get provider %s/%s:  \"%s\" not found", namespace, providerName, providerName)),
-		},
-		{
-			name: "FailedToAssetProviderIsValid",
-			conn: &providerConnecter{
-				kube: &test.MockClient{MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
-					// This provider does not have condition ready, and thus is
-					// deemed invalid.
-					*obj.(*azurev1alpha1.Provider) = azurev1alpha1.Provider{
-						ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: providerName},
-						Spec: azurev1alpha1.ProviderSpec{
-							Secret: corev1.SecretKeySelector{
-								LocalObjectReference: corev1.LocalObjectReference{Name: providerSecretName},
-								Key:                  providerSecretKey,
-							},
-						},
-					}
-					return nil
-				}},
-				newClient: func(_ context.Context, _ []byte) (redis.Client, error) { return &fakeredis.MockClient{}, nil },
-			},
-			i:       resource(),
-			wantErr: errors.Errorf("provider %s/%s is not ready", namespace, providerName),
 		},
 		{
 			name: "FailedToGetProviderSecret",

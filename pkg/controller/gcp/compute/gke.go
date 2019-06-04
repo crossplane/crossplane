@@ -171,11 +171,6 @@ func (r *Reconciler) _connect(instance *gcpcomputev1alpha1.GKECluster) (gke.Clie
 		return nil, err
 	}
 
-	// Check provider status
-	if !p.IsValid() {
-		return nil, fmt.Errorf("provider status is invalid")
-	}
-
 	creds, err := gcp.ProviderCredentials(r.kubeclient, p, gke.DefaultScope)
 	if err != nil {
 		return nil, err

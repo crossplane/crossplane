@@ -413,15 +413,9 @@ func TestConnect(t *testing.T) {
 		kubeclient: NewSimpleClientset(),
 	}
 
-	// provider status is not ready
-	c, err := r._connect(tr)
-	g.Expect(c).To(BeNil())
-	g.Expect(err).To(And(Not(BeNil()), MatchError("provider is not ready")))
-
 	// error getting aws config - secret is not found
-	tp.Status.SetReady()
 	r.Client = NewFakeClient(tp)
-	c, err = r._connect(tr)
+	c, err := r._connect(tr)
 	g.Expect(c).To(BeNil())
 	g.Expect(err).To(Not(BeNil()))
 }

@@ -161,11 +161,6 @@ func (r *Reconciler) _connect(instance *databasev1alpha1.RDSInstance) (rds.Clien
 		return nil, err
 	}
 
-	// Check provider status
-	if !p.IsValid() {
-		return nil, fmt.Errorf("provider is not ready")
-	}
-
 	// Get Provider's AWS Config
 	config, err := aws.Config(r.kubeclient, p)
 	if err != nil {
