@@ -1,4 +1,7 @@
 # Custom Secret Definitions
+* Owner: Bassam Tabbara (@bassam)
+* Reviewers: Crossplane Maintainers
+* Status: Speculative
 
 ## Abstract
 

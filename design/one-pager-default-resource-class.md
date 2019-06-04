@@ -1,5 +1,7 @@
 # Default Resource Classes in Crossplane
-* Status: Draft
+* Owner: Daniel Mangum (@hasheddan)
+* Reviewers: Crossplane Maintainers
+* Status: Accepted
 
 The Crossplane ecosystem exposes the concepts of [Resource Classes and Resource Claims](https://crossplane.io/docs/v0.2/concepts.html). Classes serve to define the configuration for a certain underlying resource, which may be anything from a managed cloud provider service to a traditional server. Claims are requests to create an instance of a resource and currently reference a specific deployed Class in order to abstract the implementation details. This document serves to define the concept of a *Default Resource Class*, which allows for a more general abstraction of an underlying resource.
 

@@ -1,5 +1,5 @@
 # Complex Workloads in Crossplane
-* Author: Nic Cope (negz+crossplane@upbound.io)
+* Owner: Nic Cope (@negz)
 * Reviewers: Crossplane Maintainers
 * Status: Accepted, revision 1.0
 
