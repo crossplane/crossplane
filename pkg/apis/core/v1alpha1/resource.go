@@ -18,7 +18,6 @@ package v1alpha1
 
 import (
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 
@@ -140,23 +139,3 @@ type ResourceClaimStatus struct {
 	// for this resource claim.
 	CredentialsSecretRef corev1.LocalObjectReference `json:"credentialsSecret,omitempty"`
 }
-
-// ResourceName is the name identifying various resources in a ResourceList.
-type ResourceName string
-
-// Resource names must be not more than 63 characters, consisting of upper- or lower-case alphanumeric characters,
-// with the -, _, and . characters allowed anywhere, except the first or last character.
-// The default convention, matching that for annotations, is to use lower-case names, with dashes, rather than
-// camel case, separating compound words.
-// Fully-qualified resource typenames are constructed from a DNS-style subdomain, followed by a slash `/` and a name.
-const (
-	// CPU, in cores. (500m = .5 cores)
-	ResourceCPU ResourceName = "cpu"
-	// Memory, in bytes. (500Gi = 500GiB = 500 * 1024 * 1024 * 1024)
-	ResourceMemory ResourceName = "memory"
-	// Volume size, in bytes (e,g. 5Gi = 5GiB = 5 * 1024 * 1024 * 1024)
-	ResourceStorage ResourceName = "storage"
-)
-
-// ResourceList is a set of (resource name, quantity) pairs.
-type ResourceList map[ResourceName]resource.Quantity
