@@ -37,6 +37,45 @@ var (
 	handlers = map[string]ResourceHandler{}
 )
 
+type MockResource struct {
+	corev1alpha1.Resource
+
+	connectionSecretName string
+	endpoint             string
+	state                string
+	phase                corev1alpha1.BindingStatusPhase
+	objectReference      *corev1.ObjectReference
+}
+
+func (br *MockResource) ConnectionSecretName() string {
+	return br.connectionSecretName
+}
+
+func (br *MockResource) ObjectReference() *corev1.ObjectReference {
+	return br.objectReference
+}
+
+func (br *MockResource) IsAvailable() bool {
+	return br.state == "available"
+}
+
+func (br *MockResource) IsBound() bool {
+	return br.phase.IsBound()
+}
+
+func (br *MockResource) SetBound(bound bool) {
+	br.phase.SetBound(bound)
+}
+
+func NewMockResource(ref *corev1.ObjectReference, secretName, endpoint, state string) *MockResource {
+	return &MockResource{
+		connectionSecretName: secretName,
+		endpoint:             endpoint,
+		state:                state,
+		objectReference:      ref,
+	}
+}
+
 func TestGetHandler(t *testing.T) {
 	mc := &MockClient{}
 	g := NewGomegaWithT(t)
@@ -126,7 +165,7 @@ func TestProvision(t *testing.T) {
 		return nil
 	}
 	h.MockProvision = func(c *corev1alpha1.ResourceClass, sp corev1alpha1.ResourceClaim, cl client.Client) (corev1alpha1.Resource, error) {
-		return &corev1alpha1.BasicResource{}, nil
+		return &MockResource{}, nil
 	}
 	r.bind = func(corev1alpha1.ResourceClaim, ResourceHandler) (reconcile.Result, error) {
 		return Result, nil
@@ -160,7 +199,7 @@ func TestBind(t *testing.T) {
 	assertDeprecatedConditionSet(g, claim, corev1alpha1.DeprecatedFailed, errorRetrievingResource)
 
 	// resource is not available
-	br := corev1alpha1.NewBasicResource(nil, "", "", "not-available")
+	br := NewMockResource(nil, "", "", "not-available")
 	h.MockFind = func(types.NamespacedName, client.Client) (corev1alpha1.Resource, error) {
 		return br, nil
 	}
@@ -171,7 +210,7 @@ func TestBind(t *testing.T) {
 	assertDeprecatedConditionSet(g, claim, corev1alpha1.DeprecatedPending, waitResourceIsNotAvailable)
 
 	// error retrieving resource secret
-	br = corev1alpha1.NewBasicResource(
+	br = NewMockResource(
 		&corev1.ObjectReference{
 			Name:      "test-resource",
 			Namespace: "default",
