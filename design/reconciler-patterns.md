@@ -19,10 +19,12 @@ controllers that:
 
 This document is not blindly prescriptive, but where patterns are recommended
 they should be followed unless there is clear and obvious reason not to. The
-recommendations made in this document should be seen as a "golden path"; while
-there is no one pattern that is strictly applicable to all controllers the
-Crossplane maintainers feel the project benefits from consistency in
-implemenation where possible.
+recommendations made in this document should be seen as a "golden path"; a
+beneficial collection of principals and patterns that the Crossplane community
+have found facilitate the creation of successful controllers. While there is no
+one pattern that is strictly applicable to all controllers the Crossplane
+maintainers feel the project benefits from consistency in implementation where
+possible.
 
 ## Terminology
 
