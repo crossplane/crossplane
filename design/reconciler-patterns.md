@@ -7,14 +7,22 @@ Controller-Runtime (defacto standard for Kubernetes operator frameworks: Kubebui
 Crossplane developers is the expected audience for this document, and as such it is expected that readers have some familiarity with the [controller-runtime](https://github.com/kubernetes-sigs/controller-runtime).
 
 ## Goals
+The primary goal of this document is to capture and communicate the lessons
+learned during the development of many Crossplane controllers and reconcile
+loops. This document aims to help Crossplane contributors write and extend
+controllers that:
 
-Using crossplane experience through trial and errors summarize existing paradigms and come up with the unified paradigm recommendation for writing crossplane controllers. 
+* Are readable, maintainable, and not intimidating to new contributors.
+* Lend themselves to unit and integration testing.
+* Learn from our mistakes, i.e. do not fall prey to known but subtle bugs and
+  mispatterns and consider common but unobvious edge cases.
 
-
-## Non-goals
-
-This document is intended to be at best a guideline for best practices for writing crossplane operators at this point in time. 
-It is by no means a prescriptive standard to which all others must follow, rather it is merely a recommendation. 
+This document is not blindly prescriptive, but where patterns are recommended
+they should be followed unless there is clear and obvious reason not to. The
+recommendations made in this document should be seen as a "golden path"; while
+there is no one pattern that is strictly applicable to all controllers the
+Crossplane maintainers feel the project benefits from consistency in
+implemenation where possible.
 
 ## Terminology
 
