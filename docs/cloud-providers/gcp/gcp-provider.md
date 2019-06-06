@@ -23,20 +23,30 @@ Instructions for installing `gcloud` can be found in the [Google docs](https://c
 # if you have more than one organization (not common)
 gcloud organizations list
 
-# create a new project
-export EXAMPLE_PROJECT_NAME=crossplane-example-123
-gcloud projects create $EXAMPLE_PROJECT_NAME --enable-cloud-apis [--organization ORGANIZATION_ID]
+# create a new project (project id must be <=30 characters)
+export EXAMPLE_PROJECT_ID=crossplane-example-123
+gcloud projects create $EXAMPLE_PROJECT_ID --enable-cloud-apis # [--organization $ORGANIZATION_ID]
 
-# record the PROJECT_ID value of the newly created project
-export EXAMPLE_PROJECT_ID=$(gcloud projects list --filter NAME=$EXAMPLE_PROJECT_NAME --format="value(PROJECT_ID)")   
+# or, record the PROJECT_ID value of an existing project
+# export EXAMPLE_PROJECT_ID=$(gcloud projects list --filter NAME=$EXAMPLE_PROJECT_NAME --format="value(PROJECT_ID)")
+
+# link billing to the new project
+gcloud beta billing accounts list
+gcloud beta billing projects link $EXAMPLE_PROJECT_ID --billing-account=$ACCOUNT_ID
 
 # enable Kubernetes API
 gcloud --project $EXAMPLE_PROJECT_ID services enable container.googleapis.com
+
 # enable CloudSQL API
 gcloud --project $EXAMPLE_PROJECT_ID services enable sqladmin.googleapis.com 
 
+# enable Additional APIs needed for the example or project
+# examples include: redis.googlapis.com,
+# gcloud services list
+
 # create service account
 gcloud --project $EXAMPLE_PROJECT_ID iam service-accounts create example-123 --display-name "Crossplane Example"
+
 # export service account email
 export EXAMPLE_SA="example-123@$EXAMPLE_PROJECT_ID.iam.gserviceaccount.com"
 
