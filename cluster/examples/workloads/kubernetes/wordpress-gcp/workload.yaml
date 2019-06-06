@@ -1,15 +1,3 @@
-apiVersion: compute.crossplane.io/v1alpha1
-kind: KubernetesCluster
-metadata:
-  name: wordpress-demo-cluster
-  namespace: complex
-  labels:
-    app: wordpress-demo
-spec:
-  classReference:
-    name: standard-cluster
-    namespace: crossplane-system
----
 apiVersion: storage.crossplane.io/v1alpha1
 kind: MySQLInstance
 metadata:
