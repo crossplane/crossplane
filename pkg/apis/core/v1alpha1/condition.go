@@ -28,12 +28,12 @@ type ConditionType string
 
 // Condition types.
 const (
-	// Ready managed resources are believed to be ready to handle work.
-	Ready ConditionType = "Ready"
+	// TypeReady managed resources are believed to be ready to handle work.
+	TypeReady ConditionType = "Ready"
 
-	// Synced managed resources are believed to be in sync with the Kubernetes
-	// resources that manage their lifecycle.
-	Synced ConditionType = "Synced"
+	// TypeSynced managed resources are believed to be in sync with the
+	// Kubernetes resources that manage their lifecycle.
+	TypeSynced ConditionType = "Synced"
 )
 
 // A ConditionReason represents the reason a resource is in a condition.
@@ -41,16 +41,16 @@ type ConditionReason string
 
 // Reasons a resource is or is not ready.
 const (
-	Available   ConditionReason = "Managed resource is available for use"
-	Unavailable ConditionReason = "Managed resource is not available for use"
-	Creating    ConditionReason = "Managed resource is being created"
-	Deleting    ConditionReason = "Managed resource is being deleted"
+	ReasonAvailable   ConditionReason = "Managed resource is available for use"
+	ReasonUnavailable ConditionReason = "Managed resource is not available for use"
+	ReasonCreating    ConditionReason = "Managed resource is being created"
+	ReasonDeleting    ConditionReason = "Managed resource is being deleted"
 )
 
 // Reasons a resource is or is not synced.
 const (
-	ReconcileSuccess ConditionReason = "Successfully reconciled managed resource"
-	ReconcileError   ConditionReason = "Encountered an error during managed resource reconciliation"
+	ReasonReconcileSuccess ConditionReason = "Successfully reconciled managed resource"
+	ReasonReconcileError   ConditionReason = "Encountered an error during managed resource reconciliation"
 )
 
 // A Condition that may apply to a managed resource.
@@ -96,13 +96,36 @@ type ConditionedStatus struct {
 	Conditions []Condition
 }
 
-// NewConditionedStatus returns a new conditioned status with all condition
-// types with unknown statuses.
-func NewConditionedStatus() *ConditionedStatus {
-	return &ConditionedStatus{Conditions: []Condition{
-		{Type: Ready, Status: corev1.ConditionUnknown, LastTransitionTime: metav1.Now()},
-		{Type: Synced, Status: corev1.ConditionUnknown, LastTransitionTime: metav1.Now()},
-	}}
+// NewConditionedStatus returns a stat with the supplied conditions set.
+func NewConditionedStatus(c ...Condition) *ConditionedStatus {
+	s := &ConditionedStatus{}
+	s.SetConditions(c...)
+	return s
+}
+
+// SetConditions sets the supplied conditions, replacing any existing conditions
+// of the same type. This is a no-op if all supplied conditions are identical,
+// ignoring the last transition time, to those already set.
+func (s *ConditionedStatus) SetConditions(c ...Condition) {
+	for _, new := range c {
+		exists := false
+		for i, existing := range s.Conditions {
+			if existing.Type != new.Type {
+				continue
+			}
+
+			if existing.Equal(new) {
+				exists = true
+				continue
+			}
+
+			s.Conditions[i] = new
+			exists = true
+		}
+		if !exists {
+			s.Conditions = append(s.Conditions, new)
+		}
+	}
 }
 
 // Equal returns true if the status is identical to the supplied status,
@@ -135,122 +158,74 @@ func (s *ConditionedStatus) Equal(other *ConditionedStatus) bool {
 	return true
 }
 
-// Set the supplied conditions, replacing any existing conditions of the same
-// type. This is a no-op if all supplied conditions are identical, ignoring the
-// last transition time, to those already set.
-func (s *ConditionedStatus) Set(c ...Condition) {
-	for _, new := range c {
-		exists := false
-		for i, existing := range s.Conditions {
-			if existing.Type != new.Type {
-				continue
-			}
-
-			if existing.Equal(new) {
-				exists = true
-				continue
-			}
-
-			s.Conditions[i] = new
-			exists = true
-		}
-		if !exists {
-			s.Conditions = append(s.Conditions, new)
-		}
+// Creating returns a condition that indicates the managed resource is currently
+// being created.
+func Creating() Condition {
+	return Condition{
+		Type:               TypeReady,
+		Status:             corev1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonCreating,
 	}
 }
 
-// SetCreating indicates that Crossplane has an up-to-date view of the managed
-// resource, which is currently being created.
-func (s *ConditionedStatus) SetCreating() {
-	s.Set(
-		Condition{
-			Type:               Ready,
-			Status:             corev1.ConditionFalse,
-			LastTransitionTime: metav1.Now(),
-			Reason:             Creating,
-		},
-		Condition{
-			Type:               Synced,
-			Status:             corev1.ConditionTrue,
-			LastTransitionTime: metav1.Now(),
-			Reason:             ReconcileSuccess,
-		},
-	)
+// Deleting returns a condition that indicates the managed resource is currently
+// being deleted.
+func Deleting() Condition {
+	return Condition{
+		Type:               TypeReady,
+		Status:             corev1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonDeleting,
+	}
 }
 
-// SetDeleting indicates that Crossplane has an up-to-date view of the managed
-// resource, which is currently being deleted.
-func (s *ConditionedStatus) SetDeleting() {
-	s.Set(
-		Condition{
-			Type:               Ready,
-			Status:             corev1.ConditionFalse,
-			LastTransitionTime: metav1.Now(),
-			Reason:             Deleting,
-		},
-		Condition{
-			Type:               Synced,
-			Status:             corev1.ConditionTrue,
-			LastTransitionTime: metav1.Now(),
-			Reason:             ReconcileSuccess,
-		},
-	)
+// Available returns a condition that indicates the managed resource is
+// currently observed to be available for use.
+func Available() Condition {
+	return Condition{
+		Type:               TypeReady,
+		Status:             corev1.ConditionTrue,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonAvailable,
+	}
 }
 
-// SetAvailable indicates that Crossplane has an up-to-date view of the managed
-// resource, which is currently observed to be available for use.
-func (s *ConditionedStatus) SetAvailable() {
-	s.Set(
-		Condition{
-			Type:               Ready,
-			Status:             corev1.ConditionTrue,
-			LastTransitionTime: metav1.Now(),
-			Reason:             Available,
-		},
-		Condition{
-			Type:               Synced,
-			Status:             corev1.ConditionTrue,
-			LastTransitionTime: metav1.Now(),
-			Reason:             ReconcileSuccess,
-		},
-	)
+// Unavailable returns a condition that indicates the managed resource is not
+// currently available for use. Unavailable should be set only when Crossplane
+// expects the managed resource to be available but knows it is not, for example
+// because its API reports it is unhealthy.
+func Unavailable() Condition {
+	return Condition{
+		Type:               TypeReady,
+		Status:             corev1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonUnavailable,
+	}
 }
 
-// SetUnavailable indicates that Crossplane has an up-to-date view of the
-// managed resource, which is not currently available for use. SetUnavailable
-// should be called only when Crossplane expects the managed resource to be
-// available but knows it is not, for example because its API reports it is
-// unhealthy.
-func (s *ConditionedStatus) SetUnavailable() {
-	s.Set(
-		Condition{
-			Type:               Ready,
-			Status:             corev1.ConditionFalse,
-			LastTransitionTime: metav1.Now(),
-			Reason:             Unavailable,
-		},
-		Condition{
-			Type:               Synced,
-			Status:             corev1.ConditionTrue,
-			LastTransitionTime: metav1.Now(),
-			Reason:             ReconcileSuccess,
-		},
-	)
+// ReconcileSuccess returns a condition indicating that Crossplane successfully
+// completed the most recent reconciliation of the managed resource.
+func ReconcileSuccess() Condition {
+	return Condition{
+		Type:               TypeSynced,
+		Status:             corev1.ConditionTrue,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonReconcileSuccess,
+	}
 }
 
-// ReconcileError indicates that Crossplane encountered an error while
-// reconciling the managed resource. This could mean Crossplane was unable to
-// update the managed resource to reflect its desired state, or that Crossplane
-// was unable to determine the current actual state of the managed resource.
-func (s *ConditionedStatus) ReconcileError(err error) {
-	s.Set(
-		Condition{
-			Type:               Synced,
-			Status:             corev1.ConditionFalse,
-			LastTransitionTime: metav1.Now(),
-			Reason:             ReconcileError,
-			Message:            err.Error(),
-		},
-	)
+// ReconcileError returns a condition indicating that Crossplane encountered an
+// error while reconciling the managed resource. This could mean Crossplane was
+// unable to update the managed resource to reflect its desired state, or that
+// Crossplane was unable to determine the current actual state of the managed
+// resource.
+func ReconcileError(err error) Condition {
+	return Condition{
+		Type:               TypeSynced,
+		Status:             corev1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonReconcileError,
+		Message:            err.Error(),
+	}
 }
