@@ -103,7 +103,7 @@ func TestResolveAWSClassValues(t *testing.T) {
 			}
 
 			if diff := cmp.Diff(tc.want, tc.class); diff != "" {
-				t.Errorf("want != got:\n%s", diff)
+				t.Errorf("-want, +got:\n%s", diff)
 			}
 		})
 	}

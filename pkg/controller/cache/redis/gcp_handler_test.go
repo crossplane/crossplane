@@ -94,7 +94,7 @@ func TestResolveGCPClassInstanceValues(t *testing.T) {
 			}
 
 			if diff := cmp.Diff(tc.want, tc.class); diff != "" {
-				t.Errorf("want != got:\n %+v", diff)
+				t.Errorf("-want, +got:\n %+v", diff)
 			}
 		})
 	}

@@ -320,11 +320,11 @@ func TestSchedule(t *testing.T) {
 			gotResult := tc.scheduler.schedule(ctx, tc.app)
 
 			if diff := cmp.Diff(tc.wantResult, gotResult); diff != "" {
-				t.Errorf("tc.scheduler.Schedule(...): want != got:\n%s", diff)
+				t.Errorf("tc.scheduler.Schedule(...): -want, +got:\n%s", diff)
 			}
 
 			if diff := cmp.Diff(tc.wantApp, tc.app); diff != "" {
-				t.Errorf("app: want != got:\n%s", diff)
+				t.Errorf("app: -want, +got:\n%s", diff)
 			}
 		})
 	}
@@ -445,7 +445,7 @@ func TestReconcile(t *testing.T) {
 			}
 
 			if diff := cmp.Diff(tc.wantResult, gotResult); diff != "" {
-				t.Errorf("tc.rec.Reconcile(...): want != got:\n%s", diff)
+				t.Errorf("tc.rec.Reconcile(...): -want, +got:\n%s", diff)
 			}
 		})
 	}

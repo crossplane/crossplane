@@ -109,7 +109,7 @@ func TestNewCreateParameters(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			got := NewCreateParameters(tc.r)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("NewCreateParameters(...): want != got\n%s", diff)
+				t.Errorf("NewCreateParameters(...): -want, +got\n%s", diff)
 			}
 		})
 	}
@@ -187,7 +187,7 @@ func TestNewUpdateParameters(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			got := NewUpdateParameters(tc.r)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("NewUpdateParameters(...): want != got\n%s", diff)
+				t.Errorf("NewUpdateParameters(...): -want, +got\n%s", diff)
 			}
 		})
 	}

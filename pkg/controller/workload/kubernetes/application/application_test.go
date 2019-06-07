@@ -368,11 +368,11 @@ func TestSync(t *testing.T) {
 			gotResult := tc.syncer.sync(ctx, tc.app)
 
 			if diff := cmp.Diff(tc.wantResult, gotResult); diff != "" {
-				t.Errorf("tc.sd.Sync(...): want != got:\n%s", diff)
+				t.Errorf("tc.sd.Sync(...): -want, +got:\n%s", diff)
 			}
 
 			if diff := cmp.Diff(tc.wantApp, tc.app); diff != "" {
-				t.Errorf("app: want != got:\n%s", diff)
+				t.Errorf("app: -want, +got:\n%s", diff)
 			}
 		})
 	}
@@ -452,7 +452,7 @@ func TestReconcile(t *testing.T) {
 			}
 
 			if diff := cmp.Diff(tc.wantResult, gotResult); diff != "" {
-				t.Errorf("tc.rec.Reconcile(...): want != got:\n%s", diff)
+				t.Errorf("tc.rec.Reconcile(...): -want, +got:\n%s", diff)
 			}
 		})
 	}
@@ -567,7 +567,7 @@ func TestGarbageCollect(t *testing.T) {
 			}
 
 			if diff := cmp.Diff(tc.wantApp, tc.app); diff != "" {
-				t.Errorf("app: want != got:\n%s", diff)
+				t.Errorf("app: -want, +got:\n%s", diff)
 			}
 		})
 	}
@@ -639,7 +639,7 @@ func TestSyncApplicationResource(t *testing.T) {
 			}
 
 			if diff := cmp.Diff(tc.wantSubmitted, gotSubmitted); diff != "" {
-				t.Errorf("tc.ar.Sync(...): want != got:\n%s", diff)
+				t.Errorf("tc.ar.Sync(...): -want, +got:\n%s", diff)
 			}
 		})
 	}
@@ -665,7 +665,7 @@ func TestRenderTemplate(t *testing.T) {
 			got := renderTemplate(tc.app, tc.template)
 
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("renderTemplate(...): want != got:\n%s", diff)
+				t.Errorf("renderTemplate(...): -want, +got:\n%s", diff)
 			}
 		})
 	}
@@ -751,7 +751,7 @@ func TestHasSameController(t *testing.T) {
 			got := hasSameController(tc.a, tc.b)
 
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("hasSameController(...): want != got:\n%s", diff)
+				t.Errorf("hasSameController(...): -want, +got:\n%s", diff)
 			}
 		})
 	}
@@ -786,7 +786,7 @@ func TestGetControllerName(t *testing.T) {
 			got := getControllerName(tc.obj)
 
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("getControllerName(...): want != got:\n%s", diff)
+				t.Errorf("getControllerName(...): -want, +got:\n%s", diff)
 			}
 		})
 	}
