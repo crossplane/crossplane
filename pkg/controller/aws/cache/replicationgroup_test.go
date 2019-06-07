@@ -222,7 +222,7 @@ func TestCreate(t *testing.T) {
 			}
 
 			if diff := cmp.Diff(tc.want, tc.r); diff != "" {
-				t.Errorf("r: want != got:\n%s", diff)
+				t.Errorf("r: -want, +got:\n%s", diff)
 			}
 		})
 	}
@@ -641,7 +641,7 @@ func TestSync(t *testing.T) {
 			}
 
 			if diff := cmp.Diff(tc.want, tc.r); diff != "" {
-				t.Errorf("r: want != got:\n%s", diff)
+				t.Errorf("r: -want, +got:\n%s", diff)
 			}
 		})
 	}
@@ -716,7 +716,7 @@ func TestDelete(t *testing.T) {
 			}
 
 			if diff := cmp.Diff(tc.want, tc.r); diff != "" {
-				t.Errorf("r: want != got:\n%s", diff)
+				t.Errorf("r: -want, +got:\n%s", diff)
 			}
 		})
 	}
@@ -804,7 +804,7 @@ func TestConnect(t *testing.T) {
 			}
 
 			if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(elastiCache{})); diff != "" {
-				t.Errorf("tc.conn.Connect(...): want != got:\n%s", diff)
+				t.Errorf("tc.conn.Connect(...): -want, +got:\n%s", diff)
 			}
 		})
 	}
@@ -964,7 +964,7 @@ func TestReconcile(t *testing.T) {
 						))
 						got := obj.(*v1alpha1.ReplicationGroup)
 						if diff := cmp.Diff(want, got); diff != "" {
-							t.Errorf("kube.Update(...): want != got:\n%s", diff)
+							t.Errorf("kube.Update(...): -want, +got:\n%s", diff)
 						}
 						return nil
 					},
@@ -1002,7 +1002,7 @@ func TestReconcile(t *testing.T) {
 							))
 						got := obj.(*v1alpha1.ReplicationGroup)
 						if diff := cmp.Diff(want, got); diff != "" {
-							t.Errorf("kube.Update(...): want != got:\n%s", diff)
+							t.Errorf("kube.Update(...): -want, +got:\n%s", diff)
 						}
 						return nil
 					},
@@ -1041,7 +1041,7 @@ func TestReconcile(t *testing.T) {
 							))
 						got := obj.(*v1alpha1.ReplicationGroup)
 						if diff := cmp.Diff(want, got); diff != "" {
-							t.Errorf("kube.Update(...): want != got:\n%s", diff)
+							t.Errorf("kube.Update(...): -want, +got:\n%s", diff)
 						}
 						return nil
 					},
@@ -1062,7 +1062,7 @@ func TestReconcile(t *testing.T) {
 			}
 
 			if diff := cmp.Diff(tc.want, gotResult); diff != "" {
-				t.Errorf("tc.rec.Reconcile(...): want != got:\n%s", diff)
+				t.Errorf("tc.rec.Reconcile(...): -want, +got:\n%s", diff)
 			}
 		})
 	}
@@ -1122,7 +1122,7 @@ func TestConnectionSecretWithPassword(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			got := connectionSecretWithPassword(tc.r, tc.password)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("connectionSecretWithPassword(...): want != got:\n%s", diff)
+				t.Errorf("connectionSecretWithPassword(...): -want, +got:\n%s", diff)
 			}
 		})
 	}

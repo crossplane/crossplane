@@ -60,7 +60,7 @@ func TestResolveAzureClassValues(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			got := resolveAzureClassValues(tc.claim)
 			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
-				t.Errorf("want != got:\n%s", diff)
+				t.Errorf("-want, +got:\n%s", diff)
 			}
 		})
 	}

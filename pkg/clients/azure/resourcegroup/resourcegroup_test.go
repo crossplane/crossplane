@@ -56,7 +56,7 @@ func TestNewParameters(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			got := NewParameters(tc.r)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("NewParameters(...): want != got\n%s", diff)
+				t.Errorf("NewParameters(...): -want, +got\n%s", diff)
 			}
 		})
 	}

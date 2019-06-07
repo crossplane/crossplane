@@ -220,7 +220,7 @@ func TestNewCreateReplicationGroupInput(t *testing.T) {
 				t.Errorf("NewCreateReplicationGroupInput(...): invalid input: %v", err)
 			}
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("NewCreateReplicationGroupInput(...): want != got:\n%s", diff)
+				t.Errorf("NewCreateReplicationGroupInput(...): -want, +got:\n%s", diff)
 			}
 		})
 	}
@@ -281,7 +281,7 @@ func TestNewModifyReplicationGroupInput(t *testing.T) {
 				t.Errorf("NewModifyReplicationGroupInput(...): invalid input: %v", err)
 			}
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("NewModifyReplicationGroupInput(...): want != got:\n%s", diff)
+				t.Errorf("NewModifyReplicationGroupInput(...): -want, +got:\n%s", diff)
 			}
 		})
 	}
@@ -308,7 +308,7 @@ func TestNewDeleteReplicationGroupInput(t *testing.T) {
 				t.Errorf("NewDeleteReplicationGroupInput(...): invalid input: %v", err)
 			}
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("NewDeleteReplicationGroupInput(...): want != got:\n%s", diff)
+				t.Errorf("NewDeleteReplicationGroupInput(...): -want, +got:\n%s", diff)
 			}
 		})
 	}
@@ -331,7 +331,7 @@ func TestNewDescribeReplicationGroupsInput(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			got := NewDescribeReplicationGroupsInput(tc.group)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("NewDescribeReplicationGroupsInput(...): want != got:\n%s", diff)
+				t.Errorf("NewDescribeReplicationGroupsInput(...): -want, +got:\n%s", diff)
 			}
 		})
 	}
@@ -354,7 +354,7 @@ func TestNewDescribeCacheClustersInput(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			got := NewDescribeCacheClustersInput(tc.cluster)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("NewDescribeCacheClustersInput(...): want != got:\n%s", diff)
+				t.Errorf("NewDescribeCacheClustersInput(...): -want, +got:\n%s", diff)
 			}
 		})
 	}
@@ -644,7 +644,7 @@ func TestConnectionEndpoint(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			got := ConnectionEndpoint(tc.rg)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("ConnectionEndpoint(...): want != got:\n%s", diff)
+				t.Errorf("ConnectionEndpoint(...): -want, +got:\n%s", diff)
 			}
 		})
 	}

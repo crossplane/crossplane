@@ -93,7 +93,7 @@ func TestInstanceID(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			got := NewInstanceID(tc.project, tc.i)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("NewInstanceID(...): want != got:\n%s", diff)
+				t.Errorf("NewInstanceID(...): -want, +got:\n%s", diff)
 			}
 
 			gotName := got.Name()
@@ -175,7 +175,7 @@ func TestNewCreateInstanceRequest(t *testing.T) {
 			id := NewInstanceID(tc.project, tc.i)
 			got := NewCreateInstanceRequest(id, tc.i)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("NewCreateInstanceRequest(...): want != got:\n%v", diff)
+				t.Errorf("NewCreateInstanceRequest(...): -want, +got:\n%v", diff)
 			}
 		})
 	}
@@ -235,7 +235,7 @@ func TestNewUpdateInstanceRequest(t *testing.T) {
 			id := NewInstanceID(tc.project, tc.i)
 			got := NewUpdateInstanceRequest(id, tc.i)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("NewUpdateInstanceRequest(...): want != got:\n%v", diff)
+				t.Errorf("NewUpdateInstanceRequest(...): -want, +got:\n%v", diff)
 			}
 		})
 	}
@@ -331,7 +331,7 @@ func TestNewDeleteInstanceRequest(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			got := NewDeleteInstanceRequest(tc.id)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("NewDeleteInstanceRequest(...): want != got:\n%v", diff)
+				t.Errorf("NewDeleteInstanceRequest(...): -want, +got:\n%v", diff)
 			}
 		})
 	}
@@ -356,7 +356,7 @@ func TestNewGetInstanceRequest(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			got := NewGetInstanceRequest(tc.id)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("NewGetInstanceRequest(...): want != got:\n%v", diff)
+				t.Errorf("NewGetInstanceRequest(...): -want, +got:\n%v", diff)
 			}
 		})
 	}

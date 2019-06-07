@@ -52,7 +52,7 @@ func TestBindingStateMarshalJSON(t *testing.T) {
 				t.Errorf("BindingState.MarshalJSON(): %v", err)
 			}
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("BindingState.MarshalJSON(): want != got\n %+v", diff)
+				t.Errorf("BindingState.MarshalJSON(): -want, +got\n %+v", diff)
 			}
 		})
 	}
@@ -102,7 +102,7 @@ func TestBindingStateUnmarshalJSON(t *testing.T) {
 			}
 
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("BindingState.UnmarshalJSON(): want != got\n %+v", diff)
+				t.Errorf("BindingState.UnmarshalJSON(): -want, +got\n %+v", diff)
 			}
 		})
 	}
