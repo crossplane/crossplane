@@ -27,6 +27,7 @@ import (
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/apis/gcp/compute/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 )
 
 // A GKEClusterHandler handles Kubernetes cluster functionality
@@ -51,8 +52,8 @@ func (r *GKEClusterHandler) Provision(class *corev1alpha1.ResourceClass, claim c
 	resourceInstance.ReclaimPolicy = class.ReclaimPolicy
 
 	// set class and claim references
-	resourceInstance.ClassRef = class.ObjectReference()
-	resourceInstance.ClaimRef = claim.ObjectReference()
+	resourceInstance.ClassRef = meta.ReferenceTo(class)
+	resourceInstance.ClaimRef = meta.ReferenceTo(claim)
 
 	// create and save GKECluster
 	cluster := &v1alpha1.GKECluster{
@@ -60,7 +61,7 @@ func (r *GKEClusterHandler) Provision(class *corev1alpha1.ResourceClass, claim c
 			Labels:          map[string]string{labelProviderKey: labelProviderGCP},
 			Namespace:       class.Namespace,
 			Name:            fmt.Sprintf("gke-%s", claim.GetUID()),
-			OwnerReferences: []metav1.OwnerReference{claim.OwnerReference()},
+			OwnerReferences: []metav1.OwnerReference{meta.AsOwner(meta.ReferenceTo(claim))},
 		},
 		Spec: *resourceInstance,
 	}

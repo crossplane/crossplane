@@ -40,6 +40,7 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/clients/aws"
 	"github.com/crossplaneio/crossplane/pkg/clients/aws/s3"
 	"github.com/crossplaneio/crossplane/pkg/logging"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
@@ -132,7 +133,7 @@ func connectionSecret(bucket *bucketv1alpha1.S3Bucket, accessKey *iam.AccessKey)
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            bucket.ConnectionSecretName(),
 			Namespace:       bucket.Namespace,
-			OwnerReferences: []metav1.OwnerReference{bucket.OwnerReference()},
+			OwnerReferences: []metav1.OwnerReference{meta.AsOwner(meta.ReferenceTo(bucket))},
 		},
 
 		Data: map[string][]byte{
@@ -170,7 +171,7 @@ func (r *Reconciler) _connect(instance *bucketv1alpha1.S3Bucket) (s3.Service, er
 
 func (r *Reconciler) _create(bucket *bucketv1alpha1.S3Bucket, client s3.Service) (reconcile.Result, error) {
 	bucket.Status.UnsetAllDeprecatedConditions()
-	util.AddFinalizer(&bucket.ObjectMeta, finalizer)
+	meta.AddFinalizer(bucket, finalizer)
 	err := client.CreateOrUpdateBucket(bucket)
 	if err != nil {
 		return r.fail(bucket, errorCreateResource, err.Error())
@@ -195,7 +196,7 @@ func (r *Reconciler) _create(bucket *bucketv1alpha1.S3Bucket, client s3.Service)
 
 	// Set access keys into a secret for local access creds to s3 bucket
 	secret := connectionSecret(bucket, accessKeys)
-	secret.OwnerReferences = append(secret.OwnerReferences, bucket.OwnerReference())
+	secret.OwnerReferences = append(secret.OwnerReferences, meta.AsOwner(meta.ReferenceTo(bucket)))
 	bucket.Status.ConnectionSecretRef = corev1.LocalObjectReference{Name: secret.Name}
 
 	_, err = util.ApplySecret(r.kubeclient, secret)
@@ -261,7 +262,7 @@ func (r *Reconciler) _delete(bucket *bucketv1alpha1.S3Bucket, client s3.Service)
 	}
 
 	bucket.Status.SetDeprecatedCondition(corev1alpha1.NewDeprecatedCondition(corev1alpha1.DeprecatedDeleting, "", ""))
-	util.RemoveFinalizer(&bucket.ObjectMeta, finalizer)
+	meta.RemoveFinalizer(bucket, finalizer)
 	return result, r.Update(ctx, bucket)
 }
 

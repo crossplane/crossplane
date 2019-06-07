@@ -38,6 +38,7 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/clients/aws"
 	"github.com/crossplaneio/crossplane/pkg/clients/aws/elasticache"
 	"github.com/crossplaneio/crossplane/pkg/logging"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
@@ -120,7 +121,7 @@ func (e *elastiCache) Create(ctx context.Context, g *v1alpha1.ReplicationGroup) 
 	g.Status.GroupName = elasticache.NewReplicationGroupID(g)
 	g.Status.UnsetAllDeprecatedConditions()
 	g.Status.SetCreating()
-	util.AddFinalizer(&g.ObjectMeta, finalizerName)
+	meta.AddFinalizer(g, finalizerName)
 
 	return true, authToken
 }
@@ -218,7 +219,7 @@ func (e *elastiCache) Delete(ctx context.Context, g *v1alpha1.ReplicationGroup) 
 		}
 	}
 	g.Status.SetDeleting()
-	util.RemoveFinalizer(&g.ObjectMeta, finalizerName)
+	meta.RemoveFinalizer(g, finalizerName)
 	return false
 }
 
@@ -350,7 +351,7 @@ func connectionSecret(g *v1alpha1.ReplicationGroup) *corev1.Secret {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            g.ConnectionSecretName(),
 			Namespace:       g.Namespace,
-			OwnerReferences: []metav1.OwnerReference{g.OwnerReference()},
+			OwnerReferences: []metav1.OwnerReference{meta.AsOwner(meta.ReferenceTo(g))},
 		},
 
 		// TODO(negz): Include the ports here too?

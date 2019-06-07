@@ -75,7 +75,7 @@ var (
 	ctx       = context.Background()
 	errorBoom = errors.New("boom")
 
-	meta = metav1.ObjectMeta{Namespace: namespace, Name: name, UID: uid, Finalizers: []string{}}
+	objectMeta = metav1.ObjectMeta{Namespace: namespace, Name: name, UID: uid, Finalizers: []string{}}
 
 	provider = awsv1alpha1.Provider{
 		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: providerName},
@@ -137,7 +137,7 @@ func withMemberClusters(members []string) replicationGroupModifier {
 
 func replicationGroup(rm ...replicationGroupModifier) *v1alpha1.ReplicationGroup {
 	r := &v1alpha1.ReplicationGroup{
-		ObjectMeta: meta,
+		ObjectMeta: objectMeta,
 		Spec: v1alpha1.ReplicationGroupSpec{
 			AutomaticFailoverEnabled:   autoFailoverEnabled,
 			CacheNodeType:              cacheNodeType,

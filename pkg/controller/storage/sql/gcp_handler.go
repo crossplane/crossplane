@@ -30,6 +30,7 @@ import (
 	gcpdbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/database/v1alpha1"
 	storagev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
 	corecontroller "github.com/crossplaneio/crossplane/pkg/controller/core"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 )
 
 // CloudSQLServerHandler is a dynamic provisioning handler for CloudSQL resource
@@ -57,8 +58,8 @@ func (h *CloudSQLServerHandler) Provision(class *corev1alpha1.ResourceClass, cla
 	cloudsqlInstanceSpec.ReclaimPolicy = class.ReclaimPolicy
 
 	// set class and claim references
-	cloudsqlInstanceSpec.ClassRef = class.ObjectReference()
-	cloudsqlInstanceSpec.ClaimRef = claim.ObjectReference()
+	cloudsqlInstanceSpec.ClassRef = meta.ReferenceTo(class)
+	cloudsqlInstanceSpec.ClaimRef = meta.ReferenceTo(claim)
 
 	var cloudsqlInstanceName string
 	switch claim.(type) {
@@ -79,7 +80,7 @@ func (h *CloudSQLServerHandler) Provision(class *corev1alpha1.ResourceClass, cla
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:       class.Namespace,
 			Name:            cloudsqlInstanceName,
-			OwnerReferences: []metav1.OwnerReference{claim.OwnerReference()},
+			OwnerReferences: []metav1.OwnerReference{meta.AsOwner(meta.ReferenceTo(claim))},
 		},
 		Spec: *cloudsqlInstanceSpec,
 	}

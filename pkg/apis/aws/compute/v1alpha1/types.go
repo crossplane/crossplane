@@ -25,7 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/util"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 )
 
 // Cluster statuses.
@@ -318,11 +318,12 @@ func parseSlice(s string) []string {
 
 // ConnectionSecret with this cluster owner reference
 func (e *EKSCluster) ConnectionSecret() *corev1.Secret {
+	ref := meta.AsOwner(meta.ReferenceTo(e))
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace:       e.Namespace,
+			Namespace:       e.GetNamespace(),
 			Name:            e.ConnectionSecretName(),
-			OwnerReferences: []metav1.OwnerReference{e.OwnerReference()},
+			OwnerReferences: []metav1.OwnerReference{ref},
 		},
 	}
 }
@@ -340,16 +341,6 @@ func (e *EKSCluster) ConnectionSecretName() string {
 // SetConnectionSecretReference sets a local object reference to this secret in Status.ConnectionSecretRef
 func (e *EKSCluster) SetConnectionSecretReference(secret *corev1.Secret) {
 	e.Status.ConnectionSecretRef.Name = secret.Name
-}
-
-// ObjectReference to this EKSCluster
-func (e *EKSCluster) ObjectReference() *corev1.ObjectReference {
-	return util.ObjectReference(e.ObjectMeta, util.IfEmptyString(e.APIVersion, APIVersion), util.IfEmptyString(e.Kind, EKSClusterKind))
-}
-
-// OwnerReference to use this resource as an owner
-func (e *EKSCluster) OwnerReference() metav1.OwnerReference {
-	return *util.ObjectToOwnerReference(e.ObjectReference())
 }
 
 // State returns rds resource state value saved in the status (could be empty)

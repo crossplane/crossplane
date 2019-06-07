@@ -41,7 +41,7 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/clients/azure"
 	azurestorage "github.com/crossplaneio/crossplane/pkg/clients/azure/storage"
 	"github.com/crossplaneio/crossplane/pkg/logging"
-	"github.com/crossplaneio/crossplane/pkg/util"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 )
 
 const (
@@ -223,7 +223,7 @@ func (asd *accountSyncDeleter) delete(ctx context.Context) (reconcile.Result, er
 			return resultRequeue, asd.kube.Status().Update(ctx, asd.acct)
 		}
 	}
-	util.RemoveFinalizer(&asd.acct.ObjectMeta, finalizer)
+	meta.RemoveFinalizer(asd.acct, finalizer)
 	return reconcile.Result{}, asd.kube.Update(ctx, asd.acct)
 }
 
@@ -279,7 +279,7 @@ func newAccountCreateUpdater(ao azurestorage.AccountOperations, kube client.Clie
 
 // create new storage account resource and save changes back to account specs
 func (acu *accountCreateUpdater) create(ctx context.Context) (reconcile.Result, error) {
-	util.AddFinalizer(&acu.acct.ObjectMeta, finalizer)
+	meta.AddFinalizer(acu.acct, finalizer)
 
 	// Set UID to the account storage spec
 	// TODO(illya) - this eventually needs to be in Defaulter Mutating web hook

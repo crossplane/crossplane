@@ -225,16 +225,6 @@ func (c *Redis) ConnectionSecretName() string {
 	return c.Spec.ConnectionSecretRef.Name
 }
 
-// ObjectReference to this Redis instance
-func (c *Redis) ObjectReference() *v1.ObjectReference {
-	return util.ObjectReference(c.ObjectMeta, util.IfEmptyString(c.APIVersion, APIVersion), util.IfEmptyString(c.Kind, RedisKind))
-}
-
-// OwnerReference to use this instance as an owner
-func (c *Redis) OwnerReference() metav1.OwnerReference {
-	return *util.ObjectToOwnerReference(c.ObjectReference())
-}
-
 // IsAvailable for usage/binding
 func (c *Redis) IsAvailable() bool {
 	return c.Status.State == ProvisioningStateSucceeded

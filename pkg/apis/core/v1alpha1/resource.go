@@ -21,7 +21,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/crossplaneio/crossplane/pkg/util"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 )
 
 const (
@@ -44,10 +44,9 @@ const (
 // Resource defines a concrete resource that can be provisioned and bound to a resource claim.
 type Resource interface {
 	runtime.Object
+	metav1.Object
 	// Resource connection secret name
 	ConnectionSecretName() string
-	// Kubernetes object reference to this resource
-	ObjectReference() *corev1.ObjectReference
 	// Is resource available for finding
 	IsAvailable() bool
 	// IsBound() bool
@@ -62,10 +61,6 @@ type ResourceClaim interface {
 	metav1.Object
 	// The status of this resource claim
 	ClaimStatus() *ResourceClaimStatus
-	// Gets an owner reference that points to this claim
-	OwnerReference() metav1.OwnerReference
-	// Kubernetes object reference to this resource
-	ObjectReference() *corev1.ObjectReference
 	// Gets the reference to the resource class this claim uses
 	ClassRef() *corev1.ObjectReference
 	// Gets the reference to the resource that this claim is bound to
@@ -113,16 +108,16 @@ type ResourceClass struct {
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// ResourceClassList contains a list of RDSInstance
+// ResourceClassList contains a list of resource classes.
 type ResourceClassList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []ResourceClass `json:"items"`
 }
 
-// ObjectReference to this mysql instance
+// ObjectReference to this resource class.
 func (r *ResourceClass) ObjectReference() *corev1.ObjectReference {
-	return util.ObjectReference(r.ObjectMeta, util.IfEmptyString(r.APIVersion, APIVersion), util.IfEmptyString(r.Kind, ResourceClassKind))
+	return meta.ReferenceTo(r)
 }
 
 // ResourceClaimStatus represents the status of a resource claim

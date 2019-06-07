@@ -40,6 +40,7 @@ import (
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/apis/extensions"
 	"github.com/crossplaneio/crossplane/pkg/apis/extensions/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
@@ -443,13 +444,13 @@ func TestProcessRBAC(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name:            resourceName,
 						Namespace:       namespace,
-						OwnerReferences: []metav1.OwnerReference{resource().OwnerReference()}}},
+						OwnerReferences: []metav1.OwnerReference{meta.AsOwner(meta.ReferenceTo(resource()))}}},
 				cr: &rbac.ClusterRole{
-					ObjectMeta: metav1.ObjectMeta{Name: resourceName, OwnerReferences: []metav1.OwnerReference{resource().OwnerReference()}},
+					ObjectMeta: metav1.ObjectMeta{Name: resourceName, OwnerReferences: []metav1.OwnerReference{meta.AsOwner(meta.ReferenceTo(resource()))}},
 					Rules:      defaultPolicyRules(),
 				},
 				crb: &rbac.ClusterRoleBinding{
-					ObjectMeta: metav1.ObjectMeta{Name: resourceName, OwnerReferences: []metav1.OwnerReference{resource().OwnerReference()}},
+					ObjectMeta: metav1.ObjectMeta{Name: resourceName, OwnerReferences: []metav1.OwnerReference{meta.AsOwner(meta.ReferenceTo(resource()))}},
 					RoleRef:    rbac.RoleRef{APIGroup: rbac.GroupName, Kind: "ClusterRole", Name: resourceName},
 					Subjects:   []rbac.Subject{{Name: resourceName, Namespace: namespace, Kind: rbac.ServiceAccountKind}},
 				},
@@ -541,7 +542,7 @@ func TestProcessDeployment(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name:            controllerDeploymentName,
 						Namespace:       namespace,
-						OwnerReferences: []metav1.OwnerReference{resource().OwnerReference()},
+						OwnerReferences: []metav1.OwnerReference{meta.AsOwner(meta.ReferenceTo(resource()))},
 					},
 					Spec: apps.DeploymentSpec{
 						Template: corev1.PodTemplateSpec{

@@ -21,7 +21,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 // RedisClusterSpec defines the desired state of RedisCluster
@@ -60,16 +59,6 @@ type RedisClusterList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []RedisCluster `json:"items"`
-}
-
-// ObjectReference returns the Kubernetes object reference to this resource.
-func (c *RedisCluster) ObjectReference() *corev1.ObjectReference {
-	return util.ObjectReference(c.ObjectMeta, util.IfEmptyString(c.APIVersion, APIVersion), util.IfEmptyString(c.Kind, RedisClusterKind))
-}
-
-// OwnerReference return an owner reference that points to this claim
-func (c *RedisCluster) OwnerReference() metav1.OwnerReference {
-	return *util.ObjectToOwnerReference(c.ObjectReference())
 }
 
 // ClaimStatus returns the status of this resource claim

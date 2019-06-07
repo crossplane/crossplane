@@ -29,6 +29,7 @@ import (
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	storagev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
 	corecontroller "github.com/crossplaneio/crossplane/pkg/controller/core"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 )
 
 // AzureMySQLServerHandler is a dynamic provisioning handler for Azure MySQLServer
@@ -77,12 +78,12 @@ func provisionAzureSQL(class *corev1alpha1.ResourceClass, claim corev1alpha1.Res
 	sqlServerSpec.ReclaimPolicy = class.ReclaimPolicy
 
 	// set class and claim references
-	sqlServerSpec.ClassRef = class.ObjectReference()
-	sqlServerSpec.ClaimRef = claim.ObjectReference()
+	sqlServerSpec.ClassRef = meta.ReferenceTo(class)
+	sqlServerSpec.ClaimRef = meta.ReferenceTo(claim)
 
 	objectMeta := metav1.ObjectMeta{
 		Namespace:       class.Namespace,
-		OwnerReferences: []metav1.OwnerReference{claim.OwnerReference()},
+		OwnerReferences: []metav1.OwnerReference{meta.AsOwner(meta.ReferenceTo(claim))},
 	}
 
 	switch claim.(type) {

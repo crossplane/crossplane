@@ -24,7 +24,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 // SQL database engines.
@@ -169,16 +168,6 @@ func (r *RDSInstance) ConnectionSecretName() string {
 	}
 
 	return r.Spec.ConnectionSecretRef.Name
-}
-
-// ObjectReference to this RDSInstance
-func (r *RDSInstance) ObjectReference() *corev1.ObjectReference {
-	return util.ObjectReference(r.ObjectMeta, util.IfEmptyString(r.APIVersion, APIVersion), util.IfEmptyString(r.Kind, RDSInstanceKind))
-}
-
-// OwnerReference to use this instance as an owner
-func (r *RDSInstance) OwnerReference() metav1.OwnerReference {
-	return *util.ObjectToOwnerReference(r.ObjectReference())
 }
 
 // State returns rds instance state value saved in the status (could be empty)

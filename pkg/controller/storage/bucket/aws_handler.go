@@ -29,6 +29,7 @@ import (
 	s3Bucketv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/storage/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	bucketv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 )
 
 var (
@@ -61,7 +62,7 @@ func (h *S3BucketHandler) newS3Bucket(class *corev1alpha1.ResourceClass, instanc
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:       class.Namespace,
 			Name:            fmt.Sprintf("%s-%s", "bucket", instance.UID),
-			OwnerReferences: []metav1.OwnerReference{instance.OwnerReference()},
+			OwnerReferences: []metav1.OwnerReference{meta.AsOwner(meta.ReferenceTo(instance))},
 		},
 		Spec: *bucketSpec,
 	}
@@ -70,8 +71,8 @@ func (h *S3BucketHandler) newS3Bucket(class *corev1alpha1.ResourceClass, instanc
 	bucket.Spec.ReclaimPolicy = class.ReclaimPolicy
 
 	// set class and claim references
-	bucket.Spec.ClassRef = class.ObjectReference()
-	bucket.Spec.ClaimRef = instance.ObjectReference()
+	bucket.Spec.ClassRef = meta.ReferenceTo(class)
+	bucket.Spec.ClaimRef = meta.ReferenceTo(instance)
 
 	return bucket
 }

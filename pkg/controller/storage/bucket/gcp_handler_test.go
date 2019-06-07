@@ -34,6 +34,7 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/apis/gcp"
 	"github.com/crossplaneio/crossplane/pkg/apis/gcp/storage/v1alpha1"
 	storagev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
@@ -43,7 +44,7 @@ const (
 )
 
 var (
-	meta = metav1.ObjectMeta{
+	objectMeta = metav1.ObjectMeta{
 		Namespace: ns,
 		Name:      name,
 	}
@@ -88,10 +89,10 @@ func TestGCSBucketHandler_Find(t *testing.T) {
 			name: "Success",
 			args: args{
 				n: nn,
-				c: fake.NewFakeClient(&v1alpha1.Bucket{ObjectMeta: meta}),
+				c: fake.NewFakeClient(&v1alpha1.Bucket{ObjectMeta: objectMeta}),
 			},
 			want: want{
-				res: corev1alpha1.Resource(&v1alpha1.Bucket{ObjectMeta: meta}),
+				res: corev1alpha1.Resource(&v1alpha1.Bucket{ObjectMeta: objectMeta}),
 			},
 		},
 	}
@@ -110,16 +111,16 @@ func TestGCSBucketHandler_Find(t *testing.T) {
 }
 
 func TestGCSBucketHandler_Provision(t *testing.T) {
-	meta := metav1.ObjectMeta{
+	objectMeta := metav1.ObjectMeta{
 		Namespace: ns,
 		Name:      name,
 		UID:       types.UID("test-uid"),
 	}
 	class := &corev1alpha1.ResourceClass{
-		ObjectMeta: meta,
+		ObjectMeta: objectMeta,
 	}
 	claim := &storagev1alpha1.Bucket{
-		ObjectMeta: meta,
+		ObjectMeta: objectMeta,
 	}
 	type args struct {
 		class *corev1alpha1.ResourceClass
@@ -151,11 +152,11 @@ func TestGCSBucketHandler_Provision(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace:       ns,
 						Name:            fmt.Sprintf("gcs-%s", claim.GetUID()),
-						OwnerReferences: []metav1.OwnerReference{claim.OwnerReference()},
+						OwnerReferences: []metav1.OwnerReference{meta.AsOwner(meta.ReferenceTo(claim))},
 					},
 					Spec: v1alpha1.BucketSpec{
-						ClassRef: class.ObjectReference(),
-						ClaimRef: claim.ObjectReference(),
+						ClassRef: meta.ReferenceTo(class),
+						ClaimRef: meta.ReferenceTo(claim),
 					},
 				},
 			},

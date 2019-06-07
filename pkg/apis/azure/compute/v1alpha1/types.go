@@ -24,7 +24,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/util"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 )
 
 const (
@@ -177,23 +177,14 @@ func NewAKSClusterSpec(properties map[string]string) *AKSClusterSpec {
 	return spec
 }
 
-// ObjectReference to this instance
-func (a *AKSCluster) ObjectReference() *corev1.ObjectReference {
-	return util.ObjectReference(a.ObjectMeta, util.IfEmptyString(a.APIVersion, APIVersion), util.IfEmptyString(a.Kind, AKSClusterKind))
-}
-
-// OwnerReference to use this instance as an owner
-func (a *AKSCluster) OwnerReference() metav1.OwnerReference {
-	return *util.ObjectToOwnerReference(a.ObjectReference())
-}
-
 // ConnectionSecret returns a secret object for this resource
 func (a *AKSCluster) ConnectionSecret() *corev1.Secret {
+	ref := meta.AsOwner(meta.ReferenceTo(a))
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace:       a.Namespace,
+			Namespace:       a.GetNamespace(),
 			Name:            a.ConnectionSecretName(),
-			OwnerReferences: []metav1.OwnerReference{a.OwnerReference()},
+			OwnerReferences: []metav1.OwnerReference{ref},
 		},
 	}
 }

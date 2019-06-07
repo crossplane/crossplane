@@ -40,6 +40,7 @@ import (
 	gcpv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/v1alpha1"
 	gcpclients "github.com/crossplaneio/crossplane/pkg/clients/gcp"
 	"github.com/crossplaneio/crossplane/pkg/logging"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
@@ -187,12 +188,10 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	}
 
 	// Add finalizer to the CRD if it doesn't already exist
-	if !util.HasFinalizer(&instance.ObjectMeta, finalizer) {
-		util.AddFinalizer(&instance.ObjectMeta, finalizer)
-		if err := r.Update(context.TODO(), instance); err != nil {
-			log.Error(err, "failed to add finalizer to instance", "instance", instance.Name)
-			return reconcile.Result{}, err
-		}
+	meta.AddFinalizer(instance, finalizer)
+	if err := r.Update(context.TODO(), instance); err != nil {
+		log.Error(err, "failed to add finalizer to instance", "instance", instance.Name)
+		return reconcile.Result{}, err
 	}
 
 	// retrieve the CloudSQL instance from GCP to get the latest status
@@ -302,7 +301,7 @@ func (r *Reconciler) handleDeletion(cloudSQLClient gcpclients.CloudSQLAPI,
 
 func (r *Reconciler) markAsDeleting(instance *databasev1alpha1.CloudsqlInstance) (reconcile.Result, error) {
 	instance.Status.SetDeprecatedCondition(corev1alpha1.NewDeprecatedCondition(corev1alpha1.DeprecatedDeleting, "", ""))
-	util.RemoveFinalizer(&instance.ObjectMeta, finalizer)
+	meta.RemoveFinalizer(instance, finalizer)
 	return reconcile.Result{}, r.Update(context.TODO(), instance)
 }
 
@@ -383,7 +382,7 @@ func (r *Reconciler) initDefaultUser(cloudSQLClient gcpclients.CloudSQLAPI,
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            secretName,
 			Namespace:       instance.Namespace,
-			OwnerReferences: []metav1.OwnerReference{instance.OwnerReference()},
+			OwnerReferences: []metav1.OwnerReference{meta.AsOwner(meta.ReferenceTo(instance))},
 		},
 		Data: map[string][]byte{
 			corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(instance.Status.Endpoint),

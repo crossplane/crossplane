@@ -149,11 +149,6 @@ func (b *S3Bucket) GetBucketName() string {
 	return util.ConditionalStringFormat(b.Spec.NameFormat, string(b.GetUID()))
 }
 
-// ObjectReference to this S3Bucket
-func (b *S3Bucket) ObjectReference() *v1.ObjectReference {
-	return util.ObjectReference(b.ObjectMeta, util.IfEmptyString(b.APIVersion, APIVersion), util.IfEmptyString(b.Kind, S3BucketKind))
-}
-
 // SetUserPolicyVersion specifies this bucket's policy version.
 func (b *S3Bucket) SetUserPolicyVersion(policyVersion string) error {
 	policyInt, err := strconv.Atoi(policyVersion[1:])
@@ -191,11 +186,6 @@ func (b *S3Bucket) ConnectionSecretName() string {
 		return b.Spec.ConnectionSecretNameOverride
 	}
 	return b.Name
-}
-
-// OwnerReference to use this instance as an owner
-func (b *S3Bucket) OwnerReference() metav1.OwnerReference {
-	return *util.ObjectToOwnerReference(b.ObjectReference())
 }
 
 // IsAvailable for usage/binding

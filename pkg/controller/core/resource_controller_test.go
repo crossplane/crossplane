@@ -22,6 +22,7 @@ import (
 
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -38,13 +39,18 @@ var (
 )
 
 type MockResource struct {
-	corev1alpha1.Resource
+	metav1.TypeMeta
+	metav1.ObjectMeta
 
 	connectionSecretName string
 	endpoint             string
 	state                string
 	phase                corev1alpha1.BindingStatusPhase
 	objectReference      *corev1.ObjectReference
+}
+
+func (br *MockResource) DeepCopyObject() runtime.Object {
+	return nil
 }
 
 func (br *MockResource) ConnectionSecretName() string {

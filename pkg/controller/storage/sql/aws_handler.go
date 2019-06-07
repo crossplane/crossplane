@@ -29,6 +29,7 @@ import (
 	awsdbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/database/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	storagev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 )
 
 // RDSInstanceHandler handles RDS Instance functionality
@@ -58,8 +59,8 @@ func (h *RDSInstanceHandler) Provision(class *corev1alpha1.ResourceClass, claim 
 	rdsInstanceSpec.ReclaimPolicy = class.ReclaimPolicy
 
 	// set class and claim references
-	rdsInstanceSpec.ClassRef = class.ObjectReference()
-	rdsInstanceSpec.ClaimRef = claim.ObjectReference()
+	rdsInstanceSpec.ClassRef = meta.ReferenceTo(class)
+	rdsInstanceSpec.ClaimRef = meta.ReferenceTo(claim)
 
 	// create and save RDSInstance
 	rdsInstance := &awsdbv1alpha1.RDSInstance{
@@ -70,7 +71,7 @@ func (h *RDSInstanceHandler) Provision(class *corev1alpha1.ResourceClass, claim 
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:       class.Namespace,
 			Name:            rdsInstanceName,
-			OwnerReferences: []metav1.OwnerReference{claim.OwnerReference()},
+			OwnerReferences: []metav1.OwnerReference{meta.AsOwner(meta.ReferenceTo(claim))},
 		},
 		Spec: *rdsInstanceSpec,
 	}

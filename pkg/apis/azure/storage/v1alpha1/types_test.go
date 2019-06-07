@@ -169,42 +169,6 @@ func TestAccount_ConnectionSecret(t *testing.T) {
 	}
 }
 
-func TestAccount_ObjectReference(t *testing.T) {
-	tests := []struct {
-		name   string
-		bucket Account
-		want   *corev1.ObjectReference
-	}{
-		{"test", Account{}, &corev1.ObjectReference{APIVersion: APIVersion, Kind: AccountKind}},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := tt.bucket.ObjectReference()
-			if diff := cmp.Diff(got, tt.want); diff != "" {
-				t.Errorf("Account.ObjectReference() = %v, want %v\n%s", got, tt.want, diff)
-			}
-		})
-	}
-}
-
-func TestAccount_OwnerReference(t *testing.T) {
-	tests := []struct {
-		name   string
-		bucket Account
-		want   metav1.OwnerReference
-	}{
-		{"test", Account{}, metav1.OwnerReference{APIVersion: APIVersion, Kind: AccountKind}},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := tt.bucket.OwnerReference()
-			if diff := cmp.Diff(got, tt.want); diff != "" {
-				t.Errorf("Account.OwnerReference() = \n%+v, want \n%+v\n%s", got, tt.want, diff)
-			}
-		})
-	}
-}
-
 func TestAccount_IsAvailable(t *testing.T) {
 	b := Account{}
 
@@ -365,42 +329,6 @@ func TestContainer_ConnectionSecretName(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := tt.container.ConnectionSecretName(); got != tt.want {
 				t.Errorf("Container.ConnectionSecretName() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestContainer_ObjectReference(t *testing.T) {
-	tests := []struct {
-		name   string
-		bucket Container
-		want   *corev1.ObjectReference
-	}{
-		{"test", Container{}, &corev1.ObjectReference{APIVersion: APIVersion, Kind: ContainerKind}},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := tt.bucket.ObjectReference()
-			if diff := cmp.Diff(got, tt.want); diff != "" {
-				t.Errorf("Container.ObjectReference() = %v, want %v\n%s", got, tt.want, diff)
-			}
-		})
-	}
-}
-
-func TestContainer_OwnerReference(t *testing.T) {
-	tests := []struct {
-		name   string
-		bucket Container
-		want   metav1.OwnerReference
-	}{
-		{"test", Container{}, metav1.OwnerReference{APIVersion: APIVersion, Kind: ContainerKind}},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := tt.bucket.OwnerReference()
-			if diff := cmp.Diff(got, tt.want); diff != "" {
-				t.Errorf("Container.OwnerReference() = \n%+v, want \n%+v\n%s", got, tt.want, diff)
 			}
 		})
 	}

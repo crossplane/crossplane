@@ -32,6 +32,7 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/apis/compute"
 	. "github.com/crossplaneio/crossplane/pkg/apis/compute/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 )
 
 const (
@@ -150,7 +151,7 @@ func TestScheduleSingleClusterNoSelector(t *testing.T) {
 	g.Expect(err).ShouldNot(HaveOccurred())
 	g.Expect(rs).Should(Equal(resultDone))
 	g.Expect(wl.Status.DeprecatedConditionedStatus).Should(corev1alpha1.MatchDeprecatedConditionedStatus(expStatus))
-	g.Expect(wl.Status.Cluster).Should(Equal(cl.ObjectReference()))
+	g.Expect(wl.Status.Cluster).Should(Equal(meta.ReferenceTo(cl)))
 }
 
 // TestScheduleRoundRobin - schedule workload against multiple matching cluster
@@ -168,14 +169,14 @@ func TestScheduleRoundRobin(t *testing.T) {
 	rs, err := r._schedule(wl)
 	g.Expect(err).ShouldNot(HaveOccurred())
 	g.Expect(rs).Should(Equal(resultDone))
-	g.Expect(wl.Status.Cluster).Should(Equal(clA.ObjectReference()))
+	g.Expect(wl.Status.Cluster).Should(Equal(meta.ReferenceTo(clA)))
 
 	// repeat scheduling and assert workload is scheduled on a different cluster
 	wl.Status.Cluster = nil
 	rs, err = r._schedule(wl)
 	g.Expect(err).ShouldNot(HaveOccurred())
 	g.Expect(rs).Should(Equal(resultDone))
-	g.Expect(wl.Status.Cluster).Should(Equal(clB.ObjectReference()))
+	g.Expect(wl.Status.Cluster).Should(Equal(meta.ReferenceTo(clB)))
 
 }
 
@@ -207,13 +208,13 @@ func TestScheduleSelector(t *testing.T) {
 	rs, err := r._schedule(wl)
 	g.Expect(err).ShouldNot(HaveOccurred())
 	g.Expect(rs).Should(Equal(resultDone))
-	g.Expect(wl.Status.Cluster).Should(Equal(clA.ObjectReference()))
+	g.Expect(wl.Status.Cluster).Should(Equal(meta.ReferenceTo(clA)))
 
 	wl.Status.Cluster = nil
 	rs, err = r._schedule(wl)
 	g.Expect(err).ShouldNot(HaveOccurred())
 	g.Expect(rs).Should(Equal(resultDone))
-	g.Expect(wl.Status.Cluster).Should(Equal(clA.ObjectReference()))
+	g.Expect(wl.Status.Cluster).Should(Equal(meta.ReferenceTo(clA)))
 
 }
 

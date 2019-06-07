@@ -27,6 +27,7 @@ import (
 
 	"github.com/crossplaneio/crossplane/pkg/apis/azure/compute/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 )
 
 // AKSClusterHandler handles Kubernetes cluster functionality
@@ -51,8 +52,8 @@ func (r *AKSClusterHandler) Provision(class *corev1alpha1.ResourceClass, claim c
 	resourceInstance.ReclaimPolicy = class.ReclaimPolicy
 
 	// set class and claim references
-	resourceInstance.ClassRef = class.ObjectReference()
-	resourceInstance.ClaimRef = claim.ObjectReference()
+	resourceInstance.ClassRef = meta.ReferenceTo(class)
+	resourceInstance.ClaimRef = meta.ReferenceTo(claim)
 
 	// create and save AKSCluster
 	cluster := &v1alpha1.AKSCluster{
@@ -60,7 +61,7 @@ func (r *AKSClusterHandler) Provision(class *corev1alpha1.ResourceClass, claim c
 			Labels:          map[string]string{labelProviderKey: labelProviderAzure},
 			Namespace:       class.Namespace,
 			Name:            fmt.Sprintf("aks-%s", claim.GetUID()),
-			OwnerReferences: []metav1.OwnerReference{claim.OwnerReference()},
+			OwnerReferences: []metav1.OwnerReference{meta.AsOwner(meta.ReferenceTo(claim))},
 		},
 		Spec: *resourceInstance,
 	}

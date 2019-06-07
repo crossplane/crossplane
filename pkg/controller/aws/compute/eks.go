@@ -46,6 +46,7 @@ import (
 	cloudformationclient "github.com/crossplaneio/crossplane/pkg/clients/aws/cloudformation"
 	"github.com/crossplaneio/crossplane/pkg/clients/aws/eks"
 	"github.com/crossplaneio/crossplane/pkg/logging"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
@@ -361,7 +362,7 @@ func (r *Reconciler) _delete(instance *awscomputev1alpha1.EKSCluster, client eks
 		}
 	}
 
-	util.RemoveFinalizer(&instance.ObjectMeta, finalizer)
+	meta.RemoveFinalizer(instance, finalizer)
 	instance.Status.SetDeleting()
 	return result, r.Update(ctx, instance)
 }
@@ -390,7 +391,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	}
 
 	// Add finalizer
-	util.AddFinalizer(&instance.ObjectMeta, finalizer)
+	meta.AddFinalizer(instance, finalizer)
 
 	// Check for deletion
 	if instance.DeletionTimestamp != nil {

@@ -28,6 +28,7 @@ import (
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/apis/gcp/storage/v1alpha1"
 	gcpstorage "github.com/crossplaneio/crossplane/pkg/clients/gcp/storage"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
@@ -74,11 +75,11 @@ func newBucketClients(bucket *v1alpha1.Bucket, kube client.Client, gcp gcpstorag
 // Crossplane GCP Bucket object operations
 //
 func (bh *bucketHandler) addFinalizer() {
-	util.AddFinalizer(&bh.ObjectMeta, finalizer)
+	meta.AddFinalizer(bh, finalizer)
 }
 
 func (bh *bucketHandler) removeFinalizer() {
-	util.RemoveFinalizer(&bh.ObjectMeta, finalizer)
+	meta.RemoveFinalizer(bh, finalizer)
 }
 
 func (bh *bucketHandler) isReclaimDelete() bool {

@@ -35,6 +35,7 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/apis/workload/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/controller/core"
 	"github.com/crossplaneio/crossplane/pkg/logging"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
@@ -202,7 +203,7 @@ func (c *applicationResourceClient) sync(ctx context.Context, template *v1alpha1
 		// it does not exist in the API server) or updated to reflect its
 		// current state according to the API server.
 
-		if !hasSameController(remote, template) {
+		if !meta.HaveSameController(remote, template) {
 			return errors.Errorf("%s %s exists and is not controlled by %s %s",
 				v1alpha1.KubernetesApplicationResourceKind, remote.GetName(),
 				v1alpha1.KubernetesApplicationKind, getControllerName(template))
@@ -291,19 +292,6 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	}
 
 	return r.local.sync(ctx, app), errors.Wrapf(r.kube.Update(ctx, app), "cannot update %s %s", v1alpha1.KubernetesApplicationKind, req.NamespacedName)
-}
-
-func hasSameController(a, b metav1.Object) bool {
-	ac := metav1.GetControllerOf(a)
-	bc := metav1.GetControllerOf(b)
-
-	// We do not consider two objects without any controller to have
-	// the same controller.
-	if ac == nil || bc == nil {
-		return false
-	}
-
-	return ac.UID == bc.UID
 }
 
 func getControllerName(obj metav1.Object) string {

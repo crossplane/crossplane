@@ -23,6 +23,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
@@ -169,23 +170,14 @@ func parseNodesNumber(s string) int64 {
 	return int64(n)
 }
 
-// ObjectReference to this RDSInstance
-func (g *GKECluster) ObjectReference() *corev1.ObjectReference {
-	return util.ObjectReference(g.ObjectMeta, util.IfEmptyString(g.APIVersion, APIVersion), util.IfEmptyString(g.Kind, GKEClusterKind))
-}
-
-// OwnerReference to use this instance as an owner
-func (g *GKECluster) OwnerReference() metav1.OwnerReference {
-	return *util.ObjectToOwnerReference(g.ObjectReference())
-}
-
 // ConnectionSecret returns the connection secret for this GKE cluster.
 func (g *GKECluster) ConnectionSecret() *corev1.Secret {
+	ref := meta.AsOwner(meta.ReferenceTo(g))
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:       g.Namespace,
 			Name:            g.ConnectionSecretName(),
-			OwnerReferences: []metav1.OwnerReference{g.OwnerReference()},
+			OwnerReferences: []metav1.OwnerReference{ref},
 		},
 	}
 }

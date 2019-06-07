@@ -41,6 +41,7 @@ import (
 	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/compute/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/logging"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
@@ -269,7 +270,7 @@ func propagateService(k kubernetes.Interface, s *corev1.Service, ns, uid string)
 // _create workload
 func (r *Reconciler) _create(instance *computev1alpha1.Workload, client kubernetes.Interface) (reconcile.Result, error) {
 	instance.Status.SetCreating()
-	util.AddFinalizer(&instance.ObjectMeta, finalizer)
+	meta.AddFinalizer(instance, finalizer)
 
 	// create target namespace
 	targetNamespace := instance.Spec.TargetNamespace
@@ -307,14 +308,14 @@ func (r *Reconciler) _create(instance *computev1alpha1.Workload, client kubernet
 	if err != nil {
 		return r.fail(instance, errorCreating, err.Error())
 	}
-	instance.Status.Deployment = util.ObjectReference(d.ObjectMeta, d.APIVersion, d.Kind)
+	instance.Status.Deployment = meta.ReferenceTo(d)
 
 	// propagate service
 	s, err := r.propagateService(client, instance.Spec.TargetService, targetNamespace, uid)
 	if err != nil {
 		return r.fail(instance, errorCreating, err.Error())
 	}
-	instance.Status.Service = util.ObjectReference(s.ObjectMeta, s.APIVersion, s.Kind)
+	instance.Status.Service = meta.ReferenceTo(s)
 
 	instance.Status.State = computev1alpha1.WorkloadStateCreating
 
@@ -377,7 +378,7 @@ func (r *Reconciler) _delete(instance *computev1alpha1.Workload, client kubernet
 	}
 
 	instance.Status.SetDeprecatedCondition(corev1alpha1.NewDeprecatedCondition(corev1alpha1.DeprecatedDeleting, "", ""))
-	util.RemoveFinalizer(&instance.ObjectMeta, finalizer)
+	meta.RemoveFinalizer(instance, finalizer)
 	return resultDone, r.Status().Update(ctx, instance)
 }
 

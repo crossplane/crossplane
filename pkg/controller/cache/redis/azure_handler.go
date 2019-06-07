@@ -29,6 +29,7 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/apis/azure/cache/v1alpha1"
 	cachev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/cache/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 )
 
 // TODO(negz): Name this something that doesn't stutter? redis.RedisHandler is
@@ -54,8 +55,8 @@ func (h *RedisHandler) Provision(class *corev1alpha1.ResourceClass, claim corev1
 
 	spec.ProviderRef = class.ProviderRef
 	spec.ReclaimPolicy = class.ReclaimPolicy
-	spec.ClassRef = class.ObjectReference()
-	spec.ClaimRef = claim.ObjectReference()
+	spec.ClassRef = meta.ReferenceTo(class)
+	spec.ClaimRef = meta.ReferenceTo(claim)
 
 	i := &v1alpha1.Redis{
 		TypeMeta: metav1.TypeMeta{
@@ -65,7 +66,7 @@ func (h *RedisHandler) Provision(class *corev1alpha1.ResourceClass, claim corev1
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:       class.Namespace,
 			Name:            fmt.Sprintf("redis-%s", claim.GetUID()),
-			OwnerReferences: []metav1.OwnerReference{claim.OwnerReference()},
+			OwnerReferences: []metav1.OwnerReference{meta.AsOwner(meta.ReferenceTo(claim))},
 		},
 		Spec: *spec,
 	}

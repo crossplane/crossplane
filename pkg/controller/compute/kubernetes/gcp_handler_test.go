@@ -32,6 +32,7 @@ import (
 	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/compute/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/apis/gcp/compute/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
@@ -124,14 +125,14 @@ func TestGKEClusterHandler_Provision(t *testing.T) {
 						Labels:          map[string]string{labelProviderKey: labelProviderGCP},
 						Namespace:       class.Namespace,
 						Name:            "gke-test-claim-uid",
-						OwnerReferences: []v1.OwnerReference{claim.OwnerReference()},
+						OwnerReferences: []v1.OwnerReference{meta.AsOwner(meta.ReferenceTo(claim))},
 					},
 					Spec: v1alpha1.GKEClusterSpec{
 						NumNodes: 1,
 						Labels:   map[string]string{},
 						Scopes:   []string{},
-						ClassRef: class.ObjectReference(),
-						ClaimRef: claim.ObjectReference(),
+						ClassRef: meta.ReferenceTo(class),
+						ClaimRef: meta.ReferenceTo(claim),
 					},
 				},
 			},

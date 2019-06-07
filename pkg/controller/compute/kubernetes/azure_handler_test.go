@@ -33,6 +33,7 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/apis/azure/compute/v1alpha1"
 	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/compute/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
@@ -125,11 +126,11 @@ func TestAKSClusterHandler_Provision(t *testing.T) {
 						Labels:          map[string]string{labelProviderKey: labelProviderAzure},
 						Namespace:       class.Namespace,
 						Name:            "aks-test-claim-uid",
-						OwnerReferences: []v1.OwnerReference{claim.OwnerReference()},
+						OwnerReferences: []v1.OwnerReference{meta.AsOwner(meta.ReferenceTo(claim))},
 					},
 					Spec: v1alpha1.AKSClusterSpec{
-						ClassRef:  class.ObjectReference(),
-						ClaimRef:  claim.ObjectReference(),
+						ClassRef:  meta.ReferenceTo(class),
+						ClaimRef:  meta.ReferenceTo(claim),
 						NodeCount: to.IntPtr(v1alpha1.DefaultNodeCount),
 					},
 				},

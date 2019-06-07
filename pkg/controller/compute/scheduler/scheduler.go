@@ -34,6 +34,7 @@ import (
 	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/compute/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/logging"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 )
 
 const (
@@ -123,7 +124,7 @@ func (r *Reconciler) _schedule(instance *computev1alpha1.Workload) (reconcile.Re
 	r.lastClusterIndex++
 
 	// save target cluster into status
-	instance.Status.Cluster = cluster.ObjectReference()
+	instance.Status.Cluster = meta.ReferenceTo(&cluster)
 
 	return resultDone, r.Status().Update(ctx, instance)
 }

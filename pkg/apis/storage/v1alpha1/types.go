@@ -21,7 +21,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 // MySQLInstanceSpec specifies the configuration of a MySQL instance.
@@ -59,16 +58,6 @@ type MySQLInstanceList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []MySQLInstance `json:"items"`
-}
-
-// ObjectReference to using this object as a reference
-func (m *MySQLInstance) ObjectReference() *corev1.ObjectReference {
-	return util.ObjectReference(m.ObjectMeta, util.IfEmptyString(m.APIVersion, APIVersion), util.IfEmptyString(m.Kind, MySQLInstanceKind))
-}
-
-// OwnerReference to use this object as an owner
-func (m *MySQLInstance) OwnerReference() metav1.OwnerReference {
-	return *util.ObjectToOwnerReference(m.ObjectReference())
 }
 
 // ClaimStatus returns the status of this resource claim.
@@ -127,28 +116,6 @@ type PostgreSQLInstanceList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []PostgreSQLInstance `json:"items"`
-}
-
-// ObjectReference to using this object as a reference
-func (p *PostgreSQLInstance) ObjectReference() *corev1.ObjectReference {
-	if p.Kind == "" {
-		p.Kind = PostgreSQLInstanceKind
-	}
-	if p.APIVersion == "" {
-		p.APIVersion = APIVersion
-	}
-	return &corev1.ObjectReference{
-		APIVersion: p.APIVersion,
-		Kind:       p.Kind,
-		Name:       p.Name,
-		Namespace:  p.Namespace,
-		UID:        p.UID,
-	}
-}
-
-// OwnerReference to use this object as an owner
-func (p *PostgreSQLInstance) OwnerReference() metav1.OwnerReference {
-	return *util.ObjectToOwnerReference(p.ObjectReference())
 }
 
 // ClaimStatus returns the status of this resource claim.
@@ -246,16 +213,6 @@ type BucketList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []Bucket `json:"items"`
-}
-
-// OwnerReference to use this instance as an owner
-func (b *Bucket) OwnerReference() metav1.OwnerReference {
-	return *util.ObjectToOwnerReference(b.ObjectReference())
-}
-
-// ObjectReference to this S3Bucket
-func (b *Bucket) ObjectReference() *corev1.ObjectReference {
-	return util.ObjectReference(b.ObjectMeta, util.IfEmptyString(b.APIVersion, APIVersion), util.IfEmptyString(b.Kind, BucketKind))
 }
 
 // ClaimStatus returns the status of this resource claim.

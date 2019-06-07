@@ -29,6 +29,7 @@ import (
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/apis/gcp/storage/v1alpha1"
 	storagev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 )
 
 // GCSBucketHandler dynamically provisions GCS Bucket instances given a resource class.
@@ -49,8 +50,8 @@ func (h *GCSBucketHandler) Provision(class *corev1alpha1.ResourceClass, claim co
 
 	spec.ProviderRef = class.ProviderRef
 	spec.ReclaimPolicy = class.ReclaimPolicy
-	spec.ClassRef = class.ObjectReference()
-	spec.ClaimRef = claim.ObjectReference()
+	spec.ClassRef = meta.ReferenceTo(class)
+	spec.ClaimRef = meta.ReferenceTo(claim)
 
 	bucket := &v1alpha1.Bucket{
 		TypeMeta: metav1.TypeMeta{
@@ -60,7 +61,7 @@ func (h *GCSBucketHandler) Provision(class *corev1alpha1.ResourceClass, claim co
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:       class.Namespace,
 			Name:            fmt.Sprintf("gcs-%s", claim.GetUID()),
-			OwnerReferences: []metav1.OwnerReference{claim.OwnerReference()},
+			OwnerReferences: []metav1.OwnerReference{meta.AsOwner(meta.ReferenceTo(claim))},
 		},
 		Spec: *spec,
 	}

@@ -44,6 +44,7 @@ import (
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/apis/extensions/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/logging"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
@@ -270,7 +271,7 @@ func createInstallJob(i *v1alpha1.ExtensionRequest, executorInfo executorInfo) *
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            i.Name,
 			Namespace:       i.Namespace,
-			OwnerReferences: []metav1.OwnerReference{i.OwnerReference()},
+			OwnerReferences: []metav1.OwnerReference{meta.AsOwner(meta.ReferenceTo(i))},
 		},
 		Spec: batchv1.JobSpec{
 			BackoffLimit: &jobBackoff,
@@ -442,7 +443,7 @@ func (jc *extensionRequestJobCompleter) createJobOutputObject(ctx context.Contex
 	}
 
 	// set an owner reference on the object
-	obj.SetOwnerReferences([]metav1.OwnerReference{i.OwnerReference()})
+	obj.SetOwnerReferences([]metav1.OwnerReference{meta.AsOwner(meta.ReferenceTo(i))})
 
 	log.V(logging.Debug).Info(
 		"creating object from job output",
