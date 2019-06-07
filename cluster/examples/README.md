@@ -1,8 +1,8 @@
 # Crossplane Examples
 
-In this directory you will find example workloads demonstrating the usage of various resources supported by Crossplane for each of the supported Clouds.
+In this directory you will find example workloads demonstrating the usage of various resources supported by Crossplane for each of the supported clouds.  [Cloud provider credentials](../../docs/cloud-providers.md) will be needed before using any of these examples.
 
-[Cloud provider credentials](../../docs/cloud-providers.md) will need be needed be before using any of these examples.
+The cloud services column will link to an Example User Guide if one is available for that cloud.  A blank cloud column indicates that the example has not been adapted to that cloud yet.
 
 | Directory | Description | AWS | Azure | GCP
 | ---       | ---         | --- | ---   | ---
