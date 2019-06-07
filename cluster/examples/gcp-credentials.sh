@@ -6,8 +6,8 @@
 # gcloud is required for use and must be configured with privileges to perform these tasks
 #
 set -e -o pipefail
-ROLES=(roles/iam.serviceAccountUser roles/cloudsql.admin roles/container.admin)
-SERVICES=(container.googleapis.com sqladmin.googleapis.com)
+ROLES=(roles/iam.serviceAccountUser roles/cloudsql.admin roles/container.admin roles/redis.admin)
+SERVICES=(container.googleapis.com sqladmin.googleapis.com redis.googleapis.com)
 KEYFILE=crossplane-gcp-provider-key.json
 
 if ! command -v gcloud > /dev/null; then

@@ -38,11 +38,13 @@ gcloud beta billing projects link $EXAMPLE_PROJECT_ID --billing-account=$ACCOUNT
 gcloud --project $EXAMPLE_PROJECT_ID services enable container.googleapis.com
 
 # enable CloudSQL API
-gcloud --project $EXAMPLE_PROJECT_ID services enable sqladmin.googleapis.com 
+gcloud --project $EXAMPLE_PROJECT_ID services enable sqladmin.googleapis.com
+
+# enable Redis API
+gcloud --project $EXAMPLE_PROJECT_ID services enable redis.googleapis.com
 
 # enable Additional APIs needed for the example or project
-# examples include: redis.googlapis.com,
-# gcloud services list
+# See `gcloud services list` for a complete list
 
 # create service account
 gcloud --project $EXAMPLE_PROJECT_ID iam service-accounts create example-123 --display-name "Crossplane Example"
@@ -57,6 +59,7 @@ gcloud --project $EXAMPLE_PROJECT_ID iam service-accounts keys create --iam-acco
 gcloud projects add-iam-policy-binding $EXAMPLE_PROJECT_ID --member "serviceAccount:$EXAMPLE_SA" --role="roles/iam.serviceAccountUser"
 gcloud projects add-iam-policy-binding $EXAMPLE_PROJECT_ID --member "serviceAccount:$EXAMPLE_SA" --role="roles/cloudsql.admin"
 gcloud projects add-iam-policy-binding $EXAMPLE_PROJECT_ID --member "serviceAccount:$EXAMPLE_SA" --role="roles/container.admin"
+gcloud projects add-iam-policy-binding $EXAMPLE_PROJECT_ID --member "serviceAccount:$EXAMPLE_SA" --role="roles/redis.admin"
 ```
 
 ## Option 2: GCP Console in a Web Browser
@@ -66,7 +69,7 @@ If you chose to use the `gcloud` tool, you can skip this section entirely.
 Create a GCP example project which we will use to host our example GKE cluster, as well as our example CloudSQL instance.
 
 - Login into [GCP Console](https://console.cloud.google.com)
-- Create a new project (either stand alone or under existing organization)
+- Create a [new project](https://console.cloud.google.com/flows/enableapi?apiid=container.googleapis.com,sqladmin.googleapis.com,redis.googleapis.com) (either stand alone or under existing organization)
 - Create Example Service Account
   - Navigate to: [Create Service Account](https://console.cloud.google.com/iam-admin/serviceaccounts)
   - `Service Account Name`: type "example"
@@ -96,6 +99,9 @@ Create a GCP example project which we will use to host our example GKE cluster, 
   - Click `Enable`
 - Enable `Kubernetes Engine API`
   - Navigate to [Kubernetes Engine API](https://console.developers.google.com/apis/api/container.googleapis.com/overview)
+  - Click `Enable`
+- Enable `Cloud Memorystore for Redis`
+  - Navigate to [Cloud Memorystore for Redis](https://console.developers.google.com/apis/api/redis.googleapis.com/overview)
   - Click `Enable`
 
 ## Enable Billing
