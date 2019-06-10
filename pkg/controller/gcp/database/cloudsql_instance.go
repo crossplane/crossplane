@@ -329,7 +329,7 @@ func (r *Reconciler) initDefaultUser(cloudSQLClient gcpclients.CloudSQLAPI,
 		// we already have a password for the default user, we are done
 		return nil
 	}
-	log.Error(err, "user is not initialized yet", "username", defaultUserName)
+	log.V(logging.Debug).Info("user is not initialized yet", "username", defaultUserName)
 
 	users, err := cloudSQLClient.ListUsers(provider.Spec.ProjectID, instance.Status.InstanceName)
 	if err != nil {

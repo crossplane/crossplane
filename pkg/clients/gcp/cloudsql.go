@@ -81,7 +81,7 @@ func (c *CloudSQLClient) ListUsers(project string, instance string) (*sqladmin.U
 
 // UpdateUser updates the given user for the given CloudSQL instance
 func (c *CloudSQLClient) UpdateUser(project string, instance string, name string, user *sqladmin.User) (*sqladmin.Operation, error) {
-	return c.Users.Update(project, instance, name, user).Do()
+	return c.Users.Update(project, instance, name, user).Host(user.Host).Do()
 }
 
 // GetOperation retrieves the latest status for the given operation
