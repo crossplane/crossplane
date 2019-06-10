@@ -41,51 +41,53 @@ For the next steps, make sure your `kubectl` context points to the cluster where
 
 * Verify that GCP Provider is in `Ready` state
 
-    ```bash
-    kubectl -n crossplane-system get providers.gcp.crossplane.io -o custom-columns=NAME:.metadata.name,STATUS:'.status.Conditions[?(@.Status=="True")].Type',PROJECT-ID:.spec.projectID
-    ```
+  ```bash
+  kubectl -n crossplane-system get providers.gcp.crossplane.io -o custom-columns=NAME:.metadata.name,STATUS:'.status.Conditions[?(@.Status=="True")].Type',PROJECT-ID:.spec.projectID
+  ```
 
-    Your output should look similar to:
+  Your output should look similar to:
 
-    ```bash
-    NAME           STATUS   PROJECT-ID
-    gcp-provider   Ready    [your-project-id]
-    ```
+  ```bash
+  NAME           STATUS   PROJECT-ID
+  gcp-provider   Ready    [your-project-id]
+  ```
 
 * Verify that Resource Classes have been created
 
-    ```bash
-    kubectl -n crossplane-system get resourceclass -o custom-columns=NAME:metadata.name,PROVISIONER:.provisioner,PROVIDER:.providerRef.name,RECLAIM-POLICY:.reclaimPolicy
-    ```
+  ```bash
+  kubectl -n crossplane-system get resourceclass -o custom-columns=NAME:metadata.name,PROVISIONER:.provisioner,PROVIDER:.providerRef.name,RECLAIM-POLICY:.reclaimPolicy
+  ```
 
-    Your output should be:
+  Your output should be:
 
-    ```bash
-    NAME               PROVISIONER                                            PROVIDER       RECLAIM-POLICY
-    standard-cluster   gkecluster.compute.gcp.crossplane.io/v1alpha1          gcp-provider   Delete
-    standard-mysql     cloudsqlinstance.database.gcp.crossplane.io/v1alpha1   gcp-provider   Delete
-      ```
+  ```bash
+  NAME               PROVISIONER                                            PROVIDER       RECLAIM-POLICY
+  standard-cluster   gkecluster.compute.gcp.crossplane.io/v1alpha1          gcp-provider   Delete
+  standard-mysql     cloudsqlinstance.database.gcp.crossplane.io/v1alpha1   gcp-provider   Delete
+  ```
 
-* Create a target Kubernetes cluster where `Application Owner(s)` will deploy their `WorkLoad(s)`
+* Create a target Kubernetes cluster and namespace where `Application Owner(s)` will deploy their `WorkLoad(s)`
 
   As administrator, you will create a Kubernetes cluster leveraging the Kubernetes cluster `ResourceClass` that was created earlier and
   `Crossplane` Kubernetes cluster dynamic provisioning.
+
+  The `Application Developer(s)` will use the `complex` namespace.
 
   ```bash
   kubectl apply -f cluster/examples/workloads/kubernetes/wordpress-gcp/cluster.yaml
   ```
 
-  * Verify that Kubernetes Cluster resource was created
+  * Verify that the Kubernetes Cluster resource was created
 
     ```bash
-    kubectl -n crossplane-system get kubernetescluster -o custom-columns=NAME:.metadata.name,CLUSTERCLASS:.spec.classReference.name,CLUSTERREF:.spec.resourceName.name
+    kubectl -n complex get kubernetescluster -o custom-columns=NAME:.metadata.name,CLUSTERCLASS:.spec.classReference.name,CLUSTERREF:.spec.resourceName.name
     ```
 
     Your output should look similar to:
 
     ```bash
     NAME               CLUSTERCLASS       CLUSTERREF
-    demo-gke-cluster   standard-cluster   gke-67419e79-f5b3-11e8-9cec-9cb6d08bde99
+    wordpress-demo-cluster   standard-cluster   gke-67419e79-f5b3-11e8-9cec-9cb6d08bde99
     ```
 
   * Verify that the target GKE cluster was successfully created
@@ -105,7 +107,7 @@ To recap the operations that we just performed as the administrator:
 
 * Defined a `Provider` with Google Service Account credentials
 * Defined `ResourceClasses` for `KubernetesCluster` and `MySQLInstance`
-* Provisioned (dynamically) a GKE Cluster using the `ResourceClass`
+* Provisioned (dynamically) a GKE Cluster using the `ResourceClass` in a new namespace named `complex`
 
 ## Application Developer Tasks
 
@@ -119,7 +121,7 @@ Let's begin deploying the workload as the application developer:
 * Deploy workload
 
   ```bash
-  kubectl apply -f cluster/examples/workloads/kubernetes/wordpress-gcp/workload.yaml
+  kubectl apply -f cluster/examples/workloads/kubernetes/wordpress-gcp/app.yaml
   ```
 
 * Wait for `MySQLInstance` to be in `Bound` State
@@ -127,14 +129,14 @@ Let's begin deploying the workload as the application developer:
   You can check the status via:
 
   ```bash
-  kubectl get mysqlinstance -o custom-columns=NAME:.metadata.name,VERSION:.spec.engineVersion,STATE:.status.bindingPhase,CLASS:.spec.classReference.name
+  kubectl get mysqlinstance -n complex -o custom-columns=NAME:.metadata.name,VERSION:.spec.engineVersion,STATE:.status.bindingPhase,CLASS:.spec.classReference.name
   ```
 
   Your output should look like:
 
   ```bash
   NAME   VERSION   STATE   CLASS
-  demo   5.7       Bound   standard-mysql
+  sql   5.7       Bound   standard-mysql
   ```
 
   **Note**: to check on the concrete resource type status as `Administrator` you can run:
@@ -150,19 +152,21 @@ Let's begin deploying the workload as the application developer:
   mysql-2fea0d8e-f5bb-11e8-9cec-9cb6d08bde99   RUNNABLE   standard-mysql   MYSQL_5_7
   ```
 
-* Wait for `Workload` External IP Address
+* Wait for the Wordpress service, a `KubernetesApplicationResource`, to report its External IP Address
 
   ```bash
-  kubectl get workload -o custom-columns=NAME:.metadata.name,CLUSTER:.spec.targetCluster.name,NAMESPACE:.spec.targetNamespace,DEPLOYMENT:.spec.targetDeployment.metadata.name,SERVICE-EXTERNAL-IP:.status.service.loadBalancer.ingress[0].ip
+  kubectl get kubernetesapplicationresource.workload.crossplane.io -n complex -o custom-columns=NAME:.metadata.name,NAMESPACE:.spec.template.metadata.namespace,KIND:.spec.template.kind,SERVICE-EXTERNAL-IP:.status.remote.loadBalancer.ingress[0].ip
   ```
 
-  **Note** the `Workload` is defined in Application Owner's (`default`) namespace
+  **Note** the `Workload` is defined in Application Owner's (`complex`) namespace
 
   Your output should look similar to:
 
   ```bash
-  NAME   CLUSTER            NAMESPACE   DEPLOYMENT   SERVICE-EXTERNAL-IP
-  demo   demo-gke-cluster   demo        wordpress    35.193.100.113
+  NAME                        NAMESPACE   KIND         SERVICE-EXTERNAL-IP
+  wordpress-demo-deployment   wordpress   Deployment   <none>
+  wordpress-demo-namespace    <none>      Namespace    <none>
+  wordpress-demo-service      wordpress   Service      35.232.9.69
   ```
 
 * Verify that `WordPress` service is accessible via `SERVICE-EXTERNAL-IP`:
@@ -175,19 +179,19 @@ At this point, you should see the setup page for WordPress in your web browser.
 
 Once you are done with this example, you can clean up all its artifacts with the following commands:
 
-* Remove `Workload`
+* Remove the `App`
 
   ```bash
-  kubectl delete -f cluster/examples/workloads/kubernetes/wordpress-gcp/workload.yaml
+  kubectl delete -f cluster/examples/workloads/kubernetes/wordpress-gcp/app.yaml
   ```
 
-* Remove `KubernetesCluster`
+* Remove the `KubernetesCluster`
 
   ```bash
   kubectl delete -f cluster/examples/workloads/kubernetes/wordpress-gcp/cluster.yaml
   ```
 
-* Remove GCP `Provider` and `ResourceClasses`
+* Remove the GCP `Provider` and Crossplane `ResourceClasses`
 
   ```bash
   kubectl delete -f cluster/examples/workloads/kubernetes/wordpress-gcp/provider.yaml
