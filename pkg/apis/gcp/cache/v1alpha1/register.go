@@ -31,9 +31,10 @@ import (
 
 // Kubernetes Group, Version, and Kind metadata.
 const (
-	Group                                  = "cache.gcp.crossplane.io"
-	Version                                = "v1alpha1"
-	APIVersion                             = Group + "/" + Version
+	Group      = "cache.gcp.crossplane.io"
+	Version    = "v1alpha1"
+	APIVersion = Group + "/" + Version
+
 	CloudMemorystoreInstanceKind           = "cloudmemorystoreinstance"
 	CloudMemorystoreInstanceKindAPIVersion = CloudMemorystoreInstanceKind + "." + APIVersion
 )
@@ -44,6 +45,14 @@ var (
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
+
+	// CloudMemorystoreInstanceGroupVersionKind is the GVK of a
+	// CloudMemorystoreInstance.
+	CloudMemorystoreInstanceGroupVersionKind = schema.GroupVersionKind{
+		Group:   Group,
+		Version: Version,
+		Kind:    CloudMemorystoreInstanceKind,
+	}
 )
 
 func init() {

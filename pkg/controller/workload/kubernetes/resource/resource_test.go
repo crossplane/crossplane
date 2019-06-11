@@ -77,6 +77,8 @@ var (
 		},
 	}
 
+	clusterRef = meta.ReferenceTo(cluster, computev1alpha1.KubernetesClusterGroupVersionKind)
+
 	apiServerURL, _ = url.Parse("https://example.org")
 	malformedURL    = ":wat:"
 
@@ -223,7 +225,7 @@ func TestCreatePredicate(t *testing.T) {
 			event: event.CreateEvent{
 				Object: &v1alpha1.KubernetesApplicationResource{
 					Status: v1alpha1.KubernetesApplicationResourceStatus{
-						Cluster: meta.ReferenceTo(cluster),
+						Cluster: clusterRef,
 					},
 				},
 			},
@@ -265,7 +267,7 @@ func TestUpdatePredicate(t *testing.T) {
 			event: event.UpdateEvent{
 				ObjectNew: &v1alpha1.KubernetesApplicationResource{
 					Status: v1alpha1.KubernetesApplicationResourceStatus{
-						Cluster: meta.ReferenceTo(cluster),
+						Cluster: clusterRef,
 					},
 				},
 			},
@@ -1031,7 +1033,7 @@ func TestConnectConfig(t *testing.T) {
 				},
 				options: client.Options{Mapper: mockRESTMapper{}},
 			},
-			ar: kubeAR(withCluster(meta.ReferenceTo(cluster))),
+			ar: kubeAR(withCluster(clusterRef)),
 			wantConfig: &rest.Config{
 				Host:     apiServerURL.String(),
 				Username: string(secret.Data[corev1alpha1.ResourceCredentialsSecretUserKey]),
@@ -1059,7 +1061,7 @@ func TestConnectConfig(t *testing.T) {
 				kube:    &test.MockClient{MockGet: test.NewMockGetFn(errorBoom)},
 				options: client.Options{Mapper: mockRESTMapper{}},
 			},
-			ar: kubeAR(withCluster(meta.ReferenceTo(cluster))),
+			ar: kubeAR(withCluster(clusterRef)),
 			wantErr: errors.Wrapf(errorBoom, "cannot get %s %s/%s",
 				computev1alpha1.KubernetesClusterKind, cluster.GetNamespace(), cluster.GetName()),
 		},
@@ -1079,7 +1081,7 @@ func TestConnectConfig(t *testing.T) {
 				},
 				options: client.Options{Mapper: mockRESTMapper{}},
 			},
-			ar:      kubeAR(withCluster(meta.ReferenceTo(cluster))),
+			ar:      kubeAR(withCluster(clusterRef)),
 			wantErr: errors.Wrapf(errorBoom, "cannot get secret %s/%s", secret.GetNamespace(), secret.GetName()),
 		},
 		{
@@ -1097,7 +1099,7 @@ func TestConnectConfig(t *testing.T) {
 				},
 				options: client.Options{Mapper: mockRESTMapper{}},
 			},
-			ar:      kubeAR(withCluster(meta.ReferenceTo(cluster))),
+			ar:      kubeAR(withCluster(clusterRef)),
 			wantErr: errors.WithStack(errors.Errorf("cannot parse Kubernetes endpoint as URL: parse %s: missing protocol scheme", malformedURL)),
 		},
 	}
@@ -1131,7 +1133,7 @@ func TestConnect(t *testing.T) {
 				kube:    &test.MockClient{MockGet: test.NewMockGetFn(nil)},
 				options: client.Options{Mapper: mockRESTMapper{}},
 			},
-			ar: kubeAR(withCluster(meta.ReferenceTo(cluster))),
+			ar: kubeAR(withCluster(clusterRef)),
 
 			// This empty struct is 'identical' to the actual, populated struct
 			// returned by tc.connecter.connect() because we do not compare
@@ -1146,7 +1148,7 @@ func TestConnect(t *testing.T) {
 			connecter: &clusterConnecter{
 				kube: &test.MockClient{MockGet: test.NewMockGetFn(errorBoom)},
 			},
-			ar: kubeAR(withCluster(meta.ReferenceTo(cluster))),
+			ar: kubeAR(withCluster(clusterRef)),
 			wantErr: errors.Wrapf(errorBoom, "cannot create Kubernetes client configuration: cannot get %s %s/%s",
 				computev1alpha1.KubernetesClusterKind, cluster.GetNamespace(), cluster.GetName()),
 		},

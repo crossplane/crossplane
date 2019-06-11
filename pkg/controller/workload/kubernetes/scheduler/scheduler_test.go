@@ -229,7 +229,7 @@ func TestSchedule(t *testing.T) {
 			app: kubeApp(withClusterSelector(selectorAll)),
 			wantApp: kubeApp(
 				withClusterSelector(selectorAll),
-				withCluster(meta.ReferenceTo(clusterA)),
+				withCluster(meta.ReferenceTo(clusterA, computev1alpha1.KubernetesClusterGroupVersionKind)),
 				withState(workloadv1alpha1.KubernetesApplicationStateScheduled),
 				withConditions(
 					corev1alpha1.DeprecatedCondition{

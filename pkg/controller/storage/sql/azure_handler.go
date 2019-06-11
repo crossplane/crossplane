@@ -65,56 +65,48 @@ func (h *AzurePostgreSQLServerHandler) Provision(class *corev1alpha1.ResourceCla
 func provisionAzureSQL(class *corev1alpha1.ResourceClass, claim corev1alpha1.ResourceClaim,
 	c client.Client) (corev1alpha1.Resource, error) {
 
-	// construct Azure MySQL Server spec from class definition/parameters
-	sqlServerSpec := azuredbv1alpha1.NewSQLServerSpec(class.Parameters)
+	spec := azuredbv1alpha1.NewSQLServerSpec(class.Parameters)
 
-	// resolve the resource class params and the resource claim values
-	if err := resolveAzureClassInstanceValues(sqlServerSpec, claim); err != nil {
+	if err := resolveAzureClassInstanceValues(spec, claim); err != nil {
 		return nil, err
 	}
 
-	// assign provider reference and reclaim policy from the resource class
-	sqlServerSpec.ProviderRef = class.ProviderRef
-	sqlServerSpec.ReclaimPolicy = class.ReclaimPolicy
+	spec.ProviderRef = class.ProviderRef
+	spec.ReclaimPolicy = class.ReclaimPolicy
 
-	// set class and claim references
-	sqlServerSpec.ClassRef = meta.ReferenceTo(class)
-	sqlServerSpec.ClaimRef = meta.ReferenceTo(claim)
-
-	objectMeta := metav1.ObjectMeta{
-		Namespace:       class.Namespace,
-		OwnerReferences: []metav1.OwnerReference{meta.AsOwner(meta.ReferenceTo(claim))},
-	}
+	spec.ClassRef = meta.ReferenceTo(class, corev1alpha1.ResourceClassGroupVersionKind)
 
 	switch claim.(type) {
 	case *storagev1alpha1.MySQLInstance:
-		// create and save MySQL Server resource
-		objectMeta.Name = fmt.Sprintf("mysql-%s", claim.GetUID())
-		mysqlServer := &azuredbv1alpha1.MysqlServer{
+		spec.ClaimRef = meta.ReferenceTo(claim, storagev1alpha1.MySQLInstanceGroupVersionKind)
+		s := &azuredbv1alpha1.MysqlServer{
 			TypeMeta: metav1.TypeMeta{
 				APIVersion: azuredbv1alpha1.APIVersion,
 				Kind:       azuredbv1alpha1.MysqlServerKind,
 			},
-			ObjectMeta: objectMeta,
-			Spec:       *sqlServerSpec,
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace:       class.Namespace,
+				Name:            fmt.Sprintf("mysql-%s", claim.GetUID()),
+				OwnerReferences: []metav1.OwnerReference{meta.AsOwner(spec.ClaimRef)},
+			},
+			Spec: *spec,
 		}
-
-		err := c.Create(ctx, mysqlServer)
-		return mysqlServer, err
+		return s, c.Create(ctx, s)
 	case *storagev1alpha1.PostgreSQLInstance:
-		// create and save PostgreSQL Server resource
-		objectMeta.Name = fmt.Sprintf("postgresql-%s", claim.GetUID())
-		postgresqlServer := &azuredbv1alpha1.PostgresqlServer{
+		spec.ClaimRef = meta.ReferenceTo(claim, storagev1alpha1.PostgreSQLInstanceGroupVersionKind)
+		s := &azuredbv1alpha1.PostgresqlServer{
 			TypeMeta: metav1.TypeMeta{
 				APIVersion: azuredbv1alpha1.APIVersion,
 				Kind:       azuredbv1alpha1.PostgresqlServerKind,
 			},
-			ObjectMeta: objectMeta,
-			Spec:       *sqlServerSpec,
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace:       class.Namespace,
+				Name:            fmt.Sprintf("postgresql-%s", claim.GetUID()),
+				OwnerReferences: []metav1.OwnerReference{meta.AsOwner(spec.ClaimRef)},
+			},
+			Spec: *spec,
 		}
-
-		err := c.Create(ctx, postgresqlServer)
-		return postgresqlServer, err
+		return s, c.Create(ctx, s)
 	default:
 		return nil, fmt.Errorf("unexpected claim type: %+v", reflect.TypeOf(claim))
 	}

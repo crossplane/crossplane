@@ -377,12 +377,12 @@ func (r *Reconciler) initDefaultUser(cloudSQLClient gcpclients.CloudSQLAPI,
 		return fmt.Errorf(m)
 	}
 
-	// save the user and connection info to a secret
+	ref := meta.AsOwner(meta.ReferenceTo(instance, databasev1alpha1.CloudsqlInstanceGroupVersionKind))
 	connectionSecret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            secretName,
 			Namespace:       instance.Namespace,
-			OwnerReferences: []metav1.OwnerReference{meta.AsOwner(meta.ReferenceTo(instance))},
+			OwnerReferences: []metav1.OwnerReference{ref},
 		},
 		Data: map[string][]byte{
 			corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(instance.Status.Endpoint),

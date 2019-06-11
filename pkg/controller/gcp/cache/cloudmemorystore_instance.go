@@ -268,11 +268,12 @@ func (r *Reconciler) upsertSecret(ctx context.Context, s *corev1.Secret) error {
 }
 
 func connectionSecret(i *v1alpha1.CloudMemorystoreInstance) *corev1.Secret {
+	ref := meta.AsOwner(meta.ReferenceTo(i, v1alpha1.CloudMemorystoreInstanceGroupVersionKind))
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            i.ConnectionSecretName(),
 			Namespace:       i.Namespace,
-			OwnerReferences: []metav1.OwnerReference{meta.AsOwner(meta.ReferenceTo(i))},
+			OwnerReferences: []metav1.OwnerReference{ref},
 		},
 
 		// TODO(negz): Include the port here too?

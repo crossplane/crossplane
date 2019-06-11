@@ -31,13 +31,15 @@ import (
 
 // Kubernetes Group, Version, and Kind metadata.
 const (
-	Group                           = "compute.crossplane.io"
-	Version                         = "v1alpha1"
-	APIVersion                      = Group + "/" + Version
+	Group      = "compute.crossplane.io"
+	Version    = "v1alpha1"
+	APIVersion = Group + "/" + Version
+
 	KubernetesClusterKind           = "kubernetescluster"
 	KubernetesClusterKindAPIVersion = KubernetesClusterKind + "." + APIVersion
-	WorkloadKind                    = "workload"
-	WorkloadKindAPIVersion          = WorkloadKind + "." + APIVersion
+
+	WorkloadKind           = "workload"
+	WorkloadKindAPIVersion = WorkloadKind + "." + APIVersion
 )
 
 var (
@@ -46,6 +48,20 @@ var (
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
+
+	// KubernetesClusterGroupVersionKind is the GVK of a KubernetesCluster.
+	KubernetesClusterGroupVersionKind = schema.GroupVersionKind{
+		Group:   Group,
+		Version: Version,
+		Kind:    KubernetesClusterKind,
+	}
+
+	// WorkloadGroupVersionKind is the GVK of a Workload.
+	WorkloadGroupVersionKind = schema.GroupVersionKind{
+		Group:   Group,
+		Version: Version,
+		Kind:    WorkloadKind,
+	}
 )
 
 func init() {

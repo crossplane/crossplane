@@ -292,11 +292,12 @@ func (r *Reconciler) upsertSecret(ctx context.Context, s *corev1.Secret) error {
 }
 
 func connectionSecret(r *v1alpha1.Redis, accessKey string) *corev1.Secret {
+	ref := meta.AsOwner(meta.ReferenceTo(r, v1alpha1.RedisGroupVersionKind))
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            r.ConnectionSecretName(),
 			Namespace:       r.Namespace,
-			OwnerReferences: []metav1.OwnerReference{meta.AsOwner(meta.ReferenceTo(r))},
+			OwnerReferences: []metav1.OwnerReference{ref},
 		},
 
 		// TODO(negz): Include the ports here too?

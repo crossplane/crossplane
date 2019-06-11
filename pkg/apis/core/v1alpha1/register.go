@@ -31,9 +31,10 @@ import (
 
 // Kubernetes Group, Version, and Kind metadata.
 const (
-	Group                       = "core.crossplane.io"
-	Version                     = "v1alpha1"
-	APIVersion                  = Group + "/" + Version
+	Group      = "core.crossplane.io"
+	Version    = "v1alpha1"
+	APIVersion = Group + "/" + Version
+
 	ResourceClassKind           = "resourceclass"
 	ResourceClassKindAPIVersion = ResourceClassKind + "." + APIVersion
 )
@@ -44,6 +45,13 @@ var (
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
+
+	// ResourceClassGroupVersionKind is the GVK of a ResourceClass.
+	ResourceClassGroupVersionKind = schema.GroupVersionKind{
+		Group:   Group,
+		Version: Version,
+		Kind:    ResourceClassKind,
+	}
 )
 
 func init() {

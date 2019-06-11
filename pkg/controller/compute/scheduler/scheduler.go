@@ -124,7 +124,7 @@ func (r *Reconciler) _schedule(instance *computev1alpha1.Workload) (reconcile.Re
 	r.lastClusterIndex++
 
 	// save target cluster into status
-	instance.Status.Cluster = meta.ReferenceTo(&cluster)
+	instance.Status.Cluster = meta.ReferenceTo(&cluster, computev1alpha1.KubernetesClusterGroupVersionKind)
 
 	return resultDone, r.Status().Update(ctx, instance)
 }

@@ -31,9 +31,10 @@ import (
 
 // Kubernetes Group, Version, and Kind metadata.
 const (
-	Group                          = "cache.aws.crossplane.io"
-	Version                        = "v1alpha1"
-	APIVersion                     = Group + "/" + Version
+	Group      = "cache.aws.crossplane.io"
+	Version    = "v1alpha1"
+	APIVersion = Group + "/" + Version
+
 	ReplicationGroupKind           = "replicationgroup"
 	ReplicationGroupKindAPIVersion = ReplicationGroupKind + "." + APIVersion
 )
@@ -44,6 +45,13 @@ var (
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
+
+	// ReplicationGroupGroupVersionKind is the GVK of a ReplicationGroup.
+	ReplicationGroupGroupVersionKind = schema.GroupVersionKind{
+		Group:   Group,
+		Version: Version,
+		Kind:    ReplicationGroupKind,
+	}
 )
 
 func init() {

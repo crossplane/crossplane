@@ -20,8 +20,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
-
-	"github.com/crossplaneio/crossplane/pkg/meta"
 )
 
 const (
@@ -113,11 +111,6 @@ type ResourceClassList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []ResourceClass `json:"items"`
-}
-
-// ObjectReference to this resource class.
-func (r *ResourceClass) ObjectReference() *corev1.ObjectReference {
-	return meta.ReferenceTo(r)
 }
 
 // ResourceClaimStatus represents the status of a resource claim

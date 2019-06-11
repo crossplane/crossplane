@@ -129,18 +129,12 @@ func (r *Reconciler) fail(instance *databasev1alpha1.RDSInstance, reason, msg st
 
 // connectionSecret return secret object for this resource
 func connectionSecret(instance *databasev1alpha1.RDSInstance, password string) *corev1.Secret {
-	if instance.APIVersion == "" {
-		instance.APIVersion = "database.aws.crossplane.io/v1alpha1"
-	}
-	if instance.Kind == "" {
-		instance.Kind = "RDSInstance"
-	}
-
+	ref := meta.AsOwner(meta.ReferenceTo(instance, databasev1alpha1.RDSInstanceGroupVersionKind))
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            instance.ConnectionSecretName(),
 			Namespace:       instance.Namespace,
-			OwnerReferences: []metav1.OwnerReference{meta.AsOwner(meta.ReferenceTo(instance))},
+			OwnerReferences: []metav1.OwnerReference{ref},
 		},
 
 		Data: map[string][]byte{

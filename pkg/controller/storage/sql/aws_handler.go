@@ -44,40 +44,37 @@ func (h *RDSInstanceHandler) Find(name types.NamespacedName, c client.Client) (c
 
 // Provision create new RDSInstance
 func (h *RDSInstanceHandler) Provision(class *corev1alpha1.ResourceClass, claim corev1alpha1.ResourceClaim, c client.Client) (corev1alpha1.Resource, error) {
-	// construct RDSInstance Spec from class definition
-	rdsInstanceSpec := awsdbv1alpha1.NewRDSInstanceSpec(class.Parameters)
+	spec := awsdbv1alpha1.NewRDSInstanceSpec(class.Parameters)
 
-	// resolve the resource class params and the resource claim values
-	if err := resolveAWSClassInstanceValues(rdsInstanceSpec, claim); err != nil {
+	if err := resolveAWSClassInstanceValues(spec, claim); err != nil {
 		return nil, err
 	}
 
-	rdsInstanceName := fmt.Sprintf("%s-%s", rdsInstanceSpec.Engine, claim.GetUID())
+	spec.ProviderRef = class.ProviderRef
+	spec.ReclaimPolicy = class.ReclaimPolicy
 
-	// assign provider reference and reclaim policy from the resource class
-	rdsInstanceSpec.ProviderRef = class.ProviderRef
-	rdsInstanceSpec.ReclaimPolicy = class.ReclaimPolicy
+	spec.ClassRef = meta.ReferenceTo(class, corev1alpha1.ResourceClassGroupVersionKind)
+	switch claim.(type) {
+	case *storagev1alpha1.MySQLInstance:
+		spec.ClaimRef = meta.ReferenceTo(claim, storagev1alpha1.MySQLInstanceGroupVersionKind)
+	case *storagev1alpha1.PostgreSQLInstance:
+		spec.ClaimRef = meta.ReferenceTo(claim, storagev1alpha1.PostgreSQLInstanceGroupVersionKind)
+	}
 
-	// set class and claim references
-	rdsInstanceSpec.ClassRef = meta.ReferenceTo(class)
-	rdsInstanceSpec.ClaimRef = meta.ReferenceTo(claim)
-
-	// create and save RDSInstance
-	rdsInstance := &awsdbv1alpha1.RDSInstance{
+	i := &awsdbv1alpha1.RDSInstance{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: awsdbv1alpha1.APIVersion,
 			Kind:       awsdbv1alpha1.RDSInstanceKind,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace:       class.Namespace,
-			Name:            rdsInstanceName,
-			OwnerReferences: []metav1.OwnerReference{meta.AsOwner(meta.ReferenceTo(claim))},
+			Namespace:       class.GetNamespace(),
+			Name:            fmt.Sprintf("%s-%s", spec.Engine, claim.GetUID()),
+			OwnerReferences: []metav1.OwnerReference{meta.AsOwner(spec.ClaimRef)},
 		},
-		Spec: *rdsInstanceSpec,
+		Spec: *spec,
 	}
 
-	err := c.Create(ctx, rdsInstance)
-	return rdsInstance, err
+	return i, c.Create(ctx, i)
 }
 
 // SetBindStatus updates resource state binding phase

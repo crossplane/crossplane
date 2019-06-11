@@ -20,7 +20,7 @@ package meta
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -28,19 +28,13 @@ import (
 	Prefer taking *corev1.ObjectReference as an argument where possible when
 	adding new functions to this package. It's easier to convert an object to
 	an ObjectReference using ReferenceTo() than it is to make an ObjectReference
-	satisfy metav1.Object. Prefer taking metav1.Object to using this package's
-	TypedObject interface where possible.
+	satisfy metav1.Object.
 */
 
-// A TypedObject has Kubernetes type and object metadata.
-type TypedObject interface {
-	runtime.Object
-	metav1.Object
-}
-
-// ReferenceTo returns an object reference to the supplied object.
-func ReferenceTo(o TypedObject) *corev1.ObjectReference {
-	v, k := o.GetObjectKind().GroupVersionKind().ToAPIVersionAndKind()
+// ReferenceTo returns an object reference to the supplied object, presumed to
+// be of the supplied group, version, and kind.
+func ReferenceTo(o metav1.Object, of schema.GroupVersionKind) *corev1.ObjectReference {
+	v, k := of.ToAPIVersionAndKind()
 	return &corev1.ObjectReference{
 		APIVersion: v,
 		Kind:       k,

@@ -191,12 +191,7 @@ func TestAzureAccountHandler_Provision(t *testing.T) {
 						Namespace: testNS,
 						Name:      testName,
 						OwnerReferences: []metav1.OwnerReference{
-							meta.AsOwner(meta.ReferenceTo(&storagev1alpha1.Bucket{
-								TypeMeta: metav1.TypeMeta{
-									APIVersion: storagev1alpha1.APIVersion,
-									Kind:       storagev1alpha1.BucketKind,
-								},
-							})),
+							meta.AsOwner(meta.ReferenceTo(&storagev1alpha1.Bucket{}, storagev1alpha1.BucketGroupVersionKind)),
 						},
 					}).
 					WithSpecClassRef(&corev1.ObjectReference{
@@ -391,15 +386,11 @@ func TestAzureContainerHandler_Provision(t *testing.T) {
 					WithObjectMeta(metav1.ObjectMeta{
 						Namespace: testNS,
 						Name:      testBucketUID,
-						OwnerReferences: []metav1.OwnerReference{
-							meta.AsOwner(meta.ReferenceTo(buckettest.NewBucket(testNS, testName).
-								WithTypeMeta(metav1.TypeMeta{
-									APIVersion: storagev1alpha1.APIVersion,
-									Kind:       storagev1alpha1.BucketKind,
-								}).
-								WithObjectMetaUID(testBucketUID).
-								Bucket)),
-						},
+						OwnerReferences: func() []metav1.OwnerReference {
+							b := buckettest.NewBucket(testNS, testName).WithObjectMetaUID(testBucketUID).Bucket
+							ref := meta.AsOwner(meta.ReferenceTo(b, storagev1alpha1.BucketGroupVersionKind))
+							return []metav1.OwnerReference{ref}
+						}(),
 					}).
 					WithSpecClassRef(buckettest.NewBucketClassReference(testNS, testName)).
 					WithSpecClaimRef(buckettest.NewBucketClaimReference(testNS, testName, testBucketUID)).

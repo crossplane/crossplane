@@ -31,11 +31,13 @@ import (
 
 // Kubernetes Group, Version, and Kind metadata.
 const (
-	Group                       = "azure.crossplane.io"
-	Version                     = "v1alpha1"
-	APIVersion                  = Group + "/" + Version
-	ProviderKind                = "provider"
-	ProviderKindAPIVersion      = ProviderKind + "." + APIVersion
+	Group      = "azure.crossplane.io"
+	Version    = "v1alpha1"
+	APIVersion = Group + "/" + Version
+
+	ProviderKind           = "provider"
+	ProviderKindAPIVersion = ProviderKind + "." + APIVersion
+
 	ResourceGroupKind           = "resourcegroup"
 	ResourceGroupKindAPIVersion = ResourceGroupKind + "." + APIVersion
 )
@@ -46,6 +48,20 @@ var (
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
+
+	// ProviderGroupVersionKind is the GVK of a Provider.
+	ProviderGroupVersionKind = schema.GroupVersionKind{
+		Group:   Group,
+		Version: Version,
+		Kind:    ProviderKind,
+	}
+
+	// ResourceGroupGroupVersionKind is the GVK of a ResourceGroup.
+	ResourceGroupGroupVersionKind = schema.GroupVersionKind{
+		Group:   Group,
+		Version: Version,
+		Kind:    ResourceGroupKind,
+	}
 )
 
 func init() {

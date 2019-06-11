@@ -53,8 +53,8 @@ func (h *ReplicationGroupHandler) Provision(class *corev1alpha1.ResourceClass, c
 
 	spec.ProviderRef = class.ProviderRef
 	spec.ReclaimPolicy = class.ReclaimPolicy
-	spec.ClassRef = meta.ReferenceTo(class)
-	spec.ClaimRef = meta.ReferenceTo(claim)
+	spec.ClassRef = meta.ReferenceTo(class, corev1alpha1.ResourceClassGroupVersionKind)
+	spec.ClaimRef = meta.ReferenceTo(claim, cachev1alpha1.RedisClusterGroupVersionKind)
 
 	i := &v1alpha1.ReplicationGroup{
 		TypeMeta: metav1.TypeMeta{
@@ -64,7 +64,7 @@ func (h *ReplicationGroupHandler) Provision(class *corev1alpha1.ResourceClass, c
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:       class.Namespace,
 			Name:            fmt.Sprintf("redis-%s", claim.GetUID()),
-			OwnerReferences: []metav1.OwnerReference{meta.AsOwner(meta.ReferenceTo(claim))},
+			OwnerReferences: []metav1.OwnerReference{meta.AsOwner(spec.ClaimRef)},
 		},
 		Spec: *spec,
 	}

@@ -150,13 +150,15 @@ func TestGCSBucketHandler_Provision(t *testing.T) {
 						Kind:       v1alpha1.BucketKind,
 					},
 					ObjectMeta: metav1.ObjectMeta{
-						Namespace:       ns,
-						Name:            fmt.Sprintf("gcs-%s", claim.GetUID()),
-						OwnerReferences: []metav1.OwnerReference{meta.AsOwner(meta.ReferenceTo(claim))},
+						Namespace: ns,
+						Name:      fmt.Sprintf("gcs-%s", claim.GetUID()),
+						OwnerReferences: []metav1.OwnerReference{
+							meta.AsOwner(meta.ReferenceTo(claim, storagev1alpha1.BucketGroupVersionKind)),
+						},
 					},
 					Spec: v1alpha1.BucketSpec{
-						ClassRef: meta.ReferenceTo(class),
-						ClaimRef: meta.ReferenceTo(claim),
+						ClassRef: meta.ReferenceTo(class, corev1alpha1.ResourceClassGroupVersionKind),
+						ClaimRef: meta.ReferenceTo(claim, storagev1alpha1.BucketGroupVersionKind),
 					},
 				},
 			},

@@ -76,8 +76,8 @@ func (h *AzureAccountHandler) Provision(class *corev1alpha1.ResourceClass, claim
 
 	spec.ProviderRef = class.ProviderRef
 	spec.ReclaimPolicy = class.ReclaimPolicy
-	spec.ClassRef = meta.ReferenceTo(class)
-	spec.ClaimRef = meta.ReferenceTo(claim)
+	spec.ClassRef = meta.ReferenceTo(class, corev1alpha1.ResourceClassGroupVersionKind)
+	spec.ClaimRef = meta.ReferenceTo(claim, storagev1alpha1.BucketGroupVersionKind)
 
 	account := &v1alpha1.Account{
 		TypeMeta: metav1.TypeMeta{
@@ -86,7 +86,7 @@ func (h *AzureAccountHandler) Provision(class *corev1alpha1.ResourceClass, claim
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:       class.Namespace,
-			OwnerReferences: []metav1.OwnerReference{meta.AsOwner(meta.ReferenceTo(claim))},
+			OwnerReferences: []metav1.OwnerReference{meta.AsOwner(spec.ClaimRef)},
 		},
 		Spec: *spec,
 	}
@@ -136,8 +136,8 @@ func (h *AzureContainerHandler) Provision(class *corev1alpha1.ResourceClass, cla
 	spec.AccountRef = class.ProviderRef
 
 	spec.ReclaimPolicy = class.ReclaimPolicy
-	spec.ClassRef = meta.ReferenceTo(class)
-	spec.ClaimRef = meta.ReferenceTo(claim)
+	spec.ClassRef = meta.ReferenceTo(class, corev1alpha1.ResourceClassGroupVersionKind)
+	spec.ClaimRef = meta.ReferenceTo(claim, storagev1alpha1.BucketGroupVersionKind)
 
 	container := &v1alpha1.Container{
 		TypeMeta: metav1.TypeMeta{
@@ -147,7 +147,7 @@ func (h *AzureContainerHandler) Provision(class *corev1alpha1.ResourceClass, cla
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:       class.Namespace,
 			Name:            string(claim.GetUID()),
-			OwnerReferences: []metav1.OwnerReference{meta.AsOwner(meta.ReferenceTo(claim))},
+			OwnerReferences: []metav1.OwnerReference{meta.AsOwner(spec.ClaimRef)},
 		},
 		Spec: *spec,
 	}
@@ -165,7 +165,7 @@ func (h *AzureContainerHandler) Provision(class *corev1alpha1.ResourceClass, cla
 	if !ok {
 		return nil, errors.Errorf("unexpected claim type: %+v", reflect.TypeOf(claim))
 	}
-	meta.AddOwnerReference(bucket, meta.AsOwner(meta.ReferenceTo(acct)))
+	meta.AddOwnerReference(bucket, meta.AsOwner(meta.ReferenceTo(acct, v1alpha1.AccountGroupVersionKind)))
 
 	if err := c.Update(ctx, bucket); err != nil {
 		return nil, errors.Wrapf(err, "failed to update bucket claim with account owner reference: %s", bucket.Name)

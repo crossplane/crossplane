@@ -31,9 +31,10 @@ import (
 
 // Kubernetes Group, Version, and Kind metadata.
 const (
-	Group                    = "compute.azure.crossplane.io"
-	Version                  = "v1alpha1"
-	APIVersion               = Group + "/" + Version
+	Group      = "compute.azure.crossplane.io"
+	Version    = "v1alpha1"
+	APIVersion = Group + "/" + Version
+
 	AKSClusterKind           = "akscluster"
 	AKSClusterKindAPIVersion = AKSClusterKind + "." + APIVersion
 )
@@ -44,6 +45,13 @@ var (
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
+
+	// AKSClusterGroupVersionKind is the GVK of an AKSCluster
+	AKSClusterGroupVersionKind = schema.GroupVersionKind{
+		Group:   Group,
+		Version: Version,
+		Kind:    AKSClusterKind,
+	}
 )
 
 func init() {

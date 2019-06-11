@@ -26,6 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplaneio/crossplane/pkg/apis/aws/compute/v1alpha1"
+	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/compute/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/meta"
 )
@@ -45,15 +46,15 @@ func (r *EKSClusterHandler) Find(name types.NamespacedName, c client.Client) (co
 // Provision a new EKSCluster
 func (r *EKSClusterHandler) Provision(class *corev1alpha1.ResourceClass, claim corev1alpha1.ResourceClaim, c client.Client) (corev1alpha1.Resource, error) {
 	// construct EKSCluster Spec from class definition
-	resourceInstance := v1alpha1.NewEKSClusterSpec(class.Parameters)
+	spec := v1alpha1.NewEKSClusterSpec(class.Parameters)
 
 	// assign provider reference and reclaim policy from the resource class
-	resourceInstance.ProviderRef = class.ProviderRef
-	resourceInstance.ReclaimPolicy = class.ReclaimPolicy
+	spec.ProviderRef = class.ProviderRef
+	spec.ReclaimPolicy = class.ReclaimPolicy
 
 	// set class and claim references
-	resourceInstance.ClassRef = meta.ReferenceTo(class)
-	resourceInstance.ClaimRef = meta.ReferenceTo(claim)
+	spec.ClassRef = meta.ReferenceTo(class, corev1alpha1.ResourceClassGroupVersionKind)
+	spec.ClaimRef = meta.ReferenceTo(claim, computev1alpha1.KubernetesClusterGroupVersionKind)
 
 	// create and save EKSCluster
 	cluster := &v1alpha1.EKSCluster{
@@ -61,9 +62,9 @@ func (r *EKSClusterHandler) Provision(class *corev1alpha1.ResourceClass, claim c
 			Labels:          map[string]string{labelProviderKey: labelProviderAWS},
 			Namespace:       class.Namespace,
 			Name:            fmt.Sprintf("eks-%s", claim.GetUID()),
-			OwnerReferences: []metav1.OwnerReference{meta.AsOwner(meta.ReferenceTo(claim))},
+			OwnerReferences: []metav1.OwnerReference{meta.AsOwner(spec.ClaimRef)},
 		},
-		Spec: *resourceInstance,
+		Spec: *spec,
 	}
 
 	if err := c.Create(ctx, cluster); err != nil {

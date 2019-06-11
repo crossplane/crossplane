@@ -361,11 +361,15 @@ func (r *SQLReconciler) createOrUpdateConnectionSecret(instance azuredbv1alpha1.
 		}
 		// secret doesn't exist yet, create it from scratch
 		connectionSecret = &v1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:            secretName,
-				Namespace:       instance.GetNamespace(),
-				OwnerReferences: []metav1.OwnerReference{meta.AsOwner(meta.ReferenceTo(instance))},
-			},
+			ObjectMeta: metav1.ObjectMeta{Name: secretName, Namespace: instance.GetNamespace()},
+		}
+		switch instance.(type) {
+		case *azuredbv1alpha1.MysqlServer:
+			ref := meta.AsOwner(meta.ReferenceTo(instance, azuredbv1alpha1.MysqlServerGroupVersionKind))
+			meta.AddOwnerReference(connectionSecret, ref)
+		case *azuredbv1alpha1.PostgresqlServer:
+			ref := meta.AsOwner(meta.ReferenceTo(instance, azuredbv1alpha1.PostgresqlServerGroupVersionKind))
+			meta.AddOwnerReference(connectionSecret, ref)
 		}
 	} else {
 		// secret already exists, we'll update the missing information if that hasn't already been done

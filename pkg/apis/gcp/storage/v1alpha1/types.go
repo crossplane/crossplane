@@ -828,7 +828,7 @@ func (b *Bucket) ConnectionSecretName() string {
 
 // ConnectionSecret returns a connection secret for this bucket instance
 func (b *Bucket) ConnectionSecret() *corev1.Secret {
-	ref := meta.AsOwner(meta.ReferenceTo(b))
+	ref := meta.AsOwner(meta.ReferenceTo(b, BucketGroupVersionKind))
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:       b.Namespace,

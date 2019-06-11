@@ -230,7 +230,7 @@ func TestConnectNoCluster(t *testing.T) {
 
 	c := testCluster()
 	w := testWorkload()
-	w.Status.Cluster = meta.ReferenceTo(c)
+	w.Status.Cluster = meta.ReferenceTo(c, computev1alpha1.KubernetesClusterGroupVersionKind)
 	r := &Reconciler{
 		Client: fake.NewFakeClient(w),
 	}
@@ -249,7 +249,7 @@ func TestConnectNoClusterSecret(t *testing.T) {
 		Client:     fake.NewFakeClient(c, w),
 		kubeclient: NewSimpleClientset(),
 	}
-	w.Status.Cluster = meta.ReferenceTo(c)
+	w.Status.Cluster = meta.ReferenceTo(c, computev1alpha1.KubernetesClusterGroupVersionKind)
 
 	_, err := r._connect(w)
 	g.Expect(err).Should(HaveOccurred())
@@ -269,7 +269,7 @@ func TestConnectNoClusterSecretHostValue(t *testing.T) {
 	}
 	g.Expect(r.Client.Create(ctx, c)).ShouldNot(HaveOccurred())
 	g.Expect(r.Client.Get(ctx, key, c)).ShouldNot(HaveOccurred())
-	w.Status.Cluster = meta.ReferenceTo(c)
+	w.Status.Cluster = meta.ReferenceTo(c, computev1alpha1.KubernetesClusterGroupVersionKind)
 
 	_, err := r._connect(w)
 	g.Expect(err).Should(HaveOccurred())
@@ -291,7 +291,7 @@ func TestConnectInvalidSecretHostValue(t *testing.T) {
 	}
 	g.Expect(r.Client.Create(ctx, c)).ShouldNot(HaveOccurred())
 	g.Expect(r.Client.Get(ctx, key, c)).ShouldNot(HaveOccurred())
-	w.Status.Cluster = meta.ReferenceTo(c)
+	w.Status.Cluster = meta.ReferenceTo(c, computev1alpha1.KubernetesClusterGroupVersionKind)
 
 	_, err := r._connect(w)
 	g.Expect(err).Should(HaveOccurred())
@@ -313,7 +313,7 @@ func TestConnect(t *testing.T) {
 	}
 	g.Expect(r.Client.Create(ctx, c)).ShouldNot(HaveOccurred())
 	g.Expect(r.Client.Get(ctx, key, c)).ShouldNot(HaveOccurred())
-	w.Status.Cluster = meta.ReferenceTo(c)
+	w.Status.Cluster = meta.ReferenceTo(c, computev1alpha1.KubernetesClusterGroupVersionKind)
 
 	k, err := r._connect(w)
 	g.Expect(err).ShouldNot(HaveOccurred())

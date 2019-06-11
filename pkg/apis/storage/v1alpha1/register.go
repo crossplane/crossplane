@@ -31,15 +31,18 @@ import (
 
 // Kubernetes Group, Version, and Kind metadata.
 const (
-	Group                            = "storage.crossplane.io"
-	Version                          = "v1alpha1"
-	APIVersion                       = Group + "/" + Version
-	MySQLInstanceKind                = "mysqlinstance"
-	MySQLInstanceKindAPIVersion      = MySQLInstanceKind + "." + APIVersion
+	Group      = "storage.crossplane.io"
+	Version    = "v1alpha1"
+	APIVersion = Group + "/" + Version
+
+	MySQLInstanceKind           = "mysqlinstance"
+	MySQLInstanceKindAPIVersion = MySQLInstanceKind + "." + APIVersion
+
 	PostgreSQLInstanceKind           = "postgresqlinstance"
 	PostgreSQLInstanceKindAPIVersion = PostgreSQLInstanceKind + "." + APIVersion
-	BucketKind                       = "bucket"
-	BucketKindAPIVersion             = BucketKind + "." + APIVersion
+
+	BucketKind           = "bucket"
+	BucketKindAPIVersion = BucketKind + "." + APIVersion
 )
 
 var (
@@ -48,6 +51,27 @@ var (
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
+
+	// MySQLInstanceGroupVersionKind is the GVK of a MySQLInstance.
+	MySQLInstanceGroupVersionKind = schema.GroupVersionKind{
+		Group:   Group,
+		Version: Version,
+		Kind:    MySQLInstanceKind,
+	}
+
+	// PostgreSQLInstanceGroupVersionKind is the GVK of a PostgreSQLInstance.
+	PostgreSQLInstanceGroupVersionKind = schema.GroupVersionKind{
+		Group:   Group,
+		Version: Version,
+		Kind:    PostgreSQLInstanceKind,
+	}
+
+	// BucketGroupVersionKind is the GVK of a Bucket.
+	BucketGroupVersionKind = schema.GroupVersionKind{
+		Group:   Group,
+		Version: Version,
+		Kind:    BucketKind,
+	}
 )
 
 func init() {

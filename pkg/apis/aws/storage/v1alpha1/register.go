@@ -31,9 +31,10 @@ import (
 
 // Kubernetes Group, Version, and Kind metadata.
 const (
-	Group                  = "storage.aws.crossplane.io"
-	Version                = "v1alpha1"
-	APIVersion             = Group + "/" + Version
+	Group      = "storage.aws.crossplane.io"
+	Version    = "v1alpha1"
+	APIVersion = Group + "/" + Version
+
 	S3BucketKind           = "S3Bucket"
 	S3BucketKindAPIVersion = "s3bucket" + "." + APIVersion
 )
@@ -44,6 +45,13 @@ var (
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
+
+	// S3BucketGroupVersionKind is the GVK of a S3Bucket.
+	S3BucketGroupVersionKind = schema.GroupVersionKind{
+		Group:   Group,
+		Version: Version,
+		Kind:    S3BucketKind,
+	}
 )
 
 func init() {

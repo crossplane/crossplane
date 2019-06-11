@@ -64,6 +64,12 @@ var (
 		},
 	}
 
+	cluster = &computev1alpha1.KubernetesCluster{
+		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: "coolCluster"},
+	}
+
+	clusterRef = meta.ReferenceTo(cluster, computev1alpha1.KubernetesClusterGroupVersionKind)
+
 	resourceA = &v1alpha1.KubernetesApplicationResource{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:   objectMeta.GetNamespace(),
@@ -77,12 +83,8 @@ var (
 		Spec: templateA.Spec,
 		Status: v1alpha1.KubernetesApplicationResourceStatus{
 			State:   v1alpha1.KubernetesApplicationResourceStateScheduled,
-			Cluster: meta.ReferenceTo(cluster),
+			Cluster: clusterRef,
 		},
-	}
-
-	cluster = &computev1alpha1.KubernetesCluster{
-		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: "coolCluster"},
 	}
 )
 
@@ -143,7 +145,7 @@ func TestCreatePredicate(t *testing.T) {
 			event: event.CreateEvent{
 				Object: &v1alpha1.KubernetesApplication{
 					Status: v1alpha1.KubernetesApplicationStatus{
-						Cluster: meta.ReferenceTo(cluster),
+						Cluster: clusterRef,
 					},
 				},
 			},
@@ -185,7 +187,7 @@ func TestUpdatePredicate(t *testing.T) {
 			event: event.UpdateEvent{
 				ObjectNew: &v1alpha1.KubernetesApplication{
 					Status: v1alpha1.KubernetesApplicationStatus{
-						Cluster: meta.ReferenceTo(cluster),
+						Cluster: clusterRef,
 					},
 				},
 			},
@@ -655,7 +657,7 @@ func TestRenderTemplate(t *testing.T) {
 	}{
 		{
 			name:     "Successful",
-			app:      kubeApp(withCluster(meta.ReferenceTo(cluster))),
+			app:      kubeApp(withCluster(clusterRef)),
 			template: &templateA,
 			want:     resourceA,
 		},

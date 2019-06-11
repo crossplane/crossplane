@@ -389,11 +389,12 @@ func (r *Reconciler) servicePrincipalSecret(instance *computev1alpha1.AKSCluster
 	}
 
 	// save the service principal secret
+	ref := meta.AsOwner(meta.ReferenceTo(instance, computev1alpha1.AKSClusterGroupVersionKind))
 	spSecret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            secretName,
 			Namespace:       instance.Namespace,
-			OwnerReferences: []metav1.OwnerReference{meta.AsOwner(meta.ReferenceTo(instance))},
+			OwnerReferences: []metav1.OwnerReference{ref},
 		},
 		Data: map[string][]byte{spSecretKey: []byte(newSPSecretValue.String())},
 	}

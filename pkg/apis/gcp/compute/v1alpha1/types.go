@@ -172,7 +172,7 @@ func parseNodesNumber(s string) int64 {
 
 // ConnectionSecret returns the connection secret for this GKE cluster.
 func (g *GKECluster) ConnectionSecret() *corev1.Secret {
-	ref := meta.AsOwner(meta.ReferenceTo(g))
+	ref := meta.AsOwner(meta.ReferenceTo(g, GKEClusterGroupVersionKind))
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:       g.Namespace,

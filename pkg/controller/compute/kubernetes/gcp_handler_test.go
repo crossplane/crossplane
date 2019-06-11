@@ -122,17 +122,19 @@ func TestGKEClusterHandler_Provision(t *testing.T) {
 			want: want{
 				res: &v1alpha1.GKECluster{
 					ObjectMeta: v1.ObjectMeta{
-						Labels:          map[string]string{labelProviderKey: labelProviderGCP},
-						Namespace:       class.Namespace,
-						Name:            "gke-test-claim-uid",
-						OwnerReferences: []v1.OwnerReference{meta.AsOwner(meta.ReferenceTo(claim))},
+						Labels:    map[string]string{labelProviderKey: labelProviderGCP},
+						Namespace: class.Namespace,
+						Name:      "gke-test-claim-uid",
+						OwnerReferences: []v1.OwnerReference{
+							meta.AsOwner(meta.ReferenceTo(claim, computev1alpha1.KubernetesClusterGroupVersionKind)),
+						},
 					},
 					Spec: v1alpha1.GKEClusterSpec{
 						NumNodes: 1,
 						Labels:   map[string]string{},
 						Scopes:   []string{},
-						ClassRef: meta.ReferenceTo(class),
-						ClaimRef: meta.ReferenceTo(claim),
+						ClassRef: meta.ReferenceTo(class, corev1alpha1.ResourceClassGroupVersionKind),
+						ClaimRef: meta.ReferenceTo(claim, computev1alpha1.KubernetesClusterGroupVersionKind),
 					},
 				},
 			},

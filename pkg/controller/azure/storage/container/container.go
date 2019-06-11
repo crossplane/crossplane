@@ -174,7 +174,7 @@ func (m *containerSyncdeleterMaker) newSyncdeleter(ctx context.Context, c *v1alp
 
 	// set owner reference on the container to storage account, thus
 	// if the account is delete - container is garbage collected as well
-	or := meta.AsOwner(meta.ReferenceTo(acct))
+	or := meta.AsOwner(meta.ReferenceTo(acct, v1alpha1.AccountGroupVersionKind))
 	or.BlockOwnerDeletion = to.BoolPtr(true)
 	meta.AddOwnerReference(c, or)
 

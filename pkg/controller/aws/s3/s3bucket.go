@@ -129,11 +129,12 @@ func (r *Reconciler) fail(bucket *bucketv1alpha1.S3Bucket, reason, msg string) (
 
 // connectionSecret return secret object for this resource
 func connectionSecret(bucket *bucketv1alpha1.S3Bucket, accessKey *iam.AccessKey) *corev1.Secret {
+	ref := meta.AsOwner(meta.ReferenceTo(bucket, bucketv1alpha1.S3BucketGroupVersionKind))
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            bucket.ConnectionSecretName(),
 			Namespace:       bucket.Namespace,
-			OwnerReferences: []metav1.OwnerReference{meta.AsOwner(meta.ReferenceTo(bucket))},
+			OwnerReferences: []metav1.OwnerReference{ref},
 		},
 
 		Data: map[string][]byte{
@@ -196,7 +197,6 @@ func (r *Reconciler) _create(bucket *bucketv1alpha1.S3Bucket, client s3.Service)
 
 	// Set access keys into a secret for local access creds to s3 bucket
 	secret := connectionSecret(bucket, accessKeys)
-	secret.OwnerReferences = append(secret.OwnerReferences, meta.AsOwner(meta.ReferenceTo(bucket)))
 	bucket.Status.ConnectionSecretRef = corev1.LocalObjectReference{Name: secret.Name}
 
 	_, err = util.ApplySecret(r.kubeclient, secret)

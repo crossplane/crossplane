@@ -347,11 +347,12 @@ func (r *Reconciler) upsertSecret(ctx context.Context, new *corev1.Secret) error
 }
 
 func connectionSecret(g *v1alpha1.ReplicationGroup) *corev1.Secret {
+	ref := meta.AsOwner(meta.ReferenceTo(g, v1alpha1.ReplicationGroupGroupVersionKind))
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            g.ConnectionSecretName(),
 			Namespace:       g.Namespace,
-			OwnerReferences: []metav1.OwnerReference{meta.AsOwner(meta.ReferenceTo(g))},
+			OwnerReferences: []metav1.OwnerReference{ref},
 		},
 
 		// TODO(negz): Include the ports here too?

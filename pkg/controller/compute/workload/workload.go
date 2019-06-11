@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
@@ -308,14 +309,22 @@ func (r *Reconciler) _create(instance *computev1alpha1.Workload, client kubernet
 	if err != nil {
 		return r.fail(instance, errorCreating, err.Error())
 	}
-	instance.Status.Deployment = meta.ReferenceTo(d)
+	instance.Status.Deployment = meta.ReferenceTo(d, schema.GroupVersionKind{
+		Group:   appsv1.SchemeGroupVersion.Group,
+		Version: appsv1.SchemeGroupVersion.Version,
+		Kind:    "Deployment",
+	})
 
 	// propagate service
 	s, err := r.propagateService(client, instance.Spec.TargetService, targetNamespace, uid)
 	if err != nil {
 		return r.fail(instance, errorCreating, err.Error())
 	}
-	instance.Status.Service = meta.ReferenceTo(s)
+	instance.Status.Service = meta.ReferenceTo(s, schema.GroupVersionKind{
+		Group:   corev1.SchemeGroupVersion.Group,
+		Version: corev1.SchemeGroupVersion.Version,
+		Kind:    "Service",
+	})
 
 	instance.Status.State = computev1alpha1.WorkloadStateCreating
 

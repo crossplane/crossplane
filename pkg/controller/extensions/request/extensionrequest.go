@@ -267,11 +267,12 @@ func (h *extensionRequestHandler) update(ctx context.Context) (reconcile.Result,
 }
 
 func createInstallJob(i *v1alpha1.ExtensionRequest, executorInfo executorInfo) *batchv1.Job {
+	ref := meta.AsOwner(meta.ReferenceTo(i, v1alpha1.ExtensionGroupVersionKind))
 	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            i.Name,
 			Namespace:       i.Namespace,
-			OwnerReferences: []metav1.OwnerReference{meta.AsOwner(meta.ReferenceTo(i))},
+			OwnerReferences: []metav1.OwnerReference{ref},
 		},
 		Spec: batchv1.JobSpec{
 			BackoffLimit: &jobBackoff,
@@ -443,7 +444,9 @@ func (jc *extensionRequestJobCompleter) createJobOutputObject(ctx context.Contex
 	}
 
 	// set an owner reference on the object
-	obj.SetOwnerReferences([]metav1.OwnerReference{meta.AsOwner(meta.ReferenceTo(i))})
+	obj.SetOwnerReferences([]metav1.OwnerReference{
+		meta.AsOwner(meta.ReferenceTo(i, v1alpha1.ExtensionRequestGroupVersionKind)),
+	})
 
 	log.V(logging.Debug).Info(
 		"creating object from job output",

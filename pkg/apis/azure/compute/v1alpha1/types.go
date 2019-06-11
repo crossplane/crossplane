@@ -179,7 +179,7 @@ func NewAKSClusterSpec(properties map[string]string) *AKSClusterSpec {
 
 // ConnectionSecret returns a secret object for this resource
 func (a *AKSCluster) ConnectionSecret() *corev1.Secret {
-	ref := meta.AsOwner(meta.ReferenceTo(a))
+	ref := meta.AsOwner(meta.ReferenceTo(a, AKSClusterGroupVersionKind))
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:       a.GetNamespace(),

@@ -31,9 +31,10 @@ import (
 
 // Kubernetes Group, Version, and Kind metadata.
 const (
-	Group                     = "database.aws.crossplane.io"
-	Version                   = "v1alpha1"
-	APIVersion                = Group + "/" + Version
+	Group      = "database.aws.crossplane.io"
+	Version    = "v1alpha1"
+	APIVersion = Group + "/" + Version
+
 	RDSInstanceKind           = "rdsinstance"
 	RDSInstanceKindAPIVersion = RDSInstanceKind + "." + APIVersion
 )
@@ -44,6 +45,13 @@ var (
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
+
+	// RDSInstanceGroupVersionKind is the GVK of an RDSInstance.
+	RDSInstanceGroupVersionKind = schema.GroupVersionKind{
+		Group:   Group,
+		Version: Version,
+		Kind:    RDSInstanceKind,
+	}
 )
 
 func init() {

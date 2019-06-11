@@ -123,14 +123,16 @@ func TestAKSClusterHandler_Provision(t *testing.T) {
 			want: want{
 				res: &v1alpha1.AKSCluster{
 					ObjectMeta: v1.ObjectMeta{
-						Labels:          map[string]string{labelProviderKey: labelProviderAzure},
-						Namespace:       class.Namespace,
-						Name:            "aks-test-claim-uid",
-						OwnerReferences: []v1.OwnerReference{meta.AsOwner(meta.ReferenceTo(claim))},
+						Labels:    map[string]string{labelProviderKey: labelProviderAzure},
+						Namespace: class.Namespace,
+						Name:      "aks-test-claim-uid",
+						OwnerReferences: []v1.OwnerReference{
+							meta.AsOwner(meta.ReferenceTo(claim, computev1alpha1.KubernetesClusterGroupVersionKind)),
+						},
 					},
 					Spec: v1alpha1.AKSClusterSpec{
-						ClassRef:  meta.ReferenceTo(class),
-						ClaimRef:  meta.ReferenceTo(claim),
+						ClassRef:  meta.ReferenceTo(class, corev1alpha1.ResourceClassGroupVersionKind),
+						ClaimRef:  meta.ReferenceTo(claim, computev1alpha1.KubernetesClusterGroupVersionKind),
 						NodeCount: to.IntPtr(v1alpha1.DefaultNodeCount),
 					},
 				},

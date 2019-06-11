@@ -318,7 +318,7 @@ func parseSlice(s string) []string {
 
 // ConnectionSecret with this cluster owner reference
 func (e *EKSCluster) ConnectionSecret() *corev1.Secret {
-	ref := meta.AsOwner(meta.ReferenceTo(e))
+	ref := meta.AsOwner(meta.ReferenceTo(e, EKSClusterGroupVersionKind))
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:       e.GetNamespace(),

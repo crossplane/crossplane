@@ -92,11 +92,12 @@ func (a *Account) ConnectionSecretName() string {
 
 // ConnectionSecret returns a connection secret for this account instance
 func (a *Account) ConnectionSecret() *corev1.Secret {
+	ref := meta.AsOwner(meta.ReferenceTo(a, AccountGroupVersionKind))
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:       a.GetNamespace(),
 			Name:            a.ConnectionSecretName(),
-			OwnerReferences: []metav1.OwnerReference{meta.AsOwner(meta.ReferenceTo(a))},
+			OwnerReferences: []metav1.OwnerReference{ref},
 		},
 		Data: map[string][]byte{},
 	}

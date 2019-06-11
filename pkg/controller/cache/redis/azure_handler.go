@@ -33,7 +33,7 @@ import (
 )
 
 // TODO(negz): Name this something that doesn't stutter? redis.RedisHandler is
-// an unfortunate name, but we
+// an unfortunate name.
 
 // RedisHandler dynamically provisions Redis resources given a resource class.
 type RedisHandler struct{} // nolint:golint
@@ -55,8 +55,8 @@ func (h *RedisHandler) Provision(class *corev1alpha1.ResourceClass, claim corev1
 
 	spec.ProviderRef = class.ProviderRef
 	spec.ReclaimPolicy = class.ReclaimPolicy
-	spec.ClassRef = meta.ReferenceTo(class)
-	spec.ClaimRef = meta.ReferenceTo(claim)
+	spec.ClassRef = meta.ReferenceTo(class, corev1alpha1.ResourceClassGroupVersionKind)
+	spec.ClaimRef = meta.ReferenceTo(claim, cachev1alpha1.RedisClusterGroupVersionKind)
 
 	i := &v1alpha1.Redis{
 		TypeMeta: metav1.TypeMeta{
@@ -66,7 +66,7 @@ func (h *RedisHandler) Provision(class *corev1alpha1.ResourceClass, claim corev1
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:       class.Namespace,
 			Name:            fmt.Sprintf("redis-%s", claim.GetUID()),
-			OwnerReferences: []metav1.OwnerReference{meta.AsOwner(meta.ReferenceTo(claim))},
+			OwnerReferences: []metav1.OwnerReference{meta.AsOwner(spec.ClaimRef)},
 		},
 		Spec: *spec,
 	}
