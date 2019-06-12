@@ -21,8 +21,6 @@ import (
 	"fmt"
 	"time"
 
-	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
-
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -49,7 +47,6 @@ const (
 	errorApplyingResourceSecret      = "Failed to apply resource secret"
 	errorSettingResourceBindStatus   = "Failed to set resource binding status"
 	errorResettingResourceBindStatus = "Failed to reset resource binding status"
-	errorDeterminingGVK              = "Failed to determine resource group, version, and kind"
 	waitResourceIsNotAvailable       = "Waiting for resource to become available"
 
 	// RequeueOnWait - requeue after duration when waiting for resource state
@@ -168,13 +165,8 @@ func (r *Reconciler) _provision(claim corev1alpha1.ResourceClaim, handler Resour
 		return r.fail(claim, errorResourceProvisioning, err.Error())
 	}
 
-	gvk, err := apiutil.GVKForObject(resource, r.scheme)
-	if err != nil {
-		return r.fail(claim, errorDeterminingGVK, err.Error())
-	}
-
 	// set resource reference to the newly created resource
-	claim.SetResourceRef(meta.ReferenceTo(resource, gvk))
+	claim.SetResourceRef(meta.ReferenceTo(resource, meta.MustGetKind(resource, r.scheme)))
 
 	// set status values
 	claimStatus.Provisioner = class.Provisioner

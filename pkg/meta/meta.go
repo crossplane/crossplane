@@ -20,8 +20,10 @@ package meta
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 )
 
 /*
@@ -42,6 +44,17 @@ func ReferenceTo(o metav1.Object, of schema.GroupVersionKind) *corev1.ObjectRefe
 		Name:       o.GetName(),
 		UID:        o.GetUID(),
 	}
+}
+
+// MustGetKind returns the GroupVersionKind of the supplied object as registered
+// with the supplied scheme. MustGetKind will panic if the object does not have
+// exactly one registered GroupVersionKind.
+func MustGetKind(o runtime.Object, s *runtime.Scheme) schema.GroupVersionKind {
+	gvk, err := apiutil.GVKForObject(o, s)
+	if err != nil {
+		panic(err)
+	}
+	return gvk
 }
 
 // AsOwner converts the supplied object reference to an owner reference.
