@@ -74,4 +74,7 @@ cobertura:
 		grep -v zz_generated.deepcopy | \
 		$(GOCOVER_COBERTURA) > $(GO_TEST_OUTPUT)/cobertura-coverage.xml
 
-.PHONY: manifests cobertura
+# Ensure a PR is ready for review.
+reviewable: vendor generate manifests lint
+
+.PHONY: manifests cobertura reviewable
