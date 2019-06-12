@@ -9,6 +9,7 @@ set -e -o pipefail
 ROLES=(roles/iam.serviceAccountUser roles/cloudsql.admin roles/container.admin roles/redis.admin)
 SERVICES=(container.googleapis.com sqladmin.googleapis.com redis.googleapis.com)
 KEYFILE=crossplane-gcp-provider-key.json
+RAND=$RANDOM
 
 if ! command -v gcloud > /dev/null; then
 	echo "Please install gcloud: https://cloud.google.com/sdk/install"
@@ -26,7 +27,7 @@ read -e -i "$ORGANIZATION_ID" -p "Choose an Organization ID: " ORGANIZATION_ID
 gcloud projects list --format '[box]' 2>&1 | tab
 
 # create a new id
-EXAMPLE_PROJECT_ID="crossplane-example-$RANDOM"
+EXAMPLE_PROJECT_ID="crossplane-example-$RAND"
 read -e -i "$EXAMPLE_PROJECT_ID" -p "Choose or create a Project ID: " EXAMPLE_PROJECT_ID
 
 EXAMPLE_PROJECT_ID_FOUND=$(gcloud projects list --filter PROJECT_ID="$EXAMPLE_PROJECT_ID" --format="value(PROJECT_ID)")
@@ -53,7 +54,7 @@ for service in "${SERVICES[@]}"; do
 done
 
 # create service account
-SA_NAME="example-$RANDOM"
+SA_NAME="example-$RAND"
 echo " * Creating a Service Account"
 gcloud --project $EXAMPLE_PROJECT_ID iam service-accounts create $SA_NAME --display-name "Crossplane Example" 2>&1 | tab
 # export service account email
@@ -74,7 +75,7 @@ cat <<EOS
 # Run the following for the variables that are used throughout the GCP example projects
 #
 export ORGANIZATION_ID=$ORGANIZATION_ID
-export EXAMPLE_PROJECT_ID=$EXAMPLE_PROJECT_ID
+export PROJECT_ID=$EXAMPLE_PROJECT_ID
 export EXAMPLE_SA=$EXAMPLE_SA
-export GCP_CREDENTIALS_JSON=\$(base64 -w0 $KEYFILE)
+export BASE64ENCODED_GCP_PROVIDER_CREDS=\$(base64 -w0 $KEYFILE)
 EOS
