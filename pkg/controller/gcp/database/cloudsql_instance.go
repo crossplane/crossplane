@@ -202,7 +202,9 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 		}
 
 		// seems like we didn't find a cloud sql instance with this name, let's create one
-		return r.handleCreation(cloudSQLClient, instance, provider)
+		if result, err := r.handleCreation(cloudSQLClient, instance, provider); err != nil {
+			return result, err
+		}
 	}
 
 	stateChanged := instance.Status.State != cloudSQLInstance.State
@@ -276,15 +278,22 @@ func (r *Reconciler) handleCreation(cloudSQLClient gcpclients.CloudSQLAPI,
 func (r *Reconciler) handleDeletion(cloudSQLClient gcpclients.CloudSQLAPI,
 	instance *databasev1alpha1.CloudsqlInstance, provider *gcpv1alpha1.Provider) (reconcile.Result, error) {
 
+	// if we never created the instance, complete the deletion.
+	if len(instance.Status.ProviderID) == 0 {
+		return r.markAsDeleting(instance)
+	}
+
 	// first get the latest status of the CloudSQL resource that needs to be deleted
 	_, err := cloudSQLClient.GetInstance(provider.Spec.ProjectID, instance.Status.InstanceName)
 	if err != nil {
-		if !gcpclients.IsErrorNotFound(err) {
-			return r.fail(instance, errorFetchingInstance, fmt.Sprintf("failed to get cloud sql instance %s for deletion: %+v", instance.Name, err))
+		// assert that (for GCP CloudSQL) all 404 responses indicate that the project or resource has been deleted
+		if gcpclients.IsErrorNotFound(err) {
+			log.V(logging.Debug).Info("could not get cloud sql instance for deletion, assuming it was deleted", "instance", instance, "err", err)
+			return r.markAsDeleting(instance)
 		}
 
-		// CloudSQL instance doesn't exist, it's already deleted
-		return r.markAsDeleting(instance)
+		// CloudSQL instance couldn't be fetched. 403? 429? 418? Doesn't matter. Try again.
+		return r.fail(instance, errorFetchingInstance, fmt.Sprintf("failed to get cloud sql instance %s for deletion: %+v", instance.Name, err))
 	}
 
 	if instance.Spec.ReclaimPolicy == corev1alpha1.ReclaimDelete {
@@ -296,6 +305,7 @@ func (r *Reconciler) handleDeletion(cloudSQLClient gcpclients.CloudSQLAPI,
 
 		log.V(logging.Debug).Info("started deletion of cloud sql instance", "instance", instance, "operation", deleteOp)
 	}
+
 	return r.markAsDeleting(instance)
 }
 
