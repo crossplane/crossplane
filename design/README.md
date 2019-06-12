@@ -1,19 +1,24 @@
 # Crossplane Design Documents
 This directory contains all documents informing Crossplane's design. Crossplane
-design documents can be divided into two two kinds:
+designs must transition through up to three of the following phases:
 
-* One-pagers. A One-pager is a brief document pitching an idea for further
-  experimentation. One-pagers, as the name suggests, are usually around one
-  page long. They provide just enough context to achieve buy-in from Crossplane
-  maintainers.
-* Design documents. A design document is a longer, more detailed design. Design
-  documents should typically be preceeded by a one-pager and/or a good amount of
-  research and experimentation.
 
-In some cases a one-pager is sufficient to move forward with a design. Complex
-or controversial designs will require a more detailed design document. Please
-name your documents appropriately when committing to this directory, i.e.
-`one-pager-my-cool-design.md` or `design-doc-my-cool-design.md`.
+1. Proposals. A proposal is simply a Github issue against this reposistory with
+   the [`proposal` label](https://github.com/crossplaneio/crossplane/issues?utf8=%E2%9C%93&q=is%3Aissue+label%3Aproposal).
+   Proposals need not be more than two to three paragraphs.
+2. One-pagers. A One-pager is a brief document pitching an idea for further
+   experimentation. One-pagers, as the name suggests, are usually around one
+   page long. They provide just enough context to achieve buy-in from Crossplane
+   maintainers.
+3. Design documents. A design document is a longer, more detailed design. Design
+   documents should typically be preceeded by a one-pager and/or a good amount of
+   research and experimentation.
+
+All designs must start as a proposal. In some simple cases this proposal alone
+is sufficient to move forward with a design. As the complexity or controversy of
+the proposed design increases a one-pager and/or design document may be
+required. Please name your documents appropriately when committing to this
+directory, i.e. `one-pager-my-cool-design.md` or `design-doc-my-cool-design.md`.
 
 All documents committed to this directory _must_ include the following header:
 
