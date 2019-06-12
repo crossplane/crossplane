@@ -1,4 +1,7 @@
 # Crossplane Extensions
+* Owner: Jared Watts (@jbw976)
+* Reviewers: Crossplane Maintainers
+* Status: Accepted, revision 1.0
 
 This document aims to provide details about the experience and implementation for Crossplane “extensions”, which can add new functionality/support, types, and controllers to Crossplane.
 

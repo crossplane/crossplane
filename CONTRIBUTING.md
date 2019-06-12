@@ -48,12 +48,15 @@ request and branch commits.
 
 This is a rough outline of what a contributor's workflow looks like:
 
-- Create a branch from where you want to base your work (usually master).
-- Make your changes and arrange them in readable commits.
-- Make sure your commit messages are in the proper format (see below).
-- Push your changes to the branch in your fork of the repository.
-- Make sure all linters and tests pass, and add any new tests as appropriate.
-- Submit a pull request to the original repository.
+1. Open an issue against this repository to propose your change.
+1. Consider writing a [one-pager or design doc](design/) if your proposal seems
+   complex or controversial.
+1. Create a branch from where you want to base your work (usually master).
+1. Make your changes and arrange them in readable commits.
+1. Make sure your commit messages are in the proper format (see below).
+1. Push your changes to the branch in your fork of the repository.
+1. Make sure all linters and tests pass, and add any new tests as appropriate.
+1. Submit a pull request to the original repository.
 
 ## Building
 

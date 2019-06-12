@@ -1,4 +1,7 @@
-# DRAFT: Crossplane Reconciler Patterns
+# Crossplane Reconciler Patterns
+* Owner: Illya Chekrygin (@ichekrygin)
+* Reviewers: Crossplane Maintainers
+* Status: Draft
 
 While Kubernetes declarative style API probably one of the best features of Kubernetes as a platform, Kubernetes API extensibility is arguably one of the most exciting ones. 
 Using Kubernetes Operators patterns user can extend Kubernetes API types to support Kubernetes internal or external resources. 
