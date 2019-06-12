@@ -31,7 +31,9 @@ import (
 
 	"github.com/crossplaneio/crossplane/pkg/apis/compute"
 	. "github.com/crossplaneio/crossplane/pkg/apis/compute/v1alpha1"
+	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/compute/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 )
 
 const (
@@ -150,7 +152,9 @@ func TestScheduleSingleClusterNoSelector(t *testing.T) {
 	g.Expect(err).ShouldNot(HaveOccurred())
 	g.Expect(rs).Should(Equal(resultDone))
 	g.Expect(wl.Status.DeprecatedConditionedStatus).Should(corev1alpha1.MatchDeprecatedConditionedStatus(expStatus))
-	g.Expect(wl.Status.Cluster).Should(Equal(cl.ObjectReference()))
+
+	ref := meta.ReferenceTo(cl, computev1alpha1.KubernetesClusterGroupVersionKind)
+	g.Expect(wl.Status.Cluster).Should(Equal(ref))
 }
 
 // TestScheduleRoundRobin - schedule workload against multiple matching cluster
@@ -165,17 +169,20 @@ func TestScheduleRoundRobin(t *testing.T) {
 		Client: NewFakeClient(wl, clA, clB),
 	}
 
+	refA := meta.ReferenceTo(clA, computev1alpha1.KubernetesClusterGroupVersionKind)
+	refB := meta.ReferenceTo(clB, computev1alpha1.KubernetesClusterGroupVersionKind)
+
 	rs, err := r._schedule(wl)
 	g.Expect(err).ShouldNot(HaveOccurred())
 	g.Expect(rs).Should(Equal(resultDone))
-	g.Expect(wl.Status.Cluster).Should(Equal(clA.ObjectReference()))
+	g.Expect(wl.Status.Cluster).Should(Equal(refA))
 
 	// repeat scheduling and assert workload is scheduled on a different cluster
 	wl.Status.Cluster = nil
 	rs, err = r._schedule(wl)
 	g.Expect(err).ShouldNot(HaveOccurred())
 	g.Expect(rs).Should(Equal(resultDone))
-	g.Expect(wl.Status.Cluster).Should(Equal(clB.ObjectReference()))
+	g.Expect(wl.Status.Cluster).Should(Equal(refB))
 
 }
 
@@ -204,16 +211,18 @@ func TestScheduleSelector(t *testing.T) {
 		Client: NewFakeClient(wl, clA, clB),
 	}
 
+	ref := meta.ReferenceTo(clA, computev1alpha1.KubernetesClusterGroupVersionKind)
+
 	rs, err := r._schedule(wl)
 	g.Expect(err).ShouldNot(HaveOccurred())
 	g.Expect(rs).Should(Equal(resultDone))
-	g.Expect(wl.Status.Cluster).Should(Equal(clA.ObjectReference()))
+	g.Expect(wl.Status.Cluster).Should(Equal(ref))
 
 	wl.Status.Cluster = nil
 	rs, err = r._schedule(wl)
 	g.Expect(err).ShouldNot(HaveOccurred())
 	g.Expect(rs).Should(Equal(resultDone))
-	g.Expect(wl.Status.Cluster).Should(Equal(clA.ObjectReference()))
+	g.Expect(wl.Status.Cluster).Should(Equal(ref))
 
 }
 

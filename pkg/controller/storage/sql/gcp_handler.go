@@ -30,6 +30,7 @@ import (
 	gcpdbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/database/v1alpha1"
 	storagev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
 	corecontroller "github.com/crossplaneio/crossplane/pkg/controller/core"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 )
 
 // CloudSQLServerHandler is a dynamic provisioning handler for CloudSQL resource
@@ -44,28 +45,25 @@ func (h *CloudSQLServerHandler) Find(name types.NamespacedName, c client.Client)
 
 // Provision (create) a new CloudSQL resource
 func (h *CloudSQLServerHandler) Provision(class *corev1alpha1.ResourceClass, claim corev1alpha1.ResourceClaim, c client.Client) (corev1alpha1.Resource, error) {
-	// construct CloudSQL resource spec from class definition/parameters
-	cloudsqlInstanceSpec := gcpdbv1alpha1.NewCloudSQLInstanceSpec(class.Parameters)
+	spec := gcpdbv1alpha1.NewCloudSQLInstanceSpec(class.Parameters)
 
-	// resolve the resource class params and the resource claim values
-	if err := resolveGCPClassInstanceValues(cloudsqlInstanceSpec, claim); err != nil {
+	if err := resolveGCPClassInstanceValues(spec, claim); err != nil {
 		return nil, err
 	}
 
-	// assign provider reference and reclaim policy from the resource class
-	cloudsqlInstanceSpec.ProviderRef = class.ProviderRef
-	cloudsqlInstanceSpec.ReclaimPolicy = class.ReclaimPolicy
+	spec.ProviderRef = class.ProviderRef
+	spec.ReclaimPolicy = class.ReclaimPolicy
 
-	// set class and claim references
-	cloudsqlInstanceSpec.ClassRef = class.ObjectReference()
-	cloudsqlInstanceSpec.ClaimRef = claim.ObjectReference()
+	spec.ClassRef = meta.ReferenceTo(class, corev1alpha1.ResourceClassGroupVersionKind)
 
 	var cloudsqlInstanceName string
 	switch claim.(type) {
 	case *storagev1alpha1.MySQLInstance:
 		cloudsqlInstanceName = fmt.Sprintf("mysql-%s", claim.GetUID())
+		spec.ClaimRef = meta.ReferenceTo(claim, storagev1alpha1.MySQLInstanceGroupVersionKind)
 	case *storagev1alpha1.PostgreSQLInstance:
 		cloudsqlInstanceName = fmt.Sprintf("postgresql-%s", claim.GetUID())
+		spec.ClaimRef = meta.ReferenceTo(claim, storagev1alpha1.PostgreSQLInstanceGroupVersionKind)
 	default:
 		return nil, fmt.Errorf("unexpected claim type: %+v", reflect.TypeOf(claim))
 	}
@@ -79,9 +77,9 @@ func (h *CloudSQLServerHandler) Provision(class *corev1alpha1.ResourceClass, cla
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:       class.Namespace,
 			Name:            cloudsqlInstanceName,
-			OwnerReferences: []metav1.OwnerReference{claim.OwnerReference()},
+			OwnerReferences: []metav1.OwnerReference{meta.AsOwner(spec.ClaimRef)},
 		},
-		Spec: *cloudsqlInstanceSpec,
+		Spec: *spec,
 	}
 
 	err := c.Create(ctx, cloudsqlInstance)

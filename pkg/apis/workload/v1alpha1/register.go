@@ -46,11 +46,23 @@ var (
 	// SchemeGroupVersion is group version used to register these objects
 	SchemeGroupVersion = schema.GroupVersion{Group: Group, Version: Version}
 
-	// KubernetesApplicationGroupVersionKind is the GVK of a KubernetesApplication.
-	KubernetesApplicationGroupVersionKind = schema.GroupVersionKind{Group: Group, Version: Version, Kind: KubernetesApplicationKind}
-
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
+
+	// KubernetesApplicationGroupVersionKind is the GVK of a KubernetesApplication.
+	KubernetesApplicationGroupVersionKind = schema.GroupVersionKind{
+		Group:   Group,
+		Version: Version,
+		Kind:    KubernetesApplicationKind,
+	}
+
+	// KubernetesApplicationResourceGroupVersionKind is the GVK of a
+	// KubernetesApplicationResource.
+	KubernetesApplicationResourceGroupVersionKind = schema.GroupVersionKind{
+		Group:   Group,
+		Version: Version,
+		Kind:    KubernetesApplicationResourceKind,
+	}
 )
 
 func init() {

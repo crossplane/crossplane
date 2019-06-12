@@ -36,6 +36,7 @@ import (
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	storagev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
 	buckettest "github.com/crossplaneio/crossplane/pkg/controller/storage/bucket/test"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
@@ -187,9 +188,11 @@ func TestAzureAccountHandler_Provision(t *testing.T) {
 						Kind:       v1alpha1.AccountKind,
 					}).
 					WithObjectMeta(metav1.ObjectMeta{
-						Namespace:       testNS,
-						Name:            testName,
-						OwnerReferences: []metav1.OwnerReference{(&storagev1alpha1.Bucket{}).OwnerReference()},
+						Namespace: testNS,
+						Name:      testName,
+						OwnerReferences: []metav1.OwnerReference{
+							meta.AsOwner(meta.ReferenceTo(&storagev1alpha1.Bucket{}, storagev1alpha1.BucketGroupVersionKind)),
+						},
 					}).
 					WithSpecClassRef(&corev1.ObjectReference{
 						APIVersion: corev1alpha1.APIVersion,
@@ -209,11 +212,11 @@ func TestAzureAccountHandler_Provision(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			h := &AzureAccountHandler{accountResolver: tt.resolver}
 			got, err := h.Provision(tt.args.class, tt.args.claim, tt.args.c)
-			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
-				t.Errorf("AzureAccountHandler.Provision() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
+			if diff := cmp.Diff(tt.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("AzureAccountHandler.Provision(): -want error, +got error:\n%s", diff)
 			}
-			if diff := cmp.Diff(got, tt.want.res); diff != "" {
-				t.Errorf("AzureAccountHandler.Provision() = \n%v, want \n%v\n%s", got, tt.want.res, diff)
+			if diff := cmp.Diff(tt.want.res, got); diff != "" {
+				t.Errorf("AzureAccountHandler.Provision(): -want, +got:\n%s", diff)
 			}
 		})
 	}
@@ -383,10 +386,11 @@ func TestAzureContainerHandler_Provision(t *testing.T) {
 					WithObjectMeta(metav1.ObjectMeta{
 						Namespace: testNS,
 						Name:      testBucketUID,
-						OwnerReferences: []metav1.OwnerReference{
-							buckettest.NewBucket(testNS, testName).
-								WithObjectMetaUID(testBucketUID).Bucket.OwnerReference(),
-						},
+						OwnerReferences: func() []metav1.OwnerReference {
+							b := buckettest.NewBucket(testNS, testName).WithObjectMetaUID(testBucketUID).Bucket
+							ref := meta.AsOwner(meta.ReferenceTo(b, storagev1alpha1.BucketGroupVersionKind))
+							return []metav1.OwnerReference{ref}
+						}(),
 					}).
 					WithSpecClassRef(buckettest.NewBucketClassReference(testNS, testName)).
 					WithSpecClaimRef(buckettest.NewBucketClaimReference(testNS, testName, testBucketUID)).
@@ -400,11 +404,11 @@ func TestAzureContainerHandler_Provision(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			h := &AzureContainerHandler{}
 			got, err := h.Provision(tt.args.class, tt.args.claim, tt.args.c)
-			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
-				t.Errorf("AzureAccountHandler.Provision() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
+			if diff := cmp.Diff(tt.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("AzureAccountHandler.Provision(): -want error, +got error:\n%s", diff)
 			}
-			if diff := cmp.Diff(got, tt.want.res); diff != "" {
-				t.Errorf("AzureAccountHandler.Provision() = \n%v, want \n%v\n%s", got, tt.want.res, diff)
+			if diff := cmp.Diff(tt.want.res, got); diff != "" {
+				t.Errorf("AzureAccountHandler.Provision(): -want, +got\n%s", diff)
 			}
 		})
 	}

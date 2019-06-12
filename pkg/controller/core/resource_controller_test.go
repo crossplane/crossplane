@@ -22,8 +22,10 @@ import (
 
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/fake"
 	. "k8s.io/client-go/testing"
@@ -38,13 +40,18 @@ var (
 )
 
 type MockResource struct {
-	corev1alpha1.Resource
+	metav1.TypeMeta
+	metav1.ObjectMeta
 
 	connectionSecretName string
 	endpoint             string
 	state                string
 	phase                corev1alpha1.BindingStatusPhase
 	objectReference      *corev1.ObjectReference
+}
+
+func (br *MockResource) DeepCopyObject() runtime.Object {
+	return nil
 }
 
 func (br *MockResource) ConnectionSecretName() string {
@@ -118,9 +125,17 @@ func TestGetHandler(t *testing.T) {
 }
 
 func TestProvision(t *testing.T) {
-	mc := &MockClient{}
 	g := NewGomegaWithT(t)
-	r := Reconciler{Client: mc, recorder: &MockRecorder{}, handlers: handlers}
+
+	mc := &MockClient{}
+	s := runtime.NewScheme()
+	s.AddKnownTypes(schema.GroupVersion{Version: "v1", Group: "mocks"}, &MockResource{})
+	r := Reconciler{
+		Client:   mc,
+		recorder: &MockRecorder{},
+		scheme:   s,
+		handlers: handlers,
+	}
 	h := &MockResourceHandler{}
 	claim := testClaim()
 

@@ -48,6 +48,20 @@ var (
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
+
+	// AccountGroupVersionKind is the GroupVersionKind of an Account.
+	AccountGroupVersionKind = schema.GroupVersionKind{
+		Group:   Group,
+		Version: Version,
+		Kind:    AccountKind,
+	}
+
+	// ContainerGroupVersionKind is the GroupVersionKind of an Container.
+	ContainerGroupVersionKind = schema.GroupVersionKind{
+		Group:   Group,
+		Version: Version,
+		Kind:    ContainerKind,
+	}
 )
 
 func init() {

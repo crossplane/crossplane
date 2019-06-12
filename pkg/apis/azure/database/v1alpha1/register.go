@@ -31,12 +31,14 @@ import (
 
 // Kubernetes Group, Version, and Kind metadata.
 const (
-	Group                          = "database.azure.crossplane.io"
-	Version                        = "v1alpha1"
-	APIVersion                     = Group + "/" + Version
-	MysqlServerKind                = "mysqlserver"
+	Group      = "database.azure.crossplane.io"
+	Version    = "v1alpha1"
+	APIVersion = Group + "/" + Version
+
+	MysqlServerKind           = "mysqlserver"
+	MysqlServerKindAPIVersion = MysqlServerKind + "." + APIVersion
+
 	PostgresqlServerKind           = "postgresqlserver"
-	MysqlServerKindAPIVersion      = MysqlServerKind + "." + APIVersion
 	PostgresqlServerKindAPIVersion = PostgresqlServerKind + "." + APIVersion
 )
 
@@ -46,6 +48,21 @@ var (
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
+
+	// MysqlServerGroupVersionKind is the GroupVersionKind of a MysqlServer.
+	MysqlServerGroupVersionKind = schema.GroupVersionKind{
+		Group:   Group,
+		Version: Version,
+		Kind:    MysqlServerKind,
+	}
+
+	// PostgresqlServerGroupVersionKind is the GroupVersionKind of a
+	// PostgresqlServer.
+	PostgresqlServerGroupVersionKind = schema.GroupVersionKind{
+		Group:   Group,
+		Version: Version,
+		Kind:    PostgresqlServerKind,
+	}
 )
 
 func init() {

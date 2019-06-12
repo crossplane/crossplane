@@ -39,6 +39,7 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/apis/compute"
 	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/compute/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 )
 
 const (
@@ -229,7 +230,7 @@ func TestConnectNoCluster(t *testing.T) {
 
 	c := testCluster()
 	w := testWorkload()
-	w.Status.Cluster = c.ObjectReference()
+	w.Status.Cluster = meta.ReferenceTo(c, computev1alpha1.KubernetesClusterGroupVersionKind)
 	r := &Reconciler{
 		Client: fake.NewFakeClient(w),
 	}
@@ -248,7 +249,7 @@ func TestConnectNoClusterSecret(t *testing.T) {
 		Client:     fake.NewFakeClient(c, w),
 		kubeclient: NewSimpleClientset(),
 	}
-	w.Status.Cluster = c.ObjectReference()
+	w.Status.Cluster = meta.ReferenceTo(c, computev1alpha1.KubernetesClusterGroupVersionKind)
 
 	_, err := r._connect(w)
 	g.Expect(err).Should(HaveOccurred())
@@ -268,7 +269,7 @@ func TestConnectNoClusterSecretHostValue(t *testing.T) {
 	}
 	g.Expect(r.Client.Create(ctx, c)).ShouldNot(HaveOccurred())
 	g.Expect(r.Client.Get(ctx, key, c)).ShouldNot(HaveOccurred())
-	w.Status.Cluster = c.ObjectReference()
+	w.Status.Cluster = meta.ReferenceTo(c, computev1alpha1.KubernetesClusterGroupVersionKind)
 
 	_, err := r._connect(w)
 	g.Expect(err).Should(HaveOccurred())
@@ -290,7 +291,7 @@ func TestConnectInvalidSecretHostValue(t *testing.T) {
 	}
 	g.Expect(r.Client.Create(ctx, c)).ShouldNot(HaveOccurred())
 	g.Expect(r.Client.Get(ctx, key, c)).ShouldNot(HaveOccurred())
-	w.Status.Cluster = c.ObjectReference()
+	w.Status.Cluster = meta.ReferenceTo(c, computev1alpha1.KubernetesClusterGroupVersionKind)
 
 	_, err := r._connect(w)
 	g.Expect(err).Should(HaveOccurred())
@@ -312,7 +313,7 @@ func TestConnect(t *testing.T) {
 	}
 	g.Expect(r.Client.Create(ctx, c)).ShouldNot(HaveOccurred())
 	g.Expect(r.Client.Get(ctx, key, c)).ShouldNot(HaveOccurred())
-	w.Status.Cluster = c.ObjectReference()
+	w.Status.Cluster = meta.ReferenceTo(c, computev1alpha1.KubernetesClusterGroupVersionKind)
 
 	k, err := r._connect(w)
 	g.Expect(err).ShouldNot(HaveOccurred())

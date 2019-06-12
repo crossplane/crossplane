@@ -23,7 +23,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 // CloudSQL instance states
@@ -163,16 +162,6 @@ func (c *CloudsqlInstance) ConnectionSecretName() string {
 	}
 
 	return c.Spec.ConnectionSecretRef.Name
-}
-
-// ObjectReference to this CloudSQL instance instance
-func (c *CloudsqlInstance) ObjectReference() *v1.ObjectReference {
-	return util.ObjectReference(c.ObjectMeta, util.IfEmptyString(c.APIVersion, APIVersion), util.IfEmptyString(c.Kind, CloudsqlInstanceKind))
-}
-
-// OwnerReference to use this instance as an owner
-func (c *CloudsqlInstance) OwnerReference() metav1.OwnerReference {
-	return *util.ObjectToOwnerReference(c.ObjectReference())
 }
 
 // IsAvailable for usage/binding

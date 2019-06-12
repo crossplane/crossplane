@@ -31,13 +31,15 @@ import (
 
 // Kubernetes Group, Version, and Kind metadata.
 const (
-	Group                          = "extensions.crossplane.io"
-	Version                        = "v1alpha1"
-	APIVersion                     = Group + "/" + Version
+	Group      = "extensions.crossplane.io"
+	Version    = "v1alpha1"
+	APIVersion = Group + "/" + Version
+
 	ExtensionRequestKind           = "extensionrequest"
 	ExtensionRequestKindAPIVersion = ExtensionRequestKind + "." + APIVersion
-	ExtensionKind                  = "extension"
-	ExtensionKindAPIVersion        = ExtensionKind + "." + APIVersion
+
+	ExtensionKind           = "extension"
+	ExtensionKindAPIVersion = ExtensionKind + "." + APIVersion
 )
 
 var (
@@ -46,6 +48,20 @@ var (
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
+
+	// ExtensionRequestGroupVersionKind is the GVK of an ExtensionRequest.
+	ExtensionRequestGroupVersionKind = schema.GroupVersionKind{
+		Group:   Group,
+		Version: Version,
+		Kind:    ExtensionRequestKind,
+	}
+
+	// ExtensionGroupVersionKind is the GVK of an Extension.
+	ExtensionGroupVersionKind = schema.GroupVersionKind{
+		Group:   Group,
+		Version: Version,
+		Kind:    ExtensionKind,
+	}
 )
 
 func init() {

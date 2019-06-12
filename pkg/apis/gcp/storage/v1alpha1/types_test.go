@@ -1001,9 +1001,14 @@ func TestBucket_ConnectionSecret(t *testing.T) {
 			bucket: bucket,
 			want: &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
-					Namespace:       "default",
-					Name:            "bucket",
-					OwnerReferences: []metav1.OwnerReference{bucket.OwnerReference()},
+					Namespace: "default",
+					Name:      "bucket",
+					OwnerReferences: []metav1.OwnerReference{{
+						APIVersion: APIVersion,
+						Kind:       BucketKind,
+						Name:       bucket.GetName(),
+						UID:        bucket.GetUID(),
+					}},
 				},
 				Data: map[string][]byte{
 					corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(bucket.GetBucketName()),
@@ -1014,44 +1019,8 @@ func TestBucket_ConnectionSecret(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := tt.bucket.ConnectionSecret()
-			if diff := cmp.Diff(got, tt.want); diff != "" {
-				t.Errorf("Bucket.ConnectionSecret() = %v, want %v\n%s", got, tt.want, diff)
-			}
-		})
-	}
-}
-
-func TestBucket_ObjectReference(t *testing.T) {
-	tests := []struct {
-		name   string
-		bucket Bucket
-		want   *corev1.ObjectReference
-	}{
-		{"Test", Bucket{}, &corev1.ObjectReference{APIVersion: APIVersion, Kind: BucketKind}},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := tt.bucket.ObjectReference()
-			if diff := cmp.Diff(got, tt.want); diff != "" {
-				t.Errorf("Bucket.ObjectReference() = %v, want %v\n%s", got, tt.want, diff)
-			}
-		})
-	}
-}
-
-func TestBucket_OwnerReference(t *testing.T) {
-	tests := []struct {
-		name   string
-		bucket Bucket
-		want   metav1.OwnerReference
-	}{
-		{"Test", Bucket{}, metav1.OwnerReference{APIVersion: APIVersion, Kind: BucketKind}},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := tt.bucket.OwnerReference()
-			if diff := cmp.Diff(got, tt.want); diff != "" {
-				t.Errorf("Bucket.OwnerReference() = \n%+v, want \n%+v\n%s", got, tt.want, diff)
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Errorf("Bucket.ConnectionSecret() -want, +got:\n%s", diff)
 			}
 		})
 	}

@@ -31,6 +31,7 @@ import (
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	gcpcachev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/cache/v1alpha1"
 	corecontroller "github.com/crossplaneio/crossplane/pkg/controller/core"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 )
 
 // CloudMemorystoreInstanceHandler dynamically provisions Cloud Memorystore
@@ -54,8 +55,8 @@ func (h *CloudMemorystoreInstanceHandler) Provision(class *corev1alpha1.Resource
 
 	spec.ProviderRef = class.ProviderRef
 	spec.ReclaimPolicy = class.ReclaimPolicy
-	spec.ClassRef = class.ObjectReference()
-	spec.ClaimRef = claim.ObjectReference()
+	spec.ClassRef = meta.ReferenceTo(class, corev1alpha1.ResourceClassGroupVersionKind)
+	spec.ClaimRef = meta.ReferenceTo(claim, cachev1alpha1.RedisClusterGroupVersionKind)
 
 	i := &gcpcachev1alpha1.CloudMemorystoreInstance{
 		TypeMeta: metav1.TypeMeta{
@@ -65,7 +66,7 @@ func (h *CloudMemorystoreInstanceHandler) Provision(class *corev1alpha1.Resource
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:       class.Namespace,
 			Name:            fmt.Sprintf("redis-%s", claim.GetUID()),
-			OwnerReferences: []metav1.OwnerReference{claim.OwnerReference()},
+			OwnerReferences: []metav1.OwnerReference{meta.AsOwner(spec.ClaimRef)},
 		},
 		Spec: *spec,
 	}

@@ -34,6 +34,7 @@ import (
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/logging"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
@@ -156,16 +157,16 @@ func (r *Reconciler) _provision(claim corev1alpha1.ResourceClaim, handler Resour
 	}
 
 	// add finalizer
-	util.AddFinalizer(claim, r.finalizerName)
+	meta.AddFinalizer(claim, r.finalizerName)
 
 	// create new resource
-	res, err := handler.Provision(class, claim, r.Client)
+	resource, err := handler.Provision(class, claim, r.Client)
 	if err != nil {
 		return r.fail(claim, errorResourceProvisioning, err.Error())
 	}
 
 	// set resource reference to the newly created resource
-	claim.SetResourceRef(res.ObjectReference())
+	claim.SetResourceRef(meta.ReferenceTo(resource, meta.MustGetKind(resource, r.scheme)))
 
 	// set status values
 	claimStatus.Provisioner = class.Provisioner
@@ -178,8 +179,7 @@ func (r *Reconciler) _provision(claim corev1alpha1.ResourceClaim, handler Resour
 // _bind the given resource claim to a concrete Resource
 func (r *Reconciler) _bind(claim corev1alpha1.ResourceClaim, handler ResourceHandler) (reconcile.Result, error) {
 	// find resource instance
-	resNName := util.NamespaceNameFromObjectRef(claim.ResourceRef())
-	resource, err := handler.Find(resNName, r.Client)
+	resource, err := handler.Find(meta.NamespacedNameOf(claim.ResourceRef()), r.Client)
 	if err != nil {
 		// failed to retrieve the resource - requeue
 		return r.fail(claim, errorRetrievingResource, "")
@@ -192,27 +192,27 @@ func (r *Reconciler) _bind(claim corev1alpha1.ResourceClaim, handler ResourceHan
 		return reconcile.Result{RequeueAfter: RequeueOnWait}, r.Update(ctx, claim)
 	}
 
-	// Object reference to the resource: needed to retrieve resource's namespace to retrieve resource's secret
-	or := resource.ObjectReference()
-
 	// retrieve resource's secret
-	secret, err := r.kubeclient.CoreV1().Secrets(or.Namespace).Get(resource.ConnectionSecretName(), metav1.GetOptions{})
+	secret, err := r.kubeclient.CoreV1().
+		Secrets(resource.GetNamespace()).
+		Get(resource.ConnectionSecretName(), metav1.GetOptions{})
 	if err != nil {
 		return r.fail(claim, errorRetrievingResourceSecret, err.Error())
 	}
 
 	// replace secret metadata with the consuming claim's metadata (same as in service)
+	ref := meta.AsOwner(meta.ReferenceTo(claim, claim.GetObjectKind().GroupVersionKind()))
 	secret.ObjectMeta = metav1.ObjectMeta{
 		Namespace:       claim.GetNamespace(),
 		Name:            claim.GetName(),
-		OwnerReferences: []metav1.OwnerReference{claim.OwnerReference()},
+		OwnerReferences: []metav1.OwnerReference{ref},
 	}
 	if _, err := util.ApplySecret(r.kubeclient, secret); err != nil {
 		return r.fail(claim, errorApplyingResourceSecret, err.Error())
 	}
 
 	// update resource binding status
-	if err := handler.SetBindStatus(resNName, r.Client, true); err != nil {
+	if err := handler.SetBindStatus(meta.NamespacedNameOf(claim.ResourceRef()), r.Client, true); err != nil {
 		return r.fail(claim, errorSettingResourceBindStatus, err.Error())
 	}
 
@@ -235,12 +235,10 @@ func (r *Reconciler) _bind(claim corev1alpha1.ResourceClaim, handler ResourceHan
 // _delete the given resource claim
 func (r *Reconciler) _delete(claim corev1alpha1.ResourceClaim, handler ResourceHandler) (reconcile.Result, error) {
 	if claim.ResourceRef() != nil {
-		// update resource binding status
-		resNName := util.NamespaceNameFromObjectRef(claim.ResourceRef())
 
 		// TODO: decide how to handle resource binding status update error
 		// - record an event for the error for now
-		if err := handler.SetBindStatus(resNName, r.Client, false); err != nil {
+		if err := handler.SetBindStatus(meta.NamespacedNameOf(claim.ResourceRef()), r.Client, false); err != nil {
 			r.recorder.Event(claim, corev1.EventTypeWarning, errorResettingResourceBindStatus, err.Error())
 		}
 
@@ -249,7 +247,7 @@ func (r *Reconciler) _delete(claim corev1alpha1.ResourceClaim, handler ResourceH
 		claimStatus.UnsetAllDeprecatedConditions()
 		claimStatus.SetDeleting()
 	}
-	util.RemoveFinalizer(claim, r.finalizerName)
+	meta.RemoveFinalizer(claim, r.finalizerName)
 	return reconcile.Result{}, r.Update(ctx, claim)
 }
 
@@ -295,7 +293,7 @@ func (r *Reconciler) getResourceClass(claim corev1alpha1.ResourceClaim) (*corev1
 
 	// retrieve resource class for this claim
 	class := &corev1alpha1.ResourceClass{}
-	if err := r.Get(ctx, util.NamespaceNameFromObjectRef(classRef), class); err != nil {
+	if err := r.Get(ctx, meta.NamespacedNameOf(classRef), class); err != nil {
 		return nil, err
 	}
 

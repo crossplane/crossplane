@@ -37,7 +37,7 @@ import (
 	gcpv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/clients/gcp/cloudmemorystore"
 	"github.com/crossplaneio/crossplane/pkg/logging"
-	"github.com/crossplaneio/crossplane/pkg/util"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 )
 
 const (
@@ -100,7 +100,7 @@ func (c *cloudMemorystore) Create(ctx context.Context, i *v1alpha1.CloudMemoryst
 	i.Status.InstanceName = id.Instance
 	i.Status.UnsetAllDeprecatedConditions()
 	i.Status.SetCreating()
-	util.AddFinalizer(&i.ObjectMeta, finalizerName)
+	meta.AddFinalizer(i, finalizerName)
 
 	return true
 }
@@ -156,7 +156,7 @@ func (c *cloudMemorystore) Delete(ctx context.Context, i *v1alpha1.CloudMemoryst
 		}
 	}
 	i.Status.SetDeleting()
-	util.RemoveFinalizer(&i.ObjectMeta, finalizerName)
+	meta.RemoveFinalizer(i, finalizerName)
 	return false
 }
 
@@ -268,11 +268,12 @@ func (r *Reconciler) upsertSecret(ctx context.Context, s *corev1.Secret) error {
 }
 
 func connectionSecret(i *v1alpha1.CloudMemorystoreInstance) *corev1.Secret {
+	ref := meta.AsOwner(meta.ReferenceTo(i, v1alpha1.CloudMemorystoreInstanceGroupVersionKind))
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            i.ConnectionSecretName(),
 			Namespace:       i.Namespace,
-			OwnerReferences: []metav1.OwnerReference{i.OwnerReference()},
+			OwnerReferences: []metav1.OwnerReference{ref},
 		},
 
 		// TODO(negz): Include the port here too?

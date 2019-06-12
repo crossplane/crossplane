@@ -38,7 +38,7 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/clients/azure"
 	"github.com/crossplaneio/crossplane/pkg/clients/azure/redis"
 	"github.com/crossplaneio/crossplane/pkg/logging"
-	"github.com/crossplaneio/crossplane/pkg/util"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 )
 
 const (
@@ -109,7 +109,7 @@ func (a *azureRedisCache) Create(ctx context.Context, r *v1alpha1.Redis) bool {
 	r.Status.ResourceName = n
 	r.Status.UnsetAllDeprecatedConditions()
 	r.Status.SetCreating()
-	util.AddFinalizer(&r.ObjectMeta, finalizerName)
+	meta.AddFinalizer(r, finalizerName)
 
 	return true
 }
@@ -170,7 +170,7 @@ func (a *azureRedisCache) Delete(ctx context.Context, r *v1alpha1.Redis) bool {
 		}
 	}
 	r.Status.SetDeleting()
-	util.RemoveFinalizer(&r.ObjectMeta, finalizerName)
+	meta.RemoveFinalizer(r, finalizerName)
 	return false
 }
 
@@ -292,11 +292,12 @@ func (r *Reconciler) upsertSecret(ctx context.Context, s *corev1.Secret) error {
 }
 
 func connectionSecret(r *v1alpha1.Redis, accessKey string) *corev1.Secret {
+	ref := meta.AsOwner(meta.ReferenceTo(r, v1alpha1.RedisGroupVersionKind))
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            r.ConnectionSecretName(),
 			Namespace:       r.Namespace,
-			OwnerReferences: []metav1.OwnerReference{r.OwnerReference()},
+			OwnerReferences: []metav1.OwnerReference{ref},
 		},
 
 		// TODO(negz): Include the ports here too?

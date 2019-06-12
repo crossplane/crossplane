@@ -25,7 +25,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 const (
@@ -38,8 +37,6 @@ const (
 // SQLServer represents a generic Azure SQL server.
 type SQLServer interface {
 	corev1alpha1.Resource
-	metav1.Object
-	OwnerReference() metav1.OwnerReference
 	GetSpec() *SQLServerSpec
 	GetStatus() *SQLServerStatus
 	SetStatus(*SQLServerStatus)
@@ -223,16 +220,6 @@ func (m *MysqlServer) ConnectionSecretName() string {
 	return m.Spec.ConnectionSecretRef.Name
 }
 
-// ObjectReference to this MySQL Server instance
-func (m *MysqlServer) ObjectReference() *v1.ObjectReference {
-	return util.ObjectReference(m.ObjectMeta, util.IfEmptyString(m.APIVersion, APIVersion), util.IfEmptyString(m.Kind, MysqlServerKind))
-}
-
-// OwnerReference to use this instance as an owner
-func (m *MysqlServer) OwnerReference() metav1.OwnerReference {
-	return *util.ObjectToOwnerReference(m.ObjectReference())
-}
-
 // IsAvailable for usage/binding
 func (m *MysqlServer) IsAvailable() bool {
 	return m.Status.State == string(mysql.ServerStateReady)
@@ -272,16 +259,6 @@ func (p *PostgresqlServer) ConnectionSecretName() string {
 	}
 
 	return p.Spec.ConnectionSecretRef.Name
-}
-
-// ObjectReference to this PostgreSQL Server instance
-func (p *PostgresqlServer) ObjectReference() *v1.ObjectReference {
-	return util.ObjectReference(p.ObjectMeta, util.IfEmptyString(p.APIVersion, APIVersion), util.IfEmptyString(p.Kind, PostgresqlServerKind))
-}
-
-// OwnerReference to use this instance as an owner
-func (p *PostgresqlServer) OwnerReference() metav1.OwnerReference {
-	return *util.ObjectToOwnerReference(p.ObjectReference())
 }
 
 // IsAvailable for usage/binding

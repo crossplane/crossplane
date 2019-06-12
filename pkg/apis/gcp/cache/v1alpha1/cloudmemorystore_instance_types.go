@@ -200,16 +200,6 @@ func (c *CloudMemorystoreInstance) ConnectionSecretName() string {
 	return c.Spec.ConnectionSecretRef.Name
 }
 
-// ObjectReference to this CloudMemorystore instance
-func (c *CloudMemorystoreInstance) ObjectReference() *corev1.ObjectReference {
-	return util.ObjectReference(c.ObjectMeta, util.IfEmptyString(c.APIVersion, APIVersion), util.IfEmptyString(c.Kind, CloudMemorystoreInstanceKind))
-}
-
-// OwnerReference to use this instance as an owner
-func (c *CloudMemorystoreInstance) OwnerReference() metav1.OwnerReference {
-	return *util.ObjectToOwnerReference(c.ObjectReference())
-}
-
 // IsAvailable for usage/binding
 func (c *CloudMemorystoreInstance) IsAvailable() bool {
 	return c.Status.State == StateReady

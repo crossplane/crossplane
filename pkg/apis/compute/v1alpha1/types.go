@@ -22,7 +22,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 // KubernetesClusterSpec specifies the configuration of a Kubernetes cluster.
@@ -59,28 +58,6 @@ type KubernetesClusterList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []KubernetesCluster `json:"items"`
-}
-
-// ObjectReference to using this object as a reference
-func (kc *KubernetesCluster) ObjectReference() *corev1.ObjectReference {
-	if kc.Kind == "" {
-		kc.Kind = KubernetesClusterKind
-	}
-	if kc.APIVersion == "" {
-		kc.APIVersion = APIVersion
-	}
-	return &corev1.ObjectReference{
-		APIVersion: kc.APIVersion,
-		Kind:       kc.Kind,
-		Name:       kc.Name,
-		Namespace:  kc.Namespace,
-		UID:        kc.UID,
-	}
-}
-
-// OwnerReference to use this object as an owner
-func (kc *KubernetesCluster) OwnerReference() metav1.OwnerReference {
-	return *util.ObjectToOwnerReference(kc.ObjectReference())
 }
 
 // ClaimStatus returns the claim status of this Kubernetes cluster.
@@ -172,26 +149,4 @@ type WorkloadList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []Workload `json:"items"`
-}
-
-// ObjectReference to using this object as a reference
-func (kc *Workload) ObjectReference() *corev1.ObjectReference {
-	if kc.Kind == "" {
-		kc.Kind = KubernetesClusterKind
-	}
-	if kc.APIVersion == "" {
-		kc.APIVersion = APIVersion
-	}
-	return &corev1.ObjectReference{
-		APIVersion: kc.APIVersion,
-		Kind:       kc.Kind,
-		Name:       kc.Name,
-		Namespace:  kc.Namespace,
-		UID:        kc.UID,
-	}
-}
-
-// OwnerReference to use this object as an owner
-func (kc *Workload) OwnerReference() metav1.OwnerReference {
-	return *util.ObjectToOwnerReference(kc.ObjectReference())
 }

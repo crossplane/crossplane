@@ -40,6 +40,7 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/clients/aws"
 	"github.com/crossplaneio/crossplane/pkg/clients/aws/rds"
 	"github.com/crossplaneio/crossplane/pkg/logging"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
@@ -128,18 +129,12 @@ func (r *Reconciler) fail(instance *databasev1alpha1.RDSInstance, reason, msg st
 
 // connectionSecret return secret object for this resource
 func connectionSecret(instance *databasev1alpha1.RDSInstance, password string) *corev1.Secret {
-	if instance.APIVersion == "" {
-		instance.APIVersion = "database.aws.crossplane.io/v1alpha1"
-	}
-	if instance.Kind == "" {
-		instance.Kind = "RDSInstance"
-	}
-
+	ref := meta.AsOwner(meta.ReferenceTo(instance, databasev1alpha1.RDSInstanceGroupVersionKind))
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            instance.ConnectionSecretName(),
 			Namespace:       instance.Namespace,
-			OwnerReferences: []metav1.OwnerReference{instance.OwnerReference()},
+			OwnerReferences: []metav1.OwnerReference{ref},
 		},
 
 		Data: map[string][]byte{
@@ -195,7 +190,7 @@ func (r *Reconciler) _create(instance *databasev1alpha1.RDSInstance, client rds.
 	instance.Status.SetCreating()
 	instance.Status.InstanceName = resourceName
 
-	util.AddFinalizer(&instance.ObjectMeta, finalizer)
+	meta.AddFinalizer(instance, finalizer)
 
 	return resultRequeue, r.Update(ctx, instance)
 }
@@ -251,7 +246,7 @@ func (r *Reconciler) _delete(instance *databasev1alpha1.RDSInstance, client rds.
 	}
 
 	instance.Status.SetDeprecatedCondition(corev1alpha1.NewDeprecatedCondition(corev1alpha1.DeprecatedDeleting, "", ""))
-	util.RemoveFinalizer(&instance.ObjectMeta, finalizer)
+	meta.RemoveFinalizer(instance, finalizer)
 	return result, r.Update(ctx, instance)
 }
 

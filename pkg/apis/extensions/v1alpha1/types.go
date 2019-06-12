@@ -23,7 +23,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 // TODO: how do we pretty print conditioned status items? There may be multiple of them, and they
@@ -79,19 +78,6 @@ type ExtensionRequestStatus struct {
 	corev1alpha1.DeprecatedConditionedStatus
 	InstallJob      *corev1.ObjectReference `json:"installJob,omitempty"`
 	ExtensionRecord *corev1.ObjectReference `json:"extensionRecord,omitempty"`
-}
-
-// ObjectReference returns the Kubernetes object reference to this resource.
-func (er *ExtensionRequest) ObjectReference() *corev1.ObjectReference {
-	return util.ObjectReference(
-		er.ObjectMeta,
-		util.IfEmptyString(er.APIVersion, APIVersion),
-		util.IfEmptyString(er.Kind, ExtensionRequestKind))
-}
-
-// OwnerReference return an owner reference that points to this extension request
-func (er *ExtensionRequest) OwnerReference() metav1.OwnerReference {
-	return *util.ObjectToOwnerReference(er.ObjectReference())
 }
 
 // +genclient
@@ -201,17 +187,4 @@ type ControllerDeployment struct {
 // PermissionsSpec defines the permissions that an extension will require to operate.
 type PermissionsSpec struct {
 	Rules []rbac.PolicyRule `json:"rules,omitempty"`
-}
-
-// ObjectReference returns the Kubernetes object reference to this resource.
-func (e *Extension) ObjectReference() *corev1.ObjectReference {
-	return util.ObjectReference(
-		e.ObjectMeta,
-		util.IfEmptyString(e.APIVersion, APIVersion),
-		util.IfEmptyString(e.Kind, ExtensionKind))
-}
-
-// OwnerReference return an owner reference that points to this extension
-func (e *Extension) OwnerReference() metav1.OwnerReference {
-	return *util.ObjectToOwnerReference(e.ObjectReference())
 }

@@ -44,6 +44,7 @@ import (
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/apis/workload/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/logging"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
@@ -166,7 +167,7 @@ type remoteCluster struct {
 }
 
 func (c *remoteCluster) sync(ctx context.Context, ar *v1alpha1.KubernetesApplicationResource, secrets []corev1.Secret) reconcile.Result {
-	util.AddFinalizer(ar, finalizerName)
+	meta.AddFinalizer(ar, finalizerName)
 	ar.Status.UnsetAllDeprecatedConditions()
 
 	// Our CRD requires template to be specified, but just in case...
@@ -250,7 +251,7 @@ func (c *remoteCluster) delete(ctx context.Context, ar *v1alpha1.KubernetesAppli
 			return reconcile.Result{Requeue: true}
 		}
 	}
-	util.RemoveFinalizer(ar, finalizerName)
+	meta.RemoveFinalizer(ar, finalizerName)
 	return reconcile.Result{Requeue: false}
 }
 
@@ -291,7 +292,7 @@ func (c *unstructuredClient) sync(ctx context.Context, template *unstructured.Un
 		// it does not exist in the API server) or updated to reflect its
 		// current state according to the API server.
 
-		if !hasSameController(remote, template) {
+		if !haveSameController(remote, template) {
 			return errors.Errorf("%s %s/%s exists and is not controlled by %s %s",
 				remote.GetObjectKind().GroupVersionKind().Kind, remote.GetNamespace(), remote.GetName(),
 				v1alpha1.KubernetesApplicationResourceKind, template.GetAnnotations()[RemoteControllerName])
@@ -348,7 +349,7 @@ func (c *unstructuredClient) delete(ctx context.Context, template *unstructured.
 	}
 
 	// The object exists, but we don't own it.
-	if !hasSameController(remote, template) {
+	if !haveSameController(remote, template) {
 		return nil
 	}
 
@@ -370,7 +371,7 @@ func (c *secretClient) sync(ctx context.Context, template *corev1.Secret) error 
 		// it does not exist in the API server) or updated to reflect its
 		// current state according to the API server.
 
-		if !hasSameController(remote, template) {
+		if !haveSameController(remote, template) {
 			return errors.Errorf("secret %s/%s exists and is not controlled by %s %s",
 				remote.GetNamespace(), remote.GetName(),
 				v1alpha1.KubernetesApplicationResourceKind, template.GetAnnotations()[RemoteControllerName])
@@ -402,7 +403,7 @@ func (c *secretClient) delete(ctx context.Context, template *corev1.Secret) erro
 	}
 
 	// We don't own the existing object.
-	if !hasSameController(remote, template) {
+	if !haveSameController(remote, template) {
 		return nil
 	}
 
@@ -506,7 +507,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		// If we're being deleted and we can't connect to our scheduled cluster
 		// because it doesn't exist we assume the cluster was deleted.
 		if ar.GetDeletionTimestamp() != nil && kerrors.IsNotFound(errors.Cause(err)) {
-			util.RemoveFinalizer(ar, finalizerName)
+			meta.RemoveFinalizer(ar, finalizerName)
 			return reconcile.Result{Requeue: false}, errors.Wrapf(r.kube.Update(ctx, ar), "cannot update %s %s", v1alpha1.KubernetesApplicationResourceKind, req.NamespacedName)
 		}
 		ar.Status.SetFailed(reasonFetchingClient, err.Error())
@@ -537,17 +538,11 @@ func (r *Reconciler) getConnectionSecrets(ctx context.Context, ar *v1alpha1.Kube
 }
 
 func setRemoteController(ctrl metav1.Object, obj metav1.Object) {
-	a := obj.GetAnnotations()
-
-	// Unstructured objects can return a nil map of annotations.
-	if a == nil {
-		a = map[string]string{}
-	}
-
-	a[RemoteControllerNamespace] = ctrl.GetNamespace()
-	a[RemoteControllerName] = ctrl.GetName()
-	a[RemoteControllerUID] = string(ctrl.GetUID())
-	obj.SetAnnotations(a)
+	meta.AddAnnotations(obj, map[string]string{
+		RemoteControllerNamespace: ctrl.GetNamespace(),
+		RemoteControllerName:      ctrl.GetName(),
+		RemoteControllerUID:       string(ctrl.GetUID()),
+	})
 }
 
 func hasController(obj metav1.Object) bool {
@@ -567,7 +562,7 @@ func hasController(obj metav1.Object) bool {
 	return true
 }
 
-func hasSameController(a, b metav1.Object) bool {
+func haveSameController(a, b metav1.Object) bool {
 	// We do not consider two objects without any controller to have
 	// the same controller.
 	if !hasController(a) {

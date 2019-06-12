@@ -40,6 +40,7 @@ import (
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/apis/extensions"
 	"github.com/crossplaneio/crossplane/pkg/apis/extensions/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
@@ -441,17 +442,31 @@ func TestProcessRBAC(t *testing.T) {
 				err: nil,
 				sa: &corev1.ServiceAccount{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:            resourceName,
-						Namespace:       namespace,
-						OwnerReferences: []metav1.OwnerReference{resource().OwnerReference()}}},
+						Name:      resourceName,
+						Namespace: namespace,
+						OwnerReferences: []metav1.OwnerReference{
+							meta.AsOwner(meta.ReferenceTo(resource(), v1alpha1.ExtensionGroupVersionKind)),
+						},
+					},
+				},
 				cr: &rbac.ClusterRole{
-					ObjectMeta: metav1.ObjectMeta{Name: resourceName, OwnerReferences: []metav1.OwnerReference{resource().OwnerReference()}},
-					Rules:      defaultPolicyRules(),
+					ObjectMeta: metav1.ObjectMeta{
+						Name: resourceName,
+						OwnerReferences: []metav1.OwnerReference{
+							meta.AsOwner(meta.ReferenceTo(resource(), v1alpha1.ExtensionGroupVersionKind)),
+						},
+					},
+					Rules: defaultPolicyRules(),
 				},
 				crb: &rbac.ClusterRoleBinding{
-					ObjectMeta: metav1.ObjectMeta{Name: resourceName, OwnerReferences: []metav1.OwnerReference{resource().OwnerReference()}},
-					RoleRef:    rbac.RoleRef{APIGroup: rbac.GroupName, Kind: "ClusterRole", Name: resourceName},
-					Subjects:   []rbac.Subject{{Name: resourceName, Namespace: namespace, Kind: rbac.ServiceAccountKind}},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: resourceName,
+						OwnerReferences: []metav1.OwnerReference{
+							meta.AsOwner(meta.ReferenceTo(resource(), v1alpha1.ExtensionGroupVersionKind)),
+						},
+					},
+					RoleRef:  rbac.RoleRef{APIGroup: rbac.GroupName, Kind: "ClusterRole", Name: resourceName},
+					Subjects: []rbac.Subject{{Name: resourceName, Namespace: namespace, Kind: rbac.ServiceAccountKind}},
 				},
 			},
 		},
@@ -539,9 +554,11 @@ func TestProcessDeployment(t *testing.T) {
 				err: nil,
 				d: &apps.Deployment{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:            controllerDeploymentName,
-						Namespace:       namespace,
-						OwnerReferences: []metav1.OwnerReference{resource().OwnerReference()},
+						Name:      controllerDeploymentName,
+						Namespace: namespace,
+						OwnerReferences: []metav1.OwnerReference{
+							meta.AsOwner(meta.ReferenceTo(resource(), v1alpha1.ExtensionGroupVersionKind)),
+						},
 					},
 					Spec: apps.DeploymentSpec{
 						Template: corev1.PodTemplateSpec{

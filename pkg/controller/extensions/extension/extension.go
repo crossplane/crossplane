@@ -36,6 +36,7 @@ import (
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/apis/extensions/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/logging"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 )
 
 const (
@@ -162,12 +163,14 @@ func (h *extensionHandler) processRBAC(ctx context.Context) error {
 		return nil
 	}
 
+	owner := meta.AsOwner(meta.ReferenceTo(h.ext, v1alpha1.ExtensionGroupVersionKind))
+
 	// create service account
 	sa := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            h.ext.Name,
 			Namespace:       h.ext.Namespace,
-			OwnerReferences: []metav1.OwnerReference{h.ext.OwnerReference()},
+			OwnerReferences: []metav1.OwnerReference{owner},
 		},
 	}
 	if err := h.kube.Create(ctx, sa); err != nil && !kerrors.IsAlreadyExists(err) {
@@ -178,7 +181,7 @@ func (h *extensionHandler) processRBAC(ctx context.Context) error {
 	cr := &rbac.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            h.ext.Name,
-			OwnerReferences: []metav1.OwnerReference{h.ext.OwnerReference()},
+			OwnerReferences: []metav1.OwnerReference{owner},
 		},
 		Rules: h.ext.Spec.Permissions.Rules,
 	}
@@ -190,7 +193,7 @@ func (h *extensionHandler) processRBAC(ctx context.Context) error {
 	crb := &rbac.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            h.ext.Name,
-			OwnerReferences: []metav1.OwnerReference{h.ext.OwnerReference()},
+			OwnerReferences: []metav1.OwnerReference{owner},
 		},
 		RoleRef: rbac.RoleRef{APIGroup: rbac.GroupName, Kind: "ClusterRole", Name: h.ext.Name},
 		Subjects: []rbac.Subject{
@@ -214,11 +217,12 @@ func (h *extensionHandler) processDeployment(ctx context.Context) error {
 	deploymentSpec := *controllerDeployment.Spec.DeepCopy()
 	deploymentSpec.Template.Spec.ServiceAccountName = h.ext.Name
 
+	ref := meta.AsOwner(meta.ReferenceTo(h.ext, v1alpha1.ExtensionGroupVersionKind))
 	d := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            controllerDeployment.Name,
 			Namespace:       h.ext.Namespace,
-			OwnerReferences: []metav1.OwnerReference{h.ext.OwnerReference()},
+			OwnerReferences: []metav1.OwnerReference{ref},
 		},
 		Spec: deploymentSpec,
 	}

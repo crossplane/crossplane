@@ -24,7 +24,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 // ReplicationGroup states.
@@ -386,16 +385,6 @@ func (c *ReplicationGroup) ConnectionSecretName() string {
 	}
 
 	return c.Spec.ConnectionSecretRef.Name
-}
-
-// ObjectReference to this ReplicationGroup.
-func (c *ReplicationGroup) ObjectReference() *v1.ObjectReference {
-	return util.ObjectReference(c.ObjectMeta, util.IfEmptyString(c.APIVersion, APIVersion), util.IfEmptyString(c.Kind, ReplicationGroupKind))
-}
-
-// OwnerReference to use this instance as an owner
-func (c *ReplicationGroup) OwnerReference() metav1.OwnerReference {
-	return *util.ObjectToOwnerReference(c.ObjectReference())
 }
 
 // IsAvailable for usage/binding

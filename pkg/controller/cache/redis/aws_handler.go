@@ -30,6 +30,7 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/apis/aws/cache/v1alpha1"
 	cachev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/cache/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 )
 
 // ReplicationGroupHandler dynamically provisions ReplicationGroup resources given a resource class.
@@ -52,8 +53,8 @@ func (h *ReplicationGroupHandler) Provision(class *corev1alpha1.ResourceClass, c
 
 	spec.ProviderRef = class.ProviderRef
 	spec.ReclaimPolicy = class.ReclaimPolicy
-	spec.ClassRef = class.ObjectReference()
-	spec.ClaimRef = claim.ObjectReference()
+	spec.ClassRef = meta.ReferenceTo(class, corev1alpha1.ResourceClassGroupVersionKind)
+	spec.ClaimRef = meta.ReferenceTo(claim, cachev1alpha1.RedisClusterGroupVersionKind)
 
 	i := &v1alpha1.ReplicationGroup{
 		TypeMeta: metav1.TypeMeta{
@@ -63,7 +64,7 @@ func (h *ReplicationGroupHandler) Provision(class *corev1alpha1.ResourceClass, c
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:       class.Namespace,
 			Name:            fmt.Sprintf("redis-%s", claim.GetUID()),
-			OwnerReferences: []metav1.OwnerReference{claim.OwnerReference()},
+			OwnerReferences: []metav1.OwnerReference{meta.AsOwner(spec.ClaimRef)},
 		},
 		Spec: *spec,
 	}

@@ -26,7 +26,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplaneio/crossplane/pkg/apis/azure/compute/v1alpha1"
+	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/compute/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 )
 
 // AKSClusterHandler handles Kubernetes cluster functionality
@@ -44,15 +46,15 @@ func (r *AKSClusterHandler) Find(name types.NamespacedName, c client.Client) (co
 // Provision a new AKSCluster
 func (r *AKSClusterHandler) Provision(class *corev1alpha1.ResourceClass, claim corev1alpha1.ResourceClaim, c client.Client) (corev1alpha1.Resource, error) {
 	// construct AKSCluster Spec from class definition
-	resourceInstance := v1alpha1.NewAKSClusterSpec(class.Parameters)
+	spec := v1alpha1.NewAKSClusterSpec(class.Parameters)
 
 	// assign provider reference and reclaim policy from the resource class
-	resourceInstance.ProviderRef = class.ProviderRef
-	resourceInstance.ReclaimPolicy = class.ReclaimPolicy
+	spec.ProviderRef = class.ProviderRef
+	spec.ReclaimPolicy = class.ReclaimPolicy
 
 	// set class and claim references
-	resourceInstance.ClassRef = class.ObjectReference()
-	resourceInstance.ClaimRef = claim.ObjectReference()
+	spec.ClassRef = meta.ReferenceTo(class, corev1alpha1.ResourceClassGroupVersionKind)
+	spec.ClaimRef = meta.ReferenceTo(claim, computev1alpha1.KubernetesClusterGroupVersionKind)
 
 	// create and save AKSCluster
 	cluster := &v1alpha1.AKSCluster{
@@ -60,9 +62,9 @@ func (r *AKSClusterHandler) Provision(class *corev1alpha1.ResourceClass, claim c
 			Labels:          map[string]string{labelProviderKey: labelProviderAzure},
 			Namespace:       class.Namespace,
 			Name:            fmt.Sprintf("aks-%s", claim.GetUID()),
-			OwnerReferences: []metav1.OwnerReference{claim.OwnerReference()},
+			OwnerReferences: []metav1.OwnerReference{meta.AsOwner(spec.ClaimRef)},
 		},
-		Spec: *resourceInstance,
+		Spec: *spec,
 	}
 
 	if err := c.Create(ctx, cluster); err != nil {

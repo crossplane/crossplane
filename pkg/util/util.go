@@ -59,28 +59,6 @@ func GenerateNameMaxLength(base string, maxLength int) string {
 	return fmt.Sprintf("%s-%s", base, rand.String(randomLength))
 }
 
-// ObjectReference from provided ObjectMeta, apiVersion and kind
-func ObjectReference(o metav1.ObjectMeta, apiVersion, kind string) *corev1.ObjectReference {
-	return &corev1.ObjectReference{
-		APIVersion:      apiVersion,
-		Kind:            kind,
-		Name:            o.Name,
-		Namespace:       o.Namespace,
-		ResourceVersion: o.ResourceVersion,
-		UID:             o.UID,
-	}
-}
-
-// ObjectToOwnerReference converts core ObjectReference to meta OwnerReference
-func ObjectToOwnerReference(r *corev1.ObjectReference) *metav1.OwnerReference {
-	return &metav1.OwnerReference{
-		APIVersion: r.APIVersion,
-		Kind:       r.Kind,
-		Name:       r.Name,
-		UID:        r.UID,
-	}
-}
-
 // ApplySecret creates or updates if exist kubernetes secret
 func ApplySecret(c kubernetes.Interface, s *corev1.Secret) (*corev1.Secret, error) {
 	_, err := c.CoreV1().Secrets(s.Namespace).Get(s.Name, metav1.GetOptions{})

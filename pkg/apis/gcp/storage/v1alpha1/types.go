@@ -25,6 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
@@ -827,26 +828,17 @@ func (b *Bucket) ConnectionSecretName() string {
 
 // ConnectionSecret returns a connection secret for this bucket instance
 func (b *Bucket) ConnectionSecret() *corev1.Secret {
+	ref := meta.AsOwner(meta.ReferenceTo(b, BucketGroupVersionKind))
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:       b.Namespace,
 			Name:            b.ConnectionSecretName(),
-			OwnerReferences: []metav1.OwnerReference{b.OwnerReference()},
+			OwnerReferences: []metav1.OwnerReference{ref},
 		},
 		Data: map[string][]byte{
 			corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(b.GetBucketName()),
 		},
 	}
-}
-
-// ObjectReference to this resource instance
-func (b *Bucket) ObjectReference() *corev1.ObjectReference {
-	return util.ObjectReference(b.ObjectMeta, util.IfEmptyString(b.APIVersion, APIVersion), util.IfEmptyString(b.Kind, BucketKind))
-}
-
-// OwnerReference to use this instance as an owner
-func (b *Bucket) OwnerReference() metav1.OwnerReference {
-	return *util.ObjectToOwnerReference(b.ObjectReference())
 }
 
 // GetBucketName based on the NameFormat spec value,

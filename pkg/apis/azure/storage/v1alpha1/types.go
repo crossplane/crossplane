@@ -22,6 +22,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
@@ -91,24 +92,15 @@ func (a *Account) ConnectionSecretName() string {
 
 // ConnectionSecret returns a connection secret for this account instance
 func (a *Account) ConnectionSecret() *corev1.Secret {
+	ref := meta.AsOwner(meta.ReferenceTo(a, AccountGroupVersionKind))
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace:       a.Namespace,
+			Namespace:       a.GetNamespace(),
 			Name:            a.ConnectionSecretName(),
-			OwnerReferences: []metav1.OwnerReference{a.OwnerReference()},
+			OwnerReferences: []metav1.OwnerReference{ref},
 		},
 		Data: map[string][]byte{},
 	}
-}
-
-// ObjectReference to this resource instance
-func (a *Account) ObjectReference() *corev1.ObjectReference {
-	return util.ObjectReference(a.ObjectMeta, util.IfEmptyString(a.APIVersion, APIVersion), util.IfEmptyString(a.Kind, AccountKind))
-}
-
-// OwnerReference to use this instance as an owner
-func (a *Account) OwnerReference() metav1.OwnerReference {
-	return *util.ObjectToOwnerReference(a.ObjectReference())
 }
 
 // IsAvailable for usage/binding
@@ -221,16 +213,6 @@ func (c *Container) GetContainerName() string {
 // ConnectionSecretName returns a secret name from the reference
 func (c *Container) ConnectionSecretName() string {
 	return util.IfEmptyString(c.Spec.ConnectionSecretNameOverride, c.Name)
-}
-
-// ObjectReference to this resource instance
-func (c *Container) ObjectReference() *corev1.ObjectReference {
-	return util.ObjectReference(c.ObjectMeta, util.IfEmptyString(c.APIVersion, APIVersion), util.IfEmptyString(c.Kind, ContainerKind))
-}
-
-// OwnerReference to use this instance as an owner
-func (c *Container) OwnerReference() metav1.OwnerReference {
-	return *util.ObjectToOwnerReference(c.ObjectReference())
 }
 
 // IsAvailable for usage/binding

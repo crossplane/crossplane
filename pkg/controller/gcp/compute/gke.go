@@ -43,6 +43,7 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/clients/gcp/gke"
 	"github.com/crossplaneio/crossplane/pkg/controller/core"
 	"github.com/crossplaneio/crossplane/pkg/logging"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
@@ -182,7 +183,7 @@ func (r *Reconciler) _connect(instance *gcpcomputev1alpha1.GKECluster) (gke.Clie
 func (r *Reconciler) _create(instance *gcpcomputev1alpha1.GKECluster, client gke.Client) (reconcile.Result, error) {
 	clusterName := fmt.Sprintf("%s%s", clusterNamePrefix, instance.UID)
 
-	util.AddFinalizer(&instance.ObjectMeta, finalizer)
+	meta.AddFinalizer(instance, finalizer)
 
 	_, err := client.CreateCluster(clusterName, instance.Spec)
 	if err != nil && !gcp.IsErrorAlreadyExists(err) {
@@ -241,7 +242,7 @@ func (r *Reconciler) _delete(instance *gcpcomputev1alpha1.GKECluster, client gke
 			return r.fail(instance, errorDeleteCluster, err.Error())
 		}
 	}
-	util.RemoveFinalizer(&instance.ObjectMeta, finalizer)
+	meta.RemoveFinalizer(instance, finalizer)
 	instance.Status.UnsetAllDeprecatedConditions()
 	return result, errors.Wrapf(r.Update(ctx, instance), updateErrorMessageFormat, instance.GetName())
 }

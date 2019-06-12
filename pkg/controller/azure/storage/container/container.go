@@ -39,7 +39,7 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/clients/azure"
 	"github.com/crossplaneio/crossplane/pkg/clients/azure/storage"
 	"github.com/crossplaneio/crossplane/pkg/logging"
-	"github.com/crossplaneio/crossplane/pkg/util"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 )
 
 const (
@@ -148,7 +148,7 @@ func (m *containerSyncdeleterMaker) newSyncdeleter(ctx context.Context, c *v1alp
 		// For storage account not found errors - check if we are on deletion path
 		// if so - remove finalizer from this container object
 		if kerrors.IsNotFound(err) && c.DeletionTimestamp != nil {
-			util.RemoveFinalizer(&c.ObjectMeta, finalizer)
+			meta.RemoveFinalizer(c, finalizer)
 			if err := m.Client.Update(ctx, c); err != nil {
 				return nil, errors.Wrapf(err, "failed to update after removing finalizer")
 			}
@@ -174,9 +174,9 @@ func (m *containerSyncdeleterMaker) newSyncdeleter(ctx context.Context, c *v1alp
 
 	// set owner reference on the container to storage account, thus
 	// if the account is delete - container is garbage collected as well
-	or := acct.OwnerReference()
+	or := meta.AsOwner(meta.ReferenceTo(acct, v1alpha1.AccountGroupVersionKind))
 	or.BlockOwnerDeletion = to.BoolPtr(true)
-	util.AddOwnerReference(&c.ObjectMeta, or)
+	meta.AddOwnerReference(c, or)
 
 	// save connection secret reference
 	c.Status.ConnectionSecretRef = corev1.LocalObjectReference{Name: s.Name}
@@ -228,7 +228,7 @@ func (csd *containerSyncdeleter) delete(ctx context.Context) (reconcile.Result, 
 			return resultRequeue, csd.kube.Status().Update(ctx, csd.container)
 		}
 	}
-	util.RemoveFinalizer(&csd.container.ObjectMeta, finalizer)
+	meta.RemoveFinalizer(csd.container, finalizer)
 	return reconcile.Result{}, csd.kube.Update(ctx, csd.container)
 }
 
@@ -263,7 +263,7 @@ var _ createupdater = &containerCreateUpdater{}
 func (ccu *containerCreateUpdater) create(ctx context.Context) (reconcile.Result, error) {
 	container := ccu.container
 
-	util.AddFinalizer(&container.ObjectMeta, finalizer)
+	meta.AddFinalizer(container, finalizer)
 	if err := ccu.kube.Update(ctx, container); err != nil {
 		return resultRequeue, errors.Wrapf(err, "failed to update container spec")
 	}

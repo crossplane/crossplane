@@ -37,6 +37,7 @@ import (
 	workloadv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/workload/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/controller/core"
 	"github.com/crossplaneio/crossplane/pkg/logging"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 )
 
 const (
@@ -87,7 +88,7 @@ func (s *roundRobinScheduler) schedule(ctx context.Context, app *workloadv1alpha
 	cluster := clusters.Items[index]
 	s.lastClusterIndex++
 
-	app.Status.Cluster = cluster.ObjectReference()
+	app.Status.Cluster = meta.ReferenceTo(&cluster, computev1alpha1.KubernetesClusterGroupVersionKind)
 	app.Status.State = workloadv1alpha1.KubernetesApplicationStateScheduled
 	app.Status.UnsetAllDeprecatedConditions()
 	app.Status.SetReady()

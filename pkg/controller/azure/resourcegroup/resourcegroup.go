@@ -36,7 +36,7 @@ import (
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/clients/azure/resourcegroup"
 	"github.com/crossplaneio/crossplane/pkg/logging"
-	"github.com/crossplaneio/crossplane/pkg/util"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 )
 
 const (
@@ -98,7 +98,7 @@ func (a *azureResourceGroup) Create(ctx context.Context, r *v1alpha1.ResourceGro
 	r.Status.Name = r.Spec.Name
 	r.Status.UnsetAllDeprecatedConditions()
 	r.Status.SetCreating()
-	util.AddFinalizer(&r.ObjectMeta, finalizer)
+	meta.AddFinalizer(r, finalizer)
 
 	return true
 }
@@ -133,7 +133,7 @@ func (a *azureResourceGroup) Delete(ctx context.Context, r *v1alpha1.ResourceGro
 		}
 	}
 	r.Status.SetDeleting()
-	util.RemoveFinalizer(&r.ObjectMeta, finalizer)
+	meta.RemoveFinalizer(r, finalizer)
 
 	return false
 }

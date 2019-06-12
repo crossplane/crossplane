@@ -41,6 +41,7 @@ import (
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	azureclients "github.com/crossplaneio/crossplane/pkg/clients/azure"
 	"github.com/crossplaneio/crossplane/pkg/logging"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
@@ -149,11 +150,9 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	}
 
 	// Add finalizer
-	if !util.HasFinalizer(&instance.ObjectMeta, finalizer) {
-		util.AddFinalizer(&instance.ObjectMeta, finalizer)
-		if err := r.Update(ctx, instance); err != nil {
-			return resultRequeue, err
-		}
+	meta.AddFinalizer(instance, finalizer)
+	if err := r.Update(ctx, instance); err != nil {
+		return resultRequeue, err
 	}
 
 	if instance.Status.RunningOperation != "" {
@@ -361,7 +360,7 @@ func (r *Reconciler) delete(instance *computev1alpha1.AKSCluster, aksClient *azu
 		log.V(logging.Debug).Info("all resources deleted for AKS cluster", "instance", instance)
 	}
 
-	util.RemoveFinalizer(&instance.ObjectMeta, finalizer)
+	meta.RemoveFinalizer(instance, finalizer)
 	instance.Status.UnsetAllDeprecatedConditions()
 	instance.Status.SetDeleting()
 	return result, r.Update(ctx, instance)
@@ -390,11 +389,12 @@ func (r *Reconciler) servicePrincipalSecret(instance *computev1alpha1.AKSCluster
 	}
 
 	// save the service principal secret
+	ref := meta.AsOwner(meta.ReferenceTo(instance, computev1alpha1.AKSClusterGroupVersionKind))
 	spSecret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            secretName,
 			Namespace:       instance.Namespace,
-			OwnerReferences: []metav1.OwnerReference{instance.OwnerReference()},
+			OwnerReferences: []metav1.OwnerReference{ref},
 		},
 		Data: map[string][]byte{spSecretKey: []byte(newSPSecretValue.String())},
 	}

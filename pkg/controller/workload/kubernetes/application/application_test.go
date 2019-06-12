@@ -36,6 +36,7 @@ import (
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/apis/workload/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/controller/core"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
@@ -46,9 +47,9 @@ const (
 )
 
 var (
-	errorBoom = errors.New("boom")
-	meta      = metav1.ObjectMeta{Namespace: namespace, Name: name, UID: uid}
-	ctx       = context.Background()
+	errorBoom  = errors.New("boom")
+	objectMeta = metav1.ObjectMeta{Namespace: namespace, Name: name, UID: uid}
+	ctx        = context.Background()
 
 	templateA = v1alpha1.KubernetesApplicationResourceTemplate{
 		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: "coolTemplateA"},
@@ -63,9 +64,15 @@ var (
 		},
 	}
 
+	cluster = &computev1alpha1.KubernetesCluster{
+		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: "coolCluster"},
+	}
+
+	clusterRef = meta.ReferenceTo(cluster, computev1alpha1.KubernetesClusterGroupVersionKind)
+
 	resourceA = &v1alpha1.KubernetesApplicationResource{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace:   meta.GetNamespace(),
+			Namespace:   objectMeta.GetNamespace(),
 			Name:        templateA.GetName(),
 			Labels:      templateA.GetLabels(),
 			Annotations: templateA.GetAnnotations(),
@@ -76,12 +83,8 @@ var (
 		Spec: templateA.Spec,
 		Status: v1alpha1.KubernetesApplicationResourceStatus{
 			State:   v1alpha1.KubernetesApplicationResourceStateScheduled,
-			Cluster: cluster.ObjectReference(),
+			Cluster: clusterRef,
 		},
-	}
-
-	cluster = &computev1alpha1.KubernetesCluster{
-		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: "coolCluster"},
 	}
 )
 
@@ -122,7 +125,7 @@ func withTemplates(t ...v1alpha1.KubernetesApplicationResourceTemplate) kubeAppM
 }
 
 func kubeApp(rm ...kubeAppModifier) *v1alpha1.KubernetesApplication {
-	r := &v1alpha1.KubernetesApplication{ObjectMeta: meta}
+	r := &v1alpha1.KubernetesApplication{ObjectMeta: objectMeta}
 
 	for _, m := range rm {
 		m(r)
@@ -142,7 +145,7 @@ func TestCreatePredicate(t *testing.T) {
 			event: event.CreateEvent{
 				Object: &v1alpha1.KubernetesApplication{
 					Status: v1alpha1.KubernetesApplicationStatus{
-						Cluster: cluster.ObjectReference(),
+						Cluster: clusterRef,
 					},
 				},
 			},
@@ -184,7 +187,7 @@ func TestUpdatePredicate(t *testing.T) {
 			event: event.UpdateEvent{
 				ObjectNew: &v1alpha1.KubernetesApplication{
 					Status: v1alpha1.KubernetesApplicationStatus{
-						Cluster: cluster.ObjectReference(),
+						Cluster: clusterRef,
 					},
 				},
 			},
@@ -472,7 +475,7 @@ func TestGarbageCollect(t *testing.T) {
 				kube: &test.MockClient{
 					MockList: func(_ context.Context, _ *client.ListOptions, obj runtime.Object) error {
 						ref := metav1.NewControllerRef(kubeApp(), v1alpha1.KubernetesApplicationGroupVersionKind)
-						m := meta.DeepCopy()
+						m := objectMeta.DeepCopy()
 						m.SetOwnerReferences([]metav1.OwnerReference{*ref})
 						*obj.(*v1alpha1.KubernetesApplicationResourceList) = v1alpha1.KubernetesApplicationResourceList{
 							Items: []v1alpha1.KubernetesApplicationResource{{ObjectMeta: *m}},
@@ -491,7 +494,7 @@ func TestGarbageCollect(t *testing.T) {
 				kube: &test.MockClient{
 					MockList: func(_ context.Context, _ *client.ListOptions, obj runtime.Object) error {
 						ref := metav1.NewControllerRef(kubeApp(), v1alpha1.KubernetesApplicationGroupVersionKind)
-						m := meta.DeepCopy()
+						m := objectMeta.DeepCopy()
 						m.SetOwnerReferences([]metav1.OwnerReference{*ref})
 						*obj.(*v1alpha1.KubernetesApplicationResourceList) = v1alpha1.KubernetesApplicationResourceList{
 							Items: []v1alpha1.KubernetesApplicationResource{{ObjectMeta: *m}},
@@ -529,7 +532,7 @@ func TestGarbageCollect(t *testing.T) {
 				kube: &test.MockClient{
 					MockList: func(_ context.Context, _ *client.ListOptions, obj runtime.Object) error {
 						*obj.(*v1alpha1.KubernetesApplicationResourceList) = v1alpha1.KubernetesApplicationResourceList{
-							Items: []v1alpha1.KubernetesApplicationResource{{ObjectMeta: meta}},
+							Items: []v1alpha1.KubernetesApplicationResource{{ObjectMeta: objectMeta}},
 						}
 						return nil
 					},
@@ -616,7 +619,7 @@ func TestSyncApplicationResource(t *testing.T) {
 				v1alpha1.KubernetesApplicationResourceKind,
 				templateA.GetName(),
 				v1alpha1.KubernetesApplicationKind,
-				meta.GetName(),
+				objectMeta.GetName(),
 			)),
 		},
 		{
@@ -654,7 +657,7 @@ func TestRenderTemplate(t *testing.T) {
 	}{
 		{
 			name:     "Successful",
-			app:      kubeApp(withCluster(cluster.ObjectReference())),
+			app:      kubeApp(withCluster(clusterRef)),
 			template: &templateA,
 			want:     resourceA,
 		},
@@ -666,92 +669,6 @@ func TestRenderTemplate(t *testing.T) {
 
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("renderTemplate(...): -want, +got:\n%s", diff)
-			}
-		})
-	}
-}
-
-func TestHasSameController(t *testing.T) {
-	cases := []struct {
-		name string
-		a    metav1.Object
-		b    metav1.Object
-		want bool
-	}{
-		{
-			name: "SameController",
-			a: &v1alpha1.KubernetesApplicationResource{
-				ObjectMeta: metav1.ObjectMeta{
-					OwnerReferences: []metav1.OwnerReference{
-						*(metav1.NewControllerRef(kubeApp(), v1alpha1.KubernetesApplicationGroupVersionKind)),
-					},
-				},
-			},
-			b: &v1alpha1.KubernetesApplicationResource{
-				ObjectMeta: metav1.ObjectMeta{
-					OwnerReferences: []metav1.OwnerReference{
-						*(metav1.NewControllerRef(kubeApp(), v1alpha1.KubernetesApplicationGroupVersionKind)),
-					},
-				},
-			},
-			want: true,
-		},
-		{
-			name: "AHasNoController",
-			a:    &v1alpha1.KubernetesApplicationResource{},
-			b: &v1alpha1.KubernetesApplicationResource{
-				ObjectMeta: metav1.ObjectMeta{
-					OwnerReferences: []metav1.OwnerReference{
-						*(metav1.NewControllerRef(kubeApp(), v1alpha1.KubernetesApplicationGroupVersionKind)),
-					},
-				},
-			},
-			want: false,
-		},
-		{
-			name: "BHasNoController",
-			a: &v1alpha1.KubernetesApplicationResource{
-				ObjectMeta: metav1.ObjectMeta{
-					OwnerReferences: []metav1.OwnerReference{
-						*(metav1.NewControllerRef(kubeApp(), v1alpha1.KubernetesApplicationGroupVersionKind)),
-					},
-				},
-			},
-			b:    &v1alpha1.KubernetesApplicationResource{},
-			want: false,
-		},
-		{
-			name: "ControllersDiffer",
-			a: &v1alpha1.KubernetesApplicationResource{
-				ObjectMeta: metav1.ObjectMeta{
-					OwnerReferences: []metav1.OwnerReference{
-						{
-							Controller: func() *bool {
-								t := true
-								return &t
-							}(),
-							UID: "imdifferent",
-						},
-					},
-				},
-			},
-			b: &v1alpha1.KubernetesApplicationResource{
-				ObjectMeta: metav1.ObjectMeta{
-					OwnerReferences: []metav1.OwnerReference{
-						*(metav1.NewControllerRef(kubeApp(), v1alpha1.KubernetesApplicationGroupVersionKind)),
-					},
-				},
-			},
-			want: false,
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			got := hasSameController(tc.a, tc.b)
-
-			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("hasSameController(...): -want, +got:\n%s", diff)
 			}
 		})
 	}
@@ -772,7 +689,7 @@ func TestGetControllerName(t *testing.T) {
 					},
 				},
 			},
-			want: meta.GetName(),
+			want: objectMeta.GetName(),
 		},
 		{
 			name: "HasNoController",

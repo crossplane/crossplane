@@ -29,7 +29,6 @@ import (
 
 	"github.com/crossplaneio/crossplane/pkg/apis/core"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 const (
@@ -69,32 +68,10 @@ func testClaim() *testResourceClaim {
 	}
 }
 
-// ObjectReference to using this object as a reference
-func (t *testResourceClaim) ObjectReference() *corev1.ObjectReference {
-	if t.Kind == "" {
-		t.Kind = "testResourceClaim"
-	}
-	if t.APIVersion == "" {
-		t.APIVersion = "core.crossplane.io/v1alpha1"
-	}
-	return &corev1.ObjectReference{
-		APIVersion: t.APIVersion,
-		Kind:       t.Kind,
-		Name:       t.Name,
-		Namespace:  t.Namespace,
-		UID:        t.UID,
-	}
-}
-
 // DeepCopyObject is a fake/stub implementation simply to satisfy the runtime.Object interface for
 // this test only type
 func (t *testResourceClaim) DeepCopyObject() runtime.Object {
 	return t
-}
-
-// OwnerReference to use this object as an owner
-func (t *testResourceClaim) OwnerReference() metav1.OwnerReference {
-	return *util.ObjectToOwnerReference(t.ObjectReference())
 }
 
 func (t *testResourceClaim) ClaimStatus() *corev1alpha1.ResourceClaimStatus {

@@ -31,9 +31,10 @@ import (
 
 // Kubernetes Group, Version, and Kind metadata.
 const (
-	Group                      = "cache.crossplane.io"
-	Version                    = "v1alpha1"
-	APIVersion                 = Group + "/" + Version
+	Group      = "cache.crossplane.io"
+	Version    = "v1alpha1"
+	APIVersion = Group + "/" + Version
+
 	RedisClusterKind           = "rediscluster"
 	RedisClusterKindAPIVersion = RedisClusterKind + "." + APIVersion
 )
@@ -44,6 +45,13 @@ var (
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
+
+	// RedisClusterGroupVersionKind is the GroupVersionKind of a RedisCluster.
+	RedisClusterGroupVersionKind = schema.GroupVersionKind{
+		Group:   Group,
+		Version: Version,
+		Kind:    RedisClusterKind,
+	}
 )
 
 func init() {

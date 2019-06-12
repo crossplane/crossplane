@@ -35,6 +35,7 @@ import (
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	azureclients "github.com/crossplaneio/crossplane/pkg/clients/azure"
 	"github.com/crossplaneio/crossplane/pkg/logging"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
@@ -102,12 +103,10 @@ func (r *SQLReconciler) handleReconcile(instance azuredbv1alpha1.SQLServer) (rec
 	}
 
 	// Add finalizer to the CRD if it doesn't already exist
-	if !util.HasFinalizer(instance, r.finalizer) {
-		util.AddFinalizer(instance, r.finalizer)
-		if err := r.Update(ctx, instance); err != nil {
-			log.Error(err, "failed to add finalizer to instance", "instance", instance)
-			return reconcile.Result{}, err
-		}
+	meta.AddFinalizer(instance, r.finalizer)
+	if err := r.Update(ctx, instance); err != nil {
+		log.Error(err, "failed to add finalizer to instance", "instance", instance)
+		return reconcile.Result{}, err
 	}
 
 	if instance.GetStatus().RunningOperation != "" {
@@ -256,7 +255,7 @@ func (r *SQLReconciler) handleDeletion(sqlServersClient azureclients.SQLServerAP
 func (r *SQLReconciler) markAsDeleting(instance azuredbv1alpha1.SQLServer) (reconcile.Result, error) {
 	ctx := context.Background()
 	instance.GetStatus().SetDeprecatedCondition(corev1alpha1.NewDeprecatedCondition(corev1alpha1.DeprecatedDeleting, "", ""))
-	util.RemoveFinalizer(instance, r.finalizer)
+	meta.RemoveFinalizer(instance, r.finalizer)
 	return reconcile.Result{}, r.Update(ctx, instance)
 }
 
@@ -362,11 +361,15 @@ func (r *SQLReconciler) createOrUpdateConnectionSecret(instance azuredbv1alpha1.
 		}
 		// secret doesn't exist yet, create it from scratch
 		connectionSecret = &v1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:            secretName,
-				Namespace:       instance.GetNamespace(),
-				OwnerReferences: []metav1.OwnerReference{instance.OwnerReference()},
-			},
+			ObjectMeta: metav1.ObjectMeta{Name: secretName, Namespace: instance.GetNamespace()},
+		}
+		switch instance.(type) {
+		case *azuredbv1alpha1.MysqlServer:
+			ref := meta.AsOwner(meta.ReferenceTo(instance, azuredbv1alpha1.MysqlServerGroupVersionKind))
+			meta.AddOwnerReference(connectionSecret, ref)
+		case *azuredbv1alpha1.PostgresqlServer:
+			ref := meta.AsOwner(meta.ReferenceTo(instance, azuredbv1alpha1.PostgresqlServerGroupVersionKind))
+			meta.AddOwnerReference(connectionSecret, ref)
 		}
 	} else {
 		// secret already exists, we'll update the missing information if that hasn't already been done
