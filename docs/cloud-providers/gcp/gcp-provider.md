@@ -24,19 +24,16 @@ In the `cluster/examples` directory you will find a helper script, `gcp-credenti
 
 ```console
 $ cluster/examples/gcp-credentials.sh
-...
-#
-# Run the following for the variables that are used throughout the GCP example projects
-#
+... EXAMPLE OUTPUT ONLY
 export ORGANIZATION_ID=987654321
 export PROJECT_ID=crossplane-example-1234
 export EXAMPLE_SA=example-1234@crossplane-example-1234.iam.gserviceaccount.com
 export BASE64ENCODED_GCP_PROVIDER_CREDS=$(base64 -w0 crossplane-gcp-provider-key.json)
 ```
 
-Run the `export` commands that were provided.  These variable names will be referenced in the Crossplane examples, generally with a `sed` command.
+After running `gcp-credentials.sh`, a series of `export` commands will be shown.  Copy and paste the `export` commands that are provided.  These variable names will be referenced throughout the Crossplane examples, generally with a `sed` command.
 
-You will also find `crossplane-gcp-provider-key.json` in the current working directory.  Be sure to remove this file when you are done with the example projects.
+You will also find a `crossplane-gcp-provider-key.json` file in the current working directory.  Be sure to remove this file when you are done with the example projects.
 
 ### Running `gcloud` by hand
 
