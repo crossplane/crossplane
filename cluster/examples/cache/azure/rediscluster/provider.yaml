@@ -7,7 +7,7 @@ metadata:
   namespace: crossplane-system
 type: Opaque
 data:
-  credentials: BASE64ENCODED_CREDS
+  credentials: BASE64ENCODED_AZURE_PROVIDER_CREDS
 ---
 # Azure Provider with service account secret reference - used to provision cache resources
 apiVersion: azure.crossplane.io/v1alpha1

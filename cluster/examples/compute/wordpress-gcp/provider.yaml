@@ -1,7 +1,7 @@
 ## GCP Service Account Credentials
 apiVersion: v1
 data:
-  credentials.json: BASE64ENCODED_CREDS
+  credentials.json: BASE64ENCODED_GCP_PROVIDER_CREDS
 kind: Secret
 metadata:
   namespace: crossplane-system
@@ -18,7 +18,7 @@ spec:
   credentialsSecretRef:
     name: gcp-provider-creds
     key: credentials.json
-  projectID: DEMO_PROJECT_ID
+  projectID: PROJECT_ID
 ---
 ## Crossplane Kubernetes Cluster Resource Class for GCP
 apiVersion: core.crossplane.io/v1alpha1

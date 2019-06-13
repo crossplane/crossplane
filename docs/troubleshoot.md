@@ -17,7 +17,7 @@ The first place to look to get more information or investigate a failure would b
 To get the current Crossplane logs, run the following:
 
 ```console
-kubectl -n crossplane-system logs $(kubectl -n crossplane-system get pod -l app=crossplane -o jsonpath='{.items[0].metadata.name}')
+kubectl -n crossplane-system logs -lapp=crossplane
 ```
 
 ## Resource Status and Conditions

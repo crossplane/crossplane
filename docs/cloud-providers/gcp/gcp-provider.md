@@ -14,29 +14,60 @@ You can choose whichever you are more comfortable with.
 
 ## Option 1: gcloud Command Line Tool
 
-If you have the `gcloud` tool installed, you can run below commands from the example directory.
-It
+If you have the `gcloud` tool installed, you can run the commands below from the crossplane directory.
+
 Instructions for installing `gcloud` can be found in the [Google docs](https://cloud.google.com/sdk/install).
+
+### Using `gcp-credentials.sh`
+
+In the `cluster/examples` directory you will find a helper script, `gcp-credentials.sh`.  This script will prompt you for the organization, project, and billing account that will be used by `gcloud` when creating a project, service account, and credentials file (`crossplane-gcp-provider-key.json`).  The chosen project and created service account will have access to the services and roles sufficient to run the Crossplane GCP examples.
+
+```console
+$ cluster/examples/gcp-credentials.sh
+... EXAMPLE OUTPUT ONLY
+export ORGANIZATION_ID=987654321
+export PROJECT_ID=crossplane-example-1234
+export EXAMPLE_SA=example-1234@crossplane-example-1234.iam.gserviceaccount.com
+export BASE64ENCODED_GCP_PROVIDER_CREDS=$(base64 -w0 crossplane-gcp-provider-key.json)
+```
+
+After running `gcp-credentials.sh`, a series of `export` commands will be shown.  Copy and paste the `export` commands that are provided.  These variable names will be referenced throughout the Crossplane examples, generally with a `sed` command.
+
+You will also find a `crossplane-gcp-provider-key.json` file in the current working directory.  Be sure to remove this file when you are done with the example projects.
+
+### Running `gcloud` by hand
 
 ```bash
 # list your organizations (if applicable), take note of the specific organization ID you want to use
 # if you have more than one organization (not common)
 gcloud organizations list
 
-# create a new project
-export EXAMPLE_PROJECT_NAME=crossplane-example-123
-gcloud projects create $EXAMPLE_PROJECT_NAME --enable-cloud-apis [--organization ORGANIZATION_ID]
+# create a new project (project id must be <=30 characters)
+export EXAMPLE_PROJECT_ID=crossplane-example-123
+gcloud projects create $EXAMPLE_PROJECT_ID --enable-cloud-apis # [--organization $ORGANIZATION_ID]
 
-# record the PROJECT_ID value of the newly created project
-export EXAMPLE_PROJECT_ID=$(gcloud projects list --filter NAME=$EXAMPLE_PROJECT_NAME --format="value(PROJECT_ID)")   
+# or, record the PROJECT_ID value of an existing project
+# export EXAMPLE_PROJECT_ID=$(gcloud projects list --filter NAME=$EXAMPLE_PROJECT_NAME --format="value(PROJECT_ID)")
+
+# link billing to the new project
+gcloud beta billing accounts list
+gcloud beta billing projects link $EXAMPLE_PROJECT_ID --billing-account=$ACCOUNT_ID
 
 # enable Kubernetes API
 gcloud --project $EXAMPLE_PROJECT_ID services enable container.googleapis.com
+
 # enable CloudSQL API
-gcloud --project $EXAMPLE_PROJECT_ID services enable sqladmin.googleapis.com 
+gcloud --project $EXAMPLE_PROJECT_ID services enable sqladmin.googleapis.com
+
+# enable Redis API
+gcloud --project $EXAMPLE_PROJECT_ID services enable redis.googleapis.com
+
+# enable Additional APIs needed for the example or project
+# See `gcloud services list` for a complete list
 
 # create service account
 gcloud --project $EXAMPLE_PROJECT_ID iam service-accounts create example-123 --display-name "Crossplane Example"
+
 # export service account email
 export EXAMPLE_SA="example-123@$EXAMPLE_PROJECT_ID.iam.gserviceaccount.com"
 
@@ -47,6 +78,7 @@ gcloud --project $EXAMPLE_PROJECT_ID iam service-accounts keys create --iam-acco
 gcloud projects add-iam-policy-binding $EXAMPLE_PROJECT_ID --member "serviceAccount:$EXAMPLE_SA" --role="roles/iam.serviceAccountUser"
 gcloud projects add-iam-policy-binding $EXAMPLE_PROJECT_ID --member "serviceAccount:$EXAMPLE_SA" --role="roles/cloudsql.admin"
 gcloud projects add-iam-policy-binding $EXAMPLE_PROJECT_ID --member "serviceAccount:$EXAMPLE_SA" --role="roles/container.admin"
+gcloud projects add-iam-policy-binding $EXAMPLE_PROJECT_ID --member "serviceAccount:$EXAMPLE_SA" --role="roles/redis.admin"
 ```
 
 ## Option 2: GCP Console in a Web Browser
@@ -56,7 +88,7 @@ If you chose to use the `gcloud` tool, you can skip this section entirely.
 Create a GCP example project which we will use to host our example GKE cluster, as well as our example CloudSQL instance.
 
 - Login into [GCP Console](https://console.cloud.google.com)
-- Create a new project (either stand alone or under existing organization)
+- Create a [new project](https://console.cloud.google.com/flows/enableapi?apiid=container.googleapis.com,sqladmin.googleapis.com,redis.googleapis.com) (either stand alone or under existing organization)
 - Create Example Service Account
   - Navigate to: [Create Service Account](https://console.cloud.google.com/iam-admin/serviceaccounts)
   - `Service Account Name`: type "example"
@@ -87,10 +119,13 @@ Create a GCP example project which we will use to host our example GKE cluster, 
 - Enable `Kubernetes Engine API`
   - Navigate to [Kubernetes Engine API](https://console.developers.google.com/apis/api/container.googleapis.com/overview)
   - Click `Enable`
+- Enable `Cloud Memorystore for Redis`
+  - Navigate to [Cloud Memorystore for Redis](https://console.developers.google.com/apis/api/redis.googleapis.com/overview)
+  - Click `Enable`
 
-## Enable Billing
+### Enable Billing
 
-No matter what option you chose to configure the previous steps, you will need to enable billing for your account in order to create and use Kubernetes clusters with GKE.
+You will need to enable billing for your account in order to create and use Kubernetes clusters with GKE.
 
 - Go to [GCP Console](https://console.cloud.google.com)
   - Select example project

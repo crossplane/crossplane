@@ -17,6 +17,6 @@ spec:
   credentialsSecretRef:
     name: gcp-provider-creds
     key: credentials.json
-  projectID: long-disk-191221
+  projectID: PROJECT_ID
   requiredPermissions:
   - cloudsql.admin
