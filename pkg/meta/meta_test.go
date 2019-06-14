@@ -19,11 +19,15 @@ package meta
 import (
 	"testing"
 
+	"github.com/crossplaneio/crossplane/pkg/test"
 	"github.com/google/go-cmp/cmp"
+	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+
+	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
 const (
@@ -245,6 +249,7 @@ func TestNamespacedNameOf(t *testing.T) {
 func TestAddOwnerReference(t *testing.T) {
 	owner := metav1.OwnerReference{UID: uid}
 	other := metav1.OwnerReference{UID: "a-different-uuid"}
+	ctrlr := metav1.OwnerReference{UID: uid, Controller: func() *bool { c := true; return &c }()}
 
 	type args struct {
 		o metav1.Object
@@ -262,11 +267,11 @@ func TestAddOwnerReference(t *testing.T) {
 			},
 			want: []metav1.OwnerReference{owner},
 		},
-		"OwnerAlreadyExists": {
+		"UpdateExistingOwner": {
 			args: args{
 				o: &corev1.Pod{
 					ObjectMeta: metav1.ObjectMeta{
-						OwnerReferences: []metav1.OwnerReference{owner},
+						OwnerReferences: []metav1.OwnerReference{ctrlr},
 					},
 				},
 				r: owner,
@@ -292,6 +297,98 @@ func TestAddOwnerReference(t *testing.T) {
 
 			got := tc.args.o.GetOwnerReferences()
 			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("tc.args.o.GetOwnerReferences(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestAddControllerReference(t *testing.T) {
+	owner := metav1.OwnerReference{UID: uid}
+	other := metav1.OwnerReference{UID: "a-different-uuid"}
+	ctrlr := metav1.OwnerReference{UID: uid, Controller: func() *bool { c := true; return &c }()}
+	otrlr := metav1.OwnerReference{
+		Kind:       "lame",
+		Name:       "othercontroller",
+		UID:        "a-different-uuid",
+		Controller: func() *bool { c := true; return &c }(),
+	}
+
+	type args struct {
+		o metav1.Object
+		r metav1.OwnerReference
+	}
+
+	type want struct {
+		owners []metav1.OwnerReference
+		err    error
+	}
+
+	cases := map[string]struct {
+		args args
+		want want
+	}{
+		"NoExistingOwners": {
+			args: args{
+				o: &corev1.Pod{},
+				r: owner,
+			},
+			want: want{
+				owners: []metav1.OwnerReference{owner},
+			},
+		},
+		"UpdateExistingOwner": {
+			args: args{
+				o: &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						OwnerReferences: []metav1.OwnerReference{ctrlr},
+					},
+				},
+				r: owner,
+			},
+			want: want{
+				owners: []metav1.OwnerReference{owner},
+			},
+		},
+		"OwnedByAnotherObject": {
+			args: args{
+				o: &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						OwnerReferences: []metav1.OwnerReference{other},
+					},
+				},
+				r: owner,
+			},
+			want: want{
+				owners: []metav1.OwnerReference{other, owner},
+			},
+		},
+		"ControlledByAnotherObject": {
+			args: args{
+				o: &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            name,
+						OwnerReferences: []metav1.OwnerReference{otrlr},
+					},
+				},
+				r: owner,
+			},
+			want: want{
+				owners: []metav1.OwnerReference{otrlr},
+				err:    errors.Errorf("%s is already controlled by %s %s (UID %s)", name, otrlr.Kind, otrlr.Name, otrlr.UID),
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			err := AddControllerReference(tc.args.o, tc.args.r)
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("AddControllerReference(...): -want error, +got error:\n%s", diff)
+			}
+
+			got := tc.args.o.GetOwnerReferences()
+			if diff := cmp.Diff(tc.want.owners, got); diff != "" {
 				t.Errorf("tc.args.o.GetOwnerReferences(...): -want, +got:\n%s", diff)
 			}
 		})
@@ -601,6 +698,60 @@ func TestRemoveAnnotations(t *testing.T) {
 			got := tc.args.o.GetAnnotations()
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("tc.args.o.GetAnnotations(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestWasDeleted(t *testing.T) {
+	now := metav1.Now()
+
+	cases := map[string]struct {
+		o    metav1.Object
+		want bool
+	}{
+		"ObjectWasDeleted": {
+			o:    &corev1.Pod{ObjectMeta: metav1.ObjectMeta{DeletionTimestamp: &now}},
+			want: true,
+		},
+		"ObjectWasNotDeleted": {
+			o:    &corev1.Pod{ObjectMeta: metav1.ObjectMeta{DeletionTimestamp: nil}},
+			want: false,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := WasDeleted(tc.o)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("WasDeleted(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+func TestWasCreated(t *testing.T) {
+	now := metav1.Now()
+	zero := metav1.Time{}
+
+	cases := map[string]struct {
+		o    metav1.Object
+		want bool
+	}{
+		"ObjectWasCreated": {
+			o:    &corev1.Pod{ObjectMeta: metav1.ObjectMeta{CreationTimestamp: now}},
+			want: true,
+		},
+		"ObjectWasNotCreated": {
+			o:    &corev1.Pod{ObjectMeta: metav1.ObjectMeta{CreationTimestamp: zero}},
+			want: false,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := WasCreated(tc.o)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("WasCreated(...): -want, +got:\n%s", diff)
 			}
 		})
 	}

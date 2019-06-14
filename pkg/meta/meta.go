@@ -18,6 +18,7 @@ limitations under the License.
 package meta
 
 import (
+	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -96,16 +97,29 @@ func NamespacedNameOf(r *corev1.ObjectReference) types.NamespacedName {
 	return types.NamespacedName{Namespace: r.Namespace, Name: r.Name}
 }
 
-// AddOwnerReference to the object metadata, only if this owner reference
-// is not in the existing owner references list
+// AddOwnerReference to the supplied object' metadata. Any existing owner with
+// the same UID as the supplied reference will be replaced.
 func AddOwnerReference(o metav1.Object, r metav1.OwnerReference) {
 	refs := o.GetOwnerReferences()
-	for _, e := range refs {
-		if e.UID == r.UID {
+	for i := range refs {
+		if refs[i].UID == r.UID {
+			refs[i] = r
 			return
 		}
 	}
 	o.SetOwnerReferences(append(refs, r))
+}
+
+// AddControllerReference to the supplied object's metadata. Any existing owner
+// with the same UID as the supplied reference will be replaced. Returns an
+// error if the supplied object is already controlled by a different owner.
+func AddControllerReference(o metav1.Object, r metav1.OwnerReference) error {
+	if c := metav1.GetControllerOf(o); c != nil && c.UID != r.UID {
+		return errors.Errorf("%s is already controlled by %s %s (UID %s)", o.GetName(), c.Kind, c.Name, c.UID)
+	}
+
+	AddOwnerReference(o, r)
+	return nil
 }
 
 // AddFinalizer to the supplied Kubernetes object's metadata.
@@ -178,4 +192,17 @@ func RemoveAnnotations(o metav1.Object, annotations ...string) {
 		delete(a, k)
 	}
 	o.SetAnnotations(a)
+}
+
+// WasDeleted returns true if the supplied object was deleted from the API server.
+func WasDeleted(o metav1.Object) bool {
+	return !o.GetDeletionTimestamp().IsZero()
+}
+
+// WasCreated returns true if the supplied object was created in the API server.
+func WasCreated(o metav1.Object) bool {
+	// This looks a little different from WasDeleted because DeletionTimestamp
+	// returns a reference while CreationTimestamp returns a value.
+	t := o.GetCreationTimestamp()
+	return !t.IsZero()
 }
