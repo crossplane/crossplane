@@ -1,26 +1,40 @@
 ---
-name: Bug report
-about: Create a report to help us improve
+name: Bug Report
+about: Help us diagnose and fix bugs in Crossplane
+labels: bug
 ---
-<!-- **Are you in the right place?**
-1. For issues or feature requests, please create an issue in this repository.
-2. For general technical and non-technical questions, we are happy to help you on our [Crossplane.io Slack](https://slack.crossplane.io).
-3. Did you already search the existing open issues for anything similar? -->
+<!--
+Thank you for helping to improve Crossplane!
 
-**Is this a bug report or feature request?**
-* Bug Report
+Please be sure to search for open issues before raising a new one. We use issues
+for bug reports and feature requests. Please find us at https://slack.crossplane.io
+for questions, support, and discussion.
+-->
 
-**Deviation from expected behavior:**
+### What happened?
+<!--
+Please let us know what behaviour you expected and how Crossplane diverged from
+that behaviour.
+-->
 
-**Expected behavior:**
 
-**How to reproduce it (minimal and precise):**
-<!-- Please let us know any circumstances for reproduction of your bug. -->
+### How can we reproduce it?
+<!--
+Help us to reproduce your bug as succinctly and precisely as possible. Artifacts
+such as example manifests or a script that triggers the issue are highly
+appreciated!
+-->
 
-**Environment**:
-* OS (e.g. from /etc/os-release):
-* Kernel (e.g. `uname -a`):
-* Cloud provider or hardware configuration:
-* Crossplane version (tag, release, helm chart version)
-* Kubernetes version (use `kubectl version`):
-* Kubernetes cluster type (e.g. Tectonic, GKE, OpenShift):
+### What environment did it happen in?
+Crossplane version: 
+
+<!--
+Include at least the version or commit of Crossplane you were running. Consider
+also including your:
+
+* Cloud provider or hardware configuration
+* Kubernetes version (use `kubectl version`)
+* Kubernetes distribution (e.g. Tectonic, GKE, OpenShift)
+* OS (e.g. from /etc/os-release)
+* Kernel (e.g. `uname -a`)
+-->

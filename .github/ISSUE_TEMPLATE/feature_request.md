@@ -1,18 +1,24 @@
 ---
-name: Feature request
-about: Suggest an idea/feature for this project
+name: Feature Request
+about: Help us make Crossplane more useful
+labels: enhancement
 ---
-<!-- **Are you in the right place?**
-1. For issues or feature requests, please create an issue in this repository.
-2. For general technical and non-technical questions, we are happy to help you on our [Crossplane.io Slack](https://slack.crossplane.io).
-3. Did you already search the existing open issues for anything similar? -->
+<!--
+Thank you for helping to improve Crossplane!
 
-**Is this a bug report or feature request?**
-* Feature Request
+Please be sure to search for open issues before raising a new one. We use issues
+for bug reports and feature requests. Please find us at https://slack.crossplane.io
+for questions, support, and discussion.
+-->
 
-**What should the feature do:**
+### What problem are you facing?
+<!--
+Please tell us a little about your use case - it's okay if it's hypothetical!
+Leading with this context helps frame the feature request so we can ensure we
+implement it sensibly.
+--->
 
-**What is use case behind this feature:**
-
-**Environment**:
-<!-- Specific environment information that helps with the feature request -->
+### How could Crossplane help solve your problem?
+<!--
+Let us know how you think Crossplane could help with your use case. 
+-->
