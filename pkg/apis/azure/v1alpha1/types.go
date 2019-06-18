@@ -37,7 +37,6 @@ type ProviderSpec struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // Provider is the Schema for the instances API
-// +k8s:openapi-gen=true
 // +groupName=azure
 type Provider struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -82,7 +81,6 @@ type ResourceGroupStatus struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // ResourceGroup is the Schema for the instances API
-// +k8s:openapi-gen=true
 // +groupName=azure
 type ResourceGroup struct {
 	metav1.TypeMeta   `json:",inline"`

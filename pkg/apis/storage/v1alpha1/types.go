@@ -38,7 +38,6 @@ type MySQLInstanceSpec struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // MySQLInstance is the CRD type for abstract MySQL database instances
-// +k8s:openapi-gen=true
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.bindingPhase"
 // +kubebuilder:printcolumn:name="CLASS",type="string",JSONPath=".spec.classReference.name"
 // +kubebuilder:printcolumn:name="VERSION",type="string",JSONPath=".spec.engineVersion"
@@ -96,7 +95,6 @@ type PostgreSQLInstanceSpec struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // PostgreSQLInstance is the CRD type for abstract PostgreSQL database instances
-// +k8s:openapi-gen=true
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.bindingPhase"
 // +kubebuilder:printcolumn:name="CLASS",type="string",JSONPath=".spec.classReference.name"
 // +kubebuilder:printcolumn:name="VERSION",type="string",JSONPath=".spec.engineVersion"
@@ -191,7 +189,6 @@ type BucketSpec struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // Bucket is the Schema for the Bucket API
-// +k8s:openapi-gen=true
 // +groupName=storage
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.bindingPhase"
 // +kubebuilder:printcolumn:name="CLASS",type="string",JSONPath=".spec.classReference.name"

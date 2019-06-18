@@ -794,7 +794,6 @@ type BucketStatus struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // Bucket is the Schema for the instances API
-// +k8s:openapi-gen=true
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="STORAGE_CLASS",type="string",JSONPath=".spec.storageClass"
 // +kubebuilder:printcolumn:name="LOCATION",type="string",JSONPath=".spec.location"

@@ -102,7 +102,6 @@ type KubernetesApplicationStatus struct {
 
 // A KubernetesApplication defines an application deployed by Crossplane to a
 // Kubernetes cluster that is managed by Crossplane.
-// +k8s:openapi-gen=true
 // +kubebuilder:printcolumn:name="CLUSTER",type="string",JSONPath=".status.clusterRef.name"
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.state"
 // +kubebuilder:printcolumn:name="DESIRED",type="integer",JSONPath=".status.desiredResources"
@@ -199,7 +198,6 @@ type KubernetesApplicationResourceStatus struct {
 // A KubernetesApplicationResource is a resource of a Kubernetes application.
 // Each resource templates a single Kubernetes resource to be deployed to its
 // scheduled KubernetesCluster.
-// +k8s:openapi-gen=true
 // +kubebuilder:printcolumn:name="TEMPLATE-KIND",type="string",JSONPath=".spec.template.kind"
 // +kubebuilder:printcolumn:name="TEMPLATE-NAME",type="string",JSONPath=".spec.template.metadata.name"
 // +kubebuilder:printcolumn:name="CLUSTER",type="string",JSONPath=".status.clusterRef.name"

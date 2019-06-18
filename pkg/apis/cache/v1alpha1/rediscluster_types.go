@@ -39,7 +39,6 @@ type RedisClusterSpec struct {
 
 // RedisCluster is the the CRD type for abstract Redis clusters. Crossplane
 // considers a single Redis instance a 'cluster' of one instance.
-// +k8s:openapi-gen=true
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.bindingPhase"
 // +kubebuilder:printcolumn:name="CLASS",type="string",JSONPath=".spec.classReference.name"
 // +kubebuilder:printcolumn:name="VERSION",type="string",JSONPath=".spec.engineVersion"

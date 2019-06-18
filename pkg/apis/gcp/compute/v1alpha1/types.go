@@ -111,7 +111,6 @@ type GKEClusterStatus struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // GKECluster is the Schema for the instances API
-// +k8s:openapi-gen=true
 // +groupName=compute.gcp
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.bindingPhase"
 // +kubebuilder:printcolumn:name="STATE",type="string",JSONPath=".status.state"

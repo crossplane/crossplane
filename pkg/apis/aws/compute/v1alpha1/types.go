@@ -240,7 +240,6 @@ type EKSClusterStatus struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // EKSCluster is the Schema for the resources API
-// +k8s:openapi-gen=true
 // +groupName=compute.aws
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.bindingPhase"
 // +kubebuilder:printcolumn:name="STATE",type="string",JSONPath=".status.state"

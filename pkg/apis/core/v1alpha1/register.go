@@ -16,7 +16,6 @@ limitations under the License.
 
 
 // Package v1alpha1 contains API Schema definitions for the crossplane core v1alpha1 API group
-// +k8s:openapi-gen=true
 // +k8s:deepcopy-gen=package,register
 // +k8s:conversion-gen=github.com/crossplaneio/crossplane/pkg/apis/core
 // +k8s:defaulter-gen=TypeMeta

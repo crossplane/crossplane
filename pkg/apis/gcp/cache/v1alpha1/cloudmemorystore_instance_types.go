@@ -143,7 +143,6 @@ type CloudMemorystoreInstanceStatus struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // CloudMemorystoreInstance is the Schema for the instances API
-// +k8s:openapi-gen=true
 // +groupName=cache.gcp
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.state"
 // +kubebuilder:printcolumn:name="CLASS",type="string",JSONPath=".spec.classRef.name"
