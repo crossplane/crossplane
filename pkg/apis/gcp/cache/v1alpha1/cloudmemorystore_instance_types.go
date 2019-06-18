@@ -23,7 +23,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
@@ -48,6 +48,8 @@ var (
 // Most fields map directly to a GCP Instance resource.
 // https://cloud.google.com/memorystore/docs/redis/reference/rest/v1/projects.locations.instances#Instance
 type CloudMemorystoreInstanceSpec struct {
+	v1alpha1.ResourceSpec
+
 	// Region in which to create this CloudMemorystore cluster.
 	Region string `json:"region"`
 
@@ -98,21 +100,12 @@ type CloudMemorystoreInstanceSpec struct {
 	// * maxmemory-policy
 	// * notify-keyspace-events
 	RedisConfigs map[string]string `json:"redisConfigs,omitempty"`
-
-	// Kubernetes object references
-	ClaimRef            *corev1.ObjectReference     `json:"claimRef,omitempty"`
-	ClassRef            *corev1.ObjectReference     `json:"classRef,omitempty"`
-	ProviderRef         corev1.LocalObjectReference `json:"providerRef"`
-	ConnectionSecretRef corev1.LocalObjectReference `json:"connectionSecretRef,omitempty"`
-
-	// ReclaimPolicy identifies how to handle the cloud resource after the deletion of this type
-	ReclaimPolicy corev1alpha1.ReclaimPolicy `json:"reclaimPolicy,omitempty"`
 }
 
 // CloudMemorystoreInstanceStatus defines the observed state of CloudMemorystoreInstance
 type CloudMemorystoreInstanceStatus struct {
-	corev1alpha1.DeprecatedConditionedStatus
-	corev1alpha1.BindingStatusPhase
+	v1alpha1.ResourceStatus
+
 	State   string `json:"state,omitempty"`
 	Message string `json:"message,omitempty"`
 
@@ -166,11 +159,55 @@ type CloudMemorystoreInstanceList struct {
 	Items           []CloudMemorystoreInstance `json:"items"`
 }
 
+// SetBindingPhase of this CloudMemorystoreInstance.
+func (i *CloudMemorystoreInstance) SetBindingPhase(p v1alpha1.BindingPhase) {
+	i.Status.SetBindingPhase(p)
+}
+
+// GetBindingPhase of this CloudMemorystoreInstance.
+func (i *CloudMemorystoreInstance) GetBindingPhase() v1alpha1.BindingPhase {
+	return i.Status.GetBindingPhase()
+}
+
+// SetClaimReference to this CloudMemorystoreInstance's resource claim.
+func (i *CloudMemorystoreInstance) SetClaimReference(r *corev1.ObjectReference) {
+	i.Spec.ClaimReference = r
+}
+
+// GetClaimReference returns this CloudMemorystoreInstance's resource claim.
+func (i *CloudMemorystoreInstance) GetClaimReference() *corev1.ObjectReference {
+	return i.Spec.ClaimReference
+}
+
+// SetClassReference to this CloudMemorystoreInstance's resource class.
+func (i *CloudMemorystoreInstance) SetClassReference(r *corev1.ObjectReference) {
+	i.Spec.ClassReference = r
+}
+
+// GetClassReference returns this CloudMemorystoreInstance's resource class.
+func (i *CloudMemorystoreInstance) GetClassReference() *corev1.ObjectReference {
+	return i.Spec.ClassReference
+}
+
+// SetWriteConnectionSecretTo sets the connection secret this
+// CloudMemorystoreInstance should write its connection secret to.
+func (i *CloudMemorystoreInstance) SetWriteConnectionSecretTo(r corev1.LocalObjectReference) {
+	i.Spec.WriteConnectionSecretTo = r
+}
+
+// GetWriteConnectionSecretTo returns the connection secret this
+// CloudMemorystoreInstance should write its connection secret to.
+func (i *CloudMemorystoreInstance) GetWriteConnectionSecretTo() corev1.LocalObjectReference {
+	return i.Spec.WriteConnectionSecretTo
+}
+
 // NewCloudMemorystoreInstanceSpec creates a new CloudMemorystoreInstanceSpec
 // from the given properties map.
 func NewCloudMemorystoreInstanceSpec(properties map[string]string) *CloudMemorystoreInstanceSpec {
 	spec := &CloudMemorystoreInstanceSpec{
-		ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		ResourceSpec: v1alpha1.ResourceSpec{
+			ReclaimPolicy: v1alpha1.ReclaimRetain,
+		},
 
 		// Note that these keys should match the JSON tags of their respective
 		// CloudMemorystoreInstanceSpec fields.
@@ -189,32 +226,4 @@ func NewCloudMemorystoreInstanceSpec(properties map[string]string) *CloudMemorys
 	}
 
 	return spec
-}
-
-// ConnectionSecretName returns a secret name from the reference
-func (c *CloudMemorystoreInstance) ConnectionSecretName() string {
-	if c.Spec.ConnectionSecretRef.Name == "" {
-		c.Spec.ConnectionSecretRef.Name = c.Name
-	}
-
-	return c.Spec.ConnectionSecretRef.Name
-}
-
-// IsAvailable for usage/binding
-func (c *CloudMemorystoreInstance) IsAvailable() bool {
-	return c.Status.State == StateReady
-}
-
-// IsBound determines if the resource is in a bound binding state
-func (c *CloudMemorystoreInstance) IsBound() bool {
-	return c.Status.Phase == corev1alpha1.BindingStateBound
-}
-
-// SetBound sets the binding state of this resource
-func (c *CloudMemorystoreInstance) SetBound(state bool) {
-	if state {
-		c.Status.Phase = corev1alpha1.BindingStateBound
-	} else {
-		c.Status.Phase = corev1alpha1.BindingStateUnbound
-	}
 }

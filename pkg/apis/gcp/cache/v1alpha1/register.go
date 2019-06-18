@@ -17,14 +17,11 @@ limitations under the License.
 // NOTE: Boilerplate only.  Ignore this file.
 
 // Package v1alpha1 contains API Schema definitions for the cache v1alpha1 API group
-// +k8s:openapi-gen=true
-// +k8s:deepcopy-gen=package,register
-// +k8s:conversion-gen=github.com/crossplaneio/crossplane/pkg/gcp/apis/gcp/cache
-// +k8s:defaulter-gen=TypeMeta
-// +groupName=cache.gcp.crossplane.io
 package v1alpha1
 
 import (
+	"reflect"
+
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/runtime/scheme"
 )
@@ -34,9 +31,6 @@ const (
 	Group      = "cache.gcp.crossplane.io"
 	Version    = "v1alpha1"
 	APIVersion = Group + "/" + Version
-
-	CloudMemorystoreInstanceKind           = "cloudmemorystoreinstance"
-	CloudMemorystoreInstanceKindAPIVersion = CloudMemorystoreInstanceKind + "." + APIVersion
 )
 
 var (
@@ -45,9 +39,12 @@ var (
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
+)
 
-	// CloudMemorystoreInstanceGroupVersionKind is the GVK of a
-	// CloudMemorystoreInstance.
+// CloudMemorystoreInstance type metadata.
+var (
+	CloudMemorystoreInstanceKind             = reflect.TypeOf(CloudMemorystoreInstance{}).Name()
+	CloudMemorystoreInstanceKindAPIVersion   = CloudMemorystoreInstanceKind + "." + APIVersion
 	CloudMemorystoreInstanceGroupVersionKind = schema.GroupVersionKind{
 		Group:   Group,
 		Version: Version,

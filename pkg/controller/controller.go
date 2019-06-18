@@ -19,14 +19,12 @@ package controller
 import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	"github.com/crossplaneio/crossplane/pkg/controller/cache"
 	"github.com/crossplaneio/crossplane/pkg/controller/gcp"
 )
 
 func init() {
 	// AddToManagerFuncs is a list of functions to create controllers and add them to a manager.
 	AddToManagerFuncs = append(AddToManagerFuncs,
-		cache.AddToManager,
 		gcp.AddToManager,
 	)
 }

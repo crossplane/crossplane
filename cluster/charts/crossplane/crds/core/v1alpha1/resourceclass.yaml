@@ -41,19 +41,19 @@ spec:
           type: object
         parameters:
           description: Parameters holds parameters for the provisioner. These values
-            are opaque to the  system and are passed directly to the provisioner.  The
+            are opaque to the system and are passed directly to the provisioner.  The
             only validation done on keys is that they are not empty.  The maximum
             number of parameters is 512, with a cumulative max size of 256K
           type: object
-        providerRef:
-          description: ProvierRef is the reference to cloud provider that will be
-            used to provision the concrete cloud resource
+        providerReference:
+          description: ProvierReferrence is the reference to cloud provider in which
+            this resource should exist.
           type: object
         provisioner:
           description: 'Provisioner is the driver expected to handle this ResourceClass.
             This is an optionally-prefixed name, like a label key. For example: "RDSInstance.database.aws.crossplane.io/v1alpha1"
             or "CloudSQLInstance.database.gcp.crossplane.io/v1alpha1". This value
-            may not be empty.'
+            may not be empty. TODO(negz): Make this field immutable.'
           type: string
         reclaimPolicy:
           description: reclaimPolicy is the reclaim policy that dynamically provisioned
@@ -61,7 +61,7 @@ spec:
           type: string
       required:
       - provisioner
-      - providerRef
+      - providerReference
   version: v1alpha1
 status:
   acceptedNames:

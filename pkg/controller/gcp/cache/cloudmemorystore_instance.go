@@ -44,16 +44,10 @@ const (
 	controllerName = "cloudmemorystoreinstances.cache.gcp.crossplane.io"
 	finalizerName  = "finalizer." + controllerName
 
-	reasonFetchingClient   = "failed to fetch CloudMemorystore client"
-	reasonCreatingInstance = "failed to create CloudMemorystore instance"
-	reasonDeletingInstance = "failed to delete CloudMemorystore instance"
-	reasonSyncingInstance  = "failed to sync CloudMemorystore instance"
-	reasonSyncingSecret    = "failed to sync CloudMemorystore connection secret" // nolint:gas,gosec
-
 	reconcileTimeout = 1 * time.Minute
 )
 
-var log = logging.Logger.WithName("controller." + controllerName)
+var log = logging.Logger.WithName("controller").WithValues("controller", controllerName)
 
 // A creator can create instances in an external store - e.g. the GCP API.
 type creator interface {
@@ -93,13 +87,12 @@ type cloudMemorystore struct {
 func (c *cloudMemorystore) Create(ctx context.Context, i *v1alpha1.CloudMemorystoreInstance) bool {
 	id := cloudmemorystore.NewInstanceID(c.project, i)
 	if _, err := c.client.CreateInstance(ctx, cloudmemorystore.NewCreateInstanceRequest(id, i)); err != nil {
-		i.Status.SetFailed(reasonCreatingInstance, err.Error())
+		i.Status.SetConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileError(err))
 		return true
 	}
 
 	i.Status.InstanceName = id.Instance
-	i.Status.UnsetAllDeprecatedConditions()
-	i.Status.SetCreating()
+	i.Status.SetConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileSuccess())
 	meta.AddFinalizer(i, finalizerName)
 
 	return true
@@ -109,21 +102,21 @@ func (c *cloudMemorystore) Sync(ctx context.Context, i *v1alpha1.CloudMemorystor
 	id := cloudmemorystore.NewInstanceID(c.project, i)
 	gcpInstance, err := c.client.GetInstance(ctx, cloudmemorystore.NewGetInstanceRequest(id))
 	if err != nil {
-		i.Status.SetFailed(reasonSyncingInstance, err.Error())
+		i.Status.SetConditions(corev1alpha1.ReconcileError(err))
 		return true
 	}
 
 	i.Status.State = gcpInstance.GetState().String()
-	i.Status.UnsetAllDeprecatedConditions()
 
 	switch i.Status.State {
 	case v1alpha1.StateReady:
-		i.Status.SetReady()
+		i.Status.SetConditions(corev1alpha1.Available())
+		i.Status.SetBindingPhase(corev1alpha1.BindingPhaseUnbound)
 	case v1alpha1.StateCreating:
-		i.Status.SetCreating()
+		i.Status.SetConditions(corev1alpha1.Creating())
 		return true
 	case v1alpha1.StateDeleting:
-		i.Status.SetDeleting()
+		i.Status.SetConditions(corev1alpha1.Deleting())
 		return false
 	default:
 		// TODO(negz): Don't requeue in this scenario? The instance is probably
@@ -140,10 +133,11 @@ func (c *cloudMemorystore) Sync(ctx context.Context, i *v1alpha1.CloudMemorystor
 	}
 
 	if _, err := c.client.UpdateInstance(ctx, cloudmemorystore.NewUpdateInstanceRequest(id, i)); err != nil {
-		i.Status.SetFailed(reasonSyncingInstance, err.Error())
+		i.Status.SetConditions(corev1alpha1.ReconcileError(err))
 		return true
 	}
 
+	i.Status.SetConditions(corev1alpha1.ReconcileSuccess())
 	return false
 }
 
@@ -151,11 +145,11 @@ func (c *cloudMemorystore) Delete(ctx context.Context, i *v1alpha1.CloudMemoryst
 	if i.Spec.ReclaimPolicy == corev1alpha1.ReclaimDelete {
 		id := cloudmemorystore.NewInstanceID(c.project, i)
 		if _, err := c.client.DeleteInstance(ctx, cloudmemorystore.NewDeleteInstanceRequest(id)); err != nil {
-			i.Status.SetFailed(reasonDeletingInstance, err.Error())
+			i.Status.SetConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileError(err))
 			return true
 		}
 	}
-	i.Status.SetDeleting()
+	i.Status.SetConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileSuccess())
 	meta.RemoveFinalizer(i, finalizerName)
 	return false
 }
@@ -178,7 +172,7 @@ type providerConnecter struct {
 // CloudMemorystoreInstance.
 func (c *providerConnecter) Connect(ctx context.Context, i *v1alpha1.CloudMemorystoreInstance) (createsyncdeleter, error) {
 	p := &gcpv1alpha1.Provider{}
-	n := types.NamespacedName{Namespace: i.GetNamespace(), Name: i.Spec.ProviderRef.Name}
+	n := meta.NamespacedNameOf(i.Spec.ProviderReference)
 	if err := c.kube.Get(ctx, n, p); err != nil {
 		return nil, errors.Wrapf(err, "cannot get provider %s", n)
 	}
@@ -200,10 +194,9 @@ type Reconciler struct {
 	kube client.Client
 }
 
-// Add creates a new CloudMemorystoreInstance Controller and adds it to the
-// Manager with default RBAC. The Manager will set fields on the Controller and
-// start it when the Manager is Started.
-func Add(mgr manager.Manager) error {
+// AddResource creates a new CloudMemorystoreInstance Controller and adds it to
+// the supplied Manager.
+func AddResource(mgr manager.Manager) error {
 	r := &Reconciler{
 		connecter: &providerConnecter{kube: mgr.GetClient(), newClient: cloudmemorystore.NewClient},
 		kube:      mgr.GetClient(),
@@ -218,7 +211,7 @@ func Add(mgr manager.Manager) error {
 
 // Reconcile Google CloudMemorystore resources with the GCP API.
 func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) {
-	log.V(logging.Debug).Info("reconciling", "kind", v1alpha1.CloudMemorystoreInstanceKindAPIVersion, "request", req)
+	log.V(logging.Debug).Info("Reconciling", "request", req)
 
 	ctx, cancel := context.WithTimeout(context.Background(), reconcileTimeout)
 	defer cancel()
@@ -233,7 +226,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	client, err := r.Connect(ctx, i)
 	if err != nil {
-		i.Status.SetFailed(reasonFetchingClient, err.Error())
+		i.Status.SetConditions(corev1alpha1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}, errors.Wrapf(r.kube.Update(ctx, i), "cannot update instance %s", req.NamespacedName)
 	}
 
@@ -248,7 +241,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	}
 
 	if err := r.upsertSecret(ctx, connectionSecret(i)); err != nil {
-		i.Status.SetFailed(reasonSyncingSecret, err.Error())
+		i.Status.SetConditions(corev1alpha1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}, errors.Wrapf(r.kube.Update(ctx, i), "cannot update instance %s", req.NamespacedName)
 	}
 
@@ -271,7 +264,7 @@ func connectionSecret(i *v1alpha1.CloudMemorystoreInstance) *corev1.Secret {
 	ref := meta.AsOwner(meta.ReferenceTo(i, v1alpha1.CloudMemorystoreInstanceGroupVersionKind))
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            i.ConnectionSecretName(),
+			Name:            i.GetWriteConnectionSecretTo().Name,
 			Namespace:       i.Namespace,
 			OwnerReferences: []metav1.OwnerReference{ref},
 		},

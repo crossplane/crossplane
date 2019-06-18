@@ -19,7 +19,6 @@ package v1alpha1
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
 const (
@@ -39,38 +38,11 @@ const (
 	ResourceCredentialsTokenKey = "token"
 )
 
-// Resource defines a concrete resource that can be provisioned and bound to a resource claim.
-type Resource interface {
-	runtime.Object
-	metav1.Object
-	// Resource connection secret name
-	ConnectionSecretName() string
-	// Is resource available for finding
-	IsAvailable() bool
-	// IsBound() bool
-	IsBound() bool
-	// Update bound status of the resource
-	SetBound(bool)
-}
-
-// ResourceClaim defines a resource claim that can be provisioned and bound to a concrete resource.
-type ResourceClaim interface {
-	runtime.Object
-	metav1.Object
-	// The status of this resource claim
-	ClaimStatus() *ResourceClaimStatus
-	// Gets the reference to the resource class this claim uses
-	ClassRef() *corev1.ObjectReference
-	// Gets the reference to the resource that this claim is bound to
-	ResourceRef() *corev1.ObjectReference
-	// Sets the reference to the resource that this claim is bound to
-	SetResourceRef(*corev1.ObjectReference)
-}
-
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// ResourceClass is the Schema for the instances API
+// A ResourceClass contains an arbitrary set of properties that can be used to
+// configure a new managed resource.
 // +k8s:openapi-gen=true
 // +kubebuilder:printcolumn:name="PROVISIONER",type="string",JSONPath=".provisioner"
 // +kubebuilder:printcolumn:name="PROVIDER-REF",type="string",JSONPath=".providerRef.name"
@@ -81,7 +53,7 @@ type ResourceClass struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	// Parameters holds parameters for the provisioner.
-	// These values are opaque to the  system and are passed directly
+	// These values are opaque to the system and are passed directly
 	// to the provisioner.  The only validation done on keys is that they are
 	// not empty.  The maximum number of parameters is
 	// 512, with a cumulative max size of 256K
@@ -92,11 +64,12 @@ type ResourceClass struct {
 	// This is an optionally-prefixed name, like a label key.
 	// For example: "RDSInstance.database.aws.crossplane.io/v1alpha1" or "CloudSQLInstance.database.gcp.crossplane.io/v1alpha1".
 	// This value may not be empty.
+	// TODO(negz): Make this field immutable.
 	Provisioner string `json:"provisioner"`
 
-	// ProvierRef is the reference to cloud provider that will be used
-	// to provision the concrete cloud resource
-	ProviderRef corev1.LocalObjectReference `json:"providerRef"`
+	// ProvierReferrence is the reference to cloud provider in which this
+	// resource should exist.
+	ProviderReference corev1.LocalObjectReference `json:"providerReference"`
 
 	// reclaimPolicy is the reclaim policy that dynamically provisioned
 	// ResourceInstances of this resource class are created with
@@ -113,17 +86,43 @@ type ResourceClassList struct {
 	Items           []ResourceClass `json:"items"`
 }
 
-// ResourceClaimStatus represents the status of a resource claim
+// ResourceClaimSpec contains standard fields that all resource claims should
+// include in their spec. Unlike ResourceClaimStatus, ResourceClaimSpec should
+// typically be embedded in a claim specific struct.
+type ResourceClaimSpec struct {
+	WriteConnectionSecretTo corev1.LocalObjectReference `json:"writeConnectionSecretTo,omitempty"`
+
+	// TODO(negz): Make the below references immutable once set? Doing so means
+	// we don't have to track what provisioner was used to create a resource.
+
+	ClassReference    *corev1.ObjectReference `json:"classReference,omitempty"`
+	ResourceReference *corev1.ObjectReference `json:"resourceReference,omitempty"`
+}
+
+// ResourceClaimStatus represents the status of a resource claim. Claims should
+// typically use this struct as their status.
 type ResourceClaimStatus struct {
-	DeprecatedConditionedStatus
-	BindingStatusPhase
+	ConditionedStatus
+	BindingStatus
+}
 
-	// Provisioner is the driver that was used to provision the concrete resource
-	// This is an optionally-prefixed name, like a label key.
-	// For example: "RDSInstance.database.aws.crossplane.io/v1alpha1" or "CloudSQLInstance.database.gcp.crossplane.io/v1alpha1".
-	Provisioner string `json:"provisioner,omitempty"`
+// ResourceSpec contains standard fields that all resources should
+// include in their spec. ResourceSpec should typically be embedded in a
+// resource specific struct.
+type ResourceSpec struct {
+	WriteConnectionSecretTo corev1.LocalObjectReference `json:"writeConnectionSecretTo,omitempty"`
 
-	// CredentialsSecretRef is a local reference to the generated secret containing the credentials
-	// for this resource claim.
-	CredentialsSecretRef corev1.LocalObjectReference `json:"credentialsSecret,omitempty"`
+	ClaimReference    *corev1.ObjectReference `json:"claimReference,omitempty"`
+	ClassReference    *corev1.ObjectReference `json:"classReference,omitempty"`
+	ProviderReference *corev1.ObjectReference `json:"providerReference"`
+
+	ReclaimPolicy ReclaimPolicy `json:"reclaimPolicy,omitempty"`
+}
+
+// ResourceStatus contains standard fields that all resources should
+// include in their status. ResourceStatus should typically be embedded in a
+// resource specific status.
+type ResourceStatus struct {
+	ConditionedStatus
+	BindingStatus
 }

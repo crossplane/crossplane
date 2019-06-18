@@ -25,6 +25,8 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"reflect"
+
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/runtime/scheme"
 )
@@ -34,9 +36,6 @@ const (
 	Group      = "gcp.crossplane.io"
 	Version    = "v1alpha1"
 	APIVersion = Group + "/" + Version
-
-	ProviderKind           = "provider"
-	ProviderKindAPIVersion = ProviderKind + "." + APIVersion
 )
 
 var (
@@ -45,8 +44,12 @@ var (
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
+)
 
-	// ProviderGroupVersionKind is the GVK of a Provider.
+// Provider type metadata.
+var (
+	ProviderKind             = reflect.TypeOf(Provider{}).Name()
+	ProviderKindAPIVersion   = ProviderKind + "." + APIVersion
 	ProviderGroupVersionKind = schema.GroupVersionKind{
 		Group:   Group,
 		Version: Version,

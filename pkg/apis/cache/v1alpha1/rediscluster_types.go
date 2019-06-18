@@ -20,14 +20,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 )
 
-// RedisClusterSpec defines the desired state of RedisCluster
+// RedisClusterSpec defines the desired state of a RedisCluster.
 type RedisClusterSpec struct {
-	ClassRef    *corev1.ObjectReference `json:"classReference,omitempty"`
-	ResourceRef *corev1.ObjectReference `json:"resourceName,omitempty"`
-	Selector    metav1.LabelSelector    `json:"selector,omitempty"`
+	v1alpha1.ResourceClaimSpec `json:",inline"`
 
 	// EngineVersion specifies the desired Redis version.
 	// +kubebuilder:validation:Enum=2.6,2.8,3.2,4.0,5.0
@@ -40,6 +38,7 @@ type RedisClusterSpec struct {
 // RedisCluster is the the CRD type for abstract Redis clusters. Crossplane
 // considers a single Redis instance a 'cluster' of one instance.
 // +k8s:openapi-gen=true
+// +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.bindingPhase"
 // +kubebuilder:printcolumn:name="CLASS",type="string",JSONPath=".spec.classReference.name"
 // +kubebuilder:printcolumn:name="VERSION",type="string",JSONPath=".spec.engineVersion"
@@ -48,8 +47,8 @@ type RedisCluster struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   RedisClusterSpec                 `json:"spec,omitempty"`
-	Status corev1alpha1.ResourceClaimStatus `json:"status,omitempty"`
+	Spec   RedisClusterSpec             `json:"spec,omitempty"`
+	Status v1alpha1.ResourceClaimStatus `json:"status,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -61,24 +60,51 @@ type RedisClusterList struct {
 	Items           []RedisCluster `json:"items"`
 }
 
-// ClaimStatus returns the status of this resource claim
-func (c *RedisCluster) ClaimStatus() *corev1alpha1.ResourceClaimStatus {
-	return &c.Status
+// SetBindingPhase sets the binding phase of the RedisCluster.
+func (rc *RedisCluster) SetBindingPhase(p v1alpha1.BindingPhase) {
+	rc.Status.SetBindingPhase(p)
 }
 
-// ClassRef return the reference to the resource class this claim uses.
-func (c *RedisCluster) ClassRef() *corev1.ObjectReference {
-	return c.Spec.ClassRef
+// GetBindingPhase gets the binding phase of the RedisCluster.
+func (rc *RedisCluster) GetBindingPhase() v1alpha1.BindingPhase {
+	return rc.Status.GetBindingPhase()
 }
 
-// ResourceRef returns the reference to the resource this claim is bound to.
-func (c *RedisCluster) ResourceRef() *corev1.ObjectReference {
-	return c.Spec.ResourceRef
+// SetConditions on this redis cluster.
+func (rc *RedisCluster) SetConditions(c ...v1alpha1.Condition) {
+	rc.Status.SetConditions(c...)
 }
 
-// SetResourceRef sets the reference to the resource this claim is bound to.
-func (c *RedisCluster) SetResourceRef(ref *corev1.ObjectReference) {
-	c.Spec.ResourceRef = ref
+// SetClassReference to this RedisCluster's resource class.
+func (rc *RedisCluster) SetClassReference(r *corev1.ObjectReference) {
+	rc.Spec.ClassReference = r
+}
+
+// GetClassReference returns this RedisCluster's resource class.
+func (rc *RedisCluster) GetClassReference() *corev1.ObjectReference {
+	return rc.Spec.ClassReference
+}
+
+// SetResourceReference to this RedisCluster's allocated managed resource.
+func (rc *RedisCluster) SetResourceReference(r *corev1.ObjectReference) {
+	rc.Spec.ResourceReference = r
+}
+
+// GetResourceReference returns this RedisCluster's allocated managed resource.
+func (rc *RedisCluster) GetResourceReference() *corev1.ObjectReference {
+	return rc.Spec.ResourceReference
+}
+
+// SetWriteConnectionSecretTo sets the connection secret this RedisCluster
+// should write its connection secret to.
+func (rc *RedisCluster) SetWriteConnectionSecretTo(r corev1.LocalObjectReference) {
+	rc.Spec.WriteConnectionSecretTo = r
+}
+
+// GetWriteConnectionSecretTo returns the connection secret this RedisCluster
+// will write its connection secret to.
+func (rc *RedisCluster) GetWriteConnectionSecretTo() corev1.LocalObjectReference {
+	return rc.Spec.WriteConnectionSecretTo
 }
 
 func init() {
