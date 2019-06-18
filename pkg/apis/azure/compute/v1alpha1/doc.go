@@ -16,5 +16,4 @@ limitations under the License.
 
 // Package v1alpha1 contains API Schema definitions for the container v1alpha1 API group
 // +k8s:deepcopy-gen=package,register
-// +groupName=compute.azure.crossplane.io
 package v1alpha1
