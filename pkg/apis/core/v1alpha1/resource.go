@@ -67,7 +67,6 @@ type ResourceClaim interface {
 	SetResourceRef(*corev1.ObjectReference)
 }
 
-// +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // ResourceClass is the Schema for the instances API

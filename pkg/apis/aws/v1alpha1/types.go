@@ -34,7 +34,6 @@ type ProviderSpec struct {
 	Secret corev1.SecretKeySelector `json:"credentialsSecretRef"`
 }
 
-// +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // Provider is the Schema for the instances API

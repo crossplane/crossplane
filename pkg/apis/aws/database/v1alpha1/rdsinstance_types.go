@@ -88,7 +88,6 @@ type RDSInstanceStatus struct {
 	Endpoint     string `json:"endpoint,omitempty"`     // rds instance endpoint
 }
 
-// +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // RDSInstance is the Schema for the instances API

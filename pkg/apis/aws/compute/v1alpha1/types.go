@@ -236,7 +236,6 @@ type EKSClusterStatus struct {
 	ConnectionSecretRef corev1.LocalObjectReference `json:"connectionSecretRef,omitempty"`
 }
 
-// +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // EKSCluster is the Schema for the resources API

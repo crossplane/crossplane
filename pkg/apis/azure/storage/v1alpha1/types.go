@@ -58,7 +58,6 @@ type AccountStatus struct {
 	ConnectionSecretRef corev1.LocalObjectReference `json:"connectionSecretRef,omitempty"`
 }
 
-// +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // Account is the Schema for the Account API
@@ -164,7 +163,6 @@ type ContainerStatus struct {
 	Name                string                      `json:"name,omitempty"`
 }
 
-// +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // Container is the Schema for the Container

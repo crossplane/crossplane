@@ -89,7 +89,6 @@ type CloudsqlInstanceStatus struct {
 	InstanceName string `json:"instanceName,omitempty"`
 }
 
-// +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // CloudsqlInstance is the Schema for the instances API

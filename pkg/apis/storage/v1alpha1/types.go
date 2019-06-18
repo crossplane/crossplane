@@ -34,7 +34,6 @@ type MySQLInstanceSpec struct {
 	EngineVersion string `json:"engineVersion"`
 }
 
-// +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // MySQLInstance is the CRD type for abstract MySQL database instances
@@ -91,7 +90,6 @@ type PostgreSQLInstanceSpec struct {
 	EngineVersion string `json:"engineVersion,omitempty"`
 }
 
-// +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // PostgreSQLInstance is the CRD type for abstract PostgreSQL database instances
@@ -185,7 +183,6 @@ type BucketSpec struct {
 	ConnectionSecretNameOverride string `json:"connectionSecretNameOverride,omitempty"`
 }
 
-// +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // Bucket is the Schema for the Bucket API

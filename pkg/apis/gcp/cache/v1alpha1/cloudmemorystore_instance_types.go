@@ -139,7 +139,6 @@ type CloudMemorystoreInstanceStatus struct {
 	InstanceName string `json:"instanceName,omitempty"`
 }
 
-// +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // CloudMemorystoreInstance is the Schema for the instances API

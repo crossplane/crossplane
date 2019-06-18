@@ -104,7 +104,6 @@ func NewS3BucketSpec(properties map[string]string) *S3BucketSpec {
 	return spec
 }
 
-// +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // S3Bucket is the Schema for the S3Bucket API

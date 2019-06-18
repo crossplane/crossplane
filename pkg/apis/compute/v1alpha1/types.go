@@ -34,7 +34,6 @@ type KubernetesClusterSpec struct {
 	ClusterVersion string `json:"clusterVersion,omitempty"`
 }
 
-// +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // KubernetesCluster is the Schema for the instances API
@@ -122,7 +121,6 @@ type WorkloadStatus struct {
 	Service                 *corev1.ObjectReference `json:"serviceRef,omitempty"`
 }
 
-// +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // Workload is the Schema for the instances API

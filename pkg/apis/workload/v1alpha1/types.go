@@ -97,7 +97,6 @@ type KubernetesApplicationStatus struct {
 	SubmittedResources int `json:"submittedResources,omitempty"`
 }
 
-// +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // A KubernetesApplication defines an application deployed by Crossplane to a
@@ -192,7 +191,6 @@ type KubernetesApplicationResourceStatus struct {
 	Remote *RemoteStatus `json:"remote,omitempty"`
 }
 
-// +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // A KubernetesApplicationResource is a resource of a Kubernetes application.
