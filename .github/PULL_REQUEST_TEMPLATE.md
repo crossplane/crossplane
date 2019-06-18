@@ -26,5 +26,10 @@ relevant to every Crossplane pull request.
 I have:
 - [ ] Run `make reviewable` to ensure this PR is ready for review.
 - [ ] Ensured this PR contains a neat, self documenting set of commits.
-- [ ] Updated any relevant [documentation](/docs/), [examples](/cluster/examples/), or [release notes](/PendingReleaseNotes.md).
-- [ ] Updated the RBAC permissions in `clusterrole.yaml` to include any new types.
+- [ ] Updated any relevant [documentation], [examples], or [release notes].
+- [ ] Updated the RBAC permissions in [`clusterrole.yaml`] to include any new types.
+
+[documentation]: https://github.com/crossplaneio/crossplane/tree/master/docs
+[examples]: https://github.com/crossplaneio/crossplane/tree/master/cluster/examples
+[release notes]: https://github.com/crossplaneio/crossplane/tree/master/PendingReleaseNotes.md
+[`clusterrole.yaml`]: https://github.com/crossplaneio/crossplane/blob/master/cluster/charts/crossplane/templates/clusterrole.yaml
