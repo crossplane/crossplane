@@ -17,6 +17,5 @@ limitations under the License.
 // Package v1alpha1 contains API Schema definitions for the crossplane workload
 // v1alpha1 API group.
 // +k8s:deepcopy-gen=package,register
-// +k8s:conversion-gen=github.com/crossplaneio/crossplane/pkg/apis/workload
 // +groupName=workload.crossplane.io
 package v1alpha1
