@@ -24,9 +24,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	cache "github.com/crossplaneio/crossplane/pkg/apis/gcp/cache/v1alpha1"
-	compute "github.com/crossplaneio/crossplane/pkg/apis/gcp/compute/v1alpha1"
-	database "github.com/crossplaneio/crossplane/pkg/apis/gcp/database/v1alpha1"
-	storage "github.com/crossplaneio/crossplane/pkg/apis/gcp/storage/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/apis/gcp/v1alpha1"
 )
 
@@ -38,9 +35,6 @@ func TestAddToScheme(t *testing.T) {
 	gvs := []schema.GroupVersion{
 		v1alpha1.SchemeGroupVersion,
 		cache.SchemeGroupVersion,
-		compute.SchemeGroupVersion,
-		database.SchemeGroupVersion,
-		storage.SchemeGroupVersion,
 	}
 	for _, gv := range gvs {
 		if !s.IsVersionRegistered(gv) {

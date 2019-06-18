@@ -17,7 +17,6 @@ limitations under the License.
 package redis
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -26,7 +25,6 @@ import (
 	cachev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/cache/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	gcpcachev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/cache/v1alpha1"
-	storagev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
@@ -76,13 +74,6 @@ func TestResolveGCPClassInstanceValues(t *testing.T) {
 			claim:   &cachev1alpha1.RedisCluster{Spec: cachev1alpha1.RedisClusterSpec{EngineVersion: claimVersion40}},
 			want:    &gcpcachev1alpha1.CloudMemorystoreInstanceSpec{},
 			wantErr: errors.WithStack(errors.Errorf("cannot resolve class claim values: claim value [%s] does not match the one defined in the resource class [%s]", gcpClassVersion40, gcpClassVersion32)),
-		},
-		{
-			name:    "NotARedisCache",
-			class:   &gcpcachev1alpha1.CloudMemorystoreInstanceSpec{},
-			claim:   &storagev1alpha1.MySQLInstance{Spec: storagev1alpha1.MySQLInstanceSpec{EngineVersion: "8.0"}},
-			want:    &gcpcachev1alpha1.CloudMemorystoreInstanceSpec{},
-			wantErr: errors.Errorf("unexpected claim type: %s", reflect.TypeOf(&storagev1alpha1.MySQLInstance{})),
 		},
 	}
 

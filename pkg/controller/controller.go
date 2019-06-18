@@ -19,25 +19,15 @@ package controller
 import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	"github.com/crossplaneio/crossplane/pkg/controller/aws"
-	"github.com/crossplaneio/crossplane/pkg/controller/azure"
 	"github.com/crossplaneio/crossplane/pkg/controller/cache"
-	"github.com/crossplaneio/crossplane/pkg/controller/compute"
 	"github.com/crossplaneio/crossplane/pkg/controller/gcp"
-	"github.com/crossplaneio/crossplane/pkg/controller/storage"
-	"github.com/crossplaneio/crossplane/pkg/controller/workload"
 )
 
 func init() {
 	// AddToManagerFuncs is a list of functions to create controllers and add them to a manager.
 	AddToManagerFuncs = append(AddToManagerFuncs,
-		aws.AddToManager,
-		azure.AddToManager,
 		cache.AddToManager,
-		compute.AddToManager,
 		gcp.AddToManager,
-		storage.AddToManager,
-		workload.AddToManager,
 	)
 }
 

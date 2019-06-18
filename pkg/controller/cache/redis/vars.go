@@ -19,8 +19,6 @@ package redis
 import (
 	"context"
 
-	awscachev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/cache/v1alpha1"
-	azurecachev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/cache/v1alpha1"
 	gcpcachev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/cache/v1alpha1"
 	corecontroller "github.com/crossplaneio/crossplane/pkg/controller/core"
 )
@@ -30,8 +28,6 @@ var (
 
 	// map of supported resource handlers
 	handlers = map[string]corecontroller.ResourceHandler{
-		awscachev1alpha1.ReplicationGroupKindAPIVersion:         &ReplicationGroupHandler{},
-		azurecachev1alpha1.RedisKindAPIVersion:                  &RedisHandler{},
 		gcpcachev1alpha1.CloudMemorystoreInstanceKindAPIVersion: &CloudMemorystoreInstanceHandler{},
 	}
 )
