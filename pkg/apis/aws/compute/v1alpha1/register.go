@@ -18,7 +18,6 @@ limitations under the License.
 // Package v1alpha1 contains API Schema definitions for the compute v1alpha1 API group
 // +k8s:deepcopy-gen=package,register
 // +k8s:conversion-gen=github.com/crossplaneio/crossplane/pkg/aws/apis/aws/compute
-// +k8s:defaulter-gen=TypeMeta
 // +groupName=compute.aws.crossplane.io
 package v1alpha1
 
