@@ -14,9 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-
-// Package v1alpha1 contains API Schema definitions for the container v1alpha1 API group
-// +k8s:deepcopy-gen=package,register
 package v1alpha1
 
 import (
