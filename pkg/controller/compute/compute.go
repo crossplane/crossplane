@@ -20,16 +20,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/crossplaneio/crossplane/pkg/controller/compute/kubernetes"
-	"github.com/crossplaneio/crossplane/pkg/controller/compute/scheduler"
-	"github.com/crossplaneio/crossplane/pkg/controller/compute/workload"
 )
 
 func init() {
-	AddToManagerFuncs = append(AddToManagerFuncs,
-		kubernetes.Add,
-		scheduler.Add,
-		workload.Add,
-	)
+	AddToManagerFuncs = append(AddToManagerFuncs, kubernetes.Add)
 }
 
 // AddToManagerFuncs is a list of functions to add all Controllers to the Manager

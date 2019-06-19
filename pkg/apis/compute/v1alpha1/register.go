@@ -29,9 +29,6 @@ const (
 
 	KubernetesClusterKind           = "kubernetescluster"
 	KubernetesClusterKindAPIVersion = KubernetesClusterKind + "." + APIVersion
-
-	WorkloadKind           = "workload"
-	WorkloadKindAPIVersion = WorkloadKind + "." + APIVersion
 )
 
 var (
@@ -47,16 +44,8 @@ var (
 		Version: Version,
 		Kind:    KubernetesClusterKind,
 	}
-
-	// WorkloadGroupVersionKind is the GVK of a Workload.
-	WorkloadGroupVersionKind = schema.GroupVersionKind{
-		Group:   Group,
-		Version: Version,
-		Kind:    WorkloadKind,
-	}
 )
 
 func init() {
 	SchemeBuilder.Register(&KubernetesCluster{}, &KubernetesClusterList{})
-	SchemeBuilder.Register(&Workload{}, &WorkloadList{})
 }

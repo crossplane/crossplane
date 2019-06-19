@@ -17,7 +17,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -86,63 +85,4 @@ type ResourceReference struct {
 	corev1.ObjectReference `json:",inline"`
 	// name of the generated resource secret
 	SecretName string `json:"secretName"`
-}
-
-// WorkloadState represents the state of a workload.
-type WorkloadState string
-
-// Workload states.
-const (
-	WorkloadStateCreating WorkloadState = "CREATING"
-	WorkloadStateRunning  WorkloadState = "RUNNING"
-)
-
-// WorkloadSpec specifies the configuration of a workload.
-type WorkloadSpec struct {
-	ClusterSelector map[string]string `json:"clusterSelector,omitempty"`
-
-	TargetNamespace  string             `json:"targetNamespace"`
-	TargetDeployment *appsv1.Deployment `json:"targetDeployment"`
-	TargetService    *corev1.Service    `json:"targetService"`
-
-	// Resources
-	Resources []ResourceReference `json:"resources,omitempty"`
-}
-
-// WorkloadStatus represents the status of a workload.
-type WorkloadStatus struct {
-	corev1alpha1.DeprecatedConditionedStatus
-
-	Cluster                 *corev1.ObjectReference `json:"clusterRef,omitempty"`
-	appsv1.DeploymentStatus `json:"deployment,omitempty"`
-	corev1.ServiceStatus    `json:"service,omitempty"`
-	State                   WorkloadState           `json:"state,omitempty"`
-	Deployment              *corev1.ObjectReference `json:"deploymentRef,omitempty"`
-	Service                 *corev1.ObjectReference `json:"serviceRef,omitempty"`
-}
-
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
-// Workload is the Schema for the instances API
-// +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.state"
-// +kubebuilder:printcolumn:name="CLUSTER",type="string",JSONPath=".status.clusterRef.name"
-// +kubebuilder:printcolumn:name="NAMESPACE",type="string",JSONPath=".spec.targetNamespace"
-// +kubebuilder:printcolumn:name="DEPLOYMENT",type="string",JSONPath=".spec.targetDeployment.metadata.name"
-// +kubebuilder:printcolumn:name="SERVICE-EXTERNAL-IP",type="string",JSONPath=".status.service.loadBalancer.ingress[0].ip"
-type Workload struct {
-	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty"`
-
-	Spec   WorkloadSpec   `json:"spec,omitempty"`
-	Status WorkloadStatus `json:"status,omitempty"`
-}
-
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
-// WorkloadList contains a list of Workloads.
-type WorkloadList struct {
-	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Workload `json:"items"`
 }

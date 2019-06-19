@@ -21,7 +21,6 @@ import (
 
 	. "github.com/onsi/gomega"
 	"golang.org/x/net/context"
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -75,56 +74,6 @@ func TestKubernetes(t *testing.T) {
 		Name:      "test-class",
 		Namespace: "test-resource",
 	}
-	g.Expect(c.Update(ctx, updated)).NotTo(HaveOccurred())
-
-	g.Expect(c.Get(ctx, key, fetched)).NotTo(HaveOccurred())
-	g.Expect(fetched).To(Equal(updated))
-
-	// Test Delete
-	g.Expect(c.Delete(ctx, fetched)).NotTo(HaveOccurred())
-	g.Expect(c.Get(ctx, key, fetched)).To(HaveOccurred())
-}
-
-func TestWorkload(t *testing.T) {
-	g := NewGomegaWithT(t)
-
-	om := metav1.ObjectMeta{
-		Namespace: namespace,
-		Name:      name,
-	}
-
-	created := &Workload{
-		ObjectMeta: om,
-		Spec: WorkloadSpec{
-			TargetNamespace: namespace,
-			TargetDeployment: &appsv1.Deployment{
-				ObjectMeta: om,
-			},
-			TargetService: &corev1.Service{
-				ObjectMeta: om,
-			},
-			Resources: []ResourceReference{
-				{
-					ObjectReference: corev1.ObjectReference{Name: "mysql-database"},
-					SecretName:      "mysql-database-creds",
-				},
-				{
-					ObjectReference: corev1.ObjectReference{Name: "my-bucket"},
-				},
-			},
-		},
-	}
-
-	// Test Create
-	fetched := &Workload{}
-	g.Expect(c.Create(ctx, created)).NotTo(HaveOccurred())
-
-	g.Expect(c.Get(ctx, key, fetched)).NotTo(HaveOccurred())
-	g.Expect(fetched).To(Equal(created))
-
-	// Test Updating the Labels
-	updated := fetched.DeepCopy()
-	updated.Labels = map[string]string{"hello": "world"}
 	g.Expect(c.Update(ctx, updated)).NotTo(HaveOccurred())
 
 	g.Expect(c.Get(ctx, key, fetched)).NotTo(HaveOccurred())
