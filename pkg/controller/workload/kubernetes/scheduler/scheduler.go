@@ -35,7 +35,6 @@ import (
 	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/compute/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/apis/workload/v1alpha1"
 	workloadv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/workload/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/controller/core"
 	"github.com/crossplaneio/crossplane/pkg/logging"
 	"github.com/crossplaneio/crossplane/pkg/meta"
 )
@@ -46,6 +45,8 @@ const (
 
 	reasonUnschedulable = "failed to schedule " + workloadv1alpha1.KubernetesApplicationKind
 	errorNoclusters     = "no clusters matched label selector"
+
+	requeueOnSuccess = 2 * time.Minute
 )
 
 var log = logging.Logger.WithName("controller." + controllerName)
@@ -165,7 +166,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	// Someone already scheduled this application.
 	if app.Status.Cluster != nil {
-		return reconcile.Result{RequeueAfter: core.RequeueOnSuccess}, nil
+		return reconcile.Result{RequeueAfter: requeueOnSuccess}, nil
 	}
 
 	return r.scheduler.schedule(ctx, app), errors.Wrapf(r.kube.Update(ctx, app), "cannot update %s %s", workloadv1alpha1.KubernetesApplicationKind, req.NamespacedName)

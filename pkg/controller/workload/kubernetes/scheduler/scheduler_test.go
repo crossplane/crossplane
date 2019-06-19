@@ -36,7 +36,6 @@ import (
 	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/compute/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	workloadv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/workload/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/controller/core"
 	"github.com/crossplaneio/crossplane/pkg/meta"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
@@ -400,7 +399,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
-			wantResult: reconcile.Result{RequeueAfter: core.RequeueOnSuccess},
+			wantResult: reconcile.Result{RequeueAfter: requeueOnSuccess},
 			wantErr:    nil,
 		},
 		{

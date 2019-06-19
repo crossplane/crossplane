@@ -33,7 +33,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/crossplaneio/crossplane/pkg/apis/workload/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/controller/core"
 	"github.com/crossplaneio/crossplane/pkg/logging"
 	"github.com/crossplaneio/crossplane/pkg/meta"
 	"github.com/crossplaneio/crossplane/pkg/util"
@@ -45,6 +44,8 @@ const (
 
 	reasonGCResources     = "failed to garbage collect " + v1alpha1.KubernetesApplicationResourceKind
 	reasonSyncingResource = "failed to sync " + v1alpha1.KubernetesApplicationResourceKind
+
+	requeueOnWait = 30 * time.Second
 )
 
 var log = logging.Logger.WithName("controller." + controllerName)
@@ -146,13 +147,13 @@ func (c *localCluster) sync(ctx context.Context, app *v1alpha1.KubernetesApplica
 		// successful reconciliation".
 		app.Status.State = v1alpha1.KubernetesApplicationStateScheduled
 		app.Status.SetPending()
-		return reconcile.Result{RequeueAfter: core.RequeueOnWait}
+		return reconcile.Result{RequeueAfter: requeueOnWait}
 	}
 
 	if app.Status.SubmittedResources < app.Status.DesiredResources {
 		app.Status.State = v1alpha1.KubernetesApplicationStatePartial
 		app.Status.SetPending()
-		return reconcile.Result{RequeueAfter: core.RequeueOnWait}
+		return reconcile.Result{RequeueAfter: requeueOnWait}
 	}
 
 	app.Status.State = v1alpha1.KubernetesApplicationStateSubmitted

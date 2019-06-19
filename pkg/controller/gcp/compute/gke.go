@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"time"
 
 	"github.com/pkg/errors"
 	"google.golang.org/api/container/v1"
@@ -41,7 +42,6 @@ import (
 	gcpv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/clients/gcp"
 	"github.com/crossplaneio/crossplane/pkg/clients/gcp/gke"
-	"github.com/crossplaneio/crossplane/pkg/controller/core"
 	"github.com/crossplaneio/crossplane/pkg/logging"
 	"github.com/crossplaneio/crossplane/pkg/meta"
 	"github.com/crossplaneio/crossplane/pkg/util"
@@ -57,8 +57,8 @@ const (
 	errorSyncCluster   = "Failed to sync cluster state"
 	errorDeleteCluster = "Failed to delete cluster"
 
-	requeueOnWait   = core.RequeueOnWait
-	requeueOnSucces = core.RequeueOnSuccess
+	requeueOnWait   = 30 * time.Second
+	requeueOnSucces = 2 * time.Minute
 
 	updateErrorMessageFormat = "failed to update cluster object: %s"
 )

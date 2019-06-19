@@ -35,7 +35,6 @@ import (
 	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/compute/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/apis/workload/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/controller/core"
 	"github.com/crossplaneio/crossplane/pkg/meta"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
@@ -271,7 +270,7 @@ func TestSync(t *testing.T) {
 				withDesiredResources(1),
 				withSubmittedResources(0),
 			),
-			wantResult: reconcile.Result{RequeueAfter: core.RequeueOnWait},
+			wantResult: reconcile.Result{RequeueAfter: requeueOnWait},
 		},
 		{
 			name: "PartialResourcesSubmitted",
@@ -297,7 +296,7 @@ func TestSync(t *testing.T) {
 				withDesiredResources(2),
 				withSubmittedResources(1),
 			),
-			wantResult: reconcile.Result{RequeueAfter: core.RequeueOnWait},
+			wantResult: reconcile.Result{RequeueAfter: requeueOnWait},
 		},
 		{
 			name: "AllResourcesSubmitted",
