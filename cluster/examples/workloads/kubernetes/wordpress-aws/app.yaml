@@ -2,10 +2,10 @@
 apiVersion: storage.crossplane.io/v1alpha1
 kind: MySQLInstance
 metadata:
-  name: sql
-  namespace: complex
+  name: demo-mysql
+  namespace: default
 spec:
-  classRef:
+  classReference:
     name: standard-mysql
     namespace: crossplane-system
   engineVersion: "5.7"
