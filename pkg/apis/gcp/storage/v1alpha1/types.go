@@ -816,9 +816,6 @@ type BucketList struct {
 	Items           []Bucket `json:"items"`
 }
 
-// Resource Interface implementation
-var _ corev1alpha1.Resource = &Bucket{}
-
 // ConnectionSecretName returns a secret name from the reference
 func (b *Bucket) ConnectionSecretName() string {
 	return util.IfEmptyString(b.Spec.ConnectionSecretNameOverride, b.Name)

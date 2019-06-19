@@ -23,6 +23,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/services/postgresql/mgmt/2017-12-01/postgresql"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	runtime "k8s.io/apimachinery/pkg/runtime"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 )
@@ -36,7 +37,10 @@ const (
 
 // SQLServer represents a generic Azure SQL server.
 type SQLServer interface {
-	corev1alpha1.Resource
+	runtime.Object
+	metav1.Object
+	// Resource connection secret name
+	ConnectionSecretName() string
 	GetSpec() *SQLServerSpec
 	GetStatus() *SQLServerStatus
 	SetStatus(*SQLServerStatus)

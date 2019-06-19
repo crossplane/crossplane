@@ -19,7 +19,6 @@ package v1alpha1
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
 const (
@@ -38,34 +37,6 @@ const (
 	// ResourceCredentialsTokenKey is the key inside a connection secret for the bearer token value
 	ResourceCredentialsTokenKey = "token"
 )
-
-// Resource defines a concrete resource that can be provisioned and bound to a resource claim.
-type Resource interface {
-	runtime.Object
-	metav1.Object
-	// Resource connection secret name
-	ConnectionSecretName() string
-	// Is resource available for finding
-	IsAvailable() bool
-	// IsBound() bool
-	IsBound() bool
-	// Update bound status of the resource
-	SetBound(bool)
-}
-
-// ResourceClaim defines a resource claim that can be provisioned and bound to a concrete resource.
-type ResourceClaim interface {
-	runtime.Object
-	metav1.Object
-	// The status of this resource claim
-	ClaimStatus() *ResourceClaimStatus
-	// Gets the reference to the resource class this claim uses
-	ClassRef() *corev1.ObjectReference
-	// Gets the reference to the resource that this claim is bound to
-	ResourceRef() *corev1.ObjectReference
-	// Sets the reference to the resource that this claim is bound to
-	SetResourceRef(*corev1.ObjectReference)
-}
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
