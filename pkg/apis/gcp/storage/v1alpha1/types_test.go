@@ -1060,11 +1060,11 @@ func TestBucket_IsAvailable(t *testing.T) {
 func TestBucket_IsBound(t *testing.T) {
 	tests := []struct {
 		name  string
-		phase v1alpha1.BindingState
+		phase v1alpha1.BindingPhase
 		want  bool
 	}{
-		{"Bound", v1alpha1.BindingStateBound, true},
-		{"NotBound", v1alpha1.BindingStateUnbound, false},
+		{"Bound", v1alpha1.BindingPhaseBound, true},
+		{"NotBound", v1alpha1.BindingPhaseUnbound, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1086,10 +1086,10 @@ func TestBucket_SetBound(t *testing.T) {
 	tests := []struct {
 		name  string
 		state bool
-		want  v1alpha1.BindingState
+		want  v1alpha1.BindingPhase
 	}{
-		{"NotBound", false, v1alpha1.BindingStateUnbound},
-		{"Bound", true, v1alpha1.BindingStateBound},
+		{"NotBound", false, v1alpha1.BindingPhaseUnbound},
+		{"Bound", true, v1alpha1.BindingPhaseBound},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -864,15 +864,15 @@ func (b *Bucket) IsAvailable() bool {
 
 // IsBound determines if the resource is in a bound binding state
 func (b *Bucket) IsBound() bool {
-	return b.Status.Phase == corev1alpha1.BindingStateBound
+	return b.Status.Phase == corev1alpha1.BindingPhaseBound
 }
 
 // SetBound sets the binding state of this resource
 func (b *Bucket) SetBound(state bool) {
 	if state {
-		b.Status.Phase = corev1alpha1.BindingStateBound
+		b.Status.Phase = corev1alpha1.BindingPhaseBound
 	} else {
-		b.Status.Phase = corev1alpha1.BindingStateUnbound
+		b.Status.Phase = corev1alpha1.BindingPhaseUnbound
 	}
 }
 

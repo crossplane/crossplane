@@ -28,52 +28,52 @@ import (
 
 const jsonQuote = "\""
 
-func TestBindingStateMarshalJSON(t *testing.T) {
+func TestBindingPhaseMarshalJSON(t *testing.T) {
 	cases := []struct {
 		name string
-		s    BindingState
+		s    BindingPhase
 		want []byte
 	}{
 		{
-			name: BindingStateUnbound.String(),
-			s:    BindingStateUnbound,
-			want: []byte(jsonQuote + BindingStateUnbound.String() + jsonQuote),
+			name: BindingPhaseUnbound.String(),
+			s:    BindingPhaseUnbound,
+			want: []byte(jsonQuote + BindingPhaseUnbound.String() + jsonQuote),
 		},
 		{
-			name: BindingStateBound.String(),
-			s:    BindingStateBound,
-			want: []byte(jsonQuote + BindingStateBound.String() + jsonQuote),
+			name: BindingPhaseBound.String(),
+			s:    BindingPhaseBound,
+			want: []byte(jsonQuote + BindingPhaseBound.String() + jsonQuote),
 		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			got, err := tc.s.MarshalJSON()
 			if err != nil {
-				t.Errorf("BindingState.MarshalJSON(): %v", err)
+				t.Errorf("BindingPhase.MarshalJSON(): %v", err)
 			}
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("BindingState.MarshalJSON(): -want, +got\n %+v", diff)
+				t.Errorf("BindingPhase.MarshalJSON(): -want, +got\n %+v", diff)
 			}
 		})
 	}
 }
 
-func TestBindingStateUnmarshalJSON(t *testing.T) {
+func TestBindingPhaseUnmarshalJSON(t *testing.T) {
 	cases := []struct {
 		name    string
 		s       []byte
-		want    BindingState
+		want    BindingPhase
 		wantErr error
 	}{
 		{
-			name: BindingStateUnbound.String(),
-			s:    []byte(jsonQuote + BindingStateUnbound.String() + jsonQuote),
-			want: BindingStateUnbound,
+			name: BindingPhaseUnbound.String(),
+			s:    []byte(jsonQuote + BindingPhaseUnbound.String() + jsonQuote),
+			want: BindingPhaseUnbound,
 		},
 		{
-			name: BindingStateBound.String(),
-			s:    []byte(jsonQuote + BindingStateBound.String() + jsonQuote),
-			want: BindingStateBound,
+			name: BindingPhaseBound.String(),
+			s:    []byte(jsonQuote + BindingPhaseBound.String() + jsonQuote),
+			want: BindingPhaseBound,
 		},
 		{
 			name:    "Unknown",
@@ -95,14 +95,14 @@ func TestBindingStateUnmarshalJSON(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			var got BindingState
+			var got BindingPhase
 			gotErr := got.UnmarshalJSON(tc.s)
 			if diff := cmp.Diff(tc.wantErr, gotErr, test.EquateErrors()); diff != "" {
-				t.Errorf("BindingState.UnmarshalJSON(): want error != got error\n %+v", diff)
+				t.Errorf("BindingPhase.UnmarshalJSON(): want error != got error\n %+v", diff)
 			}
 
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("BindingState.UnmarshalJSON(): -want, +got\n %+v", diff)
+				t.Errorf("BindingPhase.UnmarshalJSON(): -want, +got\n %+v", diff)
 			}
 		})
 	}

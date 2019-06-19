@@ -229,14 +229,14 @@ func (c *Redis) IsAvailable() bool {
 
 // IsBound determines if the resource is in a bound binding state
 func (c *Redis) IsBound() bool {
-	return c.Status.Phase == corev1alpha1.BindingStateBound
+	return c.Status.Phase == corev1alpha1.BindingPhaseBound
 }
 
 // SetBound sets the binding state of this resource
 func (c *Redis) SetBound(state bool) {
 	if state {
-		c.Status.Phase = corev1alpha1.BindingStateBound
+		c.Status.Phase = corev1alpha1.BindingPhaseBound
 	} else {
-		c.Status.Phase = corev1alpha1.BindingStateUnbound
+		c.Status.Phase = corev1alpha1.BindingPhaseUnbound
 	}
 }

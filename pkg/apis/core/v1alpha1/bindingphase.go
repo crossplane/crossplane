@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-//go:generate go run ../../../../vendor/golang.org/x/tools/cmd/stringer/stringer.go ../../../../vendor/golang.org/x/tools/cmd/stringer/importer19.go -type=BindingState -trimprefix BindingState
+//go:generate go run ../../../../vendor/golang.org/x/tools/cmd/stringer/stringer.go ../../../../vendor/golang.org/x/tools/cmd/stringer/importer19.go -type=BindingPhase -trimprefix BindingPhase
 
 package v1alpha1
 
@@ -24,25 +24,25 @@ import (
 	"github.com/pkg/errors"
 )
 
-// BindingState is to identify the current binding status of given resources
-type BindingState int
+// BindingPhase is to identify the current binding status of given resources
+type BindingPhase int
 
-// MarshalJSON returns a JSON representation of a BindingState.
-func (s BindingState) MarshalJSON() ([]byte, error) {
+// MarshalJSON returns a JSON representation of a BindingPhase.
+func (s BindingPhase) MarshalJSON() ([]byte, error) {
 	return json.Marshal(s.String())
 }
 
-// UnmarshalJSON returns a BindingState from its JSON representation.
-func (s *BindingState) UnmarshalJSON(b []byte) error {
+// UnmarshalJSON returns a BindingPhase from its JSON representation.
+func (s *BindingPhase) UnmarshalJSON(b []byte) error {
 	var ss string
 	if err := json.Unmarshal(b, &ss); err != nil {
 		return err
 	}
 	switch ss {
-	case BindingStateUnbound.String():
-		*s = BindingStateUnbound
-	case BindingStateBound.String():
-		*s = BindingStateBound
+	case BindingPhaseUnbound.String():
+		*s = BindingPhaseUnbound
+	case BindingPhaseBound.String():
+		*s = BindingPhaseBound
 	default:
 		return errors.Errorf("unknown binding state %s", ss)
 	}
@@ -51,8 +51,8 @@ func (s *BindingState) UnmarshalJSON(b []byte) error {
 
 // Binding states.
 const (
-	BindingStateUnbound BindingState = iota
-	BindingStateBound
+	BindingPhaseUnbound BindingPhase = iota
+	BindingPhaseBound
 )
 
 // BindingStatus defines set of supported operations
@@ -64,19 +64,19 @@ type BindingStatus interface {
 // BindingStatusPhase defines field(s) representing resource status.
 type BindingStatusPhase struct {
 	// Phase represents the binding status of a resource.
-	Phase BindingState `json:"bindingPhase,omitempty"`
+	Phase BindingPhase `json:"bindingPhase,omitempty"`
 }
 
 // SetBound set binding status to Bound
 func (b *BindingStatusPhase) SetBound(bound bool) {
 	if bound {
-		b.Phase = BindingStateBound
+		b.Phase = BindingPhaseBound
 		return
 	}
-	b.Phase = BindingStateUnbound
+	b.Phase = BindingPhaseUnbound
 }
 
 // IsBound returns true if status is bound
 func (b *BindingStatusPhase) IsBound() bool {
-	return b.Phase == BindingStateBound
+	return b.Phase == BindingPhaseBound
 }

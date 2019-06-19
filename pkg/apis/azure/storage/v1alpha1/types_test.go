@@ -203,11 +203,11 @@ func TestAccount_IsAvailable(t *testing.T) {
 func TestAccount_IsBound(t *testing.T) {
 	tests := []struct {
 		name  string
-		phase v1alpha1.BindingState
+		phase v1alpha1.BindingPhase
 		want  bool
 	}{
-		{"bound", v1alpha1.BindingStateBound, true},
-		{"not-bound", v1alpha1.BindingStateUnbound, false},
+		{"bound", v1alpha1.BindingPhaseBound, true},
+		{"not-bound", v1alpha1.BindingPhaseUnbound, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -229,10 +229,10 @@ func TestAccount_SetBound(t *testing.T) {
 	tests := []struct {
 		name  string
 		state bool
-		want  v1alpha1.BindingState
+		want  v1alpha1.BindingPhase
 	}{
-		{"not-bound", false, v1alpha1.BindingStateUnbound},
-		{"bound", true, v1alpha1.BindingStateBound},
+		{"not-bound", false, v1alpha1.BindingPhaseUnbound},
+		{"bound", true, v1alpha1.BindingPhaseBound},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -368,11 +368,11 @@ func TestContainer_IsAvailable(t *testing.T) {
 func TestContainer_IsBound(t *testing.T) {
 	tests := []struct {
 		name  string
-		phase v1alpha1.BindingState
+		phase v1alpha1.BindingPhase
 		want  bool
 	}{
-		{"bound", v1alpha1.BindingStateBound, true},
-		{"not-bound", v1alpha1.BindingStateUnbound, false},
+		{"bound", v1alpha1.BindingPhaseBound, true},
+		{"not-bound", v1alpha1.BindingPhaseUnbound, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -394,10 +394,10 @@ func TestContainer_SetBound(t *testing.T) {
 	tests := []struct {
 		name  string
 		state bool
-		want  v1alpha1.BindingState
+		want  v1alpha1.BindingPhase
 	}{
-		{"not-bound", false, v1alpha1.BindingStateUnbound},
-		{"bound", true, v1alpha1.BindingStateBound},
+		{"not-bound", false, v1alpha1.BindingPhaseUnbound},
+		{"bound", true, v1alpha1.BindingPhaseBound},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
