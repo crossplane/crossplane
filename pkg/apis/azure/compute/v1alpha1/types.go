@@ -24,7 +24,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/meta"
 )
 
 const (
@@ -38,6 +37,8 @@ const (
 
 // AKSClusterSpec is the spec for AKS cluster resources
 type AKSClusterSpec struct {
+	corev1alpha1.ResourceSpec
+
 	// ResourceGroupName is the name of the resource group that the cluster will be created in
 	ResourceGroupName string `json:"resourceGroupName"` //--resource-group
 
@@ -64,20 +65,16 @@ type AKSClusterSpec struct {
 	// DisableRBAC determines whether RBAC will be disabled or enabled in the cluster.
 	DisableRBAC bool `json:"disableRBAC,omitempty"` //--disable-rbac
 
-	// Kubernetes object references
-	ClaimRef            *corev1.ObjectReference      `json:"claimRef,omitempty"`
-	ClassRef            *corev1.ObjectReference      `json:"classRef,omitempty"`
-	ConnectionSecretRef *corev1.LocalObjectReference `json:"connectionSecretRef,omitempty"`
-	ProviderRef         corev1.LocalObjectReference  `json:"providerRef,omitempty"`
-
-	// ReclaimPolicy identifies how to handle the cloud resource after the deletion of this type
-	ReclaimPolicy corev1alpha1.ReclaimPolicy `json:"reclaimPolicy,omitempty"`
+	// WriteServicePrincipalSecretTo the specified Secret. The service principal
+	// is automatically generated and used by the AKS cluster to interact with
+	// other Azure resources.
+	WriteServicePrincipalSecretTo corev1.LocalObjectReference `json:"writeServicePrincipalTo"`
 }
 
 // AKSClusterStatus is the status for AKS cluster resources
 type AKSClusterStatus struct {
-	corev1alpha1.DeprecatedConditionedStatus
-	corev1alpha1.BindingStatusPhase
+	corev1alpha1.ResourceStatus
+
 	// ClusterName is the name of the cluster as registered with the cloud provider
 	ClusterName string `json:"clusterName,omitempty"`
 	// State is the current state of the cluster
@@ -117,6 +114,46 @@ type AKSCluster struct {
 	Status AKSClusterStatus `json:"status,omitempty"`
 }
 
+// SetBindingPhase of this AKSCluster.
+func (c *AKSCluster) SetBindingPhase(p corev1alpha1.BindingPhase) {
+	c.Status.SetBindingPhase(p)
+}
+
+// GetBindingPhase of this AKSCluster.
+func (c *AKSCluster) GetBindingPhase() corev1alpha1.BindingPhase {
+	return c.Status.GetBindingPhase()
+}
+
+// SetClaimReference of this AKSCluster.
+func (c *AKSCluster) SetClaimReference(r *corev1.ObjectReference) {
+	c.Spec.ClaimReference = r
+}
+
+// GetClaimReference of this AKSCluster.
+func (c *AKSCluster) GetClaimReference() *corev1.ObjectReference {
+	return c.Spec.ClaimReference
+}
+
+// SetClassReference of this AKSCluster.
+func (c *AKSCluster) SetClassReference(r *corev1.ObjectReference) {
+	c.Spec.ClassReference = r
+}
+
+// GetClassReference of this AKSCluster.
+func (c *AKSCluster) GetClassReference() *corev1.ObjectReference {
+	return c.Spec.ClassReference
+}
+
+// SetWriteConnectionSecretTo of this AKSCluster.
+func (c *AKSCluster) SetWriteConnectionSecretTo(r corev1.LocalObjectReference) {
+	c.Spec.WriteConnectionSecretTo = r
+}
+
+// GetWriteConnectionSecretTo of this AKSCluster.
+func (c *AKSCluster) GetWriteConnectionSecretTo() corev1.LocalObjectReference {
+	return c.Spec.WriteConnectionSecretTo
+}
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // AKSClusterList contains a list of AKSCluster items
@@ -129,8 +166,10 @@ type AKSClusterList struct {
 // NewAKSClusterSpec creates a new AKSClusterSpec based on the given properties map
 func NewAKSClusterSpec(properties map[string]string) *AKSClusterSpec {
 	spec := &AKSClusterSpec{
-		ReclaimPolicy: DefaultReclaimPolicy,
-		NodeCount:     to.IntPtr(DefaultNodeCount),
+		ResourceSpec: corev1alpha1.ResourceSpec{
+			ReclaimPolicy: DefaultReclaimPolicy,
+		},
+		NodeCount: to.IntPtr(DefaultNodeCount),
 	}
 
 	val, ok := properties["resourceGroupName"]
@@ -173,49 +212,4 @@ func NewAKSClusterSpec(properties map[string]string) *AKSClusterSpec {
 	}
 
 	return spec
-}
-
-// ConnectionSecret returns a secret object for this resource
-func (a *AKSCluster) ConnectionSecret() *corev1.Secret {
-	ref := meta.AsOwner(meta.ReferenceTo(a, AKSClusterGroupVersionKind))
-	return &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace:       a.GetNamespace(),
-			Name:            a.ConnectionSecretName(),
-			OwnerReferences: []metav1.OwnerReference{ref},
-		},
-	}
-}
-
-// ConnectionSecretName returns a secret name from the reference
-func (a *AKSCluster) ConnectionSecretName() string {
-	if a.Spec.ConnectionSecretRef == nil {
-		a.Spec.ConnectionSecretRef = &corev1.LocalObjectReference{
-			Name: a.Name,
-		}
-	} else if a.Spec.ConnectionSecretRef.Name == "" {
-		a.Spec.ConnectionSecretRef.Name = a.Name
-	}
-
-	return a.Spec.ConnectionSecretRef.Name
-}
-
-// State returns instance state value saved in the status (could be empty)
-func (a *AKSCluster) State() string {
-	return a.Status.State
-}
-
-// IsAvailable for usage/binding
-func (a *AKSCluster) IsAvailable() bool {
-	return a.State() == ClusterProvisioningStateSucceeded
-}
-
-// IsBound returns if the resource is currently bound
-func (a *AKSCluster) IsBound() bool {
-	return a.Status.IsBound()
-}
-
-// SetBound sets the binding state of this resource
-func (a *AKSCluster) SetBound(bound bool) {
-	a.Status.SetBound(bound)
 }

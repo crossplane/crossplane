@@ -46,20 +46,6 @@ spec:
           type: object
         spec:
           properties:
-            claimRef:
-              type: object
-            classRef:
-              type: object
-            connectionSecretNameOverride:
-              description: ConnectionSecretNameOverride to generate connection secret
-                with specific name
-              type: string
-            providerRef:
-              type: object
-            reclaimPolicy:
-              description: ReclaimPolicy identifies how to handle the cloud resource
-                after the deletion of this type
-              type: string
             resourceGroupName:
               description: ResourceGroupName azure group name
               type: string
@@ -309,12 +295,8 @@ spec:
           - resourceGroupName
           - storageAccountName
           - storageAccountSpec
-          - providerRef
           type: object
         status:
-          properties:
-            connectionSecretRef:
-              type: object
           type: object
   version: v1alpha1
 status:

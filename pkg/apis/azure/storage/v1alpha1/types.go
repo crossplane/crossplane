@@ -22,12 +22,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/meta"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 // AccountSpec is the schema for Account object
 type AccountSpec struct {
+	corev1alpha1.ResourceSpec
+
 	// ResourceGroupName azure group name
 	ResourceGroupName string `json:"resourceGroupName"`
 
@@ -37,25 +38,13 @@ type AccountSpec struct {
 
 	// StorageAccountSpec the parameters used when creating a storage account.
 	StorageAccountSpec *StorageAccountSpec `json:"storageAccountSpec"`
-
-	// ConnectionSecretNameOverride to generate connection secret with specific name
-	ConnectionSecretNameOverride string `json:"connectionSecretNameOverride,omitempty"`
-
-	ProviderRef corev1.LocalObjectReference `json:"providerRef"`
-	ClaimRef    *corev1.ObjectReference     `json:"claimRef,omitempty"`
-	ClassRef    *corev1.ObjectReference     `json:"classRef,omitempty"`
-
-	// ReclaimPolicy identifies how to handle the cloud resource after the deletion of this type
-	ReclaimPolicy corev1alpha1.ReclaimPolicy `json:"reclaimPolicy,omitempty"`
 }
 
 // AccountStatus defines the observed state of StorageAccountStatus
 type AccountStatus struct {
-	*StorageAccountStatus `json:"accountStatus,inline"`
+	corev1alpha1.ResourceStatus
 
-	corev1alpha1.DeprecatedConditionedStatus
-	corev1alpha1.BindingStatusPhase
-	ConnectionSecretRef corev1.LocalObjectReference `json:"connectionSecretRef,omitempty"`
+	*StorageAccountStatus `json:"accountStatus,inline"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -74,6 +63,46 @@ type Account struct {
 	Status            AccountStatus `json:"status,omitempty"`
 }
 
+// SetBindingPhase of this Account.
+func (a *Account) SetBindingPhase(p corev1alpha1.BindingPhase) {
+	a.Status.SetBindingPhase(p)
+}
+
+// GetBindingPhase of this Account.
+func (a *Account) GetBindingPhase() corev1alpha1.BindingPhase {
+	return a.Status.GetBindingPhase()
+}
+
+// SetClaimReference of this Account.
+func (a *Account) SetClaimReference(r *corev1.ObjectReference) {
+	a.Spec.ClaimReference = r
+}
+
+// GetClaimReference of this Account.
+func (a *Account) GetClaimReference() *corev1.ObjectReference {
+	return a.Spec.ClaimReference
+}
+
+// SetClassReference of this Account.
+func (a *Account) SetClassReference(r *corev1.ObjectReference) {
+	a.Spec.ClassReference = r
+}
+
+// GetClassReference of this Account.
+func (a *Account) GetClassReference() *corev1.ObjectReference {
+	return a.Spec.ClassReference
+}
+
+// SetWriteConnectionSecretTo of this Account.
+func (a *Account) SetWriteConnectionSecretTo(r corev1.LocalObjectReference) {
+	a.Spec.WriteConnectionSecretTo = r
+}
+
+// GetWriteConnectionSecretTo of this Account.
+func (a *Account) GetWriteConnectionSecretTo() corev1.LocalObjectReference {
+	return a.Spec.WriteConnectionSecretTo
+}
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // AccountList contains a list of AzureBuckets
@@ -83,47 +112,12 @@ type AccountList struct {
 	Items           []Account `json:"items"`
 }
 
-// ConnectionSecretName returns a secret name from the reference
-func (a *Account) ConnectionSecretName() string {
-	return util.IfEmptyString(a.Spec.ConnectionSecretNameOverride, a.Name)
-}
-
-// ConnectionSecret returns a connection secret for this account instance
-func (a *Account) ConnectionSecret() *corev1.Secret {
-	ref := meta.AsOwner(meta.ReferenceTo(a, AccountGroupVersionKind))
-	return &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace:       a.GetNamespace(),
-			Name:            a.ConnectionSecretName(),
-			OwnerReferences: []metav1.OwnerReference{ref},
-		},
-		Data: map[string][]byte{},
-	}
-}
-
-// IsAvailable for usage/binding
-func (a *Account) IsAvailable() bool {
-	return a.Status.IsReady()
-}
-
-// IsBound determines if the resource is in a bound binding state
-func (a *Account) IsBound() bool {
-	return a.Status.Phase == corev1alpha1.BindingPhaseBound
-}
-
-// SetBound sets the binding state of this resource
-func (a *Account) SetBound(state bool) {
-	if state {
-		a.Status.Phase = corev1alpha1.BindingPhaseBound
-	} else {
-		a.Status.Phase = corev1alpha1.BindingPhaseUnbound
-	}
-}
-
 // ParseAccountSpec from properties map key/values
 func ParseAccountSpec(p map[string]string) *AccountSpec {
 	return &AccountSpec{
-		ReclaimPolicy:      corev1alpha1.ReclaimRetain,
+		ResourceSpec: corev1alpha1.ResourceSpec{
+			ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		},
 		ResourceGroupName:  p["resourceGroupName"],
 		StorageAccountName: p["storageAccountName"],
 		StorageAccountSpec: parseStorageAccountSpec(p["storageAccountSpec"]),
@@ -142,25 +136,27 @@ type ContainerSpec struct {
 	// PublicAccessType
 	PublicAccessType azblob.PublicAccessType `json:"publicAccessType,omitempty"`
 
-	// AccountRef reference to azure storage account object
-	AccountRef corev1.LocalObjectReference `json:"accountRef"`
+	// AccountReference to azure storage account object
+	AccountReference corev1.LocalObjectReference `json:"accountReference"`
 
-	// ConnectionSecretNameOverride to generate connection secret with specific name
-	ConnectionSecretNameOverride string `json:"connectionSecretNameOverride,omitempty"`
+	// NOTE(negz): Container is the only Crossplane type that does not use a
+	// Provider (it reads credentials from its associated Account instead). This
+	// means we can't embed a corev1alpha1.ResourceSpec, as doing so would
+	// require a redundant providerReference be specified. Instead we duplicate
+	// most of that struct here; the below values should be kept in sync with
+	// corev1alpha1.ResourceSpec.
 
-	ClaimRef *corev1.ObjectReference `json:"claimRef,omitempty"`
-	ClassRef *corev1.ObjectReference `json:"classRef,omitempty"`
-
-	// ReclaimPolicy identifies how to handle the cloud resource after the deletion of this type
-	ReclaimPolicy corev1alpha1.ReclaimPolicy `json:"reclaimPolicy,omitempty"`
+	WriteConnectionSecretTo corev1.LocalObjectReference `json:"writeConnectionSecretTo,omitempty"`
+	ClaimReference          *corev1.ObjectReference     `json:"claimReference,omitempty"`
+	ClassReference          *corev1.ObjectReference     `json:"classReference,omitempty"`
+	ReclaimPolicy           corev1alpha1.ReclaimPolicy  `json:"reclaimPolicy,omitempty"`
 }
 
 // ContainerStatus sub-resource for Container object
 type ContainerStatus struct {
-	corev1alpha1.DeprecatedConditionedStatus
-	corev1alpha1.BindingStatusPhase
-	ConnectionSecretRef corev1.LocalObjectReference `json:"connectionSecretRef,omitempty"`
-	Name                string                      `json:"name,omitempty"`
+	corev1alpha1.ResourceStatus
+
+	Name string `json:"name,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -177,6 +173,46 @@ type Container struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 	Spec              ContainerSpec   `json:"spec,omitempty"`
 	Status            ContainerStatus `json:"status,omitempty"`
+}
+
+// SetBindingPhase of this Container.
+func (c *Container) SetBindingPhase(p corev1alpha1.BindingPhase) {
+	c.Status.SetBindingPhase(p)
+}
+
+// GetBindingPhase of this Container.
+func (c *Container) GetBindingPhase() corev1alpha1.BindingPhase {
+	return c.Status.GetBindingPhase()
+}
+
+// SetClaimReference of this Container.
+func (c *Container) SetClaimReference(r *corev1.ObjectReference) {
+	c.Spec.ClaimReference = r
+}
+
+// GetClaimReference of this Container.
+func (c *Container) GetClaimReference() *corev1.ObjectReference {
+	return c.Spec.ClaimReference
+}
+
+// SetClassReference of this Container.
+func (c *Container) SetClassReference(r *corev1.ObjectReference) {
+	c.Spec.ClassReference = r
+}
+
+// GetClassReference of this Container.
+func (c *Container) GetClassReference() *corev1.ObjectReference {
+	return c.Spec.ClassReference
+}
+
+// SetWriteConnectionSecretTo of this Container.
+func (c *Container) SetWriteConnectionSecretTo(r corev1.LocalObjectReference) {
+	c.Spec.WriteConnectionSecretTo = r
+}
+
+// GetWriteConnectionSecretTo of this Container.
+func (c *Container) GetWriteConnectionSecretTo() corev1.LocalObjectReference {
+	return c.Spec.WriteConnectionSecretTo
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -204,30 +240,6 @@ type ContainerList struct {
 //   5. NameFormat = "foo-%s-bar-%s", ContainerName = "foo-test-uid-bar-%!s(MISSING)"
 func (c *Container) GetContainerName() string {
 	return util.ConditionalStringFormat(c.Spec.NameFormat, string(c.GetUID()))
-}
-
-// ConnectionSecretName returns a secret name from the reference
-func (c *Container) ConnectionSecretName() string {
-	return util.IfEmptyString(c.Spec.ConnectionSecretNameOverride, c.Name)
-}
-
-// IsAvailable for usage/binding
-func (c *Container) IsAvailable() bool {
-	return c.Status.IsReady()
-}
-
-// IsBound determines if the resource is in a bound binding state
-func (c *Container) IsBound() bool {
-	return c.Status.Phase == corev1alpha1.BindingPhaseBound
-}
-
-// SetBound sets the binding state of this resource
-func (c *Container) SetBound(state bool) {
-	if state {
-		c.Status.Phase = corev1alpha1.BindingPhaseBound
-	} else {
-		c.Status.Phase = corev1alpha1.BindingPhaseUnbound
-	}
 }
 
 // ParseContainerSpec from properties map key/values

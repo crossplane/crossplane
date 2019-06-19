@@ -43,21 +43,21 @@ import (
 )
 
 const (
-	namespace         = "cool-namespace"
-	uid               = types.UID("definitely-a-uuid")
-	resourceName      = redis.NamePrefix + "-" + string(uid)
-	resourceGroupName = "coolgroup"
-	location          = "coolplace"
-	subscription      = "totally-a-uuid"
-	qualifiedName     = "/subscriptions/" + subscription + "/resourceGroups/" + resourceGroupName + "/providers/Microsoft.Cache/Redis/" + resourceName
-	host              = "172.16.0.1"
-	port              = 6379
-	sslPort           = 6380
-	enableNonSSLPort  = true
-	shardCount        = 3
-	skuName           = v1alpha1.SKUNameBasic
-	skuFamily         = v1alpha1.SKUFamilyC
-	skuCapacity       = 1
+	namespace              = "cool-namespace"
+	uid                    = types.UID("definitely-a-uuid")
+	redisResourceName      = redis.NamePrefix + "-" + string(uid)
+	redisResourceGroupName = "coolgroup"
+	location               = "coolplace"
+	subscription           = "totally-a-uuid"
+	qualifiedName          = "/subscriptions/" + subscription + "/redisResourceGroups/" + redisResourceGroupName + "/providers/Microsoft.Cache/Redis/" + redisResourceName
+	host                   = "172.16.0.1"
+	port                   = 6379
+	sslPort                = 6380
+	enableNonSSLPort       = true
+	shardCount             = 3
+	skuName                = v1alpha1.SKUNameBasic
+	skuFamily              = v1alpha1.SKUFamilyC
+	skuCapacity            = 1
 
 	primaryAccessKey = "sosecret"
 
@@ -90,58 +90,62 @@ var (
 	}
 )
 
-type resourceModifier func(*v1alpha1.Redis)
+type redisResourceModifier func(*v1alpha1.Redis)
 
-func withConditions(c ...corev1alpha1.DeprecatedCondition) resourceModifier {
-	return func(r *v1alpha1.Redis) { r.Status.DeprecatedConditionedStatus.Conditions = c }
+func withConditions(c ...corev1alpha1.Condition) redisResourceModifier {
+	return func(r *v1alpha1.Redis) { r.Status.ConditionedStatus.Conditions = c }
 }
 
-func withState(s string) resourceModifier {
+func withState(s string) redisResourceModifier {
 	return func(r *v1alpha1.Redis) { r.Status.State = s }
 }
 
-func withFinalizers(f ...string) resourceModifier {
+func withFinalizers(f ...string) redisResourceModifier {
 	return func(r *v1alpha1.Redis) { r.ObjectMeta.Finalizers = f }
 }
 
-func withReclaimPolicy(p corev1alpha1.ReclaimPolicy) resourceModifier {
+func withReclaimPolicy(p corev1alpha1.ReclaimPolicy) redisResourceModifier {
 	return func(r *v1alpha1.Redis) { r.Spec.ReclaimPolicy = p }
 }
 
-func withResourceName(n string) resourceModifier {
+func withResourceName(n string) redisResourceModifier {
 	return func(r *v1alpha1.Redis) { r.Status.ResourceName = n }
 }
 
-func withProviderID(id string) resourceModifier {
+func withProviderID(id string) redisResourceModifier {
 	return func(r *v1alpha1.Redis) { r.Status.ProviderID = id }
 }
 
-func withEndpoint(e string) resourceModifier {
+func withEndpoint(e string) redisResourceModifier {
 	return func(r *v1alpha1.Redis) { r.Status.Endpoint = e }
 }
 
-func withPort(p int) resourceModifier {
+func withPort(p int) redisResourceModifier {
 	return func(r *v1alpha1.Redis) { r.Status.Port = p }
 }
 
-func withSSLPort(p int) resourceModifier {
+func withSSLPort(p int) redisResourceModifier {
 	return func(r *v1alpha1.Redis) { r.Status.SSLPort = p }
 }
 
-func withDeletionTimestamp(t time.Time) resourceModifier {
+func withDeletionTimestamp(t time.Time) redisResourceModifier {
 	return func(r *v1alpha1.Redis) { r.ObjectMeta.DeletionTimestamp = &metav1.Time{Time: t} }
 }
 
-func resource(rm ...resourceModifier) *v1alpha1.Redis {
+func redisResource(rm ...redisResourceModifier) *v1alpha1.Redis {
 	r := &v1alpha1.Redis{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:  namespace,
-			Name:       resourceName,
+			Name:       redisResourceName,
 			UID:        uid,
 			Finalizers: []string{},
 		},
 		Spec: v1alpha1.RedisSpec{
-			ResourceGroupName:  resourceGroupName,
+			ResourceSpec: corev1alpha1.ResourceSpec{
+				ProviderReference:       &corev1.ObjectReference{Namespace: namespace, Name: providerName},
+				WriteConnectionSecretTo: corev1.LocalObjectReference{Name: connectionSecretName},
+			},
+			ResourceGroupName:  redisResourceGroupName,
 			Location:           location,
 			RedisConfiguration: redisConfiguration,
 			EnableNonSSLPort:   enableNonSSLPort,
@@ -151,8 +155,6 @@ func resource(rm ...resourceModifier) *v1alpha1.Redis {
 				Family:   skuFamily,
 				Capacity: skuCapacity,
 			},
-			ProviderRef:         corev1.LocalObjectReference{Name: providerName},
-			ConnectionSecretRef: corev1.LocalObjectReference{Name: connectionSecretName},
 		},
 		Status: v1alpha1.RedisStatus{
 			Endpoint:   host,
@@ -186,11 +188,11 @@ func TestCreate(t *testing.T) {
 					return redismgmt.CreateFuture{}, nil
 				},
 			}},
-			r: resource(),
-			want: resource(
-				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedCreating, Status: corev1.ConditionTrue}),
+			r: redisResource(),
+			want: redisResource(
+				withConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileSuccess()),
 				withFinalizers(finalizerName),
-				withResourceName(resourceName),
+				withResourceName(redisResourceName),
 			),
 			wantRequeue: true,
 		},
@@ -201,15 +203,10 @@ func TestCreate(t *testing.T) {
 					return redismgmt.CreateFuture{}, errorBoom
 				},
 			}},
-			r: resource(),
-			want: resource(withConditions(
-				corev1alpha1.DeprecatedCondition{
-					Type:    corev1alpha1.DeprecatedFailed,
-					Status:  corev1.ConditionTrue,
-					Reason:  reasonCreatingResource,
-					Message: errorBoom.Error(),
-				},
-			)),
+			r: redisResource(),
+			want: redisResource(
+				withConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileError(errorBoom)),
+			),
 			wantRequeue: true,
 		},
 	}
@@ -222,7 +219,7 @@ func TestCreate(t *testing.T) {
 				t.Errorf("tc.csdk.Create(...): want: %t got: %t", tc.wantRequeue, gotRequeue)
 			}
 
-			if diff := cmp.Diff(tc.want, tc.r); diff != "" {
+			if diff := cmp.Diff(tc.want, tc.r, test.EquateConditions()); diff != "" {
 				t.Errorf("r: -want, +got:\n%s", diff)
 			}
 		})
@@ -244,29 +241,13 @@ func TestSync(t *testing.T) {
 					return redismgmt.ResourceType{Properties: &redismgmt.Properties{ProvisioningState: redismgmt.Creating}}, nil
 				},
 			}},
-			r: resource(
-				withResourceName(resourceName),
-				withConditions(
-					corev1alpha1.DeprecatedCondition{
-						Type:    corev1alpha1.DeprecatedFailed,
-						Status:  corev1.ConditionTrue,
-						Reason:  reasonCreatingResource,
-						Message: errorBoom.Error(),
-					},
-				),
+			r: redisResource(
+				withResourceName(redisResourceName),
 			),
-			want: resource(
+			want: redisResource(
 				withState(v1alpha1.ProvisioningStateCreating),
-				withResourceName(resourceName),
-				withConditions(
-					corev1alpha1.DeprecatedCondition{
-						Type:    corev1alpha1.DeprecatedFailed,
-						Status:  corev1.ConditionFalse,
-						Reason:  reasonCreatingResource,
-						Message: errorBoom.Error(),
-					},
-					corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedCreating, Status: corev1.ConditionTrue},
-				),
+				withResourceName(redisResourceName),
+				withConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileSuccess()),
 			),
 			wantRequeue: true,
 		},
@@ -277,14 +258,13 @@ func TestSync(t *testing.T) {
 					return redismgmt.ResourceType{Properties: &redismgmt.Properties{ProvisioningState: redismgmt.Deleting}}, nil
 				},
 			}},
-			r: resource(
-				withResourceName(resourceName),
-				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedDeleting, Status: corev1.ConditionTrue}),
+			r: redisResource(
+				withResourceName(redisResourceName),
 			),
-			want: resource(
-				withResourceName(resourceName),
+			want: redisResource(
+				withResourceName(redisResourceName),
 				withState(v1alpha1.ProvisioningStateDeleting),
-				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedDeleting, Status: corev1.ConditionTrue}),
+				withConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileSuccess()),
 			),
 			wantRequeue: false,
 		},
@@ -295,14 +275,13 @@ func TestSync(t *testing.T) {
 					return redismgmt.ResourceType{Properties: &redismgmt.Properties{ProvisioningState: redismgmt.Updating}}, nil
 				},
 			}},
-			r: resource(
-				withResourceName(resourceName),
-				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedDeleting, Status: corev1.ConditionTrue}),
+			r: redisResource(
+				withResourceName(redisResourceName),
 			),
-			want: resource(
-				withResourceName(resourceName),
+			want: redisResource(
+				withResourceName(redisResourceName),
 				withState(v1alpha1.ProvisioningStateUpdating),
-				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedDeleting, Status: corev1.ConditionFalse}),
+				withConditions(corev1alpha1.ReconcileSuccess()),
 			),
 			wantRequeue: true,
 		},
@@ -329,18 +308,17 @@ func TestSync(t *testing.T) {
 					}, nil
 				},
 			}},
-			r: resource(
-				withResourceName(resourceName),
-				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedReady, Status: corev1.ConditionTrue}),
+			r: redisResource(
+				withResourceName(redisResourceName),
 			),
-			want: resource(
-				withResourceName(resourceName),
+			want: redisResource(
+				withResourceName(redisResourceName),
 				withState(v1alpha1.ProvisioningStateSucceeded),
 				withProviderID(qualifiedName),
 				withEndpoint(host),
 				withPort(port),
 				withSSLPort(sslPort),
-				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedReady, Status: corev1.ConditionTrue}),
+				withConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess()),
 			),
 			wantRequeue: false,
 		},
@@ -373,18 +351,17 @@ func TestSync(t *testing.T) {
 					return redismgmt.ResourceType{}, nil
 				},
 			}},
-			r: resource(
-				withResourceName(resourceName),
-				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedReady, Status: corev1.ConditionTrue}),
+			r: redisResource(
+				withResourceName(redisResourceName),
 			),
-			want: resource(
-				withResourceName(resourceName),
+			want: redisResource(
+				withResourceName(redisResourceName),
 				withState(v1alpha1.ProvisioningStateSucceeded),
 				withProviderID(qualifiedName),
 				withEndpoint(host),
 				withPort(port),
 				withSSLPort(sslPort),
-				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedReady, Status: corev1.ConditionTrue}),
+				withConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess()),
 			),
 			wantRequeue: false,
 		},
@@ -395,21 +372,12 @@ func TestSync(t *testing.T) {
 					return redismgmt.ResourceType{}, errorBoom
 				},
 			}},
-			r: resource(
-				withResourceName(resourceName),
-				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedCreating, Status: corev1.ConditionTrue}),
+			r: redisResource(
+				withResourceName(redisResourceName),
 			),
-			want: resource(
-				withResourceName(resourceName),
-				withConditions(
-					corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedCreating, Status: corev1.ConditionTrue},
-					corev1alpha1.DeprecatedCondition{
-						Type:    corev1alpha1.DeprecatedFailed,
-						Status:  corev1.ConditionTrue,
-						Reason:  reasonSyncingResource,
-						Message: errorBoom.Error(),
-					},
-				),
+			want: redisResource(
+				withResourceName(redisResourceName),
+				withConditions(corev1alpha1.ReconcileError(errorBoom)),
 			),
 			wantRequeue: true,
 		},
@@ -439,25 +407,17 @@ func TestSync(t *testing.T) {
 					return redismgmt.ResourceType{}, errorBoom
 				},
 			}},
-			r: resource(withResourceName(resourceName),
-				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedReady, Status: corev1.ConditionTrue}),
+			r: redisResource(
+				withResourceName(redisResourceName),
 			),
-			want: resource(
-				withResourceName(resourceName),
+			want: redisResource(
+				withResourceName(redisResourceName),
 				withState(v1alpha1.ProvisioningStateSucceeded),
 				withProviderID(qualifiedName),
 				withEndpoint(host),
 				withPort(port),
 				withSSLPort(sslPort),
-				withConditions(
-					corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedReady, Status: corev1.ConditionTrue},
-					corev1alpha1.DeprecatedCondition{
-						Type:    corev1alpha1.DeprecatedFailed,
-						Status:  corev1.ConditionTrue,
-						Reason:  reasonSyncingResource,
-						Message: errorBoom.Error(),
-					},
-				),
+				withConditions(corev1alpha1.Available(), corev1alpha1.ReconcileError(errorBoom)),
 			),
 			wantRequeue: true,
 		},
@@ -471,7 +431,7 @@ func TestSync(t *testing.T) {
 				t.Errorf("tc.csdk.Sync(...): want: %t got: %t", tc.wantRequeue, gotRequeue)
 			}
 
-			if diff := cmp.Diff(tc.want, tc.r); diff != "" {
+			if diff := cmp.Diff(tc.want, tc.r, test.EquateConditions()); diff != "" {
 				t.Errorf("r: -want, +got:\n%s", diff)
 			}
 		})
@@ -493,10 +453,10 @@ func TestDelete(t *testing.T) {
 					return redismgmt.DeleteFuture{}, nil
 				},
 			}},
-			r: resource(withFinalizers(finalizerName), withReclaimPolicy(corev1alpha1.ReclaimRetain)),
-			want: resource(
+			r: redisResource(withFinalizers(finalizerName), withReclaimPolicy(corev1alpha1.ReclaimRetain)),
+			want: redisResource(
 				withReclaimPolicy(corev1alpha1.ReclaimRetain),
-				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedDeleting, Status: corev1.ConditionTrue}),
+				withConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileSuccess()),
 			),
 			wantRequeue: false,
 		},
@@ -507,10 +467,10 @@ func TestDelete(t *testing.T) {
 					return redismgmt.DeleteFuture{}, nil
 				},
 			}},
-			r: resource(withFinalizers(finalizerName), withReclaimPolicy(corev1alpha1.ReclaimDelete)),
-			want: resource(
+			r: redisResource(withFinalizers(finalizerName), withReclaimPolicy(corev1alpha1.ReclaimDelete)),
+			want: redisResource(
 				withReclaimPolicy(corev1alpha1.ReclaimDelete),
-				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedDeleting, Status: corev1.ConditionTrue}),
+				withConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileSuccess()),
 			),
 			wantRequeue: false,
 		},
@@ -521,18 +481,11 @@ func TestDelete(t *testing.T) {
 					return redismgmt.DeleteFuture{}, errorBoom
 				},
 			}},
-			r: resource(withFinalizers(finalizerName), withReclaimPolicy(corev1alpha1.ReclaimDelete)),
-			want: resource(
+			r: redisResource(withFinalizers(finalizerName), withReclaimPolicy(corev1alpha1.ReclaimDelete)),
+			want: redisResource(
 				withFinalizers(finalizerName),
 				withReclaimPolicy(corev1alpha1.ReclaimDelete),
-				withConditions(
-					corev1alpha1.DeprecatedCondition{
-						Type:    corev1alpha1.DeprecatedFailed,
-						Status:  corev1.ConditionTrue,
-						Reason:  reasonDeletingResource,
-						Message: errorBoom.Error(),
-					},
-				),
+				withConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileError(errorBoom)),
 			),
 			wantRequeue: true,
 		},
@@ -546,7 +499,7 @@ func TestDelete(t *testing.T) {
 				t.Errorf("tc.csdk.Delete(...): want: %t got: %t", tc.wantRequeue, gotRequeue)
 			}
 
-			if diff := cmp.Diff(tc.want, tc.r); diff != "" {
+			if diff := cmp.Diff(tc.want, tc.r, test.EquateConditions()); diff != "" {
 				t.Errorf("r: -want, +got:\n%s", diff)
 			}
 		})
@@ -567,8 +520,8 @@ func TestKey(t *testing.T) {
 					return redismgmt.AccessKeys{PrimaryKey: azure.ToStringPtr(primaryAccessKey)}, nil
 				},
 			}},
-			r:       resource(),
-			want:    resource(),
+			r:       redisResource(),
+			want:    redisResource(),
 			wantKey: primaryAccessKey,
 		},
 		{
@@ -578,17 +531,8 @@ func TestKey(t *testing.T) {
 					return redismgmt.AccessKeys{}, errorBoom
 				},
 			}},
-			r: resource(),
-			want: resource(
-				withConditions(
-					corev1alpha1.DeprecatedCondition{
-						Type:    corev1alpha1.DeprecatedFailed,
-						Status:  corev1.ConditionTrue,
-						Reason:  reasonGettingKey,
-						Message: errorBoom.Error(),
-					},
-				),
-			),
+			r:    redisResource(),
+			want: redisResource(withConditions(corev1alpha1.ReconcileError(errorBoom))),
 		},
 	}
 
@@ -600,7 +544,7 @@ func TestKey(t *testing.T) {
 				t.Errorf("tc.csdk.Key(...): want: %s got: %s", tc.wantKey, gotKey)
 			}
 
-			if diff := cmp.Diff(tc.want, tc.r); diff != "" {
+			if diff := cmp.Diff(tc.want, tc.r, test.EquateConditions()); diff != "" {
 				t.Errorf("r: -want, +got:\n%s", diff)
 			}
 		})
@@ -629,7 +573,7 @@ func TestConnect(t *testing.T) {
 				}},
 				newClient: func(_ context.Context, _ []byte) (redis.Client, error) { return &fakeredis.MockClient{}, nil },
 			},
-			i:    resource(),
+			i:    redisResource(),
 			want: &azureRedisCache{client: &fakeredis.MockClient{}},
 		},
 		{
@@ -640,7 +584,7 @@ func TestConnect(t *testing.T) {
 				}},
 				newClient: func(_ context.Context, _ []byte) (redis.Client, error) { return &fakeredis.MockClient{}, nil },
 			},
-			i:       resource(),
+			i:       redisResource(),
 			wantErr: errors.WithStack(errors.Errorf("cannot get provider %s/%s:  \"%s\" not found", namespace, providerName, providerName)),
 		},
 		{
@@ -657,7 +601,7 @@ func TestConnect(t *testing.T) {
 				}},
 				newClient: func(_ context.Context, _ []byte) (redis.Client, error) { return &fakeredis.MockClient{}, nil },
 			},
-			i:       resource(),
+			i:       redisResource(),
 			wantErr: errors.WithStack(errors.Errorf("cannot get provider secret %s/%s:  \"%s\" not found", namespace, providerSecretName, providerSecretName)),
 		},
 		{
@@ -674,7 +618,7 @@ func TestConnect(t *testing.T) {
 				}},
 				newClient: func(_ context.Context, _ []byte) (redis.Client, error) { return nil, errorBoom },
 			},
-			i:       resource(),
+			i:       redisResource(),
 			want:    &azureRedisCache{},
 			wantErr: errors.Wrap(errorBoom, "cannot create new Azure Cache client"),
 		},
@@ -742,13 +686,13 @@ func TestReconcile(t *testing.T) {
 				}},
 				kube: &test.MockClient{
 					MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
-						*obj.(*v1alpha1.Redis) = *(resource(withResourceName(resourceName), withDeletionTimestamp(time.Now())))
+						*obj.(*v1alpha1.Redis) = *(redisResource(withResourceName(redisResourceName), withDeletionTimestamp(time.Now())))
 						return nil
 					},
 					MockUpdate: func(_ context.Context, _ runtime.Object) error { return nil },
 				},
 			},
-			req:     reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: resourceName}},
+			req:     reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: redisResourceName}},
 			want:    reconcile.Result{Requeue: false},
 			wantErr: nil,
 		},
@@ -760,13 +704,13 @@ func TestReconcile(t *testing.T) {
 				}},
 				kube: &test.MockClient{
 					MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
-						*obj.(*v1alpha1.Redis) = *(resource())
+						*obj.(*v1alpha1.Redis) = *(redisResource())
 						return nil
 					},
 					MockUpdate: func(_ context.Context, _ runtime.Object) error { return nil },
 				},
 			},
-			req:     reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: resourceName}},
+			req:     reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: redisResourceName}},
 			want:    reconcile.Result{Requeue: true},
 			wantErr: nil,
 		},
@@ -782,8 +726,8 @@ func TestReconcile(t *testing.T) {
 				kube: &test.MockClient{
 					MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
 						switch key {
-						case client.ObjectKey{Namespace: namespace, Name: resourceName}:
-							*obj.(*v1alpha1.Redis) = *(resource(withResourceName(resourceName), withEndpoint(host)))
+						case client.ObjectKey{Namespace: namespace, Name: redisResourceName}:
+							*obj.(*v1alpha1.Redis) = *(redisResource(withResourceName(redisResourceName), withEndpoint(host)))
 						case client.ObjectKey{Namespace: namespace, Name: connectionSecretName}:
 							return kerrors.NewNotFound(schema.GroupResource{}, connectionSecretName)
 						}
@@ -793,7 +737,7 @@ func TestReconcile(t *testing.T) {
 					MockCreate: func(_ context.Context, _ runtime.Object) error { return nil },
 				},
 			},
-			req:     reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: resourceName}},
+			req:     reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: redisResourceName}},
 			want:    reconcile.Result{Requeue: false},
 			wantErr: nil,
 		},
@@ -802,12 +746,12 @@ func TestReconcile(t *testing.T) {
 			rec: &Reconciler{
 				kube: &test.MockClient{
 					MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
-						return kerrors.NewNotFound(schema.GroupResource{}, resourceName)
+						return kerrors.NewNotFound(schema.GroupResource{}, redisResourceName)
 					},
 					MockUpdate: func(_ context.Context, _ runtime.Object) error { return nil },
 				},
 			},
-			req:     reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: resourceName}},
+			req:     reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: redisResourceName}},
 			want:    reconcile.Result{Requeue: false},
 			wantErr: nil,
 		},
@@ -821,9 +765,9 @@ func TestReconcile(t *testing.T) {
 					MockUpdate: func(_ context.Context, _ runtime.Object) error { return nil },
 				},
 			},
-			req:     reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: resourceName}},
+			req:     reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: redisResourceName}},
 			want:    reconcile.Result{Requeue: false},
-			wantErr: errors.Wrapf(errorBoom, "cannot get resource %s/%s", namespace, resourceName),
+			wantErr: errors.Wrapf(errorBoom, "cannot get resource %s/%s", namespace, redisResourceName),
 		},
 		{
 			name: "FailedToConnect",
@@ -833,27 +777,20 @@ func TestReconcile(t *testing.T) {
 				}},
 				kube: &test.MockClient{
 					MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
-						*obj.(*v1alpha1.Redis) = *(resource())
+						*obj.(*v1alpha1.Redis) = *(redisResource())
 						return nil
 					},
 					MockUpdate: func(_ context.Context, obj runtime.Object) error {
-						want := resource(withConditions(
-							corev1alpha1.DeprecatedCondition{
-								Type:    corev1alpha1.DeprecatedFailed,
-								Status:  corev1.ConditionTrue,
-								Reason:  reasonFetchingClient,
-								Message: errorBoom.Error(),
-							},
-						))
+						want := redisResource(withConditions(corev1alpha1.ReconcileError(errorBoom)))
 						got := obj.(*v1alpha1.Redis)
-						if diff := cmp.Diff(want, got); diff != "" {
+						if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
 							t.Errorf("kube.Update(...): -want, +got:\n%s", diff)
 						}
 						return nil
 					},
 				},
 			},
-			req:     reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: resourceName}},
+			req:     reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: redisResourceName}},
 			want:    reconcile.Result{Requeue: true},
 			wantErr: nil,
 		},
@@ -868,31 +805,27 @@ func TestReconcile(t *testing.T) {
 						switch key {
 						case types.NamespacedName{Namespace: namespace, Name: connectionSecretName}:
 							return errorBoom
-						case types.NamespacedName{Namespace: namespace, Name: resourceName}:
-							*obj.(*v1alpha1.Redis) = *(resource(withResourceName(resourceName)))
+						case types.NamespacedName{Namespace: namespace, Name: redisResourceName}:
+							*obj.(*v1alpha1.Redis) = *(redisResource(withResourceName(redisResourceName)))
 						}
 						return nil
 					},
 					MockUpdate: func(_ context.Context, obj runtime.Object) error {
-						want := resource(
-							withResourceName(resourceName),
+						want := redisResource(
+							withResourceName(redisResourceName),
 							withConditions(
-								corev1alpha1.DeprecatedCondition{
-									Type:    corev1alpha1.DeprecatedFailed,
-									Status:  corev1.ConditionTrue,
-									Reason:  reasonSyncingSecret,
-									Message: errors.Wrapf(errorBoom, "cannot get secret %s/%s", namespace, connectionSecretName).Error(),
-								},
-							))
+								corev1alpha1.ReconcileError(errors.Wrapf(errorBoom, "cannot get secret %s/%s", namespace, connectionSecretName)),
+							),
+						)
 						got := obj.(*v1alpha1.Redis)
-						if diff := cmp.Diff(want, got); diff != "" {
+						if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
 							t.Errorf("kube.Update(...): -want, +got:\n%s", diff)
 						}
 						return nil
 					},
 				},
 			},
-			req:     reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: resourceName}},
+			req:     reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: redisResourceName}},
 			want:    reconcile.Result{Requeue: true},
 			wantErr: nil,
 		},
@@ -907,24 +840,20 @@ func TestReconcile(t *testing.T) {
 						switch key {
 						case types.NamespacedName{Namespace: namespace, Name: connectionSecretName}:
 							return kerrors.NewNotFound(schema.GroupResource{}, connectionSecretName)
-						case types.NamespacedName{Namespace: namespace, Name: resourceName}:
-							*obj.(*v1alpha1.Redis) = *(resource(withResourceName(resourceName)))
+						case types.NamespacedName{Namespace: namespace, Name: redisResourceName}:
+							*obj.(*v1alpha1.Redis) = *(redisResource(withResourceName(redisResourceName)))
 						}
 						return nil
 					},
 					MockUpdate: func(_ context.Context, obj runtime.Object) error {
-						want := resource(
-							withResourceName(resourceName),
+						want := redisResource(
+							withResourceName(redisResourceName),
 							withConditions(
-								corev1alpha1.DeprecatedCondition{
-									Type:    corev1alpha1.DeprecatedFailed,
-									Status:  corev1.ConditionTrue,
-									Reason:  reasonSyncingSecret,
-									Message: errors.Wrapf(errorBoom, "cannot create secret %s/%s", namespace, connectionSecretName).Error(),
-								},
-							))
+								corev1alpha1.ReconcileError(errors.Wrapf(errorBoom, "cannot create secret %s/%s", namespace, connectionSecretName)),
+							),
+						)
 						got := obj.(*v1alpha1.Redis)
-						if diff := cmp.Diff(want, got); diff != "" {
+						if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
 							t.Errorf("kube.Update(...): -want, +got:\n%s", diff)
 						}
 						return nil
@@ -932,7 +861,7 @@ func TestReconcile(t *testing.T) {
 					MockCreate: func(_ context.Context, obj runtime.Object) error { return errorBoom },
 				},
 			},
-			req:     reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: resourceName}},
+			req:     reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: redisResourceName}},
 			want:    reconcile.Result{Requeue: true},
 			wantErr: nil,
 		},
@@ -947,8 +876,8 @@ func TestReconcile(t *testing.T) {
 						switch key {
 						case types.NamespacedName{Namespace: namespace, Name: connectionSecretName}:
 							return nil
-						case types.NamespacedName{Namespace: namespace, Name: resourceName}:
-							*obj.(*v1alpha1.Redis) = *(resource(withResourceName(resourceName)))
+						case types.NamespacedName{Namespace: namespace, Name: redisResourceName}:
+							*obj.(*v1alpha1.Redis) = *(redisResource(withResourceName(redisResourceName)))
 						}
 						return nil
 					},
@@ -957,17 +886,13 @@ func TestReconcile(t *testing.T) {
 						case *corev1.Secret:
 							return errorBoom
 						case *v1alpha1.Redis:
-							want := resource(
-								withResourceName(resourceName),
+							want := redisResource(
+								withResourceName(redisResourceName),
 								withConditions(
-									corev1alpha1.DeprecatedCondition{
-										Type:    corev1alpha1.DeprecatedFailed,
-										Status:  corev1.ConditionTrue,
-										Reason:  reasonSyncingSecret,
-										Message: errors.Wrapf(errorBoom, "cannot update secret %s/%s", namespace, connectionSecretName).Error(),
-									},
-								))
-							if diff := cmp.Diff(want, got); diff != "" {
+									corev1alpha1.ReconcileError(errors.Wrapf(errorBoom, "cannot update secret %s/%s", namespace, connectionSecretName)),
+								),
+							)
+							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
 								t.Errorf("kube.Update(...): -want, +got:\n%s", diff)
 							}
 						}
@@ -975,7 +900,7 @@ func TestReconcile(t *testing.T) {
 					},
 				},
 			},
-			req:     reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: resourceName}},
+			req:     reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: redisResourceName}},
 			want:    reconcile.Result{Requeue: true},
 			wantErr: nil,
 		},
@@ -1005,7 +930,7 @@ func TestConnectionSecret(t *testing.T) {
 	}{
 		{
 			name:     "Successful",
-			r:        resource(withEndpoint(host)),
+			r:        redisResource(withEndpoint(host)),
 			password: primaryAccessKey,
 			want: &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
@@ -1014,7 +939,7 @@ func TestConnectionSecret(t *testing.T) {
 					OwnerReferences: []metav1.OwnerReference{{
 						APIVersion: v1alpha1.APIVersion,
 						Kind:       v1alpha1.RedisKind,
-						Name:       resourceName,
+						Name:       redisResourceName,
 						UID:        uid,
 					}},
 				},

@@ -18,11 +18,11 @@ package util
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -57,7 +57,7 @@ func TestGetRunningPod(t *testing.T) {
 			kube: nil,
 			want: want{
 				pod: nil,
-				err: fmt.Errorf("cannot detect the pod name. Please provide it using the downward API in the manifest file"),
+				err: errors.New("cannot detect the pod name. Please provide it using the downward API in the manifest file"),
 			},
 		},
 		{
@@ -69,7 +69,7 @@ func TestGetRunningPod(t *testing.T) {
 			kube: nil,
 			want: want{
 				pod: nil,
-				err: fmt.Errorf("cannot detect the pod namespace. Please provide it using the downward API in the manifest file"),
+				err: errors.New("cannot detect the pod namespace. Please provide it using the downward API in the manifest file"),
 			},
 		},
 		{
@@ -181,7 +181,7 @@ func TestGetSpecContainerImage(t *testing.T) {
 			containerName: "baz",
 			want: want{
 				image: "",
-				err:   fmt.Errorf("failed to find image for container baz"),
+				err:   errors.New("failed to find image for container baz"),
 			},
 		},
 	}

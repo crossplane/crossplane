@@ -41,25 +41,12 @@ spec:
           type: object
         spec:
           properties:
-            claimRef:
-              description: Kubernetes object references
-              type: object
-            classRef:
-              type: object
-            connectionSecretRef:
-              type: object
             enableNonSslPort:
               description: EnableNonSSLPort specifies whether the non-ssl Redis server
                 port (6379) is enabled.
               type: boolean
             location:
               description: Location in which to create this resource.
-              type: string
-            providerRef:
-              type: object
-            reclaimPolicy:
-              description: ReclaimPolicy identifies how to handle the cloud resource
-                after the deletion of this type
               type: string
             redisConfiguration:
               description: RedisConfiguration specifies Redis Settings.
@@ -116,7 +103,6 @@ spec:
           - resourceGroupName
           - location
           - sku
-          - providerRef
           type: object
         status:
           properties:

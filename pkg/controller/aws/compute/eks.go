@@ -23,12 +23,12 @@ import (
 	"strings"
 
 	"github.com/ghodss/yaml"
+	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
@@ -47,6 +47,7 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/clients/aws/eks"
 	"github.com/crossplaneio/crossplane/pkg/logging"
 	"github.com/crossplaneio/crossplane/pkg/meta"
+	"github.com/crossplaneio/crossplane/pkg/resource"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
@@ -55,10 +56,6 @@ const (
 	finalizer         = "finalizer." + controllerName
 	clusterNamePrefix = "eks-"
 
-	errorClusterClient   = "Failed to create cluster client"
-	errorCreateCluster   = "Failed to create new cluster"
-	errorSyncCluster     = "Failed to sync cluster state"
-	errorDeleteCluster   = "Failed to delete cluster"
 	eksAuthConfigMapName = "aws-auth"
 	eksAuthMapRolesKey   = "mapRoles"
 	eksAuthMapUsersKey   = "mapUsers"
@@ -127,19 +124,15 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 }
 
 // fail - helper function to set fail condition with reason and message
-func (r *Reconciler) fail(instance *awscomputev1alpha1.EKSCluster, reason, msg string) (reconcile.Result, error) {
-	instance.Status.SetFailed(reason, msg)
+func (r *Reconciler) fail(instance *awscomputev1alpha1.EKSCluster, err error) (reconcile.Result, error) {
+	instance.Status.SetConditions(corev1alpha1.ReconcileError(err))
 	return resultRequeue, r.Update(context.TODO(), instance)
 }
 
 func (r *Reconciler) _connect(instance *awscomputev1alpha1.EKSCluster) (eks.Client, error) {
 	// Fetch Provider
 	p := &awsv1alpha1.Provider{}
-	providerNamespacedName := types.NamespacedName{
-		Namespace: instance.Namespace,
-		Name:      instance.Spec.ProviderRef.Name,
-	}
-	err := r.Get(ctx, providerNamespacedName, p)
+	err := r.Get(ctx, meta.NamespacedNameOf(instance.Spec.ProviderReference), p)
 	if err != nil {
 		return nil, err
 	}
@@ -160,25 +153,25 @@ func (r *Reconciler) _connect(instance *awscomputev1alpha1.EKSCluster) (eks.Clie
 }
 
 func (r *Reconciler) _create(instance *awscomputev1alpha1.EKSCluster, client eks.Client) (reconcile.Result, error) {
+	instance.Status.SetConditions(corev1alpha1.Creating())
 	clusterName := fmt.Sprintf("%s%s", clusterNamePrefix, instance.UID)
 
 	// Create Master
 	_, err := client.Create(clusterName, instance.Spec)
 	if err != nil && !eks.IsErrorAlreadyExists(err) {
 		if eks.IsErrorBadRequest(err) {
-			instance.Status.SetFailed(errorCreateCluster, err.Error())
 			// do not requeue on bad requests
+			instance.Status.SetConditions(corev1alpha1.ReconcileError(err))
 			return result, r.Update(ctx, instance)
 		}
-		return r.fail(instance, errorCreateCluster, err.Error())
+		return r.fail(instance, err)
 	}
 
 	// Update status
 	instance.Status.State = awscomputev1alpha1.ClusterStatusCreating
-	instance.Status.UnsetAllDeprecatedConditions()
-	instance.Status.SetCreating()
 	instance.Status.ClusterName = clusterName
 
+	instance.Status.SetConditions(corev1alpha1.ReconcileSuccess())
 	return resultRequeue, r.Update(ctx, instance)
 }
 
@@ -271,10 +264,11 @@ func (r *Reconciler) _awsauth(cluster *eks.Cluster, instance *awscomputev1alpha1
 func (r *Reconciler) _sync(instance *awscomputev1alpha1.EKSCluster, client eks.Client) (reconcile.Result, error) {
 	cluster, err := client.Get(instance.Status.ClusterName)
 	if err != nil {
-		return r.fail(instance, errorSyncCluster, err.Error())
+		return r.fail(instance, err)
 	}
 
 	if cluster.Status != awscomputev1alpha1.ClusterStatusActive {
+		instance.Status.SetConditions(corev1alpha1.ReconcileSuccess())
 		return resultRequeue, nil
 	}
 
@@ -282,33 +276,35 @@ func (r *Reconciler) _sync(instance *awscomputev1alpha1.EKSCluster, client eks.C
 	if instance.Status.CloudFormationStackID == "" {
 		clusterWorkers, err := client.CreateWorkerNodes(instance.Status.ClusterName, instance.Spec)
 		if err != nil {
-			return r.fail(instance, errorSyncCluster, err.Error())
+			return r.fail(instance, err)
 		}
 		instance.Status.CloudFormationStackID = clusterWorkers.WorkerStackID
+		instance.Status.SetConditions(corev1alpha1.ReconcileSuccess())
 		return resultRequeue, r.Update(ctx, instance)
 	}
 
 	clusterWorker, err := client.GetWorkerNodes(instance.Status.CloudFormationStackID)
 	if err != nil {
-		return r.fail(instance, errorSyncCluster, err.Error())
+		return r.fail(instance, err)
 	}
 
 	if !cloudformationclient.IsCompletedState(clusterWorker.WorkersStatus) {
+		instance.Status.SetConditions(corev1alpha1.ReconcileSuccess())
 		return resultRequeue, r.Update(ctx, instance)
 	}
 
 	if err := r.awsauth(cluster, instance, client, clusterWorker.WorkerARN); err != nil {
-		return r.fail(instance, errorSyncCluster, fmt.Sprintf("failed to set auth map on eks: %s", err.Error()))
+		return r.fail(instance, errors.Wrap(err, "failed to set auth map on eks"))
 	}
 
 	if err := r.secret(cluster, instance, client); err != nil {
-		return r.fail(instance, errorSyncCluster, err.Error())
+		return r.fail(instance, err)
 	}
 
 	// update resource status
 	instance.Status.Endpoint = cluster.Endpoint
 	instance.Status.State = awscomputev1alpha1.ClusterStatusActive
-	instance.Status.SetReady()
+	instance.Status.SetConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess())
 
 	return result, r.Update(ctx, instance)
 }
@@ -325,7 +321,8 @@ func (r *Reconciler) _secret(cluster *eks.Cluster, instance *awscomputev1alpha1.
 		return err
 	}
 
-	secret := instance.ConnectionSecret()
+	// secret := instance.ConnectionSecret()
+	secret := resource.ConnectionSecretFor(instance, awscomputev1alpha1.EKSClusterGroupVersionKind)
 	data := make(map[string][]byte)
 	data[corev1alpha1.ResourceCredentialsSecretEndpointKey] = []byte(cluster.Endpoint)
 	data[corev1alpha1.ResourceCredentialsSecretCAKey] = caData
@@ -337,14 +334,12 @@ func (r *Reconciler) _secret(cluster *eks.Cluster, instance *awscomputev1alpha1.
 		return err
 	}
 
-	// Set secret reference
-	instance.SetConnectionSecretReference(secret)
-
 	return nil
 }
 
 // _delete check reclaim policy and if needed delete the eks cluster resource
 func (r *Reconciler) _delete(instance *awscomputev1alpha1.EKSCluster, client eks.Client) (reconcile.Result, error) {
+	instance.Status.SetConditions(corev1alpha1.Deleting())
 	if instance.Spec.ReclaimPolicy == corev1alpha1.ReclaimDelete {
 		var deleteErrors []string
 		if err := client.Delete(instance.Status.ClusterName); err != nil && !eks.IsErrorNotFound(err) {
@@ -358,12 +353,12 @@ func (r *Reconciler) _delete(instance *awscomputev1alpha1.EKSCluster, client eks
 		}
 
 		if len(deleteErrors) > 0 {
-			return r.fail(instance, errorDeleteCluster, strings.Join(deleteErrors, ", "))
+			return r.fail(instance, errors.New(strings.Join(deleteErrors, ", ")))
 		}
 	}
 
 	meta.RemoveFinalizer(instance, finalizer)
-	instance.Status.SetDeleting()
+	instance.Status.SetConditions(corev1alpha1.ReconcileSuccess())
 	return result, r.Update(ctx, instance)
 }
 
@@ -375,7 +370,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	instance := &awscomputev1alpha1.EKSCluster{}
 	err := r.Get(ctx, request.NamespacedName, instance)
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if kerrors.IsNotFound(err) {
 			// Object not found, return.  Created objects are automatically garbage collected.
 			// For additional cleanup logic use finalizers.
 			return reconcile.Result{}, nil
@@ -387,7 +382,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	// Create EKS Client
 	eksClient, err := r.connect(instance)
 	if err != nil {
-		return r.fail(instance, errorClusterClient, err.Error())
+		return r.fail(instance, err)
 	}
 
 	// Add finalizer

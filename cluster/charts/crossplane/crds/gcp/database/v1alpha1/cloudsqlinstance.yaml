@@ -44,22 +44,9 @@ spec:
           type: object
         spec:
           properties:
-            claimRef:
-              description: Kubernetes object references
-              type: object
-            classRef:
-              type: object
-            connectionSecretRef:
-              type: object
             databaseVersion:
               description: The database engine (MySQL or PostgreSQL) and its specific
                 version to use, e.g., MYSQL_5_7 or POSTGRES_9_6.
-              type: string
-            providerRef:
-              type: object
-            reclaimPolicy:
-              description: ReclaimPolicy identifies how to handle the cloud resource
-                after the deletion of this type
               type: string
             region:
               type: string
@@ -83,7 +70,6 @@ spec:
           - storageGB
           - databaseVersion
           - tier
-          - providerRef
           type: object
         status:
           properties:

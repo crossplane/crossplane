@@ -46,13 +46,6 @@ spec:
           properties:
             adminLoginName:
               type: string
-            claimRef:
-              description: Kubernetes object references
-              type: object
-            classRef:
-              type: object
-            connectionSecretRef:
-              type: object
             location:
               type: string
             pricingTier:
@@ -69,12 +62,6 @@ spec:
               - vcores
               - family
               type: object
-            providerRef:
-              type: object
-            reclaimPolicy:
-              description: ReclaimPolicy identifies how to handle the cloud resource
-                after the deletion of this type
-              type: string
             resourceGroupName:
               type: string
             sslEnforced:
@@ -101,7 +88,6 @@ spec:
           - storageProfile
           - adminLoginName
           - version
-          - providerRef
           type: object
         status:
           properties:

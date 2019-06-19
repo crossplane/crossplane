@@ -25,9 +25,7 @@ import (
 
 // MySQLInstanceSpec specifies the configuration of a MySQL instance.
 type MySQLInstanceSpec struct {
-	ClassRef    *corev1.ObjectReference `json:"classReference,omitempty"`
-	ResourceRef *corev1.ObjectReference `json:"resourceName,omitempty"`
-	Selector    metav1.LabelSelector    `json:"selector,omitempty"`
+	corev1alpha1.ResourceClaimSpec
 
 	// mysql instance properties
 	// +kubebuilder:validation:Enum=5.6,5.7
@@ -49,6 +47,51 @@ type MySQLInstance struct {
 	Status corev1alpha1.ResourceClaimStatus `json:"status,omitempty"`
 }
 
+// SetBindingPhase of this MySQLInstance.
+func (i *MySQLInstance) SetBindingPhase(p corev1alpha1.BindingPhase) {
+	i.Status.SetBindingPhase(p)
+}
+
+// GetBindingPhase of this MySQLInstance.
+func (i *MySQLInstance) GetBindingPhase() corev1alpha1.BindingPhase {
+	return i.Status.GetBindingPhase()
+}
+
+// SetConditions of this MySQLInstance.
+func (i *MySQLInstance) SetConditions(c ...corev1alpha1.Condition) {
+	i.Status.SetConditions(c...)
+}
+
+// SetClassReference of this MySQLInstance.
+func (i *MySQLInstance) SetClassReference(r *corev1.ObjectReference) {
+	i.Spec.ClassReference = r
+}
+
+// GetClassReference of this MySQLInstance.
+func (i *MySQLInstance) GetClassReference() *corev1.ObjectReference {
+	return i.Spec.ClassReference
+}
+
+// SetResourceReference of this MySQLInstance.
+func (i *MySQLInstance) SetResourceReference(r *corev1.ObjectReference) {
+	i.Spec.ResourceReference = r
+}
+
+// GetResourceReference of this MySQLInstance.
+func (i *MySQLInstance) GetResourceReference() *corev1.ObjectReference {
+	return i.Spec.ResourceReference
+}
+
+// SetWriteConnectionSecretTo of this MySQLInstance.
+func (i *MySQLInstance) SetWriteConnectionSecretTo(r corev1.LocalObjectReference) {
+	i.Spec.WriteConnectionSecretTo = r
+}
+
+// GetWriteConnectionSecretTo of this MySQLInstance.
+func (i *MySQLInstance) GetWriteConnectionSecretTo() corev1.LocalObjectReference {
+	return i.Spec.WriteConnectionSecretTo
+}
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // MySQLInstanceList contains a list of MySQLInstance
@@ -58,32 +101,10 @@ type MySQLInstanceList struct {
 	Items           []MySQLInstance `json:"items"`
 }
 
-// ClaimStatus returns the status of this resource claim.
-func (m *MySQLInstance) ClaimStatus() *corev1alpha1.ResourceClaimStatus {
-	return &m.Status
-}
-
-// ClassRef returns the resource class used by this resource claim.
-func (m *MySQLInstance) ClassRef() *corev1.ObjectReference {
-	return m.Spec.ClassRef
-}
-
-// ResourceRef returns the resource claimed by this resource claim.
-func (m *MySQLInstance) ResourceRef() *corev1.ObjectReference {
-	return m.Spec.ResourceRef
-}
-
-// SetResourceRef specifies the resource claimed by this resource claim.
-func (m *MySQLInstance) SetResourceRef(ref *corev1.ObjectReference) {
-	m.Spec.ResourceRef = ref
-}
-
 // PostgreSQLInstanceSpec specifies the configuration of this
 // PostgreSQLInstance.
 type PostgreSQLInstanceSpec struct {
-	ClassRef    *corev1.ObjectReference `json:"classReference,omitempty"`
-	ResourceRef *corev1.ObjectReference `json:"resourceName,omitempty"`
-	Selector    metav1.LabelSelector    `json:"selector,omitempty"`
+	corev1alpha1.ResourceClaimSpec
 
 	// postgresql instance properties
 	// +kubebuilder:validation:Enum=9.6
@@ -105,6 +126,51 @@ type PostgreSQLInstance struct {
 	Status corev1alpha1.ResourceClaimStatus `json:"status,omitempty"`
 }
 
+// SetBindingPhase of this PostgreSQLInstance.
+func (i *PostgreSQLInstance) SetBindingPhase(p corev1alpha1.BindingPhase) {
+	i.Status.SetBindingPhase(p)
+}
+
+// GetBindingPhase of this PostgreSQLInstance.
+func (i *PostgreSQLInstance) GetBindingPhase() corev1alpha1.BindingPhase {
+	return i.Status.GetBindingPhase()
+}
+
+// SetConditions of this PostgreSQLInstance.
+func (i *PostgreSQLInstance) SetConditions(c ...corev1alpha1.Condition) {
+	i.Status.SetConditions(c...)
+}
+
+// SetClassReference of this PostgreSQLInstance.
+func (i *PostgreSQLInstance) SetClassReference(r *corev1.ObjectReference) {
+	i.Spec.ClassReference = r
+}
+
+// GetClassReference of this PostgreSQLInstance.
+func (i *PostgreSQLInstance) GetClassReference() *corev1.ObjectReference {
+	return i.Spec.ClassReference
+}
+
+// SetResourceReference of this PostgreSQLInstance.
+func (i *PostgreSQLInstance) SetResourceReference(r *corev1.ObjectReference) {
+	i.Spec.ResourceReference = r
+}
+
+// GetResourceReference of this PostgreSQLInstance.
+func (i *PostgreSQLInstance) GetResourceReference() *corev1.ObjectReference {
+	return i.Spec.ResourceReference
+}
+
+// SetWriteConnectionSecretTo of this PostgreSQLInstance.
+func (i *PostgreSQLInstance) SetWriteConnectionSecretTo(r corev1.LocalObjectReference) {
+	i.Spec.WriteConnectionSecretTo = r
+}
+
+// GetWriteConnectionSecretTo of this PostgreSQLInstance.
+func (i *PostgreSQLInstance) GetWriteConnectionSecretTo() corev1.LocalObjectReference {
+	return i.Spec.WriteConnectionSecretTo
+}
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // PostgreSQLInstanceList contains a list of PostgreSQLInstance
@@ -112,26 +178,6 @@ type PostgreSQLInstanceList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []PostgreSQLInstance `json:"items"`
-}
-
-// ClaimStatus returns the status of this resource claim.
-func (p *PostgreSQLInstance) ClaimStatus() *corev1alpha1.ResourceClaimStatus {
-	return &p.Status
-}
-
-// ClassRef returns the resource class used by this resource claim.
-func (p *PostgreSQLInstance) ClassRef() *corev1.ObjectReference {
-	return p.Spec.ClassRef
-}
-
-// ResourceRef returns the resource claimed by this resource claim.
-func (p *PostgreSQLInstance) ResourceRef() *corev1.ObjectReference {
-	return p.Spec.ResourceRef
-}
-
-// SetResourceRef specifies the resource claimed by this resource claim.
-func (p *PostgreSQLInstance) SetResourceRef(ref *corev1.ObjectReference) {
-	p.Spec.ResourceRef = ref
 }
 
 // LocalPermissionType - Base type for LocalPermissions
@@ -159,9 +205,7 @@ const (
 
 // BucketSpec defines the desired state of Bucket
 type BucketSpec struct {
-	ClassRef    *corev1.ObjectReference `json:"classReference,omitempty"`
-	ResourceRef *corev1.ObjectReference `json:"resourceName,omitempty"`
-	Selector    metav1.LabelSelector    `json:"selector,omitempty"`
+	corev1alpha1.ResourceClaimSpec
 
 	// Name properties
 	// +kubebuilder:validation:MaxLength=63
@@ -177,10 +221,6 @@ type BucketSpec struct {
 	// +kubebuilder:validation:Enum=Read,Write,ReadWrite
 	// NOTE: AWS S3 Specific value
 	LocalPermission *LocalPermissionType `json:"localPermission,omitempty"`
-
-	// +kubebuilder:validation:MaxLength=255
-	// +kubebuilder:validation:MinLength=1
-	ConnectionSecretNameOverride string `json:"connectionSecretNameOverride,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -199,6 +239,51 @@ type Bucket struct {
 	Status corev1alpha1.ResourceClaimStatus `json:"status,omitempty"`
 }
 
+// SetBindingPhase of this Bucket.
+func (b *Bucket) SetBindingPhase(p corev1alpha1.BindingPhase) {
+	b.Status.SetBindingPhase(p)
+}
+
+// GetBindingPhase of this Bucket.
+func (b *Bucket) GetBindingPhase() corev1alpha1.BindingPhase {
+	return b.Status.GetBindingPhase()
+}
+
+// SetConditions of this Bucket.
+func (b *Bucket) SetConditions(c ...corev1alpha1.Condition) {
+	b.Status.SetConditions(c...)
+}
+
+// SetClassReference of this Bucket.
+func (b *Bucket) SetClassReference(r *corev1.ObjectReference) {
+	b.Spec.ClassReference = r
+}
+
+// GetClassReference of this Bucket.
+func (b *Bucket) GetClassReference() *corev1.ObjectReference {
+	return b.Spec.ClassReference
+}
+
+// SetResourceReference of this Bucket.
+func (b *Bucket) SetResourceReference(r *corev1.ObjectReference) {
+	b.Spec.ResourceReference = r
+}
+
+// GetResourceReference of this Bucket.
+func (b *Bucket) GetResourceReference() *corev1.ObjectReference {
+	return b.Spec.ResourceReference
+}
+
+// SetWriteConnectionSecretTo of this Bucket.
+func (b *Bucket) SetWriteConnectionSecretTo(r corev1.LocalObjectReference) {
+	b.Spec.WriteConnectionSecretTo = r
+}
+
+// GetWriteConnectionSecretTo of this Bucket.
+func (b *Bucket) GetWriteConnectionSecretTo() corev1.LocalObjectReference {
+	return b.Spec.WriteConnectionSecretTo
+}
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // BucketList contains a list of Buckets
@@ -206,24 +291,4 @@ type BucketList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []Bucket `json:"items"`
-}
-
-// ClaimStatus returns the status of this resource claim.
-func (b *Bucket) ClaimStatus() *corev1alpha1.ResourceClaimStatus {
-	return &b.Status
-}
-
-// ClassRef returns the resource class used by this resource claim.
-func (b *Bucket) ClassRef() *corev1.ObjectReference {
-	return b.Spec.ClassRef
-}
-
-// ResourceRef returns the resource claimed by this resource claim.
-func (b *Bucket) ResourceRef() *corev1.ObjectReference {
-	return b.Spec.ResourceRef
-}
-
-// SetResourceRef specifies the resource claimed by this resource claim.
-func (b *Bucket) SetResourceRef(ref *corev1.ObjectReference) {
-	b.Spec.ResourceRef = ref
 }

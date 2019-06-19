@@ -22,7 +22,12 @@ import (
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/resource"
 )
+
+var _ resource.Claim = &RedisCluster{}
 
 func TestRedisClusterStorage(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
@@ -30,9 +35,11 @@ func TestRedisClusterStorage(t *testing.T) {
 	created := &RedisCluster{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
 		Spec: RedisClusterSpec{
-			ClassRef: &corev1.ObjectReference{
-				Name:      "test-class",
-				Namespace: "test-system",
+			ResourceClaimSpec: v1alpha1.ResourceClaimSpec{
+				ClassReference: &corev1.ObjectReference{
+					Name:      "test-class",
+					Namespace: "test-system",
+				},
 			},
 			EngineVersion: "3.2",
 		},
@@ -48,7 +55,7 @@ func TestRedisClusterStorage(t *testing.T) {
 	// Test Updating the Labels
 	updated := fetched.DeepCopy()
 	updated.Labels = map[string]string{"hello": "world"}
-	updated.Spec.ResourceRef = &corev1.ObjectReference{
+	updated.Spec.ResourceReference = &corev1.ObjectReference{
 		Name:      "test-class",
 		Namespace: "test-resource",
 	}
@@ -97,9 +104,11 @@ func TestEngineVersion(t *testing.T) {
 			created := &RedisCluster{
 				ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
 				Spec: RedisClusterSpec{
-					ClassRef: &corev1.ObjectReference{
-						Name:      "test-class",
-						Namespace: "test-system",
+					ResourceClaimSpec: v1alpha1.ResourceClaimSpec{
+						ClassReference: &corev1.ObjectReference{
+							Name:      "test-class",
+							Namespace: "test-system",
+						},
 					},
 					EngineVersion: tc.version,
 				},

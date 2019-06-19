@@ -28,55 +28,48 @@ import (
 type BindingPhase int
 
 // MarshalJSON returns a JSON representation of a BindingPhase.
-func (s BindingPhase) MarshalJSON() ([]byte, error) {
-	return json.Marshal(s.String())
+func (p BindingPhase) MarshalJSON() ([]byte, error) {
+	return json.Marshal(p.String())
 }
 
 // UnmarshalJSON returns a BindingPhase from its JSON representation.
-func (s *BindingPhase) UnmarshalJSON(b []byte) error {
-	var ss string
-	if err := json.Unmarshal(b, &ss); err != nil {
+func (p *BindingPhase) UnmarshalJSON(b []byte) error {
+	var ps string
+	if err := json.Unmarshal(b, &ps); err != nil {
 		return err
 	}
-	switch ss {
+	switch ps {
+	case BindingPhaseUnbindable.String():
+		*p = BindingPhaseUnbindable
 	case BindingPhaseUnbound.String():
-		*s = BindingPhaseUnbound
+		*p = BindingPhaseUnbound
 	case BindingPhaseBound.String():
-		*s = BindingPhaseBound
+		*p = BindingPhaseBound
 	default:
-		return errors.Errorf("unknown binding state %s", ss)
+		return errors.Errorf("unknown binding state %s", ps)
 	}
 	return nil
 }
 
-// Binding states.
+// Binding phases.
 const (
-	BindingPhaseUnbound BindingPhase = iota
+	BindingPhaseUnbindable BindingPhase = iota
+	BindingPhaseUnbound
 	BindingPhaseBound
 )
 
-// BindingStatus defines set of supported operations
-type BindingStatus interface {
-	SetBound(bound bool)
-	IsBound() bool
-}
-
-// BindingStatusPhase defines field(s) representing resource status.
-type BindingStatusPhase struct {
-	// Phase represents the binding status of a resource.
+// A BindingStatus represents the bindability and binding of a resource.
+type BindingStatus struct {
+	// Phase represents the binding phase of the resource.
 	Phase BindingPhase `json:"bindingPhase,omitempty"`
 }
 
-// SetBound set binding status to Bound
-func (b *BindingStatusPhase) SetBound(bound bool) {
-	if bound {
-		b.Phase = BindingPhaseBound
-		return
-	}
-	b.Phase = BindingPhaseUnbound
+// SetBindingPhase sets the binding phase of the resource.
+func (s *BindingStatus) SetBindingPhase(p BindingPhase) {
+	s.Phase = p
 }
 
-// IsBound returns true if status is bound
-func (b *BindingStatusPhase) IsBound() bool {
-	return b.Phase == BindingPhaseBound
+// GetBindingPhase gets the binding phase of the resource.
+func (s *BindingStatus) GetBindingPhase() BindingPhase {
+	return s.Phase
 }

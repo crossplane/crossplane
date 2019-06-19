@@ -23,7 +23,6 @@ import (
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -38,18 +37,12 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/clients/gcp/cloudmemorystore"
 	"github.com/crossplaneio/crossplane/pkg/logging"
 	"github.com/crossplaneio/crossplane/pkg/meta"
+	"github.com/crossplaneio/crossplane/pkg/resource"
 )
 
 const (
-	controllerName = "cloudmemorystoreinstances.cache.gcp.crossplane.io"
-	finalizerName  = "finalizer." + controllerName
-
-	reasonFetchingClient   = "failed to fetch CloudMemorystore client"
-	reasonCreatingInstance = "failed to create CloudMemorystore instance"
-	reasonDeletingInstance = "failed to delete CloudMemorystore instance"
-	reasonSyncingInstance  = "failed to sync CloudMemorystore instance"
-	reasonSyncingSecret    = "failed to sync CloudMemorystore connection secret" // nolint:gas,gosec
-
+	controllerName   = "cloudmemorystoreinstances.cache.gcp.crossplane.io"
+	finalizerName    = "finalizer." + controllerName
 	reconcileTimeout = 1 * time.Minute
 )
 
@@ -91,17 +84,17 @@ type cloudMemorystore struct {
 }
 
 func (c *cloudMemorystore) Create(ctx context.Context, i *v1alpha1.CloudMemorystoreInstance) bool {
+	i.Status.SetConditions(corev1alpha1.Creating())
+
 	id := cloudmemorystore.NewInstanceID(c.project, i)
 	if _, err := c.client.CreateInstance(ctx, cloudmemorystore.NewCreateInstanceRequest(id, i)); err != nil {
-		i.Status.SetFailed(reasonCreatingInstance, err.Error())
+		i.Status.SetConditions(corev1alpha1.ReconcileError(err))
 		return true
 	}
 
 	i.Status.InstanceName = id.Instance
-	i.Status.UnsetAllDeprecatedConditions()
-	i.Status.SetCreating()
 	meta.AddFinalizer(i, finalizerName)
-
+	i.Status.SetConditions(corev1alpha1.ReconcileSuccess())
 	return true
 }
 
@@ -109,25 +102,25 @@ func (c *cloudMemorystore) Sync(ctx context.Context, i *v1alpha1.CloudMemorystor
 	id := cloudmemorystore.NewInstanceID(c.project, i)
 	gcpInstance, err := c.client.GetInstance(ctx, cloudmemorystore.NewGetInstanceRequest(id))
 	if err != nil {
-		i.Status.SetFailed(reasonSyncingInstance, err.Error())
+		i.Status.SetConditions(corev1alpha1.ReconcileError(err))
 		return true
 	}
 
 	i.Status.State = gcpInstance.GetState().String()
-	i.Status.UnsetAllDeprecatedConditions()
 
 	switch i.Status.State {
 	case v1alpha1.StateReady:
-		i.Status.SetReady()
+		i.Status.SetConditions(corev1alpha1.Available())
 	case v1alpha1.StateCreating:
-		i.Status.SetCreating()
+		i.Status.SetConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileSuccess())
 		return true
 	case v1alpha1.StateDeleting:
-		i.Status.SetDeleting()
+		i.Status.SetConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileSuccess())
 		return false
 	default:
 		// TODO(negz): Don't requeue in this scenario? The instance is probably
 		// in maintenance, updating, or repairing, which can take minutes.
+		i.Status.SetConditions(corev1alpha1.ReconcileSuccess())
 		return true
 	}
 
@@ -136,27 +129,32 @@ func (c *cloudMemorystore) Sync(ctx context.Context, i *v1alpha1.CloudMemorystor
 	i.Status.ProviderID = gcpInstance.GetName()
 
 	if !cloudmemorystore.NeedsUpdate(i, gcpInstance) {
+		i.Status.SetConditions(corev1alpha1.ReconcileSuccess())
 		return false
 	}
 
 	if _, err := c.client.UpdateInstance(ctx, cloudmemorystore.NewUpdateInstanceRequest(id, i)); err != nil {
-		i.Status.SetFailed(reasonSyncingInstance, err.Error())
+		i.Status.SetConditions(corev1alpha1.ReconcileError(err))
 		return true
 	}
 
+	i.Status.SetConditions(corev1alpha1.ReconcileSuccess())
 	return false
 }
 
 func (c *cloudMemorystore) Delete(ctx context.Context, i *v1alpha1.CloudMemorystoreInstance) bool {
+	i.Status.SetConditions(corev1alpha1.Deleting())
+
 	if i.Spec.ReclaimPolicy == corev1alpha1.ReclaimDelete {
 		id := cloudmemorystore.NewInstanceID(c.project, i)
 		if _, err := c.client.DeleteInstance(ctx, cloudmemorystore.NewDeleteInstanceRequest(id)); err != nil {
-			i.Status.SetFailed(reasonDeletingInstance, err.Error())
+			i.Status.SetConditions(corev1alpha1.ReconcileError(err))
 			return true
 		}
 	}
-	i.Status.SetDeleting()
+
 	meta.RemoveFinalizer(i, finalizerName)
+	i.Status.SetConditions(corev1alpha1.ReconcileSuccess())
 	return false
 }
 
@@ -178,7 +176,7 @@ type providerConnecter struct {
 // CloudMemorystoreInstance.
 func (c *providerConnecter) Connect(ctx context.Context, i *v1alpha1.CloudMemorystoreInstance) (createsyncdeleter, error) {
 	p := &gcpv1alpha1.Provider{}
-	n := types.NamespacedName{Namespace: i.GetNamespace(), Name: i.Spec.ProviderRef.Name}
+	n := meta.NamespacedNameOf(i.Spec.ProviderReference)
 	if err := c.kube.Get(ctx, n, p); err != nil {
 		return nil, errors.Wrapf(err, "cannot get provider %s", n)
 	}
@@ -233,7 +231,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	client, err := r.Connect(ctx, i)
 	if err != nil {
-		i.Status.SetFailed(reasonFetchingClient, err.Error())
+		i.Status.SetConditions(corev1alpha1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}, errors.Wrapf(r.kube.Update(ctx, i), "cannot update instance %s", req.NamespacedName)
 	}
 
@@ -248,7 +246,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	}
 
 	if err := r.upsertSecret(ctx, connectionSecret(i)); err != nil {
-		i.Status.SetFailed(reasonSyncingSecret, err.Error())
+		i.Status.SetConditions(corev1alpha1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}, errors.Wrapf(r.kube.Update(ctx, i), "cannot update instance %s", req.NamespacedName)
 	}
 
@@ -268,15 +266,8 @@ func (r *Reconciler) upsertSecret(ctx context.Context, s *corev1.Secret) error {
 }
 
 func connectionSecret(i *v1alpha1.CloudMemorystoreInstance) *corev1.Secret {
-	ref := meta.AsOwner(meta.ReferenceTo(i, v1alpha1.CloudMemorystoreInstanceGroupVersionKind))
-	return &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            i.ConnectionSecretName(),
-			Namespace:       i.Namespace,
-			OwnerReferences: []metav1.OwnerReference{ref},
-		},
-
-		// TODO(negz): Include the port here too?
-		Data: map[string][]byte{corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(i.Status.Endpoint)},
-	}
+	// TODO(negz): Include the port here too?
+	s := resource.ConnectionSecretFor(i, v1alpha1.CloudMemorystoreInstanceGroupVersionKind)
+	s.Data = map[string][]byte{corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(i.Status.Endpoint)}
+	return s
 }

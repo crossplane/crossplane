@@ -29,6 +29,7 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/apis/gcp/storage/v1alpha1"
 	gcpstorage "github.com/crossplaneio/crossplane/pkg/clients/gcp/storage"
 	"github.com/crossplaneio/crossplane/pkg/meta"
+	"github.com/crossplaneio/crossplane/pkg/resource"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
@@ -40,8 +41,7 @@ type operations interface {
 	getSpecAttrs() v1alpha1.BucketUpdatableAttrs
 	setSpecAttrs(*storage.BucketAttrs)
 	setStatusAttrs(*storage.BucketAttrs)
-	setReady()
-	failReconcile(ctx context.Context, reason, msg string) error
+	setStatusConditions(c ...corev1alpha1.Condition)
 
 	// Controller-runtime operations
 	updateObject(ctx context.Context) error
@@ -98,13 +98,8 @@ func (bh *bucketHandler) setStatusAttrs(attrs *storage.BucketAttrs) {
 	bh.Status.BucketOutputAttrs = v1alpha1.NewBucketOutputAttrs(attrs)
 }
 
-func (bh *bucketHandler) setReady() {
-	bh.Status.SetReady()
-}
-
-func (bh *bucketHandler) failReconcile(ctx context.Context, reason, msg string) error {
-	bh.Status.SetFailed(reason, msg)
-	return bh.updateStatus(ctx)
+func (bh *bucketHandler) setStatusConditions(c ...corev1alpha1.Condition) {
+	bh.Status.SetConditions(c...)
 }
 
 //
@@ -129,7 +124,7 @@ const (
 )
 
 func (bh *bucketHandler) updateSecret(ctx context.Context) error {
-	s := bh.ConnectionSecret()
+	s := resource.ConnectionSecretFor(bh.Bucket, v1alpha1.BucketGroupVersionKind)
 	if ref := bh.Spec.ServiceAccountSecretRef; ref != nil {
 		ss := &corev1.Secret{}
 		nn := types.NamespacedName{Namespace: bh.GetNamespace(), Name: ref.Name}

@@ -48,19 +48,6 @@ const (
 
 	reconcileTimeout      = 2 * time.Minute
 	requeueAfterOnSuccess = 1 * time.Minute
-
-	// failed condition reasons
-	//
-	// failed to get resource handler
-	failedToGetHandler = "error getting handler"
-	// failed to delete account resource
-	failedToDelete = "error deleting"
-	// failed to retrieve account resource
-	failedToRetrieve = "error retrieving"
-	// failed to create account resource
-	failedToCreate = "error creating"
-	// failed to update account resource
-	failedToUpdate = "error updating"
 )
 
 var (
@@ -120,7 +107,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 
 	sd, err := r.newSyncdeleter(ctx, c)
 	if err != nil {
-		c.Status.SetFailed(failedToGetHandler, err.Error())
+		c.Status.SetConditions(corev1alpha1.ReconcileError(err))
 		return resultRequeue, r.Status().Update(ctx, c)
 	}
 
@@ -143,7 +130,7 @@ type containerSyncdeleterMaker struct {
 func (m *containerSyncdeleterMaker) newSyncdeleter(ctx context.Context, c *v1alpha1.Container) (syncdeleter, error) {
 	// Retrieve storage account reference object
 	acct := &v1alpha1.Account{}
-	n := types.NamespacedName{Namespace: c.GetNamespace(), Name: c.Spec.AccountRef.Name}
+	n := types.NamespacedName{Namespace: c.GetNamespace(), Name: c.Spec.AccountReference.Name}
 	if err := m.Get(ctx, n, acct); err != nil {
 		// For storage account not found errors - check if we are on deletion path
 		// if so - remove finalizer from this container object
@@ -158,7 +145,7 @@ func (m *containerSyncdeleterMaker) newSyncdeleter(ctx context.Context, c *v1alp
 
 	// Retrieve storage account secret
 	s := &corev1.Secret{}
-	n = types.NamespacedName{Namespace: acct.GetNamespace(), Name: acct.Status.ConnectionSecretRef.Name}
+	n = types.NamespacedName{Namespace: acct.GetNamespace(), Name: acct.Spec.WriteConnectionSecretTo.Name}
 	if err := m.Get(ctx, n, s); err != nil {
 		return nil, errors.Wrapf(err, "failed to retrieve storage account secret: %s", n)
 	}
@@ -177,9 +164,6 @@ func (m *containerSyncdeleterMaker) newSyncdeleter(ctx context.Context, c *v1alp
 	or := meta.AsOwner(meta.ReferenceTo(acct, v1alpha1.AccountGroupVersionKind))
 	or.BlockOwnerDeletion = to.BoolPtr(true)
 	meta.AddOwnerReference(c, or)
-
-	// save connection secret reference
-	c.Status.ConnectionSecretRef = corev1.LocalObjectReference{Name: s.Name}
 
 	return &containerSyncdeleter{
 		createupdater: &containerCreateUpdater{
@@ -222,12 +206,17 @@ type containerSyncdeleter struct {
 }
 
 func (csd *containerSyncdeleter) delete(ctx context.Context) (reconcile.Result, error) {
+	csd.container.Status.SetConditions(corev1alpha1.Deleting())
 	if csd.container.Spec.ReclaimPolicy == corev1alpha1.ReclaimDelete {
 		if err := csd.Delete(ctx); err != nil && !azure.IsNotFound(err) {
-			csd.container.Status.SetFailed(failedToDelete, err.Error())
+			csd.container.Status.SetConditions(corev1alpha1.ReconcileError(err))
 			return resultRequeue, csd.kube.Status().Update(ctx, csd.container)
 		}
 	}
+
+	// NOTE(negz): We don't update the conditioned status here because assuming
+	// no other finalizers need to be cleaned up the object should cease to
+	// exist after we update it.
 	meta.RemoveFinalizer(csd.container, finalizer)
 	return reconcile.Result{}, csd.kube.Update(ctx, csd.container)
 }
@@ -235,7 +224,7 @@ func (csd *containerSyncdeleter) delete(ctx context.Context) (reconcile.Result, 
 func (csd *containerSyncdeleter) sync(ctx context.Context) (reconcile.Result, error) {
 	access, meta, err := csd.Get(ctx)
 	if err != nil && !storage.IsNotFoundError(err) {
-		csd.container.Status.SetFailed(failedToRetrieve, err.Error())
+		csd.container.Status.SetConditions(corev1alpha1.ReconcileError(err))
 		return resultRequeue, csd.kube.Status().Update(ctx, csd.container)
 	}
 
@@ -262,6 +251,7 @@ var _ createupdater = &containerCreateUpdater{}
 
 func (ccu *containerCreateUpdater) create(ctx context.Context) (reconcile.Result, error) {
 	container := ccu.container
+	container.Status.SetConditions(corev1alpha1.Creating())
 
 	meta.AddFinalizer(container, finalizer)
 	if err := ccu.kube.Update(ctx, container); err != nil {
@@ -270,11 +260,12 @@ func (ccu *containerCreateUpdater) create(ctx context.Context) (reconcile.Result
 
 	spec := container.Spec
 	if err := ccu.Create(ctx, spec.PublicAccessType, spec.Metadata); err != nil {
-		ccu.container.Status.SetFailed(failedToCreate, err.Error())
+		container.Status.SetConditions(corev1alpha1.ReconcileError(err))
 		return resultRequeue, ccu.kube.Status().Update(ctx, container)
 	}
 
-	return ccu.updateStatusIfNotReady(ctx)
+	container.Status.SetConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess())
+	return reconcile.Result{}, ccu.kube.Status().Update(ctx, ccu.container)
 }
 
 func (ccu *containerCreateUpdater) update(ctx context.Context, accessType *azblob.PublicAccessType, meta azblob.Metadata) (reconcile.Result, error) {
@@ -282,22 +273,15 @@ func (ccu *containerCreateUpdater) update(ctx context.Context, accessType *azblo
 	spec := container.Spec
 
 	if reflect.DeepEqual(*accessType, spec.PublicAccessType) && reflect.DeepEqual(meta, spec.Metadata) {
-		return ccu.updateStatusIfNotReady(ctx)
+		container.Status.SetConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess())
+		return requeueOnSuccess, ccu.kube.Status().Update(ctx, ccu.container)
 	}
 
 	if err := ccu.Update(ctx, spec.PublicAccessType, spec.Metadata); err != nil {
-		container.Status.SetFailed(failedToUpdate, err.Error())
+		container.Status.SetConditions(corev1alpha1.ReconcileError(err))
 		return resultRequeue, ccu.kube.Status().Update(ctx, container)
 	}
 
-	return ccu.updateStatusIfNotReady(ctx)
-}
-
-func (ccu *containerCreateUpdater) updateStatusIfNotReady(ctx context.Context) (reconcile.Result, error) {
-	if !ccu.container.Status.IsReady() {
-		ccu.container.Status.UnsetAllDeprecatedConditions()
-		ccu.container.Status.SetReady()
-		return reconcile.Result{}, ccu.kube.Status().Update(ctx, ccu.container)
-	}
-	return requeueOnSuccess, nil
+	container.Status.SetConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess())
+	return requeueOnSuccess, ccu.kube.Status().Update(ctx, ccu.container)
 }

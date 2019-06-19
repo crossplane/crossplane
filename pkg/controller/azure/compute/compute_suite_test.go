@@ -35,6 +35,7 @@ import (
 	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/compute/v1alpha1"
 	azurev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
@@ -146,15 +147,19 @@ func testInstance(p *azurev1alpha1.Provider) *computev1alpha1.AKSCluster {
 	return &computev1alpha1.AKSCluster{
 		ObjectMeta: metav1.ObjectMeta{Name: instanceName, Namespace: namespace},
 		Spec: computev1alpha1.AKSClusterSpec{
-			ReclaimPolicy:     corev1alpha1.ReclaimDelete,
-			ProviderRef:       corev1.LocalObjectReference{Name: p.Name},
-			ResourceGroupName: "rg1",
-			Location:          "loc1",
-			Version:           "1.12.5",
-			NodeCount:         to.IntPtr(3),
-			NodeVMSize:        "Standard_F2s_v2",
-			DNSNamePrefix:     "crossplane-aks",
-			DisableRBAC:       false,
+			ResourceSpec: corev1alpha1.ResourceSpec{
+				ReclaimPolicy:           corev1alpha1.ReclaimDelete,
+				ProviderReference:       meta.ReferenceTo(p, azurev1alpha1.ProviderGroupVersionKind),
+				WriteConnectionSecretTo: corev1.LocalObjectReference{"coolSecret"},
+			},
+			WriteServicePrincipalSecretTo: corev1.LocalObjectReference{"coolPrincipal"},
+			ResourceGroupName:             "rg1",
+			Location:                      "loc1",
+			Version:                       "1.12.5",
+			NodeCount:                     to.IntPtr(3),
+			NodeVMSize:                    "Standard_F2s_v2",
+			DNSNamePrefix:                 "crossplane-aks",
+			DisableRBAC:                   false,
 		},
 	}
 }

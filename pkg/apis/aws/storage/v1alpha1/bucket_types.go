@@ -20,7 +20,7 @@ import (
 	"strconv"
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
@@ -33,6 +33,8 @@ import (
 
 // S3BucketSpec defines the desired state of S3Bucket
 type S3BucketSpec struct {
+	corev1alpha1.ResourceSpec
+
 	// NameFormat to format bucket name passing it a object UID
 	// If not provided, defaults to "%s", i.e. UID value
 	NameFormat string `json:"nameFormat,omitempty"`
@@ -43,29 +45,19 @@ type S3BucketSpec struct {
 	// +kubebuilder:validation:Enum=private,public-read,public-read-write,authenticated-read,log-delivery-write,aws-exec-read
 	CannedACL  *s3.BucketCannedACL `json:"cannedACL,omitempty"`
 	Versioning bool                `json:"versioning,omitempty"`
-	// +kubebuilder:validation:MaxLength=255
-	// +kubebuilder:validation:MinLength=1
-	ConnectionSecretNameOverride string `json:"connectionSecretNameOverride,omitempty"`
 
 	// LocalPermission is the permissions granted on the bucket for the provider specific
 	// bucket service account that is available in a secret after provisioning.
 	// +kubebuilder:validation:Enum=Read,Write,ReadWrite
 	LocalPermission *storagev1alpha1.LocalPermissionType `json:"localPermission"`
-
-	ProviderRef v1.LocalObjectReference `json:"providerRef"`
-	ClaimRef    *v1.ObjectReference     `json:"claimRef,omitempty"`
-	ClassRef    *v1.ObjectReference     `json:"classRef,omitempty"`
-	// ReclaimPolicy identifies how to handle the cloud resource after the deletion of this type
-	ReclaimPolicy corev1alpha1.ReclaimPolicy `json:"reclaimPolicy,omitempty"`
 }
 
 // S3BucketStatus defines the observed state of S3Bucket
 type S3BucketStatus struct {
-	corev1alpha1.DeprecatedConditionedStatus
-	corev1alpha1.BindingStatusPhase
+	corev1alpha1.ResourceStatus
+
 	Message               string                              `json:"message,omitempty"`
 	ProviderID            string                              `json:"providerID,omitempty"` // the external ID to identify this resource in the cloud provider
-	ConnectionSecretRef   v1.LocalObjectReference             `json:"connectionSecretRef,omitempty"`
 	IAMUsername           string                              `json:"iamUsername,omitempty"`
 	LastUserPolicyVersion int                                 `json:"lastUserPolicyVersion,omitempty"`
 	LastLocalPermission   storagev1alpha1.LocalPermissionType `json:"lastLocalPermission,omitempty"`
@@ -74,7 +66,9 @@ type S3BucketStatus struct {
 // NewS3BucketSpec from properties map
 func NewS3BucketSpec(properties map[string]string) *S3BucketSpec {
 	spec := &S3BucketSpec{
-		ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		ResourceSpec: corev1alpha1.ResourceSpec{
+			ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		},
 	}
 
 	val, ok := properties["localPermission"]
@@ -117,6 +111,46 @@ type S3Bucket struct {
 
 	Spec   S3BucketSpec   `json:"spec,omitempty"`
 	Status S3BucketStatus `json:"status,omitempty"`
+}
+
+// SetBindingPhase of this S3Bucket.
+func (b *S3Bucket) SetBindingPhase(p corev1alpha1.BindingPhase) {
+	b.Status.SetBindingPhase(p)
+}
+
+// GetBindingPhase of this S3Bucket.
+func (b *S3Bucket) GetBindingPhase() corev1alpha1.BindingPhase {
+	return b.Status.GetBindingPhase()
+}
+
+// SetClaimReference of this S3Bucket.
+func (b *S3Bucket) SetClaimReference(r *corev1.ObjectReference) {
+	b.Spec.ClaimReference = r
+}
+
+// GetClaimReference of this S3Bucket.
+func (b *S3Bucket) GetClaimReference() *corev1.ObjectReference {
+	return b.Spec.ClaimReference
+}
+
+// SetClassReference of this S3Bucket.
+func (b *S3Bucket) SetClassReference(r *corev1.ObjectReference) {
+	b.Spec.ClassReference = r
+}
+
+// GetClassReference of this S3Bucket.
+func (b *S3Bucket) GetClassReference() *corev1.ObjectReference {
+	return b.Spec.ClassReference
+}
+
+// SetWriteConnectionSecretTo of this S3Bucket.
+func (b *S3Bucket) SetWriteConnectionSecretTo(r corev1.LocalObjectReference) {
+	b.Spec.WriteConnectionSecretTo = r
+}
+
+// GetWriteConnectionSecretTo of this S3Bucket.
+func (b *S3Bucket) GetWriteConnectionSecretTo() corev1.LocalObjectReference {
+	return b.Spec.WriteConnectionSecretTo
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -173,29 +207,4 @@ func (b *S3Bucket) HasPolicyChanged(policyVersion string) (bool, error) {
 	}
 
 	return false, nil
-}
-
-// ConnectionSecretName returns the name of the connection secret
-func (b *S3Bucket) ConnectionSecretName() string {
-	if b.Status.ConnectionSecretRef.Name != "" {
-		return b.Status.ConnectionSecretRef.Name
-	} else if b.Spec.ConnectionSecretNameOverride != "" {
-		return b.Spec.ConnectionSecretNameOverride
-	}
-	return b.Name
-}
-
-// IsAvailable for usage/binding
-func (b *S3Bucket) IsAvailable() bool {
-	return b.Status.IsDeprecatedCondition(corev1alpha1.DeprecatedReady)
-}
-
-// IsBound returns true if this bucket is bound to a resource claim.
-func (b *S3Bucket) IsBound() bool {
-	return b.Status.IsBound()
-}
-
-// SetBound specifies whether this bucket is bound to a resource claim.
-func (b *S3Bucket) SetBound(bound bool) {
-	b.Status.SetBound(bound)
 }

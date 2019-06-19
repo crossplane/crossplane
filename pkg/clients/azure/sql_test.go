@@ -23,26 +23,7 @@ import (
 	"github.com/onsi/gomega"
 
 	databasev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/database/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 )
-
-func TestSQLServerDeprecatedConditionType(t *testing.T) {
-	g := gomega.NewGomegaWithT(t)
-
-	cases := []struct {
-		state    mysql.ServerState
-		expected corev1alpha1.DeprecatedConditionType
-	}{
-		{mysql.ServerStateReady, corev1alpha1.DeprecatedReady},
-		{mysql.ServerStateDisabled, corev1alpha1.DeprecatedFailed},
-		{mysql.ServerStateDropping, corev1alpha1.DeprecatedFailed},
-	}
-
-	for _, tt := range cases {
-		actual := SQLServerDeprecatedConditionType(string(tt.state))
-		g.Expect(actual).To(gomega.Equal(tt.expected))
-	}
-}
 
 func TestSQLServerStatusMessage(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)

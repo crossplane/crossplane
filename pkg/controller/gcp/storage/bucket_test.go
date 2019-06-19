@@ -36,6 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/apis/gcp"
 	"github.com/crossplaneio/crossplane/pkg/apis/gcp/storage/v1alpha1"
 	gcpv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/v1alpha1"
@@ -127,8 +128,8 @@ func (b *bucket) withServiceAccountSecretRef(name string) *bucket {
 	return b
 }
 
-func (b *bucket) withFailedDeprecatedCondition(reason, msg string) *bucket {
-	b.Status.SetFailed(reason, msg)
+func (b *bucket) withWriteConnectionSecretTo(name string) *bucket {
+	b.Spec.WriteConnectionSecretTo = corev1.LocalObjectReference{Name: name}
 	return b
 }
 
@@ -142,8 +143,13 @@ func (b *bucket) withFinalizer(f string) *bucket {
 	return b
 }
 
-func (b *bucket) withProvider(name string) *bucket {
-	b.Spec.ProviderRef = corev1.LocalObjectReference{Name: name}
+func (b *bucket) withProvider(ns, name string) *bucket {
+	b.Spec.ProviderReference = &corev1.ObjectReference{Namespace: ns, Name: name}
+	return b
+}
+
+func (b *bucket) withConditions(c ...corev1alpha1.Condition) *bucket {
+	b.Status.SetConditions(c...)
 	return b
 }
 
@@ -191,15 +197,6 @@ func (s *secret) withKeyData(key, data string) *secret {
 	}
 	s.Data[key] = []byte(data)
 	return s
-}
-
-func assertFailure(t *testing.T, gotRsn, gotMsg, wantRsn, wantMsg string) {
-	if gotRsn != wantRsn {
-		t.Errorf("bucketSyncDeleter.sync() fail reason = %s, want %s", gotRsn, wantRsn)
-	}
-	if gotMsg != wantMsg {
-		t.Errorf("bucketSyncDeleter.sync() fail msg = %s, want %s", gotMsg, wantMsg)
-	}
 }
 
 const (
@@ -253,7 +250,7 @@ func TestReconciler_Reconcile(t *testing.T) {
 			wantRs:  resultRequeue,
 			wantErr: nil,
 			wantObj: newBucket(ns, name).
-				withFailedDeprecatedCondition(failedToGetHandler, "handler-factory-error").
+				withConditions(corev1alpha1.ReconcileError(errors.New("handler-factory-error"))).
 				withFinalizer("foo.bar").Bucket,
 		},
 		{
@@ -284,20 +281,19 @@ func TestReconciler_Reconcile(t *testing.T) {
 				factory: tt.fields.factory,
 			}
 			got, err := r.Reconcile(req)
-			if diff := cmp.Diff(err, tt.wantErr, test.EquateErrors()); diff != "" {
-				t.Errorf("Reconciler.Reconcile() error = %v, wantErr %v\n%s", err, tt.wantErr, diff)
-				return
+			if diff := cmp.Diff(tt.wantErr, err, test.EquateErrors()); diff != "" {
+				t.Errorf("Reconciler.Reconcile() -want error, +got error:\n%s", diff)
 			}
-			if diff := cmp.Diff(got, tt.wantRs); diff != "" {
-				t.Errorf("Reconciler.Reconcile() result = %v, wantRs %v\n%s", got, tt.wantRs, diff)
+			if diff := cmp.Diff(tt.wantRs, got); diff != "" {
+				t.Errorf("Reconciler.Reconcile() -want result, +got result:\n%s", diff)
 			}
 			if tt.wantObj != nil {
 				b := &v1alpha1.Bucket{}
 				if err := r.Get(ctx, key, b); err != nil {
 					t.Errorf("Reconciler.Reconcile() bucket error: %s", err)
 				}
-				if diff := cmp.Diff(b, tt.wantObj); diff != "" {
-					t.Errorf("Reconciler.Reconcile() bucket = \n%+v, wantObj \n%+v\n%s", b, tt.wantObj, diff)
+				if diff := cmp.Diff(tt.wantObj, b, test.EquateConditions()); diff != "" {
+					t.Errorf("Reconciler.Reconcile() -want bucket, +got bucket:\n%s", diff)
 				}
 			}
 		})
@@ -335,7 +331,7 @@ func Test_bucketFactory_newHandler(t *testing.T) {
 		{
 			name:   "ErrProviderIsNotFound",
 			Client: fake.NewFakeClient(),
-			bucket: newBucket(ns, bucketName).withProvider(providerName).Bucket,
+			bucket: newBucket(ns, bucketName).withProvider(ns, providerName).Bucket,
 			want: want{
 				err: kerrors.NewNotFound(schema.GroupResource{
 					Group:    gcpv1alpha1.Group,
@@ -345,7 +341,7 @@ func Test_bucketFactory_newHandler(t *testing.T) {
 		{
 			name:   "ProviderSecretIsNotFound",
 			Client: fake.NewFakeClient(newProvider(ns, providerName).withSecret(secretName, secretKey).Provider),
-			bucket: newBucket(ns, bucketName).withProvider("test-provider").Bucket,
+			bucket: newBucket(ns, bucketName).withProvider(ns, providerName).Bucket,
 			want: want{
 				err: errors.WithStack(
 					errors.Errorf("cannot get provider's secret %s/%s: secrets \"%s\" not found", ns, secretName, secretName)),
@@ -356,7 +352,7 @@ func Test_bucketFactory_newHandler(t *testing.T) {
 			Client: fake.NewFakeClient(newProvider(ns, providerName).
 				withSecret(secretName, secretKey).Provider,
 				newSecret(ns, secretName).Secret),
-			bucket: newBucket(ns, bucketName).withProvider("test-provider").Bucket,
+			bucket: newBucket(ns, bucketName).withProvider(ns, providerName).Bucket,
 			want: want{
 				err: errors.WithStack(
 					errors.Errorf("cannot retrieve creds from json: unexpected end of JSON input")),
@@ -367,14 +363,14 @@ func Test_bucketFactory_newHandler(t *testing.T) {
 			Client: fake.NewFakeClient(newProvider(ns, providerName).
 				withSecret(secretName, secretKey).Provider,
 				newSecret(ns, secretName).withKeyData(secretKey, secretData).Secret),
-			bucket: newBucket(ns, bucketName).withUID("test-uid").withProvider("test-provider").Bucket,
+			bucket: newBucket(ns, bucketName).withUID("test-uid").withProvider(ns, providerName).Bucket,
 			want: want{
 				// BUG(negz): This test is broken. It appears to intend to compare
 				// unexported fields, but does not. This behaviour was maintained
 				// when porting the test from https://github.com/go-test/deep to cmp.
 				sd: newBucketSyncDeleter(
 					newBucketClients(
-						newBucket(ns, bucketName).withUID("test-uid").withProvider("test-provider").Bucket,
+						newBucket(ns, bucketName).withUID("test-uid").withProvider(ns, providerName).Bucket,
 						nil, nil), ""),
 			},
 		},
@@ -385,12 +381,11 @@ func Test_bucketFactory_newHandler(t *testing.T) {
 				Client: tt.Client,
 			}
 			got, err := m.newSyncDeleter(ctx, tt.bucket)
-			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
-				t.Errorf("bucketFactory.newSyncDeleter() error = \n%v, wantErr: \n%v\n%s", err, tt.want.err, diff)
-				return
+			if diff := cmp.Diff(tt.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("bucketFactory.newSyncDeleter() -want error, +got error:\n%s", diff)
 			}
-			if diff := cmp.Diff(got, tt.want.sd, cmpopts.IgnoreUnexported(bucketSyncDeleter{})); diff != "" {
-				t.Errorf("bucketFactory.newSyncDeleter() = \n%+v, want \n%+v\n%s", got, tt.want.sd, diff)
+			if diff := cmp.Diff(tt.want.sd, got, cmpopts.IgnoreUnexported(bucketSyncDeleter{})); diff != "" {
+				t.Errorf("bucketFactory.newSyncDeleter() -want, +got:\n%s", diff)
 			}
 		})
 	}
@@ -414,9 +409,10 @@ func Test_bucketSyncDeleter_delete(t *testing.T) {
 			name: "RetainPolicy",
 			fields: fields{
 				ops: &mockOperations{
-					mockIsReclaimDelete: func() bool { return false },
-					mockRemoveFinalizer: func() {},
-					mockUpdateObject:    func(ctx context.Context) error { return nil },
+					mockIsReclaimDelete:     func() bool { return false },
+					mockRemoveFinalizer:     func() {},
+					mockUpdateObject:        func(ctx context.Context) error { return nil },
+					mockSetStatusConditions: func(_ ...corev1alpha1.Condition) {},
 				},
 			},
 			want: want{
@@ -427,10 +423,11 @@ func Test_bucketSyncDeleter_delete(t *testing.T) {
 			name: "DeleteSuccessful",
 			fields: fields{
 				ops: &mockOperations{
-					mockIsReclaimDelete: func() bool { return true },
-					mockDeleteBucket:    func(ctx context.Context) error { return nil },
-					mockRemoveFinalizer: func() {},
-					mockUpdateObject:    func(ctx context.Context) error { return nil },
+					mockIsReclaimDelete:     func() bool { return true },
+					mockDeleteBucket:        func(ctx context.Context) error { return nil },
+					mockRemoveFinalizer:     func() {},
+					mockUpdateObject:        func(ctx context.Context) error { return nil },
+					mockSetStatusConditions: func(_ ...corev1alpha1.Condition) {},
 				},
 			},
 			want: want{
@@ -446,8 +443,10 @@ func Test_bucketSyncDeleter_delete(t *testing.T) {
 					mockDeleteBucket: func(ctx context.Context) error {
 						return storage.ErrBucketNotExist
 					},
-					mockRemoveFinalizer: func() {},
-					mockUpdateObject:    func(ctx context.Context) error { return nil },
+					mockRemoveFinalizer:     func() {},
+					mockUpdateObject:        func(ctx context.Context) error { return nil },
+					mockSetStatusConditions: func(_ ...corev1alpha1.Condition) {},
+					mockUpdateStatus:        func(ctx context.Context) error { return nil },
 				},
 			},
 			want: want{
@@ -463,9 +462,8 @@ func Test_bucketSyncDeleter_delete(t *testing.T) {
 					mockDeleteBucket: func(ctx context.Context) error {
 						return errors.New("test-error")
 					},
-					mockFailReconcile: func(ctx context.Context, reason, msg string) error {
-						return nil
-					},
+					mockSetStatusConditions: func(_ ...corev1alpha1.Condition) {},
+					mockUpdateStatus:        func(ctx context.Context) error { return nil },
 				},
 			},
 			want: want{
@@ -477,13 +475,11 @@ func Test_bucketSyncDeleter_delete(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bsd := newBucketSyncDeleter(tt.fields.ops, "")
 			got, err := bsd.delete(ctx)
-			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
-				t.Errorf("bucketSyncDeleter.delete() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
-				return
+			if diff := cmp.Diff(tt.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("bucketSyncDeleter.delete() -want error, +got error:\n%s", diff)
 			}
-			if diff := cmp.Diff(got, tt.want.res); diff != "" {
-				t.Errorf("bucketSyncDeleter.delete() result = %v, wantRes %v\n%s", got, tt.want.res, diff)
-				return
+			if diff := cmp.Diff(tt.want.res, got); diff != "" {
+				t.Errorf("bucketSyncDeleter.delete() -want, +got:\n%s", diff)
 			}
 		})
 	}
@@ -513,11 +509,9 @@ func Test_bucketSyncDeleter_sync(t *testing.T) {
 			name: "FailedToUpdateConnectionSecret",
 			fields: fields{
 				ops: &mockOperations{
-					mockUpdateSecret: func(ctx context.Context) error { return secretError },
-					mockFailReconcile: func(ctx context.Context, reason, msg string) error {
-						assertFailure(t, reason, msg, failedToUpdateSecret, secretError.Error())
-						return nil
-					},
+					mockUpdateSecret:        func(ctx context.Context) error { return secretError },
+					mockSetStatusConditions: func(_ ...corev1alpha1.Condition) {},
+					mockUpdateStatus:        func(ctx context.Context) error { return nil },
 				},
 			},
 			want: want{res: resultRequeue},
@@ -526,14 +520,10 @@ func Test_bucketSyncDeleter_sync(t *testing.T) {
 			name: "AttrsErrorOther",
 			fields: fields{
 				ops: &mockOperations{
-					mockUpdateSecret: func(ctx context.Context) error { return nil },
-					mockGetAttributes: func(ctx context.Context) (*storage.BucketAttrs, error) {
-						return nil, getAttrsError
-					},
-					mockFailReconcile: func(ctx context.Context, reason, msg string) error {
-						assertFailure(t, reason, msg, failedToRetrieve, getAttrsError.Error())
-						return nil
-					},
+					mockUpdateSecret:        func(ctx context.Context) error { return nil },
+					mockGetAttributes:       func(ctx context.Context) (*storage.BucketAttrs, error) { return nil, getAttrsError },
+					mockSetStatusConditions: func(_ ...corev1alpha1.Condition) {},
+					mockUpdateStatus:        func(ctx context.Context) error { return nil },
 				},
 			},
 			want: want{res: resultRequeue},
@@ -581,12 +571,11 @@ func Test_bucketSyncDeleter_sync(t *testing.T) {
 			}
 
 			got, err := bh.sync(ctx)
-			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
-				t.Errorf("bucketSyncDeleter.sync() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
-				return
+			if diff := cmp.Diff(tt.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("bucketSyncDeleter.sync() -want error, +got error:\n%s", diff)
 			}
-			if diff := cmp.Diff(got, tt.want.res); diff != "" {
-				t.Errorf("bucketSyncDeleter.sync() result = %v, wantRes %v\n%s", got, tt.want.res, diff)
+			if diff := cmp.Diff(tt.want.res, got); diff != "" {
+				t.Errorf("bucketSyncDeleter.sync() -want, +got\n%s", diff)
 				return
 			}
 		})
@@ -614,12 +603,10 @@ func Test_bucketCreateUpdater_create(t *testing.T) {
 			name: "FailureToCreate",
 			fields: fields{
 				ops: &mockOperations{
-					mockAddFinalizer: func() {},
-					mockCreateBucket: func(ctx context.Context, projectID string) error { return testError },
-					mockFailReconcile: func(ctx context.Context, reason, msg string) error {
-						assertFailure(t, reason, msg, failedToCreate, testError.Error())
-						return nil
-					},
+					mockAddFinalizer:        func() {},
+					mockCreateBucket:        func(ctx context.Context, projectID string) error { return testError },
+					mockSetStatusConditions: func(_ ...corev1alpha1.Condition) {},
+					mockUpdateStatus:        func(ctx context.Context) error { return nil },
 				},
 			},
 			want: want{
@@ -630,14 +617,11 @@ func Test_bucketCreateUpdater_create(t *testing.T) {
 			name: "FailureToGetAttributes",
 			fields: fields{
 				ops: &mockOperations{
-					mockAddFinalizer:  func() {},
-					mockCreateBucket:  func(ctx context.Context, projectID string) error { return nil },
-					mockSetReady:      func() {},
-					mockGetAttributes: func(ctx context.Context) (*storage.BucketAttrs, error) { return nil, testError },
-					mockFailReconcile: func(ctx context.Context, reason, msg string) error {
-						assertFailure(t, reason, msg, failedToRetrieve, testError.Error())
-						return nil
-					},
+					mockAddFinalizer:        func() {},
+					mockCreateBucket:        func(ctx context.Context, projectID string) error { return nil },
+					mockGetAttributes:       func(ctx context.Context) (*storage.BucketAttrs, error) { return nil, testError },
+					mockSetStatusConditions: func(_ ...corev1alpha1.Condition) {},
+					mockUpdateStatus:        func(ctx context.Context) error { return nil },
 				},
 			},
 			want: want{
@@ -648,12 +632,12 @@ func Test_bucketCreateUpdater_create(t *testing.T) {
 			name: "FailureToUpdateObject",
 			fields: fields{
 				ops: &mockOperations{
-					mockAddFinalizer:  func() {},
-					mockCreateBucket:  func(ctx context.Context, projectID string) error { return nil },
-					mockSetReady:      func() {},
-					mockGetAttributes: func(ctx context.Context) (*storage.BucketAttrs, error) { return nil, nil },
-					mockSetSpecAttrs:  func(attrs *storage.BucketAttrs) {},
-					mockUpdateObject:  func(ctx context.Context) error { return testError },
+					mockAddFinalizer:        func() {},
+					mockCreateBucket:        func(ctx context.Context, projectID string) error { return nil },
+					mockGetAttributes:       func(ctx context.Context) (*storage.BucketAttrs, error) { return nil, nil },
+					mockSetSpecAttrs:        func(attrs *storage.BucketAttrs) {},
+					mockSetStatusConditions: func(_ ...corev1alpha1.Condition) {},
+					mockUpdateObject:        func(ctx context.Context) error { return testError },
 				},
 			},
 			want: want{
@@ -665,14 +649,14 @@ func Test_bucketCreateUpdater_create(t *testing.T) {
 			name: "Success",
 			fields: fields{
 				ops: &mockOperations{
-					mockAddFinalizer:   func() {},
-					mockCreateBucket:   func(ctx context.Context, projectID string) error { return nil },
-					mockSetReady:       func() {},
-					mockGetAttributes:  func(ctx context.Context) (*storage.BucketAttrs, error) { return nil, nil },
-					mockSetSpecAttrs:   func(attrs *storage.BucketAttrs) {},
-					mockUpdateObject:   func(ctx context.Context) error { return nil },
-					mockSetStatusAttrs: func(attrs *storage.BucketAttrs) {},
-					mockUpdateStatus:   func(ctx context.Context) error { return nil },
+					mockAddFinalizer:        func() {},
+					mockCreateBucket:        func(ctx context.Context, projectID string) error { return nil },
+					mockGetAttributes:       func(ctx context.Context) (*storage.BucketAttrs, error) { return nil, nil },
+					mockSetSpecAttrs:        func(attrs *storage.BucketAttrs) {},
+					mockUpdateObject:        func(ctx context.Context) error { return nil },
+					mockSetStatusConditions: func(_ ...corev1alpha1.Condition) {},
+					mockSetStatusAttrs:      func(attrs *storage.BucketAttrs) {},
+					mockUpdateStatus:        func(ctx context.Context) error { return nil },
 				},
 			},
 			want: want{
@@ -687,13 +671,11 @@ func Test_bucketCreateUpdater_create(t *testing.T) {
 				projectID:  tt.fields.projectID,
 			}
 			got, err := bh.create(ctx)
-			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
-				t.Errorf("bucketCreateUpdater.create() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
-				return
+			if diff := cmp.Diff(tt.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("bucketCreateUpdater.create() -want error, +got error:\n%s", diff)
 			}
-			if diff := cmp.Diff(got, tt.want.res); diff != "" {
-				t.Errorf("bucketCreateUpdater.create() result = %v, wantRes %v\n%s", got, tt.want.res, diff)
-				return
+			if diff := cmp.Diff(tt.want.res, got); diff != "" {
+				t.Errorf("bucketCreateUpdater.create() -want, +got:\n%s", diff)
 			}
 		})
 	}
@@ -740,10 +722,8 @@ func Test_bucketCreateUpdater_update(t *testing.T) {
 					mockUpdateBucket: func(ctx context.Context, labels map[string]string) (*storage.BucketAttrs, error) {
 						return nil, testError
 					},
-					mockFailReconcile: func(ctx context.Context, reason, msg string) error {
-						assertFailure(t, reason, msg, failedToUpdate, testError.Error())
-						return nil
-					},
+					mockSetStatusConditions: func(_ ...corev1alpha1.Condition) {},
+					mockUpdateStatus:        func(ctx context.Context) error { return nil },
 				},
 				projectID: "",
 			},
@@ -760,8 +740,10 @@ func Test_bucketCreateUpdater_update(t *testing.T) {
 					mockUpdateBucket: func(ctx context.Context, labels map[string]string) (*storage.BucketAttrs, error) {
 						return nil, nil
 					},
-					mockSetSpecAttrs: func(attrs *storage.BucketAttrs) {},
-					mockUpdateObject: func(ctx context.Context) error { return testError },
+					mockSetSpecAttrs:        func(attrs *storage.BucketAttrs) {},
+					mockSetStatusConditions: func(_ ...corev1alpha1.Condition) {},
+					mockUpdateObject:        func(ctx context.Context) error { return testError },
+					mockUpdateStatus:        func(ctx context.Context) error { return nil },
 				},
 				projectID: "",
 			},
@@ -781,9 +763,10 @@ func Test_bucketCreateUpdater_update(t *testing.T) {
 					mockUpdateBucket: func(ctx context.Context, labels map[string]string) (*storage.BucketAttrs, error) {
 						return nil, nil
 					},
-					mockSetSpecAttrs: func(attrs *storage.BucketAttrs) {},
-					mockUpdateObject: func(ctx context.Context) error { return nil },
-					mockUpdateStatus: func(ctx context.Context) error { return nil },
+					mockSetSpecAttrs:        func(attrs *storage.BucketAttrs) {},
+					mockSetStatusConditions: func(_ ...corev1alpha1.Condition) {},
+					mockUpdateObject:        func(ctx context.Context) error { return nil },
+					mockUpdateStatus:        func(ctx context.Context) error { return nil },
 				},
 				projectID: "",
 			},
@@ -800,13 +783,11 @@ func Test_bucketCreateUpdater_update(t *testing.T) {
 				projectID:  tt.fields.projectID,
 			}
 			got, err := bh.update(ctx, tt.args)
-			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
-				t.Errorf("bucketCreateUpdater.update() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
-				return
+			if diff := cmp.Diff(tt.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("bucketCreateUpdater.update() -want error, +got error:\n%s", diff)
 			}
-			if diff := cmp.Diff(got, tt.want.res); diff != "" {
-				t.Errorf("bucketCreateUpdater.update() result = %v, wantRes %v\n%s", got, tt.want.res, diff)
-				return
+			if diff := cmp.Diff(tt.want.res, got); diff != "" {
+				t.Errorf("bucketCreateUpdater.update() -want, +got:\n%s", diff)
 			}
 		})
 	}

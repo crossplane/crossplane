@@ -26,6 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/resource"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
@@ -37,6 +38,14 @@ const (
 var (
 	c   client.Client
 	ctx = context.TODO()
+)
+
+var (
+	_ SQLServer = &MysqlServer{}
+	_ SQLServer = &PostgresqlServer{}
+
+	_ resource.ManagedResource = &MysqlServer{}
+	_ resource.ManagedResource = &PostgresqlServer{}
 )
 
 func TestMain(m *testing.M) {
@@ -99,7 +108,11 @@ func TestNewSQLServerSpec(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	m := make(map[string]string)
-	exp := &SQLServerSpec{ReclaimPolicy: corev1alpha1.ReclaimRetain}
+	exp := &SQLServerSpec{
+		ResourceSpec: corev1alpha1.ResourceSpec{
+			ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		},
+	}
 
 	g.Expect(NewSQLServerSpec(m)).To(gomega.Equal(exp))
 

@@ -20,7 +20,7 @@ import (
 	"strconv"
 
 	"github.com/Azure/azure-sdk-for-go/services/redis/mgmt/2018-03-01/redis"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
@@ -64,6 +64,8 @@ const (
 // Most fields map directly to an Azure Redis resource.
 // https://docs.microsoft.com/en-us/rest/api/redis/redis/get#redisresource
 type RedisSpec struct {
+	corev1alpha1.ResourceSpec
+
 	// ResourceGroupName in which to create this resource.
 	ResourceGroupName string `json:"resourceGroupName"`
 
@@ -92,15 +94,6 @@ type RedisSpec struct {
 
 	// RedisConfiguration specifies Redis Settings.
 	RedisConfiguration map[string]string `json:"redisConfiguration,omitempty"`
-
-	// Kubernetes object references
-	ClaimRef            *v1.ObjectReference     `json:"claimRef,omitempty"`
-	ClassRef            *v1.ObjectReference     `json:"classRef,omitempty"`
-	ProviderRef         v1.LocalObjectReference `json:"providerRef"`
-	ConnectionSecretRef v1.LocalObjectReference `json:"connectionSecretRef,omitempty"`
-
-	// ReclaimPolicy identifies how to handle the cloud resource after the deletion of this type
-	ReclaimPolicy corev1alpha1.ReclaimPolicy `json:"reclaimPolicy,omitempty"`
 }
 
 // TODO(negz): Rename SKU to PricingTier? Both SQL databases and Redis caches
@@ -129,8 +122,8 @@ type SKUSpec struct {
 
 // RedisStatus defines the observed state of Redis
 type RedisStatus struct {
-	corev1alpha1.DeprecatedConditionedStatus
-	corev1alpha1.BindingStatusPhase
+	corev1alpha1.ResourceStatus
+
 	State   string `json:"state,omitempty"`
 	Message string `json:"message,omitempty"`
 
@@ -169,6 +162,46 @@ type Redis struct {
 	Status RedisStatus `json:"status,omitempty"`
 }
 
+// SetBindingPhase of this Redis.
+func (rd *Redis) SetBindingPhase(p corev1alpha1.BindingPhase) {
+	rd.Status.SetBindingPhase(p)
+}
+
+// GetBindingPhase of this Redis.
+func (rd *Redis) GetBindingPhase() corev1alpha1.BindingPhase {
+	return rd.Status.GetBindingPhase()
+}
+
+// SetClaimReference of this Redis.
+func (rd *Redis) SetClaimReference(r *corev1.ObjectReference) {
+	rd.Spec.ClaimReference = r
+}
+
+// GetClaimReference of this Redis.
+func (rd *Redis) GetClaimReference() *corev1.ObjectReference {
+	return rd.Spec.ClaimReference
+}
+
+// SetClassReference of this Redis.
+func (rd *Redis) SetClassReference(r *corev1.ObjectReference) {
+	rd.Spec.ClassReference = r
+}
+
+// GetClassReference of this Redis.
+func (rd *Redis) GetClassReference() *corev1.ObjectReference {
+	return rd.Spec.ClassReference
+}
+
+// SetWriteConnectionSecretTo of this Redis.
+func (rd *Redis) SetWriteConnectionSecretTo(r corev1.LocalObjectReference) {
+	rd.Spec.WriteConnectionSecretTo = r
+}
+
+// GetWriteConnectionSecretTo of this Redis.
+func (rd *Redis) GetWriteConnectionSecretTo() corev1.LocalObjectReference {
+	return rd.Spec.WriteConnectionSecretTo
+}
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // RedisList contains a list of Redis
@@ -182,7 +215,9 @@ type RedisList struct {
 // from the given properties map.
 func NewRedisSpec(properties map[string]string) *RedisSpec {
 	spec := &RedisSpec{
-		ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		ResourceSpec: corev1alpha1.ResourceSpec{
+			ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		},
 
 		// Note that these keys should match the JSON tags of their respective
 		// RedisSpec fields.
@@ -211,32 +246,4 @@ func NewRedisSpec(properties map[string]string) *RedisSpec {
 	}
 
 	return spec
-}
-
-// ConnectionSecretName returns a secret name from the reference
-func (c *Redis) ConnectionSecretName() string {
-	if c.Spec.ConnectionSecretRef.Name == "" {
-		c.Spec.ConnectionSecretRef.Name = c.Name
-	}
-
-	return c.Spec.ConnectionSecretRef.Name
-}
-
-// IsAvailable for usage/binding
-func (c *Redis) IsAvailable() bool {
-	return c.Status.State == ProvisioningStateSucceeded
-}
-
-// IsBound determines if the resource is in a bound binding state
-func (c *Redis) IsBound() bool {
-	return c.Status.Phase == corev1alpha1.BindingPhaseBound
-}
-
-// SetBound sets the binding state of this resource
-func (c *Redis) SetBound(state bool) {
-	if state {
-		c.Status.Phase = corev1alpha1.BindingPhaseBound
-	} else {
-		c.Status.Phase = corev1alpha1.BindingPhaseUnbound
-	}
 }

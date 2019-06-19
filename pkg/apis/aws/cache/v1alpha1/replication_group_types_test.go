@@ -27,6 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/resource"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
@@ -39,6 +40,8 @@ var (
 	c   client.Client
 	ctx = context.TODO()
 )
+
+var _ resource.ManagedResource = &ReplicationGroup{}
 
 func TestMain(m *testing.M) {
 	t := test.NewEnv(namespace, SchemeBuilder.SchemeBuilder, test.CRDs())
@@ -110,7 +113,9 @@ func TestNewReplicationGroupSpec(t *testing.T) {
 				"snapshotRetentionLimit": "1",
 			},
 			want: &ReplicationGroupSpec{
-				ReclaimPolicy: corev1alpha1.ReclaimRetain,
+				ResourceSpec: corev1alpha1.ResourceSpec{
+					ReclaimPolicy: corev1alpha1.ReclaimRetain,
+				},
 
 				CacheNodeType:              "m1.supercool",
 				CacheParameterGroupName:    "coolParamGroup",
@@ -137,63 +142,81 @@ func TestNewReplicationGroupSpec(t *testing.T) {
 			name:       "NilProperties",
 			properties: nil,
 			want: &ReplicationGroupSpec{
-				ReclaimPolicy: corev1alpha1.ReclaimRetain,
+				ResourceSpec: corev1alpha1.ResourceSpec{
+					ReclaimPolicy: corev1alpha1.ReclaimRetain,
+				},
 			},
 		},
 		{
 			name:       "UnknownProperties",
 			properties: map[string]string{"unknown": "wat"},
 			want: &ReplicationGroupSpec{
-				ReclaimPolicy: corev1alpha1.ReclaimRetain,
+				ResourceSpec: corev1alpha1.ResourceSpec{
+					ReclaimPolicy: corev1alpha1.ReclaimRetain,
+				},
 			},
 		},
 		{
 			name:       "AtRestEncryptionEnabledNotABool",
 			properties: map[string]string{"atRestEncryptionEnabled": "maybe"},
 			want: &ReplicationGroupSpec{
-				ReclaimPolicy: corev1alpha1.ReclaimRetain,
+				ResourceSpec: corev1alpha1.ResourceSpec{
+					ReclaimPolicy: corev1alpha1.ReclaimRetain,
+				},
 			},
 		},
 		{
 			name:       "AutomaticFailoverEnabledNotABool",
 			properties: map[string]string{"automaticFailoverEnabled": "maybe"},
 			want: &ReplicationGroupSpec{
-				ReclaimPolicy: corev1alpha1.ReclaimRetain,
+				ResourceSpec: corev1alpha1.ResourceSpec{
+					ReclaimPolicy: corev1alpha1.ReclaimRetain,
+				},
 			},
 		},
 		{
 			name:       "TransitEncryptionEnabledNotABool",
 			properties: map[string]string{"transitEncryptionEnabled": "maybe"},
 			want: &ReplicationGroupSpec{
-				ReclaimPolicy: corev1alpha1.ReclaimRetain,
+				ResourceSpec: corev1alpha1.ResourceSpec{
+					ReclaimPolicy: corev1alpha1.ReclaimRetain,
+				},
 			},
 		},
 		{
 			name:       "NumCacheClustersNotANumber",
 			properties: map[string]string{"numCacheClusters": "wat"},
 			want: &ReplicationGroupSpec{
-				ReclaimPolicy: corev1alpha1.ReclaimRetain,
+				ResourceSpec: corev1alpha1.ResourceSpec{
+					ReclaimPolicy: corev1alpha1.ReclaimRetain,
+				},
 			},
 		},
 		{
 			name:       "NumNodeGroupsNotANumber",
 			properties: map[string]string{"numNodeGroups": "wat"},
 			want: &ReplicationGroupSpec{
-				ReclaimPolicy: corev1alpha1.ReclaimRetain,
+				ResourceSpec: corev1alpha1.ResourceSpec{
+					ReclaimPolicy: corev1alpha1.ReclaimRetain,
+				},
 			},
 		},
 		{
 			name:       "PortNotANumber",
 			properties: map[string]string{"port": "wat"},
 			want: &ReplicationGroupSpec{
-				ReclaimPolicy: corev1alpha1.ReclaimRetain,
+				ResourceSpec: corev1alpha1.ResourceSpec{
+					ReclaimPolicy: corev1alpha1.ReclaimRetain,
+				},
 			},
 		},
 		{
 			name:       "CacheSecurityGroupNamesExtraneousWhitespace",
 			properties: map[string]string{"cacheSecurityGroupNames": "   value,   suchvalue   "},
 			want: &ReplicationGroupSpec{
-				ReclaimPolicy:           corev1alpha1.ReclaimRetain,
+				ResourceSpec: corev1alpha1.ResourceSpec{
+					ReclaimPolicy: corev1alpha1.ReclaimRetain,
+				},
 				CacheSecurityGroupNames: []string{"value", "suchvalue"},
 			},
 		},

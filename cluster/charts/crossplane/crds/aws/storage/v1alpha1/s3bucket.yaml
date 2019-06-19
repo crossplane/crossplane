@@ -52,14 +52,6 @@ spec:
               - log-delivery-write
               - aws-exec-read
               type: string
-            claimRef:
-              type: object
-            classRef:
-              type: object
-            connectionSecretNameOverride:
-              maxLength: 255
-              minLength: 1
-              type: string
             localPermission:
               description: LocalPermission is the permissions granted on the bucket
                 for the provider specific bucket service account that is available
@@ -73,12 +65,6 @@ spec:
               description: NameFormat to format bucket name passing it a object UID
                 If not provided, defaults to "%s", i.e. UID value
               type: string
-            providerRef:
-              type: object
-            reclaimPolicy:
-              description: ReclaimPolicy identifies how to handle the cloud resource
-                after the deletion of this type
-              type: string
             region:
               description: Region is the aws region for the bucket
               type: string
@@ -87,15 +73,12 @@ spec:
           required:
           - region
           - localPermission
-          - providerRef
           type: object
         status:
           properties:
-            connectionSecretRef:
+            iamUsername:
               description: the external ID to identify this resource in the cloud
                 provider
-              type: object
-            iamUsername:
               type: string
             lastLocalPermission:
               type: string

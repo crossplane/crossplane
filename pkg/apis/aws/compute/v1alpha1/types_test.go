@@ -28,6 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/resource"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
@@ -40,6 +41,8 @@ var (
 	c   client.Client
 	ctx = context.TODO()
 )
+
+var _ resource.ManagedResource = &EKSCluster{}
 
 func TestMain(m *testing.M) {
 	t := test.NewEnv(namespace, SchemeBuilder.SchemeBuilder, test.CRDs())
@@ -70,7 +73,9 @@ func TestEKSCluster(t *testing.T) {
 				NodeGroupName:                    "special-group-name",
 				ClusterControlPlaneSecurityGroup: "sg-cluster-sec-group",
 			},
-			ReclaimPolicy: corev1alpha1.ReclaimRetain,
+			ResourceSpec: corev1alpha1.ResourceSpec{
+				ReclaimPolicy: corev1alpha1.ReclaimRetain,
+			},
 		},
 	}
 	g := NewGomegaWithT(t)
@@ -109,7 +114,11 @@ func TestNewEKSClusterSpec(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	m := make(map[string]string)
-	exp := &EKSClusterSpec{ReclaimPolicy: corev1alpha1.ReclaimRetain}
+	exp := &EKSClusterSpec{
+		ResourceSpec: corev1alpha1.ResourceSpec{
+			ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		},
+	}
 	g.Expect(NewEKSClusterSpec(m)).To(Equal(exp))
 
 	val := "test-region"
@@ -197,10 +206,5 @@ func TestNewEKSClusterSpec(t *testing.T) {
 	val = "cp-security-group"
 	m["workerClusterControlPlaneSecurityGroup"] = val
 	exp.WorkerNodes.ClusterControlPlaneSecurityGroup = val
-	g.Expect(NewEKSClusterSpec(m)).To(Equal(exp))
-
-	val = "conn-secret-name-override-test"
-	m["connectionSecretNameOverride"] = val
-	exp.ConnectionSecretNameOverride = val
 	g.Expect(NewEKSClusterSpec(m)).To(Equal(exp))
 }

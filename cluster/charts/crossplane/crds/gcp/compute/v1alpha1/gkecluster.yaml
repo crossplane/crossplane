@@ -59,16 +59,10 @@ spec:
               type: array
             async:
               type: boolean
-            claimRef:
-              type: object
-            classRef:
-              type: object
             clusterSecondaryRangeName:
               type: string
             clusterVersion:
               type: string
-            connectionSecretRef:
-              type: object
             createSubnetwork:
               type: boolean
             diskSize:
@@ -144,12 +138,6 @@ spec:
               type: string
             preemtible:
               type: boolean
-            providerRef:
-              type: object
-            reclaimPolicy:
-              description: ReclaimPolicy identifies how to handle the cloud resource
-                after the deletion of this type
-              type: string
             scopes:
               items:
                 type: string

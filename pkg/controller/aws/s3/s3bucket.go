@@ -18,13 +18,12 @@ package s3
 
 import (
 	"context"
+	"errors"
 
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -41,17 +40,13 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/clients/aws/s3"
 	"github.com/crossplaneio/crossplane/pkg/logging"
 	"github.com/crossplaneio/crossplane/pkg/meta"
+	"github.com/crossplaneio/crossplane/pkg/resource"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 const (
 	controllerName = "s3bucket.aws.crossplane.io"
 	finalizer      = "finalizer." + controllerName
-
-	errorResourceClient = "Failed to create s3 client"
-	errorCreateResource = "Failed to create resource"
-	errorSyncResource   = "Failed to sync resource state"
-	errorDeleteResource = "Failed to delete resource"
 )
 
 var (
@@ -122,37 +117,26 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 }
 
 // fail - helper function to set fail condition with reason and message
-func (r *Reconciler) fail(bucket *bucketv1alpha1.S3Bucket, reason, msg string) (reconcile.Result, error) {
-	bucket.Status.SetDeprecatedCondition(corev1alpha1.NewDeprecatedCondition(corev1alpha1.DeprecatedFailed, reason, msg))
+func (r *Reconciler) fail(bucket *bucketv1alpha1.S3Bucket, err error) (reconcile.Result, error) {
+	bucket.Status.SetConditions(corev1alpha1.ReconcileError(err))
 	return reconcile.Result{Requeue: true}, r.Update(context.TODO(), bucket)
 }
 
 // connectionSecret return secret object for this resource
 func connectionSecret(bucket *bucketv1alpha1.S3Bucket, accessKey *iam.AccessKey) *corev1.Secret {
-	ref := meta.AsOwner(meta.ReferenceTo(bucket, bucketv1alpha1.S3BucketGroupVersionKind))
-	return &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            bucket.ConnectionSecretName(),
-			Namespace:       bucket.Namespace,
-			OwnerReferences: []metav1.OwnerReference{ref},
-		},
-
-		Data: map[string][]byte{
-			corev1alpha1.ResourceCredentialsSecretUserKey:     []byte(util.StringValue(accessKey.AccessKeyId)),
-			corev1alpha1.ResourceCredentialsSecretPasswordKey: []byte(util.StringValue(accessKey.SecretAccessKey)),
-			corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(bucket.Spec.Region),
-		},
+	s := resource.ConnectionSecretFor(bucket, bucketv1alpha1.S3BucketGroupVersionKind)
+	s.Data = map[string][]byte{
+		corev1alpha1.ResourceCredentialsSecretUserKey:     []byte(util.StringValue(accessKey.AccessKeyId)),
+		corev1alpha1.ResourceCredentialsSecretPasswordKey: []byte(util.StringValue(accessKey.SecretAccessKey)),
+		corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(bucket.Spec.Region),
 	}
+	return s
 }
 
 func (r *Reconciler) _connect(instance *bucketv1alpha1.S3Bucket) (s3.Service, error) {
 	// Fetch AWS Provider
 	p := &awsv1alpha1.Provider{}
-	providerNamespacedName := types.NamespacedName{
-		Namespace: instance.Namespace,
-		Name:      instance.Spec.ProviderRef.Name,
-	}
-	err := r.Get(ctx, providerNamespacedName, p)
+	err := r.Get(ctx, meta.NamespacedNameOf(instance.Spec.ProviderReference), p)
 	if err != nil {
 		return nil, err
 	}
@@ -171,11 +155,11 @@ func (r *Reconciler) _connect(instance *bucketv1alpha1.S3Bucket) (s3.Service, er
 }
 
 func (r *Reconciler) _create(bucket *bucketv1alpha1.S3Bucket, client s3.Service) (reconcile.Result, error) {
-	bucket.Status.UnsetAllDeprecatedConditions()
+	bucket.Status.SetConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileSuccess())
 	meta.AddFinalizer(bucket, finalizer)
 	err := client.CreateOrUpdateBucket(bucket)
 	if err != nil {
-		return r.fail(bucket, errorCreateResource, err.Error())
+		return r.fail(bucket, err)
 	}
 
 	// Set username for iam user
@@ -186,82 +170,78 @@ func (r *Reconciler) _create(bucket *bucketv1alpha1.S3Bucket, client s3.Service)
 	// Get access keys for iam user
 	accessKeys, currentVersion, err := client.CreateUser(bucket.Status.IAMUsername, bucket)
 	if err != nil {
-		return r.fail(bucket, errorCreateResource, err.Error())
+		return r.fail(bucket, err)
 	}
 
 	// Set user policy version in status so we can detect policy drift
 	err = bucket.SetUserPolicyVersion(currentVersion)
 	if err != nil {
-		return r.fail(bucket, errorCreateResource, err.Error())
+		return r.fail(bucket, err)
 	}
 
 	// Set access keys into a secret for local access creds to s3 bucket
 	secret := connectionSecret(bucket, accessKeys)
-	bucket.Status.ConnectionSecretRef = corev1.LocalObjectReference{Name: secret.Name}
 
 	_, err = util.ApplySecret(r.kubeclient, secret)
 	if err != nil {
-		return r.fail(bucket, errorCreateResource, err.Error())
+		return r.fail(bucket, err)
 	}
 
 	// No longer creating, we're ready!
-	bucket.Status.UnsetDeprecatedCondition(corev1alpha1.DeprecatedCreating)
-	bucket.Status.SetReady()
+	bucket.Status.SetConditions(corev1alpha1.Available())
 	return result, r.Update(ctx, bucket)
 }
 
 func (r *Reconciler) _sync(bucket *bucketv1alpha1.S3Bucket, client s3.Service) (reconcile.Result, error) {
 	if bucket.Status.IAMUsername == "" {
-		return r.fail(bucket, errorSyncResource, "username not set, .Status.IAMUsername")
+		return r.fail(bucket, errors.New("username not set, .Status.IAMUsername"))
 	}
 	bucketInfo, err := client.GetBucketInfo(bucket.Status.IAMUsername, bucket)
 	if err != nil {
-		return r.fail(bucket, errorSyncResource, err.Error())
+		return r.fail(bucket, err)
 	}
 
 	if bucketInfo.Versioning != bucket.Spec.Versioning {
 		err := client.UpdateVersioning(bucket)
 		if err != nil {
-			return r.fail(bucket, errorSyncResource, err.Error())
+			return r.fail(bucket, err)
 		}
 	}
 
 	// TODO: Detect if the bucket CannedACL has changed, possibly by managing grants list directly.
 	err = client.UpdateBucketACL(bucket)
 	if err != nil {
-		return r.fail(bucket, errorSyncResource, err.Error())
+		return r.fail(bucket, err)
 	}
 
 	// Eventually consistent, so we check if this version is newer than our stored version.
 	changed, err := bucket.HasPolicyChanged(bucketInfo.UserPolicyVersion)
 	if err != nil {
-		return r.fail(bucket, errorSyncResource, err.Error())
+		return r.fail(bucket, err)
 	}
 	if changed {
 		currentVersion, err := client.UpdatePolicyDocument(bucket.Status.IAMUsername, bucket)
 		if err != nil {
-			return r.fail(bucket, errorSyncResource, err.Error())
+			return r.fail(bucket, err)
 		}
 		err = bucket.SetUserPolicyVersion(currentVersion)
 		if err != nil {
-			return r.fail(bucket, errorSyncResource, err.Error())
+			return r.fail(bucket, err)
 		}
 	}
 
-	// Sync completed, so lets unset failed conditions.
-	bucket.Status.UnsetDeprecatedCondition(corev1alpha1.DeprecatedFailed)
-
+	bucket.Status.SetConditions(corev1alpha1.ReconcileSuccess())
 	return result, r.Update(ctx, bucket)
 }
 
 func (r *Reconciler) _delete(bucket *bucketv1alpha1.S3Bucket, client s3.Service) (reconcile.Result, error) {
+	bucket.Status.SetConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileSuccess())
 	if bucket.Spec.ReclaimPolicy == corev1alpha1.ReclaimDelete {
 		if err := client.DeleteBucket(bucket); err != nil {
-			return r.fail(bucket, errorDeleteResource, err.Error())
+			return r.fail(bucket, err)
 		}
 	}
 
-	bucket.Status.SetDeprecatedCondition(corev1alpha1.NewDeprecatedCondition(corev1alpha1.DeprecatedDeleting, "", ""))
 	meta.RemoveFinalizer(bucket, finalizer)
 	return result, r.Update(ctx, bucket)
 }
@@ -276,7 +256,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 
 	err := r.Get(ctx, request.NamespacedName, bucket)
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if kerrors.IsNotFound(err) {
 			// Object not found, return.  Created objects are automatically garbage collected.
 			// For additional cleanup logic use finalizers.
 			return result, nil
@@ -287,7 +267,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 
 	s3Client, err := r.connect(bucket)
 	if err != nil {
-		return r.fail(bucket, errorResourceClient, err.Error())
+		return r.fail(bucket, err)
 	}
 
 	// Check for deletion

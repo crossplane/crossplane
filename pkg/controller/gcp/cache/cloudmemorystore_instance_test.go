@@ -87,8 +87,8 @@ var (
 
 type instanceModifier func(*v1alpha1.CloudMemorystoreInstance)
 
-func withConditions(c ...corev1alpha1.DeprecatedCondition) instanceModifier {
-	return func(i *v1alpha1.CloudMemorystoreInstance) { i.Status.DeprecatedConditionedStatus.Conditions = c }
+func withConditions(c ...corev1alpha1.Condition) instanceModifier {
+	return func(i *v1alpha1.CloudMemorystoreInstance) { i.Status.SetConditions(c...) }
 }
 
 func withState(s string) instanceModifier {
@@ -132,11 +132,13 @@ func instance(im ...instanceModifier) *v1alpha1.CloudMemorystoreInstance {
 			Finalizers: []string{},
 		},
 		Spec: v1alpha1.CloudMemorystoreInstanceSpec{
-			MemorySizeGB:        memorySizeGB,
-			RedisConfigs:        redisConfigs,
-			AuthorizedNetwork:   authorizedNetwork,
-			ProviderRef:         corev1.LocalObjectReference{Name: providerName},
-			ConnectionSecretRef: corev1.LocalObjectReference{Name: connectionSecretName},
+			ResourceSpec: corev1alpha1.ResourceSpec{
+				ProviderReference:       &corev1.ObjectReference{Namespace: namespace, Name: providerName},
+				WriteConnectionSecretTo: corev1.LocalObjectReference{Name: connectionSecretName},
+			},
+			MemorySizeGB:      memorySizeGB,
+			RedisConfigs:      redisConfigs,
+			AuthorizedNetwork: authorizedNetwork,
 		},
 		Status: v1alpha1.CloudMemorystoreInstanceStatus{
 			Endpoint:   host,
@@ -172,7 +174,7 @@ func TestCreate(t *testing.T) {
 			},
 			i: instance(),
 			want: instance(
-				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedCreating, Status: corev1.ConditionTrue}),
+				withConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileSuccess()),
 				withFinalizers(finalizerName),
 				withInstanceName(instanceName),
 			),
@@ -186,14 +188,12 @@ func TestCreate(t *testing.T) {
 				},
 			}},
 			i: instance(),
-			want: instance(withConditions(
-				corev1alpha1.DeprecatedCondition{
-					Type:    corev1alpha1.DeprecatedFailed,
-					Status:  corev1.ConditionTrue,
-					Reason:  reasonCreatingInstance,
-					Message: errorBoom.Error(),
-				},
-			)),
+			want: instance(
+				withConditions(
+					corev1alpha1.Creating(),
+					corev1alpha1.ReconcileError(errorBoom),
+				),
+			),
 			wantRequeue: true,
 		},
 	}
@@ -206,7 +206,7 @@ func TestCreate(t *testing.T) {
 				t.Errorf("tc.csd.Create(...): want: %t got: %t", tc.wantRequeue, gotRequeue)
 			}
 
-			if diff := cmp.Diff(tc.want, tc.i); diff != "" {
+			if diff := cmp.Diff(tc.want, tc.i, test.EquateConditions()); diff != "" {
 				t.Errorf("i: -want, +got:\n%s", diff)
 			}
 		})
@@ -230,27 +230,11 @@ func TestSync(t *testing.T) {
 			}},
 			i: instance(
 				withInstanceName(instanceName),
-				withConditions(
-					corev1alpha1.DeprecatedCondition{
-						Type:    corev1alpha1.DeprecatedFailed,
-						Status:  corev1.ConditionTrue,
-						Reason:  reasonCreatingInstance,
-						Message: errorBoom.Error(),
-					},
-				),
 			),
 			want: instance(
 				withState(v1alpha1.StateCreating),
 				withInstanceName(instanceName),
-				withConditions(
-					corev1alpha1.DeprecatedCondition{
-						Type:    corev1alpha1.DeprecatedFailed,
-						Status:  corev1.ConditionFalse,
-						Reason:  reasonCreatingInstance,
-						Message: errorBoom.Error(),
-					},
-					corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedCreating, Status: corev1.ConditionTrue},
-				),
+				withConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileSuccess()),
 			),
 			wantRequeue: true,
 		},
@@ -263,12 +247,11 @@ func TestSync(t *testing.T) {
 			}},
 			i: instance(
 				withInstanceName(instanceName),
-				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedDeleting, Status: corev1.ConditionTrue}),
 			),
 			want: instance(
 				withInstanceName(instanceName),
 				withState(v1alpha1.StateDeleting),
-				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedDeleting, Status: corev1.ConditionTrue}),
+				withConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileSuccess()),
 			),
 			wantRequeue: false,
 		},
@@ -281,12 +264,11 @@ func TestSync(t *testing.T) {
 			}},
 			i: instance(
 				withInstanceName(instanceName),
-				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedDeleting, Status: corev1.ConditionTrue}),
 			),
 			want: instance(
 				withInstanceName(instanceName),
 				withState(v1alpha1.StateUpdating),
-				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedDeleting, Status: corev1.ConditionFalse}),
+				withConditions(corev1alpha1.ReconcileSuccess()),
 			),
 			wantRequeue: true,
 		},
@@ -310,7 +292,6 @@ func TestSync(t *testing.T) {
 			}},
 			i: instance(
 				withInstanceName(instanceName),
-				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedReady, Status: corev1.ConditionTrue}),
 			),
 			want: instance(
 				withInstanceName(instanceName),
@@ -318,7 +299,7 @@ func TestSync(t *testing.T) {
 				withProviderID(qualifiedName),
 				withEndpoint(host),
 				withPort(port),
-				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedReady, Status: corev1.ConditionTrue}),
+				withConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess()),
 			),
 			wantRequeue: false,
 		},
@@ -347,7 +328,6 @@ func TestSync(t *testing.T) {
 			}},
 			i: instance(
 				withInstanceName(instanceName),
-				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedReady, Status: corev1.ConditionTrue}),
 			),
 			want: instance(
 				withInstanceName(instanceName),
@@ -355,7 +335,7 @@ func TestSync(t *testing.T) {
 				withProviderID(qualifiedName),
 				withEndpoint(host),
 				withPort(port),
-				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedReady, Status: corev1.ConditionTrue}),
+				withConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess()),
 			),
 			wantRequeue: false,
 		},
@@ -368,19 +348,10 @@ func TestSync(t *testing.T) {
 			}},
 			i: instance(
 				withInstanceName(instanceName),
-				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedCreating, Status: corev1.ConditionTrue}),
 			),
 			want: instance(
 				withInstanceName(instanceName),
-				withConditions(
-					corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedCreating, Status: corev1.ConditionTrue},
-					corev1alpha1.DeprecatedCondition{
-						Type:    corev1alpha1.DeprecatedFailed,
-						Status:  corev1.ConditionTrue,
-						Reason:  reasonSyncingInstance,
-						Message: errorBoom.Error(),
-					},
-				),
+				withConditions(corev1alpha1.ReconcileError(errorBoom)),
 			),
 			wantRequeue: true,
 		},
@@ -401,24 +372,14 @@ func TestSync(t *testing.T) {
 					return nil, errorBoom
 				},
 			}},
-			i: instance(withInstanceName(instanceName),
-				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedReady, Status: corev1.ConditionTrue}),
-			),
+			i: instance(withInstanceName(instanceName)),
 			want: instance(
 				withInstanceName(instanceName),
 				withState(v1alpha1.StateReady),
 				withProviderID(qualifiedName),
 				withEndpoint(host),
 				withPort(port),
-				withConditions(
-					corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedReady, Status: corev1.ConditionTrue},
-					corev1alpha1.DeprecatedCondition{
-						Type:    corev1alpha1.DeprecatedFailed,
-						Status:  corev1.ConditionTrue,
-						Reason:  reasonSyncingInstance,
-						Message: errorBoom.Error(),
-					},
-				),
+				withConditions(corev1alpha1.Available(), corev1alpha1.ReconcileError(errorBoom)),
 			),
 			wantRequeue: true,
 		},
@@ -432,7 +393,7 @@ func TestSync(t *testing.T) {
 				t.Errorf("tc.csd.Sync(...): want: %t got: %t", tc.wantRequeue, gotRequeue)
 			}
 
-			if diff := cmp.Diff(tc.want, tc.i); diff != "" {
+			if diff := cmp.Diff(tc.want, tc.i, test.EquateConditions()); diff != "" {
 				t.Errorf("i: -want, +got:\n%s", diff)
 			}
 		})
@@ -457,7 +418,7 @@ func TestDelete(t *testing.T) {
 			i: instance(withFinalizers(finalizerName), withReclaimPolicy(corev1alpha1.ReclaimRetain)),
 			want: instance(
 				withReclaimPolicy(corev1alpha1.ReclaimRetain),
-				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedDeleting, Status: corev1.ConditionTrue}),
+				withConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileSuccess()),
 			),
 			wantRequeue: false,
 		},
@@ -471,7 +432,7 @@ func TestDelete(t *testing.T) {
 			i: instance(withFinalizers(finalizerName), withReclaimPolicy(corev1alpha1.ReclaimDelete)),
 			want: instance(
 				withReclaimPolicy(corev1alpha1.ReclaimDelete),
-				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedDeleting, Status: corev1.ConditionTrue}),
+				withConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileSuccess()),
 			),
 			wantRequeue: false,
 		},
@@ -486,14 +447,7 @@ func TestDelete(t *testing.T) {
 			want: instance(
 				withFinalizers(finalizerName),
 				withReclaimPolicy(corev1alpha1.ReclaimDelete),
-				withConditions(
-					corev1alpha1.DeprecatedCondition{
-						Type:    corev1alpha1.DeprecatedFailed,
-						Status:  corev1.ConditionTrue,
-						Reason:  reasonDeletingInstance,
-						Message: errorBoom.Error(),
-					},
-				),
+				withConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileError(errorBoom)),
 			),
 			wantRequeue: true,
 		},
@@ -507,7 +461,7 @@ func TestDelete(t *testing.T) {
 				t.Errorf("tc.csd.Delete(...): want: %t got: %t", tc.wantRequeue, gotRequeue)
 			}
 
-			if diff := cmp.Diff(tc.want, tc.i); diff != "" {
+			if diff := cmp.Diff(tc.want, tc.i, test.EquateConditions()); diff != "" {
 				t.Errorf("i: -want, +got:\n%s", diff)
 			}
 		})
@@ -742,16 +696,9 @@ func TestReconcile(t *testing.T) {
 						return nil
 					},
 					MockUpdate: func(_ context.Context, obj runtime.Object) error {
-						want := instance(withConditions(
-							corev1alpha1.DeprecatedCondition{
-								Type:    corev1alpha1.DeprecatedFailed,
-								Status:  corev1.ConditionTrue,
-								Reason:  reasonFetchingClient,
-								Message: errorBoom.Error(),
-							},
-						))
+						want := instance(withConditions(corev1alpha1.ReconcileError(errorBoom)))
 						got := obj.(*v1alpha1.CloudMemorystoreInstance)
-						if diff := cmp.Diff(want, got); diff != "" {
+						if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
 							t.Errorf("kube.Update(...): -want, +got:\n%s", diff)
 						}
 						return nil
@@ -782,15 +729,11 @@ func TestReconcile(t *testing.T) {
 						want := instance(
 							withInstanceName(instanceName),
 							withConditions(
-								corev1alpha1.DeprecatedCondition{
-									Type:    corev1alpha1.DeprecatedFailed,
-									Status:  corev1.ConditionTrue,
-									Reason:  reasonSyncingSecret,
-									Message: errors.Wrapf(errorBoom, "cannot get secret %s/%s", namespace, connectionSecretName).Error(),
-								},
-							))
+								corev1alpha1.ReconcileError(errors.Wrapf(errorBoom, "cannot get secret %s/%s", namespace, connectionSecretName)),
+							),
+						)
 						got := obj.(*v1alpha1.CloudMemorystoreInstance)
-						if diff := cmp.Diff(want, got); diff != "" {
+						if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
 							t.Errorf("kube.Update(...): -want, +got:\n%s", diff)
 						}
 						return nil
@@ -820,16 +763,10 @@ func TestReconcile(t *testing.T) {
 					MockUpdate: func(_ context.Context, obj runtime.Object) error {
 						want := instance(
 							withInstanceName(instanceName),
-							withConditions(
-								corev1alpha1.DeprecatedCondition{
-									Type:    corev1alpha1.DeprecatedFailed,
-									Status:  corev1.ConditionTrue,
-									Reason:  reasonSyncingSecret,
-									Message: errors.Wrapf(errorBoom, "cannot create secret %s/%s", namespace, connectionSecretName).Error(),
-								},
-							))
+							withConditions(corev1alpha1.ReconcileError(errors.Wrapf(errorBoom, "cannot create secret %s/%s", namespace, connectionSecretName))),
+						)
 						got := obj.(*v1alpha1.CloudMemorystoreInstance)
-						if diff := cmp.Diff(want, got); diff != "" {
+						if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
 							t.Errorf("kube.Update(...): -want, +got:\n%s", diff)
 						}
 						return nil
@@ -864,15 +801,9 @@ func TestReconcile(t *testing.T) {
 						case *v1alpha1.CloudMemorystoreInstance:
 							want := instance(
 								withInstanceName(instanceName),
-								withConditions(
-									corev1alpha1.DeprecatedCondition{
-										Type:    corev1alpha1.DeprecatedFailed,
-										Status:  corev1.ConditionTrue,
-										Reason:  reasonSyncingSecret,
-										Message: errors.Wrapf(errorBoom, "cannot update secret %s/%s", namespace, connectionSecretName).Error(),
-									},
-								))
-							if diff := cmp.Diff(want, got); diff != "" {
+								withConditions(corev1alpha1.ReconcileError(errors.Wrapf(errorBoom, "cannot update secret %s/%s", namespace, connectionSecretName))),
+							)
+							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
 								t.Errorf("kube.Update(...): -want, +got:\n%s", diff)
 							}
 						}

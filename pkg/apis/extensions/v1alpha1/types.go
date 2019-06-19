@@ -73,7 +73,8 @@ type ExtensionRequestSpec struct {
 
 // ExtensionRequestStatus defines the observed state of ExtensionRequest
 type ExtensionRequestStatus struct {
-	corev1alpha1.DeprecatedConditionedStatus
+	corev1alpha1.ConditionedStatus
+
 	InstallJob      *corev1.ObjectReference `json:"installJob,omitempty"`
 	ExtensionRecord *corev1.ObjectReference `json:"extensionRecord,omitempty"`
 }
@@ -112,7 +113,7 @@ type ExtensionSpec struct {
 
 // ExtensionStatus defines the observed state of Extension
 type ExtensionStatus struct {
-	corev1alpha1.DeprecatedConditionedStatus
+	corev1alpha1.ConditionedStatus
 	ControllerRef *corev1.ObjectReference `json:"controllerRef,omitempty"`
 }
 

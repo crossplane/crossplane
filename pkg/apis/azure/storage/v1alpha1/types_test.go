@@ -23,12 +23,12 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/onsi/gomega"
 	"golang.org/x/net/context"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/resource"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
@@ -39,6 +39,11 @@ const (
 
 var (
 	c client.Client
+)
+
+var (
+	_ resource.ManagedResource = &Account{}
+	_ resource.ManagedResource = &Container{}
 )
 
 func TestMain(m *testing.M) {
@@ -92,7 +97,9 @@ func TestParseAccountSpec(t *testing.T) {
 				"storageAccountSpec": storageAccountSpecString,
 			},
 			want: &AccountSpec{
-				ReclaimPolicy:      v1alpha1.ReclaimRetain,
+				ResourceSpec: v1alpha1.ResourceSpec{
+					ReclaimPolicy: v1alpha1.ReclaimRetain,
+				},
 				StorageAccountName: "test-account-name",
 				StorageAccountSpec: storageAccountSpec,
 			},
@@ -103,143 +110,6 @@ func TestParseAccountSpec(t *testing.T) {
 			got := ParseAccountSpec(tt.args)
 			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("ParseAccountSpec() = %v, want %v\n%s", got, tt.want, diff)
-			}
-		})
-	}
-}
-
-func TestAccount_ConnectionSecretName(t *testing.T) {
-	tests := []struct {
-		name    string
-		account Account
-		want    string
-	}{
-		{"default", Account{}, ""},
-		{"named", Account{ObjectMeta: metav1.ObjectMeta{Name: "foo"}}, "foo"},
-		{"override",
-			Account{
-				ObjectMeta: metav1.ObjectMeta{Name: "foo"},
-				Spec:       AccountSpec{ConnectionSecretNameOverride: "bar"}}, "bar"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.account.ConnectionSecretName(); got != tt.want {
-				t.Errorf("Account.ConnectionSecretName() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestAccount_ConnectionSecret(t *testing.T) {
-	tests := []struct {
-		name    string
-		account Account
-		want    *corev1.Secret
-	}{
-		{
-			name: "test",
-			account: Account{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: namespace,
-					Name:      name,
-				},
-			},
-			want: &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: namespace,
-					Name:      name,
-					OwnerReferences: []metav1.OwnerReference{
-						{
-							APIVersion: APIVersion,
-							Kind:       AccountKind,
-							Name:       name,
-						},
-					},
-				},
-				Data: map[string][]byte{},
-			}},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := tt.account.ConnectionSecret()
-			if diff := cmp.Diff(got, tt.want); diff != "" {
-				t.Errorf("Bucket.ConnectionSecret() = %v, want %v\n%s", got, tt.want, diff)
-			}
-		})
-	}
-}
-
-func TestAccount_IsAvailable(t *testing.T) {
-	b := Account{}
-
-	bReady := b
-	bReady.Status.SetReady()
-
-	bReadyAndFailed := bReady
-	bReadyAndFailed.Status.SetFailed("", "")
-
-	bNotReadyAndFailed := bReadyAndFailed
-	bNotReadyAndFailed.Status.UnsetDeprecatedCondition(v1alpha1.DeprecatedReady)
-
-	tests := []struct {
-		name   string
-		bucket Account
-		want   bool
-	}{
-		{"no conditions", b, false},
-		{"running active", bReady, true},
-		{"running and failed active", bReadyAndFailed, true},
-		{"not running and failed active", bNotReadyAndFailed, false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.bucket.IsAvailable(); got != tt.want {
-				t.Errorf("Account.IsAvailable() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestAccount_IsBound(t *testing.T) {
-	tests := []struct {
-		name  string
-		phase v1alpha1.BindingPhase
-		want  bool
-	}{
-		{"bound", v1alpha1.BindingPhaseBound, true},
-		{"not-bound", v1alpha1.BindingPhaseUnbound, false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			b := Account{
-				Status: AccountStatus{
-					BindingStatusPhase: v1alpha1.BindingStatusPhase{
-						Phase: tt.phase,
-					},
-				},
-			}
-			if got := b.IsBound(); got != tt.want {
-				t.Errorf("Account.IsBound() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestAccount_SetBound(t *testing.T) {
-	tests := []struct {
-		name  string
-		state bool
-		want  v1alpha1.BindingPhase
-	}{
-		{"not-bound", false, v1alpha1.BindingPhaseUnbound},
-		{"bound", true, v1alpha1.BindingPhaseBound},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c := &Account{}
-			c.SetBound(tt.state)
-			if c.Status.Phase != tt.want {
-				t.Errorf("Account.SetBound(%v) = %v, want %v", tt.state, c.Status.Phase, tt.want)
 			}
 		})
 	}
@@ -312,104 +182,6 @@ func TestContainer_GetContainerName(t *testing.T) {
 	}
 }
 
-func TestContainer_ConnectionSecretName(t *testing.T) {
-	tests := []struct {
-		name      string
-		container Container
-		want      string
-	}{
-		{"default", Container{}, ""},
-		{"named", Container{ObjectMeta: metav1.ObjectMeta{Name: "foo"}}, "foo"},
-		{"override",
-			Container{
-				ObjectMeta: metav1.ObjectMeta{Name: "foo"},
-				Spec:       ContainerSpec{ConnectionSecretNameOverride: "bar"}}, "bar"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.container.ConnectionSecretName(); got != tt.want {
-				t.Errorf("Container.ConnectionSecretName() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestContainer_IsAvailable(t *testing.T) {
-	b := Container{}
-
-	bReady := b
-	bReady.Status.SetReady()
-
-	bReadyAndFailed := bReady
-	bReadyAndFailed.Status.SetFailed("", "")
-
-	bNotReadyAndFailed := bReadyAndFailed
-	bNotReadyAndFailed.Status.UnsetDeprecatedCondition(v1alpha1.DeprecatedReady)
-
-	tests := []struct {
-		name   string
-		bucket Container
-		want   bool
-	}{
-		{"no conditions", b, false},
-		{"running active", bReady, true},
-		{"running and failed active", bReadyAndFailed, true},
-		{"not running and failed active", bNotReadyAndFailed, false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.bucket.IsAvailable(); got != tt.want {
-				t.Errorf("Container.IsAvailable() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestContainer_IsBound(t *testing.T) {
-	tests := []struct {
-		name  string
-		phase v1alpha1.BindingPhase
-		want  bool
-	}{
-		{"bound", v1alpha1.BindingPhaseBound, true},
-		{"not-bound", v1alpha1.BindingPhaseUnbound, false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			b := Container{
-				Status: ContainerStatus{
-					BindingStatusPhase: v1alpha1.BindingStatusPhase{
-						Phase: tt.phase,
-					},
-				},
-			}
-			if got := b.IsBound(); got != tt.want {
-				t.Errorf("Container.IsBound() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestContainer_SetBound(t *testing.T) {
-	tests := []struct {
-		name  string
-		state bool
-		want  v1alpha1.BindingPhase
-	}{
-		{"not-bound", false, v1alpha1.BindingPhaseUnbound},
-		{"bound", true, v1alpha1.BindingPhaseBound},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c := &Container{}
-			c.SetBound(tt.state)
-			if c.Status.Phase != tt.want {
-				t.Errorf("Container.SetBound(%v) = %v, want %v", tt.state, c.Status.Phase, tt.want)
-			}
-		})
-	}
-}
-
 func TestParseContainerSpec(t *testing.T) {
 	type args struct {
 		p map[string]string
@@ -423,8 +195,8 @@ func TestParseContainerSpec(t *testing.T) {
 			name: "empty",
 			args: args{p: map[string]string{}},
 			want: &ContainerSpec{
-				Metadata:      map[string]string{},
 				ReclaimPolicy: v1alpha1.ReclaimRetain,
+				Metadata:      map[string]string{},
 			},
 		},
 		{
@@ -435,10 +207,10 @@ func TestParseContainerSpec(t *testing.T) {
 				"publicAccessType": "blob",
 			}},
 			want: &ContainerSpec{
+				ReclaimPolicy:    v1alpha1.ReclaimRetain,
 				Metadata:         map[string]string{"foo": "bar", "one": "two"},
 				NameFormat:       "test-name",
 				PublicAccessType: azblob.PublicAccessBlob,
-				ReclaimPolicy:    v1alpha1.ReclaimRetain,
 			},
 		},
 	}

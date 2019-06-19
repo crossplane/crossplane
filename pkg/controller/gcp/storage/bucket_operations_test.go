@@ -37,14 +37,13 @@ import (
 )
 
 type mockOperations struct {
-	mockIsReclaimDelete func() bool
-	mockAddFinalizer    func()
-	mockRemoveFinalizer func()
-	mockGetSpecAttrs    func() v1alpha1.BucketUpdatableAttrs
-	mockSetSpecAttrs    func(*storage.BucketAttrs)
-	mockSetStatusAttrs  func(*storage.BucketAttrs)
-	mockSetReady        func()
-	mockFailReconcile   func(ctx context.Context, reason, msg string) error
+	mockIsReclaimDelete     func() bool
+	mockAddFinalizer        func()
+	mockRemoveFinalizer     func()
+	mockGetSpecAttrs        func() v1alpha1.BucketUpdatableAttrs
+	mockSetSpecAttrs        func(*storage.BucketAttrs)
+	mockSetStatusAttrs      func(*storage.BucketAttrs)
+	mockSetStatusConditions func(...corev1alpha1.Condition)
 
 	mockUpdateObject func(ctx context.Context) error
 	mockUpdateStatus func(ctx context.Context) error
@@ -82,12 +81,8 @@ func (o *mockOperations) setStatusAttrs(attrs *storage.BucketAttrs) {
 	o.mockSetStatusAttrs(attrs)
 }
 
-func (o *mockOperations) setReady() {
-	o.mockSetReady()
-}
-
-func (o *mockOperations) failReconcile(ctx context.Context, reason, msg string) error {
-	return o.mockFailReconcile(ctx, reason, msg)
+func (o *mockOperations) setStatusConditions(c ...corev1alpha1.Condition) {
+	o.mockSetStatusConditions(c...)
 }
 
 //
@@ -146,8 +141,8 @@ func Test_bucketHandler_addFinalizer(t *testing.T) {
 			}
 			bc.addFinalizer()
 			got := tt.fields.bucket.Finalizers
-			if diff := cmp.Diff(got, tt.want); diff != "" {
-				t.Errorf("bucketHandler.addFinalizer() = %v, want %v", got, tt.want)
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Errorf("bucketHandler.addFinalizer(): -want, +got:\n%s", diff)
 			}
 		})
 	}
@@ -177,8 +172,8 @@ func Test_bucketHandler_removeFinalizer(t *testing.T) {
 			}
 			bc.removeFinalizer()
 			got := tt.fields.bucket.Finalizers
-			if diff := cmp.Diff(got, tt.want); diff != "" {
-				t.Errorf("bucketHandler.removeFinalizer() = %v, want %v", got, tt.want)
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Errorf("bucketHandler.removeFinalizer(): -want, +got:\n%s", diff)
 			}
 		})
 	}
@@ -201,9 +196,16 @@ func Test_bucketHandler_isReclaimDelete(t *testing.T) {
 			want:   false,
 		},
 		{
-			name:   "Delete",
-			fields: fields{bucket: &v1alpha1.Bucket{Spec: v1alpha1.BucketSpec{ReclaimPolicy: corev1alpha1.ReclaimDelete}}},
-			want:   true,
+			name: "Delete",
+			fields: fields{bucket: &v1alpha1.Bucket{
+				Spec: v1alpha1.BucketSpec{
+					ResourceSpec: corev1alpha1.ResourceSpec{
+						ReclaimPolicy: corev1alpha1.ReclaimDelete,
+					},
+				},
+			},
+			},
+			want: true,
 		},
 	}
 	for _, tt := range tests {
@@ -246,8 +248,8 @@ func Test_bucketHandler_getSpecAttrs(t *testing.T) {
 				Bucket: tt.fields.bucket,
 			}
 			got := bh.getSpecAttrs()
-			if diff := cmp.Diff(got, tt.want); diff != "" {
-				t.Errorf("bucketHandler.getSpecAttrs() = %v, want %v\n%s", got, tt.want, diff)
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Errorf("bucketHandler.getSpecAttrs(): -want, +got\n%s", diff)
 			}
 		})
 	}
@@ -278,8 +280,8 @@ func Test_bucketHandler_setSpecAttrs(t *testing.T) {
 			}
 			bh.setSpecAttrs(tt.args)
 			got := tt.fields.bucket.Spec.BucketSpecAttrs
-			if diff := cmp.Diff(got, tt.want); diff != "" {
-				t.Errorf("bucketHandler.setSpecAttrs() = %v, want %v\n%s", got, tt.want, diff)
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Errorf("bucketHandler.setSpecAttrs(): -want, +got:\n%s", diff)
 			}
 		})
 	}
@@ -309,58 +311,11 @@ func Test_bucketHandler_setStatusAttrs(t *testing.T) {
 			}
 			bh.setStatusAttrs(tt.args)
 			got := tt.fields.bucket.Status.BucketOutputAttrs
-			if diff := cmp.Diff(got, tt.want); diff != "" {
-				t.Errorf("bucketHandler.setStatusAttrs() = %v, want %v\n%s", got, tt.want, diff)
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Errorf("bucketHandler.setStatusAttrs(): -want, +got\n%s", diff)
 			}
 		})
 	}
-}
-
-func Test_bucketHandler_setReady(t *testing.T) {
-	type fields struct {
-		bucket *v1alpha1.Bucket
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		want   bool
-	}{
-		{
-			name:   "Test",
-			fields: fields{bucket: &v1alpha1.Bucket{}},
-			want:   true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			bh := &bucketHandler{
-				Bucket: tt.fields.bucket,
-			}
-			bh.setReady()
-			if got := tt.fields.bucket.Status.IsReady(); got != tt.want {
-				t.Errorf("bucketHandler.setReady() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_bucketHandler_failReconcile(t *testing.T) {
-	ctx := context.TODO()
-	bucket := newBucket(testNamespace, testBucketName).Bucket
-	want := newBucket(testNamespace, testBucketName).withFailedDeprecatedCondition("foo", "bar").Bucket
-	bc := &bucketHandler{
-		Bucket: bucket,
-		kube: &test.MockClient{
-			MockStatusUpdate: func(ctx context.Context, obj runtime.Object) error { return nil },
-		},
-	}
-	if err := bc.failReconcile(ctx, "foo", "bar"); err != nil {
-		t.Errorf("bucketHandler.failReconcile() unexpected error %v", err)
-	}
-	if diff := cmp.Diff(bucket, want); diff != "" {
-		t.Errorf("bucketHandler.failReconcile() got = %v, want %v\n%s", bucket, want, diff)
-	}
-
 }
 
 func Test_bucketHandler_updateObject(t *testing.T) {
@@ -471,6 +426,7 @@ func Test_bucketHandler_updateSecret(t *testing.T) {
 			name: "FailureToUpdateSecret",
 			fields: fields{
 				Bucket: newBucket(testNamespace, testBucketName).
+					withWriteConnectionSecretTo(testBucketName).
 					withServiceAccountSecretRef(saSecretName).
 					withUID(bucketUID).
 					Bucket,
@@ -516,8 +472,8 @@ func Test_bucketHandler_updateSecret(t *testing.T) {
 				kube:   tt.fields.kube,
 			}
 			err := bh.updateSecret(ctx)
-			if diff := cmp.Diff(err, tt.want, test.EquateErrors()); diff != "" {
-				t.Errorf("bucketHandler.updateSecret() error = %v, wantErr %v\n%s", err, tt.want, diff)
+			if diff := cmp.Diff(tt.want, err, test.EquateErrors()); diff != "" {
+				t.Errorf("bucketHandler.updateSecret(): -want error, +got error:\n%s", diff)
 			}
 		})
 	}
@@ -573,8 +529,8 @@ func Test_bucketHandler_updateBucket(t *testing.T) {
 	if err != nil {
 		t.Errorf("bucketHandler.updateBucket() unexpected error %v", err)
 	}
-	if diff := cmp.Diff(got, want); diff != "" {
-		t.Errorf("bucketHandler.updateBucket() got = %v, want %v\n%s", got, want, diff)
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("bucketHandler.updateBucket(): -want, +got:\n%s", diff)
 	}
 }
 
@@ -608,11 +564,11 @@ func Test_bucketHandler_getAttributes(t *testing.T) {
 				gcp: tt.fields.gcp,
 			}
 			got, err := bh.getAttributes(ctx)
-			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
-				t.Errorf("bucketHandler.getAttributes() error = %v, want.err %v\n%s", err, tt.want.err, diff)
+			if diff := cmp.Diff(tt.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("bucketHandler.getAttributes(): -want error, +got error:\n%s", diff)
 			}
-			if diff := cmp.Diff(got, tt.want.attrs); diff != "" {
-				t.Errorf("bucketHandler.getAttributes() = %v, want %v\n%s", got, tt.want.attrs, diff)
+			if diff := cmp.Diff(tt.want.attrs, got); diff != "" {
+				t.Errorf("bucketHandler.getAttributes(): -want, +got:\n%s", diff)
 			}
 		})
 	}

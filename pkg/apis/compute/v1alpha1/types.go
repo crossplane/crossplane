@@ -25,9 +25,7 @@ import (
 
 // KubernetesClusterSpec specifies the configuration of a Kubernetes cluster.
 type KubernetesClusterSpec struct {
-	ClassRef    *corev1.ObjectReference `json:"classReference,omitempty"`
-	ResourceRef *corev1.ObjectReference `json:"resourceName,omitempty"`
-	Selector    metav1.LabelSelector    `json:"selector,omitempty"`
+	corev1alpha1.ResourceClaimSpec
 
 	// cluster properties
 	ClusterVersion string `json:"clusterVersion,omitempty"`
@@ -48,6 +46,51 @@ type KubernetesCluster struct {
 	Status corev1alpha1.ResourceClaimStatus `json:"status,omitempty"`
 }
 
+// SetBindingPhase of this KubernetesCluster.
+func (kc *KubernetesCluster) SetBindingPhase(p corev1alpha1.BindingPhase) {
+	kc.Status.SetBindingPhase(p)
+}
+
+// GetBindingPhase of this KubernetesCluster.
+func (kc *KubernetesCluster) GetBindingPhase() corev1alpha1.BindingPhase {
+	return kc.Status.GetBindingPhase()
+}
+
+// SetConditions of this KubernetesCluster.
+func (kc *KubernetesCluster) SetConditions(c ...corev1alpha1.Condition) {
+	kc.Status.SetConditions(c...)
+}
+
+// SetClassReference of this KubernetesCluster.
+func (kc *KubernetesCluster) SetClassReference(r *corev1.ObjectReference) {
+	kc.Spec.ClassReference = r
+}
+
+// GetClassReference of this KubernetesCluster.
+func (kc *KubernetesCluster) GetClassReference() *corev1.ObjectReference {
+	return kc.Spec.ClassReference
+}
+
+// SetResourceReference of this KubernetesCluster.
+func (kc *KubernetesCluster) SetResourceReference(r *corev1.ObjectReference) {
+	kc.Spec.ResourceReference = r
+}
+
+// GetResourceReference of this KubernetesCluster.
+func (kc *KubernetesCluster) GetResourceReference() *corev1.ObjectReference {
+	return kc.Spec.ResourceReference
+}
+
+// SetWriteConnectionSecretTo of this KubernetesCluster.
+func (kc *KubernetesCluster) SetWriteConnectionSecretTo(r corev1.LocalObjectReference) {
+	kc.Spec.WriteConnectionSecretTo = r
+}
+
+// GetWriteConnectionSecretTo of this KubernetesCluster.
+func (kc *KubernetesCluster) GetWriteConnectionSecretTo() corev1.LocalObjectReference {
+	return kc.Spec.WriteConnectionSecretTo
+}
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // KubernetesClusterList contains a list of KubernetesClusters.
@@ -57,29 +100,9 @@ type KubernetesClusterList struct {
 	Items           []KubernetesCluster `json:"items"`
 }
 
-// ClaimStatus returns the claim status of this Kubernetes cluster.
-func (kc *KubernetesCluster) ClaimStatus() *corev1alpha1.ResourceClaimStatus {
-	return &kc.Status
-}
-
-// ClassRef returns the resource class used by this Kubernetes cluster.
-func (kc *KubernetesCluster) ClassRef() *corev1.ObjectReference {
-	return kc.Spec.ClassRef
-}
-
-// ResourceRef returns the resource claimed by this Kubernetes cluster.
-func (kc *KubernetesCluster) ResourceRef() *corev1.ObjectReference {
-	return kc.Spec.ResourceRef
-}
-
-// SetResourceRef sets the resource claimed by this Kubernetes cluster.
-func (kc *KubernetesCluster) SetResourceRef(ref *corev1.ObjectReference) {
-	kc.Spec.ResourceRef = ref
-}
-
 // ResourceReference is generic resource represented by the resource name and the secret name that will be generated
 // for the consumption inside the Workload.
-// TODO: Note, currently resource reference is a general type, however, this will be change in the future and replaced with concrete resource types
+// TODO(negz): Remove this.
 type ResourceReference struct {
 	// reference to a resource object in the same namespace
 	corev1.ObjectReference `json:",inline"`

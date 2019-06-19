@@ -22,8 +22,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/meta"
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
@@ -35,12 +34,14 @@ const (
 
 // Defaults for GKE resources.
 const (
-	DefaultReclaimPolicy = v1alpha1.ReclaimRetain
+	DefaultReclaimPolicy = corev1alpha1.ReclaimRetain
 	DefaultNumberOfNodes = int64(1)
 )
 
 // GKEClusterSpec specifies the configuration of a GKE cluster.
 type GKEClusterSpec struct {
+	corev1alpha1.ResourceSpec
+
 	Addons                    []string          `json:"addons,omitempty"`
 	Async                     bool              `json:"async,omitempty"`
 	ClusterIPV4CIDR           string            `json:"clusterIPV4CIDR,omitempty"`
@@ -89,20 +90,12 @@ type GKEClusterSpec struct {
 	ServiceAccount       string   `json:"serviceAccount,omitempty,omitempty"`
 	EnableCloudEndpoints bool     `json:"enableCloudEndpoints,omitempty"`
 	Scopes               []string `json:"scopes,omitempty"`
-
-	ClaimRef            *corev1.ObjectReference      `json:"claimRef,omitempty"`
-	ClassRef            *corev1.ObjectReference      `json:"classRef,omitempty"`
-	ConnectionSecretRef *corev1.LocalObjectReference `json:"connectionSecretRef,omitempty"`
-	ProviderRef         corev1.LocalObjectReference  `json:"providerRef,omitempty"`
-
-	// ReclaimPolicy identifies how to handle the cloud resource after the deletion of this type
-	ReclaimPolicy v1alpha1.ReclaimPolicy `json:"reclaimPolicy,omitempty"`
 }
 
 // GKEClusterStatus represents the status of a GKE cluster.
 type GKEClusterStatus struct {
-	v1alpha1.DeprecatedConditionedStatus
-	v1alpha1.BindingStatusPhase
+	corev1alpha1.ResourceStatus
+
 	ClusterName string `json:"clusterName"`
 	Endpoint    string `json:"endpoint"`
 	State       string `json:"state,omitempty"`
@@ -127,6 +120,46 @@ type GKECluster struct {
 	Status GKEClusterStatus `json:"status,omitempty"`
 }
 
+// SetBindingPhase of this GKECluster.
+func (c *GKECluster) SetBindingPhase(p corev1alpha1.BindingPhase) {
+	c.Status.SetBindingPhase(p)
+}
+
+// GetBindingPhase of this GKECluster.
+func (c *GKECluster) GetBindingPhase() corev1alpha1.BindingPhase {
+	return c.Status.GetBindingPhase()
+}
+
+// SetClaimReference of this GKECluster.
+func (c *GKECluster) SetClaimReference(r *corev1.ObjectReference) {
+	c.Spec.ClaimReference = r
+}
+
+// GetClaimReference of this GKECluster.
+func (c *GKECluster) GetClaimReference() *corev1.ObjectReference {
+	return c.Spec.ClaimReference
+}
+
+// SetClassReference of this GKECluster.
+func (c *GKECluster) SetClassReference(r *corev1.ObjectReference) {
+	c.Spec.ClassReference = r
+}
+
+// GetClassReference of this GKECluster.
+func (c *GKECluster) GetClassReference() *corev1.ObjectReference {
+	return c.Spec.ClassReference
+}
+
+// SetWriteConnectionSecretTo of this GKECluster.
+func (c *GKECluster) SetWriteConnectionSecretTo(r corev1.LocalObjectReference) {
+	c.Spec.WriteConnectionSecretTo = r
+}
+
+// GetWriteConnectionSecretTo of this GKECluster.
+func (c *GKECluster) GetWriteConnectionSecretTo() corev1.LocalObjectReference {
+	return c.Spec.WriteConnectionSecretTo
+}
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // GKEClusterList contains a list of GKECluster items
@@ -139,7 +172,9 @@ type GKEClusterList struct {
 // ParseClusterSpec from properties map
 func ParseClusterSpec(properties map[string]string) *GKEClusterSpec {
 	return &GKEClusterSpec{
-		ReclaimPolicy:    DefaultReclaimPolicy,
+		ResourceSpec: corev1alpha1.ResourceSpec{
+			ReclaimPolicy: DefaultReclaimPolicy,
+		},
 		ClusterVersion:   properties["clusterVersion"],
 		Labels:           util.ParseMap(properties["labels"]),
 		MachineType:      properties["machineType"],
@@ -166,49 +201,4 @@ func parseNodesNumber(s string) int64 {
 		return DefaultNumberOfNodes
 	}
 	return int64(n)
-}
-
-// ConnectionSecret returns the connection secret for this GKE cluster.
-func (g *GKECluster) ConnectionSecret() *corev1.Secret {
-	ref := meta.AsOwner(meta.ReferenceTo(g, GKEClusterGroupVersionKind))
-	return &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace:       g.Namespace,
-			Name:            g.ConnectionSecretName(),
-			OwnerReferences: []metav1.OwnerReference{ref},
-		},
-	}
-}
-
-// ConnectionSecretName returns a secret name from the reference
-func (g *GKECluster) ConnectionSecretName() string {
-	if g.Spec.ConnectionSecretRef == nil {
-		g.Spec.ConnectionSecretRef = &corev1.LocalObjectReference{
-			Name: g.Name,
-		}
-	} else if g.Spec.ConnectionSecretRef.Name == "" {
-		g.Spec.ConnectionSecretRef.Name = g.Name
-	}
-
-	return g.Spec.ConnectionSecretRef.Name
-}
-
-// State returns rds instance state value saved in the status (could be empty)
-func (g *GKECluster) State() string {
-	return g.Status.State
-}
-
-// IsAvailable for usage/binding
-func (g *GKECluster) IsAvailable() bool {
-	return g.State() == ClusterStateRunning
-}
-
-// IsBound returns true if this GKE cluster is bound to a resource claim.
-func (g *GKECluster) IsBound() bool {
-	return g.Status.IsBound()
-}
-
-// SetBound specifies whether this GKE cluster is bound to a resource claim.
-func (g *GKECluster) SetBound(bound bool) {
-	g.Status.SetBound(bound)
 }

@@ -19,13 +19,11 @@ package v1alpha1
 import (
 	"strconv"
 
-	"github.com/Azure/azure-sdk-for-go/services/mysql/mgmt/2017-12-01/mysql"
-	"github.com/Azure/azure-sdk-for-go/services/postgresql/mgmt/2017-12-01/postgresql"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	runtime "k8s.io/apimachinery/pkg/runtime"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/resource"
 )
 
 const (
@@ -37,10 +35,8 @@ const (
 
 // SQLServer represents a generic Azure SQL server.
 type SQLServer interface {
-	runtime.Object
-	metav1.Object
-	// Resource connection secret name
-	ConnectionSecretName() string
+	resource.ManagedResource
+
 	GetSpec() *SQLServerSpec
 	GetStatus() *SQLServerStatus
 	SetStatus(*SQLServerStatus)
@@ -62,6 +58,61 @@ type MysqlServer struct {
 
 	Spec   SQLServerSpec   `json:"spec,omitempty"`
 	Status SQLServerStatus `json:"status,omitempty"`
+}
+
+// GetSpec returns the MySQL server's spec.
+func (s *MysqlServer) GetSpec() *SQLServerSpec {
+	return &s.Spec
+}
+
+// GetStatus returns the MySQL server's status.
+func (s *MysqlServer) GetStatus() *SQLServerStatus {
+	return &s.Status
+}
+
+// SetStatus sets the MySQL server's status.
+func (s *MysqlServer) SetStatus(status *SQLServerStatus) {
+	s.Status = *status
+}
+
+// SetBindingPhase of this MysqlServer.
+func (s *MysqlServer) SetBindingPhase(p corev1alpha1.BindingPhase) {
+	s.Status.SetBindingPhase(p)
+}
+
+// GetBindingPhase of this MysqlServer.
+func (s *MysqlServer) GetBindingPhase() corev1alpha1.BindingPhase {
+	return s.Status.GetBindingPhase()
+}
+
+// SetClaimReference of this MysqlServer.
+func (s *MysqlServer) SetClaimReference(r *corev1.ObjectReference) {
+	s.Spec.ClaimReference = r
+}
+
+// GetClaimReference of this MysqlServer.
+func (s *MysqlServer) GetClaimReference() *corev1.ObjectReference {
+	return s.Spec.ClaimReference
+}
+
+// SetClassReference of this MysqlServer.
+func (s *MysqlServer) SetClassReference(r *corev1.ObjectReference) {
+	s.Spec.ClassReference = r
+}
+
+// GetClassReference of this MysqlServer.
+func (s *MysqlServer) GetClassReference() *corev1.ObjectReference {
+	return s.Spec.ClassReference
+}
+
+// SetWriteConnectionSecretTo of this MysqlServer.
+func (s *MysqlServer) SetWriteConnectionSecretTo(r corev1.LocalObjectReference) {
+	s.Spec.WriteConnectionSecretTo = r
+}
+
+// GetWriteConnectionSecretTo of this MysqlServer.
+func (s *MysqlServer) GetWriteConnectionSecretTo() corev1.LocalObjectReference {
+	return s.Spec.WriteConnectionSecretTo
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -89,6 +140,61 @@ type PostgresqlServer struct {
 	Status SQLServerStatus `json:"status,omitempty"`
 }
 
+// GetSpec gets the PostgreSQL server's spec.
+func (s *PostgresqlServer) GetSpec() *SQLServerSpec {
+	return &s.Spec
+}
+
+// GetStatus gets the PostgreSQL server's status.
+func (s *PostgresqlServer) GetStatus() *SQLServerStatus {
+	return &s.Status
+}
+
+// SetStatus sets the PostgreSQL server's status.
+func (s *PostgresqlServer) SetStatus(status *SQLServerStatus) {
+	s.Status = *status
+}
+
+// SetBindingPhase of this PostgresqlServer.
+func (s *PostgresqlServer) SetBindingPhase(p corev1alpha1.BindingPhase) {
+	s.Status.SetBindingPhase(p)
+}
+
+// GetBindingPhase of this PostgresqlServer.
+func (s *PostgresqlServer) GetBindingPhase() corev1alpha1.BindingPhase {
+	return s.Status.GetBindingPhase()
+}
+
+// SetClaimReference of this PostgresqlServer.
+func (s *PostgresqlServer) SetClaimReference(r *corev1.ObjectReference) {
+	s.Spec.ClaimReference = r
+}
+
+// GetClaimReference of this PostgresqlServer.
+func (s *PostgresqlServer) GetClaimReference() *corev1.ObjectReference {
+	return s.Spec.ClaimReference
+}
+
+// SetClassReference of this PostgresqlServer.
+func (s *PostgresqlServer) SetClassReference(r *corev1.ObjectReference) {
+	s.Spec.ClassReference = r
+}
+
+// GetClassReference of this PostgresqlServer.
+func (s *PostgresqlServer) GetClassReference() *corev1.ObjectReference {
+	return s.Spec.ClassReference
+}
+
+// SetWriteConnectionSecretTo of this PostgresqlServer.
+func (s *PostgresqlServer) SetWriteConnectionSecretTo(r corev1.LocalObjectReference) {
+	s.Spec.WriteConnectionSecretTo = r
+}
+
+// GetWriteConnectionSecretTo of this PostgresqlServer.
+func (s *PostgresqlServer) GetWriteConnectionSecretTo() corev1.LocalObjectReference {
+	return s.Spec.WriteConnectionSecretTo
+}
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // PostgresqlServerList contains a list of PostgresqlServer
@@ -100,6 +206,8 @@ type PostgresqlServerList struct {
 
 // SQLServerSpec defines the desired state of SQLServer
 type SQLServerSpec struct {
+	corev1alpha1.ResourceSpec
+
 	ResourceGroupName string             `json:"resourceGroupName"`
 	Location          string             `json:"location"`
 	PricingTier       PricingTierSpec    `json:"pricingTier"`
@@ -107,21 +215,12 @@ type SQLServerSpec struct {
 	AdminLoginName    string             `json:"adminLoginName"`
 	Version           string             `json:"version"`
 	SSLEnforced       bool               `json:"sslEnforced,omitempty"`
-
-	// Kubernetes object references
-	ClaimRef            *v1.ObjectReference     `json:"claimRef,omitempty"`
-	ClassRef            *v1.ObjectReference     `json:"classRef,omitempty"`
-	ProviderRef         v1.LocalObjectReference `json:"providerRef"`
-	ConnectionSecretRef v1.LocalObjectReference `json:"connectionSecretRef,omitempty"`
-
-	// ReclaimPolicy identifies how to handle the cloud resource after the deletion of this type
-	ReclaimPolicy corev1alpha1.ReclaimPolicy `json:"reclaimPolicy,omitempty"`
 }
 
 // SQLServerStatus defines the observed state of SQLServer
 type SQLServerStatus struct {
-	corev1alpha1.DeprecatedConditionedStatus
-	corev1alpha1.BindingStatusPhase
+	corev1alpha1.ResourceStatus
+
 	State   string `json:"state,omitempty"`
 	Message string `json:"message,omitempty"`
 
@@ -158,7 +257,9 @@ type StorageProfileSpec struct {
 // NewSQLServerSpec creates a new SQLServerSpec based on the given properties map
 func NewSQLServerSpec(properties map[string]string) *SQLServerSpec {
 	spec := &SQLServerSpec{
-		ReclaimPolicy:     corev1alpha1.ReclaimRetain,
+		ResourceSpec: corev1alpha1.ResourceSpec{
+			ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		},
 		AdminLoginName:    properties["adminLoginName"],
 		ResourceGroupName: properties["resourceGroupName"],
 		Location:          properties["location"],
@@ -190,88 +291,6 @@ func NewSQLServerSpec(properties map[string]string) *SQLServerSpec {
 	}
 
 	return spec
-}
-
-// GetSpec returns the MySQL server's spec.
-func (m *MysqlServer) GetSpec() *SQLServerSpec {
-	return &m.Spec
-}
-
-// GetStatus returns the MySQL server's status.
-func (m *MysqlServer) GetStatus() *SQLServerStatus {
-	return &m.Status
-}
-
-// SetStatus sets the MySQL server's status.
-func (m *MysqlServer) SetStatus(status *SQLServerStatus) {
-	m.Status = *status
-}
-
-// ConnectionSecretName returns a secret name from the reference
-func (m *MysqlServer) ConnectionSecretName() string {
-	if m.Spec.ConnectionSecretRef.Name == "" {
-		// the user hasn't specified the name of the secret they want the connection information
-		// stored in, generate one now
-		m.Spec.ConnectionSecretRef.Name = m.Name
-	}
-
-	return m.Spec.ConnectionSecretRef.Name
-}
-
-// IsAvailable for usage/binding
-func (m *MysqlServer) IsAvailable() bool {
-	return m.Status.State == string(mysql.ServerStateReady)
-}
-
-// IsBound determines if the resource is in a bound binding state
-func (m *MysqlServer) IsBound() bool {
-	return m.Status.IsBound()
-}
-
-// SetBound sets the binding state of this resource
-func (m *MysqlServer) SetBound(bound bool) {
-	m.Status.SetBound(bound)
-}
-
-// GetSpec gets the PostgreSQL server's spec.
-func (p *PostgresqlServer) GetSpec() *SQLServerSpec {
-	return &p.Spec
-}
-
-// GetStatus gets the PostgreSQL server's status.
-func (p *PostgresqlServer) GetStatus() *SQLServerStatus {
-	return &p.Status
-}
-
-// SetStatus sets the PostgreSQL server's status.
-func (p *PostgresqlServer) SetStatus(status *SQLServerStatus) {
-	p.Status = *status
-}
-
-// ConnectionSecretName returns a secret name from the reference
-func (p *PostgresqlServer) ConnectionSecretName() string {
-	if p.Spec.ConnectionSecretRef.Name == "" {
-		// the user hasn't specified the name of the secret they want the connection information
-		// stored in, generate one now
-		p.Spec.ConnectionSecretRef.Name = p.Name
-	}
-
-	return p.Spec.ConnectionSecretRef.Name
-}
-
-// IsAvailable for usage/binding
-func (p *PostgresqlServer) IsAvailable() bool {
-	return p.Status.State == string(postgresql.ServerStateReady)
-}
-
-// IsBound determines if the resource is in a bound binding state
-func (p *PostgresqlServer) IsBound() bool {
-	return p.Status.IsBound()
-}
-
-// SetBound sets the binding state of this resource
-func (p *PostgresqlServer) SetBound(bound bool) {
-	p.Status.SetBound(bound)
 }
 
 // ValidMySQLVersionValues returns the valid set of engine version values.

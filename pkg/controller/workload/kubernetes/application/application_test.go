@@ -87,16 +87,10 @@ var (
 	}
 )
 
-// Frequently used conditions.
-var (
-	ready   = corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedReady, Status: corev1.ConditionTrue}
-	pending = corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedPending, Status: corev1.ConditionTrue}
-)
-
 type kubeAppModifier func(*v1alpha1.KubernetesApplication)
 
-func withConditions(c ...corev1alpha1.DeprecatedCondition) kubeAppModifier {
-	return func(r *v1alpha1.KubernetesApplication) { r.Status.DeprecatedConditionedStatus.Conditions = c }
+func withConditions(c ...corev1alpha1.Condition) kubeAppModifier {
+	return func(r *v1alpha1.KubernetesApplication) { r.Status.SetConditions(c...) }
 }
 
 func withState(s v1alpha1.KubernetesApplicationState) kubeAppModifier {
@@ -266,7 +260,7 @@ func TestSync(t *testing.T) {
 			wantApp: kubeApp(
 				withTemplates(templateA),
 				withState(v1alpha1.KubernetesApplicationStateScheduled),
-				withConditions(pending),
+				withConditions(corev1alpha1.ReconcileSuccess()),
 				withDesiredResources(1),
 				withSubmittedResources(0),
 			),
@@ -292,7 +286,7 @@ func TestSync(t *testing.T) {
 			wantApp: kubeApp(
 				withTemplates(templateA, templateB),
 				withState(v1alpha1.KubernetesApplicationStatePartial),
-				withConditions(pending),
+				withConditions(corev1alpha1.ReconcileSuccess()),
 				withDesiredResources(2),
 				withSubmittedResources(1),
 			),
@@ -313,7 +307,7 @@ func TestSync(t *testing.T) {
 			wantApp: kubeApp(
 				withTemplates(templateA, templateB),
 				withState(v1alpha1.KubernetesApplicationStateSubmitted),
-				withConditions(ready),
+				withConditions(corev1alpha1.ReconcileSuccess()),
 				withDesiredResources(2),
 				withSubmittedResources(2),
 			),
@@ -329,14 +323,7 @@ func TestSync(t *testing.T) {
 			wantApp: kubeApp(
 				withTemplates(templateA),
 				withState(v1alpha1.KubernetesApplicationStateFailed),
-				withConditions(
-					corev1alpha1.DeprecatedCondition{
-						Type:    corev1alpha1.DeprecatedFailed,
-						Status:  corev1.ConditionTrue,
-						Reason:  reasonGCResources,
-						Message: errorBoom.Error(),
-					},
-				),
+				withConditions(corev1alpha1.ReconcileError(errorBoom)),
 				withDesiredResources(1),
 			),
 			wantResult: reconcile.Result{Requeue: true},
@@ -351,14 +338,7 @@ func TestSync(t *testing.T) {
 			wantApp: kubeApp(
 				withTemplates(templateA),
 				withState(v1alpha1.KubernetesApplicationStateFailed),
-				withConditions(
-					corev1alpha1.DeprecatedCondition{
-						Type:    corev1alpha1.DeprecatedFailed,
-						Status:  corev1.ConditionTrue,
-						Reason:  reasonSyncingResource,
-						Message: errorBoom.Error(),
-					},
-				),
+				withConditions(corev1alpha1.ReconcileError(errorBoom)),
 				withDesiredResources(1),
 			),
 			wantResult: reconcile.Result{Requeue: true},
@@ -506,14 +486,7 @@ func TestGarbageCollect(t *testing.T) {
 			app: kubeApp(withTemplates(templateA)),
 			wantApp: kubeApp(
 				withTemplates(templateA),
-				withConditions(
-					corev1alpha1.DeprecatedCondition{
-						Type:    corev1alpha1.DeprecatedFailed,
-						Status:  corev1.ConditionTrue,
-						Reason:  reasonGCResources,
-						Message: errorBoom.Error(),
-					},
-				),
+				withConditions(corev1alpha1.ReconcileError(errorBoom)),
 			),
 		},
 		{

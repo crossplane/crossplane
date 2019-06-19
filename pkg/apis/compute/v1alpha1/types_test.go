@@ -26,6 +26,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/resource"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
@@ -41,6 +43,8 @@ var (
 	key = types.NamespacedName{Name: name, Namespace: namespace}
 )
 
+var _ resource.Claim = &KubernetesCluster{}
+
 func TestMain(m *testing.M) {
 	t := test.NewEnv(namespace, SchemeBuilder.SchemeBuilder, test.CRDs())
 	c = t.StartClient()
@@ -53,9 +57,11 @@ func TestKubernetes(t *testing.T) {
 	created := &KubernetesCluster{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
 		Spec: KubernetesClusterSpec{
-			ClassRef: &corev1.ObjectReference{
-				Name:      "test-class",
-				Namespace: "test-system",
+			ResourceClaimSpec: v1alpha1.ResourceClaimSpec{
+				ClassReference: &corev1.ObjectReference{
+					Name:      "test-class",
+					Namespace: "test-system",
+				},
 			},
 		},
 	}
@@ -70,7 +76,7 @@ func TestKubernetes(t *testing.T) {
 	// Test Updating the Labels
 	updated := fetched.DeepCopy()
 	updated.Labels = map[string]string{"hello": "world"}
-	updated.Spec.ResourceRef = &corev1.ObjectReference{
+	updated.Spec.ResourceReference = &corev1.ObjectReference{
 		Name:      "test-class",
 		Namespace: "test-resource",
 	}

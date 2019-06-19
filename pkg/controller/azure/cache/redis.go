@@ -23,7 +23,6 @@ import (
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -39,19 +38,12 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/clients/azure/redis"
 	"github.com/crossplaneio/crossplane/pkg/logging"
 	"github.com/crossplaneio/crossplane/pkg/meta"
+	"github.com/crossplaneio/crossplane/pkg/resource"
 )
 
 const (
-	controllerName = "redis.cache.azure.crossplane.io"
-	finalizerName  = "finalizer." + controllerName
-
-	reasonFetchingClient   = "failed to fetch Azure Cache client"
-	reasonCreatingResource = "failed to create Azure Cache resource"
-	reasonDeletingResource = "failed to delete Azure Cache resource"
-	reasonSyncingResource  = "failed to sync Azure Cache resource"
-	reasonSyncingSecret    = "failed to sync Azure Cache connection secret" // nolint:gas,gosec
-	reasonGettingKey       = "failed to get Azure Cache access key"
-
+	controllerName   = "redis.cache.azure.crossplane.io"
+	finalizerName    = "finalizer." + controllerName
 	reconcileTimeout = 1 * time.Minute
 )
 
@@ -100,17 +92,16 @@ type azureRedisCache struct {
 }
 
 func (a *azureRedisCache) Create(ctx context.Context, r *v1alpha1.Redis) bool {
+	r.Status.SetConditions(corev1alpha1.Creating())
 	n := redis.NewResourceName(r)
 	if _, err := a.client.Create(ctx, r.Spec.ResourceGroupName, n, redis.NewCreateParameters(r)); err != nil {
-		r.Status.SetFailed(reasonCreatingResource, err.Error())
+		r.Status.SetConditions(corev1alpha1.ReconcileError(err))
 		return true
 	}
 
 	r.Status.ResourceName = n
-	r.Status.UnsetAllDeprecatedConditions()
-	r.Status.SetCreating()
 	meta.AddFinalizer(r, finalizerName)
-
+	r.Status.SetConditions(corev1alpha1.ReconcileSuccess())
 	return true
 }
 
@@ -118,12 +109,11 @@ func (a *azureRedisCache) Sync(ctx context.Context, r *v1alpha1.Redis) bool {
 	n := redis.NewResourceName(r)
 	cacheResource, err := a.client.Get(ctx, r.Spec.ResourceGroupName, n)
 	if err != nil {
-		r.Status.SetFailed(reasonSyncingResource, err.Error())
+		r.Status.SetConditions(corev1alpha1.ReconcileError(err))
 		return true
 	}
 
 	r.Status.State = string(cacheResource.ProvisioningState)
-	r.Status.UnsetAllDeprecatedConditions()
 
 	switch r.Status.State {
 	case v1alpha1.ProvisioningStateSucceeded:
@@ -131,16 +121,17 @@ func (a *azureRedisCache) Sync(ctx context.Context, r *v1alpha1.Redis) bool {
 		// portal shows an instance as 'Ready', but the API shows only that the
 		// provisioning state is 'Succeeded'. It's a little weird to see a Redis
 		// resource in state 'Succeeded' in kubectl.
-		r.Status.SetReady()
+		r.Status.SetConditions(corev1alpha1.Available())
 	case v1alpha1.ProvisioningStateCreating:
-		r.Status.SetCreating()
+		r.Status.SetConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileSuccess())
 		return true
 	case v1alpha1.ProvisioningStateDeleting:
-		r.Status.SetDeleting()
+		r.Status.SetConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileSuccess())
 		return false
 	default:
 		// TODO(negz): Don't requeue in this scenario? The instance could be
 		// failed, disabled, scaling, etc.
+		r.Status.SetConditions(corev1alpha1.ReconcileSuccess())
 		return true
 	}
 
@@ -151,26 +142,29 @@ func (a *azureRedisCache) Sync(ctx context.Context, r *v1alpha1.Redis) bool {
 	r.Status.ProviderID = azure.ToString(cacheResource.ID)
 
 	if !redis.NeedsUpdate(r, cacheResource) {
+		r.Status.SetConditions(corev1alpha1.ReconcileSuccess())
 		return false
 	}
 
 	if _, err := a.client.Update(ctx, r.Spec.ResourceGroupName, n, redis.NewUpdateParameters(r)); err != nil {
-		r.Status.SetFailed(reasonSyncingResource, err.Error())
+		r.Status.SetConditions(corev1alpha1.ReconcileError(err))
 		return true
 	}
 
+	r.Status.SetConditions(corev1alpha1.ReconcileSuccess())
 	return false
 }
 
 func (a *azureRedisCache) Delete(ctx context.Context, r *v1alpha1.Redis) bool {
+	r.Status.SetConditions(corev1alpha1.Deleting())
 	if r.Spec.ReclaimPolicy == corev1alpha1.ReclaimDelete {
 		if _, err := a.client.Delete(ctx, r.Spec.ResourceGroupName, redis.NewResourceName(r)); err != nil {
-			r.Status.SetFailed(reasonDeletingResource, err.Error())
+			r.Status.SetConditions(corev1alpha1.ReconcileError(err))
 			return true
 		}
 	}
-	r.Status.SetDeleting()
 	meta.RemoveFinalizer(r, finalizerName)
+	r.Status.SetConditions(corev1alpha1.ReconcileSuccess())
 	return false
 }
 
@@ -178,7 +172,7 @@ func (a *azureRedisCache) Key(ctx context.Context, r *v1alpha1.Redis) string {
 	n := redis.NewResourceName(r)
 	k, err := a.client.ListKeys(ctx, r.Spec.ResourceGroupName, n)
 	if err != nil {
-		r.Status.SetFailed(reasonGettingKey, err.Error())
+		r.Status.SetConditions(corev1alpha1.ReconcileError(err))
 		return ""
 	}
 	return azure.ToString(k.PrimaryKey)
@@ -202,7 +196,7 @@ type providerConnecter struct {
 // Redis.
 func (c *providerConnecter) Connect(ctx context.Context, r *v1alpha1.Redis) (createsyncdeletekeyer, error) {
 	p := &azurev1alpha1.Provider{}
-	n := types.NamespacedName{Namespace: r.GetNamespace(), Name: r.Spec.ProviderRef.Name}
+	n := meta.NamespacedNameOf(r.Spec.ProviderReference)
 	if err := c.kube.Get(ctx, n, p); err != nil {
 		return nil, errors.Wrapf(err, "cannot get provider %s", n)
 	}
@@ -257,7 +251,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	client, err := r.Connect(ctx, rd)
 	if err != nil {
-		rd.Status.SetFailed(reasonFetchingClient, err.Error())
+		rd.Status.SetConditions(corev1alpha1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}, errors.Wrapf(r.kube.Update(ctx, rd), "cannot update resource %s", req.NamespacedName)
 	}
 
@@ -272,7 +266,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	}
 
 	if err := r.upsertSecret(ctx, connectionSecret(rd, client.Key(ctx, rd))); err != nil {
-		rd.Status.SetFailed(reasonSyncingSecret, err.Error())
+		rd.Status.SetConditions(corev1alpha1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}, errors.Wrapf(r.kube.Update(ctx, rd), "cannot update resource %s", req.NamespacedName)
 	}
 
@@ -292,19 +286,13 @@ func (r *Reconciler) upsertSecret(ctx context.Context, s *corev1.Secret) error {
 }
 
 func connectionSecret(r *v1alpha1.Redis, accessKey string) *corev1.Secret {
-	ref := meta.AsOwner(meta.ReferenceTo(r, v1alpha1.RedisGroupVersionKind))
-	return &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            r.ConnectionSecretName(),
-			Namespace:       r.Namespace,
-			OwnerReferences: []metav1.OwnerReference{ref},
-		},
+	s := resource.ConnectionSecretFor(r, v1alpha1.RedisGroupVersionKind)
 
-		// TODO(negz): Include the ports here too?
-		// TODO(negz): Include both access keys? Azure has two because reasons.
-		Data: map[string][]byte{
-			corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(r.Status.Endpoint),
-			corev1alpha1.ResourceCredentialsSecretPasswordKey: []byte(accessKey),
-		},
+	// TODO(negz): Include the ports here too?
+	// TODO(negz): Include both access keys? Azure has two because reasons.
+	s.Data = map[string][]byte{
+		corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(r.Status.Endpoint),
+		corev1alpha1.ResourceCredentialsSecretPasswordKey: []byte(accessKey),
 	}
+	return s
 }

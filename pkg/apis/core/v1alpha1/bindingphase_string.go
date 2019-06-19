@@ -4,9 +4,9 @@ package v1alpha1
 
 import "strconv"
 
-const _BindingPhase_name = "UnboundBound"
+const _BindingPhase_name = "UnbindableUnboundBound"
 
-var _BindingPhase_index = [...]uint8{0, 7, 12}
+var _BindingPhase_index = [...]uint8{0, 10, 17, 22}
 
 func (i BindingPhase) String() string {
 	if i < 0 || i >= BindingPhase(len(_BindingPhase_index)-1) {

@@ -20,14 +20,16 @@ import (
 	"context"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/Azure/azure-sdk-for-go/services/mysql/mgmt/2017-12-01/mysql"
 	"github.com/Azure/go-autorest/autorest"
 	azurerest "github.com/Azure/go-autorest/autorest/azure"
+	"github.com/google/go-cmp/cmp"
 	"github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
@@ -182,6 +184,7 @@ func TestReconcile(t *testing.T) {
 		RunningOperation:     "mocked marshalled create future",
 		RunningOperationType: azuredbv1alpha1.OperationCreateServer,
 	}
+	expectedStatus.SetConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileSuccess())
 	assertSQLServerStatus(g, c, expectedStatus)
 
 	// 2nd reconcile should finish the create server operation and clear out the running operation field
@@ -189,6 +192,7 @@ func TestReconcile(t *testing.T) {
 	expectedStatus = azuredbv1alpha1.SQLServerStatus{
 		RunningOperation: "",
 	}
+	expectedStatus.SetConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileSuccess())
 	assertSQLServerStatus(g, c, expectedStatus)
 
 	// 3rd reconcile should see that there is no firewall rule yet and try to create it
@@ -197,6 +201,7 @@ func TestReconcile(t *testing.T) {
 		RunningOperation:     "mocked marshalled firewall create future",
 		RunningOperationType: azuredbv1alpha1.OperationCreateFirewallRules,
 	}
+	expectedStatus.SetConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileSuccess())
 	assertSQLServerStatus(g, c, expectedStatus)
 
 	// 4th reconcile should finish the create firewall operation and clear out the running operation field
@@ -204,6 +209,7 @@ func TestReconcile(t *testing.T) {
 	expectedStatus = azuredbv1alpha1.SQLServerStatus{
 		RunningOperation: "",
 	}
+	expectedStatus.SetConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileSuccess())
 	assertSQLServerStatus(g, c, expectedStatus)
 
 	// 5th reconcile should find the SQL Server instance from Azure and update the full status of the CRD
@@ -216,27 +222,25 @@ func TestReconcile(t *testing.T) {
 		State:      "Ready",
 		ProviderID: instanceName + "-azure-id",
 		Endpoint:   instanceName + ".mydomain.azure.msft.com",
-		DeprecatedConditionedStatus: corev1alpha1.DeprecatedConditionedStatus{
-			Conditions: []corev1alpha1.DeprecatedCondition{
-				{
-					Type:    corev1alpha1.DeprecatedReady,
-					Status:  v1.ConditionTrue,
-					Reason:  conditionStateChanged,
-					Message: "SQL Server instance test-db-instance is in the Ready state",
-				},
-			},
-		},
 	}
+	expectedStatus.SetConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess())
 	assertSQLServerStatus(g, c, expectedStatus)
 
 	// wait for the connection information to be stored in a secret, then verify it
-	var connectionSecret *v1.Secret
-	for {
-		if connectionSecret, err = r.clientset.CoreV1().Secrets(namespace).Get(instanceName, metav1.GetOptions{}); err == nil {
-			if string(connectionSecret.Data[corev1alpha1.ResourceCredentialsSecretEndpointKey]) != "" {
-				break
-			}
+	connectionSecret := &v1.Secret{}
+	n := types.NamespacedName{
+		Namespace: instance.GetNamespace(),
+		Name:      instance.GetSpec().WriteConnectionSecretTo.Name,
+	}
+	for range time.NewTicker(1 * time.Second).C {
+		if err := c.Get(ctx, n, connectionSecret); err != nil {
+			t.Logf("cannot get connection secret: %s", err)
+			continue
 		}
+		if string(connectionSecret.Data[corev1alpha1.ResourceCredentialsSecretEndpointKey]) != "" {
+			break
+		}
+		t.Logf("connection secret endpoint is empty")
 	}
 	assertConnectionSecret(g, c, connectionSecret)
 
@@ -245,7 +249,6 @@ func TestReconcile(t *testing.T) {
 	g.Expect(len(instance.Finalizers)).To(gomega.Equal(1))
 	g.Expect(instance.Finalizers[0]).To(gomega.Equal(mysqlFinalizer))
 
-	// test deletion of the instance
 	cleanupSQLServer(t, g, c, requests, instance)
 }
 
@@ -297,9 +300,7 @@ func assertSQLServerStatus(g *gomega.GomegaWithT, c client.Client, expectedStatu
 	g.Expect(instance.Status.Endpoint).To(gomega.Equal(expectedStatus.Endpoint))
 	g.Expect(instance.Status.RunningOperation).To(gomega.Equal(expectedStatus.RunningOperation))
 	g.Expect(instance.Status.RunningOperationType).To(gomega.Equal(expectedStatus.RunningOperationType))
-
-	// assert the expected status conditions
-	corev1alpha1.AssertConditions(g, expectedStatus.Conditions, instance.Status.DeprecatedConditionedStatus)
+	g.Expect(cmp.Diff(expectedStatus.ConditionedStatus, instance.Status.ConditionedStatus, test.EquateConditions())).Should(gomega.BeZero())
 }
 
 func assertConnectionSecret(g *gomega.GomegaWithT, c client.Client, connectionSecret *v1.Secret) {

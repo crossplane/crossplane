@@ -18,13 +18,12 @@ package util
 
 import (
 	"context"
-	"fmt"
 	"os"
 
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
+	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplaneio/crossplane/pkg/logging"
 )
@@ -45,11 +44,11 @@ var (
 func GetRunningPod(ctx context.Context, kube client.Client) (*v1.Pod, error) {
 	podName := os.Getenv(PodNameEnvVar)
 	if podName == "" {
-		return nil, fmt.Errorf("cannot detect the pod name. Please provide it using the downward API in the manifest file")
+		return nil, errors.New("cannot detect the pod name. Please provide it using the downward API in the manifest file")
 	}
 	podNamespace := os.Getenv(PodNamespaceEnvVar)
 	if podNamespace == "" {
-		return nil, fmt.Errorf("cannot detect the pod namespace. Please provide it using the downward API in the manifest file")
+		return nil, errors.New("cannot detect the pod namespace. Please provide it using the downward API in the manifest file")
 	}
 
 	name := types.NamespacedName{Name: podName, Namespace: podNamespace}
@@ -101,7 +100,7 @@ func GetMatchingContainer(containers []v1.Container, name string) (v1.Container,
 	}
 
 	if result == nil {
-		return v1.Container{}, fmt.Errorf("failed to find image for container %s", name)
+		return v1.Container{}, errors.Errorf("failed to find image for container %s", name)
 	}
 
 	return *result, nil

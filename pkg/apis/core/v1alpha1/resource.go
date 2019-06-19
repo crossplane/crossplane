@@ -82,17 +82,43 @@ type ResourceClassList struct {
 	Items           []ResourceClass `json:"items"`
 }
 
-// ResourceClaimStatus represents the status of a resource claim
+// ResourceClaimSpec contains standard fields that all resource claims should
+// include in their spec. Unlike ResourceClaimStatus, ResourceClaimSpec should
+// typically be embedded in a claim specific struct.
+type ResourceClaimSpec struct {
+	WriteConnectionSecretTo corev1.LocalObjectReference `json:"writeConnectionSecretTo,omitempty"`
+
+	// TODO(negz): Make the below references immutable once set? Doing so means
+	// we don't have to track what provisioner was used to create a resource.
+
+	ClassReference    *corev1.ObjectReference `json:"classReference,omitempty"`
+	ResourceReference *corev1.ObjectReference `json:"resourceReference,omitempty"`
+}
+
+// ResourceClaimStatus represents the status of a resource claim. Claims should
+// typically use this struct as their status.
 type ResourceClaimStatus struct {
-	DeprecatedConditionedStatus
-	BindingStatusPhase
+	ConditionedStatus
+	BindingStatus
+}
 
-	// Provisioner is the driver that was used to provision the concrete resource
-	// This is an optionally-prefixed name, like a label key.
-	// For example: "RDSInstance.database.aws.crossplane.io/v1alpha1" or "CloudSQLInstance.database.gcp.crossplane.io/v1alpha1".
-	Provisioner string `json:"provisioner,omitempty"`
+// ResourceSpec contains standard fields that all resources should
+// include in their spec. ResourceSpec should typically be embedded in a
+// resource specific struct.
+type ResourceSpec struct {
+	WriteConnectionSecretTo corev1.LocalObjectReference `json:"writeConnectionSecretTo,omitempty"`
 
-	// CredentialsSecretRef is a local reference to the generated secret containing the credentials
-	// for this resource claim.
-	CredentialsSecretRef corev1.LocalObjectReference `json:"credentialsSecret,omitempty"`
+	ClaimReference    *corev1.ObjectReference `json:"claimReference,omitempty"`
+	ClassReference    *corev1.ObjectReference `json:"classReference,omitempty"`
+	ProviderReference *corev1.ObjectReference `json:"providerReference"`
+
+	ReclaimPolicy ReclaimPolicy `json:"reclaimPolicy,omitempty"`
+}
+
+// ResourceStatus contains standard fields that all resources should
+// include in their status. ResourceStatus should typically be embedded in a
+// resource specific status.
+type ResourceStatus struct {
+	ConditionedStatus
+	BindingStatus
 }

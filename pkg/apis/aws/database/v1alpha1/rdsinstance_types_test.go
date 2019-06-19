@@ -26,6 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/resource"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
@@ -38,6 +39,8 @@ var (
 	ctx = context.TODO()
 	c   client.Client
 )
+
+var _ resource.ManagedResource = &RDSInstance{}
 
 func TestMain(m *testing.M) {
 	t := test.NewEnv(namespace, SchemeBuilder.SchemeBuilder, test.CRDs())
@@ -75,7 +78,11 @@ func TestNewRDSInstanceSpec(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	m := make(map[string]string)
-	exp := &RDSInstanceSpec{ReclaimPolicy: corev1alpha1.ReclaimRetain}
+	exp := &RDSInstanceSpec{
+		ResourceSpec: corev1alpha1.ResourceSpec{
+			ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		},
+	}
 
 	g.Expect(NewRDSInstanceSpec(m)).To(Equal(exp))
 
@@ -112,16 +119,4 @@ func TestNewRDSInstanceSpec(t *testing.T) {
 	m["subnetGroupName"] = val
 	exp.SubnetGroupName = val
 	g.Expect(NewRDSInstanceSpec(m)).To(Equal(exp))
-}
-
-func TestIsAvailable(t *testing.T) {
-	g := NewGomegaWithT(t)
-	r := &RDSInstance{}
-	g.Expect(r.IsAvailable()).To(BeFalse())
-
-	r.Status.State = "foo"
-	g.Expect(r.IsAvailable()).To(BeFalse())
-
-	r.Status.State = string(RDSInstanceStateAvailable)
-	g.Expect(r.IsAvailable()).To(BeTrue())
 }

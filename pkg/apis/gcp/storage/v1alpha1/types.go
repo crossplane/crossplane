@@ -25,7 +25,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/meta"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
@@ -762,6 +761,8 @@ func NewBucketOutputAttrs(attrs *storage.BucketAttrs) BucketOutputAttrs {
 
 // BucketSpec defines the desired state of Bucket
 type BucketSpec struct {
+	corev1alpha1.ResourceSpec
+
 	BucketSpecAttrs `json:",inline"`
 
 	// NameFormat to format bucket name passing it a object UID
@@ -771,23 +772,13 @@ type BucketSpec struct {
 	// ServiceAccountSecretRef contains GCP ServiceAccount secret that will be used
 	// for bucket connection secret credentials
 	ServiceAccountSecretRef *corev1.LocalObjectReference `json:"serviceAccountSecretRef,omitempty"`
-
-	ConnectionSecretNameOverride string                      `json:"connectionSecretNameOverride,omitempty"`
-	ProviderRef                  corev1.LocalObjectReference `json:"providerRef"`
-	ClaimRef                     *corev1.ObjectReference     `json:"claimRef,omitempty"`
-	ClassRef                     *corev1.ObjectReference     `json:"classRef,omitempty"`
-
-	// ReclaimPolicy identifies how to handle the cloud resource after the deletion of this type
-	ReclaimPolicy corev1alpha1.ReclaimPolicy `json:"reclaimPolicy,omitempty"`
 }
 
 // BucketStatus defines the observed state of GoogleBucket
 type BucketStatus struct {
-	BucketOutputAttrs `json:"attributes"`
+	corev1alpha1.ResourceStatus
 
-	corev1alpha1.DeprecatedConditionedStatus
-	corev1alpha1.BindingStatusPhase
-	ConnectionSecretRef corev1.LocalObjectReference `json:"connectionSecretRef,omitempty"`
+	BucketOutputAttrs `json:"attributes"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -807,33 +798,44 @@ type Bucket struct {
 	Status BucketStatus `json:"status,omitempty"`
 }
 
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
-// BucketList contains a list of GCPBuckets
-type BucketList struct {
-	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Bucket `json:"items"`
+// SetBindingPhase of this Bucket.
+func (b *Bucket) SetBindingPhase(p corev1alpha1.BindingPhase) {
+	b.Status.SetBindingPhase(p)
 }
 
-// ConnectionSecretName returns a secret name from the reference
-func (b *Bucket) ConnectionSecretName() string {
-	return util.IfEmptyString(b.Spec.ConnectionSecretNameOverride, b.Name)
+// GetBindingPhase of this Bucket.
+func (b *Bucket) GetBindingPhase() corev1alpha1.BindingPhase {
+	return b.Status.GetBindingPhase()
 }
 
-// ConnectionSecret returns a connection secret for this bucket instance
-func (b *Bucket) ConnectionSecret() *corev1.Secret {
-	ref := meta.AsOwner(meta.ReferenceTo(b, BucketGroupVersionKind))
-	return &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace:       b.Namespace,
-			Name:            b.ConnectionSecretName(),
-			OwnerReferences: []metav1.OwnerReference{ref},
-		},
-		Data: map[string][]byte{
-			corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(b.GetBucketName()),
-		},
-	}
+// SetClaimReference of this Bucket.
+func (b *Bucket) SetClaimReference(r *corev1.ObjectReference) {
+	b.Spec.ClaimReference = r
+}
+
+// GetClaimReference of this Bucket.
+func (b *Bucket) GetClaimReference() *corev1.ObjectReference {
+	return b.Spec.ClaimReference
+}
+
+// SetClassReference of this Bucket.
+func (b *Bucket) SetClassReference(r *corev1.ObjectReference) {
+	b.Spec.ClassReference = r
+}
+
+// GetClassReference of this Bucket.
+func (b *Bucket) GetClassReference() *corev1.ObjectReference {
+	return b.Spec.ClassReference
+}
+
+// SetWriteConnectionSecretTo of this Bucket.
+func (b *Bucket) SetWriteConnectionSecretTo(r corev1.LocalObjectReference) {
+	b.Spec.WriteConnectionSecretTo = r
+}
+
+// GetWriteConnectionSecretTo of this Bucket.
+func (b *Bucket) GetWriteConnectionSecretTo() corev1.LocalObjectReference {
+	return b.Spec.WriteConnectionSecretTo
 }
 
 // GetBucketName based on the NameFormat spec value,
@@ -854,23 +856,13 @@ func (b *Bucket) GetBucketName() string {
 	return util.ConditionalStringFormat(b.Spec.NameFormat, string(b.GetUID()))
 }
 
-// IsAvailable for usage/binding
-func (b *Bucket) IsAvailable() bool {
-	return b.Status.IsReady()
-}
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// IsBound determines if the resource is in a bound binding state
-func (b *Bucket) IsBound() bool {
-	return b.Status.Phase == corev1alpha1.BindingPhaseBound
-}
-
-// SetBound sets the binding state of this resource
-func (b *Bucket) SetBound(state bool) {
-	if state {
-		b.Status.Phase = corev1alpha1.BindingPhaseBound
-	} else {
-		b.Status.Phase = corev1alpha1.BindingPhaseUnbound
-	}
+// BucketList contains a list of GCPBuckets
+type BucketList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []Bucket `json:"items"`
 }
 
 // ParseBucketSpec constructs Spec for this resource from the properties map
@@ -927,8 +919,10 @@ func ParseBucketSpec(p map[string]string) *BucketSpec {
 	}
 
 	return &BucketSpec{
+		ResourceSpec: corev1alpha1.ResourceSpec{
+			ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		},
 		BucketSpecAttrs:         bsa,
-		ReclaimPolicy:           corev1alpha1.ReclaimRetain,
 		ServiceAccountSecretRef: serviceAccountSecretRef,
 	}
 }

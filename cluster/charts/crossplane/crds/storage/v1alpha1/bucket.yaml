@@ -44,12 +44,6 @@ spec:
           type: object
         spec:
           properties:
-            classReference:
-              type: object
-            connectionSecretNameOverride:
-              maxLength: 255
-              minLength: 1
-              type: string
             localPermission:
               description: 'LocalPermission is the permissions granted on the bucket
                 for the provider specific bucket service account that is available
@@ -72,23 +66,8 @@ spec:
               - PublicReadWrite
               - AuthenticatedRead
               type: string
-            resourceName:
-              type: object
-            selector:
-              type: object
           type: object
         status:
-          properties:
-            credentialsSecret:
-              description: CredentialsSecretRef is a local reference to the generated
-                secret containing the credentials for this resource claim.
-              type: object
-            provisioner:
-              description: 'Provisioner is the driver that was used to provision the
-                concrete resource This is an optionally-prefixed name, like a label
-                key. For example: "RDSInstance.database.aws.crossplane.io/v1alpha1"
-                or "CloudSQLInstance.database.gcp.crossplane.io/v1alpha1".'
-              type: string
           type: object
   version: v1alpha1
 status:

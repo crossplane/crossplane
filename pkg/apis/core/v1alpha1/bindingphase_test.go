@@ -18,12 +18,11 @@ package v1alpha1
 
 import (
 	"encoding/json"
+	"reflect"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
-
-	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
 const jsonQuote = "\""
@@ -97,7 +96,22 @@ func TestBindingPhaseUnmarshalJSON(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var got BindingPhase
 			gotErr := got.UnmarshalJSON(tc.s)
-			if diff := cmp.Diff(tc.wantErr, gotErr, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.wantErr, gotErr, cmp.Comparer(func(a, b error) bool {
+				// NOTE(negz): This is identical to test.EquateError, which we
+				// do not use here to avoid an import cycle.
+				if a == nil || b == nil {
+					return a == nil && b == nil
+				}
+
+				av := reflect.ValueOf(a)
+				bv := reflect.ValueOf(b)
+				if av.Type() != bv.Type() {
+					return false
+				}
+
+				return a.Error() == b.Error()
+			})); diff != "" {
+
 				t.Errorf("BindingPhase.UnmarshalJSON(): want error != got error\n %+v", diff)
 			}
 

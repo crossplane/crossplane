@@ -23,10 +23,8 @@ import (
 	"time"
 
 	sqladmin "google.golang.org/api/sqladmin/v1beta4"
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	apitypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -35,12 +33,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	"github.com/pkg/errors"
+
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	databasev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/database/v1alpha1"
 	gcpv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/v1alpha1"
 	gcpclients "github.com/crossplaneio/crossplane/pkg/clients/gcp"
 	"github.com/crossplaneio/crossplane/pkg/logging"
 	"github.com/crossplaneio/crossplane/pkg/meta"
+	"github.com/crossplaneio/crossplane/pkg/resource"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
@@ -50,21 +51,9 @@ const (
 	mysqlDefaultUserName      = "root"
 	postgresqlDefaultUserName = "postgres"
 	passwordDataLen           = 20
-
-	errorSettingInstanceName    = "failed to set instance name"
-	errorFetchingGCPProvider    = "failed to fetch GCP Provider"
-	errorFetchingCloudSQLClient = "failed to fetch CloudSQL client"
-	errorFetchingInstance       = "failed to fetch instance"
-	errorCreatingInstance       = "failed to create instance"
-	errorDeletingInstance       = "failed to delete instance"
-	errorInitDefaultUser        = "failed to initialize default user"
-	conditionStateChanged       = "instance state changed"
 )
 
 var (
-	// TODO(negz): This is a test. It should live in a test file.
-	_ reconcile.Reconciler = &Reconciler{}
-
 	log = logging.Logger.WithName("controller." + controllerName)
 )
 
@@ -142,7 +131,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	// Fetch the CloudsqlInstance instance
 	err := r.Get(context.TODO(), request.NamespacedName, instance)
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if kerrors.IsNotFound(err) {
 			// Object not found, return.  Created objects are automatically garbage collected.
 			// For additional cleanup logic use finalizers.
 			return reconcile.Result{}, nil
@@ -156,35 +145,27 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 		instance.Status.InstanceName = "cloudsql-" + string(instance.UID)
 		log.V(logging.Debug).Info("set cloud sql instance name", "instance", instance)
 		if err := r.Update(context.TODO(), instance); err != nil {
-			return r.fail(instance, errorSettingInstanceName, err.Error())
+			return r.fail(instance, err)
 		}
 	}
 
 	// look up the provider information for this instance
 	provider := &gcpv1alpha1.Provider{}
-	providerNamespacedName := apitypes.NamespacedName{
-		Namespace: instance.Namespace,
-		Name:      instance.Spec.ProviderRef.Name,
-	}
-	if err = r.Get(context.TODO(), providerNamespacedName, provider); err != nil {
-		return r.fail(instance, errorFetchingGCPProvider, fmt.Sprintf("failed to get provider %+v: %+v", providerNamespacedName, err))
+	n := meta.NamespacedNameOf(instance.Spec.ProviderReference)
+	if err = r.Get(context.TODO(), n, provider); err != nil {
+		return r.fail(instance, errors.Wrapf(err, "failed to get provider %+v", n))
 	}
 
 	// create a Cloud SQL client during each reconciliation loop since each instance can have different creds
 	cloudSQLClient, err := r.cloudSQLAPIFactory.CreateAPIInstance(r.clientset, provider.Namespace, provider.Spec.Secret)
 	if err != nil {
-		return r.fail(instance, errorFetchingCloudSQLClient, fmt.Sprintf("failed to get cloud sql client: %+v", err))
+		return r.fail(instance, errors.Wrap(err, "failed to get cloud sql client"))
 	}
 
 	// check for CRD deletion and handle it if needed
 	if instance.DeletionTimestamp != nil {
-		if instance.Status.DeprecatedCondition(corev1alpha1.DeprecatedDeleting) == nil {
-			// we haven't started the deletion of the CloudSQL resource yet, do it now
-			log.V(logging.Debug).Info("cloud sql instance has been deleted, running finalizer now", "instance", instance)
-			return r.handleDeletion(cloudSQLClient, instance, provider)
-		}
-		// we already started the deletion of the CloudSQL resource, nothing more to do
-		return reconcile.Result{}, nil
+		log.V(logging.Debug).Info("cloud sql instance has been deleted, running finalizer now", "instance", instance)
+		return r.handleDeletion(cloudSQLClient, instance, provider)
 	}
 
 	// Add finalizer to the CRD if it doesn't already exist
@@ -198,15 +179,14 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	cloudSQLInstance, err = cloudSQLClient.GetInstance(provider.Spec.ProjectID, instance.Status.InstanceName)
 	if err != nil {
 		if !gcpclients.IsErrorNotFound(err) {
-			return r.fail(instance, errorFetchingInstance, fmt.Sprintf("failed to get cloud sql instance %s: %+v", instance.Name, err))
+			return r.fail(instance, errors.Wrapf(err, "failed to get cloud sql instance %s", instance.Name))
 		}
 
 		// seems like we didn't find a cloud sql instance with this name, let's create one
 		return r.handleCreation(cloudSQLClient, instance, provider)
 	}
 
-	stateChanged := instance.Status.State != cloudSQLInstance.State
-	conditionType := gcpclients.CloudSQLDeprecatedConditionType(cloudSQLInstance.State)
+	stateChanged := cloudSQLInstance.State != instance.Status.State
 
 	// cloud sql instance exists, update the CRD status now with its latest status
 	if err := r.updateStatus(instance, gcpclients.CloudSQLStatusMessage(instance.Name, cloudSQLInstance), cloudSQLInstance); err != nil {
@@ -217,33 +197,30 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	if stateChanged {
 		// the state of the instance has changed, let's set a corresponding condition on the CRD and then
 		// requeue another reconiliation attempt
-		if conditionType == corev1alpha1.DeprecatedReady {
-			// when we hit the running condition, clear out all old conditions first
-			instance.Status.UnsetAllDeprecatedConditions()
-		}
-
-		conditionMessage := fmt.Sprintf("cloud sql instance %s is in the %s state", instance.Name, conditionType)
-		log.V(logging.Debug).Info("state changed", "instance", instance, "condition", conditionType)
-		instance.Status.SetDeprecatedCondition(corev1alpha1.NewDeprecatedCondition(conditionType, conditionStateChanged, conditionMessage))
+		c := gcpclients.CloudSQLCondition(cloudSQLInstance.State)
+		log.V(logging.Debug).Info("state changed", "instance", instance, "condition", c.Reason)
+		instance.Status.SetConditions(c, corev1alpha1.ReconcileSuccess())
 		return reconcile.Result{Requeue: true}, r.Update(context.TODO(), instance)
 	}
 
-	if conditionType != corev1alpha1.DeprecatedReady {
+	if cloudSQLInstance.State != databasev1alpha1.StateRunnable {
 		// the instance isn't running still, requeue another reconciliation attempt
-		return reconcile.Result{Requeue: true}, nil
+		instance.Status.SetConditions(corev1alpha1.ReconcileSuccess())
+		return reconcile.Result{Requeue: true}, r.Update(context.TODO(), instance)
 	}
 
 	// ensure the default user is initialized
 	if err = r.initDefaultUser(cloudSQLClient, instance, provider); err != nil {
-		return r.fail(instance, errorInitDefaultUser, fmt.Sprintf("failed to init default user for cloud sql instance %s: %+v", instance.Name, err))
+		return r.fail(instance, errors.Wrapf(err, "failed to init default user for cloud sql instance %s", instance.Name))
 	}
 
-	return reconcile.Result{}, nil
+	instance.Status.SetConditions(corev1alpha1.ReconcileSuccess())
+	return reconcile.Result{Requeue: true}, r.Update(context.TODO(), instance)
 }
 
 // handleCreation performs the operation to create the given CloudSQL instance in GCP
-func (r *Reconciler) handleCreation(cloudSQLClient gcpclients.CloudSQLAPI,
-	instance *databasev1alpha1.CloudsqlInstance, provider *gcpv1alpha1.Provider) (reconcile.Result, error) {
+func (r *Reconciler) handleCreation(cloudSQLClient gcpclients.CloudSQLAPI, instance *databasev1alpha1.CloudsqlInstance, provider *gcpv1alpha1.Provider) (reconcile.Result, error) {
+	instance.Status.SetConditions(corev1alpha1.Creating())
 
 	cloudSQLInstance := &sqladmin.DatabaseInstance{
 		Name:            instance.Status.InstanceName,
@@ -265,43 +242,42 @@ func (r *Reconciler) handleCreation(cloudSQLClient gcpclients.CloudSQLAPI,
 	log.V(logging.Debug).Info("cloud sql instance not found, will try to create it now", "instance", instance, "creating", cloudSQLInstance)
 	createOp, err := cloudSQLClient.CreateInstance(provider.Spec.ProjectID, cloudSQLInstance)
 	if err != nil {
-		return r.fail(instance, errorCreatingInstance, fmt.Sprintf("failed to start create operation for cloud sql instance %s: %+v", instance.Name, err))
+		return r.fail(instance, errors.Wrapf(err, "failed to start create operation for cloud sql instance %s", instance.Name))
 	}
 
 	log.V(logging.Debug).Info("started create of cloud sql instance", "instance", instance, "operation", createOp)
+	instance.Status.SetConditions(corev1alpha1.ReconcileSuccess())
 	return reconcile.Result{Requeue: true}, nil
 }
 
 // handleDeletion performs the operation to delete the given CloudSQL instance in GCP
-func (r *Reconciler) handleDeletion(cloudSQLClient gcpclients.CloudSQLAPI,
-	instance *databasev1alpha1.CloudsqlInstance, provider *gcpv1alpha1.Provider) (reconcile.Result, error) {
+func (r *Reconciler) handleDeletion(cloudSQLClient gcpclients.CloudSQLAPI, instance *databasev1alpha1.CloudsqlInstance, provider *gcpv1alpha1.Provider) (reconcile.Result, error) {
+	instance.Status.SetConditions(corev1alpha1.Deleting())
 
 	// first get the latest status of the CloudSQL resource that needs to be deleted
-	_, err := cloudSQLClient.GetInstance(provider.Spec.ProjectID, instance.Status.InstanceName)
-	if err != nil {
+	if _, err := cloudSQLClient.GetInstance(provider.Spec.ProjectID, instance.Status.InstanceName); err != nil {
 		if !gcpclients.IsErrorNotFound(err) {
-			return r.fail(instance, errorFetchingInstance, fmt.Sprintf("failed to get cloud sql instance %s for deletion: %+v", instance.Name, err))
+			return r.fail(instance, errors.Wrapf(err, "failed to get cloud sql instance %s for deletion", instance.Name))
 		}
 
 		// CloudSQL instance doesn't exist, it's already deleted
-		return r.markAsDeleting(instance)
+		meta.RemoveFinalizer(instance, finalizer)
+		instance.Status.SetConditions(corev1alpha1.ReconcileSuccess())
+		return reconcile.Result{}, r.Update(context.TODO(), instance)
 	}
 
 	if instance.Spec.ReclaimPolicy == corev1alpha1.ReclaimDelete {
 		// attempt to delete the CloudSQL instance now
 		deleteOp, err := cloudSQLClient.DeleteInstance(provider.Spec.ProjectID, instance.Status.InstanceName)
 		if err != nil {
-			return r.fail(instance, errorDeletingInstance, fmt.Sprintf("failed to start delete operation for cloud sql instance %s: %+v", instance.Name, err))
+			return r.fail(instance, errors.Wrapf(err, "failed to start delete operation for cloud sql instance %s", instance.Name))
 		}
 
 		log.V(logging.Debug).Info("started deletion of cloud sql instance", "instance", instance, "operation", deleteOp)
 	}
-	return r.markAsDeleting(instance)
-}
 
-func (r *Reconciler) markAsDeleting(instance *databasev1alpha1.CloudsqlInstance) (reconcile.Result, error) {
-	instance.Status.SetDeprecatedCondition(corev1alpha1.NewDeprecatedCondition(corev1alpha1.DeprecatedDeleting, "", ""))
 	meta.RemoveFinalizer(instance, finalizer)
+	instance.Status.SetConditions(corev1alpha1.ReconcileSuccess())
 	return reconcile.Result{}, r.Update(context.TODO(), instance)
 }
 
@@ -317,13 +293,8 @@ func (r *Reconciler) initDefaultUser(cloudSQLClient gcpclients.CloudSQLAPI,
 		return err
 	}
 
-	// first ensure the connection secret name has been set
-	secretName, err := r.ensureConnectionSecretNameSet(instance)
-	if err != nil {
-		return err
-	}
-
 	// check if the default user has already been initialized
+	secretName := instance.Spec.WriteConnectionSecretTo.Name
 	if _, err := r.clientset.CoreV1().Secrets(instance.Namespace).Get(secretName, metav1.GetOptions{}); err == nil {
 		// we already have a password for the default user, we are done
 		return nil
@@ -377,22 +348,15 @@ func (r *Reconciler) initDefaultUser(cloudSQLClient gcpclients.CloudSQLAPI,
 		return fmt.Errorf(m)
 	}
 
-	ref := meta.AsOwner(meta.ReferenceTo(instance, databasev1alpha1.CloudsqlInstanceGroupVersionKind))
-	connectionSecret := &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            secretName,
-			Namespace:       instance.Namespace,
-			OwnerReferences: []metav1.OwnerReference{ref},
-		},
-		Data: map[string][]byte{
-			corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(instance.Status.Endpoint),
-			corev1alpha1.ResourceCredentialsSecretUserKey:     []byte(defaultUser.Name),
-			corev1alpha1.ResourceCredentialsSecretPasswordKey: []byte(password),
-		},
+	s := resource.ConnectionSecretFor(instance, databasev1alpha1.CloudsqlInstanceGroupVersionKind)
+	s.Data = map[string][]byte{
+		corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(instance.Status.Endpoint),
+		corev1alpha1.ResourceCredentialsSecretUserKey:     []byte(defaultUser.Name),
+		corev1alpha1.ResourceCredentialsSecretPasswordKey: []byte(password),
 	}
-	log.V(logging.Debug).Info("creating connection secret", "secret", connectionSecret, "username", defaultUser.Name)
-	if _, err := r.clientset.CoreV1().Secrets(instance.Namespace).Create(connectionSecret); err != nil {
-		return fmt.Errorf("failed to update connection secret %s: %+v", connectionSecret.Name, err)
+	log.V(logging.Debug).Info("creating connection secret", "secret", s, "username", defaultUser.Name)
+	if _, err := r.clientset.CoreV1().Secrets(instance.Namespace).Create(s); err != nil {
+		return fmt.Errorf("failed to update connection secret %s: %+v", s.Name, err)
 	}
 
 	log.V(logging.Debug).Info("user initialized", "username", defaultUser.Name)
@@ -400,8 +364,8 @@ func (r *Reconciler) initDefaultUser(cloudSQLClient gcpclients.CloudSQLAPI,
 }
 
 // fail - helper function to set fail condition with reason and message
-func (r *Reconciler) fail(instance *databasev1alpha1.CloudsqlInstance, reason, msg string) (reconcile.Result, error) {
-	instance.Status.SetDeprecatedCondition(corev1alpha1.NewDeprecatedCondition(corev1alpha1.DeprecatedFailed, reason, msg))
+func (r *Reconciler) fail(instance *databasev1alpha1.CloudsqlInstance, err error) (reconcile.Result, error) {
+	instance.Status.SetConditions(corev1alpha1.ReconcileError(err))
 	return reconcile.Result{Requeue: true}, r.Update(context.TODO(), instance)
 }
 
@@ -427,23 +391,6 @@ func (r *Reconciler) updateStatus(instance *databasev1alpha1.CloudsqlInstance, m
 	}
 
 	return nil
-}
-
-func (r *Reconciler) ensureConnectionSecretNameSet(instance *databasev1alpha1.CloudsqlInstance) (string, error) {
-	// if the secret name doesn't already exist, we'll need to update the instance with it
-	updateNeeded := instance.Spec.ConnectionSecretRef.Name == ""
-
-	// get or create the connection secret name
-	secretName := instance.ConnectionSecretName()
-
-	// if an update on the instance was needed, do it now
-	if updateNeeded {
-		if err := r.Update(context.TODO(), instance); err != nil {
-			return "", fmt.Errorf("failed to set connection secret ref: %+v", err)
-		}
-	}
-
-	return secretName, nil
 }
 
 func getDefaultDBUserName(dbVersion string) (string, error) {

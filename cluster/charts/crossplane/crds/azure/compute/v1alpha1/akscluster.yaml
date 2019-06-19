@@ -53,13 +53,6 @@ spec:
           type: object
         spec:
           properties:
-            claimRef:
-              description: Kubernetes object references
-              type: object
-            classRef:
-              type: object
-            connectionSecretRef:
-              type: object
             disableRBAC:
               description: DisableRBAC determines whether RBAC will be disabled or
                 enabled in the cluster.
@@ -86,12 +79,6 @@ spec:
                 Standard_B2s, Standard_F2s_v2, etc. This value cannot be changed after
                 cluster creation.
               type: string
-            providerRef:
-              type: object
-            reclaimPolicy:
-              description: ReclaimPolicy identifies how to handle the cloud resource
-                after the deletion of this type
-              type: string
             resourceGroupName:
               description: ResourceGroupName is the name of the resource group that
                 the cluster will be created in
@@ -100,12 +87,18 @@ spec:
               description: Version is the Kubernetes version that will be deployed
                 to the cluster
               type: string
+            writeServicePrincipalTo:
+              description: WriteServicePrincipalSecretTo the specified Secret. The
+                service principal is automatically generated and used by the AKS cluster
+                to interact with other Azure resources.
+              type: object
           required:
           - resourceGroupName
           - location
           - version
           - nodeVMSize
           - dnsNamePrefix
+          - writeServicePrincipalTo
           type: object
         status:
           properties:

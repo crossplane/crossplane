@@ -46,17 +46,13 @@ spec:
           type: object
         spec:
           properties:
-            accountRef:
-              description: AccountRef reference to azure storage account object
+            accountReference:
+              description: AccountReference to azure storage account object
               type: object
-            claimRef:
+            claimReference:
               type: object
-            classRef:
+            classReference:
               type: object
-            connectionSecretNameOverride:
-              description: ConnectionSecretNameOverride to generate connection secret
-                with specific name
-              type: string
             metadata:
               description: Container metadata
               type: object
@@ -68,16 +64,14 @@ spec:
               description: PublicAccessType
               type: string
             reclaimPolicy:
-              description: ReclaimPolicy identifies how to handle the cloud resource
-                after the deletion of this type
               type: string
+            writeConnectionSecretTo:
+              type: object
           required:
-          - accountRef
+          - accountReference
           type: object
         status:
           properties:
-            connectionSecretRef:
-              type: object
             name:
               type: string
           type: object

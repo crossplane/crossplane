@@ -35,10 +35,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/apis/gcp/storage/v1alpha1"
 	gcpv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/v1alpha1"
 	gcpstorage "github.com/crossplaneio/crossplane/pkg/clients/gcp/storage"
 	"github.com/crossplaneio/crossplane/pkg/logging"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 )
 
 const (
@@ -47,21 +49,6 @@ const (
 
 	reconcileTimeout      = 1 * time.Minute
 	requeueAfterOnSuccess = 30 * time.Second
-
-	// failed condition reasons
-	//
-	// failed to get resource handler
-	failedToGetHandler = "error getting handler"
-	// failed to delete bucket resource
-	failedToDelete = "error deleting"
-	// failed to retrieve bucket resource
-	failedToRetrieve = "error retrieving"
-	// failed to create bucket resource
-	failedToCreate = "error creating"
-	// failed to update bucket resource
-	failedToUpdate = "error updating"
-	// failed to save connection secret
-	failedToUpdateSecret = "error updating connection secret"
 )
 
 var (
@@ -121,7 +108,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 
 	bh, err := r.newSyncDeleter(ctx, b)
 	if err != nil {
-		b.Status.SetFailed(failedToGetHandler, err.Error())
+		b.Status.SetConditions(corev1alpha1.ReconcileError(err))
 		return resultRequeue, r.Status().Update(ctx, b)
 	}
 
@@ -143,13 +130,12 @@ type bucketFactory struct {
 
 func (m *bucketFactory) newSyncDeleter(ctx context.Context, b *v1alpha1.Bucket) (syncdeleter, error) {
 	p := &gcpv1alpha1.Provider{}
-	n := types.NamespacedName{Namespace: b.GetNamespace(), Name: b.Spec.ProviderRef.Name}
-	if err := m.Get(ctx, n, p); err != nil {
+	if err := m.Get(ctx, meta.NamespacedNameOf(b.Spec.ProviderReference), p); err != nil {
 		return nil, err
 	}
 
 	s := &corev1.Secret{}
-	n = types.NamespacedName{Namespace: p.GetNamespace(), Name: p.Spec.Secret.Name}
+	n := types.NamespacedName{Namespace: p.GetNamespace(), Name: p.Spec.Secret.Name}
 	if err := m.Get(ctx, n, s); err != nil {
 		return nil, errors.Wrapf(err, "cannot get provider's secret %s", n)
 	}
@@ -195,11 +181,18 @@ func newBucketSyncDeleter(ops operations, projectID string) *bucketSyncDeleter {
 }
 
 func (bh *bucketSyncDeleter) delete(ctx context.Context) (reconcile.Result, error) {
+	bh.setStatusConditions(corev1alpha1.Deleting())
+
 	if bh.isReclaimDelete() {
 		if err := bh.deleteBucket(ctx); err != nil && err != storage.ErrBucketNotExist {
-			return resultRequeue, bh.failReconcile(ctx, failedToDelete, err.Error())
+			bh.setStatusConditions(corev1alpha1.ReconcileError(err))
+			return resultRequeue, bh.updateStatus(ctx)
 		}
 	}
+
+	// NOTE(negz): We don't update the conditioned status here because assuming
+	// no other finalizers need to be cleaned up the object should cease to
+	// exist after we update it.
 	bh.removeFinalizer()
 	return reconcile.Result{}, bh.updateObject(ctx)
 }
@@ -208,12 +201,13 @@ func (bh *bucketSyncDeleter) delete(ctx context.Context) (reconcile.Result, erro
 // bucket Kubernetes bucket
 func (bh *bucketSyncDeleter) sync(ctx context.Context) (reconcile.Result, error) {
 	if err := bh.updateSecret(ctx); err != nil {
-		return resultRequeue, bh.failReconcile(ctx, failedToUpdateSecret, err.Error())
+		bh.setStatusConditions(corev1alpha1.ReconcileError(err))
+		return resultRequeue, bh.updateStatus(ctx)
 	}
 
 	attrs, err := bh.getAttributes(ctx)
 	if err != nil && err != storage.ErrBucketNotExist {
-		return resultRequeue, bh.failReconcile(ctx, failedToRetrieve, err.Error())
+		return resultRequeue, bh.updateStatus(ctx)
 	}
 
 	if attrs == nil {
@@ -245,27 +239,27 @@ func newBucketCreateUpdater(ops operations, pID string) *bucketCreateUpdater {
 
 // create new bucket resource and save changes back to bucket specs
 func (bh *bucketCreateUpdater) create(ctx context.Context) (reconcile.Result, error) {
+	bh.setStatusConditions(corev1alpha1.Creating())
 	bh.addFinalizer()
 
 	if err := bh.createBucket(ctx, bh.projectID); err != nil {
-		return resultRequeue, bh.failReconcile(ctx, failedToCreate, err.Error())
+		bh.setStatusConditions(corev1alpha1.ReconcileError(err))
+		return resultRequeue, bh.updateStatus(ctx)
 	}
-
-	bh.setReady()
 
 	attrs, err := bh.getAttributes(ctx)
 	if err != nil {
-		return resultRequeue, bh.failReconcile(ctx, failedToRetrieve, err.Error())
+		bh.setStatusConditions(corev1alpha1.ReconcileError(err))
+		return resultRequeue, bh.updateStatus(ctx)
 	}
-
 	bh.setSpecAttrs(attrs)
 
 	if err := bh.updateObject(ctx); err != nil {
 		return resultRequeue, err
 	}
-
 	bh.setStatusAttrs(attrs)
 
+	bh.setStatusConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess())
 	return requeueOnSuccess, bh.updateStatus(ctx)
 }
 
@@ -278,7 +272,8 @@ func (bh *bucketCreateUpdater) update(ctx context.Context, attrs *storage.Bucket
 
 	attrs, err := bh.updateBucket(ctx, attrs.Labels)
 	if err != nil {
-		return resultRequeue, bh.failReconcile(ctx, failedToUpdate, err.Error())
+		bh.setStatusConditions(corev1alpha1.ReconcileError(err))
+		return resultRequeue, bh.updateStatus(ctx)
 	}
 
 	// Sync attributes back to spec
@@ -287,5 +282,6 @@ func (bh *bucketCreateUpdater) update(ctx context.Context, attrs *storage.Bucket
 		return resultRequeue, err
 	}
 
+	bh.setStatusConditions(corev1alpha1.ReconcileSuccess())
 	return requeueOnSuccess, bh.updateStatus(ctx)
 }

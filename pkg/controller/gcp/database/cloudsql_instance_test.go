@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/onsi/gomega"
 	"google.golang.org/api/googleapi"
 	sqladmin "google.golang.org/api/sqladmin/v1beta4"
@@ -38,6 +39,8 @@ import (
 	dbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/database/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
+
+var _ reconcile.Reconciler = &Reconciler{}
 
 func TestReconcile(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
@@ -110,31 +113,19 @@ func TestReconcile(t *testing.T) {
 		ProviderID:   fmt.Sprintf("https://www.googleapis.com/sql/v1beta4/projects/%s/instances/cloudsql-%s", providerProject, instance.UID),
 		Endpoint:     "10.0.0.1",
 		InstanceName: expectedInstanceName,
-		DeprecatedConditionedStatus: corev1alpha1.DeprecatedConditionedStatus{
-			Conditions: []corev1alpha1.DeprecatedCondition{
-				{
-					Type:    corev1alpha1.DeprecatedCreating,
-					Status:  v1.ConditionFalse,
-					Reason:  conditionStateChanged,
-					Message: "cloud sql instance test-db-instance is in the Creating state",
-				},
-				{
-					Type:    corev1alpha1.DeprecatedReady,
-					Status:  v1.ConditionTrue,
-					Reason:  conditionStateChanged,
-					Message: "cloud sql instance test-db-instance is in the Ready state",
-				},
-			},
-		},
 	}
+	expectedStatus.SetConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess())
 	assertCloudsqlInstanceStatus(g, c, expectedStatus)
 
 	// wait for the connection information to be stored in a secret, then verify it
+	secretName := instance.Spec.WriteConnectionSecretTo.Name
 	var connectionSecret *v1.Secret
-	for {
-		if connectionSecret, err = r.clientset.CoreV1().Secrets(namespace).Get(instanceName, metav1.GetOptions{}); err == nil {
-			break
+	for range time.NewTicker(1 * time.Second).C {
+		if connectionSecret, err = r.clientset.CoreV1().Secrets(namespace).Get(secretName, metav1.GetOptions{}); err != nil {
+			t.Log(err)
+			continue
 		}
+		break
 	}
 	assertConnectionSecret(g, c, connectionSecret)
 
@@ -194,9 +185,7 @@ func assertCloudsqlInstanceStatus(g *gomega.GomegaWithT, c client.Client, expect
 	g.Expect(instance.Status.ProviderID).To(gomega.Equal(expectedStatus.ProviderID))
 	g.Expect(instance.Status.Endpoint).To(gomega.Equal(expectedStatus.Endpoint))
 	g.Expect(instance.Status.InstanceName).To(gomega.Equal(expectedStatus.InstanceName))
-
-	// assert the expected status conditions
-	corev1alpha1.AssertConditions(g, expectedStatus.Conditions, instance.Status.DeprecatedConditionedStatus)
+	g.Expect(cmp.Diff(expectedStatus.ConditionedStatus, instance.Status.ConditionedStatus, test.EquateConditions())).Should(gomega.BeZero())
 }
 
 func assertConnectionSecret(g *gomega.GomegaWithT, c client.Client, connectionSecret *v1.Secret) {

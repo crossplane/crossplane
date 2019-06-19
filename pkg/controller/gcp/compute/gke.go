@@ -27,7 +27,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -44,6 +43,7 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/clients/gcp/gke"
 	"github.com/crossplaneio/crossplane/pkg/logging"
 	"github.com/crossplaneio/crossplane/pkg/meta"
+	"github.com/crossplaneio/crossplane/pkg/resource"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
@@ -51,11 +51,6 @@ const (
 	controllerName    = "gke.compute.gcp.crossplane.io"
 	finalizer         = "finalizer." + controllerName
 	clusterNamePrefix = "gke-"
-
-	errorClusterClient = "Failed to create cluster client"
-	errorCreateCluster = "Failed to create new cluster"
-	errorSyncCluster   = "Failed to sync cluster state"
-	errorDeleteCluster = "Failed to delete cluster"
 
 	requeueOnWait   = 30 * time.Second
 	requeueOnSucces = 2 * time.Minute
@@ -122,40 +117,38 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 }
 
 // fail - helper function to set fail condition with reason and message
-func (r *Reconciler) fail(instance *gcpcomputev1alpha1.GKECluster, reason, msg string) (reconcile.Result, error) {
-	instance.Status.UnsetAllDeprecatedConditions()
-	instance.Status.SetFailed(reason, msg)
+func (r *Reconciler) fail(instance *gcpcomputev1alpha1.GKECluster, err error) (reconcile.Result, error) {
+	instance.Status.SetConditions(corev1alpha1.ReconcileError(err))
 	return resultRequeue, r.Update(context.TODO(), instance)
 }
 
 // connectionSecret return secret object for cluster instance
 func (r *Reconciler) connectionSecret(instance *gcpcomputev1alpha1.GKECluster, cluster *container.Cluster) (*corev1.Secret, error) {
-	secret := instance.ConnectionSecret()
+	secret := resource.ConnectionSecretFor(instance, gcpcomputev1alpha1.GKEClusterGroupVersionKind)
 
-	data := make(map[string][]byte)
-	data[corev1alpha1.ResourceCredentialsSecretEndpointKey] = []byte(cluster.Endpoint)
-	data[corev1alpha1.ResourceCredentialsSecretUserKey] = []byte(cluster.MasterAuth.Username)
-	data[corev1alpha1.ResourceCredentialsSecretPasswordKey] = []byte(cluster.MasterAuth.Password)
+	secret.Data = map[string][]byte{
+		corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(cluster.Endpoint),
+		corev1alpha1.ResourceCredentialsSecretUserKey:     []byte(cluster.MasterAuth.Username),
+		corev1alpha1.ResourceCredentialsSecretPasswordKey: []byte(cluster.MasterAuth.Password),
+	}
 
 	val, err := base64.StdEncoding.DecodeString(cluster.MasterAuth.ClusterCaCertificate)
 	if err != nil {
 		return nil, err
 	}
-	data[corev1alpha1.ResourceCredentialsSecretCAKey] = val
+	secret.Data[corev1alpha1.ResourceCredentialsSecretCAKey] = val
 
 	val, err = base64.StdEncoding.DecodeString(cluster.MasterAuth.ClientCertificate)
 	if err != nil {
 		return nil, err
 	}
-	data[corev1alpha1.ResourceCredentialsSecretClientCertKey] = val
+	secret.Data[corev1alpha1.ResourceCredentialsSecretClientCertKey] = val
 
 	val, err = base64.StdEncoding.DecodeString(cluster.MasterAuth.ClientKey)
 	if err != nil {
 		return nil, err
 	}
-	data[corev1alpha1.ResourceCredentialsSecretClientKeyKey] = val
-
-	secret.Data = data
+	secret.Data[corev1alpha1.ResourceCredentialsSecretClientKeyKey] = val
 
 	return secret, nil
 }
@@ -163,11 +156,7 @@ func (r *Reconciler) connectionSecret(instance *gcpcomputev1alpha1.GKECluster, c
 func (r *Reconciler) _connect(instance *gcpcomputev1alpha1.GKECluster) (gke.Client, error) {
 	// Fetch Provider
 	p := &gcpv1alpha1.Provider{}
-	providerNamespacedName := types.NamespacedName{
-		Namespace: instance.Namespace,
-		Name:      instance.Spec.ProviderRef.Name,
-	}
-	err := r.Get(ctx, providerNamespacedName, p)
+	err := r.Get(ctx, meta.NamespacedNameOf(instance.Spec.ProviderReference), p)
 	if err != nil {
 		return nil, err
 	}
@@ -181,6 +170,7 @@ func (r *Reconciler) _connect(instance *gcpcomputev1alpha1.GKECluster) (gke.Clie
 }
 
 func (r *Reconciler) _create(instance *gcpcomputev1alpha1.GKECluster, client gke.Client) (reconcile.Result, error) {
+	instance.Status.SetConditions(corev1alpha1.Creating())
 	clusterName := fmt.Sprintf("%s%s", clusterNamePrefix, instance.UID)
 
 	meta.AddFinalizer(instance, finalizer)
@@ -188,17 +178,16 @@ func (r *Reconciler) _create(instance *gcpcomputev1alpha1.GKECluster, client gke
 	_, err := client.CreateCluster(clusterName, instance.Spec)
 	if err != nil && !gcp.IsErrorAlreadyExists(err) {
 		if gcp.IsErrorBadRequest(err) {
-			instance.Status.SetFailed(errorCreateCluster, err.Error())
+			instance.Status.SetConditions(corev1alpha1.ReconcileError(err))
 			// do not requeue on bad requests
 			return result, r.Update(ctx, instance)
 		}
-		return r.fail(instance, errorCreateCluster, err.Error())
+		return r.fail(instance, err)
 	}
 
 	instance.Status.State = gcpcomputev1alpha1.ClusterStateProvisioning
-	instance.Status.UnsetAllDeprecatedConditions()
-	instance.Status.SetCreating()
 	instance.Status.ClusterName = clusterName
+	instance.Status.SetConditions(corev1alpha1.ReconcileSuccess())
 
 	return reconcile.Result{}, errors.Wrapf(r.Update(ctx, instance), updateErrorMessageFormat, instance.GetName())
 }
@@ -206,7 +195,7 @@ func (r *Reconciler) _create(instance *gcpcomputev1alpha1.GKECluster, client gke
 func (r *Reconciler) _sync(instance *gcpcomputev1alpha1.GKECluster, client gke.Client) (reconcile.Result, error) {
 	cluster, err := client.GetCluster(instance.Spec.Zone, instance.Status.ClusterName)
 	if err != nil {
-		return r.fail(instance, errorSyncCluster, err.Error())
+		return r.fail(instance, err)
 	}
 
 	if cluster.Status != gcpcomputev1alpha1.ClusterStateRunning {
@@ -216,34 +205,33 @@ func (r *Reconciler) _sync(instance *gcpcomputev1alpha1.GKECluster, client gke.C
 	// create connection secret
 	secret, err := r.connectionSecret(instance, cluster)
 	if err != nil {
-		return r.fail(instance, errorSyncCluster, err.Error())
+		return r.fail(instance, err)
 	}
 
 	// save secret
 	if _, err := util.ApplySecret(r.kubeclient, secret); err != nil {
-		return r.fail(instance, errorSyncCluster, err.Error())
+		return r.fail(instance, err)
 	}
 
 	// update resource status
 	instance.Status.Endpoint = cluster.Endpoint
 	instance.Status.State = gcpcomputev1alpha1.ClusterStateRunning
-	instance.Status.UnsetAllDeprecatedConditions()
-	instance.Status.SetReady()
+	instance.Status.SetConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess())
 
 	return reconcile.Result{RequeueAfter: requeueOnSucces},
 		errors.Wrapf(r.Update(ctx, instance), updateErrorMessageFormat, instance.GetName())
-
 }
 
 // _delete check reclaim policy and if needed delete the gke cluster resource
 func (r *Reconciler) _delete(instance *gcpcomputev1alpha1.GKECluster, client gke.Client) (reconcile.Result, error) {
+	instance.Status.SetConditions(corev1alpha1.Deleting())
 	if instance.Spec.ReclaimPolicy == corev1alpha1.ReclaimDelete {
 		if err := client.DeleteCluster(instance.Spec.Zone, instance.Status.ClusterName); err != nil {
-			return r.fail(instance, errorDeleteCluster, err.Error())
+			return r.fail(instance, err)
 		}
 	}
 	meta.RemoveFinalizer(instance, finalizer)
-	instance.Status.UnsetAllDeprecatedConditions()
+	instance.Status.SetConditions(corev1alpha1.ReconcileSuccess())
 	return result, errors.Wrapf(r.Update(ctx, instance), updateErrorMessageFormat, instance.GetName())
 }
 
@@ -264,7 +252,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	// Create GKE Client
 	gkeClient, err := r.connect(instance)
 	if err != nil {
-		return r.fail(instance, errorClusterClient, err.Error())
+		return r.fail(instance, err)
 	}
 
 	// Check for deletion

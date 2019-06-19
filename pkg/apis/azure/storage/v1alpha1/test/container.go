@@ -83,19 +83,19 @@ func (tc *MockContainer) WithFinalizers(f []string) *MockContainer {
 
 // WithSpecClassRef set class reference
 func (tc *MockContainer) WithSpecClassRef(ref *corev1.ObjectReference) *MockContainer {
-	tc.Spec.ClassRef = ref
+	tc.Spec.ClassReference = ref
 	return tc
 }
 
 // WithSpecClaimRef set class reference
 func (tc *MockContainer) WithSpecClaimRef(ref *corev1.ObjectReference) *MockContainer {
-	tc.Spec.ClaimRef = ref
+	tc.Spec.ClaimReference = ref
 	return tc
 }
 
 // WithSpecAccountRef sets spec account reference value
 func (tc *MockContainer) WithSpecAccountRef(name string) *MockContainer {
-	tc.Container.Spec.AccountRef = corev1.LocalObjectReference{Name: name}
+	tc.Container.Spec.AccountReference = corev1.LocalObjectReference{Name: name}
 	return tc
 }
 
@@ -123,26 +123,8 @@ func (tc *MockContainer) WithSpecMetadata(meta map[string]string) *MockContainer
 	return tc
 }
 
-// WithStatusSetBound set status bound state
-func (tc *MockContainer) WithStatusSetBound(bound bool) *MockContainer {
-	tc.Status.SetBound(bound)
-	return tc
-}
-
-// WithFailedDeprecatedCondition sets status failed condition
-func (tc *MockContainer) WithFailedDeprecatedCondition(reason, msg string) *MockContainer {
-	tc.Status.SetFailed(reason, msg)
-	return tc
-}
-
-// WithUnsetAllDeprecatedConditions resets all status conditions
-func (tc *MockContainer) WithUnsetAllDeprecatedConditions() *MockContainer {
-	tc.Status.UnsetAllDeprecatedConditions()
-	return tc
-}
-
-// WithReadyDeprecatedCondition sets status ready condition
-func (tc *MockContainer) WithReadyDeprecatedCondition() *MockContainer {
-	tc.Status.SetReady()
+// WithStatusConditions sets the storage account's conditioned status.
+func (tc *MockContainer) WithStatusConditions(c ...corev1alpha1.Condition) *MockContainer {
+	tc.Status.SetConditions(c...)
 	return tc
 }

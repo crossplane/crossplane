@@ -30,6 +30,7 @@ import (
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	storagev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/resource"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
@@ -41,6 +42,8 @@ const (
 var (
 	c client.Client
 )
+
+var _ resource.ManagedResource = &S3Bucket{}
 
 func TestMain(m *testing.M) {
 	t := test.NewEnv(namespace, SchemeBuilder.SchemeBuilder, test.CRDs())
@@ -89,7 +92,9 @@ func TestNewS3BucketSpec(t *testing.T) {
 
 	m := make(map[string]string)
 	exp := &S3BucketSpec{
-		ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		ResourceSpec: corev1alpha1.ResourceSpec{
+			ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		},
 	}
 	g.Expect(NewS3BucketSpec(m)).To(Equal(exp))
 

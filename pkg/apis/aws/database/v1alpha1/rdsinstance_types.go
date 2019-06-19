@@ -34,6 +34,8 @@ const (
 
 // RDSInstanceSpec defines the desired state of RDSInstance
 type RDSInstanceSpec struct {
+	corev1alpha1.ResourceSpec
+
 	MasterUsername string `json:"masterUsername"`
 	Engine         string `json:"engine"`
 	EngineVersion  string `json:"engineVersion,omitempty"`
@@ -51,15 +53,6 @@ type RDSInstanceSpec struct {
 	// 2) A RDS specific group that allows port 3306 from allowed sources (clients and instances
 	//	  that are expected to connect to the database.
 	SecurityGroups []string `json:"securityGroups,omitempty"`
-
-	// Kubernetes object references
-	ClaimRef            *corev1.ObjectReference      `json:"claimRef,omitempty"`
-	ClassRef            *corev1.ObjectReference      `json:"classRef,omitempty"`
-	ConnectionSecretRef *corev1.LocalObjectReference `json:"connectionSecretRef,omitempty"`
-	ProviderRef         corev1.LocalObjectReference  `json:"providerRef"`
-
-	// ReclaimPolicy identifies how to handle the cloud resource after the deletion of this type
-	ReclaimPolicy corev1alpha1.ReclaimPolicy `json:"reclaimPolicy,omitempty"`
 }
 
 // RDSInstanceState represents the state of an RDS instance.
@@ -79,8 +72,7 @@ const (
 
 // RDSInstanceStatus defines the observed state of RDSInstance
 type RDSInstanceStatus struct {
-	corev1alpha1.DeprecatedConditionedStatus
-	corev1alpha1.BindingStatusPhase
+	corev1alpha1.ResourceStatus
 	State        string `json:"state,omitempty"`
 	Message      string `json:"message,omitempty"`
 	ProviderID   string `json:"providerID,omitempty"`   // the external ID to identify this resource in the cloud provider
@@ -104,6 +96,46 @@ type RDSInstance struct {
 	Status RDSInstanceStatus `json:"status,omitempty"`
 }
 
+// SetBindingPhase of this RDSInstance.
+func (i *RDSInstance) SetBindingPhase(p corev1alpha1.BindingPhase) {
+	i.Status.SetBindingPhase(p)
+}
+
+// GetBindingPhase of this RDSInstance.
+func (i *RDSInstance) GetBindingPhase() corev1alpha1.BindingPhase {
+	return i.Status.GetBindingPhase()
+}
+
+// SetClaimReference of this RDSInstance.
+func (i *RDSInstance) SetClaimReference(r *corev1.ObjectReference) {
+	i.Spec.ClaimReference = r
+}
+
+// GetClaimReference of this RDSInstance.
+func (i *RDSInstance) GetClaimReference() *corev1.ObjectReference {
+	return i.Spec.ClaimReference
+}
+
+// SetClassReference of this RDSInstance.
+func (i *RDSInstance) SetClassReference(r *corev1.ObjectReference) {
+	i.Spec.ClassReference = r
+}
+
+// GetClassReference of this RDSInstance.
+func (i *RDSInstance) GetClassReference() *corev1.ObjectReference {
+	return i.Spec.ClassReference
+}
+
+// SetWriteConnectionSecretTo of this RDSInstance.
+func (i *RDSInstance) SetWriteConnectionSecretTo(r corev1.LocalObjectReference) {
+	i.Spec.WriteConnectionSecretTo = r
+}
+
+// GetWriteConnectionSecretTo of this RDSInstance.
+func (i *RDSInstance) GetWriteConnectionSecretTo() corev1.LocalObjectReference {
+	return i.Spec.WriteConnectionSecretTo
+}
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // RDSInstanceList contains a list of RDSInstance
@@ -116,7 +148,9 @@ type RDSInstanceList struct {
 // NewRDSInstanceSpec from properties map
 func NewRDSInstanceSpec(properties map[string]string) *RDSInstanceSpec {
 	spec := &RDSInstanceSpec{
-		ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		ResourceSpec: corev1alpha1.ResourceSpec{
+			ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		},
 	}
 
 	val, ok := properties["masterUsername"]
@@ -152,42 +186,4 @@ func NewRDSInstanceSpec(properties map[string]string) *RDSInstanceSpec {
 	}
 
 	return spec
-}
-
-// ConnectionSecretName returns a secret name from the reference
-func (r *RDSInstance) ConnectionSecretName() string {
-	if r.Spec.ConnectionSecretRef == nil {
-		r.Spec.ConnectionSecretRef = &corev1.LocalObjectReference{
-			Name: r.Name,
-		}
-	} else if r.Spec.ConnectionSecretRef.Name == "" {
-		r.Spec.ConnectionSecretRef.Name = r.Name
-	}
-
-	return r.Spec.ConnectionSecretRef.Name
-}
-
-// State returns rds instance state value saved in the status (could be empty)
-func (r *RDSInstance) State() string {
-	return r.Status.State
-}
-
-// SetState sets status state field
-func (r *RDSInstance) SetState(s string) {
-	r.Status.State = s
-}
-
-// IsAvailable for usage/binding
-func (r *RDSInstance) IsAvailable() bool {
-	return r.State() == string(RDSInstanceStateAvailable)
-}
-
-// IsBound returns true if this instance is bound to a resource claim.
-func (r *RDSInstance) IsBound() bool {
-	return r.Status.IsBound()
-}
-
-// SetBound specifies whether this instance is bound to a resource claim.
-func (r *RDSInstance) SetBound(bound bool) {
-	r.Status.SetBound(bound)
 }

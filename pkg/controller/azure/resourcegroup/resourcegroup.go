@@ -43,17 +43,12 @@ const (
 	controllerName = "azure.resourcegroup"
 	finalizer      = "finalizer." + controllerName
 
-	reasonFetchingClient   = "failed to fetch Azure Resource Group client"
-	reasonCreatingResource = "failed to create Azure Resource Group resource"
-	reasonDeletingResource = "failed to delete Azure Resource Group resource"
-	reasonSyncingResource  = "failed to sync Azure Resource Group resource"
-
-	azureDeletedMessage = "resource has been deleted on Azure"
-
 	reconcileTimeout = 1 * time.Minute
 )
 
 var log = logging.Logger.WithName("controller." + controllerName)
+
+var errDeleted = errors.New("resource has been deleted on Azure")
 
 // A creator can create resources in an external store - e.g. the Azure API.
 type creator interface {
@@ -90,15 +85,15 @@ type azureResourceGroup struct {
 }
 
 func (a *azureResourceGroup) Create(ctx context.Context, r *v1alpha1.ResourceGroup) bool {
+	r.Status.SetConditions(corev1alpha1.Creating())
 	if _, err := a.client.CreateOrUpdate(ctx, r.Spec.Name, resourcegroup.NewParameters(r)); err != nil {
-		r.Status.SetFailed(reasonCreatingResource, err.Error())
+		r.Status.SetConditions(corev1alpha1.ReconcileError(err))
 		return true
 	}
 
 	r.Status.Name = r.Spec.Name
-	r.Status.UnsetAllDeprecatedConditions()
-	r.Status.SetCreating()
 	meta.AddFinalizer(r, finalizer)
+	r.Status.SetConditions(corev1alpha1.ReconcileSuccess())
 
 	return true
 }
@@ -106,34 +101,34 @@ func (a *azureResourceGroup) Create(ctx context.Context, r *v1alpha1.ResourceGro
 func (a *azureResourceGroup) Sync(ctx context.Context, r *v1alpha1.ResourceGroup) bool {
 	res, err := a.client.CheckExistence(ctx, r.Spec.Name)
 	if err != nil {
-		r.Status.SetFailed(reasonSyncingResource, err.Error())
+		r.Status.SetConditions(corev1alpha1.ReconcileError(err))
 		return true
 	}
-
-	r.Status.UnsetAllDeprecatedConditions()
 
 	switch res.Response.StatusCode {
 	case http.StatusNoContent:
-		r.Status.SetReady()
+		r.Status.SetConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess())
 		return false
 	case http.StatusNotFound:
-		// Custom message passed to SetFailed due to Azure API returning 404 instead of error
-		r.Status.SetFailed(reasonSyncingResource, azureDeletedMessage)
+		// Custom error passed to SetFailed due to Azure API returning 404 instead of error
+		r.Status.SetConditions(corev1alpha1.ReconcileError(errDeleted))
 		return true
 	}
 
+	r.Status.SetConditions(corev1alpha1.ReconcileSuccess())
 	return true
 }
 
 func (a *azureResourceGroup) Delete(ctx context.Context, r *v1alpha1.ResourceGroup) bool {
+	r.Status.SetConditions(corev1alpha1.Deleting())
 	if r.Spec.ReclaimPolicy == corev1alpha1.ReclaimDelete {
 		if _, err := a.client.Delete(ctx, r.Spec.Name); err != nil {
-			r.Status.SetFailed(reasonDeletingResource, err.Error())
+			r.Status.SetConditions(corev1alpha1.ReconcileError(err))
 			return true
 		}
 	}
-	r.Status.SetDeleting()
 	meta.RemoveFinalizer(r, finalizer)
+	r.Status.SetConditions(corev1alpha1.ReconcileSuccess())
 
 	return false
 }
@@ -156,7 +151,7 @@ type providerConnecter struct {
 // Resource Group.
 func (c *providerConnecter) Connect(ctx context.Context, r *v1alpha1.ResourceGroup) (createsyncdeleter, error) {
 	p := &v1alpha1.Provider{}
-	n := types.NamespacedName{Namespace: r.GetNamespace(), Name: r.Spec.ProviderRef.Name}
+	n := meta.NamespacedNameOf(r.Spec.ProviderReference)
 	if err := c.kube.Get(ctx, n, p); err != nil {
 		return nil, errors.Wrapf(err, "cannot get provider %s", n)
 	}
@@ -211,7 +206,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	client, err := r.Connect(ctx, rg)
 	if err != nil {
-		rg.Status.SetFailed(reasonFetchingClient, err.Error())
+		rg.Status.SetConditions(corev1alpha1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}, errors.Wrapf(r.kube.Update(ctx, rg), "cannot update resource %s", req.NamespacedName)
 	}
 
