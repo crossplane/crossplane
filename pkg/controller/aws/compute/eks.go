@@ -288,6 +288,10 @@ func (r *Reconciler) _sync(instance *awscomputev1alpha1.EKSCluster, client eks.C
 		return r.fail(instance, err)
 	}
 
+	if cloudformationclient.IsFailedState(clusterWorker.WorkersStatus) {
+		return r.fail(instance, errorSyncCluster, fmt.Sprintf("clusterworker stack failed with status %q and reason %q", clusterWorker.WorkersStatus, clusterWorker.WorkerReason))
+	}
+
 	if !cloudformationclient.IsCompletedState(clusterWorker.WorkersStatus) {
 		instance.Status.SetConditions(corev1alpha1.ReconcileSuccess())
 		return resultRequeue, r.Update(ctx, instance)
