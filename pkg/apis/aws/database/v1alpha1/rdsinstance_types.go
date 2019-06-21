@@ -88,12 +88,9 @@ type RDSInstanceStatus struct {
 	Endpoint     string `json:"endpoint,omitempty"`     // rds instance endpoint
 }
 
-// +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // RDSInstance is the Schema for the instances API
-// +k8s:openapi-gen=true
-// +groupName=database.aws
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.bindingPhase"
 // +kubebuilder:printcolumn:name="STATE",type="string",JSONPath=".status.state"
 // +kubebuilder:printcolumn:name="CLASS",type="string",JSONPath=".spec.classRef.name"

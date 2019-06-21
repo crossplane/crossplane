@@ -154,12 +154,9 @@ type RedisStatus struct {
 	ResourceName string `json:"resourceName,omitempty"`
 }
 
-// +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // Redis is the Schema for the instances API
-// +k8s:openapi-gen=true
-// +groupName=cache.azure
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.state"
 // +kubebuilder:printcolumn:name="CLASS",type="string",JSONPath=".spec.classRef.name"
 // +kubebuilder:printcolumn:name="VERSION",type="string",JSONPath=".status.redisVersion"

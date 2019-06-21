@@ -15,9 +15,5 @@ limitations under the License.
 */
 
 // Package v1alpha1 contains API Schema definitions for the gcp v1alpha1 API group
-// +k8s:openapi-gen=true
 // +k8s:deepcopy-gen=package,register
-// +k8s:conversion-gen=github.com/crossplaneio/crossplane/pkg/apis/gcp
-// +k8s:defaulter-gen=TypeMeta
-// +groupName=gcp.crossplane.io
 package v1alpha1

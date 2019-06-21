@@ -44,12 +44,9 @@ type SQLServer interface {
 
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // MysqlServer is the Schema for the instances API
-// +k8s:openapi-gen=true
-// +groupName=database.azure
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.bindingPhase"
 // +kubebuilder:printcolumn:name="STATE",type="string",JSONPath=".status.state"
 // +kubebuilder:printcolumn:name="CLASS",type="string",JSONPath=".spec.classRef.name"
@@ -72,12 +69,9 @@ type MysqlServerList struct {
 	Items           []MysqlServer `json:"items"`
 }
 
-// +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // PostgresqlServer is the Schema for the instances API
-// +k8s:openapi-gen=true
-// +groupName=database.azure
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.bindingPhase"
 // +kubebuilder:printcolumn:name="STATE",type="string",JSONPath=".status.state"
 // +kubebuilder:printcolumn:name="CLASS",type="string",JSONPath=".spec.classRef.name"

@@ -101,8 +101,6 @@ type AKSClusterStatus struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // AKSCluster is the Schema for the instances API
-// +k8s:openapi-gen=true
-// +groupName=compute.azure
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.bindingPhase"
 // +kubebuilder:printcolumn:name="STATE",type="string",JSONPath=".status.state"
 // +kubebuilder:printcolumn:name="CLUSTER-NAME",type="string",JSONPath=".status.clusterName"

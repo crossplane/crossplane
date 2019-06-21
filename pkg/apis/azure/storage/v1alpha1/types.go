@@ -58,11 +58,9 @@ type AccountStatus struct {
 	ConnectionSecretRef corev1.LocalObjectReference `json:"connectionSecretRef,omitempty"`
 }
 
-// +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // Account is the Schema for the Account API
-// +k8s:openapi-gen=true
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="RESOURCE_GROUP",type="string",JSONPath=".spec.resourceGroupName"
 // +kubebuilder:printcolumn:name="ACCOUNT_NAME",type="string",JSONPath=".spec.storageAccountName"
@@ -165,11 +163,9 @@ type ContainerStatus struct {
 	Name                string                      `json:"name,omitempty"`
 }
 
-// +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // Container is the Schema for the Container
-// +k8s:openapi-gen=true
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="STORAGE_ACCOUNT",type="string",JSONPath=".spec.accountRef.name"
 // +kubebuilder:printcolumn:name="PUBLIC_ACCESS_TYPE",type="string",JSONPath=".spec.publicAccessType"

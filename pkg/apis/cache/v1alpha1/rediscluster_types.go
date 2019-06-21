@@ -34,12 +34,10 @@ type RedisClusterSpec struct {
 	EngineVersion string `json:"engineVersion"`
 }
 
-// +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // RedisCluster is the the CRD type for abstract Redis clusters. Crossplane
 // considers a single Redis instance a 'cluster' of one instance.
-// +k8s:openapi-gen=true
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.bindingPhase"
 // +kubebuilder:printcolumn:name="CLASS",type="string",JSONPath=".spec.classReference.name"
 // +kubebuilder:printcolumn:name="VERSION",type="string",JSONPath=".spec.engineVersion"

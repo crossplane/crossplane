@@ -67,11 +67,9 @@ type ResourceClaim interface {
 	SetResourceRef(*corev1.ObjectReference)
 }
 
-// +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // ResourceClass is the Schema for the instances API
-// +k8s:openapi-gen=true
 // +kubebuilder:printcolumn:name="PROVISIONER",type="string",JSONPath=".provisioner"
 // +kubebuilder:printcolumn:name="PROVIDER-REF",type="string",JSONPath=".providerRef.name"
 // +kubebuilder:printcolumn:name="RECLAIM-POLICY",type="string",JSONPath=".reclaimPolicy"

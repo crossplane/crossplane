@@ -28,11 +28,9 @@ import (
 // TODO: how do we pretty print conditioned status items? There may be multiple of them, and they
 // can have varying status (e.g., True, False, Unknown)
 
-// +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // ExtensionRequest is the CRD type for a request to add an extension to Crossplane.
-// +k8s:openapi-gen=true
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.Conditions[?(@.Status=="True")].Type"
 // +kubebuilder:printcolumn:name="SOURCE",type="string",JSONPath=".spec.source"
@@ -80,11 +78,9 @@ type ExtensionRequestStatus struct {
 	ExtensionRecord *corev1.ObjectReference `json:"extensionRecord,omitempty"`
 }
 
-// +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // Extension is the CRD type for a request to add an extension to Crossplane.
-// +k8s:openapi-gen=true
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.Conditions[?(@.Status=="True")].Type"
 // +kubebuilder:printcolumn:name="VERSION",type="string",JSONPath=".spec.version"

@@ -35,12 +35,9 @@ type ProviderSpec struct {
 	RequiredPermissions []string `json:"requiredPermissions,omitempty"`
 }
 
-// +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // Provider is the Schema for the instances API
-// +k8s:openapi-gen=true
-// +groupName=gcp
 // +kubebuilder:printcolumn:name="PROJECT-ID",type="string",JSONPath=".spec.projectID"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 type Provider struct {
