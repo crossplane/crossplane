@@ -6,6 +6,11 @@ metadata:
     controller-tools.k8s.io: "1.0"
   name: providers.azure.crossplane.io
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .spec.credentialsSecretRef.name
+    name: CREDENTIAL
+    priority: 1
+    type: string
   group: azure.crossplane.io
   names:
     kind: Provider

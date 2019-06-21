@@ -13,6 +13,10 @@ spec:
   - JSONPath: .metadata.creationTimestamp
     name: AGE
     type: date
+  - JSONPath: .spec.credentialsSecretRef.name
+    name: CREDENTIAL
+    priority: 1
+    type: string
   group: gcp.crossplane.io
   names:
     kind: Provider
