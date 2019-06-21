@@ -42,8 +42,8 @@ var (
 )
 
 var (
-	_ resource.ManagedResource = &Account{}
-	_ resource.ManagedResource = &Container{}
+	_ resource.Managed = &Account{}
+	_ resource.Managed = &Container{}
 )
 
 func TestMain(m *testing.M) {

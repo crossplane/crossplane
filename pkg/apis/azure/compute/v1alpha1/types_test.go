@@ -41,7 +41,7 @@ var (
 	ctx = context.TODO()
 )
 
-var _ resource.ManagedResource = &AKSCluster{}
+var _ resource.Managed = &AKSCluster{}
 
 func TestMain(m *testing.M) {
 	t := test.NewEnv(namespace, SchemeBuilder.SchemeBuilder, test.CRDs())

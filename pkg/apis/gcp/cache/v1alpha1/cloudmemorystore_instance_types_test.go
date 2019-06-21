@@ -41,7 +41,7 @@ var (
 	ctx = context.TODO()
 )
 
-var _ resource.ManagedResource = &CloudMemorystoreInstance{}
+var _ resource.Managed = &CloudMemorystoreInstance{}
 
 func TestMain(m *testing.M) {
 	t := test.NewEnv(namespace, SchemeBuilder.SchemeBuilder, test.CRDs())

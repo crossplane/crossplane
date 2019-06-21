@@ -77,9 +77,9 @@ type Claim interface {
 	Bindable
 }
 
-// A ManagedResource is a Kubernetes object representing a concrete managed
+// A Managed is a Kubernetes object representing a concrete managed
 // resource (e.g. a CloudSQL instance).
-type ManagedResource interface {
+type Managed interface {
 	runtime.Object
 	metav1.Object
 

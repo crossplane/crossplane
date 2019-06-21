@@ -41,7 +41,7 @@ var (
 	ctx = context.TODO()
 )
 
-var _ resource.ManagedResource = &ReplicationGroup{}
+var _ resource.Managed = &ReplicationGroup{}
 
 func TestMain(m *testing.M) {
 	t := test.NewEnv(namespace, SchemeBuilder.SchemeBuilder, test.CRDs())

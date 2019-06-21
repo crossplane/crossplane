@@ -35,7 +35,7 @@ const (
 
 // SQLServer represents a generic Azure SQL server.
 type SQLServer interface {
-	resource.ManagedResource
+	resource.Managed
 
 	GetSpec() *SQLServerSpec
 	GetStatus() *SQLServerStatus

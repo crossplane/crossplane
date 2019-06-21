@@ -43,7 +43,7 @@ var (
 	c client.Client
 )
 
-var _ resource.ManagedResource = &S3Bucket{}
+var _ resource.Managed = &S3Bucket{}
 
 func TestMain(m *testing.M) {
 	t := test.NewEnv(namespace, SchemeBuilder.SchemeBuilder, test.CRDs())

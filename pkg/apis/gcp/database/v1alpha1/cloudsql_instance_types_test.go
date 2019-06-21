@@ -41,7 +41,7 @@ var (
 	ctx = context.TODO()
 )
 
-var _ resource.ManagedResource = &CloudsqlInstance{}
+var _ resource.Managed = &CloudsqlInstance{}
 
 func TestMain(m *testing.M) {
 	t := test.NewEnv(namespace, SchemeBuilder.SchemeBuilder, test.CRDs())

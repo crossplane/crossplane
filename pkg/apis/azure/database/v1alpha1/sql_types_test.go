@@ -44,8 +44,8 @@ var (
 	_ SQLServer = &MysqlServer{}
 	_ SQLServer = &PostgresqlServer{}
 
-	_ resource.ManagedResource = &MysqlServer{}
-	_ resource.ManagedResource = &PostgresqlServer{}
+	_ resource.Managed = &MysqlServer{}
+	_ resource.Managed = &PostgresqlServer{}
 )
 
 func TestMain(m *testing.M) {

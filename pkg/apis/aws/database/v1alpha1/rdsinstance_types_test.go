@@ -40,7 +40,7 @@ var (
 	c   client.Client
 )
 
-var _ resource.ManagedResource = &RDSInstance{}
+var _ resource.Managed = &RDSInstance{}
 
 func TestMain(m *testing.M) {
 	t := test.NewEnv(namespace, SchemeBuilder.SchemeBuilder, test.CRDs())

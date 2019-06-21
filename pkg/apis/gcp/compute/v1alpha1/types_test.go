@@ -41,7 +41,7 @@ var (
 	ctx = context.TODO()
 )
 
-var _ resource.ManagedResource = &GKECluster{}
+var _ resource.Managed = &GKECluster{}
 
 func TestMain(m *testing.M) {
 	t := test.NewEnv(namespace, SchemeBuilder.SchemeBuilder, test.CRDs())

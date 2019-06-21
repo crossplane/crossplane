@@ -42,7 +42,7 @@ var (
 	ctx = context.TODO()
 )
 
-var _ resource.ManagedResource = &EKSCluster{}
+var _ resource.Managed = &EKSCluster{}
 
 func TestMain(m *testing.M) {
 	t := test.NewEnv(namespace, SchemeBuilder.SchemeBuilder, test.CRDs())

@@ -42,7 +42,7 @@ var (
 	ctx = context.TODO()
 )
 
-var _ resource.ManagedResource = &Bucket{}
+var _ resource.Managed = &Bucket{}
 
 func TestMain(m *testing.M) {
 	t := test.NewEnv(namespace, SchemeBuilder.SchemeBuilder, test.CRDs())
