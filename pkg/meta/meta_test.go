@@ -19,7 +19,6 @@ package meta
 import (
 	"testing"
 
-	"github.com/crossplaneio/crossplane/pkg/test"
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"

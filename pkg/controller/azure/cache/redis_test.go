@@ -937,7 +937,7 @@ func TestConnectionSecret(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:            connectionSecretName,
 					Namespace:       namespace,
-					OwnerReferences: []metav1.OwnerReference{meta.AsOwner(meta.ReferenceTo(redisResource(), v1alpha1.RedisGroupVersionKind))},
+					OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.ReferenceTo(redisResource(), v1alpha1.RedisGroupVersionKind))},
 				},
 				Data: map[string][]byte{
 					corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(host),

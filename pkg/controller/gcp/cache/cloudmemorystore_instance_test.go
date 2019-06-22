@@ -847,7 +847,7 @@ func TestConnectionSecret(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:            connectionSecretName,
 					Namespace:       namespace,
-					OwnerReferences: []metav1.OwnerReference{meta.AsOwner(meta.ReferenceTo(instance(), v1alpha1.CloudMemorystoreInstanceGroupVersionKind))},
+					OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.ReferenceTo(instance(), v1alpha1.CloudMemorystoreInstanceGroupVersionKind))},
 				},
 				Data: map[string][]byte{corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(host)},
 			},

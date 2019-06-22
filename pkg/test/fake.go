@@ -43,34 +43,80 @@ type MockUpdateFn func(ctx context.Context, obj runtime.Object) error
 // A MockStatusUpdateFn is used to mock client.Client's StatusUpdate implementation.
 type MockStatusUpdateFn func(ctx context.Context, obj runtime.Object) error
 
+// An ObjectFn operates on the supplied Object. You might use an ObjectFn to
+// test or update the contents of an Object.
+type ObjectFn func(obj runtime.Object) error
+
 // NewMockGetFn returns a MockGetFn that returns the supplied error.
-func NewMockGetFn(err error) MockGetFn {
-	return func(_ context.Context, _ client.ObjectKey, _ runtime.Object) error { return err }
+func NewMockGetFn(err error, ofn ...ObjectFn) MockGetFn {
+	return func(_ context.Context, _ client.ObjectKey, obj runtime.Object) error {
+		for _, fn := range ofn {
+			if err := fn(obj); err != nil {
+				return err
+			}
+		}
+		return err
+	}
 }
 
 // NewMockListFn returns a MockListFn that returns the supplied error.
-func NewMockListFn(err error) MockListFn {
-	return func(_ context.Context, _ *client.ListOptions, _ runtime.Object) error { return err }
+func NewMockListFn(err error, ofn ...ObjectFn) MockListFn {
+	return func(_ context.Context, _ *client.ListOptions, obj runtime.Object) error {
+		for _, fn := range ofn {
+			if err := fn(obj); err != nil {
+				return err
+			}
+		}
+		return err
+	}
 }
 
 // NewMockCreateFn returns a MockCreateFn that returns the supplied error.
-func NewMockCreateFn(err error) MockCreateFn {
-	return func(_ context.Context, _ runtime.Object) error { return err }
+func NewMockCreateFn(err error, ofn ...ObjectFn) MockCreateFn {
+	return func(_ context.Context, obj runtime.Object) error {
+		for _, fn := range ofn {
+			if err := fn(obj); err != nil {
+				return err
+			}
+		}
+		return err
+	}
 }
 
 // NewMockDeleteFn returns a MockDeleteFn that returns the supplied error.
-func NewMockDeleteFn(err error) MockDeleteFn {
-	return func(_ context.Context, _ runtime.Object, _ ...client.DeleteOptionFunc) error { return err }
+func NewMockDeleteFn(err error, ofn ...ObjectFn) MockDeleteFn {
+	return func(_ context.Context, obj runtime.Object, _ ...client.DeleteOptionFunc) error {
+		for _, fn := range ofn {
+			if err := fn(obj); err != nil {
+				return err
+			}
+		}
+		return err
+	}
 }
 
 // NewMockUpdateFn returns a MockUpdateFn that returns the supplied error.
-func NewMockUpdateFn(err error) MockUpdateFn {
-	return func(_ context.Context, _ runtime.Object) error { return err }
+func NewMockUpdateFn(err error, ofn ...ObjectFn) MockUpdateFn {
+	return func(_ context.Context, obj runtime.Object) error {
+		for _, fn := range ofn {
+			if err := fn(obj); err != nil {
+				return err
+			}
+		}
+		return err
+	}
 }
 
 // NewMockStatusUpdateFn returns a MockStatusUpdateFn that returns the supplied error.
-func NewMockStatusUpdateFn(err error) MockStatusUpdateFn {
-	return func(_ context.Context, _ runtime.Object) error { return err }
+func NewMockStatusUpdateFn(err error, ofn ...ObjectFn) MockStatusUpdateFn {
+	return func(_ context.Context, obj runtime.Object) error {
+		for _, fn := range ofn {
+			if err := fn(obj); err != nil {
+				return err
+			}
+		}
+		return err
+	}
 }
 
 // MockClient implements controller-runtime's Client interface, allowing each

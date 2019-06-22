@@ -996,7 +996,7 @@ func TestConnectionSecretWithPassword(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:            connectionSecretName,
 					Namespace:       namespace,
-					OwnerReferences: []metav1.OwnerReference{meta.AsOwner(meta.ReferenceTo(replicationGroup(), v1alpha1.ReplicationGroupGroupVersionKind))},
+					OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.ReferenceTo(replicationGroup(), v1alpha1.ReplicationGroupGroupVersionKind))},
 				},
 				Data: map[string][]byte{
 					corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(host),
@@ -1012,7 +1012,7 @@ func TestConnectionSecretWithPassword(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:            connectionSecretName,
 					Namespace:       namespace,
-					OwnerReferences: []metav1.OwnerReference{meta.AsOwner(meta.ReferenceTo(replicationGroup(), v1alpha1.ReplicationGroupGroupVersionKind))},
+					OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.ReferenceTo(replicationGroup(), v1alpha1.ReplicationGroupGroupVersionKind))},
 				},
 				Data: map[string][]byte{
 					corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(host),
