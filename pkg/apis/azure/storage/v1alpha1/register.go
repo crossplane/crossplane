@@ -17,21 +17,16 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"reflect"
+
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/runtime/scheme"
 )
 
-// Kubernetes Group, Version, and Kind metadata.
+// Package type metadata.
 const (
-	Group      = "storage.azure.crossplane.io"
-	Version    = "v1alpha1"
-	APIVersion = Group + "/" + Version
-
-	AccountKind           = "account"
-	AccountKindAPIVersion = AccountKind + "." + APIVersion
-
-	ContainerKind           = "container"
-	ContainerKindAPIVersion = ContainerKind + "." + APIVersion
+	Group   = "storage.azure.crossplane.io"
+	Version = "v1alpha1"
 )
 
 var (
@@ -40,20 +35,20 @@ var (
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
+)
 
-	// AccountGroupVersionKind is the GroupVersionKind of an Account.
-	AccountGroupVersionKind = schema.GroupVersionKind{
-		Group:   Group,
-		Version: Version,
-		Kind:    AccountKind,
-	}
+// Account type metadata.
+var (
+	AccountKind             = reflect.TypeOf(Account{}).Name()
+	AccountKindAPIVersion   = AccountKind + "." + SchemeGroupVersion.String()
+	AccountGroupVersionKind = SchemeGroupVersion.WithKind(AccountKind)
+)
 
-	// ContainerGroupVersionKind is the GroupVersionKind of an Container.
-	ContainerGroupVersionKind = schema.GroupVersionKind{
-		Group:   Group,
-		Version: Version,
-		Kind:    ContainerKind,
-	}
+// Container type metadata.
+var (
+	ContainerKind             = reflect.TypeOf(Container{}).Name()
+	ContainerKindAPIVersion   = ContainerKind + "." + SchemeGroupVersion.String()
+	ContainerGroupVersionKind = SchemeGroupVersion.WithKind(ContainerKind)
 )
 
 func init() {

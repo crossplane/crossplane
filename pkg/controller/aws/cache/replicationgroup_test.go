@@ -40,6 +40,7 @@ import (
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	elasticacheclient "github.com/crossplaneio/crossplane/pkg/clients/aws/elasticache"
 	"github.com/crossplaneio/crossplane/pkg/clients/aws/elasticache/fake"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
@@ -993,14 +994,9 @@ func TestConnectionSecretWithPassword(t *testing.T) {
 			password: authToken,
 			want: &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      connectionSecretName,
-					Namespace: namespace,
-					OwnerReferences: []metav1.OwnerReference{{
-						APIVersion: v1alpha1.APIVersion,
-						Kind:       v1alpha1.ReplicationGroupKind,
-						Name:       name,
-						UID:        uid,
-					}},
+					Name:            connectionSecretName,
+					Namespace:       namespace,
+					OwnerReferences: []metav1.OwnerReference{meta.AsOwner(meta.ReferenceTo(replicationGroup(), v1alpha1.ReplicationGroupGroupVersionKind))},
 				},
 				Data: map[string][]byte{
 					corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(host),
@@ -1014,14 +1010,9 @@ func TestConnectionSecretWithPassword(t *testing.T) {
 			password: "",
 			want: &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      connectionSecretName,
-					Namespace: namespace,
-					OwnerReferences: []metav1.OwnerReference{{
-						APIVersion: v1alpha1.APIVersion,
-						Kind:       v1alpha1.ReplicationGroupKind,
-						Name:       name,
-						UID:        uid,
-					}},
+					Name:            connectionSecretName,
+					Namespace:       namespace,
+					OwnerReferences: []metav1.OwnerReference{meta.AsOwner(meta.ReferenceTo(replicationGroup(), v1alpha1.ReplicationGroupGroupVersionKind))},
 				},
 				Data: map[string][]byte{
 					corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(host),

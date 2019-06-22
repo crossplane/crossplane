@@ -17,24 +17,16 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"reflect"
+
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/runtime/scheme"
 )
 
-// Kubernetes Group, Version, and Kind metadata.
+// Package type metadata.
 const (
-	Group      = "storage.crossplane.io"
-	Version    = "v1alpha1"
-	APIVersion = Group + "/" + Version
-
-	MySQLInstanceKind           = "mysqlinstance"
-	MySQLInstanceKindAPIVersion = MySQLInstanceKind + "." + APIVersion
-
-	PostgreSQLInstanceKind           = "postgresqlinstance"
-	PostgreSQLInstanceKindAPIVersion = PostgreSQLInstanceKind + "." + APIVersion
-
-	BucketKind           = "bucket"
-	BucketKindAPIVersion = BucketKind + "." + APIVersion
+	Group   = "storage.crossplane.io"
+	Version = "v1alpha1"
 )
 
 var (
@@ -43,27 +35,27 @@ var (
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
+)
 
-	// MySQLInstanceGroupVersionKind is the GVK of a MySQLInstance.
-	MySQLInstanceGroupVersionKind = schema.GroupVersionKind{
-		Group:   Group,
-		Version: Version,
-		Kind:    MySQLInstanceKind,
-	}
+// Bucket type metadata.
+var (
+	BucketKind             = reflect.TypeOf(Bucket{}).Name()
+	BucketKindAPIVersion   = BucketKind + "." + SchemeGroupVersion.String()
+	BucketGroupVersionKind = SchemeGroupVersion.WithKind(BucketKind)
+)
 
-	// PostgreSQLInstanceGroupVersionKind is the GVK of a PostgreSQLInstance.
-	PostgreSQLInstanceGroupVersionKind = schema.GroupVersionKind{
-		Group:   Group,
-		Version: Version,
-		Kind:    PostgreSQLInstanceKind,
-	}
+// MySQLInstance type metadata.
+var (
+	MySQLInstanceKind             = reflect.TypeOf(MySQLInstance{}).Name()
+	MySQLInstanceKindAPIVersion   = MySQLInstanceKind + "." + SchemeGroupVersion.String()
+	MySQLInstanceGroupVersionKind = SchemeGroupVersion.WithKind(MySQLInstanceKind)
+)
 
-	// BucketGroupVersionKind is the GVK of a Bucket.
-	BucketGroupVersionKind = schema.GroupVersionKind{
-		Group:   Group,
-		Version: Version,
-		Kind:    BucketKind,
-	}
+// PostgreSQLInstance type metadata.
+var (
+	PostgreSQLInstanceKind             = reflect.TypeOf(PostgreSQLInstance{}).Name()
+	PostgreSQLInstanceKindAPIVersion   = PostgreSQLInstanceKind + "." + SchemeGroupVersion.String()
+	PostgreSQLInstanceGroupVersionKind = SchemeGroupVersion.WithKind(PostgreSQLInstanceKind)
 )
 
 func init() {

@@ -57,10 +57,10 @@ const (
 var errMissingTemplate = errors.New(v1alpha1.KubernetesApplicationResourceKind + " must include a template")
 
 // Ownership annotations
-const (
-	RemoteControllerNamespace = v1alpha1.KubernetesApplicationResourceKind + "." + v1alpha1.Group + "/namespace"
-	RemoteControllerName      = v1alpha1.KubernetesApplicationResourceKind + "." + v1alpha1.Group + "/name"
-	RemoteControllerUID       = v1alpha1.KubernetesApplicationResourceKind + "." + v1alpha1.Group + "/uid"
+var (
+	RemoteControllerNamespace = v1alpha1.KubernetesApplicationGroupVersionKind.GroupKind().String() + "/namespace"
+	RemoteControllerName      = v1alpha1.KubernetesApplicationGroupVersionKind.GroupKind().String() + "/name"
+	RemoteControllerUID       = v1alpha1.KubernetesApplicationGroupVersionKind.GroupKind().String() + "/uid"
 )
 
 var (

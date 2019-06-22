@@ -39,6 +39,7 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/clients/azure"
 	"github.com/crossplaneio/crossplane/pkg/clients/azure/redis"
 	fakeredis "github.com/crossplaneio/crossplane/pkg/clients/azure/redis/fake"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
@@ -934,14 +935,9 @@ func TestConnectionSecret(t *testing.T) {
 			password: primaryAccessKey,
 			want: &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      connectionSecretName,
-					Namespace: namespace,
-					OwnerReferences: []metav1.OwnerReference{{
-						APIVersion: v1alpha1.APIVersion,
-						Kind:       v1alpha1.RedisKind,
-						Name:       redisResourceName,
-						UID:        uid,
-					}},
+					Name:            connectionSecretName,
+					Namespace:       namespace,
+					OwnerReferences: []metav1.OwnerReference{meta.AsOwner(meta.ReferenceTo(redisResource(), v1alpha1.RedisGroupVersionKind))},
 				},
 				Data: map[string][]byte{
 					corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(host),

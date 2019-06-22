@@ -17,21 +17,16 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"reflect"
+
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/runtime/scheme"
 )
 
-// Kubernetes Group, Version, and Kind metadata.
+// Package type metadata.
 const (
-	Group      = "workload.crossplane.io"
-	Version    = "v1alpha1"
-	APIVersion = Group + "/" + Version
-
-	KubernetesApplicationKind           = "kubernetesapplication"
-	KubernetesApplicationKindAPIVersion = KubernetesApplicationKind + "." + APIVersion
-
-	KubernetesApplicationResourceKind           = "kubernetesapplicationresource"
-	KubernetesApplicationResourceKindAPIVersion = KubernetesApplicationResourceKind + "." + APIVersion
+	Group   = "workload.crossplane.io"
+	Version = "v1alpha1"
 )
 
 var (
@@ -40,21 +35,20 @@ var (
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
+)
 
-	// KubernetesApplicationGroupVersionKind is the GVK of a KubernetesApplication.
-	KubernetesApplicationGroupVersionKind = schema.GroupVersionKind{
-		Group:   Group,
-		Version: Version,
-		Kind:    KubernetesApplicationKind,
-	}
+// KubernetesApplication type metadata.
+var (
+	KubernetesApplicationKind             = reflect.TypeOf(KubernetesApplication{}).Name()
+	KubernetesApplicationKindAPIVersion   = KubernetesApplicationKind + "." + SchemeGroupVersion.String()
+	KubernetesApplicationGroupVersionKind = SchemeGroupVersion.WithKind(KubernetesApplicationKind)
+)
 
-	// KubernetesApplicationResourceGroupVersionKind is the GVK of a
-	// KubernetesApplicationResource.
-	KubernetesApplicationResourceGroupVersionKind = schema.GroupVersionKind{
-		Group:   Group,
-		Version: Version,
-		Kind:    KubernetesApplicationResourceKind,
-	}
+// KubernetesApplicationResource type metadata.
+var (
+	KubernetesApplicationResourceKind             = reflect.TypeOf(KubernetesApplicationResource{}).Name()
+	KubernetesApplicationResourceKindAPIVersion   = KubernetesApplicationResourceKind + "." + SchemeGroupVersion.String()
+	KubernetesApplicationResourceGroupVersionKind = SchemeGroupVersion.WithKind(KubernetesApplicationResourceKind)
 )
 
 func init() {

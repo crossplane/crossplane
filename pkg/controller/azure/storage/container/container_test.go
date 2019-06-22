@@ -19,6 +19,7 @@ package container
 import (
 	"context"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -109,7 +110,7 @@ func newContainerNotFoundError(name string) error {
 
 func newAccountNotFoundError(name string) error {
 	return kerrors.NewNotFound(
-		schema.GroupResource{Group: v1alpha1.Group, Resource: v1alpha1.AccountKind + "s"}, name)
+		schema.GroupResource{Group: v1alpha1.Group, Resource: strings.ToLower(v1alpha1.AccountKind) + "s"}, name)
 }
 
 func newSecret(ns, name string, data map[string][]byte) *v1.Secret {

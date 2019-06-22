@@ -17,18 +17,16 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"reflect"
+
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/runtime/scheme"
 )
 
-// Kubernetes Group, Version, and Kind metadata.
+// Package type metadata.
 const (
-	Group      = "database.gcp.crossplane.io"
-	Version    = "v1alpha1"
-	APIVersion = Group + "/" + Version
-
-	CloudsqlInstanceKind           = "cloudsqlinstance"
-	CloudsqlInstanceKindAPIVersion = CloudsqlInstanceKind + "." + APIVersion
+	Group   = "database.gcp.crossplane.io"
+	Version = "v1alpha1"
 )
 
 var (
@@ -37,13 +35,13 @@ var (
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
+)
 
-	// CloudsqlInstanceGroupVersionKind is the GVK of a CloudsqlInstance.
-	CloudsqlInstanceGroupVersionKind = schema.GroupVersionKind{
-		Group:   Group,
-		Version: Version,
-		Kind:    CloudsqlInstanceKind,
-	}
+// CloudsqlInstance type metadata.
+var (
+	CloudsqlInstanceKind             = reflect.TypeOf(CloudsqlInstance{}).Name()
+	CloudsqlInstanceKindAPIVersion   = CloudsqlInstanceKind + "." + SchemeGroupVersion.String()
+	CloudsqlInstanceGroupVersionKind = SchemeGroupVersion.WithKind(CloudsqlInstanceKind)
 )
 
 func init() {

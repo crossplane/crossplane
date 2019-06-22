@@ -17,18 +17,16 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"reflect"
+
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/runtime/scheme"
 )
 
-// Kubernetes Group, Version, and Kind metadata.
+// Package type metadata.
 const (
-	Group      = "database.aws.crossplane.io"
-	Version    = "v1alpha1"
-	APIVersion = Group + "/" + Version
-
-	RDSInstanceKind           = "rdsinstance"
-	RDSInstanceKindAPIVersion = RDSInstanceKind + "." + APIVersion
+	Group   = "database.aws.crossplane.io"
+	Version = "v1alpha1"
 )
 
 var (
@@ -37,13 +35,13 @@ var (
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
+)
 
-	// RDSInstanceGroupVersionKind is the GVK of an RDSInstance.
-	RDSInstanceGroupVersionKind = schema.GroupVersionKind{
-		Group:   Group,
-		Version: Version,
-		Kind:    RDSInstanceKind,
-	}
+// RDSInstance type metadata.
+var (
+	RDSInstanceKind             = reflect.TypeOf(RDSInstance{}).Name()
+	RDSInstanceKindAPIVersion   = RDSInstanceKind + "." + SchemeGroupVersion.String()
+	RDSInstanceGroupVersionKind = SchemeGroupVersion.WithKind(RDSInstanceKind)
 )
 
 func init() {

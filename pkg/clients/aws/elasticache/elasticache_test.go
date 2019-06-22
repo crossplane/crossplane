@@ -29,11 +29,10 @@ import (
 )
 
 const (
-	namespace   = "coolNamespace"
-	name        = "coolGroup"
-	uid         = types.UID("definitely-a-uuid")
-	id          = NamePrefix + "-efdd8494195d7940" // FNV-64a hash of uid
-	description = "Crossplane managed " + v1alpha1.ReplicationGroupKindAPIVersion + " " + namespace + "/" + name
+	namespace = "coolNamespace"
+	name      = "coolGroup"
+	uid       = types.UID("definitely-a-uuid")
+	id        = NamePrefix + "-efdd8494195d7940" // FNV-64a hash of uid
 
 	cacheNodeType            = "n1.super.cool"
 	atRestEncryptionEnabled  = true
@@ -66,6 +65,8 @@ var (
 	preferredCacheClusterAZs = []string{"us-cool-1a", "us-cool-1b"}
 	securityGroupIDs         = []string{"coolID", "coolerID"}
 	snapshotARNs             = []string{"arn:aws:s3:snappy"}
+
+	description = "Crossplane managed " + v1alpha1.ReplicationGroupKindAPIVersion + " " + namespace + "/" + name
 
 	nodeGroupAZs = []string{"us-cool-1a", "us-cool-1b"}
 

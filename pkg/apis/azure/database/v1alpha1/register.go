@@ -17,21 +17,16 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"reflect"
+
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/runtime/scheme"
 )
 
-// Kubernetes Group, Version, and Kind metadata.
+// Package type metadata.
 const (
-	Group      = "database.azure.crossplane.io"
-	Version    = "v1alpha1"
-	APIVersion = Group + "/" + Version
-
-	MysqlServerKind           = "mysqlserver"
-	MysqlServerKindAPIVersion = MysqlServerKind + "." + APIVersion
-
-	PostgresqlServerKind           = "postgresqlserver"
-	PostgresqlServerKindAPIVersion = PostgresqlServerKind + "." + APIVersion
+	Group   = "database.azure.crossplane.io"
+	Version = "v1alpha1"
 )
 
 var (
@@ -40,21 +35,20 @@ var (
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
+)
 
-	// MysqlServerGroupVersionKind is the GroupVersionKind of a MysqlServer.
-	MysqlServerGroupVersionKind = schema.GroupVersionKind{
-		Group:   Group,
-		Version: Version,
-		Kind:    MysqlServerKind,
-	}
+// MysqlServer type metadata.
+var (
+	MysqlServerKind             = reflect.TypeOf(MysqlServer{}).Name()
+	MysqlServerKindAPIVersion   = MysqlServerKind + "." + SchemeGroupVersion.String()
+	MysqlServerGroupVersionKind = SchemeGroupVersion.WithKind(MysqlServerKind)
+)
 
-	// PostgresqlServerGroupVersionKind is the GroupVersionKind of a
-	// PostgresqlServer.
-	PostgresqlServerGroupVersionKind = schema.GroupVersionKind{
-		Group:   Group,
-		Version: Version,
-		Kind:    PostgresqlServerKind,
-	}
+// PostgresqlServer type metadata.
+var (
+	PostgresqlServerKind             = reflect.TypeOf(PostgresqlServer{}).Name()
+	PostgresqlServerKindAPIVersion   = PostgresqlServerKind + "." + SchemeGroupVersion.String()
+	PostgresqlServerGroupVersionKind = SchemeGroupVersion.WithKind(PostgresqlServerKind)
 )
 
 func init() {

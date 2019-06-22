@@ -17,18 +17,16 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"reflect"
+
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/runtime/scheme"
 )
 
-// Kubernetes Group, Version, and Kind metadata.
+// Package type metadata.
 const (
-	Group      = "cache.crossplane.io"
-	Version    = "v1alpha1"
-	APIVersion = Group + "/" + Version
-
-	RedisClusterKind           = "rediscluster"
-	RedisClusterKindAPIVersion = RedisClusterKind + "." + APIVersion
+	Group   = "cache.crossplane.io"
+	Version = "v1alpha1"
 )
 
 var (
@@ -37,13 +35,13 @@ var (
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
+)
 
-	// RedisClusterGroupVersionKind is the GroupVersionKind of a RedisCluster.
-	RedisClusterGroupVersionKind = schema.GroupVersionKind{
-		Group:   Group,
-		Version: Version,
-		Kind:    RedisClusterKind,
-	}
+// RedisCluster type metadata.
+var (
+	RedisClusterKind             = reflect.TypeOf(RedisCluster{}).Name()
+	RedisClusterKindAPIVersion   = RedisClusterKind + "." + SchemeGroupVersion.String()
+	RedisClusterGroupVersionKind = SchemeGroupVersion.WithKind(RedisClusterKind)
 )
 
 func init() {

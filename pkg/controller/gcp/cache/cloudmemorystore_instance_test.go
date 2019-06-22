@@ -21,6 +21,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/crossplaneio/crossplane/pkg/meta"
+
 	redisv1 "cloud.google.com/go/redis/apiv1"
 	"github.com/google/go-cmp/cmp"
 	gax "github.com/googleapis/gax-go"
@@ -843,14 +845,9 @@ func TestConnectionSecret(t *testing.T) {
 			i:    instance(withEndpoint(host)),
 			want: &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      connectionSecretName,
-					Namespace: namespace,
-					OwnerReferences: []metav1.OwnerReference{{
-						APIVersion: v1alpha1.APIVersion,
-						Kind:       v1alpha1.CloudMemorystoreInstanceKind,
-						Name:       instanceName,
-						UID:        uid,
-					}},
+					Name:            connectionSecretName,
+					Namespace:       namespace,
+					OwnerReferences: []metav1.OwnerReference{meta.AsOwner(meta.ReferenceTo(instance(), v1alpha1.CloudMemorystoreInstanceGroupVersionKind))},
 				},
 				Data: map[string][]byte{corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(host)},
 			},
