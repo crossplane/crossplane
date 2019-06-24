@@ -31,9 +31,13 @@ func init() {
 	AddToManagerFuncs = append(AddToManagerFuncs,
 		resourcegroup.Add,
 		cache.Add,
-		database.AddMysqlServer,
-		database.AddPostgreSQLServer,
+		cache.AddClaim,
 		compute.AddAKSCluster,
+		compute.AddClaim,
+		database.AddMysqlServer,
+		database.AddMySQLClaim,
+		database.AddPostgreSQLServer,
+		database.AddPostgreSQLClaim,
 		storage.Add,
 	)
 }

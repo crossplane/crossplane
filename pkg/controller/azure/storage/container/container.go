@@ -79,15 +79,7 @@ func Add(mgr manager.Manager) error {
 	}
 
 	// Watch for changes to storage container
-	if err := c.Watch(&source.Kind{Type: &v1alpha1.Container{}}, &handler.EnqueueRequestForObject{}); err != nil {
-		return err
-	}
-
-	// Watch for changes to account Secret
-	return c.Watch(&source.Kind{Type: &corev1.Secret{}}, &handler.EnqueueRequestForOwner{
-		IsController: true,
-		OwnerType:    &v1alpha1.Container{},
-	})
+	return c.Watch(&source.Kind{Type: &v1alpha1.Container{}}, &handler.EnqueueRequestForObject{})
 }
 
 // Reconcile reads that state of the cluster for a Provider acct and makes changes based on the state read
