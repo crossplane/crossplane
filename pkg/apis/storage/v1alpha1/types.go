@@ -39,6 +39,7 @@ type MySQLInstanceSpec struct {
 // +kubebuilder:printcolumn:name="CLASS",type="string",JSONPath=".spec.classReference.name"
 // +kubebuilder:printcolumn:name="VERSION",type="string",JSONPath=".spec.engineVersion"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
+// +kubebuilder:subresource:status
 type MySQLInstance struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -118,6 +119,7 @@ type PostgreSQLInstanceSpec struct {
 // +kubebuilder:printcolumn:name="CLASS",type="string",JSONPath=".spec.classReference.name"
 // +kubebuilder:printcolumn:name="VERSION",type="string",JSONPath=".spec.engineVersion"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
+// +kubebuilder:subresource:status
 type PostgreSQLInstance struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -231,6 +233,7 @@ type BucketSpec struct {
 // +kubebuilder:printcolumn:name="PREDEFINED-ACL",type="string",JSONPath=".spec.predefinedACL"
 // +kubebuilder:printcolumn:name="LOCAL-PERMISSION",type="string",JSONPath=".spec.localPermission"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
+// +kubebuilder:subresource:status
 type Bucket struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

@@ -24,6 +24,8 @@ spec:
     kind: KubernetesCluster
     plural: kubernetesclusters
   scope: Namespaced
+  subresources:
+    status: {}
   validation:
     openAPIV3Schema:
       properties:
