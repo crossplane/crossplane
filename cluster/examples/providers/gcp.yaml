@@ -1,0 +1,22 @@
+---
+# GCP Admin service account secret - used by GCP Provider
+apiVersion: v1
+kind: Secret
+metadata:
+  name: example-provider-gcp
+  namespace: crossplane-system
+type: Opaque
+data:
+  credentials.json: BASE64ENCODED_GCP_PROVIDER_CREDS
+---
+# GCP Provider with service account secret reference - used to provision cache resources
+apiVersion: gcp.crossplane.io/v1alpha1
+kind: Provider
+metadata:
+  name: example
+  namespace: crossplane-system
+spec:
+  credentialsSecretRef:
+    name: example-provider-gcp
+    key: credentials.json
+  projectID: PROJECT_ID
