@@ -111,6 +111,7 @@ func (c *cloudMemorystore) Sync(ctx context.Context, i *v1alpha1.CloudMemorystor
 	switch i.Status.State {
 	case v1alpha1.StateReady:
 		i.Status.SetConditions(corev1alpha1.Available())
+		resource.SetBindable(i)
 	case v1alpha1.StateCreating:
 		i.Status.SetConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileSuccess())
 		return true

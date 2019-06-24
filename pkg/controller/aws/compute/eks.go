@@ -305,6 +305,7 @@ func (r *Reconciler) _sync(instance *awscomputev1alpha1.EKSCluster, client eks.C
 	instance.Status.Endpoint = cluster.Endpoint
 	instance.Status.State = awscomputev1alpha1.ClusterStatusActive
 	instance.Status.SetConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess())
+	resource.SetBindable(instance)
 
 	return result, r.Update(ctx, instance)
 }

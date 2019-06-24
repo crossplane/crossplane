@@ -314,6 +314,7 @@ func (r *Reconciler) sync(instance *computev1alpha1.AKSCluster, aksClient *azure
 	}
 
 	instance.Status.SetConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess())
+	resource.SetBindable(instance)
 	return result, r.Update(ctx, instance)
 }
 

@@ -123,8 +123,14 @@ func (tc *MockContainer) WithSpecMetadata(meta map[string]string) *MockContainer
 	return tc
 }
 
-// WithStatusConditions sets the storage account's conditioned status.
+// WithStatusConditions sets the conditioned status.
 func (tc *MockContainer) WithStatusConditions(c ...corev1alpha1.Condition) *MockContainer {
 	tc.Status.SetConditions(c...)
+	return tc
+}
+
+// WithStatusBindingPhase sets the binding phase.
+func (tc *MockContainer) WithStatusBindingPhase(p corev1alpha1.BindingPhase) *MockContainer {
+	tc.Status.SetBindingPhase(p)
 	return tc
 }

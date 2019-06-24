@@ -142,3 +142,9 @@ func (ta *MockAccount) WithStatusConditions(c ...corev1alpha1.Condition) *MockAc
 	ta.Status.SetConditions(c...)
 	return ta
 }
+
+// WithStatusBindingPhase sets the storage account's binding phase.
+func (ta *MockAccount) WithStatusBindingPhase(p corev1alpha1.BindingPhase) *MockAccount {
+	ta.Status.SetBindingPhase(p)
+	return ta
+}

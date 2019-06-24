@@ -139,6 +139,7 @@ func (e *elastiCache) Sync(ctx context.Context, g *v1alpha1.ReplicationGroup) bo
 	switch g.Status.State {
 	case v1alpha1.StatusAvailable:
 		g.Status.SetConditions(corev1alpha1.Available())
+		resource.SetBindable(g)
 	case v1alpha1.StatusCreating:
 		g.Status.SetConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileSuccess())
 		return true

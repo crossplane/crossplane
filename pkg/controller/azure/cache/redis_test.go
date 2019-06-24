@@ -97,6 +97,10 @@ func withConditions(c ...corev1alpha1.Condition) redisResourceModifier {
 	return func(r *v1alpha1.Redis) { r.Status.ConditionedStatus.Conditions = c }
 }
 
+func withBindingPhase(p corev1alpha1.BindingPhase) redisResourceModifier {
+	return func(r *v1alpha1.Redis) { r.Status.SetBindingPhase(p) }
+}
+
 func withState(s string) redisResourceModifier {
 	return func(r *v1alpha1.Redis) { r.Status.State = s }
 }
@@ -320,6 +324,7 @@ func TestSync(t *testing.T) {
 				withPort(port),
 				withSSLPort(sslPort),
 				withConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess()),
+				withBindingPhase(corev1alpha1.BindingPhaseUnbound),
 			),
 			wantRequeue: false,
 		},
@@ -363,6 +368,7 @@ func TestSync(t *testing.T) {
 				withPort(port),
 				withSSLPort(sslPort),
 				withConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess()),
+				withBindingPhase(corev1alpha1.BindingPhaseUnbound),
 			),
 			wantRequeue: false,
 		},
@@ -419,6 +425,7 @@ func TestSync(t *testing.T) {
 				withPort(port),
 				withSSLPort(sslPort),
 				withConditions(corev1alpha1.Available(), corev1alpha1.ReconcileError(errorBoom)),
+				withBindingPhase(corev1alpha1.BindingPhaseUnbound),
 			),
 			wantRequeue: true,
 		},

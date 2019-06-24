@@ -655,6 +655,7 @@ func Test_bucketCreateUpdater_create(t *testing.T) {
 					mockSetSpecAttrs:        func(attrs *storage.BucketAttrs) {},
 					mockUpdateObject:        func(ctx context.Context) error { return nil },
 					mockSetStatusConditions: func(_ ...corev1alpha1.Condition) {},
+					mockSetBindable:         func() {},
 					mockSetStatusAttrs:      func(attrs *storage.BucketAttrs) {},
 					mockUpdateStatus:        func(ctx context.Context) error { return nil },
 				},

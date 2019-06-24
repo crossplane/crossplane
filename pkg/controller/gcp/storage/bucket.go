@@ -260,6 +260,8 @@ func (bh *bucketCreateUpdater) create(ctx context.Context) (reconcile.Result, er
 	bh.setStatusAttrs(attrs)
 
 	bh.setStatusConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess())
+	bh.setBindable()
+
 	return requeueOnSuccess, bh.updateStatus(ctx)
 }
 

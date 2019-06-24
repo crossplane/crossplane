@@ -40,6 +40,7 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/clients/azure/storage"
 	"github.com/crossplaneio/crossplane/pkg/logging"
 	"github.com/crossplaneio/crossplane/pkg/meta"
+	"github.com/crossplaneio/crossplane/pkg/resource"
 )
 
 const (
@@ -265,6 +266,7 @@ func (ccu *containerCreateUpdater) create(ctx context.Context) (reconcile.Result
 	}
 
 	container.Status.SetConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess())
+	resource.SetBindable(container)
 	return reconcile.Result{}, ccu.kube.Status().Update(ctx, ccu.container)
 }
 
@@ -272,16 +274,14 @@ func (ccu *containerCreateUpdater) update(ctx context.Context, accessType *azblo
 	container := ccu.container
 	spec := container.Spec
 
-	if reflect.DeepEqual(*accessType, spec.PublicAccessType) && reflect.DeepEqual(meta, spec.Metadata) {
-		container.Status.SetConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess())
-		return requeueOnSuccess, ccu.kube.Status().Update(ctx, ccu.container)
-	}
-
-	if err := ccu.Update(ctx, spec.PublicAccessType, spec.Metadata); err != nil {
-		container.Status.SetConditions(corev1alpha1.ReconcileError(err))
-		return resultRequeue, ccu.kube.Status().Update(ctx, container)
+	if !reflect.DeepEqual(*accessType, spec.PublicAccessType) || !reflect.DeepEqual(meta, spec.Metadata) {
+		if err := ccu.Update(ctx, spec.PublicAccessType, spec.Metadata); err != nil {
+			container.Status.SetConditions(corev1alpha1.ReconcileError(err))
+			return resultRequeue, ccu.kube.Status().Update(ctx, container)
+		}
 	}
 
 	container.Status.SetConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess())
+	resource.SetBindable(container)
 	return requeueOnSuccess, ccu.kube.Status().Update(ctx, ccu.container)
 }

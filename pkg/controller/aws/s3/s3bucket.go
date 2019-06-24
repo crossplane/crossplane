@@ -189,6 +189,7 @@ func (r *Reconciler) _create(bucket *bucketv1alpha1.S3Bucket, client s3.Service)
 
 	// No longer creating, we're ready!
 	bucket.Status.SetConditions(corev1alpha1.Available())
+	resource.SetBindable(bucket)
 	return result, r.Update(ctx, bucket)
 }
 

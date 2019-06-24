@@ -100,6 +100,10 @@ func withConditions(c ...corev1alpha1.Condition) replicationGroupModifier {
 	return func(r *v1alpha1.ReplicationGroup) { r.Status.ConditionedStatus.Conditions = c }
 }
 
+func withBindingPhase(p corev1alpha1.BindingPhase) replicationGroupModifier {
+	return func(r *v1alpha1.ReplicationGroup) { r.Status.SetBindingPhase(p) }
+}
+
 func withState(s string) replicationGroupModifier {
 	return func(r *v1alpha1.ReplicationGroup) { r.Status.State = s }
 }
@@ -294,12 +298,11 @@ func TestSync(t *testing.T) {
 			}},
 			r: replicationGroup(
 				withGroupName(name),
-				withConditions(corev1alpha1.Available()),
 			),
 			want: replicationGroup(
 				withState(v1alpha1.StatusModifying),
 				withGroupName(name),
-				withConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess()),
+				withConditions(corev1alpha1.ReconcileSuccess()),
 			),
 			wantRequeue: true,
 		},
@@ -346,6 +349,7 @@ func TestSync(t *testing.T) {
 				withState(v1alpha1.StatusAvailable),
 				withGroupName(name),
 				withConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess()),
+				withBindingPhase(corev1alpha1.BindingPhaseUnbound),
 				withPort(port),
 				withEndpoint(host),
 				withMemberClusters([]string{cacheClusterID}),
@@ -400,6 +404,7 @@ func TestSync(t *testing.T) {
 				withState(v1alpha1.StatusAvailable),
 				withGroupName(name),
 				withConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess()),
+				withBindingPhase(corev1alpha1.BindingPhaseUnbound),
 				withPort(port),
 				withEndpoint(host),
 				withMemberClusters([]string{cacheClusterID}),
@@ -454,6 +459,7 @@ func TestSync(t *testing.T) {
 				withState(v1alpha1.StatusAvailable),
 				withGroupName(name),
 				withConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess()),
+				withBindingPhase(corev1alpha1.BindingPhaseUnbound),
 				withPort(port),
 				withEndpoint(host),
 				withMemberClusters([]string{cacheClusterID}),
@@ -512,6 +518,7 @@ func TestSync(t *testing.T) {
 					corev1alpha1.Available(),
 					corev1alpha1.ReconcileError(errors.Wrapf(errorBoom, "cannot describe cache cluster %s", cacheClusterID)),
 				),
+				withBindingPhase(corev1alpha1.BindingPhaseUnbound),
 				withMemberClusters([]string{cacheClusterID}),
 			),
 			wantRequeue: true,
@@ -565,6 +572,7 @@ func TestSync(t *testing.T) {
 				withState(v1alpha1.StatusAvailable),
 				withGroupName(name),
 				withConditions(corev1alpha1.Available(), corev1alpha1.ReconcileError(errorBoom)),
+				withBindingPhase(corev1alpha1.BindingPhaseUnbound),
 				withPort(port),
 				withEndpoint(host),
 				withMemberClusters([]string{cacheClusterID}),

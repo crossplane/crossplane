@@ -292,6 +292,7 @@ func (acu *accountCreateUpdater) create(ctx context.Context) (reconcile.Result, 
 func (acu *accountCreateUpdater) update(ctx context.Context, account *storage.Account) (reconcile.Result, error) {
 	if account.ProvisioningState == storage.Succeeded {
 		acu.acct.Status.SetConditions(corev1alpha1.Available())
+		resource.SetBindable(acu.acct)
 
 		current := v1alpha1.NewStorageAccountSpec(account)
 		if reflect.DeepEqual(current, acu.acct.Spec.StorageAccountSpec) {

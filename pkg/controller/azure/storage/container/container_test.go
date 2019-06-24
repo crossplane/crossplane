@@ -754,6 +754,7 @@ func Test_containerCreateUpdater_create(t *testing.T) {
 				cont: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
 					WithFinalizer(finalizer).
 					WithStatusConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess()).
+					WithStatusBindingPhase(corev1alpha1.BindingPhaseUnbound).
 					Container,
 			},
 		},
@@ -820,6 +821,7 @@ func Test_containerCreateUpdater_update(t *testing.T) {
 				cont: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
 					WithSpecPAC(azblob.PublicAccessContainer).
 					WithStatusConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess()).
+					WithStatusBindingPhase(corev1alpha1.BindingPhaseUnbound).
 					Container,
 			},
 		},
@@ -873,6 +875,7 @@ func Test_containerCreateUpdater_update(t *testing.T) {
 				cont: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
 					WithSpecPAC(azblob.PublicAccessContainer).
 					WithStatusConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess()).
+					WithStatusBindingPhase(corev1alpha1.BindingPhaseUnbound).
 					Container,
 			},
 		},

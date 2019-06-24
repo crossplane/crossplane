@@ -44,6 +44,7 @@ type mockOperations struct {
 	mockSetSpecAttrs        func(*storage.BucketAttrs)
 	mockSetStatusAttrs      func(*storage.BucketAttrs)
 	mockSetStatusConditions func(...corev1alpha1.Condition)
+	mockSetBindable         func()
 
 	mockUpdateObject func(ctx context.Context) error
 	mockUpdateStatus func(ctx context.Context) error
@@ -83,6 +84,10 @@ func (o *mockOperations) setStatusAttrs(attrs *storage.BucketAttrs) {
 
 func (o *mockOperations) setStatusConditions(c ...corev1alpha1.Condition) {
 	o.mockSetStatusConditions(c...)
+}
+
+func (o *mockOperations) setBindable() {
+	o.mockSetBindable()
 }
 
 //

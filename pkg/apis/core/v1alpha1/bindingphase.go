@@ -53,8 +53,15 @@ func (p *BindingPhase) UnmarshalJSON(b []byte) error {
 
 // Binding phases.
 const (
+	// BindingPhaseUnbindable resources cannot be bound to another resource, for
+	// example because they are currently unavailable, or being created.
 	BindingPhaseUnbindable BindingPhase = iota
+
+	// BindingPhaseUnbound resources are available for binding to another
+	// resource.
 	BindingPhaseUnbound
+
+	// BindingPhaseBound resources are bound to another resource.
 	BindingPhaseBound
 )
 

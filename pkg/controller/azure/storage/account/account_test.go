@@ -812,6 +812,7 @@ func Test_bucketCreateUpdater_update(t *testing.T) {
 				acct: v1alpha1test.NewMockAccount(ns, name).
 					WithSpecStorageAccountSpec(newStoragAccountSpecWithProperties()).
 					WithStatusConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess()).
+					WithStatusBindingPhase(corev1alpha1.BindingPhaseUnbound).
 					Account,
 			},
 		},
@@ -837,6 +838,7 @@ func Test_bucketCreateUpdater_update(t *testing.T) {
 				acct: v1alpha1test.NewMockAccount(ns, name).
 					WithSpecStorageAccountSpec(newStoragAccountSpecWithProperties()).
 					WithStatusConditions(corev1alpha1.Available(), corev1alpha1.ReconcileError(errBoom)).
+					WithStatusBindingPhase(corev1alpha1.BindingPhaseUnbound).
 					Account,
 			},
 		},
@@ -865,6 +867,7 @@ func Test_bucketCreateUpdater_update(t *testing.T) {
 				acct: v1alpha1test.NewMockAccount(ns, name).
 					WithSpecStorageAccountSpec(newStoragAccountSpecWithProperties()).
 					WithStatusConditions(corev1alpha1.Available()).
+					WithStatusBindingPhase(corev1alpha1.BindingPhaseUnbound).
 					Account,
 			},
 		},

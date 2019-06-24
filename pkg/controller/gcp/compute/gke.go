@@ -217,6 +217,7 @@ func (r *Reconciler) _sync(instance *gcpcomputev1alpha1.GKECluster, client gke.C
 	instance.Status.Endpoint = cluster.Endpoint
 	instance.Status.State = gcpcomputev1alpha1.ClusterStateRunning
 	instance.Status.SetConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess())
+	resource.SetBindable(instance)
 
 	return reconcile.Result{RequeueAfter: requeueOnSucces},
 		errors.Wrapf(r.Update(ctx, instance), updateErrorMessageFormat, instance.GetName())

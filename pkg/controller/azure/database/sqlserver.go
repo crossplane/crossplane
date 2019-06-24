@@ -119,18 +119,10 @@ func (r *SQLReconciler) handleReconcile(instance azuredbv1alpha1.SQLServer) (rec
 		return r.handleFirewallRuleCreation(sqlServersClient, instance)
 	}
 
-	stateChanged := instance.GetStatus().State != server.State
-	condition := azureclients.SQLServerCondition(server.State)
 	if err := r.updateStatus(instance, azureclients.SQLServerStatusMessage(instance.GetName(), server.State), server); err != nil {
 		// updating the CRD status failed, return the error and try the next reconcile loop
 		log.Error(err, "failed to update status of instance", "instance", instance)
 		return reconcile.Result{}, err
-	}
-
-	if stateChanged {
-		log.V(logging.Debug).Info("SQL server state changed", "instance", instance, "condition", condition)
-		instance.GetStatus().SetConditions(condition)
-		return reconcile.Result{Requeue: true}, r.Update(ctx, instance)
 	}
 
 	if mysql.ServerState(server.State) != mysql.ServerStateReady {
@@ -321,6 +313,10 @@ func (r *SQLReconciler) updateStatus(instance azuredbv1alpha1.SQLServer, message
 		Endpoint:             server.FQDN,
 		RunningOperation:     oldStatus.RunningOperation,
 		RunningOperationType: oldStatus.RunningOperationType,
+	}
+	status.SetConditions(azureclients.SQLServerCondition(server.State))
+	if mysql.ServerState(server.State) == mysql.ServerStateReady {
+		resource.SetBindable(status)
 	}
 	instance.SetStatus(status)
 

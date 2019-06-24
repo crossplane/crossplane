@@ -186,21 +186,10 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 		return r.handleCreation(cloudSQLClient, instance, provider)
 	}
 
-	stateChanged := cloudSQLInstance.State != instance.Status.State
-
 	// cloud sql instance exists, update the CRD status now with its latest status
 	if err := r.updateStatus(instance, gcpclients.CloudSQLStatusMessage(instance.Name, cloudSQLInstance), cloudSQLInstance); err != nil {
 		log.Error(err, "failed to update status of instance", "instance", instance)
 		return reconcile.Result{}, err
-	}
-
-	if stateChanged {
-		// the state of the instance has changed, let's set a corresponding condition on the CRD and then
-		// requeue another reconiliation attempt
-		c := gcpclients.CloudSQLCondition(cloudSQLInstance.State)
-		log.V(logging.Debug).Info("state changed", "instance", instance, "condition", c.Reason)
-		instance.Status.SetConditions(c, corev1alpha1.ReconcileSuccess())
-		return reconcile.Result{Requeue: true}, r.Update(context.TODO(), instance)
 	}
 
 	if cloudSQLInstance.State != databasev1alpha1.StateRunnable {
@@ -385,6 +374,10 @@ func (r *Reconciler) updateStatus(instance *databasev1alpha1.CloudsqlInstance, m
 	instance.Status.State = state
 	instance.Status.ProviderID = providerID
 	instance.Status.Endpoint = endpoint
+	instance.Status.SetConditions(gcpclients.CloudSQLCondition(cloudSQLInstance.State))
+	if cloudSQLInstance.State == databasev1alpha1.StateRunnable {
+		resource.SetBindable(instance)
+	}
 
 	if err := r.Update(context.TODO(), instance); err != nil {
 		return fmt.Errorf("failed to update status of CRD instance %s: %+v", instance.Name, err)

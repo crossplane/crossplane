@@ -93,6 +93,10 @@ func withConditions(c ...corev1alpha1.Condition) instanceModifier {
 	return func(i *v1alpha1.CloudMemorystoreInstance) { i.Status.SetConditions(c...) }
 }
 
+func withBindingPhase(p corev1alpha1.BindingPhase) instanceModifier {
+	return func(i *v1alpha1.CloudMemorystoreInstance) { i.Status.SetBindingPhase(p) }
+}
+
 func withState(s string) instanceModifier {
 	return func(i *v1alpha1.CloudMemorystoreInstance) { i.Status.State = s }
 }
@@ -302,6 +306,7 @@ func TestSync(t *testing.T) {
 				withEndpoint(host),
 				withPort(port),
 				withConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess()),
+				withBindingPhase(corev1alpha1.BindingPhaseUnbound),
 			),
 			wantRequeue: false,
 		},
@@ -338,6 +343,7 @@ func TestSync(t *testing.T) {
 				withEndpoint(host),
 				withPort(port),
 				withConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess()),
+				withBindingPhase(corev1alpha1.BindingPhaseUnbound),
 			),
 			wantRequeue: false,
 		},
@@ -382,6 +388,7 @@ func TestSync(t *testing.T) {
 				withEndpoint(host),
 				withPort(port),
 				withConditions(corev1alpha1.Available(), corev1alpha1.ReconcileError(errorBoom)),
+				withBindingPhase(corev1alpha1.BindingPhaseUnbound),
 			),
 			wantRequeue: true,
 		},

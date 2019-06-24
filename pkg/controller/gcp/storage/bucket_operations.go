@@ -42,6 +42,7 @@ type operations interface {
 	setSpecAttrs(*storage.BucketAttrs)
 	setStatusAttrs(*storage.BucketAttrs)
 	setStatusConditions(c ...corev1alpha1.Condition)
+	setBindable()
 
 	// Controller-runtime operations
 	updateObject(ctx context.Context) error
@@ -100,6 +101,10 @@ func (bh *bucketHandler) setStatusAttrs(attrs *storage.BucketAttrs) {
 
 func (bh *bucketHandler) setStatusConditions(c ...corev1alpha1.Condition) {
 	bh.Status.SetConditions(c...)
+}
+
+func (bh *bucketHandler) setBindable() {
+	resource.SetBindable(bh)
 }
 
 //

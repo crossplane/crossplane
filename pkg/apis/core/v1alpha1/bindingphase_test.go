@@ -34,6 +34,11 @@ func TestBindingPhaseMarshalJSON(t *testing.T) {
 		want []byte
 	}{
 		{
+			name: BindingPhaseUnbindable.String(),
+			s:    BindingPhaseUnbindable,
+			want: []byte(jsonQuote + BindingPhaseUnbindable.String() + jsonQuote),
+		},
+		{
 			name: BindingPhaseUnbound.String(),
 			s:    BindingPhaseUnbound,
 			want: []byte(jsonQuote + BindingPhaseUnbound.String() + jsonQuote),
@@ -64,6 +69,11 @@ func TestBindingPhaseUnmarshalJSON(t *testing.T) {
 		want    BindingPhase
 		wantErr error
 	}{
+		{
+			name: BindingPhaseUnbindable.String(),
+			s:    []byte(jsonQuote + BindingPhaseUnbindable.String() + jsonQuote),
+			want: BindingPhaseUnbindable,
+		},
 		{
 			name: BindingPhaseUnbound.String(),
 			s:    []byte(jsonQuote + BindingPhaseUnbound.String() + jsonQuote),

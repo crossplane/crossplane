@@ -197,6 +197,7 @@ func (r *Reconciler) _sync(instance *databasev1alpha1.RDSInstance, client rds.Cl
 		return result, r.Update(ctx, instance)
 	case string(databasev1alpha1.RDSInstanceStateAvailable):
 		instance.Status.SetConditions(corev1alpha1.Available())
+		resource.SetBindable(instance)
 	default:
 		return r.fail(instance, errors.Errorf("unexpected resource status: %s", db.Status))
 	}

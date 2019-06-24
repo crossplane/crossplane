@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
+	"github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/meta"
 )
 
@@ -104,4 +105,13 @@ func ResolveClassClaimValues(classValue, claimValue string) (string, error) {
 		return "", errors.Errorf("claim value [%s] does not match class value [%s]", claimValue, classValue)
 	}
 	return claimValue, nil
+}
+
+// SetBindable indicates that the supplied Bindable is ready for binding to
+// another Bindable, such as a resource claim or managed resource.
+func SetBindable(b Bindable) {
+	if b.GetBindingPhase() == v1alpha1.BindingPhaseBound {
+		return
+	}
+	b.SetBindingPhase(v1alpha1.BindingPhaseUnbound)
 }

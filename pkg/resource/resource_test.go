@@ -27,7 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/crossplaneio/crossplane/pkg/apis/cache/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
@@ -112,14 +112,10 @@ func TestMustCreateObject(t *testing.T) {
 	}{
 		"KindRegistered": {
 			args: args{
-				kind: v1alpha1.RedisClusterGroupVersionKind,
-				oc: func() *runtime.Scheme {
-					s := runtime.NewScheme()
-					s.AddKnownTypeWithName(v1alpha1.RedisClusterGroupVersionKind, &v1alpha1.RedisCluster{})
-					return s
-				}(),
+				kind: MockGVK(&MockClaim{}),
+				oc:   MockSchemeWith(&MockClaim{}),
 			},
-			want: &v1alpha1.RedisCluster{},
+			want: &MockClaim{},
 		},
 	}
 
@@ -213,6 +209,35 @@ func TestResolveClassClaimValues(t *testing.T) {
 				t.Errorf("ResolveClassClaimValues(...): -want, +got:\n%s", diff)
 			}
 
+		})
+	}
+}
+
+func TestSetBindable(t *testing.T) {
+	cases := map[string]struct {
+		b    Bindable
+		want v1alpha1.BindingPhase
+	}{
+		"BindableIsUnbindable": {
+			b:    &MockClaim{MockBindable: MockBindable{Phase: v1alpha1.BindingPhaseUnbindable}},
+			want: v1alpha1.BindingPhaseUnbound,
+		},
+		"BindableIsUnbound": {
+			b:    &MockClaim{MockBindable: MockBindable{Phase: v1alpha1.BindingPhaseUnbound}},
+			want: v1alpha1.BindingPhaseUnbound,
+		},
+		"BindableIsBound": {
+			b:    &MockClaim{MockBindable: MockBindable{Phase: v1alpha1.BindingPhaseBound}},
+			want: v1alpha1.BindingPhaseBound,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			SetBindable(tc.b)
+			if diff := cmp.Diff(tc.want, tc.b.GetBindingPhase()); diff != "" {
+				t.Errorf("SetBindable(...): -got, +want:\n%s", diff)
+			}
 		})
 	}
 }
