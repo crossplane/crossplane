@@ -36,7 +36,7 @@ type ProviderSpec struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // Provider is the Schema for the instances API
-// +kubebuilder:printcolumn:name="CREDENTIAL",type="string",JSONPath=".spec.credentialsSecretRef.name",priority="1"
+// +kubebuilder:printcolumn:name="SECRET-NAME",type="string",JSONPath=".spec.credentialsSecretRef.name",priority="1"
 type Provider struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

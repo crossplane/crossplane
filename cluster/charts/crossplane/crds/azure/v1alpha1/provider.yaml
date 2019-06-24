@@ -8,7 +8,7 @@ metadata:
 spec:
   additionalPrinterColumns:
   - JSONPath: .spec.credentialsSecretRef.name
-    name: CREDENTIAL
+    name: SECRET-NAME
     priority: 1
     type: string
   group: azure.crossplane.io

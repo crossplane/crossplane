@@ -39,7 +39,7 @@ type ProviderSpec struct {
 // Provider is the Schema for the instances API
 // +kubebuilder:printcolumn:name="REGION",type="string",JSONPath=".spec.region"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
-// +kubebuilder:printcolumn:name="CREDENTIAL",type="string",JSONPath=".spec.credentialsSecretRef.name",priority="1"
+// +kubebuilder:printcolumn:name="SECRET-NAME",type="string",JSONPath=".spec.credentialsSecretRef.name",priority="1"
 type Provider struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

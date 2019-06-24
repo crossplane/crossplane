@@ -14,7 +14,7 @@ spec:
     name: AGE
     type: date
   - JSONPath: .spec.credentialsSecretRef.name
-    name: CREDENTIAL
+    name: SECRET-NAME
     priority: 1
     type: string
   group: gcp.crossplane.io
