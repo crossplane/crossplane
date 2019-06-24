@@ -29,9 +29,14 @@ func init() {
 	// AddToManagerFuncs is a list of functions to create controllers and add them to a manager.
 	AddToManagerFuncs = append(AddToManagerFuncs,
 		cache.Add,
+		cache.AddClaim,
 		compute.Add,
+		compute.AddClaim,
 		database.Add,
+		database.AddPostgreSQLClaim,
+		database.AddMySQLClaim,
 		storage.Add,
+		storage.AddClaim,
 	)
 }
 
