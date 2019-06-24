@@ -137,7 +137,11 @@ func (in *ResourceClass) DeepCopyInto(out *ResourceClass) {
 			(*out)[key] = val
 		}
 	}
-	out.ProviderRef = in.ProviderRef
+	if in.ProviderReference != nil {
+		in, out := &in.ProviderReference, &out.ProviderReference
+		*out = new(v1.ObjectReference)
+		**out = **in
+	}
 	return
 }
 

@@ -63,9 +63,9 @@ type ResourceClass struct {
 	// This value may not be empty.
 	Provisioner string `json:"provisioner"`
 
-	// ProvierRef is the reference to cloud provider that will be used
-	// to provision the concrete cloud resource
-	ProviderRef corev1.LocalObjectReference `json:"providerRef"`
+	// ProviderReference is a reference to the cloud provider that will be used
+	// to provision the concrete cloud resource.
+	ProviderReference *corev1.ObjectReference `json:"providerReference"`
 
 	// reclaimPolicy is the reclaim policy that dynamically provisioned
 	// ResourceInstances of this resource class are created with
