@@ -69,7 +69,7 @@ func AddClaim(mgr manager.Manager) error {
 // ConfigureReplicationGroup configures the supplied resource (presumed
 // to be a ReplicationGroup) using the supplied resource claim (presumed
 // to be a RedisCluster) and resource class.
-func ConfigureReplicationGroup(ctx context.Context, cm resource.Claim, cs *corev1alpha1.ResourceClass, mg resource.Managed) error {
+func ConfigureReplicationGroup(_ context.Context, cm resource.Claim, cs *corev1alpha1.ResourceClass, mg resource.Managed) error {
 	rc, cmok := cm.(*cachev1alpha1.RedisCluster)
 	if !cmok {
 		return errors.Errorf("expected resource claim %s to be %s", cm.GetName(), cachev1alpha1.RedisClusterGroupVersionKind)

@@ -69,7 +69,7 @@ func AddClaim(mgr manager.Manager) error {
 // ConfigureRedis configures the supplied resource (presumed
 // to be a Redis) using the supplied resource claim (presumed
 // to be a RedisCluster) and resource class.
-func ConfigureRedis(ctx context.Context, cm resource.Claim, cs *corev1alpha1.ResourceClass, mg resource.Managed) error {
+func ConfigureRedis(_ context.Context, cm resource.Claim, cs *corev1alpha1.ResourceClass, mg resource.Managed) error {
 	rc, cmok := cm.(*cachev1alpha1.RedisCluster)
 	if !cmok {
 		return errors.Errorf("expected resource claim %s to be %s", cm.GetName(), cachev1alpha1.RedisClusterGroupVersionKind)

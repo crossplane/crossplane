@@ -69,7 +69,7 @@ func AddPostgreSQLClaim(mgr manager.Manager) error {
 // ConfigurePostgreCloudsqlInstance configures the supplied resource (presumed
 // to be a CloudsqlInstance) using the supplied resource claim (presumed to be a
 // PostgreSQLInstance) and resource class.
-func ConfigurePostgreCloudsqlInstance(ctx context.Context, cm resource.Claim, cs *corev1alpha1.ResourceClass, mg resource.Managed) error {
+func ConfigurePostgreCloudsqlInstance(_ context.Context, cm resource.Claim, cs *corev1alpha1.ResourceClass, mg resource.Managed) error {
 	pg, cmok := cm.(*storagev1alpha1.PostgreSQLInstance)
 	if !cmok {
 		return errors.Errorf("expected resource claim %s to be %s", cm.GetName(), storagev1alpha1.PostgreSQLInstanceGroupVersionKind)
@@ -132,7 +132,7 @@ func AddMySQLClaim(mgr manager.Manager) error {
 // ConfigureMyCloudsqlInstance configures the supplied resource (presumed to be
 // a CloudsqlInstance) using the supplied resource claim (presumed to be a
 // MySQLInstance) and resource class.
-func ConfigureMyCloudsqlInstance(ctx context.Context, cm resource.Claim, cs *corev1alpha1.ResourceClass, mg resource.Managed) error {
+func ConfigureMyCloudsqlInstance(_ context.Context, cm resource.Claim, cs *corev1alpha1.ResourceClass, mg resource.Managed) error {
 	my, cmok := cm.(*storagev1alpha1.MySQLInstance)
 	if !cmok {
 		return errors.Errorf("expected resource claim %s to be %s", cm.GetName(), storagev1alpha1.MySQLInstanceGroupVersionKind)

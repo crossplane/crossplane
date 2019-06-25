@@ -69,7 +69,7 @@ func AddClaim(mgr manager.Manager) error {
 // ConfigureAKSCluster configures the supplied resource (presumed to be a
 // AKSCluster) using the supplied resource claim (presumed to be a
 // KubernetesCluster) and resource class.
-func ConfigureAKSCluster(ctx context.Context, cm resource.Claim, cs *corev1alpha1.ResourceClass, mg resource.Managed) error {
+func ConfigureAKSCluster(_ context.Context, cm resource.Claim, cs *corev1alpha1.ResourceClass, mg resource.Managed) error {
 	if _, cmok := cm.(*computev1alpha1.KubernetesCluster); !cmok {
 		return errors.Errorf("expected resource claim %s to be %s", cm.GetName(), computev1alpha1.KubernetesClusterGroupVersionKind)
 	}

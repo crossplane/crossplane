@@ -69,7 +69,7 @@ func AddClaim(mgr manager.Manager) error {
 
 // ConfigureContainer configures the supplied resource (presumed to be an Container)
 // using the supplied resource claim (presumed to be a Bucket) and resource class.
-func ConfigureContainer(ctx context.Context, cm resource.Claim, cs *corev1alpha1.ResourceClass, mg resource.Managed) error {
+func ConfigureContainer(_ context.Context, cm resource.Claim, cs *corev1alpha1.ResourceClass, mg resource.Managed) error {
 	if _, cmok := cm.(*storagev1alpha1.Bucket); !cmok {
 		return errors.Errorf("expected resource claim %s to be %s", cm.GetName(), storagev1alpha1.BucketGroupVersionKind)
 	}
