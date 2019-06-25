@@ -1,0 +1,18 @@
+---
+apiVersion: core.crossplane.io/v1alpha1
+kind: ResourceClass
+metadata:
+  name: replicationgroup
+  namespace: crossplane-system
+parameters:
+  engineVersion: "3.2.4"
+  cacheParameterGroup: default.redis3.2.cluster.on
+  cacheNodeType: cache.t2.micro
+  automaticFailoverEnabled: "true"
+  numNodeGroups: "2"
+  replicasPerNodeGroup: "2"
+provisioner: replicationgroup.cache.aws.crossplane.io/v1alpha1
+providerReference:
+  name: example
+  namespace: crossplane-system
+reclaimPolicy: Delete

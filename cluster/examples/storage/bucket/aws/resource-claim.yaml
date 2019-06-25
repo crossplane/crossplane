@@ -1,0 +1,13 @@
+apiVersion: storage.crossplane.io/v1alpha1
+kind: Bucket
+metadata:
+  name: s3bucket
+spec:
+  name: crossplane-example-%s
+  predefinedACL: Private
+  localPermission: ReadWrite
+  classReference:
+    name: s3bucket
+    namespace: crossplane-system
+  writeConnectionSecretTo:
+    name: s3bucket

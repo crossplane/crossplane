@@ -1,0 +1,11 @@
+---
+apiVersion: compute.crossplane.io/v1alpha1
+kind: KubernetesCluster
+metadata:
+  name: ekscluster
+spec:
+  classReference:
+    name: ekscluster
+    namespace: crossplane-system
+  writeConnectionSecretTo:
+    name: ekscluster

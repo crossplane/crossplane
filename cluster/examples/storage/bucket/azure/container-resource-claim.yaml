@@ -1,0 +1,9 @@
+---
+apiVersion: storage.crossplane.io/v1alpha1
+kind: Bucket
+metadata:
+  name: storagecontainer
+spec:
+  classReference:
+    name: storagecontainer
+    namespace: crossplane-system

@@ -1,9 +1,0 @@
-apiVersion: compute.crossplane.io/v1alpha1
-kind: KubernetesCluster
-metadata:
-  name: demo-cluster
-spec:
-  classReference:
-    name: standard-cluster
-    namespace: crossplane-system
-  clusterVersion: "1.12"

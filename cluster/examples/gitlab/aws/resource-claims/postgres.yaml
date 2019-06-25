@@ -7,4 +7,6 @@ spec:
   classReference:
     name: standard-aws-postgres
     namespace: crossplane-system
+  writeConnectionSecretTo:
+    name: gitlab-postgresql
   engineVersion: "9.6"

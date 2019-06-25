@@ -1,0 +1,12 @@
+# Example GCP Bucket resource claim using the gcp-bucket resource class
+apiVersion: storage.crossplane.io/v1alpha1
+kind: Bucket
+metadata:
+  name: gcsbucket
+spec:
+  classReference:
+    name: gcsbucket
+    namespace: crossplane-system
+  writeConnectionSecretTo:
+    name: gcsbucket
+  name: example-bucket-%s

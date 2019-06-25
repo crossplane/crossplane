@@ -1,0 +1,12 @@
+# Example RedisCluster resource claim using the cloud-rediscluster resource class
+apiVersion: cache.crossplane.io/v1alpha1
+kind: RedisCluster
+metadata:
+  name: cloudmemorystoreinstance
+spec:
+  classReference:
+    name: cloudmemorystoreinstance
+    namespace: crossplane-system
+  writeConnectionSecretTo:
+    name: cloudmemorystoreinstance
+  engineVersion: "3.2"

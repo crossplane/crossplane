@@ -1,0 +1,12 @@
+# Example PostgreSQL resource claim using the cloud-postgresql resource class
+apiVersion: storage.crossplane.io/v1alpha1
+kind: PostgreSQLInstance
+metadata:
+  name: cloudsqlinstancepostgresql
+spec:
+  classReference:
+    name: cloudsqlinstancepostgresql
+    namespace: crossplane-system
+  writeConnectionSecretTo:
+    name: cloudsqlinstancepostgres
+  engineVersion: "9.6"

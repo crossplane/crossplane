@@ -8,4 +8,6 @@ spec:
   classReference:
     name: standard-aws-bucket
     namespace: crossplane-system
+  writeConnectionSecretTo:
+    name: gitlab-externaldiffs
   name: gitlab-demo-externaldiffs-%s

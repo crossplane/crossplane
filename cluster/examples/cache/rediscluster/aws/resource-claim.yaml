@@ -1,0 +1,12 @@
+---
+apiVersion: cache.crossplane.io/v1alpha1
+kind: RedisCluster
+metadata:
+  name: replicationgroup
+spec:
+  classReference:
+    name: replicationgroup
+    namespace: crossplane-system
+  writeConnectionSecretTo:
+    name: replicationgroup
+  engineVersion: "3.2"

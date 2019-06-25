@@ -1,0 +1,12 @@
+---
+apiVersion: compute.crossplane.io/v1alpha1
+kind: KubernetesCluster
+metadata:
+  name: akscluster
+spec:
+  classReference:
+    name: akscluster
+    namespace: crossplane-system
+  clusterVersion: "1.12"
+  writeConnectionSecretTo:
+    name: akscluster

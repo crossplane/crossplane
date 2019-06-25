@@ -39,6 +39,7 @@ parameters:
   backupRetentionDays: "7"
   geoRedundantBackup: "false"
 provisioner: mysqlserver.database.azure.crossplane.io/v1alpha1
-providerRef:
+providerReference:
   name: azure-sql-provider
+  namespace: crossplane-system
 reclaimPolicy: Delete

@@ -1,0 +1,13 @@
+---
+apiVersion: core.crossplane.io/v1alpha1
+kind: ResourceClass
+metadata:
+  name: storagecontainer
+  namespace: crossplane-system
+parameters: {}
+# Azure containers read their credentials from an account. We reuse the
+# providerReference class field to specify which account to read.
+providerReference:
+  name: storageaccount
+provisioner: container.storage.azure.crossplane.io/v1alpha1
+reclaimPolicy: Delete

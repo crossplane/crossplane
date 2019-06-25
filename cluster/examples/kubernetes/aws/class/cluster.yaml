@@ -1,8 +1,0 @@
-apiVersion: compute.crossplane.io/v1alpha1
-kind: KubernetesCluster
-metadata:
-  name: demo-cluster
-spec:
-  classReference:
-    name: standard-eks-cluster
-    namespace: crossplane-system

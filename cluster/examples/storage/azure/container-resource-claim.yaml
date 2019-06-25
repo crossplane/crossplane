@@ -1,9 +1,0 @@
-# Example StorageContainer resource claim using the storage-container resource class
-apiVersion: storage.crossplane.io/v1alpha1
-kind: Bucket
-metadata:
-  name: demo-azure-container
-spec:
-  classReference:
-    name: standard-azure-container
-    namespace: crossplane-system

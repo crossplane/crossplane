@@ -29,6 +29,7 @@ parameters:
   securityGroups: "sg-ab1cdefg,sg-05adsfkaj1ksdjak"
   size: "20"
 provisioner: rdsinstance.database.aws.crossplane.io/v1alpha1
-providerRef:
+providerReference:
   name: aws-provider
+  namespace: crossplane-system
 reclaimPolicy: Delete

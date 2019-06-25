@@ -11,6 +11,7 @@ parameters:
   tier: BASIC
   memorySizeGb: "1"
 provisioner: cloudmemorystoreinstance.cache.gcp.crossplane.io/v1alpha1
-providerRef:
+providerReference:
   name: demo-gcp
+  namespace: crossplane-system
 reclaimPolicy: Delete

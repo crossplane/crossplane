@@ -1,0 +1,13 @@
+---
+apiVersion: compute.crossplane.io/v1alpha1
+kind: KubernetesCluster
+metadata:
+  name: gkecluster
+  labels:
+    app: wordpress-demo
+spec:
+  classReference:
+    name: gkecluster
+    namespace: crossplane-system
+  writeConnectionSecretTo:
+    name: gkecluster

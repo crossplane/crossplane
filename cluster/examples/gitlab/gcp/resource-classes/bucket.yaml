@@ -14,6 +14,7 @@ parameters:
   serviceAccountSecretRef: demo-gcs-creds
   storageClass: MULTI_REGIONAL
 provisioner: bucket.storage.gcp.crossplane.io/v1alpha1
-providerRef:
+providerReference:
   name: demo-gcp
+  namespace: crossplane-system
 reclaimPolicy: Delete

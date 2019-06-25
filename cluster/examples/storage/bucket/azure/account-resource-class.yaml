@@ -1,0 +1,26 @@
+# ResourceClass that defines the blueprint for how a "standard" Azure storage
+# account should be dynamically provisioned
+apiVersion: core.crossplane.io/v1alpha1
+kind: ResourceClass
+metadata:
+  name: storageaccount
+  namespace: crossplane-system
+parameters:
+  resourceGroupName: group-westus-1
+  storageAccountSpec: >
+    {
+      "kind":"Storage",
+      "location":"West US",
+      "sku":{
+        "name":"Standard_LRS",
+        "tier":"Standard"
+      },
+      "tags":{
+        "application":"crossplane"
+      }
+    }
+provisioner: account.storage.azure.crossplane.io/v1alpha1
+providerReference:
+  name: example
+  namespace: crossplane-system
+reclaimPolicy: Delete

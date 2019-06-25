@@ -1,0 +1,19 @@
+---
+apiVersion: core.crossplane.io/v1alpha1
+kind: ResourceClass
+metadata:
+  name: akscluster
+  namespace: crossplane-system
+parameters:
+  resourceGroupName: group-westus-1
+  location: West US 2
+  version: "1.12.8"
+  nodeCount: "1"
+  nodeVMSize: Standard_B2s
+  dnsNamePrefix: crossplane-aks
+  disableRBAC: "false"
+provisioner: akscluster.compute.azure.crossplane.io/v1alpha1
+providerReference:
+  name: example
+  namespace: crossplane-system
+reclaimPolicy: Delete

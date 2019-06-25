@@ -6,8 +6,9 @@ spec:
   name: wordpress-demo-e401ddfa-4729-4b72-bcef-94922203b547
   predefinedACL: private
   versioning: false
-  providerRef:
+  providerReference:
     name: demo-aws-provider
+    namespace: crossplane-system
 ---
 apiVersion: database.aws.crossplane.io/v1alpha1
 kind: RDSInstance
@@ -19,8 +20,9 @@ spec:
     name: demo-database-connection
   engine: mysql
   masterUsername: masteruser
-  providerRef:
+  providerReference:
     name: demo-aws-provider
+    namespace: crossplane-system
   securityGroups:
 #  - vpc-default-sg - default security group for your VPC
 #  - vpc-rds-sg - security group to allow RDS connection
