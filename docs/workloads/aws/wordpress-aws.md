@@ -195,8 +195,8 @@ kubectl -n crossplane-system get rdsinstance
 Once the `STATUS` column is `available` as seen below, the WordPress pod should be able to connect to it:
 
 ```console
-NAME                                         STATUS   STATE      CLASS            VERSION   AGE
-mysql-dd26a14e-969e-11e9-8b05-080027550c17            creating   standard-mysql   5.7       1m
+NAME                                         STATUS   STATE       CLASS            VERSION   AGE
+mysql-3f902b48-974f-11e9-8b05-080027550c17   Bound    available   standard-mysql   5.7       15m
 ```
 
 As an administrator, we can examine the cluster directly.
@@ -204,22 +204,19 @@ As an administrator, we can examine the cluster directly.
 ```console
 $ CLUSTER=eks-$(kubectl get kubernetesclusters.compute.crossplane.io -n complex -o=jsonpath='{.items[0].spec.resourceName.uid}')
 $ KUBECONFIG=/tmp/$CLUSTER aws eks update-kubeconfig --name=$CLUSTER --region=$REGION
-$ KUBECONFIG=/tmp/$CLUSTER kubectl get pods,services,deployments -A
-NAMESPACE     NAME                             READY   STATUS                       RESTARTS   AGE
-kube-system   pod/aws-node-d2sv2               1/1     Running                      0          58m
-kube-system   pod/coredns-7b5c8bfcfc-8cknr     1/1     Running                      0          85m
-kube-system   pod/coredns-7b5c8bfcfc-nsckc     1/1     Running                      0          85m
-kube-system   pod/kube-proxy-bxrkh             1/1     Running                      0          58m
-wordpress     pod/wordpress-8545774bcf-ppr4l   0/1     CreateContainerConfigError   0          44m
+$ KUBECONFIG=/tmp/$CLUSTER kubectl get all -lapp=wordpress -A
+NAMESPACE   NAME                             READY   STATUS    RESTARTS   AGE
+wordpress   pod/wordpress-8545774bcf-8xj8j   1/1     Running   0          13m
 
-NAMESPACE     NAME                 TYPE           CLUSTER-IP       EXTERNAL-IP                                                               PORT(S)         AGE
-default       service/kubernetes   ClusterIP      10.100.0.1       <none>                                                                    443/TCP         85m
-kube-system   service/kube-dns     ClusterIP      10.100.0.10      <none>                                                                    53/UDP,53/TCP   85m
-wordpress     service/wordpress    LoadBalancer   10.100.122.109   ae429ee31969e11e9b7eb06064878ead-1157393490.eu-west-1.elb.amazonaws.com   80:30297/TCP    44m
+NAMESPACE   NAME                TYPE           CLUSTER-IP      EXTERNAL-IP                                                               PORT(S)        AGE
+wordpress   service/wordpress   LoadBalancer   10.100.201.94   a4631fbfa974f11e9932a060b5ad3abc-1542130681.eu-west-1.elb.amazonaws.com   80:31832/TCP   13m
 
-NAMESPACE     NAME                              DESIRED   CURRENT   UP-TO-DATE   AVAILABLE   AGE
-kube-system   deployment.extensions/coredns     2         2         2            2           85m
-wordpress     deployment.extensions/wordpress   1         1         1            0           44m
+NAMESPACE   NAME                        DESIRED   CURRENT   UP-TO-DATE   AVAILABLE   AGE
+wordpress   deployment.apps/wordpress   1         1         1            1           13m
+
+NAMESPACE   NAME                                   DESIRED   CURRENT   READY   AGE
+wordpress   replicaset.apps/wordpress-8545774bcf   1         1         1       13m
+$ rm /tmp/$CLUSTER
 ```
 
 Continuing as the application developer, we can watch the WordPress pod come online and a public IP address will get assigned to it:
@@ -232,13 +229,15 @@ When a public IP address has been assigned, you'll see output similar to the fol
 
 ```console
 NAME                                                          CLUSTER                  STATUS               DESIRED   SUBMITTED
-kubernetesapplication.workload.crossplane.io/wordpress-demo   wordpress-demo-cluster   PartiallySubmitted   3         1
+kubernetesapplication.workload.crossplane.io/wordpress-demo   wordpress-demo-cluster   PartiallySubmitted   3         2
 
 NAME                                                                             TEMPLATE-KIND   TEMPLATE-NAME   CLUSTER                  STATUS
-kubernetesapplicationresource.workload.crossplane.io/wordpress-demo-deployment   Deployment      wordpress       wordpress-demo-cluster   Failed
+kubernetesapplicationresource.workload.crossplane.io/wordpress-demo-deployment   Deployment      wordpress       wordpress-demo-cluster   Submitted
 kubernetesapplicationresource.workload.crossplane.io/wordpress-demo-namespace    Namespace       wordpress       wordpress-demo-cluster   Submitted
 kubernetesapplicationresource.workload.crossplane.io/wordpress-demo-service      Service         wordpress       wordpress-demo-cluster   Failed
 ```
+
+*Note* A Failed status on the Service may be attributable to issues [#428](https://github.com/crossplaneio/crossplane/issues/428) and [504](https://github.com/crossplaneio/crossplane/issues/504). The service should be running despite this status.
 
 Once WordPress is running and has a public IP address through its service, we can get the URL with the following command:
 
