@@ -97,7 +97,7 @@ postgresql-3ef70bf9-0667-11e9-99e1-080027cf2340   Bound     Ready     cloud-post
 
 Note that both the general `postgresqlinstance` `ResourceClaim` and the cloud provider specific PostgreSQL database have the `Bound` status, meaning the dynamic provisioning is done and the resource is ready for consumption.
 
-The connection information will be stored in a secret with the same name as the `ResourceClaim`.
+The connection information will be stored in a secret specified via the `writeConnectionSecretTo` field.
 Since the secret is base64 encoded, we'll need to decode its fields to view them in plain-text.
 To view all the connection information in plain-text, run the following command:
 

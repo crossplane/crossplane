@@ -55,7 +55,7 @@ For the next steps, make sure your `kubectl` context points to the cluster where
 * Verify that Resource Classes have been created
 
   ```bash
-  kubectl -n crossplane-system get resourceclass -o custom-columns=NAME:metadata.name,PROVISIONER:.provisioner,PROVIDER:.providerRef.name,RECLAIM-POLICY:.reclaimPolicy
+  kubectl -n crossplane-system get resourceclass -o custom-columns=NAME:metadata.name,PROVISIONER:.provisioner,PROVIDER:.providerReference.name,RECLAIM-POLICY:.reclaimPolicy
   ```
 
   Your output should be:
