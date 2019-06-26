@@ -16,7 +16,7 @@ metadata:
   labels:
   name: crossplane-wordpress-cloudsql
 spec:
-  providerReference:
+  providerRef:
     name: gcp-sql-provider
     namespace: crossplane-system
   tier: db-n1-standard-1
@@ -24,7 +24,7 @@ spec:
   databaseVersion: MYSQL_5_7
   storageType: PD_SSD
   storageGB: 10
-  writeConnectionSecretTo:
+  writeConnectionSecretToRef:
     name: demo-database-connection
 ---
 apiVersion: extensions/v1beta1

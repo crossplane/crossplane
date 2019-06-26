@@ -36,7 +36,7 @@ type MySQLInstanceSpec struct {
 
 // MySQLInstance is the CRD type for abstract MySQL database instances
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.bindingPhase"
-// +kubebuilder:printcolumn:name="CLASS",type="string",JSONPath=".spec.classReference.name"
+// +kubebuilder:printcolumn:name="CLASS",type="string",JSONPath=".spec.classRef.name"
 // +kubebuilder:printcolumn:name="VERSION",type="string",JSONPath=".spec.engineVersion"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:subresource:status
@@ -83,14 +83,14 @@ func (i *MySQLInstance) GetResourceReference() *corev1.ObjectReference {
 	return i.Spec.ResourceReference
 }
 
-// SetWriteConnectionSecretTo of this MySQLInstance.
-func (i *MySQLInstance) SetWriteConnectionSecretTo(r corev1.LocalObjectReference) {
-	i.Spec.WriteConnectionSecretTo = r
+// SetWriteConnectionSecretToReference of this MySQLInstance.
+func (i *MySQLInstance) SetWriteConnectionSecretToReference(r corev1.LocalObjectReference) {
+	i.Spec.WriteConnectionSecretToReference = r
 }
 
-// GetWriteConnectionSecretTo of this MySQLInstance.
-func (i *MySQLInstance) GetWriteConnectionSecretTo() corev1.LocalObjectReference {
-	return i.Spec.WriteConnectionSecretTo
+// GetWriteConnectionSecretToReference of this MySQLInstance.
+func (i *MySQLInstance) GetWriteConnectionSecretToReference() corev1.LocalObjectReference {
+	return i.Spec.WriteConnectionSecretToReference
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -116,7 +116,7 @@ type PostgreSQLInstanceSpec struct {
 
 // PostgreSQLInstance is the CRD type for abstract PostgreSQL database instances
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.bindingPhase"
-// +kubebuilder:printcolumn:name="CLASS",type="string",JSONPath=".spec.classReference.name"
+// +kubebuilder:printcolumn:name="CLASS",type="string",JSONPath=".spec.classRef.name"
 // +kubebuilder:printcolumn:name="VERSION",type="string",JSONPath=".spec.engineVersion"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:subresource:status
@@ -163,14 +163,14 @@ func (i *PostgreSQLInstance) GetResourceReference() *corev1.ObjectReference {
 	return i.Spec.ResourceReference
 }
 
-// SetWriteConnectionSecretTo of this PostgreSQLInstance.
-func (i *PostgreSQLInstance) SetWriteConnectionSecretTo(r corev1.LocalObjectReference) {
-	i.Spec.WriteConnectionSecretTo = r
+// SetWriteConnectionSecretToReference of this PostgreSQLInstance.
+func (i *PostgreSQLInstance) SetWriteConnectionSecretToReference(r corev1.LocalObjectReference) {
+	i.Spec.WriteConnectionSecretToReference = r
 }
 
-// GetWriteConnectionSecretTo of this PostgreSQLInstance.
-func (i *PostgreSQLInstance) GetWriteConnectionSecretTo() corev1.LocalObjectReference {
-	return i.Spec.WriteConnectionSecretTo
+// GetWriteConnectionSecretToReference of this PostgreSQLInstance.
+func (i *PostgreSQLInstance) GetWriteConnectionSecretToReference() corev1.LocalObjectReference {
+	return i.Spec.WriteConnectionSecretToReference
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -229,7 +229,7 @@ type BucketSpec struct {
 
 // Bucket is the Schema for the Bucket API
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.bindingPhase"
-// +kubebuilder:printcolumn:name="CLASS",type="string",JSONPath=".spec.classReference.name"
+// +kubebuilder:printcolumn:name="CLASS",type="string",JSONPath=".spec.classRef.name"
 // +kubebuilder:printcolumn:name="PREDEFINED-ACL",type="string",JSONPath=".spec.predefinedACL"
 // +kubebuilder:printcolumn:name="LOCAL-PERMISSION",type="string",JSONPath=".spec.localPermission"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
@@ -277,14 +277,14 @@ func (b *Bucket) GetResourceReference() *corev1.ObjectReference {
 	return b.Spec.ResourceReference
 }
 
-// SetWriteConnectionSecretTo of this Bucket.
-func (b *Bucket) SetWriteConnectionSecretTo(r corev1.LocalObjectReference) {
-	b.Spec.WriteConnectionSecretTo = r
+// SetWriteConnectionSecretToReference of this Bucket.
+func (b *Bucket) SetWriteConnectionSecretToReference(r corev1.LocalObjectReference) {
+	b.Spec.WriteConnectionSecretToReference = r
 }
 
-// GetWriteConnectionSecretTo of this Bucket.
-func (b *Bucket) GetWriteConnectionSecretTo() corev1.LocalObjectReference {
-	return b.Spec.WriteConnectionSecretTo
+// GetWriteConnectionSecretToReference of this Bucket.
+func (b *Bucket) GetWriteConnectionSecretToReference() corev1.LocalObjectReference {
+	return b.Spec.WriteConnectionSecretToReference
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

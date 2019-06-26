@@ -4,9 +4,9 @@ kind: RedisCluster
 metadata:
   name: replicationgroup
 spec:
-  classReference:
+  classRef:
     name: replicationgroup
     namespace: crossplane-system
-  writeConnectionSecretTo:
+  writeConnectionSecretToRef:
     name: replicationgroup
   engineVersion: "3.2"

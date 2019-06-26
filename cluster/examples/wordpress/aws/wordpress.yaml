@@ -6,7 +6,7 @@ spec:
   name: wordpress-demo-e401ddfa-4729-4b72-bcef-94922203b547
   predefinedACL: private
   versioning: false
-  providerReference:
+  providerRef:
     name: demo-aws-provider
     namespace: crossplane-system
 ---
@@ -20,7 +20,7 @@ spec:
     name: demo-database-connection
   engine: mysql
   masterUsername: masteruser
-  providerReference:
+  providerRef:
     name: demo-aws-provider
     namespace: crossplane-system
   securityGroups:

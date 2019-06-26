@@ -5,9 +5,9 @@ metadata:
   name: gitlab-backups
   namespace: default
 spec:
-  classReference:
+  classRef:
     name: standard-aws-bucket
     namespace: crossplane-system
-  writeConnectionSecretTo:
+  writeConnectionSecretToRef:
     name: gitlab-backups
   name: gitlab-demo-backups-%s

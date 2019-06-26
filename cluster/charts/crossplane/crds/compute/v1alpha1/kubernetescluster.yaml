@@ -10,7 +10,7 @@ spec:
   - JSONPath: .status.bindingPhase
     name: STATUS
     type: string
-  - JSONPath: .spec.classReference.name
+  - JSONPath: .spec.classRef.name
     name: CLUSTER-CLASS
     type: string
   - JSONPath: .spec.resourceName.name

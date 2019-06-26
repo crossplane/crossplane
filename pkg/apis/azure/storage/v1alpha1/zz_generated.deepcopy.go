@@ -202,7 +202,7 @@ func (in *ContainerSpec) DeepCopyInto(out *ContainerSpec) {
 		}
 	}
 	out.AccountReference = in.AccountReference
-	out.WriteConnectionSecretTo = in.WriteConnectionSecretTo
+	out.WriteConnectionSecretToReference = in.WriteConnectionSecretToReference
 	if in.ClaimReference != nil {
 		in, out := &in.ClaimReference, &out.ClaimReference
 		*out = new(v1.ObjectReference)

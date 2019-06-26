@@ -67,9 +67,9 @@ func TestConfigureGKECluster(t *testing.T) {
 				mg: &v1alpha1.GKECluster{
 					Spec: v1alpha1.GKEClusterSpec{
 						ResourceSpec: corev1alpha1.ResourceSpec{
-							ReclaimPolicy:           corev1alpha1.ReclaimDelete,
-							WriteConnectionSecretTo: corev1.LocalObjectReference{Name: string(claimUID)},
-							ProviderReference:       &corev1.ObjectReference{Name: providerName},
+							ReclaimPolicy:                    corev1alpha1.ReclaimDelete,
+							WriteConnectionSecretToReference: corev1.LocalObjectReference{Name: string(claimUID)},
+							ProviderReference:                &corev1.ObjectReference{Name: providerName},
 						},
 						NumNodes: 1,
 						Scopes:   []string{},

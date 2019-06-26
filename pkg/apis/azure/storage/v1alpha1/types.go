@@ -93,14 +93,14 @@ func (a *Account) GetClassReference() *corev1.ObjectReference {
 	return a.Spec.ClassReference
 }
 
-// SetWriteConnectionSecretTo of this Account.
-func (a *Account) SetWriteConnectionSecretTo(r corev1.LocalObjectReference) {
-	a.Spec.WriteConnectionSecretTo = r
+// SetWriteConnectionSecretToReference of this Account.
+func (a *Account) SetWriteConnectionSecretToReference(r corev1.LocalObjectReference) {
+	a.Spec.WriteConnectionSecretToReference = r
 }
 
-// GetWriteConnectionSecretTo of this Account.
-func (a *Account) GetWriteConnectionSecretTo() corev1.LocalObjectReference {
-	return a.Spec.WriteConnectionSecretTo
+// GetWriteConnectionSecretToReference of this Account.
+func (a *Account) GetWriteConnectionSecretToReference() corev1.LocalObjectReference {
+	return a.Spec.WriteConnectionSecretToReference
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -142,14 +142,14 @@ type ContainerSpec struct {
 	// NOTE(negz): Container is the only Crossplane type that does not use a
 	// Provider (it reads credentials from its associated Account instead). This
 	// means we can't embed a corev1alpha1.ResourceSpec, as doing so would
-	// require a redundant providerReference be specified. Instead we duplicate
+	// require a redundant providerRef be specified. Instead we duplicate
 	// most of that struct here; the below values should be kept in sync with
 	// corev1alpha1.ResourceSpec.
 
-	WriteConnectionSecretTo corev1.LocalObjectReference `json:"writeConnectionSecretTo,omitempty"`
-	ClaimReference          *corev1.ObjectReference     `json:"claimReference,omitempty"`
-	ClassReference          *corev1.ObjectReference     `json:"classReference,omitempty"`
-	ReclaimPolicy           corev1alpha1.ReclaimPolicy  `json:"reclaimPolicy,omitempty"`
+	WriteConnectionSecretToReference corev1.LocalObjectReference `json:"writeConnectionSecretToRef,omitempty"`
+	ClaimReference                   *corev1.ObjectReference     `json:"claimRef,omitempty"`
+	ClassReference                   *corev1.ObjectReference     `json:"classRef,omitempty"`
+	ReclaimPolicy                    corev1alpha1.ReclaimPolicy  `json:"reclaimPolicy,omitempty"`
 }
 
 // ContainerStatus sub-resource for Container object
@@ -205,14 +205,14 @@ func (c *Container) GetClassReference() *corev1.ObjectReference {
 	return c.Spec.ClassReference
 }
 
-// SetWriteConnectionSecretTo of this Container.
-func (c *Container) SetWriteConnectionSecretTo(r corev1.LocalObjectReference) {
-	c.Spec.WriteConnectionSecretTo = r
+// SetWriteConnectionSecretToReference of this Container.
+func (c *Container) SetWriteConnectionSecretToReference(r corev1.LocalObjectReference) {
+	c.Spec.WriteConnectionSecretToReference = r
 }
 
-// GetWriteConnectionSecretTo of this Container.
-func (c *Container) GetWriteConnectionSecretTo() corev1.LocalObjectReference {
-	return c.Spec.WriteConnectionSecretTo
+// GetWriteConnectionSecretToReference of this Container.
+func (c *Container) GetWriteConnectionSecretToReference() corev1.LocalObjectReference {
+	return c.Spec.WriteConnectionSecretToReference
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

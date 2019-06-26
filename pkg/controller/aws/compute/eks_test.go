@@ -390,7 +390,7 @@ func TestSecret(t *testing.T) {
 
 	g.Expect(err).NotTo(HaveOccurred())
 	// validate secret
-	secret, err := kc.CoreV1().Secrets(tc.GetNamespace()).Get(tc.GetWriteConnectionSecretTo().Name, metav1.GetOptions{})
+	secret, err := kc.CoreV1().Secrets(tc.GetNamespace()).Get(tc.GetWriteConnectionSecretToReference().Name, metav1.GetOptions{})
 	g.Expect(err).NotTo(HaveOccurred())
 	data := make(map[string][]byte)
 	data[corev1alpha1.ResourceCredentialsSecretEndpointKey] = []byte(cluster.Endpoint)

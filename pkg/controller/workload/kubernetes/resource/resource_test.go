@@ -68,7 +68,7 @@ var (
 		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: "coolCluster"},
 		Spec: computev1alpha1.KubernetesClusterSpec{
 			ResourceClaimSpec: corev1alpha1.ResourceClaimSpec{
-				WriteConnectionSecretTo: corev1.LocalObjectReference{Name: secret.GetName()},
+				WriteConnectionSecretToReference: corev1.LocalObjectReference{Name: secret.GetName()},
 			},
 		},
 	}

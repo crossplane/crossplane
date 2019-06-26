@@ -283,7 +283,7 @@ func (r *Reconciler) initDefaultUser(cloudSQLClient gcpclients.CloudSQLAPI,
 	}
 
 	// check if the default user has already been initialized
-	secretName := instance.Spec.WriteConnectionSecretTo.Name
+	secretName := instance.Spec.WriteConnectionSecretToReference.Name
 	if _, err := r.clientset.CoreV1().Secrets(instance.Namespace).Get(secretName, metav1.GetOptions{}); err == nil {
 		// we already have a password for the default user, we are done
 		return nil

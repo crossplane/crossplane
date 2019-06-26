@@ -828,14 +828,14 @@ func (b *Bucket) GetClassReference() *corev1.ObjectReference {
 	return b.Spec.ClassReference
 }
 
-// SetWriteConnectionSecretTo of this Bucket.
-func (b *Bucket) SetWriteConnectionSecretTo(r corev1.LocalObjectReference) {
-	b.Spec.WriteConnectionSecretTo = r
+// SetWriteConnectionSecretToReference of this Bucket.
+func (b *Bucket) SetWriteConnectionSecretToReference(r corev1.LocalObjectReference) {
+	b.Spec.WriteConnectionSecretToReference = r
 }
 
-// GetWriteConnectionSecretTo of this Bucket.
-func (b *Bucket) GetWriteConnectionSecretTo() corev1.LocalObjectReference {
-	return b.Spec.WriteConnectionSecretTo
+// GetWriteConnectionSecretToReference of this Bucket.
+func (b *Bucket) GetWriteConnectionSecretToReference() corev1.LocalObjectReference {
+	return b.Spec.WriteConnectionSecretToReference
 }
 
 // GetBucketName based on the NameFormat spec value,

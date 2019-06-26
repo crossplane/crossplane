@@ -49,9 +49,9 @@ spec:
             accountReference:
               description: AccountReference to azure storage account object
               type: object
-            claimReference:
+            claimRef:
               type: object
-            classReference:
+            classRef:
               type: object
             metadata:
               description: Container metadata
@@ -65,7 +65,7 @@ spec:
               type: string
             reclaimPolicy:
               type: string
-            writeConnectionSecretTo:
+            writeConnectionSecretToRef:
               type: object
           required:
           - accountReference

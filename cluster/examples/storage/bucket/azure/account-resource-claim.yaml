@@ -4,9 +4,9 @@ kind: Bucket
 metadata:
   name: storageaccount
 spec:
-  classReference:
+  classRef:
     name: storageaccount
     namespace: crossplane-system
-  writeConnectionSecretTo:
+  writeConnectionSecretToRef:
     name: storageaccount
   name: crossplanestorageacct

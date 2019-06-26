@@ -248,7 +248,7 @@ func TestReconcile(t *testing.T) {
 	// wait for the connection information to be stored in a secret, then verify it
 	var connectionSecret *v1.Secret
 	for {
-		if connectionSecret, err = r.clientset.CoreV1().Secrets(namespace).Get(instance.Spec.WriteConnectionSecretTo.Name, metav1.GetOptions{}); err == nil {
+		if connectionSecret, err = r.clientset.CoreV1().Secrets(namespace).Get(instance.Spec.WriteConnectionSecretToReference.Name, metav1.GetOptions{}); err == nil {
 			if string(connectionSecret.Data[corev1alpha1.ResourceCredentialsSecretEndpointKey]) != "" {
 				break
 			}

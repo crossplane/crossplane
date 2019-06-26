@@ -4,9 +4,9 @@ kind: PostgreSQLInstance
 metadata:
   name: rdspostgresql
 spec:
-  classReference:
+  classRef:
     name: rdspostgresql
     namespace: crossplane-system
-  writeConnectionSecretTo:
+  writeConnectionSecretToRef:
     name: rdspostgres  
   engineVersion: "9.6"

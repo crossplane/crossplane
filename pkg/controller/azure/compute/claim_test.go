@@ -69,9 +69,9 @@ func TestConfigureAKSCluster(t *testing.T) {
 				mg: &v1alpha1.AKSCluster{
 					Spec: v1alpha1.AKSClusterSpec{
 						ResourceSpec: corev1alpha1.ResourceSpec{
-							ReclaimPolicy:           corev1alpha1.ReclaimDelete,
-							WriteConnectionSecretTo: corev1.LocalObjectReference{Name: string(claimUID)},
-							ProviderReference:       &corev1.ObjectReference{Name: providerName},
+							ReclaimPolicy:                    corev1alpha1.ReclaimDelete,
+							WriteConnectionSecretToReference: corev1.LocalObjectReference{Name: string(claimUID)},
+							ProviderReference:                &corev1.ObjectReference{Name: providerName},
 						},
 						NodeCount:                     &nodeCount,
 						WriteServicePrincipalSecretTo: corev1.LocalObjectReference{Name: fmt.Sprintf("principal-%s", claimUID)},

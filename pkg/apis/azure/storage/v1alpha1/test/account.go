@@ -130,10 +130,10 @@ func (ta *MockAccount) WithSpecStatusFromProperties(props *storage.AccountProper
 	return ta
 }
 
-// WithSpecWriteConnectionSecretTo sets where the storage account will write its
+// WithSpecWriteConnectionSecretToReference sets where the storage account will write its
 // connection secret.
-func (ta *MockAccount) WithSpecWriteConnectionSecretTo(name string) *MockAccount {
-	ta.Spec.WriteConnectionSecretTo = corev1.LocalObjectReference{Name: name}
+func (ta *MockAccount) WithSpecWriteConnectionSecretToReference(name string) *MockAccount {
+	ta.Spec.WriteConnectionSecretToReference = corev1.LocalObjectReference{Name: name}
 	return ta
 }
 

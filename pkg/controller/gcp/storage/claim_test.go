@@ -75,9 +75,9 @@ func TestConfigureBucket(t *testing.T) {
 				mg: &v1alpha1.Bucket{
 					Spec: v1alpha1.BucketSpec{
 						ResourceSpec: corev1alpha1.ResourceSpec{
-							ReclaimPolicy:           corev1alpha1.ReclaimDelete,
-							WriteConnectionSecretTo: corev1.LocalObjectReference{Name: string(claimUID)},
-							ProviderReference:       &corev1.ObjectReference{Name: providerName},
+							ReclaimPolicy:                    corev1alpha1.ReclaimDelete,
+							WriteConnectionSecretToReference: corev1.LocalObjectReference{Name: string(claimUID)},
+							ProviderReference:                &corev1.ObjectReference{Name: providerName},
 						},
 						NameFormat: bucketName,
 						BucketSpecAttrs: v1alpha1.BucketSpecAttrs{

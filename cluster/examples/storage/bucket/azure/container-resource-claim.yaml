@@ -4,6 +4,6 @@ kind: Bucket
 metadata:
   name: storagecontainer
 spec:
-  classReference:
+  classRef:
     name: storagecontainer
     namespace: crossplane-system

@@ -112,7 +112,7 @@ func testInstance(p *azurev1alpha1.Provider) *azuredbv1alpha1.MysqlServer {
 					Namespace: p.GetNamespace(),
 					Name:      p.GetName(),
 				},
-				WriteConnectionSecretTo: corev1.LocalObjectReference{Name: "coolsecret"},
+				WriteConnectionSecretToReference: corev1.LocalObjectReference{Name: "coolsecret"},
 			},
 			AdminLoginName: "myadmin",
 			PricingTier: azuredbv1alpha1.PricingTierSpec{

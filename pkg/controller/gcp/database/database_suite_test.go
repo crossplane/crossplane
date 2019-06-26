@@ -112,8 +112,8 @@ func testInstance(p *gcpv1alpha1.Provider) *databasev1alpha1.CloudsqlInstance {
 		ObjectMeta: metav1.ObjectMeta{Name: instanceName, Namespace: namespace},
 		Spec: databasev1alpha1.CloudsqlInstanceSpec{
 			ResourceSpec: corev1alpha1.ResourceSpec{
-				WriteConnectionSecretTo: corev1.LocalObjectReference{Name: instanceName},
-				ProviderReference:       &corev1.ObjectReference{Namespace: namespace, Name: p.Name},
+				WriteConnectionSecretToReference: corev1.LocalObjectReference{Name: instanceName},
+				ProviderReference:                &corev1.ObjectReference{Namespace: namespace, Name: p.Name},
 			},
 			DatabaseVersion: "MYSQL_5_6",
 		},

@@ -4,9 +4,9 @@ kind: Bucket
 metadata:
   name: gcsbucket
 spec:
-  classReference:
+  classRef:
     name: gcsbucket
     namespace: crossplane-system
-  writeConnectionSecretTo:
+  writeConnectionSecretToRef:
     name: gcsbucket
   name: example-bucket-%s

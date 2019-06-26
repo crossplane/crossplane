@@ -4,8 +4,8 @@ kind: KubernetesCluster
 metadata:
   name: ekscluster
 spec:
-  classReference:
+  classRef:
     name: ekscluster
     namespace: crossplane-system
-  writeConnectionSecretTo:
+  writeConnectionSecretToRef:
     name: ekscluster

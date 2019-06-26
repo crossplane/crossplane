@@ -88,7 +88,7 @@ func ConfigurePostgreCloudsqlInstance(_ context.Context, cm resource.Claim, cs *
 	}
 	spec.DatabaseVersion = v
 
-	spec.WriteConnectionSecretTo = corev1.LocalObjectReference{Name: string(cm.GetUID())}
+	spec.WriteConnectionSecretToReference = corev1.LocalObjectReference{Name: string(cm.GetUID())}
 	spec.ProviderReference = cs.ProviderReference
 	spec.ReclaimPolicy = cs.ReclaimPolicy
 
@@ -151,7 +151,7 @@ func ConfigureMyCloudsqlInstance(_ context.Context, cm resource.Claim, cs *corev
 	}
 	spec.DatabaseVersion = v
 
-	spec.WriteConnectionSecretTo = corev1.LocalObjectReference{Name: string(cm.GetUID())}
+	spec.WriteConnectionSecretToReference = corev1.LocalObjectReference{Name: string(cm.GetUID())}
 	spec.ProviderReference = cs.ProviderReference
 	spec.ReclaimPolicy = cs.ReclaimPolicy
 

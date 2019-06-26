@@ -85,7 +85,7 @@ func ConfigureRedis(_ context.Context, cm resource.Claim, cs *corev1alpha1.Resou
 		return errors.Wrap(err, "cannot resolve Azure class instance values")
 	}
 
-	spec.WriteConnectionSecretTo = corev1.LocalObjectReference{Name: string(cm.GetUID())}
+	spec.WriteConnectionSecretToReference = corev1.LocalObjectReference{Name: string(cm.GetUID())}
 	spec.ProviderReference = cs.ProviderReference
 	spec.ReclaimPolicy = cs.ReclaimPolicy
 

@@ -60,7 +60,7 @@ type creator interface {
 	// resource requires further reconciliation, and an authentication token
 	// used to connect to the Redis endpoint. The authentication token will be
 	// an empty string if no token is required.
-	Create(ctx context.Context, r *v1alpha1.ReplicationGroup) (requeue bool, authToken string)
+	Create(context.Context, *v1alpha1.ReplicationGroup) (requeue bool, authToken string)
 }
 
 // A syncer can sync resources with an external store - e.g. the AWS API.

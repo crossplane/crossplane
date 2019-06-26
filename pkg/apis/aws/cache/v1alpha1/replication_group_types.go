@@ -318,14 +318,14 @@ func (rg *ReplicationGroup) GetClassReference() *corev1.ObjectReference {
 	return rg.Spec.ClassReference
 }
 
-// SetWriteConnectionSecretTo of this ReplicationGroup.
-func (rg *ReplicationGroup) SetWriteConnectionSecretTo(r corev1.LocalObjectReference) {
-	rg.Spec.WriteConnectionSecretTo = r
+// SetWriteConnectionSecretToReference of this ReplicationGroup.
+func (rg *ReplicationGroup) SetWriteConnectionSecretToReference(r corev1.LocalObjectReference) {
+	rg.Spec.WriteConnectionSecretToReference = r
 }
 
-// GetWriteConnectionSecretTo of this ReplicationGroup.
-func (rg *ReplicationGroup) GetWriteConnectionSecretTo() corev1.LocalObjectReference {
-	return rg.Spec.WriteConnectionSecretTo
+// GetWriteConnectionSecretToReference of this ReplicationGroup.
+func (rg *ReplicationGroup) GetWriteConnectionSecretToReference() corev1.LocalObjectReference {
+	return rg.Spec.WriteConnectionSecretToReference
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

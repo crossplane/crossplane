@@ -11,7 +11,7 @@ parameters:
   storageType: PD_SSD
   storageGB: "10"
 provisioner: cloudsqlinstance.database.gcp.crossplane.io/v1alpha1
-providerReference:
+providerRef:
   name: example
   namespace: crossplane-system
 reclaimPolicy: Delete

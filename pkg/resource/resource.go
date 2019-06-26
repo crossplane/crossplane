@@ -40,7 +40,7 @@ func ConnectionSecretFor(o ConnectionSecretOwner, kind schema.GroupVersionKind) 
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:       o.GetNamespace(),
-			Name:            o.GetWriteConnectionSecretTo().Name,
+			Name:            o.GetWriteConnectionSecretToReference().Name,
 			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.ReferenceTo(o, kind))},
 		},
 		Data: make(map[string][]byte),

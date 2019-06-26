@@ -5,9 +5,9 @@ metadata:
   name: gitlab-registry
   namespace: default
 spec:
-  classReference:
+  classRef:
     name: standard-gcp-bucket
     namespace: crossplane-system
-  writeConnectionSecretTo:
+  writeConnectionSecretToRef:
     name: gitlab-registry
   name: gitlab-demo-registry-%s

@@ -12,7 +12,7 @@ parameters:
   skuCapacity: "0"
   enableNonSslPort: "true"
 provisioner: redis.cache.azure.crossplane.io/v1alpha1
-providerReference:
+providerRef:
   name: example
   namespace: crossplane-system
 reclaimPolicy: Delete

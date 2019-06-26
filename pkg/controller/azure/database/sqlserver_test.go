@@ -230,7 +230,7 @@ func TestReconcile(t *testing.T) {
 	connectionSecret := &v1.Secret{}
 	n := types.NamespacedName{
 		Namespace: instance.GetNamespace(),
-		Name:      instance.GetSpec().WriteConnectionSecretTo.Name,
+		Name:      instance.GetSpec().WriteConnectionSecretToReference.Name,
 	}
 	for range time.NewTicker(1 * time.Second).C {
 		if err := c.Get(ctx, n, connectionSecret); err != nil {

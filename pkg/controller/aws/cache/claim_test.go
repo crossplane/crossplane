@@ -80,9 +80,9 @@ func TestConfigureReplicationGroup(t *testing.T) {
 				mg: &v1alpha1.ReplicationGroup{
 					Spec: v1alpha1.ReplicationGroupSpec{
 						ResourceSpec: corev1alpha1.ResourceSpec{
-							ReclaimPolicy:           corev1alpha1.ReclaimDelete,
-							WriteConnectionSecretTo: corev1.LocalObjectReference{Name: string(claimUID)},
-							ProviderReference:       &corev1.ObjectReference{Name: providerName},
+							ReclaimPolicy:                    corev1alpha1.ReclaimDelete,
+							WriteConnectionSecretToReference: corev1.LocalObjectReference{Name: string(claimUID)},
+							ProviderReference:                &corev1.ObjectReference{Name: providerName},
 						},
 						EngineVersion: "3.2.10",
 					},

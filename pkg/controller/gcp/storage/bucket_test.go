@@ -128,8 +128,8 @@ func (b *bucket) withServiceAccountSecretRef(name string) *bucket {
 	return b
 }
 
-func (b *bucket) withWriteConnectionSecretTo(name string) *bucket {
-	b.Spec.WriteConnectionSecretTo = corev1.LocalObjectReference{Name: name}
+func (b *bucket) withWriteConnectionSecretToReference(name string) *bucket {
+	b.Spec.WriteConnectionSecretToReference = corev1.LocalObjectReference{Name: name}
 	return b
 }
 

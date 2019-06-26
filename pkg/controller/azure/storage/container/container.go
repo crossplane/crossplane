@@ -138,7 +138,7 @@ func (m *containerSyncdeleterMaker) newSyncdeleter(ctx context.Context, c *v1alp
 
 	// Retrieve storage account secret
 	s := &corev1.Secret{}
-	n = types.NamespacedName{Namespace: acct.GetNamespace(), Name: acct.Spec.WriteConnectionSecretTo.Name}
+	n = types.NamespacedName{Namespace: acct.GetNamespace(), Name: acct.Spec.WriteConnectionSecretToReference.Name}
 	if err := m.Get(ctx, n, s); err != nil {
 		return nil, errors.Wrapf(err, "failed to retrieve storage account secret: %s", n)
 	}

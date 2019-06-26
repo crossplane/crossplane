@@ -35,7 +35,7 @@ type KubernetesClusterSpec struct {
 
 // KubernetesCluster is the Schema for the instances API
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.bindingPhase"
-// +kubebuilder:printcolumn:name="CLUSTER-CLASS",type="string",JSONPath=".spec.classReference.name"
+// +kubebuilder:printcolumn:name="CLUSTER-CLASS",type="string",JSONPath=".spec.classRef.name"
 // +kubebuilder:printcolumn:name="CLUSTER-REF",type="string",JSONPath=".spec.resourceName.name"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:subresource:status
@@ -82,14 +82,14 @@ func (kc *KubernetesCluster) GetResourceReference() *corev1.ObjectReference {
 	return kc.Spec.ResourceReference
 }
 
-// SetWriteConnectionSecretTo of this KubernetesCluster.
-func (kc *KubernetesCluster) SetWriteConnectionSecretTo(r corev1.LocalObjectReference) {
-	kc.Spec.WriteConnectionSecretTo = r
+// SetWriteConnectionSecretToReference of this KubernetesCluster.
+func (kc *KubernetesCluster) SetWriteConnectionSecretToReference(r corev1.LocalObjectReference) {
+	kc.Spec.WriteConnectionSecretToReference = r
 }
 
-// GetWriteConnectionSecretTo of this KubernetesCluster.
-func (kc *KubernetesCluster) GetWriteConnectionSecretTo() corev1.LocalObjectReference {
-	return kc.Spec.WriteConnectionSecretTo
+// GetWriteConnectionSecretToReference of this KubernetesCluster.
+func (kc *KubernetesCluster) GetWriteConnectionSecretToReference() corev1.LocalObjectReference {
+	return kc.Spec.WriteConnectionSecretToReference
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

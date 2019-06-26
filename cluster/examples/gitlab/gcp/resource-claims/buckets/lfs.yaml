@@ -5,9 +5,9 @@ metadata:
   name: gitlab-lfs
   namespace: default
 spec:
-  classReference:
+  classRef:
     name: standard-gcp-bucket
     namespace: crossplane-system
-  writeConnectionSecretTo:
+  writeConnectionSecretToRef:
     name: gitlab-lfs
   name: gitlab-demo-lfs-%s

@@ -70,9 +70,9 @@ func TestConfigureCloudMemorystoreInstance(t *testing.T) {
 				mg: &v1alpha1.CloudMemorystoreInstance{
 					Spec: v1alpha1.CloudMemorystoreInstanceSpec{
 						ResourceSpec: corev1alpha1.ResourceSpec{
-							ReclaimPolicy:           corev1alpha1.ReclaimDelete,
-							WriteConnectionSecretTo: corev1.LocalObjectReference{Name: string(claimUID)},
-							ProviderReference:       &corev1.ObjectReference{Name: providerName},
+							ReclaimPolicy:                    corev1alpha1.ReclaimDelete,
+							WriteConnectionSecretToReference: corev1.LocalObjectReference{Name: string(claimUID)},
+							ProviderReference:                &corev1.ObjectReference{Name: providerName},
 						},
 						RedisVersion: "REDIS_3_2",
 						RedisConfigs: map[string]string{},

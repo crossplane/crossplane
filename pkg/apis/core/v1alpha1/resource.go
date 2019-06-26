@@ -65,7 +65,7 @@ type ResourceClass struct {
 
 	// ProviderReference is a reference to the cloud provider that will be used
 	// to provision the concrete cloud resource.
-	ProviderReference *corev1.ObjectReference `json:"providerReference"`
+	ProviderReference *corev1.ObjectReference `json:"providerRef"`
 
 	// reclaimPolicy is the reclaim policy that dynamically provisioned
 	// ResourceInstances of this resource class are created with
@@ -86,13 +86,13 @@ type ResourceClassList struct {
 // include in their spec. Unlike ResourceClaimStatus, ResourceClaimSpec should
 // typically be embedded in a claim specific struct.
 type ResourceClaimSpec struct {
-	WriteConnectionSecretTo corev1.LocalObjectReference `json:"writeConnectionSecretTo,omitempty"`
+	WriteConnectionSecretToReference corev1.LocalObjectReference `json:"writeConnectionSecretToRef,omitempty"`
 
 	// TODO(negz): Make the below references immutable once set? Doing so means
 	// we don't have to track what provisioner was used to create a resource.
 
-	ClassReference    *corev1.ObjectReference `json:"classReference,omitempty"`
-	ResourceReference *corev1.ObjectReference `json:"resourceReference,omitempty"`
+	ClassReference    *corev1.ObjectReference `json:"classRef,omitempty"`
+	ResourceReference *corev1.ObjectReference `json:"resourceRef,omitempty"`
 }
 
 // ResourceClaimStatus represents the status of a resource claim. Claims should
@@ -106,11 +106,11 @@ type ResourceClaimStatus struct {
 // include in their spec. ResourceSpec should typically be embedded in a
 // resource specific struct.
 type ResourceSpec struct {
-	WriteConnectionSecretTo corev1.LocalObjectReference `json:"writeConnectionSecretTo,omitempty"`
+	WriteConnectionSecretToReference corev1.LocalObjectReference `json:"writeConnectionSecretToRef,omitempty"`
 
-	ClaimReference    *corev1.ObjectReference `json:"claimReference,omitempty"`
-	ClassReference    *corev1.ObjectReference `json:"classReference,omitempty"`
-	ProviderReference *corev1.ObjectReference `json:"providerReference"`
+	ClaimReference    *corev1.ObjectReference `json:"claimRef,omitempty"`
+	ClassReference    *corev1.ObjectReference `json:"classRef,omitempty"`
+	ProviderReference *corev1.ObjectReference `json:"providerRef"`
 
 	ReclaimPolicy ReclaimPolicy `json:"reclaimPolicy,omitempty"`
 }

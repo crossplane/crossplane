@@ -12,7 +12,7 @@ parameters:
   numNodeGroups: "2"
   replicasPerNodeGroup: "2"
 provisioner: replicationgroup.cache.aws.crossplane.io/v1alpha1
-providerReference:
+providerRef:
   name: example
   namespace: crossplane-system
 reclaimPolicy: Delete

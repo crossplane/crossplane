@@ -9,7 +9,7 @@ parameters:
   numNodes: "1"
   zone: us-central1-b
 provisioner: gkecluster.compute.gcp.crossplane.io/v1alpha1
-providerReference:
+providerRef:
   name: example
   namespace: crossplane-system
 reclaimPolicy: Delete

@@ -4,9 +4,9 @@ kind: KubernetesCluster
 metadata:
   name: akscluster
 spec:
-  classReference:
+  classRef:
     name: akscluster
     namespace: crossplane-system
   clusterVersion: "1.12"
-  writeConnectionSecretTo:
+  writeConnectionSecretToRef:
     name: akscluster

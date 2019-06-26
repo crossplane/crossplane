@@ -17,7 +17,7 @@ parameters:
   securityGroupIds: REDIS_SECURITY_GROUP
   cacheSubnetGroupName: REDIS_SUBNET_GROUP
 provisioner: replicationgroup.cache.aws.crossplane.io/v1alpha1
-providerReference:
+providerRef:
   name: demo-aws
   namespace: crossplane-system
 reclaimPolicy: Delete

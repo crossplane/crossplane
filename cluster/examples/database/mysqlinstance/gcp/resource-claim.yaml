@@ -4,9 +4,9 @@ kind: MySQLInstance
 metadata:
   name: cloudsqlinstancemysql
 spec:
-  classReference:
+  classRef:
     name: cloudsqlinstancemysql
     namespace: crossplane-system
-  writeConnectionSecretTo:
+  writeConnectionSecretToRef:
     name: cloudsqlinstancemysql
   engineVersion: "5.6"

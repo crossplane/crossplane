@@ -143,14 +143,14 @@ func (b *S3Bucket) GetClassReference() *corev1.ObjectReference {
 	return b.Spec.ClassReference
 }
 
-// SetWriteConnectionSecretTo of this S3Bucket.
-func (b *S3Bucket) SetWriteConnectionSecretTo(r corev1.LocalObjectReference) {
-	b.Spec.WriteConnectionSecretTo = r
+// SetWriteConnectionSecretToReference of this S3Bucket.
+func (b *S3Bucket) SetWriteConnectionSecretToReference(r corev1.LocalObjectReference) {
+	b.Spec.WriteConnectionSecretToReference = r
 }
 
-// GetWriteConnectionSecretTo of this S3Bucket.
-func (b *S3Bucket) GetWriteConnectionSecretTo() corev1.LocalObjectReference {
-	return b.Spec.WriteConnectionSecretTo
+// GetWriteConnectionSecretToReference of this S3Bucket.
+func (b *S3Bucket) GetWriteConnectionSecretToReference() corev1.LocalObjectReference {
+	return b.Spec.WriteConnectionSecretToReference
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

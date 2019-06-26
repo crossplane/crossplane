@@ -37,7 +37,7 @@ type RedisClusterSpec struct {
 // RedisCluster is the the CRD type for abstract Redis clusters. Crossplane
 // considers a single Redis instance a 'cluster' of one instance.
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.bindingPhase"
-// +kubebuilder:printcolumn:name="CLASS",type="string",JSONPath=".spec.classReference.name"
+// +kubebuilder:printcolumn:name="CLASS",type="string",JSONPath=".spec.classRef.name"
 // +kubebuilder:printcolumn:name="VERSION",type="string",JSONPath=".spec.engineVersion"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:subresource:status
@@ -84,14 +84,14 @@ func (rc *RedisCluster) GetResourceReference() *corev1.ObjectReference {
 	return rc.Spec.ResourceReference
 }
 
-// SetWriteConnectionSecretTo of this RedisCluster.
-func (rc *RedisCluster) SetWriteConnectionSecretTo(r corev1.LocalObjectReference) {
-	rc.Spec.WriteConnectionSecretTo = r
+// SetWriteConnectionSecretToReference of this RedisCluster.
+func (rc *RedisCluster) SetWriteConnectionSecretToReference(r corev1.LocalObjectReference) {
+	rc.Spec.WriteConnectionSecretToReference = r
 }
 
-// GetWriteConnectionSecretTo of this RedisCluster.
-func (rc *RedisCluster) GetWriteConnectionSecretTo() corev1.LocalObjectReference {
-	return rc.Spec.WriteConnectionSecretTo
+// GetWriteConnectionSecretToReference of this RedisCluster.
+func (rc *RedisCluster) GetWriteConnectionSecretToReference() corev1.LocalObjectReference {
+	return rc.Spec.WriteConnectionSecretToReference
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

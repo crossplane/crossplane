@@ -105,14 +105,14 @@ func (s *MysqlServer) GetClassReference() *corev1.ObjectReference {
 	return s.Spec.ClassReference
 }
 
-// SetWriteConnectionSecretTo of this MysqlServer.
-func (s *MysqlServer) SetWriteConnectionSecretTo(r corev1.LocalObjectReference) {
-	s.Spec.WriteConnectionSecretTo = r
+// SetWriteConnectionSecretToReference of this MysqlServer.
+func (s *MysqlServer) SetWriteConnectionSecretToReference(r corev1.LocalObjectReference) {
+	s.Spec.WriteConnectionSecretToReference = r
 }
 
-// GetWriteConnectionSecretTo of this MysqlServer.
-func (s *MysqlServer) GetWriteConnectionSecretTo() corev1.LocalObjectReference {
-	return s.Spec.WriteConnectionSecretTo
+// GetWriteConnectionSecretToReference of this MysqlServer.
+func (s *MysqlServer) GetWriteConnectionSecretToReference() corev1.LocalObjectReference {
+	return s.Spec.WriteConnectionSecretToReference
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -185,14 +185,14 @@ func (s *PostgresqlServer) GetClassReference() *corev1.ObjectReference {
 	return s.Spec.ClassReference
 }
 
-// SetWriteConnectionSecretTo of this PostgresqlServer.
-func (s *PostgresqlServer) SetWriteConnectionSecretTo(r corev1.LocalObjectReference) {
-	s.Spec.WriteConnectionSecretTo = r
+// SetWriteConnectionSecretToReference of this PostgresqlServer.
+func (s *PostgresqlServer) SetWriteConnectionSecretToReference(r corev1.LocalObjectReference) {
+	s.Spec.WriteConnectionSecretToReference = r
 }
 
-// GetWriteConnectionSecretTo of this PostgresqlServer.
-func (s *PostgresqlServer) GetWriteConnectionSecretTo() corev1.LocalObjectReference {
-	return s.Spec.WriteConnectionSecretTo
+// GetWriteConnectionSecretToReference of this PostgresqlServer.
+func (s *PostgresqlServer) GetWriteConnectionSecretToReference() corev1.LocalObjectReference {
+	return s.Spec.WriteConnectionSecretToReference
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

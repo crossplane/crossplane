@@ -15,7 +15,7 @@ parameters:
   workerNodeGroupName: demo-nodes
   workerClusterControlPlaneSecurityGroup: #sg-01
 provisioner: ekscluster.compute.aws.crossplane.io/v1alpha1
-providerReference:
+providerRef:
   name: example
   namespace: crossplane-system
 reclaimPolicy: Delete

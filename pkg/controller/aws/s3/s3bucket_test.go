@@ -316,7 +316,7 @@ func TestCreate(t *testing.T) {
 	g.Expect(tk.Actions()).To(HaveLen(2))
 	g.Expect(tk.Actions()[0].GetVerb()).To(Equal("get"))
 	g.Expect(tk.Actions()[1].GetVerb()).To(Equal("create"))
-	s, err := tk.CoreV1().Secrets(tr.GetNamespace()).Get(tr.GetWriteConnectionSecretTo().Name, metav1.GetOptions{})
+	s, err := tk.CoreV1().Secrets(tr.GetNamespace()).Get(tr.GetWriteConnectionSecretToReference().Name, metav1.GetOptions{})
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(s).NotTo(BeNil())
 }

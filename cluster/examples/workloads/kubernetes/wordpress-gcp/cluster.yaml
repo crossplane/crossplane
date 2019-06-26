@@ -12,9 +12,9 @@ metadata:
   labels:
     app: wordpress-demo
 spec:
-  writeConnectionSecretTo:
+  writeConnectionSecretToRef:
     name: wordpress-demo-cluster
-  classReference:
+  classRef:
     name: standard-cluster
     namespace: crossplane-system
 ---

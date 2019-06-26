@@ -73,9 +73,9 @@ func TestConfigurePostgreCloudsqlInstance(t *testing.T) {
 				mg: &v1alpha1.CloudsqlInstance{
 					Spec: v1alpha1.CloudsqlInstanceSpec{
 						ResourceSpec: corev1alpha1.ResourceSpec{
-							ReclaimPolicy:           corev1alpha1.ReclaimDelete,
-							WriteConnectionSecretTo: corev1.LocalObjectReference{Name: string(claimUID)},
-							ProviderReference:       &corev1.ObjectReference{Name: providerName},
+							ReclaimPolicy:                    corev1alpha1.ReclaimDelete,
+							WriteConnectionSecretToReference: corev1.LocalObjectReference{Name: string(claimUID)},
+							ProviderReference:                &corev1.ObjectReference{Name: providerName},
 						},
 						DatabaseVersion: "POSTGRES_9_6",
 					},
@@ -134,9 +134,9 @@ func TestConfigureMyCloudsqlInstance(t *testing.T) {
 				mg: &v1alpha1.CloudsqlInstance{
 					Spec: v1alpha1.CloudsqlInstanceSpec{
 						ResourceSpec: corev1alpha1.ResourceSpec{
-							ReclaimPolicy:           corev1alpha1.ReclaimDelete,
-							WriteConnectionSecretTo: corev1.LocalObjectReference{Name: string(claimUID)},
-							ProviderReference:       &corev1.ObjectReference{Name: providerName},
+							ReclaimPolicy:                    corev1alpha1.ReclaimDelete,
+							WriteConnectionSecretToReference: corev1.LocalObjectReference{Name: string(claimUID)},
+							ProviderReference:                &corev1.ObjectReference{Name: providerName},
 						},
 						DatabaseVersion: "MYSQL_5_6",
 					},

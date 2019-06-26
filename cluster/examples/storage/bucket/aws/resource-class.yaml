@@ -9,7 +9,7 @@ parameters:
   predefinedACL: private
   region: us-east-1
 provisioner: s3bucket.storage.aws.crossplane.io/v1alpha1
-providerReference:
+providerRef:
   name: example
   namespace: crossplane-system
 reclaimPolicy: Delete

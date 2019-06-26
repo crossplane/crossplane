@@ -147,8 +147,8 @@ func redisResource(rm ...redisResourceModifier) *v1alpha1.Redis {
 		},
 		Spec: v1alpha1.RedisSpec{
 			ResourceSpec: corev1alpha1.ResourceSpec{
-				ProviderReference:       &corev1.ObjectReference{Namespace: namespace, Name: providerName},
-				WriteConnectionSecretTo: corev1.LocalObjectReference{Name: connectionSecretName},
+				ProviderReference:                &corev1.ObjectReference{Namespace: namespace, Name: providerName},
+				WriteConnectionSecretToReference: corev1.LocalObjectReference{Name: connectionSecretName},
 			},
 			ResourceGroupName:  redisResourceGroupName,
 			Location:           location,

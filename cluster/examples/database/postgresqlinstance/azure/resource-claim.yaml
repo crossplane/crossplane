@@ -4,9 +4,9 @@ kind: PostgreSQLInstance
 metadata:
   name: sqlserverpostgresql
 spec:
-  classReference:
+  classRef:
     name: sqlserverpostgresql
     namespace: crossplane-system
-  writeConnectionSecretTo:
+  writeConnectionSecretToRef:
     name: sqlserverpostgres
   engineVersion: "9.6"

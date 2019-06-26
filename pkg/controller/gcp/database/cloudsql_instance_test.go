@@ -118,7 +118,7 @@ func TestReconcile(t *testing.T) {
 	assertCloudsqlInstanceStatus(g, c, expectedStatus)
 
 	// wait for the connection information to be stored in a secret, then verify it
-	secretName := instance.Spec.WriteConnectionSecretTo.Name
+	secretName := instance.Spec.WriteConnectionSecretToReference.Name
 	var connectionSecret *v1.Secret
 	for range time.NewTicker(1 * time.Second).C {
 		if connectionSecret, err = r.clientset.CoreV1().Secrets(namespace).Get(secretName, metav1.GetOptions{}); err != nil {

@@ -94,7 +94,7 @@ func ConfigureBucket(_ context.Context, cm resource.Claim, cs *corev1alpha1.Reso
 		spec.PredefinedACL = string(*bcm.Spec.PredefinedACL)
 	}
 
-	spec.WriteConnectionSecretTo = corev1.LocalObjectReference{Name: string(cm.GetUID())}
+	spec.WriteConnectionSecretToReference = corev1.LocalObjectReference{Name: string(cm.GetUID())}
 	spec.ProviderReference = cs.ProviderReference
 	spec.ReclaimPolicy = cs.ReclaimPolicy
 

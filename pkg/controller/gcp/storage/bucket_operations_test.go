@@ -431,7 +431,7 @@ func Test_bucketHandler_updateSecret(t *testing.T) {
 			name: "FailureToUpdateSecret",
 			fields: fields{
 				Bucket: newBucket(testNamespace, testBucketName).
-					withWriteConnectionSecretTo(testBucketName).
+					withWriteConnectionSecretToReference(testBucketName).
 					withServiceAccountSecretRef(saSecretName).
 					withUID(bucketUID).
 					Bucket,

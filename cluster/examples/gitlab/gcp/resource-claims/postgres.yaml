@@ -4,9 +4,9 @@ metadata:
   name: gitlab-postgresql
   namespace: default
 spec:
-  classReference:
+  classRef:
     name: standard-gcp-postgres
     namespace: crossplane-system
-  writeConnectionSecretTo:
+  writeConnectionSecretToRef:
     name: gitlab-postgresql
   engineVersion: "9.6"

@@ -177,14 +177,14 @@ func (i *CloudMemorystoreInstance) GetClassReference() *corev1.ObjectReference {
 	return i.Spec.ClassReference
 }
 
-// SetWriteConnectionSecretTo of this CloudMemorystoreInstance.
-func (i *CloudMemorystoreInstance) SetWriteConnectionSecretTo(r corev1.LocalObjectReference) {
-	i.Spec.WriteConnectionSecretTo = r
+// SetWriteConnectionSecretToReference of this CloudMemorystoreInstance.
+func (i *CloudMemorystoreInstance) SetWriteConnectionSecretToReference(r corev1.LocalObjectReference) {
+	i.Spec.WriteConnectionSecretToReference = r
 }
 
-// GetWriteConnectionSecretTo of this CloudMemorystoreInstance.
-func (i *CloudMemorystoreInstance) GetWriteConnectionSecretTo() corev1.LocalObjectReference {
-	return i.Spec.WriteConnectionSecretTo
+// GetWriteConnectionSecretToReference of this CloudMemorystoreInstance.
+func (i *CloudMemorystoreInstance) GetWriteConnectionSecretToReference() corev1.LocalObjectReference {
+	return i.Spec.WriteConnectionSecretToReference
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

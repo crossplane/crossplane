@@ -6,8 +6,8 @@ metadata:
   labels:
     app: wordpress-demo
 spec:
-  classReference:
+  classRef:
     name: gkecluster
     namespace: crossplane-system
-  writeConnectionSecretTo:
+  writeConnectionSecretToRef:
     name: gkecluster

@@ -144,14 +144,14 @@ func (c *AKSCluster) GetClassReference() *corev1.ObjectReference {
 	return c.Spec.ClassReference
 }
 
-// SetWriteConnectionSecretTo of this AKSCluster.
-func (c *AKSCluster) SetWriteConnectionSecretTo(r corev1.LocalObjectReference) {
-	c.Spec.WriteConnectionSecretTo = r
+// SetWriteConnectionSecretToReference of this AKSCluster.
+func (c *AKSCluster) SetWriteConnectionSecretToReference(r corev1.LocalObjectReference) {
+	c.Spec.WriteConnectionSecretToReference = r
 }
 
-// GetWriteConnectionSecretTo of this AKSCluster.
-func (c *AKSCluster) GetWriteConnectionSecretTo() corev1.LocalObjectReference {
-	return c.Spec.WriteConnectionSecretTo
+// GetWriteConnectionSecretToReference of this AKSCluster.
+func (c *AKSCluster) GetWriteConnectionSecretToReference() corev1.LocalObjectReference {
+	return c.Spec.WriteConnectionSecretToReference
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

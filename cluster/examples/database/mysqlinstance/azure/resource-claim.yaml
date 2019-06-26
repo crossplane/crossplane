@@ -4,9 +4,9 @@ kind: MySQLInstance
 metadata:
   name: sqlservermysql
 spec:
-  classReference:
+  classRef:
     name: sqlservermysql
     namespace: crossplane-system
-  writeConnectionSecretTo:
+  writeConnectionSecretToRef:
     name: sqlservermysql
   engineVersion: "5.6"

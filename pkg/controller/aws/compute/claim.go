@@ -80,7 +80,7 @@ func ConfigureEKSCluster(_ context.Context, cm resource.Claim, cs *corev1alpha1.
 	}
 
 	spec := v1alpha1.NewEKSClusterSpec(cs.Parameters)
-	spec.WriteConnectionSecretTo = corev1.LocalObjectReference{Name: string(cm.GetUID())}
+	spec.WriteConnectionSecretToReference = corev1.LocalObjectReference{Name: string(cm.GetUID())}
 	spec.ProviderReference = cs.ProviderReference
 	spec.ReclaimPolicy = cs.ReclaimPolicy
 

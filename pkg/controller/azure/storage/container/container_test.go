@@ -342,7 +342,7 @@ func Test_containerSyncdeleterMaker_newSyncdeleter(t *testing.T) {
 			fields: fields{
 				Client: fake.NewFakeClient(
 					v1alpha1test.NewMockAccount(testNamespace, testAccountName).
-						WithSpecWriteConnectionSecretTo(testAccountName).
+						WithSpecWriteConnectionSecretToReference(testAccountName).
 						Account,
 					newCont().WithSpecAccountRef(testAccountName).WithFinalizer(finalizer).Container),
 			},
@@ -366,7 +366,7 @@ func Test_containerSyncdeleterMaker_newSyncdeleter(t *testing.T) {
 						corev1alpha1.ResourceCredentialsSecretPasswordKey: []byte("test-key"),
 					}),
 					v1alpha1test.NewMockAccount(testNamespace, testAccountName).
-						WithSpecWriteConnectionSecretTo(testAccountName).
+						WithSpecWriteConnectionSecretToReference(testAccountName).
 						Account),
 			},
 			args: args{
@@ -391,7 +391,7 @@ func Test_containerSyncdeleterMaker_newSyncdeleter(t *testing.T) {
 						corev1alpha1.ResourceCredentialsSecretPasswordKey: []byte("dGVzdC1rZXkK"),
 					}),
 					v1alpha1test.NewMockAccount(testNamespace, testAccountName).
-						WithSpecWriteConnectionSecretTo(testAccountName).
+						WithSpecWriteConnectionSecretToReference(testAccountName).
 						Account),
 			},
 			args: args{

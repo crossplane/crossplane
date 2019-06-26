@@ -10,7 +10,7 @@ parameters:
   region: us-west2
   memorySizeGb: "1"
 provisioner: cloudmemorystoreinstance.cache.gcp.crossplane.io/v1alpha1
-providerReference:
+providerRef:
   name: example
   namespace: crossplane-system
 reclaimPolicy: Delete

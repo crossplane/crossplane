@@ -5,9 +5,9 @@ metadata:
   name: gitlab-externaldiffs
   namespace: default
 spec:
-  classReference:
+  classRef:
     name: standard-aws-bucket
     namespace: crossplane-system
-  writeConnectionSecretTo:
+  writeConnectionSecretToRef:
     name: gitlab-externaldiffs
   name: gitlab-demo-externaldiffs-%s

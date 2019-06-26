@@ -205,7 +205,7 @@ func (r *Reconciler) _sync(instance *databasev1alpha1.RDSInstance, client rds.Cl
 	// Retrieve connection secret that was created during resource create phase
 	connSecret, err := r.kubeclient.CoreV1().
 		Secrets(instance.GetNamespace()).
-		Get(instance.GetWriteConnectionSecretTo().Name, metav1.GetOptions{})
+		Get(instance.GetWriteConnectionSecretToReference().Name, metav1.GetOptions{})
 	if err != nil {
 		return r.fail(instance, err)
 	}

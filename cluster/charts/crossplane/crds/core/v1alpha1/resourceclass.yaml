@@ -45,7 +45,7 @@ spec:
             only validation done on keys is that they are not empty.  The maximum
             number of parameters is 512, with a cumulative max size of 256K
           type: object
-        providerReference:
+        providerRef:
           description: ProviderReference is a reference to the cloud provider that
             will be used to provision the concrete cloud resource.
           type: object
@@ -61,7 +61,7 @@ spec:
           type: string
       required:
       - provisioner
-      - providerReference
+      - providerRef
   version: v1alpha1
 status:
   acceptedNames:

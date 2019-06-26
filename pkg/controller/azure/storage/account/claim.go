@@ -84,7 +84,7 @@ func ConfigureAccount(_ context.Context, cm resource.Claim, cs *corev1alpha1.Res
 	spec := v1alpha1.ParseAccountSpec(cs.Parameters)
 	spec.StorageAccountName = b.Spec.Name
 
-	spec.WriteConnectionSecretTo = corev1.LocalObjectReference{Name: string(cm.GetUID())}
+	spec.WriteConnectionSecretToReference = corev1.LocalObjectReference{Name: string(cm.GetUID())}
 	spec.ProviderReference = cs.ProviderReference
 	spec.ReclaimPolicy = cs.ReclaimPolicy
 

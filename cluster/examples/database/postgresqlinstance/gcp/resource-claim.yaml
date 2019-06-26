@@ -4,9 +4,9 @@ kind: PostgreSQLInstance
 metadata:
   name: cloudsqlinstancepostgresql
 spec:
-  classReference:
+  classRef:
     name: cloudsqlinstancepostgresql
     namespace: crossplane-system
-  writeConnectionSecretTo:
+  writeConnectionSecretToRef:
     name: cloudsqlinstancepostgres
   engineVersion: "9.6"

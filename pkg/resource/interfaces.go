@@ -58,8 +58,8 @@ type ManagedResourceReferencer interface {
 
 // A ConnectionSecretWriterTo may write a connection secret.
 type ConnectionSecretWriterTo interface {
-	SetWriteConnectionSecretTo(r corev1.LocalObjectReference)
-	GetWriteConnectionSecretTo() corev1.LocalObjectReference
+	SetWriteConnectionSecretToReference(r corev1.LocalObjectReference)
+	GetWriteConnectionSecretToReference() corev1.LocalObjectReference
 }
 
 // A Claim is a Kubernetes object representing an abstract resource claim (e.g.

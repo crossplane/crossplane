@@ -89,11 +89,11 @@ func NewAPIManagedConnectionPropagator(c client.Client, t runtime.ObjectTyper) *
 func (a *APIManagedConnectionPropagator) PropagateConnection(ctx context.Context, cm Claim, mg Managed) error {
 	// Either this resourace does not expose a connection secret, or this claim
 	// does not want one.
-	if mg.GetWriteConnectionSecretTo().Name == "" || cm.GetWriteConnectionSecretTo().Name == "" {
+	if mg.GetWriteConnectionSecretToReference().Name == "" || cm.GetWriteConnectionSecretToReference().Name == "" {
 		return nil
 	}
 
-	n := types.NamespacedName{Namespace: mg.GetNamespace(), Name: mg.GetWriteConnectionSecretTo().Name}
+	n := types.NamespacedName{Namespace: mg.GetNamespace(), Name: mg.GetWriteConnectionSecretToReference().Name}
 	mgcs := &corev1.Secret{}
 	if err := a.client.Get(ctx, n, mgcs); err != nil {
 		return errors.Wrap(err, errGetSecret)

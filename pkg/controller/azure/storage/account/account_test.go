@@ -1049,7 +1049,7 @@ func Test_accountSecretUpdater_updatesecret(t *testing.T) {
 						return kerrors.NewNotFound(schema.GroupResource{Group: azurev1alpha1.Group, Resource: "secret"}, name)
 					},
 				},
-				acct: v1alpha1test.NewMockAccount(ns, name).WithSpecWriteConnectionSecretTo(csName).Account,
+				acct: v1alpha1test.NewMockAccount(ns, name).WithSpecWriteConnectionSecretToReference(csName).Account,
 			},
 			acct: &storage.Account{
 				AccountProperties: &storage.AccountProperties{
@@ -1073,7 +1073,7 @@ func Test_accountSecretUpdater_updatesecret(t *testing.T) {
 						return kerrors.NewNotFound(schema.GroupResource{Group: azurev1alpha1.Group, Resource: "secret"}, name)
 					},
 				},
-				acct: v1alpha1test.NewMockAccount(ns, name).WithSpecWriteConnectionSecretTo(csName).Account,
+				acct: v1alpha1test.NewMockAccount(ns, name).WithSpecWriteConnectionSecretToReference(csName).Account,
 			},
 			acct: &storage.Account{
 				AccountProperties: &storage.AccountProperties{
@@ -1105,7 +1105,7 @@ func Test_accountSecretUpdater_updatesecret(t *testing.T) {
 						return nil
 					},
 				},
-				acct: v1alpha1test.NewMockAccount(ns, name).WithSpecWriteConnectionSecretTo(csName).Account,
+				acct: v1alpha1test.NewMockAccount(ns, name).WithSpecWriteConnectionSecretToReference(csName).Account,
 			},
 			acct: &storage.Account{
 				AccountProperties: &storage.AccountProperties{
@@ -1136,7 +1136,7 @@ func Test_accountSecretUpdater_updatesecret(t *testing.T) {
 						return errors.New("test-create-secret-error")
 					},
 				},
-				acct: v1alpha1test.NewMockAccount(ns, name).WithSpecWriteConnectionSecretTo(csName).Account,
+				acct: v1alpha1test.NewMockAccount(ns, name).WithSpecWriteConnectionSecretToReference(csName).Account,
 			},
 			acct: &storage.Account{
 				AccountProperties: &storage.AccountProperties{
@@ -1171,7 +1171,7 @@ func Test_accountSecretUpdater_updatesecret(t *testing.T) {
 						return nil
 					},
 				},
-				acct: v1alpha1test.NewMockAccount(ns, name).WithSpecWriteConnectionSecretTo(csName).Account,
+				acct: v1alpha1test.NewMockAccount(ns, name).WithSpecWriteConnectionSecretToReference(csName).Account,
 			},
 			acct: &storage.Account{
 				AccountProperties: &storage.AccountProperties{

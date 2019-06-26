@@ -15,7 +15,7 @@ parameters:
   subnetGroupName: RDS_SUBNET_GROUP_NAME
   size: "20"
 provisioner: rdsinstance.database.aws.crossplane.io/v1alpha1
-providerReference:
+providerRef:
   name: demo-aws
   namespace: crossplane-system
 reclaimPolicy: Delete

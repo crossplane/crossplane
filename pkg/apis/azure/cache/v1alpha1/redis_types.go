@@ -192,14 +192,14 @@ func (rd *Redis) GetClassReference() *corev1.ObjectReference {
 	return rd.Spec.ClassReference
 }
 
-// SetWriteConnectionSecretTo of this Redis.
-func (rd *Redis) SetWriteConnectionSecretTo(r corev1.LocalObjectReference) {
-	rd.Spec.WriteConnectionSecretTo = r
+// SetWriteConnectionSecretToReference of this Redis.
+func (rd *Redis) SetWriteConnectionSecretToReference(r corev1.LocalObjectReference) {
+	rd.Spec.WriteConnectionSecretToReference = r
 }
 
-// GetWriteConnectionSecretTo of this Redis.
-func (rd *Redis) GetWriteConnectionSecretTo() corev1.LocalObjectReference {
-	return rd.Spec.WriteConnectionSecretTo
+// GetWriteConnectionSecretToReference of this Redis.
+func (rd *Redis) GetWriteConnectionSecretToReference() corev1.LocalObjectReference {
+	return rd.Spec.WriteConnectionSecretToReference
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

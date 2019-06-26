@@ -48,11 +48,11 @@ type MockOwner struct {
 	metav1.ObjectMeta
 }
 
-func (m *MockOwner) GetWriteConnectionSecretTo() corev1.LocalObjectReference {
+func (m *MockOwner) GetWriteConnectionSecretToReference() corev1.LocalObjectReference {
 	return corev1.LocalObjectReference{Name: secretName}
 }
 
-func (m *MockOwner) SetWriteConnectionSecretTo(_ corev1.LocalObjectReference) {}
+func (m *MockOwner) SetWriteConnectionSecretToReference(_ corev1.LocalObjectReference) {}
 
 func TestConnectionSecretFor(t *testing.T) {
 	type args struct {

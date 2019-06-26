@@ -6,8 +6,8 @@ spec:
   name: crossplane-example-%s
   predefinedACL: Private
   localPermission: ReadWrite
-  classReference:
+  classRef:
     name: s3bucket
     namespace: crossplane-system
-  writeConnectionSecretTo:
+  writeConnectionSecretToRef:
     name: s3bucket
