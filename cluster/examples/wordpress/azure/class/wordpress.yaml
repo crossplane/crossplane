@@ -6,6 +6,8 @@ spec:
   classRef:
     name: standard
     namespace: crossplane-system
+  writeConnectionSecretToRef:
+    name: mysql-instance
   engineVersion: "5.7"
 ---
 apiVersion: extensions/v1beta1
