@@ -55,7 +55,7 @@ While this provides a nice separation of concerns for the developer and the oper
 
 ## Proposed Workflow
 
-While it will remain possible to explicitly reference an underlying resource class, developers will now have the option to omit the class reference and rely on falling back to whatever operators have deemed an appropriate default. The default resource class will be distinguished via annotation:
+While it will remain possible to explicitly reference an underlying resource class, developers will now have the option to omit the class reference and rely on falling back to whatever operators have deemed an appropriate default. The default resource class will be distinguished via the `default` and `abstractResource` fields:
 
 ```yaml
 apiVersion: core.crossplane.io/v1alpha1
@@ -63,13 +63,13 @@ kind: ResourceClass
 metadata:
   name: cloud-postgresql
   namespace: crossplane-system
-  annotations:
-    postgresql.storage.crossplane.io/default: "true"
 parameters:
   class: db.t2.small
   masterUsername: masteruser
   securityGroups: "sg-ab1cdefg,sg-05adsfkaj1ksdjak"
   size: "20"
+default: true
+abstractResource: postgresqlinstance.storage.crossplane.io
 provisioner: rdsinstance.database.aws.crossplane.io/v1alpha1
 providerRef:
   name: aws-provider
@@ -89,6 +89,14 @@ spec:
 ```
 
 Internally, Crossplane will first check to see if a resource class is referenced. If not, it will check to see if a class annotated as `default` has been created for the given kind. Ultimately, if one does not exist, it will fail to provision the resource.
+
+## Controllers
+
+Currently, each Crossplane resource kind (i.e. GKE Cluster, AWS S3 Bucket, etc.) has a controller that reconciles claims for that resource by binding them to the corresponding managed type. These controllers use [predicates](https://github.com/negz/crossplane/blob/resourceful/pkg/resource/predicates.go)(TEMPORARY LINK) to ensure that there is a provisioner defined for the class referenced by the claim. If the claim contains no reference to a class, the controller will not act on the claim.
+
+Default resource classes require an additional controller for each resource kind that watches for claims of that resource that have no class reference defined. The controller will check for this using predicates in the same fashion as the claim controller. Upon discovery of a claim without a class reference, the controller searches for a class with an `abstractResource` field that matches the claim kind, and a `default` field set to `true`.
+
+Finally, the controller will set the `ClassRef` of the claim to the discovered default class. The claim will now pass the predicates of the resource claim controller, and will be bound using the default class implementation.
 
 ## Future Considerations
 
