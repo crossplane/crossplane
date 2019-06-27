@@ -42,7 +42,7 @@ func AddClaim(mgr manager.Manager) error {
 		resource.ManagedKind(v1alpha1.AKSClusterGroupVersionKind),
 		resource.WithManagedConfigurators(
 			resource.ManagedConfiguratorFn(ConfigureAKSCluster),
-			resource.ManagedConfiguratorFn(resource.ConfigureObjectMeta),
+			resource.NewObjectMetaConfigurator(mgr.GetScheme()),
 		))
 
 	name := strings.ToLower(fmt.Sprintf("%s.%s", computev1alpha1.KubernetesClusterKind, controllerName))
@@ -51,10 +51,7 @@ func AddClaim(mgr manager.Manager) error {
 		return errors.Wrapf(err, "cannot create %s controller", name)
 	}
 
-	if err := c.Watch(
-		&source.Kind{Type: &v1alpha1.AKSCluster{}},
-		&handler.EnqueueRequestForOwner{OwnerType: &computev1alpha1.KubernetesCluster{}, IsController: true},
-	); err != nil {
+	if err := c.Watch(&source.Kind{Type: &v1alpha1.AKSCluster{}}, &resource.EnqueueRequestForClaim{}); err != nil {
 		return errors.Wrapf(err, "cannot watch for %s", v1alpha1.AKSClusterGroupVersionKind)
 	}
 

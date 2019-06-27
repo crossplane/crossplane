@@ -187,6 +187,16 @@ func (i *CloudMemorystoreInstance) GetWriteConnectionSecretToReference() corev1.
 	return i.Spec.WriteConnectionSecretToReference
 }
 
+// GetReclaimPolicy of this CloudMemorystoreInstance.
+func (i *CloudMemorystoreInstance) GetReclaimPolicy() corev1alpha1.ReclaimPolicy {
+	return i.Spec.ReclaimPolicy
+}
+
+// SetReclaimPolicy of this CloudMemorystoreInstance.
+func (i *CloudMemorystoreInstance) SetReclaimPolicy(p corev1alpha1.ReclaimPolicy) {
+	i.Spec.ReclaimPolicy = p
+}
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // CloudMemorystoreInstanceList contains a list of CloudMemorystoreInstance

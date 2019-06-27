@@ -103,6 +103,16 @@ func (a *Account) GetWriteConnectionSecretToReference() corev1.LocalObjectRefere
 	return a.Spec.WriteConnectionSecretToReference
 }
 
+// GetReclaimPolicy of this Account.
+func (a *Account) GetReclaimPolicy() corev1alpha1.ReclaimPolicy {
+	return a.Spec.ReclaimPolicy
+}
+
+// SetReclaimPolicy of this Account.
+func (a *Account) SetReclaimPolicy(p corev1alpha1.ReclaimPolicy) {
+	a.Spec.ReclaimPolicy = p
+}
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // AccountList contains a list of AzureBuckets
@@ -213,6 +223,16 @@ func (c *Container) SetWriteConnectionSecretToReference(r corev1.LocalObjectRefe
 // GetWriteConnectionSecretToReference of this Container.
 func (c *Container) GetWriteConnectionSecretToReference() corev1.LocalObjectReference {
 	return c.Spec.WriteConnectionSecretToReference
+}
+
+// GetReclaimPolicy of this Container.
+func (c *Container) GetReclaimPolicy() corev1alpha1.ReclaimPolicy {
+	return c.Spec.ReclaimPolicy
+}
+
+// SetReclaimPolicy of this Container.
+func (c *Container) SetReclaimPolicy(p corev1alpha1.ReclaimPolicy) {
+	c.Spec.ReclaimPolicy = p
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

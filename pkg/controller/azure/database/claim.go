@@ -42,7 +42,7 @@ func AddPostgreSQLClaim(mgr manager.Manager) error {
 		resource.ManagedKind(v1alpha1.PostgresqlServerGroupVersionKind),
 		resource.WithManagedConfigurators(
 			resource.ManagedConfiguratorFn(ConfigurePostgresqlServer),
-			resource.ManagedConfiguratorFn(resource.ConfigureObjectMeta),
+			resource.NewObjectMetaConfigurator(mgr.GetScheme()),
 		))
 
 	name := strings.ToLower(fmt.Sprintf("%s.%s", storagev1alpha1.PostgreSQLInstanceKind, controllerName))
@@ -51,10 +51,7 @@ func AddPostgreSQLClaim(mgr manager.Manager) error {
 		return errors.Wrapf(err, "cannot create %s controller", name)
 	}
 
-	if err := c.Watch(
-		&source.Kind{Type: &v1alpha1.PostgresqlServer{}},
-		&handler.EnqueueRequestForOwner{OwnerType: &storagev1alpha1.PostgreSQLInstance{}, IsController: true},
-	); err != nil {
+	if err := c.Watch(&source.Kind{Type: &v1alpha1.PostgresqlServer{}}, &resource.EnqueueRequestForClaim{}); err != nil {
 		return errors.Wrapf(err, "cannot watch for %s", v1alpha1.PostgresqlServerGroupVersionKind)
 	}
 
@@ -104,7 +101,7 @@ func AddMySQLClaim(mgr manager.Manager) error {
 		resource.ManagedKind(v1alpha1.MysqlServerGroupVersionKind),
 		resource.WithManagedConfigurators(
 			resource.ManagedConfiguratorFn(ConfigureMysqlServer),
-			resource.ManagedConfiguratorFn(resource.ConfigureObjectMeta),
+			resource.NewObjectMetaConfigurator(mgr.GetScheme()),
 		))
 
 	name := strings.ToLower(fmt.Sprintf("%s.%s", storagev1alpha1.MySQLInstanceKind, controllerName))
@@ -115,7 +112,7 @@ func AddMySQLClaim(mgr manager.Manager) error {
 
 	if err := c.Watch(
 		&source.Kind{Type: &v1alpha1.PostgresqlServer{}},
-		&handler.EnqueueRequestForOwner{OwnerType: &storagev1alpha1.MySQLInstance{}, IsController: true},
+		&resource.EnqueueRequestForClaim{},
 	); err != nil {
 		return errors.Wrapf(err, "cannot watch for %s", v1alpha1.MysqlServerGroupVersionKind)
 	}

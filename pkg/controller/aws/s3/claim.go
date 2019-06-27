@@ -50,7 +50,7 @@ func AddClaim(mgr manager.Manager) error {
 		resource.ManagedKind(v1alpha1.S3BucketGroupVersionKind),
 		resource.WithManagedConfigurators(
 			resource.ManagedConfiguratorFn(ConfigureS3Bucket),
-			resource.ManagedConfiguratorFn(resource.ConfigureObjectMeta),
+			resource.NewObjectMetaConfigurator(mgr.GetScheme()),
 		))
 
 	name := strings.ToLower(fmt.Sprintf("%s.%s", storagev1alpha1.BucketKind, controllerName))
@@ -59,10 +59,7 @@ func AddClaim(mgr manager.Manager) error {
 		return errors.Wrapf(err, "cannot create %s controller", name)
 	}
 
-	if err := c.Watch(
-		&source.Kind{Type: &v1alpha1.S3Bucket{}},
-		&handler.EnqueueRequestForOwner{OwnerType: &storagev1alpha1.Bucket{}, IsController: true},
-	); err != nil {
+	if err := c.Watch(&source.Kind{Type: &v1alpha1.S3Bucket{}}, &resource.EnqueueRequestForClaim{}); err != nil {
 		return errors.Wrapf(err, "cannot watch for %s", v1alpha1.S3BucketGroupVersionKind)
 	}
 

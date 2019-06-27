@@ -115,6 +115,16 @@ func (s *MysqlServer) GetWriteConnectionSecretToReference() corev1.LocalObjectRe
 	return s.Spec.WriteConnectionSecretToReference
 }
 
+// GetReclaimPolicy of this MysqlServer.
+func (s *MysqlServer) GetReclaimPolicy() corev1alpha1.ReclaimPolicy {
+	return s.Spec.ReclaimPolicy
+}
+
+// SetReclaimPolicy of this MysqlServer.
+func (s *MysqlServer) SetReclaimPolicy(p corev1alpha1.ReclaimPolicy) {
+	s.Spec.ReclaimPolicy = p
+}
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // MysqlServerList contains a list of MysqlServer
@@ -193,6 +203,16 @@ func (s *PostgresqlServer) SetWriteConnectionSecretToReference(r corev1.LocalObj
 // GetWriteConnectionSecretToReference of this PostgresqlServer.
 func (s *PostgresqlServer) GetWriteConnectionSecretToReference() corev1.LocalObjectReference {
 	return s.Spec.WriteConnectionSecretToReference
+}
+
+// GetReclaimPolicy of this PostgresqlServer.
+func (s *PostgresqlServer) GetReclaimPolicy() corev1alpha1.ReclaimPolicy {
+	return s.Spec.ReclaimPolicy
+}
+
+// SetReclaimPolicy of this PostgresqlServer.
+func (s *PostgresqlServer) SetReclaimPolicy(p corev1alpha1.ReclaimPolicy) {
+	s.Spec.ReclaimPolicy = p
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

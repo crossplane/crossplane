@@ -62,6 +62,12 @@ type ConnectionSecretWriterTo interface {
 	GetWriteConnectionSecretToReference() corev1.LocalObjectReference
 }
 
+// A Reclaimer may specify a ReclaimPolicy.
+type Reclaimer interface {
+	SetReclaimPolicy(p v1alpha1.ReclaimPolicy)
+	GetReclaimPolicy() v1alpha1.ReclaimPolicy
+}
+
 // A Claim is a Kubernetes object representing an abstract resource claim (e.g.
 // an SQL database) that may be bound to a concrete managed resource (e.g. a
 // CloudSQL instance).
@@ -86,6 +92,7 @@ type Managed interface {
 	ClassReferencer
 	ClaimReferencer
 	ConnectionSecretWriterTo
+	Reclaimer
 
 	Bindable
 }

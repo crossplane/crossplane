@@ -42,7 +42,7 @@ func AddClaim(mgr manager.Manager) error {
 		resource.ManagedKind(v1alpha1.CloudMemorystoreInstanceGroupVersionKind),
 		resource.WithManagedConfigurators(
 			resource.ManagedConfiguratorFn(ConfigureCloudMemorystoreInstance),
-			resource.ManagedConfiguratorFn(resource.ConfigureObjectMeta),
+			resource.NewObjectMetaConfigurator(mgr.GetScheme()),
 		))
 
 	name := strings.ToLower(fmt.Sprintf("%s.%s", cachev1alpha1.RedisClusterKind, controllerName))
@@ -51,10 +51,7 @@ func AddClaim(mgr manager.Manager) error {
 		return errors.Wrapf(err, "cannot create %s controller", name)
 	}
 
-	if err := c.Watch(
-		&source.Kind{Type: &v1alpha1.CloudMemorystoreInstance{}},
-		&handler.EnqueueRequestForOwner{OwnerType: &cachev1alpha1.RedisCluster{}, IsController: true},
-	); err != nil {
+	if err := c.Watch(&source.Kind{Type: &v1alpha1.CloudMemorystoreInstance{}}, &resource.EnqueueRequestForClaim{}); err != nil {
 		return errors.Wrapf(err, "cannot watch for %s", v1alpha1.CloudMemorystoreInstanceGroupVersionKind)
 	}
 

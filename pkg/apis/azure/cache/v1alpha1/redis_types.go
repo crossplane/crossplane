@@ -202,6 +202,16 @@ func (rd *Redis) GetWriteConnectionSecretToReference() corev1.LocalObjectReferen
 	return rd.Spec.WriteConnectionSecretToReference
 }
 
+// GetReclaimPolicy of this S3Bucket.
+func (rd *Redis) GetReclaimPolicy() corev1alpha1.ReclaimPolicy {
+	return rd.Spec.ReclaimPolicy
+}
+
+// SetReclaimPolicy of this Redis.
+func (rd *Redis) SetReclaimPolicy(p corev1alpha1.ReclaimPolicy) {
+	rd.Spec.ReclaimPolicy = p
+}
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // RedisList contains a list of Redis

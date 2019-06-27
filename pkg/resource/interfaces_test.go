@@ -57,6 +57,11 @@ func (m *MockConnectionSecretWriterTo) GetWriteConnectionSecretToReference() cor
 	return m.Ref
 }
 
+type MockReclaimer struct{ Policy v1alpha1.ReclaimPolicy }
+
+func (m *MockReclaimer) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) { m.Policy = p }
+func (m *MockReclaimer) GetReclaimPolicy() v1alpha1.ReclaimPolicy  { return m.Policy }
+
 var _ Claim = &MockClaim{}
 
 type MockClaim struct {
@@ -79,5 +84,6 @@ type MockManaged struct {
 	MockClassReferencer
 	MockClaimReferencer
 	MockConnectionSecretWriterTo
+	MockReclaimer
 	MockBindable
 }

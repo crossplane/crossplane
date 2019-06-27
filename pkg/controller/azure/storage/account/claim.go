@@ -23,6 +23,7 @@ import (
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -31,6 +32,7 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/apis/azure/storage/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	storagev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 	"github.com/crossplaneio/crossplane/pkg/resource"
 )
 
@@ -41,6 +43,7 @@ func AddClaim(mgr manager.Manager) error {
 		resource.ClaimKind(storagev1alpha1.BucketGroupVersionKind),
 		resource.ManagedKind(v1alpha1.AccountGroupVersionKind),
 		resource.WithManagedBinder(resource.NewAPIStatusManagedBinder(mgr.GetClient())),
+		resource.WithManagedFinalizer(resource.NewAPIStatusManagedFinalizer(mgr.GetClient())),
 		resource.WithManagedConfigurators(resource.ManagedConfiguratorFn(ConfigureAccount)))
 
 	name := strings.ToLower(fmt.Sprintf("%s.%s", storagev1alpha1.BucketKind, controllerName))
@@ -49,10 +52,7 @@ func AddClaim(mgr manager.Manager) error {
 		return errors.Wrapf(err, "cannot create %s controller", name)
 	}
 
-	if err := c.Watch(
-		&source.Kind{Type: &v1alpha1.Account{}},
-		&handler.EnqueueRequestForOwner{OwnerType: &storagev1alpha1.Bucket{}, IsController: true},
-	); err != nil {
+	if err := c.Watch(&source.Kind{Type: &v1alpha1.Account{}}, &resource.EnqueueRequestForClaim{}); err != nil {
 		return errors.Wrapf(err, "cannot watch for %s", v1alpha1.AccountGroupVersionKind)
 	}
 
@@ -94,8 +94,15 @@ func ConfigureAccount(_ context.Context, cm resource.Claim, cs *corev1alpha1.Res
 	// named claimkind-claimuuid because their associated container needs a
 	// predictably named account from which to load its connection secret.
 	// Instead we create an account with the same name as the claim.
-	a.SetNamespace(b.GetNamespace())
+	a.SetNamespace(cs.GetNamespace())
 	a.SetName(b.GetName())
+
+	// TODO(negz): Don't set this potentially cross-namespace owner reference.
+	// We probably want to use the resource's reclaim policy, not Kubernetes
+	// garbage collection, to determine whether to delete the managed resource
+	// when the claim is deleted per
+	// https://github.com/crossplaneio/crossplane/issues/550
+	a.SetOwnerReferences([]v1.OwnerReference{meta.AsOwner(meta.ReferenceTo(b, storagev1alpha1.BucketGroupVersionKind))})
 
 	return nil
 }

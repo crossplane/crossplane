@@ -282,6 +282,16 @@ func (c *EKSCluster) GetWriteConnectionSecretToReference() corev1.LocalObjectRef
 	return c.Spec.WriteConnectionSecretToReference
 }
 
+// GetReclaimPolicy of this EKSCluster.
+func (c *EKSCluster) GetReclaimPolicy() corev1alpha1.ReclaimPolicy {
+	return c.Spec.ReclaimPolicy
+}
+
+// SetReclaimPolicy of this EKSCluster.
+func (c *EKSCluster) SetReclaimPolicy(p corev1alpha1.ReclaimPolicy) {
+	c.Spec.ReclaimPolicy = p
+}
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // EKSClusterList contains a list of EKSCluster items

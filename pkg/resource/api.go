@@ -62,7 +62,6 @@ func (a *APIManagedCreator) Create(ctx context.Context, cm Claim, cs *v1alpha1.R
 
 	mg.SetClaimReference(cmr)
 	mg.SetClassReference(csr)
-	meta.AddOwnerReference(mg, meta.AsController(cmr))
 	if err := a.client.Create(ctx, mg); err != nil {
 		return errors.Wrap(err, errCreateManaged)
 	}
@@ -159,8 +158,56 @@ func (a *APIStatusManagedBinder) Bind(ctx context.Context, cm Claim, mg Managed)
 	return nil
 }
 
+// An APIManagedFinalizer finalizes the deletion of a managed resource by either
+// deleting or unbinding it, then updating it in the API server.
+type APIManagedFinalizer struct {
+	client client.Client
+}
+
+// NewAPIManagedFinalizer returns a new APIManagedFinalizer.
+func NewAPIManagedFinalizer(c client.Client) *APIManagedFinalizer {
+	return &APIManagedFinalizer{client: c}
+}
+
+// Finalize the supplied resource claim.
+func (a *APIManagedFinalizer) Finalize(ctx context.Context, mg Managed) error {
+	// TODO(negz): We probably want to delete the managed resource here if its
+	// reclaim policy is delete, rather than relying on garbage collection, per
+	// https://github.com/crossplaneio/crossplane/issues/550
+	mg.SetBindingPhase(v1alpha1.BindingPhaseUnbound)
+	mg.SetClaimReference(nil)
+	return errors.Wrap(IgnoreNotFound(a.client.Update(ctx, mg)), errUpdateManaged)
+}
+
+// An APIStatusManagedFinalizer finalizes the deletion of a managed resource by
+// either deleting or unbinding it, then updating it and its status in the API
+// server.
+type APIStatusManagedFinalizer struct {
+	client client.Client
+}
+
+// NewAPIStatusManagedFinalizer returns a new APIStatusManagedFinalizer.
+func NewAPIStatusManagedFinalizer(c client.Client) *APIStatusManagedFinalizer {
+	return &APIStatusManagedFinalizer{client: c}
+}
+
+// Finalize the supplied resource claim.
+func (a *APIStatusManagedFinalizer) Finalize(ctx context.Context, mg Managed) error {
+	// TODO(negz): We probably want to delete the managed resource here if its
+	// reclaim policy is delete, rather than relying on garbage collection, per
+	// https://github.com/crossplaneio/crossplane/issues/550
+	mg.SetBindingPhase(v1alpha1.BindingPhaseUnbound)
+	mg.SetClaimReference(nil)
+
+	if err := a.client.Update(ctx, mg); err != nil {
+		return errors.Wrap(IgnoreNotFound(err), errUpdateManaged)
+	}
+
+	return errors.Wrap(IgnoreNotFound(a.client.Status().Update(ctx, mg)), errUpdateManagedStatus)
+}
+
 // An APIClaimFinalizer finalizes the deletion of a resource claim by removing
-// its resource class finalizer and updating it in the API server.
+// its finalizer and updating it in the API server.
 type APIClaimFinalizer struct {
 	client client.Client
 }

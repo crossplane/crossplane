@@ -125,7 +125,7 @@ func TestReconcile(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{RequeueAfter: aShortWait}},
 		},
-		"DeleteManagedError": {
+		"FinalizeManagedError": {
 			args: args{
 				m: &MockManager{
 					c: &test.MockClient{
@@ -155,12 +155,12 @@ func TestReconcile(t *testing.T) {
 				of:   ClaimKind(MockGVK(&MockClaim{})),
 				with: ManagedKind(MockGVK(&MockManaged{})),
 				o: []ClaimReconcilerOption{
-					WithClaimFinalizer(ClaimFinalizerFn(func(_ context.Context, _ Claim) error { return errBoom })),
+					WithManagedFinalizer(ManagedFinalizerFn(func(_ context.Context, _ Managed) error { return errBoom })),
 				},
 			},
 			want: want{result: reconcile.Result{RequeueAfter: aShortWait}},
 		},
-		"DeleteManagedSuccess": {
+		"FinalizeManagedSuccess": {
 			args: args{
 				m: &MockManager{
 					c: &test.MockClient{
@@ -190,6 +190,79 @@ func TestReconcile(t *testing.T) {
 				of:   ClaimKind(MockGVK(&MockClaim{})),
 				with: ManagedKind(MockGVK(&MockManaged{})),
 				o: []ClaimReconcilerOption{
+					WithManagedFinalizer(ManagedFinalizerFn(func(_ context.Context, _ Managed) error { return nil })),
+					WithClaimFinalizer(ClaimFinalizerFn(func(_ context.Context, _ Claim) error { return nil })),
+				},
+			},
+			want: want{result: reconcile.Result{Requeue: false}},
+		},
+		"FinalizeClaimError": {
+			args: args{
+				m: &MockManager{
+					c: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+							switch o := o.(type) {
+							case *MockClaim:
+								cm := &MockClaim{}
+								cm.SetDeletionTimestamp(&now)
+								*o = *cm
+								return nil
+							default:
+								return errUnexpected
+							}
+						}),
+						MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(got runtime.Object) error {
+							want := &MockClaim{}
+							want.SetDeletionTimestamp(&now)
+							want.SetConditions(v1alpha1.Deleting(), v1alpha1.ReconcileError(errBoom))
+							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
+								t.Errorf("-want, +got:\n%s", diff)
+							}
+							return nil
+						}),
+					},
+					s: MockSchemeWith(&MockClaim{}, &MockManaged{}),
+				},
+				of:   ClaimKind(MockGVK(&MockClaim{})),
+				with: ManagedKind(MockGVK(&MockManaged{})),
+				o: []ClaimReconcilerOption{
+					WithManagedFinalizer(ManagedFinalizerFn(func(_ context.Context, _ Managed) error { return nil })),
+					WithClaimFinalizer(ClaimFinalizerFn(func(_ context.Context, _ Claim) error { return errBoom })),
+				},
+			},
+			want: want{result: reconcile.Result{RequeueAfter: aShortWait}},
+		},
+		"FinalizeClaimSuccess": {
+			args: args{
+				m: &MockManager{
+					c: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+							switch o := o.(type) {
+							case *MockClaim:
+								cm := &MockClaim{}
+								cm.SetDeletionTimestamp(&now)
+								*o = *cm
+								return nil
+							default:
+								return errUnexpected
+							}
+						}),
+						MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(got runtime.Object) error {
+							want := &MockClaim{}
+							want.SetDeletionTimestamp(&now)
+							want.SetConditions(v1alpha1.Deleting(), v1alpha1.ReconcileSuccess())
+							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
+								t.Errorf("-want, +got:\n%s", diff)
+							}
+							return nil
+						}),
+					},
+					s: MockSchemeWith(&MockClaim{}, &MockManaged{}),
+				},
+				of:   ClaimKind(MockGVK(&MockClaim{})),
+				with: ManagedKind(MockGVK(&MockManaged{})),
+				o: []ClaimReconcilerOption{
+					WithManagedFinalizer(ManagedFinalizerFn(func(_ context.Context, _ Managed) error { return nil })),
 					WithClaimFinalizer(ClaimFinalizerFn(func(_ context.Context, _ Claim) error { return nil })),
 				},
 			},

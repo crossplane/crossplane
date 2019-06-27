@@ -160,6 +160,16 @@ func (c *GKECluster) GetWriteConnectionSecretToReference() corev1.LocalObjectRef
 	return c.Spec.WriteConnectionSecretToReference
 }
 
+// GetReclaimPolicy of this GKECluster.
+func (c *GKECluster) GetReclaimPolicy() corev1alpha1.ReclaimPolicy {
+	return c.Spec.ReclaimPolicy
+}
+
+// SetReclaimPolicy of this GKECluster.
+func (c *GKECluster) SetReclaimPolicy(p corev1alpha1.ReclaimPolicy) {
+	c.Spec.ReclaimPolicy = p
+}
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // GKEClusterList contains a list of GKECluster items

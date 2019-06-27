@@ -57,7 +57,6 @@ func TestCreate(t *testing.T) {
 	cmname := "coolclaim"
 	csname := "coolclass"
 	mgname := "coolmanaged"
-	controller := true
 	errBoom := errors.New("boom")
 
 	cases := map[string]struct {
@@ -102,12 +101,6 @@ func TestCreate(t *testing.T) {
 					MockCreate: test.NewMockCreateFn(nil, func(got runtime.Object) error {
 						want := &MockManaged{}
 						want.SetName(mgname)
-						want.SetOwnerReferences([]metav1.OwnerReference{{
-							Name:       cmname,
-							APIVersion: MockGVK(&MockClaim{}).GroupVersion().String(),
-							Kind:       MockGVK(&MockClaim{}).Kind,
-							Controller: &controller,
-						}})
 						want.SetClaimReference(&corev1.ObjectReference{
 							Name:       cmname,
 							APIVersion: MockGVK(&MockClaim{}).GroupVersion().String(),
@@ -152,10 +145,7 @@ func TestCreate(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			api := APIManagedCreator{
-				client: tc.fields.client,
-				typer:  tc.fields.typer,
-			}
+			api := NewAPIManagedCreator(tc.fields.client, tc.fields.typer)
 			err := api.Create(tc.args.ctx, tc.args.cm, tc.args.cs, tc.args.mg)
 			if diff := cmp.Diff(tc.want, err, test.EquateErrors()); diff != "" {
 				t.Errorf("api.Create(...): -want error, +got error:\n%s", diff)
@@ -296,10 +286,7 @@ func TestPropagateConnection(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			api := APIManagedConnectionPropagator{
-				client: tc.fields.client,
-				typer:  tc.fields.typer,
-			}
+			api := NewAPIManagedConnectionPropagator(tc.fields.client, tc.fields.typer)
 			err := api.PropagateConnection(tc.args.ctx, tc.args.cm, tc.args.mg)
 			if diff := cmp.Diff(tc.want, err, test.EquateErrors()); diff != "" {
 				t.Errorf("api.PropagateConnection(...): -want error, +got error:\n%s", diff)
@@ -358,7 +345,7 @@ func TestBind(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			api := APIManagedBinder{client: tc.client}
+			api := NewAPIManagedBinder(tc.client)
 			err := api.Bind(tc.args.ctx, tc.args.cm, tc.args.mg)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("api.Bind(...): -want error, +got error:\n%s", diff)
@@ -423,7 +410,7 @@ func TestStatusBind(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			api := APIStatusManagedBinder{client: tc.client}
+			api := NewAPIStatusManagedBinder(tc.client)
 			err := api.Bind(tc.args.ctx, tc.args.cm, tc.args.mg)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("api.Bind(...): -want error, +got error:\n%s", diff)
@@ -438,7 +425,177 @@ func TestStatusBind(t *testing.T) {
 	}
 }
 
-func TestFinalize(t *testing.T) {
+func TestFinalizeResource(t *testing.T) {
+	type args struct {
+		ctx context.Context
+		mg  Managed
+	}
+
+	type want struct {
+		err error
+		mg  Managed
+	}
+
+	errBoom := errors.New("boom")
+
+	cases := map[string]struct {
+		client client.Client
+		args   args
+		want   want
+	}{
+		"Successful": {
+			client: &test.MockClient{
+				MockUpdate: test.NewMockUpdateFn(nil),
+			},
+			args: args{
+				ctx: context.Background(),
+				mg: &MockManaged{
+					MockReclaimer:       MockReclaimer{Policy: v1alpha1.ReclaimRetain},
+					MockBindable:        MockBindable{Phase: v1alpha1.BindingPhaseBound},
+					MockClaimReferencer: MockClaimReferencer{Ref: &corev1.ObjectReference{}},
+				},
+			},
+			want: want{
+				err: nil,
+				mg: &MockManaged{
+					MockReclaimer:       MockReclaimer{Policy: v1alpha1.ReclaimRetain},
+					MockBindable:        MockBindable{Phase: v1alpha1.BindingPhaseUnbound},
+					MockClaimReferencer: MockClaimReferencer{Ref: nil},
+				},
+			},
+		},
+		"UpdateError": {
+			client: &test.MockClient{
+				MockUpdate: test.NewMockUpdateFn(errBoom),
+			},
+			args: args{
+				ctx: context.Background(),
+				mg: &MockManaged{
+					MockReclaimer:       MockReclaimer{Policy: v1alpha1.ReclaimRetain},
+					MockBindable:        MockBindable{Phase: v1alpha1.BindingPhaseBound},
+					MockClaimReferencer: MockClaimReferencer{Ref: &corev1.ObjectReference{}},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errUpdateManaged),
+				mg: &MockManaged{
+					MockReclaimer:       MockReclaimer{Policy: v1alpha1.ReclaimRetain},
+					MockBindable:        MockBindable{Phase: v1alpha1.BindingPhaseUnbound},
+					MockClaimReferencer: MockClaimReferencer{Ref: nil},
+				},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			api := NewAPIManagedFinalizer(tc.client)
+			err := api.Finalize(tc.args.ctx, tc.args.mg)
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("api.Finalize(...): -want error, +got error:\n%s", diff)
+			}
+			if diff := cmp.Diff(tc.want.mg, tc.args.mg, test.EquateConditions()); diff != "" {
+				t.Errorf("api.Finalize(...) Managed: -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+func TestStatusFinalizeResource(t *testing.T) {
+	type args struct {
+		ctx context.Context
+		mg  Managed
+	}
+
+	type want struct {
+		err error
+		mg  Managed
+	}
+
+	errBoom := errors.New("boom")
+
+	cases := map[string]struct {
+		client client.Client
+		args   args
+		want   want
+	}{
+		"Successful": {
+			client: &test.MockClient{
+				MockUpdate:       test.NewMockUpdateFn(nil),
+				MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
+			},
+			args: args{
+				ctx: context.Background(),
+				mg: &MockManaged{
+					MockBindable:        MockBindable{Phase: v1alpha1.BindingPhaseBound},
+					MockClaimReferencer: MockClaimReferencer{Ref: &corev1.ObjectReference{}},
+				},
+			},
+			want: want{
+				err: nil,
+				mg: &MockManaged{
+					MockBindable:        MockBindable{Phase: v1alpha1.BindingPhaseUnbound},
+					MockClaimReferencer: MockClaimReferencer{Ref: nil},
+				},
+			},
+		},
+		"UpdateError": {
+			client: &test.MockClient{
+				MockUpdate: test.NewMockUpdateFn(errBoom),
+			},
+			args: args{
+				ctx: context.Background(),
+				mg: &MockManaged{
+					MockBindable:        MockBindable{Phase: v1alpha1.BindingPhaseBound},
+					MockClaimReferencer: MockClaimReferencer{Ref: &corev1.ObjectReference{}},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errUpdateManaged),
+				mg: &MockManaged{
+					MockBindable:        MockBindable{Phase: v1alpha1.BindingPhaseUnbound},
+					MockClaimReferencer: MockClaimReferencer{Ref: nil},
+				},
+			},
+		},
+		"UpdateStatusError": {
+			client: &test.MockClient{
+				MockUpdate:       test.NewMockUpdateFn(nil),
+				MockStatusUpdate: test.NewMockStatusUpdateFn(errBoom),
+			},
+			args: args{
+				ctx: context.Background(),
+				mg: &MockManaged{
+					MockReclaimer:       MockReclaimer{Policy: v1alpha1.ReclaimRetain},
+					MockBindable:        MockBindable{Phase: v1alpha1.BindingPhaseBound},
+					MockClaimReferencer: MockClaimReferencer{Ref: &corev1.ObjectReference{}},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errUpdateManagedStatus),
+				mg: &MockManaged{
+					MockReclaimer:       MockReclaimer{Policy: v1alpha1.ReclaimRetain},
+					MockBindable:        MockBindable{Phase: v1alpha1.BindingPhaseUnbound},
+					MockClaimReferencer: MockClaimReferencer{Ref: nil},
+				},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			api := NewAPIStatusManagedFinalizer(tc.client)
+			err := api.Finalize(tc.args.ctx, tc.args.mg)
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("api.Finalize(...): -want error, +got error:\n%s", diff)
+			}
+			if diff := cmp.Diff(tc.want.mg, tc.args.mg, test.EquateConditions()); diff != "" {
+				t.Errorf("api.Finalize(...) Managed: -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestFinalizeClaim(t *testing.T) {
 	type args struct {
 		ctx context.Context
 		cm  Claim
@@ -482,7 +639,7 @@ func TestFinalize(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			api := APIClaimFinalizer{client: tc.client}
+			api := NewAPIClaimFinalizer(tc.client)
 			err := api.Finalize(tc.args.ctx, tc.args.cm)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("api.Finalize(...): -want error, +got error:\n%s", diff)

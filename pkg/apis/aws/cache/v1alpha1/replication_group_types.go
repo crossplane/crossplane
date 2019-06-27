@@ -328,6 +328,16 @@ func (rg *ReplicationGroup) GetWriteConnectionSecretToReference() corev1.LocalOb
 	return rg.Spec.WriteConnectionSecretToReference
 }
 
+// GetReclaimPolicy of this ReplicationGroup.
+func (rg *ReplicationGroup) GetReclaimPolicy() corev1alpha1.ReclaimPolicy {
+	return rg.Spec.ReclaimPolicy
+}
+
+// SetReclaimPolicy of this ReplicationGroup.
+func (rg *ReplicationGroup) SetReclaimPolicy(p corev1alpha1.ReclaimPolicy) {
+	rg.Spec.ReclaimPolicy = p
+}
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // ReplicationGroupList contains a list of ReplicationGroup

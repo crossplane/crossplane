@@ -136,6 +136,16 @@ func (i *RDSInstance) GetWriteConnectionSecretToReference() corev1.LocalObjectRe
 	return i.Spec.WriteConnectionSecretToReference
 }
 
+// GetReclaimPolicy of this RDSInstance.
+func (i *RDSInstance) GetReclaimPolicy() corev1alpha1.ReclaimPolicy {
+	return i.Spec.ReclaimPolicy
+}
+
+// SetReclaimPolicy of this RDSInstance.
+func (i *RDSInstance) SetReclaimPolicy(p corev1alpha1.ReclaimPolicy) {
+	i.Spec.ReclaimPolicy = p
+}
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // RDSInstanceList contains a list of RDSInstance

@@ -25,6 +25,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
@@ -32,7 +33,7 @@ import (
 )
 
 var (
-	_ ManagedConfigurator = ManagedConfiguratorFn(ConfigureObjectMeta)
+	_ ManagedConfigurator = &ObjectMetaConfigurator{}
 	_ ManagedConfigurator = ConfiguratorChain{}
 )
 
@@ -113,42 +114,47 @@ func TestConfigureObjectMeta(t *testing.T) {
 	}
 
 	type want struct {
-		err       error
-		namespace string
-		name      string
+		err error
+		mg  Managed
 	}
 
 	cases := map[string]struct {
-		args args
-		want want
+		typer runtime.ObjectTyper
+		args  args
+		want  want
 	}{
 		"Successful": {
+			typer: MockSchemeWith(&MockClaim{}),
 			args: args{
 				ctx: context.Background(),
-				cm:  &MockClaim{ObjectMeta: metav1.ObjectMeta{Namespace: ns, UID: uid}},
-				cs:  &v1alpha1.ResourceClass{},
+				cm:  &MockClaim{ObjectMeta: metav1.ObjectMeta{UID: uid}},
+				cs:  &v1alpha1.ResourceClass{ObjectMeta: metav1.ObjectMeta{Namespace: ns}},
 				mg:  &MockManaged{},
 			},
 			want: want{
-				namespace: ns,
-				name:      strings.ToLower(reflect.TypeOf(MockClaim{}).Name() + "-" + string(uid)),
+				mg: &MockManaged{ObjectMeta: metav1.ObjectMeta{
+					Namespace: ns,
+					Name:      strings.ToLower(reflect.TypeOf(MockClaim{}).Name() + "-" + string(uid)),
+					OwnerReferences: []metav1.OwnerReference{{
+						APIVersion: MockGVK(&MockClaim{}).GroupVersion().String(),
+						Kind:       MockGVK(&MockClaim{}).Kind,
+						UID:        uid,
+					}},
+				}},
 			},
 		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got := ConfigureObjectMeta(tc.args.ctx, tc.args.cm, tc.args.cs, tc.args.mg)
+			om := NewObjectMetaConfigurator(tc.typer)
+			got := om.Configure(tc.args.ctx, tc.args.cm, tc.args.cs, tc.args.mg)
 			if diff := cmp.Diff(tc.want.err, got, test.EquateErrors()); diff != "" {
-				t.Errorf("ConfigureObjectMeta(...): -want error, +got error:\n%s", diff)
+				t.Errorf("om.Configure(...): -want error, +got error:\n%s", diff)
 			}
 
-			if diff := cmp.Diff(tc.want.namespace, tc.args.mg.GetNamespace()); diff != "" {
-				t.Errorf("tc.args.mg.GetNamespace(...): -want, +got error:\n%s", diff)
-			}
-
-			if diff := cmp.Diff(tc.want.name, tc.args.mg.GetName()); diff != "" {
-				t.Errorf("tc.args.mg.GetName(...): -want, +got error:\n%s", diff)
+			if diff := cmp.Diff(tc.want.mg, tc.args.mg); diff != "" {
+				t.Errorf("om.Configure(...) Managed: -want, +got error:\n%s", diff)
 			}
 		})
 	}

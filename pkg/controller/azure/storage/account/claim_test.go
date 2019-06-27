@@ -47,9 +47,9 @@ func TestConfigureAccount(t *testing.T) {
 		err error
 	}
 
-	claimNamespace := "coolns"
 	claimName := "coolaccount"
 	claimUID := types.UID("definitely-a-uuid")
+	classNamespace := "coolns"
 	providerName := "coolprovider"
 	bucketName := "coolbucket"
 	bucketPrivate := storagev1alpha1.ACLPrivate
@@ -61,17 +61,14 @@ func TestConfigureAccount(t *testing.T) {
 		"Successful": {
 			args: args{
 				cm: &storagev1alpha1.Bucket{
-					ObjectMeta: metav1.ObjectMeta{
-						Namespace: claimNamespace,
-						Name:      claimName,
-						UID:       claimUID,
-					},
+					ObjectMeta: metav1.ObjectMeta{Name: claimName, UID: claimUID},
 					Spec: storagev1alpha1.BucketSpec{
 						Name:          bucketName,
 						PredefinedACL: &bucketPrivate,
 					},
 				},
 				cs: &corev1alpha1.ResourceClass{
+					ObjectMeta:        metav1.ObjectMeta{Namespace: classNamespace},
 					ProviderReference: &corev1.ObjectReference{Name: providerName},
 					ReclaimPolicy:     corev1alpha1.ReclaimDelete,
 				},
@@ -80,8 +77,14 @@ func TestConfigureAccount(t *testing.T) {
 			want: want{
 				mg: &v1alpha1.Account{
 					ObjectMeta: metav1.ObjectMeta{
-						Namespace: claimNamespace,
+						Namespace: classNamespace,
 						Name:      claimName,
+						OwnerReferences: []metav1.OwnerReference{{
+							APIVersion: storagev1alpha1.BucketGroupVersionKind.GroupVersion().String(),
+							Kind:       storagev1alpha1.BucketGroupVersionKind.Kind,
+							Name:       claimName,
+							UID:        claimUID,
+						}},
 					},
 					Spec: v1alpha1.AccountSpec{
 						ResourceSpec: corev1alpha1.ResourceSpec{

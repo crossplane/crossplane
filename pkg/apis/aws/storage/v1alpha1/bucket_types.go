@@ -153,6 +153,16 @@ func (b *S3Bucket) GetWriteConnectionSecretToReference() corev1.LocalObjectRefer
 	return b.Spec.WriteConnectionSecretToReference
 }
 
+// GetReclaimPolicy of this S3Bucket.
+func (b *S3Bucket) GetReclaimPolicy() corev1alpha1.ReclaimPolicy {
+	return b.Spec.ReclaimPolicy
+}
+
+// SetReclaimPolicy of this S3Bucket.
+func (b *S3Bucket) SetReclaimPolicy(p corev1alpha1.ReclaimPolicy) {
+	b.Spec.ReclaimPolicy = p
+}
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // S3BucketList contains a list of S3Buckets

@@ -138,6 +138,16 @@ func (i *CloudsqlInstance) GetWriteConnectionSecretToReference() corev1.LocalObj
 	return i.Spec.WriteConnectionSecretToReference
 }
 
+// GetReclaimPolicy of this CloudsqlInstance.
+func (i *CloudsqlInstance) GetReclaimPolicy() corev1alpha1.ReclaimPolicy {
+	return i.Spec.ReclaimPolicy
+}
+
+// SetReclaimPolicy of this CloudsqlInstance.
+func (i *CloudsqlInstance) SetReclaimPolicy(p corev1alpha1.ReclaimPolicy) {
+	i.Spec.ReclaimPolicy = p
+}
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // CloudsqlInstanceList contains a list of CloudsqlInstance

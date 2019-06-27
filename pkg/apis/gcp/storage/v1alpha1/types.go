@@ -838,6 +838,16 @@ func (b *Bucket) GetWriteConnectionSecretToReference() corev1.LocalObjectReferen
 	return b.Spec.WriteConnectionSecretToReference
 }
 
+// GetReclaimPolicy of this Bucket.
+func (b *Bucket) GetReclaimPolicy() corev1alpha1.ReclaimPolicy {
+	return b.Spec.ReclaimPolicy
+}
+
+// SetReclaimPolicy of this Bucket.
+func (b *Bucket) SetReclaimPolicy(p corev1alpha1.ReclaimPolicy) {
+	b.Spec.ReclaimPolicy = p
+}
+
 // GetBucketName based on the NameFormat spec value,
 // If name format is not provided, bucket name defaults to UID
 // If name format provided with '%s' value, bucket name will result in formatted string + UID,
