@@ -55,7 +55,7 @@ While this provides a nice separation of concerns for the developer and the oper
 
 ## Proposed Workflow
 
-While it will remain possible to explicitly reference an underlying resource class, developers will now have the option to omit the class reference and rely on falling back to whatever operators have deemed an appropriate default. The default resource class will be distinguished via the `default` and `abstractResource` fields:
+While it will remain possible to explicitly reference an underlying resource class, developers will now have the option to omit the class reference and rely on falling back to whatever operators have deemed an appropriate default. The default resource class will be distinguished via the `defaultForClaimKinds` field:
 
 ```yaml
 apiVersion: core.crossplane.io/v1alpha1
@@ -68,8 +68,8 @@ parameters:
   masterUsername: masteruser
   securityGroups: "sg-ab1cdefg,sg-05adsfkaj1ksdjak"
   size: "20"
-default: true
-abstractResource: postgresqlinstance.storage.crossplane.io
+defaultForClaimKinds:
+- postgresqlinstance.storage.crossplane.io
 provisioner: rdsinstance.database.aws.crossplane.io/v1alpha1
 providerRef:
   name: aws-provider
@@ -94,13 +94,58 @@ Internally, Crossplane will first check to see if a resource class is referenced
 
 Currently, each Crossplane resource kind (i.e. GKE Cluster, AWS S3 Bucket, etc.) has a controller that reconciles claims for that resource by binding them to the corresponding managed type. These controllers use [predicates](https://github.com/negz/crossplane/blob/resourceful/pkg/resource/predicates.go)(TEMPORARY LINK) to ensure that there is a provisioner defined for the class referenced by the claim. If the claim contains no reference to a class, the controller will not act on the claim.
 
-Default resource classes require an additional controller for each resource kind that watches for claims of that resource that have no class reference defined. The controller will check for this using predicates in the same fashion as the claim controller. Upon discovery of a claim without a class reference, the controller searches for a class with an `abstractResource` field that matches the claim kind, and a `default` field set to `true`.
+Default resource classes require a single additional controller that watches for claims of any resource kind that have no class reference defined. The controller will check for this using predicates in the same fashion as the claim controllers. Upon discovery of a claim without a class reference, the controller searches for a class with an `defaultForClaimKinds` field that contains the `Kind` specified in the claim.
 
-Finally, the controller will set the `ClassRef` of the claim to the discovered default class. The claim will now pass the predicates of the resource claim controller, and will be bound using the default class implementation.
+Finally, the controller will set the `ClassRef` of the claim to the discovered default class. The claim will now pass the predicates of the resource claim controller for the specified resource kind, and will be bound using the default class implementation.
 
 ## Future Considerations
 
 As Crossplane evolves, it is possible that the implementation of this functionality is manifested slightly differently. One area that might affect implementation is the introduction of [strongly typed resource classes](https://github.com/crossplaneio/crossplane/issues/90). However, the workflow for developers and operators would remain largely the same in regards to usage of default resource classes.
+
+Additionally, some resources in Crossplane that are not portable (i.e. do not have comparable resources across providers) may eventually be implemented as their own concrete resource types. This may introduce the desire to have multiple resource claim kinds for which a resource class serves as default. For example, a claim may specify its `Kind` as either a `NoSQLInstance` or a more specific `DynamoDBInstance` and operators may want to specify the same default resource class for both of these claim kinds. The proposed implementation in this document would make this functionality possible because `defaultForClaimKinds` allows for multiple values.
+
+In this scenario, a default resource class may look like this:
+
+```yaml
+apiVersion: core.crossplane.io/v1alpha1
+kind: ResourceClass
+metadata:
+  name: cloud-nosql
+  namespace: crossplane-system
+parameters:
+  ...
+defaultForClaimKinds:
+- nosqlinstance.storage.crossplane.io
+- dynamodbinstance.storage.crossplane.io
+provisioner: dynamodbinstance.database.aws.crossplane.io/v1alpha1
+providerRef:
+  name: aws-provider
+reclaimPolicy: Delete
+```
+
+And a resource claim that defaulted to the resource class above could look like this in the general case:
+
+```yaml
+apiVersion: storage.crossplane.io/v1alpha1
+kind: NoSQLInstance
+metadata:
+  name: dynamo-claim
+  namespace: demo
+spec:
+  ...
+```
+
+Or in the more specific case:
+
+```yaml
+apiVersion: storage.crossplane.io/v1alpha1
+kind: DynamoDBInstance
+metadata:
+  name: dynamo-claim
+  namespace: demo
+spec:
+  ...
+```
 
 ## Questions and Open Issues
 
