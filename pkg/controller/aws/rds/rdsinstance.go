@@ -20,11 +20,11 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -41,17 +41,13 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/clients/aws/rds"
 	"github.com/crossplaneio/crossplane/pkg/logging"
 	"github.com/crossplaneio/crossplane/pkg/meta"
+	"github.com/crossplaneio/crossplane/pkg/resource"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 const (
 	controllerName = "rds.aws.crossplane.io"
 	finalizer      = "finalizer." + controllerName
-
-	errorResourceClient = "Failed to create rds client"
-	errorCreateResource = "Failed to crate resource"
-	errorSyncResource   = "Failed to sync resource state"
-	errorDeleteResource = "Failed to delete resource"
 )
 
 var (
@@ -122,36 +118,25 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 }
 
 // fail - helper function to set fail condition with reason and message
-func (r *Reconciler) fail(instance *databasev1alpha1.RDSInstance, reason, msg string) (reconcile.Result, error) {
-	instance.Status.SetDeprecatedCondition(corev1alpha1.NewDeprecatedCondition(corev1alpha1.DeprecatedFailed, reason, msg))
+func (r *Reconciler) fail(instance *databasev1alpha1.RDSInstance, err error) (reconcile.Result, error) {
+	instance.Status.SetConditions(corev1alpha1.ReconcileError(err))
 	return reconcile.Result{Requeue: true}, r.Update(context.TODO(), instance)
 }
 
 // connectionSecret return secret object for this resource
 func connectionSecret(instance *databasev1alpha1.RDSInstance, password string) *corev1.Secret {
-	ref := meta.AsOwner(meta.ReferenceTo(instance, databasev1alpha1.RDSInstanceGroupVersionKind))
-	return &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            instance.ConnectionSecretName(),
-			Namespace:       instance.Namespace,
-			OwnerReferences: []metav1.OwnerReference{ref},
-		},
-
-		Data: map[string][]byte{
-			corev1alpha1.ResourceCredentialsSecretUserKey:     []byte(instance.Spec.MasterUsername),
-			corev1alpha1.ResourceCredentialsSecretPasswordKey: []byte(password),
-		},
+	s := resource.ConnectionSecretFor(instance, databasev1alpha1.RDSInstanceGroupVersionKind)
+	s.Data = map[string][]byte{
+		corev1alpha1.ResourceCredentialsSecretUserKey:     []byte(instance.Spec.MasterUsername),
+		corev1alpha1.ResourceCredentialsSecretPasswordKey: []byte(password),
 	}
+	return s
 }
 
 func (r *Reconciler) _connect(instance *databasev1alpha1.RDSInstance) (rds.Client, error) {
 	// Fetch AWS Provider
 	p := &awsv1alpha1.Provider{}
-	providerNamespacedName := types.NamespacedName{
-		Namespace: instance.Namespace,
-		Name:      instance.Spec.ProviderRef.Name,
-	}
-	err := r.Get(ctx, providerNamespacedName, p)
+	err := r.Get(ctx, meta.NamespacedNameOf(instance.Spec.ProviderReference), p)
 	if err != nil {
 		return nil, err
 	}
@@ -167,30 +152,29 @@ func (r *Reconciler) _connect(instance *databasev1alpha1.RDSInstance) (rds.Clien
 }
 
 func (r *Reconciler) _create(instance *databasev1alpha1.RDSInstance, client rds.Client) (reconcile.Result, error) {
+	instance.Status.SetConditions(corev1alpha1.Creating())
 	resourceName := fmt.Sprintf("%s-%s", instance.Spec.Engine, instance.UID)
 
 	// generate new password
 	password, err := util.GeneratePassword(20)
 	if err != nil {
-		return r.fail(instance, errorCreateResource, err.Error())
+		return r.fail(instance, err)
 	}
 
 	_, err = util.ApplySecret(r.kubeclient, connectionSecret(instance, password))
 	if err != nil {
-		return r.fail(instance, errorCreateResource, err.Error())
+		return r.fail(instance, err)
 	}
 
 	// Create DB Instance
 	_, err = client.CreateInstance(resourceName, password, &instance.Spec)
 	if err != nil && !rds.IsErrorAlreadyExists(err) {
-		return r.fail(instance, errorCreateResource, err.Error())
+		return r.fail(instance, err)
 	}
 
-	instance.Status.UnsetAllDeprecatedConditions()
-	instance.Status.SetCreating()
 	instance.Status.InstanceName = resourceName
-
 	meta.AddFinalizer(instance, finalizer)
+	instance.Status.SetConditions(corev1alpha1.ReconcileSuccess())
 
 	return resultRequeue, r.Update(ctx, instance)
 }
@@ -199,29 +183,31 @@ func (r *Reconciler) _sync(instance *databasev1alpha1.RDSInstance, client rds.Cl
 	// Search for the RDS instance in AWS
 	db, err := client.GetInstance(instance.Status.InstanceName)
 	if err != nil {
-		return r.fail(instance, errorSyncResource, err.Error())
+		return r.fail(instance, err)
 	}
 
 	instance.Status.State = db.Status
 
-	instance.Status.UnsetAllDeprecatedConditions()
 	switch db.Status {
 	case string(databasev1alpha1.RDSInstanceStateCreating):
-		instance.Status.SetCreating()
+		instance.Status.SetConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileSuccess())
 		return resultRequeue, r.Update(ctx, instance)
 	case string(databasev1alpha1.RDSInstanceStateFailed):
-		instance.Status.SetFailed(errorSyncResource, "resource is in failed state")
+		instance.Status.SetConditions(corev1alpha1.Unavailable(), corev1alpha1.ReconcileSuccess())
 		return result, r.Update(ctx, instance)
 	case string(databasev1alpha1.RDSInstanceStateAvailable):
-		instance.Status.SetReady()
+		instance.Status.SetConditions(corev1alpha1.Available())
+		resource.SetBindable(instance)
 	default:
-		return r.fail(instance, errorSyncResource, fmt.Sprintf("unexpected resource status: %s", db.Status))
+		return r.fail(instance, errors.Errorf("unexpected resource status: %s", db.Status))
 	}
 
 	// Retrieve connection secret that was created during resource create phase
-	connSecret, err := r.kubeclient.CoreV1().Secrets(instance.Namespace).Get(instance.ConnectionSecretName(), metav1.GetOptions{})
+	connSecret, err := r.kubeclient.CoreV1().
+		Secrets(instance.GetNamespace()).
+		Get(instance.GetWriteConnectionSecretToReference().Name, metav1.GetOptions{})
 	if err != nil {
-		return r.fail(instance, errorSyncResource, err.Error())
+		return r.fail(instance, err)
 	}
 
 	// Save resource endpoint
@@ -232,21 +218,24 @@ func (r *Reconciler) _sync(instance *databasev1alpha1.RDSInstance, client rds.Cl
 	connSecret.Data[corev1alpha1.ResourceCredentialsSecretEndpointKey] = []byte(db.Endpoint)
 	_, err = util.ApplySecret(r.kubeclient, connSecret)
 	if err != nil {
-		return r.fail(instance, errorSyncResource, err.Error())
+		return r.fail(instance, err)
 	}
 
+	instance.Status.SetConditions(corev1alpha1.ReconcileSuccess())
 	return result, r.Update(ctx, instance)
 }
 
 func (r *Reconciler) _delete(instance *databasev1alpha1.RDSInstance, client rds.Client) (reconcile.Result, error) {
+	instance.Status.SetConditions(corev1alpha1.Deleting())
+
 	if instance.Spec.ReclaimPolicy == corev1alpha1.ReclaimDelete {
 		if _, err := client.DeleteInstance(instance.Status.InstanceName); err != nil && !rds.IsErrorNotFound(err) {
-			return r.fail(instance, errorDeleteResource, err.Error())
+			return r.fail(instance, err)
 		}
 	}
 
-	instance.Status.SetDeprecatedCondition(corev1alpha1.NewDeprecatedCondition(corev1alpha1.DeprecatedDeleting, "", ""))
 	meta.RemoveFinalizer(instance, finalizer)
+	instance.Status.SetConditions(corev1alpha1.ReconcileSuccess())
 	return result, r.Update(ctx, instance)
 }
 
@@ -259,7 +248,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 
 	err := r.Get(ctx, request.NamespacedName, instance)
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if kerrors.IsNotFound(err) {
 			// Object not found, return.  Created objects are automatically garbage collected.
 			// For additional cleanup logic use finalizers.
 			return reconcile.Result{}, nil
@@ -270,7 +259,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 
 	rdsClient, err := r.connect(instance)
 	if err != nil {
-		return r.fail(instance, errorResourceClient, err.Error())
+		return r.fail(instance, err)
 	}
 
 	// Check for deletion

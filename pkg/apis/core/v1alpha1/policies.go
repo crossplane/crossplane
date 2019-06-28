@@ -16,13 +16,16 @@ limitations under the License.
 
 package v1alpha1
 
-// ReclaimPolicy describes a policy for end-of-life maintenance of storage resources
+// A ReclaimPolicy determines what should happen to managed resources when their
+// bound resource claims are deleted.
 type ReclaimPolicy string
 
 const (
-	// ReclaimDelete means the cloud provider resource backing this custom resource (CR) will be deleted upon CR deletion
+	// ReclaimDelete means the managed resource will be deleted when its bound
+	// resource claim is deleted.
 	ReclaimDelete ReclaimPolicy = "Delete"
-	// ReclaimRetain means the cloud provider resource backing this custom resource (CR) will be will be left in its current phase upon CR deletion for manual reclamation by the administrator.
-	// The default policy is Retain.
+
+	// ReclaimRetain means the managed resource will remain when its bound
+	// resource claim is deleted.
 	ReclaimRetain ReclaimPolicy = "Retain"
 )

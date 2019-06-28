@@ -1,0 +1,12 @@
+---
+apiVersion: storage.crossplane.io/v1alpha1
+kind: MySQLInstance
+metadata:
+  name: rdsmysql
+spec:
+  classRef:
+    name: rdsmysql
+    namespace: crossplane-system
+  writeConnectionSecretToRef:
+    name: rdsmysql
+  engineVersion: "5.6"

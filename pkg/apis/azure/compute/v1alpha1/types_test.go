@@ -27,6 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/resource"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
@@ -39,6 +40,8 @@ var (
 	c   client.Client
 	ctx = context.TODO()
 )
+
+var _ resource.Managed = &AKSCluster{}
 
 func TestMain(m *testing.M) {
 	t := test.NewEnv(namespace, SchemeBuilder.SchemeBuilder, test.CRDs())
@@ -86,7 +89,12 @@ func TestNewAKSClusterSpec(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	m := make(map[string]string)
-	exp := &AKSClusterSpec{ReclaimPolicy: corev1alpha1.ReclaimRetain, NodeCount: to.IntPtr(1)} // default values
+	exp := &AKSClusterSpec{
+		ResourceSpec: corev1alpha1.ResourceSpec{
+			ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		},
+		NodeCount: to.IntPtr(1),
+	}
 
 	g.Expect(NewAKSClusterSpec(m)).To(Equal(exp))
 

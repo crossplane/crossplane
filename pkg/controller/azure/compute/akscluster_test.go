@@ -23,6 +23,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/services/containerservice/mgmt/2018-03-31/containerservice"
 	"github.com/Azure/azure-sdk-for-go/services/graphrbac/1.6/graphrbac"
 	"github.com/Azure/go-autorest/autorest/to"
+	"github.com/google/go-cmp/cmp"
 	"github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -40,6 +41,8 @@ import (
 	azureclients "github.com/crossplaneio/crossplane/pkg/clients/azure"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
+
+var _ reconcile.Reconciler = &Reconciler{}
 
 type mockAKSSetupClientFactory struct {
 	mockClient *mockAKSSetupClient
@@ -202,19 +205,14 @@ func TestReconcile(t *testing.T) {
 		ClusterName:         instanceName,
 		ApplicationObjectID: "182f8c4a-ad89-4b25-b947-d4026ab183a1",
 		ServicePrincipalID:  "da804153-3faa-4c73-9fcb-0961387a31f9",
-		DeprecatedConditionedStatus: corev1alpha1.DeprecatedConditionedStatus{
-			Conditions: []corev1alpha1.DeprecatedCondition{
-				{
-					Type:   corev1alpha1.DeprecatedCreating,
-					Status: v1.ConditionTrue,
-				},
-			},
-		},
 	}
+	expectedStatus.SetConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileSuccess())
 	assertAKSClusterStatus(g, c, expectedStatus)
 
 	// the service principal secret (note this is not the connection secret) should have been created
-	spSecret, err := r.clientset.CoreV1().Secrets(namespace).Get("test-compute-instance-service-principal", metav1.GetOptions{})
+	spSecret, err := r.clientset.CoreV1().
+		Secrets(namespace).
+		Get(instance.Spec.WriteServicePrincipalSecretTo.Name, metav1.GetOptions{})
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 	spSecretValue, ok := spSecret.Data[spSecretKey]
 	g.Expect(ok).To(gomega.BeTrue())
@@ -227,15 +225,8 @@ func TestReconcile(t *testing.T) {
 		ClusterName:         instanceName,
 		ApplicationObjectID: "182f8c4a-ad89-4b25-b947-d4026ab183a1",
 		ServicePrincipalID:  "da804153-3faa-4c73-9fcb-0961387a31f9",
-		DeprecatedConditionedStatus: corev1alpha1.DeprecatedConditionedStatus{
-			Conditions: []corev1alpha1.DeprecatedCondition{
-				{
-					Type:   corev1alpha1.DeprecatedCreating,
-					Status: v1.ConditionTrue,
-				},
-			},
-		},
 	}
+	expectedStatus.SetConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileSuccess())
 	assertAKSClusterStatus(g, c, expectedStatus)
 
 	// third reconcile should find the AKS cluster instance from Azure and update the full status of the CRD
@@ -250,25 +241,14 @@ func TestReconcile(t *testing.T) {
 		Endpoint:            "crossplane-aks.foo.azure.com",
 		ApplicationObjectID: "182f8c4a-ad89-4b25-b947-d4026ab183a1",
 		ServicePrincipalID:  "da804153-3faa-4c73-9fcb-0961387a31f9",
-		DeprecatedConditionedStatus: corev1alpha1.DeprecatedConditionedStatus{
-			Conditions: []corev1alpha1.DeprecatedCondition{
-				{
-					Type:   corev1alpha1.DeprecatedCreating,
-					Status: v1.ConditionFalse,
-				},
-				{
-					Type:   corev1alpha1.DeprecatedReady,
-					Status: v1.ConditionTrue,
-				},
-			},
-		},
 	}
+	expectedStatus.SetConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess())
 	assertAKSClusterStatus(g, c, expectedStatus)
 
 	// wait for the connection information to be stored in a secret, then verify it
 	var connectionSecret *v1.Secret
 	for {
-		if connectionSecret, err = r.clientset.CoreV1().Secrets(namespace).Get(instanceName, metav1.GetOptions{}); err == nil {
+		if connectionSecret, err = r.clientset.CoreV1().Secrets(namespace).Get(instance.Spec.WriteConnectionSecretToReference.Name, metav1.GetOptions{}); err == nil {
 			if string(connectionSecret.Data[corev1alpha1.ResourceCredentialsSecretEndpointKey]) != "" {
 				break
 			}
@@ -334,9 +314,7 @@ func assertAKSClusterStatus(g *gomega.GomegaWithT, c client.Client, expectedStat
 	g.Expect(instance.Status.ApplicationObjectID).To(gomega.Equal(expectedStatus.ApplicationObjectID))
 	g.Expect(instance.Status.ServicePrincipalID).To(gomega.Equal(expectedStatus.ServicePrincipalID))
 	g.Expect(instance.Status.RunningOperation).To(gomega.Equal(expectedStatus.RunningOperation))
-
-	// assert the expected status conditions
-	corev1alpha1.AssertConditions(g, expectedStatus.Conditions, instance.Status.DeprecatedConditionedStatus)
+	g.Expect(cmp.Diff(expectedStatus.ConditionedStatus, instance.Status.ConditionedStatus, test.EquateConditions())).Should(gomega.BeZero())
 }
 
 func assertConnectionSecret(g *gomega.GomegaWithT, c client.Client, connectionSecret *v1.Secret) {

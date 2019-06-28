@@ -80,19 +80,19 @@ func (ta *MockAccount) WithFinalizers(f []string) *MockAccount {
 
 // WithSpecClassRef set class reference
 func (ta *MockAccount) WithSpecClassRef(ref *corev1.ObjectReference) *MockAccount {
-	ta.Spec.ClassRef = ref
+	ta.Spec.ClassReference = ref
 	return ta
 }
 
 // WithSpecClaimRef set class reference
 func (ta *MockAccount) WithSpecClaimRef(ref *corev1.ObjectReference) *MockAccount {
-	ta.Spec.ClaimRef = ref
+	ta.Spec.ClaimReference = ref
 	return ta
 }
 
 // WithSpecProvider set a provider
-func (ta *MockAccount) WithSpecProvider(name string) *MockAccount {
-	ta.Spec.ProviderRef = corev1.LocalObjectReference{Name: name}
+func (ta *MockAccount) WithSpecProvider(ns, name string) *MockAccount {
+	ta.Spec.ProviderReference = &corev1.ObjectReference{Namespace: ns, Name: name}
 	return ta
 }
 
@@ -114,33 +114,9 @@ func (ta *MockAccount) WithSpecStorageAccountSpec(spec *v1alpha1.StorageAccountS
 	return ta
 }
 
-// WithStatusDeprecatedCondition sets status condition
-func (ta *MockAccount) WithStatusDeprecatedCondition(c corev1alpha1.DeprecatedCondition) *MockAccount {
-	ta.Status.DeprecatedConditionedStatus.SetDeprecatedCondition(c)
-	return ta
-}
-
-// WithStatusFailedDeprecatedCondition sets and activates Failed condition
-func (ta *MockAccount) WithStatusFailedDeprecatedCondition(reason, msg string) *MockAccount {
-	ta.Status.SetFailed(reason, msg)
-	return ta
-}
-
-// WithStatusSetBound set status bound state
-func (ta *MockAccount) WithStatusSetBound(bound bool) *MockAccount {
-	ta.Status.SetBound(bound)
-	return ta
-}
-
 // WithStorageAccountStatus set storage account status
 func (ta *MockAccount) WithStorageAccountStatus(status *v1alpha1.StorageAccountStatus) *MockAccount {
 	ta.Status.StorageAccountStatus = status
-	return ta
-}
-
-// WithStatusConnectionRef set connection references
-func (ta *MockAccount) WithStatusConnectionRef(ref string) *MockAccount {
-	ta.Status.ConnectionSecretRef = corev1.LocalObjectReference{Name: ref}
 	return ta
 }
 
@@ -151,5 +127,24 @@ func (ta *MockAccount) WithSpecStatusFromProperties(props *storage.AccountProper
 	}
 	ta.WithSpecStorageAccountSpec(v1alpha1.NewStorageAccountSpec(acct)).
 		WithStorageAccountStatus(v1alpha1.NewStorageAccountStatus(acct))
+	return ta
+}
+
+// WithSpecWriteConnectionSecretToReference sets where the storage account will write its
+// connection secret.
+func (ta *MockAccount) WithSpecWriteConnectionSecretToReference(name string) *MockAccount {
+	ta.Spec.WriteConnectionSecretToReference = corev1.LocalObjectReference{Name: name}
+	return ta
+}
+
+// WithStatusConditions sets the storage account's conditioned status.
+func (ta *MockAccount) WithStatusConditions(c ...corev1alpha1.Condition) *MockAccount {
+	ta.Status.SetConditions(c...)
+	return ta
+}
+
+// WithStatusBindingPhase sets the storage account's binding phase.
+func (ta *MockAccount) WithStatusBindingPhase(p corev1alpha1.BindingPhase) *MockAccount {
+	ta.Status.SetBindingPhase(p)
 	return ta
 }

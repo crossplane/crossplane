@@ -31,6 +31,7 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/apis/azure"
 	azuredbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/database/v1alpha1"
 	azurev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
@@ -106,7 +107,13 @@ func testInstance(p *azurev1alpha1.Provider) *azuredbv1alpha1.MysqlServer {
 	return &azuredbv1alpha1.MysqlServer{
 		ObjectMeta: metav1.ObjectMeta{Name: instanceName, Namespace: namespace},
 		Spec: azuredbv1alpha1.SQLServerSpec{
-			ProviderRef:    corev1.LocalObjectReference{Name: p.Name},
+			ResourceSpec: corev1alpha1.ResourceSpec{
+				ProviderReference: &corev1.ObjectReference{
+					Namespace: p.GetNamespace(),
+					Name:      p.GetName(),
+				},
+				WriteConnectionSecretToReference: corev1.LocalObjectReference{Name: "coolsecret"},
+			},
 			AdminLoginName: "myadmin",
 			PricingTier: azuredbv1alpha1.PricingTierSpec{
 				Tier: "Basic", VCores: 1, Family: "Gen4",

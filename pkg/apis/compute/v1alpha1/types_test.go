@@ -21,12 +21,13 @@ import (
 
 	. "github.com/onsi/gomega"
 	"golang.org/x/net/context"
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/resource"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
@@ -42,6 +43,8 @@ var (
 	key = types.NamespacedName{Name: name, Namespace: namespace}
 )
 
+var _ resource.Claim = &KubernetesCluster{}
+
 func TestMain(m *testing.M) {
 	t := test.NewEnv(namespace, SchemeBuilder.SchemeBuilder, test.CRDs())
 	c = t.StartClient()
@@ -54,9 +57,11 @@ func TestKubernetes(t *testing.T) {
 	created := &KubernetesCluster{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
 		Spec: KubernetesClusterSpec{
-			ClassRef: &corev1.ObjectReference{
-				Name:      "test-class",
-				Namespace: "test-system",
+			ResourceClaimSpec: v1alpha1.ResourceClaimSpec{
+				ClassReference: &corev1.ObjectReference{
+					Name:      "test-class",
+					Namespace: "test-system",
+				},
 			},
 		},
 	}
@@ -71,60 +76,10 @@ func TestKubernetes(t *testing.T) {
 	// Test Updating the Labels
 	updated := fetched.DeepCopy()
 	updated.Labels = map[string]string{"hello": "world"}
-	updated.Spec.ResourceRef = &corev1.ObjectReference{
+	updated.Spec.ResourceReference = &corev1.ObjectReference{
 		Name:      "test-class",
 		Namespace: "test-resource",
 	}
-	g.Expect(c.Update(ctx, updated)).NotTo(HaveOccurred())
-
-	g.Expect(c.Get(ctx, key, fetched)).NotTo(HaveOccurred())
-	g.Expect(fetched).To(Equal(updated))
-
-	// Test Delete
-	g.Expect(c.Delete(ctx, fetched)).NotTo(HaveOccurred())
-	g.Expect(c.Get(ctx, key, fetched)).To(HaveOccurred())
-}
-
-func TestWorkload(t *testing.T) {
-	g := NewGomegaWithT(t)
-
-	om := metav1.ObjectMeta{
-		Namespace: namespace,
-		Name:      name,
-	}
-
-	created := &Workload{
-		ObjectMeta: om,
-		Spec: WorkloadSpec{
-			TargetNamespace: namespace,
-			TargetDeployment: &appsv1.Deployment{
-				ObjectMeta: om,
-			},
-			TargetService: &corev1.Service{
-				ObjectMeta: om,
-			},
-			Resources: []ResourceReference{
-				{
-					ObjectReference: corev1.ObjectReference{Name: "mysql-database"},
-					SecretName:      "mysql-database-creds",
-				},
-				{
-					ObjectReference: corev1.ObjectReference{Name: "my-bucket"},
-				},
-			},
-		},
-	}
-
-	// Test Create
-	fetched := &Workload{}
-	g.Expect(c.Create(ctx, created)).NotTo(HaveOccurred())
-
-	g.Expect(c.Get(ctx, key, fetched)).NotTo(HaveOccurred())
-	g.Expect(fetched).To(Equal(created))
-
-	// Test Updating the Labels
-	updated := fetched.DeepCopy()
-	updated.Labels = map[string]string{"hello": "world"}
 	g.Expect(c.Update(ctx, updated)).NotTo(HaveOccurred())
 
 	g.Expect(c.Get(ctx, key, fetched)).NotTo(HaveOccurred())

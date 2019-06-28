@@ -1,0 +1,12 @@
+---
+apiVersion: storage.crossplane.io/v1alpha1
+kind: Bucket
+metadata:
+  name: storageaccount
+spec:
+  classRef:
+    name: storageaccount
+    namespace: crossplane-system
+  writeConnectionSecretToRef:
+    name: storageaccount
+  name: crossplanestorageacct

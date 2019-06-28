@@ -23,7 +23,6 @@ import (
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -39,19 +38,13 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/clients/aws/elasticache"
 	"github.com/crossplaneio/crossplane/pkg/logging"
 	"github.com/crossplaneio/crossplane/pkg/meta"
+	"github.com/crossplaneio/crossplane/pkg/resource"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 const (
-	controllerName = "replicationgroup.cache.aws.crossplane.io"
-	finalizerName  = "finalizer." + controllerName
-
-	reasonFetchingClient   = "failed to fetch AWS Replication Group client"
-	reasonCreatingResource = "failed to create AWS Replication Group"
-	reasonDeletingResource = "failed to delete AWS Replication Group"
-	reasonSyncingResource  = "failed to sync AWS Replication Group"
-	reasonSyncingSecret    = "failed to sync AWS Replication Group connection secret" // nolint:gas,gosec
-
+	controllerName   = "replicationgroup.cache.aws.crossplane.io"
+	finalizerName    = "finalizer." + controllerName
 	reconcileTimeout = 1 * time.Minute
 
 	// Note this is the length of the generated random byte slice before base64
@@ -67,7 +60,7 @@ type creator interface {
 	// resource requires further reconciliation, and an authentication token
 	// used to connect to the Redis endpoint. The authentication token will be
 	// an empty string if no token is required.
-	Create(ctx context.Context, r *v1alpha1.ReplicationGroup) (requeue bool, authToken string)
+	Create(context.Context, *v1alpha1.ReplicationGroup) (requeue bool, authToken string)
 }
 
 // A syncer can sync resources with an external store - e.g. the AWS API.
@@ -105,7 +98,7 @@ func (e *elastiCache) Create(ctx context.Context, g *v1alpha1.ReplicationGroup) 
 	if g.Spec.AuthEnabled {
 		at, err := util.GeneratePassword(maxAuthTokenData)
 		if err != nil {
-			g.Status.SetFailed(reasonCreatingResource, err.Error())
+			g.Status.SetConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileError(err))
 			return true, authToken
 		}
 		authToken = at
@@ -114,13 +107,12 @@ func (e *elastiCache) Create(ctx context.Context, g *v1alpha1.ReplicationGroup) 
 	req := e.client.CreateReplicationGroupRequest(elasticache.NewCreateReplicationGroupInput(g, authToken))
 	req.SetContext(ctx)
 	if _, err := req.Send(); err != nil {
-		g.Status.SetFailed(reasonCreatingResource, err.Error())
+		g.Status.SetConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileError(err))
 		return true, authToken
 	}
 
 	g.Status.GroupName = elasticache.NewReplicationGroupID(g)
-	g.Status.UnsetAllDeprecatedConditions()
-	g.Status.SetCreating()
+	g.Status.SetConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileSuccess())
 	meta.AddFinalizer(g, finalizerName)
 
 	return true, authToken
@@ -134,7 +126,7 @@ func (e *elastiCache) Sync(ctx context.Context, g *v1alpha1.ReplicationGroup) bo
 	drg.SetContext(ctx)
 	rsp, err := drg.Send()
 	if err != nil {
-		g.Status.SetFailed(reasonSyncingResource, err.Error())
+		g.Status.SetConditions(corev1alpha1.ReconcileError(err))
 		return true
 	}
 	// DescribeReplicationGroups can return one or many replication groups. We
@@ -143,22 +135,23 @@ func (e *elastiCache) Sync(ctx context.Context, g *v1alpha1.ReplicationGroup) bo
 	replicationGroup := rsp.ReplicationGroups[0]
 
 	g.Status.State = aws.StringValue(replicationGroup.Status)
-	g.Status.UnsetAllDeprecatedConditions()
 
 	switch g.Status.State {
 	case v1alpha1.StatusAvailable:
-		g.Status.SetReady()
+		g.Status.SetConditions(corev1alpha1.Available())
+		resource.SetBindable(g)
 	case v1alpha1.StatusCreating:
-		g.Status.SetCreating()
+		g.Status.SetConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileSuccess())
 		return true
 	case v1alpha1.StatusDeleting:
-		g.Status.SetDeleting()
+		g.Status.SetConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileSuccess())
 		return false
 	default:
 		// TODO(negz): Don't requeue in this scenario? The instance could be
 		// modifying, snapshotting, etc. It seems instances go into modifying by
 		// themselves shortly after creation, seemingly as part of the creation
 		// process?
+		g.Status.SetConditions(corev1alpha1.ReconcileSuccess())
 		return true
 	}
 
@@ -171,21 +164,23 @@ func (e *elastiCache) Sync(ctx context.Context, g *v1alpha1.ReplicationGroup) bo
 
 	ccsNeedsUpdate, err := e.cacheClustersNeedUpdate(ctx, g)
 	if err != nil {
-		g.Status.SetFailed(reasonSyncingResource, err.Error())
+		g.Status.SetConditions(corev1alpha1.ReconcileError(err))
 		return true
 	}
 
 	if !ccsNeedsUpdate && !elasticache.ReplicationGroupNeedsUpdate(g, replicationGroup) {
+		g.Status.SetConditions(corev1alpha1.ReconcileSuccess())
 		return false
 	}
 
 	mrg := e.client.ModifyReplicationGroupRequest(elasticache.NewModifyReplicationGroupInput(g))
 	mrg.SetContext(ctx)
 	if _, err := mrg.Send(); err != nil {
-		g.Status.SetFailed(reasonSyncingResource, err.Error())
+		g.Status.SetConditions(corev1alpha1.ReconcileError(err))
 		return true
 	}
 
+	g.Status.SetConditions(corev1alpha1.ReconcileSuccess())
 	return false
 }
 
@@ -210,16 +205,17 @@ func (e *elastiCache) cacheClustersNeedUpdate(ctx context.Context, g *v1alpha1.R
 }
 
 func (e *elastiCache) Delete(ctx context.Context, g *v1alpha1.ReplicationGroup) bool {
+	g.Status.SetConditions(corev1alpha1.Deleting())
 	if g.Spec.ReclaimPolicy == corev1alpha1.ReclaimDelete {
 		req := e.client.DeleteReplicationGroupRequest(elasticache.NewDeleteReplicationGroupInput(g))
 		req.SetContext(ctx)
 		if _, err := req.Send(); err != nil {
-			g.Status.SetFailed(reasonDeletingResource, err.Error())
+			g.Status.SetConditions(corev1alpha1.ReconcileError(err))
 			return true
 		}
 	}
-	g.Status.SetDeleting()
 	meta.RemoveFinalizer(g, finalizerName)
+	g.Status.SetConditions(corev1alpha1.ReconcileSuccess())
 	return false
 }
 
@@ -241,7 +237,7 @@ type providerConnecter struct {
 // ReplicationGroup.
 func (c *providerConnecter) Connect(ctx context.Context, g *v1alpha1.ReplicationGroup) (createsyncdeleter, error) {
 	p := &awsv1alpha1.Provider{}
-	n := types.NamespacedName{Namespace: g.GetNamespace(), Name: g.Spec.ProviderRef.Name}
+	n := meta.NamespacedNameOf(g.Spec.ProviderReference)
 	if err := c.kube.Get(ctx, n, p); err != nil {
 		return nil, errors.Wrapf(err, "cannot get provider %s", n)
 	}
@@ -296,7 +292,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	client, err := r.Connect(ctx, rd)
 	if err != nil {
-		rd.Status.SetFailed(reasonFetchingClient, err.Error())
+		rd.Status.SetConditions(corev1alpha1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}, errors.Wrapf(r.kube.Update(ctx, rd), "cannot update resource %s", req.NamespacedName)
 	}
 
@@ -309,14 +305,14 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	if rd.Status.GroupName == "" {
 		requeue, authToken := client.Create(ctx, rd)
 		if err := r.upsertSecret(ctx, connectionSecretWithPassword(rd, authToken)); err != nil {
-			rd.Status.SetFailed(reasonSyncingSecret, err.Error())
+			rd.Status.SetConditions(corev1alpha1.ReconcileError(err))
 			requeue = true
 		}
 		return reconcile.Result{Requeue: requeue}, errors.Wrapf(r.kube.Update(ctx, rd), "cannot update resource %s", req.NamespacedName)
 	}
 
 	if err := r.upsertSecret(ctx, connectionSecret(rd)); err != nil {
-		rd.Status.SetFailed(reasonSyncingSecret, err.Error())
+		rd.Status.SetConditions(corev1alpha1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}, errors.Wrapf(r.kube.Update(ctx, rd), "cannot update resource %s", req.NamespacedName)
 	}
 
@@ -347,19 +343,13 @@ func (r *Reconciler) upsertSecret(ctx context.Context, new *corev1.Secret) error
 }
 
 func connectionSecret(g *v1alpha1.ReplicationGroup) *corev1.Secret {
-	ref := meta.AsOwner(meta.ReferenceTo(g, v1alpha1.ReplicationGroupGroupVersionKind))
-	return &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            g.ConnectionSecretName(),
-			Namespace:       g.Namespace,
-			OwnerReferences: []metav1.OwnerReference{ref},
-		},
+	s := resource.ConnectionSecretFor(g, v1alpha1.ReplicationGroupGroupVersionKind)
 
-		// TODO(negz): Include the ports here too?
-		Data: map[string][]byte{
-			corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(g.Status.Endpoint),
-		},
+	// TODO(negz): Include the ports here too?
+	s.Data = map[string][]byte{
+		corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(g.Status.Endpoint),
 	}
+	return s
 }
 
 func connectionSecretWithPassword(g *v1alpha1.ReplicationGroup, password string) *corev1.Secret {

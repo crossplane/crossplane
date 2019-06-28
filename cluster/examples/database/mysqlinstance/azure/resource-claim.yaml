@@ -1,0 +1,12 @@
+---
+apiVersion: storage.crossplane.io/v1alpha1
+kind: MySQLInstance
+metadata:
+  name: sqlservermysql
+spec:
+  classRef:
+    name: sqlservermysql
+    namespace: crossplane-system
+  writeConnectionSecretToRef:
+    name: sqlservermysql
+  engineVersion: "5.6"

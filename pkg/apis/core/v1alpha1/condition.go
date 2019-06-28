@@ -57,21 +57,21 @@ const (
 type Condition struct {
 	// Type of this condition. At most one of each condition type may apply to
 	// a managed resource at any point in time.
-	Type ConditionType
+	Type ConditionType `json:"type"`
 
 	// Status of this condition; is it currently True, False, or Unknown?
-	Status corev1.ConditionStatus
+	Status corev1.ConditionStatus `json:"status"`
 
 	// LastTransitionTime is the last time this condition transitioned from one
 	// status to another.
-	LastTransitionTime metav1.Time
+	LastTransitionTime metav1.Time `json:"lastTransitionTime"`
 
 	// A Reason for this condition's last transition from one status to another.
-	Reason ConditionReason
+	Reason ConditionReason `json:"reason"`
 
 	// A Message containing details about this condition's last transition from
 	// one status to another, if any.
-	Message string
+	Message string `json:"message,omitempty"`
 }
 
 // Equal returns true if the condition is identical to the supplied condition,
@@ -93,7 +93,7 @@ func (c Condition) Equal(other Condition) bool {
 // use the Set method.
 type ConditionedStatus struct {
 	// Conditions of the managed resource.
-	Conditions []Condition
+	Conditions []Condition `json:"conditions,omitempty"`
 }
 
 // NewConditionedStatus returns a stat with the supplied conditions set.

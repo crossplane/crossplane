@@ -54,12 +54,6 @@ const (
 	resourceVersion = "coolVersion"
 )
 
-// Frequently used conditions.
-var (
-	deleting = corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedDeleting, Status: corev1.ConditionTrue}
-	ready    = corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedReady, Status: corev1.ConditionTrue}
-)
-
 var (
 	errorBoom  = errors.New("boom")
 	objectMeta = metav1.ObjectMeta{
@@ -72,8 +66,10 @@ var (
 
 	cluster = &computev1alpha1.KubernetesCluster{
 		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: "coolCluster"},
-		Status: corev1alpha1.ResourceClaimStatus{
-			CredentialsSecretRef: corev1.LocalObjectReference{Name: secret.GetName()},
+		Spec: computev1alpha1.KubernetesClusterSpec{
+			ResourceClaimSpec: corev1alpha1.ResourceClaimSpec{
+				WriteConnectionSecretToReference: corev1.LocalObjectReference{Name: secret.GetName()},
+			},
 		},
 	}
 
@@ -168,8 +164,8 @@ func withFinalizers(f ...string) kubeARModifier {
 	return func(r *v1alpha1.KubernetesApplicationResource) { r.ObjectMeta.Finalizers = f }
 }
 
-func withConditions(c ...corev1alpha1.DeprecatedCondition) kubeARModifier {
-	return func(r *v1alpha1.KubernetesApplicationResource) { r.Status.DeprecatedConditionedStatus.Conditions = c }
+func withConditions(c ...corev1alpha1.Condition) kubeARModifier {
+	return func(r *v1alpha1.KubernetesApplicationResource) { r.Status.SetConditions(c...) }
 }
 
 func withState(s v1alpha1.KubernetesApplicationResourceState) kubeARModifier {
@@ -404,7 +400,7 @@ func TestSync(t *testing.T) {
 			wantAR: kubeAR(
 				withTemplate(template(serviceWithoutNamespace)),
 				withFinalizers(finalizerName),
-				withConditions(ready),
+				withConditions(corev1alpha1.ReconcileSuccess()),
 				withState(v1alpha1.KubernetesApplicationResourceStateSubmitted),
 				withRemoteStatus(remoteStatus),
 			),
@@ -416,14 +412,7 @@ func TestSync(t *testing.T) {
 			ar:     kubeAR(),
 			wantAR: kubeAR(
 				withFinalizers(finalizerName),
-				withConditions(
-					corev1alpha1.DeprecatedCondition{
-						Type:    corev1alpha1.DeprecatedFailed,
-						Status:  corev1.ConditionTrue,
-						Reason:  reasonSyncingResource,
-						Message: messageMissingTemplate,
-					},
-				),
+				withConditions(corev1alpha1.ReconcileError(errMissingTemplate)),
 				withState(v1alpha1.KubernetesApplicationResourceStateFailed),
 			),
 			wantResult: reconcile.Result{Requeue: true},
@@ -438,14 +427,7 @@ func TestSync(t *testing.T) {
 			wantAR: kubeAR(
 				withTemplate(template(serviceWithoutNamespace)),
 				withFinalizers(finalizerName),
-				withConditions(
-					corev1alpha1.DeprecatedCondition{
-						Type:    corev1alpha1.DeprecatedFailed,
-						Status:  corev1.ConditionTrue,
-						Reason:  reasonSyncingSecret,
-						Message: errorBoom.Error(),
-					},
-				),
+				withConditions(corev1alpha1.ReconcileError(errorBoom)),
 				withState(v1alpha1.KubernetesApplicationResourceStateFailed),
 			),
 			wantResult: reconcile.Result{Requeue: true},
@@ -464,14 +446,7 @@ func TestSync(t *testing.T) {
 				withTemplate(template(serviceWithoutNamespace)),
 				withFinalizers(finalizerName),
 				withRemoteStatus(remoteStatus),
-				withConditions(
-					corev1alpha1.DeprecatedCondition{
-						Type:    corev1alpha1.DeprecatedFailed,
-						Status:  corev1.ConditionTrue,
-						Reason:  reasonSyncingResource,
-						Message: errorBoom.Error(),
-					},
-				),
+				withConditions(corev1alpha1.ReconcileError(errorBoom)),
 				withState(v1alpha1.KubernetesApplicationResourceStateFailed),
 			),
 			wantResult: reconcile.Result{Requeue: true},
@@ -485,14 +460,7 @@ func TestSync(t *testing.T) {
 			wantAR: kubeAR(
 				withTemplate(template(serviceWithoutNamespace)),
 				withFinalizers(finalizerName),
-				withConditions(
-					corev1alpha1.DeprecatedCondition{
-						Type:    corev1alpha1.DeprecatedFailed,
-						Status:  corev1.ConditionTrue,
-						Reason:  reasonSyncingResource,
-						Message: errorBoom.Error(),
-					},
-				),
+				withConditions(corev1alpha1.ReconcileError(errorBoom)),
 				withState(v1alpha1.KubernetesApplicationResourceStateFailed),
 				withRemoteStatus(remoteStatus),
 			),
@@ -566,7 +534,7 @@ func TestDelete(t *testing.T) {
 			),
 			secrets: []corev1.Secret{*secret},
 			wantAR: kubeAR(
-				withConditions(deleting),
+				withConditions(corev1alpha1.ReconcileSuccess()),
 				withTemplate(template(service)),
 			),
 			wantResult: reconcile.Result{Requeue: false},
@@ -579,15 +547,7 @@ func TestDelete(t *testing.T) {
 			),
 			wantAR: kubeAR(
 				withFinalizers(finalizerName),
-				withConditions(
-					deleting,
-					corev1alpha1.DeprecatedCondition{
-						Type:    corev1alpha1.DeprecatedFailed,
-						Status:  corev1.ConditionTrue,
-						Reason:  reasonDeletingResource,
-						Message: messageMissingTemplate,
-					},
-				),
+				withConditions(corev1alpha1.ReconcileError(errMissingTemplate)),
 				withState(v1alpha1.KubernetesApplicationResourceStateFailed),
 			),
 			wantResult: reconcile.Result{Requeue: true},
@@ -606,15 +566,7 @@ func TestDelete(t *testing.T) {
 			wantAR: kubeAR(
 				withFinalizers(finalizerName),
 				withTemplate(template(serviceWithoutNamespace)),
-				withConditions(
-					deleting,
-					corev1alpha1.DeprecatedCondition{
-						Type:    corev1alpha1.DeprecatedFailed,
-						Status:  corev1.ConditionTrue,
-						Reason:  reasonDeletingSecret,
-						Message: errorBoom.Error(),
-					},
-				),
+				withConditions(corev1alpha1.ReconcileError(errorBoom)),
 				withState(v1alpha1.KubernetesApplicationResourceStateFailed),
 			),
 			wantResult: reconcile.Result{Requeue: true},
@@ -631,15 +583,7 @@ func TestDelete(t *testing.T) {
 			wantAR: kubeAR(
 				withFinalizers(finalizerName),
 				withTemplate(template(serviceWithoutNamespace)),
-				withConditions(
-					deleting,
-					corev1alpha1.DeprecatedCondition{
-						Type:    corev1alpha1.DeprecatedFailed,
-						Status:  corev1.ConditionTrue,
-						Reason:  reasonDeletingResource,
-						Message: errorBoom.Error(),
-					},
-				),
+				withConditions(corev1alpha1.ReconcileError(errorBoom)),
 				withState(v1alpha1.KubernetesApplicationResourceStateFailed),
 			),
 			wantResult: reconcile.Result{Requeue: true},
@@ -1263,14 +1207,7 @@ func TestReconcile(t *testing.T) {
 						got := obj.(*v1alpha1.KubernetesApplicationResource)
 
 						want := kubeAR(
-							withConditions(
-								corev1alpha1.DeprecatedCondition{
-									Type:    corev1alpha1.DeprecatedFailed,
-									Status:  corev1.ConditionTrue,
-									Reason:  reasonFetchingClient,
-									Message: errorBoom.Error(),
-								},
-							),
+							withConditions(corev1alpha1.ReconcileError(errorBoom)),
 						)
 
 						if diff := cmp.Diff(want, got); diff != "" {
@@ -1412,14 +1349,7 @@ func TestGetConnectionSecrets(t *testing.T) {
 			),
 			wantAR: kubeAR(
 				withSecrets(secretLocalObjectRef),
-				withConditions(
-					corev1alpha1.DeprecatedCondition{
-						Type:    corev1alpha1.DeprecatedFailed,
-						Status:  corev1.ConditionTrue,
-						Reason:  reasonGettingSecret,
-						Message: errorBoom.Error(),
-					},
-				),
+				withConditions(corev1alpha1.ReconcileError(errorBoom)),
 			),
 			wantSecrets: []corev1.Secret{},
 		},

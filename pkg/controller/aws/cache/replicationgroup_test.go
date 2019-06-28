@@ -40,6 +40,7 @@ import (
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	elasticacheclient "github.com/crossplaneio/crossplane/pkg/clients/aws/elasticache"
 	"github.com/crossplaneio/crossplane/pkg/clients/aws/elasticache/fake"
+	"github.com/crossplaneio/crossplane/pkg/meta"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
@@ -95,8 +96,12 @@ var (
 
 type replicationGroupModifier func(*v1alpha1.ReplicationGroup)
 
-func withConditions(c ...corev1alpha1.DeprecatedCondition) replicationGroupModifier {
-	return func(r *v1alpha1.ReplicationGroup) { r.Status.DeprecatedConditionedStatus.Conditions = c }
+func withConditions(c ...corev1alpha1.Condition) replicationGroupModifier {
+	return func(r *v1alpha1.ReplicationGroup) { r.Status.ConditionedStatus.Conditions = c }
+}
+
+func withBindingPhase(p corev1alpha1.BindingPhase) replicationGroupModifier {
+	return func(r *v1alpha1.ReplicationGroup) { r.Status.SetBindingPhase(p) }
 }
 
 func withState(s string) replicationGroupModifier {
@@ -139,6 +144,10 @@ func replicationGroup(rm ...replicationGroupModifier) *v1alpha1.ReplicationGroup
 	r := &v1alpha1.ReplicationGroup{
 		ObjectMeta: objectMeta,
 		Spec: v1alpha1.ReplicationGroupSpec{
+			ResourceSpec: corev1alpha1.ResourceSpec{
+				ProviderReference:                &corev1.ObjectReference{Namespace: namespace, Name: providerName},
+				WriteConnectionSecretToReference: corev1.LocalObjectReference{Name: connectionSecretName},
+			},
 			AutomaticFailoverEnabled:   autoFailoverEnabled,
 			CacheNodeType:              cacheNodeType,
 			CacheParameterGroupName:    cacheParameterGroupName,
@@ -147,8 +156,6 @@ func replicationGroup(rm ...replicationGroupModifier) *v1alpha1.ReplicationGroup
 			SnapshotRetentionLimit:     snapshotRetentionLimit,
 			SnapshotWindow:             snapshotWindow,
 			TransitEncryptionEnabled:   transitEncryptionEnabled,
-			ProviderRef:                corev1.LocalObjectReference{Name: providerName},
-			ConnectionSecretRef:        corev1.LocalObjectReference{Name: connectionSecretName},
 		},
 		Status: v1alpha1.ReplicationGroupStatus{
 			ClusterEnabled: true,
@@ -185,7 +192,7 @@ func TestCreate(t *testing.T) {
 			r: replicationGroup(withAuth()),
 			want: replicationGroup(
 				withAuth(),
-				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedCreating, Status: corev1.ConditionTrue}),
+				withConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileSuccess()),
 				withFinalizers(finalizerName),
 				withGroupName(id),
 			),
@@ -200,15 +207,8 @@ func TestCreate(t *testing.T) {
 					}
 				},
 			}},
-			r: replicationGroup(),
-			want: replicationGroup(withConditions(
-				corev1alpha1.DeprecatedCondition{
-					Type:    corev1alpha1.DeprecatedFailed,
-					Status:  corev1.ConditionTrue,
-					Reason:  reasonCreatingResource,
-					Message: errorBoom.Error(),
-				},
-			)),
+			r:           replicationGroup(),
+			want:        replicationGroup(withConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileError(errorBoom))),
 			wantRequeue: true,
 		},
 	}
@@ -221,7 +221,7 @@ func TestCreate(t *testing.T) {
 				t.Errorf("tc.csd.Create(...): want: %t got: %t", tc.wantRequeue, gotRequeue)
 			}
 
-			if diff := cmp.Diff(tc.want, tc.r); diff != "" {
+			if diff := cmp.Diff(tc.want, tc.r, test.EquateConditions()); diff != "" {
 				t.Errorf("r: -want, +got:\n%s", diff)
 			}
 		})
@@ -250,29 +250,11 @@ func TestSync(t *testing.T) {
 					}
 				},
 			}},
-			r: replicationGroup(
-				withGroupName(name),
-				withConditions(
-					corev1alpha1.DeprecatedCondition{
-						Type:    corev1alpha1.DeprecatedFailed,
-						Status:  corev1.ConditionTrue,
-						Reason:  reasonCreatingResource,
-						Message: errorBoom.Error(),
-					},
-				),
-			),
+			r: replicationGroup(withGroupName(name)),
 			want: replicationGroup(
 				withState(v1alpha1.StatusCreating),
 				withGroupName(name),
-				withConditions(
-					corev1alpha1.DeprecatedCondition{
-						Type:    corev1alpha1.DeprecatedFailed,
-						Status:  corev1.ConditionFalse,
-						Reason:  reasonCreatingResource,
-						Message: errorBoom.Error(),
-					},
-					corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedCreating, Status: corev1.ConditionTrue},
-				),
+				withConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileSuccess()),
 			),
 			wantRequeue: true,
 		},
@@ -292,12 +274,11 @@ func TestSync(t *testing.T) {
 			}},
 			r: replicationGroup(
 				withGroupName(name),
-				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedDeleting, Status: corev1.ConditionTrue}),
 			),
 			want: replicationGroup(
 				withGroupName(name),
 				withState(v1alpha1.StatusDeleting),
-				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedDeleting, Status: corev1.ConditionTrue}),
+				withConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileSuccess()),
 			),
 			wantRequeue: false,
 		},
@@ -317,12 +298,11 @@ func TestSync(t *testing.T) {
 			}},
 			r: replicationGroup(
 				withGroupName(name),
-				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedReady, Status: corev1.ConditionTrue}),
 			),
 			want: replicationGroup(
 				withState(v1alpha1.StatusModifying),
 				withGroupName(name),
-				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedReady, Status: corev1.ConditionFalse}),
+				withConditions(corev1alpha1.ReconcileSuccess()),
 			),
 			wantRequeue: true,
 		},
@@ -364,15 +344,12 @@ func TestSync(t *testing.T) {
 			}},
 			r: replicationGroup(
 				withGroupName(name),
-				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedCreating, Status: corev1.ConditionTrue}),
 			),
 			want: replicationGroup(
 				withState(v1alpha1.StatusAvailable),
 				withGroupName(name),
-				withConditions(
-					corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedCreating, Status: corev1.ConditionFalse},
-					corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedReady, Status: corev1.ConditionTrue},
-				),
+				withConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess()),
+				withBindingPhase(corev1alpha1.BindingPhaseUnbound),
 				withPort(port),
 				withEndpoint(host),
 				withMemberClusters([]string{cacheClusterID}),
@@ -422,15 +399,12 @@ func TestSync(t *testing.T) {
 			}},
 			r: replicationGroup(
 				withGroupName(name),
-				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedCreating, Status: corev1.ConditionTrue}),
 			),
 			want: replicationGroup(
 				withState(v1alpha1.StatusAvailable),
 				withGroupName(name),
-				withConditions(
-					corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedCreating, Status: corev1.ConditionFalse},
-					corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedReady, Status: corev1.ConditionTrue},
-				),
+				withConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess()),
+				withBindingPhase(corev1alpha1.BindingPhaseUnbound),
 				withPort(port),
 				withEndpoint(host),
 				withMemberClusters([]string{cacheClusterID}),
@@ -480,15 +454,12 @@ func TestSync(t *testing.T) {
 			}},
 			r: replicationGroup(
 				withGroupName(name),
-				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedCreating, Status: corev1.ConditionTrue}),
 			),
 			want: replicationGroup(
 				withState(v1alpha1.StatusAvailable),
 				withGroupName(name),
-				withConditions(
-					corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedCreating, Status: corev1.ConditionFalse},
-					corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedReady, Status: corev1.ConditionTrue},
-				),
+				withConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess()),
+				withBindingPhase(corev1alpha1.BindingPhaseUnbound),
 				withPort(port),
 				withEndpoint(host),
 				withMemberClusters([]string{cacheClusterID}),
@@ -506,19 +477,11 @@ func TestSync(t *testing.T) {
 			}},
 			r: replicationGroup(
 				withGroupName(name),
-				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedCreating, Status: corev1.ConditionTrue}),
+				withConditions(corev1alpha1.Creating()),
 			),
 			want: replicationGroup(
 				withGroupName(name),
-				withConditions(
-					corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedCreating, Status: corev1.ConditionTrue},
-					corev1alpha1.DeprecatedCondition{
-						Type:    corev1alpha1.DeprecatedFailed,
-						Status:  corev1.ConditionTrue,
-						Reason:  reasonSyncingResource,
-						Message: errorBoom.Error(),
-					},
-				),
+				withConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileError(errorBoom)),
 			),
 			wantRequeue: true,
 		},
@@ -547,21 +510,15 @@ func TestSync(t *testing.T) {
 			}},
 			r: replicationGroup(
 				withGroupName(name),
-				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedCreating, Status: corev1.ConditionTrue}),
 			),
 			want: replicationGroup(
 				withState(v1alpha1.StatusAvailable),
 				withGroupName(name),
 				withConditions(
-					corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedCreating, Status: corev1.ConditionFalse},
-					corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedReady, Status: corev1.ConditionTrue},
-					corev1alpha1.DeprecatedCondition{
-						Type:    corev1alpha1.DeprecatedFailed,
-						Status:  corev1.ConditionTrue,
-						Reason:  reasonSyncingResource,
-						Message: errors.Wrapf(errorBoom, "cannot describe cache cluster %s", cacheClusterID).Error(),
-					},
+					corev1alpha1.Available(),
+					corev1alpha1.ReconcileError(errors.Wrapf(errorBoom, "cannot describe cache cluster %s", cacheClusterID)),
 				),
+				withBindingPhase(corev1alpha1.BindingPhaseUnbound),
 				withMemberClusters([]string{cacheClusterID}),
 			),
 			wantRequeue: true,
@@ -609,21 +566,13 @@ func TestSync(t *testing.T) {
 			}},
 			r: replicationGroup(
 				withGroupName(name),
-				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedCreating, Status: corev1.ConditionTrue}),
+				withConditions(corev1alpha1.Creating()),
 			),
 			want: replicationGroup(
 				withState(v1alpha1.StatusAvailable),
 				withGroupName(name),
-				withConditions(
-					corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedCreating, Status: corev1.ConditionFalse},
-					corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedReady, Status: corev1.ConditionTrue},
-					corev1alpha1.DeprecatedCondition{
-						Type:    corev1alpha1.DeprecatedFailed,
-						Status:  corev1.ConditionTrue,
-						Reason:  reasonSyncingResource,
-						Message: errorBoom.Error(),
-					},
-				),
+				withConditions(corev1alpha1.Available(), corev1alpha1.ReconcileError(errorBoom)),
+				withBindingPhase(corev1alpha1.BindingPhaseUnbound),
 				withPort(port),
 				withEndpoint(host),
 				withMemberClusters([]string{cacheClusterID}),
@@ -640,7 +589,7 @@ func TestSync(t *testing.T) {
 				t.Errorf("tc.csd.Sync(...): want: %t got: %t", tc.wantRequeue, gotRequeue)
 			}
 
-			if diff := cmp.Diff(tc.want, tc.r); diff != "" {
+			if diff := cmp.Diff(tc.want, tc.r, test.EquateConditions()); diff != "" {
 				t.Errorf("r: -want, +got:\n%s", diff)
 			}
 		})
@@ -661,7 +610,7 @@ func TestDelete(t *testing.T) {
 			r:    replicationGroup(withFinalizers(finalizerName), withReclaimPolicy(corev1alpha1.ReclaimRetain)),
 			want: replicationGroup(
 				withReclaimPolicy(corev1alpha1.ReclaimRetain),
-				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedDeleting, Status: corev1.ConditionTrue}),
+				withConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileSuccess()),
 			),
 			wantRequeue: false,
 		},
@@ -677,7 +626,7 @@ func TestDelete(t *testing.T) {
 			r: replicationGroup(withFinalizers(finalizerName), withReclaimPolicy(corev1alpha1.ReclaimDelete)),
 			want: replicationGroup(
 				withReclaimPolicy(corev1alpha1.ReclaimDelete),
-				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedDeleting, Status: corev1.ConditionTrue}),
+				withConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileSuccess()),
 			),
 			wantRequeue: false,
 		},
@@ -694,14 +643,7 @@ func TestDelete(t *testing.T) {
 			want: replicationGroup(
 				withFinalizers(finalizerName),
 				withReclaimPolicy(corev1alpha1.ReclaimDelete),
-				withConditions(
-					corev1alpha1.DeprecatedCondition{
-						Type:    corev1alpha1.DeprecatedFailed,
-						Status:  corev1.ConditionTrue,
-						Reason:  reasonDeletingResource,
-						Message: errorBoom.Error(),
-					},
-				),
+				withConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileError(errorBoom)),
 			),
 			wantRequeue: true,
 		},
@@ -715,7 +657,7 @@ func TestDelete(t *testing.T) {
 				t.Errorf("tc.csd.Delete(...): want: %t got: %t", tc.wantRequeue, gotRequeue)
 			}
 
-			if diff := cmp.Diff(tc.want, tc.r); diff != "" {
+			if diff := cmp.Diff(tc.want, tc.r, test.EquateConditions()); diff != "" {
 				t.Errorf("r: -want, +got:\n%s", diff)
 			}
 		})
@@ -803,7 +745,7 @@ func TestConnect(t *testing.T) {
 				t.Errorf("tc.conn.Connect(...): want error != got error:\n%s", diff)
 			}
 
-			if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(elastiCache{})); diff != "" {
+			if diff := cmp.Diff(tc.want, got, test.EquateConditions(), cmp.AllowUnexported(elastiCache{})); diff != "" {
 				t.Errorf("tc.conn.Connect(...): -want, +got:\n%s", diff)
 			}
 		})
@@ -954,14 +896,7 @@ func TestReconcile(t *testing.T) {
 						return nil
 					},
 					MockUpdate: func(_ context.Context, obj runtime.Object) error {
-						want := replicationGroup(withConditions(
-							corev1alpha1.DeprecatedCondition{
-								Type:    corev1alpha1.DeprecatedFailed,
-								Status:  corev1.ConditionTrue,
-								Reason:  reasonFetchingClient,
-								Message: errorBoom.Error(),
-							},
-						))
+						want := replicationGroup(withConditions(corev1alpha1.ReconcileError(errorBoom)))
 						got := obj.(*v1alpha1.ReplicationGroup)
 						if diff := cmp.Diff(want, got); diff != "" {
 							t.Errorf("kube.Update(...): -want, +got:\n%s", diff)
@@ -992,14 +927,7 @@ func TestReconcile(t *testing.T) {
 					},
 					MockUpdate: func(_ context.Context, obj runtime.Object) error {
 						want := replicationGroup(
-							withConditions(
-								corev1alpha1.DeprecatedCondition{
-									Type:    corev1alpha1.DeprecatedFailed,
-									Status:  corev1.ConditionTrue,
-									Reason:  reasonSyncingSecret,
-									Message: errors.Wrapf(errorBoom, "cannot get secret %s/%s", namespace, connectionSecretName).Error(),
-								},
-							))
+							withConditions(corev1alpha1.ReconcileError(errors.Wrapf(errorBoom, "cannot get secret %s/%s", namespace, connectionSecretName))))
 						got := obj.(*v1alpha1.ReplicationGroup)
 						if diff := cmp.Diff(want, got); diff != "" {
 							t.Errorf("kube.Update(...): -want, +got:\n%s", diff)
@@ -1031,14 +959,7 @@ func TestReconcile(t *testing.T) {
 					MockUpdate: func(_ context.Context, obj runtime.Object) error {
 						want := replicationGroup(
 							withGroupName(name),
-							withConditions(
-								corev1alpha1.DeprecatedCondition{
-									Type:    corev1alpha1.DeprecatedFailed,
-									Status:  corev1.ConditionTrue,
-									Reason:  reasonSyncingSecret,
-									Message: errors.Wrapf(errorBoom, "cannot get secret %s/%s", namespace, connectionSecretName).Error(),
-								},
-							))
+							withConditions(corev1alpha1.ReconcileError(errors.Wrapf(errorBoom, "cannot get secret %s/%s", namespace, connectionSecretName))))
 						got := obj.(*v1alpha1.ReplicationGroup)
 						if diff := cmp.Diff(want, got); diff != "" {
 							t.Errorf("kube.Update(...): -want, +got:\n%s", diff)
@@ -1061,7 +982,7 @@ func TestReconcile(t *testing.T) {
 				t.Errorf("tc.rec.Reconcile(...): want error != got error:\n%s", diff)
 			}
 
-			if diff := cmp.Diff(tc.want, gotResult); diff != "" {
+			if diff := cmp.Diff(tc.want, gotResult, test.EquateConditions()); diff != "" {
 				t.Errorf("tc.rec.Reconcile(...): -want, +got:\n%s", diff)
 			}
 		})
@@ -1081,14 +1002,9 @@ func TestConnectionSecretWithPassword(t *testing.T) {
 			password: authToken,
 			want: &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      connectionSecretName,
-					Namespace: namespace,
-					OwnerReferences: []metav1.OwnerReference{{
-						APIVersion: v1alpha1.APIVersion,
-						Kind:       v1alpha1.ReplicationGroupKind,
-						Name:       name,
-						UID:        uid,
-					}},
+					Name:            connectionSecretName,
+					Namespace:       namespace,
+					OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.ReferenceTo(replicationGroup(), v1alpha1.ReplicationGroupGroupVersionKind))},
 				},
 				Data: map[string][]byte{
 					corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(host),
@@ -1102,14 +1018,9 @@ func TestConnectionSecretWithPassword(t *testing.T) {
 			password: "",
 			want: &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      connectionSecretName,
-					Namespace: namespace,
-					OwnerReferences: []metav1.OwnerReference{{
-						APIVersion: v1alpha1.APIVersion,
-						Kind:       v1alpha1.ReplicationGroupKind,
-						Name:       name,
-						UID:        uid,
-					}},
+					Name:            connectionSecretName,
+					Namespace:       namespace,
+					OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.ReferenceTo(replicationGroup(), v1alpha1.ReplicationGroupGroupVersionKind))},
 				},
 				Data: map[string][]byte{
 					corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(host),

@@ -26,6 +26,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/resource"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
@@ -38,6 +40,8 @@ var (
 	c   client.Client
 	ctx = context.TODO()
 )
+
+var _ resource.Managed = &GKECluster{}
 
 func TestMain(m *testing.M) {
 	t := test.NewEnv(namespace, SchemeBuilder.SchemeBuilder, test.CRDs())
@@ -88,7 +92,9 @@ func TestParseClusterSpec(t *testing.T) {
 			name: "NilProperties",
 			args: nil,
 			want: &GKEClusterSpec{
-				ReclaimPolicy: DefaultReclaimPolicy,
+				ResourceSpec: v1alpha1.ResourceSpec{
+					ReclaimPolicy: DefaultReclaimPolicy,
+				},
 				EnableIPAlias: false,
 				Labels:        map[string]string{},
 				NumNodes:      1,
@@ -99,7 +105,9 @@ func TestParseClusterSpec(t *testing.T) {
 			name: "EmptyProperties",
 			args: map[string]string{},
 			want: &GKEClusterSpec{
-				ReclaimPolicy: DefaultReclaimPolicy,
+				ResourceSpec: v1alpha1.ResourceSpec{
+					ReclaimPolicy: DefaultReclaimPolicy,
+				},
 				EnableIPAlias: false,
 				Labels:        map[string]string{},
 				NumNodes:      1,
@@ -118,7 +126,9 @@ func TestParseClusterSpec(t *testing.T) {
 				"clusterVersion":   "1.11",
 			},
 			want: &GKEClusterSpec{
-				ReclaimPolicy:    DefaultReclaimPolicy,
+				ResourceSpec: v1alpha1.ResourceSpec{
+					ReclaimPolicy: DefaultReclaimPolicy,
+				},
 				EnableIPAlias:    true,
 				CreateSubnetwork: true,
 				Labels:           map[string]string{},
@@ -139,7 +149,9 @@ func TestParseClusterSpec(t *testing.T) {
 				"zone":          "test-zone",
 			},
 			want: &GKEClusterSpec{
-				ReclaimPolicy: DefaultReclaimPolicy,
+				ResourceSpec: v1alpha1.ResourceSpec{
+					ReclaimPolicy: DefaultReclaimPolicy,
+				},
 				Labels:        map[string]string{},
 				EnableIPAlias: false,
 				MachineType:   "test-machine",
@@ -155,7 +167,9 @@ func TestParseClusterSpec(t *testing.T) {
 				"zone":        "test-zone",
 			},
 			want: &GKEClusterSpec{
-				ReclaimPolicy: DefaultReclaimPolicy,
+				ResourceSpec: v1alpha1.ResourceSpec{
+					ReclaimPolicy: DefaultReclaimPolicy,
+				},
 				EnableIPAlias: false,
 				Labels:        map[string]string{},
 				MachineType:   "test-machine",

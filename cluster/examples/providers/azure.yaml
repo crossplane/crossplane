@@ -1,0 +1,21 @@
+---
+# Azure Admin service account secret - used by Azure Provider
+apiVersion: v1
+kind: Secret
+metadata:
+  name: example-provider-azure
+  namespace: crossplane-system
+type: Opaque
+data:
+  credentials: BASE64ENCODED_AZURE_PROVIDER_CREDS
+---
+# Azure Provider with service account secret reference - used to provision cache resources
+apiVersion: azure.crossplane.io/v1alpha1
+kind: Provider
+metadata:
+  name: example
+  namespace: crossplane-system
+spec:
+  credentialsSecretRef:
+    name: example-provider-azure
+    key: credentials

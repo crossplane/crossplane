@@ -4,7 +4,9 @@ metadata:
   name: gitlab-redis
   namespace: default
 spec:
-  classReference:
+  classRef:
     name: standard-gcp-redis
     namespace: crossplane-system
+  writeConnectionSecretToRef:
+    name: gitlab-redis
   engineVersion: "3.2"

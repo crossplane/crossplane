@@ -5,7 +5,9 @@ metadata:
   name: gitlab-pseudonymizer
   namespace: default
 spec:
-  classReference:
+  classRef:
     name: standard-aws-bucket
     namespace: crossplane-system
+  writeConnectionSecretToRef:
+    name: gitlab-pseudonymizer
   name: gitlab-demo-pseudonymizer-%s

@@ -6,7 +6,8 @@ metadata:
 spec:
   providerRef:
     name: azure-sql-provider
-  connectionSecretRef:
+    namespace: crossplane-system
+  writeConnectionSecretToRef:
     name: demo-database-connection
   resourceGroupName: group-westus-1
   location: West US

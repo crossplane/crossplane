@@ -17,21 +17,16 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"reflect"
+
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/runtime/scheme"
 )
 
-// Kubernetes Group, Version, and Kind metadata.
+// Package type metadata.
 const (
-	Group      = "extensions.crossplane.io"
-	Version    = "v1alpha1"
-	APIVersion = Group + "/" + Version
-
-	ExtensionRequestKind           = "extensionrequest"
-	ExtensionRequestKindAPIVersion = ExtensionRequestKind + "." + APIVersion
-
-	ExtensionKind           = "extension"
-	ExtensionKindAPIVersion = ExtensionKind + "." + APIVersion
+	Group   = "extensions.crossplane.io"
+	Version = "v1alpha1"
 )
 
 var (
@@ -40,20 +35,20 @@ var (
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
+)
 
-	// ExtensionRequestGroupVersionKind is the GVK of an ExtensionRequest.
-	ExtensionRequestGroupVersionKind = schema.GroupVersionKind{
-		Group:   Group,
-		Version: Version,
-		Kind:    ExtensionRequestKind,
-	}
+// ExtensionRequest type metadata.
+var (
+	ExtensionRequestKind             = reflect.TypeOf(ExtensionRequest{}).Name()
+	ExtensionRequestKindAPIVersion   = ExtensionRequestKind + "." + SchemeGroupVersion.String()
+	ExtensionRequestGroupVersionKind = SchemeGroupVersion.WithKind(ExtensionRequestKind)
+)
 
-	// ExtensionGroupVersionKind is the GVK of an Extension.
-	ExtensionGroupVersionKind = schema.GroupVersionKind{
-		Group:   Group,
-		Version: Version,
-		Kind:    ExtensionKind,
-	}
+// Extension type metadata.
+var (
+	ExtensionKind             = reflect.TypeOf(Extension{}).Name()
+	ExtensionKindAPIVersion   = ExtensionKind + "." + SchemeGroupVersion.String()
+	ExtensionGroupVersionKind = SchemeGroupVersion.WithKind(ExtensionKind)
 )
 
 func init() {

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-//go:generate go run ../../../../vendor/golang.org/x/tools/cmd/stringer/stringer.go ../../../../vendor/golang.org/x/tools/cmd/stringer/importer19.go -type=BindingState -trimprefix BindingState
+//go:generate go run ../../../../vendor/golang.org/x/tools/cmd/stringer/stringer.go ../../../../vendor/golang.org/x/tools/cmd/stringer/importer19.go -type=BindingPhase -trimprefix BindingPhase
 
 package v1alpha1
 
@@ -24,59 +24,59 @@ import (
 	"github.com/pkg/errors"
 )
 
-// BindingState is to identify the current binding status of given resources
-type BindingState int
+// BindingPhase is to identify the current binding status of given resources
+type BindingPhase int
 
-// MarshalJSON returns a JSON representation of a BindingState.
-func (s BindingState) MarshalJSON() ([]byte, error) {
-	return json.Marshal(s.String())
+// MarshalJSON returns a JSON representation of a BindingPhase.
+func (p BindingPhase) MarshalJSON() ([]byte, error) {
+	return json.Marshal(p.String())
 }
 
-// UnmarshalJSON returns a BindingState from its JSON representation.
-func (s *BindingState) UnmarshalJSON(b []byte) error {
-	var ss string
-	if err := json.Unmarshal(b, &ss); err != nil {
+// UnmarshalJSON returns a BindingPhase from its JSON representation.
+func (p *BindingPhase) UnmarshalJSON(b []byte) error {
+	var ps string
+	if err := json.Unmarshal(b, &ps); err != nil {
 		return err
 	}
-	switch ss {
-	case BindingStateUnbound.String():
-		*s = BindingStateUnbound
-	case BindingStateBound.String():
-		*s = BindingStateBound
+	switch ps {
+	case BindingPhaseUnbindable.String():
+		*p = BindingPhaseUnbindable
+	case BindingPhaseUnbound.String():
+		*p = BindingPhaseUnbound
+	case BindingPhaseBound.String():
+		*p = BindingPhaseBound
 	default:
-		return errors.Errorf("unknown binding state %s", ss)
+		return errors.Errorf("unknown binding state %s", ps)
 	}
 	return nil
 }
 
-// Binding states.
+// Binding phases.
 const (
-	BindingStateUnbound BindingState = iota
-	BindingStateBound
+	// BindingPhaseUnbindable resources cannot be bound to another resource, for
+	// example because they are currently unavailable, or being created.
+	BindingPhaseUnbindable BindingPhase = iota
+
+	// BindingPhaseUnbound resources are available for binding to another
+	// resource.
+	BindingPhaseUnbound
+
+	// BindingPhaseBound resources are bound to another resource.
+	BindingPhaseBound
 )
 
-// BindingStatus defines set of supported operations
-type BindingStatus interface {
-	SetBound(bound bool)
-	IsBound() bool
+// A BindingStatus represents the bindability and binding of a resource.
+type BindingStatus struct {
+	// Phase represents the binding phase of the resource.
+	Phase BindingPhase `json:"bindingPhase,omitempty"`
 }
 
-// BindingStatusPhase defines field(s) representing resource status.
-type BindingStatusPhase struct {
-	// Phase represents the binding status of a resource.
-	Phase BindingState `json:"bindingPhase,omitempty"`
+// SetBindingPhase sets the binding phase of the resource.
+func (s *BindingStatus) SetBindingPhase(p BindingPhase) {
+	s.Phase = p
 }
 
-// SetBound set binding status to Bound
-func (b *BindingStatusPhase) SetBound(bound bool) {
-	if bound {
-		b.Phase = BindingStateBound
-		return
-	}
-	b.Phase = BindingStateUnbound
-}
-
-// IsBound returns true if status is bound
-func (b *BindingStatusPhase) IsBound() bool {
-	return b.Phase == BindingStateBound
+// GetBindingPhase gets the binding phase of the resource.
+func (s *BindingStatus) GetBindingPhase() BindingPhase {
+	return s.Phase
 }

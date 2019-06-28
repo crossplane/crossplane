@@ -17,18 +17,16 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"reflect"
+
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/runtime/scheme"
 )
 
-// Kubernetes Group, Version, and Kind metadata.
+// Package type metadata.
 const (
-	Group      = "cache.gcp.crossplane.io"
-	Version    = "v1alpha1"
-	APIVersion = Group + "/" + Version
-
-	CloudMemorystoreInstanceKind           = "cloudmemorystoreinstance"
-	CloudMemorystoreInstanceKindAPIVersion = CloudMemorystoreInstanceKind + "." + APIVersion
+	Group   = "cache.gcp.crossplane.io"
+	Version = "v1alpha1"
 )
 
 var (
@@ -37,14 +35,13 @@ var (
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
+)
 
-	// CloudMemorystoreInstanceGroupVersionKind is the GVK of a
-	// CloudMemorystoreInstance.
-	CloudMemorystoreInstanceGroupVersionKind = schema.GroupVersionKind{
-		Group:   Group,
-		Version: Version,
-		Kind:    CloudMemorystoreInstanceKind,
-	}
+// CloudMemorystoreInstance type metadata.
+var (
+	CloudMemorystoreInstanceKind             = reflect.TypeOf(CloudMemorystoreInstance{}).Name()
+	CloudMemorystoreInstanceKindAPIVersion   = CloudMemorystoreInstanceKind + "." + SchemeGroupVersion.String()
+	CloudMemorystoreInstanceGroupVersionKind = SchemeGroupVersion.WithKind(CloudMemorystoreInstanceKind)
 )
 
 func init() {

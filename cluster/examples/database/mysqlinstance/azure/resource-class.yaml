@@ -1,0 +1,24 @@
+---
+# ResourceClass that defines the blueprint for how a "standard" Azure MySQL Server
+# should be dynamically provisioned
+apiVersion: core.crossplane.io/v1alpha1
+kind: ResourceClass
+metadata:
+  name: sqlservermysql
+  namespace: crossplane-system
+parameters:
+  adminLoginName: myadmin
+  resourceGroupName: group-westus-1
+  location: West US
+  sslEnforced: "false"
+  tier: Basic
+  vcores: "1"
+  family: Gen5
+  storageGB: "25"
+  backupRetentionDays: "7"
+  geoRedundantBackup: "false"
+provisioner: mysqlserver.database.azure.crossplane.io/v1alpha1
+providerRef:
+  name: example
+  namespace: crossplane-system
+reclaimPolicy: Delete

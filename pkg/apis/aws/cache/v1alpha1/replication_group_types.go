@@ -20,7 +20,7 @@ import (
 	"strconv"
 	"strings"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
@@ -71,6 +71,7 @@ var LatestSupportedPatchVersion = map[MinorVersion]PatchVersion{
 // Most fields map directly to an AWS ReplicationGroup resource.
 // https://docs.aws.amazon.com/AmazonElastiCache/latest/APIReference/API_CreateReplicationGroup.html#API_CreateReplicationGroup_RequestParameters
 type ReplicationGroupSpec struct {
+	corev1alpha1.ResourceSpec
 
 	// AtRestEncryptionEnabled enables encryption at rest when set to true.
 	//
@@ -215,15 +216,6 @@ type ReplicationGroupSpec struct {
 	// is created. To enable in-transit encryption on a cluster you must
 	// TransitEncryptionEnabled to true when you create a cluster.
 	TransitEncryptionEnabled bool `json:"transitEncryptionEnabled,omitempty"`
-
-	// Kubernetes object references
-	ClaimRef            *v1.ObjectReference     `json:"claimRef,omitempty"`
-	ClassRef            *v1.ObjectReference     `json:"classRef,omitempty"`
-	ProviderRef         v1.LocalObjectReference `json:"providerRef"`
-	ConnectionSecretRef v1.LocalObjectReference `json:"connectionSecretRef,omitempty"`
-
-	// ReclaimPolicy identifies how to handle the cloud resource after the deletion of this type
-	ReclaimPolicy corev1alpha1.ReclaimPolicy `json:"reclaimPolicy,omitempty"`
 }
 
 // NodeGroupConfigurationSpec specifies the configuration of a node group within
@@ -252,8 +244,8 @@ type NodeGroupConfigurationSpec struct {
 
 // ReplicationGroupStatus defines the observed state of ReplicationGroup
 type ReplicationGroupStatus struct {
-	corev1alpha1.DeprecatedConditionedStatus
-	corev1alpha1.BindingStatusPhase
+	corev1alpha1.ResourceStatus
+
 	State   string `json:"state,omitempty"`
 	Message string `json:"message,omitempty"`
 
@@ -296,6 +288,56 @@ type ReplicationGroup struct {
 	Status ReplicationGroupStatus `json:"status,omitempty"`
 }
 
+// SetBindingPhase of this ReplicationGroup.
+func (rg *ReplicationGroup) SetBindingPhase(p corev1alpha1.BindingPhase) {
+	rg.Status.SetBindingPhase(p)
+}
+
+// GetBindingPhase of this ReplicationGroup.
+func (rg *ReplicationGroup) GetBindingPhase() corev1alpha1.BindingPhase {
+	return rg.Status.GetBindingPhase()
+}
+
+// SetClaimReference of this ReplicationGroup.
+func (rg *ReplicationGroup) SetClaimReference(r *corev1.ObjectReference) {
+	rg.Spec.ClaimReference = r
+}
+
+// GetClaimReference of this ReplicationGroup.
+func (rg *ReplicationGroup) GetClaimReference() *corev1.ObjectReference {
+	return rg.Spec.ClaimReference
+}
+
+// SetClassReference of this ReplicationGroup.
+func (rg *ReplicationGroup) SetClassReference(r *corev1.ObjectReference) {
+	rg.Spec.ClassReference = r
+}
+
+// GetClassReference of this ReplicationGroup.
+func (rg *ReplicationGroup) GetClassReference() *corev1.ObjectReference {
+	return rg.Spec.ClassReference
+}
+
+// SetWriteConnectionSecretToReference of this ReplicationGroup.
+func (rg *ReplicationGroup) SetWriteConnectionSecretToReference(r corev1.LocalObjectReference) {
+	rg.Spec.WriteConnectionSecretToReference = r
+}
+
+// GetWriteConnectionSecretToReference of this ReplicationGroup.
+func (rg *ReplicationGroup) GetWriteConnectionSecretToReference() corev1.LocalObjectReference {
+	return rg.Spec.WriteConnectionSecretToReference
+}
+
+// GetReclaimPolicy of this ReplicationGroup.
+func (rg *ReplicationGroup) GetReclaimPolicy() corev1alpha1.ReclaimPolicy {
+	return rg.Spec.ReclaimPolicy
+}
+
+// SetReclaimPolicy of this ReplicationGroup.
+func (rg *ReplicationGroup) SetReclaimPolicy(p corev1alpha1.ReclaimPolicy) {
+	rg.Spec.ReclaimPolicy = p
+}
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // ReplicationGroupList contains a list of ReplicationGroup
@@ -309,7 +351,9 @@ type ReplicationGroupList struct {
 // from the given properties map.
 func NewReplicationGroupSpec(properties map[string]string) *ReplicationGroupSpec {
 	spec := &ReplicationGroupSpec{
-		ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		ResourceSpec: corev1alpha1.ResourceSpec{
+			ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		},
 
 		// Note that these keys should match the JSON tags of their respective
 		// ReplicationGroupSpec fields.
@@ -373,32 +417,4 @@ func parseSlice(s string) []string {
 		sl = append(sl, strings.TrimSpace(sub))
 	}
 	return sl
-}
-
-// ConnectionSecretName returns a secret name from the reference
-func (c *ReplicationGroup) ConnectionSecretName() string {
-	if c.Spec.ConnectionSecretRef.Name == "" {
-		c.Spec.ConnectionSecretRef.Name = c.Name
-	}
-
-	return c.Spec.ConnectionSecretRef.Name
-}
-
-// IsAvailable for usage/binding
-func (c *ReplicationGroup) IsAvailable() bool {
-	return c.Status.State == StatusAvailable
-}
-
-// IsBound determines if the resource is in a bound binding state
-func (c *ReplicationGroup) IsBound() bool {
-	return c.Status.Phase == corev1alpha1.BindingStateBound
-}
-
-// SetBound sets the binding state of this resource
-func (c *ReplicationGroup) SetBound(state bool) {
-	if state {
-		c.Status.Phase = corev1alpha1.BindingStateBound
-	} else {
-		c.Status.Phase = corev1alpha1.BindingStateUnbound
-	}
 }

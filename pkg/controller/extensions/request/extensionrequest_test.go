@@ -19,13 +19,13 @@ package request
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/pkg/errors"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -169,8 +169,8 @@ var _ reconcile.Reconciler = &Reconciler{}
 // ************************************************************************************************
 type resourceModifier func(*v1alpha1.ExtensionRequest)
 
-func withConditions(c ...corev1alpha1.DeprecatedCondition) resourceModifier {
-	return func(r *v1alpha1.ExtensionRequest) { r.Status.DeprecatedConditionedStatus.Conditions = c }
+func withConditions(c ...corev1alpha1.Condition) resourceModifier {
+	return func(r *v1alpha1.ExtensionRequest) { r.Status.SetConditions(c...) }
 }
 
 func withInstallJob(jobRef *corev1.ObjectReference) resourceModifier {
@@ -202,11 +202,11 @@ func resource(rm ...resourceModifier) *v1alpha1.ExtensionRequest {
 // Job modifiers
 type jobModifier func(*batchv1.Job)
 
-func withJobConditions(jobDeprecatedConditionType batchv1.JobConditionType, message string) jobModifier {
+func withJobConditions(jobConditionType batchv1.JobConditionType, message string) jobModifier {
 	return func(j *batchv1.Job) {
 		j.Status.Conditions = []batchv1.JobCondition{
 			{
-				Type:    jobDeprecatedConditionType,
+				Type:    jobConditionType,
 				Status:  corev1.ConditionTrue,
 				Message: message,
 			},
@@ -351,7 +351,7 @@ func TestReconcile(t *testing.T) {
 				},
 				executorInfoDiscovery: &mockExecutorInfoDiscoverer{
 					MockDiscoverExecutorInfo: func(ctx context.Context) (*executorInfo, error) {
-						return nil, fmt.Errorf("test-discover-executorInfo-error")
+						return nil, errors.New("test-discover-executorInfo-error")
 					},
 				},
 				factory: nil,
@@ -378,13 +378,13 @@ func TestReconcile(t *testing.T) {
 			rec: &Reconciler{
 				kube: &test.MockClient{
 					MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
-						return fmt.Errorf("test-get-error")
+						return errors.New("test-get-error")
 					},
 				},
 				executorInfoDiscovery: nil,
 				factory:               nil,
 			},
-			want: want{result: reconcile.Result{}, err: fmt.Errorf("test-get-error")},
+			want: want{result: reconcile.Result{}, err: errors.New("test-get-error")},
 		},
 	}
 
@@ -392,12 +392,12 @@ func TestReconcile(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			gotResult, gotErr := tt.rec.Reconcile(tt.req)
 
-			if diff := cmp.Diff(gotErr, tt.want.err, test.EquateErrors()); diff != "" {
-				t.Errorf("Reconcile() want error != got error:\n%s", diff)
+			if diff := cmp.Diff(tt.want.err, gotErr, test.EquateErrors()); diff != "" {
+				t.Errorf("Reconcile() -want error, +got error:\n%s", diff)
 			}
 
-			if diff := cmp.Diff(gotResult, tt.want.result); diff != "" {
-				t.Errorf("Reconcile() got != want:\n%v", diff)
+			if diff := cmp.Diff(tt.want.result, gotResult); diff != "" {
+				t.Errorf("Reconcile() -want, +got:\n%v", diff)
 			}
 		})
 	}
@@ -428,10 +428,15 @@ func TestHandlerFactory(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := tt.factory.newHandler(ctx, resource(), nil, nil, executorInfo{image: extensionPackageImage})
 
-			diff := cmp.Diff(got, tt.want, cmp.AllowUnexported(
-				extensionRequestHandler{}, extensionRequestJobCompleter{}, k8sPodLogReader{}, executorInfo{}))
+			diff := cmp.Diff(tt.want, got,
+				cmp.AllowUnexported(
+					extensionRequestHandler{},
+					extensionRequestJobCompleter{},
+					k8sPodLogReader{},
+					executorInfo{},
+				))
 			if diff != "" {
-				t.Errorf("newHandler() got != want:\n%v", diff)
+				t.Errorf("newHandler() -want, +got:\n%v", diff)
 			}
 		})
 	}
@@ -466,7 +471,7 @@ func TestCreate(t *testing.T) {
 				result: requeueOnSuccess,
 				err:    nil,
 				ext: resource(
-					withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedCreating, Status: corev1.ConditionTrue}),
+					withConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileSuccess()),
 					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: namespace}),
 				),
 			},
@@ -482,14 +487,13 @@ func TestCreate(t *testing.T) {
 					MockStatusUpdate: func(ctx context.Context, obj runtime.Object) error { return nil },
 				},
 				ext: resource(
-					withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedCreating, Status: corev1.ConditionTrue}),
 					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: namespace})),
 			},
 			want: want{
 				result: requeueOnSuccess,
 				err:    nil,
 				ext: resource(
-					withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedCreating, Status: corev1.ConditionTrue}),
+					withConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileSuccess()),
 					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: namespace}),
 				),
 			},
@@ -516,7 +520,7 @@ func TestCreate(t *testing.T) {
 				result: requeueOnSuccess,
 				err:    nil,
 				ext: resource(
-					withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedReady, Status: corev1.ConditionTrue}),
+					withConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess()),
 					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: namespace}),
 				),
 			},
@@ -543,12 +547,10 @@ func TestCreate(t *testing.T) {
 				result: resultRequeue,
 				err:    nil,
 				ext: resource(
-					withConditions(corev1alpha1.DeprecatedCondition{
-						Type:    corev1alpha1.DeprecatedFailed,
-						Status:  corev1.ConditionTrue,
-						Reason:  reasonJobFailed,
-						Message: "mock job failure message",
-					}),
+					withConditions(
+						corev1alpha1.Creating(),
+						corev1alpha1.ReconcileError(errors.New("mock job failure message")),
+					),
 					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: namespace}),
 				),
 			},
@@ -559,16 +561,16 @@ func TestCreate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			gotResult, gotErr := tt.handler.create(ctx)
 
-			if diff := cmp.Diff(gotErr, tt.want.err, test.EquateErrors()); diff != "" {
-				t.Errorf("create() want error != got error:\n%s", diff)
+			if diff := cmp.Diff(tt.want.err, gotErr, test.EquateErrors()); diff != "" {
+				t.Errorf("create() -want error, +got error:\n%s", diff)
 			}
 
-			if diff := cmp.Diff(gotResult, tt.want.result); diff != "" {
-				t.Errorf("create() got != want:\n%v", diff)
+			if diff := cmp.Diff(tt.want.result, gotResult); diff != "" {
+				t.Errorf("create() -want, +got:\n%v", diff)
 			}
 
-			if diff := cmp.Diff(tt.handler.ext, tt.want.ext); diff != "" {
-				t.Errorf("create() got != want:\n%v", diff)
+			if diff := cmp.Diff(tt.want.ext, tt.handler.ext, test.EquateConditions()); diff != "" {
+				t.Errorf("create() -want, +got:\n%v", diff)
 			}
 		})
 	}
@@ -578,6 +580,8 @@ func TestCreate(t *testing.T) {
 // TestHandleJobCompletion
 // ************************************************************************************************
 func TestHandleJobCompletion(t *testing.T) {
+	errBoom := errors.New("boom")
+
 	type want struct {
 		ext *v1alpha1.ExtensionRequest
 		err error
@@ -605,7 +609,7 @@ func TestHandleJobCompletion(t *testing.T) {
 			job: job(),
 			want: want{
 				ext: resource(),
-				err: fmt.Errorf("pod list for job %s should only have 1 item, actual: 0", resourceName),
+				err: errors.Errorf("pod list for job %s should only have 1 item, actual: 0", resourceName),
 			},
 		},
 		{
@@ -623,7 +627,7 @@ func TestHandleJobCompletion(t *testing.T) {
 				},
 				podLogReader: &mockPodLogReader{
 					MockGetPodLogReader: func(string, string) (io.ReadCloser, error) {
-						return nil, fmt.Errorf("test-pod-log-reader-error")
+						return nil, errBoom
 					},
 				},
 			},
@@ -631,7 +635,7 @@ func TestHandleJobCompletion(t *testing.T) {
 			job: job(),
 			want: want{
 				ext: resource(),
-				err: fmt.Errorf("failed to get logs request stream from pod %s: %+v", jobPodName, "test-pod-log-reader-error"),
+				err: errors.Wrapf(errBoom, "failed to get logs request stream from pod %s", jobPodName),
 			},
 		},
 		{
@@ -651,7 +655,7 @@ func TestHandleJobCompletion(t *testing.T) {
 					MockGetPodLogReader: func(string, string) (io.ReadCloser, error) {
 						return &mockReadCloser{
 							MockRead: func(p []byte) (n int, err error) {
-								return 0, fmt.Errorf("test-read-error")
+								return 0, errBoom
 							},
 							MockClose: func() error { return nil },
 						}, nil
@@ -662,7 +666,7 @@ func TestHandleJobCompletion(t *testing.T) {
 			job: job(),
 			want: want{
 				ext: resource(),
-				err: fmt.Errorf("failed to copy logs request stream from pod %s: %+v", jobPodName, "test-read-error"),
+				err: errors.Wrapf(errBoom, "failed to copy logs request stream from pod %s", jobPodName),
 			},
 		},
 		{
@@ -687,7 +691,7 @@ func TestHandleJobCompletion(t *testing.T) {
 			job: job(),
 			want: want{
 				ext: resource(),
-				err: fmt.Errorf("failed to parse output from job %s: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type map[string]interface {}", resourceName),
+				err: errors.WithStack(errors.Errorf("failed to parse output from job %s: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type map[string]interface {}", resourceName)),
 			},
 		},
 		{
@@ -730,12 +734,12 @@ func TestHandleJobCompletion(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			gotErr := tt.jc.handleJobCompletion(ctx, tt.ext, tt.job)
 
-			if diff := cmp.Diff(gotErr, tt.want.err, test.EquateErrors()); diff != "" {
-				t.Errorf("handleJobCompletion() want error != got error:\n%s", diff)
+			if diff := cmp.Diff(tt.want.err, gotErr, test.EquateErrors()); diff != "" {
+				t.Errorf("handleJobCompletion(): -want error, +got error:\n%s", diff)
 			}
 
-			if diff := cmp.Diff(tt.ext, tt.want.ext); diff != "" {
-				t.Errorf("handleJobCompletion() got != want:\n%v", diff)
+			if diff := cmp.Diff(tt.want.ext, tt.ext, test.EquateConditions()); diff != "" {
+				t.Errorf("handleJobCompletion(): -want, +got:\n%v", diff)
 			}
 		})
 	}
@@ -760,13 +764,13 @@ func TestDiscoverExecutorInfo(t *testing.T) {
 			d: &executorInfoDiscoverer{
 				kube: &test.MockClient{
 					MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
-						return fmt.Errorf("test-get-pod-error")
+						return errors.New("test-get-pod-error")
 					},
 				},
 			},
 			want: want{
 				ei:  nil,
-				err: fmt.Errorf("test-get-pod-error"),
+				err: errors.New("test-get-pod-error"),
 			},
 		},
 		{
@@ -781,7 +785,7 @@ func TestDiscoverExecutorInfo(t *testing.T) {
 			},
 			want: want{
 				ei:  nil,
-				err: fmt.Errorf("failed to find image for container "),
+				err: errors.New("failed to find image for container "),
 			},
 		},
 		{
@@ -816,12 +820,12 @@ func TestDiscoverExecutorInfo(t *testing.T) {
 
 			got, gotErr := tt.d.discoverExecutorInfo(ctx)
 
-			if diff := cmp.Diff(gotErr, tt.want.err, test.EquateErrors()); diff != "" {
-				t.Errorf("discoverExecutorInfo() want error != got error:\n%s", diff)
+			if diff := cmp.Diff(tt.want.err, gotErr, test.EquateErrors()); diff != "" {
+				t.Errorf("discoverExecutorInfo() -want error, +got error:\n%s", diff)
 			}
 
-			if diff := cmp.Diff(got, tt.want.ei, cmp.AllowUnexported(executorInfo{})); diff != "" {
-				t.Errorf("discoverExecutorInfo() got != want:\n%v", diff)
+			if diff := cmp.Diff(tt.want.ei, got, cmp.AllowUnexported(executorInfo{})); diff != "" {
+				t.Errorf("discoverExecutorInfo() -want, +got:\n%v", diff)
 			}
 		})
 	}
@@ -874,8 +878,8 @@ func TestGetPackageImage(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := getPackageImage(tt.spec)
 
-			if diff := cmp.Diff(got, tt.want); diff != "" {
-				t.Errorf("getPackageImage() got != want:\n%v", diff)
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Errorf("getPackageImage() -want, +got:\n%v", diff)
 			}
 		})
 	}

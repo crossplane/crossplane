@@ -1,0 +1,15 @@
+---
+apiVersion: core.crossplane.io/v1alpha1
+kind: ResourceClass
+metadata:
+  name: gkecluster
+  namespace: crossplane-system
+parameters:
+  machineType: n1-standard-1
+  numNodes: "1"
+  zone: us-central1-b
+provisioner: gkecluster.compute.gcp.crossplane.io/v1alpha1
+providerRef:
+  name: example
+  namespace: crossplane-system
+reclaimPolicy: Delete

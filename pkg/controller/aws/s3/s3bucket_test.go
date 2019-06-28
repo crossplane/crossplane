@@ -17,11 +17,13 @@ limitations under the License.
 package s3
 
 import (
-	"fmt"
+	"errors"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/service/iam"
+	"github.com/google/go-cmp/cmp"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -38,6 +40,7 @@ import (
 	storagev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
 	client "github.com/crossplaneio/crossplane/pkg/clients/aws/s3"
 	. "github.com/crossplaneio/crossplane/pkg/clients/aws/s3/fake"
+	"github.com/crossplaneio/crossplane/pkg/test"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
@@ -81,6 +84,7 @@ func testResource() *S3Bucket {
 			Namespace: namespace,
 		},
 		Spec: S3BucketSpec{
+			ResourceSpec:    corev1alpha1.ResourceSpec{ProviderReference: &corev1.ObjectReference{}},
 			LocalPermission: &perm,
 		},
 		Status: S3BucketStatus{
@@ -90,18 +94,18 @@ func testResource() *S3Bucket {
 }
 
 // assertResource a helper function to check on cluster and its status
-func assertResource(g *GomegaWithT, r *Reconciler, s corev1alpha1.DeprecatedConditionedStatus) *S3Bucket {
+func assertResource(g *GomegaWithT, r *Reconciler, s corev1alpha1.ConditionedStatus) *S3Bucket {
 	resource := &S3Bucket{}
 	err := r.Get(ctx, key, resource)
 	g.Expect(err).To(BeNil())
-	g.Expect(resource.Status.DeprecatedConditionedStatus).Should(corev1alpha1.MatchDeprecatedConditionedStatus(s))
+	g.Expect(cmp.Diff(s, resource.Status.ConditionedStatus, test.EquateConditions())).Should(BeZero())
 	return resource
 }
 
 func TestSyncBucketError(t *testing.T) {
 	g := NewGomegaWithT(t)
 
-	assert := func(instance *S3Bucket, client client.Service, expectedResult reconcile.Result, expectedStatus corev1alpha1.DeprecatedConditionedStatus) {
+	assert := func(instance *S3Bucket, client client.Service, expectedResult reconcile.Result, expectedStatus corev1alpha1.ConditionedStatus) {
 		r := &Reconciler{
 			Client:     NewFakeClient(instance),
 			kubeclient: NewSimpleClientset(),
@@ -115,22 +119,22 @@ func TestSyncBucketError(t *testing.T) {
 	}
 
 	// error iam username not set
-	testError := "username not set, .Status.IAMUsername"
+	testError := errors.New("username not set, .Status.IAMUsername")
 	cl := &MockS3Client{}
 
-	expectedStatus := corev1alpha1.DeprecatedConditionedStatus{}
-	expectedStatus.SetFailed(errorSyncResource, testError)
+	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(corev1alpha1.ReconcileError(testError))
 	noUserResource := testResource()
 	noUserResource.Status.IAMUsername = ""
 	assert(noUserResource, cl, resultRequeue, expectedStatus)
 
 	// error get bucket info
-	testError = "mock get bucket info err"
+	testError = errors.New("mock get bucket info err")
 	cl.MockGetBucketInfo = func(username string, bucket *S3Bucket) (*client.Bucket, error) {
-		return nil, fmt.Errorf(testError)
+		return nil, testError
 	}
-	expectedStatus = corev1alpha1.DeprecatedConditionedStatus{}
-	expectedStatus.SetFailed(errorSyncResource, testError)
+	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(corev1alpha1.ReconcileError(testError))
 	assert(testResource(), cl, resultRequeue, expectedStatus)
 
 	//update versioning error
@@ -138,12 +142,12 @@ func TestSyncBucketError(t *testing.T) {
 		return &client.Bucket{Versioning: true, UserPolicyVersion: "v1"}, nil
 	}
 
-	testError = "bucket-versioning-update-error"
+	testError = errors.New("bucket-versioning-update-error")
 	cl.MockUpdateVersioning = func(bucket *S3Bucket) error {
-		return fmt.Errorf(testError)
+		return testError
 	}
-	expectedStatus = corev1alpha1.DeprecatedConditionedStatus{}
-	expectedStatus.SetFailed(errorSyncResource, testError)
+	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(corev1alpha1.ReconcileError(testError))
 	assert(testResource(), cl, resultRequeue, expectedStatus)
 
 	// update bucket acl error
@@ -151,13 +155,13 @@ func TestSyncBucketError(t *testing.T) {
 		return &client.Bucket{Versioning: false, UserPolicyVersion: "v1"}, nil
 	}
 
-	testError = "bucket-acl-update-error"
+	testError = errors.New("bucket-acl-update-error")
 	cl.MockUpdateBucketACL = func(bucket *S3Bucket) error {
-		return fmt.Errorf(testError)
+		return testError
 	}
 
-	expectedStatus = corev1alpha1.DeprecatedConditionedStatus{}
-	expectedStatus.SetFailed(errorSyncResource, testError)
+	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(corev1alpha1.ReconcileError(testError))
 	assert(testResource(), cl, resultRequeue, expectedStatus)
 
 	cl.MockUpdateBucketACL = func(bucket *S3Bucket) error {
@@ -171,21 +175,20 @@ func TestSyncBucketError(t *testing.T) {
 	bucketWithPolicyChanges.Status.LastUserPolicyVersion = 1
 	bucketWithPolicyChanges.Status.LastLocalPermission = storagev1alpha1.ReadOnlyPermission
 
-	testError = "policy-update-err"
+	testError = errors.New("policy-update-err")
 	cl.MockUpdatePolicyDocument = func(username string, bucket *S3Bucket) (string, error) {
-		return "", fmt.Errorf(testError)
+		return "", testError
 	}
-	expectedStatus = corev1alpha1.DeprecatedConditionedStatus{}
-	expectedStatus.SetFailed(errorSyncResource, testError)
+	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(corev1alpha1.ReconcileError(testError))
 	assert(testResource(), cl, resultRequeue, expectedStatus)
 }
 
-func TestSyncCluster(t *testing.T) {
+func TestSyncBucket(t *testing.T) {
 	g := NewGomegaWithT(t)
 	tr := testResource()
 	tr.Status.LastUserPolicyVersion = 1
 	tr.Status.LastLocalPermission = storagev1alpha1.ReadOnlyPermission
-	tr.Status.SetFailed("test", "test-msg")
 
 	r := &Reconciler{
 		Client:     NewFakeClient(tr),
@@ -205,10 +208,8 @@ func TestSyncCluster(t *testing.T) {
 		},
 	}
 
-	// Successful Sync should clear failed setatus.
-	expectedStatus := corev1alpha1.DeprecatedConditionedStatus{}
-	expectedStatus.SetFailed("test", "test-msg")
-	expectedStatus.UnsetDeprecatedCondition(corev1alpha1.DeprecatedFailed)
+	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(corev1alpha1.ReconcileSuccess())
 	rs, err := r._sync(tr, cl)
 	g.Expect(rs).To(Equal(result))
 	g.Expect(err).NotTo(HaveOccurred())
@@ -231,8 +232,8 @@ func TestDelete(t *testing.T) {
 
 	// test delete w/ reclaim policy
 	tr.Spec.ReclaimPolicy = corev1alpha1.ReclaimRetain
-	expectedStatus := corev1alpha1.DeprecatedConditionedStatus{}
-	expectedStatus.SetDeleting()
+	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileSuccess())
 
 	rs, err := r._delete(tr, cl)
 	g.Expect(rs).To(Equal(result))
@@ -254,13 +255,14 @@ func TestDelete(t *testing.T) {
 	assertResource(g, r, expectedStatus)
 
 	// test delete w/ delete policy error
-	testError := "test-delete-error"
+	testError := errors.New("test-delete-error")
 	called = false
 	cl.MockDelete = func(bucket *S3Bucket) error {
 		called = true
-		return fmt.Errorf(testError)
+		return testError
 	}
-	expectedStatus.SetFailed(errorDeleteResource, testError)
+	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileError(testError))
 
 	rs, err = r._delete(tr, cl)
 	g.Expect(rs).To(Equal(resultRequeue))
@@ -298,8 +300,8 @@ func TestCreate(t *testing.T) {
 		},
 	}
 
-	expectedStatus := corev1alpha1.DeprecatedConditionedStatus{}
-	expectedStatus.SetReady()
+	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess())
 
 	resource := testResource()
 	rs, err := r._create(resource, cl)
@@ -314,7 +316,7 @@ func TestCreate(t *testing.T) {
 	g.Expect(tk.Actions()).To(HaveLen(2))
 	g.Expect(tk.Actions()[0].GetVerb()).To(Equal("get"))
 	g.Expect(tk.Actions()[1].GetVerb()).To(Equal("create"))
-	s, err := tk.CoreV1().Secrets(tr.Namespace).Get(tr.Name, metav1.GetOptions{})
+	s, err := tk.CoreV1().Secrets(tr.GetNamespace()).Get(tr.GetWriteConnectionSecretToReference().Name, metav1.GetOptions{})
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(s).NotTo(BeNil())
 }
@@ -342,13 +344,13 @@ func TestCreateFail(t *testing.T) {
 	}
 
 	// test apply secret error
-	testError := "test-get-secret-error"
+	testError := errors.New("test-get-secret-error")
 	tk.PrependReactor("get", "secrets", func(action Action) (handled bool, ret runtime.Object, err error) {
-		return true, nil, fmt.Errorf(testError)
+		return true, nil, testError
 	})
 
-	expectedStatus := corev1alpha1.DeprecatedConditionedStatus{}
-	expectedStatus.SetFailed(errorCreateResource, testError)
+	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileError(testError))
 
 	rs, err := r._create(tr, cl)
 	g.Expect(rs).To(Equal(resultRequeue))
@@ -358,15 +360,15 @@ func TestCreateFail(t *testing.T) {
 	// test create resource error
 	tr = testResource()
 	r.kubeclient = NewSimpleClientset()
-	testError = "test-create-user--error"
+	testError = errors.New("test-create-user--error")
 	called := false
 	cl.MockCreateUser = func(username string, bucket *S3Bucket) (*iam.AccessKey, string, error) {
 		called = true
-		return nil, "", fmt.Errorf(testError)
+		return nil, "", testError
 	}
 
-	expectedStatus = corev1alpha1.DeprecatedConditionedStatus{}
-	expectedStatus.SetFailed(errorCreateResource, testError)
+	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileError(testError))
 
 	rs, err = r._create(tr, cl)
 	g.Expect(rs).To(Equal(resultRequeue))
@@ -385,15 +387,15 @@ func TestCreateFail(t *testing.T) {
 
 	tr = testResource()
 	r.kubeclient = NewSimpleClientset()
-	testError = "test-create-bucket--error"
+	testError = errors.New("test-create-bucket--error")
 	called = false
 	cl.MockCreateOrUpdateBucket = func(bucket *S3Bucket) error {
 		called = true
-		return fmt.Errorf(testError)
+		return testError
 	}
 
-	expectedStatus = corev1alpha1.DeprecatedConditionedStatus{}
-	expectedStatus.SetFailed(errorCreateResource, testError)
+	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileError(testError))
 
 	rs, err = r._create(tr, cl)
 	g.Expect(rs).To(Equal(resultRequeue))
@@ -433,14 +435,14 @@ func TestReconcile(t *testing.T) {
 
 	// test connect error
 	called := false
-	testError := "test-connect-error"
+	testError := errors.New("test-connect-error")
 	r.connect = func(*S3Bucket) (client.Service, error) {
 		called = true
-		return nil, fmt.Errorf(testError)
+		return nil, testError
 	}
 
-	expectedStatus := corev1alpha1.DeprecatedConditionedStatus{}
-	expectedStatus.SetFailed(errorResourceClient, testError)
+	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(corev1alpha1.ReconcileError(testError))
 
 	rs, err := r.Reconcile(request)
 	g.Expect(rs).To(Equal(resultRequeue))

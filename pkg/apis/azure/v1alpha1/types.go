@@ -55,24 +55,19 @@ type ProviderList struct {
 // ResourceGroupSpec defines the desired state of Resource Group
 type ResourceGroupSpec struct {
 	// Important: Run "make generate" to regenerate code after modifying this file
+	corev1alpha1.ResourceSpec
 
 	// Name of the resource group
 	Name string `json:"name,omitempty"`
 	// See official list of valid regions - https://azure.microsoft.com/en-us/global-infrastructure/regions/
-	Location    string                      `json:"location,omitempty"`
-	ProviderRef corev1.LocalObjectReference `json:"providerRef"`
-
-	ClaimRef *corev1.ObjectReference `json:"claimRef,omitempty"`
-	ClassRef *corev1.ObjectReference `json:"classRef,omitempty"`
-
-	// ReclaimPolicy identifies how to handle the cloud resource after the deletion of this type
-	ReclaimPolicy corev1alpha1.ReclaimPolicy `json:"reclaimPolicy,omitempty"`
+	Location string `json:"location,omitempty"`
 }
 
 // ResourceGroupStatus is the status for this resource group
 type ResourceGroupStatus struct {
+	corev1alpha1.ResourceStatus
+
 	Name string `json:"name"`
-	corev1alpha1.DeprecatedConditionedStatus
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

@@ -5,7 +5,9 @@ metadata:
   name: gitlab-artifacts
   namespace: default
 spec:
-  classReference:
+  classRef:
     name: standard-aws-bucket
     namespace: crossplane-system
+  writeConnectionSecretToRef:
+    name: gitlab-artifacts
   name: gitlab-demo-artifacts-%s

@@ -32,8 +32,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/apis/workload/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/controller/core"
 	"github.com/crossplaneio/crossplane/pkg/logging"
 	"github.com/crossplaneio/crossplane/pkg/meta"
 	"github.com/crossplaneio/crossplane/pkg/util"
@@ -42,9 +42,7 @@ import (
 const (
 	controllerName   = "kubernetesapplication.workload.crossplane.io"
 	reconcileTimeout = 1 * time.Minute
-
-	reasonGCResources     = "failed to garbage collect " + v1alpha1.KubernetesApplicationResourceKind
-	reasonSyncingResource = "failed to sync " + v1alpha1.KubernetesApplicationResourceKind
+	requeueOnWait    = 30 * time.Second
 )
 
 var log = logging.Logger.WithName("controller." + controllerName)
@@ -113,14 +111,13 @@ type localCluster struct {
 }
 
 func (c *localCluster) sync(ctx context.Context, app *v1alpha1.KubernetesApplication) reconcile.Result {
-	app.Status.UnsetAllDeprecatedConditions()
 	app.Status.DesiredResources = len(app.Spec.ResourceTemplates)
 	app.Status.SubmittedResources = 0
 
 	// Garbage collect any resource we control but no longer have templates for.
 	if err := c.gc.process(ctx, app); err != nil {
 		app.Status.State = v1alpha1.KubernetesApplicationStateFailed
-		app.Status.SetFailed(reasonGCResources, err.Error())
+		app.Status.SetConditions(corev1alpha1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}
 	}
 
@@ -134,7 +131,7 @@ func (c *localCluster) sync(ctx context.Context, app *v1alpha1.KubernetesApplica
 
 		if err != nil {
 			app.Status.State = v1alpha1.KubernetesApplicationStateFailed
-			app.Status.SetFailed(reasonSyncingResource, err.Error())
+			app.Status.SetConditions(corev1alpha1.ReconcileError(err))
 			return reconcile.Result{Requeue: true}
 		}
 	}
@@ -142,21 +139,21 @@ func (c *localCluster) sync(ctx context.Context, app *v1alpha1.KubernetesApplica
 	if app.Status.SubmittedResources == 0 {
 		// Note we set _state_ scheduled, and _status_ pending here. The pending
 		// state and status have different meanings; the former means "pending
-		// scheduling to a Kubernetets cluster" while the latter means "pending
+		// scheduling to a Kubernetes cluster" while the latter means "pending
 		// successful reconciliation".
 		app.Status.State = v1alpha1.KubernetesApplicationStateScheduled
-		app.Status.SetPending()
-		return reconcile.Result{RequeueAfter: core.RequeueOnWait}
+		app.Status.SetConditions(corev1alpha1.ReconcileSuccess())
+		return reconcile.Result{RequeueAfter: requeueOnWait}
 	}
 
 	if app.Status.SubmittedResources < app.Status.DesiredResources {
 		app.Status.State = v1alpha1.KubernetesApplicationStatePartial
-		app.Status.SetPending()
-		return reconcile.Result{RequeueAfter: core.RequeueOnWait}
+		app.Status.SetConditions(corev1alpha1.ReconcileSuccess())
+		return reconcile.Result{RequeueAfter: requeueOnWait}
 	}
 
 	app.Status.State = v1alpha1.KubernetesApplicationStateSubmitted
-	app.Status.SetReady()
+	app.Status.SetConditions(corev1alpha1.ReconcileSuccess())
 	return reconcile.Result{Requeue: false}
 }
 
@@ -262,7 +259,7 @@ func (gc *applicationResourceGarbageCollector) process(ctx context.Context, app 
 
 		// We control this resource but we don't have a template for it.
 		if err := gc.kube.Delete(ctx, ar); err != nil && !kerrors.IsNotFound(err) {
-			app.Status.SetFailed(reasonGCResources, err.Error())
+			app.Status.SetConditions(corev1alpha1.ReconcileError(err))
 		}
 	}
 

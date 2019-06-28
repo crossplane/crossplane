@@ -6,7 +6,7 @@ metadata:
   labels:
     app: wordpress-demo
 spec:
-  classReference:
+  classRef:
     name: standard-cluster
     namespace: crossplane-system
 ---
@@ -16,7 +16,7 @@ metadata:
   name: sql
   namespace: complex
 spec:
-  classReference:
+  classRef:
     name: standard-mysql
     namespace: crossplane-system
   engineVersion: "5.7"

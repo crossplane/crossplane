@@ -85,12 +85,8 @@ func doUnpack(fs afero.Fs, root string) (string, error) {
 	var output strings.Builder
 
 	// create an Extension record and populate it with the relevant package contents
-	extensionRecord := &v1alpha1.Extension{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: v1alpha1.APIVersion,
-			Kind:       strings.Title(v1alpha1.ExtensionKind), // ensure that Kind has an uppercase first letter
-		},
-	}
+	v, k := v1alpha1.ExtensionGroupVersionKind.ToAPIVersionAndKind()
+	extensionRecord := &v1alpha1.Extension{TypeMeta: metav1.TypeMeta{APIVersion: v, Kind: k}}
 
 	// find all CRDs and add to the extension record and the output builder
 	crdList, crdContent, err := readResources(fs, root)

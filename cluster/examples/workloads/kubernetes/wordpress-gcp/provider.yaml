@@ -31,6 +31,7 @@ parameters:
 provisioner: gkecluster.compute.gcp.crossplane.io/v1alpha1
 providerRef:
   name: gcp-provider
+  namespace: crossplane-system
 reclaimPolicy: Delete
 ---
 apiVersion: core.crossplane.io/v1alpha1
@@ -45,4 +46,5 @@ parameters:
 provisioner: cloudsqlinstance.database.gcp.crossplane.io/v1alpha1
 providerRef:
   name: gcp-provider
+  namespace: crossplane-system
 reclaimPolicy: Delete

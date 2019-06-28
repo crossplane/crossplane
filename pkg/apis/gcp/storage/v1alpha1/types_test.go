@@ -31,6 +31,7 @@ import (
 
 	"github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/resource"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
@@ -40,6 +41,8 @@ var (
 	c   client.Client
 	ctx = context.TODO()
 )
+
+var _ resource.Managed = &Bucket{}
 
 func TestMain(m *testing.M) {
 	t := test.NewEnv(namespace, SchemeBuilder.SchemeBuilder, test.CRDs())
@@ -961,147 +964,6 @@ func TestNewBucketOutputAttrs(t *testing.T) {
 	}
 }
 
-func TestBucket_ConnectionSecretName(t *testing.T) {
-	tests := []struct {
-		name   string
-		bucket Bucket
-		want   string
-	}{
-		{"Default", Bucket{}, ""},
-		{"Named", Bucket{ObjectMeta: metav1.ObjectMeta{Name: "foo"}}, "foo"},
-		{"Override",
-			Bucket{
-				ObjectMeta: metav1.ObjectMeta{Name: "foo"},
-				Spec:       BucketSpec{ConnectionSecretNameOverride: "bar"}}, "bar"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.bucket.ConnectionSecretName(); got != tt.want {
-				t.Errorf("Bucket.ConnectionSecretName() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestBucket_ConnectionSecret(t *testing.T) {
-	bucket := Bucket{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "default",
-			Name:      "bucket",
-			UID:       "test-uid",
-		},
-	}
-	tests := []struct {
-		name   string
-		bucket Bucket
-		want   *corev1.Secret
-	}{
-		{
-			name:   "test",
-			bucket: bucket,
-			want: &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: "default",
-					Name:      "bucket",
-					OwnerReferences: []metav1.OwnerReference{{
-						APIVersion: APIVersion,
-						Kind:       BucketKind,
-						Name:       bucket.GetName(),
-						UID:        bucket.GetUID(),
-					}},
-				},
-				Data: map[string][]byte{
-					corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(bucket.GetBucketName()),
-				},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := tt.bucket.ConnectionSecret()
-			if diff := cmp.Diff(tt.want, got); diff != "" {
-				t.Errorf("Bucket.ConnectionSecret() -want, +got:\n%s", diff)
-			}
-		})
-	}
-}
-
-func TestBucket_IsAvailable(t *testing.T) {
-	b := Bucket{}
-
-	bReady := b
-	bReady.Status.SetReady()
-
-	bReadyAndFailed := bReady
-	bReadyAndFailed.Status.SetFailed("", "")
-
-	bNotReadyAndFailed := bReadyAndFailed
-	bNotReadyAndFailed.Status.UnsetDeprecatedCondition(v1alpha1.DeprecatedReady)
-
-	tests := []struct {
-		name   string
-		bucket Bucket
-		want   bool
-	}{
-		{"NoConditions", b, false},
-		{"RunningActive", bReady, true},
-		{"RunningAndFailedActive", bReadyAndFailed, true},
-		{"NotRunningAndFailedActive", bNotReadyAndFailed, false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.bucket.IsAvailable(); got != tt.want {
-				t.Errorf("Bucket.IsAvailable() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestBucket_IsBound(t *testing.T) {
-	tests := []struct {
-		name  string
-		phase v1alpha1.BindingState
-		want  bool
-	}{
-		{"Bound", v1alpha1.BindingStateBound, true},
-		{"NotBound", v1alpha1.BindingStateUnbound, false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			b := Bucket{
-				Status: BucketStatus{
-					BindingStatusPhase: v1alpha1.BindingStatusPhase{
-						Phase: tt.phase,
-					},
-				},
-			}
-			if got := b.IsBound(); got != tt.want {
-				t.Errorf("Bucket.IsBound() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestBucket_SetBound(t *testing.T) {
-	tests := []struct {
-		name  string
-		state bool
-		want  v1alpha1.BindingState
-	}{
-		{"NotBound", false, v1alpha1.BindingStateUnbound},
-		{"Bound", true, v1alpha1.BindingStateBound},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c := &Bucket{}
-			c.SetBound(tt.state)
-			if c.Status.Phase != tt.want {
-				t.Errorf("Bucket.SetBound(%v) = %v, want %v", tt.state, c.Status.Phase, tt.want)
-			}
-		})
-	}
-}
-
 func Test_parseCORSList(t *testing.T) {
 	tests := []struct {
 		name string
@@ -1310,8 +1172,24 @@ func TestParseBucketSpec(t *testing.T) {
 		args map[string]string
 		want *BucketSpec
 	}{
-		{name: "Empty", args: map[string]string{}, want: &BucketSpec{ReclaimPolicy: v1alpha1.ReclaimRetain}},
-		{name: "Invalid", args: map[string]string{"foo": "bar"}, want: &BucketSpec{ReclaimPolicy: v1alpha1.ReclaimRetain}},
+		{
+			name: "Empty",
+			args: map[string]string{},
+			want: &BucketSpec{
+				ResourceSpec: corev1alpha1.ResourceSpec{
+					ReclaimPolicy: v1alpha1.ReclaimRetain,
+				},
+			},
+		},
+		{
+			name: "Invalid",
+			args: map[string]string{"foo": "bar"},
+			want: &BucketSpec{
+				ResourceSpec: corev1alpha1.ResourceSpec{
+					ReclaimPolicy: v1alpha1.ReclaimRetain,
+				},
+			},
+		},
 		{
 			name: "Valid",
 			args: map[string]string{
@@ -1388,7 +1266,9 @@ func TestParseBucketSpec(t *testing.T) {
 					Location:     "test-location",
 					StorageClass: "test-storage-class",
 				},
-				ReclaimPolicy:           v1alpha1.ReclaimRetain,
+				ResourceSpec: corev1alpha1.ResourceSpec{
+					ReclaimPolicy: v1alpha1.ReclaimRetain,
+				},
 				ServiceAccountSecretRef: &corev1.LocalObjectReference{Name: "testAccount"},
 			},
 		},

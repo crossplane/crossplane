@@ -8,19 +8,23 @@ spec:
   versioning: false
   providerRef:
     name: demo-aws-provider
+    namespace: crossplane-system
+  writeConnectionSecretToRef:
+    name: demo-bucket-connection
 ---
 apiVersion: database.aws.crossplane.io/v1alpha1
 kind: RDSInstance
 metadata:
-  name: demo-rds
+  name: demo-database-connection
 spec:
   class: db.t2.small
-  connectionSecretRef:
-    name: demo-database-connection
   engine: mysql
   masterUsername: masteruser
   providerRef:
     name: demo-aws-provider
+    namespace: crossplane-system
+  writeConnectionSecretToRef:
+    name: demo-rds
   securityGroups:
 #  - vpc-default-sg - default security group for your VPC
 #  - vpc-rds-sg - security group to allow RDS connection

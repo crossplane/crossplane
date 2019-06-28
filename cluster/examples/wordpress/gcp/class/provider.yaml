@@ -38,4 +38,5 @@ parameters:
 provisioner: cloudsqlinstance.database.gcp.crossplane.io/v1alpha1
 providerRef:
   name: gcp-sql-provider
+  namespace: crossplane-system
 reclaimPolicy: Delete

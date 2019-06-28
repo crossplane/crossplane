@@ -5,7 +5,9 @@ metadata:
   name: gitlab-uploads
   namespace: default
 spec:
-  classReference:
+  classRef:
     name: standard-gcp-bucket
     namespace: crossplane-system
+  writeConnectionSecretToRef:
+    name: gitlab-uploads
   name: gitlab-demo-uploads-%s

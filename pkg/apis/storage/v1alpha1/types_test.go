@@ -23,6 +23,15 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+
+	"github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/resource"
+)
+
+var (
+	_ resource.Claim = &MySQLInstance{}
+	_ resource.Claim = &PostgreSQLInstance{}
+	_ resource.Claim = &Bucket{}
 )
 
 func TestMySQLInstanceStorage(t *testing.T) {
@@ -31,9 +40,11 @@ func TestMySQLInstanceStorage(t *testing.T) {
 	created := &MySQLInstance{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
 		Spec: MySQLInstanceSpec{
-			ClassRef: &corev1.ObjectReference{
-				Name:      "test-class",
-				Namespace: "test-system",
+			ResourceClaimSpec: v1alpha1.ResourceClaimSpec{
+				ClassReference: &corev1.ObjectReference{
+					Name:      "test-class",
+					Namespace: "test-system",
+				},
 			},
 			EngineVersion: "5.6",
 		},
@@ -49,7 +60,7 @@ func TestMySQLInstanceStorage(t *testing.T) {
 	// Test Updating the Labels
 	updated := fetched.DeepCopy()
 	updated.Labels = map[string]string{"hello": "world"}
-	updated.Spec.ResourceRef = &corev1.ObjectReference{
+	updated.Spec.ResourceReference = &corev1.ObjectReference{
 		Name:      "test-class",
 		Namespace: "test-resource",
 	}
@@ -70,9 +81,11 @@ func TestPostgreSQLInstanceStorage(t *testing.T) {
 	created := &PostgreSQLInstance{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
 		Spec: PostgreSQLInstanceSpec{
-			ClassRef: &corev1.ObjectReference{
-				Name:      "test-class",
-				Namespace: "test-system",
+			ResourceClaimSpec: v1alpha1.ResourceClaimSpec{
+				ClassReference: &corev1.ObjectReference{
+					Name:      "test-class",
+					Namespace: "test-system",
+				},
 			},
 		},
 	}
@@ -87,7 +100,7 @@ func TestPostgreSQLInstanceStorage(t *testing.T) {
 	// Test Updating the Labels
 	updated := fetched.DeepCopy()
 	updated.Labels = map[string]string{"hello": "world"}
-	updated.Spec.ResourceRef = &corev1.ObjectReference{
+	updated.Spec.ResourceReference = &corev1.ObjectReference{
 		Name:      "test-class",
 		Namespace: "test-resource",
 	}
@@ -108,9 +121,11 @@ func TestEngineVersion(t *testing.T) {
 		created := &MySQLInstance{
 			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
 			Spec: MySQLInstanceSpec{
-				ClassRef: &corev1.ObjectReference{
-					Name:      "test-class",
-					Namespace: "test-system",
+				ResourceClaimSpec: v1alpha1.ResourceClaimSpec{
+					ClassReference: &corev1.ObjectReference{
+						Name:      "test-class",
+						Namespace: "test-system",
+					},
 				},
 				EngineVersion: version,
 			},

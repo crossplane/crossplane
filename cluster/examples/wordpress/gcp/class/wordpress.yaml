@@ -15,10 +15,12 @@ kind: MySQLInstance
 metadata:
   name: mysql-instance
 spec:
-  classReference:
+  classRef:
     name: standard
     namespace: crossplane-system
   engineVersion: "5.7"
+  writeConnectionSecretToRef:
+    name: mysql-instance
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment

@@ -18,7 +18,6 @@ package extension
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	apps "k8s.io/api/apps/v1"
@@ -33,6 +32,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	"github.com/pkg/errors"
+
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/apis/extensions/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/logging"
@@ -44,9 +45,6 @@ const (
 
 	reconcileTimeout      = 1 * time.Minute
 	requeueAfterOnSuccess = 10 * time.Second
-
-	reasonCreatingRBAC       = "failed to create RBAC"
-	reasonCreatingDeployment = "failed to create deployment"
 )
 
 var (
@@ -137,19 +135,20 @@ func (h *extensionHandler) sync(ctx context.Context) (reconcile.Result, error) {
 }
 
 func (h *extensionHandler) create(ctx context.Context) (reconcile.Result, error) {
+	h.ext.Status.SetConditions(corev1alpha1.Creating())
+
 	// create RBAC permissions
 	if err := h.processRBAC(ctx); err != nil {
-		return fail(ctx, h.kube, h.ext, reasonCreatingRBAC, err.Error())
+		return fail(ctx, h.kube, h.ext, err)
 	}
 
 	// create controller deployment
 	if err := h.processDeployment(ctx); err != nil {
-		return fail(ctx, h.kube, h.ext, reasonCreatingDeployment, err.Error())
+		return fail(ctx, h.kube, h.ext, err)
 	}
 
 	// the extension has successfully been created, the extension is ready
-	h.ext.Status.UnsetAllDeprecatedConditions()
-	h.ext.Status.SetReady()
+	h.ext.Status.SetConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess())
 	return requeueOnSuccess, h.kube.Status().Update(ctx, h.ext)
 }
 
@@ -174,7 +173,7 @@ func (h *extensionHandler) processRBAC(ctx context.Context) error {
 		},
 	}
 	if err := h.kube.Create(ctx, sa); err != nil && !kerrors.IsAlreadyExists(err) {
-		return fmt.Errorf("failed to create service account: %+v", err)
+		return errors.Wrap(err, "failed to create service account")
 	}
 
 	// create role
@@ -186,7 +185,7 @@ func (h *extensionHandler) processRBAC(ctx context.Context) error {
 		Rules: h.ext.Spec.Permissions.Rules,
 	}
 	if err := h.kube.Create(ctx, cr); err != nil && !kerrors.IsAlreadyExists(err) {
-		return fmt.Errorf("failed to create cluster role: %+v", err)
+		return errors.Wrap(err, "failed to create cluster role")
 	}
 
 	// create rolebinding between service account and role
@@ -201,7 +200,7 @@ func (h *extensionHandler) processRBAC(ctx context.Context) error {
 		},
 	}
 	if err := h.kube.Create(ctx, crb); err != nil && !kerrors.IsAlreadyExists(err) {
-		return fmt.Errorf("failed to create cluster role binding: %+v", err)
+		return errors.Wrap(err, "failed to create cluster role binding")
 	}
 
 	return nil
@@ -227,7 +226,7 @@ func (h *extensionHandler) processDeployment(ctx context.Context) error {
 		Spec: deploymentSpec,
 	}
 	if err := h.kube.Create(ctx, d); err != nil && !kerrors.IsAlreadyExists(err) {
-		return fmt.Errorf("failed to create deployment: %+v", err)
+		return errors.Wrap(err, "failed to create deployment")
 	}
 
 	// save a reference to the extension's controller
@@ -243,9 +242,8 @@ func (h *extensionHandler) processDeployment(ctx context.Context) error {
 }
 
 // fail - helper function to set fail condition with reason and message
-func fail(ctx context.Context, kube client.StatusClient, i *v1alpha1.Extension, reason, msg string) (reconcile.Result, error) {
-	log.V(logging.Debug).Info("failed extension", "i", i.Name, "reason", reason, "message", msg)
-	i.Status.SetFailed(reason, msg)
-	i.Status.UnsetDeprecatedCondition(corev1alpha1.DeprecatedReady)
+func fail(ctx context.Context, kube client.StatusClient, i *v1alpha1.Extension, err error) (reconcile.Result, error) {
+	log.V(logging.Debug).Info("failed extension", "i", i.Name, "error", err)
+	i.Status.SetConditions(corev1alpha1.ReconcileError(err))
 	return resultRequeue, kube.Status().Update(ctx, i)
 }

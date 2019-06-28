@@ -18,12 +18,12 @@ package extension
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	. "github.com/onsi/gomega"
+	"github.com/pkg/errors"
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbac "k8s.io/api/rbac/v1"
@@ -70,8 +70,8 @@ var _ reconcile.Reconciler = &Reconciler{}
 // ************************************************************************************************
 type resourceModifier func(*v1alpha1.Extension)
 
-func withConditions(c ...corev1alpha1.DeprecatedCondition) resourceModifier {
-	return func(r *v1alpha1.Extension) { r.Status.DeprecatedConditionedStatus.Conditions = c }
+func withConditions(c ...corev1alpha1.Condition) resourceModifier {
+	return func(r *v1alpha1.Extension) { r.Status.SetConditions(c...) }
 }
 
 func withControllerSpec(cs v1alpha1.ControllerSpec) resourceModifier {
@@ -240,6 +240,8 @@ func TestReconcile(t *testing.T) {
 // TestCreate
 // ************************************************************************************************
 func TestCreate(t *testing.T) {
+	errBoom := errors.New("boom")
+
 	type want struct {
 		result reconcile.Result
 		err    error
@@ -259,7 +261,7 @@ func TestCreate(t *testing.T) {
 				return &test.MockClient{
 					MockCreate: func(ctx context.Context, obj runtime.Object) error {
 						if _, ok := obj.(*corev1.ServiceAccount); ok {
-							return errors.New("test-create-sa-error")
+							return errBoom
 						}
 						return nil
 					},
@@ -271,12 +273,11 @@ func TestCreate(t *testing.T) {
 				err:    nil,
 				r: resource(
 					withPolicyRules(defaultPolicyRules()),
-					withConditions(corev1alpha1.DeprecatedCondition{
-						Type:    corev1alpha1.DeprecatedFailed,
-						Status:  corev1.ConditionTrue,
-						Reason:  reasonCreatingRBAC,
-						Message: fmt.Errorf("failed to create service account: %+v", errors.New("test-create-sa-error")).Error(),
-					})),
+					withConditions(
+						corev1alpha1.Creating(),
+						corev1alpha1.ReconcileError(errors.Wrap(errBoom, "failed to create service account")),
+					),
+				),
 			},
 		},
 		{
@@ -288,7 +289,7 @@ func TestCreate(t *testing.T) {
 				return &test.MockClient{
 					MockCreate: func(ctx context.Context, obj runtime.Object) error {
 						if _, ok := obj.(*apps.Deployment); ok {
-							return errors.New("test-create-deployment-error")
+							return errBoom
 						}
 						return nil
 					},
@@ -301,12 +302,11 @@ func TestCreate(t *testing.T) {
 				r: resource(
 					withPolicyRules(defaultPolicyRules()),
 					withControllerSpec(defaultControllerSpec()),
-					withConditions(corev1alpha1.DeprecatedCondition{
-						Type:    corev1alpha1.DeprecatedFailed,
-						Status:  corev1.ConditionTrue,
-						Reason:  reasonCreatingDeployment,
-						Message: fmt.Errorf("failed to create deployment: %+v", errors.New("test-create-deployment-error")).Error(),
-					})),
+					withConditions(
+						corev1alpha1.Creating(),
+						corev1alpha1.ReconcileError(errors.Wrap(errBoom, "failed to create deployment")),
+					),
+				),
 			},
 		},
 		{
@@ -317,7 +317,8 @@ func TestCreate(t *testing.T) {
 				result: requeueOnSuccess,
 				err:    nil,
 				r: resource(
-					withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedReady, Status: corev1.ConditionTrue})),
+					withConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess()),
+				),
 			},
 		},
 	}
@@ -331,16 +332,16 @@ func TestCreate(t *testing.T) {
 
 			got, err := handler.create(ctx)
 
-			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
-				t.Errorf("create() want error != got error:\n%s", diff)
+			if diff := cmp.Diff(tt.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("create(): -want error, +got error:\n%s", diff)
 			}
 
-			if diff := cmp.Diff(got, tt.want.result); diff != "" {
-				t.Errorf("create() got != want:\n%v", diff)
+			if diff := cmp.Diff(tt.want.result, got); diff != "" {
+				t.Errorf("create(): -want, +got:\n%s", diff)
 			}
 
-			if diff := cmp.Diff(tt.r, tt.want.r); diff != "" {
-				t.Errorf("create() got != want:\n%v", diff)
+			if diff := cmp.Diff(tt.want.r, tt.r, test.EquateConditions()); diff != "" {
+				t.Errorf("create() resource: -want, +got:\n%s", diff)
 			}
 		})
 	}
@@ -350,6 +351,8 @@ func TestCreate(t *testing.T) {
 // TestProcessRBAC
 // ************************************************************************************************
 func TestProcessRBAC(t *testing.T) {
+	errBoom := errors.New("boom")
+
 	type want struct {
 		err error
 		sa  *corev1.ServiceAccount
@@ -381,14 +384,14 @@ func TestProcessRBAC(t *testing.T) {
 				return &test.MockClient{
 					MockCreate: func(ctx context.Context, obj runtime.Object) error {
 						if _, ok := obj.(*corev1.ServiceAccount); ok {
-							return errors.New("test-create-sa-error")
+							return errBoom
 						}
 						return nil
 					},
 				}
 			},
 			want: want{
-				err: fmt.Errorf("failed to create service account: %+v", errors.New("test-create-sa-error")),
+				err: errors.Wrap(errBoom, "failed to create service account"),
 				sa:  nil,
 				cr:  nil,
 				crb: nil,
@@ -401,14 +404,14 @@ func TestProcessRBAC(t *testing.T) {
 				return &test.MockClient{
 					MockCreate: func(ctx context.Context, obj runtime.Object) error {
 						if _, ok := obj.(*rbac.ClusterRole); ok {
-							return errors.New("test-create-cr-error")
+							return errBoom
 						}
 						return nil
 					},
 				}
 			},
 			want: want{
-				err: fmt.Errorf("failed to create cluster role: %+v", errors.New("test-create-cr-error")),
+				err: errors.Wrap(errBoom, "failed to create cluster role"),
 				sa:  nil,
 				cr:  nil,
 				crb: nil,
@@ -421,14 +424,14 @@ func TestProcessRBAC(t *testing.T) {
 				return &test.MockClient{
 					MockCreate: func(ctx context.Context, obj runtime.Object) error {
 						if _, ok := obj.(*rbac.ClusterRoleBinding); ok {
-							return errors.New("test-create-crb-error")
+							return errBoom
 						}
 						return nil
 					},
 				}
 			},
 			want: want{
-				err: fmt.Errorf("failed to create cluster role binding: %+v", errors.New("test-create-crb-error")),
+				err: errors.Wrap(errBoom, "failed to create cluster role binding"),
 				sa:  nil,
 				cr:  nil,
 				crb: nil,
@@ -482,8 +485,8 @@ func TestProcessRBAC(t *testing.T) {
 
 			err := handler.processRBAC(ctx)
 
-			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
-				t.Errorf("processRBAC() want error != got error:\n%s", diff)
+			if diff := cmp.Diff(tt.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("processRBAC(): -want error, +got error:\n%s", diff)
 			}
 
 			if tt.want.sa != nil {
@@ -508,6 +511,8 @@ func TestProcessRBAC(t *testing.T) {
 // TestProcessDeployment
 // ************************************************************************************************
 func TestProcessDeployment(t *testing.T) {
+	errBoom := errors.New("boom")
+
 	type want struct {
 		err           error
 		d             *apps.Deployment
@@ -536,12 +541,12 @@ func TestProcessDeployment(t *testing.T) {
 			clientFunc: func(r *v1alpha1.Extension) client.Client {
 				return &test.MockClient{
 					MockCreate: func(ctx context.Context, obj runtime.Object) error {
-						return errors.New("test-create-error")
+						return errBoom
 					},
 				}
 			},
 			want: want{
-				err:           fmt.Errorf("failed to create deployment: %+v", errors.New("test-create-error")),
+				err:           errors.Wrap(errBoom, "failed to create deployment"),
 				d:             nil,
 				controllerRef: nil,
 			},
@@ -608,7 +613,7 @@ func TestProcessDeployment(t *testing.T) {
 func assertKubernetesObject(t *testing.T, g *GomegaWithT, got runtime.Object, want metav1.Object, kube client.Client) {
 	n := types.NamespacedName{Name: want.GetName(), Namespace: want.GetNamespace()}
 	g.Expect(kube.Get(ctx, n, got)).NotTo(HaveOccurred())
-	if diff := cmp.Diff(got, want); diff != "" {
-		t.Errorf("got != want:\n%v", diff)
+	if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
+		t.Errorf("-want, +got:\n%s", diff)
 	}
 }

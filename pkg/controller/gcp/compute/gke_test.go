@@ -18,9 +18,10 @@ package compute
 
 import (
 	"encoding/base64"
-	"fmt"
+	"errors"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	. "github.com/onsi/gomega"
 	"google.golang.org/api/container/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -38,6 +39,7 @@ import (
 	. "github.com/crossplaneio/crossplane/pkg/apis/gcp/compute/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/clients/gcp/fake"
 	"github.com/crossplaneio/crossplane/pkg/clients/gcp/gke"
+	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
 const (
@@ -75,19 +77,19 @@ func testCluster() *GKECluster {
 			Namespace: namespace,
 		},
 		Spec: GKEClusterSpec{
-			ProviderRef: corev1.LocalObjectReference{
-				Name: providerName,
+			ResourceSpec: corev1alpha1.ResourceSpec{
+				ProviderReference: &corev1.ObjectReference{Namespace: namespace, Name: providerName},
 			},
 		},
 	}
 }
 
 // assertResource a helper function to check on cluster and its status
-func assertResource(g *GomegaWithT, r *Reconciler, s corev1alpha1.DeprecatedConditionedStatus) *GKECluster {
+func assertResource(g *GomegaWithT, r *Reconciler, s corev1alpha1.ConditionedStatus) *GKECluster {
 	rc := &GKECluster{}
 	err := r.Get(ctx, key, rc)
 	g.Expect(err).To(BeNil())
-	g.Expect(rc.Status.DeprecatedConditionedStatus).Should(corev1alpha1.MatchDeprecatedConditionedStatus(s))
+	g.Expect(cmp.Diff(s, rc.Status.ConditionedStatus, test.EquateConditions())).Should(BeZero())
 	return rc
 }
 
@@ -102,16 +104,16 @@ func TestSyncClusterGetError(t *testing.T) {
 	}
 
 	called := false
-	testError := "test-cluster-retriever-error"
+	testError := errors.New("test-cluster-retriever-error")
 
 	cl := fake.NewGKEClient()
 	cl.MockGetCluster = func(string, string) (*container.Cluster, error) {
 		called = true
-		return nil, fmt.Errorf(testError)
+		return nil, testError
 	}
 
-	expectedStatus := corev1alpha1.DeprecatedConditionedStatus{}
-	expectedStatus.SetFailed(errorSyncCluster, testError)
+	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(corev1alpha1.ReconcileError(testError))
 
 	rs, err := r._sync(tc, cl)
 	g.Expect(rs).To(Equal(resultRequeue))
@@ -140,7 +142,7 @@ func TestSyncClusterNotReady(t *testing.T) {
 		}, nil
 	}
 
-	expectedStatus := corev1alpha1.DeprecatedConditionedStatus{}
+	expectedStatus := corev1alpha1.ConditionedStatus{}
 
 	rs, err := r._sync(tc, cl)
 	g.Expect(rs).To(Equal(reconcile.Result{RequeueAfter: requeueOnWait}))
@@ -154,10 +156,10 @@ func TestSyncApplySecretError(t *testing.T) {
 
 	tc := testCluster()
 
-	testError := "test-error-create-secret"
+	testError := errors.New("test-error-create-secret")
 	kc := NewSimpleClientset()
 	kc.PrependReactor("create", "secrets", func(Action) (handled bool, ret runtime.Object, err error) {
-		return true, nil, fmt.Errorf(testError)
+		return true, nil, testError
 	})
 	r := &Reconciler{
 		Client:     NewFakeClient(tc),
@@ -179,8 +181,8 @@ func TestSyncApplySecretError(t *testing.T) {
 		}, nil
 	}
 
-	expectedStatus := corev1alpha1.DeprecatedConditionedStatus{}
-	expectedStatus.SetFailed(errorSyncCluster, testError)
+	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(corev1alpha1.ReconcileError(testError))
 
 	rs, err := r._sync(tc, cl)
 	g.Expect(rs).To(Equal(resultRequeue))
@@ -214,8 +216,8 @@ func TestSync(t *testing.T) {
 		}, nil
 	}
 
-	expectedStatus := corev1alpha1.DeprecatedConditionedStatus{}
-	expectedStatus.SetReady()
+	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess())
 
 	rs, err := r._sync(tc, cl)
 	g.Expect(rs).To(Equal(reconcile.Result{RequeueAfter: requeueOnSucces}))
@@ -230,7 +232,6 @@ func TestDeleteReclaimDelete(t *testing.T) {
 	tc := testCluster()
 	tc.Finalizers = []string{finalizer}
 	tc.Spec.ReclaimPolicy = corev1alpha1.ReclaimDelete
-	tc.Status.SetReady()
 
 	r := &Reconciler{
 		Client:     NewFakeClient(tc),
@@ -244,27 +245,10 @@ func TestDeleteReclaimDelete(t *testing.T) {
 		return nil
 	}
 
-	// expected to have a cond condition set to inactive
-	expectedStatus := corev1alpha1.DeprecatedConditionedStatus{}
-	expectedStatus.SetReady()
-	expectedStatus.UnsetAllDeprecatedConditions()
+	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileSuccess())
 
 	rs, err := r._delete(tc, cl)
-	g.Expect(rs).To(Equal(result))
-	g.Expect(err).To(BeNil())
-	g.Expect(called).To(BeTrue())
-	assertResource(g, r, expectedStatus)
-
-	// repeat the same for cluster in 'failing' condition
-	reason := "test-reason"
-	msg := "test-msg"
-	tc.Status.SetFailed(reason, msg)
-
-	// expected to have both ready and fail condition inactive
-	expectedStatus.SetFailed(reason, msg)
-	expectedStatus.UnsetAllDeprecatedConditions()
-
-	rs, err = r._delete(tc, cl)
 	g.Expect(rs).To(Equal(result))
 	g.Expect(err).To(BeNil())
 	g.Expect(called).To(BeTrue())
@@ -277,7 +261,6 @@ func TestDeleteReclaimRetain(t *testing.T) {
 	tc := testCluster()
 	tc.Spec.ReclaimPolicy = corev1alpha1.ReclaimRetain
 	tc.Finalizers = []string{finalizer}
-	tc.Status.SetReady()
 
 	r := &Reconciler{
 		Client:     NewFakeClient(tc),
@@ -298,9 +281,8 @@ func TestDeleteReclaimRetain(t *testing.T) {
 	g.Expect(called).To(BeFalse())
 
 	// expected to have all conditions set to inactive
-	expectedStatus := corev1alpha1.DeprecatedConditionedStatus{}
-	expectedStatus.SetReady()
-	expectedStatus.UnsetAllDeprecatedConditions()
+	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileSuccess())
 
 	assertResource(g, r, expectedStatus)
 }
@@ -311,20 +293,19 @@ func TestDeleteFailed(t *testing.T) {
 	tc := testCluster()
 	tc.Spec.ReclaimPolicy = corev1alpha1.ReclaimDelete
 	tc.Finalizers = []string{finalizer}
-	tc.Status.SetReady()
 
 	r := &Reconciler{
 		Client:     NewFakeClient(tc),
 		kubeclient: NewSimpleClientset(),
 	}
 
-	testError := "test-delete-error"
+	testError := errors.New("test-delete-error")
 
 	called := false
 	cl := fake.NewGKEClient()
 	cl.MockDeleteCluster = func(string, string) error {
 		called = true
-		return fmt.Errorf(testError)
+		return testError
 	}
 
 	rs, err := r._delete(tc, cl)
@@ -334,10 +315,8 @@ func TestDeleteFailed(t *testing.T) {
 	g.Expect(called).To(BeTrue())
 
 	// expected status
-	expectedStatus := corev1alpha1.DeprecatedConditionedStatus{}
-	expectedStatus.SetReady()
-	expectedStatus.UnsetAllDeprecatedConditions()
-	expectedStatus.SetFailed(errorDeleteCluster, testError)
+	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileError(testError))
 
 	assertResource(g, r, expectedStatus)
 }
@@ -356,7 +335,7 @@ func TestReconcileObjectNotFound(t *testing.T) {
 func TestReconcileClientError(t *testing.T) {
 	g := NewGomegaWithT(t)
 
-	testError := "test-client-error"
+	testError := errors.New("test-client-error")
 
 	called := false
 
@@ -365,13 +344,13 @@ func TestReconcileClientError(t *testing.T) {
 		kubeclient: NewSimpleClientset(),
 		connect: func(*GKECluster) (gke.Client, error) {
 			called = true
-			return nil, fmt.Errorf(testError)
+			return nil, testError
 		},
 	}
 
 	// expected to have a failed condition
-	expectedStatus := corev1alpha1.DeprecatedConditionedStatus{}
-	expectedStatus.SetFailed(errorClusterClient, testError)
+	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(corev1alpha1.ReconcileError(testError))
 
 	rs, err := r.Reconcile(request)
 	g.Expect(rs).To(Equal(resultRequeue))
@@ -407,7 +386,7 @@ func TestReconcileDelete(t *testing.T) {
 	g.Expect(rs).To(Equal(result))
 	g.Expect(err).To(BeNil())
 	g.Expect(called).To(BeTrue())
-	assertResource(g, r, corev1alpha1.DeprecatedConditionedStatus{})
+	assertResource(g, r, corev1alpha1.ConditionedStatus{})
 }
 
 func TestReconcileCreate(t *testing.T) {
@@ -459,7 +438,7 @@ func TestReconcileSync(t *testing.T) {
 	g.Expect(err).To(BeNil())
 	g.Expect(called).To(BeTrue())
 
-	rc := assertResource(g, r, corev1alpha1.DeprecatedConditionedStatus{})
+	rc := assertResource(g, r, corev1alpha1.ConditionedStatus{})
 	g.Expect(rc.Finalizers).To(HaveLen(1))
 	g.Expect(rc.Finalizers).To(ContainElement(finalizer))
 }

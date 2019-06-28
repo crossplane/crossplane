@@ -46,8 +46,8 @@ spec:
             number of parameters is 512, with a cumulative max size of 256K
           type: object
         providerRef:
-          description: ProvierRef is the reference to cloud provider that will be
-            used to provision the concrete cloud resource
+          description: ProviderReference is a reference to the cloud provider that
+            will be used to provision the concrete cloud resource.
           type: object
         provisioner:
           description: 'Provisioner is the driver expected to handle this ResourceClass.

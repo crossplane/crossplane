@@ -49,8 +49,9 @@ parameters:
   region: us-west2
   storageType: PD_SSD
 provisioner: cloudsqlinstance.database.gcp.crossplane.io/v1alpha1
-providerRef:
+providerReference:
   name: gcp-provider
+  namespace: crossplane-system
 reclaimPolicy: Delete
 ```
 
@@ -85,8 +86,9 @@ parameters:
   numNodes: "1"
   zone: us-central1-a
 provisioner: gkecluster.compute.gcp.crossplane.io/v1alpha1
-providerRef:
+providerReference:
   name: gcp-provider
+  namespace: crossplane-system
 reclaimPolicy: Delete
 ```
 

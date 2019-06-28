@@ -18,62 +18,71 @@ package v1alpha1
 
 import (
 	"encoding/json"
+	"reflect"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
-
-	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
 const jsonQuote = "\""
 
-func TestBindingStateMarshalJSON(t *testing.T) {
+func TestBindingPhaseMarshalJSON(t *testing.T) {
 	cases := []struct {
 		name string
-		s    BindingState
+		s    BindingPhase
 		want []byte
 	}{
 		{
-			name: BindingStateUnbound.String(),
-			s:    BindingStateUnbound,
-			want: []byte(jsonQuote + BindingStateUnbound.String() + jsonQuote),
+			name: BindingPhaseUnbindable.String(),
+			s:    BindingPhaseUnbindable,
+			want: []byte(jsonQuote + BindingPhaseUnbindable.String() + jsonQuote),
 		},
 		{
-			name: BindingStateBound.String(),
-			s:    BindingStateBound,
-			want: []byte(jsonQuote + BindingStateBound.String() + jsonQuote),
+			name: BindingPhaseUnbound.String(),
+			s:    BindingPhaseUnbound,
+			want: []byte(jsonQuote + BindingPhaseUnbound.String() + jsonQuote),
+		},
+		{
+			name: BindingPhaseBound.String(),
+			s:    BindingPhaseBound,
+			want: []byte(jsonQuote + BindingPhaseBound.String() + jsonQuote),
 		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			got, err := tc.s.MarshalJSON()
 			if err != nil {
-				t.Errorf("BindingState.MarshalJSON(): %v", err)
+				t.Errorf("BindingPhase.MarshalJSON(): %v", err)
 			}
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("BindingState.MarshalJSON(): -want, +got\n %+v", diff)
+				t.Errorf("BindingPhase.MarshalJSON(): -want, +got\n %+v", diff)
 			}
 		})
 	}
 }
 
-func TestBindingStateUnmarshalJSON(t *testing.T) {
+func TestBindingPhaseUnmarshalJSON(t *testing.T) {
 	cases := []struct {
 		name    string
 		s       []byte
-		want    BindingState
+		want    BindingPhase
 		wantErr error
 	}{
 		{
-			name: BindingStateUnbound.String(),
-			s:    []byte(jsonQuote + BindingStateUnbound.String() + jsonQuote),
-			want: BindingStateUnbound,
+			name: BindingPhaseUnbindable.String(),
+			s:    []byte(jsonQuote + BindingPhaseUnbindable.String() + jsonQuote),
+			want: BindingPhaseUnbindable,
 		},
 		{
-			name: BindingStateBound.String(),
-			s:    []byte(jsonQuote + BindingStateBound.String() + jsonQuote),
-			want: BindingStateBound,
+			name: BindingPhaseUnbound.String(),
+			s:    []byte(jsonQuote + BindingPhaseUnbound.String() + jsonQuote),
+			want: BindingPhaseUnbound,
+		},
+		{
+			name: BindingPhaseBound.String(),
+			s:    []byte(jsonQuote + BindingPhaseBound.String() + jsonQuote),
+			want: BindingPhaseBound,
 		},
 		{
 			name:    "Unknown",
@@ -95,14 +104,29 @@ func TestBindingStateUnmarshalJSON(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			var got BindingState
+			var got BindingPhase
 			gotErr := got.UnmarshalJSON(tc.s)
-			if diff := cmp.Diff(tc.wantErr, gotErr, test.EquateErrors()); diff != "" {
-				t.Errorf("BindingState.UnmarshalJSON(): want error != got error\n %+v", diff)
+			if diff := cmp.Diff(tc.wantErr, gotErr, cmp.Comparer(func(a, b error) bool {
+				// NOTE(negz): This is identical to test.EquateError, which we
+				// do not use here to avoid an import cycle.
+				if a == nil || b == nil {
+					return a == nil && b == nil
+				}
+
+				av := reflect.ValueOf(a)
+				bv := reflect.ValueOf(b)
+				if av.Type() != bv.Type() {
+					return false
+				}
+
+				return a.Error() == b.Error()
+			})); diff != "" {
+
+				t.Errorf("BindingPhase.UnmarshalJSON(): want error != got error\n %+v", diff)
 			}
 
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("BindingState.UnmarshalJSON(): -want, +got\n %+v", diff)
+				t.Errorf("BindingPhase.UnmarshalJSON(): -want, +got\n %+v", diff)
 			}
 		})
 	}

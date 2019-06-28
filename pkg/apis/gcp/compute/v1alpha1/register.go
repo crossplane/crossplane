@@ -17,18 +17,16 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"reflect"
+
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/runtime/scheme"
 )
 
-// Kubernetes Group, Version, and Kind metadata.
+// Packaage type metadata.
 const (
-	Group      = "compute.gcp.crossplane.io"
-	Version    = "v1alpha1"
-	APIVersion = Group + "/" + Version
-
-	GKEClusterKind           = "gkecluster"
-	GKEClusterKindAPIVersion = GKEClusterKind + "." + APIVersion
+	Group   = "compute.gcp.crossplane.io"
+	Version = "v1alpha1"
 )
 
 var (
@@ -37,13 +35,13 @@ var (
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
+)
 
-	// GKEClusterGroupVersionKind is the GVK of a GKECluster
-	GKEClusterGroupVersionKind = schema.GroupVersionKind{
-		Group:   Group,
-		Version: Version,
-		Kind:    GKEClusterKind,
-	}
+// GKECluster type metadata.
+var (
+	GKEClusterKind             = reflect.TypeOf(GKECluster{}).Name()
+	GKEClusterKindAPIVersion   = GKEClusterKind + "." + SchemeGroupVersion.String()
+	GKEClusterGroupVersionKind = SchemeGroupVersion.WithKind(GKEClusterKind)
 )
 
 func init() {

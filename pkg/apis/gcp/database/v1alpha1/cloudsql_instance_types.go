@@ -19,7 +19,7 @@ package v1alpha1
 import (
 	"strconv"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
@@ -47,6 +47,8 @@ const (
 
 // CloudsqlInstanceSpec defines the desired state of CloudsqlInstance
 type CloudsqlInstanceSpec struct {
+	corev1alpha1.ResourceSpec
+
 	Region      string `json:"region"`
 	StorageType string `json:"storageType"`
 	StorageGB   int64  `json:"storageGB"`
@@ -61,21 +63,12 @@ type CloudsqlInstanceSpec struct {
 	// https://cloud.google.com/sql/docs/postgres/create-instance?authuser=1#machine-types and the naming rules
 	// on https://cloud.google.com/sql/docs/postgres/create-instance#create-2ndgen-curl.
 	Tier string `json:"tier"`
-
-	// Kubernetes object references
-	ClaimRef            *v1.ObjectReference     `json:"claimRef,omitempty"`
-	ClassRef            *v1.ObjectReference     `json:"classRef,omitempty"`
-	ProviderRef         v1.LocalObjectReference `json:"providerRef"`
-	ConnectionSecretRef v1.LocalObjectReference `json:"connectionSecretRef,omitempty"`
-
-	// ReclaimPolicy identifies how to handle the cloud resource after the deletion of this type
-	ReclaimPolicy corev1alpha1.ReclaimPolicy `json:"reclaimPolicy,omitempty"`
 }
 
 // CloudsqlInstanceStatus defines the observed state of CloudsqlInstance
 type CloudsqlInstanceStatus struct {
-	corev1alpha1.DeprecatedConditionedStatus
-	corev1alpha1.BindingStatusPhase
+	corev1alpha1.ResourceStatus
+
 	State   string `json:"state,omitempty"`
 	Message string `json:"message,omitempty"`
 
@@ -105,6 +98,56 @@ type CloudsqlInstance struct {
 	Status CloudsqlInstanceStatus `json:"status,omitempty"`
 }
 
+// SetBindingPhase of this CloudsqlInstance.
+func (i *CloudsqlInstance) SetBindingPhase(p corev1alpha1.BindingPhase) {
+	i.Status.SetBindingPhase(p)
+}
+
+// GetBindingPhase of this CloudsqlInstance.
+func (i *CloudsqlInstance) GetBindingPhase() corev1alpha1.BindingPhase {
+	return i.Status.GetBindingPhase()
+}
+
+// SetClaimReference of this CloudsqlInstance.
+func (i *CloudsqlInstance) SetClaimReference(r *corev1.ObjectReference) {
+	i.Spec.ClaimReference = r
+}
+
+// GetClaimReference of this CloudsqlInstance.
+func (i *CloudsqlInstance) GetClaimReference() *corev1.ObjectReference {
+	return i.Spec.ClaimReference
+}
+
+// SetClassReference of this CloudsqlInstance.
+func (i *CloudsqlInstance) SetClassReference(r *corev1.ObjectReference) {
+	i.Spec.ClassReference = r
+}
+
+// GetClassReference of this CloudsqlInstance.
+func (i *CloudsqlInstance) GetClassReference() *corev1.ObjectReference {
+	return i.Spec.ClassReference
+}
+
+// SetWriteConnectionSecretToReference of this CloudsqlInstance.
+func (i *CloudsqlInstance) SetWriteConnectionSecretToReference(r corev1.LocalObjectReference) {
+	i.Spec.WriteConnectionSecretToReference = r
+}
+
+// GetWriteConnectionSecretToReference of this CloudsqlInstance.
+func (i *CloudsqlInstance) GetWriteConnectionSecretToReference() corev1.LocalObjectReference {
+	return i.Spec.WriteConnectionSecretToReference
+}
+
+// GetReclaimPolicy of this CloudsqlInstance.
+func (i *CloudsqlInstance) GetReclaimPolicy() corev1alpha1.ReclaimPolicy {
+	return i.Spec.ReclaimPolicy
+}
+
+// SetReclaimPolicy of this CloudsqlInstance.
+func (i *CloudsqlInstance) SetReclaimPolicy(p corev1alpha1.ReclaimPolicy) {
+	i.Spec.ReclaimPolicy = p
+}
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // CloudsqlInstanceList contains a list of CloudsqlInstance
@@ -117,7 +160,9 @@ type CloudsqlInstanceList struct {
 // NewCloudSQLInstanceSpec creates a new CloudSQLInstanceSpec based on the given properties map
 func NewCloudSQLInstanceSpec(properties map[string]string) *CloudsqlInstanceSpec {
 	spec := &CloudsqlInstanceSpec{
-		ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		ResourceSpec: corev1alpha1.ResourceSpec{
+			ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		},
 	}
 
 	val, ok := properties["tier"]
@@ -148,30 +193,4 @@ func NewCloudSQLInstanceSpec(properties map[string]string) *CloudsqlInstanceSpec
 	}
 
 	return spec
-}
-
-// ConnectionSecretName returns a secret name from the reference
-func (c *CloudsqlInstance) ConnectionSecretName() string {
-	if c.Spec.ConnectionSecretRef.Name == "" {
-		// the user hasn't specified the name of the secret they want the connection information
-		// stored in, generate one now
-		c.Spec.ConnectionSecretRef.Name = c.Name
-	}
-
-	return c.Spec.ConnectionSecretRef.Name
-}
-
-// IsAvailable for usage/binding
-func (c *CloudsqlInstance) IsAvailable() bool {
-	return c.Status.State == StateRunnable
-}
-
-// IsBound determines if the resource is in a bound binding state
-func (c *CloudsqlInstance) IsBound() bool {
-	return c.Status.IsBound()
-}
-
-// SetBound sets the binding state of this resource
-func (c *CloudsqlInstance) SetBound(bound bool) {
-	c.Status.SetBound(bound)
 }

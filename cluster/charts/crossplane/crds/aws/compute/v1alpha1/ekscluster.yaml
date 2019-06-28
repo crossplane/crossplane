@@ -53,11 +53,6 @@ spec:
           type: object
         spec:
           properties:
-            claimRef:
-              description: Kubernetes object references
-              type: object
-            classRef:
-              type: object
             cliInput:
               description: CLIInput --cli-input-json  (string) Performs service operation
                 based on the JSON string provided. The JSON string follows the format
@@ -75,10 +70,6 @@ spec:
               description: ClusterVersion --kubernetes-version (string) The desired
                 Kubernetes version for your cluster. If you do not spec- ify a value
                 here, the latest version  available  in  Amazon  EKS  is used.
-              type: string
-            connectionSecretNameOverride:
-              description: ConnectionSecretNameOverride set this override the generated
-                name of Status.ConnectionSecretRef.Name
               type: string
             generateCLISkeleton:
               description: GenerateCLISkeleton --generate-cli-skeleton (string) Prints
@@ -135,12 +126,6 @@ spec:
                 - groups
                 type: object
               type: array
-            providerRef:
-              type: object
-            reclaimPolicy:
-              description: ReclaimPolicy identifies how to handle the cloud resource
-                after the deletion of this type
-              type: string
             region:
               description: Region for EKS Cluster
               enum:
@@ -307,15 +292,12 @@ spec:
           - subnetIds
           - securityGroupIds
           - workerNodes
-          - providerRef
           type: object
         status:
           properties:
             cloudformationStackId:
               description: CloudFormationStackID Stack-id
               type: string
-            connectionSecretRef:
-              type: object
             endpoint:
               description: Endpoint for cluster
               type: string

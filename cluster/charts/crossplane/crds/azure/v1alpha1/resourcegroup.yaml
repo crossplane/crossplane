@@ -28,24 +28,12 @@ spec:
           type: object
         spec:
           properties:
-            claimRef:
-              type: object
-            classRef:
-              type: object
             location:
               description: See official list of valid regions - https://azure.microsoft.com/en-us/global-infrastructure/regions/
               type: string
             name:
               description: Name of the resource group
               type: string
-            providerRef:
-              type: object
-            reclaimPolicy:
-              description: ReclaimPolicy identifies how to handle the cloud resource
-                after the deletion of this type
-              type: string
-          required:
-          - providerRef
           type: object
         status:
           properties:

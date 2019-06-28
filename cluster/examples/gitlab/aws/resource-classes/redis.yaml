@@ -19,4 +19,5 @@ parameters:
 provisioner: replicationgroup.cache.aws.crossplane.io/v1alpha1
 providerRef:
   name: demo-aws
+  namespace: crossplane-system
 reclaimPolicy: Delete

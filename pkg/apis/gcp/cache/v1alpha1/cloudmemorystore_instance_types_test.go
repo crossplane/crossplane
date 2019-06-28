@@ -27,6 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/resource"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
@@ -39,6 +40,8 @@ var (
 	c   client.Client
 	ctx = context.TODO()
 )
+
+var _ resource.Managed = &CloudMemorystoreInstance{}
 
 func TestMain(m *testing.M) {
 	t := test.NewEnv(namespace, SchemeBuilder.SchemeBuilder, test.CRDs())
@@ -94,7 +97,9 @@ func TestNewCloudMemorystoreInstanceSpec(t *testing.T) {
 				"redisConfigs":          "max-memory-policy: lots, notify-keyspace-events: surewhynot",
 			},
 			want: &CloudMemorystoreInstanceSpec{
-				ReclaimPolicy:         corev1alpha1.ReclaimRetain,
+				ResourceSpec: corev1alpha1.ResourceSpec{
+					ReclaimPolicy: corev1alpha1.ReclaimRetain,
+				},
 				Tier:                  TierBasic,
 				Region:                "au-east1",
 				LocationID:            "au-east1-a",
@@ -113,41 +118,51 @@ func TestNewCloudMemorystoreInstanceSpec(t *testing.T) {
 			name:       "NilProperties",
 			properties: nil,
 			want: &CloudMemorystoreInstanceSpec{
-				ReclaimPolicy: corev1alpha1.ReclaimRetain,
-				RedisConfigs:  map[string]string{},
+				ResourceSpec: corev1alpha1.ResourceSpec{
+					ReclaimPolicy: corev1alpha1.ReclaimRetain,
+				},
+				RedisConfigs: map[string]string{},
 			},
 		},
 		{
 			name:       "UnknownProperties",
 			properties: map[string]string{"unknown": "wat"},
 			want: &CloudMemorystoreInstanceSpec{
-				ReclaimPolicy: corev1alpha1.ReclaimRetain,
-				RedisConfigs:  map[string]string{},
+				ResourceSpec: corev1alpha1.ResourceSpec{
+					ReclaimPolicy: corev1alpha1.ReclaimRetain,
+				},
+				RedisConfigs: map[string]string{},
 			},
 		},
 		{
 			name:       "MemorySizeGbNotANumber",
 			properties: map[string]string{"memorySizeGb": "wat"},
 			want: &CloudMemorystoreInstanceSpec{
-				ReclaimPolicy: corev1alpha1.ReclaimRetain,
-				RedisConfigs:  map[string]string{},
-				MemorySizeGB:  0,
+				ResourceSpec: corev1alpha1.ResourceSpec{
+					ReclaimPolicy: corev1alpha1.ReclaimRetain,
+				},
+				RedisConfigs: map[string]string{},
+				MemorySizeGB: 0,
 			},
 		},
 		{
 			name:       "RedisConfigsUnparseable",
 			properties: map[string]string{"redisConfigs": "wat,wat"},
 			want: &CloudMemorystoreInstanceSpec{
-				ReclaimPolicy: corev1alpha1.ReclaimRetain,
-				RedisConfigs:  map[string]string{},
+				ResourceSpec: corev1alpha1.ResourceSpec{
+					ReclaimPolicy: corev1alpha1.ReclaimRetain,
+				},
+				RedisConfigs: map[string]string{},
 			},
 		},
 		{
 			name:       "RedisConfigsExtraneousWhitespace",
 			properties: map[string]string{"redisConfigs": "   verykey:suchvalue"},
 			want: &CloudMemorystoreInstanceSpec{
-				ReclaimPolicy: corev1alpha1.ReclaimRetain,
-				RedisConfigs:  map[string]string{"verykey": "suchvalue"},
+				ResourceSpec: corev1alpha1.ResourceSpec{
+					ReclaimPolicy: corev1alpha1.ReclaimRetain,
+				},
+				RedisConfigs: map[string]string{"verykey": "suchvalue"},
 			},
 		},
 	}

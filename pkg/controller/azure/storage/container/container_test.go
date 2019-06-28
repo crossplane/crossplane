@@ -19,6 +19,7 @@ package container
 import (
 	"context"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -109,7 +110,7 @@ func newContainerNotFoundError(name string) error {
 
 func newAccountNotFoundError(name string) error {
 	return kerrors.NewNotFound(
-		schema.GroupResource{Group: v1alpha1.Group, Resource: v1alpha1.AccountKind + "s"}, name)
+		schema.GroupResource{Group: v1alpha1.Group, Resource: strings.ToLower(v1alpha1.AccountKind) + "s"}, name)
 }
 
 func newSecret(ns, name string, data map[string][]byte) *v1.Secret {
@@ -141,6 +142,7 @@ func TestReconciler_Reconcile(t *testing.T) {
 	key := types.NamespacedName{Namespace: testNamespace, Name: testContainerName}
 	req := reconcile.Request{NamespacedName: key}
 	ctx := context.TODO()
+	errBoom := errors.New("boom")
 
 	type fields struct {
 		Client           client.Client
@@ -192,7 +194,7 @@ func TestReconciler_Reconcile(t *testing.T) {
 					WithFinalizer("foo.bar").Container),
 				syncdeleterMaker: &mockSyncdeleteMaker{
 					mockNewSyncdeleter: func(ctx context.Context, c *v1alpha1.Container) (syncdeleter, error) {
-						return nil, errors.New("test-new-syncdeleter-error")
+						return nil, errBoom
 					},
 				},
 			},
@@ -200,7 +202,7 @@ func TestReconciler_Reconcile(t *testing.T) {
 				res: resultRequeue,
 				con: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
 					WithFinalizer("foo.bar").
-					WithFailedDeprecatedCondition(failedToGetHandler, "test-new-syncdeleter-error").
+					WithStatusConditions(corev1alpha1.ReconcileError(errBoom)).
 					Container,
 			},
 		},
@@ -249,20 +251,19 @@ func TestReconciler_Reconcile(t *testing.T) {
 				syncdeleterMaker: tt.fields.syncdeleterMaker,
 			}
 			got, err := r.Reconcile(req)
-			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
-				t.Errorf("Reconciler.Reconcile() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
-				return
+			if diff := cmp.Diff(tt.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("Reconciler.Reconcile(): -want error, +got error:\n%s", diff)
 			}
-			if diff := cmp.Diff(got, tt.want.res); diff != "" {
-				t.Errorf("Reconciler.Reconcile() result = %v, wantRs %v\n%s", got, tt.want.res, diff)
+			if diff := cmp.Diff(tt.want.res, got); diff != "" {
+				t.Errorf("Reconciler.Reconcile(): -want, +got\n%s", diff)
 			}
 			if tt.want.con != nil {
 				c := &v1alpha1.Container{}
 				if err := tt.fields.Client.Get(ctx, key, c); err != nil {
 					t.Errorf("Reconciler.Reconcile() container error: %s", err)
 				}
-				if diff := cmp.Diff(c, tt.want.con); diff != "" {
-					t.Errorf("Reconciler.Reconcile() container = \n%+v, wantObj \n%+v\n%s", c, tt.want.con, diff)
+				if diff := cmp.Diff(tt.want.con, c, test.EquateConditions()); diff != "" {
+					t.Errorf("Reconciler.Reconcile() container: -want, +got\n%s", diff)
 				}
 			}
 		})
@@ -340,7 +341,9 @@ func Test_containerSyncdeleterMaker_newSyncdeleter(t *testing.T) {
 			name: "AccountReferenceSecretNotFound",
 			fields: fields{
 				Client: fake.NewFakeClient(
-					v1alpha1test.NewMockAccount(testNamespace, testAccountName).WithStatusConnectionRef(testAccountName).Account,
+					v1alpha1test.NewMockAccount(testNamespace, testAccountName).
+						WithSpecWriteConnectionSecretToReference(testAccountName).
+						Account,
 					newCont().WithSpecAccountRef(testAccountName).WithFinalizer(finalizer).Container),
 			},
 			args: args{
@@ -362,7 +365,9 @@ func Test_containerSyncdeleterMaker_newSyncdeleter(t *testing.T) {
 						corev1alpha1.ResourceCredentialsSecretUserKey:     []byte(testAccountName),
 						corev1alpha1.ResourceCredentialsSecretPasswordKey: []byte("test-key"),
 					}),
-					v1alpha1test.NewMockAccount(testNamespace, testAccountName).WithStatusConnectionRef(testAccountName).Account),
+					v1alpha1test.NewMockAccount(testNamespace, testAccountName).
+						WithSpecWriteConnectionSecretToReference(testAccountName).
+						Account),
 			},
 			args: args{
 				ctx: ctx,
@@ -385,7 +390,9 @@ func Test_containerSyncdeleterMaker_newSyncdeleter(t *testing.T) {
 						corev1alpha1.ResourceCredentialsSecretUserKey:     []byte(testAccountName),
 						corev1alpha1.ResourceCredentialsSecretPasswordKey: []byte("dGVzdC1rZXkK"),
 					}),
-					v1alpha1test.NewMockAccount(testNamespace, testAccountName).WithStatusConnectionRef(testAccountName).Account),
+					v1alpha1test.NewMockAccount(testNamespace, testAccountName).
+						WithSpecWriteConnectionSecretToReference(testAccountName).
+						Account),
 			},
 			args: args{
 				ctx: ctx,
@@ -405,9 +412,8 @@ func Test_containerSyncdeleterMaker_newSyncdeleter(t *testing.T) {
 				Client: tt.fields.Client,
 			}
 			got, err := m.newSyncdeleter(tt.args.ctx, tt.args.c)
-			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
-				t.Errorf("containerSyncdeleterMaker.newSyncdeleter() error = \n%v, wantErr \n%v\n%s", err, tt.want.err, diff)
-				return
+			if diff := cmp.Diff(tt.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("containerSyncdeleterMaker.newSyncdeleter(): -got error, +want error: \n%s", diff)
 			}
 			if tt.want.syndel != nil {
 				tt.want.syndel = &containerSyncdeleter{
@@ -423,11 +429,11 @@ func Test_containerSyncdeleterMaker_newSyncdeleter(t *testing.T) {
 				// BUG(negz): This test is broken. It appears to intend to compare
 				// unexported fields, but does not. This behaviour was maintained
 				// when porting the test from https://github.com/go-test/deep to cmp.
-				if diff := cmp.Diff(got, tt.want.syndel,
+				if diff := cmp.Diff(tt.want.syndel, got,
 					cmpopts.IgnoreUnexported(containerSyncdeleter{}),
 					cmpopts.IgnoreUnexported(azblob.ContainerURL{}),
 				); diff != "" {
-					t.Errorf("containerSyncdeleterMaker.newSyncdeleter() = %v, want %v\n%s", got, tt.want.syndel, diff)
+					t.Errorf("containerSyncdeleterMaker.newSyncdeleter(): -want, +got:\n%s", diff)
 				}
 			}
 			if tt.want.cont != nil {
@@ -435,8 +441,8 @@ func Test_containerSyncdeleterMaker_newSyncdeleter(t *testing.T) {
 				if err := tt.fields.Client.Get(tt.args.ctx, key, cont); err != nil {
 					t.Errorf("containerSyncdeleterMaker.newSyncdeleter() error validating continer: %v, expected nil", err)
 				}
-				if diff := cmp.Diff(cont, tt.want.cont); diff != "" {
-					t.Errorf("containerSyncdeleterMaker.newSyncdeleter() container = %v, want %v\n%s", got, tt.want.cont, diff)
+				if diff := cmp.Diff(tt.want.cont, got); diff != "" {
+					t.Errorf("containerSyncdeleterMaker.newSyncdeleter() container: -want, +got:\n%s", diff)
 				}
 			}
 		})
@@ -445,6 +451,7 @@ func Test_containerSyncdeleterMaker_newSyncdeleter(t *testing.T) {
 
 func Test_containerSyncdeleter_delete(t *testing.T) {
 	ctx := context.TODO()
+	errBoom := errors.New("boom")
 
 	type fields struct {
 		createupdater       createupdater
@@ -479,7 +486,9 @@ func Test_containerSyncdeleter_delete(t *testing.T) {
 				res: reconcile.Result{},
 				cont: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
 					WithSpecReclaimPolicy(corev1alpha1.ReclaimRetain).
-					WithFinalizers([]string{}).Container,
+					WithFinalizers([]string{}).
+					WithStatusConditions(corev1alpha1.Deleting()).
+					Container,
 			},
 		},
 		{
@@ -493,14 +502,17 @@ func Test_containerSyncdeleter_delete(t *testing.T) {
 				},
 				container: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
 					WithSpecReclaimPolicy(corev1alpha1.ReclaimDelete).
-					WithFinalizer(finalizer).Container,
+					WithFinalizer(finalizer).
+					Container,
 			},
 			args: args{ctx: ctx},
 			want: want{
 				res: reconcile.Result{},
 				cont: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
 					WithSpecReclaimPolicy(corev1alpha1.ReclaimDelete).
-					WithFinalizers([]string{}).Container,
+					WithFinalizers([]string{}).
+					WithStatusConditions(corev1alpha1.Deleting()).
+					Container,
 			},
 		},
 		{
@@ -509,7 +521,7 @@ func Test_containerSyncdeleter_delete(t *testing.T) {
 				kube: test.NewMockClient(),
 				ContainerOperations: &azurestoragefake.MockContainerOperations{
 					MockDelete: func(ctx context.Context) error {
-						return errors.New("test-delete-error")
+						return errBoom
 					},
 				},
 				container: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
@@ -522,7 +534,7 @@ func Test_containerSyncdeleter_delete(t *testing.T) {
 				cont: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
 					WithSpecReclaimPolicy(corev1alpha1.ReclaimDelete).
 					WithFinalizer(finalizer).
-					WithFailedDeprecatedCondition(failedToDelete, "test-delete-error").
+					WithStatusConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileError(errBoom)).
 					Container,
 			},
 		},
@@ -536,14 +548,14 @@ func Test_containerSyncdeleter_delete(t *testing.T) {
 				container:           tt.fields.container,
 			}
 			got, err := csd.delete(tt.args.ctx)
-			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
-				t.Errorf("containerSyncdeleter.delete() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
+			if diff := cmp.Diff(tt.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("containerSyncdeleter.delete(): -want error, +got error:\n%s", diff)
 			}
-			if diff := cmp.Diff(got, tt.want.res); diff != "" {
-				t.Errorf("containerSyncdeleter.delete() = %v, want %v\n%s", got, tt.want.res, diff)
+			if diff := cmp.Diff(tt.want.res, got); diff != "" {
+				t.Errorf("containerSyncdeleter.delete(): -want, +got:\n%s", diff)
 			}
-			if diff := cmp.Diff(tt.fields.container, tt.want.cont); diff != "" {
-				t.Errorf("containerSyncdeleter.delete() container = \n%v, want \n%v\n%s", tt.fields.container, tt.want.cont, diff)
+			if diff := cmp.Diff(tt.want.cont, tt.fields.container, test.EquateConditions()); diff != "" {
+				t.Errorf("containerSyncdeleter.delete() container: -want, +got:\n%s", diff)
 			}
 		})
 	}
@@ -551,6 +563,8 @@ func Test_containerSyncdeleter_delete(t *testing.T) {
 
 func Test_containerSyncdeleter_sync(t *testing.T) {
 	ctx := context.TODO()
+	errBoom := errors.New("boom")
+
 	type fields struct {
 		createupdater       createupdater
 		ContainerOperations storage.ContainerOperations
@@ -591,7 +605,7 @@ func Test_containerSyncdeleter_sync(t *testing.T) {
 				createupdater: newMockCreateUpdater(),
 				ContainerOperations: &azurestoragefake.MockContainerOperations{
 					MockGet: func(ctx context.Context) (*azblob.PublicAccessType, azblob.Metadata, error) {
-						return nil, nil, errors.New("test-get-error")
+						return nil, nil, errBoom
 					},
 				},
 				container: v1alpha1test.NewMockContainer(testNamespace, testContainerName).Container,
@@ -601,7 +615,8 @@ func Test_containerSyncdeleter_sync(t *testing.T) {
 			want: want{
 				res: resultRequeue,
 				cont: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
-					WithFailedDeprecatedCondition(failedToRetrieve, "test-get-error").Container,
+					WithStatusConditions(corev1alpha1.ReconcileError(errBoom)).
+					Container,
 			},
 		},
 		{
@@ -650,14 +665,14 @@ func Test_containerSyncdeleter_sync(t *testing.T) {
 				container:           tt.fields.container,
 			}
 			got, err := csd.sync(tt.args.ctx)
-			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
-				t.Errorf("containerSyncdeleter.sync() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
+			if diff := cmp.Diff(tt.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("containerSyncdeleter.sync(): -want error, +got error:\n%s", diff)
 			}
-			if diff := cmp.Diff(got, tt.want.res); diff != "" {
-				t.Errorf("containerSyncdeleter.sync() = %v, want %v\n%s", got, tt.want.res, diff)
+			if diff := cmp.Diff(tt.want.res, got); diff != "" {
+				t.Errorf("containerSyncdeleter.sync(): -want, +got:\n%s", diff)
 			}
-			if diff := cmp.Diff(tt.fields.container, tt.want.cont); diff != "" {
-				t.Errorf("containerSyncdeleter.sync() container = \n%v, want \n%v\n%s", tt.fields.container, tt.want.cont, diff)
+			if diff := cmp.Diff(tt.want.cont, tt.fields.container, test.EquateConditions()); diff != "" {
+				t.Errorf("containerSyncdeleter.sync() container: -want, +got:\n%s", diff)
 			}
 		})
 	}
@@ -665,6 +680,8 @@ func Test_containerSyncdeleter_sync(t *testing.T) {
 
 func Test_containerCreateUpdater_create(t *testing.T) {
 	ctx := context.TODO()
+	errBoom := errors.New("boom")
+
 	type fields struct {
 		ContainerOperations storage.ContainerOperations
 		kube                client.Client
@@ -696,9 +713,12 @@ func Test_containerCreateUpdater_create(t *testing.T) {
 			},
 			args: args{ctx: ctx},
 			want: want{
-				res:  resultRequeue,
-				err:  errors.Wrapf(errors.New("test-update-error"), "failed to update container spec"),
-				cont: v1alpha1test.NewMockContainer(testNamespace, testContainerName).WithFinalizer(finalizer).Container,
+				res: resultRequeue,
+				err: errors.Wrapf(errors.New("test-update-error"), "failed to update container spec"),
+				cont: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
+					WithFinalizer(finalizer).
+					WithStatusConditions(corev1alpha1.Creating()).
+					Container,
 			},
 		},
 		{
@@ -707,7 +727,7 @@ func Test_containerCreateUpdater_create(t *testing.T) {
 				container: v1alpha1test.NewMockContainer(testNamespace, testContainerName).Container,
 				ContainerOperations: &azurestoragefake.MockContainerOperations{
 					MockCreate: func(ctx context.Context, pub azblob.PublicAccessType, meta azblob.Metadata) error {
-						return errors.New("test-create-error")
+						return errBoom
 					},
 				},
 				kube: test.NewMockClient(),
@@ -717,25 +737,7 @@ func Test_containerCreateUpdater_create(t *testing.T) {
 				res: resultRequeue,
 				cont: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
 					WithFinalizer(finalizer).
-					WithFailedDeprecatedCondition(failedToCreate, "test-create-error").Container,
-			},
-		},
-		{
-			name: "CreateSuccessfulInitialStatusNotReady",
-			fields: fields{
-				container: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
-					WithFailedDeprecatedCondition(failedToCreate, "test-error").Container,
-				ContainerOperations: azurestoragefake.NewMockContainerOperations(),
-				kube:                test.NewMockClient(),
-			},
-			args: args{ctx: ctx},
-			want: want{
-				res: reconcile.Result{},
-				cont: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
-					WithFinalizer(finalizer).
-					WithFailedDeprecatedCondition(failedToCreate, "test-error").
-					WithUnsetAllDeprecatedConditions().
-					WithReadyDeprecatedCondition().
+					WithStatusConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileError(errBoom)).
 					Container,
 			},
 		},
@@ -751,7 +753,8 @@ func Test_containerCreateUpdater_create(t *testing.T) {
 				res: reconcile.Result{},
 				cont: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
 					WithFinalizer(finalizer).
-					WithReadyDeprecatedCondition().
+					WithStatusConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess()).
+					WithStatusBindingPhase(corev1alpha1.BindingPhaseUnbound).
 					Container,
 			},
 		},
@@ -764,14 +767,14 @@ func Test_containerCreateUpdater_create(t *testing.T) {
 				container:           tt.fields.container,
 			}
 			got, err := ccu.create(tt.args.ctx)
-			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
-				t.Errorf("containerCreateUpdater.create() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
+			if diff := cmp.Diff(tt.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("containerCreateUpdater.create(): -want error, +got error:\n%s", diff)
 			}
-			if diff := cmp.Diff(got, tt.want.res); diff != "" {
-				t.Errorf("containerCreateUpdater.create() = %v, want %v\n%s", got, tt.want.res, diff)
+			if diff := cmp.Diff(tt.want.res, got); diff != "" {
+				t.Errorf("containerCreateUpdater.create(): -want, +got:\n%s", diff)
 			}
-			if diff := cmp.Diff(tt.fields.container, tt.want.cont); diff != "" {
-				t.Errorf("containerCreateUpdater.create() container = \n%v, want \n%v\n%s", tt.fields.container, tt.want.cont, diff)
+			if diff := cmp.Diff(tt.want.cont, tt.fields.container); diff != "" {
+				t.Errorf("containerCreateUpdater.create() container: -want, +got:\n%s", diff)
 			}
 		})
 	}
@@ -779,6 +782,8 @@ func Test_containerCreateUpdater_create(t *testing.T) {
 
 func Test_containerCreateUpdater_update(t *testing.T) {
 	ctx := context.TODO()
+	errBoom := errors.New("boom")
+
 	type fields struct {
 		ContainerOperations storage.ContainerOperations
 		kube                client.Client
@@ -801,7 +806,7 @@ func Test_containerCreateUpdater_update(t *testing.T) {
 		want   want
 	}{
 		{
-			name: "NoChangeNotReady",
+			name: "NoChange",
 			fields: fields{
 				container: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
 					WithSpecPAC(azblob.PublicAccessContainer).Container,
@@ -812,28 +817,12 @@ func Test_containerCreateUpdater_update(t *testing.T) {
 				accessType: azurestoragefake.PublicAccessTypePtr(azblob.PublicAccessContainer),
 			},
 			want: want{
-				res: reconcile.Result{},
-				cont: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
-					WithSpecPAC(azblob.PublicAccessContainer).
-					WithReadyDeprecatedCondition().Container,
-			},
-		},
-		{
-			name: "NoChangeIsReady",
-			fields: fields{
-				container: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
-					WithSpecPAC(azblob.PublicAccessContainer).
-					WithReadyDeprecatedCondition().Container,
-			},
-			args: args{
-				ctx:        ctx,
-				accessType: azurestoragefake.PublicAccessTypePtr(azblob.PublicAccessContainer),
-			},
-			want: want{
 				res: requeueOnSuccess,
 				cont: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
 					WithSpecPAC(azblob.PublicAccessContainer).
-					WithReadyDeprecatedCondition().Container,
+					WithStatusConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess()).
+					WithStatusBindingPhase(corev1alpha1.BindingPhaseUnbound).
+					Container,
 			},
 		},
 		{
@@ -841,10 +830,11 @@ func Test_containerCreateUpdater_update(t *testing.T) {
 			fields: fields{
 				container: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
 					WithSpecPAC(azblob.PublicAccessContainer).
-					WithReadyDeprecatedCondition().Container,
+					WithStatusConditions().
+					Container,
 				ContainerOperations: &azurestoragefake.MockContainerOperations{
 					MockUpdate: func(ctx context.Context, publicAccessType azblob.PublicAccessType, meta azblob.Metadata) error {
-						return errors.New("test-container-update-error")
+						return errBoom
 					},
 				},
 				kube: test.NewMockClient(),
@@ -860,8 +850,8 @@ func Test_containerCreateUpdater_update(t *testing.T) {
 				res: resultRequeue,
 				cont: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
 					WithSpecPAC(azblob.PublicAccessContainer).
-					WithReadyDeprecatedCondition().
-					WithFailedDeprecatedCondition(failedToUpdate, "test-container-update-error").Container,
+					WithStatusConditions(corev1alpha1.ReconcileError(errBoom)).
+					Container,
 			},
 		},
 		{
@@ -869,7 +859,7 @@ func Test_containerCreateUpdater_update(t *testing.T) {
 			fields: fields{
 				container: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
 					WithSpecPAC(azblob.PublicAccessContainer).
-					WithReadyDeprecatedCondition().Container,
+					Container,
 				ContainerOperations: azurestoragefake.NewMockContainerOperations(),
 				kube:                test.NewMockClient(),
 			},
@@ -884,7 +874,9 @@ func Test_containerCreateUpdater_update(t *testing.T) {
 				res: requeueOnSuccess,
 				cont: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
 					WithSpecPAC(azblob.PublicAccessContainer).
-					WithReadyDeprecatedCondition().Container,
+					WithStatusConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess()).
+					WithStatusBindingPhase(corev1alpha1.BindingPhaseUnbound).
+					Container,
 			},
 		},
 	}
@@ -896,14 +888,14 @@ func Test_containerCreateUpdater_update(t *testing.T) {
 				container:           tt.fields.container,
 			}
 			got, err := ccu.update(tt.args.ctx, tt.args.accessType, tt.args.meta)
-			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
-				t.Errorf("containerCreateUpdater.update() error = %v, wantErr %v\n%s", err, tt.want.err, diff)
+			if diff := cmp.Diff(tt.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("containerCreateUpdater.update(): -want error, +got error:\n%s", diff)
 			}
-			if diff := cmp.Diff(got, tt.want.res); diff != "" {
-				t.Errorf("containerCreateUpdater.update() = %v, want %v\n%s", got, tt.want.res, diff)
+			if diff := cmp.Diff(tt.want.res, got); diff != "" {
+				t.Errorf("containerCreateUpdater.update(): -want, +got:\n%s", diff)
 			}
-			if diff := cmp.Diff(tt.fields.container, tt.want.cont); diff != "" {
-				t.Errorf("containerCreateUpdater.update() container = \n%v, want \n%v\n%s", tt.fields.container, tt.want.cont, diff)
+			if diff := cmp.Diff(tt.want.cont, tt.fields.container, test.EquateConditions()); diff != "" {
+				t.Errorf("containerCreateUpdater.update() container: -want, +got:\n%s", diff)
 			}
 		})
 	}

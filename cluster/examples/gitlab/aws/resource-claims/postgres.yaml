@@ -4,7 +4,9 @@ metadata:
   name: gitlab-postgresql
   namespace: default
 spec:
-  classReference:
+  classRef:
     name: standard-aws-postgres
     namespace: crossplane-system
+  writeConnectionSecretToRef:
+    name: gitlab-postgresql
   engineVersion: "9.6"

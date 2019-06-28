@@ -44,26 +44,13 @@ spec:
           type: object
         spec:
           properties:
-            claimRef:
-              description: Kubernetes object references
-              type: object
             class:
               type: string
-            classRef:
-              type: object
-            connectionSecretRef:
-              type: object
             engine:
               type: string
             engineVersion:
               type: string
             masterUsername:
-              type: string
-            providerRef:
-              type: object
-            reclaimPolicy:
-              description: ReclaimPolicy identifies how to handle the cloud resource
-                after the deletion of this type
               type: string
             securityGroups:
               description: "VPC Security groups that will allow the RDS instance to
@@ -90,7 +77,6 @@ spec:
           - engine
           - class
           - size
-          - providerRef
           type: object
         status:
           properties:

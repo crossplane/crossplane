@@ -27,6 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/resource"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
@@ -39,6 +40,8 @@ var (
 	c   client.Client
 	ctx = context.TODO()
 )
+
+var _ resource.Managed = &Redis{}
 
 func TestMain(m *testing.M) {
 	t := test.NewEnv(namespace, SchemeBuilder.SchemeBuilder, test.CRDs())
@@ -95,7 +98,9 @@ func TestNewRedisSpec(t *testing.T) {
 				"skuCapacity":        "4",
 			},
 			want: &RedisSpec{
-				ReclaimPolicy:     corev1alpha1.ReclaimRetain,
+				ResourceSpec: corev1alpha1.ResourceSpec{
+					ReclaimPolicy: corev1alpha1.ReclaimRetain,
+				},
 				ResourceGroupName: "coolResourceGroup",
 				Location:          "Australia East",
 				StaticIP:          "172.16.0.1",
@@ -113,7 +118,9 @@ func TestNewRedisSpec(t *testing.T) {
 			name:       "NilProperties",
 			properties: nil,
 			want: &RedisSpec{
-				ReclaimPolicy:      corev1alpha1.ReclaimRetain,
+				ResourceSpec: corev1alpha1.ResourceSpec{
+					ReclaimPolicy: corev1alpha1.ReclaimRetain,
+				},
 				RedisConfiguration: map[string]string{},
 			},
 		},
@@ -121,7 +128,9 @@ func TestNewRedisSpec(t *testing.T) {
 			name:       "UnknownProperties",
 			properties: map[string]string{"unknown": "wat"},
 			want: &RedisSpec{
-				ReclaimPolicy:      corev1alpha1.ReclaimRetain,
+				ResourceSpec: corev1alpha1.ResourceSpec{
+					ReclaimPolicy: corev1alpha1.ReclaimRetain,
+				},
 				RedisConfiguration: map[string]string{},
 			},
 		},
@@ -129,7 +138,9 @@ func TestNewRedisSpec(t *testing.T) {
 			name:       "EnableNonSSLPortNotABool",
 			properties: map[string]string{"enableNonSslPort": "maybe"},
 			want: &RedisSpec{
-				ReclaimPolicy:      corev1alpha1.ReclaimRetain,
+				ResourceSpec: corev1alpha1.ResourceSpec{
+					ReclaimPolicy: corev1alpha1.ReclaimRetain,
+				},
 				RedisConfiguration: map[string]string{},
 			},
 		},
@@ -137,7 +148,9 @@ func TestNewRedisSpec(t *testing.T) {
 			name:       "ShardCountNotANumber",
 			properties: map[string]string{"shardCount": "wat"},
 			want: &RedisSpec{
-				ReclaimPolicy:      corev1alpha1.ReclaimRetain,
+				ResourceSpec: corev1alpha1.ResourceSpec{
+					ReclaimPolicy: corev1alpha1.ReclaimRetain,
+				},
 				RedisConfiguration: map[string]string{},
 			},
 		},
@@ -145,7 +158,9 @@ func TestNewRedisSpec(t *testing.T) {
 			name:       "SKUCapacityNotANumber",
 			properties: map[string]string{"skuCapacity": "wat"},
 			want: &RedisSpec{
-				ReclaimPolicy:      corev1alpha1.ReclaimRetain,
+				ResourceSpec: corev1alpha1.ResourceSpec{
+					ReclaimPolicy: corev1alpha1.ReclaimRetain,
+				},
 				RedisConfiguration: map[string]string{},
 			},
 		},
@@ -153,7 +168,9 @@ func TestNewRedisSpec(t *testing.T) {
 			name:       "RedisConfigurationUnparseable",
 			properties: map[string]string{"redisConfiguration": "wat,wat"},
 			want: &RedisSpec{
-				ReclaimPolicy:      corev1alpha1.ReclaimRetain,
+				ResourceSpec: corev1alpha1.ResourceSpec{
+					ReclaimPolicy: corev1alpha1.ReclaimRetain,
+				},
 				RedisConfiguration: map[string]string{},
 			},
 		},
@@ -161,7 +178,9 @@ func TestNewRedisSpec(t *testing.T) {
 			name:       "RedisConfigurationExtraneousWhitespace",
 			properties: map[string]string{"redisConfiguration": "   verykey:suchvalue"},
 			want: &RedisSpec{
-				ReclaimPolicy:      corev1alpha1.ReclaimRetain,
+				ResourceSpec: corev1alpha1.ResourceSpec{
+					ReclaimPolicy: corev1alpha1.ReclaimRetain,
+				},
 				RedisConfiguration: map[string]string{"verykey": "suchvalue"},
 			},
 		},

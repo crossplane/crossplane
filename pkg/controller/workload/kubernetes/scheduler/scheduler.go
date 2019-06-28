@@ -33,9 +33,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/compute/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/apis/workload/v1alpha1"
 	workloadv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/workload/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/controller/core"
 	"github.com/crossplaneio/crossplane/pkg/logging"
 	"github.com/crossplaneio/crossplane/pkg/meta"
 )
@@ -43,9 +43,7 @@ import (
 const (
 	controllerName   = "scheduler.workload.crossplane.io"
 	reconcileTimeout = 1 * time.Minute
-
-	reasonUnschedulable = "failed to schedule " + workloadv1alpha1.KubernetesApplicationKind
-	errorNoclusters     = "no clusters matched label selector"
+	requeueOnSuccess = 2 * time.Minute
 )
 
 var log = logging.Logger.WithName("controller." + controllerName)
@@ -61,25 +59,21 @@ type roundRobinScheduler struct {
 
 func (s *roundRobinScheduler) schedule(ctx context.Context, app *workloadv1alpha1.KubernetesApplication) reconcile.Result {
 	app.Status.State = workloadv1alpha1.KubernetesApplicationStatePending
-	app.Status.SetPending()
 
 	sel, err := metav1.LabelSelectorAsSelector(app.Spec.ClusterSelector)
 	if err != nil {
-		app.Status.SetFailed(reasonUnschedulable, err.Error())
+		app.Status.SetConditions(corev1alpha1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}
 	}
 
 	clusters := &computev1alpha1.KubernetesClusterList{}
 	if err := s.kube.List(ctx, &client.ListOptions{LabelSelector: sel}, clusters); err != nil {
-		app.Status.SetFailed(reasonUnschedulable, err.Error())
+		app.Status.SetConditions(corev1alpha1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}
 	}
 
 	if len(clusters.Items) == 0 {
-		// TODO(negz): Do we really want to set the status to failed here? We
-		// 'failed' to schedule only because no clusters match yet. Remaining in
-		// pending may be more appropriate.
-		app.Status.SetFailed(reasonUnschedulable, errorNoclusters)
+		app.Status.SetConditions(corev1alpha1.ReconcileSuccess())
 		return reconcile.Result{Requeue: true}
 	}
 
@@ -90,8 +84,7 @@ func (s *roundRobinScheduler) schedule(ctx context.Context, app *workloadv1alpha
 
 	app.Status.Cluster = meta.ReferenceTo(&cluster, computev1alpha1.KubernetesClusterGroupVersionKind)
 	app.Status.State = workloadv1alpha1.KubernetesApplicationStateScheduled
-	app.Status.UnsetAllDeprecatedConditions()
-	app.Status.SetReady()
+	app.Status.SetConditions(corev1alpha1.ReconcileSuccess())
 
 	return reconcile.Result{Requeue: false}
 }
@@ -165,7 +158,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	// Someone already scheduled this application.
 	if app.Status.Cluster != nil {
-		return reconcile.Result{RequeueAfter: core.RequeueOnSuccess}, nil
+		return reconcile.Result{RequeueAfter: requeueOnSuccess}, nil
 	}
 
 	return r.scheduler.schedule(ctx, app), errors.Wrapf(r.kube.Update(ctx, app), "cannot update %s %s", workloadv1alpha1.KubernetesApplicationKind, req.NamespacedName)

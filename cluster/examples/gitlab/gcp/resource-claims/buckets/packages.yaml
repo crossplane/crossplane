@@ -5,7 +5,9 @@ metadata:
   name: gitlab-packages
   namespace: default
 spec:
-  classReference:
+  classRef:
     name: standard-gcp-bucket
     namespace: crossplane-system
+  writeConnectionSecretToRef:
+    name: gitlab-packages
   name: gitlab-demo-packages-%s

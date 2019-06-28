@@ -20,15 +20,16 @@ import (
 	"context"
 	"fmt"
 
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/Azure/azure-sdk-for-go/services/mysql/mgmt/2017-12-01/mysql"
+
 	"k8s.io/apimachinery/pkg/runtime"
-	apitypes "k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	"github.com/pkg/errors"
 
 	azuredbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/database/v1alpha1"
 	azurev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
@@ -36,6 +37,7 @@ import (
 	azureclients "github.com/crossplaneio/crossplane/pkg/clients/azure"
 	"github.com/crossplaneio/crossplane/pkg/logging"
 	"github.com/crossplaneio/crossplane/pkg/meta"
+	"github.com/crossplaneio/crossplane/pkg/resource"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
@@ -44,15 +46,6 @@ const (
 
 	passwordDataLen  = 20
 	firewallRuleName = "crossplane-sql-firewall-rule"
-
-	errorFetchingAzureProvider   = "failed to fetch Azure Provider"
-	errorCreatingClient          = "Failed to create Azure client"
-	errorFetchingInstance        = "failed to fetch instance"
-	errorDeletingInstance        = "failed to delete instance"
-	errorCreatingInstance        = "failed to create instance"
-	errorCreatingPassword        = "failed to create password"
-	errorSettingConnectionSecret = "failed to set connection secret"
-	conditionStateChanged        = "instance state changed"
 )
 
 var (
@@ -77,31 +70,24 @@ func (r *SQLReconciler) handleReconcile(instance azuredbv1alpha1.SQLServer) (rec
 
 	// look up the provider information for this instance
 	provider := &azurev1alpha1.Provider{}
-	providerNamespacedName := apitypes.NamespacedName{
-		Namespace: instance.GetNamespace(),
-		Name:      instance.GetSpec().ProviderRef.Name,
-	}
-	if err := r.Get(ctx, providerNamespacedName, provider); err != nil {
-		return r.fail(instance, errorFetchingAzureProvider, fmt.Sprintf("failed to get provider %+v: %+v", providerNamespacedName, err))
+	n := meta.NamespacedNameOf(instance.GetSpec().ProviderReference)
+	if err := r.Get(ctx, n, provider); err != nil {
+		return r.fail(instance, errors.Wrapf(err, "failed to get provider %s", n))
 	}
 
 	// create a SQL Server client to perform management operations in Azure with
 	sqlServersClient, err := r.sqlServerAPIFactory.CreateAPIInstance(provider, r.clientset)
 	if err != nil {
-		return r.fail(instance, errorCreatingClient, fmt.Sprintf("failed to create SQL Server client for instance %s: %+v", instance.GetName(), err))
+		return r.fail(instance, errors.Wrapf(err, "failed to create SQL Server client for instance %s", instance.GetName()))
 	}
 
 	// check for CRD deletion and handle it if needed
 	if instance.GetDeletionTimestamp() != nil {
-		if instance.GetStatus().DeprecatedCondition(corev1alpha1.DeprecatedDeleting) == nil {
-			// we haven't started the deletion of the SQL Server resource yet, do it now
-			log.V(logging.Debug).Info("sql server has been deleted, running finalizer now", "instance", instance)
-			return r.handleDeletion(sqlServersClient, instance)
-		}
-		// we already started the deletion of the SQL Server resource, nothing more to do
-		return reconcile.Result{}, nil
+		log.V(logging.Debug).Info("sql server has been deleted, running finalizer now", "instance", instance)
+		return r.handleDeletion(sqlServersClient, instance)
 	}
 
+	// TODO(negz): Move finalizer creation into the create method?
 	// Add finalizer to the CRD if it doesn't already exist
 	meta.AddFinalizer(instance, r.finalizer)
 	if err := r.Update(ctx, instance); err != nil {
@@ -118,7 +104,7 @@ func (r *SQLReconciler) handleReconcile(instance azuredbv1alpha1.SQLServer) (rec
 	server, err := sqlServersClient.GetServer(ctx, instance)
 	if err != nil {
 		if !azureclients.IsNotFound(err) {
-			return r.fail(instance, errorFetchingInstance, fmt.Sprintf("failed to get SQL Server instance %s: %+v", instance.GetName(), err))
+			return r.fail(instance, errors.Wrapf(err, "failed to get SQL Server instance %s", instance.GetName()))
 		}
 
 		// the given sql server instance does not exist, create it now
@@ -127,78 +113,65 @@ func (r *SQLReconciler) handleReconcile(instance azuredbv1alpha1.SQLServer) (rec
 
 	if err := sqlServersClient.GetFirewallRule(ctx, instance, firewallRuleName); err != nil {
 		if !azureclients.IsNotFound(err) {
-			return r.fail(instance, errorFetchingInstance, fmt.Sprintf("failed to get firewall rule for SQL Server instance %s: %+v", instance.GetName(), err))
+			return r.fail(instance, errors.Wrapf(err, "failed to get firewall rule for SQL Server instance %s", instance.GetName()))
 		}
 
 		return r.handleFirewallRuleCreation(sqlServersClient, instance)
 	}
 
-	// SQL Server instance exists, update the CRD status now with its latest status
-	stateChanged := instance.GetStatus().State != server.State
-	conditionType := azureclients.SQLServerDeprecatedConditionType(server.State)
 	if err := r.updateStatus(instance, azureclients.SQLServerStatusMessage(instance.GetName(), server.State), server); err != nil {
 		// updating the CRD status failed, return the error and try the next reconcile loop
 		log.Error(err, "failed to update status of instance", "instance", instance)
 		return reconcile.Result{}, err
 	}
 
-	if stateChanged {
-		// the state of the instance has changed, let's set a corresponding condition on the CRD and then
-		// requeue another reconciliation attempt
-		if conditionType == corev1alpha1.DeprecatedReady {
-			// when we hit the running condition, clear out all old conditions first
-			instance.GetStatus().UnsetAllDeprecatedConditions()
-		}
-
-		conditionMessage := fmt.Sprintf("SQL Server instance %s is in the %s state", instance.GetName(), conditionType)
-		log.V(logging.Debug).Info("SQL server state changed", "instance", instance, "condition", conditionType)
-		instance.GetStatus().SetDeprecatedCondition(corev1alpha1.NewDeprecatedCondition(conditionType, conditionStateChanged, conditionMessage))
-		return reconcile.Result{Requeue: true}, r.Update(ctx, instance)
-	}
-
-	if conditionType != corev1alpha1.DeprecatedReady {
+	if mysql.ServerState(server.State) != mysql.ServerStateReady {
 		// the instance isn't running still, requeue another reconciliation attempt
-		return reconcile.Result{Requeue: true}, nil
+		instance.GetStatus().SetConditions(corev1alpha1.ReconcileSuccess())
+		return reconcile.Result{Requeue: true}, r.Update(ctx, instance)
 	}
 
 	// ensure all the connection information is set on the secret
 	if err := r.createOrUpdateConnectionSecret(instance, ""); err != nil {
-		return r.fail(instance, errorSettingConnectionSecret, fmt.Sprintf("failed to set connection secret for SQL Server instance %s: %+v", instance.GetName(), err))
+		return r.fail(instance, errors.Wrapf(err, "failed to set connection secret for SQL Server instance %s", instance.GetName()))
 	}
 
-	return reconcile.Result{}, nil
+	instance.GetStatus().SetConditions(corev1alpha1.ReconcileSuccess())
+	return reconcile.Result{}, r.Update(ctx, instance)
 }
 
 // handle the creation of the given SQL Server instance
 func (r *SQLReconciler) handleCreation(sqlServersClient azureclients.SQLServerAPI, instance azuredbv1alpha1.SQLServer) (reconcile.Result, error) {
+	// TODO(negz): Why not use the package scoped context?
 	ctx := context.Background()
+	instance.GetStatus().SetConditions(corev1alpha1.Creating())
 
 	// generate a password for the admin user
 	adminPassword, err := util.GeneratePassword(passwordDataLen)
 	if err != nil {
-		return r.fail(instance, errorCreatingPassword, fmt.Sprintf("failed to create password for SQL Server instance %s: %+v", instance.GetName(), err))
+		return r.fail(instance, errors.Wrapf(err, "failed to create password for SQL Server instance %s", instance.GetName()))
 	}
 
 	// save the password to the connection info secret, we'll update the secret later with the
 	// server FQDN once we have that
 	if err := r.createOrUpdateConnectionSecret(instance, adminPassword); err != nil {
-		return r.fail(instance, errorSettingConnectionSecret, fmt.Sprintf("failed to set connection secret for SQL Server instance %s: %+v", instance.GetName(), err))
+		return r.fail(instance, errors.Wrapf(err, "failed to set connection secret for SQL Server instance %s", instance.GetName()))
 	}
 
 	// make the API call to start the create server operation
 	log.V(logging.Debug).Info("starting create of SQL Server instance", "instance", instance)
 	createOp, err := sqlServersClient.CreateServerBegin(ctx, instance, adminPassword)
 	if err != nil {
-		return r.fail(instance, errorCreatingInstance, fmt.Sprintf("failed to start create operation for SQL Server instance %s: %+v", instance.GetName(), err))
+		return r.fail(instance, errors.Wrapf(err, "failed to start create operation for SQL Server instance %s", instance.GetName()))
 	}
 
 	log.V(logging.Debug).Info("started create of SQL Server instance", "instance", instance, "operation", string(createOp))
 
 	// save the create operation to the CRD status
 	status := instance.GetStatus()
-	status.SetCreating()
 	status.RunningOperation = string(createOp)
 	status.RunningOperationType = azuredbv1alpha1.OperationCreateServer
+	status.SetConditions(corev1alpha1.ReconcileSuccess())
 
 	// wait until the important status fields we just set have become committed/consistent
 	updateWaitErr := wait.ExponentialBackoff(util.DefaultUpdateRetry, func() (done bool, err error) {
@@ -227,35 +200,34 @@ func (r *SQLReconciler) handleCreation(sqlServersClient azureclients.SQLServerAP
 
 // handle the deletion of the given SQL Server instance
 func (r *SQLReconciler) handleDeletion(sqlServersClient azureclients.SQLServerAPI, instance azuredbv1alpha1.SQLServer) (reconcile.Result, error) {
+	// TODO(negz): Why not use the package scoped context?
 	ctx := context.Background()
+	instance.GetStatus().SetConditions(corev1alpha1.Deleting())
 
 	// first get the latest status of the SQL Server resource that needs to be deleted
 	_, err := sqlServersClient.GetServer(ctx, instance)
 	if err != nil {
 		if !azureclients.IsNotFound(err) {
-			return r.fail(instance, errorFetchingInstance, fmt.Sprintf("failed to get SQL Server instance %s for deletion: %+v", instance.GetName(), err))
+			return r.fail(instance, errors.Wrapf(err, "failed to get SQL Server instance %s for deletion", instance.GetName()))
 		}
 
 		// SQL Server instance doesn't exist, it's already deleted
 		log.V(logging.Debug).Info("SQL Server instance does not exist, it must be already deleted", "instance", instance)
-		return r.markAsDeleting(instance)
+		meta.RemoveFinalizer(instance, r.finalizer)
+		instance.GetStatus().SetConditions(corev1alpha1.ReconcileSuccess())
+		return reconcile.Result{}, r.Update(ctx, instance)
 	}
 
 	// attempt to delete the SQL Server instance now
 	deleteFuture, err := sqlServersClient.DeleteServer(ctx, instance)
 	if err != nil {
-		return r.fail(instance, errorDeletingInstance, fmt.Sprintf("failed to start delete operation for SQL Server instance %s: %+v", instance.GetName(), err))
+		return r.fail(instance, errors.Wrapf(err, "failed to start delete operation for SQL Server instance %s", instance.GetName()))
 	}
 
 	deleteFutureJSON, _ := deleteFuture.MarshalJSON()
 	log.V(logging.Debug).Info("started delete of SQL Server instance", "instance", instance.GetName(), "operation", string(deleteFutureJSON))
-	return r.markAsDeleting(instance)
-}
-
-func (r *SQLReconciler) markAsDeleting(instance azuredbv1alpha1.SQLServer) (reconcile.Result, error) {
-	ctx := context.Background()
-	instance.GetStatus().SetDeprecatedCondition(corev1alpha1.NewDeprecatedCondition(corev1alpha1.DeprecatedDeleting, "", ""))
 	meta.RemoveFinalizer(instance, r.finalizer)
+	instance.GetStatus().SetConditions(corev1alpha1.ReconcileSuccess())
 	return reconcile.Result{}, r.Update(ctx, instance)
 }
 
@@ -265,7 +237,7 @@ func (r *SQLReconciler) handleFirewallRuleCreation(sqlServersClient azureclients
 	log.V(logging.Debug).Info("starting create of firewall rules for SQL Server instance", "instance", instance)
 	createOp, err := sqlServersClient.CreateFirewallRulesBegin(ctx, instance, firewallRuleName)
 	if err != nil {
-		return r.fail(instance, errorCreatingInstance, fmt.Sprintf("failed to start create firewall rules operation for SQL Server instance %s: %+v", instance.GetName(), err))
+		return r.fail(instance, errors.Wrapf(err, "failed to start create firewall rules operation for SQL Server instance %s", instance.GetName()))
 	}
 
 	log.V(logging.Debug).Info("started create of firewall rules for SQL Server instance", "instance", instance.GetName(), "operation", string(createOp))
@@ -293,8 +265,8 @@ func (r *SQLReconciler) handleRunningOperation(sqlServersClient azureclients.SQL
 	case azuredbv1alpha1.OperationCreateFirewallRules:
 		done, err = sqlServersClient.CreateFirewallRulesEnd([]byte(instance.GetStatus().RunningOperation))
 	default:
-		return r.fail(instance, errorCreatingInstance,
-			fmt.Sprintf("unknown running operation type for SQL Server instance %s: %s", instance.GetName(), opType))
+		return r.fail(instance,
+			errors.Errorf("unknown running operation type for SQL Server instance %s: %s", instance.GetName(), opType))
 	}
 
 	if !done {
@@ -312,18 +284,20 @@ func (r *SQLReconciler) handleRunningOperation(sqlServersClient azureclients.SQL
 
 	if err != nil {
 		// the operation completed, but there was an error
-		return r.fail(instance, errorCreatingInstance, fmt.Sprintf("failure result returned from create operation for SQL Server instance %s: %+v", instance.GetName(), err))
+		return r.fail(instance, errors.Wrapf(err, "failure result returned from create operation for SQL Server instance %s", instance.GetName()))
 	}
 
 	log.V(logging.Debug).Info("successfully finished operation type for SQL Server", "instance", instance.GetName(), "operation", opType)
+	instance.GetStatus().SetConditions(corev1alpha1.ReconcileSuccess())
 	return reconcile.Result{Requeue: true}, r.Update(ctx, instance)
 }
 
 // fail - helper function to set fail condition with reason and message
-func (r *SQLReconciler) fail(instance azuredbv1alpha1.SQLServer, reason, msg string) (reconcile.Result, error) {
+func (r *SQLReconciler) fail(instance azuredbv1alpha1.SQLServer, err error) (reconcile.Result, error) {
+	// TODO(negz): Why don't we just use the package scoped ctx here?
 	ctx := context.Background()
 
-	instance.GetStatus().SetDeprecatedCondition(corev1alpha1.NewDeprecatedCondition(corev1alpha1.DeprecatedFailed, reason, msg))
+	instance.GetStatus().SetConditions(corev1alpha1.ReconcileError(err))
 	return reconcile.Result{Requeue: true}, r.Update(ctx, instance)
 }
 
@@ -332,111 +306,47 @@ func (r *SQLReconciler) updateStatus(instance azuredbv1alpha1.SQLServer, message
 
 	oldStatus := instance.GetStatus()
 	status := &azuredbv1alpha1.SQLServerStatus{
-		DeprecatedConditionedStatus: oldStatus.DeprecatedConditionedStatus,
-		BindingStatusPhase:          oldStatus.BindingStatusPhase,
-		Message:                     message,
-		State:                       server.State,
-		ProviderID:                  server.ID,
-		Endpoint:                    server.FQDN,
-		RunningOperation:            oldStatus.RunningOperation,
-		RunningOperationType:        oldStatus.RunningOperationType,
+		ResourceStatus:       oldStatus.ResourceStatus,
+		Message:              message,
+		State:                server.State,
+		ProviderID:           server.ID,
+		Endpoint:             server.FQDN,
+		RunningOperation:     oldStatus.RunningOperation,
+		RunningOperationType: oldStatus.RunningOperationType,
+	}
+	status.SetConditions(azureclients.SQLServerCondition(server.State))
+	if mysql.ServerState(server.State) == mysql.ServerStateReady {
+		resource.SetBindable(status)
 	}
 	instance.SetStatus(status)
 
 	if err := r.Update(ctx, instance); err != nil {
-		return fmt.Errorf("failed to update status of CRD instance %s: %+v", instance.GetName(), err)
+		return errors.Wrapf(err, "failed to update status of CRD instance %s", instance.GetName())
 	}
 
 	return nil
 }
 
 func (r *SQLReconciler) createOrUpdateConnectionSecret(instance azuredbv1alpha1.SQLServer, password string) error {
-	// first check if secret already exists
-	secretName := instance.ConnectionSecretName()
-	secretExists := false
-	connectionSecret, err := r.clientset.CoreV1().Secrets(instance.GetNamespace()).Get(secretName, metav1.GetOptions{})
-	if err != nil {
-		if !errors.IsNotFound(err) {
-			return fmt.Errorf("failed to get connection secret %s for instance %s: %+v", secretName, instance.GetName(), err)
+	// TODO(negz): Replace with with a MustGetKind function using the scheme?
+	var kind schema.GroupVersionKind
+	switch instance.(type) {
+	case *azuredbv1alpha1.MysqlServer:
+		kind = azuredbv1alpha1.MysqlServerGroupVersionKind
+	case *azuredbv1alpha1.PostgresqlServer:
+		kind = azuredbv1alpha1.PostgresqlServerGroupVersionKind
+	}
+
+	s := resource.ConnectionSecretFor(instance, kind)
+	return errors.Wrapf(util.CreateOrUpdate(ctx, r.Client, s, func() error {
+		// TODO(negz): Make sure we own any existing secret before overwriting it.
+		s.Data[corev1alpha1.ResourceCredentialsSecretEndpointKey] = []byte(instance.GetStatus().Endpoint)
+		s.Data[corev1alpha1.ResourceCredentialsSecretUserKey] = []byte(fmt.Sprintf("%s@%s", instance.GetSpec().AdminLoginName, instance.GetName()))
+
+		// Don't overwrite the password if it has already been set.
+		if _, ok := s.Data[corev1alpha1.ResourceCredentialsSecretPasswordKey]; !ok && password != "" {
+			s.Data[corev1alpha1.ResourceCredentialsSecretPasswordKey] = []byte(password)
 		}
-		// secret doesn't exist yet, create it from scratch
-		connectionSecret = &v1.Secret{
-			ObjectMeta: metav1.ObjectMeta{Name: secretName, Namespace: instance.GetNamespace()},
-		}
-		switch instance.(type) {
-		case *azuredbv1alpha1.MysqlServer:
-			ref := meta.AsOwner(meta.ReferenceTo(instance, azuredbv1alpha1.MysqlServerGroupVersionKind))
-			meta.AddOwnerReference(connectionSecret, ref)
-		case *azuredbv1alpha1.PostgresqlServer:
-			ref := meta.AsOwner(meta.ReferenceTo(instance, azuredbv1alpha1.PostgresqlServerGroupVersionKind))
-			meta.AddOwnerReference(connectionSecret, ref)
-		}
-	} else {
-		// secret already exists, we'll update the missing information if that hasn't already been done
-		secretExists = true
-		if isConnectionSecretCompleted(connectionSecret) {
-			// the connection secret is already filled out completely, we shouldn't overwrite it
-			return nil
-		}
-
-		// reuse the password that has already been set
-		password = string(connectionSecret.Data[corev1alpha1.ResourceCredentialsSecretPasswordKey])
-	}
-
-	// fill in all of the connection details on the secret's data
-	connectionSecret.Data = map[string][]byte{
-		corev1alpha1.ResourceCredentialsSecretUserKey:     []byte(fmt.Sprintf("%s@%s", instance.GetSpec().AdminLoginName, instance.GetName())),
-		corev1alpha1.ResourceCredentialsSecretPasswordKey: []byte(password),
-	}
-	if instance.GetStatus().Endpoint != "" {
-		connectionSecret.Data[corev1alpha1.ResourceCredentialsSecretEndpointKey] = []byte(instance.GetStatus().Endpoint)
-	}
-
-	if secretExists {
-		if _, err := r.clientset.CoreV1().Secrets(instance.GetNamespace()).Update(connectionSecret); err != nil {
-			return fmt.Errorf("failed to update connection secret %s: %+v", connectionSecret.Name, err)
-		}
-		log.V(logging.Debug).Info("updated connection secret",
-			"secret", connectionSecret,
-			"username", instance.GetSpec().AdminLoginName)
-	} else {
-		if _, err := r.clientset.CoreV1().Secrets(instance.GetNamespace()).Create(connectionSecret); err != nil {
-			return fmt.Errorf("failed to create connection secret %s: %+v", connectionSecret.Name, err)
-		}
-		log.V(logging.Debug).Info("created connection secret",
-			"secret", connectionSecret,
-			"username", instance.GetSpec().AdminLoginName)
-	}
-
-	return nil
-}
-
-func isConnectionSecretCompleted(connectionSecret *v1.Secret) bool {
-	if connectionSecret == nil {
-		return false
-	}
-
-	if !isSecretDataKeySet(corev1alpha1.ResourceCredentialsSecretEndpointKey, connectionSecret.Data) {
-		return false
-	}
-
-	if !isSecretDataKeySet(corev1alpha1.ResourceCredentialsSecretUserKey, connectionSecret.Data) {
-		return false
-	}
-
-	if !isSecretDataKeySet(corev1alpha1.ResourceCredentialsSecretPasswordKey, connectionSecret.Data) {
-		return false
-	}
-
-	return true
-}
-
-func isSecretDataKeySet(key string, data map[string][]byte) bool {
-	if data == nil {
-		return false
-	}
-
-	// the key has been set if it exists and its value is not an empty string
-	val, ok := data[key]
-	return ok && string(val) != ""
+		return nil
+	}), "could not create or update connection secret %s", s.GetName())
 }

@@ -17,10 +17,12 @@ limitations under the License.
 package rds
 
 import (
-	"fmt"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	. "github.com/onsi/gomega"
+	"github.com/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -36,6 +38,7 @@ import (
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/clients/aws/rds"
 	. "github.com/crossplaneio/crossplane/pkg/clients/aws/rds/fake"
+	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
 const (
@@ -81,6 +84,9 @@ func testResource() *RDSInstance {
 			Namespace: namespace,
 		},
 		Spec: RDSInstanceSpec{
+			ResourceSpec: corev1alpha1.ResourceSpec{
+				ProviderReference: &corev1.ObjectReference{},
+			},
 			MasterUsername: masterUserName,
 			Engine:         engine,
 			Class:          class,
@@ -90,18 +96,18 @@ func testResource() *RDSInstance {
 }
 
 // assertResource a helper function to check on cluster and its status
-func assertResource(g *GomegaWithT, r *Reconciler, s corev1alpha1.DeprecatedConditionedStatus) *RDSInstance {
+func assertResource(g *GomegaWithT, r *Reconciler, s corev1alpha1.ConditionedStatus) *RDSInstance {
 	resource := &RDSInstance{}
 	err := r.Get(ctx, key, resource)
 	g.Expect(err).To(BeNil())
-	g.Expect(resource.Status.DeprecatedConditionedStatus).Should(corev1alpha1.MatchDeprecatedConditionedStatus(s))
+	g.Expect(cmp.Diff(s, resource.Status.ConditionedStatus, test.EquateConditions())).Should(BeZero())
 	return resource
 }
 
 func TestSyncClusterError(t *testing.T) {
 	g := NewGomegaWithT(t)
 
-	assert := func(instance *RDSInstance, client rds.Client, expectedResult reconcile.Result, expectedStatus corev1alpha1.DeprecatedConditionedStatus) {
+	assert := func(instance *RDSInstance, client rds.Client, expectedResult reconcile.Result, expectedStatus corev1alpha1.ConditionedStatus) {
 		r := &Reconciler{
 			Client:     NewFakeClient(instance),
 			kubeclient: NewSimpleClientset(),
@@ -115,14 +121,14 @@ func TestSyncClusterError(t *testing.T) {
 	}
 
 	// get error
-	testError := "test-resource-retrieve-error"
+	testError := errors.New("test-resource-retrieve-error")
 	cl := &MockRDSClient{
 		MockGetInstance: func(s string) (instance *rds.Instance, e error) {
-			return nil, fmt.Errorf(testError)
+			return nil, testError
 		},
 	}
-	expectedStatus := corev1alpha1.DeprecatedConditionedStatus{}
-	expectedStatus.SetFailed(errorSyncResource, testError)
+	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(corev1alpha1.ReconcileError(testError))
 	assert(testResource(), cl, resultRequeue, expectedStatus)
 
 	// instance is not ready
@@ -133,8 +139,8 @@ func TestSyncClusterError(t *testing.T) {
 			}, nil
 		},
 	}
-	expectedStatus = corev1alpha1.DeprecatedConditionedStatus{}
-	expectedStatus.SetCreating()
+	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileSuccess())
 	assert(testResource(), cl, resultRequeue, expectedStatus)
 
 	// instance in failed state
@@ -145,8 +151,8 @@ func TestSyncClusterError(t *testing.T) {
 			}, nil
 		},
 	}
-	expectedStatus = corev1alpha1.DeprecatedConditionedStatus{}
-	expectedStatus.SetFailed(errorSyncResource, "resource is in failed state")
+	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(corev1alpha1.Unavailable(), corev1alpha1.ReconcileSuccess())
 	assert(testResource(), cl, result, expectedStatus)
 
 	// instance is in deleting state
@@ -158,8 +164,10 @@ func TestSyncClusterError(t *testing.T) {
 		},
 	}
 
-	expectedStatus = corev1alpha1.DeprecatedConditionedStatus{}
-	expectedStatus.SetFailed(errorSyncResource, fmt.Sprintf("unexpected resource status: %s", RDSInstanceStateDeleting))
+	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(
+		corev1alpha1.ReconcileError(errors.Errorf("unexpected resource status: %s", RDSInstanceStateDeleting)),
+	)
 	assert(testResource(), cl, resultRequeue, expectedStatus)
 
 	// failed to retrieve instance secret
@@ -172,9 +180,11 @@ func TestSyncClusterError(t *testing.T) {
 	}
 
 	tr := testResource()
-	expectedStatus = corev1alpha1.DeprecatedConditionedStatus{}
-	expectedStatus.SetReady()
-	expectedStatus.SetFailed(errorSyncResource, fmt.Sprintf("secrets \"%s\" not found", tr.Name))
+	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(
+		corev1alpha1.Available(),
+		corev1alpha1.ReconcileError(errors.Errorf("secrets \"%s\" not found", tr.GetWriteConnectionSecretToReference().Name)),
+	)
 	assert(tr, cl, resultRequeue, expectedStatus)
 
 }
@@ -185,10 +195,10 @@ func TestSyncClusterUpdateSecretFailure(t *testing.T) {
 	tr := testResource()
 	ts := connectionSecret(tr, "testPassword")
 
-	testError := "test-error-create-secret"
+	testError := errors.New("test-error-create-secret")
 	kc := NewSimpleClientset(ts)
 	kc.PrependReactor("update", "secrets", func(Action) (handled bool, ret runtime.Object, err error) {
-		return true, nil, fmt.Errorf(testError)
+		return true, nil, testError
 	})
 
 	r := &Reconciler{
@@ -206,9 +216,8 @@ func TestSyncClusterUpdateSecretFailure(t *testing.T) {
 		},
 	}
 
-	expectedStatus := corev1alpha1.DeprecatedConditionedStatus{}
-	expectedStatus.SetReady()
-	expectedStatus.SetFailed(errorSyncResource, testError)
+	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(corev1alpha1.Available(), corev1alpha1.ReconcileError(testError))
 
 	rs, err := r._sync(tr, cl)
 	g.Expect(rs).To(Equal(resultRequeue))
@@ -238,8 +247,8 @@ func TestSyncCluster(t *testing.T) {
 		},
 	}
 
-	expectedStatus := corev1alpha1.DeprecatedConditionedStatus{}
-	expectedStatus.SetReady()
+	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess())
 
 	rs, err := r._sync(tr, cl)
 	g.Expect(rs).To(Equal(result))
@@ -263,8 +272,8 @@ func TestDelete(t *testing.T) {
 
 	// test delete w/ reclaim policy
 	tr.Spec.ReclaimPolicy = corev1alpha1.ReclaimRetain
-	expectedStatus := corev1alpha1.DeprecatedConditionedStatus{}
-	expectedStatus.SetDeleting()
+	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileSuccess())
 
 	rs, err := r._delete(tr, cl)
 	g.Expect(rs).To(Equal(result))
@@ -286,13 +295,14 @@ func TestDelete(t *testing.T) {
 	assertResource(g, r, expectedStatus)
 
 	// test delete w/ delete policy and delete error
-	testError := "test-delete-error"
+	testError := errors.New("test-delete-error")
 	called = false
 	cl.MockDeleteInstance = func(name string) (instance *rds.Instance, e error) {
 		called = true
-		return nil, fmt.Errorf(testError)
+		return nil, testError
 	}
-	expectedStatus.SetFailed(errorDeleteResource, testError)
+	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileError(testError))
 
 	rs, err = r._delete(tr, cl)
 	g.Expect(rs).To(Equal(resultRequeue))
@@ -321,8 +331,8 @@ func TestCreate(t *testing.T) {
 		},
 	}
 
-	expectedStatus := corev1alpha1.DeprecatedConditionedStatus{}
-	expectedStatus.SetCreating()
+	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileSuccess())
 
 	rs, err := r._create(testResource(), cl)
 	g.Expect(rs).To(Equal(resultRequeue))
@@ -333,7 +343,7 @@ func TestCreate(t *testing.T) {
 	g.Expect(tk.Actions()).To(HaveLen(2))
 	g.Expect(tk.Actions()[0].GetVerb()).To(Equal("get"))
 	g.Expect(tk.Actions()[1].GetVerb()).To(Equal("create"))
-	s, err := tk.CoreV1().Secrets(tr.Namespace).Get(tr.Name, metav1.GetOptions{})
+	s, err := tk.CoreV1().Secrets(tr.GetNamespace()).Get(tr.GetWriteConnectionSecretToReference().Name, metav1.GetOptions{})
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(s).NotTo(BeNil())
 }
@@ -350,13 +360,13 @@ func TestCreateFail(t *testing.T) {
 	}
 
 	// test apply secret error
-	testError := "test-get-secret-error"
+	testError := errors.New("test-get-secret-error")
 	tk.PrependReactor("get", "secrets", func(action Action) (handled bool, ret runtime.Object, err error) {
-		return true, nil, fmt.Errorf(testError)
+		return true, nil, testError
 	})
 
-	expectedStatus := corev1alpha1.DeprecatedConditionedStatus{}
-	expectedStatus.SetFailed(errorCreateResource, testError)
+	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileError(testError))
 
 	rs, err := r._create(tr, cl)
 	g.Expect(rs).To(Equal(resultRequeue))
@@ -367,14 +377,14 @@ func TestCreateFail(t *testing.T) {
 	tr = testResource()
 	r.kubeclient = NewSimpleClientset()
 	called := false
-	testError = "test-create-error"
+	testError = errors.New("test-create-error")
 	cl.MockCreateInstance = func(s string, s2 string, spec *RDSInstanceSpec) (instance *rds.Instance, e error) {
 		called = true
-		return nil, fmt.Errorf(testError)
+		return nil, testError
 	}
 
-	expectedStatus = corev1alpha1.DeprecatedConditionedStatus{}
-	expectedStatus.SetFailed(errorCreateResource, testError)
+	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileError(testError))
 
 	rs, err = r._create(tr, cl)
 	g.Expect(rs).To(Equal(resultRequeue))
@@ -413,14 +423,14 @@ func TestReconcile(t *testing.T) {
 
 	// test connect error
 	called := false
-	testError := "test-connect-error"
+	testError := errors.New("test-connect-error")
 	r.connect = func(instance *RDSInstance) (client rds.Client, e error) {
 		called = true
-		return nil, fmt.Errorf(testError)
+		return nil, testError
 	}
 
-	expectedStatus := corev1alpha1.DeprecatedConditionedStatus{}
-	expectedStatus.SetFailed(errorResourceClient, testError)
+	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(corev1alpha1.ReconcileError(testError))
 
 	rs, err := r.Reconcile(request)
 	g.Expect(rs).To(Equal(resultRequeue))

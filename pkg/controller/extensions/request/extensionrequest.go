@@ -41,6 +41,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	"github.com/pkg/errors"
+
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/apis/extensions/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/logging"
@@ -55,12 +57,6 @@ const (
 	requeueAfterOnSuccess = 10 * time.Second
 
 	packageContentsVolumeName = "package-contents"
-
-	reasonCreatingJob             = "failed to create extension manager job"
-	reasonFetchingJob             = "failed to fetch extension manager job"
-	reasonJobFailed               = "extension manager job failed"
-	reasonHandlingJobCompletion   = "failed to handle the extension manager job completion"
-	reasonDiscoveringExecutorInfo = "failed to discover package executor info"
 )
 
 var (
@@ -118,7 +114,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	}
 
 	if err := r.discoverExecutorInfo(ctx); err != nil {
-		return fail(ctx, r.kube, i, reasonDiscoveringExecutorInfo, err.Error())
+		return fail(ctx, r.kube, i, err)
 	}
 
 	handler := r.factory.newHandler(ctx, i, r.kube, r.kubeclient, *r.executorInfo)
@@ -199,13 +195,14 @@ func (h *extensionRequestHandler) sync(ctx context.Context) (reconcile.Result, e
 // create performs the operation of creating the associated Extension.  This function assumes
 // that the Extension does not yet exist, so the caller should confirm that before calling.
 func (h *extensionRequestHandler) create(ctx context.Context) (reconcile.Result, error) {
+	h.ext.Status.SetConditions(corev1alpha1.Creating())
 	jobRef := h.ext.Status.InstallJob
 
 	if jobRef == nil {
 		// there is no install job created yet, create it now
 		job := createInstallJob(h.ext, h.executorInfo)
 		if err := h.kube.Create(ctx, job); err != nil {
-			return fail(ctx, h.kube, h.ext, reasonCreatingJob, err.Error())
+			return fail(ctx, h.kube, h.ext, err)
 		}
 
 		jobRef = &corev1.ObjectReference{
@@ -213,9 +210,9 @@ func (h *extensionRequestHandler) create(ctx context.Context) (reconcile.Result,
 			Namespace: job.Namespace,
 		}
 
-		// set a Creating condition on the status and save a reference to the install job we just created
-		h.ext.Status.SetCreating()
+		// Save a reference to the install job we just created
 		h.ext.Status.InstallJob = jobRef
+		h.ext.Status.SetConditions(corev1alpha1.ReconcileSuccess())
 		log.V(logging.Debug).Info("created install job", "jobRef", jobRef, "jobOwnerRefs", job.OwnerReferences)
 
 		return requeueOnSuccess, h.kube.Status().Update(ctx, h.ext)
@@ -223,9 +220,8 @@ func (h *extensionRequestHandler) create(ctx context.Context) (reconcile.Result,
 
 	// the install job already exists, let's check its status and completion
 	job := &batchv1.Job{}
-	n := types.NamespacedName{Namespace: jobRef.Namespace, Name: jobRef.Name}
-	if err := h.kube.Get(ctx, n, job); err != nil {
-		return fail(ctx, h.kube, h.ext, reasonFetchingJob, err.Error())
+	if err := h.kube.Get(ctx, meta.NamespacedNameOf(jobRef), job); err != nil {
+		return fail(ctx, h.kube, h.ext, err)
 	}
 
 	log.V(logging.Debug).Info(
@@ -239,22 +235,23 @@ func (h *extensionRequestHandler) create(ctx context.Context) (reconcile.Result,
 			case batchv1.JobComplete:
 				// the install job succeeded, process the output
 				if err := h.jobCompleter.handleJobCompletion(ctx, h.ext, job); err != nil {
-					return fail(ctx, h.kube, h.ext, reasonHandlingJobCompletion, err.Error())
+					return fail(ctx, h.kube, h.ext, err)
 				}
 
 				// the install job's completion was handled successfully, this extension request is ready
-				h.ext.Status.UnsetAllDeprecatedConditions()
-				h.ext.Status.SetReady()
+				h.ext.Status.SetConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess())
 				return requeueOnSuccess, h.kube.Status().Update(ctx, h.ext)
 			case batchv1.JobFailed:
 				// the install job failed, report the failure
-				return fail(ctx, h.kube, h.ext, reasonJobFailed, c.Message)
+				return fail(ctx, h.kube, h.ext, errors.New(c.Message))
 			}
 		}
 	}
 
 	// the job hasn't completed yet, so requeue and check again next time
+	h.ext.Status.SetConditions(corev1alpha1.ReconcileSuccess())
 	log.V(logging.Debug).Info("install job not complete", "job", fmt.Sprintf("%s/%s", job.Namespace, job.Name))
+
 	return requeueOnSuccess, h.kube.Status().Update(ctx, h.ext)
 }
 
@@ -346,7 +343,7 @@ func (jc *extensionRequestJobCompleter) handleJobCompletion(ctx context.Context,
 				// we reached the end of the job output
 				break
 			}
-			return fmt.Errorf("failed to parse output from job %s: %+v", job.Name, err)
+			return errors.Wrapf(err, "failed to parse output from job %s", job.Name)
 		}
 
 		// process and create the object that we just decoded
@@ -359,13 +356,13 @@ func (jc *extensionRequestJobCompleter) handleJobCompletion(ctx context.Context,
 			extensionRecord = &v1alpha1.Extension{}
 			n := types.NamespacedName{Name: obj.GetName(), Namespace: obj.GetNamespace()}
 			if err := jc.kube.Get(ctx, n, extensionRecord); err != nil {
-				return fmt.Errorf("failed to retrieve created extension record %s from job %s: %+v", obj.GetName(), job.Name, err)
+				return errors.Wrapf(err, "failed to retrieve created extension record %s from job %s", obj.GetName(), job.Name)
 			}
 		}
 	}
 
 	if extensionRecord == nil {
-		return fmt.Errorf("failed to find an extension record from job %s", job.Name)
+		return errors.Errorf("failed to find an extension record from job %s", job.Name)
 	}
 
 	// save a reference to the extension record in the status of the extension request
@@ -389,7 +386,7 @@ func (jc *extensionRequestJobCompleter) findPodNameForJob(ctx context.Context, j
 	}
 
 	if len(podList.Items) != 1 {
-		return "", fmt.Errorf("pod list for job %s should only have 1 item, actual: %d", job.Name, len(podList.Items))
+		return "", errors.Errorf("pod list for job %s should only have 1 item, actual: %d", job.Name, len(podList.Items))
 	}
 
 	return podList.Items[0].Name, nil
@@ -412,13 +409,13 @@ func (jc *extensionRequestJobCompleter) findPodsForJob(ctx context.Context, job 
 func (jc *extensionRequestJobCompleter) readPodLogs(namespace, name string) (*bytes.Buffer, error) {
 	podLogs, err := jc.podLogReader.getPodLogReader(namespace, name)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get logs request stream from pod %s: %+v", name, err)
+		return nil, errors.Wrapf(err, "failed to get logs request stream from pod %s", name)
 	}
 	defer func() { _ = podLogs.Close() }()
 
 	b := new(bytes.Buffer)
 	if _, err = io.Copy(b, podLogs); err != nil {
-		return nil, fmt.Errorf("failed to copy logs request stream from pod %s: %+v", name, err)
+		return nil, errors.Wrapf(err, "failed to copy logs request stream from pod %s", name)
 	}
 
 	return b, nil
@@ -458,7 +455,7 @@ func (jc *extensionRequestJobCompleter) createJobOutputObject(ctx context.Contex
 		"ownerRefs", obj.GetOwnerReferences())
 
 	if err := jc.kube.Create(ctx, obj); err != nil && !kerrors.IsAlreadyExists(err) {
-		return fmt.Errorf("failed to create object %s from job output %s: %+v", obj.GetName(), job.Name, err)
+		return errors.Wrapf(err, "failed to create object %s from job output %s", obj.GetName(), job.Name)
 	}
 
 	return nil
@@ -538,10 +535,9 @@ func (d *executorInfoDiscoverer) discoverExecutorInfo(ctx context.Context) (*exe
 // ************************************************************************************************
 
 // fail - helper function to set fail condition with reason and message
-func fail(ctx context.Context, kube client.StatusClient, i *v1alpha1.ExtensionRequest, reason, msg string) (reconcile.Result, error) {
-	log.V(logging.Debug).Info("failed extension request", "i", i.Name, "reason", reason, "message", msg)
-	i.Status.SetFailed(reason, msg)
-	i.Status.UnsetDeprecatedCondition(corev1alpha1.DeprecatedReady)
+func fail(ctx context.Context, kube client.StatusClient, i *v1alpha1.ExtensionRequest, err error) (reconcile.Result, error) {
+	log.V(logging.Debug).Info("failed extension request", "i", i.Name, "error", err)
+	i.Status.SetConditions(corev1alpha1.ReconcileError(err))
 	return resultRequeue, kube.Status().Update(ctx, i)
 }
 

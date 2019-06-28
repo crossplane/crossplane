@@ -79,7 +79,7 @@ type KubernetesApplicationResourceTemplate struct {
 // KubernetesApplicationStatus represents the status of a Kubernetes
 // application.
 type KubernetesApplicationStatus struct {
-	corev1alpha1.DeprecatedConditionedStatus
+	corev1alpha1.ConditionedStatus
 
 	// State of the application.
 	State KubernetesApplicationState `json:"state,omitempty"`
@@ -179,7 +179,7 @@ func (s *RemoteStatus) UnmarshalJSON(data []byte) error {
 // KubernetesApplicationResourceStatus represents the status of a Kubernetes
 // application resource.
 type KubernetesApplicationResourceStatus struct {
-	corev1alpha1.DeprecatedConditionedStatus
+	corev1alpha1.ConditionedStatus
 
 	// State of the application.
 	State KubernetesApplicationResourceState `json:"state,omitempty"`

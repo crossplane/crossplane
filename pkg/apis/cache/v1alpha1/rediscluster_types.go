@@ -25,9 +25,7 @@ import (
 
 // RedisClusterSpec defines the desired state of RedisCluster
 type RedisClusterSpec struct {
-	ClassRef    *corev1.ObjectReference `json:"classReference,omitempty"`
-	ResourceRef *corev1.ObjectReference `json:"resourceName,omitempty"`
-	Selector    metav1.LabelSelector    `json:"selector,omitempty"`
+	corev1alpha1.ResourceClaimSpec
 
 	// EngineVersion specifies the desired Redis version.
 	// +kubebuilder:validation:Enum=2.6,2.8,3.2,4.0,5.0
@@ -39,15 +37,61 @@ type RedisClusterSpec struct {
 // RedisCluster is the the CRD type for abstract Redis clusters. Crossplane
 // considers a single Redis instance a 'cluster' of one instance.
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.bindingPhase"
-// +kubebuilder:printcolumn:name="CLASS",type="string",JSONPath=".spec.classReference.name"
+// +kubebuilder:printcolumn:name="CLASS",type="string",JSONPath=".spec.classRef.name"
 // +kubebuilder:printcolumn:name="VERSION",type="string",JSONPath=".spec.engineVersion"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
+// +kubebuilder:subresource:status
 type RedisCluster struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	Spec   RedisClusterSpec                 `json:"spec,omitempty"`
 	Status corev1alpha1.ResourceClaimStatus `json:"status,omitempty"`
+}
+
+// SetBindingPhase of this RedisCluster.
+func (rc *RedisCluster) SetBindingPhase(p corev1alpha1.BindingPhase) {
+	rc.Status.SetBindingPhase(p)
+}
+
+// GetBindingPhase of this RedisCluster.
+func (rc *RedisCluster) GetBindingPhase() corev1alpha1.BindingPhase {
+	return rc.Status.GetBindingPhase()
+}
+
+// SetConditions of this RedisCluster.
+func (rc *RedisCluster) SetConditions(c ...corev1alpha1.Condition) {
+	rc.Status.SetConditions(c...)
+}
+
+// SetClassReference of this RedisCluster.
+func (rc *RedisCluster) SetClassReference(r *corev1.ObjectReference) {
+	rc.Spec.ClassReference = r
+}
+
+// GetClassReference of this RedisCluster.
+func (rc *RedisCluster) GetClassReference() *corev1.ObjectReference {
+	return rc.Spec.ClassReference
+}
+
+// SetResourceReference of this RedisCluster.
+func (rc *RedisCluster) SetResourceReference(r *corev1.ObjectReference) {
+	rc.Spec.ResourceReference = r
+}
+
+// GetResourceReference of this RedisCluster.
+func (rc *RedisCluster) GetResourceReference() *corev1.ObjectReference {
+	return rc.Spec.ResourceReference
+}
+
+// SetWriteConnectionSecretToReference of this RedisCluster.
+func (rc *RedisCluster) SetWriteConnectionSecretToReference(r corev1.LocalObjectReference) {
+	rc.Spec.WriteConnectionSecretToReference = r
+}
+
+// GetWriteConnectionSecretToReference of this RedisCluster.
+func (rc *RedisCluster) GetWriteConnectionSecretToReference() corev1.LocalObjectReference {
+	return rc.Spec.WriteConnectionSecretToReference
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -57,26 +101,6 @@ type RedisClusterList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []RedisCluster `json:"items"`
-}
-
-// ClaimStatus returns the status of this resource claim
-func (c *RedisCluster) ClaimStatus() *corev1alpha1.ResourceClaimStatus {
-	return &c.Status
-}
-
-// ClassRef return the reference to the resource class this claim uses.
-func (c *RedisCluster) ClassRef() *corev1.ObjectReference {
-	return c.Spec.ClassRef
-}
-
-// ResourceRef returns the reference to the resource this claim is bound to.
-func (c *RedisCluster) ResourceRef() *corev1.ObjectReference {
-	return c.Spec.ResourceRef
-}
-
-// SetResourceRef sets the reference to the resource this claim is bound to.
-func (c *RedisCluster) SetResourceRef(ref *corev1.ObjectReference) {
-	c.Spec.ResourceRef = ref
 }
 
 func init() {

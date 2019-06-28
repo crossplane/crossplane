@@ -19,7 +19,6 @@ package v1alpha1
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
 const (
@@ -38,34 +37,6 @@ const (
 	// ResourceCredentialsTokenKey is the key inside a connection secret for the bearer token value
 	ResourceCredentialsTokenKey = "token"
 )
-
-// Resource defines a concrete resource that can be provisioned and bound to a resource claim.
-type Resource interface {
-	runtime.Object
-	metav1.Object
-	// Resource connection secret name
-	ConnectionSecretName() string
-	// Is resource available for finding
-	IsAvailable() bool
-	// IsBound() bool
-	IsBound() bool
-	// Update bound status of the resource
-	SetBound(bool)
-}
-
-// ResourceClaim defines a resource claim that can be provisioned and bound to a concrete resource.
-type ResourceClaim interface {
-	runtime.Object
-	metav1.Object
-	// The status of this resource claim
-	ClaimStatus() *ResourceClaimStatus
-	// Gets the reference to the resource class this claim uses
-	ClassRef() *corev1.ObjectReference
-	// Gets the reference to the resource that this claim is bound to
-	ResourceRef() *corev1.ObjectReference
-	// Sets the reference to the resource that this claim is bound to
-	SetResourceRef(*corev1.ObjectReference)
-}
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
@@ -92,9 +63,9 @@ type ResourceClass struct {
 	// This value may not be empty.
 	Provisioner string `json:"provisioner"`
 
-	// ProvierRef is the reference to cloud provider that will be used
-	// to provision the concrete cloud resource
-	ProviderRef corev1.LocalObjectReference `json:"providerRef"`
+	// ProviderReference is a reference to the cloud provider that will be used
+	// to provision the concrete cloud resource.
+	ProviderReference *corev1.ObjectReference `json:"providerRef"`
 
 	// reclaimPolicy is the reclaim policy that dynamically provisioned
 	// ResourceInstances of this resource class are created with
@@ -111,17 +82,43 @@ type ResourceClassList struct {
 	Items           []ResourceClass `json:"items"`
 }
 
-// ResourceClaimStatus represents the status of a resource claim
+// ResourceClaimSpec contains standard fields that all resource claims should
+// include in their spec. Unlike ResourceClaimStatus, ResourceClaimSpec should
+// typically be embedded in a claim specific struct.
+type ResourceClaimSpec struct {
+	WriteConnectionSecretToReference corev1.LocalObjectReference `json:"writeConnectionSecretToRef,omitempty"`
+
+	// TODO(negz): Make the below references immutable once set? Doing so means
+	// we don't have to track what provisioner was used to create a resource.
+
+	ClassReference    *corev1.ObjectReference `json:"classRef,omitempty"`
+	ResourceReference *corev1.ObjectReference `json:"resourceRef,omitempty"`
+}
+
+// ResourceClaimStatus represents the status of a resource claim. Claims should
+// typically use this struct as their status.
 type ResourceClaimStatus struct {
-	DeprecatedConditionedStatus
-	BindingStatusPhase
+	ConditionedStatus
+	BindingStatus
+}
 
-	// Provisioner is the driver that was used to provision the concrete resource
-	// This is an optionally-prefixed name, like a label key.
-	// For example: "RDSInstance.database.aws.crossplane.io/v1alpha1" or "CloudSQLInstance.database.gcp.crossplane.io/v1alpha1".
-	Provisioner string `json:"provisioner,omitempty"`
+// ResourceSpec contains standard fields that all resources should
+// include in their spec. ResourceSpec should typically be embedded in a
+// resource specific struct.
+type ResourceSpec struct {
+	WriteConnectionSecretToReference corev1.LocalObjectReference `json:"writeConnectionSecretToRef,omitempty"`
 
-	// CredentialsSecretRef is a local reference to the generated secret containing the credentials
-	// for this resource claim.
-	CredentialsSecretRef corev1.LocalObjectReference `json:"credentialsSecret,omitempty"`
+	ClaimReference    *corev1.ObjectReference `json:"claimRef,omitempty"`
+	ClassReference    *corev1.ObjectReference `json:"classRef,omitempty"`
+	ProviderReference *corev1.ObjectReference `json:"providerRef"`
+
+	ReclaimPolicy ReclaimPolicy `json:"reclaimPolicy,omitempty"`
+}
+
+// ResourceStatus contains standard fields that all resources should
+// include in their status. ResourceStatus should typically be embedded in a
+// resource specific status.
+type ResourceStatus struct {
+	ConditionedStatus
+	BindingStatus
 }

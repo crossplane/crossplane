@@ -77,8 +77,8 @@ var (
 
 type resourceModifier func(*azurev1alpha1.ResourceGroup)
 
-func withConditions(c ...corev1alpha1.DeprecatedCondition) resourceModifier {
-	return func(r *azurev1alpha1.ResourceGroup) { r.Status.DeprecatedConditionedStatus.Conditions = c }
+func withConditions(c ...corev1alpha1.Condition) resourceModifier {
+	return func(r *azurev1alpha1.ResourceGroup) { r.Status.ConditionedStatus.Conditions = c }
 }
 
 func withFinalizers(f ...string) resourceModifier {
@@ -114,9 +114,11 @@ func resource(rm ...resourceModifier) *azurev1alpha1.ResourceGroup {
 			Finalizers: []string{},
 		},
 		Spec: azurev1alpha1.ResourceGroupSpec{
-			Name:        name,
-			Location:    location,
-			ProviderRef: corev1.LocalObjectReference{Name: providerName},
+			Name:     name,
+			Location: location,
+			ResourceSpec: corev1alpha1.ResourceSpec{
+				ProviderReference: &corev1.ObjectReference{Namespace: namespace, Name: providerName},
+			},
 		},
 		Status: azurev1alpha1.ResourceGroupStatus{},
 	}
@@ -148,7 +150,7 @@ func TestCreate(t *testing.T) {
 			}},
 			r: resource(),
 			want: resource(
-				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedCreating, Status: corev1.ConditionTrue}),
+				withConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileSuccess()),
 				withFinalizers(finalizer),
 				withName(name),
 			),
@@ -162,14 +164,9 @@ func TestCreate(t *testing.T) {
 				},
 			}},
 			r: resource(),
-			want: resource(withConditions(
-				corev1alpha1.DeprecatedCondition{
-					Type:    corev1alpha1.DeprecatedFailed,
-					Status:  corev1.ConditionTrue,
-					Reason:  reasonCreatingResource,
-					Message: errorBoom.Error(),
-				},
-			)),
+			want: resource(
+				withConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileError(errorBoom)),
+			),
 			wantRequeue: true,
 		},
 		{
@@ -179,15 +176,13 @@ func TestCreate(t *testing.T) {
 					return resources.Group{}, errorBoom
 				},
 			}},
-			r: resource(withSpecName("foo.")),
-			want: resource(withConditions(
-				corev1alpha1.DeprecatedCondition{
-					Type:    corev1alpha1.DeprecatedFailed,
-					Status:  corev1.ConditionTrue,
-					Reason:  reasonCreatingResource,
-					Message: errorBoom.Error(),
-				},
-			), withSpecName("foo.")),
+			r: resource(
+				withSpecName("foo."),
+			),
+			want: resource(
+				withSpecName("foo."),
+				withConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileError(errorBoom)),
+			),
 			wantRequeue: true,
 		},
 	}
@@ -200,7 +195,7 @@ func TestCreate(t *testing.T) {
 				t.Errorf("tc.csd.CreateOrUpdate(...): want: %t got: %t", tc.wantRequeue, gotRequeue)
 			}
 
-			if diff := cmp.Diff(tc.want, tc.r); diff != "" {
+			if diff := cmp.Diff(tc.want, tc.r, test.EquateConditions()); diff != "" {
 				t.Errorf("r: -want, +got:\n%s", diff)
 			}
 		})
@@ -223,17 +218,13 @@ func TestSync(t *testing.T) {
 				},
 			}},
 			r: resource(
-				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedCreating, Status: corev1.ConditionTrue}),
 				withFinalizers(finalizer),
 				withName(name),
 			),
 			want: resource(
-				withConditions(
-					corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedCreating, Status: corev1.ConditionFalse},
-					corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedReady, Status: corev1.ConditionTrue},
-				),
 				withFinalizers(finalizer),
 				withName(name),
+				withConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess()),
 			),
 			wantRequeue: false,
 		},
@@ -245,22 +236,13 @@ func TestSync(t *testing.T) {
 				},
 			}},
 			r: resource(
-				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedReady, Status: corev1.ConditionTrue}),
 				withFinalizers(finalizer),
 				withName(name),
 			),
 			want: resource(
-				withConditions(
-					corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedReady, Status: corev1.ConditionFalse},
-					corev1alpha1.DeprecatedCondition{
-						Type:    corev1alpha1.DeprecatedFailed,
-						Status:  corev1.ConditionTrue,
-						Reason:  reasonSyncingResource,
-						Message: azureDeletedMessage,
-					},
-				),
 				withFinalizers(finalizer),
 				withName(name),
+				withConditions(corev1alpha1.ReconcileError(errDeleted)),
 			),
 			wantRequeue: true,
 		},
@@ -272,14 +254,13 @@ func TestSync(t *testing.T) {
 				},
 			}},
 			r: resource(
-				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedReady, Status: corev1.ConditionTrue}),
 				withFinalizers(finalizer),
 				withName(name),
 			),
 			want: resource(
-				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedReady, Status: corev1.ConditionFalse}),
 				withFinalizers(finalizer),
 				withName(name),
+				withConditions(corev1alpha1.ReconcileSuccess()),
 			),
 			wantRequeue: true,
 		},
@@ -291,22 +272,13 @@ func TestSync(t *testing.T) {
 				},
 			}},
 			r: resource(
-				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedCreating, Status: corev1.ConditionTrue}),
 				withFinalizers(finalizer),
 				withName(name),
 			),
 			want: resource(
-				withConditions(
-					corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedCreating, Status: corev1.ConditionTrue},
-					corev1alpha1.DeprecatedCondition{
-						Type:    corev1alpha1.DeprecatedFailed,
-						Status:  corev1.ConditionTrue,
-						Reason:  reasonSyncingResource,
-						Message: errorBoom.Error(),
-					},
-				),
 				withFinalizers(finalizer),
 				withName(name),
+				withConditions(corev1alpha1.ReconcileError(errorBoom)),
 			),
 			wantRequeue: true,
 		},
@@ -320,7 +292,7 @@ func TestSync(t *testing.T) {
 				t.Errorf("tc.csd.CheckExistence(...): want: %t got: %t", tc.wantRequeue, gotRequeue)
 			}
 
-			if diff := cmp.Diff(tc.want, tc.r); diff != "" {
+			if diff := cmp.Diff(tc.want, tc.r, test.EquateConditions()); diff != "" {
 				t.Errorf("r: -want, +got:\n%s", diff)
 			}
 		})
@@ -345,7 +317,7 @@ func TestDelete(t *testing.T) {
 			r: resource(withFinalizers(finalizer), withReclaimPolicy(corev1alpha1.ReclaimRetain)),
 			want: resource(
 				withReclaimPolicy(corev1alpha1.ReclaimRetain),
-				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedDeleting, Status: corev1.ConditionTrue}),
+				withConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileSuccess()),
 			),
 			wantRequeue: false,
 		},
@@ -359,7 +331,7 @@ func TestDelete(t *testing.T) {
 			r: resource(withFinalizers(finalizer), withReclaimPolicy(corev1alpha1.ReclaimDelete)),
 			want: resource(
 				withReclaimPolicy(corev1alpha1.ReclaimDelete),
-				withConditions(corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedDeleting, Status: corev1.ConditionTrue}),
+				withConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileSuccess()),
 			),
 			wantRequeue: false,
 		},
@@ -374,14 +346,7 @@ func TestDelete(t *testing.T) {
 			want: resource(
 				withFinalizers(finalizer),
 				withReclaimPolicy(corev1alpha1.ReclaimDelete),
-				withConditions(
-					corev1alpha1.DeprecatedCondition{
-						Type:    corev1alpha1.DeprecatedFailed,
-						Status:  corev1.ConditionTrue,
-						Reason:  reasonDeletingResource,
-						Message: errorBoom.Error(),
-					},
-				),
+				withConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileError(errorBoom)),
 			),
 			wantRequeue: true,
 		},
@@ -395,7 +360,7 @@ func TestDelete(t *testing.T) {
 				t.Errorf("tc.csd.Delete(...): want: %t got: %t", tc.wantRequeue, gotRequeue)
 			}
 
-			if diff := cmp.Diff(tc.want, tc.r); diff != "" {
+			if diff := cmp.Diff(tc.want, tc.r, test.EquateConditions()); diff != "" {
 				t.Errorf("r: -want, +got:\n%s", diff)
 			}
 		})
@@ -627,16 +592,9 @@ func TestReconcile(t *testing.T) {
 						return nil
 					},
 					MockUpdate: func(_ context.Context, obj runtime.Object) error {
-						want := resource(withConditions(
-							corev1alpha1.DeprecatedCondition{
-								Type:    corev1alpha1.DeprecatedFailed,
-								Status:  corev1.ConditionTrue,
-								Reason:  reasonFetchingClient,
-								Message: errorBoom.Error(),
-							},
-						))
+						want := resource(withConditions(corev1alpha1.ReconcileError(errorBoom)))
 						got := obj.(*v1alpha1.ResourceGroup)
-						if diff := cmp.Diff(want, got); diff != "" {
+						if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
 							t.Errorf("kube.Update(...): -want, +got:\n%s", diff)
 						}
 						return nil

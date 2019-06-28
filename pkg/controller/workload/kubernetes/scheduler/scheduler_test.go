@@ -36,7 +36,6 @@ import (
 	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/compute/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	workloadv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/workload/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/controller/core"
 	"github.com/crossplaneio/crossplane/pkg/meta"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
@@ -71,16 +70,10 @@ var (
 	}
 )
 
-// Frequently used conditions.
-var (
-	ready   = corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedReady, Status: corev1.ConditionTrue}
-	pending = corev1alpha1.DeprecatedCondition{Type: corev1alpha1.DeprecatedPending, Status: corev1.ConditionTrue}
-)
-
 type kubeAppModifier func(*workloadv1alpha1.KubernetesApplication)
 
-func withConditions(c ...corev1alpha1.DeprecatedCondition) kubeAppModifier {
-	return func(r *workloadv1alpha1.KubernetesApplication) { r.Status.DeprecatedConditionedStatus.Conditions = c }
+func withConditions(c ...corev1alpha1.Condition) kubeAppModifier {
+	return func(r *workloadv1alpha1.KubernetesApplication) { r.Status.SetConditions(c...) }
 }
 
 func withState(s workloadv1alpha1.KubernetesApplicationState) kubeAppModifier {
@@ -231,13 +224,7 @@ func TestSchedule(t *testing.T) {
 				withClusterSelector(selectorAll),
 				withCluster(meta.ReferenceTo(clusterA, computev1alpha1.KubernetesClusterGroupVersionKind)),
 				withState(workloadv1alpha1.KubernetesApplicationStateScheduled),
-				withConditions(
-					corev1alpha1.DeprecatedCondition{
-						Type:   corev1alpha1.DeprecatedPending,
-						Status: corev1.ConditionFalse,
-					},
-					ready,
-				),
+				withConditions(corev1alpha1.ReconcileSuccess()),
 			),
 			wantResult: reconcile.Result{Requeue: false},
 		},
@@ -255,15 +242,7 @@ func TestSchedule(t *testing.T) {
 			wantApp: kubeApp(
 				withClusterSelector(selectorInvalid),
 				withState(workloadv1alpha1.KubernetesApplicationStatePending),
-				withConditions(
-					pending,
-					corev1alpha1.DeprecatedCondition{
-						Type:    corev1alpha1.DeprecatedFailed,
-						Status:  corev1.ConditionTrue,
-						Reason:  reasonUnschedulable,
-						Message: "\"wat\" is not a valid pod selector operator",
-					},
-				),
+				withConditions(corev1alpha1.ReconcileError(errors.New("\"wat\" is not a valid pod selector operator"))),
 			),
 			wantResult: reconcile.Result{Requeue: true},
 		},
@@ -276,15 +255,7 @@ func TestSchedule(t *testing.T) {
 			wantApp: kubeApp(
 				withClusterSelector(selectorAll),
 				withState(workloadv1alpha1.KubernetesApplicationStatePending),
-				withConditions(
-					pending,
-					corev1alpha1.DeprecatedCondition{
-						Type:    corev1alpha1.DeprecatedFailed,
-						Status:  corev1.ConditionTrue,
-						Reason:  reasonUnschedulable,
-						Message: errorBoom.Error(),
-					},
-				),
+				withConditions(corev1alpha1.ReconcileError(errorBoom)),
 			),
 			wantResult: reconcile.Result{Requeue: true},
 		},
@@ -302,15 +273,7 @@ func TestSchedule(t *testing.T) {
 			wantApp: kubeApp(
 				withClusterSelector(selectorAll),
 				withState(workloadv1alpha1.KubernetesApplicationStatePending),
-				withConditions(
-					pending,
-					corev1alpha1.DeprecatedCondition{
-						Type:    corev1alpha1.DeprecatedFailed,
-						Status:  corev1.ConditionTrue,
-						Reason:  reasonUnschedulable,
-						Message: errorNoclusters,
-					},
-				),
+				withConditions(corev1alpha1.ReconcileSuccess()),
 			),
 			wantResult: reconcile.Result{Requeue: true},
 		},
@@ -400,7 +363,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
-			wantResult: reconcile.Result{RequeueAfter: core.RequeueOnSuccess},
+			wantResult: reconcile.Result{RequeueAfter: requeueOnSuccess},
 			wantErr:    nil,
 		},
 		{

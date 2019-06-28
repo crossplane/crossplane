@@ -18,7 +18,6 @@ package account
 
 import (
 	"context"
-	"fmt"
 	"reflect"
 	"time"
 
@@ -42,6 +41,7 @@ import (
 	azurestorage "github.com/crossplaneio/crossplane/pkg/clients/azure/storage"
 	"github.com/crossplaneio/crossplane/pkg/logging"
 	"github.com/crossplaneio/crossplane/pkg/meta"
+	"github.com/crossplaneio/crossplane/pkg/resource"
 )
 
 const (
@@ -51,23 +51,6 @@ const (
 	reconcileTimeout      = 2 * time.Minute
 	requeueAfterOnSuccess = 1 * time.Minute
 	requeueAfterOnWait    = 30 * time.Second
-
-	// failed condition reasons
-	//
-	// failed to get resource handler
-	failedToGetHandler = "error getting handler"
-	// failed to delete account resource
-	failedToDelete = "error deleting"
-	// failed to retrieve account resource
-	failedToRetrieve = "error retrieving"
-	// failed to create account resource
-	failedToCreate = "error creating"
-	// failed to update account resource
-	failedToUpdate = "error updating"
-	// failed to save connection secret
-	failedToSaveSecret = "error saving connection secret"
-	// failed to sync account
-	failedToSyncCollision = "error syncing - collision"
 )
 
 var (
@@ -128,7 +111,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 
 	bh, err := r.newSyncdeleter(ctx, b)
 	if err != nil {
-		b.Status.SetFailed(failedToGetHandler, err.Error())
+		b.Status.SetConditions(corev1alpha1.ReconcileError(err))
 		return resultRequeue, r.Status().Update(ctx, b)
 	}
 
@@ -150,9 +133,9 @@ type accountSyncdeleterMaker struct {
 
 func (m *accountSyncdeleterMaker) newSyncdeleter(ctx context.Context, b *v1alpha1.Account) (syncdeleter, error) {
 	p := &azurev1alpha1.Provider{}
-	n := types.NamespacedName{Namespace: b.GetNamespace(), Name: b.Spec.ProviderRef.Name}
+	n := meta.NamespacedNameOf(b.Spec.ProviderReference)
 	if err := m.Get(ctx, n, p); err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "cannot get provider %s", n)
 	}
 
 	s := &corev1.Secret{}
@@ -217,12 +200,17 @@ func newAccountSyncDeleter(ao azurestorage.AccountOperations, kube client.Client
 }
 
 func (asd *accountSyncDeleter) delete(ctx context.Context) (reconcile.Result, error) {
+	asd.acct.Status.SetConditions(corev1alpha1.Deleting())
 	if asd.acct.Spec.ReclaimPolicy == corev1alpha1.ReclaimDelete {
 		if err := asd.Delete(ctx); err != nil && !azure.IsNotFound(err) {
-			asd.acct.Status.SetFailed(failedToDelete, err.Error())
+			asd.acct.Status.SetConditions(corev1alpha1.ReconcileError(err))
 			return resultRequeue, asd.kube.Status().Update(ctx, asd.acct)
 		}
 	}
+
+	// NOTE(negz): We don't update the conditioned status here because assuming
+	// no other finalizers need to be cleaned up the object should cease to
+	// exist after we update it.
 	meta.RemoveFinalizer(asd.acct, finalizer)
 	return reconcile.Result{}, asd.kube.Update(ctx, asd.acct)
 }
@@ -234,7 +222,7 @@ const uidTag = "UID"
 func (asd *accountSyncDeleter) sync(ctx context.Context) (reconcile.Result, error) {
 	account, err := asd.Get(ctx)
 	if err != nil && !azure.IsNotFound(err) {
-		asd.acct.Status.SetFailed(failedToRetrieve, err.Error())
+		asd.acct.Status.SetConditions(corev1alpha1.ReconcileError(err))
 		return resultRequeue, asd.kube.Status().Update(ctx, asd.acct)
 	}
 
@@ -244,8 +232,8 @@ func (asd *accountSyncDeleter) sync(ctx context.Context) (reconcile.Result, erro
 
 	// for existing account check UID tag
 	if uid := to.String(account.Tags[uidTag]); uid != "" && uid != string(asd.acct.GetUID()) {
-		asd.acct.Status.SetFailed(failedToSyncCollision,
-			fmt.Sprintf("storage account: %s already exists and owned by: %s", to.String(account.Name), uid))
+		err := errors.Errorf("storage account: %s already exists and owned by: %s", to.String(account.Name), uid)
+		asd.acct.Status.SetConditions(corev1alpha1.ReconcileError(err))
 		return reconcile.Result{}, asd.kube.Status().Update(ctx, asd.acct)
 	}
 
@@ -279,6 +267,7 @@ func newAccountCreateUpdater(ao azurestorage.AccountOperations, kube client.Clie
 
 // create new storage account resource and save changes back to account specs
 func (acu *accountCreateUpdater) create(ctx context.Context) (reconcile.Result, error) {
+	acu.acct.Status.SetConditions(corev1alpha1.Creating())
 	meta.AddFinalizer(acu.acct, finalizer)
 
 	// Set UID to the account storage spec
@@ -292,7 +281,7 @@ func (acu *accountCreateUpdater) create(ctx context.Context) (reconcile.Result, 
 
 	a, err := acu.Create(ctx, accountSpec)
 	if err != nil {
-		acu.acct.Status.SetFailed(failedToCreate, err.Error())
+		acu.acct.Status.SetConditions(corev1alpha1.ReconcileError(err))
 		return resultRequeue, acu.kube.Status().Update(ctx, acu.acct)
 	}
 
@@ -302,15 +291,18 @@ func (acu *accountCreateUpdater) create(ctx context.Context) (reconcile.Result, 
 // update storage account resource if needed
 func (acu *accountCreateUpdater) update(ctx context.Context, account *storage.Account) (reconcile.Result, error) {
 	if account.ProvisioningState == storage.Succeeded {
+		acu.acct.Status.SetConditions(corev1alpha1.Available())
+		resource.SetBindable(acu.acct)
 
 		current := v1alpha1.NewStorageAccountSpec(account)
 		if reflect.DeepEqual(current, acu.acct.Spec.StorageAccountSpec) {
-			return updateStatusIfNotReady(ctx, acu.kube, acu.acct)
+			acu.acct.Status.SetConditions(corev1alpha1.ReconcileSuccess())
+			return requeueOnSuccess, acu.kube.Status().Update(ctx, acu.acct)
 		}
 
 		a, err := acu.Update(ctx, v1alpha1.ToStorageAccountUpdate(acu.acct.Spec.StorageAccountSpec))
 		if err != nil {
-			acu.acct.Status.SetFailed(failedToUpdate, err.Error())
+			acu.acct.Status.SetConditions(corev1alpha1.ReconcileError(err))
 			return resultRequeue, acu.kube.Status().Update(ctx, acu.acct)
 		}
 		account = a
@@ -340,17 +332,19 @@ func (asb *accountSyncbacker) syncback(ctx context.Context, acct *storage.Accoun
 	}
 
 	asb.acct.Status.StorageAccountStatus = v1alpha1.NewStorageAccountStatus(acct)
-	asb.acct.Status.ConnectionSecretRef = corev1.LocalObjectReference{Name: asb.acct.ConnectionSecretName()}
 
 	if acct.ProvisioningState != storage.Succeeded {
+		asb.acct.Status.SetConditions(corev1alpha1.ReconcileSuccess())
 		return requeueOnWait, asb.kube.Status().Update(ctx, asb.acct)
 	}
 
 	if err := asb.updatesecret(ctx, acct); err != nil {
-		asb.acct.Status.SetFailed(failedToSaveSecret, err.Error())
+		asb.acct.Status.SetConditions(corev1alpha1.ReconcileError(err))
 		return resultRequeue, asb.kube.Status().Update(ctx, asb.acct)
 	}
-	return updateStatusIfNotReady(ctx, asb.kube, asb.acct)
+
+	asb.acct.Status.SetConditions(corev1alpha1.ReconcileSuccess())
+	return requeueOnSuccess, asb.kube.Status().Update(ctx, asb.acct)
 }
 
 type accountSecretUpdater struct {
@@ -368,7 +362,7 @@ func newAccountSecretUpdater(ao azurestorage.AccountOperations, kube client.Clie
 }
 
 func (asu *accountSecretUpdater) updatesecret(ctx context.Context, acct *storage.Account) error {
-	secret := asu.acct.ConnectionSecret()
+	secret := resource.ConnectionSecretFor(asu.acct, v1alpha1.AccountGroupVersionKind)
 	key := types.NamespacedName{Namespace: secret.Namespace, Name: secret.Name}
 
 	if acct.PrimaryEndpoints != nil {
@@ -394,13 +388,4 @@ func (asu *accountSecretUpdater) updatesecret(ctx context.Context, acct *storage
 	}
 
 	return nil
-}
-
-func updateStatusIfNotReady(ctx context.Context, kube client.StatusClient, acct *v1alpha1.Account) (reconcile.Result, error) {
-	if !acct.Status.IsReady() {
-		acct.Status.UnsetAllDeprecatedConditions()
-		acct.Status.SetReady()
-		return reconcile.Result{}, kube.Status().Update(ctx, acct)
-	}
-	return requeueOnSuccess, nil
 }

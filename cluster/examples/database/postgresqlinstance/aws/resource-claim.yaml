@@ -1,0 +1,12 @@
+---
+apiVersion: storage.crossplane.io/v1alpha1
+kind: PostgreSQLInstance
+metadata:
+  name: rdspostgresql
+spec:
+  classRef:
+    name: rdspostgresql
+    namespace: crossplane-system
+  writeConnectionSecretToRef:
+    name: rdspostgres  
+  engineVersion: "9.6"

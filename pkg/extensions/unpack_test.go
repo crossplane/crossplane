@@ -230,8 +230,7 @@ spec:
       - delete
   title: Sample Crossplane Extension
   version: 0.0.1
-status:
-  Conditions: null
+status: {}
 `
 )
 
@@ -328,12 +327,12 @@ func TestUnpack(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := doUnpack(tt.fs, tt.root)
 
-			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
-				t.Errorf("doUnpack() want error != got error:\n%s", diff)
+			if diff := cmp.Diff(tt.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("doUnpack() -want error, +got error:\n%s", diff)
 			}
 
-			if diff := cmp.Diff(got, tt.want.output); diff != "" {
-				t.Errorf("doUnpack() got != want:\n%v", diff)
+			if diff := cmp.Diff(tt.want.output, got); diff != "" {
+				t.Errorf("doUnpack() -want, +got:\n%v", diff)
 			}
 		})
 	}
@@ -392,12 +391,12 @@ func TestFindResourcesFiles(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := findResourcesFiles(tt.fs, tt.resourcesDir)
 
-			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
-				t.Errorf("findResourcesFiles() want error != got error:\n%s", diff)
+			if diff := cmp.Diff(tt.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("findResourcesFiles() -want error, +got error:\n%s", diff)
 			}
 
-			if diff := cmp.Diff(got, tt.want.found); diff != "" {
-				t.Errorf("findResourcesFiles() got != want:\n%v", diff)
+			if diff := cmp.Diff(tt.want.found, got); diff != "" {
+				t.Errorf("findResourcesFiles() -want, +got:\n%v", diff)
 			}
 		})
 	}

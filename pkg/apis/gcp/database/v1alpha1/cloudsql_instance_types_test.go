@@ -25,7 +25,9 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/resource"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
@@ -38,6 +40,8 @@ var (
 	c   client.Client
 	ctx = context.TODO()
 )
+
+var _ resource.Managed = &CloudsqlInstance{}
 
 func TestMain(m *testing.M) {
 	t := test.NewEnv(namespace, SchemeBuilder.SchemeBuilder, test.CRDs())
@@ -74,7 +78,11 @@ func TestNewCloudSQLInstanceSpec(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	m := make(map[string]string)
-	exp := &CloudsqlInstanceSpec{ReclaimPolicy: corev1alpha1.ReclaimRetain}
+	exp := &CloudsqlInstanceSpec{
+		ResourceSpec: v1alpha1.ResourceSpec{
+			ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		},
+	}
 
 	g.Expect(NewCloudSQLInstanceSpec(m)).To(gomega.Equal(exp))
 

@@ -5,15 +5,19 @@ metadata:
 spec:
   name: wordpress-demo-e401ddfa-4729-4b72-bcef-94922203b547
   predefinedACL: private
+  writeConnectionSecretToRef:
+    name: demo-bucket
 ---
 apiVersion: storage.crossplane.io/v1alpha1
 kind: MySQLInstance
 metadata:
   name: mysql-instance
 spec:
-  classReference:
+  classRef:
     name: standard
     namespace: crossplane-system
+  writeConnectionSecretToRef:
+    name: mysql-instance
   engineVersion: "5.7"
 ---
 apiVersion: extensions/v1beta1

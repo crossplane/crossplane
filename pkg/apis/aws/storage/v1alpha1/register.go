@@ -17,18 +17,16 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"reflect"
+
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/runtime/scheme"
 )
 
-// Kubernetes Group, Version, and Kind metadata.
+// Package type metadata.
 const (
-	Group      = "storage.aws.crossplane.io"
-	Version    = "v1alpha1"
-	APIVersion = Group + "/" + Version
-
-	S3BucketKind           = "S3Bucket"
-	S3BucketKindAPIVersion = "s3bucket" + "." + APIVersion
+	Group   = "storage.aws.crossplane.io"
+	Version = "v1alpha1"
 )
 
 var (
@@ -37,13 +35,13 @@ var (
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
+)
 
-	// S3BucketGroupVersionKind is the GVK of a S3Bucket.
-	S3BucketGroupVersionKind = schema.GroupVersionKind{
-		Group:   Group,
-		Version: Version,
-		Kind:    S3BucketKind,
-	}
+// S3Bucket type metadata.
+var (
+	S3BucketKind             = reflect.TypeOf(S3Bucket{}).Name()
+	S3BucketKindAPIVersion   = "s3bucket" + "." + SchemeGroupVersion.String()
+	S3BucketGroupVersionKind = SchemeGroupVersion.WithKind(S3BucketKind)
 )
 
 func init() {
