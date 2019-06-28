@@ -41,7 +41,7 @@ providerRef:
 reclaimPolicy: Delete
 ```
 
-1. A user creates a `ResourceClaim`.
+2. A user creates a `ResourceClaim`.
 
 ```yaml
 apiVersion: storage.crossplane.io/v1alpha1
@@ -56,8 +56,8 @@ spec:
   name: my-bucket-1234
 ```
 
-1. The creation of a `ResourceClaim` triggers a `Concrete Resource` to be created using information from the claim and the referenced `ResourceClass`. If the `ResourceClass` provides a value for `reclaimPolicy` it will be set on the `Concrete Resource`. If not, the `Concrete Resource` will have its `reclaimPolicy` set to its default value.
-2. The `Concrete Resource` provisions an `External Resource` (in this case an S3 bucket) and manages it.
-3. A user deletes the `ResourceClaim`. Because the `ConcreteResource` has an `OwnerReference` to the `ResourceClaim`, the deletion of the `ResourceClaim` triggers the deletion of the `ConcreteResource`.
-4. If the `ConcreteResource` `reclaimPolicy` is set to `Retain`, the `Concrete Resource` will be deleted, but the `External Resource` will persist (i.e. the S3 bucket will still exist in your AWS account). If the `reclaimPolicy` is set to `Delete` both the `Concrete Resource` and the `External Resource` will be deleted.
+3. The creation of a `ResourceClaim` triggers a `Concrete Resource` to be created using information from the claim and the referenced `ResourceClass`. If the `ResourceClass` provides a value for `reclaimPolicy` it will be set on the `Concrete Resource`. If not, the `Concrete Resource` will have its `reclaimPolicy` set to its default value.
+4. The `Concrete Resource` provisions an `External Resource` (in this case an S3 bucket) and manages it.
+5. A user deletes the `ResourceClaim`. Because the `ConcreteResource` has an `OwnerReference` to the `ResourceClaim`, the deletion of the `ResourceClaim` triggers the deletion of the `ConcreteResource`.
+6. If the `ConcreteResource` `reclaimPolicy` is set to `Retain`, the `Concrete Resource` will be deleted, but the `External Resource` will persist (i.e. the S3 bucket will still exist in your AWS account). If the `reclaimPolicy` is set to `Delete` both the `Concrete Resource` and the `External Resource` will be deleted.
 
