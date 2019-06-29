@@ -14,7 +14,7 @@
 
 Crossplane resource classes allow for a `reclaimPolicy` to be set on creation. Acceptable values for `reclaimPolicy` are `Delete` or `Retain`. This value informs Crossplane of how to behave when a `Concrete Resource` is deleted. If the policy is set to `Delete`, the `External Resource` will be deleted when the `Concrete Resource` is deleted, which is generally triggered by the deletetion of a `Resource Claim` for that `Concrete Resource`. If set to `Retain`, the `Concrete Resource` will be deleted, but the `External Resource` will persist.
 
-*Note: `reclaimPolicy` is not a required field for a `ResourceClass`. If it is not supplied, the `Concrete Resource` will be created with it's default `reclaimPolicy`. Defaults differ from one `Concrete Resource` type to another (i.e. AWS S3 buckets default to `Delete` while, Azure AKS clusters default to `Retain`).*
+*Note: `reclaimPolicy` is not a required field for a `ResourceClass`. If it is not supplied, the `Concrete Resource` will be created with it's default `reclaimPolicy`. Currenty, every `Concrete Resource` in Crossplane defaults to `Retain`.*
 
 ## Workflow
 
