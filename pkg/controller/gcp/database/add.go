@@ -18,21 +18,26 @@ package database
 
 import (
 	"fmt"
-	"github.com/crossplaneio/crossplane/pkg/resource"
+	"strings"
+
 	"github.com/pkg/errors"
 	core "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/source"
-	"strings"
+
+	"github.com/crossplaneio/crossplane/pkg/resource"
 
 	"github.com/crossplaneio/crossplane/pkg/apis/gcp/database/v1alpha1"
 	storagev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
 )
 
-// Add creates a newSyncDeleter Controller and adds it to the Manager with default RBAC.
-// The Manager will set fields on the Controller and Start it when the Manager is Started.
+// The main motivation for creating add.go and move `Add` controller-runtime Manager
+// functions for CloudsqlInstance, PostgreSQLClaim and MySQLClaim is to add this
+// file to the coverage "ignore" list
+
+// Add creates a Controller that reconciles CloudsqlInstance resources
 func Add(mgr manager.Manager) error {
 	r := &Reconciler{
 		Client:  mgr.GetClient(),

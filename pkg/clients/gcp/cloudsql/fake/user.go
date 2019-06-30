@@ -21,7 +21,7 @@ import (
 
 	"github.com/crossplaneio/crossplane/pkg/clients/gcp/cloudsql"
 
-	"google.golang.org/api/sqladmin/v1beta4"
+	sqladmin "google.golang.org/api/sqladmin/v1beta4"
 )
 
 // MockUserClient implements UserService interface

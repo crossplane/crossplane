@@ -1261,8 +1261,7 @@ func Test_newManagedHandler(t *testing.T) {
 		creds    *google.Credentials
 	}
 	type want struct {
-		hand *managedHandler
-		err  error
+		err error
 	}
 	tests := map[string]struct {
 		args args

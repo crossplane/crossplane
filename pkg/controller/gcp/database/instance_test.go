@@ -76,7 +76,6 @@ func Test_handleNotFound(t *testing.T) {
 func Test_instanceCreateUpdater_update(t *testing.T) {
 	type fields struct {
 		operations managedOperations
-		projectID  string
 	}
 	type args struct {
 		ctx  context.Context
@@ -191,7 +190,6 @@ func Test_instanceCreateUpdater_update(t *testing.T) {
 func Test_instanceCreateUpdater_create(t *testing.T) {
 	type fields struct {
 		operations managedOperations
-		projectID  string
 	}
 	type args struct {
 		ctx context.Context
@@ -264,7 +262,6 @@ func Test_instanceSyncDeleter_sync(t *testing.T) {
 		err error
 	}
 	tests := map[string]struct {
-		name   string
 		fields fields
 		args   args
 		want   want
@@ -498,7 +495,6 @@ func Test_operationsFactory_makeManagedOperations(t *testing.T) {
 	}
 
 	tests := map[string]struct {
-		name string
 		kube client.Client
 		args args
 		want want

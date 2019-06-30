@@ -129,13 +129,17 @@ func (h *localHandler) getConnectionSecret(ctx context.Context) (*corev1.Secret,
 
 func (h *localHandler) updateConnectionSecret(ctx context.Context) (*corev1.Secret, error) {
 	secret := h.ConnectionSecret()
+
 	password, err := util.GeneratePassword(v1alpha1.PasswordLength)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to generate password")
 	}
-	secret.Data[corev1alpha1.ResourceCredentialsSecretPasswordKey] = []byte(password)
+
 	s := secret.DeepCopy()
 	return s, util.CreateOrUpdate(ctx, h.client, s, func() error {
+		if _, found := s.Data[corev1alpha1.ResourceCredentialsSecretPasswordKey]; !found {
+			s.Data[corev1alpha1.ResourceCredentialsSecretPasswordKey] = []byte(password)
+		}
 		s.Data[corev1alpha1.ResourceCredentialsSecretEndpointKey] = secret.Data[corev1alpha1.ResourceCredentialsSecretEndpointKey]
 		s.Data[corev1alpha1.ResourceCredentialsSecretUserKey] = secret.Data[corev1alpha1.ResourceCredentialsSecretUserKey]
 		return nil
@@ -222,11 +226,22 @@ func (h *managedHandler) getUser(ctx context.Context) (*sqladmin.User, error) {
 	}
 }
 
+// updateUserCreds
+//
+//  Currently there is no "good" way to validate user password drift, which
+//  leaves us with two options:
+//  1. Set once an forget it (previous approach)
+//  2. Perform user update even if there are no changes (including in password)
+//
+// TODO(illya): In the future, we need to come up with more sophisticated means
+//  to detect the password value drift
 func (h *managedHandler) updateUserCreds(ctx context.Context) error {
+
 	secret, err := h.updateConnectionSecret(ctx)
 	if err != nil {
 		return errors.Wrapf(err, "failed to update connection secret")
 	}
+
 	user, err := h.getUser(ctx)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get user")

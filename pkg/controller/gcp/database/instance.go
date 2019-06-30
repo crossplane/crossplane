@@ -43,7 +43,7 @@ const (
 
 	reconcileTimeout      = 1 * time.Minute
 	requeueAfterOnWait    = 10 * time.Second
-	requeueAfterOnSuccess = 60 * time.Second
+	requeueAfterOnSuccess = 5 * time.Minute
 )
 
 var (

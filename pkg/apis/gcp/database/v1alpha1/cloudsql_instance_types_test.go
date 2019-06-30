@@ -195,7 +195,9 @@ func TestCloudsqlInstance_DatabaseInstance(t *testing.T) {
 			want: &sqladmin.DatabaseInstance{
 				Name: "foo",
 				Settings: &sqladmin.Settings{
-					IpConfiguration: &sqladmin.IpConfiguration{},
+					IpConfiguration: &sqladmin.IpConfiguration{
+						AuthorizedNetworks: []*sqladmin.AclEntry{},
+					},
 				},
 			},
 		},

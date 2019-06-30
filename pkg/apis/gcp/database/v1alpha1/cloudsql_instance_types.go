@@ -89,6 +89,7 @@ type CloudsqlInstanceStatus struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // CloudsqlInstance is the Schema for the instances API
+// +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.bindingPhase"
 // +kubebuilder:printcolumn:name="STATE",type="string",JSONPath=".status.state"
 // +kubebuilder:printcolumn:name="CLASS",type="string",JSONPath=".spec.classRef.name"
@@ -134,7 +135,7 @@ func (i *CloudsqlInstance) GetClassReference() *corev1.ObjectReference {
 	return i.Spec.ClassReference
 }
 
-// GetCloudProviderReference of this CloudsqlInstance
+// GetProviderReference of this CloudsqlInstance
 func (i *CloudsqlInstance) GetProviderReference() *corev1.ObjectReference {
 	return i.Spec.ProviderReference
 }
@@ -198,9 +199,9 @@ func (i *CloudsqlInstance) ConnectionSecret() *corev1.Secret {
 
 // DatabaseInstance representing spec of this instance
 func (i *CloudsqlInstance) DatabaseInstance(name string) *sqladmin.DatabaseInstance {
-	var authnets []*sqladmin.AclEntry
-	for _, v := range i.Spec.AuthorizedNetworks {
-		authnets = append(authnets, &sqladmin.AclEntry{Value: v})
+	authnets := make([]*sqladmin.AclEntry, len(i.Spec.AuthorizedNetworks))
+	for i, v := range i.Spec.AuthorizedNetworks {
+		authnets[i] = &sqladmin.AclEntry{Value: v}
 	}
 
 	return &sqladmin.DatabaseInstance{
