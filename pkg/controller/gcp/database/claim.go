@@ -23,10 +23,6 @@ import (
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/apis/gcp/database/v1alpha1"
@@ -34,47 +30,18 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/resource"
 )
 
-// AddPostgreSQLClaim adds a controller that reconciles PostgreSQLInstance resource claims by
-// managing CloudsqlInstance resources to the supplied Manager.
-func AddPostgreSQLClaim(mgr manager.Manager) error {
-	r := resource.NewClaimReconciler(mgr,
-		resource.ClaimKind(storagev1alpha1.PostgreSQLInstanceGroupVersionKind),
-		resource.ManagedKind(v1alpha1.CloudsqlInstanceGroupVersionKind),
-		resource.WithManagedConfigurators(
-			resource.ManagedConfiguratorFn(ConfigurePostgreCloudsqlInstance),
-			resource.NewObjectMetaConfigurator(mgr.GetScheme()),
-		))
-
-	name := strings.ToLower(fmt.Sprintf("%s.%s", storagev1alpha1.PostgreSQLInstanceKind, controllerName))
-	c, err := controller.New(name, mgr, controller.Options{Reconciler: r})
-	if err != nil {
-		return errors.Wrapf(err, "cannot create %s controller", name)
-	}
-
-	if err := c.Watch(&source.Kind{Type: &v1alpha1.CloudsqlInstance{}}, &resource.EnqueueRequestForClaim{}); err != nil {
-		return errors.Wrapf(err, "cannot watch for %s", v1alpha1.CloudsqlInstanceGroupVersionKind)
-	}
-
-	p := v1alpha1.CloudsqlInstanceKindAPIVersion
-	return errors.Wrapf(c.Watch(
-		&source.Kind{Type: &storagev1alpha1.PostgreSQLInstance{}},
-		&handler.EnqueueRequestForObject{},
-		resource.NewPredicates(resource.ObjectHasProvisioner(mgr.GetClient(), p)),
-	), "cannot watch for %s", storagev1alpha1.PostgreSQLInstanceGroupVersionKind)
-}
-
-// ConfigurePostgreCloudsqlInstance configures the supplied resource (presumed
-// to be a CloudsqlInstance) using the supplied resource claim (presumed to be a
-// PostgreSQLInstance) and resource class.
+// ConfigurePostgreCloudsqlInstance configures the supplied instance (presumed
+// to be a CloudsqlInstance) using the supplied instance claim (presumed to be a
+// PostgreSQLInstance) and instance class.
 func ConfigurePostgreCloudsqlInstance(_ context.Context, cm resource.Claim, cs *corev1alpha1.ResourceClass, mg resource.Managed) error {
 	pg, cmok := cm.(*storagev1alpha1.PostgreSQLInstance)
 	if !cmok {
-		return errors.Errorf("expected resource claim %s to be %s", cm.GetName(), storagev1alpha1.PostgreSQLInstanceGroupVersionKind)
+		return errors.Errorf("expected instance claim %s to be %s", cm.GetName(), storagev1alpha1.PostgreSQLInstanceGroupVersionKind)
 	}
 
 	i, mgok := mg.(*v1alpha1.CloudsqlInstance)
 	if !mgok {
-		return errors.Errorf("expected managed resource %s to be %s", mg.GetName(), v1alpha1.CloudsqlInstanceGroupVersionKind)
+		return errors.Errorf("expected managed instance %s to be %s", mg.GetName(), v1alpha1.CloudsqlInstanceGroupVersionKind)
 	}
 
 	spec := v1alpha1.NewCloudSQLInstanceSpec(cs.Parameters)
@@ -94,50 +61,18 @@ func ConfigurePostgreCloudsqlInstance(_ context.Context, cm resource.Claim, cs *
 	return nil
 }
 
-// AddMySQLClaim adds a controller that reconciles MySQLInstance resource claims by
-// managing CloudsqlInstance resources to the supplied Manager.
-func AddMySQLClaim(mgr manager.Manager) error {
-	r := resource.NewClaimReconciler(mgr,
-		resource.ClaimKind(storagev1alpha1.MySQLInstanceGroupVersionKind),
-		resource.ManagedKind(v1alpha1.CloudsqlInstanceGroupVersionKind),
-		resource.WithManagedConfigurators(
-			resource.ManagedConfiguratorFn(ConfigureMyCloudsqlInstance),
-			resource.NewObjectMetaConfigurator(mgr.GetScheme()),
-		))
-
-	name := strings.ToLower(fmt.Sprintf("%s.%s", storagev1alpha1.MySQLInstanceKind, controllerName))
-	c, err := controller.New(name, mgr, controller.Options{Reconciler: r})
-	if err != nil {
-		return errors.Wrapf(err, "cannot create %s controller", name)
-	}
-
-	if err := c.Watch(
-		&source.Kind{Type: &v1alpha1.CloudsqlInstance{}},
-		&resource.EnqueueRequestForClaim{},
-	); err != nil {
-		return errors.Wrapf(err, "cannot watch for %s", v1alpha1.CloudsqlInstanceGroupVersionKind)
-	}
-
-	p := v1alpha1.CloudsqlInstanceKindAPIVersion
-	return errors.Wrapf(c.Watch(
-		&source.Kind{Type: &storagev1alpha1.MySQLInstance{}},
-		&handler.EnqueueRequestForObject{},
-		resource.NewPredicates(resource.ObjectHasProvisioner(mgr.GetClient(), p)),
-	), "cannot watch for %s", storagev1alpha1.MySQLInstanceGroupVersionKind)
-}
-
-// ConfigureMyCloudsqlInstance configures the supplied resource (presumed to be
-// a CloudsqlInstance) using the supplied resource claim (presumed to be a
-// MySQLInstance) and resource class.
+// ConfigureMyCloudsqlInstance configures the supplied instance (presumed to be
+// a CloudsqlInstance) using the supplied instance claim (presumed to be a
+// MySQLInstance) and instance class.
 func ConfigureMyCloudsqlInstance(_ context.Context, cm resource.Claim, cs *corev1alpha1.ResourceClass, mg resource.Managed) error {
 	my, cmok := cm.(*storagev1alpha1.MySQLInstance)
 	if !cmok {
-		return errors.Errorf("expected resource claim %s to be %s", cm.GetName(), storagev1alpha1.MySQLInstanceGroupVersionKind)
+		return errors.Errorf("expected instance claim %s to be %s", cm.GetName(), storagev1alpha1.MySQLInstanceGroupVersionKind)
 	}
 
 	i, mgok := mg.(*v1alpha1.CloudsqlInstance)
 	if !mgok {
-		return errors.Errorf("expected managed resource %s to be %s", mg.GetName(), v1alpha1.CloudsqlInstanceGroupVersionKind)
+		return errors.Errorf("expected managed instance %s to be %s", mg.GetName(), v1alpha1.CloudsqlInstanceGroupVersionKind)
 	}
 
 	spec := v1alpha1.NewCloudSQLInstanceSpec(cs.Parameters)
