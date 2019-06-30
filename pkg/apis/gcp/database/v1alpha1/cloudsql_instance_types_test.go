@@ -18,7 +18,11 @@ package v1alpha1
 
 import (
 	"context"
+	"reflect"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
+	sqladmin "google.golang.org/api/sqladmin/v1beta4"
 
 	"github.com/onsi/gomega"
 	core "k8s.io/api/core/v1"
@@ -26,9 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/resource"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
@@ -41,8 +43,6 @@ var (
 	c   client.Client
 	ctx = context.TODO()
 )
-
-var _ resource.Managed = &CloudsqlInstance{}
 
 func TestMain(m *testing.M) {
 	t := test.NewEnv(namespace, SchemeBuilder.SchemeBuilder, test.CRDs())
@@ -83,44 +83,354 @@ func TestStorageCloudsqlInstance(t *testing.T) {
 }
 
 func TestNewCloudSQLInstanceSpec(t *testing.T) {
-	g := gomega.NewGomegaWithT(t)
-
-	m := make(map[string]string)
-	exp := &CloudsqlInstanceSpec{
-		ResourceSpec: v1alpha1.ResourceSpec{
-			ReclaimPolicy: corev1alpha1.ReclaimRetain,
+	tests := map[string]struct {
+		args map[string]string
+		want *CloudsqlInstanceSpec
+	}{
+		"Default": {
+			args: map[string]string{},
+			want: &CloudsqlInstanceSpec{
+				ResourceSpec: corev1alpha1.ResourceSpec{
+					ReclaimPolicy: corev1alpha1.ReclaimRetain,
+				},
+				Labels:    map[string]string{},
+				StorageGB: DefaultStorageGB,
+			},
+		},
+		"Values": {
+			args: map[string]string{
+				"databaseVersion": "POSTGRES_9_6",
+				"labels":          "foo:bar,fizz:buzz,foo:notbar",
+				"region":          "far-far-away",
+				"storageGB":       "42",
+				"storageType":     "special",
+			},
+			want: &CloudsqlInstanceSpec{
+				DatabaseVersion: "POSTGRES_9_6",
+				Labels: map[string]string{
+					"fizz": "buzz",
+					"foo":  "notbar",
+				},
+				ResourceSpec: corev1alpha1.ResourceSpec{
+					ReclaimPolicy: corev1alpha1.ReclaimRetain,
+				},
+				Region:      "far-far-away",
+				StorageGB:   42,
+				StorageType: "special",
+			},
+		},
+		"SomeInvalidValues": {
+			args: map[string]string{
+				"databaseVersion": "POSTGRES_9_6",
+				"labels":          "foo:bar,fizz:buzz,foo:notbar",
+				"region":          "far-far-away",
+				"storageGB":       "forty-two",
+				"storageType":     "special",
+			},
+			want: &CloudsqlInstanceSpec{
+				DatabaseVersion: "POSTGRES_9_6",
+				Labels: map[string]string{
+					"fizz": "buzz",
+					"foo":  "notbar",
+				},
+				ResourceSpec: corev1alpha1.ResourceSpec{
+					ReclaimPolicy: corev1alpha1.ReclaimRetain,
+				},
+				Region:      "far-far-away",
+				StorageGB:   DefaultStorageGB,
+				StorageType: "special",
+			},
 		},
 	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			if got := NewCloudSQLInstanceSpec(tt.args); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("NewCloudSQLInstanceSpec() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
 
-	g.Expect(NewCloudSQLInstanceSpec(m)).To(gomega.Equal(exp))
+func TestCloudsqlInstance_ConnectionSecret(t *testing.T) {
+	tests := map[string]struct {
+		fields *CloudsqlInstance
+		want   map[string][]byte
+	}{
+		"Default": {
+			fields: &CloudsqlInstance{
+				Spec: CloudsqlInstanceSpec{
+					DatabaseVersion: "POSTGRES_9_6",
+				},
+			},
+			want: map[string][]byte{
+				corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(""),
+				corev1alpha1.ResourceCredentialsSecretUserKey:     []byte(PostgresqlDefaultUser),
+			},
+		},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			if diff := cmp.Diff(tt.want, tt.fields.ConnectionSecret().Data); diff != "" {
+				t.Errorf("ConnectionSecret() = %s", diff)
+			}
+		})
+	}
+}
 
-	val := "db-n1-standard-1"
-	m["tier"] = val
-	exp.Tier = val
-	g.Expect(NewCloudSQLInstanceSpec(m)).To(gomega.Equal(exp))
+func TestCloudsqlInstance_DatabaseInstance(t *testing.T) {
+	type fields struct {
+		Spec CloudsqlInstanceSpec
+	}
+	type args struct {
+		name string
+	}
+	tests := map[string]struct {
+		fields fields
+		args   args
+		want   *sqladmin.DatabaseInstance
+	}{
+		"Default": {
+			fields: fields{Spec: CloudsqlInstanceSpec{}},
+			args:   args{name: "foo"},
+			want: &sqladmin.DatabaseInstance{
+				Name: "foo",
+				Settings: &sqladmin.Settings{
+					IpConfiguration: &sqladmin.IpConfiguration{},
+				},
+			},
+		},
+		"WithSpecs": {
+			fields: fields{
+				Spec: CloudsqlInstanceSpec{
+					AuthorizedNetworks: []string{"foo", "bar"},
+					DatabaseVersion:    "test-version",
+					Labels:             map[string]string{"fooz": "booz"},
+					Region:             "test-region",
+					StorageGB:          42,
+					StorageType:        "test-storage",
+					Tier:               "test-tier",
+				},
+			},
+			args: args{name: "test-name"},
+			want: &sqladmin.DatabaseInstance{
+				DatabaseVersion: "test-version",
+				Name:            "test-name",
+				Region:          "test-region",
+				Settings: &sqladmin.Settings{
+					DataDiskSizeGb: 42,
+					DataDiskType:   "test-storage",
+					IpConfiguration: &sqladmin.IpConfiguration{
+						AuthorizedNetworks: []*sqladmin.AclEntry{
+							{Value: "foo"},
+							{Value: "bar"},
+						},
+					},
+					Tier:       "test-tier",
+					UserLabels: map[string]string{"fooz": "booz"},
+				},
+			},
+		},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			c := &CloudsqlInstance{
+				Spec: tt.fields.Spec,
+			}
+			if diff := cmp.Diff(tt.want, c.DatabaseInstance(tt.args.name)); diff != "" {
+				t.Errorf("DatabaseInstance() = %s", diff)
+			}
+		})
+	}
+}
 
-	val = "us-west2"
-	m["region"] = val
-	exp.Region = val
-	g.Expect(NewCloudSQLInstanceSpec(m)).To(gomega.Equal(exp))
+func TestCloudsqlInstance_DatabaseUserName(t *testing.T) {
+	tests := map[string]struct {
+		spec CloudsqlInstanceSpec
+		want string
+	}{
+		"Default": {
+			spec: CloudsqlInstanceSpec{},
+			want: MysqlDefaultUser,
+		},
+		"Postgres": {
+			spec: CloudsqlInstanceSpec{DatabaseVersion: "POSTGRES_9_6"},
+			want: PostgresqlDefaultUser,
+		},
+		"MySQL": {
+			spec: CloudsqlInstanceSpec{DatabaseVersion: "MYSQL_5_7"},
+			want: MysqlDefaultUser,
+		},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			c := &CloudsqlInstance{
+				Spec: tt.spec,
+			}
+			if got := c.DatabaseUserName(); got != tt.want {
+				t.Errorf("DatabaseUserName() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
 
-	val = "MYSQL_5_7"
-	m["databaseVersion"] = val
-	exp.DatabaseVersion = val
-	g.Expect(NewCloudSQLInstanceSpec(m)).To(gomega.Equal(exp))
+func TestBucket_GetResourceName(t *testing.T) {
+	om := metav1.ObjectMeta{
+		Namespace: "foo",
+		Name:      "bar",
+		UID:       "test-uid",
+	}
+	type fields struct {
+		meta metav1.ObjectMeta
+		spec CloudsqlInstanceSpec
+	}
+	tests := map[string]struct {
+		fields fields
+		want   string
+	}{
+		"NoNameFormat": {
+			fields: fields{
+				meta: om,
+				spec: CloudsqlInstanceSpec{},
+			},
+			want: "test-uid",
+		},
+		"FormatString": {
+			fields: fields{
+				meta: om,
+				spec: CloudsqlInstanceSpec{
+					NameFormat: "foo-%s",
+				},
+			},
+			want: "foo-test-uid",
+		},
+		"ConstantString": {
+			fields: fields{
+				meta: om,
+				spec: CloudsqlInstanceSpec{
+					NameFormat: "foo-bar",
+				},
+			},
+			want: "foo-bar",
+		},
+		"InvalidMultipleSubstitutions": {
+			fields: fields{
+				meta: om,
+				spec: CloudsqlInstanceSpec{
+					NameFormat: "foo-%s-bar-%s",
+				},
+			},
+			want: "foo-test-uid-bar-%!s(MISSING)",
+		},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			b := &CloudsqlInstance{
+				ObjectMeta: tt.fields.meta,
+				Spec:       tt.fields.spec,
+			}
+			if got := b.GetResourceName(); got != tt.want {
+				t.Errorf("Bucket.GetBucketName() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
 
-	val = "PD_SSD"
-	m["storageType"] = val
-	exp.StorageType = val
-	g.Expect(NewCloudSQLInstanceSpec(m)).To(gomega.Equal(exp))
+func TestCloudsqlInstance_IsAvailable(t *testing.T) {
+	tests := map[string]struct {
+		status CloudsqlInstanceStatus
+		want   bool
+	}{
+		"Default": {
+			status: CloudsqlInstanceStatus{},
+		},
+		"Runnable": {
+			status: CloudsqlInstanceStatus{
+				State: StateRunnable,
+			},
+			want: true,
+		},
+		"NotRunnable": {
+			status: CloudsqlInstanceStatus{
+				State: "something-else",
+			},
+		},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			c := &CloudsqlInstance{
+				Status: tt.status,
+			}
+			if got := c.IsAvailable(); got != tt.want {
+				t.Errorf("IsAvailable() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
 
-	val = "100"
-	m["storageGB"] = val
-	exp.StorageGB = 100
-	g.Expect(NewCloudSQLInstanceSpec(m)).To(gomega.Equal(exp))
-	// invalid storageGB value
-	val = "not a number"
-	m["storageGB"] = val
-	exp.StorageGB = 0 // value is not set
-	g.Expect(NewCloudSQLInstanceSpec(m)).To(gomega.Equal(exp))
+func TestCloudsqlInstance_SetStatus(t *testing.T) {
+	tests := map[string]struct {
+		status CloudsqlInstanceStatus
+		args   *sqladmin.DatabaseInstance
+		want   CloudsqlInstanceStatus
+	}{
+		"Nil": {
+			status: CloudsqlInstanceStatus{},
+			args:   nil,
+			want:   CloudsqlInstanceStatus{},
+		},
+		"Default": {
+			status: CloudsqlInstanceStatus{},
+			args:   &sqladmin.DatabaseInstance{},
+			want: CloudsqlInstanceStatus{
+				ResourceStatus: corev1alpha1.ResourceStatus{
+					ConditionedStatus: corev1alpha1.ConditionedStatus{
+						Conditions: []corev1alpha1.Condition{
+							{
+								Type:   corev1alpha1.TypeReady,
+								Status: "False",
+								Reason: "Managed resource is not available for use",
+							},
+						},
+					},
+				},
+			},
+		},
+		"Available": {
+			status: CloudsqlInstanceStatus{},
+			args: &sqladmin.DatabaseInstance{
+				IpAddresses: []*sqladmin.IpMapping{
+					{
+						IpAddress: "foo",
+					},
+				},
+				State: StateRunnable,
+			},
+			want: CloudsqlInstanceStatus{
+				ResourceStatus: corev1alpha1.ResourceStatus{
+					ConditionedStatus: corev1alpha1.ConditionedStatus{
+						Conditions: []corev1alpha1.Condition{
+							{
+								Type:   corev1alpha1.TypeReady,
+								Status: "True",
+								Reason: "Managed resource is available for use",
+							},
+						},
+					},
+				},
+				Endpoint: "foo",
+				State:    StateRunnable,
+			},
+		},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			c := &CloudsqlInstance{
+				Status: tt.status,
+			}
+			c.SetStatus(tt.args)
+			if diff := cmp.Diff(tt.want, c.Status); diff != "" {
+				t.Errorf("SetStatus() = %s", diff)
+			}
+		})
+	}
 }

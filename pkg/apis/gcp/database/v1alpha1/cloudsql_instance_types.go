@@ -18,29 +18,33 @@ package v1alpha1
 
 import (
 	"strconv"
+	"strings"
 
+	sqladmin "google.golang.org/api/sqladmin/v1beta4"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/resource"
+	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 // CloudSQL instance states
 const (
 	// StateRunnable represents a CloudSQL instance in a running, available, and ready state
 	StateRunnable = "RUNNABLE"
-
-	// StatePendingCreate represents a CloudSQL instance that is in the process of being created
-	StatePendingCreate = "PENDING_CREATE"
-
-	// StateFailed  represents a CloudSQL instance has failed in some way
-	StateFailed = "FAILED"
 )
 
 // CloudSQL version prefixes.
 const (
-	MysqlDBVersionPrefix      = "MYSQL"
+	MysqlDBVersionPrefix = "MYSQL"
+	MysqlDefaultUser     = "root"
+
 	PostgresqlDBVersionPrefix = "POSTGRES"
+	PostgresqlDefaultUser     = "postgres"
+
+	PasswordLength   = 20
+	DefaultStorageGB = 10
 )
 
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
@@ -49,12 +53,15 @@ const (
 type CloudsqlInstanceSpec struct {
 	corev1alpha1.ResourceSpec `json:",inline"`
 
-	Region      string `json:"region"`
-	StorageType string `json:"storageType"`
-	StorageGB   int64  `json:"storageGB"`
+	AuthorizedNetworks []string `json:"authorizedNetworks,omitempty"`
 
 	// The database engine (MySQL or PostgreSQL) and its specific version to use, e.g., MYSQL_5_7 or POSTGRES_9_6.
 	DatabaseVersion string `json:"databaseVersion"`
+
+	Labels      map[string]string `json:"labels,omitempty"`
+	Region      string            `json:"region"`
+	StorageType string            `json:"storageType"`
+	StorageGB   int64             `json:"storageGB"`
 
 	// MySQL and PostgreSQL use different machine types.  MySQL only allows a predefined set of machine types,
 	// while PostgreSQL can only use custom machine instance types and shared-core instance types. For the full
@@ -63,23 +70,20 @@ type CloudsqlInstanceSpec struct {
 	// https://cloud.google.com/sql/docs/postgres/create-instance?authuser=1#machine-types and the naming rules
 	// on https://cloud.google.com/sql/docs/postgres/create-instance#create-2ndgen-curl.
 	Tier string `json:"tier"`
+
+	// NameFormat to format bucket name passing it a object UID
+	// If not provided, defaults to "%s", i.e. UID value
+	// TODO(illya) - this should be defined in ResourceSpec
+	NameFormat string `json:"nameFormat,omitempty"`
 }
 
 // CloudsqlInstanceStatus defines the observed state of CloudsqlInstance
 type CloudsqlInstanceStatus struct {
 	corev1alpha1.ResourceStatus `json:",inline"`
 
-	State   string `json:"state,omitempty"`
-	Message string `json:"message,omitempty"`
-
-	// the external ID to identify this resource in the cloud provider
-	ProviderID string `json:"providerID,omitempty"`
-
-	// Endpoint of the Cloud SQL instance used in connection strings.
-	Endpoint string `json:"endpoint,omitempty"`
-
-	// Name of the Cloud SQL instance. This does not include the project ID.
-	InstanceName string `json:"instanceName,omitempty"`
+	State          string `json:"state,omitempty"`
+	Endpoint       string `json:"endpoint,omitempty"`
+	ConnectionName string `json:"connection,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -97,6 +101,8 @@ type CloudsqlInstance struct {
 	Spec   CloudsqlInstanceSpec   `json:"spec,omitempty"`
 	Status CloudsqlInstanceStatus `json:"status,omitempty"`
 }
+
+var _ resource.Managed = &CloudsqlInstance{}
 
 // SetBindingPhase of this CloudsqlInstance.
 func (i *CloudsqlInstance) SetBindingPhase(p corev1alpha1.BindingPhase) {
@@ -128,14 +134,9 @@ func (i *CloudsqlInstance) GetClassReference() *corev1.ObjectReference {
 	return i.Spec.ClassReference
 }
 
-// SetWriteConnectionSecretToReference of this CloudsqlInstance.
-func (i *CloudsqlInstance) SetWriteConnectionSecretToReference(r corev1.LocalObjectReference) {
-	i.Spec.WriteConnectionSecretToReference = r
-}
-
-// GetWriteConnectionSecretToReference of this CloudsqlInstance.
-func (i *CloudsqlInstance) GetWriteConnectionSecretToReference() corev1.LocalObjectReference {
-	return i.Spec.WriteConnectionSecretToReference
+// GetCloudProviderReference of this CloudsqlInstance
+func (i *CloudsqlInstance) GetProviderReference() *corev1.ObjectReference {
+	return i.Spec.ProviderReference
 }
 
 // GetReclaimPolicy of this CloudsqlInstance.
@@ -146,6 +147,16 @@ func (i *CloudsqlInstance) GetReclaimPolicy() corev1alpha1.ReclaimPolicy {
 // SetReclaimPolicy of this CloudsqlInstance.
 func (i *CloudsqlInstance) SetReclaimPolicy(p corev1alpha1.ReclaimPolicy) {
 	i.Spec.ReclaimPolicy = p
+}
+
+// SetWriteConnectionSecretToReference of this CloudsqlInstance.
+func (i *CloudsqlInstance) SetWriteConnectionSecretToReference(r corev1.LocalObjectReference) {
+	i.Spec.WriteConnectionSecretToReference = r
+}
+
+// GetWriteConnectionSecretToReference of this CloudsqlInstance.
+func (i *CloudsqlInstance) GetWriteConnectionSecretToReference() corev1.LocalObjectReference {
+	return i.Spec.WriteConnectionSecretToReference
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -164,33 +175,96 @@ func NewCloudSQLInstanceSpec(properties map[string]string) *CloudsqlInstanceSpec
 			ReclaimPolicy: corev1alpha1.ReclaimRetain,
 		},
 	}
-
-	val, ok := properties["tier"]
-	if ok {
-		spec.Tier = val
+	spec.DatabaseVersion = properties["databaseVersion"]
+	spec.Labels = util.ParseMap(properties["labels"])
+	spec.Region = properties["region"]
+	spec.StorageType = properties["storageType"]
+	if v, err := strconv.Atoi(properties["storageGB"]); err != nil {
+		spec.StorageGB = DefaultStorageGB
+	} else {
+		spec.StorageGB = int64(v)
 	}
-
-	val, ok = properties["region"]
-	if ok {
-		spec.Region = val
-	}
-
-	val, ok = properties["databaseVersion"]
-	if ok {
-		spec.DatabaseVersion = val
-	}
-
-	val, ok = properties["storageType"]
-	if ok {
-		spec.StorageType = val
-	}
-
-	val, ok = properties["storageGB"]
-	if ok {
-		if storageGB, err := strconv.Atoi(val); err == nil {
-			spec.StorageGB = int64(storageGB)
-		}
-	}
-
+	spec.Tier = properties["tier"]
 	return spec
+}
+
+// ConnectionSecret returns a connection secret for this instance
+func (i *CloudsqlInstance) ConnectionSecret() *corev1.Secret {
+	s := resource.ConnectionSecretFor(i, CloudsqlInstanceGroupVersionKind)
+	s.Data[corev1alpha1.ResourceCredentialsSecretEndpointKey] = []byte(i.Status.Endpoint)
+	s.Data[corev1alpha1.ResourceCredentialsSecretUserKey] = []byte(i.DatabaseUserName())
+	return s
+}
+
+// DatabaseInstance representing spec of this instance
+func (i *CloudsqlInstance) DatabaseInstance(name string) *sqladmin.DatabaseInstance {
+	var authnets []*sqladmin.AclEntry
+	for _, v := range i.Spec.AuthorizedNetworks {
+		authnets = append(authnets, &sqladmin.AclEntry{Value: v})
+	}
+
+	return &sqladmin.DatabaseInstance{
+		Name:            name,
+		Region:          i.Spec.Region,
+		DatabaseVersion: i.Spec.DatabaseVersion,
+		Settings: &sqladmin.Settings{
+			Tier:           i.Spec.Tier,
+			DataDiskType:   i.Spec.StorageType,
+			DataDiskSizeGb: i.Spec.StorageGB,
+			IpConfiguration: &sqladmin.IpConfiguration{
+				AuthorizedNetworks: authnets,
+			},
+			UserLabels: i.Spec.Labels,
+		},
+	}
+}
+
+// DatabaseUserName returns default database user name base on database version
+func (i *CloudsqlInstance) DatabaseUserName() string {
+	if strings.HasPrefix(i.Spec.DatabaseVersion, PostgresqlDBVersionPrefix) {
+		return PostgresqlDefaultUser
+	}
+	return MysqlDefaultUser
+}
+
+// GetResourceName based on the NameFormat spec value,
+// If name format is not provided, resource name defaults to UID
+// If name format provided with '%s' value, resource name will result in formatted string + UID,
+//   NOTE: only single %s substitution is supported
+// If name format does not contain '%s' substitution, i.e. a constant string, the
+// constant string value is returned back
+//
+// Examples:
+//   For all examples assume "UID" = "test-uid"
+//   1. NameFormat = "", ResourceName = "test-uid"
+//   2. NameFormat = "%s", ResourceName = "test-uid"
+//   3. NameFormat = "foo", ResourceName = "foo"
+//   4. NameFormat = "foo-%s", ResourceName = "foo-test-uid"
+//   5. NameFormat = "foo-%s-bar-%s", BucketName = "foo-test-uid-bar-%!s(MISSING)"
+func (i *CloudsqlInstance) GetResourceName() string {
+	return util.ConditionalStringFormat(i.Spec.NameFormat, string(i.GetUID()))
+}
+
+// IsAvailable for usage/binding
+func (i *CloudsqlInstance) IsAvailable() bool {
+	return i.Status.State == StateRunnable
+}
+
+// SetStatus and Available condition, and other fields base on the provided database instance
+func (i *CloudsqlInstance) SetStatus(inst *sqladmin.DatabaseInstance) {
+	if inst == nil {
+		return
+	}
+	i.Status.State = inst.State
+	if i.IsAvailable() {
+		i.Status.SetConditions(corev1alpha1.Available())
+	} else {
+		i.Status.SetConditions(corev1alpha1.Unavailable())
+	}
+
+	if len(inst.IpAddresses) > 0 {
+		i.Status.Endpoint = inst.IpAddresses[0].IpAddress
+	}
+
+	i.Status.ConnectionName = inst.ConnectionName
 }
