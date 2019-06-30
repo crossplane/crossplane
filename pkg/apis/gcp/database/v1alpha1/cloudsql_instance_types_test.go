@@ -18,14 +18,11 @@ package v1alpha1
 
 import (
 	"context"
-	"reflect"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	sqladmin "google.golang.org/api/sqladmin/v1beta4"
-
 	"github.com/onsi/gomega"
-	core "k8s.io/api/core/v1"
+	sqladmin "google.golang.org/api/sqladmin/v1beta4"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -90,10 +87,11 @@ func TestNewCloudSQLInstanceSpec(t *testing.T) {
 		"Default": {
 			args: map[string]string{},
 			want: &CloudsqlInstanceSpec{
+				AuthorizedNetworks: []string{},
+				Labels:             map[string]string{},
 				ResourceSpec: corev1alpha1.ResourceSpec{
 					ReclaimPolicy: corev1alpha1.ReclaimRetain,
 				},
-				Labels:    map[string]string{},
 				StorageGB: DefaultStorageGB,
 			},
 		},
@@ -106,7 +104,8 @@ func TestNewCloudSQLInstanceSpec(t *testing.T) {
 				"storageType":     "special",
 			},
 			want: &CloudsqlInstanceSpec{
-				DatabaseVersion: "POSTGRES_9_6",
+				AuthorizedNetworks: []string{},
+				DatabaseVersion:    "POSTGRES_9_6",
 				Labels: map[string]string{
 					"fizz": "buzz",
 					"foo":  "notbar",
@@ -121,14 +120,16 @@ func TestNewCloudSQLInstanceSpec(t *testing.T) {
 		},
 		"SomeInvalidValues": {
 			args: map[string]string{
-				"databaseVersion": "POSTGRES_9_6",
-				"labels":          "foo:bar,fizz:buzz,foo:notbar",
-				"region":          "far-far-away",
-				"storageGB":       "forty-two",
-				"storageType":     "special",
+				"authorizedNetworks": "1.1.1.1/1,0.0.0.0/0",
+				"databaseVersion":    "POSTGRES_9_6",
+				"labels":             "foo:bar,fizz:buzz,foo:notbar",
+				"region":             "far-far-away",
+				"storageGB":          "forty-two",
+				"storageType":        "special",
 			},
 			want: &CloudsqlInstanceSpec{
-				DatabaseVersion: "POSTGRES_9_6",
+				AuthorizedNetworks: []string{"1.1.1.1/1", "0.0.0.0/0"},
+				DatabaseVersion:    "POSTGRES_9_6",
 				Labels: map[string]string{
 					"fizz": "buzz",
 					"foo":  "notbar",
@@ -144,8 +145,9 @@ func TestNewCloudSQLInstanceSpec(t *testing.T) {
 	}
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			if got := NewCloudSQLInstanceSpec(tt.args); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewCloudSQLInstanceSpec() = %v, want %v", got, tt.want)
+			got := NewCloudSQLInstanceSpec(tt.args)
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Errorf("NewCloudSQLInstanceSpec() want(+), got(-): %s", diff)
 			}
 		})
 	}

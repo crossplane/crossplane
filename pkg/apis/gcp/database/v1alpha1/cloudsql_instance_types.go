@@ -176,6 +176,7 @@ func NewCloudSQLInstanceSpec(properties map[string]string) *CloudsqlInstanceSpec
 			ReclaimPolicy: corev1alpha1.ReclaimRetain,
 		},
 	}
+	spec.AuthorizedNetworks = util.Split(properties["authorizedNetworks"], ",")
 	spec.DatabaseVersion = properties["databaseVersion"]
 	spec.Labels = util.ParseMap(properties["labels"])
 	spec.Region = properties["region"]
