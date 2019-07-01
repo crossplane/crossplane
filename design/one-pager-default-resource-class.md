@@ -92,7 +92,7 @@ Internally, Crossplane will first check to see if a resource class is referenced
 
 ## Controllers
 
-Currently, each Crossplane resource kind (i.e. GKE Cluster, AWS S3 Bucket, etc.) has a controller that reconciles claims for that resource by binding them to the corresponding managed type. These controllers use [predicates](https://github.com/negz/crossplane/blob/resourceful/pkg/resource/predicates.go)(TEMPORARY LINK) to ensure that there is a provisioner defined for the class referenced by the claim. If the claim contains no reference to a class, the controller will not act on the claim.
+Currently, each Crossplane resource kind (i.e. GKE Cluster, AWS S3 Bucket, etc.) has a controller that reconciles claims for that resource by binding them to the corresponding managed type. These controllers use [predicates](https://github.com/crossplaneio/crossplane/blob/master/pkg/resource/predicates.go) to ensure that there is a provisioner defined for the class referenced by the claim. If the claim contains no reference to a class, the controller will not act on the claim.
 
 Default resource classes require a single additional controller that watches for claims of any resource kind that have no class reference defined. The controller will check for this using predicates in the same fashion as the claim controllers. Upon discovery of a claim without a class reference, the controller searches for a class with an `defaultForClaimKinds` field that contains the `Kind` specified in the claim.
 
