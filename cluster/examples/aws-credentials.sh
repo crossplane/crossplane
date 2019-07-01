@@ -104,7 +104,7 @@ cat <<EOS
 #
 # Run the following for the variables that are used throughout the AWS example projects
 #
-export BASE64ENCODED_AWS_PROVIDER_CREDS=\$(base64 -w0 < $KEYFILE)
+export BASE64ENCODED_AWS_PROVIDER_CREDS=\$(base64 $KEYFILE | tr -d "\n")
 export EKS_WORKER_KEY_NAME=$EKS_WORKER_KEY_NAME
 export EKS_ROLE_ARN=$EKS_ROLE_ARN
 export REGION=$REGION
@@ -117,7 +117,7 @@ export RDS_SECURITY_GROUP=$RDS_SECURITY_GROUP
 #
 # Use this environment in an AWS Crossplane provider:
 #
-sed -e "s|BASE64ENCODED_AWS_PROVIDER_CREDS|\$(base64 -w0 < $KEYFILE)|g" \\
+sed -e "s|BASE64ENCODED_AWS_PROVIDER_CREDS|\$(base64 $KEYFILE | tr -d "\n")|g" \\
     -e "s|EKS_WORKER_KEY_NAME|\$EKS_WORKER_KEY_NAME|g" \\
     -e "s|EKS_ROLE_ARN|\$EKS_ROLE_ARN|g" \\
     -e "s|REGION|\$REGION|g" \\

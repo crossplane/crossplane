@@ -18,7 +18,7 @@ Waiting for 'CREATE_COMPLETE' from Cloudformation Stack crossplane-example-stack
 #
 # Run the following for the variables that are used throughout the AWS example projects
 #
-export BASE64ENCODED_AWS_PROVIDER_CREDS=$(base64 -w0 < ~/.aws/credentials)
+export BASE64ENCODED_AWS_PROVIDER_CREDS=$(base64 ~/.aws/credentials | tr -d "\n")
 export EKS_WORKER_KEY_NAME=crossplane-example-25077
 export EKS_ROLE_ARN=arn:aws:iam::987654321234:role/crossplane-example-role-25077
 export REGION=eu-west-1
@@ -31,7 +31,7 @@ export RDS_SECURITY_GROUP=sg-0b586dbd763fb35ad
 #
 # For example, to use this environment as an AWS Crossplane provider:
 #
-sed -e "s|BASE64ENCODED_AWS_PROVIDER_CREDS|$(base64 -w0 < /home/marques/.aws/credentials)|g" \
+sed -e "s|BASE64ENCODED_AWS_PROVIDER_CREDS|$(base64 ~/.aws/credentials | tr -d "\n")|g" \
     -e "s|EKS_WORKER_KEY_NAME|$EKS_WORKER_KEY_NAME|g" \
     -e "s|EKS_ROLE_ARN|$EKS_ROLE_ARN|g" \
     -e "s|REGION|$REGION|g" \
