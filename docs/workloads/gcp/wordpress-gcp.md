@@ -30,7 +30,7 @@ For the next steps, make sure your `kubectl` context points to the cluster where
 
   ```bash
   export PROJECT_ID=[your-demo-project-id]
-  export BASE64ENCODED_GCP_PROVIDER_CREDS=$(base64 -w0 crossplane-gcp-provider-key.json)
+  export BASE64ENCODED_GCP_PROVIDER_CREDS=$(base64 crossplane-gcp-provider-key.json | tr -d "\n")
   ```
 
 * Patch and Apply `provider.yaml`:
