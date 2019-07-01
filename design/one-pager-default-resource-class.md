@@ -8,8 +8,8 @@ The Crossplane ecosystem exposes the concepts of [Resource Classes and Resource 
 ## Goals
 
 - Allow operators and administrators the opportunity to provide a well defined, sane default class of commonly used resources that developers commonly submit claims for within a team or organization
-- Minimize the burden of determining acceptable resource claims to submit for approval to an operations team. The ability to fall back on the underlying resource that has been deemed acceptable reduces uneccessary workflow stoppages and side channel communication
-- Provide an *optional* feature that does not necessarily have to be implented within a team or organization
+- Minimize the burden of determining acceptable resource claims to submit for approval to an operations team. The ability to fall back on the underlying resource that has been deemed acceptable reduces unnecessary workflow stoppages and side channel communication
+- Provide an *optional* feature that does not necessarily have to be implemented within a team or organization
 
 ## Non-Goals
 
