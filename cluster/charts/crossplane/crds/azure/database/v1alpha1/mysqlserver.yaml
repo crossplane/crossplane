@@ -46,6 +46,10 @@ spec:
           properties:
             adminLoginName:
               type: string
+            claimRef:
+              type: object
+            classRef:
+              type: object
             location:
               type: string
             pricingTier:
@@ -62,6 +66,10 @@ spec:
               - vcores
               - family
               type: object
+            providerRef:
+              type: object
+            reclaimPolicy:
+              type: string
             resourceGroupName:
               type: string
             sslEnforced:
@@ -81,7 +89,10 @@ spec:
               type: object
             version:
               type: string
+            writeConnectionSecretToRef:
+              type: object
           required:
+          - providerRef
           - resourceGroupName
           - location
           - pricingTier

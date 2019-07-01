@@ -53,6 +53,10 @@ spec:
           type: object
         spec:
           properties:
+            claimRef:
+              type: object
+            classRef:
+              type: object
             cliInput:
               description: CLIInput --cli-input-json  (string) Performs service operation
                 based on the JSON string provided. The JSON string follows the format
@@ -126,6 +130,10 @@ spec:
                 - groups
                 type: object
               type: array
+            providerRef:
+              type: object
+            reclaimPolicy:
+              type: string
             region:
               description: Region for EKS Cluster
               enum:
@@ -285,7 +293,10 @@ spec:
               - keyName
               - nodeInstanceType
               type: object
+            writeConnectionSecretToRef:
+              type: object
           required:
+          - providerRef
           - region
           - roleARN
           - vpcId

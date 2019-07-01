@@ -52,6 +52,10 @@ spec:
                 Compute Engine network to which the instance is connected. If left
                 unspecified, the default network will be used.
               type: string
+            claimRef:
+              type: object
+            classRef:
+              type: object
             locationId:
               description: LocationID specifies the zone where the instance will be
                 provisioned. If not provided, the service will choose a zone for the
@@ -62,6 +66,10 @@ spec:
               description: MemorySizeGB specifies the Redis memory size in GiB.
               format: int64
               type: integer
+            providerRef:
+              type: object
+            reclaimPolicy:
+              type: string
             redisConfigs:
               description: 'RedisConfigs specifies Redis configuration parameters,
                 according to http://redis.io/topics/config. Currently, the only supported
@@ -94,7 +102,10 @@ spec:
               - BASIC
               - STANDARD_HA
               type: string
+            writeConnectionSecretToRef:
+              type: object
           required:
+          - providerRef
           - region
           - tier
           - memorySizeGb

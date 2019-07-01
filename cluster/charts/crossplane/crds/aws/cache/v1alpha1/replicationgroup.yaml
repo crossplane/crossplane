@@ -86,6 +86,10 @@ spec:
                 your cluster in an Amazon VPC, you need to create a subnet group before
                 you start creating a cluster.
               type: string
+            claimRef:
+              type: object
+            classRef:
+              type: object
             engineVersion:
               description: EngineVersion specifies the version number of the cache
                 engine to be used for the clusters in this replication group. To view
@@ -165,6 +169,10 @@ spec:
                 as a range in the format ddd:hh24:mi-ddd:hh24:mi (24H Clock UTC).
                 The minimum maintenance window is a 60 minute period.  Example: sun:23:00-mon:01:30'
               type: string
+            providerRef:
+              type: object
+            reclaimPolicy:
+              type: string
             replicasPerNodeGroup:
               description: ReplicasPerNodeGroup specifies the number of replica nodes
                 in each node group (shard). Valid values are 0 to 5.
@@ -214,7 +222,10 @@ spec:
                 cluster you must TransitEncryptionEnabled to true when you create
                 a cluster.
               type: boolean
+            writeConnectionSecretToRef:
+              type: object
           required:
+          - providerRef
           - cacheNodeType
           type: object
         status:

@@ -64,7 +64,7 @@ var (
 
 // EKSClusterSpec specifies the configuration for an EKS cluster.
 type EKSClusterSpec struct {
-	corev1alpha1.ResourceSpec
+	corev1alpha1.ResourceSpec `json:",inline"`
 
 	// Configuration of this Spec is dependent on the readme as described here
 	// https://docs.aws.amazon.com/eks/latest/userguide/getting-started.html

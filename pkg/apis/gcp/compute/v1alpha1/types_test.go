@@ -22,6 +22,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	. "github.com/onsi/gomega"
+	core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -58,6 +59,9 @@ func TestGKECluster(t *testing.T) {
 			NumNodes:       int64(1),
 			Zone:           "us-central1-a",
 			MachineType:    "n1-standard-1",
+			ResourceSpec: v1alpha1.ResourceSpec{
+				ProviderReference: &core.ObjectReference{},
+			},
 		},
 	}
 	g := NewGomegaWithT(t)

@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	. "github.com/onsi/gomega"
+	core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -74,7 +75,8 @@ func TestEKSCluster(t *testing.T) {
 				ClusterControlPlaneSecurityGroup: "sg-cluster-sec-group",
 			},
 			ResourceSpec: corev1alpha1.ResourceSpec{
-				ReclaimPolicy: corev1alpha1.ReclaimRetain,
+				ProviderReference: &core.ObjectReference{},
+				ReclaimPolicy:     corev1alpha1.ReclaimRetain,
 			},
 		},
 	}

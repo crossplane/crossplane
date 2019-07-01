@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/onsi/gomega"
+	core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -56,7 +57,14 @@ func TestMain(m *testing.M) {
 
 func TestStorageMysqlServer(t *testing.T) {
 	key := types.NamespacedName{Name: name, Namespace: namespace}
-	created := &MysqlServer{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace}}
+	created := &MysqlServer{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+		Spec: SQLServerSpec{
+			ResourceSpec: corev1alpha1.ResourceSpec{
+				ProviderReference: &core.ObjectReference{},
+			},
+		},
+	}
 	g := gomega.NewGomegaWithT(t)
 
 	// Test Create
@@ -81,7 +89,14 @@ func TestStorageMysqlServer(t *testing.T) {
 
 func TestStoragePostgresqlServer(t *testing.T) {
 	key := types.NamespacedName{Name: name, Namespace: namespace}
-	created := &PostgresqlServer{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace}}
+	created := &PostgresqlServer{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+		Spec: SQLServerSpec{
+			ResourceSpec: corev1alpha1.ResourceSpec{
+				ProviderReference: &core.ObjectReference{},
+			},
+		},
+	}
 	g := gomega.NewGomegaWithT(t)
 
 	// Test Create

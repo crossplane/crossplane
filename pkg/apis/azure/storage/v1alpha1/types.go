@@ -27,7 +27,7 @@ import (
 
 // AccountSpec is the schema for Account object
 type AccountSpec struct {
-	corev1alpha1.ResourceSpec
+	corev1alpha1.ResourceSpec `json:",inline"`
 
 	// ResourceGroupName azure group name
 	ResourceGroupName string `json:"resourceGroupName"`

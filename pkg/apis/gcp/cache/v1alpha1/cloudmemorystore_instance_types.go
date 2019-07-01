@@ -48,7 +48,7 @@ var (
 // Most fields map directly to a GCP Instance resource.
 // https://cloud.google.com/memorystore/docs/redis/reference/rest/v1/projects.locations.instances#Instance
 type CloudMemorystoreInstanceSpec struct {
-	corev1alpha1.ResourceSpec
+	corev1alpha1.ResourceSpec `json:",inline"`
 
 	// Region in which to create this CloudMemorystore cluster.
 	Region string `json:"region"`

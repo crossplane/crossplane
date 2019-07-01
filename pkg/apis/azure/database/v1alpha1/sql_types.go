@@ -226,7 +226,7 @@ type PostgresqlServerList struct {
 
 // SQLServerSpec defines the desired state of SQLServer
 type SQLServerSpec struct {
-	corev1alpha1.ResourceSpec
+	corev1alpha1.ResourceSpec `json:",inline"`
 
 	ResourceGroupName string             `json:"resourceGroupName"`
 	Location          string             `json:"location"`

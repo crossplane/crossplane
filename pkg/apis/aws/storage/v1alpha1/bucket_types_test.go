@@ -24,6 +24,7 @@ import (
 	"github.com/onsi/gomega"
 	. "github.com/onsi/gomega"
 	"golang.org/x/net/context"
+	core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -63,6 +64,9 @@ func TestStorageS3Bucket(t *testing.T) {
 			NameFormat:      "test-bucket-name-%s",
 			Region:          "us-west-1",
 			LocalPermission: &perm,
+			ResourceSpec: corev1alpha1.ResourceSpec{
+				ProviderReference: &core.ObjectReference{},
+			},
 		},
 	}
 	g := gomega.NewGomegaWithT(t)

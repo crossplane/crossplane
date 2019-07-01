@@ -40,7 +40,7 @@ const (
 
 // GKEClusterSpec specifies the configuration of a GKE cluster.
 type GKEClusterSpec struct {
-	corev1alpha1.ResourceSpec
+	corev1alpha1.ResourceSpec `json:",inline"`
 
 	Addons                    []string          `json:"addons,omitempty"`
 	Async                     bool              `json:"async,omitempty"`

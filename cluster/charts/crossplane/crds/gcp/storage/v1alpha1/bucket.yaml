@@ -50,6 +50,10 @@ spec:
               description: BucketPolicyOnly configures access checks to use only bucket-level
                 IAM policies.
               type: object
+            claimRef:
+              type: object
+            classRef:
+              type: object
             cors:
               description: The bucket's Cross-Origin Resource Sharing (CORS) configuration.
               items:
@@ -198,6 +202,10 @@ spec:
                 is always empty for BucketAttrs returned from the service. See https://cloud.google.com/storage/docs/json_api/v1/buckets/insert
                 for valid values.
               type: string
+            providerRef:
+              type: object
+            reclaimPolicy:
+              type: string
             requesterPays:
               description: RequesterPays reports whether the bucket is a Requester
                 Pays bucket. Clients performing operations on Requester Pays buckets
@@ -262,6 +270,10 @@ spec:
                     result.
                   type: string
               type: object
+            writeConnectionSecretToRef:
+              type: object
+          required:
+          - providerRef
           type: object
         status:
           properties:
