@@ -23,6 +23,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/onsi/gomega"
 	"golang.org/x/net/context"
+	core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -60,6 +61,9 @@ func TestAzureStorageAccount(t *testing.T) {
 			ResourceGroupName:  "test-group",
 			StorageAccountName: "test-name",
 			StorageAccountSpec: &StorageAccountSpec{},
+			ResourceSpec: v1alpha1.ResourceSpec{
+				ProviderReference: &core.ObjectReference{},
+			},
 		},
 	}
 	g := gomega.NewGomegaWithT(t)

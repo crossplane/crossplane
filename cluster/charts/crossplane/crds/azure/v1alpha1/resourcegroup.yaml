@@ -28,12 +28,24 @@ spec:
           type: object
         spec:
           properties:
+            claimRef:
+              type: object
+            classRef:
+              type: object
             location:
               description: See official list of valid regions - https://azure.microsoft.com/en-us/global-infrastructure/regions/
               type: string
             name:
               description: Name of the resource group
               type: string
+            providerRef:
+              type: object
+            reclaimPolicy:
+              type: string
+            writeConnectionSecretToRef:
+              type: object
+          required:
+          - providerRef
           type: object
         status:
           properties:

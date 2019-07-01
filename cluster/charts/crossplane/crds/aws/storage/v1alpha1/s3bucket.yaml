@@ -52,6 +52,10 @@ spec:
               - log-delivery-write
               - aws-exec-read
               type: string
+            claimRef:
+              type: object
+            classRef:
+              type: object
             localPermission:
               description: LocalPermission is the permissions granted on the bucket
                 for the provider specific bucket service account that is available
@@ -65,12 +69,19 @@ spec:
               description: NameFormat to format bucket name passing it a object UID
                 If not provided, defaults to "%s", i.e. UID value
               type: string
+            providerRef:
+              type: object
+            reclaimPolicy:
+              type: string
             region:
               description: Region is the aws region for the bucket
               type: string
             versioning:
               type: boolean
+            writeConnectionSecretToRef:
+              type: object
           required:
+          - providerRef
           - region
           - localPermission
           type: object

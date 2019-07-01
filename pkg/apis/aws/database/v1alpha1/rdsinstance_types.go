@@ -34,7 +34,7 @@ const (
 
 // RDSInstanceSpec defines the desired state of RDSInstance
 type RDSInstanceSpec struct {
-	corev1alpha1.ResourceSpec
+	corev1alpha1.ResourceSpec `json:",inline"`
 
 	MasterUsername string `json:"masterUsername"`
 	Engine         string `json:"engine"`

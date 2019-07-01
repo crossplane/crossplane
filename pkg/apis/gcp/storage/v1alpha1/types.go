@@ -761,7 +761,7 @@ func NewBucketOutputAttrs(attrs *storage.BucketAttrs) BucketOutputAttrs {
 
 // BucketSpec defines the desired state of Bucket
 type BucketSpec struct {
-	corev1alpha1.ResourceSpec
+	corev1alpha1.ResourceSpec `json:",inline"`
 
 	BucketSpecAttrs `json:",inline"`
 

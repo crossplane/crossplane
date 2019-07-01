@@ -71,7 +71,7 @@ var LatestSupportedPatchVersion = map[MinorVersion]PatchVersion{
 // Most fields map directly to an AWS ReplicationGroup resource.
 // https://docs.aws.amazon.com/AmazonElastiCache/latest/APIReference/API_CreateReplicationGroup.html#API_CreateReplicationGroup_RequestParameters
 type ReplicationGroupSpec struct {
-	corev1alpha1.ResourceSpec
+	corev1alpha1.ResourceSpec `json:",inline"`
 
 	// AtRestEncryptionEnabled enables encryption at rest when set to true.
 	//

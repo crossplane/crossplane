@@ -44,13 +44,21 @@ spec:
           type: object
         spec:
           properties:
+            claimRef:
+              type: object
             class:
               type: string
+            classRef:
+              type: object
             engine:
               type: string
             engineVersion:
               type: string
             masterUsername:
+              type: string
+            providerRef:
+              type: object
+            reclaimPolicy:
               type: string
             securityGroups:
               description: "VPC Security groups that will allow the RDS instance to
@@ -72,7 +80,10 @@ spec:
                 If no DB subnet group is specified, then the new DB instance is not
                 created in a VPC.
               type: string
+            writeConnectionSecretToRef:
+              type: object
           required:
+          - providerRef
           - masterUsername
           - engine
           - class

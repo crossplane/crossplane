@@ -55,7 +55,7 @@ type ProviderList struct {
 // ResourceGroupSpec defines the desired state of Resource Group
 type ResourceGroupSpec struct {
 	// Important: Run "make generate" to regenerate code after modifying this file
-	corev1alpha1.ResourceSpec
+	corev1alpha1.ResourceSpec `json:",inline"`
 
 	// Name of the resource group
 	Name string `json:"name,omitempty"`

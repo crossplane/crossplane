@@ -37,7 +37,7 @@ const (
 
 // AKSClusterSpec is the spec for AKS cluster resources
 type AKSClusterSpec struct {
-	corev1alpha1.ResourceSpec
+	corev1alpha1.ResourceSpec `json:",inline"`
 
 	// ResourceGroupName is the name of the resource group that the cluster will be created in
 	ResourceGroupName string `json:"resourceGroupName"` //--resource-group

@@ -33,7 +33,7 @@ import (
 
 // S3BucketSpec defines the desired state of S3Bucket
 type S3BucketSpec struct {
-	corev1alpha1.ResourceSpec
+	corev1alpha1.ResourceSpec `json:",inline"`
 
 	// NameFormat to format bucket name passing it a object UID
 	// If not provided, defaults to "%s", i.e. UID value

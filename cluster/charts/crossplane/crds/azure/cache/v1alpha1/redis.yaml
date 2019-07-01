@@ -41,12 +41,20 @@ spec:
           type: object
         spec:
           properties:
+            claimRef:
+              type: object
+            classRef:
+              type: object
             enableNonSslPort:
               description: EnableNonSSLPort specifies whether the non-ssl Redis server
                 port (6379) is enabled.
               type: boolean
             location:
               description: Location in which to create this resource.
+              type: string
+            providerRef:
+              type: object
+            reclaimPolicy:
               type: string
             redisConfiguration:
               description: RedisConfiguration specifies Redis Settings.
@@ -99,7 +107,10 @@ spec:
               description: 'SubnetID specifies the full resource ID of a subnet in
                 a virtual network to deploy the Redis cache in. Example format: /subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/Microsoft.{Network|ClassicNetwork}/VirtualNetworks/vnet1/subnets/subnet1'
               type: string
+            writeConnectionSecretToRef:
+              type: object
           required:
+          - providerRef
           - resourceGroupName
           - location
           - sku

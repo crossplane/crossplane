@@ -46,6 +46,14 @@ spec:
           type: object
         spec:
           properties:
+            claimRef:
+              type: object
+            classRef:
+              type: object
+            providerRef:
+              type: object
+            reclaimPolicy:
+              type: string
             resourceGroupName:
               description: ResourceGroupName azure group name
               type: string
@@ -291,7 +299,10 @@ spec:
                     a length no greater than 256 characters.
                   type: object
               type: object
+            writeConnectionSecretToRef:
+              type: object
           required:
+          - providerRef
           - resourceGroupName
           - storageAccountName
           - storageAccountSpec

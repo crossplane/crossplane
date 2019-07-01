@@ -22,6 +22,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/onsi/gomega"
+	core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -51,7 +52,14 @@ func TestMain(m *testing.M) {
 
 func TestStorageReplicationGroup(t *testing.T) {
 	key := types.NamespacedName{Name: name, Namespace: namespace}
-	created := &ReplicationGroup{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace}}
+	created := &ReplicationGroup{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+		Spec: ReplicationGroupSpec{
+			ResourceSpec: corev1alpha1.ResourceSpec{
+				ProviderReference: &core.ObjectReference{},
+			},
+		},
+	}
 	g := gomega.NewGomegaWithT(t)
 
 	// Test Create

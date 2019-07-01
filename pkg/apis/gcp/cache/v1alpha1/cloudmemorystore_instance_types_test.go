@@ -22,6 +22,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/onsi/gomega"
+	core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -53,7 +54,12 @@ func TestStorageCloudMemorystoreInstance(t *testing.T) {
 	key := types.NamespacedName{Name: name, Namespace: namespace}
 	created := &CloudMemorystoreInstance{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
-		Spec:       CloudMemorystoreInstanceSpec{Tier: TierBasic},
+		Spec: CloudMemorystoreInstanceSpec{
+			Tier: TierBasic,
+			ResourceSpec: corev1alpha1.ResourceSpec{
+				ProviderReference: &core.ObjectReference{},
+			},
+		},
 	}
 	g := gomega.NewGomegaWithT(t)
 

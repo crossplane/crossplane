@@ -22,6 +22,7 @@ import (
 
 	"github.com/Azure/go-autorest/autorest/to"
 	. "github.com/onsi/gomega"
+	core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -61,6 +62,9 @@ func TestAKSCluster(t *testing.T) {
 			Location:          "West US",
 			DNSNamePrefix:     "conductor-aks",
 			DisableRBAC:       true,
+			ResourceSpec: corev1alpha1.ResourceSpec{
+				ProviderReference: &core.ObjectReference{},
+			},
 		},
 	}
 	g := NewGomegaWithT(t)

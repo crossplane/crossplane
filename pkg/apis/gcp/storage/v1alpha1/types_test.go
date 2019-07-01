@@ -62,6 +62,9 @@ func TestStorageGCPBucket(t *testing.T) {
 				Location:     "US",
 				StorageClass: "STANDARD",
 			},
+			ResourceSpec: corev1alpha1.ResourceSpec{
+				ProviderReference: &corev1.ObjectReference{},
+			},
 		},
 	}
 	g := gomega.NewGomegaWithT(t)

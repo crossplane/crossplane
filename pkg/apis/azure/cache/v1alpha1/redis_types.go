@@ -64,7 +64,7 @@ const (
 // Most fields map directly to an Azure Redis resource.
 // https://docs.microsoft.com/en-us/rest/api/redis/redis/get#redisresource
 type RedisSpec struct {
-	corev1alpha1.ResourceSpec
+	corev1alpha1.ResourceSpec `json:",inline"`
 
 	// ResourceGroupName in which to create this resource.
 	ResourceGroupName string `json:"resourceGroupName"`

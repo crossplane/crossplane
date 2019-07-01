@@ -47,7 +47,7 @@ const (
 
 // CloudsqlInstanceSpec defines the desired state of CloudsqlInstance
 type CloudsqlInstanceSpec struct {
-	corev1alpha1.ResourceSpec
+	corev1alpha1.ResourceSpec `json:",inline"`
 
 	Region      string `json:"region"`
 	StorageType string `json:"storageType"`

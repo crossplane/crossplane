@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/onsi/gomega"
+	core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -51,7 +52,14 @@ func TestMain(m *testing.M) {
 
 func TestStorageCloudsqlInstance(t *testing.T) {
 	key := types.NamespacedName{Name: name, Namespace: namespace}
-	created := &CloudsqlInstance{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace}}
+	created := &CloudsqlInstance{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+		Spec: CloudsqlInstanceSpec{
+			ResourceSpec: corev1alpha1.ResourceSpec{
+				ProviderReference: &core.ObjectReference{},
+			},
+		},
+	}
 	g := gomega.NewGomegaWithT(t)
 
 	// Test Create
