@@ -28,7 +28,7 @@ $ cluster/examples/gcp-credentials.sh
 export ORGANIZATION_ID=987654321
 export PROJECT_ID=crossplane-example-1234
 export EXAMPLE_SA=example-1234@crossplane-example-1234.iam.gserviceaccount.com
-export BASE64ENCODED_GCP_PROVIDER_CREDS=$(base64 -w0 crossplane-gcp-provider-key.json)
+export BASE64ENCODED_GCP_PROVIDER_CREDS=$(base64 crossplane-gcp-provider-key.json | tr -d "\n")
 ```
 
 After running `gcp-credentials.sh`, a series of `export` commands will be shown.  Copy and paste the `export` commands that are provided.  These variable names will be referenced throughout the Crossplane examples, generally with a `sed` command.

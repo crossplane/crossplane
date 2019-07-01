@@ -45,8 +45,7 @@ It is essential to make sure that the GCP Service Account used by the Crossplane
 Using GCP Service Account `gcp-credentials.json`:
 - Generate BASE64ENCODED_GCP_PROVIDER_CREDS encoded value:
 ```bash
-cat gcp-credentials.json | base64
-#cat gcp-credentials.json | base64 -w0 # linux variant
+base64 gcp-credentials.json | tr -d "\n"
 ```
 
 - Update [provider.yaml](../../cluster/examples/gitlab/gcp/provider.yaml) replacing `BASE64ENCODED_GCP_PROVIDER_CREDS`
@@ -58,7 +57,7 @@ It is recommended to create a separate GCP Service Account dedicated to storage 
 Follow the same step as for GCP credentials to create and obtain `gcs-credentials.json`
 - Generate BASE64ENCODED_GCS_PROVIDER_CREDS encoded value:
 ```bash
-cat gcs-credentials.json | base64 -w0
+base64 gcs-credentials.json | tr -d "\n"
 ```
 
 Otherwise, you can use `BASE64ENCODED_GCP_PROVIDER_CREDS` in place of `BASE64ENCODED_GCS_PROVIDER_CREDS`

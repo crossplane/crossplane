@@ -56,7 +56,7 @@ Let's create a `ResourceClass` that acts as a "blueprint" that contains the envi
 This is a task that the administrator should complete, since they will have the knowledge and privileges for the specific environment details.
 
 ```console
-sed "s/BASE64ENCODED_${PROVIDER}_PROVIDER_CREDS/`cat ${PROVIDER_KEY_FILE}|base64|tr -d '\n'`/g;" cluster/examples/database/${provider}/postgresql/provider.yaml | kubectl create -f -
+sed "s/BASE64ENCODED_${PROVIDER}_PROVIDER_CREDS/`base64 ${PROVIDER_KEY_FILE} | tr -d '\n'`/g;" cluster/examples/database/${provider}/postgresql/provider.yaml | kubectl create -f -
 kubectl create -f cluster/examples/database/${provider}/postgresql/resource-class.yaml
 ```
 

@@ -46,7 +46,7 @@ aws eks --region $REGION update-kubeconfig --name [your-CLUSTER_NAME]
 
 Create provider:
 ```console
-sed -e "s|REGION|$REGION|g;s|BASE64ENCODED_AWS_PROVIDER_CREDS|`cat ~/.aws/credentials|base64|tr -d '\n'`|g;" cluster/examples/gitlab/aws/provider.yaml | kubectl create -f -
+sed -e "s|REGION|$REGION|g;s|BASE64ENCODED_AWS_PROVIDER_CREDS|`base64 ~/.aws/credentials | tr -d '\n'`|g;" cluster/examples/gitlab/aws/provider.yaml | kubectl create -f -
 ```
 
 - Verify AWS provider was successfully registered by the crossplane

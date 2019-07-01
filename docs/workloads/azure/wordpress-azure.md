@@ -32,7 +32,7 @@ For the next steps, make sure your `kubectl` context points to the cluster where
 - Create the Azure provider object in your cluster:
 
   ```console
-  sed "s/BASE64ENCODED_AZURE_PROVIDER_CREDS/`cat crossplane-azure-provider-key.json|base64|tr -d '\n'`/g;" cluster/examples/workloads/wordpress-azure/provider.yaml | kubectl create -f -
+  sed "s/BASE64ENCODED_AZURE_PROVIDER_CREDS/`base64 crossplane-azure-provider-key.json | tr -d '\n'`/g;" cluster/examples/workloads/wordpress-azure/provider.yaml | kubectl create -f -
   ```
 
 - Next, create the AKS cluster that will eventually be the target cluster for your Workload deployment:
