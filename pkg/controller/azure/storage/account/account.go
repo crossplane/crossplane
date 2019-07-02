@@ -162,7 +162,7 @@ type syncer interface {
 	sync(context.Context) (reconcile.Result, error)
 }
 
-type creater interface {
+type creator interface {
 	create(context.Context) (reconcile.Result, error)
 }
 
@@ -242,7 +242,7 @@ func (asd *accountSyncDeleter) sync(ctx context.Context) (reconcile.Result, erro
 
 // createupdater interface defining create and update operations on/for storage account resource
 type createupdater interface {
-	creater
+	creator
 	updater
 }
 

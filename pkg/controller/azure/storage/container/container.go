@@ -178,7 +178,7 @@ type syncer interface {
 	sync(context.Context) (reconcile.Result, error)
 }
 
-type creater interface {
+type creator interface {
 	create(context.Context) (reconcile.Result, error)
 }
 
@@ -229,7 +229,7 @@ func (csd *containerSyncdeleter) sync(ctx context.Context) (reconcile.Result, er
 }
 
 type createupdater interface {
-	creater
+	creator
 	updater
 }
 
