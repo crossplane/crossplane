@@ -14,60 +14,33 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-//go:generate go run ../../../../vendor/golang.org/x/tools/cmd/stringer/stringer.go ../../../../vendor/golang.org/x/tools/cmd/stringer/importer19.go -type=BindingPhase -trimprefix BindingPhase
-
 package v1alpha1
 
-import (
-	"encoding/json"
-
-	"github.com/pkg/errors"
-)
-
-// BindingPhase is to identify the current binding status of given resources
-type BindingPhase int
-
-// MarshalJSON returns a JSON representation of a BindingPhase.
-func (p BindingPhase) MarshalJSON() ([]byte, error) {
-	return json.Marshal(p.String())
-}
-
-// UnmarshalJSON returns a BindingPhase from its JSON representation.
-func (p *BindingPhase) UnmarshalJSON(b []byte) error {
-	var ps string
-	if err := json.Unmarshal(b, &ps); err != nil {
-		return err
-	}
-	switch ps {
-	case BindingPhaseUnbindable.String():
-		*p = BindingPhaseUnbindable
-	case BindingPhaseUnbound.String():
-		*p = BindingPhaseUnbound
-	case BindingPhaseBound.String():
-		*p = BindingPhaseBound
-	default:
-		return errors.Errorf("unknown binding state %s", ps)
-	}
-	return nil
-}
+// BindingPhase represents the current binding phase of a resource or claim.
+type BindingPhase string
 
 // Binding phases.
 const (
+	// BindingPhaseUnknown resources cannot be bound to another resource because
+	// they are in an unknown binding phase.
+	BindingPhaseUnknown BindingPhase = ""
+
 	// BindingPhaseUnbindable resources cannot be bound to another resource, for
 	// example because they are currently unavailable, or being created.
-	BindingPhaseUnbindable BindingPhase = iota
+	BindingPhaseUnbindable BindingPhase = "Unbindable"
 
 	// BindingPhaseUnbound resources are available for binding to another
 	// resource.
-	BindingPhaseUnbound
+	BindingPhaseUnbound BindingPhase = "Unbound"
 
 	// BindingPhaseBound resources are bound to another resource.
-	BindingPhaseBound
+	BindingPhaseBound BindingPhase = "Bound"
 )
 
 // A BindingStatus represents the bindability and binding of a resource.
 type BindingStatus struct {
 	// Phase represents the binding phase of the resource.
+	// +kubebuilder:validation:Enum=Unbindable,Unbound,Bound
 	Phase BindingPhase `json:"bindingPhase,omitempty"`
 }
 

@@ -381,7 +381,47 @@ func TestReconcile(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{RequeueAfter: aShortWait}},
 		},
-		"ManagedIsUnbindable": {
+		"ManagedIsInUnknownBindingPhase": {
+			args: args{
+				m: &MockManager{
+					c: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+							switch o := o.(type) {
+							case *MockClaim:
+								cm := &MockClaim{}
+								cm.SetResourceReference(&corev1.ObjectReference{})
+								*o = *cm
+								return nil
+							case *MockManaged:
+								// We do not explicitly set a BindingPhase here
+								// because the zero value of BindingPhase is
+								// BindingPhaseUnknown.
+								mg := &MockManaged{}
+								mg.SetCreationTimestamp(now)
+								*o = *mg
+								return nil
+							default:
+								return errUnexpected
+							}
+						}),
+						MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(got runtime.Object) error {
+							want := &MockClaim{}
+							want.SetResourceReference(&corev1.ObjectReference{})
+							want.SetConditions(Binding(), v1alpha1.ReconcileSuccess())
+							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
+								t.Errorf("-want, +got:\n%s", diff)
+							}
+							return nil
+						}),
+					},
+					s: MockSchemeWith(&MockClaim{}, &MockManaged{}),
+				},
+				of:   ClaimKind(MockGVK(&MockClaim{})),
+				with: ManagedKind(MockGVK(&MockManaged{})),
+			},
+			want: want{result: reconcile.Result{Requeue: false}},
+		},
+		"ManagedIsInUnbindableBindingPhase": {
 			args: args{
 				m: &MockManager{
 					c: &test.MockClient{
@@ -395,6 +435,7 @@ func TestReconcile(t *testing.T) {
 							case *MockManaged:
 								mg := &MockManaged{}
 								mg.SetCreationTimestamp(now)
+								mg.SetBindingPhase(v1alpha1.BindingPhaseUnbindable)
 								*o = *mg
 								return nil
 							default:
