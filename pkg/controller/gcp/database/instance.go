@@ -34,16 +34,17 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/clients/gcp/cloudsql"
 	"github.com/crossplaneio/crossplane/pkg/logging"
 	"github.com/crossplaneio/crossplane/pkg/meta"
+	"github.com/crossplaneio/crossplane/pkg/resource"
 	"github.com/crossplaneio/crossplane/pkg/util/googleapi"
 )
 
 const (
-	controllerName = "instance.cloudsql.gcp.crossplane.io"
+	controllerName = "cloudsqlinstance.database.gcp.crossplane.io"
 	finalizer      = "finalizer." + controllerName
 
-	reconcileTimeout      = 1 * time.Minute
-	requeueAfterOnWait    = 10 * time.Second
-	requeueAfterOnSuccess = 5 * time.Minute
+	reconcileTimeout    = 1 * time.Minute
+	requeueAfterWait    = 10 * time.Second
+	requeueAfterSuccess = 5 * time.Minute
 )
 
 var (
@@ -57,20 +58,20 @@ var (
 
 	// requeueSync - object process was complete and successful and we want to re-sync
 	// remote instance with this object after some delay interval
-	requeueSync = reconcile.Result{RequeueAfter: requeueAfterOnSuccess}
+	requeueSync = reconcile.Result{RequeueAfter: requeueAfterSuccess}
 
 	// requeueWait - object processing was partial, due the remote instance is not being ready, i.e.
 	// performing managedOperations like: create  or update. We want to repeat the processing fo this
 	// object after some short(er) (in comparison to above requeueSync) delay
-	requeueWait = reconcile.Result{RequeueAfter: requeueAfterOnWait}
+	requeueWait = reconcile.Result{RequeueAfter: requeueAfterWait}
 
 	log = logging.Logger.WithName("controller." + controllerName)
 )
 
 // Reconciler reconciles cloudsql instance objects
 type Reconciler struct {
-	client.Client
-	factory
+	client  client.Client
+	factory factory
 }
 
 // Reconcile reads that state of the cloudsql instance object and makes changes based on the state read
@@ -82,12 +83,12 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	defer cancel()
 
 	i := &v1alpha1.CloudsqlInstance{}
-	if err := r.Get(ctx, request.NamespacedName, i); err != nil {
+	if err := r.client.Get(ctx, request.NamespacedName, i); err != nil {
 		return requeueNever, handleNotFound(err)
 	}
 
 	// create local operations to handle Kubernetes (local) types operations
-	lops := r.factory.makeLocalOperations(i, r.Client)
+	lops := r.factory.makeLocalOperations(i, r.client)
 
 	// create managed operations to handle CloudSQL (managed) instance operations
 	mops, err := r.factory.makeManagedOperations(ctx, i, lops)
@@ -134,7 +135,7 @@ func (f *operationsFactory) makeManagedOperations(ctx context.Context, inst *v1a
 		return nil, errors.Wrapf(err, "cannot get provider's secret %s", n)
 	}
 
-	creds, err := google.CredentialsFromJSON(context.Background(), s.Data[p.Spec.Secret.Key], cloudsql.DefaultScope)
+	creds, err := google.CredentialsFromJSON(ctx, s.Data[p.Spec.Secret.Key], cloudsql.DefaultScope)
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot retrieve creds from json")
 	}
@@ -172,7 +173,7 @@ func (sd *instanceSyncDeleter) delete(ctx context.Context) (reconcile.Result, er
 // state of the obj object
 func (sd *instanceSyncDeleter) sync(ctx context.Context) (reconcile.Result, error) {
 	inst, err := sd.getInstance(ctx)
-	if err != nil && !googleapi.IsErrorNotFound(err) {
+	if resource.Ignore(googleapi.IsErrorNotFound, err) != nil {
 		return requeueNow, sd.updateReconcileStatus(ctx, err)
 	}
 
@@ -204,7 +205,7 @@ func newInstanceCreateUpdater(ops managedOperations) *instanceCreateUpdater {
 // create new instance instance
 func (ih *instanceCreateUpdater) create(ctx context.Context) (reconcile.Result, error) {
 	if err := ih.addFinalizer(ctx); err != nil {
-		return requeueNow, errors.Wrap(err, "Failed to update instance object")
+		return requeueNow, errors.Wrap(err, "failed to update instance object")
 	}
 
 	return requeueNow, ih.updateReconcileStatus(ctx, ih.createInstance(ctx))
@@ -220,8 +221,8 @@ func (ih *instanceCreateUpdater) update(ctx context.Context, inst *sqladmin.Data
 		return requeueWait, ih.updateReconcileStatus(ctx, nil)
 	}
 
-	// NOTE: needUpdate(...) always returns false, for details see needUpdate function call
-	if ih.needUpdate(inst) {
+	// NOTE: needsUpdate(...) always returns false, for details see needsUpdate function call
+	if ih.needsUpdate(inst) {
 		return requeueNow, ih.updateReconcileStatus(ctx, ih.updateInstance(ctx))
 	}
 

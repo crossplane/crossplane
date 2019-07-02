@@ -46,6 +46,10 @@ spec:
           type: object
         spec:
           properties:
+            authorizedNetworks:
+              items:
+                type: string
+              type: array
             claimRef:
               type: object
             classRef:
@@ -53,6 +57,12 @@ spec:
             databaseVersion:
               description: The database engine (MySQL or PostgreSQL) and its specific
                 version to use, e.g., MYSQL_5_7 or POSTGRES_9_6.
+              type: string
+            labels:
+              type: object
+            nameFormat:
+              description: NameFormat to format resource name passing it a object
+                UID If not provided, defaults to "%s", i.e. UID value
               type: string
             providerRef:
               type: object
@@ -78,10 +88,10 @@ spec:
               type: object
           required:
           - providerRef
+          - databaseVersion
           - region
           - storageType
           - storageGB
-          - databaseVersion
           - tier
           type: object
         status:
@@ -126,17 +136,6 @@ spec:
                 type: object
               type: array
             endpoint:
-              description: Endpoint of the Cloud SQL instance used in connection strings.
-              type: string
-            instanceName:
-              description: Name of the Cloud SQL instance. This does not include the
-                project ID.
-              type: string
-            message:
-              type: string
-            providerID:
-              description: the external ID to identify this resource in the cloud
-                provider
               type: string
             state:
               type: string

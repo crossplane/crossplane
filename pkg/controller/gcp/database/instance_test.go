@@ -39,7 +39,7 @@ func (m *mockCreateUpdater) update(ctx context.Context, di *sqladmin.DatabaseIns
 
 func assertUpdateReconcileStatusSuccess(t *testing.T, e error) error {
 	if e != nil {
-		t.Errorf("update() unexpectd error: %v", e)
+		t.Errorf("update() unexpected error: %v", e)
 	}
 	return e
 }
@@ -67,7 +67,7 @@ func Test_handleNotFound(t *testing.T) {
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			if diff := cmp.Diff(tt.want, handleNotFound(tt.args)); diff != "" {
-				t.Errorf("handleNotFound() error %s", diff)
+				t.Errorf("handleNotFound() error -want, +got: %s", diff)
 			}
 		})
 	}
@@ -178,10 +178,10 @@ func Test_instanceCreateUpdater_update(t *testing.T) {
 			ih := newInstanceCreateUpdater(tt.fields.operations)
 			got, err := ih.update(tt.args.ctx, tt.args.inst)
 			if diff := cmp.Diff(tt.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("update() error %s", diff)
+				t.Errorf("update() error -want, +got: %s", diff)
 			}
 			if diff := cmp.Diff(tt.want.res, got); diff != "" {
-				t.Errorf("update() got %s", diff)
+				t.Errorf("update() -want, +got: %s", diff)
 			}
 		})
 	}
@@ -215,7 +215,7 @@ func Test_instanceCreateUpdater_create(t *testing.T) {
 			},
 			want: want{
 				res: requeueNow,
-				err: errors.Wrapf(errTest, "Failed to update instance object"),
+				err: errors.Wrapf(errTest, "failed to update instance object"),
 			},
 		},
 		"CreateInstance": {
@@ -240,10 +240,10 @@ func Test_instanceCreateUpdater_create(t *testing.T) {
 			ih := newInstanceCreateUpdater(tt.fields.operations)
 			got, err := ih.create(tt.args.ctx)
 			if diff := cmp.Diff(tt.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("create() error %s", diff)
+				t.Errorf("create() error -want, +got: %s", diff)
 			}
 			if diff := cmp.Diff(tt.want.res, got); diff != "" {
-				t.Errorf("create() got %s", diff)
+				t.Errorf("create() -want, +got: %s", diff)
 			}
 		})
 	}
@@ -723,7 +723,7 @@ func TestReconciler_Reconcile(t *testing.T) {
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			r := &Reconciler{
-				Client:  tt.fields.kube,
+				client:  tt.fields.kube,
 				factory: tt.fields.factory,
 			}
 			got, err := r.Reconcile(tt.args.request)

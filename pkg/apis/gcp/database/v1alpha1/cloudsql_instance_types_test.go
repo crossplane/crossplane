@@ -20,6 +20,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/crossplaneio/crossplane/pkg/resource"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/onsi/gomega"
 	sqladmin "google.golang.org/api/sqladmin/v1beta4"
@@ -39,7 +41,8 @@ const (
 
 var (
 	c   client.Client
-	ctx = context.TODO()
+	ctx                  = context.TODO()
+	_   resource.Managed = &CloudsqlInstance{}
 )
 
 func TestMain(m *testing.M) {
@@ -148,7 +151,7 @@ func TestNewCloudSQLInstanceSpec(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			got := NewCloudSQLInstanceSpec(tt.args)
 			if diff := cmp.Diff(tt.want, got); diff != "" {
-				t.Errorf("NewCloudSQLInstanceSpec() want(+), got(-): %s", diff)
+				t.Errorf("NewCloudSQLInstanceSpec() -want, +got: %s", diff)
 			}
 		})
 	}
@@ -174,7 +177,7 @@ func TestCloudsqlInstance_ConnectionSecret(t *testing.T) {
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			if diff := cmp.Diff(tt.want, tt.fields.ConnectionSecret().Data); diff != "" {
-				t.Errorf("ConnectionSecret() = %s", diff)
+				t.Errorf("ConnectionSecret() -want, +got: %s", diff)
 			}
 		})
 	}
@@ -242,7 +245,7 @@ func TestCloudsqlInstance_DatabaseInstance(t *testing.T) {
 				Spec: tt.fields.Spec,
 			}
 			if diff := cmp.Diff(tt.want, c.DatabaseInstance(tt.args.name)); diff != "" {
-				t.Errorf("DatabaseInstance() = %s", diff)
+				t.Errorf("DatabaseInstance() -want, +got: %s", diff)
 			}
 		})
 	}
@@ -340,7 +343,7 @@ func TestBucket_GetResourceName(t *testing.T) {
 	}
 }
 
-func TestCloudsqlInstance_IsAvailable(t *testing.T) {
+func TestCloudsqlInstance_IsRunnable(t *testing.T) {
 	tests := map[string]struct {
 		status CloudsqlInstanceStatus
 		want   bool
@@ -365,7 +368,7 @@ func TestCloudsqlInstance_IsAvailable(t *testing.T) {
 			c := &CloudsqlInstance{
 				Status: tt.status,
 			}
-			if got := c.IsAvailable(); got != tt.want {
+			if got := c.IsRunnable(); got != tt.want {
 				t.Errorf("IsAvailable() = %v, want %v", got, tt.want)
 			}
 		})
@@ -434,7 +437,7 @@ func TestCloudsqlInstance_SetStatus(t *testing.T) {
 			}
 			c.SetStatus(tt.args)
 			if diff := cmp.Diff(tt.want, c.Status); diff != "" {
-				t.Errorf("SetStatus() = %s", diff)
+				t.Errorf("SetStatus() -want, +got: %s", diff)
 			}
 		})
 	}

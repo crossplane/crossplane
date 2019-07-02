@@ -27,20 +27,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	"github.com/crossplaneio/crossplane/pkg/resource"
-
 	"github.com/crossplaneio/crossplane/pkg/apis/gcp/database/v1alpha1"
 	storagev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/resource"
 )
-
-// The main motivation for creating add.go and move `Add` controller-runtime Manager
-// functions for CloudsqlInstance, PostgreSQLClaim and MySQLClaim is to add this
-// file to the coverage "ignore" list
 
 // Add creates a Controller that reconciles CloudsqlInstance resources
 func Add(mgr manager.Manager) error {
 	r := &Reconciler{
-		Client:  mgr.GetClient(),
+		client:  mgr.GetClient(),
 		factory: &operationsFactory{mgr.GetClient()},
 	}
 
@@ -68,8 +63,10 @@ func AddPostgreSQLClaim(mgr manager.Manager) error {
 	r := resource.NewClaimReconciler(mgr,
 		resource.ClaimKind(storagev1alpha1.PostgreSQLInstanceGroupVersionKind),
 		resource.ManagedKind(v1alpha1.CloudsqlInstanceGroupVersionKind),
+		resource.WithManagedBinder(resource.NewAPIStatusManagedBinder(mgr.GetClient())),
+		resource.WithManagedFinalizer(resource.NewAPIStatusManagedFinalizer(mgr.GetClient())),
 		resource.WithManagedConfigurators(
-			resource.ManagedConfiguratorFn(ConfigurePostgreCloudsqlInstance),
+			resource.ManagedConfiguratorFn(ConfigurePostgreSQLCloudsqlInstance),
 			resource.NewObjectMetaConfigurator(mgr.GetScheme()),
 		))
 
@@ -97,6 +94,8 @@ func AddMySQLClaim(mgr manager.Manager) error {
 	r := resource.NewClaimReconciler(mgr,
 		resource.ClaimKind(storagev1alpha1.MySQLInstanceGroupVersionKind),
 		resource.ManagedKind(v1alpha1.CloudsqlInstanceGroupVersionKind),
+		resource.WithManagedBinder(resource.NewAPIStatusManagedBinder(mgr.GetClient())),
+		resource.WithManagedFinalizer(resource.NewAPIStatusManagedFinalizer(mgr.GetClient())),
 		resource.WithManagedConfigurators(
 			resource.ManagedConfiguratorFn(ConfigureMyCloudsqlInstance),
 			resource.NewObjectMetaConfigurator(mgr.GetScheme()),

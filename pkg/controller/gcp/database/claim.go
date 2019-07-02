@@ -30,13 +30,13 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/resource"
 )
 
-// ConfigurePostgreCloudsqlInstance configures the supplied instance (presumed
+// ConfigurePostgreSQLCloudsqlInstance configures the supplied instance (presumed
 // to be a CloudsqlInstance) using the supplied instance claim (presumed to be a
 // PostgreSQLInstance) and instance class.
-func ConfigurePostgreCloudsqlInstance(_ context.Context, cm resource.Claim, cs *corev1alpha1.ResourceClass, mg resource.Managed) error {
+func ConfigurePostgreSQLCloudsqlInstance(_ context.Context, cm resource.Claim, cs *corev1alpha1.ResourceClass, mg resource.Managed) error {
 	pg, cmok := cm.(*storagev1alpha1.PostgreSQLInstance)
 	if !cmok {
-		return errors.Errorf("expected instance claim %s to be %s", cm.GetName(), storagev1alpha1.PostgreSQLInstanceGroupVersionKind)
+		return errors.Errorf("expected resource claim %s to be %s", cm.GetName(), storagev1alpha1.PostgreSQLInstanceGroupVersionKind)
 	}
 
 	i, mgok := mg.(*v1alpha1.CloudsqlInstance)
@@ -72,7 +72,7 @@ func ConfigureMyCloudsqlInstance(_ context.Context, cm resource.Claim, cs *corev
 
 	i, mgok := mg.(*v1alpha1.CloudsqlInstance)
 	if !mgok {
-		return errors.Errorf("expected managed instance %s to be %s", mg.GetName(), v1alpha1.CloudsqlInstanceGroupVersionKind)
+		return errors.Errorf("expected managed resource %s to be %s", mg.GetName(), v1alpha1.CloudsqlInstanceGroupVersionKind)
 	}
 
 	spec := v1alpha1.NewCloudSQLInstanceSpec(cs.Parameters)

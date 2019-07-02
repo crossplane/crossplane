@@ -71,9 +71,10 @@ type CloudsqlInstanceSpec struct {
 	// on https://cloud.google.com/sql/docs/postgres/create-instance#create-2ndgen-curl.
 	Tier string `json:"tier"`
 
-	// NameFormat to format bucket name passing it a object UID
-	// If not provided, defaults to "%s", i.e. UID value
 	// TODO(illya) - this should be defined in ResourceSpec
+
+	// NameFormat to format resource name passing it a object UID
+	// If not provided, defaults to "%s", i.e. UID value
 	NameFormat string `json:"nameFormat,omitempty"`
 }
 
@@ -81,9 +82,8 @@ type CloudsqlInstanceSpec struct {
 type CloudsqlInstanceStatus struct {
 	corev1alpha1.ResourceStatus `json:",inline"`
 
-	State          string `json:"state,omitempty"`
-	Endpoint       string `json:"endpoint,omitempty"`
-	ConnectionName string `json:"connection,omitempty"`
+	State    string `json:"state,omitempty"`
+	Endpoint string `json:"endpoint,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -102,8 +102,6 @@ type CloudsqlInstance struct {
 	Spec   CloudsqlInstanceSpec   `json:"spec,omitempty"`
 	Status CloudsqlInstanceStatus `json:"status,omitempty"`
 }
-
-var _ resource.Managed = &CloudsqlInstance{}
 
 // SetBindingPhase of this CloudsqlInstance.
 func (i *CloudsqlInstance) SetBindingPhase(p corev1alpha1.BindingPhase) {
@@ -242,13 +240,13 @@ func (i *CloudsqlInstance) DatabaseUserName() string {
 //   2. NameFormat = "%s", ResourceName = "test-uid"
 //   3. NameFormat = "foo", ResourceName = "foo"
 //   4. NameFormat = "foo-%s", ResourceName = "foo-test-uid"
-//   5. NameFormat = "foo-%s-bar-%s", BucketName = "foo-test-uid-bar-%!s(MISSING)"
+//   5. NameFormat = "foo-%s-bar-%s", ResourceName = "foo-test-uid-bar-%!s(MISSING)"
 func (i *CloudsqlInstance) GetResourceName() string {
 	return util.ConditionalStringFormat(i.Spec.NameFormat, string(i.GetUID()))
 }
 
-// IsAvailable for usage/binding
-func (i *CloudsqlInstance) IsAvailable() bool {
+// IsRunnable returns true if instance is in Runnable state
+func (i *CloudsqlInstance) IsRunnable() bool {
 	return i.Status.State == StateRunnable
 }
 
@@ -258,7 +256,7 @@ func (i *CloudsqlInstance) SetStatus(inst *sqladmin.DatabaseInstance) {
 		return
 	}
 	i.Status.State = inst.State
-	if i.IsAvailable() {
+	if i.IsRunnable() {
 		i.Status.SetConditions(corev1alpha1.Available())
 	} else {
 		i.Status.SetConditions(corev1alpha1.Unavailable())
@@ -267,6 +265,4 @@ func (i *CloudsqlInstance) SetStatus(inst *sqladmin.DatabaseInstance) {
 	if len(inst.IpAddresses) > 0 {
 		i.Status.Endpoint = inst.IpAddresses[0].IpAddress
 	}
-
-	i.Status.ConnectionName = inst.ConnectionName
 }

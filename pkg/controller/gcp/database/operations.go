@@ -41,7 +41,7 @@ type localOperations interface {
 	addFinalizer(context.Context) error
 	isReclaimDelete() bool
 	isInstanceReady() bool
-	needUpdate(*sqladmin.DatabaseInstance) bool
+	needsUpdate(*sqladmin.DatabaseInstance) bool
 	removeFinalizer(context.Context) error
 
 	// Controller-runtime managedOperations
@@ -79,25 +79,20 @@ func (h *localHandler) removeFinalizer(ctx context.Context) error {
 }
 
 func (h *localHandler) isInstanceReady() bool {
-	return h.IsAvailable()
+	return h.IsRunnable()
 }
 
 func (h *localHandler) isReclaimDelete() bool {
 	return h.Spec.ReclaimPolicy == corev1alpha1.ReclaimDelete
 }
 
-func (h *localHandler) needUpdate(actual *sqladmin.DatabaseInstance) bool {
+func (h *localHandler) needsUpdate(actual *sqladmin.DatabaseInstance) bool {
 	// TODO: update functionality is not supported for this instance.
 	//   In order to add this support we need to refactor DatabaseInstanceType
 	return false
 
 	// TODO: when we ready to support update, delete 4 lines above and uncomment the lines below
-	//desired := h.DatabaseInstance(h.GetResourceName())
-	//if diff := cmp.Diff(actual, desired); diff != "" {
-	//	log.V(logging.Debug).Info(diff)
-	//	return false
-	//}
-	//return true
+	//  consider using cmp.Equal to determine whether an update is required
 }
 
 func (h *localHandler) updateObject(ctx context.Context) error {
@@ -136,17 +131,23 @@ func (h *localHandler) updateConnectionSecret(ctx context.Context) (*corev1.Secr
 	}
 
 	s := secret.DeepCopy()
-	return s, util.CreateOrUpdate(ctx, h.client, s, func() error {
+	if err := util.CreateOrUpdate(ctx, h.client, s, func() error {
+		if !meta.HaveSameController(s, secret) {
+			return errors.Errorf("connection secret %s/%s exists and is not controlled by %s/%s",
+				s.GetNamespace(), s.GetName(), h.GetNamespace(), h.GetName())
+		}
+
 		if _, found := s.Data[corev1alpha1.ResourceCredentialsSecretPasswordKey]; !found {
 			s.Data[corev1alpha1.ResourceCredentialsSecretPasswordKey] = []byte(password)
 		}
 		s.Data[corev1alpha1.ResourceCredentialsSecretEndpointKey] = secret.Data[corev1alpha1.ResourceCredentialsSecretEndpointKey]
 		s.Data[corev1alpha1.ResourceCredentialsSecretUserKey] = secret.Data[corev1alpha1.ResourceCredentialsSecretUserKey]
 		return nil
-	})
+	}); err != nil {
+		return nil, err
+	}
+	return s, nil
 }
-
-//type secretGetter func(context.Context) (*corev1.Secret, error)
 
 type managedOperations interface {
 	localOperations
