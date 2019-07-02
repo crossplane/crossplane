@@ -44,6 +44,13 @@ var (
 	ResourceClassGroupVersionKind = SchemeGroupVersion.WithKind(ResourceClassKind)
 )
 
+// SecretTransform type metadata
+var (
+	SecretTransformKind             = reflect.TypeOf(SecretTransform{}).Name()
+	SecretTransformKindAPIVersion   = SecretTransformKind + "." + SchemeGroupVersion.String()
+	SecretTransformGroupVersionKind = SchemeGroupVersion.WithKind(SecretTransformKind)
+)
+
 func init() {
 	SchemeBuilder.Register(&ResourceClass{}, &ResourceClassList{})
 }

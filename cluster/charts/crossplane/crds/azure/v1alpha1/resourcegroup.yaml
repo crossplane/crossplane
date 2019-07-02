@@ -40,10 +40,28 @@ spec:
               type: string
             providerRef:
               type: object
+            publishConnectionTo:
+              properties:
+                configMapRef:
+                  description: ConfigMapReference specifies a local ConfigMap to which
+                    non-sensitive connection details such as usernames, addresses,
+                    and ports will be published. The ConfigMap should not exist; it
+                    will be created by Crossplane.
+                  type: object
+                secretRef:
+                  description: ServiceReference specifies a local Secret to which
+                    sensitive connection details such as passwords and certificates
+                    will be published. The Secret should not exist; it will be created
+                    by Crossplane.
+                  type: object
+                serviceRef:
+                  description: ServiceReference specifies a local ExternalName type
+                    Service that will publish this resource's connection endpoint.
+                    The Service should not exist; it will be created by Crossplane.
+                  type: object
+              type: object
             reclaimPolicy:
               type: string
-            writeConnectionSecretToRef:
-              type: object
           required:
           - providerRef
           type: object

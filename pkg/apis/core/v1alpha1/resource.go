@@ -86,7 +86,7 @@ type ResourceClassList struct {
 // include in their spec. Unlike ResourceClaimStatus, ResourceClaimSpec should
 // typically be embedded in a claim specific struct.
 type ResourceClaimSpec struct {
-	WriteConnectionSecretToReference corev1.LocalObjectReference `json:"writeConnectionSecretToRef,omitempty"`
+	PublishConnectionTo PublishConnectionTo `json:"publishConnectionTo,omitempty"`
 
 	// TODO(negz): Make the below references immutable once set? Doing so means
 	// we don't have to track what provisioner was used to create a resource.
@@ -106,7 +106,7 @@ type ResourceClaimStatus struct {
 // include in their spec. ResourceSpec should typically be embedded in a
 // resource specific struct.
 type ResourceSpec struct {
-	WriteConnectionSecretToReference corev1.LocalObjectReference `json:"writeConnectionSecretToRef,omitempty"`
+	PublishConnectionTo PublishConnectionTo `json:"publishConnectionTo,omitempty"`
 
 	ClaimReference    *corev1.ObjectReference `json:"claimRef,omitempty"`
 	ClassReference    *corev1.ObjectReference `json:"classRef,omitempty"`
