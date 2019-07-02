@@ -104,7 +104,7 @@ type CloudMemorystoreInstanceSpec struct {
 
 // CloudMemorystoreInstanceStatus defines the observed state of CloudMemorystoreInstance
 type CloudMemorystoreInstanceStatus struct {
-	corev1alpha1.ResourceStatus
+	corev1alpha1.ResourceStatus `json:",inline"`
 
 	State   string `json:"state,omitempty"`
 	Message string `json:"message,omitempty"`

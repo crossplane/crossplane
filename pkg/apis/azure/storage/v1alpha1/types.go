@@ -42,7 +42,7 @@ type AccountSpec struct {
 
 // AccountStatus defines the observed state of StorageAccountStatus
 type AccountStatus struct {
-	corev1alpha1.ResourceStatus
+	corev1alpha1.ResourceStatus `json:",inline"`
 
 	*StorageAccountStatus `json:"accountStatus,inline"`
 }
@@ -164,7 +164,7 @@ type ContainerSpec struct {
 
 // ContainerStatus sub-resource for Container object
 type ContainerStatus struct {
-	corev1alpha1.ResourceStatus
+	corev1alpha1.ResourceStatus `json:",inline"`
 
 	Name string `json:"name,omitempty"`
 }

@@ -54,7 +54,7 @@ type S3BucketSpec struct {
 
 // S3BucketStatus defines the observed state of S3Bucket
 type S3BucketStatus struct {
-	corev1alpha1.ResourceStatus
+	corev1alpha1.ResourceStatus `json:",inline"`
 
 	Message               string                              `json:"message,omitempty"`
 	ProviderID            string                              `json:"providerID,omitempty"` // the external ID to identify this resource in the cloud provider

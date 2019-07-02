@@ -244,7 +244,7 @@ type NodeGroupConfigurationSpec struct {
 
 // ReplicationGroupStatus defines the observed state of ReplicationGroup
 type ReplicationGroupStatus struct {
-	corev1alpha1.ResourceStatus
+	corev1alpha1.ResourceStatus `json:",inline"`
 
 	State   string `json:"state,omitempty"`
 	Message string `json:"message,omitempty"`

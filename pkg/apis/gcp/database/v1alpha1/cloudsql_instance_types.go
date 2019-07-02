@@ -67,7 +67,7 @@ type CloudsqlInstanceSpec struct {
 
 // CloudsqlInstanceStatus defines the observed state of CloudsqlInstance
 type CloudsqlInstanceStatus struct {
-	corev1alpha1.ResourceStatus
+	corev1alpha1.ResourceStatus `json:",inline"`
 
 	State   string `json:"state,omitempty"`
 	Message string `json:"message,omitempty"`
