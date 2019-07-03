@@ -6,15 +6,36 @@
 ## Terminology
 
 * **`External Resource`**: an infrastructure resource that runs outside of Crossplane (i.e. an S3 Bucket on AWS).
-* **`Concrete Resource`**: a Kubernetes resource that is responsible for managing an external resource (recieves configuration details from the `ResourceClass` and `ResourceClaim`). It is of type `Resource` but will be referred to as `Concrete Resource` consistently here to avoid confusion.
+* **`Managed Resource`**: a Kubernetes resource that is responsible for managing an external resource (recieves configuration details from the `ResourceClass` and `ResourceClaim`). It is of type `Resource` but will be referred to as `Managed Resource` consistently here to avoid confusion.
 * **`ResourceClass`**: a Kubernetes resource that contains implementation details specific to a certain environment or deployment, and policies related to a kind of resource.
 * **`ResourceClaim`**: a Kubernetes resource that captures the desired configuration of a resource from the perspective of a workload or application.
 
 ## Background
 
-Crossplane resource classes allow for a `reclaimPolicy` to be set on creation. Acceptable values for `reclaimPolicy` are `Delete` or `Retain`. This value informs Crossplane of how to behave when a `Concrete Resource` is deleted. If the policy is set to `Delete`, the `External Resource` will be deleted when the `Concrete Resource` is deleted, which is generally triggered by the deletetion of a `Resource Claim` for that `Concrete Resource`. If set to `Retain`, the `Concrete Resource` will be deleted, but the `External Resource` will persist.
+Crossplane resource classes allow for a `reclaimPolicy` to be set on creation. Acceptable values for `reclaimPolicy` are `Delete` or `Retain`. This value informs Crossplane of how to behave when a `Managed Resource` is deleted. If the policy is set to `Delete`, the `External Resource` will be deleted when the `Managed Resource` is deleted, which is generally triggered by the deletion of a `Resource Claim` for that `Managed Resource`. If set to `Retain`, the `Managed Resource` will be deleted, but the `External Resource` will persist.
 
-*Note: `reclaimPolicy` is not a required field for a `ResourceClass`. If it is not supplied, the `Concrete Resource` will be created with it's default `reclaimPolicy`. Currenty, every `Concrete Resource` in Crossplane defaults to `Retain`.*
+## Comparison to Kubernetes Persistent Volumes
+
+Kubernetes introduces the `PersistentVolume`, `PersistentVolumeClaim` and `StorageClass` resources. These roughly map to the following Crossplane resources:
+
+* The external storage asset --> `External Resource`
+* `PersistentVolume` --> `Managed Resource`
+* `StorageClass` --> `ResourceClass`
+* `PersistentVolumeClaim` --> `ResourceClaim`
+
+Like `Managed Resources` in Crossplane, `PersistentVolumes` can have their `reclaimPolicy` set directly if they are manually provisioned, or by a `StorageClass` if provisioned dynamically. If the `PersistentVolume` is provisioned manually, it will keep its `reclaimPolicy` throughout its lifecycle even if it is eventually managed by a `StorageClass` with a different `reclaimPolicy`.
+
+Dynamic provisioning occurs when an administrator has created a `StorageClass` and a `PersistentVolumeClaim` requests storage by referencing that class. This is similar to a `ResourceClaim` referencing a `ResourceClass` in Crossplane. In both situations, the `Managed Resource` or `PersistentVolume` will inherit the `reclaimPolicy` of the `ResourceClass` or `StorageClass`. However, in Kubernetes if no `reclaimPolicy` is set on the `StorageClass` the `PersistentVolume` will default to `Delete`, while in Crossplane a `ResourceClass` without a specified `reclaimPolicy` will cause the `Managed Resource` to default to `Retain`.
+
+The most significant difference between resources in Crossplane and persistent volumes in Kubernetes is what happens upon deletion. In Kubernetes, the `reclaimPolicy` dictates what happens to the `PersistentVolume` when a `PersistentVolumeClaim` is deleted. In Crossplane, the `reclaimPolicy` dictates what happens to the `External Resource` when a `ResourceClaim` is deleted.
+
+For example, consider the following scenarios:
+
+**Kubernetes:** A `PersistentVolume` exists with a `reclaimPolicy` set to `Retain`. A `PersistentVolumeClaim` that was responsible for the dynamic provisioning of that `PersistentVolume` via reference to a `StorageClass` is deleted. The `reclaimPolicy` of the `PersistentVolume` results in the Kubernetes object being retained, and thus the external storage asset being retained.
+
+**Crossplane:** A `Managed Resource` exists with a `reclaimPolicy` set to `Retain`. A `ResourceClaim` that was responsible for the dynamic provisioning of that `Managed Resource` via reference to a `ResourceClass` is deleted. The `reclaimPolicy` of the `Managed Resource` results in the Kubernetes object being *deleted*, but the `External Resource` being retained.
+
+In short, reclaim policies in Crossplane manage the relationship between a `ResourceClaim` and the `External Resource`, while reclaim policies in Kubernetes persistent volumes manage the relationship between the `PersistentVolumeClaim` and the `PersistentVolume` Kubernetes object.
 
 ## Workflow
 
@@ -56,8 +77,8 @@ spec:
   name: my-bucket-1234
 ```
 
-3. The creation of a `ResourceClaim` triggers a `Concrete Resource` to be created using information from the claim and the referenced `ResourceClass`. If the `ResourceClass` provides a value for `reclaimPolicy` it will be set on the `Concrete Resource`. If not, the `Concrete Resource` will have its `reclaimPolicy` set to its default value.
-4. The `Concrete Resource` provisions an `External Resource` (in this case an S3 bucket) and manages it.
+3. The creation of a `ResourceClaim` triggers a `Managed Resource` to be created using information from the claim and the referenced `ResourceClass`. If the `ResourceClass` provides a value for `reclaimPolicy` it will be set on the `Managed Resource`. If not, the `Managed Resource` will have its `reclaimPolicy` set to its default value.
+4. The `Managed Resource` provisions an `External Resource` (in this case an S3 bucket) and manages it.
 5. A user deletes the `ResourceClaim`. Because the `ConcreteResource` has an `OwnerReference` to the `ResourceClaim`, the deletion of the `ResourceClaim` triggers the deletion of the `ConcreteResource`.
-6. If the `ConcreteResource` `reclaimPolicy` is set to `Retain`, the `Concrete Resource` will be deleted, but the `External Resource` will persist (i.e. the S3 bucket will still exist in your AWS account). If the `reclaimPolicy` is set to `Delete` both the `Concrete Resource` and the `External Resource` will be deleted.
+6. If the `ConcreteResource` `reclaimPolicy` is set to `Retain`, the `Managed Resource` will be deleted, but the `External Resource` will persist (i.e. the S3 bucket will still exist in your AWS account). If the `reclaimPolicy` is set to `Delete` both the `Managed Resource` and the `External Resource` will be deleted.
 
