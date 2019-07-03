@@ -6,7 +6,7 @@
 ## Terminology
 
 * **`External Resource`**: an infrastructure resource that runs outside of Crossplane (i.e. an S3 Bucket on AWS).
-* **`Managed Resource`**: a Kubernetes resource that is responsible for managing an external resource (recieves configuration details from the `ResourceClass` and `ResourceClaim`). It is of type `Resource` but will be referred to as `Managed Resource` consistently here to avoid confusion.
+* **`Managed Resource`**: a Kubernetes resource that is responsible for managing an external resource (receives configuration details from the `ResourceClass` and `ResourceClaim`). It is of type `Resource` but will be referred to as `Managed Resource` consistently here to avoid confusion.
 * **`ResourceClass`**: a Kubernetes resource that contains implementation details specific to a certain environment or deployment, and policies related to a kind of resource.
 * **`ResourceClaim`**: a Kubernetes resource that captures the desired configuration of a resource from the perspective of a workload or application.
 
@@ -16,7 +16,7 @@ Crossplane resource classes allow for a `reclaimPolicy` to be set on creation. A
 
 ## Comparison to Kubernetes Persistent Volumes
 
-Kubernetes introduces the `PersistentVolume`, `PersistentVolumeClaim` and `StorageClass` resources. These roughly map to the following Crossplane resources:
+Kubernetes introduces the [`PersistentVolume`](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#persistent-volumes), [`PersistentVolumeClaim`](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#persistentvolumeclaims) and [`StorageClass`](https://kubernetes.io/docs/concepts/storage/storage-classes/) resources. These roughly map to the following Crossplane resources:
 
 * The external storage asset --> `External Resource`
 * `PersistentVolume` --> `Managed Resource`
@@ -25,7 +25,7 @@ Kubernetes introduces the `PersistentVolume`, `PersistentVolumeClaim` and `Stora
 
 Like `Managed Resources` in Crossplane, `PersistentVolumes` can have their `reclaimPolicy` set directly if they are manually provisioned, or by a `StorageClass` if provisioned dynamically. If the `PersistentVolume` is provisioned manually, it will keep its `reclaimPolicy` throughout its lifecycle even if it is eventually managed by a `StorageClass` with a different `reclaimPolicy`.
 
-Dynamic provisioning occurs when an administrator has created a `StorageClass` and a `PersistentVolumeClaim` requests storage by referencing that class. This is similar to a `ResourceClaim` referencing a `ResourceClass` in Crossplane. In both situations, the `Managed Resource` or `PersistentVolume` will inherit the `reclaimPolicy` of the `ResourceClass` or `StorageClass`. However, in Kubernetes if no `reclaimPolicy` is set on the `StorageClass` the `PersistentVolume` will default to `Delete`, while in Crossplane a `ResourceClass` without a specified `reclaimPolicy` will cause the `Managed Resource` to default to `Retain`.
+Dynamic provisioning occurs when an administrator has created a `StorageClass` and a `PersistentVolumeClaim` requests storage by referencing that class or relying on a [default](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#class-1) `StorageClass`. This is similar to a `ResourceClaim` referencing a `ResourceClass` in Crossplane. In both situations, the `Managed Resource` or `PersistentVolume` will inherit the `reclaimPolicy` of the `ResourceClass` or `StorageClass`. However, in Kubernetes if no `reclaimPolicy` is set on the `StorageClass` the `PersistentVolume` will default to `Delete`, while in Crossplane a `ResourceClass` without a specified `reclaimPolicy` will cause the `Managed Resource` to default to `Retain`.
 
 The most significant difference between resources in Crossplane and persistent volumes in Kubernetes is what happens upon deletion. In Kubernetes, the `reclaimPolicy` dictates what happens to the `PersistentVolume` when a `PersistentVolumeClaim` is deleted. In Crossplane, the `reclaimPolicy` dictates what happens to the `External Resource` when a `ResourceClaim` is deleted.
 
