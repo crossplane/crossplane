@@ -79,6 +79,6 @@ spec:
 
 3. The creation of a `ResourceClaim` triggers a `Managed Resource` to be created using information from the claim and the referenced `ResourceClass`. If the `ResourceClass` provides a value for `reclaimPolicy` it will be set on the `Managed Resource`. If not, the `Managed Resource` will have its `reclaimPolicy` set to its default value.
 4. The `Managed Resource` provisions an `External Resource` (in this case an S3 bucket) and manages it.
-5. A user deletes the `ResourceClaim`. Because the `ConcreteResource` has an `OwnerReference` to the `ResourceClaim`, the deletion of the `ResourceClaim` triggers the deletion of the `ConcreteResource`.
-6. If the `ConcreteResource` `reclaimPolicy` is set to `Retain`, the `Managed Resource` will be deleted, but the `External Resource` will persist (i.e. the S3 bucket will still exist in your AWS account). If the `reclaimPolicy` is set to `Delete` both the `Managed Resource` and the `External Resource` will be deleted.
+5. A user deletes the `ResourceClaim`. Because the `Managed Resource` has an `OwnerReference` to the `ResourceClaim`, the deletion of the `ResourceClaim` triggers the deletion of the `Managed Resource`.
+6. If the `Managed Resource` `reclaimPolicy` is set to `Retain`, the `Managed Resource` will be deleted, but the `External Resource` will persist (i.e. the S3 bucket will still exist in your AWS account). If the `reclaimPolicy` is set to `Delete` both the `Managed Resource` and the `External Resource` will be deleted.
 
