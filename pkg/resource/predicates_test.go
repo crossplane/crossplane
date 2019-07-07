@@ -40,6 +40,14 @@ type mockClassReferencer struct {
 func (r *mockClassReferencer) GetClassReference() *corev1.ObjectReference  { return r.ref }
 func (r *mockClassReferencer) SetClassReference(_ *corev1.ObjectReference) {}
 
+type mockManagedResourceReferencer struct {
+	runtime.Object
+	ref *corev1.ObjectReference
+}
+
+func (r *mockManagedResourceReferencer) GetResourceReference() *corev1.ObjectReference  { return r.ref }
+func (r *mockManagedResourceReferencer) SetResourceReference(_ *corev1.ObjectReference) {}
+
 func TestObjectHasProvisioner(t *testing.T) {
 	type args struct {
 		c           client.Client
@@ -120,6 +128,66 @@ func TestObjectHasProvisioner(t *testing.T) {
 			got := fn(tc.args.obj)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("ObjectHasProvisioner(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestNoClassReference(t *testing.T) {
+	cases := map[string]struct {
+		obj  runtime.Object
+		want bool
+	}{
+		"NotAClassReferencer": {
+			obj:  &mockObject{},
+			want: false,
+		},
+		"NoClassReference": {
+			obj:  &mockClassReferencer{},
+			want: true,
+		},
+		"HasClassReference": {
+			obj:  &mockClassReferencer{ref: &corev1.ObjectReference{Name: "cool"}},
+			want: false,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			fn := NoClassReference()
+			got := fn(tc.obj)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("NoClassReference(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestNoMangedResourceReference(t *testing.T) {
+	cases := map[string]struct {
+		obj  runtime.Object
+		want bool
+	}{
+		"NotAMangedResourceReferencer": {
+			obj:  &mockObject{},
+			want: false,
+		},
+		"NoManagedResourceReference": {
+			obj:  &mockManagedResourceReferencer{},
+			want: true,
+		},
+		"HasClassReference": {
+			obj:  &mockManagedResourceReferencer{ref: &corev1.ObjectReference{Name: "cool"}},
+			want: false,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			fn := NoManagedResourceReference()
+			got := fn(tc.obj)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("NoManagedResourecReference(...): -want, +got:\n%s", diff)
 			}
 		})
 	}

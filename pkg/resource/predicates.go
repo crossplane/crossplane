@@ -72,3 +72,25 @@ func HasProvisioner(c client.Client, cr ClassReferencer, provisioner string) boo
 
 	return strings.EqualFold(cs.Provisioner, provisioner)
 }
+
+// NoClassReference accepts ResourceClaims that do not reference a specific ResourceClass
+func NoClassReference() PredicateFn {
+	return func(obj runtime.Object) bool {
+		cr, ok := obj.(ClassReferencer)
+		if !ok {
+			return false
+		}
+		return cr.GetClassReference() == nil
+	}
+}
+
+// NoManagedResourceReference accepts ResourceClaims that do not reference a specific Managed Resource
+func NoManagedResourceReference() PredicateFn {
+	return func(obj runtime.Object) bool {
+		cr, ok := obj.(ManagedResourceReferencer)
+		if !ok {
+			return false
+		}
+		return cr.GetResourceReference() == nil
+	}
+}
