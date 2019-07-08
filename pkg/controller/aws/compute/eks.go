@@ -307,7 +307,7 @@ func (r *Reconciler) _sync(instance *awscomputev1alpha1.EKSCluster, client eks.C
 	}
 
 	if failedCFState[clusterWorker.WorkersStatus] {
-		return r.fail(instance, errorSyncCluster, fmt.Sprintf("clusterworker stack failed with status %q and reason %q", clusterWorker.WorkersStatus, clusterWorker.WorkerReason))
+		return r.fail(instance, fmt.Errorf("clusterworker stack failed with status %q and reason %q", clusterWorker.WorkersStatus, clusterWorker.WorkerReason))
 	}
 
 	if !completedCFState[clusterWorker.WorkersStatus] {
