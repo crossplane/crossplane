@@ -395,7 +395,7 @@ func TestReconcile(t *testing.T) {
 							case *MockManaged:
 								// We do not explicitly set a BindingPhase here
 								// because the zero value of BindingPhase is
-								// BindingPhaseUnknown.
+								// BindingPhaseUnset.
 								mg := &MockManaged{}
 								mg.SetCreationTimestamp(now)
 								*o = *mg

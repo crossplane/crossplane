@@ -21,9 +21,10 @@ type BindingPhase string
 
 // Binding phases.
 const (
-	// BindingPhaseUnknown resources cannot be bound to another resource because
-	// they are in an unknown binding phase.
-	BindingPhaseUnknown BindingPhase = ""
+	// BindingPhaseUnset resources cannot be bound to another resource because
+	// they are in an unset binding phase, presumed to be functionally
+	// equivalent to BindingPhaseUnbindable.
+	BindingPhaseUnset BindingPhase = ""
 
 	// BindingPhaseUnbindable resources cannot be bound to another resource, for
 	// example because they are currently unavailable, or being created.
