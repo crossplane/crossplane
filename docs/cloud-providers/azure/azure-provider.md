@@ -10,6 +10,7 @@ The general steps we will take are summarized below:
 ## Preparing your Microsoft Azure Account
 
 In order to manage resources in Azure, you must provide credentials for a Azure service principal that Crossplane can use to authenticate.
+
 This assumes that you have already [set up the Azure CLI client](https://docs.microsoft.com/en-us/cli/azure/authenticate-azure-cli?view=azure-cli-latest) with your credentials.
 
 Create a JSON file that contains all the information needed to connect and authenticate to Azure:
@@ -23,6 +24,12 @@ Take note of the `clientID` value from the JSON file that we just created, and s
 
 ```console
 export AZURE_CLIENT_ID=<clientId value from json file>
+```
+
+This can be automated with `jq`.
+
+```console
+export AZURE_CLIENT_ID=$(jq -r .clientId < crossplane-azure-provider-key.json)
 ```
 
 Now add the required permissions to the service principal that will allow it to manage the necessary resources in Azure:
