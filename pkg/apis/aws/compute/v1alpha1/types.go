@@ -211,7 +211,7 @@ type WorkerNodesSpec struct {
 
 // EKSClusterStatus schema of the status of eks cluster
 type EKSClusterStatus struct {
-	corev1alpha1.ResourceStatus
+	corev1alpha1.ResourceStatus `json:",inline"`
 
 	// State of the cluster (see status constants above)
 	State string `json:"state,omitempty"`

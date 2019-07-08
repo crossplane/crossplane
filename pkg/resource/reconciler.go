@@ -351,7 +351,7 @@ func (r *ClaimReconciler) Reconcile(req reconcile.Request) (reconcile.Result, er
 		}
 	}
 
-	if managed.GetBindingPhase() == v1alpha1.BindingPhaseUnbindable {
+	if !IsBindable(managed) && !IsBound(managed) {
 		// If this claim was not already binding we'll be requeued due to the
 		// status update. Otherwise there's no need to requeue. We should be
 		// watching both the resource claims and the resources we own, so we'll
@@ -360,7 +360,7 @@ func (r *ClaimReconciler) Reconcile(req reconcile.Request) (reconcile.Result, er
 		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, claim), errUpdateClaimStatus)
 	}
 
-	if managed.GetBindingPhase() == v1alpha1.BindingPhaseUnbound {
+	if IsBindable(managed) {
 		if err := r.managed.PropagateConnection(ctx, claim, managed); err != nil {
 			// If we didn't hit this error last time we'll be requeued implicitly
 			// due to the status update. Otherwise we want to retry after a brief

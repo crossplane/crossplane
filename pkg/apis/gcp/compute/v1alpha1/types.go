@@ -94,7 +94,7 @@ type GKEClusterSpec struct {
 
 // GKEClusterStatus represents the status of a GKE cluster.
 type GKEClusterStatus struct {
-	corev1alpha1.ResourceStatus
+	corev1alpha1.ResourceStatus `json:",inline"`
 
 	ClusterName string `json:"clusterName"`
 	Endpoint    string `json:"endpoint"`

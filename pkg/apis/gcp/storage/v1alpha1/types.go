@@ -776,7 +776,7 @@ type BucketSpec struct {
 
 // BucketStatus defines the observed state of GoogleBucket
 type BucketStatus struct {
-	corev1alpha1.ResourceStatus
+	corev1alpha1.ResourceStatus `json:",inline"`
 
 	BucketOutputAttrs `json:"attributes"`
 }

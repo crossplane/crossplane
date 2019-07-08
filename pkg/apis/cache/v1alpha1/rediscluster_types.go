@@ -25,7 +25,7 @@ import (
 
 // RedisClusterSpec defines the desired state of RedisCluster
 type RedisClusterSpec struct {
-	corev1alpha1.ResourceClaimSpec
+	corev1alpha1.ResourceClaimSpec `json:",inline"`
 
 	// EngineVersion specifies the desired Redis version.
 	// +kubebuilder:validation:Enum=2.6,2.8,3.2,4.0,5.0

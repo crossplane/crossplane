@@ -25,7 +25,7 @@ import (
 
 // KubernetesClusterSpec specifies the configuration of a Kubernetes cluster.
 type KubernetesClusterSpec struct {
-	corev1alpha1.ResourceClaimSpec
+	corev1alpha1.ResourceClaimSpec `json:",inline"`
 
 	// cluster properties
 	ClusterVersion string `json:"clusterVersion,omitempty"`

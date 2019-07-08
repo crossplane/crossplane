@@ -65,7 +65,7 @@ type ResourceGroupSpec struct {
 
 // ResourceGroupStatus is the status for this resource group
 type ResourceGroupStatus struct {
-	corev1alpha1.ResourceStatus
+	corev1alpha1.ResourceStatus `json:",inline"`
 
 	Name string `json:"name"`
 }

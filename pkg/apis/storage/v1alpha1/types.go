@@ -25,7 +25,7 @@ import (
 
 // MySQLInstanceSpec specifies the configuration of a MySQL instance.
 type MySQLInstanceSpec struct {
-	corev1alpha1.ResourceClaimSpec
+	corev1alpha1.ResourceClaimSpec `json:",inline"`
 
 	// mysql instance properties
 	// +kubebuilder:validation:Enum=5.6,5.7
@@ -105,7 +105,7 @@ type MySQLInstanceList struct {
 // PostgreSQLInstanceSpec specifies the configuration of this
 // PostgreSQLInstance.
 type PostgreSQLInstanceSpec struct {
-	corev1alpha1.ResourceClaimSpec
+	corev1alpha1.ResourceClaimSpec `json:",inline"`
 
 	// postgresql instance properties
 	// +kubebuilder:validation:Enum=9.6
@@ -207,7 +207,7 @@ const (
 
 // BucketSpec defines the desired state of Bucket
 type BucketSpec struct {
-	corev1alpha1.ResourceClaimSpec
+	corev1alpha1.ResourceClaimSpec `json:",inline"`
 
 	// Name properties
 	// +kubebuilder:validation:MaxLength=63

@@ -115,3 +115,15 @@ func SetBindable(b Bindable) {
 	}
 	b.SetBindingPhase(v1alpha1.BindingPhaseUnbound)
 }
+
+// IsBindable returns true if the supplied Bindable is ready for binding to
+// another Bindable, such as a resource claim or managed resource.
+func IsBindable(b Bindable) bool {
+	return b.GetBindingPhase() == v1alpha1.BindingPhaseUnbound
+}
+
+// IsBound returns true if the supplied Bindable is bound to another Bindable,
+// such as a resource claim or managed resource.
+func IsBound(b Bindable) bool {
+	return b.GetBindingPhase() == v1alpha1.BindingPhaseBound
+}

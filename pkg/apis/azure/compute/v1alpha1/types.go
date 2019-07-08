@@ -73,7 +73,7 @@ type AKSClusterSpec struct {
 
 // AKSClusterStatus is the status for AKS cluster resources
 type AKSClusterStatus struct {
-	corev1alpha1.ResourceStatus
+	corev1alpha1.ResourceStatus `json:",inline"`
 
 	// ClusterName is the name of the cluster as registered with the cloud provider
 	ClusterName string `json:"clusterName,omitempty"`

@@ -98,8 +98,8 @@ type ResourceClaimSpec struct {
 // ResourceClaimStatus represents the status of a resource claim. Claims should
 // typically use this struct as their status.
 type ResourceClaimStatus struct {
-	ConditionedStatus
-	BindingStatus
+	ConditionedStatus `json:",inline"`
+	BindingStatus     `json:",inline"`
 }
 
 // ResourceSpec contains standard fields that all resources should
@@ -119,6 +119,6 @@ type ResourceSpec struct {
 // include in their status. ResourceStatus should typically be embedded in a
 // resource specific status.
 type ResourceStatus struct {
-	ConditionedStatus
-	BindingStatus
+	ConditionedStatus `json:",inline"`
+	BindingStatus     `json:",inline"`
 }

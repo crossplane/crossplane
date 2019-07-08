@@ -122,7 +122,7 @@ type SKUSpec struct {
 
 // RedisStatus defines the observed state of Redis
 type RedisStatus struct {
-	corev1alpha1.ResourceStatus
+	corev1alpha1.ResourceStatus `json:",inline"`
 
 	State   string `json:"state,omitempty"`
 	Message string `json:"message,omitempty"`
