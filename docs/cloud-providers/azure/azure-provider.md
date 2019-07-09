@@ -32,7 +32,7 @@ This can be automated with `jq`.
 export AZURE_CLIENT_ID=$(jq -r .clientId < crossplane-azure-provider-key.json)
 ```
 
-Now add the required permissions to the service principal that will allow it to manage the necessary resources in Azure:
+Now add the required permissions to the service principal that will allow it to manage the necessary resources with the Azure Active Directory Graph:
 
 ```console
 # add required Azure Active Directory permissions
