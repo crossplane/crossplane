@@ -6,6 +6,17 @@ metadata:
     controller-tools.k8s.io: "1.0"
   name: providers.aws.crossplane.io
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .spec.region
+    name: REGION
+    type: string
+  - JSONPath: .metadata.creationTimestamp
+    name: AGE
+    type: date
+  - JSONPath: .spec.credentialsSecretRef.name
+    name: SECRET-NAME
+    priority: 1
+    type: string
   group: aws.crossplane.io
   names:
     kind: Provider

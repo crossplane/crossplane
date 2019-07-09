@@ -86,8 +86,3 @@ func IsErrorNotFound(err error) bool {
 	}
 	return false
 }
-
-// IsCompletedState validates that operation is complete for a create or update.
-func IsCompletedState(status cf.StackStatus) bool {
-	return status == cf.StackStatusCreateComplete || status == cf.StackStatusUpdateComplete
-}

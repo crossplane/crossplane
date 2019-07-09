@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"strings"
 
+	cf "github.com/aws/aws-sdk-go-v2/service/cloudformation"
 	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
@@ -44,6 +45,7 @@ import (
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	awsClient "github.com/crossplaneio/crossplane/pkg/clients/aws"
 	cloudformationclient "github.com/crossplaneio/crossplane/pkg/clients/aws/cloudformation"
+
 	"github.com/crossplaneio/crossplane/pkg/clients/aws/eks"
 	"github.com/crossplaneio/crossplane/pkg/logging"
 	"github.com/crossplaneio/crossplane/pkg/meta"
@@ -66,6 +68,22 @@ var (
 	ctx           = context.Background()
 	result        = reconcile.Result{}
 	resultRequeue = reconcile.Result{Requeue: true}
+)
+
+// CloudFormation States that are non-transitory
+var (
+	completedCFState = map[cf.StackStatus]bool{
+		cf.StackStatusCreateComplete: true,
+		cf.StackStatusUpdateComplete: true,
+	}
+
+	failedCFState = map[cf.StackStatus]bool{
+		cf.StackStatusCreateFailed:     true,
+		cf.StackStatusRollbackComplete: true,
+		cf.StackStatusRollbackFailed:   true,
+		cf.StackStatusDeleteComplete:   true,
+		cf.StackStatusDeleteFailed:     true,
+	}
 )
 
 // Add creates a new Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
@@ -288,7 +306,11 @@ func (r *Reconciler) _sync(instance *awscomputev1alpha1.EKSCluster, client eks.C
 		return r.fail(instance, err)
 	}
 
-	if !cloudformationclient.IsCompletedState(clusterWorker.WorkersStatus) {
+	if failedCFState[clusterWorker.WorkersStatus] {
+		return r.fail(instance, fmt.Errorf("clusterworker stack failed with status %q and reason %q", clusterWorker.WorkersStatus, clusterWorker.WorkerReason))
+	}
+
+	if !completedCFState[clusterWorker.WorkersStatus] {
 		instance.Status.SetConditions(corev1alpha1.ReconcileSuccess())
 		return resultRequeue, r.Update(ctx, instance)
 	}
