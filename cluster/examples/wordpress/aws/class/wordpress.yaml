@@ -8,7 +8,7 @@ spec:
   writeConnectionSecretToRef:
     name: demo-bucket
 ---
-apiVersion: storage.crossplane.io/v1alpha1
+apiVersion: database.crossplane.io/v1alpha1
 kind: MySQLInstance
 metadata:
   name: mysql-instance

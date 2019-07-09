@@ -17,9 +17,29 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"github.com/crossplaneio/crossplane/pkg/resource"
+	"testing"
+
+	"k8s.io/apimachinery/pkg/types"
+
+	"golang.org/x/net/context"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/crossplaneio/crossplane/pkg/test"
+)
+
+const (
+	namespace = "default"
+	name      = "test-instance"
 )
 
 var (
-	_ resource.Claim = &Bucket{}
+	ctx = context.TODO()
+	c   client.Client
+	key = types.NamespacedName{Name: name, Namespace: namespace}
 )
+
+func TestMain(m *testing.M) {
+	t := test.NewEnv(namespace, SchemeBuilder.SchemeBuilder, test.CRDs())
+	c = t.StartClient()
+	t.StopAndExit(m.Run())
+}

@@ -26,8 +26,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	databasev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/database/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/apis/gcp/database/v1alpha1"
-	storagev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/resource"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
@@ -59,9 +59,9 @@ func TestConfigurePostgreCloudsqlInstance(t *testing.T) {
 	}{
 		"Successful": {
 			args: args{
-				cm: &storagev1alpha1.PostgreSQLInstance{
+				cm: &databasev1alpha1.PostgreSQLInstance{
 					ObjectMeta: metav1.ObjectMeta{UID: claimUID},
-					Spec:       storagev1alpha1.PostgreSQLInstanceSpec{EngineVersion: "9.6"},
+					Spec:       databasev1alpha1.PostgreSQLInstanceSpec{EngineVersion: "9.6"},
 				},
 				cs: &corev1alpha1.ResourceClass{
 					ProviderReference: &corev1.ObjectReference{Name: providerName},
@@ -123,9 +123,9 @@ func TestConfigureMyCloudsqlInstance(t *testing.T) {
 	}{
 		"Successful": {
 			args: args{
-				cm: &storagev1alpha1.MySQLInstance{
+				cm: &databasev1alpha1.MySQLInstance{
 					ObjectMeta: metav1.ObjectMeta{UID: claimUID},
-					Spec:       storagev1alpha1.MySQLInstanceSpec{EngineVersion: "5.6"},
+					Spec:       databasev1alpha1.MySQLInstanceSpec{EngineVersion: "5.6"},
 				},
 				cs: &corev1alpha1.ResourceClass{
 					ProviderReference: &corev1.ObjectReference{Name: providerName},

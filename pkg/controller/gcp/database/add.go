@@ -27,8 +27,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	databasev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/database/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/apis/gcp/database/v1alpha1"
-	storagev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/resource"
 )
 
@@ -61,7 +61,7 @@ func Add(mgr manager.Manager) error {
 // managing CloudsqlInstance resources to the supplied Manager.
 func AddPostgreSQLClaim(mgr manager.Manager) error {
 	r := resource.NewClaimReconciler(mgr,
-		resource.ClaimKind(storagev1alpha1.PostgreSQLInstanceGroupVersionKind),
+		resource.ClaimKind(databasev1alpha1.PostgreSQLInstanceGroupVersionKind),
 		resource.ManagedKind(v1alpha1.CloudsqlInstanceGroupVersionKind),
 		resource.WithManagedBinder(resource.NewAPIStatusManagedBinder(mgr.GetClient())),
 		resource.WithManagedFinalizer(resource.NewAPIStatusManagedFinalizer(mgr.GetClient())),
@@ -70,7 +70,7 @@ func AddPostgreSQLClaim(mgr manager.Manager) error {
 			resource.NewObjectMetaConfigurator(mgr.GetScheme()),
 		))
 
-	name := strings.ToLower(fmt.Sprintf("%s.%s", storagev1alpha1.PostgreSQLInstanceKind, controllerName))
+	name := strings.ToLower(fmt.Sprintf("%s.%s", databasev1alpha1.PostgreSQLInstanceKind, controllerName))
 	c, err := controller.New(name, mgr, controller.Options{Reconciler: r})
 	if err != nil {
 		return errors.Wrapf(err, "cannot create %s controller", name)
@@ -82,17 +82,17 @@ func AddPostgreSQLClaim(mgr manager.Manager) error {
 
 	p := v1alpha1.CloudsqlInstanceKindAPIVersion
 	return errors.Wrapf(c.Watch(
-		&source.Kind{Type: &storagev1alpha1.PostgreSQLInstance{}},
+		&source.Kind{Type: &databasev1alpha1.PostgreSQLInstance{}},
 		&handler.EnqueueRequestForObject{},
 		resource.NewPredicates(resource.ObjectHasProvisioner(mgr.GetClient(), p)),
-	), "cannot watch for %s", storagev1alpha1.PostgreSQLInstanceGroupVersionKind)
+	), "cannot watch for %s", databasev1alpha1.PostgreSQLInstanceGroupVersionKind)
 }
 
 // AddMySQLClaim adds a controller that reconciles MySQLInstance instance claims by
 // managing CloudsqlInstance resources to the supplied Manager.
 func AddMySQLClaim(mgr manager.Manager) error {
 	r := resource.NewClaimReconciler(mgr,
-		resource.ClaimKind(storagev1alpha1.MySQLInstanceGroupVersionKind),
+		resource.ClaimKind(databasev1alpha1.MySQLInstanceGroupVersionKind),
 		resource.ManagedKind(v1alpha1.CloudsqlInstanceGroupVersionKind),
 		resource.WithManagedBinder(resource.NewAPIStatusManagedBinder(mgr.GetClient())),
 		resource.WithManagedFinalizer(resource.NewAPIStatusManagedFinalizer(mgr.GetClient())),
@@ -101,7 +101,7 @@ func AddMySQLClaim(mgr manager.Manager) error {
 			resource.NewObjectMetaConfigurator(mgr.GetScheme()),
 		))
 
-	name := strings.ToLower(fmt.Sprintf("%s.%s", storagev1alpha1.MySQLInstanceKind, controllerName))
+	name := strings.ToLower(fmt.Sprintf("%s.%s", databasev1alpha1.MySQLInstanceKind, controllerName))
 	c, err := controller.New(name, mgr, controller.Options{Reconciler: r})
 	if err != nil {
 		return errors.Wrapf(err, "cannot create %s controller", name)
@@ -116,8 +116,8 @@ func AddMySQLClaim(mgr manager.Manager) error {
 
 	p := v1alpha1.CloudsqlInstanceKindAPIVersion
 	return errors.Wrapf(c.Watch(
-		&source.Kind{Type: &storagev1alpha1.MySQLInstance{}},
+		&source.Kind{Type: &databasev1alpha1.MySQLInstance{}},
 		&handler.EnqueueRequestForObject{},
 		resource.NewPredicates(resource.ObjectHasProvisioner(mgr.GetClient(), p)),
-	), "cannot watch for %s", storagev1alpha1.MySQLInstanceGroupVersionKind)
+	), "cannot watch for %s", databasev1alpha1.MySQLInstanceGroupVersionKind)
 }

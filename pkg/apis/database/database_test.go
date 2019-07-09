@@ -14,26 +14,29 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+// Package storage contains Kubernetes API groups for cloud provider storage.
+package database
 
 import (
 	"testing"
 
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/crossplaneio/crossplane/pkg/test"
+	"github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
 )
 
-const (
-	namespace = "default"
-)
-
-var (
-	c client.Client
-)
-
-func TestMain(m *testing.M) {
-	t := test.NewEnv(namespace, SchemeBuilder.SchemeBuilder, test.CRDs())
-	c = t.StartClient()
-	t.StopAndExit(m.Run())
+func TestAddToScheme(t *testing.T) {
+	s := runtime.NewScheme()
+	if err := AddToScheme(s); err != nil {
+		t.Errorf("AddToScheme() error = %v", err)
+	}
+	gvs := []schema.GroupVersion{
+		v1alpha1.SchemeGroupVersion,
+	}
+	for _, gv := range gvs {
+		if !s.IsVersionRegistered(gv) {
+			t.Errorf("AddToScheme() %v should be registered", gv)
+		}
+	}
 }

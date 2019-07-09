@@ -1,5 +1,5 @@
 /*
-Copyright 2019 The Crossplane Authors.
+Copyright 2018 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@ import (
 
 // Package type metadata.
 const (
-	Group   = "database.gcp.crossplane.io"
+	Group   = "database.crossplane.io"
 	Version = "v1alpha1"
 )
 
@@ -37,13 +37,21 @@ var (
 	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
 )
 
-// CloudsqlInstance type metadata.
+// MySQLInstance type metadata.
 var (
-	CloudsqlInstanceKind             = reflect.TypeOf(CloudsqlInstance{}).Name()
-	CloudsqlInstanceKindAPIVersion   = CloudsqlInstanceKind + "." + SchemeGroupVersion.String()
-	CloudsqlInstanceGroupVersionKind = SchemeGroupVersion.WithKind(CloudsqlInstanceKind)
+	MySQLInstanceKind             = reflect.TypeOf(MySQLInstance{}).Name()
+	MySQLInstanceKindAPIVersion   = MySQLInstanceKind + "." + SchemeGroupVersion.String()
+	MySQLInstanceGroupVersionKind = SchemeGroupVersion.WithKind(MySQLInstanceKind)
+)
+
+// PostgreSQLInstance type metadata.
+var (
+	PostgreSQLInstanceKind             = reflect.TypeOf(PostgreSQLInstance{}).Name()
+	PostgreSQLInstanceKindAPIVersion   = PostgreSQLInstanceKind + "." + SchemeGroupVersion.String()
+	PostgreSQLInstanceGroupVersionKind = SchemeGroupVersion.WithKind(PostgreSQLInstanceKind)
 )
 
 func init() {
-	SchemeBuilder.Register(&CloudsqlInstance{}, &CloudsqlInstanceList{})
+	SchemeBuilder.Register(&MySQLInstance{}, &MySQLInstanceList{})
+	SchemeBuilder.Register(&PostgreSQLInstance{}, &PostgreSQLInstanceList{})
 }

@@ -155,7 +155,7 @@ Note: you can use a separate command for each claim file, or create all claims i
 kubectl create -Rf cluster/examples/gitlab/aws/resource-claims/
 ```
 ```
-postgresqlinstance.storage.crossplane.io/gitlab-postgresql created
+postgresqlinstance.database.crossplane.io/gitlab-postgresql created
 rediscluster.cache.crossplane.io/gitlab-redis created  
 bucket.storage.crossplane.io/gitlab-artifacts created
 bucket.storage.crossplane.io/gitlab-backups-tmp created
@@ -396,7 +396,7 @@ bucket.storage.crossplane.io "gitlab-packages" deleted
 bucket.storage.crossplane.io "gitlab-pseudonymizer" deleted
 bucket.storage.crossplane.io "gitlab-registry" deleted
 bucket.storage.crossplane.io "gitlab-uploads" deleted
-postgresqlinstance.storage.crossplane.io "gitlab-postgresql" deleted
+postgresqlinstance.database.crossplane.io "gitlab-postgresql" deleted
 rediscluster.cache.crossplane.io "gitlab-redis" deleted
 ```
 

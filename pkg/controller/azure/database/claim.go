@@ -30,7 +30,7 @@ import (
 
 	"github.com/crossplaneio/crossplane/pkg/apis/azure/database/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	storagev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
+	databasev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/database/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/resource"
 )
 
@@ -38,14 +38,14 @@ import (
 // managing PostgresqlServer resources to the supplied Manager.
 func AddPostgreSQLClaim(mgr manager.Manager) error {
 	r := resource.NewClaimReconciler(mgr,
-		resource.ClaimKind(storagev1alpha1.PostgreSQLInstanceGroupVersionKind),
+		resource.ClaimKind(databasev1alpha1.PostgreSQLInstanceGroupVersionKind),
 		resource.ManagedKind(v1alpha1.PostgresqlServerGroupVersionKind),
 		resource.WithManagedConfigurators(
 			resource.ManagedConfiguratorFn(ConfigurePostgresqlServer),
 			resource.NewObjectMetaConfigurator(mgr.GetScheme()),
 		))
 
-	name := strings.ToLower(fmt.Sprintf("%s.%s", storagev1alpha1.PostgreSQLInstanceKind, controllerName))
+	name := strings.ToLower(fmt.Sprintf("%s.%s", databasev1alpha1.PostgreSQLInstanceKind, controllerName))
 	c, err := controller.New(name, mgr, controller.Options{Reconciler: r})
 	if err != nil {
 		return errors.Wrapf(err, "cannot create %s controller", name)
@@ -57,19 +57,19 @@ func AddPostgreSQLClaim(mgr manager.Manager) error {
 
 	p := v1alpha1.PostgresqlServerKindAPIVersion
 	return errors.Wrapf(c.Watch(
-		&source.Kind{Type: &storagev1alpha1.PostgreSQLInstance{}},
+		&source.Kind{Type: &databasev1alpha1.PostgreSQLInstance{}},
 		&handler.EnqueueRequestForObject{},
 		resource.NewPredicates(resource.ObjectHasProvisioner(mgr.GetClient(), p)),
-	), "cannot watch for %s", storagev1alpha1.PostgreSQLInstanceGroupVersionKind)
+	), "cannot watch for %s", databasev1alpha1.PostgreSQLInstanceGroupVersionKind)
 }
 
 // ConfigurePostgresqlServer configures the supplied resource (presumed to be a
 // PostgresqlServer) using the supplied resource claim (presumed to be a
 // PostgreSQLInstance) and resource class.
 func ConfigurePostgresqlServer(_ context.Context, cm resource.Claim, cs *corev1alpha1.ResourceClass, mg resource.Managed) error {
-	pg, cmok := cm.(*storagev1alpha1.PostgreSQLInstance)
+	pg, cmok := cm.(*databasev1alpha1.PostgreSQLInstance)
 	if !cmok {
-		return errors.Errorf("expected resource claim %s to be %s", cm.GetName(), storagev1alpha1.PostgreSQLInstanceGroupVersionKind)
+		return errors.Errorf("expected resource claim %s to be %s", cm.GetName(), databasev1alpha1.PostgreSQLInstanceGroupVersionKind)
 	}
 
 	s, mgok := mg.(*v1alpha1.PostgresqlServer)
@@ -97,14 +97,14 @@ func ConfigurePostgresqlServer(_ context.Context, cm resource.Claim, cs *corev1a
 // by managing MysqlServer resources to the supplied Manager.
 func AddMySQLClaim(mgr manager.Manager) error {
 	r := resource.NewClaimReconciler(mgr,
-		resource.ClaimKind(storagev1alpha1.MySQLInstanceGroupVersionKind),
+		resource.ClaimKind(databasev1alpha1.MySQLInstanceGroupVersionKind),
 		resource.ManagedKind(v1alpha1.MysqlServerGroupVersionKind),
 		resource.WithManagedConfigurators(
 			resource.ManagedConfiguratorFn(ConfigureMysqlServer),
 			resource.NewObjectMetaConfigurator(mgr.GetScheme()),
 		))
 
-	name := strings.ToLower(fmt.Sprintf("%s.%s", storagev1alpha1.MySQLInstanceKind, controllerName))
+	name := strings.ToLower(fmt.Sprintf("%s.%s", databasev1alpha1.MySQLInstanceKind, controllerName))
 	c, err := controller.New(name, mgr, controller.Options{Reconciler: r})
 	if err != nil {
 		return errors.Wrapf(err, "cannot create %s controller", name)
@@ -119,19 +119,19 @@ func AddMySQLClaim(mgr manager.Manager) error {
 
 	p := v1alpha1.MysqlServerKindAPIVersion
 	return errors.Wrapf(c.Watch(
-		&source.Kind{Type: &storagev1alpha1.MySQLInstance{}},
+		&source.Kind{Type: &databasev1alpha1.MySQLInstance{}},
 		&handler.EnqueueRequestForObject{},
 		resource.NewPredicates(resource.ObjectHasProvisioner(mgr.GetClient(), p)),
-	), "cannot watch for %s", storagev1alpha1.MySQLInstanceGroupVersionKind)
+	), "cannot watch for %s", databasev1alpha1.MySQLInstanceGroupVersionKind)
 }
 
 // ConfigureMysqlServer configures the supplied resource (presumed to be
 // a MysqlServer) using the supplied resource claim (presumed to be a
 // MySQLInstance) and resource class.
 func ConfigureMysqlServer(_ context.Context, cm resource.Claim, cs *corev1alpha1.ResourceClass, mg resource.Managed) error {
-	my, cmok := cm.(*storagev1alpha1.MySQLInstance)
+	my, cmok := cm.(*databasev1alpha1.MySQLInstance)
 	if !cmok {
-		return errors.Errorf("expected resource claim %s to be %s", cm.GetName(), storagev1alpha1.MySQLInstanceGroupVersionKind)
+		return errors.Errorf("expected resource claim %s to be %s", cm.GetName(), databasev1alpha1.MySQLInstanceGroupVersionKind)
 	}
 
 	s, mgok := mg.(*v1alpha1.MysqlServer)

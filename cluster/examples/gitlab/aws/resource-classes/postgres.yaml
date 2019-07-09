@@ -7,7 +7,7 @@ metadata:
   name: standard-aws-postgres
   namespace: crossplane-system
   annotations:
-    resource: postgresqlinstance.storage.crossplane.io/v1alpha1
+    resource: postgresqlinstance.database.crossplane.io/v1alpha1
 parameters:
   class: db.t2.small
   masterUsername: masteruser

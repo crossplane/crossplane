@@ -44,22 +44,6 @@ var (
 	BucketGroupVersionKind = SchemeGroupVersion.WithKind(BucketKind)
 )
 
-// MySQLInstance type metadata.
-var (
-	MySQLInstanceKind             = reflect.TypeOf(MySQLInstance{}).Name()
-	MySQLInstanceKindAPIVersion   = MySQLInstanceKind + "." + SchemeGroupVersion.String()
-	MySQLInstanceGroupVersionKind = SchemeGroupVersion.WithKind(MySQLInstanceKind)
-)
-
-// PostgreSQLInstance type metadata.
-var (
-	PostgreSQLInstanceKind             = reflect.TypeOf(PostgreSQLInstance{}).Name()
-	PostgreSQLInstanceKindAPIVersion   = PostgreSQLInstanceKind + "." + SchemeGroupVersion.String()
-	PostgreSQLInstanceGroupVersionKind = SchemeGroupVersion.WithKind(PostgreSQLInstanceKind)
-)
-
 func init() {
 	SchemeBuilder.Register(&Bucket{}, &BucketList{})
-	SchemeBuilder.Register(&MySQLInstance{}, &MySQLInstanceList{})
-	SchemeBuilder.Register(&PostgreSQLInstance{}, &PostgreSQLInstanceList{})
 }

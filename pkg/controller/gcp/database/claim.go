@@ -25,8 +25,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	databasev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/database/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/apis/gcp/database/v1alpha1"
-	storagev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/resource"
 )
 
@@ -34,9 +34,9 @@ import (
 // to be a CloudsqlInstance) using the supplied instance claim (presumed to be a
 // PostgreSQLInstance) and instance class.
 func ConfigurePostgreSQLCloudsqlInstance(_ context.Context, cm resource.Claim, cs *corev1alpha1.ResourceClass, mg resource.Managed) error {
-	pg, cmok := cm.(*storagev1alpha1.PostgreSQLInstance)
+	pg, cmok := cm.(*databasev1alpha1.PostgreSQLInstance)
 	if !cmok {
-		return errors.Errorf("expected resource claim %s to be %s", cm.GetName(), storagev1alpha1.PostgreSQLInstanceGroupVersionKind)
+		return errors.Errorf("expected resource claim %s to be %s", cm.GetName(), databasev1alpha1.PostgreSQLInstanceGroupVersionKind)
 	}
 
 	i, mgok := mg.(*v1alpha1.CloudsqlInstance)
@@ -65,9 +65,9 @@ func ConfigurePostgreSQLCloudsqlInstance(_ context.Context, cm resource.Claim, c
 // a CloudsqlInstance) using the supplied instance claim (presumed to be a
 // MySQLInstance) and instance class.
 func ConfigureMyCloudsqlInstance(_ context.Context, cm resource.Claim, cs *corev1alpha1.ResourceClass, mg resource.Managed) error {
-	my, cmok := cm.(*storagev1alpha1.MySQLInstance)
+	my, cmok := cm.(*databasev1alpha1.MySQLInstance)
 	if !cmok {
-		return errors.Errorf("expected instance claim %s to be %s", cm.GetName(), storagev1alpha1.MySQLInstanceGroupVersionKind)
+		return errors.Errorf("expected instance claim %s to be %s", cm.GetName(), databasev1alpha1.MySQLInstanceGroupVersionKind)
 	}
 
 	i, mgok := mg.(*v1alpha1.CloudsqlInstance)
