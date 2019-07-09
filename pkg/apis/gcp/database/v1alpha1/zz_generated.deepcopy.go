@@ -88,6 +88,18 @@ func (in *CloudsqlInstanceList) DeepCopyObject() runtime.Object {
 func (in *CloudsqlInstanceSpec) DeepCopyInto(out *CloudsqlInstanceSpec) {
 	*out = *in
 	in.ResourceSpec.DeepCopyInto(&out.ResourceSpec)
+	if in.AuthorizedNetworks != nil {
+		in, out := &in.AuthorizedNetworks, &out.AuthorizedNetworks
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
+	if in.Labels != nil {
+		in, out := &in.Labels, &out.Labels
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	return
 }
 

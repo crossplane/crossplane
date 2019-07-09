@@ -33,7 +33,7 @@ import (
 )
 
 var (
-	_ resource.ManagedConfigurator = resource.ManagedConfiguratorFn(ConfigurePostgreCloudsqlInstance)
+	_ resource.ManagedConfigurator = resource.ManagedConfiguratorFn(ConfigurePostgreSQLCloudsqlInstance)
 	_ resource.ManagedConfigurator = resource.ManagedConfiguratorFn(ConfigureMyCloudsqlInstance)
 )
 
@@ -77,7 +77,10 @@ func TestConfigurePostgreCloudsqlInstance(t *testing.T) {
 							WriteConnectionSecretToReference: corev1.LocalObjectReference{Name: string(claimUID)},
 							ProviderReference:                &corev1.ObjectReference{Name: providerName},
 						},
-						DatabaseVersion: "POSTGRES_9_6",
+						AuthorizedNetworks: []string{},
+						DatabaseVersion:    "POSTGRES_9_6",
+						Labels:             map[string]string{},
+						StorageGB:          v1alpha1.DefaultStorageGB,
 					},
 				},
 				err: nil,
@@ -87,12 +90,12 @@ func TestConfigurePostgreCloudsqlInstance(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			err := ConfigurePostgreCloudsqlInstance(tc.args.ctx, tc.args.cm, tc.args.cs, tc.args.mg)
+			err := ConfigurePostgreSQLCloudsqlInstance(tc.args.ctx, tc.args.cm, tc.args.cs, tc.args.mg)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("ConfigurePostgreCloudsqlInstance(...): -want error, +got error:\n%s", diff)
+				t.Errorf("ConfigurePostgreSQLCloudsqlInstance(...) Error  -want, +got: %s", diff)
 			}
 			if diff := cmp.Diff(tc.want.mg, tc.args.mg, test.EquateConditions()); diff != "" {
-				t.Errorf("ConfigurePostgreCloudsqlInstance(...) Managed: -want, +got:\n%s", diff)
+				t.Errorf("ConfigurePostgreSQLCloudsqlInstance(...) Managed -want, +got:\n%s", diff)
 			}
 		})
 	}
@@ -138,7 +141,10 @@ func TestConfigureMyCloudsqlInstance(t *testing.T) {
 							WriteConnectionSecretToReference: corev1.LocalObjectReference{Name: string(claimUID)},
 							ProviderReference:                &corev1.ObjectReference{Name: providerName},
 						},
-						DatabaseVersion: "MYSQL_5_6",
+						AuthorizedNetworks: []string{},
+						DatabaseVersion:    "MYSQL_5_6",
+						Labels:             map[string]string{},
+						StorageGB:          v1alpha1.DefaultStorageGB,
 					},
 				},
 				err: nil,
@@ -150,7 +156,7 @@ func TestConfigureMyCloudsqlInstance(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			err := ConfigureMyCloudsqlInstance(tc.args.ctx, tc.args.cm, tc.args.cs, tc.args.mg)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("ConfigureMyCloudsqlInstance(...): -want error, +got error:\n%s", diff)
+				t.Errorf("ConfigureMyCloudsqlInstance(...) Error -want, +got: %s", diff)
 			}
 			if diff := cmp.Diff(tc.want.mg, tc.args.mg, test.EquateConditions()); diff != "" {
 				t.Errorf("ConfigureMyCloudsqlInstance(...) Managed: -want, +got:\n%s", diff)
