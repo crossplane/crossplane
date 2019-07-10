@@ -3,7 +3,7 @@
 * Reviewers: Crossplane Maintainers
 * Status: Accepted, revision 1.1
 
-This document aims to provide details about the experience and implementation for Crossplane “Stacks”, which can add new functionality/support, types, and controllers to Crossplane.
+This document aims to provide details about the experience and implementation for Crossplane Stacks, which can add new functionality/support, types, and controllers to Crossplane.
 
 ## Revisions
 
@@ -15,7 +15,7 @@ This document aims to provide details about the experience and implementation fo
 
 The core experience for consuming new functionality in Crossplane is composed of 2 steps:
 
-1. Create an extension request for the name of the Crossplane Stack or one of the CRDs that it owns
+1. Create an installation request for the name of the Crossplane Stack or one of the CRDs that it owns
     1. e.g., GitLab or `gitlabcluster.gitlab.com/v1alpha1`
 1. Create a CRD instance that the custom controller owns
     1. e.g., GitLab CRD instance
@@ -121,7 +121,7 @@ The Stack Manager will see this new instance and take the steps necessary to ens
 
 ```yaml
 apiVersion: extensions.crossplane.io/v1alpha1
-kind: Stack
+kind: Extension
 metadata:
  name: redis
 spec:
