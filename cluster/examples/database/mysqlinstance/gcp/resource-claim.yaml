@@ -1,5 +1,5 @@
 # Example MySQL resource claim using the cloud-mysql resource class
-apiVersion: storage.crossplane.io/v1alpha1
+apiVersion: database.crossplane.io/v1alpha1
 kind: MySQLInstance
 metadata:
   name: cloudsqlinstancemysql

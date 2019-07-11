@@ -50,6 +50,7 @@ rules:
 - apiGroups:
   - cache.crossplane.io
   - compute.crossplane.io
+  - database.crossplane.io
   - core.crossplane.io
   - extensions.crossplane.io
   - storage.crossplane.io

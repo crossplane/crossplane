@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Crossplane Authors.
+Copyright 2019 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,9 +19,6 @@ package v1alpha1
 import (
 	"testing"
 
-	"k8s.io/apimachinery/pkg/types"
-
-	"golang.org/x/net/context"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplaneio/crossplane/pkg/test"
@@ -29,13 +26,10 @@ import (
 
 const (
 	namespace = "default"
-	name      = "test-instance"
 )
 
 var (
-	ctx = context.TODO()
-	c   client.Client
-	key = types.NamespacedName{Name: name, Namespace: namespace}
+	c client.Client
 )
 
 func TestMain(m *testing.M) {

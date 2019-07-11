@@ -69,7 +69,7 @@ parameters:
   securityGroups: "sg-ab1cdefg,sg-05adsfkaj1ksdjak"
   size: "20"
 defaultForClaimKinds:
-- postgresqlinstance.storage.crossplane.io
+- postgresqlinstance.database.crossplane.io
 provisioner: rdsinstance.database.aws.crossplane.io/v1alpha1
 providerRef:
   name: aws-provider
@@ -115,7 +115,7 @@ metadata:
 parameters:
   ...
 defaultForClaimKinds:
-- nosqlinstance.storage.crossplane.io
+- nosqlinstance.database.crossplane.io
 - dynamodbinstance.storage.crossplane.io
 provisioner: dynamodbinstance.database.aws.crossplane.io/v1alpha1
 providerRef:

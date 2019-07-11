@@ -139,7 +139,7 @@ bucket.storage.crossplane.io/gitlab-packages created
 bucket.storage.crossplane.io/gitlab-pseudonymizer created
 bucket.storage.crossplane.io/gitlab-registry created
 bucket.storage.crossplane.io/gitlab-uploads created
-postgresqlinstance.storage.crossplane.io/gitlab-postgresql created
+postgresqlinstance.database.crossplane.io/gitlab-postgresql created
 rediscluster.cache.crossplane.io/gitlab-redis created  
 ```
 
@@ -372,7 +372,7 @@ bucket.storage.crossplane.io "gitlab-packages" deleted
 bucket.storage.crossplane.io "gitlab-pseudonymizer" deleted
 bucket.storage.crossplane.io "gitlab-registry" deleted
 bucket.storage.crossplane.io "gitlab-uploads" deleted
-postgresqlinstance.storage.crossplane.io "gitlab-postgresql" deleted
+postgresqlinstance.database.crossplane.io "gitlab-postgresql" deleted
 rediscluster.cache.crossplane.io "gitlab-redis" deleted
 ```
 

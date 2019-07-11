@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Crossplane Authors.
+Copyright 2019 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ import (
 
 	"github.com/crossplaneio/crossplane/pkg/apis/aws/database/v1alpha1"
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	storagev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
+	databasev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/database/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/resource"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
@@ -60,9 +60,9 @@ func TestConfigurePostgreRDSInstance(t *testing.T) {
 	}{
 		"Successful": {
 			args: args{
-				cm: &storagev1alpha1.PostgreSQLInstance{
+				cm: &databasev1alpha1.PostgreSQLInstance{
 					ObjectMeta: metav1.ObjectMeta{UID: claimUID},
-					Spec:       storagev1alpha1.PostgreSQLInstanceSpec{EngineVersion: "9.6"},
+					Spec:       databasev1alpha1.PostgreSQLInstanceSpec{EngineVersion: "9.6"},
 				},
 				cs: &corev1alpha1.ResourceClass{
 					ProviderReference: &corev1.ObjectReference{Name: providerName},
@@ -122,9 +122,9 @@ func TestConfigureMyRDSInstance(t *testing.T) {
 	}{
 		"Successful": {
 			args: args{
-				cm: &storagev1alpha1.MySQLInstance{
+				cm: &databasev1alpha1.MySQLInstance{
 					ObjectMeta: metav1.ObjectMeta{UID: claimUID},
-					Spec:       storagev1alpha1.MySQLInstanceSpec{EngineVersion: "5.6"},
+					Spec:       databasev1alpha1.MySQLInstanceSpec{EngineVersion: "5.6"},
 				},
 				cs: &corev1alpha1.ResourceClass{
 					ProviderReference: &corev1.ObjectReference{Name: providerName},

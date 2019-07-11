@@ -4,7 +4,7 @@ metadata:
   creationTimestamp: null
   labels:
     controller-tools.k8s.io: "1.0"
-  name: mysqlinstances.storage.crossplane.io
+  name: mysqlinstances.database.crossplane.io
 spec:
   additionalPrinterColumns:
   - JSONPath: .status.bindingPhase
@@ -19,7 +19,7 @@ spec:
   - JSONPath: .metadata.creationTimestamp
     name: AGE
     type: date
-  group: storage.crossplane.io
+  group: database.crossplane.io
   names:
     kind: MySQLInstance
     plural: mysqlinstances

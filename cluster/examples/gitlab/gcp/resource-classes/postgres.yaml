@@ -6,7 +6,7 @@ metadata:
   name: standard-gcp-postgres
   namespace: crossplane-system
   annotations:
-    resource: postgresqlinstance.storage.crossplane.io/v1alpha1
+    resource: postgresqlinstance.database.crossplane.io/v1alpha1
 parameters:
   tier: db-custom-1-3840
   region: us-west2
