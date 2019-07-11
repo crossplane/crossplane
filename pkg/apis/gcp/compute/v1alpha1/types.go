@@ -87,7 +87,7 @@ type GKEClusterSpec struct {
 	EnableBasicAuth bool   `json:"enableBasicAuth,omitempty"`
 	Username        string `json:"username,omitempty"`
 
-	ServiceAccount       string   `json:"serviceAccount,omitempty,omitempty"`
+	ServiceAccount       string   `json:"serviceAccount,omitempty"`
 	EnableCloudEndpoints bool     `json:"enableCloudEndpoints,omitempty"`
 	Scopes               []string `json:"scopes,omitempty"`
 }
