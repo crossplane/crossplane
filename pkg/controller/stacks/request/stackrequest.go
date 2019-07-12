@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -53,6 +54,9 @@ const (
 	requeueAfterOnSuccess = 10 * time.Second
 
 	packageContentsVolumeName = "package-contents"
+
+	// PodImageNameEnvVar is the env variable for setting the image name used for the unpack/install process when debugging the main process
+	PodImageNameEnvVar = "UNPACK_IMAGE"
 )
 
 var (
@@ -352,7 +356,7 @@ func (jc *stackRequestJobCompleter) handleJobCompletion(ctx context.Context, i *
 			stackRecord = &v1alpha1.Stack{}
 			n := types.NamespacedName{Name: obj.GetName(), Namespace: obj.GetNamespace()}
 			if err := jc.kube.Get(ctx, n, stackRecord); err != nil {
-				return errors.Wrapf(err, "failed to retrieve created stack record %s from job %s", obj.GetName(), job.Name)
+				return errors.Wrapf(err, "failed to retrieve created stack record %s in %s from job %s", obj.GetName(), obj.GetNamespace(), job.Name)
 			}
 		}
 	}
@@ -510,18 +514,20 @@ func (r *Reconciler) discoverExecutorInfo(ctx context.Context) error {
 
 // discoverExecutorInfo is the concrete implementation that will lookup executorInfo from the runtime environment.
 func (d *executorInfoDiscoverer) discoverExecutorInfo(ctx context.Context) (*executorInfo, error) {
-	pod, err := util.GetRunningPod(ctx, d.kube)
-	if err != nil {
-		log.Error(err, "failed to get running pod")
-		return nil, err
-	}
+	image := os.Getenv(PodImageNameEnvVar)
+	if image == "" {
+		pod, err := util.GetRunningPod(ctx, d.kube)
+		if err != nil {
+			log.Error(err, "failed to get running pod")
+			return nil, err
+		}
 
-	image, err := util.GetContainerImage(pod, "")
-	if err != nil {
-		log.Error(err, "failed to get image for pod", "image", image)
-		return nil, err
+		image, err := util.GetContainerImage(pod, "")
+		if err != nil {
+			log.Error(err, "failed to get image for pod", "image", image)
+			return nil, err
+		}
 	}
-
 	return &executorInfo{image: image}, nil
 }
 
