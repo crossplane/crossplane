@@ -40,7 +40,7 @@ Any dates listed below and the specific issues that will ship in a given milesto
   * Governance
   * Contributor License Agreement (CLA) or Developer Certificate of Origin (DCO)
 
-## v0.2 - Workload Scheduling, Expand Supported Resources
+## [v0.2 - Workload Scheduling, Expand Supported Resources](https://github.com/crossplaneio/crossplane/releases/tag/v0.2.0)
 
 * Workload Scheduling
   * Design for smart scheduler, optimization, resource placement [#278](https://github.com/crossplaneio/crossplane/issues/278)
