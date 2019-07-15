@@ -5,16 +5,24 @@ PROJECT_NAME := crossplane
 PROJECT_REPO := github.com/crossplaneio/$(PROJECT_NAME)
 
 PLATFORMS ?= linux_amd64 linux_arm64
-include build/makelib/common.mk
+# -include will silently skip missing files, which allows us
+# to load those files with a target in the Makefile. If only
+# "include" was used, the make command would fail and refuse
+# to run a target until the include commands succeeded.
+-include build/makelib/common.mk
 
 # ====================================================================================
 # Setup Output
 
 S3_BUCKET ?= crossplane.releases
-include build/makelib/output.mk
+-include build/makelib/output.mk
 
 # ====================================================================================
 # Setup Go
+
+# Set a sane default so that the nprocs calculation below is less noisy on the initial
+# loading of this file
+NPROCS ?= 1
 
 # each of our test suites starts a kube-apiserver and running many test suites in
 # parallel can lead to high CPU utilization. by default we reduce the parallelism
@@ -23,7 +31,7 @@ GO_TEST_PARALLEL := $(shell echo $$(( $(NPROCS) / 2 )))
 
 GO_STATIC_PACKAGES = $(GO_PROJECT)/cmd/crossplane
 GO_LDFLAGS += -X $(GO_PROJECT)/pkg/version.Version=$(VERSION)
-include build/makelib/golang.mk
+-include build/makelib/golang.mk
 
 # ====================================================================================
 # Setup Helm
@@ -32,19 +40,19 @@ HELM_BASE_URL = https://charts.crossplane.io
 HELM_S3_BUCKET = crossplane.charts
 HELM_CHARTS = crossplane
 HELM_CHART_LINT_ARGS_crossplane = --set nameOverride='',imagePullSecrets=''
-include build/makelib/helm.mk
+-include build/makelib/helm.mk
 
 # ====================================================================================
 # Setup Kubebuilder
 
-include build/makelib/kubebuilder.mk
+-include build/makelib/kubebuilder.mk
 
 # ====================================================================================
 # Setup Images
 
 DOCKER_REGISTRY = crossplane
 IMAGES = crossplane
-include build/makelib/image.mk
+-include build/makelib/image.mk
 
 # ====================================================================================
 # Setup Docs
@@ -52,12 +60,21 @@ include build/makelib/image.mk
 SOURCE_DOCS_DIR = docs
 DEST_DOCS_DIR = docs
 DOCS_GIT_REPO = https://$(GIT_API_TOKEN)@github.com/crossplaneio/crossplaneio.github.io.git
-include build/makelib/docs.mk
+-include build/makelib/docs.mk
 
 # ====================================================================================
 # Targets
 
 # run `make help` to see the targets and options
+
+# We want submodules to be set up the first time `make` is run.
+# We manage the build/ folder and its Makefiles as a submodule.
+# The first time `make` is run, the includes of build/*.mk files will
+# all fail, and this target will be run. The next time, the default as defined
+# by the includes will be run instead.
+fallthrough: submodules
+	@echo Initial setup complete. Running make again . . .
+	@make
 
 go.test.unit: $(KUBEBUILDER)
 
@@ -77,4 +94,9 @@ cobertura:
 # Ensure a PR is ready for review.
 reviewable: vendor generate manifests lint
 
-.PHONY: manifests cobertura reviewable
+# Update the submodules, such as the common build scripts.
+submodules:
+	@git submodule sync
+	@git submodule update --init --recursive
+
+.PHONY: manifests cobertura reviewable submodules fallthrough

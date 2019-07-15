@@ -21,17 +21,14 @@ The following tools are need on the host:
 
 ## Build
 
-First ensure that you have the build submodule synced and updated:
-
-```
-git submodule sync && git submodule update --init --recursive
-```
-
-You can then build the Crossplane binaries and all container images for the host platform by simply running the command below. Building in parallel with the `-j` option is recommended.
+You can build the Crossplane binaries and all container images for the host platform by simply running the command below. Building in parallel with the `-j` option is recommended.
 
 ```
 make -j4
 ```
+
+The first time `make` is run, the build submodule will be synced and
+updated. After initial setup, it can be updated by running `make submodules`.
 
 Run `make help` for more options.
 
