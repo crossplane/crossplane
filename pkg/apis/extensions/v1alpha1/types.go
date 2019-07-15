@@ -32,7 +32,7 @@ import (
 
 // ExtensionRequest is the CRD type for a request to add an extension to Crossplane.
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.Conditions[?(@.Status=="True")].Type"
+// +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type=="Ready")].status"
 // +kubebuilder:printcolumn:name="SOURCE",type="string",JSONPath=".spec.source"
 // +kubebuilder:printcolumn:name="PACKAGE",type="string",JSONPath=".spec.package"
 // +kubebuilder:printcolumn:name="CRD",type="string",JSONPath=".spec.crd"
@@ -83,7 +83,7 @@ type ExtensionRequestStatus struct {
 
 // Extension is the CRD type for a request to add an extension to Crossplane.
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.Conditions[?(@.Status=="True")].Type"
+// +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type=="Ready")].status"
 // +kubebuilder:printcolumn:name="VERSION",type="string",JSONPath=".spec.version"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 type Extension struct {
