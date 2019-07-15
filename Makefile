@@ -20,6 +20,10 @@ S3_BUCKET ?= crossplane.releases
 # ====================================================================================
 # Setup Go
 
+# Set a sane default so that the nprocs calculation below is less noisy on the initial
+# loading of this file
+NPROCS ?= 1
+
 # each of our test suites starts a kube-apiserver and running many test suites in
 # parallel can lead to high CPU utilization. by default we reduce the parallelism
 # to half the number of CPU cores.
