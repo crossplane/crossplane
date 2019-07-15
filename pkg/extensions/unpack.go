@@ -19,6 +19,7 @@ package extensions
 import (
 	"bytes"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -29,9 +30,11 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/spf13/afero"
-	apps "k8s.io/api/apps/v1"
+	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/crossplaneio/crossplane/pkg/apis/extensions/v1alpha1"
@@ -81,7 +84,7 @@ func findRegistryRoot(fs afero.Fs, dir string) string {
 	return dir
 }
 
-func doUnpack(fs afero.Fs, root string) (string, error) {
+func doUnpack(fs afero.Fs, root string) (string, error) { // nolint:gocyclo
 	var output strings.Builder
 
 	// create an Extension record and populate it with the relevant package contents
@@ -101,13 +104,43 @@ func doUnpack(fs afero.Fs, root string) (string, error) {
 	}
 
 	// read the install file information
-	installObj := apps.Deployment{}
+	// installObj := apps.Deployment{}
+	installObj := unstructured.Unstructured{}
+
 	if err := readFileIntoObject(fs, root, installFileName, true, &installObj); err != nil {
 		return "", err
 	}
-	extensionRecord.Spec.Controller.Deployment = &v1alpha1.ControllerDeployment{
-		Name: installObj.GetName(),
-		Spec: installObj.Spec,
+
+	switch installObj.GetKind() {
+	case "Deployment":
+		deployment := appsv1.Deployment{}
+		b, err := installObj.MarshalJSON()
+		if err != nil {
+			return "", err
+		}
+		if err := json.Unmarshal(b, &deployment); err != nil {
+			return "", err
+		}
+
+		extensionRecord.Spec.Controller.Deployment = &v1alpha1.ControllerDeployment{
+			Name: installObj.GetName(),
+			Spec: deployment.Spec,
+		}
+	case "Job":
+		job := batchv1.Job{}
+		b, err := installObj.MarshalJSON()
+		if err != nil {
+			return "", err
+		}
+		if err := json.Unmarshal(b, &job); err != nil {
+			return "", err
+		}
+
+		extensionRecord.Spec.Controller.Job = &v1alpha1.ControllerJob{
+			Name: installObj.GetName(),
+			Spec: job.Spec,
+		}
+
 	}
 
 	// read the app file information
