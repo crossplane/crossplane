@@ -28,6 +28,7 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/apis/cache"
 	"github.com/crossplaneio/crossplane/pkg/apis/compute"
 	"github.com/crossplaneio/crossplane/pkg/apis/core"
+	"github.com/crossplaneio/crossplane/pkg/apis/database"
 	"github.com/crossplaneio/crossplane/pkg/apis/extensions"
 	"github.com/crossplaneio/crossplane/pkg/apis/gcp"
 	"github.com/crossplaneio/crossplane/pkg/apis/storage"
@@ -44,6 +45,7 @@ func init() {
 		core.AddToScheme,
 		extensions.AddToScheme,
 		gcp.AddToScheme,
+		database.AddToScheme,
 		storage.AddToScheme,
 		workload.AddToScheme,
 	)

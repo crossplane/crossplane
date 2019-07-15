@@ -20,7 +20,7 @@ package database
 import (
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/apis/database/v1alpha1"
 )
 
 func init() {
