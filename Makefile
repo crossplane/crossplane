@@ -68,8 +68,9 @@ DOCS_GIT_REPO = https://$(GIT_API_TOKEN)@github.com/crossplaneio/crossplaneio.gi
 # The first time `make` is run, the includes of build/*.mk files will
 # all fail, and this target will be run. The next time, the default as defined
 # by the includes will be run instead.
-init: submodules
-	@echo Initial setup complete. If make was run without arguments, please run it again now.
+fallthrough: submodules
+	@echo Initial setup complete. Running make again . . .
+	@make
 
 go.test.unit: $(KUBEBUILDER)
 
@@ -94,4 +95,4 @@ submodules:
 	@git submodule sync
 	@git submodule update --init --recursive
 
-.PHONY: manifests cobertura reviewable init submodules
+.PHONY: manifests cobertura reviewable submodules fallthrough
