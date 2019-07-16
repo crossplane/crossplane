@@ -9,12 +9,12 @@ set -e -o pipefail
 RAND=$RANDOM
 
 if ! command -v aws > /dev/null; then
-	echo "Please install aws: https://aws.amazon.com/cli/)"
+	echo "Please install aws: https://aws.amazon.com/cli/"
 	exit 1
 fi
 
 if ! command -v jq > /dev/null; then
-	echo "Please install jq: https://stedolan.github.io/jq/download/)"
+	echo "Please install jq: https://stedolan.github.io/jq/download/"
 	exit 1
 fi
 
