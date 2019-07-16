@@ -46,7 +46,7 @@ sed -e "s|BASE64ENCODED_AWS_PROVIDER_CREDS|$(base64 ~/.aws/credentials | tr -d "
 # ./cluster/examples/aws-credentials.sh delete 25077
 ```
 
-After running `gcp-credentials.sh`, a series of `export` commands will be shown.  Copy and paste the `export` commands that are provided.  These variable names will be referenced throughout the Crossplane examples, generally with a `sed` command.
+After running the helper script, a series of `export` commands will be shown.  Copy and paste the `export` commands that are provided.  These variable names will be referenced throughout the Crossplane examples, generally with a `sed` command.
 
 You will also see a `sed` command.  This command will configure the AWS Crossplane provider using the environment that was created by the `aws-credentials.sh` script.
 
