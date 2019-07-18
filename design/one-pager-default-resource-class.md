@@ -63,13 +63,13 @@ kind: ResourceClass
 metadata:
   name: cloud-postgresql
   namespace: crossplane-system
+  labels:
+    postgresqlinstance.storage.crossplane.io/default: "true"
 parameters:
   class: db.t2.small
   masterUsername: masteruser
   securityGroups: "sg-ab1cdefg,sg-05adsfkaj1ksdjak"
   size: "20"
-defaultForClaimKinds:
-- postgresqlinstance.database.crossplane.io
 provisioner: rdsinstance.database.aws.crossplane.io/v1alpha1
 providerRef:
   name: aws-provider

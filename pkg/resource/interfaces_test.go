@@ -20,6 +20,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 )
@@ -62,6 +63,11 @@ type MockReclaimer struct{ Policy v1alpha1.ReclaimPolicy }
 func (m *MockReclaimer) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) { m.Policy = p }
 func (m *MockReclaimer) GetReclaimPolicy() v1alpha1.ReclaimPolicy  { return m.Policy }
 
+type MockObjectKind struct{ GVK schema.GroupVersionKind }
+
+func (m *MockObjectKind) SetGroupVersionKind(kind schema.GroupVersionKind) { m.GVK = kind }
+func (m *MockObjectKind) GroupVersionKind() schema.GroupVersionKind        { return m.GVK }
+
 var _ Claim = &MockClaim{}
 
 type MockClaim struct {
@@ -73,6 +79,10 @@ type MockClaim struct {
 	MockConnectionSecretWriterTo
 	MockConditionSetter
 	MockBindable
+}
+
+func (m *MockClaim) GetObjectKind() schema.ObjectKind {
+	return &MockObjectKind{GVK: schema.GroupVersionKind{Group: "mock.crossplane.io", Version: "v1alpha", Kind: "claim"}}
 }
 
 var _ Managed = &MockManaged{}
