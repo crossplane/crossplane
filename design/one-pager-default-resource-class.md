@@ -45,7 +45,7 @@ metadata:
   name: cloud-postgresql-claim
   namespace: demo
 spec:
-  classReference:
+  classRef:
     name: cloud-postgresql
     namespace: crossplane-system
   engineVersion: "9.6"

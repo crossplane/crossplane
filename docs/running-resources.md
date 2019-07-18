@@ -28,7 +28,7 @@ kind: MySQLInstance
 metadata:
   name: demo-mysql
 spec:
-  classReference:
+  classRef:
     name: standard-mysql
     namespace: crossplane-system
   engineVersion: "5.7"
@@ -68,7 +68,7 @@ metadata:
   name: demo-cluster
   namespace: crossplane-system
 spec:
-  classReference:
+  classRef:
     name: standard-cluster
     namespace: crossplane-system
 ```
