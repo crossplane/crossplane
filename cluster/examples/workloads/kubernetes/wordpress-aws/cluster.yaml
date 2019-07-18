@@ -12,7 +12,7 @@ metadata:
     provider: aws
     app: wordpress-demo
 spec:
-  classReference:
+  classRef:
     name: standard-cluster
     namespace: crossplane-system
 ---

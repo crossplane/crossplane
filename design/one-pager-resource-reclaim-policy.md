@@ -71,7 +71,7 @@ metadata:
   name: my-bucket
   namespace: default
 spec:
-  classReference:
+  classRef:
     name: standard-aws-bucket
     namespace: crossplane-system
   name: my-bucket-1234

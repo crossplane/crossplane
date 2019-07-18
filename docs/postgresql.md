@@ -77,7 +77,7 @@ Note that the first command gives us the status of the `ResourceClaim` (general 
 and the second command gives the status of the environment specific database resource that Crossplane is provisioning using the `ResourceClass` "blueprint".
 
 ```console
-kubectl -n demo get postgresqlinstance -o custom-columns=NAME:.metadata.name,STATUS:.status.bindingPhase,CLASS:.spec.classReference.name,VERSION:.spec.engineVersion,AGE:.metadata.creationTimestamp
+kubectl -n demo get postgresqlinstance -o custom-columns=NAME:.metadata.name,STATUS:.status.bindingPhase,CLASS:.spec.classRef.name,VERSION:.spec.engineVersion,AGE:.metadata.creationTimestamp
 kubectl -n crossplane-system get ${DATABASE_TYPE} -o custom-columns=NAME:.metadata.name,STATUS:.status.bindingPhase,STATE:.status.state,CLASS:.spec.classRef.name,VERSION:.spec.${versionfield},AGE:.metadata.creationTimestamp
 ```
 
@@ -86,7 +86,7 @@ kubectl -n crossplane-system get ${DATABASE_TYPE} -o custom-columns=NAME:.metada
 Once the dynamic provisioning process has finished creating and preparing the database, the status output will look similar to the following:
 
 ```console
-> kubectl -n demo get postgresqlinstance -o custom-columns=NAME:.metadata.name,STATUS:.status.bindingPhase,CLASS:.spec.classReference.name,VERSION:.spec.engineVersion,AGE:.metadata.creationTimestamp
+> kubectl -n demo get postgresqlinstance -o custom-columns=NAME:.metadata.name,STATUS:.status.bindingPhase,CLASS:.spec.classRef.name,VERSION:.spec.engineVersion,AGE:.metadata.creationTimestamp
 NAME                     STATUS    CLASS              VERSION   AGE
 cloud-postgresql-claim   Bound     cloud-postgresql   9.6       2018-12-23T04:00:11Z
 

@@ -51,7 +51,7 @@ metadata:
   name: demo
   namespace: default
 spec:
-  classReference:
+  classRef:
     name: standard-mysql
     namespace: crossplane-system
   engineVersion: "5.7"
