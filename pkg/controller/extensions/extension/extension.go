@@ -235,13 +235,7 @@ func (h *extensionHandler) processDeployment(ctx context.Context) error {
 	}
 
 	// save a reference to the extension's controller
-	h.ext.Status.ControllerRef = &corev1.ObjectReference{
-		APIVersion: d.APIVersion,
-		Kind:       d.Kind,
-		Name:       d.Name,
-		Namespace:  d.Namespace,
-		UID:        d.ObjectMeta.UID,
-	}
+	h.ext.Status.ControllerRef = meta.ReferenceTo(d, d.GroupVersionKind())
 
 	return nil
 }
@@ -270,13 +264,7 @@ func (h *extensionHandler) processJob(ctx context.Context) error {
 	}
 
 	// save a reference to the extension's controller
-	h.ext.Status.ControllerRef = &corev1.ObjectReference{
-		APIVersion: j.APIVersion,
-		Kind:       j.Kind,
-		Name:       j.Name,
-		Namespace:  j.Namespace,
-		UID:        j.ObjectMeta.UID,
-	}
+	h.ext.Status.ControllerRef = meta.ReferenceTo(j, j.GroupVersionKind())
 
 	return nil
 }

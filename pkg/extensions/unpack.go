@@ -85,6 +85,8 @@ func findRegistryRoot(fs afero.Fs, dir string) string {
 }
 
 func doUnpack(fs afero.Fs, root string) (string, error) { // nolint:gocyclo
+	// NOTE(displague): Adding Job put this over the cyclomatic complexity threshold.
+	// consider refactoring before adding more kinds
 	var output strings.Builder
 
 	// create an Extension record and populate it with the relevant package contents
