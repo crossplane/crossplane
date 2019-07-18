@@ -42,6 +42,12 @@ case "${1:-}" in
     echo "installing helm package(s) into \"$ns\" namespace"
     ${HELM} install --name ${PROJECT_NAME} --namespace ${ns} ${projectdir}/cluster/charts/${PROJECT_NAME} --set image.pullPolicy=Never,imagePullSecrets=''
     ;;
+  helm-upgrade)
+    echo "copying image for helm"
+    helm_tag="$(cat _output/version)"
+    copy_image_to_cluster ${BUILD_IMAGE} "${DOCKER_REGISTRY}/${PROJECT_NAME}:${helm_tag}"
+    ${HELM} upgrade ${PROJECT_NAME} ${projectdir}/cluster/charts/${PROJECT_NAME}
+    ;;
   helm-delete)
     echo "removing helm package"
     ${HELM} del --purge ${PROJECT_NAME}
@@ -55,6 +61,7 @@ case "${1:-}" in
     echo "  $0 down - deinitialize the Kubernetes cluster for local deployment" >&2
     echo "  $0 update - push project docker images to Kubernetes cluster" >&2
     echo "  $0 helm-install package(s) into provided namespace [default: \"${DEFAULT_NAMESPACE}\"]" >&2
+    echo "  $0 helm-upgrade - deploy the latest docker images and helm charts" >&2
     echo "  $0 helm-delete package(s)" >&2
     echo "  $0 helm-list all package(s)" >&2
 esac
