@@ -39,23 +39,23 @@ For the next steps, make sure your `kubectl` context points to the cluster where
   sed "s/BASE64ENCODED_GCP_PROVIDER_CREDS/$BASE64ENCODED_GCP_PROVIDER_CREDS/g;s/PROJECT_ID/$PROJECT_ID/g" cluster/examples/workloads/kubernetes/wordpress-gcp/provider.yaml | kubectl create -f -
   ```
 
-* Verify that GCP Provider is in `Ready` state
+* Verify that GCP Provider exists
 
   ```bash
-  kubectl -n crossplane-system get providers.gcp.crossplane.io -o custom-columns=NAME:.metadata.name,STATUS:'.status.Conditions[?(@.Status=="True")].Type',PROJECT-ID:.spec.projectID
+  kubectl -n crossplane-system get providers.gcp.crossplane.io -o custom-columns=NAME:.metadata.name,PROJECT-ID:.spec.projectID
   ```
 
   Your output should look similar to:
 
   ```bash
-  NAME           STATUS   PROJECT-ID
-  gcp-provider   Ready    [your-project-id]
+  NAME           PROJECT-ID
+  gcp-provider   [your-project-id]
   ```
 
 * Verify that Resource Classes have been created
 
   ```bash
-  kubectl -n crossplane-system get resourceclass -o custom-columns=NAME:metadata.name,PROVISIONER:.provisioner,PROVIDER:.providerReference.name,RECLAIM-POLICY:.reclaimPolicy
+  kubectl -n crossplane-system get resourceclass -o custom-columns=NAME:metadata.name,PROVISIONER:.provisioner,PROVIDER:.providerRef.name,RECLAIM-POLICY:.reclaimPolicy
   ```
 
   Your output should be:
@@ -80,7 +80,7 @@ For the next steps, make sure your `kubectl` context points to the cluster where
   * Verify that the Kubernetes Cluster resource was created
 
     ```bash
-    kubectl -n complex get kubernetescluster -o custom-columns=NAME:.metadata.name,CLUSTERCLASS:.spec.classReference.name,CLUSTERREF:.spec.resourceName.name
+    kubectl -n complex get kubernetescluster -o custom-columns=NAME:.metadata.name,CLUSTERCLASS:.spec.classRef.name,CLUSTERREF:.spec.resourceRef.name
     ```
 
     Your output should look similar to:
@@ -129,27 +129,27 @@ Let's begin deploying the workload as the application developer:
   You can check the status via:
 
   ```bash
-  kubectl get mysqlinstance -n complex -o custom-columns=NAME:.metadata.name,VERSION:.spec.engineVersion,STATE:.status.bindingPhase,CLASS:.spec.classReference.name
+  kubectl get mysqlinstance -n complex
   ```
 
-  Your output should look like:
+  Your output should look similar to:
 
   ```bash
-  NAME   VERSION   STATE   CLASS
-  sql   5.7       Bound   standard-mysql
+  NAME   STATUS   CLASS            VERSION   AGE
+  sql    Bound    standard-mysql   5.7       9m
   ```
 
   **Note**: to check on the concrete resource type status as `Administrator` you can run:
 
   ```bash
-  kubectl -n crossplane-system get cloudsqlinstance -o custom-columns=NAME:.metadata.name,STATUS:.status.state,CLASS:.spec.classRef.name,VERSION:.spec.databaseVersion
+  kubectl -n crossplane-system get cloudsqlinstance
   ```
 
   Your output should be similar to:
 
   ```bash
-  NAME                                         STATUS     CLASS            VERSION
-  mysql-2fea0d8e-f5bb-11e8-9cec-9cb6d08bde99   RUNNABLE   standard-mysql   MYSQL_5_7
+  NAME                                                 STATUS   STATE      CLASS            VERSION     AGE
+  mysqlinstance-acaa2117-a830-11e9-8c7f-025000000001   Bound    RUNNABLE   standard-mysql   MYSQL_5_7   10m
   ```
 
 * Wait for the Wordpress service, a `KubernetesApplicationResource`, to report its External IP Address

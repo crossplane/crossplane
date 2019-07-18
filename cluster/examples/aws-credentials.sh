@@ -9,12 +9,12 @@ set -e -o pipefail
 RAND=$RANDOM
 
 if ! command -v aws > /dev/null; then
-	echo "Please install aws: https://aws.amazon.com/cli/)"
+	echo "Please install aws: https://aws.amazon.com/cli/"
 	exit 1
 fi
 
 if ! command -v jq > /dev/null; then
-	echo "Please install jq: https://stedolan.github.io/jq/download/)"
+	echo "Please install jq: https://stedolan.github.io/jq/download/"
 	exit 1
 fi
 
@@ -59,8 +59,7 @@ if [[ "$1" == "delete" ]]; then
   exit 1
 fi
 
-
-# Generate a KeyPair 
+# Generate a KeyPair
 aws ec2 create-key-pair --key-name $EKS_WORKER_KEY_NAME --region=$REGION > /dev/null
 
 # Generate a Role that can Do everying necessary to provider EKS clusters
@@ -69,7 +68,7 @@ aws iam create-role --role-name $EKS_ROLE_NAME --region $REGION --assume-role-po
 aws iam attach-role-policy --role-name $EKS_ROLE_NAME --policy-arn arn:aws:iam::aws:policy/AmazonEKSClusterPolicy > /dev/null
 aws iam attach-role-policy --role-name $EKS_ROLE_NAME --policy-arn arn:aws:iam::aws:policy/AmazonEKSServicePolicy > /dev/null
 
-export EKS_ROLE_ARN=$(aws iam get-role --role-name $EKS_ROLE_NAME | jq -r .Role.Arn)
+export EKS_ROLE_ARN=$(aws iam get-role --output json --role-name $EKS_ROLE_NAME | jq -r .Role.Arn)
 
 # Generate and run a CloudFormation Stack and get the VPC, Subnet, and Security Group associated with it
 aws cloudformation create-stack \
@@ -79,15 +78,15 @@ aws cloudformation create-stack \
     --parameters ParameterKey=VpcBlock,ParameterValue=192.168.0.0/16 ParameterKey=Subnet01Block,ParameterValue=192.168.64.0/18 ParameterKey=Subnet02Block,ParameterValue=192.168.128.0/18 ParameterKey=Subnet03Block,ParameterValue=192.168.192.0/18  > /dev/null
 
 echo -n "Waiting for 'CREATE_COMPLETE' from Cloudformation Stack $EKS_STACK_NAME"
-until [[ "CREATE_COMPLETE" == "$(aws cloudformation describe-stacks --stack-name $EKS_STACK_NAME --region $REGION | jq -r '.Stacks[0].StackStatus')" ]]; do
+until [[ "CREATE_COMPLETE" == "$(aws cloudformation describe-stacks --output json --stack-name $EKS_STACK_NAME --region $REGION | jq -r '.Stacks[0].StackStatus')" ]]; do
   echo -n "."
   sleep 2
 done;
 echo
 
-export EKS_VPC=$(aws cloudformation describe-stacks --stack-name $EKS_STACK_NAME --region $REGION | jq -r '.Stacks[0].Outputs[]|select(.OutputKey=="VpcId").OutputValue')
-export EKS_SUBNETS=$(aws cloudformation describe-stacks --stack-name $EKS_STACK_NAME --region $REGION | jq -r '.Stacks[0].Outputs[]|select(.OutputKey=="SubnetIds").OutputValue')
-export EKS_SECURITY_GROUP=$(aws cloudformation describe-stacks --stack-name $EKS_STACK_NAME --region $REGION | jq -r '.Stacks[0].Outputs[]|select(.OutputKey=="SecurityGroups").OutputValue')
+export EKS_VPC=$(aws cloudformation describe-stacks --output json --stack-name $EKS_STACK_NAME --region $REGION | jq -r '.Stacks[0].Outputs[]|select(.OutputKey=="VpcId").OutputValue')
+export EKS_SUBNETS=$(aws cloudformation describe-stacks --output json --stack-name $EKS_STACK_NAME --region $REGION | jq -r '.Stacks[0].Outputs[]|select(.OutputKey=="SubnetIds").OutputValue')
+export EKS_SECURITY_GROUP=$(aws cloudformation describe-stacks --output json --stack-name $EKS_STACK_NAME --region $REGION | jq -r '.Stacks[0].Outputs[]|select(.OutputKey=="SecurityGroups").OutputValue')
 
 T="${EKS_SUBNETS//,/ }"
 aws rds create-db-subnet-group --region=$REGION --db-subnet-group-name=$RDS_SUBNET_GROUP_NAME --db-subnet-group-description="crossplane-example-$RAND EKS VPC $EKS_VPC to RDS" --subnet-ids $T > /dev/null

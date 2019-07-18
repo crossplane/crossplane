@@ -424,6 +424,9 @@ func TestCloudsqlInstance_SetStatus(t *testing.T) {
 							},
 						},
 					},
+					BindingStatus: corev1alpha1.BindingStatus{
+						Phase: corev1alpha1.BindingPhaseUnbound,
+					},
 				},
 				Endpoint: "foo",
 				State:    StateRunnable,
