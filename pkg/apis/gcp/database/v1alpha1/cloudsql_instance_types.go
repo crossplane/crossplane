@@ -258,6 +258,7 @@ func (i *CloudsqlInstance) SetStatus(inst *sqladmin.DatabaseInstance) {
 	i.Status.State = inst.State
 	if i.IsRunnable() {
 		i.Status.SetConditions(corev1alpha1.Available())
+		resource.SetBindable(i)
 	} else {
 		i.Status.SetConditions(corev1alpha1.Unavailable())
 	}
