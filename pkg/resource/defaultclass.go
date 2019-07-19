@@ -33,8 +33,9 @@ import (
 )
 
 const (
-	controllerNameDefaultClass = "defaultclass.crossplane.io"
-	defaultClassWait           = 1 * time.Minute
+	controllerNameDefaultClass   = "defaultclass.crossplane.io"
+	defaultClassWait             = 1 * time.Minute
+	defaultClassReconcileTimeout = 1 * time.Minute
 )
 
 var logDefaultClass = logging.Logger.WithName("controller").WithValues("controller", controllerNameDefaultClass)
@@ -86,7 +87,7 @@ func NewDefaultClassReconciler(m manager.Manager, of ClaimKind) *DefaultClassRec
 func (r *DefaultClassReconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) {
 	logDefaultClass.V(logging.Debug).Info("Reconciling", "request", req)
 
-	ctx, cancel := context.WithTimeout(context.Background(), reconcileTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultClassReconcileTimeout)
 	defer cancel()
 
 	claim := r.newClaim()

@@ -19,6 +19,7 @@ package resource
 import (
 	"context"
 	"strings"
+	"time"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -28,6 +29,8 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/meta"
 )
+
+const predicateTimeout = 1 * time.Minute
 
 // A PredicateFn returns true if the supplied object should be reconciled.
 type PredicateFn func(obj runtime.Object) bool
@@ -62,7 +65,7 @@ func HasProvisioner(c client.Client, cr ClassReferencer, provisioner string) boo
 		return false
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), reconcileTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), predicateTimeout)
 	defer cancel()
 
 	cs := &v1alpha1.ResourceClass{}

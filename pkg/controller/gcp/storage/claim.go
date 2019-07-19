@@ -40,8 +40,8 @@ func AddClaim(mgr manager.Manager) error {
 	r := resource.NewClaimReconciler(mgr,
 		resource.ClaimKind(storagev1alpha1.BucketGroupVersionKind),
 		resource.ManagedKind(v1alpha1.BucketGroupVersionKind),
-		resource.WithManagedBinder(resource.NewAPIStatusManagedBinder(mgr.GetClient())),
-		resource.WithManagedFinalizer(resource.NewAPIStatusManagedFinalizer(mgr.GetClient())),
+		resource.WithManagedBinder(resource.NewAPIManagedStatusBinder(mgr.GetClient())),
+		resource.WithManagedFinalizer(resource.NewAPIManagedStatusUnbinder(mgr.GetClient())),
 		resource.WithManagedConfigurators(
 			resource.ManagedConfiguratorFn(ConfigureBucket),
 			resource.NewObjectMetaConfigurator(mgr.GetScheme()),

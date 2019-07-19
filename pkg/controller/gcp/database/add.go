@@ -63,8 +63,8 @@ func AddPostgreSQLClaim(mgr manager.Manager) error {
 	r := resource.NewClaimReconciler(mgr,
 		resource.ClaimKind(databasev1alpha1.PostgreSQLInstanceGroupVersionKind),
 		resource.ManagedKind(v1alpha1.CloudsqlInstanceGroupVersionKind),
-		resource.WithManagedBinder(resource.NewAPIStatusManagedBinder(mgr.GetClient())),
-		resource.WithManagedFinalizer(resource.NewAPIStatusManagedFinalizer(mgr.GetClient())),
+		resource.WithManagedBinder(resource.NewAPIManagedStatusBinder(mgr.GetClient())),
+		resource.WithManagedFinalizer(resource.NewAPIManagedStatusUnbinder(mgr.GetClient())),
 		resource.WithManagedConfigurators(
 			resource.ManagedConfiguratorFn(ConfigurePostgreSQLCloudsqlInstance),
 			resource.NewObjectMetaConfigurator(mgr.GetScheme()),
@@ -94,8 +94,8 @@ func AddMySQLClaim(mgr manager.Manager) error {
 	r := resource.NewClaimReconciler(mgr,
 		resource.ClaimKind(databasev1alpha1.MySQLInstanceGroupVersionKind),
 		resource.ManagedKind(v1alpha1.CloudsqlInstanceGroupVersionKind),
-		resource.WithManagedBinder(resource.NewAPIStatusManagedBinder(mgr.GetClient())),
-		resource.WithManagedFinalizer(resource.NewAPIStatusManagedFinalizer(mgr.GetClient())),
+		resource.WithManagedBinder(resource.NewAPIManagedStatusBinder(mgr.GetClient())),
+		resource.WithManagedFinalizer(resource.NewAPIManagedStatusUnbinder(mgr.GetClient())),
 		resource.WithManagedConfigurators(
 			resource.ManagedConfiguratorFn(ConfigureMyCloudsqlInstance),
 			resource.NewObjectMetaConfigurator(mgr.GetScheme()),
