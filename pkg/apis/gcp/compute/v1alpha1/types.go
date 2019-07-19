@@ -130,6 +130,11 @@ func (c *GKECluster) GetBindingPhase() corev1alpha1.BindingPhase {
 	return c.Status.GetBindingPhase()
 }
 
+// SetConditions of this GKECluster.
+func (c *GKECluster) SetConditions(cd ...corev1alpha1.Condition) {
+	c.Status.SetConditions(cd...)
+}
+
 // SetClaimReference of this GKECluster.
 func (c *GKECluster) SetClaimReference(r *corev1.ObjectReference) {
 	c.Spec.ClaimReference = r

@@ -157,6 +157,11 @@ func (i *CloudMemorystoreInstance) GetBindingPhase() corev1alpha1.BindingPhase {
 	return i.Status.GetBindingPhase()
 }
 
+// SetConditions of this CloudMemorystoreInstance.
+func (i *CloudMemorystoreInstance) SetConditions(c ...corev1alpha1.Condition) {
+	i.Status.SetConditions(c...)
+}
+
 // SetClaimReference of this CloudMemorystoreInstance.
 func (i *CloudMemorystoreInstance) SetClaimReference(r *corev1.ObjectReference) {
 	i.Spec.ClaimReference = r

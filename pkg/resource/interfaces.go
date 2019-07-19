@@ -94,5 +94,6 @@ type Managed interface {
 	ConnectionSecretWriterTo
 	Reclaimer
 
+	ConditionSetter
 	Bindable
 }

@@ -808,6 +808,11 @@ func (b *Bucket) GetBindingPhase() corev1alpha1.BindingPhase {
 	return b.Status.GetBindingPhase()
 }
 
+// SetConditions of this Bucket.
+func (b *Bucket) SetConditions(c ...corev1alpha1.Condition) {
+	b.Status.SetConditions(c...)
+}
+
 // SetClaimReference of this Bucket.
 func (b *Bucket) SetClaimReference(r *corev1.ObjectReference) {
 	b.Spec.ClaimReference = r

@@ -293,6 +293,11 @@ func (rg *ReplicationGroup) SetBindingPhase(p corev1alpha1.BindingPhase) {
 	rg.Status.SetBindingPhase(p)
 }
 
+// SetConditions of this ReplicationGroup.
+func (rg *ReplicationGroup) SetConditions(c ...corev1alpha1.Condition) {
+	rg.Status.SetConditions(c...)
+}
+
 // GetBindingPhase of this ReplicationGroup.
 func (rg *ReplicationGroup) GetBindingPhase() corev1alpha1.BindingPhase {
 	return rg.Status.GetBindingPhase()
