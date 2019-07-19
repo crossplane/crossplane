@@ -309,3 +309,16 @@ func ConnectionEndpoint(rg elasticache.ReplicationGroup) Endpoint {
 	// If the AWS API docs are to be believed we should never get here.
 	return Endpoint{}
 }
+
+// IsNotFound returns true if the supplied error indicates a Replication Group
+// was not found.
+func IsNotFound(err error) bool {
+	ce, ok := err.(interface {
+		Code() string
+	})
+	if !ok {
+		return false
+	}
+
+	return ce.Code() == elasticache.ErrCodeReplicationGroupNotFoundFault
+}
