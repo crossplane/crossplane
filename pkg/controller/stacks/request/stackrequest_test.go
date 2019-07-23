@@ -19,6 +19,7 @@ package request
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -755,9 +756,10 @@ func TestDiscoverExecutorInfo(t *testing.T) {
 	}
 
 	tests := []struct {
-		name string
-		d    *executorInfoDiscoverer
-		want want
+		name      string
+		imageName string
+		d         *executorInfoDiscoverer
+		want      want
 	}{
 		{
 			name: "FailedGetRunningPod",
@@ -808,6 +810,21 @@ func TestDiscoverExecutorInfo(t *testing.T) {
 				err: nil,
 			},
 		},
+		{
+			name:      "SuccessfulDebugOverride",
+			imageName: "foo-image",
+			d: &executorInfoDiscoverer{
+				kube: &test.MockClient{
+					MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
+						return fmt.Errorf("test should not call Get")
+					},
+				},
+			},
+			want: want{
+				ei:  &executorInfo{image: "foo-image"},
+				err: nil,
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -817,6 +834,7 @@ func TestDiscoverExecutorInfo(t *testing.T) {
 
 			os.Setenv(util.PodNameEnvVar, "podName")
 			os.Setenv(util.PodNamespaceEnvVar, "podNamespace")
+			os.Setenv(PodImageNameEnvVar, tt.imageName)
 
 			got, gotErr := tt.d.discoverExecutorInfo(ctx)
 

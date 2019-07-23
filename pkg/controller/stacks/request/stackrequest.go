@@ -54,9 +54,6 @@ const (
 	requeueAfterOnSuccess = 10 * time.Second
 
 	packageContentsVolumeName = "package-contents"
-
-	// PodImageNameEnvVar is the env variable for setting the image name used for the unpack/install process when debugging the main process
-	PodImageNameEnvVar = "UNPACK_IMAGE"
 )
 
 var (
@@ -64,6 +61,9 @@ var (
 	resultRequeue    = reconcile.Result{Requeue: true}
 	requeueOnSuccess = reconcile.Result{RequeueAfter: requeueAfterOnSuccess}
 	jobBackoff       = int32(0)
+
+	// PodImageNameEnvVar is the env variable for setting the image name used for the unpack/install process when debugging the main process
+	PodImageNameEnvVar = "UNPACK_IMAGE"
 )
 
 // Reconciler reconciles a Instance object
@@ -522,7 +522,7 @@ func (d *executorInfoDiscoverer) discoverExecutorInfo(ctx context.Context) (*exe
 			return nil, err
 		}
 
-		image, err := util.GetContainerImage(pod, "")
+		image, err = util.GetContainerImage(pod, "")
 		if err != nil {
 			log.Error(err, "failed to get image for pod", "image", image)
 			return nil, err
