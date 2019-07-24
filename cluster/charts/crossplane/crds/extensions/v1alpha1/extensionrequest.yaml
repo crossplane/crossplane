@@ -7,8 +7,8 @@ metadata:
   name: extensionrequests.extensions.crossplane.io
 spec:
   additionalPrinterColumns:
-  - JSONPath: .status.Conditions[?(@.Status=="True")].Type
-    name: STATUS
+  - JSONPath: .status.conditions[?(@.type=="Ready")].status
+    name: READY
     type: string
   - JSONPath: .spec.source
     name: SOURCE
