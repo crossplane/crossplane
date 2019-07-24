@@ -26,7 +26,7 @@ All of the objects that represent managed resources such as databases, clusters,
 In general, simply getting the `yaml` output of a Crossplane object will give insightful information about its condition:
 
 ```console
-kubetl get <resource-type> -o yaml
+kubectl get <resource-type> -o yaml
 ```
 
 For example, to get complete information about an Azure AKS cluster object, the following command will generate the below sample (truncated) output:
