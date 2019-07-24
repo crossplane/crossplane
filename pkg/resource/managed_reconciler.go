@@ -77,6 +77,7 @@ type ExternalConnecter interface {
 }
 
 // An ExternalClient manages the lifecycle of an external resource.
+// None of the calls here should be blocking.
 type ExternalClient interface {
 	// Observe the external resource the supplied Managed resource represents,
 	// if any. Observe implementations must not modify the external resource,
@@ -93,10 +94,9 @@ type ExternalClient interface {
 	// which no update is necessary.
 	Update(ctx context.Context, mg Managed) (ExternalUpdate, error)
 
-	// Finalize the external resource upon deletion of its associated Managed
-	// resource. Finalize implementations may determine whether the external
-	// resource should also be deleted.
-	Finalize(ctx context.Context, mg Managed) error
+	// Delete the external resource upon deletion of its associated Managed
+	// resource.
+	Delete(ctx context.Context, mg Managed) error
 }
 
 // A NopConnecter does nothing.
@@ -125,8 +125,8 @@ func (c *NopClient) Update(ctx context.Context, mg Managed) (ExternalUpdate, err
 	return ExternalUpdate{}, nil
 }
 
-// Finalize does nothing. It never returns an error.
-func (c *NopClient) Finalize(ctx context.Context, mg Managed) error { return nil }
+// Delete does nothing. It never returns an error.
+func (c *NopClient) Delete(ctx context.Context, mg Managed) error { return nil }
 
 // An ExternalObservation is the result of an observation of an external
 // resource.
@@ -159,7 +159,7 @@ type ManagedReconciler struct {
 	// The below structs embed the set of interfaces used to implement the
 	// managed resource reconciler. We do this primarily for readability, so
 	// that the reconciler logic reads r.external.Connect(),
-	// r.managed.Finalize(), etc.
+	// r.managed.Delete(), etc.
 	external mrExternal
 	managed  mrManaged
 }
@@ -285,33 +285,6 @@ func (r *ManagedReconciler) Reconcile(req reconcile.Request) (reconcile.Result, 
 		return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
 
-	if meta.WasDeleted(managed) {
-		if err := external.Finalize(ctx, managed); err != nil {
-			// We'll hit this condition if we can't finalize our external
-			// resource, for example if our provider credentials don't have
-			// access to delete it. If this is the first time we encounter this
-			// issue we'll be requeued implicitly when we update our status with
-			// the new error condition. If not, we want to try again after a
-			// short wait.
-			managed.SetConditions(v1alpha1.ReconcileError(err))
-			return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
-		}
-
-		if err := r.managed.Finalize(ctx, managed); err != nil {
-			// If this is the first time we encounter this issue we'll be
-			// requeued implicitly when we update our status with the new error
-			// condition. If not, we want to try again after a short wait.
-			managed.SetConditions(v1alpha1.ReconcileError(err))
-			return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(IgnoreNotFound(r.client.Status().Update(ctx, managed)), errUpdateManagedStatus)
-		}
-
-		// We've successfully finalized the deletion of our external and managed
-		// resources. There's no need to requeue, because the managed resource
-		// under reconciliation should no longer exist.
-		managed.SetConditions(v1alpha1.ReconcileSuccess())
-		return reconcile.Result{Requeue: false}, errors.Wrap(IgnoreNotFound(r.client.Status().Update(ctx, managed)), errUpdateManagedStatus)
-	}
-
 	observation, err := external.Observe(ctx, managed)
 	if err != nil {
 		// We'll usually hit this case if our Provider credentials are invalid
@@ -321,6 +294,36 @@ func (r *ManagedReconciler) Reconcile(req reconcile.Request) (reconcile.Result, 
 		// error condition. If not, we want to try again after a short wait.
 		managed.SetConditions(v1alpha1.ReconcileError(err))
 		return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+	}
+
+	if meta.WasDeleted(managed) {
+		// TODO: Reclaim Policy should be used between Claim and Managed. For Managed and External Resource,
+		// we need another field.
+		if observation.ResourceExists && managed.GetReclaimPolicy() == v1alpha1.ReclaimDelete {
+			managed.SetConditions(v1alpha1.Deleting())
+			if err := external.Delete(ctx, managed); err != nil {
+				// We'll hit this condition if we can't delete our external
+				// resource, for example if our provider credentials don't have
+				// access to delete it. If this is the first time we encounter this
+				// issue we'll be requeued implicitly when we update our status with
+				// the new error condition. If not, we want to try again after a
+				// short wait.
+				managed.SetConditions(v1alpha1.ReconcileError(err))
+				return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+			}
+		} else {
+			if err := r.managed.Finalize(ctx, managed); err != nil {
+				// If this is the first time we encounter this issue we'll be
+				// requeued implicitly when we update our status with the new error
+				// condition. If not, we want to try again after a short wait.
+				managed.SetConditions(v1alpha1.ReconcileError(err))
+				return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(IgnoreNotFound(r.client.Status().Update(ctx, managed)), errUpdateManagedStatus)
+			}
+			// We've successfully finalized the deletion of our external and managed
+			// resources.
+			managed.SetConditions(v1alpha1.ReconcileSuccess())
+		}
+		return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(IgnoreNotFound(r.client.Status().Update(ctx, managed)), errUpdateManagedStatus)
 	}
 
 	if err := r.managed.Publish(ctx, managed, observation.ConnectionDetails); err != nil {

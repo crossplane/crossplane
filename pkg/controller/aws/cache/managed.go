@@ -236,19 +236,16 @@ func (e *external) Update(ctx context.Context, mg resource.Managed) (resource.Ex
 	return resource.ExternalUpdate{}, nil
 }
 
-func (e *external) Finalize(ctx context.Context, mg resource.Managed) error {
+func (e *external) Delete(ctx context.Context, mg resource.Managed) error {
 	g, ok := mg.(*v1alpha1.ReplicationGroup)
 	if !ok {
 		return errors.New(errNotReplicationGroup)
 	}
 
-	g.Status.SetConditions(corev1alpha1.Deleting())
-	if g.Spec.ReclaimPolicy == corev1alpha1.ReclaimDelete {
-		req := e.client.DeleteReplicationGroupRequest(elasticache.NewDeleteReplicationGroupInput(g))
-		req.SetContext(ctx)
-		if _, err := req.Send(); resource.Ignore(elasticache.IsNotFound, err) != nil {
-			return errors.Wrap(err, errDeleteReplicationGroup)
-		}
+	req := e.client.DeleteReplicationGroupRequest(elasticache.NewDeleteReplicationGroupInput(g))
+	req.SetContext(ctx)
+	if _, err := req.Send(); resource.Ignore(elasticache.IsNotFound, err) != nil {
+		return errors.Wrap(err, errDeleteReplicationGroup)
 	}
 
 	return nil
