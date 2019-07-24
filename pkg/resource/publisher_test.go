@@ -34,8 +34,8 @@ import (
 )
 
 var (
-	_ ManagedPublisher = &APISecretPublisher{}
-	_ ManagedPublisher = PublisherChain{}
+	_ ManagedConnectionPublisher = &APISecretPublisher{}
+	_ ManagedConnectionPublisher = PublisherChain{}
 )
 
 func TestPublisherChain(t *testing.T) {
@@ -48,7 +48,7 @@ func TestPublisherChain(t *testing.T) {
 	errBoom := errors.New("boom")
 
 	cases := map[string]struct {
-		p    ManagedPublisher
+		p    ManagedConnectionPublisher
 		args args
 		want error
 	}{
@@ -63,9 +63,14 @@ func TestPublisherChain(t *testing.T) {
 		},
 		"SuccessfulPublisher": {
 			p: PublisherChain{
-				ManagedPublisherFn(func(_ context.Context, mg Managed, c ConnectionDetails) error {
-					return nil
-				}),
+				ManagedConnectionPublisherFn{
+					PublishConnectionFn: func(_ context.Context, mg Managed, c ConnectionDetails) error {
+						return nil
+					},
+					UnpublishConnectionFn: func(ctx context.Context, mg Managed, c ConnectionDetails) error {
+						return nil
+					},
+				},
 			},
 			args: args{
 				ctx: context.Background(),
@@ -76,9 +81,14 @@ func TestPublisherChain(t *testing.T) {
 		},
 		"PublisherReturnsError": {
 			p: PublisherChain{
-				ManagedPublisherFn(func(_ context.Context, mg Managed, c ConnectionDetails) error {
-					return errBoom
-				}),
+				ManagedConnectionPublisherFn{
+					PublishConnectionFn: func(_ context.Context, mg Managed, c ConnectionDetails) error {
+						return errBoom
+					},
+					UnpublishConnectionFn: func(ctx context.Context, mg Managed, c ConnectionDetails) error {
+						return nil
+					},
+				},
 			},
 			args: args{
 				ctx: context.Background(),
@@ -91,7 +101,7 @@ func TestPublisherChain(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got := tc.p.Publish(tc.args.ctx, tc.args.mg, tc.args.c)
+			got := tc.p.PublishConnection(tc.args.ctx, tc.args.mg, tc.args.c)
 			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
 				t.Errorf("Publish(...): -want, +got:\n%s", diff)
 			}
@@ -301,7 +311,7 @@ func TestAPISecretPublisher(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			a := NewAPISecretPublisher(tc.fields.client, tc.fields.typer)
-			got := a.Publish(tc.args.ctx, tc.args.mg, tc.args.c)
+			got := a.PublishConnection(tc.args.ctx, tc.args.mg, tc.args.c)
 			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
 				t.Errorf("Publish(...): -want, +got:\n%s", diff)
 			}

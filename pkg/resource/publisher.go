@@ -28,13 +28,24 @@ import (
 )
 
 // A PublisherChain chains multiple ManagedPublishers.
-type PublisherChain []ManagedPublisher
+type PublisherChain []ManagedConnectionPublisher
 
-// Publish calls each ManagedPublisher serially. It returns the first error it
+// Calls each ManagedConnectionPublisher serially. It returns the first error it
 // encounters, if any.
-func (pc PublisherChain) Publish(ctx context.Context, mg Managed, c ConnectionDetails) error {
+func (pc PublisherChain) PublishConnection(ctx context.Context, mg Managed, c ConnectionDetails) error {
 	for _, p := range pc {
-		if err := p.Publish(ctx, mg, c); err != nil {
+		if err := p.PublishConnection(ctx, mg, c); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Calls each ManagedConnectionPublisher serially. It returns the first error it
+// encounters, if any.
+func (pc PublisherChain) UnpublishConnection(ctx context.Context, mg Managed, c ConnectionDetails) error {
+	for _, p := range pc {
+		if err := p.UnpublishConnection(ctx, mg, c); err != nil {
 			return err
 		}
 	}
@@ -53,10 +64,10 @@ func NewAPISecretPublisher(c client.Client, ot runtime.ObjectTyper) *APISecretPu
 	return &APISecretPublisher{client: c, typer: ot}
 }
 
-// Publish the supplied ConnectionDetails to a Secret in the same namespace as
-// the supplied Managed resource. Publishing is a no-op if the secret already
+// PublishConnection the supplied ConnectionDetails to a Secret in the same namespace as
+// the supplied Managed resource. Applying is a no-op if the secret already
 // exists with the supplied ConnectionDetails.
-func (a *APISecretPublisher) Publish(ctx context.Context, mg Managed, c ConnectionDetails) error {
+func (a *APISecretPublisher) PublishConnection(ctx context.Context, mg Managed, c ConnectionDetails) error {
 	s := ConnectionSecretFor(mg, MustGetKind(mg, a.typer))
 
 	err := util.CreateOrUpdate(ctx, a.client, s, func() error {
@@ -82,4 +93,10 @@ func (a *APISecretPublisher) Publish(ctx context.Context, mg Managed, c Connecti
 	})
 
 	return errors.Wrap(err, errCreateOrUpdateSecret)
+}
+
+// Delete the connection Secret belonging to Managed Resource.
+func (a *APISecretPublisher) UnpublishConnection(ctx context.Context, mg Managed, c ConnectionDetails) error {
+	s := ConnectionSecretFor(mg, MustGetKind(mg, a.typer))
+	return errors.Wrap(IgnoreNotFound(a.client.Delete(ctx, s)), errCreateOrUpdateSecret)
 }
