@@ -26,6 +26,7 @@ import (
 	rbac "k8s.io/api/rbac/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	controllerHandler "sigs.k8s.io/controller-runtime/pkg/handler"
@@ -222,6 +223,11 @@ func (h *extensionHandler) processDeployment(ctx context.Context) error {
 	deploymentSpec.Template.Spec.ServiceAccountName = h.ext.Name
 
 	ref := meta.AsOwner(meta.ReferenceTo(h.ext, v1alpha1.ExtensionGroupVersionKind))
+	gvk := schema.GroupVersionKind{
+		Group:   apps.GroupName,
+		Kind:    "Deployment",
+		Version: apps.SchemeGroupVersion.Version,
+	}
 	d := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            controllerDeployment.Name,
@@ -230,12 +236,13 @@ func (h *extensionHandler) processDeployment(ctx context.Context) error {
 		},
 		Spec: deploymentSpec,
 	}
+
 	if err := h.kube.Create(ctx, d); err != nil && !kerrors.IsAlreadyExists(err) {
 		return errors.Wrap(err, "failed to create deployment")
 	}
 
 	// save a reference to the extension's controller
-	h.ext.Status.ControllerRef = meta.ReferenceTo(d, d.GroupVersionKind())
+	h.ext.Status.ControllerRef = meta.ReferenceTo(d, gvk)
 
 	return nil
 }
@@ -251,6 +258,11 @@ func (h *extensionHandler) processJob(ctx context.Context) error {
 	jobSpec.Template.Spec.ServiceAccountName = h.ext.Name
 
 	ref := meta.AsOwner(meta.ReferenceTo(h.ext, v1alpha1.ExtensionGroupVersionKind))
+	gvk := schema.GroupVersionKind{
+		Group:   batch.GroupName,
+		Kind:    "Job",
+		Version: batch.SchemeGroupVersion.Version,
+	}
 	j := &batch.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            controllerJob.Name,
@@ -264,7 +276,7 @@ func (h *extensionHandler) processJob(ctx context.Context) error {
 	}
 
 	// save a reference to the extension's controller
-	h.ext.Status.ControllerRef = meta.ReferenceTo(j, j.GroupVersionKind())
+	h.ext.Status.ControllerRef = meta.ReferenceTo(j, gvk)
 
 	return nil
 }
