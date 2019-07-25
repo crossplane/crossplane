@@ -30,7 +30,7 @@ import (
 // A PublisherChain chains multiple ManagedPublishers.
 type PublisherChain []ManagedConnectionPublisher
 
-// Calls each ManagedConnectionPublisher serially. It returns the first error it
+// PublishConnection calls each ManagedConnectionPublisher.PublishConnection serially. It returns the first error it
 // encounters, if any.
 func (pc PublisherChain) PublishConnection(ctx context.Context, mg Managed, c ConnectionDetails) error {
 	for _, p := range pc {
@@ -41,7 +41,7 @@ func (pc PublisherChain) PublishConnection(ctx context.Context, mg Managed, c Co
 	return nil
 }
 
-// Calls each ManagedConnectionPublisher serially. It returns the first error it
+// UnpublishConnection calls each ManagedConnectionPublisher.UnpublishConnection serially. It returns the first error it
 // encounters, if any.
 func (pc PublisherChain) UnpublishConnection(ctx context.Context, mg Managed, c ConnectionDetails) error {
 	for _, p := range pc {
@@ -64,7 +64,7 @@ func NewAPISecretPublisher(c client.Client, ot runtime.ObjectTyper) *APISecretPu
 	return &APISecretPublisher{client: c, typer: ot}
 }
 
-// PublishConnection the supplied ConnectionDetails to a Secret in the same namespace as
+// PublishConnection publishes the supplied ConnectionDetails to a Secret in the same namespace as
 // the supplied Managed resource. Applying is a no-op if the secret already
 // exists with the supplied ConnectionDetails.
 func (a *APISecretPublisher) PublishConnection(ctx context.Context, mg Managed, c ConnectionDetails) error {
@@ -95,7 +95,7 @@ func (a *APISecretPublisher) PublishConnection(ctx context.Context, mg Managed, 
 	return errors.Wrap(err, errCreateOrUpdateSecret)
 }
 
-// Delete the connection Secret belonging to Managed Resource.
+// UnpublishConnection deletes the connection Secret belonging to Managed Resource.
 func (a *APISecretPublisher) UnpublishConnection(ctx context.Context, mg Managed, c ConnectionDetails) error {
 	s := ConnectionSecretFor(mg, MustGetKind(mg, a.typer))
 	return errors.Wrap(IgnoreNotFound(a.client.Delete(ctx, s)), errCreateOrUpdateSecret)
