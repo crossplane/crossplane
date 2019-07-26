@@ -44,6 +44,22 @@ var (
 	RedisClusterGroupVersionKind = SchemeGroupVersion.WithKind(RedisClusterKind)
 )
 
+// RedisClusterPolicy type metadata.
+var (
+	RedisClusterPolicyKind             = reflect.TypeOf(RedisClusterPolicy{}).Name()
+	RedisClusterPolicyKindAPIVersion   = RedisClusterPolicyKind + "." + SchemeGroupVersion.String()
+	RedisClusterPolicyGroupVersionKind = SchemeGroupVersion.WithKind(RedisClusterPolicyKind)
+)
+
+// RedisClusterClusterPolicy type metadata.
+var (
+	RedisClusterClusterPolicyKind             = reflect.TypeOf(RedisClusterClusterPolicy{}).Name()
+	RedisClusterClusterPolicyKindAPIVersion   = RedisClusterClusterPolicyKind + "." + SchemeGroupVersion.String()
+	RedisClusterClusterPolicyGroupVersionKind = SchemeGroupVersion.WithKind(RedisClusterClusterPolicyKind)
+)
+
 func init() {
 	SchemeBuilder.Register(&RedisCluster{}, &RedisClusterList{})
+	SchemeBuilder.Register(&RedisClusterPolicy{}, &RedisClusterPolicyList{})
+	SchemeBuilder.Register(&RedisClusterClusterPolicy{}, &RedisClusterClusterPolicyList{})
 }

@@ -38,7 +38,7 @@ func TestConfigureCloudMemorystoreInstance(t *testing.T) {
 	type args struct {
 		ctx context.Context
 		cm  resource.Claim
-		cs  *corev1alpha1.ResourceClass
+		cs  resource.Class
 		mg  resource.Managed
 	}
 

@@ -103,6 +103,62 @@ type RedisClusterList struct {
 	Items           []RedisCluster `json:"items"`
 }
 
-func init() {
-	SchemeBuilder.Register(&RedisCluster{}, &RedisClusterList{})
+// RedisClusterPolicy contains a namespace-scoped policy for RedisCluster
+type RedisClusterPolicy struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	corev1alpha1.Policy `json:",inline"`
+}
+
+// SetDefaultClassReference of this RedisClusterPolicy
+func (rcp *RedisClusterPolicy) SetDefaultClassReference(r *corev1.ObjectReference) {
+	rcp.DefaultClassReference = r
+}
+
+// GetDefaultClassReference of this RedisClusterPolicy
+func (rcp *RedisClusterPolicy) GetDefaultClassReference() *corev1.ObjectReference {
+	return rcp.DefaultClassReference
+}
+
+// RedisClusterPolicyList contains a list of RedisClusterPolicy
+type RedisClusterPolicyList struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+	Items             []RedisClusterPolicy `json:"items"`
+}
+
+// GetItems of this RedisClusterPolicyList
+func (rcpl *RedisClusterPolicyList) GetItems() []RedisClusterPolicy {
+	return rcpl.Items
+}
+
+// RedisClusterClusterPolicy contains a cluster-scoped policy for RedisCluster
+type RedisClusterClusterPolicy struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	corev1alpha1.Policy `json:",inline"`
+}
+
+// SetDefaultClassReference of this RedisClusterClusterPolicy
+func (rccp *RedisClusterClusterPolicy) SetDefaultClassReference(r *corev1.ObjectReference) {
+	rccp.DefaultClassReference = r
+}
+
+// GetDefaultClassReference of this RedisClusterClusterPolicy
+func (rccp *RedisClusterClusterPolicy) GetDefaultClassReference() *corev1.ObjectReference {
+	return rccp.DefaultClassReference
+}
+
+// RedisClusterClusterPolicyList contains a list of RedisClusterClusterPolicy
+type RedisClusterClusterPolicyList struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+	Items             []RedisClusterClusterPolicy `json:"items"`
+}
+
+// GetItems of this RedisClusterClusterPolicyList
+func (rccpl *RedisClusterClusterPolicyList) GetItems() []RedisClusterClusterPolicy {
+	return rccpl.Items
 }

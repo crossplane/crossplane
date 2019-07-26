@@ -18,14 +18,12 @@ package resource
 
 import (
 	"context"
-	"strings"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	"github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/meta"
 )
 
@@ -43,21 +41,20 @@ func NewPredicates(fn PredicateFn) predicate.Funcs {
 	}
 }
 
-// ObjectHasProvisioner returns a PredicateFn implemented by HasProvisioner.
-func ObjectHasProvisioner(c client.Client, provisioner string) PredicateFn {
+// ObjectHasClassKind returns a PredicateFn implemented by HasClassKind.
+func ObjectHasClassKind(c client.Client, cs Class) PredicateFn {
 	return func(obj runtime.Object) bool {
 		cr, ok := obj.(ClassReferencer)
 		if !ok {
 			return false
 		}
-		return HasProvisioner(c, cr, provisioner)
+		return HasClassKind(c, cr, cs)
 	}
 }
 
-// HasProvisioner looks up the supplied ClassReferencer's resource class using
-// the supplied Client, returning true if the resource class uses the supplied
-// provisioner.
-func HasProvisioner(c client.Client, cr ClassReferencer, provisioner string) bool {
+// HasClassKind looks up the supplied ClassReferencer's resource class using
+// the supplied Client, returning true if the resource class is of the correct type
+func HasClassKind(c client.Client, cr ClassReferencer, cs Class) bool {
 	if cr.GetClassReference() == nil {
 		return false
 	}
@@ -65,12 +62,11 @@ func HasProvisioner(c client.Client, cr ClassReferencer, provisioner string) boo
 	ctx, cancel := context.WithTimeout(context.Background(), reconcileTimeout)
 	defer cancel()
 
-	cs := &v1alpha1.ResourceClass{}
 	if err := c.Get(ctx, meta.NamespacedNameOf(cr.GetClassReference()), cs); err != nil {
 		return false
 	}
 
-	return strings.EqualFold(cs.Provisioner, provisioner)
+	return true
 }
 
 // NoClassReference accepts ResourceClaims that do not reference a specific ResourceClass

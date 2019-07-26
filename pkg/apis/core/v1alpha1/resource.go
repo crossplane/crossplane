@@ -18,7 +18,6 @@ package v1alpha1
 
 import (
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -37,50 +36,6 @@ const (
 	// ResourceCredentialsTokenKey is the key inside a connection secret for the bearer token value
 	ResourceCredentialsTokenKey = "token"
 )
-
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
-// ResourceClass is the Schema for the instances API
-// +kubebuilder:printcolumn:name="PROVISIONER",type="string",JSONPath=".provisioner"
-// +kubebuilder:printcolumn:name="PROVIDER-REF",type="string",JSONPath=".providerRef.name"
-// +kubebuilder:printcolumn:name="RECLAIM-POLICY",type="string",JSONPath=".reclaimPolicy"
-// +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
-type ResourceClass struct {
-	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty"`
-
-	// Parameters holds parameters for the provisioner.
-	// These values are opaque to the  system and are passed directly
-	// to the provisioner.  The only validation done on keys is that they are
-	// not empty.  The maximum number of parameters is
-	// 512, with a cumulative max size of 256K
-	// +optional
-	Parameters map[string]string `json:"parameters,omitempty"`
-
-	// Provisioner is the driver expected to handle this ResourceClass.
-	// This is an optionally-prefixed name, like a label key.
-	// For example: "RDSInstance.database.aws.crossplane.io/v1alpha1" or "CloudSQLInstance.database.gcp.crossplane.io/v1alpha1".
-	// This value may not be empty.
-	Provisioner string `json:"provisioner"`
-
-	// ProviderReference is a reference to the cloud provider that will be used
-	// to provision the concrete cloud resource.
-	ProviderReference *corev1.ObjectReference `json:"providerRef"`
-
-	// reclaimPolicy is the reclaim policy that dynamically provisioned
-	// ResourceInstances of this resource class are created with
-	// +optional
-	ReclaimPolicy ReclaimPolicy `json:"reclaimPolicy,omitempty"`
-}
-
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
-// ResourceClassList contains a list of resource classes.
-type ResourceClassList struct {
-	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []ResourceClass `json:"items"`
-}
 
 // ResourceClaimSpec contains standard fields that all resource claims should
 // include in their spec. Unlike ResourceClaimStatus, ResourceClaimSpec should
@@ -102,6 +57,15 @@ type ResourceClaimStatus struct {
 	BindingStatus     `json:",inline"`
 }
 
+// ResourceClassSpecTemplate contains standard fields that all resource classes should
+// include in their spec template. ResourceSpec should typically be embedded in a
+// resource class specific struct.
+type ResourceClassSpecTemplate struct {
+	ProviderReference *corev1.ObjectReference `json:"providerRef"`
+
+	ReclaimPolicy ReclaimPolicy `json:"reclaimPolicy,omitempty"`
+}
+
 // ResourceSpec contains standard fields that all resources should
 // include in their spec. ResourceSpec should typically be embedded in a
 // resource specific struct.
@@ -121,4 +85,10 @@ type ResourceSpec struct {
 type ResourceStatus struct {
 	ConditionedStatus `json:",inline"`
 	BindingStatus     `json:",inline"`
+}
+
+// Policy contains standard fields that all policies should include. Policy
+// should typically be embedded in a specific resource claim policy.
+type Policy struct {
+	DefaultClassReference *corev1.ObjectReference `json:"defaultClassRef,omitempty"`
 }

@@ -29,7 +29,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	cachev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/cache/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/apis/gcp/cache/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/resource"
 )
@@ -39,6 +38,7 @@ import (
 func AddClaim(mgr manager.Manager) error {
 	r := resource.NewClaimReconciler(mgr,
 		resource.ClaimKind(cachev1alpha1.RedisClusterGroupVersionKind),
+		resource.ClassKind(v1alpha1.CloudMemorystoreInstanceClassKind),
 		resource.ManagedKind(v1alpha1.CloudMemorystoreInstanceGroupVersionKind),
 		resource.WithManagedConfigurators(
 			resource.ManagedConfiguratorFn(ConfigureCloudMemorystoreInstance),
@@ -55,21 +55,25 @@ func AddClaim(mgr manager.Manager) error {
 		return errors.Wrapf(err, "cannot watch for %s", v1alpha1.CloudMemorystoreInstanceGroupVersionKind)
 	}
 
-	p := v1alpha1.CloudMemorystoreInstanceKindAPIVersion
 	return errors.Wrapf(c.Watch(
 		&source.Kind{Type: &cachev1alpha1.RedisCluster{}},
 		&handler.EnqueueRequestForObject{},
-		resource.NewPredicates(resource.ObjectHasProvisioner(mgr.GetClient(), p)),
+		resource.NewPredicates(resource.ObjectHasClassKind(mgr.GetClient(), v1alpha1.CloudMemorystoreInstanceClass)),
 	), "cannot watch for %s", cachev1alpha1.RedisClusterGroupVersionKind)
 }
 
 // ConfigureCloudMemorystoreInstance configures the supplied resource (presumed
 // to be a CloudMemorystoreInstance) using the supplied resource claim (presumed
 // to be a RedisCluster) and resource class.
-func ConfigureCloudMemorystoreInstance(_ context.Context, cm resource.Claim, cs *corev1alpha1.ResourceClass, mg resource.Managed) error {
+func ConfigureCloudMemorystoreInstance(_ context.Context, cm resource.Claim, cs resource.Class, mg resource.Managed) error {
 	rc, cmok := cm.(*cachev1alpha1.RedisCluster)
 	if !cmok {
 		return errors.Errorf("expected resource claim %s to be %s", cm.GetName(), cachev1alpha1.RedisClusterGroupVersionKind)
+	}
+
+	i, csok := cs.(*v1alpha1.CloudMemorystoreInstanceClass)
+	if !csok {
+		return errors.Errorf("expected resource class %s to be %s", cs.GetName(), v1alpha1.CloudMemorystoreInstanceClassGroupVersionKind)
 	}
 
 	i, mgok := mg.(*v1alpha1.CloudMemorystoreInstance)
@@ -77,7 +81,8 @@ func ConfigureCloudMemorystoreInstance(_ context.Context, cm resource.Claim, cs 
 		return errors.Errorf("expected managed resource %s to be %s", mg.GetName(), v1alpha1.CloudMemorystoreInstanceGroupVersionKind)
 	}
 
-	spec := v1alpha1.NewCloudMemorystoreInstanceSpec(cs.Parameters)
+	// TODO(hasheddan): pass in just "cs" here and should automatically be able to set cloud memorystor instance spec from it
+	spec := v1alpha1.NewCloudMemorystoreInstanceSpec(cs.specTemplate)
 	v, err := resource.ResolveClassClaimValues(spec.RedisVersion, toGCPFormat(rc.Spec.EngineVersion))
 	if err != nil {
 		return errors.Wrap(err, "cannot resolve class claim values")
@@ -85,8 +90,8 @@ func ConfigureCloudMemorystoreInstance(_ context.Context, cm resource.Claim, cs 
 	spec.RedisVersion = v
 
 	spec.WriteConnectionSecretToReference = corev1.LocalObjectReference{Name: string(cm.GetUID())}
-	spec.ProviderReference = cs.ProviderReference
-	spec.ReclaimPolicy = cs.ReclaimPolicy
+	spec.ProviderReference = cs.specTemplate.ProviderReference
+	spec.ReclaimPolicy = cs.specTemplate.ReclaimPolicy
 
 	i.Spec = *spec
 
