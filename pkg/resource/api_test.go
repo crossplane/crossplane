@@ -39,6 +39,8 @@ var (
 	_ ManagedBinder               = &APIManagedBinder{}
 	_ ManagedBinder               = &APIManagedStatusBinder{}
 	_ ClaimFinalizer              = &APIClaimFinalizerRemover{}
+	_ ManagedEstablisher          = &APIManagedFinalizerAdder{}
+	_ ManagedFinalizer            = &APIManagedFinalizerRemover{}
 )
 
 func TestCreate(t *testing.T) {

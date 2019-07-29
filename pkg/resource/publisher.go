@@ -95,8 +95,8 @@ func (a *APISecretPublisher) PublishConnection(ctx context.Context, mg Managed, 
 	return errors.Wrap(err, errCreateOrUpdateSecret)
 }
 
-// UnpublishConnection deletes the connection Secret belonging to Managed Resource.
+// UnpublishConnection is no-op since PublishConnection only creates resources that will
+// be garbage collected by Kubernetes when the managed resource is deleted.
 func (a *APISecretPublisher) UnpublishConnection(ctx context.Context, mg Managed, c ConnectionDetails) error {
-	s := ConnectionSecretFor(mg, MustGetKind(mg, a.typer))
-	return errors.Wrap(IgnoreNotFound(a.client.Delete(ctx, s)), errCreateOrUpdateSecret)
+	return nil
 }

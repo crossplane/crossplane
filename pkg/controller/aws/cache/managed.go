@@ -168,7 +168,7 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (resource.Ex
 		r := e.client.CreateReplicationGroupRequest(elasticache.NewCreateReplicationGroupInput(g, token))
 		r.SetContext(ctx)
 		_, err := r.Send()
-		return resource.ExternalCreation{}, errors.Wrap(err, errCreateReplicationGroup)
+		return resource.ExternalCreation{}, errors.Wrap(resource.Ignore(elasticache.IsAlreadyExists, err), errCreateReplicationGroup)
 	}
 
 	token, err := util.GeneratePassword(maxAuthTokenData)
@@ -179,7 +179,7 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (resource.Ex
 	r := e.client.CreateReplicationGroupRequest(elasticache.NewCreateReplicationGroupInput(g, token))
 	r.SetContext(ctx)
 	if _, err := r.Send(); err != nil {
-		return resource.ExternalCreation{}, errors.Wrap(err, errCreateReplicationGroup)
+		return resource.ExternalCreation{}, errors.Wrap(resource.Ignore(elasticache.IsAlreadyExists, err), errCreateReplicationGroup)
 	}
 
 	c := resource.ExternalCreation{
@@ -244,9 +244,6 @@ func (e *external) Delete(ctx context.Context, mg resource.Managed) error {
 
 	req := e.client.DeleteReplicationGroupRequest(elasticache.NewDeleteReplicationGroupInput(g))
 	req.SetContext(ctx)
-	if _, err := req.Send(); resource.Ignore(elasticache.IsNotFound, err) != nil {
-		return errors.Wrap(err, errDeleteReplicationGroup)
-	}
-
-	return nil
+	_, err := req.Send()
+	return errors.Wrap(resource.Ignore(elasticache.IsNotFound, err), errDeleteReplicationGroup)
 }

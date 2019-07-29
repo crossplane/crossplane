@@ -63,7 +63,7 @@ func TestPublisherChain(t *testing.T) {
 		},
 		"SuccessfulPublisher": {
 			p: PublisherChain{
-				ManagedConnectionPublisherFn{
+				ManagedConnectionPublisherFns{
 					PublishConnectionFn: func(_ context.Context, mg Managed, c ConnectionDetails) error {
 						return nil
 					},
@@ -81,7 +81,7 @@ func TestPublisherChain(t *testing.T) {
 		},
 		"PublisherReturnsError": {
 			p: PublisherChain{
-				ManagedConnectionPublisherFn{
+				ManagedConnectionPublisherFns{
 					PublishConnectionFn: func(_ context.Context, mg Managed, c ConnectionDetails) error {
 						return errBoom
 					},

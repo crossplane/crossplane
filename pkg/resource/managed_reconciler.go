@@ -57,19 +57,19 @@ type ManagedConnectionPublisher interface {
 	UnpublishConnection(ctx context.Context, mg Managed, c ConnectionDetails) error
 }
 
-// ManagedConnectionPublisherFn is the pluggable struct to produce mocks of ManagedConnectionPublisher easily for tests.
-type ManagedConnectionPublisherFn struct {
+// ManagedConnectionPublisherFns is the pluggable struct to produce objects with ManagedConnectionPublisher interface.
+type ManagedConnectionPublisherFns struct {
 	PublishConnectionFn   func(ctx context.Context, mg Managed, c ConnectionDetails) error
 	UnpublishConnectionFn func(ctx context.Context, mg Managed, c ConnectionDetails) error
 }
 
 // PublishConnection calls plugged PublishConnectionFn.
-func (fn ManagedConnectionPublisherFn) PublishConnection(ctx context.Context, mg Managed, c ConnectionDetails) error {
+func (fn ManagedConnectionPublisherFns) PublishConnection(ctx context.Context, mg Managed, c ConnectionDetails) error {
 	return fn.PublishConnectionFn(ctx, mg, c)
 }
 
 // UnpublishConnection calls plugged UnpublishConnectionFn.
-func (fn ManagedConnectionPublisherFn) UnpublishConnection(ctx context.Context, mg Managed, c ConnectionDetails) error {
+func (fn ManagedConnectionPublisherFns) UnpublishConnection(ctx context.Context, mg Managed, c ConnectionDetails) error {
 	return fn.UnpublishConnectionFn(ctx, mg, c)
 }
 
@@ -94,7 +94,10 @@ func (ec ExternalConnectorFn) Connect(ctx context.Context, mg Managed) (External
 }
 
 // An ExternalClient manages the lifecycle of an external resource.
-// None of the calls here should be blocking.
+// None of the calls here should be blocking. All of the calls should be
+// idempotent. For example, Create call should not return AlreadyExists error
+// if it's called again with the same parameters or Delete call should not
+// return error if there is an ongoing deletion or resource does not exist.
 type ExternalClient interface {
 	// Observe the external resource the supplied Managed resource represents,
 	// if any. Observe implementations must not modify the external resource,
@@ -340,9 +343,8 @@ func (r *ManagedReconciler) Reconcile(req reconcile.Request) (reconcile.Result, 
 	}
 
 	if meta.WasDeleted(managed) {
-		// TODO: Reclaim Policy should be used between Claim and Managed. For Managed and External Resource,
+		// TODO(muvaf): Reclaim Policy should be used between Claim and Managed. For Managed and External Resource,
 		// we need another field.
-		managed.SetConditions(v1alpha1.Deleting())
 		if observation.ResourceExists && managed.GetReclaimPolicy() == v1alpha1.ReclaimDelete {
 			if err := external.Delete(ctx, managed); err != nil {
 				// We'll hit this condition if we can't delete our external

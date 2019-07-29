@@ -40,7 +40,7 @@ var _ reconcile.Reconciler = &ManagedReconciler{}
 // delete managed and then purge external with ReclaimDelete: + check finalizer scenario, deletion should be done after a few calls
 // delete managed and see if external is touched with ReclaimRetain
 
-func TestManagedReconciler_Reconcile(t *testing.T) {
+func TestManagedReconciler(t *testing.T) {
 	//nopClient := NopClient{}
 	type args struct {
 		m  manager.Manager
@@ -194,7 +194,7 @@ func TestManagedReconciler_Reconcile(t *testing.T) {
 				mg: ManagedKind(MockGVK(&MockManaged{})),
 				o: []ManagedReconcilerOption{
 					func(r *ManagedReconciler) {
-						r.managed.ManagedConnectionPublisher = ManagedConnectionPublisherFn{
+						r.managed.ManagedConnectionPublisher = ManagedConnectionPublisherFns{
 							UnpublishConnectionFn: func(ctx context.Context, mg Managed, c ConnectionDetails) error {
 								return nil
 							},
@@ -240,7 +240,7 @@ func TestManagedReconciler_Reconcile(t *testing.T) {
 				mg: ManagedKind(MockGVK(&MockManaged{})),
 				o: []ManagedReconcilerOption{
 					func(r *ManagedReconciler) {
-						r.managed.ManagedConnectionPublisher = ManagedConnectionPublisherFn{
+						r.managed.ManagedConnectionPublisher = ManagedConnectionPublisherFns{
 							UnpublishConnectionFn: func(ctx context.Context, mg Managed, c ConnectionDetails) error {
 								return nil
 							},

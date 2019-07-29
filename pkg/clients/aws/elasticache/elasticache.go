@@ -313,6 +313,16 @@ func ConnectionEndpoint(rg elasticache.ReplicationGroup) Endpoint {
 // IsNotFound returns true if the supplied error indicates a Replication Group
 // was not found.
 func IsNotFound(err error) bool {
+	return isErrorCodeEqual(elasticache.ErrCodeReplicationGroupNotFoundFault, err)
+}
+
+// IsAlreadyExists returns true if the supplied error indicates a Replication Group
+// already exists.
+func IsAlreadyExists(err error) bool {
+	return isErrorCodeEqual(elasticache.ErrCodeReplicationGroupAlreadyExistsFault, err)
+}
+
+func isErrorCodeEqual(errorCode string, err error) bool {
 	ce, ok := err.(interface {
 		Code() string
 	})
@@ -320,5 +330,5 @@ func IsNotFound(err error) bool {
 		return false
 	}
 
-	return ce.Code() == elasticache.ErrCodeReplicationGroupNotFoundFault
+	return ce.Code() == errorCode
 }
