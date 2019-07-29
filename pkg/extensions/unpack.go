@@ -106,7 +106,6 @@ func doUnpack(fs afero.Fs, root string) (string, error) { // nolint:gocyclo
 	}
 
 	// read the install file information
-	// installObj := apps.Deployment{}
 	installObj := unstructured.Unstructured{}
 
 	if err := readFileIntoObject(fs, root, installFileName, true, &installObj); err != nil {

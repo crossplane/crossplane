@@ -70,7 +70,7 @@ links:
 license: Apache-2.0
 `
 
-	simpleInstallFile = `apiVersion: apps/v1
+	simpleDeploymentInstallFile = `apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: crossplane-sample-extension
@@ -101,10 +101,55 @@ spec:
               fieldPath: metadata.namespace
 `
 
-	simpleRBACFile = `rules:
+	simpleJobInstallFile = `apiVersion: batch/v1
+kind: Job
+metadata:
+  name: crossplane-sample-install-job
+spec:
+  completions: 1
+  parallelism: 1
+  backoffLimit: 4
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: sample-extension-from-job
+        image: crossplane/sample-extension-from-job:latest
+        args: ["prepare"]
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+`
+
+	simpleDeploymentRBACFile = `rules:
 - apiGroups:
   - ""
   resources:
+  - secrets
+  - serviceaccounts
+  - events
+  - namespaces
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+`
+	simpleJobRBACFile = `rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  - services
   - secrets
   - serviceaccounts
   - events
@@ -134,7 +179,7 @@ spec:
   version: v1alpha1
 `
 
-	expectedSimpleExtensionOutput = `
+	expectedSimpleDeploymentExtensionOutput = `
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
@@ -232,6 +277,105 @@ spec:
   version: 0.0.1
 status: {}
 `
+
+	expectedSimpleJobExtensionOutput = `
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: mytypes.samples.upbound.io
+spec:
+  group: samples.upbound.io
+  names:
+    kind: Mytype
+    listKind: MytypeList
+    plural: mytypes
+    singular: mytype
+  scope: Namespaced
+  version: v1alpha1
+
+---
+apiVersion: extensions.crossplane.io/v1alpha1
+kind: Extension
+metadata:
+  creationTimestamp: null
+spec:
+  company: Upbound
+  controller:
+    job:
+      name: crossplane-sample-install-job
+      spec:
+        backoffLimit: 4
+        completions: 1
+        parallelism: 1
+        template:
+          metadata:
+            creationTimestamp: null
+          spec:
+            containers:
+            - args:
+              - prepare
+              env:
+              - name: POD_NAME
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.name
+              - name: POD_NAMESPACE
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.namespace
+              image: crossplane/sample-extension-from-job:latest
+              name: sample-extension-from-job
+              resources: {}
+            restartPolicy: Never
+  customresourcedefinitions:
+    owns:
+    - apiVersion: samples.upbound.io/v1alpha1
+      kind: Mytype
+  description: |
+    Markdown describing this sample Crossplane extension project.
+  icons:
+  - base64Data: bW9jay1pY29uLWRh
+    mediatype: image/jpeg
+  keywords:
+  - samples
+  - examples
+  - tutorials
+  license: Apache-2.0
+  links:
+  - description: Website
+    url: https://upbound.io
+  - description: Source Code
+    url: https://github.com/crossplaneio/sample-extension
+  maintainers:
+  - email: jared@upbound.io
+    name: Jared Watts
+  owners:
+  - email: bassam@upbound.io
+    name: Bassam Tabbara
+  permissions:
+    rules:
+    - apiGroups:
+      - ""
+      resources:
+      - configmaps
+      - services
+      - secrets
+      - serviceaccounts
+      - events
+      - namespaces
+      verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  title: Sample Crossplane Extension
+  version: 0.0.1
+status: {}
+`
 )
 
 func TestFindRegistryRoot(t *testing.T) {
@@ -306,21 +450,38 @@ func TestUnpack(t *testing.T) {
 			want: want{output: "", err: &os.PathError{Op: "open", Path: "ext-dir/install.yaml", Err: afero.ErrFileNotFound}},
 		},
 		{
-			name: "SimpleExtension",
+			name: "SimpleDeploymentExtension",
 			fs: func() afero.Fs {
 				fs := afero.NewMemMapFs()
 				fs.MkdirAll("ext-dir", 0755)
 				afero.WriteFile(fs, "ext-dir/icon.jpg", []byte("mock-icon-data"), 0644)
 				afero.WriteFile(fs, "ext-dir/app.yaml", []byte(simpleAppFile), 0644)
-				afero.WriteFile(fs, "ext-dir/install.yaml", []byte(simpleInstallFile), 0644)
-				afero.WriteFile(fs, "ext-dir/rbac.yaml", []byte(simpleRBACFile), 0644)
+				afero.WriteFile(fs, "ext-dir/install.yaml", []byte(simpleDeploymentInstallFile), 0644)
+				afero.WriteFile(fs, "ext-dir/rbac.yaml", []byte(simpleDeploymentRBACFile), 0644)
 				crdDir := "ext-dir/resources/samples.upbound.io/mytype/v1alpha1"
 				fs.MkdirAll(crdDir, 0755)
 				afero.WriteFile(fs, filepath.Join(crdDir, "mytype.v1alpha1.crd.yaml"), []byte(simpleCRDFile), 0644)
 				return fs
 			}(),
 			root: "ext-dir",
-			want: want{output: expectedSimpleExtensionOutput, err: nil},
+			want: want{output: expectedSimpleDeploymentExtensionOutput, err: nil},
+		},
+		{
+			name: "SimpleJobExtension",
+			fs: func() afero.Fs {
+				fs := afero.NewMemMapFs()
+				fs.MkdirAll("ext-dir", 0755)
+				afero.WriteFile(fs, "ext-dir/icon.jpg", []byte("mock-icon-data"), 0644)
+				afero.WriteFile(fs, "ext-dir/app.yaml", []byte(simpleAppFile), 0644)
+				afero.WriteFile(fs, "ext-dir/install.yaml", []byte(simpleJobInstallFile), 0644)
+				afero.WriteFile(fs, "ext-dir/rbac.yaml", []byte(simpleJobRBACFile), 0644)
+				crdDir := "ext-dir/resources/samples.upbound.io/mytype/v1alpha1"
+				fs.MkdirAll(crdDir, 0755)
+				afero.WriteFile(fs, filepath.Join(crdDir, "mytype.v1alpha1.crd.yaml"), []byte(simpleCRDFile), 0644)
+				return fs
+			}(),
+			root: "ext-dir",
+			want: want{output: expectedSimpleJobExtensionOutput, err: nil},
 		},
 	}
 	for _, tt := range tests {
