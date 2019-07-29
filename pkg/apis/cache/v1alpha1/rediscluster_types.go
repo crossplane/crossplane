@@ -126,9 +126,9 @@ var _ resource.PolicyList = &RedisClusterPolicyList{}
 
 // RedisClusterPolicyList contains a list of RedisClusterPolicy
 type RedisClusterPolicyList struct {
-	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Items             []RedisClusterPolicy `json:"items"`
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []RedisClusterPolicy `json:"items"`
 }
 
 // GetDefaultClassReferenceFromList of this RedisClusterPolicyList
@@ -165,9 +165,9 @@ var _ resource.ClusterPolicyList = &RedisClusterClusterPolicyList{}
 // RedisClusterClusterPolicyList contains a list of RedisClusterClusterPolicy
 // NOTE(hasheddan): manually changed to cluster scoped after make manifests
 type RedisClusterClusterPolicyList struct {
-	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Items             []RedisClusterClusterPolicy `json:"items"`
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []RedisClusterClusterPolicy `json:"items"`
 }
 
 // GetDefaultClassReferenceFromList of this RedisClusterClusterPolicyList

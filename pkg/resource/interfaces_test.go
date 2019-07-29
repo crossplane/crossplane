@@ -154,7 +154,7 @@ var _ PolicyList = &MockPolicyList{}
 type MockPolicyList struct {
 	runtime.Object
 
-	metav1.ObjectMeta
+	metav1.ListInterface
 	MockPolicyLister
 }
 
@@ -172,6 +172,6 @@ var _ ClusterPolicyList = &MockClusterPolicyList{}
 type MockClusterPolicyList struct {
 	runtime.Object
 
-	metav1.ObjectMeta
+	metav1.ListInterface
 	MockClusterPolicyLister
 }

@@ -132,7 +132,7 @@ type Policy interface {
 // A PolicyList is a Kubernetes object representing... TODO(hasheddan)
 type PolicyList interface {
 	runtime.Object
-	metav1.Object
+	metav1.ListInterface
 
 	PolicyLister
 }
@@ -148,7 +148,7 @@ type ClusterPolicy interface {
 // A ClusterPolicyList is a Kubernetes object representing... TODO(hasheddan)
 type ClusterPolicyList interface {
 	runtime.Object
-	metav1.Object
+	metav1.ListInterface
 
 	ClusterPolicyLister
 }

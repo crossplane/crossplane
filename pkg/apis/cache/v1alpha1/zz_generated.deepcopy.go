@@ -83,7 +83,7 @@ func (in *RedisClusterClusterPolicy) DeepCopyObject() runtime.Object {
 func (in *RedisClusterClusterPolicyList) DeepCopyInto(out *RedisClusterClusterPolicyList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	in.ObjectMeta.DeepCopyInto(&out.ObjectMeta)
+	out.ListMeta = in.ListMeta
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]RedisClusterClusterPolicy, len(*in))
@@ -176,7 +176,7 @@ func (in *RedisClusterPolicy) DeepCopyObject() runtime.Object {
 func (in *RedisClusterPolicyList) DeepCopyInto(out *RedisClusterPolicyList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	in.ObjectMeta.DeepCopyInto(&out.ObjectMeta)
+	out.ListMeta = in.ListMeta
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]RedisClusterPolicy, len(*in))
