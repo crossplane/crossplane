@@ -38,7 +38,7 @@ import (
 func AddClaim(mgr manager.Manager) error {
 	r := resource.NewClaimReconciler(mgr,
 		resource.ClaimKind(cachev1alpha1.RedisClusterGroupVersionKind),
-		resource.ClassKind(v1alpha1.CloudMemorystoreInstanceClassKind),
+		resource.ClassKind(v1alpha1.CloudMemorystoreInstanceClassGroupVersionKind),
 		resource.ManagedKind(v1alpha1.CloudMemorystoreInstanceGroupVersionKind),
 		resource.WithManagedConfigurators(
 			resource.ManagedConfiguratorFn(ConfigureCloudMemorystoreInstance),
@@ -58,7 +58,7 @@ func AddClaim(mgr manager.Manager) error {
 	return errors.Wrapf(c.Watch(
 		&source.Kind{Type: &cachev1alpha1.RedisCluster{}},
 		&handler.EnqueueRequestForObject{},
-		resource.NewPredicates(resource.ObjectHasClassKind(mgr.GetClient(), v1alpha1.CloudMemorystoreInstanceClass)),
+		resource.NewPredicates(resource.ObjectHasClassKind(mgr.GetClient(), &v1alpha1.CloudMemorystoreInstanceClass{})),
 	), "cannot watch for %s", cachev1alpha1.RedisClusterGroupVersionKind)
 }
 
@@ -71,7 +71,7 @@ func ConfigureCloudMemorystoreInstance(_ context.Context, cm resource.Claim, cs 
 		return errors.Errorf("expected resource claim %s to be %s", cm.GetName(), cachev1alpha1.RedisClusterGroupVersionKind)
 	}
 
-	i, csok := cs.(*v1alpha1.CloudMemorystoreInstanceClass)
+	rl, csok := cs.(*v1alpha1.CloudMemorystoreInstanceClass)
 	if !csok {
 		return errors.Errorf("expected resource class %s to be %s", cs.GetName(), v1alpha1.CloudMemorystoreInstanceClassGroupVersionKind)
 	}
@@ -82,7 +82,7 @@ func ConfigureCloudMemorystoreInstance(_ context.Context, cm resource.Claim, cs 
 	}
 
 	// TODO(hasheddan): pass in just "cs" here and should automatically be able to set cloud memorystor instance spec from it
-	spec := v1alpha1.NewCloudMemorystoreInstanceSpec(cs.specTemplate)
+	spec := v1alpha1.NewCloudMemorystoreInstanceSpec(rl.SpecTemplate)
 	v, err := resource.ResolveClassClaimValues(spec.RedisVersion, toGCPFormat(rc.Spec.EngineVersion))
 	if err != nil {
 		return errors.Wrap(err, "cannot resolve class claim values")
@@ -90,8 +90,8 @@ func ConfigureCloudMemorystoreInstance(_ context.Context, cm resource.Claim, cs 
 	spec.RedisVersion = v
 
 	spec.WriteConnectionSecretToReference = corev1.LocalObjectReference{Name: string(cm.GetUID())}
-	spec.ProviderReference = cs.specTemplate.ProviderReference
-	spec.ReclaimPolicy = cs.specTemplate.ReclaimPolicy
+	spec.ProviderReference = rl.SpecTemplate.ProviderReference
+	spec.ReclaimPolicy = rl.SpecTemplate.ReclaimPolicy
 
 	i.Spec = *spec
 

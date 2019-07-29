@@ -92,3 +92,13 @@ type ResourceStatus struct {
 type Policy struct {
 	DefaultClassReference *corev1.ObjectReference `json:"defaultClassRef,omitempty"`
 }
+
+// SetDefaultClassReference of this Policy
+func (p *Policy) SetDefaultClassReference(r *corev1.ObjectReference) {
+	p.DefaultClassReference = r
+}
+
+// GetDefaultClassReference of this Policy
+func (p *Policy) GetDefaultClassReference() *corev1.ObjectReference {
+	return p.DefaultClassReference
+}

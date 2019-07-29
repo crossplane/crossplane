@@ -20,9 +20,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/crossplaneio/crossplane/pkg/controller/gcp/cache"
-	"github.com/crossplaneio/crossplane/pkg/controller/gcp/compute"
-	"github.com/crossplaneio/crossplane/pkg/controller/gcp/database"
-	"github.com/crossplaneio/crossplane/pkg/controller/gcp/storage"
 )
 
 func init() {
@@ -30,13 +27,6 @@ func init() {
 	AddToManagerFuncs = append(AddToManagerFuncs,
 		cache.Add,
 		cache.AddClaim,
-		compute.Add,
-		compute.AddClaim,
-		database.Add,
-		database.AddPostgreSQLClaim,
-		database.AddMySQLClaim,
-		storage.Add,
-		storage.AddClaim,
 	)
 }
 

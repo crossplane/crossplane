@@ -210,13 +210,13 @@ type CloudMemorystoreInstanceList struct {
 
 // NewCloudMemorystoreInstanceSpec creates a new CloudMemorystoreInstanceSpec
 // from the given properties map.
-func NewCloudMemorystoreInstanceSpec(class CloudMemorystoreInstanceClass) *CloudMemorystoreInstanceSpec {
+func NewCloudMemorystoreInstanceSpec(st CloudMemorystoreInstanceClassSpecTemplate) *CloudMemorystoreInstanceSpec {
 	spec := &CloudMemorystoreInstanceSpec{
 		ResourceSpec: corev1alpha1.ResourceSpec{
 			ReclaimPolicy: corev1alpha1.ReclaimRetain,
 		},
 
-		CloudMemorystoreInstanceParameters: class.SpecTemplate.CloudMemorystoreInstanceParameters,
+		CloudMemorystoreInstanceParameters: st.CloudMemorystoreInstanceParameters,
 		// Note that these keys should match the JSON tags of their respective
 		// CloudMemorystoreInstanceSpec fields.
 		// Region:                properties["region"],
@@ -254,6 +254,16 @@ type CloudMemorystoreInstanceClass struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	SpecTemplate CloudMemorystoreInstanceClassSpecTemplate `json:"specTemplate,omitempty"`
+}
+
+// GetReclaimPolicy of this CloudMemorystoreInstanceClass.
+func (i *CloudMemorystoreInstanceClass) GetReclaimPolicy() corev1alpha1.ReclaimPolicy {
+	return i.SpecTemplate.ReclaimPolicy
+}
+
+// SetReclaimPolicy of this CloudMemorystoreInstanceClass.
+func (i *CloudMemorystoreInstanceClass) SetReclaimPolicy(p corev1alpha1.ReclaimPolicy) {
+	i.SpecTemplate.ReclaimPolicy = p
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

@@ -177,9 +177,9 @@ func TestDefaultClassReconcile(t *testing.T) {
 							switch o := o.(type) {
 							case *MockPolicyList:
 								cm := &MockPolicyList{}
-								cm.Items = []Policy{
-									&MockPolicy{},
-									&MockPolicy{},
+								cm.Items = []MockPolicy{
+									{},
+									{},
 								}
 								*o = *cm
 								return nil
@@ -229,9 +229,9 @@ func TestDefaultClassReconcile(t *testing.T) {
 								return nil
 							case *MockClusterPolicyList:
 								cm := &MockClusterPolicyList{}
-								cm.Items = []ClusterPolicy{
-									&MockClusterPolicy{},
-									&MockClusterPolicy{},
+								cm.Items = []MockClusterPolicy{
+									{},
+									{},
 								}
 								*o = *cm
 								return nil
@@ -275,8 +275,8 @@ func TestDefaultClassReconcile(t *testing.T) {
 							switch o := o.(type) {
 							case *MockPolicyList:
 								cm := &MockPolicyList{}
-								cm.Items = []Policy{
-									&policy,
+								cm.Items = []MockPolicy{
+									policy,
 								}
 								*o = *cm
 								return nil
@@ -319,11 +319,14 @@ func TestDefaultClassReconcile(t *testing.T) {
 						MockList: test.NewMockListFn(nil, func(o runtime.Object) error {
 							switch o := o.(type) {
 							case *MockPolicyList:
+								cm := &MockPolicyList{}
+								cm.Items = []MockPolicy{}
+								*o = *cm
 								return nil
 							case *MockClusterPolicyList:
 								cm := &MockClusterPolicyList{}
-								cm.Items = []ClusterPolicy{
-									&clusterPolicy,
+								cm.Items = []MockClusterPolicy{
+									clusterPolicy,
 								}
 								*o = *cm
 								return nil

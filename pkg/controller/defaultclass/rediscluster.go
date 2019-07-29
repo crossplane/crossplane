@@ -36,6 +36,10 @@ import (
 func AddRedisCluster(mgr manager.Manager) error {
 	r := resource.NewDefaultClassReconciler(mgr,
 		resource.ClaimKind(cachev1alpha1.RedisClusterGroupVersionKind),
+		resource.PolicyKind(cachev1alpha1.RedisClusterPolicyGroupVersionKind),
+		resource.PolicyListKind(cachev1alpha1.RedisClusterPolicyListGroupVersionKind),
+		resource.ClusterPolicyKind(cachev1alpha1.RedisClusterClusterPolicyGroupVersionKind),
+		resource.ClusterPolicyListKind(cachev1alpha1.RedisClusterClusterPolicyListGroupVersionKind),
 	)
 
 	name := strings.ToLower(fmt.Sprintf("%s.%s", cachev1alpha1.RedisClusterKind, controllerBaseName))

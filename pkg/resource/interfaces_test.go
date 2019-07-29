@@ -17,6 +17,8 @@ limitations under the License.
 package resource
 
 import (
+	"github.com/pkg/errors"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -73,13 +75,31 @@ type MockObjectKind struct{ GVK schema.GroupVersionKind }
 func (m *MockObjectKind) SetGroupVersionKind(kind schema.GroupVersionKind) { m.GVK = kind }
 func (m *MockObjectKind) GroupVersionKind() schema.GroupVersionKind        { return m.GVK }
 
-type MockItemer struct{ Items []Policy }
+type MockPolicyLister struct{ Items []MockPolicy }
 
-func (m *MockItemer) GetItems() []Policy { return m.Items }
+func (m *MockPolicyLister) GetDefaultClassReferenceFromList() (*corev1.ObjectReference, error) {
+	if len(m.Items) == 0 {
+		return &corev1.ObjectReference{}, nil
+	}
+	if len(m.Items) > 1 {
+		return &corev1.ObjectReference{}, errors.New("multiple policies found")
+	}
 
-type MockClusterItemer struct{ Items []ClusterPolicy }
+	return m.Items[0].GetDefaultClassReference(), nil
+}
 
-func (m *MockClusterItemer) GetItems() []ClusterPolicy { return m.Items }
+type MockClusterPolicyLister struct{ Items []MockClusterPolicy }
+
+func (m *MockClusterPolicyLister) GetDefaultClassReferenceFromList() (*corev1.ObjectReference, error) {
+	if len(m.Items) == 0 {
+		return &corev1.ObjectReference{}, nil
+	}
+	if len(m.Items) > 1 {
+		return &corev1.ObjectReference{}, errors.New("multiple policies found")
+	}
+
+	return m.Items[0].GetDefaultClassReference(), nil
+}
 
 var _ Claim = &MockClaim{}
 
@@ -135,7 +155,7 @@ type MockPolicyList struct {
 	runtime.Object
 
 	metav1.ObjectMeta
-	MockItemer
+	MockPolicyLister
 }
 
 var _ ClusterPolicy = &MockClusterPolicy{}
@@ -153,5 +173,5 @@ type MockClusterPolicyList struct {
 	runtime.Object
 
 	metav1.ObjectMeta
-	MockClusterItemer
+	MockClusterPolicyLister
 }

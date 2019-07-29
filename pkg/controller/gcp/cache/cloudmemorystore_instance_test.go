@@ -142,9 +142,11 @@ func instance(im ...instanceModifier) *v1alpha1.CloudMemorystoreInstance {
 				ProviderReference:                &corev1.ObjectReference{Namespace: namespace, Name: providerName},
 				WriteConnectionSecretToReference: corev1.LocalObjectReference{Name: connectionSecretName},
 			},
-			MemorySizeGB:      memorySizeGB,
-			RedisConfigs:      redisConfigs,
-			AuthorizedNetwork: authorizedNetwork,
+			CloudMemorystoreInstanceParameters: v1alpha1.CloudMemorystoreInstanceParameters{
+				MemorySizeGB:      memorySizeGB,
+				RedisConfigs:      redisConfigs,
+				AuthorizedNetwork: authorizedNetwork,
+			},
 		},
 		Status: v1alpha1.CloudMemorystoreInstanceStatus{
 			Endpoint:   host,

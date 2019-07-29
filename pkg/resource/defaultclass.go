@@ -129,25 +129,35 @@ func (r *DefaultClassReconciler) Reconcile(req reconcile.Request) (reconcile.Res
 		return reconcile.Result{}, errors.Wrap(IgnoreNotFound(r.client.Status().Update(ctx, claim)), errUpdateClaimStatus)
 	}
 
-	policyItems := policies.GetItems()
+	defClass, err := policies.GetDefaultClassReferenceFromList()
+	if err != nil {
+		// If this is the first time we encounter multiple namespaced policies we'll be
+		// requeued implicitly due to the status update. If not, we will requeue
+		// after a time to see if a default class has been deleted.
+		claim.SetConditions(corev1alpha1.ReconcileError(errors.New(errMultiplePolicies)))
+		return reconcile.Result{RequeueAfter: defaultClassWait}, errors.Wrap(IgnoreNotFound(r.client.Status().Update(ctx, claim)), errUpdateClaimStatus)
+	}
 
-	// Check to see if no namespaced policies defined for claim kind.
-	if len(policyItems) == 0 {
-		// Only if no namespace-scoped policies exist do we look for
-		// cluster-scoped policies
-
+	if defClass.Name == "" {
 		clusterPolicies := r.newClusterPolicyList()
 		if err := r.client.List(ctx, nil, clusterPolicies); err != nil {
-			// If this is the first time we encounter listing error we'll be
+			// If this is the first time we encounter multiple cluster policies we'll be
 			// requeued implicitly due to the status update. If not, we don't
 			// care to requeue because list parameters will not change.
 			claim.SetConditions(corev1alpha1.ReconcileError(errors.New(errFailedList)))
 			return reconcile.Result{}, errors.Wrap(IgnoreNotFound(r.client.Status().Update(ctx, claim)), errUpdateClaimStatus)
 		}
 
-		clusterPolicyItems := clusterPolicies.GetItems()
+		clusterDefClass, err := clusterPolicies.GetDefaultClassReferenceFromList()
+		if err != nil {
+			// If this is the first time we encounter multiple cluster policies we'll be
+			// requeued implicitly due to the status update. If not, we will requeue
+			// after a time to see if a policy has been deleted.
+			claim.SetConditions(corev1alpha1.ReconcileError(errors.New(errMultipleClusterPolicies)))
+			return reconcile.Result{RequeueAfter: defaultClassWait}, errors.Wrap(IgnoreNotFound(r.client.Status().Update(ctx, claim)), errUpdateClaimStatus)
+		}
 
-		if len(clusterPolicyItems) == 0 {
+		if clusterDefClass.Name == "" {
 			// If this is the first time we encounter no policies we'll be
 			// requeued implicitly due to the status update. If not, we will requeue
 			// after a time to see if a default class has been created.
@@ -155,18 +165,8 @@ func (r *DefaultClassReconciler) Reconcile(req reconcile.Request) (reconcile.Res
 			return reconcile.Result{RequeueAfter: defaultClassWait}, errors.Wrap(IgnoreNotFound(r.client.Status().Update(ctx, claim)), errUpdateClaimStatus)
 		}
 
-		// Check to see if multiple defaults defined for claim kind.
-		if len(clusterPolicyItems) > 1 {
-			// If this is the first time we encounter multiple cluster-scoped we'll be
-			// requeued implicitly due to the status update. If not, we will requeue
-			// after a time to see if only one default class exists.
-			claim.SetConditions(corev1alpha1.ReconcileError(errors.New(errMultipleClusterPolicies)))
-			return reconcile.Result{RequeueAfter: defaultClassWait}, errors.Wrap(IgnoreNotFound(r.client.Status().Update(ctx, claim)), errUpdateClaimStatus)
-		}
-
 		// Set class reference on claim to default resource class
-		defClass := clusterPolicyItems[0].GetDefaultClassReference()
-		claim.SetClassReference(defClass)
+		claim.SetClassReference(clusterDefClass)
 
 		// Do not requeue, claim controller will see update and claim
 		// with class reference set will pass predicates.
@@ -174,17 +174,7 @@ func (r *DefaultClassReconciler) Reconcile(req reconcile.Request) (reconcile.Res
 
 	}
 
-	// Check to see if multiple defaults defined for claim kind.
-	if len(policyItems) > 1 {
-		// If this is the first time we encounter multiple default-scoped policies we'll be
-		// requeued implicitly due to the status update. If not, we will requeue
-		// after a time to see if only one default class exists.
-		claim.SetConditions(corev1alpha1.ReconcileError(errors.New(errMultiplePolicies)))
-		return reconcile.Result{RequeueAfter: defaultClassWait}, errors.Wrap(IgnoreNotFound(r.client.Status().Update(ctx, claim)), errUpdateClaimStatus)
-	}
-
 	// Set class reference on claim to default resource class
-	defClass := policyItems[0].GetDefaultClassReference()
 	claim.SetClassReference(defClass)
 
 	// Do not requeue, claim controller will see update and claim

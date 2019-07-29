@@ -74,14 +74,14 @@ type DefaultClassReferencer interface {
 	GetDefaultClassReference() *corev1.ObjectReference
 }
 
-// An Itemer may have a list of policy objects.
-type Itemer interface {
-	GetItems() []Policy
+// An PolicyLister may have a list of policy objects.
+type PolicyLister interface {
+	GetDefaultClassReferenceFromList() (*corev1.ObjectReference, error)
 }
 
-// A ClusterItemer may have a list of cluster policy objects.
-type ClusterItemer interface {
-	GetItems() []ClusterPolicy
+// An ClusterPolicyLister may have a list of policy objects.
+type ClusterPolicyLister interface {
+	GetDefaultClassReferenceFromList() (*corev1.ObjectReference, error)
 }
 
 // A Claim is a Kubernetes object representing an abstract resource claim (e.g.
@@ -134,7 +134,7 @@ type PolicyList interface {
 	runtime.Object
 	metav1.Object
 
-	Itemer
+	PolicyLister
 }
 
 // A ClusterPolicy is a Kubernetes object representing... TODO(hasheddan)
@@ -150,5 +150,5 @@ type ClusterPolicyList interface {
 	runtime.Object
 	metav1.Object
 
-	ClusterItemer
+	ClusterPolicyLister
 }
