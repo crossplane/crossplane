@@ -1,7 +1,11 @@
 # Strongly Typed Resource Classes
 * Owner: Daniel Mangum (@hasheddan)
 * Reviewers: Crossplane Maintainers
-* Status: Draft
+* Status: Accepted, revision 1.1
+
+## Revisions
+* 1.1
+  * Added additional motivation by describing the use of annotations for UI metadata on strongly typed resource class CRD's as outlined in [#605](https://github.com/crossplaneio/crossplane/pull/605)
 
 ## Terminology
 
@@ -142,8 +146,9 @@ This problem can be solved by the implementation of "strongly typed" resource cl
 ## Goals
 
 * Enable schema documentation and validation for resource classes.
+* Enable the ability to inject type-specific annotations into resource class kinds.
 * Continue to support configuring a default resource class to be set upon resource claims that do not specify a class.
-* Assume that the universe of possible default resource class kinds for a specific claim kind will grow arbitrarily, so a default class controller must be able to be made aware of new resource class kinds. This goal will become specifically important as we begin to [separate providers](https://github.com/crossplaneio/crossplane/issues/531) from the core Crossplane project in the form of infrastructure stacks. 
+* Assume that the universe of possible default resource class kinds for a specific claim kind will grow arbitrarily, so a default class controller must be able to be made aware of new resource class kinds. This goal will become specifically important as we begin to [separate providers](https://github.com/crossplaneio/crossplane/issues/531) from the core Crossplane project in the form of infrastructure stacks.
 
 ## Proposal
 
@@ -231,6 +236,8 @@ spec:
 
 ## Future State
 
+### Expanding Policies
+
 The construction of these policy kinds allows for the future option of adding additional claim fields that can also be defaulted via the policy object. For example, if `providerRef`, which is currently a field for resource classes, was moved to the claim level, the policy could be expanded to specify default provider behavior as well. The `MySQLInstancePolicy` is used again for demonstration:
 
 ```yaml
@@ -250,6 +257,10 @@ defaultProviderRef:
   name: my-aws-account
   namespace: crossplane-system
 ```
+
+### Resource Class Annotations
+
+The movement to strongly typed resource classes provides an opportunity to inject additional metadata in the form of annotations into a class's CRD when it is added to Crossplane. This metadata may include resource specific information that would be useful in creating an enhanced user experience via a GUI or some other presentation format. These annotations would be applied in a formal manner via the [stack manager](design-doc-stacks.md).
 
 ## Implementation
 
