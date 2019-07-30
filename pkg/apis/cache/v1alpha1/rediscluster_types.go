@@ -17,8 +17,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"errors"
-
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -106,7 +104,7 @@ type RedisClusterList struct {
 	Items           []RedisCluster `json:"items"`
 }
 
-// All namespaced policies must satisfy the Policy interface
+// All policies must satisfy the Policy interface
 var _ resource.Policy = &RedisClusterPolicy{}
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -119,7 +117,7 @@ type RedisClusterPolicy struct {
 	corev1alpha1.Policy `json:",inline"`
 }
 
-// All namespaced policy lists must satisfy the PolicyList interface
+// All policy lists must satisfy the PolicyList interface
 var _ resource.PolicyList = &RedisClusterPolicyList{}
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -129,55 +127,4 @@ type RedisClusterPolicyList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []RedisClusterPolicy `json:"items"`
-}
-
-// GetDefaultClassReferenceFromList of this RedisClusterPolicyList
-func (rcpl *RedisClusterPolicyList) GetDefaultClassReferenceFromList() (*corev1.ObjectReference, error) {
-	if len(rcpl.Items) == 0 {
-		return &corev1.ObjectReference{}, nil
-	}
-	if len(rcpl.Items) > 1 {
-		return &corev1.ObjectReference{}, errors.New("multiple policies found")
-	}
-
-	return rcpl.Items[0].GetDefaultClassReference(), nil
-}
-
-// All cluster policies must satisfy the ClusterPolicy interface
-var _ resource.ClusterPolicy = &RedisClusterClusterPolicy{}
-
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
-// RedisClusterClusterPolicy contains a cluster-scoped policy for RedisCluster
-// NOTE(hasheddan): manually changed to cluster scoped after make manifests
-type RedisClusterClusterPolicy struct {
-	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty"`
-
-	corev1alpha1.Policy `json:",inline"`
-}
-
-// All cluster policy lists must satisfy the ClusterPolicyList interface
-var _ resource.ClusterPolicyList = &RedisClusterClusterPolicyList{}
-
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
-// RedisClusterClusterPolicyList contains a list of RedisClusterClusterPolicy
-// NOTE(hasheddan): manually changed to cluster scoped after make manifests
-type RedisClusterClusterPolicyList struct {
-	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []RedisClusterClusterPolicy `json:"items"`
-}
-
-// GetDefaultClassReferenceFromList of this RedisClusterClusterPolicyList
-func (rccpl *RedisClusterClusterPolicyList) GetDefaultClassReferenceFromList() (*corev1.ObjectReference, error) {
-	if len(rccpl.Items) == 0 {
-		return &corev1.ObjectReference{}, nil
-	}
-	if len(rccpl.Items) > 1 {
-		return &corev1.ObjectReference{}, errors.New("multiple policies found")
-	}
-
-	return rccpl.Items[0].GetDefaultClassReference(), nil
 }

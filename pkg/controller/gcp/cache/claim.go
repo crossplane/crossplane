@@ -29,6 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	cachev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/cache/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/apis/gcp/cache/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/resource"
 )
@@ -58,7 +59,7 @@ func AddClaim(mgr manager.Manager) error {
 	return errors.Wrapf(c.Watch(
 		&source.Kind{Type: &cachev1alpha1.RedisCluster{}},
 		&handler.EnqueueRequestForObject{},
-		resource.NewPredicates(resource.ObjectHasClassKind(mgr.GetClient(), &v1alpha1.CloudMemorystoreInstanceClass{})),
+		resource.NewPredicates(resource.ObjectHasClassKind(resource.ClassKind(v1alpha1.CloudMemorystoreInstanceClassGroupVersionKind))),
 	), "cannot watch for %s", cachev1alpha1.RedisClusterGroupVersionKind)
 }
 
@@ -81,8 +82,15 @@ func ConfigureCloudMemorystoreInstance(_ context.Context, cm resource.Claim, cs 
 		return errors.Errorf("expected managed resource %s to be %s", mg.GetName(), v1alpha1.CloudMemorystoreInstanceGroupVersionKind)
 	}
 
-	// TODO(hasheddan): pass in just "cs" here and should automatically be able to set cloud memorystor instance spec from it
-	spec := v1alpha1.NewCloudMemorystoreInstanceSpec(rl.SpecTemplate)
+	// NOTE(hasheddan): Getting rid of the NewCloudMemorystoreInstanceSpec func creates a dependency on corev1alpha1.
+	// This seems fine to me. We are already depending on cachev1alpha1.
+	spec := &v1alpha1.CloudMemorystoreInstanceSpec{
+		ResourceSpec: corev1alpha1.ResourceSpec{
+			ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		},
+		CloudMemorystoreInstanceParameters: rl.SpecTemplate.CloudMemorystoreInstanceParameters,
+	}
+
 	v, err := resource.ResolveClassClaimValues(spec.RedisVersion, toGCPFormat(rc.Spec.EngineVersion))
 	if err != nil {
 		return errors.Wrap(err, "cannot resolve class claim values")

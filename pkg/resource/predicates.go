@@ -17,14 +17,9 @@ limitations under the License.
 package resource
 
 import (
-	"context"
-
 	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-
-	"github.com/crossplaneio/crossplane/pkg/meta"
 )
 
 // A PredicateFn returns true if the supplied object should be reconciled.
@@ -42,31 +37,28 @@ func NewPredicates(fn PredicateFn) predicate.Funcs {
 }
 
 // ObjectHasClassKind returns a PredicateFn implemented by HasClassKind.
-func ObjectHasClassKind(c client.Client, cs Class) PredicateFn {
+func ObjectHasClassKind(k ClassKind) PredicateFn {
 	return func(obj runtime.Object) bool {
 		cr, ok := obj.(ClassReferencer)
 		if !ok {
 			return false
 		}
-		return HasClassKind(c, cr, cs)
+
+		ref := cr.GetClassReference()
+		if ref == nil {
+			return false
+		}
+
+		gvk := ref.GroupVersionKind()
+
+		if gvk.Group != k.Group {
+			return false
+		}
+		if gvk.Version != k.Version {
+			return false
+		}
+		return gvk.Kind == k.Kind
 	}
-}
-
-// HasClassKind looks up the supplied ClassReferencer's resource class using
-// the supplied Client, returning true if the resource class is of the correct type
-func HasClassKind(c client.Client, cr ClassReferencer, cs Class) bool {
-	if cr.GetClassReference() == nil {
-		return false
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), reconcileTimeout)
-	defer cancel()
-
-	if err := c.Get(ctx, meta.NamespacedNameOf(cr.GetClassReference()), cs); err != nil {
-		return false
-	}
-
-	return true
 }
 
 // NoClassReference accepts ResourceClaims that do not reference a specific ResourceClass

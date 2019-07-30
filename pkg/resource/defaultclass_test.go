@@ -17,12 +17,14 @@ limitations under the License.
 package resource
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -39,8 +41,6 @@ func TestDefaultClassReconcile(t *testing.T) {
 		of     ClaimKind
 		by     PolicyKind
 		byList PolicyListKind
-		or     ClusterPolicyKind
-		orList ClusterPolicyListKind
 	}
 
 	type want struct {
@@ -57,13 +57,9 @@ func TestDefaultClassReconcile(t *testing.T) {
 	}
 	policy := MockPolicy{}
 	policy.SetDefaultClassReference(defClassRef)
-
-	defClassRefCluster := &corev1.ObjectReference{
-		Name:      "another-default-class",
-		Namespace: "another-default-namespace",
-	}
-	clusterPolicy := MockClusterPolicy{}
-	clusterPolicy.SetDefaultClassReference(defClassRefCluster)
+	fmt.Println(policy.GetDefaultClassReference())
+	convPolicy, _ := runtime.DefaultUnstructuredConverter.ToUnstructured(&policy)
+	unPolicy := unstructured.Unstructured{Object: convPolicy}
 
 	cases := map[string]struct {
 		args args
@@ -73,13 +69,11 @@ func TestDefaultClassReconcile(t *testing.T) {
 			args: args{
 				m: &MockManager{
 					c: &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
-					s: MockSchemeWith(&MockClaim{}, &MockPolicy{}, &MockPolicyList{}, &MockClusterPolicy{}, &MockClusterPolicyList{}),
+					s: MockSchemeWith(&MockClaim{}, &MockPolicy{}, &MockPolicyList{}),
 				},
 				of:     ClaimKind(MockGVK(&MockClaim{})),
 				by:     PolicyKind(MockGVK(&MockPolicy{})),
 				byList: PolicyListKind(MockGVK(&MockPolicyList{})),
-				or:     ClusterPolicyKind(MockGVK(&MockClusterPolicy{})),
-				orList: ClusterPolicyListKind(MockGVK(&MockClusterPolicyList{})),
 			},
 			want: want{err: errors.Wrap(errBoom, errGetClaim)},
 		},
@@ -106,13 +100,11 @@ func TestDefaultClassReconcile(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockPolicy{}, &MockPolicyList{}, &MockClusterPolicy{}, &MockClusterPolicyList{}),
+					s: MockSchemeWith(&MockClaim{}, &MockPolicy{}, &MockPolicyList{}),
 				},
 				of:     ClaimKind(MockGVK(&MockClaim{})),
 				by:     PolicyKind(MockGVK(&MockPolicy{})),
 				byList: PolicyListKind(MockGVK(&MockPolicyList{})),
-				or:     ClusterPolicyKind(MockGVK(&MockClusterPolicy{})),
-				orList: ClusterPolicyListKind(MockGVK(&MockClusterPolicyList{})),
 			},
 			want: want{result: reconcile.Result{}},
 		},
@@ -131,11 +123,8 @@ func TestDefaultClassReconcile(t *testing.T) {
 						}),
 						MockList: test.NewMockListFn(nil, func(o runtime.Object) error {
 							switch o := o.(type) {
-							case *MockPolicyList:
-								*o = MockPolicyList{}
-								return nil
-							case *MockClusterPolicyList:
-								*o = MockClusterPolicyList{}
+							case *unstructured.UnstructuredList:
+								*o = unstructured.UnstructuredList{}
 								return nil
 							default:
 								return errUnexpected
@@ -143,20 +132,18 @@ func TestDefaultClassReconcile(t *testing.T) {
 						}),
 						MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(got runtime.Object) error {
 							want := &MockClaim{}
-							want.SetConditions(v1alpha1.ReconcileError(errors.New(errNoDefaultClass)))
+							want.SetConditions(v1alpha1.ReconcileError(errors.New(errNoPolicies)))
 							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
 							}
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockPolicy{}, &MockPolicyList{}, &MockClusterPolicy{}, &MockClusterPolicyList{}),
+					s: MockSchemeWith(&MockClaim{}, &MockPolicy{}, &MockPolicyList{}),
 				},
 				of:     ClaimKind(MockGVK(&MockClaim{})),
 				by:     PolicyKind(MockGVK(&MockPolicy{})),
 				byList: PolicyListKind(MockGVK(&MockPolicyList{})),
-				or:     ClusterPolicyKind(MockGVK(&MockClusterPolicy{})),
-				orList: ClusterPolicyListKind(MockGVK(&MockClusterPolicyList{})),
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultClassWait}},
 		},
@@ -175,16 +162,13 @@ func TestDefaultClassReconcile(t *testing.T) {
 						}),
 						MockList: test.NewMockListFn(nil, func(o runtime.Object) error {
 							switch o := o.(type) {
-							case *MockPolicyList:
-								cm := &MockPolicyList{}
-								cm.Items = []MockPolicy{
+							case *unstructured.UnstructuredList:
+								cm := &unstructured.UnstructuredList{}
+								cm.Items = []unstructured.Unstructured{
 									{},
 									{},
 								}
 								*o = *cm
-								return nil
-							case *MockClusterPolicyList:
-								*o = MockClusterPolicyList{}
 								return nil
 							default:
 								return errUnexpected
@@ -199,17 +183,15 @@ func TestDefaultClassReconcile(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockPolicy{}, &MockPolicyList{}, &MockClusterPolicy{}, &MockClusterPolicyList{}),
+					s: MockSchemeWith(&MockClaim{}, &MockPolicy{}, &MockPolicyList{}),
 				},
 				of:     ClaimKind(MockGVK(&MockClaim{})),
 				by:     PolicyKind(MockGVK(&MockPolicy{})),
 				byList: PolicyListKind(MockGVK(&MockPolicyList{})),
-				or:     ClusterPolicyKind(MockGVK(&MockClusterPolicy{})),
-				orList: ClusterPolicyListKind(MockGVK(&MockClusterPolicyList{})),
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultClassWait}},
 		},
-		"MultipleDefaultClassClusterPolicies": {
+		"Successful": {
 			args: args{
 				m: &MockManager{
 					c: &test.MockClient{
@@ -224,59 +206,10 @@ func TestDefaultClassReconcile(t *testing.T) {
 						}),
 						MockList: test.NewMockListFn(nil, func(o runtime.Object) error {
 							switch o := o.(type) {
-							case *MockPolicyList:
-								*o = MockPolicyList{}
-								return nil
-							case *MockClusterPolicyList:
-								cm := &MockClusterPolicyList{}
-								cm.Items = []MockClusterPolicy{
-									{},
-									{},
-								}
-								*o = *cm
-								return nil
-							default:
-								return errUnexpected
-							}
-						}),
-						MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(got runtime.Object) error {
-							want := &MockClaim{}
-							want.SetConditions(v1alpha1.ReconcileError(errors.New(errMultipleClusterPolicies)))
-							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
-								t.Errorf("-want, +got:\n%s", diff)
-							}
-							return nil
-						}),
-					},
-					s: MockSchemeWith(&MockClaim{}, &MockPolicy{}, &MockPolicyList{}, &MockClusterPolicy{}, &MockClusterPolicyList{}),
-				},
-				of:     ClaimKind(MockGVK(&MockClaim{})),
-				by:     PolicyKind(MockGVK(&MockPolicy{})),
-				byList: PolicyListKind(MockGVK(&MockPolicyList{})),
-				or:     ClusterPolicyKind(MockGVK(&MockClusterPolicy{})),
-				orList: ClusterPolicyListKind(MockGVK(&MockClusterPolicyList{})),
-			},
-			want: want{result: reconcile.Result{RequeueAfter: defaultClassWait}},
-		},
-		"NamespaceScopedSuccessful": {
-			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
-							switch o := o.(type) {
-							case *MockClaim:
-								*o = MockClaim{}
-								return nil
-							default:
-								return errUnexpected
-							}
-						}),
-						MockList: test.NewMockListFn(nil, func(o runtime.Object) error {
-							switch o := o.(type) {
-							case *MockPolicyList:
-								cm := &MockPolicyList{}
-								cm.Items = []MockPolicy{
-									policy,
+							case *unstructured.UnstructuredList:
+								cm := &unstructured.UnstructuredList{}
+								cm.Items = []unstructured.Unstructured{
+									unPolicy,
 								}
 								*o = *cm
 								return nil
@@ -293,63 +226,11 @@ func TestDefaultClassReconcile(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockPolicy{}, &MockPolicyList{}, &MockClusterPolicy{}, &MockClusterPolicyList{}),
+					s: MockSchemeWith(&MockClaim{}, &MockPolicy{}, &MockPolicyList{}),
 				},
 				of:     ClaimKind(MockGVK(&MockClaim{})),
 				by:     PolicyKind(MockGVK(&MockPolicy{})),
 				byList: PolicyListKind(MockGVK(&MockPolicyList{})),
-				or:     ClusterPolicyKind(MockGVK(&MockClusterPolicy{})),
-				orList: ClusterPolicyListKind(MockGVK(&MockClusterPolicyList{})),
-			},
-			want: want{result: reconcile.Result{Requeue: false}},
-		},
-		"ClusterScopedSuccessful": {
-			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
-							switch o := o.(type) {
-							case *MockClaim:
-								*o = MockClaim{}
-								return nil
-							default:
-								return errUnexpected
-							}
-						}),
-						MockList: test.NewMockListFn(nil, func(o runtime.Object) error {
-							switch o := o.(type) {
-							case *MockPolicyList:
-								cm := &MockPolicyList{}
-								cm.Items = []MockPolicy{}
-								*o = *cm
-								return nil
-							case *MockClusterPolicyList:
-								cm := &MockClusterPolicyList{}
-								cm.Items = []MockClusterPolicy{
-									clusterPolicy,
-								}
-								*o = *cm
-								return nil
-							default:
-								return errUnexpected
-							}
-						}),
-						MockUpdate: test.NewMockUpdateFn(nil, func(got runtime.Object) error {
-							want := &MockClaim{}
-							want.SetClassReference(clusterPolicy.GetDefaultClassReference())
-							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
-								t.Errorf("-want, +got:\n%s", diff)
-							}
-							return nil
-						}),
-					},
-					s: MockSchemeWith(&MockClaim{}, &MockPolicy{}, &MockPolicyList{}, &MockClusterPolicy{}, &MockClusterPolicyList{}),
-				},
-				of:     ClaimKind(MockGVK(&MockClaim{})),
-				by:     PolicyKind(MockGVK(&MockPolicy{})),
-				byList: PolicyListKind(MockGVK(&MockPolicyList{})),
-				or:     ClusterPolicyKind(MockGVK(&MockClusterPolicy{})),
-				orList: ClusterPolicyListKind(MockGVK(&MockClusterPolicyList{})),
 			},
 			want: want{result: reconcile.Result{Requeue: false}},
 		},
@@ -357,7 +238,7 @@ func TestDefaultClassReconcile(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := NewDefaultClassReconciler(tc.args.m, tc.args.of, tc.args.by, tc.args.byList, tc.args.or, tc.args.orList)
+			r := NewDefaultClassReconciler(tc.args.m, tc.args.of, tc.args.by, tc.args.byList)
 			got, err := r.Reconcile(reconcile.Request{})
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {

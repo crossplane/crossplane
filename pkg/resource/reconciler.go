@@ -326,8 +326,8 @@ func (r *ClaimReconciler) Reconcile(req reconcile.Request) (reconcile.Result, er
 		return reconcile.Result{Requeue: false}, errors.Wrap(IgnoreNotFound(r.client.Status().Update(ctx, claim)), errUpdateClaimStatus)
 	}
 
-	class := r.newClass()
 	if !meta.WasCreated(managed) {
+		class := r.newClass()
 		// Class reference should always be set by the time we get this far; our
 		// watch predicates require it.
 		if err := r.client.Get(ctx, meta.NamespacedNameOf(claim.GetClassReference()), class); err != nil {

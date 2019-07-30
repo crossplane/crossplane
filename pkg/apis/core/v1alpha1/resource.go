@@ -58,7 +58,7 @@ type ResourceClaimStatus struct {
 }
 
 // ResourceClassSpecTemplate contains standard fields that all resource classes should
-// include in their spec template. ResourceSpec should typically be embedded in a
+// include in their spec template. ResourceClassSpecTemplate should typically be embedded in a
 // resource class specific struct.
 type ResourceClassSpecTemplate struct {
 	ProviderReference *corev1.ObjectReference `json:"providerRef"`

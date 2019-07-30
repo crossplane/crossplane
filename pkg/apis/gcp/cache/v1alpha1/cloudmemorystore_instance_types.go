@@ -208,35 +208,6 @@ type CloudMemorystoreInstanceList struct {
 	Items           []CloudMemorystoreInstance `json:"items"`
 }
 
-// NewCloudMemorystoreInstanceSpec creates a new CloudMemorystoreInstanceSpec
-// from the given properties map.
-func NewCloudMemorystoreInstanceSpec(st CloudMemorystoreInstanceClassSpecTemplate) *CloudMemorystoreInstanceSpec {
-	spec := &CloudMemorystoreInstanceSpec{
-		ResourceSpec: corev1alpha1.ResourceSpec{
-			ReclaimPolicy: corev1alpha1.ReclaimRetain,
-		},
-
-		CloudMemorystoreInstanceParameters: st.CloudMemorystoreInstanceParameters,
-		// Note that these keys should match the JSON tags of their respective
-		// CloudMemorystoreInstanceSpec fields.
-		// Region:                properties["region"],
-		// Tier:                  properties["tier"],
-		// LocationID:            properties["locationId"],
-		// AlternativeLocationID: properties["alternativeLocationId"],
-		// ReservedIPRange:       properties["reservedIpRange"],
-		// AuthorizedNetwork:     properties["authorizedNetwork"],
-		// RedisVersion:          properties["redisVersion"],
-		// RedisConfigs:          util.ParseMap(properties["redisConfigs"]),
-
-	}
-
-	// if i, err := strconv.Atoi(properties["memorySizeGb"]); err == nil {
-	// 	spec.MemorySizeGB = i
-	// }
-
-	return spec
-}
-
 // CloudMemorystoreInstanceClassSpecTemplate is the Schema for the resource class
 type CloudMemorystoreInstanceClassSpecTemplate struct {
 	corev1alpha1.ResourceClassSpecTemplate `json:",inline"`

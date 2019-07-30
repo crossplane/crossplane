@@ -74,16 +74,6 @@ type DefaultClassReferencer interface {
 	GetDefaultClassReference() *corev1.ObjectReference
 }
 
-// An PolicyLister may have a list of policy objects.
-type PolicyLister interface {
-	GetDefaultClassReferenceFromList() (*corev1.ObjectReference, error)
-}
-
-// An ClusterPolicyLister may have a list of policy objects.
-type ClusterPolicyLister interface {
-	GetDefaultClassReferenceFromList() (*corev1.ObjectReference, error)
-}
-
 // A Claim is a Kubernetes object representing an abstract resource claim (e.g.
 // an SQL database) that may be bound to a concrete managed resource (e.g. a
 // CloudSQL instance).
@@ -133,22 +123,4 @@ type Policy interface {
 type PolicyList interface {
 	runtime.Object
 	metav1.ListInterface
-
-	PolicyLister
-}
-
-// A ClusterPolicy is a Kubernetes object representing... TODO(hasheddan)
-type ClusterPolicy interface {
-	runtime.Object
-	metav1.Object
-
-	DefaultClassReferencer
-}
-
-// A ClusterPolicyList is a Kubernetes object representing... TODO(hasheddan)
-type ClusterPolicyList interface {
-	runtime.Object
-	metav1.ListInterface
-
-	ClusterPolicyLister
 }
