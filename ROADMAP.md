@@ -63,11 +63,33 @@ Any dates listed below and the specific issues that will ship in a given milesto
   * General resource controller used for more types [#276](https://github.com/crossplaneio/crossplane/issues/276)
   * Common code refactoring [#83](https://github.com/crossplaneio/crossplane/issues/83)
 
-## v0.3 - Run Real-world Applications
+## v0.3 - Enable Partners to Build Infra Stacks
 
 * Support for a few real-world applications on-top of Crossplane
   * GitLab [#284](https://github.com/crossplaneio/crossplane/issues/284)
   * More applications to follow
+
+* Resource class enhancements: default classes, validation, annotation
+  * Increase portability of resource claims with support for default resource classes. [#151](https://github.com/crossplaneio/crossplane/issues/151)
+  * Resource classes can be validated and annotated [#613](https://github.com/crossplaneio/crossplane/issues/613)
+
+* Infra stacks (out-of-tree) with single-region secure connectivity between k8s and DBaaS, Redis, Buckets 
+  * Stacks Manager: app vs. infra stacks, namespace isolation, annotation support [#609](https://github.com/crossplaneio/crossplane/issues/609)
+  * Move infra stacks (GCP, AWS, Azure) into separate repos & upgrade to kubebuilder2 [#612](https://github.com/crossplaneio/crossplane/issues/612)
+  * GCP infra stack: single-region secure connectivity: GKE & CloudSQL, CloudMemorystore, Buckets [#615](https://github.com/crossplaneio/crossplane/issues/615)
+  * AWS infra stack: single-region secure connectivity: EKS & RDS, ElastiCache, Buckets [#616](https://github.com/crossplaneio/crossplane/issues/616)
+  * Azure infra stack: new controller pattern, but no secure connectivity yet [#617](https://github.com/crossplaneio/crossplane/issues/617)
+  * Stacks v1 CLI / kubectl plugin: init, build, push commands [#614](https://github.com/crossplaneio/crossplane/issues/614)
+* Docs & examples
+  * Infra stack developer guide [#610](https://github.com/crossplaneio/crossplane/issues/610)
+  * Portable wordpress app stack (kubebuilder-based) published to registry [#572](https://github.com/crossplaneio/crossplane/issues/572)
+  * Refresh 0.3 docs, crossplane.io, roadmap.md, readme.md, architecture diagram, etc. [#625](https://github.com/crossplaneio/crossplane/issues/625)
+  * DevOps pipeline examples for Jenkins, GitLab, GitOps using GCP and AWS stacks
+
+
+
+## Futures
+
 * Heterogeneous application support
   * Serverless (functions) [#285](https://github.com/crossplaneio/crossplane/issues/285)
   * Containers and other Kubernetes deployment types (e.g., Helm charts) [#158](https://github.com/crossplaneio/crossplane/issues/158)
@@ -81,10 +103,12 @@ Any dates listed below and the specific issues that will ship in a given milesto
 * Ease-of-use and improved experience
   * Standalone mode allowing Crossplane to run in a single container or process [#274](https://github.com/crossplaneio/crossplane/issues/274)
   * Uniform resource connectivity [#149](https://github.com/crossplaneio/crossplane/issues/149)
-* Performance and Efficiency
-  * Parallel processing of CRD instances [#4](https://github.com/crossplaneio/crossplane/issues/4), [#74](https://github.com/crossplaneio/crossplane/issues/74)
 * Engineering
   * Consistent testing paradigm [#269](https://github.com/crossplaneio/crossplane/issues/269)
+
+## Remove
+* Performance and Efficiency
+  * Parallel processing of CRD instances [#4](https://github.com/crossplaneio/crossplane/issues/4), [#74](https://github.com/crossplaneio/crossplane/issues/74)
 
 ## Towards v1.0 - Production Ready
 
