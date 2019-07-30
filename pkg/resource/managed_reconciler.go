@@ -79,6 +79,14 @@ type ManagedEstablisher interface {
 	Establish(ctx context.Context, mg Managed) error
 }
 
+// ManagedEstablisherFn is the pluggable struct to produce objects with ManagedEstablisher interface.
+type ManagedEstablisherFn func(ctx context.Context, mg Managed) error
+
+// Establish calls ManagedEstablisherFn function.
+func (m ManagedEstablisherFn) Establish(ctx context.Context, mg Managed) error {
+	return m(ctx, mg)
+}
+
 // An ExternalConnecter produces a new ExternalClient given the supplied
 // Managed resource.
 type ExternalConnecter interface {
@@ -119,8 +127,8 @@ type ExternalClient interface {
 	Delete(ctx context.Context, mg Managed) error
 }
 
-// ExternalClientFn is the pluggable struct to produce an ExternalClient from given functions.
-type ExternalClientFn struct {
+// ExternalClientFns is the pluggable struct to produce an ExternalClient from given functions.
+type ExternalClientFns struct {
 	ObserveFn func(ctx context.Context, mg Managed) (ExternalObservation, error)
 	CreateFn  func(ctx context.Context, mg Managed) (ExternalCreation, error)
 	UpdateFn  func(ctx context.Context, mg Managed) (ExternalUpdate, error)
@@ -128,22 +136,22 @@ type ExternalClientFn struct {
 }
 
 // Observe calls plugged ObserveFn function.
-func (e ExternalClientFn) Observe(ctx context.Context, mg Managed) (ExternalObservation, error) {
+func (e ExternalClientFns) Observe(ctx context.Context, mg Managed) (ExternalObservation, error) {
 	return e.ObserveFn(ctx, mg)
 }
 
 // Create calls plugged CreateFn function.
-func (e ExternalClientFn) Create(ctx context.Context, mg Managed) (ExternalCreation, error) {
+func (e ExternalClientFns) Create(ctx context.Context, mg Managed) (ExternalCreation, error) {
 	return e.CreateFn(ctx, mg)
 }
 
 // Update calls plugged UpdateFn function.
-func (e ExternalClientFn) Update(ctx context.Context, mg Managed) (ExternalUpdate, error) {
+func (e ExternalClientFns) Update(ctx context.Context, mg Managed) (ExternalUpdate, error) {
 	return e.UpdateFn(ctx, mg)
 }
 
 // Delete calls plugged DeleteFn function.
-func (e ExternalClientFn) Delete(ctx context.Context, mg Managed) error { return e.DeleteFn(ctx, mg) }
+func (e ExternalClientFns) Delete(ctx context.Context, mg Managed) error { return e.DeleteFn(ctx, mg) }
 
 // A NopConnecter does nothing.
 type NopConnecter struct{}
