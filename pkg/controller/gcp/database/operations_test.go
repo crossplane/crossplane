@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -249,6 +250,13 @@ func assertObjectInstance(obj runtime.Object) (*v1alpha1.CloudsqlInstance, error
 		return nil, errors.Errorf("unexpected object type: %T", obj)
 	}
 	return inst, nil
+}
+
+// Because the instance name creation is determined by some logic,
+// putting the test logic to calculate the expected instance name inside
+// this method allows us to maintain it in a single place.
+func getExpectedInstanceName(testUID string) string {
+	return strings.ToLower(v1alpha1.CloudsqlInstanceKind + "-" + testUID)
 }
 
 func Test_localHandler_addFinalizer(t *testing.T) {
@@ -925,7 +933,8 @@ func Test_managedHandler_getInstance(t *testing.T) {
 				},
 				instance: &fake.MockInstanceClient{
 					MockGet: func(ctx context.Context, s string) (*sqladmin.DatabaseInstance, error) {
-						if diff := cmp.Diff(testUID, s); diff != "" {
+						expectedInstanceName := getExpectedInstanceName(testUID)
+						if diff := cmp.Diff(expectedInstanceName, s); diff != "" {
 							t.Errorf("getInstance() instance name -want, +got: %s", diff)
 						}
 						return &sqladmin.DatabaseInstance{
@@ -987,11 +996,12 @@ func Test_managedHandler_createInstance(t *testing.T) {
 				},
 				instance: &fake.MockInstanceClient{
 					MockCreate: func(ctx context.Context, instance *sqladmin.DatabaseInstance) error {
+						expectedInstanceName := getExpectedInstanceName(testUID)
 						if instance == nil {
 							t.Errorf("createInstance() create instance is nil")
 							return nil
 						}
-						if diff := cmp.Diff(testUID, instance.Name); diff != "" {
+						if diff := cmp.Diff(expectedInstanceName, instance.Name); diff != "" {
 							t.Errorf("createInstance() create -want, +got: %s", diff)
 						}
 						return nil
@@ -1044,14 +1054,15 @@ func Test_managedHandler_updateInstance(t *testing.T) {
 				},
 				instance: &fake.MockInstanceClient{
 					MockUpdate: func(ctx context.Context, name string, instance *sqladmin.DatabaseInstance) error {
+						expectedInstanceName := getExpectedInstanceName(testUID)
 						if instance == nil {
 							t.Errorf("updateInstance() create instance is nil")
 							return nil
 						}
-						if diff := cmp.Diff(testUID, instance.Name); diff != "" {
+						if diff := cmp.Diff(expectedInstanceName, instance.Name); diff != "" {
 							t.Errorf("updateInstance() create -want, +got: %s", diff)
 						}
-						if diff := cmp.Diff(testUID, instance.Name); diff != "" {
+						if diff := cmp.Diff(expectedInstanceName, instance.Name); diff != "" {
 							t.Errorf("updateInstance() create -want, +got: %s", diff)
 						}
 						return nil
@@ -1096,7 +1107,8 @@ func Test_managedHandler_deleteInstance(t *testing.T) {
 				},
 				instance: &fake.MockInstanceClient{
 					MockDelete: func(ctx context.Context, name string) error {
-						if diff := cmp.Diff(testUID, name); diff != "" {
+						expectedInstanceName := getExpectedInstanceName(testUID)
+						if diff := cmp.Diff(expectedInstanceName, name); diff != "" {
 							t.Errorf("deleteInstance() create -want, +got: %s", diff)
 						}
 						return nil
@@ -1142,7 +1154,8 @@ func Test_managedHandler_getUser(t *testing.T) {
 				},
 				user: &fake.MockUserClient{
 					MockList: func(i context.Context, s string) (users []*sqladmin.User, e error) {
-						if s != testUID {
+						expectedInstanceName := getExpectedInstanceName(testUID)
+						if s != expectedInstanceName {
 							t.Errorf("getUser() list - unexpected instance name %s", s)
 						}
 						return []*sqladmin.User{
@@ -1162,7 +1175,8 @@ func Test_managedHandler_getUser(t *testing.T) {
 				},
 				user: &fake.MockUserClient{
 					MockList: func(i context.Context, s string) (users []*sqladmin.User, e error) {
-						if s != testUID {
+						expectedInstanceName := getExpectedInstanceName(testUID)
+						if s != expectedInstanceName {
 							t.Errorf("getUser() list - unexpected instance name %s", s)
 						}
 						return []*sqladmin.User{

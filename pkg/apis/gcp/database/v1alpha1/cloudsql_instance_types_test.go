@@ -281,7 +281,7 @@ func TestCloudsqlInstance_DatabaseUserName(t *testing.T) {
 	}
 }
 
-func TestBucket_GetResourceName(t *testing.T) {
+func TestCloudsqlInstance_GetResourceName(t *testing.T) {
 	om := metav1.ObjectMeta{
 		Namespace: "foo",
 		Name:      "bar",
@@ -300,7 +300,7 @@ func TestBucket_GetResourceName(t *testing.T) {
 				meta: om,
 				spec: CloudsqlInstanceSpec{},
 			},
-			want: "test-uid",
+			want: "cloudsqlinstance-test-uid",
 		},
 		"FormatString": {
 			fields: fields{
@@ -337,7 +337,7 @@ func TestBucket_GetResourceName(t *testing.T) {
 				Spec:       tt.fields.spec,
 			}
 			if got := b.GetResourceName(); got != tt.want {
-				t.Errorf("Bucket.GetBucketName() = %v, want %v", got, tt.want)
+				t.Errorf("CloudsqlInstance.GetResourceName() = %v, want %v", got, tt.want)
 			}
 		})
 	}
