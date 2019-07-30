@@ -520,6 +520,7 @@ func (r *Reconciler) getConnectionSecrets(ctx context.Context, ar *v1alpha1.Kube
 		n := types.NamespacedName{Namespace: ar.GetNamespace(), Name: ref.Name}
 		if err := r.kube.Get(ctx, n, &s); err != nil {
 			ar.Status.SetConditions(corev1alpha1.ReconcileError(err))
+			log.V(logging.Debug).Info("error getting connection secret", "namespace", n.Namespace, "name", n.Name, "err", err)
 			continue
 		}
 		secrets = append(secrets, s)
