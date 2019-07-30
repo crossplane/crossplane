@@ -228,21 +228,31 @@ func (i *CloudsqlInstance) DatabaseUserName() string {
 }
 
 // GetResourceName based on the NameFormat spec value,
-// If name format is not provided, resource name defaults to UID
+// If name format is not provided, resource name defaults to {{kind}}-UID
 // If name format provided with '%s' value, resource name will result in formatted string + UID,
 //   NOTE: only single %s substitution is supported
 // If name format does not contain '%s' substitution, i.e. a constant string, the
 // constant string value is returned back
 //
 // Examples:
-//   For all examples assume "UID" = "test-uid"
-//   1. NameFormat = "", ResourceName = "test-uid"
+//   For all examples assume "UID" = "test-uid",
+//   and assume that "{{kind}}" = "mykind"
+//   1. NameFormat = "", ResourceName = "mykind-test-uid"
 //   2. NameFormat = "%s", ResourceName = "test-uid"
 //   3. NameFormat = "foo", ResourceName = "foo"
 //   4. NameFormat = "foo-%s", ResourceName = "foo-test-uid"
 //   5. NameFormat = "foo-%s-bar-%s", ResourceName = "foo-test-uid-bar-%!s(MISSING)"
+//
+// Note that CloudSQL instance names must begin with a letter, per:
+// https://cloud.google.com/sql/docs/mysql/instance-settings
 func (i *CloudsqlInstance) GetResourceName() string {
-	return util.ConditionalStringFormat(i.Spec.NameFormat, string(i.GetUID()))
+	instanceNameFormatString := i.Spec.NameFormat
+
+	if instanceNameFormatString == "" {
+		instanceNameFormatString = strings.ToLower(CloudsqlInstanceKind) + "-%s"
+	}
+
+	return util.ConditionalStringFormat(instanceNameFormatString, string(i.GetUID()))
 }
 
 // IsRunnable returns true if instance is in Runnable state
