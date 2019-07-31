@@ -28,6 +28,7 @@ parameters:
   tier: db-n1-standard-1
   region: us-west2
   storageType: PD_SSD
+  authorizedNetworks: 0.0.0.0/0
 provisioner: cloudsqlinstance.database.gcp.crossplane.io/v1alpha1
 providerRef:
   name: gcp-provider
