@@ -54,6 +54,16 @@ spec:
                   - name
                   - spec
                   type: object
+                job:
+                  properties:
+                    name:
+                      type: string
+                    spec:
+                      type: object
+                  required:
+                  - name
+                  - spec
+                  type: object
               type: object
             customresourcedefinitions:
               properties:

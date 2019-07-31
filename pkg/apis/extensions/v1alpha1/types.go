@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	apps "k8s.io/api/apps/v1"
+	batch "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbac "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -173,12 +174,19 @@ type LinkSpec struct {
 // functions/hooks, templates, a new DSL, etc.
 type ControllerSpec struct {
 	Deployment *ControllerDeployment `json:"deployment,omitempty"`
+	Job        *ControllerJob        `json:"job,omitempty"`
 }
 
 // ControllerDeployment defines a controller for an extension that is managed by a Deployment.
 type ControllerDeployment struct {
 	Name string              `json:"name"`
 	Spec apps.DeploymentSpec `json:"spec"`
+}
+
+// ControllerJob defines a controller for an extension that is installed by a Job.
+type ControllerJob struct {
+	Name string        `json:"name"`
+	Spec batch.JobSpec `json:"spec"`
 }
 
 // PermissionsSpec defines the permissions that an extension will require to operate.

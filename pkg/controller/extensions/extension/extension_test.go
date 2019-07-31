@@ -25,6 +25,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/pkg/errors"
 	apps "k8s.io/api/apps/v1"
+	batch "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbac "k8s.io/api/rbac/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -52,6 +53,7 @@ const (
 	controllerDeploymentName = "cool-controller-deployment"
 	controllerContainerName  = "cool-container"
 	controllerImageName      = "cool/controller-image:rad"
+	controllerJobName        = "cool-controller-job"
 )
 
 var (
@@ -156,6 +158,27 @@ func defaultPolicyRules() []rbac.PolicyRule {
 	return []rbac.PolicyRule{{APIGroups: []string{""}, Resources: []string{"secrets"}, Verbs: []string{"get"}}}
 }
 
+func defaultJobControllerSpec() v1alpha1.ControllerSpec {
+	return v1alpha1.ControllerSpec{
+		Job: &v1alpha1.ControllerJob{
+			Name: controllerJobName,
+			Spec: batch.JobSpec{
+				Template: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						RestartPolicy: corev1.RestartPolicyNever,
+						Containers: []corev1.Container{
+							{
+								Name:  controllerContainerName,
+								Image: controllerImageName,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 // ************************************************************************************************
 // TestReconcile
 // ************************************************************************************************
@@ -225,12 +248,12 @@ func TestReconcile(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			gotResult, gotErr := tt.rec.Reconcile(tt.req)
 
-			if diff := cmp.Diff(gotErr, tt.want.err, test.EquateErrors()); diff != "" {
-				t.Errorf("Reconcile() want error != got error:\n%s", diff)
+			if diff := cmp.Diff(tt.want.err, gotErr, test.EquateErrors()); diff != "" {
+				t.Errorf("Reconcile() -want error, +got error:\n%s", diff)
 			}
 
-			if diff := cmp.Diff(gotResult, tt.want.result); diff != "" {
-				t.Errorf("Reconcile() got != want:\n%v", diff)
+			if diff := cmp.Diff(tt.want.result, gotResult); diff != "" {
+				t.Errorf("Reconcile() -want, +got:\n%s", diff)
 			}
 		})
 	}
@@ -577,8 +600,10 @@ func TestProcessDeployment(t *testing.T) {
 					},
 				},
 				controllerRef: &corev1.ObjectReference{
-					Name:      controllerDeploymentName,
-					Namespace: namespace,
+					Name:       controllerDeploymentName,
+					Namespace:  namespace,
+					Kind:       "Deployment",
+					APIVersion: "apps/v1",
 				},
 			},
 		},
@@ -594,8 +619,8 @@ func TestProcessDeployment(t *testing.T) {
 
 			err := handler.processDeployment(ctx)
 
-			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
-				t.Errorf("processDeployment want error != got error:\n%s", diff)
+			if diff := cmp.Diff(tt.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("processDeployment -want error, +got error:\n%s", diff)
 			}
 
 			if tt.want.d != nil {
@@ -603,8 +628,114 @@ func TestProcessDeployment(t *testing.T) {
 				assertKubernetesObject(t, g, got, tt.want.d, handler.kube)
 			}
 
-			if diff := cmp.Diff(handler.ext.Status.ControllerRef, tt.want.controllerRef); diff != "" {
-				t.Errorf("got != want:\n%v", diff)
+			if diff := cmp.Diff(tt.want.controllerRef, handler.ext.Status.ControllerRef); diff != "" {
+				t.Errorf("-want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+// ************************************************************************************************
+// TestProcessJob
+// ************************************************************************************************
+func TestProcessJob(t *testing.T) {
+	errBoom := errors.New("boom")
+
+	type want struct {
+		err           error
+		j             *batch.Job
+		controllerRef *corev1.ObjectReference
+	}
+
+	tests := []struct {
+		name       string
+		r          *v1alpha1.Extension
+		clientFunc func(*v1alpha1.Extension) client.Client
+		want       want
+	}{
+		{
+			name:       "NoControllerRequested",
+			r:          resource(),
+			clientFunc: func(r *v1alpha1.Extension) client.Client { return fake.NewFakeClient(r) },
+			want: want{
+				err:           nil,
+				j:             nil,
+				controllerRef: nil,
+			},
+		},
+		{
+			name: "CreateJobError",
+			r:    resource(withControllerSpec(defaultJobControllerSpec())),
+			clientFunc: func(r *v1alpha1.Extension) client.Client {
+				return &test.MockClient{
+					MockCreate: func(ctx context.Context, obj runtime.Object) error {
+						return errBoom
+					},
+				}
+			},
+			want: want{
+				err:           errors.Wrap(errBoom, "failed to create job"),
+				j:             nil,
+				controllerRef: nil,
+			},
+		},
+		{
+			name:       "Success",
+			r:          resource(withControllerSpec(defaultJobControllerSpec())),
+			clientFunc: func(r *v1alpha1.Extension) client.Client { return fake.NewFakeClient(r) },
+			want: want{
+				err: nil,
+				j: &batch.Job{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      controllerJobName,
+						Namespace: namespace,
+						OwnerReferences: []metav1.OwnerReference{
+							meta.AsOwner(meta.ReferenceTo(resource(), v1alpha1.ExtensionGroupVersionKind)),
+						},
+					},
+					Spec: batch.JobSpec{
+						Template: corev1.PodTemplateSpec{
+							Spec: corev1.PodSpec{
+								RestartPolicy:      corev1.RestartPolicyNever,
+								ServiceAccountName: resourceName,
+								Containers: []corev1.Container{
+									{Name: controllerContainerName, Image: controllerImageName},
+								},
+							},
+						},
+					},
+				},
+				controllerRef: &corev1.ObjectReference{
+					Name:       controllerJobName,
+					Namespace:  namespace,
+					Kind:       "Job",
+					APIVersion: "batch/v1",
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := NewGomegaWithT(t)
+			handler := &extensionHandler{
+				kube: tt.clientFunc(tt.r),
+				ext:  tt.r,
+			}
+
+			err := handler.processJob(ctx)
+
+			if diff := cmp.Diff(tt.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("processJob -want error, +got error:\n%s", diff)
+			}
+
+			if tt.want.j != nil {
+				got := &batch.Job{}
+				assertKubernetesObject(t, g, got, tt.want.j, handler.kube)
+			}
+
+			if diff := cmp.Diff(tt.want.controllerRef, handler.ext.Status.ControllerRef); diff != "" {
+				t.Errorf("-want, +got:\n%s", diff)
 			}
 		})
 	}

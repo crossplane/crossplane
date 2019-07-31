@@ -21,10 +21,12 @@ import (
 	"time"
 
 	apps "k8s.io/api/apps/v1"
+	batch "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbac "k8s.io/api/rbac/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	controllerHandler "sigs.k8s.io/controller-runtime/pkg/handler"
@@ -142,8 +144,12 @@ func (h *extensionHandler) create(ctx context.Context) (reconcile.Result, error)
 		return fail(ctx, h.kube, h.ext, err)
 	}
 
-	// create controller deployment
+	// create controller deployment or job
 	if err := h.processDeployment(ctx); err != nil {
+		return fail(ctx, h.kube, h.ext, err)
+	}
+
+	if err := h.processJob(ctx); err != nil {
 		return fail(ctx, h.kube, h.ext, err)
 	}
 
@@ -217,6 +223,11 @@ func (h *extensionHandler) processDeployment(ctx context.Context) error {
 	deploymentSpec.Template.Spec.ServiceAccountName = h.ext.Name
 
 	ref := meta.AsOwner(meta.ReferenceTo(h.ext, v1alpha1.ExtensionGroupVersionKind))
+	gvk := schema.GroupVersionKind{
+		Group:   apps.GroupName,
+		Kind:    "Deployment",
+		Version: apps.SchemeGroupVersion.Version,
+	}
 	d := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            controllerDeployment.Name,
@@ -225,18 +236,47 @@ func (h *extensionHandler) processDeployment(ctx context.Context) error {
 		},
 		Spec: deploymentSpec,
 	}
+
 	if err := h.kube.Create(ctx, d); err != nil && !kerrors.IsAlreadyExists(err) {
 		return errors.Wrap(err, "failed to create deployment")
 	}
 
 	// save a reference to the extension's controller
-	h.ext.Status.ControllerRef = &corev1.ObjectReference{
-		APIVersion: d.APIVersion,
-		Kind:       d.Kind,
-		Name:       d.Name,
-		Namespace:  d.Namespace,
-		UID:        d.ObjectMeta.UID,
+	h.ext.Status.ControllerRef = meta.ReferenceTo(d, gvk)
+
+	return nil
+}
+
+func (h *extensionHandler) processJob(ctx context.Context) error {
+	controllerJob := h.ext.Spec.Controller.Job
+	if controllerJob == nil {
+		return nil
 	}
+
+	// ensure the job is set to use this extension's service account that we created
+	jobSpec := *controllerJob.Spec.DeepCopy()
+	jobSpec.Template.Spec.ServiceAccountName = h.ext.Name
+
+	ref := meta.AsOwner(meta.ReferenceTo(h.ext, v1alpha1.ExtensionGroupVersionKind))
+	gvk := schema.GroupVersionKind{
+		Group:   batch.GroupName,
+		Kind:    "Job",
+		Version: batch.SchemeGroupVersion.Version,
+	}
+	j := &batch.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            controllerJob.Name,
+			Namespace:       h.ext.Namespace,
+			OwnerReferences: []metav1.OwnerReference{ref},
+		},
+		Spec: jobSpec,
+	}
+	if err := h.kube.Create(ctx, j); err != nil && !kerrors.IsAlreadyExists(err) {
+		return errors.Wrap(err, "failed to create job")
+	}
+
+	// save a reference to the extension's controller
+	h.ext.Status.ControllerRef = meta.ReferenceTo(j, gvk)
 
 	return nil
 }
