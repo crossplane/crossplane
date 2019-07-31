@@ -53,7 +53,7 @@ const (
 )
 
 // Note this is the length of the generated random byte slice before base64
-// encoding, which adds ~33% overhead. ElastiCache allows auth tokens to be
+// encoding, which adds ~33% overhead.
 const maxAuthTokenData = 32
 
 // AddManaged adds a controller that reconciles ReplicationGroup managed

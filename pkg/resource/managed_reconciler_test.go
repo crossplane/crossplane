@@ -19,6 +19,7 @@ package resource
 import (
 	"context"
 	"testing"
+	"time"
 
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -34,14 +35,7 @@ import (
 
 var _ reconcile.Reconciler = &ManagedReconciler{}
 
-// Scenarios: (TODO:delete this block after impl is done)
-// create external from managed
-// update external with change from managed
-// delete managed and then purge external with ReclaimDelete: + check finalizer scenario, deletion should be done after a few calls
-// delete managed and see if external is touched with ReclaimRetain
-
 func TestManagedReconciler(t *testing.T) {
-	//nopClient := NopClient{}
 	type args struct {
 		m  manager.Manager
 		mg ManagedKind
@@ -55,7 +49,6 @@ func TestManagedReconciler(t *testing.T) {
 	}
 
 	errBoom := errors.New("boom")
-	//errUnexpected := errors.New("unexpected object type")
 	now := metav1.Now()
 	testFinalizers := []string{"finalizer.crossplane.io"}
 	testConnectionDetails := ConnectionDetails{
@@ -82,7 +75,7 @@ func TestManagedReconciler(t *testing.T) {
 				m: &MockManager{
 					c: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(ctx context.Context, obj runtime.Object) error {
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object) error {
 							want := &MockManaged{}
 							want.SetConditions(v1alpha1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -95,13 +88,9 @@ func TestManagedReconciler(t *testing.T) {
 				},
 				mg: ManagedKind(MockGVK(&MockManaged{})),
 				o: []ManagedReconcilerOption{
-					func(r *ManagedReconciler) {
-						r.external = mrExternal{
-							ExternalConnecter: ExternalConnectorFn(func(ctx context.Context, mg Managed) (ExternalClient, error) {
-								return &NopClient{}, errBoom
-							}),
-						}
-					},
+					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg Managed) (ExternalClient, error) {
+						return nil, errBoom
+					})),
 				},
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
@@ -111,7 +100,7 @@ func TestManagedReconciler(t *testing.T) {
 				m: &MockManager{
 					c: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(ctx context.Context, obj runtime.Object) error {
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object) error {
 							want := &MockManaged{}
 							want.SetConditions(v1alpha1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -123,7 +112,7 @@ func TestManagedReconciler(t *testing.T) {
 					s: MockSchemeWith(&MockManaged{}),
 				},
 				e: &ExternalClientFns{
-					ObserveFn: func(ctx context.Context, mg Managed) (observation ExternalObservation, e error) {
+					ObserveFn: func(_ context.Context, mg Managed) (ExternalObservation, error) {
 						return ExternalObservation{}, errBoom
 					},
 				},
@@ -135,8 +124,13 @@ func TestManagedReconciler(t *testing.T) {
 			args: args{
 				m: &MockManager{
 					c: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(ctx context.Context, obj runtime.Object) error {
+						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+							mg := obj.(*MockManaged)
+							mg.SetDeletionTimestamp(&now)
+							mg.SetReclaimPolicy(v1alpha1.ReclaimDelete)
+							return nil
+						}),
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object) error {
 							want := &MockManaged{}
 							want.SetDeletionTimestamp(&now)
 							want.SetReclaimPolicy(v1alpha1.ReclaimDelete)
@@ -151,28 +145,35 @@ func TestManagedReconciler(t *testing.T) {
 					s: MockSchemeWith(&MockManaged{}),
 				},
 				e: &ExternalClientFns{
-					ObserveFn: func(ctx context.Context, mg Managed) (observation ExternalObservation, e error) {
-						mg.SetDeletionTimestamp(&now)
-						mg.SetReclaimPolicy(v1alpha1.ReclaimDelete)
+					ObserveFn: func(_ context.Context, mg Managed) (ExternalObservation, error) {
 						return ExternalObservation{
 							ResourceExists:    true,
 							ConnectionDetails: map[string][]byte{},
 						}, nil
 					},
-					DeleteFn: func(ctx context.Context, mg Managed) error {
+					DeleteFn: func(_ context.Context, mg Managed) error {
 						return errBoom
 					},
 				},
 				mg: ManagedKind(MockGVK(&MockManaged{})),
+				o: []ManagedReconcilerOption{
+					WithShortWait(2 * time.Minute),
+				},
 			},
-			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
+			want: want{result: reconcile.Result{RequeueAfter: 2 * time.Minute}},
 		},
 		"DeletedButResourceExistsAndReclaimRetain": {
 			args: args{
 				m: &MockManager{
 					c: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(ctx context.Context, obj runtime.Object) error {
+						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+							mg := obj.(*MockManaged)
+							mg.SetDeletionTimestamp(&now)
+							mg.SetReclaimPolicy(v1alpha1.ReclaimRetain)
+							mg.SetFinalizers([]string{"test"})
+							return nil
+						}),
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object) error {
 							want := &MockManaged{}
 							want.SetDeletionTimestamp(&now)
 							want.SetReclaimPolicy(v1alpha1.ReclaimRetain)
@@ -186,10 +187,7 @@ func TestManagedReconciler(t *testing.T) {
 					s: MockSchemeWith(&MockManaged{}),
 				},
 				e: &ExternalClientFns{
-					ObserveFn: func(ctx context.Context, mg Managed) (observation ExternalObservation, e error) {
-						mg.SetDeletionTimestamp(&now)
-						mg.SetReclaimPolicy(v1alpha1.ReclaimRetain)
-						mg.SetFinalizers([]string{"test"})
+					ObserveFn: func(_ context.Context, mg Managed) (ExternalObservation, error) {
 						return ExternalObservation{
 							ResourceExists:    true,
 							ConnectionDetails: map[string][]byte{},
@@ -200,13 +198,13 @@ func TestManagedReconciler(t *testing.T) {
 				o: []ManagedReconcilerOption{
 					func(r *ManagedReconciler) {
 						r.managed.ManagedConnectionPublisher = ManagedConnectionPublisherFns{
-							UnpublishConnectionFn: func(ctx context.Context, mg Managed, c ConnectionDetails) error {
+							UnpublishConnectionFn: func(_ context.Context, mg Managed, c ConnectionDetails) error {
 								return nil
 							},
 						}
 					},
 					func(r *ManagedReconciler) {
-						r.managed.ManagedFinalizer = ManagedFinalizerFn(func(ctx context.Context, mg Managed) error {
+						r.managed.ManagedFinalizer = ManagedFinalizerFn(func(_ context.Context, mg Managed) error {
 							mg.SetFinalizers(nil)
 							return nil
 						})
@@ -219,8 +217,12 @@ func TestManagedReconciler(t *testing.T) {
 			args: args{
 				m: &MockManager{
 					c: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(ctx context.Context, obj runtime.Object) error {
+						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+							mg := obj.(*MockManaged)
+							mg.SetDeletionTimestamp(&now)
+							return nil
+						}),
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object) error {
 							want := &MockManaged{}
 							want.SetDeletionTimestamp(&now)
 							want.SetConditions(v1alpha1.ReconcileSuccess())
@@ -234,8 +236,7 @@ func TestManagedReconciler(t *testing.T) {
 					s: MockSchemeWith(&MockManaged{}),
 				},
 				e: &ExternalClientFns{
-					ObserveFn: func(ctx context.Context, mg Managed) (observation ExternalObservation, e error) {
-						mg.SetDeletionTimestamp(&now)
+					ObserveFn: func(_ context.Context, mg Managed) (ExternalObservation, error) {
 						return ExternalObservation{
 							ResourceExists:    false,
 							ConnectionDetails: map[string][]byte{},
@@ -246,13 +247,13 @@ func TestManagedReconciler(t *testing.T) {
 				o: []ManagedReconcilerOption{
 					func(r *ManagedReconciler) {
 						r.managed.ManagedConnectionPublisher = ManagedConnectionPublisherFns{
-							UnpublishConnectionFn: func(ctx context.Context, mg Managed, c ConnectionDetails) error {
+							UnpublishConnectionFn: func(_ context.Context, mg Managed, c ConnectionDetails) error {
 								return nil
 							},
 						}
 					},
 					func(r *ManagedReconciler) {
-						r.managed.ManagedFinalizer = ManagedFinalizerFn(func(ctx context.Context, mg Managed) error {
+						r.managed.ManagedFinalizer = ManagedFinalizerFn(func(_ context.Context, mg Managed) error {
 							mg.SetFinalizers(nil)
 							return nil
 						})
@@ -266,7 +267,7 @@ func TestManagedReconciler(t *testing.T) {
 				m: &MockManager{
 					c: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(ctx context.Context, obj runtime.Object) error {
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object) error {
 							want := &MockManaged{}
 							want.SetConditions(v1alpha1.ReconcileSuccess())
 							want.SetFinalizers(testFinalizers)
@@ -280,12 +281,12 @@ func TestManagedReconciler(t *testing.T) {
 				},
 				mg: ManagedKind(MockGVK(&MockManaged{})),
 				e: &ExternalClientFns{
-					ObserveFn: func(ctx context.Context, mg Managed) (ExternalObservation, error) {
+					ObserveFn: func(_ context.Context, mg Managed) (ExternalObservation, error) {
 						return ExternalObservation{
 							ResourceExists: false,
 						}, nil
 					},
-					CreateFn: func(ctx context.Context, mg Managed) (ExternalCreation, error) {
+					CreateFn: func(_ context.Context, mg Managed) (ExternalCreation, error) {
 						return ExternalCreation{
 							ConnectionDetails: testConnectionDetails,
 						}, nil
@@ -294,7 +295,7 @@ func TestManagedReconciler(t *testing.T) {
 				o: []ManagedReconcilerOption{
 					func(r *ManagedReconciler) {
 						r.managed.ManagedConnectionPublisher = ManagedConnectionPublisherFns{
-							PublishConnectionFn: func(ctx context.Context, mg Managed, c ConnectionDetails) error {
+							PublishConnectionFn: func(_ context.Context, mg Managed, c ConnectionDetails) error {
 								if len(c) != 0 {
 									if diff := cmp.Diff(testConnectionDetails, c); diff != "" {
 										t.Errorf("-want, +got:\n%s", diff)
@@ -305,7 +306,7 @@ func TestManagedReconciler(t *testing.T) {
 						}
 					},
 					func(r *ManagedReconciler) {
-						r.managed.ManagedEstablisher = ManagedEstablisherFn(func(ctx context.Context, mg Managed) error {
+						r.managed.ManagedEstablisher = ManagedEstablisherFn(func(_ context.Context, mg Managed) error {
 							mg.SetFinalizers(testFinalizers)
 							return nil
 						})
@@ -319,7 +320,7 @@ func TestManagedReconciler(t *testing.T) {
 				m: &MockManager{
 					c: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(ctx context.Context, obj runtime.Object) error {
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object) error {
 							want := &MockManaged{}
 							want.SetConditions(v1alpha1.ReconcileSuccess())
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -332,20 +333,20 @@ func TestManagedReconciler(t *testing.T) {
 				},
 				mg: ManagedKind(MockGVK(&MockManaged{})),
 				e: &ExternalClientFns{
-					ObserveFn: func(ctx context.Context, mg Managed) (observation ExternalObservation, e error) {
+					ObserveFn: func(_ context.Context, mg Managed) (ExternalObservation, error) {
 						return ExternalObservation{
 							ResourceExists:    true,
 							ConnectionDetails: testConnectionDetails,
 						}, nil
 					},
-					UpdateFn: func(ctx context.Context, mg Managed) (update ExternalUpdate, e error) {
+					UpdateFn: func(_ context.Context, mg Managed) (ExternalUpdate, error) {
 						return ExternalUpdate{}, nil
 					},
 				},
 				o: []ManagedReconcilerOption{
 					func(r *ManagedReconciler) {
 						r.managed.ManagedConnectionPublisher = ManagedConnectionPublisherFns{
-							PublishConnectionFn: func(ctx context.Context, mg Managed, c ConnectionDetails) error {
+							PublishConnectionFn: func(_ context.Context, mg Managed, c ConnectionDetails) error {
 								if len(c) != 0 {
 									if diff := cmp.Diff(testConnectionDetails, c); diff != "" {
 										t.Errorf("-want, +got:\n%s", diff)
@@ -355,9 +356,10 @@ func TestManagedReconciler(t *testing.T) {
 							},
 						}
 					},
+					WithLongWait(5 * time.Minute),
 				},
 			},
-			want: want{result: reconcile.Result{RequeueAfter: defaultManagedLongWait}},
+			want: want{result: reconcile.Result{RequeueAfter: 5 * time.Minute}},
 		},
 	}
 
@@ -366,7 +368,7 @@ func TestManagedReconciler(t *testing.T) {
 			defaultOptions := []ManagedReconcilerOption{
 				func(r *ManagedReconciler) {
 					r.external = mrExternal{
-						ExternalConnecter: ExternalConnectorFn(func(ctx context.Context, mg Managed) (ExternalClient, error) {
+						ExternalConnecter: ExternalConnectorFn(func(_ context.Context, mg Managed) (ExternalClient, error) {
 							return tc.args.e, nil
 						}),
 					}
