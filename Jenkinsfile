@@ -108,6 +108,17 @@ pipeline {
             }
         }
 
+        stage("Integration Tests"){
+            when {
+                expression {
+                    return env.shouldBuild != "false"
+                }
+            }
+            steps {
+                sh './build/run make -j\$(nproc) test-integration'
+            }
+        }
+
         stage('SonarQube Analysis') {
             when {
                 expression {
