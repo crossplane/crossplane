@@ -47,6 +47,7 @@ var s3ACL = map[storagev1alpha1.PredefinedACL]s3.BucketCannedACL{
 func AddClaim(mgr manager.Manager) error {
 	r := resource.NewClaimReconciler(mgr,
 		resource.ClaimKind(storagev1alpha1.BucketGroupVersionKind),
+		resource.ClassKind(corev1alpha1.ResourceClassGroupVersionKind),
 		resource.ManagedKind(v1alpha1.S3BucketGroupVersionKind),
 		resource.WithManagedConfigurators(
 			resource.ManagedConfiguratorFn(ConfigureS3Bucket),
@@ -74,10 +75,15 @@ func AddClaim(mgr manager.Manager) error {
 // ConfigureS3Bucket configures the supplied resource (presumed
 // to be a S3Bucket) using the supplied resource claim (presumed
 // to be a Bucket) and resource class.
-func ConfigureS3Bucket(_ context.Context, cm resource.Claim, cs *corev1alpha1.ResourceClass, mg resource.Managed) error {
+func ConfigureS3Bucket(_ context.Context, cm resource.Claim, cs resource.Class, mg resource.Managed) error {
 	b, cmok := cm.(*storagev1alpha1.Bucket)
 	if !cmok {
 		return errors.Errorf("expected resource claim %s to be %s", cm.GetName(), storagev1alpha1.BucketGroupVersionKind)
+	}
+
+	rs, csok := cs.(*corev1alpha1.ResourceClass)
+	if !csok {
+		return errors.Errorf("expected resource class %s to be %s", cs.GetName(), corev1alpha1.ResourceClassGroupVersionKind)
 	}
 
 	s3b, mgok := mg.(*v1alpha1.S3Bucket)
@@ -85,7 +91,7 @@ func ConfigureS3Bucket(_ context.Context, cm resource.Claim, cs *corev1alpha1.Re
 		return errors.Errorf("expected managed resource %s to be %s", mg.GetName(), v1alpha1.S3BucketGroupVersionKind)
 	}
 
-	spec := v1alpha1.NewS3BucketSpec(cs.Parameters)
+	spec := v1alpha1.NewS3BucketSpec(rs.Parameters)
 
 	if b.Spec.Name != "" {
 		spec.NameFormat = b.Spec.Name
@@ -103,8 +109,8 @@ func ConfigureS3Bucket(_ context.Context, cm resource.Claim, cs *corev1alpha1.Re
 	}
 
 	spec.WriteConnectionSecretToReference = corev1.LocalObjectReference{Name: string(cm.GetUID())}
-	spec.ProviderReference = cs.ProviderReference
-	spec.ReclaimPolicy = cs.ReclaimPolicy
+	spec.ProviderReference = rs.ProviderReference
+	spec.ReclaimPolicy = rs.ReclaimPolicy
 
 	s3b.Spec = *spec
 

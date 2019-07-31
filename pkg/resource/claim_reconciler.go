@@ -56,21 +56,24 @@ var log = logging.Logger.WithName("controller")
 // A ClaimKind contains the type metadata for a kind of resource claim.
 type ClaimKind schema.GroupVersionKind
 
+// A ClassKind contains the type metadata for a kind of resource class.
+type ClassKind schema.GroupVersionKind
+
 // A ManagedKind contains the type metadata for a kind of managed resource.
 type ManagedKind schema.GroupVersionKind
 
 // A ManagedConfigurator configures a resource, typically by converting it to
 // a known type and populating its spec.
 type ManagedConfigurator interface {
-	Configure(ctx context.Context, cm Claim, cs *v1alpha1.ResourceClass, mg Managed) error
+	Configure(ctx context.Context, cm Claim, cs Class, mg Managed) error
 }
 
 // A ManagedConfiguratorFn is a function that sastisfies the
 // ManagedConfigurator interface.
-type ManagedConfiguratorFn func(ctx context.Context, cm Claim, cs *v1alpha1.ResourceClass, mg Managed) error
+type ManagedConfiguratorFn func(ctx context.Context, cm Claim, cs Class, mg Managed) error
 
 // Configure the supplied resource using the supplied claim and class.
-func (fn ManagedConfiguratorFn) Configure(ctx context.Context, cm Claim, cs *v1alpha1.ResourceClass, mg Managed) error {
+func (fn ManagedConfiguratorFn) Configure(ctx context.Context, cm Claim, cs Class, mg Managed) error {
 	return fn(ctx, cm, cs, mg)
 }
 
@@ -79,14 +82,14 @@ func (fn ManagedConfiguratorFn) Configure(ctx context.Context, cm Claim, cs *v1a
 // responsible for final modifications to the claim and resource, for example
 // ensuring resource, class, claim, and owner references are set.
 type ManagedCreator interface {
-	Create(ctx context.Context, cm Claim, cs *v1alpha1.ResourceClass, mg Managed) error
+	Create(ctx context.Context, cm Claim, cs Class, mg Managed) error
 }
 
 // A ManagedCreatorFn is a function that sastisfies the ManagedCreator interface.
-type ManagedCreatorFn func(ctx context.Context, cm Claim, cs *v1alpha1.ResourceClass, mg Managed) error
+type ManagedCreatorFn func(ctx context.Context, cm Claim, cs Class, mg Managed) error
 
 // Create the supplied resource.
-func (fn ManagedCreatorFn) Create(ctx context.Context, cm Claim, cs *v1alpha1.ResourceClass, mg Managed) error {
+func (fn ManagedCreatorFn) Create(ctx context.Context, cm Claim, cs Class, mg Managed) error {
 	return fn(ctx, cm, cs, mg)
 }
 
@@ -155,6 +158,7 @@ func (fn ClaimFinalizerFn) Finalize(ctx context.Context, cm Claim) error {
 type ClaimReconciler struct {
 	client     client.Client
 	newClaim   func() Claim
+	newClass   func() Class
 	newManaged func() Managed
 
 	// The below structs embed the set of interfaces used to implement the
@@ -248,17 +252,19 @@ func WithClaimFinalizer(f ClaimFinalizer) ClaimReconcilerOption {
 // with the supplied manager's runtime.Scheme. The returned ClaimReconciler will
 // apply only the ObjectMetaConfigurator by default; most callers should supply
 // one or more ManagedConfigurators to configure their managed resources.
-func NewClaimReconciler(m manager.Manager, of ClaimKind, with ManagedKind, o ...ClaimReconcilerOption) *ClaimReconciler {
+func NewClaimReconciler(m manager.Manager, of ClaimKind, using ClassKind, with ManagedKind, o ...ClaimReconcilerOption) *ClaimReconciler {
 	nc := func() Claim { return MustCreateObject(schema.GroupVersionKind(of), m.GetScheme()).(Claim) }
+	ns := func() Class { return MustCreateObject(schema.GroupVersionKind(using), m.GetScheme()).(Class) }
 	nr := func() Managed { return MustCreateObject(schema.GroupVersionKind(with), m.GetScheme()).(Managed) }
 
 	// Panic early if we've been asked to reconcile a claim or resource kind
 	// that has not been registered with our controller manager's scheme.
-	_, _ = nc(), nr()
+	_, _, _ = nc(), ns(), nr()
 
 	r := &ClaimReconciler{
 		client:     m.GetClient(),
 		newClaim:   nc,
+		newClass:   ns,
 		newManaged: nr,
 		managed:    defaultCRManaged(m),
 		claim:      defaultCRClaim(m),
@@ -325,7 +331,7 @@ func (r *ClaimReconciler) Reconcile(req reconcile.Request) (reconcile.Result, er
 	}
 
 	if !meta.WasCreated(managed) {
-		class := &v1alpha1.ResourceClass{}
+		class := r.newClass()
 		// Class reference should always be set by the time we get this far; our
 		// watch predicates require it.
 		if err := r.client.Get(ctx, meta.NamespacedNameOf(claim.GetClassReference()), class); err != nil {

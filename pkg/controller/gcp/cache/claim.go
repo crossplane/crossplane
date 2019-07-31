@@ -39,6 +39,7 @@ import (
 func AddClaim(mgr manager.Manager) error {
 	r := resource.NewClaimReconciler(mgr,
 		resource.ClaimKind(cachev1alpha1.RedisClusterGroupVersionKind),
+		resource.ClassKind(corev1alpha1.ResourceClassGroupVersionKind),
 		resource.ManagedKind(v1alpha1.CloudMemorystoreInstanceGroupVersionKind),
 		resource.WithManagedConfigurators(
 			resource.ManagedConfiguratorFn(ConfigureCloudMemorystoreInstance),
@@ -66,10 +67,15 @@ func AddClaim(mgr manager.Manager) error {
 // ConfigureCloudMemorystoreInstance configures the supplied resource (presumed
 // to be a CloudMemorystoreInstance) using the supplied resource claim (presumed
 // to be a RedisCluster) and resource class.
-func ConfigureCloudMemorystoreInstance(_ context.Context, cm resource.Claim, cs *corev1alpha1.ResourceClass, mg resource.Managed) error {
+func ConfigureCloudMemorystoreInstance(_ context.Context, cm resource.Claim, cs resource.Class, mg resource.Managed) error {
 	rc, cmok := cm.(*cachev1alpha1.RedisCluster)
 	if !cmok {
 		return errors.Errorf("expected resource claim %s to be %s", cm.GetName(), cachev1alpha1.RedisClusterGroupVersionKind)
+	}
+
+	rs, csok := cs.(*corev1alpha1.ResourceClass)
+	if !csok {
+		return errors.Errorf("expected resource class %s to be %s", cs.GetName(), corev1alpha1.ResourceClassGroupVersionKind)
 	}
 
 	i, mgok := mg.(*v1alpha1.CloudMemorystoreInstance)
@@ -77,7 +83,7 @@ func ConfigureCloudMemorystoreInstance(_ context.Context, cm resource.Claim, cs 
 		return errors.Errorf("expected managed resource %s to be %s", mg.GetName(), v1alpha1.CloudMemorystoreInstanceGroupVersionKind)
 	}
 
-	spec := v1alpha1.NewCloudMemorystoreInstanceSpec(cs.Parameters)
+	spec := v1alpha1.NewCloudMemorystoreInstanceSpec(rs.Parameters)
 	v, err := resource.ResolveClassClaimValues(spec.RedisVersion, toGCPFormat(rc.Spec.EngineVersion))
 	if err != nil {
 		return errors.Wrap(err, "cannot resolve class claim values")
@@ -85,8 +91,8 @@ func ConfigureCloudMemorystoreInstance(_ context.Context, cm resource.Claim, cs 
 	spec.RedisVersion = v
 
 	spec.WriteConnectionSecretToReference = corev1.LocalObjectReference{Name: string(cm.GetUID())}
-	spec.ProviderReference = cs.ProviderReference
-	spec.ReclaimPolicy = cs.ReclaimPolicy
+	spec.ProviderReference = rs.ProviderReference
+	spec.ReclaimPolicy = rs.ReclaimPolicy
 
 	i.Spec = *spec
 

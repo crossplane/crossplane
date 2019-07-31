@@ -63,6 +63,7 @@ func TestClaimReconciler(t *testing.T) {
 	type args struct {
 		m    manager.Manager
 		of   ClaimKind
+		use  ClassKind
 		with ManagedKind
 		o    []ClaimReconcilerOption
 	}
@@ -84,9 +85,10 @@ func TestClaimReconciler(t *testing.T) {
 			args: args{
 				m: &MockManager{
 					c: &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
-					s: MockSchemeWith(&MockClaim{}, &MockManaged{}),
+					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
 				},
 				of:   ClaimKind(MockGVK(&MockClaim{})),
+				use:  ClassKind(MockGVK(&MockClass{})),
 				with: ManagedKind(MockGVK(&MockManaged{})),
 			},
 			want: want{err: errors.Wrap(errBoom, errGetClaim)},
@@ -118,9 +120,10 @@ func TestClaimReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockManaged{}),
+					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
 				},
 				of:   ClaimKind(MockGVK(&MockClaim{})),
+				use:  ClassKind(MockGVK(&MockClass{})),
 				with: ManagedKind(MockGVK(&MockManaged{})),
 			},
 			want: want{result: reconcile.Result{RequeueAfter: aShortWait}},
@@ -150,9 +153,10 @@ func TestClaimReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockManaged{}),
+					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
 				},
 				of:   ClaimKind(MockGVK(&MockClaim{})),
+				use:  ClassKind(MockGVK(&MockClass{})),
 				with: ManagedKind(MockGVK(&MockManaged{})),
 				o: []ClaimReconcilerOption{
 					WithManagedFinalizer(ManagedFinalizerFn(func(_ context.Context, _ Managed) error { return errBoom })),
@@ -185,9 +189,10 @@ func TestClaimReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockManaged{}),
+					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
 				},
 				of:   ClaimKind(MockGVK(&MockClaim{})),
+				use:  ClassKind(MockGVK(&MockClass{})),
 				with: ManagedKind(MockGVK(&MockManaged{})),
 				o: []ClaimReconcilerOption{
 					WithManagedFinalizer(ManagedFinalizerFn(func(_ context.Context, _ Managed) error { return nil })),
@@ -221,9 +226,10 @@ func TestClaimReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockManaged{}),
+					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
 				},
 				of:   ClaimKind(MockGVK(&MockClaim{})),
+				use:  ClassKind(MockGVK(&MockClass{})),
 				with: ManagedKind(MockGVK(&MockManaged{})),
 				o: []ClaimReconcilerOption{
 					WithManagedFinalizer(ManagedFinalizerFn(func(_ context.Context, _ Managed) error { return nil })),
@@ -257,9 +263,10 @@ func TestClaimReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockManaged{}),
+					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
 				},
 				of:   ClaimKind(MockGVK(&MockClaim{})),
+				use:  ClassKind(MockGVK(&MockClass{})),
 				with: ManagedKind(MockGVK(&MockManaged{})),
 				o: []ClaimReconcilerOption{
 					WithManagedFinalizer(ManagedFinalizerFn(func(_ context.Context, _ Managed) error { return nil })),
@@ -279,7 +286,7 @@ func TestClaimReconciler(t *testing.T) {
 								cm.SetClassReference(&corev1.ObjectReference{})
 								*o = *cm
 								return nil
-							case *v1alpha1.ResourceClass:
+							case *MockClass:
 								return errBoom
 							default:
 								return errUnexpected
@@ -295,9 +302,10 @@ func TestClaimReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockManaged{}),
+					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
 				},
 				of:   ClaimKind(MockGVK(&MockClaim{})),
+				use:  ClassKind(MockGVK(&MockClass{})),
 				with: ManagedKind(MockGVK(&MockManaged{})),
 			},
 			want: want{result: reconcile.Result{RequeueAfter: aShortWait}},
@@ -313,7 +321,7 @@ func TestClaimReconciler(t *testing.T) {
 								cm.SetClassReference(&corev1.ObjectReference{})
 								*o = *cm
 								return nil
-							case *v1alpha1.ResourceClass:
+							case *MockClass:
 								return nil
 							default:
 								return errUnexpected
@@ -329,12 +337,13 @@ func TestClaimReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockManaged{}),
+					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
 				},
 				of:   ClaimKind(MockGVK(&MockClaim{})),
+				use:  ClassKind(MockGVK(&MockClass{})),
 				with: ManagedKind(MockGVK(&MockManaged{})),
 				o: []ClaimReconcilerOption{WithManagedConfigurators(ManagedConfiguratorFn(
-					func(_ context.Context, _ Claim, _ *v1alpha1.ResourceClass, _ Managed) error { return errBoom },
+					func(_ context.Context, _ Claim, _ Class, _ Managed) error { return errBoom },
 				))},
 			},
 			want: want{result: reconcile.Result{RequeueAfter: aShortWait}},
@@ -350,7 +359,7 @@ func TestClaimReconciler(t *testing.T) {
 								cm.SetClassReference(&corev1.ObjectReference{})
 								*o = *cm
 								return nil
-							case *v1alpha1.ResourceClass:
+							case *MockClass:
 								return nil
 							default:
 								return errUnexpected
@@ -366,16 +375,17 @@ func TestClaimReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockManaged{}),
+					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
 				},
 				of:   ClaimKind(MockGVK(&MockClaim{})),
+				use:  ClassKind(MockGVK(&MockClass{})),
 				with: ManagedKind(MockGVK(&MockManaged{})),
 				o: []ClaimReconcilerOption{
 					WithManagedConfigurators(ManagedConfiguratorFn(
-						func(_ context.Context, _ Claim, _ *v1alpha1.ResourceClass, _ Managed) error { return nil },
+						func(_ context.Context, _ Claim, _ Class, _ Managed) error { return nil },
 					)),
 					WithManagedCreator(ManagedCreatorFn(
-						func(_ context.Context, _ Claim, _ *v1alpha1.ResourceClass, _ Managed) error { return errBoom },
+						func(_ context.Context, _ Claim, _ Class, _ Managed) error { return errBoom },
 					)),
 				},
 			},
@@ -414,9 +424,10 @@ func TestClaimReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockManaged{}),
+					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
 				},
 				of:   ClaimKind(MockGVK(&MockClaim{})),
+				use:  ClassKind(MockGVK(&MockClass{})),
 				with: ManagedKind(MockGVK(&MockManaged{})),
 			},
 			want: want{result: reconcile.Result{Requeue: false}},
@@ -452,9 +463,10 @@ func TestClaimReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockManaged{}),
+					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
 				},
 				of:   ClaimKind(MockGVK(&MockClaim{})),
+				use:  ClassKind(MockGVK(&MockClass{})),
 				with: ManagedKind(MockGVK(&MockManaged{})),
 			},
 			want: want{result: reconcile.Result{Requeue: false}},
@@ -490,9 +502,10 @@ func TestClaimReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockManaged{}),
+					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
 				},
 				of:   ClaimKind(MockGVK(&MockClaim{})),
+				use:  ClassKind(MockGVK(&MockClass{})),
 				with: ManagedKind(MockGVK(&MockManaged{})),
 				o: []ClaimReconcilerOption{
 					WithManagedConnectionPropagator(ManagedConnectionPropagatorFn(
@@ -533,9 +546,10 @@ func TestClaimReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockManaged{}),
+					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
 				},
 				of:   ClaimKind(MockGVK(&MockClaim{})),
+				use:  ClassKind(MockGVK(&MockClass{})),
 				with: ManagedKind(MockGVK(&MockManaged{})),
 				o: []ClaimReconcilerOption{
 					WithManagedConnectionPropagator(ManagedConnectionPropagatorFn(
@@ -579,9 +593,10 @@ func TestClaimReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockManaged{}),
+					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
 				},
 				of:   ClaimKind(MockGVK(&MockClaim{})),
+				use:  ClassKind(MockGVK(&MockClass{})),
 				with: ManagedKind(MockGVK(&MockManaged{})),
 			},
 			want: want{result: reconcile.Result{Requeue: false}},
@@ -590,7 +605,7 @@ func TestClaimReconciler(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := NewClaimReconciler(tc.args.m, tc.args.of, tc.args.with, tc.args.o...)
+			r := NewClaimReconciler(tc.args.m, tc.args.of, tc.args.use, tc.args.with, tc.args.o...)
 			got, err := r.Reconcile(reconcile.Request{})
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {

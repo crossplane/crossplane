@@ -41,6 +41,7 @@ import (
 func AddClaim(mgr manager.Manager) error {
 	r := resource.NewClaimReconciler(mgr,
 		resource.ClaimKind(storagev1alpha1.BucketGroupVersionKind),
+		resource.ClassKind(corev1alpha1.ResourceClassGroupVersionKind),
 		resource.ManagedKind(v1alpha1.AccountGroupVersionKind),
 		resource.WithManagedBinder(resource.NewAPIManagedStatusBinder(mgr.GetClient())),
 		resource.WithManagedFinalizer(resource.NewAPIManagedStatusUnbinder(mgr.GetClient())),
@@ -66,10 +67,15 @@ func AddClaim(mgr manager.Manager) error {
 
 // ConfigureAccount configures the supplied resource (presumed to be an Account)
 // using the supplied resource claim (presumed to be a Bucket) and resource class.
-func ConfigureAccount(_ context.Context, cm resource.Claim, cs *corev1alpha1.ResourceClass, mg resource.Managed) error {
+func ConfigureAccount(_ context.Context, cm resource.Claim, cs resource.Class, mg resource.Managed) error {
 	b, cmok := cm.(*storagev1alpha1.Bucket)
 	if !cmok {
 		return errors.Errorf("expected resource claim %s to be %s", cm.GetName(), storagev1alpha1.BucketGroupVersionKind)
+	}
+
+	rs, csok := cs.(*corev1alpha1.ResourceClass)
+	if !csok {
+		return errors.Errorf("expected resource class %s to be %s", cs.GetName(), corev1alpha1.ResourceClassGroupVersionKind)
 	}
 
 	a, mgok := mg.(*v1alpha1.Account)
@@ -81,12 +87,12 @@ func ConfigureAccount(_ context.Context, cm resource.Claim, cs *corev1alpha1.Res
 		return errors.Errorf("invalid account claim: %s spec, name property is required", b.GetName())
 	}
 
-	spec := v1alpha1.ParseAccountSpec(cs.Parameters)
+	spec := v1alpha1.ParseAccountSpec(rs.Parameters)
 	spec.StorageAccountName = b.Spec.Name
 
 	spec.WriteConnectionSecretToReference = corev1.LocalObjectReference{Name: string(cm.GetUID())}
-	spec.ProviderReference = cs.ProviderReference
-	spec.ReclaimPolicy = cs.ReclaimPolicy
+	spec.ProviderReference = rs.ProviderReference
+	spec.ReclaimPolicy = rs.ReclaimPolicy
 
 	a.Spec = *spec
 

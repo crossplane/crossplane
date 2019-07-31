@@ -68,6 +68,12 @@ type Reclaimer interface {
 	GetReclaimPolicy() v1alpha1.ReclaimPolicy
 }
 
+// A DefaultClassReferencer may reference a default resource class.
+type DefaultClassReferencer interface {
+	SetDefaultClassReference(r *corev1.ObjectReference)
+	GetDefaultClassReference() *corev1.ObjectReference
+}
+
 // A Claim is a Kubernetes object representing an abstract resource claim (e.g.
 // an SQL database) that may be bound to a concrete managed resource (e.g. a
 // CloudSQL instance).
@@ -83,6 +89,15 @@ type Claim interface {
 	Bindable
 }
 
+// A Class is a Kubernetes object representing configuration
+// specifications for a manged resource.
+type Class interface {
+	runtime.Object
+	metav1.Object
+
+	Reclaimer
+}
+
 // A Managed is a Kubernetes object representing a concrete managed
 // resource (e.g. a CloudSQL instance).
 type Managed interface {
@@ -96,4 +111,20 @@ type Managed interface {
 
 	ConditionSetter
 	Bindable
+}
+
+// A Policy is a Kubernetes object representing a default
+// behavior for a given claim kind.
+type Policy interface {
+	runtime.Object
+	metav1.Object
+
+	DefaultClassReferencer
+}
+
+// A PolicyList is a Kubernetes object representing representing
+// a list of policies.
+type PolicyList interface {
+	runtime.Object
+	metav1.ListInterface
 }

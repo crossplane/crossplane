@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -74,6 +75,28 @@ func HasProvisioner(c client.Client, cr ClassReferencer, provisioner string) boo
 	}
 
 	return strings.EqualFold(cs.Provisioner, provisioner)
+}
+
+// NOTE(hasheddan): HasClassReferenceKind should eventually replace ObjectHasProvisioner
+// when strongly typed resource classes are implemented
+
+// HasClassReferenceKind accepts ResourceClaims that reference the correct kind of resourceclass
+func HasClassReferenceKind(k ClassKind) PredicateFn {
+	return func(obj runtime.Object) bool {
+		cr, ok := obj.(ClassReferencer)
+		if !ok {
+			return false
+		}
+
+		ref := cr.GetClassReference()
+		if ref == nil {
+			return false
+		}
+
+		gvk := ref.GroupVersionKind()
+
+		return gvk == schema.GroupVersionKind(k)
+	}
 }
 
 // NoClassReference accepts ResourceClaims that do not reference a specific ResourceClass

@@ -34,7 +34,7 @@ import (
 // of kind MySQLInstance to a resource class that declares it as the MySQLInstance
 // default
 func AddMySQLInstance(mgr manager.Manager) error {
-	r := resource.NewDefaultClassReconciler(mgr,
+	r := resource.NewDeprecatedDefaultClassReconciler(mgr,
 		resource.ClaimKind(databasev1alpha1.MySQLInstanceGroupVersionKind),
 	)
 

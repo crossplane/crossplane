@@ -39,6 +39,7 @@ import (
 func AddPostgreSQLClaim(mgr manager.Manager) error {
 	r := resource.NewClaimReconciler(mgr,
 		resource.ClaimKind(databasev1alpha1.PostgreSQLInstanceGroupVersionKind),
+		resource.ClassKind(corev1alpha1.ResourceClassGroupVersionKind),
 		resource.ManagedKind(v1alpha1.RDSInstanceGroupVersionKind),
 		resource.WithManagedConfigurators(
 			resource.ManagedConfiguratorFn(ConfigurePostgreRDSInstance),
@@ -66,10 +67,15 @@ func AddPostgreSQLClaim(mgr manager.Manager) error {
 // ConfigurePostgreRDSInstance configures the supplied resource (presumed
 // to be a RDSInstance) using the supplied resource claim (presumed to be a
 // PostgreSQLInstance) and resource class.
-func ConfigurePostgreRDSInstance(_ context.Context, cm resource.Claim, cs *corev1alpha1.ResourceClass, mg resource.Managed) error {
+func ConfigurePostgreRDSInstance(_ context.Context, cm resource.Claim, cs resource.Class, mg resource.Managed) error {
 	pg, cmok := cm.(*databasev1alpha1.PostgreSQLInstance)
 	if !cmok {
 		return errors.Errorf("expected resource claim %s to be %s", cm.GetName(), databasev1alpha1.PostgreSQLInstanceGroupVersionKind)
+	}
+
+	rs, csok := cs.(*corev1alpha1.ResourceClass)
+	if !csok {
+		return errors.Errorf("expected resource class %s to be %s", cs.GetName(), corev1alpha1.ResourceClassGroupVersionKind)
 	}
 
 	i, mgok := mg.(*v1alpha1.RDSInstance)
@@ -77,7 +83,7 @@ func ConfigurePostgreRDSInstance(_ context.Context, cm resource.Claim, cs *corev
 		return errors.Errorf("expected managed resource %s to be %s", mg.GetName(), v1alpha1.RDSInstanceGroupVersionKind)
 	}
 
-	spec := v1alpha1.NewRDSInstanceSpec(cs.Parameters)
+	spec := v1alpha1.NewRDSInstanceSpec(rs.Parameters)
 	spec.Engine = v1alpha1.PostgresqlEngine
 	v, err := validateEngineVersion(spec.EngineVersion, pg.Spec.EngineVersion)
 	if err != nil {
@@ -86,8 +92,8 @@ func ConfigurePostgreRDSInstance(_ context.Context, cm resource.Claim, cs *corev
 	spec.EngineVersion = v
 
 	spec.WriteConnectionSecretToReference = corev1.LocalObjectReference{Name: string(cm.GetUID())}
-	spec.ProviderReference = cs.ProviderReference
-	spec.ReclaimPolicy = cs.ReclaimPolicy
+	spec.ProviderReference = rs.ProviderReference
+	spec.ReclaimPolicy = rs.ReclaimPolicy
 
 	i.Spec = *spec
 
@@ -99,6 +105,7 @@ func ConfigurePostgreRDSInstance(_ context.Context, cm resource.Claim, cs *corev
 func AddMySQLClaim(mgr manager.Manager) error {
 	r := resource.NewClaimReconciler(mgr,
 		resource.ClaimKind(databasev1alpha1.MySQLInstanceGroupVersionKind),
+		resource.ClassKind(corev1alpha1.ResourceClassGroupVersionKind),
 		resource.ManagedKind(v1alpha1.RDSInstanceGroupVersionKind),
 		resource.WithManagedConfigurators(
 			resource.ManagedConfiguratorFn(ConfigureMyRDSInstance),
@@ -129,10 +136,15 @@ func AddMySQLClaim(mgr manager.Manager) error {
 // ConfigureMyRDSInstance configures the supplied resource (presumed to be
 // a RDSInstance) using the supplied resource claim (presumed to be a
 // MySQLInstance) and resource class.
-func ConfigureMyRDSInstance(_ context.Context, cm resource.Claim, cs *corev1alpha1.ResourceClass, mg resource.Managed) error {
+func ConfigureMyRDSInstance(_ context.Context, cm resource.Claim, cs resource.Class, mg resource.Managed) error {
 	my, cmok := cm.(*databasev1alpha1.MySQLInstance)
 	if !cmok {
 		return errors.Errorf("expected resource claim %s to be %s", cm.GetName(), databasev1alpha1.MySQLInstanceGroupVersionKind)
+	}
+
+	rs, csok := cs.(*corev1alpha1.ResourceClass)
+	if !csok {
+		return errors.Errorf("expected resource class %s to be %s", cs.GetName(), corev1alpha1.ResourceClassGroupVersionKind)
 	}
 
 	i, mgok := mg.(*v1alpha1.RDSInstance)
@@ -140,7 +152,7 @@ func ConfigureMyRDSInstance(_ context.Context, cm resource.Claim, cs *corev1alph
 		return errors.Errorf("expected managed resource %s to be %s", mg.GetName(), v1alpha1.RDSInstanceGroupVersionKind)
 	}
 
-	spec := v1alpha1.NewRDSInstanceSpec(cs.Parameters)
+	spec := v1alpha1.NewRDSInstanceSpec(rs.Parameters)
 	spec.Engine = v1alpha1.MysqlEngine
 	v, err := validateEngineVersion(spec.EngineVersion, my.Spec.EngineVersion)
 	if err != nil {
@@ -149,8 +161,8 @@ func ConfigureMyRDSInstance(_ context.Context, cm resource.Claim, cs *corev1alph
 	spec.EngineVersion = v
 
 	spec.WriteConnectionSecretToReference = corev1.LocalObjectReference{Name: string(cm.GetUID())}
-	spec.ProviderReference = cs.ProviderReference
-	spec.ReclaimPolicy = cs.ReclaimPolicy
+	spec.ProviderReference = rs.ProviderReference
+	spec.ReclaimPolicy = rs.ReclaimPolicy
 
 	i.Spec = *spec
 

@@ -24,6 +24,7 @@ import (
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
@@ -128,6 +129,47 @@ func TestObjectHasProvisioner(t *testing.T) {
 			got := fn(tc.args.obj)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("ObjectHasProvisioner(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestHasClassReferenceKind(t *testing.T) {
+	ck := ClassKind(MockGVK(&MockClass{}))
+
+	cases := map[string]struct {
+		obj  runtime.Object
+		kind ClassKind
+		want bool
+	}{
+		"NotAClassReferencer": {
+			obj:  &mockObject{},
+			kind: ck,
+			want: false,
+		},
+		"NoClassReference": {
+			obj:  &mockClassReferencer{},
+			kind: ck,
+			want: false,
+		},
+		"HasClassReferenceIncorrectKind": {
+			obj:  &mockClassReferencer{ref: &corev1.ObjectReference{}},
+			kind: ck,
+			want: false,
+		},
+		"HasClassReferenceCorrectKind": {
+			obj:  &mockClassReferencer{ref: &corev1.ObjectReference{Kind: ck.Kind, APIVersion: schema.GroupVersion{Group: ck.Group, Version: ck.Version}.String()}},
+			kind: ck,
+			want: true,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			fn := HasClassReferenceKind(tc.kind)
+			got := fn(tc.obj)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("HasClassReferenceKind(...): -want, +got:\n%s", diff)
 			}
 		})
 	}

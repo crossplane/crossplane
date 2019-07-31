@@ -27,6 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	databasev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/database/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/apis/gcp/database/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/resource"
@@ -62,6 +63,7 @@ func Add(mgr manager.Manager) error {
 func AddPostgreSQLClaim(mgr manager.Manager) error {
 	r := resource.NewClaimReconciler(mgr,
 		resource.ClaimKind(databasev1alpha1.PostgreSQLInstanceGroupVersionKind),
+		resource.ClassKind(corev1alpha1.ResourceClassGroupVersionKind),
 		resource.ManagedKind(v1alpha1.CloudsqlInstanceGroupVersionKind),
 		resource.WithManagedBinder(resource.NewAPIManagedStatusBinder(mgr.GetClient())),
 		resource.WithManagedFinalizer(resource.NewAPIManagedStatusUnbinder(mgr.GetClient())),
@@ -93,6 +95,7 @@ func AddPostgreSQLClaim(mgr manager.Manager) error {
 func AddMySQLClaim(mgr manager.Manager) error {
 	r := resource.NewClaimReconciler(mgr,
 		resource.ClaimKind(databasev1alpha1.MySQLInstanceGroupVersionKind),
+		resource.ClassKind(corev1alpha1.ResourceClassGroupVersionKind),
 		resource.ManagedKind(v1alpha1.CloudsqlInstanceGroupVersionKind),
 		resource.WithManagedBinder(resource.NewAPIManagedStatusBinder(mgr.GetClient())),
 		resource.WithManagedFinalizer(resource.NewAPIManagedStatusUnbinder(mgr.GetClient())),
