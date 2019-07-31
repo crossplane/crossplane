@@ -40,12 +40,17 @@ func AddClaim(mgr manager.Manager) error {
 	r := resource.NewClaimReconciler(mgr,
 		resource.ClaimKind(cachev1alpha1.RedisClusterGroupVersionKind),
 		resource.ManagedKind(v1alpha1.ReplicationGroupGroupVersionKind),
+		resource.WithManagedBinder(resource.NewAPIManagedStatusBinder(mgr.GetClient())),
+		resource.WithManagedFinalizer(resource.NewAPIManagedStatusUnbinder(mgr.GetClient())),
 		resource.WithManagedConfigurators(
 			resource.ManagedConfiguratorFn(ConfigureReplicationGroup),
 			resource.NewObjectMetaConfigurator(mgr.GetScheme()),
 		))
 
-	name := strings.ToLower(fmt.Sprintf("%s.%s", cachev1alpha1.RedisClusterKind, controllerName))
+	name := strings.ToLower(fmt.Sprintf("%s.%s.%s",
+		cachev1alpha1.RedisClusterKind,
+		v1alpha1.ReplicationGroupKind,
+		v1alpha1.Group))
 	c, err := controller.New(name, mgr, controller.Options{Reconciler: r})
 	if err != nil {
 		return errors.Wrapf(err, "cannot create %s controller", name)

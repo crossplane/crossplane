@@ -34,10 +34,10 @@ import (
 )
 
 const (
-	controllerName   = "resourceclaim.crossplane.io"
-	finalizerName    = "finalizer." + controllerName
-	reconcileTimeout = 1 * time.Minute
-	aShortWait       = 30 * time.Second
+	claimControllerName   = "resourceclaim.crossplane.io"
+	claimReconcileTimeout = 1 * time.Minute
+
+	aShortWait = 30 * time.Second
 )
 
 // Reasons a resource claim is or is not ready.
@@ -51,7 +51,7 @@ const (
 	errUpdateClaimStatus = "cannot update resource claim status"
 )
 
-var log = logging.Logger.WithName("controller").WithValues("controller", controllerName)
+var log = logging.Logger.WithName("controller")
 
 // A ClaimKind contains the type metadata for a kind of resource claim.
 type ClaimKind schema.GroupVersionKind
@@ -147,20 +147,24 @@ func (fn ClaimFinalizerFn) Finalize(ctx context.Context, cm Claim) error {
 }
 
 // A ClaimReconciler reconciles resource claims by creating exactly one kind of
-// concrete managed resource. Each resource class should create an instance of
-// this controller for each managed resource kind they can bind to, using watch
-// predicates to ensure each controller is responsible for exactly one type of
-// resource claim provisioner. Each controller must watch its subset of resource
-// claims and any managed resources they control.
+// concrete managed resource. Each resource claim kind should create an instance
+// of this controller for each managed resource kind they can bind to, using
+// watch predicates to ensure each controller is responsible for exactly one
+// type of resource class provisioner. Each controller must watch its subset of
+// resource claims and any managed resources they control.
 type ClaimReconciler struct {
 	client     client.Client
 	newClaim   func() Claim
 	newManaged func() Managed
-	managed    managed
-	claim      claim
+
+	// The below structs embed the set of interfaces used to implement the
+	// resource claim reconciler. We do this primarily for readability, so that
+	// the reconciler logic reads r.managed.Create(), r.claim.Finalize(), etc.
+	managed crManaged
+	claim   crClaim
 }
 
-type managed struct {
+type crManaged struct {
 	ManagedConfigurator
 	ManagedCreator
 	ManagedConnectionPropagator
@@ -168,22 +172,22 @@ type managed struct {
 	ManagedFinalizer
 }
 
-func defaultManaged(m manager.Manager) managed {
-	return managed{
+func defaultCRManaged(m manager.Manager) crManaged {
+	return crManaged{
 		ManagedConfigurator:         NewObjectMetaConfigurator(m.GetScheme()),
 		ManagedCreator:              NewAPIManagedCreator(m.GetClient(), m.GetScheme()),
 		ManagedConnectionPropagator: NewAPIManagedConnectionPropagator(m.GetClient(), m.GetScheme()),
 		ManagedBinder:               NewAPIManagedBinder(m.GetClient()),
-		ManagedFinalizer:            NewAPIManagedFinalizer(m.GetClient()),
+		ManagedFinalizer:            NewAPIManagedUnbinder(m.GetClient()),
 	}
 }
 
-type claim struct {
+type crClaim struct {
 	ClaimFinalizer
 }
 
-func defaultClaim(m manager.Manager) claim {
-	return claim{ClaimFinalizer: NewAPIClaimFinalizer(m.GetClient())}
+func defaultCRClaim(m manager.Manager) crClaim {
+	return crClaim{ClaimFinalizer: NewAPIClaimFinalizerRemover(m.GetClient())}
 }
 
 // A ClaimReconcilerOption configures a Reconciler.
@@ -239,7 +243,7 @@ func WithClaimFinalizer(f ClaimFinalizer) ClaimReconcilerOption {
 }
 
 // NewClaimReconciler returns a ClaimReconciler that reconciles resource claims
-// of the supplied ClaimType with resources of the supplied ManagedType. It
+// of the supplied ClaimKind with resources of the supplied ManagedKind. It
 // panics if asked to reconcile a claim or resource kind that is not registered
 // with the supplied manager's runtime.Scheme. The returned ClaimReconciler will
 // apply only the ObjectMetaConfigurator by default; most callers should supply
@@ -256,8 +260,8 @@ func NewClaimReconciler(m manager.Manager, of ClaimKind, with ManagedKind, o ...
 		client:     m.GetClient(),
 		newClaim:   nc,
 		newManaged: nr,
-		managed:    defaultManaged(m),
-		claim:      defaultClaim(m),
+		managed:    defaultCRManaged(m),
+		claim:      defaultCRClaim(m),
 	}
 
 	for _, ro := range o {
@@ -272,9 +276,9 @@ func (r *ClaimReconciler) Reconcile(req reconcile.Request) (reconcile.Result, er
 	// NOTE(negz): This method is a little over our cyclomatic complexity goal.
 	// Be wary of adding additional complexity.
 
-	log.V(logging.Debug).Info("Reconciling", "request", req)
+	log.V(logging.Debug).Info("Reconciling", "controller", claimControllerName, "request", req)
 
-	ctx, cancel := context.WithTimeout(context.Background(), reconcileTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), claimReconcileTimeout)
 	defer cancel()
 
 	claim := r.newClaim()

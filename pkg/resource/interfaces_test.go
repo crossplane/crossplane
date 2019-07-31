@@ -95,5 +95,6 @@ type MockManaged struct {
 	MockClaimReferencer
 	MockConnectionSecretWriterTo
 	MockReclaimer
+	MockConditionSetter
 	MockBindable
 }

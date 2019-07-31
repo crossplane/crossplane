@@ -36,11 +36,13 @@ const (
 	errCreateManaged        = "cannot create managed resource"
 	errUpdateClaim          = "cannot update resource claim"
 	errGetSecret            = "cannot get managed resource's connection secret"
-	errSecretConflict       = "resource claim connection secret is controlled by another object"
-	errCreateOrUpdateSecret = "cannot create or update resource claim connection secret"
+	errSecretConflict       = "cannot establish control of existing connection secret"
+	errCreateOrUpdateSecret = "cannot create or update connection secret"
 	errUpdateManaged        = "cannot update managed resource"
 	errUpdateManagedStatus  = "cannot update managed resource status"
 )
+
+const claimFinalizerName = "finalizer." + claimControllerName
 
 // An APIManagedCreator creates resources by submitting them to a Kubernetes
 // API server.
@@ -66,7 +68,7 @@ func (a *APIManagedCreator) Create(ctx context.Context, cm Claim, cs *v1alpha1.R
 		return errors.Wrap(err, errCreateManaged)
 	}
 
-	meta.AddFinalizer(cm, finalizerName)
+	meta.AddFinalizer(cm, claimFinalizerName)
 	cm.SetResourceReference(mgr)
 
 	return errors.Wrap(a.client.Update(ctx, cm), errUpdateClaim)
@@ -103,7 +105,7 @@ func (a *APIManagedConnectionPropagator) PropagateConnection(ctx context.Context
 		// Inside this anonymous function cmcs could either be unchanged (if
 		// it does not exist in the API server) or updated to reflect its
 		// current state according to the API server.
-		if c := metav1.GetControllerOf(cmcs); c != nil && c.UID != cm.GetUID() {
+		if c := metav1.GetControllerOf(cmcs); c == nil || c.UID != cm.GetUID() {
 			return errors.New(errSecretConflict)
 		}
 		cmcs.Data = mgcs.Data
@@ -115,7 +117,7 @@ func (a *APIManagedConnectionPropagator) PropagateConnection(ctx context.Context
 
 // An APIManagedBinder binds resources to claims by updating them in a
 // Kubernetes API server. Note that APIManagedBinder does not support objects
-// using the status subresource; such objects should use APIStatusManagedBinder.
+// using the status subresource; such objects should use APIManagedStatusBinder.
 type APIManagedBinder struct {
 	client client.Client
 }
@@ -135,21 +137,21 @@ func (a *APIManagedBinder) Bind(ctx context.Context, cm Claim, mg Managed) error
 	return nil
 }
 
-// An APIStatusManagedBinder binds resources to claims by updating them in a
-// Kubernetes API server. Note that APIManagedBinder does not support objects
-// that do not use the status subresource; such objects should use
+// An APIManagedStatusBinder binds resources to claims by updating them in a
+// Kubernetes API server. Note that APIManagedStatusBinder does not support
+// objects that do not use the status subresource; such objects should use
 // APIManagedBinder.
-type APIStatusManagedBinder struct {
+type APIManagedStatusBinder struct {
 	client client.Client
 }
 
-// NewAPIStatusManagedBinder returns a new APIStatusManagedBinder.
-func NewAPIStatusManagedBinder(c client.Client) *APIStatusManagedBinder {
-	return &APIStatusManagedBinder{client: c}
+// NewAPIManagedStatusBinder returns a new APIManagedStatusBinder.
+func NewAPIManagedStatusBinder(c client.Client) *APIManagedStatusBinder {
+	return &APIManagedStatusBinder{client: c}
 }
 
 // Bind the supplied resource to the supplied claim.
-func (a *APIStatusManagedBinder) Bind(ctx context.Context, cm Claim, mg Managed) error {
+func (a *APIManagedStatusBinder) Bind(ctx context.Context, cm Claim, mg Managed) error {
 	cm.SetBindingPhase(v1alpha1.BindingPhaseBound)
 	mg.SetBindingPhase(v1alpha1.BindingPhaseBound)
 	if err := a.client.Status().Update(ctx, mg); err != nil {
@@ -158,19 +160,19 @@ func (a *APIStatusManagedBinder) Bind(ctx context.Context, cm Claim, mg Managed)
 	return nil
 }
 
-// An APIManagedFinalizer finalizes the deletion of a managed resource by either
-// deleting or unbinding it, then updating it in the API server.
-type APIManagedFinalizer struct {
+// An APIManagedUnbinder finalizes the deletion of a managed resource by
+// unbinding it, then updating it in the API server.
+type APIManagedUnbinder struct {
 	client client.Client
 }
 
-// NewAPIManagedFinalizer returns a new APIManagedFinalizer.
-func NewAPIManagedFinalizer(c client.Client) *APIManagedFinalizer {
-	return &APIManagedFinalizer{client: c}
+// NewAPIManagedUnbinder returns a new APIManagedUnbinder.
+func NewAPIManagedUnbinder(c client.Client) *APIManagedUnbinder {
+	return &APIManagedUnbinder{client: c}
 }
 
-// Finalize the supplied resource claim.
-func (a *APIManagedFinalizer) Finalize(ctx context.Context, mg Managed) error {
+// Finalize the supplied managed rersource.
+func (a *APIManagedUnbinder) Finalize(ctx context.Context, mg Managed) error {
 	// TODO(negz): We probably want to delete the managed resource here if its
 	// reclaim policy is delete, rather than relying on garbage collection, per
 	// https://github.com/crossplaneio/crossplane/issues/550
@@ -179,20 +181,19 @@ func (a *APIManagedFinalizer) Finalize(ctx context.Context, mg Managed) error {
 	return errors.Wrap(IgnoreNotFound(a.client.Update(ctx, mg)), errUpdateManaged)
 }
 
-// An APIStatusManagedFinalizer finalizes the deletion of a managed resource by
-// either deleting or unbinding it, then updating it and its status in the API
-// server.
-type APIStatusManagedFinalizer struct {
+// An APIManagedStatusUnbinder finalizes the deletion of a managed resource by
+// unbinding it, then updating it and its status in the API server.
+type APIManagedStatusUnbinder struct {
 	client client.Client
 }
 
-// NewAPIStatusManagedFinalizer returns a new APIStatusManagedFinalizer.
-func NewAPIStatusManagedFinalizer(c client.Client) *APIStatusManagedFinalizer {
-	return &APIStatusManagedFinalizer{client: c}
+// NewAPIManagedStatusUnbinder returns a new APIStatusManagedFinalizer.
+func NewAPIManagedStatusUnbinder(c client.Client) *APIManagedStatusUnbinder {
+	return &APIManagedStatusUnbinder{client: c}
 }
 
 // Finalize the supplied resource claim.
-func (a *APIStatusManagedFinalizer) Finalize(ctx context.Context, mg Managed) error {
+func (a *APIManagedStatusUnbinder) Finalize(ctx context.Context, mg Managed) error {
 	// TODO(negz): We probably want to delete the managed resource here if its
 	// reclaim policy is delete, rather than relying on garbage collection, per
 	// https://github.com/crossplaneio/crossplane/issues/550
@@ -206,19 +207,49 @@ func (a *APIStatusManagedFinalizer) Finalize(ctx context.Context, mg Managed) er
 	return errors.Wrap(IgnoreNotFound(a.client.Status().Update(ctx, mg)), errUpdateManagedStatus)
 }
 
-// An APIClaimFinalizer finalizes the deletion of a resource claim by removing
-// its finalizer and updating it in the API server.
-type APIClaimFinalizer struct {
+// An APIClaimFinalizerRemover finalizes the deletion of a resource claim by
+// removing its finalizer and updating it in the API server.
+type APIClaimFinalizerRemover struct {
 	client client.Client
 }
 
-// NewAPIClaimFinalizer returns a new APIClaimFinalizer.
-func NewAPIClaimFinalizer(c client.Client) *APIClaimFinalizer {
-	return &APIClaimFinalizer{client: c}
+// NewAPIClaimFinalizerRemover returns a new APIClaimFinalizerRemover.
+func NewAPIClaimFinalizerRemover(c client.Client) *APIClaimFinalizerRemover {
+	return &APIClaimFinalizerRemover{client: c}
 }
 
 // Finalize the supplied resource claim.
-func (a *APIClaimFinalizer) Finalize(ctx context.Context, cm Claim) error {
-	meta.RemoveFinalizer(cm, finalizerName)
+func (a *APIClaimFinalizerRemover) Finalize(ctx context.Context, cm Claim) error {
+	meta.RemoveFinalizer(cm, claimFinalizerName)
 	return errors.Wrap(IgnoreNotFound(a.client.Update(ctx, cm)), errUpdateClaim)
+}
+
+// An APIManagedFinalizerRemover finalizes the deletion of a Managed resource by
+// removing its finalizer and updating it in the API server.
+type APIManagedFinalizerRemover struct{ client client.Client }
+
+// NewAPIManagedFinalizerRemover returns a new APIManagedFinalizerRemover.
+func NewAPIManagedFinalizerRemover(c client.Client) *APIManagedFinalizerRemover {
+	return &APIManagedFinalizerRemover{client: c}
+}
+
+// Finalize the deletion of the supplied Managed resource.
+func (a *APIManagedFinalizerRemover) Finalize(ctx context.Context, mg Managed) error {
+	meta.RemoveFinalizer(mg, managedFinalizerName)
+	return errors.Wrap(a.client.Update(ctx, mg), errUpdateManaged)
+}
+
+// An APIManagedFinalizerAdder establishes ownership of a managed resource by
+// adding a finalizer and updating it in the API server.
+type APIManagedFinalizerAdder struct{ client client.Client }
+
+// NewAPIManagedFinalizerAdder returns a new APIManagedFinalizerAdder.
+func NewAPIManagedFinalizerAdder(c client.Client) *APIManagedFinalizerAdder {
+	return &APIManagedFinalizerAdder{client: c}
+}
+
+// Establish ownership of the supplied Managed resource.
+func (a *APIManagedFinalizerAdder) Establish(ctx context.Context, mg Managed) error {
+	meta.AddFinalizer(mg, managedFinalizerName)
+	return errors.Wrap(a.client.Update(ctx, mg), errUpdateManaged)
 }

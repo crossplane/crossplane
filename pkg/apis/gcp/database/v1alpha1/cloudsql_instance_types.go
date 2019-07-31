@@ -113,6 +113,11 @@ func (i *CloudsqlInstance) GetBindingPhase() corev1alpha1.BindingPhase {
 	return i.Status.GetBindingPhase()
 }
 
+// SetConditions of this CloudsqlInstance.
+func (i *CloudsqlInstance) SetConditions(c ...corev1alpha1.Condition) {
+	i.Status.SetConditions(c...)
+}
+
 // SetClaimReference of this CloudsqlInstance.
 func (i *CloudsqlInstance) SetClaimReference(r *corev1.ObjectReference) {
 	i.Spec.ClaimReference = r

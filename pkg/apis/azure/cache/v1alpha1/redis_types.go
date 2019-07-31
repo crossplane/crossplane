@@ -172,6 +172,11 @@ func (rd *Redis) GetBindingPhase() corev1alpha1.BindingPhase {
 	return rd.Status.GetBindingPhase()
 }
 
+// SetConditions of this Redis.
+func (rd *Redis) SetConditions(c ...corev1alpha1.Condition) {
+	rd.Status.SetConditions(c...)
+}
+
 // SetClaimReference of this Redis.
 func (rd *Redis) SetClaimReference(r *corev1.ObjectReference) {
 	rd.Spec.ClaimReference = r

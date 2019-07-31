@@ -85,6 +85,11 @@ func (s *MysqlServer) GetBindingPhase() corev1alpha1.BindingPhase {
 	return s.Status.GetBindingPhase()
 }
 
+// SetConditions of this MysqlServer.
+func (s *MysqlServer) SetConditions(c ...corev1alpha1.Condition) {
+	s.Status.SetConditions(c...)
+}
+
 // SetClaimReference of this MysqlServer.
 func (s *MysqlServer) SetClaimReference(r *corev1.ObjectReference) {
 	s.Spec.ClaimReference = r
@@ -173,6 +178,11 @@ func (s *PostgresqlServer) SetBindingPhase(p corev1alpha1.BindingPhase) {
 // GetBindingPhase of this PostgresqlServer.
 func (s *PostgresqlServer) GetBindingPhase() corev1alpha1.BindingPhase {
 	return s.Status.GetBindingPhase()
+}
+
+// SetConditions of this PostgresqlServer.
+func (s *PostgresqlServer) SetConditions(c ...corev1alpha1.Condition) {
+	s.Status.SetConditions(c...)
 }
 
 // SetClaimReference of this PostgresqlServer.

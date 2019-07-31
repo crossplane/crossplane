@@ -59,7 +59,7 @@ func MockSchemeWith(o ...runtime.Object) *runtime.Scheme {
 	return s
 }
 
-func TestReconcile(t *testing.T) {
+func TestClaimReconciler(t *testing.T) {
 	type args struct {
 		m    manager.Manager
 		of   ClaimKind

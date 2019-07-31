@@ -73,6 +73,11 @@ func (a *Account) GetBindingPhase() corev1alpha1.BindingPhase {
 	return a.Status.GetBindingPhase()
 }
 
+// SetConditions of this Account.
+func (a *Account) SetConditions(c ...corev1alpha1.Condition) {
+	a.Status.SetConditions(c...)
+}
+
 // SetClaimReference of this Account.
 func (a *Account) SetClaimReference(r *corev1.ObjectReference) {
 	a.Spec.ClaimReference = r
@@ -193,6 +198,11 @@ func (c *Container) SetBindingPhase(p corev1alpha1.BindingPhase) {
 // GetBindingPhase of this Container.
 func (c *Container) GetBindingPhase() corev1alpha1.BindingPhase {
 	return c.Status.GetBindingPhase()
+}
+
+// SetConditions of this Container.
+func (c *Container) SetConditions(cd ...corev1alpha1.Condition) {
+	c.Status.SetConditions(cd...)
 }
 
 // SetClaimReference of this Container.

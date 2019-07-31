@@ -123,6 +123,11 @@ func (b *S3Bucket) GetBindingPhase() corev1alpha1.BindingPhase {
 	return b.Status.GetBindingPhase()
 }
 
+// SetConditions of this S3Bucket.
+func (b *S3Bucket) SetConditions(c ...corev1alpha1.Condition) {
+	b.Status.SetConditions(c...)
+}
+
 // SetClaimReference of this S3Bucket.
 func (b *S3Bucket) SetClaimReference(r *corev1.ObjectReference) {
 	b.Spec.ClaimReference = r

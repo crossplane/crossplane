@@ -309,3 +309,26 @@ func ConnectionEndpoint(rg elasticache.ReplicationGroup) Endpoint {
 	// If the AWS API docs are to be believed we should never get here.
 	return Endpoint{}
 }
+
+// IsNotFound returns true if the supplied error indicates a Replication Group
+// was not found.
+func IsNotFound(err error) bool {
+	return isErrorCodeEqual(elasticache.ErrCodeReplicationGroupNotFoundFault, err)
+}
+
+// IsAlreadyExists returns true if the supplied error indicates a Replication Group
+// already exists.
+func IsAlreadyExists(err error) bool {
+	return isErrorCodeEqual(elasticache.ErrCodeReplicationGroupAlreadyExistsFault, err)
+}
+
+func isErrorCodeEqual(errorCode string, err error) bool {
+	ce, ok := err.(interface {
+		Code() string
+	})
+	if !ok {
+		return false
+	}
+
+	return ce.Code() == errorCode
+}

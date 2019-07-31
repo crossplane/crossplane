@@ -280,6 +280,7 @@ type ReplicationGroupStatus struct {
 // +kubebuilder:printcolumn:name="CLASS",type="string",JSONPath=".spec.classRef.name"
 // +kubebuilder:printcolumn:name="VERSION",type="string",JSONPath=".spec.engineVersion"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
+// +kubebuilder:subresource:status
 type ReplicationGroup struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -291,6 +292,11 @@ type ReplicationGroup struct {
 // SetBindingPhase of this ReplicationGroup.
 func (rg *ReplicationGroup) SetBindingPhase(p corev1alpha1.BindingPhase) {
 	rg.Status.SetBindingPhase(p)
+}
+
+// SetConditions of this ReplicationGroup.
+func (rg *ReplicationGroup) SetConditions(c ...corev1alpha1.Condition) {
+	rg.Status.SetConditions(c...)
 }
 
 // GetBindingPhase of this ReplicationGroup.

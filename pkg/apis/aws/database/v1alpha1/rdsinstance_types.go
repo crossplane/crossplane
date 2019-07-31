@@ -107,6 +107,11 @@ func (i *RDSInstance) GetBindingPhase() corev1alpha1.BindingPhase {
 	return i.Status.GetBindingPhase()
 }
 
+// SetConditions of this RDSInstance.
+func (i *RDSInstance) SetConditions(c ...corev1alpha1.Condition) {
+	i.Status.SetConditions(c...)
+}
+
 // SetClaimReference of this RDSInstance.
 func (i *RDSInstance) SetClaimReference(r *corev1.ObjectReference) {
 	i.Spec.ClaimReference = r
