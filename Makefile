@@ -48,6 +48,11 @@ HELM_CHART_LINT_ARGS_crossplane = --set nameOverride='',imagePullSecrets=''
 -include build/makelib/kubebuilder.mk
 
 # ====================================================================================
+# Setup Kubernetes tools
+
+-include build/makelib/k8s_tools.mk
+
+# ====================================================================================
 # Setup Images
 
 DOCKER_REGISTRY = crossplane
@@ -93,6 +98,12 @@ cobertura:
 
 # Ensure a PR is ready for review.
 reviewable: vendor generate manifests lint
+
+# integration tests
+test-integration: $(KIND) $(KUBECTL) $(HELM)
+	@$(INFO) running integration tests using kind $(KIND_VERSION)
+	@$(ROOT_DIR)/cluster/local/integration_tests.sh || $(FAIL)
+	@$(OK) integration tests passed
 
 # Update the submodules, such as the common build scripts.
 submodules:
