@@ -73,7 +73,8 @@ func AddManaged(mgr manager.Manager) error {
 }
 
 type connecter struct {
-	client client.Client
+	client      client.Client
+	newClientFn func(credentials []byte, region string) (elasticache.Client, error)
 }
 
 func (c *connecter) Connect(ctx context.Context, mg resource.Managed) (resource.ExternalClient, error) {
@@ -93,8 +94,11 @@ func (c *connecter) Connect(ctx context.Context, mg resource.Managed) (resource.
 	if err := c.client.Get(ctx, n, s); err != nil {
 		return nil, errors.Wrapf(err, "cannot get provider secret %s", n)
 	}
-
-	client, err := elasticache.NewClient(s.Data[p.Spec.Secret.Key], p.Spec.Region)
+	newClientFn := elasticache.NewClient
+	if c.newClientFn != nil {
+		newClientFn = c.newClientFn
+	}
+	client, err := newClientFn(s.Data[p.Spec.Secret.Key], p.Spec.Region)
 	return &external{client: client}, errors.Wrap(err, errNewClient)
 }
 
@@ -241,7 +245,7 @@ func (e *external) Delete(ctx context.Context, mg resource.Managed) error {
 	if !ok {
 		return errors.New(errNotReplicationGroup)
 	}
-
+	mg.SetConditions(corev1alpha1.Deleting())
 	req := e.client.DeleteReplicationGroupRequest(elasticache.NewDeleteReplicationGroupInput(g))
 	req.SetContext(ctx)
 	_, err := req.Send()
