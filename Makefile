@@ -102,6 +102,7 @@ reviewable: vendor generate manifests lint
 # integration tests
 e2e.run: test-integration
 
+# Run integration tests.
 test-integration: $(KIND) $(KUBECTL) $(HELM)
 	@$(INFO) running integration tests using kind $(KIND_VERSION)
 	@$(ROOT_DIR)/cluster/local/integration_tests.sh || $(FAIL)
@@ -112,4 +113,24 @@ submodules:
 	@git submodule sync
 	@git submodule update --init --recursive
 
-.PHONY: manifests cobertura reviewable submodules fallthrough
+.PHONY: manifests cobertura reviewable submodules fallthrough test-integration
+
+# ====================================================================================
+# Special Targets
+
+define CROSSPLANE_HELP
+Crossplane Targets:
+    manifests          Generate manifests e.g. CRD, RBAC etc.
+    cobertura          Generate a coverage report for cobertura applying exclusions on generated files.
+    reviewable         Ensure a PR is ready for review.
+    submodules         Update the submodules, such as the common build scripts.
+	
+endef
+export CROSSPLANE_HELP
+
+crossplane.help:
+	@echo "$$CROSSPLANE_HELP"
+
+help-special: crossplane.help
+
+.PHONY: crossplane.help help-special
