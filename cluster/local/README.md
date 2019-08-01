@@ -72,7 +72,7 @@ cluster/local/microk8s.sh
 
 ## Run Tests
 The following sections provide commands helpful for development environments. `minikube.sh` may be replaced with [`local.sh`](./local.sh) or [`microk8s.sh`](./microk8s.sh) in those environments. These commands expect to be run from the project root.
-#### 1. Build crossplane:
+#### 1. Build crossplane
 ```
 make build
 ```
@@ -104,3 +104,19 @@ cluster/local/minikube.sh helm-delete
 ```
 cluster/local/minikube.sh down
 ```
+
+## Run Integration Tests
+In addition to the `minikube.sh` tests described above which gives some flexibility on interacting with the cluster, one could also test the integration of the built artifacts with the cluster in a single command.
+This will create a new Kubernetes cluster using `kind` tool, and then installs Crossplane and checks a few assertions, and finally destructs the cluster.
+
+#### 1. Build crossplane
+```
+make build
+```
+
+#### 2. Run Integration Tests
+```
+make e2e
+```
+
+This step is also included in [CI workflow](../../INSTALL.md#ci-workflow-and-options).

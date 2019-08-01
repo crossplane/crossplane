@@ -1,6 +1,38 @@
 #!/usr/bin/env bash
 set -e
 
+# setting up colors
+BLU='\033[0;34m'
+YLW='\033[0;33m'
+GRN='\033[0;32m'
+RED='\033[0;31m'
+NOC='\033[0m' # No Color
+echo_info(){
+    printf "\n${BLU}%s${NOC}" "$1"
+}
+echo_step(){
+    printf "\n${BLU}>>>>>>> %s${NOC}\n" "$1"
+}
+echo_sub_step(){
+    printf "\n${BLU}>>> %s${NOC}\n" "$1"
+}
+
+echo_step_completed(){
+    printf "${GRN} [✔]${NOC}" 
+}
+
+echo_success(){
+    printf "\n${GRN}%s${NOC}\n" "$1"
+}
+echo_warn(){
+    printf "\n${YLW}%s${NOC}" "$1"
+}
+echo_error(){
+    printf "\n${RED}%s${NOC}" "$1"
+    exit 1
+}
+
+# ------------------------------
 projectdir="$( cd "$( dirname "${BASH_SOURCE[0]}")"/../.. && pwd )"
 
 # get the build environment variables from the special build.vars target in the main makefile
@@ -17,12 +49,13 @@ CROSSPLANE_NAMESPACE="crossplane-system"
 
 # cleanup on exit
 function cleanup {
+    echo_step "Cleaning up..."
     export KUBECONFIG=
     "${KIND}" delete cluster --name="${K8S_CLUSTER}"
 }
 trap cleanup EXIT
 
-# create cluster
+echo_step "creating k8s cluster using kind"
 "${KIND}" create cluster --name="${K8S_CLUSTER}"
 export KUBECONFIG="$("${KIND}" get kubeconfig-path --name="${K8S_CLUSTER}")"
 
@@ -30,40 +63,87 @@ export KUBECONFIG="$("${KIND}" get kubeconfig-path --name="${K8S_CLUSTER}")"
 docker tag "${BUILD_IMAGE}" "${CROSSPLANE_IMAGE}"
 "${KIND}" load docker-image "${CROSSPLANE_IMAGE}" --name="${K8S_CLUSTER}"
 
-# install tiller
+echo_step "installing tiller"
 "${KUBECTL}" apply -f "${projectdir}/cluster/local/helm-rbac.yaml"
 "${HELM}" init --service-account tiller
 # waiting for deployment "tiller-deploy" rollout to finish
 "${KUBECTL}" -n kube-system rollout status deploy/tiller-deploy --timeout=2m
 
-# install crossplane
-echo "installing helm package(s) into \"${CROSSPLANE_NAMESPACE}\" namespace"
+echo_step "installing helm package(s) into \"${CROSSPLANE_NAMESPACE}\" namespace"
 "${HELM}" install --name "${PROJECT_NAME}" --namespace "${CROSSPLANE_NAMESPACE}" "${projectdir}/cluster/charts/${PROJECT_NAME}" --set image.pullPolicy=Never,imagePullSecrets=''
 
-# waiting for deployment "crossplane" rollout to finish
+echo_step "waiting for deployment ${PROJECT_NAME} rollout to finish"
 "${KUBECTL}" -n "${CROSSPLANE_NAMESPACE}" rollout status "deploy/${PROJECT_NAME}" --timeout=2m
-echo "wait for 5 seconds so that the pods are up and running"
-sleep 5
+
+echo_step "wait until the pods are up and running"
+"${KUBECTL}" -n "${CROSSPLANE_NAMESPACE}" wait --for=condition=Ready pods --all --timeout=1m
 
 # ----------- integration tests
-# get the pods statuses
-pods_statuses=$("${KUBECTL}" -n "${CROSSPLANE_NAMESPACE}" get pods -o=jsonpath='{range .items[*]}{@.metadata.name}{" is "}{@.status.phase}{"\n"}')
-
-# check for minimum number of pods created
-MIN_CROSSPLANE_PODS=2
-PODS_COUNT=$(echo "$pods_statuses" | wc -l | tr -d ' ')
-if (( ${PODS_COUNT} < ${MIN_CROSSPLANE_PODS} )); then
-    echo "number of created pods are ${PODS_COUNT}, which is less than the minimum of ${MIN_CROSSPLANE_PODS}"
-    exit -1
-fi
-
-# check for all pods to be running
-echo "Crossplane pods:"
-echo "$pods_statuses"
+echo_step "------------------------------ INTEGRATION TESTS"
 echo
+echo_step "check for necessary deployment statuses"
+echo
+echo -------- deployments
+"${KUBECTL}" -n "${CROSSPLANE_NAMESPACE}" get deployments
 
-PODS_NOT_RUNNING_COUNT=$(echo "$pods_statuses" | grep -iv 'is running' | wc -l | tr -d ' ')
-if (( ${PODS_NOT_RUNNING_COUNT} > 0 )); then
-    echo "${PODS_NOT_RUNNING_COUNT} of ${PODS_COUNT} pods are not running"
-    exit -1
-fi
+MUST_HAVE_DEPLOYMENTS="crossplane crossplane-extension-manager"
+for name in $MUST_HAVE_DEPLOYMENTS; do
+    echo_sub_step "inspecting deployment '${name}'"
+    dep_stat=$("${KUBECTL}" -n "${CROSSPLANE_NAMESPACE}" get deployments/"${name}")
+
+    echo_info "check if is deployed"
+    if $(echo "$dep_stat" | grep -iq 'No resources found'); then
+        echo "is not deployed"
+        exit -1
+    else
+        echo_step_completed
+    fi 
+
+    echo_info "check if is ready"
+    IFS='/' read -ra ready_status_parts <<< "$(echo "$dep_stat" | awk ' FNR > 1 {print $2}')"
+    if (( ${ready_status_parts[0]} < ${ready_status_parts[1]} )); then
+        echo "is not Ready"
+        exit -1
+    else
+        echo_step_completed
+    fi
+    echo
+done
+
+echo_step "check for pods statuses"
+echo
+echo "-------- pods"
+pods=$("${KUBECTL}" -n "${CROSSPLANE_NAMESPACE}" get pods)
+echo "$pods"
+while read -r pod_stat; do 
+    name=$(echo "$pod_stat" | awk '{print $1}')
+    echo_sub_step "inspecting pod '${name}'"
+
+    echo_info "check if is ready"
+    IFS='/' read -ra ready_status_parts <<< "$(echo "$pod_stat" | awk '{print $2}')"
+    if (( ${ready_status_parts[0]} < ${ready_status_parts[1]} )); then
+        echo_error "is not ready"
+        exit -1
+    else
+        echo_step_completed
+    fi
+
+    echo_info "check if is running"
+    if $(echo "$pod_stat" | awk '{print $3}' | grep -ivq 'Running'); then
+        echo_error "is not running"
+        exit -1
+    else
+        echo_step_completed
+    fi 
+
+    echo_info "check if has restarts"
+    if (( $(echo "$pod_stat" | awk '{print $4}') > 0 )); then
+        echo_error "has restarts"
+        exit -1
+    else
+        echo_step_completed
+    fi
+    echo
+done <<< "$(echo "$pods" | awk 'FNR>1')"
+
+echo_success "Integration tests succeeded!"
