@@ -28,7 +28,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
@@ -43,7 +42,7 @@ func TestConfiguratorChain(t *testing.T) {
 	type args struct {
 		ctx context.Context
 		cm  Claim
-		cs  *v1alpha1.ResourceClass
+		cs  Class
 		mg  Managed
 	}
 
@@ -57,35 +56,35 @@ func TestConfiguratorChain(t *testing.T) {
 			args: args{
 				ctx: context.Background(),
 				cm:  &MockClaim{},
-				cs:  &v1alpha1.ResourceClass{},
+				cs:  &MockClass{},
 				mg:  &MockManaged{},
 			},
 			want: nil,
 		},
 		"SuccessulConfigurator": {
 			cc: ConfiguratorChain{
-				ManagedConfiguratorFn(func(_ context.Context, _ Claim, _ *v1alpha1.ResourceClass, _ Managed) error {
+				ManagedConfiguratorFn(func(_ context.Context, _ Claim, _ Class, _ Managed) error {
 					return nil
 				}),
 			},
 			args: args{
 				ctx: context.Background(),
 				cm:  &MockClaim{},
-				cs:  &v1alpha1.ResourceClass{},
+				cs:  &MockClass{},
 				mg:  &MockManaged{},
 			},
 			want: nil,
 		},
 		"ConfiguratorReturnsError": {
 			cc: ConfiguratorChain{
-				ManagedConfiguratorFn(func(_ context.Context, _ Claim, _ *v1alpha1.ResourceClass, _ Managed) error {
+				ManagedConfiguratorFn(func(_ context.Context, _ Claim, _ Class, _ Managed) error {
 					return errBoom
 				}),
 			},
 			args: args{
 				ctx: context.Background(),
 				cm:  &MockClaim{},
-				cs:  &v1alpha1.ResourceClass{},
+				cs:  &MockClass{},
 				mg:  &MockManaged{},
 			},
 			want: errBoom,
@@ -109,7 +108,7 @@ func TestConfigureObjectMeta(t *testing.T) {
 	type args struct {
 		ctx context.Context
 		cm  Claim
-		cs  *v1alpha1.ResourceClass
+		cs  Class
 		mg  Managed
 	}
 
@@ -128,7 +127,7 @@ func TestConfigureObjectMeta(t *testing.T) {
 			args: args{
 				ctx: context.Background(),
 				cm:  &MockClaim{ObjectMeta: metav1.ObjectMeta{UID: uid}},
-				cs:  &v1alpha1.ResourceClass{ObjectMeta: metav1.ObjectMeta{Namespace: ns}},
+				cs:  &MockClass{ObjectMeta: metav1.ObjectMeta{Namespace: ns}},
 				mg:  &MockManaged{},
 			},
 			want: want{

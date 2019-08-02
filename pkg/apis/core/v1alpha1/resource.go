@@ -73,6 +73,19 @@ type ResourceClass struct {
 	ReclaimPolicy ReclaimPolicy `json:"reclaimPolicy,omitempty"`
 }
 
+// NOTE(hasheddan): cannot check for satisfying resource.Class interface
+// because of circular imports
+
+// GetReclaimPolicy of this ResourceClass.
+func (r *ResourceClass) GetReclaimPolicy() ReclaimPolicy {
+	return r.ReclaimPolicy
+}
+
+// SetReclaimPolicy of this ResourceClass.
+func (r *ResourceClass) SetReclaimPolicy(p ReclaimPolicy) {
+	r.ReclaimPolicy = p
+}
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // ResourceClassList contains a list of resource classes.

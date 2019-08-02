@@ -39,6 +39,7 @@ import (
 func AddClaim(mgr manager.Manager) error {
 	r := resource.NewClaimReconciler(mgr,
 		resource.ClaimKind(computev1alpha1.KubernetesClusterGroupVersionKind),
+		resource.ClassKind(corev1alpha1.ResourceClassGroupVersionKind),
 		resource.ManagedKind(v1alpha1.AKSClusterGroupVersionKind),
 		resource.WithManagedConfigurators(
 			resource.ManagedConfiguratorFn(ConfigureAKSCluster),
@@ -66,9 +67,14 @@ func AddClaim(mgr manager.Manager) error {
 // ConfigureAKSCluster configures the supplied resource (presumed to be a
 // AKSCluster) using the supplied resource claim (presumed to be a
 // KubernetesCluster) and resource class.
-func ConfigureAKSCluster(_ context.Context, cm resource.Claim, cs *corev1alpha1.ResourceClass, mg resource.Managed) error {
+func ConfigureAKSCluster(_ context.Context, cm resource.Claim, cs resource.Class, mg resource.Managed) error {
 	if _, cmok := cm.(*computev1alpha1.KubernetesCluster); !cmok {
 		return errors.Errorf("expected resource claim %s to be %s", cm.GetName(), computev1alpha1.KubernetesClusterGroupVersionKind)
+	}
+
+	rs, csok := cs.(*corev1alpha1.ResourceClass)
+	if !csok {
+		return errors.Errorf("expected resource class %s to be %s", cs.GetName(), corev1alpha1.ResourceClassGroupVersionKind)
 	}
 
 	i, mgok := mg.(*v1alpha1.AKSCluster)
@@ -76,11 +82,11 @@ func ConfigureAKSCluster(_ context.Context, cm resource.Claim, cs *corev1alpha1.
 		return errors.Errorf("expected managed resource %s to be %s", mg.GetName(), v1alpha1.AKSClusterGroupVersionKind)
 	}
 
-	spec := v1alpha1.NewAKSClusterSpec(cs.Parameters)
+	spec := v1alpha1.NewAKSClusterSpec(rs.Parameters)
 	spec.WriteServicePrincipalSecretTo = corev1.LocalObjectReference{Name: fmt.Sprintf("principal-%s", cm.GetUID())}
 	spec.WriteConnectionSecretToReference = corev1.LocalObjectReference{Name: string(cm.GetUID())}
-	spec.ProviderReference = cs.ProviderReference
-	spec.ReclaimPolicy = cs.ReclaimPolicy
+	spec.ProviderReference = rs.ProviderReference
+	spec.ReclaimPolicy = rs.ReclaimPolicy
 
 	i.Spec = *spec
 

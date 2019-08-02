@@ -150,9 +150,9 @@ func testInstance(p *azurev1alpha1.Provider) *computev1alpha1.AKSCluster {
 			ResourceSpec: corev1alpha1.ResourceSpec{
 				ReclaimPolicy:                    corev1alpha1.ReclaimDelete,
 				ProviderReference:                meta.ReferenceTo(p, azurev1alpha1.ProviderGroupVersionKind),
-				WriteConnectionSecretToReference: corev1.LocalObjectReference{"coolSecret"},
+				WriteConnectionSecretToReference: corev1.LocalObjectReference{Name: "coolSecret"},
 			},
-			WriteServicePrincipalSecretTo: corev1.LocalObjectReference{"coolPrincipal"},
+			WriteServicePrincipalSecretTo: corev1.LocalObjectReference{Name: "coolPrincipal"},
 			ResourceGroupName:             "rg1",
 			Location:                      "loc1",
 			Version:                       "1.12.5",

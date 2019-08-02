@@ -33,10 +33,15 @@ import (
 // ConfigurePostgreSQLCloudsqlInstance configures the supplied instance (presumed
 // to be a CloudsqlInstance) using the supplied instance claim (presumed to be a
 // PostgreSQLInstance) and instance class.
-func ConfigurePostgreSQLCloudsqlInstance(_ context.Context, cm resource.Claim, cs *corev1alpha1.ResourceClass, mg resource.Managed) error {
+func ConfigurePostgreSQLCloudsqlInstance(_ context.Context, cm resource.Claim, cs resource.Class, mg resource.Managed) error {
 	pg, cmok := cm.(*databasev1alpha1.PostgreSQLInstance)
 	if !cmok {
 		return errors.Errorf("expected resource claim %s to be %s", cm.GetName(), databasev1alpha1.PostgreSQLInstanceGroupVersionKind)
+	}
+
+	rs, csok := cs.(*corev1alpha1.ResourceClass)
+	if !csok {
+		return errors.Errorf("expected resource class %s to be %s", cs.GetName(), corev1alpha1.ResourceClassGroupVersionKind)
 	}
 
 	i, mgok := mg.(*v1alpha1.CloudsqlInstance)
@@ -44,7 +49,7 @@ func ConfigurePostgreSQLCloudsqlInstance(_ context.Context, cm resource.Claim, c
 		return errors.Errorf("expected managed instance %s to be %s", mg.GetName(), v1alpha1.CloudsqlInstanceGroupVersionKind)
 	}
 
-	spec := v1alpha1.NewCloudSQLInstanceSpec(cs.Parameters)
+	spec := v1alpha1.NewCloudSQLInstanceSpec(rs.Parameters)
 	translated := translateVersion(pg.Spec.EngineVersion, v1alpha1.PostgresqlDBVersionPrefix)
 	v, err := resource.ResolveClassClaimValues(spec.DatabaseVersion, translated)
 	if err != nil {
@@ -53,8 +58,8 @@ func ConfigurePostgreSQLCloudsqlInstance(_ context.Context, cm resource.Claim, c
 	spec.DatabaseVersion = v
 
 	spec.WriteConnectionSecretToReference = corev1.LocalObjectReference{Name: string(cm.GetUID())}
-	spec.ProviderReference = cs.ProviderReference
-	spec.ReclaimPolicy = cs.ReclaimPolicy
+	spec.ProviderReference = rs.ProviderReference
+	spec.ReclaimPolicy = rs.ReclaimPolicy
 
 	i.Spec = *spec
 
@@ -64,10 +69,15 @@ func ConfigurePostgreSQLCloudsqlInstance(_ context.Context, cm resource.Claim, c
 // ConfigureMyCloudsqlInstance configures the supplied instance (presumed to be
 // a CloudsqlInstance) using the supplied instance claim (presumed to be a
 // MySQLInstance) and instance class.
-func ConfigureMyCloudsqlInstance(_ context.Context, cm resource.Claim, cs *corev1alpha1.ResourceClass, mg resource.Managed) error {
+func ConfigureMyCloudsqlInstance(_ context.Context, cm resource.Claim, cs resource.Class, mg resource.Managed) error {
 	my, cmok := cm.(*databasev1alpha1.MySQLInstance)
 	if !cmok {
 		return errors.Errorf("expected instance claim %s to be %s", cm.GetName(), databasev1alpha1.MySQLInstanceGroupVersionKind)
+	}
+
+	rs, csok := cs.(*corev1alpha1.ResourceClass)
+	if !csok {
+		return errors.Errorf("expected resource class %s to be %s", cs.GetName(), corev1alpha1.ResourceClassGroupVersionKind)
 	}
 
 	i, mgok := mg.(*v1alpha1.CloudsqlInstance)
@@ -75,7 +85,7 @@ func ConfigureMyCloudsqlInstance(_ context.Context, cm resource.Claim, cs *corev
 		return errors.Errorf("expected managed resource %s to be %s", mg.GetName(), v1alpha1.CloudsqlInstanceGroupVersionKind)
 	}
 
-	spec := v1alpha1.NewCloudSQLInstanceSpec(cs.Parameters)
+	spec := v1alpha1.NewCloudSQLInstanceSpec(rs.Parameters)
 	translated := translateVersion(my.Spec.EngineVersion, v1alpha1.MysqlDBVersionPrefix)
 	v, err := resource.ResolveClassClaimValues(spec.DatabaseVersion, translated)
 	if err != nil {
@@ -84,8 +94,8 @@ func ConfigureMyCloudsqlInstance(_ context.Context, cm resource.Claim, cs *corev
 	spec.DatabaseVersion = v
 
 	spec.WriteConnectionSecretToReference = corev1.LocalObjectReference{Name: string(cm.GetUID())}
-	spec.ProviderReference = cs.ProviderReference
-	spec.ReclaimPolicy = cs.ReclaimPolicy
+	spec.ProviderReference = rs.ProviderReference
+	spec.ReclaimPolicy = rs.ReclaimPolicy
 
 	i.Spec = *spec
 

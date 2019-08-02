@@ -39,6 +39,7 @@ import (
 func AddClaim(mgr manager.Manager) error {
 	r := resource.NewClaimReconciler(mgr,
 		resource.ClaimKind(computev1alpha1.KubernetesClusterGroupVersionKind),
+		resource.ClassKind(corev1alpha1.ResourceClassGroupVersionKind),
 		resource.ManagedKind(v1alpha1.GKEClusterGroupVersionKind),
 		resource.WithManagedConfigurators(
 			resource.ManagedConfiguratorFn(ConfigureGKECluster),
@@ -66,9 +67,14 @@ func AddClaim(mgr manager.Manager) error {
 // ConfigureGKECluster configures the supplied resource (presumed to be a
 // GKECluster) using the supplied resource claim (presumed to be a
 // KubernetesCluster) and resource class.
-func ConfigureGKECluster(_ context.Context, cm resource.Claim, cs *corev1alpha1.ResourceClass, mg resource.Managed) error {
+func ConfigureGKECluster(_ context.Context, cm resource.Claim, cs resource.Class, mg resource.Managed) error {
 	if _, cmok := cm.(*computev1alpha1.KubernetesCluster); !cmok {
 		return errors.Errorf("expected resource claim %s to be %s", cm.GetName(), computev1alpha1.KubernetesClusterGroupVersionKind)
+	}
+
+	rs, csok := cs.(*corev1alpha1.ResourceClass)
+	if !csok {
+		return errors.Errorf("expected resource class %s to be %s", cs.GetName(), corev1alpha1.ResourceClassGroupVersionKind)
 	}
 
 	i, mgok := mg.(*v1alpha1.GKECluster)
@@ -76,10 +82,10 @@ func ConfigureGKECluster(_ context.Context, cm resource.Claim, cs *corev1alpha1.
 		return errors.Errorf("expected managed resource %s to be %s", mg.GetName(), v1alpha1.GKEClusterGroupVersionKind)
 	}
 
-	spec := v1alpha1.ParseClusterSpec(cs.Parameters)
+	spec := v1alpha1.ParseClusterSpec(rs.Parameters)
 	spec.WriteConnectionSecretToReference = corev1.LocalObjectReference{Name: string(cm.GetUID())}
-	spec.ProviderReference = cs.ProviderReference
-	spec.ReclaimPolicy = cs.ReclaimPolicy
+	spec.ProviderReference = rs.ProviderReference
+	spec.ReclaimPolicy = rs.ReclaimPolicy
 
 	i.Spec = *spec
 

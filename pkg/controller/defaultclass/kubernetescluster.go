@@ -34,7 +34,7 @@ import (
 // of kind KubernetesCluster to a resource class that declares it as the KubernetesCluster
 // default
 func AddKubernetesCluster(mgr manager.Manager) error {
-	r := resource.NewDefaultClassReconciler(mgr,
+	r := resource.NewDeprecatedDefaultClassReconciler(mgr,
 		resource.ClaimKind(computev1alpha1.KubernetesClusterGroupVersionKind),
 	)
 

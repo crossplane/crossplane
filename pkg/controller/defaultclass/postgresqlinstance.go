@@ -34,7 +34,7 @@ import (
 // of kind PostgreSQLInstance to a resource class that declares it as the PostgreSQLInstance
 // default
 func AddPostgreSQLInstance(mgr manager.Manager) error {
-	r := resource.NewDefaultClassReconciler(mgr,
+	r := resource.NewDeprecatedDefaultClassReconciler(mgr,
 		resource.ClaimKind(databasev1alpha1.PostgreSQLInstanceGroupVersionKind),
 	)
 

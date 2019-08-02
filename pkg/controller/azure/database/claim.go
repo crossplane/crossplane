@@ -39,6 +39,7 @@ import (
 func AddPostgreSQLClaim(mgr manager.Manager) error {
 	r := resource.NewClaimReconciler(mgr,
 		resource.ClaimKind(databasev1alpha1.PostgreSQLInstanceGroupVersionKind),
+		resource.ClassKind(corev1alpha1.ResourceClassGroupVersionKind),
 		resource.ManagedKind(v1alpha1.PostgresqlServerGroupVersionKind),
 		resource.WithManagedConfigurators(
 			resource.ManagedConfiguratorFn(ConfigurePostgresqlServer),
@@ -66,10 +67,15 @@ func AddPostgreSQLClaim(mgr manager.Manager) error {
 // ConfigurePostgresqlServer configures the supplied resource (presumed to be a
 // PostgresqlServer) using the supplied resource claim (presumed to be a
 // PostgreSQLInstance) and resource class.
-func ConfigurePostgresqlServer(_ context.Context, cm resource.Claim, cs *corev1alpha1.ResourceClass, mg resource.Managed) error {
+func ConfigurePostgresqlServer(_ context.Context, cm resource.Claim, cs resource.Class, mg resource.Managed) error {
 	pg, cmok := cm.(*databasev1alpha1.PostgreSQLInstance)
 	if !cmok {
 		return errors.Errorf("expected resource claim %s to be %s", cm.GetName(), databasev1alpha1.PostgreSQLInstanceGroupVersionKind)
+	}
+
+	rs, csok := cs.(*corev1alpha1.ResourceClass)
+	if !csok {
+		return errors.Errorf("expected resource class %s to be %s", cs.GetName(), corev1alpha1.ResourceClassGroupVersionKind)
 	}
 
 	s, mgok := mg.(*v1alpha1.PostgresqlServer)
@@ -77,7 +83,7 @@ func ConfigurePostgresqlServer(_ context.Context, cm resource.Claim, cs *corev1a
 		return errors.Errorf("expected managed resource %s to be %s", mg.GetName(), v1alpha1.PostgresqlServerGroupVersionKind)
 	}
 
-	spec := v1alpha1.NewSQLServerSpec(cs.Parameters)
+	spec := v1alpha1.NewSQLServerSpec(rs.Parameters)
 	v, err := resource.ResolveClassClaimValues(spec.Version, pg.Spec.EngineVersion)
 	if err != nil {
 		return err
@@ -85,8 +91,8 @@ func ConfigurePostgresqlServer(_ context.Context, cm resource.Claim, cs *corev1a
 	spec.Version = v
 
 	spec.WriteConnectionSecretToReference = corev1.LocalObjectReference{Name: string(cm.GetUID())}
-	spec.ProviderReference = cs.ProviderReference
-	spec.ReclaimPolicy = cs.ReclaimPolicy
+	spec.ProviderReference = rs.ProviderReference
+	spec.ReclaimPolicy = rs.ReclaimPolicy
 
 	s.Spec = *spec
 
@@ -98,6 +104,7 @@ func ConfigurePostgresqlServer(_ context.Context, cm resource.Claim, cs *corev1a
 func AddMySQLClaim(mgr manager.Manager) error {
 	r := resource.NewClaimReconciler(mgr,
 		resource.ClaimKind(databasev1alpha1.MySQLInstanceGroupVersionKind),
+		resource.ClassKind(corev1alpha1.ResourceClassGroupVersionKind),
 		resource.ManagedKind(v1alpha1.MysqlServerGroupVersionKind),
 		resource.WithManagedConfigurators(
 			resource.ManagedConfiguratorFn(ConfigureMysqlServer),
@@ -128,10 +135,15 @@ func AddMySQLClaim(mgr manager.Manager) error {
 // ConfigureMysqlServer configures the supplied resource (presumed to be
 // a MysqlServer) using the supplied resource claim (presumed to be a
 // MySQLInstance) and resource class.
-func ConfigureMysqlServer(_ context.Context, cm resource.Claim, cs *corev1alpha1.ResourceClass, mg resource.Managed) error {
+func ConfigureMysqlServer(_ context.Context, cm resource.Claim, cs resource.Class, mg resource.Managed) error {
 	my, cmok := cm.(*databasev1alpha1.MySQLInstance)
 	if !cmok {
 		return errors.Errorf("expected resource claim %s to be %s", cm.GetName(), databasev1alpha1.MySQLInstanceGroupVersionKind)
+	}
+
+	rs, csok := cs.(*corev1alpha1.ResourceClass)
+	if !csok {
+		return errors.Errorf("expected resource class %s to be %s", cs.GetName(), corev1alpha1.ResourceClassGroupVersionKind)
 	}
 
 	s, mgok := mg.(*v1alpha1.MysqlServer)
@@ -139,7 +151,7 @@ func ConfigureMysqlServer(_ context.Context, cm resource.Claim, cs *corev1alpha1
 		return errors.Errorf("expected managed resource %s to be %s", mg.GetName(), v1alpha1.MysqlServerGroupVersionKind)
 	}
 
-	spec := v1alpha1.NewSQLServerSpec(cs.Parameters)
+	spec := v1alpha1.NewSQLServerSpec(rs.Parameters)
 	v, err := resource.ResolveClassClaimValues(spec.Version, my.Spec.EngineVersion)
 	if err != nil {
 		return err
@@ -147,8 +159,8 @@ func ConfigureMysqlServer(_ context.Context, cm resource.Claim, cs *corev1alpha1
 	spec.Version = v
 
 	spec.WriteConnectionSecretToReference = corev1.LocalObjectReference{Name: string(cm.GetUID())}
-	spec.ProviderReference = cs.ProviderReference
-	spec.ReclaimPolicy = cs.ReclaimPolicy
+	spec.ProviderReference = rs.ProviderReference
+	spec.ReclaimPolicy = rs.ReclaimPolicy
 
 	s.Spec = *spec
 

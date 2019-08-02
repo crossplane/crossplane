@@ -39,6 +39,7 @@ import (
 func AddClaim(mgr manager.Manager) error {
 	r := resource.NewClaimReconciler(mgr,
 		resource.ClaimKind(storagev1alpha1.BucketGroupVersionKind),
+		resource.ClassKind(corev1alpha1.ResourceClassGroupVersionKind),
 		resource.ManagedKind(v1alpha1.ContainerGroupVersionKind),
 		resource.WithManagedBinder(resource.NewAPIManagedStatusBinder(mgr.GetClient())),
 		resource.WithManagedFinalizer(resource.NewAPIManagedStatusUnbinder(mgr.GetClient())),
@@ -67,9 +68,14 @@ func AddClaim(mgr manager.Manager) error {
 
 // ConfigureContainer configures the supplied resource (presumed to be an Container)
 // using the supplied resource claim (presumed to be a Bucket) and resource class.
-func ConfigureContainer(_ context.Context, cm resource.Claim, cs *corev1alpha1.ResourceClass, mg resource.Managed) error {
+func ConfigureContainer(_ context.Context, cm resource.Claim, cs resource.Class, mg resource.Managed) error {
 	if _, cmok := cm.(*storagev1alpha1.Bucket); !cmok {
 		return errors.Errorf("expected resource claim %s to be %s", cm.GetName(), storagev1alpha1.BucketGroupVersionKind)
+	}
+
+	rs, csok := cs.(*corev1alpha1.ResourceClass)
+	if !csok {
+		return errors.Errorf("expected resource class %s to be %s", cs.GetName(), corev1alpha1.ResourceClassGroupVersionKind)
 	}
 
 	a, mgok := mg.(*v1alpha1.Container)
@@ -77,13 +83,13 @@ func ConfigureContainer(_ context.Context, cm resource.Claim, cs *corev1alpha1.R
 		return errors.Errorf("expected managed resource %s to be %s", mg.GetName(), v1alpha1.ContainerGroupVersionKind)
 	}
 
-	spec := v1alpha1.ParseContainerSpec(cs.Parameters)
-	spec.ReclaimPolicy = cs.ReclaimPolicy
+	spec := v1alpha1.ParseContainerSpec(rs.Parameters)
+	spec.ReclaimPolicy = rs.ReclaimPolicy
 
 	// Azure storage containers read credentials via an Account resource, not an
 	// Azure Crossplane provider. We reuse the 'provider' reference field of the
 	// resource claim.
-	spec.AccountReference = corev1.LocalObjectReference{Name: cs.ProviderReference.Name}
+	spec.AccountReference = corev1.LocalObjectReference{Name: rs.ProviderReference.Name}
 
 	a.Spec = *spec
 

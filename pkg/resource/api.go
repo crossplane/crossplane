@@ -57,7 +57,7 @@ func NewAPIManagedCreator(c client.Client, t runtime.ObjectTyper) *APIManagedCre
 }
 
 // Create the supplied resource using the supplied class and claim.
-func (a *APIManagedCreator) Create(ctx context.Context, cm Claim, cs *v1alpha1.ResourceClass, mg Managed) error {
+func (a *APIManagedCreator) Create(ctx context.Context, cm Claim, cs Class, mg Managed) error {
 	cmr := meta.ReferenceTo(cm, MustGetKind(cm, a.typer))
 	csr := meta.ReferenceTo(cs, MustGetKind(cs, a.typer))
 	mgr := meta.ReferenceTo(mg, MustGetKind(mg, a.typer))

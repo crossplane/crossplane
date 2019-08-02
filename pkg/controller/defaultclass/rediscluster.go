@@ -34,7 +34,7 @@ import (
 // of kind RedisCluster to a resource class that declares it as the RedisCluster
 // default
 func AddRedisCluster(mgr manager.Manager) error {
-	r := resource.NewDefaultClassReconciler(mgr,
+	r := resource.NewDeprecatedDefaultClassReconciler(mgr,
 		resource.ClaimKind(cachev1alpha1.RedisClusterGroupVersionKind),
 	)
 

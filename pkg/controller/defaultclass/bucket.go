@@ -34,7 +34,7 @@ import (
 // of kind Bucket to a resource class that declares it as the Bucket
 // default
 func AddBucket(mgr manager.Manager) error {
-	r := resource.NewDefaultClassReconciler(mgr,
+	r := resource.NewDeprecatedDefaultClassReconciler(mgr,
 		resource.ClaimKind(storagev1alpha1.BucketGroupVersionKind),
 	)
 
