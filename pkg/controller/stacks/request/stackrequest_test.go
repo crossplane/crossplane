@@ -834,7 +834,7 @@ func TestDiscoverExecutorInfo(t *testing.T) {
 
 			os.Setenv(util.PodNameEnvVar, "podName")
 			os.Setenv(util.PodNamespaceEnvVar, "podNamespace")
-			os.Setenv(PodImageNameEnvVar, tt.imageName)
+			os.Setenv(podImageNameEnvVar, tt.imageName)
 
 			got, gotErr := tt.d.discoverExecutorInfo(ctx)
 
