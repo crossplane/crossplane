@@ -17,14 +17,11 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"strconv"
-
 	"google.golang.org/genproto/googleapis/cloud/redis/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 // Cloud Memorystore instance states.
@@ -44,12 +41,11 @@ var (
 	TierStandardHA = redis.Instance_STANDARD_HA.String()
 )
 
-// CloudMemorystoreInstanceSpec defines the desired state of CloudMemorystoreInstance
+// CloudMemorystoreInstanceParameters define the fields required for provisioning
+// a cloud memorystore instance on GCP
 // Most fields map directly to a GCP Instance resource.
 // https://cloud.google.com/memorystore/docs/redis/reference/rest/v1/projects.locations.instances#Instance
-type CloudMemorystoreInstanceSpec struct {
-	corev1alpha1.ResourceSpec `json:",inline"`
-
+type CloudMemorystoreInstanceParameters struct {
 	// Region in which to create this CloudMemorystore cluster.
 	Region string `json:"region"`
 
@@ -100,6 +96,12 @@ type CloudMemorystoreInstanceSpec struct {
 	// * maxmemory-policy
 	// * notify-keyspace-events
 	RedisConfigs map[string]string `json:"redisConfigs,omitempty"`
+}
+
+// CloudMemorystoreInstanceSpec defines the desired state of CloudMemorystoreInstance
+type CloudMemorystoreInstanceSpec struct {
+	corev1alpha1.ResourceSpec          `json:",inline"`
+	CloudMemorystoreInstanceParameters `json:",inline"`
 }
 
 // CloudMemorystoreInstanceStatus defines the observed state of CloudMemorystoreInstance
@@ -211,29 +213,40 @@ type CloudMemorystoreInstanceList struct {
 	Items           []CloudMemorystoreInstance `json:"items"`
 }
 
-// NewCloudMemorystoreInstanceSpec creates a new CloudMemorystoreInstanceSpec
-// from the given properties map.
-func NewCloudMemorystoreInstanceSpec(properties map[string]string) *CloudMemorystoreInstanceSpec {
-	spec := &CloudMemorystoreInstanceSpec{
-		ResourceSpec: corev1alpha1.ResourceSpec{
-			ReclaimPolicy: corev1alpha1.ReclaimRetain,
-		},
+// CloudMemorystoreInstanceClassSpecTemplate is the Schema for the resource class
+type CloudMemorystoreInstanceClassSpecTemplate struct {
+	corev1alpha1.ResourceClassSpecTemplate `json:",inline"`
+	CloudMemorystoreInstanceParameters     `json:",inline"`
+}
 
-		// Note that these keys should match the JSON tags of their respective
-		// CloudMemorystoreInstanceSpec fields.
-		Region:                properties["region"],
-		Tier:                  properties["tier"],
-		LocationID:            properties["locationId"],
-		AlternativeLocationID: properties["alternativeLocationId"],
-		ReservedIPRange:       properties["reservedIpRange"],
-		AuthorizedNetwork:     properties["authorizedNetwork"],
-		RedisVersion:          properties["redisVersion"],
-		RedisConfigs:          util.ParseMap(properties["redisConfigs"]),
-	}
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-	if i, err := strconv.Atoi(properties["memorySizeGb"]); err == nil {
-		spec.MemorySizeGB = i
-	}
+// CloudMemorystoreInstanceClass is the Schema for the resource class
+// +kubebuilder:printcolumn:name="PROVIDER-REF",type="string",JSONPath=".specTemplate.providerRef.name"
+// +kubebuilder:printcolumn:name="RECLAIM-POLICY",type="string",JSONPath=".specTemplate.reclaimPolicy"
+// +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
+type CloudMemorystoreInstanceClass struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	return spec
+	SpecTemplate CloudMemorystoreInstanceClassSpecTemplate `json:"specTemplate,omitempty"`
+}
+
+// GetReclaimPolicy of this CloudMemorystoreInstanceClass.
+func (i *CloudMemorystoreInstanceClass) GetReclaimPolicy() corev1alpha1.ReclaimPolicy {
+	return i.SpecTemplate.ReclaimPolicy
+}
+
+// SetReclaimPolicy of this CloudMemorystoreInstanceClass.
+func (i *CloudMemorystoreInstanceClass) SetReclaimPolicy(p corev1alpha1.ReclaimPolicy) {
+	i.SpecTemplate.ReclaimPolicy = p
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// CloudMemorystoreInstanceClassList contains a list of cloud memorystore resource classes.
+type CloudMemorystoreInstanceClassList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []CloudMemorystoreInstanceClass `json:"items"`
 }

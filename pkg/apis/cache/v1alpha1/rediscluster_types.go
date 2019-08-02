@@ -21,6 +21,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/resource"
 )
 
 // RedisClusterSpec defines the desired state of RedisCluster
@@ -103,6 +104,27 @@ type RedisClusterList struct {
 	Items           []RedisCluster `json:"items"`
 }
 
-func init() {
-	SchemeBuilder.Register(&RedisCluster{}, &RedisClusterList{})
+// All policies must satisfy the Policy interface
+var _ resource.Policy = &RedisClusterPolicy{}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// RedisClusterPolicy contains a namespace-scoped policy for RedisCluster
+type RedisClusterPolicy struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	corev1alpha1.Policy `json:",inline"`
+}
+
+// All policy lists must satisfy the PolicyList interface
+var _ resource.PolicyList = &RedisClusterPolicyList{}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// RedisClusterPolicyList contains a list of RedisClusterPolicy
+type RedisClusterPolicyList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []RedisClusterPolicy `json:"items"`
 }

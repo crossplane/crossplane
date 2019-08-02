@@ -14,20 +14,23 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package defaultclass
+package deprecateddefaultclass
 
 import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
 const (
-	controllerBaseName = "defaultclass.crossplane.io"
+	controllerBaseName = "deprecateddefaultclass.crossplane.io"
 )
 
 func init() {
 	// AddToManagerFuncs is a list of functions to create controllers and add them to a manager.
 	AddToManagerFuncs = append(AddToManagerFuncs,
-		AddRedisCluster,
+		AddBucket,
+		AddMySQLInstance,
+		AddPostgreSQLInstance,
+		AddKubernetesCluster,
 	)
 }
 
