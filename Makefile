@@ -100,6 +100,8 @@ cobertura:
 reviewable: vendor generate manifests lint
 
 # integration tests
+e2e.run: test-integration
+
 test-integration: $(KIND) $(KUBECTL) $(HELM)
 	@$(INFO) running integration tests using kind $(KIND_VERSION)
 	@$(ROOT_DIR)/cluster/local/integration_tests.sh || $(FAIL)

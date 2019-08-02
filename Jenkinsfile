@@ -115,7 +115,7 @@ pipeline {
                 }
             }
             steps {
-                sh './build/run make -j\$(nproc) test-integration'
+                sh './build/run make -j\$(nproc) e2e'
             }
         }
 
