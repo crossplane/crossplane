@@ -107,6 +107,23 @@ var (
 
 	secretLocalObjectRef = corev1.LocalObjectReference{Name: secret.GetName()}
 
+	secretWithExplicitType = &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "basicAuthSecret",
+			Namespace: namespace,
+			Annotations: map[string]string{
+				RemoteControllerNamespace: objectMeta.GetNamespace(),
+				RemoteControllerName:      objectMeta.GetName(),
+				RemoteControllerUID:       string(objectMeta.GetUID()),
+			},
+		},
+		Data: map[string][]byte{
+			corev1alpha1.ResourceCredentialsSecretUserKey:     []byte("user"),
+			corev1alpha1.ResourceCredentialsSecretPasswordKey: []byte("password"),
+		},
+		Type: corev1.SecretTypeBasicAuth,
+	}
+
 	serviceWithoutNamespace = &corev1.Service{
 		// Note we purposefully omit the namespace here in order to test our
 		// namespace defaulting logic.
@@ -416,6 +433,43 @@ func TestSync(t *testing.T) {
 				withState(v1alpha1.KubernetesApplicationResourceStateFailed),
 			),
 			wantResult: reconcile.Result{Requeue: true},
+		},
+		{
+			name: "SecretSyncPreservesType",
+			syncer: &remoteCluster{
+				unstructured: &mockUnstructuredClient{
+					mockSync: func(_ context.Context, got *unstructured.Unstructured) (*v1alpha1.RemoteStatus, error) {
+						return remoteStatus, nil
+					},
+				},
+				secret: &mockSecretClient{
+					mockSync: func(_ context.Context, got *corev1.Secret) error {
+						want := secretWithExplicitType.DeepCopy()
+						want.SetName(fmt.Sprintf("%s-%s", objectMeta.GetName(), secretWithExplicitType.GetName()))
+						want.SetNamespace(corev1.NamespaceDefault)
+						want.SetAnnotations(map[string]string{
+							RemoteControllerNamespace: objectMeta.GetNamespace(),
+							RemoteControllerName:      objectMeta.GetName(),
+							RemoteControllerUID:       string(objectMeta.GetUID()),
+						})
+						if diff := cmp.Diff(want, got); diff != "" {
+							return errors.Errorf("mockSync: -want, +got: %s", diff)
+						}
+
+						return nil
+					},
+				},
+			},
+			ar:      kubeAR(withTemplate(template(serviceWithoutNamespace))),
+			secrets: []corev1.Secret{*secretWithExplicitType},
+			wantAR: kubeAR(
+				withTemplate(template(serviceWithoutNamespace)),
+				withFinalizers(finalizerName),
+				withConditions(corev1alpha1.ReconcileSuccess()),
+				withState(v1alpha1.KubernetesApplicationResourceStateSubmitted),
+				withRemoteStatus(remoteStatus),
+			),
+			wantResult: reconcile.Result{Requeue: false},
 		},
 		{
 			name: "SecretSyncFailed",

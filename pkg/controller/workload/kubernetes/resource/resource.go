@@ -256,6 +256,7 @@ func createSecretTemplates(local []corev1.Secret, namespace, namePrefix string) 
 				Annotations: l.GetAnnotations(),
 			},
 			Data: l.Data,
+			Type: l.Type,
 		}
 	}
 	return templates
