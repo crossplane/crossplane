@@ -15,7 +15,7 @@ This document aims to provide details about the experience and implementation fo
 
 The core experience for consuming new functionality in Crossplane is composed of 2 steps:
 
-1. Create an installation request for the name of the Crossplane Stack or one of the CRDs that it owns
+1. Create a stack install object for the name of the Crossplane Stack or one of the CRDs that it owns
     1. e.g., GitLab or `gitlabcluster.gitlab.com/v1alpha1`
 1. Create a CRD instance that the custom controller owns
     1. e.g., GitLab CRD instance
@@ -57,7 +57,8 @@ All further functionality for Crossplane (databases, buckets, etc.) could then b
 This section describes the end to end installation flow implemented by the Stack Manager:
 
 * The SM starts up with a default “source” registry (e.g. `registry.crossplane.io`) that contains packages (bundles of a Stack and its custom controllers and CRDs) published to it
-* User creates a `StackRequest` instance to request a Stack be installed in the cluster, which includes everything needed to successfully run that Stack.  The `StackRequest` includes:
+* User creates a custom resource instance that represents their desire to install a new Stack in the cluster, for example `ClusterStackInstall` or `StackInstall`.
+The CRD type used here will depend on what type of Stack they wish to install, but will always include everything needed to successfully run that Stack, such as:
   * an optional source registry that can be any arbitrary registry location.  If this field is not specified then the SM's default source registry will be used.
   * One of the following must be specified:
     * package name (`gitlab`) OR
@@ -66,46 +67,50 @@ This section describes the end to end installation flow implemented by the Stack
 * The SM performs dependency resolution that determines all packages/Stacks that are required by this Stack and all of its dependent Stacks (Not Implemented)
 * The SM pulls all necessary Stack packages from the registry
 * The SM creates an unpack job that sends the artifacts to `stdout` which the SM ingests to install the Stack
-  * Stack metadata (`app.yaml`, `install.yaml`, `rbac.yaml`) is extracted and transformed to create an `Stack` CRD instance that serves as a record of the install
+  * Stack metadata (`app.yaml`, `install.yaml`) is extracted and transformed to create an `Stack` CRD instance that serves as a record of the install
   * All owned/defined CRDs are installed and annotated with their related metadata (`group.yaml`, `resource.yaml`, and icon file)
-  * RBAC rules necessary for the controller or controller installer are installed (`rbac.yaml`)
+  * [RBAC rules](./one-pager-stacks-security-isolation.md#allowed-resource-access) necessary for the controller or controller installer are installed
   * Stack installation instructions (`install.yaml`), in the form of Kubernetes YAML state files, are parsed and sent to the Kubernetes API
 * Kubernetes starts up the custom controller so that it is in the running state
-* The SM marks the `StackRequest` status as succeeded
+* The SM marks the `StackInstall` status as succeeded
 
-## `StackRequest` CRD
+## `ClusterStackInstall` and `StackInstall` CRDs
 
-To commence the installation of new functionality into a Crossplane cluster, an instance of the `StackRequest` CRD should be created.
-The SM will be watching for events on this type and it will begin the process of installing a Stack during its reconcile loop.
+To commence the installation of new functionality into a Crossplane cluster, an instance of one of the stack install CRDs should be created.
+The currently supported stack install types are `ClusterStackInstall` and `StackInstall`, which each have varying scope of permissions within the control plane.
+More details can be read in the [security and isolation design doc](./one-pager-stacks-security-isolation.md).
+The SM will be watching for events on these types and it will begin the process of installing a Stack during its reconcile loop.
 
-`StackRequests` can be specified by either a package name or by a CRD type.
+Stack install CRDs can be specified by either a package name or by a CRD type.
 When given a CRD type, the controller will query the registry to find out what package owns that CRD and then it will download that package to proceed with the install.
 This gives more flexibility to how Stacks are installed and does not require the requestor to know what package a CRD is defined in.
 
 ```yaml
-# request to extend Crossplane with the redis package,
-# using a specific version number
+# Install a stack into Crossplane from a package,
+# using a specific version number.
+# This stack will be installed at the cluster scope.
 apiVersion: stacks.crossplane.io/v1alpha1
-kind: StackRequest
+kind: ClusterStackInstall
 metadata:
-  name: redis-from-package
+  name: gcp-from-package
 spec:
   source: registry.crossplane.io
-  package: redis:v0.1.0
+  package: crossplane/stack-gcp:v0.1.0
 status:
   conditions:
   - type: Ready
     status: "True"
 ---
-# request to extend Crossplane with the package that defines/owns,
-# the rediscluster CRD
+# Install a stack into Crossplane by specifying a CRD that
+# the stack defines/owns.
+# This stack will be installed at a namespace scope.
 apiVersion: stacks.crossplane.io/v1alpha1
-kind: StackRequest
+kind: StackInstall
 metadata:
-  name: redis-from-crd
+  name: wordpress-from-crd
 spec:
   source: registry.crossplane.io
-  crd: redisclusters.cache.crossplane.io/v1alpha1
+  crd: wordpressinstances.wordpress.samples.stacks.crossplane.io/v1alpha1
 status:
   conditions:
   - type: Creating
@@ -177,24 +182,6 @@ spec:
             image: redis/redis-crossplane-controller:2.0.9
             imagePullPolicy: Always
             env:
- # the permissions needed by the controller
- permissions:
-   rules:
-   - apiGroups:
-     - ""
-     resources:
-     - secrets
-     - serviceaccounts
-     - events
-     - namespaces
-     verbs:
-     - get
-     - list
-     - watch
-     - create
-     - update
-     - patch
-     - delete
 ```
 
 ## Stack Package Format
@@ -216,7 +203,6 @@ Inside of a package, the filesystem layout shown below is expected for the best 
 ├── icon.svg
 ├── app.yaml # Application metadata.
 ├── install.yaml # Optional install metadata.
-├── rbac.yaml # Optional RBAC permissions.
 ├── ui-schema.yaml #  Optional UI Metadata
 └── resources
       └── databases.foocompany.io # Group directory
@@ -258,12 +244,11 @@ The minimum required file tree for a single tool, such as the Stack Manager, cou
 .registry/
 ├── app.yaml
 ├── install.yaml
-├── rbac.yaml
 └── resources
       └── crd.yaml
 ```
 
-Strictly speaking, `install.yaml` and `rbac.yaml` are optional, but a Stack bereft of these files would only introduce a data storage CRD with no active controller to act on CRs.  A Stack with no implementation could still be useful as a dependency of another Stack if CRs or the CRD itself can influence the behavior of active Stacks.
+Strictly speaking, `install.yaml` is optional, but a Stack bereft of this file would only introduce a data storage CRD with no active controller to act on CRs.  A Stack with no implementation could still be useful as a dependency of another Stack if CRs or the CRD itself can influence the behavior of active Stacks.
 
 ## Example Package Files
 
@@ -317,6 +302,13 @@ source: "https://github.com/crossplaneio/sample-stack"
 
 # License SPDX name: https://spdx.org/licenses/
 license: Apache-2.0
+
+# Scope of permissions needed by the stack once installed in the control plane,
+# current supported values are:
+#
+# - Cluster
+# - Namespace
+permissionScope: Cluster
 ```
 
 ### Example `install.yaml`
@@ -379,33 +371,6 @@ description: |
   ## Details
 
   More markdown.
-```
-
-### Example `rbac.yaml`
-
-```yaml
-rules:
-- apiGroups:
-  - ""
-  resources:
-  - secrets
-  - serviceaccounts
-  - events
-  - namespaces
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - patch
-  - delete
-- apiGroups:
-  - samples.crossplane.io
-  resources:
-  - "*"
-  verbs:
-  - "*"
 ```
 
 ### Example `crd.yaml`
@@ -533,15 +498,17 @@ Alternative designs for package processing and their related considerations (pro
 
 Each of these designs offered a good place to start.  Through iteration over time we will learn more, hopefully without investing much effort that cannot be reused.
 
+## Security and Isolation
+
+Details on the installation and runtime security and isolation of stacks can be read in the [security and isolation design doc](./one-pager-stacks-security-isolation.md).
+
 ## Questions and Open Issues
 
-* Stack Manager security model and isolation [#580](https://github.com/crossplaneio/crossplane/issues/580)
 * Offloading redundant Stack Manager functionality to Stack building tools
 * Dependency resolution design: [#434](https://github.com/crossplaneio/crossplane/issues/434)
 * Updating/Upgrading Stack: [#435](https://github.com/crossplaneio/crossplane/issues/435)
 * Support installation of stacks from private registries [#505](https://github.com/crossplaneio/crossplane/issues/505)
 * Figure out model for crossplane core vs stacks [#531](https://github.com/crossplaneio/crossplane/issues/531)
-* Single stack should be able to install multiple controllers [#532](https://github.com/crossplaneio/crossplane/issues/532)
 * Prototype alternate stack implementations [#548](https://github.com/crossplaneio/crossplane/issues/548)
 * Is there a benefit to `kind.version.` prefixed `crd.yaml` filenames
   * Should this be the only name prefix?
