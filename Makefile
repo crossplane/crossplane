@@ -117,12 +117,20 @@ submodules:
 	@git submodule sync
 	@git submodule update --init --recursive
 
-.PHONY: manifests cobertura reviewable submodules fallthrough test-integration
+# This is for running out-of-cluster locally, and is for convenience. Running
+# this make target will print out the command which was used. For more control,
+# try running the binary directly with different arguments.
+run: go.build
+	@$(INFO) Running Crossplane locally out-of-cluster . . .
+	@# To see other arguments that can be provided, run the command with --help instead
+	$(GO_OUT_DIR)/$(PROJECT_NAME) --debug
+
+.PHONY: manifests cobertura reviewable submodules fallthrough test-integration run
 
 # ====================================================================================
 # Special Targets
 
-define CROSSPLANE_HELP
+define CROSSPLANE_MAKE_HELP
 Crossplane Targets:
     manifests          Generate manifests e.g. CRD, RBAC etc.
     cobertura          Generate a coverage report for cobertura applying exclusions on generated files.
@@ -130,10 +138,12 @@ Crossplane Targets:
     submodules         Update the submodules, such as the common build scripts.
 
 endef
-export CROSSPLANE_HELP
+# The reason CROSSPLANE_MAKE_HELP is used instead of CROSSPLANE_HELP is because the crossplane
+# binary will try to use CROSSPLANE_HELP if it is set, and this is for something different.
+export CROSSPLANE_MAKE_HELP
 
 crossplane.help:
-	@echo "$$CROSSPLANE_HELP"
+	@echo "$$CROSSPLANE_MAKE_HELP"
 
 help-special: crossplane.help
 
