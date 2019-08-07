@@ -44,55 +44,114 @@ Any dates listed below and the specific issues that will ship in a given milesto
 
 * Workload Scheduling
   * Design for smart scheduler, optimization, resource placement [#278](https://github.com/crossplaneio/crossplane/issues/278)
+  * Basic workload scheduler with cluster selector [#309](https://github.com/crossplaneio/crossplane/issues/309)
+  * Update workload propagation to avoid  collisions on target cluster [#308](https://github.com/crossplaneio/crossplane/pull/308)
+  * Minimize workload deployment kubeconfig settings for AKS to be consistent with GKE, EKS [#273](https://github.com/crossplaneio/crossplane/issues/273)
+  * Update workload deployment docs [#239](https://github.com/crossplaneio/crossplane/issues/239)
+
+* New Stateful managed services across AWS, Azure, and GCP
+  * Database: PostgreSQL [#54](https://github.com/crossplaneio/crossplane/issues/54), MySQL [#53](https://github.com/crossplaneio/crossplane/issues/53)
+  * Cache / Redis [#137](https://github.com/crossplaneio/crossplane/issues/137), [#282](https://github.com/crossplaneio/crossplane/issues/282)
+  * Buckets [#295](https://github.com/crossplaneio/crossplane/issues/295), [#109](https://github.com/crossplaneio/crossplane/issues/109)
+
+* Performance and Efficiency
+  * Reconciliation requeue pattern [#241](https://github.com/crossplaneio/crossplane/issues/241)
+
+* UX Enhancements
+  * Enhanced kubectl printer columns [#38](https://github.com/crossplaneio/crossplane/issues/38)
+
+* Engineering
+  * General resource controller used for more types [#276](https://github.com/crossplaneio/crossplane/issues/276)
+  * Controllers use consistent logging [#7](https://github.com/crossplaneio/crossplane/issues/7)
+  * Consistent testing paradigm [#269](https://github.com/crossplaneio/crossplane/issues/269)
+
+## v0.3 - Enable Partners to Build Infra Stacks
+
+* Real-world applications on-top of Crossplane
+  * GitLab [#284](https://github.com/crossplaneio/crossplane/issues/284)
+  * More applications to follow
+
+* Resource Class enhancements: default classes, validation, annotation
+  * Default resource classes - increases claim portability [#151](https://github.com/crossplaneio/crossplane/issues/151)
+  * Resource classes can be validated and annotated [#613](https://github.com/crossplaneio/crossplane/issues/613)
+
+* Infra Stacks (out-of-tree) with single-region secure connectivity between k8s and DBaaS, Redis, Buckets
+  * Stacks Manager: App vs. Infra Stacks, namespace isolation, annotation support [#609](https://github.com/crossplaneio/crossplane/issues/609)
+  * Move Infra Stacks (GCP, AWS, Azure) into separate repos & upgrade to kubebuilder2 [#612](https://github.com/crossplaneio/crossplane/issues/612)
+  * GCP Infra Stack: single-region secure connectivity: GKE & CloudSQL, CloudMemorystore, Buckets [#615](https://github.com/crossplaneio/crossplane/issues/615)
+  * AWS Infra Stack: single-region secure connectivity: EKS & RDS, ElastiCache, Buckets [#616](https://github.com/crossplaneio/crossplane/issues/616)
+  * Azure Infra Stack: single-region secure connectivity: AKS & AzureSQL, AzureCache, Buckets[#617](https://github.com/crossplaneio/crossplane/issues/617)
+  * Stacks v1 CLI / kubectl plugin: init, build, push commands [#614](https://github.com/crossplaneio/crossplane/issues/614)
+
+* Docs & examples
+  * Infra Stack Developer Guide [#610](https://github.com/crossplaneio/crossplane/issues/610)
+  * Portable Wordpress App Stack (kubebuilder-based) published to registry [#572](https://github.com/crossplaneio/crossplane/issues/572)
+  * Refresh 0.3 Docs: reflect enhancements, better on-boarding UX, easier to get started[#625](https://github.com/crossplaneio/crossplane/issues/625)
+  * Crossplane.io reflects the updated roadmap / vision [#667](https://github.com/crossplaneio/crossplane/issues/667)
+  * DevOps pipeline examples for Jenkins, GitLab, GitOps using Infra Stacks
+
+## v0.4 - Template App Stacks & Infra Stacks Expansion
+* Stacks Manager
+  * Stack versioning, upgrade, & dependency resolution
+  * Stacks Manager support for private repos and robot account credentials
+
+* Template App Stacks
+  * Template App Stacks to simplify declarative app management via k8s API
+  * Enhanced Stacks CLI to generate scaffolding for Template Stacks 
+
+* Infra Stacks Expansion
+  * Additional secure connectivity strategies for GCP, AWS, Azure
+  * More cloud services per provider - existing Infra Stacks
+  * More clouds providers - new Infra Stacks
+  * Multiple managed k8s offerings per cloud provider - more choice
+
+* Docs & Examples
+  * Refresh 0.4 docs: reflect enhancements, creating different types of stacks
+  * Crossplane.io updates to reflect 0.4 release and additional infra stack providers
+  * Expanded DevOps pipeline examples for continous deployment
+
+## v0.5 - Rook Infra Stack & v1beta1 Hardening
+* Rook Infra Stack
+  * Rook as a provider of claim-based provisioning for PostgreSQL, Buckets, etc. 
+  * Rook managed services using the Kubernetes Operator Pattern [#283](https://github.com/crossplaneio/crossplane/issues/283)
+  * Early support for Rook and others
+  * Seamless integration into the Resource Claim and Resource Class model
+
+* v1beta1 hardening
+  * Enhanced load and scale testing
+  * UX enhancements
+  * Address v1alpha2 feedback
+
+* Docs & examples
+  * Refresh 0.5 docs: using Rook with Crossplane, enhancements
+  * Crossplane.io updates to reflect 0.4 release and additional Infra Stack providers
+  * Expanded DevOps pipeline examples & integrations for continous deployment
+
+## Towards v1.0 - Production Ready
+
+* Enhanced Workload Scheduling
   * Region and cloud provider aware scheduling [#279](https://github.com/crossplaneio/crossplane/issues/279)
   * Delayed binding of resources to support co-location in same region [#156](https://github.com/crossplaneio/crossplane/issues/156)
   * Workloads declare their resource usage [#115](https://github.com/crossplaneio/crossplane/issues/115)
-* New Stateful managed services across AWS, Azure, and GCP
-  * PostgreSQL [#54](https://github.com/crossplaneio/crossplane/issues/54)
-  * MongoDB [#280](https://github.com/crossplaneio/crossplane/issues/280)
-  * Redis [#137](https://github.com/crossplaneio/crossplane/issues/137)
-* Managed Services using the Kubernetes Operator Pattern [#283](https://github.com/crossplaneio/crossplane/issues/283)
-  * Early support for Rook and others
-  * Seamless integration into the Resource Claim and Resource Class model
-* Ease-of-use and improved experience
-  * Default resource classes [#151](https://github.com/crossplaneio/crossplane/issues/151)
-  * Global resource classes [#92](https://github.com/crossplaneio/crossplane/issues/92), [#89](https://github.com/crossplaneio/crossplane/issues/89)
-* Performance and Efficiency
-  * Reconciliation requeue pattern [#241](https://github.com/crossplaneio/crossplane/issues/241)
-* Engineering
-  * General resource controller used for more types [#276](https://github.com/crossplaneio/crossplane/issues/276)
-  * Common code refactoring [#83](https://github.com/crossplaneio/crossplane/issues/83)
+  * Optimization for many resource attributes [#287](https://github.com/crossplaneio/crossplane/issues/287)
+  * Extensibility points to allow external scheduler integration [#288](https://github.com/crossplaneio/crossplane/issues/288)
 
-## v0.3 - Run Real-world Applications
-
-* Support for a few real-world applications on-top of Crossplane
-  * GitLab [#284](https://github.com/crossplaneio/crossplane/issues/284)
-  * More applications to follow
 * Heterogeneous application support
   * Serverless (functions) [#285](https://github.com/crossplaneio/crossplane/issues/285)
   * Containers and other Kubernetes deployment types (e.g., Helm charts) [#158](https://github.com/crossplaneio/crossplane/issues/158)
   * Virtual Machines [#286](https://github.com/crossplaneio/crossplane/issues/286)
-* Workload Scheduling
-  * Optimization for many resource attributes [#287](https://github.com/crossplaneio/crossplane/issues/287)
-  * Extensibility points to allow external scheduler integration [#288](https://github.com/crossplaneio/crossplane/issues/288)
+
+* New Stateful managed services across AWS, Azure, and GCP
+  * MongoDB [#280](https://github.com/crossplaneio/crossplane/issues/280)
+  * Message Queues [#281](https://github.com/crossplaneio/crossplane/issues/281)
+
 * Auto-scaling
   * Cluster auto-scaler [#159](https://github.com/crossplaneio/crossplane/issues/159)
   * Node pools and worker nodes [#152](https://github.com/crossplaneio/crossplane/issues/152)
+
 * Ease-of-use and improved experience
   * Standalone mode allowing Crossplane to run in a single container or process [#274](https://github.com/crossplaneio/crossplane/issues/274)
-  * Uniform resource connectivity [#149](https://github.com/crossplaneio/crossplane/issues/149)
-* Performance and Efficiency
-  * Parallel processing of CRD instances [#4](https://github.com/crossplaneio/crossplane/issues/4), [#74](https://github.com/crossplaneio/crossplane/issues/74)
-* Engineering
-  * Consistent testing paradigm [#269](https://github.com/crossplaneio/crossplane/issues/269)
 
-## Towards v1.0 - Production Ready
-
-* Expand coverage of support
-  * Cloud providers
-  * Managed services
-    * Message Queues [#281](https://github.com/crossplaneio/crossplane/issues/281)
-    * Memcached [#282](https://github.com/crossplaneio/crossplane/issues/282)
 * [Reliability and production quality](https://github.com/crossplaneio/crossplane/labels/reliability)
   * Controllers recover failure conditions [#56](https://github.com/crossplaneio/crossplane/issues/56)
   * Controller High availability (HA) [#5](https://github.com/crossplaneio/crossplane/issues/5)
