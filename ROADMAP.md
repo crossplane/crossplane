@@ -80,15 +80,15 @@ Any dates listed below and the specific issues that will ship in a given milesto
   * Move Infra Stacks (GCP, AWS, Azure) into separate repos & upgrade to kubebuilder2 [#612](https://github.com/crossplaneio/crossplane/issues/612)
   * GCP Infra Stack: single-region secure connectivity: GKE & CloudSQL, CloudMemorystore, Buckets [#615](https://github.com/crossplaneio/crossplane/issues/615)
   * AWS Infra Stack: single-region secure connectivity: EKS & RDS, ElastiCache, Buckets [#616](https://github.com/crossplaneio/crossplane/issues/616)
-  * Azure Infra Stack: single-region secure connectivity: AKS & AzureSQL, AzureCache, Buckets[#617](https://github.com/crossplaneio/crossplane/issues/617)
+  * Azure Infra Stack: single-region secure connectivity: AKS & AzureSQL, AzureCache, Buckets [#617](https://github.com/crossplaneio/crossplane/issues/617)
   * Stacks v1 CLI / kubectl plugin: init, build, push commands [#614](https://github.com/crossplaneio/crossplane/issues/614)
 
 * Docs & examples
   * Infra Stack Developer Guide [#610](https://github.com/crossplaneio/crossplane/issues/610)
   * Portable Wordpress App Stack (kubebuilder-based) published to registry [#572](https://github.com/crossplaneio/crossplane/issues/572)
-  * Refresh 0.3 Docs: reflect enhancements, better on-boarding UX, easier to get started[#625](https://github.com/crossplaneio/crossplane/issues/625)
+  * Refresh 0.3 Docs: reflect enhancements, better on-boarding UX, easier to get started [#625](https://github.com/crossplaneio/crossplane/issues/625)
   * Crossplane.io reflects the updated roadmap / vision [#667](https://github.com/crossplaneio/crossplane/issues/667)
-  * DevOps pipeline examples for Jenkins, GitLab, GitOps using Infra Stacks
+  * DevOps pipeline examples for Jenkins, GitLab, GitOps using Infra Stacks [#631](https://github.com/crossplaneio/crossplane/issues/631)
 
 ## v0.4 - Template App Stacks & Infra Stacks Expansion
 * Stacks Manager
