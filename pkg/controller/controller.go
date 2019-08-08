@@ -22,6 +22,7 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/controller/aws"
 	"github.com/crossplaneio/crossplane/pkg/controller/azure"
 	"github.com/crossplaneio/crossplane/pkg/controller/defaultclass"
+	"github.com/crossplaneio/crossplane/pkg/controller/deprecateddefaultclass"
 	"github.com/crossplaneio/crossplane/pkg/controller/gcp"
 	"github.com/crossplaneio/crossplane/pkg/controller/workload"
 )
@@ -34,6 +35,7 @@ func init() {
 		gcp.AddToManager,
 		workload.AddToManager,
 		defaultclass.AddToManager,
+		deprecateddefaultclass.AddToManager,
 	)
 }
 

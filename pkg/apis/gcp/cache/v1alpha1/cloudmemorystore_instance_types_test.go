@@ -20,7 +20,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/onsi/gomega"
 	core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -55,9 +54,11 @@ func TestStorageCloudMemorystoreInstance(t *testing.T) {
 	created := &CloudMemorystoreInstance{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
 		Spec: CloudMemorystoreInstanceSpec{
-			Tier: TierBasic,
 			ResourceSpec: corev1alpha1.ResourceSpec{
 				ProviderReference: &core.ObjectReference{},
+			},
+			CloudMemorystoreInstanceParameters: CloudMemorystoreInstanceParameters{
+				Tier: TierBasic,
 			},
 		},
 	}
@@ -81,104 +82,4 @@ func TestStorageCloudMemorystoreInstance(t *testing.T) {
 	// Test Delete
 	g.Expect(c.Delete(ctx, fetched)).NotTo(gomega.HaveOccurred())
 	g.Expect(c.Get(ctx, key, fetched)).To(gomega.HaveOccurred())
-}
-
-func TestNewCloudMemorystoreInstanceSpec(t *testing.T) {
-	cases := []struct {
-		name       string
-		properties map[string]string
-		want       *CloudMemorystoreInstanceSpec
-	}{
-		{
-			name: "AllProperties",
-			properties: map[string]string{
-				"tier":                  TierBasic,
-				"region":                "au-east1",
-				"locationId":            "au-east1-a",
-				"alternativeLocationId": "au-east1-b",
-				"reservedIpRange":       "172.16.0.0/29",
-				"authorizedNetwork":     "default",
-				"memorySizeGb":          "4",
-				"redisVersion":          "REDIS_3_2",
-				"redisConfigs":          "max-memory-policy: lots, notify-keyspace-events: surewhynot",
-			},
-			want: &CloudMemorystoreInstanceSpec{
-				ResourceSpec: corev1alpha1.ResourceSpec{
-					ReclaimPolicy: corev1alpha1.ReclaimRetain,
-				},
-				Tier:                  TierBasic,
-				Region:                "au-east1",
-				LocationID:            "au-east1-a",
-				AlternativeLocationID: "au-east1-b",
-				ReservedIPRange:       "172.16.0.0/29",
-				AuthorizedNetwork:     "default",
-				MemorySizeGB:          4,
-				RedisVersion:          "REDIS_3_2",
-				RedisConfigs: map[string]string{
-					"max-memory-policy":      "lots",
-					"notify-keyspace-events": "surewhynot",
-				},
-			},
-		},
-		{
-			name:       "NilProperties",
-			properties: nil,
-			want: &CloudMemorystoreInstanceSpec{
-				ResourceSpec: corev1alpha1.ResourceSpec{
-					ReclaimPolicy: corev1alpha1.ReclaimRetain,
-				},
-				RedisConfigs: map[string]string{},
-			},
-		},
-		{
-			name:       "UnknownProperties",
-			properties: map[string]string{"unknown": "wat"},
-			want: &CloudMemorystoreInstanceSpec{
-				ResourceSpec: corev1alpha1.ResourceSpec{
-					ReclaimPolicy: corev1alpha1.ReclaimRetain,
-				},
-				RedisConfigs: map[string]string{},
-			},
-		},
-		{
-			name:       "MemorySizeGbNotANumber",
-			properties: map[string]string{"memorySizeGb": "wat"},
-			want: &CloudMemorystoreInstanceSpec{
-				ResourceSpec: corev1alpha1.ResourceSpec{
-					ReclaimPolicy: corev1alpha1.ReclaimRetain,
-				},
-				RedisConfigs: map[string]string{},
-				MemorySizeGB: 0,
-			},
-		},
-		{
-			name:       "RedisConfigsUnparseable",
-			properties: map[string]string{"redisConfigs": "wat,wat"},
-			want: &CloudMemorystoreInstanceSpec{
-				ResourceSpec: corev1alpha1.ResourceSpec{
-					ReclaimPolicy: corev1alpha1.ReclaimRetain,
-				},
-				RedisConfigs: map[string]string{},
-			},
-		},
-		{
-			name:       "RedisConfigsExtraneousWhitespace",
-			properties: map[string]string{"redisConfigs": "   verykey:suchvalue"},
-			want: &CloudMemorystoreInstanceSpec{
-				ResourceSpec: corev1alpha1.ResourceSpec{
-					ReclaimPolicy: corev1alpha1.ReclaimRetain,
-				},
-				RedisConfigs: map[string]string{"verykey": "suchvalue"},
-			},
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			got := NewCloudMemorystoreInstanceSpec(tc.properties)
-			if diff := cmp.Diff(got, tc.want); diff != "" {
-				t.Errorf("got != want:\n%v", diff)
-			}
-		})
-	}
 }

@@ -38,7 +38,7 @@ func TestConfigureCloudMemorystoreInstance(t *testing.T) {
 	type args struct {
 		ctx context.Context
 		cm  resource.Claim
-		cs  *corev1alpha1.ResourceClass
+		cs  resource.Class
 		mg  resource.Managed
 	}
 
@@ -49,6 +49,8 @@ func TestConfigureCloudMemorystoreInstance(t *testing.T) {
 
 	claimUID := types.UID("definitely-a-uuid")
 	providerName := "coolprovider"
+	region := "cool-region"
+	tier := "cool-tier"
 
 	cases := map[string]struct {
 		args args
@@ -60,9 +62,17 @@ func TestConfigureCloudMemorystoreInstance(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{UID: claimUID},
 					Spec:       cachev1alpha1.RedisClusterSpec{EngineVersion: "3.2"},
 				},
-				cs: &corev1alpha1.ResourceClass{
-					ProviderReference: &corev1.ObjectReference{Name: providerName},
-					ReclaimPolicy:     corev1alpha1.ReclaimDelete,
+				cs: &v1alpha1.CloudMemorystoreInstanceClass{
+					SpecTemplate: v1alpha1.CloudMemorystoreInstanceClassSpecTemplate{
+						ResourceClassSpecTemplate: corev1alpha1.ResourceClassSpecTemplate{
+							ProviderReference: &corev1.ObjectReference{Name: providerName},
+							ReclaimPolicy:     corev1alpha1.ReclaimDelete,
+						},
+						CloudMemorystoreInstanceParameters: v1alpha1.CloudMemorystoreInstanceParameters{
+							Region: region,
+							Tier:   tier,
+						},
+					},
 				},
 				mg: &v1alpha1.CloudMemorystoreInstance{},
 			},
@@ -74,8 +84,11 @@ func TestConfigureCloudMemorystoreInstance(t *testing.T) {
 							WriteConnectionSecretToReference: corev1.LocalObjectReference{Name: string(claimUID)},
 							ProviderReference:                &corev1.ObjectReference{Name: providerName},
 						},
-						RedisVersion: "REDIS_3_2",
-						RedisConfigs: map[string]string{},
+						CloudMemorystoreInstanceParameters: v1alpha1.CloudMemorystoreInstanceParameters{
+							RedisVersion: "REDIS_3_2",
+							Region:       region,
+							Tier:         tier,
+						},
 					},
 				},
 				err: nil,

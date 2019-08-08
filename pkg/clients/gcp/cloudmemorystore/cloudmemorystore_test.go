@@ -62,7 +62,11 @@ func TestInstanceID(t *testing.T) {
 			project: project,
 			i: &v1alpha1.CloudMemorystoreInstance{
 				ObjectMeta: metav1.ObjectMeta{UID: uid},
-				Spec:       v1alpha1.CloudMemorystoreInstanceSpec{Region: region},
+				Spec: v1alpha1.CloudMemorystoreInstanceSpec{
+					CloudMemorystoreInstanceParameters: v1alpha1.CloudMemorystoreInstanceParameters{
+						Region: region,
+					},
+				},
 			},
 			want: InstanceID{
 				Project:  project,
@@ -77,8 +81,12 @@ func TestInstanceID(t *testing.T) {
 			project: project,
 			i: &v1alpha1.CloudMemorystoreInstance{
 				ObjectMeta: metav1.ObjectMeta{UID: types.UID("i-am-different")},
-				Spec:       v1alpha1.CloudMemorystoreInstanceSpec{Region: region},
-				Status:     v1alpha1.CloudMemorystoreInstanceStatus{InstanceName: instanceName},
+				Spec: v1alpha1.CloudMemorystoreInstanceSpec{
+					CloudMemorystoreInstanceParameters: v1alpha1.CloudMemorystoreInstanceParameters{
+						Region: region,
+					},
+				},
+				Status: v1alpha1.CloudMemorystoreInstanceStatus{InstanceName: instanceName},
 			},
 			want: InstanceID{
 				Project:  project,
@@ -121,15 +129,17 @@ func TestNewCreateInstanceRequest(t *testing.T) {
 			project: project,
 			i: &v1alpha1.CloudMemorystoreInstance{
 				Spec: v1alpha1.CloudMemorystoreInstanceSpec{
-					Region:                region,
-					Tier:                  redisv1pb.Instance_BASIC.String(),
-					LocationID:            locationID,
-					AlternativeLocationID: alternativeLocationID,
-					ReservedIPRange:       reservedIPRange,
-					AuthorizedNetwork:     authorizedNetwork,
-					RedisVersion:          redisVersion,
-					RedisConfigs:          redisConfigs,
-					MemorySizeGB:          memorySizeGB,
+					CloudMemorystoreInstanceParameters: v1alpha1.CloudMemorystoreInstanceParameters{
+						Region:                region,
+						Tier:                  redisv1pb.Instance_BASIC.String(),
+						LocationID:            locationID,
+						AlternativeLocationID: alternativeLocationID,
+						ReservedIPRange:       reservedIPRange,
+						AuthorizedNetwork:     authorizedNetwork,
+						RedisVersion:          redisVersion,
+						RedisConfigs:          redisConfigs,
+						MemorySizeGB:          memorySizeGB,
+					},
 				},
 				Status: v1alpha1.CloudMemorystoreInstanceStatus{InstanceName: instanceName},
 			},
@@ -154,9 +164,11 @@ func TestNewCreateInstanceRequest(t *testing.T) {
 			i: &v1alpha1.CloudMemorystoreInstance{
 				ObjectMeta: metav1.ObjectMeta{UID: uid},
 				Spec: v1alpha1.CloudMemorystoreInstanceSpec{
-					Region:       region,
-					Tier:         redisv1pb.Instance_STANDARD_HA.String(),
-					MemorySizeGB: memorySizeGB,
+					CloudMemorystoreInstanceParameters: v1alpha1.CloudMemorystoreInstanceParameters{
+						Region:       region,
+						Tier:         redisv1pb.Instance_STANDARD_HA.String(),
+						MemorySizeGB: memorySizeGB,
+					},
 				},
 			},
 			want: &redisv1pb.CreateInstanceRequest{
@@ -192,9 +204,11 @@ func TestNewUpdateInstanceRequest(t *testing.T) {
 			project: project,
 			i: &v1alpha1.CloudMemorystoreInstance{
 				Spec: v1alpha1.CloudMemorystoreInstanceSpec{
-					Region:       region,
-					RedisConfigs: redisConfigs,
-					MemorySizeGB: memorySizeGB,
+					CloudMemorystoreInstanceParameters: v1alpha1.CloudMemorystoreInstanceParameters{
+						Region:       region,
+						RedisConfigs: redisConfigs,
+						MemorySizeGB: memorySizeGB,
+					},
 				},
 				Status: v1alpha1.CloudMemorystoreInstanceStatus{InstanceName: instanceName},
 			},
@@ -212,11 +226,13 @@ func TestNewUpdateInstanceRequest(t *testing.T) {
 			project: project,
 			i: &v1alpha1.CloudMemorystoreInstance{
 				Spec: v1alpha1.CloudMemorystoreInstanceSpec{
-					Region:       region,
-					MemorySizeGB: memorySizeGB,
+					CloudMemorystoreInstanceParameters: v1alpha1.CloudMemorystoreInstanceParameters{
+						Region:       region,
+						MemorySizeGB: memorySizeGB,
 
-					// This field cannot be updated and should be omitted.
-					AuthorizedNetwork: authorizedNetwork,
+						// This field cannot be updated and should be omitted.
+						AuthorizedNetwork: authorizedNetwork,
+					},
 				},
 				Status: v1alpha1.CloudMemorystoreInstanceStatus{InstanceName: instanceName},
 			},
@@ -252,8 +268,10 @@ func TestNeedsUpdate(t *testing.T) {
 			name: "NeedsLessMemory",
 			kube: &v1alpha1.CloudMemorystoreInstance{
 				Spec: v1alpha1.CloudMemorystoreInstanceSpec{
-					RedisConfigs: redisConfigs,
-					MemorySizeGB: memorySizeGB,
+					CloudMemorystoreInstanceParameters: v1alpha1.CloudMemorystoreInstanceParameters{
+						RedisConfigs: redisConfigs,
+						MemorySizeGB: memorySizeGB,
+					},
 				},
 			},
 			gcp:  &redisv1pb.Instance{MemorySizeGb: memorySizeGB + 1},
@@ -263,7 +281,9 @@ func TestNeedsUpdate(t *testing.T) {
 			name: "NeedsNewRedisConfigs",
 			kube: &v1alpha1.CloudMemorystoreInstance{
 				Spec: v1alpha1.CloudMemorystoreInstanceSpec{
-					RedisConfigs: redisConfigs,
+					CloudMemorystoreInstanceParameters: v1alpha1.CloudMemorystoreInstanceParameters{
+						RedisConfigs: redisConfigs,
+					},
 				},
 			},
 			gcp:  &redisv1pb.Instance{RedisConfigs: map[string]string{"super": "cool"}},
@@ -273,8 +293,10 @@ func TestNeedsUpdate(t *testing.T) {
 			name: "NeedsNoUpdate",
 			kube: &v1alpha1.CloudMemorystoreInstance{
 				Spec: v1alpha1.CloudMemorystoreInstanceSpec{
-					RedisConfigs: redisConfigs,
-					MemorySizeGB: memorySizeGB,
+					CloudMemorystoreInstanceParameters: v1alpha1.CloudMemorystoreInstanceParameters{
+						RedisConfigs: redisConfigs,
+						MemorySizeGB: memorySizeGB,
+					},
 				},
 			},
 			gcp: &redisv1pb.Instance{
@@ -287,11 +309,13 @@ func TestNeedsUpdate(t *testing.T) {
 			name: "CannotUpdateField",
 			kube: &v1alpha1.CloudMemorystoreInstance{
 				Spec: v1alpha1.CloudMemorystoreInstanceSpec{
-					MemorySizeGB: memorySizeGB,
+					CloudMemorystoreInstanceParameters: v1alpha1.CloudMemorystoreInstanceParameters{
+						MemorySizeGB: memorySizeGB,
 
-					// We can't change this field without destroying and recreating
-					// the instance so it does not register as needing an update.
-					AuthorizedNetwork: "wat",
+						// We can't change this field without destroying and recreating
+						// the instance so it does not register as needing an update.
+						AuthorizedNetwork: "wat",
+					},
 				},
 			},
 			gcp: &redisv1pb.Instance{

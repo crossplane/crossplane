@@ -128,10 +128,35 @@ type ResourceSpec struct {
 	ReclaimPolicy ReclaimPolicy `json:"reclaimPolicy,omitempty"`
 }
 
+// ResourceClassSpecTemplate contains standard fields that all resource classes should
+// include in their spec template. ResourceClassSpecTemplate should typically be embedded in a
+// resource class specific struct.
+type ResourceClassSpecTemplate struct {
+	ProviderReference *corev1.ObjectReference `json:"providerRef"`
+
+	ReclaimPolicy ReclaimPolicy `json:"reclaimPolicy,omitempty"`
+}
+
 // ResourceStatus contains standard fields that all resources should
 // include in their status. ResourceStatus should typically be embedded in a
 // resource specific status.
 type ResourceStatus struct {
 	ConditionedStatus `json:",inline"`
 	BindingStatus     `json:",inline"`
+}
+
+// Policy contains standard fields that all policies should include. Policy
+// should typically be embedded in a specific resource claim policy.
+type Policy struct {
+	DefaultClassReference *corev1.ObjectReference `json:"defaultClassRef,omitempty"`
+}
+
+// SetDefaultClassReference of this Policy
+func (p *Policy) SetDefaultClassReference(r *corev1.ObjectReference) {
+	p.DefaultClassReference = r
+}
+
+// GetDefaultClassReference of this Policy
+func (p *Policy) GetDefaultClassReference() *corev1.ObjectReference {
+	return p.DefaultClassReference
 }
