@@ -289,7 +289,7 @@ consists. A resource could template a compute resource such as a `Deployment`,
 Kubernetes resource (roughly synonymous with 'object' in Kubernetes parlance) as
 well as a Crossplane 'managed resource', for example an `SQLInstance` resource
 claim or an `RDSInstance` as a concrete managed resource. This document uses
-'resource template' interchangably with `KubernetesApplicationResource` and
+'resource template' interchangeably with `KubernetesApplicationResource` and
 explicitly refers to managed resources as 'managed resources'.
 
 _workload.crossplane.io_ is the API namespace in which applications and their
@@ -628,7 +628,7 @@ One alternative to the pattern proposed by this design is closer to the loosely
 coupled relationship between a `Service` and its backing `Pods`; the Crossplane
 user would submit a series of `KubernetesApplicationResources`, then group them
 all into a co-scheduled unit via a `KubernetesApplication` via a label selector.
-A `KubernetesApplication` would be associated with its constitutent
+A `KubernetesApplication` would be associated with its constituent
 `KubernetesApplicationResources` purely via label selectors (and controller
 references) rather than actively managing their lifecycles based on templates
 encoded in its `.spec`. This defers conflict resolution to the Crossplane user
@@ -639,7 +639,7 @@ eventually consistent with the user's intent. When all desired resources are
 specified as templates in the application's `.spec` it's always obvious how many
 resources the user desired and how many have been successfully submitted. If a
 resource template is invalid the entire application will be rejected by the
-Crossplane API Server. In the loosley coupled approach the invalid
+Crossplane API Server. In the loosely coupled approach the invalid
 `KubernetesApplicationResource` would be rejected by the API server, but the
 `KubernetesApplication` would, according to the API server, otherwise appear to
 be a healthy application that happens to desire one less resource than the user
@@ -748,7 +748,7 @@ built in types. This makes it impossible to consistently model the health of a
 resource managed by a resource. The status field exposed by a healthy
 `Deployment` is completely different from the status field exposed by a healthy
 `Ingress`, let alone the status field exposed by a custom resource. This forces
-both the controller code and the `KubernetesApplicationComplment` CRD OpenAPI
+both the controller code and the `KubernetesApplicationResource` CRD OpenAPI
 validation specification to treat status as an opaque JSON object.
 
 One alternative would be to avoid polling the status altogether; resource
