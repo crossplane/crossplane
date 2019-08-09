@@ -210,6 +210,7 @@ Inside of a package, the following filesystem layout is expected:
 ├── app.yaml # Application metadata.
 ├── install.yaml # Optional install metadata.
 ├── rbac.yaml # Optional RBAC permissions.
+├── ui-schema.yaml #  Optional UI Metadata
 └── resources
       └── databases.foocompany.io # Group directory
             ├── group.yaml # Optional Group metadata
@@ -221,6 +222,7 @@ Inside of a package, the following filesystem layout is expected:
                 │   └── resource.yaml # Resource level metadata.
                 └── v1beta1
                     ├── mysql.v1beta1.crd.yaml
+                    ├── ui-schema.yaml #  Optional UI Metadata
                     ├── icon.jpg
                     └── resource.yaml
 ```
@@ -228,6 +230,7 @@ Inside of a package, the following filesystem layout is expected:
 * `app.yaml`: This file is the general metadata and information about the Stack, such as its name, description, version, owners, etc.  This metadata will be saved in the `Extension` record's spec fields.
 * `install.yaml`: This file contains the information for how the custom controller for the Stack should be installed into Crossplane.  Initially, only simple `Deployment` based controllers will be supported, but eventually other types of implementations will be supported as well, e.g., templates, functions/hooks, templates, a new DSL, etc.
 * `resources` directory: This directory contains all the CRDs and optional metadata about them.  These CRDs are the types that the custom controller implements the logic for.  They will be directly installed into Crossplane so that users can create instances of them to start consuming their new Stack functionality.
+* `ui-schema.yaml`: UI metadata that will be transformed and annotated according to the [Stack UI Metadata One Pager](one-pager-stack-ui-metadata.md)
 
 ### Example `app.yaml`
 
