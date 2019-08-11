@@ -31,94 +31,94 @@ import (
 
 // +kubebuilder:object:root=true
 
-// ExtensionRequest is the CRD type for a request to add an extension to Crossplane.
+// StackRequest is the CRD type for a request to add a stack to Crossplane.
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type==Ready)].status"
 // +kubebuilder:printcolumn:name="SOURCE",type="string",JSONPath=".spec.source"
 // +kubebuilder:printcolumn:name="PACKAGE",type="string",JSONPath=".spec.package"
 // +kubebuilder:printcolumn:name="CRD",type="string",JSONPath=".spec.crd"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
-type ExtensionRequest struct {
+type StackRequest struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   ExtensionRequestSpec   `json:"spec,omitempty"`
-	Status ExtensionRequestStatus `json:"status,omitempty"`
+	Spec   StackRequestSpec   `json:"spec,omitempty"`
+	Status StackRequestStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 
-// ExtensionRequestList contains a list of ExtensionRequest
-type ExtensionRequestList struct {
+// StackRequestList contains a list of StackRequest
+type StackRequestList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []ExtensionRequest `json:"items"`
+	Items           []StackRequest `json:"items"`
 }
 
-// ExtensionRequestSpec specifies details about a request to add an extension to Crossplane.
-type ExtensionRequestSpec struct {
-	// Source is the domain name for the extension registry hosting the extension being requested,
+// StackRequestSpec specifies details about a request to add a stack to Crossplane.
+type StackRequestSpec struct {
+	// Source is the domain name for the stack registry hosting the stack being requested,
 	// e.g., registry.crossplane.io
 	Source string `json:"source,omitempty"`
 
-	// Package is the name of the extension package that is being requested, e.g., myapp.
+	// Package is the name of the stack package that is being requested, e.g., myapp.
 	// Either Package or CustomResourceDefinition can be specified.
 	Package string `json:"package,omitempty"`
 
-	// CustomResourceDefinition is the full name of a CRD that is owned by the extension being
-	// requested. This can be a convenient way of installing an extension when the desired
+	// CustomResourceDefinition is the full name of a CRD that is owned by the stack being
+	// requested. This can be a convenient way of installing a stack when the desired
 	// CRD is known, but the package name that contains it is not known.
 	// Either Package or CustomResourceDefinition can be specified.
 	CustomResourceDefinition string `json:"crd,omitempty"`
 }
 
-// ExtensionRequestStatus defines the observed state of ExtensionRequest
-type ExtensionRequestStatus struct {
+// StackRequestStatus defines the observed state of StackRequest
+type StackRequestStatus struct {
 	v1alpha1.ConditionedStatus `json:"conditionedStatus,omitempty"`
 
-	InstallJob      *corev1.ObjectReference `json:"installJob,omitempty"`
-	ExtensionRecord *corev1.ObjectReference `json:"extensionRecord,omitempty"`
+	InstallJob  *corev1.ObjectReference `json:"installJob,omitempty"`
+	StackRecord *corev1.ObjectReference `json:"stackRecord,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 
-// Extension is the CRD type for a request to add an extension to Crossplane.
+// Stack is the CRD type for a request to add a stack to Crossplane.
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type==Ready)].status"
 // +kubebuilder:printcolumn:name="VERSION",type="string",JSONPath=".spec.version"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
-type Extension struct {
+type Stack struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   ExtensionSpec   `json:"spec,omitempty"`
-	Status ExtensionStatus `json:"status,omitempty"`
+	Spec   StackSpec   `json:"spec,omitempty"`
+	Status StackStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 
-// ExtensionList contains a list of Extension
-type ExtensionList struct {
+// StackList contains a list of Stack
+type StackList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Extension `json:"items"`
+	Items           []Stack `json:"items"`
 }
 
-// ExtensionSpec specifies details about an extension that has been added to Crossplane
-type ExtensionSpec struct {
+// StackSpec specifies details about a stack that has been added to Crossplane
+type StackSpec struct {
 	AppMetadataSpec `json:",inline"`
 	CRDs            CRDList         `json:"customresourcedefinitions,omitempty"`
 	Controller      ControllerSpec  `json:"controller,omitempty"`
 	Permissions     PermissionsSpec `json:"permissions,omitempty"`
 }
 
-// ExtensionStatus defines the observed state of Extension
-type ExtensionStatus struct {
+// StackStatus defines the observed state of Stack
+type StackStatus struct {
 	v1alpha1.ConditionedStatus `json:"conditionedStatus,omitempty"`
 	ControllerRef              *corev1.ObjectReference `json:"controllerRef,omitempty"`
 }
 
-// AppMetadataSpec defines metadata about the extension application
+// AppMetadataSpec defines metadata about the stack application
 type AppMetadataSpec struct {
 	Title       string            `json:"title,omitempty"`
 	Description string            `json:"description,omitempty"`
@@ -132,12 +132,12 @@ type AppMetadataSpec struct {
 	License     string            `json:"license,omitempty"`
 }
 
-// CRDList is the full list of CRDs that this extension owns and depends on
+// CRDList is the full list of CRDs that this stack owns and depends on
 type CRDList struct {
-	// Owned is the list of CRDs that this extension defines and owns
+	// Owned is the list of CRDs that this stack defines and owns
 	Owned []metav1.TypeMeta `json:"owns,omitempty"`
 
-	// DependsOn is the list of CRDs that this extension depends on. This data drives the
+	// DependsOn is the list of CRDs that this stack depends on. This data drives the
 	// dependency resolution process.
 	DependsOn []metav1.TypeMeta `json:"dependsOn,omitempty"`
 }
@@ -150,25 +150,25 @@ func NewCRDList() *CRDList {
 	}
 }
 
-// IconSpec defines the icon for an extension
+// IconSpec defines the icon for a stack
 type IconSpec struct {
 	Base64IconData string `json:"base64Data"`
 	MediaType      string `json:"mediatype"`
 }
 
-// ContributorSpec defines a contributor for an extension (e.g., maintainer, owner, etc.)
+// ContributorSpec defines a contributor for a stack (e.g., maintainer, owner, etc.)
 type ContributorSpec struct {
 	Name  string `json:"name,omitempty"`
 	Email string `json:"email,omitempty"`
 }
 
-// LinkSpec defines a useful link about an extension (e.g., homepage, about page, etc.)
+// LinkSpec defines a useful link about a stack (e.g., homepage, about page, etc.)
 type LinkSpec struct {
 	Description string `json:"description,omitempty"`
 	URL         string `json:"url"`
 }
 
-// ControllerSpec defines the controller that implements the logic for an extension, which can come
+// ControllerSpec defines the controller that implements the logic for a stack, which can come
 // in different flavors. A golang code (controller-runtime) controller with a managing Deployment
 // is all that is supported currently, but more types will come in the future (e.g., templates,
 // functions/hooks, templates, a new DSL, etc.
@@ -177,19 +177,19 @@ type ControllerSpec struct {
 	Job        *ControllerJob        `json:"job,omitempty"`
 }
 
-// ControllerDeployment defines a controller for an extension that is managed by a Deployment.
+// ControllerDeployment defines a controller for a stack that is managed by a Deployment.
 type ControllerDeployment struct {
 	Name string              `json:"name"`
 	Spec apps.DeploymentSpec `json:"spec"`
 }
 
-// ControllerJob defines a controller for an extension that is installed by a Job.
+// ControllerJob defines a controller for a stack that is installed by a Job.
 type ControllerJob struct {
 	Name string        `json:"name"`
 	Spec batch.JobSpec `json:"spec"`
 }
 
-// PermissionsSpec defines the permissions that an extension will require to operate.
+// PermissionsSpec defines the permissions that a stack will require to operate.
 type PermissionsSpec struct {
 	Rules []rbac.PolicyRule `json:"rules,omitempty"`
 }

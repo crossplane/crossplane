@@ -1,9 +1,9 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ template "name" . }}-extension-manager
+  name: {{ template "name" . }}-stack-manager
   labels:
-    app: {{ template "name" . }}-extension-manager
+    app: {{ template "name" . }}-stack-manager
     chart: {{ template "chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
@@ -11,21 +11,21 @@ spec:
   replicas: {{ .Values.replicas }}
   selector:
     matchLabels:
-      app: {{ template "name" . }}-extension-manager
+      app: {{ template "name" . }}-stack-manager
       release: {{ .Release.Name }}
   strategy:
     type: {{ .Values.deploymentStrategy }}
   template:
     metadata:
       labels:
-        app: {{ template "name" . }}-extension-manager
+        app: {{ template "name" . }}-stack-manager
         release: {{ .Release.Name }}
     spec:
-      serviceAccountName: extension-manager
+      serviceAccountName: stack-manager
       containers:
       - image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
         args:
-        - extension
+        - stack
         - manage
         {{- range $arg := .Values.args }}
         - {{ $arg }}

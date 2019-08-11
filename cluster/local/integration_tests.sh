@@ -86,7 +86,7 @@ echo
 echo -------- deployments
 "${KUBECTL}" -n "${CROSSPLANE_NAMESPACE}" get deployments
 
-MUST_HAVE_DEPLOYMENTS="crossplane crossplane-extension-manager"
+MUST_HAVE_DEPLOYMENTS="crossplane crossplane-stack-manager"
 for name in $MUST_HAVE_DEPLOYMENTS; do
     echo_sub_step "inspecting deployment '${name}'"
     dep_stat=$("${KUBECTL}" -n "${CROSSPLANE_NAMESPACE}" get deployments/"${name}")

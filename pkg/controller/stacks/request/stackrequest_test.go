@@ -39,8 +39,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/apis/extensions"
-	"github.com/crossplaneio/crossplane/apis/extensions/v1alpha1"
+	"github.com/crossplaneio/crossplane/apis/stacks"
+	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/test"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
@@ -48,10 +48,10 @@ import (
 const (
 	namespace    = "cool-namespace"
 	uid          = types.UID("definitely-a-uuid")
-	resourceName = "cool-extensionrequest"
+	resourceName = "cool-stackrequest"
 	jobPodName   = "job-pod-123"
 
-	extensionPackageImage = "cool/extension-package:rad"
+	stackPackageImage = "cool/stack-package:rad"
 
 	podLogOutputMalformed = `)(&not valid yaml?()!`
 	podLogOutput          = `
@@ -71,26 +71,26 @@ spec:
   version: v1alpha1
 
 ---
-apiVersion: extensions.crossplane.io/v1alpha1
-kind: Extension
+apiVersion: stacks.crossplane.io/v1alpha1
+kind: Stack
 metadata:
   creationTimestamp: null
 spec:
   company: Upbound
   controller:
     deployment:
-      name: crossplane-sample-extension
+      name: crossplane-sample-stack
       spec:
         replicas: 1
         selector:
           matchLabels:
-            core.crossplane.io/name: crossplane-sample-extension
+            core.crossplane.io/name: crossplane-sample-stack
         strategy: {}
         template:
           metadata:
             labels:
-              core.crossplane.io/name: crossplane-sample-extension
-            name: sample-extension-controller
+              core.crossplane.io/name: crossplane-sample-stack
+            name: sample-stack-controller
           spec:
             containers:
             - env:
@@ -102,14 +102,14 @@ spec:
                 valueFrom:
                   fieldRef:
                     fieldPath: metadata.namespace
-              image: crossplane/sample-extension:latest
-              name: sample-extension-controller
+              image: crossplane/sample-stack:latest
+              name: sample-stack-controller
   customresourcedefinitions:
     owns:
     - apiVersion: samples.upbound.io/v1alpha1
       kind: Mytype
   description: |
-    Markdown describing this sample Crossplane extension project.
+    Markdown describing this sample Crossplane stack project.
   icons:
   - base64Data: bW9jay1pY29uLWRh
     mediatype: image/jpeg
@@ -122,7 +122,7 @@ spec:
   - description: Website
     url: https://upbound.io
   - description: Source Code
-    url: https://github.com/crossplaneio/sample-extension
+    url: https://github.com/crossplaneio/sample-stack
   maintainers:
   - email: jared@upbound.io
     name: Jared Watts
@@ -146,7 +146,7 @@ spec:
       - update
       - patch
       - delete
-  title: Sample Crossplane Extension
+  title: Sample Crossplane Stack
   version: 0.0.1
 status:
  Conditions: null
@@ -158,7 +158,7 @@ var (
 )
 
 func init() {
-	_ = extensions.AddToScheme(scheme.Scheme)
+	_ = stacks.AddToScheme(scheme.Scheme)
 }
 
 // Test that our Reconciler implementation satisfies the Reconciler interface.
@@ -167,29 +167,29 @@ var _ reconcile.Reconciler = &Reconciler{}
 // ************************************************************************************************
 // Resource modifiers
 // ************************************************************************************************
-type resourceModifier func(*v1alpha1.ExtensionRequest)
+type resourceModifier func(*v1alpha1.StackRequest)
 
 func withConditions(c ...corev1alpha1.Condition) resourceModifier {
-	return func(r *v1alpha1.ExtensionRequest) { r.Status.SetConditions(c...) }
+	return func(r *v1alpha1.StackRequest) { r.Status.SetConditions(c...) }
 }
 
 func withInstallJob(jobRef *corev1.ObjectReference) resourceModifier {
-	return func(r *v1alpha1.ExtensionRequest) { r.Status.InstallJob = jobRef }
+	return func(r *v1alpha1.StackRequest) { r.Status.InstallJob = jobRef }
 }
 
-func withExtensionRecord(extensionRecord *corev1.ObjectReference) resourceModifier {
-	return func(r *v1alpha1.ExtensionRequest) { r.Status.ExtensionRecord = extensionRecord }
+func withStackRecord(stackRecord *corev1.ObjectReference) resourceModifier {
+	return func(r *v1alpha1.StackRequest) { r.Status.StackRecord = stackRecord }
 }
 
-func resource(rm ...resourceModifier) *v1alpha1.ExtensionRequest {
-	r := &v1alpha1.ExtensionRequest{
+func resource(rm ...resourceModifier) *v1alpha1.StackRequest {
+	r := &v1alpha1.StackRequest{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:  namespace,
 			Name:       resourceName,
 			UID:        uid,
 			Finalizers: []string{},
 		},
-		Spec: v1alpha1.ExtensionRequestSpec{},
+		Spec: v1alpha1.StackRequestSpec{},
 	}
 
 	for _, m := range rm {
@@ -233,10 +233,10 @@ func job(jm ...jobModifier) *batchv1.Job {
 // mock implementations
 // ************************************************************************************************
 type mockFactory struct {
-	MockNewHandler func(context.Context, *v1alpha1.ExtensionRequest, client.Client, kubernetes.Interface, executorInfo) handler
+	MockNewHandler func(context.Context, *v1alpha1.StackRequest, client.Client, kubernetes.Interface, executorInfo) handler
 }
 
-func (f *mockFactory) newHandler(ctx context.Context, i *v1alpha1.ExtensionRequest,
+func (f *mockFactory) newHandler(ctx context.Context, i *v1alpha1.StackRequest,
 	kube client.Client, kubeclient kubernetes.Interface, ei executorInfo) handler {
 	return f.MockNewHandler(ctx, i, kube, kubeclient, ei)
 }
@@ -260,10 +260,10 @@ func (m *mockHandler) update(ctx context.Context) (reconcile.Result, error) {
 }
 
 type mockJobCompleter struct {
-	MockHandleJobCompletion func(ctx context.Context, i *v1alpha1.ExtensionRequest, job *batchv1.Job) error
+	MockHandleJobCompletion func(ctx context.Context, i *v1alpha1.StackRequest, job *batchv1.Job) error
 }
 
-func (m *mockJobCompleter) handleJobCompletion(ctx context.Context, i *v1alpha1.ExtensionRequest, job *batchv1.Job) error {
+func (m *mockJobCompleter) handleJobCompletion(ctx context.Context, i *v1alpha1.StackRequest, job *batchv1.Job) error {
 	return m.MockHandleJobCompletion(ctx, i, job)
 }
 
@@ -317,17 +317,17 @@ func TestReconcile(t *testing.T) {
 			rec: &Reconciler{
 				kube: &test.MockClient{
 					MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
-						*obj.(*v1alpha1.ExtensionRequest) = *(resource())
+						*obj.(*v1alpha1.StackRequest) = *(resource())
 						return nil
 					},
 				},
 				executorInfoDiscovery: &mockExecutorInfoDiscoverer{
 					MockDiscoverExecutorInfo: func(ctx context.Context) (*executorInfo, error) {
-						return &executorInfo{image: extensionPackageImage}, nil
+						return &executorInfo{image: stackPackageImage}, nil
 					},
 				},
 				factory: &mockFactory{
-					MockNewHandler: func(context.Context, *v1alpha1.ExtensionRequest, client.Client, kubernetes.Interface, executorInfo) handler {
+					MockNewHandler: func(context.Context, *v1alpha1.StackRequest, client.Client, kubernetes.Interface, executorInfo) handler {
 						return &mockHandler{
 							MockSync: func(context.Context) (reconcile.Result, error) {
 								return reconcile.Result{}, nil
@@ -344,7 +344,7 @@ func TestReconcile(t *testing.T) {
 			rec: &Reconciler{
 				kube: &test.MockClient{
 					MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
-						*obj.(*v1alpha1.ExtensionRequest) = *(resource())
+						*obj.(*v1alpha1.StackRequest) = *(resource())
 						return nil
 					},
 					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
@@ -415,10 +415,10 @@ func TestHandlerFactory(t *testing.T) {
 		{
 			name:    "SimpleCreate",
 			factory: &handlerFactory{},
-			want: &extensionRequestHandler{
+			want: &stackRequestHandler{
 				kube:         nil,
-				jobCompleter: &extensionRequestJobCompleter{kube: nil, podLogReader: &k8sPodLogReader{kubeclient: nil}},
-				executorInfo: executorInfo{image: extensionPackageImage},
+				jobCompleter: &stackRequestJobCompleter{kube: nil, podLogReader: &k8sPodLogReader{kubeclient: nil}},
+				executorInfo: executorInfo{image: stackPackageImage},
 				ext:          resource(),
 			},
 		},
@@ -426,12 +426,12 @@ func TestHandlerFactory(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := tt.factory.newHandler(ctx, resource(), nil, nil, executorInfo{image: extensionPackageImage})
+			got := tt.factory.newHandler(ctx, resource(), nil, nil, executorInfo{image: stackPackageImage})
 
 			diff := cmp.Diff(tt.want, got,
 				cmp.AllowUnexported(
-					extensionRequestHandler{},
-					extensionRequestJobCompleter{},
+					stackRequestHandler{},
+					stackRequestJobCompleter{},
 					k8sPodLogReader{},
 					executorInfo{},
 				))
@@ -449,22 +449,22 @@ func TestCreate(t *testing.T) {
 	type want struct {
 		result reconcile.Result
 		err    error
-		ext    *v1alpha1.ExtensionRequest
+		ext    *v1alpha1.StackRequest
 	}
 
 	tests := []struct {
 		name    string
-		handler *extensionRequestHandler
+		handler *stackRequestHandler
 		want    want
 	}{
 		{
 			name: "CreateInstallJob",
-			handler: &extensionRequestHandler{
+			handler: &stackRequestHandler{
 				kube: &test.MockClient{
 					MockCreate:       func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error { return nil },
 					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
-				executorInfo: executorInfo{image: extensionPackageImage},
+				executorInfo: executorInfo{image: stackPackageImage},
 				ext:          resource(),
 			},
 			want: want{
@@ -478,7 +478,7 @@ func TestCreate(t *testing.T) {
 		},
 		{
 			name: "InstallJobNotCompleted",
-			handler: &extensionRequestHandler{
+			handler: &stackRequestHandler{
 				kube: &test.MockClient{
 					MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
 						// GET Job returns an uncompleted job
@@ -500,7 +500,7 @@ func TestCreate(t *testing.T) {
 		},
 		{
 			name: "HandleSuccessfulInstallJob",
-			handler: &extensionRequestHandler{
+			handler: &stackRequestHandler{
 				kube: &test.MockClient{
 					MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
 						// GET Job returns a successful/completed job
@@ -510,9 +510,9 @@ func TestCreate(t *testing.T) {
 					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
 				jobCompleter: &mockJobCompleter{
-					MockHandleJobCompletion: func(ctx context.Context, i *v1alpha1.ExtensionRequest, job *batchv1.Job) error { return nil },
+					MockHandleJobCompletion: func(ctx context.Context, i *v1alpha1.StackRequest, job *batchv1.Job) error { return nil },
 				},
-				executorInfo: executorInfo{image: extensionPackageImage},
+				executorInfo: executorInfo{image: stackPackageImage},
 				ext: resource(
 					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: namespace})),
 			},
@@ -527,7 +527,7 @@ func TestCreate(t *testing.T) {
 		},
 		{
 			name: "HandleFailedInstallJob",
-			handler: &extensionRequestHandler{
+			handler: &stackRequestHandler{
 				kube: &test.MockClient{
 					MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
 						// GET Job returns a failed job
@@ -537,9 +537,9 @@ func TestCreate(t *testing.T) {
 					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
 				jobCompleter: &mockJobCompleter{
-					MockHandleJobCompletion: func(ctx context.Context, i *v1alpha1.ExtensionRequest, job *batchv1.Job) error { return nil },
+					MockHandleJobCompletion: func(ctx context.Context, i *v1alpha1.StackRequest, job *batchv1.Job) error { return nil },
 				},
-				executorInfo: executorInfo{image: extensionPackageImage},
+				executorInfo: executorInfo{image: stackPackageImage},
 				ext: resource(
 					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: namespace})),
 			},
@@ -583,20 +583,20 @@ func TestHandleJobCompletion(t *testing.T) {
 	errBoom := errors.New("boom")
 
 	type want struct {
-		ext *v1alpha1.ExtensionRequest
+		ext *v1alpha1.StackRequest
 		err error
 	}
 
 	tests := []struct {
 		name string
-		jc   *extensionRequestJobCompleter
-		ext  *v1alpha1.ExtensionRequest
+		jc   *stackRequestJobCompleter
+		ext  *v1alpha1.StackRequest
 		job  *batchv1.Job
 		want want
 	}{
 		{
 			name: "NoPodsFoundForJob",
-			jc: &extensionRequestJobCompleter{
+			jc: &stackRequestJobCompleter{
 				kube: &test.MockClient{
 					MockList: func(ctx context.Context, list runtime.Object, _ ...client.ListOption) error {
 						// LIST pods returns an empty list
@@ -614,7 +614,7 @@ func TestHandleJobCompletion(t *testing.T) {
 		},
 		{
 			name: "FailToGetJobPodLogs",
-			jc: &extensionRequestJobCompleter{
+			jc: &stackRequestJobCompleter{
 				kube: &test.MockClient{
 					MockList: func(ctx context.Context, list runtime.Object, _ ...client.ListOption) error {
 						// LIST pods returns a pod for the job
@@ -640,7 +640,7 @@ func TestHandleJobCompletion(t *testing.T) {
 		},
 		{
 			name: "FailToReadJobPodLogStream",
-			jc: &extensionRequestJobCompleter{
+			jc: &stackRequestJobCompleter{
 				kube: &test.MockClient{
 					MockList: func(ctx context.Context, list runtime.Object, _ ...client.ListOption) error {
 						// LIST pods returns a pod for the job
@@ -671,7 +671,7 @@ func TestHandleJobCompletion(t *testing.T) {
 		},
 		{
 			name: "FailToParseJobPodLogOutput",
-			jc: &extensionRequestJobCompleter{
+			jc: &stackRequestJobCompleter{
 				kube: &test.MockClient{
 					MockList: func(ctx context.Context, list runtime.Object, _ ...client.ListOption) error {
 						// LIST pods returns a pod for the job
@@ -696,7 +696,7 @@ func TestHandleJobCompletion(t *testing.T) {
 		},
 		{
 			name: "HandleJobCompletionSuccess",
-			jc: &extensionRequestJobCompleter{
+			jc: &stackRequestJobCompleter{
 				kube: &test.MockClient{
 					MockList: func(ctx context.Context, list runtime.Object, _ ...client.ListOption) error {
 						// LIST pods returns a pod for the job
@@ -707,8 +707,8 @@ func TestHandleJobCompletion(t *testing.T) {
 					},
 					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error { return nil },
 					MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
-						// GET extension returns the extension instance that was created from the pod log output
-						*obj.(*v1alpha1.Extension) = v1alpha1.Extension{
+						// GET stack returns the stack instance that was created from the pod log output
+						*obj.(*v1alpha1.Stack) = v1alpha1.Stack{
 							ObjectMeta: metav1.ObjectMeta{Name: resourceName, Namespace: namespace},
 						}
 						return nil
@@ -724,7 +724,7 @@ func TestHandleJobCompletion(t *testing.T) {
 			ext: resource(),
 			job: job(),
 			want: want{
-				ext: resource(withExtensionRecord(&corev1.ObjectReference{Name: resourceName, Namespace: namespace})),
+				ext: resource(withStackRecord(&corev1.ObjectReference{Name: resourceName, Namespace: namespace})),
 				err: nil,
 			},
 		},
@@ -854,19 +854,19 @@ func restoreEnvVars(initialEnvVars envvars) {
 func TestGetPackageImage(t *testing.T) {
 	tests := []struct {
 		name string
-		spec v1alpha1.ExtensionRequestSpec
+		spec v1alpha1.StackRequestSpec
 		want string
 	}{
 		{
 			name: "NoPackageSource",
-			spec: v1alpha1.ExtensionRequestSpec{
+			spec: v1alpha1.StackRequestSpec{
 				Package: "cool/package:rad",
 			},
 			want: "cool/package:rad",
 		},
 		{
 			name: "PackageSourceSpecified",
-			spec: v1alpha1.ExtensionRequestSpec{
+			spec: v1alpha1.StackRequestSpec{
 				Source:  "registry.hub.docker.com",
 				Package: "cool/package:rad",
 			},

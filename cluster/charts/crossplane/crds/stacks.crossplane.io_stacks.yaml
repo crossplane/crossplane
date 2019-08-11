@@ -4,7 +4,7 @@ apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   creationTimestamp: null
-  name: extensions.extensions.crossplane.io
+  name: stacks.stacks.crossplane.io
 spec:
   additionalPrinterColumns:
   - JSONPath: .status.conditions[?(@.type==Ready)].status
@@ -16,17 +16,16 @@ spec:
   - JSONPath: .metadata.creationTimestamp
     name: AGE
     type: date
-  group: extensions.crossplane.io
+  group: stacks.crossplane.io
   names:
-    kind: Extension
-    plural: extensions
+    kind: Stack
+    plural: stacks
   scope: ""
   subresources:
     status: {}
   validation:
     openAPIV3Schema:
-      description: Extension is the CRD type for a request to add an extension to
-        Crossplane.
+      description: Stack is the CRD type for a request to add a stack to Crossplane.
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation
@@ -41,20 +40,20 @@ spec:
         metadata:
           type: object
         spec:
-          description: ExtensionSpec specifies details about an extension that has
-            been added to Crossplane
+          description: StackSpec specifies details about a stack that has been added
+            to Crossplane
           properties:
             company:
               type: string
             controller:
               description: ControllerSpec defines the controller that implements the
-                logic for an extension, which can come in different flavors. A golang
-                code (controller-runtime) controller with a managing Deployment is
-                all that is supported currently, but more types will come in the future
+                logic for a stack, which can come in different flavors. A golang code
+                (controller-runtime) controller with a managing Deployment is all
+                that is supported currently, but more types will come in the future
                 (e.g., templates, functions/hooks, templates, a new DSL, etc.
               properties:
                 deployment:
-                  description: ControllerDeployment defines a controller for an extension
+                  description: ControllerDeployment defines a controller for a stack
                     that is managed by a Deployment.
                   properties:
                     name:
@@ -5004,8 +5003,8 @@ spec:
                   - spec
                   type: object
                 job:
-                  description: ControllerJob defines a controller for an extension
-                    that is installed by a Job.
+                  description: ControllerJob defines a controller for a stack that
+                    is installed by a Job.
                   properties:
                     name:
                       type: string
@@ -9926,11 +9925,11 @@ spec:
                   type: object
               type: object
             customresourcedefinitions:
-              description: CRDList is the full list of CRDs that this extension owns
-                and depends on
+              description: CRDList is the full list of CRDs that this stack owns and
+                depends on
               properties:
                 dependsOn:
-                  description: DependsOn is the list of CRDs that this extension depends
+                  description: DependsOn is the list of CRDs that this stack depends
                     on. This data drives the dependency resolution process.
                   items:
                     description: TypeMeta describes an individual object in an API
@@ -9953,8 +9952,8 @@ spec:
                     type: object
                   type: array
                 owns:
-                  description: Owned is the list of CRDs that this extension defines
-                    and owns
+                  description: Owned is the list of CRDs that this stack defines and
+                    owns
                   items:
                     description: TypeMeta describes an individual object in an API
                       response or request with strings representing the type of the
@@ -9980,7 +9979,7 @@ spec:
               type: string
             icons:
               items:
-                description: IconSpec defines the icon for an extension
+                description: IconSpec defines the icon for a stack
                 properties:
                   base64Data:
                     type: string
@@ -9999,8 +9998,8 @@ spec:
               type: string
             links:
               items:
-                description: LinkSpec defines a useful link about an extension (e.g.,
-                  homepage, about page, etc.)
+                description: LinkSpec defines a useful link about a stack (e.g., homepage,
+                  about page, etc.)
                 properties:
                   description:
                     type: string
@@ -10012,8 +10011,8 @@ spec:
               type: array
             maintainers:
               items:
-                description: ContributorSpec defines a contributor for an extension
-                  (e.g., maintainer, owner, etc.)
+                description: ContributorSpec defines a contributor for a stack (e.g.,
+                  maintainer, owner, etc.)
                 properties:
                   email:
                     type: string
@@ -10023,8 +10022,8 @@ spec:
               type: array
             owners:
               items:
-                description: ContributorSpec defines a contributor for an extension
-                  (e.g., maintainer, owner, etc.)
+                description: ContributorSpec defines a contributor for a stack (e.g.,
+                  maintainer, owner, etc.)
                 properties:
                   email:
                     type: string
@@ -10033,8 +10032,8 @@ spec:
                 type: object
               type: array
             permissions:
-              description: PermissionsSpec defines the permissions that an extension
-                will require to operate.
+              description: PermissionsSpec defines the permissions that a stack will
+                require to operate.
               properties:
                 rules:
                   items:
@@ -10092,7 +10091,7 @@ spec:
               type: string
           type: object
         status:
-          description: ExtensionStatus defines the observed state of Extension
+          description: StackStatus defines the observed state of Stack
           properties:
             conditionedStatus:
               description: A ConditionedStatus reflects the observed status of a managed

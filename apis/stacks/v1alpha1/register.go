@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 // +kubebuilder:object:generate=true
-// +groupName=extensions.crossplane.io
+// +groupName=stacks.crossplane.io
 // +versionName=v1alpha1
 
 package v1alpha1
@@ -28,7 +28,7 @@ import (
 
 // Package type metadata.
 const (
-	Group   = "extensions.crossplane.io"
+	Group   = "stacks.crossplane.io"
 	Version = "v1alpha1"
 )
 
@@ -40,21 +40,21 @@ var (
 	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
 )
 
-// ExtensionRequest type metadata.
+// StackRequest type metadata.
 var (
-	ExtensionRequestKind             = reflect.TypeOf(ExtensionRequest{}).Name()
-	ExtensionRequestKindAPIVersion   = ExtensionRequestKind + "." + SchemeGroupVersion.String()
-	ExtensionRequestGroupVersionKind = SchemeGroupVersion.WithKind(ExtensionRequestKind)
+	StackRequestKind             = reflect.TypeOf(StackRequest{}).Name()
+	StackRequestKindAPIVersion   = StackRequestKind + "." + SchemeGroupVersion.String()
+	StackRequestGroupVersionKind = SchemeGroupVersion.WithKind(StackRequestKind)
 )
 
-// Extension type metadata.
+// Stack type metadata.
 var (
-	ExtensionKind             = reflect.TypeOf(Extension{}).Name()
-	ExtensionKindAPIVersion   = ExtensionKind + "." + SchemeGroupVersion.String()
-	ExtensionGroupVersionKind = SchemeGroupVersion.WithKind(ExtensionKind)
+	StackKind             = reflect.TypeOf(Stack{}).Name()
+	StackKindAPIVersion   = StackKind + "." + SchemeGroupVersion.String()
+	StackGroupVersionKind = SchemeGroupVersion.WithKind(StackKind)
 )
 
 func init() {
-	SchemeBuilder.Register(&ExtensionRequest{}, &ExtensionRequestList{})
-	SchemeBuilder.Register(&Extension{}, &ExtensionList{})
+	SchemeBuilder.Register(&StackRequest{}, &StackRequestList{})
+	SchemeBuilder.Register(&Stack{}, &StackList{})
 }

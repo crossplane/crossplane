@@ -4,7 +4,7 @@ apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   creationTimestamp: null
-  name: extensionrequests.extensions.crossplane.io
+  name: stackrequests.stacks.crossplane.io
 spec:
   additionalPrinterColumns:
   - JSONPath: .status.conditions[?(@.type==Ready)].status
@@ -22,17 +22,16 @@ spec:
   - JSONPath: .metadata.creationTimestamp
     name: AGE
     type: date
-  group: extensions.crossplane.io
+  group: stacks.crossplane.io
   names:
-    kind: ExtensionRequest
-    plural: extensionrequests
+    kind: StackRequest
+    plural: stackrequests
   scope: ""
   subresources:
     status: {}
   validation:
     openAPIV3Schema:
-      description: ExtensionRequest is the CRD type for a request to add an extension
-        to Crossplane.
+      description: StackRequest is the CRD type for a request to add a stack to Crossplane.
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation
@@ -47,28 +46,28 @@ spec:
         metadata:
           type: object
         spec:
-          description: ExtensionRequestSpec specifies details about a request to add
-            an extension to Crossplane.
+          description: StackRequestSpec specifies details about a request to add a
+            stack to Crossplane.
           properties:
             crd:
               description: CustomResourceDefinition is the full name of a CRD that
-                is owned by the extension being requested. This can be a convenient
-                way of installing an extension when the desired CRD is known, but
-                the package name that contains it is not known. Either Package or
-                CustomResourceDefinition can be specified.
+                is owned by the stack being requested. This can be a convenient way
+                of installing a stack when the desired CRD is known, but the package
+                name that contains it is not known. Either Package or CustomResourceDefinition
+                can be specified.
               type: string
             package:
-              description: Package is the name of the extension package that is being
+              description: Package is the name of the stack package that is being
                 requested, e.g., myapp. Either Package or CustomResourceDefinition
                 can be specified.
               type: string
             source:
-              description: Source is the domain name for the extension registry hosting
-                the extension being requested, e.g., registry.crossplane.io
+              description: Source is the domain name for the stack registry hosting
+                the stack being requested, e.g., registry.crossplane.io
               type: string
           type: object
         status:
-          description: ExtensionRequestStatus defines the observed state of ExtensionRequest
+          description: StackRequestStatus defines the observed state of StackRequest
           properties:
             conditionedStatus:
               description: A ConditionedStatus reflects the observed status of a managed
@@ -109,7 +108,7 @@ spec:
                     type: object
                   type: array
               type: object
-            extensionRecord:
+            installJob:
               description: ObjectReference contains enough information to let you
                 inspect or modify the referred object.
               properties:
@@ -146,7 +145,7 @@ spec:
                   description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
                   type: string
               type: object
-            installJob:
+            stackRecord:
               description: ObjectReference contains enough information to let you
                 inspect or modify the referred object.
               properties:

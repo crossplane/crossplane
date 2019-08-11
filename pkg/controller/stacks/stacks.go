@@ -14,13 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package extensions
+package stacks
 
 import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"github.com/crossplaneio/crossplane/pkg/controller/extensions/extension"
-	"github.com/crossplaneio/crossplane/pkg/controller/extensions/request"
+	"github.com/crossplaneio/crossplane/pkg/controller/stacks/request"
+	"github.com/crossplaneio/crossplane/pkg/controller/stacks/stack"
 )
 
 // Controllers passes down config and adds individual controllers to the manager.
@@ -32,7 +32,7 @@ func (c *Controllers) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 
-	if err := (&extension.Controller{}).SetupWithManager(mgr); err != nil {
+	if err := (&stack.Controller{}).SetupWithManager(mgr); err != nil {
 		return err
 	}
 
