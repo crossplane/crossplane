@@ -24,14 +24,12 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	"github.com/crossplaneio/crossplane/pkg/apis/aws/storage/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	storagev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	storagev1alpha1 "github.com/crossplaneio/crossplane/apis/storage/v1alpha1"
+	"github.com/crossplaneio/crossplane/aws/apis/storage/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/resource"
 )
 
@@ -42,9 +40,12 @@ var s3ACL = map[storagev1alpha1.PredefinedACL]s3.BucketCannedACL{
 	storagev1alpha1.ACLAuthenticatedRead: s3.BucketCannedACLAuthenticatedRead,
 }
 
-// AddClaim adds a controller that reconciles Bucket resource claims by
-// managing Bucket resources to the supplied Manager.
-func AddClaim(mgr manager.Manager) error {
+// BucketClaimController is responsible for adding the Bucket claim controller and its
+// corresponding reconciler to the manager with any runtime configuration.
+type BucketClaimController struct{}
+
+// SetupWithManager adds a controller that reconciles Bucket resource claims.
+func (c *BucketClaimController) SetupWithManager(mgr ctrl.Manager) error {
 	r := resource.NewClaimReconciler(mgr,
 		resource.ClaimKind(storagev1alpha1.BucketGroupVersionKind),
 		resource.ClassKind(corev1alpha1.ResourceClassGroupVersionKind),
@@ -55,21 +56,15 @@ func AddClaim(mgr manager.Manager) error {
 		))
 
 	name := strings.ToLower(fmt.Sprintf("%s.%s", storagev1alpha1.BucketKind, controllerName))
-	c, err := controller.New(name, mgr, controller.Options{Reconciler: r})
-	if err != nil {
-		return errors.Wrapf(err, "cannot create %s controller", name)
-	}
-
-	if err := c.Watch(&source.Kind{Type: &v1alpha1.S3Bucket{}}, &resource.EnqueueRequestForClaim{}); err != nil {
-		return errors.Wrapf(err, "cannot watch for %s", v1alpha1.S3BucketGroupVersionKind)
-	}
 
 	p := v1alpha1.S3BucketKindAPIVersion
-	return errors.Wrapf(c.Watch(
-		&source.Kind{Type: &storagev1alpha1.Bucket{}},
-		&handler.EnqueueRequestForObject{},
-		resource.NewPredicates(resource.ObjectHasProvisioner(mgr.GetClient(), p)),
-	), "cannot watch for %s", storagev1alpha1.BucketGroupVersionKind)
+
+	return ctrl.NewControllerManagedBy(mgr).
+		Named(name).
+		Watches(&source.Kind{Type: &v1alpha1.S3Bucket{}}, &resource.EnqueueRequestForClaim{}).
+		For(&storagev1alpha1.Bucket{}).
+		WithEventFilter(resource.NewPredicates(resource.ObjectHasProvisioner(mgr.GetClient(), p))).
+		Complete(r)
 }
 
 // ConfigureS3Bucket configures the supplied resource (presumed

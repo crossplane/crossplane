@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/crossplaneio/crossplane/aws/apis"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 
@@ -37,9 +39,8 @@ import (
 	. "sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/crossplaneio/crossplane/pkg/apis/aws"
-	. "github.com/crossplaneio/crossplane/pkg/apis/aws/compute/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	. "github.com/crossplaneio/crossplane/aws/apis/compute/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/clients/aws/eks"
 	"github.com/crossplaneio/crossplane/pkg/clients/aws/eks/fake"
 	"github.com/crossplaneio/crossplane/pkg/resource"
@@ -63,7 +64,7 @@ var (
 )
 
 func init() {
-	_ = aws.AddToScheme(scheme.Scheme)
+	_ = apis.AddToScheme(scheme.Scheme)
 }
 
 func testCluster() *EKSCluster {

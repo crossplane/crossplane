@@ -17,7 +17,7 @@ limitations under the License.
 package fake
 
 import (
-	"github.com/crossplaneio/crossplane/pkg/apis/aws/database/v1alpha1"
+	"github.com/crossplaneio/crossplane/aws/apis/database/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/clients/aws/rds"
 )
 

@@ -27,16 +27,13 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	databasev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/database/v1alpha1"
-	awsv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	databasev1alpha1 "github.com/crossplaneio/crossplane/aws/apis/database/v1alpha1"
+	awsv1alpha1 "github.com/crossplaneio/crossplane/aws/apis/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/clients/aws"
 	"github.com/crossplaneio/crossplane/pkg/clients/aws/rds"
 	"github.com/crossplaneio/crossplane/pkg/logging"
@@ -57,12 +54,6 @@ var (
 	resultRequeue = reconcile.Result{Requeue: true}
 )
 
-// Add creates a new Instance Controller and adds it to the Manager with default RBAC.
-// The Manager will set fields on the Controller and Start it when the Manager is Started.
-func Add(mgr manager.Manager) error {
-	return add(mgr, newReconciler(mgr))
-}
-
 // Reconciler reconciles a Instance object
 type Reconciler struct {
 	client.Client
@@ -76,45 +67,29 @@ type Reconciler struct {
 	delete  func(*databasev1alpha1.RDSInstance, rds.Client) (reconcile.Result, error)
 }
 
-// newReconciler returns a new reconcile.Reconciler
-func newReconciler(mgr manager.Manager) reconcile.Reconciler {
+// InstanceController is responsible for adding the RDSInstance
+// controller and its corresponding reconciler to the manager with any runtime configuration.
+type InstanceController struct{}
+
+// SetupWithManager creates a new Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
+// and Start it when the Manager is Started.
+func (c *InstanceController) SetupWithManager(mgr ctrl.Manager) error {
 	r := &Reconciler{
 		Client:     mgr.GetClient(),
 		scheme:     mgr.GetScheme(),
 		kubeclient: kubernetes.NewForConfigOrDie(mgr.GetConfig()),
-		recorder:   mgr.GetRecorder(controllerName),
+		recorder:   mgr.GetEventRecorderFor(controllerName),
 	}
 	r.connect = r._connect
 	r.create = r._create
 	r.sync = r._sync
 	r.delete = r._delete
-	return r
-}
 
-// add adds a new Controller to mgr with r as the reconcile.Reconciler
-func add(mgr manager.Manager, r reconcile.Reconciler) error {
-	// Create a new controller
-	c, err := controller.New("instance-controller", mgr, controller.Options{Reconciler: r})
-	if err != nil {
-		return err
-	}
-
-	// Watch for changes to Instance
-	err = c.Watch(&source.Kind{Type: &databasev1alpha1.RDSInstance{}}, &handler.EnqueueRequestForObject{})
-	if err != nil {
-		return err
-	}
-
-	// Watch for changes to Instance Secret
-	err = c.Watch(&source.Kind{Type: &corev1.Secret{}}, &handler.EnqueueRequestForOwner{
-		IsController: true,
-		OwnerType:    &databasev1alpha1.RDSInstance{},
-	})
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return ctrl.NewControllerManagedBy(mgr).
+		Named("instance-controller").
+		For(&databasev1alpha1.RDSInstance{}).
+		Owns(&corev1.Secret{}).
+		Complete(r)
 }
 
 // fail - helper function to set fail condition with reason and message

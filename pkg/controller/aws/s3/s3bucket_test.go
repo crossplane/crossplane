@@ -20,6 +20,8 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/crossplaneio/crossplane/aws/apis"
+
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/google/go-cmp/cmp"
 	. "github.com/onsi/gomega"
@@ -33,11 +35,10 @@ import (
 	. "sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/crossplaneio/crossplane/pkg/apis/aws"
-	. "github.com/crossplaneio/crossplane/pkg/apis/aws/storage/v1alpha1"
-	awsv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	storagev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	storagev1alpha1 "github.com/crossplaneio/crossplane/apis/storage/v1alpha1"
+	. "github.com/crossplaneio/crossplane/aws/apis/storage/v1alpha1"
+	awsv1alpha1 "github.com/crossplaneio/crossplane/aws/apis/v1alpha1"
 	client "github.com/crossplaneio/crossplane/pkg/clients/aws/s3"
 	. "github.com/crossplaneio/crossplane/pkg/clients/aws/s3/fake"
 	"github.com/crossplaneio/crossplane/pkg/test"
@@ -61,7 +62,7 @@ var (
 )
 
 func init() {
-	if err := aws.AddToScheme(scheme.Scheme); err != nil {
+	if err := apis.AddToScheme(scheme.Scheme); err != nil {
 		panic(err)
 	}
 }

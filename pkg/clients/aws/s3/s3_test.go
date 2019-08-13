@@ -4,8 +4,8 @@ import (
 	"errors"
 	"testing"
 
-	awsstorage "github.com/crossplaneio/crossplane/pkg/apis/aws/storage/v1alpha1"
-	storage "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
+	storage "github.com/crossplaneio/crossplane/apis/storage/v1alpha1"
+	awsstorage "github.com/crossplaneio/crossplane/aws/apis/storage/v1alpha1"
 	fakeiam "github.com/crossplaneio/crossplane/pkg/clients/aws/iam/fake"
 	fakeops "github.com/crossplaneio/crossplane/pkg/clients/aws/s3/operations/fake"
 

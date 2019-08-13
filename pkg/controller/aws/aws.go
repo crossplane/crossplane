@@ -17,7 +17,7 @@ limitations under the License.
 package aws
 
 import (
-	"sigs.k8s.io/controller-runtime/pkg/manager"
+	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/crossplaneio/crossplane/pkg/controller/aws/cache"
 	"github.com/crossplaneio/crossplane/pkg/controller/aws/compute"
@@ -25,30 +25,46 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/controller/aws/s3"
 )
 
-func init() {
-	// AddToManagerFuncs is a list of functions to create controllers and add them to a manager.
-	AddToManagerFuncs = append(AddToManagerFuncs,
-		cache.AddManaged,
-		cache.AddClaim,
-		compute.Add,
-		compute.AddClaim,
-		rds.Add,
-		rds.AddMySQLClaim,
-		rds.AddPostgreSQLClaim,
-		s3.Add,
-		s3.AddClaim,
-	)
-}
+// Controllers passes down config and adds individual controllers to the manager.
+type Controllers struct{}
 
-// AddToManagerFuncs is a list of functions to add all Controllers to the Manager
-var AddToManagerFuncs []func(manager.Manager) error
-
-// AddToManager adds all Controllers to the Manager
-func AddToManager(m manager.Manager) error {
-	for _, f := range AddToManagerFuncs {
-		if err := f(m); err != nil {
-			return err
-		}
+// SetupWithManager adds all GCP controllers to the manager.
+func (c *Controllers) SetupWithManager(mgr ctrl.Manager) error {
+	if err := (&cache.ReplicationGroupClaimController{}).SetupWithManager(mgr); err != nil {
+		return err
 	}
+
+	if err := (&cache.ReplicationGroupController{}).SetupWithManager(mgr); err != nil {
+		return err
+	}
+
+	if err := (&compute.EKSClusterClaimController{}).SetupWithManager(mgr); err != nil {
+		return err
+	}
+
+	if err := (&compute.EKSClusterController{}).SetupWithManager(mgr); err != nil {
+		return err
+	}
+
+	if err := (&rds.PostgreSQLInstanceClaimController{}).SetupWithManager(mgr); err != nil {
+		return err
+	}
+
+	if err := (&rds.MySQLInstanceClaimController{}).SetupWithManager(mgr); err != nil {
+		return err
+	}
+
+	if err := (&rds.InstanceController{}).SetupWithManager(mgr); err != nil {
+		return err
+	}
+
+	if err := (&s3.BucketClaimController{}).SetupWithManager(mgr); err != nil {
+		return err
+	}
+
+	if err := (&s3.BucketController{}).SetupWithManager(mgr); err != nil {
+		return err
+	}
+
 	return nil
 }
