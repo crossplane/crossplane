@@ -17,30 +17,29 @@ limitations under the License.
 package workload
 
 import (
-	"sigs.k8s.io/controller-runtime/pkg/manager"
+	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/crossplaneio/crossplane/pkg/controller/workload/kubernetes/application"
 	"github.com/crossplaneio/crossplane/pkg/controller/workload/kubernetes/resource"
 	"github.com/crossplaneio/crossplane/pkg/controller/workload/kubernetes/scheduler"
 )
 
-func init() {
-	AddToManagerFuncs = append(AddToManagerFuncs,
-		application.Add,
-		resource.Add,
-		scheduler.Add,
-	)
-}
+// Controllers passes down config and adds individual controllers to the manager.
+type Controllers struct{}
 
-// AddToManagerFuncs is a list of functions to add all Controllers to the Manager
-var AddToManagerFuncs []func(manager.Manager) error
-
-// AddToManager adds all Controllers to the Manager
-func AddToManager(m manager.Manager) error {
-	for _, f := range AddToManagerFuncs {
-		if err := f(m); err != nil {
-			return err
-		}
+// SetupWithManager adds all GCP controllers to the manager.
+func (c *Controllers) SetupWithManager(mgr ctrl.Manager) error {
+	if err := (&application.Controller{}).SetupWithManager(mgr); err != nil {
+		return err
 	}
+
+	if err := (&resource.Controller{}).SetupWithManager(mgr); err != nil {
+		return err
+	}
+
+	if err := (&scheduler.Controller{}).SetupWithManager(mgr); err != nil {
+		return err
+	}
+
 	return nil
 }

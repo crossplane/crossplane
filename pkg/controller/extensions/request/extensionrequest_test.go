@@ -38,9 +38,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/apis/extensions"
-	"github.com/crossplaneio/crossplane/pkg/apis/extensions/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/apis/extensions"
+	"github.com/crossplaneio/crossplane/apis/extensions/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/test"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
@@ -347,7 +347,7 @@ func TestReconcile(t *testing.T) {
 						*obj.(*v1alpha1.ExtensionRequest) = *(resource())
 						return nil
 					},
-					MockStatusUpdate: func(ctx context.Context, obj runtime.Object) error { return nil },
+					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
 				executorInfoDiscovery: &mockExecutorInfoDiscoverer{
 					MockDiscoverExecutorInfo: func(ctx context.Context) (*executorInfo, error) {
@@ -461,8 +461,8 @@ func TestCreate(t *testing.T) {
 			name: "CreateInstallJob",
 			handler: &extensionRequestHandler{
 				kube: &test.MockClient{
-					MockCreate:       func(ctx context.Context, obj runtime.Object) error { return nil },
-					MockStatusUpdate: func(ctx context.Context, obj runtime.Object) error { return nil },
+					MockCreate:       func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error { return nil },
+					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
 				executorInfo: executorInfo{image: extensionPackageImage},
 				ext:          resource(),
@@ -484,7 +484,7 @@ func TestCreate(t *testing.T) {
 						// GET Job returns an uncompleted job
 						return nil
 					},
-					MockStatusUpdate: func(ctx context.Context, obj runtime.Object) error { return nil },
+					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
 				ext: resource(
 					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: namespace})),
@@ -507,7 +507,7 @@ func TestCreate(t *testing.T) {
 						*obj.(*batchv1.Job) = *(job(withJobConditions(batchv1.JobComplete, "")))
 						return nil
 					},
-					MockStatusUpdate: func(ctx context.Context, obj runtime.Object) error { return nil },
+					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
 				jobCompleter: &mockJobCompleter{
 					MockHandleJobCompletion: func(ctx context.Context, i *v1alpha1.ExtensionRequest, job *batchv1.Job) error { return nil },
@@ -534,7 +534,7 @@ func TestCreate(t *testing.T) {
 						*obj.(*batchv1.Job) = *(job(withJobConditions(batchv1.JobFailed, "mock job failure message")))
 						return nil
 					},
-					MockStatusUpdate: func(ctx context.Context, obj runtime.Object) error { return nil },
+					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
 				jobCompleter: &mockJobCompleter{
 					MockHandleJobCompletion: func(ctx context.Context, i *v1alpha1.ExtensionRequest, job *batchv1.Job) error { return nil },
@@ -598,11 +598,11 @@ func TestHandleJobCompletion(t *testing.T) {
 			name: "NoPodsFoundForJob",
 			jc: &extensionRequestJobCompleter{
 				kube: &test.MockClient{
-					MockList: func(ctx context.Context, opts *client.ListOptions, list runtime.Object) error {
+					MockList: func(ctx context.Context, list runtime.Object, _ ...client.ListOption) error {
 						// LIST pods returns an empty list
 						return nil
 					},
-					MockStatusUpdate: func(ctx context.Context, obj runtime.Object) error { return nil },
+					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
 			},
 			ext: resource(),
@@ -616,14 +616,14 @@ func TestHandleJobCompletion(t *testing.T) {
 			name: "FailToGetJobPodLogs",
 			jc: &extensionRequestJobCompleter{
 				kube: &test.MockClient{
-					MockList: func(ctx context.Context, opts *client.ListOptions, list runtime.Object) error {
+					MockList: func(ctx context.Context, list runtime.Object, _ ...client.ListOption) error {
 						// LIST pods returns a pod for the job
 						*list.(*corev1.PodList) = corev1.PodList{
 							Items: []corev1.Pod{{ObjectMeta: metav1.ObjectMeta{Name: jobPodName}}},
 						}
 						return nil
 					},
-					MockStatusUpdate: func(ctx context.Context, obj runtime.Object) error { return nil },
+					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
 				podLogReader: &mockPodLogReader{
 					MockGetPodLogReader: func(string, string) (io.ReadCloser, error) {
@@ -642,14 +642,14 @@ func TestHandleJobCompletion(t *testing.T) {
 			name: "FailToReadJobPodLogStream",
 			jc: &extensionRequestJobCompleter{
 				kube: &test.MockClient{
-					MockList: func(ctx context.Context, opts *client.ListOptions, list runtime.Object) error {
+					MockList: func(ctx context.Context, list runtime.Object, _ ...client.ListOption) error {
 						// LIST pods returns a pod for the job
 						*list.(*corev1.PodList) = corev1.PodList{
 							Items: []corev1.Pod{{ObjectMeta: metav1.ObjectMeta{Name: jobPodName}}},
 						}
 						return nil
 					},
-					MockStatusUpdate: func(ctx context.Context, obj runtime.Object) error { return nil },
+					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
 				podLogReader: &mockPodLogReader{
 					MockGetPodLogReader: func(string, string) (io.ReadCloser, error) {
@@ -673,7 +673,7 @@ func TestHandleJobCompletion(t *testing.T) {
 			name: "FailToParseJobPodLogOutput",
 			jc: &extensionRequestJobCompleter{
 				kube: &test.MockClient{
-					MockList: func(ctx context.Context, opts *client.ListOptions, list runtime.Object) error {
+					MockList: func(ctx context.Context, list runtime.Object, _ ...client.ListOption) error {
 						// LIST pods returns a pod for the job
 						*list.(*corev1.PodList) = corev1.PodList{
 							Items: []corev1.Pod{{ObjectMeta: metav1.ObjectMeta{Name: jobPodName}}},
@@ -698,14 +698,14 @@ func TestHandleJobCompletion(t *testing.T) {
 			name: "HandleJobCompletionSuccess",
 			jc: &extensionRequestJobCompleter{
 				kube: &test.MockClient{
-					MockList: func(ctx context.Context, opts *client.ListOptions, list runtime.Object) error {
+					MockList: func(ctx context.Context, list runtime.Object, _ ...client.ListOption) error {
 						// LIST pods returns a pod for the job
 						*list.(*corev1.PodList) = corev1.PodList{
 							Items: []corev1.Pod{{ObjectMeta: metav1.ObjectMeta{Name: jobPodName}}},
 						}
 						return nil
 					},
-					MockCreate: func(ctx context.Context, obj runtime.Object) error { return nil },
+					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error { return nil },
 					MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
 						// GET extension returns the extension instance that was created from the pod log output
 						*obj.(*v1alpha1.Extension) = v1alpha1.Extension{
@@ -713,7 +713,7 @@ func TestHandleJobCompletion(t *testing.T) {
 						}
 						return nil
 					},
-					MockStatusUpdate: func(ctx context.Context, obj runtime.Object) error { return nil },
+					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
 				podLogReader: &mockPodLogReader{
 					MockGetPodLogReader: func(string, string) (io.ReadCloser, error) {

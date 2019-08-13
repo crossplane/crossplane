@@ -20,34 +20,30 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/pkg/errors"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/source"
+	ctrl "sigs.k8s.io/controller-runtime"
 
-	databasev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/database/v1alpha1"
+	databasev1alpha1 "github.com/crossplaneio/crossplane/apis/database/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/resource"
 )
 
-// AddMySQLInstance adds a default class controller that reconciles claims
+// MySQLInstanceController is responsible for adding the default class controller
+// for MySQLInstance and its corresponding reconciler to the manager with any runtime configuration.
+type MySQLInstanceController struct{}
+
+// SetupWithManager adds a default class controller that reconciles claims
 // of kind MySQLInstance to a resource class that declares it as the MySQLInstance
-// default
-func AddMySQLInstance(mgr manager.Manager) error {
+// default.
+func (c *MySQLInstanceController) SetupWithManager(mgr ctrl.Manager) error {
 	r := resource.NewDeprecatedDefaultClassReconciler(mgr,
 		resource.ClaimKind(databasev1alpha1.MySQLInstanceGroupVersionKind),
 	)
 
 	name := strings.ToLower(fmt.Sprintf("%s.%s", databasev1alpha1.MySQLInstanceKind, controllerBaseName))
-	c, err := controller.New(name, mgr, controller.Options{Reconciler: r})
-	if err != nil {
-		return errors.Wrap(err, "cannot create deprecated default controller")
-	}
 
-	return errors.Wrapf(c.Watch(
-		&source.Kind{Type: &databasev1alpha1.MySQLInstance{}},
-		&handler.EnqueueRequestForObject{},
-		resource.NewPredicates(resource.NoClassReference()),
-		resource.NewPredicates(resource.NoManagedResourceReference()),
-	), "cannot watch for %s", databasev1alpha1.MySQLInstanceGroupVersionKind)
+	return ctrl.NewControllerManagedBy(mgr).
+		Named(name).
+		For(&databasev1alpha1.MySQLInstance{}).
+		WithEventFilter(resource.NewPredicates(resource.NoClassReference())).
+		WithEventFilter(resource.NewPredicates(resource.NoManagedResourceReference())).
+		Complete(r)
 }

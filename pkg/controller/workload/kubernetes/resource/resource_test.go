@@ -40,9 +40,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/compute/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/apis/workload/v1alpha1"
+	computev1alpha1 "github.com/crossplaneio/crossplane/apis/compute/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/apis/workload/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/meta"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
@@ -680,7 +680,7 @@ func TestSyncUnstructured(t *testing.T) {
 						*obj.(*unstructured.Unstructured) = *existing
 						return nil
 					},
-					MockUpdate: func(_ context.Context, obj runtime.Object) error {
+					MockUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 						// We compare resource versions to ensure we preserved
 						// the existing service's important object metadata.
 						want := resourceVersion
@@ -858,7 +858,7 @@ func TestSyncSecret(t *testing.T) {
 						*obj.(*corev1.Secret) = *existing
 						return nil
 					},
-					MockUpdate: func(_ context.Context, obj runtime.Object) error {
+					MockUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 						// We compare resource versions to ensure we preserved
 						// the existing service's important object metadata.
 						want := resourceVersion
@@ -1257,7 +1257,7 @@ func TestReconcile(t *testing.T) {
 						*obj.(*v1alpha1.KubernetesApplicationResource) = *(kubeAR())
 						return nil
 					},
-					MockUpdate: func(_ context.Context, obj runtime.Object) error {
+					MockUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 						got := obj.(*v1alpha1.KubernetesApplicationResource)
 
 						want := kubeAR(
@@ -1286,7 +1286,7 @@ func TestReconcile(t *testing.T) {
 							withDeletionTimestamp(deleteTime)))
 						return nil
 					},
-					MockUpdate: func(_ context.Context, obj runtime.Object) error {
+					MockUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 						got := obj.(*v1alpha1.KubernetesApplicationResource)
 						want := kubeAR(withDeletionTimestamp(deleteTime))
 

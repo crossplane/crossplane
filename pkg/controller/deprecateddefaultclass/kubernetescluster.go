@@ -20,34 +20,30 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/pkg/errors"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/source"
+	ctrl "sigs.k8s.io/controller-runtime"
 
-	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/compute/v1alpha1"
+	computev1alpha1 "github.com/crossplaneio/crossplane/apis/compute/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/resource"
 )
 
-// AddKubernetesCluster adds a default class controller that reconciles claims
+// KubernetesClusterController is responsible for adding the default class controller
+// for buckets and its corresponding reconciler to the manager with any runtime configuration.
+type KubernetesClusterController struct{}
+
+// SetupWithManager adds a default class controller that reconciles claims
 // of kind KubernetesCluster to a resource class that declares it as the KubernetesCluster
-// default
-func AddKubernetesCluster(mgr manager.Manager) error {
+// default.
+func (c *KubernetesClusterController) SetupWithManager(mgr ctrl.Manager) error {
 	r := resource.NewDeprecatedDefaultClassReconciler(mgr,
 		resource.ClaimKind(computev1alpha1.KubernetesClusterGroupVersionKind),
 	)
 
 	name := strings.ToLower(fmt.Sprintf("%s.%s", computev1alpha1.KubernetesClusterKind, controllerBaseName))
-	c, err := controller.New(name, mgr, controller.Options{Reconciler: r})
-	if err != nil {
-		return errors.Wrap(err, "cannot create deprecated default controller")
-	}
 
-	return errors.Wrapf(c.Watch(
-		&source.Kind{Type: &computev1alpha1.KubernetesCluster{}},
-		&handler.EnqueueRequestForObject{},
-		resource.NewPredicates(resource.NoClassReference()),
-		resource.NewPredicates(resource.NoManagedResourceReference()),
-	), "cannot watch for %s", computev1alpha1.KubernetesClusterGroupVersionKind)
+	return ctrl.NewControllerManagedBy(mgr).
+		Named(name).
+		For(&computev1alpha1.KubernetesCluster{}).
+		WithEventFilter(resource.NewPredicates(resource.NoClassReference())).
+		WithEventFilter(resource.NewPredicates(resource.NoManagedResourceReference())).
+		Complete(r)
 }

@@ -20,35 +20,31 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/pkg/errors"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/source"
+	ctrl "sigs.k8s.io/controller-runtime"
 
-	cachev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/cache/v1alpha1"
+	cachev1alpha1 "github.com/crossplaneio/crossplane/apis/cache/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/resource"
 )
 
-// AddRedisCluster adds a default class controller that reconciles claims
+// RedisClusterController is responsible for adding the default class controller
+// for RedisClusterInstance and its corresponding reconciler to the manager with any runtime configuration.
+type RedisClusterController struct{}
+
+// SetupWithManager adds a default class controller that reconciles claims
 // of kind RedisCluster to a resource class that declares it as the RedisCluster
 // default
-func AddRedisCluster(mgr manager.Manager) error {
+func (c *RedisClusterController) SetupWithManager(mgr ctrl.Manager) error {
 	r := resource.NewDefaultClassReconciler(mgr,
 		resource.ClaimKind(cachev1alpha1.RedisClusterGroupVersionKind),
 		resource.PolicyKind{Singular: cachev1alpha1.RedisClusterPolicyGroupVersionKind, Plural: cachev1alpha1.RedisClusterPolicyListGroupVersionKind},
 	)
 
 	name := strings.ToLower(fmt.Sprintf("%s.%s", cachev1alpha1.RedisClusterKind, controllerBaseName))
-	c, err := controller.New(name, mgr, controller.Options{Reconciler: r})
-	if err != nil {
-		return errors.Wrap(err, "cannot create default controller")
-	}
 
-	return errors.Wrapf(c.Watch(
-		&source.Kind{Type: &cachev1alpha1.RedisCluster{}},
-		&handler.EnqueueRequestForObject{},
-		resource.NewPredicates(resource.NoClassReference()),
-		resource.NewPredicates(resource.NoManagedResourceReference()),
-	), "cannot watch for %s", cachev1alpha1.RedisClusterGroupVersionKind)
+	return ctrl.NewControllerManagedBy(mgr).
+		Named(name).
+		For(&cachev1alpha1.RedisCluster{}).
+		WithEventFilter(resource.NewPredicates(resource.NoClassReference())).
+		WithEventFilter(resource.NewPredicates(resource.NoManagedResourceReference())).
+		Complete(r)
 }

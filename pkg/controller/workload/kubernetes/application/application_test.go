@@ -32,9 +32,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/compute/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/apis/workload/v1alpha1"
+	computev1alpha1 "github.com/crossplaneio/crossplane/apis/compute/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/apis/workload/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/meta"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
@@ -452,7 +452,7 @@ func TestGarbageCollect(t *testing.T) {
 			name: "SuccessfulResourceDeletion",
 			gc: &applicationResourceGarbageCollector{
 				kube: &test.MockClient{
-					MockList: func(_ context.Context, _ *client.ListOptions, obj runtime.Object) error {
+					MockList: func(_ context.Context, obj runtime.Object, _ ...client.ListOption) error {
 						ref := metav1.NewControllerRef(kubeApp(), v1alpha1.KubernetesApplicationGroupVersionKind)
 						m := objectMeta.DeepCopy()
 						m.SetOwnerReferences([]metav1.OwnerReference{*ref})
@@ -471,7 +471,7 @@ func TestGarbageCollect(t *testing.T) {
 			name: "FailedResourceDeletion",
 			gc: &applicationResourceGarbageCollector{
 				kube: &test.MockClient{
-					MockList: func(_ context.Context, _ *client.ListOptions, obj runtime.Object) error {
+					MockList: func(_ context.Context, obj runtime.Object, _ ...client.ListOption) error {
 						ref := metav1.NewControllerRef(kubeApp(), v1alpha1.KubernetesApplicationGroupVersionKind)
 						m := objectMeta.DeepCopy()
 						m.SetOwnerReferences([]metav1.OwnerReference{*ref})
@@ -502,7 +502,7 @@ func TestGarbageCollect(t *testing.T) {
 			name: "ResourceNotControlledByApplication",
 			gc: &applicationResourceGarbageCollector{
 				kube: &test.MockClient{
-					MockList: func(_ context.Context, _ *client.ListOptions, obj runtime.Object) error {
+					MockList: func(_ context.Context, obj runtime.Object, _ ...client.ListOption) error {
 						*obj.(*v1alpha1.KubernetesApplicationResourceList) = v1alpha1.KubernetesApplicationResourceList{
 							Items: []v1alpha1.KubernetesApplicationResource{{ObjectMeta: objectMeta}},
 						}
@@ -517,7 +517,7 @@ func TestGarbageCollect(t *testing.T) {
 			name: "ResourceIsTemplated",
 			gc: &applicationResourceGarbageCollector{
 				kube: &test.MockClient{
-					MockList: func(_ context.Context, _ *client.ListOptions, obj runtime.Object) error {
+					MockList: func(_ context.Context, obj runtime.Object, _ ...client.ListOption) error {
 						ref := metav1.NewControllerRef(kubeApp(), v1alpha1.KubernetesApplicationGroupVersionKind)
 						m := templateA.ObjectMeta.DeepCopy()
 						m.SetOwnerReferences([]metav1.OwnerReference{*ref})
