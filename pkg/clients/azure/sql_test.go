@@ -22,7 +22,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/services/mysql/mgmt/2017-12-01/mysql"
 	"github.com/onsi/gomega"
 
-	databasev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/database/v1alpha1"
+	databasev1alpha1 "github.com/crossplaneio/crossplane/azure/apis/database/v1alpha1"
 )
 
 func TestSQLServerStatusMessage(t *testing.T) {

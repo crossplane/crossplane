@@ -23,6 +23,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/crossplaneio/crossplane/azure/apis"
+
 	"github.com/Azure/azure-storage-blob-go/azblob"
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/google/go-cmp/cmp"
@@ -39,17 +41,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/crossplaneio/crossplane/pkg/apis/azure"
-	"github.com/crossplaneio/crossplane/pkg/apis/azure/storage/v1alpha1"
-	v1alpha1test "github.com/crossplaneio/crossplane/pkg/apis/azure/storage/v1alpha1/test"
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/azure/apis/storage/v1alpha1"
+	v1alpha1test "github.com/crossplaneio/crossplane/azure/apis/storage/v1alpha1/test"
 	"github.com/crossplaneio/crossplane/pkg/clients/azure/storage"
 	azurestoragefake "github.com/crossplaneio/crossplane/pkg/clients/azure/storage/fake"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
 func init() {
-	_ = azure.AddToScheme(scheme.Scheme)
+	_ = apis.AddToScheme(scheme.Scheme)
 }
 
 type mockCreateUpdater struct {
@@ -706,7 +707,7 @@ func Test_containerCreateUpdater_create(t *testing.T) {
 			fields: fields{
 				container: v1alpha1test.NewMockContainer(testNamespace, testContainerName).Container,
 				kube: &test.MockClient{
-					MockUpdate: func(ctx context.Context, obj runtime.Object) error {
+					MockUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 						return errors.New("test-update-error")
 					},
 				},

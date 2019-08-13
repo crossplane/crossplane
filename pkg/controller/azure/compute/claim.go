@@ -23,20 +23,21 @@ import (
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	"github.com/crossplaneio/crossplane/pkg/apis/azure/compute/v1alpha1"
-	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/compute/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	computev1alpha1 "github.com/crossplaneio/crossplane/apis/compute/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/azure/apis/compute/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/resource"
 )
 
-// AddClaim adds a controller that reconciles KubernetesCluster resource claims by
-// managing AKSCluster resources to the supplied Manager.
-func AddClaim(mgr manager.Manager) error {
+// AKSClusterClaimController is responsible for adding the AKSCluster
+// claim controller and its corresponding reconciler to the manager with any runtime configuration.
+type AKSClusterClaimController struct{}
+
+// SetupWithManager adds a controller that reconciles KubernetesCluster resource claims.
+func (c *AKSClusterClaimController) SetupWithManager(mgr ctrl.Manager) error {
 	r := resource.NewClaimReconciler(mgr,
 		resource.ClaimKind(computev1alpha1.KubernetesClusterGroupVersionKind),
 		resource.ClassKind(corev1alpha1.ResourceClassGroupVersionKind),
@@ -47,21 +48,15 @@ func AddClaim(mgr manager.Manager) error {
 		))
 
 	name := strings.ToLower(fmt.Sprintf("%s.%s", computev1alpha1.KubernetesClusterKind, controllerName))
-	c, err := controller.New(name, mgr, controller.Options{Reconciler: r})
-	if err != nil {
-		return errors.Wrapf(err, "cannot create %s controller", name)
-	}
-
-	if err := c.Watch(&source.Kind{Type: &v1alpha1.AKSCluster{}}, &resource.EnqueueRequestForClaim{}); err != nil {
-		return errors.Wrapf(err, "cannot watch for %s", v1alpha1.AKSClusterGroupVersionKind)
-	}
 
 	p := v1alpha1.AKSClusterKindAPIVersion
-	return errors.Wrapf(c.Watch(
-		&source.Kind{Type: &computev1alpha1.KubernetesCluster{}},
-		&handler.EnqueueRequestForObject{},
-		resource.NewPredicates(resource.ObjectHasProvisioner(mgr.GetClient(), p)),
-	), "cannot watch for %s", computev1alpha1.KubernetesClusterGroupVersionKind)
+
+	return ctrl.NewControllerManagedBy(mgr).
+		Named(name).
+		Watches(&source.Kind{Type: &v1alpha1.AKSCluster{}}, &resource.EnqueueRequestForClaim{}).
+		For(&computev1alpha1.KubernetesCluster{}).
+		WithEventFilter(resource.NewPredicates(resource.ObjectHasProvisioner(mgr.GetClient(), p))).
+		Complete(r)
 }
 
 // ConfigureAKSCluster configures the supplied resource (presumed to be a

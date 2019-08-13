@@ -31,9 +31,9 @@ import (
 
 	"github.com/pkg/errors"
 
-	azuredbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/database/v1alpha1"
-	azurev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	azuredbv1alpha1 "github.com/crossplaneio/crossplane/azure/apis/database/v1alpha1"
+	azurev1alpha1 "github.com/crossplaneio/crossplane/azure/apis/v1alpha1"
 	azureclients "github.com/crossplaneio/crossplane/pkg/clients/azure"
 	"github.com/crossplaneio/crossplane/pkg/logging"
 	"github.com/crossplaneio/crossplane/pkg/meta"

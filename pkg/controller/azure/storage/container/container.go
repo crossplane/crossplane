@@ -27,15 +27,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	"github.com/crossplaneio/crossplane/pkg/apis/azure/storage/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/azure/apis/storage/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/clients/azure"
 	"github.com/crossplaneio/crossplane/pkg/clients/azure/storage"
 	"github.com/crossplaneio/crossplane/pkg/logging"
@@ -64,22 +61,22 @@ type Reconciler struct {
 	syncdeleterMaker
 }
 
-// Add creates a newSyncdeleter Controller and adds it to the Manager with default RBAC.
+// Controller is responsible for adding the Container controller and its
+// corresponding reconciler to the manager with any runtime configuration.
+type Controller struct{}
+
+// SetupWithManager creates a newSyncDeleter Controller and adds it to the Manager with default RBAC.
 // The Manager will set fields on the Controller and Start it when the Manager is Started.
-func Add(mgr manager.Manager) error {
+func (c *Controller) SetupWithManager(mgr ctrl.Manager) error {
 	r := &Reconciler{
 		Client:           mgr.GetClient(),
 		syncdeleterMaker: &containerSyncdeleterMaker{mgr.GetClient()},
 	}
 
-	// Create a newSyncdeleter controller
-	c, err := controller.New(controllerName, mgr, controller.Options{Reconciler: r})
-	if err != nil {
-		return err
-	}
-
-	// Watch for changes to storage container
-	return c.Watch(&source.Kind{Type: &v1alpha1.Container{}}, &handler.EnqueueRequestForObject{})
+	return ctrl.NewControllerManagedBy(mgr).
+		Named(controllerName).
+		For(&v1alpha1.Container{}).
+		Complete(r)
 }
 
 // Reconcile reads that state of the cluster for a Provider acct and makes changes based on the state read
