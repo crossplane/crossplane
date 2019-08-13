@@ -23,20 +23,21 @@ import (
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	cachev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/cache/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/apis/gcp/cache/v1alpha1"
+	cachev1alpha1 "github.com/crossplaneio/crossplane/apis/cache/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/gcp/apis/cache/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/resource"
 )
 
-// AddClaim adds a controller that reconciles RedisCluster resource claims by
-// managing CloudMemorystoreInstance resources to the supplied Manager.
-func AddClaim(mgr manager.Manager) error {
+// CloudMemorystoreInstanceClaimController is responsible for adding the Cloud Memorystore
+// claim controller and its corresponding reconciler to the manager with any runtime configuration.
+type CloudMemorystoreInstanceClaimController struct{}
+
+// SetupWithManager adds a controller that reconciles RedisCluster resource claims.
+func (c *CloudMemorystoreInstanceClaimController) SetupWithManager(mgr ctrl.Manager) error {
 	r := resource.NewClaimReconciler(mgr,
 		resource.ClaimKind(cachev1alpha1.RedisClusterGroupVersionKind),
 		resource.ClassKind(v1alpha1.CloudMemorystoreInstanceClassGroupVersionKind),
@@ -47,20 +48,13 @@ func AddClaim(mgr manager.Manager) error {
 		))
 
 	name := strings.ToLower(fmt.Sprintf("%s.%s", cachev1alpha1.RedisClusterKind, controllerName))
-	c, err := controller.New(name, mgr, controller.Options{Reconciler: r})
-	if err != nil {
-		return errors.Wrapf(err, "cannot create %s controller", name)
-	}
 
-	if err := c.Watch(&source.Kind{Type: &v1alpha1.CloudMemorystoreInstance{}}, &resource.EnqueueRequestForClaim{}); err != nil {
-		return errors.Wrapf(err, "cannot watch for %s", v1alpha1.CloudMemorystoreInstanceGroupVersionKind)
-	}
-
-	return errors.Wrapf(c.Watch(
-		&source.Kind{Type: &cachev1alpha1.RedisCluster{}},
-		&handler.EnqueueRequestForObject{},
-		resource.NewPredicates(resource.HasClassReferenceKind(resource.ClassKind(v1alpha1.CloudMemorystoreInstanceClassGroupVersionKind))),
-	), "cannot watch for %s", cachev1alpha1.RedisClusterGroupVersionKind)
+	return ctrl.NewControllerManagedBy(mgr).
+		Named(name).
+		Watches(&source.Kind{Type: &v1alpha1.CloudMemorystoreInstance{}}, &resource.EnqueueRequestForClaim{}).
+		For(&cachev1alpha1.RedisCluster{}).
+		WithEventFilter(resource.NewPredicates(resource.HasClassReferenceKind(resource.ClassKind(v1alpha1.CloudMemorystoreInstanceClassGroupVersionKind)))).
+		Complete(r)
 }
 
 // ConfigureCloudMemorystoreInstance configures the supplied resource (presumed

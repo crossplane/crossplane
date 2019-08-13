@@ -19,6 +19,8 @@ package cloudsql
 import (
 	"context"
 
+	"google.golang.org/api/option"
+
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	sqladmin "google.golang.org/api/sqladmin/v1beta4"
@@ -46,7 +48,7 @@ var _ InstanceService = &InstanceClient{}
 
 // NewInstanceClient creates a new instance of an InstanceClient
 func NewInstanceClient(ctx context.Context, creds *google.Credentials) (*InstanceClient, error) {
-	service, err := sqladmin.New(oauth2.NewClient(ctx, creds.TokenSource))
+	service, err := sqladmin.NewService(ctx, option.WithHTTPClient(oauth2.NewClient(ctx, creds.TokenSource)))
 	if err != nil {
 		return nil, err
 	}

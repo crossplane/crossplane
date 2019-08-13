@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"google.golang.org/api/option"
+
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/cloudresourcemanager/v1"
@@ -28,7 +30,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 
-	gcpv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/v1alpha1"
+	gcpv1alpha1 "github.com/crossplaneio/crossplane/gcp/apis/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/logging"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
@@ -132,7 +134,7 @@ func Project(creds *google.Credentials) (*ProjectInfo, error) {
 	client := oauth2.NewClient(ctx, creds.TokenSource)
 
 	// Create a cloud resource manager client from which we can make API calls.
-	crmService, err := cloudresourcemanager.New(client)
+	crmService, err := cloudresourcemanager.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +164,7 @@ func TestPermissions(creds *google.Credentials, permissions []string) error {
 	client := oauth2.NewClient(ctx, creds.TokenSource)
 
 	// Create a cloud resource manager client from which we can make API calls.
-	crmService, err := cloudresourcemanager.New(client)
+	crmService, err := cloudresourcemanager.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
 		return err
 	}

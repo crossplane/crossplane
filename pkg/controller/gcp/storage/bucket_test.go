@@ -21,6 +21,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/crossplaneio/crossplane/gcp/apis"
+
 	"cloud.google.com/go/storage"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -36,15 +38,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/apis/gcp"
-	"github.com/crossplaneio/crossplane/pkg/apis/gcp/storage/v1alpha1"
-	gcpv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/gcp/apis/storage/v1alpha1"
+	gcpv1alpha1 "github.com/crossplaneio/crossplane/gcp/apis/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
 func init() {
-	_ = gcp.AddToScheme(scheme.Scheme)
+	_ = apis.AddToScheme(scheme.Scheme)
 }
 
 type MockBucketCreateUpdater struct {

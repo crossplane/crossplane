@@ -22,12 +22,12 @@ import (
 	"reflect"
 
 	redisv1 "cloud.google.com/go/redis/apiv1"
-	gax "github.com/googleapis/gax-go"
+	"github.com/googleapis/gax-go"
 	"google.golang.org/api/option"
 	redisv1pb "google.golang.org/genproto/googleapis/cloud/redis/v1"
 	"google.golang.org/genproto/protobuf/field_mask"
 
-	"github.com/crossplaneio/crossplane/pkg/apis/gcp/cache/v1alpha1"
+	"github.com/crossplaneio/crossplane/gcp/apis/cache/v1alpha1"
 )
 
 // NamePrefix is the prefix for all created CloudMemorystore instances.

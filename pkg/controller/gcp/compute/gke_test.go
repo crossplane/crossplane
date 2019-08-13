@@ -21,6 +21,8 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/crossplaneio/crossplane/gcp/apis"
+
 	"github.com/google/go-cmp/cmp"
 	. "github.com/onsi/gomega"
 	"google.golang.org/api/container/v1"
@@ -34,9 +36,8 @@ import (
 	. "sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/apis/gcp"
-	. "github.com/crossplaneio/crossplane/pkg/apis/gcp/compute/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	. "github.com/crossplaneio/crossplane/gcp/apis/compute/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/clients/gcp/fake"
 	"github.com/crossplaneio/crossplane/pkg/clients/gcp/gke"
 	"github.com/crossplaneio/crossplane/pkg/test"
@@ -67,7 +68,7 @@ var (
 )
 
 func init() {
-	_ = gcp.AddToScheme(scheme.Scheme)
+	_ = apis.AddToScheme(scheme.Scheme)
 }
 
 func testCluster() *GKECluster {

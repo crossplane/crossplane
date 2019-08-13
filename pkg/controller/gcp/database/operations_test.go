@@ -20,8 +20,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/apis/gcp/database/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/gcp/apis/database/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/clients/gcp/cloudsql"
 	"github.com/crossplaneio/crossplane/pkg/clients/gcp/cloudsql/fake"
 	"github.com/crossplaneio/crossplane/pkg/test"
@@ -280,7 +280,7 @@ func Test_localHandler_addFinalizer(t *testing.T) {
 			fields: fields{
 				instance: &v1alpha1.CloudsqlInstance{},
 				kube: &test.MockClient{
-					MockUpdate: func(ctx context.Context, obj runtime.Object) error {
+					MockUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 						if _, err := assertObjectInstance(obj); err != nil {
 							t.Errorf("addFinalizer(): %v", err)
 						}
@@ -345,7 +345,7 @@ func Test_localHandler_removeFinalizer(t *testing.T) {
 			fields: fields{
 				instance: &v1alpha1.CloudsqlInstance{},
 				kube: &test.MockClient{
-					MockUpdate: func(ctx context.Context, obj runtime.Object) error {
+					MockUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 						if _, err := assertObjectInstance(obj); err != nil {
 							t.Errorf("removeFinalizer(): %v", err)
 						}
@@ -492,7 +492,7 @@ func Test_localHandler_updateObject(t *testing.T) {
 			fields: fields{
 				obj: inst,
 				kube: &test.MockClient{
-					MockUpdate: func(ctx context.Context, obj runtime.Object) error {
+					MockUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 						assert(obj)
 						return nil
 					},
@@ -503,7 +503,7 @@ func Test_localHandler_updateObject(t *testing.T) {
 			fields: fields{
 				obj: inst,
 				kube: &test.MockClient{
-					MockUpdate: func(ctx context.Context, obj runtime.Object) error {
+					MockUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 						assert(obj)
 						return testError
 					},
@@ -559,7 +559,7 @@ func Test_localHandler_updateInstanceStatus(t *testing.T) {
 			fields: fields{
 				inst: inst,
 				kube: &test.MockClient{
-					MockStatusUpdate: func(ctx context.Context, obj runtime.Object) error {
+					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 						assert(obj)
 						return nil
 					},
@@ -580,7 +580,7 @@ func Test_localHandler_updateInstanceStatus(t *testing.T) {
 			fields: fields{
 				inst: inst,
 				kube: &test.MockClient{
-					MockStatusUpdate: func(ctx context.Context, obj runtime.Object) error {
+					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 						assert(obj)
 						return testError
 					},
@@ -638,7 +638,7 @@ func Test_localHandler_updateReconcileStatus(t *testing.T) {
 			fields: fields{
 				inst: inst,
 				kube: &test.MockClient{
-					MockStatusUpdate: func(ctx context.Context, obj runtime.Object) error {
+					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 						assert(obj)
 						return testError
 					},
@@ -655,7 +655,7 @@ func Test_localHandler_updateReconcileStatus(t *testing.T) {
 			fields: fields{
 				inst: inst,
 				kube: &test.MockClient{
-					MockStatusUpdate: func(ctx context.Context, obj runtime.Object) error {
+					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 						assert(obj)
 						return nil
 					},
@@ -671,7 +671,7 @@ func Test_localHandler_updateReconcileStatus(t *testing.T) {
 			fields: fields{
 				inst: inst,
 				kube: &test.MockClient{
-					MockStatusUpdate: func(ctx context.Context, obj runtime.Object) error {
+					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 						assert(obj)
 						return nil
 					},
@@ -807,7 +807,7 @@ func Test_localHandler_updateConnectionSecret(t *testing.T) {
 						assertObj(obj)
 						return kerrors.NewNotFound(schema.GroupResource{}, "")
 					},
-					MockCreate: func(ctx context.Context, obj runtime.Object) error {
+					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error {
 						assertObj(obj)
 						return nil
 					},
@@ -867,7 +867,7 @@ func Test_localHandler_updateConnectionSecret(t *testing.T) {
 						ts.DeepCopyInto(s)
 						return nil
 					},
-					MockUpdate: func(ctx context.Context, obj runtime.Object) error {
+					MockUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 						assertObj(obj)
 						return nil
 					},

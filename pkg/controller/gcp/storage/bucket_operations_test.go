@@ -29,8 +29,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/apis/gcp/storage/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/gcp/apis/storage/v1alpha1"
 	gcpstorage "github.com/crossplaneio/crossplane/pkg/clients/gcp/storage"
 	storagefake "github.com/crossplaneio/crossplane/pkg/clients/gcp/storage/fake"
 	"github.com/crossplaneio/crossplane/pkg/test"
@@ -329,7 +329,7 @@ func Test_bucketHandler_updateObject(t *testing.T) {
 	bc := &bucketHandler{
 		Bucket: bucket,
 		kube: &test.MockClient{
-			MockUpdate: func(ctx context.Context, obj runtime.Object) error {
+			MockUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 				if _, ok := obj.(*v1alpha1.Bucket); !ok {
 					t.Errorf("bucketHandler.updateObject() unexpected type %T, want %T", obj, bucket)
 				}
@@ -348,7 +348,7 @@ func Test_bucketHandler_updateStatus(t *testing.T) {
 	bc := &bucketHandler{
 		Bucket: bucket,
 		kube: &test.MockClient{
-			MockStatusUpdate: func(ctx context.Context, obj runtime.Object) error {
+			MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 				if _, ok := obj.(*v1alpha1.Bucket); !ok {
 					t.Errorf("bucketHandler.updateStatus() unexpected type %T, want %T", obj, bucket)
 				}
@@ -450,7 +450,7 @@ func Test_bucketHandler_updateSecret(t *testing.T) {
 						}
 						return nil
 					},
-					MockCreate: func(ctx context.Context, obj runtime.Object) error {
+					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error {
 						// assert secret
 						s, ok := obj.(*corev1.Secret)
 						if !ok {
