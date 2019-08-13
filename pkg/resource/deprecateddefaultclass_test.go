@@ -26,8 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/meta"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
@@ -81,7 +80,7 @@ func TestDeprecatedDefaultClassReconcile(t *testing.T) {
 						MockList: test.NewMockListFn(errBoom),
 						MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(got runtime.Object) error {
 							want := &MockClaim{}
-							want.SetConditions(v1alpha1.ReconcileError(errors.New(errFailedListDeprecated)))
+							want.SetConditions(corev1alpha1.ReconcileError(errors.New(errFailedListDeprecated)))
 							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
 							}
@@ -120,7 +119,7 @@ func TestDeprecatedDefaultClassReconcile(t *testing.T) {
 						}),
 						MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(got runtime.Object) error {
 							want := &MockClaim{}
-							want.SetConditions(v1alpha1.ReconcileError(errors.New(errNoDefaultClass)))
+							want.SetConditions(corev1alpha1.ReconcileError(errors.New(errNoDefaultClass)))
 							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
 							}
@@ -162,7 +161,7 @@ func TestDeprecatedDefaultClassReconcile(t *testing.T) {
 						}),
 						MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(got runtime.Object) error {
 							want := &MockClaim{}
-							want.SetConditions(v1alpha1.ReconcileError(errors.New(errMultipleDefaultClasses)))
+							want.SetConditions(corev1alpha1.ReconcileError(errors.New(errMultipleDefaultClasses)))
 							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
 							}

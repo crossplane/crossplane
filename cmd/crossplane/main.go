@@ -20,15 +20,25 @@ import (
 	"os"
 	"path/filepath"
 
+	awsapis "github.com/crossplaneio/crossplane/aws/apis"
+	azureapis "github.com/crossplaneio/crossplane/azure/apis"
+	gcpapis "github.com/crossplaneio/crossplane/gcp/apis"
+
 	"gopkg.in/alecthomas/kingpin.v2"
+	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	runtimelog "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"sigs.k8s.io/controller-runtime/pkg/runtime/signals"
 
-	"github.com/crossplaneio/crossplane/pkg/apis"
-	"github.com/crossplaneio/crossplane/pkg/controller"
+	"github.com/crossplaneio/crossplane/apis"
+	"github.com/crossplaneio/crossplane/pkg/controller/aws"
+	"github.com/crossplaneio/crossplane/pkg/controller/azure"
+	"github.com/crossplaneio/crossplane/pkg/controller/defaultclass"
+	"github.com/crossplaneio/crossplane/pkg/controller/deprecateddefaultclass"
 	extensionsController "github.com/crossplaneio/crossplane/pkg/controller/extensions"
+	"github.com/crossplaneio/crossplane/pkg/controller/gcp"
+	"github.com/crossplaneio/crossplane/pkg/controller/workload"
 	"github.com/crossplaneio/crossplane/pkg/extensions"
 	"github.com/crossplaneio/crossplane/pkg/logging"
 )
@@ -77,17 +87,17 @@ func main() {
 		runtimelog.SetLogger(zl)
 	}
 
-	var addToManagerFunc func(manager.Manager) error
+	var setupWithManagerFunc func(manager.Manager) error
 
 	// Determine the command being called and execute the corresponding logic
 	switch cmd {
 	case crossplaneCmd.FullCommand():
 		// the default Crossplane command is being run, add all the regular controllers to the manager
-		addToManagerFunc = controller.AddToManager
+		setupWithManagerFunc = controllerSetupWithManager
 	case extManageCmd.FullCommand():
 		// the "extensions manage" command is being run, the only controllers we should add to the
 		// manager are the extensions controllers
-		addToManagerFunc = extensionsController.AddToManager
+		setupWithManagerFunc = extensionsControllerSetupWithManager
 	case extUnpackCmd.FullCommand():
 		// extension unpack command was called, run the extension unpacking logic
 		kingpin.FatalIfError(extensions.Unpack(*extUnpackDir), "failed to unpack extensions")
@@ -112,15 +122,15 @@ func main() {
 
 	log.Info("Adding schemes")
 
-	// Setup Scheme for all resources
-	if err := apis.AddToScheme(mgr.GetScheme()); err != nil {
+	// add all resources to the manager's runtime scheme
+	if err := addToScheme(mgr.GetScheme()); err != nil {
 		kingpin.FatalIfError(err, "Cannot add APIs to scheme")
 	}
 
 	log.Info("Adding controllers")
 
 	// Setup all Controllers
-	if err := addToManagerFunc(mgr); err != nil {
+	if err := setupWithManagerFunc(mgr); err != nil {
 		kingpin.FatalIfError(err, "Cannot add controllers to manager")
 	}
 
@@ -128,4 +138,60 @@ func main() {
 
 	// Start the Cmd
 	kingpin.FatalIfError(mgr.Start(signals.SetupSignalHandler()), "Cannot start controller")
+}
+
+func controllerSetupWithManager(mgr manager.Manager) error {
+	if err := (&defaultclass.Controllers{}).SetupWithManager(mgr); err != nil {
+		return err
+	}
+
+	if err := (&deprecateddefaultclass.Controllers{}).SetupWithManager(mgr); err != nil {
+		return err
+	}
+
+	if err := (&aws.Controllers{}).SetupWithManager(mgr); err != nil {
+		return err
+	}
+
+	if err := (&azure.Controllers{}).SetupWithManager(mgr); err != nil {
+		return err
+	}
+
+	if err := (&gcp.Controllers{}).SetupWithManager(mgr); err != nil {
+		return err
+	}
+
+	if err := (&workload.Controllers{}).SetupWithManager(mgr); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func extensionsControllerSetupWithManager(mgr manager.Manager) error {
+	if err := (&extensionsController.Controllers{}).SetupWithManager(mgr); err != nil {
+		return err
+	}
+	return nil
+}
+
+// addToScheme adds all resources to the runtime scheme.
+func addToScheme(scheme *runtime.Scheme) error {
+	if err := apis.AddToScheme(scheme); err != nil {
+		return err
+	}
+
+	if err := awsapis.AddToScheme(scheme); err != nil {
+		return err
+	}
+
+	if err := gcpapis.AddToScheme(scheme); err != nil {
+		return err
+	}
+
+	if err := azureapis.AddToScheme(scheme); err != nil {
+		return err
+	}
+
+	return nil
 }

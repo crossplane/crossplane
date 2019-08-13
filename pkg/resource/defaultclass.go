@@ -28,7 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/logging"
 )
 
@@ -119,10 +119,8 @@ func (r *DefaultClassReconciler) Reconcile(req reconcile.Request) (reconcile.Res
 	// Get policies for claim kind in claim's namespace
 	policies := &unstructured.UnstructuredList{}
 	policies.SetGroupVersionKind(r.policyListKind)
-	options := &client.ListOptions{
-		Namespace: req.Namespace,
-	}
-	if err := r.client.List(ctx, options, policies); err != nil {
+	options := client.InNamespace(req.Namespace)
+	if err := r.client.List(ctx, policies, options); err != nil {
 		// If this is the first time we encounter listing error we'll be
 		// requeued implicitly due to the status update. If not, we don't
 		// care to requeue because list parameters will not change.

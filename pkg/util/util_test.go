@@ -183,7 +183,7 @@ func TestApply(t *testing.T) {
 			name: "CreateFailedOther",
 			args: args{
 				kube: &test.MockClient{
-					MockCreate: func(ctx context.Context, obj runtime.Object) error {
+					MockCreate: func(_ context.Context, _ runtime.Object, _ ...client.CreateOption) error {
 						return testError
 					},
 				},
@@ -194,10 +194,10 @@ func TestApply(t *testing.T) {
 			name: "CreateFailedAlreadyExists",
 			args: args{
 				kube: &test.MockClient{
-					MockCreate: func(ctx context.Context, obj runtime.Object) error {
+					MockCreate: func(_ context.Context, _ runtime.Object, _ ...client.CreateOption) error {
 						return kerrors.NewAlreadyExists(schema.GroupResource{}, "foo")
 					},
-					MockUpdate: func(ctx context.Context, obj runtime.Object) error {
+					MockUpdate: func(_ context.Context, _ runtime.Object, _ ...client.UpdateOption) error {
 						return nil
 					},
 				},

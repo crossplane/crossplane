@@ -21,6 +21,8 @@ import (
 	"testing"
 	"time"
 
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/google/go-cmp/cmp"
@@ -29,7 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
@@ -75,7 +77,7 @@ func TestManagedReconciler(t *testing.T) {
 				m: &MockManager{
 					c: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object) error {
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &MockManaged{}
 							want.SetConditions(v1alpha1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -100,7 +102,7 @@ func TestManagedReconciler(t *testing.T) {
 				m: &MockManager{
 					c: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object) error {
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &MockManaged{}
 							want.SetConditions(v1alpha1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -130,7 +132,7 @@ func TestManagedReconciler(t *testing.T) {
 							mg.SetReclaimPolicy(v1alpha1.ReclaimDelete)
 							return nil
 						}),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object) error {
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &MockManaged{}
 							want.SetDeletionTimestamp(&now)
 							want.SetReclaimPolicy(v1alpha1.ReclaimDelete)
@@ -172,7 +174,7 @@ func TestManagedReconciler(t *testing.T) {
 							mg.SetReclaimPolicy(v1alpha1.ReclaimDelete)
 							return nil
 						}),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object) error {
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &MockManaged{}
 							want.SetDeletionTimestamp(&now)
 							want.SetReclaimPolicy(v1alpha1.ReclaimDelete)
@@ -212,7 +214,7 @@ func TestManagedReconciler(t *testing.T) {
 							mg.SetFinalizers([]string{"test"})
 							return nil
 						}),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object) error {
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &MockManaged{}
 							want.SetDeletionTimestamp(&now)
 							want.SetReclaimPolicy(v1alpha1.ReclaimRetain)
@@ -261,7 +263,7 @@ func TestManagedReconciler(t *testing.T) {
 							mg.SetDeletionTimestamp(&now)
 							return nil
 						}),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object) error {
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &MockManaged{}
 							want.SetDeletionTimestamp(&now)
 							want.SetConditions(v1alpha1.ReconcileSuccess())
@@ -310,7 +312,7 @@ func TestManagedReconciler(t *testing.T) {
 							mg.SetDeletionTimestamp(&now)
 							return nil
 						}),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object) error {
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &MockManaged{}
 							want.SetDeletionTimestamp(&now)
 							want.SetConditions(v1alpha1.ReconcileError(errBoom))
@@ -351,7 +353,7 @@ func TestManagedReconciler(t *testing.T) {
 							mg.SetDeletionTimestamp(&now)
 							return nil
 						}),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object) error {
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &MockManaged{}
 							want.SetDeletionTimestamp(&now)
 							want.SetConditions(v1alpha1.ReconcileError(errBoom))
@@ -393,7 +395,7 @@ func TestManagedReconciler(t *testing.T) {
 				m: &MockManager{
 					c: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object) error {
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &MockManaged{}
 							want.SetConditions(v1alpha1.ReconcileSuccess())
 							want.SetFinalizers(testFinalizers)
@@ -446,7 +448,7 @@ func TestManagedReconciler(t *testing.T) {
 				m: &MockManager{
 					c: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object) error {
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &MockManaged{}
 							want.SetConditions(v1alpha1.ReconcileError(errBoom))
 							want.SetFinalizers(testFinalizers)
@@ -495,7 +497,7 @@ func TestManagedReconciler(t *testing.T) {
 				m: &MockManager{
 					c: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object) error {
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &MockManaged{}
 							want.SetConditions(v1alpha1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -539,7 +541,7 @@ func TestManagedReconciler(t *testing.T) {
 				m: &MockManager{
 					c: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object) error {
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &MockManaged{}
 							want.SetConditions(v1alpha1.ReconcileSuccess())
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -585,7 +587,7 @@ func TestManagedReconciler(t *testing.T) {
 				m: &MockManager{
 					c: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object) error {
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &MockManaged{}
 							want.SetConditions(v1alpha1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -625,7 +627,7 @@ func TestManagedReconciler(t *testing.T) {
 				m: &MockManager{
 					c: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object) error {
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &MockManaged{}
 							want.SetConditions(v1alpha1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {

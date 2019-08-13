@@ -29,19 +29,28 @@ var _ client.Client = &MockClient{}
 type MockGetFn func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error
 
 // A MockListFn is used to mock client.Client's List implementation.
-type MockListFn func(ctx context.Context, opts *client.ListOptions, list runtime.Object) error
+type MockListFn func(ctx context.Context, list runtime.Object, opts ...client.ListOption) error
 
 // A MockCreateFn is used to mock client.Client's Create implementation.
-type MockCreateFn func(ctx context.Context, obj runtime.Object) error
+type MockCreateFn func(ctx context.Context, obj runtime.Object, opts ...client.CreateOption) error
 
 // A MockDeleteFn is used to mock client.Client's Delete implementation.
-type MockDeleteFn func(ctx context.Context, obj runtime.Object, opts ...client.DeleteOptionFunc) error
+type MockDeleteFn func(ctx context.Context, obj runtime.Object, opts ...client.DeleteOption) error
+
+// A MockDeleteAllOfFn is used to mock client.Client's Delete implementation.
+type MockDeleteAllOfFn func(ctx context.Context, obj runtime.Object, opts ...client.DeleteAllOfOption) error
 
 // A MockUpdateFn is used to mock client.Client's Update implementation.
-type MockUpdateFn func(ctx context.Context, obj runtime.Object) error
+type MockUpdateFn func(ctx context.Context, obj runtime.Object, opts ...client.UpdateOption) error
+
+// A MockPatchFn is used to mock client.Client's Patch implementation.
+type MockPatchFn func(ctx context.Context, obj runtime.Object, patch client.Patch, opts ...client.PatchOption) error
 
 // A MockStatusUpdateFn is used to mock client.Client's StatusUpdate implementation.
-type MockStatusUpdateFn func(ctx context.Context, obj runtime.Object) error
+type MockStatusUpdateFn func(ctx context.Context, obj runtime.Object, opts ...client.UpdateOption) error
+
+// A MockStatusPatchFn is used to mock client.Client's StatusUpdate implementation.
+type MockStatusPatchFn func(ctx context.Context, obj runtime.Object, patch client.Patch, opts ...client.PatchOption) error
 
 // An ObjectFn operates on the supplied Object. You might use an ObjectFn to
 // test or update the contents of an Object.
@@ -61,7 +70,7 @@ func NewMockGetFn(err error, ofn ...ObjectFn) MockGetFn {
 
 // NewMockListFn returns a MockListFn that returns the supplied error.
 func NewMockListFn(err error, ofn ...ObjectFn) MockListFn {
-	return func(_ context.Context, _ *client.ListOptions, obj runtime.Object) error {
+	return func(_ context.Context, obj runtime.Object, _ ...client.ListOption) error {
 		for _, fn := range ofn {
 			if err := fn(obj); err != nil {
 				return err
@@ -73,7 +82,7 @@ func NewMockListFn(err error, ofn ...ObjectFn) MockListFn {
 
 // NewMockCreateFn returns a MockCreateFn that returns the supplied error.
 func NewMockCreateFn(err error, ofn ...ObjectFn) MockCreateFn {
-	return func(_ context.Context, obj runtime.Object) error {
+	return func(_ context.Context, obj runtime.Object, opts ...client.CreateOption) error {
 		for _, fn := range ofn {
 			if err := fn(obj); err != nil {
 				return err
@@ -85,7 +94,19 @@ func NewMockCreateFn(err error, ofn ...ObjectFn) MockCreateFn {
 
 // NewMockDeleteFn returns a MockDeleteFn that returns the supplied error.
 func NewMockDeleteFn(err error, ofn ...ObjectFn) MockDeleteFn {
-	return func(_ context.Context, obj runtime.Object, _ ...client.DeleteOptionFunc) error {
+	return func(_ context.Context, obj runtime.Object, _ ...client.DeleteOption) error {
+		for _, fn := range ofn {
+			if err := fn(obj); err != nil {
+				return err
+			}
+		}
+		return err
+	}
+}
+
+// NewMockDeleteAllOfFn returns a MockDeleteAllOfFn that returns the supplied error.
+func NewMockDeleteAllOfFn(err error, ofn ...ObjectFn) MockDeleteAllOfFn {
+	return func(_ context.Context, obj runtime.Object, _ ...client.DeleteAllOfOption) error {
 		for _, fn := range ofn {
 			if err := fn(obj); err != nil {
 				return err
@@ -97,7 +118,19 @@ func NewMockDeleteFn(err error, ofn ...ObjectFn) MockDeleteFn {
 
 // NewMockUpdateFn returns a MockUpdateFn that returns the supplied error.
 func NewMockUpdateFn(err error, ofn ...ObjectFn) MockUpdateFn {
-	return func(_ context.Context, obj runtime.Object) error {
+	return func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+		for _, fn := range ofn {
+			if err := fn(obj); err != nil {
+				return err
+			}
+		}
+		return err
+	}
+}
+
+// NewMockPatchFn returns a MockPatchFn that returns the supplied error.
+func NewMockPatchFn(err error, ofn ...ObjectFn) MockPatchFn {
+	return func(_ context.Context, obj runtime.Object, _ client.Patch, _ ...client.PatchOption) error {
 		for _, fn := range ofn {
 			if err := fn(obj); err != nil {
 				return err
@@ -109,7 +142,19 @@ func NewMockUpdateFn(err error, ofn ...ObjectFn) MockUpdateFn {
 
 // NewMockStatusUpdateFn returns a MockStatusUpdateFn that returns the supplied error.
 func NewMockStatusUpdateFn(err error, ofn ...ObjectFn) MockStatusUpdateFn {
-	return func(_ context.Context, obj runtime.Object) error {
+	return func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+		for _, fn := range ofn {
+			if err := fn(obj); err != nil {
+				return err
+			}
+		}
+		return err
+	}
+}
+
+// NewMockStatusPatchFn returns a MockStatusPatchFn that returns the supplied error.
+func NewMockStatusPatchFn(err error, ofn ...ObjectFn) MockStatusPatchFn {
+	return func(_ context.Context, obj runtime.Object, _ client.Patch, _ ...client.PatchOption) error {
 		for _, fn := range ofn {
 			if err := fn(obj); err != nil {
 				return err
@@ -128,8 +173,11 @@ type MockClient struct {
 	MockList         MockListFn
 	MockCreate       MockCreateFn
 	MockDelete       MockDeleteFn
+	MockDeleteAllOf  MockDeleteAllOfFn
 	MockUpdate       MockUpdateFn
+	MockPatch        MockPatchFn
 	MockStatusUpdate MockStatusUpdateFn
+	MockStatusPatch  MockStatusPatchFn
 }
 
 // NewMockClient returns a MockClient that does nothing when its methods are
@@ -140,8 +188,11 @@ func NewMockClient() *MockClient {
 		MockList:         NewMockListFn(nil),
 		MockCreate:       NewMockCreateFn(nil),
 		MockDelete:       NewMockDeleteFn(nil),
+		MockDeleteAllOf:  NewMockDeleteAllOfFn(nil),
 		MockUpdate:       NewMockUpdateFn(nil),
+		MockPatch:        NewMockPatchFn(nil),
 		MockStatusUpdate: NewMockStatusUpdateFn(nil),
+		MockStatusPatch:  NewMockStatusPatchFn(nil),
 	}
 }
 
@@ -151,38 +202,55 @@ func (c *MockClient) Get(ctx context.Context, key client.ObjectKey, obj runtime.
 }
 
 // List calls MockClient's MockList function.
-func (c *MockClient) List(ctx context.Context, opts *client.ListOptions, list runtime.Object) error {
-	return c.MockList(ctx, opts, list)
+func (c *MockClient) List(ctx context.Context, list runtime.Object, opts ...client.ListOption) error {
+	return c.MockList(ctx, list, opts...)
 }
 
 // Create calls MockClient's MockCreate function.
-func (c *MockClient) Create(ctx context.Context, obj runtime.Object) error {
-	return c.MockCreate(ctx, obj)
+func (c *MockClient) Create(ctx context.Context, obj runtime.Object, opts ...client.CreateOption) error {
+	return c.MockCreate(ctx, obj, opts...)
 }
 
 // Delete calls MockClient's MockDelete function.
-func (c *MockClient) Delete(ctx context.Context, obj runtime.Object, opts ...client.DeleteOptionFunc) error {
+func (c *MockClient) Delete(ctx context.Context, obj runtime.Object, opts ...client.DeleteOption) error {
 	return c.MockDelete(ctx, obj, opts...)
 }
 
+// DeleteAllOf calls MockClient's DeleteAllOf function.
+func (c *MockClient) DeleteAllOf(ctx context.Context, obj runtime.Object, opts ...client.DeleteAllOfOption) error {
+	return c.MockDeleteAllOf(ctx, obj, opts...)
+}
+
 // Update calls MockClient's MockUpdate function.
-func (c *MockClient) Update(ctx context.Context, obj runtime.Object) error {
-	return c.MockUpdate(ctx, obj)
+func (c *MockClient) Update(ctx context.Context, obj runtime.Object, opts ...client.UpdateOption) error {
+	return c.MockUpdate(ctx, obj, opts...)
+}
+
+// Patch calls MockClient's MockPatch function.
+func (c *MockClient) Patch(ctx context.Context, obj runtime.Object, patch client.Patch, opts ...client.PatchOption) error {
+	return c.MockPatch(ctx, obj, patch, opts...)
 }
 
 // Status returns status writer for status sub-resource
 func (c *MockClient) Status() client.StatusWriter {
 	return &MockStatusWriter{
 		MockUpdate: c.MockStatusUpdate,
+		MockPatch:  c.MockStatusPatch,
 	}
 }
 
 // MockStatusWriter provides mock functionality for status sub-resource
 type MockStatusWriter struct {
 	MockUpdate MockStatusUpdateFn
+	MockPatch  MockStatusPatchFn
 }
 
 // Update status sub-resource
-func (m *MockStatusWriter) Update(ctx context.Context, obj runtime.Object) error {
-	return m.MockUpdate(ctx, obj)
+func (m *MockStatusWriter) Update(ctx context.Context, obj runtime.Object, opts ...client.UpdateOption) error {
+	return m.MockUpdate(ctx, obj, opts...)
+}
+
+// Patch mocks the patch method
+func (m *MockStatusWriter) Patch(ctx context.Context, obj runtime.Object, patch client.Patch, opts ...client.PatchOption) error {
+	return m.MockPatch(ctx, obj, patch, opts...)
 }

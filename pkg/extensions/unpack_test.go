@@ -275,7 +275,8 @@ spec:
       - delete
   title: Sample Crossplane Extension
   version: 0.0.1
-status: {}
+status:
+  conditionedStatus: {}
 `
 
 	expectedSimpleJobExtensionOutput = `
@@ -374,7 +375,8 @@ spec:
       - delete
   title: Sample Crossplane Extension
   version: 0.0.1
-status: {}
+status:
+  conditionedStatus: {}
 `
 )
 

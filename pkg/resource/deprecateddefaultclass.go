@@ -27,7 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/logging"
 	"github.com/crossplaneio/crossplane/pkg/meta"
 )
@@ -52,7 +52,7 @@ const (
 type DeprecatedDefaultClassReconciler struct {
 	client   client.Client
 	newClaim func() Claim
-	options  *client.ListOptions
+	options  client.MatchingLabels
 }
 
 // NewDeprecatedDefaultClassReconciler creates a new DefaultReconciler for the claim kind
@@ -67,13 +67,9 @@ func NewDeprecatedDefaultClassReconciler(m manager.Manager, of ClaimKind) *Depre
 
 	// Create list options query that will be used to search
 	// for resource class that is default for claim kind.
-	options := &client.ListOptions{}
-	if err := options.SetLabelSelector(gk + "/default=" + "true"); err != nil {
-		// Panic if unable to set label selector or else panic will occur
-		// when returned reconciler is invoked.
-		panic(err)
+	options := client.MatchingLabels{
+		gk + "/default": "true",
 	}
-
 	return &DeprecatedDefaultClassReconciler{
 		client:   m.GetClient(),
 		newClaim: nc,
@@ -99,7 +95,7 @@ func (r *DeprecatedDefaultClassReconciler) Reconcile(req reconcile.Request) (rec
 	// NOTE(hasheddan): corev1alpha1 import here prevents checking that
 	// ResourceClass satisfies Class interface. Would be a circular import.
 	classes := &corev1alpha1.ResourceClassList{}
-	if err := r.client.List(ctx, r.options, classes); err != nil {
+	if err := r.client.List(ctx, classes, r.options); err != nil {
 		// If this is the first time we encounter no defaults we'll be
 		// requeued implicitly due to the status update. If not, we don't
 		// care to requeue because list parameters will not change.

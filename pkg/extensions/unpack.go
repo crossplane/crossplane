@@ -37,7 +37,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/crossplaneio/crossplane/pkg/apis/extensions/v1alpha1"
+	"github.com/crossplaneio/crossplane/apis/extensions/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/logging"
 )
 

@@ -31,6 +31,7 @@ GO_TEST_PARALLEL := $(shell echo $$(( $(NPROCS) / 2 )))
 
 GO_STATIC_PACKAGES = $(GO_PROJECT)/cmd/crossplane
 GO_LDFLAGS += -X $(GO_PROJECT)/pkg/version.Version=$(VERSION)
+GO_SUBDIRS += cmd pkg apis aws azure gcp
 -include build/makelib/golang.mk
 
 # ====================================================================================
@@ -86,7 +87,10 @@ go.test.unit: $(KUBEBUILDER)
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: vendor
 	@$(INFO) Generating CRD manifests
-	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd --output-dir cluster/charts/crossplane/crds --nested
+	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd:trivialVersions=true paths=./aws/... output:dir=cluster/charts/crossplane/crds/aws
+	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd:trivialVersions=true paths=./azure/... output:dir=cluster/charts/crossplane/crds/azure
+	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd:trivialVersions=true paths=./gcp/... output:dir=cluster/charts/crossplane/crds/gcp
+	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd:trivialVersions=true paths=./apis/... output:dir=cluster/charts/crossplane/crds
 	@$(OK) Generating CRD manifests
 
 # Generate a coverage report for cobertura applying exclusions on
@@ -124,7 +128,7 @@ Crossplane Targets:
     cobertura          Generate a coverage report for cobertura applying exclusions on generated files.
     reviewable         Ensure a PR is ready for review.
     submodules         Update the submodules, such as the common build scripts.
-	
+
 endef
 export CROSSPLANE_HELP
 
