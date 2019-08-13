@@ -43,7 +43,7 @@ BUILD_IMAGE="${BUILD_REGISTRY}/${PROJECT_NAME}-${HOSTARCH}"
 
 helm_tag="$(cat ${projectdir}/_output/version)"
 CROSSPLANE_IMAGE="${DOCKER_REGISTRY}/${PROJECT_NAME}:${helm_tag}"
-K8S_CLUSTER="${BUILD_REGISTRY}-INTTESTS"
+K8S_CLUSTER=kind # "${BUILD_REGISTRY}-INTTESTS"
 
 CROSSPLANE_NAMESPACE="crossplane-system"
 
@@ -53,7 +53,7 @@ function cleanup {
     export KUBECONFIG=
     "${KIND}" delete cluster --name="${K8S_CLUSTER}"
 }
-trap cleanup EXIT
+# trap cleanup EXIT
 
 echo_step "creating k8s cluster using kind"
 "${KIND}" create cluster --name="${K8S_CLUSTER}"
