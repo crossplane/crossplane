@@ -42,12 +42,29 @@ required = [
 
 [[constraint]]
   name="sigs.k8s.io/controller-runtime"
-  version="v0.1.10"
+  version="v0.2.0-beta.5"
 
 [[override]]
   name="sigs.k8s.io/controller-tools"
-  source = "https://github.com/crossplaneio/controller-tools.git"
-  revision = "9acc926ef7ce7372609b34fbafe397158e6442ef"
+  source = "https://github.com/muvaf/controller-tools.git"
+  revision = "301a879da11105676f319f9080278a54b956d07f"
+
+# temp stanzas
+[[override]]
+  name = "k8s.io/api"
+  version = "kubernetes-1.14.5"
+[[override]]
+  name = "github.com/census-instrumentation/opencensus-proto"
+  version = "v0.1.0"
+[[override]]
+  name = "github.com/aws/aws-sdk-go-v2"
+  version = "v2.0.0-preview.5"
+[[override]]
+  name = "github.com/Azure/azure-sdk-for-go"
+  version = "v25.1.0"
+[[override]]
+  name = "contrib.go.opencensus.io/exporter/ocagent"
+  version = "v0.2.0"
 
 # For dependency below: Refer to issue https://github.com/golang/dep/issues/1799
 [[override]]
