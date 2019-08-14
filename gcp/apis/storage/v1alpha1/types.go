@@ -508,22 +508,28 @@ func CopyToBucketWebsite(w *BucketWebsite) *storage.BucketWebsite {
 type BucketPolicyOnly struct {
 	// Enabled specifies whether access checks use only bucket-level IAM
 	// policies. Enabled may be disabled until the locked time.
-	Enabled bool
+	Enabled bool `json:"enabled,omitempty"`
 	// LockedTime specifies the deadline for changing Enabled from true to
 	// false.
-	LockedTime metav1.Time
+	LockedTime metav1.Time `json:"lockedTime,omitempty"`
 }
 
 // NewBucketPolicyOnly creates new instance based on the storage object
-func NewBucketPolicyOnly(bp storage.BucketPolicyOnly) BucketPolicyOnly {
-	return BucketPolicyOnly{
+func NewBucketPolicyOnly(bp storage.BucketPolicyOnly) *BucketPolicyOnly {
+	if bp == (storage.BucketPolicyOnly{}) {
+		return nil
+	}
+	return &BucketPolicyOnly{
 		Enabled:    bp.Enabled,
 		LockedTime: metav1.Time{Time: bp.LockedTime},
 	}
 }
 
 // CopyToBucketPolicyOnly creates storage equivalent
-func CopyToBucketPolicyOnly(bp BucketPolicyOnly) storage.BucketPolicyOnly {
+func CopyToBucketPolicyOnly(bp *BucketPolicyOnly) storage.BucketPolicyOnly {
+	if bp == nil {
+		return storage.BucketPolicyOnly{}
+	}
 	return storage.BucketPolicyOnly{
 		Enabled:    bp.Enabled,
 		LockedTime: bp.LockedTime.Time,
@@ -535,7 +541,7 @@ func CopyToBucketPolicyOnly(bp BucketPolicyOnly) storage.BucketPolicyOnly {
 type BucketUpdatableAttrs struct {
 	// BucketPolicyOnly configures access checks to use only bucket-level IAM
 	// policies.
-	BucketPolicyOnly BucketPolicyOnly `json:"bucketPolicyOnly,omitempty"`
+	BucketPolicyOnly *BucketPolicyOnly `json:"bucketPolicyOnly,omitempty"`
 
 	// The bucket's Cross-Origin Resource Sharing (CORS) configuration.
 	CORS []CORS `json:"cors,omitempty"`
@@ -622,7 +628,7 @@ func CopyToBucketAttrs(ba *BucketUpdatableAttrs) *storage.BucketAttrs {
 	}
 
 	return &storage.BucketAttrs{
-		BucketPolicyOnly:           storage.BucketPolicyOnly{Enabled: ba.BucketPolicyOnly.Enabled},
+		BucketPolicyOnly:           CopyToBucketPolicyOnly(ba.BucketPolicyOnly),
 		CORS:                       CopyToCORSList(ba.CORS),
 		DefaultEventBasedHold:      ba.DefaultEventBasedHold,
 		Encryption:                 CopyToBucketEncryption(ba.Encryption),
@@ -727,7 +733,7 @@ func CopyBucketSpecAttrs(ba *BucketSpecAttrs) *storage.BucketAttrs {
 type BucketOutputAttrs struct {
 	// BucketPolicyOnly configures access checks to use only bucket-level IAM
 	// policies.
-	BucketPolicyOnly BucketPolicyOnly `json:"bucketPolicyOnly,omitempty"`
+	BucketPolicyOnly *BucketPolicyOnly `json:"bucketPolicyOnly,omitempty"`
 
 	// Created is the creation time of the bucket.
 	Created metav1.Time `json:"created,omitempty"`
@@ -914,7 +920,7 @@ func ParseBucketSpec(p map[string]string) *BucketSpec {
 	}
 
 	bua := BucketUpdatableAttrs{
-		BucketPolicyOnly:           BucketPolicyOnly{Enabled: util.ParseBool(p["bucketPolicyOnly"])},
+		BucketPolicyOnly:           parseBucketPolicyOnly(p["bucketPolicyOnly"]),
 		CORS:                       parseCORSList(p["cors"]),
 		DefaultEventBasedHold:      util.ParseBool(p["defaultEventBasedHold"]),
 		Encryption:                 encryption,
@@ -940,6 +946,16 @@ func ParseBucketSpec(p map[string]string) *BucketSpec {
 		},
 		BucketSpecAttrs:         bsa,
 		ServiceAccountSecretRef: serviceAccountSecretRef,
+	}
+}
+
+func parseBucketPolicyOnly(s string) *BucketPolicyOnly {
+	enabled := util.ParseBool(s)
+	if !enabled {
+		return nil
+	}
+	return &BucketPolicyOnly{
+		Enabled: enabled,
 	}
 }
 

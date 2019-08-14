@@ -20,7 +20,7 @@ import (
 	"time"
 
 	"github.com/crossplaneio/crossplane/apis/core/v1alpha1"
-	v1alpha13 "github.com/crossplaneio/crossplane/azure/apis/storage/v1alpha1"
+	storagev1alpha1 "github.com/crossplaneio/crossplane/azure/apis/storage/v1alpha1"
 
 	"github.com/Azure/azure-storage-blob-go/azblob"
 	corev1 "k8s.io/api/core/v1"
@@ -30,13 +30,13 @@ import (
 
 // MockContainer builder to create a continer object for testing
 type MockContainer struct {
-	*v1alpha13.Container
+	*storagev1alpha1.Container
 }
 
 // NewMockContainer new container builcer
 func NewMockContainer(ns, name string) *MockContainer {
 	return &MockContainer{
-		Container: &v1alpha13.Container{
+		Container: &storagev1alpha1.Container{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: ns,
 				Name:      name,

@@ -23,17 +23,17 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/crossplaneio/crossplane/apis/core/v1alpha1"
-	v1alpha13 "github.com/crossplaneio/crossplane/azure/apis/storage/v1alpha1"
+	storagev1alpha1 "github.com/crossplaneio/crossplane/azure/apis/storage/v1alpha1"
 )
 
 // MockAccount builder for testing account object
 type MockAccount struct {
-	*v1alpha13.Account
+	*storagev1alpha1.Account
 }
 
 // NewMockAccount creates new account wrapper
 func NewMockAccount(ns, name string) *MockAccount {
-	return &MockAccount{Account: &v1alpha13.Account{
+	return &MockAccount{Account: &storagev1alpha1.Account{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: ns,
 			Name:      name,
@@ -109,13 +109,13 @@ func (ta *MockAccount) WithSpecStorageAccountName(name string) *MockAccount {
 }
 
 // WithSpecStorageAccountSpec sets storage account specs
-func (ta *MockAccount) WithSpecStorageAccountSpec(spec *v1alpha13.StorageAccountSpec) *MockAccount {
+func (ta *MockAccount) WithSpecStorageAccountSpec(spec *storagev1alpha1.StorageAccountSpec) *MockAccount {
 	ta.Spec.StorageAccountSpec = spec
 	return ta
 }
 
 // WithStorageAccountStatus set storage account status
-func (ta *MockAccount) WithStorageAccountStatus(status *v1alpha13.StorageAccountStatus) *MockAccount {
+func (ta *MockAccount) WithStorageAccountStatus(status *storagev1alpha1.StorageAccountStatus) *MockAccount {
 	ta.Status.StorageAccountStatus = status
 	return ta
 }
@@ -125,8 +125,8 @@ func (ta *MockAccount) WithSpecStatusFromProperties(props *storage.AccountProper
 	acct := &storage.Account{
 		AccountProperties: props,
 	}
-	ta.WithSpecStorageAccountSpec(v1alpha13.NewStorageAccountSpec(acct)).
-		WithStorageAccountStatus(v1alpha13.NewStorageAccountStatus(acct))
+	ta.WithSpecStorageAccountSpec(storagev1alpha1.NewStorageAccountSpec(acct)).
+		WithStorageAccountStatus(storagev1alpha1.NewStorageAccountStatus(acct))
 	return ta
 }
 

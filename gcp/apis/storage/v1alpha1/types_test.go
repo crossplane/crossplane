@@ -141,10 +141,10 @@ func TestNewBucketPolicyOnly(t *testing.T) {
 	tests := []struct {
 		name string
 		args storage.BucketPolicyOnly
-		want BucketPolicyOnly
+		want *BucketPolicyOnly
 	}{
-		{name: "Default", args: storage.BucketPolicyOnly{}, want: BucketPolicyOnly{}},
-		{name: "Values", args: storage.BucketPolicyOnly{Enabled: true}, want: BucketPolicyOnly{Enabled: true}},
+		{name: "Default", args: storage.BucketPolicyOnly{}, want: nil},
+		{name: "Values", args: storage.BucketPolicyOnly{Enabled: true}, want: &BucketPolicyOnly{Enabled: true}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -159,11 +159,11 @@ func TestNewBucketPolicyOnly(t *testing.T) {
 func TestCopyToBucketPolicyOnly(t *testing.T) {
 	tests := []struct {
 		name string
-		args BucketPolicyOnly
+		args *BucketPolicyOnly
 		want storage.BucketPolicyOnly
 	}{
-		{name: "Default", args: BucketPolicyOnly{}, want: storage.BucketPolicyOnly{}},
-		{name: "Values", args: BucketPolicyOnly{Enabled: true}, want: storage.BucketPolicyOnly{Enabled: true}},
+		{name: "Default", args: &BucketPolicyOnly{}, want: storage.BucketPolicyOnly{}},
+		{name: "Values", args: &BucketPolicyOnly{Enabled: true}, want: storage.BucketPolicyOnly{Enabled: true}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -748,6 +748,7 @@ func TestCopyToBucketWebsite(t *testing.T) {
 
 var (
 	testBucketUpdateAttrs = &BucketUpdatableAttrs{
+		BucketPolicyOnly:           nil,
 		CORS:                       []CORS{testCORS},
 		DefaultEventBasedHold:      true,
 		Encryption:                 testBucketEncryption,
@@ -1216,7 +1217,7 @@ func TestParseBucketSpec(t *testing.T) {
 			want: &BucketSpec{
 				BucketSpecAttrs: BucketSpecAttrs{
 					BucketUpdatableAttrs: BucketUpdatableAttrs{
-						BucketPolicyOnly: BucketPolicyOnly{
+						BucketPolicyOnly: &BucketPolicyOnly{
 							Enabled: true,
 						},
 						CORS: []CORS{

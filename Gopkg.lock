@@ -1090,8 +1090,8 @@
     "storage/v1beta1",
   ]
   pruneopts = "UT"
-  revision = "6c9aa3caf3d6dd003323b52b545c1ae5f2777a0b"
-  version = "kubernetes-1.14.5"
+  revision = "6e4e0e4f393bf5e8bbff570acd13217aa5a770cd"
+  version = "kubernetes-1.14.1"
 
 [[projects]]
   digest = "1:65226935ef0a84716e327aa46c5a11cf2158ca6d0c79b379202d0b2c2be0e9bc"
