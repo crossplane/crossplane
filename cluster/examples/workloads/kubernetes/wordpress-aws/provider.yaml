@@ -1,7 +1,7 @@
 ---
 apiVersion: v1
 data:
-  credentials: BASE64ENCODED_AWS_PROVIDER_CREDS
+  credentials: ${BASE64ENCODED_AWS_PROVIDER_CREDS}
 kind: Secret
 metadata:
   name: aws-provider-creds
@@ -17,7 +17,7 @@ spec:
   credentialsSecretRef:
     key: credentials
     name: aws-provider-creds
-  region: REGION
+  region: ${REGION}
 ---
 apiVersion: core.crossplane.io/v1alpha1
 kind: ResourceClass
@@ -27,12 +27,13 @@ metadata:
 parameters:
   class: db.t2.small
   masterUsername: masteruser
-  securityGroups: RDS_SECURITY_GROUP #sg-1,sg-2
-  subnetGroupName: RDS_SUBNET_GROUP_NAME # eks-db-subnets
+  securityGroups: ${RDS_SECURITY_GROUP_ID} #sg-1,sg-2
+  subnetGroupName: ${RDS_SUBNET_GROUP_NAME} # eks-db-subnets
   size: "20"
 provisioner: rdsinstance.database.aws.crossplane.io/v1alpha1
 providerRef:
   name: aws-provider
+  namespace: crossplane-system
 reclaimPolicy: Delete
 ---
 apiVersion: core.crossplane.io/v1alpha1
@@ -41,19 +42,20 @@ metadata:
   name: standard-cluster
   namespace: crossplane-system
 parameters:
-  region: REGION
-  roleARN: EKS_ROLE_ARN # arn:aws:iam::<account-id>:role/<role-name>
-  vpcId: EKS_VPC #vpc-01
-  subnetIds: EKS_SUBNETS #subnet-01,subnet-02,subnet-03
-  securityGroupIds: EKS_SECURITY_GROUP #sg-01
-  workerKeyName: EKS_WORKER_KEY_NAME #named ec2 keypair
+  region: ${REGION}
+  roleARN: ${EKS_ROLE_ARN} # arn:aws:iam::<account-id>:role/<role-name>
+  vpcId: ${EKS_VPC} #vpc-01
+  subnetIds: ${EKS_SUBNETS} #subnet-01,subnet-02,subnet-03
+  securityGroupIds: ${EKS_SECURITY_GROUP_ID} #sg-01
+  workerKeyName: ${EKS_WORKER_KEY_NAME} #named ec2 keypair
   workerNodeInstanceType: m3.medium
   workerNodeAutoScalingGroupMinSize: "1"
   workerNodeAutoScalingGroupMaxSize: "1"
   workerNodeGroupName: demo-nodes
-  workerClusterControlPlaneSecurityGroup: EKS_SECURITY_GROUP #sg-01
+  workerClusterControlPlaneSecurityGroup: ${EKS_SECURITY_GROUP_ID} #sg-01
 provisioner: ekscluster.compute.aws.crossplane.io/v1alpha1
 providerRef:
   name: aws-provider
+  namespace: crossplane-system
 reclaimPolicy: Delete
 ---

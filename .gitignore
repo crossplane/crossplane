@@ -1,3 +1,5 @@
+**/terraform.tfstate*
+**/.terraform
 /.cache
 /.work
 /_output

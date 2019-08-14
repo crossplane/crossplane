@@ -12,6 +12,8 @@ metadata:
     provider: aws
     app: wordpress-demo
 spec:
+  writeConnectionSecretToRef:
+    name: wordpress-demo-cluster
   classRef:
     name: standard-cluster
     namespace: crossplane-system
