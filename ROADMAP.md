@@ -87,7 +87,7 @@ Any dates listed below and the specific issues that will ship in a given milesto
   * Infra Stack Developer Guide [#610](https://github.com/crossplaneio/crossplane/issues/610)
   * Portable Wordpress App Stack (kubebuilder-based) published to registry [#572](https://github.com/crossplaneio/crossplane/issues/572)
   * Refresh 0.3 Docs: reflect enhancements, better on-boarding UX, easier to get started [#625](https://github.com/crossplaneio/crossplane/issues/625)
-  * Crossplane.io reflects the updated roadmap / vision [#667](https://github.com/crossplaneio/crossplane/issues/667)
+  * Crossplane.io reflects the updated roadmap / vision [crossplaneio.github.io#22](https://github.com/crossplaneio/crossplaneio.github.io/issues/22)
   * DevOps pipeline examples for Jenkins, GitLab, GitOps using Infra Stacks [#631](https://github.com/crossplaneio/crossplane/issues/631)
 
 ## v0.4 - Template App Stacks & Infra Stacks Expansion
