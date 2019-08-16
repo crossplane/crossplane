@@ -53,7 +53,7 @@ Support for all of these UI types is not mandated or required.  Other UI element
 
 The optional addition of a `ui-schema.yaml` file within the package tree will be used to drive the UI.
 
-The primary purpose of the `ui-schema.yaml` format is to allow for easy authoring of the definition of UI markup, validation, and errors for a more complete UI and UX. The `ui-schema.yaml` file will be parsed and validated as part of package validation and ultimately serialized as a `JSON` annotation on the respective CRD at install time.
+The primary purpose of the `ui-schema.yaml` format is to allow for easy authoring of the definition of UI markup, validation, and errors for a more complete UI and UX. The `ui-schema.yaml` file will be parsed and validated as part of package validation and ultimately serialized as a `YAML` annotation on the respective CRD at install time.
 
 A root `ui-schema.yaml` file may be used to set global UI metadata.  This may be useful for describing required fields that appear across resources and versions.  Resource specific UI metadata should take priority over global UI metadata.
 
@@ -135,17 +135,12 @@ An example injection of the `ui-schema.yaml` as a CRD annotation follows.  Keep 
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
+  name: rdsinstances.database.aws.crossplane.io
   annotations:
-    extensions.crossplane.io/ui-spec: {"uiSpecVersion":0.3,"uiSpec":[{"title":"Configuration","description":"Enter information specific to the configuration you wish to create.","items":[{"name":"dbReplicas","controlType":"singleInput","type":"integer","path":".spec.dbReplicas","title":"DB Replicas","description":"The number of DB Replicas","default":1,"validation":[{"minimum":1},{"maximum":3}]},{"name":"masterPassword","controlType":"singleInput","type":"password","path":".spec.masterPassword","title":"DB Master Password","description":"The master DB password. Must be between 8-32 characters long"},{"name":"subdomain","controlType":"singleInput","type":"string","path":".spec.subdomain","title":"Subdomain","pattern":"^([A-Za-z0-9](?:(?:[-A-Za-z0-9]){0,61}[A-Za-z0-9])?){2,62}$","description":"Enter a value for your subdomain. It cannot start or end with a dash and must be between 2-62 characters long","validation":[{"minLength":2},{"maxLength":62}]},{"name":"instanceSize","controlType":"singleSelect","path":".spec.instanceSize","title":"Instance Size","enum":["Option-1","Option-2","Option-3"],"validation":[{"required":true,"customError":"You must select an instance size for your configuration!"}]}]}]}
-  creationTimestamp: null
+    stacks.crossplane.io/ui-spec: |
+      {"uiSpecVersion":0.3,"uiSpec":[{"title":"Configuration","description":"Enter information specific to the configuration you wish to create.","items":[{"name":"dbReplicas","controlType":"singleInput","type":"integer","path":".spec.dbReplicas","title":"DB Replicas","description":"The number of DB Replicas","default":1,"validation":[{"minimum":1},{"maximum":3}]},{"name":"masterPassword","controlType":"singleInput","type":"password","path":".spec.masterPassword","title":"DB Master Password","description":"The master DB password. Must be between 8-32 characters long"},{"name":"subdomain","controlType":"singleInput","type":"string","path":".spec.subdomain","title":"Subdomain","pattern":"^([A-Za-z0-9](?:(?:[-A-Za-z0-9]){0,61}[A-Za-z0-9])?){2,62}$","description":"Enter a value for your subdomain. It cannot start or end with a dash and must be between 2-62 characters long","validation":[{"minLength":2},{"maxLength":62}]},{"name":"instanceSize","controlType":"singleSelect","path":".spec.instanceSize","title":"Instance Size","enum":["Option-1","Option-2","Option-3"],"validation":[{"required":true,"customError":"You must select an instance size for your configuration!"}]}]}]}
   labels:
     controller-tools.k8s.io: "1.0"
-  name: rdsinstances.database.aws.crossplane.io
-.
-.
-.
-.
-.
 ```
 
 ## Formal Specification
