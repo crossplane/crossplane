@@ -21,6 +21,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/resource"
 )
 
 // KubernetesClusterSpec specifies the configuration of a Kubernetes cluster.
@@ -109,4 +110,29 @@ type ResourceReference struct {
 	corev1.ObjectReference `json:",inline"`
 	// name of the generated resource secret
 	SecretName string `json:"secretName"`
+}
+
+// All policies must satisfy the Policy interface
+var _ resource.Policy = &KubernetesClusterPolicy{}
+
+// +kubebuilder:object:root=true
+
+// KubernetesClusterPolicy contains a namespace-scoped policy for KubernetesCluster
+type KubernetesClusterPolicy struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	v1alpha1.Policy `json:",inline"`
+}
+
+// All policy lists must satisfy the PolicyList interface
+var _ resource.PolicyList = &KubernetesClusterPolicyList{}
+
+// +kubebuilder:object:root=true
+
+// KubernetesClusterPolicyList contains a list of KubernetesClusterPolicy
+type KubernetesClusterPolicyList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []KubernetesClusterPolicy `json:"items"`
 }

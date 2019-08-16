@@ -47,6 +47,20 @@ var (
 	MySQLInstanceGroupVersionKind = SchemeGroupVersion.WithKind(MySQLInstanceKind)
 )
 
+// MySQLInstancePolicy type metadata.
+var (
+	MySQLInstancePolicyKind             = reflect.TypeOf(MySQLInstancePolicy{}).Name()
+	MySQLInstancePolicyKindAPIVersion   = MySQLInstancePolicyKind + "." + SchemeGroupVersion.String()
+	MySQLInstancePolicyGroupVersionKind = SchemeGroupVersion.WithKind(MySQLInstancePolicyKind)
+)
+
+// MySQLInstancePolicyList type metadata.
+var (
+	MySQLInstancePolicyListKind             = reflect.TypeOf(MySQLInstancePolicyList{}).Name()
+	MySQLInstancePolicyListKindAPIVersion   = MySQLInstancePolicyListKind + "." + SchemeGroupVersion.String()
+	MySQLInstancePolicyListGroupVersionKind = SchemeGroupVersion.WithKind(MySQLInstancePolicyListKind)
+)
+
 // PostgreSQLInstance type metadata.
 var (
 	PostgreSQLInstanceKind             = reflect.TypeOf(PostgreSQLInstance{}).Name()
@@ -54,7 +68,23 @@ var (
 	PostgreSQLInstanceGroupVersionKind = SchemeGroupVersion.WithKind(PostgreSQLInstanceKind)
 )
 
+// PostgreSQLInstancePolicy type metadata.
+var (
+	PostgreSQLInstancePolicyKind             = reflect.TypeOf(PostgreSQLInstancePolicy{}).Name()
+	PostgreSQLInstancePolicyKindAPIVersion   = PostgreSQLInstancePolicyKind + "." + SchemeGroupVersion.String()
+	PostgreSQLInstancePolicyGroupVersionKind = SchemeGroupVersion.WithKind(PostgreSQLInstancePolicyKind)
+)
+
+// PostgreSQLInstancePolicyList type metadata.
+var (
+	PostgreSQLInstancePolicyListKind             = reflect.TypeOf(PostgreSQLInstancePolicyList{}).Name()
+	PostgreSQLInstancePolicyListKindAPIVersion   = PostgreSQLInstancePolicyListKind + "." + SchemeGroupVersion.String()
+	PostgreSQLInstancePolicyListGroupVersionKind = SchemeGroupVersion.WithKind(PostgreSQLInstancePolicyListKind)
+)
+
 func init() {
 	SchemeBuilder.Register(&MySQLInstance{}, &MySQLInstanceList{})
+	SchemeBuilder.Register(&MySQLInstancePolicy{}, &MySQLInstancePolicyList{})
 	SchemeBuilder.Register(&PostgreSQLInstance{}, &PostgreSQLInstanceList{})
+	SchemeBuilder.Register(&PostgreSQLInstancePolicy{}, &PostgreSQLInstancePolicyList{})
 }

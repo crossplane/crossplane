@@ -35,7 +35,6 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/controller/aws"
 	"github.com/crossplaneio/crossplane/pkg/controller/azure"
 	"github.com/crossplaneio/crossplane/pkg/controller/defaultclass"
-	"github.com/crossplaneio/crossplane/pkg/controller/deprecateddefaultclass"
 	"github.com/crossplaneio/crossplane/pkg/controller/gcp"
 	stacksController "github.com/crossplaneio/crossplane/pkg/controller/stacks"
 	"github.com/crossplaneio/crossplane/pkg/controller/workload"
@@ -142,10 +141,6 @@ func main() {
 
 func controllerSetupWithManager(mgr manager.Manager) error {
 	if err := (&defaultclass.Controllers{}).SetupWithManager(mgr); err != nil {
-		return err
-	}
-
-	if err := (&deprecateddefaultclass.Controllers{}).SetupWithManager(mgr); err != nil {
 		return err
 	}
 

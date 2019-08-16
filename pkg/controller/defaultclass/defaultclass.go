@@ -29,6 +29,22 @@ type Controllers struct{}
 
 // SetupWithManager adds all default class controllers to the manager.
 func (c *Controllers) SetupWithManager(mgr ctrl.Manager) error {
+	if err := (&BucketController{}).SetupWithManager(mgr); err != nil {
+		return err
+	}
+
+	if err := (&KubernetesClusterController{}).SetupWithManager(mgr); err != nil {
+		return err
+	}
+
+	if err := (&MySQLInstanceController{}).SetupWithManager(mgr); err != nil {
+		return err
+	}
+
+	if err := (&PostgreSQLInstanceController{}).SetupWithManager(mgr); err != nil {
+		return err
+	}
+
 	if err := (&RedisClusterController{}).SetupWithManager(mgr); err != nil {
 		return err
 	}

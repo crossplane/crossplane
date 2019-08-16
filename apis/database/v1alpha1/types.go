@@ -21,6 +21,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/resource"
 )
 
 // MySQLInstanceSpec specifies the configuration of a MySQL instance.
@@ -102,6 +103,31 @@ type MySQLInstanceList struct {
 	Items           []MySQLInstance `json:"items"`
 }
 
+// All policies must satisfy the Policy interface
+var _ resource.Policy = &MySQLInstancePolicy{}
+
+// +kubebuilder:object:root=true
+
+// MySQLInstancePolicy contains a namespace-scoped policy for MySQLInstance
+type MySQLInstancePolicy struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	v1alpha1.Policy `json:",inline"`
+}
+
+// All policy lists must satisfy the PolicyList interface
+var _ resource.PolicyList = &MySQLInstancePolicyList{}
+
+// +kubebuilder:object:root=true
+
+// MySQLInstancePolicyList contains a list of MySQLInstancePolicy
+type MySQLInstancePolicyList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []MySQLInstancePolicy `json:"items"`
+}
+
 // PostgreSQLInstanceSpec specifies the configuration of this
 // PostgreSQLInstance.
 type PostgreSQLInstanceSpec struct {
@@ -180,4 +206,29 @@ type PostgreSQLInstanceList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []PostgreSQLInstance `json:"items"`
+}
+
+// All policies must satisfy the Policy interface
+var _ resource.Policy = &PostgreSQLInstancePolicy{}
+
+// +kubebuilder:object:root=true
+
+// PostgreSQLInstancePolicy contains a namespace-scoped policy for PostgreSQLInstance
+type PostgreSQLInstancePolicy struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	v1alpha1.Policy `json:",inline"`
+}
+
+// All policy lists must satisfy the PolicyList interface
+var _ resource.PolicyList = &PostgreSQLInstancePolicyList{}
+
+// +kubebuilder:object:root=true
+
+// PostgreSQLInstancePolicyList contains a list of PostgreSQLInstancePolicy
+type PostgreSQLInstancePolicyList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []PostgreSQLInstancePolicy `json:"items"`
 }
