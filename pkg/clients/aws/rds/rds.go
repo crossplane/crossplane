@@ -24,7 +24,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/rds"
 	"github.com/aws/aws-sdk-go-v2/service/rds/rdsiface"
 
-	"github.com/crossplaneio/crossplane/pkg/apis/aws/database/v1alpha1"
+	"github.com/crossplaneio/crossplane/aws/apis/database/v1alpha1"
 )
 
 // Instance crossplane representation of the to AWS DBInstance

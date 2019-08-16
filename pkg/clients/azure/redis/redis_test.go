@@ -24,7 +24,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/crossplaneio/crossplane/pkg/apis/azure/cache/v1alpha1"
+	"github.com/crossplaneio/crossplane/azure/apis/cache/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/clients/azure"
 )
 

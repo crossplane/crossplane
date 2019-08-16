@@ -29,7 +29,7 @@ const (
 )
 
 var (
-	logger = runtimelog.NewDelegatingLogger(runtimelog.NullLogger{})
+	logger = runtimelog.Log
 
 	// Logger is the base logger used by Crossplane. It delegates to another
 	// logr.Logger. You *must* call SetLogger to get any actual logging.

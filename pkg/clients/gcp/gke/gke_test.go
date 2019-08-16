@@ -17,6 +17,7 @@ limitations under the License.
 package gke
 
 import (
+	"context"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -40,7 +41,7 @@ func TestNewClusterClient(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := NewClusterClient(tt.args)
+			got, err := NewClusterClient(context.Background(), tt.args)
 			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
 				t.Errorf("NewClusterClient() error = %v, want.err %v\n%s", err, tt.want.err, diff)
 				return

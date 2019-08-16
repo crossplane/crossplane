@@ -35,9 +35,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
-	azurev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	azurev1alpha1 "github.com/crossplaneio/crossplane/azure/apis/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/clients/azure/resourcegroup"
 	fakerg "github.com/crossplaneio/crossplane/pkg/clients/azure/resourcegroup/fake"
 	"github.com/crossplaneio/crossplane/pkg/test"
@@ -98,7 +97,7 @@ func withSpecName(n string) resourceModifier {
 }
 
 func withDeletionTimestamp(t time.Time) resourceModifier {
-	return func(r *v1alpha1.ResourceGroup) { r.ObjectMeta.DeletionTimestamp = &metav1.Time{Time: t} }
+	return func(r *azurev1alpha1.ResourceGroup) { r.ObjectMeta.DeletionTimestamp = &metav1.Time{Time: t} }
 }
 
 // func withDeletionTimestamp(t time.Time) resourceModifier {
@@ -371,7 +370,7 @@ func TestConnect(t *testing.T) {
 	cases := []struct {
 		name    string
 		conn    connecter
-		i       *v1alpha1.ResourceGroup
+		i       *azurev1alpha1.ResourceGroup
 		want    createsyncdeleter
 		wantErr error
 	}{
@@ -462,28 +461,28 @@ func TestConnect(t *testing.T) {
 }
 
 type mockConnector struct {
-	MockConnect func(ctx context.Context, i *v1alpha1.ResourceGroup) (createsyncdeleter, error)
+	MockConnect func(ctx context.Context, i *azurev1alpha1.ResourceGroup) (createsyncdeleter, error)
 }
 
-func (c *mockConnector) Connect(ctx context.Context, i *v1alpha1.ResourceGroup) (createsyncdeleter, error) {
+func (c *mockConnector) Connect(ctx context.Context, i *azurev1alpha1.ResourceGroup) (createsyncdeleter, error) {
 	return c.MockConnect(ctx, i)
 }
 
 type mockCSD struct {
-	MockCreate func(ctx context.Context, i *v1alpha1.ResourceGroup) bool
-	MockSync   func(ctx context.Context, i *v1alpha1.ResourceGroup) bool
-	MockDelete func(ctx context.Context, i *v1alpha1.ResourceGroup) bool
+	MockCreate func(ctx context.Context, i *azurev1alpha1.ResourceGroup) bool
+	MockSync   func(ctx context.Context, i *azurev1alpha1.ResourceGroup) bool
+	MockDelete func(ctx context.Context, i *azurev1alpha1.ResourceGroup) bool
 }
 
-func (csd *mockCSD) Create(ctx context.Context, i *v1alpha1.ResourceGroup) bool {
+func (csd *mockCSD) Create(ctx context.Context, i *azurev1alpha1.ResourceGroup) bool {
 	return csd.MockCreate(ctx, i)
 }
 
-func (csd *mockCSD) Sync(ctx context.Context, i *v1alpha1.ResourceGroup) bool {
+func (csd *mockCSD) Sync(ctx context.Context, i *azurev1alpha1.ResourceGroup) bool {
 	return csd.MockSync(ctx, i)
 }
 
-func (csd *mockCSD) Delete(ctx context.Context, i *v1alpha1.ResourceGroup) bool {
+func (csd *mockCSD) Delete(ctx context.Context, i *azurev1alpha1.ResourceGroup) bool {
 	return csd.MockDelete(ctx, i)
 }
 
@@ -498,15 +497,15 @@ func TestReconcile(t *testing.T) {
 		{
 			name: "SuccessfulDelete",
 			rec: &Reconciler{
-				connecter: &mockConnector{MockConnect: func(_ context.Context, _ *v1alpha1.ResourceGroup) (createsyncdeleter, error) {
-					return &mockCSD{MockDelete: func(_ context.Context, _ *v1alpha1.ResourceGroup) bool { return false }}, nil
+				connecter: &mockConnector{MockConnect: func(_ context.Context, _ *azurev1alpha1.ResourceGroup) (createsyncdeleter, error) {
+					return &mockCSD{MockDelete: func(_ context.Context, _ *azurev1alpha1.ResourceGroup) bool { return false }}, nil
 				}},
 				kube: &test.MockClient{
 					MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
-						*obj.(*v1alpha1.ResourceGroup) = *(resource(withName(name), withDeletionTimestamp(time.Now())))
+						*obj.(*azurev1alpha1.ResourceGroup) = *(resource(withName(name), withDeletionTimestamp(time.Now())))
 						return nil
 					},
-					MockUpdate: func(_ context.Context, _ runtime.Object) error { return nil },
+					MockUpdate: func(_ context.Context, _ runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
 			},
 			req:     reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
@@ -516,15 +515,15 @@ func TestReconcile(t *testing.T) {
 		{
 			name: "SuccessfulCreate",
 			rec: &Reconciler{
-				connecter: &mockConnector{MockConnect: func(_ context.Context, _ *v1alpha1.ResourceGroup) (createsyncdeleter, error) {
-					return &mockCSD{MockCreate: func(_ context.Context, _ *v1alpha1.ResourceGroup) bool { return true }}, nil
+				connecter: &mockConnector{MockConnect: func(_ context.Context, _ *azurev1alpha1.ResourceGroup) (createsyncdeleter, error) {
+					return &mockCSD{MockCreate: func(_ context.Context, _ *azurev1alpha1.ResourceGroup) bool { return true }}, nil
 				}},
 				kube: &test.MockClient{
 					MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
-						*obj.(*v1alpha1.ResourceGroup) = *(resource())
+						*obj.(*azurev1alpha1.ResourceGroup) = *(resource())
 						return nil
 					},
-					MockUpdate: func(_ context.Context, _ runtime.Object) error { return nil },
+					MockUpdate: func(_ context.Context, _ runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
 			},
 			req:     reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
@@ -534,18 +533,18 @@ func TestReconcile(t *testing.T) {
 		{
 			name: "SuccessfulSync",
 			rec: &Reconciler{
-				connecter: &mockConnector{MockConnect: func(_ context.Context, _ *v1alpha1.ResourceGroup) (createsyncdeleter, error) {
+				connecter: &mockConnector{MockConnect: func(_ context.Context, _ *azurev1alpha1.ResourceGroup) (createsyncdeleter, error) {
 					return &mockCSD{
-						MockSync: func(_ context.Context, _ *v1alpha1.ResourceGroup) bool { return false },
+						MockSync: func(_ context.Context, _ *azurev1alpha1.ResourceGroup) bool { return false },
 					}, nil
 				}},
 				kube: &test.MockClient{
 					MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
-						*obj.(*v1alpha1.ResourceGroup) = *(resource(withName(name)))
+						*obj.(*azurev1alpha1.ResourceGroup) = *(resource(withName(name)))
 						return nil
 					},
-					MockUpdate: func(_ context.Context, _ runtime.Object) error { return nil },
-					MockCreate: func(_ context.Context, _ runtime.Object) error { return nil },
+					MockUpdate: func(_ context.Context, _ runtime.Object, _ ...client.UpdateOption) error { return nil },
+					MockCreate: func(_ context.Context, _ runtime.Object, _ ...client.CreateOption) error { return nil },
 				},
 			},
 			req:     reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
@@ -559,7 +558,7 @@ func TestReconcile(t *testing.T) {
 					MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
 						return kerrors.NewNotFound(schema.GroupResource{}, name)
 					},
-					MockUpdate: func(_ context.Context, _ runtime.Object) error { return nil },
+					MockUpdate: func(_ context.Context, _ runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
 			},
 			req:     reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
@@ -573,7 +572,7 @@ func TestReconcile(t *testing.T) {
 					MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
 						return errorBoom
 					},
-					MockUpdate: func(_ context.Context, _ runtime.Object) error { return nil },
+					MockUpdate: func(_ context.Context, _ runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
 			},
 			req:     reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
@@ -583,17 +582,17 @@ func TestReconcile(t *testing.T) {
 		{
 			name: "FailedToConnect",
 			rec: &Reconciler{
-				connecter: &mockConnector{MockConnect: func(_ context.Context, _ *v1alpha1.ResourceGroup) (createsyncdeleter, error) {
+				connecter: &mockConnector{MockConnect: func(_ context.Context, _ *azurev1alpha1.ResourceGroup) (createsyncdeleter, error) {
 					return nil, errorBoom
 				}},
 				kube: &test.MockClient{
 					MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
-						*obj.(*v1alpha1.ResourceGroup) = *(resource())
+						*obj.(*azurev1alpha1.ResourceGroup) = *(resource())
 						return nil
 					},
-					MockUpdate: func(_ context.Context, obj runtime.Object) error {
+					MockUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 						want := resource(withConditions(corev1alpha1.ReconcileError(errorBoom)))
-						got := obj.(*v1alpha1.ResourceGroup)
+						got := obj.(*azurev1alpha1.ResourceGroup)
 						if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
 							t.Errorf("kube.Update(...): -want, +got:\n%s", diff)
 						}

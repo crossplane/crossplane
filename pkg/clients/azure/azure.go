@@ -28,7 +28,7 @@ import (
 	"github.com/Azure/go-autorest/autorest/to"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
+	"github.com/crossplaneio/crossplane/azure/apis/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 

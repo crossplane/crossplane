@@ -23,20 +23,21 @@ import (
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	"github.com/crossplaneio/crossplane/pkg/apis/azure/cache/v1alpha1"
-	cachev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/cache/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	cachev1alpha1 "github.com/crossplaneio/crossplane/apis/cache/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/azure/apis/cache/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/resource"
 )
 
-// AddClaim adds a controller that reconciles RedisCluster resource claims by
-// managing Redis resources to the supplied Manager.
-func AddClaim(mgr manager.Manager) error {
+// RedisClaimController is responsible for adding the Redis
+// claim controller and its corresponding reconciler to the manager with any runtime configuration.
+type RedisClaimController struct{}
+
+// SetupWithManager adds a controller that reconciles RedisCluster resource claims.
+func (c *RedisClaimController) SetupWithManager(mgr ctrl.Manager) error {
 	r := resource.NewClaimReconciler(mgr,
 		resource.ClaimKind(cachev1alpha1.RedisClusterGroupVersionKind),
 		resource.ClassKind(corev1alpha1.ResourceClassGroupVersionKind),
@@ -47,21 +48,15 @@ func AddClaim(mgr manager.Manager) error {
 		))
 
 	name := strings.ToLower(fmt.Sprintf("%s.%s", cachev1alpha1.RedisClusterKind, controllerName))
-	c, err := controller.New(name, mgr, controller.Options{Reconciler: r})
-	if err != nil {
-		return errors.Wrapf(err, "cannot create %s controller", name)
-	}
-
-	if err := c.Watch(&source.Kind{Type: &v1alpha1.Redis{}}, &resource.EnqueueRequestForClaim{}); err != nil {
-		return errors.Wrapf(err, "cannot watch for %s", v1alpha1.RedisGroupVersionKind)
-	}
 
 	p := v1alpha1.RedisKindAPIVersion
-	return errors.Wrapf(c.Watch(
-		&source.Kind{Type: &cachev1alpha1.RedisCluster{}},
-		&handler.EnqueueRequestForObject{},
-		resource.NewPredicates(resource.ObjectHasProvisioner(mgr.GetClient(), p)),
-	), "cannot watch for %s", cachev1alpha1.RedisClusterGroupVersionKind)
+
+	return ctrl.NewControllerManagedBy(mgr).
+		Named(name).
+		Watches(&source.Kind{Type: &v1alpha1.Redis{}}, &resource.EnqueueRequestForClaim{}).
+		For(&cachev1alpha1.RedisCluster{}).
+		WithEventFilter(resource.NewPredicates(resource.ObjectHasProvisioner(mgr.GetClient(), p))).
+		Complete(r)
 }
 
 // ConfigureRedis configures the supplied resource (presumed

@@ -69,7 +69,7 @@ func TestValidateInvalid(t *testing.T) {
 
 	data := []byte(fmt.Sprintf("[%s]\naws_access_key_id = %s\naws_secret_access_key = %s", "default", "foo", "barr"))
 
-	config, err := LoadConfig(data, ini.DEFAULT_SECTION, "us-west-2")
+	config, err := LoadConfig(data, ini.DefaultSection, "us-west-2")
 	g.Expect(err).NotTo(HaveOccurred())
 
 	err = ValidateConfig(config)

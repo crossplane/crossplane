@@ -23,20 +23,21 @@ import (
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/compute/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/apis/gcp/compute/v1alpha1"
+	computev1alpha1 "github.com/crossplaneio/crossplane/apis/compute/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/gcp/apis/compute/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/resource"
 )
 
-// AddClaim adds a controller that reconciles KubernetesCluster resource claims by
-// managing GKECluster resources to the supplied Manager.
-func AddClaim(mgr manager.Manager) error {
+// GKEClusterClaimController is responsible for adding the GKECluster
+// claim controller and its corresponding reconciler to the manager with any runtime configuration.
+type GKEClusterClaimController struct{}
+
+// SetupWithManager adds a controller that reconciles KubernetesCluster resource claims.
+func (c *GKEClusterClaimController) SetupWithManager(mgr ctrl.Manager) error {
 	r := resource.NewClaimReconciler(mgr,
 		resource.ClaimKind(computev1alpha1.KubernetesClusterGroupVersionKind),
 		resource.ClassKind(corev1alpha1.ResourceClassGroupVersionKind),
@@ -47,21 +48,15 @@ func AddClaim(mgr manager.Manager) error {
 		))
 
 	name := strings.ToLower(fmt.Sprintf("%s.%s", computev1alpha1.KubernetesClusterKind, controllerName))
-	c, err := controller.New(name, mgr, controller.Options{Reconciler: r})
-	if err != nil {
-		return errors.Wrapf(err, "cannot create %s controller", name)
-	}
-
-	if err := c.Watch(&source.Kind{Type: &v1alpha1.GKECluster{}}, &resource.EnqueueRequestForClaim{}); err != nil {
-		return errors.Wrapf(err, "cannot watch for %s", v1alpha1.GKEClusterGroupVersionKind)
-	}
 
 	p := v1alpha1.GKEClusterKindAPIVersion
-	return errors.Wrapf(c.Watch(
-		&source.Kind{Type: &computev1alpha1.KubernetesCluster{}},
-		&handler.EnqueueRequestForObject{},
-		resource.NewPredicates(resource.ObjectHasProvisioner(mgr.GetClient(), p)),
-	), "cannot watch for %s", computev1alpha1.KubernetesClusterGroupVersionKind)
+
+	return ctrl.NewControllerManagedBy(mgr).
+		Named(name).
+		Watches(&source.Kind{Type: &v1alpha1.GKECluster{}}, &resource.EnqueueRequestForClaim{}).
+		For(&computev1alpha1.KubernetesCluster{}).
+		WithEventFilter(resource.NewPredicates(resource.ObjectHasProvisioner(mgr.GetClient(), p))).
+		Complete(r)
 }
 
 // ConfigureGKECluster configures the supplied resource (presumed to be a

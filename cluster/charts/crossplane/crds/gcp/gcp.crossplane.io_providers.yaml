@@ -1,0 +1,86 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  creationTimestamp: null
+  name: providers.gcp.crossplane.io
+spec:
+  additionalPrinterColumns:
+  - JSONPath: .spec.projectID
+    name: PROJECT-ID
+    type: string
+  - JSONPath: .metadata.creationTimestamp
+    name: AGE
+    type: date
+  - JSONPath: .spec.credentialsSecretRef.name
+    name: SECRET-NAME
+    priority: 1
+    type: string
+  group: gcp.crossplane.io
+  names:
+    kind: Provider
+    plural: providers
+  scope: ""
+  subresources: {}
+  validation:
+    openAPIV3Schema:
+      description: Provider is the Schema for the instances API
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          description: ProviderSpec defines the desired state of Provider
+          properties:
+            credentialsSecretRef:
+              description: GCP ServiceAccount json secret key reference
+              properties:
+                key:
+                  description: The key of the secret to select from.  Must be a valid
+                    secret key.
+                  type: string
+                name:
+                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                    TODO: Add other useful fields. apiVersion, kind, uid?'
+                  type: string
+                optional:
+                  description: Specify whether the Secret or it's key must be defined
+                  type: boolean
+              required:
+              - key
+              type: object
+            projectID:
+              description: GCP ProjectID (name)
+              type: string
+            requiredPermissions:
+              description: RequiredPermissions  - list of granted GCP permissions
+                this provider's service account is expected to have
+              items:
+                type: string
+              type: array
+          required:
+          - credentialsSecretRef
+          - projectID
+          type: object
+      type: object
+  version: v1alpha1
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

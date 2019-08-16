@@ -23,12 +23,12 @@ import (
 	"github.com/go-ini/ini"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/crossplaneio/crossplane/pkg/apis/aws/v1alpha1"
+	"github.com/crossplaneio/crossplane/aws/apis/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 // DefaultSection for INI files.
-const DefaultSection = ini.DEFAULT_SECTION
+const DefaultSection = ini.DefaultSection
 
 // A FieldOption determines how common Go types are translated to the types
 // required by the Azure Go SDK.

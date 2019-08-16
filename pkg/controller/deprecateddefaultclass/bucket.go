@@ -20,34 +20,29 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/pkg/errors"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/source"
+	ctrl "sigs.k8s.io/controller-runtime"
 
-	storagev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/storage/v1alpha1"
+	storagev1alpha1 "github.com/crossplaneio/crossplane/apis/storage/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/resource"
 )
 
-// AddBucket adds a default class controller that reconciles claims
+// BucketController is responsible for adding the default class controller
+// for buckets and its corresponding reconciler to the manager with any runtime configuration.
+type BucketController struct{}
+
+// SetupWithManager adds a default class controller that reconciles claims
 // of kind Bucket to a resource class that declares it as the Bucket
-// default
-func AddBucket(mgr manager.Manager) error {
+// default.
+func (c *BucketController) SetupWithManager(mgr ctrl.Manager) error {
 	r := resource.NewDeprecatedDefaultClassReconciler(mgr,
-		resource.ClaimKind(storagev1alpha1.BucketGroupVersionKind),
-	)
+		resource.ClaimKind(storagev1alpha1.BucketGroupVersionKind))
 
 	name := strings.ToLower(fmt.Sprintf("%s.%s", storagev1alpha1.BucketKind, controllerBaseName))
-	c, err := controller.New(name, mgr, controller.Options{Reconciler: r})
-	if err != nil {
-		return errors.Wrap(err, "cannot create deprecated default controller")
-	}
 
-	return errors.Wrapf(c.Watch(
-		&source.Kind{Type: &storagev1alpha1.Bucket{}},
-		&handler.EnqueueRequestForObject{},
-		resource.NewPredicates(resource.NoClassReference()),
-		resource.NewPredicates(resource.NoManagedResourceReference()),
-	), "cannot watch for %s", storagev1alpha1.BucketGroupVersionKind)
+	return ctrl.NewControllerManagedBy(mgr).
+		Named(name).
+		For(&storagev1alpha1.Bucket{}).
+		WithEventFilter(resource.NewPredicates(resource.NoClassReference())).
+		WithEventFilter(resource.NewPredicates(resource.NoManagedResourceReference())).
+		Complete(r)
 }

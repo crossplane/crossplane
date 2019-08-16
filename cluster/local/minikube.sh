@@ -51,7 +51,7 @@ function check_context() {
 }
 
 # configure minikube
-KUBE_VERSION=${KUBE_VERSION:-"v1.13.1"}
+KUBE_VERSION=${KUBE_VERSION:-"v1.15.2"}
 MEMORY=${MEMORY:-"3000"}
 DRIVER=${DRIVER:-virtualbox}
 
@@ -67,7 +67,6 @@ case "${1:-}" in
     ${HELM} init --service-account tiller
     kubectl -n kube-system rollout status deploy/tiller-deploy
     kubectl -n kube-system rollout status deploy/nginx-ingress-controller
-    kubectl -n kube-system rollout status deploy/default-http-backend
 
     copy_image_to_cluster ${BUILD_IMAGE} ${MINIKUBE_IMAGE}
     ;;

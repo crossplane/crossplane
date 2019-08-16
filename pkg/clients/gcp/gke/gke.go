@@ -22,8 +22,9 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/container/v1"
+	"google.golang.org/api/option"
 
-	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/compute/v1alpha1"
+	computev1alpha1 "github.com/crossplaneio/crossplane/gcp/apis/compute/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/clients/gcp"
 )
 
@@ -50,8 +51,8 @@ type ClusterClient struct {
 }
 
 // NewClusterClient return new instance of the Client based on credentials
-func NewClusterClient(creds *google.Credentials) (*ClusterClient, error) {
-	client, err := container.New(oauth2.NewClient(context.Background(), creds.TokenSource))
+func NewClusterClient(ctx context.Context, creds *google.Credentials) (*ClusterClient, error) {
+	client, err := container.NewService(ctx, option.WithHTTPClient(oauth2.NewClient(context.Background(), creds.TokenSource)))
 	if err != nil {
 		return nil, err
 	}

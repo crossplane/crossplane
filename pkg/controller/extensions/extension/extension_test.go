@@ -38,9 +38,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/apis/extensions"
-	"github.com/crossplaneio/crossplane/pkg/apis/extensions/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/apis/extensions"
+	"github.com/crossplaneio/crossplane/apis/extensions/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/meta"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
@@ -282,13 +282,13 @@ func TestCreate(t *testing.T) {
 			r:    resource(withPolicyRules(defaultPolicyRules())),
 			clientFunc: func(r *v1alpha1.Extension) client.Client {
 				return &test.MockClient{
-					MockCreate: func(ctx context.Context, obj runtime.Object) error {
+					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error {
 						if _, ok := obj.(*corev1.ServiceAccount); ok {
 							return errBoom
 						}
 						return nil
 					},
-					MockStatusUpdate: func(ctx context.Context, obj runtime.Object) error { return nil },
+					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 				}
 			},
 			want: want{
@@ -310,13 +310,13 @@ func TestCreate(t *testing.T) {
 				withControllerSpec(defaultControllerSpec())),
 			clientFunc: func(r *v1alpha1.Extension) client.Client {
 				return &test.MockClient{
-					MockCreate: func(ctx context.Context, obj runtime.Object) error {
+					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error {
 						if _, ok := obj.(*apps.Deployment); ok {
 							return errBoom
 						}
 						return nil
 					},
-					MockStatusUpdate: func(ctx context.Context, obj runtime.Object) error { return nil },
+					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 				}
 			},
 			want: want{
@@ -405,7 +405,7 @@ func TestProcessRBAC(t *testing.T) {
 			r:    resource(withPolicyRules(defaultPolicyRules())),
 			clientFunc: func(r *v1alpha1.Extension) client.Client {
 				return &test.MockClient{
-					MockCreate: func(ctx context.Context, obj runtime.Object) error {
+					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error {
 						if _, ok := obj.(*corev1.ServiceAccount); ok {
 							return errBoom
 						}
@@ -425,7 +425,7 @@ func TestProcessRBAC(t *testing.T) {
 			r:    resource(withPolicyRules(defaultPolicyRules())),
 			clientFunc: func(r *v1alpha1.Extension) client.Client {
 				return &test.MockClient{
-					MockCreate: func(ctx context.Context, obj runtime.Object) error {
+					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error {
 						if _, ok := obj.(*rbac.ClusterRole); ok {
 							return errBoom
 						}
@@ -445,7 +445,7 @@ func TestProcessRBAC(t *testing.T) {
 			r:    resource(withPolicyRules(defaultPolicyRules())),
 			clientFunc: func(r *v1alpha1.Extension) client.Client {
 				return &test.MockClient{
-					MockCreate: func(ctx context.Context, obj runtime.Object) error {
+					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error {
 						if _, ok := obj.(*rbac.ClusterRoleBinding); ok {
 							return errBoom
 						}
@@ -563,7 +563,7 @@ func TestProcessDeployment(t *testing.T) {
 			r:    resource(withControllerSpec(defaultControllerSpec())),
 			clientFunc: func(r *v1alpha1.Extension) client.Client {
 				return &test.MockClient{
-					MockCreate: func(ctx context.Context, obj runtime.Object) error {
+					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error {
 						return errBoom
 					},
 				}
@@ -668,7 +668,7 @@ func TestProcessJob(t *testing.T) {
 			r:    resource(withControllerSpec(defaultJobControllerSpec())),
 			clientFunc: func(r *v1alpha1.Extension) client.Client {
 				return &test.MockClient{
-					MockCreate: func(ctx context.Context, obj runtime.Object) error {
+					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error {
 						return errBoom
 					},
 				}

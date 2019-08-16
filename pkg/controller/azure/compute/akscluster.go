@@ -30,16 +30,14 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/compute/v1alpha1"
-	azurev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	computev1alpha1 "github.com/crossplaneio/crossplane/azure/apis/compute/v1alpha1"
+	azurev1alpha1 "github.com/crossplaneio/crossplane/azure/apis/v1alpha1"
 	azureclients "github.com/crossplaneio/crossplane/pkg/clients/azure"
 	"github.com/crossplaneio/crossplane/pkg/logging"
 	"github.com/crossplaneio/crossplane/pkg/meta"
@@ -69,20 +67,23 @@ type Reconciler struct {
 	scheme             *runtime.Scheme
 }
 
-// AddAKSCluster creates a new AKSCluster Controller and adds it to the Manager with default RBAC.
-// The Manager will set fields on the Controller and Start it when the Manager is Started.
-func AddAKSCluster(mgr manager.Manager) error {
-	clientset, err := kubernetes.NewForConfig(mgr.GetConfig())
-	if err != nil {
-		return errors.Errorf("failed to create clientset: %+v", err)
-	}
-
-	r := newAKSClusterReconciler(mgr, &azureclients.AKSSetupClientFactory{}, clientset)
-	return AddAKSClusterReconciler(mgr, r)
+// AKSClusterController is responsible for adding the AKSCluster
+// controller and its corresponding reconciler to the manager with any runtime configuration.
+type AKSClusterController struct {
+	Reconciler reconcile.Reconciler
 }
 
-// newAKSClusterReconciler returns a new reconcile.Reconciler
-func newAKSClusterReconciler(mgr manager.Manager, aksSetupAPIFactory azureclients.AKSSetupAPIFactory,
+// SetupWithManager creates a new Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
+// and Start it when the Manager is Started.
+func (c *AKSClusterController) SetupWithManager(mgr ctrl.Manager) error {
+	return ctrl.NewControllerManagedBy(mgr).
+		Named("AKSCluster-controller").
+		For(&computev1alpha1.AKSCluster{}).
+		Complete(c.Reconciler)
+}
+
+// NewAKSClusterReconciler returns a new reconcile.Reconciler
+func NewAKSClusterReconciler(mgr manager.Manager, aksSetupAPIFactory azureclients.AKSSetupAPIFactory,
 	clientset kubernetes.Interface) *Reconciler {
 
 	return &Reconciler{
@@ -91,23 +92,6 @@ func newAKSClusterReconciler(mgr manager.Manager, aksSetupAPIFactory azureclient
 		aksSetupAPIFactory: aksSetupAPIFactory,
 		scheme:             mgr.GetScheme(),
 	}
-}
-
-// AddAKSClusterReconciler adds a new Controller to mgr with r as the reconcile.Reconciler
-func AddAKSClusterReconciler(mgr manager.Manager, r reconcile.Reconciler) error {
-	// Create a new controller
-	c, err := controller.New("AKSCluster-controller", mgr, controller.Options{Reconciler: r})
-	if err != nil {
-		return err
-	}
-
-	// Watch for changes to AKSCluster
-	err = c.Watch(&source.Kind{Type: &computev1alpha1.AKSCluster{}}, &handler.EnqueueRequestForObject{})
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 // Reconcile reads that state of the cluster for a AKSCluster object and makes changes based on the state read

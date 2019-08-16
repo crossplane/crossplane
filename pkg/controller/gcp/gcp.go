@@ -17,7 +17,7 @@ limitations under the License.
 package gcp
 
 import (
-	"sigs.k8s.io/controller-runtime/pkg/manager"
+	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/crossplaneio/crossplane/pkg/controller/gcp/cache"
 	"github.com/crossplaneio/crossplane/pkg/controller/gcp/compute"
@@ -25,30 +25,46 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/controller/gcp/storage"
 )
 
-func init() {
-	// AddToManagerFuncs is a list of functions to create controllers and add them to a manager.
-	AddToManagerFuncs = append(AddToManagerFuncs,
-		cache.Add,
-		cache.AddClaim,
-		compute.Add,
-		compute.AddClaim,
-		database.Add,
-		database.AddPostgreSQLClaim,
-		database.AddMySQLClaim,
-		storage.Add,
-		storage.AddClaim,
-	)
-}
+// Controllers passes down config and adds individual controllers to the manager.
+type Controllers struct{}
 
-// AddToManagerFuncs is a list of functions to add all Controllers to the Manager
-var AddToManagerFuncs []func(manager.Manager) error
-
-// AddToManager adds all Controllers to the Manager
-func AddToManager(m manager.Manager) error {
-	for _, f := range AddToManagerFuncs {
-		if err := f(m); err != nil {
-			return err
-		}
+// SetupWithManager adds all GCP controllers to the manager.
+func (c *Controllers) SetupWithManager(mgr ctrl.Manager) error {
+	if err := (&cache.CloudMemorystoreInstanceClaimController{}).SetupWithManager(mgr); err != nil {
+		return err
 	}
+
+	if err := (&cache.CloudMemorystoreInstanceController{}).SetupWithManager(mgr); err != nil {
+		return err
+	}
+
+	if err := (&compute.GKEClusterClaimController{}).SetupWithManager(mgr); err != nil {
+		return err
+	}
+
+	if err := (&compute.GKEClusterController{}).SetupWithManager(mgr); err != nil {
+		return err
+	}
+
+	if err := (&database.PostgreSQLInstanceClaimController{}).SetupWithManager(mgr); err != nil {
+		return err
+	}
+
+	if err := (&database.MySQLInstanceClaimController{}).SetupWithManager(mgr); err != nil {
+		return err
+	}
+
+	if err := (&database.CloudsqlController{}).SetupWithManager(mgr); err != nil {
+		return err
+	}
+
+	if err := (&storage.BucketClaimController{}).SetupWithManager(mgr); err != nil {
+		return err
+	}
+
+	if err := (&storage.BucketController{}).SetupWithManager(mgr); err != nil {
+		return err
+	}
+
 	return nil
 }

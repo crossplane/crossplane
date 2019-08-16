@@ -35,9 +35,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/compute/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	computev1alpha1 "github.com/crossplaneio/crossplane/azure/apis/compute/v1alpha1"
+	"github.com/crossplaneio/crossplane/azure/apis/v1alpha1"
 	azureclients "github.com/crossplaneio/crossplane/pkg/clients/azure"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
@@ -170,13 +170,16 @@ func TestReconcile(t *testing.T) {
 
 	// Setup the Manager and Controller.  Wrap the Controller Reconcile function so it writes each request to a
 	// channel when it is finished.
-	mgr, err := manager.New(cfg, manager.Options{})
+	mgr, err := manager.New(cfg, manager.Options{MetricsBindAddress: ":8081"})
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 	c := mgr.GetClient()
 
-	r := newAKSClusterReconciler(mgr, mockAKSSetupClientFactory, clientset)
+	r := NewAKSClusterReconciler(mgr, mockAKSSetupClientFactory, clientset)
 	recFn, requests := SetupTestReconcile(r)
-	g.Expect(AddAKSClusterReconciler(mgr, recFn)).NotTo(gomega.HaveOccurred())
+	controller := &AKSClusterController{
+		Reconciler: recFn,
+	}
+	g.Expect(controller.SetupWithManager(mgr)).NotTo(gomega.HaveOccurred())
 	defer close(StartTestManager(mgr, g))
 
 	// create the provider object and defer its cleanup

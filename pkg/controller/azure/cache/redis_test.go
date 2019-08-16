@@ -33,9 +33,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/crossplaneio/crossplane/pkg/apis/azure/cache/v1alpha1"
-	azurev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/azure/apis/cache/v1alpha1"
+	azurev1alpha1 "github.com/crossplaneio/crossplane/azure/apis/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/clients/azure"
 	"github.com/crossplaneio/crossplane/pkg/clients/azure/redis"
 	fakeredis "github.com/crossplaneio/crossplane/pkg/clients/azure/redis/fake"
@@ -697,7 +697,7 @@ func TestReconcile(t *testing.T) {
 						*obj.(*v1alpha1.Redis) = *(redisResource(withResourceName(redisResourceName), withDeletionTimestamp(time.Now())))
 						return nil
 					},
-					MockUpdate: func(_ context.Context, _ runtime.Object) error { return nil },
+					MockUpdate: func(_ context.Context, _ runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
 			},
 			req:     reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: redisResourceName}},
@@ -715,7 +715,7 @@ func TestReconcile(t *testing.T) {
 						*obj.(*v1alpha1.Redis) = *(redisResource())
 						return nil
 					},
-					MockUpdate: func(_ context.Context, _ runtime.Object) error { return nil },
+					MockUpdate: func(_ context.Context, _ runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
 			},
 			req:     reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: redisResourceName}},
@@ -741,8 +741,8 @@ func TestReconcile(t *testing.T) {
 						}
 						return nil
 					},
-					MockUpdate: func(_ context.Context, _ runtime.Object) error { return nil },
-					MockCreate: func(_ context.Context, _ runtime.Object) error { return nil },
+					MockUpdate: func(_ context.Context, _ runtime.Object, _ ...client.UpdateOption) error { return nil },
+					MockCreate: func(_ context.Context, _ runtime.Object, _ ...client.CreateOption) error { return nil },
 				},
 			},
 			req:     reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: redisResourceName}},
@@ -756,7 +756,7 @@ func TestReconcile(t *testing.T) {
 					MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
 						return kerrors.NewNotFound(schema.GroupResource{}, redisResourceName)
 					},
-					MockUpdate: func(_ context.Context, _ runtime.Object) error { return nil },
+					MockUpdate: func(_ context.Context, _ runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
 			},
 			req:     reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: redisResourceName}},
@@ -770,7 +770,7 @@ func TestReconcile(t *testing.T) {
 					MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
 						return errorBoom
 					},
-					MockUpdate: func(_ context.Context, _ runtime.Object) error { return nil },
+					MockUpdate: func(_ context.Context, _ runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
 			},
 			req:     reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: redisResourceName}},
@@ -788,7 +788,7 @@ func TestReconcile(t *testing.T) {
 						*obj.(*v1alpha1.Redis) = *(redisResource())
 						return nil
 					},
-					MockUpdate: func(_ context.Context, obj runtime.Object) error {
+					MockUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 						want := redisResource(withConditions(corev1alpha1.ReconcileError(errorBoom)))
 						got := obj.(*v1alpha1.Redis)
 						if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
@@ -818,7 +818,7 @@ func TestReconcile(t *testing.T) {
 						}
 						return nil
 					},
-					MockUpdate: func(_ context.Context, obj runtime.Object) error {
+					MockUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 						want := redisResource(
 							withResourceName(redisResourceName),
 							withConditions(
@@ -853,7 +853,7 @@ func TestReconcile(t *testing.T) {
 						}
 						return nil
 					},
-					MockUpdate: func(_ context.Context, obj runtime.Object) error {
+					MockUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 						want := redisResource(
 							withResourceName(redisResourceName),
 							withConditions(
@@ -866,7 +866,7 @@ func TestReconcile(t *testing.T) {
 						}
 						return nil
 					},
-					MockCreate: func(_ context.Context, obj runtime.Object) error { return errorBoom },
+					MockCreate: func(_ context.Context, obj runtime.Object, _ ...client.CreateOption) error { return errorBoom },
 				},
 			},
 			req:     reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: redisResourceName}},
@@ -889,7 +889,7 @@ func TestReconcile(t *testing.T) {
 						}
 						return nil
 					},
-					MockUpdate: func(_ context.Context, obj runtime.Object) error {
+					MockUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 						switch got := obj.(type) {
 						case *corev1.Secret:
 							return errorBoom

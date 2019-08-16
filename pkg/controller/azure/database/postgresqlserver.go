@@ -17,18 +17,14 @@ limitations under the License.
 package database
 
 import (
-	"fmt"
-
 	"k8s.io/apimachinery/pkg/api/errors"
 	apitypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	azuredbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/database/v1alpha1"
+	azuredbv1alpha1 "github.com/crossplaneio/crossplane/azure/apis/database/v1alpha1"
 	azureclients "github.com/crossplaneio/crossplane/pkg/clients/azure"
 	"github.com/crossplaneio/crossplane/pkg/logging"
 )
@@ -37,20 +33,22 @@ const (
 	postgresqlFinalizer = "finalizer.postgresqlservers." + controllerName
 )
 
-// AddPostgreSQLServer creates a new PostgreSQLServer Controller and adds it to the Manager with default RBAC.
-// The Manager will set fields on the Controller and Start it when the Manager is Started.
-func AddPostgreSQLServer(mgr manager.Manager) error {
-	clientset, err := kubernetes.NewForConfig(mgr.GetConfig())
-	if err != nil {
-		return fmt.Errorf("failed to create clientset: %+v", err)
-	}
-
-	r := newPostgreSQLServerReconciler(mgr, &azureclients.PostgreSQLServerClientFactory{}, clientset)
-	return addPostgreSQLServerReconciler(mgr, r)
+// PostgresqlServerController is responsible for adding the PostgresqlServer
+// controller and its corresponding reconciler to the manager with any runtime configuration.
+type PostgresqlServerController struct {
+	Reconciler reconcile.Reconciler
 }
 
-// newPostgreSQLServerReconciler returns a new reconcile.Reconciler
-func newPostgreSQLServerReconciler(mgr manager.Manager, sqlServerAPIFactory azureclients.SQLServerAPIFactory,
+// SetupWithManager creates a Controller that reconciles PostgresqlServer resources.
+func (c *PostgresqlServerController) SetupWithManager(mgr ctrl.Manager) error {
+	return ctrl.NewControllerManagedBy(mgr).
+		Named("Postgresqlservers." + controllerName).
+		For(&azuredbv1alpha1.PostgresqlServer{}).
+		Complete(c.Reconciler)
+}
+
+// NewPostgreSQLServerReconciler returns a new reconcile.Reconciler
+func NewPostgreSQLServerReconciler(mgr manager.Manager, sqlServerAPIFactory azureclients.SQLServerAPIFactory,
 	clientset kubernetes.Interface) *PostgreSQLReconciler {
 
 	r := &PostgreSQLReconciler{}
@@ -64,23 +62,6 @@ func newPostgreSQLServerReconciler(mgr manager.Manager, sqlServerAPIFactory azur
 	}
 
 	return r
-}
-
-// addPostgreSQLServerReconciler adds a new Controller to mgr with r as the reconcile.Reconciler
-func addPostgreSQLServerReconciler(mgr manager.Manager, r reconcile.Reconciler) error {
-	// Create a new controller
-	c, err := controller.New("postgresqlservers."+controllerName, mgr, controller.Options{Reconciler: r})
-	if err != nil {
-		return err
-	}
-
-	// Watch for changes to PostgreSQLServer
-	err = c.Watch(&source.Kind{Type: &azuredbv1alpha1.PostgresqlServer{}}, &handler.EnqueueRequestForObject{})
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 // PostgreSQLReconciler reconciles a PostgreSQLServer object

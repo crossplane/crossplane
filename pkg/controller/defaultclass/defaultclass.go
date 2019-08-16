@@ -17,29 +17,21 @@ limitations under the License.
 package defaultclass
 
 import (
-	"sigs.k8s.io/controller-runtime/pkg/manager"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 const (
 	controllerBaseName = "defaultclass.crossplane.io"
 )
 
-func init() {
-	// AddToManagerFuncs is a list of functions to create controllers and add them to a manager.
-	AddToManagerFuncs = append(AddToManagerFuncs,
-		AddRedisCluster,
-	)
-}
+// Controllers passes down config and adds individual controllers to the manager.
+type Controllers struct{}
 
-// AddToManagerFuncs is a list of functions to add all Controllers to the Manager
-var AddToManagerFuncs []func(manager.Manager) error
-
-// AddToManager adds all Controllers to the Manager
-func AddToManager(m manager.Manager) error {
-	for _, f := range AddToManagerFuncs {
-		if err := f(m); err != nil {
-			return err
-		}
+// SetupWithManager adds all default class controllers to the manager.
+func (c *Controllers) SetupWithManager(mgr ctrl.Manager) error {
+	if err := (&RedisClusterController{}).SetupWithManager(mgr); err != nil {
+		return err
 	}
+
 	return nil
 }

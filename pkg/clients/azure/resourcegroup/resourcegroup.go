@@ -24,7 +24,7 @@ import (
 	"github.com/Azure/go-autorest/autorest/azure/auth"
 	"github.com/pkg/errors"
 
-	"github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
+	"github.com/crossplaneio/crossplane/azure/apis/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/clients/azure"
 )
 

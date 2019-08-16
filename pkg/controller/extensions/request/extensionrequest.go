@@ -30,21 +30,17 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/kubernetes"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
-	controllerHandler "sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/pkg/errors"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/apis/extensions/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/apis/extensions/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/logging"
 	"github.com/crossplaneio/crossplane/pkg/meta"
 	"github.com/crossplaneio/crossplane/pkg/util"
@@ -76,9 +72,13 @@ type Reconciler struct {
 	executorInfo *executorInfo
 }
 
-// Add creates a new ExtensionRequest Controller and adds it to the Manager with default RBAC.
-// The Manager will set fields on the Controller and Start it when the Manager is Started.
-func Add(mgr manager.Manager) error {
+// Controller is responsible for adding the ExtensionRequest
+// controller and its corresponding reconciler to the manager with any runtime configuration.
+type Controller struct{}
+
+// SetupWithManager creates a new Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
+// and Start it when the Manager is Started.
+func (c *Controller) SetupWithManager(mgr ctrl.Manager) error {
 	r := &Reconciler{
 		kube:                  mgr.GetClient(),
 		kubeclient:            kubernetes.NewForConfigOrDie(mgr.GetConfig()),
@@ -86,14 +86,10 @@ func Add(mgr manager.Manager) error {
 		executorInfoDiscovery: &executorInfoDiscoverer{kube: mgr.GetClient()},
 	}
 
-	// Create a new controller
-	c, err := controller.New(controllerName, mgr, controller.Options{Reconciler: r})
-	if err != nil {
-		return err
-	}
-
-	// Watch for changes to ExtensionRequest
-	return c.Watch(&source.Kind{Type: &v1alpha1.ExtensionRequest{}}, &controllerHandler.EnqueueRequestForObject{})
+	return ctrl.NewControllerManagedBy(mgr).
+		Named(controllerName).
+		For(&v1alpha1.ExtensionRequest{}).
+		Complete(r)
 }
 
 // Reconcile reads that state of the ExtensionRequest for a Instance object and makes changes based on the state read
@@ -394,12 +390,11 @@ func (jc *extensionRequestJobCompleter) findPodNameForJob(ctx context.Context, j
 
 func (jc *extensionRequestJobCompleter) findPodsForJob(ctx context.Context, job *batchv1.Job) (*corev1.PodList, error) {
 	podList := &corev1.PodList{}
-	labelSelector := labels.Set{"job-name": job.Name}
-	podListOptions := &client.ListOptions{
-		Namespace:     job.Namespace,
-		LabelSelector: labelSelector.AsSelector(),
+	labelSelector := client.MatchingLabels{
+		"job-name": job.Name,
 	}
-	if err := jc.kube.List(ctx, podListOptions, podList); err != nil {
+	nsSelector := client.InNamespace(job.Namespace)
+	if err := jc.kube.List(ctx, podList, labelSelector, nsSelector); err != nil {
 		return nil, err
 	}
 

@@ -23,6 +23,7 @@ import (
 	"github.com/pkg/errors"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -32,8 +33,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/apis/workload/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/apis/workload/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/logging"
 	"github.com/crossplaneio/crossplane/pkg/meta"
 	"github.com/crossplaneio/crossplane/pkg/util"
@@ -101,6 +102,30 @@ func Add(mgr manager.Manager) error {
 		&predicate.Funcs{CreateFunc: CreatePredicate, UpdateFunc: UpdatePredicate},
 	)
 	return errors.Wrapf(err, "cannot watch for %s", v1alpha1.KubernetesApplicationKind)
+}
+
+// Controller is responsible for adding the KubernetesApplication
+// controller and its corresponding reconciler to the manager with any runtime configuration.
+type Controller struct{}
+
+// SetupWithManager creates a new Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
+// and Start it when the Manager is Started.
+func (c *Controller) SetupWithManager(mgr ctrl.Manager) error {
+	kube := mgr.GetClient()
+	r := &Reconciler{
+		kube: kube,
+		local: &localCluster{
+			ar: &applicationResourceClient{kube: kube},
+			gc: &applicationResourceGarbageCollector{kube: kube},
+		},
+	}
+
+	return ctrl.NewControllerManagedBy(mgr).
+		Named(controllerName).
+		For(&v1alpha1.KubernetesApplication{}).
+		Owns(&v1alpha1.KubernetesApplicationResource{}).
+		WithEventFilter(&predicate.Funcs{CreateFunc: CreatePredicate, UpdateFunc: UpdatePredicate}).
+		Complete(r)
 }
 
 // localCluster is a syncDeleter that syncs and deletes resources from the same
@@ -237,7 +262,7 @@ func (gc *applicationResourceGarbageCollector) process(ctx context.Context, app 
 
 	// Grab a list of all resources in our namespace.
 	resources := &v1alpha1.KubernetesApplicationResourceList{}
-	if err := gc.kube.List(ctx, &client.ListOptions{Namespace: app.GetNamespace()}, resources); err != nil {
+	if err := gc.kube.List(ctx, resources, client.InNamespace(app.GetNamespace())); err != nil {
 		return errors.Wrapf(err, "cannot garbage collect %s", v1alpha1.KubernetesApplicationResourceKind)
 	}
 

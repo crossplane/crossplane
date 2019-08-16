@@ -24,9 +24,9 @@ import (
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	databasev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/database/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/apis/gcp/database/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	databasev1alpha1 "github.com/crossplaneio/crossplane/apis/database/v1alpha1"
+	"github.com/crossplaneio/crossplane/gcp/apis/database/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/resource"
 )
 

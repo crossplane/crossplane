@@ -31,18 +31,15 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/compute/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/apis/workload/v1alpha1"
+	computev1alpha1 "github.com/crossplaneio/crossplane/apis/compute/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/apis/workload/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/logging"
 	"github.com/crossplaneio/crossplane/pkg/meta"
 	"github.com/crossplaneio/crossplane/pkg/util"
@@ -87,24 +84,23 @@ func UpdatePredicate(event event.UpdateEvent) bool {
 	return wl.Status.Cluster != nil
 }
 
-// Add creates a new Instance Controller and adds it to the Manager with default RBAC.
-// The Manager will set fields on the Controller and Start it when the Manager is Started.
-func Add(mgr manager.Manager) error {
+// Controller is responsible for adding the Instance
+// controller and its corresponding reconciler to the manager with any runtime configuration.
+type Controller struct{}
+
+// SetupWithManager creates a new Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
+// and Start it when the Manager is Started.
+func (c *Controller) SetupWithManager(mgr ctrl.Manager) error {
 	r := &Reconciler{
 		connecter: &clusterConnecter{kube: mgr.GetClient()},
 		kube:      mgr.GetClient(),
 	}
-	c, err := controller.New(controllerName, mgr, controller.Options{Reconciler: r})
-	if err != nil {
-		return errors.Wrap(err, "cannot create Kubernetes controller")
-	}
 
-	err = c.Watch(
-		&source.Kind{Type: &v1alpha1.KubernetesApplicationResource{}},
-		&handler.EnqueueRequestForObject{},
-		&predicate.Funcs{CreateFunc: CreatePredicate, UpdateFunc: UpdatePredicate},
-	)
-	return errors.Wrapf(err, "cannot watch for %s", v1alpha1.KubernetesApplicationResourceKind)
+	return ctrl.NewControllerManagedBy(mgr).
+		Named(controllerName).
+		For(&v1alpha1.KubernetesApplicationResource{}).
+		WithEventFilter(&predicate.Funcs{CreateFunc: CreatePredicate, UpdateFunc: UpdatePredicate}).
+		Complete(r)
 }
 
 // A syncer can sync resources with a KubernetesCluster.

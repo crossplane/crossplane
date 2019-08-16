@@ -62,7 +62,7 @@ func NewEnv(namespace string, builder apiruntime.SchemeBuilder, crds ...string) 
 	t := envtest.Environment{
 		UseExistingCluster: UseExistingCluster(),
 	}
-	if !t.UseExistingCluster {
+	if !*t.UseExistingCluster {
 		if crds, err := CheckCRDFiles(crds); err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -144,12 +144,13 @@ func (te *Env) StopAndExit(code int) {
 }
 
 // UseExistingCluster - checks if USE_EXISTING_CLUSTER environment variable is set
-func UseExistingCluster() bool {
+func UseExistingCluster() *bool {
 	env, err := strconv.ParseBool(os.Getenv(testAssetUseExistingCluster))
 	if err != nil {
-		return false
+		b := false
+		return &b
 	}
-	return env
+	return &env
 }
 
 // CheckCRDFiles - validates that all crds files are found.

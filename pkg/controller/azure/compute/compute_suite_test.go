@@ -22,6 +22,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/crossplaneio/crossplane/azure/apis"
+
 	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -31,10 +33,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/crossplaneio/crossplane/pkg/apis/azure"
-	computev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/compute/v1alpha1"
-	azurev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	computev1alpha1 "github.com/crossplaneio/crossplane/azure/apis/compute/v1alpha1"
+	azurev1alpha1 "github.com/crossplaneio/crossplane/azure/apis/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/meta"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
@@ -90,7 +91,7 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	t := test.NewEnv(namespace, azure.AddToSchemes, test.CRDs())
+	t := test.NewEnv(namespace, apis.AddToSchemes, test.CRDs())
 	cfg = t.Start()
 	t.StopAndExit(m.Run())
 }

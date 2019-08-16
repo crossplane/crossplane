@@ -25,7 +25,7 @@ import (
 
 	redisv1 "cloud.google.com/go/redis/apiv1"
 	"github.com/google/go-cmp/cmp"
-	gax "github.com/googleapis/gax-go"
+	"github.com/googleapis/gax-go"
 	"github.com/pkg/errors"
 	redisv1pb "google.golang.org/genproto/googleapis/cloud/redis/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -37,9 +37,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/apis/gcp/cache/v1alpha1"
-	gcpv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/gcp/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/gcp/apis/cache/v1alpha1"
+	gcpv1alpha1 "github.com/crossplaneio/crossplane/gcp/apis/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/clients/gcp/cloudmemorystore"
 	fakecloudmemorystore "github.com/crossplaneio/crossplane/pkg/clients/gcp/cloudmemorystore/fake"
 	"github.com/crossplaneio/crossplane/pkg/test"
@@ -618,7 +618,7 @@ func TestReconcile(t *testing.T) {
 						*obj.(*v1alpha1.CloudMemorystoreInstance) = *(instance(withInstanceName(instanceName), withDeletionTimestamp(time.Now())))
 						return nil
 					},
-					MockUpdate: func(_ context.Context, _ runtime.Object) error { return nil },
+					MockUpdate: func(_ context.Context, _ runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
 			},
 			req:     reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: instanceName}},
@@ -636,7 +636,7 @@ func TestReconcile(t *testing.T) {
 						*obj.(*v1alpha1.CloudMemorystoreInstance) = *(instance())
 						return nil
 					},
-					MockUpdate: func(_ context.Context, _ runtime.Object) error { return nil },
+					MockUpdate: func(_ context.Context, _ runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
 			},
 			req:     reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: instanceName}},
@@ -659,8 +659,8 @@ func TestReconcile(t *testing.T) {
 						}
 						return nil
 					},
-					MockUpdate: func(_ context.Context, _ runtime.Object) error { return nil },
-					MockCreate: func(_ context.Context, _ runtime.Object) error { return nil },
+					MockUpdate: func(_ context.Context, _ runtime.Object, _ ...client.UpdateOption) error { return nil },
+					MockCreate: func(_ context.Context, _ runtime.Object, _ ...client.CreateOption) error { return nil },
 				},
 			},
 			req:     reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: instanceName}},
@@ -674,7 +674,7 @@ func TestReconcile(t *testing.T) {
 					MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
 						return kerrors.NewNotFound(schema.GroupResource{}, instanceName)
 					},
-					MockUpdate: func(_ context.Context, _ runtime.Object) error { return nil },
+					MockUpdate: func(_ context.Context, _ runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
 			},
 			req:     reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: instanceName}},
@@ -688,7 +688,7 @@ func TestReconcile(t *testing.T) {
 					MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
 						return errorBoom
 					},
-					MockUpdate: func(_ context.Context, _ runtime.Object) error { return nil },
+					MockUpdate: func(_ context.Context, _ runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
 			},
 			req:     reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: instanceName}},
@@ -706,7 +706,7 @@ func TestReconcile(t *testing.T) {
 						*obj.(*v1alpha1.CloudMemorystoreInstance) = *(instance())
 						return nil
 					},
-					MockUpdate: func(_ context.Context, obj runtime.Object) error {
+					MockUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 						want := instance(withConditions(corev1alpha1.ReconcileError(errorBoom)))
 						got := obj.(*v1alpha1.CloudMemorystoreInstance)
 						if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
@@ -736,7 +736,7 @@ func TestReconcile(t *testing.T) {
 						}
 						return nil
 					},
-					MockUpdate: func(_ context.Context, obj runtime.Object) error {
+					MockUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 						want := instance(
 							withInstanceName(instanceName),
 							withConditions(
@@ -771,7 +771,7 @@ func TestReconcile(t *testing.T) {
 						}
 						return nil
 					},
-					MockUpdate: func(_ context.Context, obj runtime.Object) error {
+					MockUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 						want := instance(
 							withInstanceName(instanceName),
 							withConditions(corev1alpha1.ReconcileError(errors.Wrapf(errorBoom, "cannot create secret %s/%s", namespace, connectionSecretName))),
@@ -782,7 +782,7 @@ func TestReconcile(t *testing.T) {
 						}
 						return nil
 					},
-					MockCreate: func(_ context.Context, obj runtime.Object) error { return errorBoom },
+					MockCreate: func(_ context.Context, obj runtime.Object, _ ...client.CreateOption) error { return errorBoom },
 				},
 			},
 			req:     reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: instanceName}},
@@ -805,7 +805,7 @@ func TestReconcile(t *testing.T) {
 						}
 						return nil
 					},
-					MockUpdate: func(_ context.Context, obj runtime.Object) error {
+					MockUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 						switch got := obj.(type) {
 						case *corev1.Secret:
 							return errorBoom

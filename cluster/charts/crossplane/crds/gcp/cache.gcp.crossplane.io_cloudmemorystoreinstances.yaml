@@ -1,0 +1,314 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  creationTimestamp: null
+  name: cloudmemorystoreinstances.cache.gcp.crossplane.io
+spec:
+  additionalPrinterColumns:
+  - JSONPath: .status.state
+    name: STATUS
+    type: string
+  - JSONPath: .spec.classRef.name
+    name: CLASS
+    type: string
+  - JSONPath: .spec.redisVersion
+    name: VERSION
+    type: string
+  - JSONPath: .metadata.creationTimestamp
+    name: AGE
+    type: date
+  group: cache.gcp.crossplane.io
+  names:
+    kind: CloudMemorystoreInstance
+    plural: cloudmemorystoreinstances
+  scope: ""
+  subresources: {}
+  validation:
+    openAPIV3Schema:
+      description: CloudMemorystoreInstance is the Schema for the instances API
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          description: CloudMemorystoreInstanceSpec defines the desired state of CloudMemorystoreInstance
+          properties:
+            alternativeLocationId:
+              description: AlternativeLocationID is only applicable to STANDARD_HA
+                tier, which protects the instance against zonal failures by provisioning
+                it across two zones. If provided, it must be a different zone from
+                the one provided in locationId.
+              type: string
+            authorizedNetwork:
+              description: AuthorizedNetwork specifies the full name of the Google
+                Compute Engine network to which the instance is connected. If left
+                unspecified, the default network will be used.
+              type: string
+            claimRef:
+              description: ObjectReference contains enough information to let you
+                inspect or modify the referred object.
+              properties:
+                apiVersion:
+                  description: API version of the referent.
+                  type: string
+                fieldPath:
+                  description: 'If referring to a piece of an object instead of an
+                    entire object, this string should contain a valid JSON/Go field
+                    access statement, such as desiredState.manifest.containers[2].
+                    For example, if the object reference is to a container within
+                    a pod, this would take on a value like: "spec.containers{name}"
+                    (where "name" refers to the name of the container that triggered
+                    the event) or if no container name is specified "spec.containers[2]"
+                    (container with index 2 in this pod). This syntax is chosen only
+                    to have some well-defined way of referencing a part of an object.
+                    TODO: this design is not final and this field is subject to change
+                    in the future.'
+                  type: string
+                kind:
+                  description: 'Kind of the referent. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+                  type: string
+                name:
+                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                  type: string
+                namespace:
+                  description: 'Namespace of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/'
+                  type: string
+                resourceVersion:
+                  description: 'Specific resourceVersion to which this reference is
+                    made, if any. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#concurrency-control-and-consistency'
+                  type: string
+                uid:
+                  description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
+                  type: string
+              type: object
+            classRef:
+              description: ObjectReference contains enough information to let you
+                inspect or modify the referred object.
+              properties:
+                apiVersion:
+                  description: API version of the referent.
+                  type: string
+                fieldPath:
+                  description: 'If referring to a piece of an object instead of an
+                    entire object, this string should contain a valid JSON/Go field
+                    access statement, such as desiredState.manifest.containers[2].
+                    For example, if the object reference is to a container within
+                    a pod, this would take on a value like: "spec.containers{name}"
+                    (where "name" refers to the name of the container that triggered
+                    the event) or if no container name is specified "spec.containers[2]"
+                    (container with index 2 in this pod). This syntax is chosen only
+                    to have some well-defined way of referencing a part of an object.
+                    TODO: this design is not final and this field is subject to change
+                    in the future.'
+                  type: string
+                kind:
+                  description: 'Kind of the referent. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+                  type: string
+                name:
+                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                  type: string
+                namespace:
+                  description: 'Namespace of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/'
+                  type: string
+                resourceVersion:
+                  description: 'Specific resourceVersion to which this reference is
+                    made, if any. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#concurrency-control-and-consistency'
+                  type: string
+                uid:
+                  description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
+                  type: string
+              type: object
+            locationId:
+              description: LocationID specifies the zone where the instance will be
+                provisioned. If not provided, the service will choose a zone for the
+                instance. For STANDARD_HA tier, instances will be created across two
+                zones for protection against zonal failures.
+              type: string
+            memorySizeGb:
+              description: MemorySizeGB specifies the Redis memory size in GiB.
+              type: integer
+            providerRef:
+              description: ObjectReference contains enough information to let you
+                inspect or modify the referred object.
+              properties:
+                apiVersion:
+                  description: API version of the referent.
+                  type: string
+                fieldPath:
+                  description: 'If referring to a piece of an object instead of an
+                    entire object, this string should contain a valid JSON/Go field
+                    access statement, such as desiredState.manifest.containers[2].
+                    For example, if the object reference is to a container within
+                    a pod, this would take on a value like: "spec.containers{name}"
+                    (where "name" refers to the name of the container that triggered
+                    the event) or if no container name is specified "spec.containers[2]"
+                    (container with index 2 in this pod). This syntax is chosen only
+                    to have some well-defined way of referencing a part of an object.
+                    TODO: this design is not final and this field is subject to change
+                    in the future.'
+                  type: string
+                kind:
+                  description: 'Kind of the referent. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+                  type: string
+                name:
+                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                  type: string
+                namespace:
+                  description: 'Namespace of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/'
+                  type: string
+                resourceVersion:
+                  description: 'Specific resourceVersion to which this reference is
+                    made, if any. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#concurrency-control-and-consistency'
+                  type: string
+                uid:
+                  description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
+                  type: string
+              type: object
+            reclaimPolicy:
+              description: A ReclaimPolicy determines what should happen to managed
+                resources when their bound resource claims are deleted.
+              type: string
+            redisConfigs:
+              additionalProperties:
+                type: string
+              description: 'RedisConfigs specifies Redis configuration parameters,
+                according to http://redis.io/topics/config. Currently, the only supported
+                parameters are: * maxmemory-policy * notify-keyspace-events'
+              type: object
+            redisVersion:
+              description: RedisVersion specifies the version of Redis software. If
+                not provided, latest supported version will be used. Updating the
+                version will perform an upgrade/downgrade to the new version. Currently,
+                the supported values are REDIS_3_2 for Redis 3.2.
+              enum:
+              - REDIS_3_2
+              type: string
+            region:
+              description: Region in which to create this CloudMemorystore cluster.
+              type: string
+            reservedIpRange:
+              description: ReservedIPRange specifies the CIDR range of internal addresses
+                that are reserved for this instance. If not provided, the service
+                will choose an unused /29 block, for example, 10.0.0.0/29 or 192.168.0.0/29.
+                Ranges must be unique and non-overlapping with existing subnets in
+                an authorized network.
+              type: string
+            tier:
+              description: Tier specifies the replication level of the Redis cluster.
+                BASIC provides a single Redis instance with no high availability.
+                STANDARD_HA provides a cluster of two Redis instances in distinct
+                availability zones. https://cloud.google.com/memorystore/docs/redis/redis-tiers
+              enum:
+              - BASIC
+              - STANDARD_HA
+              type: string
+            writeConnectionSecretToRef:
+              description: LocalObjectReference contains enough information to let
+                you locate the referenced object inside the same namespace.
+              properties:
+                name:
+                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                    TODO: Add other useful fields. apiVersion, kind, uid?'
+                  type: string
+              type: object
+          required:
+          - memorySizeGb
+          - providerRef
+          - region
+          - tier
+          type: object
+        status:
+          description: CloudMemorystoreInstanceStatus defines the observed state of
+            CloudMemorystoreInstance
+          properties:
+            bindingPhase:
+              description: Phase represents the binding phase of the resource.
+              enum:
+              - Unbindable
+              - Unbound
+              - Bound
+              type: string
+            conditions:
+              description: Conditions of the managed resource.
+              items:
+                description: A Condition that may apply to a managed resource.
+                properties:
+                  lastTransitionTime:
+                    description: LastTransitionTime is the last time this condition
+                      transitioned from one status to another.
+                    format: date-time
+                    type: string
+                  message:
+                    description: A Message containing details about this condition's
+                      last transition from one status to another, if any.
+                    type: string
+                  reason:
+                    description: A Reason for this condition's last transition from
+                      one status to another.
+                    type: string
+                  status:
+                    description: Status of this condition; is it currently True, False,
+                      or Unknown?
+                    type: string
+                  type:
+                    description: Type of this condition. At most one of each condition
+                      type may apply to a managed resource at any point in time.
+                    type: string
+                required:
+                - lastTransitionTime
+                - reason
+                - status
+                - type
+                type: object
+              type: array
+            currentLocationId:
+              description: CurrentLocationID is the current zone where the Redis endpoint
+                is placed. For Basic Tier instances, this will always be the same
+                as the locationId provided by the user at creation time. For Standard
+                Tier instances, this can be either locationId or alternativeLocationId
+                and can change after a failover event.
+              type: string
+            endpoint:
+              description: Endpoint of the Cloud Memorystore instance used in connection
+                strings.
+              type: string
+            instanceName:
+              description: InstanceName of the Cloud Memorystore instance. Does not
+                include the project and location (region) IDs. e.g. 'foo', not 'projects/fooproj/locations/us-foo1/instances/foo'
+              type: string
+            message:
+              type: string
+            port:
+              description: Port at which the Cloud Memorystore instance endpoint is
+                listening.
+              type: integer
+            providerID:
+              description: ProviderID is the external ID to identify this resource
+                in the cloud provider
+              type: string
+            state:
+              type: string
+          type: object
+      type: object
+  version: v1alpha1
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

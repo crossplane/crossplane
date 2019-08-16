@@ -17,18 +17,14 @@ limitations under the License.
 package database
 
 import (
-	"fmt"
-
 	"k8s.io/apimachinery/pkg/api/errors"
 	apitypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	azuredbv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/azure/database/v1alpha1"
+	azuredbv1alpha1 "github.com/crossplaneio/crossplane/azure/apis/database/v1alpha1"
 	azureclients "github.com/crossplaneio/crossplane/pkg/clients/azure"
 	"github.com/crossplaneio/crossplane/pkg/logging"
 )
@@ -37,20 +33,22 @@ const (
 	mysqlFinalizer = "finalizer.mysqlservers." + controllerName
 )
 
-// AddMysqlServer creates a new MysqlServer Controller and adds it to the Manager with default RBAC.
-// The Manager will set fields on the Controller and Start it when the Manager is Started.
-func AddMysqlServer(mgr manager.Manager) error {
-	clientset, err := kubernetes.NewForConfig(mgr.GetConfig())
-	if err != nil {
-		return fmt.Errorf("failed to create clientset: %+v", err)
-	}
-
-	r := newMysqlServerReconciler(mgr, &azureclients.MySQLServerClientFactory{}, clientset)
-	return addMysqlServerReconciler(mgr, r)
+// MysqlServerController is responsible for adding the MysqlServer
+// controller and its corresponding reconciler to the manager with any runtime configuration.
+type MysqlServerController struct {
+	Reconciler reconcile.Reconciler
 }
 
-// newMysqlServerReconciler returns a new reconcile.Reconciler
-func newMysqlServerReconciler(mgr manager.Manager, sqlServerAPIFactory azureclients.SQLServerAPIFactory,
+// SetupWithManager creates a Controller that reconciles MysqlServer resources.
+func (c *MysqlServerController) SetupWithManager(mgr ctrl.Manager) error {
+	return ctrl.NewControllerManagedBy(mgr).
+		Named("mysqlservers." + controllerName).
+		For(&azuredbv1alpha1.MysqlServer{}).
+		Complete(c.Reconciler)
+}
+
+// NewMysqlServerReconciler returns a new reconcile.Reconciler
+func NewMysqlServerReconciler(mgr manager.Manager, sqlServerAPIFactory azureclients.SQLServerAPIFactory,
 	clientset kubernetes.Interface) *MySQLReconciler {
 
 	r := &MySQLReconciler{}
@@ -64,23 +62,6 @@ func newMysqlServerReconciler(mgr manager.Manager, sqlServerAPIFactory azureclie
 	}
 
 	return r
-}
-
-// addMysqlServerReconciler adds a new Controller to mgr with r as the reconcile.Reconciler
-func addMysqlServerReconciler(mgr manager.Manager, r reconcile.Reconciler) error {
-	// Create a new controller
-	c, err := controller.New("mysqlservers."+controllerName, mgr, controller.Options{Reconciler: r})
-	if err != nil {
-		return err
-	}
-
-	// Watch for changes to MysqlServer
-	err = c.Watch(&source.Kind{Type: &azuredbv1alpha1.MysqlServer{}}, &handler.EnqueueRequestForObject{})
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 // MySQLReconciler reconciles a MysqlServer object

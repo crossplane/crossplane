@@ -24,15 +24,12 @@ import (
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	"github.com/crossplaneio/crossplane/pkg/apis/aws/cache/v1alpha1"
-	awsv1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/aws/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/pkg/apis/core/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/aws/apis/cache/v1alpha1"
+	awsv1alpha1 "github.com/crossplaneio/crossplane/aws/apis/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/clients/aws"
 	"github.com/crossplaneio/crossplane/pkg/clients/aws/elasticache"
 	"github.com/crossplaneio/crossplane/pkg/meta"
@@ -56,20 +53,24 @@ const (
 // encoding, which adds ~33% overhead.
 const maxAuthTokenData = 32
 
-// AddManaged adds a controller that reconciles ReplicationGroup managed
-// resources claims by creating ElastiCache replication groups in AWS.
-func AddManaged(mgr manager.Manager) error {
+// ReplicationGroupController is responsible for adding the ReplicationGroup
+// controller and its corresponding reconciler to the manager with any runtime configuration.
+type ReplicationGroupController struct{}
+
+// SetupWithManager creates a new ReplicationGroup Controller and adds it to the
+// Manager with default RBAC. The Manager will set fields on the Controller and
+// start it when the Manager is Started.
+func (c *ReplicationGroupController) SetupWithManager(mgr ctrl.Manager) error {
 	r := resource.NewManagedReconciler(mgr,
 		resource.ManagedKind(v1alpha1.ReplicationGroupGroupVersionKind),
 		resource.WithExternalConnecter(&connecter{client: mgr.GetClient()}))
 
 	name := strings.ToLower(fmt.Sprintf("%s.%s", v1alpha1.ReplicationGroupKind, v1alpha1.Group))
-	c, err := controller.New(name, mgr, controller.Options{Reconciler: r})
-	if err != nil {
-		return errors.Wrap(err, "cannot create Kubernetes controller")
-	}
 
-	return c.Watch(&source.Kind{Type: &v1alpha1.ReplicationGroup{}}, &handler.EnqueueRequestForObject{})
+	return ctrl.NewControllerManagedBy(mgr).
+		Named(name).
+		For(&v1alpha1.ReplicationGroup{}).
+		Complete(r)
 }
 
 type connecter struct {

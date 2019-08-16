@@ -19,7 +19,7 @@ package fake
 import (
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 
-	"github.com/crossplaneio/crossplane/pkg/apis/aws/storage/v1alpha1"
+	"github.com/crossplaneio/crossplane/aws/apis/storage/v1alpha1"
 	client "github.com/crossplaneio/crossplane/pkg/clients/aws/s3"
 )
 
