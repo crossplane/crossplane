@@ -3,6 +3,7 @@
 * Owners:
   * Nic Cope (@negz)
   * Javad Taheri (@soorena776)
+  * Daniel Mangum (@hasheddan)
 * Reviewers: Crossplane Maintainers
 * Status: Draft
 
@@ -601,48 +602,39 @@ spec:
   - rangeName: services
     ipCidrRange: 172.16.20.0/24
 ---
-# A ResourceClass that sastisfies MySQLInstance claims using CloudSQLInstance
+# A resource class that satisfies MySQLInstance claims using CloudSQLInstance
 # managed resources.
-apiVersion: core.crossplane.io/v1alpha1
-kind: ResourceClass
+apiVersion: database.gcp.crossplane.io/v1alpha1
+kind: CloudsqlInstanceClass
 metadata:
   namespace: crossplane-system
   name: default-mysqlinstance
-  labels:
-    # This resource class is the default for MySQLInstance resource claims.
-    mysqlinstance.database.crossplane.io/default: "true"
-providerRef:
-  namespace: crossplane-system
-  name: example
-parameters:
+specTemplate:
   nameFormat: mycoolname
   databaseVersion: MYSQL_5_6
   region: us-central1
   tier: db-n1-standard-1
-  dataDiskSizeGb: "50"
+  dataDiskSizeGb: 50
   dataDiskType: PD_SSD
   # Allow access to this CloudSQL instance from the Network we created previously.
   # mycoolproject must match the Crossplane GCP Provider project.
   # mycoolnetwork must match the above Network managed resource's name.
   privateNetwork: /projects/mycoolproject/global/networks/mycoolnetwork
+  providerRef:
+    namespace: crossplane-system
+    name: example
 ---
-# A ResourceClass that sastisfies KubernetesCluster claims using GKECluster
+# A resource class that satisfies KubernetesCluster claims using GKECluster
 # managed resources.
-apiVersion: core.crossplane.io/v1alpha1
-kind: ResourceClass
+apiVersion: database.gcp.crossplane.io/v1alpha1
+kind: GKEClusterClass
 metadata:
   namespace: crossplane-system
   name: default-kubernetescluster
-  labels:
-    # This resource class is the default for KubernetesCluster resource claims.
-    kubernetescluster.compute.crossplane.io/default: "true"
-providerRef:
-  namespace: crossplane-system
-  name: example
-parameters:
+specTemplate:
   clusterVersion: "1.12"
   machineType: n1-standard-2
-  numNodes: "3"
+  numNodes: 3
   zone: us-central1-a
   # Create nodes in the mycoolsubnetwork subnetwork of the mycoolnetwork network.5-min
   # mycoolnetwork must match the above Network managed resource's name.
@@ -650,13 +642,16 @@ parameters:
   network: mycoolnetwork
   subnetwork: mycoolsubnetwork
   # Enable VPC native subnetworks.
-  enableIPAlias: "true"
+  enableIPAlias: true
   # These must match the names of the secondary ranges configured in the above
   # Subnetwork managed resource. Multiple GKE clusters cannot share secondary
   # ranges, so this resource class can be used by exactly one KubernetesCluster
   # claim, which is not ideal.
   clusterSecondaryRangeName: pods
   servicesSecondaryRangeName: services
+  providerRef:
+    namespace: crossplane-system
+    name: example
 ```
 
 ### Amazon Web Services
@@ -893,7 +888,227 @@ specTemplate:
 
 ### Microsoft Azure
 
-TBD.
+#### Resource Groups
+
+Azure differs from other cloud providers in that it requires *logical grouping*
+of all resources via the [Azure Resource Manager] control plane. Every Azure
+resource must exist in a Resource Group, which is essentially a just a
+collection of resource metadata. Resource Groups exist in a single region, but
+the resources that they contain may exist in any region. The region of the
+Resource Group is simply where the metadata is stored for the resources that are
+contained within the group. Importantly, Resource Groups are strictly logical
+and meant to be used to control the lifecycle of related resources. They do not
+allow, deny, or in any way facilitate communication between resources (i.e. not
+part of the network).
+
+*Note: the concept of resource groups do exist in other providers (i.e. AWS
+[resource groups]), but they are neither fundamental nor required to provision
+resources.*
+
+Because every resource must exist in a Resource Group, every Azure resource in
+Crossplane has a `resourceGroupName` field that must be provided a string value.
+Therefore, any soup to nuts Azure deployment must first begin with the creation
+of a Resource Group. Resource Groups are able to be created in Crossplane
+directly with the Azure `ResourceGroup` CRD. However, in the interest of the
+[resource reference proposal](#resource-references) above, even Resource Groups
+that are created in Crossplane will continue to be referenced by name instead of
+a Kubernetes object reference.
+
+#### Service Connectivity
+
+There are [three primary ways] that resources within Azure can interact with
+each other:
+* Private IP within a Virtual Network (VNet)
+  * Azure resources that [can be deployed into a VNet] are able to communicate
+    freely using private IP addresses.
+* Virtual Network Service Endpoint
+  * Azure resources that can be deployed into a VNet can communicate with
+    "service resources" (i.e. those that cannot be deployed into a VNet) using
+    [VNet Service Endpoints].
+* Virtual Network Peering
+  * Azure resources that can be deployed into a VNet can communicate with
+    resources that are deployed in a VNet as if they were on the same network
+    using [VNet peering].
+
+Many "service resources" also allow you to create Firewall Rules that explicitly
+allow a specific range or IP addresses to access the resource.
+
+#### AKS and MySQL Connectivity
+
+As part of the v0.3 release, we want to be able to deploy Wordpress across cloud
+providers in a portable manner. To do so, we have to be able to create all
+necessary components from Crossplane directly. Currently, we can deploy an AKS
+Cluster and a MySQL instance, and create a Wordpress Deployment on the AKS
+Cluster. However, all networking that is required to connect the Wordpress pods
+on the AKS Cluster to the MySQL instance must be configured manually or with an
+infrastructure as code tool.
+
+AKS Clusters are a managed service, but the individual nodes are deployed into a
+VNet. Azure MySQL DB, on the other hand, is a "service resource" and is provided
+as a PaaS that lives outside of your VPC. Azure provides a two options for pods
+running on an AKS Cluster host to access the MySQL DB:
+
+1. Create a [firewall rule] on the MySQL DB Server with a range of IP addresses
+   that encompasses all IP's of the AKS Cluster nodes (this can be a very large
+   range if using node auto-scaling).
+1. Create a [VNet Rule] on the MySQL DB Server that allows access from the
+   subnet the AKS nodes are in. This option requires the creation of a VNet
+   Service Endpoint for the nodes subnet.
+
+The second option is recommended and preferable in this situation. However, it
+also requires that AKS Clusters provisioned by Crossplane can be deployed into
+an existing VNet. Currently, AKS Clusters create a new VNet and subnet when
+provisioned. If we wanted to create a VNet Service Endpoint on that subnet, we
+would first need to acquire the name, which would require some form of scripting
+in Crossplane's current state (in the future we likely want to be able to
+represent "side-effect" resource creation by creating a corresponding Crossplane
+object). If we instead create the subnet with the VNet Service Endpoint from
+Crossplane, and then deploy the AKS nodes into it, then we will be able to
+ensure connectivity.
+
+We will need to wait until *after* the Wordspress stack is installed to create
+the VNet Rule on the MySQL DB due to the fact that the database will not exist
+until the the stack references our `SQLServerClass` with a claim.
+
+#### A Model for Deploying Wordpress
+
+Putting this all together, the infrastructure administrator would configure the
+following to ensure that when an app operator created a `MySQLInstance` claim
+and `KubernetesCluster` claim the two would have connectivity:
+
+```yaml
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: example-provider-azure
+  namespace: crossplane-system
+type: Opaque
+data:
+  credentials: BASE64ENCODED_AZURE_PROVIDER_CREDS
+---
+apiVersion: azure.crossplane.io/v1alpha1
+kind: Provider
+metadata:
+  name: example
+  namespace: crossplane-system
+spec:
+  credentialsSecretRef:
+    name: example-provider-azure
+    key: credentials
+---
+apiVersion: azure.crossplane.io/v1alpha1
+kind: ResourceGroup
+metadata:
+  name: wordpress-rg
+  namespace: crossplane-system
+spec:
+  name: wordpress-rg
+  location: Central US
+  providerRef:
+    name: example
+    namespace: crossplane-system
+---
+# New resource kind
+apiVersion: network.azure.crossplane.io/v1alpha1
+kind: VirtualNetwork
+metadata:
+  name: wordpress-vnet
+  namespace: crossplane-system
+spec:
+  name: wordpress-vnet
+  addressSpace: 10.0.0.0/16
+  resourceGroupName: wordpress-rg
+  location: Central US
+  providerRef:
+    name: example
+    namespace: crossplane-system
+---
+# New resource kind
+apiVersion: network.azure.crossplane.io/v1alpha1
+kind: Subnet
+metadata:
+  name: wordpress-subnet
+  namespace: crossplane-system
+spec:
+  name: wordpress-subnet
+  addressPrefix: 10.0.0.0/24
+  serviceEndpoints:
+   - Microsoft.Sql
+  virtualNetworkName: wordpress-vnet
+  resourceGroupName: wordpress-rg
+  providerRef:
+    name: example
+    namespace: crossplane-system
+---
+apiVersion: database.azure.crossplane.io/v1alpha1
+kind: SQLServerClass
+metadata:
+  name: wordpress-mysql
+  namespace: crossplane-system
+specTemplate:
+  name: wordpress-mysql
+  adminLoginName: myadmin
+  resourceGroupName: wordpress-rg
+  location: Central US
+  sslEnforced: false
+  version: "5.6"
+  pricingTier:
+    tier: Basic
+    vcores: 1
+    family: Gen5
+  storageProfile:
+    storageGB: 25
+    backupRetentionDays: 7
+    geoRedundantBackup: false 
+  providerRef:
+    name: example
+    namespace: crossplane-system
+  reclaimPolicy: Delete
+---
+apiVersion: compute.azure.crossplane.io/v1alpha1
+kind: AKSClusterClass
+metadata:
+  name: akscluster
+  namespace: crossplane-system
+specTemplate:
+  resourceGroupName: wordpress-rg
+  # Deploying into existing subnet not currently supported
+  virtualNetworkName: wordpress-vnet
+  subnetName: wordpress-subnet
+  location: Central US
+  version: "1.12.8"
+  nodeCount: 1
+  nodeVMSize: Standard_B2s
+  dnsNamePrefix: crossplane-aks
+  disableRBAC: false
+  writeServicePrincipalTo:
+    name: akscluster
+  providerRef:
+    name: example
+    namespace: crossplane-system
+  reclaimPolicy: Delete
+```
+
+After the Wordpress stack is installed, a `VirtualNetworkRule` object would then
+need to be created to allow access from the AKS Cluster to the MySQL DB.
+
+```yaml
+apiVersion: database.azure.crossplane.io/v1alpha1
+kind: VirtualNetworkRule
+metadata:
+  name: wordpress-mysql-vnet
+  namespace: crossplane-system
+specTemplate:
+  name: wordpress-mysql-vnet
+  serverName: wordpress-mysql
+  virtualNetworSubnetID: id(wordpress-subnet)
+  resourceGroupName: wordpress-rg
+  providerRef:
+    name: example
+    namespace: crossplane-system
+  reclaimPolicy: Delete
+```
 
 [Wordpress]: https://wordpress.com/
 [connect to a database]: https://cloud.google.com/sql/docs/postgres/connect-kubernetes-engine
@@ -903,3 +1118,11 @@ TBD.
 [GKE cluster external resource]: https://cloud.google.com/kubernetes-engine/docs/reference/rest/v1/projects.locations.clusters#Cluster
 [Kubernetes API conventions]: https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md
 [launch configurations]: https://docs.aws.amazon.com/autoscaling/ec2/userguide/LaunchConfiguration.html
+[Azure Resource Manager]: https://docs.microsoft.com/en-us/azure/azure-resource-manager/resource-group-overview
+[resource groups]: https://docs.aws.amazon.com/ARG/latest/userguide/welcome.html
+[three primary ways]: https://docs.microsoft.com/en-us/azure/virtual-network/virtual-networks-overview#communicate-between-azure-resources
+[can be deployed into a VNet]: https://docs.microsoft.com/en-us/azure/virtual-network/virtual-network-for-azure-services#services-that-can-be-deployed-into-a-virtual-network
+[VNet Service Endpoints]: https://docs.microsoft.com/en-us/azure/virtual-network/virtual-network-service-endpoints-overview
+[VNet peering]: https://docs.microsoft.com/en-us/azure/virtual-network/virtual-network-peering-overview
+[firewall rule]: https://docs.microsoft.com/en-us/azure/mysql/concepts-firewall-rules#connecting-from-azure
+[VNet Rule]: https://docs.microsoft.com/en-us/azure/mysql/concepts-data-access-and-security-vnet
