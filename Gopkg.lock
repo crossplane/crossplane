@@ -181,8 +181,7 @@
   version = "v0.1.0"
 
 [[projects]]
-  branch = "master"
-  digest = "1:b5c2626af6064408a9b480f08046f0c867795014d0b4bf4a682c2646fa6d0636"
+  digest = "1:45ac1869d677790591bff798f3cce0d3804bcf28e5ef22512a1715ffda80bc91"
   name = "github.com/crossplaneio/crossplane-runtime"
   packages = [
     "apis/core/v1alpha1",
@@ -193,7 +192,8 @@
     "pkg/util",
   ]
   pruneopts = "UT"
-  revision = "e4d61ee2805af680baf16fc2a1d8f79538d0f9bb"
+  revision = "888a4c78f1d5a46aa8398e6a2dbed235d90d1b97"
+  source = "https://github.com/muvaf/crossplane-runtime.git"
 
 [[projects]]
   digest = "1:ffe9824d294da03b391f44e1ae8281281b4afc1bdaa9588c9097785e3af10cec"
@@ -874,10 +874,11 @@
   version = "v2.0.0"
 
 [[projects]]
-  digest = "1:8ff35665064f40a368e3441438ca35a2befbc62c0875c3aea77727d8faf54877"
+  digest = "1:c6d314abd24eb1ff032d55f7bd13681f320ae467009d02c428ba33eae0bd1f1e"
   name = "google.golang.org/api"
   packages = [
     "cloudresourcemanager/v1",
+    "compute/v1",
     "container/v1",
     "gensupport",
     "googleapi",
@@ -895,8 +896,8 @@
     "transport/http/internal/propagation",
   ]
   pruneopts = "UT"
-  revision = "02490b97dff7cfde1995bd77de808fd27053bc87"
-  version = "v0.7.0"
+  revision = "dec2ee309f5b09fc59bc40676447c15736284d78"
+  version = "v0.8.0"
 
 [[projects]]
   digest = "1:2c26b1c47556c0e5e73cdb05d8361c463737eee4baac35d38b40c728c3074a94"
@@ -1513,6 +1514,7 @@
     "golang.org/x/oauth2/google",
     "golang.org/x/tools/cmd/stringer",
     "google.golang.org/api/cloudresourcemanager/v1",
+    "google.golang.org/api/compute/v1",
     "google.golang.org/api/container/v1",
     "google.golang.org/api/googleapi",
     "google.golang.org/api/option",

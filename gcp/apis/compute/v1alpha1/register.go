@@ -54,7 +54,15 @@ var (
 	GKEClusterClassGroupVersionKind = SchemeGroupVersion.WithKind(GKEClusterClassKind)
 )
 
+// Network type metadata.
+var (
+	NetworkKind             = reflect.TypeOf(Network{}).Name()
+	NetworkKindAPIVersion   = NetworkKind + "." + SchemeGroupVersion.String()
+	NetworkGroupVersionKind = SchemeGroupVersion.WithKind(NetworkKind)
+)
+
 func init() {
 	SchemeBuilder.Register(&GKECluster{}, &GKEClusterList{})
 	SchemeBuilder.Register(&GKEClusterClass{}, &GKEClusterClassList{})
+	SchemeBuilder.Register(&Network{}, &NetworkList{})
 }
