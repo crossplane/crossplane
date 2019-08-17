@@ -1,7 +1,0 @@
-apiVersion: extensions.crossplane.io/v1alpha1
-kind: ExtensionRequest
-metadata:
-  name: sample-extension-from-package
-spec:
-  source: registry.hub.docker.com
-  package: crossplane/sample-extension

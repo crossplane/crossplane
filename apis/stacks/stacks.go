@@ -14,13 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package extensions contains Kubernetes API groups for Crossplane extensions.
-package extensions
+// Package stacks contains Kubernetes API groups for Crossplane stacks.
+package stacks
 
 import (
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/crossplaneio/crossplane/apis/extensions/v1alpha1"
+	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
 )
 
 func init() {

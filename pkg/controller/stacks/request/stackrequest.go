@@ -40,14 +40,14 @@ import (
 	"github.com/pkg/errors"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/apis/extensions/v1alpha1"
+	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/logging"
 	"github.com/crossplaneio/crossplane/pkg/meta"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 const (
-	controllerName = "extensionrequest.extensions.crossplane.io"
+	controllerName = "stackrequest.stacks.crossplane.io"
 
 	reconcileTimeout      = 1 * time.Minute
 	requeueAfterOnSuccess = 10 * time.Second
@@ -72,7 +72,7 @@ type Reconciler struct {
 	executorInfo *executorInfo
 }
 
-// Controller is responsible for adding the ExtensionRequest
+// Controller is responsible for adding the StackRequest
 // controller and its corresponding reconciler to the manager with any runtime configuration.
 type Controller struct{}
 
@@ -88,20 +88,20 @@ func (c *Controller) SetupWithManager(mgr ctrl.Manager) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(controllerName).
-		For(&v1alpha1.ExtensionRequest{}).
+		For(&v1alpha1.StackRequest{}).
 		Complete(r)
 }
 
-// Reconcile reads that state of the ExtensionRequest for a Instance object and makes changes based on the state read
+// Reconcile reads that state of the StackRequest for a Instance object and makes changes based on the state read
 // and what is in the Instance.Spec
 func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) {
-	log.V(logging.Debug).Info("reconciling", "kind", v1alpha1.ExtensionRequestKindAPIVersion, "request", req)
+	log.V(logging.Debug).Info("reconciling", "kind", v1alpha1.StackRequestKindAPIVersion, "request", req)
 
 	ctx, cancel := context.WithTimeout(context.Background(), reconcileTimeout)
 	defer cancel()
 
 	// fetch the CRD instance
-	i := &v1alpha1.ExtensionRequest{}
+	i := &v1alpha1.StackRequest{}
 	if err := r.kube.Get(ctx, req.NamespacedName, i); err != nil {
 		if kerrors.IsNotFound(err) {
 			return reconcile.Result{}, nil
@@ -125,21 +125,21 @@ type handler interface {
 	update(context.Context) (reconcile.Result, error)
 }
 
-// extensionRequestHandler is a concrete implementation of the handler interface
-type extensionRequestHandler struct {
+// stackRequestHandler is a concrete implementation of the handler interface
+type stackRequestHandler struct {
 	kube         client.Client
 	jobCompleter jobCompleter
 	executorInfo executorInfo
-	ext          *v1alpha1.ExtensionRequest
+	ext          *v1alpha1.StackRequest
 }
 
 // jobCompleter is an interface for handling job completion
 type jobCompleter interface {
-	handleJobCompletion(ctx context.Context, i *v1alpha1.ExtensionRequest, job *batchv1.Job) error
+	handleJobCompletion(ctx context.Context, i *v1alpha1.StackRequest, job *batchv1.Job) error
 }
 
-// extensionRequestJobCompleter is a concrete implementation of the jobCompleter interface
-type extensionRequestJobCompleter struct {
+// stackRequestJobCompleter is a concrete implementation of the jobCompleter interface
+type stackRequestJobCompleter struct {
 	kube         client.Client
 	podLogReader podLogReader
 }
@@ -156,19 +156,19 @@ type k8sPodLogReader struct {
 
 // factory is an interface for creating new handlers
 type factory interface {
-	newHandler(context.Context, *v1alpha1.ExtensionRequest, client.Client, kubernetes.Interface, executorInfo) handler
+	newHandler(context.Context, *v1alpha1.StackRequest, client.Client, kubernetes.Interface, executorInfo) handler
 }
 
 type handlerFactory struct{}
 
-func (f *handlerFactory) newHandler(ctx context.Context, ext *v1alpha1.ExtensionRequest,
+func (f *handlerFactory) newHandler(ctx context.Context, ext *v1alpha1.StackRequest,
 	kube client.Client, kubeclient kubernetes.Interface, ei executorInfo) handler {
 
-	return &extensionRequestHandler{
+	return &stackRequestHandler{
 		ext:          ext,
 		kube:         kube,
 		executorInfo: ei,
-		jobCompleter: &extensionRequestJobCompleter{
+		jobCompleter: &stackRequestJobCompleter{
 			kube: kube,
 			podLogReader: &k8sPodLogReader{
 				kubeclient: kubeclient,
@@ -180,17 +180,17 @@ func (f *handlerFactory) newHandler(ctx context.Context, ext *v1alpha1.Extension
 // ************************************************************************************************
 // Syncing/Creating functions
 // ************************************************************************************************
-func (h *extensionRequestHandler) sync(ctx context.Context) (reconcile.Result, error) {
-	if h.ext.Status.ExtensionRecord == nil {
+func (h *stackRequestHandler) sync(ctx context.Context) (reconcile.Result, error) {
+	if h.ext.Status.StackRecord == nil {
 		return h.create(ctx)
 	}
 
 	return h.update(ctx)
 }
 
-// create performs the operation of creating the associated Extension.  This function assumes
-// that the Extension does not yet exist, so the caller should confirm that before calling.
-func (h *extensionRequestHandler) create(ctx context.Context) (reconcile.Result, error) {
+// create performs the operation of creating the associated Stack.  This function assumes
+// that the Stack does not yet exist, so the caller should confirm that before calling.
+func (h *stackRequestHandler) create(ctx context.Context) (reconcile.Result, error) {
 	h.ext.Status.SetConditions(corev1alpha1.Creating())
 	jobRef := h.ext.Status.InstallJob
 
@@ -234,7 +234,7 @@ func (h *extensionRequestHandler) create(ctx context.Context) (reconcile.Result,
 					return fail(ctx, h.kube, h.ext, err)
 				}
 
-				// the install job's completion was handled successfully, this extension request is ready
+				// the install job's completion was handled successfully, this stack request is ready
 				h.ext.Status.SetConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess())
 				return requeueOnSuccess, h.kube.Status().Update(ctx, h.ext)
 			case batchv1.JobFailed:
@@ -251,16 +251,16 @@ func (h *extensionRequestHandler) create(ctx context.Context) (reconcile.Result,
 	return requeueOnSuccess, h.kube.Status().Update(ctx, h.ext)
 }
 
-func (h *extensionRequestHandler) update(ctx context.Context) (reconcile.Result, error) {
-	// TODO: should updates of the ExtensionRequest be supported? what would that even mean, they
-	// changed the package they wanted installed? Shouldn't they delete the ExtensionRequest and
+func (h *stackRequestHandler) update(ctx context.Context) (reconcile.Result, error) {
+	// TODO: should updates of the StackRequest be supported? what would that even mean, they
+	// changed the package they wanted installed? Shouldn't they delete the StackRequest and
 	// create a new one?
-	log.V(logging.Debug).Info("updating not supported yet", "extensionRequest", h.ext.Name)
+	log.V(logging.Debug).Info("updating not supported yet", "stackRequest", h.ext.Name)
 	return reconcile.Result{}, nil
 }
 
-func createInstallJob(i *v1alpha1.ExtensionRequest, executorInfo executorInfo) *batchv1.Job {
-	ref := meta.AsOwner(meta.ReferenceTo(i, v1alpha1.ExtensionGroupVersionKind))
+func createInstallJob(i *v1alpha1.StackRequest, executorInfo executorInfo) *batchv1.Job {
+	ref := meta.AsOwner(meta.ReferenceTo(i, v1alpha1.StackGroupVersionKind))
 	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            i.Name,
@@ -274,7 +274,7 @@ func createInstallJob(i *v1alpha1.ExtensionRequest, executorInfo executorInfo) *
 					RestartPolicy: corev1.RestartPolicyNever,
 					InitContainers: []corev1.Container{
 						{
-							Name:    "extension-package",
+							Name:    "stack-package",
 							Image:   getPackageImage(i.Spec),
 							Command: []string{"cp", "-R", "/.registry/", "/ext-pkg/"},
 							VolumeMounts: []corev1.VolumeMount{
@@ -287,12 +287,12 @@ func createInstallJob(i *v1alpha1.ExtensionRequest, executorInfo executorInfo) *
 					},
 					Containers: []corev1.Container{
 						{
-							Name:  "extension-executor",
+							Name:  "stack-executor",
 							Image: executorInfo.image,
 							// "--debug" can be added to this list of Args to get debug output from the job,
 							// but note that will be included in the stdout from the pod, which makes it
 							// impossible to create the resources that the job unpacks.
-							Args: []string{"extension", "unpack", "--content-dir=/ext-pkg"},
+							Args: []string{"stack", "unpack", "--content-dir=/ext-pkg"},
 							VolumeMounts: []corev1.VolumeMount{
 								{
 									Name:      packageContentsVolumeName,
@@ -315,8 +315,8 @@ func createInstallJob(i *v1alpha1.ExtensionRequest, executorInfo executorInfo) *
 	}
 }
 
-func (jc *extensionRequestJobCompleter) handleJobCompletion(ctx context.Context, i *v1alpha1.ExtensionRequest, job *batchv1.Job) error {
-	var extensionRecord *v1alpha1.Extension
+func (jc *stackRequestJobCompleter) handleJobCompletion(ctx context.Context, i *v1alpha1.StackRequest, job *batchv1.Job) error {
+	var stackRecord *v1alpha1.Stack
 
 	// find the pod associated with the given job
 	podName, err := jc.findPodNameForJob(ctx, job)
@@ -347,27 +347,27 @@ func (jc *extensionRequestJobCompleter) handleJobCompletion(ctx context.Context,
 			return err
 		}
 
-		if isExtensionObject(obj) {
-			// we just created the extension record, try to fetch it now so that it can be returned
-			extensionRecord = &v1alpha1.Extension{}
+		if isStackObject(obj) {
+			// we just created the stack record, try to fetch it now so that it can be returned
+			stackRecord = &v1alpha1.Stack{}
 			n := types.NamespacedName{Name: obj.GetName(), Namespace: obj.GetNamespace()}
-			if err := jc.kube.Get(ctx, n, extensionRecord); err != nil {
-				return errors.Wrapf(err, "failed to retrieve created extension record %s from job %s", obj.GetName(), job.Name)
+			if err := jc.kube.Get(ctx, n, stackRecord); err != nil {
+				return errors.Wrapf(err, "failed to retrieve created stack record %s from job %s", obj.GetName(), job.Name)
 			}
 		}
 	}
 
-	if extensionRecord == nil {
-		return errors.Errorf("failed to find an extension record from job %s", job.Name)
+	if stackRecord == nil {
+		return errors.Errorf("failed to find a stack record from job %s", job.Name)
 	}
 
-	// save a reference to the extension record in the status of the extension request
-	i.Status.ExtensionRecord = &corev1.ObjectReference{
-		APIVersion: extensionRecord.APIVersion,
-		Kind:       extensionRecord.Kind,
-		Name:       extensionRecord.Name,
-		Namespace:  extensionRecord.Namespace,
-		UID:        extensionRecord.ObjectMeta.UID,
+	// save a reference to the stack record in the status of the stack request
+	i.Status.StackRecord = &corev1.ObjectReference{
+		APIVersion: stackRecord.APIVersion,
+		Kind:       stackRecord.Kind,
+		Name:       stackRecord.Name,
+		Namespace:  stackRecord.Namespace,
+		UID:        stackRecord.ObjectMeta.UID,
 	}
 
 	return nil
@@ -375,7 +375,7 @@ func (jc *extensionRequestJobCompleter) handleJobCompletion(ctx context.Context,
 
 // findPodNameForJob finds the pod name associated with the given job.  Note that this functions
 // assumes only a single pod will be associated with the job.
-func (jc *extensionRequestJobCompleter) findPodNameForJob(ctx context.Context, job *batchv1.Job) (string, error) {
+func (jc *stackRequestJobCompleter) findPodNameForJob(ctx context.Context, job *batchv1.Job) (string, error) {
 	podList, err := jc.findPodsForJob(ctx, job)
 	if err != nil {
 		return "", err
@@ -388,7 +388,7 @@ func (jc *extensionRequestJobCompleter) findPodNameForJob(ctx context.Context, j
 	return podList.Items[0].Name, nil
 }
 
-func (jc *extensionRequestJobCompleter) findPodsForJob(ctx context.Context, job *batchv1.Job) (*corev1.PodList, error) {
+func (jc *stackRequestJobCompleter) findPodsForJob(ctx context.Context, job *batchv1.Job) (*corev1.PodList, error) {
 	podList := &corev1.PodList{}
 	labelSelector := client.MatchingLabels{
 		"job-name": job.Name,
@@ -401,7 +401,7 @@ func (jc *extensionRequestJobCompleter) findPodsForJob(ctx context.Context, job 
 	return podList, nil
 }
 
-func (jc *extensionRequestJobCompleter) readPodLogs(namespace, name string) (*bytes.Buffer, error) {
+func (jc *stackRequestJobCompleter) readPodLogs(namespace, name string) (*bytes.Buffer, error) {
 	podLogs, err := jc.podLogReader.getPodLogReader(namespace, name)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get logs request stream from pod %s", name)
@@ -416,17 +416,17 @@ func (jc *extensionRequestJobCompleter) readPodLogs(namespace, name string) (*by
 	return b, nil
 }
 
-func (jc *extensionRequestJobCompleter) createJobOutputObject(ctx context.Context, obj *unstructured.Unstructured,
-	i *v1alpha1.ExtensionRequest, job *batchv1.Job) error {
+func (jc *stackRequestJobCompleter) createJobOutputObject(ctx context.Context, obj *unstructured.Unstructured,
+	i *v1alpha1.StackRequest, job *batchv1.Job) error {
 
 	// if we decoded a non-nil unstructured object, try to create it now
 	if obj == nil {
 		return nil
 	}
 
-	if isExtensionObject(obj) {
-		// the current object is an Extension object, make sure the name and namespace are
-		// set to match the current ExtensionRequest (if they haven't already been set)
+	if isStackObject(obj) {
+		// the current object is a Stack object, make sure the name and namespace are
+		// set to match the current StackRequest (if they haven't already been set)
 		if obj.GetName() == "" {
 			obj.SetName(i.Name)
 		}
@@ -437,7 +437,7 @@ func (jc *extensionRequestJobCompleter) createJobOutputObject(ctx context.Contex
 
 	// set an owner reference on the object
 	obj.SetOwnerReferences([]metav1.OwnerReference{
-		meta.AsOwner(meta.ReferenceTo(i, v1alpha1.ExtensionRequestGroupVersionKind)),
+		meta.AsOwner(meta.ReferenceTo(i, v1alpha1.StackRequestGroupVersionKind)),
 	})
 
 	log.V(logging.Debug).Info(
@@ -468,7 +468,7 @@ func (r *k8sPodLogReader) getPodLogReader(namespace, name string) (io.ReadCloser
 // ExecutorInfo discovery
 // ************************************************************************************************
 
-// executorInfo represents the information needed to launch an executor for handling extension requests
+// executorInfo represents the information needed to launch an executor for handling stack requests
 type executorInfo struct {
 	image string
 }
@@ -530,25 +530,25 @@ func (d *executorInfoDiscoverer) discoverExecutorInfo(ctx context.Context) (*exe
 // ************************************************************************************************
 
 // fail - helper function to set fail condition with reason and message
-func fail(ctx context.Context, kube client.StatusClient, i *v1alpha1.ExtensionRequest, err error) (reconcile.Result, error) {
-	log.V(logging.Debug).Info("failed extension request", "i", i.Name, "error", err)
+func fail(ctx context.Context, kube client.StatusClient, i *v1alpha1.StackRequest, err error) (reconcile.Result, error) {
+	log.V(logging.Debug).Info("failed stack request", "i", i.Name, "error", err)
 	i.Status.SetConditions(corev1alpha1.ReconcileError(err))
 	return resultRequeue, kube.Status().Update(ctx, i)
 }
 
-func isExtensionObject(obj *unstructured.Unstructured) bool {
+func isStackObject(obj *unstructured.Unstructured) bool {
 	if obj == nil {
 		return false
 	}
 
 	gvk := obj.GroupVersionKind()
 	return gvk.Group == v1alpha1.Group && gvk.Version == v1alpha1.Version &&
-		strings.EqualFold(gvk.Kind, v1alpha1.ExtensionKind)
+		strings.EqualFold(gvk.Kind, v1alpha1.StackKind)
 }
 
 // getPackageImage returns the fully qualified image name for the given package source and package name.
 // based on the fully qualified image name format of hostname[:port]/username/reponame[:tag]
-func getPackageImage(spec v1alpha1.ExtensionRequestSpec) string {
+func getPackageImage(spec v1alpha1.StackRequestSpec) string {
 	if spec.Source == "" {
 		// there is no package source, simply return the package name
 		return spec.Package

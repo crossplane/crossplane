@@ -46,22 +46,22 @@ func TestMain(m *testing.M) {
 	t.StopAndExit(m.Run())
 }
 
-func TestExtensionRequest(t *testing.T) {
+func TestStackRequest(t *testing.T) {
 	g := NewGomegaWithT(t)
 
-	created := &ExtensionRequest{
+	created := &StackRequest{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: namespace,
 			Name:      name,
 		},
-		Spec: ExtensionRequestSpec{
+		Spec: StackRequestSpec{
 			Source:  "registry.crossplane.io",
 			Package: "testpackage:v0.1",
 		},
 	}
 
 	// Test Create
-	fetched := &ExtensionRequest{}
+	fetched := &StackRequest{}
 	g.Expect(c.Create(ctx, created)).NotTo(HaveOccurred())
 
 	g.Expect(c.Get(ctx, key, fetched)).NotTo(HaveOccurred())
@@ -80,15 +80,15 @@ func TestExtensionRequest(t *testing.T) {
 	g.Expect(c.Get(ctx, key, fetched)).To(HaveOccurred())
 }
 
-func TestExtension(t *testing.T) {
+func TestStack(t *testing.T) {
 	g := NewGomegaWithT(t)
 
-	created := &Extension{
+	created := &Stack{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: namespace,
 			Name:      name,
 		},
-		Spec: ExtensionSpec{
+		Spec: StackSpec{
 			AppMetadataSpec: AppMetadataSpec{
 				Title:   "myapp",
 				Version: "v0.1.0",
@@ -108,7 +108,7 @@ func TestExtension(t *testing.T) {
 	}
 
 	// Test Create
-	fetched := &Extension{}
+	fetched := &Stack{}
 	g.Expect(c.Create(ctx, created)).NotTo(HaveOccurred())
 
 	g.Expect(c.Get(ctx, key, fetched)).NotTo(HaveOccurred())

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package extension
+package stack
 
 import (
 	"context"
@@ -39,8 +39,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/apis/extensions"
-	"github.com/crossplaneio/crossplane/apis/extensions/v1alpha1"
+	"github.com/crossplaneio/crossplane/apis/stacks"
+	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/meta"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
@@ -48,7 +48,7 @@ import (
 const (
 	namespace    = "cool-namespace"
 	uid          = types.UID("definitely-a-uuid")
-	resourceName = "cool-extension"
+	resourceName = "cool-stack"
 
 	controllerDeploymentName = "cool-controller-deployment"
 	controllerContainerName  = "cool-container"
@@ -61,7 +61,7 @@ var (
 )
 
 func init() {
-	_ = extensions.AddToScheme(scheme.Scheme)
+	_ = stacks.AddToScheme(scheme.Scheme)
 }
 
 // Test that our Reconciler implementation satisfies the Reconciler interface.
@@ -70,29 +70,29 @@ var _ reconcile.Reconciler = &Reconciler{}
 // ************************************************************************************************
 // Resource modifiers
 // ************************************************************************************************
-type resourceModifier func(*v1alpha1.Extension)
+type resourceModifier func(*v1alpha1.Stack)
 
 func withConditions(c ...corev1alpha1.Condition) resourceModifier {
-	return func(r *v1alpha1.Extension) { r.Status.SetConditions(c...) }
+	return func(r *v1alpha1.Stack) { r.Status.SetConditions(c...) }
 }
 
 func withControllerSpec(cs v1alpha1.ControllerSpec) resourceModifier {
-	return func(r *v1alpha1.Extension) { r.Spec.Controller = cs }
+	return func(r *v1alpha1.Stack) { r.Spec.Controller = cs }
 }
 
 func withPolicyRules(policyRules []rbac.PolicyRule) resourceModifier {
-	return func(r *v1alpha1.Extension) { r.Spec.Permissions.Rules = policyRules }
+	return func(r *v1alpha1.Stack) { r.Spec.Permissions.Rules = policyRules }
 }
 
-func resource(rm ...resourceModifier) *v1alpha1.Extension {
-	r := &v1alpha1.Extension{
+func resource(rm ...resourceModifier) *v1alpha1.Stack {
+	r := &v1alpha1.Stack{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:  namespace,
 			Name:       resourceName,
 			UID:        uid,
 			Finalizers: []string{},
 		},
-		Spec: v1alpha1.ExtensionSpec{},
+		Spec: v1alpha1.StackSpec{},
 	}
 
 	for _, m := range rm {
@@ -106,10 +106,10 @@ func resource(rm ...resourceModifier) *v1alpha1.Extension {
 // mockFactory and mockHandler
 // ************************************************************************************************
 type mockFactory struct {
-	MockNewHandler func(context.Context, *v1alpha1.Extension, client.Client) handler
+	MockNewHandler func(context.Context, *v1alpha1.Stack, client.Client) handler
 }
 
-func (f *mockFactory) newHandler(ctx context.Context, r *v1alpha1.Extension, c client.Client) handler {
+func (f *mockFactory) newHandler(ctx context.Context, r *v1alpha1.Stack, c client.Client) handler {
 	return f.MockNewHandler(ctx, r, c)
 }
 
@@ -200,12 +200,12 @@ func TestReconcile(t *testing.T) {
 			rec: &Reconciler{
 				kube: &test.MockClient{
 					MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
-						*obj.(*v1alpha1.Extension) = *(resource())
+						*obj.(*v1alpha1.Stack) = *(resource())
 						return nil
 					},
 				},
 				factory: &mockFactory{
-					MockNewHandler: func(context.Context, *v1alpha1.Extension, client.Client) handler {
+					MockNewHandler: func(context.Context, *v1alpha1.Stack, client.Client) handler {
 						return &mockHandler{
 							MockSync: func(context.Context) (reconcile.Result, error) {
 								return reconcile.Result{}, nil
@@ -268,19 +268,19 @@ func TestCreate(t *testing.T) {
 	type want struct {
 		result reconcile.Result
 		err    error
-		r      *v1alpha1.Extension
+		r      *v1alpha1.Stack
 	}
 
 	tests := []struct {
 		name       string
-		r          *v1alpha1.Extension
-		clientFunc func(*v1alpha1.Extension) client.Client
+		r          *v1alpha1.Stack
+		clientFunc func(*v1alpha1.Stack) client.Client
 		want       want
 	}{
 		{
 			name: "FailRBAC",
 			r:    resource(withPolicyRules(defaultPolicyRules())),
-			clientFunc: func(r *v1alpha1.Extension) client.Client {
+			clientFunc: func(r *v1alpha1.Stack) client.Client {
 				return &test.MockClient{
 					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error {
 						if _, ok := obj.(*corev1.ServiceAccount); ok {
@@ -308,7 +308,7 @@ func TestCreate(t *testing.T) {
 			r: resource(
 				withPolicyRules(defaultPolicyRules()),
 				withControllerSpec(defaultControllerSpec())),
-			clientFunc: func(r *v1alpha1.Extension) client.Client {
+			clientFunc: func(r *v1alpha1.Stack) client.Client {
 				return &test.MockClient{
 					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error {
 						if _, ok := obj.(*apps.Deployment); ok {
@@ -335,7 +335,7 @@ func TestCreate(t *testing.T) {
 		{
 			name:       "SuccessfulCreate",
 			r:          resource(),
-			clientFunc: func(r *v1alpha1.Extension) client.Client { return fake.NewFakeClient(r) },
+			clientFunc: func(r *v1alpha1.Stack) client.Client { return fake.NewFakeClient(r) },
 			want: want{
 				result: requeueOnSuccess,
 				err:    nil,
@@ -348,7 +348,7 @@ func TestCreate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			handler := &extensionHandler{
+			handler := &stackHandler{
 				kube: tt.clientFunc(tt.r),
 				ext:  tt.r,
 			}
@@ -385,14 +385,14 @@ func TestProcessRBAC(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		r          *v1alpha1.Extension
-		clientFunc func(*v1alpha1.Extension) client.Client
+		r          *v1alpha1.Stack
+		clientFunc func(*v1alpha1.Stack) client.Client
 		want       want
 	}{
 		{
 			name:       "NoPermissionsRequested",
 			r:          resource(),
-			clientFunc: func(r *v1alpha1.Extension) client.Client { return fake.NewFakeClient(r) },
+			clientFunc: func(r *v1alpha1.Stack) client.Client { return fake.NewFakeClient(r) },
 			want: want{
 				err: nil,
 				sa:  nil,
@@ -403,7 +403,7 @@ func TestProcessRBAC(t *testing.T) {
 		{
 			name: "CreateServiceAccountError",
 			r:    resource(withPolicyRules(defaultPolicyRules())),
-			clientFunc: func(r *v1alpha1.Extension) client.Client {
+			clientFunc: func(r *v1alpha1.Stack) client.Client {
 				return &test.MockClient{
 					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error {
 						if _, ok := obj.(*corev1.ServiceAccount); ok {
@@ -423,7 +423,7 @@ func TestProcessRBAC(t *testing.T) {
 		{
 			name: "CreateClusterRoleError",
 			r:    resource(withPolicyRules(defaultPolicyRules())),
-			clientFunc: func(r *v1alpha1.Extension) client.Client {
+			clientFunc: func(r *v1alpha1.Stack) client.Client {
 				return &test.MockClient{
 					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error {
 						if _, ok := obj.(*rbac.ClusterRole); ok {
@@ -443,7 +443,7 @@ func TestProcessRBAC(t *testing.T) {
 		{
 			name: "CreateClusterRoleBindingError",
 			r:    resource(withPolicyRules(defaultPolicyRules())),
-			clientFunc: func(r *v1alpha1.Extension) client.Client {
+			clientFunc: func(r *v1alpha1.Stack) client.Client {
 				return &test.MockClient{
 					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error {
 						if _, ok := obj.(*rbac.ClusterRoleBinding); ok {
@@ -463,7 +463,7 @@ func TestProcessRBAC(t *testing.T) {
 		{
 			name:       "Success",
 			r:          resource(withPolicyRules(defaultPolicyRules())),
-			clientFunc: func(r *v1alpha1.Extension) client.Client { return fake.NewFakeClient(r) },
+			clientFunc: func(r *v1alpha1.Stack) client.Client { return fake.NewFakeClient(r) },
 			want: want{
 				err: nil,
 				sa: &corev1.ServiceAccount{
@@ -471,7 +471,7 @@ func TestProcessRBAC(t *testing.T) {
 						Name:      resourceName,
 						Namespace: namespace,
 						OwnerReferences: []metav1.OwnerReference{
-							meta.AsOwner(meta.ReferenceTo(resource(), v1alpha1.ExtensionGroupVersionKind)),
+							meta.AsOwner(meta.ReferenceTo(resource(), v1alpha1.StackGroupVersionKind)),
 						},
 					},
 				},
@@ -479,7 +479,7 @@ func TestProcessRBAC(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: resourceName,
 						OwnerReferences: []metav1.OwnerReference{
-							meta.AsOwner(meta.ReferenceTo(resource(), v1alpha1.ExtensionGroupVersionKind)),
+							meta.AsOwner(meta.ReferenceTo(resource(), v1alpha1.StackGroupVersionKind)),
 						},
 					},
 					Rules: defaultPolicyRules(),
@@ -488,7 +488,7 @@ func TestProcessRBAC(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: resourceName,
 						OwnerReferences: []metav1.OwnerReference{
-							meta.AsOwner(meta.ReferenceTo(resource(), v1alpha1.ExtensionGroupVersionKind)),
+							meta.AsOwner(meta.ReferenceTo(resource(), v1alpha1.StackGroupVersionKind)),
 						},
 					},
 					RoleRef:  rbac.RoleRef{APIGroup: rbac.GroupName, Kind: "ClusterRole", Name: resourceName},
@@ -501,7 +501,7 @@ func TestProcessRBAC(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			g := NewGomegaWithT(t)
-			handler := &extensionHandler{
+			handler := &stackHandler{
 				kube: tt.clientFunc(tt.r),
 				ext:  tt.r,
 			}
@@ -544,14 +544,14 @@ func TestProcessDeployment(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		r          *v1alpha1.Extension
-		clientFunc func(*v1alpha1.Extension) client.Client
+		r          *v1alpha1.Stack
+		clientFunc func(*v1alpha1.Stack) client.Client
 		want       want
 	}{
 		{
 			name:       "NoControllerRequested",
 			r:          resource(),
-			clientFunc: func(r *v1alpha1.Extension) client.Client { return fake.NewFakeClient(r) },
+			clientFunc: func(r *v1alpha1.Stack) client.Client { return fake.NewFakeClient(r) },
 			want: want{
 				err:           nil,
 				d:             nil,
@@ -561,7 +561,7 @@ func TestProcessDeployment(t *testing.T) {
 		{
 			name: "CreateDeploymentError",
 			r:    resource(withControllerSpec(defaultControllerSpec())),
-			clientFunc: func(r *v1alpha1.Extension) client.Client {
+			clientFunc: func(r *v1alpha1.Stack) client.Client {
 				return &test.MockClient{
 					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error {
 						return errBoom
@@ -577,7 +577,7 @@ func TestProcessDeployment(t *testing.T) {
 		{
 			name:       "Success",
 			r:          resource(withControllerSpec(defaultControllerSpec())),
-			clientFunc: func(r *v1alpha1.Extension) client.Client { return fake.NewFakeClient(r) },
+			clientFunc: func(r *v1alpha1.Stack) client.Client { return fake.NewFakeClient(r) },
 			want: want{
 				err: nil,
 				d: &apps.Deployment{
@@ -585,7 +585,7 @@ func TestProcessDeployment(t *testing.T) {
 						Name:      controllerDeploymentName,
 						Namespace: namespace,
 						OwnerReferences: []metav1.OwnerReference{
-							meta.AsOwner(meta.ReferenceTo(resource(), v1alpha1.ExtensionGroupVersionKind)),
+							meta.AsOwner(meta.ReferenceTo(resource(), v1alpha1.StackGroupVersionKind)),
 						},
 					},
 					Spec: apps.DeploymentSpec{
@@ -612,7 +612,7 @@ func TestProcessDeployment(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			g := NewGomegaWithT(t)
-			handler := &extensionHandler{
+			handler := &stackHandler{
 				kube: tt.clientFunc(tt.r),
 				ext:  tt.r,
 			}
@@ -649,14 +649,14 @@ func TestProcessJob(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		r          *v1alpha1.Extension
-		clientFunc func(*v1alpha1.Extension) client.Client
+		r          *v1alpha1.Stack
+		clientFunc func(*v1alpha1.Stack) client.Client
 		want       want
 	}{
 		{
 			name:       "NoControllerRequested",
 			r:          resource(),
-			clientFunc: func(r *v1alpha1.Extension) client.Client { return fake.NewFakeClient(r) },
+			clientFunc: func(r *v1alpha1.Stack) client.Client { return fake.NewFakeClient(r) },
 			want: want{
 				err:           nil,
 				j:             nil,
@@ -666,7 +666,7 @@ func TestProcessJob(t *testing.T) {
 		{
 			name: "CreateJobError",
 			r:    resource(withControllerSpec(defaultJobControllerSpec())),
-			clientFunc: func(r *v1alpha1.Extension) client.Client {
+			clientFunc: func(r *v1alpha1.Stack) client.Client {
 				return &test.MockClient{
 					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error {
 						return errBoom
@@ -682,7 +682,7 @@ func TestProcessJob(t *testing.T) {
 		{
 			name:       "Success",
 			r:          resource(withControllerSpec(defaultJobControllerSpec())),
-			clientFunc: func(r *v1alpha1.Extension) client.Client { return fake.NewFakeClient(r) },
+			clientFunc: func(r *v1alpha1.Stack) client.Client { return fake.NewFakeClient(r) },
 			want: want{
 				err: nil,
 				j: &batch.Job{
@@ -690,7 +690,7 @@ func TestProcessJob(t *testing.T) {
 						Name:      controllerJobName,
 						Namespace: namespace,
 						OwnerReferences: []metav1.OwnerReference{
-							meta.AsOwner(meta.ReferenceTo(resource(), v1alpha1.ExtensionGroupVersionKind)),
+							meta.AsOwner(meta.ReferenceTo(resource(), v1alpha1.StackGroupVersionKind)),
 						},
 					},
 					Spec: batch.JobSpec{
@@ -718,7 +718,7 @@ func TestProcessJob(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			g := NewGomegaWithT(t)
-			handler := &extensionHandler{
+			handler := &stackHandler{
 				kube: tt.clientFunc(tt.r),
 				ext:  tt.r,
 			}

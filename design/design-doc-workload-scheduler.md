@@ -42,7 +42,7 @@ This type of two-way coordination is difficult to achieve w/out the overarching 
 #### Resource Claims:
 - `ResourceClaim` is tightly coupled to the specific `ResourceClass` 
 - `ResourceClass` is tightly coupled to the specific `CloudProvider`.
-- By extension, `ResourcClaim` is coupled to the specific cloud provider. 
+- By extension, `ResourceClaim` is coupled to the specific cloud provider.
 
 #### Resource Claim Provisioning:
 - `ResourceClaim` and `Workloads` have separate and distinct contexts and life-cycles. 

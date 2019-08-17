@@ -33,7 +33,7 @@ import (
 )
 
 const (
-	// UserAgent is the user agent extension that identifies the Crossplane Azure client
+	// UserAgent is the user agent addition that identifies the Crossplane Azure client
 	UserAgent = "crossplane-azure-client"
 )
 

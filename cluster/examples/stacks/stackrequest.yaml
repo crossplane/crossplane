@@ -1,0 +1,7 @@
+apiVersion: stacks.crossplane.io/v1alpha1
+kind: StackRequest
+metadata:
+  name: sample-stack-from-package
+spec:
+  source: registry.hub.docker.com
+  package: crossplane/sample-stack

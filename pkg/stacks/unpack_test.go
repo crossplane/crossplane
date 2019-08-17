@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package extensions
+package stacks
 
 import (
 	"os"
@@ -29,11 +29,11 @@ import (
 
 const (
 	simpleAppFile = `# Human readable title of application.
-title: Sample Crossplane Extension
+title: Sample Crossplane Stack
 
 # Markdown description of this entry
 description: |
- Markdown describing this sample Crossplane extension project.
+ Markdown describing this sample Crossplane stack project.
 
 # Version of project (optional)
 # If omitted the version will be filled with the docker tag
@@ -64,7 +64,7 @@ links:
 - description: Website
   url: "https://upbound.io"
 - description: Source Code
-  url: "https://github.com/crossplaneio/sample-extension"
+  url: "https://github.com/crossplaneio/sample-stack"
 
 # License SPDX name: https://spdx.org/licenses/
 license: Apache-2.0
@@ -73,23 +73,23 @@ license: Apache-2.0
 	simpleDeploymentInstallFile = `apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: crossplane-sample-extension
+  name: crossplane-sample-stack
   labels:
-    core.crossplane.io/name: "crossplane-sample-extension"
+    core.crossplane.io/name: "crossplane-sample-stack"
 spec:
   selector:
     matchLabels:
-      core.crossplane.io/name: "crossplane-sample-extension"
+      core.crossplane.io/name: "crossplane-sample-stack"
   replicas: 1
   template:
     metadata:
-      name: sample-extension-controller
+      name: sample-stack-controller
       labels:
-        core.crossplane.io/name: "crossplane-sample-extension"
+        core.crossplane.io/name: "crossplane-sample-stack"
     spec:
       containers:
-      - name: sample-extension-controller
-        image: crossplane/sample-extension:latest
+      - name: sample-stack-controller
+        image: crossplane/sample-stack:latest
         env:
         - name: POD_NAME
           valueFrom:
@@ -113,8 +113,8 @@ spec:
     spec:
       restartPolicy: Never
       containers:
-      - name: sample-extension-from-job
-        image: crossplane/sample-extension-from-job:latest
+      - name: sample-stack-from-job
+        image: crossplane/sample-stack-from-job:latest
         args: ["prepare"]
         env:
         - name: POD_NAME
@@ -179,7 +179,7 @@ spec:
   version: v1alpha1
 `
 
-	expectedSimpleDeploymentExtensionOutput = `
+	expectedSimpleDeploymentStackOutput = `
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
@@ -196,27 +196,27 @@ spec:
   version: v1alpha1
 
 ---
-apiVersion: extensions.crossplane.io/v1alpha1
-kind: Extension
+apiVersion: stacks.crossplane.io/v1alpha1
+kind: Stack
 metadata:
   creationTimestamp: null
 spec:
   company: Upbound
   controller:
     deployment:
-      name: crossplane-sample-extension
+      name: crossplane-sample-stack
       spec:
         replicas: 1
         selector:
           matchLabels:
-            core.crossplane.io/name: crossplane-sample-extension
+            core.crossplane.io/name: crossplane-sample-stack
         strategy: {}
         template:
           metadata:
             creationTimestamp: null
             labels:
-              core.crossplane.io/name: crossplane-sample-extension
-            name: sample-extension-controller
+              core.crossplane.io/name: crossplane-sample-stack
+            name: sample-stack-controller
           spec:
             containers:
             - env:
@@ -228,15 +228,15 @@ spec:
                 valueFrom:
                   fieldRef:
                     fieldPath: metadata.namespace
-              image: crossplane/sample-extension:latest
-              name: sample-extension-controller
+              image: crossplane/sample-stack:latest
+              name: sample-stack-controller
               resources: {}
   customresourcedefinitions:
     owns:
     - apiVersion: samples.upbound.io/v1alpha1
       kind: Mytype
   description: |
-    Markdown describing this sample Crossplane extension project.
+    Markdown describing this sample Crossplane stack project.
   icons:
   - base64Data: bW9jay1pY29uLWRh
     mediatype: image/jpeg
@@ -249,7 +249,7 @@ spec:
   - description: Website
     url: https://upbound.io
   - description: Source Code
-    url: https://github.com/crossplaneio/sample-extension
+    url: https://github.com/crossplaneio/sample-stack
   maintainers:
   - email: jared@upbound.io
     name: Jared Watts
@@ -273,13 +273,13 @@ spec:
       - update
       - patch
       - delete
-  title: Sample Crossplane Extension
+  title: Sample Crossplane Stack
   version: 0.0.1
 status:
   conditionedStatus: {}
 `
 
-	expectedSimpleJobExtensionOutput = `
+	expectedSimpleJobStackOutput = `
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
@@ -296,8 +296,8 @@ spec:
   version: v1alpha1
 
 ---
-apiVersion: extensions.crossplane.io/v1alpha1
-kind: Extension
+apiVersion: stacks.crossplane.io/v1alpha1
+kind: Stack
 metadata:
   creationTimestamp: null
 spec:
@@ -325,8 +325,8 @@ spec:
                 valueFrom:
                   fieldRef:
                     fieldPath: metadata.namespace
-              image: crossplane/sample-extension-from-job:latest
-              name: sample-extension-from-job
+              image: crossplane/sample-stack-from-job:latest
+              name: sample-stack-from-job
               resources: {}
             restartPolicy: Never
   customresourcedefinitions:
@@ -334,7 +334,7 @@ spec:
     - apiVersion: samples.upbound.io/v1alpha1
       kind: Mytype
   description: |
-    Markdown describing this sample Crossplane extension project.
+    Markdown describing this sample Crossplane stack project.
   icons:
   - base64Data: bW9jay1pY29uLWRh
     mediatype: image/jpeg
@@ -347,7 +347,7 @@ spec:
   - description: Website
     url: https://upbound.io
   - description: Source Code
-    url: https://github.com/crossplaneio/sample-extension
+    url: https://github.com/crossplaneio/sample-stack
   maintainers:
   - email: jared@upbound.io
     name: Jared Watts
@@ -373,7 +373,7 @@ spec:
       - update
       - patch
       - delete
-  title: Sample Crossplane Extension
+  title: Sample Crossplane Stack
   version: 0.0.1
 status:
   conditionedStatus: {}
@@ -442,7 +442,7 @@ func TestUnpack(t *testing.T) {
 	}{
 		{
 			// unpack should fail to find the install.yaml file
-			name: "EmptyExtensionDir",
+			name: "EmptyStackDir",
 			fs: func() afero.Fs {
 				fs := afero.NewMemMapFs()
 				fs.MkdirAll("ext-dir", 0755)
@@ -452,7 +452,7 @@ func TestUnpack(t *testing.T) {
 			want: want{output: "", err: &os.PathError{Op: "open", Path: "ext-dir/install.yaml", Err: afero.ErrFileNotFound}},
 		},
 		{
-			name: "SimpleDeploymentExtension",
+			name: "SimpleDeploymentStack",
 			fs: func() afero.Fs {
 				fs := afero.NewMemMapFs()
 				fs.MkdirAll("ext-dir", 0755)
@@ -466,10 +466,10 @@ func TestUnpack(t *testing.T) {
 				return fs
 			}(),
 			root: "ext-dir",
-			want: want{output: expectedSimpleDeploymentExtensionOutput, err: nil},
+			want: want{output: expectedSimpleDeploymentStackOutput, err: nil},
 		},
 		{
-			name: "SimpleJobExtension",
+			name: "SimpleJobStack",
 			fs: func() afero.Fs {
 				fs := afero.NewMemMapFs()
 				fs.MkdirAll("ext-dir", 0755)
@@ -483,7 +483,7 @@ func TestUnpack(t *testing.T) {
 				return fs
 			}(),
 			root: "ext-dir",
-			want: want{output: expectedSimpleJobExtensionOutput, err: nil},
+			want: want{output: expectedSimpleJobStackOutput, err: nil},
 		},
 	}
 	for _, tt := range tests {

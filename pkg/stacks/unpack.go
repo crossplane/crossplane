@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package extensions
+package stacks
 
 import (
 	"bytes"
@@ -37,7 +37,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/crossplaneio/crossplane/apis/extensions/v1alpha1"
+	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/logging"
 )
 
@@ -53,12 +53,12 @@ const (
 )
 
 var (
-	log = logging.Logger.WithName("extensions")
+	log = logging.Logger.WithName("stacks")
 )
 
-// Unpack unpacks the extension contents from the given directory.
+// Unpack unpacks the stack contents from the given directory.
 func Unpack(contentDir string) error {
-	log.V(logging.Debug).Info("Unpacking extension", "contentDir", contentDir)
+	log.V(logging.Debug).Info("Unpacking stack", "contentDir", contentDir)
 	fs := afero.NewOsFs()
 
 	registryRoot := findRegistryRoot(fs, contentDir)
@@ -89,16 +89,16 @@ func doUnpack(fs afero.Fs, root string) (string, error) { // nolint:gocyclo
 	// consider refactoring before adding more kinds
 	var output strings.Builder
 
-	// create an Extension record and populate it with the relevant package contents
-	v, k := v1alpha1.ExtensionGroupVersionKind.ToAPIVersionAndKind()
-	extensionRecord := &v1alpha1.Extension{TypeMeta: metav1.TypeMeta{APIVersion: v, Kind: k}}
+	// create a Stack record and populate it with the relevant package contents
+	v, k := v1alpha1.StackGroupVersionKind.ToAPIVersionAndKind()
+	stackRecord := &v1alpha1.Stack{TypeMeta: metav1.TypeMeta{APIVersion: v, Kind: k}}
 
-	// find all CRDs and add to the extension record and the output builder
+	// find all CRDs and add to the stack record and the output builder
 	crdList, crdContent, err := readResources(fs, root)
 	if err != nil {
 		return "", err
 	}
-	extensionRecord.Spec.CRDs = *crdList
+	stackRecord.Spec.CRDs = *crdList
 
 	_, err = output.WriteString(crdContent)
 	if err != nil {
@@ -123,7 +123,7 @@ func doUnpack(fs afero.Fs, root string) (string, error) { // nolint:gocyclo
 			return "", err
 		}
 
-		extensionRecord.Spec.Controller.Deployment = &v1alpha1.ControllerDeployment{
+		stackRecord.Spec.Controller.Deployment = &v1alpha1.ControllerDeployment{
 			Name: installObj.GetName(),
 			Spec: deployment.Spec,
 		}
@@ -137,7 +137,7 @@ func doUnpack(fs afero.Fs, root string) (string, error) { // nolint:gocyclo
 			return "", err
 		}
 
-		extensionRecord.Spec.Controller.Job = &v1alpha1.ControllerJob{
+		stackRecord.Spec.Controller.Job = &v1alpha1.ControllerJob{
 			Name: installObj.GetName(),
 			Spec: job.Spec,
 		}
@@ -149,28 +149,28 @@ func doUnpack(fs afero.Fs, root string) (string, error) { // nolint:gocyclo
 	if err := readFileIntoObject(fs, root, appFileName, true, &appObj); err != nil {
 		return "", err
 	}
-	extensionRecord.Spec.AppMetadataSpec = appObj
+	stackRecord.Spec.AppMetadataSpec = appObj
 
 	// read the icon file and encode to base64
 	icons, err := readIcons(fs, root)
 	if err != nil {
 		return "", err
 	}
-	extensionRecord.Spec.AppMetadataSpec.Icons = icons
+	stackRecord.Spec.AppMetadataSpec.Icons = icons
 
 	// read the RBAC information
 	permissionsObj := v1alpha1.PermissionsSpec{}
 	if err := readFileIntoObject(fs, root, permissionsFileName, false /* not required */, &permissionsObj); err != nil {
 		return "", err
 	}
-	extensionRecord.Spec.Permissions = permissionsObj
+	stackRecord.Spec.Permissions = permissionsObj
 
-	// marshal the full extension record to yaml and write it to the output
-	extensionRecordRaw, err := yaml.Marshal(extensionRecord)
+	// marshal the full stack record to yaml and write it to the output
+	stackRecordRaw, err := yaml.Marshal(stackRecord)
 	if err != nil {
 		return "", err
 	}
-	_, err = output.WriteString(yamlSeparator + string(extensionRecordRaw))
+	_, err = output.WriteString(yamlSeparator + string(stackRecordRaw))
 	if err != nil {
 		return "", err
 	}

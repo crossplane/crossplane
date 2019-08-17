@@ -8,7 +8,7 @@ This document aims to provide details about the experience and implementation fo
 ## Revisions
 
 * 1.1
-  * Renamed Extensions concept to Stacks (`Extension` code references are unaffected) [#571](https://github.com/crossplaneio/crossplane/issues/571)
+  * Renamed Extensions concept to Stacks (`Stack` code references are unaffected) [#571](https://github.com/crossplaneio/crossplane/issues/571)
   * Added additional Questions and Open Issues
 
 ## Experience
@@ -57,7 +57,7 @@ All further functionality for Crossplane (databases, buckets, etc.) could then b
 This section describes the end to end installation flow implemented by the Stack Manager:
 
 * The SM starts up with a default “source” registry (e.g. `registry.crossplane.io`) that contains packages (bundles of a Stack and its custom controllers and CRDs) published to it
-* User creates an `ExtensionRequest` instance to request a Stack be installed in the cluster, which includes everything needed to successfully run that Stack.  The `ExtensionRequest` includes:
+* User creates a `StackRequest` instance to request a Stack be installed in the cluster, which includes everything needed to successfully run that Stack.  The `StackRequest` includes:
   * an optional source registry that can be any arbitrary registry location.  If this field is not specified then the SM's default source registry will be used.
   * One of the following must be specified:
     * package name (`gitlab`) OR
@@ -66,27 +66,27 @@ This section describes the end to end installation flow implemented by the Stack
 * The SM performs dependency resolution that determines all packages/Stacks that are required by this Stack and all of its dependent Stacks (Not Implemented)
 * The SM pulls all necessary Stack packages from the registry
 * The SM creates an unpack job that sends the artifacts to `stdout` which the SM ingests to install the Stack
-  * Stack metadata (`app.yaml`, `install.yaml`, `rbac.yaml`) is extracted and transformed to create an `Extension` CRD instance that serves as a record of the install
+  * Stack metadata (`app.yaml`, `install.yaml`, `rbac.yaml`) is extracted and transformed to create an `Stack` CRD instance that serves as a record of the install
   * All owned/defined CRDs are installed and annotated with their related metadata (`group.yaml`, `resource.yaml`, and icon file)
   * RBAC rules necessary for the controller or controller installer are installed (`rbac.yaml`)
   * Stack installation instructions (`install.yaml`), in the form of Kubernetes YAML state files, are parsed and sent to the Kubernetes API
 * Kubernetes starts up the custom controller so that it is in the running state
-* The SM marks the `ExtensionRequest` status as succeeded
+* The SM marks the `StackRequest` status as succeeded
 
-## `ExtensionRequest` CRD
+## `StackRequest` CRD
 
-To commence the installation of new functionality into a Crossplane cluster, an instance of the `ExtensionRequest` CRD should be created.
+To commence the installation of new functionality into a Crossplane cluster, an instance of the `StackRequest` CRD should be created.
 The SM will be watching for events on this type and it will begin the process of installing a Stack during its reconcile loop.
 
-`ExtensionRequests` can be specified by either a package name or by a CRD type.
+`StackRequests` can be specified by either a package name or by a CRD type.
 When given a CRD type, the controller will query the registry to find out what package owns that CRD and then it will download that package to proceed with the install.
 This gives more flexibility to how Stacks are installed and does not require the requestor to know what package a CRD is defined in.
 
 ```yaml
 # request to extend Crossplane with the redis package,
 # using a specific version number
-apiVersion: extensions.crossplane.io/v1alpha1
-kind: ExtensionRequest
+apiVersion: stacks.crossplane.io/v1alpha1
+kind: StackRequest
 metadata:
   name: redis-from-package
 spec:
@@ -99,8 +99,8 @@ status:
 ---
 # request to extend Crossplane with the package that defines/owns,
 # the rediscluster CRD
-apiVersion: extensions.crossplane.io/v1alpha1
-kind: ExtensionRequest
+apiVersion: stacks.crossplane.io/v1alpha1
+kind: StackRequest
 metadata:
   name: redis-from-crd
 spec:
@@ -112,21 +112,21 @@ status:
     status: "True"
 ```
 
-## `Extension` CRD
+## `Stack` CRD
 
-The `Extension` CRD serves as a record of an installed Stack (a custom controller and its CRDs).
+The `Stack` CRD serves as a record of an installed Stack (a custom controller and its CRDs).
 These records make it so that a user or system can query Crossplane and learn all of the functionality that has been installed on it as well as their statuses.
 
 Instances of this CRD can be generated from the filesystem based contents of a package, i.e. the metadata files contained inside the package.
-This can be thought of as a translation operation, where the file based content is translated into a YAML based version that is stored in the `Extension` CRD.
+This can be thought of as a translation operation, where the file based content is translated into a YAML based version that is stored in the `Stack` CRD.
 
-`Extension` CRD instances can also be created directly by a user without any knowledge of packages at all.
-They can directly create any CRDs that their Stack requires and then create an `Extension` CRD instance that describes their Stack, its custom controller, etc.
+`Stack` CRD instances can also be created directly by a user without any knowledge of packages at all.
+They can directly create any CRDs that their Stack requires and then create a `Stack` CRD instance that describes their Stack, its custom controller, etc.
 The Stack Manager will see this new instance and take the steps necessary to ensure the custom controller is running in the cluster and the Stack’s functionality is available.
 
 ```yaml
-apiVersion: extensions.crossplane.io/v1alpha1
-kind: Extension
+apiVersion: stacks.crossplane.io/v1alpha1
+kind: Stack
 metadata:
  name: redis
 spec:
@@ -204,7 +204,7 @@ A Stack package is the bundle that contains the custom controller definition, CR
 
 The Stack Package Format is essentially just a tarball (e.g., a [container image](https://github.com/opencontainers/image-spec/blob/master/spec.md)).  All of the Stack resources are brought together into this single unit which is understood and supported by the Stack registry and Stack manager.
 
-As previously mentioned, after downloading and unpacking a Stack package, the Stack Manager will not only install its contents into Crossplane, but it will also translate them into an `Extension` record.
+As previously mentioned, after downloading and unpacking a Stack package, the Stack Manager will not only install its contents into Crossplane, but it will also translate them into a `Stack` record.
 
 More details will be provided when a Stack registry project is bootstrapped and launched.
 
@@ -239,7 +239,7 @@ In this example, the directory names "databases.foocompany.io", "mysql", "v1alph
 
 ### Stack Files
 
-* `app.yaml`: This file is the general metadata and information about the Stack, such as its name, description, version, owners, etc.  This metadata will be saved in the `Extension` record's spec fields.
+* `app.yaml`: This file is the general metadata and information about the Stack, such as its name, description, version, owners, etc.  This metadata will be saved in the `Stack` record's spec fields.
 * `install.yaml`: This file contains the information for how the custom controller for the Stack should be installed into Crossplane.  Initially, only simple `Deployment` based controllers will be supported, but eventually other types of implementations will be supported as well, e.g., templates, functions/hooks, templates, a new DSL, etc.
 * `icon.svg`: This file (or `icon.png`, `icon.jpg`, `icon.gif`, or potentially other supported filenames, TBD) will be used in a visual context when listing or describing this stack.  The preferred formats/filenames are `svg`, `png`, `jpg`, `gif` in that order (if multiple files exist).  For bitmap formats, the width to height ratio should be 1:1. Limitations may be placed on the acceptable file dimensions and byte size (TBD).
 * `resources` directory: This directory contains all the CRDs and optional metadata about them.
@@ -312,7 +312,7 @@ keywords:
 
 # Links to more information about the application (about page, source code, etc.)
 website: "https://crossplane.io"
-source: "https://github.com/crossplaneio/sample-extension"
+source: "https://github.com/crossplaneio/sample-stack"
 
 # License SPDX name: https://spdx.org/licenses/
 license: Apache-2.0
@@ -486,7 +486,7 @@ The full set of packages and Stacks that a Stack depend on will be downloaded, u
 
 ## Package Processing
 
-The process of installing a Stack involves downloading its package, extracting the package contents into its relevant CRDs and `Extension` record, and applying them to the Crossplane cluster.
+The process of installing a Stack involves downloading its package, extracting the package contents into its relevant CRDs and `Stack` record, and applying them to the Crossplane cluster.
 
 See the [Installation Flow](#installation-flow) for a more complete view of the current package processing implementation.
 
@@ -513,7 +513,7 @@ Some packaging considerations do not need to be enforced by spec and are left to
 Alternative designs for package processing and their related considerations (pros and cons) are listed below.  These ideas or parts of them may surface in future implementations.
 
 * Stack package base image
-  * A base image containing the unpacking logic could be defined and all other Stack packages are based on it, e.g., `FROM crossplane-extension`
+  * A base image containing the unpacking logic could be defined and all other Stack packages are based on it, e.g., `FROM crossplane/stack`
   * The main entry point of the package would call this unpacking logic and send all artifacts to `stdout`
   * PRO: The knowledge to unpack an image is self-contained an external entity such as the SM does not need to know these details, package format is opaque to the SM.
   * CON: This likely significantly increases the size of the package if the logic is written in golang using Crossplane types for unmarshalling, increasing the KB size of the original package contents into an image that is many MB in size.
@@ -535,13 +535,11 @@ Each of these designs offered a good place to start.  Through iteration over tim
 * Stack Manager security model and isolation [#580](https://github.com/crossplaneio/crossplane/issues/580)
 * Offloading redundant Stack Manager functionality to Stack building tools
 * Dependency resolution design: [#434](https://github.com/crossplaneio/crossplane/issues/434)
-* Updating/Upgrading Extensions: [#435](https://github.com/crossplaneio/crossplane/issues/435)
-* Document how to build and publish an extension [#503](https://github.com/crossplaneio/crossplane/issues/503)
-* Support installation of extensions from private registries [#505](https://github.com/crossplaneio/crossplane/issues/505)
-* Standardize extension package format and layout [#507](https://github.com/crossplaneio/crossplane/issues/507)
-* Figure out model for crossplane core vs extensions [#531](https://github.com/crossplaneio/crossplane/issues/531)
-* Single extension should be able to install multiple controllers [#532](https://github.com/crossplaneio/crossplane/issues/532)
-* Prototype alternate extension implementations [#548](https://github.com/crossplaneio/crossplane/issues/548)
+* Updating/Upgrading Stack: [#435](https://github.com/crossplaneio/crossplane/issues/435)
+* Support installation of stacks from private registries [#505](https://github.com/crossplaneio/crossplane/issues/505)
+* Figure out model for crossplane core vs stacks [#531](https://github.com/crossplaneio/crossplane/issues/531)
+* Single stack should be able to install multiple controllers [#532](https://github.com/crossplaneio/crossplane/issues/532)
+* Prototype alternate stack implementations [#548](https://github.com/crossplaneio/crossplane/issues/548)
 * Is there a benefit to `kind.version.` prefixed `crd.yaml` filenames
 * What categories are valid? Is there a well-defined Category tree? Are arbitrary categories invalid or ignored?
 * Should links be predefined (`website`, `source`) or freeform `links:[{description:"Website",url:"..."}, ...]`?

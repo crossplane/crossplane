@@ -9,7 +9,7 @@ The cloud services column will link to an Example User Guide if one is available
 | [cache](cache/)     | Provisions a Managed Redis service from any cloud. | Redis | Redis | CloudMemoryStore Redis |
 | [compute](compute/)   | Creates a WordPress Workload that runs in a Crossplane created Kubernetes cluster using a Crossplane created managed MySQL service. ([Using Compute Workloads](https://github.com/crossplaneio/crossplane/blob/master/design/complex-workloads.md#complex-workloads-in-crossplane), [Legacy](https://github.com/crossplaneio/crossplane/issues/456)) | EKS + RDS | [AKS + Azure SQL](../../docs/workloads/azure/wordpress-azure.md) | GKE + Cloud SQL |
 | [database](database/)  | Deploys a PostgreSQL database in any cloud. | RDS | Azure SQL | Cloud SQL |
-| [extensions](extensions/) | Deploys the [sample-extension](https://github.com/crossplaneio/sample-extension) | n/a | n/a | n/a |
+| [stacks](stacks/) | Deploys the [sample stack](https://github.com/crossplaneio/sample-stack) | n/a | n/a | n/a |
 | [gitlab](gitlab/)    | Deploy GitLab in all three clouds. See the per-Cloud documentation links. | [AWS](../../docs/gitlab/gitlab-aws.md) | | [GCP](../../docs/gitlab/gitlab-gcp.md) |
 | [kubernetes](kubernetes/) | Deploy a Kubernetes Cluster in any clouds. | EKS | AKS | GKE |
 | [storage](storage/)   | Provisions a object storage bucket from any cloud. | S3 | Storage | GCS |
