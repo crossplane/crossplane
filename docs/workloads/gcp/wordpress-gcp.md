@@ -74,7 +74,7 @@ For the next steps, make sure your `kubectl` context points to the cluster where
   The `Application Developer(s)` will use the `complex` namespace.
 
   ```bash
-  kubectl apply -f cluster/examples/workloads/kubernetes/wordpress-gcp/cluster.yaml
+  kubectl apply -f cluster/examples/workloads/kubernetes/cluster.yaml
   ```
 
   * Verify that the Kubernetes Cluster resource was created
@@ -121,7 +121,7 @@ Let's begin deploying the workload as the application developer:
 * Deploy workload
 
   ```bash
-  kubectl apply -f cluster/examples/workloads/kubernetes/wordpress-gcp/app.yaml
+  kubectl apply -f cluster/examples/workloads/kubernetes/app.yaml
   ```
 
 * Wait for `MySQLInstance` to be in `Bound` State
@@ -182,13 +182,13 @@ Once you are done with this example, you can clean up all its artifacts with the
 * Remove the `App`
 
   ```bash
-  kubectl delete -f cluster/examples/workloads/kubernetes/wordpress-gcp/app.yaml
+  kubectl delete -f cluster/examples/workloads/kubernetes/app.yaml
   ```
 
 * Remove the `KubernetesCluster`
 
   ```bash
-  kubectl delete -f cluster/examples/workloads/kubernetes/wordpress-gcp/cluster.yaml
+  kubectl delete -f cluster/examples/workloads/kubernetes/cluster.yaml
   ```
 
 * Remove the GCP `Provider` and Crossplane `ResourceClasses`
