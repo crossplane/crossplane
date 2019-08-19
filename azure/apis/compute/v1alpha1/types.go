@@ -17,11 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"strconv"
-
 	"github.com/crossplaneio/crossplane/apis/core/v1alpha1"
 
-	"github.com/Azure/go-autorest/autorest/to"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -35,10 +32,8 @@ const (
 	DefaultNodeCount = 1
 )
 
-// AKSClusterSpec is the spec for AKS cluster resources
-type AKSClusterSpec struct {
-	v1alpha1.ResourceSpec `json:",inline"`
-
+// AKSClusterParameters define the configuration for AKS cluster resources
+type AKSClusterParameters struct {
 	// ResourceGroupName is the name of the resource group that the cluster will be created in
 	ResourceGroupName string `json:"resourceGroupName"` //--resource-group
 
@@ -69,6 +64,12 @@ type AKSClusterSpec struct {
 	// is automatically generated and used by the AKS cluster to interact with
 	// other Azure resources.
 	WriteServicePrincipalSecretTo corev1.LocalObjectReference `json:"writeServicePrincipalTo"`
+}
+
+// AKSClusterSpec is the spec for AKS cluster resources
+type AKSClusterSpec struct {
+	v1alpha1.ResourceSpec `json:",inline"`
+	AKSClusterParameters  `json:",inline"`
 }
 
 // AKSClusterStatus is the status for AKS cluster resources
@@ -178,53 +179,40 @@ type AKSClusterList struct {
 	Items           []AKSCluster `json:"items"`
 }
 
-// NewAKSClusterSpec creates a new AKSClusterSpec based on the given properties map
-func NewAKSClusterSpec(properties map[string]string) *AKSClusterSpec {
-	spec := &AKSClusterSpec{
-		ResourceSpec: v1alpha1.ResourceSpec{
-			ReclaimPolicy: DefaultReclaimPolicy,
-		},
-		NodeCount: to.IntPtr(DefaultNodeCount),
-	}
+// AKSClusterClassSpecTemplate is the Schema for the resource class
+type AKSClusterClassSpecTemplate struct {
+	v1alpha1.ResourceClassSpecTemplate `json:",inline"`
+	AKSClusterParameters               `json:",inline"`
+}
 
-	val, ok := properties["resourceGroupName"]
-	if ok {
-		spec.ResourceGroupName = val
-	}
+// +kubebuilder:object:root=true
 
-	val, ok = properties["location"]
-	if ok {
-		spec.Location = val
-	}
+// AKSClusterClass is the Schema for the resource class
+// +kubebuilder:printcolumn:name="PROVIDER-REF",type="string",JSONPath=".specTemplate.providerRef.name"
+// +kubebuilder:printcolumn:name="RECLAIM-POLICY",type="string",JSONPath=".specTemplate.reclaimPolicy"
+// +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
+type AKSClusterClass struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	val, ok = properties["version"]
-	if ok {
-		spec.Version = val
-	}
+	SpecTemplate AKSClusterClassSpecTemplate `json:"specTemplate,omitempty"`
+}
 
-	val, ok = properties["nodeCount"]
-	if ok {
-		if nodeCount, err := strconv.Atoi(val); err == nil {
-			spec.NodeCount = to.IntPtr(nodeCount)
-		}
-	}
+// GetReclaimPolicy of this AKSClusterClass.
+func (i *AKSClusterClass) GetReclaimPolicy() v1alpha1.ReclaimPolicy {
+	return i.SpecTemplate.ReclaimPolicy
+}
 
-	val, ok = properties["nodeVMSize"]
-	if ok {
-		spec.NodeVMSize = val
-	}
+// SetReclaimPolicy of this AKSClusterClass.
+func (i *AKSClusterClass) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) {
+	i.SpecTemplate.ReclaimPolicy = p
+}
 
-	val, ok = properties["dnsNamePrefix"]
-	if ok {
-		spec.DNSNamePrefix = val
-	}
+// +kubebuilder:object:root=true
 
-	val, ok = properties["disableRBAC"]
-	if ok {
-		if disableRBAC, err := strconv.ParseBool(val); err == nil {
-			spec.DisableRBAC = disableRBAC
-		}
-	}
-
-	return spec
+// AKSClusterClassList contains a list of cloud memorystore resource classes.
+type AKSClusterClassList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []AKSClusterClass `json:"items"`
 }

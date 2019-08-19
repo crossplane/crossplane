@@ -1,0 +1,149 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  creationTimestamp: null
+  name: aksclusterclasses.compute.azure.crossplane.io
+spec:
+  additionalPrinterColumns:
+  - JSONPath: .specTemplate.providerRef.name
+    name: PROVIDER-REF
+    type: string
+  - JSONPath: .specTemplate.reclaimPolicy
+    name: RECLAIM-POLICY
+    type: string
+  - JSONPath: .metadata.creationTimestamp
+    name: AGE
+    type: date
+  group: compute.azure.crossplane.io
+  names:
+    kind: AKSClusterClass
+    plural: aksclusterclasses
+  scope: ""
+  subresources: {}
+  validation:
+    openAPIV3Schema:
+      description: AKSClusterClass is the Schema for the resource class
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        specTemplate:
+          description: AKSClusterClassSpecTemplate is the Schema for the resource
+            class
+          properties:
+            disableRBAC:
+              description: DisableRBAC determines whether RBAC will be disabled or
+                enabled in the cluster.
+              type: boolean
+            dnsNamePrefix:
+              description: DNSNamePrefix is the DNS name prefix to use with the hosted
+                Kubernetes API server FQDN. You will use this to connect to the Kubernetes
+                API when managing containers after creating the cluster.
+              type: string
+            location:
+              description: Location is the Azure location that the cluster will be
+                created in
+              type: string
+            nodeCount:
+              description: NodeCount is the number of nodes that the cluster will
+                initially be created with.  This can be scaled over time and defaults
+                to 1.
+              maximum: 100
+              minimum: 0
+              type: integer
+            nodeVMSize:
+              description: NodeVMSize is the name of the worker node VM size, e.g.,
+                Standard_B2s, Standard_F2s_v2, etc. This value cannot be changed after
+                cluster creation.
+              type: string
+            providerRef:
+              description: ObjectReference contains enough information to let you
+                inspect or modify the referred object.
+              properties:
+                apiVersion:
+                  description: API version of the referent.
+                  type: string
+                fieldPath:
+                  description: 'If referring to a piece of an object instead of an
+                    entire object, this string should contain a valid JSON/Go field
+                    access statement, such as desiredState.manifest.containers[2].
+                    For example, if the object reference is to a container within
+                    a pod, this would take on a value like: "spec.containers{name}"
+                    (where "name" refers to the name of the container that triggered
+                    the event) or if no container name is specified "spec.containers[2]"
+                    (container with index 2 in this pod). This syntax is chosen only
+                    to have some well-defined way of referencing a part of an object.
+                    TODO: this design is not final and this field is subject to change
+                    in the future.'
+                  type: string
+                kind:
+                  description: 'Kind of the referent. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+                  type: string
+                name:
+                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                  type: string
+                namespace:
+                  description: 'Namespace of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/'
+                  type: string
+                resourceVersion:
+                  description: 'Specific resourceVersion to which this reference is
+                    made, if any. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#concurrency-control-and-consistency'
+                  type: string
+                uid:
+                  description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
+                  type: string
+              type: object
+            reclaimPolicy:
+              description: A ReclaimPolicy determines what should happen to managed
+                resources when their bound resource claims are deleted.
+              type: string
+            resourceGroupName:
+              description: ResourceGroupName is the name of the resource group that
+                the cluster will be created in
+              type: string
+            version:
+              description: Version is the Kubernetes version that will be deployed
+                to the cluster
+              type: string
+            writeServicePrincipalTo:
+              description: WriteServicePrincipalSecretTo the specified Secret. The
+                service principal is automatically generated and used by the AKS cluster
+                to interact with other Azure resources.
+              properties:
+                name:
+                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                    TODO: Add other useful fields. apiVersion, kind, uid?'
+                  type: string
+              type: object
+          required:
+          - dnsNamePrefix
+          - location
+          - nodeVMSize
+          - providerRef
+          - resourceGroupName
+          - version
+          - writeServicePrincipalTo
+          type: object
+      type: object
+  version: v1alpha1
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

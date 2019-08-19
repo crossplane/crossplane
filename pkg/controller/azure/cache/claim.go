@@ -86,6 +86,7 @@ func ConfigureRedis(_ context.Context, cm resource.Claim, cs resource.Class, mg 
 		return errors.Wrap(err, "cannot resolve Azure class instance values")
 	}
 
+	// NOTE(hasheddan): consider moving defaulting to either CRD or managed reconciler level
 	if spec.RedisConfiguration == nil {
 		spec.RedisConfiguration = map[string]string{}
 	}
