@@ -47,6 +47,14 @@ var (
 	EKSClusterGroupVersionKind = SchemeGroupVersion.WithKind(EKSClusterKind)
 )
 
+// EKSClusterClass type metadata.
+var (
+	EKSClusterClassKind             = reflect.TypeOf(EKSClusterClass{}).Name()
+	EKSClusterClassKindAPIVersion   = EKSClusterClassKind + "." + SchemeGroupVersion.String()
+	EKSClusterClassGroupVersionKind = SchemeGroupVersion.WithKind(EKSClusterClassKind)
+)
+
 func init() {
 	SchemeBuilder.Register(&EKSCluster{}, &EKSClusterList{})
+	SchemeBuilder.Register(&EKSClusterClass{}, &EKSClusterClassList{})
 }
