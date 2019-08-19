@@ -38,7 +38,7 @@ func TestConfigureGKECluster(t *testing.T) {
 	type args struct {
 		ctx context.Context
 		cm  resource.Claim
-		cs  *corev1alpha1.ResourceClass
+		cs  resource.Class
 		mg  resource.Managed
 	}
 
@@ -57,9 +57,13 @@ func TestConfigureGKECluster(t *testing.T) {
 		"Successful": {
 			args: args{
 				cm: &computev1alpha1.KubernetesCluster{ObjectMeta: metav1.ObjectMeta{UID: claimUID}},
-				cs: &corev1alpha1.ResourceClass{
-					ProviderReference: &corev1.ObjectReference{Name: providerName},
-					ReclaimPolicy:     corev1alpha1.ReclaimDelete,
+				cs: &v1alpha1.GKEClusterClass{
+					SpecTemplate: v1alpha1.GKEClusterClassSpecTemplate{
+						ResourceClassSpecTemplate: corev1alpha1.ResourceClassSpecTemplate{
+							ProviderReference: &corev1.ObjectReference{Name: providerName},
+							ReclaimPolicy:     corev1alpha1.ReclaimDelete,
+						},
+					},
 				},
 				mg: &v1alpha1.GKECluster{},
 			},
@@ -71,9 +75,11 @@ func TestConfigureGKECluster(t *testing.T) {
 							WriteConnectionSecretToReference: corev1.LocalObjectReference{Name: string(claimUID)},
 							ProviderReference:                &corev1.ObjectReference{Name: providerName},
 						},
-						NumNodes: 1,
-						Scopes:   []string{},
-						Labels:   map[string]string{},
+						GKEClusterParameters: v1alpha1.GKEClusterParameters{
+							NumNodes: 1,
+							Scopes:   []string{},
+							Labels:   map[string]string{},
+						},
 					},
 				},
 				err: nil,
