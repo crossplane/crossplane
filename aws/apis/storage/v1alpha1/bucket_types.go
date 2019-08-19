@@ -33,10 +33,8 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// S3BucketSpec defines the desired state of S3Bucket
-type S3BucketSpec struct {
-	v1alpha1.ResourceSpec `json:",inline"`
-
+// S3BucketParameters defines the desired state of S3Bucket
+type S3BucketParameters struct {
 	// NameFormat to format bucket name passing it a object UID
 	// If not provided, defaults to "%s", i.e. UID value
 	NameFormat string `json:"nameFormat,omitempty"`
@@ -54,6 +52,12 @@ type S3BucketSpec struct {
 	LocalPermission *storagev1alpha1.LocalPermissionType `json:"localPermission"`
 }
 
+// S3BucketSpec defines the desired state of S3Bucket
+type S3BucketSpec struct {
+	v1alpha1.ResourceSpec `json:",inline"`
+	S3BucketParameters    `json:",inline"`
+}
+
 // S3BucketStatus defines the observed state of S3Bucket
 type S3BucketStatus struct {
 	v1alpha1.ResourceStatus `json:",inline"`
@@ -63,41 +67,6 @@ type S3BucketStatus struct {
 	IAMUsername           string                              `json:"iamUsername,omitempty"`
 	LastUserPolicyVersion int                                 `json:"lastUserPolicyVersion,omitempty"`
 	LastLocalPermission   storagev1alpha1.LocalPermissionType `json:"lastLocalPermission,omitempty"`
-}
-
-// NewS3BucketSpec from properties map
-func NewS3BucketSpec(properties map[string]string) *S3BucketSpec {
-	spec := &S3BucketSpec{
-		ResourceSpec: v1alpha1.ResourceSpec{
-			ReclaimPolicy: v1alpha1.ReclaimRetain,
-		},
-	}
-
-	val, ok := properties["localPermission"]
-	if ok {
-		perm := storagev1alpha1.LocalPermissionType(val)
-		spec.LocalPermission = &perm
-	}
-
-	val, ok = properties["cannedACL"]
-	if ok {
-		perm := s3.BucketCannedACL(val)
-		spec.CannedACL = &perm
-	}
-
-	val, ok = properties["versioning"]
-	if ok {
-		if versioning, err := strconv.ParseBool(val); err == nil {
-			spec.Versioning = versioning
-		}
-	}
-
-	val, ok = properties["region"]
-	if ok {
-		spec.Region = val
-	}
-
-	return spec
 }
 
 // +kubebuilder:object:root=true
@@ -177,6 +146,44 @@ type S3BucketList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []S3Bucket `json:"items"`
+}
+
+// S3BucketClassSpecTemplate is the Schema for the resource class
+type S3BucketClassSpecTemplate struct {
+	v1alpha1.ResourceClassSpecTemplate `json:",inline"`
+	S3BucketParameters                 `json:",inline"`
+}
+
+// +kubebuilder:object:root=true
+
+// S3BucketClass is the Schema for the resource class
+// +kubebuilder:printcolumn:name="PROVIDER-REF",type="string",JSONPath=".specTemplate.providerRef.name"
+// +kubebuilder:printcolumn:name="RECLAIM-POLICY",type="string",JSONPath=".specTemplate.reclaimPolicy"
+// +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
+type S3BucketClass struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	SpecTemplate S3BucketClassSpecTemplate `json:"specTemplate,omitempty"`
+}
+
+// GetReclaimPolicy of this S3BucketClass.
+func (i *S3BucketClass) GetReclaimPolicy() v1alpha1.ReclaimPolicy {
+	return i.SpecTemplate.ReclaimPolicy
+}
+
+// SetReclaimPolicy of this S3BucketClass.
+func (i *S3BucketClass) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) {
+	i.SpecTemplate.ReclaimPolicy = p
+}
+
+// +kubebuilder:object:root=true
+
+// S3BucketClassList contains a list of cloud memorystore resource classes.
+type S3BucketClassList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []S3BucketClass `json:"items"`
 }
 
 // GetBucketName based on the NameFormat spec value,

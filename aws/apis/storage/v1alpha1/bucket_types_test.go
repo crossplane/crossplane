@@ -17,10 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"strconv"
 	"testing"
 
-	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/onsi/gomega"
 	. "github.com/onsi/gomega"
 	"golang.org/x/net/context"
@@ -61,11 +59,13 @@ func TestStorageS3Bucket(t *testing.T) {
 			Namespace: namespace,
 		},
 		Spec: S3BucketSpec{
-			NameFormat:      "test-bucket-name-%s",
-			Region:          "us-west-1",
-			LocalPermission: &perm,
 			ResourceSpec: corev1alpha1.ResourceSpec{
 				ProviderReference: &core.ObjectReference{},
+			},
+			S3BucketParameters: S3BucketParameters{
+				NameFormat:      "test-bucket-name-%s",
+				Region:          "us-west-1",
+				LocalPermission: &perm,
 			},
 		},
 	}
@@ -89,35 +89,4 @@ func TestStorageS3Bucket(t *testing.T) {
 	// Test Delete
 	g.Expect(c.Delete(context.TODO(), fetched)).NotTo(HaveOccurred())
 	g.Expect(c.Get(context.TODO(), key, fetched)).To(HaveOccurred())
-}
-
-func TestNewS3BucketSpec(t *testing.T) {
-	g := gomega.NewGomegaWithT(t)
-
-	m := make(map[string]string)
-	exp := &S3BucketSpec{
-		ResourceSpec: corev1alpha1.ResourceSpec{
-			ReclaimPolicy: corev1alpha1.ReclaimRetain,
-		},
-	}
-	g.Expect(NewS3BucketSpec(m)).To(Equal(exp))
-
-	val := "test-region"
-	m["region"] = val
-	exp.Region = val
-	g.Expect(NewS3BucketSpec(m)).To(Equal(exp))
-
-	m["versioning"] = strconv.FormatBool(true)
-	exp.Versioning = true
-	g.Expect(NewS3BucketSpec(m)).To(Equal(exp))
-
-	acl := s3.BucketCannedACLAuthenticatedRead
-	exp.CannedACL = &acl
-	m["cannedACL"] = string(s3.BucketCannedACLAuthenticatedRead)
-	g.Expect(NewS3BucketSpec(m)).To(Equal(exp))
-
-	perm := storagev1alpha1.ReadWritePermission
-	exp.LocalPermission = &perm
-	m["localPermission"] = string(perm)
-	g.Expect(NewS3BucketSpec(m)).To(Equal(exp))
 }

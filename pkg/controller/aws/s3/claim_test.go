@@ -39,7 +39,7 @@ func TestConfigureBucket(t *testing.T) {
 	type args struct {
 		ctx context.Context
 		cm  resource.Claim
-		cs  *corev1alpha1.ResourceClass
+		cs  resource.Class
 		mg  resource.Managed
 	}
 
@@ -71,9 +71,13 @@ func TestConfigureBucket(t *testing.T) {
 						LocalPermission: &ro,
 					},
 				},
-				cs: &corev1alpha1.ResourceClass{
-					ProviderReference: &corev1.ObjectReference{Name: providerName},
-					ReclaimPolicy:     corev1alpha1.ReclaimDelete,
+				cs: &v1alpha1.S3BucketClass{
+					SpecTemplate: v1alpha1.S3BucketClassSpecTemplate{
+						ResourceClassSpecTemplate: corev1alpha1.ResourceClassSpecTemplate{
+							ProviderReference: &corev1.ObjectReference{Name: providerName},
+							ReclaimPolicy:     corev1alpha1.ReclaimDelete,
+						},
+					},
 				},
 				mg: &v1alpha1.S3Bucket{},
 			},
@@ -85,9 +89,11 @@ func TestConfigureBucket(t *testing.T) {
 							WriteConnectionSecretToReference: corev1.LocalObjectReference{Name: string(claimUID)},
 							ProviderReference:                &corev1.ObjectReference{Name: providerName},
 						},
-						NameFormat:      bucketName,
-						CannedACL:       &s3BucketPrivate,
-						LocalPermission: &ro,
+						S3BucketParameters: v1alpha1.S3BucketParameters{
+							NameFormat:      bucketName,
+							CannedACL:       &s3BucketPrivate,
+							LocalPermission: &ro,
+						},
 					},
 				},
 				err: nil,
@@ -99,12 +105,16 @@ func TestConfigureBucket(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{UID: claimUID},
 					Spec:       storagev1alpha1.BucketSpec{},
 				},
-				cs: &corev1alpha1.ResourceClass{
-					ProviderReference: &corev1.ObjectReference{Name: providerName},
-					ReclaimPolicy:     corev1alpha1.ReclaimDelete,
-					Parameters: map[string]string{
-						"cannedACL":       "private",
-						"localPermission": "Read",
+				cs: &v1alpha1.S3BucketClass{
+					SpecTemplate: v1alpha1.S3BucketClassSpecTemplate{
+						ResourceClassSpecTemplate: corev1alpha1.ResourceClassSpecTemplate{
+							ProviderReference: &corev1.ObjectReference{Name: providerName},
+							ReclaimPolicy:     corev1alpha1.ReclaimDelete,
+						},
+						S3BucketParameters: v1alpha1.S3BucketParameters{
+							CannedACL:       &s3BucketPrivate,
+							LocalPermission: &ro,
+						},
 					},
 				},
 				mg: &v1alpha1.S3Bucket{},
@@ -117,8 +127,10 @@ func TestConfigureBucket(t *testing.T) {
 							WriteConnectionSecretToReference: corev1.LocalObjectReference{Name: string(claimUID)},
 							ProviderReference:                &corev1.ObjectReference{Name: providerName},
 						},
-						CannedACL:       &s3BucketPrivate,
-						LocalPermission: &ro,
+						S3BucketParameters: v1alpha1.S3BucketParameters{
+							CannedACL:       &s3BucketPrivate,
+							LocalPermission: &ro,
+						},
 					},
 				},
 				err: nil,
@@ -133,12 +145,16 @@ func TestConfigureBucket(t *testing.T) {
 						LocalPermission: &ro,
 					},
 				},
-				cs: &corev1alpha1.ResourceClass{
-					ProviderReference: &corev1.ObjectReference{Name: providerName},
-					ReclaimPolicy:     corev1alpha1.ReclaimDelete,
-					Parameters: map[string]string{
-						"cannedACL":       "private",
-						"localPermission": "Read",
+				cs: &v1alpha1.S3BucketClass{
+					SpecTemplate: v1alpha1.S3BucketClassSpecTemplate{
+						ResourceClassSpecTemplate: corev1alpha1.ResourceClassSpecTemplate{
+							ProviderReference: &corev1.ObjectReference{Name: providerName},
+							ReclaimPolicy:     corev1alpha1.ReclaimDelete,
+						},
+						S3BucketParameters: v1alpha1.S3BucketParameters{
+							CannedACL:       &s3BucketPrivate,
+							LocalPermission: &ro,
+						},
 					},
 				},
 				mg: &v1alpha1.S3Bucket{},
@@ -151,8 +167,10 @@ func TestConfigureBucket(t *testing.T) {
 							WriteConnectionSecretToReference: corev1.LocalObjectReference{Name: string(claimUID)},
 							ProviderReference:                &corev1.ObjectReference{Name: providerName},
 						},
-						CannedACL:       &s3BucketPrivate,
-						LocalPermission: &ro,
+						S3BucketParameters: v1alpha1.S3BucketParameters{
+							CannedACL:       &s3BucketPrivate,
+							LocalPermission: &ro,
+						},
 					},
 				},
 				err: nil,

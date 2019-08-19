@@ -48,7 +48,7 @@ type BucketClaimController struct{}
 func (c *BucketClaimController) SetupWithManager(mgr ctrl.Manager) error {
 	r := resource.NewClaimReconciler(mgr,
 		resource.ClaimKind(storagev1alpha1.BucketGroupVersionKind),
-		resource.ClassKind(corev1alpha1.ResourceClassGroupVersionKind),
+		resource.ClassKind(v1alpha1.S3BucketClassGroupVersionKind),
 		resource.ManagedKind(v1alpha1.S3BucketGroupVersionKind),
 		resource.WithManagedConfigurators(
 			resource.ManagedConfiguratorFn(ConfigureS3Bucket),
@@ -57,13 +57,11 @@ func (c *BucketClaimController) SetupWithManager(mgr ctrl.Manager) error {
 
 	name := strings.ToLower(fmt.Sprintf("%s.%s", storagev1alpha1.BucketKind, controllerName))
 
-	p := v1alpha1.S3BucketKindAPIVersion
-
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		Watches(&source.Kind{Type: &v1alpha1.S3Bucket{}}, &resource.EnqueueRequestForClaim{}).
 		For(&storagev1alpha1.Bucket{}).
-		WithEventFilter(resource.NewPredicates(resource.ObjectHasProvisioner(mgr.GetClient(), p))).
+		WithEventFilter(resource.NewPredicates(resource.HasClassReferenceKind(resource.ClassKind(v1alpha1.S3BucketClassGroupVersionKind)))).
 		Complete(r)
 }
 
@@ -76,9 +74,9 @@ func ConfigureS3Bucket(_ context.Context, cm resource.Claim, cs resource.Class, 
 		return errors.Errorf("expected resource claim %s to be %s", cm.GetName(), storagev1alpha1.BucketGroupVersionKind)
 	}
 
-	rs, csok := cs.(*corev1alpha1.ResourceClass)
+	rs, csok := cs.(*v1alpha1.S3BucketClass)
 	if !csok {
-		return errors.Errorf("expected resource class %s to be %s", cs.GetName(), corev1alpha1.ResourceClassGroupVersionKind)
+		return errors.Errorf("expected resource class %s to be %s", cs.GetName(), v1alpha1.S3BucketClassGroupVersionKind)
 	}
 
 	s3b, mgok := mg.(*v1alpha1.S3Bucket)
@@ -86,7 +84,12 @@ func ConfigureS3Bucket(_ context.Context, cm resource.Claim, cs resource.Class, 
 		return errors.Errorf("expected managed resource %s to be %s", mg.GetName(), v1alpha1.S3BucketGroupVersionKind)
 	}
 
-	spec := v1alpha1.NewS3BucketSpec(rs.Parameters)
+	spec := &v1alpha1.S3BucketSpec{
+		ResourceSpec: corev1alpha1.ResourceSpec{
+			ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		},
+		S3BucketParameters: rs.SpecTemplate.S3BucketParameters,
+	}
 
 	if b.Spec.Name != "" {
 		spec.NameFormat = b.Spec.Name
@@ -104,8 +107,8 @@ func ConfigureS3Bucket(_ context.Context, cm resource.Claim, cs resource.Class, 
 	}
 
 	spec.WriteConnectionSecretToReference = corev1.LocalObjectReference{Name: string(cm.GetUID())}
-	spec.ProviderReference = rs.ProviderReference
-	spec.ReclaimPolicy = rs.ReclaimPolicy
+	spec.ProviderReference = rs.SpecTemplate.ProviderReference
+	spec.ReclaimPolicy = rs.SpecTemplate.ReclaimPolicy
 
 	s3b.Spec = *spec
 
