@@ -31,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/azure/apis/database/v1alpha1"
 	azuredbv1alpha1 "github.com/crossplaneio/crossplane/azure/apis/database/v1alpha1"
 	azurev1alpha1 "github.com/crossplaneio/crossplane/azure/apis/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/test"
@@ -115,9 +116,11 @@ func testInstance(p *azurev1alpha1.Provider) *azuredbv1alpha1.MysqlServer {
 				},
 				WriteConnectionSecretToReference: corev1.LocalObjectReference{Name: "coolsecret"},
 			},
-			AdminLoginName: "myadmin",
-			PricingTier: azuredbv1alpha1.PricingTierSpec{
-				Tier: "Basic", VCores: 1, Family: "Gen4",
+			SQLServerParameters: v1alpha1.SQLServerParameters{
+				AdminLoginName: "myadmin",
+				PricingTier: azuredbv1alpha1.PricingTierSpec{
+					Tier: "Basic", VCores: 1, Family: "Gen4",
+				},
 			},
 		},
 	}

@@ -17,8 +17,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"strconv"
-
 	"github.com/crossplaneio/crossplane/apis/core/v1alpha1"
 
 	corev1 "k8s.io/api/core/v1"
@@ -237,10 +235,46 @@ type PostgresqlServerList struct {
 	Items           []PostgresqlServer `json:"items"`
 }
 
-// SQLServerSpec defines the desired state of SQLServer
-type SQLServerSpec struct {
-	v1alpha1.ResourceSpec `json:",inline"`
+// SQLServerClassSpecTemplate is the Schema for the resource class
+type SQLServerClassSpecTemplate struct {
+	v1alpha1.ResourceClassSpecTemplate `json:",inline"`
+	SQLServerParameters                `json:",inline"`
+}
 
+// +kubebuilder:object:root=true
+
+// SQLServerClass is the Schema for the resource class
+// +kubebuilder:printcolumn:name="PROVIDER-REF",type="string",JSONPath=".specTemplate.providerRef.name"
+// +kubebuilder:printcolumn:name="RECLAIM-POLICY",type="string",JSONPath=".specTemplate.reclaimPolicy"
+// +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
+type SQLServerClass struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	SpecTemplate SQLServerClassSpecTemplate `json:"specTemplate,omitempty"`
+}
+
+// GetReclaimPolicy of this PostgresqlServerClass.
+func (i *SQLServerClass) GetReclaimPolicy() v1alpha1.ReclaimPolicy {
+	return i.SpecTemplate.ReclaimPolicy
+}
+
+// SetReclaimPolicy of this PostgresqlServerClass.
+func (i *SQLServerClass) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) {
+	i.SpecTemplate.ReclaimPolicy = p
+}
+
+// +kubebuilder:object:root=true
+
+// SQLServerClassList contains a list of cloud memorystore resource classes.
+type SQLServerClassList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []SQLServerClass `json:"items"`
+}
+
+// SQLServerParameters defines the desired state of SQLServer
+type SQLServerParameters struct {
 	ResourceGroupName string             `json:"resourceGroupName"`
 	Location          string             `json:"location"`
 	PricingTier       PricingTierSpec    `json:"pricingTier"`
@@ -248,6 +282,12 @@ type SQLServerSpec struct {
 	AdminLoginName    string             `json:"adminLoginName"`
 	Version           string             `json:"version"`
 	SSLEnforced       bool               `json:"sslEnforced,omitempty"`
+}
+
+// SQLServerSpec defines the desired state of SQLServer
+type SQLServerSpec struct {
+	v1alpha1.ResourceSpec `json:",inline"`
+	SQLServerParameters   `json:",inline"`
 }
 
 // SQLServerStatus defines the observed state of SQLServer
@@ -285,45 +325,6 @@ type StorageProfileSpec struct {
 	StorageGB           int  `json:"storageGB"`
 	BackupRetentionDays int  `json:"backupRetentionDays,omitempty"`
 	GeoRedundantBackup  bool `json:"geoRedundantBackup,omitempty"`
-}
-
-// NewSQLServerSpec creates a new SQLServerSpec based on the given properties map
-func NewSQLServerSpec(properties map[string]string) *SQLServerSpec {
-	spec := &SQLServerSpec{
-		ResourceSpec: v1alpha1.ResourceSpec{
-			ReclaimPolicy: v1alpha1.ReclaimRetain,
-		},
-		AdminLoginName:    properties["adminLoginName"],
-		ResourceGroupName: properties["resourceGroupName"],
-		Location:          properties["location"],
-		Version:           properties["version"],
-		PricingTier: PricingTierSpec{
-			Tier:   properties["tier"],
-			Family: properties["family"],
-		},
-	}
-
-	if sslEnforced, err := strconv.ParseBool(properties["sslEnforced"]); err == nil {
-		spec.SSLEnforced = sslEnforced
-	}
-
-	if vcores, err := strconv.Atoi(properties["vcores"]); err == nil {
-		spec.PricingTier.VCores = vcores
-	}
-
-	if storageGB, err := strconv.Atoi(properties["storageGB"]); err == nil {
-		spec.StorageProfile.StorageGB = storageGB
-	}
-
-	if backupRetentionDays, err := strconv.Atoi(properties["backupRetentionDays"]); err == nil {
-		spec.StorageProfile.BackupRetentionDays = backupRetentionDays
-	}
-
-	if geoRedundantBackup, err := strconv.ParseBool(properties["geoRedundantBackup"]); err == nil {
-		spec.StorageProfile.GeoRedundantBackup = geoRedundantBackup
-	}
-
-	return spec
 }
 
 // ValidMySQLVersionValues returns the valid set of engine version values.
