@@ -42,7 +42,7 @@ type ClaimController struct{}
 func (c *ClaimController) SetupWithManager(mgr ctrl.Manager) error {
 	r := resource.NewClaimReconciler(mgr,
 		resource.ClaimKind(storagev1alpha1.BucketGroupVersionKind),
-		resource.ClassKind(corev1alpha1.ResourceClassGroupVersionKind),
+		resource.ClassKind(v1alpha1.AccountClassGroupVersionKind),
 		resource.ManagedKind(v1alpha1.AccountGroupVersionKind),
 		resource.WithManagedBinder(resource.NewAPIManagedStatusBinder(mgr.GetClient())),
 		resource.WithManagedFinalizer(resource.NewAPIManagedStatusUnbinder(mgr.GetClient())),
@@ -50,13 +50,11 @@ func (c *ClaimController) SetupWithManager(mgr ctrl.Manager) error {
 
 	name := strings.ToLower(fmt.Sprintf("%s.%s", storagev1alpha1.BucketKind, controllerName))
 
-	p := v1alpha1.AccountKindAPIVersion
-
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		Watches(&source.Kind{Type: &v1alpha1.Account{}}, &resource.EnqueueRequestForClaim{}).
 		For(&storagev1alpha1.Bucket{}).
-		WithEventFilter(resource.NewPredicates(resource.ObjectHasProvisioner(mgr.GetClient(), p))).
+		WithEventFilter(resource.NewPredicates(resource.HasClassReferenceKind(resource.ClassKind(v1alpha1.AccountClassGroupVersionKind)))).
 		Complete(r)
 }
 
@@ -68,9 +66,9 @@ func ConfigureAccount(_ context.Context, cm resource.Claim, cs resource.Class, m
 		return errors.Errorf("expected resource claim %s to be %s", cm.GetName(), storagev1alpha1.BucketGroupVersionKind)
 	}
 
-	rs, csok := cs.(*corev1alpha1.ResourceClass)
+	rs, csok := cs.(*v1alpha1.AccountClass)
 	if !csok {
-		return errors.Errorf("expected resource class %s to be %s", cs.GetName(), corev1alpha1.ResourceClassGroupVersionKind)
+		return errors.Errorf("expected resource class %s to be %s", cs.GetName(), v1alpha1.AccountClassGroupVersionKind)
 	}
 
 	a, mgok := mg.(*v1alpha1.Account)
@@ -82,12 +80,23 @@ func ConfigureAccount(_ context.Context, cm resource.Claim, cs resource.Class, m
 		return errors.Errorf("invalid account claim: %s spec, name property is required", b.GetName())
 	}
 
-	spec := v1alpha1.ParseAccountSpec(rs.Parameters)
+	spec := &v1alpha1.AccountSpec{
+		ResourceSpec: corev1alpha1.ResourceSpec{
+			ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		},
+		AccountParameters: rs.SpecTemplate.AccountParameters,
+	}
+
+	// NOTE(hasheddan): consider moving defaulting to either CRD or managed reconciler level
+	if spec.StorageAccountSpec == nil {
+		spec.StorageAccountSpec = &v1alpha1.StorageAccountSpec{}
+	}
+
 	spec.StorageAccountName = b.Spec.Name
 
 	spec.WriteConnectionSecretToReference = corev1.LocalObjectReference{Name: string(cm.GetUID())}
-	spec.ProviderReference = rs.ProviderReference
-	spec.ReclaimPolicy = rs.ReclaimPolicy
+	spec.ProviderReference = rs.SpecTemplate.ProviderReference
+	spec.ReclaimPolicy = rs.SpecTemplate.ReclaimPolicy
 
 	a.Spec = *spec
 

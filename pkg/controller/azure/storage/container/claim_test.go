@@ -39,7 +39,7 @@ func TestConfigureContainer(t *testing.T) {
 	type args struct {
 		ctx context.Context
 		cm  resource.Claim
-		cs  *corev1alpha1.ResourceClass
+		cs  resource.Class
 		mg  resource.Managed
 	}
 
@@ -66,18 +66,24 @@ func TestConfigureContainer(t *testing.T) {
 						PredefinedACL: &bucketPrivate,
 					},
 				},
-				cs: &corev1alpha1.ResourceClass{
-					ProviderReference: &corev1.ObjectReference{Name: providerName},
-					ReclaimPolicy:     corev1alpha1.ReclaimDelete,
+				cs: &v1alpha1.ContainerClass{
+					SpecTemplate: v1alpha1.ContainerClassSpecTemplate{
+						ResourceClassSpecTemplate: corev1alpha1.ResourceClassSpecTemplate{
+							ProviderReference: &corev1.ObjectReference{Name: providerName},
+							ReclaimPolicy:     corev1alpha1.ReclaimDelete,
+						},
+					},
 				},
 				mg: &v1alpha1.Container{},
 			},
 			want: want{
 				mg: &v1alpha1.Container{
 					Spec: v1alpha1.ContainerSpec{
-						ReclaimPolicy:    corev1alpha1.ReclaimDelete,
-						AccountReference: corev1.LocalObjectReference{Name: providerName},
-						Metadata:         azblob.Metadata{},
+						ContainerParameters: v1alpha1.ContainerParameters{
+							AccountReference: corev1.LocalObjectReference{Name: providerName},
+							Metadata:         azblob.Metadata{},
+						},
+						ReclaimPolicy: corev1alpha1.ReclaimDelete,
 					},
 				},
 				err: nil,

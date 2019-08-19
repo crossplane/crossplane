@@ -38,7 +38,7 @@ func TestConfigureAccount(t *testing.T) {
 	type args struct {
 		ctx context.Context
 		cm  resource.Claim
-		cs  *corev1alpha1.ResourceClass
+		cs  resource.Class
 		mg  resource.Managed
 	}
 
@@ -67,10 +67,14 @@ func TestConfigureAccount(t *testing.T) {
 						PredefinedACL: &bucketPrivate,
 					},
 				},
-				cs: &corev1alpha1.ResourceClass{
-					ObjectMeta:        metav1.ObjectMeta{Namespace: classNamespace},
-					ProviderReference: &corev1.ObjectReference{Name: providerName},
-					ReclaimPolicy:     corev1alpha1.ReclaimDelete,
+				cs: &v1alpha1.AccountClass{
+					ObjectMeta: metav1.ObjectMeta{Namespace: classNamespace},
+					SpecTemplate: v1alpha1.AccountClassSpecTemplate{
+						ResourceClassSpecTemplate: corev1alpha1.ResourceClassSpecTemplate{
+							ProviderReference: &corev1.ObjectReference{Name: providerName},
+							ReclaimPolicy:     corev1alpha1.ReclaimDelete,
+						},
+					},
 				},
 				mg: &v1alpha1.Account{},
 			},
@@ -92,8 +96,10 @@ func TestConfigureAccount(t *testing.T) {
 							WriteConnectionSecretToReference: corev1.LocalObjectReference{Name: string(claimUID)},
 							ProviderReference:                &corev1.ObjectReference{Name: providerName},
 						},
-						StorageAccountName: bucketName,
-						StorageAccountSpec: &v1alpha1.StorageAccountSpec{},
+						AccountParameters: v1alpha1.AccountParameters{
+							StorageAccountName: bucketName,
+							StorageAccountSpec: &v1alpha1.StorageAccountSpec{},
+						},
 					},
 				},
 				err: nil,
