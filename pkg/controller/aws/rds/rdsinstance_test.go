@@ -35,6 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/aws/apis/database/v1alpha1"
 	. "github.com/crossplaneio/crossplane/aws/apis/database/v1alpha1"
 	awsv1alpha1 "github.com/crossplaneio/crossplane/aws/apis/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/clients/aws/rds"
@@ -88,10 +89,12 @@ func testResource() *RDSInstance {
 			ResourceSpec: corev1alpha1.ResourceSpec{
 				ProviderReference: &corev1.ObjectReference{},
 			},
-			MasterUsername: masterUserName,
-			Engine:         engine,
-			Class:          class,
-			Size:           size,
+			RDSInstanceParameters: v1alpha1.RDSInstanceParameters{
+				MasterUsername: masterUserName,
+				Engine:         engine,
+				Class:          class,
+				Size:           size,
+			},
 		},
 	}
 }

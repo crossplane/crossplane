@@ -17,9 +17,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"strconv"
-	"strings"
-
 	"github.com/crossplaneio/crossplane/apis/core/v1alpha1"
 
 	corev1 "k8s.io/api/core/v1"
@@ -32,10 +29,8 @@ const (
 	PostgresqlEngine = "postgres"
 )
 
-// RDSInstanceSpec defines the desired state of RDSInstance
-type RDSInstanceSpec struct {
-	v1alpha1.ResourceSpec `json:",inline"`
-
+// RDSInstanceParameters defines the desired state of RDSInstance
+type RDSInstanceParameters struct {
 	MasterUsername string `json:"masterUsername"`
 	Engine         string `json:"engine"`
 	EngineVersion  string `json:"engineVersion,omitempty"`
@@ -53,6 +48,12 @@ type RDSInstanceSpec struct {
 	// 2) A RDS specific group that allows port 3306 from allowed sources (clients and instances
 	//	  that are expected to connect to the database.
 	SecurityGroups []string `json:"securityGroups,omitempty"`
+}
+
+// RDSInstanceSpec defines the desired state of RDSInstance
+type RDSInstanceSpec struct {
+	v1alpha1.ResourceSpec `json:",inline"`
+	RDSInstanceParameters `json:",inline"`
 }
 
 // RDSInstanceState represents the state of an RDS instance.
@@ -161,45 +162,40 @@ type RDSInstanceList struct {
 	Items           []RDSInstance `json:"items"`
 }
 
-// NewRDSInstanceSpec from properties map
-func NewRDSInstanceSpec(properties map[string]string) *RDSInstanceSpec {
-	spec := &RDSInstanceSpec{
-		ResourceSpec: v1alpha1.ResourceSpec{
-			ReclaimPolicy: v1alpha1.ReclaimRetain,
-		},
-	}
+// RDSInstanceClassSpecTemplate is the Schema for the resource class
+type RDSInstanceClassSpecTemplate struct {
+	v1alpha1.ResourceClassSpecTemplate `json:",inline"`
+	RDSInstanceParameters              `json:",inline"`
+}
 
-	val, ok := properties["masterUsername"]
-	if ok {
-		spec.MasterUsername = val
-	}
+// +kubebuilder:object:root=true
 
-	val, ok = properties["engineVersion"]
-	if ok {
-		spec.EngineVersion = val
-	}
+// RDSInstanceClass is the Schema for the resource class
+// +kubebuilder:printcolumn:name="PROVIDER-REF",type="string",JSONPath=".specTemplate.providerRef.name"
+// +kubebuilder:printcolumn:name="RECLAIM-POLICY",type="string",JSONPath=".specTemplate.reclaimPolicy"
+// +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
+type RDSInstanceClass struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	val, ok = properties["class"]
-	if ok {
-		spec.Class = val
-	}
+	SpecTemplate RDSInstanceClassSpecTemplate `json:"specTemplate,omitempty"`
+}
 
-	val, ok = properties["size"]
-	if ok {
-		if size, err := strconv.Atoi(val); err == nil {
-			spec.Size = int64(size)
-		}
-	}
+// GetReclaimPolicy of this RDSInstanceClass.
+func (i *RDSInstanceClass) GetReclaimPolicy() v1alpha1.ReclaimPolicy {
+	return i.SpecTemplate.ReclaimPolicy
+}
 
-	val, ok = properties["securityGroups"]
-	if ok {
-		spec.SecurityGroups = append(spec.SecurityGroups, strings.Split(val, ",")...)
-	}
+// SetReclaimPolicy of this RDSInstanceClass.
+func (i *RDSInstanceClass) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) {
+	i.SpecTemplate.ReclaimPolicy = p
+}
 
-	val, ok = properties["subnetGroupName"]
-	if ok {
-		spec.SubnetGroupName = val
-	}
+// +kubebuilder:object:root=true
 
-	return spec
+// RDSInstanceClassList contains a list of cloud memorystore resource classes.
+type RDSInstanceClassList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []RDSInstanceClass `json:"items"`
 }

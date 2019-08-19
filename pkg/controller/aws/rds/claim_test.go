@@ -42,7 +42,7 @@ func TestConfigurePostgreRDSInstance(t *testing.T) {
 	type args struct {
 		ctx context.Context
 		cm  resource.Claim
-		cs  *corev1alpha1.ResourceClass
+		cs  resource.Class
 		mg  resource.Managed
 	}
 
@@ -64,9 +64,13 @@ func TestConfigurePostgreRDSInstance(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{UID: claimUID},
 					Spec:       databasev1alpha1.PostgreSQLInstanceSpec{EngineVersion: "9.6"},
 				},
-				cs: &corev1alpha1.ResourceClass{
-					ProviderReference: &corev1.ObjectReference{Name: providerName},
-					ReclaimPolicy:     corev1alpha1.ReclaimDelete,
+				cs: &v1alpha1.RDSInstanceClass{
+					SpecTemplate: v1alpha1.RDSInstanceClassSpecTemplate{
+						ResourceClassSpecTemplate: corev1alpha1.ResourceClassSpecTemplate{
+							ProviderReference: &corev1.ObjectReference{Name: providerName},
+							ReclaimPolicy:     corev1alpha1.ReclaimDelete,
+						},
+					},
 				},
 				mg: &v1alpha1.RDSInstance{},
 			},
@@ -78,8 +82,10 @@ func TestConfigurePostgreRDSInstance(t *testing.T) {
 							WriteConnectionSecretToReference: corev1.LocalObjectReference{Name: string(claimUID)},
 							ProviderReference:                &corev1.ObjectReference{Name: providerName},
 						},
-						Engine:        v1alpha1.PostgresqlEngine,
-						EngineVersion: "9.6",
+						RDSInstanceParameters: v1alpha1.RDSInstanceParameters{
+							Engine:        v1alpha1.PostgresqlEngine,
+							EngineVersion: "9.6",
+						},
 					},
 				},
 				err: nil,
@@ -104,7 +110,7 @@ func TestConfigureMyRDSInstance(t *testing.T) {
 	type args struct {
 		ctx context.Context
 		cm  resource.Claim
-		cs  *corev1alpha1.ResourceClass
+		cs  resource.Class
 		mg  resource.Managed
 	}
 
@@ -126,9 +132,13 @@ func TestConfigureMyRDSInstance(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{UID: claimUID},
 					Spec:       databasev1alpha1.MySQLInstanceSpec{EngineVersion: "5.6"},
 				},
-				cs: &corev1alpha1.ResourceClass{
-					ProviderReference: &corev1.ObjectReference{Name: providerName},
-					ReclaimPolicy:     corev1alpha1.ReclaimDelete,
+				cs: &v1alpha1.RDSInstanceClass{
+					SpecTemplate: v1alpha1.RDSInstanceClassSpecTemplate{
+						ResourceClassSpecTemplate: corev1alpha1.ResourceClassSpecTemplate{
+							ProviderReference: &corev1.ObjectReference{Name: providerName},
+							ReclaimPolicy:     corev1alpha1.ReclaimDelete,
+						},
+					},
 				},
 				mg: &v1alpha1.RDSInstance{},
 			},
@@ -140,8 +150,10 @@ func TestConfigureMyRDSInstance(t *testing.T) {
 							WriteConnectionSecretToReference: corev1.LocalObjectReference{Name: string(claimUID)},
 							ProviderReference:                &corev1.ObjectReference{Name: providerName},
 						},
-						Engine:        v1alpha1.MysqlEngine,
-						EngineVersion: "5.6",
+						RDSInstanceParameters: v1alpha1.RDSInstanceParameters{
+							Engine:        v1alpha1.MysqlEngine,
+							EngineVersion: "5.6",
+						},
 					},
 				},
 				err: nil,
