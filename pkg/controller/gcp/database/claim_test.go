@@ -41,7 +41,7 @@ func TestConfigurePostgreCloudsqlInstance(t *testing.T) {
 	type args struct {
 		ctx context.Context
 		cm  resource.Claim
-		cs  *corev1alpha1.ResourceClass
+		cs  resource.Class
 		mg  resource.Managed
 	}
 
@@ -63,9 +63,13 @@ func TestConfigurePostgreCloudsqlInstance(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{UID: claimUID},
 					Spec:       databasev1alpha1.PostgreSQLInstanceSpec{EngineVersion: "9.6"},
 				},
-				cs: &corev1alpha1.ResourceClass{
-					ProviderReference: &corev1.ObjectReference{Name: providerName},
-					ReclaimPolicy:     corev1alpha1.ReclaimDelete,
+				cs: &v1alpha1.CloudsqlInstanceClass{
+					SpecTemplate: v1alpha1.CloudsqlInstanceClassSpecTemplate{
+						ResourceClassSpecTemplate: corev1alpha1.ResourceClassSpecTemplate{
+							ProviderReference: &corev1.ObjectReference{Name: providerName},
+							ReclaimPolicy:     corev1alpha1.ReclaimDelete,
+						},
+					},
 				},
 				mg: &v1alpha1.CloudsqlInstance{},
 			},
@@ -77,10 +81,12 @@ func TestConfigurePostgreCloudsqlInstance(t *testing.T) {
 							WriteConnectionSecretToReference: corev1.LocalObjectReference{Name: string(claimUID)},
 							ProviderReference:                &corev1.ObjectReference{Name: providerName},
 						},
-						AuthorizedNetworks: []string{},
-						DatabaseVersion:    "POSTGRES_9_6",
-						Labels:             map[string]string{},
-						StorageGB:          v1alpha1.DefaultStorageGB,
+						CloudsqlInstanceParameters: v1alpha1.CloudsqlInstanceParameters{
+							AuthorizedNetworks: []string{},
+							DatabaseVersion:    "POSTGRES_9_6",
+							Labels:             map[string]string{},
+							StorageGB:          v1alpha1.DefaultStorageGB,
+						},
 					},
 				},
 				err: nil,
@@ -105,7 +111,7 @@ func TestConfigureMyCloudsqlInstance(t *testing.T) {
 	type args struct {
 		ctx context.Context
 		cm  resource.Claim
-		cs  *corev1alpha1.ResourceClass
+		cs  resource.Class
 		mg  resource.Managed
 	}
 
@@ -127,9 +133,13 @@ func TestConfigureMyCloudsqlInstance(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{UID: claimUID},
 					Spec:       databasev1alpha1.MySQLInstanceSpec{EngineVersion: "5.6"},
 				},
-				cs: &corev1alpha1.ResourceClass{
-					ProviderReference: &corev1.ObjectReference{Name: providerName},
-					ReclaimPolicy:     corev1alpha1.ReclaimDelete,
+				cs: &v1alpha1.CloudsqlInstanceClass{
+					SpecTemplate: v1alpha1.CloudsqlInstanceClassSpecTemplate{
+						ResourceClassSpecTemplate: corev1alpha1.ResourceClassSpecTemplate{
+							ProviderReference: &corev1.ObjectReference{Name: providerName},
+							ReclaimPolicy:     corev1alpha1.ReclaimDelete,
+						},
+					},
 				},
 				mg: &v1alpha1.CloudsqlInstance{},
 			},
@@ -141,10 +151,12 @@ func TestConfigureMyCloudsqlInstance(t *testing.T) {
 							WriteConnectionSecretToReference: corev1.LocalObjectReference{Name: string(claimUID)},
 							ProviderReference:                &corev1.ObjectReference{Name: providerName},
 						},
-						AuthorizedNetworks: []string{},
-						DatabaseVersion:    "MYSQL_5_6",
-						Labels:             map[string]string{},
-						StorageGB:          v1alpha1.DefaultStorageGB,
+						CloudsqlInstanceParameters: v1alpha1.CloudsqlInstanceParameters{
+							AuthorizedNetworks: []string{},
+							DatabaseVersion:    "MYSQL_5_6",
+							Labels:             map[string]string{},
+							StorageGB:          v1alpha1.DefaultStorageGB,
+						},
 					},
 				},
 				err: nil,
