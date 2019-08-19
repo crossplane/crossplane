@@ -74,34 +74,36 @@ var (
 	replicationGroup = &v1alpha1.ReplicationGroup{
 		ObjectMeta: meta,
 		Spec: v1alpha1.ReplicationGroupSpec{
-			CacheNodeType:            cacheNodeType,
-			AtRestEncryptionEnabled:  atRestEncryptionEnabled,
-			AutomaticFailoverEnabled: autoFailoverEnabled,
-			CacheParameterGroupName:  cacheParameterGroupName,
-			CacheSecurityGroupNames:  cacheSecurityGroupNames,
-			CacheSubnetGroupName:     cacheSubnetGroupName,
-			EngineVersion:            engineVersion,
-			NodeGroupConfiguration: []v1alpha1.NodeGroupConfigurationSpec{
-				{
-					PrimaryAvailabilityZone:  nodeGroupPrimaryAZ,
-					ReplicaAvailabilityZones: nodeGroupAZs,
-					ReplicaCount:             nodeGroupReplicaCount,
-					Slots:                    nodeGroupSlots,
+			ReplicationGroupParameters: v1alpha1.ReplicationGroupParameters{
+				CacheNodeType:            cacheNodeType,
+				AtRestEncryptionEnabled:  atRestEncryptionEnabled,
+				AutomaticFailoverEnabled: autoFailoverEnabled,
+				CacheParameterGroupName:  cacheParameterGroupName,
+				CacheSecurityGroupNames:  cacheSecurityGroupNames,
+				CacheSubnetGroupName:     cacheSubnetGroupName,
+				EngineVersion:            engineVersion,
+				NodeGroupConfiguration: []v1alpha1.NodeGroupConfigurationSpec{
+					{
+						PrimaryAvailabilityZone:  nodeGroupPrimaryAZ,
+						ReplicaAvailabilityZones: nodeGroupAZs,
+						ReplicaCount:             nodeGroupReplicaCount,
+						Slots:                    nodeGroupSlots,
+					},
 				},
+				NotificationTopicARN:       notificationTopicARN,
+				NumCacheClusters:           numCacheClusters,
+				NumNodeGroups:              numNodeGroups,
+				Port:                       port,
+				PreferredCacheClusterAZs:   preferredCacheClusterAZs,
+				PreferredMaintenanceWindow: maintenanceWindow,
+				ReplicasPerNodeGroup:       replicasPerNodeGroup,
+				SecurityGroupIDs:           securityGroupIDs,
+				SnapshotARNs:               snapshotARNs,
+				SnapshotName:               snapshotName,
+				SnapshotRetentionLimit:     snapshotRetentionLimit,
+				SnapshotWindow:             snapshotWindow,
+				TransitEncryptionEnabled:   transitEncryptionEnabled,
 			},
-			NotificationTopicARN:       notificationTopicARN,
-			NumCacheClusters:           numCacheClusters,
-			NumNodeGroups:              numNodeGroups,
-			Port:                       port,
-			PreferredCacheClusterAZs:   preferredCacheClusterAZs,
-			PreferredMaintenanceWindow: maintenanceWindow,
-			ReplicasPerNodeGroup:       replicasPerNodeGroup,
-			SecurityGroupIDs:           securityGroupIDs,
-			SnapshotARNs:               snapshotARNs,
-			SnapshotName:               snapshotName,
-			SnapshotRetentionLimit:     snapshotRetentionLimit,
-			SnapshotWindow:             snapshotWindow,
-			TransitEncryptionEnabled:   transitEncryptionEnabled,
 		},
 	}
 )
@@ -202,7 +204,10 @@ func TestNewCreateReplicationGroupInput(t *testing.T) {
 			name: "UnsetFieldsAreNilNotZeroType",
 			group: &v1alpha1.ReplicationGroup{
 				ObjectMeta: meta,
-				Spec:       v1alpha1.ReplicationGroupSpec{CacheNodeType: cacheNodeType},
+				Spec: v1alpha1.ReplicationGroupSpec{
+					ReplicationGroupParameters: v1alpha1.ReplicationGroupParameters{
+						CacheNodeType: cacheNodeType},
+				},
 			},
 			want: &elasticache.CreateReplicationGroupInput{
 				ReplicationGroupId:          aws.String(id, aws.FieldRequired),
@@ -265,7 +270,10 @@ func TestNewModifyReplicationGroupInput(t *testing.T) {
 				ObjectMeta: meta,
 
 				// AtRestEncryptionEnabled cannot be modified
-				Spec: v1alpha1.ReplicationGroupSpec{AtRestEncryptionEnabled: true},
+				Spec: v1alpha1.ReplicationGroupSpec{
+					ReplicationGroupParameters: v1alpha1.ReplicationGroupParameters{
+						AtRestEncryptionEnabled: true},
+				},
 			},
 			want: &elasticache.ModifyReplicationGroupInput{
 				ReplicationGroupId: aws.String(id, aws.FieldRequired),

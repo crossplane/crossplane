@@ -22,7 +22,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/crossplaneio/crossplane/apis/core/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
 )
 
 // Cloud Memorystore instance states.
@@ -101,7 +100,7 @@ type CloudMemorystoreInstanceParameters struct {
 
 // CloudMemorystoreInstanceSpec defines the desired state of CloudMemorystoreInstance
 type CloudMemorystoreInstanceSpec struct {
-	corev1alpha1.ResourceSpec          `json:",inline"`
+	v1alpha1.ResourceSpec              `json:",inline"`
 	CloudMemorystoreInstanceParameters `json:",inline"`
 }
 
@@ -216,8 +215,8 @@ type CloudMemorystoreInstanceList struct {
 
 // CloudMemorystoreInstanceClassSpecTemplate is the Schema for the resource class
 type CloudMemorystoreInstanceClassSpecTemplate struct {
-	corev1alpha1.ResourceClassSpecTemplate `json:",inline"`
-	CloudMemorystoreInstanceParameters     `json:",inline"`
+	v1alpha1.ResourceClassSpecTemplate `json:",inline"`
+	CloudMemorystoreInstanceParameters `json:",inline"`
 }
 
 // +kubebuilder:object:root=true
@@ -234,12 +233,12 @@ type CloudMemorystoreInstanceClass struct {
 }
 
 // GetReclaimPolicy of this CloudMemorystoreInstanceClass.
-func (i *CloudMemorystoreInstanceClass) GetReclaimPolicy() corev1alpha1.ReclaimPolicy {
+func (i *CloudMemorystoreInstanceClass) GetReclaimPolicy() v1alpha1.ReclaimPolicy {
 	return i.SpecTemplate.ReclaimPolicy
 }
 
 // SetReclaimPolicy of this CloudMemorystoreInstanceClass.
-func (i *CloudMemorystoreInstanceClass) SetReclaimPolicy(p corev1alpha1.ReclaimPolicy) {
+func (i *CloudMemorystoreInstanceClass) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) {
 	i.SpecTemplate.ReclaimPolicy = p
 }
 

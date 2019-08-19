@@ -4,31 +4,27 @@ apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   creationTimestamp: null
-  name: replicationgroups.cache.aws.crossplane.io
+  name: replicationgroupclasses.cache.aws.crossplane.io
 spec:
   additionalPrinterColumns:
-  - JSONPath: .status.state
-    name: STATUS
+  - JSONPath: .specTemplate.providerRef.name
+    name: PROVIDER-REF
     type: string
-  - JSONPath: .spec.classRef.name
-    name: CLASS
-    type: string
-  - JSONPath: .spec.engineVersion
-    name: VERSION
+  - JSONPath: .specTemplate.reclaimPolicy
+    name: RECLAIM-POLICY
     type: string
   - JSONPath: .metadata.creationTimestamp
     name: AGE
     type: date
   group: cache.aws.crossplane.io
   names:
-    kind: ReplicationGroup
-    plural: replicationgroups
+    kind: ReplicationGroupClass
+    plural: replicationgroupclasses
   scope: ""
-  subresources:
-    status: {}
+  subresources: {}
   validation:
     openAPIV3Schema:
-      description: ReplicationGroup is the Schema for the instances API
+      description: ReplicationGroupClass is the Schema for the resource class
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation
@@ -42,8 +38,9 @@ spec:
           type: string
         metadata:
           type: object
-        spec:
-          description: ReplicationGroupSpec defines the desired state of ReplicationGroup
+        specTemplate:
+          description: ReplicationGroupClassSpecTemplate is the Schema for the resource
+            class
           properties:
             atRestEncryptionEnabled:
               description: "AtRestEncryptionEnabled enables encryption at rest when
@@ -90,80 +87,6 @@ spec:
                 your cluster in an Amazon VPC, you need to create a subnet group before
                 you start creating a cluster.
               type: string
-            claimRef:
-              description: ObjectReference contains enough information to let you
-                inspect or modify the referred object.
-              properties:
-                apiVersion:
-                  description: API version of the referent.
-                  type: string
-                fieldPath:
-                  description: 'If referring to a piece of an object instead of an
-                    entire object, this string should contain a valid JSON/Go field
-                    access statement, such as desiredState.manifest.containers[2].
-                    For example, if the object reference is to a container within
-                    a pod, this would take on a value like: "spec.containers{name}"
-                    (where "name" refers to the name of the container that triggered
-                    the event) or if no container name is specified "spec.containers[2]"
-                    (container with index 2 in this pod). This syntax is chosen only
-                    to have some well-defined way of referencing a part of an object.
-                    TODO: this design is not final and this field is subject to change
-                    in the future.'
-                  type: string
-                kind:
-                  description: 'Kind of the referent. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
-                  type: string
-                name:
-                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
-                  type: string
-                namespace:
-                  description: 'Namespace of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/'
-                  type: string
-                resourceVersion:
-                  description: 'Specific resourceVersion to which this reference is
-                    made, if any. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#concurrency-control-and-consistency'
-                  type: string
-                uid:
-                  description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
-                  type: string
-              type: object
-            classRef:
-              description: ObjectReference contains enough information to let you
-                inspect or modify the referred object.
-              properties:
-                apiVersion:
-                  description: API version of the referent.
-                  type: string
-                fieldPath:
-                  description: 'If referring to a piece of an object instead of an
-                    entire object, this string should contain a valid JSON/Go field
-                    access statement, such as desiredState.manifest.containers[2].
-                    For example, if the object reference is to a container within
-                    a pod, this would take on a value like: "spec.containers{name}"
-                    (where "name" refers to the name of the container that triggered
-                    the event) or if no container name is specified "spec.containers[2]"
-                    (container with index 2 in this pod). This syntax is chosen only
-                    to have some well-defined way of referencing a part of an object.
-                    TODO: this design is not final and this field is subject to change
-                    in the future.'
-                  type: string
-                kind:
-                  description: 'Kind of the referent. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
-                  type: string
-                name:
-                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
-                  type: string
-                namespace:
-                  description: 'Namespace of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/'
-                  type: string
-                resourceVersion:
-                  description: 'Specific resourceVersion to which this reference is
-                    made, if any. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#concurrency-control-and-consistency'
-                  type: string
-                uid:
-                  description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
-                  type: string
-              type: object
             engineVersion:
               description: EngineVersion specifies the version number of the cache
                 engine to be used for the clusters in this replication group. To view
@@ -330,89 +253,9 @@ spec:
                 cluster you must TransitEncryptionEnabled to true when you create
                 a cluster."
               type: boolean
-            writeConnectionSecretToRef:
-              description: LocalObjectReference contains enough information to let
-                you locate the referenced object inside the same namespace.
-              properties:
-                name:
-                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                    TODO: Add other useful fields. apiVersion, kind, uid?'
-                  type: string
-              type: object
           required:
           - cacheNodeType
           - providerRef
-          type: object
-        status:
-          description: ReplicationGroupStatus defines the observed state of ReplicationGroup
-          properties:
-            bindingPhase:
-              description: Phase represents the binding phase of the resource.
-              enum:
-              - Unbindable
-              - Unbound
-              - Bound
-              type: string
-            clusterEnabled:
-              description: ClusterEnabled indicates whether cluster mode is enabled,
-                i.e. whether this replication group's data can be partitioned across
-                multiple shards.
-              type: boolean
-            conditions:
-              description: Conditions of the managed resource.
-              items:
-                description: A Condition that may apply to a managed resource.
-                properties:
-                  lastTransitionTime:
-                    description: LastTransitionTime is the last time this condition
-                      transitioned from one status to another.
-                    format: date-time
-                    type: string
-                  message:
-                    description: A Message containing details about this condition's
-                      last transition from one status to another, if any.
-                    type: string
-                  reason:
-                    description: A Reason for this condition's last transition from
-                      one status to another.
-                    type: string
-                  status:
-                    description: Status of this condition; is it currently True, False,
-                      or Unknown?
-                    type: string
-                  type:
-                    description: Type of this condition. At most one of each condition
-                      type may apply to a managed resource at any point in time.
-                    type: string
-                required:
-                - lastTransitionTime
-                - reason
-                - status
-                - type
-                type: object
-              type: array
-            endpoint:
-              description: Endpoint of the Replication Group used in connection strings.
-              type: string
-            groupName:
-              description: Groupname of the Replication Group.
-              type: string
-            memberClusters:
-              description: MemberClusters that are part of this replication group.
-              items:
-                type: string
-              type: array
-            message:
-              type: string
-            port:
-              description: Port at which the Replication Group endpoint is listening.
-              type: integer
-            providerID:
-              description: ProviderID is the external ID to identify this resource
-                in the cloud provider
-              type: string
-            state:
-              type: string
           type: object
       type: object
   version: v1alpha1

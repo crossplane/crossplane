@@ -40,7 +40,7 @@ type ReplicationGroupClaimController struct{}
 func (c *ReplicationGroupClaimController) SetupWithManager(mgr ctrl.Manager) error {
 	r := resource.NewClaimReconciler(mgr,
 		resource.ClaimKind(cachev1alpha1.RedisClusterGroupVersionKind),
-		resource.ClassKind(corev1alpha1.ResourceClassGroupVersionKind),
+		resource.ClassKind(v1alpha1.ReplicationGroupClassGroupVersionKind),
 		resource.ManagedKind(v1alpha1.ReplicationGroupGroupVersionKind),
 		resource.WithManagedBinder(resource.NewAPIManagedStatusBinder(mgr.GetClient())),
 		resource.WithManagedFinalizer(resource.NewAPIManagedStatusUnbinder(mgr.GetClient())),
@@ -54,13 +54,11 @@ func (c *ReplicationGroupClaimController) SetupWithManager(mgr ctrl.Manager) err
 		v1alpha1.ReplicationGroupKind,
 		v1alpha1.Group))
 
-	p := v1alpha1.ReplicationGroupKindAPIVersion
-
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		Watches(&source.Kind{Type: &v1alpha1.ReplicationGroup{}}, &resource.EnqueueRequestForClaim{}).
 		For(&cachev1alpha1.RedisCluster{}).
-		WithEventFilter(resource.NewPredicates(resource.ObjectHasProvisioner(mgr.GetClient(), p))).
+		WithEventFilter(resource.NewPredicates(resource.HasClassReferenceKind(resource.ClassKind(v1alpha1.ReplicationGroupClassGroupVersionKind)))).
 		Complete(r)
 }
 
@@ -73,9 +71,9 @@ func ConfigureReplicationGroup(_ context.Context, cm resource.Claim, cs resource
 		return errors.Errorf("expected resource claim %s to be %s", cm.GetName(), cachev1alpha1.RedisClusterGroupVersionKind)
 	}
 
-	rs, csok := cs.(*corev1alpha1.ResourceClass)
+	rs, csok := cs.(*v1alpha1.ReplicationGroupClass)
 	if !csok {
-		return errors.Errorf("expected resource class %s to be %s", cs.GetName(), corev1alpha1.ResourceClassGroupVersionKind)
+		return errors.Errorf("expected resource class %s to be %s", cs.GetName(), v1alpha1.ReplicationGroupClassGroupVersionKind)
 	}
 
 	i, mgok := mg.(*v1alpha1.ReplicationGroup)
@@ -83,15 +81,20 @@ func ConfigureReplicationGroup(_ context.Context, cm resource.Claim, cs resource
 		return errors.Errorf("expected managed resource %s to be %s", mg.GetName(), v1alpha1.ReplicationGroupGroupVersionKind)
 	}
 
-	spec := v1alpha1.NewReplicationGroupSpec(rs.Parameters)
+	spec := &v1alpha1.ReplicationGroupSpec{
+		ResourceSpec: corev1alpha1.ResourceSpec{
+			ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		},
+		ReplicationGroupParameters: rs.SpecTemplate.ReplicationGroupParameters,
+	}
 
 	if err := resolveAWSClassInstanceValues(spec, rc); err != nil {
 		return errors.Wrap(err, "cannot resolve AWS class instance values")
 	}
 
 	spec.WriteConnectionSecretToReference = corev1.LocalObjectReference{Name: string(cm.GetUID())}
-	spec.ProviderReference = rs.ProviderReference
-	spec.ReclaimPolicy = rs.ReclaimPolicy
+	spec.ProviderReference = rs.SpecTemplate.ProviderReference
+	spec.ReclaimPolicy = rs.SpecTemplate.ReclaimPolicy
 
 	i.Spec = *spec
 

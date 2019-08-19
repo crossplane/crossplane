@@ -17,9 +17,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"strconv"
-	"strings"
-
 	"github.com/crossplaneio/crossplane/apis/core/v1alpha1"
 
 	corev1 "k8s.io/api/core/v1"
@@ -67,12 +64,10 @@ var LatestSupportedPatchVersion = map[MinorVersion]PatchVersion{
 	MinorVersion("2.8"): PatchVersion("2.8.24"),
 }
 
-// ReplicationGroupSpec defines the desired state of ReplicationGroup
+// ReplicationGroupParameters defines the desired state of ReplicationGroup
 // Most fields map directly to an AWS ReplicationGroup resource.
 // https://docs.aws.amazon.com/AmazonElastiCache/latest/APIReference/API_CreateReplicationGroup.html#API_CreateReplicationGroup_RequestParameters
-type ReplicationGroupSpec struct {
-	v1alpha1.ResourceSpec `json:",inline"`
-
+type ReplicationGroupParameters struct {
 	// AtRestEncryptionEnabled enables encryption at rest when set to true.
 	//
 	// You cannot modify the value of AtRestEncryptionEnabled after the replication
@@ -218,6 +213,12 @@ type ReplicationGroupSpec struct {
 	TransitEncryptionEnabled bool `json:"transitEncryptionEnabled,omitempty"`
 }
 
+// ReplicationGroupSpec defines the desired state of ReplicationGroup
+type ReplicationGroupSpec struct {
+	v1alpha1.ResourceSpec      `json:",inline"`
+	ReplicationGroupParameters `json:",inline"`
+}
+
 // NodeGroupConfigurationSpec specifies the configuration of a node group within
 // a replication group.
 type NodeGroupConfigurationSpec struct {
@@ -353,74 +354,40 @@ type ReplicationGroupList struct {
 	Items           []ReplicationGroup `json:"items"`
 }
 
-// NewReplicationGroupSpec creates a new ReplicationGroupSpec
-// from the given properties map.
-func NewReplicationGroupSpec(properties map[string]string) *ReplicationGroupSpec {
-	spec := &ReplicationGroupSpec{
-		ResourceSpec: v1alpha1.ResourceSpec{
-			ReclaimPolicy: v1alpha1.ReclaimRetain,
-		},
-
-		// Note that these keys should match the JSON tags of their respective
-		// ReplicationGroupSpec fields.
-		CacheNodeType:              properties["cacheNodeType"],
-		CacheParameterGroupName:    properties["cacheParameterGroupName"],
-		CacheSubnetGroupName:       properties["cacheSubnetGroupName"],
-		EngineVersion:              properties["engineVersion"],
-		NotificationTopicARN:       properties["notificationTopicArn"],
-		PreferredMaintenanceWindow: properties["preferredMaintenanceWindow"],
-		SnapshotName:               properties["snapshotName"],
-		SnapshotWindow:             properties["snapshotWindow"],
-		CacheSecurityGroupNames:    parseSlice(properties["cacheSecurityGroupNames"]),
-		PreferredCacheClusterAZs:   parseSlice(properties["preferredCacheClusterAzs"]),
-		SecurityGroupIDs:           parseSlice(properties["securityGroupIds"]),
-
-		// TODO(negz): Support NodeGroupConfiguration? It's awkward to extract a
-		// slice of structs from a one dimensional map - we might use Terraform
-		// style nodeGroupConfiguration.0.slots style notation. Without
-		// NodeGroupConfiguration we cannot support SnapshotARNs.
-	}
-
-	if b, err := strconv.ParseBool(properties["atRestEncryptionEnabled"]); err == nil {
-		spec.AtRestEncryptionEnabled = b
-	}
-	if b, err := strconv.ParseBool(properties["authEnabled"]); err == nil {
-		spec.AuthEnabled = b
-	}
-	if b, err := strconv.ParseBool(properties["automaticFailoverEnabled"]); err == nil {
-		spec.AutomaticFailoverEnabled = b
-	}
-	if b, err := strconv.ParseBool(properties["transitEncryptionEnabled"]); err == nil {
-		spec.TransitEncryptionEnabled = b
-	}
-	if i, err := strconv.Atoi(properties["numCacheClusters"]); err == nil {
-		spec.NumCacheClusters = i
-	}
-	if i, err := strconv.Atoi(properties["numNodeGroups"]); err == nil {
-		spec.NumNodeGroups = i
-	}
-	if i, err := strconv.Atoi(properties["port"]); err == nil {
-		spec.Port = i
-	}
-	if i, err := strconv.Atoi(properties["replicasPerNodeGroup"]); err == nil {
-		spec.ReplicasPerNodeGroup = i
-	}
-	if i, err := strconv.Atoi(properties["snapshotRetentionLimit"]); err == nil {
-		spec.SnapshotRetentionLimit = i
-	}
-
-	return spec
+// ReplicationGroupClassSpecTemplate is the Schema for the resource class
+type ReplicationGroupClassSpecTemplate struct {
+	v1alpha1.ResourceClassSpecTemplate `json:",inline"`
+	ReplicationGroupParameters         `json:",inline"`
 }
 
-// parseSlice parses a string of comma separated strings, for example
-// "value1, value2", into a string slice.
-func parseSlice(s string) []string {
-	if s == "" {
-		return nil
-	}
-	sl := make([]string, 0, strings.Count(s, ",")+1)
-	for _, sub := range strings.Split(s, ",") {
-		sl = append(sl, strings.TrimSpace(sub))
-	}
-	return sl
+// +kubebuilder:object:root=true
+
+// ReplicationGroupClass is the Schema for the resource class
+// +kubebuilder:printcolumn:name="PROVIDER-REF",type="string",JSONPath=".specTemplate.providerRef.name"
+// +kubebuilder:printcolumn:name="RECLAIM-POLICY",type="string",JSONPath=".specTemplate.reclaimPolicy"
+// +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
+type ReplicationGroupClass struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	SpecTemplate ReplicationGroupClassSpecTemplate `json:"specTemplate,omitempty"`
+}
+
+// GetReclaimPolicy of this ReplicationGroupClass.
+func (i *ReplicationGroupClass) GetReclaimPolicy() v1alpha1.ReclaimPolicy {
+	return i.SpecTemplate.ReclaimPolicy
+}
+
+// SetReclaimPolicy of this ReplicationGroupClass.
+func (i *ReplicationGroupClass) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) {
+	i.SpecTemplate.ReclaimPolicy = p
+}
+
+// +kubebuilder:object:root=true
+
+// ReplicationGroupClassList contains a list of cloud memorystore resource classes.
+type ReplicationGroupClassList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []ReplicationGroupClass `json:"items"`
 }
