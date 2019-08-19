@@ -936,4 +936,3 @@ etc.
 [21]: https://godoc.org/sigs.k8s.io/federation-v2/pkg/apis/core/v1alpha1#FederatedTypeConfig
 [22]: https://github.com/kubernetes-sigs/federation-v2/blob/46d3f9a/pkg/controller/federatedtypeconfig/controller.go#L221
 [23]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#apiresource-v1-meta
-[24]: https://github.com/crossplaneio/crossplane/blob/641d249/cluster/examples/workloads/wordpress-gcp/workload.yaml

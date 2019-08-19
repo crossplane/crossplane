@@ -88,7 +88,7 @@ until [ "$succeeded" == true ]; do
     echo -n "."
     sleep 2
   else
-    echo "error creating the stack. Stauts:${stack_status}"
+    echo "error creating the stack. Status:${stack_status}"
     echo "Stack events:"
     aws cloudformation describe-stack-events --stack-name $EKS_STACK_NAME --region $REGION
     exit -1
@@ -137,7 +137,7 @@ sed -e "s|BASE64ENCODED_AWS_PROVIDER_CREDS|\$(base64 $KEYFILE | tr -d "\n")|g" \
     -e "s|EKS_SECURITY_GROUP|\$EKS_SECURITY_GROUP|g" \\
     -e "s|RDS_SUBNET_GROUP_NAME|\$RDS_SUBNET_GROUP_NAME|g" \\
     -e "s|RDS_SECURITY_GROUP|\$RDS_SECURITY_GROUP|g" \\
-    cluster/examples/workloads/kubernetes/wordpress-aws/provider.yaml | kubectl apply -f -
+    cluster/examples/workloads/kubernetes/wordpress/aws/provider.yaml | kubectl apply -f -
 
 # Clean up after this script by deleting everything it created:
 # $0 delete $RAND

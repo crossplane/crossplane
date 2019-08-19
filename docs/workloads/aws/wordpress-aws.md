@@ -148,13 +148,13 @@ Now deploy all the workload resources, including the RDS database and EKS cluste
 Create provider:
 
 ```console
-sed -e "s|BASE64ENCODED_AWS_PROVIDER_CREDS|`base64 ~/.aws/credentials|tr -d '\n'`|g;s|EKS_WORKER_KEY_NAME|$EKS_WORKER_KEY_NAME|g;s|EKS_ROLE_ARN|$EKS_ROLE_ARN|g;s|REGION|$REGION|g;s|EKS_VPC|$EKS_VPC|g;s|EKS_SUBNETS|$EKS_SUBNETS|g;s|EKS_SECURITY_GROUP|$EKS_SECURITY_GROUP|g;s|RDS_SUBNET_GROUP_NAME|$RDS_SUBNET_GROUP_NAME|g;s|RDS_SECURITY_GROUP|$RDS_SECURITY_GROUP|g" cluster/examples/workloads/kubernetes/wordpress-aws/provider.yaml | kubectl create -f -
+sed -e "s|BASE64ENCODED_AWS_PROVIDER_CREDS|`base64 ~/.aws/credentials|tr -d '\n'`|g;s|EKS_WORKER_KEY_NAME|$EKS_WORKER_KEY_NAME|g;s|EKS_ROLE_ARN|$EKS_ROLE_ARN|g;s|REGION|$REGION|g;s|EKS_VPC|$EKS_VPC|g;s|EKS_SUBNETS|$EKS_SUBNETS|g;s|EKS_SECURITY_GROUP|$EKS_SECURITY_GROUP|g;s|RDS_SUBNET_GROUP_NAME|$RDS_SUBNET_GROUP_NAME|g;s|RDS_SECURITY_GROUP|$RDS_SECURITY_GROUP|g" cluster/examples/workloads/kubernetes/wordpress/aws/provider.yaml | kubectl create -f -
 ```
 
 Create cluster:
 
 ```console
-kubectl create -f cluster/examples/workloads/kubernetes/cluster.yaml
+kubectl create -f cluster/examples/workloads/kubernetes/wordpress/cluster.yaml
 ```
 
 It will take a while (~15 minutes) for the EKS cluster to be deployed and become available.
@@ -182,7 +182,7 @@ This section covers tasks performed by an application developer.  These include:
 Now that the EKS cluster is ready, let's begin deploying the workload as the application developer:
 
 ```console
-kubectl create -f cluster/examples/workloads/kubernetes/app.yaml
+kubectl create -f cluster/examples/workloads/kubernetes/wordpress/app.yaml
 ```
 
 This will also take awhile to complete, since the MySQL database needs to be deployed before the WordPress pod can consume it.
@@ -274,19 +274,19 @@ kubectl get nodes
 First delete the workload, which will delete WordPress and the MySQL database:
 
 ```console
-kubectl delete -f cluster/examples/workloads/kubernetes/app.yaml
+kubectl delete -f cluster/examples/workloads/kubernetes/wordpress/app.yaml
 ```
 
 Then delete the EKS cluster:
 
 ```console
-kubectl delete -f cluster/examples/workloads/kubernetes/cluster.yaml
+kubectl delete -f cluster/examples/workloads/kubernetes/wordpress/cluster.yaml
 ```
 
 Finally, delete the provider credentials:
 
 ```console
-kubectl delete -f cluster/examples/workloads/kubernetes/wordpress-aws/provider.yaml
+kubectl delete -f cluster/examples/workloads/kubernetes/wordpress/aws/provider.yaml
 ```
 
 > Note: There may still be an ELB that was not properly cleaned up, and you will need
