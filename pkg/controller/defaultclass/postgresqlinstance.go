@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package deprecateddefaultclass
+package defaultclass
 
 import (
 	"fmt"
@@ -22,27 +22,28 @@ import (
 
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	computev1alpha1 "github.com/crossplaneio/crossplane/apis/compute/v1alpha1"
+	databasev1alpha1 "github.com/crossplaneio/crossplane/apis/database/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/resource"
 )
 
-// KubernetesClusterController is responsible for adding the default class controller
-// for buckets and its corresponding reconciler to the manager with any runtime configuration.
-type KubernetesClusterController struct{}
+// PostgreSQLInstanceController is responsible for adding the default class controller
+// for PostgreSQLInstanceInstance and its corresponding reconciler to the manager with any runtime configuration.
+type PostgreSQLInstanceController struct{}
 
 // SetupWithManager adds a default class controller that reconciles claims
-// of kind KubernetesCluster to a resource class that declares it as the KubernetesCluster
-// default.
-func (c *KubernetesClusterController) SetupWithManager(mgr ctrl.Manager) error {
-	r := resource.NewDeprecatedDefaultClassReconciler(mgr,
-		resource.ClaimKind(computev1alpha1.KubernetesClusterGroupVersionKind),
+// of kind PostgreSQLInstance to a resource class that declares it as the PostgreSQLInstance
+// default
+func (c *PostgreSQLInstanceController) SetupWithManager(mgr ctrl.Manager) error {
+	r := resource.NewDefaultClassReconciler(mgr,
+		resource.ClaimKind(databasev1alpha1.PostgreSQLInstanceGroupVersionKind),
+		resource.PolicyKind{Singular: databasev1alpha1.PostgreSQLInstancePolicyGroupVersionKind, Plural: databasev1alpha1.PostgreSQLInstancePolicyListGroupVersionKind},
 	)
 
-	name := strings.ToLower(fmt.Sprintf("%s.%s", computev1alpha1.KubernetesClusterKind, controllerBaseName))
+	name := strings.ToLower(fmt.Sprintf("%s.%s", databasev1alpha1.PostgreSQLInstanceKind, controllerBaseName))
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
-		For(&computev1alpha1.KubernetesCluster{}).
+		For(&databasev1alpha1.PostgreSQLInstance{}).
 		WithEventFilter(resource.NewPredicates(resource.NoClassReference())).
 		WithEventFilter(resource.NewPredicates(resource.NoManagedResourceReference())).
 		Complete(r)

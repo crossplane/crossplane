@@ -21,6 +21,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/resource"
 )
 
 // LocalPermissionType - Base type for LocalPermissions
@@ -135,4 +136,29 @@ type BucketList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []Bucket `json:"items"`
+}
+
+// All policies must satisfy the Policy interface
+var _ resource.Policy = &BucketPolicy{}
+
+// +kubebuilder:object:root=true
+
+// BucketPolicy contains a namespace-scoped policy for Bucket
+type BucketPolicy struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	v1alpha1.Policy `json:",inline"`
+}
+
+// All policy lists must satisfy the PolicyList interface
+var _ resource.PolicyList = &BucketPolicyList{}
+
+// +kubebuilder:object:root=true
+
+// BucketPolicyList contains a list of BucketPolicy
+type BucketPolicyList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []BucketPolicy `json:"items"`
 }

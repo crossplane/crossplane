@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package deprecateddefaultclass
+package defaultclass
 
 import (
 	"fmt"
@@ -22,27 +22,28 @@ import (
 
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	databasev1alpha1 "github.com/crossplaneio/crossplane/apis/database/v1alpha1"
+	storagev1alpha1 "github.com/crossplaneio/crossplane/apis/storage/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/resource"
 )
 
-// PostgreSQLInstanceController is responsible for adding the default class controller
-// for PosgreSQLInstance and its corresponding reconciler to the manager with any runtime configuration.
-type PostgreSQLInstanceController struct{}
+// BucketController is responsible for adding the default class controller
+// for BucketInstance and its corresponding reconciler to the manager with any runtime configuration.
+type BucketController struct{}
 
 // SetupWithManager adds a default class controller that reconciles claims
-// of kind PostgreSQLInstance to a resource class that declares it as the PostgreSQLInstance
-// default.
-func (c *PostgreSQLInstanceController) SetupWithManager(mgr ctrl.Manager) error {
-	r := resource.NewDeprecatedDefaultClassReconciler(mgr,
-		resource.ClaimKind(databasev1alpha1.PostgreSQLInstanceGroupVersionKind),
+// of kind Bucket to a resource class that declares it as the Bucket
+// default
+func (c *BucketController) SetupWithManager(mgr ctrl.Manager) error {
+	r := resource.NewDefaultClassReconciler(mgr,
+		resource.ClaimKind(storagev1alpha1.BucketGroupVersionKind),
+		resource.PolicyKind{Singular: storagev1alpha1.BucketPolicyGroupVersionKind, Plural: storagev1alpha1.BucketPolicyListGroupVersionKind},
 	)
 
-	name := strings.ToLower(fmt.Sprintf("%s.%s", databasev1alpha1.PostgreSQLInstanceKind, controllerBaseName))
+	name := strings.ToLower(fmt.Sprintf("%s.%s", storagev1alpha1.BucketKind, controllerBaseName))
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
-		For(&databasev1alpha1.PostgreSQLInstance{}).
+		For(&storagev1alpha1.Bucket{}).
 		WithEventFilter(resource.NewPredicates(resource.NoClassReference())).
 		WithEventFilter(resource.NewPredicates(resource.NoManagedResourceReference())).
 		Complete(r)

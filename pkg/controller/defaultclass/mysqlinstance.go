@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package deprecateddefaultclass
+package defaultclass
 
 import (
 	"fmt"
@@ -27,15 +27,16 @@ import (
 )
 
 // MySQLInstanceController is responsible for adding the default class controller
-// for MySQLInstance and its corresponding reconciler to the manager with any runtime configuration.
+// for MySQLInstanceInstance and its corresponding reconciler to the manager with any runtime configuration.
 type MySQLInstanceController struct{}
 
 // SetupWithManager adds a default class controller that reconciles claims
 // of kind MySQLInstance to a resource class that declares it as the MySQLInstance
-// default.
+// default
 func (c *MySQLInstanceController) SetupWithManager(mgr ctrl.Manager) error {
-	r := resource.NewDeprecatedDefaultClassReconciler(mgr,
+	r := resource.NewDefaultClassReconciler(mgr,
 		resource.ClaimKind(databasev1alpha1.MySQLInstanceGroupVersionKind),
+		resource.PolicyKind{Singular: databasev1alpha1.MySQLInstancePolicyGroupVersionKind, Plural: databasev1alpha1.MySQLInstancePolicyListGroupVersionKind},
 	)
 
 	name := strings.ToLower(fmt.Sprintf("%s.%s", databasev1alpha1.MySQLInstanceKind, controllerBaseName))

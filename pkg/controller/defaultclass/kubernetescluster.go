@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package deprecateddefaultclass
+package defaultclass
 
 import (
 	"fmt"
@@ -22,26 +22,28 @@ import (
 
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	storagev1alpha1 "github.com/crossplaneio/crossplane/apis/storage/v1alpha1"
+	computev1alpha1 "github.com/crossplaneio/crossplane/apis/compute/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/resource"
 )
 
-// BucketController is responsible for adding the default class controller
-// for buckets and its corresponding reconciler to the manager with any runtime configuration.
-type BucketController struct{}
+// KubernetesClusterController is responsible for adding the default class controller
+// for KubernetesClusterInstance and its corresponding reconciler to the manager with any runtime configuration.
+type KubernetesClusterController struct{}
 
 // SetupWithManager adds a default class controller that reconciles claims
-// of kind Bucket to a resource class that declares it as the Bucket
-// default.
-func (c *BucketController) SetupWithManager(mgr ctrl.Manager) error {
-	r := resource.NewDeprecatedDefaultClassReconciler(mgr,
-		resource.ClaimKind(storagev1alpha1.BucketGroupVersionKind))
+// of kind KubernetesCluster to a resource class that declares it as the KubernetesCluster
+// default
+func (c *KubernetesClusterController) SetupWithManager(mgr ctrl.Manager) error {
+	r := resource.NewDefaultClassReconciler(mgr,
+		resource.ClaimKind(computev1alpha1.KubernetesClusterGroupVersionKind),
+		resource.PolicyKind{Singular: computev1alpha1.KubernetesClusterPolicyGroupVersionKind, Plural: computev1alpha1.KubernetesClusterPolicyListGroupVersionKind},
+	)
 
-	name := strings.ToLower(fmt.Sprintf("%s.%s", storagev1alpha1.BucketKind, controllerBaseName))
+	name := strings.ToLower(fmt.Sprintf("%s.%s", computev1alpha1.KubernetesClusterKind, controllerBaseName))
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
-		For(&storagev1alpha1.Bucket{}).
+		For(&computev1alpha1.KubernetesCluster{}).
 		WithEventFilter(resource.NewPredicates(resource.NoClassReference())).
 		WithEventFilter(resource.NewPredicates(resource.NoManagedResourceReference())).
 		Complete(r)

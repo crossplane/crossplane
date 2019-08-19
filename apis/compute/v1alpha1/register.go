@@ -47,6 +47,21 @@ var (
 	KubernetesClusterGroupVersionKind = SchemeGroupVersion.WithKind(KubernetesClusterKind)
 )
 
+// KubernetesClusterPolicy type metadata.
+var (
+	KubernetesClusterPolicyKind             = reflect.TypeOf(KubernetesClusterPolicy{}).Name()
+	KubernetesClusterPolicyKindAPIVersion   = KubernetesClusterPolicyKind + "." + SchemeGroupVersion.String()
+	KubernetesClusterPolicyGroupVersionKind = SchemeGroupVersion.WithKind(KubernetesClusterPolicyKind)
+)
+
+// KubernetesClusterPolicyList type metadata.
+var (
+	KubernetesClusterPolicyListKind             = reflect.TypeOf(KubernetesClusterPolicyList{}).Name()
+	KubernetesClusterPolicyListKindAPIVersion   = KubernetesClusterPolicyListKind + "." + SchemeGroupVersion.String()
+	KubernetesClusterPolicyListGroupVersionKind = SchemeGroupVersion.WithKind(KubernetesClusterPolicyListKind)
+)
+
 func init() {
 	SchemeBuilder.Register(&KubernetesCluster{}, &KubernetesClusterList{})
+	SchemeBuilder.Register(&KubernetesClusterPolicy{}, &KubernetesClusterPolicyList{})
 }
