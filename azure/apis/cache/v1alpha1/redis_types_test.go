@@ -20,7 +20,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/onsi/gomega"
 	core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -55,7 +54,9 @@ func TestStorageRedis(t *testing.T) {
 	created := &Redis{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
 		Spec: RedisSpec{
-			SKU: SKUSpec{Name: SKUNameBasic, Family: SKUFamilyC, Capacity: 0},
+			RedisParameters: RedisParameters{
+				SKU: SKUSpec{Name: SKUNameBasic, Family: SKUFamilyC, Capacity: 0},
+			},
 			ResourceSpec: corev1alpha1.ResourceSpec{
 				ProviderReference: &core.ObjectReference{},
 			},
@@ -81,123 +82,4 @@ func TestStorageRedis(t *testing.T) {
 	// Test Delete
 	g.Expect(c.Delete(ctx, fetched)).NotTo(gomega.HaveOccurred())
 	g.Expect(c.Get(ctx, key, fetched)).To(gomega.HaveOccurred())
-}
-
-func TestNewRedisSpec(t *testing.T) {
-	cases := []struct {
-		name       string
-		properties map[string]string
-		want       *RedisSpec
-	}{
-		{
-			name: "AllProperties",
-			properties: map[string]string{
-				"resourceGroupName":  "coolResourceGroup",
-				"location":           "Australia East",
-				"staticIP":           "172.16.0.1",
-				"subnetId":           "/subscriptions/subid/resourceGroups/coolResourceGroup/providers/Microsoft.Network/virtualNetworks/coolNetwork/subnets/coolSubnet",
-				"enableNonSslPort":   "true",
-				"shardCount":         "3",
-				"redisConfiguration": "maxmemory-policy: lots, maxclients: 800",
-				"skuName":            SKUNameBasic,
-				"skuFamily":          SKUFamilyC,
-				"skuCapacity":        "4",
-			},
-			want: &RedisSpec{
-				ResourceSpec: corev1alpha1.ResourceSpec{
-					ReclaimPolicy: corev1alpha1.ReclaimRetain,
-				},
-				ResourceGroupName: "coolResourceGroup",
-				Location:          "Australia East",
-				StaticIP:          "172.16.0.1",
-				SubnetID:          "/subscriptions/subid/resourceGroups/coolResourceGroup/providers/Microsoft.Network/virtualNetworks/coolNetwork/subnets/coolSubnet",
-				EnableNonSSLPort:  true,
-				ShardCount:        3,
-				RedisConfiguration: map[string]string{
-					"maxmemory-policy": "lots",
-					"maxclients":       "800",
-				},
-				SKU: SKUSpec{Name: SKUNameBasic, Family: SKUFamilyC, Capacity: 4},
-			},
-		},
-		{
-			name:       "NilProperties",
-			properties: nil,
-			want: &RedisSpec{
-				ResourceSpec: corev1alpha1.ResourceSpec{
-					ReclaimPolicy: corev1alpha1.ReclaimRetain,
-				},
-				RedisConfiguration: map[string]string{},
-			},
-		},
-		{
-			name:       "UnknownProperties",
-			properties: map[string]string{"unknown": "wat"},
-			want: &RedisSpec{
-				ResourceSpec: corev1alpha1.ResourceSpec{
-					ReclaimPolicy: corev1alpha1.ReclaimRetain,
-				},
-				RedisConfiguration: map[string]string{},
-			},
-		},
-		{
-			name:       "EnableNonSSLPortNotABool",
-			properties: map[string]string{"enableNonSslPort": "maybe"},
-			want: &RedisSpec{
-				ResourceSpec: corev1alpha1.ResourceSpec{
-					ReclaimPolicy: corev1alpha1.ReclaimRetain,
-				},
-				RedisConfiguration: map[string]string{},
-			},
-		},
-		{
-			name:       "ShardCountNotANumber",
-			properties: map[string]string{"shardCount": "wat"},
-			want: &RedisSpec{
-				ResourceSpec: corev1alpha1.ResourceSpec{
-					ReclaimPolicy: corev1alpha1.ReclaimRetain,
-				},
-				RedisConfiguration: map[string]string{},
-			},
-		},
-		{
-			name:       "SKUCapacityNotANumber",
-			properties: map[string]string{"skuCapacity": "wat"},
-			want: &RedisSpec{
-				ResourceSpec: corev1alpha1.ResourceSpec{
-					ReclaimPolicy: corev1alpha1.ReclaimRetain,
-				},
-				RedisConfiguration: map[string]string{},
-			},
-		},
-		{
-			name:       "RedisConfigurationUnparseable",
-			properties: map[string]string{"redisConfiguration": "wat,wat"},
-			want: &RedisSpec{
-				ResourceSpec: corev1alpha1.ResourceSpec{
-					ReclaimPolicy: corev1alpha1.ReclaimRetain,
-				},
-				RedisConfiguration: map[string]string{},
-			},
-		},
-		{
-			name:       "RedisConfigurationExtraneousWhitespace",
-			properties: map[string]string{"redisConfiguration": "   verykey:suchvalue"},
-			want: &RedisSpec{
-				ResourceSpec: corev1alpha1.ResourceSpec{
-					ReclaimPolicy: corev1alpha1.ReclaimRetain,
-				},
-				RedisConfiguration: map[string]string{"verykey": "suchvalue"},
-			},
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			got := NewRedisSpec(tc.properties)
-			if diff := cmp.Diff(got, tc.want); diff != "" {
-				t.Errorf("got != want:\n%v", diff)
-			}
-		})
-	}
 }

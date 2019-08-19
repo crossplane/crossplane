@@ -76,16 +76,18 @@ func TestNewCreateParameters(t *testing.T) {
 			r: &v1alpha1.Redis{
 				ObjectMeta: metav1.ObjectMeta{UID: uid},
 				Spec: v1alpha1.RedisSpec{
-					SKU: v1alpha1.SKUSpec{
-						Name:     skuName,
-						Family:   skuFamily,
-						Capacity: skuCapacity,
+					RedisParameters: v1alpha1.RedisParameters{
+						SKU: v1alpha1.SKUSpec{
+							Name:     skuName,
+							Family:   skuFamily,
+							Capacity: skuCapacity,
+						},
+						SubnetID:           subnetID,
+						StaticIP:           staticIP,
+						EnableNonSSLPort:   enableNonSSLPort,
+						RedisConfiguration: redisConfiguration,
+						ShardCount:         shardCount,
 					},
-					SubnetID:           subnetID,
-					StaticIP:           staticIP,
-					EnableNonSSLPort:   enableNonSSLPort,
-					RedisConfiguration: redisConfiguration,
-					ShardCount:         shardCount,
 				},
 			},
 			want: redismgmt.CreateParameters{
@@ -126,14 +128,16 @@ func TestNewUpdateParameters(t *testing.T) {
 			r: &v1alpha1.Redis{
 				ObjectMeta: metav1.ObjectMeta{UID: uid},
 				Spec: v1alpha1.RedisSpec{
-					SKU: v1alpha1.SKUSpec{
-						Name:     skuName,
-						Family:   skuFamily,
-						Capacity: skuCapacity,
+					RedisParameters: v1alpha1.RedisParameters{
+						SKU: v1alpha1.SKUSpec{
+							Name:     skuName,
+							Family:   skuFamily,
+							Capacity: skuCapacity,
+						},
+						EnableNonSSLPort:   enableNonSSLPort,
+						RedisConfiguration: redisConfiguration,
+						ShardCount:         shardCount,
 					},
-					EnableNonSSLPort:   enableNonSSLPort,
-					RedisConfiguration: redisConfiguration,
-					ShardCount:         shardCount,
 				},
 			},
 			want: redismgmt.UpdateParameters{
@@ -154,18 +158,20 @@ func TestNewUpdateParameters(t *testing.T) {
 			r: &v1alpha1.Redis{
 				ObjectMeta: metav1.ObjectMeta{UID: uid},
 				Spec: v1alpha1.RedisSpec{
-					SKU: v1alpha1.SKUSpec{
-						Name:     skuName,
-						Family:   skuFamily,
-						Capacity: skuCapacity,
-					},
-					SubnetID:           subnetID,
-					EnableNonSSLPort:   enableNonSSLPort,
-					RedisConfiguration: redisConfiguration,
+					RedisParameters: v1alpha1.RedisParameters{
+						SKU: v1alpha1.SKUSpec{
+							Name:     skuName,
+							Family:   skuFamily,
+							Capacity: skuCapacity,
+						},
+						SubnetID:           subnetID,
+						EnableNonSSLPort:   enableNonSSLPort,
+						RedisConfiguration: redisConfiguration,
 
-					// These fields cannot be updated and should be omitted.
-					StaticIP:   staticIP,
-					ShardCount: shardCount,
+						// These fields cannot be updated and should be omitted.
+						StaticIP:   staticIP,
+						ShardCount: shardCount,
+					},
 				},
 			},
 			want: redismgmt.UpdateParameters{
@@ -205,14 +211,16 @@ func TestNeedsUpdate(t *testing.T) {
 			kube: &v1alpha1.Redis{
 				ObjectMeta: metav1.ObjectMeta{UID: uid},
 				Spec: v1alpha1.RedisSpec{
-					SKU: v1alpha1.SKUSpec{
-						Name:     skuName,
-						Family:   skuFamily,
-						Capacity: skuCapacity,
+					RedisParameters: v1alpha1.RedisParameters{
+						SKU: v1alpha1.SKUSpec{
+							Name:     skuName,
+							Family:   skuFamily,
+							Capacity: skuCapacity,
+						},
+						EnableNonSSLPort:   enableNonSSLPort,
+						RedisConfiguration: redisConfiguration,
+						ShardCount:         shardCount,
 					},
-					EnableNonSSLPort:   enableNonSSLPort,
-					RedisConfiguration: redisConfiguration,
-					ShardCount:         shardCount,
 				},
 			},
 			az: redismgmt.ResourceType{
@@ -234,14 +242,16 @@ func TestNeedsUpdate(t *testing.T) {
 			kube: &v1alpha1.Redis{
 				ObjectMeta: metav1.ObjectMeta{UID: uid},
 				Spec: v1alpha1.RedisSpec{
-					SKU: v1alpha1.SKUSpec{
-						Name:     skuName,
-						Family:   skuFamily,
-						Capacity: skuCapacity,
+					RedisParameters: v1alpha1.RedisParameters{
+						SKU: v1alpha1.SKUSpec{
+							Name:     skuName,
+							Family:   skuFamily,
+							Capacity: skuCapacity,
+						},
+						EnableNonSSLPort:   enableNonSSLPort,
+						RedisConfiguration: redisConfiguration,
+						ShardCount:         shardCount,
 					},
-					EnableNonSSLPort:   enableNonSSLPort,
-					RedisConfiguration: redisConfiguration,
-					ShardCount:         shardCount,
 				},
 			},
 			az: redismgmt.ResourceType{
@@ -263,14 +273,16 @@ func TestNeedsUpdate(t *testing.T) {
 			kube: &v1alpha1.Redis{
 				ObjectMeta: metav1.ObjectMeta{UID: uid},
 				Spec: v1alpha1.RedisSpec{
-					SKU: v1alpha1.SKUSpec{
-						Name:     skuName,
-						Family:   skuFamily,
-						Capacity: skuCapacity,
+					RedisParameters: v1alpha1.RedisParameters{
+						SKU: v1alpha1.SKUSpec{
+							Name:     skuName,
+							Family:   skuFamily,
+							Capacity: skuCapacity,
+						},
+						EnableNonSSLPort:   enableNonSSLPort,
+						RedisConfiguration: redisConfiguration,
+						ShardCount:         shardCount,
 					},
-					EnableNonSSLPort:   enableNonSSLPort,
-					RedisConfiguration: redisConfiguration,
-					ShardCount:         shardCount,
 				},
 			},
 			az: redismgmt.ResourceType{
@@ -292,14 +304,16 @@ func TestNeedsUpdate(t *testing.T) {
 			kube: &v1alpha1.Redis{
 				ObjectMeta: metav1.ObjectMeta{UID: uid},
 				Spec: v1alpha1.RedisSpec{
-					SKU: v1alpha1.SKUSpec{
-						Name:     skuName,
-						Family:   skuFamily,
-						Capacity: skuCapacity,
+					RedisParameters: v1alpha1.RedisParameters{
+						SKU: v1alpha1.SKUSpec{
+							Name:     skuName,
+							Family:   skuFamily,
+							Capacity: skuCapacity,
+						},
+						EnableNonSSLPort:   enableNonSSLPort,
+						RedisConfiguration: redisConfiguration,
+						ShardCount:         shardCount,
 					},
-					EnableNonSSLPort:   enableNonSSLPort,
-					RedisConfiguration: redisConfiguration,
-					ShardCount:         shardCount,
 				},
 			},
 			az: redismgmt.ResourceType{
@@ -321,14 +335,16 @@ func TestNeedsUpdate(t *testing.T) {
 			kube: &v1alpha1.Redis{
 				ObjectMeta: metav1.ObjectMeta{UID: uid},
 				Spec: v1alpha1.RedisSpec{
-					SKU: v1alpha1.SKUSpec{
-						Name:     skuName,
-						Family:   skuFamily,
-						Capacity: skuCapacity,
+					RedisParameters: v1alpha1.RedisParameters{
+						SKU: v1alpha1.SKUSpec{
+							Name:     skuName,
+							Family:   skuFamily,
+							Capacity: skuCapacity,
+						},
+						EnableNonSSLPort:   enableNonSSLPort,
+						RedisConfiguration: redisConfiguration,
+						ShardCount:         shardCount,
 					},
-					EnableNonSSLPort:   enableNonSSLPort,
-					RedisConfiguration: redisConfiguration,
-					ShardCount:         shardCount,
 				},
 			},
 			az: redismgmt.ResourceType{

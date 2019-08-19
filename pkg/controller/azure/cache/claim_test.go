@@ -44,7 +44,7 @@ func TestConfigureRedis(t *testing.T) {
 	type args struct {
 		ctx context.Context
 		cm  resource.Claim
-		cs  *corev1alpha1.ResourceClass
+		cs  resource.Class
 		mg  resource.Managed
 	}
 
@@ -66,9 +66,13 @@ func TestConfigureRedis(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{UID: claimUID},
 					Spec:       cachev1alpha1.RedisClusterSpec{EngineVersion: "3.2"},
 				},
-				cs: &corev1alpha1.ResourceClass{
-					ProviderReference: &corev1.ObjectReference{Name: providerName},
-					ReclaimPolicy:     corev1alpha1.ReclaimDelete,
+				cs: &v1alpha1.RedisClass{
+					SpecTemplate: v1alpha1.RedisClassSpecTemplate{
+						ResourceClassSpecTemplate: corev1alpha1.ResourceClassSpecTemplate{
+							ProviderReference: &corev1.ObjectReference{Name: providerName},
+							ReclaimPolicy:     corev1alpha1.ReclaimDelete,
+						},
+					},
 				},
 				mg: &v1alpha1.Redis{},
 			},
@@ -80,7 +84,9 @@ func TestConfigureRedis(t *testing.T) {
 							WriteConnectionSecretToReference: corev1.LocalObjectReference{Name: string(claimUID)},
 							ProviderReference:                &corev1.ObjectReference{Name: providerName},
 						},
-						RedisConfiguration: map[string]string{},
+						RedisParameters: v1alpha1.RedisParameters{
+							RedisConfiguration: map[string]string{},
+						},
 					},
 				},
 				err: nil,
