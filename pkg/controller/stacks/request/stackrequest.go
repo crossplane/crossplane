@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -60,6 +61,11 @@ var (
 	resultRequeue    = reconcile.Result{Requeue: true}
 	requeueOnSuccess = reconcile.Result{RequeueAfter: requeueAfterOnSuccess}
 	jobBackoff       = int32(0)
+
+	// podImageNameEnvVar is the env variable for setting the image name used for the stack manager unpack/install process.
+	// When this env variable is not set the parent Pod will be detected and the associated image will be used.
+	// Overriding this variable is only useful when debugging the main stack manager process, since there is no Pod to detect.
+	podImageNameEnvVar = "STACK_MANAGER_IMAGE"
 )
 
 // Reconciler reconciles a Instance object
@@ -352,7 +358,7 @@ func (jc *stackRequestJobCompleter) handleJobCompletion(ctx context.Context, i *
 			stackRecord = &v1alpha1.Stack{}
 			n := types.NamespacedName{Name: obj.GetName(), Namespace: obj.GetNamespace()}
 			if err := jc.kube.Get(ctx, n, stackRecord); err != nil {
-				return errors.Wrapf(err, "failed to retrieve created stack record %s from job %s", obj.GetName(), job.Name)
+				return errors.Wrapf(err, "failed to retrieve created stack record %s/%s from job %s", obj.GetNamespace(), obj.GetName(), job.Name)
 			}
 		}
 	}
@@ -510,14 +516,16 @@ func (r *Reconciler) discoverExecutorInfo(ctx context.Context) error {
 
 // discoverExecutorInfo is the concrete implementation that will lookup executorInfo from the runtime environment.
 func (d *executorInfoDiscoverer) discoverExecutorInfo(ctx context.Context) (*executorInfo, error) {
-	pod, err := util.GetRunningPod(ctx, d.kube)
-	if err != nil {
-		log.Error(err, "failed to get running pod")
-		return nil, err
+	image := os.Getenv(podImageNameEnvVar)
+
+	if image != "" {
+		return &executorInfo{image: image}, nil
 	}
 
-	image, err := util.GetContainerImage(pod, "")
-	if err != nil {
+	if pod, err := util.GetRunningPod(ctx, d.kube); err != nil {
+		log.Error(err, "failed to get running pod")
+		return nil, err
+	} else if image, err = util.GetContainerImage(pod, ""); err != nil {
 		log.Error(err, "failed to get image for pod", "image", image)
 		return nil, err
 	}
