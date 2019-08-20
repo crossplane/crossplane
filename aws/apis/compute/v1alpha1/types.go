@@ -50,7 +50,6 @@ const (
 	EKSRegionEUWest1 EKSRegion = "eu-west-1"
 )
 
-
 // EKSClusterParameters defines the desired state of EKSCluster
 type EKSClusterParameters struct {
 	// Configuration of this Spec is dependent on the readme as described here

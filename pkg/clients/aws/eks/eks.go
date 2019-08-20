@@ -115,7 +115,10 @@ type eksClient struct {
 
 // NewClient return new instance of the crossplane client for a specific AWS configuration
 func NewClient(config *aws.Config) Client {
+	return &eksClient{eks.New(*config), ec2.New(buildAWSSession((config))), sts.New(*config), cfc.NewClient(config)}
+}
 
+func buildAWSSession(config *aws.Config) *session.Session {
 	// the current functionality in ec2 instance (describe images) only
 	// is available in aws sdk v1.16+. Since instantiating an ec2 client
 	// uses a session instance, the following uses the existing aws config,
@@ -142,7 +145,7 @@ func NewClient(config *aws.Config) Client {
 		panic(err)
 	}
 
-	return &eksClient{eks.New(*config), ec2.New(session), sts.New(*config), cfc.NewClient(config)}
+	return session
 }
 
 // Create new EKS cluster

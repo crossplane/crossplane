@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/external"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/onsi/gomega"
 )
@@ -167,4 +168,17 @@ func Test_GetAMIImage_InvalidVersion_ReturnsError(t *testing.T) {
 
 	g.Expect(res).Should(gomega.BeNil())
 	g.Expect(err).ShouldNot(gomega.BeNil())
+}
+
+func Test_buildAWSSession_ReturnsExpected(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	config, _ := external.LoadDefaultAWSConfig(external.SharedConfig{
+		Credentials: aws.Credentials{
+			AccessKeyID:     "fakeid",
+			SecretAccessKey: "fakesecret",
+		},
+		Region: "fakeregion",
+	})
+
+	g.Expect(buildAWSSession(&config)).NotTo(gomega.BeNil())
 }
