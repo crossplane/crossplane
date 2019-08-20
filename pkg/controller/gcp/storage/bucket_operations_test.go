@@ -241,7 +241,9 @@ func Test_bucketHandler_getSpecAttrs(t *testing.T) {
 			name: "Test",
 			fields: fields{bucket: &v1alpha1.Bucket{
 				Spec: v1alpha1.BucketSpec{
-					BucketSpecAttrs: v1alpha1.BucketSpecAttrs{BucketUpdatableAttrs: testBucketSpecAttrs},
+					BucketParameters: v1alpha1.BucketParameters{
+						BucketSpecAttrs: v1alpha1.BucketSpecAttrs{BucketUpdatableAttrs: testBucketSpecAttrs},
+					},
 				},
 			}},
 			want: testBucketSpecAttrs,

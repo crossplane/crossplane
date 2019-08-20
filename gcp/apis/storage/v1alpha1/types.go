@@ -17,7 +17,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"encoding/json"
 	"time"
 
 	"github.com/crossplaneio/crossplane/apis/core/v1alpha1"
@@ -766,10 +765,8 @@ func NewBucketOutputAttrs(attrs *storage.BucketAttrs) BucketOutputAttrs {
 	}
 }
 
-// BucketSpec defines the desired state of Bucket
-type BucketSpec struct {
-	v1alpha1.ResourceSpec `json:",inline"`
-
+// BucketParameters defines the desired state of Bucket
+type BucketParameters struct {
 	BucketSpecAttrs `json:",inline"`
 
 	// NameFormat to format bucket name passing it a object UID
@@ -779,6 +776,12 @@ type BucketSpec struct {
 	// ServiceAccountSecretRef contains GCP ServiceAccount secret that will be used
 	// for bucket connection secret credentials
 	ServiceAccountSecretRef *corev1.LocalObjectReference `json:"serviceAccountSecretRef,omitempty"`
+}
+
+// BucketSpec defines the desired state of Bucket
+type BucketSpec struct {
+	v1alpha1.ResourceSpec `json:",inline"`
+	BucketParameters      `json:",inline"`
 }
 
 // BucketStatus defines the observed state of GoogleBucket
@@ -887,113 +890,40 @@ type BucketList struct {
 	Items           []Bucket `json:"items"`
 }
 
-// ParseBucketSpec constructs Spec for this resource from the properties map
-func ParseBucketSpec(p map[string]string) *BucketSpec {
-	var encryption *BucketEncryption
-	if v, found := p["encryptionDefaultKmsKeyName"]; found {
-		encryption = &BucketEncryption{DefaultKMSKeyName: v}
-	}
-
-	lifecycle := &Lifecycle{}
-	if v, found := p["lifecycle"]; found {
-		lifecycle = parseLifecycle(v)
-	}
-
-	var labels map[string]string
-	if v, found := p["labels"]; found {
-		labels = util.ParseMap(v)
-	}
-
-	var logging *BucketLogging
-	if v, found := p["logging"]; found {
-		logging = parseLogging(v)
-	}
-
-	var website *BucketWebsite
-	if v, found := p["website"]; found {
-		website = parseWebsite(v)
-	}
-
-	var serviceAccountSecretRef *corev1.LocalObjectReference
-	if v, found := p["serviceAccountSecretRef"]; found {
-		serviceAccountSecretRef = &corev1.LocalObjectReference{Name: v}
-	}
-
-	bua := BucketUpdatableAttrs{
-		BucketPolicyOnly:           parseBucketPolicyOnly(p["bucketPolicyOnly"]),
-		CORS:                       parseCORSList(p["cors"]),
-		DefaultEventBasedHold:      util.ParseBool(p["defaultEventBasedHold"]),
-		Encryption:                 encryption,
-		Labels:                     labels,
-		Lifecycle:                  *lifecycle,
-		Logging:                    logging,
-		Website:                    website,
-		PredefinedACL:              p["predefinedACL"],
-		PredefinedDefaultObjectACL: p["predefinedDefaultObjectACL"],
-	}
-
-	bsa := BucketSpecAttrs{
-		BucketUpdatableAttrs: bua,
-		ACL:                  parseACLRules(p["acl"]),
-		DefaultObjectACL:     parseACLRules(p["defaultObjectACL"]),
-		Location:             p["location"],
-		StorageClass:         p["storageClass"],
-	}
-
-	return &BucketSpec{
-		ResourceSpec: v1alpha1.ResourceSpec{
-			ReclaimPolicy: v1alpha1.ReclaimRetain,
-		},
-		BucketSpecAttrs:         bsa,
-		ServiceAccountSecretRef: serviceAccountSecretRef,
-	}
+// BucketClassSpecTemplate is the Schema for the resource class
+type BucketClassSpecTemplate struct {
+	v1alpha1.ResourceClassSpecTemplate `json:",inline"`
+	BucketParameters                   `json:",inline"`
 }
 
-func parseBucketPolicyOnly(s string) *BucketPolicyOnly {
-	enabled := util.ParseBool(s)
-	if !enabled {
-		return nil
-	}
-	return &BucketPolicyOnly{
-		Enabled: enabled,
-	}
+// +kubebuilder:object:root=true
+
+// BucketClass is the Schema for the resource class
+// +kubebuilder:printcolumn:name="PROVIDER-REF",type="string",JSONPath=".specTemplate.providerRef.name"
+// +kubebuilder:printcolumn:name="RECLAIM-POLICY",type="string",JSONPath=".specTemplate.reclaimPolicy"
+// +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
+type BucketClass struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	SpecTemplate BucketClassSpecTemplate `json:"specTemplate,omitempty"`
 }
 
-// parseCORSList from json encoded string, return nil on error (if any)
-func parseCORSList(s string) []CORS {
-	var list []CORS
-	_ = json.Unmarshal([]byte(s), &list) // nolint: gosec
-	return list
+// GetReclaimPolicy of this BucketClass.
+func (i *BucketClass) GetReclaimPolicy() v1alpha1.ReclaimPolicy {
+	return i.SpecTemplate.ReclaimPolicy
 }
 
-// parseLifecycle parses json encoded lifecycle string
-func parseLifecycle(s string) *Lifecycle {
-	l := &Lifecycle{}
-	_ = json.Unmarshal([]byte(s), l) // nolint: gosec
-	return l
+// SetReclaimPolicy of this BucketClass.
+func (i *BucketClass) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) {
+	i.SpecTemplate.ReclaimPolicy = p
 }
 
-// parseLogging from map encoded string value
-func parseLogging(s string) *BucketLogging {
-	m := util.ParseMap(s)
-	return &BucketLogging{
-		LogBucket:       m["logBucket"],
-		LogObjectPrefix: m["logObjectPrefix"],
-	}
-}
+// +kubebuilder:object:root=true
 
-// parseWebsite from map encoded string value
-func parseWebsite(s string) *BucketWebsite {
-	m := util.ParseMap(s)
-	return &BucketWebsite{
-		MainPageSuffix: m["mainPageSuffix"],
-		NotFoundPage:   m["notFoundPage"],
-	}
-}
-
-// parseACLRules from json encoded string, return nil value on error (if any)
-func parseACLRules(s string) []ACLRule {
-	var rules []ACLRule
-	_ = json.Unmarshal([]byte(s), &rules) // nolint: gosec
-	return rules
+// BucketClassList contains a list of cloud memorystore resource classes.
+type BucketClassList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []BucketClass `json:"items"`
 }

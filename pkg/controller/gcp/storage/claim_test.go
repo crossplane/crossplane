@@ -38,7 +38,7 @@ func TestConfigureBucket(t *testing.T) {
 	type args struct {
 		ctx context.Context
 		cm  resource.Claim
-		cs  *corev1alpha1.ResourceClass
+		cs  resource.Class
 		mg  resource.Managed
 	}
 
@@ -65,9 +65,13 @@ func TestConfigureBucket(t *testing.T) {
 						PredefinedACL: &bucketPrivate,
 					},
 				},
-				cs: &corev1alpha1.ResourceClass{
-					ProviderReference: &corev1.ObjectReference{Name: providerName},
-					ReclaimPolicy:     corev1alpha1.ReclaimDelete,
+				cs: &v1alpha1.BucketClass{
+					SpecTemplate: v1alpha1.BucketClassSpecTemplate{
+						ResourceClassSpecTemplate: corev1alpha1.ResourceClassSpecTemplate{
+							ProviderReference: &corev1.ObjectReference{Name: providerName},
+							ReclaimPolicy:     corev1alpha1.ReclaimDelete,
+						},
+					},
 				},
 				mg: &v1alpha1.Bucket{},
 			},
@@ -79,10 +83,12 @@ func TestConfigureBucket(t *testing.T) {
 							WriteConnectionSecretToReference: corev1.LocalObjectReference{Name: string(claimUID)},
 							ProviderReference:                &corev1.ObjectReference{Name: providerName},
 						},
-						NameFormat: bucketName,
-						BucketSpecAttrs: v1alpha1.BucketSpecAttrs{
-							BucketUpdatableAttrs: v1alpha1.BucketUpdatableAttrs{
-								PredefinedACL: string(bucketPrivate),
+						BucketParameters: v1alpha1.BucketParameters{
+							NameFormat: bucketName,
+							BucketSpecAttrs: v1alpha1.BucketSpecAttrs{
+								BucketUpdatableAttrs: v1alpha1.BucketUpdatableAttrs{
+									PredefinedACL: string(bucketPrivate),
+								},
 							},
 						},
 					},

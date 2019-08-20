@@ -1,0 +1,385 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  creationTimestamp: null
+  name: bucketclasses.storage.gcp.crossplane.io
+spec:
+  additionalPrinterColumns:
+  - JSONPath: .specTemplate.providerRef.name
+    name: PROVIDER-REF
+    type: string
+  - JSONPath: .specTemplate.reclaimPolicy
+    name: RECLAIM-POLICY
+    type: string
+  - JSONPath: .metadata.creationTimestamp
+    name: AGE
+    type: date
+  group: storage.gcp.crossplane.io
+  names:
+    kind: BucketClass
+    plural: bucketclasses
+  scope: ""
+  subresources: {}
+  validation:
+    openAPIV3Schema:
+      description: BucketClass is the Schema for the resource class
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        specTemplate:
+          description: BucketClassSpecTemplate is the Schema for the resource class
+          properties:
+            acl:
+              description: ACL is the list of access control rules on the bucket.
+              items:
+                description: ACLRule represents a grant for a role to an entity (user,
+                  group or team) for a Google Cloud Storage object or bucket.
+                properties:
+                  domain:
+                    type: string
+                  email:
+                    type: string
+                  entity:
+                    type: string
+                  entityId:
+                    type: string
+                  projectTeam:
+                    description: ProjectTeam is the project team associated with the
+                      entity, if any.
+                    properties:
+                      projectNumber:
+                        type: string
+                      team:
+                        type: string
+                    type: object
+                  role:
+                    type: string
+                type: object
+              type: array
+            bucketPolicyOnly:
+              description: BucketPolicyOnly configures access checks to use only bucket-level
+                IAM policies.
+              properties:
+                enabled:
+                  description: Enabled specifies whether access checks use only bucket-level
+                    IAM policies. Enabled may be disabled until the locked time.
+                  type: boolean
+                lockedTime:
+                  description: LockedTime specifies the deadline for changing Enabled
+                    from true to false.
+                  format: date-time
+                  type: string
+              type: object
+            cors:
+              description: The bucket's Cross-Origin Resource Sharing (CORS) configuration.
+              items:
+                description: CORS is the bucket's Cross-Origin Resource Sharing (CORS)
+                  configuration.
+                properties:
+                  maxAge:
+                    description: MaxAge is the value to return in the Access-Control-Max-Age
+                      header used in preflight responses.
+                    type: string
+                  methods:
+                    description: 'Methods is the list of HTTP methods on which to
+                      include CORS response headers, (GET, OPTIONS, POST, etc) Note:
+                      "*" is permitted in the list of methods, and means "any method".'
+                    items:
+                      type: string
+                    type: array
+                  origins:
+                    description: 'Origins is the list of Origins eligible to receive
+                      CORS response headers. Note: "*" is permitted in the list of
+                      origins, and means "any Origin".'
+                    items:
+                      type: string
+                    type: array
+                  responseHeaders:
+                    description: ResponseHeaders is the list of HTTP headers other
+                      than the simple response headers to give permission for the
+                      user-agent to share across domains.
+                    items:
+                      type: string
+                    type: array
+                type: object
+              type: array
+            defaultEventBasedHold:
+              description: DefaultEventBasedHold is the default value for event-based
+                hold on newly created objects in this bucket. It defaults to false.
+              type: boolean
+            defaultObjectAcl:
+              description: DefaultObjectACL is the list of access controls to apply
+                to new objects when no object ACL is provided.
+              items:
+                description: ACLRule represents a grant for a role to an entity (user,
+                  group or team) for a Google Cloud Storage object or bucket.
+                properties:
+                  domain:
+                    type: string
+                  email:
+                    type: string
+                  entity:
+                    type: string
+                  entityId:
+                    type: string
+                  projectTeam:
+                    description: ProjectTeam is the project team associated with the
+                      entity, if any.
+                    properties:
+                      projectNumber:
+                        type: string
+                      team:
+                        type: string
+                    type: object
+                  role:
+                    type: string
+                type: object
+              type: array
+            encryption:
+              description: The encryption configuration used by default for newly
+                inserted objects.
+              properties:
+                defaultKmsKeyName:
+                  description: A Cloud KMS key name, in the form projects/P/locations/L/keyRings/R/cryptoKeys/K,
+                    that will be used to encrypt objects inserted into this bucket,
+                    if no encryption method is specified. The key's location must
+                    be the same as the bucket's.
+                  type: string
+              type: object
+            labels:
+              additionalProperties:
+                type: string
+              description: Labels are the bucket's labels.
+              type: object
+            lifecycle:
+              description: Lifecycle is the lifecycle configuration for objects in
+                the bucket.
+              properties:
+                rules:
+                  items:
+                    description: "LifecycleRule is a lifecycle configuration rule.
+                      \n When all the configured conditions are met by an object in
+                      the bucket, the configured action will automatically be taken
+                      on that object."
+                    properties:
+                      action:
+                        description: Action is the action to take when all of the
+                          associated conditions are met.
+                        properties:
+                          storageClass:
+                            description: StorageClass is the storage class to set
+                              on matching objects if the Action is "SetStorageClass".
+                            type: string
+                          type:
+                            description: "Type is the type of action to take on matching
+                              objects. \n Acceptable values are \"Delete\" to delete
+                              matching objects and \"SetStorageClass\" to set the
+                              storage class defined in StorageClass on matching objects."
+                            type: string
+                        type: object
+                      condition:
+                        description: Condition is the set of conditions that must
+                          be met for the associated action to be taken.
+                        properties:
+                          ageInDays:
+                            description: AgeInDays is the age of the object in days.
+                            format: int64
+                            type: integer
+                          createdBefore:
+                            description: "CreatedBefore is the time the object was
+                              created. \n This condition is satisfied when an object
+                              is created before midnight of the specified date in
+                              UTC."
+                            format: date-time
+                            type: string
+                          liveness:
+                            description: Liveness specifies the object's liveness.
+                              Relevant only for versioned objects
+                            type: integer
+                          matchesStorageClasses:
+                            description: "MatchesStorageClasses is the condition matching
+                              the object's storage class. \n Values include \"MULTI_REGIONAL\",
+                              \"REGIONAL\", \"NEARLINE\", \"COLDLINE\", \"STANDARD\",
+                              and \"DURABLE_REDUCED_AVAILABILITY\"."
+                            items:
+                              type: string
+                            type: array
+                          numNewerVersions:
+                            description: "NumNewerVersions is the condition matching
+                              objects with a number of newer versions. \n If the value
+                              is N, this condition is satisfied when there are at
+                              least N versions (including the live version) newer
+                              than this version of the object."
+                            format: int64
+                            type: integer
+                        type: object
+                    type: object
+                  type: array
+              type: object
+            location:
+              description: Location is the location of the bucket. It defaults to
+                "US".
+              type: string
+            logging:
+              description: The logging configuration.
+              properties:
+                logBucket:
+                  description: The destination bucket where the current bucket's logs
+                    should be placed.
+                  type: string
+                logObjectPrefix:
+                  description: A prefix for log object names.
+                  type: string
+              type: object
+            nameFormat:
+              description: NameFormat to format bucket name passing it a object UID
+                If not provided, defaults to "%s", i.e. UID value
+              type: string
+            predefinedAcl:
+              description: If not empty, applies a predefined set of access controls.
+                It should be set only when creating a bucket. It is always empty for
+                BucketAttrs returned from the service. See https://cloud.google.com/storage/docs/json_api/v1/buckets/insert
+                for valid values.
+              type: string
+            predefinedCefaultObjectAcl:
+              description: If not empty, applies a predefined set of default object
+                access controls. It should be set only when creating a bucket. It
+                is always empty for BucketAttrs returned from the service. See https://cloud.google.com/storage/docs/json_api/v1/buckets/insert
+                for valid values.
+              type: string
+            providerRef:
+              description: ObjectReference contains enough information to let you
+                inspect or modify the referred object.
+              properties:
+                apiVersion:
+                  description: API version of the referent.
+                  type: string
+                fieldPath:
+                  description: 'If referring to a piece of an object instead of an
+                    entire object, this string should contain a valid JSON/Go field
+                    access statement, such as desiredState.manifest.containers[2].
+                    For example, if the object reference is to a container within
+                    a pod, this would take on a value like: "spec.containers{name}"
+                    (where "name" refers to the name of the container that triggered
+                    the event) or if no container name is specified "spec.containers[2]"
+                    (container with index 2 in this pod). This syntax is chosen only
+                    to have some well-defined way of referencing a part of an object.
+                    TODO: this design is not final and this field is subject to change
+                    in the future.'
+                  type: string
+                kind:
+                  description: 'Kind of the referent. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+                  type: string
+                name:
+                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                  type: string
+                namespace:
+                  description: 'Namespace of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/'
+                  type: string
+                resourceVersion:
+                  description: 'Specific resourceVersion to which this reference is
+                    made, if any. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#concurrency-control-and-consistency'
+                  type: string
+                uid:
+                  description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
+                  type: string
+              type: object
+            reclaimPolicy:
+              description: A ReclaimPolicy determines what should happen to managed
+                resources when their bound resource claims are deleted.
+              type: string
+            requesterPays:
+              description: RequesterPays reports whether the bucket is a Requester
+                Pays bucket. Clients performing operations on Requester Pays buckets
+                must provide a user project (see BucketHandle.UserProject), which
+                will be billed for the operations.
+              type: boolean
+            retentionPolicy:
+              description: "Retention policy enforces a minimum retention time for
+                all objects contained in the bucket. A RetentionPolicy of nil implies
+                the bucket has no minimum data retention. \n This feature is in private
+                alpha release. It is not currently available to most customers. It
+                might be changed in backwards-incompatible ways and is not subject
+                to any SLA or deprecation policy."
+              properties:
+                retentionPeriodSeconds:
+                  description: RetentionPeriod specifies the duration value in seconds
+                    that objects need to be retained. Retention duration must be greater
+                    than zero and less than 100 years. Note that enforcement of retention
+                    periods less than a day is not guaranteed. Such periods should
+                    only be used for testing purposes.
+                  maximum: 3155673600
+                  minimum: 0
+                  type: integer
+              type: object
+            serviceAccountSecretRef:
+              description: ServiceAccountSecretRef contains GCP ServiceAccount secret
+                that will be used for bucket connection secret credentials
+              properties:
+                name:
+                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                    TODO: Add other useful fields. apiVersion, kind, uid?'
+                  type: string
+              type: object
+            storageClass:
+              description: StorageClass is the default storage class of the bucket.
+                This defines how objects in the bucket are stored and determines the
+                SLA and the cost of storage. Typical values are "MULTI_REGIONAL",
+                "REGIONAL", "NEARLINE", "COLDLINE", "STANDARD" and "DURABLE_REDUCED_AVAILABILITY".
+                Defaults to "STANDARD", which is equivalent to "MULTI_REGIONAL" or
+                "REGIONAL" depending on the bucket's location settings.
+              enum:
+              - MULTI_REGIONAL
+              - REGIONAL
+              - NEARLINE
+              - COLDLINE
+              - STANDARD
+              - DURABLE_REDUCED_AVAILABILITY
+              type: string
+            versioningEnabled:
+              description: VersioningEnabled reports whether this bucket has versioning
+                enabled.
+              type: boolean
+            website:
+              description: The website configuration.
+              properties:
+                mainPageSuffix:
+                  description: If the requested object path is missing, the service
+                    will ensure the path has a trailing '/', append this suffix, and
+                    attempt to retrieve the resulting object. This allows the creation
+                    of index.html objects to represent directory pages.
+                  type: string
+                notFundPage:
+                  description: If the requested object path is missing, and any mainPageSuffix
+                    object is missing, if applicable, the service will return the
+                    named object from this bucket as the content for a 404 Not Found
+                    result.
+                  type: string
+              type: object
+          required:
+          - providerRef
+          type: object
+      type: object
+  version: v1alpha1
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
