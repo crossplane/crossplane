@@ -1,15 +1,15 @@
 ---
-apiVersion: core.crossplane.io/v1alpha1
-kind: ResourceClass
+apiVersion: storage.aws.crossplane.io/v1alpha1
+kind: S3BucketClass
 metadata:
   name: s3bucket
   namespace: crossplane-system
-parameters:
-  versioning: "false"
-  predefinedACL: private
+specTemplate:
+  versioning: false
+  cannedACL: private
   region: us-east-1
-provisioner: s3bucket.storage.aws.crossplane.io/v1alpha1
-providerRef:
-  name: example
-  namespace: crossplane-system
-reclaimPolicy: Delete
+  localPermission: ReadWrite
+  providerRef:
+    name: example
+    namespace: crossplane-system
+  reclaimPolicy: Delete

@@ -1,23 +1,23 @@
 ---
 ## Crossplane Redis Resource class
-apiVersion: core.crossplane.io/v1alpha1
-kind: ResourceClass
+apiVersion: cache.aws.crossplane.io/v1alpha1
+kind: ReplicationGroupClass
 metadata:
   name: standard-aws-redis
   namespace: crossplane-system
   annotations:
     resource: rediscluster.cache.crossplane.io/v1alpha1
-parameters:
+specTemplate:
   engineVersion: "3.2.4"
-  cacheParameterGroup: default.redis3.2.cluster.on
+  cacheParameterGroupName: default.redis3.2.cluster.on
   cacheNodeType: cache.t2.micro
-  automaticFailoverEnabled: "true"
-  numNodeGroups: "1"
-  replicasPerNodeGroup: "1"
-  securityGroupIds: REDIS_SECURITY_GROUP
+  automaticFailoverEnabled: true
+  numNodeGroups: 1
+  replicasPerNodeGroup: 1
+  securityGroupIds:
+   - REDIS_SECURITY_GROUP
   cacheSubnetGroupName: REDIS_SUBNET_GROUP
-provisioner: replicationgroup.cache.aws.crossplane.io/v1alpha1
-providerRef:
-  name: demo-aws
-  namespace: crossplane-system
-reclaimPolicy: Delete
+  providerRef:
+    name: demo-aws
+    namespace: crossplane-system
+  reclaimPolicy: Delete

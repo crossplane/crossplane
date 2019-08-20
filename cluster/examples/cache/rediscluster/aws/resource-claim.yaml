@@ -5,6 +5,8 @@ metadata:
   name: replicationgroup
 spec:
   classRef:
+    kind: ReplicationGroupClass
+    apiVersion: cache.aws.crossplane.io/v1alpha1
     name: replicationgroup
     namespace: crossplane-system
   writeConnectionSecretToRef:

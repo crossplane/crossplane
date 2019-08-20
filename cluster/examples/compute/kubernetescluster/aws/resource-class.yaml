@@ -1,21 +1,24 @@
 ---
-apiVersion: core.crossplane.io/v1alpha1
-kind: ResourceClass
+apiVersion: compute.aws.crossplane.io/v1alpha1
+kind: EKSClusterClass
 metadata:
   name: ekscluster
   namespace: crossplane-system
-parameters:
+specTemplate:
   region: us-east-1
   roleARN: # arn:aws:iam::<account-id>:role/<role-name>
   vpcId: #vpc-01
-  subnetIds: #subnet-01,subnet-02,subnet-03
-  securityGroupIds: #sg-01
-  workerKeyName: #named ec2 keypair
-  workerNodeInstanceType: m3.medium
-  workerNodeGroupName: demo-nodes
-  workerClusterControlPlaneSecurityGroup: #sg-01
-provisioner: ekscluster.compute.aws.crossplane.io/v1alpha1
-providerRef:
-  name: example
-  namespace: crossplane-system
-reclaimPolicy: Delete
+  subnetIds:
+   - #subnet-01
+   - #subnet-02
+  securityGroupIds:
+   - #sg-01
+  workerNodes:
+    keyName: #named ec2 keypair
+    nodeInstanceType: m3.medium
+    nodeGroupName: demo-nodes
+    clusterControlPlaneSecurityGroup: #sg-01
+  providerRef:
+    name: example
+    namespace: crossplane-system
+  reclaimPolicy: Delete

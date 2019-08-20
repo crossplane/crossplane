@@ -14,6 +14,8 @@ metadata:
   name: mysql-instance
 spec:
   classRef:
+    kind: RDSInstanceClass
+    apiVersion: database.aws.crossplane.io/v1alpha1
     name: standard
     namespace: crossplane-system
   writeConnectionSecretToRef:

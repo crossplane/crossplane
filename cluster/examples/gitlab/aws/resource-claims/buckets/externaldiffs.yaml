@@ -6,6 +6,8 @@ metadata:
   namespace: default
 spec:
   classRef:
+    kind: S3BucketClass
+    apiVersion: storage.aws.crossplane.io/v1alpha1
     name: standard-aws-bucket
     namespace: crossplane-system
   writeConnectionSecretToRef:
