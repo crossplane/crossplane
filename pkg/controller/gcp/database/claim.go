@@ -63,15 +63,7 @@ func ConfigurePostgreSQLCloudsqlInstance(_ context.Context, cm resource.Claim, c
 	spec.DatabaseVersion = v
 
 	// NOTE(hasheddan): consider moving defaulting to either CRD or managed reconciler level
-	if spec.Labels == nil {
-		spec.Labels = map[string]string{}
-	}
-	if spec.AuthorizedNetworks == nil {
-		spec.AuthorizedNetworks = []string{}
-	}
-	if spec.StorageGB == 0 {
-		spec.StorageGB = v1alpha1.DefaultStorageGB
-	}
+	checkEmptySpec(spec)
 
 	spec.WriteConnectionSecretToReference = corev1.LocalObjectReference{Name: string(cm.GetUID())}
 	spec.ProviderReference = rs.SpecTemplate.ProviderReference
@@ -116,15 +108,7 @@ func ConfigureMyCloudsqlInstance(_ context.Context, cm resource.Claim, cs resour
 	spec.DatabaseVersion = v
 
 	// NOTE(hasheddan): consider moving defaulting to either CRD or managed reconciler level
-	if spec.Labels == nil {
-		spec.Labels = map[string]string{}
-	}
-	if spec.AuthorizedNetworks == nil {
-		spec.AuthorizedNetworks = []string{}
-	}
-	if spec.StorageGB == 0 {
-		spec.StorageGB = v1alpha1.DefaultStorageGB
-	}
+	checkEmptySpec(spec)
 
 	spec.WriteConnectionSecretToReference = corev1.LocalObjectReference{Name: string(cm.GetUID())}
 	spec.ProviderReference = rs.SpecTemplate.ProviderReference
@@ -140,4 +124,16 @@ func translateVersion(version, versionPrefix string) string {
 		return ""
 	}
 	return fmt.Sprintf("%s_%s", versionPrefix, strings.Replace(version, ".", "_", -1))
+}
+
+func checkEmptySpec(spec *v1alpha1.CloudsqlInstanceSpec) {
+	if spec.Labels == nil {
+		spec.Labels = map[string]string{}
+	}
+	if spec.AuthorizedNetworks == nil {
+		spec.AuthorizedNetworks = []string{}
+	}
+	if spec.StorageGB == 0 {
+		spec.StorageGB = v1alpha1.DefaultStorageGB
+	}
 }

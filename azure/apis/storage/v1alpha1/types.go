@@ -349,16 +349,6 @@ type ContainerClassList struct {
 	Items           []ContainerClass `json:"items"`
 }
 
-// ParseContainerSpec from properties map key/values
-// func ParseContainerSpec(p map[string]string) *ContainerSpec {
-// 	return &ContainerSpec{
-// 		ReclaimPolicy:    v1alpha1.ReclaimRetain,
-// 		Metadata:         util.ParseMap(p["metadata"]),
-// 		NameFormat:       p["nameFormat"],
-// 		PublicAccessType: parsePublicAccessType(p["publicAccessType"]),
-// 	}
-// }
-
 func parsePublicAccessType(s string) azblob.PublicAccessType {
 	if s == "" {
 		return azblob.PublicAccessNone
