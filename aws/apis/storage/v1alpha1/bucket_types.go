@@ -27,6 +27,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/crossplaneio/crossplane/pkg/resource"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
@@ -153,6 +154,8 @@ type S3BucketClassSpecTemplate struct {
 	v1alpha1.ResourceClassSpecTemplate `json:",inline"`
 	S3BucketParameters                 `json:",inline"`
 }
+
+var _ resource.Class = &S3BucketClass{}
 
 // +kubebuilder:object:root=true
 

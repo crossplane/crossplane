@@ -272,6 +272,8 @@ type CloudsqlInstanceClassSpecTemplate struct {
 	CloudsqlInstanceParameters         `json:",inline"`
 }
 
+var _ resource.Class = &CloudsqlInstanceClass{}
+
 // +kubebuilder:object:root=true
 
 // CloudsqlInstanceClass is the Schema for the resource class

@@ -20,6 +20,7 @@ import (
 	"fmt"
 
 	"github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/resource"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -313,6 +314,8 @@ type EKSClusterClassSpecTemplate struct {
 	v1alpha1.ResourceClassSpecTemplate `json:",inline"`
 	EKSClusterParameters               `json:",inline"`
 }
+
+var _ resource.Class = &EKSClusterClass{}
 
 // +kubebuilder:object:root=true
 

@@ -22,6 +22,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/resource"
 )
 
 // Cloud Memorystore instance states.
@@ -218,6 +219,8 @@ type CloudMemorystoreInstanceClassSpecTemplate struct {
 	v1alpha1.ResourceClassSpecTemplate `json:",inline"`
 	CloudMemorystoreInstanceParameters `json:",inline"`
 }
+
+var _ resource.Class = &CloudMemorystoreInstanceClass{}
 
 // +kubebuilder:object:root=true
 

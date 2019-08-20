@@ -22,6 +22,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/resource"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
@@ -136,6 +137,8 @@ type AccountClassSpecTemplate struct {
 	v1alpha1.ResourceClassSpecTemplate `json:",inline"`
 	AccountParameters                  `json:",inline"`
 }
+
+var _ resource.Class = &AccountClass{}
 
 // +kubebuilder:object:root=true
 
@@ -311,6 +314,8 @@ type ContainerClassSpecTemplate struct {
 	v1alpha1.ResourceClassSpecTemplate `json:",inline"`
 	ContainerParameters                `json:",inline"`
 }
+
+var _ resource.Class = &ContainerClass{}
 
 // +kubebuilder:object:root=true
 

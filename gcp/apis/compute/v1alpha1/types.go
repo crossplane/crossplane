@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	"github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/resource"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -190,6 +191,8 @@ type GKEClusterClassSpecTemplate struct {
 	v1alpha1.ResourceClassSpecTemplate `json:",inline"`
 	GKEClusterParameters               `json:",inline"`
 }
+
+var _ resource.Class = &GKEClusterClass{}
 
 // +kubebuilder:object:root=true
 

@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	"github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/resource"
 
 	"github.com/Azure/azure-sdk-for-go/services/redis/mgmt/2018-03-01/redis"
 	corev1 "k8s.io/api/core/v1"
@@ -232,6 +233,8 @@ type RedisClassSpecTemplate struct {
 	v1alpha1.ResourceClassSpecTemplate `json:",inline"`
 	RedisParameters                    `json:",inline"`
 }
+
+var _ resource.Class = &RedisClass{}
 
 // +kubebuilder:object:root=true
 

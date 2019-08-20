@@ -241,6 +241,8 @@ type SQLServerClassSpecTemplate struct {
 	SQLServerParameters                `json:",inline"`
 }
 
+var _ resource.Class = &SQLServerClass{}
+
 // +kubebuilder:object:root=true
 
 // SQLServerClass is the Schema for the resource class
