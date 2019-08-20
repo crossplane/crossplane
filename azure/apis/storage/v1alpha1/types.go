@@ -22,13 +22,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/resource"
 	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
-// AccountSpec is the schema for Account object
-type AccountSpec struct {
-	v1alpha1.ResourceSpec `json:",inline"`
-
+// AccountParameters define the configuration for Account object
+type AccountParameters struct {
 	// ResourceGroupName azure group name
 	ResourceGroupName string `json:"resourceGroupName"`
 
@@ -38,6 +37,12 @@ type AccountSpec struct {
 
 	// StorageAccountSpec the parameters used when creating a storage account.
 	StorageAccountSpec *StorageAccountSpec `json:"storageAccountSpec"`
+}
+
+// AccountSpec is the schema for Account object
+type AccountSpec struct {
+	v1alpha1.ResourceSpec `json:",inline"`
+	AccountParameters     `json:",inline"`
 }
 
 // AccountStatus defines the observed state of StorageAccountStatus
@@ -127,20 +132,48 @@ type AccountList struct {
 	Items           []Account `json:"items"`
 }
 
-// ParseAccountSpec from properties map key/values
-func ParseAccountSpec(p map[string]string) *AccountSpec {
-	return &AccountSpec{
-		ResourceSpec: v1alpha1.ResourceSpec{
-			ReclaimPolicy: v1alpha1.ReclaimRetain,
-		},
-		ResourceGroupName:  p["resourceGroupName"],
-		StorageAccountName: p["storageAccountName"],
-		StorageAccountSpec: parseStorageAccountSpec(p["storageAccountSpec"]),
-	}
+// AccountClassSpecTemplate is the Schema for the resource class
+type AccountClassSpecTemplate struct {
+	v1alpha1.ResourceClassSpecTemplate `json:",inline"`
+	AccountParameters                  `json:",inline"`
 }
 
-// ContainerSpec is the schema for ContainerSpec object
-type ContainerSpec struct {
+var _ resource.Class = &AccountClass{}
+
+// +kubebuilder:object:root=true
+
+// AccountClass is the Schema for the resource class
+// +kubebuilder:printcolumn:name="PROVIDER-REF",type="string",JSONPath=".specTemplate.providerRef.name"
+// +kubebuilder:printcolumn:name="RECLAIM-POLICY",type="string",JSONPath=".specTemplate.reclaimPolicy"
+// +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
+type AccountClass struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	SpecTemplate AccountClassSpecTemplate `json:"specTemplate,omitempty"`
+}
+
+// GetReclaimPolicy of this AccountClass.
+func (i *AccountClass) GetReclaimPolicy() v1alpha1.ReclaimPolicy {
+	return i.SpecTemplate.ReclaimPolicy
+}
+
+// SetReclaimPolicy of this AccountClass.
+func (i *AccountClass) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) {
+	i.SpecTemplate.ReclaimPolicy = p
+}
+
+// +kubebuilder:object:root=true
+
+// AccountClassList contains a list of cloud memorystore resource classes.
+type AccountClassList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []AccountClass `json:"items"`
+}
+
+// ContainerParameters define the configuration for Container object
+type ContainerParameters struct {
 	// NameFormat to format container name passing it a object UID
 	// If not provided, defaults to "%s", i.e. UID value
 	NameFormat string `json:"nameFormat,omitempty"`
@@ -153,7 +186,11 @@ type ContainerSpec struct {
 
 	// AccountReference to azure storage account object
 	AccountReference corev1.LocalObjectReference `json:"accountReference"`
+}
 
+// ContainerSpec is the schema for ContainerSpec object
+type ContainerSpec struct {
+	ContainerParameters `json:",inline"`
 	// NOTE(negz): Container is the only Crossplane type that does not use a
 	// Provider (it reads credentials from its associated Account instead). This
 	// means we can't embed a corev1alpha1.ResourceSpec, as doing so would
@@ -245,15 +282,6 @@ func (c *Container) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) {
 	c.Spec.ReclaimPolicy = p
 }
 
-// +kubebuilder:object:root=true
-
-// ContainerList - list of the container objects
-type ContainerList struct {
-	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Container `json:"items"`
-}
-
 // GetContainerName based on the NameFormat spec value,
 // If name format is not provided, container name defaults to UID
 // If name format provided with '%s' value, container name will result in formatted string + UID,
@@ -272,14 +300,53 @@ func (c *Container) GetContainerName() string {
 	return util.ConditionalStringFormat(c.Spec.NameFormat, string(c.GetUID()))
 }
 
-// ParseContainerSpec from properties map key/values
-func ParseContainerSpec(p map[string]string) *ContainerSpec {
-	return &ContainerSpec{
-		ReclaimPolicy:    v1alpha1.ReclaimRetain,
-		Metadata:         util.ParseMap(p["metadata"]),
-		NameFormat:       p["nameFormat"],
-		PublicAccessType: parsePublicAccessType(p["publicAccessType"]),
-	}
+// +kubebuilder:object:root=true
+
+// ContainerList - list of the container objects
+type ContainerList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []Container `json:"items"`
+}
+
+// ContainerClassSpecTemplate is the Schema for the resource class
+type ContainerClassSpecTemplate struct {
+	v1alpha1.ResourceClassSpecTemplate `json:",inline"`
+	ContainerParameters                `json:",inline"`
+}
+
+var _ resource.Class = &ContainerClass{}
+
+// +kubebuilder:object:root=true
+
+// ContainerClass is the Schema for the resource class
+// +kubebuilder:printcolumn:name="PROVIDER-REF",type="string",JSONPath=".specTemplate.providerRef.name"
+// +kubebuilder:printcolumn:name="RECLAIM-POLICY",type="string",JSONPath=".specTemplate.reclaimPolicy"
+// +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
+type ContainerClass struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	SpecTemplate ContainerClassSpecTemplate `json:"specTemplate,omitempty"`
+}
+
+// GetReclaimPolicy of this ContainerClass.
+func (i *ContainerClass) GetReclaimPolicy() v1alpha1.ReclaimPolicy {
+	return i.SpecTemplate.ReclaimPolicy
+}
+
+// SetReclaimPolicy of this ContainerClass.
+func (i *ContainerClass) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) {
+	i.SpecTemplate.ReclaimPolicy = p
+}
+
+// +kubebuilder:object:root=true
+
+// ContainerClassList contains a list of cloud memorystore resource classes.
+type ContainerClassList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []ContainerClass `json:"items"`
 }
 
 func parsePublicAccessType(s string) azblob.PublicAccessType {

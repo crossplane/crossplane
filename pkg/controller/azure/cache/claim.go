@@ -40,7 +40,7 @@ type RedisClaimController struct{}
 func (c *RedisClaimController) SetupWithManager(mgr ctrl.Manager) error {
 	r := resource.NewClaimReconciler(mgr,
 		resource.ClaimKind(cachev1alpha1.RedisClusterGroupVersionKind),
-		resource.ClassKind(corev1alpha1.ResourceClassGroupVersionKind),
+		resource.ClassKind(v1alpha1.RedisClassGroupVersionKind),
 		resource.ManagedKind(v1alpha1.RedisGroupVersionKind),
 		resource.WithManagedConfigurators(
 			resource.ManagedConfiguratorFn(ConfigureRedis),
@@ -49,13 +49,11 @@ func (c *RedisClaimController) SetupWithManager(mgr ctrl.Manager) error {
 
 	name := strings.ToLower(fmt.Sprintf("%s.%s", cachev1alpha1.RedisClusterKind, controllerName))
 
-	p := v1alpha1.RedisKindAPIVersion
-
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		Watches(&source.Kind{Type: &v1alpha1.Redis{}}, &resource.EnqueueRequestForClaim{}).
 		For(&cachev1alpha1.RedisCluster{}).
-		WithEventFilter(resource.NewPredicates(resource.ObjectHasProvisioner(mgr.GetClient(), p))).
+		WithEventFilter(resource.NewPredicates(resource.HasClassReferenceKind(resource.ClassKind(v1alpha1.RedisClassGroupVersionKind)))).
 		Complete(r)
 }
 
@@ -68,9 +66,9 @@ func ConfigureRedis(_ context.Context, cm resource.Claim, cs resource.Class, mg 
 		return errors.Errorf("expected resource claim %s to be %s", cm.GetName(), cachev1alpha1.RedisClusterGroupVersionKind)
 	}
 
-	rs, csok := cs.(*corev1alpha1.ResourceClass)
+	rs, csok := cs.(*v1alpha1.RedisClass)
 	if !csok {
-		return errors.Errorf("expected resource class %s to be %s", cs.GetName(), corev1alpha1.ResourceClassGroupVersionKind)
+		return errors.Errorf("expected resource class %s to be %s", cs.GetName(), v1alpha1.RedisClassGroupVersionKind)
 	}
 
 	i, mgok := mg.(*v1alpha1.Redis)
@@ -78,14 +76,24 @@ func ConfigureRedis(_ context.Context, cm resource.Claim, cs resource.Class, mg 
 		return errors.Errorf("expected managed resource %s to be %s", mg.GetName(), v1alpha1.RedisGroupVersionKind)
 	}
 
-	spec := v1alpha1.NewRedisSpec(rs.Parameters)
+	spec := &v1alpha1.RedisSpec{
+		ResourceSpec: corev1alpha1.ResourceSpec{
+			ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		},
+		RedisParameters: rs.SpecTemplate.RedisParameters,
+	}
 	if err := resolveAzureClassValues(rc); err != nil {
 		return errors.Wrap(err, "cannot resolve Azure class instance values")
 	}
 
+	// NOTE(hasheddan): consider moving defaulting to either CRD or managed reconciler level
+	if spec.RedisConfiguration == nil {
+		spec.RedisConfiguration = map[string]string{}
+	}
+
 	spec.WriteConnectionSecretToReference = corev1.LocalObjectReference{Name: string(cm.GetUID())}
-	spec.ProviderReference = rs.ProviderReference
-	spec.ReclaimPolicy = rs.ReclaimPolicy
+	spec.ProviderReference = rs.SpecTemplate.ProviderReference
+	spec.ReclaimPolicy = rs.SpecTemplate.ReclaimPolicy
 
 	i.Spec = *spec
 

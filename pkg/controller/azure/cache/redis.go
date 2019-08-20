@@ -235,7 +235,7 @@ func (c *RedisController) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-// Reconcile Google Azure Cache resources with the Azure API.
+// Reconcile Azure Cache resources with the Azure API.
 func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) {
 	log.V(logging.Debug).Info("reconciling", "kind", v1alpha1.RedisKindAPIVersion, "request", req)
 

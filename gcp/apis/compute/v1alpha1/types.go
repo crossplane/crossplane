@@ -17,14 +17,11 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"strconv"
-
 	"github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/resource"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 // Cluster states.
@@ -39,10 +36,8 @@ const (
 	DefaultNumberOfNodes = int64(1)
 )
 
-// GKEClusterSpec specifies the configuration of a GKE cluster.
-type GKEClusterSpec struct {
-	v1alpha1.ResourceSpec `json:",inline"`
-
+// GKEClusterParameters specifies the configuration of a GKE cluster.
+type GKEClusterParameters struct {
 	Addons                    []string          `json:"addons,omitempty"`
 	Async                     bool              `json:"async,omitempty"`
 	ClusterIPV4CIDR           string            `json:"clusterIPV4CIDR,omitempty"`
@@ -91,6 +86,12 @@ type GKEClusterSpec struct {
 	ServiceAccount       string   `json:"serviceAccount,omitempty"`
 	EnableCloudEndpoints bool     `json:"enableCloudEndpoints,omitempty"`
 	Scopes               []string `json:"scopes,omitempty"`
+}
+
+// GKEClusterSpec specifies the configuration of a GKE cluster.
+type GKEClusterSpec struct {
+	v1alpha1.ResourceSpec `json:",inline"`
+	GKEClusterParameters  `json:",inline"`
 }
 
 // GKEClusterStatus represents the status of a GKE cluster.
@@ -185,36 +186,42 @@ type GKEClusterList struct {
 	Items           []GKECluster `json:"items"`
 }
 
-// ParseClusterSpec from properties map
-func ParseClusterSpec(properties map[string]string) *GKEClusterSpec {
-	return &GKEClusterSpec{
-		ResourceSpec: v1alpha1.ResourceSpec{
-			ReclaimPolicy: DefaultReclaimPolicy,
-		},
-		ClusterVersion:   properties["clusterVersion"],
-		Labels:           util.ParseMap(properties["labels"]),
-		MachineType:      properties["machineType"],
-		NumNodes:         parseNodesNumber(properties["numNodes"]),
-		Scopes:           util.Split(properties["scopes"], ","),
-		Zone:             properties["zone"],
-		EnableIPAlias:    util.ParseBool(properties["enableIPAlias"]),
-		CreateSubnetwork: util.ParseBool(properties["createSubnetwork"]),
-		ClusterIPV4CIDR:  properties["clusterIPV4CIDR"],
-		ServiceIPV4CIDR:  properties["serviceIPV4CIDR"],
-		NodeIPV4CIDR:     properties["nodeIPV4CIDR"],
-	}
+// GKEClusterClassSpecTemplate is the Schema for the resource class
+type GKEClusterClassSpecTemplate struct {
+	v1alpha1.ResourceClassSpecTemplate `json:",inline"`
+	GKEClusterParameters               `json:",inline"`
 }
 
-// parseNodesNumber from the input string value
-// If value is empty or invalid integer >= 0: return DefaultNumberOfNodes
-func parseNodesNumber(s string) int64 {
-	if s == "" {
-		return DefaultNumberOfNodes
-	}
+var _ resource.Class = &GKEClusterClass{}
 
-	n, err := strconv.ParseUint(s, 10, 64)
-	if err != nil {
-		return DefaultNumberOfNodes
-	}
-	return int64(n)
+// +kubebuilder:object:root=true
+
+// GKEClusterClass is the Schema for the resource class
+// +kubebuilder:printcolumn:name="PROVIDER-REF",type="string",JSONPath=".specTemplate.providerRef.name"
+// +kubebuilder:printcolumn:name="RECLAIM-POLICY",type="string",JSONPath=".specTemplate.reclaimPolicy"
+// +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
+type GKEClusterClass struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	SpecTemplate GKEClusterClassSpecTemplate `json:"specTemplate,omitempty"`
+}
+
+// GetReclaimPolicy of this GKEClusterClass.
+func (i *GKEClusterClass) GetReclaimPolicy() v1alpha1.ReclaimPolicy {
+	return i.SpecTemplate.ReclaimPolicy
+}
+
+// SetReclaimPolicy of this GKEClusterClass.
+func (i *GKEClusterClass) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) {
+	i.SpecTemplate.ReclaimPolicy = p
+}
+
+// +kubebuilder:object:root=true
+
+// GKEClusterClassList contains a list of cloud memorystore resource classes.
+type GKEClusterClassList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []GKEClusterClass `json:"items"`
 }

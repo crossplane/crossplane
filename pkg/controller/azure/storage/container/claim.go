@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Azure/azure-storage-blob-go/azblob"
+
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -40,7 +42,7 @@ type ClaimController struct{}
 func (c *ClaimController) SetupWithManager(mgr ctrl.Manager) error {
 	r := resource.NewClaimReconciler(mgr,
 		resource.ClaimKind(storagev1alpha1.BucketGroupVersionKind),
-		resource.ClassKind(corev1alpha1.ResourceClassGroupVersionKind),
+		resource.ClassKind(v1alpha1.ContainerClassGroupVersionKind),
 		resource.ManagedKind(v1alpha1.ContainerGroupVersionKind),
 		resource.WithManagedBinder(resource.NewAPIManagedStatusBinder(mgr.GetClient())),
 		resource.WithManagedFinalizer(resource.NewAPIManagedStatusUnbinder(mgr.GetClient())),
@@ -68,9 +70,9 @@ func ConfigureContainer(_ context.Context, cm resource.Claim, cs resource.Class,
 		return errors.Errorf("expected resource claim %s to be %s", cm.GetName(), storagev1alpha1.BucketGroupVersionKind)
 	}
 
-	rs, csok := cs.(*corev1alpha1.ResourceClass)
+	rs, csok := cs.(*v1alpha1.ContainerClass)
 	if !csok {
-		return errors.Errorf("expected resource class %s to be %s", cs.GetName(), corev1alpha1.ResourceClassGroupVersionKind)
+		return errors.Errorf("expected resource class %s to be %s", cs.GetName(), v1alpha1.ContainerClassGroupVersionKind)
 	}
 
 	a, mgok := mg.(*v1alpha1.Container)
@@ -78,13 +80,22 @@ func ConfigureContainer(_ context.Context, cm resource.Claim, cs resource.Class,
 		return errors.Errorf("expected managed resource %s to be %s", mg.GetName(), v1alpha1.ContainerGroupVersionKind)
 	}
 
-	spec := v1alpha1.ParseContainerSpec(rs.Parameters)
-	spec.ReclaimPolicy = rs.ReclaimPolicy
+	spec := &v1alpha1.ContainerSpec{
+		ReclaimPolicy:       corev1alpha1.ReclaimRetain,
+		ContainerParameters: rs.SpecTemplate.ContainerParameters,
+	}
+
+	// NOTE(hasheddan): consider moving defaulting to either CRD or managed reconciler level
+	if spec.Metadata == nil {
+		spec.Metadata = azblob.Metadata{}
+	}
+
+	spec.ReclaimPolicy = rs.SpecTemplate.ReclaimPolicy
 
 	// Azure storage containers read credentials via an Account resource, not an
 	// Azure Crossplane provider. We reuse the 'provider' reference field of the
-	// resource claim.
-	spec.AccountReference = corev1.LocalObjectReference{Name: rs.ProviderReference.Name}
+	// resource class.
+	spec.AccountReference = corev1.LocalObjectReference{Name: rs.SpecTemplate.ProviderReference.Name}
 
 	a.Spec = *spec
 

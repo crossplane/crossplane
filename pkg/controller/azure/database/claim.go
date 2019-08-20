@@ -32,6 +32,8 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/resource"
 )
 
+// NOTE(hasheddan): consider combining into single controller
+
 // PostgreSQLInstanceClaimController is responsible for adding the PostgreSQLInstance
 // claim controller and its corresponding reconciler to the manager with any runtime configuration.
 type PostgreSQLInstanceClaimController struct{}
@@ -40,7 +42,7 @@ type PostgreSQLInstanceClaimController struct{}
 func (c *PostgreSQLInstanceClaimController) SetupWithManager(mgr ctrl.Manager) error {
 	r := resource.NewClaimReconciler(mgr,
 		resource.ClaimKind(databasev1alpha1.PostgreSQLInstanceGroupVersionKind),
-		resource.ClassKind(corev1alpha1.ResourceClassGroupVersionKind),
+		resource.ClassKind(v1alpha1.SQLServerClassGroupVersionKind),
 		resource.ManagedKind(v1alpha1.PostgresqlServerGroupVersionKind),
 		resource.WithManagedConfigurators(
 			resource.ManagedConfiguratorFn(ConfigurePostgresqlServer),
@@ -49,13 +51,11 @@ func (c *PostgreSQLInstanceClaimController) SetupWithManager(mgr ctrl.Manager) e
 
 	name := strings.ToLower(fmt.Sprintf("%s.%s", databasev1alpha1.PostgreSQLInstanceKind, controllerName))
 
-	p := v1alpha1.PostgresqlServerKindAPIVersion
-
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		Watches(&source.Kind{Type: &v1alpha1.PostgresqlServer{}}, &resource.EnqueueRequestForClaim{}).
 		For(&databasev1alpha1.PostgreSQLInstance{}).
-		WithEventFilter(resource.NewPredicates(resource.ObjectHasProvisioner(mgr.GetClient(), p))).
+		WithEventFilter(resource.NewPredicates(resource.HasClassReferenceKind(resource.ClassKind(v1alpha1.SQLServerClassGroupVersionKind)))).
 		Complete(r)
 }
 
@@ -68,9 +68,9 @@ func ConfigurePostgresqlServer(_ context.Context, cm resource.Claim, cs resource
 		return errors.Errorf("expected resource claim %s to be %s", cm.GetName(), databasev1alpha1.PostgreSQLInstanceGroupVersionKind)
 	}
 
-	rs, csok := cs.(*corev1alpha1.ResourceClass)
+	rs, csok := cs.(*v1alpha1.SQLServerClass)
 	if !csok {
-		return errors.Errorf("expected resource class %s to be %s", cs.GetName(), corev1alpha1.ResourceClassGroupVersionKind)
+		return errors.Errorf("expected resource class %s to be %s", cs.GetName(), v1alpha1.SQLServerClassGroupVersionKind)
 	}
 
 	s, mgok := mg.(*v1alpha1.PostgresqlServer)
@@ -78,7 +78,12 @@ func ConfigurePostgresqlServer(_ context.Context, cm resource.Claim, cs resource
 		return errors.Errorf("expected managed resource %s to be %s", mg.GetName(), v1alpha1.PostgresqlServerGroupVersionKind)
 	}
 
-	spec := v1alpha1.NewSQLServerSpec(rs.Parameters)
+	spec := &v1alpha1.SQLServerSpec{
+		ResourceSpec: corev1alpha1.ResourceSpec{
+			ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		},
+		SQLServerParameters: rs.SpecTemplate.SQLServerParameters,
+	}
 	v, err := resource.ResolveClassClaimValues(spec.Version, pg.Spec.EngineVersion)
 	if err != nil {
 		return err
@@ -86,8 +91,8 @@ func ConfigurePostgresqlServer(_ context.Context, cm resource.Claim, cs resource
 	spec.Version = v
 
 	spec.WriteConnectionSecretToReference = corev1.LocalObjectReference{Name: string(cm.GetUID())}
-	spec.ProviderReference = rs.ProviderReference
-	spec.ReclaimPolicy = rs.ReclaimPolicy
+	spec.ProviderReference = rs.SpecTemplate.ProviderReference
+	spec.ReclaimPolicy = rs.SpecTemplate.ReclaimPolicy
 
 	s.Spec = *spec
 
@@ -102,7 +107,7 @@ type MySQLInstanceClaimController struct{}
 func (c *MySQLInstanceClaimController) SetupWithManager(mgr ctrl.Manager) error {
 	r := resource.NewClaimReconciler(mgr,
 		resource.ClaimKind(databasev1alpha1.MySQLInstanceGroupVersionKind),
-		resource.ClassKind(corev1alpha1.ResourceClassGroupVersionKind),
+		resource.ClassKind(v1alpha1.SQLServerClassGroupVersionKind),
 		resource.ManagedKind(v1alpha1.MysqlServerGroupVersionKind),
 		resource.WithManagedConfigurators(
 			resource.ManagedConfiguratorFn(ConfigureMysqlServer),
@@ -111,13 +116,11 @@ func (c *MySQLInstanceClaimController) SetupWithManager(mgr ctrl.Manager) error 
 
 	name := strings.ToLower(fmt.Sprintf("%s.%s", databasev1alpha1.MySQLInstanceKind, controllerName))
 
-	p := v1alpha1.MysqlServerKindAPIVersion
-
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		Watches(&source.Kind{Type: &v1alpha1.MysqlServer{}}, &resource.EnqueueRequestForClaim{}).
 		For(&databasev1alpha1.MySQLInstance{}).
-		WithEventFilter(resource.NewPredicates(resource.ObjectHasProvisioner(mgr.GetClient(), p))).
+		WithEventFilter(resource.NewPredicates(resource.HasClassReferenceKind(resource.ClassKind(v1alpha1.SQLServerClassGroupVersionKind)))).
 		Complete(r)
 }
 
@@ -130,9 +133,9 @@ func ConfigureMysqlServer(_ context.Context, cm resource.Claim, cs resource.Clas
 		return errors.Errorf("expected resource claim %s to be %s", cm.GetName(), databasev1alpha1.MySQLInstanceGroupVersionKind)
 	}
 
-	rs, csok := cs.(*corev1alpha1.ResourceClass)
+	rs, csok := cs.(*v1alpha1.SQLServerClass)
 	if !csok {
-		return errors.Errorf("expected resource class %s to be %s", cs.GetName(), corev1alpha1.ResourceClassGroupVersionKind)
+		return errors.Errorf("expected resource class %s to be %s", cs.GetName(), v1alpha1.SQLServerClassGroupVersionKind)
 	}
 
 	s, mgok := mg.(*v1alpha1.MysqlServer)
@@ -140,7 +143,12 @@ func ConfigureMysqlServer(_ context.Context, cm resource.Claim, cs resource.Clas
 		return errors.Errorf("expected managed resource %s to be %s", mg.GetName(), v1alpha1.MysqlServerGroupVersionKind)
 	}
 
-	spec := v1alpha1.NewSQLServerSpec(rs.Parameters)
+	spec := &v1alpha1.SQLServerSpec{
+		ResourceSpec: corev1alpha1.ResourceSpec{
+			ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		},
+		SQLServerParameters: rs.SpecTemplate.SQLServerParameters,
+	}
 	v, err := resource.ResolveClassClaimValues(spec.Version, my.Spec.EngineVersion)
 	if err != nil {
 		return err
@@ -148,8 +156,8 @@ func ConfigureMysqlServer(_ context.Context, cm resource.Claim, cs resource.Clas
 	spec.Version = v
 
 	spec.WriteConnectionSecretToReference = corev1.LocalObjectReference{Name: string(cm.GetUID())}
-	spec.ProviderReference = rs.ProviderReference
-	spec.ReclaimPolicy = rs.ReclaimPolicy
+	spec.ProviderReference = rs.SpecTemplate.ProviderReference
+	spec.ReclaimPolicy = rs.SpecTemplate.ReclaimPolicy
 
 	s.Spec = *spec
 

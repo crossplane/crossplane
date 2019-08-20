@@ -47,6 +47,14 @@ var (
 	ReplicationGroupGroupVersionKind = SchemeGroupVersion.WithKind(ReplicationGroupKind)
 )
 
+// ReplicationGroupClass type metadata.
+var (
+	ReplicationGroupClassKind             = reflect.TypeOf(ReplicationGroupClass{}).Name()
+	ReplicationGroupClassKindAPIVersion   = ReplicationGroupClassKind + "." + SchemeGroupVersion.String()
+	ReplicationGroupClassGroupVersionKind = SchemeGroupVersion.WithKind(ReplicationGroupClassKind)
+)
+
 func init() {
 	SchemeBuilder.Register(&ReplicationGroup{}, &ReplicationGroupList{})
+	SchemeBuilder.Register(&ReplicationGroupClass{}, &ReplicationGroupClassList{})
 }

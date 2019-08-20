@@ -39,9 +39,9 @@ func ConfigurePostgreSQLCloudsqlInstance(_ context.Context, cm resource.Claim, c
 		return errors.Errorf("expected resource claim %s to be %s", cm.GetName(), databasev1alpha1.PostgreSQLInstanceGroupVersionKind)
 	}
 
-	rs, csok := cs.(*corev1alpha1.ResourceClass)
+	rs, csok := cs.(*v1alpha1.CloudsqlInstanceClass)
 	if !csok {
-		return errors.Errorf("expected resource class %s to be %s", cs.GetName(), corev1alpha1.ResourceClassGroupVersionKind)
+		return errors.Errorf("expected resource class %s to be %s", cs.GetName(), v1alpha1.CloudsqlInstanceClassGroupVersionKind)
 	}
 
 	i, mgok := mg.(*v1alpha1.CloudsqlInstance)
@@ -49,7 +49,12 @@ func ConfigurePostgreSQLCloudsqlInstance(_ context.Context, cm resource.Claim, c
 		return errors.Errorf("expected managed instance %s to be %s", mg.GetName(), v1alpha1.CloudsqlInstanceGroupVersionKind)
 	}
 
-	spec := v1alpha1.NewCloudSQLInstanceSpec(rs.Parameters)
+	spec := &v1alpha1.CloudsqlInstanceSpec{
+		ResourceSpec: corev1alpha1.ResourceSpec{
+			ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		},
+		CloudsqlInstanceParameters: rs.SpecTemplate.CloudsqlInstanceParameters,
+	}
 	translated := translateVersion(pg.Spec.EngineVersion, v1alpha1.PostgresqlDBVersionPrefix)
 	v, err := resource.ResolveClassClaimValues(spec.DatabaseVersion, translated)
 	if err != nil {
@@ -57,9 +62,12 @@ func ConfigurePostgreSQLCloudsqlInstance(_ context.Context, cm resource.Claim, c
 	}
 	spec.DatabaseVersion = v
 
+	// NOTE(hasheddan): consider moving defaulting to either CRD or managed reconciler level
+	checkEmptySpec(spec)
+
 	spec.WriteConnectionSecretToReference = corev1.LocalObjectReference{Name: string(cm.GetUID())}
-	spec.ProviderReference = rs.ProviderReference
-	spec.ReclaimPolicy = rs.ReclaimPolicy
+	spec.ProviderReference = rs.SpecTemplate.ProviderReference
+	spec.ReclaimPolicy = rs.SpecTemplate.ReclaimPolicy
 
 	i.Spec = *spec
 
@@ -75,9 +83,9 @@ func ConfigureMyCloudsqlInstance(_ context.Context, cm resource.Claim, cs resour
 		return errors.Errorf("expected instance claim %s to be %s", cm.GetName(), databasev1alpha1.MySQLInstanceGroupVersionKind)
 	}
 
-	rs, csok := cs.(*corev1alpha1.ResourceClass)
+	rs, csok := cs.(*v1alpha1.CloudsqlInstanceClass)
 	if !csok {
-		return errors.Errorf("expected resource class %s to be %s", cs.GetName(), corev1alpha1.ResourceClassGroupVersionKind)
+		return errors.Errorf("expected resource class %s to be %s", cs.GetName(), v1alpha1.CloudsqlInstanceClassGroupVersionKind)
 	}
 
 	i, mgok := mg.(*v1alpha1.CloudsqlInstance)
@@ -85,7 +93,13 @@ func ConfigureMyCloudsqlInstance(_ context.Context, cm resource.Claim, cs resour
 		return errors.Errorf("expected managed resource %s to be %s", mg.GetName(), v1alpha1.CloudsqlInstanceGroupVersionKind)
 	}
 
-	spec := v1alpha1.NewCloudSQLInstanceSpec(rs.Parameters)
+	spec := &v1alpha1.CloudsqlInstanceSpec{
+		ResourceSpec: corev1alpha1.ResourceSpec{
+			ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		},
+		CloudsqlInstanceParameters: rs.SpecTemplate.CloudsqlInstanceParameters,
+	}
+
 	translated := translateVersion(my.Spec.EngineVersion, v1alpha1.MysqlDBVersionPrefix)
 	v, err := resource.ResolveClassClaimValues(spec.DatabaseVersion, translated)
 	if err != nil {
@@ -93,9 +107,12 @@ func ConfigureMyCloudsqlInstance(_ context.Context, cm resource.Claim, cs resour
 	}
 	spec.DatabaseVersion = v
 
+	// NOTE(hasheddan): consider moving defaulting to either CRD or managed reconciler level
+	checkEmptySpec(spec)
+
 	spec.WriteConnectionSecretToReference = corev1.LocalObjectReference{Name: string(cm.GetUID())}
-	spec.ProviderReference = rs.ProviderReference
-	spec.ReclaimPolicy = rs.ReclaimPolicy
+	spec.ProviderReference = rs.SpecTemplate.ProviderReference
+	spec.ReclaimPolicy = rs.SpecTemplate.ReclaimPolicy
 
 	i.Spec = *spec
 
@@ -107,4 +124,16 @@ func translateVersion(version, versionPrefix string) string {
 		return ""
 	}
 	return fmt.Sprintf("%s_%s", versionPrefix, strings.Replace(version, ".", "_", -1))
+}
+
+func checkEmptySpec(spec *v1alpha1.CloudsqlInstanceSpec) {
+	if spec.Labels == nil {
+		spec.Labels = map[string]string{}
+	}
+	if spec.AuthorizedNetworks == nil {
+		spec.AuthorizedNetworks = []string{}
+	}
+	if spec.StorageGB == 0 {
+		spec.StorageGB = v1alpha1.DefaultStorageGB
+	}
 }

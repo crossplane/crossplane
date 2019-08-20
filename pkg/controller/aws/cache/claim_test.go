@@ -48,7 +48,7 @@ func TestConfigureReplicationGroup(t *testing.T) {
 	type args struct {
 		ctx context.Context
 		cm  resource.Claim
-		cs  *corev1alpha1.ResourceClass
+		cs  resource.Class
 		mg  resource.Managed
 	}
 
@@ -70,9 +70,13 @@ func TestConfigureReplicationGroup(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{UID: claimUID},
 					Spec:       cachev1alpha1.RedisClusterSpec{EngineVersion: "3.2"},
 				},
-				cs: &corev1alpha1.ResourceClass{
-					ProviderReference: &corev1.ObjectReference{Name: providerName},
-					ReclaimPolicy:     corev1alpha1.ReclaimDelete,
+				cs: &v1alpha1.ReplicationGroupClass{
+					SpecTemplate: v1alpha1.ReplicationGroupClassSpecTemplate{
+						ResourceClassSpecTemplate: corev1alpha1.ResourceClassSpecTemplate{
+							ProviderReference: &corev1.ObjectReference{Name: providerName},
+							ReclaimPolicy:     corev1alpha1.ReclaimDelete,
+						},
+					},
 				},
 				mg: &v1alpha1.ReplicationGroup{},
 			},
@@ -84,7 +88,9 @@ func TestConfigureReplicationGroup(t *testing.T) {
 							WriteConnectionSecretToReference: corev1.LocalObjectReference{Name: string(claimUID)},
 							ProviderReference:                &corev1.ObjectReference{Name: providerName},
 						},
-						EngineVersion: "3.2.10",
+						ReplicationGroupParameters: v1alpha1.ReplicationGroupParameters{
+							EngineVersion: "3.2.10",
+						},
 					},
 				},
 				err: nil,
@@ -121,17 +127,29 @@ func TestResolveAWSClassValues(t *testing.T) {
 			wantErr: nil,
 		},
 		{
-			name:    "ClassSetClaimUnset",
-			class:   &v1alpha1.ReplicationGroupSpec{EngineVersion: awsClassVersion32},
-			claim:   &cachev1alpha1.RedisCluster{},
-			want:    &v1alpha1.ReplicationGroupSpec{EngineVersion: awsClassVersion32},
+			name: "ClassSetClaimUnset",
+			class: &v1alpha1.ReplicationGroupSpec{
+				ReplicationGroupParameters: v1alpha1.ReplicationGroupParameters{
+					EngineVersion: awsClassVersion32,
+				},
+			},
+			claim: &cachev1alpha1.RedisCluster{},
+			want: &v1alpha1.ReplicationGroupSpec{
+				ReplicationGroupParameters: v1alpha1.ReplicationGroupParameters{
+					EngineVersion: awsClassVersion32,
+				},
+			},
 			wantErr: nil,
 		},
 		{
-			name:    "ClassUnsetClaimSet",
-			class:   &v1alpha1.ReplicationGroupSpec{},
-			claim:   &cachev1alpha1.RedisCluster{Spec: cachev1alpha1.RedisClusterSpec{EngineVersion: claimVersion32}},
-			want:    &v1alpha1.ReplicationGroupSpec{EngineVersion: awsClassVersion32},
+			name:  "ClassUnsetClaimSet",
+			class: &v1alpha1.ReplicationGroupSpec{},
+			claim: &cachev1alpha1.RedisCluster{Spec: cachev1alpha1.RedisClusterSpec{EngineVersion: claimVersion32}},
+			want: &v1alpha1.ReplicationGroupSpec{
+				ReplicationGroupParameters: v1alpha1.ReplicationGroupParameters{
+					EngineVersion: awsClassVersion32,
+				},
+			},
 			wantErr: nil,
 		},
 		{
@@ -142,17 +160,33 @@ func TestResolveAWSClassValues(t *testing.T) {
 			wantErr: errors.WithStack(errors.Errorf("cannot resolve class claim values: minor version %s is not currently supported", claimversion99)),
 		},
 		{
-			name:    "ClassSetClaimSetMatching",
-			class:   &v1alpha1.ReplicationGroupSpec{EngineVersion: awsClassVersion32},
-			claim:   &cachev1alpha1.RedisCluster{Spec: cachev1alpha1.RedisClusterSpec{EngineVersion: claimVersion32}},
-			want:    &v1alpha1.ReplicationGroupSpec{EngineVersion: awsClassVersion32},
+			name: "ClassSetClaimSetMatching",
+			class: &v1alpha1.ReplicationGroupSpec{
+				ReplicationGroupParameters: v1alpha1.ReplicationGroupParameters{
+					EngineVersion: awsClassVersion32,
+				},
+			},
+			claim: &cachev1alpha1.RedisCluster{Spec: cachev1alpha1.RedisClusterSpec{EngineVersion: claimVersion32}},
+			want: &v1alpha1.ReplicationGroupSpec{
+				ReplicationGroupParameters: v1alpha1.ReplicationGroupParameters{
+					EngineVersion: awsClassVersion32,
+				},
+			},
 			wantErr: nil,
 		},
 		{
-			name:    "ClassSetClaimSetConflict",
-			class:   &v1alpha1.ReplicationGroupSpec{EngineVersion: awsClassVersion32},
-			claim:   &cachev1alpha1.RedisCluster{Spec: cachev1alpha1.RedisClusterSpec{EngineVersion: claimVersion40}},
-			want:    &v1alpha1.ReplicationGroupSpec{EngineVersion: awsClassVersion32},
+			name: "ClassSetClaimSetConflict",
+			class: &v1alpha1.ReplicationGroupSpec{
+				ReplicationGroupParameters: v1alpha1.ReplicationGroupParameters{
+					EngineVersion: awsClassVersion32,
+				},
+			},
+			claim: &cachev1alpha1.RedisCluster{Spec: cachev1alpha1.RedisClusterSpec{EngineVersion: claimVersion40}},
+			want: &v1alpha1.ReplicationGroupSpec{
+				ReplicationGroupParameters: v1alpha1.ReplicationGroupParameters{
+					EngineVersion: awsClassVersion32,
+				},
+			},
 			wantErr: errors.WithStack(errors.Errorf("cannot resolve class claim values: class version %s is not a patch of claim version %s", awsClassVersion32, claimVersion40)),
 		},
 	}

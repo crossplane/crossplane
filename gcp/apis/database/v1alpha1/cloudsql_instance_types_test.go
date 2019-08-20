@@ -83,80 +83,6 @@ func TestStorageCloudsqlInstance(t *testing.T) {
 	g.Expect(c.Get(ctx, key, fetched)).To(gomega.HaveOccurred())
 }
 
-func TestNewCloudSQLInstanceSpec(t *testing.T) {
-	tests := map[string]struct {
-		args map[string]string
-		want *CloudsqlInstanceSpec
-	}{
-		"Default": {
-			args: map[string]string{},
-			want: &CloudsqlInstanceSpec{
-				AuthorizedNetworks: []string{},
-				Labels:             map[string]string{},
-				ResourceSpec: corev1alpha1.ResourceSpec{
-					ReclaimPolicy: corev1alpha1.ReclaimRetain,
-				},
-				StorageGB: DefaultStorageGB,
-			},
-		},
-		"Values": {
-			args: map[string]string{
-				"databaseVersion": "POSTGRES_9_6",
-				"labels":          "foo:bar,fizz:buzz,foo:notbar",
-				"region":          "far-far-away",
-				"storageGB":       "42",
-				"storageType":     "special",
-			},
-			want: &CloudsqlInstanceSpec{
-				AuthorizedNetworks: []string{},
-				DatabaseVersion:    "POSTGRES_9_6",
-				Labels: map[string]string{
-					"fizz": "buzz",
-					"foo":  "notbar",
-				},
-				ResourceSpec: corev1alpha1.ResourceSpec{
-					ReclaimPolicy: corev1alpha1.ReclaimRetain,
-				},
-				Region:      "far-far-away",
-				StorageGB:   42,
-				StorageType: "special",
-			},
-		},
-		"SomeInvalidValues": {
-			args: map[string]string{
-				"authorizedNetworks": "1.1.1.1/1,0.0.0.0/0",
-				"databaseVersion":    "POSTGRES_9_6",
-				"labels":             "foo:bar,fizz:buzz,foo:notbar",
-				"region":             "far-far-away",
-				"storageGB":          "forty-two",
-				"storageType":        "special",
-			},
-			want: &CloudsqlInstanceSpec{
-				AuthorizedNetworks: []string{"1.1.1.1/1", "0.0.0.0/0"},
-				DatabaseVersion:    "POSTGRES_9_6",
-				Labels: map[string]string{
-					"fizz": "buzz",
-					"foo":  "notbar",
-				},
-				ResourceSpec: corev1alpha1.ResourceSpec{
-					ReclaimPolicy: corev1alpha1.ReclaimRetain,
-				},
-				Region:      "far-far-away",
-				StorageGB:   DefaultStorageGB,
-				StorageType: "special",
-			},
-		},
-	}
-	for name, tt := range tests {
-		t.Run(name, func(t *testing.T) {
-			got := NewCloudSQLInstanceSpec(tt.args)
-			if diff := cmp.Diff(tt.want, got); diff != "" {
-				t.Errorf("NewCloudSQLInstanceSpec() -want, +got: %s", diff)
-			}
-		})
-	}
-}
-
 func TestCloudsqlInstance_ConnectionSecret(t *testing.T) {
 	tests := map[string]struct {
 		fields *CloudsqlInstance
@@ -165,7 +91,9 @@ func TestCloudsqlInstance_ConnectionSecret(t *testing.T) {
 		"Default": {
 			fields: &CloudsqlInstance{
 				Spec: CloudsqlInstanceSpec{
-					DatabaseVersion: "POSTGRES_9_6",
+					CloudsqlInstanceParameters: CloudsqlInstanceParameters{
+						DatabaseVersion: "POSTGRES_9_6",
+					},
 				},
 			},
 			want: map[string][]byte{
@@ -210,13 +138,15 @@ func TestCloudsqlInstance_DatabaseInstance(t *testing.T) {
 		"WithSpecs": {
 			fields: fields{
 				Spec: CloudsqlInstanceSpec{
-					AuthorizedNetworks: []string{"foo", "bar"},
-					DatabaseVersion:    "test-version",
-					Labels:             map[string]string{"fooz": "booz"},
-					Region:             "test-region",
-					StorageGB:          42,
-					StorageType:        "test-storage",
-					Tier:               "test-tier",
+					CloudsqlInstanceParameters: CloudsqlInstanceParameters{
+						AuthorizedNetworks: []string{"foo", "bar"},
+						DatabaseVersion:    "test-version",
+						Labels:             map[string]string{"fooz": "booz"},
+						Region:             "test-region",
+						StorageGB:          42,
+						StorageType:        "test-storage",
+						Tier:               "test-tier",
+					},
 				},
 			},
 			args: args{name: "test-name"},
@@ -261,11 +191,19 @@ func TestCloudsqlInstance_DatabaseUserName(t *testing.T) {
 			want: MysqlDefaultUser,
 		},
 		"Postgres": {
-			spec: CloudsqlInstanceSpec{DatabaseVersion: "POSTGRES_9_6"},
+			spec: CloudsqlInstanceSpec{
+				CloudsqlInstanceParameters: CloudsqlInstanceParameters{
+					DatabaseVersion: "POSTGRES_9_6",
+				},
+			},
 			want: PostgresqlDefaultUser,
 		},
 		"MySQL": {
-			spec: CloudsqlInstanceSpec{DatabaseVersion: "MYSQL_5_7"},
+			spec: CloudsqlInstanceSpec{
+				CloudsqlInstanceParameters: CloudsqlInstanceParameters{
+					DatabaseVersion: "MYSQL_5_7",
+				},
+			},
 			want: MysqlDefaultUser,
 		},
 	}
@@ -306,7 +244,9 @@ func TestCloudsqlInstance_GetResourceName(t *testing.T) {
 			fields: fields{
 				meta: om,
 				spec: CloudsqlInstanceSpec{
-					NameFormat: "foo-%s",
+					CloudsqlInstanceParameters: CloudsqlInstanceParameters{
+						NameFormat: "foo-%s",
+					},
 				},
 			},
 			want: "foo-test-uid",
@@ -315,7 +255,9 @@ func TestCloudsqlInstance_GetResourceName(t *testing.T) {
 			fields: fields{
 				meta: om,
 				spec: CloudsqlInstanceSpec{
-					NameFormat: "foo-bar",
+					CloudsqlInstanceParameters: CloudsqlInstanceParameters{
+						NameFormat: "foo-bar",
+					},
 				},
 			},
 			want: "foo-bar",
@@ -324,7 +266,9 @@ func TestCloudsqlInstance_GetResourceName(t *testing.T) {
 			fields: fields{
 				meta: om,
 				spec: CloudsqlInstanceSpec{
-					NameFormat: "foo-%s-bar-%s",
+					CloudsqlInstanceParameters: CloudsqlInstanceParameters{
+						NameFormat: "foo-%s-bar-%s",
+					},
 				},
 			},
 			want: "foo-test-uid-bar-%!s(MISSING)",

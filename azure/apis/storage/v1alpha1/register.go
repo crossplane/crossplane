@@ -47,6 +47,13 @@ var (
 	AccountGroupVersionKind = SchemeGroupVersion.WithKind(AccountKind)
 )
 
+// AccountClass type metadata.
+var (
+	AccountClassKind             = reflect.TypeOf(AccountClass{}).Name()
+	AccountClassKindAPIVersion   = AccountClassKind + "." + SchemeGroupVersion.String()
+	AccountClassGroupVersionKind = SchemeGroupVersion.WithKind(AccountClassKind)
+)
+
 // Container type metadata.
 var (
 	ContainerKind             = reflect.TypeOf(Container{}).Name()
@@ -54,7 +61,16 @@ var (
 	ContainerGroupVersionKind = SchemeGroupVersion.WithKind(ContainerKind)
 )
 
+// ContainerClass type metadata.
+var (
+	ContainerClassKind             = reflect.TypeOf(ContainerClass{}).Name()
+	ContainerClassKindAPIVersion   = ContainerClassKind + "." + SchemeGroupVersion.String()
+	ContainerClassGroupVersionKind = SchemeGroupVersion.WithKind(ContainerClassKind)
+)
+
 func init() {
 	SchemeBuilder.Register(&Account{}, &AccountList{})
+	SchemeBuilder.Register(&AccountClass{}, &AccountClassList{})
 	SchemeBuilder.Register(&Container{}, &ContainerList{})
+	SchemeBuilder.Register(&ContainerClass{}, &ContainerClassList{})
 }

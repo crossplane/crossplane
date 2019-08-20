@@ -18,10 +18,9 @@ package v1alpha1
 
 import (
 	"fmt"
-	"strconv"
-	"strings"
 
 	"github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/resource"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -62,10 +61,8 @@ var (
 	}
 )
 
-// EKSClusterSpec specifies the configuration for an EKS cluster.
-type EKSClusterSpec struct {
-	v1alpha1.ResourceSpec `json:",inline"`
-
+// EKSClusterParameters defines the desired state of EKSCluster
+type EKSClusterParameters struct {
 	// Configuration of this Spec is dependent on the readme as described here
 	// https://docs.aws.amazon.com/eks/latest/userguide/getting-started.html
 
@@ -153,6 +150,12 @@ type EKSClusterSpec struct {
 	//  groups:
 	//    - system:masters
 	MapUsers []MapUser `json:"mapUsers,omitempty"`
+}
+
+// EKSClusterSpec specifies the configuration for an EKS cluster.
+type EKSClusterSpec struct {
+	v1alpha1.ResourceSpec `json:",inline"`
+	EKSClusterParameters  `json:",inline"`
 }
 
 // MapRole maps an aws role to kubernetes groups
@@ -306,54 +309,44 @@ type EKSClusterList struct {
 	Items           []EKSCluster `json:"items"`
 }
 
-// NewEKSClusterSpec from properties map
-func NewEKSClusterSpec(properties map[string]string) *EKSClusterSpec {
-	spec := &EKSClusterSpec{
-		ResourceSpec: v1alpha1.ResourceSpec{
-			ReclaimPolicy: v1alpha1.ReclaimRetain,
-		},
-		Region:           EKSRegion(properties["region"]),
-		RoleARN:          properties["roleARN"],
-		VpcID:            properties["vpcId"],
-		ClusterVersion:   properties["clusterVersion"],
-		SubnetIds:        parseSlice(properties["subnetIds"]),
-		SecurityGroupIds: parseSlice(properties["securityGroupIds"]),
-		WorkerNodes: WorkerNodesSpec{
-			KeyName:                          properties["workerKeyName"],
-			NodeImageID:                      properties["workerNodeImageId"],
-			NodeInstanceType:                 properties["workerNodeInstanceType"],
-			BootstrapArguments:               properties["workerBootstrapArguments"],
-			NodeGroupName:                    properties["workerNodeGroupName"],
-			ClusterControlPlaneSecurityGroup: properties["workerClusterControlPlaneSecurityGroup"],
-		},
-	}
-
-	if size, err := strconv.Atoi(properties["workerNodeAutoScalingGroupMinSize"]); err == nil {
-		spec.WorkerNodes.NodeAutoScalingGroupMinSize = &size
-	}
-
-	if size, err := strconv.Atoi(properties["workerNodeAutoScalingGroupMaxSize"]); err == nil {
-		spec.WorkerNodes.NodeAutoScalingGroupMaxSize = &size
-	}
-
-	if size, err := strconv.Atoi(properties["workerNodeVolumeSize"]); err == nil {
-		spec.WorkerNodes.NodeVolumeSize = &size
-	}
-
-	return spec
+// EKSClusterClassSpecTemplate is the Schema for the resource class
+type EKSClusterClassSpecTemplate struct {
+	v1alpha1.ResourceClassSpecTemplate `json:",inline"`
+	EKSClusterParameters               `json:",inline"`
 }
 
-// parseSlice parses a string of comma separated strings, for example
-// "value1, value2", into a string slice.
-func parseSlice(s string) []string {
-	if s == "" {
-		return nil
-	}
-	sl := make([]string, 0, strings.Count(s, ",")+1)
-	for _, sub := range strings.Split(s, ",") {
-		sl = append(sl, strings.TrimSpace(sub))
-	}
-	return sl
+var _ resource.Class = &EKSClusterClass{}
+
+// +kubebuilder:object:root=true
+
+// EKSClusterClass is the Schema for the resource class
+// +kubebuilder:printcolumn:name="PROVIDER-REF",type="string",JSONPath=".specTemplate.providerRef.name"
+// +kubebuilder:printcolumn:name="RECLAIM-POLICY",type="string",JSONPath=".specTemplate.reclaimPolicy"
+// +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
+type EKSClusterClass struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	SpecTemplate EKSClusterClassSpecTemplate `json:"specTemplate,omitempty"`
+}
+
+// GetReclaimPolicy of this EKSClusterClass.
+func (i *EKSClusterClass) GetReclaimPolicy() v1alpha1.ReclaimPolicy {
+	return i.SpecTemplate.ReclaimPolicy
+}
+
+// SetReclaimPolicy of this EKSClusterClass.
+func (i *EKSClusterClass) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) {
+	i.SpecTemplate.ReclaimPolicy = p
+}
+
+// +kubebuilder:object:root=true
+
+// EKSClusterClassList contains a list of cloud memorystore resource classes.
+type EKSClusterClassList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []EKSClusterClass `json:"items"`
 }
 
 // GetRegionAMI returns the default ami id for a given EKS region

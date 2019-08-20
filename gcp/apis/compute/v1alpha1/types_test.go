@@ -20,7 +20,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
 	. "github.com/onsi/gomega"
 	core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -55,12 +54,14 @@ func TestGKECluster(t *testing.T) {
 	created := &GKECluster{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
 		Spec: GKEClusterSpec{
-			ClusterVersion: "1.1.1",
-			NumNodes:       int64(1),
-			Zone:           "us-central1-a",
-			MachineType:    "n1-standard-1",
 			ResourceSpec: v1alpha1.ResourceSpec{
 				ProviderReference: &core.ObjectReference{},
+			},
+			GKEClusterParameters: GKEClusterParameters{
+				ClusterVersion: "1.1.1",
+				NumNodes:       int64(1),
+				Zone:           "us-central1-a",
+				MachineType:    "n1-standard-1",
 			},
 		},
 	}
@@ -84,133 +85,4 @@ func TestGKECluster(t *testing.T) {
 	// Test Delete
 	g.Expect(c.Delete(ctx, fetched)).NotTo(HaveOccurred())
 	g.Expect(c.Get(ctx, key, fetched)).To(HaveOccurred())
-}
-
-func TestParseClusterSpec(t *testing.T) {
-	tests := []struct {
-		name string
-		args map[string]string
-		want *GKEClusterSpec
-	}{
-		{
-			name: "NilProperties",
-			args: nil,
-			want: &GKEClusterSpec{
-				ResourceSpec: v1alpha1.ResourceSpec{
-					ReclaimPolicy: DefaultReclaimPolicy,
-				},
-				EnableIPAlias: false,
-				Labels:        map[string]string{},
-				NumNodes:      1,
-				Scopes:        []string{},
-			},
-		},
-		{
-			name: "EmptyProperties",
-			args: map[string]string{},
-			want: &GKEClusterSpec{
-				ResourceSpec: v1alpha1.ResourceSpec{
-					ReclaimPolicy: DefaultReclaimPolicy,
-				},
-				EnableIPAlias: false,
-				Labels:        map[string]string{},
-				NumNodes:      1,
-				Scopes:        []string{},
-			},
-		},
-		{
-			name: "ValidValues",
-			args: map[string]string{
-				"enableIPAlias":    "true",
-				"machineType":      "test-machine",
-				"numNodes":         "3",
-				"scopes":           "foo,bar",
-				"zone":             "test-zone",
-				"createSubnetwork": "true",
-				"clusterVersion":   "1.11",
-			},
-			want: &GKEClusterSpec{
-				ResourceSpec: v1alpha1.ResourceSpec{
-					ReclaimPolicy: DefaultReclaimPolicy,
-				},
-				EnableIPAlias:    true,
-				CreateSubnetwork: true,
-				Labels:           map[string]string{},
-				MachineType:      "test-machine",
-				NumNodes:         3,
-				Scopes:           []string{"foo", "bar"},
-				Zone:             "test-zone",
-				ClusterVersion:   "1.11",
-			},
-		},
-		{
-			name: "InvalidValues",
-			args: map[string]string{
-				"enableIPAlias": "really",
-				"machineType":   "test-machine",
-				"numNodes":      "3.3",
-				"scopes":        "foo,bar",
-				"zone":          "test-zone",
-			},
-			want: &GKEClusterSpec{
-				ResourceSpec: v1alpha1.ResourceSpec{
-					ReclaimPolicy: DefaultReclaimPolicy,
-				},
-				Labels:        map[string]string{},
-				EnableIPAlias: false,
-				MachineType:   "test-machine",
-				NumNodes:      1,
-				Scopes:        []string{"foo", "bar"},
-				Zone:          "test-zone",
-			},
-		},
-		{
-			name: "Defaults",
-			args: map[string]string{
-				"machineType": "test-machine",
-				"zone":        "test-zone",
-			},
-			want: &GKEClusterSpec{
-				ResourceSpec: v1alpha1.ResourceSpec{
-					ReclaimPolicy: DefaultReclaimPolicy,
-				},
-				EnableIPAlias: false,
-				Labels:        map[string]string{},
-				MachineType:   "test-machine",
-				NumNodes:      1,
-				Scopes:        []string{},
-				Zone:          "test-zone",
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := ParseClusterSpec(tt.args)
-			if diff := cmp.Diff(tt.want, got); diff != "" {
-				t.Errorf("ParseClusterSpec(): -want, +got\n%s", diff)
-			}
-		})
-	}
-}
-
-func Test_parseNodesNumber(t *testing.T) {
-	tests := []struct {
-		name string
-		args string
-		want int64
-	}{
-		{name: "Empty", args: "", want: DefaultNumberOfNodes},
-		{name: "Invalid", args: "foo", want: DefaultNumberOfNodes},
-		{name: "0", args: "0", want: int64(0)},
-		{name: "44", args: "44", want: int64(44)},
-		{name: "-44", args: "-44", want: DefaultNumberOfNodes},
-		{name: "1.2", args: "1.2", want: DefaultNumberOfNodes},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := parseNodesNumber(tt.args); got != tt.want {
-				t.Errorf("parseNodesNumber() = %v, want %v", got, tt.want)
-			}
-		})
-	}
 }

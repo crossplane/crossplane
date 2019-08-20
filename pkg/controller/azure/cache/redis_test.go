@@ -150,15 +150,17 @@ func redisResource(rm ...redisResourceModifier) *v1alpha1.Redis {
 				ProviderReference:                &corev1.ObjectReference{Namespace: namespace, Name: providerName},
 				WriteConnectionSecretToReference: corev1.LocalObjectReference{Name: connectionSecretName},
 			},
-			ResourceGroupName:  redisResourceGroupName,
-			Location:           location,
-			RedisConfiguration: redisConfiguration,
-			EnableNonSSLPort:   enableNonSSLPort,
-			ShardCount:         shardCount,
-			SKU: v1alpha1.SKUSpec{
-				Name:     skuName,
-				Family:   skuFamily,
-				Capacity: skuCapacity,
+			RedisParameters: v1alpha1.RedisParameters{
+				ResourceGroupName:  redisResourceGroupName,
+				Location:           location,
+				RedisConfiguration: redisConfiguration,
+				EnableNonSSLPort:   enableNonSSLPort,
+				ShardCount:         shardCount,
+				SKU: v1alpha1.SKUSpec{
+					Name:     skuName,
+					Family:   skuFamily,
+					Capacity: skuCapacity,
+				},
 			},
 		},
 		Status: v1alpha1.RedisStatus{

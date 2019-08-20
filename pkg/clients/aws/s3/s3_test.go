@@ -1,3 +1,19 @@
+/*
+Copyright 2019 The Crossplane Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package s3
 
 import (
@@ -155,7 +171,13 @@ func TestClient_CreateUser(t *testing.T) {
 			ret:             []types.GomegaMatcher{gomega.Equal(key), gomega.Equal(version), gomega.BeNil()},
 		},
 		"BadBucket": {
-			s3Bucket:        &awsstorage.S3Bucket{Spec: awsstorage.S3BucketSpec{LocalPermission: &fakePerm}},
+			s3Bucket: &awsstorage.S3Bucket{
+				Spec: awsstorage.S3BucketSpec{
+					S3BucketParameters: awsstorage.S3BucketParameters{
+						LocalPermission: &fakePerm,
+					},
+				},
+			},
 			createUserRet:   []interface{}{key, nil},
 			createPolicyRet: []interface{}{version, nil},
 			ret:             []types.GomegaMatcher{gomega.BeNil(), gomega.Equal(""), gomega.Equal(errors.New("could not update policy, unknown permission, fake"))},
@@ -213,7 +235,13 @@ func TestClient_UpdateBucketACL(t *testing.T) {
 			ret:     []types.GomegaMatcher{gomega.BeNil()},
 		},
 		"WithACL": {
-			bucket:  &awsstorage.S3Bucket{Spec: awsstorage.S3BucketSpec{CannedACL: &acl}},
+			bucket: &awsstorage.S3Bucket{
+				Spec: awsstorage.S3BucketSpec{
+					S3BucketParameters: awsstorage.S3BucketParameters{
+						CannedACL: &acl,
+					},
+				},
+			},
 			sendRet: []interface{}{&s3.PutBucketAclOutput{}, nil},
 			ret:     []types.GomegaMatcher{gomega.BeNil()},
 		},
@@ -251,7 +279,13 @@ func TestClient_UpdateVersioning(t *testing.T) {
 		ret     []types.GomegaMatcher
 	}{
 		"HappyPath": {
-			bucket:  &awsstorage.S3Bucket{Spec: awsstorage.S3BucketSpec{Versioning: true}},
+			bucket: &awsstorage.S3Bucket{
+				Spec: awsstorage.S3BucketSpec{
+					S3BucketParameters: awsstorage.S3BucketParameters{
+						Versioning: true,
+					},
+				},
+			},
 			sendRet: []interface{}{&s3.PutBucketVersioningOutput{}, nil},
 			ret:     []types.GomegaMatcher{gomega.BeNil()},
 		},
@@ -303,7 +337,13 @@ func TestClient_UpdatePolicyDocument(t *testing.T) {
 			ret:       []types.GomegaMatcher{gomega.Equal(ver), gomega.BeNil()},
 		},
 		"BadBucket": {
-			bucket:    &awsstorage.S3Bucket{Spec: awsstorage.S3BucketSpec{LocalPermission: &fakePerm}},
+			bucket: &awsstorage.S3Bucket{
+				Spec: awsstorage.S3BucketSpec{
+					S3BucketParameters: awsstorage.S3BucketParameters{
+						LocalPermission: &fakePerm,
+					},
+				},
+			},
 			updateRet: []interface{}{ver, nil},
 			ret:       []types.GomegaMatcher{gomega.Equal(""), gomega.Equal(errors.New("could not generate policy, unknown permission, fake"))},
 		},
@@ -475,20 +515,45 @@ func TestCreateBucketInput(t *testing.T) {
 			ret:    &s3.CreateBucketInput{Bucket: new(string), CreateBucketConfiguration: &s3.CreateBucketConfiguration{}},
 		},
 		"NoRegionHasACL": {
-			bucket: &awsstorage.S3Bucket{Spec: awsstorage.S3BucketSpec{CannedACL: &acl}},
-			ret:    &s3.CreateBucketInput{Bucket: new(string), CreateBucketConfiguration: &s3.CreateBucketConfiguration{}, ACL: acl},
+			bucket: &awsstorage.S3Bucket{
+				Spec: awsstorage.S3BucketSpec{
+					S3BucketParameters: awsstorage.S3BucketParameters{
+						CannedACL: &acl,
+					},
+				},
+			},
+			ret: &s3.CreateBucketInput{Bucket: new(string), CreateBucketConfiguration: &s3.CreateBucketConfiguration{}, ACL: acl},
 		},
 		"USEast1NoACL": {
-			bucket: &awsstorage.S3Bucket{Spec: awsstorage.S3BucketSpec{Region: regionWithNoConstraint}},
-			ret:    &s3.CreateBucketInput{Bucket: new(string)},
+			bucket: &awsstorage.S3Bucket{
+				Spec: awsstorage.S3BucketSpec{
+					S3BucketParameters: awsstorage.S3BucketParameters{
+						Region: regionWithNoConstraint,
+					},
+				},
+			},
+			ret: &s3.CreateBucketInput{Bucket: new(string)},
 		},
 		"USEast1HasACL": {
-			bucket: &awsstorage.S3Bucket{Spec: awsstorage.S3BucketSpec{Region: regionWithNoConstraint, CannedACL: &acl}},
-			ret:    &s3.CreateBucketInput{Bucket: new(string), ACL: acl},
+			bucket: &awsstorage.S3Bucket{
+				Spec: awsstorage.S3BucketSpec{
+					S3BucketParameters: awsstorage.S3BucketParameters{
+						Region:    regionWithNoConstraint,
+						CannedACL: &acl,
+					},
+				},
+			},
+			ret: &s3.CreateBucketInput{Bucket: new(string), ACL: acl},
 		},
 		"USWest2NoACL": {
-			bucket: &awsstorage.S3Bucket{Spec: awsstorage.S3BucketSpec{Region: "us-west-2"}},
-			ret:    &s3.CreateBucketInput{Bucket: new(string), CreateBucketConfiguration: &s3.CreateBucketConfiguration{LocationConstraint: "us-west-2"}},
+			bucket: &awsstorage.S3Bucket{
+				Spec: awsstorage.S3BucketSpec{
+					S3BucketParameters: awsstorage.S3BucketParameters{
+						Region: "us-west-2",
+					},
+				},
+			},
+			ret: &s3.CreateBucketInput{Bucket: new(string), CreateBucketConfiguration: &s3.CreateBucketConfiguration{LocationConstraint: "us-west-2"}},
 		},
 	}
 

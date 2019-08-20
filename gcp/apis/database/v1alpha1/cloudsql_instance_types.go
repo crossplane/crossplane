@@ -17,7 +17,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"strconv"
 	"strings"
 
 	"github.com/crossplaneio/crossplane/apis/core/v1alpha1"
@@ -50,10 +49,8 @@ const (
 
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// CloudsqlInstanceSpec defines the desired state of CloudsqlInstance
-type CloudsqlInstanceSpec struct {
-	v1alpha1.ResourceSpec `json:",inline"`
-
+// CloudsqlInstanceParameters defines the desired state of CloudsqlInstance
+type CloudsqlInstanceParameters struct {
 	AuthorizedNetworks []string `json:"authorizedNetworks,omitempty"`
 
 	// The database engine (MySQL or PostgreSQL) and its specific version to use, e.g., MYSQL_5_7 or POSTGRES_9_6.
@@ -77,6 +74,12 @@ type CloudsqlInstanceSpec struct {
 	// NameFormat to format resource name passing it a object UID
 	// If not provided, defaults to "%s", i.e. UID value
 	NameFormat string `json:"nameFormat,omitempty"`
+}
+
+// CloudsqlInstanceSpec defines the desired state of CloudsqlInstance
+type CloudsqlInstanceSpec struct {
+	v1alpha1.ResourceSpec      `json:",inline"`
+	CloudsqlInstanceParameters `json:",inline"`
 }
 
 // CloudsqlInstanceStatus defines the observed state of CloudsqlInstance
@@ -173,27 +176,6 @@ type CloudsqlInstanceList struct {
 	Items           []CloudsqlInstance `json:"items"`
 }
 
-// NewCloudSQLInstanceSpec creates a new CloudSQLInstanceSpec based on the given properties map
-func NewCloudSQLInstanceSpec(properties map[string]string) *CloudsqlInstanceSpec {
-	spec := &CloudsqlInstanceSpec{
-		ResourceSpec: v1alpha1.ResourceSpec{
-			ReclaimPolicy: v1alpha1.ReclaimRetain,
-		},
-	}
-	spec.AuthorizedNetworks = util.Split(properties["authorizedNetworks"], ",")
-	spec.DatabaseVersion = properties["databaseVersion"]
-	spec.Labels = util.ParseMap(properties["labels"])
-	spec.Region = properties["region"]
-	spec.StorageType = properties["storageType"]
-	if v, err := strconv.Atoi(properties["storageGB"]); err != nil {
-		spec.StorageGB = DefaultStorageGB
-	} else {
-		spec.StorageGB = int64(v)
-	}
-	spec.Tier = properties["tier"]
-	return spec
-}
-
 // ConnectionSecret returns a connection secret for this instance
 func (i *CloudsqlInstance) ConnectionSecret() *corev1.Secret {
 	s := resource.ConnectionSecretFor(i, CloudsqlInstanceGroupVersionKind)
@@ -282,4 +264,44 @@ func (i *CloudsqlInstance) SetStatus(inst *sqladmin.DatabaseInstance) {
 	if len(inst.IpAddresses) > 0 {
 		i.Status.Endpoint = inst.IpAddresses[0].IpAddress
 	}
+}
+
+// CloudsqlInstanceClassSpecTemplate is the Schema for the resource class
+type CloudsqlInstanceClassSpecTemplate struct {
+	v1alpha1.ResourceClassSpecTemplate `json:",inline"`
+	CloudsqlInstanceParameters         `json:",inline"`
+}
+
+var _ resource.Class = &CloudsqlInstanceClass{}
+
+// +kubebuilder:object:root=true
+
+// CloudsqlInstanceClass is the Schema for the resource class
+// +kubebuilder:printcolumn:name="PROVIDER-REF",type="string",JSONPath=".specTemplate.providerRef.name"
+// +kubebuilder:printcolumn:name="RECLAIM-POLICY",type="string",JSONPath=".specTemplate.reclaimPolicy"
+// +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
+type CloudsqlInstanceClass struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	SpecTemplate CloudsqlInstanceClassSpecTemplate `json:"specTemplate,omitempty"`
+}
+
+// GetReclaimPolicy of this CloudsqlInstanceClass.
+func (i *CloudsqlInstanceClass) GetReclaimPolicy() v1alpha1.ReclaimPolicy {
+	return i.SpecTemplate.ReclaimPolicy
+}
+
+// SetReclaimPolicy of this CloudsqlInstanceClass.
+func (i *CloudsqlInstanceClass) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) {
+	i.SpecTemplate.ReclaimPolicy = p
+}
+
+// +kubebuilder:object:root=true
+
+// CloudsqlInstanceClassList contains a list of cloud memorystore resource classes.
+type CloudsqlInstanceClassList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []CloudsqlInstanceClass `json:"items"`
 }

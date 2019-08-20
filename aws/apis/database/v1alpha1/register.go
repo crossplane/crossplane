@@ -47,6 +47,14 @@ var (
 	RDSInstanceGroupVersionKind = SchemeGroupVersion.WithKind(RDSInstanceKind)
 )
 
+// RDSInstanceClass type metadata.
+var (
+	RDSInstanceClassKind             = reflect.TypeOf(RDSInstanceClass{}).Name()
+	RDSInstanceClassKindAPIVersion   = RDSInstanceClassKind + "." + SchemeGroupVersion.String()
+	RDSInstanceClassGroupVersionKind = SchemeGroupVersion.WithKind(RDSInstanceClassKind)
+)
+
 func init() {
 	SchemeBuilder.Register(&RDSInstance{}, &RDSInstanceList{})
+	SchemeBuilder.Register(&RDSInstanceClass{}, &RDSInstanceClassList{})
 }

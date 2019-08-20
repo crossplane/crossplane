@@ -47,6 +47,14 @@ var (
 	AKSClusterGroupVersionKind = SchemeGroupVersion.WithKind(AKSClusterKind)
 )
 
+// AKSClusterClass type metadata.
+var (
+	AKSClusterClassKind             = reflect.TypeOf(AKSClusterClass{}).Name()
+	AKSClusterClassKindAPIVersion   = AKSClusterClassKind + "." + SchemeGroupVersion.String()
+	AKSClusterClassGroupVersionKind = SchemeGroupVersion.WithKind(AKSClusterClassKind)
+)
+
 func init() {
 	SchemeBuilder.Register(&AKSCluster{}, &AKSClusterList{})
+	SchemeBuilder.Register(&AKSClusterClass{}, &AKSClusterClassList{})
 }

@@ -55,15 +55,17 @@ func TestAKSCluster(t *testing.T) {
 	created := &AKSCluster{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
 		Spec: AKSClusterSpec{
-			Version:           "1.1.1",
-			NodeCount:         to.IntPtr(1),
-			NodeVMSize:        "Standard_B2s",
-			ResourceGroupName: "rg1",
-			Location:          "West US",
-			DNSNamePrefix:     "conductor-aks",
-			DisableRBAC:       true,
 			ResourceSpec: corev1alpha1.ResourceSpec{
 				ProviderReference: &core.ObjectReference{},
+			},
+			AKSClusterParameters: AKSClusterParameters{
+				Version:           "1.1.1",
+				NodeCount:         to.IntPtr(1),
+				NodeVMSize:        "Standard_B2s",
+				ResourceGroupName: "rg1",
+				Location:          "West US",
+				DNSNamePrefix:     "conductor-aks",
+				DisableRBAC:       true,
 			},
 		},
 	}
@@ -87,63 +89,4 @@ func TestAKSCluster(t *testing.T) {
 	// Test Delete
 	g.Expect(c.Delete(ctx, fetched)).NotTo(HaveOccurred())
 	g.Expect(c.Get(ctx, key, fetched)).To(HaveOccurred())
-}
-
-func TestNewAKSClusterSpec(t *testing.T) {
-	g := NewGomegaWithT(t)
-
-	m := make(map[string]string)
-	exp := &AKSClusterSpec{
-		ResourceSpec: corev1alpha1.ResourceSpec{
-			ReclaimPolicy: corev1alpha1.ReclaimRetain,
-		},
-		NodeCount: to.IntPtr(1),
-	}
-
-	g.Expect(NewAKSClusterSpec(m)).To(Equal(exp))
-
-	val := "rg1"
-	m["resourceGroupName"] = val
-	exp.ResourceGroupName = val
-	g.Expect(NewAKSClusterSpec(m)).To(Equal(exp))
-
-	val = "loc1"
-	m["location"] = val
-	exp.Location = val
-	g.Expect(NewAKSClusterSpec(m)).To(Equal(exp))
-
-	val = "1.12.5"
-	m["version"] = val
-	exp.Version = val
-	g.Expect(NewAKSClusterSpec(m)).To(Equal(exp))
-
-	val = "4"
-	m["nodeCount"] = val
-	exp.NodeCount = to.IntPtr(4)
-	g.Expect(NewAKSClusterSpec(m)).To(Equal(exp))
-	// invalid nodeCount value
-	val = "not a number"
-	m["nodeCount"] = val
-	exp.NodeCount = to.IntPtr(1) // value is not changed from default
-	g.Expect(NewAKSClusterSpec(m)).To(Equal(exp))
-
-	val = "Standard_B2s"
-	m["nodeVMSize"] = val
-	exp.NodeVMSize = val
-	g.Expect(NewAKSClusterSpec(m)).To(Equal(exp))
-
-	val = "foo"
-	m["dnsNamePrefix"] = val
-	exp.DNSNamePrefix = val
-	g.Expect(NewAKSClusterSpec(m)).To(Equal(exp))
-
-	val = "true"
-	m["disableRBAC"] = val
-	exp.DisableRBAC = true
-	g.Expect(NewAKSClusterSpec(m)).To(Equal(exp))
-	// invalid disableRBAC value
-	val = "not a bool"
-	m["disableRBAC"] = val
-	exp.DisableRBAC = false // value is not set
-	g.Expect(NewAKSClusterSpec(m)).To(Equal(exp))
 }

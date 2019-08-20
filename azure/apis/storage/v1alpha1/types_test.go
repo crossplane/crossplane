@@ -58,9 +58,11 @@ func TestAzureStorageAccount(t *testing.T) {
 	created := &Account{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
 		Spec: AccountSpec{
-			ResourceGroupName:  "test-group",
-			StorageAccountName: "test-name",
-			StorageAccountSpec: &StorageAccountSpec{},
+			AccountParameters: AccountParameters{
+				ResourceGroupName:  "test-group",
+				StorageAccountName: "test-name",
+				StorageAccountSpec: &StorageAccountSpec{},
+			},
 			ResourceSpec: v1alpha1.ResourceSpec{
 				ProviderReference: &core.ObjectReference{},
 			},
@@ -86,37 +88,6 @@ func TestAzureStorageAccount(t *testing.T) {
 	// Test Delete
 	g.Expect(c.Delete(context.TODO(), fetched)).NotTo(gomega.HaveOccurred())
 	g.Expect(c.Get(context.TODO(), key, fetched)).To(gomega.HaveOccurred())
-}
-
-func TestParseAccountSpec(t *testing.T) {
-	tests := []struct {
-		name string
-		args map[string]string
-		want *AccountSpec
-	}{
-		{
-			name: "parse",
-			args: map[string]string{
-				"storageAccountName": "test-account-name",
-				"storageAccountSpec": storageAccountSpecString,
-			},
-			want: &AccountSpec{
-				ResourceSpec: v1alpha1.ResourceSpec{
-					ReclaimPolicy: v1alpha1.ReclaimRetain,
-				},
-				StorageAccountName: "test-account-name",
-				StorageAccountSpec: storageAccountSpec,
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := ParseAccountSpec(tt.args)
-			if diff := cmp.Diff(got, tt.want); diff != "" {
-				t.Errorf("ParseAccountSpec() = %v, want %v\n%s", got, tt.want, diff)
-			}
-		})
-	}
 }
 
 func TestContainer_GetContainerName(t *testing.T) {
@@ -147,7 +118,9 @@ func TestContainer_GetContainerName(t *testing.T) {
 			fields: fields{
 				ObjectMeta: om,
 				Spec: ContainerSpec{
-					NameFormat: "foo-%s",
+					ContainerParameters: ContainerParameters{
+						NameFormat: "foo-%s",
+					},
 				},
 			},
 			want: "foo-test-uid",
@@ -157,7 +130,9 @@ func TestContainer_GetContainerName(t *testing.T) {
 			fields: fields{
 				ObjectMeta: om,
 				Spec: ContainerSpec{
-					NameFormat: "foo-bar",
+					ContainerParameters: ContainerParameters{
+						NameFormat: "foo-bar",
+					},
 				},
 			},
 			want: "foo-bar",
@@ -167,7 +142,9 @@ func TestContainer_GetContainerName(t *testing.T) {
 			fields: fields{
 				ObjectMeta: om,
 				Spec: ContainerSpec{
-					NameFormat: "foo-%s-bar-%s",
+					ContainerParameters: ContainerParameters{
+						NameFormat: "foo-%s-bar-%s",
+					},
 				},
 			},
 			want: "foo-test-uid-bar-%!s(MISSING)",
@@ -181,48 +158,6 @@ func TestContainer_GetContainerName(t *testing.T) {
 			}
 			if got := c.GetContainerName(); got != tt.want {
 				t.Errorf("Container.GetContainerName() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestParseContainerSpec(t *testing.T) {
-	type args struct {
-		p map[string]string
-	}
-	tests := []struct {
-		name string
-		args args
-		want *ContainerSpec
-	}{
-		{
-			name: "empty",
-			args: args{p: map[string]string{}},
-			want: &ContainerSpec{
-				ReclaimPolicy: v1alpha1.ReclaimRetain,
-				Metadata:      map[string]string{},
-			},
-		},
-		{
-			name: "values",
-			args: args{p: map[string]string{
-				"metadata":         "foo:bar,one:two",
-				"nameFormat":       "test-name",
-				"publicAccessType": "blob",
-			}},
-			want: &ContainerSpec{
-				ReclaimPolicy:    v1alpha1.ReclaimRetain,
-				Metadata:         map[string]string{"foo": "bar", "one": "two"},
-				NameFormat:       "test-name",
-				PublicAccessType: azblob.PublicAccessBlob,
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := ParseContainerSpec(tt.args.p)
-			if diff := cmp.Diff(got, tt.want); diff != "" {
-				t.Errorf("ParseContainerSpec() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
 	}

@@ -47,6 +47,14 @@ var (
 	S3BucketGroupVersionKind = SchemeGroupVersion.WithKind(S3BucketKind)
 )
 
+// S3BucketClass type metadata.
+var (
+	S3BucketClassKind             = reflect.TypeOf(S3BucketClass{}).Name()
+	S3BucketClassKindAPIVersion   = S3BucketClassKind + "." + SchemeGroupVersion.String()
+	S3BucketClassGroupVersionKind = SchemeGroupVersion.WithKind(S3BucketClassKind)
+)
+
 func init() {
 	SchemeBuilder.Register(&S3Bucket{}, &S3BucketList{})
+	SchemeBuilder.Register(&S3BucketClass{}, &S3BucketClassList{})
 }

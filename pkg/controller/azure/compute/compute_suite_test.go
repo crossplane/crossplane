@@ -34,6 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane/azure/apis/compute/v1alpha1"
 	computev1alpha1 "github.com/crossplaneio/crossplane/azure/apis/compute/v1alpha1"
 	azurev1alpha1 "github.com/crossplaneio/crossplane/azure/apis/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/meta"
@@ -153,14 +154,16 @@ func testInstance(p *azurev1alpha1.Provider) *computev1alpha1.AKSCluster {
 				ProviderReference:                meta.ReferenceTo(p, azurev1alpha1.ProviderGroupVersionKind),
 				WriteConnectionSecretToReference: corev1.LocalObjectReference{Name: "coolSecret"},
 			},
-			WriteServicePrincipalSecretTo: corev1.LocalObjectReference{Name: "coolPrincipal"},
-			ResourceGroupName:             "rg1",
-			Location:                      "loc1",
-			Version:                       "1.12.5",
-			NodeCount:                     to.IntPtr(3),
-			NodeVMSize:                    "Standard_F2s_v2",
-			DNSNamePrefix:                 "crossplane-aks",
-			DisableRBAC:                   false,
+			AKSClusterParameters: v1alpha1.AKSClusterParameters{
+				WriteServicePrincipalSecretTo: corev1.LocalObjectReference{Name: "coolPrincipal"},
+				ResourceGroupName:             "rg1",
+				Location:                      "loc1",
+				Version:                       "1.12.5",
+				NodeCount:                     to.IntPtr(3),
+				NodeVMSize:                    "Standard_F2s_v2",
+				DNSNamePrefix:                 "crossplane-aks",
+				DisableRBAC:                   false,
+			},
 		},
 	}
 }

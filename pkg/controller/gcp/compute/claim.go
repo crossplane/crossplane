@@ -40,7 +40,7 @@ type GKEClusterClaimController struct{}
 func (c *GKEClusterClaimController) SetupWithManager(mgr ctrl.Manager) error {
 	r := resource.NewClaimReconciler(mgr,
 		resource.ClaimKind(computev1alpha1.KubernetesClusterGroupVersionKind),
-		resource.ClassKind(corev1alpha1.ResourceClassGroupVersionKind),
+		resource.ClassKind(v1alpha1.GKEClusterClassGroupVersionKind),
 		resource.ManagedKind(v1alpha1.GKEClusterGroupVersionKind),
 		resource.WithManagedConfigurators(
 			resource.ManagedConfiguratorFn(ConfigureGKECluster),
@@ -49,13 +49,11 @@ func (c *GKEClusterClaimController) SetupWithManager(mgr ctrl.Manager) error {
 
 	name := strings.ToLower(fmt.Sprintf("%s.%s", computev1alpha1.KubernetesClusterKind, controllerName))
 
-	p := v1alpha1.GKEClusterKindAPIVersion
-
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		Watches(&source.Kind{Type: &v1alpha1.GKECluster{}}, &resource.EnqueueRequestForClaim{}).
 		For(&computev1alpha1.KubernetesCluster{}).
-		WithEventFilter(resource.NewPredicates(resource.ObjectHasProvisioner(mgr.GetClient(), p))).
+		WithEventFilter(resource.NewPredicates(resource.HasClassReferenceKind(resource.ClassKind(v1alpha1.GKEClusterClassGroupVersionKind)))).
 		Complete(r)
 }
 
@@ -67,9 +65,9 @@ func ConfigureGKECluster(_ context.Context, cm resource.Claim, cs resource.Class
 		return errors.Errorf("expected resource claim %s to be %s", cm.GetName(), computev1alpha1.KubernetesClusterGroupVersionKind)
 	}
 
-	rs, csok := cs.(*corev1alpha1.ResourceClass)
+	rs, csok := cs.(*v1alpha1.GKEClusterClass)
 	if !csok {
-		return errors.Errorf("expected resource class %s to be %s", cs.GetName(), corev1alpha1.ResourceClassGroupVersionKind)
+		return errors.Errorf("expected resource class %s to be %s", cs.GetName(), v1alpha1.GKEClusterClassGroupVersionKind)
 	}
 
 	i, mgok := mg.(*v1alpha1.GKECluster)
@@ -77,10 +75,27 @@ func ConfigureGKECluster(_ context.Context, cm resource.Claim, cs resource.Class
 		return errors.Errorf("expected managed resource %s to be %s", mg.GetName(), v1alpha1.GKEClusterGroupVersionKind)
 	}
 
-	spec := v1alpha1.ParseClusterSpec(rs.Parameters)
+	spec := &v1alpha1.GKEClusterSpec{
+		ResourceSpec: corev1alpha1.ResourceSpec{
+			ReclaimPolicy: v1alpha1.DefaultReclaimPolicy,
+		},
+		GKEClusterParameters: rs.SpecTemplate.GKEClusterParameters,
+	}
+
+	// NOTE(hasheddan): consider moving defaulting to either CRD or managed reconciler level
+	if spec.Labels == nil {
+		spec.Labels = map[string]string{}
+	}
+	if spec.NumNodes == 0 {
+		spec.NumNodes = v1alpha1.DefaultNumberOfNodes
+	}
+	if spec.Scopes == nil {
+		spec.Scopes = []string{}
+	}
+
 	spec.WriteConnectionSecretToReference = corev1.LocalObjectReference{Name: string(cm.GetUID())}
-	spec.ProviderReference = rs.ProviderReference
-	spec.ReclaimPolicy = rs.ReclaimPolicy
+	spec.ProviderReference = rs.SpecTemplate.ProviderReference
+	spec.ReclaimPolicy = rs.SpecTemplate.ReclaimPolicy
 
 	i.Spec = *spec
 

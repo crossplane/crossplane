@@ -39,7 +39,7 @@ func TestConfigureAKSCluster(t *testing.T) {
 	type args struct {
 		ctx context.Context
 		cm  resource.Claim
-		cs  *corev1alpha1.ResourceClass
+		cs  resource.Class
 		mg  resource.Managed
 	}
 
@@ -59,9 +59,13 @@ func TestConfigureAKSCluster(t *testing.T) {
 		"Successful": {
 			args: args{
 				cm: &computev1alpha1.KubernetesCluster{ObjectMeta: metav1.ObjectMeta{UID: claimUID}},
-				cs: &corev1alpha1.ResourceClass{
-					ProviderReference: &corev1.ObjectReference{Name: providerName},
-					ReclaimPolicy:     corev1alpha1.ReclaimDelete,
+				cs: &v1alpha1.AKSClusterClass{
+					SpecTemplate: v1alpha1.AKSClusterClassSpecTemplate{
+						ResourceClassSpecTemplate: corev1alpha1.ResourceClassSpecTemplate{
+							ProviderReference: &corev1.ObjectReference{Name: providerName},
+							ReclaimPolicy:     corev1alpha1.ReclaimDelete,
+						},
+					},
 				},
 				mg: &v1alpha1.AKSCluster{},
 			},
@@ -73,8 +77,10 @@ func TestConfigureAKSCluster(t *testing.T) {
 							WriteConnectionSecretToReference: corev1.LocalObjectReference{Name: string(claimUID)},
 							ProviderReference:                &corev1.ObjectReference{Name: providerName},
 						},
-						NodeCount:                     &nodeCount,
-						WriteServicePrincipalSecretTo: corev1.LocalObjectReference{Name: fmt.Sprintf("principal-%s", claimUID)},
+						AKSClusterParameters: v1alpha1.AKSClusterParameters{
+							NodeCount:                     &nodeCount,
+							WriteServicePrincipalSecretTo: corev1.LocalObjectReference{Name: fmt.Sprintf("principal-%s", claimUID)},
+						},
 					},
 				},
 				err: nil,

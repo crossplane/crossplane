@@ -40,7 +40,7 @@ type BucketClaimController struct{}
 func (c *BucketClaimController) SetupWithManager(mgr ctrl.Manager) error {
 	r := resource.NewClaimReconciler(mgr,
 		resource.ClaimKind(storagev1alpha1.BucketGroupVersionKind),
-		resource.ClassKind(corev1alpha1.ResourceClassGroupVersionKind),
+		resource.ClassKind(v1alpha1.BucketClassGroupVersionKind),
 		resource.ManagedKind(v1alpha1.BucketGroupVersionKind),
 		resource.WithManagedBinder(resource.NewAPIManagedStatusBinder(mgr.GetClient())),
 		resource.WithManagedFinalizer(resource.NewAPIManagedStatusUnbinder(mgr.GetClient())),
@@ -70,9 +70,9 @@ func ConfigureBucket(_ context.Context, cm resource.Claim, cs resource.Class, mg
 		return errors.Errorf("expected resource claim %s to be %s", cm.GetName(), storagev1alpha1.BucketGroupVersionKind)
 	}
 
-	rs, csok := cs.(*corev1alpha1.ResourceClass)
+	rs, csok := cs.(*v1alpha1.BucketClass)
 	if !csok {
-		return errors.Errorf("expected resource class %s to be %s", cs.GetName(), corev1alpha1.ResourceClassGroupVersionKind)
+		return errors.Errorf("expected resource class %s to be %s", cs.GetName(), v1alpha1.BucketClassGroupVersionKind)
 	}
 
 	bmg, mgok := mg.(*v1alpha1.Bucket)
@@ -80,7 +80,12 @@ func ConfigureBucket(_ context.Context, cm resource.Claim, cs resource.Class, mg
 		return errors.Errorf("expected managed resource %s to be %s", mg.GetName(), v1alpha1.BucketGroupVersionKind)
 	}
 
-	spec := v1alpha1.ParseBucketSpec(rs.Parameters)
+	spec := &v1alpha1.BucketSpec{
+		ResourceSpec: corev1alpha1.ResourceSpec{
+			ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		},
+		BucketParameters: rs.SpecTemplate.BucketParameters,
+	}
 
 	// Set Name bucket name if Name value is provided by Bucket Claim spec
 	if bcm.Spec.Name != "" {
@@ -94,8 +99,8 @@ func ConfigureBucket(_ context.Context, cm resource.Claim, cs resource.Class, mg
 	}
 
 	spec.WriteConnectionSecretToReference = corev1.LocalObjectReference{Name: string(cm.GetUID())}
-	spec.ProviderReference = rs.ProviderReference
-	spec.ReclaimPolicy = rs.ReclaimPolicy
+	spec.ProviderReference = rs.SpecTemplate.ProviderReference
+	spec.ReclaimPolicy = rs.SpecTemplate.ReclaimPolicy
 
 	bmg.Spec = *spec
 

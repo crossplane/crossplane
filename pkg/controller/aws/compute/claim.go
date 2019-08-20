@@ -40,7 +40,7 @@ type EKSClusterClaimController struct{}
 func (c *EKSClusterClaimController) SetupWithManager(mgr ctrl.Manager) error {
 	r := resource.NewClaimReconciler(mgr,
 		resource.ClaimKind(computev1alpha1.KubernetesClusterGroupVersionKind),
-		resource.ClassKind(corev1alpha1.ResourceClassGroupVersionKind),
+		resource.ClassKind(v1alpha1.EKSClusterClassGroupVersionKind),
 		resource.ManagedKind(v1alpha1.EKSClusterGroupVersionKind),
 		resource.WithManagedConfigurators(
 			resource.ManagedConfiguratorFn(ConfigureEKSCluster),
@@ -49,13 +49,11 @@ func (c *EKSClusterClaimController) SetupWithManager(mgr ctrl.Manager) error {
 
 	name := strings.ToLower(fmt.Sprintf("%s.%s", computev1alpha1.KubernetesClusterKind, controllerName))
 
-	p := v1alpha1.EKSClusterKindAPIVersion
-
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		Watches(&source.Kind{Type: &v1alpha1.EKSCluster{}}, &resource.EnqueueRequestForClaim{}).
 		For(&computev1alpha1.KubernetesCluster{}).
-		WithEventFilter(resource.NewPredicates(resource.ObjectHasProvisioner(mgr.GetClient(), p))).
+		WithEventFilter(resource.NewPredicates(resource.HasClassReferenceKind(resource.ClassKind(v1alpha1.EKSClusterClassGroupVersionKind)))).
 		Complete(r)
 }
 
@@ -67,9 +65,9 @@ func ConfigureEKSCluster(_ context.Context, cm resource.Claim, cs resource.Class
 		return errors.Errorf("expected resource claim %s to be %s", cm.GetName(), computev1alpha1.KubernetesClusterGroupVersionKind)
 	}
 
-	rs, csok := cs.(*corev1alpha1.ResourceClass)
+	rs, csok := cs.(*v1alpha1.EKSClusterClass)
 	if !csok {
-		return errors.Errorf("expected resource class %s to be %s", cs.GetName(), corev1alpha1.ResourceClassGroupVersionKind)
+		return errors.Errorf("expected resource class %s to be %s", cs.GetName(), v1alpha1.EKSClusterClassGroupVersionKind)
 	}
 
 	i, mgok := mg.(*v1alpha1.EKSCluster)
@@ -77,10 +75,15 @@ func ConfigureEKSCluster(_ context.Context, cm resource.Claim, cs resource.Class
 		return errors.Errorf("expected managed resource %s to be %s", mg.GetName(), v1alpha1.EKSClusterGroupVersionKind)
 	}
 
-	spec := v1alpha1.NewEKSClusterSpec(rs.Parameters)
+	spec := &v1alpha1.EKSClusterSpec{
+		ResourceSpec: corev1alpha1.ResourceSpec{
+			ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		},
+		EKSClusterParameters: rs.SpecTemplate.EKSClusterParameters,
+	}
 	spec.WriteConnectionSecretToReference = corev1.LocalObjectReference{Name: string(cm.GetUID())}
-	spec.ProviderReference = rs.ProviderReference
-	spec.ReclaimPolicy = rs.ReclaimPolicy
+	spec.ProviderReference = rs.SpecTemplate.ProviderReference
+	spec.ReclaimPolicy = rs.SpecTemplate.ReclaimPolicy
 
 	i.Spec = *spec
 

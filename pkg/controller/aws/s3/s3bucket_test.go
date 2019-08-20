@@ -37,6 +37,7 @@ import (
 
 	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
 	storagev1alpha1 "github.com/crossplaneio/crossplane/apis/storage/v1alpha1"
+	"github.com/crossplaneio/crossplane/aws/apis/storage/v1alpha1"
 	. "github.com/crossplaneio/crossplane/aws/apis/storage/v1alpha1"
 	awsv1alpha1 "github.com/crossplaneio/crossplane/aws/apis/v1alpha1"
 	client "github.com/crossplaneio/crossplane/pkg/clients/aws/s3"
@@ -85,8 +86,8 @@ func testResource() *S3Bucket {
 			Namespace: namespace,
 		},
 		Spec: S3BucketSpec{
-			ResourceSpec:    corev1alpha1.ResourceSpec{ProviderReference: &corev1.ObjectReference{}},
-			LocalPermission: &perm,
+			ResourceSpec:       corev1alpha1.ResourceSpec{ProviderReference: &corev1.ObjectReference{}},
+			S3BucketParameters: v1alpha1.S3BucketParameters{LocalPermission: &perm},
 		},
 		Status: S3BucketStatus{
 			IAMUsername: testIAMUsername,
