@@ -111,6 +111,46 @@
   revision = "c3de453c63f4bdb4dadffab9805ec00426c505f7"
 
 [[projects]]
+  digest = "1:9645a7d7bdc9a8604a68751ec6e26a0e9b5a60e6aba55aa78f10b4f0459ceab4"
+  name = "github.com/aws/aws-sdk-go"
+  packages = [
+    "aws",
+    "aws/awserr",
+    "aws/awsutil",
+    "aws/client",
+    "aws/client/metadata",
+    "aws/corehandlers",
+    "aws/credentials",
+    "aws/credentials/ec2rolecreds",
+    "aws/credentials/endpointcreds",
+    "aws/credentials/processcreds",
+    "aws/credentials/stscreds",
+    "aws/csm",
+    "aws/defaults",
+    "aws/ec2metadata",
+    "aws/endpoints",
+    "aws/request",
+    "aws/session",
+    "aws/signer/v4",
+    "internal/ini",
+    "internal/sdkio",
+    "internal/sdkrand",
+    "internal/sdkuri",
+    "internal/shareddefaults",
+    "private/protocol",
+    "private/protocol/ec2query",
+    "private/protocol/query",
+    "private/protocol/query/queryutil",
+    "private/protocol/rest",
+    "private/protocol/xml/xmlutil",
+    "service/ec2",
+    "service/sts",
+  ]
+  pruneopts = "UT"
+  revision = "130ebb7dc1d6b5a940198b47642fc8b20936a65d"
+  version = "v1.16.1"
+
+[[projects]]
   digest = "1:378174897ec9eb7ba43e1d824887022a208b2d8b2de365c63c66a20301e8a578"
   name = "github.com/aws/aws-sdk-go-v2"
   packages = [
@@ -1464,6 +1504,9 @@
     "github.com/aws/aws-sdk-go-v2/service/s3",
     "github.com/aws/aws-sdk-go-v2/service/s3/s3iface",
     "github.com/aws/aws-sdk-go-v2/service/sts",
+    "github.com/aws/aws-sdk-go/aws",
+    "github.com/aws/aws-sdk-go/aws/session",
+    "github.com/aws/aws-sdk-go/service/ec2",
     "github.com/ghodss/yaml",
     "github.com/go-ini/ini",
     "github.com/go-logr/logr",

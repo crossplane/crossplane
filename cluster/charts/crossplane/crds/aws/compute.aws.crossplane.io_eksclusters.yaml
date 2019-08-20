@@ -475,6 +475,9 @@ spec:
             resourceName:
               description: ClusterName identifier
               type: string
+            resourceVersion:
+              description: ClusterVersion identifier
+              type: string
             state:
               description: State of the cluster (see status constants above)
               type: string

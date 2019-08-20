@@ -60,3 +60,7 @@ required = [
   source = "https://github.com/fsnotify/fsnotify.git"
   version="v1.4.7"
 
+
+[[constraint]]
+  name = "github.com/aws/aws-sdk-go"
+  version = "1.16.1"

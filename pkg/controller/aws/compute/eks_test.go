@@ -166,7 +166,7 @@ func TestCreate(t *testing.T) {
 	cluster.ObjectMeta.UID = types.UID("test-uid")
 
 	client := &fake.MockEKSClient{
-		MockCreate: func(string, EKSClusterSpec) (*eks.Cluster, error) { return nil, nil },
+		MockCreate: func(string, EKSClusterSpec) (*eks.Cluster, error) { return &eks.Cluster{}, nil },
 	}
 
 	expectedStatus := corev1alpha1.ConditionedStatus{}
@@ -182,7 +182,7 @@ func TestCreate(t *testing.T) {
 	cluster.ObjectMeta.UID = types.UID("test-uid")
 	errorBadRequest := errors.New("InvalidParameterException")
 	client.MockCreate = func(string, EKSClusterSpec) (*eks.Cluster, error) {
-		return nil, errorBadRequest
+		return &eks.Cluster{}, errorBadRequest
 	}
 	expectedStatus = corev1alpha1.ConditionedStatus{}
 	expectedStatus.SetConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileError(errorBadRequest))
@@ -198,7 +198,7 @@ func TestCreate(t *testing.T) {
 	cluster.ObjectMeta.UID = types.UID("test-uid")
 	errorOther := errors.New("other")
 	client.MockCreate = func(string, EKSClusterSpec) (*eks.Cluster, error) {
-		return nil, errorOther
+		return &eks.Cluster{}, errorOther
 	}
 	expectedStatus = corev1alpha1.ConditionedStatus{}
 	expectedStatus.SetConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileError(errorOther))
@@ -241,7 +241,7 @@ func TestSync(t *testing.T) {
 		MockGet: func(string) (*eks.Cluster, error) {
 			return nil, errorGet
 		},
-		MockCreateWorkerNodes: func(string, EKSClusterSpec) (*eks.ClusterWorkers, error) { return &mockClusterWorker, nil },
+		MockCreateWorkerNodes: func(string, string, EKSClusterSpec) (*eks.ClusterWorkers, error) { return &mockClusterWorker, nil },
 	}
 
 	cl.MockGetWorkerNodes = func(string) (*eks.ClusterWorkers, error) {
@@ -274,7 +274,7 @@ func TestSync(t *testing.T) {
 	}
 
 	errorCreateNodes := errors.New("create nodes")
-	cl.MockCreateWorkerNodes = func(string, EKSClusterSpec) (*eks.ClusterWorkers, error) {
+	cl.MockCreateWorkerNodes = func(string, string, EKSClusterSpec) (*eks.ClusterWorkers, error) {
 		return nil, errorCreateNodes
 	}
 
@@ -291,7 +291,7 @@ func TestSync(t *testing.T) {
 		}, nil
 	}
 
-	cl.MockCreateWorkerNodes = func(string, EKSClusterSpec) (*eks.ClusterWorkers, error) {
+	cl.MockCreateWorkerNodes = func(string, string, EKSClusterSpec) (*eks.ClusterWorkers, error) {
 		return &eks.ClusterWorkers{WorkerStackID: fakeStackID}, nil
 	}
 

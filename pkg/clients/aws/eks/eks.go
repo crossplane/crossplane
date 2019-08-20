@@ -18,6 +18,10 @@ package eks
 
 import (
 	"encoding/base64"
+	"errors"
+	"fmt"
+	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -27,6 +31,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/eks"
 	"github.com/aws/aws-sdk-go-v2/service/eks/eksiface"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
+	aws1_16 "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ec2"
 
 	awscomputev1alpha1 "github.com/crossplaneio/crossplane/aws/apis/compute/v1alpha1"
 	cfc "github.com/crossplaneio/crossplane/pkg/clients/aws/cloudformation"
@@ -41,6 +48,7 @@ const (
 // Cluster crossplane representation of the AWS EKS Cluster
 type Cluster struct {
 	Name     string
+	Version  string
 	ARN      string
 	Status   string
 	Endpoint string
@@ -51,6 +59,7 @@ type Cluster struct {
 func NewCluster(c *eks.Cluster) *Cluster {
 	cluster := &Cluster{
 		Name:     aws.StringValue(c.Name),
+		Version:  aws.StringValue(c.Version),
 		ARN:      aws.StringValue(c.Arn),
 		Status:   string(c.Status),
 		Endpoint: aws.StringValue(c.Endpoint),
@@ -86,21 +95,54 @@ type Client interface {
 	Create(string, awscomputev1alpha1.EKSClusterSpec) (*Cluster, error)
 	Get(string) (*Cluster, error)
 	Delete(string) error
-	CreateWorkerNodes(name string, spec awscomputev1alpha1.EKSClusterSpec) (*ClusterWorkers, error)
+	CreateWorkerNodes(name string, version string, spec awscomputev1alpha1.EKSClusterSpec) (*ClusterWorkers, error)
 	GetWorkerNodes(stackID string) (*ClusterWorkers, error)
 	DeleteWorkerNodes(stackID string) error
 	ConnectionToken(string) (string, error)
 }
 
+// AMIClient the interface for getting AMI images information
+type AMIClient interface {
+	DescribeImages(*ec2.DescribeImagesInput) (*ec2.DescribeImagesOutput, error)
+}
+
 type eksClient struct {
 	eks            eksiface.EKSAPI
+	amiClient      AMIClient
 	sts            *sts.STS
 	cloudformation cfc.Client
 }
 
 // NewClient return new instance of the crossplane client for a specific AWS configuration
 func NewClient(config *aws.Config) Client {
-	return &eksClient{eks.New(*config), sts.New(*config), cfc.NewClient(config)}
+
+	// the current functionality in ec2 instance (describe images) only
+	// is available in aws sdk v1.16+. Since instantiating an ec2 client
+	// uses a session instance, the following uses the existing aws config,
+	// and creates the session for sdk 1.16+
+	// TODO (javad): Remove this once we upgrade aws sdk to 1.16+
+	creds, err := config.Credentials.Retrieve()
+	if err != nil {
+		panic(err)
+	}
+	if err := os.Setenv("AWS_ACCESS_KEY_ID", creds.AccessKeyID); err != nil {
+		panic(err)
+	}
+	if err := os.Setenv("AWS_SECRET_ACCESS_KEY", creds.SecretAccessKey); err != nil {
+		panic(err)
+	}
+	session, err := session.NewSession(&aws1_16.Config{Region: &config.Region})
+	if err != nil {
+		panic(err)
+	}
+	if err := os.Setenv("AWS_ACCESS_KEY_ID", ""); err != nil {
+		panic(err)
+	}
+	if err := os.Setenv("AWS_SECRET_ACCESS_KEY", ""); err != nil {
+		panic(err)
+	}
+
+	return &eksClient{eks.New(*config), ec2.New(session), sts.New(*config), cfc.NewClient(config)}
 }
 
 // Create new EKS cluster
@@ -125,23 +167,20 @@ func (e *eksClient) Create(name string, spec awscomputev1alpha1.EKSClusterSpec) 
 }
 
 // CreateWorkerNodes new EKS cluster workers nodes
-func (e *eksClient) CreateWorkerNodes(name string, spec awscomputev1alpha1.EKSClusterSpec) (*ClusterWorkers, error) {
+func (e *eksClient) CreateWorkerNodes(name string, clusterVersion string, spec awscomputev1alpha1.EKSClusterSpec) (*ClusterWorkers, error) {
 	// Cloud formation create workers
-	nodeImageID := spec.WorkerNodes.NodeImageID
-	if nodeImageID == "" {
-		amiID, err := awscomputev1alpha1.GetRegionAMI(spec.Region)
-		if err != nil {
-			return nil, err
-		}
-		nodeImageID = amiID
+	ami, err := e.getAMIImage(spec.WorkerNodes.NodeImageID, clusterVersion)
+	if err != nil {
+		return nil, err
 	}
+
 	subnetIds := strings.Join(spec.SubnetIds, ",")
 	parameters := map[string]string{
 		"ClusterName":                      name,
 		"VpcId":                            spec.VpcID,
 		"Subnets":                          subnetIds,
 		"KeyName":                          spec.WorkerNodes.KeyName,
-		"NodeImageId":                      nodeImageID,
+		"NodeImageId":                      aws.StringValue(ami.ImageId),
 		"NodeInstanceType":                 spec.WorkerNodes.NodeInstanceType,
 		"BootstrapArguments":               spec.WorkerNodes.BootstrapArguments,
 		"NodeGroupName":                    spec.WorkerNodes.NodeGroupName,
@@ -226,6 +265,80 @@ func (e *eksClient) ConnectionToken(name string) (string, error) {
 	}
 
 	return v1Prefix + base64.RawURLEncoding.EncodeToString([]byte(presignedURLString)), nil
+}
+
+// getAMIImage checks to see if the requested image ID is compatible with the
+// AMI images available for the cluster. If no imageID is provided, it picks the most
+// recent available image.
+func (e *eksClient) getAMIImage(requestedImageID, clusterVersion string) (*ec2.Image, error) {
+	images, err := e.getAvailableImages(clusterVersion)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(images) == 0 {
+		return nil, errors.New("No available AMI images were found for the cluster version in this region")
+	}
+
+	if requestedImageID != "" {
+		return getImageWithID(requestedImageID, images)
+	}
+
+	return getMostRecentImage(images), nil
+}
+
+// getAvailableImages retrieves AMI images available for the cluster.
+func (e *eksClient) getAvailableImages(clusterVersion string) ([]*ec2.Image, error) {
+
+	// make sure the provided cluster version is valid
+	r := regexp.MustCompile(`v?(\d+)\.(\d+)`)
+	versionParts := r.FindStringSubmatch(clusterVersion)
+	if len(versionParts) < 3 {
+		return nil, errors.New("Cluster version is empty or invalid")
+	}
+	versionMajor, versionMinor := versionParts[1], versionParts[2]
+
+	// reconstruct the cluster version off of major and minor
+	version := fmt.Sprintf("%v.%v", versionMajor, versionMinor)
+
+	// ami query
+	filters := map[string][]string{
+		"name":  {fmt.Sprintf("*amazon-eks-node-%v*", version)},
+		"state": {"available"},
+	}
+
+	ec2Filters := []*ec2.Filter{}
+	for name, values := range filters {
+		ec2Filters = append(ec2Filters, &ec2.Filter{Name: aws.String(name), Values: aws.StringSlice(values)})
+	}
+
+	out, err := e.amiClient.DescribeImages(
+		&ec2.DescribeImagesInput{
+			Filters: ec2Filters,
+		})
+
+	return out.Images, err
+}
+
+func getMostRecentImage(images []*ec2.Image) *ec2.Image {
+	var result *ec2.Image
+	for _, img := range images {
+		if result == nil || aws.StringValue(result.CreationDate) < aws.StringValue(img.CreationDate) {
+			result = img
+		}
+	}
+
+	return result
+}
+
+func getImageWithID(imgName string, images []*ec2.Image) (*ec2.Image, error) {
+	for _, img := range images {
+		if imgName == aws.StringValue(img.ImageId) {
+			return img, nil
+		}
+	}
+
+	return nil, errors.New("The specified AMI image name is either invalid or is not available for this cluster version and region")
 }
 
 // IsErrorAlreadyExists helper function
