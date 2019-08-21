@@ -14,32 +14,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package util
 
 import (
-	"context"
-	"testing"
-
-	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/crossplaneio/crossplane-runtime/pkg/test"
-	localtest "github.com/crossplaneio/crossplane/pkg/test"
-)
-
-const (
-	namespace = "default"
-	name      = "test-instance"
+	"path/filepath"
+	"runtime"
 )
 
 var (
-	ctx = context.TODO()
-	c   client.Client
-	key = types.NamespacedName{Name: name, Namespace: namespace}
+	_, b, _, _ = runtime.Caller(0)
+	crds       = filepath.Join(filepath.Dir(filepath.Dir(filepath.Dir(b))), "cluster", "charts", "crossplane", "crds")
 )
 
-func TestMain(m *testing.M) {
-	t := test.NewEnv(namespace, SchemeBuilder.SchemeBuilder, localtest.CRDs())
-	c = t.StartClient()
-	t.StopAndExit(m.Run())
+// CRDs path to project crds location
+func CRDs() string {
+	return crds
 }

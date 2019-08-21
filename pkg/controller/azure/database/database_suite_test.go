@@ -35,6 +35,7 @@ import (
 	"github.com/crossplaneio/crossplane/azure/apis/database/v1alpha1"
 	azuredbv1alpha1 "github.com/crossplaneio/crossplane/azure/apis/database/v1alpha1"
 	azurev1alpha1 "github.com/crossplaneio/crossplane/azure/apis/v1alpha1"
+	localtest "github.com/crossplaneio/crossplane/pkg/test"
 )
 
 const (
@@ -52,7 +53,7 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	t := test.NewEnv(namespace, apis.AddToSchemes, test.CRDs())
+	t := test.NewEnv(namespace, apis.AddToSchemes, localtest.CRDs())
 	cfg = t.Start()
 	t.StopAndExit(m.Run())
 }

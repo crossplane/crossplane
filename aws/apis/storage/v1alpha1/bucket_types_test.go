@@ -32,6 +32,7 @@ import (
 	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 
 	storagev1alpha1 "github.com/crossplaneio/crossplane/apis/storage/v1alpha1"
+	localtest "github.com/crossplaneio/crossplane/pkg/test"
 )
 
 const (
@@ -46,7 +47,7 @@ var (
 var _ resource.Managed = &S3Bucket{}
 
 func TestMain(m *testing.M) {
-	t := test.NewEnv(namespace, SchemeBuilder.SchemeBuilder, test.CRDs())
+	t := test.NewEnv(namespace, SchemeBuilder.SchemeBuilder, localtest.CRDs())
 	c = t.StartClient()
 	t.StopAndExit(m.Run())
 }
