@@ -102,3 +102,7 @@ Builds from the master branch can have functionality changed and even removed at
 Crossplane is under the Apache 2.0 license.
 
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fcrossplaneio%2Fcrossplane.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fcrossplaneio%2Fcrossplane?ref=badge_large)
+
+## Learn More
+
+These [curated links](docs/learn-more.md) are a great resource for learning more about Crossplane including intro videos, usage, and best practices for writing Kubernetes controllers to extend Crossplane.
