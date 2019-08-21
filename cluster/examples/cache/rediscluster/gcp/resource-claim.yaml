@@ -5,6 +5,8 @@ metadata:
   name: cloudmemorystoreinstance
 spec:
   classRef:
+    kind: CloudMemorystoreInstanceClass
+    apiVersion: cache.gcp.crossplane.io/v1alpha1
     name: cloudmemorystoreinstance
     namespace: crossplane-system
   writeConnectionSecretToRef:

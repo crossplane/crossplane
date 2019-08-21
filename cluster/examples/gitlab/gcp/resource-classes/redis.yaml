@@ -1,17 +1,16 @@
 ## Crossplane Redis Resource class
-apiVersion: core.crossplane.io/v1alpha1
-kind: ResourceClass
+apiVersion: cache.gcp.crossplane.io/v1alpha1
+kind: CloudMemorystoreInstanceClass
 metadata:
   name: standard-gcp-redis
   namespace: crossplane-system
   annotations:
     resource: rediscluster.cache.crossplane.io/v1alpha1
-parameters:
+specTemplate:
   region: us-central1
   tier: BASIC
-  memorySizeGb: "1"
-provisioner: cloudmemorystoreinstance.cache.gcp.crossplane.io/v1alpha1
-providerRef:
-  name: demo-gcp
-  namespace: crossplane-system
-reclaimPolicy: Delete
+  memorySizeGb: 1
+  providerRef:
+    name: demo-gcp
+    namespace: crossplane-system
+  reclaimPolicy: Delete

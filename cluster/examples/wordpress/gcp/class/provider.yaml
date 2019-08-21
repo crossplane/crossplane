@@ -25,18 +25,18 @@ spec:
 ---
 # ResourceClass that defines the blueprint for how a "standard" CloudSQL instance
 # should be dynamically provisioned
-apiVersion: core.crossplane.io/v1alpha1
-kind: ResourceClass
+apiVersion: database.gcp.crossplane.io/v1alpha1
+kind: CloudsqlInstanceClass
 metadata:
   name: standard
   namespace: crossplane-system
-parameters:
+specTemplate:
+  databaseVersion: MYSQL_5_7
   tier: db-n1-standard-1
   region: us-west2
   storageType: PD_SSD
-  storageGB: "10"
-provisioner: cloudsqlinstance.database.gcp.crossplane.io/v1alpha1
-providerRef:
-  name: gcp-sql-provider
-  namespace: crossplane-system
-reclaimPolicy: Delete
+  storageGB: 10
+  providerRef:
+    name: gcp-sql-provider
+    namespace: crossplane-system
+  reclaimPolicy: Delete

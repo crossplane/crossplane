@@ -1,15 +1,14 @@
 # ResourceClass that defines the blueprint for how a "standard" GCP bucket
 # should be dynamically provisioned
-apiVersion: core.crossplane.io/v1alpha1
-kind: ResourceClass
+apiVersion: storage.gcp.crossplane.io/v1alpha1
+kind: BucketClass
 metadata:
   name: gcsbucket
   namespace: crossplane-system
-parameters:
+specTemplate:
   location: US
   storageClass: MULTI_REGIONAL
-provisioner: bucket.storage.gcp.crossplane.io/v1alpha1
-providerRef:
-  name: example
-  namespace: crossplane-system
-reclaimPolicy: Delete
+  providerRef:
+    name: example
+    namespace: crossplane-system
+  reclaimPolicy: Delete

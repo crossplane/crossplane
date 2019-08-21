@@ -1,20 +1,22 @@
 # ResourceClass that defines the blueprint for how a "standard" GCP bucket
 # should be dynamically provisioned
-apiVersion: core.crossplane.io/v1alpha1
-kind: ResourceClass
+apiVersion: storage.gcp.crossplane.io/v1alpha1
+kind: BucketClass
 metadata:
   name: standard-gcp-bucket
   namespace: crossplane-system
   annotations:
     resource: bucket.storage.crossplane.io/v1alpha1
-parameters:
-  bucketPolicyOnly: "true"
-  labels: "app:gitlab-demo"
+specTemplate:
+  bucketPolicyOnly:
+    enabled: true
+  labels:
+    app: "gitlab-demo"
   location: US
-  serviceAccountSecretRef: demo-gcs-creds
+  serviceAccountSecretRef:
+    name: demo-gcs-creds
   storageClass: MULTI_REGIONAL
-provisioner: bucket.storage.gcp.crossplane.io/v1alpha1
-providerRef:
-  name: demo-gcp
-  namespace: crossplane-system
-reclaimPolicy: Delete
+  providerRef:
+    name: example # demo-gcp
+    namespace: crossplane-system
+  reclaimPolicy: Delete
