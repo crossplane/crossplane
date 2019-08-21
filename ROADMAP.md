@@ -65,7 +65,7 @@ Any dates listed below and the specific issues that will ship in a given milesto
   * Controllers use consistent logging [#7](https://github.com/crossplaneio/crossplane/issues/7)
   * Consistent testing paradigm [#269](https://github.com/crossplaneio/crossplane/issues/269)
 
-## v0.3 - Enable Partners to Build Infra Stacks
+## v0.3 - Enable Community to Build Infra Stacks
 
 * Real-world applications on-top of Crossplane
   * GitLab [#284](https://github.com/crossplaneio/crossplane/issues/284)
