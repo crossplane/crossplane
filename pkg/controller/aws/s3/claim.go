@@ -27,10 +27,10 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
 	storagev1alpha1 "github.com/crossplaneio/crossplane/apis/storage/v1alpha1"
 	"github.com/crossplaneio/crossplane/aws/apis/storage/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/resource"
 )
 
 var s3ACL = map[storagev1alpha1.PredefinedACL]s3.BucketCannedACL{
@@ -85,8 +85,8 @@ func ConfigureS3Bucket(_ context.Context, cm resource.Claim, cs resource.Class, 
 	}
 
 	spec := &v1alpha1.S3BucketSpec{
-		ResourceSpec: corev1alpha1.ResourceSpec{
-			ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		ResourceSpec: runtimev1alpha1.ResourceSpec{
+			ReclaimPolicy: runtimev1alpha1.ReclaimRetain,
 		},
 		S3BucketParameters: rs.SpecTemplate.S3BucketParameters,
 	}

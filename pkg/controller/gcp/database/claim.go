@@ -24,10 +24,10 @@ import (
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
 	databasev1alpha1 "github.com/crossplaneio/crossplane/apis/database/v1alpha1"
 	"github.com/crossplaneio/crossplane/gcp/apis/database/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/resource"
 )
 
 // ConfigurePostgreSQLCloudsqlInstance configures the supplied instance (presumed
@@ -50,8 +50,8 @@ func ConfigurePostgreSQLCloudsqlInstance(_ context.Context, cm resource.Claim, c
 	}
 
 	spec := &v1alpha1.CloudsqlInstanceSpec{
-		ResourceSpec: corev1alpha1.ResourceSpec{
-			ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		ResourceSpec: runtimev1alpha1.ResourceSpec{
+			ReclaimPolicy: runtimev1alpha1.ReclaimRetain,
 		},
 		CloudsqlInstanceParameters: rs.SpecTemplate.CloudsqlInstanceParameters,
 	}
@@ -94,8 +94,8 @@ func ConfigureMyCloudsqlInstance(_ context.Context, cm resource.Claim, cs resour
 	}
 
 	spec := &v1alpha1.CloudsqlInstanceSpec{
-		ResourceSpec: corev1alpha1.ResourceSpec{
-			ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		ResourceSpec: runtimev1alpha1.ResourceSpec{
+			ReclaimPolicy: runtimev1alpha1.ReclaimRetain,
 		},
 		CloudsqlInstanceParameters: rs.SpecTemplate.CloudsqlInstanceParameters,
 	}

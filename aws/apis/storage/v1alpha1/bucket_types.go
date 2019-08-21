@@ -21,14 +21,13 @@ import (
 
 	storagev1alpha1 "github.com/crossplaneio/crossplane/apis/storage/v1alpha1"
 
-	"github.com/crossplaneio/crossplane/apis/core/v1alpha1"
-
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/crossplaneio/crossplane/pkg/resource"
-	"github.com/crossplaneio/crossplane/pkg/util"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
+	"github.com/crossplaneio/crossplane-runtime/pkg/util"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -55,13 +54,13 @@ type S3BucketParameters struct {
 
 // S3BucketSpec defines the desired state of S3Bucket
 type S3BucketSpec struct {
-	v1alpha1.ResourceSpec `json:",inline"`
-	S3BucketParameters    `json:",inline"`
+	runtimev1alpha1.ResourceSpec `json:",inline"`
+	S3BucketParameters           `json:",inline"`
 }
 
 // S3BucketStatus defines the observed state of S3Bucket
 type S3BucketStatus struct {
-	v1alpha1.ResourceStatus `json:",inline"`
+	runtimev1alpha1.ResourceStatus `json:",inline"`
 
 	Message               string                              `json:"message,omitempty"`
 	ProviderID            string                              `json:"providerID,omitempty"` // the external ID to identify this resource in the cloud provider
@@ -86,17 +85,17 @@ type S3Bucket struct {
 }
 
 // SetBindingPhase of this S3Bucket.
-func (b *S3Bucket) SetBindingPhase(p v1alpha1.BindingPhase) {
+func (b *S3Bucket) SetBindingPhase(p runtimev1alpha1.BindingPhase) {
 	b.Status.SetBindingPhase(p)
 }
 
 // GetBindingPhase of this S3Bucket.
-func (b *S3Bucket) GetBindingPhase() v1alpha1.BindingPhase {
+func (b *S3Bucket) GetBindingPhase() runtimev1alpha1.BindingPhase {
 	return b.Status.GetBindingPhase()
 }
 
 // SetConditions of this S3Bucket.
-func (b *S3Bucket) SetConditions(c ...v1alpha1.Condition) {
+func (b *S3Bucket) SetConditions(c ...runtimev1alpha1.Condition) {
 	b.Status.SetConditions(c...)
 }
 
@@ -131,12 +130,12 @@ func (b *S3Bucket) GetWriteConnectionSecretToReference() corev1.LocalObjectRefer
 }
 
 // GetReclaimPolicy of this S3Bucket.
-func (b *S3Bucket) GetReclaimPolicy() v1alpha1.ReclaimPolicy {
+func (b *S3Bucket) GetReclaimPolicy() runtimev1alpha1.ReclaimPolicy {
 	return b.Spec.ReclaimPolicy
 }
 
 // SetReclaimPolicy of this S3Bucket.
-func (b *S3Bucket) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) {
+func (b *S3Bucket) SetReclaimPolicy(p runtimev1alpha1.ReclaimPolicy) {
 	b.Spec.ReclaimPolicy = p
 }
 
@@ -151,8 +150,8 @@ type S3BucketList struct {
 
 // S3BucketClassSpecTemplate is the Schema for the resource class
 type S3BucketClassSpecTemplate struct {
-	v1alpha1.ResourceClassSpecTemplate `json:",inline"`
-	S3BucketParameters                 `json:",inline"`
+	runtimev1alpha1.ResourceClassSpecTemplate `json:",inline"`
+	S3BucketParameters                        `json:",inline"`
 }
 
 var _ resource.Class = &S3BucketClass{}
@@ -171,12 +170,12 @@ type S3BucketClass struct {
 }
 
 // GetReclaimPolicy of this S3BucketClass.
-func (i *S3BucketClass) GetReclaimPolicy() v1alpha1.ReclaimPolicy {
+func (i *S3BucketClass) GetReclaimPolicy() runtimev1alpha1.ReclaimPolicy {
 	return i.SpecTemplate.ReclaimPolicy
 }
 
 // SetReclaimPolicy of this S3BucketClass.
-func (i *S3BucketClass) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) {
+func (i *S3BucketClass) SetReclaimPolicy(p runtimev1alpha1.ReclaimPolicy) {
 	i.SpecTemplate.ReclaimPolicy = p
 }
 

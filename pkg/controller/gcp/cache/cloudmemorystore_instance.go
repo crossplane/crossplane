@@ -28,13 +28,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
+	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
 	"github.com/crossplaneio/crossplane/gcp/apis/cache/v1alpha1"
 	gcpv1alpha1 "github.com/crossplaneio/crossplane/gcp/apis/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/clients/gcp/cloudmemorystore"
-	"github.com/crossplaneio/crossplane/pkg/logging"
-	"github.com/crossplaneio/crossplane/pkg/meta"
-	"github.com/crossplaneio/crossplane/pkg/resource"
 )
 
 const (
@@ -81,17 +81,17 @@ type cloudMemorystore struct {
 }
 
 func (c *cloudMemorystore) Create(ctx context.Context, i *v1alpha1.CloudMemorystoreInstance) bool {
-	i.Status.SetConditions(corev1alpha1.Creating())
+	i.Status.SetConditions(runtimev1alpha1.Creating())
 
 	id := cloudmemorystore.NewInstanceID(c.project, i)
 	if _, err := c.client.CreateInstance(ctx, cloudmemorystore.NewCreateInstanceRequest(id, i)); err != nil {
-		i.Status.SetConditions(corev1alpha1.ReconcileError(err))
+		i.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
 		return true
 	}
 
 	i.Status.InstanceName = id.Instance
 	meta.AddFinalizer(i, finalizerName)
-	i.Status.SetConditions(corev1alpha1.ReconcileSuccess())
+	i.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
 	return true
 }
 
@@ -99,7 +99,7 @@ func (c *cloudMemorystore) Sync(ctx context.Context, i *v1alpha1.CloudMemorystor
 	id := cloudmemorystore.NewInstanceID(c.project, i)
 	gcpInstance, err := c.client.GetInstance(ctx, cloudmemorystore.NewGetInstanceRequest(id))
 	if err != nil {
-		i.Status.SetConditions(corev1alpha1.ReconcileError(err))
+		i.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
 		return true
 	}
 
@@ -107,18 +107,18 @@ func (c *cloudMemorystore) Sync(ctx context.Context, i *v1alpha1.CloudMemorystor
 
 	switch i.Status.State {
 	case v1alpha1.StateReady:
-		i.Status.SetConditions(corev1alpha1.Available())
+		i.Status.SetConditions(runtimev1alpha1.Available())
 		resource.SetBindable(i)
 	case v1alpha1.StateCreating:
-		i.Status.SetConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileSuccess())
+		i.Status.SetConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileSuccess())
 		return true
 	case v1alpha1.StateDeleting:
-		i.Status.SetConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileSuccess())
+		i.Status.SetConditions(runtimev1alpha1.Deleting(), runtimev1alpha1.ReconcileSuccess())
 		return false
 	default:
 		// TODO(negz): Don't requeue in this scenario? The instance is probably
 		// in maintenance, updating, or repairing, which can take minutes.
-		i.Status.SetConditions(corev1alpha1.ReconcileSuccess())
+		i.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
 		return true
 	}
 
@@ -127,32 +127,32 @@ func (c *cloudMemorystore) Sync(ctx context.Context, i *v1alpha1.CloudMemorystor
 	i.Status.ProviderID = gcpInstance.GetName()
 
 	if !cloudmemorystore.NeedsUpdate(i, gcpInstance) {
-		i.Status.SetConditions(corev1alpha1.ReconcileSuccess())
+		i.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
 		return false
 	}
 
 	if _, err := c.client.UpdateInstance(ctx, cloudmemorystore.NewUpdateInstanceRequest(id, i)); err != nil {
-		i.Status.SetConditions(corev1alpha1.ReconcileError(err))
+		i.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
 		return true
 	}
 
-	i.Status.SetConditions(corev1alpha1.ReconcileSuccess())
+	i.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
 	return false
 }
 
 func (c *cloudMemorystore) Delete(ctx context.Context, i *v1alpha1.CloudMemorystoreInstance) bool {
-	i.Status.SetConditions(corev1alpha1.Deleting())
+	i.Status.SetConditions(runtimev1alpha1.Deleting())
 
-	if i.Spec.ReclaimPolicy == corev1alpha1.ReclaimDelete {
+	if i.Spec.ReclaimPolicy == runtimev1alpha1.ReclaimDelete {
 		id := cloudmemorystore.NewInstanceID(c.project, i)
 		if _, err := c.client.DeleteInstance(ctx, cloudmemorystore.NewDeleteInstanceRequest(id)); err != nil {
-			i.Status.SetConditions(corev1alpha1.ReconcileError(err))
+			i.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
 			return true
 		}
 	}
 
 	meta.RemoveFinalizer(i, finalizerName)
-	i.Status.SetConditions(corev1alpha1.ReconcileSuccess())
+	i.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
 	return false
 }
 
@@ -232,7 +232,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	client, err := r.Connect(ctx, i)
 	if err != nil {
-		i.Status.SetConditions(corev1alpha1.ReconcileError(err))
+		i.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}, errors.Wrapf(r.kube.Update(ctx, i), "cannot update instance %s", req.NamespacedName)
 	}
 
@@ -247,7 +247,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	}
 
 	if err := r.upsertSecret(ctx, connectionSecret(i)); err != nil {
-		i.Status.SetConditions(corev1alpha1.ReconcileError(err))
+		i.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}, errors.Wrapf(r.kube.Update(ctx, i), "cannot update instance %s", req.NamespacedName)
 	}
 
@@ -269,6 +269,6 @@ func (r *Reconciler) upsertSecret(ctx context.Context, s *corev1.Secret) error {
 func connectionSecret(i *v1alpha1.CloudMemorystoreInstance) *corev1.Secret {
 	// TODO(negz): Include the port here too?
 	s := resource.ConnectionSecretFor(i, v1alpha1.CloudMemorystoreInstanceGroupVersionKind)
-	s.Data = map[string][]byte{corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(i.Status.Endpoint)}
+	s.Data = map[string][]byte{runtimev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(i.Status.Endpoint)}
 	return s
 }

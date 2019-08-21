@@ -17,8 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"github.com/crossplaneio/crossplane/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/resource"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -216,8 +216,8 @@ type ReplicationGroupParameters struct {
 
 // ReplicationGroupSpec defines the desired state of ReplicationGroup
 type ReplicationGroupSpec struct {
-	v1alpha1.ResourceSpec      `json:",inline"`
-	ReplicationGroupParameters `json:",inline"`
+	runtimev1alpha1.ResourceSpec `json:",inline"`
+	ReplicationGroupParameters   `json:",inline"`
 }
 
 // NodeGroupConfigurationSpec specifies the configuration of a node group within
@@ -246,7 +246,7 @@ type NodeGroupConfigurationSpec struct {
 
 // ReplicationGroupStatus defines the observed state of ReplicationGroup
 type ReplicationGroupStatus struct {
-	v1alpha1.ResourceStatus `json:",inline"`
+	runtimev1alpha1.ResourceStatus `json:",inline"`
 
 	State   string `json:"state,omitempty"`
 	Message string `json:"message,omitempty"`
@@ -292,17 +292,17 @@ type ReplicationGroup struct {
 }
 
 // SetBindingPhase of this ReplicationGroup.
-func (rg *ReplicationGroup) SetBindingPhase(p v1alpha1.BindingPhase) {
+func (rg *ReplicationGroup) SetBindingPhase(p runtimev1alpha1.BindingPhase) {
 	rg.Status.SetBindingPhase(p)
 }
 
 // SetConditions of this ReplicationGroup.
-func (rg *ReplicationGroup) SetConditions(c ...v1alpha1.Condition) {
+func (rg *ReplicationGroup) SetConditions(c ...runtimev1alpha1.Condition) {
 	rg.Status.SetConditions(c...)
 }
 
 // GetBindingPhase of this ReplicationGroup.
-func (rg *ReplicationGroup) GetBindingPhase() v1alpha1.BindingPhase {
+func (rg *ReplicationGroup) GetBindingPhase() runtimev1alpha1.BindingPhase {
 	return rg.Status.GetBindingPhase()
 }
 
@@ -337,12 +337,12 @@ func (rg *ReplicationGroup) GetWriteConnectionSecretToReference() corev1.LocalOb
 }
 
 // GetReclaimPolicy of this ReplicationGroup.
-func (rg *ReplicationGroup) GetReclaimPolicy() v1alpha1.ReclaimPolicy {
+func (rg *ReplicationGroup) GetReclaimPolicy() runtimev1alpha1.ReclaimPolicy {
 	return rg.Spec.ReclaimPolicy
 }
 
 // SetReclaimPolicy of this ReplicationGroup.
-func (rg *ReplicationGroup) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) {
+func (rg *ReplicationGroup) SetReclaimPolicy(p runtimev1alpha1.ReclaimPolicy) {
 	rg.Spec.ReclaimPolicy = p
 }
 
@@ -357,8 +357,8 @@ type ReplicationGroupList struct {
 
 // ReplicationGroupClassSpecTemplate is the Schema for the resource class
 type ReplicationGroupClassSpecTemplate struct {
-	v1alpha1.ResourceClassSpecTemplate `json:",inline"`
-	ReplicationGroupParameters         `json:",inline"`
+	runtimev1alpha1.ResourceClassSpecTemplate `json:",inline"`
+	ReplicationGroupParameters                `json:",inline"`
 }
 
 var _ resource.Class = &ReplicationGroupClass{}
@@ -377,12 +377,12 @@ type ReplicationGroupClass struct {
 }
 
 // GetReclaimPolicy of this ReplicationGroupClass.
-func (i *ReplicationGroupClass) GetReclaimPolicy() v1alpha1.ReclaimPolicy {
+func (i *ReplicationGroupClass) GetReclaimPolicy() runtimev1alpha1.ReclaimPolicy {
 	return i.SpecTemplate.ReclaimPolicy
 }
 
 // SetReclaimPolicy of this ReplicationGroupClass.
-func (i *ReplicationGroupClass) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) {
+func (i *ReplicationGroupClass) SetReclaimPolicy(p runtimev1alpha1.ReclaimPolicy) {
 	i.SpecTemplate.ReclaimPolicy = p
 }
 

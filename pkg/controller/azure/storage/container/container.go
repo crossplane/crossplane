@@ -31,13 +31,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
+	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
 	"github.com/crossplaneio/crossplane/azure/apis/storage/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/clients/azure"
 	"github.com/crossplaneio/crossplane/pkg/clients/azure/storage"
-	"github.com/crossplaneio/crossplane/pkg/logging"
-	"github.com/crossplaneio/crossplane/pkg/meta"
-	"github.com/crossplaneio/crossplane/pkg/resource"
 )
 
 const (
@@ -97,7 +97,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 
 	sd, err := r.newSyncdeleter(ctx, c)
 	if err != nil {
-		c.Status.SetConditions(corev1alpha1.ReconcileError(err))
+		c.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
 		return resultRequeue, r.Status().Update(ctx, c)
 	}
 
@@ -140,8 +140,8 @@ func (m *containerSyncdeleterMaker) newSyncdeleter(ctx context.Context, c *v1alp
 		return nil, errors.Wrapf(err, "failed to retrieve storage account secret: %s", n)
 	}
 
-	accountName := string(s.Data[corev1alpha1.ResourceCredentialsSecretUserKey])
-	accountPassword := string(s.Data[corev1alpha1.ResourceCredentialsSecretPasswordKey])
+	accountName := string(s.Data[runtimev1alpha1.ResourceCredentialsSecretUserKey])
+	accountPassword := string(s.Data[runtimev1alpha1.ResourceCredentialsSecretPasswordKey])
 	containerName := c.GetContainerName()
 
 	ch, err := storage.NewContainerHandle(accountName, accountPassword, containerName)
@@ -196,10 +196,10 @@ type containerSyncdeleter struct {
 }
 
 func (csd *containerSyncdeleter) delete(ctx context.Context) (reconcile.Result, error) {
-	csd.container.Status.SetConditions(corev1alpha1.Deleting())
-	if csd.container.Spec.ReclaimPolicy == corev1alpha1.ReclaimDelete {
+	csd.container.Status.SetConditions(runtimev1alpha1.Deleting())
+	if csd.container.Spec.ReclaimPolicy == runtimev1alpha1.ReclaimDelete {
 		if err := csd.Delete(ctx); err != nil && !azure.IsNotFound(err) {
-			csd.container.Status.SetConditions(corev1alpha1.ReconcileError(err))
+			csd.container.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
 			return resultRequeue, csd.kube.Status().Update(ctx, csd.container)
 		}
 	}
@@ -214,7 +214,7 @@ func (csd *containerSyncdeleter) delete(ctx context.Context) (reconcile.Result, 
 func (csd *containerSyncdeleter) sync(ctx context.Context) (reconcile.Result, error) {
 	access, meta, err := csd.Get(ctx)
 	if err != nil && !storage.IsNotFoundError(err) {
-		csd.container.Status.SetConditions(corev1alpha1.ReconcileError(err))
+		csd.container.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
 		return resultRequeue, csd.kube.Status().Update(ctx, csd.container)
 	}
 
@@ -241,7 +241,7 @@ var _ createupdater = &containerCreateUpdater{}
 
 func (ccu *containerCreateUpdater) create(ctx context.Context) (reconcile.Result, error) {
 	container := ccu.container
-	container.Status.SetConditions(corev1alpha1.Creating())
+	container.Status.SetConditions(runtimev1alpha1.Creating())
 
 	meta.AddFinalizer(container, finalizer)
 	if err := ccu.kube.Update(ctx, container); err != nil {
@@ -250,11 +250,11 @@ func (ccu *containerCreateUpdater) create(ctx context.Context) (reconcile.Result
 
 	spec := container.Spec
 	if err := ccu.Create(ctx, spec.PublicAccessType, spec.Metadata); err != nil {
-		container.Status.SetConditions(corev1alpha1.ReconcileError(err))
+		container.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
 		return resultRequeue, ccu.kube.Status().Update(ctx, container)
 	}
 
-	container.Status.SetConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess())
+	container.Status.SetConditions(runtimev1alpha1.Available(), runtimev1alpha1.ReconcileSuccess())
 	resource.SetBindable(container)
 	return reconcile.Result{}, ccu.kube.Status().Update(ctx, ccu.container)
 }
@@ -265,12 +265,12 @@ func (ccu *containerCreateUpdater) update(ctx context.Context, accessType *azblo
 
 	if !reflect.DeepEqual(*accessType, spec.PublicAccessType) || !reflect.DeepEqual(meta, spec.Metadata) {
 		if err := ccu.Update(ctx, spec.PublicAccessType, spec.Metadata); err != nil {
-			container.Status.SetConditions(corev1alpha1.ReconcileError(err))
+			container.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
 			return resultRequeue, ccu.kube.Status().Update(ctx, container)
 		}
 	}
 
-	container.Status.SetConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess())
+	container.Status.SetConditions(runtimev1alpha1.Available(), runtimev1alpha1.ReconcileSuccess())
 	resource.SetBindable(container)
 	return requeueOnSuccess, ccu.kube.Status().Update(ctx, ccu.container)
 }

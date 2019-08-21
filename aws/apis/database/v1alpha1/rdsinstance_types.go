@@ -17,8 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"github.com/crossplaneio/crossplane/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/resource"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -53,8 +53,8 @@ type RDSInstanceParameters struct {
 
 // RDSInstanceSpec defines the desired state of RDSInstance
 type RDSInstanceSpec struct {
-	v1alpha1.ResourceSpec `json:",inline"`
-	RDSInstanceParameters `json:",inline"`
+	runtimev1alpha1.ResourceSpec `json:",inline"`
+	RDSInstanceParameters        `json:",inline"`
 }
 
 // RDSInstanceState represents the state of an RDS instance.
@@ -74,7 +74,7 @@ const (
 
 // RDSInstanceStatus defines the observed state of RDSInstance
 type RDSInstanceStatus struct {
-	v1alpha1.ResourceStatus `json:",inline"`
+	runtimev1alpha1.ResourceStatus `json:",inline"`
 
 	State        string `json:"state,omitempty"`
 	Message      string `json:"message,omitempty"`
@@ -100,17 +100,17 @@ type RDSInstance struct {
 }
 
 // SetBindingPhase of this RDSInstance.
-func (i *RDSInstance) SetBindingPhase(p v1alpha1.BindingPhase) {
+func (i *RDSInstance) SetBindingPhase(p runtimev1alpha1.BindingPhase) {
 	i.Status.SetBindingPhase(p)
 }
 
 // GetBindingPhase of this RDSInstance.
-func (i *RDSInstance) GetBindingPhase() v1alpha1.BindingPhase {
+func (i *RDSInstance) GetBindingPhase() runtimev1alpha1.BindingPhase {
 	return i.Status.GetBindingPhase()
 }
 
 // SetConditions of this RDSInstance.
-func (i *RDSInstance) SetConditions(c ...v1alpha1.Condition) {
+func (i *RDSInstance) SetConditions(c ...runtimev1alpha1.Condition) {
 	i.Status.SetConditions(c...)
 }
 
@@ -145,12 +145,12 @@ func (i *RDSInstance) GetWriteConnectionSecretToReference() corev1.LocalObjectRe
 }
 
 // GetReclaimPolicy of this RDSInstance.
-func (i *RDSInstance) GetReclaimPolicy() v1alpha1.ReclaimPolicy {
+func (i *RDSInstance) GetReclaimPolicy() runtimev1alpha1.ReclaimPolicy {
 	return i.Spec.ReclaimPolicy
 }
 
 // SetReclaimPolicy of this RDSInstance.
-func (i *RDSInstance) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) {
+func (i *RDSInstance) SetReclaimPolicy(p runtimev1alpha1.ReclaimPolicy) {
 	i.Spec.ReclaimPolicy = p
 }
 
@@ -165,8 +165,8 @@ type RDSInstanceList struct {
 
 // RDSInstanceClassSpecTemplate is the Schema for the resource class
 type RDSInstanceClassSpecTemplate struct {
-	v1alpha1.ResourceClassSpecTemplate `json:",inline"`
-	RDSInstanceParameters              `json:",inline"`
+	runtimev1alpha1.ResourceClassSpecTemplate `json:",inline"`
+	RDSInstanceParameters                     `json:",inline"`
 }
 
 var _ resource.Class = &RDSInstanceClass{}
@@ -185,12 +185,12 @@ type RDSInstanceClass struct {
 }
 
 // GetReclaimPolicy of this RDSInstanceClass.
-func (i *RDSInstanceClass) GetReclaimPolicy() v1alpha1.ReclaimPolicy {
+func (i *RDSInstanceClass) GetReclaimPolicy() runtimev1alpha1.ReclaimPolicy {
 	return i.SpecTemplate.ReclaimPolicy
 }
 
 // SetReclaimPolicy of this RDSInstanceClass.
-func (i *RDSInstanceClass) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) {
+func (i *RDSInstanceClass) SetReclaimPolicy(p runtimev1alpha1.ReclaimPolicy) {
 	i.SpecTemplate.ReclaimPolicy = p
 }
 

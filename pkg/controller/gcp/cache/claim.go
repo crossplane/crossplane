@@ -26,10 +26,10 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
 	cachev1alpha1 "github.com/crossplaneio/crossplane/apis/cache/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/gcp/apis/cache/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/resource"
 )
 
 // CloudMemorystoreInstanceClaimController is responsible for adding the Cloud Memorystore
@@ -77,8 +77,8 @@ func ConfigureCloudMemorystoreInstance(_ context.Context, cm resource.Claim, cs 
 	}
 
 	spec := &v1alpha1.CloudMemorystoreInstanceSpec{
-		ResourceSpec: corev1alpha1.ResourceSpec{
-			ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		ResourceSpec: runtimev1alpha1.ResourceSpec{
+			ReclaimPolicy: runtimev1alpha1.ReclaimRetain,
 		},
 		CloudMemorystoreInstanceParameters: rl.SpecTemplate.CloudMemorystoreInstanceParameters,
 	}

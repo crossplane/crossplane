@@ -29,11 +29,11 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 	"github.com/crossplaneio/crossplane/gcp/apis/storage/v1alpha1"
 	gcpstorage "github.com/crossplaneio/crossplane/pkg/clients/gcp/storage"
 	storagefake "github.com/crossplaneio/crossplane/pkg/clients/gcp/storage/fake"
-	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
 type mockOperations struct {
@@ -43,7 +43,7 @@ type mockOperations struct {
 	mockGetSpecAttrs        func() v1alpha1.BucketUpdatableAttrs
 	mockSetSpecAttrs        func(*storage.BucketAttrs)
 	mockSetStatusAttrs      func(*storage.BucketAttrs)
-	mockSetStatusConditions func(...corev1alpha1.Condition)
+	mockSetStatusConditions func(...runtimev1alpha1.Condition)
 	mockSetBindable         func()
 
 	mockUpdateObject func(ctx context.Context) error
@@ -82,7 +82,7 @@ func (o *mockOperations) setStatusAttrs(attrs *storage.BucketAttrs) {
 	o.mockSetStatusAttrs(attrs)
 }
 
-func (o *mockOperations) setStatusConditions(c ...corev1alpha1.Condition) {
+func (o *mockOperations) setStatusConditions(c ...runtimev1alpha1.Condition) {
 	o.mockSetStatusConditions(c...)
 }
 
@@ -204,8 +204,8 @@ func Test_bucketHandler_isReclaimDelete(t *testing.T) {
 			name: "Delete",
 			fields: fields{bucket: &v1alpha1.Bucket{
 				Spec: v1alpha1.BucketSpec{
-					ResourceSpec: corev1alpha1.ResourceSpec{
-						ReclaimPolicy: corev1alpha1.ReclaimDelete,
+					ResourceSpec: runtimev1alpha1.ResourceSpec{
+						ReclaimPolicy: runtimev1alpha1.ReclaimDelete,
 					},
 				},
 			},
@@ -460,10 +460,10 @@ func Test_bucketHandler_updateSecret(t *testing.T) {
 								obj, &corev1.Secret{})
 						}
 						// assert secret data
-						assertSecretData(s.Data, corev1alpha1.ResourceCredentialsSecretEndpointKey, bucketUID)
-						assertSecretData(s.Data, corev1alpha1.ResourceCredentialsSecretUserKey, saSecretUser)
-						assertSecretData(s.Data, corev1alpha1.ResourceCredentialsSecretPasswordKey, saSecretPass)
-						assertSecretData(s.Data, corev1alpha1.ResourceCredentialsTokenKey, saSecretCreds)
+						assertSecretData(s.Data, runtimev1alpha1.ResourceCredentialsSecretEndpointKey, bucketUID)
+						assertSecretData(s.Data, runtimev1alpha1.ResourceCredentialsSecretUserKey, saSecretUser)
+						assertSecretData(s.Data, runtimev1alpha1.ResourceCredentialsSecretPasswordKey, saSecretPass)
+						assertSecretData(s.Data, runtimev1alpha1.ResourceCredentialsTokenKey, saSecretCreds)
 						return testError
 					},
 				},

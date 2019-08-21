@@ -26,9 +26,9 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/resource"
-	"github.com/crossplaneio/crossplane/pkg/test"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
+	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 )
 
 const (
@@ -57,7 +57,7 @@ func TestKubernetes(t *testing.T) {
 	created := &KubernetesCluster{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
 		Spec: KubernetesClusterSpec{
-			ResourceClaimSpec: corev1alpha1.ResourceClaimSpec{
+			ResourceClaimSpec: runtimev1alpha1.ResourceClaimSpec{
 				ClassReference: &corev1.ObjectReference{
 					Name:      "test-class",
 					Namespace: "test-system",

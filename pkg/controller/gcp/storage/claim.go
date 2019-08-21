@@ -26,10 +26,10 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
 	storagev1alpha1 "github.com/crossplaneio/crossplane/apis/storage/v1alpha1"
 	"github.com/crossplaneio/crossplane/gcp/apis/storage/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/resource"
 )
 
 // BucketClaimController is responsible for adding the Bucket claim controller and its
@@ -79,8 +79,8 @@ func ConfigureBucket(_ context.Context, cm resource.Claim, cs resource.Class, mg
 	}
 
 	spec := &v1alpha1.BucketSpec{
-		ResourceSpec: corev1alpha1.ResourceSpec{
-			ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		ResourceSpec: runtimev1alpha1.ResourceSpec{
+			ReclaimPolicy: runtimev1alpha1.ReclaimRetain,
 		},
 		BucketParameters: rs.SpecTemplate.BucketParameters,
 	}

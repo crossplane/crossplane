@@ -41,12 +41,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 	"github.com/crossplaneio/crossplane/azure/apis/storage/v1alpha1"
 	v1alpha1test "github.com/crossplaneio/crossplane/azure/apis/storage/v1alpha1/test"
 	"github.com/crossplaneio/crossplane/pkg/clients/azure/storage"
 	azurestoragefake "github.com/crossplaneio/crossplane/pkg/clients/azure/storage/fake"
-	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
 func init() {
@@ -203,7 +203,7 @@ func TestReconciler_Reconcile(t *testing.T) {
 				res: resultRequeue,
 				con: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
 					WithFinalizer("foo.bar").
-					WithStatusConditions(corev1alpha1.ReconcileError(errBoom)).
+					WithStatusConditions(runtimev1alpha1.ReconcileError(errBoom)).
 					Container,
 			},
 		},
@@ -363,8 +363,8 @@ func Test_containerSyncdeleterMaker_newSyncdeleter(t *testing.T) {
 				Client: fake.NewFakeClient(
 					newCont().WithSpecAccountRef(testAccountName).WithFinalizer(finalizer).Container,
 					newSecret(testNamespace, testAccountName, map[string][]byte{
-						corev1alpha1.ResourceCredentialsSecretUserKey:     []byte(testAccountName),
-						corev1alpha1.ResourceCredentialsSecretPasswordKey: []byte("test-key"),
+						runtimev1alpha1.ResourceCredentialsSecretUserKey:     []byte(testAccountName),
+						runtimev1alpha1.ResourceCredentialsSecretPasswordKey: []byte("test-key"),
 					}),
 					v1alpha1test.NewMockAccount(testNamespace, testAccountName).
 						WithSpecWriteConnectionSecretToReference(testAccountName).
@@ -388,8 +388,8 @@ func Test_containerSyncdeleterMaker_newSyncdeleter(t *testing.T) {
 				Client: fake.NewFakeClient(
 					newCont().WithSpecAccountRef(testAccountName).WithFinalizer(finalizer).Container,
 					newSecret(testNamespace, testAccountName, map[string][]byte{
-						corev1alpha1.ResourceCredentialsSecretUserKey:     []byte(testAccountName),
-						corev1alpha1.ResourceCredentialsSecretPasswordKey: []byte("dGVzdC1rZXkK"),
+						runtimev1alpha1.ResourceCredentialsSecretUserKey:     []byte(testAccountName),
+						runtimev1alpha1.ResourceCredentialsSecretPasswordKey: []byte("dGVzdC1rZXkK"),
 					}),
 					v1alpha1test.NewMockAccount(testNamespace, testAccountName).
 						WithSpecWriteConnectionSecretToReference(testAccountName).
@@ -479,16 +479,16 @@ func Test_containerSyncdeleter_delete(t *testing.T) {
 			fields: fields{
 				kube: test.NewMockClient(),
 				container: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
-					WithSpecReclaimPolicy(corev1alpha1.ReclaimRetain).
+					WithSpecReclaimPolicy(runtimev1alpha1.ReclaimRetain).
 					WithFinalizer(finalizer).Container,
 			},
 			args: args{ctx: ctx},
 			want: want{
 				res: reconcile.Result{},
 				cont: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
-					WithSpecReclaimPolicy(corev1alpha1.ReclaimRetain).
+					WithSpecReclaimPolicy(runtimev1alpha1.ReclaimRetain).
 					WithFinalizers([]string{}).
-					WithStatusConditions(corev1alpha1.Deleting()).
+					WithStatusConditions(runtimev1alpha1.Deleting()).
 					Container,
 			},
 		},
@@ -502,7 +502,7 @@ func Test_containerSyncdeleter_delete(t *testing.T) {
 					},
 				},
 				container: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
-					WithSpecReclaimPolicy(corev1alpha1.ReclaimDelete).
+					WithSpecReclaimPolicy(runtimev1alpha1.ReclaimDelete).
 					WithFinalizer(finalizer).
 					Container,
 			},
@@ -510,9 +510,9 @@ func Test_containerSyncdeleter_delete(t *testing.T) {
 			want: want{
 				res: reconcile.Result{},
 				cont: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
-					WithSpecReclaimPolicy(corev1alpha1.ReclaimDelete).
+					WithSpecReclaimPolicy(runtimev1alpha1.ReclaimDelete).
 					WithFinalizers([]string{}).
-					WithStatusConditions(corev1alpha1.Deleting()).
+					WithStatusConditions(runtimev1alpha1.Deleting()).
 					Container,
 			},
 		},
@@ -526,16 +526,16 @@ func Test_containerSyncdeleter_delete(t *testing.T) {
 					},
 				},
 				container: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
-					WithSpecReclaimPolicy(corev1alpha1.ReclaimDelete).
+					WithSpecReclaimPolicy(runtimev1alpha1.ReclaimDelete).
 					WithFinalizer(finalizer).Container,
 			},
 			args: args{ctx: ctx},
 			want: want{
 				res: resultRequeue,
 				cont: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
-					WithSpecReclaimPolicy(corev1alpha1.ReclaimDelete).
+					WithSpecReclaimPolicy(runtimev1alpha1.ReclaimDelete).
 					WithFinalizer(finalizer).
-					WithStatusConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileError(errBoom)).
+					WithStatusConditions(runtimev1alpha1.Deleting(), runtimev1alpha1.ReconcileError(errBoom)).
 					Container,
 			},
 		},
@@ -616,7 +616,7 @@ func Test_containerSyncdeleter_sync(t *testing.T) {
 			want: want{
 				res: resultRequeue,
 				cont: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
-					WithStatusConditions(corev1alpha1.ReconcileError(errBoom)).
+					WithStatusConditions(runtimev1alpha1.ReconcileError(errBoom)).
 					Container,
 			},
 		},
@@ -718,7 +718,7 @@ func Test_containerCreateUpdater_create(t *testing.T) {
 				err: errors.Wrapf(errors.New("test-update-error"), "failed to update container spec"),
 				cont: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
 					WithFinalizer(finalizer).
-					WithStatusConditions(corev1alpha1.Creating()).
+					WithStatusConditions(runtimev1alpha1.Creating()).
 					Container,
 			},
 		},
@@ -738,7 +738,7 @@ func Test_containerCreateUpdater_create(t *testing.T) {
 				res: resultRequeue,
 				cont: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
 					WithFinalizer(finalizer).
-					WithStatusConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileError(errBoom)).
+					WithStatusConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileError(errBoom)).
 					Container,
 			},
 		},
@@ -754,8 +754,8 @@ func Test_containerCreateUpdater_create(t *testing.T) {
 				res: reconcile.Result{},
 				cont: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
 					WithFinalizer(finalizer).
-					WithStatusConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess()).
-					WithStatusBindingPhase(corev1alpha1.BindingPhaseUnbound).
+					WithStatusConditions(runtimev1alpha1.Available(), runtimev1alpha1.ReconcileSuccess()).
+					WithStatusBindingPhase(runtimev1alpha1.BindingPhaseUnbound).
 					Container,
 			},
 		},
@@ -821,8 +821,8 @@ func Test_containerCreateUpdater_update(t *testing.T) {
 				res: requeueOnSuccess,
 				cont: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
 					WithSpecPAC(azblob.PublicAccessContainer).
-					WithStatusConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess()).
-					WithStatusBindingPhase(corev1alpha1.BindingPhaseUnbound).
+					WithStatusConditions(runtimev1alpha1.Available(), runtimev1alpha1.ReconcileSuccess()).
+					WithStatusBindingPhase(runtimev1alpha1.BindingPhaseUnbound).
 					Container,
 			},
 		},
@@ -851,7 +851,7 @@ func Test_containerCreateUpdater_update(t *testing.T) {
 				res: resultRequeue,
 				cont: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
 					WithSpecPAC(azblob.PublicAccessContainer).
-					WithStatusConditions(corev1alpha1.ReconcileError(errBoom)).
+					WithStatusConditions(runtimev1alpha1.ReconcileError(errBoom)).
 					Container,
 			},
 		},
@@ -875,8 +875,8 @@ func Test_containerCreateUpdater_update(t *testing.T) {
 				res: requeueOnSuccess,
 				cont: v1alpha1test.NewMockContainer(testNamespace, testContainerName).
 					WithSpecPAC(azblob.PublicAccessContainer).
-					WithStatusConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess()).
-					WithStatusBindingPhase(corev1alpha1.BindingPhaseUnbound).
+					WithStatusConditions(runtimev1alpha1.Available(), runtimev1alpha1.ReconcileSuccess()).
+					WithStatusBindingPhase(runtimev1alpha1.BindingPhaseUnbound).
 					Container,
 			},
 		},

@@ -20,8 +20,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/crossplaneio/crossplane/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/resource"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
 )
 
 // LocalPermissionType - Base type for LocalPermissions
@@ -49,7 +49,7 @@ const (
 
 // BucketSpec defines the desired state of Bucket
 type BucketSpec struct {
-	v1alpha1.ResourceClaimSpec `json:",inline"`
+	runtimev1alpha1.ResourceClaimSpec `json:",inline"`
 
 	// Name properties
 	// +kubebuilder:validation:MaxLength=63
@@ -80,22 +80,22 @@ type Bucket struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   BucketSpec                   `json:"spec,omitempty"`
-	Status v1alpha1.ResourceClaimStatus `json:"status,omitempty"`
+	Spec   BucketSpec                          `json:"spec,omitempty"`
+	Status runtimev1alpha1.ResourceClaimStatus `json:"status,omitempty"`
 }
 
 // SetBindingPhase of this Bucket.
-func (b *Bucket) SetBindingPhase(p v1alpha1.BindingPhase) {
+func (b *Bucket) SetBindingPhase(p runtimev1alpha1.BindingPhase) {
 	b.Status.SetBindingPhase(p)
 }
 
 // GetBindingPhase of this Bucket.
-func (b *Bucket) GetBindingPhase() v1alpha1.BindingPhase {
+func (b *Bucket) GetBindingPhase() runtimev1alpha1.BindingPhase {
 	return b.Status.GetBindingPhase()
 }
 
 // SetConditions of this Bucket.
-func (b *Bucket) SetConditions(c ...v1alpha1.Condition) {
+func (b *Bucket) SetConditions(c ...runtimev1alpha1.Condition) {
 	b.Status.SetConditions(c...)
 }
 
@@ -148,7 +148,7 @@ type BucketPolicy struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	v1alpha1.Policy `json:",inline"`
+	runtimev1alpha1.Policy `json:",inline"`
 }
 
 // All policy lists must satisfy the PolicyList interface

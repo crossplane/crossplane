@@ -25,11 +25,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
+	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 	databasev1alpha1 "github.com/crossplaneio/crossplane/apis/database/v1alpha1"
 	"github.com/crossplaneio/crossplane/azure/apis/database/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/resource"
-	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
 var (
@@ -65,9 +65,9 @@ func TestConfigurePostgresqlServer(t *testing.T) {
 				},
 				cs: &v1alpha1.SQLServerClass{
 					SpecTemplate: v1alpha1.SQLServerClassSpecTemplate{
-						ResourceClassSpecTemplate: corev1alpha1.ResourceClassSpecTemplate{
+						ResourceClassSpecTemplate: runtimev1alpha1.ResourceClassSpecTemplate{
 							ProviderReference: &corev1.ObjectReference{Name: providerName},
-							ReclaimPolicy:     corev1alpha1.ReclaimDelete,
+							ReclaimPolicy:     runtimev1alpha1.ReclaimDelete,
 						},
 					},
 				},
@@ -76,8 +76,8 @@ func TestConfigurePostgresqlServer(t *testing.T) {
 			want: want{
 				mg: &v1alpha1.PostgresqlServer{
 					Spec: v1alpha1.SQLServerSpec{
-						ResourceSpec: corev1alpha1.ResourceSpec{
-							ReclaimPolicy:                    corev1alpha1.ReclaimDelete,
+						ResourceSpec: runtimev1alpha1.ResourceSpec{
+							ReclaimPolicy:                    runtimev1alpha1.ReclaimDelete,
 							WriteConnectionSecretToReference: corev1.LocalObjectReference{Name: string(claimUID)},
 							ProviderReference:                &corev1.ObjectReference{Name: providerName},
 						},
@@ -132,9 +132,9 @@ func TestConfigureMyPostgresqlServer(t *testing.T) {
 				},
 				cs: &v1alpha1.SQLServerClass{
 					SpecTemplate: v1alpha1.SQLServerClassSpecTemplate{
-						ResourceClassSpecTemplate: corev1alpha1.ResourceClassSpecTemplate{
+						ResourceClassSpecTemplate: runtimev1alpha1.ResourceClassSpecTemplate{
 							ProviderReference: &corev1.ObjectReference{Name: providerName},
-							ReclaimPolicy:     corev1alpha1.ReclaimDelete,
+							ReclaimPolicy:     runtimev1alpha1.ReclaimDelete,
 						},
 					},
 				},
@@ -143,8 +143,8 @@ func TestConfigureMyPostgresqlServer(t *testing.T) {
 			want: want{
 				mg: &v1alpha1.MysqlServer{
 					Spec: v1alpha1.SQLServerSpec{
-						ResourceSpec: corev1alpha1.ResourceSpec{
-							ReclaimPolicy:                    corev1alpha1.ReclaimDelete,
+						ResourceSpec: runtimev1alpha1.ResourceSpec{
+							ReclaimPolicy:                    runtimev1alpha1.ReclaimDelete,
 							WriteConnectionSecretToReference: corev1.LocalObjectReference{Name: string(claimUID)},
 							ProviderReference:                &corev1.ObjectReference{Name: providerName},
 						},

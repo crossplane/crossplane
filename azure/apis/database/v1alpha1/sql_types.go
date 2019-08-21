@@ -17,12 +17,12 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/crossplaneio/crossplane/pkg/resource"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
 )
 
 const (
@@ -77,17 +77,17 @@ func (s *MysqlServer) SetStatus(status *SQLServerStatus) {
 }
 
 // SetBindingPhase of this MysqlServer.
-func (s *MysqlServer) SetBindingPhase(p v1alpha1.BindingPhase) {
+func (s *MysqlServer) SetBindingPhase(p runtimev1alpha1.BindingPhase) {
 	s.Status.SetBindingPhase(p)
 }
 
 // GetBindingPhase of this MysqlServer.
-func (s *MysqlServer) GetBindingPhase() v1alpha1.BindingPhase {
+func (s *MysqlServer) GetBindingPhase() runtimev1alpha1.BindingPhase {
 	return s.Status.GetBindingPhase()
 }
 
 // SetConditions of this MysqlServer.
-func (s *MysqlServer) SetConditions(c ...v1alpha1.Condition) {
+func (s *MysqlServer) SetConditions(c ...runtimev1alpha1.Condition) {
 	s.Status.SetConditions(c...)
 }
 
@@ -122,12 +122,12 @@ func (s *MysqlServer) GetWriteConnectionSecretToReference() corev1.LocalObjectRe
 }
 
 // GetReclaimPolicy of this MysqlServer.
-func (s *MysqlServer) GetReclaimPolicy() v1alpha1.ReclaimPolicy {
+func (s *MysqlServer) GetReclaimPolicy() runtimev1alpha1.ReclaimPolicy {
 	return s.Spec.ReclaimPolicy
 }
 
 // SetReclaimPolicy of this MysqlServer.
-func (s *MysqlServer) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) {
+func (s *MysqlServer) SetReclaimPolicy(p runtimev1alpha1.ReclaimPolicy) {
 	s.Spec.ReclaimPolicy = p
 }
 
@@ -172,17 +172,17 @@ func (s *PostgresqlServer) SetStatus(status *SQLServerStatus) {
 }
 
 // SetBindingPhase of this PostgresqlServer.
-func (s *PostgresqlServer) SetBindingPhase(p v1alpha1.BindingPhase) {
+func (s *PostgresqlServer) SetBindingPhase(p runtimev1alpha1.BindingPhase) {
 	s.Status.SetBindingPhase(p)
 }
 
 // GetBindingPhase of this PostgresqlServer.
-func (s *PostgresqlServer) GetBindingPhase() v1alpha1.BindingPhase {
+func (s *PostgresqlServer) GetBindingPhase() runtimev1alpha1.BindingPhase {
 	return s.Status.GetBindingPhase()
 }
 
 // SetConditions of this PostgresqlServer.
-func (s *PostgresqlServer) SetConditions(c ...v1alpha1.Condition) {
+func (s *PostgresqlServer) SetConditions(c ...runtimev1alpha1.Condition) {
 	s.Status.SetConditions(c...)
 }
 
@@ -217,12 +217,12 @@ func (s *PostgresqlServer) GetWriteConnectionSecretToReference() corev1.LocalObj
 }
 
 // GetReclaimPolicy of this PostgresqlServer.
-func (s *PostgresqlServer) GetReclaimPolicy() v1alpha1.ReclaimPolicy {
+func (s *PostgresqlServer) GetReclaimPolicy() runtimev1alpha1.ReclaimPolicy {
 	return s.Spec.ReclaimPolicy
 }
 
 // SetReclaimPolicy of this PostgresqlServer.
-func (s *PostgresqlServer) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) {
+func (s *PostgresqlServer) SetReclaimPolicy(p runtimev1alpha1.ReclaimPolicy) {
 	s.Spec.ReclaimPolicy = p
 }
 
@@ -237,8 +237,8 @@ type PostgresqlServerList struct {
 
 // SQLServerClassSpecTemplate is the Schema for the resource class
 type SQLServerClassSpecTemplate struct {
-	v1alpha1.ResourceClassSpecTemplate `json:",inline"`
-	SQLServerParameters                `json:",inline"`
+	runtimev1alpha1.ResourceClassSpecTemplate `json:",inline"`
+	SQLServerParameters                       `json:",inline"`
 }
 
 var _ resource.Class = &SQLServerClass{}
@@ -257,12 +257,12 @@ type SQLServerClass struct {
 }
 
 // GetReclaimPolicy of this PostgresqlServerClass.
-func (i *SQLServerClass) GetReclaimPolicy() v1alpha1.ReclaimPolicy {
+func (i *SQLServerClass) GetReclaimPolicy() runtimev1alpha1.ReclaimPolicy {
 	return i.SpecTemplate.ReclaimPolicy
 }
 
 // SetReclaimPolicy of this PostgresqlServerClass.
-func (i *SQLServerClass) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) {
+func (i *SQLServerClass) SetReclaimPolicy(p runtimev1alpha1.ReclaimPolicy) {
 	i.SpecTemplate.ReclaimPolicy = p
 }
 
@@ -288,13 +288,13 @@ type SQLServerParameters struct {
 
 // SQLServerSpec defines the desired state of SQLServer
 type SQLServerSpec struct {
-	v1alpha1.ResourceSpec `json:",inline"`
-	SQLServerParameters   `json:",inline"`
+	runtimev1alpha1.ResourceSpec `json:",inline"`
+	SQLServerParameters          `json:",inline"`
 }
 
 // SQLServerStatus defines the observed state of SQLServer
 type SQLServerStatus struct {
-	v1alpha1.ResourceStatus `json:",inline"`
+	runtimev1alpha1.ResourceStatus `json:",inline"`
 
 	State   string `json:"state,omitempty"`
 	Message string `json:"message,omitempty"`

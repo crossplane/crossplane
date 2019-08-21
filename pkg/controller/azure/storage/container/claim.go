@@ -28,10 +28,10 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
 	storagev1alpha1 "github.com/crossplaneio/crossplane/apis/storage/v1alpha1"
 	"github.com/crossplaneio/crossplane/azure/apis/storage/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/resource"
 )
 
 // ClaimController is responsible for adding the Container claim controller and its
@@ -79,7 +79,7 @@ func ConfigureContainer(_ context.Context, cm resource.Claim, cs resource.Class,
 	}
 
 	spec := &v1alpha1.ContainerSpec{
-		ReclaimPolicy:       corev1alpha1.ReclaimRetain,
+		ReclaimPolicy:       runtimev1alpha1.ReclaimRetain,
 		ContainerParameters: rs.SpecTemplate.ContainerParameters,
 	}
 

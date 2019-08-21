@@ -39,11 +39,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/test"
+	"github.com/crossplaneio/crossplane-runtime/pkg/util"
 	"github.com/crossplaneio/crossplane/apis/stacks"
 	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/test"
-	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 const (
@@ -170,7 +170,7 @@ var _ reconcile.Reconciler = &Reconciler{}
 // ************************************************************************************************
 type resourceModifier func(*v1alpha1.StackRequest)
 
-func withConditions(c ...corev1alpha1.Condition) resourceModifier {
+func withConditions(c ...runtimev1alpha1.Condition) resourceModifier {
 	return func(r *v1alpha1.StackRequest) { r.Status.SetConditions(c...) }
 }
 
@@ -472,7 +472,7 @@ func TestCreate(t *testing.T) {
 				result: requeueOnSuccess,
 				err:    nil,
 				ext: resource(
-					withConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileSuccess()),
+					withConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileSuccess()),
 					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: namespace}),
 				),
 			},
@@ -494,7 +494,7 @@ func TestCreate(t *testing.T) {
 				result: requeueOnSuccess,
 				err:    nil,
 				ext: resource(
-					withConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileSuccess()),
+					withConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileSuccess()),
 					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: namespace}),
 				),
 			},
@@ -521,7 +521,7 @@ func TestCreate(t *testing.T) {
 				result: requeueOnSuccess,
 				err:    nil,
 				ext: resource(
-					withConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess()),
+					withConditions(runtimev1alpha1.Available(), runtimev1alpha1.ReconcileSuccess()),
 					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: namespace}),
 				),
 			},
@@ -549,8 +549,8 @@ func TestCreate(t *testing.T) {
 				err:    nil,
 				ext: resource(
 					withConditions(
-						corev1alpha1.Creating(),
-						corev1alpha1.ReconcileError(errors.New("mock job failure message")),
+						runtimev1alpha1.Creating(),
+						runtimev1alpha1.ReconcileError(errors.New("mock job failure message")),
 					),
 					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: namespace}),
 				),

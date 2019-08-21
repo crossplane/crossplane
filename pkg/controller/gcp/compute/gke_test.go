@@ -36,11 +36,11 @@ import (
 	. "sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 	. "github.com/crossplaneio/crossplane/gcp/apis/compute/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/clients/gcp/fake"
 	"github.com/crossplaneio/crossplane/pkg/clients/gcp/gke"
-	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
 const (
@@ -78,7 +78,7 @@ func testCluster() *GKECluster {
 			Namespace: namespace,
 		},
 		Spec: GKEClusterSpec{
-			ResourceSpec: corev1alpha1.ResourceSpec{
+			ResourceSpec: runtimev1alpha1.ResourceSpec{
 				ProviderReference: &corev1.ObjectReference{Namespace: namespace, Name: providerName},
 			},
 		},
@@ -86,7 +86,7 @@ func testCluster() *GKECluster {
 }
 
 // assertResource a helper function to check on cluster and its status
-func assertResource(g *GomegaWithT, r *Reconciler, s corev1alpha1.ConditionedStatus) *GKECluster {
+func assertResource(g *GomegaWithT, r *Reconciler, s runtimev1alpha1.ConditionedStatus) *GKECluster {
 	rc := &GKECluster{}
 	err := r.Get(ctx, key, rc)
 	g.Expect(err).To(BeNil())
@@ -113,8 +113,8 @@ func TestSyncClusterGetError(t *testing.T) {
 		return nil, testError
 	}
 
-	expectedStatus := corev1alpha1.ConditionedStatus{}
-	expectedStatus.SetConditions(corev1alpha1.ReconcileError(testError))
+	expectedStatus := runtimev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(runtimev1alpha1.ReconcileError(testError))
 
 	rs, err := r._sync(tc, cl)
 	g.Expect(rs).To(Equal(resultRequeue))
@@ -143,7 +143,7 @@ func TestSyncClusterNotReady(t *testing.T) {
 		}, nil
 	}
 
-	expectedStatus := corev1alpha1.ConditionedStatus{}
+	expectedStatus := runtimev1alpha1.ConditionedStatus{}
 
 	rs, err := r._sync(tc, cl)
 	g.Expect(rs).To(Equal(reconcile.Result{RequeueAfter: requeueOnWait}))
@@ -182,8 +182,8 @@ func TestSyncApplySecretError(t *testing.T) {
 		}, nil
 	}
 
-	expectedStatus := corev1alpha1.ConditionedStatus{}
-	expectedStatus.SetConditions(corev1alpha1.ReconcileError(testError))
+	expectedStatus := runtimev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(runtimev1alpha1.ReconcileError(testError))
 
 	rs, err := r._sync(tc, cl)
 	g.Expect(rs).To(Equal(resultRequeue))
@@ -217,8 +217,8 @@ func TestSync(t *testing.T) {
 		}, nil
 	}
 
-	expectedStatus := corev1alpha1.ConditionedStatus{}
-	expectedStatus.SetConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess())
+	expectedStatus := runtimev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(runtimev1alpha1.Available(), runtimev1alpha1.ReconcileSuccess())
 
 	rs, err := r._sync(tc, cl)
 	g.Expect(rs).To(Equal(reconcile.Result{RequeueAfter: requeueOnSucces}))
@@ -232,7 +232,7 @@ func TestDeleteReclaimDelete(t *testing.T) {
 
 	tc := testCluster()
 	tc.Finalizers = []string{finalizer}
-	tc.Spec.ReclaimPolicy = corev1alpha1.ReclaimDelete
+	tc.Spec.ReclaimPolicy = runtimev1alpha1.ReclaimDelete
 
 	r := &Reconciler{
 		Client:     NewFakeClient(tc),
@@ -246,8 +246,8 @@ func TestDeleteReclaimDelete(t *testing.T) {
 		return nil
 	}
 
-	expectedStatus := corev1alpha1.ConditionedStatus{}
-	expectedStatus.SetConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileSuccess())
+	expectedStatus := runtimev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(runtimev1alpha1.Deleting(), runtimev1alpha1.ReconcileSuccess())
 
 	rs, err := r._delete(tc, cl)
 	g.Expect(rs).To(Equal(result))
@@ -260,7 +260,7 @@ func TestDeleteReclaimRetain(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	tc := testCluster()
-	tc.Spec.ReclaimPolicy = corev1alpha1.ReclaimRetain
+	tc.Spec.ReclaimPolicy = runtimev1alpha1.ReclaimRetain
 	tc.Finalizers = []string{finalizer}
 
 	r := &Reconciler{
@@ -282,8 +282,8 @@ func TestDeleteReclaimRetain(t *testing.T) {
 	g.Expect(called).To(BeFalse())
 
 	// expected to have all conditions set to inactive
-	expectedStatus := corev1alpha1.ConditionedStatus{}
-	expectedStatus.SetConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileSuccess())
+	expectedStatus := runtimev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(runtimev1alpha1.Deleting(), runtimev1alpha1.ReconcileSuccess())
 
 	assertResource(g, r, expectedStatus)
 }
@@ -292,7 +292,7 @@ func TestDeleteFailed(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	tc := testCluster()
-	tc.Spec.ReclaimPolicy = corev1alpha1.ReclaimDelete
+	tc.Spec.ReclaimPolicy = runtimev1alpha1.ReclaimDelete
 	tc.Finalizers = []string{finalizer}
 
 	r := &Reconciler{
@@ -316,8 +316,8 @@ func TestDeleteFailed(t *testing.T) {
 	g.Expect(called).To(BeTrue())
 
 	// expected status
-	expectedStatus := corev1alpha1.ConditionedStatus{}
-	expectedStatus.SetConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileError(testError))
+	expectedStatus := runtimev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(runtimev1alpha1.Deleting(), runtimev1alpha1.ReconcileError(testError))
 
 	assertResource(g, r, expectedStatus)
 }
@@ -350,8 +350,8 @@ func TestReconcileClientError(t *testing.T) {
 	}
 
 	// expected to have a failed condition
-	expectedStatus := corev1alpha1.ConditionedStatus{}
-	expectedStatus.SetConditions(corev1alpha1.ReconcileError(testError))
+	expectedStatus := runtimev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(runtimev1alpha1.ReconcileError(testError))
 
 	rs, err := r.Reconcile(request)
 	g.Expect(rs).To(Equal(resultRequeue))
@@ -387,7 +387,7 @@ func TestReconcileDelete(t *testing.T) {
 	g.Expect(rs).To(Equal(result))
 	g.Expect(err).To(BeNil())
 	g.Expect(called).To(BeTrue())
-	assertResource(g, r, corev1alpha1.ConditionedStatus{})
+	assertResource(g, r, runtimev1alpha1.ConditionedStatus{})
 }
 
 func TestReconcileCreate(t *testing.T) {
@@ -439,7 +439,7 @@ func TestReconcileSync(t *testing.T) {
 	g.Expect(err).To(BeNil())
 	g.Expect(called).To(BeTrue())
 
-	rc := assertResource(g, r, corev1alpha1.ConditionedStatus{})
+	rc := assertResource(g, r, runtimev1alpha1.ConditionedStatus{})
 	g.Expect(rc.Finalizers).To(HaveLen(1))
 	g.Expect(rc.Finalizers).To(ContainElement(finalizer))
 }

@@ -31,6 +31,7 @@ import (
 	runtimelog "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"sigs.k8s.io/controller-runtime/pkg/runtime/signals"
 
+	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
 	"github.com/crossplaneio/crossplane/apis"
 	"github.com/crossplaneio/crossplane/pkg/controller/aws"
 	"github.com/crossplaneio/crossplane/pkg/controller/azure"
@@ -38,7 +39,6 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/controller/gcp"
 	stacksController "github.com/crossplaneio/crossplane/pkg/controller/stacks"
 	"github.com/crossplaneio/crossplane/pkg/controller/workload"
-	"github.com/crossplaneio/crossplane/pkg/logging"
 	"github.com/crossplaneio/crossplane/pkg/stacks"
 )
 

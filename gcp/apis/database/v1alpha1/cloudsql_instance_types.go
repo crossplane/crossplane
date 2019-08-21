@@ -19,14 +19,14 @@ package v1alpha1
 import (
 	"strings"
 
-	"github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
 
 	sqladmin "google.golang.org/api/sqladmin/v1beta4"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/crossplaneio/crossplane/pkg/resource"
-	"github.com/crossplaneio/crossplane/pkg/util"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
+	"github.com/crossplaneio/crossplane-runtime/pkg/util"
 )
 
 // CloudSQL instance states
@@ -78,13 +78,13 @@ type CloudsqlInstanceParameters struct {
 
 // CloudsqlInstanceSpec defines the desired state of CloudsqlInstance
 type CloudsqlInstanceSpec struct {
-	v1alpha1.ResourceSpec      `json:",inline"`
-	CloudsqlInstanceParameters `json:",inline"`
+	runtimev1alpha1.ResourceSpec `json:",inline"`
+	CloudsqlInstanceParameters   `json:",inline"`
 }
 
 // CloudsqlInstanceStatus defines the observed state of CloudsqlInstance
 type CloudsqlInstanceStatus struct {
-	v1alpha1.ResourceStatus `json:",inline"`
+	runtimev1alpha1.ResourceStatus `json:",inline"`
 
 	State    string `json:"state,omitempty"`
 	Endpoint string `json:"endpoint,omitempty"`
@@ -108,17 +108,17 @@ type CloudsqlInstance struct {
 }
 
 // SetBindingPhase of this CloudsqlInstance.
-func (i *CloudsqlInstance) SetBindingPhase(p v1alpha1.BindingPhase) {
+func (i *CloudsqlInstance) SetBindingPhase(p runtimev1alpha1.BindingPhase) {
 	i.Status.SetBindingPhase(p)
 }
 
 // GetBindingPhase of this CloudsqlInstance.
-func (i *CloudsqlInstance) GetBindingPhase() v1alpha1.BindingPhase {
+func (i *CloudsqlInstance) GetBindingPhase() runtimev1alpha1.BindingPhase {
 	return i.Status.GetBindingPhase()
 }
 
 // SetConditions of this CloudsqlInstance.
-func (i *CloudsqlInstance) SetConditions(c ...v1alpha1.Condition) {
+func (i *CloudsqlInstance) SetConditions(c ...runtimev1alpha1.Condition) {
 	i.Status.SetConditions(c...)
 }
 
@@ -148,12 +148,12 @@ func (i *CloudsqlInstance) GetProviderReference() *corev1.ObjectReference {
 }
 
 // GetReclaimPolicy of this CloudsqlInstance.
-func (i *CloudsqlInstance) GetReclaimPolicy() v1alpha1.ReclaimPolicy {
+func (i *CloudsqlInstance) GetReclaimPolicy() runtimev1alpha1.ReclaimPolicy {
 	return i.Spec.ReclaimPolicy
 }
 
 // SetReclaimPolicy of this CloudsqlInstance.
-func (i *CloudsqlInstance) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) {
+func (i *CloudsqlInstance) SetReclaimPolicy(p runtimev1alpha1.ReclaimPolicy) {
 	i.Spec.ReclaimPolicy = p
 }
 
@@ -179,8 +179,8 @@ type CloudsqlInstanceList struct {
 // ConnectionSecret returns a connection secret for this instance
 func (i *CloudsqlInstance) ConnectionSecret() *corev1.Secret {
 	s := resource.ConnectionSecretFor(i, CloudsqlInstanceGroupVersionKind)
-	s.Data[v1alpha1.ResourceCredentialsSecretEndpointKey] = []byte(i.Status.Endpoint)
-	s.Data[v1alpha1.ResourceCredentialsSecretUserKey] = []byte(i.DatabaseUserName())
+	s.Data[runtimev1alpha1.ResourceCredentialsSecretEndpointKey] = []byte(i.Status.Endpoint)
+	s.Data[runtimev1alpha1.ResourceCredentialsSecretUserKey] = []byte(i.DatabaseUserName())
 	return s
 }
 
@@ -255,10 +255,10 @@ func (i *CloudsqlInstance) SetStatus(inst *sqladmin.DatabaseInstance) {
 	}
 	i.Status.State = inst.State
 	if i.IsRunnable() {
-		i.Status.SetConditions(v1alpha1.Available())
+		i.Status.SetConditions(runtimev1alpha1.Available())
 		resource.SetBindable(i)
 	} else {
-		i.Status.SetConditions(v1alpha1.Unavailable())
+		i.Status.SetConditions(runtimev1alpha1.Unavailable())
 	}
 
 	if len(inst.IpAddresses) > 0 {
@@ -268,8 +268,8 @@ func (i *CloudsqlInstance) SetStatus(inst *sqladmin.DatabaseInstance) {
 
 // CloudsqlInstanceClassSpecTemplate is the Schema for the resource class
 type CloudsqlInstanceClassSpecTemplate struct {
-	v1alpha1.ResourceClassSpecTemplate `json:",inline"`
-	CloudsqlInstanceParameters         `json:",inline"`
+	runtimev1alpha1.ResourceClassSpecTemplate `json:",inline"`
+	CloudsqlInstanceParameters                `json:",inline"`
 }
 
 var _ resource.Class = &CloudsqlInstanceClass{}
@@ -288,12 +288,12 @@ type CloudsqlInstanceClass struct {
 }
 
 // GetReclaimPolicy of this CloudsqlInstanceClass.
-func (i *CloudsqlInstanceClass) GetReclaimPolicy() v1alpha1.ReclaimPolicy {
+func (i *CloudsqlInstanceClass) GetReclaimPolicy() runtimev1alpha1.ReclaimPolicy {
 	return i.SpecTemplate.ReclaimPolicy
 }
 
 // SetReclaimPolicy of this CloudsqlInstanceClass.
-func (i *CloudsqlInstanceClass) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) {
+func (i *CloudsqlInstanceClass) SetReclaimPolicy(p runtimev1alpha1.ReclaimPolicy) {
 	i.SpecTemplate.ReclaimPolicy = p
 }
 

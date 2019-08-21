@@ -29,11 +29,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
+	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
 	"github.com/crossplaneio/crossplane/azure/apis/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/clients/azure/resourcegroup"
-	"github.com/crossplaneio/crossplane/pkg/logging"
-	"github.com/crossplaneio/crossplane/pkg/meta"
 )
 
 const (
@@ -82,15 +82,15 @@ type azureResourceGroup struct {
 }
 
 func (a *azureResourceGroup) Create(ctx context.Context, r *v1alpha1.ResourceGroup) bool {
-	r.Status.SetConditions(corev1alpha1.Creating())
+	r.Status.SetConditions(runtimev1alpha1.Creating())
 	if _, err := a.client.CreateOrUpdate(ctx, r.Spec.Name, resourcegroup.NewParameters(r)); err != nil {
-		r.Status.SetConditions(corev1alpha1.ReconcileError(err))
+		r.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
 		return true
 	}
 
 	r.Status.Name = r.Spec.Name
 	meta.AddFinalizer(r, finalizer)
-	r.Status.SetConditions(corev1alpha1.ReconcileSuccess())
+	r.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
 
 	return true
 }
@@ -98,34 +98,34 @@ func (a *azureResourceGroup) Create(ctx context.Context, r *v1alpha1.ResourceGro
 func (a *azureResourceGroup) Sync(ctx context.Context, r *v1alpha1.ResourceGroup) bool {
 	res, err := a.client.CheckExistence(ctx, r.Spec.Name)
 	if err != nil {
-		r.Status.SetConditions(corev1alpha1.ReconcileError(err))
+		r.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
 		return true
 	}
 
 	switch res.Response.StatusCode {
 	case http.StatusNoContent:
-		r.Status.SetConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess())
+		r.Status.SetConditions(runtimev1alpha1.Available(), runtimev1alpha1.ReconcileSuccess())
 		return false
 	case http.StatusNotFound:
 		// Custom error passed to SetFailed due to Azure API returning 404 instead of error
-		r.Status.SetConditions(corev1alpha1.ReconcileError(errDeleted))
+		r.Status.SetConditions(runtimev1alpha1.ReconcileError(errDeleted))
 		return true
 	}
 
-	r.Status.SetConditions(corev1alpha1.ReconcileSuccess())
+	r.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
 	return true
 }
 
 func (a *azureResourceGroup) Delete(ctx context.Context, r *v1alpha1.ResourceGroup) bool {
-	r.Status.SetConditions(corev1alpha1.Deleting())
-	if r.Spec.ReclaimPolicy == corev1alpha1.ReclaimDelete {
+	r.Status.SetConditions(runtimev1alpha1.Deleting())
+	if r.Spec.ReclaimPolicy == runtimev1alpha1.ReclaimDelete {
 		if _, err := a.client.Delete(ctx, r.Spec.Name); err != nil {
-			r.Status.SetConditions(corev1alpha1.ReconcileError(err))
+			r.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
 			return true
 		}
 	}
 	meta.RemoveFinalizer(r, finalizer)
-	r.Status.SetConditions(corev1alpha1.ReconcileSuccess())
+	r.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
 
 	return false
 }
@@ -204,7 +204,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	client, err := r.Connect(ctx, rg)
 	if err != nil {
-		rg.Status.SetConditions(corev1alpha1.ReconcileError(err))
+		rg.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}, errors.Wrapf(r.kube.Update(ctx, rg), "cannot update resource %s", req.NamespacedName)
 	}
 

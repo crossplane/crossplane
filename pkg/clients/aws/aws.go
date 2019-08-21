@@ -23,8 +23,8 @@ import (
 	"github.com/go-ini/ini"
 	"k8s.io/client-go/kubernetes"
 
+	"github.com/crossplaneio/crossplane-runtime/pkg/util"
 	"github.com/crossplaneio/crossplane/aws/apis/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 // DefaultSection for INI files.

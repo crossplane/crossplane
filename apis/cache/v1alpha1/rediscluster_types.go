@@ -20,13 +20,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/crossplaneio/crossplane/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/resource"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
 )
 
 // RedisClusterSpec defines the desired state of RedisCluster
 type RedisClusterSpec struct {
-	v1alpha1.ResourceClaimSpec `json:",inline"`
+	runtimev1alpha1.ResourceClaimSpec `json:",inline"`
 
 	// EngineVersion specifies the desired Redis version.
 	// +kubebuilder:validation:Enum="2.6";"2.8";"3.2";"4.0";"5.0"
@@ -46,22 +46,22 @@ type RedisCluster struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   RedisClusterSpec             `json:"spec,omitempty"`
-	Status v1alpha1.ResourceClaimStatus `json:"status,omitempty"`
+	Spec   RedisClusterSpec                    `json:"spec,omitempty"`
+	Status runtimev1alpha1.ResourceClaimStatus `json:"status,omitempty"`
 }
 
 // SetBindingPhase of this RedisCluster.
-func (rc *RedisCluster) SetBindingPhase(p v1alpha1.BindingPhase) {
+func (rc *RedisCluster) SetBindingPhase(p runtimev1alpha1.BindingPhase) {
 	rc.Status.SetBindingPhase(p)
 }
 
 // GetBindingPhase of this RedisCluster.
-func (rc *RedisCluster) GetBindingPhase() v1alpha1.BindingPhase {
+func (rc *RedisCluster) GetBindingPhase() runtimev1alpha1.BindingPhase {
 	return rc.Status.GetBindingPhase()
 }
 
 // SetConditions of this RedisCluster.
-func (rc *RedisCluster) SetConditions(c ...v1alpha1.Condition) {
+func (rc *RedisCluster) SetConditions(c ...runtimev1alpha1.Condition) {
 	rc.Status.SetConditions(c...)
 }
 
@@ -114,7 +114,7 @@ type RedisClusterPolicy struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	v1alpha1.Policy `json:",inline"`
+	runtimev1alpha1.Policy `json:",inline"`
 }
 
 // All policy lists must satisfy the PolicyList interface

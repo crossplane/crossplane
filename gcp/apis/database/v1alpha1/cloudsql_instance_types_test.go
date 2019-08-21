@@ -20,7 +20,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/crossplaneio/crossplane/pkg/resource"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/onsi/gomega"
@@ -30,8 +30,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/test"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 )
 
 const (
@@ -56,7 +56,7 @@ func TestStorageCloudsqlInstance(t *testing.T) {
 	created := &CloudsqlInstance{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
 		Spec: CloudsqlInstanceSpec{
-			ResourceSpec: corev1alpha1.ResourceSpec{
+			ResourceSpec: runtimev1alpha1.ResourceSpec{
 				ProviderReference: &core.ObjectReference{},
 			},
 		},
@@ -97,8 +97,8 @@ func TestCloudsqlInstance_ConnectionSecret(t *testing.T) {
 				},
 			},
 			want: map[string][]byte{
-				corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(""),
-				corev1alpha1.ResourceCredentialsSecretUserKey:     []byte(PostgresqlDefaultUser),
+				runtimev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(""),
+				runtimev1alpha1.ResourceCredentialsSecretUserKey:     []byte(PostgresqlDefaultUser),
 			},
 		},
 	}
@@ -334,11 +334,11 @@ func TestCloudsqlInstance_SetStatus(t *testing.T) {
 			status: CloudsqlInstanceStatus{},
 			args:   &sqladmin.DatabaseInstance{},
 			want: CloudsqlInstanceStatus{
-				ResourceStatus: corev1alpha1.ResourceStatus{
-					ConditionedStatus: corev1alpha1.ConditionedStatus{
-						Conditions: []corev1alpha1.Condition{
+				ResourceStatus: runtimev1alpha1.ResourceStatus{
+					ConditionedStatus: runtimev1alpha1.ConditionedStatus{
+						Conditions: []runtimev1alpha1.Condition{
 							{
-								Type:   corev1alpha1.TypeReady,
+								Type:   runtimev1alpha1.TypeReady,
 								Status: "False",
 								Reason: "Managed resource is not available for use",
 							},
@@ -358,18 +358,18 @@ func TestCloudsqlInstance_SetStatus(t *testing.T) {
 				State: StateRunnable,
 			},
 			want: CloudsqlInstanceStatus{
-				ResourceStatus: corev1alpha1.ResourceStatus{
-					ConditionedStatus: corev1alpha1.ConditionedStatus{
-						Conditions: []corev1alpha1.Condition{
+				ResourceStatus: runtimev1alpha1.ResourceStatus{
+					ConditionedStatus: runtimev1alpha1.ConditionedStatus{
+						Conditions: []runtimev1alpha1.Condition{
 							{
-								Type:   corev1alpha1.TypeReady,
+								Type:   runtimev1alpha1.TypeReady,
 								Status: "True",
 								Reason: "Managed resource is available for use",
 							},
 						},
 					},
-					BindingStatus: corev1alpha1.BindingStatus{
-						Phase: corev1alpha1.BindingPhaseUnbound,
+					BindingStatus: runtimev1alpha1.BindingStatus{
+						Phase: runtimev1alpha1.BindingPhaseUnbound,
 					},
 				},
 				Endpoint: "foo",

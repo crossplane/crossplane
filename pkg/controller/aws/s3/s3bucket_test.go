@@ -35,15 +35,15 @@ import (
 	. "sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/test"
+	"github.com/crossplaneio/crossplane-runtime/pkg/util"
 	storagev1alpha1 "github.com/crossplaneio/crossplane/apis/storage/v1alpha1"
 	"github.com/crossplaneio/crossplane/aws/apis/storage/v1alpha1"
 	. "github.com/crossplaneio/crossplane/aws/apis/storage/v1alpha1"
 	awsv1alpha1 "github.com/crossplaneio/crossplane/aws/apis/v1alpha1"
 	client "github.com/crossplaneio/crossplane/pkg/clients/aws/s3"
 	. "github.com/crossplaneio/crossplane/pkg/clients/aws/s3/fake"
-	"github.com/crossplaneio/crossplane/pkg/test"
-	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 const (
@@ -86,7 +86,7 @@ func testResource() *S3Bucket {
 			Namespace: namespace,
 		},
 		Spec: S3BucketSpec{
-			ResourceSpec:       corev1alpha1.ResourceSpec{ProviderReference: &corev1.ObjectReference{}},
+			ResourceSpec:       runtimev1alpha1.ResourceSpec{ProviderReference: &corev1.ObjectReference{}},
 			S3BucketParameters: v1alpha1.S3BucketParameters{LocalPermission: &perm},
 		},
 		Status: S3BucketStatus{
@@ -96,7 +96,7 @@ func testResource() *S3Bucket {
 }
 
 // assertResource a helper function to check on cluster and its status
-func assertResource(g *GomegaWithT, r *Reconciler, s corev1alpha1.ConditionedStatus) *S3Bucket {
+func assertResource(g *GomegaWithT, r *Reconciler, s runtimev1alpha1.ConditionedStatus) *S3Bucket {
 	resource := &S3Bucket{}
 	err := r.Get(ctx, key, resource)
 	g.Expect(err).To(BeNil())
@@ -107,7 +107,7 @@ func assertResource(g *GomegaWithT, r *Reconciler, s corev1alpha1.ConditionedSta
 func TestSyncBucketError(t *testing.T) {
 	g := NewGomegaWithT(t)
 
-	assert := func(instance *S3Bucket, client client.Service, expectedResult reconcile.Result, expectedStatus corev1alpha1.ConditionedStatus) {
+	assert := func(instance *S3Bucket, client client.Service, expectedResult reconcile.Result, expectedStatus runtimev1alpha1.ConditionedStatus) {
 		r := &Reconciler{
 			Client:     NewFakeClient(instance),
 			kubeclient: NewSimpleClientset(),
@@ -124,8 +124,8 @@ func TestSyncBucketError(t *testing.T) {
 	testError := errors.New("username not set, .Status.IAMUsername")
 	cl := &MockS3Client{}
 
-	expectedStatus := corev1alpha1.ConditionedStatus{}
-	expectedStatus.SetConditions(corev1alpha1.ReconcileError(testError))
+	expectedStatus := runtimev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(runtimev1alpha1.ReconcileError(testError))
 	noUserResource := testResource()
 	noUserResource.Status.IAMUsername = ""
 	assert(noUserResource, cl, resultRequeue, expectedStatus)
@@ -135,8 +135,8 @@ func TestSyncBucketError(t *testing.T) {
 	cl.MockGetBucketInfo = func(username string, bucket *S3Bucket) (*client.Bucket, error) {
 		return nil, testError
 	}
-	expectedStatus = corev1alpha1.ConditionedStatus{}
-	expectedStatus.SetConditions(corev1alpha1.ReconcileError(testError))
+	expectedStatus = runtimev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(runtimev1alpha1.ReconcileError(testError))
 	assert(testResource(), cl, resultRequeue, expectedStatus)
 
 	//update versioning error
@@ -148,8 +148,8 @@ func TestSyncBucketError(t *testing.T) {
 	cl.MockUpdateVersioning = func(bucket *S3Bucket) error {
 		return testError
 	}
-	expectedStatus = corev1alpha1.ConditionedStatus{}
-	expectedStatus.SetConditions(corev1alpha1.ReconcileError(testError))
+	expectedStatus = runtimev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(runtimev1alpha1.ReconcileError(testError))
 	assert(testResource(), cl, resultRequeue, expectedStatus)
 
 	// update bucket acl error
@@ -162,8 +162,8 @@ func TestSyncBucketError(t *testing.T) {
 		return testError
 	}
 
-	expectedStatus = corev1alpha1.ConditionedStatus{}
-	expectedStatus.SetConditions(corev1alpha1.ReconcileError(testError))
+	expectedStatus = runtimev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(runtimev1alpha1.ReconcileError(testError))
 	assert(testResource(), cl, resultRequeue, expectedStatus)
 
 	cl.MockUpdateBucketACL = func(bucket *S3Bucket) error {
@@ -181,8 +181,8 @@ func TestSyncBucketError(t *testing.T) {
 	cl.MockUpdatePolicyDocument = func(username string, bucket *S3Bucket) (string, error) {
 		return "", testError
 	}
-	expectedStatus = corev1alpha1.ConditionedStatus{}
-	expectedStatus.SetConditions(corev1alpha1.ReconcileError(testError))
+	expectedStatus = runtimev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(runtimev1alpha1.ReconcileError(testError))
 	assert(testResource(), cl, resultRequeue, expectedStatus)
 }
 
@@ -210,8 +210,8 @@ func TestSyncBucket(t *testing.T) {
 		},
 	}
 
-	expectedStatus := corev1alpha1.ConditionedStatus{}
-	expectedStatus.SetConditions(corev1alpha1.ReconcileSuccess())
+	expectedStatus := runtimev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(runtimev1alpha1.ReconcileSuccess())
 	rs, err := r._sync(tr, cl)
 	g.Expect(rs).To(Equal(result))
 	g.Expect(err).NotTo(HaveOccurred())
@@ -233,9 +233,9 @@ func TestDelete(t *testing.T) {
 	cl := &MockS3Client{}
 
 	// test delete w/ reclaim policy
-	tr.Spec.ReclaimPolicy = corev1alpha1.ReclaimRetain
-	expectedStatus := corev1alpha1.ConditionedStatus{}
-	expectedStatus.SetConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileSuccess())
+	tr.Spec.ReclaimPolicy = runtimev1alpha1.ReclaimRetain
+	expectedStatus := runtimev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(runtimev1alpha1.Deleting(), runtimev1alpha1.ReconcileSuccess())
 
 	rs, err := r._delete(tr, cl)
 	g.Expect(rs).To(Equal(result))
@@ -243,7 +243,7 @@ func TestDelete(t *testing.T) {
 	assertResource(g, r, expectedStatus)
 
 	// test delete w/ delete policy
-	tr.Spec.ReclaimPolicy = corev1alpha1.ReclaimDelete
+	tr.Spec.ReclaimPolicy = runtimev1alpha1.ReclaimDelete
 	called := false
 	cl.MockDelete = func(bucket *S3Bucket) error {
 		called = true
@@ -263,8 +263,8 @@ func TestDelete(t *testing.T) {
 		called = true
 		return testError
 	}
-	expectedStatus = corev1alpha1.ConditionedStatus{}
-	expectedStatus.SetConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileError(testError))
+	expectedStatus = runtimev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(runtimev1alpha1.Deleting(), runtimev1alpha1.ReconcileError(testError))
 
 	rs, err = r._delete(tr, cl)
 	g.Expect(rs).To(Equal(resultRequeue))
@@ -302,8 +302,8 @@ func TestCreate(t *testing.T) {
 		},
 	}
 
-	expectedStatus := corev1alpha1.ConditionedStatus{}
-	expectedStatus.SetConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess())
+	expectedStatus := runtimev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(runtimev1alpha1.Available(), runtimev1alpha1.ReconcileSuccess())
 
 	resource := testResource()
 	rs, err := r._create(resource, cl)
@@ -351,8 +351,8 @@ func TestCreateFail(t *testing.T) {
 		return true, nil, testError
 	})
 
-	expectedStatus := corev1alpha1.ConditionedStatus{}
-	expectedStatus.SetConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileError(testError))
+	expectedStatus := runtimev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileError(testError))
 
 	rs, err := r._create(tr, cl)
 	g.Expect(rs).To(Equal(resultRequeue))
@@ -369,8 +369,8 @@ func TestCreateFail(t *testing.T) {
 		return nil, "", testError
 	}
 
-	expectedStatus = corev1alpha1.ConditionedStatus{}
-	expectedStatus.SetConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileError(testError))
+	expectedStatus = runtimev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileError(testError))
 
 	rs, err = r._create(tr, cl)
 	g.Expect(rs).To(Equal(resultRequeue))
@@ -396,8 +396,8 @@ func TestCreateFail(t *testing.T) {
 		return testError
 	}
 
-	expectedStatus = corev1alpha1.ConditionedStatus{}
-	expectedStatus.SetConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileError(testError))
+	expectedStatus = runtimev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileError(testError))
 
 	rs, err = r._create(tr, cl)
 	g.Expect(rs).To(Equal(resultRequeue))
@@ -443,8 +443,8 @@ func TestReconcile(t *testing.T) {
 		return nil, testError
 	}
 
-	expectedStatus := corev1alpha1.ConditionedStatus{}
-	expectedStatus.SetConditions(corev1alpha1.ReconcileError(testError))
+	expectedStatus := runtimev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(runtimev1alpha1.ReconcileError(testError))
 
 	rs, err := r.Reconcile(request)
 	g.Expect(rs).To(Equal(resultRequeue))

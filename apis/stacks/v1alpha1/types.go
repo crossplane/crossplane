@@ -23,7 +23,7 @@ import (
 	rbac "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
 )
 
 // TODO: how do we pretty print conditioned status items? There may be multiple of them, and they
@@ -74,7 +74,7 @@ type StackRequestSpec struct {
 
 // StackRequestStatus defines the observed state of StackRequest
 type StackRequestStatus struct {
-	v1alpha1.ConditionedStatus `json:"conditionedStatus,omitempty"`
+	runtimev1alpha1.ConditionedStatus `json:"conditionedStatus,omitempty"`
 
 	InstallJob  *corev1.ObjectReference `json:"installJob,omitempty"`
 	StackRecord *corev1.ObjectReference `json:"stackRecord,omitempty"`
@@ -114,8 +114,8 @@ type StackSpec struct {
 
 // StackStatus defines the observed state of Stack
 type StackStatus struct {
-	v1alpha1.ConditionedStatus `json:"conditionedStatus,omitempty"`
-	ControllerRef              *corev1.ObjectReference `json:"controllerRef,omitempty"`
+	runtimev1alpha1.ConditionedStatus `json:"conditionedStatus,omitempty"`
+	ControllerRef                     *corev1.ObjectReference `json:"controllerRef,omitempty"`
 }
 
 // AppMetadataSpec defines metadata about the stack application

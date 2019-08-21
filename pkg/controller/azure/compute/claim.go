@@ -28,10 +28,10 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
 	computev1alpha1 "github.com/crossplaneio/crossplane/apis/compute/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/azure/apis/compute/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/resource"
 )
 
 // AKSClusterClaimController is responsible for adding the AKSCluster
@@ -78,8 +78,8 @@ func ConfigureAKSCluster(_ context.Context, cm resource.Claim, cs resource.Class
 	}
 
 	spec := &v1alpha1.AKSClusterSpec{
-		ResourceSpec: corev1alpha1.ResourceSpec{
-			ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		ResourceSpec: runtimev1alpha1.ResourceSpec{
+			ReclaimPolicy: runtimev1alpha1.ReclaimRetain,
 		},
 		AKSClusterParameters: rs.SpecTemplate.AKSClusterParameters,
 	}

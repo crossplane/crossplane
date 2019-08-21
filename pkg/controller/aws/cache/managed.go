@@ -27,14 +27,14 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
+	"github.com/crossplaneio/crossplane-runtime/pkg/util"
 	"github.com/crossplaneio/crossplane/aws/apis/cache/v1alpha1"
 	awsv1alpha1 "github.com/crossplaneio/crossplane/aws/apis/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/clients/aws"
 	"github.com/crossplaneio/crossplane/pkg/clients/aws/elasticache"
-	"github.com/crossplaneio/crossplane/pkg/meta"
-	"github.com/crossplaneio/crossplane/pkg/resource"
-	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 // Error strings.
@@ -134,12 +134,12 @@ func (e *external) Observe(ctx context.Context, mg resource.Managed) (resource.E
 
 	switch g.Status.State {
 	case v1alpha1.StatusAvailable:
-		g.Status.SetConditions(corev1alpha1.Available())
+		g.Status.SetConditions(runtimev1alpha1.Available())
 		resource.SetBindable(g)
 	case v1alpha1.StatusCreating:
-		g.Status.SetConditions(corev1alpha1.Creating())
+		g.Status.SetConditions(runtimev1alpha1.Creating())
 	case v1alpha1.StatusDeleting:
-		g.Status.SetConditions(corev1alpha1.Deleting())
+		g.Status.SetConditions(runtimev1alpha1.Deleting())
 	}
 
 	o := resource.ExternalObservation{
@@ -148,7 +148,7 @@ func (e *external) Observe(ctx context.Context, mg resource.Managed) (resource.E
 	}
 
 	if g.Status.Endpoint != "" {
-		o.ConnectionDetails[corev1alpha1.ResourceCredentialsSecretEndpointKey] = []byte(g.Status.Endpoint)
+		o.ConnectionDetails[runtimev1alpha1.ResourceCredentialsSecretEndpointKey] = []byte(g.Status.Endpoint)
 	}
 
 	return o, nil
@@ -160,7 +160,7 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (resource.Ex
 		return resource.ExternalCreation{}, errors.New(errNotReplicationGroup)
 	}
 
-	g.Status.SetConditions(corev1alpha1.Creating())
+	g.Status.SetConditions(runtimev1alpha1.Creating())
 	g.Status.GroupName = elasticache.NewReplicationGroupID(g)
 
 	// Our create request will fail if auth is enabled but transit encryption is
@@ -189,7 +189,7 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (resource.Ex
 
 	c := resource.ExternalCreation{
 		ConnectionDetails: resource.ConnectionDetails{
-			corev1alpha1.ResourceCredentialsSecretPasswordKey: []byte(token),
+			runtimev1alpha1.ResourceCredentialsSecretPasswordKey: []byte(token),
 		},
 	}
 
@@ -246,7 +246,7 @@ func (e *external) Delete(ctx context.Context, mg resource.Managed) error {
 	if !ok {
 		return errors.New(errNotReplicationGroup)
 	}
-	mg.SetConditions(corev1alpha1.Deleting())
+	mg.SetConditions(runtimev1alpha1.Deleting())
 	req := e.client.DeleteReplicationGroupRequest(elasticache.NewDeleteReplicationGroupInput(g))
 	req.SetContext(ctx)
 	_, err := req.Send()

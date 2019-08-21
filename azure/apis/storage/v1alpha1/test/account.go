@@ -22,7 +22,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
 	storagev1alpha1 "github.com/crossplaneio/crossplane/azure/apis/storage/v1alpha1"
 )
 
@@ -97,7 +97,7 @@ func (ta *MockAccount) WithSpecProvider(ns, name string) *MockAccount {
 }
 
 // WithSpecReclaimPolicy sets resource reclaim policy
-func (ta *MockAccount) WithSpecReclaimPolicy(policy v1alpha1.ReclaimPolicy) *MockAccount {
+func (ta *MockAccount) WithSpecReclaimPolicy(policy runtimev1alpha1.ReclaimPolicy) *MockAccount {
 	ta.Spec.ReclaimPolicy = policy
 	return ta
 }
@@ -138,13 +138,13 @@ func (ta *MockAccount) WithSpecWriteConnectionSecretToReference(name string) *Mo
 }
 
 // WithStatusConditions sets the storage account's conditioned status.
-func (ta *MockAccount) WithStatusConditions(c ...v1alpha1.Condition) *MockAccount {
+func (ta *MockAccount) WithStatusConditions(c ...runtimev1alpha1.Condition) *MockAccount {
 	ta.Status.SetConditions(c...)
 	return ta
 }
 
 // WithStatusBindingPhase sets the storage account's binding phase.
-func (ta *MockAccount) WithStatusBindingPhase(p v1alpha1.BindingPhase) *MockAccount {
+func (ta *MockAccount) WithStatusBindingPhase(p runtimev1alpha1.BindingPhase) *MockAccount {
 	ta.Status.SetBindingPhase(p)
 	return ta
 }

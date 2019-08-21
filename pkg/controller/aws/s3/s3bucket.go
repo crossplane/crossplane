@@ -30,15 +30,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
+	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
+	"github.com/crossplaneio/crossplane-runtime/pkg/util"
 	bucketv1alpha1 "github.com/crossplaneio/crossplane/aws/apis/storage/v1alpha1"
 	awsv1alpha1 "github.com/crossplaneio/crossplane/aws/apis/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/clients/aws"
 	"github.com/crossplaneio/crossplane/pkg/clients/aws/s3"
-	"github.com/crossplaneio/crossplane/pkg/logging"
-	"github.com/crossplaneio/crossplane/pkg/meta"
-	"github.com/crossplaneio/crossplane/pkg/resource"
-	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 const (
@@ -93,7 +93,7 @@ func (c *BucketController) SetupWithManager(mgr ctrl.Manager) error {
 
 // fail - helper function to set fail condition with reason and message
 func (r *Reconciler) fail(bucket *bucketv1alpha1.S3Bucket, err error) (reconcile.Result, error) {
-	bucket.Status.SetConditions(corev1alpha1.ReconcileError(err))
+	bucket.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
 	return reconcile.Result{Requeue: true}, r.Update(context.TODO(), bucket)
 }
 
@@ -101,9 +101,9 @@ func (r *Reconciler) fail(bucket *bucketv1alpha1.S3Bucket, err error) (reconcile
 func connectionSecret(bucket *bucketv1alpha1.S3Bucket, accessKey *iam.AccessKey) *corev1.Secret {
 	s := resource.ConnectionSecretFor(bucket, bucketv1alpha1.S3BucketGroupVersionKind)
 	s.Data = map[string][]byte{
-		corev1alpha1.ResourceCredentialsSecretUserKey:     []byte(util.StringValue(accessKey.AccessKeyId)),
-		corev1alpha1.ResourceCredentialsSecretPasswordKey: []byte(util.StringValue(accessKey.SecretAccessKey)),
-		corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(bucket.Spec.Region),
+		runtimev1alpha1.ResourceCredentialsSecretUserKey:     []byte(util.StringValue(accessKey.AccessKeyId)),
+		runtimev1alpha1.ResourceCredentialsSecretPasswordKey: []byte(util.StringValue(accessKey.SecretAccessKey)),
+		runtimev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(bucket.Spec.Region),
 	}
 	return s
 }
@@ -130,7 +130,7 @@ func (r *Reconciler) _connect(instance *bucketv1alpha1.S3Bucket) (s3.Service, er
 }
 
 func (r *Reconciler) _create(bucket *bucketv1alpha1.S3Bucket, client s3.Service) (reconcile.Result, error) {
-	bucket.Status.SetConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileSuccess())
+	bucket.Status.SetConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileSuccess())
 	meta.AddFinalizer(bucket, finalizer)
 	err := client.CreateOrUpdateBucket(bucket)
 	if err != nil {
@@ -163,7 +163,7 @@ func (r *Reconciler) _create(bucket *bucketv1alpha1.S3Bucket, client s3.Service)
 	}
 
 	// No longer creating, we're ready!
-	bucket.Status.SetConditions(corev1alpha1.Available())
+	bucket.Status.SetConditions(runtimev1alpha1.Available())
 	resource.SetBindable(bucket)
 	return result, r.Update(ctx, bucket)
 }
@@ -206,13 +206,13 @@ func (r *Reconciler) _sync(bucket *bucketv1alpha1.S3Bucket, client s3.Service) (
 		}
 	}
 
-	bucket.Status.SetConditions(corev1alpha1.ReconcileSuccess())
+	bucket.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
 	return result, r.Update(ctx, bucket)
 }
 
 func (r *Reconciler) _delete(bucket *bucketv1alpha1.S3Bucket, client s3.Service) (reconcile.Result, error) {
-	bucket.Status.SetConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileSuccess())
-	if bucket.Spec.ReclaimPolicy == corev1alpha1.ReclaimDelete {
+	bucket.Status.SetConditions(runtimev1alpha1.Deleting(), runtimev1alpha1.ReconcileSuccess())
+	if bucket.Spec.ReclaimPolicy == runtimev1alpha1.ReclaimDelete {
 		if err := client.DeleteBucket(bucket); err != nil {
 			return r.fail(bucket, err)
 		}

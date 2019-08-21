@@ -31,14 +31,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
+	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
 	"github.com/crossplaneio/crossplane/azure/apis/storage/v1alpha1"
 	azurev1alpha1 "github.com/crossplaneio/crossplane/azure/apis/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/clients/azure"
 	azurestorage "github.com/crossplaneio/crossplane/pkg/clients/azure/storage"
-	"github.com/crossplaneio/crossplane/pkg/logging"
-	"github.com/crossplaneio/crossplane/pkg/meta"
-	"github.com/crossplaneio/crossplane/pkg/resource"
 )
 
 const (
@@ -101,7 +101,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 
 	bh, err := r.newSyncdeleter(ctx, b)
 	if err != nil {
-		b.Status.SetConditions(corev1alpha1.ReconcileError(err))
+		b.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
 		return resultRequeue, r.Status().Update(ctx, b)
 	}
 
@@ -190,10 +190,10 @@ func newAccountSyncDeleter(ao azurestorage.AccountOperations, kube client.Client
 }
 
 func (asd *accountSyncDeleter) delete(ctx context.Context) (reconcile.Result, error) {
-	asd.acct.Status.SetConditions(corev1alpha1.Deleting())
-	if asd.acct.Spec.ReclaimPolicy == corev1alpha1.ReclaimDelete {
+	asd.acct.Status.SetConditions(runtimev1alpha1.Deleting())
+	if asd.acct.Spec.ReclaimPolicy == runtimev1alpha1.ReclaimDelete {
 		if err := asd.Delete(ctx); err != nil && !azure.IsNotFound(err) {
-			asd.acct.Status.SetConditions(corev1alpha1.ReconcileError(err))
+			asd.acct.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
 			return resultRequeue, asd.kube.Status().Update(ctx, asd.acct)
 		}
 	}
@@ -212,7 +212,7 @@ const uidTag = "UID"
 func (asd *accountSyncDeleter) sync(ctx context.Context) (reconcile.Result, error) {
 	account, err := asd.Get(ctx)
 	if err != nil && !azure.IsNotFound(err) {
-		asd.acct.Status.SetConditions(corev1alpha1.ReconcileError(err))
+		asd.acct.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
 		return resultRequeue, asd.kube.Status().Update(ctx, asd.acct)
 	}
 
@@ -223,7 +223,7 @@ func (asd *accountSyncDeleter) sync(ctx context.Context) (reconcile.Result, erro
 	// for existing account check UID tag
 	if uid := to.String(account.Tags[uidTag]); uid != "" && uid != string(asd.acct.GetUID()) {
 		err := errors.Errorf("storage account: %s already exists and owned by: %s", to.String(account.Name), uid)
-		asd.acct.Status.SetConditions(corev1alpha1.ReconcileError(err))
+		asd.acct.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
 		return reconcile.Result{}, asd.kube.Status().Update(ctx, asd.acct)
 	}
 
@@ -257,7 +257,7 @@ func newAccountCreateUpdater(ao azurestorage.AccountOperations, kube client.Clie
 
 // create new storage account resource and save changes back to account specs
 func (acu *accountCreateUpdater) create(ctx context.Context) (reconcile.Result, error) {
-	acu.acct.Status.SetConditions(corev1alpha1.Creating())
+	acu.acct.Status.SetConditions(runtimev1alpha1.Creating())
 	meta.AddFinalizer(acu.acct, finalizer)
 
 	// Set UID to the account storage spec
@@ -271,7 +271,7 @@ func (acu *accountCreateUpdater) create(ctx context.Context) (reconcile.Result, 
 
 	a, err := acu.Create(ctx, accountSpec)
 	if err != nil {
-		acu.acct.Status.SetConditions(corev1alpha1.ReconcileError(err))
+		acu.acct.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
 		return resultRequeue, acu.kube.Status().Update(ctx, acu.acct)
 	}
 
@@ -281,18 +281,18 @@ func (acu *accountCreateUpdater) create(ctx context.Context) (reconcile.Result, 
 // update storage account resource if needed
 func (acu *accountCreateUpdater) update(ctx context.Context, account *storage.Account) (reconcile.Result, error) {
 	if account.ProvisioningState == storage.Succeeded {
-		acu.acct.Status.SetConditions(corev1alpha1.Available())
+		acu.acct.Status.SetConditions(runtimev1alpha1.Available())
 		resource.SetBindable(acu.acct)
 
 		current := v1alpha1.NewStorageAccountSpec(account)
 		if reflect.DeepEqual(current, acu.acct.Spec.StorageAccountSpec) {
-			acu.acct.Status.SetConditions(corev1alpha1.ReconcileSuccess())
+			acu.acct.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
 			return requeueOnSuccess, acu.kube.Status().Update(ctx, acu.acct)
 		}
 
 		a, err := acu.Update(ctx, v1alpha1.ToStorageAccountUpdate(acu.acct.Spec.StorageAccountSpec))
 		if err != nil {
-			acu.acct.Status.SetConditions(corev1alpha1.ReconcileError(err))
+			acu.acct.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
 			return resultRequeue, acu.kube.Status().Update(ctx, acu.acct)
 		}
 		account = a
@@ -324,16 +324,16 @@ func (asb *accountSyncbacker) syncback(ctx context.Context, acct *storage.Accoun
 	asb.acct.Status.StorageAccountStatus = v1alpha1.NewStorageAccountStatus(acct)
 
 	if acct.ProvisioningState != storage.Succeeded {
-		asb.acct.Status.SetConditions(corev1alpha1.ReconcileSuccess())
+		asb.acct.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
 		return requeueOnWait, asb.kube.Status().Update(ctx, asb.acct)
 	}
 
 	if err := asb.updatesecret(ctx, acct); err != nil {
-		asb.acct.Status.SetConditions(corev1alpha1.ReconcileError(err))
+		asb.acct.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
 		return resultRequeue, asb.kube.Status().Update(ctx, asb.acct)
 	}
 
-	asb.acct.Status.SetConditions(corev1alpha1.ReconcileSuccess())
+	asb.acct.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
 	return requeueOnSuccess, asb.kube.Status().Update(ctx, asb.acct)
 }
 
@@ -356,7 +356,7 @@ func (asu *accountSecretUpdater) updatesecret(ctx context.Context, acct *storage
 	key := types.NamespacedName{Namespace: secret.Namespace, Name: secret.Name}
 
 	if acct.PrimaryEndpoints != nil {
-		secret.Data[corev1alpha1.ResourceCredentialsSecretEndpointKey] = []byte(to.String(acct.PrimaryEndpoints.Blob))
+		secret.Data[runtimev1alpha1.ResourceCredentialsSecretEndpointKey] = []byte(to.String(acct.PrimaryEndpoints.Blob))
 	}
 
 	keys, err := asu.ListKeys(ctx)
@@ -367,8 +367,8 @@ func (asu *accountSecretUpdater) updatesecret(ctx context.Context, acct *storage
 		return errors.New("account keys are empty")
 	}
 
-	secret.Data[corev1alpha1.ResourceCredentialsSecretUserKey] = []byte(asu.acct.Spec.StorageAccountName)
-	secret.Data[corev1alpha1.ResourceCredentialsSecretPasswordKey] = []byte(to.String(keys[0].Value))
+	secret.Data[runtimev1alpha1.ResourceCredentialsSecretUserKey] = []byte(asu.acct.Spec.StorageAccountName)
+	secret.Data[runtimev1alpha1.ResourceCredentialsSecretPasswordKey] = []byte(to.String(keys[0].Value))
 
 	if err := asu.kube.Create(ctx, secret); err != nil {
 		if kerrors.IsAlreadyExists(err) {

@@ -25,11 +25,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
+	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 	storagev1alpha1 "github.com/crossplaneio/crossplane/apis/storage/v1alpha1"
 	"github.com/crossplaneio/crossplane/azure/apis/storage/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/resource"
-	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
 var _ resource.ManagedConfigurator = resource.ManagedConfiguratorFn(ConfigureAccount)
@@ -70,9 +70,9 @@ func TestConfigureAccount(t *testing.T) {
 				cs: &v1alpha1.AccountClass{
 					ObjectMeta: metav1.ObjectMeta{Namespace: classNamespace},
 					SpecTemplate: v1alpha1.AccountClassSpecTemplate{
-						ResourceClassSpecTemplate: corev1alpha1.ResourceClassSpecTemplate{
+						ResourceClassSpecTemplate: runtimev1alpha1.ResourceClassSpecTemplate{
 							ProviderReference: &corev1.ObjectReference{Name: providerName},
-							ReclaimPolicy:     corev1alpha1.ReclaimDelete,
+							ReclaimPolicy:     runtimev1alpha1.ReclaimDelete,
 						},
 					},
 				},
@@ -91,8 +91,8 @@ func TestConfigureAccount(t *testing.T) {
 						}},
 					},
 					Spec: v1alpha1.AccountSpec{
-						ResourceSpec: corev1alpha1.ResourceSpec{
-							ReclaimPolicy:                    corev1alpha1.ReclaimDelete,
+						ResourceSpec: runtimev1alpha1.ResourceSpec{
+							ReclaimPolicy:                    runtimev1alpha1.ReclaimDelete,
 							WriteConnectionSecretToReference: corev1.LocalObjectReference{Name: string(claimUID)},
 							ProviderReference:                &corev1.ObjectReference{Name: providerName},
 						},

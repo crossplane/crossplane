@@ -33,10 +33,10 @@ import (
 
 	"github.com/pkg/errors"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
+	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
 	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/logging"
-	"github.com/crossplaneio/crossplane/pkg/meta"
 )
 
 const (
@@ -134,7 +134,7 @@ func (h *stackHandler) sync(ctx context.Context) (reconcile.Result, error) {
 }
 
 func (h *stackHandler) create(ctx context.Context) (reconcile.Result, error) {
-	h.ext.Status.SetConditions(corev1alpha1.Creating())
+	h.ext.Status.SetConditions(runtimev1alpha1.Creating())
 
 	// create RBAC permissions
 	if err := h.processRBAC(ctx); err != nil {
@@ -151,7 +151,7 @@ func (h *stackHandler) create(ctx context.Context) (reconcile.Result, error) {
 	}
 
 	// the stack has successfully been created, the stack is ready
-	h.ext.Status.SetConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess())
+	h.ext.Status.SetConditions(runtimev1alpha1.Available(), runtimev1alpha1.ReconcileSuccess())
 	return requeueOnSuccess, h.kube.Status().Update(ctx, h.ext)
 }
 
@@ -281,6 +281,6 @@ func (h *stackHandler) processJob(ctx context.Context) error {
 // fail - helper function to set fail condition with reason and message
 func fail(ctx context.Context, kube client.StatusClient, i *v1alpha1.Stack, err error) (reconcile.Result, error) {
 	log.V(logging.Debug).Info("failed stack", "i", i.Name, "error", err)
-	i.Status.SetConditions(corev1alpha1.ReconcileError(err))
+	i.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
 	return resultRequeue, kube.Status().Update(ctx, i)
 }

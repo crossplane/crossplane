@@ -17,8 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"github.com/crossplaneio/crossplane/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/resource"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,7 +28,7 @@ const (
 	// ClusterProvisioningStateSucceeded is the state for a cluster that has succeeded provisioning
 	ClusterProvisioningStateSucceeded = "Succeeded"
 	// DefaultReclaimPolicy is the default reclaim policy to use
-	DefaultReclaimPolicy = v1alpha1.ReclaimRetain
+	DefaultReclaimPolicy = runtimev1alpha1.ReclaimRetain
 	// DefaultNodeCount is the default node count for a cluster
 	DefaultNodeCount = 1
 )
@@ -69,13 +69,13 @@ type AKSClusterParameters struct {
 
 // AKSClusterSpec is the spec for AKS cluster resources
 type AKSClusterSpec struct {
-	v1alpha1.ResourceSpec `json:",inline"`
-	AKSClusterParameters  `json:",inline"`
+	runtimev1alpha1.ResourceSpec `json:",inline"`
+	AKSClusterParameters         `json:",inline"`
 }
 
 // AKSClusterStatus is the status for AKS cluster resources
 type AKSClusterStatus struct {
-	v1alpha1.ResourceStatus `json:",inline"`
+	runtimev1alpha1.ResourceStatus `json:",inline"`
 
 	// ClusterName is the name of the cluster as registered with the cloud provider
 	ClusterName string `json:"clusterName,omitempty"`
@@ -117,17 +117,17 @@ type AKSCluster struct {
 }
 
 // SetBindingPhase of this AKSCluster.
-func (c *AKSCluster) SetBindingPhase(p v1alpha1.BindingPhase) {
+func (c *AKSCluster) SetBindingPhase(p runtimev1alpha1.BindingPhase) {
 	c.Status.SetBindingPhase(p)
 }
 
 // GetBindingPhase of this AKSCluster.
-func (c *AKSCluster) GetBindingPhase() v1alpha1.BindingPhase {
+func (c *AKSCluster) GetBindingPhase() runtimev1alpha1.BindingPhase {
 	return c.Status.GetBindingPhase()
 }
 
 // SetConditions of this AKSCluster.
-func (c *AKSCluster) SetConditions(cd ...v1alpha1.Condition) {
+func (c *AKSCluster) SetConditions(cd ...runtimev1alpha1.Condition) {
 	c.Status.SetConditions(cd...)
 }
 
@@ -162,12 +162,12 @@ func (c *AKSCluster) GetWriteConnectionSecretToReference() corev1.LocalObjectRef
 }
 
 // GetReclaimPolicy of this AKSCluster.
-func (c *AKSCluster) GetReclaimPolicy() v1alpha1.ReclaimPolicy {
+func (c *AKSCluster) GetReclaimPolicy() runtimev1alpha1.ReclaimPolicy {
 	return c.Spec.ReclaimPolicy
 }
 
 // SetReclaimPolicy of this AKSCluster.
-func (c *AKSCluster) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) {
+func (c *AKSCluster) SetReclaimPolicy(p runtimev1alpha1.ReclaimPolicy) {
 	c.Spec.ReclaimPolicy = p
 }
 
@@ -182,8 +182,8 @@ type AKSClusterList struct {
 
 // AKSClusterClassSpecTemplate is the Schema for the resource class
 type AKSClusterClassSpecTemplate struct {
-	v1alpha1.ResourceClassSpecTemplate `json:",inline"`
-	AKSClusterParameters               `json:",inline"`
+	runtimev1alpha1.ResourceClassSpecTemplate `json:",inline"`
+	AKSClusterParameters                      `json:",inline"`
 }
 
 var _ resource.Class = &AKSClusterClass{}
@@ -202,12 +202,12 @@ type AKSClusterClass struct {
 }
 
 // GetReclaimPolicy of this AKSClusterClass.
-func (i *AKSClusterClass) GetReclaimPolicy() v1alpha1.ReclaimPolicy {
+func (i *AKSClusterClass) GetReclaimPolicy() runtimev1alpha1.ReclaimPolicy {
 	return i.SpecTemplate.ReclaimPolicy
 }
 
 // SetReclaimPolicy of this AKSClusterClass.
-func (i *AKSClusterClass) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) {
+func (i *AKSClusterClass) SetReclaimPolicy(p runtimev1alpha1.ReclaimPolicy) {
 	i.SpecTemplate.ReclaimPolicy = p
 }
 

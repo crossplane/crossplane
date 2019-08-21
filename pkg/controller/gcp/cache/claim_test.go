@@ -25,11 +25,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
+	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 	cachev1alpha1 "github.com/crossplaneio/crossplane/apis/cache/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/gcp/apis/cache/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/resource"
-	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
 var _ resource.ManagedConfigurator = resource.ManagedConfiguratorFn(ConfigureCloudMemorystoreInstance)
@@ -64,9 +64,9 @@ func TestConfigureCloudMemorystoreInstance(t *testing.T) {
 				},
 				cs: &v1alpha1.CloudMemorystoreInstanceClass{
 					SpecTemplate: v1alpha1.CloudMemorystoreInstanceClassSpecTemplate{
-						ResourceClassSpecTemplate: corev1alpha1.ResourceClassSpecTemplate{
+						ResourceClassSpecTemplate: runtimev1alpha1.ResourceClassSpecTemplate{
 							ProviderReference: &corev1.ObjectReference{Name: providerName},
-							ReclaimPolicy:     corev1alpha1.ReclaimDelete,
+							ReclaimPolicy:     runtimev1alpha1.ReclaimDelete,
 						},
 						CloudMemorystoreInstanceParameters: v1alpha1.CloudMemorystoreInstanceParameters{
 							Region: region,
@@ -79,8 +79,8 @@ func TestConfigureCloudMemorystoreInstance(t *testing.T) {
 			want: want{
 				mg: &v1alpha1.CloudMemorystoreInstance{
 					Spec: v1alpha1.CloudMemorystoreInstanceSpec{
-						ResourceSpec: corev1alpha1.ResourceSpec{
-							ReclaimPolicy:                    corev1alpha1.ReclaimDelete,
+						ResourceSpec: runtimev1alpha1.ResourceSpec{
+							ReclaimPolicy:                    runtimev1alpha1.ReclaimDelete,
 							WriteConnectionSecretToReference: corev1.LocalObjectReference{Name: string(claimUID)},
 							ProviderReference:                &corev1.ObjectReference{Name: providerName},
 						},

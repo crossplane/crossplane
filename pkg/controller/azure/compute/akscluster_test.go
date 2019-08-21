@@ -35,11 +35,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 	computev1alpha1 "github.com/crossplaneio/crossplane/azure/apis/compute/v1alpha1"
 	"github.com/crossplaneio/crossplane/azure/apis/v1alpha1"
 	azureclients "github.com/crossplaneio/crossplane/pkg/clients/azure"
-	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
 var _ reconcile.Reconciler = &Reconciler{}
@@ -209,7 +209,7 @@ func TestReconcile(t *testing.T) {
 		ApplicationObjectID: "182f8c4a-ad89-4b25-b947-d4026ab183a1",
 		ServicePrincipalID:  "da804153-3faa-4c73-9fcb-0961387a31f9",
 	}
-	expectedStatus.SetConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileSuccess())
+	expectedStatus.SetConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileSuccess())
 	assertAKSClusterStatus(g, c, expectedStatus)
 
 	// the service principal secret (note this is not the connection secret) should have been created
@@ -229,7 +229,7 @@ func TestReconcile(t *testing.T) {
 		ApplicationObjectID: "182f8c4a-ad89-4b25-b947-d4026ab183a1",
 		ServicePrincipalID:  "da804153-3faa-4c73-9fcb-0961387a31f9",
 	}
-	expectedStatus.SetConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileSuccess())
+	expectedStatus.SetConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileSuccess())
 	assertAKSClusterStatus(g, c, expectedStatus)
 
 	// third reconcile should find the AKS cluster instance from Azure and update the full status of the CRD
@@ -245,14 +245,14 @@ func TestReconcile(t *testing.T) {
 		ApplicationObjectID: "182f8c4a-ad89-4b25-b947-d4026ab183a1",
 		ServicePrincipalID:  "da804153-3faa-4c73-9fcb-0961387a31f9",
 	}
-	expectedStatus.SetConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess())
+	expectedStatus.SetConditions(runtimev1alpha1.Available(), runtimev1alpha1.ReconcileSuccess())
 	assertAKSClusterStatus(g, c, expectedStatus)
 
 	// wait for the connection information to be stored in a secret, then verify it
 	var connectionSecret *v1.Secret
 	for {
 		if connectionSecret, err = r.clientset.CoreV1().Secrets(namespace).Get(instance.Spec.WriteConnectionSecretToReference.Name, metav1.GetOptions{}); err == nil {
-			if string(connectionSecret.Data[corev1alpha1.ResourceCredentialsSecretEndpointKey]) != "" {
+			if string(connectionSecret.Data[runtimev1alpha1.ResourceCredentialsSecretEndpointKey]) != "" {
 				break
 			}
 		}
@@ -325,9 +325,9 @@ func assertConnectionSecret(g *gomega.GomegaWithT, c client.Client, connectionSe
 	err := c.Get(ctx, expectedRequest.NamespacedName, instance)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 	g.Expect(connectionSecret.Data).Should(gomega.Equal(map[string][]byte{
-		corev1alpha1.ResourceCredentialsSecretEndpointKey:   []byte(clientEndpoint),
-		corev1alpha1.ResourceCredentialsSecretCAKey:         []byte(clientCAdata),
-		corev1alpha1.ResourceCredentialsSecretClientCertKey: []byte(clientCert),
-		corev1alpha1.ResourceCredentialsSecretClientKeyKey:  []byte(clientKey),
+		runtimev1alpha1.ResourceCredentialsSecretEndpointKey:   []byte(clientEndpoint),
+		runtimev1alpha1.ResourceCredentialsSecretCAKey:         []byte(clientCAdata),
+		runtimev1alpha1.ResourceCredentialsSecretClientCertKey: []byte(clientCert),
+		runtimev1alpha1.ResourceCredentialsSecretClientKeyKey:  []byte(clientKey),
 	}))
 }

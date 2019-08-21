@@ -31,15 +31,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
+	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
+	"github.com/crossplaneio/crossplane-runtime/pkg/util"
 	databasev1alpha1 "github.com/crossplaneio/crossplane/aws/apis/database/v1alpha1"
 	awsv1alpha1 "github.com/crossplaneio/crossplane/aws/apis/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/clients/aws"
 	"github.com/crossplaneio/crossplane/pkg/clients/aws/rds"
-	"github.com/crossplaneio/crossplane/pkg/logging"
-	"github.com/crossplaneio/crossplane/pkg/meta"
-	"github.com/crossplaneio/crossplane/pkg/resource"
-	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 const (
@@ -94,7 +94,7 @@ func (c *InstanceController) SetupWithManager(mgr ctrl.Manager) error {
 
 // fail - helper function to set fail condition with reason and message
 func (r *Reconciler) fail(instance *databasev1alpha1.RDSInstance, err error) (reconcile.Result, error) {
-	instance.Status.SetConditions(corev1alpha1.ReconcileError(err))
+	instance.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
 	return reconcile.Result{Requeue: true}, r.Update(context.TODO(), instance)
 }
 
@@ -102,8 +102,8 @@ func (r *Reconciler) fail(instance *databasev1alpha1.RDSInstance, err error) (re
 func connectionSecret(instance *databasev1alpha1.RDSInstance, password string) *corev1.Secret {
 	s := resource.ConnectionSecretFor(instance, databasev1alpha1.RDSInstanceGroupVersionKind)
 	s.Data = map[string][]byte{
-		corev1alpha1.ResourceCredentialsSecretUserKey:     []byte(instance.Spec.MasterUsername),
-		corev1alpha1.ResourceCredentialsSecretPasswordKey: []byte(password),
+		runtimev1alpha1.ResourceCredentialsSecretUserKey:     []byte(instance.Spec.MasterUsername),
+		runtimev1alpha1.ResourceCredentialsSecretPasswordKey: []byte(password),
 	}
 	return s
 }
@@ -127,7 +127,7 @@ func (r *Reconciler) _connect(instance *databasev1alpha1.RDSInstance) (rds.Clien
 }
 
 func (r *Reconciler) _create(instance *databasev1alpha1.RDSInstance, client rds.Client) (reconcile.Result, error) {
-	instance.Status.SetConditions(corev1alpha1.Creating())
+	instance.Status.SetConditions(runtimev1alpha1.Creating())
 	resourceName := fmt.Sprintf("%s-%s", instance.Spec.Engine, instance.UID)
 
 	// generate new password
@@ -149,7 +149,7 @@ func (r *Reconciler) _create(instance *databasev1alpha1.RDSInstance, client rds.
 
 	instance.Status.InstanceName = resourceName
 	meta.AddFinalizer(instance, finalizer)
-	instance.Status.SetConditions(corev1alpha1.ReconcileSuccess())
+	instance.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
 
 	return resultRequeue, r.Update(ctx, instance)
 }
@@ -165,13 +165,13 @@ func (r *Reconciler) _sync(instance *databasev1alpha1.RDSInstance, client rds.Cl
 
 	switch db.Status {
 	case string(databasev1alpha1.RDSInstanceStateCreating):
-		instance.Status.SetConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileSuccess())
+		instance.Status.SetConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileSuccess())
 		return resultRequeue, r.Update(ctx, instance)
 	case string(databasev1alpha1.RDSInstanceStateFailed):
-		instance.Status.SetConditions(corev1alpha1.Unavailable(), corev1alpha1.ReconcileSuccess())
+		instance.Status.SetConditions(runtimev1alpha1.Unavailable(), runtimev1alpha1.ReconcileSuccess())
 		return result, r.Update(ctx, instance)
 	case string(databasev1alpha1.RDSInstanceStateAvailable):
-		instance.Status.SetConditions(corev1alpha1.Available())
+		instance.Status.SetConditions(runtimev1alpha1.Available())
 		resource.SetBindable(instance)
 	default:
 		return r.fail(instance, errors.Errorf("unexpected resource status: %s", db.Status))
@@ -190,27 +190,27 @@ func (r *Reconciler) _sync(instance *databasev1alpha1.RDSInstance, client rds.Cl
 	instance.Status.ProviderID = db.ARN
 
 	// Update resource secret
-	connSecret.Data[corev1alpha1.ResourceCredentialsSecretEndpointKey] = []byte(db.Endpoint)
+	connSecret.Data[runtimev1alpha1.ResourceCredentialsSecretEndpointKey] = []byte(db.Endpoint)
 	_, err = util.ApplySecret(r.kubeclient, connSecret)
 	if err != nil {
 		return r.fail(instance, err)
 	}
 
-	instance.Status.SetConditions(corev1alpha1.ReconcileSuccess())
+	instance.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
 	return result, r.Update(ctx, instance)
 }
 
 func (r *Reconciler) _delete(instance *databasev1alpha1.RDSInstance, client rds.Client) (reconcile.Result, error) {
-	instance.Status.SetConditions(corev1alpha1.Deleting())
+	instance.Status.SetConditions(runtimev1alpha1.Deleting())
 
-	if instance.Spec.ReclaimPolicy == corev1alpha1.ReclaimDelete {
+	if instance.Spec.ReclaimPolicy == runtimev1alpha1.ReclaimDelete {
 		if _, err := client.DeleteInstance(instance.Status.InstanceName); err != nil && !rds.IsErrorNotFound(err) {
 			return r.fail(instance, err)
 		}
 	}
 
 	meta.RemoveFinalizer(instance, finalizer)
-	instance.Status.SetConditions(corev1alpha1.ReconcileSuccess())
+	instance.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
 	return result, r.Update(ctx, instance)
 }
 

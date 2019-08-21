@@ -35,14 +35,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
+	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
+	"github.com/crossplaneio/crossplane-runtime/pkg/util"
 	computev1alpha1 "github.com/crossplaneio/crossplane/azure/apis/compute/v1alpha1"
 	azurev1alpha1 "github.com/crossplaneio/crossplane/azure/apis/v1alpha1"
 	azureclients "github.com/crossplaneio/crossplane/pkg/clients/azure"
-	"github.com/crossplaneio/crossplane/pkg/logging"
-	"github.com/crossplaneio/crossplane/pkg/meta"
-	"github.com/crossplaneio/crossplane/pkg/resource"
-	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 const (
@@ -159,7 +159,7 @@ func (r *Reconciler) connect(instance *computev1alpha1.AKSCluster) (*azureclient
 // refactoring to reduce said complexity if you touch it.
 // nolint:gocyclo
 func (r *Reconciler) create(instance *computev1alpha1.AKSCluster, aksClient *azureclients.AKSSetupClient) (reconcile.Result, error) {
-	instance.Status.SetConditions(corev1alpha1.Creating())
+	instance.Status.SetConditions(runtimev1alpha1.Creating())
 	// create or fetch the secret for the AD application and its service principal the cluster will use for Azure APIs
 	spSecret, err := r.servicePrincipalSecret(instance)
 	if err != nil {
@@ -217,7 +217,7 @@ func (r *Reconciler) create(instance *computev1alpha1.AKSCluster, aksClient *azu
 	// set the creating/provisioning state to the CRD status
 	instance.Status.ClusterName = clusterName
 
-	instance.Status.SetConditions(corev1alpha1.ReconcileSuccess())
+	instance.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
 
 	// wait until the important status fields we just set have become committed/consistent
 	updateWaitErr := wait.ExponentialBackoff(util.DefaultUpdateRetry, func() (done bool, err error) {
@@ -297,15 +297,15 @@ func (r *Reconciler) sync(instance *computev1alpha1.AKSCluster, aksClient *azure
 		instance.Status.Endpoint = *cluster.Fqdn
 	}
 
-	instance.Status.SetConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess())
+	instance.Status.SetConditions(runtimev1alpha1.Available(), runtimev1alpha1.ReconcileSuccess())
 	resource.SetBindable(instance)
 	return result, r.Update(ctx, instance)
 }
 
 // delete performs a deletion of the AKS cluster if needed
 func (r *Reconciler) delete(instance *computev1alpha1.AKSCluster, aksClient *azureclients.AKSSetupClient) (reconcile.Result, error) {
-	instance.Status.SetConditions(corev1alpha1.Deleting())
-	if instance.Spec.ReclaimPolicy == corev1alpha1.ReclaimDelete {
+	instance.Status.SetConditions(runtimev1alpha1.Deleting())
+	if instance.Spec.ReclaimPolicy == runtimev1alpha1.ReclaimDelete {
 		// delete the AKS cluster
 		log.V(logging.Debug).Info("deleting AKS cluster", "instance", instance)
 		deleteFuture, err := aksClient.AKSClusterAPI.Delete(ctx, *instance)
@@ -333,13 +333,13 @@ func (r *Reconciler) delete(instance *computev1alpha1.AKSCluster, aksClient *azu
 	}
 
 	meta.RemoveFinalizer(instance, finalizer)
-	instance.Status.SetConditions(corev1alpha1.ReconcileSuccess())
+	instance.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
 	return result, r.Update(ctx, instance)
 }
 
 // fail - helper function to set fail condition with reason and message
 func (r *Reconciler) fail(instance *computev1alpha1.AKSCluster, err error) (reconcile.Result, error) {
-	instance.Status.SetConditions(corev1alpha1.ReconcileError(err))
+	instance.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
 	return resultRequeue, r.Update(ctx, instance)
 }
 
@@ -409,10 +409,10 @@ func (r *Reconciler) connectionSecret(instance *computev1alpha1.AKSCluster, clie
 
 	secret := resource.ConnectionSecretFor(instance, computev1alpha1.AKSClusterGroupVersionKind)
 	secret.Data = map[string][]byte{
-		corev1alpha1.ResourceCredentialsSecretEndpointKey:   []byte(cluster.Server),
-		corev1alpha1.ResourceCredentialsSecretCAKey:         cluster.CertificateAuthorityData,
-		corev1alpha1.ResourceCredentialsSecretClientCertKey: auth.ClientCertificateData,
-		corev1alpha1.ResourceCredentialsSecretClientKeyKey:  auth.ClientKeyData,
+		runtimev1alpha1.ResourceCredentialsSecretEndpointKey:   []byte(cluster.Server),
+		runtimev1alpha1.ResourceCredentialsSecretCAKey:         cluster.CertificateAuthorityData,
+		runtimev1alpha1.ResourceCredentialsSecretClientCertKey: auth.ClientCertificateData,
+		runtimev1alpha1.ResourceCredentialsSecretClientKeyKey:  auth.ClientKeyData,
 	}
 	return secret, nil
 }

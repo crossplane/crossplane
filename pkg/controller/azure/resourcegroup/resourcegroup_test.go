@@ -35,11 +35,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 	azurev1alpha1 "github.com/crossplaneio/crossplane/azure/apis/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/clients/azure/resourcegroup"
 	fakerg "github.com/crossplaneio/crossplane/pkg/clients/azure/resourcegroup/fake"
-	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
 const (
@@ -76,7 +76,7 @@ var (
 
 type resourceModifier func(*azurev1alpha1.ResourceGroup)
 
-func withConditions(c ...corev1alpha1.Condition) resourceModifier {
+func withConditions(c ...runtimev1alpha1.Condition) resourceModifier {
 	return func(r *azurev1alpha1.ResourceGroup) { r.Status.ConditionedStatus.Conditions = c }
 }
 
@@ -84,7 +84,7 @@ func withFinalizers(f ...string) resourceModifier {
 	return func(r *azurev1alpha1.ResourceGroup) { r.ObjectMeta.Finalizers = f }
 }
 
-func withReclaimPolicy(p corev1alpha1.ReclaimPolicy) resourceModifier {
+func withReclaimPolicy(p runtimev1alpha1.ReclaimPolicy) resourceModifier {
 	return func(r *azurev1alpha1.ResourceGroup) { r.Spec.ReclaimPolicy = p }
 }
 
@@ -115,7 +115,7 @@ func resource(rm ...resourceModifier) *azurev1alpha1.ResourceGroup {
 		Spec: azurev1alpha1.ResourceGroupSpec{
 			Name:     name,
 			Location: location,
-			ResourceSpec: corev1alpha1.ResourceSpec{
+			ResourceSpec: runtimev1alpha1.ResourceSpec{
 				ProviderReference: &corev1.ObjectReference{Namespace: namespace, Name: providerName},
 			},
 		},
@@ -149,7 +149,7 @@ func TestCreate(t *testing.T) {
 			}},
 			r: resource(),
 			want: resource(
-				withConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileSuccess()),
+				withConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileSuccess()),
 				withFinalizers(finalizer),
 				withName(name),
 			),
@@ -164,7 +164,7 @@ func TestCreate(t *testing.T) {
 			}},
 			r: resource(),
 			want: resource(
-				withConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileError(errorBoom)),
+				withConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileError(errorBoom)),
 			),
 			wantRequeue: true,
 		},
@@ -180,7 +180,7 @@ func TestCreate(t *testing.T) {
 			),
 			want: resource(
 				withSpecName("foo."),
-				withConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileError(errorBoom)),
+				withConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileError(errorBoom)),
 			),
 			wantRequeue: true,
 		},
@@ -223,7 +223,7 @@ func TestSync(t *testing.T) {
 			want: resource(
 				withFinalizers(finalizer),
 				withName(name),
-				withConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess()),
+				withConditions(runtimev1alpha1.Available(), runtimev1alpha1.ReconcileSuccess()),
 			),
 			wantRequeue: false,
 		},
@@ -241,7 +241,7 @@ func TestSync(t *testing.T) {
 			want: resource(
 				withFinalizers(finalizer),
 				withName(name),
-				withConditions(corev1alpha1.ReconcileError(errDeleted)),
+				withConditions(runtimev1alpha1.ReconcileError(errDeleted)),
 			),
 			wantRequeue: true,
 		},
@@ -259,7 +259,7 @@ func TestSync(t *testing.T) {
 			want: resource(
 				withFinalizers(finalizer),
 				withName(name),
-				withConditions(corev1alpha1.ReconcileSuccess()),
+				withConditions(runtimev1alpha1.ReconcileSuccess()),
 			),
 			wantRequeue: true,
 		},
@@ -277,7 +277,7 @@ func TestSync(t *testing.T) {
 			want: resource(
 				withFinalizers(finalizer),
 				withName(name),
-				withConditions(corev1alpha1.ReconcileError(errorBoom)),
+				withConditions(runtimev1alpha1.ReconcileError(errorBoom)),
 			),
 			wantRequeue: true,
 		},
@@ -313,10 +313,10 @@ func TestDelete(t *testing.T) {
 					return resources.GroupsDeleteFuture{}, nil
 				},
 			}},
-			r: resource(withFinalizers(finalizer), withReclaimPolicy(corev1alpha1.ReclaimRetain)),
+			r: resource(withFinalizers(finalizer), withReclaimPolicy(runtimev1alpha1.ReclaimRetain)),
 			want: resource(
-				withReclaimPolicy(corev1alpha1.ReclaimRetain),
-				withConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileSuccess()),
+				withReclaimPolicy(runtimev1alpha1.ReclaimRetain),
+				withConditions(runtimev1alpha1.Deleting(), runtimev1alpha1.ReconcileSuccess()),
 			),
 			wantRequeue: false,
 		},
@@ -327,10 +327,10 @@ func TestDelete(t *testing.T) {
 					return resources.GroupsDeleteFuture{}, nil
 				},
 			}},
-			r: resource(withFinalizers(finalizer), withReclaimPolicy(corev1alpha1.ReclaimDelete)),
+			r: resource(withFinalizers(finalizer), withReclaimPolicy(runtimev1alpha1.ReclaimDelete)),
 			want: resource(
-				withReclaimPolicy(corev1alpha1.ReclaimDelete),
-				withConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileSuccess()),
+				withReclaimPolicy(runtimev1alpha1.ReclaimDelete),
+				withConditions(runtimev1alpha1.Deleting(), runtimev1alpha1.ReconcileSuccess()),
 			),
 			wantRequeue: false,
 		},
@@ -341,11 +341,11 @@ func TestDelete(t *testing.T) {
 					return resources.GroupsDeleteFuture{}, errorBoom
 				},
 			}},
-			r: resource(withFinalizers(finalizer), withReclaimPolicy(corev1alpha1.ReclaimDelete)),
+			r: resource(withFinalizers(finalizer), withReclaimPolicy(runtimev1alpha1.ReclaimDelete)),
 			want: resource(
 				withFinalizers(finalizer),
-				withReclaimPolicy(corev1alpha1.ReclaimDelete),
-				withConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileError(errorBoom)),
+				withReclaimPolicy(runtimev1alpha1.ReclaimDelete),
+				withConditions(runtimev1alpha1.Deleting(), runtimev1alpha1.ReconcileError(errorBoom)),
 			),
 			wantRequeue: true,
 		},
@@ -591,7 +591,7 @@ func TestReconcile(t *testing.T) {
 						return nil
 					},
 					MockUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
-						want := resource(withConditions(corev1alpha1.ReconcileError(errorBoom)))
+						want := resource(withConditions(runtimev1alpha1.ReconcileError(errorBoom)))
 						got := obj.(*azurev1alpha1.ResourceGroup)
 						if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
 							t.Errorf("kube.Update(...): -want, +got:\n%s", diff)

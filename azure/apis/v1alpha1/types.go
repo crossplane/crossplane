@@ -20,7 +20,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
 )
 
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
@@ -56,7 +56,7 @@ type ProviderList struct {
 // ResourceGroupSpec defines the desired state of Resource Group
 type ResourceGroupSpec struct {
 	// Important: Run "make generate" to regenerate code after modifying this file
-	v1alpha1.ResourceSpec `json:",inline"`
+	runtimev1alpha1.ResourceSpec `json:",inline"`
 
 	// Name of the resource group
 	Name string `json:"name,omitempty"`
@@ -66,7 +66,7 @@ type ResourceGroupSpec struct {
 
 // ResourceGroupStatus is the status for this resource group
 type ResourceGroupStatus struct {
-	v1alpha1.ResourceStatus `json:",inline"`
+	runtimev1alpha1.ResourceStatus `json:",inline"`
 
 	Name string `json:"name"`
 }

@@ -38,10 +38,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 	"github.com/crossplaneio/crossplane/gcp/apis/storage/v1alpha1"
 	gcpv1alpha1 "github.com/crossplaneio/crossplane/gcp/apis/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
 func init() {
@@ -149,7 +149,7 @@ func (b *bucket) withProvider(ns, name string) *bucket {
 	return b
 }
 
-func (b *bucket) withConditions(c ...corev1alpha1.Condition) *bucket {
+func (b *bucket) withConditions(c ...runtimev1alpha1.Condition) *bucket {
 	b.Status.SetConditions(c...)
 	return b
 }
@@ -251,7 +251,7 @@ func TestReconciler_Reconcile(t *testing.T) {
 			wantRs:  resultRequeue,
 			wantErr: nil,
 			wantObj: newBucket(ns, name).
-				withConditions(corev1alpha1.ReconcileError(errors.New("handler-factory-error"))).
+				withConditions(runtimev1alpha1.ReconcileError(errors.New("handler-factory-error"))).
 				withFinalizer("foo.bar").Bucket,
 		},
 		{
@@ -413,7 +413,7 @@ func Test_bucketSyncDeleter_delete(t *testing.T) {
 					mockIsReclaimDelete:     func() bool { return false },
 					mockRemoveFinalizer:     func() {},
 					mockUpdateObject:        func(ctx context.Context) error { return nil },
-					mockSetStatusConditions: func(_ ...corev1alpha1.Condition) {},
+					mockSetStatusConditions: func(_ ...runtimev1alpha1.Condition) {},
 				},
 			},
 			want: want{
@@ -428,7 +428,7 @@ func Test_bucketSyncDeleter_delete(t *testing.T) {
 					mockDeleteBucket:        func(ctx context.Context) error { return nil },
 					mockRemoveFinalizer:     func() {},
 					mockUpdateObject:        func(ctx context.Context) error { return nil },
-					mockSetStatusConditions: func(_ ...corev1alpha1.Condition) {},
+					mockSetStatusConditions: func(_ ...runtimev1alpha1.Condition) {},
 				},
 			},
 			want: want{
@@ -446,7 +446,7 @@ func Test_bucketSyncDeleter_delete(t *testing.T) {
 					},
 					mockRemoveFinalizer:     func() {},
 					mockUpdateObject:        func(ctx context.Context) error { return nil },
-					mockSetStatusConditions: func(_ ...corev1alpha1.Condition) {},
+					mockSetStatusConditions: func(_ ...runtimev1alpha1.Condition) {},
 					mockUpdateStatus:        func(ctx context.Context) error { return nil },
 				},
 			},
@@ -463,7 +463,7 @@ func Test_bucketSyncDeleter_delete(t *testing.T) {
 					mockDeleteBucket: func(ctx context.Context) error {
 						return errors.New("test-error")
 					},
-					mockSetStatusConditions: func(_ ...corev1alpha1.Condition) {},
+					mockSetStatusConditions: func(_ ...runtimev1alpha1.Condition) {},
 					mockUpdateStatus:        func(ctx context.Context) error { return nil },
 				},
 			},
@@ -511,7 +511,7 @@ func Test_bucketSyncDeleter_sync(t *testing.T) {
 			fields: fields{
 				ops: &mockOperations{
 					mockUpdateSecret:        func(ctx context.Context) error { return secretError },
-					mockSetStatusConditions: func(_ ...corev1alpha1.Condition) {},
+					mockSetStatusConditions: func(_ ...runtimev1alpha1.Condition) {},
 					mockUpdateStatus:        func(ctx context.Context) error { return nil },
 				},
 			},
@@ -523,7 +523,7 @@ func Test_bucketSyncDeleter_sync(t *testing.T) {
 				ops: &mockOperations{
 					mockUpdateSecret:        func(ctx context.Context) error { return nil },
 					mockGetAttributes:       func(ctx context.Context) (*storage.BucketAttrs, error) { return nil, getAttrsError },
-					mockSetStatusConditions: func(_ ...corev1alpha1.Condition) {},
+					mockSetStatusConditions: func(_ ...runtimev1alpha1.Condition) {},
 					mockUpdateStatus:        func(ctx context.Context) error { return nil },
 				},
 			},
@@ -606,7 +606,7 @@ func Test_bucketCreateUpdater_create(t *testing.T) {
 				ops: &mockOperations{
 					mockAddFinalizer:        func() {},
 					mockCreateBucket:        func(ctx context.Context, projectID string) error { return testError },
-					mockSetStatusConditions: func(_ ...corev1alpha1.Condition) {},
+					mockSetStatusConditions: func(_ ...runtimev1alpha1.Condition) {},
 					mockUpdateStatus:        func(ctx context.Context) error { return nil },
 				},
 			},
@@ -621,7 +621,7 @@ func Test_bucketCreateUpdater_create(t *testing.T) {
 					mockAddFinalizer:        func() {},
 					mockCreateBucket:        func(ctx context.Context, projectID string) error { return nil },
 					mockGetAttributes:       func(ctx context.Context) (*storage.BucketAttrs, error) { return nil, testError },
-					mockSetStatusConditions: func(_ ...corev1alpha1.Condition) {},
+					mockSetStatusConditions: func(_ ...runtimev1alpha1.Condition) {},
 					mockUpdateStatus:        func(ctx context.Context) error { return nil },
 				},
 			},
@@ -637,7 +637,7 @@ func Test_bucketCreateUpdater_create(t *testing.T) {
 					mockCreateBucket:        func(ctx context.Context, projectID string) error { return nil },
 					mockGetAttributes:       func(ctx context.Context) (*storage.BucketAttrs, error) { return nil, nil },
 					mockSetSpecAttrs:        func(attrs *storage.BucketAttrs) {},
-					mockSetStatusConditions: func(_ ...corev1alpha1.Condition) {},
+					mockSetStatusConditions: func(_ ...runtimev1alpha1.Condition) {},
 					mockUpdateObject:        func(ctx context.Context) error { return testError },
 				},
 			},
@@ -655,7 +655,7 @@ func Test_bucketCreateUpdater_create(t *testing.T) {
 					mockGetAttributes:       func(ctx context.Context) (*storage.BucketAttrs, error) { return nil, nil },
 					mockSetSpecAttrs:        func(attrs *storage.BucketAttrs) {},
 					mockUpdateObject:        func(ctx context.Context) error { return nil },
-					mockSetStatusConditions: func(_ ...corev1alpha1.Condition) {},
+					mockSetStatusConditions: func(_ ...runtimev1alpha1.Condition) {},
 					mockSetBindable:         func() {},
 					mockSetStatusAttrs:      func(attrs *storage.BucketAttrs) {},
 					mockUpdateStatus:        func(ctx context.Context) error { return nil },
@@ -724,7 +724,7 @@ func Test_bucketCreateUpdater_update(t *testing.T) {
 					mockUpdateBucket: func(ctx context.Context, labels map[string]string) (*storage.BucketAttrs, error) {
 						return nil, testError
 					},
-					mockSetStatusConditions: func(_ ...corev1alpha1.Condition) {},
+					mockSetStatusConditions: func(_ ...runtimev1alpha1.Condition) {},
 					mockUpdateStatus:        func(ctx context.Context) error { return nil },
 				},
 				projectID: "",
@@ -743,7 +743,7 @@ func Test_bucketCreateUpdater_update(t *testing.T) {
 						return nil, nil
 					},
 					mockSetSpecAttrs:        func(attrs *storage.BucketAttrs) {},
-					mockSetStatusConditions: func(_ ...corev1alpha1.Condition) {},
+					mockSetStatusConditions: func(_ ...runtimev1alpha1.Condition) {},
 					mockUpdateObject:        func(ctx context.Context) error { return testError },
 					mockUpdateStatus:        func(ctx context.Context) error { return nil },
 				},
@@ -766,7 +766,7 @@ func Test_bucketCreateUpdater_update(t *testing.T) {
 						return nil, nil
 					},
 					mockSetSpecAttrs:        func(attrs *storage.BucketAttrs) {},
-					mockSetStatusConditions: func(_ ...corev1alpha1.Condition) {},
+					mockSetStatusConditions: func(_ ...runtimev1alpha1.Condition) {},
 					mockUpdateObject:        func(ctx context.Context) error { return nil },
 					mockUpdateStatus:        func(ctx context.Context) error { return nil },
 				},

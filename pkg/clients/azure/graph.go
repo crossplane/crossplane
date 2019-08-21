@@ -29,8 +29,8 @@ import (
 	"github.com/google/uuid"
 	"k8s.io/client-go/kubernetes"
 
+	"github.com/crossplaneio/crossplane-runtime/pkg/util"
 	"github.com/crossplaneio/crossplane/azure/apis/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 const (

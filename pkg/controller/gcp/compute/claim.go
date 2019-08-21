@@ -26,10 +26,10 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
 	computev1alpha1 "github.com/crossplaneio/crossplane/apis/compute/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/gcp/apis/compute/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/resource"
 )
 
 // GKEClusterClaimController is responsible for adding the GKECluster
@@ -76,7 +76,7 @@ func ConfigureGKECluster(_ context.Context, cm resource.Claim, cs resource.Class
 	}
 
 	spec := &v1alpha1.GKEClusterSpec{
-		ResourceSpec: corev1alpha1.ResourceSpec{
+		ResourceSpec: runtimev1alpha1.ResourceSpec{
 			ReclaimPolicy: v1alpha1.DefaultReclaimPolicy,
 		},
 		GKEClusterParameters: rs.SpecTemplate.GKEClusterParameters,

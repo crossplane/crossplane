@@ -26,11 +26,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
+	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 	storagev1alpha1 "github.com/crossplaneio/crossplane/apis/storage/v1alpha1"
 	"github.com/crossplaneio/crossplane/azure/apis/storage/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/resource"
-	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
 var _ resource.ManagedConfigurator = resource.ManagedConfiguratorFn(ConfigureContainer)
@@ -68,9 +68,9 @@ func TestConfigureContainer(t *testing.T) {
 				},
 				cs: &v1alpha1.ContainerClass{
 					SpecTemplate: v1alpha1.ContainerClassSpecTemplate{
-						ResourceClassSpecTemplate: corev1alpha1.ResourceClassSpecTemplate{
+						ResourceClassSpecTemplate: runtimev1alpha1.ResourceClassSpecTemplate{
 							ProviderReference: &corev1.ObjectReference{Name: providerName},
-							ReclaimPolicy:     corev1alpha1.ReclaimDelete,
+							ReclaimPolicy:     runtimev1alpha1.ReclaimDelete,
 						},
 					},
 				},
@@ -83,7 +83,7 @@ func TestConfigureContainer(t *testing.T) {
 							AccountReference: corev1.LocalObjectReference{Name: providerName},
 							Metadata:         azblob.Metadata{},
 						},
-						ReclaimPolicy: corev1alpha1.ReclaimDelete,
+						ReclaimPolicy: runtimev1alpha1.ReclaimDelete,
 					},
 				},
 				err: nil,

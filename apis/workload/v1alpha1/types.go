@@ -23,7 +23,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
 )
 
 // KubernetesApplicationState represents the state of a Kubernetes application.
@@ -82,7 +82,7 @@ type KubernetesApplicationResourceTemplate struct {
 // KubernetesApplicationStatus represents the status of a Kubernetes
 // application.
 type KubernetesApplicationStatus struct {
-	corev1alpha1.ConditionedStatus `json:"conditionedStatus,omitempty"`
+	runtimev1alpha1.ConditionedStatus `json:"conditionedStatus,omitempty"`
 
 	// State of the application.
 	State KubernetesApplicationState `json:"state,omitempty"`
@@ -182,7 +182,7 @@ func (s *RemoteStatus) UnmarshalJSON(data []byte) error {
 // KubernetesApplicationResourceStatus represents the status of a Kubernetes
 // application resource.
 type KubernetesApplicationResourceStatus struct {
-	corev1alpha1.ConditionedStatus `json:"conditionedStatus,omitempty"`
+	runtimev1alpha1.ConditionedStatus `json:"conditionedStatus,omitempty"`
 
 	// State of the application.
 	State KubernetesApplicationResourceState `json:"state,omitempty"`

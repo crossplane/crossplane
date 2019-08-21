@@ -181,6 +181,21 @@
   version = "v0.1.0"
 
 [[projects]]
+  branch = "master"
+  digest = "1:3390cb57bb478f9de172b1271cf3cc363da79917edde1fdcc43c06b9d149b69b"
+  name = "github.com/crossplaneio/crossplane-runtime"
+  packages = [
+    "apis/core/v1alpha1",
+    "pkg/logging",
+    "pkg/meta",
+    "pkg/resource",
+    "pkg/test",
+    "pkg/util",
+  ]
+  pruneopts = "UT"
+  revision = "eb54c78f96bb0309dd57df8b758b974ee1049c7a"
+
+[[projects]]
   digest = "1:ffe9824d294da03b391f44e1ae8281281b4afc1bdaa9588c9097785e3af10cec"
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
@@ -468,7 +483,7 @@
   version = "1.0.1"
 
 [[projects]]
-  digest = "1:e9c3bb68a6c9470302b8046d4647e0612a2ea6037b9c6a47de60c0a90db504f8"
+  digest = "1:3e2dd43d579954e11bf866eae02afa8312b2647c10db0746cc647b95fd0d4e6b"
   name = "github.com/onsi/ginkgo"
   packages = [
     ".",
@@ -491,8 +506,8 @@
     "types",
   ]
   pruneopts = "UT"
-  revision = "eea6ad008b96acdaa524f5b409513bf062b500ad"
-  version = "v1.8.0"
+  revision = "7e8b50db0c6d0a15ac0eb015d4ca64e7e7e2c88c"
+  version = "v1.9.0"
 
 [[projects]]
   digest = "1:029c6999f3efa5f1cd3f8b9e02a8bc4276cc439d2dc8dc73cd98e4efd5c76cba"
@@ -1467,9 +1482,14 @@
     "github.com/aws/aws-sdk-go-v2/service/s3",
     "github.com/aws/aws-sdk-go-v2/service/s3/s3iface",
     "github.com/aws/aws-sdk-go-v2/service/sts",
+    "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1",
+    "github.com/crossplaneio/crossplane-runtime/pkg/logging",
+    "github.com/crossplaneio/crossplane-runtime/pkg/meta",
+    "github.com/crossplaneio/crossplane-runtime/pkg/resource",
+    "github.com/crossplaneio/crossplane-runtime/pkg/test",
+    "github.com/crossplaneio/crossplane-runtime/pkg/util",
     "github.com/ghodss/yaml",
     "github.com/go-ini/ini",
-    "github.com/go-logr/logr",
     "github.com/google/go-cmp/cmp",
     "github.com/google/go-cmp/cmp/cmpopts",
     "github.com/google/uuid",
@@ -1503,7 +1523,6 @@
     "k8s.io/apimachinery/pkg/runtime",
     "k8s.io/apimachinery/pkg/runtime/schema",
     "k8s.io/apimachinery/pkg/types",
-    "k8s.io/apimachinery/pkg/util/rand",
     "k8s.io/apimachinery/pkg/util/wait",
     "k8s.io/apimachinery/pkg/util/yaml",
     "k8s.io/client-go/kubernetes",
@@ -1513,14 +1532,12 @@
     "k8s.io/client-go/testing",
     "k8s.io/client-go/tools/clientcmd",
     "k8s.io/client-go/tools/record",
-    "k8s.io/client-go/util/workqueue",
     "k8s.io/code-generator/cmd/deepcopy-gen",
     "sigs.k8s.io/controller-runtime",
     "sigs.k8s.io/controller-runtime/pkg/client",
     "sigs.k8s.io/controller-runtime/pkg/client/config",
     "sigs.k8s.io/controller-runtime/pkg/client/fake",
     "sigs.k8s.io/controller-runtime/pkg/controller",
-    "sigs.k8s.io/controller-runtime/pkg/envtest",
     "sigs.k8s.io/controller-runtime/pkg/event",
     "sigs.k8s.io/controller-runtime/pkg/handler",
     "sigs.k8s.io/controller-runtime/pkg/manager",

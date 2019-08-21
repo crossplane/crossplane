@@ -32,11 +32,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
+	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 	computev1alpha1 "github.com/crossplaneio/crossplane/apis/compute/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/apis/workload/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/meta"
-	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
 const (
@@ -89,7 +89,7 @@ var (
 
 type kubeAppModifier func(*v1alpha1.KubernetesApplication)
 
-func withConditions(c ...corev1alpha1.Condition) kubeAppModifier {
+func withConditions(c ...runtimev1alpha1.Condition) kubeAppModifier {
 	return func(r *v1alpha1.KubernetesApplication) { r.Status.SetConditions(c...) }
 }
 
@@ -260,7 +260,7 @@ func TestSync(t *testing.T) {
 			wantApp: kubeApp(
 				withTemplates(templateA),
 				withState(v1alpha1.KubernetesApplicationStateScheduled),
-				withConditions(corev1alpha1.ReconcileSuccess()),
+				withConditions(runtimev1alpha1.ReconcileSuccess()),
 				withDesiredResources(1),
 				withSubmittedResources(0),
 			),
@@ -286,7 +286,7 @@ func TestSync(t *testing.T) {
 			wantApp: kubeApp(
 				withTemplates(templateA, templateB),
 				withState(v1alpha1.KubernetesApplicationStatePartial),
-				withConditions(corev1alpha1.ReconcileSuccess()),
+				withConditions(runtimev1alpha1.ReconcileSuccess()),
 				withDesiredResources(2),
 				withSubmittedResources(1),
 			),
@@ -307,7 +307,7 @@ func TestSync(t *testing.T) {
 			wantApp: kubeApp(
 				withTemplates(templateA, templateB),
 				withState(v1alpha1.KubernetesApplicationStateSubmitted),
-				withConditions(corev1alpha1.ReconcileSuccess()),
+				withConditions(runtimev1alpha1.ReconcileSuccess()),
 				withDesiredResources(2),
 				withSubmittedResources(2),
 			),
@@ -323,7 +323,7 @@ func TestSync(t *testing.T) {
 			wantApp: kubeApp(
 				withTemplates(templateA),
 				withState(v1alpha1.KubernetesApplicationStateFailed),
-				withConditions(corev1alpha1.ReconcileError(errorBoom)),
+				withConditions(runtimev1alpha1.ReconcileError(errorBoom)),
 				withDesiredResources(1),
 			),
 			wantResult: reconcile.Result{Requeue: true},
@@ -338,7 +338,7 @@ func TestSync(t *testing.T) {
 			wantApp: kubeApp(
 				withTemplates(templateA),
 				withState(v1alpha1.KubernetesApplicationStateFailed),
-				withConditions(corev1alpha1.ReconcileError(errorBoom)),
+				withConditions(runtimev1alpha1.ReconcileError(errorBoom)),
 				withDesiredResources(1),
 			),
 			wantResult: reconcile.Result{Requeue: true},
@@ -486,7 +486,7 @@ func TestGarbageCollect(t *testing.T) {
 			app: kubeApp(withTemplates(templateA)),
 			wantApp: kubeApp(
 				withTemplates(templateA),
-				withConditions(corev1alpha1.ReconcileError(errorBoom)),
+				withConditions(runtimev1alpha1.ReconcileError(errorBoom)),
 			),
 		},
 		{
