@@ -77,10 +77,22 @@ aws cloudformation create-stack \
     --stack-name $EKS_STACK_NAME \
     --parameters ParameterKey=VpcBlock,ParameterValue=192.168.0.0/16 ParameterKey=Subnet01Block,ParameterValue=192.168.64.0/18 ParameterKey=Subnet02Block,ParameterValue=192.168.128.0/18 ParameterKey=Subnet03Block,ParameterValue=192.168.192.0/18  > /dev/null
 
-echo -n "Waiting for 'CREATE_COMPLETE' from Cloudformation Stack $EKS_STACK_NAME"
-until [[ "CREATE_COMPLETE" == "$(aws cloudformation describe-stacks --output json --stack-name $EKS_STACK_NAME --region $REGION | jq -r '.Stacks[0].StackStatus')" ]]; do
-  echo -n "."
-  sleep 2
+echo "Creating Cloudformation Stack '$EKS_STACK_NAME'"
+succeeded=false
+until [ "$succeeded" == true ]; do
+  stack_status="$(aws cloudformation describe-stacks --output json --stack-name $EKS_STACK_NAME --region $REGION | jq -r '.Stacks[0].StackStatus')"
+  if [ "$stack_status" == "CREATE_COMPLETE" ]; then
+    echo -e "succeeded!\n"
+    succeeded=true
+  elif [ "$stack_status" == "CREATE_IN_PROGRESS" ]; then
+    echo -n "."
+    sleep 2
+  else
+    echo "error creating the stack. Status:${stack_status}"
+    echo "Stack events:"
+    aws cloudformation describe-stack-events --stack-name $EKS_STACK_NAME --region $REGION
+    exit -1
+  fi
 done;
 echo
 
@@ -125,7 +137,7 @@ sed -e "s|BASE64ENCODED_AWS_PROVIDER_CREDS|\$(base64 $KEYFILE | tr -d "\n")|g" \
     -e "s|EKS_SECURITY_GROUP|\$EKS_SECURITY_GROUP|g" \\
     -e "s|RDS_SUBNET_GROUP_NAME|\$RDS_SUBNET_GROUP_NAME|g" \\
     -e "s|RDS_SECURITY_GROUP|\$RDS_SECURITY_GROUP|g" \\
-    cluster/examples/workloads/kubernetes/wordpress-aws/provider.yaml | kubectl apply -f -
+    cluster/examples/workloads/kubernetes/wordpress/aws/provider.yaml | kubectl apply -f -
 
 # Clean up after this script by deleting everything it created:
 # $0 delete $RAND

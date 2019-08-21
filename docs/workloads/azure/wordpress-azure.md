@@ -12,7 +12,7 @@ In this environment, the following components will be dynamically provisioned an
 Before starting this guide, you should have already [configured your Azure account](../../cloud-providers/azure/azure-provider.md) for usage by Crossplane.
 
 - You should have a `crossplane-azure-provider-key.json` file on your local filesystem, preferably at the root of where you cloned the [Crossplane repo](https://github.com/crossplaneio/crossplane).
-- You should have a azure resource group with name `group-westus-1`. If not, change the value of `resourceGroupName` to an existing resource group in `cluster/examples/workloads/wordpress-azure/provider.yaml`
+- You should have a azure resource group with name `group-westus-1`. If not, change the value of `resourceGroupName` to an existing resource group in `cluster/examples/workloads/wordpress/azure/provider.yaml`
 
 
 
@@ -32,13 +32,13 @@ For the next steps, make sure your `kubectl` context points to the cluster where
 - Create the Azure provider object in your cluster:
 
   ```console
-  sed "s/BASE64ENCODED_AZURE_PROVIDER_CREDS/`base64 crossplane-azure-provider-key.json | tr -d '\n'`/g;" cluster/examples/workloads/wordpress-azure/provider.yaml | kubectl create -f -
+  sed "s/BASE64ENCODED_AZURE_PROVIDER_CREDS/`base64 crossplane-azure-provider-key.json | tr -d '\n'`/g;" cluster/examples/workloads/wordpress/azure/provider.yaml | kubectl create -f -
   ```
 
 - Next, create the AKS cluster that will eventually be the target cluster for your Workload deployment:
 
   ```console
-  kubectl create -f cluster/examples/workloads/wordpress-azure/cluster.yaml
+  kubectl create -f cluster/examples/workloads/wordpress/azure/cluster.yaml
   ```
 
   It will take a while (~15 minutes) for the AKS cluster to be deployed and becoming ready. You can keep an eye on its status with the following command:
@@ -121,11 +121,11 @@ kubectl delete -f cluster/examples/workloads/wordpress-azure/workload.yaml
 Then delete the AKS cluster:
 
 ```console
-kubectl delete -f cluster/examples/workloads/wordpress-azure/cluster.yaml
+kubectl delete -f cluster/examples/workloads/wordpress/azure/cluster.yaml
 ```
 
 Finally, delete the provider credentials:
 
 ```console
-kubectl delete -f cluster/examples/workloads/wordpress-azure/provider.yaml
+kubectl delete -f cluster/examples/workloads/wordpress/azure/provider.yaml
 ```
