@@ -27,7 +27,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplaneio/crossplane/pkg/test"
+	"github.com/crossplaneio/crossplane-runtime/pkg/test"
+	localtest "github.com/crossplaneio/crossplane/pkg/test"
 )
 
 const (
@@ -42,7 +43,7 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	t := test.NewEnv(namespace, SchemeBuilder.SchemeBuilder, test.CRDs())
+	t := test.NewEnv(namespace, SchemeBuilder.SchemeBuilder, localtest.CRDs())
 	c = t.StartClient()
 	t.StopAndExit(m.Run())
 }

@@ -19,14 +19,14 @@ package v1alpha1
 import (
 	"time"
 
-	"github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
 
 	"cloud.google.com/go/storage"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/crossplaneio/crossplane/pkg/resource"
-	"github.com/crossplaneio/crossplane/pkg/util"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
+	"github.com/crossplaneio/crossplane-runtime/pkg/util"
 )
 
 // ProjectTeam is the project team associated with the entity, if any.
@@ -781,13 +781,13 @@ type BucketParameters struct {
 
 // BucketSpec defines the desired state of Bucket
 type BucketSpec struct {
-	v1alpha1.ResourceSpec `json:",inline"`
-	BucketParameters      `json:",inline"`
+	runtimev1alpha1.ResourceSpec `json:",inline"`
+	BucketParameters             `json:",inline"`
 }
 
 // BucketStatus defines the observed state of GoogleBucket
 type BucketStatus struct {
-	v1alpha1.ResourceStatus `json:",inline"`
+	runtimev1alpha1.ResourceStatus `json:",inline"`
 
 	BucketOutputAttrs `json:"attributes"`
 }
@@ -810,17 +810,17 @@ type Bucket struct {
 }
 
 // SetBindingPhase of this Bucket.
-func (b *Bucket) SetBindingPhase(p v1alpha1.BindingPhase) {
+func (b *Bucket) SetBindingPhase(p runtimev1alpha1.BindingPhase) {
 	b.Status.SetBindingPhase(p)
 }
 
 // GetBindingPhase of this Bucket.
-func (b *Bucket) GetBindingPhase() v1alpha1.BindingPhase {
+func (b *Bucket) GetBindingPhase() runtimev1alpha1.BindingPhase {
 	return b.Status.GetBindingPhase()
 }
 
 // SetConditions of this Bucket.
-func (b *Bucket) SetConditions(c ...v1alpha1.Condition) {
+func (b *Bucket) SetConditions(c ...runtimev1alpha1.Condition) {
 	b.Status.SetConditions(c...)
 }
 
@@ -855,12 +855,12 @@ func (b *Bucket) GetWriteConnectionSecretToReference() corev1.LocalObjectReferen
 }
 
 // GetReclaimPolicy of this Bucket.
-func (b *Bucket) GetReclaimPolicy() v1alpha1.ReclaimPolicy {
+func (b *Bucket) GetReclaimPolicy() runtimev1alpha1.ReclaimPolicy {
 	return b.Spec.ReclaimPolicy
 }
 
 // SetReclaimPolicy of this Bucket.
-func (b *Bucket) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) {
+func (b *Bucket) SetReclaimPolicy(p runtimev1alpha1.ReclaimPolicy) {
 	b.Spec.ReclaimPolicy = p
 }
 
@@ -893,8 +893,8 @@ type BucketList struct {
 
 // BucketClassSpecTemplate is the Schema for the resource class
 type BucketClassSpecTemplate struct {
-	v1alpha1.ResourceClassSpecTemplate `json:",inline"`
-	BucketParameters                   `json:",inline"`
+	runtimev1alpha1.ResourceClassSpecTemplate `json:",inline"`
+	BucketParameters                          `json:",inline"`
 }
 
 var _ resource.Class = &BucketClass{}
@@ -913,12 +913,12 @@ type BucketClass struct {
 }
 
 // GetReclaimPolicy of this BucketClass.
-func (i *BucketClass) GetReclaimPolicy() v1alpha1.ReclaimPolicy {
+func (i *BucketClass) GetReclaimPolicy() runtimev1alpha1.ReclaimPolicy {
 	return i.SpecTemplate.ReclaimPolicy
 }
 
 // SetReclaimPolicy of this BucketClass.
-func (i *BucketClass) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) {
+func (i *BucketClass) SetReclaimPolicy(p runtimev1alpha1.ReclaimPolicy) {
 	i.SpecTemplate.ReclaimPolicy = p
 }
 

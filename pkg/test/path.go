@@ -17,16 +17,16 @@ limitations under the License.
 package util
 
 import (
-	"time"
-
-	"k8s.io/apimachinery/pkg/util/wait"
+	"path/filepath"
+	"runtime"
 )
 
-// DefaultUpdateRetry is the recommended retry for a failure to update a resource or ensuring that the changes
-// from an update have been committed and have become consistent.
-var DefaultUpdateRetry = wait.Backoff{
-	Steps:    10,
-	Duration: 500 * time.Millisecond,
-	Factor:   1.0,
-	Jitter:   0.1,
+var (
+	_, b, _, _ = runtime.Caller(0)
+	crds       = filepath.Join(filepath.Dir(filepath.Dir(filepath.Dir(b))), "cluster", "charts", "crossplane", "crds")
+)
+
+// CRDs path to project crds location
+func CRDs() string {
+	return crds
 }

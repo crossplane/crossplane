@@ -21,8 +21,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/crossplaneio/crossplane/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/resource"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
 )
 
 // Cloud Memorystore instance states.
@@ -101,13 +101,13 @@ type CloudMemorystoreInstanceParameters struct {
 
 // CloudMemorystoreInstanceSpec defines the desired state of CloudMemorystoreInstance
 type CloudMemorystoreInstanceSpec struct {
-	v1alpha1.ResourceSpec              `json:",inline"`
+	runtimev1alpha1.ResourceSpec       `json:",inline"`
 	CloudMemorystoreInstanceParameters `json:",inline"`
 }
 
 // CloudMemorystoreInstanceStatus defines the observed state of CloudMemorystoreInstance
 type CloudMemorystoreInstanceStatus struct {
-	v1alpha1.ResourceStatus `json:",inline"`
+	runtimev1alpha1.ResourceStatus `json:",inline"`
 
 	State   string `json:"state,omitempty"`
 	Message string `json:"message,omitempty"`
@@ -151,17 +151,17 @@ type CloudMemorystoreInstance struct {
 }
 
 // SetBindingPhase of this CloudMemorystoreInstance.
-func (i *CloudMemorystoreInstance) SetBindingPhase(p v1alpha1.BindingPhase) {
+func (i *CloudMemorystoreInstance) SetBindingPhase(p runtimev1alpha1.BindingPhase) {
 	i.Status.SetBindingPhase(p)
 }
 
 // GetBindingPhase of this CloudMemorystoreInstance.
-func (i *CloudMemorystoreInstance) GetBindingPhase() v1alpha1.BindingPhase {
+func (i *CloudMemorystoreInstance) GetBindingPhase() runtimev1alpha1.BindingPhase {
 	return i.Status.GetBindingPhase()
 }
 
 // SetConditions of this CloudMemorystoreInstance.
-func (i *CloudMemorystoreInstance) SetConditions(c ...v1alpha1.Condition) {
+func (i *CloudMemorystoreInstance) SetConditions(c ...runtimev1alpha1.Condition) {
 	i.Status.SetConditions(c...)
 }
 
@@ -196,12 +196,12 @@ func (i *CloudMemorystoreInstance) GetWriteConnectionSecretToReference() corev1.
 }
 
 // GetReclaimPolicy of this CloudMemorystoreInstance.
-func (i *CloudMemorystoreInstance) GetReclaimPolicy() v1alpha1.ReclaimPolicy {
+func (i *CloudMemorystoreInstance) GetReclaimPolicy() runtimev1alpha1.ReclaimPolicy {
 	return i.Spec.ReclaimPolicy
 }
 
 // SetReclaimPolicy of this CloudMemorystoreInstance.
-func (i *CloudMemorystoreInstance) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) {
+func (i *CloudMemorystoreInstance) SetReclaimPolicy(p runtimev1alpha1.ReclaimPolicy) {
 	i.Spec.ReclaimPolicy = p
 }
 
@@ -216,8 +216,8 @@ type CloudMemorystoreInstanceList struct {
 
 // CloudMemorystoreInstanceClassSpecTemplate is the Schema for the resource class
 type CloudMemorystoreInstanceClassSpecTemplate struct {
-	v1alpha1.ResourceClassSpecTemplate `json:",inline"`
-	CloudMemorystoreInstanceParameters `json:",inline"`
+	runtimev1alpha1.ResourceClassSpecTemplate `json:",inline"`
+	CloudMemorystoreInstanceParameters        `json:",inline"`
 }
 
 var _ resource.Class = &CloudMemorystoreInstanceClass{}
@@ -236,12 +236,12 @@ type CloudMemorystoreInstanceClass struct {
 }
 
 // GetReclaimPolicy of this CloudMemorystoreInstanceClass.
-func (i *CloudMemorystoreInstanceClass) GetReclaimPolicy() v1alpha1.ReclaimPolicy {
+func (i *CloudMemorystoreInstanceClass) GetReclaimPolicy() runtimev1alpha1.ReclaimPolicy {
 	return i.SpecTemplate.ReclaimPolicy
 }
 
 // SetReclaimPolicy of this CloudMemorystoreInstanceClass.
-func (i *CloudMemorystoreInstanceClass) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) {
+func (i *CloudMemorystoreInstanceClass) SetReclaimPolicy(p runtimev1alpha1.ReclaimPolicy) {
 	i.SpecTemplate.ReclaimPolicy = p
 }
 

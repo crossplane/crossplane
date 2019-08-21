@@ -29,11 +29,11 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
+	"github.com/crossplaneio/crossplane-runtime/pkg/util"
 	"github.com/crossplaneio/crossplane/gcp/apis/database/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/clients/gcp/cloudsql"
-	"github.com/crossplaneio/crossplane/pkg/meta"
-	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 type localOperations interface {
@@ -83,7 +83,7 @@ func (h *localHandler) isInstanceReady() bool {
 }
 
 func (h *localHandler) isReclaimDelete() bool {
-	return h.Spec.ReclaimPolicy == corev1alpha1.ReclaimDelete
+	return h.Spec.ReclaimPolicy == runtimev1alpha1.ReclaimDelete
 }
 
 func (h *localHandler) needsUpdate(actual *sqladmin.DatabaseInstance) bool {
@@ -106,9 +106,9 @@ func (h *localHandler) updateInstanceStatus(ctx context.Context, inst *sqladmin.
 
 func (h *localHandler) updateReconcileStatus(ctx context.Context, err error) error {
 	if err == nil {
-		h.Status.SetConditions(corev1alpha1.ReconcileSuccess())
+		h.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
 	} else {
-		h.Status.SetConditions(corev1alpha1.ReconcileError(err))
+		h.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
 	}
 	return h.client.Status().Update(ctx, h.CloudsqlInstance)
 }
@@ -137,11 +137,11 @@ func (h *localHandler) updateConnectionSecret(ctx context.Context) (*corev1.Secr
 				s.GetNamespace(), s.GetName(), h.GetNamespace(), h.GetName())
 		}
 
-		if _, found := s.Data[corev1alpha1.ResourceCredentialsSecretPasswordKey]; !found {
-			s.Data[corev1alpha1.ResourceCredentialsSecretPasswordKey] = []byte(password)
+		if _, found := s.Data[runtimev1alpha1.ResourceCredentialsSecretPasswordKey]; !found {
+			s.Data[runtimev1alpha1.ResourceCredentialsSecretPasswordKey] = []byte(password)
 		}
-		s.Data[corev1alpha1.ResourceCredentialsSecretEndpointKey] = secret.Data[corev1alpha1.ResourceCredentialsSecretEndpointKey]
-		s.Data[corev1alpha1.ResourceCredentialsSecretUserKey] = secret.Data[corev1alpha1.ResourceCredentialsSecretUserKey]
+		s.Data[runtimev1alpha1.ResourceCredentialsSecretEndpointKey] = secret.Data[runtimev1alpha1.ResourceCredentialsSecretEndpointKey]
+		s.Data[runtimev1alpha1.ResourceCredentialsSecretUserKey] = secret.Data[runtimev1alpha1.ResourceCredentialsSecretUserKey]
 		return nil
 	}); err != nil {
 		return nil, err
@@ -196,7 +196,7 @@ func (h *managedHandler) getInstance(ctx context.Context) (*sqladmin.DatabaseIns
 }
 
 func (h *managedHandler) createInstance(ctx context.Context) error {
-	h.Status.SetConditions(corev1alpha1.Creating())
+	h.Status.SetConditions(runtimev1alpha1.Creating())
 	return h.instance.Create(ctx, h.DatabaseInstance(h.GetResourceName()))
 }
 
@@ -247,7 +247,7 @@ func (h *managedHandler) updateUserCreds(ctx context.Context) error {
 	if err != nil {
 		return errors.Wrapf(err, "failed to get user")
 	}
-	user.Password = string(secret.Data[corev1alpha1.ResourceCredentialsSecretPasswordKey])
+	user.Password = string(secret.Data[runtimev1alpha1.ResourceCredentialsSecretPasswordKey])
 
 	return h.user.Update(ctx, user.Instance, user.Name, user)
 }

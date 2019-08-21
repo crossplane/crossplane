@@ -27,7 +27,7 @@ import (
 	"github.com/Azure/go-autorest/autorest/to"
 	"k8s.io/client-go/kubernetes"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
 	azuredbv1alpha1 "github.com/crossplaneio/crossplane/azure/apis/database/v1alpha1"
 	"github.com/crossplaneio/crossplane/azure/apis/v1alpha1"
 )
@@ -463,11 +463,11 @@ func (f *PostgreSQLServerClientFactory) CreateAPIInstance(provider *v1alpha1.Pro
 // https://github.com/Azure/azure-sdk-for-go/blob/master/services/postgresql/mgmt/2017-12-01/postgresql/models.go
 
 // SQLServerCondition converts the given MySQL Server state string into a corresponding condition.
-func SQLServerCondition(state string) corev1alpha1.Condition {
+func SQLServerCondition(state string) runtimev1alpha1.Condition {
 	if mysql.ServerState(state) == mysql.ServerStateReady {
-		return corev1alpha1.Available()
+		return runtimev1alpha1.Available()
 	}
-	return corev1alpha1.Unavailable()
+	return runtimev1alpha1.Unavailable()
 }
 
 // SQLServerStatusMessage returns a status message based on the given server state

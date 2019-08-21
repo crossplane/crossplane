@@ -17,8 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"github.com/crossplaneio/crossplane/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/resource"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,7 +32,7 @@ const (
 
 // Defaults for GKE resources.
 const (
-	DefaultReclaimPolicy = v1alpha1.ReclaimRetain
+	DefaultReclaimPolicy = runtimev1alpha1.ReclaimRetain
 	DefaultNumberOfNodes = int64(1)
 )
 
@@ -90,13 +90,13 @@ type GKEClusterParameters struct {
 
 // GKEClusterSpec specifies the configuration of a GKE cluster.
 type GKEClusterSpec struct {
-	v1alpha1.ResourceSpec `json:",inline"`
-	GKEClusterParameters  `json:",inline"`
+	runtimev1alpha1.ResourceSpec `json:",inline"`
+	GKEClusterParameters         `json:",inline"`
 }
 
 // GKEClusterStatus represents the status of a GKE cluster.
 type GKEClusterStatus struct {
-	v1alpha1.ResourceStatus `json:",inline"`
+	runtimev1alpha1.ResourceStatus `json:",inline"`
 
 	ClusterName string `json:"clusterName"`
 	Endpoint    string `json:"endpoint"`
@@ -123,17 +123,17 @@ type GKECluster struct {
 }
 
 // SetBindingPhase of this GKECluster.
-func (c *GKECluster) SetBindingPhase(p v1alpha1.BindingPhase) {
+func (c *GKECluster) SetBindingPhase(p runtimev1alpha1.BindingPhase) {
 	c.Status.SetBindingPhase(p)
 }
 
 // GetBindingPhase of this GKECluster.
-func (c *GKECluster) GetBindingPhase() v1alpha1.BindingPhase {
+func (c *GKECluster) GetBindingPhase() runtimev1alpha1.BindingPhase {
 	return c.Status.GetBindingPhase()
 }
 
 // SetConditions of this GKECluster.
-func (c *GKECluster) SetConditions(cd ...v1alpha1.Condition) {
+func (c *GKECluster) SetConditions(cd ...runtimev1alpha1.Condition) {
 	c.Status.SetConditions(cd...)
 }
 
@@ -168,12 +168,12 @@ func (c *GKECluster) GetWriteConnectionSecretToReference() corev1.LocalObjectRef
 }
 
 // GetReclaimPolicy of this GKECluster.
-func (c *GKECluster) GetReclaimPolicy() v1alpha1.ReclaimPolicy {
+func (c *GKECluster) GetReclaimPolicy() runtimev1alpha1.ReclaimPolicy {
 	return c.Spec.ReclaimPolicy
 }
 
 // SetReclaimPolicy of this GKECluster.
-func (c *GKECluster) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) {
+func (c *GKECluster) SetReclaimPolicy(p runtimev1alpha1.ReclaimPolicy) {
 	c.Spec.ReclaimPolicy = p
 }
 
@@ -188,8 +188,8 @@ type GKEClusterList struct {
 
 // GKEClusterClassSpecTemplate is the Schema for the resource class
 type GKEClusterClassSpecTemplate struct {
-	v1alpha1.ResourceClassSpecTemplate `json:",inline"`
-	GKEClusterParameters               `json:",inline"`
+	runtimev1alpha1.ResourceClassSpecTemplate `json:",inline"`
+	GKEClusterParameters                      `json:",inline"`
 }
 
 var _ resource.Class = &GKEClusterClass{}
@@ -208,12 +208,12 @@ type GKEClusterClass struct {
 }
 
 // GetReclaimPolicy of this GKEClusterClass.
-func (i *GKEClusterClass) GetReclaimPolicy() v1alpha1.ReclaimPolicy {
+func (i *GKEClusterClass) GetReclaimPolicy() runtimev1alpha1.ReclaimPolicy {
 	return i.SpecTemplate.ReclaimPolicy
 }
 
 // SetReclaimPolicy of this GKEClusterClass.
-func (i *GKEClusterClass) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) {
+func (i *GKEClusterClass) SetReclaimPolicy(p runtimev1alpha1.ReclaimPolicy) {
 	i.SpecTemplate.ReclaimPolicy = p
 }
 

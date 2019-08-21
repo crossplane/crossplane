@@ -31,14 +31,14 @@ import (
 
 	"github.com/pkg/errors"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
+	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
+	"github.com/crossplaneio/crossplane-runtime/pkg/util"
 	azuredbv1alpha1 "github.com/crossplaneio/crossplane/azure/apis/database/v1alpha1"
 	azurev1alpha1 "github.com/crossplaneio/crossplane/azure/apis/v1alpha1"
 	azureclients "github.com/crossplaneio/crossplane/pkg/clients/azure"
-	"github.com/crossplaneio/crossplane/pkg/logging"
-	"github.com/crossplaneio/crossplane/pkg/meta"
-	"github.com/crossplaneio/crossplane/pkg/resource"
-	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 const (
@@ -127,7 +127,7 @@ func (r *SQLReconciler) handleReconcile(instance azuredbv1alpha1.SQLServer) (rec
 
 	if mysql.ServerState(server.State) != mysql.ServerStateReady {
 		// the instance isn't running still, requeue another reconciliation attempt
-		instance.GetStatus().SetConditions(corev1alpha1.ReconcileSuccess())
+		instance.GetStatus().SetConditions(runtimev1alpha1.ReconcileSuccess())
 		return reconcile.Result{Requeue: true}, r.Update(ctx, instance)
 	}
 
@@ -136,7 +136,7 @@ func (r *SQLReconciler) handleReconcile(instance azuredbv1alpha1.SQLServer) (rec
 		return r.fail(instance, errors.Wrapf(err, "failed to set connection secret for SQL Server instance %s", instance.GetName()))
 	}
 
-	instance.GetStatus().SetConditions(corev1alpha1.ReconcileSuccess())
+	instance.GetStatus().SetConditions(runtimev1alpha1.ReconcileSuccess())
 	return reconcile.Result{}, r.Update(ctx, instance)
 }
 
@@ -144,7 +144,7 @@ func (r *SQLReconciler) handleReconcile(instance azuredbv1alpha1.SQLServer) (rec
 func (r *SQLReconciler) handleCreation(sqlServersClient azureclients.SQLServerAPI, instance azuredbv1alpha1.SQLServer) (reconcile.Result, error) {
 	// TODO(negz): Why not use the package scoped context?
 	ctx := context.Background()
-	instance.GetStatus().SetConditions(corev1alpha1.Creating())
+	instance.GetStatus().SetConditions(runtimev1alpha1.Creating())
 
 	// generate a password for the admin user
 	adminPassword, err := util.GeneratePassword(passwordDataLen)
@@ -171,7 +171,7 @@ func (r *SQLReconciler) handleCreation(sqlServersClient azureclients.SQLServerAP
 	status := instance.GetStatus()
 	status.RunningOperation = string(createOp)
 	status.RunningOperationType = azuredbv1alpha1.OperationCreateServer
-	status.SetConditions(corev1alpha1.ReconcileSuccess())
+	status.SetConditions(runtimev1alpha1.ReconcileSuccess())
 
 	// wait until the important status fields we just set have become committed/consistent
 	updateWaitErr := wait.ExponentialBackoff(util.DefaultUpdateRetry, func() (done bool, err error) {
@@ -202,7 +202,7 @@ func (r *SQLReconciler) handleCreation(sqlServersClient azureclients.SQLServerAP
 func (r *SQLReconciler) handleDeletion(sqlServersClient azureclients.SQLServerAPI, instance azuredbv1alpha1.SQLServer) (reconcile.Result, error) {
 	// TODO(negz): Why not use the package scoped context?
 	ctx := context.Background()
-	instance.GetStatus().SetConditions(corev1alpha1.Deleting())
+	instance.GetStatus().SetConditions(runtimev1alpha1.Deleting())
 
 	// first get the latest status of the SQL Server resource that needs to be deleted
 	_, err := sqlServersClient.GetServer(ctx, instance)
@@ -214,7 +214,7 @@ func (r *SQLReconciler) handleDeletion(sqlServersClient azureclients.SQLServerAP
 		// SQL Server instance doesn't exist, it's already deleted
 		log.V(logging.Debug).Info("SQL Server instance does not exist, it must be already deleted", "instance", instance)
 		meta.RemoveFinalizer(instance, r.finalizer)
-		instance.GetStatus().SetConditions(corev1alpha1.ReconcileSuccess())
+		instance.GetStatus().SetConditions(runtimev1alpha1.ReconcileSuccess())
 		return reconcile.Result{}, r.Update(ctx, instance)
 	}
 
@@ -227,7 +227,7 @@ func (r *SQLReconciler) handleDeletion(sqlServersClient azureclients.SQLServerAP
 	deleteFutureJSON, _ := deleteFuture.MarshalJSON()
 	log.V(logging.Debug).Info("started delete of SQL Server instance", "instance", instance.GetName(), "operation", string(deleteFutureJSON))
 	meta.RemoveFinalizer(instance, r.finalizer)
-	instance.GetStatus().SetConditions(corev1alpha1.ReconcileSuccess())
+	instance.GetStatus().SetConditions(runtimev1alpha1.ReconcileSuccess())
 	return reconcile.Result{}, r.Update(ctx, instance)
 }
 
@@ -288,7 +288,7 @@ func (r *SQLReconciler) handleRunningOperation(sqlServersClient azureclients.SQL
 	}
 
 	log.V(logging.Debug).Info("successfully finished operation type for SQL Server", "instance", instance.GetName(), "operation", opType)
-	instance.GetStatus().SetConditions(corev1alpha1.ReconcileSuccess())
+	instance.GetStatus().SetConditions(runtimev1alpha1.ReconcileSuccess())
 	return reconcile.Result{Requeue: true}, r.Update(ctx, instance)
 }
 
@@ -297,7 +297,7 @@ func (r *SQLReconciler) fail(instance azuredbv1alpha1.SQLServer, err error) (rec
 	// TODO(negz): Why don't we just use the package scoped ctx here?
 	ctx := context.Background()
 
-	instance.GetStatus().SetConditions(corev1alpha1.ReconcileError(err))
+	instance.GetStatus().SetConditions(runtimev1alpha1.ReconcileError(err))
 	return reconcile.Result{Requeue: true}, r.Update(ctx, instance)
 }
 
@@ -340,12 +340,12 @@ func (r *SQLReconciler) createOrUpdateConnectionSecret(instance azuredbv1alpha1.
 	s := resource.ConnectionSecretFor(instance, kind)
 	return errors.Wrapf(util.CreateOrUpdate(ctx, r.Client, s, func() error {
 		// TODO(negz): Make sure we own any existing secret before overwriting it.
-		s.Data[corev1alpha1.ResourceCredentialsSecretEndpointKey] = []byte(instance.GetStatus().Endpoint)
-		s.Data[corev1alpha1.ResourceCredentialsSecretUserKey] = []byte(fmt.Sprintf("%s@%s", instance.GetSpec().AdminLoginName, instance.GetName()))
+		s.Data[runtimev1alpha1.ResourceCredentialsSecretEndpointKey] = []byte(instance.GetStatus().Endpoint)
+		s.Data[runtimev1alpha1.ResourceCredentialsSecretUserKey] = []byte(fmt.Sprintf("%s@%s", instance.GetSpec().AdminLoginName, instance.GetName()))
 
 		// Don't overwrite the password if it has already been set.
-		if _, ok := s.Data[corev1alpha1.ResourceCredentialsSecretPasswordKey]; !ok && password != "" {
-			s.Data[corev1alpha1.ResourceCredentialsSecretPasswordKey] = []byte(password)
+		if _, ok := s.Data[runtimev1alpha1.ResourceCredentialsSecretPasswordKey]; !ok && password != "" {
+			s.Data[runtimev1alpha1.ResourceCredentialsSecretPasswordKey] = []byte(password)
 		}
 		return nil
 	}), "could not create or update connection secret %s", s.GetName())

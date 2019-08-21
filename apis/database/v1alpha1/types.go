@@ -20,13 +20,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/crossplaneio/crossplane/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/resource"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
 )
 
 // MySQLInstanceSpec specifies the configuration of a MySQL instance.
 type MySQLInstanceSpec struct {
-	v1alpha1.ResourceClaimSpec `json:",inline"`
+	runtimev1alpha1.ResourceClaimSpec `json:",inline"`
 
 	// mysql instance properties
 	// +kubebuilder:validation:Enum="5.6";"5.7"
@@ -45,22 +45,22 @@ type MySQLInstance struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   MySQLInstanceSpec            `json:"spec,omitempty"`
-	Status v1alpha1.ResourceClaimStatus `json:"status,omitempty"`
+	Spec   MySQLInstanceSpec                   `json:"spec,omitempty"`
+	Status runtimev1alpha1.ResourceClaimStatus `json:"status,omitempty"`
 }
 
 // SetBindingPhase of this MySQLInstance.
-func (i *MySQLInstance) SetBindingPhase(p v1alpha1.BindingPhase) {
+func (i *MySQLInstance) SetBindingPhase(p runtimev1alpha1.BindingPhase) {
 	i.Status.SetBindingPhase(p)
 }
 
 // GetBindingPhase of this MySQLInstance.
-func (i *MySQLInstance) GetBindingPhase() v1alpha1.BindingPhase {
+func (i *MySQLInstance) GetBindingPhase() runtimev1alpha1.BindingPhase {
 	return i.Status.GetBindingPhase()
 }
 
 // SetConditions of this MySQLInstance.
-func (i *MySQLInstance) SetConditions(c ...v1alpha1.Condition) {
+func (i *MySQLInstance) SetConditions(c ...runtimev1alpha1.Condition) {
 	i.Status.SetConditions(c...)
 }
 
@@ -113,7 +113,7 @@ type MySQLInstancePolicy struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	v1alpha1.Policy `json:",inline"`
+	runtimev1alpha1.Policy `json:",inline"`
 }
 
 // All policy lists must satisfy the PolicyList interface
@@ -131,7 +131,7 @@ type MySQLInstancePolicyList struct {
 // PostgreSQLInstanceSpec specifies the configuration of this
 // PostgreSQLInstance.
 type PostgreSQLInstanceSpec struct {
-	v1alpha1.ResourceClaimSpec `json:",inline"`
+	runtimev1alpha1.ResourceClaimSpec `json:",inline"`
 
 	// postgresql instance properties
 	// +kubebuilder:validation:Enum="9.6"
@@ -150,22 +150,22 @@ type PostgreSQLInstance struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   PostgreSQLInstanceSpec       `json:"spec,omitempty"`
-	Status v1alpha1.ResourceClaimStatus `json:"status,omitempty"`
+	Spec   PostgreSQLInstanceSpec              `json:"spec,omitempty"`
+	Status runtimev1alpha1.ResourceClaimStatus `json:"status,omitempty"`
 }
 
 // SetBindingPhase of this PostgreSQLInstance.
-func (i *PostgreSQLInstance) SetBindingPhase(p v1alpha1.BindingPhase) {
+func (i *PostgreSQLInstance) SetBindingPhase(p runtimev1alpha1.BindingPhase) {
 	i.Status.SetBindingPhase(p)
 }
 
 // GetBindingPhase of this PostgreSQLInstance.
-func (i *PostgreSQLInstance) GetBindingPhase() v1alpha1.BindingPhase {
+func (i *PostgreSQLInstance) GetBindingPhase() runtimev1alpha1.BindingPhase {
 	return i.Status.GetBindingPhase()
 }
 
 // SetConditions of this PostgreSQLInstance.
-func (i *PostgreSQLInstance) SetConditions(c ...v1alpha1.Condition) {
+func (i *PostgreSQLInstance) SetConditions(c ...runtimev1alpha1.Condition) {
 	i.Status.SetConditions(c...)
 }
 
@@ -218,7 +218,7 @@ type PostgreSQLInstancePolicy struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	v1alpha1.Policy `json:",inline"`
+	runtimev1alpha1.Policy `json:",inline"`
 }
 
 // All policy lists must satisfy the PolicyList interface

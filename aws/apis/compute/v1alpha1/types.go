@@ -17,8 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"github.com/crossplaneio/crossplane/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/resource"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -143,8 +143,8 @@ type EKSClusterParameters struct {
 
 // EKSClusterSpec specifies the configuration for an EKS cluster.
 type EKSClusterSpec struct {
-	v1alpha1.ResourceSpec `json:",inline"`
-	EKSClusterParameters  `json:",inline"`
+	runtimev1alpha1.ResourceSpec `json:",inline"`
+	EKSClusterParameters         `json:",inline"`
 }
 
 // MapRole maps an aws role to kubernetes groups
@@ -203,7 +203,7 @@ type WorkerNodesSpec struct {
 
 // EKSClusterStatus schema of the status of eks cluster
 type EKSClusterStatus struct {
-	v1alpha1.ResourceStatus `json:",inline"`
+	runtimev1alpha1.ResourceStatus `json:",inline"`
 
 	// State of the cluster (see status constants above)
 	State string `json:"state,omitempty"`
@@ -237,17 +237,17 @@ type EKSCluster struct {
 }
 
 // SetBindingPhase of this EKSCluster.
-func (c *EKSCluster) SetBindingPhase(p v1alpha1.BindingPhase) {
+func (c *EKSCluster) SetBindingPhase(p runtimev1alpha1.BindingPhase) {
 	c.Status.SetBindingPhase(p)
 }
 
 // GetBindingPhase of this EKSCluster.
-func (c *EKSCluster) GetBindingPhase() v1alpha1.BindingPhase {
+func (c *EKSCluster) GetBindingPhase() runtimev1alpha1.BindingPhase {
 	return c.Status.GetBindingPhase()
 }
 
 // SetConditions of this EKSCluster.
-func (c *EKSCluster) SetConditions(cd ...v1alpha1.Condition) {
+func (c *EKSCluster) SetConditions(cd ...runtimev1alpha1.Condition) {
 	c.Status.SetConditions(cd...)
 }
 
@@ -282,12 +282,12 @@ func (c *EKSCluster) GetWriteConnectionSecretToReference() corev1.LocalObjectRef
 }
 
 // GetReclaimPolicy of this EKSCluster.
-func (c *EKSCluster) GetReclaimPolicy() v1alpha1.ReclaimPolicy {
+func (c *EKSCluster) GetReclaimPolicy() runtimev1alpha1.ReclaimPolicy {
 	return c.Spec.ReclaimPolicy
 }
 
 // SetReclaimPolicy of this EKSCluster.
-func (c *EKSCluster) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) {
+func (c *EKSCluster) SetReclaimPolicy(p runtimev1alpha1.ReclaimPolicy) {
 	c.Spec.ReclaimPolicy = p
 }
 
@@ -302,8 +302,8 @@ type EKSClusterList struct {
 
 // EKSClusterClassSpecTemplate is the Schema for the resource class
 type EKSClusterClassSpecTemplate struct {
-	v1alpha1.ResourceClassSpecTemplate `json:",inline"`
-	EKSClusterParameters               `json:",inline"`
+	runtimev1alpha1.ResourceClassSpecTemplate `json:",inline"`
+	EKSClusterParameters                      `json:",inline"`
 }
 
 var _ resource.Class = &EKSClusterClass{}
@@ -322,12 +322,12 @@ type EKSClusterClass struct {
 }
 
 // GetReclaimPolicy of this EKSClusterClass.
-func (i *EKSClusterClass) GetReclaimPolicy() v1alpha1.ReclaimPolicy {
+func (i *EKSClusterClass) GetReclaimPolicy() runtimev1alpha1.ReclaimPolicy {
 	return i.SpecTemplate.ReclaimPolicy
 }
 
 // SetReclaimPolicy of this EKSClusterClass.
-func (i *EKSClusterClass) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) {
+func (i *EKSClusterClass) SetReclaimPolicy(p runtimev1alpha1.ReclaimPolicy) {
 	i.SpecTemplate.ReclaimPolicy = p
 }
 

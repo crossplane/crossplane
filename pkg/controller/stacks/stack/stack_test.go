@@ -38,11 +38,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
+	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 	"github.com/crossplaneio/crossplane/apis/stacks"
 	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/meta"
-	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
 const (
@@ -72,7 +72,7 @@ var _ reconcile.Reconciler = &Reconciler{}
 // ************************************************************************************************
 type resourceModifier func(*v1alpha1.Stack)
 
-func withConditions(c ...corev1alpha1.Condition) resourceModifier {
+func withConditions(c ...runtimev1alpha1.Condition) resourceModifier {
 	return func(r *v1alpha1.Stack) { r.Status.SetConditions(c...) }
 }
 
@@ -297,8 +297,8 @@ func TestCreate(t *testing.T) {
 				r: resource(
 					withPolicyRules(defaultPolicyRules()),
 					withConditions(
-						corev1alpha1.Creating(),
-						corev1alpha1.ReconcileError(errors.Wrap(errBoom, "failed to create service account")),
+						runtimev1alpha1.Creating(),
+						runtimev1alpha1.ReconcileError(errors.Wrap(errBoom, "failed to create service account")),
 					),
 				),
 			},
@@ -326,8 +326,8 @@ func TestCreate(t *testing.T) {
 					withPolicyRules(defaultPolicyRules()),
 					withControllerSpec(defaultControllerSpec()),
 					withConditions(
-						corev1alpha1.Creating(),
-						corev1alpha1.ReconcileError(errors.Wrap(errBoom, "failed to create deployment")),
+						runtimev1alpha1.Creating(),
+						runtimev1alpha1.ReconcileError(errors.Wrap(errBoom, "failed to create deployment")),
 					),
 				),
 			},
@@ -340,7 +340,7 @@ func TestCreate(t *testing.T) {
 				result: requeueOnSuccess,
 				err:    nil,
 				r: resource(
-					withConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess()),
+					withConditions(runtimev1alpha1.Available(), runtimev1alpha1.ReconcileSuccess()),
 				),
 			},
 		},

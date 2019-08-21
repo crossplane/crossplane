@@ -33,11 +33,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
+	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 	computev1alpha1 "github.com/crossplaneio/crossplane/apis/compute/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
 	workloadv1alpha1 "github.com/crossplaneio/crossplane/apis/workload/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/meta"
-	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
 const (
@@ -67,7 +67,7 @@ var (
 
 type kubeAppModifier func(*workloadv1alpha1.KubernetesApplication)
 
-func withConditions(c ...corev1alpha1.Condition) kubeAppModifier {
+func withConditions(c ...runtimev1alpha1.Condition) kubeAppModifier {
 	return func(r *workloadv1alpha1.KubernetesApplication) { r.Status.SetConditions(c...) }
 }
 
@@ -219,7 +219,7 @@ func TestSchedule(t *testing.T) {
 				withClusterSelector(selectorAll),
 				withCluster(meta.ReferenceTo(clusterA, computev1alpha1.KubernetesClusterGroupVersionKind)),
 				withState(workloadv1alpha1.KubernetesApplicationStateScheduled),
-				withConditions(corev1alpha1.ReconcileSuccess()),
+				withConditions(runtimev1alpha1.ReconcileSuccess()),
 			),
 			wantResult: reconcile.Result{Requeue: false},
 		},
@@ -232,7 +232,7 @@ func TestSchedule(t *testing.T) {
 			wantApp: kubeApp(
 				withClusterSelector(selectorAll),
 				withState(workloadv1alpha1.KubernetesApplicationStatePending),
-				withConditions(corev1alpha1.ReconcileError(errorBoom)),
+				withConditions(runtimev1alpha1.ReconcileError(errorBoom)),
 			),
 			wantResult: reconcile.Result{Requeue: true},
 		},
@@ -250,7 +250,7 @@ func TestSchedule(t *testing.T) {
 			wantApp: kubeApp(
 				withClusterSelector(selectorAll),
 				withState(workloadv1alpha1.KubernetesApplicationStatePending),
-				withConditions(corev1alpha1.ReconcileSuccess()),
+				withConditions(runtimev1alpha1.ReconcileSuccess()),
 			),
 			wantResult: reconcile.Result{Requeue: true},
 		},

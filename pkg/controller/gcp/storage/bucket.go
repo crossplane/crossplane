@@ -32,12 +32,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
+	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
 	"github.com/crossplaneio/crossplane/gcp/apis/storage/v1alpha1"
 	gcpv1alpha1 "github.com/crossplaneio/crossplane/gcp/apis/v1alpha1"
 	gcpstorage "github.com/crossplaneio/crossplane/pkg/clients/gcp/storage"
-	"github.com/crossplaneio/crossplane/pkg/logging"
-	"github.com/crossplaneio/crossplane/pkg/meta"
 )
 
 const (
@@ -98,7 +98,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 
 	bh, err := r.newSyncDeleter(ctx, b)
 	if err != nil {
-		b.Status.SetConditions(corev1alpha1.ReconcileError(err))
+		b.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
 		return resultRequeue, r.Status().Update(ctx, b)
 	}
 
@@ -171,11 +171,11 @@ func newBucketSyncDeleter(ops operations, projectID string) *bucketSyncDeleter {
 }
 
 func (bh *bucketSyncDeleter) delete(ctx context.Context) (reconcile.Result, error) {
-	bh.setStatusConditions(corev1alpha1.Deleting())
+	bh.setStatusConditions(runtimev1alpha1.Deleting())
 
 	if bh.isReclaimDelete() {
 		if err := bh.deleteBucket(ctx); err != nil && err != storage.ErrBucketNotExist {
-			bh.setStatusConditions(corev1alpha1.ReconcileError(err))
+			bh.setStatusConditions(runtimev1alpha1.ReconcileError(err))
 			return resultRequeue, bh.updateStatus(ctx)
 		}
 	}
@@ -191,7 +191,7 @@ func (bh *bucketSyncDeleter) delete(ctx context.Context) (reconcile.Result, erro
 // bucket Kubernetes bucket
 func (bh *bucketSyncDeleter) sync(ctx context.Context) (reconcile.Result, error) {
 	if err := bh.updateSecret(ctx); err != nil {
-		bh.setStatusConditions(corev1alpha1.ReconcileError(err))
+		bh.setStatusConditions(runtimev1alpha1.ReconcileError(err))
 		return resultRequeue, bh.updateStatus(ctx)
 	}
 
@@ -229,17 +229,17 @@ func newBucketCreateUpdater(ops operations, pID string) *bucketCreateUpdater {
 
 // create new bucket resource and save changes back to bucket specs
 func (bh *bucketCreateUpdater) create(ctx context.Context) (reconcile.Result, error) {
-	bh.setStatusConditions(corev1alpha1.Creating())
+	bh.setStatusConditions(runtimev1alpha1.Creating())
 	bh.addFinalizer()
 
 	if err := bh.createBucket(ctx, bh.projectID); err != nil {
-		bh.setStatusConditions(corev1alpha1.ReconcileError(err))
+		bh.setStatusConditions(runtimev1alpha1.ReconcileError(err))
 		return resultRequeue, bh.updateStatus(ctx)
 	}
 
 	attrs, err := bh.getAttributes(ctx)
 	if err != nil {
-		bh.setStatusConditions(corev1alpha1.ReconcileError(err))
+		bh.setStatusConditions(runtimev1alpha1.ReconcileError(err))
 		return resultRequeue, bh.updateStatus(ctx)
 	}
 	bh.setSpecAttrs(attrs)
@@ -249,7 +249,7 @@ func (bh *bucketCreateUpdater) create(ctx context.Context) (reconcile.Result, er
 	}
 	bh.setStatusAttrs(attrs)
 
-	bh.setStatusConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess())
+	bh.setStatusConditions(runtimev1alpha1.Available(), runtimev1alpha1.ReconcileSuccess())
 	bh.setBindable()
 
 	return requeueOnSuccess, bh.updateStatus(ctx)
@@ -264,7 +264,7 @@ func (bh *bucketCreateUpdater) update(ctx context.Context, attrs *storage.Bucket
 
 	attrs, err := bh.updateBucket(ctx, attrs.Labels)
 	if err != nil {
-		bh.setStatusConditions(corev1alpha1.ReconcileError(err))
+		bh.setStatusConditions(runtimev1alpha1.ReconcileError(err))
 		return resultRequeue, bh.updateStatus(ctx)
 	}
 
@@ -274,6 +274,6 @@ func (bh *bucketCreateUpdater) update(ctx context.Context, attrs *storage.Bucket
 		return resultRequeue, err
 	}
 
-	bh.setStatusConditions(corev1alpha1.ReconcileSuccess())
+	bh.setStatusConditions(runtimev1alpha1.ReconcileSuccess())
 	return requeueOnSuccess, bh.updateStatus(ctx)
 }

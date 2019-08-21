@@ -24,7 +24,7 @@ import (
 	"github.com/Azure/go-autorest/autorest/to"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/crossplaneio/crossplane/pkg/logging"
+	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
 )
 
 var (

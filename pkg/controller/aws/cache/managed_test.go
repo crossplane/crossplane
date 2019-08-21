@@ -35,13 +35,13 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
+	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 	"github.com/crossplaneio/crossplane/aws/apis/cache/v1alpha1"
 	awsv1alpha1 "github.com/crossplaneio/crossplane/aws/apis/v1alpha1"
 	elasticacheclient "github.com/crossplaneio/crossplane/pkg/clients/aws/elasticache"
 	"github.com/crossplaneio/crossplane/pkg/clients/aws/elasticache/fake"
-	"github.com/crossplaneio/crossplane/pkg/resource"
-	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
 const (
@@ -104,11 +104,11 @@ type testCase struct {
 
 type replicationGroupModifier func(*v1alpha1.ReplicationGroup)
 
-func withConditions(c ...corev1alpha1.Condition) replicationGroupModifier {
+func withConditions(c ...runtimev1alpha1.Condition) replicationGroupModifier {
 	return func(r *v1alpha1.ReplicationGroup) { r.Status.ConditionedStatus.Conditions = c }
 }
 
-func withBindingPhase(p corev1alpha1.BindingPhase) replicationGroupModifier {
+func withBindingPhase(p runtimev1alpha1.BindingPhase) replicationGroupModifier {
 	return func(r *v1alpha1.ReplicationGroup) { r.Status.SetBindingPhase(p) }
 }
 
@@ -144,7 +144,7 @@ func replicationGroup(rm ...replicationGroupModifier) *v1alpha1.ReplicationGroup
 	r := &v1alpha1.ReplicationGroup{
 		ObjectMeta: objectMeta,
 		Spec: v1alpha1.ReplicationGroupSpec{
-			ResourceSpec: corev1alpha1.ResourceSpec{
+			ResourceSpec: runtimev1alpha1.ResourceSpec{
 				ProviderReference:                &corev1.ObjectReference{Namespace: namespace, Name: providerName},
 				WriteConnectionSecretToReference: corev1.LocalObjectReference{Name: connectionSecretName},
 			},
@@ -186,7 +186,7 @@ func TestCreate(t *testing.T) {
 			r: replicationGroup(withAuth()),
 			want: replicationGroup(
 				withAuth(),
-				withConditions(corev1alpha1.Creating()),
+				withConditions(runtimev1alpha1.Creating()),
 				withGroupName(id),
 			),
 			tokenCreated: true,
@@ -202,7 +202,7 @@ func TestCreate(t *testing.T) {
 			}},
 			r: replicationGroup(),
 			want: replicationGroup(
-				withConditions(corev1alpha1.Creating()),
+				withConditions(runtimev1alpha1.Creating()),
 				withGroupName(id),
 			),
 			returnsErr: true,
@@ -216,7 +216,7 @@ func TestCreate(t *testing.T) {
 				t.Errorf("tc.e.Create(...) error: want: %t got: %t", tc.returnsErr, err != nil)
 			}
 
-			if tc.tokenCreated != (len(creation.ConnectionDetails[corev1alpha1.ResourceCredentialsSecretPasswordKey]) != 0) {
+			if tc.tokenCreated != (len(creation.ConnectionDetails[runtimev1alpha1.ResourceCredentialsSecretPasswordKey]) != 0) {
 				t.Errorf("tc.e.Create(...) token creation: want: %t got: %t", tc.tokenCreated, len(creation.ConnectionDetails) != 0)
 			}
 			if diff := cmp.Diff(tc.want, tc.r, test.EquateConditions()); diff != "" {
@@ -246,7 +246,7 @@ func TestObserve(t *testing.T) {
 			want: replicationGroup(
 				withState(v1alpha1.StatusCreating),
 				withGroupName(name),
-				withConditions(corev1alpha1.Creating()),
+				withConditions(runtimev1alpha1.Creating()),
 			),
 		},
 		{
@@ -269,7 +269,7 @@ func TestObserve(t *testing.T) {
 			want: replicationGroup(
 				withGroupName(name),
 				withState(v1alpha1.StatusDeleting),
-				withConditions(corev1alpha1.Deleting()),
+				withConditions(runtimev1alpha1.Deleting()),
 			),
 		},
 		{
@@ -314,14 +314,14 @@ func TestObserve(t *testing.T) {
 			}},
 			r: replicationGroup(
 				withGroupName(name),
-				withConditions(corev1alpha1.Creating()),
+				withConditions(runtimev1alpha1.Creating()),
 				withClusterEnabled(true),
 			),
 			want: replicationGroup(
 				withGroupName(name),
 				withState(v1alpha1.StatusAvailable),
-				withConditions(corev1alpha1.Available()),
-				withBindingPhase(corev1alpha1.BindingPhaseUnbound),
+				withConditions(runtimev1alpha1.Available()),
+				withBindingPhase(runtimev1alpha1.BindingPhaseUnbound),
 				withEndpoint(host),
 				withPort(port),
 				withClusterEnabled(true),
@@ -339,11 +339,11 @@ func TestObserve(t *testing.T) {
 			}},
 			r: replicationGroup(
 				withGroupName(name),
-				withConditions(corev1alpha1.Available()),
+				withConditions(runtimev1alpha1.Available()),
 			),
 			want: replicationGroup(
 				withGroupName(name),
-				withConditions(corev1alpha1.Available()),
+				withConditions(runtimev1alpha1.Available()),
 			),
 			returnsErr: true,
 		},
@@ -356,7 +356,7 @@ func TestObserve(t *testing.T) {
 				t.Errorf("tc.e.Observe(...) error: want: %t got: %t", tc.returnsErr, err != nil)
 			}
 
-			if tc.tokenCreated != (len(observation.ConnectionDetails[corev1alpha1.ResourceCredentialsSecretEndpointKey]) != 0) {
+			if tc.tokenCreated != (len(observation.ConnectionDetails[runtimev1alpha1.ResourceCredentialsSecretEndpointKey]) != 0) {
 				t.Errorf("tc.e.Observe(...) token creation: want: %t got: %t", tc.tokenCreated, len(observation.ConnectionDetails) != 0)
 			}
 
@@ -523,11 +523,11 @@ func TestUpdate(t *testing.T) {
 			}},
 			r: replicationGroup(
 				withGroupName(name),
-				withConditions(corev1alpha1.Creating()),
+				withConditions(runtimev1alpha1.Creating()),
 			),
 			want: replicationGroup(
 				withGroupName(name),
-				withConditions(corev1alpha1.Creating()),
+				withConditions(runtimev1alpha1.Creating()),
 			),
 			returnsErr: true,
 		},
@@ -620,12 +620,12 @@ func TestUpdate(t *testing.T) {
 			}},
 			r: replicationGroup(
 				withGroupName(name),
-				withConditions(corev1alpha1.Available()),
+				withConditions(runtimev1alpha1.Available()),
 				withMemberClusters([]string{cacheClusterID}),
 			),
 			want: replicationGroup(
 				withGroupName(name),
-				withConditions(corev1alpha1.Available()),
+				withConditions(runtimev1alpha1.Available()),
 				withMemberClusters([]string{cacheClusterID}),
 			),
 			returnsErr: true,
@@ -639,7 +639,7 @@ func TestUpdate(t *testing.T) {
 				t.Errorf("tc.e.Update(...) error: want: %t got: %t", tc.returnsErr, err != nil)
 			}
 
-			if tc.tokenCreated != (len(update.ConnectionDetails[corev1alpha1.ResourceCredentialsSecretPasswordKey]) != 0) {
+			if tc.tokenCreated != (len(update.ConnectionDetails[runtimev1alpha1.ResourceCredentialsSecretPasswordKey]) != 0) {
 				t.Errorf("tc.e.Update(...) token creation: want: %t got: %t", tc.tokenCreated, len(update.ConnectionDetails) != 0)
 			}
 
@@ -663,7 +663,7 @@ func TestDelete(t *testing.T) {
 			}},
 			r: replicationGroup(),
 			want: replicationGroup(
-				withConditions(corev1alpha1.Deleting()),
+				withConditions(runtimev1alpha1.Deleting()),
 			),
 			returnsErr: false,
 		},
@@ -683,7 +683,7 @@ func TestDelete(t *testing.T) {
 			}},
 			r: replicationGroup(),
 			want: replicationGroup(
-				withConditions(corev1alpha1.Deleting()),
+				withConditions(runtimev1alpha1.Deleting()),
 			),
 			returnsErr: false,
 		},
@@ -698,7 +698,7 @@ func TestDelete(t *testing.T) {
 			}},
 			r: replicationGroup(),
 			want: replicationGroup(
-				withConditions(corev1alpha1.Deleting()),
+				withConditions(runtimev1alpha1.Deleting()),
 			),
 			returnsErr: true,
 		},

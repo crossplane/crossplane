@@ -24,8 +24,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/resource"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
 )
 
 var (
@@ -39,7 +39,7 @@ func TestMySQLInstanceStorage(t *testing.T) {
 	created := &MySQLInstance{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
 		Spec: MySQLInstanceSpec{
-			ResourceClaimSpec: corev1alpha1.ResourceClaimSpec{
+			ResourceClaimSpec: runtimev1alpha1.ResourceClaimSpec{
 				ClassReference: &corev1.ObjectReference{
 					Name:      "test-class",
 					Namespace: "test-system",
@@ -80,7 +80,7 @@ func TestPostgreSQLInstanceStorage(t *testing.T) {
 	created := &PostgreSQLInstance{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
 		Spec: PostgreSQLInstanceSpec{
-			ResourceClaimSpec: corev1alpha1.ResourceClaimSpec{
+			ResourceClaimSpec: runtimev1alpha1.ResourceClaimSpec{
 				ClassReference: &corev1.ObjectReference{
 					Name:      "test-class",
 					Namespace: "test-system",
@@ -120,7 +120,7 @@ func TestEngineVersion(t *testing.T) {
 		created := &MySQLInstance{
 			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
 			Spec: MySQLInstanceSpec{
-				ResourceClaimSpec: corev1alpha1.ResourceClaimSpec{
+				ResourceClaimSpec: runtimev1alpha1.ResourceClaimSpec{
 					ClassReference: &corev1.ObjectReference{
 						Name:      "test-class",
 						Namespace: "test-system",

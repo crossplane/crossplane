@@ -22,8 +22,8 @@ import (
 
 	ctrl "sigs.k8s.io/controller-runtime"
 
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
 	computev1alpha1 "github.com/crossplaneio/crossplane/apis/compute/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/resource"
 )
 
 // KubernetesClusterController is responsible for adding the default class controller

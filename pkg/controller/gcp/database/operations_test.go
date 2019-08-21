@@ -20,11 +20,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 	"github.com/crossplaneio/crossplane/gcp/apis/database/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/clients/gcp/cloudsql"
 	"github.com/crossplaneio/crossplane/pkg/clients/gcp/cloudsql/fake"
-	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
 const (
@@ -61,9 +61,9 @@ var (
 				},
 			},
 			Data: map[string][]byte{
-				corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(ep),
-				corev1alpha1.ResourceCredentialsSecretPasswordKey: []byte(pw),
-				corev1alpha1.ResourceCredentialsSecretUserKey:     []byte(v1alpha1.MysqlDefaultUser),
+				runtimev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(ep),
+				runtimev1alpha1.ResourceCredentialsSecretPasswordKey: []byte(pw),
+				runtimev1alpha1.ResourceCredentialsSecretUserKey:     []byte(v1alpha1.MysqlDefaultUser),
 			},
 		}
 	}
@@ -178,22 +178,22 @@ func (m *mockSyncDeleter) delete(ctx context.Context) (reconcile.Result, error) 
 }
 
 type instanceSpec struct {
-	*corev1alpha1.ResourceSpec
+	*runtimev1alpha1.ResourceSpec
 }
 
 func newInstanceSpec() *instanceSpec {
 	return &instanceSpec{
-		ResourceSpec: &corev1alpha1.ResourceSpec{},
+		ResourceSpec: &runtimev1alpha1.ResourceSpec{},
 	}
 }
-func (i *instanceSpec) build() *corev1alpha1.ResourceSpec {
+func (i *instanceSpec) build() *runtimev1alpha1.ResourceSpec {
 	return i.ResourceSpec
 }
 func (i *instanceSpec) withProviderRef(ref *core.ObjectReference) *instanceSpec {
 	i.ProviderReference = ref
 	return i
 }
-func (i *instanceSpec) withReclaimPolicy(p corev1alpha1.ReclaimPolicy) *instanceSpec {
+func (i *instanceSpec) withReclaimPolicy(p runtimev1alpha1.ReclaimPolicy) *instanceSpec {
 	i.ReclaimPolicy = p
 	return i
 }
@@ -203,18 +203,18 @@ func (i *instanceSpec) withWriteConnectionSecretRef(ref core.LocalObjectReferenc
 }
 
 type instanceStatus struct {
-	*corev1alpha1.ResourceStatus
+	*runtimev1alpha1.ResourceStatus
 }
 
 func newInstanceStatus() *instanceStatus {
 	return &instanceStatus{
-		ResourceStatus: &corev1alpha1.ResourceStatus{},
+		ResourceStatus: &runtimev1alpha1.ResourceStatus{},
 	}
 }
-func (i *instanceStatus) build() *corev1alpha1.ResourceStatus {
+func (i *instanceStatus) build() *runtimev1alpha1.ResourceStatus {
 	return i.ResourceStatus
 }
-func (i *instanceStatus) withConditions(c ...corev1alpha1.Condition) *instanceStatus {
+func (i *instanceStatus) withConditions(c ...runtimev1alpha1.Condition) *instanceStatus {
 	i.ResourceStatus.Conditions = c
 	return i
 }
@@ -239,7 +239,7 @@ func (i *instance) withObjectMeta(om meta1.ObjectMeta) *instance {
 	i.ObjectMeta = om
 	return i
 }
-func (i *instance) withResourceSpec(rs *corev1alpha1.ResourceSpec) *instance {
+func (i *instance) withResourceSpec(rs *runtimev1alpha1.ResourceSpec) *instance {
 	i.Spec.ResourceSpec = *rs
 	return i
 }
@@ -436,12 +436,12 @@ func Test_localHandler_isReclaimDelete(t *testing.T) {
 		},
 		"Delete": {
 			inst: newInstance().withResourceSpec(
-				newInstanceSpec().withReclaimPolicy(corev1alpha1.ReclaimDelete).build()).build(),
+				newInstanceSpec().withReclaimPolicy(runtimev1alpha1.ReclaimDelete).build()).build(),
 			want: true,
 		},
 		"Retain": {
 			inst: newInstance().withResourceSpec(
-				newInstanceSpec().withReclaimPolicy(corev1alpha1.ReclaimRetain).build()).build(),
+				newInstanceSpec().withReclaimPolicy(runtimev1alpha1.ReclaimRetain).build()).build(),
 			want: false,
 		},
 	}
@@ -647,7 +647,7 @@ func Test_localHandler_updateReconcileStatus(t *testing.T) {
 			want: want{
 				err: testError,
 				status: v1alpha1.CloudsqlInstanceStatus{
-					ResourceStatus: *newInstanceStatus().withConditions(corev1alpha1.ReconcileSuccess()).build(),
+					ResourceStatus: *newInstanceStatus().withConditions(runtimev1alpha1.ReconcileSuccess()).build(),
 				},
 			},
 		},
@@ -663,7 +663,7 @@ func Test_localHandler_updateReconcileStatus(t *testing.T) {
 			},
 			want: want{
 				status: v1alpha1.CloudsqlInstanceStatus{
-					ResourceStatus: *newInstanceStatus().withConditions(corev1alpha1.ReconcileSuccess()).build(),
+					ResourceStatus: *newInstanceStatus().withConditions(runtimev1alpha1.ReconcileSuccess()).build(),
 				},
 			},
 		},
@@ -682,7 +682,7 @@ func Test_localHandler_updateReconcileStatus(t *testing.T) {
 			},
 			want: want{
 				status: v1alpha1.CloudsqlInstanceStatus{
-					ResourceStatus: *newInstanceStatus().withConditions(corev1alpha1.ReconcileError(testError)).build(),
+					ResourceStatus: *newInstanceStatus().withConditions(runtimev1alpha1.ReconcileError(testError)).build(),
 				},
 			},
 		},
@@ -897,11 +897,11 @@ func Test_localHandler_updateConnectionSecret(t *testing.T) {
 			}
 
 			// check for non-empty password, then reset to nil
-			if string(got.Data[corev1alpha1.ResourceCredentialsSecretPasswordKey]) == "" {
+			if string(got.Data[runtimev1alpha1.ResourceCredentialsSecretPasswordKey]) == "" {
 				t.Errorf("updateConnectionSecret() data, empty password field: %v", got)
 			}
-			got.Data[corev1alpha1.ResourceCredentialsSecretPasswordKey] = nil
-			tt.want.sec.Data[corev1alpha1.ResourceCredentialsSecretPasswordKey] = nil
+			got.Data[runtimev1alpha1.ResourceCredentialsSecretPasswordKey] = nil
+			tt.want.sec.Data[runtimev1alpha1.ResourceCredentialsSecretPasswordKey] = nil
 			if diff := cmp.Diff(tt.want.sec, got); diff != "" {
 				t.Errorf("updateConnectionSecret() -want, +got: %s", diff)
 			}
@@ -950,7 +950,7 @@ func Test_managedHandler_getInstance(t *testing.T) {
 				status: v1alpha1.CloudsqlInstanceStatus{
 					State:          "thinking-about",
 					Endpoint:       "test.ip.address",
-					ResourceStatus: *newInstanceStatus().withConditions(corev1alpha1.Unavailable()).build(),
+					ResourceStatus: *newInstanceStatus().withConditions(runtimev1alpha1.Unavailable()).build(),
 				},
 			},
 		},
@@ -1010,7 +1010,7 @@ func Test_managedHandler_createInstance(t *testing.T) {
 			},
 			want: want{
 				status: v1alpha1.CloudsqlInstanceStatus{
-					ResourceStatus: *newInstanceStatus().withConditions(corev1alpha1.Creating()).build(),
+					ResourceStatus: *newInstanceStatus().withConditions(runtimev1alpha1.Creating()).build(),
 				},
 			},
 		},

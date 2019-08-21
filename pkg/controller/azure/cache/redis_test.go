@@ -33,14 +33,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
+	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 	"github.com/crossplaneio/crossplane/azure/apis/cache/v1alpha1"
 	azurev1alpha1 "github.com/crossplaneio/crossplane/azure/apis/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/clients/azure"
 	"github.com/crossplaneio/crossplane/pkg/clients/azure/redis"
 	fakeredis "github.com/crossplaneio/crossplane/pkg/clients/azure/redis/fake"
-	"github.com/crossplaneio/crossplane/pkg/meta"
-	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
 const (
@@ -93,11 +93,11 @@ var (
 
 type redisResourceModifier func(*v1alpha1.Redis)
 
-func withConditions(c ...corev1alpha1.Condition) redisResourceModifier {
+func withConditions(c ...runtimev1alpha1.Condition) redisResourceModifier {
 	return func(r *v1alpha1.Redis) { r.Status.ConditionedStatus.Conditions = c }
 }
 
-func withBindingPhase(p corev1alpha1.BindingPhase) redisResourceModifier {
+func withBindingPhase(p runtimev1alpha1.BindingPhase) redisResourceModifier {
 	return func(r *v1alpha1.Redis) { r.Status.SetBindingPhase(p) }
 }
 
@@ -109,7 +109,7 @@ func withFinalizers(f ...string) redisResourceModifier {
 	return func(r *v1alpha1.Redis) { r.ObjectMeta.Finalizers = f }
 }
 
-func withReclaimPolicy(p corev1alpha1.ReclaimPolicy) redisResourceModifier {
+func withReclaimPolicy(p runtimev1alpha1.ReclaimPolicy) redisResourceModifier {
 	return func(r *v1alpha1.Redis) { r.Spec.ReclaimPolicy = p }
 }
 
@@ -146,7 +146,7 @@ func redisResource(rm ...redisResourceModifier) *v1alpha1.Redis {
 			Finalizers: []string{},
 		},
 		Spec: v1alpha1.RedisSpec{
-			ResourceSpec: corev1alpha1.ResourceSpec{
+			ResourceSpec: runtimev1alpha1.ResourceSpec{
 				ProviderReference:                &corev1.ObjectReference{Namespace: namespace, Name: providerName},
 				WriteConnectionSecretToReference: corev1.LocalObjectReference{Name: connectionSecretName},
 			},
@@ -197,7 +197,7 @@ func TestCreate(t *testing.T) {
 			}},
 			r: redisResource(),
 			want: redisResource(
-				withConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileSuccess()),
+				withConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileSuccess()),
 				withFinalizers(finalizerName),
 				withResourceName(redisResourceName),
 			),
@@ -212,7 +212,7 @@ func TestCreate(t *testing.T) {
 			}},
 			r: redisResource(),
 			want: redisResource(
-				withConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileError(errorBoom)),
+				withConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileError(errorBoom)),
 			),
 			wantRequeue: true,
 		},
@@ -254,7 +254,7 @@ func TestSync(t *testing.T) {
 			want: redisResource(
 				withState(v1alpha1.ProvisioningStateCreating),
 				withResourceName(redisResourceName),
-				withConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileSuccess()),
+				withConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileSuccess()),
 			),
 			wantRequeue: true,
 		},
@@ -271,7 +271,7 @@ func TestSync(t *testing.T) {
 			want: redisResource(
 				withResourceName(redisResourceName),
 				withState(v1alpha1.ProvisioningStateDeleting),
-				withConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileSuccess()),
+				withConditions(runtimev1alpha1.Deleting(), runtimev1alpha1.ReconcileSuccess()),
 			),
 			wantRequeue: false,
 		},
@@ -288,7 +288,7 @@ func TestSync(t *testing.T) {
 			want: redisResource(
 				withResourceName(redisResourceName),
 				withState(v1alpha1.ProvisioningStateUpdating),
-				withConditions(corev1alpha1.ReconcileSuccess()),
+				withConditions(runtimev1alpha1.ReconcileSuccess()),
 			),
 			wantRequeue: true,
 		},
@@ -325,8 +325,8 @@ func TestSync(t *testing.T) {
 				withEndpoint(host),
 				withPort(port),
 				withSSLPort(sslPort),
-				withConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess()),
-				withBindingPhase(corev1alpha1.BindingPhaseUnbound),
+				withConditions(runtimev1alpha1.Available(), runtimev1alpha1.ReconcileSuccess()),
+				withBindingPhase(runtimev1alpha1.BindingPhaseUnbound),
 			),
 			wantRequeue: false,
 		},
@@ -369,8 +369,8 @@ func TestSync(t *testing.T) {
 				withEndpoint(host),
 				withPort(port),
 				withSSLPort(sslPort),
-				withConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess()),
-				withBindingPhase(corev1alpha1.BindingPhaseUnbound),
+				withConditions(runtimev1alpha1.Available(), runtimev1alpha1.ReconcileSuccess()),
+				withBindingPhase(runtimev1alpha1.BindingPhaseUnbound),
 			),
 			wantRequeue: false,
 		},
@@ -386,7 +386,7 @@ func TestSync(t *testing.T) {
 			),
 			want: redisResource(
 				withResourceName(redisResourceName),
-				withConditions(corev1alpha1.ReconcileError(errorBoom)),
+				withConditions(runtimev1alpha1.ReconcileError(errorBoom)),
 			),
 			wantRequeue: true,
 		},
@@ -426,8 +426,8 @@ func TestSync(t *testing.T) {
 				withEndpoint(host),
 				withPort(port),
 				withSSLPort(sslPort),
-				withConditions(corev1alpha1.Available(), corev1alpha1.ReconcileError(errorBoom)),
-				withBindingPhase(corev1alpha1.BindingPhaseUnbound),
+				withConditions(runtimev1alpha1.Available(), runtimev1alpha1.ReconcileError(errorBoom)),
+				withBindingPhase(runtimev1alpha1.BindingPhaseUnbound),
 			),
 			wantRequeue: true,
 		},
@@ -463,10 +463,10 @@ func TestDelete(t *testing.T) {
 					return redismgmt.DeleteFuture{}, nil
 				},
 			}},
-			r: redisResource(withFinalizers(finalizerName), withReclaimPolicy(corev1alpha1.ReclaimRetain)),
+			r: redisResource(withFinalizers(finalizerName), withReclaimPolicy(runtimev1alpha1.ReclaimRetain)),
 			want: redisResource(
-				withReclaimPolicy(corev1alpha1.ReclaimRetain),
-				withConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileSuccess()),
+				withReclaimPolicy(runtimev1alpha1.ReclaimRetain),
+				withConditions(runtimev1alpha1.Deleting(), runtimev1alpha1.ReconcileSuccess()),
 			),
 			wantRequeue: false,
 		},
@@ -477,10 +477,10 @@ func TestDelete(t *testing.T) {
 					return redismgmt.DeleteFuture{}, nil
 				},
 			}},
-			r: redisResource(withFinalizers(finalizerName), withReclaimPolicy(corev1alpha1.ReclaimDelete)),
+			r: redisResource(withFinalizers(finalizerName), withReclaimPolicy(runtimev1alpha1.ReclaimDelete)),
 			want: redisResource(
-				withReclaimPolicy(corev1alpha1.ReclaimDelete),
-				withConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileSuccess()),
+				withReclaimPolicy(runtimev1alpha1.ReclaimDelete),
+				withConditions(runtimev1alpha1.Deleting(), runtimev1alpha1.ReconcileSuccess()),
 			),
 			wantRequeue: false,
 		},
@@ -491,11 +491,11 @@ func TestDelete(t *testing.T) {
 					return redismgmt.DeleteFuture{}, errorBoom
 				},
 			}},
-			r: redisResource(withFinalizers(finalizerName), withReclaimPolicy(corev1alpha1.ReclaimDelete)),
+			r: redisResource(withFinalizers(finalizerName), withReclaimPolicy(runtimev1alpha1.ReclaimDelete)),
 			want: redisResource(
 				withFinalizers(finalizerName),
-				withReclaimPolicy(corev1alpha1.ReclaimDelete),
-				withConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileError(errorBoom)),
+				withReclaimPolicy(runtimev1alpha1.ReclaimDelete),
+				withConditions(runtimev1alpha1.Deleting(), runtimev1alpha1.ReconcileError(errorBoom)),
 			),
 			wantRequeue: true,
 		},
@@ -542,7 +542,7 @@ func TestKey(t *testing.T) {
 				},
 			}},
 			r:    redisResource(),
-			want: redisResource(withConditions(corev1alpha1.ReconcileError(errorBoom))),
+			want: redisResource(withConditions(runtimev1alpha1.ReconcileError(errorBoom))),
 		},
 	}
 
@@ -791,7 +791,7 @@ func TestReconcile(t *testing.T) {
 						return nil
 					},
 					MockUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
-						want := redisResource(withConditions(corev1alpha1.ReconcileError(errorBoom)))
+						want := redisResource(withConditions(runtimev1alpha1.ReconcileError(errorBoom)))
 						got := obj.(*v1alpha1.Redis)
 						if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
 							t.Errorf("kube.Update(...): -want, +got:\n%s", diff)
@@ -824,7 +824,7 @@ func TestReconcile(t *testing.T) {
 						want := redisResource(
 							withResourceName(redisResourceName),
 							withConditions(
-								corev1alpha1.ReconcileError(errors.Wrapf(errorBoom, "cannot get secret %s/%s", namespace, connectionSecretName)),
+								runtimev1alpha1.ReconcileError(errors.Wrapf(errorBoom, "cannot get secret %s/%s", namespace, connectionSecretName)),
 							),
 						)
 						got := obj.(*v1alpha1.Redis)
@@ -859,7 +859,7 @@ func TestReconcile(t *testing.T) {
 						want := redisResource(
 							withResourceName(redisResourceName),
 							withConditions(
-								corev1alpha1.ReconcileError(errors.Wrapf(errorBoom, "cannot create secret %s/%s", namespace, connectionSecretName)),
+								runtimev1alpha1.ReconcileError(errors.Wrapf(errorBoom, "cannot create secret %s/%s", namespace, connectionSecretName)),
 							),
 						)
 						got := obj.(*v1alpha1.Redis)
@@ -899,7 +899,7 @@ func TestReconcile(t *testing.T) {
 							want := redisResource(
 								withResourceName(redisResourceName),
 								withConditions(
-									corev1alpha1.ReconcileError(errors.Wrapf(errorBoom, "cannot update secret %s/%s", namespace, connectionSecretName)),
+									runtimev1alpha1.ReconcileError(errors.Wrapf(errorBoom, "cannot update secret %s/%s", namespace, connectionSecretName)),
 								),
 							)
 							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
@@ -949,8 +949,8 @@ func TestConnectionSecret(t *testing.T) {
 					OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.ReferenceTo(redisResource(), v1alpha1.RedisGroupVersionKind))},
 				},
 				Data: map[string][]byte{
-					corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(host),
-					corev1alpha1.ResourceCredentialsSecretPasswordKey: []byte(primaryAccessKey),
+					runtimev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(host),
+					runtimev1alpha1.ResourceCredentialsSecretPasswordKey: []byte(primaryAccessKey),
 				},
 			},
 		},

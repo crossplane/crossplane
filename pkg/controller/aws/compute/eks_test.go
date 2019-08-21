@@ -39,12 +39,12 @@ import (
 	. "sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
+	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 	. "github.com/crossplaneio/crossplane/aws/apis/compute/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/clients/aws/eks"
 	"github.com/crossplaneio/crossplane/pkg/clients/aws/eks/fake"
-	"github.com/crossplaneio/crossplane/pkg/resource"
-	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
 const (
@@ -74,7 +74,7 @@ func testCluster() *EKSCluster {
 			Namespace: namespace,
 		},
 		Spec: EKSClusterSpec{
-			ResourceSpec: corev1alpha1.ResourceSpec{
+			ResourceSpec: runtimev1alpha1.ResourceSpec{
 				ProviderReference: &corev1.ObjectReference{
 					Name: providerName,
 				},
@@ -84,7 +84,7 @@ func testCluster() *EKSCluster {
 }
 
 // assertResource a helper function to check on cluster and its status
-func assertResource(g *GomegaWithT, r *Reconciler, s corev1alpha1.ConditionedStatus) *EKSCluster {
+func assertResource(g *GomegaWithT, r *Reconciler, s runtimev1alpha1.ConditionedStatus) *EKSCluster {
 	rc := &EKSCluster{}
 	err := r.Get(ctx, key, rc)
 	g.Expect(err).To(BeNil())
@@ -149,7 +149,7 @@ func TestGenerateEksAuth(t *testing.T) {
 func TestCreate(t *testing.T) {
 	g := NewGomegaWithT(t)
 
-	test := func(cluster *EKSCluster, client eks.Client, expectedResult reconcile.Result, expectedStatus corev1alpha1.ConditionedStatus) *EKSCluster {
+	test := func(cluster *EKSCluster, client eks.Client, expectedResult reconcile.Result, expectedStatus runtimev1alpha1.ConditionedStatus) *EKSCluster {
 		r := &Reconciler{
 			Client:     NewFakeClient(cluster),
 			kubeclient: NewSimpleClientset(),
@@ -169,8 +169,8 @@ func TestCreate(t *testing.T) {
 		MockCreate: func(string, EKSClusterSpec) (*eks.Cluster, error) { return &eks.Cluster{}, nil },
 	}
 
-	expectedStatus := corev1alpha1.ConditionedStatus{}
-	expectedStatus.SetConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileSuccess())
+	expectedStatus := runtimev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileSuccess())
 
 	reconciledCluster := test(cluster, client, resultRequeue, expectedStatus)
 
@@ -184,8 +184,8 @@ func TestCreate(t *testing.T) {
 	client.MockCreate = func(string, EKSClusterSpec) (*eks.Cluster, error) {
 		return &eks.Cluster{}, errorBadRequest
 	}
-	expectedStatus = corev1alpha1.ConditionedStatus{}
-	expectedStatus.SetConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileError(errorBadRequest))
+	expectedStatus = runtimev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileError(errorBadRequest))
 
 	reconciledCluster = test(cluster, client, result, expectedStatus)
 	g.Expect(reconciledCluster.Finalizers).To(BeEmpty())
@@ -200,8 +200,8 @@ func TestCreate(t *testing.T) {
 	client.MockCreate = func(string, EKSClusterSpec) (*eks.Cluster, error) {
 		return &eks.Cluster{}, errorOther
 	}
-	expectedStatus = corev1alpha1.ConditionedStatus{}
-	expectedStatus.SetConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileError(errorOther))
+	expectedStatus = runtimev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileError(errorOther))
 
 	reconciledCluster = test(cluster, client, resultRequeue, expectedStatus)
 	g.Expect(reconciledCluster.Finalizers).To(BeEmpty())
@@ -215,7 +215,7 @@ func TestSync(t *testing.T) {
 	fakeStackID := "fake-stack-id"
 
 	test := func(tc *EKSCluster, cl *fake.MockEKSClient, sec func(*eks.Cluster, *EKSCluster, eks.Client) error, auth func(*eks.Cluster, *EKSCluster, eks.Client, string) error,
-		rslt reconcile.Result, exp corev1alpha1.ConditionedStatus) *EKSCluster {
+		rslt reconcile.Result, exp runtimev1alpha1.ConditionedStatus) *EKSCluster {
 		r := &Reconciler{
 			Client:     NewFakeClient(tc),
 			kubeclient: NewSimpleClientset(),
@@ -251,8 +251,8 @@ func TestSync(t *testing.T) {
 			WorkerStackID: fakeStackID}, nil
 	}
 
-	expectedStatus := corev1alpha1.ConditionedStatus{}
-	expectedStatus.SetConditions(corev1alpha1.ReconcileError(errorGet))
+	expectedStatus := runtimev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(runtimev1alpha1.ReconcileError(errorGet))
 	tc := testCluster()
 	test(tc, cl, nil, nil, resultRequeue, expectedStatus)
 
@@ -262,7 +262,7 @@ func TestSync(t *testing.T) {
 			Status: ClusterStatusCreating,
 		}, nil
 	}
-	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus = runtimev1alpha1.ConditionedStatus{}
 	tc = testCluster()
 	test(tc, cl, nil, nil, resultRequeue, expectedStatus)
 
@@ -278,8 +278,8 @@ func TestSync(t *testing.T) {
 		return nil, errorCreateNodes
 	}
 
-	expectedStatus = corev1alpha1.ConditionedStatus{}
-	expectedStatus.SetConditions(corev1alpha1.ReconcileError(errorCreateNodes))
+	expectedStatus = runtimev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(runtimev1alpha1.ReconcileError(errorCreateNodes))
 	tc = testCluster()
 	reconciledCluster := test(tc, cl, nil, nil, resultRequeue, expectedStatus)
 	g.Expect(reconciledCluster.Status.CloudFormationStackID).To(BeEmpty())
@@ -295,8 +295,8 @@ func TestSync(t *testing.T) {
 		return &eks.ClusterWorkers{WorkerStackID: fakeStackID}, nil
 	}
 
-	expectedStatus = corev1alpha1.ConditionedStatus{}
-	expectedStatus.SetConditions(corev1alpha1.ReconcileSuccess())
+	expectedStatus = runtimev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(runtimev1alpha1.ReconcileSuccess())
 	tc = testCluster()
 	reconciledCluster = test(tc, cl, nil, nil, resultRequeue, expectedStatus)
 	g.Expect(reconciledCluster.Status.CloudFormationStackID).To(Equal(fakeStackID))
@@ -312,8 +312,8 @@ func TestSync(t *testing.T) {
 	}
 
 	errorAuth := errors.New("auth")
-	expectedStatus = corev1alpha1.ConditionedStatus{}
-	expectedStatus.SetConditions(corev1alpha1.ReconcileError(errors.Wrap(errorAuth, "failed to set auth map on eks")))
+	expectedStatus = runtimev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(errorAuth, "failed to set auth map on eks")))
 	tc = testCluster()
 	tc.Status.CloudFormationStackID = fakeStackID
 	auth := func(*eks.Cluster, *EKSCluster, eks.Client, string) error {
@@ -340,8 +340,8 @@ func TestSync(t *testing.T) {
 	fSec := func(*eks.Cluster, *EKSCluster, eks.Client) error {
 		return errorSecret
 	}
-	expectedStatus = corev1alpha1.ConditionedStatus{}
-	expectedStatus.SetConditions(corev1alpha1.ReconcileError(errorSecret))
+	expectedStatus = runtimev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(runtimev1alpha1.ReconcileError(errorSecret))
 	tc = testCluster()
 	tc.Status.CloudFormationStackID = fakeStackID
 	test(tc, cl, fSec, auth, resultRequeue, expectedStatus)
@@ -350,8 +350,8 @@ func TestSync(t *testing.T) {
 	fSec = func(*eks.Cluster, *EKSCluster, eks.Client) error {
 		return nil
 	}
-	expectedStatus = corev1alpha1.ConditionedStatus{}
-	expectedStatus.SetConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess())
+	expectedStatus = runtimev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(runtimev1alpha1.Available(), runtimev1alpha1.ReconcileSuccess())
 	tc = testCluster()
 	tc.Status.CloudFormationStackID = fakeStackID
 	test(tc, cl, fSec, auth, result, expectedStatus)
@@ -394,9 +394,9 @@ func TestSecret(t *testing.T) {
 	secret, err := kc.CoreV1().Secrets(tc.GetNamespace()).Get(tc.GetWriteConnectionSecretToReference().Name, metav1.GetOptions{})
 	g.Expect(err).NotTo(HaveOccurred())
 	data := make(map[string][]byte)
-	data[corev1alpha1.ResourceCredentialsSecretEndpointKey] = []byte(cluster.Endpoint)
-	data[corev1alpha1.ResourceCredentialsSecretCAKey] = clusterCA
-	data[corev1alpha1.ResourceCredentialsTokenKey] = []byte("test-token")
+	data[runtimev1alpha1.ResourceCredentialsSecretEndpointKey] = []byte(cluster.Endpoint)
+	data[runtimev1alpha1.ResourceCredentialsSecretCAKey] = clusterCA
+	data[runtimev1alpha1.ResourceCredentialsTokenKey] = []byte("test-token")
 	secret.Data = data
 	expSec := resource.ConnectionSecretFor(tc, EKSClusterGroupVersionKind)
 	expSec.Data = data
@@ -415,7 +415,7 @@ func TestSecret(t *testing.T) {
 func TestDelete(t *testing.T) {
 	g := NewGomegaWithT(t)
 
-	test := func(cluster *EKSCluster, client eks.Client, expectedResult reconcile.Result, expectedStatus corev1alpha1.ConditionedStatus) *EKSCluster {
+	test := func(cluster *EKSCluster, client eks.Client, expectedResult reconcile.Result, expectedStatus runtimev1alpha1.ConditionedStatus) *EKSCluster {
 		r := &Reconciler{
 			Client:     NewFakeClient(cluster),
 			kubeclient: NewSimpleClientset(),
@@ -430,23 +430,23 @@ func TestDelete(t *testing.T) {
 	// reclaim - delete
 	cluster := testCluster()
 	cluster.Finalizers = []string{finalizer}
-	cluster.Spec.ReclaimPolicy = corev1alpha1.ReclaimDelete
+	cluster.Spec.ReclaimPolicy = runtimev1alpha1.ReclaimDelete
 	cluster.Status.CloudFormationStackID = "fake-stack-id"
-	cluster.Status.SetConditions(corev1alpha1.Available())
+	cluster.Status.SetConditions(runtimev1alpha1.Available())
 
 	client := &fake.MockEKSClient{}
 	client.MockDelete = func(string) error { return nil }
 	client.MockDeleteWorkerNodes = func(string) error { return nil }
 
-	expectedStatus := corev1alpha1.ConditionedStatus{}
-	expectedStatus.SetConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileSuccess())
+	expectedStatus := runtimev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(runtimev1alpha1.Deleting(), runtimev1alpha1.ReconcileSuccess())
 
 	reconciledCluster := test(cluster, client, result, expectedStatus)
 	g.Expect(reconciledCluster.Finalizers).To(BeEmpty())
 
 	// reclaim - retain
-	cluster.Spec.ReclaimPolicy = corev1alpha1.ReclaimRetain
-	cluster.Status.SetConditions(corev1alpha1.Available())
+	cluster.Spec.ReclaimPolicy = runtimev1alpha1.ReclaimRetain
+	cluster.Status.SetConditions(runtimev1alpha1.Available())
 	cluster.Finalizers = []string{finalizer}
 	client.MockDelete = nil // should not be called
 
@@ -454,47 +454,47 @@ func TestDelete(t *testing.T) {
 	g.Expect(reconciledCluster.Finalizers).To(BeEmpty())
 
 	// reclaim - delete, delete error
-	cluster.Spec.ReclaimPolicy = corev1alpha1.ReclaimDelete
-	cluster.Status.SetConditions(corev1alpha1.Available())
+	cluster.Spec.ReclaimPolicy = runtimev1alpha1.ReclaimDelete
+	cluster.Status.SetConditions(runtimev1alpha1.Available())
 	cluster.Finalizers = []string{finalizer}
 	errorDelete := errors.New("test-delete-error")
 	client.MockDelete = func(string) error { return errorDelete }
-	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus = runtimev1alpha1.ConditionedStatus{}
 	expectedStatus.SetConditions(
-		corev1alpha1.Deleting(),
-		corev1alpha1.ReconcileError(errors.Wrap(errorDelete, "Master Delete Error")),
+		runtimev1alpha1.Deleting(),
+		runtimev1alpha1.ReconcileError(errors.Wrap(errorDelete, "Master Delete Error")),
 	)
 
 	reconciledCluster = test(cluster, client, resultRequeue, expectedStatus)
 	g.Expect(reconciledCluster.Finalizers).To(ContainElement(finalizer))
 
 	// reclaim - delete, delete error with worker
-	cluster.Spec.ReclaimPolicy = corev1alpha1.ReclaimDelete
-	cluster.Status.SetConditions(corev1alpha1.Available())
+	cluster.Spec.ReclaimPolicy = runtimev1alpha1.ReclaimDelete
+	cluster.Status.SetConditions(runtimev1alpha1.Available())
 	cluster.Finalizers = []string{finalizer}
 	testErrorWorker := errors.New("test-delete-error-worker")
 	client.MockDelete = func(string) error { return nil }
 	client.MockDeleteWorkerNodes = func(string) error { return testErrorWorker }
-	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus = runtimev1alpha1.ConditionedStatus{}
 	expectedStatus.SetConditions(
-		corev1alpha1.Deleting(),
-		corev1alpha1.ReconcileError(errors.Wrap(testErrorWorker, "Worker Delete Error")),
+		runtimev1alpha1.Deleting(),
+		runtimev1alpha1.ReconcileError(errors.Wrap(testErrorWorker, "Worker Delete Error")),
 	)
 
 	reconciledCluster = test(cluster, client, resultRequeue, expectedStatus)
 	g.Expect(reconciledCluster.Finalizers).To(ContainElement(finalizer))
 
 	// reclaim - delete, delete error in cluster and cluster workers
-	cluster.Spec.ReclaimPolicy = corev1alpha1.ReclaimDelete
-	cluster.Status.SetConditions(corev1alpha1.Available())
+	cluster.Spec.ReclaimPolicy = runtimev1alpha1.ReclaimDelete
+	cluster.Status.SetConditions(runtimev1alpha1.Available())
 	cluster.Finalizers = []string{finalizer}
 	client.MockDelete = func(string) error { return nil }
 	client.MockDelete = func(string) error { return errorDelete }
 	client.MockDeleteWorkerNodes = func(string) error { return testErrorWorker }
-	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus = runtimev1alpha1.ConditionedStatus{}
 	expectedStatus.SetConditions(
-		corev1alpha1.Deleting(),
-		corev1alpha1.ReconcileError(errors.New("Master Delete Error: test-delete-error, Worker Delete Error: test-delete-error-worker")),
+		runtimev1alpha1.Deleting(),
+		runtimev1alpha1.ReconcileError(errors.New("Master Delete Error: test-delete-error, Worker Delete Error: test-delete-error-worker")),
 	)
 
 	reconciledCluster = test(cluster, client, resultRequeue, expectedStatus)
@@ -529,8 +529,8 @@ func TestReconcileClientError(t *testing.T) {
 	}
 
 	// expected to have a failed condition
-	expectedStatus := corev1alpha1.ConditionedStatus{}
-	expectedStatus.SetConditions(corev1alpha1.ReconcileError(testError))
+	expectedStatus := runtimev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(runtimev1alpha1.ReconcileError(testError))
 
 	rs, err := r.Reconcile(request)
 	g.Expect(rs).To(Equal(resultRequeue))
@@ -566,7 +566,7 @@ func TestReconcileDelete(t *testing.T) {
 	g.Expect(rs).To(Equal(result))
 	g.Expect(err).To(BeNil())
 	g.Expect(called).To(BeTrue())
-	assertResource(g, r, corev1alpha1.ConditionedStatus{})
+	assertResource(g, r, runtimev1alpha1.ConditionedStatus{})
 }
 
 func TestReconcileCreate(t *testing.T) {
@@ -591,7 +591,7 @@ func TestReconcileCreate(t *testing.T) {
 	g.Expect(err).To(BeNil())
 	g.Expect(called).To(BeTrue())
 
-	assertResource(g, r, corev1alpha1.ConditionedStatus{})
+	assertResource(g, r, runtimev1alpha1.ConditionedStatus{})
 }
 
 func TestReconcileSync(t *testing.T) {
@@ -620,7 +620,7 @@ func TestReconcileSync(t *testing.T) {
 	g.Expect(err).To(BeNil())
 	g.Expect(called).To(BeTrue())
 
-	rc := assertResource(g, r, corev1alpha1.ConditionedStatus{})
+	rc := assertResource(g, r, runtimev1alpha1.ConditionedStatus{})
 	g.Expect(rc.Finalizers).To(HaveLen(1))
 	g.Expect(rc.Finalizers).To(ContainElement(finalizer))
 }

@@ -40,11 +40,11 @@ import (
 
 	"github.com/pkg/errors"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
+	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
+	"github.com/crossplaneio/crossplane-runtime/pkg/util"
 	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/logging"
-	"github.com/crossplaneio/crossplane/pkg/meta"
-	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 const (
@@ -197,7 +197,7 @@ func (h *stackRequestHandler) sync(ctx context.Context) (reconcile.Result, error
 // create performs the operation of creating the associated Stack.  This function assumes
 // that the Stack does not yet exist, so the caller should confirm that before calling.
 func (h *stackRequestHandler) create(ctx context.Context) (reconcile.Result, error) {
-	h.ext.Status.SetConditions(corev1alpha1.Creating())
+	h.ext.Status.SetConditions(runtimev1alpha1.Creating())
 	jobRef := h.ext.Status.InstallJob
 
 	if jobRef == nil {
@@ -214,7 +214,7 @@ func (h *stackRequestHandler) create(ctx context.Context) (reconcile.Result, err
 
 		// Save a reference to the install job we just created
 		h.ext.Status.InstallJob = jobRef
-		h.ext.Status.SetConditions(corev1alpha1.ReconcileSuccess())
+		h.ext.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
 		log.V(logging.Debug).Info("created install job", "jobRef", jobRef, "jobOwnerRefs", job.OwnerReferences)
 
 		return requeueOnSuccess, h.kube.Status().Update(ctx, h.ext)
@@ -241,7 +241,7 @@ func (h *stackRequestHandler) create(ctx context.Context) (reconcile.Result, err
 				}
 
 				// the install job's completion was handled successfully, this stack request is ready
-				h.ext.Status.SetConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess())
+				h.ext.Status.SetConditions(runtimev1alpha1.Available(), runtimev1alpha1.ReconcileSuccess())
 				return requeueOnSuccess, h.kube.Status().Update(ctx, h.ext)
 			case batchv1.JobFailed:
 				// the install job failed, report the failure
@@ -251,7 +251,7 @@ func (h *stackRequestHandler) create(ctx context.Context) (reconcile.Result, err
 	}
 
 	// the job hasn't completed yet, so requeue and check again next time
-	h.ext.Status.SetConditions(corev1alpha1.ReconcileSuccess())
+	h.ext.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
 	log.V(logging.Debug).Info("install job not complete", "job", fmt.Sprintf("%s/%s", job.Namespace, job.Name))
 
 	return requeueOnSuccess, h.kube.Status().Update(ctx, h.ext)
@@ -540,7 +540,7 @@ func (d *executorInfoDiscoverer) discoverExecutorInfo(ctx context.Context) (*exe
 // fail - helper function to set fail condition with reason and message
 func fail(ctx context.Context, kube client.StatusClient, i *v1alpha1.StackRequest, err error) (reconcile.Result, error) {
 	log.V(logging.Debug).Info("failed stack request", "i", i.Name, "error", err)
-	i.Status.SetConditions(corev1alpha1.ReconcileError(err))
+	i.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
 	return resultRequeue, kube.Status().Update(ctx, i)
 }
 

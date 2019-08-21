@@ -26,10 +26,10 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
 	databasev1alpha1 "github.com/crossplaneio/crossplane/apis/database/v1alpha1"
 	"github.com/crossplaneio/crossplane/azure/apis/database/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/resource"
 )
 
 // NOTE(hasheddan): consider combining into single controller
@@ -79,8 +79,8 @@ func ConfigurePostgresqlServer(_ context.Context, cm resource.Claim, cs resource
 	}
 
 	spec := &v1alpha1.SQLServerSpec{
-		ResourceSpec: corev1alpha1.ResourceSpec{
-			ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		ResourceSpec: runtimev1alpha1.ResourceSpec{
+			ReclaimPolicy: runtimev1alpha1.ReclaimRetain,
 		},
 		SQLServerParameters: rs.SpecTemplate.SQLServerParameters,
 	}
@@ -144,8 +144,8 @@ func ConfigureMysqlServer(_ context.Context, cm resource.Claim, cs resource.Clas
 	}
 
 	spec := &v1alpha1.SQLServerSpec{
-		ResourceSpec: corev1alpha1.ResourceSpec{
-			ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		ResourceSpec: runtimev1alpha1.ResourceSpec{
+			ReclaimPolicy: runtimev1alpha1.ReclaimRetain,
 		},
 		SQLServerParameters: rs.SpecTemplate.SQLServerParameters,
 	}

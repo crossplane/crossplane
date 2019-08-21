@@ -17,7 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"github.com/crossplaneio/crossplane/pkg/resource"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
 )
 
 var (

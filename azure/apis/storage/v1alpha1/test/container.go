@@ -19,7 +19,7 @@ package test
 import (
 	"time"
 
-	"github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
 	storagev1alpha1 "github.com/crossplaneio/crossplane/azure/apis/storage/v1alpha1"
 
 	"github.com/Azure/azure-storage-blob-go/azblob"
@@ -106,7 +106,7 @@ func (tc *MockContainer) WithSpecNameFormat(f string) *MockContainer {
 }
 
 // WithSpecReclaimPolicy sets spec reclaim policy value
-func (tc *MockContainer) WithSpecReclaimPolicy(p v1alpha1.ReclaimPolicy) *MockContainer {
+func (tc *MockContainer) WithSpecReclaimPolicy(p runtimev1alpha1.ReclaimPolicy) *MockContainer {
 	tc.Container.Spec.ReclaimPolicy = p
 	return tc
 }
@@ -124,13 +124,13 @@ func (tc *MockContainer) WithSpecMetadata(meta map[string]string) *MockContainer
 }
 
 // WithStatusConditions sets the conditioned status.
-func (tc *MockContainer) WithStatusConditions(c ...v1alpha1.Condition) *MockContainer {
+func (tc *MockContainer) WithStatusConditions(c ...runtimev1alpha1.Condition) *MockContainer {
 	tc.Status.SetConditions(c...)
 	return tc
 }
 
 // WithStatusBindingPhase sets the binding phase.
-func (tc *MockContainer) WithStatusBindingPhase(p v1alpha1.BindingPhase) *MockContainer {
+func (tc *MockContainer) WithStatusBindingPhase(p runtimev1alpha1.BindingPhase) *MockContainer {
 	tc.Status.SetBindingPhase(p)
 	return tc
 }

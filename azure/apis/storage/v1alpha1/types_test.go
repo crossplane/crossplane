@@ -28,9 +28,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplaneio/crossplane/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/resource"
-	"github.com/crossplaneio/crossplane/pkg/test"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
+	"github.com/crossplaneio/crossplane-runtime/pkg/test"
+	localtest "github.com/crossplaneio/crossplane/pkg/test"
 )
 
 const (
@@ -48,7 +49,7 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	t := test.NewEnv(namespace, SchemeBuilder.SchemeBuilder, test.CRDs())
+	t := test.NewEnv(namespace, SchemeBuilder.SchemeBuilder, localtest.CRDs())
 	c = t.StartClient()
 	t.StopAndExit(m.Run())
 }
@@ -63,7 +64,7 @@ func TestAzureStorageAccount(t *testing.T) {
 				StorageAccountName: "test-name",
 				StorageAccountSpec: &StorageAccountSpec{},
 			},
-			ResourceSpec: v1alpha1.ResourceSpec{
+			ResourceSpec: runtimev1alpha1.ResourceSpec{
 				ProviderReference: &core.ObjectReference{},
 			},
 		},

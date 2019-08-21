@@ -21,7 +21,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/crossplaneio/crossplane/pkg/meta"
+	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
 
 	redisv1 "cloud.google.com/go/redis/apiv1"
 	"github.com/google/go-cmp/cmp"
@@ -37,12 +37,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 	"github.com/crossplaneio/crossplane/gcp/apis/cache/v1alpha1"
 	gcpv1alpha1 "github.com/crossplaneio/crossplane/gcp/apis/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/clients/gcp/cloudmemorystore"
 	fakecloudmemorystore "github.com/crossplaneio/crossplane/pkg/clients/gcp/cloudmemorystore/fake"
-	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
 const (
@@ -89,11 +89,11 @@ var (
 
 type instanceModifier func(*v1alpha1.CloudMemorystoreInstance)
 
-func withConditions(c ...corev1alpha1.Condition) instanceModifier {
+func withConditions(c ...runtimev1alpha1.Condition) instanceModifier {
 	return func(i *v1alpha1.CloudMemorystoreInstance) { i.Status.SetConditions(c...) }
 }
 
-func withBindingPhase(p corev1alpha1.BindingPhase) instanceModifier {
+func withBindingPhase(p runtimev1alpha1.BindingPhase) instanceModifier {
 	return func(i *v1alpha1.CloudMemorystoreInstance) { i.Status.SetBindingPhase(p) }
 }
 
@@ -105,7 +105,7 @@ func withFinalizers(f ...string) instanceModifier {
 	return func(i *v1alpha1.CloudMemorystoreInstance) { i.ObjectMeta.Finalizers = f }
 }
 
-func withReclaimPolicy(p corev1alpha1.ReclaimPolicy) instanceModifier {
+func withReclaimPolicy(p runtimev1alpha1.ReclaimPolicy) instanceModifier {
 	return func(i *v1alpha1.CloudMemorystoreInstance) { i.Spec.ReclaimPolicy = p }
 }
 
@@ -138,7 +138,7 @@ func instance(im ...instanceModifier) *v1alpha1.CloudMemorystoreInstance {
 			Finalizers: []string{},
 		},
 		Spec: v1alpha1.CloudMemorystoreInstanceSpec{
-			ResourceSpec: corev1alpha1.ResourceSpec{
+			ResourceSpec: runtimev1alpha1.ResourceSpec{
 				ProviderReference:                &corev1.ObjectReference{Namespace: namespace, Name: providerName},
 				WriteConnectionSecretToReference: corev1.LocalObjectReference{Name: connectionSecretName},
 			},
@@ -182,7 +182,7 @@ func TestCreate(t *testing.T) {
 			},
 			i: instance(),
 			want: instance(
-				withConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileSuccess()),
+				withConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileSuccess()),
 				withFinalizers(finalizerName),
 				withInstanceName(instanceName),
 			),
@@ -198,8 +198,8 @@ func TestCreate(t *testing.T) {
 			i: instance(),
 			want: instance(
 				withConditions(
-					corev1alpha1.Creating(),
-					corev1alpha1.ReconcileError(errorBoom),
+					runtimev1alpha1.Creating(),
+					runtimev1alpha1.ReconcileError(errorBoom),
 				),
 			),
 			wantRequeue: true,
@@ -242,7 +242,7 @@ func TestSync(t *testing.T) {
 			want: instance(
 				withState(v1alpha1.StateCreating),
 				withInstanceName(instanceName),
-				withConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileSuccess()),
+				withConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileSuccess()),
 			),
 			wantRequeue: true,
 		},
@@ -259,7 +259,7 @@ func TestSync(t *testing.T) {
 			want: instance(
 				withInstanceName(instanceName),
 				withState(v1alpha1.StateDeleting),
-				withConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileSuccess()),
+				withConditions(runtimev1alpha1.Deleting(), runtimev1alpha1.ReconcileSuccess()),
 			),
 			wantRequeue: false,
 		},
@@ -276,7 +276,7 @@ func TestSync(t *testing.T) {
 			want: instance(
 				withInstanceName(instanceName),
 				withState(v1alpha1.StateUpdating),
-				withConditions(corev1alpha1.ReconcileSuccess()),
+				withConditions(runtimev1alpha1.ReconcileSuccess()),
 			),
 			wantRequeue: true,
 		},
@@ -307,8 +307,8 @@ func TestSync(t *testing.T) {
 				withProviderID(qualifiedName),
 				withEndpoint(host),
 				withPort(port),
-				withConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess()),
-				withBindingPhase(corev1alpha1.BindingPhaseUnbound),
+				withConditions(runtimev1alpha1.Available(), runtimev1alpha1.ReconcileSuccess()),
+				withBindingPhase(runtimev1alpha1.BindingPhaseUnbound),
 			),
 			wantRequeue: false,
 		},
@@ -344,8 +344,8 @@ func TestSync(t *testing.T) {
 				withProviderID(qualifiedName),
 				withEndpoint(host),
 				withPort(port),
-				withConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess()),
-				withBindingPhase(corev1alpha1.BindingPhaseUnbound),
+				withConditions(runtimev1alpha1.Available(), runtimev1alpha1.ReconcileSuccess()),
+				withBindingPhase(runtimev1alpha1.BindingPhaseUnbound),
 			),
 			wantRequeue: false,
 		},
@@ -361,7 +361,7 @@ func TestSync(t *testing.T) {
 			),
 			want: instance(
 				withInstanceName(instanceName),
-				withConditions(corev1alpha1.ReconcileError(errorBoom)),
+				withConditions(runtimev1alpha1.ReconcileError(errorBoom)),
 			),
 			wantRequeue: true,
 		},
@@ -389,8 +389,8 @@ func TestSync(t *testing.T) {
 				withProviderID(qualifiedName),
 				withEndpoint(host),
 				withPort(port),
-				withConditions(corev1alpha1.Available(), corev1alpha1.ReconcileError(errorBoom)),
-				withBindingPhase(corev1alpha1.BindingPhaseUnbound),
+				withConditions(runtimev1alpha1.Available(), runtimev1alpha1.ReconcileError(errorBoom)),
+				withBindingPhase(runtimev1alpha1.BindingPhaseUnbound),
 			),
 			wantRequeue: true,
 		},
@@ -426,10 +426,10 @@ func TestDelete(t *testing.T) {
 					return nil, nil
 				}},
 			},
-			i: instance(withFinalizers(finalizerName), withReclaimPolicy(corev1alpha1.ReclaimRetain)),
+			i: instance(withFinalizers(finalizerName), withReclaimPolicy(runtimev1alpha1.ReclaimRetain)),
 			want: instance(
-				withReclaimPolicy(corev1alpha1.ReclaimRetain),
-				withConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileSuccess()),
+				withReclaimPolicy(runtimev1alpha1.ReclaimRetain),
+				withConditions(runtimev1alpha1.Deleting(), runtimev1alpha1.ReconcileSuccess()),
 			),
 			wantRequeue: false,
 		},
@@ -440,10 +440,10 @@ func TestDelete(t *testing.T) {
 					return nil, nil
 				}},
 			},
-			i: instance(withFinalizers(finalizerName), withReclaimPolicy(corev1alpha1.ReclaimDelete)),
+			i: instance(withFinalizers(finalizerName), withReclaimPolicy(runtimev1alpha1.ReclaimDelete)),
 			want: instance(
-				withReclaimPolicy(corev1alpha1.ReclaimDelete),
-				withConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileSuccess()),
+				withReclaimPolicy(runtimev1alpha1.ReclaimDelete),
+				withConditions(runtimev1alpha1.Deleting(), runtimev1alpha1.ReconcileSuccess()),
 			),
 			wantRequeue: false,
 		},
@@ -454,11 +454,11 @@ func TestDelete(t *testing.T) {
 					return nil, errorBoom
 				}},
 			},
-			i: instance(withFinalizers(finalizerName), withReclaimPolicy(corev1alpha1.ReclaimDelete)),
+			i: instance(withFinalizers(finalizerName), withReclaimPolicy(runtimev1alpha1.ReclaimDelete)),
 			want: instance(
 				withFinalizers(finalizerName),
-				withReclaimPolicy(corev1alpha1.ReclaimDelete),
-				withConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileError(errorBoom)),
+				withReclaimPolicy(runtimev1alpha1.ReclaimDelete),
+				withConditions(runtimev1alpha1.Deleting(), runtimev1alpha1.ReconcileError(errorBoom)),
 			),
 			wantRequeue: true,
 		},
@@ -707,7 +707,7 @@ func TestReconcile(t *testing.T) {
 						return nil
 					},
 					MockUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
-						want := instance(withConditions(corev1alpha1.ReconcileError(errorBoom)))
+						want := instance(withConditions(runtimev1alpha1.ReconcileError(errorBoom)))
 						got := obj.(*v1alpha1.CloudMemorystoreInstance)
 						if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
 							t.Errorf("kube.Update(...): -want, +got:\n%s", diff)
@@ -740,7 +740,7 @@ func TestReconcile(t *testing.T) {
 						want := instance(
 							withInstanceName(instanceName),
 							withConditions(
-								corev1alpha1.ReconcileError(errors.Wrapf(errorBoom, "cannot get secret %s/%s", namespace, connectionSecretName)),
+								runtimev1alpha1.ReconcileError(errors.Wrapf(errorBoom, "cannot get secret %s/%s", namespace, connectionSecretName)),
 							),
 						)
 						got := obj.(*v1alpha1.CloudMemorystoreInstance)
@@ -774,7 +774,7 @@ func TestReconcile(t *testing.T) {
 					MockUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 						want := instance(
 							withInstanceName(instanceName),
-							withConditions(corev1alpha1.ReconcileError(errors.Wrapf(errorBoom, "cannot create secret %s/%s", namespace, connectionSecretName))),
+							withConditions(runtimev1alpha1.ReconcileError(errors.Wrapf(errorBoom, "cannot create secret %s/%s", namespace, connectionSecretName))),
 						)
 						got := obj.(*v1alpha1.CloudMemorystoreInstance)
 						if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
@@ -812,7 +812,7 @@ func TestReconcile(t *testing.T) {
 						case *v1alpha1.CloudMemorystoreInstance:
 							want := instance(
 								withInstanceName(instanceName),
-								withConditions(corev1alpha1.ReconcileError(errors.Wrapf(errorBoom, "cannot update secret %s/%s", namespace, connectionSecretName))),
+								withConditions(runtimev1alpha1.ReconcileError(errors.Wrapf(errorBoom, "cannot update secret %s/%s", namespace, connectionSecretName))),
 							)
 							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
 								t.Errorf("kube.Update(...): -want, +got:\n%s", diff)
@@ -858,7 +858,7 @@ func TestConnectionSecret(t *testing.T) {
 					Namespace:       namespace,
 					OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.ReferenceTo(instance(), v1alpha1.CloudMemorystoreInstanceGroupVersionKind))},
 				},
-				Data: map[string][]byte{corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(host)},
+				Data: map[string][]byte{runtimev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(host)},
 			},
 		},
 	}

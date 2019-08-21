@@ -25,12 +25,12 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
+	"github.com/crossplaneio/crossplane-runtime/pkg/util"
 	"github.com/crossplaneio/crossplane/gcp/apis/storage/v1alpha1"
 	gcpstorage "github.com/crossplaneio/crossplane/pkg/clients/gcp/storage"
-	"github.com/crossplaneio/crossplane/pkg/meta"
-	"github.com/crossplaneio/crossplane/pkg/resource"
-	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 type operations interface {
@@ -41,7 +41,7 @@ type operations interface {
 	getSpecAttrs() v1alpha1.BucketUpdatableAttrs
 	setSpecAttrs(*storage.BucketAttrs)
 	setStatusAttrs(*storage.BucketAttrs)
-	setStatusConditions(c ...corev1alpha1.Condition)
+	setStatusConditions(c ...runtimev1alpha1.Condition)
 	setBindable()
 
 	// Controller-runtime operations
@@ -84,7 +84,7 @@ func (bh *bucketHandler) removeFinalizer() {
 }
 
 func (bh *bucketHandler) isReclaimDelete() bool {
-	return bh.Spec.ReclaimPolicy == corev1alpha1.ReclaimDelete
+	return bh.Spec.ReclaimPolicy == runtimev1alpha1.ReclaimDelete
 }
 
 func (bh *bucketHandler) getSpecAttrs() v1alpha1.BucketUpdatableAttrs {
@@ -99,7 +99,7 @@ func (bh *bucketHandler) setStatusAttrs(attrs *storage.BucketAttrs) {
 	bh.Status.BucketOutputAttrs = v1alpha1.NewBucketOutputAttrs(attrs)
 }
 
-func (bh *bucketHandler) setStatusConditions(c ...corev1alpha1.Condition) {
+func (bh *bucketHandler) setStatusConditions(c ...runtimev1alpha1.Condition) {
 	bh.Status.SetConditions(c...)
 }
 
@@ -136,11 +136,11 @@ func (bh *bucketHandler) updateSecret(ctx context.Context) error {
 		if err := bh.kube.Get(ctx, nn, ss); err != nil {
 			return errors.Wrapf(err, "failed to retrieve storage service account secret: %s", nn)
 		}
-		s.Data[corev1alpha1.ResourceCredentialsSecretUserKey] = ss.Data[saSecretKeyAccessKey]
-		s.Data[corev1alpha1.ResourceCredentialsSecretPasswordKey] = ss.Data[saSecretKeySecret]
-		s.Data[corev1alpha1.ResourceCredentialsTokenKey] = ss.Data[saSecretKeyCredentials]
+		s.Data[runtimev1alpha1.ResourceCredentialsSecretUserKey] = ss.Data[saSecretKeyAccessKey]
+		s.Data[runtimev1alpha1.ResourceCredentialsSecretPasswordKey] = ss.Data[saSecretKeySecret]
+		s.Data[runtimev1alpha1.ResourceCredentialsTokenKey] = ss.Data[saSecretKeyCredentials]
 	}
-	s.Data[corev1alpha1.ResourceCredentialsSecretEndpointKey] = []byte(bh.GetBucketName())
+	s.Data[runtimev1alpha1.ResourceCredentialsSecretEndpointKey] = []byte(bh.GetBucketName())
 	return errors.Wrapf(util.Apply(ctx, bh.kube, s), "failed to apply connection secret: %s/%s", s.Namespace, s.Name)
 }
 

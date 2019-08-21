@@ -23,8 +23,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/resource"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
 )
 
 var _ resource.Claim = &RedisCluster{}
@@ -35,7 +35,7 @@ func TestRedisClusterStorage(t *testing.T) {
 	created := &RedisCluster{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
 		Spec: RedisClusterSpec{
-			ResourceClaimSpec: corev1alpha1.ResourceClaimSpec{
+			ResourceClaimSpec: runtimev1alpha1.ResourceClaimSpec{
 				ClassReference: &corev1.ObjectReference{
 					Name:      "test-class",
 					Namespace: "test-system",
@@ -104,7 +104,7 @@ func TestEngineVersion(t *testing.T) {
 			created := &RedisCluster{
 				ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
 				Spec: RedisClusterSpec{
-					ResourceClaimSpec: corev1alpha1.ResourceClaimSpec{
+					ResourceClaimSpec: runtimev1alpha1.ResourceClaimSpec{
 						ClassReference: &corev1.ObjectReference{
 							Name:      "test-class",
 							Namespace: "test-system",

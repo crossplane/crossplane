@@ -17,8 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"github.com/crossplaneio/crossplane/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/resource"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
 
 	"github.com/Azure/azure-sdk-for-go/services/redis/mgmt/2018-03-01/redis"
 	corev1 "k8s.io/api/core/v1"
@@ -94,8 +94,8 @@ type RedisParameters struct {
 // Most fields map directly to an Azure Redis resource.
 // https://docs.microsoft.com/en-us/rest/api/redis/redis/get#redisresource
 type RedisSpec struct {
-	v1alpha1.ResourceSpec `json:",inline"`
-	RedisParameters       `json:",inline"`
+	runtimev1alpha1.ResourceSpec `json:",inline"`
+	RedisParameters              `json:",inline"`
 }
 
 // TODO(negz): Rename SKU to PricingTier? Both SQL databases and Redis caches
@@ -124,7 +124,7 @@ type SKUSpec struct {
 
 // RedisStatus defines the observed state of Redis
 type RedisStatus struct {
-	v1alpha1.ResourceStatus `json:",inline"`
+	runtimev1alpha1.ResourceStatus `json:",inline"`
 
 	State   string `json:"state,omitempty"`
 	Message string `json:"message,omitempty"`
@@ -165,17 +165,17 @@ type Redis struct {
 }
 
 // SetBindingPhase of this Redis.
-func (rd *Redis) SetBindingPhase(p v1alpha1.BindingPhase) {
+func (rd *Redis) SetBindingPhase(p runtimev1alpha1.BindingPhase) {
 	rd.Status.SetBindingPhase(p)
 }
 
 // GetBindingPhase of this Redis.
-func (rd *Redis) GetBindingPhase() v1alpha1.BindingPhase {
+func (rd *Redis) GetBindingPhase() runtimev1alpha1.BindingPhase {
 	return rd.Status.GetBindingPhase()
 }
 
 // SetConditions of this Redis.
-func (rd *Redis) SetConditions(c ...v1alpha1.Condition) {
+func (rd *Redis) SetConditions(c ...runtimev1alpha1.Condition) {
 	rd.Status.SetConditions(c...)
 }
 
@@ -210,12 +210,12 @@ func (rd *Redis) GetWriteConnectionSecretToReference() corev1.LocalObjectReferen
 }
 
 // GetReclaimPolicy of this S3Bucket.
-func (rd *Redis) GetReclaimPolicy() v1alpha1.ReclaimPolicy {
+func (rd *Redis) GetReclaimPolicy() runtimev1alpha1.ReclaimPolicy {
 	return rd.Spec.ReclaimPolicy
 }
 
 // SetReclaimPolicy of this Redis.
-func (rd *Redis) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) {
+func (rd *Redis) SetReclaimPolicy(p runtimev1alpha1.ReclaimPolicy) {
 	rd.Spec.ReclaimPolicy = p
 }
 
@@ -230,8 +230,8 @@ type RedisList struct {
 
 // RedisClassSpecTemplate is the Schema for the resource class
 type RedisClassSpecTemplate struct {
-	v1alpha1.ResourceClassSpecTemplate `json:",inline"`
-	RedisParameters                    `json:",inline"`
+	runtimev1alpha1.ResourceClassSpecTemplate `json:",inline"`
+	RedisParameters                           `json:",inline"`
 }
 
 var _ resource.Class = &RedisClass{}
@@ -250,12 +250,12 @@ type RedisClass struct {
 }
 
 // GetReclaimPolicy of this RedisClass.
-func (i *RedisClass) GetReclaimPolicy() v1alpha1.ReclaimPolicy {
+func (i *RedisClass) GetReclaimPolicy() runtimev1alpha1.ReclaimPolicy {
 	return i.SpecTemplate.ReclaimPolicy
 }
 
 // SetReclaimPolicy of this RedisClass.
-func (i *RedisClass) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) {
+func (i *RedisClass) SetReclaimPolicy(p runtimev1alpha1.ReclaimPolicy) {
 	i.SpecTemplate.ReclaimPolicy = p
 }
 

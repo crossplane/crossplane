@@ -22,8 +22,8 @@ import (
 
 	ctrl "sigs.k8s.io/controller-runtime"
 
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
 	storagev1alpha1 "github.com/crossplaneio/crossplane/apis/storage/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/resource"
 )
 
 // BucketController is responsible for adding the default class controller

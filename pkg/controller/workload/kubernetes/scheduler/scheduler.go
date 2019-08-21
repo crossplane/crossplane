@@ -28,11 +28,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
+	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
 	computev1alpha1 "github.com/crossplaneio/crossplane/apis/compute/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
 	workloadv1alpha1 "github.com/crossplaneio/crossplane/apis/workload/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/logging"
-	"github.com/crossplaneio/crossplane/pkg/meta"
 )
 
 const (
@@ -57,12 +57,12 @@ func (s *roundRobinScheduler) schedule(ctx context.Context, app *workloadv1alpha
 
 	clusters := &computev1alpha1.KubernetesClusterList{}
 	if err := s.kube.List(ctx, clusters, client.MatchingLabels(app.Spec.ClusterSelector.MatchLabels)); err != nil {
-		app.Status.SetConditions(corev1alpha1.ReconcileError(err))
+		app.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}
 	}
 
 	if len(clusters.Items) == 0 {
-		app.Status.SetConditions(corev1alpha1.ReconcileSuccess())
+		app.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
 		return reconcile.Result{Requeue: true}
 	}
 
@@ -73,7 +73,7 @@ func (s *roundRobinScheduler) schedule(ctx context.Context, app *workloadv1alpha
 
 	app.Status.Cluster = meta.ReferenceTo(&cluster, computev1alpha1.KubernetesClusterGroupVersionKind)
 	app.Status.State = workloadv1alpha1.KubernetesApplicationStateScheduled
-	app.Status.SetConditions(corev1alpha1.ReconcileSuccess())
+	app.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
 
 	return reconcile.Result{Requeue: false}
 }

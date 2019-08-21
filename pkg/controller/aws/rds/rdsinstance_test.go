@@ -34,13 +34,13 @@ import (
 	. "sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 	"github.com/crossplaneio/crossplane/aws/apis/database/v1alpha1"
 	. "github.com/crossplaneio/crossplane/aws/apis/database/v1alpha1"
 	awsv1alpha1 "github.com/crossplaneio/crossplane/aws/apis/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/clients/aws/rds"
 	. "github.com/crossplaneio/crossplane/pkg/clients/aws/rds/fake"
-	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
 const (
@@ -86,7 +86,7 @@ func testResource() *RDSInstance {
 			Namespace: namespace,
 		},
 		Spec: RDSInstanceSpec{
-			ResourceSpec: corev1alpha1.ResourceSpec{
+			ResourceSpec: runtimev1alpha1.ResourceSpec{
 				ProviderReference: &corev1.ObjectReference{},
 			},
 			RDSInstanceParameters: v1alpha1.RDSInstanceParameters{
@@ -100,7 +100,7 @@ func testResource() *RDSInstance {
 }
 
 // assertResource a helper function to check on cluster and its status
-func assertResource(g *GomegaWithT, r *Reconciler, s corev1alpha1.ConditionedStatus) *RDSInstance {
+func assertResource(g *GomegaWithT, r *Reconciler, s runtimev1alpha1.ConditionedStatus) *RDSInstance {
 	resource := &RDSInstance{}
 	err := r.Get(ctx, key, resource)
 	g.Expect(err).To(BeNil())
@@ -111,7 +111,7 @@ func assertResource(g *GomegaWithT, r *Reconciler, s corev1alpha1.ConditionedSta
 func TestSyncClusterError(t *testing.T) {
 	g := NewGomegaWithT(t)
 
-	assert := func(instance *RDSInstance, client rds.Client, expectedResult reconcile.Result, expectedStatus corev1alpha1.ConditionedStatus) {
+	assert := func(instance *RDSInstance, client rds.Client, expectedResult reconcile.Result, expectedStatus runtimev1alpha1.ConditionedStatus) {
 		r := &Reconciler{
 			Client:     NewFakeClient(instance),
 			kubeclient: NewSimpleClientset(),
@@ -131,8 +131,8 @@ func TestSyncClusterError(t *testing.T) {
 			return nil, testError
 		},
 	}
-	expectedStatus := corev1alpha1.ConditionedStatus{}
-	expectedStatus.SetConditions(corev1alpha1.ReconcileError(testError))
+	expectedStatus := runtimev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(runtimev1alpha1.ReconcileError(testError))
 	assert(testResource(), cl, resultRequeue, expectedStatus)
 
 	// instance is not ready
@@ -143,8 +143,8 @@ func TestSyncClusterError(t *testing.T) {
 			}, nil
 		},
 	}
-	expectedStatus = corev1alpha1.ConditionedStatus{}
-	expectedStatus.SetConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileSuccess())
+	expectedStatus = runtimev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileSuccess())
 	assert(testResource(), cl, resultRequeue, expectedStatus)
 
 	// instance in failed state
@@ -155,8 +155,8 @@ func TestSyncClusterError(t *testing.T) {
 			}, nil
 		},
 	}
-	expectedStatus = corev1alpha1.ConditionedStatus{}
-	expectedStatus.SetConditions(corev1alpha1.Unavailable(), corev1alpha1.ReconcileSuccess())
+	expectedStatus = runtimev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(runtimev1alpha1.Unavailable(), runtimev1alpha1.ReconcileSuccess())
 	assert(testResource(), cl, result, expectedStatus)
 
 	// instance is in deleting state
@@ -168,9 +168,9 @@ func TestSyncClusterError(t *testing.T) {
 		},
 	}
 
-	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus = runtimev1alpha1.ConditionedStatus{}
 	expectedStatus.SetConditions(
-		corev1alpha1.ReconcileError(errors.Errorf("unexpected resource status: %s", RDSInstanceStateDeleting)),
+		runtimev1alpha1.ReconcileError(errors.Errorf("unexpected resource status: %s", RDSInstanceStateDeleting)),
 	)
 	assert(testResource(), cl, resultRequeue, expectedStatus)
 
@@ -184,10 +184,10 @@ func TestSyncClusterError(t *testing.T) {
 	}
 
 	tr := testResource()
-	expectedStatus = corev1alpha1.ConditionedStatus{}
+	expectedStatus = runtimev1alpha1.ConditionedStatus{}
 	expectedStatus.SetConditions(
-		corev1alpha1.Available(),
-		corev1alpha1.ReconcileError(errors.Errorf("secrets \"%s\" not found", tr.GetWriteConnectionSecretToReference().Name)),
+		runtimev1alpha1.Available(),
+		runtimev1alpha1.ReconcileError(errors.Errorf("secrets \"%s\" not found", tr.GetWriteConnectionSecretToReference().Name)),
 	)
 	assert(tr, cl, resultRequeue, expectedStatus)
 
@@ -220,8 +220,8 @@ func TestSyncClusterUpdateSecretFailure(t *testing.T) {
 		},
 	}
 
-	expectedStatus := corev1alpha1.ConditionedStatus{}
-	expectedStatus.SetConditions(corev1alpha1.Available(), corev1alpha1.ReconcileError(testError))
+	expectedStatus := runtimev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(runtimev1alpha1.Available(), runtimev1alpha1.ReconcileError(testError))
 
 	rs, err := r._sync(tr, cl)
 	g.Expect(rs).To(Equal(resultRequeue))
@@ -251,8 +251,8 @@ func TestSyncCluster(t *testing.T) {
 		},
 	}
 
-	expectedStatus := corev1alpha1.ConditionedStatus{}
-	expectedStatus.SetConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess())
+	expectedStatus := runtimev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(runtimev1alpha1.Available(), runtimev1alpha1.ReconcileSuccess())
 
 	rs, err := r._sync(tr, cl)
 	g.Expect(rs).To(Equal(result))
@@ -275,9 +275,9 @@ func TestDelete(t *testing.T) {
 	cl := &MockRDSClient{}
 
 	// test delete w/ reclaim policy
-	tr.Spec.ReclaimPolicy = corev1alpha1.ReclaimRetain
-	expectedStatus := corev1alpha1.ConditionedStatus{}
-	expectedStatus.SetConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileSuccess())
+	tr.Spec.ReclaimPolicy = runtimev1alpha1.ReclaimRetain
+	expectedStatus := runtimev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(runtimev1alpha1.Deleting(), runtimev1alpha1.ReconcileSuccess())
 
 	rs, err := r._delete(tr, cl)
 	g.Expect(rs).To(Equal(result))
@@ -285,7 +285,7 @@ func TestDelete(t *testing.T) {
 	assertResource(g, r, expectedStatus)
 
 	// test delete w/ delete policy
-	tr.Spec.ReclaimPolicy = corev1alpha1.ReclaimDelete
+	tr.Spec.ReclaimPolicy = runtimev1alpha1.ReclaimDelete
 	called := false
 	cl.MockDeleteInstance = func(name string) (instance *rds.Instance, e error) {
 		called = true
@@ -305,8 +305,8 @@ func TestDelete(t *testing.T) {
 		called = true
 		return nil, testError
 	}
-	expectedStatus = corev1alpha1.ConditionedStatus{}
-	expectedStatus.SetConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileError(testError))
+	expectedStatus = runtimev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(runtimev1alpha1.Deleting(), runtimev1alpha1.ReconcileError(testError))
 
 	rs, err = r._delete(tr, cl)
 	g.Expect(rs).To(Equal(resultRequeue))
@@ -335,8 +335,8 @@ func TestCreate(t *testing.T) {
 		},
 	}
 
-	expectedStatus := corev1alpha1.ConditionedStatus{}
-	expectedStatus.SetConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileSuccess())
+	expectedStatus := runtimev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileSuccess())
 
 	rs, err := r._create(testResource(), cl)
 	g.Expect(rs).To(Equal(resultRequeue))
@@ -369,8 +369,8 @@ func TestCreateFail(t *testing.T) {
 		return true, nil, testError
 	})
 
-	expectedStatus := corev1alpha1.ConditionedStatus{}
-	expectedStatus.SetConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileError(testError))
+	expectedStatus := runtimev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileError(testError))
 
 	rs, err := r._create(tr, cl)
 	g.Expect(rs).To(Equal(resultRequeue))
@@ -387,8 +387,8 @@ func TestCreateFail(t *testing.T) {
 		return nil, testError
 	}
 
-	expectedStatus = corev1alpha1.ConditionedStatus{}
-	expectedStatus.SetConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileError(testError))
+	expectedStatus = runtimev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileError(testError))
 
 	rs, err = r._create(tr, cl)
 	g.Expect(rs).To(Equal(resultRequeue))
@@ -433,8 +433,8 @@ func TestReconcile(t *testing.T) {
 		return nil, testError
 	}
 
-	expectedStatus := corev1alpha1.ConditionedStatus{}
-	expectedStatus.SetConditions(corev1alpha1.ReconcileError(testError))
+	expectedStatus := runtimev1alpha1.ConditionedStatus{}
+	expectedStatus.SetConditions(runtimev1alpha1.ReconcileError(testError))
 
 	rs, err := r.Reconcile(request)
 	g.Expect(rs).To(Equal(resultRequeue))

@@ -37,17 +37,17 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
 	awscomputev1alpha1 "github.com/crossplaneio/crossplane/aws/apis/compute/v1alpha1"
 	awsv1alpha1 "github.com/crossplaneio/crossplane/aws/apis/v1alpha1"
 	awsClient "github.com/crossplaneio/crossplane/pkg/clients/aws"
 	cloudformationclient "github.com/crossplaneio/crossplane/pkg/clients/aws/cloudformation"
 
+	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
+	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
+	"github.com/crossplaneio/crossplane-runtime/pkg/util"
 	"github.com/crossplaneio/crossplane/pkg/clients/aws/eks"
-	"github.com/crossplaneio/crossplane/pkg/logging"
-	"github.com/crossplaneio/crossplane/pkg/meta"
-	"github.com/crossplaneio/crossplane/pkg/resource"
-	"github.com/crossplaneio/crossplane/pkg/util"
 )
 
 const (
@@ -126,7 +126,7 @@ func (c *EKSClusterController) SetupWithManager(mgr ctrl.Manager) error {
 
 // fail - helper function to set fail condition with reason and message
 func (r *Reconciler) fail(instance *awscomputev1alpha1.EKSCluster, err error) (reconcile.Result, error) {
-	instance.Status.SetConditions(corev1alpha1.ReconcileError(err))
+	instance.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
 	return resultRequeue, r.Update(context.TODO(), instance)
 }
 
@@ -154,7 +154,7 @@ func (r *Reconciler) _connect(instance *awscomputev1alpha1.EKSCluster) (eks.Clie
 }
 
 func (r *Reconciler) _create(instance *awscomputev1alpha1.EKSCluster, client eks.Client) (reconcile.Result, error) {
-	instance.Status.SetConditions(corev1alpha1.Creating())
+	instance.Status.SetConditions(runtimev1alpha1.Creating())
 	clusterName := fmt.Sprintf("%s%s", clusterNamePrefix, instance.UID)
 
 	// Create Master
@@ -162,7 +162,7 @@ func (r *Reconciler) _create(instance *awscomputev1alpha1.EKSCluster, client eks
 	if err != nil && !eks.IsErrorAlreadyExists(err) {
 		if eks.IsErrorBadRequest(err) {
 			// do not requeue on bad requests
-			instance.Status.SetConditions(corev1alpha1.ReconcileError(err))
+			instance.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
 			return result, r.Update(ctx, instance)
 		}
 		return r.fail(instance, err)
@@ -176,7 +176,7 @@ func (r *Reconciler) _create(instance *awscomputev1alpha1.EKSCluster, client eks
 	instance.Status.State = awscomputev1alpha1.ClusterStatusCreating
 	instance.Status.ClusterName = clusterName
 
-	instance.Status.SetConditions(corev1alpha1.ReconcileSuccess())
+	instance.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
 	return resultRequeue, r.Update(ctx, instance)
 }
 
@@ -273,7 +273,7 @@ func (r *Reconciler) _sync(instance *awscomputev1alpha1.EKSCluster, client eks.C
 	}
 
 	if cluster.Status != awscomputev1alpha1.ClusterStatusActive {
-		instance.Status.SetConditions(corev1alpha1.ReconcileSuccess())
+		instance.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
 		return resultRequeue, nil
 	}
 
@@ -284,7 +284,7 @@ func (r *Reconciler) _sync(instance *awscomputev1alpha1.EKSCluster, client eks.C
 			return r.fail(instance, err)
 		}
 		instance.Status.CloudFormationStackID = clusterWorkers.WorkerStackID
-		instance.Status.SetConditions(corev1alpha1.ReconcileSuccess())
+		instance.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
 		return resultRequeue, r.Update(ctx, instance)
 	}
 
@@ -298,7 +298,7 @@ func (r *Reconciler) _sync(instance *awscomputev1alpha1.EKSCluster, client eks.C
 	}
 
 	if !completedCFState[clusterWorker.WorkersStatus] {
-		instance.Status.SetConditions(corev1alpha1.ReconcileSuccess())
+		instance.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
 		return resultRequeue, r.Update(ctx, instance)
 	}
 
@@ -313,7 +313,7 @@ func (r *Reconciler) _sync(instance *awscomputev1alpha1.EKSCluster, client eks.C
 	// update resource status
 	instance.Status.Endpoint = cluster.Endpoint
 	instance.Status.State = awscomputev1alpha1.ClusterStatusActive
-	instance.Status.SetConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess())
+	instance.Status.SetConditions(runtimev1alpha1.Available(), runtimev1alpha1.ReconcileSuccess())
 	resource.SetBindable(instance)
 
 	return result, r.Update(ctx, instance)
@@ -334,9 +334,9 @@ func (r *Reconciler) _secret(cluster *eks.Cluster, instance *awscomputev1alpha1.
 	// secret := instance.ConnectionSecret()
 	secret := resource.ConnectionSecretFor(instance, awscomputev1alpha1.EKSClusterGroupVersionKind)
 	data := make(map[string][]byte)
-	data[corev1alpha1.ResourceCredentialsSecretEndpointKey] = []byte(cluster.Endpoint)
-	data[corev1alpha1.ResourceCredentialsSecretCAKey] = caData
-	data[corev1alpha1.ResourceCredentialsTokenKey] = []byte(token)
+	data[runtimev1alpha1.ResourceCredentialsSecretEndpointKey] = []byte(cluster.Endpoint)
+	data[runtimev1alpha1.ResourceCredentialsSecretCAKey] = caData
+	data[runtimev1alpha1.ResourceCredentialsTokenKey] = []byte(token)
 	secret.Data = data
 
 	// create connection secret
@@ -349,8 +349,8 @@ func (r *Reconciler) _secret(cluster *eks.Cluster, instance *awscomputev1alpha1.
 
 // _delete check reclaim policy and if needed delete the eks cluster resource
 func (r *Reconciler) _delete(instance *awscomputev1alpha1.EKSCluster, client eks.Client) (reconcile.Result, error) {
-	instance.Status.SetConditions(corev1alpha1.Deleting())
-	if instance.Spec.ReclaimPolicy == corev1alpha1.ReclaimDelete {
+	instance.Status.SetConditions(runtimev1alpha1.Deleting())
+	if instance.Spec.ReclaimPolicy == runtimev1alpha1.ReclaimDelete {
 		var deleteErrors []string
 		if err := client.Delete(instance.Status.ClusterName); err != nil && !eks.IsErrorNotFound(err) {
 			deleteErrors = append(deleteErrors, fmt.Sprintf("Master Delete Error: %s", err.Error()))
@@ -368,7 +368,7 @@ func (r *Reconciler) _delete(instance *awscomputev1alpha1.EKSCluster, client eks
 	}
 
 	meta.RemoveFinalizer(instance, finalizer)
-	instance.Status.SetConditions(corev1alpha1.ReconcileSuccess())
+	instance.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
 	return result, r.Update(ctx, instance)
 }
 

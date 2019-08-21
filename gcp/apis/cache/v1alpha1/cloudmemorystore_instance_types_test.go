@@ -26,9 +26,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/resource"
-	"github.com/crossplaneio/crossplane/pkg/test"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
+	"github.com/crossplaneio/crossplane-runtime/pkg/test"
+	localtest "github.com/crossplaneio/crossplane/pkg/test"
 )
 
 const (
@@ -44,7 +45,7 @@ var (
 var _ resource.Managed = &CloudMemorystoreInstance{}
 
 func TestMain(m *testing.M) {
-	t := test.NewEnv(namespace, SchemeBuilder.SchemeBuilder, test.CRDs())
+	t := test.NewEnv(namespace, SchemeBuilder.SchemeBuilder, localtest.CRDs())
 	c = t.StartClient()
 	t.StopAndExit(m.Run())
 }
@@ -54,7 +55,7 @@ func TestStorageCloudMemorystoreInstance(t *testing.T) {
 	created := &CloudMemorystoreInstance{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
 		Spec: CloudMemorystoreInstanceSpec{
-			ResourceSpec: corev1alpha1.ResourceSpec{
+			ResourceSpec: runtimev1alpha1.ResourceSpec{
 				ProviderReference: &core.ObjectReference{},
 			},
 			CloudMemorystoreInstanceParameters: CloudMemorystoreInstanceParameters{

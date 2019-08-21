@@ -21,9 +21,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/crossplaneio/crossplane/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/resource"
-	"github.com/crossplaneio/crossplane/pkg/util"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
+	"github.com/crossplaneio/crossplane-runtime/pkg/util"
 )
 
 // AccountParameters define the configuration for Account object
@@ -41,13 +41,13 @@ type AccountParameters struct {
 
 // AccountSpec is the schema for Account object
 type AccountSpec struct {
-	v1alpha1.ResourceSpec `json:",inline"`
-	AccountParameters     `json:",inline"`
+	runtimev1alpha1.ResourceSpec `json:",inline"`
+	AccountParameters            `json:",inline"`
 }
 
 // AccountStatus defines the observed state of StorageAccountStatus
 type AccountStatus struct {
-	v1alpha1.ResourceStatus `json:",inline"`
+	runtimev1alpha1.ResourceStatus `json:",inline"`
 
 	*StorageAccountStatus `json:"accountStatus,inline"`
 }
@@ -69,17 +69,17 @@ type Account struct {
 }
 
 // SetBindingPhase of this Account.
-func (a *Account) SetBindingPhase(p v1alpha1.BindingPhase) {
+func (a *Account) SetBindingPhase(p runtimev1alpha1.BindingPhase) {
 	a.Status.SetBindingPhase(p)
 }
 
 // GetBindingPhase of this Account.
-func (a *Account) GetBindingPhase() v1alpha1.BindingPhase {
+func (a *Account) GetBindingPhase() runtimev1alpha1.BindingPhase {
 	return a.Status.GetBindingPhase()
 }
 
 // SetConditions of this Account.
-func (a *Account) SetConditions(c ...v1alpha1.Condition) {
+func (a *Account) SetConditions(c ...runtimev1alpha1.Condition) {
 	a.Status.SetConditions(c...)
 }
 
@@ -114,12 +114,12 @@ func (a *Account) GetWriteConnectionSecretToReference() corev1.LocalObjectRefere
 }
 
 // GetReclaimPolicy of this Account.
-func (a *Account) GetReclaimPolicy() v1alpha1.ReclaimPolicy {
+func (a *Account) GetReclaimPolicy() runtimev1alpha1.ReclaimPolicy {
 	return a.Spec.ReclaimPolicy
 }
 
 // SetReclaimPolicy of this Account.
-func (a *Account) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) {
+func (a *Account) SetReclaimPolicy(p runtimev1alpha1.ReclaimPolicy) {
 	a.Spec.ReclaimPolicy = p
 }
 
@@ -134,8 +134,8 @@ type AccountList struct {
 
 // AccountClassSpecTemplate is the Schema for the resource class
 type AccountClassSpecTemplate struct {
-	v1alpha1.ResourceClassSpecTemplate `json:",inline"`
-	AccountParameters                  `json:",inline"`
+	runtimev1alpha1.ResourceClassSpecTemplate `json:",inline"`
+	AccountParameters                         `json:",inline"`
 }
 
 var _ resource.Class = &AccountClass{}
@@ -154,12 +154,12 @@ type AccountClass struct {
 }
 
 // GetReclaimPolicy of this AccountClass.
-func (i *AccountClass) GetReclaimPolicy() v1alpha1.ReclaimPolicy {
+func (i *AccountClass) GetReclaimPolicy() runtimev1alpha1.ReclaimPolicy {
 	return i.SpecTemplate.ReclaimPolicy
 }
 
 // SetReclaimPolicy of this AccountClass.
-func (i *AccountClass) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) {
+func (i *AccountClass) SetReclaimPolicy(p runtimev1alpha1.ReclaimPolicy) {
 	i.SpecTemplate.ReclaimPolicy = p
 }
 
@@ -193,20 +193,20 @@ type ContainerSpec struct {
 	ContainerParameters `json:",inline"`
 	// NOTE(negz): Container is the only Crossplane type that does not use a
 	// Provider (it reads credentials from its associated Account instead). This
-	// means we can't embed a corev1alpha1.ResourceSpec, as doing so would
+	// means we can't embed a coreruntimev1alpha1.ResourceSpec, as doing so would
 	// require a redundant providerRef be specified. Instead we duplicate
 	// most of that struct here; the below values should be kept in sync with
-	// corev1alpha1.ResourceSpec.
+	// coreruntimev1alpha1.ResourceSpec.
 
-	WriteConnectionSecretToReference corev1.LocalObjectReference `json:"writeConnectionSecretToRef,omitempty"`
-	ClaimReference                   *corev1.ObjectReference     `json:"claimRef,omitempty"`
-	ClassReference                   *corev1.ObjectReference     `json:"classRef,omitempty"`
-	ReclaimPolicy                    v1alpha1.ReclaimPolicy      `json:"reclaimPolicy,omitempty"`
+	WriteConnectionSecretToReference corev1.LocalObjectReference   `json:"writeConnectionSecretToRef,omitempty"`
+	ClaimReference                   *corev1.ObjectReference       `json:"claimRef,omitempty"`
+	ClassReference                   *corev1.ObjectReference       `json:"classRef,omitempty"`
+	ReclaimPolicy                    runtimev1alpha1.ReclaimPolicy `json:"reclaimPolicy,omitempty"`
 }
 
 // ContainerStatus sub-resource for Container object
 type ContainerStatus struct {
-	v1alpha1.ResourceStatus `json:",inline"`
+	runtimev1alpha1.ResourceStatus `json:",inline"`
 
 	Name string `json:"name,omitempty"`
 }
@@ -228,17 +228,17 @@ type Container struct {
 }
 
 // SetBindingPhase of this Container.
-func (c *Container) SetBindingPhase(p v1alpha1.BindingPhase) {
+func (c *Container) SetBindingPhase(p runtimev1alpha1.BindingPhase) {
 	c.Status.SetBindingPhase(p)
 }
 
 // GetBindingPhase of this Container.
-func (c *Container) GetBindingPhase() v1alpha1.BindingPhase {
+func (c *Container) GetBindingPhase() runtimev1alpha1.BindingPhase {
 	return c.Status.GetBindingPhase()
 }
 
 // SetConditions of this Container.
-func (c *Container) SetConditions(cd ...v1alpha1.Condition) {
+func (c *Container) SetConditions(cd ...runtimev1alpha1.Condition) {
 	c.Status.SetConditions(cd...)
 }
 
@@ -273,12 +273,12 @@ func (c *Container) GetWriteConnectionSecretToReference() corev1.LocalObjectRefe
 }
 
 // GetReclaimPolicy of this Container.
-func (c *Container) GetReclaimPolicy() v1alpha1.ReclaimPolicy {
+func (c *Container) GetReclaimPolicy() runtimev1alpha1.ReclaimPolicy {
 	return c.Spec.ReclaimPolicy
 }
 
 // SetReclaimPolicy of this Container.
-func (c *Container) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) {
+func (c *Container) SetReclaimPolicy(p runtimev1alpha1.ReclaimPolicy) {
 	c.Spec.ReclaimPolicy = p
 }
 
@@ -311,8 +311,8 @@ type ContainerList struct {
 
 // ContainerClassSpecTemplate is the Schema for the resource class
 type ContainerClassSpecTemplate struct {
-	v1alpha1.ResourceClassSpecTemplate `json:",inline"`
-	ContainerParameters                `json:",inline"`
+	runtimev1alpha1.ResourceClassSpecTemplate `json:",inline"`
+	ContainerParameters                       `json:",inline"`
 }
 
 var _ resource.Class = &ContainerClass{}
@@ -331,12 +331,12 @@ type ContainerClass struct {
 }
 
 // GetReclaimPolicy of this ContainerClass.
-func (i *ContainerClass) GetReclaimPolicy() v1alpha1.ReclaimPolicy {
+func (i *ContainerClass) GetReclaimPolicy() runtimev1alpha1.ReclaimPolicy {
 	return i.SpecTemplate.ReclaimPolicy
 }
 
 // SetReclaimPolicy of this ContainerClass.
-func (i *ContainerClass) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) {
+func (i *ContainerClass) SetReclaimPolicy(p runtimev1alpha1.ReclaimPolicy) {
 	i.SpecTemplate.ReclaimPolicy = p
 }
 

@@ -28,14 +28,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
+	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
 	"github.com/crossplaneio/crossplane/azure/apis/cache/v1alpha1"
 	azurev1alpha1 "github.com/crossplaneio/crossplane/azure/apis/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/clients/azure"
 	"github.com/crossplaneio/crossplane/pkg/clients/azure/redis"
-	"github.com/crossplaneio/crossplane/pkg/logging"
-	"github.com/crossplaneio/crossplane/pkg/meta"
-	"github.com/crossplaneio/crossplane/pkg/resource"
 )
 
 const (
@@ -89,16 +89,16 @@ type azureRedisCache struct {
 }
 
 func (a *azureRedisCache) Create(ctx context.Context, r *v1alpha1.Redis) bool {
-	r.Status.SetConditions(corev1alpha1.Creating())
+	r.Status.SetConditions(runtimev1alpha1.Creating())
 	n := redis.NewResourceName(r)
 	if _, err := a.client.Create(ctx, r.Spec.ResourceGroupName, n, redis.NewCreateParameters(r)); err != nil {
-		r.Status.SetConditions(corev1alpha1.ReconcileError(err))
+		r.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
 		return true
 	}
 
 	r.Status.ResourceName = n
 	meta.AddFinalizer(r, finalizerName)
-	r.Status.SetConditions(corev1alpha1.ReconcileSuccess())
+	r.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
 	return true
 }
 
@@ -106,7 +106,7 @@ func (a *azureRedisCache) Sync(ctx context.Context, r *v1alpha1.Redis) bool {
 	n := redis.NewResourceName(r)
 	cacheResource, err := a.client.Get(ctx, r.Spec.ResourceGroupName, n)
 	if err != nil {
-		r.Status.SetConditions(corev1alpha1.ReconcileError(err))
+		r.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
 		return true
 	}
 
@@ -118,18 +118,18 @@ func (a *azureRedisCache) Sync(ctx context.Context, r *v1alpha1.Redis) bool {
 		// portal shows an instance as 'Ready', but the API shows only that the
 		// provisioning state is 'Succeeded'. It's a little weird to see a Redis
 		// resource in state 'Succeeded' in kubectl.
-		r.Status.SetConditions(corev1alpha1.Available())
+		r.Status.SetConditions(runtimev1alpha1.Available())
 		resource.SetBindable(r)
 	case v1alpha1.ProvisioningStateCreating:
-		r.Status.SetConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileSuccess())
+		r.Status.SetConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileSuccess())
 		return true
 	case v1alpha1.ProvisioningStateDeleting:
-		r.Status.SetConditions(corev1alpha1.Deleting(), corev1alpha1.ReconcileSuccess())
+		r.Status.SetConditions(runtimev1alpha1.Deleting(), runtimev1alpha1.ReconcileSuccess())
 		return false
 	default:
 		// TODO(negz): Don't requeue in this scenario? The instance could be
 		// failed, disabled, scaling, etc.
-		r.Status.SetConditions(corev1alpha1.ReconcileSuccess())
+		r.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
 		return true
 	}
 
@@ -140,29 +140,29 @@ func (a *azureRedisCache) Sync(ctx context.Context, r *v1alpha1.Redis) bool {
 	r.Status.ProviderID = azure.ToString(cacheResource.ID)
 
 	if !redis.NeedsUpdate(r, cacheResource) {
-		r.Status.SetConditions(corev1alpha1.ReconcileSuccess())
+		r.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
 		return false
 	}
 
 	if _, err := a.client.Update(ctx, r.Spec.ResourceGroupName, n, redis.NewUpdateParameters(r)); err != nil {
-		r.Status.SetConditions(corev1alpha1.ReconcileError(err))
+		r.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
 		return true
 	}
 
-	r.Status.SetConditions(corev1alpha1.ReconcileSuccess())
+	r.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
 	return false
 }
 
 func (a *azureRedisCache) Delete(ctx context.Context, r *v1alpha1.Redis) bool {
-	r.Status.SetConditions(corev1alpha1.Deleting())
-	if r.Spec.ReclaimPolicy == corev1alpha1.ReclaimDelete {
+	r.Status.SetConditions(runtimev1alpha1.Deleting())
+	if r.Spec.ReclaimPolicy == runtimev1alpha1.ReclaimDelete {
 		if _, err := a.client.Delete(ctx, r.Spec.ResourceGroupName, redis.NewResourceName(r)); err != nil {
-			r.Status.SetConditions(corev1alpha1.ReconcileError(err))
+			r.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
 			return true
 		}
 	}
 	meta.RemoveFinalizer(r, finalizerName)
-	r.Status.SetConditions(corev1alpha1.ReconcileSuccess())
+	r.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
 	return false
 }
 
@@ -170,7 +170,7 @@ func (a *azureRedisCache) Key(ctx context.Context, r *v1alpha1.Redis) string {
 	n := redis.NewResourceName(r)
 	k, err := a.client.ListKeys(ctx, r.Spec.ResourceGroupName, n)
 	if err != nil {
-		r.Status.SetConditions(corev1alpha1.ReconcileError(err))
+		r.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
 		return ""
 	}
 	return azure.ToString(k.PrimaryKey)
@@ -252,7 +252,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	client, err := r.Connect(ctx, rd)
 	if err != nil {
-		rd.Status.SetConditions(corev1alpha1.ReconcileError(err))
+		rd.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}, errors.Wrapf(r.kube.Update(ctx, rd), "cannot update resource %s", req.NamespacedName)
 	}
 
@@ -267,7 +267,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	}
 
 	if err := r.upsertSecret(ctx, connectionSecret(rd, client.Key(ctx, rd))); err != nil {
-		rd.Status.SetConditions(corev1alpha1.ReconcileError(err))
+		rd.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}, errors.Wrapf(r.kube.Update(ctx, rd), "cannot update resource %s", req.NamespacedName)
 	}
 
@@ -292,8 +292,8 @@ func connectionSecret(r *v1alpha1.Redis, accessKey string) *corev1.Secret {
 	// TODO(negz): Include the ports here too?
 	// TODO(negz): Include both access keys? Azure has two because reasons.
 	s.Data = map[string][]byte{
-		corev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(r.Status.Endpoint),
-		corev1alpha1.ResourceCredentialsSecretPasswordKey: []byte(accessKey),
+		runtimev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(r.Status.Endpoint),
+		runtimev1alpha1.ResourceCredentialsSecretPasswordKey: []byte(accessKey),
 	}
 	return s
 }

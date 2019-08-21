@@ -26,10 +26,10 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
 	databasev1alpha1 "github.com/crossplaneio/crossplane/apis/database/v1alpha1"
 	"github.com/crossplaneio/crossplane/aws/apis/database/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/resource"
 )
 
 // PostgreSQLInstanceClaimController is responsible for adding the PostgreSQLInstance
@@ -102,8 +102,8 @@ func ConfigurePostgreRDSInstance(_ context.Context, cm resource.Claim, cs resour
 	}
 
 	spec := &v1alpha1.RDSInstanceSpec{
-		ResourceSpec: corev1alpha1.ResourceSpec{
-			ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		ResourceSpec: runtimev1alpha1.ResourceSpec{
+			ReclaimPolicy: runtimev1alpha1.ReclaimRetain,
 		},
 		RDSInstanceParameters: rs.SpecTemplate.RDSInstanceParameters,
 	}
@@ -143,8 +143,8 @@ func ConfigureMyRDSInstance(_ context.Context, cm resource.Claim, cs resource.Cl
 	}
 
 	spec := &v1alpha1.RDSInstanceSpec{
-		ResourceSpec: corev1alpha1.ResourceSpec{
-			ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		ResourceSpec: runtimev1alpha1.ResourceSpec{
+			ReclaimPolicy: runtimev1alpha1.ReclaimRetain,
 		},
 		RDSInstanceParameters: rs.SpecTemplate.RDSInstanceParameters,
 	}

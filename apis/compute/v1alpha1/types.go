@@ -20,13 +20,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/crossplaneio/crossplane/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/resource"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
 )
 
 // KubernetesClusterSpec specifies the configuration of a Kubernetes cluster.
 type KubernetesClusterSpec struct {
-	v1alpha1.ResourceClaimSpec `json:",inline"`
+	runtimev1alpha1.ResourceClaimSpec `json:",inline"`
 
 	// cluster properties
 	ClusterVersion string `json:"clusterVersion,omitempty"`
@@ -44,22 +44,22 @@ type KubernetesCluster struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   KubernetesClusterSpec        `json:"spec,omitempty"`
-	Status v1alpha1.ResourceClaimStatus `json:"status,omitempty"`
+	Spec   KubernetesClusterSpec               `json:"spec,omitempty"`
+	Status runtimev1alpha1.ResourceClaimStatus `json:"status,omitempty"`
 }
 
 // SetBindingPhase of this KubernetesCluster.
-func (kc *KubernetesCluster) SetBindingPhase(p v1alpha1.BindingPhase) {
+func (kc *KubernetesCluster) SetBindingPhase(p runtimev1alpha1.BindingPhase) {
 	kc.Status.SetBindingPhase(p)
 }
 
 // GetBindingPhase of this KubernetesCluster.
-func (kc *KubernetesCluster) GetBindingPhase() v1alpha1.BindingPhase {
+func (kc *KubernetesCluster) GetBindingPhase() runtimev1alpha1.BindingPhase {
 	return kc.Status.GetBindingPhase()
 }
 
 // SetConditions of this KubernetesCluster.
-func (kc *KubernetesCluster) SetConditions(c ...v1alpha1.Condition) {
+func (kc *KubernetesCluster) SetConditions(c ...runtimev1alpha1.Condition) {
 	kc.Status.SetConditions(c...)
 }
 
@@ -122,7 +122,7 @@ type KubernetesClusterPolicy struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	v1alpha1.Policy `json:",inline"`
+	runtimev1alpha1.Policy `json:",inline"`
 }
 
 // All policy lists must satisfy the PolicyList interface

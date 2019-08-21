@@ -40,11 +40,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
+	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 	computev1alpha1 "github.com/crossplaneio/crossplane/apis/compute/v1alpha1"
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/apis/workload/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/meta"
-	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
 const (
@@ -67,7 +67,7 @@ var (
 	cluster = &computev1alpha1.KubernetesCluster{
 		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: "coolCluster"},
 		Spec: computev1alpha1.KubernetesClusterSpec{
-			ResourceClaimSpec: corev1alpha1.ResourceClaimSpec{
+			ResourceClaimSpec: runtimev1alpha1.ResourceClaimSpec{
 				WriteConnectionSecretToReference: corev1.LocalObjectReference{Name: secret.GetName()},
 			},
 		},
@@ -89,13 +89,13 @@ var (
 			},
 		},
 		Data: map[string][]byte{
-			corev1alpha1.ResourceCredentialsSecretEndpointKey:   []byte(apiServerURL.String()),
-			corev1alpha1.ResourceCredentialsSecretUserKey:       []byte("user"),
-			corev1alpha1.ResourceCredentialsSecretPasswordKey:   []byte("password"),
-			corev1alpha1.ResourceCredentialsSecretCAKey:         []byte("secretCA"),
-			corev1alpha1.ResourceCredentialsSecretClientCertKey: []byte("clientCert"),
-			corev1alpha1.ResourceCredentialsSecretClientKeyKey:  []byte("clientKey"),
-			corev1alpha1.ResourceCredentialsTokenKey:            []byte("token"),
+			runtimev1alpha1.ResourceCredentialsSecretEndpointKey:   []byte(apiServerURL.String()),
+			runtimev1alpha1.ResourceCredentialsSecretUserKey:       []byte("user"),
+			runtimev1alpha1.ResourceCredentialsSecretPasswordKey:   []byte("password"),
+			runtimev1alpha1.ResourceCredentialsSecretCAKey:         []byte("secretCA"),
+			runtimev1alpha1.ResourceCredentialsSecretClientCertKey: []byte("clientCert"),
+			runtimev1alpha1.ResourceCredentialsSecretClientKeyKey:  []byte("clientKey"),
+			runtimev1alpha1.ResourceCredentialsTokenKey:            []byte("token"),
 		},
 	}
 
@@ -118,8 +118,8 @@ var (
 			},
 		},
 		Data: map[string][]byte{
-			corev1alpha1.ResourceCredentialsSecretUserKey:     []byte("user"),
-			corev1alpha1.ResourceCredentialsSecretPasswordKey: []byte("password"),
+			runtimev1alpha1.ResourceCredentialsSecretUserKey:     []byte("user"),
+			runtimev1alpha1.ResourceCredentialsSecretPasswordKey: []byte("password"),
 		},
 		Type: corev1.SecretTypeBasicAuth,
 	}
@@ -181,7 +181,7 @@ func withFinalizers(f ...string) kubeARModifier {
 	return func(r *v1alpha1.KubernetesApplicationResource) { r.ObjectMeta.Finalizers = f }
 }
 
-func withConditions(c ...corev1alpha1.Condition) kubeARModifier {
+func withConditions(c ...runtimev1alpha1.Condition) kubeARModifier {
 	return func(r *v1alpha1.KubernetesApplicationResource) { r.Status.SetConditions(c...) }
 }
 
@@ -417,7 +417,7 @@ func TestSync(t *testing.T) {
 			wantAR: kubeAR(
 				withTemplate(template(serviceWithoutNamespace)),
 				withFinalizers(finalizerName),
-				withConditions(corev1alpha1.ReconcileSuccess()),
+				withConditions(runtimev1alpha1.ReconcileSuccess()),
 				withState(v1alpha1.KubernetesApplicationResourceStateSubmitted),
 				withRemoteStatus(remoteStatus),
 			),
@@ -429,7 +429,7 @@ func TestSync(t *testing.T) {
 			ar:     kubeAR(),
 			wantAR: kubeAR(
 				withFinalizers(finalizerName),
-				withConditions(corev1alpha1.ReconcileError(errMissingTemplate)),
+				withConditions(runtimev1alpha1.ReconcileError(errMissingTemplate)),
 				withState(v1alpha1.KubernetesApplicationResourceStateFailed),
 			),
 			wantResult: reconcile.Result{Requeue: true},
@@ -465,7 +465,7 @@ func TestSync(t *testing.T) {
 			wantAR: kubeAR(
 				withTemplate(template(serviceWithoutNamespace)),
 				withFinalizers(finalizerName),
-				withConditions(corev1alpha1.ReconcileSuccess()),
+				withConditions(runtimev1alpha1.ReconcileSuccess()),
 				withState(v1alpha1.KubernetesApplicationResourceStateSubmitted),
 				withRemoteStatus(remoteStatus),
 			),
@@ -481,7 +481,7 @@ func TestSync(t *testing.T) {
 			wantAR: kubeAR(
 				withTemplate(template(serviceWithoutNamespace)),
 				withFinalizers(finalizerName),
-				withConditions(corev1alpha1.ReconcileError(errorBoom)),
+				withConditions(runtimev1alpha1.ReconcileError(errorBoom)),
 				withState(v1alpha1.KubernetesApplicationResourceStateFailed),
 			),
 			wantResult: reconcile.Result{Requeue: true},
@@ -500,7 +500,7 @@ func TestSync(t *testing.T) {
 				withTemplate(template(serviceWithoutNamespace)),
 				withFinalizers(finalizerName),
 				withRemoteStatus(remoteStatus),
-				withConditions(corev1alpha1.ReconcileError(errorBoom)),
+				withConditions(runtimev1alpha1.ReconcileError(errorBoom)),
 				withState(v1alpha1.KubernetesApplicationResourceStateFailed),
 			),
 			wantResult: reconcile.Result{Requeue: true},
@@ -514,7 +514,7 @@ func TestSync(t *testing.T) {
 			wantAR: kubeAR(
 				withTemplate(template(serviceWithoutNamespace)),
 				withFinalizers(finalizerName),
-				withConditions(corev1alpha1.ReconcileError(errorBoom)),
+				withConditions(runtimev1alpha1.ReconcileError(errorBoom)),
 				withState(v1alpha1.KubernetesApplicationResourceStateFailed),
 				withRemoteStatus(remoteStatus),
 			),
@@ -588,7 +588,7 @@ func TestDelete(t *testing.T) {
 			),
 			secrets: []corev1.Secret{*secret},
 			wantAR: kubeAR(
-				withConditions(corev1alpha1.ReconcileSuccess()),
+				withConditions(runtimev1alpha1.ReconcileSuccess()),
 				withTemplate(template(service)),
 			),
 			wantResult: reconcile.Result{Requeue: false},
@@ -601,7 +601,7 @@ func TestDelete(t *testing.T) {
 			),
 			wantAR: kubeAR(
 				withFinalizers(finalizerName),
-				withConditions(corev1alpha1.ReconcileError(errMissingTemplate)),
+				withConditions(runtimev1alpha1.ReconcileError(errMissingTemplate)),
 				withState(v1alpha1.KubernetesApplicationResourceStateFailed),
 			),
 			wantResult: reconcile.Result{Requeue: true},
@@ -620,7 +620,7 @@ func TestDelete(t *testing.T) {
 			wantAR: kubeAR(
 				withFinalizers(finalizerName),
 				withTemplate(template(serviceWithoutNamespace)),
-				withConditions(corev1alpha1.ReconcileError(errorBoom)),
+				withConditions(runtimev1alpha1.ReconcileError(errorBoom)),
 				withState(v1alpha1.KubernetesApplicationResourceStateFailed),
 			),
 			wantResult: reconcile.Result{Requeue: true},
@@ -637,7 +637,7 @@ func TestDelete(t *testing.T) {
 			wantAR: kubeAR(
 				withFinalizers(finalizerName),
 				withTemplate(template(serviceWithoutNamespace)),
-				withConditions(corev1alpha1.ReconcileError(errorBoom)),
+				withConditions(runtimev1alpha1.ReconcileError(errorBoom)),
 				withState(v1alpha1.KubernetesApplicationResourceStateFailed),
 			),
 			wantResult: reconcile.Result{Requeue: true},
@@ -1034,15 +1034,15 @@ func TestConnectConfig(t *testing.T) {
 			ar: kubeAR(withCluster(clusterRef)),
 			wantConfig: &rest.Config{
 				Host:     apiServerURL.String(),
-				Username: string(secret.Data[corev1alpha1.ResourceCredentialsSecretUserKey]),
-				Password: string(secret.Data[corev1alpha1.ResourceCredentialsSecretPasswordKey]),
+				Username: string(secret.Data[runtimev1alpha1.ResourceCredentialsSecretUserKey]),
+				Password: string(secret.Data[runtimev1alpha1.ResourceCredentialsSecretPasswordKey]),
 				TLSClientConfig: rest.TLSClientConfig{
 					ServerName: apiServerURL.Hostname(),
-					CAData:     secret.Data[corev1alpha1.ResourceCredentialsSecretCAKey],
-					CertData:   secret.Data[corev1alpha1.ResourceCredentialsSecretClientCertKey],
-					KeyData:    secret.Data[corev1alpha1.ResourceCredentialsSecretClientKeyKey],
+					CAData:     secret.Data[runtimev1alpha1.ResourceCredentialsSecretCAKey],
+					CertData:   secret.Data[runtimev1alpha1.ResourceCredentialsSecretClientCertKey],
+					KeyData:    secret.Data[runtimev1alpha1.ResourceCredentialsSecretClientKeyKey],
 				},
-				BearerToken: string(secret.Data[corev1alpha1.ResourceCredentialsTokenKey]),
+				BearerToken: string(secret.Data[runtimev1alpha1.ResourceCredentialsTokenKey]),
 			},
 			wantErr: nil,
 		},
@@ -1089,7 +1089,7 @@ func TestConnectConfig(t *testing.T) {
 					MockGet: func(_ context.Context, _ client.ObjectKey, obj runtime.Object) error {
 						if actual, ok := obj.(*corev1.Secret); ok {
 							s := secret.DeepCopy()
-							s.Data[corev1alpha1.ResourceCredentialsSecretEndpointKey] = []byte(malformedURL)
+							s.Data[runtimev1alpha1.ResourceCredentialsSecretEndpointKey] = []byte(malformedURL)
 							*actual = *s
 						}
 						return nil
@@ -1261,7 +1261,7 @@ func TestReconcile(t *testing.T) {
 						got := obj.(*v1alpha1.KubernetesApplicationResource)
 
 						want := kubeAR(
-							withConditions(corev1alpha1.ReconcileError(errorBoom)),
+							withConditions(runtimev1alpha1.ReconcileError(errorBoom)),
 						)
 
 						if diff := cmp.Diff(want, got); diff != "" {
@@ -1403,7 +1403,7 @@ func TestGetConnectionSecrets(t *testing.T) {
 			),
 			wantAR: kubeAR(
 				withSecrets(secretLocalObjectRef),
-				withConditions(corev1alpha1.ReconcileError(errorBoom)),
+				withConditions(runtimev1alpha1.ReconcileError(errorBoom)),
 			),
 			wantSecrets: []corev1.Secret{},
 		},

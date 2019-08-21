@@ -37,11 +37,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 	azuredbv1alpha1 "github.com/crossplaneio/crossplane/azure/apis/database/v1alpha1"
 	"github.com/crossplaneio/crossplane/azure/apis/v1alpha1"
 	azureclients "github.com/crossplaneio/crossplane/pkg/clients/azure"
-	"github.com/crossplaneio/crossplane/pkg/test"
 )
 
 type mockSQLServerClient struct {
@@ -187,7 +187,7 @@ func TestReconcile(t *testing.T) {
 		RunningOperation:     "mocked marshalled create future",
 		RunningOperationType: azuredbv1alpha1.OperationCreateServer,
 	}
-	expectedStatus.SetConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileSuccess())
+	expectedStatus.SetConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileSuccess())
 	assertSQLServerStatus(g, c, expectedStatus)
 
 	// 2nd reconcile should finish the create server operation and clear out the running operation field
@@ -195,7 +195,7 @@ func TestReconcile(t *testing.T) {
 	expectedStatus = azuredbv1alpha1.SQLServerStatus{
 		RunningOperation: "",
 	}
-	expectedStatus.SetConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileSuccess())
+	expectedStatus.SetConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileSuccess())
 	assertSQLServerStatus(g, c, expectedStatus)
 
 	// 3rd reconcile should see that there is no firewall rule yet and try to create it
@@ -204,7 +204,7 @@ func TestReconcile(t *testing.T) {
 		RunningOperation:     "mocked marshalled firewall create future",
 		RunningOperationType: azuredbv1alpha1.OperationCreateFirewallRules,
 	}
-	expectedStatus.SetConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileSuccess())
+	expectedStatus.SetConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileSuccess())
 	assertSQLServerStatus(g, c, expectedStatus)
 
 	// 4th reconcile should finish the create firewall operation and clear out the running operation field
@@ -212,7 +212,7 @@ func TestReconcile(t *testing.T) {
 	expectedStatus = azuredbv1alpha1.SQLServerStatus{
 		RunningOperation: "",
 	}
-	expectedStatus.SetConditions(corev1alpha1.Creating(), corev1alpha1.ReconcileSuccess())
+	expectedStatus.SetConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileSuccess())
 	assertSQLServerStatus(g, c, expectedStatus)
 
 	// 5th reconcile should find the SQL Server instance from Azure and update the full status of the CRD
@@ -226,7 +226,7 @@ func TestReconcile(t *testing.T) {
 		ProviderID: instanceName + "-azure-id",
 		Endpoint:   instanceName + ".mydomain.azure.msft.com",
 	}
-	expectedStatus.SetConditions(corev1alpha1.Available(), corev1alpha1.ReconcileSuccess())
+	expectedStatus.SetConditions(runtimev1alpha1.Available(), runtimev1alpha1.ReconcileSuccess())
 	assertSQLServerStatus(g, c, expectedStatus)
 
 	// wait for the connection information to be stored in a secret, then verify it
@@ -240,7 +240,7 @@ func TestReconcile(t *testing.T) {
 			t.Logf("cannot get connection secret: %s", err)
 			continue
 		}
-		if string(connectionSecret.Data[corev1alpha1.ResourceCredentialsSecretEndpointKey]) != "" {
+		if string(connectionSecret.Data[runtimev1alpha1.ResourceCredentialsSecretEndpointKey]) != "" {
 			break
 		}
 		t.Logf("connection secret endpoint is empty")
@@ -311,7 +311,7 @@ func assertConnectionSecret(g *gomega.GomegaWithT, c client.Client, connectionSe
 	err := c.Get(ctx, expectedRequest.NamespacedName, instance)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
-	g.Expect(string(connectionSecret.Data[corev1alpha1.ResourceCredentialsSecretEndpointKey])).To(gomega.Equal(instance.Status.Endpoint))
-	g.Expect(string(connectionSecret.Data[corev1alpha1.ResourceCredentialsSecretUserKey])).To(gomega.Equal(instance.Spec.AdminLoginName + "@" + instanceName))
-	g.Expect(string(connectionSecret.Data[corev1alpha1.ResourceCredentialsSecretPasswordKey])).NotTo(gomega.BeEmpty())
+	g.Expect(string(connectionSecret.Data[runtimev1alpha1.ResourceCredentialsSecretEndpointKey])).To(gomega.Equal(instance.Status.Endpoint))
+	g.Expect(string(connectionSecret.Data[runtimev1alpha1.ResourceCredentialsSecretUserKey])).To(gomega.Equal(instance.Spec.AdminLoginName + "@" + instanceName))
+	g.Expect(string(connectionSecret.Data[runtimev1alpha1.ResourceCredentialsSecretPasswordKey])).NotTo(gomega.BeEmpty())
 }
