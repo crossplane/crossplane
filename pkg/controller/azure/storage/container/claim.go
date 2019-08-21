@@ -53,13 +53,11 @@ func (c *ClaimController) SetupWithManager(mgr ctrl.Manager) error {
 
 	name := strings.ToLower(fmt.Sprintf("%s.%s", storagev1alpha1.BucketKind, controllerName))
 
-	p := v1alpha1.ContainerKindAPIVersion
-
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		Watches(&source.Kind{Type: &v1alpha1.Container{}}, &resource.EnqueueRequestForClaim{}).
 		For(&storagev1alpha1.Bucket{}).
-		WithEventFilter(resource.NewPredicates(resource.ObjectHasProvisioner(mgr.GetClient(), p))).
+		WithEventFilter(resource.NewPredicates(resource.HasClassReferenceKind(resource.ClassKind(v1alpha1.ContainerClassGroupVersionKind)))).
 		Complete(r)
 }
 
