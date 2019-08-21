@@ -158,7 +158,7 @@ func (r *Reconciler) _create(instance *awscomputev1alpha1.EKSCluster, client eks
 	clusterName := fmt.Sprintf("%s%s", clusterNamePrefix, instance.UID)
 
 	// Create Master
-	_, err := client.Create(clusterName, instance.Spec)
+	createdCluster, err := client.Create(clusterName, instance.Spec)
 	if err != nil && !eks.IsErrorAlreadyExists(err) {
 		if eks.IsErrorBadRequest(err) {
 			// do not requeue on bad requests
@@ -167,6 +167,10 @@ func (r *Reconciler) _create(instance *awscomputev1alpha1.EKSCluster, client eks
 		}
 		return r.fail(instance, err)
 	}
+
+	// we will need to set State.ClusterVersion it. this is needed to retrieve
+	// the right ami image for the worker nodes
+	instance.Status.ClusterVersion = createdCluster.Version
 
 	// Update status
 	instance.Status.State = awscomputev1alpha1.ClusterStatusCreating
@@ -275,7 +279,7 @@ func (r *Reconciler) _sync(instance *awscomputev1alpha1.EKSCluster, client eks.C
 
 	// Create workers
 	if instance.Status.CloudFormationStackID == "" {
-		clusterWorkers, err := client.CreateWorkerNodes(instance.Status.ClusterName, instance.Spec)
+		clusterWorkers, err := client.CreateWorkerNodes(instance.Status.ClusterName, instance.Status.ClusterVersion, instance.Spec)
 		if err != nil {
 			return r.fail(instance, err)
 		}

@@ -111,7 +111,7 @@
   revision = "c3de453c63f4bdb4dadffab9805ec00426c505f7"
 
 [[projects]]
-  digest = "1:378174897ec9eb7ba43e1d824887022a208b2d8b2de365c63c66a20301e8a578"
+  digest = "1:cfbe6bd4d33f94ed763f6a1d3e1909ad1a1b82372038f0aa3ac5e894af99359a"
   name = "github.com/aws/aws-sdk-go-v2"
   packages = [
     "aws",
@@ -129,6 +129,7 @@
     "internal/ini",
     "internal/sdk",
     "private/protocol",
+    "private/protocol/ec2query",
     "private/protocol/json",
     "private/protocol/json/jsonutil",
     "private/protocol/jsonrpc",
@@ -142,6 +143,7 @@
     "service/cloudformation",
     "service/cloudformation/cloudformationiface",
     "service/eks",
+    "service/ec2",
     "service/eks/eksiface",
     "service/elasticache",
     "service/elasticache/elasticacheiface",
@@ -1453,6 +1455,7 @@
     "github.com/aws/aws-sdk-go-v2/aws/external",
     "github.com/aws/aws-sdk-go-v2/service/cloudformation",
     "github.com/aws/aws-sdk-go-v2/service/cloudformation/cloudformationiface",
+    "github.com/aws/aws-sdk-go-v2/service/ec2",
     "github.com/aws/aws-sdk-go-v2/service/eks",
     "github.com/aws/aws-sdk-go-v2/service/eks/eksiface",
     "github.com/aws/aws-sdk-go-v2/service/elasticache",

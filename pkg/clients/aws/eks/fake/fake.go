@@ -27,7 +27,7 @@ type MockEKSClient struct {
 	MockGet               func(string) (*eks.Cluster, error)
 	MockDelete            func(name string) error
 	MockConnectionToken   func(string) (string, error)
-	MockCreateWorkerNodes func(string, v1alpha1.EKSClusterSpec) (*eks.ClusterWorkers, error)
+	MockCreateWorkerNodes func(string, string, v1alpha1.EKSClusterSpec) (*eks.ClusterWorkers, error)
 	MockGetWorkerNodes    func(string) (*eks.ClusterWorkers, error)
 	MockDeleteWorkerNodes func(string) error
 }
@@ -53,8 +53,8 @@ func (m *MockEKSClient) ConnectionToken(name string) (string, error) {
 }
 
 // CreateWorkerNodes mock
-func (m *MockEKSClient) CreateWorkerNodes(name string, spec v1alpha1.EKSClusterSpec) (*eks.ClusterWorkers, error) {
-	return m.MockCreateWorkerNodes(name, spec)
+func (m *MockEKSClient) CreateWorkerNodes(name string, version string, spec v1alpha1.EKSClusterSpec) (*eks.ClusterWorkers, error) {
+	return m.MockCreateWorkerNodes(name, version, spec)
 }
 
 // GetWorkerNodes mock

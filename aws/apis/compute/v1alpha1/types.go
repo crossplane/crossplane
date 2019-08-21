@@ -17,8 +17,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"fmt"
-
 	"github.com/crossplaneio/crossplane/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/resource"
 
@@ -50,15 +48,6 @@ const (
 	EKSRegionUSEast2 EKSRegion = "us-east-2"
 	// EKSRegionEUWest1 - eu-west-1 (Ireland) region for eks cluster
 	EKSRegionEUWest1 EKSRegion = "eu-west-1"
-)
-
-var (
-	workerNodeRegionAMI = map[EKSRegion]string{
-		EKSRegionUSWest2: "ami-0f54a2f7d2e9c88b3",
-		EKSRegionUSEast1: "ami-0a0b913ef3249b655",
-		EKSRegionUSEast2: "ami-0958a76db2d150238",
-		EKSRegionEUWest1: "ami-00c3b2d35bddd4f5c",
-	}
 )
 
 // EKSClusterParameters defines the desired state of EKSCluster
@@ -220,6 +209,8 @@ type EKSClusterStatus struct {
 	State string `json:"state,omitempty"`
 	// ClusterName identifier
 	ClusterName string `json:"resourceName,omitempty"`
+	// ClusterVersion identifier
+	ClusterVersion string `json:"resourceVersion,omitempty"`
 	// Endpoint for cluster
 	Endpoint string `json:"endpoint,omitempty"`
 	// CloudFormationStackID Stack-id
@@ -347,12 +338,4 @@ type EKSClusterClassList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []EKSClusterClass `json:"items"`
-}
-
-// GetRegionAMI returns the default ami id for a given EKS region
-func GetRegionAMI(region EKSRegion) (string, error) {
-	if val, ok := workerNodeRegionAMI[region]; ok {
-		return val, nil
-	}
-	return "", fmt.Errorf("not a valid EKS region, %s", string(region))
 }
