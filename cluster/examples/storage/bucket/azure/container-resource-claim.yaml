@@ -5,5 +5,7 @@ metadata:
   name: storagecontainer
 spec:
   classRef:
+    kind: ContainerClass
+    apiVersion: storage.azure.crossplane.io/v1alpha1
     name: storagecontainer
     namespace: crossplane-system

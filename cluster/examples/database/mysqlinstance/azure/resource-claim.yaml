@@ -5,6 +5,8 @@ metadata:
   name: sqlservermysql
 spec:
   classRef:
+    kind: SQLServerClass
+    apiVersion: database.azure.crossplane.io/v1alpha1
     name: sqlservermysql
     namespace: crossplane-system
   writeConnectionSecretToRef:
