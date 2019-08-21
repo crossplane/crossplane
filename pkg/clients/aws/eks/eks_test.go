@@ -1,23 +1,35 @@
 package eks
 
 import (
+	"net/http"
 	"os"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/aws/external"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/onsi/gomega"
 )
 
 // MockAMIClient mocks AMI client which is used to get information about AMI images
 type MockAMIClient struct {
-	MockDescribeImages func(*ec2.DescribeImagesInput) (*ec2.DescribeImagesOutput, error)
+	MockImages  []ec2.Image
+	VerifyInput func(input *ec2.DescribeImagesInput)
 }
 
-// DescribeImages Describes AMI images for the given input
-func (m *MockAMIClient) DescribeImages(input *ec2.DescribeImagesInput) (*ec2.DescribeImagesOutput, error) {
-	return m.MockDescribeImages(input)
+// DescribeImagesRequest creates a DescribesImagesRequest
+func (m *MockAMIClient) DescribeImagesRequest(input *ec2.DescribeImagesInput) ec2.DescribeImagesRequest {
+	if m.VerifyInput != nil {
+		m.VerifyInput(input)
+	}
+
+	return ec2.DescribeImagesRequest{
+		Request: &aws.Request{
+			HTTPRequest: &http.Request{},
+			Data: &ec2.DescribeImagesOutput{
+				Images: m.MockImages,
+			},
+		},
+	}
 }
 
 var mockImages = []*ec2.Image{
@@ -80,19 +92,19 @@ func Test_GetAvailableImages_ValidVersion_ReturnsExpected(t *testing.T) {
 	expected := []*ec2.Image{{ImageId: aws.String("someami")}}
 	g := gomega.NewGomegaWithT(t)
 	mockEKSClient := eksClient{amiClient: &MockAMIClient{
-		MockDescribeImages: func(input *ec2.DescribeImagesInput) (*ec2.DescribeImagesOutput, error) {
+
+		VerifyInput: func(input *ec2.DescribeImagesInput) {
 			g.Expect(len(input.Filters)).To(gomega.Equal(2))
 			for _, f := range input.Filters {
 				switch *f.Name {
 				case "name":
-					g.Expect(*f.Values[0]).To(gomega.Equal("*amazon-eks-node-1.13*"))
+					g.Expect(f.Values[0]).To(gomega.Equal("*amazon-eks-node-1.13*"))
 				case "state":
-					g.Expect(*f.Values[0]).To(gomega.Equal("available"))
+					g.Expect(f.Values[0]).To(gomega.Equal("available"))
 				}
 			}
-
-			return &ec2.DescribeImagesOutput{Images: expected}, nil
 		},
+		MockImages: []ec2.Image{*expected[0]},
 	}}
 	res, err := mockEKSClient.getAvailableImages(mockClusterVersion)
 	g.Expect(res).To(gomega.Equal(expected))
@@ -114,10 +126,7 @@ func Test_GetAMIImage_SpecificAMI_ReturnsExpected(t *testing.T) {
 	mockClusterVersion := "v1.13.7"
 	g := gomega.NewGomegaWithT(t)
 	mockEKSClient := eksClient{amiClient: &MockAMIClient{
-		MockDescribeImages: func(input *ec2.DescribeImagesInput) (*ec2.DescribeImagesOutput, error) {
-
-			return &ec2.DescribeImagesOutput{Images: mockImages}, nil
-		},
+		MockImages: []ec2.Image{*mockImages[0], *mockImages[1], *mockImages[2]},
 	}}
 
 	// request specific ami
@@ -131,9 +140,7 @@ func Test_GetAMIImage_NoAMIGiven_ReturnsMostRecent(t *testing.T) {
 	mockClusterVersion := "v1.13.7"
 	g := gomega.NewGomegaWithT(t)
 	mockEKSClient := eksClient{amiClient: &MockAMIClient{
-		MockDescribeImages: func(input *ec2.DescribeImagesInput) (*ec2.DescribeImagesOutput, error) {
-			return &ec2.DescribeImagesOutput{Images: mockImages}, nil
-		},
+		MockImages: []ec2.Image{*mockImages[0], *mockImages[1], *mockImages[2]},
 	}}
 
 	// no specific ami is given (returns the most recent one)
@@ -147,9 +154,7 @@ func Test_GetAMIImage_NoAvailableAMI_ReturnsError(t *testing.T) {
 	mockClusterVersion := "v1.13.7"
 	g := gomega.NewGomegaWithT(t)
 	mockEKSClient := eksClient{amiClient: &MockAMIClient{
-		MockDescribeImages: func(input *ec2.DescribeImagesInput) (*ec2.DescribeImagesOutput, error) {
-			return &ec2.DescribeImagesOutput{Images: []*ec2.Image{}}, nil
-		},
+		MockImages: []ec2.Image{},
 	}}
 
 	// no images for the given cluster, returns an error
@@ -168,17 +173,4 @@ func Test_GetAMIImage_InvalidVersion_ReturnsError(t *testing.T) {
 
 	g.Expect(res).Should(gomega.BeNil())
 	g.Expect(err).ShouldNot(gomega.BeNil())
-}
-
-func Test_buildAWSSession_ReturnsExpected(t *testing.T) {
-	g := gomega.NewGomegaWithT(t)
-	config, _ := external.LoadDefaultAWSConfig(external.SharedConfig{
-		Credentials: aws.Credentials{
-			AccessKeyID:     "fakeid",
-			SecretAccessKey: "fakesecret",
-		},
-		Region: "fakeregion",
-	})
-
-	g.Expect(buildAWSSession(&config)).NotTo(gomega.BeNil())
 }

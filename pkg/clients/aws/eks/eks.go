@@ -20,7 +20,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -31,9 +30,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/eks"
 	"github.com/aws/aws-sdk-go-v2/service/eks/eksiface"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
-	aws1_16 "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
+
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 
 	awscomputev1alpha1 "github.com/crossplaneio/crossplane/aws/apis/compute/v1alpha1"
 	cfc "github.com/crossplaneio/crossplane/pkg/clients/aws/cloudformation"
@@ -103,7 +101,7 @@ type Client interface {
 
 // AMIClient the interface for getting AMI images information
 type AMIClient interface {
-	DescribeImages(*ec2.DescribeImagesInput) (*ec2.DescribeImagesOutput, error)
+	DescribeImagesRequest(*ec2.DescribeImagesInput) ec2.DescribeImagesRequest
 }
 
 type eksClient struct {
@@ -115,37 +113,8 @@ type eksClient struct {
 
 // NewClient return new instance of the crossplane client for a specific AWS configuration
 func NewClient(config *aws.Config) Client {
-	return &eksClient{eks.New(*config), ec2.New(buildAWSSession((config))), sts.New(*config), cfc.NewClient(config)}
-}
-
-func buildAWSSession(config *aws.Config) *session.Session {
-	// the current functionality in ec2 instance (describe images) only
-	// is available in aws sdk v1.16+. Since instantiating an ec2 client
-	// uses a session instance, the following uses the existing aws config,
-	// and creates the session for sdk 1.16+
-	// TODO (javad): Remove this once we upgrade aws sdk to 1.16+
-	creds, err := config.Credentials.Retrieve()
-	if err != nil {
-		panic(err)
-	}
-	if err := os.Setenv("AWS_ACCESS_KEY_ID", creds.AccessKeyID); err != nil {
-		panic(err)
-	}
-	if err := os.Setenv("AWS_SECRET_ACCESS_KEY", creds.SecretAccessKey); err != nil {
-		panic(err)
-	}
-	session, err := session.NewSession(&aws1_16.Config{Region: &config.Region})
-	if err != nil {
-		panic(err)
-	}
-	if err := os.Setenv("AWS_ACCESS_KEY_ID", ""); err != nil {
-		panic(err)
-	}
-	if err := os.Setenv("AWS_SECRET_ACCESS_KEY", ""); err != nil {
-		panic(err)
-	}
-
-	return session
+	return &eksClient{eks.New(*config),
+		ec2.New(*config), sts.New(*config), cfc.NewClient(config)}
 }
 
 // Create new EKS cluster
@@ -310,24 +279,33 @@ func (e *eksClient) getAvailableImages(clusterVersion string) ([]*ec2.Image, err
 		"state": {"available"},
 	}
 
-	ec2Filters := []*ec2.Filter{}
+	ec2Filters := []ec2.Filter{}
 	for name, values := range filters {
-		ec2Filters = append(ec2Filters, &ec2.Filter{Name: aws.String(name), Values: aws.StringSlice(values)})
+		ec2Filters = append(ec2Filters, ec2.Filter{Name: aws.String(name), Values: values})
 	}
 
-	out, err := e.amiClient.DescribeImages(
-		&ec2.DescribeImagesInput{
-			Filters: ec2Filters,
-		})
+	request := e.amiClient.DescribeImagesRequest(&ec2.DescribeImagesInput{
+		Filters: ec2Filters,
+	})
+	out, err := request.Send()
 
-	return out.Images, err
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]*ec2.Image, len(out.Images))
+	for i := 0; i < len(out.Images); i++ {
+		result[i] = &out.Images[i]
+	}
+
+	return result, nil
 }
 
 func getMostRecentImage(images []*ec2.Image) *ec2.Image {
 	var result *ec2.Image
-	for _, img := range images {
-		if result == nil || aws.StringValue(result.CreationDate) < aws.StringValue(img.CreationDate) {
-			result = img
+	for i := 0; i < len(images); i++ {
+		if result == nil || aws.StringValue(result.CreationDate) < aws.StringValue(images[i].CreationDate) {
+			result = images[i]
 		}
 	}
 
