@@ -116,7 +116,8 @@ https://blog.codinghorror.com/code-tells-you-how-comments-tell-you-why/
 For Go, Crossplane follows standard godoc guidelines.
 A concise godoc guideline can be found here: https://blog.golang.org/godoc-documenting-go-code
 
-## Commit Messages
+## Commits
+### Commit Messages
 
 We follow a rough convention for commit messages that is designed to answer two
 questions: what changed and why. The subject line should feature the what and
@@ -143,6 +144,14 @@ The first line is the subject and should be no longer than 70 characters, the
 second line is always blank, and other lines should be wrapped at 80 characters.
 This allows the message to be easier to read on GitHub as well as in various
 git tools.
+
+### Commit History
+To prepare your branch to open a PR, you will need to have the minimal number of logical commits so we can maintain
+a clean commit history. Most commonly a PR will include a single commit where all changes are squashed, although
+sometimes there will be multiple logical commits. Please refer to [git documentation] for more information regarding rewriting the history. 
+
+#### Pull Request feedback commits
+When addressing pull request comments, individual commits could be created to clearly indicate the change that results from addressing in each iteration. However, once all comments are addressed and reviewer have signed off, the feedback commits should all be squashed into the original logical change commits.
 
 
 ## Adding New Resources
@@ -215,3 +224,7 @@ make build test
 ## Local Build and Test
 
 To learn more about the developer iteration workflow, including how to locally test new types/controllers, please refer to the [Local Build](cluster/local/README.md) instructions.
+
+
+
+[git documentation]: https://git-scm.com/book/en/v2/Git-Tools-Rewriting-History
