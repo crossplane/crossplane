@@ -34,6 +34,8 @@ spec:
           type: object
         spec:
           properties:
+            category:
+              type: string
             company:
               type: string
             controller:
@@ -3958,17 +3960,6 @@ spec:
               type: array
             license:
               type: string
-            links:
-              items:
-                properties:
-                  description:
-                    type: string
-                  url:
-                    type: string
-                required:
-                - url
-                type: object
-              type: array
             maintainers:
               items:
                 properties:
@@ -4017,9 +4008,13 @@ spec:
                     type: object
                   type: array
               type: object
+            source:
+              type: string
             title:
               type: string
             version:
+              type: string
+            website:
               type: string
           type: object
         status:

@@ -119,11 +119,8 @@ spec:
   - examples
   - tutorials
   license: Apache-2.0
-  links:
-  - description: Website
-    url: https://upbound.io
-  - description: Source Code
-    url: https://github.com/crossplaneio/sample-stack
+  website: https://upbound.io
+  source: https://github.com/crossplaneio/sample-stack
   maintainers:
   - email: jared@upbound.io
     name: Jared Watts

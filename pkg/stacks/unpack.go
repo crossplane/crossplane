@@ -17,320 +17,480 @@ limitations under the License.
 package stacks
 
 import (
-	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
-	"mime"
-	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/ghodss/yaml"
-	"github.com/spf13/afero"
+	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
-	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
+	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
 	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/stacks/walker"
 )
 
 const (
-	registryDirName         = ".registry"
-	resourcesDirName        = "resources"
 	installFileName         = "install.yaml"
+	resourceFileNamePattern = "*resource.yaml"
+	groupFileName           = "group.yaml"
 	appFileName             = "app.yaml"
 	permissionsFileName     = "rbac.yaml"
 	iconFileNamePattern     = "icon.*"
-	resourceFileNamePattern = "*crd.yaml"
+	crdFileNamePattern      = "*crd.yaml"
+	uiSpecFileNamePattern   = "*ui-schema.yaml"
+	uiSpecFileName          = "ui-schema.yaml" // global ui schema filename
 	yamlSeparator           = "\n---\n"
+
+	// Stack annotation constants
+	annotationStackIcon           = "stacks.crossplane.io/icon"
+	annotationStackUISpec         = "stacks.crossplane.io/ui-spec"
+	annotationStackTitle          = "stacks.crossplane.io/stack-title"
+	annotationGroupTitle          = "stacks.crossplane.io/group-title"
+	annotationGroupCategory       = "stacks.crossplane.io/group-category"
+	annotationGroupDescription    = "stacks.crossplane.io/group-description"
+	annotationResourceTitle       = "stacks.crossplane.io/resource-title"
+	annotationResourceTitlePlural = "stacks.crossplane.io/resource-title-plural"
+	annotationResourceCategory    = "stacks.crossplane.io/resource-category"
+	annotationResourceDescription = "stacks.crossplane.io/resource-description"
+	annotationKubernetesManagedBy = "app.kubernetes.io/managed-by"
 )
 
 var (
 	log = logging.Logger.WithName("stacks")
 )
 
-// Unpack unpacks the stack contents from the given directory.
-func Unpack(contentDir string) error {
-	log.V(logging.Debug).Info("Unpacking stack", "contentDir", contentDir)
-	fs := afero.NewOsFs()
-
-	registryRoot := findRegistryRoot(fs, contentDir)
-
-	content, err := doUnpack(fs, registryRoot)
-	if err != nil {
-		return err
-	}
-
-	// write content to stdout
-	_, err = os.Stdout.WriteString(content)
-
-	return err
+// StackResource provides the Stack metadata for a CRD. This is the format for resource.yaml files.
+type StackResource struct {
+	// ID refers to the CRD Kind
+	ID          string `json:"id"`
+	Title       string `json:"title"`
+	TitlePlural string `json:"title-plural"`
+	Description string `json:"description"`
+	Category    string `json:"category"`
 }
 
-func findRegistryRoot(fs afero.Fs, dir string) string {
-	if _, err := fs.Stat(filepath.Join(dir, registryDirName)); err == nil {
-		// the .registry subdir exists under the given dir, that must be the registry root
-		return filepath.Join(dir, registryDirName)
-	}
-
-	// didn't find a .registry subdir, the given dir must already be the root
-	return dir
+// StackGroup provides the Stack metadata for a resource group. This is the format for group.yaml files.
+type StackGroup struct {
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	Category    string `json:"category"`
 }
 
-func doUnpack(fs afero.Fs, root string) (string, error) { // nolint:gocyclo
-	// NOTE(displague): Adding Job put this over the cyclomatic complexity threshold.
-	// consider refactoring before adding more kinds
-	var output strings.Builder
+// StackPackager implentations can build a stack from Stack resources and emit the Yaml artifact
+type StackPackager interface {
+	SetApp(v1alpha1.AppMetadataSpec)
+	SetInstall(unstructured.Unstructured) error
+	SetRBAC(v1alpha1.PermissionsSpec)
 
-	// create a Stack record and populate it with the relevant package contents
-	v, k := v1alpha1.StackGroupVersionKind.ToAPIVersionAndKind()
-	stackRecord := &v1alpha1.Stack{TypeMeta: metav1.TypeMeta{APIVersion: v, Kind: k}}
+	GotApp() bool
 
-	// find all CRDs and add to the stack record and the output builder
-	crdList, crdContent, err := readResources(fs, root)
+	AddGroup(string, StackGroup)
+	AddResource(string, StackResource)
+	AddIcon(string, v1alpha1.IconSpec)
+	AddUI(string, string)
+	AddCRD(string, *apiextensions.CustomResourceDefinition)
+
+	Yaml() (string, error)
+}
+
+// StackPackage defines the artifact structure of Stacks
+// A fully processed Stack can be thought of as a Stack CR and
+// a collection of managed CRDs.  The Stack CR includes its
+// controller install and RBAC definitions. The managed CRDS are
+// annotated by their Stack resource, icon, group, and UI descriptors.
+type StackPackage struct {
+	// Stack is the Kubernetes API Stack representation
+	Stack v1alpha1.Stack
+
+	// CRDs map CRD files contained within a Stack by their GVK
+	CRDs map[string]apiextensions.CustomResourceDefinition
+	// TODO(displague) CRD "Version" has been deprecated in favor of multiple "Versions"
+
+	// CRDPaths map CRDs to the path they were found in
+	// Stack resources will be paired based on their path and the CRD path.
+	CRDPaths map[string]string
+
+	// Groups, Icons, Resources, and UISpecs are indexed by the filepath where they were found
+
+	Groups    map[string]StackGroup
+	Icons     map[string]*v1alpha1.IconSpec
+	Resources map[string]StackResource
+	UISpecs   map[string]string
+
+	// appSet indicates if a App has been assigned through SetApp (for use by GotApp)
+	appSet bool
+}
+
+// Yaml returns a multiple document YAML representation of the Stack Package
+// This YAML includes the Stack itself and and all CRDs managed by that Stack.
+func (sp *StackPackage) Yaml() (string, error) {
+	var builder strings.Builder
+
+	builder.WriteString(yamlSeparator)
+
+	// For testing, we want a predictable output order for CRDs
+	orderedKeys := orderStackCRDKeys(sp.CRDs)
+
+	for _, k := range orderedKeys {
+		crd := sp.CRDs[k]
+		b, err := yaml.Marshal(crd)
+		if err != nil {
+			return "", errors.Wrap(err, fmt.Sprintf("could not marshal CRD (%s)", crd.GroupVersionKind()))
+		}
+		builder.Write(b)
+		builder.WriteString(yamlSeparator)
+	}
+
+	b, err := yaml.Marshal(sp.Stack)
 	if err != nil {
-		return "", err
-	}
-	stackRecord.Spec.CRDs = *crdList
-
-	_, err = output.WriteString(crdContent)
-	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, "could not marshal Stack")
 	}
 
-	// read the install file information
-	installObj := unstructured.Unstructured{}
-
-	if err := readFileIntoObject(fs, root, installFileName, true, &installObj); err != nil {
-		return "", err
+	if _, err := builder.Write(b); err != nil {
+		if err != nil {
+			return "", errors.Wrap(err, "could not write YAML output to buffer")
+		}
 	}
 
-	switch installObj.GetKind() {
+	return builder.String(), nil
+}
+
+// SetApp sets the Stack's App metadata
+func (sp *StackPackage) SetApp(app v1alpha1.AppMetadataSpec) {
+	sp.Stack.Spec.AppMetadataSpec = app
+	sp.appSet = true
+}
+
+// SetInstall sets the Stack controller's install method from a Deployment or Job
+func (sp *StackPackage) SetInstall(install unstructured.Unstructured) error {
+	switch install.GetKind() {
 	case "Deployment":
 		deployment := appsv1.Deployment{}
-		b, err := installObj.MarshalJSON()
+		b, err := install.MarshalJSON()
 		if err != nil {
-			return "", err
+			return err
 		}
 		if err := json.Unmarshal(b, &deployment); err != nil {
-			return "", err
+			return err
 		}
 
-		stackRecord.Spec.Controller.Deployment = &v1alpha1.ControllerDeployment{
-			Name: installObj.GetName(),
+		sp.Stack.Spec.Controller.Deployment = &v1alpha1.ControllerDeployment{
+			Name: install.GetName(),
 			Spec: deployment.Spec,
 		}
 	case "Job":
 		job := batchv1.Job{}
-		b, err := installObj.MarshalJSON()
+		b, err := install.MarshalJSON()
 		if err != nil {
-			return "", err
+			return err
 		}
 		if err := json.Unmarshal(b, &job); err != nil {
-			return "", err
+			return err
 		}
 
-		stackRecord.Spec.Controller.Job = &v1alpha1.ControllerJob{
-			Name: installObj.GetName(),
+		sp.Stack.Spec.Controller.Job = &v1alpha1.ControllerJob{
+			Name: install.GetName(),
 			Spec: job.Spec,
 		}
-
 	}
-
-	// read the app file information
-	appObj := v1alpha1.AppMetadataSpec{}
-	if err := readFileIntoObject(fs, root, appFileName, true, &appObj); err != nil {
-		return "", err
-	}
-	stackRecord.Spec.AppMetadataSpec = appObj
-
-	// read the icon file and encode to base64
-	icons, err := readIcons(fs, root)
-	if err != nil {
-		return "", err
-	}
-	stackRecord.Spec.AppMetadataSpec.Icons = icons
-
-	// read the RBAC information
-	permissionsObj := v1alpha1.PermissionsSpec{}
-	if err := readFileIntoObject(fs, root, permissionsFileName, false /* not required */, &permissionsObj); err != nil {
-		return "", err
-	}
-	stackRecord.Spec.Permissions = permissionsObj
-
-	// marshal the full stack record to yaml and write it to the output
-	stackRecordRaw, err := yaml.Marshal(stackRecord)
-	if err != nil {
-		return "", err
-	}
-	_, err = output.WriteString(yamlSeparator + string(stackRecordRaw))
-	if err != nil {
-		return "", err
-	}
-
-	return output.String(), nil
-}
-
-func readFileIntoObject(fs afero.Fs, root, fileName string, required bool, obj interface{}) error {
-	file, err := fs.Open(filepath.Join(root, fileName))
-	if err != nil {
-		if os.IsNotExist(err) && !required {
-			// the given file doesn't exist, but it's also not required, this is OK
-			return nil
-		}
-		return err
-	}
-	defer func() { _ = file.Close() }()
-
-	b, err := ioutil.ReadAll(file)
-	if err != nil {
-		return err
-	}
-
-	if err := yaml.Unmarshal(b, obj); err != nil {
-		return fmt.Errorf("failed to unmarshal yaml from file %s: %+v", file.Name(), err)
-	}
-
 	return nil
 }
 
-func readResources(fs afero.Fs, root string) (crdList *v1alpha1.CRDList, crdContent string, err error) {
-	resourcesDir := filepath.Join(root, resourcesDirName)
-
-	// check for the existence of the resources directory
-	dirExists, err := afero.DirExists(fs, resourcesDir)
-	if !dirExists || err != nil {
-		// the resources dir doesn't appear to exist, this isn't an error but return nothing
-		return v1alpha1.NewCRDList(), "", nil
-	}
-
-	// walk the resources dir and find all the CRD files
-	resourcesFiles, err := findResourcesFiles(fs, resourcesDir)
-	if err != nil {
-		return nil, "", err
-	}
-
-	// now that we have found all the resource files, process each one in the list
-	var sb strings.Builder
-	crdList = v1alpha1.NewCRDList()
-	for _, rf := range resourcesFiles {
-		if err := readResourceFile(fs, rf, crdList, &sb); err != nil {
-			return nil, "", err
-		}
-	}
-
-	return crdList, sb.String(), nil
+// SetRBAC sets the StackPackage Stack's permissions with using the supplied PermissionsSpec
+func (sp *StackPackage) SetRBAC(rbac v1alpha1.PermissionsSpec) {
+	sp.Stack.Spec.Permissions = rbac
 }
 
-func findResourcesFiles(fs afero.Fs, resourcesDir string) ([]string, error) {
-	resourcesFiles := []string{}
-	err := afero.Walk(fs, resourcesDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			// just proceed to next entry on walk
-			return nil
-		}
-		if matched, err := filepath.Match(resourceFileNamePattern, filepath.Base(path)); matched && err == nil {
-			// current item on walk matches the resource file name pattern, include it in the list of matches
-			resourcesFiles = append(resourcesFiles, path)
-		}
-		return nil
-	})
-	if err != nil {
-		// walking for resources encountered an error that halted it, surface this error
-		return nil, err
-	}
-
-	return resourcesFiles, nil
+// GotApp reveals if the AppMetadataSpec has been set
+func (sp *StackPackage) GotApp() bool {
+	return sp.appSet
 }
 
-// Ignore interfacer linter check for this function signature, it wants to use io.StringWriter instead
-// of strings.Builder, but io.StringWriter is only available in go 1.12+ and we support older versions.
-// nolint:interfacer
-func readResourceFile(fs afero.Fs, rf string, crdList *v1alpha1.CRDList, sb *strings.Builder) error {
-	b, err := afero.ReadFile(fs, rf)
-	if err != nil {
-		// we weren't able to read the current resource file, surface this error
-		return err
+// AddGroup adds a group to the StackPackage
+func (sp *StackPackage) AddGroup(path string, sg StackGroup) {
+	sp.Groups[path] = sg
+}
+
+// AddResource adds a resource to the StackPackage
+func (sp *StackPackage) AddResource(filepath string, sr StackResource) {
+	sp.Resources[filepath] = sr
+}
+
+// AddUI adds a resource to the StackPackage
+func (sp *StackPackage) AddUI(filepath string, ui string) {
+	sp.UISpecs[filepath] = ui
+}
+
+// AddIcon adds an icon to the StackPackage
+func (sp *StackPackage) AddIcon(path string, icon v1alpha1.IconSpec) {
+	// TODO(displague) do we want to keep all icons in the Stack spec or just the preferred type?
+	sp.Stack.Spec.AppMetadataSpec.Icons = append(sp.Stack.Spec.AppMetadataSpec.Icons, icon)
+
+	// highest priority wins per path
+	iconMimePriority := map[string]int{"image/svg+xml": 4, "image/png": 3, "image/jpeg": 2, "image/gif": 1}
+	if existing, found := sp.Icons[filepath.Dir(path)]; found {
+		if iconMimePriority[existing.MediaType] > iconMimePriority[icon.MediaType] {
+			return
+		}
 	}
 
-	// unmarshal the raw resource file content into a CRD type
-	var crd apiextensions.CustomResourceDefinition
-	if err := yaml.Unmarshal(b, &crd); err != nil {
-		return err
-	}
+	sp.Icons[filepath.Dir(path)] = &icon
+}
 
-	// add the CRD type meta to the list
-	// TODO(jbw976): handle cases where the CRD has multiple versions associated with it
+// AddCRD appends a CRD to the CRDs of this StackPackage
+// The CRD will be annotated before being added and the Stack will track ownership of this CRD.
+func (sp *StackPackage) AddCRD(path string, crd *apiextensions.CustomResourceDefinition) {
+	if crd.ObjectMeta.Annotations == nil {
+		crd.ObjectMeta.Annotations = map[string]string{}
+	}
+	crd.ObjectMeta.Annotations[annotationKubernetesManagedBy] = "stack-manager"
+
 	crdGVK := schema.GroupVersionKind{
 		Group:   crd.Spec.Group,
 		Version: crd.Spec.Version,
 		Kind:    crd.Spec.Names.Kind,
 	}
+
+	// TODO(displague) store crd and path in a single struct
+	sp.CRDs[crdGVK.String()] = *crd
+	sp.CRDPaths[crdGVK.String()] = path
+
 	crdTypeMeta := metav1.TypeMeta{
 		Kind:       crdGVK.Kind,
 		APIVersion: crdGVK.GroupVersion().String(),
 	}
-	crdList.Owned = append(crdList.Owned, crdTypeMeta)
 
-	// add the raw resource file content to the string builder
-	if _, err := sb.WriteString(yamlSeparator + string(b)); err != nil {
-		return err
-	}
+	sp.Stack.Spec.CRDs.Owned = append(sp.Stack.Spec.CRDs.Owned, crdTypeMeta)
 
-	return nil
 }
 
-func readIcons(fs afero.Fs, root string) ([]v1alpha1.IconSpec, error) {
-	// look for icon files that start with the standard icon file name pattern
-	matches, err := afero.Glob(fs, filepath.Join(root, iconFileNamePattern))
-	if err != nil {
-		return nil, err
+// applyAnnotations walks each discovered CRD annotates that CRD with the nearest metadata file
+func (sp *StackPackage) applyAnnotations() {
+	for gvk, crdPath := range sp.CRDPaths {
+		crd := sp.CRDs[gvk]
+
+		crd.ObjectMeta.Annotations[annotationStackTitle] = sp.Stack.Spec.AppMetadataSpec.Title
+
+		sp.applyGroupAnnotations(crdPath, &crd)
+		sp.applyIconAnnotations(crdPath, &crd)
+		sp.applyResourceAnnotations(crdPath, &crd)
+		sp.applyUISpecAnnotations(crdPath, &crd)
+
+	}
+}
+
+// NewStackPackage returns a StackPackage with maps created
+func NewStackPackage() *StackPackage {
+	// create a Stack record and populate it with the relevant package contents
+	v, k := v1alpha1.StackGroupVersionKind.ToAPIVersionAndKind()
+
+	sp := &StackPackage{
+		Stack: v1alpha1.Stack{
+			TypeMeta: metav1.TypeMeta{APIVersion: v, Kind: k},
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{},
+			},
+		},
+		CRDs:      map[string]apiextensions.CustomResourceDefinition{},
+		CRDPaths:  map[string]string{},
+		Groups:    map[string]StackGroup{},
+		Icons:     map[string]*v1alpha1.IconSpec{},
+		Resources: map[string]StackResource{},
+		UISpecs:   map[string]string{},
 	}
 
-	icons := make([]v1alpha1.IconSpec, len(matches))
-	for i, m := range matches {
-		// run the loop body in a func so the defer calls happen per loop instead of after the loop
-		// https://blog.learngoprogramming.com/gotchas-of-defer-in-go-1-8d070894cb01
-		if err := func() error {
-			// open the icon file for reading from
-			f, err := fs.Open(m)
-			if err != nil {
-				return err
-			}
-			defer func() { _ = f.Close() }()
+	return sp
+}
 
-			// create a base64 encoding byte stream to write to
-			b := &bytes.Buffer{}
-			w := base64.NewEncoder(base64.StdEncoding, b)
-			defer func() { _ = w.Close() }()
+// Unpack writes to `out` using custom Step functions against a ResourceWalker
+// The custom Steps process Stack resource files and the output is multiple
+// YAML documents.  CRDs container within the stack will be annotated based
+// on the other Stack resource files contained within the Stack.
+func Unpack(rw walker.ResourceWalker, out io.StringWriter) error {
+	log.V(logging.Debug).Info("Unpacking stack")
 
-			// read from the file stream and write it to the encoding stream
-			_, err = io.Copy(w, f)
-			if err != nil {
-				return err
-			}
+	sp := NewStackPackage()
 
-			// determine the media type of the icon file
-			mediaType := mime.TypeByExtension(filepath.Ext(m))
+	rw.AddStep(appFileName, appStep(sp))
 
-			// save the base64 icon data and the media type to the icons list
-			icons[i] = v1alpha1.IconSpec{
-				Base64IconData: b.String(),
-				MediaType:      mediaType,
-			}
+	rw.AddStep(groupFileName, groupStep(sp))
 
-			return nil
-		}(); err != nil {
-			return nil, err
+	rw.AddStep(resourceFileNamePattern, resourceStep(sp))
+	rw.AddStep(crdFileNamePattern, crdStep(sp))
+	rw.AddStep(permissionsFileName, rbacStep(sp))
+	rw.AddStep(installFileName, installStep(sp))
+	rw.AddStep(iconFileNamePattern, iconStep(sp))
+	rw.AddStep(uiSpecFileNamePattern, uiStep(sp))
+
+	if err := rw.Walk(); err != nil {
+		return errors.Wrap(err, "failed to walk Stack filesystem")
+	}
+
+	if !sp.GotApp() {
+		return errors.New("Stack does not contain an app.yaml file")
+	}
+
+	sp.applyAnnotations()
+
+	yaml, err := sp.Yaml()
+
+	if err == nil {
+		_, err = out.WriteString(yaml)
+	}
+
+	return err
+}
+
+// orderStackCRDKeys returns the map indexes in descending order
+func orderStackCRDKeys(m map[string]apiextensions.CustomResourceDefinition) []string {
+	ret := make([]string, len(m))
+	i := 0
+
+	for k := range m {
+		ret[i] = k
+		i++
+	}
+	sort.Sort(sort.Reverse(sort.StringSlice(ret)))
+	return ret
+}
+
+// orderStackGroupKeys returns the map indexes in descending order (/foo/bar/baz, /foo/bar, /foo, /bar)
+func orderStackGroupKeys(m map[string]StackGroup) []string {
+	ret := make([]string, len(m))
+	i := 0
+
+	for k := range m {
+		ret[i] = k
+		i++
+	}
+	sort.Sort(sort.Reverse(sort.StringSlice(ret)))
+	return ret
+}
+
+// orderStackIconKeys returns the map indexes in descending order (/foo/bar/baz, /foo/bar, /foo, /bar)
+// TODO(displague) this is identical to orderStackGroupKeys. generics?
+func orderStackIconKeys(m map[string]*v1alpha1.IconSpec) []string {
+	ret := make([]string, len(m))
+	i := 0
+
+	for k := range m {
+		ret[i] = k
+		i++
+	}
+	sort.Sort(sort.Reverse(sort.StringSlice(ret)))
+	return ret
+}
+
+// orderStackResourceKeys returns the map indexes in descending order (/foo/bar/baz, /foo/bar, /foo, /bar)
+// TODO(displague) this is identical to orderStackGroupKeys. generics?
+func orderStackResourceKeys(m map[string]StackResource) []string {
+	ret := make([]string, len(m))
+	i := 0
+
+	for k := range m {
+		ret[i] = k
+		i++
+	}
+	sort.Sort(sort.Reverse(sort.StringSlice(ret)))
+	return ret
+}
+
+// orderStringKeys returns the map indexes in descending order (/foo/bar/baz, /foo/bar, /foo, /bar)
+// TODO(displague) this is identical to orderStackGroupKeys. generics?
+func orderStringKeys(m map[string]string) []string {
+	ret := make([]string, len(m))
+	i := 0
+
+	for k := range m {
+		ret[i] = k
+		i++
+	}
+	sort.Sort(sort.Reverse(sort.StringSlice(ret)))
+	return ret
+}
+
+func (sp *StackPackage) applyGroupAnnotations(crdPath string, crd *apiextensions.CustomResourceDefinition) {
+	// A group among many CRDs applies to all CRDs
+	groupPathsOrdered := orderStackGroupKeys(sp.Groups)
+	for _, groupPath := range groupPathsOrdered {
+		group := sp.Groups[groupPath]
+		if strings.HasPrefix(crdPath, groupPath) {
+			crd.ObjectMeta.Annotations[annotationGroupTitle] = group.Title
+			crd.ObjectMeta.Annotations[annotationGroupCategory] = group.Category
+			crd.ObjectMeta.Annotations[annotationGroupDescription] = group.Description
+			break
 		}
 	}
 
-	return icons, nil
+}
+
+// applyResourceAnnotations annotates resource.yaml properties to the appropriate StackPackage CRD
+// A resource.yaml must reside in the same path or higher than the CRD and must contain an id matching
+// the CRD kind
+func (sp *StackPackage) applyResourceAnnotations(crdPath string, crd *apiextensions.CustomResourceDefinition) {
+	// TODO(displague) which pattern should associate *resource.yaml to their matching *crd.yaml files?
+	// * resource.yaml contain "id=_kind_" (or gvk)
+	// * limit one-crd per path
+	// * file names match their CRD: [_group_]/[_kind_.[_version_.]]{resource,crd}.yaml
+	resourcePathsOrdered := orderStackResourceKeys(sp.Resources)
+	for _, resourcePath := range resourcePathsOrdered {
+		dir := filepath.Dir(resourcePath)
+		resource := sp.Resources[resourcePath]
+		if strings.HasPrefix(crdPath, dir) && strings.EqualFold(resource.ID, crd.Spec.Names.Kind) {
+			crd.ObjectMeta.Annotations[annotationResourceTitle] = resource.Title
+			crd.ObjectMeta.Annotations[annotationResourceTitlePlural] = resource.TitlePlural
+			crd.ObjectMeta.Annotations[annotationResourceCategory] = resource.Category
+			crd.ObjectMeta.Annotations[annotationResourceDescription] = resource.Description
+
+			break
+		}
+	}
+}
+
+// applyIconAnnotations annotates icon data to the appropriate StackPackage CRDs
+// An icon among many CRDs applies to all CRDs. Only the nearest ancestor icon is applied to CRDs.
+func (sp *StackPackage) applyIconAnnotations(crdPath string, crd *apiextensions.CustomResourceDefinition) {
+	iconPathsOrdered := orderStackIconKeys(sp.Icons)
+	for _, iconPath := range iconPathsOrdered {
+		icon := sp.Icons[iconPath]
+		if strings.HasPrefix(crdPath, iconPath) {
+			crd.ObjectMeta.Annotations[annotationStackIcon] = "data:" + icon.MediaType + ";base64," + icon.Base64IconData
+			break
+		}
+	}
+
+}
+
+// applyUISpecAnnotations annotates ui-schema.yaml contents to the appropriate StackPackage CRDs
+// Existing ui-schema annotation values are preserved. All existing and matching ui-schema.yaml files
+// will be concatenated as a multiple document YAML.
+// A ui-schema.yaml among many CRDs applies to all neighboring and descendent CRDs,
+// a _kind_.ui-schema.yaml applies to crds with a matching kind
+func (sp *StackPackage) applyUISpecAnnotations(crdPath string, crd *apiextensions.CustomResourceDefinition) {
+	uiPathsOrdered := orderStringKeys(sp.UISpecs)
+	for _, uiSpecPath := range uiPathsOrdered {
+		spec := strings.Trim(sp.UISpecs[uiSpecPath], "\n")
+		dir := filepath.Dir(uiSpecPath)
+		basename := filepath.Base(uiSpecPath)
+		if strings.HasPrefix(crdPath, dir) &&
+			(basename == uiSpecFileName || strings.HasPrefix(basename, strings.ToLower(crd.Spec.Names.Kind)+".")) {
+			// TODO(displague) are there concerns about the concatenation order of ui-schema.yaml and kind.ui-schema.yaml?
+			if len(crd.ObjectMeta.Annotations[annotationStackUISpec]) > 0 {
+				appendedUI := fmt.Sprintf("%s\n---\n%s", crd.ObjectMeta.Annotations[annotationStackUISpec], spec)
+				crd.ObjectMeta.Annotations[annotationStackUISpec] = appendedUI
+			} else {
+				crd.ObjectMeta.Annotations[annotationStackUISpec] = spec
+			}
+		}
+	}
+
 }
