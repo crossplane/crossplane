@@ -47,7 +47,9 @@ specTemplate:
   roleARN: EKS_ROLE_ARN # arn:aws:iam::<account-id>:role/<role-name>
   vpcId: EKS_VPC #vpc-01
   subnetIds:
-   - EKS_SUBNETS #subnet-01
+   - EKS_SUBNET_ONE #subnet-01
+   - EKS_SUBNET_TWO #subnet-02
+   - EKS_SUBNET_THREE #subnet-03
   securityGroupIds:
    - EKS_SECURITY_GROUP #sg-01
   workerNodes:
