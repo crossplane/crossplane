@@ -70,6 +70,28 @@ For complete list of subcommands supported by `microk8s.sh`, run:
 cluster/local/microk8s.sh
 ```
 
+## Run locally out-of-cluster
+
+For convenience and speed of development, it can be a good option to run
+crossplane locally, out-of-cluster. To do that, there is a target in the
+Makefile:
+
+```
+make run
+```
+
+For preserving the logs, something like the following command could be used:
+
+```console
+make run 2>&1 | tee -a local-log
+```
+
+If running crossplane locally out-of-cluster, it is important to make
+sure crossplane is not also running in-cluster, because the two
+crossplanes could interfere with each other. This can be done by either
+deleting or scaling down the `crossplane` deployment in the namespace
+`crossplane-system`.
+
 ## Run Tests
 The following sections provide commands helpful for development environments. `minikube.sh` may be replaced with [`local.sh`](./local.sh) or [`microk8s.sh`](./microk8s.sh) in those environments. These commands expect to be run from the project root.
 #### 1. Build crossplane
