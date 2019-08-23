@@ -90,7 +90,13 @@ manifests: vendor
 	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd:trivialVersions=true paths=./aws/... output:dir=cluster/charts/crossplane/crds/aws
 	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd:trivialVersions=true paths=./azure/... output:dir=cluster/charts/crossplane/crds/azure
 	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd:trivialVersions=true paths=./gcp/... output:dir=cluster/charts/crossplane/crds/gcp
-	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd:trivialVersions=true paths=./apis/... output:dir=cluster/charts/crossplane/crds
+	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd:trivialVersions=true paths=./apis/cache/... output:dir=cluster/charts/crossplane/crds
+	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd:trivialVersions=true paths=./apis/compute/... output:dir=cluster/charts/crossplane/crds
+	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd:trivialVersions=true paths=./apis/core/... output:dir=cluster/charts/crossplane/crds
+	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd:trivialVersions=true paths=./apis/database/... output:dir=cluster/charts/crossplane/crds
+	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd:trivialVersions=true paths=./apis/storage/... output:dir=cluster/charts/crossplane/crds
+	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd:trivialVersions=true paths=./apis/workloads/... output:dir=cluster/charts/crossplane/crds
+	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd:maxDescLen=0,trivialVersions=true paths=./apis/stacks/... output:dir=cluster/charts/crossplane/crds
 	@$(OK) Generating CRD manifests
 
 # Generate a coverage report for cobertura applying exclusions on
