@@ -142,8 +142,8 @@
     "private/protocol/xml/xmlutil",
     "service/cloudformation",
     "service/cloudformation/cloudformationiface",
-    "service/eks",
     "service/ec2",
+    "service/eks",
     "service/eks/eksiface",
     "service/elasticache",
     "service/elasticache/elasticacheiface",
@@ -1352,7 +1352,7 @@
   revision = "581e00157fb1a0435d4fac54a52d1ca1e481d60e"
 
 [[projects]]
-  digest = "1:90972c3830f17ae36ef1b3b05a46aa771eedd87451ac73a7790b4b54a0a9b507"
+  digest = "1:2f667f447b3b8b32dc8707fd85a65d047c6bbfca26a1cb3c6977970bcf91eb64"
   name = "sigs.k8s.io/controller-runtime"
   packages = [
     ".",
@@ -1398,11 +1398,11 @@
     "pkg/webhook/internal/metrics",
   ]
   pruneopts = "UT"
-  revision = "eb94491f7ac37f163aef146cf3c17f87d21ae184"
-  version = "v0.2.0-beta.5"
+  revision = "e1159d6655b260c4812fd0792cd1344ecc96a57e"
+  version = "v0.2.0"
 
 [[projects]]
-  digest = "1:6da1e57530543b72f22b9e2036eadd9f77874a08adc210e16983ec23d31fc4ff"
+  digest = "1:1edc986a412b40d477a5c0077e7749d280fffa4446f7ec2e24c3e0cf4b128070"
   name = "sigs.k8s.io/controller-tools"
   packages = [
     "cmd/controller-gen",
@@ -1418,7 +1418,7 @@
     "pkg/webhook",
   ]
   pruneopts = "UT"
-  revision = "301a879da11105676f319f9080278a54b956d07f"
+  revision = "8e509cc6044facab5022c3af8f713f8b736d9108"
   source = "https://github.com/muvaf/controller-tools.git"
 
 [[projects]]

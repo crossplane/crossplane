@@ -42,13 +42,13 @@ required = [
 
 [[constraint]]
   name="sigs.k8s.io/controller-runtime"
-  version="v0.2.0-beta.5"
+  version="v0.2.0"
 
-# The fork is based on v0.2.0-beta.5. See https://github.com/kubernetes-sigs/controller-tools/issues/301
+# The fork is based on v0.2.0. See https://github.com/kubernetes-sigs/controller-tools/issues/301
 [[override]]
   name="sigs.k8s.io/controller-tools"
   source = "https://github.com/muvaf/controller-tools.git"
-  revision = "301a879da11105676f319f9080278a54b956d07f"
+  revision = "8e509cc6044facab5022c3af8f713f8b736d9108"
 
 [[override]]
   name = "contrib.go.opencensus.io/exporter/ocagent"
