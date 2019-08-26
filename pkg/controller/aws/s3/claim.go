@@ -95,15 +95,12 @@ func ConfigureS3Bucket(_ context.Context, cm resource.Claim, cs resource.Class, 
 		spec.NameFormat = b.Spec.Name
 	}
 
-	var err error
-	spec.CannedACL, err = resolveClassClaimACL(spec.CannedACL, translateACL(b.Spec.PredefinedACL))
-	if err != nil {
-		return err
+	if b.Spec.PredefinedACL != nil {
+		spec.CannedACL = translateACL(b.Spec.PredefinedACL)
 	}
 
-	spec.LocalPermission, err = resolveClassClaimLocalPermissions(spec.LocalPermission, b.Spec.LocalPermission)
-	if err != nil {
-		return err
+	if b.Spec.LocalPermission != nil {
+		spec.LocalPermission = b.Spec.LocalPermission
 	}
 
 	spec.WriteConnectionSecretToReference = corev1.LocalObjectReference{Name: string(cm.GetUID())}
@@ -113,30 +110,6 @@ func ConfigureS3Bucket(_ context.Context, cm resource.Claim, cs resource.Class, 
 	s3b.Spec = *spec
 
 	return nil
-}
-
-func resolveClassClaimACL(classValue, claimValue *s3.BucketCannedACL) (*s3.BucketCannedACL, error) {
-	if classValue == nil {
-		return claimValue, nil
-	}
-	if claimValue == nil {
-		return classValue, nil
-	}
-	v, err := resource.ResolveClassClaimValues(string(*classValue), string(*claimValue))
-	acl := s3.BucketCannedACL(v)
-	return &acl, err
-}
-
-func resolveClassClaimLocalPermissions(classValue, claimValue *storagev1alpha1.LocalPermissionType) (*storagev1alpha1.LocalPermissionType, error) {
-	if classValue == nil {
-		return claimValue, nil
-	}
-	if claimValue == nil {
-		return classValue, nil
-	}
-	v, err := resource.ResolveClassClaimValues(string(*classValue), string(*claimValue))
-	perm := storagev1alpha1.LocalPermissionType(v)
-	return &perm, err
 }
 
 func translateACL(acl *storagev1alpha1.PredefinedACL) *s3.BucketCannedACL {

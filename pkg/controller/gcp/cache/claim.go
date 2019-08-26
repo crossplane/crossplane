@@ -83,11 +83,9 @@ func ConfigureCloudMemorystoreInstance(_ context.Context, cm resource.Claim, cs 
 		CloudMemorystoreInstanceParameters: rl.SpecTemplate.CloudMemorystoreInstanceParameters,
 	}
 
-	v, err := resource.ResolveClassClaimValues(spec.RedisVersion, toGCPFormat(rc.Spec.EngineVersion))
-	if err != nil {
-		return errors.Wrap(err, "cannot resolve class claim values")
+	if rc.Spec.EngineVersion != "" {
+		spec.RedisVersion = toGCPFormat(rc.Spec.EngineVersion)
 	}
-	spec.RedisVersion = v
 
 	spec.WriteConnectionSecretToReference = corev1.LocalObjectReference{Name: string(cm.GetUID())}
 	spec.ProviderReference = rl.SpecTemplate.ProviderReference

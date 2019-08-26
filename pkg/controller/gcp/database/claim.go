@@ -55,12 +55,10 @@ func ConfigurePostgreSQLCloudsqlInstance(_ context.Context, cm resource.Claim, c
 		},
 		CloudsqlInstanceParameters: rs.SpecTemplate.CloudsqlInstanceParameters,
 	}
-	translated := translateVersion(pg.Spec.EngineVersion, v1alpha1.PostgresqlDBVersionPrefix)
-	v, err := resource.ResolveClassClaimValues(spec.DatabaseVersion, translated)
-	if err != nil {
-		return err
+
+	if pg.Spec.EngineVersion != "" {
+		spec.DatabaseVersion = translateVersion(pg.Spec.EngineVersion, v1alpha1.PostgresqlDBVersionPrefix)
 	}
-	spec.DatabaseVersion = v
 
 	// NOTE(hasheddan): consider moving defaulting to either CRD or managed reconciler level
 	checkEmptySpec(spec)
@@ -100,12 +98,9 @@ func ConfigureMyCloudsqlInstance(_ context.Context, cm resource.Claim, cs resour
 		CloudsqlInstanceParameters: rs.SpecTemplate.CloudsqlInstanceParameters,
 	}
 
-	translated := translateVersion(my.Spec.EngineVersion, v1alpha1.MysqlDBVersionPrefix)
-	v, err := resource.ResolveClassClaimValues(spec.DatabaseVersion, translated)
-	if err != nil {
-		return err
+	if my.Spec.EngineVersion != "" {
+		spec.DatabaseVersion = translateVersion(my.Spec.EngineVersion, v1alpha1.MysqlDBVersionPrefix)
 	}
-	spec.DatabaseVersion = v
 
 	// NOTE(hasheddan): consider moving defaulting to either CRD or managed reconciler level
 	checkEmptySpec(spec)
