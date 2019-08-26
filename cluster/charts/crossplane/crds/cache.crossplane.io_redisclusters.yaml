@@ -138,8 +138,6 @@ spec:
                     TODO: Add other useful fields. apiVersion, kind, uid?'
                   type: string
               type: object
-          required:
-          - engineVersion
           type: object
         status:
           description: ResourceClaimStatus represents the status of a resource claim.

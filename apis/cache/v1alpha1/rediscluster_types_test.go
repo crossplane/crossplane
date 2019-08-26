@@ -91,9 +91,9 @@ func TestEngineVersion(t *testing.T) {
 			valid:   false,
 		},
 		{
-			name:    "EmptyVersionIsInvalid",
+			name:    "EmptyVersionIsValid",
 			version: "",
-			valid:   false,
+			valid:   true,
 		},
 	}
 

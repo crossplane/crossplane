@@ -30,7 +30,7 @@ type MySQLInstanceSpec struct {
 
 	// mysql instance properties
 	// +kubebuilder:validation:Enum="5.6";"5.7"
-	EngineVersion string `json:"engineVersion"`
+	EngineVersion string `json:"engineVersion,omitempty"`
 }
 
 // +kubebuilder:object:root=true
