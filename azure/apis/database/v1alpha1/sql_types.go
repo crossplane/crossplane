@@ -46,6 +46,7 @@ type SQLServer interface {
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
 // +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
 
 // MysqlServer is the Schema for the instances API
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.bindingPhase"
@@ -141,6 +142,7 @@ type MysqlServerList struct {
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
 
 // PostgresqlServer is the Schema for the instances API
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.bindingPhase"

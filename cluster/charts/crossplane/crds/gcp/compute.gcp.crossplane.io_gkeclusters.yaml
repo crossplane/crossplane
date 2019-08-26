@@ -36,7 +36,8 @@ spec:
     kind: GKECluster
     plural: gkeclusters
   scope: ""
-  subresources: {}
+  subresources:
+    status: {}
   validation:
     openAPIV3Schema:
       description: GKECluster is the Schema for the instances API

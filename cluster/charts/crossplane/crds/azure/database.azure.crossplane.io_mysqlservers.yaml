@@ -27,7 +27,8 @@ spec:
     kind: MysqlServer
     plural: mysqlservers
   scope: ""
-  subresources: {}
+  subresources:
+    status: {}
   validation:
     openAPIV3Schema:
       description: MysqlServer is the Schema for the instances API

@@ -136,6 +136,7 @@ type CloudMemorystoreInstanceStatus struct {
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
 
 // CloudMemorystoreInstance is the Schema for the instances API
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.state"

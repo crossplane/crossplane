@@ -70,6 +70,7 @@ type S3BucketStatus struct {
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
 
 // S3Bucket is the Schema for the S3Bucket API
 // +kubebuilder:printcolumn:name="CLASS",type="string",JSONPath=".spec.classRef.name"

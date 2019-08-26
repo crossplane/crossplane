@@ -27,7 +27,8 @@ spec:
     kind: RDSInstance
     plural: rdsinstances
   scope: ""
-  subresources: {}
+  subresources:
+    status: {}
   validation:
     openAPIV3Schema:
       description: RDSInstance is the Schema for the instances API

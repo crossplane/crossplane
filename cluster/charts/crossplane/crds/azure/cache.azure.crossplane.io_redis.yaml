@@ -24,7 +24,8 @@ spec:
     kind: Redis
     plural: redis
   scope: ""
-  subresources: {}
+  subresources:
+    status: {}
   validation:
     openAPIV3Schema:
       description: Redis is the Schema for the instances API

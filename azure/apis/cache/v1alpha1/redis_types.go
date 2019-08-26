@@ -150,6 +150,7 @@ type RedisStatus struct {
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
 
 // Redis is the Schema for the instances API
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.state"
