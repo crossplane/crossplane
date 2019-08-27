@@ -61,8 +61,16 @@ var (
 	NetworkGroupVersionKind = SchemeGroupVersion.WithKind(NetworkKind)
 )
 
+// Subnetwork type metadata.
+var (
+	SubnetworkKind             = reflect.TypeOf(Subnetwork{}).Name()
+	SubnetworkKindAPIVersion   = SubnetworkKind + "." + SchemeGroupVersion.String()
+	SubnetworkGroupVersionKind = SchemeGroupVersion.WithKind(SubnetworkKind)
+)
+
 func init() {
 	SchemeBuilder.Register(&GKECluster{}, &GKEClusterList{})
 	SchemeBuilder.Register(&GKEClusterClass{}, &GKEClusterClassList{})
 	SchemeBuilder.Register(&Network{}, &NetworkList{})
+	SchemeBuilder.Register(&Subnetwork{}, &SubnetworkList{})
 }

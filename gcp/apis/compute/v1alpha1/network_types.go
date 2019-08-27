@@ -131,7 +131,7 @@ type GCPNetworkSpec struct {
 	// An auto mode VPC network starts with one subnet per region. Each
 	// subnet has a predetermined range as described in Auto mode VPC
 	// network IP ranges.
-	AutoCreateSubnetworks bool `json:"autoCreateSubnetworks,omitempty"`
+	AutoCreateSubnetworks *bool `json:"autoCreateSubnetworks,omitempty"`
 
 	// Description: An optional description of this resource. Provide this
 	// field when you create the resource.
@@ -235,13 +235,21 @@ type GCPNetworkStatus struct {
 	NullFields []string `json:"-"`
 }
 
-// GenerateGCPNetworkSpec takes a *GCPNetworkStatus and returns *googlecompute.Network.
+// GenerateNetwork takes a *GCPNetworkSpec and returns *googlecompute.Network.
 // It assigns only the fields that are writable, i.e. not labelled as [Output Only]
 // in Google's reference.
-func GenerateGCPNetworkSpec(in GCPNetworkSpec) *googlecompute.Network {
+func GenerateNetwork(in GCPNetworkSpec) *googlecompute.Network {
 	n := &googlecompute.Network{}
 	n.IPv4Range = in.IPv4Range
-	n.AutoCreateSubnetworks = in.AutoCreateSubnetworks
+	if in.AutoCreateSubnetworks == nil {
+		// Otherwise it is omitted if the value is false.
+		n.NullFields = []string{"AutoCreateSubnetworks"}
+	} else {
+		n.AutoCreateSubnetworks = *in.AutoCreateSubnetworks
+		if !n.AutoCreateSubnetworks {
+			n.ForceSendFields = []string{"AutoCreateSubnetworks"}
+		}
+	}
 	n.Description = in.Description
 	n.Name = in.Name
 	if in.RoutingConfig != nil {

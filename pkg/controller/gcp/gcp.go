@@ -42,6 +42,7 @@ func (c *Controllers) SetupWithManager(mgr ctrl.Manager) error {
 		&compute.GKEClusterClaimController{},
 		&compute.GKEClusterController{},
 		&compute.NetworkController{},
+		&compute.SubnetworkController{},
 		&database.PostgreSQLInstanceClaimController{},
 		&database.MySQLInstanceClaimController{},
 		&database.CloudsqlController{},

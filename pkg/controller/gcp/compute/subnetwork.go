@@ -37,37 +37,35 @@ import (
 
 const (
 	// Error strings.
-	errNewClient    = "cannot create new Compute Service"
-	errNotNetwork   = "managed resource is not a Network resource"
-	errNameNotGiven = "name for networkExternal resource is not provided"
+	errNotSubnetwork = "managed resource is not a Subnetwork resource"
 )
 
-// NetworkController is the controller for Network CRD.
-type NetworkController struct{}
+// SubnetworkController is the controller for Subnetwork CRD.
+type SubnetworkController struct{}
 
 // SetupWithManager creates a new Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
-func (c *NetworkController) SetupWithManager(mgr ctrl.Manager) error {
+func (c *SubnetworkController) SetupWithManager(mgr ctrl.Manager) error {
 	r := resource.NewManagedReconciler(mgr,
-		resource.ManagedKind(computev1alpha1.NetworkGroupVersionKind),
-		resource.WithExternalConnecter(&networkConnector{client: mgr.GetClient()}),
+		resource.ManagedKind(computev1alpha1.SubnetworkGroupVersionKind),
+		resource.WithExternalConnecter(&subnetworkConnector{client: mgr.GetClient()}),
 		resource.WithManagedConnectionPublishers())
 
-	name := strings.ToLower(fmt.Sprintf("%s.%s", computev1alpha1.NetworkKindAPIVersion, computev1alpha1.Group))
+	name := strings.ToLower(fmt.Sprintf("%s.%s", computev1alpha1.SubnetworkKindAPIVersion, computev1alpha1.Group))
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
-		For(&v1alpha1.Network{}).
+		For(&v1alpha1.Subnetwork{}).
 		Complete(r)
 }
 
-type networkConnector struct {
+type subnetworkConnector struct {
 	client      client.Client
 	newClientFn func(ctx context.Context, opts ...option.ClientOption) (*googlecompute.Service, error)
 }
 
-func (c *networkConnector) Connect(ctx context.Context, mg resource.Managed) (resource.ExternalClient, error) {
-	cr, ok := mg.(*v1alpha1.Network)
+func (c *subnetworkConnector) Connect(ctx context.Context, mg resource.Managed) (resource.ExternalClient, error) {
+	cr, ok := mg.(*v1alpha1.Subnetwork)
 	if !ok {
 		return nil, errors.New(errNotNetwork)
 	}
@@ -75,7 +73,7 @@ func (c *networkConnector) Connect(ctx context.Context, mg resource.Managed) (re
 	// such as this. Setting it directly here does not work since managed reconciler issues updates only to
 	// `status` subresource. We require name to be given until we have a pre-process hook like configurator in Claim
 	// reconciler
-	if cr.Spec.Name == "" {
+	if cr.Spec.Name == "" || cr.Spec.Region == "" {
 		return nil, errors.New(errNameNotGiven)
 	}
 
@@ -96,20 +94,20 @@ func (c *networkConnector) Connect(ctx context.Context, mg resource.Managed) (re
 	if err != nil {
 		return nil, errors.Wrap(err, errNewClient)
 	}
-	return &networkExternal{Service: s, projectID: provider.Spec.ProjectID}, nil
+	return &subnetworkExternal{Service: s, projectID: provider.Spec.ProjectID}, nil
 }
 
-type networkExternal struct {
+type subnetworkExternal struct {
 	*googlecompute.Service
 	projectID string
 }
 
-func (c *networkExternal) Observe(ctx context.Context, mg resource.Managed) (resource.ExternalObservation, error) {
-	cr, ok := mg.(*v1alpha1.Network)
+func (c *subnetworkExternal) Observe(ctx context.Context, mg resource.Managed) (resource.ExternalObservation, error) {
+	cr, ok := mg.(*v1alpha1.Subnetwork)
 	if !ok {
-		return resource.ExternalObservation{}, errors.New(errNotNetwork)
+		return resource.ExternalObservation{}, errors.New(errNotSubnetwork)
 	}
-	observed, err := c.Networks.Get(c.projectID, cr.Spec.Name).Context(ctx).Do()
+	observed, err := c.Subnetworks.Get(c.projectID, cr.Spec.Region, cr.Spec.Name).Context(ctx).Do()
 	if gcpclients.IsErrorNotFound(err) {
 		return resource.ExternalObservation{
 			ResourceExists: false,
@@ -118,18 +116,18 @@ func (c *networkExternal) Observe(ctx context.Context, mg resource.Managed) (res
 	if err != nil {
 		return resource.ExternalObservation{}, err
 	}
-	cr.Status.GCPNetworkStatus = *computev1alpha1.GenerateGCPNetworkStatus(*observed)
+	cr.Status.GCPSubnetworkStatus = computev1alpha1.GenerateGCPSubnetworkStatus(observed)
 	return resource.ExternalObservation{
 		ResourceExists: true,
 	}, nil
 }
 
-func (c *networkExternal) Create(ctx context.Context, mg resource.Managed) (resource.ExternalCreation, error) {
-	cr, ok := mg.(*v1alpha1.Network)
+func (c *subnetworkExternal) Create(ctx context.Context, mg resource.Managed) (resource.ExternalCreation, error) {
+	cr, ok := mg.(*v1alpha1.Subnetwork)
 	if !ok {
-		return resource.ExternalCreation{}, errors.New(errNotNetwork)
+		return resource.ExternalCreation{}, errors.New(errNotSubnetwork)
 	}
-	if _, err := c.Networks.Insert(c.projectID, computev1alpha1.GenerateNetwork(cr.Spec.GCPNetworkSpec)).
+	if _, err := c.Subnetworks.Insert(c.projectID, cr.Spec.Region, computev1alpha1.GenerateSubnetwork(cr.Spec.GCPSubnetworkSpec)).
 		Context(ctx).
 		Do(); err != nil {
 		return resource.ExternalCreation{}, err
@@ -137,15 +135,21 @@ func (c *networkExternal) Create(ctx context.Context, mg resource.Managed) (reso
 	return resource.ExternalCreation{}, nil
 }
 
-func (c *networkExternal) Update(ctx context.Context, mg resource.Managed) (resource.ExternalUpdate, error) {
-	cr, ok := mg.(*v1alpha1.Network)
+func (c *subnetworkExternal) Update(ctx context.Context, mg resource.Managed) (resource.ExternalUpdate, error) {
+	cr, ok := mg.(*v1alpha1.Subnetwork)
 	if !ok {
-		return resource.ExternalUpdate{}, errors.New(errNotNetwork)
+		return resource.ExternalUpdate{}, errors.New(errNotSubnetwork)
 	}
-	if _, err := c.Networks.Patch(
+	subnetworkBody := computev1alpha1.GenerateSubnetwork(cr.Spec.GCPSubnetworkSpec)
+	// Fingerprint from the last GET is required for updates.
+	subnetworkBody.Fingerprint = cr.Status.Fingerprint
+	// The API rejects region to be updated, in fact, it rejects the update when this field is even included. Calm down.
+	subnetworkBody.Region = ""
+	if _, err := c.Subnetworks.Patch(
 		c.projectID,
+		cr.Spec.Region,
 		cr.Spec.Name,
-		computev1alpha1.GenerateNetwork(cr.Spec.GCPNetworkSpec)).
+		subnetworkBody).
 		Context(ctx).
 		Do(); err != nil {
 		return resource.ExternalUpdate{}, err
@@ -153,12 +157,12 @@ func (c *networkExternal) Update(ctx context.Context, mg resource.Managed) (reso
 	return resource.ExternalUpdate{}, nil
 }
 
-func (c *networkExternal) Delete(ctx context.Context, mg resource.Managed) error {
-	cr, ok := mg.(*v1alpha1.Network)
+func (c *subnetworkExternal) Delete(ctx context.Context, mg resource.Managed) error {
+	cr, ok := mg.(*v1alpha1.Subnetwork)
 	if !ok {
-		return errors.New(errNotNetwork)
+		return errors.New(errNotSubnetwork)
 	}
-	if _, err := c.Networks.Delete(c.projectID, cr.Spec.Name).
+	if _, err := c.Subnetworks.Delete(c.projectID, cr.Spec.Region, cr.Spec.Name).
 		Context(ctx).
 		Do(); !gcpclients.IsErrorNotFound(err) && err != nil {
 		return err
