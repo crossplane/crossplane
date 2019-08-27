@@ -84,11 +84,10 @@ func ConfigurePostgresqlServer(_ context.Context, cm resource.Claim, cs resource
 		},
 		SQLServerParameters: rs.SpecTemplate.SQLServerParameters,
 	}
-	v, err := resource.ResolveClassClaimValues(spec.Version, pg.Spec.EngineVersion)
-	if err != nil {
-		return err
+
+	if pg.Spec.EngineVersion != "" {
+		spec.Version = pg.Spec.EngineVersion
 	}
-	spec.Version = v
 
 	spec.WriteConnectionSecretToReference = corev1.LocalObjectReference{Name: string(cm.GetUID())}
 	spec.ProviderReference = rs.SpecTemplate.ProviderReference
@@ -149,11 +148,10 @@ func ConfigureMysqlServer(_ context.Context, cm resource.Claim, cs resource.Clas
 		},
 		SQLServerParameters: rs.SpecTemplate.SQLServerParameters,
 	}
-	v, err := resource.ResolveClassClaimValues(spec.Version, my.Spec.EngineVersion)
-	if err != nil {
-		return err
+
+	if my.Spec.EngineVersion != "" {
+		spec.Version = my.Spec.EngineVersion
 	}
-	spec.Version = v
 
 	spec.WriteConnectionSecretToReference = corev1.LocalObjectReference{Name: string(cm.GetUID())}
 	spec.ProviderReference = rs.SpecTemplate.ProviderReference

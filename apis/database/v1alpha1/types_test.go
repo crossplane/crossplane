@@ -146,9 +146,9 @@ func TestEngineVersion(t *testing.T) {
 	// Test Create: valid versions
 	validate("5.6", true)
 	validate("5.7", true)
+	validate("", true)
 
 	// Test Create: invalid versions
-	validate("", false)
 	validate("5.8", false)
 	validate("5.6.40", false)
 }

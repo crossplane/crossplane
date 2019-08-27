@@ -30,7 +30,7 @@ type RedisClusterSpec struct {
 
 	// EngineVersion specifies the desired Redis version.
 	// +kubebuilder:validation:Enum="2.6";"2.8";"3.2";"4.0";"5.0"
-	EngineVersion string `json:"engineVersion"`
+	EngineVersion string `json:"engineVersion,omitempty"`
 }
 
 // +kubebuilder:object:root=true
