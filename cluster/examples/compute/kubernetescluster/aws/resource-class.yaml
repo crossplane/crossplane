@@ -11,6 +11,7 @@ specTemplate:
   subnetIds:
    - #subnet-01
    - #subnet-02
+   - #subnet-03
   securityGroupIds:
    - #sg-01
   workerNodes:
