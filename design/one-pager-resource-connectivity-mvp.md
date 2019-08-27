@@ -892,7 +892,7 @@ specTemplate:
 
 Azure differs from other cloud providers in that it requires *logical grouping*
 of all resources via the [Azure Resource Manager] control plane. Every Azure
-resource must exist in a Resource Group, which is essentially a just a
+resource must exist in a Resource Group, which is essentially just a
 collection of resource metadata. Resource Groups exist in a single region, but
 the resources that they contain may exist in any region. The region of the
 Resource Group is simply where the metadata is stored for the resources that are
@@ -945,7 +945,7 @@ infrastructure as code tool.
 
 AKS Clusters are a managed service, but the individual nodes are deployed into a
 VNet. Azure MySQL DB, on the other hand, is a "service resource" and is provided
-as a PaaS that lives outside of your VPC. Azure provides a two options for pods
+as a PaaS that lives outside of your VNet. Azure provides a two options for pods
 running on an AKS Cluster host to access the MySQL DB:
 
 1. Create a [firewall rule] on the MySQL DB Server with a range of IP addresses
