@@ -27,7 +27,7 @@ import (
 // Controllers passes down config and adds individual controllers to the manager.
 type Controllers struct{}
 
-// SetupWithManager adds all GCP controllers to the manager.
+// SetupWithManager adds all workload controllers to the manager.
 func (c *Controllers) SetupWithManager(mgr ctrl.Manager) error {
 	if err := (&application.Controller{}).SetupWithManager(mgr); err != nil {
 		return err

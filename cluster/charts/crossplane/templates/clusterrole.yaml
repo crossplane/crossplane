@@ -47,12 +47,6 @@ rules:
   - database.azure.crossplane.io
   - network.azure.crossplane.io
   - storage.azure.crossplane.io
-  - gcp.crossplane.io
-  - cache.gcp.crossplane.io
-  - compute.gcp.crossplane.io
-  - database.gcp.crossplane.io
-  - servicenetworking.gcp.crossplane.io
-  - storage.gcp.crossplane.io
   - workload.crossplane.io
   resources:
   - "*"
