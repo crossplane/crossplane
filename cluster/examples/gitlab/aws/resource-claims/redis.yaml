@@ -5,6 +5,8 @@ metadata:
   namespace: default
 spec:
   classRef:
+    kind: ReplicationGroupClass
+    apiVersion: cache.aws.crossplane.io/v1alpha1
     name: standard-aws-redis
     namespace: crossplane-system
   writeConnectionSecretToRef:

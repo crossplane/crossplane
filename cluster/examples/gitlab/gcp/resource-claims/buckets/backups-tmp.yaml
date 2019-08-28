@@ -6,6 +6,8 @@ metadata:
   namespace: default
 spec:
   classRef:
+    kind: BucketClass
+    apiVersion: storage.gcp.crossplane.io/v1alpha1
     name: standard-gcp-bucket
     namespace: crossplane-system
   writeConnectionSecretToRef:

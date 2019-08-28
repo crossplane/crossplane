@@ -19,33 +19,34 @@ spec:
     key: credentials.json
   projectID: PROJECT_ID
 ---
-apiVersion: core.crossplane.io/v1alpha1
-kind: ResourceClass
+apiVersion: database.gcp.crossplane.io/v1alpha1
+kind: CloudsqlInstanceClass
 metadata:
   name: standard-mysql
   namespace: crossplane-system
-parameters:
+specTemplate:
+  databaseVersion: MYSQL_5_7
   tier: db-n1-standard-1
   region: us-west2
   storageType: PD_SSD
-  authorizedNetworks: 0.0.0.0/0
-provisioner: cloudsqlinstance.database.gcp.crossplane.io/v1alpha1
-providerRef:
-  name: gcp-provider
-  namespace: crossplane-system
-reclaimPolicy: Delete
+  authorizedNetworks:
+   - 0.0.0.0/0
+  storageGB: 10
+  providerRef:
+    name: gcp-provider
+    namespace: crossplane-system
+  reclaimPolicy: Delete
 ---
-apiVersion: core.crossplane.io/v1alpha1
-kind: ResourceClass
+apiVersion: compute.gcp.crossplane.io/v1alpha1
+kind: GKEClusterClass
 metadata:
   name: standard-cluster
   namespace: crossplane-system
-parameters:
+specTemplate:
   machineType: n1-standard-1
-  numNodes: "1"
+  numNodes: 1
   zone: us-central1-b
-provisioner: gkecluster.compute.gcp.crossplane.io/v1alpha1
-providerRef:
-  name: gcp-provider
-  namespace: crossplane-system
-reclaimPolicy: Delete
+  providerRef:
+    name: gcp-provider
+    namespace: crossplane-system
+  reclaimPolicy: Delete

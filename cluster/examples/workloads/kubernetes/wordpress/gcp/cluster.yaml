@@ -1,15 +1,21 @@
 ---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: complex
+---
 apiVersion: compute.crossplane.io/v1alpha1
 kind: KubernetesCluster
 metadata:
-  name: gkecluster
+  name: wordpress-demo-cluster
+  namespace: complex
   labels:
     app: wordpress-demo
 spec:
+  writeConnectionSecretToRef:
+    name: wordpress-demo-cluster
   classRef:
     kind: GKEClusterClass
     apiVersion: compute.gcp.crossplane.io/v1alpha1
-    name: gkecluster
+    name: standard-cluster
     namespace: crossplane-system
-  writeConnectionSecretToRef:
-    name: gkecluster

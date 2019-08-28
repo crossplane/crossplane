@@ -5,6 +5,8 @@ metadata:
   name: storageaccount
 spec:
   classRef:
+    kind: AccountClass
+    apiVersion: storage.azure.crossplane.io/v1alpha1
     name: storageaccount
     namespace: crossplane-system
   writeConnectionSecretToRef:

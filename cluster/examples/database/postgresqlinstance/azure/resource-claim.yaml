@@ -5,6 +5,8 @@ metadata:
   name: sqlserverpostgresql
 spec:
   classRef:
+    kind: SQLServerClass
+    apiVersion: database.azure.crossplane.io/v1alpha1
     name: sqlserverpostgresql
     namespace: crossplane-system
   writeConnectionSecretToRef:

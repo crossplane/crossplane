@@ -1,16 +1,15 @@
 # ResourceClass that defines the blueprint for how a "standard" Redis cluster
 # should be dynamically provisioned
-apiVersion: core.crossplane.io/v1alpha1
-kind: ResourceClass
+apiVersion: cache.gcp.crossplane.io/v1alpha1
+kind: CloudMemorystoreInstanceClass
 metadata:
   name: cloudmemorystoreinstance
   namespace: crossplane-system
-parameters:
+specTemplate:
   tier: STANDARD_HA
   region: us-west2
-  memorySizeGb: "1"
-provisioner: cloudmemorystoreinstance.cache.gcp.crossplane.io/v1alpha1
-providerRef:
-  name: example
-  namespace: crossplane-system
-reclaimPolicy: Delete
+  memorySizeGb: 1
+  providerRef:
+    name: example
+    namespace: crossplane-system
+  reclaimPolicy: Delete

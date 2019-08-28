@@ -5,6 +5,8 @@ metadata:
   namespace: default
 spec:
   classRef:
+    kind: CloudMemorystoreInstanceClass
+    apiVersion: cache.gcp.crossplane.io/v1alpha1
     name: standard-gcp-redis
     namespace: crossplane-system
   writeConnectionSecretToRef:

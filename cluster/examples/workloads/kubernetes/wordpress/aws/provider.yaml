@@ -19,43 +19,48 @@ spec:
     name: aws-provider-creds
   region: REGION
 ---
-apiVersion: core.crossplane.io/v1alpha1
-kind: ResourceClass
+apiVersion: database.aws.crossplane.io/v1alpha1
+kind: RDSInstanceClass
 metadata:
   name: standard-mysql
   namespace: crossplane-system
-parameters:
+specTemplate:
   class: db.t2.small
   masterUsername: masteruser
-  securityGroups: RDS_SECURITY_GROUP #sg-1,sg-2
+  securityGroups:
+   - RDS_SECURITY_GROUP # sg-1
   subnetGroupName: RDS_SUBNET_GROUP_NAME # eks-db-subnets
-  size: "20"
-provisioner: rdsinstance.database.aws.crossplane.io/v1alpha1
-providerRef:
-  name: aws-provider
-  namespace: crossplane-system
-reclaimPolicy: Delete
+  size: 20
+  engine: mysql
+  providerRef:
+    name: aws-provider
+    namespace: crossplane-system
+  reclaimPolicy: Delete
 ---
-apiVersion: core.crossplane.io/v1alpha1
-kind: ResourceClass
+apiVersion: compute.aws.crossplane.io/v1alpha1
+kind: EKSClusterClass
 metadata:
   name: standard-cluster
   namespace: crossplane-system
-parameters:
+specTemplate:
   region: REGION
   roleARN: EKS_ROLE_ARN # arn:aws:iam::<account-id>:role/<role-name>
   vpcId: EKS_VPC #vpc-01
-  subnetIds: EKS_SUBNETS #subnet-01,subnet-02,subnet-03
-  securityGroupIds: EKS_SECURITY_GROUP #sg-01
-  workerKeyName: EKS_WORKER_KEY_NAME #named ec2 keypair
-  workerNodeInstanceType: m3.medium
-  workerNodeAutoScalingGroupMinSize: "1"
-  workerNodeAutoScalingGroupMaxSize: "1"
-  workerNodeGroupName: demo-nodes
-  workerClusterControlPlaneSecurityGroup: EKS_SECURITY_GROUP #sg-01
-provisioner: ekscluster.compute.aws.crossplane.io/v1alpha1
-providerRef:
-  name: aws-provider
-  namespace: crossplane-system
-reclaimPolicy: Delete
+  subnetIds:
+   - EKS_SUBNET_ONE #subnet-01
+   - EKS_SUBNET_TWO #subnet-02
+   - EKS_SUBNET_THREE #subnet-03
+  securityGroupIds:
+   - EKS_SECURITY_GROUP #sg-01
+  workerNodes:
+    keyName: EKS_WORKER_KEY_NAME #named ec2 keypair
+    nodeInstanceType: m3.medium
+    nodeAutoScalingGroupMinSize: 1
+    nodeAutoScalingGroupMaxSize: 1
+    nodeGroupName: demo-nodes
+    clusterControlPlaneSecurityGroup: EKS_SECURITY_GROUP #sg-01
+  providerRef:
+    name: aws-provider
+    namespace: crossplane-system
+  reclaimPolicy: Delete
 ---

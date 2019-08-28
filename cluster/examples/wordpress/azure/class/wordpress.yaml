@@ -4,6 +4,8 @@ metadata:
   name: mysql-instance
 spec:
   classRef:
+    kind: SQLServerClass
+    apiVersion: database.azure.crossplane.io/v1alpha1
     name: standard
     namespace: crossplane-system
   writeConnectionSecretToRef:

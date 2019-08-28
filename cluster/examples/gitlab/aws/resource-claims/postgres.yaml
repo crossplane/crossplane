@@ -5,6 +5,8 @@ metadata:
   namespace: default
 spec:
   classRef:
+    kind: RDSInstanceClass
+    apiVersion: database.aws.crossplane.io/v1alpha1
     name: standard-aws-postgres
     namespace: crossplane-system
   writeConnectionSecretToRef:

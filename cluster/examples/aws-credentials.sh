@@ -110,6 +110,10 @@ export RDS_SECURITY_GROUP=$(aws ec2 describe-security-groups --filter Name=group
 
 aws ec2 authorize-security-group-ingress --protocol=tcp --port=3306 --region=$REGION --cidr=0.0.0.0/0 --group-id=$RDS_SECURITY_GROUP  > /dev/null
 
+IFS=', ' read -r -a subnets <<< "$EKS_SUBNETS"
+export EKS_SUBNET_ONE=${subnets[0]}
+export EKS_SUBNET_TWO=${subnets[1]}
+export EKS_SUBNET_THREE=${subnets[2]}
 
 cat <<EOS
 #
@@ -120,7 +124,9 @@ export EKS_WORKER_KEY_NAME=$EKS_WORKER_KEY_NAME
 export EKS_ROLE_ARN=$EKS_ROLE_ARN
 export REGION=$REGION
 export EKS_VPC=$EKS_VPC
-export EKS_SUBNETS=$EKS_SUBNETS
+export EKS_SUBNET_ONE=$EKS_SUBNET_ONE
+export EKS_SUBNET_TWO=$EKS_SUBNET_TWO
+export EKS_SUBNET_THREE=$EKS_SUBNET_THREE
 export EKS_SECURITY_GROUP=$EKS_SECURITY_GROUP
 export RDS_SUBNET_GROUP_NAME=$RDS_SUBNET_GROUP_NAME
 export RDS_SECURITY_GROUP=$RDS_SECURITY_GROUP
@@ -133,7 +139,9 @@ sed -e "s|BASE64ENCODED_AWS_PROVIDER_CREDS|\$(base64 $KEYFILE | tr -d "\n")|g" \
     -e "s|EKS_ROLE_ARN|\$EKS_ROLE_ARN|g" \\
     -e "s|REGION|\$REGION|g" \\
     -e "s|EKS_VPC|\$EKS_VPC|g" \\
-    -e "s|EKS_SUBNETS|\$EKS_SUBNETS|g" \\
+    -e "s|EKS_SUBNET_ONE|\$EKS_SUBNET_ONE|g" \\
+    -e "s|EKS_SUBNET_TWO|\$EKS_SUBNET_TWO|g" \\
+    -e "s|EKS_SUBNET_THREE|\$EKS_SUBNET_THREE|g" \\
     -e "s|EKS_SECURITY_GROUP|\$EKS_SECURITY_GROUP|g" \\
     -e "s|RDS_SUBNET_GROUP_NAME|\$RDS_SUBNET_GROUP_NAME|g" \\
     -e "s|RDS_SECURITY_GROUP|\$RDS_SECURITY_GROUP|g" \\

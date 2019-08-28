@@ -154,7 +154,7 @@ sed -e "s|BASE64ENCODED_AWS_PROVIDER_CREDS|`base64 ~/.aws/credentials|tr -d '\n'
 Create cluster:
 
 ```console
-kubectl create -f cluster/examples/workloads/kubernetes/wordpress/cluster.yaml
+kubectl create -f cluster/examples/workloads/kubernetes/wordpress/aws/cluster.yaml
 ```
 
 It will take a while (~15 minutes) for the EKS cluster to be deployed and become available.
@@ -182,7 +182,7 @@ This section covers tasks performed by an application developer.  These include:
 Now that the EKS cluster is ready, let's begin deploying the workload as the application developer:
 
 ```console
-kubectl create -f cluster/examples/workloads/kubernetes/wordpress/app.yaml
+kubectl create -f cluster/examples/workloads/kubernetes/wordpress/aws/app.yaml
 ```
 
 This will also take awhile to complete, since the MySQL database needs to be deployed before the WordPress pod can consume it.
@@ -274,13 +274,13 @@ kubectl get nodes
 First delete the workload, which will delete WordPress and the MySQL database:
 
 ```console
-kubectl delete -f cluster/examples/workloads/kubernetes/wordpress/app.yaml
+kubectl delete -f cluster/examples/workloads/kubernetes/wordpress/aws/app.yaml
 ```
 
 Then delete the EKS cluster:
 
 ```console
-kubectl delete -f cluster/examples/workloads/kubernetes/wordpress/cluster.yaml
+kubectl delete -f cluster/examples/workloads/kubernetes/wordpress/aws/cluster.yaml
 ```
 
 Finally, delete the provider credentials:
