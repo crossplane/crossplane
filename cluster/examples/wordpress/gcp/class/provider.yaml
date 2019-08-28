@@ -10,7 +10,7 @@ data:
   credentials.json: BASE64ENCODED_GCP_PROVIDER_CREDS
 ---
 # GCP Provider with service account secret reference - used to provision sql resources
-apiVersion: gcp.crossplane.io/v1alpha1
+apiVersion: gcp.crossplane.io/v1alpha2
 kind: Provider
 metadata:
   name: gcp-sql-provider
@@ -25,7 +25,7 @@ spec:
 ---
 # ResourceClass that defines the blueprint for how a "standard" CloudSQL instance
 # should be dynamically provisioned
-apiVersion: database.gcp.crossplane.io/v1alpha1
+apiVersion: database.gcp.crossplane.io/v1alpha2
 kind: CloudsqlInstanceClass
 metadata:
   name: standard

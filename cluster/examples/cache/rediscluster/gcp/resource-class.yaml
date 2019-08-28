@@ -1,6 +1,6 @@
 # ResourceClass that defines the blueprint for how a "standard" Redis cluster
 # should be dynamically provisioned
-apiVersion: cache.gcp.crossplane.io/v1alpha1
+apiVersion: cache.gcp.crossplane.io/v1alpha2
 kind: CloudMemorystoreInstanceClass
 metadata:
   name: cloudmemorystoreinstance

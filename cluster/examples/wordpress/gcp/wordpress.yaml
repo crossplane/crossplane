@@ -10,7 +10,7 @@ type: Opaque
 data:
   credentials.json: BASE64ENCODED_GCP_SQL_CREDS
 ---
-apiVersion: database.gcp.crossplane.io/v1alpha1
+apiVersion: database.gcp.crossplane.io/v1alpha2
 kind: CloudsqlInstance
 metadata:
   labels:

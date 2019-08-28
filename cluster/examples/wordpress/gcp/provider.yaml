@@ -9,7 +9,7 @@ data:
   credentials.json: BASE64ENCODED_GCP_PROVIDER_CREDS
 ---
 # GCP Provider with service account secret reference - used to provision sql resources
-apiVersion: gcp.crossplane.io/v1alpha1
+apiVersion: gcp.crossplane.io/v1alpha2
 kind: Provider
 metadata:
   name: gcp-sql-provider

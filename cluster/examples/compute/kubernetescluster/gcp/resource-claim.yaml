@@ -8,7 +8,7 @@ metadata:
 spec:
   classRef:
     kind: GKEClusterClass
-    apiVersion: compute.gcp.crossplane.io/v1alpha1
+    apiVersion: compute.gcp.crossplane.io/v1alpha2
     name: gkecluster
     namespace: crossplane-system
   writeConnectionSecretToRef:

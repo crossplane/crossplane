@@ -21,7 +21,7 @@ data:
   interopSecret: BASE64ENCODED_GCS_INTEROP_SECRET
 ---
 ## Crossplane GCP Provider
-apiVersion: gcp.crossplane.io/v1alpha1
+apiVersion: gcp.crossplane.io/v1alpha2
 kind: Provider
 metadata:
   name: demo-gcp
