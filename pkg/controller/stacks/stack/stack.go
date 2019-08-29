@@ -180,7 +180,7 @@ func (h *stackHandler) processRBAC(ctx context.Context) error {
 	}
 
 	// create role
-	cr := &rbac.ClusterRole{
+	cr := &rbac.Role{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            h.ext.Name,
 			OwnerReferences: []metav1.OwnerReference{owner},
@@ -192,12 +192,12 @@ func (h *stackHandler) processRBAC(ctx context.Context) error {
 	}
 
 	// create rolebinding between service account and role
-	crb := &rbac.ClusterRoleBinding{
+	crb := &rbac.RoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            h.ext.Name,
 			OwnerReferences: []metav1.OwnerReference{owner},
 		},
-		RoleRef: rbac.RoleRef{APIGroup: rbac.GroupName, Kind: "ClusterRole", Name: h.ext.Name},
+		RoleRef: rbac.RoleRef{APIGroup: rbac.GroupName, Kind: "Role", Name: h.ext.Name},
 		Subjects: []rbac.Subject{
 			{Name: h.ext.Name, Namespace: h.ext.Namespace, Kind: rbac.ServiceAccountKind},
 		},

@@ -81,6 +81,40 @@ func TestStackRequest(t *testing.T) {
 	g.Expect(c.Get(ctx, key, fetched)).To(HaveOccurred())
 }
 
+func TestClusterStackRequest(t *testing.T) {
+	g := NewGomegaWithT(t)
+
+	created := &ClusterStackRequest{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      name,
+		},
+		Spec: ClusterStackRequestSpec{
+			Source:  "registry.crossplane.io",
+			Package: "testpackage:v0.1",
+		},
+	}
+
+	// Test Create
+	fetched := &ClusterStackRequest{}
+	g.Expect(c.Create(ctx, created)).NotTo(HaveOccurred())
+
+	g.Expect(c.Get(ctx, key, fetched)).NotTo(HaveOccurred())
+	g.Expect(fetched).To(Equal(created))
+
+	// Test Updating the annotations
+	updated := fetched.DeepCopy()
+	updated.Annotations = map[string]string{"hello": "world"}
+	g.Expect(c.Update(ctx, updated)).NotTo(HaveOccurred())
+
+	g.Expect(c.Get(ctx, key, fetched)).NotTo(HaveOccurred())
+	g.Expect(fetched).To(Equal(updated))
+
+	// Test Delete
+	g.Expect(c.Delete(ctx, fetched)).NotTo(HaveOccurred())
+	g.Expect(c.Get(ctx, key, fetched)).To(HaveOccurred())
+}
+
 func TestStack(t *testing.T) {
 	g := NewGomegaWithT(t)
 

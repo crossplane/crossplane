@@ -379,8 +379,8 @@ func TestProcessRBAC(t *testing.T) {
 	type want struct {
 		err error
 		sa  *corev1.ServiceAccount
-		cr  *rbac.ClusterRole
-		crb *rbac.ClusterRoleBinding
+		cr  *rbac.Role
+		crb *rbac.RoleBinding
 	}
 
 	tests := []struct {
@@ -421,12 +421,12 @@ func TestProcessRBAC(t *testing.T) {
 			},
 		},
 		{
-			name: "CreateClusterRoleError",
+			name: "CreateRoleError",
 			r:    resource(withPolicyRules(defaultPolicyRules())),
 			clientFunc: func(r *v1alpha1.Stack) client.Client {
 				return &test.MockClient{
 					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error {
-						if _, ok := obj.(*rbac.ClusterRole); ok {
+						if _, ok := obj.(*rbac.Role); ok {
 							return errBoom
 						}
 						return nil
@@ -441,12 +441,12 @@ func TestProcessRBAC(t *testing.T) {
 			},
 		},
 		{
-			name: "CreateClusterRoleBindingError",
+			name: "CreateRoleBindingError",
 			r:    resource(withPolicyRules(defaultPolicyRules())),
 			clientFunc: func(r *v1alpha1.Stack) client.Client {
 				return &test.MockClient{
 					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error {
-						if _, ok := obj.(*rbac.ClusterRoleBinding); ok {
+						if _, ok := obj.(*rbac.RoleBinding); ok {
 							return errBoom
 						}
 						return nil
@@ -475,7 +475,7 @@ func TestProcessRBAC(t *testing.T) {
 						},
 					},
 				},
-				cr: &rbac.ClusterRole{
+				cr: &rbac.Role{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: resourceName,
 						OwnerReferences: []metav1.OwnerReference{
@@ -484,14 +484,14 @@ func TestProcessRBAC(t *testing.T) {
 					},
 					Rules: defaultPolicyRules(),
 				},
-				crb: &rbac.ClusterRoleBinding{
+				crb: &rbac.RoleBinding{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: resourceName,
 						OwnerReferences: []metav1.OwnerReference{
 							meta.AsOwner(meta.ReferenceTo(resource(), v1alpha1.StackGroupVersionKind)),
 						},
 					},
-					RoleRef:  rbac.RoleRef{APIGroup: rbac.GroupName, Kind: "ClusterRole", Name: resourceName},
+					RoleRef:  rbac.RoleRef{APIGroup: rbac.GroupName, Kind: "Role", Name: resourceName},
 					Subjects: []rbac.Subject{{Name: resourceName, Namespace: namespace, Kind: rbac.ServiceAccountKind}},
 				},
 			},
@@ -518,12 +518,12 @@ func TestProcessRBAC(t *testing.T) {
 			}
 
 			if tt.want.cr != nil {
-				got := &rbac.ClusterRole{}
+				got := &rbac.Role{}
 				assertKubernetesObject(t, g, got, tt.want.cr, handler.kube)
 			}
 
 			if tt.want.crb != nil {
-				got := &rbac.ClusterRoleBinding{}
+				got := &rbac.RoleBinding{}
 				assertKubernetesObject(t, g, got, tt.want.crb, handler.kube)
 			}
 		})

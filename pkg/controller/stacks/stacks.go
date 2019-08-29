@@ -19,6 +19,7 @@ package stacks
 import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
+	"github.com/crossplaneio/crossplane/pkg/controller/stacks/clusterrequest"
 	"github.com/crossplaneio/crossplane/pkg/controller/stacks/request"
 	"github.com/crossplaneio/crossplane/pkg/controller/stacks/stack"
 )
@@ -26,8 +27,12 @@ import (
 // Controllers passes down config and adds individual controllers to the manager.
 type Controllers struct{}
 
-// SetupWithManager adds all Stacks controllers to the manager.
+// SetupWithManager adds all Stack controllers to the manager.
 func (c *Controllers) SetupWithManager(mgr ctrl.Manager) error {
+	if err := (&clusterrequest.Controller{}).SetupWithManager(mgr); err != nil {
+		return err
+	}
+
 	if err := (&request.Controller{}).SetupWithManager(mgr); err != nil {
 		return err
 	}

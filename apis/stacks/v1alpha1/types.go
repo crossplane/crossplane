@@ -82,6 +82,57 @@ type StackRequestStatus struct {
 
 // +kubebuilder:object:root=true
 
+// ClusterStackRequest is the CRD type for a request to add a stack to Crossplane.
+// +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type==Ready)].status"
+// +kubebuilder:printcolumn:name="SOURCE",type="string",JSONPath=".spec.source"
+// +kubebuilder:printcolumn:name="PACKAGE",type="string",JSONPath=".spec.package"
+// +kubebuilder:printcolumn:name="CRD",type="string",JSONPath=".spec.crd"
+// +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
+type ClusterStackRequest struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec   ClusterStackRequestSpec   `json:"spec,omitempty"`
+	Status ClusterStackRequestStatus `json:"status,omitempty"`
+}
+
+// +kubebuilder:object:root=true
+
+// ClusterStackRequestList contains a list of StackRequest
+type ClusterStackRequestList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []ClusterStackRequest `json:"items"`
+}
+
+// ClusterStackRequestSpec specifies details about a request to add a stack to Crossplane.
+type ClusterStackRequestSpec struct {
+	// Source is the domain name for the stack registry hosting the stack being requested,
+	// e.g., registry.crossplane.io
+	Source string `json:"source,omitempty"`
+
+	// Package is the name of the stack package that is being requested, e.g., myapp.
+	// Either Package or CustomResourceDefinition can be specified.
+	Package string `json:"package,omitempty"`
+
+	// CustomResourceDefinition is the full name of a CRD that is owned by the stack being
+	// requested. This can be a convenient way of installing a stack when the desired
+	// CRD is known, but the package name that contains it is not known.
+	// Either Package or CustomResourceDefinition can be specified.
+	CustomResourceDefinition string `json:"crd,omitempty"`
+}
+
+// ClusterStackRequestStatus defines the observed state of StackRequest
+type ClusterStackRequestStatus struct {
+	runtimev1alpha1.ConditionedStatus `json:"conditionedStatus,omitempty"`
+
+	InstallJob  *corev1.ObjectReference `json:"installJob,omitempty"`
+	StackRecord *corev1.ObjectReference `json:"stackRecord,omitempty"`
+}
+
+// +kubebuilder:object:root=true
+
 // Stack is the CRD type for a request to add a stack to Crossplane.
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type==Ready)].status"
