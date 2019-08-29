@@ -17,9 +17,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"net/http"
-
-	googlecompute "google.golang.org/api/compute/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -50,57 +47,57 @@ type Network struct {
 	Status NetworkStatus `json:"status,omitempty"`
 }
 
-// SetBindingPhase of this ReplicationGroup.
+// SetBindingPhase of this Network.
 func (n *Network) SetBindingPhase(p v1alpha1.BindingPhase) {
 	n.Status.SetBindingPhase(p)
 }
 
-// SetConditions of this ReplicationGroup.
+// SetConditions of this Network.
 func (n *Network) SetConditions(c ...v1alpha1.Condition) {
 	n.Status.SetConditions(c...)
 }
 
-// GetBindingPhase of this ReplicationGroup.
+// GetBindingPhase of this Network.
 func (n *Network) GetBindingPhase() v1alpha1.BindingPhase {
 	return n.Status.GetBindingPhase()
 }
 
-// SetClaimReference of this ReplicationGroup.
+// SetClaimReference of this Network.
 func (n *Network) SetClaimReference(r *corev1.ObjectReference) {
 	n.Spec.ClaimReference = r
 }
 
-// GetClaimReference of this ReplicationGroup.
+// GetClaimReference of this Network.
 func (n *Network) GetClaimReference() *corev1.ObjectReference {
 	return n.Spec.ClaimReference
 }
 
-// SetClassReference of this ReplicationGroup.
+// SetClassReference of this Network.
 func (n *Network) SetClassReference(r *corev1.ObjectReference) {
 	n.Spec.ClassReference = r
 }
 
-// GetClassReference of this ReplicationGroup.
+// GetClassReference of this Network.
 func (n *Network) GetClassReference() *corev1.ObjectReference {
 	return n.Spec.ClassReference
 }
 
-// SetWriteConnectionSecretToReference of this ReplicationGroup.
+// SetWriteConnectionSecretToReference of this Network.
 func (n *Network) SetWriteConnectionSecretToReference(r corev1.LocalObjectReference) {
 	n.Spec.WriteConnectionSecretToReference = r
 }
 
-// GetWriteConnectionSecretToReference of this ReplicationGroup.
+// GetWriteConnectionSecretToReference of this Network.
 func (n *Network) GetWriteConnectionSecretToReference() corev1.LocalObjectReference {
 	return n.Spec.WriteConnectionSecretToReference
 }
 
-// GetReclaimPolicy of this ReplicationGroup.
+// GetReclaimPolicy of this Network.
 func (n *Network) GetReclaimPolicy() v1alpha1.ReclaimPolicy {
 	return n.Spec.ReclaimPolicy
 }
 
-// SetReclaimPolicy of this ReplicationGroup.
+// SetReclaimPolicy of this Network.
 func (n *Network) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) {
 	n.Spec.ReclaimPolicy = p
 }
@@ -126,7 +123,8 @@ type GCPNetworkSpec struct {
 
 	// AutoCreateSubnetworks: When set to true, the VPC network is created
 	// in "auto" mode. When set to false, the VPC network is created in
-	// "custom" mode.
+	// "custom" mode. When set to nil, the VPC network is created in "legacy"
+	// mode which will be deprecated by GCP soon.
 	//
 	// An auto mode VPC network starts with one subnet per region. Each
 	// subnet has a predetermined range as described in Auto mode VPC
@@ -152,6 +150,29 @@ type GCPNetworkSpec struct {
 	RoutingConfig *GCPNetworkRoutingConfig `json:"routingConfig,omitempty"`
 }
 
+// IsSameAs compares the fields of GCPNetworkSpec and
+// GCPNetworkStatus to report whether there is a difference. Its cyclomatic
+// complexity is related to how many fields exist, so, not much of an indicator.
+// nolint:gocyclo
+func (in GCPNetworkSpec) IsSameAs(n GCPNetworkStatus) bool {
+	if (in.RoutingConfig != nil && n.RoutingConfig == nil) ||
+		(in.RoutingConfig == nil && n.RoutingConfig != nil) {
+		return false
+	}
+	if in.RoutingConfig != nil && n.RoutingConfig != nil && in.RoutingConfig.RoutingMode != n.RoutingConfig.RoutingMode {
+		return false
+	}
+	if (in.AutoCreateSubnetworks == nil && n.AutoCreateSubnetworks) ||
+		(in.AutoCreateSubnetworks != nil && *in.AutoCreateSubnetworks != n.AutoCreateSubnetworks) {
+		return false
+	}
+	if in.Description != n.Description ||
+		in.IPv4Range != n.IPv4Range {
+		return false
+	}
+	return true
+}
+
 // GCPNetworkStatus is the complete mirror of googlecompute.Network but
 // with deepcopy functions. In the future, this can be generated automatically.
 type GCPNetworkStatus struct {
@@ -170,7 +191,7 @@ type GCPNetworkStatus struct {
 	// network IP ranges.
 	AutoCreateSubnetworks bool `json:"autoCreateSubnetworks,omitempty"`
 
-	// CreationTimestamp: [Output Only] Creation timestamp in RFC3339 text
+	// CreationTimestamp: Creation timestamp in RFC3339 text
 	// format.
 	CreationTimestamp string `json:"creationTimestamp,omitempty"`
 
@@ -178,28 +199,15 @@ type GCPNetworkStatus struct {
 	// field when you create the resource.
 	Description string `json:"description,omitempty"`
 
-	// GatewayIPv4: [Output Only] The gateway address for default routing
+	// GatewayIPv4: The gateway address for default routing
 	// out of the network, selected by GCP.
 	GatewayIPv4 string `json:"gatewayIPv4,omitempty"`
 
-	// Id: [Output Only] The unique identifier for the resource. This
+	// Id: The unique identifier for the resource. This
 	// identifier is defined by the server.
 	ID uint64 `json:"id,omitempty"`
 
-	// Kind: [Output Only] Type of the resource. Always compute#network for
-	// networks.
-	Kind string `json:"kind,omitempty"`
-
-	// Name: Name of the resource. Provided by the client when the resource
-	// is created. The name must be 1-63 characters long, and comply with
-	// RFC1035. Specifically, the name must be 1-63 characters long and
-	// match the regular expression `[a-z]([-a-z0-9]*[a-z0-9])?. The first
-	// character must be a lowercase letter, and all following characters
-	// (except for the last character) must be a dash, lowercase letter, or
-	// digit. The last character must be a lowercase letter or digit.
-	Name string `json:"name,omitempty"`
-
-	// Peerings: [Output Only] A list of network peerings for the resource.
+	// Peerings: A list of network peerings for the resource.
 	Peerings []*GCPNetworkPeering `json:"peerings,omitempty"`
 
 	// RoutingConfig: The network-level routing configuration for this
@@ -207,93 +215,12 @@ type GCPNetworkStatus struct {
 	// routing behavior to enforce.
 	RoutingConfig *GCPNetworkRoutingConfig `json:"routingConfig,omitempty"`
 
-	// SelfLink: [Output Only] Server-defined URL for the resource.
+	// SelfLink: Server-defined URL for the resource.
 	SelfLink string `json:"selfLink,omitempty"`
 
-	// Subnetworks: [Output Only] Server-defined fully-qualified URLs for
+	// Subnetworks: Server-defined fully-qualified URLs for
 	// all subnetworks in this VPC network.
 	Subnetworks []string `json:"subnetworks,omitempty"`
-
-	// ServerResponse contains the HTTP response code and headers from the
-	// server.
-	GCPServerResponse `json:"-"`
-
-	// ForceSendFields is a list of field names (e.g. "IPv4Range") to
-	// unconditionally include in API requests. By default, fields with
-	// empty values are omitted from API requests. However, any non-pointer,
-	// non-interface field appearing in ForceSendFields will be sent to the
-	// server regardless of whether the field is empty or not. This may be
-	// used to include empty fields in Patch requests.
-	ForceSendFields []string `json:"-"`
-
-	// NullFields is a list of field names (e.g. "IPv4Range") to include in
-	// API requests with the JSON null value. By default, fields with empty
-	// values are omitted from API requests. However, any field with an
-	// empty value appearing in NullFields will be sent to the server as
-	// null. It is an error if a field in this list has a non-empty value.
-	// This may be used to include null fields in Patch requests.
-	NullFields []string `json:"-"`
-}
-
-// GenerateNetwork takes a *GCPNetworkSpec and returns *googlecompute.Network.
-// It assigns only the fields that are writable, i.e. not labelled as [Output Only]
-// in Google's reference.
-func GenerateNetwork(in GCPNetworkSpec) *googlecompute.Network {
-	n := &googlecompute.Network{}
-	n.IPv4Range = in.IPv4Range
-	if in.AutoCreateSubnetworks == nil {
-		// Otherwise it is omitted if the value is false.
-		n.NullFields = []string{"AutoCreateSubnetworks"}
-	} else {
-		n.AutoCreateSubnetworks = *in.AutoCreateSubnetworks
-		if !n.AutoCreateSubnetworks {
-			n.ForceSendFields = []string{"AutoCreateSubnetworks"}
-		}
-	}
-	n.Description = in.Description
-	n.Name = in.Name
-	if in.RoutingConfig != nil {
-		n.RoutingConfig = &googlecompute.NetworkRoutingConfig{
-			RoutingMode: in.RoutingConfig.RoutingMode,
-		}
-	}
-	return n
-}
-
-// GenerateGCPNetworkStatus takes a *googlecompute.Network and returns *GCPNetworkStatus
-// It assings all the fields.
-func GenerateGCPNetworkStatus(in googlecompute.Network) *GCPNetworkStatus {
-	gn := &GCPNetworkStatus{
-		IPv4Range:             in.IPv4Range,
-		AutoCreateSubnetworks: in.AutoCreateSubnetworks,
-		CreationTimestamp:     in.CreationTimestamp,
-		Description:           in.Description,
-		GatewayIPv4:           in.GatewayIPv4,
-		ID:                    in.Id,
-		Kind:                  in.Kind,
-		Name:                  in.Name,
-		RoutingConfig: &GCPNetworkRoutingConfig{
-			RoutingMode: in.RoutingConfig.RoutingMode,
-		},
-		SelfLink:    in.SelfLink,
-		Subnetworks: in.Subnetworks,
-		GCPServerResponse: GCPServerResponse{
-			HTTPStatusCode: in.ServerResponse.HTTPStatusCode,
-			Header:         in.ServerResponse.Header,
-		},
-	}
-	for _, p := range in.Peerings {
-		gp := &GCPNetworkPeering{
-			Name:                 p.Name,
-			Network:              p.Network,
-			State:                p.State,
-			AutoCreateRoutes:     p.AutoCreateRoutes,
-			ExchangeSubnetRoutes: p.ExchangeSubnetRoutes,
-			StateDetails:         p.StateDetails,
-		}
-		gn.Peerings = append(gn.Peerings, gp)
-	}
-	return gn
 }
 
 // GCPNetworkPeering is the mirror of googlecompute.NetworkPeering but with deepcopy functions.
@@ -327,7 +254,7 @@ type GCPNetworkPeering struct {
 	// network is in the same project as the current network.
 	Network string `json:"network,omitempty"`
 
-	// State: [Output Only] State for the peering, either `ACTIVE` or
+	// State: State for the peering, either `ACTIVE` or
 	// `INACTIVE`. The peering is `ACTIVE` when there's a matching
 	// configuration in the peer network.
 	//
@@ -336,26 +263,9 @@ type GCPNetworkPeering struct {
 	//   "INACTIVE"
 	State string `json:"state,omitempty"`
 
-	// StateDetails: [Output Only] Details about the current state of the
+	// StateDetails: Details about the current state of the
 	// peering.
 	StateDetails string `json:"stateDetails,omitempty"`
-
-	// ForceSendFields is a list of field names (e.g. "AutoCreateRoutes") to
-	// unconditionally include in API requests. By default, fields with
-	// empty values are omitted from API requests. However, any non-pointer,
-	// non-interface field appearing in ForceSendFields will be sent to the
-	// server regardless of whether the field is empty or not. This may be
-	// used to include empty fields in Patch requests.
-	ForceSendFields []string `json:"-"`
-
-	// NullFields is a list of field names (e.g. "AutoCreateRoutes") to
-	// include in API requests with the JSON null value. By default, fields
-	// with empty values are omitted from API requests. However, any field
-	// with an empty value appearing in NullFields will be sent to the
-	// server as null. It is an error if a field in this list has a
-	// non-empty value. This may be used to include null fields in Patch
-	// requests.
-	NullFields []string `json:"-"`
 }
 
 // GCPNetworkRoutingConfig is the mirror of googlecompute.NetworkRoutingConfig but with deepcopy functions.
@@ -370,29 +280,4 @@ type GCPNetworkRoutingConfig struct {
 	//   "GLOBAL"
 	//   "REGIONAL"
 	RoutingMode string `json:"routingMode,omitempty"`
-
-	// ForceSendFields is a list of field names (e.g. "RoutingMode") to
-	// unconditionally include in API requests. By default, fields with
-	// empty values are omitted from API requests. However, any non-pointer,
-	// non-interface field appearing in ForceSendFields will be sent to the
-	// server regardless of whether the field is empty or not. This may be
-	// used to include empty fields in Patch requests.
-	ForceSendFields []string `json:"-"`
-
-	// NullFields is a list of field names (e.g. "RoutingMode") to include
-	// in API requests with the JSON null value. By default, fields with
-	// empty values are omitted from API requests. However, any field with
-	// an empty value appearing in NullFields will be sent to the server as
-	// null. It is an error if a field in this list has a non-empty value.
-	// This may be used to include null fields in Patch requests.
-	NullFields []string `json:"-"`
-}
-
-// GCPServerResponse is the mirror of googleapi.ServerResponse but with deepcopy functions.
-type GCPServerResponse struct {
-	// HTTPStatusCode is the server's response status code. When using a
-	// resource method's Do call, this will always be in the 2xx range.
-	HTTPStatusCode int
-	// Header contains the response header fields from the server.
-	Header http.Header
 }

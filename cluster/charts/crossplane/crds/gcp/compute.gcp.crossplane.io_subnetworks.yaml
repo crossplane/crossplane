@@ -9,7 +9,9 @@ spec:
   group: compute.gcp.crossplane.io
   names:
     kind: Subnetwork
+    listKind: SubnetworkList
     plural: subnetworks
+    singular: subnetwork
   scope: ""
   subresources:
     status: {}
@@ -124,7 +126,7 @@ spec:
                 logging.'
               type: boolean
             ipCidrRange:
-              description: 'IPCidrRange: The range of internal addresses that are
+              description: 'IPCIDRRange: The range of internal addresses that are
                 owned by this subnetwork. Provide this property when you create the
                 subnetwork. For example, 10.0.0.0/8 or 192.168.0.0/16. Ranges must
                 be unique and non-overlapping within a network. Only IPv4 is supported.
@@ -201,7 +203,7 @@ spec:
                   but with deepcopy functions.
                 properties:
                   ipCidrRange:
-                    description: 'IPCidrRange: The range of IP addresses belonging
+                    description: 'IPCIDRRange: The range of IP addresses belonging
                       to this subnetwork secondary range. Provide this property when
                       you create the subnetwork. Ranges must be unique and non-overlapping
                       with all primary and secondary IP ranges within a network. Only
@@ -280,8 +282,8 @@ spec:
                 type: object
               type: array
             creationTimestamp:
-              description: 'CreationTimestamp: [Output Only] Creation timestamp in
-                RFC3339 text format.'
+              description: 'CreationTimestamp: Creation timestamp in RFC3339 text
+                format.'
               type: string
             description:
               description: 'Description: An optional description of this resource.
@@ -303,23 +305,23 @@ spec:
                 latest fingerprint, make a get() request to retrieve a Subnetwork."
               type: string
             gatewayAddress:
-              description: 'GatewayAddress: [Output Only] The gateway address for
-                default routes to reach destination addresses outside this subnetwork.'
+              description: 'GatewayAddress: The gateway address for default routes
+                to reach destination addresses outside this subnetwork.'
               type: string
             id:
-              description: 'Id: [Output Only] The unique identifier for the resource.
-                This identifier is defined by the server.'
+              description: 'Id: The unique identifier for the resource. This identifier
+                is defined by the server.'
               format: int64
               type: integer
             ipCidrRange:
-              description: 'IPCidrRange: The range of internal addresses that are
+              description: 'IPCIDRRange: The range of internal addresses that are
                 owned by this subnetwork. Provide this property when you create the
                 subnetwork. For example, 10.0.0.0/8 or 192.168.0.0/16. Ranges must
                 be unique and non-overlapping within a network. Only IPv4 is supported.
                 This field can be set only at resource creation time.'
               type: string
             kind:
-              description: 'Kind: [Output Only] Type of the resource. Always compute#subnetwork
+              description: 'Kind: Type of the resource. Always compute#subnetwork
                 for Subnetwork resources.'
               type: string
             name:
@@ -352,7 +354,7 @@ spec:
                   but with deepcopy functions.
                 properties:
                   ipCidrRange:
-                    description: 'IPCidrRange: The range of IP addresses belonging
+                    description: 'IPCIDRRange: The range of IP addresses belonging
                       to this subnetwork secondary range. Provide this property when
                       you create the subnetwork. Ranges must be unique and non-overlapping
                       with all primary and secondary IP ranges within a network. Only
@@ -367,7 +369,7 @@ spec:
                 type: object
               type: array
             selfLink:
-              description: 'SelfLink: [Output Only] Server-defined URL for the resource.'
+              description: 'SelfLink: Server-defined URL for the resource.'
               type: string
           type: object
       type: object

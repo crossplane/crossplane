@@ -17,7 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
-	googlecompute "google.golang.org/api/compute/v1"
+	"sort"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -28,60 +29,6 @@ import (
 type SubnetworkSpec struct {
 	v1alpha1.ResourceSpec `json:",inline"`
 	GCPSubnetworkSpec     `json:",inline"`
-}
-
-// GenerateSubnetwork creates a *googlecompute.Subnetwork object using GCPSubnetworkSpec.
-func GenerateSubnetwork(in GCPSubnetworkSpec) *googlecompute.Subnetwork {
-	s := &googlecompute.Subnetwork{}
-	s.Name = in.Name
-	s.Description = in.Description
-	s.EnableFlowLogs = in.EnableFlowLogs
-	s.IpCidrRange = in.IPCidrRange
-	s.Network = in.Network
-	s.PrivateIpGoogleAccess = in.PrivateIPGoogleAccess
-	s.Region = in.Region
-	for _, val := range in.SecondaryIPRanges {
-		obj := &googlecompute.SubnetworkSecondaryRange{
-			IpCidrRange:     val.IPCidrRange,
-			RangeName:       val.RangeName,
-			NullFields:      val.NullFields,
-			ForceSendFields: val.ForceSendFields,
-		}
-		s.SecondaryIpRanges = append(s.SecondaryIpRanges, obj)
-	}
-	return s
-}
-
-// GenerateGCPSubnetworkStatus creates a GCPSubnetworkStatus object using *googlecompute.Subnetwork.
-func GenerateGCPSubnetworkStatus(in *googlecompute.Subnetwork) GCPSubnetworkStatus {
-	s := GCPSubnetworkStatus{}
-	s.Name = in.Name
-	s.Description = in.Description
-	s.EnableFlowLogs = in.EnableFlowLogs
-	s.Fingerprint = in.Fingerprint
-	s.IPCidrRange = in.IpCidrRange
-	s.Network = in.Network
-	s.PrivateIPGoogleAccess = in.PrivateIpGoogleAccess
-	s.Region = in.Region
-	for _, val := range in.SecondaryIpRanges {
-		obj := &GCPSubnetworkSecondaryRange{
-			IPCidrRange:     val.IpCidrRange,
-			RangeName:       val.RangeName,
-			NullFields:      val.NullFields,
-			ForceSendFields: val.ForceSendFields,
-		}
-		s.SecondaryIPRanges = append(s.SecondaryIPRanges, obj)
-	}
-	s.CreationTimestamp = in.CreationTimestamp
-	s.GatewayAddress = in.GatewayAddress
-	s.ID = in.Id
-	s.Kind = in.Kind
-	s.SelfLink = in.SelfLink
-	s.GCPServerResponse = GCPServerResponse{
-		HTTPStatusCode: in.ServerResponse.HTTPStatusCode,
-		Header:         in.ServerResponse.Header,
-	}
-	return s
 }
 
 // SubnetworkStatus defines the observed state of Network
@@ -171,7 +118,7 @@ type GCPSubnetworkSpec struct {
 	// listings. If not set the default behavior is to disable flow logging.
 	EnableFlowLogs bool `json:"enableFlowLogs,omitempty"`
 
-	// IPCidrRange: The range of internal addresses that are owned by this
+	// IPCIDRRange: The range of internal addresses that are owned by this
 	// subnetwork. Provide this property when you create the subnetwork. For
 	// example, 10.0.0.0/8 or 192.168.0.0/16. Ranges must be unique and
 	// non-overlapping within a network. Only IPv4 is supported. This field
@@ -211,10 +158,42 @@ type GCPSubnetworkSpec struct {
 	SecondaryIPRanges []*GCPSubnetworkSecondaryRange `json:"secondaryIpRanges,omitempty"`
 }
 
+// IsSameAs compares the fields of GCPSubnetworkSpec and
+// GCPSubnetworkStatus to report whether there is a difference. Its cyclomatic
+// complexity is related to how many fields exist, so, not much of an indicator.
+// nolint:gocyclo
+func (s GCPSubnetworkSpec) IsSameAs(o GCPSubnetworkStatus) bool {
+	if s.Name != o.Name ||
+		s.Description != o.Description ||
+		s.EnableFlowLogs != o.EnableFlowLogs ||
+		s.IPCidrRange != o.IPCIDRRange ||
+		s.Network != o.Network ||
+		s.PrivateIPGoogleAccess != o.PrivateIPGoogleAccess ||
+		s.Region != o.Region {
+		return false
+	}
+	if len(s.SecondaryIPRanges) != len(o.SecondaryIPRanges) {
+		return false
+	}
+	sort.SliceStable(o.SecondaryIPRanges, func(i, j int) bool {
+		return o.SecondaryIPRanges[i].RangeName > o.SecondaryIPRanges[j].RangeName
+	})
+	sort.SliceStable(s.SecondaryIPRanges, func(i, j int) bool {
+		return s.SecondaryIPRanges[i].RangeName > s.SecondaryIPRanges[j].RangeName
+	})
+	for i, val := range s.SecondaryIPRanges {
+		if val.RangeName != o.SecondaryIPRanges[i].RangeName ||
+			val.IPCidrRange != o.SecondaryIPRanges[i].IPCidrRange {
+			return false
+		}
+	}
+	return true
+}
+
 // GCPSubnetworkStatus is the complete mirror of googlecompute.Subnetwork but
 // with deepcopy functions. In the future, this can be generated automatically.
 type GCPSubnetworkStatus struct {
-	// CreationTimestamp: [Output Only] Creation timestamp in RFC3339 text
+	// CreationTimestamp: Creation timestamp in RFC3339 text
 	// format.
 	CreationTimestamp string `json:"creationTimestamp,omitempty"`
 
@@ -238,22 +217,22 @@ type GCPSubnetworkStatus struct {
 	// Subnetwork.
 	Fingerprint string `json:"fingerprint,omitempty"`
 
-	// GatewayAddress: [Output Only] The gateway address for default routes
+	// GatewayAddress: The gateway address for default routes
 	// to reach destination addresses outside this subnetwork.
 	GatewayAddress string `json:"gatewayAddress,omitempty"`
 
-	// Id: [Output Only] The unique identifier for the resource. This
+	// Id: The unique identifier for the resource. This
 	// identifier is defined by the server.
 	ID uint64 `json:"id,omitempty"`
 
-	// IPCidrRange: The range of internal addresses that are owned by this
+	// IPCIDRRange: The range of internal addresses that are owned by this
 	// subnetwork. Provide this property when you create the subnetwork. For
 	// example, 10.0.0.0/8 or 192.168.0.0/16. Ranges must be unique and
 	// non-overlapping within a network. Only IPv4 is supported. This field
 	// can be set only at resource creation time.
-	IPCidrRange string `json:"ipCidrRange,omitempty"`
+	IPCIDRRange string `json:"ipCidrRange,omitempty"`
 
-	// Kind: [Output Only] Type of the resource. Always compute#subnetwork
+	// Kind: Type of the resource. Always compute#subnetwork
 	// for Subnetwork resources.
 	Kind string `json:"kind,omitempty"`
 
@@ -289,34 +268,13 @@ type GCPSubnetworkStatus struct {
 	// field can be updated with a patch request.
 	SecondaryIPRanges []*GCPSubnetworkSecondaryRange `json:"secondaryIpRanges,omitempty"`
 
-	// SelfLink: [Output Only] Server-defined URL for the resource.
+	// SelfLink: Server-defined URL for the resource.
 	SelfLink string `json:"selfLink,omitempty"`
-
-	// ServerResponse contains the HTTP response code and headers from the
-	// server.
-	GCPServerResponse `json:"-"`
-
-	// ForceSendFields is a list of field names (e.g. "CreationTimestamp")
-	// to unconditionally include in API requests. By default, fields with
-	// empty values are omitted from API requests. However, any non-pointer,
-	// non-interface field appearing in ForceSendFields will be sent to the
-	// server regardless of whether the field is empty or not. This may be
-	// used to include empty fields in Patch requests.
-	ForceSendFields []string `json:"-"`
-
-	// NullFields is a list of field names (e.g. "CreationTimestamp") to
-	// include in API requests with the JSON null value. By default, fields
-	// with empty values are omitted from API requests. However, any field
-	// with an empty value appearing in NullFields will be sent to the
-	// server as null. It is an error if a field in this list has a
-	// non-empty value. This may be used to include null fields in Patch
-	// requests.
-	NullFields []string `json:"-"`
 }
 
 // GCPSubnetworkSecondaryRange is the mirror of googlecompute.SubnetworkSecondaryRange but with deepcopy functions.
 type GCPSubnetworkSecondaryRange struct {
-	// IPCidrRange: The range of IP addresses belonging to this subnetwork
+	// IPCIDRRange: The range of IP addresses belonging to this subnetwork
 	// secondary range. Provide this property when you create the
 	// subnetwork. Ranges must be unique and non-overlapping with all
 	// primary and secondary IP ranges within a network. Only IPv4 is
@@ -328,22 +286,6 @@ type GCPSubnetworkSecondaryRange struct {
 	// 1-63 characters long, and comply with RFC1035. The name must be
 	// unique within the subnetwork.
 	RangeName string `json:"rangeName,omitempty"`
-
-	// ForceSendFields is a list of field names (e.g. "IPCidrRange") to
-	// unconditionally include in API requests. By default, fields with
-	// empty values are omitted from API requests. However, any non-pointer,
-	// non-interface field appearing in ForceSendFields will be sent to the
-	// server regardless of whether the field is empty or not. This may be
-	// used to include empty fields in Patch requests.
-	ForceSendFields []string `json:"-"`
-
-	// NullFields is a list of field names (e.g. "IPCidrRange") to include
-	// in API requests with the JSON null value. By default, fields with
-	// empty values are omitted from API requests. However, any field with
-	// an empty value appearing in NullFields will be sent to the server as
-	// null. It is an error if a field in this list has a non-empty value.
-	// This may be used to include null fields in Patch requests.
-	NullFields []string `json:"-"`
 }
 
 // +kubebuilder:object:root=true

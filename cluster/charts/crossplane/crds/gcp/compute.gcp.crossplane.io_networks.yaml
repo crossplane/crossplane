@@ -9,7 +9,9 @@ spec:
   group: compute.gcp.crossplane.io
   names:
     kind: Network
+    listKind: NetworkList
     plural: networks
+    singular: network
   scope: ""
   subresources:
     status: {}
@@ -41,9 +43,10 @@ spec:
             autoCreateSubnetworks:
               description: "AutoCreateSubnetworks: When set to true, the VPC network
                 is created in \"auto\" mode. When set to false, the VPC network is
-                created in \"custom\" mode. \n An auto mode VPC network starts with
-                one subnet per region. Each subnet has a predetermined range as described
-                in Auto mode VPC network IP ranges."
+                created in \"custom\" mode. When set to nil, the VPC network is created
+                in \"legacy\" mode which will be deprecated by GCP soon. \n An auto
+                mode VPC network starts with one subnet per region. Each subnet has
+                a predetermined range as described in Auto mode VPC network IP ranges."
               type: boolean
             claimRef:
               description: ObjectReference contains enough information to let you
@@ -257,39 +260,24 @@ spec:
                 type: object
               type: array
             creationTimestamp:
-              description: 'CreationTimestamp: [Output Only] Creation timestamp in
-                RFC3339 text format.'
+              description: 'CreationTimestamp: Creation timestamp in RFC3339 text
+                format.'
               type: string
             description:
               description: 'Description: An optional description of this resource.
                 Provide this field when you create the resource.'
               type: string
             gatewayIPv4:
-              description: 'GatewayIPv4: [Output Only] The gateway address for default
-                routing out of the network, selected by GCP.'
+              description: 'GatewayIPv4: The gateway address for default routing out
+                of the network, selected by GCP.'
               type: string
             id:
-              description: 'Id: [Output Only] The unique identifier for the resource.
-                This identifier is defined by the server.'
+              description: 'Id: The unique identifier for the resource. This identifier
+                is defined by the server.'
               format: int64
               type: integer
-            kind:
-              description: 'Kind: [Output Only] Type of the resource. Always compute#network
-                for networks.'
-              type: string
-            name:
-              description: 'Name: Name of the resource. Provided by the client when
-                the resource is created. The name must be 1-63 characters long, and
-                comply with RFC1035. Specifically, the name must be 1-63 characters
-                long and match the regular expression `[a-z]([-a-z0-9]*[a-z0-9])?.
-                The first character must be a lowercase letter, and all following
-                characters (except for the last character) must be a dash, lowercase
-                letter, or digit. The last character must be a lowercase letter or
-                digit.'
-              type: string
             peerings:
-              description: 'Peerings: [Output Only] A list of network peerings for
-                the resource.'
+              description: 'Peerings: A list of network peerings for the resource.'
               items:
                 description: GCPNetworkPeering is the mirror of googlecompute.NetworkPeering
                   but with deepcopy functions.
@@ -327,14 +315,14 @@ spec:
                       project as the current network.'
                     type: string
                   state:
-                    description: "State: [Output Only] State for the peering, either
-                      `ACTIVE` or `INACTIVE`. The peering is `ACTIVE` when there's
-                      a matching configuration in the peer network. \n Possible values:
-                      \  \"ACTIVE\"   \"INACTIVE\""
+                    description: "State: State for the peering, either `ACTIVE` or
+                      `INACTIVE`. The peering is `ACTIVE` when there's a matching
+                      configuration in the peer network. \n Possible values:   \"ACTIVE\"
+                      \  \"INACTIVE\""
                     type: string
                   stateDetails:
-                    description: 'StateDetails: [Output Only] Details about the current
-                      state of the peering.'
+                    description: 'StateDetails: Details about the current state of
+                      the peering.'
                     type: string
                 type: object
               type: array
@@ -353,11 +341,11 @@ spec:
                   type: string
               type: object
             selfLink:
-              description: 'SelfLink: [Output Only] Server-defined URL for the resource.'
+              description: 'SelfLink: Server-defined URL for the resource.'
               type: string
             subnetworks:
-              description: 'Subnetworks: [Output Only] Server-defined fully-qualified
-                URLs for all subnetworks in this VPC network.'
+              description: 'Subnetworks: Server-defined fully-qualified URLs for all
+                subnetworks in this VPC network.'
               items:
                 type: string
               type: array

@@ -28,12 +28,9 @@ import (
 	"google.golang.org/api/option"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
-	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
 	"github.com/crossplaneio/crossplane-runtime/pkg/util"
-	gcpv1alpha1 "github.com/crossplaneio/crossplane/gcp/apis/v1alpha1"
 )
 
 var log = logging.Logger.WithName("clients.gcp")
@@ -100,24 +97,6 @@ func IsErrorBadRequest(err error) bool {
 	}
 	googleapiErr, ok := err.(*googleapi.Error)
 	return ok && googleapiErr.Code == http.StatusBadRequest
-}
-
-// ProviderCredentials return google credentials based on the provider's credentials secret data
-func ProviderCredentials(client client.Client, p *gcpv1alpha1.Provider, scopes ...string) (*google.Credentials, error) {
-	secret := &v1.Secret{}
-	name := meta.NamespacedNameOf(&v1.ObjectReference{
-		Name:      p.Spec.Secret.Name,
-		Namespace: p.Namespace,
-	})
-	if err := client.Get(context.TODO(), name, secret); err != nil {
-		return nil, err
-	}
-	data, ok := secret.Data[p.Spec.Secret.Key]
-	if !ok {
-		return nil, fmt.Errorf("secret data is not found for key [%s]", p.Spec.Secret.Key)
-	}
-
-	return google.CredentialsFromJSON(context.Background(), data, scopes...)
 }
 
 // ProjectInfo represent GCP Project information

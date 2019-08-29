@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"golang.org/x/oauth2/google"
 	"google.golang.org/api/container/v1"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -143,12 +144,22 @@ func (r *Reconciler) _connect(instance *gcpcomputev1alpha1.GKECluster) (gke.Clie
 	if err != nil {
 		return nil, err
 	}
-
-	creds, err := gcp.ProviderCredentials(r.Client, p, gke.DefaultScope)
+	secret := &corev1.Secret{}
+	name := meta.NamespacedNameOf(&corev1.ObjectReference{
+		Name:      p.Spec.Secret.Name,
+		Namespace: p.Namespace,
+	})
+	if err := r.Client.Get(context.TODO(), name, secret); err != nil {
+		return nil, err
+	}
+	data, ok := secret.Data[p.Spec.Secret.Key]
+	if !ok {
+		return nil, fmt.Errorf("secret data is not found for key [%s]", p.Spec.Secret.Key)
+	}
+	creds, err := google.CredentialsFromJSON(context.Background(), data, gke.DefaultScope)
 	if err != nil {
 		return nil, err
 	}
-
 	return gke.NewClusterClient(ctx, creds)
 }
 

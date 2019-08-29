@@ -24,22 +24,30 @@ import (
 	"github.com/pkg/errors"
 	googlecompute "google.golang.org/api/compute/v1"
 	"google.golang.org/api/option"
+	v1 "k8s.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
 	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
 	"github.com/crossplaneio/crossplane/gcp/apis/compute/v1alpha1"
-	computev1alpha1 "github.com/crossplaneio/crossplane/gcp/apis/compute/v1alpha1"
 	gcpapis "github.com/crossplaneio/crossplane/gcp/apis/v1alpha1"
 	gcpclients "github.com/crossplaneio/crossplane/pkg/clients/gcp"
+	"github.com/crossplaneio/crossplane/pkg/clients/gcp/network"
 )
 
 const (
 	// Error strings.
-	errNewClient    = "cannot create new Compute Service"
-	errNotNetwork   = "managed resource is not a Network resource"
-	errNameNotGiven = "name for networkExternal resource is not provided"
+	errNewClient                  = "cannot create new Compute Service"
+	errNotNetwork                 = "managed resource is not a Network resource"
+	errInsufficientNetworkSpec    = "name for network external resource is not provided"
+	errProviderNotRetrieved       = "provider could not be retrieved"
+	errProviderSecretNotRetrieved = "secret referred in provider could not be retrieved"
+
+	errNetworkUpdateFailed = "update of Network resource has failed"
+	errNetworkCreateFailed = "creation of Network resource has failed"
+	errNetworkDeleteFailed = "deletion of Network resource has failed"
 )
 
 // NetworkController is the controller for Network CRD.
@@ -49,11 +57,11 @@ type NetworkController struct{}
 // and Start it when the Manager is Started.
 func (c *NetworkController) SetupWithManager(mgr ctrl.Manager) error {
 	r := resource.NewManagedReconciler(mgr,
-		resource.ManagedKind(computev1alpha1.NetworkGroupVersionKind),
-		resource.WithExternalConnecter(&networkConnector{client: mgr.GetClient()}),
+		resource.ManagedKind(v1alpha1.NetworkGroupVersionKind),
+		resource.WithExternalConnecter(&networkConnector{kube: mgr.GetClient()}),
 		resource.WithManagedConnectionPublishers())
 
-	name := strings.ToLower(fmt.Sprintf("%s.%s", computev1alpha1.NetworkKindAPIVersion, computev1alpha1.Group))
+	name := strings.ToLower(fmt.Sprintf("%s.%s", v1alpha1.NetworkKindAPIVersion, v1alpha1.Group))
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
@@ -62,8 +70,8 @@ func (c *NetworkController) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 type networkConnector struct {
-	client      client.Client
-	newClientFn func(ctx context.Context, opts ...option.ClientOption) (*googlecompute.Service, error)
+	kube         client.Client
+	newServiceFn func(ctx context.Context, opts ...option.ClientOption) (*googlecompute.Service, error)
 }
 
 func (c *networkConnector) Connect(ctx context.Context, mg resource.Managed) (resource.ExternalClient, error) {
@@ -76,23 +84,29 @@ func (c *networkConnector) Connect(ctx context.Context, mg resource.Managed) (re
 	// `status` subresource. We require name to be given until we have a pre-process hook like configurator in Claim
 	// reconciler
 	if cr.Spec.Name == "" {
-		return nil, errors.New(errNameNotGiven)
+		return nil, errors.New(errInsufficientNetworkSpec)
 	}
 
 	provider := &gcpapis.Provider{}
 	n := meta.NamespacedNameOf(cr.Spec.ProviderReference)
-	if err := c.client.Get(ctx, n, provider); err != nil {
-		return nil, errors.Wrapf(err, "cannot get provider %s", n)
+	if err := c.kube.Get(ctx, n, provider); err != nil {
+		return nil, errors.Wrap(err, errProviderNotRetrieved)
+	}
+	secret := &v1.Secret{}
+	name := meta.NamespacedNameOf(&v1.ObjectReference{
+		Name:      provider.Spec.Secret.Name,
+		Namespace: provider.Namespace,
+	})
+	if err := c.kube.Get(ctx, name, secret); err != nil {
+		return nil, errors.Wrap(err, errProviderSecretNotRetrieved)
 	}
 
-	gcpCreds, err := gcpclients.ProviderCredentials(c.client, provider, googlecompute.ComputeScope)
-	if err != nil {
-		return nil, err
+	if c.newServiceFn == nil {
+		c.newServiceFn = googlecompute.NewService
 	}
-	if c.newClientFn == nil {
-		c.newClientFn = googlecompute.NewService
-	}
-	s, err := c.newClientFn(ctx, option.WithCredentials(gcpCreds))
+	s, err := c.newServiceFn(ctx,
+		option.WithCredentialsJSON(secret.Data[provider.Spec.Secret.Key]),
+		option.WithScopes(googlecompute.ComputeScope))
 	if err != nil {
 		return nil, errors.Wrap(err, errNewClient)
 	}
@@ -118,7 +132,9 @@ func (c *networkExternal) Observe(ctx context.Context, mg resource.Managed) (res
 	if err != nil {
 		return resource.ExternalObservation{}, err
 	}
-	cr.Status.GCPNetworkStatus = *computev1alpha1.GenerateGCPNetworkStatus(*observed)
+	cr.Status.GCPNetworkStatus = network.GenerateGCPNetworkStatus(*observed)
+	// If the Network resource is retrieved, it is ready to be used
+	cr.Status.SetConditions(runtimev1alpha1.Available())
 	return resource.ExternalObservation{
 		ResourceExists: true,
 	}, nil
@@ -129,12 +145,14 @@ func (c *networkExternal) Create(ctx context.Context, mg resource.Managed) (reso
 	if !ok {
 		return resource.ExternalCreation{}, errors.New(errNotNetwork)
 	}
-	if _, err := c.Networks.Insert(c.projectID, computev1alpha1.GenerateNetwork(cr.Spec.GCPNetworkSpec)).
+	_, err := c.Networks.Insert(c.projectID, network.GenerateNetwork(cr.Spec.GCPNetworkSpec)).
 		Context(ctx).
-		Do(); err != nil {
-		return resource.ExternalCreation{}, err
+		Do()
+	if gcpclients.IsErrorAlreadyExists(err) {
+		return resource.ExternalCreation{}, nil
 	}
-	return resource.ExternalCreation{}, nil
+	cr.Status.SetConditions(runtimev1alpha1.Creating())
+	return resource.ExternalCreation{}, errors.Wrap(err, errNetworkCreateFailed)
 }
 
 func (c *networkExternal) Update(ctx context.Context, mg resource.Managed) (resource.ExternalUpdate, error) {
@@ -142,15 +160,16 @@ func (c *networkExternal) Update(ctx context.Context, mg resource.Managed) (reso
 	if !ok {
 		return resource.ExternalUpdate{}, errors.New(errNotNetwork)
 	}
-	if _, err := c.Networks.Patch(
+	if cr.Spec.IsSameAs(cr.Status.GCPNetworkStatus) {
+		return resource.ExternalUpdate{}, nil
+	}
+	_, err := c.Networks.Patch(
 		c.projectID,
 		cr.Spec.Name,
-		computev1alpha1.GenerateNetwork(cr.Spec.GCPNetworkSpec)).
+		network.GenerateNetwork(cr.Spec.GCPNetworkSpec)).
 		Context(ctx).
-		Do(); err != nil {
-		return resource.ExternalUpdate{}, err
-	}
-	return resource.ExternalUpdate{}, nil
+		Do()
+	return resource.ExternalUpdate{}, errors.Wrap(err, errNetworkUpdateFailed)
 }
 
 func (c *networkExternal) Delete(ctx context.Context, mg resource.Managed) error {
@@ -158,10 +177,12 @@ func (c *networkExternal) Delete(ctx context.Context, mg resource.Managed) error
 	if !ok {
 		return errors.New(errNotNetwork)
 	}
-	if _, err := c.Networks.Delete(c.projectID, cr.Spec.Name).
+	_, err := c.Networks.Delete(c.projectID, cr.Spec.Name).
 		Context(ctx).
-		Do(); !gcpclients.IsErrorNotFound(err) && err != nil {
-		return err
+		Do()
+	if gcpclients.IsErrorNotFound(err) {
+		return nil
 	}
-	return nil
+	cr.Status.SetConditions(runtimev1alpha1.Deleting())
+	return errors.Wrap(err, errNetworkDeleteFailed)
 }

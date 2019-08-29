@@ -25,18 +25,15 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/controller/gcp/storage"
 )
 
-// Manageable is used to select the controllers that can be managed by a ctrl.Manager
-// TODO(muvaf): Move this interface to controller-runtime as it's common to all.
-type Manageable interface {
-	SetupWithManager(ctrl.Manager) error
-}
-
 // Controllers passes down config and adds individual controllers to the manager.
 type Controllers struct{}
 
 // SetupWithManager adds all GCP controllers to the manager.
 func (c *Controllers) SetupWithManager(mgr ctrl.Manager) error {
-	controllers := []Manageable{
+	// TODO(muvaf): Move this interface and logic to controller-runtime as it's common to all.
+	controllers := []interface {
+		SetupWithManager(ctrl.Manager) error
+	}{
 		&cache.CloudMemorystoreInstanceClaimController{},
 		&cache.CloudMemorystoreInstanceController{},
 		&compute.GKEClusterClaimController{},
