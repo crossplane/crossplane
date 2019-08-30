@@ -1,4 +1,4 @@
-# Gopkg.toml 
+# Gopkg.toml
 #
 # Add constraints for packages that are a direct dependency
 # of this project (i.e. they are imported by golang source code)
@@ -48,13 +48,8 @@ required = [
   name="sigs.k8s.io/controller-tools"
   revision = "ba11932048e4538f6e435f5ca0cdea19bf458338"
 
-[[override]]
-  name = "contrib.go.opencensus.io/exporter/ocagent"
-  version = "v0.2.0"
-
 # For dependency below: Refer to issue https://github.com/golang/dep/issues/1799
 [[override]]
   name = "gopkg.in/fsnotify.v1"
   source = "https://github.com/fsnotify/fsnotify.git"
   version="v1.4.7"
-

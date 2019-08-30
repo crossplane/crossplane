@@ -171,13 +171,6 @@ issues:
       - gosec
       - gas
 
-    # The Azure AddToUserAgent method appends to the existing user agent string.
-    # It returns an error if you pass it an empty string lettinga you know the
-    # user agent did not change, making it more of a warning.
-    - text: \.AddToUserAgent
-      linters:
-      - errcheck
-
   # Independently from option `exclude` we use default exclude patterns,
   # it can be disabled by this option. To list all
   # excluded by default patterns execute `golangci-lint run --help`.

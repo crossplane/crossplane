@@ -22,7 +22,6 @@ import (
 	"path/filepath"
 
 	awsapis "github.com/crossplaneio/crossplane/aws/apis"
-	azureapis "github.com/crossplaneio/crossplane/azure/apis"
 
 	"github.com/spf13/afero"
 	"gopkg.in/alecthomas/kingpin.v2"
@@ -35,7 +34,6 @@ import (
 	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
 	"github.com/crossplaneio/crossplane/apis"
 	"github.com/crossplaneio/crossplane/pkg/controller/aws"
-	"github.com/crossplaneio/crossplane/pkg/controller/azure"
 	"github.com/crossplaneio/crossplane/pkg/controller/defaultclass"
 	stacksController "github.com/crossplaneio/crossplane/pkg/controller/stacks"
 	"github.com/crossplaneio/crossplane/pkg/controller/workload"
@@ -163,10 +161,6 @@ func controllerSetupWithManager(mgr manager.Manager) error {
 		return err
 	}
 
-	if err := (&azure.Controllers{}).SetupWithManager(mgr); err != nil {
-		return err
-	}
-
 	if err := (&workload.Controllers{}).SetupWithManager(mgr); err != nil {
 		return err
 	}
@@ -188,10 +182,6 @@ func addToScheme(scheme *runtime.Scheme) error {
 	}
 
 	if err := awsapis.AddToScheme(scheme); err != nil {
-		return err
-	}
-
-	if err := azureapis.AddToScheme(scheme); err != nil {
 		return err
 	}
 
