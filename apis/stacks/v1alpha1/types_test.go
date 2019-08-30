@@ -98,12 +98,7 @@ func TestStack(t *testing.T) {
 				},
 				Company:  "foo-inc.",
 				Keywords: []string{"app", "useless", "example"},
-				Links: []LinkSpec{
-					{
-						Description: "about page",
-						URL:         "https://app.foo.io",
-					},
-				},
+				Website:  "https://app.foo.io",
 			},
 		},
 	}

@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 
@@ -24,6 +25,7 @@ import (
 	azureapis "github.com/crossplaneio/crossplane/azure/apis"
 	gcpapis "github.com/crossplaneio/crossplane/gcp/apis"
 
+	"github.com/spf13/afero"
 	"gopkg.in/alecthomas/kingpin.v2"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
@@ -40,6 +42,7 @@ import (
 	stacksController "github.com/crossplaneio/crossplane/pkg/controller/stacks"
 	"github.com/crossplaneio/crossplane/pkg/controller/workload"
 	"github.com/crossplaneio/crossplane/pkg/stacks"
+	"github.com/crossplaneio/crossplane/pkg/stacks/walker"
 )
 
 func main() {
@@ -72,8 +75,9 @@ func main() {
 		//
 		// Users are not expected to run this command themselves, the stack manager itself should
 		// execute this command.
-		extUnpackCmd = extCmd.Command("unpack", "Unpack a stack")
-		extUnpackDir = extUnpackCmd.Flag("content-dir", "The directory that contains the stack contents").Required().String()
+		extUnpackCmd     = extCmd.Command("unpack", "Unpack a stack")
+		extUnpackDir     = extUnpackCmd.Flag("content-dir", "The directory that contains the stack contents").Required().String()
+		extUnpackOutfile = extUnpackCmd.Flag("outfile", "The file where the YAML Stack record and CRD artifacts will be written").String()
 	)
 	cmd := kingpin.MustParse(app.Parse(os.Args[1:]))
 
@@ -98,8 +102,20 @@ func main() {
 		// manager are the stacks controllers
 		setupWithManagerFunc = stacksControllerSetupWithManager
 	case extUnpackCmd.FullCommand():
+		var outFile io.StringWriter
 		// stack unpack command was called, run the stack unpacking logic
-		kingpin.FatalIfError(stacks.Unpack(*extUnpackDir), "failed to unpack stacks")
+		if extUnpackOutfile == nil || *extUnpackOutfile == "" {
+			outFile = os.Stdout
+		} else {
+			openFile, err := os.Create(*extUnpackOutfile)
+			kingpin.FatalIfError(err, "Cannot create outfile")
+			defer closeOrError(openFile)
+			outFile = openFile
+		}
+		// TODO(displague) afero.NewBasePathFs could avoid the need to track Base
+		fs := afero.NewOsFs()
+		rd := &walker.ResourceDir{Base: *extUnpackDir, Walker: afero.Afero{Fs: fs}}
+		kingpin.FatalIfError(stacks.Unpack(rd, outFile), "failed to unpack stacks")
 		return
 	default:
 		kingpin.FatalUsage("unknown command %s", cmd)
@@ -107,17 +123,13 @@ func main() {
 
 	// Get a config to talk to the apiserver
 	cfg, err := config.GetConfig()
-	if err != nil {
-		kingpin.FatalIfError(err, "Cannot get config")
-	}
+	kingpin.FatalIfError(err, "Cannot get config")
 
 	log.Info("Sync period", "duration", syncPeriod.String())
 
 	// Create a new Cmd to provide shared dependencies and start components
 	mgr, err := manager.New(cfg, manager.Options{SyncPeriod: syncPeriod})
-	if err != nil {
-		kingpin.FatalIfError(err, "Cannot create manager")
-	}
+	kingpin.FatalIfError(err, "Cannot create manager")
 
 	log.Info("Adding schemes")
 
@@ -137,6 +149,11 @@ func main() {
 
 	// Start the Cmd
 	kingpin.FatalIfError(mgr.Start(signals.SetupSignalHandler()), "Cannot start controller")
+}
+
+func closeOrError(c io.Closer) {
+	err := c.Close()
+	kingpin.FatalIfError(err, "Cannot close file")
 }
 
 func controllerSetupWithManager(mgr manager.Manager) error {

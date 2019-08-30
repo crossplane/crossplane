@@ -127,8 +127,10 @@ type AppMetadataSpec struct {
 	Maintainers []ContributorSpec `json:"maintainers,omitempty"`
 	Owners      []ContributorSpec `json:"owners,omitempty"`
 	Company     string            `json:"company,omitempty"`
+	Category    string            `json:"category,omitempty"`
 	Keywords    []string          `json:"keywords,omitempty"`
-	Links       []LinkSpec        `json:"links,omitempty"`
+	Website     string            `json:"website,omitempty"`
+	Source      string            `json:"source,omitempty"`
 	License     string            `json:"license,omitempty"`
 }
 

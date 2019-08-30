@@ -141,6 +141,7 @@ spec:
   # this data drives the dependency resolution process
  title: Redis stack for Crossplane
  description: "Markdown syntax about how Redis is a really cool database"
+ category: Database
  version: 0.1.0
  icons:
  - base64data: iVBORw0KGgoAAAANSUhEUgAAAOEAAADZCAYAAADWmle6AAAACXBIWXMA
@@ -153,9 +154,7 @@ spec:
    email: chandler@bar.io
  keywords:
  - "databases"
- links:
- - description: About
-   url: "https://redislabs.com/"
+ website: "https://redislabs.com/"
  # the implementation of the stack, i.e. a controller that will run
  # on the crossplane cluster
  controller:
@@ -230,7 +229,7 @@ Inside of a package, the filesystem layout shown below is expected for the best 
                 │   └── resource.yaml # Resource level metadata.
                 └── v1beta1
                     ├── mysql.v1beta1.crd.yaml
-                    ├── ui-schema.yaml #  Optional UI Metadata
+                    ├── ui-schema.yaml #  Optional UI Metadata, optionally prefixed with kind and version separated by periods
                     ├── icon.svg
                     └── resource.yaml
 ```
@@ -244,8 +243,10 @@ In this example, the directory names "databases.foocompany.io", "mysql", "v1alph
 * `icon.svg`: This file (or `icon.png`, `icon.jpg`, `icon.gif`, or potentially other supported filenames, TBD) will be used in a visual context when listing or describing this stack.  The preferred formats/filenames are `svg`, `png`, `jpg`, `gif` in that order (if multiple files exist).  For bitmap formats, the width to height ratio should be 1:1. Limitations may be placed on the acceptable file dimensions and byte size (TBD).
 * `resources` directory: This directory contains all the CRDs and optional metadata about them.
   * `group.yaml`: Related Stack resources (CRDs) can be described at a high level within a group directory using this file.
-  * `resource.yaml` and `icon.svg`: Files that describe the resource with descriptions, titles, or images, may be used to inform out-of-cluster or in-cluster Stack managing tools.  This may affect the annotations of the `Extension` record or the Resource CRD (TBD).
-  * `ui-schema.yaml`: UI metadata that will be transformed and annotated according to the [Stack UI Metadata One Pager](one-pager-stack-ui-metadata.md)
+  * `*resource.yaml` and `icon.svg`: Files that describe the resource with descriptions, titles, or images, may be used to inform out-of-cluster or in-cluster Stack managing tools.  This may affect the annotations of the `Stack` record or the Resource CRD (TBD).
+  Multiple `*resource.yaml` files may exist alongside multiple CRD files in the same directory.  The `resource.yaml` files should include an `id:` referencing the `Kind` of their matching CRD.
+  * `*ui-schema.yaml`: UI metadata that will be transformed and annotated according to the [Stack UI Metadata One Pager](one-pager-stack-ui-metadata.md)
+  Multiple `ui-schema.yaml` files may be included in the same directory as the CRD yaml files they modify. In this case the filename should be prefixed to match the `Kind` of the associated CRD (`mytype.ui-schame.yaml`).
   * `*crd.yaml`: These CRDs are the types that the custom controller implements the logic for.  They will be directly installed into Crossplane so that users can create instances of them to start consuming their new Stack functionality.  Notice that the filenames can vary from `very.descriptive.name.crd.yaml` to `crd.yaml`.
   Multiple CRDs can reside in the same file.  These CRDs may also be pre-annotated at build time with annotations describing the `resource.yaml`, `icon.svg`, and `ui-schema.yaml` files to avoid bundling additional files and incurring a minor processing penalty at runtime.
 
@@ -266,7 +267,7 @@ Strictly speaking, `install.yaml` and `rbac.yaml` are optional, but a Stack bere
 
 ## Example Package Files
 
-A concrete examples of this package format can be examined at <https://github.com/crossplaneio/sample-extension>.
+A concrete examples of this package format can be examined at <https://github.com/crossplaneio/sample-stack>.
 
 A Git repository may choose to include the `.registry` directory with all of the files described above but that may not always be the case.  Stacks are easy to create as build artifacts through a combination of shell scripting, Make, Docker, or any other tool-chain or process that can produce an OCI image.
 
@@ -326,23 +327,23 @@ The `install.yaml` file is expected to conform to a standard Kubernetes YAML fil
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: crossplane-sample-extension
+  name: crossplane-sample-stack
   labels:
-    core.crossplane.io/name: "crossplane-sample-extension"
+    core.crossplane.io/name: "crossplane-sample-stack"
 spec:
   selector:
     matchLabels:
-      core.crossplane.io/name: "crossplane-sample-extension"
+      core.crossplane.io/name: "crossplane-sample-stack"
   replicas: 1
   template:
     metadata:
-      name: sample-extension-controller
+      name: sample-stack-controller
       labels:
-        core.crossplane.io/name: "crossplane-sample-extension"
+        core.crossplane.io/name: "crossplane-sample-stack"
     spec:
       containers:
-      - name: sample-extension-controller
-        image: crossplane/sample-extension:latest
+      - name: sample-stack-controller
+        image: crossplane/sample-stack:latest
         env:
         - name: POD_NAME
           valueFrom:
@@ -368,6 +369,7 @@ description: |
 ```yaml
 resource: mysql
 title: MySQL
+title-plural: MySQL Instances
 category: Database
 description: |
   # MySQL Resource by FooCompany
@@ -426,7 +428,7 @@ spec:
 
 #### Example `crd.yaml` with Stack annotations
 
-It is the job of the SM or a Stack build tool to process the recommended meta-data files into the final CRD installed in the cluster.  These annotations will assist Stack tools in discovery and identification of resources in cluster that can be managed.
+It is the job of the SM or a Stack build tool to process the recommended metadata files into the final CRD installed in the cluster.  These annotations will assist Stack tools in discovery and identification of resources in cluster that can be managed.
 
 ```yaml
 apiVersion: apiextensions.k8s.io/v1beta1
@@ -436,12 +438,13 @@ metadata:
   labels:
     controller-tools.k8s.io: "1.0"
   annotations:
-    stacks.crossplane.io/name: "crossplane-sample-extension"
-    stacks.crossplane.io/resource-group-title: "Title of the Group"
-    stacks.crossplane.io/resource-group-description: |
+    stacks.crossplane.io/stack-title: "Crossplane Sample Stack"
+    stacks.crossplane.io/group-title: "Title of the Group"
+    stacks.crossplane.io/group-description: |
         Description of the Group
     stacks.crossplane.io/resource-category: "Databases"
-    stacks.crossplane.io/resource-title: "Title of the Resource"
+    stacks.crossplane.io/resource-title: "Example Resource"
+    stacks.crossplane.io/resource-title-plural: "Example Resources"
     stacks.crossplane.io/resource-description: |
         Description of the Resource
     stacks.crossplane.io/icon-data-uri: data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciLz4K
@@ -490,7 +493,7 @@ The process of installing a Stack involves downloading its package, extracting t
 
 See the [Installation Flow](#installation-flow) for a more complete view of the current package processing implementation.
 
-The extension manager uses a "Job initContainer and shared volume" approach which copies the package contents from the package initContainer to a shared volume.  The SM, using command arguments to the Crossplane container, performs processing logic over the shared volume contents. The artifacts of this are sent to `stdout` where the main entry-point of the Crossplane container parses the unpacking container's `stdout`.  The parsed artifacts are then sent to the Kubernetes API for install.
+The stack manager uses a "Job initContainer and shared volume" approach which copies the package contents from the package initContainer to a shared volume.  The SM, using command arguments to the Crossplane container, performs processing logic over the shared volume contents. The artifacts of this are sent to `stdout` where the main entry-point of the Crossplane container parses the unpacking container's `stdout`.  The parsed artifacts are then sent to the Kubernetes API for install.
 
 The processing/unpacking logic can easily move to its own image that can be used as a base layer in the future (or a CLI tool).  This approach is not very divergent from the current implementation which divides these functions through the use of image entry-point command arguments.
 
@@ -541,5 +544,7 @@ Each of these designs offered a good place to start.  Through iteration over tim
 * Single stack should be able to install multiple controllers [#532](https://github.com/crossplaneio/crossplane/issues/532)
 * Prototype alternate stack implementations [#548](https://github.com/crossplaneio/crossplane/issues/548)
 * Is there a benefit to `kind.version.` prefixed `crd.yaml` filenames
+  * Should this be the only name prefix?
+  * Should this be the primary means of disambiguating related CRD, UI, and Resource files in the same directory to each other?
 * What categories are valid? Is there a well-defined Category tree? Are arbitrary categories invalid or ignored?
 * Should links be predefined (`website`, `source`) or freeform `links:[{description:"Website",url:"..."}, ...]`?

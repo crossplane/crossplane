@@ -48,7 +48,8 @@ import (
 )
 
 const (
-	controllerName = "stackrequest.stacks.crossplane.io"
+	controllerName  = "stackrequest.stacks.crossplane.io"
+	registryDirName = ".registry"
 
 	reconcileTimeout      = 1 * time.Minute
 	requeueAfterOnSuccess = 10 * time.Second
@@ -282,7 +283,7 @@ func createInstallJob(i *v1alpha1.StackRequest, executorInfo executorInfo) *batc
 						{
 							Name:    "stack-package",
 							Image:   getPackageImage(i.Spec),
-							Command: []string{"cp", "-R", "/.registry/", "/ext-pkg/"},
+							Command: []string{"cp", "-R", registryDirName, "/ext-pkg/"},
 							VolumeMounts: []corev1.VolumeMount{
 								{
 									Name:      packageContentsVolumeName,

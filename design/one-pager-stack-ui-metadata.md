@@ -137,8 +137,56 @@ kind: CustomResourceDefinition
 metadata:
   name: rdsinstances.database.aws.crossplane.io
   annotations:
-    stacks.crossplane.io/ui-spec: |
-      {"uiSpecVersion":0.3,"uiSpec":[{"title":"Configuration","description":"Enter information specific to the configuration you wish to create.","items":[{"name":"dbReplicas","controlType":"singleInput","type":"integer","path":".spec.dbReplicas","title":"DB Replicas","description":"The number of DB Replicas","default":1,"validation":[{"minimum":1},{"maximum":3}]},{"name":"masterPassword","controlType":"singleInput","type":"password","path":".spec.masterPassword","title":"DB Master Password","description":"The master DB password. Must be between 8-32 characters long"},{"name":"subdomain","controlType":"singleInput","type":"string","path":".spec.subdomain","title":"Subdomain","pattern":"^([A-Za-z0-9](?:(?:[-A-Za-z0-9]){0,61}[A-Za-z0-9])?){2,62}$","description":"Enter a value for your subdomain. It cannot start or end with a dash and must be between 2-62 characters long","validation":[{"minLength":2},{"maxLength":62}]},{"name":"instanceSize","controlType":"singleSelect","path":".spec.instanceSize","title":"Instance Size","enum":["Option-1","Option-2","Option-3"],"validation":[{"required":true,"customError":"You must select an instance size for your configuration!"}]}]}]}
+    stacks.crossplane.io/ui-spec: |-
+      ---
+      uiSpecVersion: 0.3
+      uiSpec:
+      - title: Configuration
+        description: Enter information specific to the configuration you wish to create.
+        items:
+        - name: dbReplicas
+          controlType: singleInput
+          type: integer
+          path: ".spec.dbReplicas"
+          title: DB Replicas
+          description: The number of DB Replicas
+          default: 1
+          validation:
+          - minimum: 1
+          - maximum: 3
+        - name: masterPassword
+          controlType: singleInput
+          type: password
+          path: ".spec.masterPassword"
+          title: DB Master Password
+          description: The master DB password. Must be between 8-32 characters long
+        - name: subdomain
+          controlType: singleInput
+          type: string
+          path: ".spec.subdomain"
+          title: Subdomain
+          pattern: "^([A-Za-z0-9](?:(?:[-A-Za-z0-9]){0,61}[A-Za-z0-9])?){2,62}$"
+          description: Enter a value for your subdomain. It cannot start or end with a dash
+            and must be between 2-62 characters long
+          validation:
+          - minLength: 2
+          - maxLength: 62
+        - name: instanceSize
+          controlType: singleSelect
+          path: ".spec.instanceSize"
+          title: Instance Size
+          enum:
+          - Option-1
+          - Option-2
+          - Option-3
+          validation:
+          - required: true
+            customError: You must select an instance size for your configuration!
+      ---
+      uiSpecVersion: 0.3
+      uiSpec:
+      - title: Supplementary
+        description: A supplementary UI annotation
   labels:
     controller-tools.k8s.io: "1.0"
 ```
@@ -147,19 +195,16 @@ metadata:
 
 The current design calls for unbiased processing of the UI YAML to annotations, regardless of content.
 
-Because the YAML will be transcribed as JSON in the annotation:
+Because the YAML will be concatenated as a multiple document YAML in the annotation:
 
 * the file must contain a valid YAML document
-* the transcribed JSON must be less than 256kb
+* the fully transcribed YAML must be less than 256kb
 
 These are the only requirements.
 
-TBD: A specification for the supported elements and their properties.  A validator and validation document pair should be offered.  There is no clear YAML validation format as there is DTD for XML documents.  Validation may be deferred to the capabilities of YAML parsing in Go via <https://github.com/go-yaml/yaml/>.  Unrecognized fields will be ignored while typed parameters will expect to conform to a Go type.
+TBD: A specification for the supported elements and their properties.  A validator and validation document pair should be offered.  There is no clear YAML validation format as there is DTD for XML documents.  Validation may be deferred to the capabilities of YAML parsing in Go via <https://github.com/ghodss/yaml>.  Unrecognized fields will be ignored while typed parameters will expect to conform to a Go type.
 
 ## Open Questions
 
-* Should alternate UI schema be supported?
-  * Should this be provided as multiple `ui-schema.yaml` files (with different names) or embedded in a single file?
-    * Should a single CRD annotations include the nested or alternative schemas?
-    * Should multiple CRD annotations represent alternate schemas? How does this affect the annotation key?
+* How should multiple document YAML annotations signify priority?
 * Should dependent and co-dependent fields be supported? (Not relevant if Crossplane remains unopinionated about the file contents)
