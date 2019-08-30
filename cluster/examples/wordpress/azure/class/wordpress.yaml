@@ -5,7 +5,7 @@ metadata:
 spec:
   classRef:
     kind: SQLServerClass
-    apiVersion: database.azure.crossplane.io/v1alpha1
+    apiVersion: database.azure.crossplane.io/v1alpha2
     name: standard
     namespace: crossplane-system
   writeConnectionSecretToRef:

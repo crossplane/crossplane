@@ -10,7 +10,7 @@ data:
   credentials: BASE64ENCODED_AZURE_PROVIDER_CREDS
 ---
 # Azure Provider with service account secret reference - used to provision cache resources
-apiVersion: azure.crossplane.io/v1alpha1
+apiVersion: azure.crossplane.io/v1alpha2
 kind: Provider
 metadata:
   name: example

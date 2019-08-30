@@ -1,4 +1,4 @@
-apiVersion: database.azure.crossplane.io/v1alpha1
+apiVersion: database.azure.crossplane.io/v1alpha2
 kind: MysqlServer
 metadata:
   labels:
