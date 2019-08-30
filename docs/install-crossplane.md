@@ -80,15 +80,49 @@ Then you can install the GCP stack into Crossplane in the `gcp` namespace with t
 kubectl apply -f stack-gcp.yaml
 ```
 
-#### Uninstall
+### Azure Stack
 
-The GCP stack can be uninstalled simply by deleting the stack resources from the cluster with the command below.
-**Note** that this will also **delete** any resources that Crossplane has provisioned in GCP if their `ReclaimPolicy` is set to `Delete`.
+To get started with Microsoft Azure, create a file named `stack-azure.yaml` with the following content:
 
-After you have ensured that you are completely done with all your GCP cloud resources, you can then run the following command to remove the GCP stack from Crossplane:
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: azure
+---
+apiVersion: stacks.crossplane.io/v1alpha1
+kind: StackRequest
+metadata:
+  name: stack-azure
+  namespace: azure
+spec:
+  package: "crossplane/stack-azure:master"
+```
+
+Then you can install the Azure stack into Crossplane in the `azure` namespace with the following command:
+
+```console
+kubectl apply -f stack-azure.yaml
+```
+
+### Uninstalling Cloud Provider Stacks
+
+The cloud provider stacks can be uninstalled simply by deleting the stack resources from the cluster with a command similar to what's shown below.
+**Note** that this will also **delete** any resources that Crossplane has provisioned in the cloud provider if their `ReclaimPolicy` is set to `Delete`.
+
+After you have ensured that you are completely done with all your cloud provider resources, you can then run one of the commands below,
+depending on which cloud provider you are removing, to remove its stack from Crossplane:
+
+#### Uninstalling GCP
 
 ```console
 kubectl delete -f stack-gcp.yaml
+```
+
+#### Uninstalling Azure
+
+```console
+kubectl delete -f stack-azure.yaml
 ```
 
 ## Uninstalling the Chart

@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: azure
+---
+apiVersion: stacks.crossplane.io/v1alpha1
+kind: StackRequest
+metadata:
+  name: stack-azure
+  namespace: azure
+spec:
+  package: "crossplane/stack-azure:master"
