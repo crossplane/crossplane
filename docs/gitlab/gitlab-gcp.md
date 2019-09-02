@@ -27,8 +27,8 @@ kubectl config get-contexts
 kubectl config set-context [your-cluster-context]
 ```
 
-
 ### Crossplane
+
 Using the newly provisioned cluster:
 
 - Install Crossplane from master channel using the [Crossplane Installation Guide](../install-crossplane.md#master)
