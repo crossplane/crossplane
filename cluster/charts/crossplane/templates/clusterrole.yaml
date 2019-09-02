@@ -34,13 +34,6 @@ rules:
   - core.crossplane.io
   - stacks.crossplane.io
   - storage.crossplane.io
-  - aws.crossplane.io
-  - cache.aws.crossplane.io
-  - compute.aws.crossplane.io
-  - database.aws.crossplane.io
-  - storage.aws.crossplane.io
-  - identity.aws.crossplane.io
-  - network.aws.crossplane.io
   - workload.crossplane.io
   resources:
   - "*"
