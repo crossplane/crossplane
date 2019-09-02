@@ -8,7 +8,7 @@ spec:
   localPermission: ReadWrite
   classRef:
     kind: S3BucketClass
-    apiVersion: storage.aws.crossplane.io/v1alpha1
+    apiVersion: storage.aws.crossplane.io/v1alpha2
     name: s3bucket
     namespace: crossplane-system
   writeConnectionSecretToRef:

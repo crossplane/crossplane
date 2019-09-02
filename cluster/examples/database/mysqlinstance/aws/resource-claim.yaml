@@ -6,7 +6,7 @@ metadata:
 spec:
   classRef:
     kind: RDSInstanceClass
-    apiVersion: database.aws.crossplane.io/v1alpha1
+    apiVersion: database.aws.crossplane.io/v1alpha2
     name: rdsmysql
     namespace: crossplane-system
   writeConnectionSecretToRef:

@@ -9,7 +9,7 @@ data:
   credentials: BASE64ENCODED_AWS_PROVIDER_CREDS
 ---
 # AWS Provider with credential secret reference - used to provision aws resources
-apiVersion: aws.crossplane.io/v1alpha1
+apiVersion: aws.crossplane.io/v1alpha2
 kind: Provider
 metadata:
   name: demo-aws-provider

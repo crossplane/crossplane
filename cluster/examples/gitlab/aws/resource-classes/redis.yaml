@@ -1,6 +1,6 @@
 ---
 ## Crossplane Redis Resource class
-apiVersion: cache.aws.crossplane.io/v1alpha1
+apiVersion: cache.aws.crossplane.io/v1alpha2
 kind: ReplicationGroupClass
 metadata:
   name: standard-aws-redis

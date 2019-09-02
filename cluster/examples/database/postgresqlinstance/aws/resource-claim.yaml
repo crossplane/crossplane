@@ -6,9 +6,9 @@ metadata:
 spec:
   classRef:
     kind: RDSInstanceClass
-    apiVersion: database.aws.crossplane.io/v1alpha1
+    apiVersion: database.aws.crossplane.io/v1alpha2
     name: rdspostgresql
     namespace: crossplane-system
   writeConnectionSecretToRef:
-    name: rdspostgres  
+    name: rdspostgres
   engineVersion: "9.6"

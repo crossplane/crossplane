@@ -9,7 +9,7 @@ data:
   credentials: BASE64ENCODED_AWS_PROVIDER_CREDS
 ---
 ## Crossplane AWS Provider
-apiVersion: aws.crossplane.io/v1alpha1
+apiVersion: aws.crossplane.io/v1alpha2
 kind: Provider
 metadata:
   name: demo-aws
