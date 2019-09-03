@@ -118,6 +118,10 @@ spec:
               description: Version is the Kubernetes version that will be deployed
                 to the cluster
               type: string
+            vnetSubnetID:
+              description: VnetSubnetID is the subnet to which the cluster will be
+                deployed.
+              type: string
             writeServicePrincipalTo:
               description: WriteServicePrincipalSecretTo the specified Secret. The
                 service principal is automatically generated and used by the AKS cluster

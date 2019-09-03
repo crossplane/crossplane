@@ -44,6 +44,9 @@ type AKSClusterParameters struct {
 	// Version is the Kubernetes version that will be deployed to the cluster
 	Version string `json:"version"` //--kubernetes-version
 
+	// VnetSubnetID is the subnet to which the cluster will be deployed.
+	VnetSubnetID string `json:"vnetSubnetID,omitempty"`
+
 	// NodeCount is the number of nodes that the cluster will initially be created with.  This can
 	// be scaled over time and defaults to 1.
 	// +kubebuilder:validation:Maximum=100

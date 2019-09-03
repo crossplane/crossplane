@@ -129,9 +129,10 @@ func (c *AKSClusterClient) CreateOrUpdateBegin(ctx context.Context, instance com
 			DNSPrefix:         &spec.DNSNamePrefix,
 			AgentPoolProfiles: &[]containerservice.ManagedClusterAgentPoolProfile{
 				{
-					Name:   to.StringPtr(AgentPoolProfileName),
-					Count:  &nodeCount,
-					VMSize: containerservice.VMSizeTypes(spec.NodeVMSize),
+					Name:         to.StringPtr(AgentPoolProfileName),
+					Count:        &nodeCount,
+					VMSize:       containerservice.VMSizeTypes(spec.NodeVMSize),
+					VnetSubnetID: to.StringPtr(spec.VnetSubnetID),
 				},
 			},
 			ServicePrincipalProfile: &containerservice.ManagedClusterServicePrincipalProfile{
@@ -140,6 +141,12 @@ func (c *AKSClusterClient) CreateOrUpdateBegin(ctx context.Context, instance com
 			},
 			EnableRBAC: &enableRBAC,
 		},
+	}
+
+	if spec.VnetSubnetID != "" {
+		createParams.ManagedClusterProperties.NetworkProfile = &containerservice.NetworkProfile{
+			NetworkPlugin: containerservice.Azure,
+		}
 	}
 
 	createFuture, err := c.CreateOrUpdate(ctx, instance.Spec.ResourceGroupName, clusterName, createParams)
@@ -165,7 +172,7 @@ func (c *AKSClusterClient) CreateOrUpdateEnd(op []byte) (done bool, err error) {
 	}
 
 	// check if the operation is done yet
-	done, err = future.Done(c.Client)
+	done, err = future.DoneWithContext(context.Background(), c.Client)
 	if !done {
 		return false, err
 	}
