@@ -9,7 +9,9 @@ spec:
   group: cache.crossplane.io
   names:
     kind: RedisClusterPolicy
+    listKind: RedisClusterPolicyList
     plural: redisclusterpolicies
+    singular: redisclusterpolicy
   scope: ""
   validation:
     openAPIV3Schema:

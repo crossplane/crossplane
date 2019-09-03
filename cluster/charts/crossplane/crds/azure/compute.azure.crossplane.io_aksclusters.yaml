@@ -34,7 +34,9 @@ spec:
   group: compute.azure.crossplane.io
   names:
     kind: AKSCluster
+    listKind: AKSClusterList
     plural: aksclusters
+    singular: akscluster
   scope: ""
   subresources: {}
   validation:

@@ -19,7 +19,9 @@ spec:
   group: compute.gcp.crossplane.io
   names:
     kind: GKEClusterClass
+    listKind: GKEClusterClassList
     plural: gkeclusterclasses
+    singular: gkeclusterclass
   scope: ""
   subresources: {}
   validation:

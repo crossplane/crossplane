@@ -22,7 +22,9 @@ spec:
   group: database.crossplane.io
   names:
     kind: PostgreSQLInstance
+    listKind: PostgreSQLInstanceList
     plural: postgresqlinstances
+    singular: postgresqlinstance
   scope: ""
   subresources:
     status: {}

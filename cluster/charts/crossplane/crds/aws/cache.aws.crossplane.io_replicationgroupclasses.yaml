@@ -19,7 +19,9 @@ spec:
   group: cache.aws.crossplane.io
   names:
     kind: ReplicationGroupClass
+    listKind: ReplicationGroupClassList
     plural: replicationgroupclasses
+    singular: replicationgroupclass
   scope: ""
   subresources: {}
   validation:

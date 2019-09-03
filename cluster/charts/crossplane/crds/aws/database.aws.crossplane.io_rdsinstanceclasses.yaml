@@ -19,7 +19,9 @@ spec:
   group: database.aws.crossplane.io
   names:
     kind: RDSInstanceClass
+    listKind: RDSInstanceClassList
     plural: rdsinstanceclasses
+    singular: rdsinstanceclass
   scope: ""
   subresources: {}
   validation:

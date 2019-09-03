@@ -22,7 +22,9 @@ spec:
   group: cache.aws.crossplane.io
   names:
     kind: ReplicationGroup
+    listKind: ReplicationGroupList
     plural: replicationgroups
+    singular: replicationgroup
   scope: ""
   subresources:
     status: {}

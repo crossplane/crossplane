@@ -34,7 +34,9 @@ spec:
   group: compute.gcp.crossplane.io
   names:
     kind: GKECluster
+    listKind: GKEClusterList
     plural: gkeclusters
+    singular: gkecluster
   scope: ""
   subresources: {}
   validation:

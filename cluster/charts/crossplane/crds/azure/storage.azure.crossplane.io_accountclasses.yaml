@@ -19,7 +19,9 @@ spec:
   group: storage.azure.crossplane.io
   names:
     kind: AccountClass
+    listKind: AccountClassList
     plural: accountclasses
+    singular: accountclass
   scope: ""
   subresources: {}
   validation:

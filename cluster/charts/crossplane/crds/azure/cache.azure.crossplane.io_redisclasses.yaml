@@ -19,7 +19,9 @@ spec:
   group: cache.azure.crossplane.io
   names:
     kind: RedisClass
+    listKind: RedisClassList
     plural: redisclasses
+    singular: redisclass
   scope: ""
   subresources: {}
   validation:

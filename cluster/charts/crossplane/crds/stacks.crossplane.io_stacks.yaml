@@ -19,7 +19,9 @@ spec:
   group: stacks.crossplane.io
   names:
     kind: Stack
+    listKind: StackList
     plural: stacks
+    singular: stack
   scope: ""
   subresources:
     status: {}

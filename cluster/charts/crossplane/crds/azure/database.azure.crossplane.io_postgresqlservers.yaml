@@ -25,7 +25,9 @@ spec:
   group: database.azure.crossplane.io
   names:
     kind: PostgresqlServer
+    listKind: PostgresqlServerList
     plural: postgresqlservers
+    singular: postgresqlserver
   scope: ""
   subresources: {}
   validation:

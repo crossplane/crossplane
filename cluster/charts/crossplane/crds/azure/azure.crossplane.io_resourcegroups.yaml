@@ -9,7 +9,9 @@ spec:
   group: azure.crossplane.io
   names:
     kind: ResourceGroup
+    listKind: ResourceGroupList
     plural: resourcegroups
+    singular: resourcegroup
   scope: ""
   validation:
     openAPIV3Schema:

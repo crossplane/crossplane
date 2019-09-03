@@ -9,7 +9,9 @@ spec:
   group: storage.crossplane.io
   names:
     kind: BucketPolicy
+    listKind: BucketPolicyList
     plural: bucketpolicies
+    singular: bucketpolicy
   scope: ""
   validation:
     openAPIV3Schema:

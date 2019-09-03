@@ -22,7 +22,9 @@ spec:
   group: cache.azure.crossplane.io
   names:
     kind: Redis
+    listKind: RedisList
     plural: redis
+    singular: redis
   scope: ""
   subresources: {}
   validation:

@@ -1031,6 +1031,14 @@
   version = "v2.2.2"
 
 [[projects]]
+  branch = "v3"
+  digest = "1:46754188622566b86271d7526cb643b88c2b9589ee224c2d55e282f0f35a0df8"
+  name = "gopkg.in/yaml.v3"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "674ba3eaed223079f9377fbb0c98c0951bf6ec10"
+
+[[projects]]
   digest = "1:9e593df1695ea6942188dd19c1d0f21c635fcf9f5f03611fc623c696cd2847a9"
   name = "honnef.co/go/tools"
   packages = [
@@ -1402,7 +1410,7 @@
   version = "v0.2.0"
 
 [[projects]]
-  digest = "1:1edc986a412b40d477a5c0077e7749d280fffa4446f7ec2e24c3e0cf4b128070"
+  digest = "1:6852be48889f976ee43ef7ca2e1a25ee9cfd3d0d46dbcdfcf32f8b7186c019e0"
   name = "sigs.k8s.io/controller-tools"
   packages = [
     "cmd/controller-gen",
@@ -1415,11 +1423,12 @@
     "pkg/loader",
     "pkg/markers",
     "pkg/rbac",
+    "pkg/schemapatcher",
+    "pkg/schemapatcher/internal/yaml",
     "pkg/webhook",
   ]
   pruneopts = "UT"
-  revision = "8e509cc6044facab5022c3af8f713f8b736d9108"
-  source = "https://github.com/muvaf/controller-tools.git"
+  revision = "ba11932048e4538f6e435f5ca0cdea19bf458338"
 
 [[projects]]
   digest = "1:9070222ca967d09b3966552a161dd4420d62315964bf5e1efd8cc4c7c30ebca8"

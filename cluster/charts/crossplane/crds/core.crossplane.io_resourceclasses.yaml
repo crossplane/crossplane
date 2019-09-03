@@ -22,7 +22,9 @@ spec:
   group: core.crossplane.io
   names:
     kind: ResourceClass
+    listKind: ResourceClassList
     plural: resourceclasses
+    singular: resourceclass
   scope: ""
   subresources: {}
   validation:

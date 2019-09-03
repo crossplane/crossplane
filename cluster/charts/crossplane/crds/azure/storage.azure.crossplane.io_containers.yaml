@@ -25,7 +25,9 @@ spec:
   group: storage.azure.crossplane.io
   names:
     kind: Container
+    listKind: ContainerList
     plural: containers
+    singular: container
   scope: ""
   subresources:
     status: {}

@@ -9,7 +9,9 @@ spec:
   group: compute.crossplane.io
   names:
     kind: KubernetesClusterPolicy
+    listKind: KubernetesClusterPolicyList
     plural: kubernetesclusterpolicies
+    singular: kubernetesclusterpolicy
   scope: ""
   validation:
     openAPIV3Schema:

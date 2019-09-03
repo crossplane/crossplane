@@ -19,7 +19,9 @@ spec:
   group: compute.aws.crossplane.io
   names:
     kind: EKSClusterClass
+    listKind: EKSClusterClassList
     plural: eksclusterclasses
+    singular: eksclusterclass
   scope: ""
   subresources: {}
   validation:

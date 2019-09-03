@@ -19,7 +19,9 @@ spec:
   group: storage.aws.crossplane.io
   names:
     kind: S3BucketClass
+    listKind: S3BucketClassList
     plural: s3bucketclasses
+    singular: s3bucketclass
   scope: ""
   subresources: {}
   validation:

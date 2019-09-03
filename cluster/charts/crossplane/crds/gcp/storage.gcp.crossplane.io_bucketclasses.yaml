@@ -19,7 +19,9 @@ spec:
   group: storage.gcp.crossplane.io
   names:
     kind: BucketClass
+    listKind: BucketClassList
     plural: bucketclasses
+    singular: bucketclass
   scope: ""
   subresources: {}
   validation:
