@@ -47,7 +47,9 @@ var (
 	_ SQLServer = &PostgresqlServer{}
 
 	_ resource.Managed = &MysqlServer{}
+	_ resource.Managed = &MysqlServerVirtualNetworkRule{}
 	_ resource.Managed = &PostgresqlServer{}
+	_ resource.Managed = &PostgresqlServerVirtualNetworkRule{}
 )
 
 func TestMain(m *testing.M) {
@@ -88,6 +90,38 @@ func TestStorageMysqlServer(t *testing.T) {
 	g.Expect(c.Get(ctx, key, fetched)).To(gomega.HaveOccurred())
 }
 
+func TestStorageMysqlServerVirtualNetworkRule(t *testing.T) {
+	key := types.NamespacedName{Name: name, Namespace: namespace}
+	created := &MysqlServerVirtualNetworkRule{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+		Spec: VirtualNetworkRuleSpec{
+			ResourceSpec: runtimev1alpha1.ResourceSpec{
+				ProviderReference: &core.ObjectReference{},
+			},
+		},
+	}
+	g := gomega.NewGomegaWithT(t)
+
+	// Test Create
+	fetched := &MysqlServerVirtualNetworkRule{}
+	g.Expect(c.Create(ctx, created)).NotTo(gomega.HaveOccurred())
+
+	g.Expect(c.Get(ctx, key, fetched)).NotTo(gomega.HaveOccurred())
+	g.Expect(fetched).To(gomega.Equal(created))
+
+	// Test Updating the Labels
+	updated := fetched.DeepCopy()
+	updated.Labels = map[string]string{"hello": "world"}
+	g.Expect(c.Update(ctx, updated)).NotTo(gomega.HaveOccurred())
+
+	g.Expect(c.Get(ctx, key, fetched)).NotTo(gomega.HaveOccurred())
+	g.Expect(fetched).To(gomega.Equal(updated))
+
+	// Test Delete
+	g.Expect(c.Delete(ctx, fetched)).NotTo(gomega.HaveOccurred())
+	g.Expect(c.Get(ctx, key, fetched)).To(gomega.HaveOccurred())
+}
+
 func TestStoragePostgresqlServer(t *testing.T) {
 	key := types.NamespacedName{Name: name, Namespace: namespace}
 	created := &PostgresqlServer{
@@ -102,6 +136,38 @@ func TestStoragePostgresqlServer(t *testing.T) {
 
 	// Test Create
 	fetched := &PostgresqlServer{}
+	g.Expect(c.Create(ctx, created)).NotTo(gomega.HaveOccurred())
+
+	g.Expect(c.Get(ctx, key, fetched)).NotTo(gomega.HaveOccurred())
+	g.Expect(fetched).To(gomega.Equal(created))
+
+	// Test Updating the Labels
+	updated := fetched.DeepCopy()
+	updated.Labels = map[string]string{"hello": "world"}
+	g.Expect(c.Update(ctx, updated)).NotTo(gomega.HaveOccurred())
+
+	g.Expect(c.Get(ctx, key, fetched)).NotTo(gomega.HaveOccurred())
+	g.Expect(fetched).To(gomega.Equal(updated))
+
+	// Test Delete
+	g.Expect(c.Delete(ctx, fetched)).NotTo(gomega.HaveOccurred())
+	g.Expect(c.Get(ctx, key, fetched)).To(gomega.HaveOccurred())
+}
+
+func TestStoragePostgresqlServerVirtualNetworkRule(t *testing.T) {
+	key := types.NamespacedName{Name: name, Namespace: namespace}
+	created := &PostgresqlServerVirtualNetworkRule{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+		Spec: VirtualNetworkRuleSpec{
+			ResourceSpec: runtimev1alpha1.ResourceSpec{
+				ProviderReference: &core.ObjectReference{},
+			},
+		},
+	}
+	g := gomega.NewGomegaWithT(t)
+
+	// Test Create
+	fetched := &PostgresqlServerVirtualNetworkRule{}
 	g.Expect(c.Create(ctx, created)).NotTo(gomega.HaveOccurred())
 
 	g.Expect(c.Get(ctx, key, fetched)).NotTo(gomega.HaveOccurred())

@@ -47,11 +47,25 @@ var (
 	MysqlServerGroupVersionKind = SchemeGroupVersion.WithKind(MysqlServerKind)
 )
 
+// MysqlServerVirtualNetworkRule type metadata.
+var (
+	MysqlServerVirtualNetworkRuleKind             = reflect.TypeOf(MysqlServerVirtualNetworkRule{}).Name()
+	MysqlServerVirtualNetworkRuleKindAPIVersion   = MysqlServerVirtualNetworkRuleKind + "." + SchemeGroupVersion.String()
+	MysqlServerVirtualNetworkRuleGroupVersionKind = SchemeGroupVersion.WithKind(MysqlServerVirtualNetworkRuleKind)
+)
+
 // PostgresqlServer type metadata.
 var (
 	PostgresqlServerKind             = reflect.TypeOf(PostgresqlServer{}).Name()
 	PostgresqlServerKindAPIVersion   = PostgresqlServerKind + "." + SchemeGroupVersion.String()
 	PostgresqlServerGroupVersionKind = SchemeGroupVersion.WithKind(PostgresqlServerKind)
+)
+
+// PostgresqlServerVirtualNetworkRule type metadata.
+var (
+	PostgresqlServerVirtualNetworkRuleKind             = reflect.TypeOf(PostgresqlServerVirtualNetworkRule{}).Name()
+	PostgresqlServerVirtualNetworkRuleKindAPIVersion   = PostgresqlServerVirtualNetworkRuleKind + "." + SchemeGroupVersion.String()
+	PostgresqlServerVirtualNetworkRuleGroupVersionKind = SchemeGroupVersion.WithKind(PostgresqlServerVirtualNetworkRuleKind)
 )
 
 // SQLServerClass type metadata.
@@ -63,6 +77,8 @@ var (
 
 func init() {
 	SchemeBuilder.Register(&MysqlServer{}, &MysqlServerList{})
+	SchemeBuilder.Register(&MysqlServerVirtualNetworkRule{}, &MysqlServerVirtualNetworkRuleList{})
 	SchemeBuilder.Register(&PostgresqlServer{}, &PostgresqlServerList{})
+	SchemeBuilder.Register(&PostgresqlServerVirtualNetworkRule{}, &PostgresqlServerVirtualNetworkRuleList{})
 	SchemeBuilder.Register(&SQLServerClass{}, &SQLServerClassList{})
 }

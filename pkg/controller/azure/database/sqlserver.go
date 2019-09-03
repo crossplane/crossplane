@@ -44,8 +44,7 @@ import (
 const (
 	controllerName = "database.azure.crossplane.io"
 
-	passwordDataLen  = 20
-	firewallRuleName = "crossplane-sql-firewall-rule"
+	passwordDataLen = 20
 )
 
 var (
@@ -109,14 +108,6 @@ func (r *SQLReconciler) handleReconcile(instance azuredbv1alpha1.SQLServer) (rec
 
 		// the given sql server instance does not exist, create it now
 		return r.handleCreation(sqlServersClient, instance)
-	}
-
-	if err := sqlServersClient.GetFirewallRule(ctx, instance, firewallRuleName); err != nil {
-		if !azureclients.IsNotFound(err) {
-			return r.fail(instance, errors.Wrapf(err, "failed to get firewall rule for SQL Server instance %s", instance.GetName()))
-		}
-
-		return r.handleFirewallRuleCreation(sqlServersClient, instance)
 	}
 
 	if err := r.updateStatus(instance, azureclients.SQLServerStatusMessage(instance.GetName(), server.State), server); err != nil {
@@ -229,25 +220,6 @@ func (r *SQLReconciler) handleDeletion(sqlServersClient azureclients.SQLServerAP
 	meta.RemoveFinalizer(instance, r.finalizer)
 	instance.GetStatus().SetConditions(runtimev1alpha1.ReconcileSuccess())
 	return reconcile.Result{}, r.Update(ctx, instance)
-}
-
-func (r *SQLReconciler) handleFirewallRuleCreation(sqlServersClient azureclients.SQLServerAPI, instance azuredbv1alpha1.SQLServer) (reconcile.Result, error) {
-	ctx := context.Background()
-
-	log.V(logging.Debug).Info("starting create of firewall rules for SQL Server instance", "instance", instance)
-	createOp, err := sqlServersClient.CreateFirewallRulesBegin(ctx, instance, firewallRuleName)
-	if err != nil {
-		return r.fail(instance, errors.Wrapf(err, "failed to start create firewall rules operation for SQL Server instance %s", instance.GetName()))
-	}
-
-	log.V(logging.Debug).Info("started create of firewall rules for SQL Server instance", "instance", instance.GetName(), "operation", string(createOp))
-
-	// save the create operation to the CRD status
-	status := instance.GetStatus()
-	status.RunningOperation = string(createOp)
-	status.RunningOperationType = azuredbv1alpha1.OperationCreateFirewallRules
-
-	return reconcile.Result{Requeue: true}, r.Update(ctx, instance)
 }
 
 // handle a running operation for the given SQL Server instance
