@@ -31,32 +31,32 @@ import (
 
 // +kubebuilder:object:root=true
 
-// StackRequest is the CRD type for a request to add a stack to Crossplane.
+// StackInstall is the CRD type for a request to add a stack to Crossplane.
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type==Ready)].status"
 // +kubebuilder:printcolumn:name="SOURCE",type="string",JSONPath=".spec.source"
 // +kubebuilder:printcolumn:name="PACKAGE",type="string",JSONPath=".spec.package"
 // +kubebuilder:printcolumn:name="CRD",type="string",JSONPath=".spec.crd"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
-type StackRequest struct {
+type StackInstall struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   StackRequestSpec   `json:"spec,omitempty"`
-	Status StackRequestStatus `json:"status,omitempty"`
+	Spec   StackInstallSpec   `json:"spec,omitempty"`
+	Status StackInstallStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 
-// StackRequestList contains a list of StackRequest
-type StackRequestList struct {
+// StackInstallList contains a list of StackInstall
+type StackInstallList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []StackRequest `json:"items"`
+	Items           []StackInstall `json:"items"`
 }
 
-// StackRequestSpec specifies details about a request to add a stack to Crossplane.
-type StackRequestSpec struct {
+// StackInstallSpec specifies details about a request to add a stack to Crossplane.
+type StackInstallSpec struct {
 	// Source is the domain name for the stack registry hosting the stack being requested,
 	// e.g., registry.crossplane.io
 	Source string `json:"source,omitempty"`
@@ -72,8 +72,8 @@ type StackRequestSpec struct {
 	CustomResourceDefinition string `json:"crd,omitempty"`
 }
 
-// StackRequestStatus defines the observed state of StackRequest
-type StackRequestStatus struct {
+// StackInstallStatus defines the observed state of StackInstall
+type StackInstallStatus struct {
 	runtimev1alpha1.ConditionedStatus `json:"conditionedStatus,omitempty"`
 
 	InstallJob  *corev1.ObjectReference `json:"installJob,omitempty"`
@@ -82,32 +82,32 @@ type StackRequestStatus struct {
 
 // +kubebuilder:object:root=true
 
-// ClusterStackRequest is the CRD type for a request to add a stack to Crossplane.
+// ClusterStackInstall is the CRD type for a request to add a stack to Crossplane.
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type==Ready)].status"
 // +kubebuilder:printcolumn:name="SOURCE",type="string",JSONPath=".spec.source"
 // +kubebuilder:printcolumn:name="PACKAGE",type="string",JSONPath=".spec.package"
 // +kubebuilder:printcolumn:name="CRD",type="string",JSONPath=".spec.crd"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
-type ClusterStackRequest struct {
+type ClusterStackInstall struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   ClusterStackRequestSpec   `json:"spec,omitempty"`
-	Status ClusterStackRequestStatus `json:"status,omitempty"`
+	Spec   ClusterStackInstallSpec   `json:"spec,omitempty"`
+	Status ClusterStackInstallStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 
-// ClusterStackRequestList contains a list of StackRequest
-type ClusterStackRequestList struct {
+// ClusterStackInstallList contains a list of StackInstall
+type ClusterStackInstallList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []ClusterStackRequest `json:"items"`
+	Items           []ClusterStackInstall `json:"items"`
 }
 
-// ClusterStackRequestSpec specifies details about a request to add a stack to Crossplane.
-type ClusterStackRequestSpec struct {
+// ClusterStackInstallSpec specifies details about a request to add a stack to Crossplane.
+type ClusterStackInstallSpec struct {
 	// Source is the domain name for the stack registry hosting the stack being requested,
 	// e.g., registry.crossplane.io
 	Source string `json:"source,omitempty"`
@@ -123,8 +123,8 @@ type ClusterStackRequestSpec struct {
 	CustomResourceDefinition string `json:"crd,omitempty"`
 }
 
-// ClusterStackRequestStatus defines the observed state of StackRequest
-type ClusterStackRequestStatus struct {
+// ClusterStackInstallStatus defines the observed state of StackInstall
+type ClusterStackInstallStatus struct {
 	runtimev1alpha1.ConditionedStatus `json:"conditionedStatus,omitempty"`
 
 	InstallJob  *corev1.ObjectReference `json:"installJob,omitempty"`
@@ -184,7 +184,7 @@ type AppMetadataSpec struct {
 	Source      string            `json:"source,omitempty"`
 	License     string            `json:"license,omitempty"`
 
-	// +kubebuilder:validation:Enum=Cluster;Namespace
+	// +kubebuilder:validation:Enum=Cluster;Namespaced
 	PermissionScope string `json:"permissionScope,omitempty"`
 }
 

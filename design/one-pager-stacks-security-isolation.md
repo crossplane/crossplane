@@ -226,7 +226,7 @@ title: Sample Crossplane Stack
 # current supported values are:
 #
 # - Cluster
-# - Namespace
+# - Namespaced
 permissionScope: Cluster
 ```
 

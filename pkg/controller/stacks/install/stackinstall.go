@@ -48,7 +48,7 @@ import (
 )
 
 const (
-	controllerName  = "stackrequest.stacks.crossplane.io"
+	controllerName  = "stackinstall.stacks.crossplane.io"
 	registryDirName = ".registry"
 
 	reconcileTimeout      = 1 * time.Minute
@@ -79,7 +79,7 @@ type Reconciler struct {
 	executorInfo *executorInfo
 }
 
-// Controller is responsible for adding the StackRequest
+// Controller is responsible for adding the StackInstall
 // controller and its corresponding reconciler to the manager with any runtime configuration.
 type Controller struct{}
 
@@ -95,20 +95,20 @@ func (c *Controller) SetupWithManager(mgr ctrl.Manager) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(controllerName).
-		For(&v1alpha1.StackRequest{}).
+		For(&v1alpha1.StackInstall{}).
 		Complete(r)
 }
 
-// Reconcile reads that state of the StackRequest for a Instance object and makes changes based on the state read
+// Reconcile reads that state of the StackInstall for a Instance object and makes changes based on the state read
 // and what is in the Instance.Spec
 func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) {
-	log.V(logging.Debug).Info("reconciling", "kind", v1alpha1.StackRequestKindAPIVersion, "request", req)
+	log.V(logging.Debug).Info("reconciling", "kind", v1alpha1.StackInstallKindAPIVersion, "request", req)
 
 	ctx, cancel := context.WithTimeout(context.Background(), reconcileTimeout)
 	defer cancel()
 
 	// fetch the CRD instance
-	i := &v1alpha1.StackRequest{}
+	i := &v1alpha1.StackInstall{}
 	if err := r.kube.Get(ctx, req.NamespacedName, i); err != nil {
 		if kerrors.IsNotFound(err) {
 			return reconcile.Result{}, nil
@@ -132,21 +132,21 @@ type handler interface {
 	update(context.Context) (reconcile.Result, error)
 }
 
-// stackRequestHandler is a concrete implementation of the handler interface
-type stackRequestHandler struct {
+// stackInstallHandler is a concrete implementation of the handler interface
+type stackInstallHandler struct {
 	kube         client.Client
 	jobCompleter jobCompleter
 	executorInfo executorInfo
-	ext          *v1alpha1.StackRequest
+	ext          *v1alpha1.StackInstall
 }
 
 // jobCompleter is an interface for handling job completion
 type jobCompleter interface {
-	handleJobCompletion(ctx context.Context, i *v1alpha1.StackRequest, job *batchv1.Job) error
+	handleJobCompletion(ctx context.Context, i *v1alpha1.StackInstall, job *batchv1.Job) error
 }
 
-// stackRequestJobCompleter is a concrete implementation of the jobCompleter interface
-type stackRequestJobCompleter struct {
+// stackInstallJobCompleter is a concrete implementation of the jobCompleter interface
+type stackInstallJobCompleter struct {
 	kube         client.Client
 	podLogReader podLogReader
 }
@@ -163,19 +163,19 @@ type k8sPodLogReader struct {
 
 // factory is an interface for creating new handlers
 type factory interface {
-	newHandler(context.Context, *v1alpha1.StackRequest, client.Client, kubernetes.Interface, executorInfo) handler
+	newHandler(context.Context, *v1alpha1.StackInstall, client.Client, kubernetes.Interface, executorInfo) handler
 }
 
 type handlerFactory struct{}
 
-func (f *handlerFactory) newHandler(ctx context.Context, ext *v1alpha1.StackRequest,
+func (f *handlerFactory) newHandler(ctx context.Context, ext *v1alpha1.StackInstall,
 	kube client.Client, kubeclient kubernetes.Interface, ei executorInfo) handler {
 
-	return &stackRequestHandler{
+	return &stackInstallHandler{
 		ext:          ext,
 		kube:         kube,
 		executorInfo: ei,
-		jobCompleter: &stackRequestJobCompleter{
+		jobCompleter: &stackInstallJobCompleter{
 			kube: kube,
 			podLogReader: &k8sPodLogReader{
 				kubeclient: kubeclient,
@@ -187,7 +187,7 @@ func (f *handlerFactory) newHandler(ctx context.Context, ext *v1alpha1.StackRequ
 // ************************************************************************************************
 // Syncing/Creating functions
 // ************************************************************************************************
-func (h *stackRequestHandler) sync(ctx context.Context) (reconcile.Result, error) {
+func (h *stackInstallHandler) sync(ctx context.Context) (reconcile.Result, error) {
 	if h.ext.Status.StackRecord == nil {
 		return h.create(ctx)
 	}
@@ -197,7 +197,7 @@ func (h *stackRequestHandler) sync(ctx context.Context) (reconcile.Result, error
 
 // create performs the operation of creating the associated Stack.  This function assumes
 // that the Stack does not yet exist, so the caller should confirm that before calling.
-func (h *stackRequestHandler) create(ctx context.Context) (reconcile.Result, error) {
+func (h *stackInstallHandler) create(ctx context.Context) (reconcile.Result, error) {
 	h.ext.Status.SetConditions(runtimev1alpha1.Creating())
 	jobRef := h.ext.Status.InstallJob
 
@@ -241,7 +241,7 @@ func (h *stackRequestHandler) create(ctx context.Context) (reconcile.Result, err
 					return fail(ctx, h.kube, h.ext, err)
 				}
 
-				// the install job's completion was handled successfully, this stack request is ready
+				// the install job's completion was handled successfully, this stack install is ready
 				h.ext.Status.SetConditions(runtimev1alpha1.Available(), runtimev1alpha1.ReconcileSuccess())
 				return requeueOnSuccess, h.kube.Status().Update(ctx, h.ext)
 			case batchv1.JobFailed:
@@ -258,15 +258,15 @@ func (h *stackRequestHandler) create(ctx context.Context) (reconcile.Result, err
 	return requeueOnSuccess, h.kube.Status().Update(ctx, h.ext)
 }
 
-func (h *stackRequestHandler) update(ctx context.Context) (reconcile.Result, error) {
-	// TODO: should updates of the StackRequest be supported? what would that even mean, they
-	// changed the package they wanted installed? Shouldn't they delete the StackRequest and
+func (h *stackInstallHandler) update(ctx context.Context) (reconcile.Result, error) {
+	// TODO: should updates of the StackInstall be supported? what would that even mean, they
+	// changed the package they wanted installed? Shouldn't they delete the StackInstall and
 	// create a new one?
-	log.V(logging.Debug).Info("updating not supported yet", "stackRequest", h.ext.Name)
+	log.V(logging.Debug).Info("updating not supported yet", "stackInstall", h.ext.Name)
 	return reconcile.Result{}, nil
 }
 
-func createInstallJob(i *v1alpha1.StackRequest, executorInfo executorInfo) *batchv1.Job {
+func createInstallJob(i *v1alpha1.StackInstall, executorInfo executorInfo) *batchv1.Job {
 	ref := meta.AsOwner(meta.ReferenceTo(i, v1alpha1.StackGroupVersionKind))
 	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -322,7 +322,7 @@ func createInstallJob(i *v1alpha1.StackRequest, executorInfo executorInfo) *batc
 	}
 }
 
-func (jc *stackRequestJobCompleter) handleJobCompletion(ctx context.Context, i *v1alpha1.StackRequest, job *batchv1.Job) error {
+func (jc *stackInstallJobCompleter) handleJobCompletion(ctx context.Context, i *v1alpha1.StackInstall, job *batchv1.Job) error {
 	var stackRecord *v1alpha1.Stack
 
 	// find the pod associated with the given job
@@ -368,7 +368,7 @@ func (jc *stackRequestJobCompleter) handleJobCompletion(ctx context.Context, i *
 		return errors.Errorf("failed to find a stack record from job %s", job.Name)
 	}
 
-	// save a reference to the stack record in the status of the stack request
+	// save a reference to the stack record in the status of the stack install
 	i.Status.StackRecord = &corev1.ObjectReference{
 		APIVersion: stackRecord.APIVersion,
 		Kind:       stackRecord.Kind,
@@ -382,7 +382,7 @@ func (jc *stackRequestJobCompleter) handleJobCompletion(ctx context.Context, i *
 
 // findPodNameForJob finds the pod name associated with the given job.  Note that this functions
 // assumes only a single pod will be associated with the job.
-func (jc *stackRequestJobCompleter) findPodNameForJob(ctx context.Context, job *batchv1.Job) (string, error) {
+func (jc *stackInstallJobCompleter) findPodNameForJob(ctx context.Context, job *batchv1.Job) (string, error) {
 	podList, err := jc.findPodsForJob(ctx, job)
 	if err != nil {
 		return "", err
@@ -395,7 +395,7 @@ func (jc *stackRequestJobCompleter) findPodNameForJob(ctx context.Context, job *
 	return podList.Items[0].Name, nil
 }
 
-func (jc *stackRequestJobCompleter) findPodsForJob(ctx context.Context, job *batchv1.Job) (*corev1.PodList, error) {
+func (jc *stackInstallJobCompleter) findPodsForJob(ctx context.Context, job *batchv1.Job) (*corev1.PodList, error) {
 	podList := &corev1.PodList{}
 	labelSelector := client.MatchingLabels{
 		"job-name": job.Name,
@@ -408,7 +408,7 @@ func (jc *stackRequestJobCompleter) findPodsForJob(ctx context.Context, job *bat
 	return podList, nil
 }
 
-func (jc *stackRequestJobCompleter) readPodLogs(namespace, name string) (*bytes.Buffer, error) {
+func (jc *stackInstallJobCompleter) readPodLogs(namespace, name string) (*bytes.Buffer, error) {
 	podLogs, err := jc.podLogReader.getPodLogReader(namespace, name)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get logs request stream from pod %s", name)
@@ -423,8 +423,8 @@ func (jc *stackRequestJobCompleter) readPodLogs(namespace, name string) (*bytes.
 	return b, nil
 }
 
-func (jc *stackRequestJobCompleter) createJobOutputObject(ctx context.Context, obj *unstructured.Unstructured,
-	i *v1alpha1.StackRequest, job *batchv1.Job) error {
+func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, obj *unstructured.Unstructured,
+	i *v1alpha1.StackInstall, job *batchv1.Job) error {
 
 	// if we decoded a non-nil unstructured object, try to create it now
 	if obj == nil {
@@ -433,7 +433,7 @@ func (jc *stackRequestJobCompleter) createJobOutputObject(ctx context.Context, o
 
 	if isStackObject(obj) {
 		// the current object is a Stack object, make sure the name and namespace are
-		// set to match the current StackRequest (if they haven't already been set)
+		// set to match the current StackInstall (if they haven't already been set)
 		if obj.GetName() == "" {
 			obj.SetName(i.Name)
 		}
@@ -444,7 +444,7 @@ func (jc *stackRequestJobCompleter) createJobOutputObject(ctx context.Context, o
 
 	// set an owner reference on the object
 	obj.SetOwnerReferences([]metav1.OwnerReference{
-		meta.AsOwner(meta.ReferenceTo(i, v1alpha1.StackRequestGroupVersionKind)),
+		meta.AsOwner(meta.ReferenceTo(i, v1alpha1.StackInstallGroupVersionKind)),
 	})
 
 	log.V(logging.Debug).Info(
@@ -475,7 +475,7 @@ func (r *k8sPodLogReader) getPodLogReader(namespace, name string) (io.ReadCloser
 // ExecutorInfo discovery
 // ************************************************************************************************
 
-// executorInfo represents the information needed to launch an executor for handling stack requests
+// executorInfo represents the information needed to launch an executor for handling stack installs
 type executorInfo struct {
 	image string
 }
@@ -539,8 +539,8 @@ func (d *executorInfoDiscoverer) discoverExecutorInfo(ctx context.Context) (*exe
 // ************************************************************************************************
 
 // fail - helper function to set fail condition with reason and message
-func fail(ctx context.Context, kube client.StatusClient, i *v1alpha1.StackRequest, err error) (reconcile.Result, error) {
-	log.V(logging.Debug).Info("failed stack request", "i", i.Name, "error", err)
+func fail(ctx context.Context, kube client.StatusClient, i *v1alpha1.StackInstall, err error) (reconcile.Result, error) {
+	log.V(logging.Debug).Info("failed stack install", "i", i.Name, "error", err)
 	i.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
 	return resultRequeue, kube.Status().Update(ctx, i)
 }
@@ -557,7 +557,7 @@ func isStackObject(obj *unstructured.Unstructured) bool {
 
 // getPackageImage returns the fully qualified image name for the given package source and package name.
 // based on the fully qualified image name format of hostname[:port]/username/reponame[:tag]
-func getPackageImage(spec v1alpha1.StackRequestSpec) string {
+func getPackageImage(spec v1alpha1.StackInstallSpec) string {
 	if spec.Source == "" {
 		// there is no package source, simply return the package name
 		return spec.Package

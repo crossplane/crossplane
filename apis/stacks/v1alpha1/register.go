@@ -40,18 +40,18 @@ var (
 	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
 )
 
-// StackRequest type metadata.
+// StackInstall type metadata.
 var (
-	StackRequestKind             = reflect.TypeOf(StackRequest{}).Name()
-	StackRequestKindAPIVersion   = StackRequestKind + "." + SchemeGroupVersion.String()
-	StackRequestGroupVersionKind = SchemeGroupVersion.WithKind(StackRequestKind)
+	StackInstallKind             = reflect.TypeOf(StackInstall{}).Name()
+	StackInstallKindAPIVersion   = StackInstallKind + "." + SchemeGroupVersion.String()
+	StackInstallGroupVersionKind = SchemeGroupVersion.WithKind(StackInstallKind)
 )
 
-// ClusterStackRequest type metadata.
+// ClusterStackInstall type metadata.
 var (
-	ClusterStackRequestKind             = reflect.TypeOf(ClusterStackRequest{}).Name()
-	ClusterStackRequestKindAPIVersion   = ClusterStackRequestKind + "." + SchemeGroupVersion.String()
-	ClusterStackRequestGroupVersionKind = SchemeGroupVersion.WithKind(ClusterStackRequestKind)
+	ClusterStackInstallKind             = reflect.TypeOf(ClusterStackInstall{}).Name()
+	ClusterStackInstallKindAPIVersion   = ClusterStackInstallKind + "." + SchemeGroupVersion.String()
+	ClusterStackInstallGroupVersionKind = SchemeGroupVersion.WithKind(ClusterStackInstallKind)
 )
 
 // Stack type metadata.
@@ -62,7 +62,7 @@ var (
 )
 
 func init() {
-	SchemeBuilder.Register(&ClusterStackRequest{}, &ClusterStackRequestList{})
-	SchemeBuilder.Register(&StackRequest{}, &StackRequestList{})
+	SchemeBuilder.Register(&ClusterStackInstall{}, &ClusterStackInstallList{})
+	SchemeBuilder.Register(&StackInstall{}, &StackInstallList{})
 	SchemeBuilder.Register(&Stack{}, &StackList{})
 }

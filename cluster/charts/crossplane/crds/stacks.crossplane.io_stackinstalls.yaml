@@ -4,7 +4,7 @@ apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   creationTimestamp: null
-  name: clusterstackrequests.stacks.crossplane.io
+  name: stackinstalls.stacks.crossplane.io
 spec:
   additionalPrinterColumns:
   - JSONPath: .status.conditions[?(@.type==Ready)].status
@@ -24,8 +24,10 @@ spec:
     type: date
   group: stacks.crossplane.io
   names:
-    kind: ClusterStackRequest
-    plural: clusterstackrequests
+    kind: StackInstall
+    listKind: StackInstallList
+    plural: stackinstalls
+    singular: stackinstall
   scope: ""
   subresources:
     status: {}

@@ -47,22 +47,22 @@ func TestMain(m *testing.M) {
 	t.StopAndExit(m.Run())
 }
 
-func TestStackRequest(t *testing.T) {
+func TestStackInstall(t *testing.T) {
 	g := NewGomegaWithT(t)
 
-	created := &StackRequest{
+	created := &StackInstall{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: namespace,
 			Name:      name,
 		},
-		Spec: StackRequestSpec{
+		Spec: StackInstallSpec{
 			Source:  "registry.crossplane.io",
 			Package: "testpackage:v0.1",
 		},
 	}
 
 	// Test Create
-	fetched := &StackRequest{}
+	fetched := &StackInstall{}
 	g.Expect(c.Create(ctx, created)).NotTo(HaveOccurred())
 
 	g.Expect(c.Get(ctx, key, fetched)).NotTo(HaveOccurred())
@@ -81,22 +81,22 @@ func TestStackRequest(t *testing.T) {
 	g.Expect(c.Get(ctx, key, fetched)).To(HaveOccurred())
 }
 
-func TestClusterStackRequest(t *testing.T) {
+func TestClusterStackInstall(t *testing.T) {
 	g := NewGomegaWithT(t)
 
-	created := &ClusterStackRequest{
+	created := &ClusterStackInstall{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: namespace,
 			Name:      name,
 		},
-		Spec: ClusterStackRequestSpec{
+		Spec: ClusterStackInstallSpec{
 			Source:  "registry.crossplane.io",
 			Package: "testpackage:v0.1",
 		},
 	}
 
 	// Test Create
-	fetched := &ClusterStackRequest{}
+	fetched := &ClusterStackInstall{}
 	g.Expect(c.Create(ctx, created)).NotTo(HaveOccurred())
 
 	g.Expect(c.Get(ctx, key, fetched)).NotTo(HaveOccurred())
