@@ -3980,6 +3980,11 @@ spec:
                     type: string
                 type: object
               type: array
+            permissionScope:
+              enum:
+              - Cluster
+              - Namespace
+              type: string
             permissions:
               properties:
                 rules:

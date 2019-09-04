@@ -183,6 +183,9 @@ type AppMetadataSpec struct {
 	Website     string            `json:"website,omitempty"`
 	Source      string            `json:"source,omitempty"`
 	License     string            `json:"license,omitempty"`
+
+	// +kubebuilder:validation:Enum=Cluster;Namespace
+	PermissionScope string `json:"permissionScope,omitempty"`
 }
 
 // CRDList is the full list of CRDs that this stack owns and depends on
