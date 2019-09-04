@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 
 	"github.com/ghodss/yaml"
+	"github.com/pkg/errors"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
@@ -91,6 +92,11 @@ func crdStep(sp StackPackager) walker.Step {
 		if err := yaml.Unmarshal(b, crd); err != nil {
 			return err
 		}
+
+		if (crd.Spec.Scope != apiextensions.NamespaceScoped) && (crd.Spec.Scope != "") {
+			return errors.New("Stack CRD must be namespaced scope")
+		}
+
 		sp.AddCRD(filepath.Dir(path), crd)
 		return nil
 	}
