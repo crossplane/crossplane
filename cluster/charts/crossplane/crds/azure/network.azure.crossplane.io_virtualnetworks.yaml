@@ -25,7 +25,9 @@ spec:
   group: network.azure.crossplane.io
   names:
     kind: VirtualNetwork
+    listKind: VirtualNetworkList
     plural: virtualnetworks
+    singular: virtualnetwork
   scope: ""
   subresources:
     status: {}
