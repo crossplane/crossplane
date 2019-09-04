@@ -19,6 +19,7 @@ package database
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/Azure/azure-sdk-for-go/services/mysql/mgmt/2017-12-01/mysql"
 
@@ -45,6 +46,7 @@ const (
 	controllerName = "database.azure.crossplane.io"
 
 	passwordDataLen = 20
+	longWait        = 1 * time.Minute
 )
 
 var (
@@ -128,7 +130,7 @@ func (r *SQLReconciler) handleReconcile(instance azuredbv1alpha1.SQLServer) (rec
 	}
 
 	instance.GetStatus().SetConditions(runtimev1alpha1.ReconcileSuccess())
-	return reconcile.Result{}, r.Update(ctx, instance)
+	return reconcile.Result{RequeueAfter: longWait}, r.Update(ctx, instance)
 }
 
 // handle the creation of the given SQL Server instance
@@ -287,7 +289,7 @@ func (r *SQLReconciler) updateStatus(instance azuredbv1alpha1.SQLServer, message
 		RunningOperationType: oldStatus.RunningOperationType,
 	}
 	status.SetConditions(azureclients.SQLServerCondition(server.State))
-	if mysql.ServerState(server.State) == mysql.ServerStateReady {
+	if mysql.ServerState(server.State) == mysql.ServerStateReady && instance.GetStatus().Endpoint != "" {
 		resource.SetBindable(status)
 	}
 	instance.SetStatus(status)
