@@ -39,6 +39,8 @@ To create a Hello World stack from scratch:
   - `curl -s -o /usr/local/bin/kubectl-crossplane-stack-init /url/directly/to/the/script/somewhere >/dev/null`
   - More curls until all the scripts are downloaded
   - `chmod +x /usr/local/bin/kubectl-crossplane-*`
+  - This could be wrapped into a script so it could be a one-liner if
+    the block of commands gets too long.
 * Navigate to the project directory
   - `cd myproject`
 * Run init
@@ -73,8 +75,8 @@ Most likely. This is a very early imagining of it, and we will learn a
 lot as we develop it, use it, and hear stories from the wild.
 
 ### Where are the plugins curled from?
-They will be curled directly from the raw files in a stack cli github
-repo.
+They will be curled directly from the raw files in the [stack cli github
+repo][stack cli github].
 
 ### How is plugin versioning handled?
 Curling can be done against a tag or branch, so we can create tags for
@@ -100,3 +102,5 @@ the benefit of having multiple plugins is that the project can leverage
 the subcommand dispatch functionality that kubectl provides, and that
 saves some time. In the future, it may very well be a single plugin
 instead.
+
+[stack cli github]: https://github.com/crossplaneio/crossplane-cli
