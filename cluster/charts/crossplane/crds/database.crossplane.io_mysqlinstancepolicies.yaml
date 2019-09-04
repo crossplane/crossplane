@@ -9,7 +9,9 @@ spec:
   group: database.crossplane.io
   names:
     kind: MySQLInstancePolicy
+    listKind: MySQLInstancePolicyList
     plural: mysqlinstancepolicies
+    singular: mysqlinstancepolicy
   scope: ""
   validation:
     openAPIV3Schema:

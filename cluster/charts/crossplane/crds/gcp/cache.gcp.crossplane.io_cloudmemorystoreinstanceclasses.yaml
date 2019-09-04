@@ -19,7 +19,9 @@ spec:
   group: cache.gcp.crossplane.io
   names:
     kind: CloudMemorystoreInstanceClass
+    listKind: CloudMemorystoreInstanceClassList
     plural: cloudmemorystoreinstanceclasses
+    singular: cloudmemorystoreinstanceclass
   scope: ""
   subresources: {}
   validation:

@@ -22,7 +22,9 @@ spec:
   group: compute.crossplane.io
   names:
     kind: KubernetesCluster
+    listKind: KubernetesClusterList
     plural: kubernetesclusters
+    singular: kubernetescluster
   scope: ""
   subresources:
     status: {}

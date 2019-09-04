@@ -19,7 +19,9 @@ spec:
   group: database.azure.crossplane.io
   names:
     kind: SQLServerClass
+    listKind: SQLServerClassList
     plural: sqlserverclasses
+    singular: sqlserverclass
   scope: ""
   subresources: {}
   validation:

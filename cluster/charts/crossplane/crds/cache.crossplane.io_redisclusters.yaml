@@ -22,7 +22,9 @@ spec:
   group: cache.crossplane.io
   names:
     kind: RedisCluster
+    listKind: RedisClusterList
     plural: redisclusters
+    singular: rediscluster
   scope: ""
   subresources:
     status: {}

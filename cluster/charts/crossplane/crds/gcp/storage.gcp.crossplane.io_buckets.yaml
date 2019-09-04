@@ -25,7 +25,9 @@ spec:
   group: storage.gcp.crossplane.io
   names:
     kind: Bucket
+    listKind: BucketList
     plural: buckets
+    singular: bucket
   scope: ""
   subresources:
     status: {}

@@ -25,7 +25,9 @@ spec:
   group: database.azure.crossplane.io
   names:
     kind: MysqlServer
+    listKind: MysqlServerList
     plural: mysqlservers
+    singular: mysqlserver
   scope: ""
   subresources: {}
   validation:

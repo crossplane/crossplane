@@ -22,7 +22,9 @@ spec:
   group: database.crossplane.io
   names:
     kind: MySQLInstance
+    listKind: MySQLInstanceList
     plural: mysqlinstances
+    singular: mysqlinstance
   scope: ""
   subresources:
     status: {}

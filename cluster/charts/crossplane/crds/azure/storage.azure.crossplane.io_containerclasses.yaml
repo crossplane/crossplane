@@ -19,7 +19,9 @@ spec:
   group: storage.azure.crossplane.io
   names:
     kind: ContainerClass
+    listKind: ContainerClassList
     plural: containerclasses
+    singular: containerclass
   scope: ""
   subresources: {}
   validation:

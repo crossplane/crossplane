@@ -14,7 +14,9 @@ spec:
   group: azure.crossplane.io
   names:
     kind: Provider
+    listKind: ProviderList
     plural: providers
+    singular: provider
   scope: ""
   subresources: {}
   validation:

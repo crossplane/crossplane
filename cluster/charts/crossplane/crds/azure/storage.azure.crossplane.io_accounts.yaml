@@ -25,7 +25,9 @@ spec:
   group: storage.azure.crossplane.io
   names:
     kind: Account
+    listKind: AccountList
     plural: accounts
+    singular: account
   scope: ""
   subresources:
     status: {}

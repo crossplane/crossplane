@@ -9,7 +9,9 @@ spec:
   group: database.crossplane.io
   names:
     kind: PostgreSQLInstancePolicy
+    listKind: PostgreSQLInstancePolicyList
     plural: postgresqlinstancepolicies
+    singular: postgresqlinstancepolicy
   scope: ""
   validation:
     openAPIV3Schema:

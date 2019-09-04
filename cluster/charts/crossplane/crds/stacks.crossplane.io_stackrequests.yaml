@@ -25,7 +25,9 @@ spec:
   group: stacks.crossplane.io
   names:
     kind: StackRequest
+    listKind: StackRequestList
     plural: stackrequests
+    singular: stackrequest
   scope: ""
   subresources:
     status: {}

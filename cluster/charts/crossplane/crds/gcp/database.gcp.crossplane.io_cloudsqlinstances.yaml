@@ -25,7 +25,9 @@ spec:
   group: database.gcp.crossplane.io
   names:
     kind: CloudsqlInstance
+    listKind: CloudsqlInstanceList
     plural: cloudsqlinstances
+    singular: cloudsqlinstance
   scope: ""
   subresources:
     status: {}
