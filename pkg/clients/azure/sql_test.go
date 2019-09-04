@@ -19,6 +19,8 @@ package azure
 import (
 	"testing"
 
+	"github.com/Azure/go-autorest/autorest/to"
+
 	"github.com/Azure/azure-sdk-for-go/services/mysql/mgmt/2017-12-01/mysql"
 	"github.com/Azure/azure-sdk-for-go/services/postgresql/mgmt/2017-12-01/postgresql"
 	"github.com/google/go-cmp/cmp"
@@ -147,8 +149,8 @@ func TestNewMySQLVirtualNetworkRuleParameters(t *testing.T) {
 			want: mysql.VirtualNetworkRule{
 				Name: ToStringPtr(vnetRuleName),
 				VirtualNetworkRuleProperties: &mysql.VirtualNetworkRuleProperties{
-					VirtualNetworkSubnetID:           ToStringPtr(vnetSubnetID),
-					IgnoreMissingVnetServiceEndpoint: ToBoolPtr(ignoreMissing),
+					VirtualNetworkSubnetID:           to.StringPtr(vnetSubnetID),
+					IgnoreMissingVnetServiceEndpoint: to.BoolPtr(ignoreMissing),
 				},
 			},
 		},
@@ -168,8 +170,8 @@ func TestNewMySQLVirtualNetworkRuleParameters(t *testing.T) {
 			want: mysql.VirtualNetworkRule{
 				Name: ToStringPtr(vnetRuleName),
 				VirtualNetworkRuleProperties: &mysql.VirtualNetworkRuleProperties{
-					VirtualNetworkSubnetID:           ToStringPtr(vnetSubnetID),
-					IgnoreMissingVnetServiceEndpoint: ToBoolPtr(false),
+					VirtualNetworkSubnetID:           to.StringPtr(vnetSubnetID),
+					IgnoreMissingVnetServiceEndpoint: to.BoolPtr(false),
 				},
 			},
 		},
@@ -325,8 +327,8 @@ func TestNewPostgreSQLVirtualNetworkRuleParameters(t *testing.T) {
 			want: postgresql.VirtualNetworkRule{
 				Name: ToStringPtr(vnetRuleName),
 				VirtualNetworkRuleProperties: &postgresql.VirtualNetworkRuleProperties{
-					VirtualNetworkSubnetID:           ToStringPtr(vnetSubnetID),
-					IgnoreMissingVnetServiceEndpoint: ToBoolPtr(ignoreMissing),
+					VirtualNetworkSubnetID:           to.StringPtr(vnetSubnetID),
+					IgnoreMissingVnetServiceEndpoint: to.BoolPtr(ignoreMissing),
 				},
 			},
 		},
@@ -346,8 +348,8 @@ func TestNewPostgreSQLVirtualNetworkRuleParameters(t *testing.T) {
 			want: postgresql.VirtualNetworkRule{
 				Name: ToStringPtr(vnetRuleName),
 				VirtualNetworkRuleProperties: &postgresql.VirtualNetworkRuleProperties{
-					VirtualNetworkSubnetID:           ToStringPtr(vnetSubnetID),
-					IgnoreMissingVnetServiceEndpoint: ToBoolPtr(false),
+					VirtualNetworkSubnetID:           to.StringPtr(vnetSubnetID),
+					IgnoreMissingVnetServiceEndpoint: to.BoolPtr(false),
 				},
 			},
 		},

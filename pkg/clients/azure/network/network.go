@@ -68,8 +68,8 @@ func NewVirtualNetworkParameters(v *v1alpha1.VirtualNetwork) networkmgmt.Virtual
 		Location: azure.ToStringPtr(v.Spec.Location),
 		Tags:     azure.ToStringPtrMap(v.Spec.Tags),
 		VirtualNetworkPropertiesFormat: &networkmgmt.VirtualNetworkPropertiesFormat{
-			EnableDdosProtection: azure.ToBoolPtr(v.Spec.VirtualNetworkPropertiesFormat.EnableDdosProtection),
-			EnableVMProtection:   azure.ToBoolPtr(v.Spec.VirtualNetworkPropertiesFormat.EnableVMProtection),
+			EnableDdosProtection: azure.ToBoolPtr(v.Spec.VirtualNetworkPropertiesFormat.EnableDdosProtection, azure.FieldRequired),
+			EnableVMProtection:   azure.ToBoolPtr(v.Spec.VirtualNetworkPropertiesFormat.EnableVMProtection, azure.FieldRequired),
 			AddressSpace: &networkmgmt.AddressSpace{
 				AddressPrefixes: &v.Spec.VirtualNetworkPropertiesFormat.AddressSpace.AddressPrefixes,
 			},
@@ -82,13 +82,13 @@ func VirtualNetworkNeedsUpdate(kube *v1alpha1.VirtualNetwork, az networkmgmt.Vir
 	up := NewVirtualNetworkParameters(kube)
 
 	switch {
-	case !azure.NilOrEqual(up.VirtualNetworkPropertiesFormat.AddressSpace, az.VirtualNetworkPropertiesFormat.AddressSpace):
+	case !reflect.DeepEqual(up.VirtualNetworkPropertiesFormat.AddressSpace, az.VirtualNetworkPropertiesFormat.AddressSpace):
 		return true
 	case !reflect.DeepEqual(up.VirtualNetworkPropertiesFormat.EnableDdosProtection, az.VirtualNetworkPropertiesFormat.EnableDdosProtection):
 		return true
 	case !reflect.DeepEqual(up.VirtualNetworkPropertiesFormat.EnableVMProtection, az.VirtualNetworkPropertiesFormat.EnableVMProtection):
 		return true
-	case !azure.NilOrEqual(up.Tags, az.Tags):
+	case !reflect.DeepEqual(up.Tags, az.Tags):
 		return true
 	}
 
@@ -166,7 +166,7 @@ func NewServiceEndpoints(e []v1alpha1.ServiceEndpointPropertiesFormat) *[]networ
 func SubnetNeedsUpdate(kube *v1alpha1.Subnet, az networkmgmt.Subnet) bool {
 	up := NewSubnetParameters(kube)
 
-	return !azure.NilOrEqual(up.SubnetPropertiesFormat.AddressPrefix, az.SubnetPropertiesFormat.AddressPrefix)
+	return !reflect.DeepEqual(up.SubnetPropertiesFormat.AddressPrefix, az.SubnetPropertiesFormat.AddressPrefix)
 }
 
 // SubnetStatusFromAzure converts an Azure subnet to a SubnetStatus

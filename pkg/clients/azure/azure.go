@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"reflect"
 
 	"github.com/Azure/azure-sdk-for-go/services/resources/mgmt/2018-05-01/resources"
 	"github.com/Azure/go-autorest/autorest"
@@ -196,13 +195,4 @@ func ToString(s *string) string {
 // pointer is nil,
 func ToInt(i *int32) int {
 	return int(to.Int32(i))
-}
-
-// NilOrEqual returns true if either the first value is nil or the values are equal
-func NilOrEqual(a, b interface{}) bool {
-	if reflect.ValueOf(a).IsNil() {
-		return true
-	}
-
-	return reflect.DeepEqual(a, b)
 }
