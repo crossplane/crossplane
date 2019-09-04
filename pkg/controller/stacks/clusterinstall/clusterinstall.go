@@ -298,7 +298,7 @@ func createInstallJob(i *v1alpha1.ClusterStackInstall, executorInfo executorInfo
 							// "--debug" can be added to this list of Args to get debug output from the job,
 							// but note that will be included in the stdout from the pod, which makes it
 							// impossible to create the resources that the job unpacks.
-							Args: []string{"stack", "unpack", "--content-dir=/ext-pkg"},
+							Args: []string{"stack", "unpack", "--content-dir=/ext-pkg", "--permission-scope=Cluster"},
 							VolumeMounts: []corev1.VolumeMount{
 								{
 									Name:      packageContentsVolumeName,

@@ -282,6 +282,7 @@ spec:
       - update
       - patch
       - delete
+  permissionScope: Namespaced
   source: https://github.com/crossplaneio/sample-stack
   title: Sample Crossplane Stack
   version: 0.0.1
@@ -522,6 +523,7 @@ spec:
       - update
       - patch
       - delete
+  permissionScope: Namespaced
   source: https://github.com/crossplaneio/sample-stack
   title: Sample Crossplane Stack
   version: 0.0.1
@@ -631,6 +633,7 @@ spec:
       - update
       - patch
       - delete
+  permissionScope: Namespaced
   source: https://github.com/crossplaneio/sample-stack
   title: Sample Crossplane Stack
   version: 0.0.1
@@ -776,7 +779,7 @@ func TestUnpack(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := &bytes.Buffer{}
 			rd := &walker.ResourceDir{Base: tt.root, Walker: afero.Afero{Fs: tt.fs}}
-			err := Unpack(rd, got)
+			err := Unpack(rd, got, "Namespaced")
 
 			if diff := cmp.Diff(tt.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("Unpack() -want error, +got error:\n%s", diff)

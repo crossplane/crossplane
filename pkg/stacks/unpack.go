@@ -315,7 +315,7 @@ func NewStackPackage() *StackPackage {
 // The custom Steps process Stack resource files and the output is multiple
 // YAML documents.  CRDs container within the stack will be annotated based
 // on the other Stack resource files contained within the Stack.
-func Unpack(rw walker.ResourceWalker, out io.StringWriter) error {
+func Unpack(rw walker.ResourceWalker, out io.StringWriter, permissionScope string) error {
 	log.V(logging.Debug).Info("Unpacking stack")
 
 	sp := NewStackPackage()
@@ -337,6 +337,10 @@ func Unpack(rw walker.ResourceWalker, out io.StringWriter) error {
 
 	if !sp.GotApp() {
 		return errors.New("Stack does not contain an app.yaml file")
+	}
+
+	if sp.Stack.Spec.AppMetadataSpec.PermissionScope != permissionScope {
+		return errors.New(fmt.Sprintf("Stack permissionScope %q is not permitted by unpack invocation parameters", permissionScope))
 	}
 
 	sp.applyAnnotations()
