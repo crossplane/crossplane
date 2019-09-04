@@ -21,18 +21,16 @@ import (
 	"fmt"
 	"net/http"
 
-	"google.golang.org/api/option"
-
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/cloudresourcemanager/v1"
 	"google.golang.org/api/googleapi"
+	"google.golang.org/api/option"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
 	"github.com/crossplaneio/crossplane-runtime/pkg/util"
-	gcpv1alpha1 "github.com/crossplaneio/crossplane/gcp/apis/v1alpha1"
 )
 
 var log = logging.Logger.WithName("clients.gcp")
@@ -99,17 +97,6 @@ func IsErrorBadRequest(err error) bool {
 	}
 	googleapiErr, ok := err.(*googleapi.Error)
 	return ok && googleapiErr.Code == http.StatusBadRequest
-}
-
-// ProviderCredentials return google credentials based on the provider's credentials secret data
-func ProviderCredentials(client kubernetes.Interface, p *gcpv1alpha1.Provider, scopes ...string) (*google.Credentials, error) {
-	// retrieve provider secret data
-	data, err := util.SecretData(client, p.Namespace, p.Spec.Secret)
-	if err != nil {
-		return nil, err
-	}
-
-	return google.CredentialsFromJSON(context.Background(), data, scopes...)
 }
 
 // ProjectInfo represent GCP Project information

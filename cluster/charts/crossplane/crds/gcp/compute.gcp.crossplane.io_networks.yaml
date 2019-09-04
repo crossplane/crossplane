@@ -1,0 +1,364 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  creationTimestamp: null
+  name: networks.compute.gcp.crossplane.io
+spec:
+  group: compute.gcp.crossplane.io
+  names:
+    kind: Network
+    listKind: NetworkList
+    plural: networks
+    singular: network
+  scope: ""
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      description: Network is the Schema for the GCP Network API
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          description: NetworkSpec defines the desired state of Network
+          properties:
+            IPv4Range:
+              description: 'IPv4Range: Deprecated in favor of subnet mode networks.
+                The range of internal addresses that are legal on this network. This
+                range is a CIDR specification, for example: 192.168.0.0/16. Provided
+                by the client when the network is created.'
+              type: string
+            autoCreateSubnetworks:
+              description: "AutoCreateSubnetworks: When set to true, the VPC network
+                is created in \"auto\" mode. When set to false, the VPC network is
+                created in \"custom\" mode. When set to nil, the VPC network is created
+                in \"legacy\" mode which will be deprecated by GCP soon. \n An auto
+                mode VPC network starts with one subnet per region. Each subnet has
+                a predetermined range as described in Auto mode VPC network IP ranges."
+              type: boolean
+            claimRef:
+              description: ObjectReference contains enough information to let you
+                inspect or modify the referred object.
+              properties:
+                apiVersion:
+                  description: API version of the referent.
+                  type: string
+                fieldPath:
+                  description: 'If referring to a piece of an object instead of an
+                    entire object, this string should contain a valid JSON/Go field
+                    access statement, such as desiredState.manifest.containers[2].
+                    For example, if the object reference is to a container within
+                    a pod, this would take on a value like: "spec.containers{name}"
+                    (where "name" refers to the name of the container that triggered
+                    the event) or if no container name is specified "spec.containers[2]"
+                    (container with index 2 in this pod). This syntax is chosen only
+                    to have some well-defined way of referencing a part of an object.
+                    TODO: this design is not final and this field is subject to change
+                    in the future.'
+                  type: string
+                kind:
+                  description: 'Kind of the referent. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+                  type: string
+                name:
+                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                  type: string
+                namespace:
+                  description: 'Namespace of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/'
+                  type: string
+                resourceVersion:
+                  description: 'Specific resourceVersion to which this reference is
+                    made, if any. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#concurrency-control-and-consistency'
+                  type: string
+                uid:
+                  description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
+                  type: string
+              type: object
+            classRef:
+              description: ObjectReference contains enough information to let you
+                inspect or modify the referred object.
+              properties:
+                apiVersion:
+                  description: API version of the referent.
+                  type: string
+                fieldPath:
+                  description: 'If referring to a piece of an object instead of an
+                    entire object, this string should contain a valid JSON/Go field
+                    access statement, such as desiredState.manifest.containers[2].
+                    For example, if the object reference is to a container within
+                    a pod, this would take on a value like: "spec.containers{name}"
+                    (where "name" refers to the name of the container that triggered
+                    the event) or if no container name is specified "spec.containers[2]"
+                    (container with index 2 in this pod). This syntax is chosen only
+                    to have some well-defined way of referencing a part of an object.
+                    TODO: this design is not final and this field is subject to change
+                    in the future.'
+                  type: string
+                kind:
+                  description: 'Kind of the referent. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+                  type: string
+                name:
+                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                  type: string
+                namespace:
+                  description: 'Namespace of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/'
+                  type: string
+                resourceVersion:
+                  description: 'Specific resourceVersion to which this reference is
+                    made, if any. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#concurrency-control-and-consistency'
+                  type: string
+                uid:
+                  description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
+                  type: string
+              type: object
+            description:
+              description: 'Description: An optional description of this resource.
+                Provide this field when you create the resource.'
+              type: string
+            name:
+              description: 'Name: Name of the resource. Provided by the client when
+                the resource is created. The name must be 1-63 characters long, and
+                comply with RFC1035. Specifically, the name must be 1-63 characters
+                long and match the regular expression `[a-z]([-a-z0-9]*[a-z0-9])?.
+                The first character must be a lowercase letter, and all following
+                characters (except for the last character) must be a dash, lowercase
+                letter, or digit. The last character must be a lowercase letter or
+                digit.'
+              type: string
+            providerRef:
+              description: ObjectReference contains enough information to let you
+                inspect or modify the referred object.
+              properties:
+                apiVersion:
+                  description: API version of the referent.
+                  type: string
+                fieldPath:
+                  description: 'If referring to a piece of an object instead of an
+                    entire object, this string should contain a valid JSON/Go field
+                    access statement, such as desiredState.manifest.containers[2].
+                    For example, if the object reference is to a container within
+                    a pod, this would take on a value like: "spec.containers{name}"
+                    (where "name" refers to the name of the container that triggered
+                    the event) or if no container name is specified "spec.containers[2]"
+                    (container with index 2 in this pod). This syntax is chosen only
+                    to have some well-defined way of referencing a part of an object.
+                    TODO: this design is not final and this field is subject to change
+                    in the future.'
+                  type: string
+                kind:
+                  description: 'Kind of the referent. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+                  type: string
+                name:
+                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                  type: string
+                namespace:
+                  description: 'Namespace of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/'
+                  type: string
+                resourceVersion:
+                  description: 'Specific resourceVersion to which this reference is
+                    made, if any. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#concurrency-control-and-consistency'
+                  type: string
+                uid:
+                  description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
+                  type: string
+              type: object
+            reclaimPolicy:
+              description: A ReclaimPolicy determines what should happen to managed
+                resources when their bound resource claims are deleted.
+              type: string
+            routingConfig:
+              description: 'RoutingConfig: The network-level routing configuration
+                for this network. Used by Cloud Router to determine what type of network-wide
+                routing behavior to enforce.'
+              properties:
+                routingMode:
+                  description: "RoutingMode: The network-wide routing mode to use.
+                    If set to REGIONAL, this network's Cloud Routers will only advertise
+                    routes with subnets of this network in the same region as the
+                    router. If set to GLOBAL, this network's Cloud Routers will advertise
+                    routes with all subnets of this network, across regions. \n Possible
+                    values:   \"GLOBAL\"   \"REGIONAL\""
+                  type: string
+              type: object
+            writeConnectionSecretToRef:
+              description: LocalObjectReference contains enough information to let
+                you locate the referenced object inside the same namespace.
+              properties:
+                name:
+                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                    TODO: Add other useful fields. apiVersion, kind, uid?'
+                  type: string
+              type: object
+          required:
+          - providerRef
+          type: object
+        status:
+          description: NetworkStatus defines the observed state of Network
+          properties:
+            IPv4Range:
+              description: 'IPv4Range: Deprecated in favor of subnet mode networks.
+                The range of internal addresses that are legal on this network. This
+                range is a CIDR specification, for example: 192.168.0.0/16. Provided
+                by the client when the network is created.'
+              type: string
+            autoCreateSubnetworks:
+              description: "AutoCreateSubnetworks: When set to true, the VPC network
+                is created in \"auto\" mode. When set to false, the VPC network is
+                created in \"custom\" mode. \n An auto mode VPC network starts with
+                one subnet per region. Each subnet has a predetermined range as described
+                in Auto mode VPC network IP ranges."
+              type: boolean
+            bindingPhase:
+              description: Phase represents the binding phase of the resource.
+              enum:
+              - Unbindable
+              - Unbound
+              - Bound
+              type: string
+            conditions:
+              description: Conditions of the managed resource.
+              items:
+                description: A Condition that may apply to a managed resource.
+                properties:
+                  lastTransitionTime:
+                    description: LastTransitionTime is the last time this condition
+                      transitioned from one status to another.
+                    format: date-time
+                    type: string
+                  message:
+                    description: A Message containing details about this condition's
+                      last transition from one status to another, if any.
+                    type: string
+                  reason:
+                    description: A Reason for this condition's last transition from
+                      one status to another.
+                    type: string
+                  status:
+                    description: Status of this condition; is it currently True, False,
+                      or Unknown?
+                    type: string
+                  type:
+                    description: Type of this condition. At most one of each condition
+                      type may apply to a managed resource at any point in time.
+                    type: string
+                required:
+                - lastTransitionTime
+                - reason
+                - status
+                - type
+                type: object
+              type: array
+            creationTimestamp:
+              description: 'CreationTimestamp: Creation timestamp in RFC3339 text
+                format.'
+              type: string
+            description:
+              description: 'Description: An optional description of this resource.
+                Provide this field when you create the resource.'
+              type: string
+            gatewayIPv4:
+              description: 'GatewayIPv4: The gateway address for default routing out
+                of the network, selected by GCP.'
+              type: string
+            id:
+              description: 'Id: The unique identifier for the resource. This identifier
+                is defined by the server.'
+              format: int64
+              type: integer
+            peerings:
+              description: 'Peerings: A list of network peerings for the resource.'
+              items:
+                description: GCPNetworkPeering is the mirror of googlecompute.NetworkPeering
+                  but with deepcopy functions.
+                properties:
+                  autoCreateRoutes:
+                    description: 'AutoCreateRoutes: This field will be deprecated
+                      soon. Use the exchange_subnet_routes field instead. Indicates
+                      whether full mesh connectivity is created and managed automatically
+                      between peered networks. Currently this field should always
+                      be true since Google Compute Engine will automatically create
+                      and manage subnetwork routes between two networks when peering
+                      state is ACTIVE.'
+                    type: boolean
+                  exchangeSubnetRoutes:
+                    description: 'ExchangeSubnetRoutes: Indicates whether full mesh
+                      connectivity is created and managed automatically between peered
+                      networks. Currently this field should always be true since Google
+                      Compute Engine will automatically create and manage subnetwork
+                      routes between two networks when peering state is ACTIVE.'
+                    type: boolean
+                  name:
+                    description: 'Name: Name of this peering. Provided by the client
+                      when the peering is created. The name must comply with RFC1035.
+                      Specifically, the name must be 1-63 characters long and match
+                      regular expression `[a-z]([-a-z0-9]*[a-z0-9])?`. The first character
+                      must be a lowercase letter, and all the following characters
+                      must be a dash, lowercase letter, or digit, except the last
+                      character, which cannot be a dash.'
+                    type: string
+                  network:
+                    description: 'Network: The URL of the peer network. It can be
+                      either full URL or partial URL. The peer network may belong
+                      to a different project. If the partial URL does not contain
+                      project, it is assumed that the peer network is in the same
+                      project as the current network.'
+                    type: string
+                  state:
+                    description: "State: State for the peering, either `ACTIVE` or
+                      `INACTIVE`. The peering is `ACTIVE` when there's a matching
+                      configuration in the peer network. \n Possible values:   \"ACTIVE\"
+                      \  \"INACTIVE\""
+                    type: string
+                  stateDetails:
+                    description: 'StateDetails: Details about the current state of
+                      the peering.'
+                    type: string
+                type: object
+              type: array
+            routingConfig:
+              description: 'RoutingConfig: The network-level routing configuration
+                for this network. Used by Cloud Router to determine what type of network-wide
+                routing behavior to enforce.'
+              properties:
+                routingMode:
+                  description: "RoutingMode: The network-wide routing mode to use.
+                    If set to REGIONAL, this network's Cloud Routers will only advertise
+                    routes with subnets of this network in the same region as the
+                    router. If set to GLOBAL, this network's Cloud Routers will advertise
+                    routes with all subnets of this network, across regions. \n Possible
+                    values:   \"GLOBAL\"   \"REGIONAL\""
+                  type: string
+              type: object
+            selfLink:
+              description: 'SelfLink: Server-defined URL for the resource.'
+              type: string
+            subnetworks:
+              description: 'Subnetworks: Server-defined fully-qualified URLs for all
+                subnetworks in this VPC network.'
+              items:
+                type: string
+              type: array
+          type: object
+      type: object
+  version: v1alpha1
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

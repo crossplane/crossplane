@@ -30,41 +30,26 @@ type Controllers struct{}
 
 // SetupWithManager adds all GCP controllers to the manager.
 func (c *Controllers) SetupWithManager(mgr ctrl.Manager) error {
-	if err := (&cache.CloudMemorystoreInstanceClaimController{}).SetupWithManager(mgr); err != nil {
-		return err
+	// TODO(muvaf): Move this interface and logic to controller-runtime as it's common to all.
+	controllers := []interface {
+		SetupWithManager(ctrl.Manager) error
+	}{
+		&cache.CloudMemorystoreInstanceClaimController{},
+		&cache.CloudMemorystoreInstanceController{},
+		&compute.GKEClusterClaimController{},
+		&compute.GKEClusterController{},
+		&compute.NetworkController{},
+		&compute.SubnetworkController{},
+		&database.PostgreSQLInstanceClaimController{},
+		&database.MySQLInstanceClaimController{},
+		&database.CloudsqlController{},
+		&storage.BucketClaimController{},
+		&storage.BucketController{},
 	}
-
-	if err := (&cache.CloudMemorystoreInstanceController{}).SetupWithManager(mgr); err != nil {
-		return err
+	for _, c := range controllers {
+		if err := c.SetupWithManager(mgr); err != nil {
+			return err
+		}
 	}
-
-	if err := (&compute.GKEClusterClaimController{}).SetupWithManager(mgr); err != nil {
-		return err
-	}
-
-	if err := (&compute.GKEClusterController{}).SetupWithManager(mgr); err != nil {
-		return err
-	}
-
-	if err := (&database.PostgreSQLInstanceClaimController{}).SetupWithManager(mgr); err != nil {
-		return err
-	}
-
-	if err := (&database.MySQLInstanceClaimController{}).SetupWithManager(mgr); err != nil {
-		return err
-	}
-
-	if err := (&database.CloudsqlController{}).SetupWithManager(mgr); err != nil {
-		return err
-	}
-
-	if err := (&storage.BucketClaimController{}).SetupWithManager(mgr); err != nil {
-		return err
-	}
-
-	if err := (&storage.BucketController{}).SetupWithManager(mgr); err != nil {
-		return err
-	}
-
 	return nil
 }
