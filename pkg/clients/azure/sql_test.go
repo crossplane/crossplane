@@ -17,6 +17,7 @@ limitations under the License.
 package azure
 
 import (
+	"context"
 	"testing"
 
 	"github.com/Azure/azure-sdk-for-go/services/mysql/mgmt/2017-12-01/mysql"
@@ -40,6 +41,21 @@ const (
 
 	id           = "very-cool-id"
 	resourceType = "very-cool-type"
+	credentials  = `
+		{
+			"clientId": "cool-id",
+			"clientSecret": "cool-secret",
+			"tenantId": "cool-tenant",
+			"subscriptionId": "cool-subscription",
+			"activeDirectoryEndpointUrl": "cool-aad-url",
+			"resourceManagerEndpointUrl": "cool-rm-url",
+			"activeDirectoryGraphResourceId": "cool-graph-id"
+		}
+	`
+)
+
+var (
+	ctx = context.Background()
 )
 
 func TestSQLServerStatusMessage(t *testing.T) {
@@ -122,6 +138,38 @@ func TestToGeoRedundantBackup(t *testing.T) {
 	for _, tt := range cases {
 		actual := ToGeoRedundantBackup(tt.geoRedundantBackup)
 		g.Expect(actual).To(gomega.Equal(tt.expected))
+	}
+}
+
+func TestNewMySQLVirtualNetworkRulesClient(t *testing.T) {
+	cases := []struct {
+		name       string
+		r          []byte
+		returnsErr bool
+	}{
+		{
+			name: "Successful",
+			r:    []byte(credentials),
+		},
+		{
+			name:       "Unsuccessful",
+			r:          []byte("invalid"),
+			returnsErr: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := NewMySQLVirtualNetworkRulesClient(ctx, tc.r)
+
+			if tc.returnsErr != (err != nil) {
+				t.Errorf("NewMySQLVirtualNetworkRulesClient(...) error: want: %t got: %t", tc.returnsErr, err != nil)
+			}
+
+			if _, ok := got.(MySQLVirtualNetworkRulesClient); !ok && !tc.returnsErr {
+				t.Error("NewMySQLVirtualNetworkRulesClient(...): got does not satisfy MySQLVirtualNetworkRulesClient interface")
+			}
+		})
 	}
 }
 
@@ -321,6 +369,38 @@ func TestMySQLVirtualNetworkRuleStatusFromAzure(t *testing.T) {
 			got := MySQLVirtualNetworkRuleStatusFromAzure(tc.r)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("NewVirtualNetworkParameters(...): -want, +got\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestNewPostgreSQLVirtualNetworkRulesClient(t *testing.T) {
+	cases := []struct {
+		name       string
+		r          []byte
+		returnsErr bool
+	}{
+		{
+			name: "Successful",
+			r:    []byte(credentials),
+		},
+		{
+			name:       "Unsuccessful",
+			r:          []byte("invalid"),
+			returnsErr: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := NewPostgreSQLVirtualNetworkRulesClient(ctx, tc.r)
+
+			if tc.returnsErr != (err != nil) {
+				t.Errorf("NewPostgreSQLVirtualNetworkRulesClient(...) error: want: %t got: %t", tc.returnsErr, err != nil)
+			}
+
+			if _, ok := got.(PostgreSQLVirtualNetworkRulesClient); !ok && !tc.returnsErr {
+				t.Error("NewPostgreSQLVirtualNetworkRulesClient(...): got does not satisfy PostgreSQLVirtualNetworkRulesClient interface")
 			}
 		})
 	}
