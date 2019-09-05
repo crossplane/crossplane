@@ -79,8 +79,8 @@ var (
 type testCase struct {
 	name    string
 	e       resource.ExternalClient
-	r       *v1alpha1.Subnet
-	want    *v1alpha1.Subnet
+	r       resource.Managed
+	want    resource.Managed
 	wantErr error
 }
 
@@ -130,6 +130,13 @@ var _ resource.ExternalConnecter = &connecter{}
 func TestCreate(t *testing.T) {
 	cases := []testCase{
 		{
+			name:    "NotSubnet",
+			e:       &external{client: &fake.MockSubnetsClient{}},
+			r:       &v1alpha1.VirtualNetwork{},
+			want:    &v1alpha1.VirtualNetwork{},
+			wantErr: errors.New(errNotSubnet),
+		},
+		{
 			name: "SuccessfulCreate",
 			e: &external{client: &fake.MockSubnetsClient{
 				MockCreateOrUpdate: func(_ context.Context, _ string, _ string, _ string, _ network.Subnet) (network.SubnetsCreateOrUpdateFuture, error) {
@@ -173,6 +180,13 @@ func TestCreate(t *testing.T) {
 
 func TestObserve(t *testing.T) {
 	cases := []testCase{
+		{
+			name:    "NotSubnet",
+			e:       &external{client: &fake.MockSubnetsClient{}},
+			r:       &v1alpha1.VirtualNetwork{},
+			want:    &v1alpha1.VirtualNetwork{},
+			wantErr: errors.New(errNotSubnet),
+		},
 		{
 			name: "SuccessfulObserveNotExist",
 			e: &external{client: &fake.MockSubnetsClient{
@@ -237,6 +251,13 @@ func TestObserve(t *testing.T) {
 
 func TestUpdate(t *testing.T) {
 	cases := []testCase{
+		{
+			name:    "NotSubnet",
+			e:       &external{client: &fake.MockSubnetsClient{}},
+			r:       &v1alpha1.VirtualNetwork{},
+			want:    &v1alpha1.VirtualNetwork{},
+			wantErr: errors.New(errNotSubnet),
+		},
 		{
 			name: "SuccessfulDoesNotNeedUpdate",
 			e: &external{client: &fake.MockSubnetsClient{
@@ -321,6 +342,13 @@ func TestUpdate(t *testing.T) {
 func TestDelete(t *testing.T) {
 	cases := []testCase{
 		{
+			name:    "NotSubnet",
+			e:       &external{client: &fake.MockSubnetsClient{}},
+			r:       &v1alpha1.VirtualNetwork{},
+			want:    &v1alpha1.VirtualNetwork{},
+			wantErr: errors.New(errNotSubnet),
+		},
+		{
 			name: "Successful",
 			e: &external{client: &fake.MockSubnetsClient{
 				MockDelete: func(ctx context.Context, resourceGroupName string, virtualNetworkName string, subnetName string) (result network.SubnetsDeleteFuture, err error) {
@@ -380,10 +408,17 @@ func TestConnect(t *testing.T) {
 	cases := []struct {
 		name    string
 		conn    *connecter
-		i       *v1alpha1.Subnet
+		i       resource.Managed
 		want    resource.ExternalClient
 		wantErr error
 	}{
+		{
+			name:    "NotSubnet",
+			conn:    &connecter{client: &test.MockClient{}},
+			i:       &v1alpha1.VirtualNetwork{},
+			want:    nil,
+			wantErr: errors.New(errNotSubnet),
+		},
 		{
 			name: "SuccessfulConnect",
 			conn: &connecter{

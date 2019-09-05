@@ -217,7 +217,7 @@ func TestMySQLServerVirtualNetworkRuleNeedsUpdate(t *testing.T) {
 			want: false,
 		},
 		{
-			name: "UpdateNeeded",
+			name: "UpdateNeededVirtualNetworkSubnetID",
 			kube: &databasev1alpha1.MysqlServerVirtualNetworkRule{
 				ObjectMeta: metav1.ObjectMeta{UID: uid},
 				Spec: databasev1alpha1.VirtualNetworkRuleSpec{
@@ -235,6 +235,29 @@ func TestMySQLServerVirtualNetworkRuleNeedsUpdate(t *testing.T) {
 				VirtualNetworkRuleProperties: &mysql.VirtualNetworkRuleProperties{
 					VirtualNetworkSubnetID:           ToStringPtr("some/other/subnet"),
 					IgnoreMissingVnetServiceEndpoint: ToBoolPtr(ignoreMissing),
+				},
+			},
+			want: true,
+		},
+		{
+			name: "UpdateNeededIgnoreMissingVnetServiceEndpoint",
+			kube: &databasev1alpha1.MysqlServerVirtualNetworkRule{
+				ObjectMeta: metav1.ObjectMeta{UID: uid},
+				Spec: databasev1alpha1.VirtualNetworkRuleSpec{
+					Name:              vnetRuleName,
+					ServerName:        serverName,
+					ResourceGroupName: rgName,
+					VirtualNetworkRuleProperties: databasev1alpha1.VirtualNetworkRuleProperties{
+						VirtualNetworkSubnetID:           vnetSubnetID,
+						IgnoreMissingVnetServiceEndpoint: ignoreMissing,
+					},
+				},
+			},
+			az: mysql.VirtualNetworkRule{
+				Name: ToStringPtr(vnetRuleName),
+				VirtualNetworkRuleProperties: &mysql.VirtualNetworkRuleProperties{
+					VirtualNetworkSubnetID:           ToStringPtr(vnetSubnetID),
+					IgnoreMissingVnetServiceEndpoint: ToBoolPtr(!ignoreMissing),
 				},
 			},
 			want: true,
@@ -395,7 +418,7 @@ func TestPostgreSQLServerVirtualNetworkRuleNeedsUpdate(t *testing.T) {
 			want: false,
 		},
 		{
-			name: "UpdateNeeded",
+			name: "UpdateNeededVirtualNetworkSubnetID",
 			kube: &databasev1alpha1.PostgresqlServerVirtualNetworkRule{
 				ObjectMeta: metav1.ObjectMeta{UID: uid},
 				Spec: databasev1alpha1.VirtualNetworkRuleSpec{
@@ -413,6 +436,29 @@ func TestPostgreSQLServerVirtualNetworkRuleNeedsUpdate(t *testing.T) {
 				VirtualNetworkRuleProperties: &postgresql.VirtualNetworkRuleProperties{
 					VirtualNetworkSubnetID:           ToStringPtr("some/other/subnet"),
 					IgnoreMissingVnetServiceEndpoint: ToBoolPtr(ignoreMissing),
+				},
+			},
+			want: true,
+		},
+		{
+			name: "UpdateNeededIgnoreMissingVnetServiceEndpoint",
+			kube: &databasev1alpha1.PostgresqlServerVirtualNetworkRule{
+				ObjectMeta: metav1.ObjectMeta{UID: uid},
+				Spec: databasev1alpha1.VirtualNetworkRuleSpec{
+					Name:              vnetRuleName,
+					ServerName:        serverName,
+					ResourceGroupName: rgName,
+					VirtualNetworkRuleProperties: databasev1alpha1.VirtualNetworkRuleProperties{
+						VirtualNetworkSubnetID:           vnetSubnetID,
+						IgnoreMissingVnetServiceEndpoint: ignoreMissing,
+					},
+				},
+			},
+			az: postgresql.VirtualNetworkRule{
+				Name: ToStringPtr(vnetRuleName),
+				VirtualNetworkRuleProperties: &postgresql.VirtualNetworkRuleProperties{
+					VirtualNetworkSubnetID:           ToStringPtr(vnetSubnetID),
+					IgnoreMissingVnetServiceEndpoint: ToBoolPtr(!ignoreMissing),
 				},
 			},
 			want: true,
