@@ -77,11 +77,11 @@ var (
 )
 
 type testCase struct {
-	name       string
-	e          resource.ExternalClient
-	r          *v1alpha1.Subnet
-	want       *v1alpha1.Subnet
-	returnsErr bool
+	name    string
+	e       resource.ExternalClient
+	r       *v1alpha1.Subnet
+	want    *v1alpha1.Subnet
+	wantErr error
 }
 
 type subnetModifier func(*v1alpha1.Subnet)
@@ -152,15 +152,16 @@ func TestCreate(t *testing.T) {
 			want: subnet(
 				withConditions(runtimev1alpha1.Creating()),
 			),
-			returnsErr: true,
+			wantErr: errors.Wrap(errorBoom, errCreateSubnet),
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := tc.e.Create(ctx, tc.r)
-			if tc.returnsErr != (err != nil) {
-				t.Errorf("tc.e.Create(...) error: want: %t got: %t", tc.returnsErr, err != nil)
+
+			if diff := cmp.Diff(tc.wantErr, err, test.EquateErrors()); diff != "" {
+				t.Errorf("tc.e.Create(...): want error != got error:\n%s", diff)
 			}
 
 			if diff := cmp.Diff(tc.want, tc.r, test.EquateConditions()); diff != "" {
@@ -213,17 +214,18 @@ func TestObserve(t *testing.T) {
 					return network.Subnet{}, errorBoom
 				},
 			}},
-			r:          subnet(),
-			want:       subnet(),
-			returnsErr: true,
+			r:       subnet(),
+			want:    subnet(),
+			wantErr: errors.Wrap(errorBoom, errGetSubnet),
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := tc.e.Observe(ctx, tc.r)
-			if tc.returnsErr != (err != nil) {
-				t.Errorf("tc.e.Observe(...) error: want: %t got: %t", tc.returnsErr, err != nil)
+
+			if diff := cmp.Diff(tc.wantErr, err, test.EquateErrors()); diff != "" {
+				t.Errorf("tc.e.Observe(...): want error != got error:\n%s", diff)
 			}
 
 			if diff := cmp.Diff(tc.want, tc.r, test.EquateConditions()); diff != "" {
@@ -277,9 +279,9 @@ func TestUpdate(t *testing.T) {
 					}, errorBoom
 				},
 			}},
-			r:          subnet(),
-			want:       subnet(),
-			returnsErr: true,
+			r:       subnet(),
+			want:    subnet(),
+			wantErr: errors.Wrap(errorBoom, errGetSubnet),
 		},
 		{
 			name: "UnsuccessfulUpdate",
@@ -295,17 +297,18 @@ func TestUpdate(t *testing.T) {
 					return network.SubnetsCreateOrUpdateFuture{}, errorBoom
 				},
 			}},
-			r:          subnet(),
-			want:       subnet(),
-			returnsErr: true,
+			r:       subnet(),
+			want:    subnet(),
+			wantErr: errors.Wrap(errorBoom, errUpdateSubnet),
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := tc.e.Update(ctx, tc.r)
-			if tc.returnsErr != (err != nil) {
-				t.Errorf("tc.e.Update(...) error: want: %t got: %t", tc.returnsErr, err != nil)
+
+			if diff := cmp.Diff(tc.wantErr, err, test.EquateErrors()); diff != "" {
+				t.Errorf("tc.e.Update(...): want error != got error:\n%s", diff)
 			}
 
 			if diff := cmp.Diff(tc.want, tc.r, test.EquateConditions()); diff != "" {
@@ -354,7 +357,7 @@ func TestDelete(t *testing.T) {
 			want: subnet(
 				withConditions(runtimev1alpha1.Deleting()),
 			),
-			returnsErr: true,
+			wantErr: errors.Wrap(errorBoom, errDeleteSubnet),
 		},
 	}
 
@@ -362,8 +365,8 @@ func TestDelete(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			err := tc.e.Delete(ctx, tc.r)
 
-			if tc.returnsErr != (err != nil) {
-				t.Errorf("tc.csd.Delete(...) error: want: %t got: %t", tc.returnsErr, err != nil)
+			if diff := cmp.Diff(tc.wantErr, err, test.EquateErrors()); diff != "" {
+				t.Errorf("tc.e.Delete(...): want error != got error:\n%s", diff)
 			}
 
 			if diff := cmp.Diff(tc.want, tc.r, test.EquateConditions()); diff != "" {

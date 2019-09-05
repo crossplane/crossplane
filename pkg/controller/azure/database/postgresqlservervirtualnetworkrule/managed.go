@@ -40,8 +40,8 @@ const (
 	errNewClient                                = "cannot create new PostgresqlServerVirtualNetworkRule"
 	errNotPostgresqlServerVirtualNetworkRule    = "managed resource is not an PostgresqlServerVirtualNetworkRule"
 	errCreatePostgresqlServerVirtualNetworkRule = "cannot create PostgresqlServerVirtualNetworkRule"
-	errModifyPostgresqlServerVirtualNetworkRule = "cannot modify PostgresqlServerVirtualNetworkRule"
-	errGetPostgresqlServerVirtualNetworkRule    = "cannot describe PostgresqlServerVirtualNetworkRule"
+	errUpdatePostgresqlServerVirtualNetworkRule = "cannot update PostgresqlServerVirtualNetworkRule"
+	errGetPostgresqlServerVirtualNetworkRule    = "cannot get PostgresqlServerVirtualNetworkRule"
 	errDeletePostgresqlServerVirtualNetworkRule = "cannot delete PostgresqlServerVirtualNetworkRule"
 )
 
@@ -155,7 +155,7 @@ func (e *external) Update(ctx context.Context, mg resource.Managed) (resource.Ex
 	if azure.PostgreSQLServerVirtualNetworkRuleNeedsUpdate(v, az) {
 		vnet := azure.NewPostgreSQLVirtualNetworkRuleParameters(v)
 		if _, err := e.client.CreateOrUpdate(ctx, v.Spec.ResourceGroupName, v.Spec.ServerName, v.Spec.Name, vnet); err != nil {
-			return resource.ExternalUpdate{}, errors.Wrap(err, errModifyPostgresqlServerVirtualNetworkRule)
+			return resource.ExternalUpdate{}, errors.Wrap(err, errUpdatePostgresqlServerVirtualNetworkRule)
 		}
 	}
 	return resource.ExternalUpdate{}, nil

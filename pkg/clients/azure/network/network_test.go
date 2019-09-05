@@ -32,7 +32,7 @@ import (
 var (
 	uid                  = types.UID("definitely-a-uuid")
 	location             = "cool-location"
-	enableDdosProtection = true
+	enableDDOSProtection = true
 	enableVMProtection   = true
 	addressPrefixes      = []string{"10.0.0.0/16"}
 	addressPrefix        = "10.0.0.0/16"
@@ -61,7 +61,7 @@ func TestNewVirtualNetworkParameters(t *testing.T) {
 						AddressSpace: v1alpha1.AddressSpace{
 							AddressPrefixes: addressPrefixes,
 						},
-						EnableDdosProtection: enableDdosProtection,
+						EnableDDOSProtection: enableDDOSProtection,
 						EnableVMProtection:   enableVMProtection,
 					},
 				},
@@ -70,7 +70,7 @@ func TestNewVirtualNetworkParameters(t *testing.T) {
 				Location: azure.ToStringPtr(location),
 				Tags:     azure.ToStringPtrMap(nil),
 				VirtualNetworkPropertiesFormat: &networkmgmt.VirtualNetworkPropertiesFormat{
-					EnableDdosProtection: to.BoolPtr(enableDdosProtection),
+					EnableDdosProtection: to.BoolPtr(enableDDOSProtection),
 					EnableVMProtection:   to.BoolPtr(enableVMProtection),
 					AddressSpace: &networkmgmt.AddressSpace{
 						AddressPrefixes: &addressPrefixes,
@@ -88,7 +88,7 @@ func TestNewVirtualNetworkParameters(t *testing.T) {
 						AddressSpace: v1alpha1.AddressSpace{
 							AddressPrefixes: addressPrefixes,
 						},
-						EnableDdosProtection: enableDdosProtection,
+						EnableDDOSProtection: enableDDOSProtection,
 					},
 				},
 			},
@@ -96,7 +96,7 @@ func TestNewVirtualNetworkParameters(t *testing.T) {
 				Location: azure.ToStringPtr(location),
 				Tags:     azure.ToStringPtrMap(nil),
 				VirtualNetworkPropertiesFormat: &networkmgmt.VirtualNetworkPropertiesFormat{
-					EnableDdosProtection: to.BoolPtr(enableDdosProtection),
+					EnableDdosProtection: to.BoolPtr(enableDDOSProtection),
 					EnableVMProtection:   to.BoolPtr(false),
 					AddressSpace: &networkmgmt.AddressSpace{
 						AddressPrefixes: &addressPrefixes,
@@ -131,7 +131,7 @@ func TestVirtualNetworkNeedsUpdate(t *testing.T) {
 						AddressSpace: v1alpha1.AddressSpace{
 							AddressPrefixes: []string{"10.3.0.0/16"},
 						},
-						EnableDdosProtection: enableDdosProtection,
+						EnableDDOSProtection: enableDDOSProtection,
 						EnableVMProtection:   enableVMProtection,
 					},
 					Tags: tags,
@@ -142,7 +142,7 @@ func TestVirtualNetworkNeedsUpdate(t *testing.T) {
 					AddressSpace: &networkmgmt.AddressSpace{
 						AddressPrefixes: &addressPrefixes,
 					},
-					EnableDdosProtection: to.BoolPtr(enableDdosProtection),
+					EnableDdosProtection: to.BoolPtr(enableDDOSProtection),
 					EnableVMProtection:   to.BoolPtr(enableVMProtection),
 				},
 				Tags: azure.ToStringPtrMap(tags),
@@ -157,7 +157,7 @@ func TestVirtualNetworkNeedsUpdate(t *testing.T) {
 						AddressSpace: v1alpha1.AddressSpace{
 							AddressPrefixes: addressPrefixes,
 						},
-						EnableDdosProtection: !enableDdosProtection,
+						EnableDDOSProtection: !enableDDOSProtection,
 						EnableVMProtection:   enableVMProtection,
 					},
 					Tags: tags,
@@ -168,7 +168,7 @@ func TestVirtualNetworkNeedsUpdate(t *testing.T) {
 					AddressSpace: &networkmgmt.AddressSpace{
 						AddressPrefixes: &addressPrefixes,
 					},
-					EnableDdosProtection: to.BoolPtr(enableDdosProtection),
+					EnableDdosProtection: to.BoolPtr(enableDDOSProtection),
 					EnableVMProtection:   to.BoolPtr(enableVMProtection),
 				},
 				Tags: azure.ToStringPtrMap(tags),
@@ -183,7 +183,7 @@ func TestVirtualNetworkNeedsUpdate(t *testing.T) {
 						AddressSpace: v1alpha1.AddressSpace{
 							AddressPrefixes: addressPrefixes,
 						},
-						EnableDdosProtection: enableDdosProtection,
+						EnableDDOSProtection: enableDDOSProtection,
 						EnableVMProtection:   !enableVMProtection,
 					},
 					Tags: tags,
@@ -194,7 +194,7 @@ func TestVirtualNetworkNeedsUpdate(t *testing.T) {
 					AddressSpace: &networkmgmt.AddressSpace{
 						AddressPrefixes: &addressPrefixes,
 					},
-					EnableDdosProtection: to.BoolPtr(enableDdosProtection),
+					EnableDdosProtection: to.BoolPtr(enableDDOSProtection),
 					EnableVMProtection:   to.BoolPtr(enableVMProtection),
 				},
 				Tags: azure.ToStringPtrMap(tags),
@@ -209,7 +209,7 @@ func TestVirtualNetworkNeedsUpdate(t *testing.T) {
 						AddressSpace: v1alpha1.AddressSpace{
 							AddressPrefixes: addressPrefixes,
 						},
-						EnableDdosProtection: enableDdosProtection,
+						EnableDDOSProtection: enableDDOSProtection,
 						EnableVMProtection:   enableVMProtection,
 					},
 					Tags: map[string]string{"three": "test"},
@@ -220,7 +220,7 @@ func TestVirtualNetworkNeedsUpdate(t *testing.T) {
 					AddressSpace: &networkmgmt.AddressSpace{
 						AddressPrefixes: &addressPrefixes,
 					},
-					EnableDdosProtection: to.BoolPtr(enableDdosProtection),
+					EnableDdosProtection: to.BoolPtr(enableDDOSProtection),
 					EnableVMProtection:   to.BoolPtr(enableVMProtection),
 				},
 				Tags: azure.ToStringPtrMap(tags),
@@ -235,7 +235,7 @@ func TestVirtualNetworkNeedsUpdate(t *testing.T) {
 						AddressSpace: v1alpha1.AddressSpace{
 							AddressPrefixes: addressPrefixes,
 						},
-						EnableDdosProtection: enableDdosProtection,
+						EnableDDOSProtection: enableDDOSProtection,
 						EnableVMProtection:   enableVMProtection,
 					},
 					Tags: tags,
@@ -246,7 +246,7 @@ func TestVirtualNetworkNeedsUpdate(t *testing.T) {
 					AddressSpace: &networkmgmt.AddressSpace{
 						AddressPrefixes: &addressPrefixes,
 					},
-					EnableDdosProtection: to.BoolPtr(enableDdosProtection),
+					EnableDdosProtection: to.BoolPtr(enableDDOSProtection),
 					EnableVMProtection:   to.BoolPtr(enableVMProtection),
 				},
 				Tags: azure.ToStringPtrMap(tags),
@@ -280,7 +280,7 @@ func TestVirtualNetworkStatusFromAzure(t *testing.T) {
 				Type:     azure.ToStringPtr(resourceType),
 				Tags:     azure.ToStringPtrMap(nil),
 				VirtualNetworkPropertiesFormat: &networkmgmt.VirtualNetworkPropertiesFormat{
-					EnableDdosProtection: azure.ToBoolPtr(enableDdosProtection),
+					EnableDdosProtection: azure.ToBoolPtr(enableDDOSProtection),
 					EnableVMProtection:   azure.ToBoolPtr(enableVMProtection),
 					AddressSpace: &networkmgmt.AddressSpace{
 						AddressPrefixes: &addressPrefixes,
@@ -304,7 +304,7 @@ func TestVirtualNetworkStatusFromAzure(t *testing.T) {
 				Type:     azure.ToStringPtr(resourceType),
 				Tags:     azure.ToStringPtrMap(nil),
 				VirtualNetworkPropertiesFormat: &networkmgmt.VirtualNetworkPropertiesFormat{
-					EnableDdosProtection: azure.ToBoolPtr(enableDdosProtection),
+					EnableDdosProtection: azure.ToBoolPtr(enableDDOSProtection),
 					EnableVMProtection:   azure.ToBoolPtr(enableVMProtection),
 					AddressSpace: &networkmgmt.AddressSpace{
 						AddressPrefixes: &addressPrefixes,

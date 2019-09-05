@@ -371,9 +371,9 @@ type VirtualNetworkRuleStatus struct {
 	State   string `json:"state,omitempty"`
 	Message string `json:"message,omitempty"`
 
-	// ID - READ-ONLY; Resource ID
+	// ID - Resource ID
 	ID string `json:"id,omitempty"`
-	// Type - READ-ONLY; Resource type.
+	// Type - Resource type.
 	Type string `json:"type,omitempty"`
 }
 
@@ -390,21 +390,6 @@ type PostgresqlServerVirtualNetworkRule struct {
 
 	Spec   VirtualNetworkRuleSpec   `json:"spec,omitempty"`
 	Status VirtualNetworkRuleStatus `json:"status,omitempty"`
-}
-
-// GetSpec gets the PostgreSQL VirtualNetworkRule's spec.
-func (s *PostgresqlServerVirtualNetworkRule) GetSpec() *VirtualNetworkRuleSpec {
-	return &s.Spec
-}
-
-// GetStatus gets the PostgreSQL VirtualNetworkRule's status.
-func (s *PostgresqlServerVirtualNetworkRule) GetStatus() *VirtualNetworkRuleStatus {
-	return &s.Status
-}
-
-// SetStatus sets the PostgreSQL VirtualNetworkRule's status.
-func (s *PostgresqlServerVirtualNetworkRule) SetStatus(status *VirtualNetworkRuleStatus) {
-	s.Status = *status
 }
 
 // SetBindingPhase of this PostgresqlServerVirtualNetworkRule.
@@ -484,21 +469,6 @@ type MysqlServerVirtualNetworkRule struct {
 
 	Spec   VirtualNetworkRuleSpec   `json:"spec,omitempty"`
 	Status VirtualNetworkRuleStatus `json:"status,omitempty"`
-}
-
-// GetSpec gets the MySQL VirtualNetworkRule's spec.
-func (s *MysqlServerVirtualNetworkRule) GetSpec() *VirtualNetworkRuleSpec {
-	return &s.Spec
-}
-
-// GetStatus gets the MySQL VirtualNetworkRule's status.
-func (s *MysqlServerVirtualNetworkRule) GetStatus() *VirtualNetworkRuleStatus {
-	return &s.Status
-}
-
-// SetStatus sets the MySQL VirtualNetworkRule's status.
-func (s *MysqlServerVirtualNetworkRule) SetStatus(status *VirtualNetworkRuleStatus) {
-	s.Status = *status
 }
 
 // SetBindingPhase of this MysqlServerVirtualNetworkRule.

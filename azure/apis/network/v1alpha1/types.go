@@ -23,7 +23,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// AddressSpace addressSpace contains an array of IP address ranges that can be used by subnets of the
+// AddressSpace contains an array of IP address ranges that can be used by subnets of the
 // virtual network.
 type AddressSpace struct {
 	// AddressPrefixes - A list of address blocks reserved for this virtual network in CIDR notation.
@@ -34,8 +34,8 @@ type AddressSpace struct {
 type VirtualNetworkPropertiesFormat struct {
 	// AddressSpace - The AddressSpace that contains an array of IP address ranges that can be used by subnets.
 	AddressSpace AddressSpace `json:"addressSpace"`
-	// EnableDdosProtection - Indicates if DDoS protection is enabled for all the protected resources in the virtual network. It requires a DDoS protection plan associated with the resource.
-	EnableDdosProtection bool `json:"enableDdosProtection,omitempty"`
+	// EnableDDOSProtection - Indicates if DDoS protection is enabled for all the protected resources in the virtual network. It requires a DDoS protection plan associated with the resource.
+	EnableDDOSProtection bool `json:"enableDdosProtection,omitempty"`
 	// EnableVMProtection - Indicates if VM protection is enabled for all the subnets in the virtual network.
 	EnableVMProtection bool `json:"enableVmProtection,omitempty"`
 }
@@ -73,7 +73,7 @@ type VirtualNetworkStatus struct {
 	Etag string `json:"etag,omitempty"`
 	// ResourceGUID - The resourceGuid property of the Virtual Network resource.
 	ResourceGUID string `json:"resourceGuid,omitempty"`
-	// Type - READ-ONLY; Resource type.
+	// Type - Resource type.
 	Type string `json:"type,omitempty"`
 }
 
@@ -207,7 +207,7 @@ type SubnetStatus struct {
 	// ID - Resource ID.
 	ID string `json:"id,omitempty"`
 
-	// Purpose - READ-ONLY; A read-only string identifying the intention of use for this subnet based on delegations and other user-defined properties.
+	// Purpose - A read-only string identifying the intention of use for this subnet based on delegations and other user-defined properties.
 	Purpose string `json:"purpose,omitempty"`
 }
 

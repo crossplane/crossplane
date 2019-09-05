@@ -41,8 +41,8 @@ const (
 	errNewClient    = "cannot create new Subnet"
 	errNotSubnet    = "managed resource is not an Subnet"
 	errCreateSubnet = "cannot create Subnet"
-	errModifySubnet = "cannot modify Subnet"
-	errGetSubnet    = "cannot describe Subnet"
+	errUpdateSubnet = "cannot update Subnet"
+	errGetSubnet    = "cannot get Subnet"
 	errDeleteSubnet = "cannot delete Subnet"
 )
 
@@ -154,7 +154,7 @@ func (e *external) Update(ctx context.Context, mg resource.Managed) (resource.Ex
 	if network.SubnetNeedsUpdate(s, az) {
 		snet := network.NewSubnetParameters(s)
 		if _, err := e.client.CreateOrUpdate(ctx, s.Spec.ResourceGroupName, s.Spec.VirtualNetworkName, s.Spec.Name, snet); err != nil {
-			return resource.ExternalUpdate{}, errors.Wrap(err, errModifySubnet)
+			return resource.ExternalUpdate{}, errors.Wrap(err, errUpdateSubnet)
 		}
 	}
 	return resource.ExternalUpdate{}, nil

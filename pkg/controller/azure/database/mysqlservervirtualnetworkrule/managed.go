@@ -40,8 +40,8 @@ const (
 	errNewClient                           = "cannot create new MysqlServerVirtualNetworkRule"
 	errNotMysqlServerVirtualNetworkRule    = "managed resource is not an MysqlServerVirtualNetworkRule"
 	errCreateMysqlServerVirtualNetworkRule = "cannot create MysqlServerVirtualNetworkRule"
-	errModifyMysqlServerVirtualNetworkRule = "cannot modify MysqlServerVirtualNetworkRule"
-	errGetMysqlServerVirtualNetworkRule    = "cannot describe MysqlServerVirtualNetworkRule"
+	errUpdateMysqlServerVirtualNetworkRule = "cannot update MysqlServerVirtualNetworkRule"
+	errGetMysqlServerVirtualNetworkRule    = "cannot get MysqlServerVirtualNetworkRule"
 	errDeleteMysqlServerVirtualNetworkRule = "cannot delete MysqlServerVirtualNetworkRule"
 )
 
@@ -155,7 +155,7 @@ func (e *external) Update(ctx context.Context, mg resource.Managed) (resource.Ex
 	if azure.MySQLServerVirtualNetworkRuleNeedsUpdate(v, az) {
 		vnet := azure.NewMySQLVirtualNetworkRuleParameters(v)
 		if _, err := e.client.CreateOrUpdate(ctx, v.Spec.ResourceGroupName, v.Spec.ServerName, v.Spec.Name, vnet); err != nil {
-			return resource.ExternalUpdate{}, errors.Wrap(err, errModifyMysqlServerVirtualNetworkRule)
+			return resource.ExternalUpdate{}, errors.Wrap(err, errUpdateMysqlServerVirtualNetworkRule)
 		}
 	}
 	return resource.ExternalUpdate{}, nil

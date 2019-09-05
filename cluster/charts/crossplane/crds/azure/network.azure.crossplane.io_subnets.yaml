@@ -273,8 +273,8 @@ spec:
             message:
               type: string
             purpose:
-              description: Purpose - READ-ONLY; A read-only string identifying the
-                intention of use for this subnet based on delegations and other user-defined
+              description: Purpose - A read-only string identifying the intention
+                of use for this subnet based on delegations and other user-defined
                 properties.
               type: string
             state:

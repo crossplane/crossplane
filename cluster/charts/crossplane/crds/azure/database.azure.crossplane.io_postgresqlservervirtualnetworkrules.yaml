@@ -244,14 +244,14 @@ spec:
                 type: object
               type: array
             id:
-              description: ID - READ-ONLY; Resource ID
+              description: ID - Resource ID
               type: string
             message:
               type: string
             state:
               type: string
             type:
-              description: Type - READ-ONLY; Resource type.
+              description: Type - Resource type.
               type: string
           type: object
       type: object

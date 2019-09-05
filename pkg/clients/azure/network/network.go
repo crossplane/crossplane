@@ -68,7 +68,7 @@ func NewVirtualNetworkParameters(v *v1alpha1.VirtualNetwork) networkmgmt.Virtual
 		Location: azure.ToStringPtr(v.Spec.Location),
 		Tags:     azure.ToStringPtrMap(v.Spec.Tags),
 		VirtualNetworkPropertiesFormat: &networkmgmt.VirtualNetworkPropertiesFormat{
-			EnableDdosProtection: azure.ToBoolPtr(v.Spec.VirtualNetworkPropertiesFormat.EnableDdosProtection, azure.FieldRequired),
+			EnableDdosProtection: azure.ToBoolPtr(v.Spec.VirtualNetworkPropertiesFormat.EnableDDOSProtection, azure.FieldRequired),
 			EnableVMProtection:   azure.ToBoolPtr(v.Spec.VirtualNetworkPropertiesFormat.EnableVMProtection, azure.FieldRequired),
 			AddressSpace: &networkmgmt.AddressSpace{
 				AddressPrefixes: &v.Spec.VirtualNetworkPropertiesFormat.AddressSpace.AddressPrefixes,

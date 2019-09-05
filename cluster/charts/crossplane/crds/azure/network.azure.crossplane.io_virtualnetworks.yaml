@@ -148,7 +148,7 @@ spec:
                   - addressPrefixes
                   type: object
                 enableDdosProtection:
-                  description: EnableDdosProtection - Indicates if DDoS protection
+                  description: EnableDDOSProtection - Indicates if DDoS protection
                     is enabled for all the protected resources in the virtual network.
                     It requires a DDoS protection plan associated with the resource.
                   type: boolean
@@ -284,7 +284,7 @@ spec:
             state:
               type: string
             type:
-              description: Type - READ-ONLY; Resource type.
+              description: Type - Resource type.
               type: string
           type: object
       type: object

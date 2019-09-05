@@ -26,6 +26,7 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/controller/azure/compute"
 	"github.com/crossplaneio/crossplane/pkg/controller/azure/database"
 	"github.com/crossplaneio/crossplane/pkg/controller/azure/database/mysqlservervirtualnetworkrule"
+	"github.com/crossplaneio/crossplane/pkg/controller/azure/database/postgresqlservervirtualnetworkrule"
 	"github.com/crossplaneio/crossplane/pkg/controller/azure/network/subnet"
 	"github.com/crossplaneio/crossplane/pkg/controller/azure/network/virtualnetwork"
 	"github.com/crossplaneio/crossplane/pkg/controller/azure/resourcegroup"
@@ -89,9 +90,9 @@ func (c *Controllers) SetupWithManager(mgr ctrl.Manager) error { // nolint:gocyc
 		return err
 	}
 
-	// if err := (&postgresqlservervirtualnetworkrule.Controller{}).SetupWithManager(mgr); err != nil {
-	// 	return err
-	// }
+	if err := (&postgresqlservervirtualnetworkrule.Controller{}).SetupWithManager(mgr); err != nil {
+		return err
+	}
 
 	if err := (&virtualnetwork.Controller{}).SetupWithManager(mgr); err != nil {
 		return err

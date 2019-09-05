@@ -41,9 +41,9 @@ const (
 	errNewClient            = "cannot create new VirtualNetworks client"
 	errNotVirtualNetwork    = "managed resource is not an VirtualNetwork"
 	errCreateVirtualNetwork = "cannot create VirtualNetwork"
-	errModifyVirtualNetwork = "cannot modify VirtualNetwork"
+	errUpdateVirtualNetwork = "cannot update VirtualNetwork"
 	errGetVirtualNetwork    = "cannot get VirtualNetwork"
-	errDeleteVirtualNetwork = "cannot delete ElastiCache replication group"
+	errDeleteVirtualNetwork = "cannot delete VirtualNetwork"
 )
 
 // Controller is responsible for adding the VirtualNetwork
@@ -154,7 +154,7 @@ func (e *external) Update(ctx context.Context, mg resource.Managed) (resource.Ex
 	if network.VirtualNetworkNeedsUpdate(v, az) {
 		vnet := network.NewVirtualNetworkParameters(v)
 		if _, err := e.client.CreateOrUpdate(ctx, v.Spec.ResourceGroupName, v.Spec.Name, vnet); err != nil {
-			return resource.ExternalUpdate{}, errors.Wrap(err, errModifyVirtualNetwork)
+			return resource.ExternalUpdate{}, errors.Wrap(err, errUpdateVirtualNetwork)
 		}
 	}
 	return resource.ExternalUpdate{}, nil
