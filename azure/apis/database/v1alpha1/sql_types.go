@@ -338,3 +338,199 @@ func ValidMySQLVersionValues() []string {
 func ValidPostgreSQLVersionValues() []string {
 	return []string{"9.5", "9.6", "10", "10.0", "10.2"}
 }
+
+// VirtualNetworkRuleProperties defines the properties of the VirtualNetworkRule
+type VirtualNetworkRuleProperties struct {
+	// VirtualNetworkSubnetID - The ARM resource id of the virtual network subnet.
+	VirtualNetworkSubnetID string `json:"virtualNetworkSubnetId"`
+	// IgnoreMissingVnetServiceEndpoint - Create firewall rule before the virtual network has vnet service endpoint enabled.
+	IgnoreMissingVnetServiceEndpoint bool `json:"ignoreMissingVnetServiceEndpoint,omitempty"`
+}
+
+// VirtualNetworkRuleSpec defines the desired state of VirtualNetworkRule
+type VirtualNetworkRuleSpec struct {
+	runtimev1alpha1.ResourceSpec `json:",inline"`
+
+	// Name - Name of the Virtual Network Rule.
+	Name string `json:"name"`
+
+	// ServerName - Name of the Virtual Network Rule's server.
+	ServerName string `json:"serverName"`
+
+	// ResourceGroupName - Name of the Virtual Network Rule's resource group.
+	ResourceGroupName string `json:"resourceGroupName"`
+
+	// VirtualNetworkRuleProperties - Resource properties.
+	VirtualNetworkRuleProperties `json:"properties"`
+}
+
+// VirtualNetworkRuleStatus defines the current state of VirtualNetworkRule
+type VirtualNetworkRuleStatus struct {
+	runtimev1alpha1.ResourceStatus `json:",inline"`
+
+	State   string `json:"state,omitempty"`
+	Message string `json:"message,omitempty"`
+
+	// ID - Resource ID
+	ID string `json:"id,omitempty"`
+	// Type - Resource type.
+	Type string `json:"type,omitempty"`
+}
+
+// +kubebuilder:object:root=true
+
+// PostgresqlServerVirtualNetworkRule is the Schema for the instances API
+// +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.bindingPhase"
+// +kubebuilder:printcolumn:name="STATE",type="string",JSONPath=".status.state"
+// +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
+// +kubebuilder:subresource:status
+type PostgresqlServerVirtualNetworkRule struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec   VirtualNetworkRuleSpec   `json:"spec,omitempty"`
+	Status VirtualNetworkRuleStatus `json:"status,omitempty"`
+}
+
+// SetBindingPhase of this PostgresqlServerVirtualNetworkRule.
+func (s *PostgresqlServerVirtualNetworkRule) SetBindingPhase(p runtimev1alpha1.BindingPhase) {
+	s.Status.SetBindingPhase(p)
+}
+
+// GetBindingPhase of this PostgresqlServerVirtualNetworkRule.
+func (s *PostgresqlServerVirtualNetworkRule) GetBindingPhase() runtimev1alpha1.BindingPhase {
+	return s.Status.GetBindingPhase()
+}
+
+// SetConditions of this PostgresqlServerVirtualNetworkRule.
+func (s *PostgresqlServerVirtualNetworkRule) SetConditions(c ...runtimev1alpha1.Condition) {
+	s.Status.SetConditions(c...)
+}
+
+// SetClaimReference of this PostgresqlServerVirtualNetworkRule.
+func (s *PostgresqlServerVirtualNetworkRule) SetClaimReference(r *corev1.ObjectReference) {
+	s.Spec.ClaimReference = r
+}
+
+// GetClaimReference of this PostgresqlServerVirtualNetworkRule.
+func (s *PostgresqlServerVirtualNetworkRule) GetClaimReference() *corev1.ObjectReference {
+	return s.Spec.ClaimReference
+}
+
+// SetClassReference of this PostgresqlServerVirtualNetworkRule.
+func (s *PostgresqlServerVirtualNetworkRule) SetClassReference(r *corev1.ObjectReference) {
+	s.Spec.ClassReference = r
+}
+
+// GetClassReference of this PostgresqlServerVirtualNetworkRule.
+func (s *PostgresqlServerVirtualNetworkRule) GetClassReference() *corev1.ObjectReference {
+	return s.Spec.ClassReference
+}
+
+// SetWriteConnectionSecretToReference of this PostgresqlServerVirtualNetworkRule.
+func (s *PostgresqlServerVirtualNetworkRule) SetWriteConnectionSecretToReference(r corev1.LocalObjectReference) {
+	s.Spec.WriteConnectionSecretToReference = r
+}
+
+// GetWriteConnectionSecretToReference of this PostgresqlServerVirtualNetworkRule.
+func (s *PostgresqlServerVirtualNetworkRule) GetWriteConnectionSecretToReference() corev1.LocalObjectReference {
+	return s.Spec.WriteConnectionSecretToReference
+}
+
+// GetReclaimPolicy of this PostgresqlServerVirtualNetworkRule.
+func (s *PostgresqlServerVirtualNetworkRule) GetReclaimPolicy() runtimev1alpha1.ReclaimPolicy {
+	return s.Spec.ReclaimPolicy
+}
+
+// SetReclaimPolicy of this PostgresqlServerVirtualNetworkRule.
+func (s *PostgresqlServerVirtualNetworkRule) SetReclaimPolicy(p runtimev1alpha1.ReclaimPolicy) {
+	s.Spec.ReclaimPolicy = p
+}
+
+// +kubebuilder:object:root=true
+
+// PostgresqlServerVirtualNetworkRuleList contains a list of PostgresqlServerVirtualNetworkRule
+type PostgresqlServerVirtualNetworkRuleList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []PostgresqlServerVirtualNetworkRule `json:"items"`
+}
+
+// +kubebuilder:object:root=true
+
+// MysqlServerVirtualNetworkRule is the Schema for the instances API
+// +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.bindingPhase"
+// +kubebuilder:printcolumn:name="STATE",type="string",JSONPath=".status.state"
+// +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
+// +kubebuilder:subresource:status
+type MysqlServerVirtualNetworkRule struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec   VirtualNetworkRuleSpec   `json:"spec,omitempty"`
+	Status VirtualNetworkRuleStatus `json:"status,omitempty"`
+}
+
+// SetBindingPhase of this MysqlServerVirtualNetworkRule.
+func (s *MysqlServerVirtualNetworkRule) SetBindingPhase(p runtimev1alpha1.BindingPhase) {
+	s.Status.SetBindingPhase(p)
+}
+
+// GetBindingPhase of this MysqlServerVirtualNetworkRule.
+func (s *MysqlServerVirtualNetworkRule) GetBindingPhase() runtimev1alpha1.BindingPhase {
+	return s.Status.GetBindingPhase()
+}
+
+// SetConditions of this MysqlServerVirtualNetworkRule.
+func (s *MysqlServerVirtualNetworkRule) SetConditions(c ...runtimev1alpha1.Condition) {
+	s.Status.SetConditions(c...)
+}
+
+// SetClaimReference of this MysqlServerVirtualNetworkRule.
+func (s *MysqlServerVirtualNetworkRule) SetClaimReference(r *corev1.ObjectReference) {
+	s.Spec.ClaimReference = r
+}
+
+// GetClaimReference of this MysqlServerVirtualNetworkRule.
+func (s *MysqlServerVirtualNetworkRule) GetClaimReference() *corev1.ObjectReference {
+	return s.Spec.ClaimReference
+}
+
+// SetClassReference of this MysqlServerVirtualNetworkRule.
+func (s *MysqlServerVirtualNetworkRule) SetClassReference(r *corev1.ObjectReference) {
+	s.Spec.ClassReference = r
+}
+
+// GetClassReference of this MysqlServerVirtualNetworkRule.
+func (s *MysqlServerVirtualNetworkRule) GetClassReference() *corev1.ObjectReference {
+	return s.Spec.ClassReference
+}
+
+// SetWriteConnectionSecretToReference of this MysqlServerVirtualNetworkRule.
+func (s *MysqlServerVirtualNetworkRule) SetWriteConnectionSecretToReference(r corev1.LocalObjectReference) {
+	s.Spec.WriteConnectionSecretToReference = r
+}
+
+// GetWriteConnectionSecretToReference of this MysqlServerVirtualNetworkRule.
+func (s *MysqlServerVirtualNetworkRule) GetWriteConnectionSecretToReference() corev1.LocalObjectReference {
+	return s.Spec.WriteConnectionSecretToReference
+}
+
+// GetReclaimPolicy of this MysqlServerVirtualNetworkRule.
+func (s *MysqlServerVirtualNetworkRule) GetReclaimPolicy() runtimev1alpha1.ReclaimPolicy {
+	return s.Spec.ReclaimPolicy
+}
+
+// SetReclaimPolicy of this MysqlServerVirtualNetworkRule.
+func (s *MysqlServerVirtualNetworkRule) SetReclaimPolicy(p runtimev1alpha1.ReclaimPolicy) {
+	s.Spec.ReclaimPolicy = p
+}
+
+// +kubebuilder:object:root=true
+
+// MysqlServerVirtualNetworkRuleList contains a list of MysqlServerVirtualNetworkRule
+type MysqlServerVirtualNetworkRuleList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []MysqlServerVirtualNetworkRule `json:"items"`
+}

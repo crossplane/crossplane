@@ -155,7 +155,7 @@ func TestReconcile(t *testing.T) {
 
 	// Setup the Manager and Controller.  Wrap the Controller Reconcile function so it writes each request to a
 	// channel when it is finished.
-	mgr, err := manager.New(cfg, manager.Options{})
+	mgr, err := manager.New(cfg, manager.Options{MetricsBindAddress: ":8082"})
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 	c := mgr.GetClient()
 
@@ -191,23 +191,6 @@ func TestReconcile(t *testing.T) {
 	assertSQLServerStatus(g, c, expectedStatus)
 
 	// 2nd reconcile should finish the create server operation and clear out the running operation field
-	g.Eventually(requests, timeout).Should(gomega.Receive(gomega.Equal(expectedRequest)))
-	expectedStatus = azuredbv1alpha1.SQLServerStatus{
-		RunningOperation: "",
-	}
-	expectedStatus.SetConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileSuccess())
-	assertSQLServerStatus(g, c, expectedStatus)
-
-	// 3rd reconcile should see that there is no firewall rule yet and try to create it
-	g.Eventually(requests, timeout).Should(gomega.Receive(gomega.Equal(expectedRequest)))
-	expectedStatus = azuredbv1alpha1.SQLServerStatus{
-		RunningOperation:     "mocked marshalled firewall create future",
-		RunningOperationType: azuredbv1alpha1.OperationCreateFirewallRules,
-	}
-	expectedStatus.SetConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileSuccess())
-	assertSQLServerStatus(g, c, expectedStatus)
-
-	// 4th reconcile should finish the create firewall operation and clear out the running operation field
 	g.Eventually(requests, timeout).Should(gomega.Receive(gomega.Equal(expectedRequest)))
 	expectedStatus = azuredbv1alpha1.SQLServerStatus{
 		RunningOperation: "",

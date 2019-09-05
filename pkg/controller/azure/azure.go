@@ -25,6 +25,11 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/controller/azure/cache"
 	"github.com/crossplaneio/crossplane/pkg/controller/azure/compute"
 	"github.com/crossplaneio/crossplane/pkg/controller/azure/database"
+	"github.com/crossplaneio/crossplane/pkg/controller/azure/database/mysqlservervirtualnetworkrule"
+	"github.com/crossplaneio/crossplane/pkg/controller/azure/database/postgresqlservervirtualnetworkrule"
+	"github.com/crossplaneio/crossplane/pkg/controller/azure/network/subnet"
+	"github.com/crossplaneio/crossplane/pkg/controller/azure/network/virtualnetwork"
+	"github.com/crossplaneio/crossplane/pkg/controller/azure/resourcegroup"
 	"github.com/crossplaneio/crossplane/pkg/controller/azure/storage/account"
 	"github.com/crossplaneio/crossplane/pkg/controller/azure/storage/container"
 )
@@ -71,6 +76,10 @@ func (c *Controllers) SetupWithManager(mgr ctrl.Manager) error { // nolint:gocyc
 		return err
 	}
 
+	if err := (&mysqlservervirtualnetworkrule.Controller{}).SetupWithManager(mgr); err != nil {
+		return err
+	}
+
 	if err := (&database.PostgreSQLInstanceClaimController{}).SetupWithManager(mgr); err != nil {
 		return err
 	}
@@ -78,6 +87,22 @@ func (c *Controllers) SetupWithManager(mgr ctrl.Manager) error { // nolint:gocyc
 	if err := (&database.PostgresqlServerController{
 		Reconciler: database.NewPostgreSQLServerReconciler(mgr, &azureclients.PostgreSQLServerClientFactory{}, clientset),
 	}).SetupWithManager(mgr); err != nil {
+		return err
+	}
+
+	if err := (&postgresqlservervirtualnetworkrule.Controller{}).SetupWithManager(mgr); err != nil {
+		return err
+	}
+
+	if err := (&virtualnetwork.Controller{}).SetupWithManager(mgr); err != nil {
+		return err
+	}
+
+	if err := (&subnet.Controller{}).SetupWithManager(mgr); err != nil {
+		return err
+	}
+
+	if err := (&resourcegroup.Controller{}).SetupWithManager(mgr); err != nil {
 		return err
 	}
 

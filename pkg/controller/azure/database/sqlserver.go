@@ -19,6 +19,7 @@ package database
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/Azure/azure-sdk-for-go/services/mysql/mgmt/2017-12-01/mysql"
 
@@ -44,8 +45,8 @@ import (
 const (
 	controllerName = "database.azure.crossplane.io"
 
-	passwordDataLen  = 20
-	firewallRuleName = "crossplane-sql-firewall-rule"
+	passwordDataLen = 20
+	longWait        = 1 * time.Minute
 )
 
 var (
@@ -111,14 +112,6 @@ func (r *SQLReconciler) handleReconcile(instance azuredbv1alpha1.SQLServer) (rec
 		return r.handleCreation(sqlServersClient, instance)
 	}
 
-	if err := sqlServersClient.GetFirewallRule(ctx, instance, firewallRuleName); err != nil {
-		if !azureclients.IsNotFound(err) {
-			return r.fail(instance, errors.Wrapf(err, "failed to get firewall rule for SQL Server instance %s", instance.GetName()))
-		}
-
-		return r.handleFirewallRuleCreation(sqlServersClient, instance)
-	}
-
 	if err := r.updateStatus(instance, azureclients.SQLServerStatusMessage(instance.GetName(), server.State), server); err != nil {
 		// updating the CRD status failed, return the error and try the next reconcile loop
 		log.Error(err, "failed to update status of instance", "instance", instance)
@@ -137,7 +130,7 @@ func (r *SQLReconciler) handleReconcile(instance azuredbv1alpha1.SQLServer) (rec
 	}
 
 	instance.GetStatus().SetConditions(runtimev1alpha1.ReconcileSuccess())
-	return reconcile.Result{}, r.Update(ctx, instance)
+	return reconcile.Result{RequeueAfter: longWait}, r.Update(ctx, instance)
 }
 
 // handle the creation of the given SQL Server instance
@@ -231,25 +224,6 @@ func (r *SQLReconciler) handleDeletion(sqlServersClient azureclients.SQLServerAP
 	return reconcile.Result{}, r.Update(ctx, instance)
 }
 
-func (r *SQLReconciler) handleFirewallRuleCreation(sqlServersClient azureclients.SQLServerAPI, instance azuredbv1alpha1.SQLServer) (reconcile.Result, error) {
-	ctx := context.Background()
-
-	log.V(logging.Debug).Info("starting create of firewall rules for SQL Server instance", "instance", instance)
-	createOp, err := sqlServersClient.CreateFirewallRulesBegin(ctx, instance, firewallRuleName)
-	if err != nil {
-		return r.fail(instance, errors.Wrapf(err, "failed to start create firewall rules operation for SQL Server instance %s", instance.GetName()))
-	}
-
-	log.V(logging.Debug).Info("started create of firewall rules for SQL Server instance", "instance", instance.GetName(), "operation", string(createOp))
-
-	// save the create operation to the CRD status
-	status := instance.GetStatus()
-	status.RunningOperation = string(createOp)
-	status.RunningOperationType = azuredbv1alpha1.OperationCreateFirewallRules
-
-	return reconcile.Result{Requeue: true}, r.Update(ctx, instance)
-}
-
 // handle a running operation for the given SQL Server instance
 func (r *SQLReconciler) handleRunningOperation(sqlServersClient azureclients.SQLServerAPI, instance azuredbv1alpha1.SQLServer) (reconcile.Result, error) {
 	ctx := context.Background()
@@ -315,7 +289,7 @@ func (r *SQLReconciler) updateStatus(instance azuredbv1alpha1.SQLServer, message
 		RunningOperationType: oldStatus.RunningOperationType,
 	}
 	status.SetConditions(azureclients.SQLServerCondition(server.State))
-	if mysql.ServerState(server.State) == mysql.ServerStateReady {
+	if mysql.ServerState(server.State) == mysql.ServerStateReady && instance.GetStatus().Endpoint != "" {
 		resource.SetBindable(status)
 	}
 	instance.SetStatus(status)

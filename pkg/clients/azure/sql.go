@@ -18,13 +18,19 @@ package azure
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"reflect"
 	"strconv"
 
 	"github.com/Azure/azure-sdk-for-go/services/mysql/mgmt/2017-12-01/mysql"
+	"github.com/Azure/azure-sdk-for-go/services/mysql/mgmt/2017-12-01/mysql/mysqlapi"
 	"github.com/Azure/azure-sdk-for-go/services/postgresql/mgmt/2017-12-01/postgresql"
+	"github.com/Azure/azure-sdk-for-go/services/postgresql/mgmt/2017-12-01/postgresql/postgresqlapi"
 	azurerest "github.com/Azure/go-autorest/autorest/azure"
+	"github.com/Azure/go-autorest/autorest/azure/auth"
 	"github.com/Azure/go-autorest/autorest/to"
+	"github.com/pkg/errors"
 	"k8s.io/client-go/kubernetes"
 
 	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
@@ -175,7 +181,7 @@ func (c *MySQLServerClient) CreateServerEnd(createOp []byte) (done bool, err err
 	}
 
 	// check if the operation is done yet
-	done, err = createFuture.Done(c.ServersClient.Client)
+	done, err = createFuture.DoneWithContext(context.Background(), c.ServersClient.Client)
 	if !done {
 		return false, err
 	}
@@ -237,7 +243,7 @@ func (c *MySQLServerClient) CreateFirewallRulesEnd(createOp []byte) (done bool, 
 	}
 
 	// check if the operation is done yet
-	done, err = createFuture.Done(c.FirewallRulesClient.Client)
+	done, err = createFuture.DoneWithContext(context.Background(), c.FirewallRulesClient.Client)
 	if !done {
 		return false, err
 	}
@@ -249,6 +255,78 @@ func (c *MySQLServerClient) CreateFirewallRulesEnd(createOp []byte) (done bool, 
 
 	return true, nil
 }
+
+//---------------------------------------------------------------------------------------------------------------------
+// MySQLVirtualNetworkRulesClient
+
+// A MySQLVirtualNetworkRulesClient handles CRUD operations for Azure Virtual Network Rules.
+type MySQLVirtualNetworkRulesClient mysqlapi.VirtualNetworkRulesClientAPI
+
+// NewMySQLVirtualNetworkRulesClient returns a new Azure Virtual Network Rules client. Credentials must be
+// passed as JSON encoded data.
+func NewMySQLVirtualNetworkRulesClient(ctx context.Context, credentials []byte) (MySQLVirtualNetworkRulesClient, error) {
+	c := Credentials{}
+	if err := json.Unmarshal(credentials, &c); err != nil {
+		return nil, errors.Wrap(err, "cannot unmarshal Azure client secret data")
+	}
+
+	client := mysql.NewVirtualNetworkRulesClient(c.SubscriptionID)
+
+	cfg := auth.ClientCredentialsConfig{
+		ClientID:     c.ClientID,
+		ClientSecret: c.ClientSecret,
+		TenantID:     c.TenantID,
+		AADEndpoint:  c.ActiveDirectoryEndpointURL,
+		Resource:     c.ResourceManagerEndpointURL,
+	}
+	a, err := cfg.Authorizer()
+	if err != nil {
+		return nil, errors.Wrapf(err, "cannot create Azure authorizer from credentials config")
+	}
+	client.Authorizer = a
+	if err := client.AddToUserAgent(UserAgent); err != nil {
+		return nil, errors.Wrap(err, "cannot add to Azure client user agent")
+	}
+
+	return client, nil
+}
+
+// NewMySQLVirtualNetworkRuleParameters returns an Azure VirtualNetworkRule object from a virtual network spec
+func NewMySQLVirtualNetworkRuleParameters(v *azuredbv1alpha1.MysqlServerVirtualNetworkRule) mysql.VirtualNetworkRule {
+	return mysql.VirtualNetworkRule{
+		Name: ToStringPtr(v.Spec.Name),
+		VirtualNetworkRuleProperties: &mysql.VirtualNetworkRuleProperties{
+			VirtualNetworkSubnetID:           ToStringPtr(v.Spec.VirtualNetworkRuleProperties.VirtualNetworkSubnetID),
+			IgnoreMissingVnetServiceEndpoint: ToBoolPtr(v.Spec.VirtualNetworkRuleProperties.IgnoreMissingVnetServiceEndpoint, FieldRequired),
+		},
+	}
+}
+
+// MySQLServerVirtualNetworkRuleNeedsUpdate determines if a virtual network rule needs to be updated
+func MySQLServerVirtualNetworkRuleNeedsUpdate(kube *azuredbv1alpha1.MysqlServerVirtualNetworkRule, az mysql.VirtualNetworkRule) bool {
+	up := NewMySQLVirtualNetworkRuleParameters(kube)
+
+	switch {
+	case !reflect.DeepEqual(up.VirtualNetworkRuleProperties.VirtualNetworkSubnetID, az.VirtualNetworkRuleProperties.VirtualNetworkSubnetID):
+		return true
+	case !reflect.DeepEqual(up.VirtualNetworkRuleProperties.IgnoreMissingVnetServiceEndpoint, az.VirtualNetworkRuleProperties.IgnoreMissingVnetServiceEndpoint):
+		return true
+	}
+
+	return false
+}
+
+// MySQLVirtualNetworkRuleStatusFromAzure converts an Azure subnet to a SubnetStatus
+func MySQLVirtualNetworkRuleStatusFromAzure(az mysql.VirtualNetworkRule) azuredbv1alpha1.VirtualNetworkRuleStatus {
+	return azuredbv1alpha1.VirtualNetworkRuleStatus{
+		State: string(az.VirtualNetworkRuleProperties.State),
+		ID:    ToString(az.ID),
+		Type:  ToString(az.Type),
+	}
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+// PostgreSQLServerClient
 
 // PostgreSQLServerClient is the concreate implementation of the SQLServerAPI interface for PostgreSQL that calls Azure API.
 type PostgreSQLServerClient struct {
@@ -358,7 +436,7 @@ func (c *PostgreSQLServerClient) CreateServerEnd(createOp []byte) (done bool, er
 	}
 
 	// check if the operation is done yet
-	done, err = createFuture.Done(c.ServersClient.Client)
+	done, err = createFuture.DoneWithContext(context.Background(), c.ServersClient.Client)
 	if !done {
 		return false, err
 	}
@@ -420,7 +498,7 @@ func (c *PostgreSQLServerClient) CreateFirewallRulesEnd(createOp []byte) (done b
 	}
 
 	// check if the operation is done yet
-	done, err = createFuture.Done(c.FirewallRulesClient.Client)
+	done, err = createFuture.DoneWithContext(context.Background(), c.FirewallRulesClient.Client)
 	if !done {
 		return false, err
 	}
@@ -431,6 +509,75 @@ func (c *PostgreSQLServerClient) CreateFirewallRulesEnd(createOp []byte) (done b
 	}
 
 	return true, nil
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+// PostgreSQLVirtualNetworkRulesClient
+
+// A PostgreSQLVirtualNetworkRulesClient handles CRUD operations for Azure Virtual Network Rules.
+type PostgreSQLVirtualNetworkRulesClient postgresqlapi.VirtualNetworkRulesClientAPI
+
+// NewPostgreSQLVirtualNetworkRulesClient returns a new Azure Virtual Network Rules client. Credentials must be
+// passed as JSON encoded data.
+func NewPostgreSQLVirtualNetworkRulesClient(ctx context.Context, credentials []byte) (PostgreSQLVirtualNetworkRulesClient, error) {
+	c := Credentials{}
+	if err := json.Unmarshal(credentials, &c); err != nil {
+		return nil, errors.Wrap(err, "cannot unmarshal Azure client secret data")
+	}
+
+	client := postgresql.NewVirtualNetworkRulesClient(c.SubscriptionID)
+
+	cfg := auth.ClientCredentialsConfig{
+		ClientID:     c.ClientID,
+		ClientSecret: c.ClientSecret,
+		TenantID:     c.TenantID,
+		AADEndpoint:  c.ActiveDirectoryEndpointURL,
+		Resource:     c.ResourceManagerEndpointURL,
+	}
+	a, err := cfg.Authorizer()
+	if err != nil {
+		return nil, errors.Wrapf(err, "cannot create Azure authorizer from credentials config")
+	}
+	client.Authorizer = a
+	if err := client.AddToUserAgent(UserAgent); err != nil {
+		return nil, errors.Wrap(err, "cannot add to Azure client user agent")
+	}
+
+	return client, nil
+}
+
+// NewPostgreSQLVirtualNetworkRuleParameters returns an Azure VirtualNetworkRule object from a virtual network spec
+func NewPostgreSQLVirtualNetworkRuleParameters(v *azuredbv1alpha1.PostgresqlServerVirtualNetworkRule) postgresql.VirtualNetworkRule {
+	return postgresql.VirtualNetworkRule{
+		Name: ToStringPtr(v.Spec.Name),
+		VirtualNetworkRuleProperties: &postgresql.VirtualNetworkRuleProperties{
+			VirtualNetworkSubnetID:           ToStringPtr(v.Spec.VirtualNetworkRuleProperties.VirtualNetworkSubnetID),
+			IgnoreMissingVnetServiceEndpoint: ToBoolPtr(v.Spec.VirtualNetworkRuleProperties.IgnoreMissingVnetServiceEndpoint, FieldRequired),
+		},
+	}
+}
+
+// PostgreSQLServerVirtualNetworkRuleNeedsUpdate determines if a virtual network rule needs to be updated
+func PostgreSQLServerVirtualNetworkRuleNeedsUpdate(kube *azuredbv1alpha1.PostgresqlServerVirtualNetworkRule, az postgresql.VirtualNetworkRule) bool {
+	up := NewPostgreSQLVirtualNetworkRuleParameters(kube)
+
+	switch {
+	case !reflect.DeepEqual(up.VirtualNetworkRuleProperties.VirtualNetworkSubnetID, az.VirtualNetworkRuleProperties.VirtualNetworkSubnetID):
+		return true
+	case !reflect.DeepEqual(up.VirtualNetworkRuleProperties.IgnoreMissingVnetServiceEndpoint, az.VirtualNetworkRuleProperties.IgnoreMissingVnetServiceEndpoint):
+		return true
+	}
+
+	return false
+}
+
+// PostgreSQLVirtualNetworkRuleStatusFromAzure converts an Azure subnet to a SubnetStatus
+func PostgreSQLVirtualNetworkRuleStatusFromAzure(az postgresql.VirtualNetworkRule) azuredbv1alpha1.VirtualNetworkRuleStatus {
+	return azuredbv1alpha1.VirtualNetworkRuleStatus{
+		State: string(az.State),
+		ID:    ToString(az.ID),
+		Type:  ToString(az.Type),
+	}
 }
 
 // SQLServerAPIFactory is an interface that can create instances of the SQLServerAPI interface

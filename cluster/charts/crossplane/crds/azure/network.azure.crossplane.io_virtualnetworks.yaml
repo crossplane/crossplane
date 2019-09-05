@@ -4,7 +4,7 @@ apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   creationTimestamp: null
-  name: aksclusters.compute.azure.crossplane.io
+  name: virtualnetworks.network.azure.crossplane.io
 spec:
   additionalPrinterColumns:
   - JSONPath: .status.bindingPhase
@@ -12,15 +12,6 @@ spec:
     type: string
   - JSONPath: .status.state
     name: STATE
-    type: string
-  - JSONPath: .status.clusterName
-    name: CLUSTER-NAME
-    type: string
-  - JSONPath: .status.endpoint
-    name: ENDPOINT
-    type: string
-  - JSONPath: .spec.classRef.name
-    name: CLUSTER-CLASS
     type: string
   - JSONPath: .spec.location
     name: LOCATION
@@ -31,17 +22,18 @@ spec:
   - JSONPath: .metadata.creationTimestamp
     name: AGE
     type: date
-  group: compute.azure.crossplane.io
+  group: network.azure.crossplane.io
   names:
-    kind: AKSCluster
-    listKind: AKSClusterList
-    plural: aksclusters
-    singular: akscluster
+    kind: VirtualNetwork
+    listKind: VirtualNetworkList
+    plural: virtualnetworks
+    singular: virtualnetwork
   scope: ""
-  subresources: {}
+  subresources:
+    status: {}
   validation:
     openAPIV3Schema:
-      description: AKSCluster is the Schema for the instances API
+      description: VirtualNetwork is the Schema for the instances API
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation
@@ -56,7 +48,7 @@ spec:
         metadata:
           type: object
         spec:
-          description: AKSClusterSpec is the spec for AKS cluster resources
+          description: VirtualNetworkSpec virtual Network resource.
           properties:
             claimRef:
               description: ObjectReference contains enough information to let you
@@ -132,31 +124,41 @@ spec:
                   description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
                   type: string
               type: object
-            disableRBAC:
-              description: DisableRBAC determines whether RBAC will be disabled or
-                enabled in the cluster.
-              type: boolean
-            dnsNamePrefix:
-              description: DNSNamePrefix is the DNS name prefix to use with the hosted
-                Kubernetes API server FQDN. You will use this to connect to the Kubernetes
-                API when managing containers after creating the cluster.
-              type: string
             location:
-              description: Location is the Azure location that the cluster will be
-                created in
+              description: Location - Resource location.
               type: string
-            nodeCount:
-              description: NodeCount is the number of nodes that the cluster will
-                initially be created with.  This can be scaled over time and defaults
-                to 1.
-              maximum: 100
-              minimum: 0
-              type: integer
-            nodeVMSize:
-              description: NodeVMSize is the name of the worker node VM size, e.g.,
-                Standard_B2s, Standard_F2s_v2, etc. This value cannot be changed after
-                cluster creation.
+            name:
+              description: Name - Name of the Virtual Network.
               type: string
+            properties:
+              description: VirtualNetworkPropertiesFormat - Properties of the virtual
+                network.
+              properties:
+                addressSpace:
+                  description: AddressSpace - The AddressSpace that contains an array
+                    of IP address ranges that can be used by subnets.
+                  properties:
+                    addressPrefixes:
+                      description: AddressPrefixes - A list of address blocks reserved
+                        for this virtual network in CIDR notation.
+                      items:
+                        type: string
+                      type: array
+                  required:
+                  - addressPrefixes
+                  type: object
+                enableDdosProtection:
+                  description: EnableDDOSProtection - Indicates if DDoS protection
+                    is enabled for all the protected resources in the virtual network.
+                    It requires a DDoS protection plan associated with the resource.
+                  type: boolean
+                enableVmProtection:
+                  description: EnableVMProtection - Indicates if VM protection is
+                    enabled for all the subnets in the virtual network.
+                  type: boolean
+              required:
+              - addressSpace
+              type: object
             providerRef:
               description: ObjectReference contains enough information to let you
                 inspect or modify the referred object.
@@ -199,17 +201,14 @@ spec:
                 resources when their bound resource claims are deleted.
               type: string
             resourceGroupName:
-              description: ResourceGroupName is the name of the resource group that
-                the cluster will be created in
+              description: ResourceGroupName - Name of the Virtual Network's resource
+                group.
               type: string
-            version:
-              description: Version is the Kubernetes version that will be deployed
-                to the cluster
-              type: string
-            vnetSubnetID:
-              description: VnetSubnetID is the subnet to which the cluster will be
-                deployed.
-              type: string
+            tags:
+              additionalProperties:
+                type: string
+              description: Tags - Resource tags.
+              type: object
             writeConnectionSecretToRef:
               description: LocalObjectReference contains enough information to let
                 you locate the referenced object inside the same namespace.
@@ -219,42 +218,22 @@ spec:
                     TODO: Add other useful fields. apiVersion, kind, uid?'
                   type: string
               type: object
-            writeServicePrincipalTo:
-              description: WriteServicePrincipalSecretTo the specified Secret. The
-                service principal is automatically generated and used by the AKS cluster
-                to interact with other Azure resources.
-              properties:
-                name:
-                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                    TODO: Add other useful fields. apiVersion, kind, uid?'
-                  type: string
-              type: object
           required:
-          - dnsNamePrefix
           - location
-          - nodeVMSize
+          - name
+          - properties
           - providerRef
           - resourceGroupName
-          - version
-          - writeServicePrincipalTo
           type: object
         status:
-          description: AKSClusterStatus is the status for AKS cluster resources
+          description: VirtualNetworkStatus is the status of the virtual network
           properties:
-            appObjectID:
-              description: ApplicationObjectID is the object ID of the AD application
-                the cluster uses for Azure APIs
-              type: string
             bindingPhase:
               description: Phase represents the binding phase of the resource.
               enum:
               - Unbindable
               - Unbound
               - Bound
-              type: string
-            clusterName:
-              description: ClusterName is the name of the cluster as registered with
-                the cloud provider
               type: string
             conditions:
               description: Conditions of the managed resource.
@@ -289,29 +268,24 @@ spec:
                 - type
                 type: object
               type: array
-            endpoint:
-              description: Endpoint is the endpoint where the cluster can be reached
+            etag:
+              description: Etag - Gets a unique read-only string that changes whenever
+                the resource is updated.
               type: string
-            providerID:
-              description: ProviderID is the external ID to identify this resource
-                in the cloud provider
+            id:
+              description: ID - Resource ID.
               type: string
-            runningOperation:
-              description: RunningOperation stores any current long running operation
-                for this instance across reconciliation attempts.  This will be a
-                serialized Azure AKS cluster API object that will be used to check
-                the status and completion of the operation during each reconciliation.
-                Once the operation has completed, this field will be cleared out.
+            message:
               type: string
-            servicePrincipalID:
-              description: ServicePrincipalID is the ID of the service principal the
-                AD application uses
+            resourceGuid:
+              description: ResourceGUID - The resourceGuid property of the Virtual
+                Network resource.
               type: string
             state:
-              description: State is the current state of the cluster
               type: string
-          required:
-          - endpoint
+            type:
+              description: Type - Resource type.
+              type: string
           type: object
       type: object
   version: v1alpha1
