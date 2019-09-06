@@ -14,5 +14,5 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package compute contains GCP compute API versions
-package compute
+// Package v1alpha1 contains API Schema definitions for the servicenetworking v1alpha1 API group
+package v1alpha1
