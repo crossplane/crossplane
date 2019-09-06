@@ -877,7 +877,7 @@
   version = "v2.0.0"
 
 [[projects]]
-  digest = "1:c6d314abd24eb1ff032d55f7bd13681f320ae467009d02c428ba33eae0bd1f1e"
+  digest = "1:3182dd17fd50124e1f81efd84a2e0d51c8113f9f65e922ba1099ecda4c15f81d"
   name = "google.golang.org/api"
   packages = [
     "cloudresourcemanager/v1",
@@ -890,6 +890,7 @@
     "internal",
     "iterator",
     "option",
+    "servicenetworking/v1",
     "sqladmin/v1beta4",
     "storage/v1",
     "support/bundler",
@@ -1527,6 +1528,7 @@
     "google.golang.org/api/container/v1",
     "google.golang.org/api/googleapi",
     "google.golang.org/api/option",
+    "google.golang.org/api/servicenetworking/v1",
     "google.golang.org/api/sqladmin/v1beta4",
     "google.golang.org/genproto/googleapis/cloud/redis/v1",
     "google.golang.org/genproto/protobuf/field_mask",
