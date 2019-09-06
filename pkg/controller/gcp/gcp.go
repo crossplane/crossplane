@@ -22,6 +22,7 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/controller/gcp/cache"
 	"github.com/crossplaneio/crossplane/pkg/controller/gcp/compute"
 	"github.com/crossplaneio/crossplane/pkg/controller/gcp/database"
+	"github.com/crossplaneio/crossplane/pkg/controller/gcp/servicenetworking"
 	"github.com/crossplaneio/crossplane/pkg/controller/gcp/storage"
 )
 
@@ -36,6 +37,7 @@ func (c *Controllers) SetupWithManager(mgr ctrl.Manager) error {
 	}{
 		&cache.CloudMemorystoreInstanceClaimController{},
 		&cache.CloudMemorystoreInstanceController{},
+		&compute.GlobalAddressController{},
 		&compute.GKEClusterClaimController{},
 		&compute.GKEClusterController{},
 		&compute.NetworkController{},
@@ -43,6 +45,7 @@ func (c *Controllers) SetupWithManager(mgr ctrl.Manager) error {
 		&database.PostgreSQLInstanceClaimController{},
 		&database.MySQLInstanceClaimController{},
 		&database.CloudsqlController{},
+		&servicenetworking.ConnectionController{},
 		&storage.BucketClaimController{},
 		&storage.BucketController{},
 	}
