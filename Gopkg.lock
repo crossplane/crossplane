@@ -37,10 +37,12 @@
   version = "v0.2.2"
 
 [[projects]]
-  digest = "1:a4b43695d923831c081cb9bf8e9706f68d6325b8580449872411b4f0cfebbe39"
+  digest = "1:b3bf942ed748b03be9b042051660c02185dc99cdc8eb591b176d58cb1d40f804"
   name = "github.com/Azure/azure-sdk-for-go"
   packages = [
     "profiles/latest/redis/mgmt/redis/redisapi",
+    "services/authorization/mgmt/2015-07-01/authorization",
+    "services/authorization/mgmt/2015-07-01/authorization/authorizationapi",
     "services/containerservice/mgmt/2018-03-31/containerservice",
     "services/graphrbac/1.6/graphrbac",
     "services/mysql/mgmt/2017-12-01/mysql",
@@ -1459,6 +1461,8 @@
     "cloud.google.com/go/redis/apiv1",
     "cloud.google.com/go/storage",
     "github.com/Azure/azure-sdk-for-go/profiles/latest/redis/mgmt/redis/redisapi",
+    "github.com/Azure/azure-sdk-for-go/services/authorization/mgmt/2015-07-01/authorization",
+    "github.com/Azure/azure-sdk-for-go/services/authorization/mgmt/2015-07-01/authorization/authorizationapi",
     "github.com/Azure/azure-sdk-for-go/services/containerservice/mgmt/2018-03-31/containerservice",
     "github.com/Azure/azure-sdk-for-go/services/graphrbac/1.6/graphrbac",
     "github.com/Azure/azure-sdk-for-go/services/mysql/mgmt/2017-12-01/mysql",
