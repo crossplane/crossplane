@@ -170,25 +170,7 @@ func testInstance(p *azurev1alpha1.Provider) *computev1alpha1.AKSCluster {
 }
 
 func testInstanceInSubnet(p *azurev1alpha1.Provider) *computev1alpha1.AKSCluster {
-	return &computev1alpha1.AKSCluster{
-		ObjectMeta: metav1.ObjectMeta{Name: instanceName, Namespace: namespace},
-		Spec: computev1alpha1.AKSClusterSpec{
-			ResourceSpec: runtimev1alpha1.ResourceSpec{
-				ReclaimPolicy:                    runtimev1alpha1.ReclaimDelete,
-				ProviderReference:                meta.ReferenceTo(p, azurev1alpha1.ProviderGroupVersionKind),
-				WriteConnectionSecretToReference: corev1.LocalObjectReference{Name: "coolSecret"},
-			},
-			AKSClusterParameters: v1alpha1.AKSClusterParameters{
-				WriteServicePrincipalSecretTo: corev1.LocalObjectReference{Name: "coolPrincipal"},
-				ResourceGroupName:             "rg1",
-				Location:                      "loc1",
-				Version:                       "1.12.5",
-				VnetSubnetID:                  "/path/to/cool/subnet",
-				NodeCount:                     to.IntPtr(3),
-				NodeVMSize:                    "Standard_F2s_v2",
-				DNSNamePrefix:                 "crossplane-aks",
-				DisableRBAC:                   false,
-			},
-		},
-	}
+	instance := testInstance(p)
+	instance.Spec.AKSClusterParameters.VnetSubnetID = "/path/to/cool/subnet"
+	return instance
 }
