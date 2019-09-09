@@ -167,6 +167,7 @@ func stacksControllerSetupWithManager(mgr manager.Manager) error {
 	if err := (&stacksController.Controllers{}).SetupWithManager(mgr); err != nil {
 		return err
 	}
+
 	return nil
 }
 

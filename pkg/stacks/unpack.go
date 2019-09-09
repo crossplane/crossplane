@@ -28,6 +28,7 @@ import (
 	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -43,7 +44,6 @@ const (
 	resourceFileNamePattern = "*resource.yaml"
 	groupFileName           = "group.yaml"
 	appFileName             = "app.yaml"
-	permissionsFileName     = "rbac.yaml"
 	iconFileNamePattern     = "icon.*"
 	crdFileNamePattern      = "*crd.yaml"
 	uiSpecFileNamePattern   = "*ui-schema.yaml"
@@ -269,7 +269,7 @@ func (sp *StackPackage) AddCRD(path string, crd *apiextensions.CustomResourceDef
 		APIVersion: crdGVK.GroupVersion().String(),
 	}
 
-	sp.Stack.Spec.CRDs.Owned = append(sp.Stack.Spec.CRDs.Owned, crdTypeMeta)
+	sp.Stack.Spec.CRDs = append(sp.Stack.Spec.CRDs, crdTypeMeta)
 
 }
 
@@ -286,6 +286,55 @@ func (sp *StackPackage) applyAnnotations() {
 		sp.applyUISpecAnnotations(crdPath, &crd)
 
 	}
+}
+
+func generateRBAC(apikind, apigroupversion string) rbacv1.PolicyRule {
+	return rbacv1.PolicyRule{
+		APIGroups:     []string{apigroupversion},
+		ResourceNames: []string{},
+		Resources:     []string{apikind},
+		Verbs:         []string{"*"},
+	}
+}
+
+// applyRules adds RBAC rules to the Stack for standard Stack needs and to fulfill dependencies
+func (sp *StackPackage) applyRules() error {
+	core := rbacv1.PolicyRule{
+		APIGroups:     []string{""},
+		ResourceNames: []string{},
+		Resources:     []string{"configmaps", "events", "secrets"},
+		Verbs:         []string{"*"},
+	}
+
+	// standard rules that all Stacks get
+	rbac := v1alpha1.PermissionsSpec{Rules: []rbacv1.PolicyRule{
+		core,
+	}}
+
+	// owned CRD rules
+	orderedKeys := orderStackCRDKeys(sp.CRDs)
+
+	for _, k := range orderedKeys {
+		crd := sp.CRDs[k]
+		// TODO(displague) deal with Versions (multiple per crd)
+		rule := generateRBAC(crd.Spec.Names.Plural, crd.Spec.Group+"/"+crd.Spec.Version)
+		rbac.Rules = append(rbac.Rules, rule)
+	}
+
+	// dependency based rules
+	for _, dependency := range sp.Stack.Spec.DependsOn {
+		if dependency.CustomResourceDefinition != "" {
+			pieces := strings.SplitN(dependency.CustomResourceDefinition, ".", 2)
+			if pieces[0] == "" || pieces[1] == "" {
+				return errors.New(fmt.Sprintf("cannot parse CustomResourceDefinition %q as Kind and GroupVersion", dependency.CustomResourceDefinition))
+			}
+			rule := generateRBAC(pieces[0], pieces[1])
+			rbac.Rules = append(rbac.Rules, rule)
+		}
+	}
+
+	sp.SetRBAC(rbac)
+	return nil
 }
 
 // NewStackPackage returns a StackPackage with maps created
@@ -326,7 +375,6 @@ func Unpack(rw walker.ResourceWalker, out io.StringWriter, permissionScope strin
 
 	rw.AddStep(resourceFileNamePattern, resourceStep(sp))
 	rw.AddStep(crdFileNamePattern, crdStep(sp))
-	rw.AddStep(permissionsFileName, rbacStep(sp))
 	rw.AddStep(installFileName, installStep(sp))
 	rw.AddStep(iconFileNamePattern, iconStep(sp))
 	rw.AddStep(uiSpecFileNamePattern, uiStep(sp))
@@ -339,8 +387,12 @@ func Unpack(rw walker.ResourceWalker, out io.StringWriter, permissionScope strin
 		return errors.New("Stack does not contain an app.yaml file")
 	}
 
-	if sp.Stack.Spec.AppMetadataSpec.PermissionScope != permissionScope {
-		return errors.New(fmt.Sprintf("Stack permissionScope %q is not permitted by unpack invocation parameters", permissionScope))
+	if sp.Stack.Spec.PermissionScope != permissionScope {
+		return errors.New(fmt.Sprintf("Stack permissionScope %q is not permitted by unpack invocation parameters (expected %q)", permissionScope, sp.Stack.Spec.PermissionScope))
+	}
+
+	if err := sp.applyRules(); err != nil {
+		return err
 	}
 
 	sp.applyAnnotations()

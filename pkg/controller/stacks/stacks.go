@@ -20,7 +20,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/crossplaneio/crossplane/pkg/controller/stacks/clusterinstall"
-	"github.com/crossplaneio/crossplane/pkg/controller/stacks/install"
+	install "github.com/crossplaneio/crossplane/pkg/controller/stacks/install"
 	"github.com/crossplaneio/crossplane/pkg/controller/stacks/stack"
 )
 
@@ -33,7 +33,7 @@ func (c *Controllers) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 
-	if err := (&request.Controller{}).SetupWithManager(mgr); err != nil {
+	if err := (&install.Controller{}).SetupWithManager(mgr); err != nil {
 		return err
 	}
 

@@ -33,48 +33,6 @@ import (
 )
 
 const (
-	simpleAppFile = `# Human readable title of application.
-title: Sample Crossplane Stack
-
-# Markdown description of this entry
-description: |
- Markdown describing this sample Crossplane stack project.
-
-# Version of project (optional)
-# If omitted the version will be filled with the docker tag
-# If set it must match the docker tag
-version: 0.0.1
-
-# Maintainer names and emails.
-maintainers:
-- name: Jared Watts
-  email: jared@upbound.io
-
-# Owner names and emails.
-owners:
-- name: Bassam Tabbara
-  email: bassam@upbound.io
-
-# Human readable company name.
-company: Upbound
-
-# Category name.
-category: Category
-
-# Keywords that describe this application and help search indexing
-keywords:
-- "samples"
-- "examples"
-- "tutorials"
-
-# Links to more information about the application (about page, source code, etc.)
-website: "https://upbound.io"
-source: "https://github.com/crossplaneio/sample-stack"
-
-# License SPDX name: https://spdx.org/licenses/
-license: Apache-2.0
-`
-
 	simpleDeploymentInstallFile = `apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -130,43 +88,6 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-`
-
-	simpleDeploymentRBACFile = `rules:
-- apiGroups:
-  - ""
-  resources:
-  - secrets
-  - serviceaccounts
-  - events
-  - namespaces
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - patch
-  - delete
-`
-	simpleJobRBACFile = `rules:
-- apiGroups:
-  - ""
-  resources:
-  - configmaps
-  - services
-  - secrets
-  - serviceaccounts
-  - events
-  - namespaces
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - patch
-  - delete
 `
 
 	simpleGroupFile = `title: Group Title
@@ -246,9 +167,11 @@ spec:
               name: sample-stack-controller
               resources: {}
   customresourcedefinitions:
-    owns:
-    - apiVersion: samples.upbound.io/v1alpha1
-      kind: Mytype
+  - apiVersion: samples.upbound.io/v1alpha1
+    kind: Mytype
+  dependsOn:
+  - crd: foo.mystack.example.org/v1alpha1
+  - crd: bar.yourstack.example.org/v1alpha2
   description: |
     Markdown describing this sample Crossplane stack project.
   icons:
@@ -265,24 +188,35 @@ spec:
   owners:
   - email: bassam@upbound.io
     name: Bassam Tabbara
+  permissionScope: Namespaced
   permissions:
     rules:
     - apiGroups:
       - ""
       resources:
-      - secrets
-      - serviceaccounts
+      - configmaps
       - events
-      - namespaces
+      - secrets
       verbs:
-      - get
-      - list
-      - watch
-      - create
-      - update
-      - patch
-      - delete
-  permissionScope: Namespaced
+      - '*'
+    - apiGroups:
+      - samples.upbound.io/v1alpha1
+      resources:
+      - mytypes
+      verbs:
+      - '*'
+    - apiGroups:
+      - mystack.example.org/v1alpha1
+      resources:
+      - foo
+      verbs:
+      - '*'
+    - apiGroups:
+      - yourstack.example.org/v1alpha2
+      resources:
+      - bar
+      verbs:
+      - '*'
   source: https://github.com/crossplaneio/sample-stack
   title: Sample Crossplane Stack
   version: 0.0.1
@@ -477,15 +411,17 @@ spec:
               name: sample-stack-controller
               resources: {}
   customresourcedefinitions:
-    owns:
-    - apiVersion: samples.upbound.io/v1alpha1
-      kind: Secondcousin
-    - apiVersion: samples.upbound.io/v1alpha1
-      kind: Cousin
-    - apiVersion: samples.upbound.io/v1alpha1
-      kind: Mytype
-    - apiVersion: samples.upbound.io/v1alpha1
-      kind: Sibling
+  - apiVersion: samples.upbound.io/v1alpha1
+    kind: Secondcousin
+  - apiVersion: samples.upbound.io/v1alpha1
+    kind: Cousin
+  - apiVersion: samples.upbound.io/v1alpha1
+    kind: Mytype
+  - apiVersion: samples.upbound.io/v1alpha1
+    kind: Sibling
+  dependsOn:
+  - crd: foo.mystack.example.org/v1alpha1
+  - crd: bar.yourstack.example.org/v1alpha2
   description: |
     Markdown describing this sample Crossplane stack project.
   icons:
@@ -506,24 +442,325 @@ spec:
   owners:
   - email: bassam@upbound.io
     name: Bassam Tabbara
+  permissionScope: Namespaced
   permissions:
     rules:
     - apiGroups:
       - ""
       resources:
-      - secrets
-      - serviceaccounts
+      - configmaps
       - events
-      - namespaces
+      - secrets
       verbs:
-      - get
-      - list
-      - watch
-      - create
-      - update
-      - patch
-      - delete
-  permissionScope: Namespaced
+      - '*'
+    - apiGroups:
+      - samples.upbound.io/v1alpha1
+      resources:
+      - siblings
+      verbs:
+      - '*'
+    - apiGroups:
+      - samples.upbound.io/v1alpha1
+      resources:
+      - secondcousins
+      verbs:
+      - '*'
+    - apiGroups:
+      - samples.upbound.io/v1alpha1
+      resources:
+      - mytypes
+      verbs:
+      - '*'
+    - apiGroups:
+      - samples.upbound.io/v1alpha1
+      resources:
+      - cousins
+      verbs:
+      - '*'
+    - apiGroups:
+      - mystack.example.org/v1alpha1
+      resources:
+      - foo
+      verbs:
+      - '*'
+    - apiGroups:
+      - yourstack.example.org/v1alpha2
+      resources:
+      - bar
+      verbs:
+      - '*'
+  source: https://github.com/crossplaneio/sample-stack
+  title: Sample Crossplane Stack
+  version: 0.0.1
+  website: https://upbound.io
+status:
+  conditionedStatus: {}
+`
+
+	expectedComplexInfraStackOutput = `
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    app.kubernetes.io/managed-by: stack-manager
+    stacks.crossplane.io/group-category: Group Category
+    stacks.crossplane.io/group-description: Group Description
+    stacks.crossplane.io/group-title: Group Title
+    stacks.crossplane.io/icon: data:image/svg+xml;base64,bW9jay1pY29uLWRhdGEtc3Zn
+    stacks.crossplane.io/stack-title: Sample Crossplane Stack
+    stacks.crossplane.io/ui-spec: |-
+      uiSpecVersion: 0.3
+      uiSpec:
+      - title: group Title
+        description: group Description
+      ---
+      uiSpecVersion: 0.3
+      uiSpec:
+      - title: sibling Title
+        description: sibling Description
+  creationTimestamp: null
+  name: siblings.samples.upbound.io
+spec:
+  group: samples.upbound.io
+  names:
+    kind: Sibling
+    listKind: SiblingList
+    plural: siblings
+    singular: sibling
+  scope: Namespaced
+  version: v1alpha1
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: null
+  storedVersions: null
+
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    app.kubernetes.io/managed-by: stack-manager
+    stacks.crossplane.io/icon: data:image/jpeg;base64,bW9jay1pY29uLWRhdGE=
+    stacks.crossplane.io/stack-title: Sample Crossplane Stack
+  creationTimestamp: null
+  name: secondcousins.samples.upbound.io
+spec:
+  group: samples.upbound.io
+  names:
+    kind: Secondcousin
+    listKind: SecondcousinList
+    plural: secondcousins
+    singular: secondcousin
+  scope: Namespaced
+  version: v1alpha1
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: null
+  storedVersions: null
+
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    app.kubernetes.io/managed-by: stack-manager
+    stacks.crossplane.io/group-category: Group Category
+    stacks.crossplane.io/group-description: Group Description
+    stacks.crossplane.io/group-title: Group Title
+    stacks.crossplane.io/icon: data:image/svg+xml;base64,bW9jay1pY29uLWRhdGEtc3Zn
+    stacks.crossplane.io/resource-category: Resource Category
+    stacks.crossplane.io/resource-description: Resource Description
+    stacks.crossplane.io/resource-title: Resource Title
+    stacks.crossplane.io/resource-title-plural: Resources Title
+    stacks.crossplane.io/stack-title: Sample Crossplane Stack
+    stacks.crossplane.io/ui-spec: |-
+      uiSpecVersion: 0.3
+      uiSpec:
+      - title: group Title
+        description: group Description
+      ---
+      uiSpecVersion: 0.3
+      uiSpec:
+      - title: sibling Title
+        description: sibling Description
+      ---
+      uiSpecVersion: 0.3
+      uiSpec:
+      - title: kind Title
+        description: kind Description
+  creationTimestamp: null
+  name: mytypes.samples.upbound.io
+spec:
+  group: samples.upbound.io
+  names:
+    kind: Mytype
+    listKind: MytypeList
+    plural: mytypes
+    singular: mytype
+  scope: Namespaced
+  version: v1alpha1
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: null
+  storedVersions: null
+
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    app.kubernetes.io/managed-by: stack-manager
+    stacks.crossplane.io/group-category: Group Category
+    stacks.crossplane.io/group-description: Group Description
+    stacks.crossplane.io/group-title: Group Title
+    stacks.crossplane.io/icon: data:image/jpeg;base64,bW9jay1pY29uLWRhdGE=
+    stacks.crossplane.io/stack-title: Sample Crossplane Stack
+    stacks.crossplane.io/ui-spec: |-
+      uiSpecVersion: 0.3
+      uiSpec:
+      - title: group Title
+        description: group Description
+  creationTimestamp: null
+  name: cousins.samples.upbound.io
+spec:
+  group: samples.upbound.io
+  names:
+    kind: Cousin
+    listKind: CousinList
+    plural: cousins
+    singular: cousin
+  scope: Namespaced
+  version: v1alpha1
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: null
+  storedVersions: null
+
+---
+apiVersion: stacks.crossplane.io/v1alpha1
+kind: Stack
+metadata:
+  creationTimestamp: null
+spec:
+  category: Category
+  company: Upbound
+  controller:
+    deployment:
+      name: crossplane-sample-stack
+      spec:
+        replicas: 1
+        selector:
+          matchLabels:
+            core.crossplane.io/name: crossplane-sample-stack
+        strategy: {}
+        template:
+          metadata:
+            creationTimestamp: null
+            labels:
+              core.crossplane.io/name: crossplane-sample-stack
+            name: sample-stack-controller
+          spec:
+            containers:
+            - env:
+              - name: POD_NAME
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.name
+              - name: POD_NAMESPACE
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.namespace
+              image: crossplane/sample-stack:latest
+              name: sample-stack-controller
+              resources: {}
+  customresourcedefinitions:
+  - apiVersion: samples.upbound.io/v1alpha1
+    kind: Secondcousin
+  - apiVersion: samples.upbound.io/v1alpha1
+    kind: Cousin
+  - apiVersion: samples.upbound.io/v1alpha1
+    kind: Mytype
+  - apiVersion: samples.upbound.io/v1alpha1
+    kind: Sibling
+  dependsOn:
+  - crd: foo.mystack.example.org/v1alpha1
+  - crd: bar.yourstack.example.org/v1alpha2
+  description: |
+    Markdown describing this sample Crossplane stack project.
+  icons:
+  - base64Data: bW9jay1pY29uLWRhdGE=
+    mediatype: image/jpeg
+  - base64Data: bW9jay1pY29uLWRhdGEtcG5n
+    mediatype: image/png
+  - base64Data: bW9jay1pY29uLWRhdGEtc3Zn
+    mediatype: image/svg+xml
+  keywords:
+  - samples
+  - examples
+  - tutorials
+  license: Apache-2.0
+  maintainers:
+  - email: jared@upbound.io
+    name: Jared Watts
+  owners:
+  - email: bassam@upbound.io
+    name: Bassam Tabbara
+  permissionScope: Cluster
+  permissions:
+    rules:
+    - apiGroups:
+      - ""
+      resources:
+      - configmaps
+      - events
+      - secrets
+      verbs:
+      - '*'
+    - apiGroups:
+      - samples.upbound.io/v1alpha1
+      resources:
+      - siblings
+      verbs:
+      - '*'
+    - apiGroups:
+      - samples.upbound.io/v1alpha1
+      resources:
+      - secondcousins
+      verbs:
+      - '*'
+    - apiGroups:
+      - samples.upbound.io/v1alpha1
+      resources:
+      - mytypes
+      verbs:
+      - '*'
+    - apiGroups:
+      - samples.upbound.io/v1alpha1
+      resources:
+      - cousins
+      verbs:
+      - '*'
+    - apiGroups:
+      - mystack.example.org/v1alpha1
+      resources:
+      - foo
+      verbs:
+      - '*'
+    - apiGroups:
+      - yourstack.example.org/v1alpha2
+      resources:
+      - bar
+      verbs:
+      - '*'
   source: https://github.com/crossplaneio/sample-stack
   title: Sample Crossplane Stack
   version: 0.0.1
@@ -595,9 +832,11 @@ spec:
               resources: {}
             restartPolicy: Never
   customresourcedefinitions:
-    owns:
-    - apiVersion: samples.upbound.io/v1alpha1
-      kind: Mytype
+  - apiVersion: samples.upbound.io/v1alpha1
+    kind: Mytype
+  dependsOn:
+  - crd: foo.mystack.example.org/v1alpha1
+  - crd: bar.yourstack.example.org/v1alpha2
   description: |
     Markdown describing this sample Crossplane stack project.
   icons:
@@ -614,26 +853,35 @@ spec:
   owners:
   - email: bassam@upbound.io
     name: Bassam Tabbara
+  permissionScope: Namespaced
   permissions:
     rules:
     - apiGroups:
       - ""
       resources:
       - configmaps
-      - services
-      - secrets
-      - serviceaccounts
       - events
-      - namespaces
+      - secrets
       verbs:
-      - get
-      - list
-      - watch
-      - create
-      - update
-      - patch
-      - delete
-  permissionScope: Namespaced
+      - '*'
+    - apiGroups:
+      - samples.upbound.io/v1alpha1
+      resources:
+      - mytypes
+      verbs:
+      - '*'
+    - apiGroups:
+      - mystack.example.org/v1alpha1
+      resources:
+      - foo
+      verbs:
+      - '*'
+    - apiGroups:
+      - yourstack.example.org/v1alpha2
+      resources:
+      - bar
+      verbs:
+      - '*'
   source: https://github.com/crossplaneio/sample-stack
   title: Sample Crossplane Stack
   version: 0.0.1
@@ -647,6 +895,56 @@ var (
 	// Assert on test that *StackPackage implements StackPackager
 	_ StackPackager = &StackPackage{}
 )
+
+func simpleAppFile(permissionScope string) string {
+	return fmt.Sprintf(`# Human readable title of application.
+title: Sample Crossplane Stack
+
+# Markdown description of this entry
+description: |
+  Markdown describing this sample Crossplane stack project.
+
+# Version of project (optional)
+# If omitted the version will be filled with the docker tag
+# If set it must match the docker tag
+version: 0.0.1
+
+# Maintainer names and emails.
+maintainers:
+- name: Jared Watts
+  email: jared@upbound.io
+
+# Owner names and emails.
+owners:
+- name: Bassam Tabbara
+  email: bassam@upbound.io
+
+# Human readable company name.
+company: Upbound
+
+# Category name.
+category: Category
+
+dependsOn:
+- crd: "foo.mystack.example.org/v1alpha1"
+- crd: "bar.yourstack.example.org/v1alpha2"
+
+# Keywords that describe this application and help search indexing
+keywords:
+- "samples"
+- "examples"
+- "tutorials"
+
+# Links to more information about the application (about page, source code, etc.)
+website: "https://upbound.io"
+source: "https://github.com/crossplaneio/sample-stack"
+
+permissionScope: %q
+
+# License SPDX name: https://spdx.org/licenses/
+license: Apache-2.0
+`, permissionScope)
+}
 
 func simpleCRDFile(singular string) string {
 	title := strings.Title(singular)
@@ -704,9 +1002,8 @@ func TestUnpack(t *testing.T) {
 				fs := afero.NewMemMapFs()
 				fs.MkdirAll("ext-dir", 0755)
 				afero.WriteFile(fs, "ext-dir/icon.jpg", []byte("mock-icon-data"), 0644)
-				afero.WriteFile(fs, "ext-dir/app.yaml", []byte(simpleAppFile), 0644)
+				afero.WriteFile(fs, "ext-dir/app.yaml", []byte(simpleAppFile("Namespaced")), 0644)
 				afero.WriteFile(fs, "ext-dir/install.yaml", []byte(simpleDeploymentInstallFile), 0644)
-				afero.WriteFile(fs, "ext-dir/rbac.yaml", []byte(simpleDeploymentRBACFile), 0644)
 				crdDir := "ext-dir/resources/samples.upbound.io/mytype/v1alpha1"
 				fs.MkdirAll(crdDir, 0755)
 				afero.WriteFile(fs, filepath.Join(crdDir, "mytype.v1alpha1.crd.yaml"), []byte(simpleCRDFile("mytype")), 0644)
@@ -736,9 +1033,8 @@ func TestUnpack(t *testing.T) {
 				}
 
 				afero.WriteFile(fs, "ext-dir/icon.jpg", []byte("mock-icon-data"), 0644)
-				afero.WriteFile(fs, "ext-dir/app.yaml", []byte(simpleAppFile), 0644)
+				afero.WriteFile(fs, "ext-dir/app.yaml", []byte(simpleAppFile("Namespaced")), 0644)
 				afero.WriteFile(fs, "ext-dir/install.yaml", []byte(simpleDeploymentInstallFile), 0644)
-				afero.WriteFile(fs, "ext-dir/rbac.yaml", []byte(simpleDeploymentRBACFile), 0644)
 				afero.WriteFile(fs, filepath.Join(groupDir, "group.yaml"), []byte(simpleGroupFile), 0644)
 				afero.WriteFile(fs, filepath.Join(groupDir, "ui-schema.yaml"), []byte(simpleUIFile("group")), 0644)
 				afero.WriteFile(fs, filepath.Join(crdDir, "icon.png"), []byte("mock-icon-data-png"), 0644)
@@ -762,9 +1058,8 @@ func TestUnpack(t *testing.T) {
 				fs := afero.NewMemMapFs()
 				fs.MkdirAll("ext-dir", 0755)
 				afero.WriteFile(fs, "ext-dir/icon.jpg", []byte("mock-icon-data"), 0644)
-				afero.WriteFile(fs, "ext-dir/app.yaml", []byte(simpleAppFile), 0644)
+				afero.WriteFile(fs, "ext-dir/app.yaml", []byte(simpleAppFile("Namespaced")), 0644)
 				afero.WriteFile(fs, "ext-dir/install.yaml", []byte(simpleJobInstallFile), 0644)
-				afero.WriteFile(fs, "ext-dir/rbac.yaml", []byte(simpleJobRBACFile), 0644)
 				crdDir := "ext-dir/resources/samples.upbound.io/mytype/v1alpha1"
 				fs.MkdirAll(crdDir, 0755)
 				afero.WriteFile(fs, filepath.Join(crdDir, "mytype.v1alpha1.crd.yaml"), []byte(simpleCRDFile("mytype")), 0644)
@@ -780,6 +1075,77 @@ func TestUnpack(t *testing.T) {
 			got := &bytes.Buffer{}
 			rd := &walker.ResourceDir{Base: tt.root, Walker: afero.Afero{Fs: tt.fs}}
 			err := Unpack(rd, got, "Namespaced")
+
+			if diff := cmp.Diff(tt.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("Unpack() -want error, +got error:\n%s", diff)
+			}
+
+			if diff := cmp.Diff(tt.want.output, got.String()); diff != "" {
+				t.Errorf("Unpack() -want, +got:\n%v", diff)
+			}
+		})
+	}
+}
+
+func TestUnpack_cluster(t *testing.T) {
+	type want struct {
+		output string
+		err    error
+	}
+
+	tests := []struct {
+		name string
+		fs   afero.Fs
+		root string
+		want want
+	}{
+		{
+			name: "ComplexInfraStack",
+			fs: func() afero.Fs {
+				fs := afero.NewMemMapFs()
+				fs.MkdirAll("ext-dir", 0755)
+				groupDir := "ext-dir/resources/samples.upbound.io"
+				groupDir2 := "ext-dir/resources/other.upbound.io"
+
+				// secondcousins share root path resources
+				// cousins share that and group path resources
+				// siblings share that and crd path resources
+
+				crdDir := filepath.Join(groupDir, "mytype/v1alpha1")
+				crdDir2 := filepath.Join(groupDir, "cousin/v1alpha1")
+				crdDir3 := filepath.Join(groupDir2, "secondcousin/v1alpha1")
+
+				for _, d := range []string{crdDir, crdDir2, crdDir3} {
+					fs.MkdirAll(d, 0755)
+				}
+
+				afero.WriteFile(fs, "ext-dir/icon.jpg", []byte("mock-icon-data"), 0644)
+				afero.WriteFile(fs, "ext-dir/app.yaml", []byte(simpleAppFile("Cluster")), 0644)
+				afero.WriteFile(fs, "ext-dir/install.yaml", []byte(simpleDeploymentInstallFile), 0644)
+				afero.WriteFile(fs, filepath.Join(groupDir, "group.yaml"), []byte(simpleGroupFile), 0644)
+				afero.WriteFile(fs, filepath.Join(groupDir, "ui-schema.yaml"), []byte(simpleUIFile("group")), 0644)
+				afero.WriteFile(fs, filepath.Join(crdDir, "icon.png"), []byte("mock-icon-data-png"), 0644)
+				afero.WriteFile(fs, filepath.Join(crdDir, "icon.svg"), []byte("mock-icon-data-svg"), 0644)
+				afero.WriteFile(fs, filepath.Join(crdDir, "resource.yaml"), []byte(simpleResourceFile), 0644)
+				afero.WriteFile(fs, filepath.Join(crdDir, "ui-schema.yaml"), []byte(simpleUIFile("sibling")), 0644)
+				afero.WriteFile(fs, filepath.Join(crdDir, "mytype.ui-schema.yaml"), []byte(simpleUIFile("kind")), 0644)
+				afero.WriteFile(fs, filepath.Join(crdDir, "unmatched.ui-schema.yaml"), []byte(simpleUIFile("mismatch")), 0644)
+				afero.WriteFile(fs, filepath.Join(crdDir, "mytype.v1alpha1.crd.yaml"), []byte(simpleCRDFile("mytype")), 0644)
+				afero.WriteFile(fs, filepath.Join(crdDir, "sibling.v1alpha1.crd.yaml"), []byte(simpleCRDFile("sibling")), 0644)
+				afero.WriteFile(fs, filepath.Join(crdDir2, "cousin.v1alpha1.crd.yaml"), []byte(simpleCRDFile("cousin")), 0644)
+				afero.WriteFile(fs, filepath.Join(crdDir3, "secondcousin.v1alpha1.crd.yaml"), []byte(simpleCRDFile("secondcousin")), 0644)
+				return fs
+			}(),
+			root: "ext-dir",
+			want: want{output: expectedComplexInfraStackOutput, err: nil},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := &bytes.Buffer{}
+			rd := &walker.ResourceDir{Base: tt.root, Walker: afero.Afero{Fs: tt.fs}}
+			err := Unpack(rd, got, "Cluster")
 
 			if diff := cmp.Diff(tt.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("Unpack() -want error, +got error:\n%s", diff)

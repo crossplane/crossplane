@@ -35,7 +35,7 @@ func installStep(sp StackPackager) walker.Step {
 	return func(_ string, b []byte) error {
 		install := unstructured.Unstructured{}
 		if err := yaml.Unmarshal(b, &install); err != nil {
-			return err
+			return errors.Wrap(err, "invalid install")
 		}
 
 		err := sp.SetInstall(install)
@@ -58,25 +58,12 @@ func iconStep(sp StackPackager) walker.Step {
 	}
 }
 
-// rbacStep unmarshals rbac.yaml bytes to a PermissionSpec which is set on the StackPackager
-func rbacStep(sp StackPackager) walker.Step {
-	return func(_ string, b []byte) error {
-		rbac := v1alpha1.PermissionsSpec{}
-		if err := yaml.Unmarshal(b, &rbac); err != nil {
-			return err
-		}
-
-		sp.SetRBAC(rbac)
-		return nil
-	}
-}
-
 // appStep unmarshals app.yaml bytes to AppMetadataSpec which is set on the StackPackager
 func appStep(sp StackPackager) walker.Step {
 	return func(path string, b []byte) error {
 		app := v1alpha1.AppMetadataSpec{}
 		if err := yaml.Unmarshal(b, &app); err != nil {
-			return err
+			return errors.Wrap(err, "invalid app")
 		}
 
 		sp.SetApp(app)
@@ -90,7 +77,7 @@ func crdStep(sp StackPackager) walker.Step {
 		crd := &apiextensions.CustomResourceDefinition{}
 
 		if err := yaml.Unmarshal(b, crd); err != nil {
-			return err
+			return errors.Wrap(err, "invalid crd")
 		}
 
 		if (crd.Spec.Scope != apiextensions.NamespaceScoped) && (crd.Spec.Scope != "") {
@@ -107,7 +94,7 @@ func groupStep(sp StackPackager) walker.Step {
 	return func(path string, b []byte) error {
 		sg := &StackGroup{}
 		if err := yaml.Unmarshal(b, sg); err != nil {
-			return err
+			return errors.Wrap(err, "invalid group")
 		}
 
 		sp.AddGroup(filepath.Dir(path), *sg)
@@ -123,7 +110,7 @@ func resourceStep(sp StackPackager) walker.Step {
 	return func(path string, b []byte) error {
 		sr := &StackResource{}
 		if err := yaml.Unmarshal(b, sr); err != nil {
-			return err
+			return errors.Wrap(err, "invalid resource")
 		}
 
 		sp.AddResource(path, *sr)

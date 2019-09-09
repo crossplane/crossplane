@@ -184,26 +184,21 @@ type AppMetadataSpec struct {
 	Source      string            `json:"source,omitempty"`
 	License     string            `json:"license,omitempty"`
 
+	// DependsOn is the list of CRDs that this stack depends on. This data drives the
+	// dependency resolution process.
+	// TODO(displague) document this in stack design doc (examples at least)
+	DependsOn []StackInstallSpec `json:"dependsOn,omitempty"`
+
 	// +kubebuilder:validation:Enum=Cluster;Namespaced
 	PermissionScope string `json:"permissionScope,omitempty"`
 }
 
 // CRDList is the full list of CRDs that this stack owns and depends on
-type CRDList struct {
-	// Owned is the list of CRDs that this stack defines and owns
-	Owned []metav1.TypeMeta `json:"owns,omitempty"`
-
-	// DependsOn is the list of CRDs that this stack depends on. This data drives the
-	// dependency resolution process.
-	DependsOn []metav1.TypeMeta `json:"dependsOn,omitempty"`
-}
+type CRDList []metav1.TypeMeta
 
 // NewCRDList creates a new CRDList with its members initialized.
-func NewCRDList() *CRDList {
-	return &CRDList{
-		Owned:     []metav1.TypeMeta{},
-		DependsOn: []metav1.TypeMeta{},
-	}
+func NewCRDList() CRDList {
+	return []metav1.TypeMeta{}
 }
 
 // IconSpec defines the icon for a stack

@@ -156,11 +156,3 @@ func TestStack(t *testing.T) {
 	g.Expect(c.Delete(ctx, fetched)).NotTo(HaveOccurred())
 	g.Expect(c.Get(ctx, key, fetched)).To(HaveOccurred())
 }
-
-func TestNewCRDList(t *testing.T) {
-	g := NewGomegaWithT(t)
-	crdList := NewCRDList()
-	g.Expect(crdList).NotTo(BeNil())
-	g.Expect(crdList.Owned).NotTo(BeNil())
-	g.Expect(crdList.DependsOn).NotTo(BeNil())
-}
