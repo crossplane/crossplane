@@ -119,7 +119,9 @@ func (a *azureRedisCache) Sync(ctx context.Context, r *v1alpha1.Redis) bool {
 		// provisioning state is 'Succeeded'. It's a little weird to see a Redis
 		// resource in state 'Succeeded' in kubectl.
 		r.Status.SetConditions(runtimev1alpha1.Available())
-		resource.SetBindable(r)
+		if r.Status.Endpoint != "" {
+			resource.SetBindable(r)
+		}
 	case v1alpha1.ProvisioningStateCreating:
 		r.Status.SetConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileSuccess())
 		return true
