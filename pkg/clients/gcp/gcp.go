@@ -190,3 +190,47 @@ func getMissingPermissions(expected, actual []string) (missing []string) {
 	}
 	return
 }
+
+// StringValue converts the supplied string pointer to a string, returning the
+// empty string if the pointer is nil.
+func StringValue(v *string) string {
+	if v == nil {
+		return ""
+	}
+	return *v
+}
+
+// Int64Value converts the supplied int64 pointer to an int, returning zero if
+// the pointer is nil.
+func Int64Value(v *int64) int64 {
+	if v == nil {
+		return 0
+	}
+	return *v
+}
+
+// LateInitializeString initializes s, presumed to be an optional field of a
+// Kubernetes API object's spec per Kubernetes "late initialization" semantics.
+// s is returned unchanged if it is non-nil or from is the empty string,
+// otherwise a pointer to from is returned.
+// https://github.com/kubernetes/community/blob/db7f270f/contributors/devel/sig-architecture/api-conventions.md#optional-vs-required
+// https://github.com/kubernetes/community/blob/db7f270f/contributors/devel/sig-architecture/api-conventions.md#late-initialization
+func LateInitializeString(s *string, from string) *string {
+	if s != nil || from == "" {
+		return s
+	}
+	return &from
+}
+
+// LateInitializeInt64 initializes i, presumed to be an optional field of a
+// Kubernetes API object's spec per Kubernetes "late initialization" semantics.
+// i is returned unchanged if it is non-nil or from is 0, otherwise a pointer to
+// from is returned.
+// https://github.com/kubernetes/community/blob/db7f270f/contributors/devel/sig-architecture/api-conventions.md#optional-vs-required
+// https://github.com/kubernetes/community/blob/db7f270f/contributors/devel/sig-architecture/api-conventions.md#late-initialization
+func LateInitializeInt64(i *int64, from int64) *int64 {
+	if i != nil || from == 0 {
+		return i
+	}
+	return &from
+}

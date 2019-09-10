@@ -1,0 +1,295 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  creationTimestamp: null
+  name: globaladdresses.compute.gcp.crossplane.io
+spec:
+  group: compute.gcp.crossplane.io
+  names:
+    kind: GlobalAddress
+    listKind: GlobalAddressList
+    plural: globaladdresses
+    singular: globaladdress
+  scope: ""
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      description: GlobalAddress is the Schema for the GCP GlobalAddress API
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          description: GlobalAddressSpec defines the desired state of a GlobalAddress
+          properties:
+            address:
+              description: 'Address: The static IP address represented by this resource.'
+              type: string
+            addressType:
+              description: "AddressType: The type of address to reserve, either INTERNAL
+                or EXTERNAL. If unspecified, defaults to EXTERNAL. \n Possible values:
+                \  \"EXTERNAL\"   \"INTERNAL\"   \"UNSPECIFIED_TYPE\""
+              type: string
+            claimRef:
+              description: ObjectReference contains enough information to let you
+                inspect or modify the referred object.
+              properties:
+                apiVersion:
+                  description: API version of the referent.
+                  type: string
+                fieldPath:
+                  description: 'If referring to a piece of an object instead of an
+                    entire object, this string should contain a valid JSON/Go field
+                    access statement, such as desiredState.manifest.containers[2].
+                    For example, if the object reference is to a container within
+                    a pod, this would take on a value like: "spec.containers{name}"
+                    (where "name" refers to the name of the container that triggered
+                    the event) or if no container name is specified "spec.containers[2]"
+                    (container with index 2 in this pod). This syntax is chosen only
+                    to have some well-defined way of referencing a part of an object.
+                    TODO: this design is not final and this field is subject to change
+                    in the future.'
+                  type: string
+                kind:
+                  description: 'Kind of the referent. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+                  type: string
+                name:
+                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                  type: string
+                namespace:
+                  description: 'Namespace of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/'
+                  type: string
+                resourceVersion:
+                  description: 'Specific resourceVersion to which this reference is
+                    made, if any. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#concurrency-control-and-consistency'
+                  type: string
+                uid:
+                  description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
+                  type: string
+              type: object
+            classRef:
+              description: ObjectReference contains enough information to let you
+                inspect or modify the referred object.
+              properties:
+                apiVersion:
+                  description: API version of the referent.
+                  type: string
+                fieldPath:
+                  description: 'If referring to a piece of an object instead of an
+                    entire object, this string should contain a valid JSON/Go field
+                    access statement, such as desiredState.manifest.containers[2].
+                    For example, if the object reference is to a container within
+                    a pod, this would take on a value like: "spec.containers{name}"
+                    (where "name" refers to the name of the container that triggered
+                    the event) or if no container name is specified "spec.containers[2]"
+                    (container with index 2 in this pod). This syntax is chosen only
+                    to have some well-defined way of referencing a part of an object.
+                    TODO: this design is not final and this field is subject to change
+                    in the future.'
+                  type: string
+                kind:
+                  description: 'Kind of the referent. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+                  type: string
+                name:
+                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                  type: string
+                namespace:
+                  description: 'Namespace of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/'
+                  type: string
+                resourceVersion:
+                  description: 'Specific resourceVersion to which this reference is
+                    made, if any. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#concurrency-control-and-consistency'
+                  type: string
+                uid:
+                  description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
+                  type: string
+              type: object
+            description:
+              description: 'Description: An optional description of this resource.'
+              type: string
+            ipVersion:
+              description: "IPVersion: The IP version that will be used by this address.
+                Valid options are IPV4 or IPV6. \n Possible values:   \"IPV4\"   \"IPV6\"
+                \  \"UNSPECIFIED_VERSION\""
+              type: string
+            name:
+              description: Name of the resource. The name must be 1-63 characters
+                long, and comply with RFC1035. Specifically, the name must be 1-63
+                characters long and match the regular expression `[a-z]([-a-z0-9]*[a-z0-9])?`.
+                The first character must be a lowercase letter, and all following
+                characters (except for the last character) must be a dash, lowercase
+                letter, or digit. The last character must be a lowercase letter or
+                digit.
+              type: string
+            network:
+              description: 'Network: The URL of the network in which to reserve the
+                address. This field can only be used with INTERNAL type with the VPC_PEERING
+                purpose.'
+              type: string
+            prefixLength:
+              description: 'PrefixLength: The prefix length if the resource represents
+                an IP range.'
+              format: int64
+              type: integer
+            providerRef:
+              description: ObjectReference contains enough information to let you
+                inspect or modify the referred object.
+              properties:
+                apiVersion:
+                  description: API version of the referent.
+                  type: string
+                fieldPath:
+                  description: 'If referring to a piece of an object instead of an
+                    entire object, this string should contain a valid JSON/Go field
+                    access statement, such as desiredState.manifest.containers[2].
+                    For example, if the object reference is to a container within
+                    a pod, this would take on a value like: "spec.containers{name}"
+                    (where "name" refers to the name of the container that triggered
+                    the event) or if no container name is specified "spec.containers[2]"
+                    (container with index 2 in this pod). This syntax is chosen only
+                    to have some well-defined way of referencing a part of an object.
+                    TODO: this design is not final and this field is subject to change
+                    in the future.'
+                  type: string
+                kind:
+                  description: 'Kind of the referent. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+                  type: string
+                name:
+                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                  type: string
+                namespace:
+                  description: 'Namespace of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/'
+                  type: string
+                resourceVersion:
+                  description: 'Specific resourceVersion to which this reference is
+                    made, if any. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#concurrency-control-and-consistency'
+                  type: string
+                uid:
+                  description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
+                  type: string
+              type: object
+            purpose:
+              description: "Purpose: The purpose of this resource, which can be one
+                of the following values: - `GCE_ENDPOINT` for addresses that are used
+                by VM instances, alias IP ranges, internal load balancers, and similar
+                resources. - `DNS_RESOLVER` for a DNS resolver address in a subnetwork
+                - `VPC_PEERING` for addresses that are reserved for VPC peer networks.
+                - `NAT_AUTO` for addresses that are external IP addresses automatically
+                reserved for Cloud NAT. \n Possible values:   \"DNS_RESOLVER\"   \"GCE_ENDPOINT\"
+                \  \"NAT_AUTO\"   \"VPC_PEERING\""
+              type: string
+            reclaimPolicy:
+              description: A ReclaimPolicy determines what should happen to managed
+                resources when their bound resource claims are deleted.
+              type: string
+            subnetwork:
+              description: 'Subnetwork: The URL of the subnetwork in which to reserve
+                the address. If an IP address is specified, it must be within the
+                subnetwork''s IP range. This field can only be used with INTERNAL
+                type with a GCE_ENDPOINT or DNS_RESOLVER purpose.'
+              type: string
+            writeConnectionSecretToRef:
+              description: LocalObjectReference contains enough information to let
+                you locate the referenced object inside the same namespace.
+              properties:
+                name:
+                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                    TODO: Add other useful fields. apiVersion, kind, uid?'
+                  type: string
+              type: object
+          required:
+          - name
+          - providerRef
+          type: object
+        status:
+          description: GlobalAddressStatus reflects the state of a GlobalAddress
+          properties:
+            bindingPhase:
+              description: Phase represents the binding phase of the resource.
+              enum:
+              - Unbindable
+              - Unbound
+              - Bound
+              type: string
+            conditions:
+              description: Conditions of the managed resource.
+              items:
+                description: A Condition that may apply to a managed resource.
+                properties:
+                  lastTransitionTime:
+                    description: LastTransitionTime is the last time this condition
+                      transitioned from one status to another.
+                    format: date-time
+                    type: string
+                  message:
+                    description: A Message containing details about this condition's
+                      last transition from one status to another, if any.
+                    type: string
+                  reason:
+                    description: A Reason for this condition's last transition from
+                      one status to another.
+                    type: string
+                  status:
+                    description: Status of this condition; is it currently True, False,
+                      or Unknown?
+                    type: string
+                  type:
+                    description: Type of this condition. At most one of each condition
+                      type may apply to a managed resource at any point in time.
+                    type: string
+                required:
+                - lastTransitionTime
+                - reason
+                - status
+                - type
+                type: object
+              type: array
+            creationTimestamp:
+              description: CreationTimestamp in RFC3339 text format.
+              type: string
+            id:
+              description: ID for the resource. This identifier is defined by the
+                server.
+              format: int64
+              type: integer
+            selfLink:
+              description: 'SelfLink: Server-defined URL for the resource.'
+              type: string
+            status:
+              description: "Status of the address, which can be one of RESERVING,
+                RESERVED, or IN_USE. An address that is RESERVING is currently in
+                the process of being reserved. A RESERVED address is currently reserved
+                and available to use. An IN_USE address is currently being used by
+                another resource and is not available. \n Possible values:   \"IN_USE\"
+                \  \"RESERVED\"   \"RESERVING\""
+              type: string
+            users:
+              description: Users that are using this address.
+              items:
+                type: string
+              type: array
+          type: object
+      type: object
+  version: v1alpha1
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

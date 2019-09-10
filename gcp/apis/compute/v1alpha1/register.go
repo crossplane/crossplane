@@ -26,7 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/runtime/scheme"
 )
 
-// Packaage type metadata.
+// Package type metadata.
 const (
 	Group   = "compute.gcp.crossplane.io"
 	Version = "v1alpha1"
@@ -68,9 +68,17 @@ var (
 	SubnetworkGroupVersionKind = SchemeGroupVersion.WithKind(SubnetworkKind)
 )
 
+// GlobalAddress type metadata.
+var (
+	GlobalAddressKind             = reflect.TypeOf(GlobalAddress{}).Name()
+	GlobalAddressKindAPIVersion   = GlobalAddressKind + "." + SchemeGroupVersion.String()
+	GlobalAddressGroupVersionKind = SchemeGroupVersion.WithKind(GlobalAddressKind)
+)
+
 func init() {
 	SchemeBuilder.Register(&GKECluster{}, &GKEClusterList{})
 	SchemeBuilder.Register(&GKEClusterClass{}, &GKEClusterClassList{})
 	SchemeBuilder.Register(&Network{}, &NetworkList{})
 	SchemeBuilder.Register(&Subnetwork{}, &SubnetworkList{})
+	SchemeBuilder.Register(&GlobalAddress{}, &GlobalAddressList{})
 }

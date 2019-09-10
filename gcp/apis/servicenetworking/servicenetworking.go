@@ -14,5 +14,5 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package compute contains GCP compute API versions
-package compute
+// Package servicenetworking contains GCP service networking API versions
+package servicenetworking
