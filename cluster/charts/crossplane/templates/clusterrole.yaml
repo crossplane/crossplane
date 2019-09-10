@@ -39,6 +39,8 @@ rules:
   - compute.aws.crossplane.io
   - database.aws.crossplane.io
   - storage.aws.crossplane.io
+  - identity.aws.crossplane.io
+  - network.aws.crossplane.io
   - azure.crossplane.io
   - cache.azure.crossplane.io
   - compute.azure.crossplane.io
