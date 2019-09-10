@@ -21,50 +21,50 @@ import (
 
 	"github.com/crossplaneio/crossplane/pkg/controller/aws/cache"
 	"github.com/crossplaneio/crossplane/pkg/controller/aws/compute"
+	"github.com/crossplaneio/crossplane/pkg/controller/aws/identity/iamrole"
+	"github.com/crossplaneio/crossplane/pkg/controller/aws/identity/iamrolepolicyattachment"
+	"github.com/crossplaneio/crossplane/pkg/controller/aws/network/internetgateway"
+	"github.com/crossplaneio/crossplane/pkg/controller/aws/network/routetable"
+	"github.com/crossplaneio/crossplane/pkg/controller/aws/network/securitygroup"
+	"github.com/crossplaneio/crossplane/pkg/controller/aws/network/subnet"
+	"github.com/crossplaneio/crossplane/pkg/controller/aws/network/vpc"
 	"github.com/crossplaneio/crossplane/pkg/controller/aws/rds"
+	"github.com/crossplaneio/crossplane/pkg/controller/aws/rds/dbsubnetgroup"
 	"github.com/crossplaneio/crossplane/pkg/controller/aws/s3"
 )
 
 // Controllers passes down config and adds individual controllers to the manager.
 type Controllers struct{}
 
-// SetupWithManager adds all GCP controllers to the manager.
+// SetupWithManager adds all AWS controllers to the manager.
 func (c *Controllers) SetupWithManager(mgr ctrl.Manager) error {
-	if err := (&cache.ReplicationGroupClaimController{}).SetupWithManager(mgr); err != nil {
-		return err
+
+	controllers := []interface {
+		SetupWithManager(ctrl.Manager) error
+	}{
+		&cache.ReplicationGroupClaimController{},
+		&cache.ReplicationGroupController{},
+		&compute.EKSClusterClaimController{},
+		&compute.EKSClusterController{},
+		&rds.PostgreSQLInstanceClaimController{},
+		&rds.MySQLInstanceClaimController{},
+		&rds.InstanceController{},
+		&s3.BucketClaimController{},
+		&s3.BucketController{},
+		&iamrole.Controller{},
+		&iamrolepolicyattachment.Controller{},
+		&vpc.Controller{},
+		&subnet.Controller{},
+		&securitygroup.Controller{},
+		&internetgateway.Controller{},
+		&routetable.Controller{},
+		&dbsubnetgroup.Controller{},
 	}
 
-	if err := (&cache.ReplicationGroupController{}).SetupWithManager(mgr); err != nil {
-		return err
+	for _, c := range controllers {
+		if err := c.SetupWithManager(mgr); err != nil {
+			return err
+		}
 	}
-
-	if err := (&compute.EKSClusterClaimController{}).SetupWithManager(mgr); err != nil {
-		return err
-	}
-
-	if err := (&compute.EKSClusterController{}).SetupWithManager(mgr); err != nil {
-		return err
-	}
-
-	if err := (&rds.PostgreSQLInstanceClaimController{}).SetupWithManager(mgr); err != nil {
-		return err
-	}
-
-	if err := (&rds.MySQLInstanceClaimController{}).SetupWithManager(mgr); err != nil {
-		return err
-	}
-
-	if err := (&rds.InstanceController{}).SetupWithManager(mgr); err != nil {
-		return err
-	}
-
-	if err := (&s3.BucketClaimController{}).SetupWithManager(mgr); err != nil {
-		return err
-	}
-
-	if err := (&s3.BucketController{}).SetupWithManager(mgr); err != nil {
-		return err
-	}
-
 	return nil
 }
