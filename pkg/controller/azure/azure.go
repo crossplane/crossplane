@@ -22,6 +22,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	azureclients "github.com/crossplaneio/crossplane/pkg/clients/azure"
+	computeclients "github.com/crossplaneio/crossplane/pkg/clients/azure/compute"
 	"github.com/crossplaneio/crossplane/pkg/controller/azure/cache"
 	"github.com/crossplaneio/crossplane/pkg/controller/azure/compute"
 	"github.com/crossplaneio/crossplane/pkg/controller/azure/database"
@@ -61,7 +62,7 @@ func (c *Controllers) SetupWithManager(mgr ctrl.Manager) error { // nolint:gocyc
 	}
 
 	if err := (&compute.AKSClusterController{
-		Reconciler: compute.NewAKSClusterReconciler(mgr, &azureclients.AKSSetupClientFactory{}, clientset),
+		Reconciler: compute.NewAKSClusterReconciler(mgr, &computeclients.AKSSetupClientFactory{}, clientset),
 	}).SetupWithManager(mgr); err != nil {
 		return err
 	}
