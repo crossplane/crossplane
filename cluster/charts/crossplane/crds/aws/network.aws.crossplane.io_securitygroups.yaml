@@ -1,0 +1,378 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  creationTimestamp: null
+  name: securitygroups.network.aws.crossplane.io
+spec:
+  additionalPrinterColumns:
+  - JSONPath: .spec.groupName
+    name: GROUPNAME
+    type: string
+  - JSONPath: .spec.vpcId
+    name: VPCID
+    type: string
+  - JSONPath: .spec.description
+    name: DESCRIPTION
+    type: string
+  - JSONPath: .status.conditions[?(@.type=='Ready')].status
+    name: READY
+    type: string
+  - JSONPath: .status.conditions[?(@.type=='Synced')].status
+    name: SYNCED
+    type: string
+  - JSONPath: .metadata.creationTimestamp
+    name: AGE
+    type: date
+  group: network.aws.crossplane.io
+  names:
+    kind: SecurityGroup
+    plural: securitygroups
+  scope: ""
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      description: SecurityGroup is the Schema for the SecurityGroup API
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          description: SecurityGroupSpec defines the desired state of a SecurityGroup
+          properties:
+            claimRef:
+              description: ObjectReference contains enough information to let you
+                inspect or modify the referred object.
+              properties:
+                apiVersion:
+                  description: API version of the referent.
+                  type: string
+                fieldPath:
+                  description: 'If referring to a piece of an object instead of an
+                    entire object, this string should contain a valid JSON/Go field
+                    access statement, such as desiredState.manifest.containers[2].
+                    For example, if the object reference is to a container within
+                    a pod, this would take on a value like: "spec.containers{name}"
+                    (where "name" refers to the name of the container that triggered
+                    the event) or if no container name is specified "spec.containers[2]"
+                    (container with index 2 in this pod). This syntax is chosen only
+                    to have some well-defined way of referencing a part of an object.
+                    TODO: this design is not final and this field is subject to change
+                    in the future.'
+                  type: string
+                kind:
+                  description: 'Kind of the referent. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+                  type: string
+                name:
+                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                  type: string
+                namespace:
+                  description: 'Namespace of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/'
+                  type: string
+                resourceVersion:
+                  description: 'Specific resourceVersion to which this reference is
+                    made, if any. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#concurrency-control-and-consistency'
+                  type: string
+                uid:
+                  description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
+                  type: string
+              type: object
+            classRef:
+              description: ObjectReference contains enough information to let you
+                inspect or modify the referred object.
+              properties:
+                apiVersion:
+                  description: API version of the referent.
+                  type: string
+                fieldPath:
+                  description: 'If referring to a piece of an object instead of an
+                    entire object, this string should contain a valid JSON/Go field
+                    access statement, such as desiredState.manifest.containers[2].
+                    For example, if the object reference is to a container within
+                    a pod, this would take on a value like: "spec.containers{name}"
+                    (where "name" refers to the name of the container that triggered
+                    the event) or if no container name is specified "spec.containers[2]"
+                    (container with index 2 in this pod). This syntax is chosen only
+                    to have some well-defined way of referencing a part of an object.
+                    TODO: this design is not final and this field is subject to change
+                    in the future.'
+                  type: string
+                kind:
+                  description: 'Kind of the referent. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+                  type: string
+                name:
+                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                  type: string
+                namespace:
+                  description: 'Namespace of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/'
+                  type: string
+                resourceVersion:
+                  description: 'Specific resourceVersion to which this reference is
+                    made, if any. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#concurrency-control-and-consistency'
+                  type: string
+                uid:
+                  description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
+                  type: string
+              type: object
+            description:
+              description: A description of the security group.
+              type: string
+            egress:
+              description: '[EC2-VPC] One or more outbound rules associated with the
+                security group.'
+              items:
+                description: IPPermission Describes a set of permissions for a security
+                  group rule.
+                properties:
+                  cidrBlocks:
+                    description: One or more IPv4 ranges.
+                    items:
+                      description: IPRange describes an IPv4 range.
+                      properties:
+                        cidrIp:
+                          description: The IPv4 CIDR range. You can either specify
+                            a CIDR range or a source security group, not both. To
+                            specify a single IPv4 address, use the /32 prefix length.
+                          type: string
+                        description:
+                          description: A description for the ip range
+                          type: string
+                      required:
+                      - cidrIp
+                      type: object
+                    type: array
+                  fromPort:
+                    description: The start of port range for the TCP and UDP protocols,
+                      or an ICMP/ICMPv6 type number. A value of -1 indicates all ICMP/ICMPv6
+                      types. If you specify all ICMP/ICMPv6 types, you must specify
+                      all codes.
+                    format: int64
+                    type: integer
+                  protocol:
+                    description: "The IP protocol name (tcp, udp, icmp) or number
+                      (see Protocol Numbers (http://www.iana.org/assignments/protocol-numbers/protocol-numbers.xhtml)).
+                      \n [EC2-VPC only] Use -1 to specify all protocols. When authorizing
+                      security group rules, specifying -1 or a protocol number other
+                      than tcp, udp, icmp, or 58 (ICMPv6) allows traffic on all ports,
+                      regardless of any port range you specify. For tcp, udp, and
+                      icmp, you must specify a port range. For 58 (ICMPv6), you can
+                      optionally specify a port range; if you don't, traffic for all
+                      types and codes is allowed when authorizing rules."
+                    type: string
+                  toPort:
+                    description: The end of port range for the TCP and UDP protocols,
+                      or an ICMP/ICMPv6 code. A value of -1 indicates all ICMP/ICMPv6
+                      codes for the specified ICMP type. If you specify all ICMP/ICMPv6
+                      types, you must specify all codes.
+                    format: int64
+                    type: integer
+                required:
+                - fromPort
+                - protocol
+                - toPort
+                type: object
+              type: array
+            groupName:
+              description: The name of the security group.
+              type: string
+            ingress:
+              description: One or more inbound rules associated with the security
+                group.
+              items:
+                description: IPPermission Describes a set of permissions for a security
+                  group rule.
+                properties:
+                  cidrBlocks:
+                    description: One or more IPv4 ranges.
+                    items:
+                      description: IPRange describes an IPv4 range.
+                      properties:
+                        cidrIp:
+                          description: The IPv4 CIDR range. You can either specify
+                            a CIDR range or a source security group, not both. To
+                            specify a single IPv4 address, use the /32 prefix length.
+                          type: string
+                        description:
+                          description: A description for the ip range
+                          type: string
+                      required:
+                      - cidrIp
+                      type: object
+                    type: array
+                  fromPort:
+                    description: The start of port range for the TCP and UDP protocols,
+                      or an ICMP/ICMPv6 type number. A value of -1 indicates all ICMP/ICMPv6
+                      types. If you specify all ICMP/ICMPv6 types, you must specify
+                      all codes.
+                    format: int64
+                    type: integer
+                  protocol:
+                    description: "The IP protocol name (tcp, udp, icmp) or number
+                      (see Protocol Numbers (http://www.iana.org/assignments/protocol-numbers/protocol-numbers.xhtml)).
+                      \n [EC2-VPC only] Use -1 to specify all protocols. When authorizing
+                      security group rules, specifying -1 or a protocol number other
+                      than tcp, udp, icmp, or 58 (ICMPv6) allows traffic on all ports,
+                      regardless of any port range you specify. For tcp, udp, and
+                      icmp, you must specify a port range. For 58 (ICMPv6), you can
+                      optionally specify a port range; if you don't, traffic for all
+                      types and codes is allowed when authorizing rules."
+                    type: string
+                  toPort:
+                    description: The end of port range for the TCP and UDP protocols,
+                      or an ICMP/ICMPv6 code. A value of -1 indicates all ICMP/ICMPv6
+                      codes for the specified ICMP type. If you specify all ICMP/ICMPv6
+                      types, you must specify all codes.
+                    format: int64
+                    type: integer
+                required:
+                - fromPort
+                - protocol
+                - toPort
+                type: object
+              type: array
+            providerRef:
+              description: ObjectReference contains enough information to let you
+                inspect or modify the referred object.
+              properties:
+                apiVersion:
+                  description: API version of the referent.
+                  type: string
+                fieldPath:
+                  description: 'If referring to a piece of an object instead of an
+                    entire object, this string should contain a valid JSON/Go field
+                    access statement, such as desiredState.manifest.containers[2].
+                    For example, if the object reference is to a container within
+                    a pod, this would take on a value like: "spec.containers{name}"
+                    (where "name" refers to the name of the container that triggered
+                    the event) or if no container name is specified "spec.containers[2]"
+                    (container with index 2 in this pod). This syntax is chosen only
+                    to have some well-defined way of referencing a part of an object.
+                    TODO: this design is not final and this field is subject to change
+                    in the future.'
+                  type: string
+                kind:
+                  description: 'Kind of the referent. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+                  type: string
+                name:
+                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                  type: string
+                namespace:
+                  description: 'Namespace of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/'
+                  type: string
+                resourceVersion:
+                  description: 'Specific resourceVersion to which this reference is
+                    made, if any. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#concurrency-control-and-consistency'
+                  type: string
+                uid:
+                  description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
+                  type: string
+              type: object
+            reclaimPolicy:
+              description: A ReclaimPolicy determines what should happen to managed
+                resources when their bound resource claims are deleted.
+              type: string
+            vpcId:
+              description: VPCID is the ID of the VPC.
+              type: string
+            writeConnectionSecretToRef:
+              description: LocalObjectReference contains enough information to let
+                you locate the referenced object inside the same namespace.
+              properties:
+                name:
+                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                    TODO: Add other useful fields. apiVersion, kind, uid?'
+                  type: string
+              type: object
+          required:
+          - description
+          - groupName
+          - providerRef
+          type: object
+        status:
+          description: SecurityGroupStatus defines the observed state of an SecurityGroup
+          properties:
+            bindingPhase:
+              description: Phase represents the binding phase of the resource.
+              enum:
+              - Unbindable
+              - Unbound
+              - Bound
+              type: string
+            conditions:
+              description: Conditions of the managed resource.
+              items:
+                description: A Condition that may apply to a managed resource.
+                properties:
+                  lastTransitionTime:
+                    description: LastTransitionTime is the last time this condition
+                      transitioned from one status to another.
+                    format: date-time
+                    type: string
+                  message:
+                    description: A Message containing details about this condition's
+                      last transition from one status to another, if any.
+                    type: string
+                  reason:
+                    description: A Reason for this condition's last transition from
+                      one status to another.
+                    type: string
+                  status:
+                    description: Status of this condition; is it currently True, False,
+                      or Unknown?
+                    type: string
+                  type:
+                    description: Type of this condition. At most one of each condition
+                      type may apply to a managed resource at any point in time.
+                    type: string
+                required:
+                - lastTransitionTime
+                - reason
+                - status
+                - type
+                type: object
+              type: array
+            securityGroupID:
+              description: SecurityGroupID is the ID of the SecurityGroup.
+              type: string
+            tags:
+              description: Tags represents to current ec2 tags.
+              items:
+                description: Tag defines a tag
+                properties:
+                  key:
+                    description: Key is the name of the tag.
+                    type: string
+                  value:
+                    description: Value is the value of the tag.
+                    type: string
+                required:
+                - key
+                - value
+                type: object
+              type: array
+          required:
+          - securityGroupID
+          type: object
+      type: object
+  version: v1alpha1
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

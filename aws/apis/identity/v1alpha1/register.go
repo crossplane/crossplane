@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 // +kubebuilder:object:generate=true
-// +groupName=storage.aws.crossplane.io
+// +groupName=identity.aws.crossplane.io
 // +versionName=v1alpha1
 
 package v1alpha1
@@ -28,7 +28,7 @@ import (
 
 // Package type metadata.
 const (
-	Group   = "storage.aws.crossplane.io"
+	Group   = "identity.aws.crossplane.io"
 	Version = "v1alpha1"
 )
 
@@ -40,29 +40,21 @@ var (
 	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
 )
 
-// S3Bucket type metadata.
+// IAMRole type metadata.
 var (
-	S3BucketKind             = reflect.TypeOf(S3Bucket{}).Name()
-	S3BucketKindAPIVersion   = "s3bucket" + "." + SchemeGroupVersion.String()
-	S3BucketGroupVersionKind = SchemeGroupVersion.WithKind(S3BucketKind)
+	IAMRoleKind             = reflect.TypeOf(IAMRole{}).Name()
+	IAMRoleKindAPIVersion   = IAMRoleKind + "." + SchemeGroupVersion.String()
+	IAMRoleGroupVersionKind = SchemeGroupVersion.WithKind(IAMRoleKind)
 )
 
-// S3BucketClass type metadata.
+// IAMRolePolicyAttachment type metadata.
 var (
-	S3BucketClassKind             = reflect.TypeOf(S3BucketClass{}).Name()
-	S3BucketClassKindAPIVersion   = S3BucketClassKind + "." + SchemeGroupVersion.String()
-	S3BucketClassGroupVersionKind = SchemeGroupVersion.WithKind(S3BucketClassKind)
-)
-
-// DBSubnetGroup type metadata.
-var (
-	DBSubnetGroupKind             = reflect.TypeOf(DBSubnetGroup{}).Name()
-	DBSubnetGroupKindAPIVersion   = DBSubnetGroupKind + "." + SchemeGroupVersion.String()
-	DBSubnetGroupGroupVersionKind = SchemeGroupVersion.WithKind(DBSubnetGroupKind)
+	IAMRolePolicyAttachmentKind             = reflect.TypeOf(IAMRolePolicyAttachment{}).Name()
+	IAMRolePolicyAttachmentKindAPIVersion   = IAMRolePolicyAttachmentKind + "." + SchemeGroupVersion.String()
+	IAMRolePolicyAttachmentGroupVersionKind = SchemeGroupVersion.WithKind(IAMRolePolicyAttachmentKind)
 )
 
 func init() {
-	SchemeBuilder.Register(&S3Bucket{}, &S3BucketList{})
-	SchemeBuilder.Register(&S3BucketClass{}, &S3BucketClassList{})
-	SchemeBuilder.Register(&DBSubnetGroup{}, &DBSubnetGroupList{})
+	SchemeBuilder.Register(&IAMRole{}, &IAMRoleList{})
+	SchemeBuilder.Register(&IAMRolePolicyAttachment{}, &IAMRolePolicyAttachmentList{})
 }

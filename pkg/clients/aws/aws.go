@@ -102,7 +102,7 @@ func ValidateConfig(config *aws.Config) error {
 	return err
 }
 
-// Config - crate AWS Config based on credentials data using [default] profile
+// Config - create AWS Config based on credentials data using [default] profile
 func Config(client kubernetes.Interface, p *v1alpha1.Provider) (*aws.Config, error) {
 	data, err := util.SecretData(client, p.Namespace, p.Spec.Secret)
 	if err != nil {

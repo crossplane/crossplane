@@ -122,12 +122,12 @@ func (c *iamClient) DeletePolicyAndDetach(username string, policyName string) er
 	}
 
 	_, err = c.iam.DetachUserPolicyRequest(&iam.DetachUserPolicyInput{PolicyArn: aws.String(policyARN), UserName: aws.String(username)}).Send()
-	if err != nil && !isErrorNotFound(err) {
+	if err != nil && !IsErrorNotFound(err) {
 		return err
 	}
 
 	_, err = c.iam.DeletePolicyRequest(&iam.DeletePolicyInput{PolicyArn: aws.String(policyARN)}).Send()
-	if err != nil && !isErrorNotFound(err) {
+	if err != nil && !IsErrorNotFound(err) {
 		return err
 	}
 	return nil
@@ -148,7 +148,7 @@ func (c *iamClient) DeleteUser(username string) error {
 	}
 
 	_, err = c.iam.DeleteUserRequest(&iam.DeleteUserInput{UserName: aws.String(username)}).Send()
-	if err != nil && !isErrorNotFound(err) {
+	if err != nil && !IsErrorNotFound(err) {
 		return err
 	}
 
@@ -226,7 +226,8 @@ func isErrorAlreadyExists(err error) bool {
 	return false
 }
 
-func isErrorNotFound(err error) bool {
+// IsErrorNotFound returns true if the error code indicates that the item was not found
+func IsErrorNotFound(err error) bool {
 	if iamErr, ok := err.(awserr.Error); ok && iamErr.Code() == iam.ErrCodeNoSuchEntityException {
 		return true
 	}
