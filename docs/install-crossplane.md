@@ -82,7 +82,10 @@ kubectl apply -f stack-gcp.yaml
 
 #### Uninstall
 
-The GCP stack can be uninstalled simply by deleting the stack resources from the cluster:
+The GCP stack can be uninstalled simply by deleting the stack resources from the cluster with the command below.
+**Note** that this will also **delete** any resources that Crossplane has provisioned in GCP if their `ReclaimPolicy` is set to `Delete`.
+
+After you have ensured that you are completely done with all your GCP cloud resources, you can then run the following command to remove the GCP stack from Crossplane:
 
 ```console
 kubectl delete -f stack-gcp.yaml

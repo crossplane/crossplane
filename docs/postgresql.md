@@ -6,7 +6,7 @@ The commands in this guide assume you are running from a terminal/shell at the r
 
 ## Install Crossplane
 
-The first step will be to install Crossplane by following the steps in the [Crossplane install guide](install-crossplane.md).
+The first step will be to install Crossplane and any desired cloud provider stacks by following the steps in the [Crossplane install guide](install-crossplane.md).
 
 ## Add Cloud Provider
 
