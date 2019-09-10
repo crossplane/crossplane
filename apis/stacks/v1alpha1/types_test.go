@@ -19,6 +19,7 @@ package v1alpha1
 import (
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	. "github.com/onsi/gomega"
 	"golang.org/x/net/context"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,6 +40,10 @@ var (
 	c   client.Client
 
 	key = types.NamespacedName{Name: name, Namespace: namespace}
+
+	// verify that StackInstall and ClusterStackInstall implement StackInstaller
+	_ StackInstaller = &StackInstall{}
+	_ StackInstaller = &ClusterStackInstall{}
 )
 
 func TestMain(m *testing.M) {
@@ -89,7 +94,7 @@ func TestClusterStackInstall(t *testing.T) {
 			Namespace: namespace,
 			Name:      name,
 		},
-		Spec: ClusterStackInstallSpec{
+		Spec: StackInstallSpec{
 			Source:  "registry.crossplane.io",
 			Package: "testpackage:v0.1",
 		},
@@ -155,4 +160,38 @@ func TestStack(t *testing.T) {
 	// Test Delete
 	g.Expect(c.Delete(ctx, fetched)).NotTo(HaveOccurred())
 	g.Expect(c.Get(ctx, key, fetched)).To(HaveOccurred())
+}
+
+func TestStackInstallSpec_Image(t *testing.T) {
+	tests := []struct {
+		name string
+		spec StackInstallSpec
+		want string
+	}{
+		{
+			name: "NoPackageSource",
+			spec: StackInstallSpec{
+				Package: "cool/package:rad",
+			},
+			want: "cool/package:rad",
+		},
+		{
+			name: "PackageSourceSpecified",
+			spec: StackInstallSpec{
+				Source:  "registry.hub.docker.com",
+				Package: "cool/package:rad",
+			},
+			want: "registry.hub.docker.com/cool/package:rad",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.spec.Image()
+
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Errorf("Image() -want, +got:\n%v", diff)
+			}
+		})
+	}
 }

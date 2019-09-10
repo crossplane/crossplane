@@ -144,7 +144,7 @@ func (sp *StackPackage) Yaml() (string, error) {
 		crd := sp.CRDs[k]
 		b, err := yaml.Marshal(crd)
 		if err != nil {
-			return "", errors.Wrap(err, fmt.Sprintf("could not marshal CRD (%s)", crd.GroupVersionKind()))
+			return "", errors.Wrap(err, fmt.Sprintf("could not marshal CRD (%s)", k))
 		}
 		builder.Write(b)
 		builder.WriteString(yamlSeparator)
@@ -156,9 +156,7 @@ func (sp *StackPackage) Yaml() (string, error) {
 	}
 
 	if _, err := builder.Write(b); err != nil {
-		if err != nil {
-			return "", errors.Wrap(err, "could not write YAML output to buffer")
-		}
+		return "", errors.Wrap(err, "could not write YAML output to buffer")
 	}
 
 	return builder.String(), nil
@@ -388,7 +386,7 @@ func Unpack(rw walker.ResourceWalker, out io.StringWriter, permissionScope strin
 	}
 
 	if sp.Stack.Spec.PermissionScope != permissionScope {
-		return errors.New(fmt.Sprintf("Stack permissionScope %q is not permitted by unpack invocation parameters (expected %q)", permissionScope, sp.Stack.Spec.PermissionScope))
+		return errors.New(fmt.Sprintf("Stack permissionScope %q is not permitted by unpack invocation parameters (expected %q)", sp.Stack.Spec.PermissionScope, permissionScope))
 	}
 
 	if err := sp.applyRules(); err != nil {

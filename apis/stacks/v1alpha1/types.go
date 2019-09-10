@@ -17,11 +17,15 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"fmt"
+
 	apps "k8s.io/api/apps/v1"
 	batch "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbac "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	runtime "k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
 )
@@ -80,6 +84,107 @@ type StackInstallStatus struct {
 	StackRecord *corev1.ObjectReference `json:"stackRecord,omitempty"`
 }
 
+// Image returns the fully qualified image name for the StackInstallSpec.
+// based on the fully qualified image name format of hostname[:port]/username/reponame[:tag]
+func (spec StackInstallSpec) Image() string {
+	if spec.Source == "" {
+		// there is no package source, simply return the package name
+		return spec.Package
+	}
+
+	return fmt.Sprintf("%s/%s", spec.Source, spec.Package)
+}
+
+// Image gets the Spec.Image of the StackInstall
+func (si *StackInstall) Image() string { return si.Spec.Image() }
+
+// Image gets the Spec.Image of the ClusterStackInstall
+func (si *ClusterStackInstall) Image() string { return si.Spec.Image() }
+
+// PermissionScope gets the required app.yaml permissionScope value ("Namespaced") for StackInstall
+func (si *StackInstall) PermissionScope() string { return "Namespaced" }
+
+// PermissionScope gets the required app.yaml permissionScope value ("Cluster") for ClusterStackInstall
+func (si *ClusterStackInstall) PermissionScope() string { return "Cluster" }
+
+// SetConditions sets the StackInstall's Status conditions
+func (si *StackInstall) SetConditions(c ...runtimev1alpha1.Condition) {
+	si.Status.SetConditions(c...)
+}
+
+// SetConditions sets the ClusterStackInstall's Status conditions
+func (si *ClusterStackInstall) SetConditions(c ...runtimev1alpha1.Condition) {
+	si.Status.SetConditions(c...)
+}
+
+// InstallJob gets the ClusterStackInstall's Status InstallJob
+func (si *ClusterStackInstall) InstallJob() *corev1.ObjectReference {
+	return si.Status.InstallJob
+}
+
+// InstallJob gets the StackInstall's Status InstallJob
+func (si *StackInstall) InstallJob() *corev1.ObjectReference {
+	return si.Status.InstallJob
+}
+
+// SetInstallJob sets the ClusterStackInstall's Status InstallJob
+func (si *ClusterStackInstall) SetInstallJob(job *corev1.ObjectReference) {
+	si.Status.InstallJob = job
+}
+
+// SetInstallJob sets the StackInstall's Status InstallJob
+func (si *StackInstall) SetInstallJob(job *corev1.ObjectReference) {
+	si.Status.InstallJob = job
+}
+
+// StackRecord gets the ClusterStackInstall's Status StackRecord
+func (si *ClusterStackInstall) StackRecord() *corev1.ObjectReference {
+	return si.Status.StackRecord
+}
+
+// SetStackRecord sets the ClusterStackInstall's Status StackRecord
+func (si *ClusterStackInstall) SetStackRecord(job *corev1.ObjectReference) {
+	si.Status.StackRecord = job
+}
+
+// SetStackRecord sets the StackInstall's Status StackRecord
+func (si *StackInstall) SetStackRecord(job *corev1.ObjectReference) {
+	si.Status.StackRecord = job
+}
+
+// StackRecord gets the StackInstall's Status StackRecord
+func (si *StackInstall) StackRecord() *corev1.ObjectReference {
+	return si.Status.StackRecord
+}
+
+// GroupVersionKind gets the GroupVersionKind of the StackInstall
+func (si *StackInstall) GroupVersionKind() schema.GroupVersionKind {
+	return StackInstallGroupVersionKind
+}
+
+// GroupVersionKind gets the GroupVersionKind of the ClusterStackInstall
+func (si *ClusterStackInstall) GroupVersionKind() schema.GroupVersionKind {
+	return ClusterStackInstallGroupVersionKind
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:object:generate=false
+
+// StackInstaller provides a common interface for StackInstall and ClusterStackInstall to share controller and reconciler logic
+type StackInstaller interface {
+	metav1.Object
+	runtime.Object
+
+	Image() string
+	PermissionScope() string
+	SetConditions(c ...runtimev1alpha1.Condition)
+	InstallJob() *corev1.ObjectReference
+	SetInstallJob(*corev1.ObjectReference)
+	StackRecord() *corev1.ObjectReference
+	SetStackRecord(*corev1.ObjectReference)
+	GroupVersionKind() schema.GroupVersionKind
+}
+
 // +kubebuilder:object:root=true
 
 // ClusterStackInstall is the CRD type for a request to add a stack to Crossplane.
@@ -93,8 +198,8 @@ type ClusterStackInstall struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   ClusterStackInstallSpec   `json:"spec,omitempty"`
-	Status ClusterStackInstallStatus `json:"status,omitempty"`
+	Spec   StackInstallSpec   `json:"spec,omitempty"`
+	Status StackInstallStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -104,31 +209,6 @@ type ClusterStackInstallList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []ClusterStackInstall `json:"items"`
-}
-
-// ClusterStackInstallSpec specifies details about a request to add a stack to Crossplane.
-type ClusterStackInstallSpec struct {
-	// Source is the domain name for the stack registry hosting the stack being requested,
-	// e.g., registry.crossplane.io
-	Source string `json:"source,omitempty"`
-
-	// Package is the name of the stack package that is being requested, e.g., myapp.
-	// Either Package or CustomResourceDefinition can be specified.
-	Package string `json:"package,omitempty"`
-
-	// CustomResourceDefinition is the full name of a CRD that is owned by the stack being
-	// requested. This can be a convenient way of installing a stack when the desired
-	// CRD is known, but the package name that contains it is not known.
-	// Either Package or CustomResourceDefinition can be specified.
-	CustomResourceDefinition string `json:"crd,omitempty"`
-}
-
-// ClusterStackInstallStatus defines the observed state of StackInstall
-type ClusterStackInstallStatus struct {
-	runtimev1alpha1.ConditionedStatus `json:"conditionedStatus,omitempty"`
-
-	InstallJob  *corev1.ObjectReference `json:"installJob,omitempty"`
-	StackRecord *corev1.ObjectReference `json:"stackRecord,omitempty"`
 }
 
 // +kubebuilder:object:root=true
