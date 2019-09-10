@@ -680,8 +680,8 @@ resources need to be created beforehand:
 * `InternetGateway`: enables the nodes to have traffic to and from the internet.
   This is necessary because most workloads have a UI that needs to be accessed
   from the internet.
-* `RouteTable`: for routing internet traffic from `Subnet`s to `InternetGateway`.
-* `RouteTableAssociation`: associates an `RouteTable` to a `Subnet`.
+* `RouteTable`: for routing internet traffic from `Subnet`s to `InternetGateway`
+  and associating it with a set of subnets.
 
 In addition, `RDSInstance`s also need the following resources, so that they are
 accessible by the the worker nodes:
@@ -717,7 +717,6 @@ metadata:
   namespace: crossplane-system
   name: my-vpc
 spec:
-  region: eu-west-1
   cidrBlock: 192.168.0.0/16
 ---
 apiVersion: network.aws.crossplane.io/v1alpha1
@@ -737,7 +736,7 @@ metadata:
   namespace: crossplane-system
   name: my-eks-sg
 spec:
-  nameFormat: clusterSg
+  name: clusterSg
   vpcId: id(my-vpc)
   description: Cluster communication with worker nodes
 --
@@ -756,26 +755,19 @@ metadata:
   name: my-rt
 spec:
   vpcId: id(my-vpc)
-  route:
+  routes:
     - cidrBlock: 0.0.0.0/0
       gateway: id(my-gateway)
+  associations:
+    - subnetId: id(my-subnet-1)
 --
-apiVersion: network.aws.crossplane.io/v1alpha1
-kind: RouteTableAssociation
-metadata:
-  namespace: crossplane-system
-  name: my-rt-association
-spec:
-  subnetId: id(my-subnet-1)
-  routeTableId: id(my-rt)
---
-apiVersion: network.aws.crossplane.io/v1alpha1
+apiVersion: identity.aws.crossplane.io/v1alpha1
 kind: IAMRole
 metadata:
   namespace: crossplane-system
   name: my-cluster-role
 spec:
-  nameFormat: clusterRole
+  name: clusterRole
   assumeRolePolicy: |
     {
       "Version": "2012-10-17",
@@ -790,7 +782,7 @@ spec:
       ]
     }
 --
-apiVersion: network.aws.crossplane.io/v1alpha1
+apiVersion: identity.aws.crossplane.io/v1alpha1
 kind: IAMRolePolicyAttachment
 metadata:
   namespace: crossplane-system
@@ -799,7 +791,7 @@ spec:
   policy_arn: arn:aws:iam::aws:policy/EKSClusterPolicy
   role: name(my-cluster-role)
 --
-apiVersion: network.aws.crossplane.io/v1alpha1
+apiVersion: identity.aws.crossplane.io/v1alpha1
 kind: IAMRolePolicyAttachment
 metadata:
   namespace: crossplane-system
@@ -816,7 +808,7 @@ metadata:
   namespace: crossplane-system
   name: my-db-subnet-group
 spec:
-  nameFormat: subnetGroup
+  name: subnetGroup
   subnetIds: id(my-subnet-1)
 --
 apiVersion: network.aws.crossplane.io/v1alpha1
@@ -825,7 +817,7 @@ metadata:
   namespace: crossplane-system
   name: my-rds-sg
 spec:
-  nameFormat: rdsSg
+  name: rdsSg
   vpcId: id(my-vpc)
   description: Cluster communication with worker nodes
   ingress:
@@ -951,7 +943,7 @@ running on an AKS Cluster host to access the MySQL DB:
 1. Create a [firewall rule] on the MySQL DB Server with a range of IP addresses
    that encompasses all IP's of the AKS Cluster nodes (this can be a very large
    range if using node auto-scaling).
-1. Create a [VNet Rule] on the MySQL DB Server that allows access from the
+2. Create a [VNet Rule] on the MySQL DB Server that allows access from the
    subnet the AKS nodes are in. This option requires the creation of a VNet
    Service Endpoint for the nodes subnet.
 
