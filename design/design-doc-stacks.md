@@ -145,7 +145,16 @@ spec:
   # CRDs that this stack depends on (required) are listed here
   # this data drives the dependency resolution process
  title: Redis stack for Crossplane
- description: "Markdown syntax about how Redis is a really cool database"
+ overviewShort: "One sentence in plain text about how Redis is a really cool database"
+ overview: |-
+   Plain text about how Redis is a really cool database.
+   This also describes how this stack relates to Redis.
+ readme: |-
+  ## README
+
+  * Uses markdown
+  * Describes the stack
+  * Describes features and how to get help
  category: Database
  version: 0.1.0
  icons:
@@ -264,9 +273,13 @@ An example project that processes the artifacts of Kubebuilder 2 to create a Sta
 # Human readable title of application.
 title: Sample Crossplane Stack
 
+overviewShort: A one line plain text explanation of this stack
+overview: |-
+  Multiple line plain text description of this stack.
+
 # Markdown description of this entry
-description: |
- Markdown describing this sample Crossplane Stack project.
+readme: |
+ *Markdown* describing the sample Crossplane Stack project in more detail
 
 # Version of project (optional)
 # If omitted the version will be filled with the docker tag
@@ -359,25 +372,41 @@ spec:
 ```yaml
 group: databases.foocompany.io
 title: Sample Controller Types
-description: |
-    This is a crd group description
+overviewShort: This is a one line plain text description of this resource group
+overview: |
+  This is a group description.
+  Talk about the types of CRDs in this group.
+readme: |-
+  # MySQL Resource Group by Foo Company
+
+  This is a Crossplane Stack resource group for FooCompany MySQL
 ```
 
 ### Example `resource.yaml`
 
 ```yaml
-resource: mysql
+id: mysql
 title: MySQL
 title-plural: MySQL Instances
 category: Database
-description: |
+overviewShort: Overview of this resource in FooCompany MySQL
+overview: |-
+  Longer plain text description.
+
+  Some detail.
+readme: |-
   # MySQL Resource by FooCompany
 
-  This is the Crossplane Stack for FooCompany MySQL
+  This is the Crossplane Stack mysql crd for FooCompany MySQL
 
   ## Details
 
   More markdown.
+
+  ## Examples
+
+    apiVersion: mysql.stacks.foocompany.example/v1
+    kind: mysql
 ```
 
 ### Example `crd.yaml`
@@ -412,13 +441,15 @@ metadata:
   annotations:
     stacks.crossplane.io/stack-title: "Crossplane Sample Stack"
     stacks.crossplane.io/group-title: "Title of the Group"
-    stacks.crossplane.io/group-description: |
-        Description of the Group
+    stacks.crossplane.io/group-overview: "Overview of the Group"
+    stacks.crossplane.io/group-overview-short: "Short overview of the Group"
+    stacks.crossplane.io/group-readme: "Readme of the Group"
     stacks.crossplane.io/resource-category: "Databases"
     stacks.crossplane.io/resource-title: "Example Resource"
     stacks.crossplane.io/resource-title-plural: "Example Resources"
-    stacks.crossplane.io/resource-description: |
-        Description of the Resource
+    stacks.crossplane.io/resource-overview: "Overview of the Resource"
+    stacks.crossplane.io/resource-overview-short: "Short overview of the Resource"
+    stacks.crossplane.io/resource-readme: "Readme of the Resource"
     stacks.crossplane.io/icon-data-uri: data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciLz4K
     stacks.crossplane.io/ui-spec: |
       uiSpecVersion: 0.3
