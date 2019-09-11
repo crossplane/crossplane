@@ -14,6 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package v1alpha1 contains API Schema definitions for the crossplane workload
-// v1alpha1 API group.
+// Package v1alpha1 contains resources relating to Crossplane Workloads.
+// +kubebuilder:object:generate=true
+// +groupName=workload.crossplane.io
+// +versionName=v1alpha1
 package v1alpha1

@@ -14,5 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package v1alpha1 contains API Schema definitions for the crossplane core v1alpha1 API group
+// Package v1alpha1 contains portable resource claims for storage services such
+// as buckets.
+// +kubebuilder:object:generate=true
+// +groupName=storage.crossplane.io
+// +versionName=v1alpha1
 package v1alpha1

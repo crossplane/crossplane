@@ -24,7 +24,8 @@ import (
 	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
 )
 
-// LocalPermissionType - Base type for LocalPermissions
+// A LocalPermissionType is a type of permission that may be granted to a
+// Bucket.
 type LocalPermissionType string
 
 const (
@@ -36,7 +37,7 @@ const (
 	ReadWritePermission LocalPermissionType = "ReadWrite"
 )
 
-// PredefinedACL represents predefied bucket ACLs.
+// A PredefinedACL is a predefined ACL that may be applied to a Bucket.
 type PredefinedACL string
 
 // Predefined ACLs.
@@ -47,23 +48,23 @@ const (
 	ACLAuthenticatedRead PredefinedACL = "AuthenticatedRead"
 )
 
-// BucketSpec defines the desired state of Bucket
+// BucketSpec specifies the desired state of a Bucket.
 type BucketSpec struct {
 	runtimev1alpha1.ResourceClaimSpec `json:",inline"`
 
-	// Name properties
+	// Name specifies the desired name of the bucket.
 	// +kubebuilder:validation:MaxLength=63
 	// +kubebuilder:validation:MinLength=3
 	Name string `json:"name,omitempty"`
 
+	// PredefinedACL specifies a predefined ACL (e.g. Private, ReadWrite, etc)
+	// to be applied to the bucket.
 	// +kubebuilder:validation:Enum=Private;PublicRead;PublicReadWrite;AuthenticatedRead
-	// NOTE: AWS S3 and GCP Bucket values (not in Azure)
 	PredefinedACL *PredefinedACL `json:"predefinedACL,omitempty"`
 
-	// LocalPermission is the permissions granted on the bucket for the provider specific
-	// bucket service account that is available in a secret after provisioning.
+	// LocalPermission specifies permissions granted to a provider specific
+	// service account for this bucket, e.g. Read, ReadWrite, or Write.
 	// +kubebuilder:validation:Enum=Read;Write;ReadWrite
-	// NOTE: AWS S3 Specific value
 	LocalPermission *LocalPermissionType `json:"localPermission,omitempty"`
 }
 
@@ -71,7 +72,9 @@ var _ resource.Claim = &Bucket{}
 
 // +kubebuilder:object:root=true
 
-// Bucket is the Schema for the Bucket API
+// A Bucket is a portable resource claim that may be satisfied by binding to a
+// storage bucket PostgreSQL managed resource such as an AWS S3 bucket or Azure
+// storage container.
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.bindingPhase"
 // +kubebuilder:printcolumn:name="CLASS",type="string",JSONPath=".spec.classRef.name"
 // +kubebuilder:printcolumn:name="PREDEFINED-ACL",type="string",JSONPath=".spec.predefinedACL"
@@ -133,7 +136,7 @@ func (b *Bucket) GetWriteConnectionSecretToReference() corev1.LocalObjectReferen
 
 // +kubebuilder:object:root=true
 
-// BucketList contains a list of Buckets
+// BucketList contains a list of Bucket.
 type BucketList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
@@ -158,7 +161,7 @@ var _ resource.PortableClassList = &BucketClassList{}
 
 // +kubebuilder:object:root=true
 
-// BucketClassList contains a list of BucketClass
+// BucketClassList contains a list of BucketClass.
 type BucketClassList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

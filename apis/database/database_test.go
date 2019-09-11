@@ -14,7 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package database contains Kubernetes API groups for database resource claims.
 package database
 
 import (

@@ -14,7 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package workload contains Kubernetes API groups for cloud workload resources.
 package workload
 
 import (

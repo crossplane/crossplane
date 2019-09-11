@@ -35,7 +35,7 @@ import (
 
 // +kubebuilder:object:root=true
 
-// StackInstall is the CRD type for a request to add a stack to Crossplane.
+// A StackInstall requests a stack be installed to Crossplane.
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditionedStatus.conditions[?(@.type=='Ready')].status"
 // +kubebuilder:printcolumn:name="SOURCE",type="string",JSONPath=".spec.source"
@@ -52,14 +52,15 @@ type StackInstall struct {
 
 // +kubebuilder:object:root=true
 
-// StackInstallList contains a list of StackInstall
+// StackInstallList contains a list of StackInstall.
 type StackInstallList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []StackInstall `json:"items"`
 }
 
-// StackInstallSpec specifies details about a request to add a stack to Crossplane.
+// StackInstallSpec specifies details about a request to install a stack to
+// Crossplane.
 type StackInstallSpec struct {
 	// Source is the domain name for the stack registry hosting the stack being requested,
 	// e.g., registry.crossplane.io
@@ -76,7 +77,7 @@ type StackInstallSpec struct {
 	CustomResourceDefinition string `json:"crd,omitempty"`
 }
 
-// StackInstallStatus defines the observed state of StackInstall
+// StackInstallStatus represents the observed state of a StackInstall.
 type StackInstallStatus struct {
 	runtimev1alpha1.ConditionedStatus `json:"conditionedStatus,omitempty"`
 
@@ -213,7 +214,7 @@ type ClusterStackInstallList struct {
 
 // +kubebuilder:object:root=true
 
-// Stack is the CRD type for a request to add a stack to Crossplane.
+// A Stack that has been added to Crossplane.
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditionedStatus.conditions[?(@.type=='Ready')].status"
 // +kubebuilder:printcolumn:name="VERSION",type="string",JSONPath=".spec.version"
@@ -228,14 +229,14 @@ type Stack struct {
 
 // +kubebuilder:object:root=true
 
-// StackList contains a list of Stack
+// StackList contains a list of Stack.
 type StackList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []Stack `json:"items"`
 }
 
-// StackSpec specifies details about a stack that has been added to Crossplane
+// StackSpec specifies the desired state of a Stack.
 type StackSpec struct {
 	AppMetadataSpec `json:",inline"`
 	CRDs            CRDList         `json:"customresourcedefinitions,omitempty"`
@@ -243,7 +244,7 @@ type StackSpec struct {
 	Permissions     PermissionsSpec `json:"permissions,omitempty"`
 }
 
-// StackStatus defines the observed state of Stack
+// StackStatus represents the observed state of a Stack.
 type StackStatus struct {
 	runtimev1alpha1.ConditionedStatus `json:"conditionedStatus,omitempty"`
 	ControllerRef                     *corev1.ObjectReference `json:"controllerRef,omitempty"`
