@@ -346,7 +346,7 @@ func TestSubsubnetworkExternal_Observe(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			server := httptest.NewServer(tc.handler)
 			defer server.Close()
-			s, _ := compute.NewService(context.Background(), option.WithEndpoint(server.URL), option.WithCredentials(&fakeGoogleCredentials))
+			s, _ := compute.NewService(context.Background(), option.WithEndpoint(server.URL), option.WithoutAuthentication())
 			e := subnetworkExternal{
 				projectID: testGoogleProjectID,
 				Service:   s,
@@ -431,7 +431,7 @@ func TestSubsubnetworkExternal_Create(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			server := httptest.NewServer(tc.handler)
 			defer server.Close()
-			s, _ := compute.NewService(context.Background(), option.WithEndpoint(server.URL), option.WithCredentials(&fakeGoogleCredentials))
+			s, _ := compute.NewService(context.Background(), option.WithEndpoint(server.URL), option.WithoutAuthentication())
 			e := subnetworkExternal{
 				projectID: testGoogleProjectID,
 				Service:   s,
@@ -513,7 +513,7 @@ func TestSubsubnetworkExternal_Update(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			server := httptest.NewServer(tc.handler)
 			defer server.Close()
-			s, _ := compute.NewService(context.Background(), option.WithEndpoint(server.URL), option.WithCredentials(&fakeGoogleCredentials))
+			s, _ := compute.NewService(context.Background(), option.WithEndpoint(server.URL), option.WithoutAuthentication())
 			e := subnetworkExternal{
 				projectID: testGoogleProjectID,
 				Service:   s,
@@ -601,7 +601,7 @@ func TestSubsubnetworkExternal_Delete(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			server := httptest.NewServer(tc.handler)
 			defer server.Close()
-			s, _ := compute.NewService(context.Background(), option.WithEndpoint(server.URL), option.WithCredentials(&fakeGoogleCredentials))
+			s, _ := compute.NewService(context.Background(), option.WithEndpoint(server.URL), option.WithoutAuthentication())
 			e := subnetworkExternal{
 				projectID: testGoogleProjectID,
 				Service:   s,

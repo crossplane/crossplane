@@ -203,7 +203,7 @@ func TestGlobalAddressObserve(t *testing.T) {
 		},
 		"ErrorGetAddress": {
 			e: &gaExternal{
-				compute: FakeComputeService{WantMethod: http.MethodGet, ReturnError: errGoogleOther}.Serve(),
+				compute: FakeComputeService{WantMethod: http.MethodGet, ReturnError: errGoogleOther}.Serve(t),
 			},
 			args: args{
 				ctx: context.Background(),
@@ -215,7 +215,7 @@ func TestGlobalAddressObserve(t *testing.T) {
 		},
 		"ErrorUpdateGlobalAddress": {
 			e: &gaExternal{
-				compute: FakeComputeService{WantMethod: http.MethodGet}.Serve(),
+				compute: FakeComputeService{WantMethod: http.MethodGet}.Serve(t),
 				client:  &test.MockClient{MockUpdate: test.NewMockUpdateFn(errBoom)},
 			},
 			args: args{
@@ -232,7 +232,7 @@ func TestGlobalAddressObserve(t *testing.T) {
 		},
 		"AddressDoesNotExist": {
 			e: &gaExternal{
-				compute: FakeComputeService{WantMethod: http.MethodGet, ReturnError: errGoogleNotFound}.Serve(),
+				compute: FakeComputeService{WantMethod: http.MethodGet, ReturnError: errGoogleNotFound}.Serve(t),
 			},
 			args: args{
 				ctx: context.Background(),
@@ -254,7 +254,7 @@ func TestGlobalAddressObserve(t *testing.T) {
 						return nil
 					}),
 				},
-				compute: FakeComputeService{WantMethod: http.MethodGet}.Serve(),
+				compute: FakeComputeService{WantMethod: http.MethodGet}.Serve(t),
 			},
 			args: args{
 				ctx: context.Background(),
@@ -311,7 +311,7 @@ func TestGlobalAddressCreate(t *testing.T) {
 		},
 		"ErrorInsertAddress": {
 			e: &gaExternal{
-				compute: FakeComputeService{WantMethod: http.MethodPost, ReturnError: errGoogleOther}.Serve(),
+				compute: FakeComputeService{WantMethod: http.MethodPost, ReturnError: errGoogleOther}.Serve(t),
 			},
 			args: args{
 				ctx: context.Background(),
@@ -323,7 +323,7 @@ func TestGlobalAddressCreate(t *testing.T) {
 		},
 		"AddressAlreadyExists": {
 			e: &gaExternal{
-				compute: FakeComputeService{WantMethod: http.MethodPost, ReturnError: errGoogleConflict}.Serve(),
+				compute: FakeComputeService{WantMethod: http.MethodPost, ReturnError: errGoogleConflict}.Serve(t),
 			},
 			args: args{
 				ctx: context.Background(),
@@ -332,7 +332,7 @@ func TestGlobalAddressCreate(t *testing.T) {
 		},
 		"AddressInserted": {
 			e: &gaExternal{
-				compute: FakeComputeService{WantMethod: http.MethodPost}.Serve(),
+				compute: FakeComputeService{WantMethod: http.MethodPost}.Serve(t),
 			},
 			args: args{
 				ctx: context.Background(),
@@ -376,7 +376,7 @@ func TestGlobalAddressDelete(t *testing.T) {
 		},
 		"ErrorDeleteAddress": {
 			e: &gaExternal{
-				compute: FakeComputeService{WantMethod: http.MethodDelete, ReturnError: errGoogleOther}.Serve(),
+				compute: FakeComputeService{WantMethod: http.MethodDelete, ReturnError: errGoogleOther}.Serve(t),
 			},
 			args: args{
 				ctx: context.Background(),
@@ -386,7 +386,7 @@ func TestGlobalAddressDelete(t *testing.T) {
 		},
 		"AddressDoesNotExist": {
 			e: &gaExternal{
-				compute: FakeComputeService{WantMethod: http.MethodDelete, ReturnError: errGoogleNotFound}.Serve(),
+				compute: FakeComputeService{WantMethod: http.MethodDelete, ReturnError: errGoogleNotFound}.Serve(t),
 			},
 			args: args{
 				ctx: context.Background(),
@@ -395,7 +395,7 @@ func TestGlobalAddressDelete(t *testing.T) {
 		},
 		"AddressDeleted": {
 			e: &gaExternal{
-				compute: FakeComputeService{WantMethod: http.MethodDelete}.Serve(),
+				compute: FakeComputeService{WantMethod: http.MethodDelete}.Serve(t),
 			},
 			args: args{
 				ctx: context.Background(),
@@ -419,7 +419,7 @@ type FakeComputeService struct {
 	ReturnError error
 }
 
-func (s FakeComputeService) Serve() *compute.Service {
+func (s FakeComputeService) Serve(t *testing.T) *compute.Service {
 	// NOTE(negz): We never close this httptest.Server because returning only a
 	// compute.Service makes for a simpler test fake API. We create one server
 	// per test case, but they only live for the invocation of the test run.
@@ -448,6 +448,9 @@ func (s FakeComputeService) Serve() *compute.Service {
 		_ = json.NewEncoder(w).Encode(&compute.Operation{})
 	}))
 
-	c, _ := compute.NewService(context.Background(), option.WithEndpoint(srv.URL))
+	c, err := compute.NewService(context.Background(), option.WithEndpoint(srv.URL))
+	if err != nil {
+		t.Fatal(err)
+	}
 	return c
 }
