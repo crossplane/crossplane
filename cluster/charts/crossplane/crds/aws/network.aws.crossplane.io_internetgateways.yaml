@@ -25,7 +25,9 @@ spec:
   group: network.aws.crossplane.io
   names:
     kind: InternetGateway
+    listKind: InternetGatewayList
     plural: internetgateways
+    singular: internetgateway
   scope: ""
   subresources:
     status: {}

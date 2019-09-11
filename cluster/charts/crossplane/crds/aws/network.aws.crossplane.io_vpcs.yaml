@@ -28,7 +28,9 @@ spec:
   group: network.aws.crossplane.io
   names:
     kind: VPC
+    listKind: VPCList
     plural: vpcs
+    singular: vpc
   scope: ""
   subresources:
     status: {}

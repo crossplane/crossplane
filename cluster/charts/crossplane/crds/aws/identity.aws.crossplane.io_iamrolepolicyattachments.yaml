@@ -25,7 +25,9 @@ spec:
   group: identity.aws.crossplane.io
   names:
     kind: IAMRolePolicyAttachment
+    listKind: IAMRolePolicyAttachmentList
     plural: iamrolepolicyattachments
+    singular: iamrolepolicyattachment
   scope: ""
   subresources:
     status: {}

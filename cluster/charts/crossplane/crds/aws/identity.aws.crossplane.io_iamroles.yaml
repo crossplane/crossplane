@@ -25,7 +25,9 @@ spec:
   group: identity.aws.crossplane.io
   names:
     kind: IAMRole
+    listKind: IAMRoleList
     plural: iamroles
+    singular: iamrole
   scope: ""
   subresources:
     status: {}
@@ -196,10 +198,6 @@ spec:
                 IAM Identifiers (http://docs.aws.amazon.com/IAM/latest/UserGuide/Using_Identifiers.html)
                 in the IAM User Guide guide.
               type: string
-            assumeRolePolicyDocument:
-              description: AssumeRolePolicyDocument is the policy that grants an entity
-                permission to assume the role.
-              type: string
             bindingPhase:
               description: Phase represents the binding phase of the resource.
               enum:
@@ -245,14 +243,9 @@ spec:
                 role. For more information about IDs, see IAM Identifiers (http://docs.aws.amazon.com/IAM/latest/UserGuide/Using_Identifiers.html)
                 in the Using IAM guide.
               type: string
-            roleName:
-              description: RoleName is the friendly name that identifies the role.
-              type: string
           required:
           - arn
-          - assumeRolePolicyDocument
           - roleID
-          - roleName
           type: object
       type: object
   version: v1alpha1
