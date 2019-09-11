@@ -25,7 +25,6 @@ import (
 
 	"github.com/crossplaneio/crossplane/apis/cache"
 	"github.com/crossplaneio/crossplane/apis/compute"
-	"github.com/crossplaneio/crossplane/apis/core"
 	"github.com/crossplaneio/crossplane/apis/database"
 	"github.com/crossplaneio/crossplane/apis/stacks"
 	"github.com/crossplaneio/crossplane/apis/storage"
@@ -37,7 +36,6 @@ func init() {
 	AddToSchemes = append(AddToSchemes,
 		cache.AddToScheme,
 		compute.AddToScheme,
-		core.AddToScheme,
 		stacks.AddToScheme,
 		database.AddToScheme,
 		storage.AddToScheme,
