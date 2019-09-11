@@ -547,7 +547,9 @@ func (s FakeComputeService) Serve(t *testing.T) *compute.Service {
 		_ = json.NewEncoder(w).Encode(&compute.Operation{})
 	}))
 
-	c, err := compute.NewService(context.Background(), option.WithEndpoint(srv.URL))
+	c, err := compute.NewService(context.Background(),
+		option.WithEndpoint(srv.URL),
+		option.WithoutAuthentication())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -590,7 +592,9 @@ func (s FakeServiceNetworkingService) Serve(t *testing.T) *servicenetworking.API
 		_ = json.NewEncoder(w).Encode(s.Return)
 	}))
 
-	c, err := servicenetworking.NewService(context.Background(), option.WithEndpoint(srv.URL))
+	c, err := servicenetworking.NewService(context.Background(),
+		option.WithEndpoint(srv.URL),
+		option.WithoutAuthentication())
 	if err != nil {
 		t.Fatal(err)
 	}

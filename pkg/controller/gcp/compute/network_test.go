@@ -25,8 +25,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
-	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/option"
 	v1 "k8s.io/api/core/v1"
@@ -56,7 +54,7 @@ const testGCPCredentialsJSON = `
   "project_id": "fake-project",
   "private_key_id": "fake-id",
   "private_key": "-----BEGIN PRIVATE KEY-----\nIAMAFAKEPRIVATEKEY-----END PRIVATE KEY-----\n",
-  "client_email": "crossplane-test@crossplane-playground.iam.gserviceaccount.com",
+  "client_email": "crossplane-test@fake-project.iam.gserviceaccount.com",
   "client_id": "123456789",
   "auth_uri": "https://accounts.google.com/o/oauth2/auth",
   "token_uri": "https://oauth2.googleapis.com/token",
@@ -65,10 +63,6 @@ const testGCPCredentialsJSON = `
 }
 
 `
-
-var fakeGoogleCredentials = google.Credentials{
-	TokenSource: oauth2.StaticTokenSource(&oauth2.Token{}),
-}
 
 func TestNetworkConnector_Connect(t *testing.T) {
 	type args struct {
@@ -347,7 +341,7 @@ func TestNetworkExternal_Observe(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			server := httptest.NewServer(tc.handler)
 			defer server.Close()
-			s, _ := compute.NewService(context.Background(), option.WithEndpoint(server.URL), option.WithCredentials(&fakeGoogleCredentials))
+			s, _ := compute.NewService(context.Background(), option.WithEndpoint(server.URL), option.WithoutAuthentication())
 			e := networkExternal{
 				projectID: testGoogleProjectID,
 				Service:   s,
@@ -437,7 +431,7 @@ func TestNetworkExternal_Create(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			server := httptest.NewServer(tc.handler)
 			defer server.Close()
-			s, _ := compute.NewService(context.Background(), option.WithEndpoint(server.URL), option.WithCredentials(&fakeGoogleCredentials))
+			s, _ := compute.NewService(context.Background(), option.WithEndpoint(server.URL), option.WithoutAuthentication())
 			e := networkExternal{
 				projectID: testGoogleProjectID,
 				Service:   s,
@@ -569,7 +563,7 @@ func TestNetworkExternal_Update(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			server := httptest.NewServer(tc.handler)
 			defer server.Close()
-			s, _ := compute.NewService(context.Background(), option.WithEndpoint(server.URL), option.WithCredentials(&fakeGoogleCredentials))
+			s, _ := compute.NewService(context.Background(), option.WithEndpoint(server.URL), option.WithoutAuthentication())
 			e := networkExternal{
 				projectID: testGoogleProjectID,
 				Service:   s,
@@ -656,7 +650,7 @@ func TestNetworkExternal_Delete(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			server := httptest.NewServer(tc.handler)
 			defer server.Close()
-			s, _ := compute.NewService(context.Background(), option.WithEndpoint(server.URL), option.WithCredentials(&fakeGoogleCredentials))
+			s, _ := compute.NewService(context.Background(), option.WithEndpoint(server.URL), option.WithoutAuthentication())
 			e := networkExternal{
 				projectID: testGoogleProjectID,
 				Service:   s,
