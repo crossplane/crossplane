@@ -387,7 +387,7 @@ readme: |-
 ```yaml
 id: mysql
 title: MySQL
-title-plural: MySQL Instances
+titlePlural: MySQL Instances
 category: Database
 overviewShort: Overview of this resource in FooCompany MySQL
 overview: |-

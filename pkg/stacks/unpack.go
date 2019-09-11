@@ -73,7 +73,7 @@ type StackResource struct {
 	// ID refers to the CRD Kind
 	ID          string `json:"id"`
 	Title       string `json:"title"`
-	TitlePlural string `json:"title-plural"`
+	TitlePlural string `json:"titlePlural"`
 	Description string `json:"description"`
 	Category    string `json:"category"`
 }

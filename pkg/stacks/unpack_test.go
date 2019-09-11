@@ -97,7 +97,7 @@ category: Group Category
 
 	simpleResourceFile = `id: mytype
 title: Resource Title
-title-plural: Resources Title
+titlePlural: Resources Title
 description: Resource Description
 category: Resource Category
 `
