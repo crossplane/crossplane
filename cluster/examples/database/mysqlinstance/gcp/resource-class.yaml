@@ -1,6 +1,6 @@
 # ResourceClass that defines the blueprint for how a "standard" CloudSQL instance
 # should be dynamically provisioned
-apiVersion: database.gcp.crossplane.io/v1alpha1
+apiVersion: database.gcp.crossplane.io/v1alpha2
 kind: CloudsqlInstanceClass
 metadata:
   name: cloudsqlinstancemysql

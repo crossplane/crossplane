@@ -49,6 +49,48 @@ For example:
 helm install --name crossplane --namespace crossplane-system crossplane-master/crossplane --version 0.0.0-249.637ccf9
 ```
 
+## Installing Cloud Provider Stacks
+
+After Crossplane has been installed, you can add additional functionality to its control plane by installing Crossplane Stacks.
+For example, each supported cloud provider has its own corresponding stack that contains all the functionality for that particular cloud.
+After a cloud provider's stack is installed, you will be able to provision and manage resources within that cloud from Crossplane.
+
+### GCP Stack
+
+To get started with Google Cloud Platform (GCP), create a file named `stack-gcp.yaml` with the following content:
+
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gcp
+---
+apiVersion: stacks.crossplane.io/v1alpha1
+kind: StackRequest
+metadata:
+  name: stack-gcp
+  namespace: gcp
+spec:
+  package: "crossplane/stack-gcp:master"
+```
+
+Then you can install the GCP stack into Crossplane in the `gcp` namespace with the following command:
+
+```console
+kubectl apply -f stack-gcp.yaml
+```
+
+#### Uninstall
+
+The GCP stack can be uninstalled simply by deleting the stack resources from the cluster with the command below.
+**Note** that this will also **delete** any resources that Crossplane has provisioned in GCP if their `ReclaimPolicy` is set to `Delete`.
+
+After you have ensured that you are completely done with all your GCP cloud resources, you can then run the following command to remove the GCP stack from Crossplane:
+
+```console
+kubectl delete -f stack-gcp.yaml
+```
+
 ## Uninstalling the Chart
 
 To uninstall/delete the `crossplane` deployment:

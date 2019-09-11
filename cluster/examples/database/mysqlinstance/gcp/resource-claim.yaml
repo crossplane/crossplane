@@ -6,7 +6,7 @@ metadata:
 spec:
   classRef:
     kind: CloudsqlInstanceClass
-    apiVersion: database.gcp.crossplane.io/v1alpha1
+    apiVersion: database.gcp.crossplane.io/v1alpha2
     name: cloudsqlinstancemysql
     namespace: crossplane-system
   writeConnectionSecretToRef:

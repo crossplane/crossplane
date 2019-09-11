@@ -16,6 +16,6 @@ spec:
     name: wordpress-demo-cluster
   classRef:
     kind: GKEClusterClass
-    apiVersion: compute.gcp.crossplane.io/v1alpha1
+    apiVersion: compute.gcp.crossplane.io/v1alpha2
     name: standard-cluster
     namespace: crossplane-system

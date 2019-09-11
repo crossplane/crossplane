@@ -1,5 +1,5 @@
 ## Crossplane Redis Resource class
-apiVersion: cache.gcp.crossplane.io/v1alpha1
+apiVersion: cache.gcp.crossplane.io/v1alpha2
 kind: CloudMemorystoreInstanceClass
 metadata:
   name: standard-gcp-redis

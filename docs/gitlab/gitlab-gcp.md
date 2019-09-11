@@ -30,10 +30,12 @@ kubectl config set-context [your-cluster-context]
 
 ### Crossplane
 Using the newly provisioned cluster:
-- Install Crossplane from master channel using the [Crossplane Installation Guide](../install-crossplane.md#master)
-- Obtain [Cloud Provider Credentials](../cloud-providers.md) 
 
-#### GCP Provider   
+- Install Crossplane from master channel using the [Crossplane Installation Guide](../install-crossplane.md#master)
+- Install the GCP stack into Crossplane using the [GCP stack section](../install-crossplane.md#gcp-stack) of the install guide.
+- Obtain [Cloud Provider Credentials](../cloud-providers.md)
+
+#### GCP Provider
 It is essential to make sure that the GCP Service Account used by the Crossplane GCP Provider has the following Roles:
 
     Cloud SQL Admin
@@ -51,7 +53,7 @@ base64 gcp-credentials.json | tr -d "\n"
 - Update [provider.yaml](../../cluster/examples/gitlab/gcp/provider.yaml) replacing `BASE64ENCODED_GCP_PROVIDER_CREDS`
 - Update [provider.yaml](../../cluster/examples/gitlab/gcp/provider.yaml) replacing `PROJECT_ID` with `project_id` from the credentials.json
 
-#### GCS 
+#### GCS
 It is recommended to create a separate GCP Service Account dedicated to storage operations only, i.e. with a reduced IAM role set, for example: `StorageAdmin` only.
 
 Follow the same step as for GCP credentials to create and obtain `gcs-credentials.json`
@@ -73,29 +75,29 @@ Otherwise, you can use `BASE64ENCODED_GCP_PROVIDER_CREDS` in place of `BASE64ENC
 - Update [provider.yaml](../../cluster/examples/gitlab/gcp/provider.yaml) replacing:
    - `BASE64ENCODED_GCS_INTEROP_ACCESS_KEY`
    - `BASE64ENCODED_GCS_INTEROP_SECRET`
-   
+
 #### Create
 - Create GCP provider:
     ```bash
-    kubectl create -f cluster/examples/gitlab/gcp/provider.yaml  
+    kubectl create -f cluster/examples/gitlab/gcp/provider.yaml
     ```
 - Verify GCP provider was successfully registered by the crossplane
     ```bash
     kubectl get providers.gcp.crossplane.io -n crossplane-system
     kubectl get secrets -n crossplane-system
     ```
-    
-    - You should see output similar to:    
-    
+
+    - You should see output similar to:
+
     ```bash
     NAME       PROJECT-ID            AGE
-    demo-gcp   your-project-123456   11m    
+    demo-gcp   your-project-123456   11m
     NAME                  TYPE                                  DATA   AGE
     default-token-974db   kubernetes.io/service-account-token   3      2d16h
     demo-gcp-creds        Opaque                                1      103s
     demo-gcs-creds        Opaque                                3      2d11h
-    ```   
-        
+    ```
+
 #### Resource Classes
 Create Crossplane Resource Class needed to provision managed resources for GitLab applications
 
@@ -107,7 +109,7 @@ resourceclass.core.crossplane.io/standard-gcp-bucket created
 resourceclass.core.crossplane.io/standard-gcp-cluster created
 resourceclass.core.crossplane.io/standard-gcp-postgres created
 resourceclass.core.crossplane.io/standard-gcp-redis created
-```    
+```
 
 Verify
 ```bash
@@ -140,10 +142,10 @@ bucket.storage.crossplane.io/gitlab-pseudonymizer created
 bucket.storage.crossplane.io/gitlab-registry created
 bucket.storage.crossplane.io/gitlab-uploads created
 postgresqlinstance.database.crossplane.io/gitlab-postgresql created
-rediscluster.cache.crossplane.io/gitlab-redis created  
+rediscluster.cache.crossplane.io/gitlab-redis created
 ```
 
-Verify that the resource claims were successfully provisioned. 
+Verify that the resource claims were successfully provisioned.
 ```bash
 kubectl get -f cluster/examples/gitlab/gcp/resource-claims/postgres.yaml
 kubectl get -f cluster/examples/gitlab/gcp/resource-claims/redis.yaml
@@ -188,9 +190,9 @@ gitlab-uploads         Bound    standard-gcp-bucket                             
 What we are looking for is for `STATUS` value to become `Bound` which indicates the managed resource was successfully provisioned and is ready for consumption
 
 ##### Resource Claims Connection Secrets
-Verify that every resource has created a connection secret 
+Verify that every resource has created a connection secret
 ```bash
-kubectl get secrets -n default 
+kubectl get secrets -n default
 ```
 ```
 NAME                   TYPE                                  DATA   AGE
@@ -208,7 +210,7 @@ gitlab-registry        Opaque                                4      7m1s
 gitlab-uploads         Opaque                                4      7m1s
 ```
 
-At this point, all GitLab managed resources should be ready to consume and this completes the Crossplane resource provisioning phase. 
+At this point, all GitLab managed resources should be ready to consume and this completes the Crossplane resource provisioning phase.
 
 #### Managed Resource Secrets
 
@@ -257,7 +259,7 @@ secret/bucket-pseudonymizer created
 secret/bucket-registry created
 secret/bucket-uploads created
 
-``` 
+```
 
 ## Install
 Render the official GitLab Helm chart with the generated values files, and your settings into a `gitlab-gcp.yaml` file.
@@ -292,12 +294,12 @@ kubectl get jobs,deployments,statefulsets
 
 It usually takes few minutes for all GitLab components to get initialized and be ready.
 
-Note: During the initialization "wait", some pods could automatically restart, but this should stabilize once all the 
+Note: During the initialization "wait", some pods could automatically restart, but this should stabilize once all the
 dependent components become available.
 
 Note: There also could be intermittent `ImagePullBackOff`, but those, similar to above should clear up by themselves.
 
-Note: It appears the `gitlab-demo-unicorn-test-runner-*` (job/pod) will Error and will not re-run, unless the pod is resubmitted. 
+Note: It appears the `gitlab-demo-unicorn-test-runner-*` (job/pod) will Error and will not re-run, unless the pod is resubmitted.
 
 After few minutes your output for:
 ```bash
@@ -329,7 +331,7 @@ gitlab-demo-unicorn-6dd757db97-nmglt                         2/2     Running    
 gitlab-demo-unicorn-test-runner-f2ttk                        0/1     Error              0          9m
 ```
 
-Note: if `ImagePullBackOff` error Pod does not get auto-cleared, consider deleting the pod. 
+Note: if `ImagePullBackOff` error Pod does not get auto-cleared, consider deleting the pod.
 A new pod should come up with "Running" STATUS.
 
 ## Use
@@ -382,7 +384,7 @@ kubectl get -Rf cluster/examples/gitlab/gcp/resource-claims
 ```
 Note: typically it may take few seconds for Crossplane to process the request.
 By running resource and provider removal in the same command or back-to-back, we are running the risk of having orphaned resource.
-I.E., a resource that could not be cleaned up because the provider is no longer available. 
+I.E., a resource that could not be cleaned up because the provider is no longer available.
 
 Delete all resource classes:
 ```bash

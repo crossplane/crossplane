@@ -8,7 +8,7 @@ metadata:
   name: gcp-provider-creds
 type: Opaque
 ---
-apiVersion: gcp.crossplane.io/v1alpha1
+apiVersion: gcp.crossplane.io/v1alpha2
 kind: Provider
 metadata:
   namespace: crossplane-system
@@ -19,7 +19,7 @@ spec:
     key: credentials.json
   projectID: PROJECT_ID
 ---
-apiVersion: database.gcp.crossplane.io/v1alpha1
+apiVersion: database.gcp.crossplane.io/v1alpha2
 kind: CloudsqlInstanceClass
 metadata:
   name: standard-mysql
@@ -37,7 +37,7 @@ specTemplate:
     namespace: crossplane-system
   reclaimPolicy: Delete
 ---
-apiVersion: compute.gcp.crossplane.io/v1alpha1
+apiVersion: compute.gcp.crossplane.io/v1alpha2
 kind: GKEClusterClass
 metadata:
   name: standard-cluster
