@@ -34,7 +34,9 @@ spec:
   group: network.aws.crossplane.io
   names:
     kind: Subnet
+    listKind: SubnetList
     plural: subnets
+    singular: subnet
   scope: ""
   subresources:
     status: {}

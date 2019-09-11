@@ -28,7 +28,9 @@ spec:
   group: network.aws.crossplane.io
   names:
     kind: SecurityGroup
+    listKind: SecurityGroupList
     plural: securitygroups
+    singular: securitygroup
   scope: ""
   subresources:
     status: {}

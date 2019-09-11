@@ -28,7 +28,9 @@ spec:
   group: storage.aws.crossplane.io
   names:
     kind: DBSubnetGroup
+    listKind: DBSubnetGroupList
     plural: dbsubnetgroups
+    singular: dbsubnetgroup
   scope: ""
   subresources:
     status: {}
