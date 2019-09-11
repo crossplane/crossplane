@@ -30,7 +30,9 @@ spec:
     status: {}
   validation:
     openAPIV3Schema:
-      description: MySQLInstance is the CRD type for abstract MySQL database instances
+      description: A MySQLInstance is a portable resource claim that may be satisfied
+        by binding to a MySQL managed resource such as an AWS RDS instance or a GCP
+        CloudSQL instance.
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation
@@ -45,7 +47,7 @@ spec:
         metadata:
           type: object
         spec:
-          description: MySQLInstanceSpec specifies the configuration of a MySQL instance.
+          description: MySQLInstanceSpec specifies the desired state of a MySQLInstance.
           properties:
             classRef:
               description: PortableClassReference is a reference to a portable class
@@ -57,7 +59,8 @@ spec:
                   type: string
               type: object
             engineVersion:
-              description: mysql instance properties
+              description: EngineVersion specifies the desired MySQL engine version,
+                e.g. 5.7.
               enum:
               - "5.6"
               - "5.7"

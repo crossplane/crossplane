@@ -13,9 +13,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-// +kubebuilder:object:generate=true
-// +groupName=stacks.crossplane.io
-// +versionName=v1alpha1
 
 package v1alpha1
 

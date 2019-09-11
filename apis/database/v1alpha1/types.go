@@ -24,11 +24,11 @@ import (
 	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
 )
 
-// MySQLInstanceSpec specifies the configuration of a MySQL instance.
+// MySQLInstanceSpec specifies the desired state of a MySQLInstance.
 type MySQLInstanceSpec struct {
 	runtimev1alpha1.ResourceClaimSpec `json:",inline"`
 
-	// mysql instance properties
+	// EngineVersion specifies the desired MySQL engine version, e.g. 5.7.
 	// +kubebuilder:validation:Enum="5.6";"5.7"
 	EngineVersion string `json:"engineVersion,omitempty"`
 }
@@ -37,7 +37,9 @@ var _ resource.Claim = &MySQLInstance{}
 
 // +kubebuilder:object:root=true
 
-// MySQLInstance is the CRD type for abstract MySQL database instances
+// A MySQLInstance is a portable resource claim that may be satisfied by binding
+// to a MySQL managed resource such as an AWS RDS instance or a GCP CloudSQL
+// instance.
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.bindingPhase"
 // +kubebuilder:printcolumn:name="CLASS",type="string",JSONPath=".spec.classRef.name"
 // +kubebuilder:printcolumn:name="VERSION",type="string",JSONPath=".spec.engineVersion"
@@ -98,7 +100,7 @@ func (i *MySQLInstance) GetWriteConnectionSecretToReference() corev1.LocalObject
 
 // +kubebuilder:object:root=true
 
-// MySQLInstanceList contains a list of MySQLInstance
+// MySQLInstanceList contains a list of MySQLInstance.
 type MySQLInstanceList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
@@ -123,7 +125,7 @@ var _ resource.PortableClassList = &MySQLInstanceClassList{}
 
 // +kubebuilder:object:root=true
 
-// MySQLInstanceClassList contains a list of MySQLInstancePolicy
+// MySQLInstanceClassList contains a list of MySQLInstanceClass.
 type MySQLInstanceClassList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
@@ -151,12 +153,12 @@ func (my *MySQLInstanceClassList) GetPortableClassItems() []resource.PortableCla
 	return items
 }
 
-// PostgreSQLInstanceSpec specifies the configuration of this
+// PostgreSQLInstanceSpec specifies the desired state of a PostgreSQLInstance.
 // PostgreSQLInstance.
 type PostgreSQLInstanceSpec struct {
 	runtimev1alpha1.ResourceClaimSpec `json:",inline"`
 
-	// postgresql instance properties
+	// EngineVersion specifies the desired PostgreSQL engine version, e.g. 9.6.
 	// +kubebuilder:validation:Enum="9.6"
 	EngineVersion string `json:"engineVersion,omitempty"`
 }
@@ -165,6 +167,9 @@ var _ resource.Claim = &PostgreSQLInstance{}
 
 // +kubebuilder:object:root=true
 
+// A PostgreSQLInstance is a portable resource claim that may be satisfied by
+// binding to a PostgreSQL managed resource such as an AWS RDS instance or a GCP
+// CloudSQL instance.
 // PostgreSQLInstance is the CRD type for abstract PostgreSQL database instances
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.bindingPhase"
 // +kubebuilder:printcolumn:name="CLASS",type="string",JSONPath=".spec.classRef.name"
@@ -226,7 +231,7 @@ func (i *PostgreSQLInstance) GetWriteConnectionSecretToReference() corev1.LocalO
 
 // +kubebuilder:object:root=true
 
-// PostgreSQLInstanceList contains a list of PostgreSQLInstance
+// PostgreSQLInstanceList contains a list of PostgreSQLInstance.
 type PostgreSQLInstanceList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
@@ -251,7 +256,7 @@ var _ resource.PortableClassList = &PostgreSQLInstanceClassList{}
 
 // +kubebuilder:object:root=true
 
-// PostgreSQLInstanceClassList contains a list of PostgreSQLInstanceClass
+// PostgreSQLInstanceClassList contains a list of PostgreSQLInstanceClass.
 type PostgreSQLInstanceClassList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

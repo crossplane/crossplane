@@ -42,11 +42,11 @@ const (
 // A KubernetesApplicationSpec specifies the resources of a Kubernetes
 // application.
 type KubernetesApplicationSpec struct {
-	// TODO(negz): Use a validation webhook to ensure the below selectors cannot
-	// be updated - only set at creation time.
+	// TODO(negz): Ensure the below selectors cannot be updated - only set at
+	// creation time per https://github.com/crossplaneio/crossplane/issues/727
 
-	// TODO(negz): Use a validation webhook to ensure ResourceSelector matches
-	// the labels of all templated KubernetesApplicationResources.
+	// TODO(negz): Ensure ResourceSelector matches the labels of all templated
+	// KubernetesApplicationResources.
 
 	// ResourceSelector selects the KubernetesApplicationResources that are
 	// managed by this KubernetesApplication. Note that a KubernetesApplication
@@ -79,8 +79,8 @@ type KubernetesApplicationResourceTemplate struct {
 	Spec KubernetesApplicationResourceSpec `json:"spec,omitempty"`
 }
 
-// KubernetesApplicationStatus represents the status of a Kubernetes
-// application.
+// KubernetesApplicationStatus represents the observed state of a
+// KubernetesApplication.
 type KubernetesApplicationStatus struct {
 	runtimev1alpha1.ConditionedStatus `json:"conditionedStatus,omitempty"`
 
@@ -103,7 +103,7 @@ type KubernetesApplicationStatus struct {
 // +kubebuilder:object:root=true
 
 // A KubernetesApplication defines an application deployed by Crossplane to a
-// Kubernetes cluster that is managed by Crossplane.
+// Kubernetes cluster, i.e. a portable KubernetesCluster resource claim.
 // +kubebuilder:printcolumn:name="CLUSTER",type="string",JSONPath=".status.clusterRef.name"
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.state"
 // +kubebuilder:printcolumn:name="DESIRED",type="integer",JSONPath=".status.desiredResources"
@@ -118,14 +118,15 @@ type KubernetesApplication struct {
 
 // +kubebuilder:object:root=true
 
-// KubernetesApplicationList contains a list of KubernetesApplications.
+// KubernetesApplicationList contains a list of KubernetesApplication.
 type KubernetesApplicationList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []KubernetesApplication `json:"items"`
 }
 
-// KubernetesApplicationResourceState represents the state of a Kubernetes application.
+// KubernetesApplicationResourceState represents the state of a
+// KubernetesApplicationResource.
 type KubernetesApplicationResourceState string
 
 // KubernetesApplicationResource states.
@@ -137,8 +138,8 @@ const (
 	KubernetesApplicationResourceStateFailed    KubernetesApplicationResourceState = "Failed"
 )
 
-// KubernetesApplicationResourceSpec specifies the configuration of a
-// Kubernetes application resource.
+// KubernetesApplicationResourceSpec specifies the desired state of a
+// KubernetesApplicationResource.
 type KubernetesApplicationResourceSpec struct {
 	// TODO(negz): Use a validation webhook to reject updates to the template's
 	// group, version, kind, namespace, and name. Changing any of these fields
@@ -158,12 +159,14 @@ type KubernetesApplicationResourceSpec struct {
 	Secrets []corev1.LocalObjectReference `json:"secrets,omitempty"`
 }
 
-// RemoteStatus represents the status of a resource in a remote Kubernetes
-// cluster. Its content is opaque to Crossplane. We wrap json.RawMessage in this
-// type in order to trick controller-tools into generating an OpenAPI spec that
-// expects RemoteStatus to be a JSON object rather than a byte array. It is not
-// currently possible to override controller-tools' type detection per
+// NOTE(negz): This content of a RemoteStatus is opaque to Crossplane. We wrap
+// json.RawMessage in this type in order to trick controller-tools into
+// generating an OpenAPI spec that expects RemoteStatus to be a JSON object
+// rather than a byte array. It is not currently possible to override
+// controller-tools' type detection per
 // https://github.com/kubernetes-sigs/controller-tools/issues/155
+
+// RemoteStatus represents the observed state of a remote cluster.
 type RemoteStatus struct {
 	// Raw JSON representation of the remote status as a byte array.
 	Raw json.RawMessage `json:"raw,omitempty"`
@@ -179,8 +182,8 @@ func (s *RemoteStatus) UnmarshalJSON(data []byte) error {
 	return s.Raw.UnmarshalJSON(data)
 }
 
-// KubernetesApplicationResourceStatus represents the status of a Kubernetes
-// application resource.
+// KubernetesApplicationResourceStatus represents the observed state of a
+// KubernetesApplicationResource.
 type KubernetesApplicationResourceStatus struct {
 	runtimev1alpha1.ConditionedStatus `json:"conditionedStatus,omitempty"`
 
@@ -214,7 +217,7 @@ type KubernetesApplicationResource struct {
 // +kubebuilder:object:root=true
 
 // KubernetesApplicationResourceList contains a list of
-// KubernetesApplicationResources.
+// KubernetesApplicationResource.
 type KubernetesApplicationResourceList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
