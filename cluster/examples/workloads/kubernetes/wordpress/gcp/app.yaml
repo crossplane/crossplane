@@ -1,4 +1,25 @@
 ---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: complex
+---
+apiVersion: compute.crossplane.io/v1alpha1
+kind: KubernetesCluster
+metadata:
+  name: wordpress-demo-cluster
+  namespace: complex
+  labels:
+    app: wordpress-demo
+spec:
+  writeConnectionSecretToRef:
+    name: wordpress-demo-cluster
+  classRef:
+    kind: GKEClusterClass
+    apiVersion: compute.gcp.crossplane.io/v1alpha2
+    name: standard-cluster
+    namespace: gcp
+---
 apiVersion: database.crossplane.io/v1alpha1
 kind: MySQLInstance
 metadata:
@@ -9,7 +30,7 @@ spec:
     kind: CloudsqlInstanceClass
     apiVersion: database.gcp.crossplane.io/v1alpha2
     name: standard-mysql
-    namespace: crossplane-system
+    namespace: gcp
   engineVersion: "5.7"
   # A secret is exported by providing the secret name
   # to export it under. This is the name of the secret
@@ -85,6 +106,8 @@ spec:
                           # The metadata name is specified above for this resource, and so is
                           # the secret name.
                           name: wordpress-demo-deployment-sql
+                          # The secret has privateIP and publicIP options for connecting to CloudSQL instance.
+                          # privateIP will be assigned to endpoint key if available, otherwise publicIP.
                           key: endpoint
                     - name: WORDPRESS_DB_USER
                       valueFrom:
