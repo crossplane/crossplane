@@ -233,7 +233,7 @@ func TestObserve(t *testing.T) {
 		},
 		"ErrorListConnections": {
 			e: &external{
-				sn: FakeServiceNetworkingService{WantMethod: http.MethodGet, ReturnError: errGoogleOther}.Serve(),
+				sn: FakeServiceNetworkingService{WantMethod: http.MethodGet, ReturnError: errGoogleOther}.Serve(t),
 			},
 			args: args{
 				ctx: context.Background(),
@@ -250,7 +250,7 @@ func TestObserve(t *testing.T) {
 					Return: &servicenetworking.ListConnectionsResponse{Connections: []*servicenetworking.Connection{
 						{Peering: peeringName + "-diff"},
 					}},
-				}.Serve(),
+				}.Serve(t),
 			},
 			args: args{
 				ctx: context.Background(),
@@ -269,8 +269,8 @@ func TestObserve(t *testing.T) {
 					Return: &servicenetworking.ListConnectionsResponse{Connections: []*servicenetworking.Connection{
 						{Peering: peeringName},
 					}},
-				}.Serve(),
-				compute: FakeComputeService{WantMethod: http.MethodGet, ReturnError: errGoogleNotFound}.Serve(),
+				}.Serve(t),
+				compute: FakeComputeService{WantMethod: http.MethodGet, ReturnError: errGoogleNotFound}.Serve(t),
 			},
 			args: args{
 				ctx: context.Background(),
@@ -287,8 +287,8 @@ func TestObserve(t *testing.T) {
 					Return: &servicenetworking.ListConnectionsResponse{Connections: []*servicenetworking.Connection{
 						{Peering: peeringName},
 					}},
-				}.Serve(),
-				compute: FakeComputeService{WantMethod: http.MethodGet}.Serve(),
+				}.Serve(t),
+				compute: FakeComputeService{WantMethod: http.MethodGet}.Serve(t),
 			},
 			args: args{
 				ctx: context.Background(),
@@ -344,7 +344,7 @@ func TestCreate(t *testing.T) {
 		},
 		"ErrorCreateConnection": {
 			e: &external{
-				sn: FakeServiceNetworkingService{WantMethod: http.MethodPost, ReturnError: errGoogleOther}.Serve(),
+				sn: FakeServiceNetworkingService{WantMethod: http.MethodPost, ReturnError: errGoogleOther}.Serve(t),
 			},
 			args: args{
 				ctx: context.Background(),
@@ -356,7 +356,7 @@ func TestCreate(t *testing.T) {
 		},
 		"ConnectionAlreadyExists": {
 			e: &external{
-				sn: FakeServiceNetworkingService{WantMethod: http.MethodPost, ReturnError: errGoogleConflict}.Serve(),
+				sn: FakeServiceNetworkingService{WantMethod: http.MethodPost, ReturnError: errGoogleConflict}.Serve(t),
 			},
 			args: args{
 				ctx: context.Background(),
@@ -366,7 +366,7 @@ func TestCreate(t *testing.T) {
 		},
 		"ConnectionCreated": {
 			e: &external{
-				sn: FakeServiceNetworkingService{WantMethod: http.MethodPost, Return: &servicenetworking.Operation{}}.Serve(),
+				sn: FakeServiceNetworkingService{WantMethod: http.MethodPost, Return: &servicenetworking.Operation{}}.Serve(t),
 			},
 			args: args{
 				ctx: context.Background(),
@@ -417,7 +417,7 @@ func TestUpdate(t *testing.T) {
 		},
 		"ErrorUpdateConnection": {
 			e: &external{
-				sn: FakeServiceNetworkingService{WantMethod: http.MethodPatch, ReturnError: errGoogleOther}.Serve(),
+				sn: FakeServiceNetworkingService{WantMethod: http.MethodPatch, ReturnError: errGoogleOther}.Serve(t),
 			},
 			args: args{
 				ctx: context.Background(),
@@ -429,7 +429,7 @@ func TestUpdate(t *testing.T) {
 		},
 		"ConnectionUpdated": {
 			e: &external{
-				sn: FakeServiceNetworkingService{WantMethod: http.MethodPatch, Return: &servicenetworking.Operation{}}.Serve(),
+				sn: FakeServiceNetworkingService{WantMethod: http.MethodPatch, Return: &servicenetworking.Operation{}}.Serve(t),
 			},
 			args: args{
 				ctx: context.Background(),
@@ -473,7 +473,7 @@ func TestDelete(t *testing.T) {
 		},
 		"ErrorDeleteConnection": {
 			e: &external{
-				compute: FakeComputeService{WantMethod: http.MethodPost, ReturnError: errGoogleOther}.Serve(),
+				compute: FakeComputeService{WantMethod: http.MethodPost, ReturnError: errGoogleOther}.Serve(t),
 			},
 			args: args{
 				ctx: context.Background(),
@@ -483,7 +483,7 @@ func TestDelete(t *testing.T) {
 		},
 		"ConnectionNotFound": {
 			e: &external{
-				compute: FakeComputeService{WantMethod: http.MethodPost, ReturnError: errGoogleNotFound}.Serve(),
+				compute: FakeComputeService{WantMethod: http.MethodPost, ReturnError: errGoogleNotFound}.Serve(t),
 			},
 			args: args{
 				ctx: context.Background(),
@@ -492,7 +492,7 @@ func TestDelete(t *testing.T) {
 		},
 		"ConnectionDeleted": {
 			e: &external{
-				compute: FakeComputeService{WantMethod: http.MethodPost, Return: &compute.Operation{}}.Serve(),
+				compute: FakeComputeService{WantMethod: http.MethodPost, Return: &compute.Operation{}}.Serve(t),
 			},
 			args: args{
 				ctx: context.Background(),
@@ -518,7 +518,7 @@ type FakeComputeService struct {
 	Return      interface{}
 }
 
-func (s FakeComputeService) Serve() *compute.Service {
+func (s FakeComputeService) Serve(t *testing.T) *compute.Service {
 	// NOTE(negz): We never close this httptest.Server because returning only a
 	// compute.Service makes for a simpler test fake API. We create one server
 	// per test case, but they only live for the invocation of the test run.
@@ -547,7 +547,10 @@ func (s FakeComputeService) Serve() *compute.Service {
 		_ = json.NewEncoder(w).Encode(&compute.Operation{})
 	}))
 
-	c, _ := compute.NewService(context.Background(), option.WithEndpoint(srv.URL))
+	c, err := compute.NewService(context.Background(), option.WithEndpoint(srv.URL))
+	if err != nil {
+		t.Fatal(err)
+	}
 	return c
 }
 
@@ -558,7 +561,7 @@ type FakeServiceNetworkingService struct {
 	Return      interface{}
 }
 
-func (s FakeServiceNetworkingService) Serve() *servicenetworking.APIService {
+func (s FakeServiceNetworkingService) Serve(t *testing.T) *servicenetworking.APIService {
 	// NOTE(negz): We never close this httptest.Server because returning only a
 	// compute.Service makes for a simpler test fake API. We create one server
 	// per test case, but they only live for the invocation of the test run.
@@ -587,6 +590,9 @@ func (s FakeServiceNetworkingService) Serve() *servicenetworking.APIService {
 		_ = json.NewEncoder(w).Encode(s.Return)
 	}))
 
-	c, _ := servicenetworking.NewService(context.Background(), option.WithEndpoint(srv.URL))
+	c, err := servicenetworking.NewService(context.Background(), option.WithEndpoint(srv.URL))
+	if err != nil {
+		t.Fatal(err)
+	}
 	return c
 }
