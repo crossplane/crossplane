@@ -1,4 +1,4 @@
-apiVersion: storage.aws.crossplane.io/v1alpha1
+apiVersion: storage.aws.crossplane.io/v1alpha2
 kind: S3Bucket
 metadata:
   name: demo-bucket
@@ -12,7 +12,7 @@ spec:
   writeConnectionSecretToRef:
     name: demo-bucket-connection
 ---
-apiVersion: database.aws.crossplane.io/v1alpha1
+apiVersion: database.aws.crossplane.io/v1alpha2
 kind: RDSInstance
 metadata:
   name: demo-database-connection

@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: aws
+---
+apiVersion: stacks.crossplane.io/v1alpha1
+kind: StackRequest
+metadata:
+  name: stack-aws
+  namespace: aws
+spec:
+  package: "crossplane/stack-aws:master"

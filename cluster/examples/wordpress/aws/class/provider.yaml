@@ -7,7 +7,7 @@ metadata:
   namespace: crossplane-system
 type: Opaque
 ---
-apiVersion: aws.crossplane.io/v1alpha1
+apiVersion: aws.crossplane.io/v1alpha2
 kind: Provider
 metadata:
   name: aws-provider
@@ -18,7 +18,7 @@ spec:
     name: aws-creds
   region: us-east-1
 ---
-apiVersion: database.aws.crossplane.io/v1alpha1
+apiVersion: database.aws.crossplane.io/v1alpha2
 kind: RDSInstanceClass
 metadata:
   name: standard

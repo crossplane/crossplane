@@ -26,8 +26,11 @@ The following components are dynamically provisioned and configured during this 
 Follow [GitLab instruction](https://docs.gitlab.com/charts/installation/cloud/eks.html#scripted-cluster-creation) to create and bootstrap EKS Kubernetes cluster
 
 ### Crossplane
+
 Using the newly provisioned cluster:
-- Install Crossplane from master helm channel using the [Crossplane Installation Guide](../install-crossplane.md#master)
+
+- Install Crossplane from master channel using the [Crossplane Installation Guide](../install-crossplane.md#master)
+- Install the AWS stack into Crossplane using the [AWS stack section](../install-crossplane.md#aws-stack) of the install guide.
 - Obtain [Cloud Provider Credentials](../cloud-providers.md)
 
 #### Region
@@ -54,16 +57,16 @@ sed -e "s|REGION|$REGION|g;s|BASE64ENCODED_AWS_PROVIDER_CREDS|`base64 ~/.aws/cre
     kubectl get providers.aws.crossplane.io -n crossplane-system
     kubectl get secrets -n crossplane-system
     ```
-    
-    - You should see output similar to:    
-    
+
+    - You should see output similar to:
+
     ```bash
     NAME       PROJECT-ID            AGE
     demo-aws   your-project-123456   11m
     NAME                  TYPE                                  DATA   AGE
     default-token-974db   kubernetes.io/service-account-token   3      2d16h
     demo-aws-creds        Opaque                                1      103s
-    ```   
+    ```
 
 #### Create an RDS subnet group
 1. Navigate to the aws console in same region as the EKS cluster
@@ -117,9 +120,9 @@ This is for **EXAMPLE PURPOSES ONLY** and is **NOT RECOMMENDED** for production 
 
 ```console
 export REDIS_SUBNET_GROUP=replace-me-with-redis-subnet-group
-``` 
+```
 
-        
+
 #### Resource Classes
 Create Crossplane Resource Class needed to provision managed resources for GitLab applications
 
@@ -131,7 +134,7 @@ sed -e "s|REDIS_SECURITY_GROUP|$REDIS_SECURITY_GROUP|g;s|REDIS_SUBNET_GROUP|$RED
 resourceclass.core.crossplane.io/standard-aws-bucket created
 resourceclass.core.crossplane.io/standard-aws-postgres created
 resourceclass.core.crossplane.io/standard-aws-redis created
-```    
+```
 
 Verify
 
@@ -156,7 +159,7 @@ kubectl create -Rf cluster/examples/gitlab/aws/resource-claims/
 ```
 ```
 postgresqlinstance.database.crossplane.io/gitlab-postgresql created
-rediscluster.cache.crossplane.io/gitlab-redis created  
+rediscluster.cache.crossplane.io/gitlab-redis created
 bucket.storage.crossplane.io/gitlab-artifacts created
 bucket.storage.crossplane.io/gitlab-backups-tmp created
 bucket.storage.crossplane.io/gitlab-backups created
@@ -168,7 +171,7 @@ bucket.storage.crossplane.io/gitlab-registry created
 bucket.storage.crossplane.io/gitlab-uploads created
 ```
 
-Verify that the resource claims were successfully provisioned. 
+Verify that the resource claims were successfully provisioned.
 ```bash
 kubectl get -f cluster/examples/gitlab/aws/resource-claims/postgres.yaml
 kubectl get -f cluster/examples/gitlab/aws/resource-claims/redis.yaml
@@ -210,9 +213,9 @@ gitlab-uploads         Bound    standard-aws-bucket                             
 What we are looking for is for `STATUS` value to become `Bound` which indicates the managed resource was successfully provisioned and is ready for consumption
 
 ##### Resource Claims Connection Secrets
-Verify that every resource has created a connection secret 
+Verify that every resource has created a connection secret
 ```bash
-kubectl get secrets -n default 
+kubectl get secrets -n default
 ```
 ```
 NAME                   TYPE                                  DATA   AGE
@@ -281,7 +284,7 @@ secret/bucket-pseudonymizer created
 secret/bucket-registry created
 secret/bucket-uploads created
 
-``` 
+```
 
 ## Install
 Render the official GitLab Helm chart with the generated values files, and your settings into a `gitlab-aws.yaml` file.
@@ -316,12 +319,12 @@ kubectl get jobs,deployments,statefulsets
 
 It usually takes few minutes for all GitLab components to get initialized and be ready.
 
-Note: During the initialization "wait", some pods could automatically restart, but this should stabilize once all the 
+Note: During the initialization "wait", some pods could automatically restart, but this should stabilize once all the
 dependent components become available.
 
 Note: There also could be intermittent `ImagePullBackOff`, but those, similar to above should clear up by themselves.
 
-Note: It appears the `gitlab-demo-unicorn-test-runner-*` (job/pod) will Error and will not re-run, unless the pod is resubmitted. 
+Note: It appears the `gitlab-demo-unicorn-test-runner-*` (job/pod) will Error and will not re-run, unless the pod is resubmitted.
 
 After few minutes your output for:
 ```bash
@@ -353,7 +356,7 @@ gitlab-demo-unicorn-6dd757db97-nmglt                         2/2     Running    
 gitlab-demo-unicorn-test-runner-f2ttk                        0/1     Error              0          9m
 ```
 
-Note: if `ImagePullBackOff` error Pod does not get auto-cleared, consider deleting the pod. 
+Note: if `ImagePullBackOff` error Pod does not get auto-cleared, consider deleting the pod.
 A new pod should come up with "Running" STATUS.
 
 ## Use
@@ -406,7 +409,7 @@ kubectl get -Rf cluster/examples/gitlab/aws/resource-claims
 ```
 Note: typically it may take few seconds for Crossplane to process the request.
 By running resource and provider removal in the same command or back-to-back, we are running the risk of having orphaned resource.
-I.E., a resource that could not be cleaned up because the provider is no longer available. 
+I.E., a resource that could not be cleaned up because the provider is no longer available.
 
 Delete all resource classes:
 ```bash

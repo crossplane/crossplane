@@ -16,7 +16,7 @@ spec:
     name: wordpress-demo-cluster
   classRef:
     kind: EKSClusterClass
-    apiVersion: compute.aws.crossplane.io/v1alpha1
+    apiVersion: compute.aws.crossplane.io/v1alpha2
     name: standard-cluster
     namespace: crossplane-system
 ---

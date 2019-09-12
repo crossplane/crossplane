@@ -1,7 +1,7 @@
 ---
 # ResourceClass that defines the blueprint for how a "standard" RDS instance
 # should be dynamically provisioned
-apiVersion: database.aws.crossplane.io/v1alpha1
+apiVersion: database.aws.crossplane.io/v1alpha2
 kind: RDSInstanceClass
 metadata:
   name: standard-aws-postgres

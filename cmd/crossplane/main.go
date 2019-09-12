@@ -21,8 +21,6 @@ import (
 	"os"
 	"path/filepath"
 
-	awsapis "github.com/crossplaneio/crossplane/aws/apis"
-
 	"github.com/spf13/afero"
 	"gopkg.in/alecthomas/kingpin.v2"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -33,7 +31,6 @@ import (
 
 	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
 	"github.com/crossplaneio/crossplane/apis"
-	"github.com/crossplaneio/crossplane/pkg/controller/aws"
 	"github.com/crossplaneio/crossplane/pkg/controller/defaultclass"
 	stacksController "github.com/crossplaneio/crossplane/pkg/controller/stacks"
 	"github.com/crossplaneio/crossplane/pkg/controller/workload"
@@ -157,10 +154,6 @@ func controllerSetupWithManager(mgr manager.Manager) error {
 		return err
 	}
 
-	if err := (&aws.Controllers{}).SetupWithManager(mgr); err != nil {
-		return err
-	}
-
 	if err := (&workload.Controllers{}).SetupWithManager(mgr); err != nil {
 		return err
 	}
@@ -178,10 +171,6 @@ func stacksControllerSetupWithManager(mgr manager.Manager) error {
 // addToScheme adds all resources to the runtime scheme.
 func addToScheme(scheme *runtime.Scheme) error {
 	if err := apis.AddToScheme(scheme); err != nil {
-		return err
-	}
-
-	if err := awsapis.AddToScheme(scheme); err != nil {
 		return err
 	}
 

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package core contains Kubernetes API groups for AWS cloud provider.
+// Package core contains Kubernetes API groups for core Crossplane.
 package core
 
 import (

@@ -80,6 +80,31 @@ Then you can install the GCP stack into Crossplane in the `gcp` namespace with t
 kubectl apply -f stack-gcp.yaml
 ```
 
+### AWS Stack
+
+To get started with Amazon Web Services (AWS), create a file named `stack-aws.yaml` with the following content:
+
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: aws
+---
+apiVersion: stacks.crossplane.io/v1alpha1
+kind: StackRequest
+metadata:
+  name: stack-aws
+  namespace: aws
+spec:
+  package: "crossplane/stack-aws:master"
+```
+
+Then you can install the AWS stack into Crossplane in the `aws` namespace with the following command:
+
+```console
+kubectl apply -f stack-aws.yaml
+```
+
 ### Azure Stack
 
 To get started with Microsoft Azure, create a file named `stack-azure.yaml` with the following content:
@@ -117,6 +142,12 @@ depending on which cloud provider you are removing, to remove its stack from Cro
 
 ```console
 kubectl delete -f stack-gcp.yaml
+```
+
+#### Uninstalling AWS
+
+```console
+kubectl delete -f stack-aws.yaml
 ```
 
 #### Uninstalling Azure

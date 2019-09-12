@@ -7,7 +7,7 @@ metadata:
 spec:
   classRef:
     kind: RDSInstanceClass
-    apiVersion: database.aws.crossplane.io/v1alpha1
+    apiVersion: database.aws.crossplane.io/v1alpha2
     name: standard-mysql
     namespace: crossplane-system
   engineVersion: "5.7"

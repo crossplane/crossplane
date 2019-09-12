@@ -6,7 +6,7 @@ metadata:
 spec:
   classRef:
     kind: EKSClusterClass
-    apiVersion: compute.aws.crossplane.io/v1alpha1
+    apiVersion: compute.aws.crossplane.io/v1alpha2
     name: ekscluster
     namespace: crossplane-system
   writeConnectionSecretToRef:

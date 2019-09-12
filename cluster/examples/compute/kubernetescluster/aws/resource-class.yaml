@@ -1,5 +1,5 @@
 ---
-apiVersion: compute.aws.crossplane.io/v1alpha1
+apiVersion: compute.aws.crossplane.io/v1alpha2
 kind: EKSClusterClass
 metadata:
   name: ekscluster

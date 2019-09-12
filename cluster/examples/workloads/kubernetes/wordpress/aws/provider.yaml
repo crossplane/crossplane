@@ -8,7 +8,7 @@ metadata:
   namespace: crossplane-system
 type: Opaque
 ---
-apiVersion: aws.crossplane.io/v1alpha1
+apiVersion: aws.crossplane.io/v1alpha2
 kind: Provider
 metadata:
   name: aws-provider
@@ -19,7 +19,7 @@ spec:
     name: aws-provider-creds
   region: REGION
 ---
-apiVersion: database.aws.crossplane.io/v1alpha1
+apiVersion: database.aws.crossplane.io/v1alpha2
 kind: RDSInstanceClass
 metadata:
   name: standard-mysql
@@ -37,7 +37,7 @@ specTemplate:
     namespace: crossplane-system
   reclaimPolicy: Delete
 ---
-apiVersion: compute.aws.crossplane.io/v1alpha1
+apiVersion: compute.aws.crossplane.io/v1alpha2
 kind: EKSClusterClass
 metadata:
   name: standard-cluster
