@@ -132,10 +132,10 @@ type MySQLInstanceClassList struct {
 
 // SetPortableClassItems of this MySQLInstanceClassList.
 func (my *MySQLInstanceClassList) SetPortableClassItems(r []resource.PortableClass) {
-	items := make([]MySQLInstanceClass, len(r))
-	for i, item := range r {
-		if myItem, ok := item.(*MySQLInstanceClass); ok {
-			items[i] = *myItem
+	items := make([]MySQLInstanceClass, 0, len(r))
+	for i := range r {
+		if item, ok := r[i].(*MySQLInstanceClass); ok {
+			items = append(items, *item)
 		}
 	}
 	my.Items = items
@@ -260,10 +260,10 @@ type PostgreSQLInstanceClassList struct {
 
 // SetPortableClassItems of this PostgreSQLInstanceClassList.
 func (pg *PostgreSQLInstanceClassList) SetPortableClassItems(r []resource.PortableClass) {
-	items := make([]PostgreSQLInstanceClass, len(r))
-	for i, item := range r {
-		if pgItem, ok := item.(*PostgreSQLInstanceClass); ok {
-			items[i] = *pgItem
+	items := make([]PostgreSQLInstanceClass, 0, len(r))
+	for i := range r {
+		if item, ok := r[i].(*PostgreSQLInstanceClass); ok {
+			items = append(items, *item)
 		}
 	}
 	pg.Items = items

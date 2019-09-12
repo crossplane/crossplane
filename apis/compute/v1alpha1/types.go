@@ -141,10 +141,10 @@ type KubernetesClusterClassList struct {
 
 // SetPortableClassItems of this KubernetesClusterClassList.
 func (kc *KubernetesClusterClassList) SetPortableClassItems(r []resource.PortableClass) {
-	items := make([]KubernetesClusterClass, len(r))
-	for i, item := range r {
-		if kcItem, ok := item.(*KubernetesClusterClass); ok {
-			items[i] = *kcItem
+	items := make([]KubernetesClusterClass, 0, len(r))
+	for i := range r {
+		if item, ok := r[i].(*KubernetesClusterClass); ok {
+			items = append(items, *item)
 		}
 	}
 	kc.Items = items

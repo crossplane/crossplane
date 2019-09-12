@@ -133,10 +133,10 @@ type RedisClusterClassList struct {
 
 // SetPortableClassItems of this RedisClusterClassList.
 func (rc *RedisClusterClassList) SetPortableClassItems(r []resource.PortableClass) {
-	items := make([]RedisClusterClass, len(r))
-	for i, item := range r {
-		if rcItem, ok := item.(*RedisClusterClass); ok {
-			items[i] = *rcItem
+	items := make([]RedisClusterClass, 0, len(r))
+	for i := range r {
+		if item, ok := r[i].(*RedisClusterClass); ok {
+			items = append(items, *item)
 		}
 	}
 	rc.Items = items
