@@ -104,16 +104,6 @@ type KubernetesClusterList struct {
 	Items           []KubernetesCluster `json:"items"`
 }
 
-// ResourceReference is generic resource represented by the resource name and the secret name that will be generated
-// for the consumption inside the Workload.
-// TODO(negz): Remove this.
-type ResourceReference struct {
-	// reference to a resource object in the same namespace
-	corev1.ObjectReference `json:",inline"`
-	// name of the generated resource secret
-	SecretName string `json:"secretName"`
-}
-
 // All portable classes must satisfy the Class interface
 var _ resource.PortableClass = &KubernetesClusterClass{}
 
