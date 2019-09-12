@@ -26,6 +26,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	util "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -36,7 +37,6 @@ import (
 	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
 	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
-	"github.com/crossplaneio/crossplane-runtime/pkg/util"
 	"github.com/crossplaneio/crossplane/apis/workload/v1alpha1"
 )
 
@@ -220,7 +220,7 @@ func (c *applicationResourceClient) sync(ctx context.Context, template *v1alpha1
 	remote := template.DeepCopy()
 
 	submitted := false
-	err := util.CreateOrUpdate(ctx, c.kube, remote, func() error {
+	_, err := util.CreateOrUpdate(ctx, c.kube, remote, func() error {
 		// Inside this anonymous function ar could either be unchanged (if
 		// it does not exist in the API server) or updated to reflect its
 		// current state according to the API server.

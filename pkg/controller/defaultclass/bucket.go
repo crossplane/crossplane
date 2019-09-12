@@ -36,7 +36,7 @@ type BucketController struct{}
 func (c *BucketController) SetupWithManager(mgr ctrl.Manager) error {
 	r := resource.NewDefaultClassReconciler(mgr,
 		resource.ClaimKind(storagev1alpha1.BucketGroupVersionKind),
-		resource.PolicyKind{Singular: storagev1alpha1.BucketPolicyGroupVersionKind, Plural: storagev1alpha1.BucketPolicyListGroupVersionKind},
+		resource.PortableClassKind{Singular: storagev1alpha1.BucketClassGroupVersionKind, Plural: storagev1alpha1.BucketClassListGroupVersionKind},
 	)
 
 	name := strings.ToLower(fmt.Sprintf("%s.%s", storagev1alpha1.BucketKind, controllerBaseName))
@@ -44,7 +44,7 @@ func (c *BucketController) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&storagev1alpha1.Bucket{}).
-		WithEventFilter(resource.NewPredicates(resource.NoClassReference())).
+		WithEventFilter(resource.NewPredicates(resource.NoPortableClassReference())).
 		WithEventFilter(resource.NewPredicates(resource.NoManagedResourceReference())).
 		Complete(r)
 }

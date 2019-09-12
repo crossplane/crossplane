@@ -47,21 +47,21 @@ var (
 	KubernetesClusterGroupVersionKind = SchemeGroupVersion.WithKind(KubernetesClusterKind)
 )
 
-// KubernetesClusterPolicy type metadata.
+// KubernetesClusterClass type metadata.
 var (
-	KubernetesClusterPolicyKind             = reflect.TypeOf(KubernetesClusterPolicy{}).Name()
-	KubernetesClusterPolicyKindAPIVersion   = KubernetesClusterPolicyKind + "." + SchemeGroupVersion.String()
-	KubernetesClusterPolicyGroupVersionKind = SchemeGroupVersion.WithKind(KubernetesClusterPolicyKind)
+	KubernetesClusterClassKind             = reflect.TypeOf(KubernetesClusterClass{}).Name()
+	KubernetesClusterClassKindAPIVersion   = KubernetesClusterClassKind + "." + SchemeGroupVersion.String()
+	KubernetesClusterClassGroupVersionKind = SchemeGroupVersion.WithKind(KubernetesClusterClassKind)
 )
 
-// KubernetesClusterPolicyList type metadata.
+// KubernetesClusterClassList type metadata.
 var (
-	KubernetesClusterPolicyListKind             = reflect.TypeOf(KubernetesClusterPolicyList{}).Name()
-	KubernetesClusterPolicyListKindAPIVersion   = KubernetesClusterPolicyListKind + "." + SchemeGroupVersion.String()
-	KubernetesClusterPolicyListGroupVersionKind = SchemeGroupVersion.WithKind(KubernetesClusterPolicyListKind)
+	KubernetesClusterClassListKind             = reflect.TypeOf(KubernetesClusterClassList{}).Name()
+	KubernetesClusterClassListKindAPIVersion   = KubernetesClusterClassListKind + "." + SchemeGroupVersion.String()
+	KubernetesClusterClassListGroupVersionKind = SchemeGroupVersion.WithKind(KubernetesClusterClassListKind)
 )
 
 func init() {
 	SchemeBuilder.Register(&KubernetesCluster{}, &KubernetesClusterList{})
-	SchemeBuilder.Register(&KubernetesClusterPolicy{}, &KubernetesClusterPolicyList{})
+	SchemeBuilder.Register(&KubernetesClusterClass{}, &KubernetesClusterClassList{})
 }

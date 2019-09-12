@@ -47,21 +47,21 @@ var (
 	BucketGroupVersionKind = SchemeGroupVersion.WithKind(BucketKind)
 )
 
-// BucketPolicy type metadata.
+// BucketClass type metadata.
 var (
-	BucketPolicyKind             = reflect.TypeOf(BucketPolicy{}).Name()
-	BucketPolicyKindAPIVersion   = BucketPolicyKind + "." + SchemeGroupVersion.String()
-	BucketPolicyGroupVersionKind = SchemeGroupVersion.WithKind(BucketPolicyKind)
+	BucketClassKind             = reflect.TypeOf(BucketClass{}).Name()
+	BucketClassKindAPIVersion   = BucketClassKind + "." + SchemeGroupVersion.String()
+	BucketClassGroupVersionKind = SchemeGroupVersion.WithKind(BucketClassKind)
 )
 
-// BucketPolicyList type metadata.
+// BucketClassList type metadata.
 var (
-	BucketPolicyListKind             = reflect.TypeOf(BucketPolicyList{}).Name()
-	BucketPolicyListKindAPIVersion   = BucketPolicyListKind + "." + SchemeGroupVersion.String()
-	BucketPolicyListGroupVersionKind = SchemeGroupVersion.WithKind(BucketPolicyListKind)
+	BucketClassListKind             = reflect.TypeOf(BucketClassList{}).Name()
+	BucketClassListKindAPIVersion   = BucketClassListKind + "." + SchemeGroupVersion.String()
+	BucketClassListGroupVersionKind = SchemeGroupVersion.WithKind(BucketClassListKind)
 )
 
 func init() {
 	SchemeBuilder.Register(&Bucket{}, &BucketList{})
-	SchemeBuilder.Register(&BucketPolicy{}, &BucketPolicyList{})
+	SchemeBuilder.Register(&BucketClass{}, &BucketClassList{})
 }

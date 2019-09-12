@@ -36,9 +36,8 @@ func TestRedisClusterStorage(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
 		Spec: RedisClusterSpec{
 			ResourceClaimSpec: runtimev1alpha1.ResourceClaimSpec{
-				ClassReference: &corev1.ObjectReference{
-					Name:      "test-class",
-					Namespace: "test-system",
+				PortableClassReference: &corev1.LocalObjectReference{
+					Name: "test-class",
 				},
 			},
 			EngineVersion: "3.2",
@@ -105,9 +104,8 @@ func TestEngineVersion(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
 				Spec: RedisClusterSpec{
 					ResourceClaimSpec: runtimev1alpha1.ResourceClaimSpec{
-						ClassReference: &corev1.ObjectReference{
-							Name:      "test-class",
-							Namespace: "test-system",
+						PortableClassReference: &corev1.LocalObjectReference{
+							Name: "test-class",
 						},
 					},
 					EngineVersion: tc.version,

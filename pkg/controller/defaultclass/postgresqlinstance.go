@@ -36,7 +36,7 @@ type PostgreSQLInstanceController struct{}
 func (c *PostgreSQLInstanceController) SetupWithManager(mgr ctrl.Manager) error {
 	r := resource.NewDefaultClassReconciler(mgr,
 		resource.ClaimKind(databasev1alpha1.PostgreSQLInstanceGroupVersionKind),
-		resource.PolicyKind{Singular: databasev1alpha1.PostgreSQLInstancePolicyGroupVersionKind, Plural: databasev1alpha1.PostgreSQLInstancePolicyListGroupVersionKind},
+		resource.PortableClassKind{Singular: databasev1alpha1.PostgreSQLInstanceClassGroupVersionKind, Plural: databasev1alpha1.PostgreSQLInstanceClassListGroupVersionKind},
 	)
 
 	name := strings.ToLower(fmt.Sprintf("%s.%s", databasev1alpha1.PostgreSQLInstanceKind, controllerBaseName))
@@ -44,7 +44,7 @@ func (c *PostgreSQLInstanceController) SetupWithManager(mgr ctrl.Manager) error 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&databasev1alpha1.PostgreSQLInstance{}).
-		WithEventFilter(resource.NewPredicates(resource.NoClassReference())).
+		WithEventFilter(resource.NewPredicates(resource.NoPortableClassReference())).
 		WithEventFilter(resource.NewPredicates(resource.NoManagedResourceReference())).
 		Complete(r)
 }

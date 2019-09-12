@@ -36,7 +36,7 @@ type RedisClusterController struct{}
 func (c *RedisClusterController) SetupWithManager(mgr ctrl.Manager) error {
 	r := resource.NewDefaultClassReconciler(mgr,
 		resource.ClaimKind(cachev1alpha1.RedisClusterGroupVersionKind),
-		resource.PolicyKind{Singular: cachev1alpha1.RedisClusterPolicyGroupVersionKind, Plural: cachev1alpha1.RedisClusterPolicyListGroupVersionKind},
+		resource.PortableClassKind{Singular: cachev1alpha1.RedisClusterClassGroupVersionKind, Plural: cachev1alpha1.RedisClusterClassListGroupVersionKind},
 	)
 
 	name := strings.ToLower(fmt.Sprintf("%s.%s", cachev1alpha1.RedisClusterKind, controllerBaseName))
@@ -44,7 +44,7 @@ func (c *RedisClusterController) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&cachev1alpha1.RedisCluster{}).
-		WithEventFilter(resource.NewPredicates(resource.NoClassReference())).
+		WithEventFilter(resource.NewPredicates(resource.NoPortableClassReference())).
 		WithEventFilter(resource.NewPredicates(resource.NoManagedResourceReference())).
 		Complete(r)
 }

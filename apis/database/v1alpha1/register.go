@@ -47,18 +47,18 @@ var (
 	MySQLInstanceGroupVersionKind = SchemeGroupVersion.WithKind(MySQLInstanceKind)
 )
 
-// MySQLInstancePolicy type metadata.
+// MySQLInstanceClass type metadata.
 var (
-	MySQLInstancePolicyKind             = reflect.TypeOf(MySQLInstancePolicy{}).Name()
-	MySQLInstancePolicyKindAPIVersion   = MySQLInstancePolicyKind + "." + SchemeGroupVersion.String()
-	MySQLInstancePolicyGroupVersionKind = SchemeGroupVersion.WithKind(MySQLInstancePolicyKind)
+	MySQLInstanceClassKind             = reflect.TypeOf(MySQLInstanceClass{}).Name()
+	MySQLInstanceClassKindAPIVersion   = MySQLInstanceClassKind + "." + SchemeGroupVersion.String()
+	MySQLInstanceClassGroupVersionKind = SchemeGroupVersion.WithKind(MySQLInstanceClassKind)
 )
 
-// MySQLInstancePolicyList type metadata.
+// MySQLInstanceClassList type metadata.
 var (
-	MySQLInstancePolicyListKind             = reflect.TypeOf(MySQLInstancePolicyList{}).Name()
-	MySQLInstancePolicyListKindAPIVersion   = MySQLInstancePolicyListKind + "." + SchemeGroupVersion.String()
-	MySQLInstancePolicyListGroupVersionKind = SchemeGroupVersion.WithKind(MySQLInstancePolicyListKind)
+	MySQLInstanceClassListKind             = reflect.TypeOf(MySQLInstanceClassList{}).Name()
+	MySQLInstanceClassListKindAPIVersion   = MySQLInstanceClassListKind + "." + SchemeGroupVersion.String()
+	MySQLInstanceClassListGroupVersionKind = SchemeGroupVersion.WithKind(MySQLInstanceClassListKind)
 )
 
 // PostgreSQLInstance type metadata.
@@ -68,23 +68,23 @@ var (
 	PostgreSQLInstanceGroupVersionKind = SchemeGroupVersion.WithKind(PostgreSQLInstanceKind)
 )
 
-// PostgreSQLInstancePolicy type metadata.
+// PostgreSQLInstanceClass type metadata.
 var (
-	PostgreSQLInstancePolicyKind             = reflect.TypeOf(PostgreSQLInstancePolicy{}).Name()
-	PostgreSQLInstancePolicyKindAPIVersion   = PostgreSQLInstancePolicyKind + "." + SchemeGroupVersion.String()
-	PostgreSQLInstancePolicyGroupVersionKind = SchemeGroupVersion.WithKind(PostgreSQLInstancePolicyKind)
+	PostgreSQLInstanceClassKind             = reflect.TypeOf(PostgreSQLInstanceClass{}).Name()
+	PostgreSQLInstanceClassKindAPIVersion   = PostgreSQLInstanceClassKind + "." + SchemeGroupVersion.String()
+	PostgreSQLInstanceClassGroupVersionKind = SchemeGroupVersion.WithKind(PostgreSQLInstanceClassKind)
 )
 
-// PostgreSQLInstancePolicyList type metadata.
+// PostgreSQLInstanceClassList type metadata.
 var (
-	PostgreSQLInstancePolicyListKind             = reflect.TypeOf(PostgreSQLInstancePolicyList{}).Name()
-	PostgreSQLInstancePolicyListKindAPIVersion   = PostgreSQLInstancePolicyListKind + "." + SchemeGroupVersion.String()
-	PostgreSQLInstancePolicyListGroupVersionKind = SchemeGroupVersion.WithKind(PostgreSQLInstancePolicyListKind)
+	PostgreSQLInstanceClassListKind             = reflect.TypeOf(PostgreSQLInstanceClassList{}).Name()
+	PostgreSQLInstanceClassListKindAPIVersion   = PostgreSQLInstanceClassListKind + "." + SchemeGroupVersion.String()
+	PostgreSQLInstanceClassListGroupVersionKind = SchemeGroupVersion.WithKind(PostgreSQLInstanceClassListKind)
 )
 
 func init() {
 	SchemeBuilder.Register(&MySQLInstance{}, &MySQLInstanceList{})
-	SchemeBuilder.Register(&MySQLInstancePolicy{}, &MySQLInstancePolicyList{})
+	SchemeBuilder.Register(&MySQLInstanceClass{}, &MySQLInstanceClassList{})
 	SchemeBuilder.Register(&PostgreSQLInstance{}, &PostgreSQLInstanceList{})
-	SchemeBuilder.Register(&PostgreSQLInstancePolicy{}, &PostgreSQLInstancePolicyList{})
+	SchemeBuilder.Register(&PostgreSQLInstanceClass{}, &PostgreSQLInstanceClassList{})
 }

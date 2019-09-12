@@ -67,6 +67,8 @@ type BucketSpec struct {
 	LocalPermission *LocalPermissionType `json:"localPermission,omitempty"`
 }
 
+var _ resource.Claim = &Bucket{}
+
 // +kubebuilder:object:root=true
 
 // Bucket is the Schema for the Bucket API
@@ -99,14 +101,14 @@ func (b *Bucket) SetConditions(c ...runtimev1alpha1.Condition) {
 	b.Status.SetConditions(c...)
 }
 
-// SetClassReference of this Bucket.
-func (b *Bucket) SetClassReference(r *corev1.ObjectReference) {
-	b.Spec.ClassReference = r
+// SetPortableClassReference of this Bucket.
+func (b *Bucket) SetPortableClassReference(r *corev1.LocalObjectReference) {
+	b.Spec.PortableClassReference = r
 }
 
-// GetClassReference of this Bucket.
-func (b *Bucket) GetClassReference() *corev1.ObjectReference {
-	return b.Spec.ClassReference
+// GetPortableClassReference of this Bucket.
+func (b *Bucket) GetPortableClassReference() *corev1.LocalObjectReference {
+	return b.Spec.PortableClassReference
 }
 
 // SetResourceReference of this Bucket.
@@ -138,27 +140,48 @@ type BucketList struct {
 	Items           []Bucket `json:"items"`
 }
 
-// All policies must satisfy the Policy interface
-var _ resource.Policy = &BucketPolicy{}
+// All portable classes must satisfy the PortableClass interface
+var _ resource.PortableClass = &BucketClass{}
 
 // +kubebuilder:object:root=true
 
-// BucketPolicy contains a namespace-scoped policy for Bucket
-type BucketPolicy struct {
+// BucketClass contains a namespace-scoped portable class for Bucket
+type BucketClass struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	runtimev1alpha1.Policy `json:",inline"`
+	runtimev1alpha1.PortableClass `json:",inline"`
 }
 
-// All policy lists must satisfy the PolicyList interface
-var _ resource.PolicyList = &BucketPolicyList{}
+// All portable class lists must satisfy the PortableClassList interface
+var _ resource.PortableClassList = &BucketClassList{}
 
 // +kubebuilder:object:root=true
 
-// BucketPolicyList contains a list of BucketPolicy
-type BucketPolicyList struct {
+// BucketClassList contains a list of BucketClass
+type BucketClassList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []BucketPolicy `json:"items"`
+	Items           []BucketClass `json:"items"`
+}
+
+// SetPortableClassItems of this BucketClassList.
+func (b *BucketClassList) SetPortableClassItems(r []resource.PortableClass) {
+	items := make([]BucketClass, 0, len(r))
+	for i := range r {
+		if item, ok := r[i].(*BucketClass); ok {
+			items = append(items, *item)
+		}
+	}
+	b.Items = items
+}
+
+// GetPortableClassItems of this BucketClassList.
+func (b *BucketClassList) GetPortableClassItems() []resource.PortableClass {
+	items := make([]resource.PortableClass, len(b.Items))
+	for i, item := range b.Items {
+		item := item
+		items[i] = resource.PortableClass(&item)
+	}
+	return items
 }

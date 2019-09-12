@@ -33,6 +33,8 @@ type MySQLInstanceSpec struct {
 	EngineVersion string `json:"engineVersion,omitempty"`
 }
 
+var _ resource.Claim = &MySQLInstance{}
+
 // +kubebuilder:object:root=true
 
 // MySQLInstance is the CRD type for abstract MySQL database instances
@@ -64,14 +66,14 @@ func (i *MySQLInstance) SetConditions(c ...runtimev1alpha1.Condition) {
 	i.Status.SetConditions(c...)
 }
 
-// SetClassReference of this MySQLInstance.
-func (i *MySQLInstance) SetClassReference(r *corev1.ObjectReference) {
-	i.Spec.ClassReference = r
+// SetPortableClassReference of this MySQLInstance.
+func (i *MySQLInstance) SetPortableClassReference(r *corev1.LocalObjectReference) {
+	i.Spec.PortableClassReference = r
 }
 
-// GetClassReference of this MySQLInstance.
-func (i *MySQLInstance) GetClassReference() *corev1.ObjectReference {
-	return i.Spec.ClassReference
+// GetPortableClassReference of this MySQLInstance.
+func (i *MySQLInstance) GetPortableClassReference() *corev1.LocalObjectReference {
+	return i.Spec.PortableClassReference
 }
 
 // SetResourceReference of this MySQLInstance.
@@ -103,29 +105,50 @@ type MySQLInstanceList struct {
 	Items           []MySQLInstance `json:"items"`
 }
 
-// All policies must satisfy the Policy interface
-var _ resource.Policy = &MySQLInstancePolicy{}
+// All portable classes must satisfy the PortableClass interface
+var _ resource.PortableClass = &MySQLInstanceClass{}
 
 // +kubebuilder:object:root=true
 
-// MySQLInstancePolicy contains a namespace-scoped policy for MySQLInstance
-type MySQLInstancePolicy struct {
+// MySQLInstanceClass contains a namespace-scoped portable class for MySQLInstance
+type MySQLInstanceClass struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	runtimev1alpha1.Policy `json:",inline"`
+	runtimev1alpha1.PortableClass `json:",inline"`
 }
 
-// All policy lists must satisfy the PolicyList interface
-var _ resource.PolicyList = &MySQLInstancePolicyList{}
+// All portable class lists must satisfy the PortableClassList interface
+var _ resource.PortableClassList = &MySQLInstanceClassList{}
 
 // +kubebuilder:object:root=true
 
-// MySQLInstancePolicyList contains a list of MySQLInstancePolicy
-type MySQLInstancePolicyList struct {
+// MySQLInstanceClassList contains a list of MySQLInstancePolicy
+type MySQLInstanceClassList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []MySQLInstancePolicy `json:"items"`
+	Items           []MySQLInstanceClass `json:"items"`
+}
+
+// SetPortableClassItems of this MySQLInstanceClassList.
+func (my *MySQLInstanceClassList) SetPortableClassItems(r []resource.PortableClass) {
+	items := make([]MySQLInstanceClass, 0, len(r))
+	for i := range r {
+		if item, ok := r[i].(*MySQLInstanceClass); ok {
+			items = append(items, *item)
+		}
+	}
+	my.Items = items
+}
+
+// GetPortableClassItems of this MySQLInstanceClassList.
+func (my *MySQLInstanceClassList) GetPortableClassItems() []resource.PortableClass {
+	items := make([]resource.PortableClass, len(my.Items))
+	for i, item := range my.Items {
+		item := item
+		items[i] = resource.PortableClass(&item)
+	}
+	return items
 }
 
 // PostgreSQLInstanceSpec specifies the configuration of this
@@ -137,6 +160,8 @@ type PostgreSQLInstanceSpec struct {
 	// +kubebuilder:validation:Enum="9.6"
 	EngineVersion string `json:"engineVersion,omitempty"`
 }
+
+var _ resource.Claim = &PostgreSQLInstance{}
 
 // +kubebuilder:object:root=true
 
@@ -169,14 +194,14 @@ func (i *PostgreSQLInstance) SetConditions(c ...runtimev1alpha1.Condition) {
 	i.Status.SetConditions(c...)
 }
 
-// SetClassReference of this PostgreSQLInstance.
-func (i *PostgreSQLInstance) SetClassReference(r *corev1.ObjectReference) {
-	i.Spec.ClassReference = r
+// SetPortableClassReference of this PostgreSQLInstance.
+func (i *PostgreSQLInstance) SetPortableClassReference(r *corev1.LocalObjectReference) {
+	i.Spec.PortableClassReference = r
 }
 
-// GetClassReference of this PostgreSQLInstance.
-func (i *PostgreSQLInstance) GetClassReference() *corev1.ObjectReference {
-	return i.Spec.ClassReference
+// GetPortableClassReference of this PostgreSQLInstance.
+func (i *PostgreSQLInstance) GetPortableClassReference() *corev1.LocalObjectReference {
+	return i.Spec.PortableClassReference
 }
 
 // SetResourceReference of this PostgreSQLInstance.
@@ -208,27 +233,48 @@ type PostgreSQLInstanceList struct {
 	Items           []PostgreSQLInstance `json:"items"`
 }
 
-// All policies must satisfy the Policy interface
-var _ resource.Policy = &PostgreSQLInstancePolicy{}
+// All portable classes must satisfy the PortableClass interface
+var _ resource.PortableClass = &PostgreSQLInstanceClass{}
 
 // +kubebuilder:object:root=true
 
-// PostgreSQLInstancePolicy contains a namespace-scoped policy for PostgreSQLInstance
-type PostgreSQLInstancePolicy struct {
+// PostgreSQLInstanceClass contains a namespace-scoped portable class for PostgreSQLInstance
+type PostgreSQLInstanceClass struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	runtimev1alpha1.Policy `json:",inline"`
+	runtimev1alpha1.PortableClass `json:",inline"`
 }
 
-// All policy lists must satisfy the PolicyList interface
-var _ resource.PolicyList = &PostgreSQLInstancePolicyList{}
+// All portable class lists must satisfy the PortableClassList interface
+var _ resource.PortableClassList = &PostgreSQLInstanceClassList{}
 
 // +kubebuilder:object:root=true
 
-// PostgreSQLInstancePolicyList contains a list of PostgreSQLInstancePolicy
-type PostgreSQLInstancePolicyList struct {
+// PostgreSQLInstanceClassList contains a list of PostgreSQLInstanceClass
+type PostgreSQLInstanceClassList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []PostgreSQLInstancePolicy `json:"items"`
+	Items           []PostgreSQLInstanceClass `json:"items"`
+}
+
+// SetPortableClassItems of this PostgreSQLInstanceClassList.
+func (pg *PostgreSQLInstanceClassList) SetPortableClassItems(r []resource.PortableClass) {
+	items := make([]PostgreSQLInstanceClass, 0, len(r))
+	for i := range r {
+		if item, ok := r[i].(*PostgreSQLInstanceClass); ok {
+			items = append(items, *item)
+		}
+	}
+	pg.Items = items
+}
+
+// GetPortableClassItems of this PostgreSQLInstanceClassList.
+func (pg *PostgreSQLInstanceClassList) GetPortableClassItems() []resource.PortableClass {
+	items := make([]resource.PortableClass, len(pg.Items))
+	for i, item := range pg.Items {
+		item := item
+		items[i] = resource.PortableClass(&item)
+	}
+	return items
 }

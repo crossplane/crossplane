@@ -33,6 +33,7 @@ import (
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	util "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -40,7 +41,6 @@ import (
 	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
 	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
-	"github.com/crossplaneio/crossplane-runtime/pkg/util"
 	computev1alpha1 "github.com/crossplaneio/crossplane/apis/compute/v1alpha1"
 	"github.com/crossplaneio/crossplane/apis/workload/v1alpha1"
 )
@@ -274,7 +274,7 @@ func (c *unstructuredClient) sync(ctx context.Context, template *unstructured.Un
 
 	var rs *v1alpha1.RemoteStatus
 
-	err := util.CreateOrUpdate(ctx, c.kube, remote, func() error {
+	_, err := util.CreateOrUpdate(ctx, c.kube, remote, func() error {
 		// Inside this anonymous function remote could either be unchanged (if
 		// it does not exist in the API server) or updated to reflect its
 		// current state according to the API server.
@@ -353,7 +353,7 @@ func (c *secretClient) sync(ctx context.Context, template *corev1.Secret) error 
 	// as passed to this method with the remote resource.
 	remote := template.DeepCopy()
 
-	err := util.CreateOrUpdate(ctx, c.kube, remote, func() error {
+	_, err := util.CreateOrUpdate(ctx, c.kube, remote, func() error {
 		// Inside this anonymous function remote could either be unchanged (if
 		// it does not exist in the API server) or updated to reflect its
 		// current state according to the API server.
