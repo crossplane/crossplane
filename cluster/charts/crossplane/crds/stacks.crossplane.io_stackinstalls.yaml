@@ -7,7 +7,7 @@ metadata:
   name: stackinstalls.stacks.crossplane.io
 spec:
   additionalPrinterColumns:
-  - JSONPath: .status.conditions[?(@.type==Ready)].status
+  - JSONPath: .status.conditionedStatus.conditions[?(@.type=='Ready')].status
     name: READY
     type: string
   - JSONPath: .spec.source
