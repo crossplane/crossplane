@@ -315,18 +315,19 @@ func (sp *StackPackage) applyRules() error {
 	for _, k := range orderedKeys {
 		crd := sp.CRDs[k]
 		// TODO(displague) deal with Versions (multiple per crd)
-		rule := generateRBAC(crd.Spec.Names.Plural, crd.Spec.Group+"/"+crd.Spec.Version)
+		gv := schema.GroupVersion{Group: crd.Spec.Group, Version: crd.Spec.Version}
+		rule := generateRBAC(crd.Spec.Names.Plural, gv.String())
 		rbac.Rules = append(rbac.Rules, rule)
 	}
 
 	// dependency based rules
 	for _, dependency := range sp.Stack.Spec.DependsOn {
 		if dependency.CustomResourceDefinition != "" {
-			pieces := strings.SplitN(dependency.CustomResourceDefinition, ".", 2)
-			if pieces[0] == "" || pieces[1] == "" {
+			_, gk := schema.ParseKindArg(dependency.CustomResourceDefinition)
+			if gk.Group == "" || gk.Kind == "" {
 				return errors.New(fmt.Sprintf("cannot parse CustomResourceDefinition %q as Kind and GroupVersion", dependency.CustomResourceDefinition))
 			}
-			rule := generateRBAC(pieces[0], pieces[1])
+			rule := generateRBAC(gk.Kind, gk.Group)
 			rbac.Rules = append(rbac.Rules, rule)
 		}
 	}
