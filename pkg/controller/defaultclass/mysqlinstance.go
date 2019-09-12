@@ -36,7 +36,7 @@ type MySQLInstanceController struct{}
 func (c *MySQLInstanceController) SetupWithManager(mgr ctrl.Manager) error {
 	r := resource.NewDefaultClassReconciler(mgr,
 		resource.ClaimKind(databasev1alpha1.MySQLInstanceGroupVersionKind),
-		resource.PolicyKind{Singular: databasev1alpha1.MySQLInstancePolicyGroupVersionKind, Plural: databasev1alpha1.MySQLInstancePolicyListGroupVersionKind},
+		resource.PortableClassKind{Singular: databasev1alpha1.MySQLInstanceClassGroupVersionKind, Plural: databasev1alpha1.MySQLInstanceClassListGroupVersionKind},
 	)
 
 	name := strings.ToLower(fmt.Sprintf("%s.%s", databasev1alpha1.MySQLInstanceKind, controllerBaseName))
@@ -44,7 +44,7 @@ func (c *MySQLInstanceController) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&databasev1alpha1.MySQLInstance{}).
-		WithEventFilter(resource.NewPredicates(resource.NoClassReference())).
+		WithEventFilter(resource.NewPredicates(resource.NoPortableClassReference())).
 		WithEventFilter(resource.NewPredicates(resource.NoManagedResourceReference())).
 		Complete(r)
 }

@@ -36,7 +36,7 @@ type KubernetesClusterController struct{}
 func (c *KubernetesClusterController) SetupWithManager(mgr ctrl.Manager) error {
 	r := resource.NewDefaultClassReconciler(mgr,
 		resource.ClaimKind(computev1alpha1.KubernetesClusterGroupVersionKind),
-		resource.PolicyKind{Singular: computev1alpha1.KubernetesClusterPolicyGroupVersionKind, Plural: computev1alpha1.KubernetesClusterPolicyListGroupVersionKind},
+		resource.PortableClassKind{Singular: computev1alpha1.KubernetesClusterClassGroupVersionKind, Plural: computev1alpha1.KubernetesClusterClassListGroupVersionKind},
 	)
 
 	name := strings.ToLower(fmt.Sprintf("%s.%s", computev1alpha1.KubernetesClusterKind, controllerBaseName))
@@ -44,7 +44,7 @@ func (c *KubernetesClusterController) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&computev1alpha1.KubernetesCluster{}).
-		WithEventFilter(resource.NewPredicates(resource.NoClassReference())).
+		WithEventFilter(resource.NewPredicates(resource.NoPortableClassReference())).
 		WithEventFilter(resource.NewPredicates(resource.NoManagedResourceReference())).
 		Complete(r)
 }

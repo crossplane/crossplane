@@ -33,6 +33,8 @@ type RedisClusterSpec struct {
 	EngineVersion string `json:"engineVersion,omitempty"`
 }
 
+var _ resource.Claim = &RedisCluster{}
+
 // +kubebuilder:object:root=true
 
 // RedisCluster is the the CRD type for abstract Redis clusters. Crossplane
@@ -65,14 +67,14 @@ func (rc *RedisCluster) SetConditions(c ...runtimev1alpha1.Condition) {
 	rc.Status.SetConditions(c...)
 }
 
-// SetClassReference of this RedisCluster.
-func (rc *RedisCluster) SetClassReference(r *corev1.ObjectReference) {
-	rc.Spec.ClassReference = r
+// SetPortableClassReference of this RedisCluster.
+func (rc *RedisCluster) SetPortableClassReference(r *corev1.LocalObjectReference) {
+	rc.Spec.PortableClassReference = r
 }
 
-// GetClassReference of this RedisCluster.
-func (rc *RedisCluster) GetClassReference() *corev1.ObjectReference {
-	return rc.Spec.ClassReference
+// GetPortableClassReference of this RedisCluster.
+func (rc *RedisCluster) GetPortableClassReference() *corev1.LocalObjectReference {
+	return rc.Spec.PortableClassReference
 }
 
 // SetResourceReference of this RedisCluster.
@@ -104,27 +106,48 @@ type RedisClusterList struct {
 	Items           []RedisCluster `json:"items"`
 }
 
-// All policies must satisfy the Policy interface
-var _ resource.Policy = &RedisClusterPolicy{}
+// All portable classes must satisfy the PortableClass interface
+var _ resource.PortableClass = &RedisClusterClass{}
 
 // +kubebuilder:object:root=true
 
-// RedisClusterPolicy contains a namespace-scoped policy for RedisCluster
-type RedisClusterPolicy struct {
+// RedisClusterClass contains a namespace-scoped portable class for RedisCluster
+type RedisClusterClass struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	runtimev1alpha1.Policy `json:",inline"`
+	runtimev1alpha1.PortableClass `json:",inline"`
 }
 
-// All policy lists must satisfy the PolicyList interface
-var _ resource.PolicyList = &RedisClusterPolicyList{}
+// All portable class lists must satisfy the PortableClassList interface
+var _ resource.PortableClassList = &RedisClusterClassList{}
 
 // +kubebuilder:object:root=true
 
-// RedisClusterPolicyList contains a list of RedisClusterPolicy
-type RedisClusterPolicyList struct {
+// RedisClusterClassList contains a list of RedisClusterClass
+type RedisClusterClassList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []RedisClusterPolicy `json:"items"`
+	Items           []RedisClusterClass `json:"items"`
+}
+
+// SetPortableClassItems of this RedisClusterClassList.
+func (rc *RedisClusterClassList) SetPortableClassItems(r []resource.PortableClass) {
+	items := make([]RedisClusterClass, len(r))
+	for i, item := range r {
+		if rcItem, ok := item.(*RedisClusterClass); ok {
+			items[i] = *rcItem
+		}
+	}
+	rc.Items = items
+}
+
+// GetPortableClassItems of this RedisClusterClassList.
+func (rc *RedisClusterClassList) GetPortableClassItems() []resource.PortableClass {
+	items := make([]resource.PortableClass, len(rc.Items))
+	for i, item := range rc.Items {
+		item := item
+		items[i] = resource.PortableClass(&item)
+	}
+	return items
 }

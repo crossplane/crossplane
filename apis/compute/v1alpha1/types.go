@@ -32,6 +32,8 @@ type KubernetesClusterSpec struct {
 	ClusterVersion string `json:"clusterVersion,omitempty"`
 }
 
+var _ resource.Claim = &KubernetesCluster{}
+
 // +kubebuilder:object:root=true
 
 // KubernetesCluster is the Schema for the instances API
@@ -63,14 +65,14 @@ func (kc *KubernetesCluster) SetConditions(c ...runtimev1alpha1.Condition) {
 	kc.Status.SetConditions(c...)
 }
 
-// SetClassReference of this KubernetesCluster.
-func (kc *KubernetesCluster) SetClassReference(r *corev1.ObjectReference) {
-	kc.Spec.ClassReference = r
+// SetPortableClassReference of this KubernetesCluster.
+func (kc *KubernetesCluster) SetPortableClassReference(r *corev1.LocalObjectReference) {
+	kc.Spec.PortableClassReference = r
 }
 
-// GetClassReference of this KubernetesCluster.
-func (kc *KubernetesCluster) GetClassReference() *corev1.ObjectReference {
-	return kc.Spec.ClassReference
+// GetPortableClassReference of this KubernetesCluster.
+func (kc *KubernetesCluster) GetPortableClassReference() *corev1.LocalObjectReference {
+	return kc.Spec.PortableClassReference
 }
 
 // SetResourceReference of this KubernetesCluster.
@@ -112,27 +114,48 @@ type ResourceReference struct {
 	SecretName string `json:"secretName"`
 }
 
-// All policies must satisfy the Policy interface
-var _ resource.Policy = &KubernetesClusterPolicy{}
+// All portable classes must satisfy the Class interface
+var _ resource.PortableClass = &KubernetesClusterClass{}
 
 // +kubebuilder:object:root=true
 
-// KubernetesClusterPolicy contains a namespace-scoped policy for KubernetesCluster
-type KubernetesClusterPolicy struct {
+// KubernetesClusterClass contains a namespace-scoped Class for KubernetesCluster
+type KubernetesClusterClass struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	runtimev1alpha1.Policy `json:",inline"`
+	runtimev1alpha1.PortableClass `json:",inline"`
 }
 
-// All policy lists must satisfy the PolicyList interface
-var _ resource.PolicyList = &KubernetesClusterPolicyList{}
+// All portable class lists must satisfy the ClassList interface
+var _ resource.PortableClassList = &KubernetesClusterClassList{}
 
 // +kubebuilder:object:root=true
 
-// KubernetesClusterPolicyList contains a list of KubernetesClusterPolicy
-type KubernetesClusterPolicyList struct {
+// KubernetesClusterClassList contains a list of KubernetesClusterClass
+type KubernetesClusterClassList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []KubernetesClusterPolicy `json:"items"`
+	Items           []KubernetesClusterClass `json:"items"`
+}
+
+// SetPortableClassItems of this KubernetesClusterClassList.
+func (kc *KubernetesClusterClassList) SetPortableClassItems(r []resource.PortableClass) {
+	items := make([]KubernetesClusterClass, len(r))
+	for i, item := range r {
+		if kcItem, ok := item.(*KubernetesClusterClass); ok {
+			items[i] = *kcItem
+		}
+	}
+	kc.Items = items
+}
+
+// GetPortableClassItems of this KubernetesClusterClassList.
+func (kc *KubernetesClusterClassList) GetPortableClassItems() []resource.PortableClass {
+	items := make([]resource.PortableClass, len(kc.Items))
+	for i, item := range kc.Items {
+		item := item
+		items[i] = resource.PortableClass(&item)
+	}
+	return items
 }

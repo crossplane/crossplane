@@ -40,9 +40,8 @@ func TestMySQLInstanceStorage(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
 		Spec: MySQLInstanceSpec{
 			ResourceClaimSpec: runtimev1alpha1.ResourceClaimSpec{
-				ClassReference: &corev1.ObjectReference{
-					Name:      "test-class",
-					Namespace: "test-system",
+				PortableClassReference: &corev1.LocalObjectReference{
+					Name: "test-class",
 				},
 			},
 			EngineVersion: "5.6",
@@ -81,9 +80,8 @@ func TestPostgreSQLInstanceStorage(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
 		Spec: PostgreSQLInstanceSpec{
 			ResourceClaimSpec: runtimev1alpha1.ResourceClaimSpec{
-				ClassReference: &corev1.ObjectReference{
-					Name:      "test-class",
-					Namespace: "test-system",
+				PortableClassReference: &corev1.LocalObjectReference{
+					Name: "test-class",
 				},
 			},
 		},
@@ -121,9 +119,8 @@ func TestEngineVersion(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
 			Spec: MySQLInstanceSpec{
 				ResourceClaimSpec: runtimev1alpha1.ResourceClaimSpec{
-					ClassReference: &corev1.ObjectReference{
-						Name:      "test-class",
-						Namespace: "test-system",
+					PortableClassReference: &corev1.LocalObjectReference{
+						Name: "test-class",
 					},
 				},
 				EngineVersion: version,

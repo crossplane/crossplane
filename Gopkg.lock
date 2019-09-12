@@ -30,7 +30,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:b5c2626af6064408a9b480f08046f0c867795014d0b4bf4a682c2646fa6d0636"
+  digest = "1:97c8f911601d1edcafcbe05834a9463481f8cbe9a36c96ac870448837f732aa8"
   name = "github.com/crossplaneio/crossplane-runtime"
   packages = [
     "apis/core/v1alpha1",
@@ -41,7 +41,7 @@
     "pkg/util",
   ]
   pruneopts = "UT"
-  revision = "e4d61ee2805af680baf16fc2a1d8f79538d0f9bb"
+  revision = "5230aa5383d5f16c6856a1ce97662c88853acd9b"
 
 [[projects]]
   digest = "1:ffe9824d294da03b391f44e1ae8281281b4afc1bdaa9588c9097785e3af10cec"
@@ -1000,6 +1000,7 @@
     "sigs.k8s.io/controller-runtime/pkg/client/config",
     "sigs.k8s.io/controller-runtime/pkg/client/fake",
     "sigs.k8s.io/controller-runtime/pkg/controller",
+    "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil",
     "sigs.k8s.io/controller-runtime/pkg/event",
     "sigs.k8s.io/controller-runtime/pkg/handler",
     "sigs.k8s.io/controller-runtime/pkg/manager",
