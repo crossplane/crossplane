@@ -586,7 +586,7 @@ func TestSyncApplicationResource(t *testing.T) {
 				},
 			},
 			template: resourceA,
-			wantErr: errors.WithStack(errors.Errorf("cannot sync %s: could not mutate object for update: %s %s exists and is not controlled by %s %s",
+			wantErr: errors.WithStack(errors.Errorf("cannot sync %s: %s %s exists and is not controlled by %s %s",
 				v1alpha1.KubernetesApplicationResourceKind,
 				v1alpha1.KubernetesApplicationResourceKind,
 				templateA.GetName(),
@@ -601,7 +601,7 @@ func TestSyncApplicationResource(t *testing.T) {
 				kube: &test.MockClient{MockGet: test.NewMockGetFn(errorBoom)},
 			},
 			template: resourceA,
-			wantErr:  errors.Wrapf(errorBoom, "cannot sync %s: could not get object", v1alpha1.KubernetesApplicationResourceKind),
+			wantErr:  errors.Wrapf(errorBoom, "cannot sync %s", v1alpha1.KubernetesApplicationResourceKind),
 		},
 	}
 

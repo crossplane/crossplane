@@ -710,7 +710,7 @@ func TestSyncUnstructured(t *testing.T) {
 			},
 			template:   template(service),
 			wantStatus: nil,
-			wantErr: errors.WithStack(errors.Errorf("cannot sync resource: could not mutate object for update: Service %s/%s exists and is not controlled by %s %s",
+			wantErr: errors.WithStack(errors.Errorf("cannot sync resource: Service %s/%s exists and is not controlled by %s %s",
 				existingService.GetNamespace(),
 				existingService.GetName(),
 				v1alpha1.KubernetesApplicationResourceKind,
@@ -724,7 +724,7 @@ func TestSyncUnstructured(t *testing.T) {
 			},
 			template:   template(service),
 			wantStatus: nil,
-			wantErr:    errors.Wrap(errorBoom, "cannot sync resource: could not get object"),
+			wantErr:    errors.Wrap(errorBoom, "cannot sync resource"),
 		},
 	}
 
@@ -886,7 +886,7 @@ func TestSyncSecret(t *testing.T) {
 				},
 			},
 			template: secret,
-			wantErr: errors.WithStack(errors.Errorf("cannot sync secret: could not mutate object for update: secret %s/%s exists and is not controlled by %s %s",
+			wantErr: errors.WithStack(errors.Errorf("cannot sync secret: secret %s/%s exists and is not controlled by %s %s",
 				existingSecret.GetNamespace(),
 				existingSecret.GetName(),
 				v1alpha1.KubernetesApplicationResourceKind,
@@ -901,7 +901,7 @@ func TestSyncSecret(t *testing.T) {
 				},
 			},
 			template: secret,
-			wantErr:  errors.Wrap(errorBoom, "cannot sync secret: could not get object"),
+			wantErr:  errors.Wrap(errorBoom, "cannot sync secret"),
 		},
 	}
 
