@@ -1,0 +1,19 @@
+apiVersion: storage.aws.crossplane.io/v1alpha1
+kind: DBSubnetGroup
+metadata:
+  name: rc-dbsubnetgroup
+  namespace: aws-connectivity
+spec:
+  groupName: sample_workload_dbsubnetgroup_for_resource_connectivity
+  description: EKS vpc to rds
+  subnetIds:
+    - ((SUBNET1_ID))
+    - ((SUBNET2_ID))
+    - ((SUBNET3_ID))
+  tags:
+    - key: name
+      value: crossplane-workload-resource-connectivity
+  reclaimPolicy: Delete
+  providerRef:
+    name: aws-provider
+    namespace: crossplane-system

@@ -1,0 +1,11 @@
+apiVersion: network.aws.crossplane.io/v1alpha1
+kind: InternetGateway
+metadata:
+  name: rc-internetgateway
+  namespace: aws-connectivity
+spec:
+  vpcId: ((VPC_ID))
+  reclaimPolicy: Delete
+  providerRef:
+    name: aws-provider
+    namespace: crossplane-system

@@ -1,0 +1,25 @@
+apiVersion: identity.aws.crossplane.io/v1alpha1
+kind: IAMRole
+metadata:
+  name: eks-cluster-role
+  namespace: aws-connectivity
+spec:
+  roleName: eks-cluster-role
+  description: a role that gives a cool power
+  assumeRolePolicyDocument: |
+    {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Principal": {
+            "Service": "eks.amazonaws.com"
+          },
+          "Action": "sts:AssumeRole"
+        }
+      ]
+    }
+  reclaimPolicy: Delete
+  providerRef:
+    name: aws-provider
+    namespace: crossplane-system
