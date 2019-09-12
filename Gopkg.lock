@@ -2,67 +2,6 @@
 
 
 [[projects]]
-  digest = "1:602649ff074ccee9273e1d3b25c4069f13a70fa0c232957c7d68a6f02fb7a9ea"
-  name = "github.com/Azure/azure-pipeline-go"
-  packages = ["pipeline"]
-  pruneopts = "UT"
-  revision = "232aee85e8e3a6223a11c0943f7df2ae0fac00e4"
-  version = "v0.2.2"
-
-[[projects]]
-  digest = "1:15e77ef8b4e8b7e4a45fc5578ea928077015f69368c5fb3499dc93ba95726385"
-  name = "github.com/Azure/azure-sdk-for-go"
-  packages = [
-    "profiles/latest/redis/mgmt/redis/redisapi",
-    "services/authorization/mgmt/2015-07-01/authorization",
-    "services/authorization/mgmt/2015-07-01/authorization/authorizationapi",
-    "services/containerservice/mgmt/2018-03-31/containerservice",
-    "services/graphrbac/1.6/graphrbac",
-    "services/mysql/mgmt/2017-12-01/mysql",
-    "services/mysql/mgmt/2017-12-01/mysql/mysqlapi",
-    "services/network/mgmt/2019-06-01/network",
-    "services/network/mgmt/2019-06-01/network/networkapi",
-    "services/postgresql/mgmt/2017-12-01/postgresql",
-    "services/postgresql/mgmt/2017-12-01/postgresql/postgresqlapi",
-    "services/redis/mgmt/2018-03-01/redis",
-    "services/redis/mgmt/2018-03-01/redis/redisapi",
-    "services/resources/mgmt/2018-05-01/resources",
-    "services/resources/mgmt/2018-05-01/resources/resourcesapi",
-    "services/storage/mgmt/2017-06-01/storage",
-    "version",
-  ]
-  pruneopts = "UT"
-  revision = "98353253a537e7e94652d100d7d78b30a4a7ee21"
-  version = "v33.1.0"
-
-[[projects]]
-  digest = "1:9d3a690fcd29a7efbc783d7a8c9c173c2c67d33c0d2b6ac4be10c78d4ae46df2"
-  name = "github.com/Azure/azure-storage-blob-go"
-  packages = ["azblob"]
-  pruneopts = "UT"
-  revision = "3efca72bd11c050222deab57e25ea90df03b9692"
-  version = "v0.7.0"
-
-[[projects]]
-  digest = "1:8343100c9215ddd05bd708323e4821e3ff3206fe44f3ebd2777fda1eb0246ed7"
-  name = "github.com/Azure/go-autorest"
-  packages = [
-    "autorest",
-    "autorest/adal",
-    "autorest/azure",
-    "autorest/azure/auth",
-    "autorest/azure/cli",
-    "autorest/date",
-    "autorest/to",
-    "autorest/validation",
-    "logger",
-    "tracing",
-  ]
-  pruneopts = "UT"
-  revision = "69b4126ece6b5257e2f9b0017007d2334153655f"
-  version = "v13.0.1"
-
-[[projects]]
   branch = "master"
   digest = "1:125f098c5294814b5d9ce2194f03a435c35a6208f029e61681bed9a893d68133"
   name = "github.com/alecthomas/template"
@@ -140,7 +79,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:f1a6ecdcefff4e131a8719bce8dd0b43ef166eca2be13073f910bcbf1af1f3f4"
+  digest = "1:b5c2626af6064408a9b480f08046f0c867795014d0b4bf4a682c2646fa6d0636"
   name = "github.com/crossplaneio/crossplane-runtime"
   packages = [
     "apis/core/v1alpha1",
@@ -151,7 +90,7 @@
     "pkg/util",
   ]
   pruneopts = "UT"
-  revision = "11c0da759c8181fee9926684654c1baa964ea421"
+  revision = "e4d61ee2805af680baf16fc2a1d8f79538d0f9bb"
 
 [[projects]]
   digest = "1:ffe9824d294da03b391f44e1ae8281281b4afc1bdaa9588c9097785e3af10cec"
@@ -160,22 +99,6 @@
   pruneopts = "UT"
   revision = "8991bc29aa16c548c550c7ff78260e27b9ab7c73"
   version = "v1.1.1"
-
-[[projects]]
-  digest = "1:76dc72490af7174349349838f2fe118996381b31ea83243812a97e5a0fd5ed55"
-  name = "github.com/dgrijalva/jwt-go"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "06ea1031745cb8b3dab3f6a236daf2b0aa468b7e"
-  version = "v3.2.0"
-
-[[projects]]
-  digest = "1:cf0d2e435fd4ce45b789e93ef24b5f08e86be0e9807a16beb3694e2d8c9af965"
-  name = "github.com/dimchansky/utfbom"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "d2133a1ce379ef6fa992b0514a77146c60db9d1c"
-  version = "v1.1.0"
 
 [[projects]]
   digest = "1:ac425d784b13d49b37a5bbed3ce022677f8f3073b216f05d6adcb9303e27fa0f"
@@ -374,14 +297,6 @@
   version = "v0.0.9"
 
 [[projects]]
-  branch = "master"
-  digest = "1:2f668f56e7946a15f65b4696136704569a17cb6a046e89ab0e098f1f7d9945df"
-  name = "github.com/mattn/go-ieproxy"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "f9202b1cfdeb0c82ddd3dc1e8e9cd94b3c0c1b13"
-
-[[projects]]
   digest = "1:9b90c7639a41697f3d4ad12d7d67dfacc9a7a4a6e0bbfae4fc72d0da57c28871"
   name = "github.com/mattn/go-isatty"
   packages = ["."]
@@ -396,14 +311,6 @@
   pruneopts = "UT"
   revision = "c12348ce28de40eed0136aa2b644d0ee0650e56c"
   version = "v1.0.1"
-
-[[projects]]
-  digest = "1:5d231480e1c64a726869bc4142d270184c419749d34f167646baa21008eb0a79"
-  name = "github.com/mitchellh/go-homedir"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "af06845cf3004701891bf4fdb884bfe4920b3727"
-  version = "v1.1.0"
 
 [[projects]]
   digest = "1:33422d238f147d247752996a26574ac48dcf472976eda7f5134015f06bf16563"
@@ -617,19 +524,15 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:5e4639c1d29ee517777961d74071e3cf3aa7634521b0ceac3d2c8fc0334dbff9"
+  digest = "1:bbe51412d9915d64ffaa96b51d409e070665efc5194fcf145c4a27d4133107a4"
   name = "golang.org/x/crypto"
-  packages = [
-    "pkcs12",
-    "pkcs12/internal/rc2",
-    "ssh/terminal",
-  ]
+  packages = ["ssh/terminal"]
   pruneopts = "UT"
   revision = "4def268fd1a49955bfb3dda92fe3db4f924f2285"
 
 [[projects]]
   branch = "master"
-  digest = "1:762ef6048af9d297c550c940ce5d7d7f83ce56c5d274d00f02dbe7ac266ca13a"
+  digest = "1:7a3e4144c399b4c6a84c32fff73fb833b43516a4e94543f8ca4e4125ac02b6d9"
   name = "golang.org/x/net"
   packages = [
     "context",
@@ -638,7 +541,6 @@
     "html/atom",
     "html/charset",
     "http/httpguts",
-    "http/httpproxy",
     "http2",
     "http2/hpack",
     "idna",
@@ -659,12 +561,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:410f67c5adec0e5ddef17149b844a582fa5928409c9c11ca33b607aad65b6dc2"
+  digest = "1:00d73f8175ba939718fdfc3d3ecab52270c6d801a1930fbca62100f9a4d8f4c1"
   name = "golang.org/x/sys"
   packages = [
     "unix",
     "windows",
-    "windows/registry",
   ]
   pruneopts = "UT"
   revision = "51ab0e2deafac1f46c46ad59cf0921be2f180c3d"
@@ -1191,29 +1092,6 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
-    "github.com/Azure/azure-sdk-for-go/profiles/latest/redis/mgmt/redis/redisapi",
-    "github.com/Azure/azure-sdk-for-go/services/authorization/mgmt/2015-07-01/authorization",
-    "github.com/Azure/azure-sdk-for-go/services/authorization/mgmt/2015-07-01/authorization/authorizationapi",
-    "github.com/Azure/azure-sdk-for-go/services/containerservice/mgmt/2018-03-31/containerservice",
-    "github.com/Azure/azure-sdk-for-go/services/graphrbac/1.6/graphrbac",
-    "github.com/Azure/azure-sdk-for-go/services/mysql/mgmt/2017-12-01/mysql",
-    "github.com/Azure/azure-sdk-for-go/services/mysql/mgmt/2017-12-01/mysql/mysqlapi",
-    "github.com/Azure/azure-sdk-for-go/services/network/mgmt/2019-06-01/network",
-    "github.com/Azure/azure-sdk-for-go/services/network/mgmt/2019-06-01/network/networkapi",
-    "github.com/Azure/azure-sdk-for-go/services/postgresql/mgmt/2017-12-01/postgresql",
-    "github.com/Azure/azure-sdk-for-go/services/postgresql/mgmt/2017-12-01/postgresql/postgresqlapi",
-    "github.com/Azure/azure-sdk-for-go/services/redis/mgmt/2018-03-01/redis",
-    "github.com/Azure/azure-sdk-for-go/services/redis/mgmt/2018-03-01/redis/redisapi",
-    "github.com/Azure/azure-sdk-for-go/services/resources/mgmt/2018-05-01/resources",
-    "github.com/Azure/azure-sdk-for-go/services/resources/mgmt/2018-05-01/resources/resourcesapi",
-    "github.com/Azure/azure-sdk-for-go/services/storage/mgmt/2017-06-01/storage",
-    "github.com/Azure/azure-storage-blob-go/azblob",
-    "github.com/Azure/go-autorest/autorest",
-    "github.com/Azure/go-autorest/autorest/adal",
-    "github.com/Azure/go-autorest/autorest/azure",
-    "github.com/Azure/go-autorest/autorest/azure/auth",
-    "github.com/Azure/go-autorest/autorest/date",
-    "github.com/Azure/go-autorest/autorest/to",
     "github.com/aws/aws-sdk-go-v2/aws",
     "github.com/aws/aws-sdk-go-v2/aws/arn",
     "github.com/aws/aws-sdk-go-v2/aws/awserr",
@@ -1242,7 +1120,6 @@
     "github.com/go-ini/ini",
     "github.com/google/go-cmp/cmp",
     "github.com/google/go-cmp/cmp/cmpopts",
-    "github.com/google/uuid",
     "github.com/onsi/gomega",
     "github.com/onsi/gomega/types",
     "github.com/pkg/errors",
@@ -1263,14 +1140,12 @@
     "k8s.io/apimachinery/pkg/runtime",
     "k8s.io/apimachinery/pkg/runtime/schema",
     "k8s.io/apimachinery/pkg/types",
-    "k8s.io/apimachinery/pkg/util/wait",
     "k8s.io/apimachinery/pkg/util/yaml",
     "k8s.io/client-go/kubernetes",
     "k8s.io/client-go/kubernetes/fake",
     "k8s.io/client-go/kubernetes/scheme",
     "k8s.io/client-go/rest",
     "k8s.io/client-go/testing",
-    "k8s.io/client-go/tools/clientcmd",
     "k8s.io/client-go/tools/record",
     "k8s.io/code-generator/cmd/deepcopy-gen",
     "sigs.k8s.io/controller-runtime",

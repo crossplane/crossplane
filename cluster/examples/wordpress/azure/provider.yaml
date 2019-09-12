@@ -9,7 +9,7 @@ data:
   credentials.json: BASE64ENCODED_AZURE_PROVIDER_CREDS
 ---
 # Azure Provider with service principal secret reference - used to provision sql resources
-apiVersion: azure.crossplane.io/v1alpha1
+apiVersion: azure.crossplane.io/v1alpha2
 kind: Provider
 metadata:
   name: azure-sql-provider

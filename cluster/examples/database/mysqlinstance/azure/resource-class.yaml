@@ -1,7 +1,7 @@
 ---
 # ResourceClass that defines the blueprint for how a "standard" Azure MySQL Server
 # should be dynamically provisioned
-apiVersion: database.azure.crossplane.io/v1alpha1
+apiVersion: database.azure.crossplane.io/v1alpha2
 kind: SQLServerClass
 metadata:
   name: sqlservermysql

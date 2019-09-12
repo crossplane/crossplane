@@ -6,7 +6,7 @@ metadata:
 spec:
   classRef:
     kind: RedisClass
-    apiVersion: cache.azure.crossplane.io/v1alpha1
+    apiVersion: cache.azure.crossplane.io/v1alpha2
     name: redis
     namespace: crossplane-system
   writeConnectionSecretToRef:
