@@ -91,14 +91,18 @@ spec:
 `
 
 	simpleGroupFile = `title: Group Title
-description: Group Description
+overviewShort: Group Short Overview
+overview: Group Overview
+readme: Group Readme
 category: Group Category
 `
 
 	simpleResourceFile = `id: mytype
 title: Resource Title
 titlePlural: Resources Title
-description: Resource Description
+overviewShort: Resource Short Overview
+overview: Resource Overview
+readme: Resource Readme
 category: Resource Category
 `
 
@@ -172,8 +176,6 @@ spec:
   dependsOn:
   - crd: foo.mystack.example.org/v1alpha1
   - crd: '*.yourstack.example.org/v1alpha2'
-  description: |
-    Markdown describing this sample Crossplane stack project.
   icons:
   - base64Data: bW9jay1pY29uLWRhdGE=
     mediatype: image/jpeg
@@ -185,6 +187,8 @@ spec:
   maintainers:
   - email: jared@upbound.io
     name: Jared Watts
+  overview: text overview
+  overviewShort: short text overview
   owners:
   - email: bassam@upbound.io
     name: Bassam Tabbara
@@ -217,6 +221,8 @@ spec:
       - '*'
       verbs:
       - '*'
+  readme: |
+    Markdown describing this sample Crossplane stack project.
   source: https://github.com/crossplaneio/sample-stack
   title: Sample Crossplane Stack
   version: 0.0.1
@@ -233,7 +239,9 @@ metadata:
   annotations:
     app.kubernetes.io/managed-by: stack-manager
     stacks.crossplane.io/group-category: Group Category
-    stacks.crossplane.io/group-description: Group Description
+    stacks.crossplane.io/group-overview: Group Overview
+    stacks.crossplane.io/group-overview-short: Group Short Overview
+    stacks.crossplane.io/group-readme: Group Readme
     stacks.crossplane.io/group-title: Group Title
     stacks.crossplane.io/icon: data:image/svg+xml;base64,bW9jay1pY29uLWRhdGEtc3Zn
     stacks.crossplane.io/stack-title: Sample Crossplane Stack
@@ -298,11 +306,15 @@ metadata:
   annotations:
     app.kubernetes.io/managed-by: stack-manager
     stacks.crossplane.io/group-category: Group Category
-    stacks.crossplane.io/group-description: Group Description
+    stacks.crossplane.io/group-overview: Group Overview
+    stacks.crossplane.io/group-overview-short: Group Short Overview
+    stacks.crossplane.io/group-readme: Group Readme
     stacks.crossplane.io/group-title: Group Title
     stacks.crossplane.io/icon: data:image/svg+xml;base64,bW9jay1pY29uLWRhdGEtc3Zn
     stacks.crossplane.io/resource-category: Resource Category
-    stacks.crossplane.io/resource-description: Resource Description
+    stacks.crossplane.io/resource-overview: Resource Overview
+    stacks.crossplane.io/resource-overview-short: Resource Short Overview
+    stacks.crossplane.io/resource-readme: Resource Readme
     stacks.crossplane.io/resource-title: Resource Title
     stacks.crossplane.io/resource-title-plural: Resources Title
     stacks.crossplane.io/stack-title: Sample Crossplane Stack
@@ -346,7 +358,9 @@ metadata:
   annotations:
     app.kubernetes.io/managed-by: stack-manager
     stacks.crossplane.io/group-category: Group Category
-    stacks.crossplane.io/group-description: Group Description
+    stacks.crossplane.io/group-overview: Group Overview
+    stacks.crossplane.io/group-overview-short: Group Short Overview
+    stacks.crossplane.io/group-readme: Group Readme
     stacks.crossplane.io/group-title: Group Title
     stacks.crossplane.io/icon: data:image/jpeg;base64,bW9jay1pY29uLWRhdGE=
     stacks.crossplane.io/stack-title: Sample Crossplane Stack
@@ -422,8 +436,6 @@ spec:
   dependsOn:
   - crd: foo.mystack.example.org/v1alpha1
   - crd: '*.yourstack.example.org/v1alpha2'
-  description: |
-    Markdown describing this sample Crossplane stack project.
   icons:
   - base64Data: bW9jay1pY29uLWRhdGE=
     mediatype: image/jpeg
@@ -439,6 +451,8 @@ spec:
   maintainers:
   - email: jared@upbound.io
     name: Jared Watts
+  overview: text overview
+  overviewShort: short text overview
   owners:
   - email: bassam@upbound.io
     name: Bassam Tabbara
@@ -489,6 +503,8 @@ spec:
       - '*'
       verbs:
       - '*'
+  readme: |
+    Markdown describing this sample Crossplane stack project.
   source: https://github.com/crossplaneio/sample-stack
   title: Sample Crossplane Stack
   version: 0.0.1
@@ -505,7 +521,9 @@ metadata:
   annotations:
     app.kubernetes.io/managed-by: stack-manager
     stacks.crossplane.io/group-category: Group Category
-    stacks.crossplane.io/group-description: Group Description
+    stacks.crossplane.io/group-overview: Group Overview
+    stacks.crossplane.io/group-overview-short: Group Short Overview
+    stacks.crossplane.io/group-readme: Group Readme
     stacks.crossplane.io/group-title: Group Title
     stacks.crossplane.io/icon: data:image/svg+xml;base64,bW9jay1pY29uLWRhdGEtc3Zn
     stacks.crossplane.io/stack-title: Sample Crossplane Stack
@@ -570,11 +588,15 @@ metadata:
   annotations:
     app.kubernetes.io/managed-by: stack-manager
     stacks.crossplane.io/group-category: Group Category
-    stacks.crossplane.io/group-description: Group Description
+    stacks.crossplane.io/group-overview: Group Overview
+    stacks.crossplane.io/group-overview-short: Group Short Overview
+    stacks.crossplane.io/group-readme: Group Readme
     stacks.crossplane.io/group-title: Group Title
     stacks.crossplane.io/icon: data:image/svg+xml;base64,bW9jay1pY29uLWRhdGEtc3Zn
     stacks.crossplane.io/resource-category: Resource Category
-    stacks.crossplane.io/resource-description: Resource Description
+    stacks.crossplane.io/resource-overview: Resource Overview
+    stacks.crossplane.io/resource-overview-short: Resource Short Overview
+    stacks.crossplane.io/resource-readme: Resource Readme
     stacks.crossplane.io/resource-title: Resource Title
     stacks.crossplane.io/resource-title-plural: Resources Title
     stacks.crossplane.io/stack-title: Sample Crossplane Stack
@@ -618,7 +640,9 @@ metadata:
   annotations:
     app.kubernetes.io/managed-by: stack-manager
     stacks.crossplane.io/group-category: Group Category
-    stacks.crossplane.io/group-description: Group Description
+    stacks.crossplane.io/group-overview: Group Overview
+    stacks.crossplane.io/group-overview-short: Group Short Overview
+    stacks.crossplane.io/group-readme: Group Readme
     stacks.crossplane.io/group-title: Group Title
     stacks.crossplane.io/icon: data:image/jpeg;base64,bW9jay1pY29uLWRhdGE=
     stacks.crossplane.io/stack-title: Sample Crossplane Stack
@@ -694,8 +718,6 @@ spec:
   dependsOn:
   - crd: foo.mystack.example.org/v1alpha1
   - crd: '*.yourstack.example.org/v1alpha2'
-  description: |
-    Markdown describing this sample Crossplane stack project.
   icons:
   - base64Data: bW9jay1pY29uLWRhdGE=
     mediatype: image/jpeg
@@ -711,6 +733,8 @@ spec:
   maintainers:
   - email: jared@upbound.io
     name: Jared Watts
+  overview: text overview
+  overviewShort: short text overview
   owners:
   - email: bassam@upbound.io
     name: Bassam Tabbara
@@ -761,6 +785,8 @@ spec:
       - '*'
       verbs:
       - '*'
+  readme: |
+    Markdown describing this sample Crossplane stack project.
   source: https://github.com/crossplaneio/sample-stack
   title: Sample Crossplane Stack
   version: 0.0.1
@@ -837,8 +863,6 @@ spec:
   dependsOn:
   - crd: foo.mystack.example.org/v1alpha1
   - crd: '*.yourstack.example.org/v1alpha2'
-  description: |
-    Markdown describing this sample Crossplane stack project.
   icons:
   - base64Data: bW9jay1pY29uLWRhdGE=
     mediatype: image/jpeg
@@ -850,6 +874,8 @@ spec:
   maintainers:
   - email: jared@upbound.io
     name: Jared Watts
+  overview: text overview
+  overviewShort: short text overview
   owners:
   - email: bassam@upbound.io
     name: Bassam Tabbara
@@ -882,6 +908,8 @@ spec:
       - '*'
       verbs:
       - '*'
+  readme: |
+    Markdown describing this sample Crossplane stack project.
   source: https://github.com/crossplaneio/sample-stack
   title: Sample Crossplane Stack
   version: 0.0.1
@@ -901,8 +929,11 @@ func simpleAppFile(permissionScope string) string {
 title: Sample Crossplane Stack
 
 # Markdown description of this entry
-description: |
-  Markdown describing this sample Crossplane stack project.
+readme: |
+ Markdown describing this sample Crossplane stack project.
+
+overview: text overview
+overviewShort: short text overview
 
 # Version of project (optional)
 # If omitted the version will be filled with the docker tag

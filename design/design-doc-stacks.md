@@ -146,10 +146,10 @@ spec:
   # this data drives the dependency resolution process
  title: Redis stack for Crossplane
  overviewShort: "One sentence in plain text about how Redis is a really cool database"
- overview: |-
+ overview: |
    Plain text about how Redis is a really cool database.
    This also describes how this stack relates to Redis.
- readme: |-
+ readme: |
   ## README
 
   * Uses markdown
@@ -274,7 +274,7 @@ An example project that processes the artifacts of Kubebuilder 2 to create a Sta
 title: Sample Crossplane Stack
 
 overviewShort: A one line plain text explanation of this stack
-overview: |-
+overview: |
   Multiple line plain text description of this stack.
 
 # Markdown description of this entry
@@ -376,7 +376,7 @@ overviewShort: This is a one line plain text description of this resource group
 overview: |
   This is a group description.
   Talk about the types of CRDs in this group.
-readme: |-
+readme: |
   # MySQL Resource Group by Foo Company
 
   This is a Crossplane Stack resource group for FooCompany MySQL
@@ -390,11 +390,11 @@ title: MySQL
 titlePlural: MySQL Instances
 category: Database
 overviewShort: Overview of this resource in FooCompany MySQL
-overview: |-
+overview: |
   Longer plain text description.
 
   Some detail.
-readme: |-
+readme: |
   # MySQL Resource by FooCompany
 
   This is the Crossplane Stack mysql crd for FooCompany MySQL
