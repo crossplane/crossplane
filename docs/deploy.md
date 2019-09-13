@@ -1,7 +1,7 @@
 ---
 title: Deploying Workloads
 toc: true
-weight: 340
+weight: 240
 indent: true
 ---
 # Deploying Workloads

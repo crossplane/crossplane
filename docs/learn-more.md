@@ -1,9 +1,11 @@
 ---
 title: Learn More
 toc: true
-weight: 810
+weight: 6010
 ---
 # Learn More
+
+If you have any questions, please drop us a note on [Crossplane Slack][join-crossplane-slack] or [contact us][contact-us]!
 
 ***Learn more about using Crossplane***
  - [GitLab deploys into multiple clouds from kubectl using Crossplane](https://about.gitlab.com/2019/05/20/gitlab-first-deployed-kubernetes-api-to-multiple-clouds/)
@@ -29,3 +31,6 @@ weight: 810
 - Drop us a note on Twitter: [@crossplane_io](https://twitter.com/crossplane_io)
 - Email us: [info@crossplane.io](mailto:info@crossplane.io)
 
+<!-- Named links -->
+[join-crossplane-slack]: https://slack.crossplane.io
+[contact-us]: https://github.com/crossplaneio/crossplane#contact

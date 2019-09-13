@@ -1,7 +1,7 @@
 ---
 title: Adding Your Cloud Providers
 toc: true
-weight: 330
+weight: 230
 indent: true
 ---
 

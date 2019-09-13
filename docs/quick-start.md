@@ -12,6 +12,10 @@ The Workload will be deployed into the target Kubernetes cluster, and be configu
 
 The general steps for this example are as follows:
 
-1. Install Crossplane so it is ready to manage resources on your behalf: [Install Crossplane](install-crossplane.md)
-1. Set up a cloud provider and add it to Crossplane: [Adding a Cloud Provider](cloud-providers.md)
-1. Deploy a portable workload to the cloud provider: [Deploying Workloads](deploy.md)
+1. [Install Crossplane](install-crossplane.md) into your Kubernetes cluster. 
+1. [Add a cloud provider](cloud-providers.md) for managed service provisioning.
+1. [Deploy a workload](deploy.md) (Wordpress) including the managed services it depends on (MySQL). 
+
+Additional info:
+* [Running Resources](running-resources.md)
+* [Troubleshooting](troubleshoot.md)
