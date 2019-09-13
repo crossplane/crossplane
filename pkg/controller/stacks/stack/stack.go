@@ -20,18 +20,18 @@ import (
 	"context"
 	"time"
 
+	"github.com/pkg/errors"
 	apps "k8s.io/api/apps/v1"
 	batch "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbac "k8s.io/api/rbac/v1"
+	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
-	"github.com/pkg/errors"
 
 	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
@@ -160,6 +160,67 @@ func (h *stackHandler) update(ctx context.Context) (reconcile.Result, error) {
 	return reconcile.Result{}, nil
 }
 
+func (h *stackHandler) createNamespacedRoleBinding(ctx context.Context, owner metav1.OwnerReference) error {
+	cr := &rbac.Role{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            h.ext.Name,
+			Namespace:       h.ext.Namespace,
+			OwnerReferences: []metav1.OwnerReference{owner},
+		},
+		Rules: h.ext.Spec.Permissions.Rules,
+	}
+	if err := h.kube.Create(ctx, cr); err != nil && !kerrors.IsAlreadyExists(err) {
+		return errors.Wrap(err, "failed to create role")
+	}
+
+	// create rolebinding between service account and role
+	crb := &rbac.RoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            h.ext.Name,
+			Namespace:       h.ext.Namespace,
+			OwnerReferences: []metav1.OwnerReference{owner},
+		},
+		RoleRef: rbac.RoleRef{APIGroup: rbac.GroupName, Kind: "Role", Name: h.ext.Name},
+		Subjects: []rbac.Subject{
+			{Name: h.ext.Name, Namespace: h.ext.Namespace, Kind: rbac.ServiceAccountKind},
+		},
+	}
+	if err := h.kube.Create(ctx, crb); err != nil && !kerrors.IsAlreadyExists(err) {
+		return errors.Wrap(err, "failed to create role binding")
+	}
+	return nil
+}
+
+func (h *stackHandler) createClusterRoleBinding(ctx context.Context, owner metav1.OwnerReference) error {
+	cr := &rbac.ClusterRole{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            h.ext.Name,
+			OwnerReferences: []metav1.OwnerReference{owner},
+		},
+		Rules: h.ext.Spec.Permissions.Rules,
+	}
+
+	if err := h.kube.Create(ctx, cr); err != nil && !kerrors.IsAlreadyExists(err) {
+		return errors.Wrap(err, "failed to create cluster role")
+	}
+
+	// create clusterrolebinding between service account and role
+	crb := &rbac.ClusterRoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            h.ext.Name,
+			OwnerReferences: []metav1.OwnerReference{owner},
+		},
+		RoleRef: rbac.RoleRef{APIGroup: rbac.GroupName, Kind: "ClusterRole", Name: h.ext.Name},
+		Subjects: []rbac.Subject{
+			{Name: h.ext.Name, Namespace: h.ext.Namespace, Kind: rbac.ServiceAccountKind},
+		},
+	}
+	if err := h.kube.Create(ctx, crb); err != nil && !kerrors.IsAlreadyExists(err) {
+		return errors.Wrap(err, "failed to create cluster role binding")
+	}
+	return nil
+}
+
 func (h *stackHandler) processRBAC(ctx context.Context) error {
 	if len(h.ext.Spec.Permissions.Rules) == 0 {
 		return nil
@@ -175,38 +236,19 @@ func (h *stackHandler) processRBAC(ctx context.Context) error {
 			OwnerReferences: []metav1.OwnerReference{owner},
 		},
 	}
+
 	if err := h.kube.Create(ctx, sa); err != nil && !kerrors.IsAlreadyExists(err) {
 		return errors.Wrap(err, "failed to create service account")
 	}
 
-	// create role
-	cr := &rbac.ClusterRole{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            h.ext.Name,
-			OwnerReferences: []metav1.OwnerReference{owner},
-		},
-		Rules: h.ext.Spec.Permissions.Rules,
-	}
-	if err := h.kube.Create(ctx, cr); err != nil && !kerrors.IsAlreadyExists(err) {
-		return errors.Wrap(err, "failed to create cluster role")
+	switch apiextensions.ResourceScope(h.ext.Spec.PermissionScope) {
+	case apiextensions.ClusterScoped:
+		return h.createClusterRoleBinding(ctx, owner)
+	case "", apiextensions.NamespaceScoped:
+		return h.createNamespacedRoleBinding(ctx, owner)
 	}
 
-	// create rolebinding between service account and role
-	crb := &rbac.ClusterRoleBinding{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            h.ext.Name,
-			OwnerReferences: []metav1.OwnerReference{owner},
-		},
-		RoleRef: rbac.RoleRef{APIGroup: rbac.GroupName, Kind: "ClusterRole", Name: h.ext.Name},
-		Subjects: []rbac.Subject{
-			{Name: h.ext.Name, Namespace: h.ext.Namespace, Kind: rbac.ServiceAccountKind},
-		},
-	}
-	if err := h.kube.Create(ctx, crb); err != nil && !kerrors.IsAlreadyExists(err) {
-		return errors.Wrap(err, "failed to create cluster role binding")
-	}
-
-	return nil
+	return errors.New("invalid permissionScope for stack")
 }
 
 func (h *stackHandler) processDeployment(ctx context.Context) error {

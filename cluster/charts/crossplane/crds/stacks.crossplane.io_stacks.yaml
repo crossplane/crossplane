@@ -7,7 +7,7 @@ metadata:
   name: stacks.stacks.crossplane.io
 spec:
   additionalPrinterColumns:
-  - JSONPath: .status.conditions[?(@.type==Ready)].status
+  - JSONPath: .status.conditionedStatus.conditions[?(@.type=='Ready')].status
     name: READY
     type: string
   - JSONPath: .spec.version
@@ -3922,26 +3922,25 @@ spec:
                   type: object
               type: object
             customresourcedefinitions:
-              properties:
-                dependsOn:
-                  items:
-                    properties:
-                      apiVersion:
-                        type: string
-                      kind:
-                        type: string
-                    type: object
-                  type: array
-                owns:
-                  items:
-                    properties:
-                      apiVersion:
-                        type: string
-                      kind:
-                        type: string
-                    type: object
-                  type: array
-              type: object
+              items:
+                properties:
+                  apiVersion:
+                    type: string
+                  kind:
+                    type: string
+                type: object
+              type: array
+            dependsOn:
+              items:
+                properties:
+                  crd:
+                    type: string
+                  package:
+                    type: string
+                  source:
+                    type: string
+                type: object
+              type: array
             description:
               type: string
             icons:
@@ -3980,6 +3979,11 @@ spec:
                     type: string
                 type: object
               type: array
+            permissionScope:
+              enum:
+              - Cluster
+              - Namespaced
+              type: string
             permissions:
               properties:
                 rules:

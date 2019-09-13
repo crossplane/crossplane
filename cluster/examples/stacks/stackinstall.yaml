@@ -1,5 +1,5 @@
 apiVersion: stacks.crossplane.io/v1alpha1
-kind: StackRequest
+kind: StackInstall
 metadata:
   name: sample-stack-from-package
 spec:

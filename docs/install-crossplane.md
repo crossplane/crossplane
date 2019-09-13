@@ -66,7 +66,7 @@ metadata:
   name: gcp
 ---
 apiVersion: stacks.crossplane.io/v1alpha1
-kind: StackRequest
+kind: ClusterStackInstall
 metadata:
   name: stack-gcp
   namespace: gcp
@@ -91,7 +91,7 @@ metadata:
   name: aws
 ---
 apiVersion: stacks.crossplane.io/v1alpha1
-kind: StackRequest
+kind: ClusterStackInstall
 metadata:
   name: stack-aws
   namespace: aws
@@ -116,7 +116,7 @@ metadata:
   name: azure
 ---
 apiVersion: stacks.crossplane.io/v1alpha1
-kind: StackRequest
+kind: ClusterStackInstall
 metadata:
   name: stack-azure
   namespace: azure

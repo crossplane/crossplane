@@ -84,6 +84,10 @@ func withPolicyRules(policyRules []rbac.PolicyRule) resourceModifier {
 	return func(r *v1alpha1.Stack) { r.Spec.Permissions.Rules = policyRules }
 }
 
+func withPermissionScope(permissionScope string) resourceModifier {
+	return func(r *v1alpha1.Stack) { r.Spec.PermissionScope = permissionScope }
+}
+
 func resource(rm ...resourceModifier) *v1alpha1.Stack {
 	r := &v1alpha1.Stack{
 		ObjectMeta: metav1.ObjectMeta{
@@ -155,7 +159,7 @@ func defaultControllerSpec() v1alpha1.ControllerSpec {
 }
 
 func defaultPolicyRules() []rbac.PolicyRule {
-	return []rbac.PolicyRule{{APIGroups: []string{""}, Resources: []string{"secrets"}, Verbs: []string{"get"}}}
+	return []rbac.PolicyRule{{APIGroups: []string{""}, Resources: []string{"configmaps", "events", "secrets"}, Verbs: []string{"*"}}}
 }
 
 func defaultJobControllerSpec() v1alpha1.ControllerSpec {
@@ -344,6 +348,18 @@ func TestCreate(t *testing.T) {
 				),
 			},
 		},
+		{
+			name:       "SuccessfulClusterCreate",
+			r:          resource(withPermissionScope("Cluster")),
+			clientFunc: func(r *v1alpha1.Stack) client.Client { return fake.NewFakeClient(r) },
+			want: want{
+				result: requeueOnSuccess,
+				err:    nil,
+				r: resource(
+					withPermissionScope("Cluster"), withConditions(runtimev1alpha1.Available(), runtimev1alpha1.ReconcileSuccess()),
+				),
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -370,17 +386,14 @@ func TestCreate(t *testing.T) {
 	}
 }
 
-// ************************************************************************************************
-// TestProcessRBAC
-// ************************************************************************************************
-func TestProcessRBAC(t *testing.T) {
+func TestProcessRBAC_Namespaced(t *testing.T) {
 	errBoom := errors.New("boom")
 
 	type want struct {
 		err error
 		sa  *corev1.ServiceAccount
-		cr  *rbac.ClusterRole
-		crb *rbac.ClusterRoleBinding
+		cr  *rbac.Role
+		crb *rbac.RoleBinding
 	}
 
 	tests := []struct {
@@ -421,8 +434,167 @@ func TestProcessRBAC(t *testing.T) {
 			},
 		},
 		{
-			name: "CreateClusterRoleError",
+			name: "CreateRoleError",
 			r:    resource(withPolicyRules(defaultPolicyRules())),
+			clientFunc: func(r *v1alpha1.Stack) client.Client {
+				return &test.MockClient{
+					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error {
+						if _, ok := obj.(*rbac.Role); ok {
+							return errBoom
+						}
+						return nil
+					},
+				}
+			},
+			want: want{
+				err: errors.Wrap(errBoom, "failed to create role"),
+				sa:  nil,
+				cr:  nil,
+				crb: nil,
+			},
+		},
+		{
+			name: "CreateRoleBindingError",
+			r:    resource(withPolicyRules(defaultPolicyRules())),
+			clientFunc: func(r *v1alpha1.Stack) client.Client {
+				return &test.MockClient{
+					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error {
+						if _, ok := obj.(*rbac.RoleBinding); ok {
+							return errBoom
+						}
+						return nil
+					},
+				}
+			},
+			want: want{
+				err: errors.Wrap(errBoom, "failed to create role binding"),
+				sa:  nil,
+				cr:  nil,
+				crb: nil,
+			},
+		},
+		{
+			name:       "Success",
+			r:          resource(withPermissionScope("Namespaced"), withPolicyRules(defaultPolicyRules())),
+			clientFunc: func(r *v1alpha1.Stack) client.Client { return fake.NewFakeClient(r) },
+			want: want{
+				err: nil,
+				sa: &corev1.ServiceAccount{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      resourceName,
+						Namespace: namespace,
+						OwnerReferences: []metav1.OwnerReference{
+							meta.AsOwner(meta.ReferenceTo(resource(), v1alpha1.StackGroupVersionKind)),
+						},
+					},
+				},
+				cr: &rbac.Role{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      resourceName,
+						Namespace: namespace,
+						OwnerReferences: []metav1.OwnerReference{
+							meta.AsOwner(meta.ReferenceTo(resource(), v1alpha1.StackGroupVersionKind)),
+						},
+					},
+					Rules: defaultPolicyRules(),
+				},
+				crb: &rbac.RoleBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      resourceName,
+						Namespace: namespace,
+						OwnerReferences: []metav1.OwnerReference{
+							meta.AsOwner(meta.ReferenceTo(resource(), v1alpha1.StackGroupVersionKind)),
+						},
+					},
+					RoleRef:  rbac.RoleRef{APIGroup: rbac.GroupName, Kind: "Role", Name: resourceName},
+					Subjects: []rbac.Subject{{Name: resourceName, Namespace: namespace, Kind: rbac.ServiceAccountKind}},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := NewGomegaWithT(t)
+			handler := &stackHandler{
+				kube: tt.clientFunc(tt.r),
+				ext:  tt.r,
+			}
+
+			err := handler.processRBAC(ctx)
+
+			if diff := cmp.Diff(tt.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("processRBAC(): -want error, +got error:\n%s", diff)
+			}
+
+			if tt.want.sa != nil {
+				got := &corev1.ServiceAccount{}
+				assertKubernetesObject(t, g, got, tt.want.sa, handler.kube)
+			}
+
+			if tt.want.cr != nil {
+				got := &rbac.Role{}
+				assertKubernetesObject(t, g, got, tt.want.cr, handler.kube)
+			}
+
+			if tt.want.crb != nil {
+				got := &rbac.RoleBinding{}
+				assertKubernetesObject(t, g, got, tt.want.crb, handler.kube)
+			}
+		})
+	}
+}
+
+func TestProcessRBAC_Cluster(t *testing.T) {
+	errBoom := errors.New("boom")
+
+	type want struct {
+		err error
+		sa  *corev1.ServiceAccount
+		cr  *rbac.ClusterRole
+		crb *rbac.ClusterRoleBinding
+	}
+
+	tests := []struct {
+		name       string
+		r          *v1alpha1.Stack
+		clientFunc func(*v1alpha1.Stack) client.Client
+		want       want
+	}{
+		{
+			name:       "NoPermissionsRequested",
+			r:          resource(withPermissionScope("Cluster")),
+			clientFunc: func(r *v1alpha1.Stack) client.Client { return fake.NewFakeClient(r) },
+			want: want{
+				err: nil,
+				sa:  nil,
+				cr:  nil,
+				crb: nil,
+			},
+		},
+		{
+			name: "CreateServiceAccountError",
+			r:    resource(withPermissionScope("Cluster"), withPolicyRules(defaultPolicyRules())),
+			clientFunc: func(r *v1alpha1.Stack) client.Client {
+				return &test.MockClient{
+					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error {
+						if _, ok := obj.(*corev1.ServiceAccount); ok {
+							return errBoom
+						}
+						return nil
+					},
+				}
+			},
+			want: want{
+				err: errors.Wrap(errBoom, "failed to create service account"),
+				sa:  nil,
+				cr:  nil,
+				crb: nil,
+			},
+		},
+		{
+			name: "CreateRoleError",
+			r:    resource(withPermissionScope("Cluster"), withPolicyRules(defaultPolicyRules())),
 			clientFunc: func(r *v1alpha1.Stack) client.Client {
 				return &test.MockClient{
 					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error {
@@ -441,8 +613,8 @@ func TestProcessRBAC(t *testing.T) {
 			},
 		},
 		{
-			name: "CreateClusterRoleBindingError",
-			r:    resource(withPolicyRules(defaultPolicyRules())),
+			name: "CreateRoleBindingError",
+			r:    resource(withPermissionScope("Cluster"), withPolicyRules(defaultPolicyRules())),
 			clientFunc: func(r *v1alpha1.Stack) client.Client {
 				return &test.MockClient{
 					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error {
@@ -462,7 +634,7 @@ func TestProcessRBAC(t *testing.T) {
 		},
 		{
 			name:       "Success",
-			r:          resource(withPolicyRules(defaultPolicyRules())),
+			r:          resource(withPermissionScope("Cluster"), withPolicyRules(defaultPolicyRules())),
 			clientFunc: func(r *v1alpha1.Stack) client.Client { return fake.NewFakeClient(r) },
 			want: want{
 				err: nil,
@@ -471,7 +643,7 @@ func TestProcessRBAC(t *testing.T) {
 						Name:      resourceName,
 						Namespace: namespace,
 						OwnerReferences: []metav1.OwnerReference{
-							meta.AsOwner(meta.ReferenceTo(resource(), v1alpha1.StackGroupVersionKind)),
+							meta.AsOwner(meta.ReferenceTo(resource(withPermissionScope("Cluster")), v1alpha1.StackGroupVersionKind)),
 						},
 					},
 				},
@@ -479,7 +651,7 @@ func TestProcessRBAC(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: resourceName,
 						OwnerReferences: []metav1.OwnerReference{
-							meta.AsOwner(meta.ReferenceTo(resource(), v1alpha1.StackGroupVersionKind)),
+							meta.AsOwner(meta.ReferenceTo(resource(withPermissionScope("Cluster")), v1alpha1.StackGroupVersionKind)),
 						},
 					},
 					Rules: defaultPolicyRules(),
@@ -488,7 +660,7 @@ func TestProcessRBAC(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: resourceName,
 						OwnerReferences: []metav1.OwnerReference{
-							meta.AsOwner(meta.ReferenceTo(resource(), v1alpha1.StackGroupVersionKind)),
+							meta.AsOwner(meta.ReferenceTo(resource(withPermissionScope("Cluster")), v1alpha1.StackGroupVersionKind)),
 						},
 					},
 					RoleRef:  rbac.RoleRef{APIGroup: rbac.GroupName, Kind: "ClusterRole", Name: resourceName},

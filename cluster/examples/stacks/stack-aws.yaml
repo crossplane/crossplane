@@ -4,7 +4,7 @@ metadata:
   name: aws
 ---
 apiVersion: stacks.crossplane.io/v1alpha1
-kind: StackRequest
+kind: ClusterStackInstall
 metadata:
   name: stack-aws
   namespace: aws

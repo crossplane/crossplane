@@ -19,17 +19,26 @@ package stacks
 import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"github.com/crossplaneio/crossplane/pkg/controller/stacks/request"
+	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
+	install "github.com/crossplaneio/crossplane/pkg/controller/stacks/install"
 	"github.com/crossplaneio/crossplane/pkg/controller/stacks/stack"
 )
 
 // Controllers passes down config and adds individual controllers to the manager.
 type Controllers struct{}
 
-// SetupWithManager adds all Stacks controllers to the manager.
+// SetupWithManager adds all Stack controllers to the manager.
 func (c *Controllers) SetupWithManager(mgr ctrl.Manager) error {
-	if err := (&request.Controller{}).SetupWithManager(mgr); err != nil {
-		return err
+	creators := []func() (string, func() v1alpha1.StackInstaller){
+		newStackInstall, newClusterStackInstall,
+	}
+
+	for _, creator := range creators {
+		if err := (&install.Controller{
+			StackInstallCreator: creator,
+		}).SetupWithManager(mgr); err != nil {
+			return err
+		}
 	}
 
 	if err := (&stack.Controller{}).SetupWithManager(mgr); err != nil {
@@ -37,4 +46,14 @@ func (c *Controllers) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	return nil
+}
+
+// StackInstall and ClusterStackInstall controllers differ by only their name and the type they accept
+// These differences have been abstracted away through StackInstaller so they can be treated the same.
+func newStackInstall() (string, func() v1alpha1.StackInstaller) {
+	return "stackinstall.stacks.crossplane.io", func() v1alpha1.StackInstaller { return &v1alpha1.StackInstall{} }
+}
+
+func newClusterStackInstall() (string, func() v1alpha1.StackInstaller) {
+	return "clusterstackinstall.stacks.crossplane.io", func() v1alpha1.StackInstaller { return &v1alpha1.ClusterStackInstall{} }
 }
