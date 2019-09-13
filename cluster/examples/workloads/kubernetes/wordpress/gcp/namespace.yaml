@@ -1,0 +1,31 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mynamespace
+---
+apiVersion: database.crossplane.io/v1alpha1
+kind: MySQLInstanceClass
+metadata:
+  name: standard-mysql
+  namespace: mynamespace
+  labels:
+    default: "true"
+classRef:
+  kind: CloudsqlInstanceClass
+  apiVersion: database.gcp.crossplane.io/v1alpha2
+  name: standard-cloudsql
+  namespace: gcp
+---
+apiVersion: compute.crossplane.io/v1alpha1
+kind: KubernetesClusterClass
+metadata:
+  name: standard-cluster
+  namespace: mynamespace
+  labels:
+    default: "true"
+classRef:
+  kind: GKEClusterClass
+  apiVersion: compute.gcp.crossplane.io/v1alpha2
+  name: standard-gke
+  namespace: gcp

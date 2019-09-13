@@ -1,0 +1,73 @@
+---
+# example-network will be the VPC that all cloud instances we'll create will use.
+apiVersion: compute.gcp.crossplane.io/v1alpha2
+kind: Network
+metadata:
+  name: example-network
+  namespace: gcp
+spec:
+  name: example-network
+  autoCreateSubnetworks: false
+  providerRef:
+    name: gcp-provider
+    namespace: gcp
+  reclaimPolicy: Delete
+  routingConfig:
+    routingMode: REGIONAL
+---
+# example-subnetwork defines IP ranges to be used by GKE cluster.
+apiVersion: compute.gcp.crossplane.io/v1alpha2
+kind: Subnetwork
+metadata:
+  name: example-subnetwork
+  namespace: gcp
+spec:
+  providerRef:
+    name: gcp-provider
+    namespace: gcp
+  reclaimPolicy: Delete
+  name: example-subnetwork
+  region: us-central1
+  ipCidrRange: "192.168.0.0/24"
+  privateIpGoogleAccess: true
+  secondaryIpRanges:
+    - rangeName: pods
+      ipCidrRange: 10.0.0.0/8
+    - rangeName: services
+      ipCidrRange: 172.16.0.0/16
+  network: projects/crossplane-playground/global/networks/example-network
+---
+# example-globaladdress defines the IP range that will be allocated for cloud services connecting
+# to the instances in the given Network.
+apiVersion: compute.gcp.crossplane.io/v1alpha2
+kind: GlobalAddress
+metadata:
+  name: example-globaladdress
+  namespace: gcp
+spec:
+  providerRef:
+    name: gcp-provider
+    namespace: gcp
+  reclaimPolicy: Delete
+  name: example-globaladdress
+  purpose: VPC_PEERING
+  addressType: INTERNAL
+  prefixLength: 16
+  network: projects/crossplane-playground/global/networks/example-network
+---
+# example-connection is what allows cloud services to use the allocated GlobalAddress for communication. Behind
+# the scenes, it creates a VPC peering to the network that those service instances actually live.
+apiVersion: servicenetworking.gcp.crossplane.io/v1alpha2
+kind: Connection
+metadata:
+  name: example-connection
+  namespace: gcp
+spec:
+  providerRef:
+    name: gcp-provider
+    namespace: gcp
+  reclaimPolicy: Delete
+  parent: services/servicenetworking.googleapis.com
+  network: projects/crossplane-playground/global/networks/example-network
+  reservedPeeringRanges:
+    - example-globaladdress
