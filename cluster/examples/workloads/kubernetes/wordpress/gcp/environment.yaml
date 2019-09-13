@@ -1,0 +1,38 @@
+---
+apiVersion: database.gcp.crossplane.io/v1alpha2
+kind: CloudsqlInstanceClass
+metadata:
+  name: standard-cloudsql
+  namespace: gcp
+specTemplate:
+  databaseVersion: MYSQL_5_7
+  tier: db-n1-standard-1
+  region: us-central1
+  storageType: PD_SSD
+  storageGB: 10
+  # Note from GCP Docs: Your Cloud SQL instances are not created in your VPC network.
+  # They are created in the service producer network (a VPC network internal to Google) that is then connected (peered) to your VPC network.
+  privateNetwork: projects/crossplane-playground/global/networks/example-network
+  providerRef:
+    name: gcp-provider
+    namespace: gcp
+  reclaimPolicy: Delete
+---
+apiVersion: compute.gcp.crossplane.io/v1alpha2
+kind: GKEClusterClass
+metadata:
+  name: standard-gke
+  namespace: gcp
+specTemplate:
+  machineType: n1-standard-1
+  numNodes: 1
+  zone: us-central1-b
+  network: projects/crossplane-playground/global/networks/example-network
+  subnetwork: projects/crossplane-playground/regions/us-central1/subnetworks/example-subnetwork
+  enableIPAlias: true
+  clusterSecondaryRangeName: pods
+  servicesSecondaryRangeName: services
+  providerRef:
+    name: gcp-provider
+    namespace: gcp
+  reclaimPolicy: Delete
