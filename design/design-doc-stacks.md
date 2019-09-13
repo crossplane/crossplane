@@ -303,12 +303,19 @@ source: "https://github.com/crossplaneio/sample-stack"
 # License SPDX name: https://spdx.org/licenses/
 license: Apache-2.0
 
-# Scope of permissions needed by the stack once installed in the control plane,
+# Scope of roles needed by the stack once installed in the control plane,
 # current supported values are:
 #
 # - Cluster
 # - Namespace
 permissionScope: Cluster
+
+# Dependent CRDs will be coupled with Owned CRDs and core resources to produce
+# RBAC rules. All verbs will be permitted.
+dependsOn:
+- crd: "mytype.mygroup.example.org/v1alpha1"
+- crd: '*.yourstack.example.org/v1alpha1'
+
 ```
 
 ### Example `install.yaml`

@@ -171,7 +171,7 @@ spec:
     kind: Mytype
   dependsOn:
   - crd: foo.mystack.example.org/v1alpha1
-  - crd: bar.yourstack.example.org/v1alpha2
+  - crd: '*.yourstack.example.org/v1alpha2'
   description: |
     Markdown describing this sample Crossplane stack project.
   icons:
@@ -214,7 +214,7 @@ spec:
     - apiGroups:
       - yourstack.example.org/v1alpha2
       resources:
-      - bar
+      - '*'
       verbs:
       - '*'
   source: https://github.com/crossplaneio/sample-stack
@@ -421,7 +421,7 @@ spec:
     kind: Sibling
   dependsOn:
   - crd: foo.mystack.example.org/v1alpha1
-  - crd: bar.yourstack.example.org/v1alpha2
+  - crd: '*.yourstack.example.org/v1alpha2'
   description: |
     Markdown describing this sample Crossplane stack project.
   icons:
@@ -486,7 +486,7 @@ spec:
     - apiGroups:
       - yourstack.example.org/v1alpha2
       resources:
-      - bar
+      - '*'
       verbs:
       - '*'
   source: https://github.com/crossplaneio/sample-stack
@@ -693,7 +693,7 @@ spec:
     kind: Sibling
   dependsOn:
   - crd: foo.mystack.example.org/v1alpha1
-  - crd: bar.yourstack.example.org/v1alpha2
+  - crd: '*.yourstack.example.org/v1alpha2'
   description: |
     Markdown describing this sample Crossplane stack project.
   icons:
@@ -758,7 +758,7 @@ spec:
     - apiGroups:
       - yourstack.example.org/v1alpha2
       resources:
-      - bar
+      - '*'
       verbs:
       - '*'
   source: https://github.com/crossplaneio/sample-stack
@@ -836,7 +836,7 @@ spec:
     kind: Mytype
   dependsOn:
   - crd: foo.mystack.example.org/v1alpha1
-  - crd: bar.yourstack.example.org/v1alpha2
+  - crd: '*.yourstack.example.org/v1alpha2'
   description: |
     Markdown describing this sample Crossplane stack project.
   icons:
@@ -879,7 +879,7 @@ spec:
     - apiGroups:
       - yourstack.example.org/v1alpha2
       resources:
-      - bar
+      - '*'
       verbs:
       - '*'
   source: https://github.com/crossplaneio/sample-stack
@@ -927,7 +927,7 @@ category: Category
 
 dependsOn:
 - crd: "foo.mystack.example.org/v1alpha1"
-- crd: "bar.yourstack.example.org/v1alpha2"
+- crd: '*.yourstack.example.org/v1alpha2'
 
 # Keywords that describe this application and help search indexing
 keywords:
