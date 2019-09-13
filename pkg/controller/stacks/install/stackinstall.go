@@ -19,6 +19,7 @@ package install
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -231,7 +232,8 @@ func (h *stackInstallHandler) update(ctx context.Context) (reconcile.Result, err
 	// TODO: should updates of the StackInstall be supported? what would that even mean, they
 	// changed the package they wanted installed? Shouldn't they delete the StackInstall and
 	// create a new one?
-	log.V(logging.Debug).Info("updating not supported yet", h.ext.GroupVersionKind(), fmt.Sprintf("%s/%s", h.ext.GetNamespace(), h.ext.GetName()))
+	groupversion, kind := h.ext.GroupVersionKind().ToAPIVersionAndKind()
+	log.V(logging.Debug).Info("updating not supported yet", strings.ToLower(kind)+"."+groupversion, fmt.Sprintf("%s/%s", h.ext.GetNamespace(), h.ext.GetName()))
 	return reconcile.Result{}, nil
 }
 
