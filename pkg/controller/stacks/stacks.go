@@ -29,7 +29,7 @@ type Controllers struct{}
 
 // SetupWithManager adds all Stack controllers to the manager.
 func (c *Controllers) SetupWithManager(mgr ctrl.Manager) error {
-	creators := []func() (string, v1alpha1.StackInstaller){
+	creators := []func() (string, func() v1alpha1.StackInstaller){
 		newStackInstall, newClusterStackInstall,
 	}
 
@@ -50,10 +50,10 @@ func (c *Controllers) SetupWithManager(mgr ctrl.Manager) error {
 
 // StackInstall and ClusterStackInstall controllers differ by only their name and the type they accept
 // These differences have been abstracted away through StackInstaller so they can be treated the same.
-func newStackInstall() (string, v1alpha1.StackInstaller) {
-	return "stackinstall.stacks.crossplane.io", &v1alpha1.StackInstall{}
+func newStackInstall() (string, func() v1alpha1.StackInstaller) {
+	return "stackinstall.stacks.crossplane.io", func() v1alpha1.StackInstaller { return &v1alpha1.StackInstall{} }
 }
 
-func newClusterStackInstall() (string, v1alpha1.StackInstaller) {
-	return "clusterstackinstall.stacks.crossplane.io", &v1alpha1.ClusterStackInstall{}
+func newClusterStackInstall() (string, func() v1alpha1.StackInstaller) {
+	return "clusterstackinstall.stacks.crossplane.io", func() v1alpha1.StackInstaller { return &v1alpha1.ClusterStackInstall{} }
 }

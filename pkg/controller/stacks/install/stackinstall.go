@@ -53,9 +53,9 @@ var (
 // Reconciler reconciles a Instance object
 type Reconciler struct {
 	sync.Mutex
-	kube       client.Client
-	kubeclient kubernetes.Interface
-	kubeobject v1alpha1.StackInstaller
+	kube        client.Client
+	kubeclient  kubernetes.Interface
+	stackinator func() v1alpha1.StackInstaller
 	factory
 	executorInfoDiscoverer stacks.ExecutorInfoDiscoverer
 }
@@ -63,17 +63,13 @@ type Reconciler struct {
 // Controller is responsible for adding the StackInstall
 // controller and its corresponding reconciler to the manager with any runtime configuration.
 type Controller struct {
-	StackInstallCreator func() (string, v1alpha1.StackInstaller)
-}
-
-func (c *Controller) makeStackInstaller() (string, v1alpha1.StackInstaller) {
-	return c.StackInstallCreator()
+	StackInstallCreator func() (string, func() v1alpha1.StackInstaller)
 }
 
 // SetupWithManager creates a new Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func (c *Controller) SetupWithManager(mgr ctrl.Manager) error {
-	controllerName, stackInstaller := c.makeStackInstaller()
+	controllerName, stackInstaller := c.StackInstallCreator()
 
 	kube := mgr.GetClient()
 	client := kubernetes.NewForConfigOrDie(mgr.GetConfig())
@@ -82,26 +78,27 @@ func (c *Controller) SetupWithManager(mgr ctrl.Manager) error {
 	r := &Reconciler{
 		kube:                   kube,
 		kubeclient:             client,
-		kubeobject:             stackInstaller,
+		stackinator:            stackInstaller,
 		factory:                &handlerFactory{},
 		executorInfoDiscoverer: discoverer,
 	}
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(controllerName).
-		For(stackInstaller).
+		For(stackInstaller()).
 		Complete(r)
 }
 
 // Reconcile reads that state of the StackInstall for a Instance object and makes changes based on the state read
 // and what is in the Instance.Spec
 func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) {
-	log.V(logging.Debug).Info("reconciling", "kind", r.kubeobject.GroupVersionKind(), "request", req)
+	stackInstaller := r.stackinator()
+	log.V(logging.Debug).Info("reconciling", "kind", stackInstaller.GroupVersionKind(), "request", req)
 
 	ctx, cancel := context.WithTimeout(context.Background(), reconcileTimeout)
 	defer cancel()
 
 	// fetch the CRD instance
-	if err := r.kube.Get(ctx, req.NamespacedName, r.kubeobject); err != nil {
+	if err := r.kube.Get(ctx, req.NamespacedName, stackInstaller); err != nil {
 		if kerrors.IsNotFound(err) {
 			return reconcile.Result{}, nil
 		}
@@ -110,10 +107,10 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	executorinfo, err := r.executorInfoDiscoverer.Discover(ctx)
 	if err != nil {
-		return fail(ctx, r.kube, r.kubeobject, err)
+		return fail(ctx, r.kube, stackInstaller, err)
 	}
 
-	handler := r.factory.newHandler(ctx, r.kubeobject, r.kube, r.kubeclient, executorinfo)
+	handler := r.factory.newHandler(ctx, stackInstaller, r.kube, r.kubeclient, executorinfo)
 
 	return handler.sync(ctx)
 }

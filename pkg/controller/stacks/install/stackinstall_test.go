@@ -167,7 +167,7 @@ func TestReconcile(t *testing.T) {
 						return nil
 					},
 				},
-				kubeobject: &v1alpha1.StackInstall{},
+				stackinator: func() v1alpha1.StackInstaller { return &v1alpha1.StackInstall{} },
 				executorInfoDiscoverer: &mockExecutorInfoDiscoverer{
 					MockDiscoverExecutorInfo: func(ctx context.Context) (*stacks.ExecutorInfo, error) {
 						return &stacks.ExecutorInfo{Image: stackPackageImage}, nil
@@ -195,7 +195,7 @@ func TestReconcile(t *testing.T) {
 						return nil
 					},
 				},
-				kubeobject: &v1alpha1.ClusterStackInstall{},
+				stackinator: func() v1alpha1.StackInstaller { return &v1alpha1.ClusterStackInstall{} },
 				executorInfoDiscoverer: &mockExecutorInfoDiscoverer{
 					MockDiscoverExecutorInfo: func(ctx context.Context) (*stacks.ExecutorInfo, error) {
 						return &stacks.ExecutorInfo{Image: stackPackageImage}, nil
@@ -225,7 +225,7 @@ func TestReconcile(t *testing.T) {
 					},
 					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
-				kubeobject: &v1alpha1.StackInstall{},
+				stackinator: func() v1alpha1.StackInstaller { return &v1alpha1.StackInstall{} },
 				executorInfoDiscoverer: &mockExecutorInfoDiscoverer{
 					MockDiscoverExecutorInfo: func(ctx context.Context) (*stacks.ExecutorInfo, error) {
 						return nil, errors.New("test-discover-executorInfo-error")
@@ -244,7 +244,7 @@ func TestReconcile(t *testing.T) {
 						return kerrors.NewNotFound(schema.GroupResource{Group: v1alpha1.Group}, key.Name)
 					},
 				},
-				kubeobject:             &v1alpha1.StackInstall{},
+				stackinator:            func() v1alpha1.StackInstaller { return &v1alpha1.StackInstall{} },
 				executorInfoDiscoverer: nil,
 				factory:                nil,
 			},
@@ -259,7 +259,7 @@ func TestReconcile(t *testing.T) {
 						return errors.New("test-get-error")
 					},
 				},
-				kubeobject:             &v1alpha1.StackInstall{},
+				stackinator:            func() v1alpha1.StackInstaller { return &v1alpha1.StackInstall{} },
 				executorInfoDiscoverer: nil,
 				factory:                nil,
 			},
