@@ -24,7 +24,7 @@ import (
 	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
 )
 
-// RedisClusterSpec defines the desired state of RedisCluster
+// RedisClusterSpec specifies the desired state of a RedisCluster.
 type RedisClusterSpec struct {
 	runtimev1alpha1.ResourceClaimSpec `json:",inline"`
 
@@ -37,8 +37,10 @@ var _ resource.Claim = &RedisCluster{}
 
 // +kubebuilder:object:root=true
 
-// RedisCluster is the the CRD type for abstract Redis clusters. Crossplane
-// considers a single Redis instance a 'cluster' of one instance.
+// A RedisCluster is a portable resource claim that may be satisfied by binding
+// to a Redis managed resource such as a GCP CloudMemorystore instance or an AWS
+// ReplicationGroup. Despite the name RedisCluster claims may bind to Redis
+// managed resources that are a single node, or not in cluster mode.
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.bindingPhase"
 // +kubebuilder:printcolumn:name="CLASS",type="string",JSONPath=".spec.classRef.name"
 // +kubebuilder:printcolumn:name="VERSION",type="string",JSONPath=".spec.engineVersion"
@@ -99,7 +101,7 @@ func (rc *RedisCluster) GetWriteConnectionSecretToReference() corev1.LocalObject
 
 // +kubebuilder:object:root=true
 
-// RedisClusterList contains a list of RedisCluster
+// RedisClusterList contains a list of RedisCluster.
 type RedisClusterList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
@@ -124,7 +126,7 @@ var _ resource.PortableClassList = &RedisClusterClassList{}
 
 // +kubebuilder:object:root=true
 
-// RedisClusterClassList contains a list of RedisClusterClass
+// RedisClusterClassList contains a list of RedisClusterClass.
 type RedisClusterClassList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

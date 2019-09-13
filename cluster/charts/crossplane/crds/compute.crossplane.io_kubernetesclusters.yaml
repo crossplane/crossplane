@@ -30,7 +30,9 @@ spec:
     status: {}
   validation:
     openAPIV3Schema:
-      description: KubernetesCluster is the Schema for the instances API
+      description: A KubernetesCluster is a portable resource claim that may be satisfied
+        by binding to a Kubernetes cluster managed resource such as an AWS EKS cluster
+        or an Azure AKS cluster.
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation
@@ -45,8 +47,7 @@ spec:
         metadata:
           type: object
         spec:
-          description: KubernetesClusterSpec specifies the configuration of a Kubernetes
-            cluster.
+          description: KubernetesClusterSpec specifies the desired state of a KubernetesCluster.
           properties:
             classRef:
               description: PortableClassReference is a reference to a portable class
@@ -58,7 +59,8 @@ spec:
                   type: string
               type: object
             clusterVersion:
-              description: cluster properties
+              description: ClusterVersion specifies the desired Kubernetes version,
+                e.g. 1.15.
               type: string
             resourceRef:
               description: ObjectReference contains enough information to let you

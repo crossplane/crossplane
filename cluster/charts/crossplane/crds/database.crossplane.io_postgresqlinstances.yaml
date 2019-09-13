@@ -30,8 +30,10 @@ spec:
     status: {}
   validation:
     openAPIV3Schema:
-      description: PostgreSQLInstance is the CRD type for abstract PostgreSQL database
-        instances
+      description: A PostgreSQLInstance is a portable resource claim that may be satisfied
+        by binding to a PostgreSQL managed resource such as an AWS RDS instance or
+        a GCP CloudSQL instance. PostgreSQLInstance is the CRD type for abstract PostgreSQL
+        database instances
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation
@@ -46,7 +48,7 @@ spec:
         metadata:
           type: object
         spec:
-          description: PostgreSQLInstanceSpec specifies the configuration of this
+          description: PostgreSQLInstanceSpec specifies the desired state of a PostgreSQLInstance.
             PostgreSQLInstance.
           properties:
             classRef:
@@ -59,7 +61,8 @@ spec:
                   type: string
               type: object
             engineVersion:
-              description: postgresql instance properties
+              description: EngineVersion specifies the desired PostgreSQL engine version,
+                e.g. 9.6.
               enum:
               - "9.6"
               type: string

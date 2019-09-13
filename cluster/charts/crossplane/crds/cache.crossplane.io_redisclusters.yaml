@@ -30,8 +30,10 @@ spec:
     status: {}
   validation:
     openAPIV3Schema:
-      description: RedisCluster is the the CRD type for abstract Redis clusters. Crossplane
-        considers a single Redis instance a 'cluster' of one instance.
+      description: A RedisCluster is a portable resource claim that may be satisfied
+        by binding to a Redis managed resource such as a GCP CloudMemorystore instance
+        or an AWS ReplicationGroup. Despite the name RedisCluster claims may bind
+        to Redis managed resources that are a single node, or not in cluster mode.
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation
@@ -46,7 +48,7 @@ spec:
         metadata:
           type: object
         spec:
-          description: RedisClusterSpec defines the desired state of RedisCluster
+          description: RedisClusterSpec specifies the desired state of a RedisCluster.
           properties:
             classRef:
               description: PortableClassReference is a reference to a portable class

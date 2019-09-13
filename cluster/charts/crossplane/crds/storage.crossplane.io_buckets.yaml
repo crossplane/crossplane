@@ -33,7 +33,9 @@ spec:
     status: {}
   validation:
     openAPIV3Schema:
-      description: Bucket is the Schema for the Bucket API
+      description: A Bucket is a portable resource claim that may be satisfied by
+        binding to a storage bucket PostgreSQL managed resource such as an AWS S3
+        bucket or Azure storage container.
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation
@@ -48,7 +50,7 @@ spec:
         metadata:
           type: object
         spec:
-          description: BucketSpec defines the desired state of Bucket
+          description: BucketSpec specifies the desired state of a Bucket.
           properties:
             classRef:
               description: PortableClassReference is a reference to a portable class
@@ -60,21 +62,22 @@ spec:
                   type: string
               type: object
             localPermission:
-              description: 'LocalPermission is the permissions granted on the bucket
-                for the provider specific bucket service account that is available
-                in a secret after provisioning. NOTE: AWS S3 Specific value'
+              description: LocalPermission specifies permissions granted to a provider
+                specific service account for this bucket, e.g. Read, ReadWrite, or
+                Write.
               enum:
               - Read
               - Write
               - ReadWrite
               type: string
             name:
-              description: Name properties
+              description: Name specifies the desired name of the bucket.
               maxLength: 63
               minLength: 3
               type: string
             predefinedACL:
-              description: 'NOTE: AWS S3 and GCP Bucket values (not in Azure)'
+              description: PredefinedACL specifies a predefined ACL (e.g. Private,
+                ReadWrite, etc) to be applied to the bucket.
               enum:
               - Private
               - PublicRead
