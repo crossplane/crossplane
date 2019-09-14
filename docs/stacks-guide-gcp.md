@@ -1,7 +1,7 @@
 ---
-title: Crossplane Stacks Guide: GCP Setup
+title: "Crossplane Stacks Guide: GCP Setup"
 toc: true
-weight: 330
+weight: 332
 indent: true
 ---
 
@@ -13,9 +13,8 @@ indent: true
 2. [Install the GCP Stack](#install-the-gcp-stack)
 3. [Configure GCP Account](#configure-gcp-account)
 4. [Configure Crossplane GCP Provider](#configure-crossplane-gcp-provider)
-5. [Configure Crossplane GCP Provider](#configure-crossplane-gcp-provider)
-6. [Set Up Network Resources](#set-up-network-resources)
-7. [Configure Provider Resources](#configure-provider-resources)
+5. [Set Up Network Resources](#set-up-network-resources)
+6. [Configure Provider Resources](#configure-provider-resources)
 7. [Recap](#recap)
 8. [Next Steps](#next-steps)
 
@@ -51,8 +50,8 @@ We will **not** be teaching first principles in depth. Check out the
 
 After Crossplane has been installed, it can be extended with more
 functionality by installing a Crossplane Stack! Let's install the stack
-for Google Cloud Platform (GCP) to add support for that cloud provider. We
-can use the Crossplane CLI for this operation:
+for Google Cloud Platform (GCP) to add support for that cloud provider.
+We can use the Crossplane CLI for this operation:
 
 ```
 kubectl crossplane stack install 'crossplane/stack-gcp:master' stack-gcp
@@ -60,9 +59,10 @@ kubectl crossplane stack install 'crossplane/stack-gcp:master' stack-gcp
 
 To install to a particular namespace, you can use the `generate-install`
 command and pipe it to `kubectl apply` instead, which gives you more
-control over how the stack's installation is handled. Everything is Kubernetes object!
+control over how the stack's installation is handled. Everything is
+Kubernetes object!
 
-Since this is an infrastructure stack, we need to specify that it's 
+Since this is an infrastructure stack, we need to specify that it's
 cluster-scoped via `--cluster` flag.
 ```
 kubectl create namespace gcp
@@ -71,13 +71,13 @@ kubectl crossplane stack generate-install --cluster 'crossplane/stack-gcp:master
 
 The namespace that we install the stack to is also the one where our
 managed GCP resources will reside. When a developer requests a resource
-by creating a **resource claim** in a namespace `mynamespace`, the managed
-cloud provider resource and any secrets will be created in the stack's
-namespace. Secrets will be copied over to `mynamespace`, and the claim
-will be bound to the original resource claim.
+by creating a **resource claim** in a namespace `mynamespace`, the
+managed cloud provider resource and any secrets will be created in the
+stack's namespace. Secrets will be copied over to `mynamespace`, and the
+claim will be bound to the original resource claim.
 
-For convenience, the next steps assume that you installed GCP stack 
-into `gcp` namespace.
+For convenience, the next steps assume that you installed GCP stack into
+the `gcp` namespace.
 
 ## Configure GCP Account
 
@@ -149,11 +149,11 @@ configure and set up other Crossplane resources.
 ## Set Up Network Resources
 
 Wordpress needs an SQL database and a Kubernetes cluster. But *those*
-two resources need a private network to communicate securely. 
-So, we need to set up the network before we get to the database and 
-Kubernetes creation steps. Here's an example network setup:
-```
+two resources need a private network to communicate securely. So, we
+need to set up the network before we get to the database and Kubernetes
+creation steps. Here's an example network setup:
 
+```
 ---
 # example-network will be the VPC that all cloud instances we'll create will use.
 apiVersion: compute.gcp.crossplane.io/v1alpha2
@@ -251,8 +251,8 @@ satisfy WordPress's claims for a database and a Kubernetes cluster.
 The resource classes serve as template for the new claimswe make. 
 The following resource classes allow the GKECluster and CloudSQL claims
 to be satisfied with the network configuration we just set up:
-```
 
+```
 ---
 apiVersion: database.gcp.crossplane.io/v1alpha2
 kind: CloudsqlInstanceClass
@@ -297,24 +297,30 @@ You can edit snippet above to customize it or run the following command to apply
 kubectl apply -f cluster/examples/workloads/kubernetes/wordpress/gcp/environment.yaml
 ```
 
-The steps that we have taken so far have been related to things that can be
-shared by all resources in all namespaces of that Crossplane cluster. Now, we will
-keep going with creating an app namespace and populating it with resources that will
-help Crossplane know with what configuration it should satisfy the claims. You can use
-any namespace for your app's resources but for this tutorial we'll create a new namespace.
+The steps that we have taken so far have been related to things that can
+be shared by all resources in all namespaces of that Crossplane cluster.
+Now, we will keep going with creating an app namespace and populating it
+with resources that will help Crossplane know with what configuration it
+should satisfy the claims. You can use any namespace for your app's
+resources but for this tutorial we'll create a new namespace.
+
 ```
 kubectl create namespace mynamespace
 ```
-Now we need to tell Crossplane which resource classes should be used to satisfy our claims 
-in that app namespace. We will create portable classes that have have reference to non-portable 
-ones that we created earlier. In our claims, we can refer to those portable classes directly
-or label one as the default portable class to be used in claims that do not have class reference.
+
+Now we need to tell Crossplane which resource classes should be used to
+satisfy our claims in that app namespace. We will create portable
+classes that have have reference to non-portable ones that we created
+earlier. In our claims, we can refer to those portable classes directly
+or label one as the default portable class to be used in claims that do
+not have class reference.
 
 > Portable classes are a way of referring to non-portable resource classes in other namespaces. 
-For example, MySQLInstanceClass is a portable class that can refer to GCP's
-CloudSQLInstanceClass, which is a non-portable class.
-```
 
+For example, MySQLInstanceClass is a portable class that can refer to
+GCP's CloudSQLInstanceClass, which is a non-portable class.
+
+```
 ---
 apiVersion: database.crossplane.io/v1alpha1
 kind: MySQLInstanceClass
@@ -345,9 +351,11 @@ classRef:
 ```
 
 You can run the following command for namespace and portable class creation:
+
 ```
 kubectl apply -f cluster/examples/workloads/kubernetes/wordpress/gcp/namespace.yaml
 ```
+
 For more details about what is happening behind the scenes, read more
 about [portable claims in Crossplane][portable-claims].
 
@@ -376,11 +384,8 @@ the Stacks Guide document][stacks-guide-continue] so we can pick up where we lef
 ## TODO
 This should not go in the final document, but is here for tracking.
 
-* Add policies for dependencies
-* Add table of contents
 * Add references
 * Add next steps, with link to WordPress-specific stuff
-* Add a TOC
 
 <!-- Links -->
 [stacks-guide]:
