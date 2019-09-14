@@ -1,7 +1,7 @@
 ---
-title: Crossplane Stacks Guide
+title: "Crossplane Stacks Guide"
 toc: true
-weight: 330
+weight: 331
 indent: true
 ---
 
@@ -35,10 +35,10 @@ Welcome to the Crossplane Stack guide! In this document, we will:
 
 We will **not**:
 
-* Learn first principles (see the concepts document for that level of
-  detail)
-* Develop our own stack from scratch (go to this development guide to
-  learn how to do that)
+* Learn first principles (see the [concepts
+  document][crossplane-concepts] for that level of detail)
+* Develop our own stack from scratch (go to [this development
+  guide][stack-developer-guide] to learn how to do that)
 
 Let's go!
 
@@ -46,16 +46,17 @@ Let's go!
 
 There are a bunch of things you might want to know to fully understand what's happening in this document. This guide won't cover them, but there are other ones that do. Here are some links!
 
-* Crossplane concepts
-* Kubernetes concepts
+* [Crossplane concepts][crossplane-concepts]
+* [Kubernetes concepts][kubernetes-concepts]
 
 ## Before you get started
 
 This guide assumes you are using a *nix-like environment. It also assumes you have a basic working familiarity with the following:
 
 * The terminal environment
-* Setting up cloud provider accounts for the cloud provider you want to use
-* Kubernetes
+* Setting up cloud provider accounts for the cloud provider you want to
+  use
+* [Kubernetes][kubernetes-docs] and [kubectl][kubectl-docs]
 
 You will need:
 
@@ -68,8 +69,9 @@ You will need:
 
 ## Install the Crossplane CLI
 
-To interact with stacks, we're going to use the Crossplane CLI, because
-it's more convenient. To install it, we can use the one-line curl bash:
+To interact with stacks, we're going to use the [Crossplane
+CLI][crossplane-cli], because it's more convenient. To install it, we
+can use the one-line curl bash:
 
 ```
 RELEASE=0.0.1
@@ -90,8 +92,8 @@ Configure resource classes
 ### Install Crossplane
 
 The recommended way of installing Crossplane is by using
-[helm](https://github.com/helm/helm#install). We can grab the most
-stable version currently available by using:
+[helm][helm-install]. We can grab the most stable version currently
+available by using:
 
 ```
 helm repo add crossplane-alpha https://charts.crossplane.io/alpha
@@ -99,8 +101,8 @@ helm install --name crossplane --namespace crossplane-system crossplane-alpha/cr
 ```
 
 For more options for installing, including how to install a more
-bleeding-edge version, or how to uninstall, see the full install
-documentation.
+bleeding-edge version, or how to uninstall, see the [full install
+documentation][crossplane-install-docs].
 
 ### Configure support for your cloud provider
 
@@ -113,14 +115,17 @@ provider-specific guides:
 
 Then come back here! Don't worry; we'll still be here when you're ready.
 
+Don't see your favorite cloud provider? [Help us add
+support][provider-stack-developer-guide] for it!
+
 ## Install support for our application into Crossplane
 
 Now that we've got Crossplane set up and configured to use a cloud
-provider, we're ready to add support for creating Wordpresses! We'll do
+provider, we're ready to add support for creating WordPresses! We'll do
 this using a Crossplane Stack. For more information about stacks, see
-the full Stack documentation.
+the [full Stack documentation][stack-docs].
 
-We can use the CLI to install our stack which adds support for
+We can use the [Crossplane CLI][crossplane-cli] to install our stack which adds support for
 Wordpress:
 
 ```
@@ -129,9 +134,10 @@ kubectl crossplane stack install 'crossplane/sample-stack-wordpress:latest' 'sam
 
 This pulls the stack package from a registry to install it into
 Crossplane. For more details about how to use the CLI, see the
-documentation for the CLI. For more details about how stacks work behind
-the scenes, see the documentation about the stack manager and the stack
-format.
+[documentation for the CLI][crossplane-cli-docs]. For more details about how stacks work behind
+the scenes, see the documentation about the [stack
+manager][stack-manager-docs] and the [stack
+format][stack-format-docs].
 
 ## Create a Wordpress
 
@@ -157,29 +163,32 @@ and try creating the Wordpress instance again.
 ### Wait
 
 The Wordpress can take a while to spin up, because behind the scenes
-Crossplane is creating a database and Kubernetes cluster. To check the
-status, we can look at the resources that Crossplane is creating for us:
+Crossplane is creating all of its dependendencies, which is a database
+and Kubernetes cluster. To check the status, we can look at the
+resources that Crossplane is creating for us:
 
 ```
 # The claim for the database
-kubectl get -n wordpresses mysqlinstance
+kubectl get mysqlinstance
 # The claim for the Kubernetes cluster
-kubectl get -n wordpresses kubernetescluster
+kubectl get kubernetescluster
 
 # The workload definition
-kubectl get -n wordpresses kubernetesapplication
+kubectl get kubernetesapplication
 # The things created on the Kubernetes cluster as part of the workload
-kubectl get -n wordpresses kubernetesapplicationresource
+kubectl get kubernetesapplicationresource
 ```
 
 For more information about how Crossplane manages databases and
 Kubernetes clusters for us, see the more complete documentation about
-claims, resource classes, and workloads.
+[claims][claims-docs], [resource classes][resource-classes-docs], and
+[workloads][workloads-docs].
 
 ### Use
 
 Once everything has been created, the ip address for the Wordpress
-instance will show up in the Crossplane KubernetesApplicationResource
+instance will show up in the [Crossplane
+KubernetesApplicationResource][kubernetesapplicationresource-docs]
 which represents the workload's service. Here's a way to watch for the
 ip:
 
@@ -215,7 +224,9 @@ kubectl crossplane stack uninstall sample-stack-wordpress
 
 Removing the stack removes any Wordpress instances that were created.
 
-The cloud provider stack can also be removed using the `kubectl crossplane stack uninstall` command.
+The cloud provider stack can also be removed using the `kubectl
+crossplane stack uninstall` command. Use `kubectl crossplane stack list`
+to see what's installed.
 
 ## Conclusion
 
@@ -238,25 +249,25 @@ Now that we've gone through how to use a Crossplane Stack, you may want
 to learn more about which stacks are available, or about how to write
 your own stack.
 
-To learn more about which stacks are available, check out the Upbound
-stack registry.
+To learn more about which stacks are available, check out the [stack registry][stack-registry].
 
-To learn more about how to write your own stack, see the stack developer
-guide.
+To learn more about how to write your own stack, see the [stack developer
+guide][stack-developer-guide].
 
 ## References
 
-*   The Crossplane Concepts guide
-*   The Stacks Concepts guide
-*   Crossplane Install Guide
-*   The Crossplane CLI
-*   Stacks Quick Start
-*   Upbound Stack Registry
-*   Stacks Developer Guide
-*   AWS documentation
-*   Azure documentation
-*   GCP documentation
-*   Kubernetes documentation
+*   [The Crossplane Concepts guide][crossplane-concepts]
+*   [The Stacks Concepts guide][stack-concepts]
+*   [Crossplane Install Guide][crossplane-install-docs]
+*   [The Crossplane CLI][crossplane-cli]
+*   [Stacks Quick Start][stack-quick-start]
+*   [Stack Registry][stack-registry]
+*   [Stacks Developer Guide][stack-developer-guide]
+*   [Provider Stack Developer Guide][provider-stack-developer-guide]
+*   [AWS documentation][aws-docs]
+*   [GCP documentation][gcp-docs]
+*   [Azure documentation][azure-docs]
+*   [Kubernetes documentation][kubernetes-docs]
 
 ## FAQ
 These should probably be covered in the concepts document, but I am
@@ -275,7 +286,6 @@ running the rest of my Kubernetes stuff?
 For tracking purposes; not for inclusion in the document
 
 * Remove things that assume you have the Crossplane repo checked out
-* Add a working policy example for GCP
 * Figure out how to move the provider-specific stuff into different docs
   or have it be a selectable section
 * Interactive docs?
@@ -285,5 +295,35 @@ For tracking purposes; not for inclusion in the document
 * Add a TOC
 
 <!-- Named links -->
-[crossplane-cli]:
-[crossplane-concepts]:
+[crossplane-cli]: https://github.com/crossplaneio/crossplane-cli
+[crossplane-cli-docs]: https://github.com/crossplaneio/crossplane-cli/blob/master/README.md
+[crossplane-concepts]: TODO
+[crossplane-install-docs]: TODO
+
+[kubernetesapplicationresource-docs]: TODO
+[claims-docs]: TODO
+[resource-classes-docs]: TODO
+[workloads-docs]: TODO
+
+[kubernetes-concepts]: https://kubernetes.io/docs/concepts/
+[kubernetes-docs]: https://kubernetes.io/docs/home/
+[kubectl-docs]: https://kubernetes.io/docs/reference/generated/kubectl/kubectl-commands
+
+[helm-install]: https://github.com/helm/helm#install
+
+[aws-docs]: https://docs.aws.amazon.com/
+[gcp-docs]: https://cloud.google.com/docs/
+[azure-docs]: https://docs.microsoft.com/azure/
+
+[aws-setup]: TODO
+[gcp-setup]: stacks-guide-gcp.html
+[azure-setup]: TODO
+
+[stack-docs]: TODO
+[stack-quick-start]: TODO
+[stack-concepts]: TODO
+[stack-manager-docs]: TODO
+[stack-format-docs]: TODO
+[stack-registry]: TODO
+[stack-developer-guide]: TODO
+[provider-stack-developer-guide]: TODO
