@@ -44,7 +44,7 @@ func (c *MySQLInstanceController) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&databasev1alpha1.MySQLInstance{}).
-		WithEventFilter(resource.NewPredicates(resource.NoPortableClassReference())).
-		WithEventFilter(resource.NewPredicates(resource.NoManagedResourceReference())).
+		WithEventFilter(resource.NewPredicates(resource.HasNoPortableClassReference())).
+		WithEventFilter(resource.NewPredicates(resource.HasNoManagedResourceReference())).
 		Complete(r)
 }

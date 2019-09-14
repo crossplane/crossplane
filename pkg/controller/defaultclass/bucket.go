@@ -44,7 +44,7 @@ func (c *BucketController) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&storagev1alpha1.Bucket{}).
-		WithEventFilter(resource.NewPredicates(resource.NoPortableClassReference())).
-		WithEventFilter(resource.NewPredicates(resource.NoManagedResourceReference())).
+		WithEventFilter(resource.NewPredicates(resource.HasNoPortableClassReference())).
+		WithEventFilter(resource.NewPredicates(resource.HasNoManagedResourceReference())).
 		Complete(r)
 }
