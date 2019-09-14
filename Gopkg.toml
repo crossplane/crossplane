@@ -53,3 +53,8 @@ required = [
   name = "gopkg.in/fsnotify.v1"
   source = "https://github.com/fsnotify/fsnotify.git"
   version="v1.4.7"
+
+[[override]]
+  name = "github.com/crossplaneio/crossplane-runtime"
+  source = "https://github.com/negz/crossplane-runtime.git"
+  revision = "b52b2f5218fddf310e5c05b7d36c2cb767c4be82"
