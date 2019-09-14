@@ -266,41 +266,27 @@ func (c *unstructuredClient) sync(ctx context.Context, template *unstructured.Un
 	// We make another copy of our template here so we can compare the template
 	// as passed to this method with the remote resource.
 	remote := template.DeepCopy()
-
-	// TODO(negz): Handle immutable, server-populated, fields such as a
-	// Service's ClusterIP. For example:
-	// spec.clusterIP: Invalid value: "": field is immutable
-	// Generate a JSON patch from the two unstructured contents?
-
-	var rs *v1alpha1.RemoteStatus
-
-	_, err := util.CreateOrUpdate(ctx, c.kube, remote, func() error {
-		// Inside this anonymous function remote could either be unchanged (if
-		// it does not exist in the API server) or updated to reflect its
-		// current state according to the API server.
-
-		if !haveSameController(remote, template) {
-			return errors.Errorf("%s %s/%s exists and is not controlled by %s %s",
-				remote.GetObjectKind().GroupVersionKind().Kind, remote.GetNamespace(), remote.GetName(),
-				v1alpha1.KubernetesApplicationResourceKind, template.GetAnnotations()[RemoteControllerName])
+	key, err := client.ObjectKeyFromObject(remote)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot take object key from resource")
+	}
+	if err := c.kube.Get(ctx, key, remote); err != nil {
+		if kerrors.IsNotFound(err) {
+			return nil, errors.Wrap(c.kube.Create(ctx, remote), "cannot create resource")
 		}
+		return nil, errors.Wrap(err, "cannot get resource")
+	}
+	if !haveSameController(remote, template) {
+		return nil, errors.Wrap(errors.Errorf("%s %s/%s exists and is not controlled by %s %s",
+			remote.GetObjectKind().GroupVersionKind().Kind, remote.GetNamespace(), remote.GetName(),
+			v1alpha1.KubernetesApplicationResourceKind, template.GetAnnotations()[RemoteControllerName]), "cannot sync resource")
+	}
 
-		// Propagate the 'status' field of remote (if any) before we overwrite
-		// it with our template.
-		rs = getRemoteStatus(remote)
+	// Propagate the 'status' field of remote (if any) before we overwrite
+	// it with our template.
+	rs := getRemoteStatus(remote)
 
-		existing := remote.DeepCopy()
-		template.DeepCopyInto(remote)
-
-		// Keep important metadata from any existing resource.
-		remote.SetUID(existing.GetUID())
-		remote.SetResourceVersion(existing.GetResourceVersion())
-		remote.SetNamespace(existing.GetNamespace())
-
-		return nil
-	})
-
-	return rs, errors.Wrap(err, "cannot sync resource")
+	return rs, errors.Wrap(c.kube.Patch(ctx, remote, client.MergeFrom(template)), "cannot patch resource")
 }
 
 func getRemoteStatus(u runtime.Unstructured) *v1alpha1.RemoteStatus {

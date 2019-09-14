@@ -680,7 +680,7 @@ func TestSyncUnstructured(t *testing.T) {
 						*obj.(*unstructured.Unstructured) = *existing
 						return nil
 					},
-					MockUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+					MockPatch: func(_ context.Context, obj runtime.Object, patch client.Patch, _ ...client.PatchOption) error {
 						// We compare resource versions to ensure we preserved
 						// the existing service's important object metadata.
 						want := resourceVersion
@@ -718,13 +718,54 @@ func TestSyncUnstructured(t *testing.T) {
 			)),
 		},
 		{
-			name: "CreateOrUpdateFailed",
+			name: "CreateSuccessful",
+			unstructured: &unstructuredClient{
+				kube: &test.MockClient{
+					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, name)),
+					MockCreate: func(_ context.Context, obj runtime.Object, _ ...client.CreateOption) error {
+						if diff := cmp.Diff(template(service), obj); diff != "" {
+							t.Errorf("Create: -want, +got:\n%s", diff)
+						}
+						return nil
+					},
+				},
+			},
+			template:   template(service),
+			wantStatus: nil,
+			wantErr:    nil,
+		},
+		{
+			name: "CreateFailed",
+			unstructured: &unstructuredClient{
+				kube: &test.MockClient{
+					MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, name)),
+					MockCreate: test.NewMockCreateFn(errorBoom),
+				},
+			},
+			template:   template(service),
+			wantStatus: nil,
+			wantErr:    errors.Wrap(errorBoom, "cannot create resource"),
+		},
+		{
+			name: "GetFailed",
 			unstructured: &unstructuredClient{
 				kube: &test.MockClient{MockGet: test.NewMockGetFn(errorBoom)},
 			},
 			template:   template(service),
 			wantStatus: nil,
-			wantErr:    errors.Wrap(errorBoom, "cannot sync resource"),
+			wantErr:    errors.Wrap(errorBoom, "cannot get resource"),
+		},
+		{
+			name: "PatchFailed",
+			unstructured: &unstructuredClient{
+				kube: &test.MockClient{
+					MockGet:   test.NewMockGetFn(nil),
+					MockPatch: test.NewMockPatchFn(errorBoom),
+				},
+			},
+			template:   template(service),
+			wantStatus: remoteStatus,
+			wantErr:    errors.Wrap(errorBoom, "cannot patch resource"),
 		},
 	}
 
