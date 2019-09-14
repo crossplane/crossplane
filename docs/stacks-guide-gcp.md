@@ -44,7 +44,7 @@ At the end, we will have:
     Crossplane
 
 We will **not** be teaching first principles in depth. Check out the
-[concepts document][concepts] for that.
+[concepts document][crossplane-concepts] for that.
 
 ## Install the GCP Stack
 
@@ -234,7 +234,7 @@ kubectl apply -f cluster/examples/workloads/kubernetes/wordpress/gcp/network.yam
 ```
 
 For more details about networking and what happens when you run this
-command, see [this document with more details][gcp-networking].
+command, see [this document with more details][crossplane-gcp-networking-docs].
 
 It takes a while to create these resources in GCP. The top-level object
 is the `Connection` object; when the `Connection` is ready, everything
@@ -388,11 +388,15 @@ This should not go in the final document, but is here for tracking.
 * Add next steps, with link to WordPress-specific stuff
 
 <!-- Links -->
-[stacks-guide]:
-[gcp-credentials]: 
-[crossplane-cli]:
-[gcp-networking]:
-[gcp]:
-[concepts]:
-[stacks-guide-continue]:
-[portable-claims]:
+[crossplane-cli]: https://github.com/crossplaneio/crossplane-cli
+[crossplane-gcp-networking-docs]: TODO
+[stacks-guide]: stacks-guide.html
+
+[crossplane-concepts]: TODO
+[portable-claims]: TODO
+
+[gcp-credentials]: TODO
+
+[gcp]: https://cloud.google.com/
+
+[stacks-guide-continue]: stacks-guide.html#install-support-for-our-application-into-crossplane
