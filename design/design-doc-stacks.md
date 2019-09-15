@@ -307,7 +307,7 @@ license: Apache-2.0
 # current supported values are:
 #
 # - Cluster
-# - Namespace
+# - Namespaced
 permissionScope: Cluster
 
 # Dependent CRDs will be coupled with Owned CRDs and core resources to produce
