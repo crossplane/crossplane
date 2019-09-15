@@ -1,9 +1,9 @@
 ---
-apiVersion: network.aws.crossplane.io/v1alpha1
+apiVersion: network.aws.crossplane.io/v1alpha2
 kind: Subnet
 metadata:
-  name: rc-subnet1
-  namespace: aws-connectivity
+  name: ((CONFIG_NAME))-subnet1
+  namespace: ((NAMESPACE))
 spec:
   cidrBlock: 192.168.64.0/18
   vpcId: ((VPC_ID))
@@ -13,11 +13,11 @@ spec:
     name: aws-provider
     namespace: crossplane-system
 ---
-apiVersion: network.aws.crossplane.io/v1alpha1
+apiVersion: network.aws.crossplane.io/v1alpha2
 kind: Subnet
 metadata:
-  name: rc-subnet2
-  namespace: aws-connectivity
+  name: ((CONFIG_NAME))-subnet2
+  namespace: ((NAMESPACE))
 spec:
   cidrBlock: 192.168.128.0/18
   vpcId: ((VPC_ID))
@@ -27,11 +27,11 @@ spec:
     name: aws-provider
     namespace: crossplane-system
 ---
-apiVersion: network.aws.crossplane.io/v1alpha1
+apiVersion: network.aws.crossplane.io/v1alpha2
 kind: Subnet
 metadata:
-  name: rc-subnet3
-  namespace: aws-connectivity
+  name: ((CONFIG_NAME))-subnet3
+  namespace: ((NAMESPACE))
 spec:
   cidrBlock: 192.168.192.0/18
   vpcId: ((VPC_ID))

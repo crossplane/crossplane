@@ -1,8 +1,8 @@
-apiVersion: network.aws.crossplane.io/v1alpha1
+apiVersion: network.aws.crossplane.io/v1alpha2
 kind: RouteTable
 metadata:
-  name: rc-routetable
-  namespace: aws-connectivity
+  name: ((CONFIG_NAME))-routetable
+  namespace: ((NAMESPACE))
 spec:
   vpcId: ((VPC_ID))
   routes:

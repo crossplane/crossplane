@@ -1,8 +1,3 @@
-
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: complex
 ---
 apiVersion: compute.crossplane.io/v1alpha1
 kind: KubernetesCluster
@@ -19,4 +14,3 @@ spec:
     apiVersion: compute.aws.crossplane.io/v1alpha2
     name: standard-cluster
     namespace: crossplane-system
----

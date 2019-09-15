@@ -1,11 +1,11 @@
-apiVersion: network.aws.crossplane.io/v1alpha1
+apiVersion: network.aws.crossplane.io/v1alpha2
 kind: SecurityGroup
 metadata:
-  name: rc-controlplane-sg
-  namespace: aws-connectivity
+  name: ((CONFIG_NAME))-controlplane-sg
+  namespace: ((NAMESPACE))
 spec:
   vpcId: ((VPC_ID))
-  groupName: controlplane-sg
+  groupName: ((CONFIG_NAME))-controlplane-sg
   description: Cluster communication with worker nodes
   reclaimPolicy: Delete
   providerRef:

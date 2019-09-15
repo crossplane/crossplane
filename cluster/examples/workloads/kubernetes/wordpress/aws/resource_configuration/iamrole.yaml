@@ -1,10 +1,10 @@
-apiVersion: identity.aws.crossplane.io/v1alpha1
+apiVersion: identity.aws.crossplane.io/v1alpha2
 kind: IAMRole
 metadata:
-  name: eks-cluster-role
-  namespace: aws-connectivity
+  name: ((CONFIG_NAME))-eks-cluster-role
+  namespace: ((NAMESPACE))
 spec:
-  roleName: eks-cluster-role
+  roleName: ((CONFIG_NAME))-eks-cluster-role
   description: a role that gives a cool power
   assumeRolePolicyDocument: |
     {

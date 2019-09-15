@@ -1,11 +1,11 @@
-apiVersion: network.aws.crossplane.io/v1alpha1
+apiVersion: network.aws.crossplane.io/v1alpha2
 kind: SecurityGroup
 metadata:
-  name: rc-rds-sg
-  namespace: aws-connectivity
+  name: ((CONFIG_NAME))-rds-sg
+  namespace: ((NAMESPACE))
 spec:
   vpcId: ((VPC_ID))
-  groupName: rds-sg
+  groupName: ((CONFIG_NAME))-rds-sg
   description: open rds access to crossplane workload
   reclaimPolicy: Delete
   ingress:

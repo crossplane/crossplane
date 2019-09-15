@@ -1,5 +1,5 @@
 ---
-apiVersion: database.aws.crossplane.io/v1alpha1
+apiVersion: database.aws.crossplane.io/v1alpha2
 kind: RDSInstanceClass
 metadata:
   name: standard-mysql
@@ -17,7 +17,7 @@ specTemplate:
     namespace: crossplane-system
   reclaimPolicy: Delete
 ---
-apiVersion: compute.aws.crossplane.io/v1alpha1
+apiVersion: compute.aws.crossplane.io/v1alpha2
 kind: EKSClusterClass
 metadata:
   name: standard-cluster
@@ -33,7 +33,6 @@ specTemplate:
   securityGroupIds:
     - ((EKS_SECURITY_GROUP_ID))
   workerNodes:
-    keyName: "" # with an empty keypair it won't be possible to remotely connect to the ec2 instance
     nodeInstanceType: m3.medium
     nodeAutoScalingGroupMinSize: 1
     nodeAutoScalingGroupMaxSize: 1

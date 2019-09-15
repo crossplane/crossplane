@@ -1,10 +1,10 @@
-apiVersion: storage.aws.crossplane.io/v1alpha1
+apiVersion: storage.aws.crossplane.io/v1alpha2
 kind: DBSubnetGroup
 metadata:
-  name: rc-dbsubnetgroup
-  namespace: aws-connectivity
+  name: ((CONFIG_NAME))-dbsubnetgroup
+  namespace: ((NAMESPACE))
 spec:
-  groupName: sample_workload_dbsubnetgroup_for_resource_connectivity
+  groupName: ((CONFIG_NAME))_dbsubnetgroup
   description: EKS vpc to rds
   subnetIds:
     - ((SUBNET1_ID))
@@ -12,7 +12,7 @@ spec:
     - ((SUBNET3_ID))
   tags:
     - key: name
-      value: crossplane-workload-resource-connectivity
+      value: ((CONFIG_NAME))-dbsubnetgroup
   reclaimPolicy: Delete
   providerRef:
     name: aws-provider
