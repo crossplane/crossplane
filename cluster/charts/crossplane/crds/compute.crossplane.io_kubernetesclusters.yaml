@@ -50,8 +50,15 @@ spec:
           description: KubernetesClusterSpec specifies the desired state of a KubernetesCluster.
           properties:
             classRef:
-              description: PortableClassReference is a reference to a portable class
-                by name.
+              description: A PortableClassReference specifies the name of a portable
+                resource class, in the same namespace as this resource claim, that
+                will be used to dynamically provision a managed resource when the
+                resource claim is created. The specified class kind must be aligned
+                with the resource claim; e.g. a MySQLInstance kind resource claim
+                always refers to a MySQLInstanceClass kind portable resource class.
+                Omit the portable class reference if you wish to bind to a specific
+                managed resource (known as static binding), or to use the default
+                portable class for the resource claim's namespace (if any).
               properties:
                 name:
                   description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
@@ -63,8 +70,11 @@ spec:
                 e.g. 1.15.
               type: string
             resourceRef:
-              description: ObjectReference contains enough information to let you
-                inspect or modify the referred object.
+              description: A ResourceReference specifies an existing managed resource,
+                in any namespace, to which this resource claim should attempt to bind.
+                Omit the resource reference to enable dynamic provisioning using a
+                portable resource class; the resource reference will be automatically
+                populated by Crossplane.
               properties:
                 apiVersion:
                   description: API version of the referent.
@@ -100,8 +110,11 @@ spec:
                   type: string
               type: object
             writeConnectionSecretToRef:
-              description: LocalObjectReference contains enough information to let
-                you locate the referenced object inside the same namespace.
+              description: WriteConnectionSecretToReference specifies the name of
+                a Secret, in the same namespace as this resource claim, to which any
+                connection details for this resource claim should be written. Connection
+                details frequently include the endpoint, username, and password required
+                to connect to the managed resource bound to this resource claim.
               properties:
                 name:
                   description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
@@ -110,18 +123,22 @@ spec:
               type: object
           type: object
         status:
-          description: ResourceClaimStatus represents the status of a resource claim.
-            Claims should typically use this struct as their status.
+          description: A ResourceClaimStatus represents the observed status of a resource
+            claim.
           properties:
             bindingPhase:
-              description: Phase represents the binding phase of the resource.
+              description: Phase represents the binding phase of a managed resource
+                or claim. Unbindable resources cannot be bound, typically because
+                they are currently unavailable, or still being created. Unbound resource
+                are available for binding, and Bound resources have successfully bound
+                to another resource.
               enum:
               - Unbindable
               - Unbound
               - Bound
               type: string
             conditions:
-              description: Conditions of the managed resource.
+              description: Conditions of the resource.
               items:
                 description: A Condition that may apply to a managed resource.
                 properties:
@@ -144,7 +161,7 @@ spec:
                     type: string
                   type:
                     description: Type of this condition. At most one of each condition
-                      type may apply to a managed resource at any point in time.
+                      type may apply to a resource at any point in time.
                     type: string
                 required:
                 - lastTransitionTime

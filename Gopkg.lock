@@ -30,7 +30,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:97c8f911601d1edcafcbe05834a9463481f8cbe9a36c96ac870448837f732aa8"
+  digest = "1:d62d2c1da858cd7cbb2e947b91a207bbf7c38f59aa6344a15847e01c1c0f686d"
   name = "github.com/crossplaneio/crossplane-runtime"
   packages = [
     "apis/core/v1alpha1",
@@ -41,7 +41,7 @@
     "pkg/util",
   ]
   pruneopts = "UT"
-  revision = "5230aa5383d5f16c6856a1ce97662c88853acd9b"
+  revision = "26a458d08504f343010861cda217017e0a1b9692"
 
 [[projects]]
   digest = "1:ffe9824d294da03b391f44e1ae8281281b4afc1bdaa9588c9097785e3af10cec"
