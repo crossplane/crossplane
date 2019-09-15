@@ -286,9 +286,12 @@ func (sp *StackPackage) applyAnnotations() {
 	}
 }
 
-func generateRBAC(apikind, apigroupversion string) rbacv1.PolicyRule {
+// generateRBAC generates a RBAC policy rule for the given kind and group.
+// Note that apiGroup should not contain a version, only the group, e.g., database.crossplane.io
+// RBAC policy rules are intended to be versionless.
+func generateRBAC(apikind, apiGroup string) rbacv1.PolicyRule {
 	return rbacv1.PolicyRule{
-		APIGroups:     []string{apigroupversion},
+		APIGroups:     []string{apiGroup},
 		ResourceNames: []string{},
 		Resources:     []string{apikind},
 		Verbs:         []string{"*"},
@@ -311,21 +314,25 @@ func (sp *StackPackage) applyRules() error {
 
 	// owned CRD rules
 	orderedKeys := orderStackCRDKeys(sp.CRDs)
-
 	for _, k := range orderedKeys {
 		crd := sp.CRDs[k]
-		// TODO(displague) deal with Versions (multiple per crd)
-		gv := schema.GroupVersion{Group: crd.Spec.Group, Version: crd.Spec.Version}
-		rule := generateRBAC(crd.Spec.Names.Plural, gv.String())
+		rule := generateRBAC(crd.Spec.Names.Plural, crd.Spec.Group)
 		rbac.Rules = append(rbac.Rules, rule)
 	}
 
 	// dependency based rules
 	for _, dependency := range sp.Stack.Spec.DependsOn {
-		if dependency.CustomResourceDefinition != "" {
-			_, gk := schema.ParseKindArg(dependency.CustomResourceDefinition)
+		crd := dependency.CustomResourceDefinition
+		if crd != "" {
+			// versions are not allowed in RBAC PolicyRules, remove any trailing version denoted by a "/"
+			// e.g., kind.group.com/v1alpha1 -> kind.group.com
+			if i := strings.Index(crd, "/"); i != -1 {
+				crd = crd[:i]
+			}
+
+			gk := schema.ParseGroupKind(crd)
 			if gk.Group == "" || gk.Kind == "" {
-				return errors.New(fmt.Sprintf("cannot parse CustomResourceDefinition %q as Kind and GroupVersion", dependency.CustomResourceDefinition))
+				return errors.New(fmt.Sprintf("cannot parse CustomResourceDefinition %q as Kind and Group", crd))
 			}
 			rule := generateRBAC(gk.Kind, gk.Group)
 			rbac.Rules = append(rbac.Rules, rule)

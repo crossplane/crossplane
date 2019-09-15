@@ -200,19 +200,19 @@ spec:
       verbs:
       - '*'
     - apiGroups:
-      - samples.upbound.io/v1alpha1
+      - samples.upbound.io
       resources:
       - mytypes
       verbs:
       - '*'
     - apiGroups:
-      - mystack.example.org/v1alpha1
+      - mystack.example.org
       resources:
       - foo
       verbs:
       - '*'
     - apiGroups:
-      - yourstack.example.org/v1alpha2
+      - yourstack.example.org
       resources:
       - '*'
       verbs:
@@ -454,37 +454,37 @@ spec:
       verbs:
       - '*'
     - apiGroups:
-      - samples.upbound.io/v1alpha1
+      - samples.upbound.io
       resources:
       - siblings
       verbs:
       - '*'
     - apiGroups:
-      - samples.upbound.io/v1alpha1
+      - samples.upbound.io
       resources:
       - secondcousins
       verbs:
       - '*'
     - apiGroups:
-      - samples.upbound.io/v1alpha1
+      - samples.upbound.io
       resources:
       - mytypes
       verbs:
       - '*'
     - apiGroups:
-      - samples.upbound.io/v1alpha1
+      - samples.upbound.io
       resources:
       - cousins
       verbs:
       - '*'
     - apiGroups:
-      - mystack.example.org/v1alpha1
+      - mystack.example.org
       resources:
       - foo
       verbs:
       - '*'
     - apiGroups:
-      - yourstack.example.org/v1alpha2
+      - yourstack.example.org
       resources:
       - '*'
       verbs:
@@ -726,37 +726,37 @@ spec:
       verbs:
       - '*'
     - apiGroups:
-      - samples.upbound.io/v1alpha1
+      - samples.upbound.io
       resources:
       - siblings
       verbs:
       - '*'
     - apiGroups:
-      - samples.upbound.io/v1alpha1
+      - samples.upbound.io
       resources:
       - secondcousins
       verbs:
       - '*'
     - apiGroups:
-      - samples.upbound.io/v1alpha1
+      - samples.upbound.io
       resources:
       - mytypes
       verbs:
       - '*'
     - apiGroups:
-      - samples.upbound.io/v1alpha1
+      - samples.upbound.io
       resources:
       - cousins
       verbs:
       - '*'
     - apiGroups:
-      - mystack.example.org/v1alpha1
+      - mystack.example.org
       resources:
       - foo
       verbs:
       - '*'
     - apiGroups:
-      - yourstack.example.org/v1alpha2
+      - yourstack.example.org
       resources:
       - '*'
       verbs:
@@ -865,19 +865,19 @@ spec:
       verbs:
       - '*'
     - apiGroups:
-      - samples.upbound.io/v1alpha1
+      - samples.upbound.io
       resources:
       - mytypes
       verbs:
       - '*'
     - apiGroups:
-      - mystack.example.org/v1alpha1
+      - mystack.example.org
       resources:
       - foo
       verbs:
       - '*'
     - apiGroups:
-      - yourstack.example.org/v1alpha2
+      - yourstack.example.org
       resources:
       - '*'
       verbs:
