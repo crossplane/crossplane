@@ -121,8 +121,8 @@ kubectl get providers.azure.crossplane.io -n azure
 kubectl get secrets -n azure
 ```
 
-#### Non-Portable Resource Classes
-Non-portable resource classes are used to define a reusable configuration for a specific managed service. Wordpress requires a MySQL database, which can be satisfied by an [Azure Database for MySQL](https://azure.microsoft.com/en-us/services/mysql/) instance.
+#### Cloud-Specific Resource Classes
+Cloud-specific resource classes are used to define a reusable configuration for a specific managed service. Wordpress requires a MySQL database, which can be satisfied by an [Azure Database for MySQL](https://azure.microsoft.com/en-us/services/mysql/) instance.
 
 * Define an Azure MySQL `SQLServerClass` in `azure-mysql-class.yaml`:
 ```yaml
@@ -524,7 +524,7 @@ To delete all created resources, but leave Crossplane and the Azure stack runnin
 kubectl delete -f wordpress-vnet-rule.yaml
 kubectl delete -f mysql-claim.yaml
 kubectl delete -f mysql-class.yaml
-kubectl delete -f mysql-azure-class.yaml
+kubectl delete -f azure-mysql-class.yaml
 kubectl delete -f app-project1-prod-namespace.yaml
 kubectl delete -f azure-provider.yaml
 ```
