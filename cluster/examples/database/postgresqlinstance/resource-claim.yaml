@@ -1,0 +1,12 @@
+---
+apiVersion: database.crossplane.io/v1alpha1
+kind: PostgreSQLInstance
+metadata:
+  name: app-postgresql
+  namespace: app-project1-dev
+spec:
+  classRef:
+    name: postgresql-standard
+  writeConnectionSecretToRef:
+    name: postgresqlconn
+  engineVersion: "9.6"

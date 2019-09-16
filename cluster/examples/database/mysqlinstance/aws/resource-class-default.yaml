@@ -1,19 +1,21 @@
 ---
 apiVersion: database.crossplane.io/v1alpha1
-kind: PostgreSQLInstanceClass
+kind: MySQLInstanceClass
 metadata:
-  name: postgresql-standard
+  name: mysql-standard
   namespace: app-project1-dev
+  labels:
+    default: "true"
 classRef:
   kind: RDSInstanceClass
   apiVersion: database.aws.crossplane.io/v1alpha2
-  name: rdspostgresql-standard
+  name: rdsmysql-standard
   namespace: aws-infra-dev
 ---
 apiVersion: database.aws.crossplane.io/v1alpha2
 kind: RDSInstanceClass
 metadata:
-  name: rdspostgresql-standard
+  name: rdsmysql
   namespace: aws-infra-dev
 specTemplate:
   class: db.t2.small
@@ -22,7 +24,7 @@ specTemplate:
    - # sg-ab1cdefg
    - # sg-05adsfkaj1ksdjak
   size: 20
-  engine: postgresql
+  engine: mysql
   providerRef:
     name: example
     namespace: aws-infra-dev

@@ -4,6 +4,8 @@ kind: KubernetesClusterClass
 metadata:
   name: kubernetes-standard
   namespace: app-project1-dev
+  labels:
+    default: "true"
 classRef:
   kind: GKEClusterClass
   apiVersion: compute.gcp.crossplane.io/v1alpha2

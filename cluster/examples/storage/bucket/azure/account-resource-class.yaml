@@ -1,10 +1,22 @@
+---
+apiVersion: storage.crossplane.io/v1alpha1
+kind: BucketClass
+metadata:
+  name: storageaccount-standard
+  namespace: app-project1-dev
+classRef:
+  kind: AccountClass
+  apiVersion: storage.azure.crossplane.io/v1alpha2
+  name: storageaccount-standard
+  namespace: azure-infra-dev
+---
 # ResourceClass that defines the blueprint for how a "standard" Azure storage
 # account should be dynamically provisioned
 apiVersion: storage.azure.crossplane.io/v1alpha2
 kind: AccountClass
 metadata:
-  name: storageaccount
-  namespace: crossplane-system
+  name: storageaccount-standard
+  namespace: azure-infra-dev
 specTemplate:
   storageAccountName: example-storage
   resourceGroupName: group-westus-1
@@ -18,5 +30,5 @@ specTemplate:
       application: crossplane
   providerRef:
     name: example
-    namespace: crossplane-system
+    namespace: azure-infra-dev
   reclaimPolicy: Delete

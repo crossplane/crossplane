@@ -1,0 +1,12 @@
+---
+apiVersion: cache.crossplane.io/v1alpha1
+kind: RedisCluster
+metadata:
+  name: app-redis
+  namespace: app-project1-dev
+spec:
+  classRef:
+    name: redis-standard
+  writeConnectionSecretToRef:
+    name: redissecret
+  engineVersion: "3.2"

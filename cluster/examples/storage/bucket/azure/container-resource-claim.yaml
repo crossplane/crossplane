@@ -2,10 +2,8 @@
 apiVersion: storage.crossplane.io/v1alpha1
 kind: Bucket
 metadata:
-  name: storagecontainer
+  name: storagecontainer-standard
+  namespace: app-project1-dev
 spec:
   classRef:
-    kind: ContainerClass
-    apiVersion: storage.azure.crossplane.io/v1alpha2
-    name: storagecontainer
-    namespace: crossplane-system
+    name: storagecontainer-standard

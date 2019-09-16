@@ -1,9 +1,20 @@
 ---
+apiVersion: storage.crossplane.io/v1alpha1
+kind: BucketClass
+metadata:
+  name: storagecontainer-standard
+  namespace: app-project1-dev
+classRef:
+  kind: ContainerClass
+  apiVersion: storage.azure.crossplane.io/v1alpha2
+  name: storagecontainer
+  namespace: azure-infra-dev
+---
 apiVersion: storage.azure.crossplane.io/v1alpha2
 kind: ContainerClass
 metadata:
-  name: storagecontainer
-  namespace: crossplane-system
+  name: storagecontainer-standard
+  namespace: azure-infra-dev
 specTemplate:
   # Azure containers read their credentials from an account. We reuse the
   # providerRef class field to specify which account to read.

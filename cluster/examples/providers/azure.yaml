@@ -4,7 +4,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: example-provider-azure
-  namespace: crossplane-system
+  namespace: azure-infra-dev
 type: Opaque
 data:
   credentials: BASE64ENCODED_AZURE_PROVIDER_CREDS
@@ -14,7 +14,7 @@ apiVersion: azure.crossplane.io/v1alpha2
 kind: Provider
 metadata:
   name: example
-  namespace: crossplane-system
+  namespace: azure-infra-dev
 spec:
   credentialsSecretRef:
     name: example-provider-azure

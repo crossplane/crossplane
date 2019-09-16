@@ -3,12 +3,10 @@ apiVersion: storage.crossplane.io/v1alpha1
 kind: Bucket
 metadata:
   name: storageaccount
+  namespace: app-project1-dev
 spec:
   classRef:
-    kind: AccountClass
-    apiVersion: storage.azure.crossplane.io/v1alpha2
-    name: storageaccount
-    namespace: crossplane-system
+    name: storageaccount-standard
   writeConnectionSecretToRef:
     name: storageaccount
   name: crossplanestorageacct
