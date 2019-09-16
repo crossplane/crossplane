@@ -177,38 +177,38 @@ standard-azure-mysql   demo-azure     Delete           11s
 You are free to create more Azure `SQLServerClass` instances to define more potential configurations. For instance, you may create `large-azure-mysql` with field `storageGB: 100`.
 
 #### Namespaces
-Kubernetes namespaces allow for separation of environments within your cluster. You may choose to use namespaces to group resources by team, application, or any other logical distinction. For this demo, we will create a namespace called `team1`, which we will use to group our Wordpress resources.
+Kubernetes namespaces allow for separation of environments within your cluster. You may choose to use namespaces to group resources by team, application, or any other logical distinction. For this demo, we will create a namespace called `app-project1-prod`, which we will use to group our Wordpress resources.
 
-* Define a `Namespace` in `team1-namespace.yaml`:
+* Define a `Namespace` in `app-project1-prod-namespace.yaml`:
 ```yaml
 ---
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: team1
+  name: app-project1-prod
 ```
 
 * Create the `Namespace`:
 ```bash
-kubectl create -f team1-namespace.yaml
+kubectl create -f app-project1-prod-namespace.yaml
 ```
 
 * You should see the following output:
 ```bash
-namespace/team1 created
+namespace/app-project1-prod created
 ```
 
 #### Portable Resource Classes
 Portable resource classes are used to define a class of service in a single namespace for an abstract service type. We want to define our Azure `SQLServerClass` as the standard MySQL class of service in the namespace that our Wordpress resources will live in.
 
-* Define a `MySQLInstanceClass` in `mysql-class.yaml` for namespace `team1`:
+* Define a `MySQLInstanceClass` in `mysql-class.yaml` for namespace `app-project1-prod`:
 ```yaml
 ---
 apiVersion: database.crossplane.io/v1alpha1
 kind: MySQLInstanceClass
 metadata:
   name: standard-mysql
-  namespace: team1
+  namespace: app-project1-prod
 classRef:
   kind: SQLServerClass
   apiVersion: database.azure.crossplane.io/v1alpha2
@@ -230,7 +230,7 @@ mysqlinstanceclass.database.crossplane.io/standard-mysql created
 
 *Command*
 ```bash
-kubectl get mysqlinstanceclasses -n team1
+kubectl get mysqlinstanceclasses -n app-project1-prod
 ```
 *Output*
 ```bash
@@ -238,9 +238,9 @@ NAME             AGE
 standard-mysql   27s
 ```
 
-Once again, you are free to create more `MySQLInstanceClass` instances in this namespace to define more classes of service. For instance, if you created `large-azure-mysql` above, you may want to create a `MySQLInstanceClass` named `large-mysql` that references. You may also choose to create MySQL resource classes for other non-Azure providers, and reference them for a class of service in the `team1` namespace.
+Once again, you are free to create more `MySQLInstanceClass` instances in this namespace to define more classes of service. For instance, if you created `large-azure-mysql` above, you may want to create a `MySQLInstanceClass` named `large-mysql` that references. You may also choose to create MySQL resource classes for other non-Azure providers, and reference them for a class of service in the `app-project1-prod` namespace.
 
-You may specify *one* instance of a portable class kind as *default* in each namespace. This means that the portable resource class instance will be applied to claims that do not directly reference a portable class. If we wanted to make our `standard-mysql` instance the default `MySQLInstanceClass` for namespace `team1`, we could do so by adding a label:
+You may specify *one* instance of a portable class kind as *default* in each namespace. This means that the portable resource class instance will be applied to claims that do not directly reference a portable class. If we wanted to make our `standard-mysql` instance the default `MySQLInstanceClass` for namespace `app-project1-prod`, we could do so by adding a label:
 
 ```yaml
 ---
@@ -248,7 +248,7 @@ apiVersion: database.crossplane.io/v1alpha1
 kind: MySQLInstanceClass
 metadata:
   name: standard-mysql
-  namespace: team1
+  namespace: app-project1-prod
   labels:
     default: "true"
 classRef:
@@ -267,7 +267,7 @@ apiVersion: database.crossplane.io/v1alpha1
 kind: MySQLInstance
 metadata:
   name: mysql-claim
-  namespace: team1
+  namespace: app-project1-prod
 spec:
   classRef:
     name: standard-mysql
@@ -285,7 +285,7 @@ What we are looking for is for `STATUS` value to become `Bound` which indicates 
 
 *Command*
 ```bash
-kubectl get mysqlinstances -n team1
+kubectl get mysqlinstances -n app-project1-prod
 ```
 
 *Output*
@@ -298,13 +298,13 @@ If the `STATUS` is blank, we are still waiting for the claim to become bound. Yo
 
 *Command*
 ```bash
-kubectl describe mysqlinstance mysql-claim -n team1
+kubectl describe mysqlinstance mysql-claim -n app-project1-prod
 ```
 
 *Output*
 ```yaml
 Name:         mysql-claim
-Namespace:    team1
+Namespace:    app-project1-prod
 Labels:       <none>
 Annotations:  kubectl.kubernetes.io/last-applied-configuration:
                 {"apiVersion":"database.crossplane.io/v1alpha1","kind":"MySQLInstance","metadata":{"annotations":{},"name":"mysql-claim","namespace":"team..."}}
@@ -316,7 +316,7 @@ Metadata:
     finalizer.resourceclaim.crossplane.io
   Generation:        2
   Resource Version:  4256
-  Self Link:         /apis/database.crossplane.io/v1alpha1/namespaces/team1/mysqlinstances/mysql-claim
+  Self Link:         /apis/database.crossplane.io/v1alpha1/namespaces/app-project1-prod/mysqlinstances/mysql-claim
   UID:               6a7fe064-d888-11e9-ab90-42b6bb22213a
 Spec:
   Class Ref:
@@ -344,14 +344,14 @@ Events:                    <none>
 
 *Note: You must wait until the claim becomes bound before continuing with this guide. It could take a few minutes for Azure to complete MySQL creation.*
 
-We referenced our portable `MySQLInstanceClass` directly in the claim above, but if you specified that `standard-mysql` was the default `MySQLInstanceClass` for namespace `team1`, we could have omitted the claim's `classRef` and it would automatically be assigned:
+We referenced our portable `MySQLInstanceClass` directly in the claim above, but if you specified that `standard-mysql` was the default `MySQLInstanceClass` for namespace `app-project1-prod`, we could have omitted the claim's `classRef` and it would automatically be assigned:
 
 ```yaml
 apiVersion: database.crossplane.io/v1alpha1
 kind: MySQLInstance
 metadata:
   name: mysql-claim
-  namespace: team1
+  namespace: app-project1-prod
 spec:
   writeConnectionSecretToRef:
     name: wordpressmysql
@@ -363,7 +363,7 @@ Before we install Wordpress, we need establish connectivity between our MySQL da
 
 * Set `MYSQL_NAME` environment variable:
 ```bash
-export MYSQL_NAME=$(kubectl get -o json mysqlinstance mysql-claim -n team1 | jq -j '.spec.resourceRef.name')
+export MYSQL_NAME=$(kubectl get -o json mysqlinstance mysql-claim -n app-project1-prod | jq -j '.spec.resourceRef.name')
 ```
 
 * Define a `MysqlServerVirtualNetworkRule` in `wordpress-vnet-rule.yaml`:
@@ -373,7 +373,7 @@ apiVersion: database.azure.crossplane.io/v1alpha2
 kind: MysqlServerVirtualNetworkRule
 metadata:
   name: wordpress-vnet-rule
-  namespace: team1
+  namespace: app-project1-prod
 spec:
   name: wordpress-vnet-rule
   serverName: MYSQL_NAME
@@ -395,7 +395,7 @@ sed "s/AKS_RESOURCE_GROUP/$AKS_RESOURCE_GROUP/g; s/SUBSCRIPTION_ID/$SUBSCRIPTION
 
 *Command*
 ```bash
-kubectl get mysqlservervirtualnetworkrules -n team1
+kubectl get mysqlservervirtualnetworkrules -n app-project1-prod
 ```
 *Output*
 ```bash
@@ -410,13 +410,13 @@ Installing Wordpress requires creating a Kubernetes `Deployment` and load balanc
 
 *Command*
 ```bash
-kubectl describe secret wordpressmysql -n team1
+kubectl describe secret wordpressmysql -n app-project1-prod
 ```
 
 *Output*
 ```bash
 Name:         wordpressmysql
-Namespace:    team1
+Namespace:    app-project1-prod
 Labels:       <none>
 Annotations:  <none>
 
@@ -434,7 +434,7 @@ username:  58 bytes
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  namespace: team1
+  namespace: app-project1-prod
   name: wordpress
   labels:
     app: wordpress
@@ -473,7 +473,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  namespace: team1
+  namespace: app-project1-prod
   name: wordpress
   labels:
     app: wordpress
@@ -525,6 +525,6 @@ kubectl delete -f wordpress-vnet-rule.yaml
 kubectl delete -f mysql-claim.yaml
 kubectl delete -f mysql-class.yaml
 kubectl delete -f mysql-azure-class.yaml
-kubectl delete -f team1-namespace.yaml
+kubectl delete -f app-project1-prod-namespace.yaml
 kubectl delete -f azure-provider.yaml
 ```
