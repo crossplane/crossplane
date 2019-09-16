@@ -297,11 +297,11 @@ func (sp *StackPackage) applyAnnotations() {
 // generateRBAC generates a RBAC policy rule for the given kind and group.
 // Note that apiGroup should not contain a version, only the group, e.g., database.crossplane.io
 // RBAC policy rules are intended to be versionless.
-func generateRBAC(apikind, apiGroup string) rbacv1.PolicyRule {
+func generateRBAC(apiKinds []string, apiGroup string) rbacv1.PolicyRule {
 	return rbacv1.PolicyRule{
 		APIGroups:     []string{apiGroup},
 		ResourceNames: []string{},
-		Resources:     []string{apikind},
+		Resources:     apiKinds,
 		Verbs:         []string{"*"},
 	}
 }
@@ -324,7 +324,17 @@ func (sp *StackPackage) applyRules() error {
 	orderedKeys := orderStackCRDKeys(sp.CRDs)
 	for _, k := range orderedKeys {
 		crd := sp.CRDs[k]
-		rule := generateRBAC(crd.Spec.Names.Plural, crd.Spec.Group)
+		kinds := []string{crd.Spec.Names.Plural}
+
+		if subs := crd.Spec.Subresources; subs != nil {
+			if subs.Status != nil {
+				kinds = append(kinds, crd.Spec.Names.Plural+"/status")
+			}
+			if subs.Scale != nil {
+				kinds = append(kinds, crd.Spec.Names.Plural+"/scale")
+			}
+		}
+		rule := generateRBAC(kinds, crd.Spec.Group)
 		rbac.Rules = append(rbac.Rules, rule)
 	}
 
@@ -342,7 +352,7 @@ func (sp *StackPackage) applyRules() error {
 			if gk.Group == "" || gk.Kind == "" {
 				return errors.New(fmt.Sprintf("cannot parse CustomResourceDefinition %q as Kind and Group", crd))
 			}
-			rule := generateRBAC(gk.Kind, gk.Group)
+			rule := generateRBAC([]string{gk.Kind}, gk.Group)
 			rbac.Rules = append(rbac.Rules, rule)
 		}
 	}

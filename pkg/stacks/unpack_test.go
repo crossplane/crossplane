@@ -291,6 +291,11 @@ spec:
     plural: secondcousins
     singular: secondcousin
   scope: Namespaced
+  subresources:
+    scale:
+      specReplicasPath: ""
+      statusReplicasPath: ""
+    status: {}
   version: v1alpha1
 status:
   acceptedNames:
@@ -477,6 +482,8 @@ spec:
       - samples.upbound.io
       resources:
       - secondcousins
+      - secondcousins/status
+      - secondcousins/scale
       verbs:
       - '*'
     - apiGroups:
@@ -573,6 +580,11 @@ spec:
     plural: secondcousins
     singular: secondcousin
   scope: Namespaced
+  subresources:
+    scale:
+      specReplicasPath: ""
+      statusReplicasPath: ""
+    status: {}
   version: v1alpha1
 status:
   acceptedNames:
@@ -759,6 +771,8 @@ spec:
       - samples.upbound.io
       resources:
       - secondcousins
+      - secondcousins/status
+      - secondcousins/scale
       verbs:
       - '*'
     - apiGroups:
@@ -996,6 +1010,28 @@ spec:
 `, plural, title, title, plural, singular)
 }
 
+func subresourceCRDFile(singular string) string {
+	title := strings.Title(singular)
+	plural := singular + "s"
+	return fmt.Sprintf(`apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: %s.samples.upbound.io
+spec:
+  group: samples.upbound.io
+  names:
+    kind: %s
+    listKind: %sList
+    plural: %s
+    singular: %s
+  scope: Namespaced
+  subresources:
+    status: {}
+    scale: {}
+  version: v1alpha1
+`, plural, title, title, plural, singular)
+}
+
 func simpleUIFile(name string) string {
 	return fmt.Sprintf(`uiSpecVersion: 0.3
 uiSpec:
@@ -1077,7 +1113,7 @@ func TestUnpack(t *testing.T) {
 				afero.WriteFile(fs, filepath.Join(crdDir, "mytype.v1alpha1.crd.yaml"), []byte(simpleCRDFile("mytype")), 0644)
 				afero.WriteFile(fs, filepath.Join(crdDir, "sibling.v1alpha1.crd.yaml"), []byte(simpleCRDFile("sibling")), 0644)
 				afero.WriteFile(fs, filepath.Join(crdDir2, "cousin.v1alpha1.crd.yaml"), []byte(simpleCRDFile("cousin")), 0644)
-				afero.WriteFile(fs, filepath.Join(crdDir3, "secondcousin.v1alpha1.crd.yaml"), []byte(simpleCRDFile("secondcousin")), 0644)
+				afero.WriteFile(fs, filepath.Join(crdDir3, "secondcousin.v1alpha1.crd.yaml"), []byte(subresourceCRDFile("secondcousin")), 0644)
 				return fs
 			}(),
 			root: "ext-dir",
@@ -1164,7 +1200,7 @@ func TestUnpack_cluster(t *testing.T) {
 				afero.WriteFile(fs, filepath.Join(crdDir, "mytype.v1alpha1.crd.yaml"), []byte(simpleCRDFile("mytype")), 0644)
 				afero.WriteFile(fs, filepath.Join(crdDir, "sibling.v1alpha1.crd.yaml"), []byte(simpleCRDFile("sibling")), 0644)
 				afero.WriteFile(fs, filepath.Join(crdDir2, "cousin.v1alpha1.crd.yaml"), []byte(simpleCRDFile("cousin")), 0644)
-				afero.WriteFile(fs, filepath.Join(crdDir3, "secondcousin.v1alpha1.crd.yaml"), []byte(simpleCRDFile("secondcousin")), 0644)
+				afero.WriteFile(fs, filepath.Join(crdDir3, "secondcousin.v1alpha1.crd.yaml"), []byte(subresourceCRDFile("secondcousin")), 0644)
 				return fs
 			}(),
 			root: "ext-dir",
