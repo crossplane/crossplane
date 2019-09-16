@@ -51,17 +51,21 @@ const (
 	yamlSeparator           = "\n---\n"
 
 	// Stack annotation constants
-	annotationStackIcon           = "stacks.crossplane.io/icon"
-	annotationStackUISpec         = "stacks.crossplane.io/ui-spec"
-	annotationStackTitle          = "stacks.crossplane.io/stack-title"
-	annotationGroupTitle          = "stacks.crossplane.io/group-title"
-	annotationGroupCategory       = "stacks.crossplane.io/group-category"
-	annotationGroupDescription    = "stacks.crossplane.io/group-description"
-	annotationResourceTitle       = "stacks.crossplane.io/resource-title"
-	annotationResourceTitlePlural = "stacks.crossplane.io/resource-title-plural"
-	annotationResourceCategory    = "stacks.crossplane.io/resource-category"
-	annotationResourceDescription = "stacks.crossplane.io/resource-description"
-	annotationKubernetesManagedBy = "app.kubernetes.io/managed-by"
+	annotationStackIcon             = "stacks.crossplane.io/icon"
+	annotationStackUISpec           = "stacks.crossplane.io/ui-spec"
+	annotationStackTitle            = "stacks.crossplane.io/stack-title"
+	annotationGroupTitle            = "stacks.crossplane.io/group-title"
+	annotationGroupCategory         = "stacks.crossplane.io/group-category"
+	annotationGroupReadme           = "stacks.crossplane.io/group-readme"
+	annotationGroupOverview         = "stacks.crossplane.io/group-overview"
+	annotationGroupOverviewShort    = "stacks.crossplane.io/group-overview-short"
+	annotationResourceTitle         = "stacks.crossplane.io/resource-title"
+	annotationResourceTitlePlural   = "stacks.crossplane.io/resource-title-plural"
+	annotationResourceCategory      = "stacks.crossplane.io/resource-category"
+	annotationResourceReadme        = "stacks.crossplane.io/resource-readme"
+	annotationResourceOverview      = "stacks.crossplane.io/resource-overview"
+	annotationResourceOverviewShort = "stacks.crossplane.io/resource-overview-short"
+	annotationKubernetesManagedBy   = "app.kubernetes.io/managed-by"
 )
 
 var (
@@ -71,18 +75,22 @@ var (
 // StackResource provides the Stack metadata for a CRD. This is the format for resource.yaml files.
 type StackResource struct {
 	// ID refers to the CRD Kind
-	ID          string `json:"id"`
-	Title       string `json:"title"`
-	TitlePlural string `json:"title-plural"`
-	Description string `json:"description"`
-	Category    string `json:"category"`
+	ID            string `json:"id"`
+	Title         string `json:"title"`
+	TitlePlural   string `json:"titlePlural"`
+	OverviewShort string `json:"overviewShort,omitempty"`
+	Overview      string `json:"overview,omitempty"`
+	Readme        string `json:"readme,omitempty"`
+	Category      string `json:"category"`
 }
 
 // StackGroup provides the Stack metadata for a resource group. This is the format for group.yaml files.
 type StackGroup struct {
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	Category    string `json:"category"`
+	Title         string `json:"title"`
+	OverviewShort string `json:"overviewShort,omitempty"`
+	Overview      string `json:"overview,omitempty"`
+	Readme        string `json:"readme,omitempty"`
+	Category      string `json:"category"`
 }
 
 // StackPackager implentations can build a stack from Stack resources and emit the Yaml artifact
@@ -488,7 +496,9 @@ func (sp *StackPackage) applyGroupAnnotations(crdPath string, crd *apiextensions
 		if strings.HasPrefix(crdPath, groupPath) {
 			crd.ObjectMeta.Annotations[annotationGroupTitle] = group.Title
 			crd.ObjectMeta.Annotations[annotationGroupCategory] = group.Category
-			crd.ObjectMeta.Annotations[annotationGroupDescription] = group.Description
+			crd.ObjectMeta.Annotations[annotationGroupReadme] = group.Readme
+			crd.ObjectMeta.Annotations[annotationGroupOverview] = group.Overview
+			crd.ObjectMeta.Annotations[annotationGroupOverviewShort] = group.OverviewShort
 			break
 		}
 	}
@@ -511,7 +521,9 @@ func (sp *StackPackage) applyResourceAnnotations(crdPath string, crd *apiextensi
 			crd.ObjectMeta.Annotations[annotationResourceTitle] = resource.Title
 			crd.ObjectMeta.Annotations[annotationResourceTitlePlural] = resource.TitlePlural
 			crd.ObjectMeta.Annotations[annotationResourceCategory] = resource.Category
-			crd.ObjectMeta.Annotations[annotationResourceDescription] = resource.Description
+			crd.ObjectMeta.Annotations[annotationResourceReadme] = resource.Readme
+			crd.ObjectMeta.Annotations[annotationResourceOverview] = resource.Overview
+			crd.ObjectMeta.Annotations[annotationResourceOverviewShort] = resource.OverviewShort
 
 			break
 		}

@@ -3941,8 +3941,6 @@ spec:
                     type: string
                 type: object
               type: array
-            description:
-              type: string
             icons:
               items:
                 properties:
@@ -3970,6 +3968,10 @@ spec:
                     type: string
                 type: object
               type: array
+            overview:
+              type: string
+            overviewShort:
+              type: string
             owners:
               items:
                 properties:
@@ -4014,6 +4016,8 @@ spec:
                     type: object
                   type: array
               type: object
+            readme:
+              type: string
             source:
               type: string
             title:

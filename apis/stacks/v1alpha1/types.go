@@ -252,22 +252,23 @@ type StackStatus struct {
 
 // AppMetadataSpec defines metadata about the stack application
 type AppMetadataSpec struct {
-	Title       string            `json:"title,omitempty"`
-	Description string            `json:"description,omitempty"`
-	Version     string            `json:"version,omitempty"`
-	Icons       []IconSpec        `json:"icons,omitempty"`
-	Maintainers []ContributorSpec `json:"maintainers,omitempty"`
-	Owners      []ContributorSpec `json:"owners,omitempty"`
-	Company     string            `json:"company,omitempty"`
-	Category    string            `json:"category,omitempty"`
-	Keywords    []string          `json:"keywords,omitempty"`
-	Website     string            `json:"website,omitempty"`
-	Source      string            `json:"source,omitempty"`
-	License     string            `json:"license,omitempty"`
+	Title         string            `json:"title,omitempty"`
+	OverviewShort string            `json:"overviewShort,omitempty"`
+	Overview      string            `json:"overview,omitempty"`
+	Readme        string            `json:"readme,omitempty"`
+	Version       string            `json:"version,omitempty"`
+	Icons         []IconSpec        `json:"icons,omitempty"`
+	Maintainers   []ContributorSpec `json:"maintainers,omitempty"`
+	Owners        []ContributorSpec `json:"owners,omitempty"`
+	Company       string            `json:"company,omitempty"`
+	Category      string            `json:"category,omitempty"`
+	Keywords      []string          `json:"keywords,omitempty"`
+	Website       string            `json:"website,omitempty"`
+	Source        string            `json:"source,omitempty"`
+	License       string            `json:"license,omitempty"`
 
 	// DependsOn is the list of CRDs that this stack depends on. This data drives the
 	// dependency resolution process.
-	// TODO(displague) document this in stack design doc (examples at least)
 	DependsOn []StackInstallSpec `json:"dependsOn,omitempty"`
 
 	// +kubebuilder:validation:Enum=Cluster;Namespaced
@@ -292,12 +293,6 @@ type IconSpec struct {
 type ContributorSpec struct {
 	Name  string `json:"name,omitempty"`
 	Email string `json:"email,omitempty"`
-}
-
-// LinkSpec defines a useful link about a stack (e.g., homepage, about page, etc.)
-type LinkSpec struct {
-	Description string `json:"description,omitempty"`
-	URL         string `json:"url"`
 }
 
 // ControllerSpec defines the controller that implements the logic for a stack, which can come
