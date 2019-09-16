@@ -10,16 +10,18 @@ indent: true
 
 ## Table of Contents
 
-Introduction
-Concepts
-Before you get started
-Install and Configure Crossplane
-Install support for our application into Crossplane
-Create a Wordpress
-Clean up
-Conclusion
-Next steps
-References
+1. [Introduction](#introduction)
+2. [Concepts](#concepts)
+3. [Before you get started](#before-you-get-started)
+4. [Install the Crossplane CLI](#install-the-crossplane-cli)
+5. [Install and configure Crossplane](#install-and-configure-crossplane)
+6. [Install support for our application into
+   Crossplane](#install-support-for-our-application-into-crossplane)
+7. [Create a Wordpress](#create-a-wordpress)
+8. [Clean up](#clean-up)
+9. [Conclusion](#conclusion)
+10. [Next steps](#next-steps)
+11. [References](#references)
 
 ## Introduction
 
@@ -80,11 +82,9 @@ of using a specific version.
 
 ## Install and configure Crossplane
 
-Outline
-Install Crossplane
-Install provider stack
-Configure provider stack credentials
-Configure resource classes
+To use Crossplane, we'll need to install and configure it. In this case,
+we want to use Crossplane with a cloud provider, so we'll need to
+configure the provider.
 
 ### Install Crossplane
 
@@ -227,7 +227,7 @@ to see what's installed.
 
 ## Conclusion
 
-We're done! :tada:
+We're done!
 
 In this guide, we:
 
@@ -278,18 +278,6 @@ new one?
 * What if I want Crossplane to run in a control cluster which is also
 running the rest of my Kubernetes stuff?
 * Are there any known issues?
-
-## TODO
-For tracking purposes; not for inclusion in the document
-
-* Remove things that assume you have the Crossplane repo checked out
-* Figure out how to move the provider-specific stuff into different docs
-  or have it be a selectable section
-* Interactive docs?
-  - Could it be a terminal program tutorial?
-* Check to see whether provider stacks can be cleaned up completely by
-  just uninstalling them
-* Add a TOC
 
 <!-- Named links -->
 [crossplane-cli]: https://github.com/crossplaneio/crossplane-cli
