@@ -414,13 +414,13 @@ This should not go in the final document, but is here for tracking.
 
 <!-- Links -->
 [crossplane-cli]: https://github.com/crossplaneio/crossplane-cli
-[crossplane-gcp-networking-docs]: TODO
-[stacks-guide]: stacks-guide.html
+[crossplane-gcp-networking-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-resource-connectivity-mvp.md#google-cloud-platform
+[stacks-guide]: stacks-guide.md
 
-[crossplane-concepts]: TODO
-[portable-claims]: TODO
+[crossplane-concepts]: concepts.md
+[portable-claims]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-default-resource-class.md
 
-[gcp-credentials]: TODO
+[gcp-credentials]: https://github.com/crossplaneio/crossplane/blob/master/cluster/examples/gcp-credentials.sh
 
 [gcp]: https://cloud.google.com/
 
