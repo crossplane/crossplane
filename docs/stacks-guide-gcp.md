@@ -91,8 +91,7 @@ We will make use of the following services on GCP:
 *   Private Service Connection
 
 For all these to work, you need to [enable the following
-APIs](https://cloud.google.com/endpoints/docs/openapi/enable-api) in
-your GCP project:
+APIs][gcp-enable-apis] in your GCP project:
 
 *   Compute Engine API
 *   Service Networking API
@@ -101,20 +100,21 @@ your GCP project:
 We will also need to tell Crossplane how to use the credentials for the
 GCP account. For this exercise, the GCP account that we will tell
 Crossplane about should have the following [roles
-assigned](https://cloud.google.com/iam/docs/granting-roles-to-service-accounts):
+assigned][gcp-assign-roles]:
 
 *   Cloud SQL Admin
 *   Compute Network Admin
 *   Kubernetes Engine Admin
 *   Service Account User
 
-You need to get JSON file of the service account you’ll use. In the next sections, this file will be referred to as `crossplane-gcp-provider-key.json`
+You need to get JSON file of the service account you’ll use. In the next
+sections, this file will be referred to as
+`crossplane-gcp-provider-key.json`
 
 You can create the JSON file by using the [gcloud
-command](https://cloud.google.com/sdk/gcloud/reference/iam/service-accounts/keys/create)
-and specifying a file name of `crossplane-gcp-provider-key.json`. If
-you use Crossplane's [GCP credentials script][gcp-credentials], this
-is taken care of for you.
+command][gcp-create-keys] and specifying a file name of
+`crossplane-gcp-provider-key.json`. If you use Crossplane's [GCP
+credentials script][gcp-credentials], this is taken care of for you.
 
 ## Configure Crossplane GCP Provider
 
@@ -406,12 +406,6 @@ To recap what we've set up now in our environment:
 Next we'll set up a Crossplane App Stack and use it! Head [back over to
 the Stacks Guide document][stacks-guide-continue] so we can pick up where we left off.
 
-## TODO
-This should not go in the final document, but is here for tracking.
-
-* Add references
-* Add next steps, with link to WordPress-specific stuff
-
 <!-- Links -->
 [crossplane-cli]: https://github.com/crossplaneio/crossplane-cli
 [crossplane-gcp-networking-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-resource-connectivity-mvp.md#google-cloud-platform
@@ -421,6 +415,9 @@ This should not go in the final document, but is here for tracking.
 [portable-claims]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-default-resource-class.md
 
 [gcp-credentials]: https://github.com/crossplaneio/crossplane/blob/master/cluster/examples/gcp-credentials.sh
+[gcp-enable-apis]: https://cloud.google.com/endpoints/docs/openapi/enable-api
+[gcp-assign-roles]: https://cloud.google.com/iam/docs/granting-roles-to-service-accounts
+[gcp-create-keys]: https://cloud.google.com/sdk/gcloud/reference/iam/service-accounts/keys/create
 
 [gcp]: https://cloud.google.com/
 
