@@ -62,6 +62,9 @@ gcloud --project $EXAMPLE_PROJECT_ID services enable sqladmin.googleapis.com
 # enable Redis API
 gcloud --project $EXAMPLE_PROJECT_ID services enable redis.googleapis.com
 
+# enable Compute API
+gcloud --project $EXAMPLE_PROJECT_ID services enable compute.googleapis.com
+
 # enable Additional APIs needed for the example or project
 # See `gcloud services list` for a complete list
 
@@ -79,6 +82,7 @@ gcloud projects add-iam-policy-binding $EXAMPLE_PROJECT_ID --member "serviceAcco
 gcloud projects add-iam-policy-binding $EXAMPLE_PROJECT_ID --member "serviceAccount:$EXAMPLE_SA" --role="roles/cloudsql.admin"
 gcloud projects add-iam-policy-binding $EXAMPLE_PROJECT_ID --member "serviceAccount:$EXAMPLE_SA" --role="roles/container.admin"
 gcloud projects add-iam-policy-binding $EXAMPLE_PROJECT_ID --member "serviceAccount:$EXAMPLE_SA" --role="roles/redis.admin"
+gcloud projects add-iam-policy-binding $EXAMPLE_PROJECT_ID --member "serviceAccount:$EXAMPLE_SA" --role="roles/compute.networkAdmin"
 ```
 
 ## Option 2: GCP Console in a Web Browser
@@ -100,6 +104,7 @@ Create a GCP example project which we will use to host our example GKE cluster, 
     - `Service Account User`
     - `Cloud SQL Admin`
     - `Kubernetes Engine Admin`
+    - `Compute Network Admin`
   - Click `Create` button
     - This should advance to the next section `3 Grant users access to this service account (optional)`
   - We don't need to assign any user or admin roles to this account for the example purposes, so you can leave following two fields blank:
@@ -121,6 +126,9 @@ Create a GCP example project which we will use to host our example GKE cluster, 
   - Click `Enable`
 - Enable `Cloud Memorystore for Redis`
   - Navigate to [Cloud Memorystore for Redis](https://console.developers.google.com/apis/api/redis.googleapis.com/overview)
+  - Click `Enable`
+- Enable `Compute Engine API`
+  - Navigate to [Compute Engine API](https://console.developers.google.com/apis/api/compute.googleapis.com/overview)
   - Click `Enable`
 
 ### Enable Billing
