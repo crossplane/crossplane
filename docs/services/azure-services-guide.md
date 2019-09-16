@@ -1,7 +1,7 @@
 # Deploying Wordpress in Azure
 
 This user guide will walk you through Wordpress application deployment using
-Crossplane managed resources and the official Wordpress Helm chart.
+Crossplane managed resources and the official Wordpress Docker image.
 
 
 ## Pre-requisites
