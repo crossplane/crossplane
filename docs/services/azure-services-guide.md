@@ -84,6 +84,34 @@ Using the newly provisioned cluster:
   section](../install-crossplane.md#azure-stack) of the install guide.
 * Obtain [Cloud Provider Credentials](../cloud-providers.md)
 
+#### Infrastructure Namespaces
+Kubernetes namespaces allow for separation of environments within your cluster.
+You may choose to use namespaces to group resources by team, application, or any
+other logical distinction. For this demo, we will create a namespace called
+`app-project1-dev`, which we will use to group our Azure infrastructure
+components.
+
+* Define a `Namespace` in `azure-infra-dev.yaml`:
+```yaml
+cat > azure-infra-dev.yaml <<EOF
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: azure-infra-dev
+EOF
+```
+
+* Create the `Namespace`:
+```bash
+kubectl create -f azure-infra-dev.yaml.yaml
+```
+
+* You should see the following output:
+```bash
+namespace/azure-infra-dev.yaml created
+```
+
 #### Azure Provider
 It is essential to make sure that the Azure Service Principal is configured with
 all permissions outlined in the [provider
@@ -97,6 +125,7 @@ export BASE64ENCODED_AZURE_PROVIDER_CREDS=$(base64 crossplane-azure-provider-key
 
 * Define an Azure `Provider` and `Secret` in `azure-provider.yaml`:
 ```yaml
+cat > azure-provider.yaml <<EOF
 ---
 # Azure Admin service account secret - used by Azure Provider
 apiVersion: v1
@@ -118,6 +147,7 @@ spec:
   credentialsSecretRef:
     name: demo-provider-azure-dev
     key: credentials
+EOF
 ```
 
 #### Create Provider
@@ -140,6 +170,7 @@ MySQL](https://azure.microsoft.com/en-us/services/mysql/) instance.
 
 * Define an Azure MySQL `SQLServerClass` in `azure-mysql-standard.yaml`:
 ```yaml
+cat > azure-mysql-standard.yaml <<EOF
 ---
 apiVersion: database.azure.crossplane.io/v1alpha2
 kind: SQLServerClass
@@ -164,6 +195,7 @@ specTemplate:
     name: demo-azure
     namespace: azure-infra-dev
   reclaimPolicy: Delete
+EOF
 ```
 
 * Create the `SQLServerClass`:
@@ -192,19 +224,22 @@ You are free to create more Azure `SQLServerClass` instances to define more
 potential configurations. For instance, you may create `large-azure-mysql` with
 field `storageGB: 100`.
 
-#### Namespaces
-Kubernetes namespaces allow for separation of environments within your cluster.
-You may choose to use namespaces to group resources by team, application, or any
-other logical distinction. For this demo, we will create a namespace called
-`app-project1-dev`, which we will use to group our Wordpress resources.
+#### Application Namespaces
+Earlier, we created a namespace to group our Azure infrastructure resources.
+Because our application resources may be satisfied by services from any cloud
+provider, we want to separate them into their own namespace. For this demo, we
+will create a namespace called `app-project1-dev`, which we will use to group
+our Wordpress resources.
 
 * Define a `Namespace` in `app-project1-dev-namespace.yaml`:
 ```yaml
+cat > app-project1-dev-namespace.yaml <<EOF
 ---
 apiVersion: v1
 kind: Namespace
 metadata:
   name: app-project1-dev
+EOF
 ```
 
 * Create the `Namespace`:
@@ -226,6 +261,7 @@ our Wordpress resources will live in.
 * Define a `MySQLInstanceClass` in `mysql-standard.yaml` for namespace
   `app-project1-dev`:
 ```yaml
+cat > mysql-standard.yaml <<EOF
 ---
 apiVersion: database.crossplane.io/v1alpha1
 kind: MySQLInstanceClass
@@ -237,6 +273,7 @@ classRef:
   apiVersion: database.azure.crossplane.io/v1alpha2
   name: azure-mysql-standard
   namespace: azure-infra-dev
+EOF
 ```
 
 * Create the `MySQLInstanceClass`:
@@ -299,6 +336,7 @@ provision the MySQL database we will use with Azure.
 
 * Define a `MySQLInstance` claim in `mysql-claim.yaml`:
 ```yaml
+cat > mysql-claim.yaml <<EOF
 apiVersion: database.crossplane.io/v1alpha1
 kind: MySQLInstance
 metadata:
@@ -310,6 +348,7 @@ spec:
   writeConnectionSecretToRef:
     name: wordpressmysql
   engineVersion: "5.6"
+EOF
 ```
 
 * Create the `MySQLInstance`:
@@ -413,6 +452,7 @@ export MYSQL_NAME=$(kubectl get -o json mysqlinstance mysql-claim -n app-project
 
 * Define a `MysqlServerVirtualNetworkRule` in `wordpress-vnet-rule.yaml`:
 ```yaml
+cat > wordpress-vnet-rule.yaml <<EOF
 ---
 apiVersion: database.azure.crossplane.io/v1alpha2
 kind: MysqlServerVirtualNetworkRule
@@ -429,6 +469,7 @@ spec:
     name: demo-azure
     namespace: azure-infra-dev
   reclaimPolicy: Delete
+EOF
 ```
 
 * Create the `MysqlServerVirtualNetworkRule`:
@@ -480,6 +521,7 @@ username:  58 bytes
 
 * Define the `Deployment` and `Service` in `wordpress-app.yaml`:
 ```yaml
+cat > wordpress-app.yaml <<EOF
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -532,6 +574,7 @@ spec:
   selector:
     app: wordpress
   type: LoadBalancer
+EOF
 ```
 
 * Create the `Deployment` and `Service`:
