@@ -266,19 +266,6 @@ guide][stack-developer-guide].
 *   [Azure documentation][azure-docs]
 *   [Kubernetes documentation][kubernetes-docs]
 
-## FAQ
-These should probably be covered in the concepts document, but I am
-adding them here for tracking purposes.
-
-* How does Crossplane use the cloud provider? What's the model in general
-for asking for a resource?
-* How do Stacks work behind the scenes?
-* What if I want to use an existing cluster, instead of spinning up a
-new one?
-* What if I want Crossplane to run in a control cluster which is also
-running the rest of my Kubernetes stuff?
-* Are there any known issues?
-
 <!-- Named links -->
 [crossplane-cli]: https://github.com/crossplaneio/crossplane-cli
 [crossplane-cli-docs]: https://github.com/crossplaneio/crossplane-cli/blob/master/README.md
