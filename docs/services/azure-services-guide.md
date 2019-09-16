@@ -79,7 +79,7 @@ kubectl cluster-info
 Using the newly provisioned cluster:
 
 * Install Crossplane from alpha channel using the [Crossplane Installation
-  Guide](../install-crossplane.md#master)
+  Guide](../install-crossplane.md#alpha)
 * Install the Azure stack into Crossplane using the [Azure stack
   section](../install-crossplane.md#azure-stack) of the install guide.
 * Obtain [Cloud Provider Credentials](../cloud-providers.md)
