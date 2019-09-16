@@ -132,14 +132,38 @@ GCP Console.
 export PROJECT_ID=[your-demo-project-id]
 export BASE64ENCODED_GCP_PROVIDER_CREDS=$(base64 crossplane-gcp-provider-key.json | tr -d "\n")
 ```
+> Environment variable PROJECT_ID is going to be used in YAML files in the next steps while BASE64ENCODED_GCP_PROVIDER_CREDS
+is only needed for this step.
 
 Now we’ll create our `Secret` that contains the credential and
 `Provider` resource that refers to that secret:
 
 ```
-sed "s/BASE64ENCODED_GCP_PROVIDER_CREDS/$BASE64ENCODED_GCP_PROVIDER_CREDS/g;s/PROJECT_ID/$PROJECT_ID/g" cluster/examples/workloads/kubernetes/wordpress/gcp/provider.yaml | kubectl create -f -
-unset PROJECT_ID
-unset BASE64ENCODED_GCP_PROVIDER_CREDS
+cat > provider.yaml <<EOF
+---
+apiVersion: v1
+data:
+  credentials.json: $BASE64ENCODED_GCP_PROVIDER_CREDS
+kind: Secret
+metadata:
+  namespace: gcp
+  name: gcp-provider-creds
+type: Opaque
+---
+apiVersion: gcp.crossplane.io/v1alpha2
+kind: Provider
+metadata:
+  namespace: gcp
+  name: gcp-provider
+spec:
+  credentialsSecretRef:
+    name: gcp-provider-creds
+    key: credentials.json
+  projectID: $PROJECT_ID
+EOF
+
+kubectl apply -f provider.yaml
+# Example YAML exists in https://github.com/crossplaneio/crossplane/blob/master/cluster/examples/workloads/kubernetes/wordpress/gcp/provider.yaml as well.
 ```
 
 The name of the `Provider` resource in the file above is `gcp-provider`;
@@ -154,6 +178,7 @@ need to set up the network before we get to the database and Kubernetes
 creation steps. Here's an example network setup:
 
 ```
+cat > network.yaml <<EOF
 ---
 # example-network will be the VPC that all cloud instances we'll create will use.
 apiVersion: compute.gcp.crossplane.io/v1alpha2
@@ -191,7 +216,7 @@ spec:
       ipCidrRange: 10.0.0.0/8
     - rangeName: services
       ipCidrRange: 172.16.0.0/16
-  network: projects/crossplane-playground/global/networks/example-network
+  network: projects/$PROJECT_ID/global/networks/example-network
 ---
 # example-globaladdress defines the IP range that will be allocated for cloud services connecting
 # to the instances in the given Network.
@@ -209,7 +234,7 @@ spec:
   purpose: VPC_PEERING
   addressType: INTERNAL
   prefixLength: 16
-  network: projects/crossplane-playground/global/networks/example-network
+  network: projects/$PROJECT_ID/global/networks/example-network
 ---
 # example-connection is what allows cloud services to use the allocated GlobalAddress for communication. Behind
 # the scenes, it creates a VPC peering to the network that those service instances actually live.
@@ -224,13 +249,13 @@ spec:
     namespace: gcp
   reclaimPolicy: Delete
   parent: services/servicenetworking.googleapis.com
-  network: projects/crossplane-playground/global/networks/example-network
+  network: projects/$PROJECT_ID/global/networks/example-network
   reservedPeeringRanges:
     - example-globaladdress
-```
-You can edit snippet above to customize it or run the following command to apply it:
-```
-kubectl apply -f cluster/examples/workloads/kubernetes/wordpress/gcp/network.yaml
+EOF
+
+kubectl apply -f network.yaml
+# Example YAML exists in https://github.com/crossplaneio/crossplane/blob/master/cluster/examples/workloads/kubernetes/wordpress/gcp/network.yaml as well.
 ```
 
 For more details about networking and what happens when you run this
@@ -253,6 +278,7 @@ The following resource classes allow the GKECluster and CloudSQL claims
 to be satisfied with the network configuration we just set up:
 
 ```
+cat > environment.yaml <<EOF
 ---
 apiVersion: database.gcp.crossplane.io/v1alpha2
 kind: CloudsqlInstanceClass
@@ -267,7 +293,7 @@ specTemplate:
   storageGB: 10
   # Note from GCP Docs: Your Cloud SQL instances are not created in your VPC network.
   # They are created in the service producer network (a VPC network internal to Google) that is then connected (peered) to your VPC network.
-  privateNetwork: projects/crossplane-playground/global/networks/example-network
+  privateNetwork: projects/$PROJECT_ID/global/networks/example-network
   providerRef:
     name: gcp-provider
     namespace: gcp
@@ -282,8 +308,8 @@ specTemplate:
   machineType: n1-standard-1
   numNodes: 1
   zone: us-central1-b
-  network: projects/crossplane-playground/global/networks/example-network
-  subnetwork: projects/crossplane-playground/regions/us-central1/subnetworks/example-subnetwork
+  network: projects/$PROJECT_ID/global/networks/example-network
+  subnetwork: projects/$PROJECT_ID/regions/us-central1/subnetworks/example-subnetwork
   enableIPAlias: true
   clusterSecondaryRangeName: pods
   servicesSecondaryRangeName: services
@@ -291,10 +317,10 @@ specTemplate:
     name: gcp-provider
     namespace: gcp
   reclaimPolicy: Delete
-```
-You can edit snippet above to customize it or run the following command to apply it:
-```
-kubectl apply -f cluster/examples/workloads/kubernetes/wordpress/gcp/environment.yaml
+EOF
+
+kubectl apply -f environment.yaml
+# Example YAML exists in https://github.com/crossplaneio/crossplane/blob/master/cluster/examples/workloads/kubernetes/wordpress/gcp/environment.yaml as well.
 ```
 
 The steps that we have taken so far have been related to things that can
@@ -321,6 +347,7 @@ For example, MySQLInstanceClass is a portable class that can refer to
 GCP's CloudSQLInstanceClass, which is a non-portable class.
 
 ```
+cat > namespace.yaml <<EOF
 ---
 apiVersion: database.crossplane.io/v1alpha1
 kind: MySQLInstanceClass
@@ -348,12 +375,10 @@ classRef:
   name: standard-gke
   namespace: gcp
 ---
-```
+EOF
 
-You can run the following command for namespace and portable class creation:
-
-```
-kubectl apply -f cluster/examples/workloads/kubernetes/wordpress/gcp/namespace.yaml
+kubectl apply -f namespace.yaml
+# Example YAML exists in https://github.com/crossplaneio/crossplane/blob/master/cluster/examples/workloads/kubernetes/wordpress/gcp/namespace.yaml as well.
 ```
 
 For more details about what is happening behind the scenes, read more
@@ -378,7 +403,7 @@ To recap what we've set up now in our environment:
 
 ## Next Steps
 
-Next we'll set up the Crossplane Stack and use it! Head [back over to
+Next we'll set up a Crossplane App Stack and use it! Head [back over to
 the Stacks Guide document][stacks-guide-continue] so we can pick up where we left off.
 
 ## TODO
