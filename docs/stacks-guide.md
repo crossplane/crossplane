@@ -1,8 +1,8 @@
 ---
 title: "Crossplane Stacks Guide"
 toc: true
-weight: 331
-indent: true
+weight: 401
+indent: false
 ---
 
 # Crossplane Stacks Guide
