@@ -10,9 +10,6 @@ indent: true
 
 ## Table of Contents
 
-TODO
-
-
 Introduction
 Concepts
 Before you get started
@@ -297,13 +294,13 @@ For tracking purposes; not for inclusion in the document
 <!-- Named links -->
 [crossplane-cli]: https://github.com/crossplaneio/crossplane-cli
 [crossplane-cli-docs]: https://github.com/crossplaneio/crossplane-cli/blob/master/README.md
-[crossplane-concepts]: TODO
-[crossplane-install-docs]: TODO
+[crossplane-concepts]: concepts.md
+[crossplane-install-docs]: install-crossplane.md
 
 [kubernetesapplicationresource-docs]: TODO
-[claims-docs]: TODO
-[resource-classes-docs]: TODO
-[workloads-docs]: TODO
+[claims-docs]: concepts.md#resource-claims-and-resource-classes
+[resource-classes-docs]: concepts.md#resource-claims-and-resource-classes
+[workloads-docs]: concepts.md#resources-and-workloads
 
 [kubernetes-concepts]: https://kubernetes.io/docs/concepts/
 [kubernetes-docs]: https://kubernetes.io/docs/home/
@@ -316,14 +313,14 @@ For tracking purposes; not for inclusion in the document
 [azure-docs]: https://docs.microsoft.com/azure/
 
 [aws-setup]: TODO
-[gcp-setup]: stacks-guide-gcp.html
+[gcp-setup]: stacks-guide-gcp.md
 [azure-setup]: TODO
 
-[stack-docs]: TODO
-[stack-quick-start]: TODO
-[stack-concepts]: TODO
-[stack-manager-docs]: TODO
-[stack-format-docs]: TODO
+[stack-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/design-doc-stacks.md#crossplane-stacks
+[stack-quick-start]: https://github.com/crossplaneio/crossplane-cli#quick-start-stacks
+[stack-concepts]: https://github.com/crossplaneio/crossplane/blob/master/design/design-doc-stacks.md#crossplane-stacks
+[stack-manager-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/design-doc-stacks.md#installation-flow
+[stack-format-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/design-doc-stacks.md#stack-package-format
 [stack-registry]: TODO
 [stack-developer-guide]: TODO
 [provider-stack-developer-guide]: TODO
