@@ -17,7 +17,7 @@ title: "Crossplane Stacks Guide: Azure Setup" toc: true weight: 332 indent: true
 
 ## Introduction
 
-In this guide, we will set up a Azure provider in Crossplane so that we can
+In this guide, we will set up an Azure provider in Crossplane so that we can
 install and use the WordPress sample stack, which depends on MySQL and
 Kubernetes!
 
@@ -32,7 +32,7 @@ Before you begin, you will need:
 At the end, we will have:
 
 * A Crossplane control cluster configured to use Azure
-* The boilerplate of a Azure-based project spun up
+* The boilerplate of an Azure-based project spun up
 * Support in the control cluster for managing MySQL and Kubernetes cluster
   dependencies
 * A slightly better understanding of:
@@ -87,8 +87,8 @@ We will make use of the following services on Azure:
 *   Virtual Network Rule
 
 In order to utilize each of these services, you will need to follow the Adding
-Microsoft Azure to Crossplane [guide](cloud-providers/azure/azure-provider.md)
-to obtain appropriate credentials in a JSON file referred to as
+Microsoft Azure to Crossplane [guide][provider-azure-guide] to obtain
+appropriate credentials in a JSON file referred to as
 `crossplane-azure-provider-key.json`.
 
 ## Configure Crossplane Azure Provider 
@@ -343,10 +343,10 @@ For more details about what is happening behind the scenes, read more about
 
 After the Wordpress stack is installed, we will need the AKS Cluster it
 provisions to be able to communicate with the MySQL database it provisions. In
-Azure, we can do so using a [Virtual Network Rule][vnet-rule]. However, the rule
-cannot be created until after the MySQLInstance claim is created and satisfied,
-so we will start a short script to continually check if the database exists, and
-will create the rule if so.
+Azure, we can do so using a [Virtual Network Rule][azure-vnet-rule]. However,
+the rule cannot be created until after the MySQLInstance claim is created and
+satisfied, so we will start a short script to continually check if the database
+exists, and will create the rule if so.
 
 ```bash
 cat > vnet-rule.yaml <<EOF
@@ -368,13 +368,14 @@ spec:
 EOF
 
 cat <<EOF > vnetwatch.sh
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -e
+trap 'exit 1' SIGINT
 
-echo -n "waiting..."
+echo -n "waiting for mysql endpoint..." >&2
 while kubectl -n azure-infra-dev get mysqlservers -o yaml | grep -q  'items: \[\]'; do
-  echo -n "."
+  echo -n "." >&2
   sleep 5
 done
 
@@ -410,20 +411,16 @@ Next we'll set up a Crossplane App Stack and use it! Head [back over to the
 Stacks Guide document][stacks-guide-continue] so we can pick up where we left
 off.
 
-## TODO
-This should not go in the final document, but is here for tracking.
-
-* Add references
-* Add next steps, with link to WordPress-specific stuff
-
 <!-- Links -->
 [crossplane-cli]: https://github.com/crossplaneio/crossplane-cli
-[crossplane-azure-networking-docs]: TODO [stacks-guide]: stacks-guide.html
+[crossplane-azure-networking-docs]: TODO
+[stacks-guide]: stacks-guide.html
+[provider-azure-guide]: cloud-providers/azure/azure-provider.md
 
-[crossplane-concepts]: TODO [portable-claims]: TODO
+[crossplane-concepts]: TODO
+[portable-claims]: TODO
 
-[azure]: https://azure.microsoft.com [vnet-rule]:
-https://docs.microsoft.com/en-us/azure/mysql/concepts-data-access-and-security-vnet
+[azure]: https://azure.microsoft.com
+[azure-vnet-rule]: https://docs.microsoft.com/en-us/azure/mysql/concepts-data-access-and-security-vnet
 
-[stacks-guide-continue]:
-stacks-guide.html#install-support-for-our-application-into-crossplane
+[stacks-guide-continue]: stacks-guide.html#install-support-for-our-application-into-crossplane
