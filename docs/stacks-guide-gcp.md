@@ -21,10 +21,10 @@ indent: true
 ## Introduction
 
 In this guide, we will set up a GCP provider in Crossplane so that we
-can install and use the WordPress sample stack, which depends on MySQL
-and Kubernetes!
+can install and use the [WordPress sample
+stack][sample-wordpress-stack], which depends on MySQL and Kubernetes!
 
-Before you begin, you will need:
+Before we begin, you will need:
 
 * Everything from the [Crossplane Stacks Guide][stacks-guide] before the
   cloud provider setup
@@ -44,37 +44,41 @@ At the end, we will have:
     Crossplane
 
 We will **not** be teaching first principles in depth. Check out the
-[concepts document][crossplane-concepts] for that.
+[Crossplane concepts document][crossplane-concepts] for that.
 
 ## Install the GCP Stack
 
 After Crossplane has been installed, it can be extended with more
-functionality by installing a Crossplane Stack! Let's install the stack
-for Google Cloud Platform (GCP) to add support for that cloud provider.
-We can use the Crossplane CLI for this operation:
+functionality by installing a [Crossplane Stack][stack-docs]! Let's
+install the [stack for Google Cloud Platform][stack-gcp] (GCP) to add
+support for that cloud provider. We can use the [Crossplane
+CLI][crossplane-cli] for this operation. Since this is an infrastructure
+stack, we need to specify that it's cluster-scoped by passing the
+`--cluster` flag.
 
-```
-kubectl crossplane stack install 'crossplane/stack-gcp:master' stack-gcp
-```
 
-To install to a particular namespace, you can use the `generate-install`
-command and pipe it to `kubectl apply` instead, which gives you more
+To install to a specific namespace, we can use the `generate-install`
+command and pipe it to `kubectl apply` instead, which gives us more
 control over how the stack's installation is handled. Everything is
-Kubernetes object!
+a Kubernetes object!
 
-Since this is an infrastructure stack, we need to specify that it's
-cluster-scoped via `--cluster` flag.
 ```
 kubectl create namespace gcp
 kubectl crossplane stack generate-install --cluster 'crossplane/stack-gcp:master' stack-gcp | kubectl apply --namespace gcp -f -
 ```
 
-The namespace that we install the stack to is also the one where our
-managed GCP resources will reside. When a developer requests a resource
-by creating a **resource claim** in a namespace `mynamespace`, the
+If we wanted to use whatever the current namespace is, we could have
+used `kubectl crossplane stack install` instead of using
+`generate-install`.
+
+The namespace that we install the stack to is where the stack will
+create the resources it manages. When a developer requests a resource by
+creating a [resource claim][resource-claims-docs] in a namespace `mynamespace`, the
 managed cloud provider resource and any secrets will be created in the
 stack's namespace. Secrets will be copied over to `mynamespace`, and the
-claim will be bound to the original resource claim.
+claim will be bound to the original resource claim. For more details
+about resource claims and how they work, see the [documentation on
+resource claims][resource-claims-docs].
 
 For convenience, the next steps assume that you installed GCP stack into
 the `gcp` namespace.
@@ -120,19 +124,21 @@ credentials script][gcp-credentials], this is taken care of for you.
 
 Before creating any resources, we need to create and configure a cloud
 provider in Crossplane. This helps Crossplane know how to connect to the cloud
-provider. All the requests from Crossplane to GCP can use that resource as 
-their credentials. The following command assumes that you have a
-`crossplane-gcp-provider-key.json` file that belongs to the account
-you’d like Crossplane to use. Run the command after changing
-`[your-demo-project-id]` to your actual GCP project id. You should be
-able to get the project id from the JSON credentials file or from the
-GCP Console.
+provider. All the requests from Crossplane to GCP will use the
+credentials attached to the provider object.  The following command
+assumes that you have a `crossplane-gcp-provider-key.json` file that
+belongs to the account you’d like Crossplane to use. Run the command
+after changing `[your-demo-project-id]` to your actual GCP project id.
+You should be able to get the project id from the JSON credentials file
+or from the GCP Console.
 
 ```
 export PROJECT_ID=[your-demo-project-id]
 export BASE64ENCODED_GCP_PROVIDER_CREDS=$(base64 crossplane-gcp-provider-key.json | tr -d "\n")
 ```
-> Environment variable PROJECT_ID is going to be used in YAML files in the next steps while BASE64ENCODED_GCP_PROVIDER_CREDS
+
+The environment variable `PROJECT_ID` is going to be used in multiple
+YAML files in the next steps, while `BASE64ENCODED_GCP_PROVIDER_CREDS`
 is only needed for this step.
 
 Now we’ll create our `Secret` that contains the credential and
@@ -163,8 +169,9 @@ spec:
 EOF
 
 kubectl apply -f provider.yaml
-# Example YAML exists in https://github.com/crossplaneio/crossplane/blob/master/cluster/examples/workloads/kubernetes/wordpress/gcp/provider.yaml as well.
 ```
+
+The example YAML also exists in [the Crossplane repository][crossplane-sample-gcp-provider].
 
 The name of the `Provider` resource in the file above is `gcp-provider`;
 we'll use the name `gcp-provider` to refer to this provider when we
@@ -172,10 +179,10 @@ configure and set up other Crossplane resources.
 
 ## Set Up Network Resources
 
-Wordpress needs an SQL database and a Kubernetes cluster. But *those*
+Wordpress needs a SQL database and a Kubernetes cluster. But **those**
 two resources need a private network to communicate securely. So, we
-need to set up the network before we get to the database and Kubernetes
-creation steps. Here's an example network setup:
+need to set up the network before we set up the database and the
+Kubernetes cluster. Here's an example of how to set up a network:
 
 ```
 cat > network.yaml <<EOF
@@ -255,15 +262,17 @@ spec:
 EOF
 
 kubectl apply -f network.yaml
-# Example YAML exists in https://github.com/crossplaneio/crossplane/blob/master/cluster/examples/workloads/kubernetes/wordpress/gcp/network.yaml as well.
 ```
+
+The example YAML also exists in [the Crossplane repository][crossplane-sample-gcp-network].
 
 For more details about networking and what happens when you run this
 command, see [this document with more details][crossplane-gcp-networking-docs].
 
 It takes a while to create these resources in GCP. The top-level object
 is the `Connection` object; when the `Connection` is ready, everything
-else is too. We can watch it by running (assumes gcp stack is installed in `gcp` namespace):
+else is too. We can watch it by running the following command, which
+assumes the GCP stack is installed in `gcp` namespace:
 
 ```
 kubectl -n gcp get connection.servicenetworking.gcp.crossplane.io/example-connection -o custom-columns='NAME:.metadata.name,FIRST_CONDITION:.status.conditions[0].status,SECOND_CONDITION:.status.conditions[1].status'
@@ -273,9 +282,10 @@ kubectl -n gcp get connection.servicenetworking.gcp.crossplane.io/example-connec
 
 Once we have the network set up, we also need to tell Crossplane how to
 satisfy WordPress's claims for a database and a Kubernetes cluster.
-The resource classes serve as template for the new claimswe make. 
-The following resource classes allow the GKECluster and CloudSQL claims
-to be satisfied with the network configuration we just set up:
+[Resource classes][resource-classes-docs] serve as templates for the new
+claims we make. The following resource classes allow the claims for the
+database and Kubernetes cluster to be satisfied with the network
+configuration we just set up:
 
 ```
 cat > environment.yaml <<EOF
@@ -320,31 +330,34 @@ specTemplate:
 EOF
 
 kubectl apply -f environment.yaml
-# Example YAML exists in https://github.com/crossplaneio/crossplane/blob/master/cluster/examples/workloads/kubernetes/wordpress/gcp/environment.yaml as well.
 ```
+The example YAML also exists in [the Crossplane
+repository][crossplane-sample-gcp-environment].
 
 The steps that we have taken so far have been related to things that can
-be shared by all resources in all namespaces of that Crossplane cluster.
-Now, we will keep going with creating an app namespace and populating it
-with resources that will help Crossplane know with what configuration it
-should satisfy the claims. You can use any namespace for your app's
-resources but for this tutorial we'll create a new namespace.
+be shared by all resources in all namespaces of the Crossplane control
+cluster. Now, we will use a namespace specific to our application, and
+we'll populate it with resources that will help Crossplane know what
+configuration to use to satisfy our application's resource claims.
+You can use any namespace for your application's resources, but for this
+tutorial we'll create a new namespace.
 
 ```
 kubectl create namespace mynamespace
 ```
 
-Now we need to tell Crossplane which resource classes should be used to
-satisfy our claims in that app namespace. We will create portable
-classes that have have reference to non-portable ones that we created
-earlier. In our claims, we can refer to those portable classes directly
-or label one as the default portable class to be used in claims that do
-not have class reference.
+Now that we have a namespace, we need to tell Crossplane which resource
+classes should be used to satisfy our claims in that namespace. We will
+create [portable classes][portable-classes-docs] that have have
+references to the cloud-specific classes that we created earlier.
 
-> Portable classes are a way of referring to non-portable resource classes in other namespaces. 
+For example, `MySQLInstanceClass` is a portable class. It may refer to
+GCP's `CloudSQLInstanceClass`, which is a non-portable class.
 
-For example, MySQLInstanceClass is a portable class that can refer to
-GCP's CloudSQLInstanceClass, which is a non-portable class.
+To read more about portable classes, how they work, and how to use them
+in different ways, including by specifying default classes when no
+reference is provided, see the [portable classes and claims
+documentation][portable-classes-docs].
 
 ```
 cat > namespace.yaml <<EOF
@@ -378,11 +391,10 @@ classRef:
 EOF
 
 kubectl apply -f namespace.yaml
-# Example YAML exists in https://github.com/crossplaneio/crossplane/blob/master/cluster/examples/workloads/kubernetes/wordpress/gcp/namespace.yaml as well.
 ```
 
-For more details about what is happening behind the scenes, read more
-about [portable claims in Crossplane][portable-claims].
+The example YAML also exists in [the Crossplane
+repository][crossplane-sample-gcp-namespace].
 
 ## Recap
 
@@ -404,7 +416,8 @@ To recap what we've set up now in our environment:
 ## Next Steps
 
 Next we'll set up a Crossplane App Stack and use it! Head [back over to
-the Stacks Guide document][stacks-guide-continue] so we can pick up where we left off.
+the Stacks Guide document][stacks-guide-continue] so we can pick up
+where we left off.
 
 <!-- Links -->
 [crossplane-cli]: https://github.com/crossplaneio/crossplane-cli
@@ -412,7 +425,6 @@ the Stacks Guide document][stacks-guide-continue] so we can pick up where we lef
 [stacks-guide]: stacks-guide.md
 
 [crossplane-concepts]: concepts.md
-[portable-claims]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-default-resource-class.md
 
 [gcp-credentials]: https://github.com/crossplaneio/crossplane/blob/master/cluster/examples/gcp-credentials.sh
 [gcp-enable-apis]: https://cloud.google.com/endpoints/docs/openapi/enable-api
@@ -422,3 +434,16 @@ the Stacks Guide document][stacks-guide-continue] so we can pick up where we lef
 [gcp]: https://cloud.google.com/
 
 [stacks-guide-continue]: stacks-guide.html#install-support-for-our-application-into-crossplane
+[sample-wordpress-stack]: https://github.com/crossplaneio/sample-stack-wordpress
+[stack-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/design-doc-stacks.md#crossplane-stacks
+
+[stack-gcp]: https://github.com/crossplaneio/stack-gcp
+
+[resource-claims-docs]: concepts.md#resource-claims-and-resource-classes
+[resource-classes-docs]: concepts.md#resource-claims-and-resource-classes
+[portable-classes-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-default-resource-class.md
+
+[crossplane-sample-gcp-provider]: https://github.com/crossplaneio/crossplane/blob/master/cluster/examples/workloads/kubernetes/wordpress/gcp/provider.yaml
+[crossplane-sample-gcp-network]: https://github.com/crossplaneio/crossplane/blob/master/cluster/examples/workloads/kubernetes/wordpress/gcp/network.yaml
+[crossplane-sample-gcp-environment]: https://github.com/crossplaneio/crossplane/blob/master/cluster/examples/workloads/kubernetes/wordpress/gcp/environment.yaml
+[crossplane-sample-gcp-namespace]: https://github.com/crossplaneio/crossplane/blob/master/cluster/examples/workloads/kubernetes/wordpress/gcp/namespace.yaml
