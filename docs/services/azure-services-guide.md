@@ -3,20 +3,31 @@
 This user guide will walk you through Wordpress application deployment using
 Crossplane managed resources and the official Wordpress Docker image.
 
+## Table of Contents
+
+1. [Pre-requisites](#pre-requisites)
+2. [Preparation](#preparation)
+3. [Set Up AKS Cluster](#set-up-aks-cluster)
+4. [Set Up Crossplane](#set-up-crossplane)
+5. [Install Wordpress](#install-wordpress)
+6. [Uninstall](#uninstall)
+7. [Conclusion and Next Steps](#conclusion-and-next-steps)
 
 ## Pre-requisites
 
-* [Azure CLI](https://docs.microsoft.com/en-us/cli/azure/?view=azure-cli-latest)
-    * Make sure to
-      [login](https://docs.microsoft.com/en-us/cli/azure/get-started-with-azure-cli?view=azure-cli-latest)
-      after installation.
-* [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
+These tools are required to complete this guide. They must be installed on your
+local machine.
+
+* [Azure CLI][azure-cli]
+    * Make sure to [login][azure-login] after installation.
+* [kubectl][install-kubectl]
     * kubectl also be installed using the Azure CLI: `az aks install-cli`
-* [Helm](https://docs.helm.sh/using_helm/), minimum version `v2.10.0+`.
-* [jq](https://stedolan.github.io/jq/) - commandline JSON processor `v1.5+`
+* [Helm][using-helm], minimum version `v2.10.0+`.
+* [jq][jq-docs] - commandline JSON processor `v1.5+`
 
 
 ## Preparation
+
 This guide assumes that you have setup the Azure CLI and are logged in to your
 desired account.
 
@@ -32,11 +43,10 @@ export AKS_RESOURCE_GROUP=MC_${RESOURCE_GROUP_NAME}_${AKS_NAME}_${RESOURCE_GROUP
 export SUBSCRIPTION_ID=$(az account list | jq -j '.[0].id')
 ``` 
 
-### AKS Cluster
-Azure maintains a succinct
-[walkthrough](https://docs.microsoft.com/en-us/azure/aks/kubernetes-walkthrough)
-for setting up an AKS cluster using the Azure CLI. The basic steps are as
-follows:
+### Set Up AKS Cluster
+
+Azure maintains a succinct [walkthrough][aks-walkthrough] for setting up an AKS
+cluster using the Azure CLI. The basic steps are as follows:
 
 1. Create a Resource Group
 ```bash
@@ -75,23 +85,51 @@ az aks get-credentials --resource-group $RESOURCE_GROUP_NAME --name $AKS_NAME
 kubectl cluster-info
 ```
 
-### Crossplane
+### Set Up Crossplane
+
 Using the newly provisioned cluster:
 
-* Install Crossplane from alpha channel using the [Crossplane Installation
-  Guide](../install-crossplane.md#alpha)
-* Install the Azure stack into Crossplane using the [Azure stack
-  section](../install-crossplane.md#azure-stack) of the install guide.
-* Obtain [Cloud Provider Credentials](../cloud-providers.md)
+1. Install Crossplane from alpha channel. (See the [Crossplane Installation
+   Guide][crossplane-install] for more information.)
+```bash
+helm repo add crossplane-alpha https://charts.crossplane.io/alpha
+helm install --name crossplane --namespace crossplane-system crossplane-alpha/crossplane
+```
+
+2. Install the Azure stack into Crossplane. (See the [Azure stack
+   section][azure-stack-install] of the install guide for more information.)
+
+```yaml
+cat > stack-azure.yaml <<EOF
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: azure
+---
+apiVersion: stacks.crossplane.io/v1alpha1
+kind: StackRequest
+metadata:
+  name: stack-azure
+  namespace: crossplane-system
+spec:
+  package: "crossplane/stack-azure:master"
+EOF
+
+kubectl apply -f stack-azure.yaml
+```
+
+3. Obtain Azure credentials. (See the [Cloud Provider Credentials][cloud-creds]
+   docs for more information.)
 
 #### Infrastructure Namespaces
+
 Kubernetes namespaces allow for separation of environments within your cluster.
 You may choose to use namespaces to group resources by team, application, or any
-other logical distinction. For this demo, we will create a namespace called
+other logical distinction. For this guide, we will create a namespace called
 `app-project1-dev`, which we will use to group our Azure infrastructure
 components.
 
-* Define a `Namespace` in `azure-infra-dev.yaml`:
+* Define a `Namespace` in `azure-infra-dev-namespace.yaml` and create it:
 ```yaml
 cat > azure-infra-dev.yaml <<EOF
 ---
@@ -100,22 +138,18 @@ kind: Namespace
 metadata:
   name: azure-infra-dev
 EOF
-```
 
-* Create the `Namespace`:
-```bash
-kubectl create -f azure-infra-dev.yaml.yaml
+kubectl apply -f azure-infra-dev-namespace.yam
 ```
 
 * You should see the following output:
-```bash
-namespace/azure-infra-dev.yaml created
-```
+
+> namespace/azure-infra-dev.yaml created
 
 #### Azure Provider
+
 It is essential to make sure that the Azure Service Principal is configured with
-all permissions outlined in the [provider
-guide](../cloud-providers/azure/azure-provider.md).
+all permissions outlined in the [provider guide][azure-provider-guide].
 
 Using Azure Service Principal `crossplane-azure-provider-key.json`:
 * Generate BASE64ENCODED_AZURE_PROVIDER_CREDS encoded value:
@@ -123,7 +157,8 @@ Using Azure Service Principal `crossplane-azure-provider-key.json`:
 export BASE64ENCODED_AZURE_PROVIDER_CREDS=$(base64 crossplane-azure-provider-key.json | tr -d "\n")
 ```
 
-* Define an Azure `Provider` and `Secret` in `azure-provider.yaml`:
+* Define an Azure `Provider` and `Secret` in `azure-provider.yaml` and create
+  them:
 ```yaml
 cat > azure-provider.yaml <<EOF
 ---
@@ -135,7 +170,7 @@ metadata:
   namespace: azure-infra-dev
 type: Opaque
 data:
-  credentials: BASE64ENCODED_AZURE_PROVIDER_CREDS
+  credentials: $BASE64ENCODED_AZURE_PROVIDER_CREDS
 ---
 # Azure Provider with service account secret reference - used to provision resources
 apiVersion: azure.crossplane.io/v1alpha2
@@ -148,12 +183,8 @@ spec:
     name: demo-provider-azure-dev
     key: credentials
 EOF
-```
 
-#### Create Provider
-* Create Azure provider:
-```bash
-sed "s/BASE64ENCODED_AZURE_PROVIDER_CREDS/$BASE64ENCODED_AZURE_PROVIDER_CREDS/g" azure-provider.yaml | kubectl create -f -
+kubectl apply -f azure-provider.yaml
 ```
 
 * Verify Azure provider was successfully registered by the crossplane
@@ -163,12 +194,13 @@ kubectl get secrets -n azure-infra-dev
 ```
 
 #### Cloud-Specific Resource Classes
+
 Cloud-specific resource classes are used to define a reusable configuration for
 a specific managed service. Wordpress requires a MySQL database, which can be
-satisfied by an [Azure Database for
-MySQL](https://azure.microsoft.com/en-us/services/mysql/) instance.
+satisfied by an [Azure Database for MySQL][azure-mysql] instance.
 
-* Define an Azure MySQL `SQLServerClass` in `azure-mysql-standard.yaml`:
+* Define an Azure MySQL `SQLServerClass` in `azure-mysql-standard.yaml` and
+  create it:
 ```yaml
 cat > azure-mysql-standard.yaml <<EOF
 ---
@@ -179,7 +211,7 @@ metadata:
   namespace: azure-infra-dev
 specTemplate:
   adminLoginName: myadmin
-  resourceGroupName: RESOURCE_GROUP_NAME
+  resourceGroupName: $RESOURCE_GROUP_NAME
   location: EAST US
   sslEnforced: false
   version: "5.6"
@@ -196,26 +228,19 @@ specTemplate:
     namespace: azure-infra-dev
   reclaimPolicy: Delete
 EOF
-```
 
-* Create the `SQLServerClass`:
-```bash
-sed "s/RESOURCE_GROUP_NAME/$RESOURCE_GROUP_NAME/g" azure-mysql-standard.yaml | kubectl apply -f -
+kubectl apply -f azure-mysql-standard.yaml
 ```
 
 * You should see the following output:
-```bash
-sqlserverclass.database.azure.crossplane.io/azure-mysql-standard created
-```
+
+> sqlserverclass.database.azure.crossplane.io/azure-mysql-standard created
+
 
 * You can verify creation with the following command and output:
 
-*Command*
 ```bash
-kubectl get sqlserverclasses -n azure-infra-dev
-```
-*Output*
-```bash
+$ kubectl get sqlserverclasses -n azure-infra-dev
 NAME                   PROVIDER-REF   RECLAIM-POLICY   AGE
 azure-mysql-standard   demo-azure     Delete           11s
 ```
@@ -225,13 +250,14 @@ potential configurations. For instance, you may create `large-azure-mysql` with
 field `storageGB: 100`.
 
 #### Application Namespaces
+
 Earlier, we created a namespace to group our Azure infrastructure resources.
 Because our application resources may be satisfied by services from any cloud
 provider, we want to separate them into their own namespace. For this demo, we
 will create a namespace called `app-project1-dev`, which we will use to group
 our Wordpress resources.
 
-* Define a `Namespace` in `app-project1-dev-namespace.yaml`:
+* Define a `Namespace` in `app-project1-dev-namespace.yaml` and create it:
 ```yaml
 cat > app-project1-dev-namespace.yaml <<EOF
 ---
@@ -240,26 +266,23 @@ kind: Namespace
 metadata:
   name: app-project1-dev
 EOF
-```
 
-* Create the `Namespace`:
-```bash
-kubectl create -f app-project1-dev-namespace.yaml
+kubectl apply -f app-project1-dev-namespace.yaml
 ```
 
 * You should see the following output:
-```bash
-namespace/app-project1-dev created
-```
+
+> namespace/app-project1-dev created
 
 #### Portable Resource Classes
+
 Portable resource classes are used to define a class of service in a single
 namespace for an abstract service type. We want to define our Azure
 `SQLServerClass` as the standard MySQL class of service in the namespace that
 our Wordpress resources will live in.
 
 * Define a `MySQLInstanceClass` in `mysql-standard.yaml` for namespace
-  `app-project1-dev`:
+  `app-project1-dev` and create it:
 ```yaml
 cat > mysql-standard.yaml <<EOF
 ---
@@ -274,26 +297,18 @@ classRef:
   name: azure-mysql-standard
   namespace: azure-infra-dev
 EOF
-```
 
-* Create the `MySQLInstanceClass`:
-```bash
 kubectl apply -f mysql-standard.yaml
 ```
 
 * You should see the following output:
-```bash
-mysqlinstanceclass.database.crossplane.io/mysql-standard created
-```
+
+> mysqlinstanceclass.database.crossplane.io/mysql-standard created
 
 * You can verify creation with the following command and output:
 
-*Command*
 ```bash
-kubectl get mysqlinstanceclasses -n app-project1-dev
-```
-*Output*
-```bash
+$ kubectl get mysqlinstanceclasses -n app-project1-dev
 NAME             AGE
 mysql-standard   27s
 ```
@@ -328,13 +343,14 @@ classRef:
 ```
 
 #### Resource Claims
+
 Resource claims are used to create external resources by referencing a class of
 service in the claim's namespace. When a claim is created, Crossplane uses the
-referenced portable class to find a cloud-speific resource class to use as the
+referenced portable class to find a cloud-specific resource class to use as the
 configuration for the external resource. We need a to create a claim to
 provision the MySQL database we will use with Azure.
 
-* Define a `MySQLInstance` claim in `mysql-claim.yaml`:
+* Define a `MySQLInstance` claim in `mysql-claim.yaml` and create it:
 ```yaml
 cat > mysql-claim.yaml <<EOF
 apiVersion: database.crossplane.io/v1alpha1
@@ -349,24 +365,16 @@ spec:
     name: wordpressmysql
   engineVersion: "5.6"
 EOF
-```
 
-* Create the `MySQLInstance`:
-```bash
 kubectl apply -f mysql-claim.yaml
 ```
 
-What we are looking for is for `STATUS` value to become `Bound` which indicates
-the managed resource was successfully provisioned and is ready for consumption.
-You can see when claim is bound using the following:
+What we are looking for is for the `STATUS` value to become `Bound` which
+indicates the managed resource was successfully provisioned and is ready for
+consumption. You can see when claim is bound using the following:
 
-*Command*
 ```bash
-kubectl get mysqlinstances -n app-project1-dev
-```
-
-*Output*
-```bash
+$ kubectl get mysqlinstances -n app-project1-dev
 NAME          STATUS   CLASS            VERSION   AGE
 mysql-claim   Bound    mysql-standard   5.6       11m
 ```
@@ -374,13 +382,8 @@ mysql-claim   Bound    mysql-standard   5.6       11m
 If the `STATUS` is blank, we are still waiting for the claim to become bound.
 You can observe resource creation progression using the following:
 
-*Command*
 ```bash
-kubectl describe mysqlinstance mysql-claim -n app-project1-dev
-```
-
-*Output*
-```yaml
+$ kubectl describe mysqlinstance mysql-claim -n app-project1-dev
 Name:         mysql-claim
 Namespace:    app-project1-dev
 Labels:       <none>
@@ -441,16 +444,18 @@ spec:
 ```
 
 #### Virtual Network Rule
+
 Before we install Wordpress, we need establish connectivity between our MySQL
 database and our AKS cluster. We can do this by creating a [Virtual Network
-Rule](https://docs.microsoft.com/en-us/azure/mysql/concepts-data-access-and-security-vnet).
+Rule][azure-vnet-rule].
 
 * Set `MYSQL_NAME` environment variable:
 ```bash
 export MYSQL_NAME=$(kubectl get -o json mysqlinstance mysql-claim -n app-project1-dev | jq -j '.spec.resourceRef.name')
 ```
 
-* Define a `MysqlServerVirtualNetworkRule` in `wordpress-vnet-rule.yaml`:
+* Define a `MysqlServerVirtualNetworkRule` in `wordpress-vnet-rule.yaml` and
+  create it:
 ```yaml
 cat > wordpress-vnet-rule.yaml <<EOF
 ---
@@ -461,35 +466,29 @@ metadata:
   namespace: app-project1-dev
 spec:
   name: wordpress-vnet-rule
-  serverName: MYSQL_NAME
-  resourceGroupName: AKS_RESOURCE_GROUP
+    serverName: ${MYSQL_NAME
+  resourceGroupName: ${AKS_RESOURCE_GROUP}
   properties:
-    virtualNetworkSubnetId: /subscriptions/SUBSCRIPTION_ID/resourceGroups/AKS_RESOURCE_GROUP/providers/Microsoft.Network/virtualNetworks/AKS_VNET/subnets/aks-subnet
+    virtualNetworkSubnetId: /subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${AKS_RESOURCE_GROUP}/providers/Microsoft.Network/virtualNetworks/${AKS_VNET}/subnets/aks-subnet
   providerRef:
     name: demo-azure
     namespace: azure-infra-dev
   reclaimPolicy: Delete
 EOF
-```
 
-* Create the `MysqlServerVirtualNetworkRule`:
-```bash
-sed "s/AKS_RESOURCE_GROUP/$AKS_RESOURCE_GROUP/g; s/SUBSCRIPTION_ID/$SUBSCRIPTION_ID/g; s/AKS_VNET/$AKS_VNET/g; s/MYSQL_NAME/$MYSQL_NAME/g" wordpress-vnet-rule.yaml | kubectl apply -f -
+kubectl apply -f wordpress-vnet-rule.yaml
 ```
 
 * You can verify creation with the following command and output:
 
-*Command*
 ```bash
 kubectl get mysqlservervirtualnetworkrules -n app-project1-dev
-```
-*Output*
-```bash
 NAME                  AGE
 wordpress-vnet-rule   27s
 ```
 
 ## Install Wordpress
+
 Installing Wordpress requires creating a Kubernetes `Deployment` and load
 balancer `Service`. We will point the deployment to the `wordpressmysql` secret
 that we specified in our claim above for the Wordpress container environment
@@ -498,13 +497,8 @@ the claim became `Bound`.
 
 * Check to make sure `wordpressmysql` exists and is populated:
 
-*Command*
 ```bash
-kubectl describe secret wordpressmysql -n app-project1-dev
-```
-
-*Output*
-```bash
+$ kubectl describe secret wordpressmysql -n app-project1-dev
 Name:         wordpressmysql
 Namespace:    app-project1-dev
 Labels:       <none>
@@ -519,7 +513,7 @@ password:  27 bytes
 username:  58 bytes
 ```
 
-* Define the `Deployment` and `Service` in `wordpress-app.yaml`:
+* Define the `Deployment` and `Service` in `wordpress-app.yaml` and create it:
 ```yaml
 cat > wordpress-app.yaml <<EOF
 apiVersion: apps/v1
@@ -575,21 +569,14 @@ spec:
     app: wordpress
   type: LoadBalancer
 EOF
-```
 
-* Create the `Deployment` and `Service`:
-```bash
-kubectl create -f wordpress-app.yaml
+kubectl apply -f wordpress-app.yaml
 ```
 
 * You can verify creation with the following command and output:
 
-*Command*
 ```bash
-kubectl get -f wordpress-deployment.yaml 
-```
-*Output*
-```bash
+$ kubectl get -f wordpress-app.yaml 
 NAME                        READY   UP-TO-DATE   AVAILABLE   AGE
 deployment.apps/wordpress   1/1     1            1           11m
 
@@ -600,19 +587,20 @@ service/wordpress   LoadBalancer   10.0.128.30   52.168.69.6   80:32587/TCP   11
 If the `EXTERNAL-IP` field of the `LoadBalancer` is `<pending>`, wait until it
 becomes available, then navigate to the address. You should see the following:
 
-![alt azure wordpress](azure-wordpress.png)
+![alt wordpress](wordpress-start.png)
 
 ## Uninstall
 
 ### Wordpress
-All Wordpress components that we installed using Helm can be deleted with one
-command:
+
+All Wordpress components that we installed can be deleted with one command:
 
 ```bash
 kubectl delete -f wordpress-app.yaml
 ```
 
-### Crossplane
+### Crossplane Configuration
+
 To delete all created resources, but leave Crossplane and the Azure stack
 running, execute the following commands:
 ```bash
@@ -622,4 +610,52 @@ kubectl delete -f mysql-standard.yaml
 kubectl delete -f azure-mysql-standard.yaml
 kubectl delete -f app-project1-dev-namespace.yaml
 kubectl delete -f azure-provider.yaml
+kubectl delete -f azure-infra-dev-namespace.yaml
 ```
+
+## Conclusion and Next Steps
+
+In this guide we:
+
+* Setup an AKS Cluster using the Azure CLI
+* Installed Crossplane from alpha channel
+* Installed the Azure stack
+* Created an infrastructure (`azure-infra-dev`) and application
+  (`app-project1-dev`) namespace
+* Setup an Azure `Provider` with our account
+* Created a `SQLServerClass` in the ` with configuration for a MySQL database on
+  Azure
+* Created a `MySQLInstanceClass` that specified the `SQLServerClass` as
+  `mysql-standard` in the `app-project1-dev` namespace
+* Created a `MySQLInstance` claim in the `app-project1-dev1` namespace that
+  referenced `mysql-standard`
+* Created a `MysqlServerVirtualNetworkRule` to establish secure connectivity
+  between our AKS Cluster and MySQL database
+* Created a `Deployment` and `Service` to run Wordpress on our AKS Cluster and
+  assign an external IP address to it
+
+If you would like to try out a similar workflow using a different cloud
+provider, take a look at the other [services guides][serives]. If you would like
+to learn more about stacks, checkout the [stacks guide][stacks]
+
+<!-- Named links -->
+[azure-cli]: https://docs.microsoft.com/en-us/cli/azure/?view=azure-cli-latest
+[azure-login]:
+https://docs.microsoft.com/en-us/cli/azure/authenticate-azure-cli?view=azure-cli-latest
+[install-kubectl]: https://kubernetes.io/docs/tasks/tools/install-kubectl/
+[using-helm]: https://docs.helm.sh/using_helm/ [jq-docs]:
+https://stedolan.github.io/jq/
+
+[aks-walthrough]:
+https://docs.microsoft.com/en-us/azure/aks/kubernetes-walkthrough
+
+[crossplane-install]: ../install-crossplane.md#alpha [azure-stack-install]:
+../install-crossplane.md#azure-stack [cloud-creds]: ../cloud-providers.md
+
+[azure-provider-guide]: ../cloud-providers/azure/azure-provider.md
+
+[azure-mysql]: https://azure.microsoft.com/en-us/services/mysql/
+[azure-vnet-rule]:
+https://docs.microsoft.com/en-us/azure/mysql/concepts-data-access-and-security-vnet
+
+[services]: ../services-guide.md [stacks]: ../stacks-guide.md
