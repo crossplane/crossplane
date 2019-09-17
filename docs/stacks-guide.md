@@ -101,6 +101,25 @@ For more options for installing, including how to install a more
 bleeding-edge version, or how to uninstall, see the [full install
 documentation][crossplane-install-docs].
 
+### Create the application namespace
+
+[Kubernetes namespaces][kubernetes-namespace-docs] are used to isolate
+resources in the same cluster, and we'll use them in our Crossplane
+control cluster too. Let's create a namespace for our application's
+resources. We'll call it `app-project1-dev` for the purposes of this
+guide, but any name can be used.
+
+```
+kubectl create namespace app-project1-dev
+```
+
+The reason we need to create the namespace before we configure the cloud
+provider is because we will be setting up some cloud provider
+configuration in that namespace. The configuration will help our
+application not care about which specific provider it uses. For more
+details on how this works, see the Crossplane documentation on [portable
+classes][portable-classes-docs].
+
 ### Configure support for your cloud provider
 
 Next we'll set up support for our cloud provider of choice! See the
@@ -123,11 +142,19 @@ this using a Crossplane Stack. For more information about stacks, see
 the [full Stack documentation][stack-docs].
 
 We can use the [Crossplane CLI][crossplane-cli] to install our stack which adds support for
-Wordpress:
+Wordpress. Let's install it into a namespace for our project, which
+we'll call `app-project1-dev` for the purposes of this guide. To install
+to the current namespace, `install` can be used, but since we want to
+install to a specific namespace, we will use `generate-install`:
 
 ```
-kubectl crossplane stack install 'crossplane/sample-stack-wordpress:latest' 'sample-stack-wordpress'
+kubectl crossplane stack generate-install 'crossplane/sample-stack-wordpress:latest' 'sample-stack-wordpress' | kubectl apply --namespace app-project1-dev -f -
 ```
+
+Using the `generate-install` command and piping the output to `kubectl
+apply` instead of using the `install` command gives us more control over
+how the stack's installation is handled. Everything is a Kubernetes
+object!
 
 This pulls the stack package from a registry to install it into
 Crossplane. For more details about how to use the CLI, see the
@@ -150,7 +177,7 @@ metadata:
   name: my-wordpressinstance
 EOF
 
-kubectl apply -f my-wordpress.yaml
+kubectl apply --namespace app-project1-dev -f my-wordpress.yaml
 ```
 
 If the control cluster doesn't recognize the Wordpress instance type, it
@@ -166,14 +193,14 @@ resources that Crossplane is creating for us:
 
 ```
 # The claim for the database
-kubectl get mysqlinstance
+kubectl get -n app-project1-dev mysqlinstance
 # The claim for the Kubernetes cluster
-kubectl get kubernetescluster
+kubectl get -n app-project1-dev kubernetescluster
 
 # The workload definition
-kubectl get kubernetesapplication
+kubectl get -n app-project1-dev kubernetesapplication
 # The things created on the Kubernetes cluster as part of the workload
-kubectl get kubernetesapplicationresource
+kubectl get -n app-project1-dev kubernetesapplicationresource
 ```
 
 For more information about how Crossplane manages databases and
@@ -190,7 +217,7 @@ which represents the workload's service. Here's a way to watch for the
 ip:
 
 ```
-kubectl get kubernetesapplicationresource -n wordpresses -o custom-columns='NAME:.metadata.name,NAMESPACE:.spec.template.metadata.namespace,KIND:.spec.template.kind,SERVICE-EXTERNAL-IP:.status.remote.loadBalancer.ingress[0].ip' --watch
+kubectl get kubernetesapplicationresource -n app-project1-dev -o custom-columns='NAME:.metadata.name,NAMESPACE:.spec.template.metadata.namespace,KIND:.spec.template.kind,SERVICE-EXTERNAL-IP:.status.remote.loadBalancer.ingress[0].ip' --watch
 ```
 
 The ip will show up on the one which has a `Service` kind.
@@ -210,13 +237,14 @@ in Crossplane and garbage collection in Kubernetes.
 To delete the Wordpress instance:
 
 ```
-kubectl delete wordpressinstance my-wordpressinstance
+kubectl delete -n app-project1-dev wordpressinstance my-wordpressinstance
 ```
 
 We can also remove the stack, using the Crossplane CLI:
 
 ```
-kubectl crossplane stack uninstall sample-stack-wordpress
+kubectl crossplane stack uninstall sample-stack-wordpress -n
+app-project1-dev
 ```
 
 Removing the stack removes any Wordpress instances that were created.
@@ -275,10 +303,12 @@ guide][stack-developer-guide].
 [kubernetesapplicationresource-docs]: TODO
 [claims-docs]: concepts.md#resource-claims-and-resource-classes
 [resource-classes-docs]: concepts.md#resource-claims-and-resource-classes
+[portable-classes-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-default-resource-class.md
 [workloads-docs]: concepts.md#resources-and-workloads
 
 [kubernetes-concepts]: https://kubernetes.io/docs/concepts/
 [kubernetes-docs]: https://kubernetes.io/docs/home/
+[kubernetes-namespaces-docs]: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/
 [kubectl-docs]: https://kubernetes.io/docs/reference/generated/kubectl/kubectl-commands
 
 [helm-install]: https://github.com/helm/helm#install

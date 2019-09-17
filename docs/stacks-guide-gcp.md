@@ -339,11 +339,12 @@ be shared by all resources in all namespaces of the Crossplane control
 cluster. Now, we will use a namespace specific to our application, and
 we'll populate it with resources that will help Crossplane know what
 configuration to use to satisfy our application's resource claims.
-You can use any namespace for your application's resources, but for this
-tutorial we'll create a new namespace.
+If you have been following along with the rest of the stacks guide, the
+namespace should already be created. But in case it isn't, this is what
+you would run to create it:
 
 ```
-kubectl create namespace mynamespace
+kubectl create namespace app-project1-dev
 ```
 
 Now that we have a namespace, we need to tell Crossplane which resource
@@ -366,7 +367,7 @@ apiVersion: database.crossplane.io/v1alpha1
 kind: MySQLInstanceClass
 metadata:
   name: standard-mysql
-  namespace: mynamespace
+  namespace: app-project1-dev
   labels:
     default: "true"
 classRef:
@@ -379,7 +380,7 @@ apiVersion: compute.crossplane.io/v1alpha1
 kind: KubernetesClusterClass
 metadata:
   name: standard-cluster
-  namespace: mynamespace
+  namespace: app-project1-dev
   labels:
     default: "true"
 classRef:
