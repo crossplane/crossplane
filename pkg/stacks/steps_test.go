@@ -20,8 +20,8 @@ import (
 	"testing"
 )
 
-func Test_iconStep(t *testing.T) {
-	sp := NewStackPackage()
+func TestIconStep(t *testing.T) {
+	sp := NewStackPackage("/")
 	step := iconStep(sp)
 	step("/icon.png", []byte("base64me"))
 
@@ -29,7 +29,7 @@ func Test_iconStep(t *testing.T) {
 		t.Errorf("iconStep(...); expected 1 icon")
 	}
 
-	if v, found := sp.Icons["/"]; !found {
+	if v, found := sp.Icons["/icon.png"]; !found {
 		t.Errorf("iconStep(...); icon not found in StackPackage Icons")
 	} else {
 		if v.Base64IconData != "YmFzZTY0bWU=" {

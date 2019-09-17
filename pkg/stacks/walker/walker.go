@@ -41,6 +41,8 @@ type ReadFileWalker interface {
 
 // ResourceDir contains the the directory to walk on and the WalkFuncs to perform
 type ResourceDir struct {
+	// Base is the base (root) dir that will be walked. It is expected to be an absolute path,
+	// i.e. have a root to the path, at the very least "/".
 	Base    string
 	Walker  ReadFileWalker
 	walkers []filepath.WalkFunc

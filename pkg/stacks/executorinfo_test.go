@@ -37,7 +37,7 @@ var (
 	_ ExecutorInfoDiscoverer = &KubeExecutorInfoDiscoverer{}
 )
 
-func Test_executorInfo_Image(t *testing.T) {
+func TestExecutorInfoImage(t *testing.T) {
 	type fields struct {
 		image string
 	}

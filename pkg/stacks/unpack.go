@@ -44,14 +44,19 @@ const (
 	resourceFileNamePattern = "*resource.yaml"
 	groupFileName           = "group.yaml"
 	appFileName             = "app.yaml"
-	iconFileNamePattern     = "icon.*"
-	crdFileNamePattern      = "*crd.yaml"
-	uiSpecFileNamePattern   = "*ui-schema.yaml"
-	uiSpecFileName          = "ui-schema.yaml" // global ui schema filename
-	yamlSeparator           = "\n---\n"
+
+	// iconFileNamePattern is the pattern used when walking the stack package and looking for icon files.
+	// Icon files that are for a single resource can be prefixed with the kind of the resource, e.g.,
+	// mytype.icon.svg
+	// Multiple icon types and therefore file extensions are supported: svg, png, jpg, gif
+	iconFileNamePattern = "*icon.*"
+
+	crdFileNamePattern    = "*crd.yaml"
+	uiSpecFileNamePattern = "*ui-schema.yaml"
+	yamlSeparator         = "\n---\n"
 
 	// Stack annotation constants
-	annotationStackIcon             = "stacks.crossplane.io/icon"
+	annotationStackIcon             = "stacks.crossplane.io/icon-data-uri"
 	annotationStackUISpec           = "stacks.crossplane.io/ui-spec"
 	annotationStackTitle            = "stacks.crossplane.io/stack-title"
 	annotationGroupTitle            = "stacks.crossplane.io/group-title"
@@ -70,6 +75,13 @@ const (
 
 var (
 	log = logging.Logger.WithName("stacks")
+
+	// iconFileGlobalNames is the set of supported icon file names at the global level, i.e. not
+	// specific to a single resource
+	iconFileGlobalNames = []string{"icon.svg", "icon.png", "icon.jpg", "icon.jpeg", "icon.gif"}
+
+	// uiSpecFileGlobalNames is the set of supported ui schema file names at the global level.
+	uiSpecFileGlobalNames = []string{"ui-schema.yaml"}
 )
 
 // StackResource provides the Stack metadata for a CRD. This is the format for resource.yaml files.
@@ -136,6 +148,9 @@ type StackPackage struct {
 
 	// appSet indicates if a App has been assigned through SetApp (for use by GotApp)
 	appSet bool
+
+	// baseDir is the directory that serves as the base of the stack package (it should be absolute)
+	baseDir string
 }
 
 // Yaml returns a multiple document YAML representation of the Stack Package
@@ -238,8 +253,11 @@ func (sp *StackPackage) AddUI(filepath string, ui string) {
 
 // AddIcon adds an icon to the StackPackage
 func (sp *StackPackage) AddIcon(path string, icon v1alpha1.IconSpec) {
-	// TODO(displague) do we want to keep all icons in the Stack spec or just the preferred type?
-	sp.Stack.Spec.AppMetadataSpec.Icons = append(sp.Stack.Spec.AppMetadataSpec.Icons, icon)
+	// only store top-level icons in the stack spec
+	if filepath.Dir(path) == sp.baseDir {
+		// TODO(displague) do we want to keep all top-level icons in the Stack spec or just the preferred type?
+		sp.Stack.Spec.AppMetadataSpec.Icons = append(sp.Stack.Spec.AppMetadataSpec.Icons, icon)
+	}
 
 	// highest priority wins per path
 	iconMimePriority := map[string]int{"image/svg+xml": 4, "image/png": 3, "image/jpeg": 2, "image/gif": 1}
@@ -249,7 +267,7 @@ func (sp *StackPackage) AddIcon(path string, icon v1alpha1.IconSpec) {
 		}
 	}
 
-	sp.Icons[filepath.Dir(path)] = &icon
+	sp.Icons[path] = &icon
 }
 
 // AddCRD appends a CRD to the CRDs of this StackPackage
@@ -362,7 +380,7 @@ func (sp *StackPackage) applyRules() error {
 }
 
 // NewStackPackage returns a StackPackage with maps created
-func NewStackPackage() *StackPackage {
+func NewStackPackage(baseDir string) *StackPackage {
 	// create a Stack record and populate it with the relevant package contents
 	v, k := v1alpha1.StackGroupVersionKind.ToAPIVersionAndKind()
 
@@ -379,6 +397,7 @@ func NewStackPackage() *StackPackage {
 		Icons:     map[string]*v1alpha1.IconSpec{},
 		Resources: map[string]StackResource{},
 		UISpecs:   map[string]string{},
+		baseDir:   baseDir,
 	}
 
 	return sp
@@ -388,10 +407,13 @@ func NewStackPackage() *StackPackage {
 // The custom Steps process Stack resource files and the output is multiple
 // YAML documents.  CRDs container within the stack will be annotated based
 // on the other Stack resource files contained within the Stack.
-func Unpack(rw walker.ResourceWalker, out io.StringWriter, permissionScope string) error {
+//
+// baseDir is expected to be an absolute path, i.e. have a root to the path,
+// at the very least "/".
+func Unpack(rw walker.ResourceWalker, out io.StringWriter, baseDir string, permissionScope string) error {
 	log.V(logging.Debug).Info("Unpacking stack")
 
-	sp := NewStackPackage()
+	sp := NewStackPackage(baseDir)
 
 	rw.AddStep(appFileName, appStep(sp))
 
@@ -545,13 +567,14 @@ func (sp *StackPackage) applyResourceAnnotations(crdPath string, crd *apiextensi
 func (sp *StackPackage) applyIconAnnotations(crdPath string, crd *apiextensions.CustomResourceDefinition) {
 	iconPathsOrdered := orderStackIconKeys(sp.Icons)
 	for _, iconPath := range iconPathsOrdered {
-		icon := sp.Icons[iconPath]
-		if strings.HasPrefix(crdPath, iconPath) {
+		if isMetadataApplicableToCRD(crdPath, iconPath, iconFileGlobalNames, crd.Spec.Names.Kind) {
+			// the current icon file is applicable to the given CRD, apply the icon to the CRD now
+			// and then break from the loop since we do not apply more than one icon per resource
+			icon := sp.Icons[iconPath]
 			crd.ObjectMeta.Annotations[annotationStackIcon] = "data:" + icon.MediaType + ";base64," + icon.Base64IconData
 			break
 		}
 	}
-
 }
 
 // applyUISpecAnnotations annotates ui-schema.yaml contents to the appropriate StackPackage CRDs
@@ -562,11 +585,10 @@ func (sp *StackPackage) applyIconAnnotations(crdPath string, crd *apiextensions.
 func (sp *StackPackage) applyUISpecAnnotations(crdPath string, crd *apiextensions.CustomResourceDefinition) {
 	uiPathsOrdered := orderStringKeys(sp.UISpecs)
 	for _, uiSpecPath := range uiPathsOrdered {
-		spec := strings.Trim(sp.UISpecs[uiSpecPath], "\n")
-		dir := filepath.Dir(uiSpecPath)
-		basename := filepath.Base(uiSpecPath)
-		if strings.HasPrefix(crdPath, dir) &&
-			(basename == uiSpecFileName || strings.HasPrefix(basename, strings.ToLower(crd.Spec.Names.Kind)+".")) {
+		if isMetadataApplicableToCRD(crdPath, uiSpecPath, uiSpecFileGlobalNames, crd.Spec.Names.Kind) {
+			// the current UI schema file is applicable to the given CRD, apply its spec content to the CRD now
+			spec := strings.Trim(sp.UISpecs[uiSpecPath], "\n")
+
 			// TODO(displague) are there concerns about the concatenation order of ui-schema.yaml and kind.ui-schema.yaml?
 			if len(crd.ObjectMeta.Annotations[annotationStackUISpec]) > 0 {
 				appendedUI := fmt.Sprintf("%s\n---\n%s", crd.ObjectMeta.Annotations[annotationStackUISpec], spec)
@@ -576,5 +598,30 @@ func (sp *StackPackage) applyUISpecAnnotations(crdPath string, crd *apiextension
 			}
 		}
 	}
+}
 
+// isMetadataApplicableToCRD determines if the given metadata file path is applicable to the given CRD.
+func isMetadataApplicableToCRD(crdPath, metadataPath string, globalFileNames []string, crdKind string) bool {
+	// compare the directory of the given metadata file path to the CRDs path
+	metadataDir := filepath.Dir(metadataPath)
+	if !strings.HasPrefix(crdPath, metadataDir) {
+		// the CRD is not in the same directory (or a child directory) that the metadata file
+		// path is, the metadata is not applicable to this CRD
+		return false
+	}
+
+	// get the file name of the metadata file path, e.g. /a/b/icon.svg => icon.svg
+	metadataBasename := filepath.Base(metadataPath)
+
+	for _, g := range globalFileNames {
+		if metadataBasename == g {
+			// the metadata file exactly matches one of the allowed global file names,
+			// this metadata file is applicable to the given CRD
+			return true
+		}
+	}
+
+	// check to see if the metadata file name starts with the kind of the given CRD, if it does
+	// then we consider that a match.  e.g. mytype.icon.svg is applicable to a CRD with kind mytype
+	return strings.HasPrefix(metadataBasename, strings.ToLower(crdKind)+".")
 }

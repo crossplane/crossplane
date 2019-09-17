@@ -69,7 +69,7 @@ func main() {
 		// Users are not expected to run this command themselves, the stack manager itself should
 		// execute this command.
 		extUnpackCmd             = extCmd.Command("unpack", "Unpack a stack")
-		extUnpackDir             = extUnpackCmd.Flag("content-dir", "The directory that contains the stack contents").Required().String()
+		extUnpackDir             = extUnpackCmd.Flag("content-dir", "The absolute path of the directory that contains the stack contents").Required().String()
 		extUnpackOutfile         = extUnpackCmd.Flag("outfile", "The file where the YAML Stack record and CRD artifacts will be written").String()
 		extUnpackPermissionScope = extUnpackCmd.Flag("permission-scope", "The permission-scope that the stack must request (Namespaced, Cluster)").Default("Namespaced").String()
 	)
@@ -110,7 +110,7 @@ func main() {
 		// TODO(displague) afero.NewBasePathFs could avoid the need to track Base
 		fs := afero.NewOsFs()
 		rd := &walker.ResourceDir{Base: *extUnpackDir, Walker: afero.Afero{Fs: fs}}
-		kingpin.FatalIfError(stacks.Unpack(rd, outFile, *extUnpackPermissionScope), "failed to unpack stacks")
+		kingpin.FatalIfError(stacks.Unpack(rd, outFile, rd.Base, *extUnpackPermissionScope), "failed to unpack stacks")
 		return
 	default:
 		kingpin.FatalUsage("unknown command %s", cmd)
