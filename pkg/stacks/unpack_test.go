@@ -113,7 +113,7 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     app.kubernetes.io/managed-by: stack-manager
-    stacks.crossplane.io/icon: data:image/jpeg;base64,bW9jay1pY29uLWRhdGE=
+    stacks.crossplane.io/icon-data-uri: data:image/jpeg;base64,bW9jay1pY29uLWRhdGE=
     stacks.crossplane.io/stack-title: Sample Crossplane Stack
   creationTimestamp: null
   name: mytypes.samples.upbound.io
@@ -243,7 +243,7 @@ metadata:
     stacks.crossplane.io/group-overview-short: Group Short Overview
     stacks.crossplane.io/group-readme: Group Readme
     stacks.crossplane.io/group-title: Group Title
-    stacks.crossplane.io/icon: data:image/svg+xml;base64,bW9jay1pY29uLWRhdGEtc3Zn
+    stacks.crossplane.io/icon-data-uri: data:image/svg+xml;base64,bW9jay1pY29uLWRhdGEtc3Zn
     stacks.crossplane.io/stack-title: Sample Crossplane Stack
     stacks.crossplane.io/ui-spec: |-
       uiSpecVersion: 0.3
@@ -279,7 +279,7 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     app.kubernetes.io/managed-by: stack-manager
-    stacks.crossplane.io/icon: data:image/jpeg;base64,bW9jay1pY29uLWRhdGE=
+    stacks.crossplane.io/icon-data-uri: data:image/jpeg;base64,bW9jay1pY29uLWRhdGE=
     stacks.crossplane.io/stack-title: Sample Crossplane Stack
   creationTimestamp: null
   name: secondcousins.samples.upbound.io
@@ -315,7 +315,7 @@ metadata:
     stacks.crossplane.io/group-overview-short: Group Short Overview
     stacks.crossplane.io/group-readme: Group Readme
     stacks.crossplane.io/group-title: Group Title
-    stacks.crossplane.io/icon: data:image/svg+xml;base64,bW9jay1pY29uLWRhdGEtc3Zn
+    stacks.crossplane.io/icon-data-uri: data:image/svg+xml;base64,bW9jay1pY29uLWRhdGEtc3Zn
     stacks.crossplane.io/resource-category: Resource Category
     stacks.crossplane.io/resource-overview: Resource Overview
     stacks.crossplane.io/resource-overview-short: Resource Short Overview
@@ -367,7 +367,7 @@ metadata:
     stacks.crossplane.io/group-overview-short: Group Short Overview
     stacks.crossplane.io/group-readme: Group Readme
     stacks.crossplane.io/group-title: Group Title
-    stacks.crossplane.io/icon: data:image/jpeg;base64,bW9jay1pY29uLWRhdGE=
+    stacks.crossplane.io/icon-data-uri: data:image/jpeg;base64,bW9jay1pY29uLWRhdGE=
     stacks.crossplane.io/stack-title: Sample Crossplane Stack
     stacks.crossplane.io/ui-spec: |-
       uiSpecVersion: 0.3
@@ -444,10 +444,6 @@ spec:
   icons:
   - base64Data: bW9jay1pY29uLWRhdGE=
     mediatype: image/jpeg
-  - base64Data: bW9jay1pY29uLWRhdGEtcG5n
-    mediatype: image/png
-  - base64Data: bW9jay1pY29uLWRhdGEtc3Zn
-    mediatype: image/svg+xml
   keywords:
   - samples
   - examples
@@ -532,7 +528,7 @@ metadata:
     stacks.crossplane.io/group-overview-short: Group Short Overview
     stacks.crossplane.io/group-readme: Group Readme
     stacks.crossplane.io/group-title: Group Title
-    stacks.crossplane.io/icon: data:image/svg+xml;base64,bW9jay1pY29uLWRhdGEtc3Zn
+    stacks.crossplane.io/icon-data-uri: data:image/svg+xml;base64,bW9jay1pY29uLWRhdGEtc3Zn
     stacks.crossplane.io/stack-title: Sample Crossplane Stack
     stacks.crossplane.io/ui-spec: |-
       uiSpecVersion: 0.3
@@ -568,7 +564,7 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     app.kubernetes.io/managed-by: stack-manager
-    stacks.crossplane.io/icon: data:image/jpeg;base64,bW9jay1pY29uLWRhdGE=
+    stacks.crossplane.io/icon-data-uri: data:image/jpeg;base64,bW9jay1pY29uLWRhdGE=
     stacks.crossplane.io/stack-title: Sample Crossplane Stack
   creationTimestamp: null
   name: secondcousins.samples.upbound.io
@@ -604,7 +600,7 @@ metadata:
     stacks.crossplane.io/group-overview-short: Group Short Overview
     stacks.crossplane.io/group-readme: Group Readme
     stacks.crossplane.io/group-title: Group Title
-    stacks.crossplane.io/icon: data:image/svg+xml;base64,bW9jay1pY29uLWRhdGEtc3Zn
+    stacks.crossplane.io/icon-data-uri: data:image/svg+xml;base64,c2luZ2xlLXJlc291cmNlLW1vY2staWNvbi1kYXRhLXN2Zw==
     stacks.crossplane.io/resource-category: Resource Category
     stacks.crossplane.io/resource-overview: Resource Overview
     stacks.crossplane.io/resource-overview-short: Resource Short Overview
@@ -656,7 +652,7 @@ metadata:
     stacks.crossplane.io/group-overview-short: Group Short Overview
     stacks.crossplane.io/group-readme: Group Readme
     stacks.crossplane.io/group-title: Group Title
-    stacks.crossplane.io/icon: data:image/jpeg;base64,bW9jay1pY29uLWRhdGE=
+    stacks.crossplane.io/icon-data-uri: data:image/jpeg;base64,bW9jay1pY29uLWRhdGE=
     stacks.crossplane.io/stack-title: Sample Crossplane Stack
     stacks.crossplane.io/ui-spec: |-
       uiSpecVersion: 0.3
@@ -733,10 +729,6 @@ spec:
   icons:
   - base64Data: bW9jay1pY29uLWRhdGE=
     mediatype: image/jpeg
-  - base64Data: bW9jay1pY29uLWRhdGEtcG5n
-    mediatype: image/png
-  - base64Data: bW9jay1pY29uLWRhdGEtc3Zn
-    mediatype: image/svg+xml
   keywords:
   - samples
   - examples
@@ -816,7 +808,7 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     app.kubernetes.io/managed-by: stack-manager
-    stacks.crossplane.io/icon: data:image/jpeg;base64,bW9jay1pY29uLWRhdGE=
+    stacks.crossplane.io/icon-data-uri: data:image/jpeg;base64,bW9jay1pY29uLWRhdGE=
     stacks.crossplane.io/stack-title: Sample Crossplane Stack
   creationTimestamp: null
   name: mytypes.samples.upbound.io
@@ -1141,7 +1133,7 @@ func TestUnpack(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := &bytes.Buffer{}
 			rd := &walker.ResourceDir{Base: tt.root, Walker: afero.Afero{Fs: tt.fs}}
-			err := Unpack(rd, got, "Namespaced")
+			err := Unpack(rd, got, tt.root, "Namespaced")
 
 			if diff := cmp.Diff(tt.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("Unpack() -want error, +got error:\n%s", diff)
@@ -1154,7 +1146,7 @@ func TestUnpack(t *testing.T) {
 	}
 }
 
-func TestUnpack_cluster(t *testing.T) {
+func TestUnpackCluster(t *testing.T) {
 	type want struct {
 		output string
 		err    error
@@ -1193,6 +1185,7 @@ func TestUnpack_cluster(t *testing.T) {
 				afero.WriteFile(fs, filepath.Join(groupDir, "ui-schema.yaml"), []byte(simpleUIFile("group")), 0644)
 				afero.WriteFile(fs, filepath.Join(crdDir, "icon.png"), []byte("mock-icon-data-png"), 0644)
 				afero.WriteFile(fs, filepath.Join(crdDir, "icon.svg"), []byte("mock-icon-data-svg"), 0644)
+				afero.WriteFile(fs, filepath.Join(crdDir, "mytype.icon.svg"), []byte("single-resource-mock-icon-data-svg"), 0644)
 				afero.WriteFile(fs, filepath.Join(crdDir, "resource.yaml"), []byte(simpleResourceFile), 0644)
 				afero.WriteFile(fs, filepath.Join(crdDir, "ui-schema.yaml"), []byte(simpleUIFile("sibling")), 0644)
 				afero.WriteFile(fs, filepath.Join(crdDir, "mytype.ui-schema.yaml"), []byte(simpleUIFile("kind")), 0644)
@@ -1212,7 +1205,7 @@ func TestUnpack_cluster(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := &bytes.Buffer{}
 			rd := &walker.ResourceDir{Base: tt.root, Walker: afero.Afero{Fs: tt.fs}}
-			err := Unpack(rd, got, "Cluster")
+			err := Unpack(rd, got, tt.root, "Cluster")
 
 			if diff := cmp.Diff(tt.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("Unpack() -want error, +got error:\n%s", diff)
@@ -1225,7 +1218,7 @@ func TestUnpack_cluster(t *testing.T) {
 	}
 }
 
-func Test_orderStackIconKeys(t *testing.T) {
+func TestOrderStackIconKeys(t *testing.T) {
 	type args struct {
 		m map[string]*v1alpha1.IconSpec
 	}
@@ -1250,6 +1243,100 @@ func Test_orderStackIconKeys(t *testing.T) {
 			got := orderStackIconKeys(tt.args.m)
 			if diff := cmp.Diff(tt.want, got); diff != "" {
 				t.Errorf("orderStackIconKeys(): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestIsMetadataApplicableToCRD(t *testing.T) {
+	type args struct {
+		crdPath         string
+		metadataPath    string
+		globalFileNames []string
+		crdKind         string
+	}
+
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{
+			name: "GlobalFileRootMatch",
+			args: args{
+				crdPath:         "/a/b/c/crd.yaml",
+				metadataPath:    "/icon.svg",
+				globalFileNames: iconFileGlobalNames,
+				crdKind:         "mytype",
+			},
+			want: true,
+		},
+		{
+			name: "GlobalFileParentMatch",
+			args: args{
+				crdPath:         "/a/b/c/crd.yaml",
+				metadataPath:    "/a/b/ui-schema.yaml",
+				globalFileNames: uiSpecFileGlobalNames,
+				crdKind:         "mytype",
+			},
+			want: true,
+		},
+		{
+			name: "GlobalFileParentSingleResourceFileMatch",
+			args: args{
+				crdPath:         "/a/b/c/mytype.crd.yaml",
+				metadataPath:    "/a/b/ui-schema.yaml",
+				globalFileNames: uiSpecFileGlobalNames,
+				crdKind:         "mytype",
+			},
+			want: true,
+		},
+		{
+			name: "GlobalFileSiblingMatch",
+			args: args{
+				crdPath:         "/a/b/c/crd.yaml",
+				metadataPath:    "/a/b/c/icon.svg",
+				globalFileNames: iconFileGlobalNames,
+				crdKind:         "mytype",
+			},
+			want: true,
+		},
+		{
+			name: "GlobalFileCousinNoMatch",
+			args: args{
+				crdPath:         "/a/b/c/crd.yaml",
+				metadataPath:    "/z/icon.svg",
+				globalFileNames: iconFileGlobalNames,
+				crdKind:         "mytype",
+			},
+			want: false,
+		},
+		{
+			name: "SingleResourceFileKindMatch",
+			args: args{
+				crdPath:         "/a/b/c/crd.yaml",
+				metadataPath:    "/a/b/c/mytype.icon.svg",
+				globalFileNames: iconFileGlobalNames,
+				crdKind:         "mytype",
+			},
+			want: true,
+		},
+		{
+			name: "SingleResourceFileKindNoMatch",
+			args: args{
+				crdPath:         "/a/b/c/crd.yaml",
+				metadataPath:    "/a/b/c/mytype.icon.svg",
+				globalFileNames: iconFileGlobalNames,
+				crdKind:         "yourtype",
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isMetadataApplicableToCRD(tt.args.crdPath, tt.args.metadataPath, tt.args.globalFileNames, tt.args.crdKind)
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Errorf("%s isMetadataApplicableToCRD(): -want, +got:\n%s", tt.name, diff)
 			}
 		})
 	}
