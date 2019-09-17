@@ -1,5 +1,8 @@
 ---
-title: "Crossplane Stacks Guide: Azure Setup" toc: true weight: 332 indent: true
+title: "Crossplane Stacks Guide: Azure Setup"
+toc: true
+weight: 431
+indent: true
 ---
 
 # Crossplane Stacks Guide: Azure Setup
