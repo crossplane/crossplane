@@ -367,7 +367,7 @@ spec:
   reclaimPolicy: Delete
 EOF
 
-cat <<EOF > vnetwatch.sh
+cat > vnetwatch.sh <<'EOF'
 #!/usr/bin/env bash
 
 set -e
@@ -379,9 +379,9 @@ while kubectl -n azure-infra-dev get mysqlservers -o yaml | grep -q  'items: \[\
   sleep 5
 done
 
-export MYSQL_NAME=$(kubectl -n azure-infra-dev get mysqlservers -o json | jq -j '.items[0].status.providerID')
+export MYSQL_NAME=$(kubectl -n azure-infra-dev get mysqlservers -o json | jq -j '.items[0].metadata.name')
 
-sed "s/MYSQL_NAME/$MYSQL_NAME/g" vnet-rule.yaml | kubectl create -f -
+sed "s/MYSQL_NAME/$MYSQL_NAME/g" vnet-rule.yaml | kubectl apply -f -
 
 EOF
 
