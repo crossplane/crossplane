@@ -66,30 +66,7 @@ Anyone who wants to discuss the direction of the project, design and implementat
 
 ## Project Status
 
-The project is an early preview. We realize that it's going to take a village to arrive at the vision of a multicloud control plane, and we wanted to open this up early to get your help and feedback. Please see the [Roadmap](ROADMAP.md) for details on what we are planning for future releases.
-
-### API Status
-
-Each API supported by Crossplane is assigned its own individual status to reflect the varying maturity and stability. More details about API versioning and status in Kubernetes can be found on the Kubernetes [API versioning page](https://kubernetes.io/docs/concepts/overview/kubernetes-api/#api-versioning), but the key difference between the statuses are summarized below:
-
-* **Alpha:** The API may change in incompatible ways in a later software release without notice, recommended for use only in short-lived testing clusters, due to increased risk of bugs and lack of long-term support.
-* **Beta:** Support for the overall features will not be dropped, though details may change. Support for upgrading or migrating between versions will be provided, either through automation or manual steps.
-* **Stable:** Features will appear in released software for many subsequent versions and support for upgrading between versions will be provided with software automation in the vast majority of scenarios.
-
-
-| Cloud | Name     | Details           | API Group                             | Status |
-| ----- | -------- | ----------------- | ------------------------------------- | ------ |
-| All   | Compute  | Compute services  | compute.crossplane.io/v1alpha1        | Alpha  |
-| All   | Storage  | Storage services  | storage.crossplane.io/v1alpha1        | Alpha  |
-| AWS   | Compute  | Compute services  | compute.aws.crossplane.io/v1alpha1    | Alpha  |
-| AWS   | Database | Database services | database.aws.crossplane.io/v1alpha1   | Alpha  |
-| AWS   | Storage  | Storage services  | storage.aws.crossplane.io/v1alpha1    | Alpha  |
-| Azure | Compute  | Compute services  | compute.azure.crossplane.io/v1alpha1  | Alpha  |
-| Azure | Database | Database services | database.azure.crossplane.io/v1alpha1 | Alpha  |
-| Azure | Storage  | Storage services  | storage.azure.crossplane.io/v1alpha1  | Alpha  |
-| GCP   | Compute  | Compute services  | compute.gcp.crossplane.io/v1alpha1    | Alpha  |
-| GCP   | Database | Database services | database.gcp.crossplane.io/v1alpha1   | Alpha  |
-| GCP   | Storage  | Storage services  | storage.gcp.crossplane.io/v1alpha1    | Alpha  |
+The project is an early preview. We realize that it's going to take a village to arrive at the vision of a multicloud control plane, and we wanted to open this up early to get your help and feedback. Please see the [Roadmap](ROADMAP.md) for details on what we are planning for future releases, and the [API Reference](docs/api.md) for the status of each Crossplane API group.
 
 ### Official Releases
 
