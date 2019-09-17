@@ -4,49 +4,17 @@ data:
   credentials.json: BASE64ENCODED_GCP_PROVIDER_CREDS
 kind: Secret
 metadata:
-  namespace: crossplane-system
+  namespace: gcp
   name: gcp-provider-creds
 type: Opaque
 ---
 apiVersion: gcp.crossplane.io/v1alpha2
 kind: Provider
 metadata:
-  namespace: crossplane-system
+  namespace: gcp
   name: gcp-provider
 spec:
   credentialsSecretRef:
     name: gcp-provider-creds
     key: credentials.json
   projectID: PROJECT_ID
----
-apiVersion: database.gcp.crossplane.io/v1alpha2
-kind: CloudsqlInstanceClass
-metadata:
-  name: standard-mysql
-  namespace: crossplane-system
-specTemplate:
-  databaseVersion: MYSQL_5_7
-  tier: db-n1-standard-1
-  region: us-west2
-  storageType: PD_SSD
-  authorizedNetworks:
-   - 0.0.0.0/0
-  storageGB: 10
-  providerRef:
-    name: gcp-provider
-    namespace: crossplane-system
-  reclaimPolicy: Delete
----
-apiVersion: compute.gcp.crossplane.io/v1alpha2
-kind: GKEClusterClass
-metadata:
-  name: standard-cluster
-  namespace: crossplane-system
-specTemplate:
-  machineType: n1-standard-1
-  numNodes: 1
-  zone: us-central1-b
-  providerRef:
-    name: gcp-provider
-    namespace: crossplane-system
-  reclaimPolicy: Delete
