@@ -421,7 +421,7 @@ func TestSync(t *testing.T) {
 				withState(v1alpha1.KubernetesApplicationResourceStateSubmitted),
 				withRemoteStatus(remoteStatus),
 			),
-			wantResult: reconcile.Result{Requeue: false},
+			wantResult: reconcile.Result{RequeueAfter: aLongWait},
 		},
 		{
 			name:   "MissingTemplate",
@@ -469,7 +469,7 @@ func TestSync(t *testing.T) {
 				withState(v1alpha1.KubernetesApplicationResourceStateSubmitted),
 				withRemoteStatus(remoteStatus),
 			),
-			wantResult: reconcile.Result{Requeue: false},
+			wantResult: reconcile.Result{RequeueAfter: aLongWait},
 		},
 		{
 			name: "SecretSyncFailed",

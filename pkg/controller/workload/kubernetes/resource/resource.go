@@ -49,6 +49,9 @@ const (
 	controllerName   = "kubernetesapplicationresource." + v1alpha1.Group
 	finalizerName    = "finalizer." + controllerName
 	reconcileTimeout = 1 * time.Minute
+
+	// The time we wait before requeueing a speculative reconcile.
+	aLongWait = 1 * time.Minute
 )
 
 var errMissingTemplate = errors.New(v1alpha1.KubernetesApplicationResourceKind + " must include a template")
@@ -200,7 +203,7 @@ func (c *remoteCluster) sync(ctx context.Context, ar *v1alpha1.KubernetesApplica
 
 	ar.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
 	ar.Status.State = v1alpha1.KubernetesApplicationResourceStateSubmitted
-	return reconcile.Result{Requeue: false}
+	return reconcile.Result{RequeueAfter: aLongWait}
 }
 
 func (c *remoteCluster) delete(ctx context.Context, ar *v1alpha1.KubernetesApplicationResource, secrets []corev1.Secret) reconcile.Result {
