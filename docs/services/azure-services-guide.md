@@ -640,22 +640,21 @@ to learn more about stacks, checkout the [stacks guide][stacks]
 
 <!-- Named links -->
 [azure-cli]: https://docs.microsoft.com/en-us/cli/azure/?view=azure-cli-latest
-[azure-login]:
-https://docs.microsoft.com/en-us/cli/azure/authenticate-azure-cli?view=azure-cli-latest
+[azure-login]: https://docs.microsoft.com/en-us/cli/azure/authenticate-azure-cli?view=azure-cli-latest
 [install-kubectl]: https://kubernetes.io/docs/tasks/tools/install-kubectl/
-[using-helm]: https://docs.helm.sh/using_helm/ [jq-docs]:
-https://stedolan.github.io/jq/
+[using-helm]: https://docs.helm.sh/using_helm/
+[jq-docs]: https://stedolan.github.io/jq/
 
-[aks-walthrough]:
-https://docs.microsoft.com/en-us/azure/aks/kubernetes-walkthrough
+[aks-walthrough]: https://docs.microsoft.com/en-us/azure/aks/kubernetes-walkthrough
 
-[crossplane-install]: ../install-crossplane.md#alpha [azure-stack-install]:
-../install-crossplane.md#azure-stack [cloud-creds]: ../cloud-providers.md
+[crossplane-install]: ../install-crossplane.md#alpha
+[azure-stack-install]: ../install-crossplane.md#azure-stack
+[cloud-creds]: ../cloud-providers.md
 
 [azure-provider-guide]: ../cloud-providers/azure/azure-provider.md
 
 [azure-mysql]: https://azure.microsoft.com/en-us/services/mysql/
-[azure-vnet-rule]:
-https://docs.microsoft.com/en-us/azure/mysql/concepts-data-access-and-security-vnet
+[azure-vnet-rule]: https://docs.microsoft.com/en-us/azure/mysql/concepts-data-access-and-security-vnet
 
-[services]: ../services-guide.md [stacks]: ../stacks-guide.md
+[services]: ../services-guide.md
+[stacks]: ../stacks-guide.md
