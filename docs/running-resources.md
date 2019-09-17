@@ -1,7 +1,7 @@
 ---
 title: Running Resources
 toc: true
-weight: 350
+weight: 250
 indent: true
 ---
 # Running Resources

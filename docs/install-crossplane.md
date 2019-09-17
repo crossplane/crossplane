@@ -1,7 +1,7 @@
 ---
 title: Install
 toc: true
-weight: 320
+weight: 220
 indent: true
 ---
 # Installing Crossplane
