@@ -4,6 +4,8 @@ kind: RedisClusterClass
 metadata:
   name: redis-standard
   namespace: app-project1-dev
+  labels:
+    default: "true"
 classRef:
   kind: CloudMemorystoreInstanceClass
   apiVersion: cache.gcp.crossplane.io/v1alpha2

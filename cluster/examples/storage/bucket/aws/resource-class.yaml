@@ -1,9 +1,19 @@
+apiVersion: storage.crossplane.io/v1alpha1
+kind: BucketClass
+metadata:
+  name: bucket-standard
+  namespace: app-project1-dev
+classRef:
+  kind: S3BucketClass
+  apiVersion: storage.aws.crossplane.io/v1alpha2
+  name: s3bucket-standard
+  namespace: aws-infra-dev
 ---
 apiVersion: storage.aws.crossplane.io/v1alpha2
 kind: S3BucketClass
 metadata:
-  name: s3bucket
-  namespace: crossplane-system
+  name: s3bucket-standard
+  namespace: aws-infra-dev
 specTemplate:
   versioning: false
   cannedACL: private
@@ -11,5 +21,5 @@ specTemplate:
   localPermission: ReadWrite
   providerRef:
     name: example
-    namespace: crossplane-system
+    namespace: aws-infra-dev
   reclaimPolicy: Delete

@@ -1,12 +1,14 @@
 apiVersion: database.crossplane.io/v1alpha1
-kind: PostgreSQLInstanceClass
+kind: MySQLInstance
 metadata:
-  name: postgresql-standard
+  name: mysql-standard
   namespace: app-project1-dev
+  labels:
+    default: "true"
 classRef:
   kind: CloudsqlInstanceClass
   apiVersion: database.gcp.crossplane.io/v1alpha2
-  name: cloudsqlinstancepostgresql-standard
+  name: cloudsqlinstancemysql-standard
   namespace: gcp-infra-dev
 ---
 # ResourceClass that defines the blueprint for how a "standard" CloudSQL instance
@@ -14,10 +16,10 @@ classRef:
 apiVersion: database.gcp.crossplane.io/v1alpha2
 kind: CloudsqlInstanceClass
 metadata:
-  name: cloudsqlinstancepostgresql-standard
+  name: cloudsqlinstancemysql-standard
   namespace: gcp-infra-dev
 specTemplate:
-  databaseVersion: POSTGRES_9_6
+  databaseVersion: MYSQL_5_6
   tier: db-custom-1-3840
   region: us-west2
   storageType: PD_SSD

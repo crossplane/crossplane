@@ -1,11 +1,22 @@
 ---
+apiVersion: database.crossplane.io/v1alpha1
+kind: MySQLInstanceClass
+metadata:
+  name: mysql-standard
+  namespace: app-project1-dev
+classRef:
+  kind: SQLServerClass
+  apiVersion: database.azure.crossplane.io/v1alpha2
+  name: sqlservermysql-standard
+  namespace: azure-infra-dev
+---
 # ResourceClass that defines the blueprint for how a "standard" Azure MySQL Server
 # should be dynamically provisioned
 apiVersion: database.azure.crossplane.io/v1alpha2
 kind: SQLServerClass
 metadata:
-  name: sqlservermysql
-  namespace: crossplane-system
+  name: sqlservermysql-standard
+  namespace: azure-infra-dev
 specTemplate:
   adminLoginName: myadmin
   resourceGroupName: group-westus-1
@@ -22,5 +33,5 @@ specTemplate:
     geoRedundantBackup: false
   providerRef:
     name: example
-    namespace: crossplane-system
+    namespace: azure-infra-dev
   reclaimPolicy: Delete

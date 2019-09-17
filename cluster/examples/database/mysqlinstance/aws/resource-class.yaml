@@ -1,9 +1,20 @@
 ---
+apiVersion: database.crossplane.io/v1alpha1
+kind: MySQLInstanceClass
+metadata:
+  name: mysql-standard
+  namespace: app-project1-dev
+classRef:
+  kind: RDSInstanceClass
+  apiVersion: database.aws.crossplane.io/v1alpha2
+  name: rdsmysql-standard
+  namespace: aws-infra-dev
+---
 apiVersion: database.aws.crossplane.io/v1alpha2
 kind: RDSInstanceClass
 metadata:
   name: rdsmysql
-  namespace: crossplane-system
+  namespace: aws-infra-dev
 specTemplate:
   class: db.t2.small
   masterUsername: masteruser
@@ -14,5 +25,5 @@ specTemplate:
   engine: mysql
   providerRef:
     name: example
-    namespace: crossplane-system
+    namespace: aws-infra-dev
   reclaimPolicy: Delete

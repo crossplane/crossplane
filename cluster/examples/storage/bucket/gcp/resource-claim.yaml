@@ -2,13 +2,11 @@
 apiVersion: storage.crossplane.io/v1alpha1
 kind: Bucket
 metadata:
-  name: gcsbucket
+  name: app-bucket
+  namespace: app-project1-dev
 spec:
   classRef:
-    kind: BucketClass
-    apiVersion: storage.gcp.crossplane.io/v1alpha2
-    name: gcsbucket
-    namespace: crossplane-system
+    name: bucket-standard
   writeConnectionSecretToRef:
     name: gcsbucket
   name: example-bucket-%s

@@ -3,6 +3,8 @@ kind: KubernetesClusterClass
 metadata:
   name: kubernetes-standard
   namespace: app-project1-dev
+  labels:
+    default: "true"
 classRef:
   kind: AKSClusterClass
   apiVersion: compute.azure.crossplane.io/v1alpha2

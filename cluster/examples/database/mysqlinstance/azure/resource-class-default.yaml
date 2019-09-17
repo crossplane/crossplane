@@ -1,28 +1,30 @@
 ---
 apiVersion: database.crossplane.io/v1alpha1
-kind: PostgreSQLInstanceClass
+kind: MySQLInstanceClass
 metadata:
-  name: postgresql-standard
+  name: mysql-standard
   namespace: app-project1-dev
+  labels:
+    default: "true"
 classRef:
   kind: SQLServerClass
   apiVersion: database.azure.crossplane.io/v1alpha2
-  name: sqlserverpostgresql-standard
+  name: sqlservermysql-standard
   namespace: azure-infra-dev
 ---
-# ResourceClass that defines the blueprint for how a "standard" Azure PostgreSQL Server
+# ResourceClass that defines the blueprint for how a "standard" Azure MySQL Server
 # should be dynamically provisioned
 apiVersion: database.azure.crossplane.io/v1alpha2
 kind: SQLServerClass
 metadata:
-  name: sqlserverpostgresql-standard
+  name: sqlservermysql-standard
   namespace: azure-infra-dev
 specTemplate:
   adminLoginName: myadmin
   resourceGroupName: group-westus-1
   location: West US
   sslEnforced: false
-  version: "9.6"
+  version: "5.6"
   pricingTier:
     tier: Basic
     vcores: 1

@@ -4,6 +4,8 @@ kind: PostgreSQLInstanceClass
 metadata:
   name: postgresql-standard
   namespace: app-project1-dev
+  labels:
+    default: "true"
 classRef:
   kind: RDSInstanceClass
   apiVersion: database.aws.crossplane.io/v1alpha2
