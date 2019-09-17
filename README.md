@@ -68,7 +68,7 @@ Anyone who wants to discuss the direction of the project, design and implementat
 
 The project is an early preview. We realize that it's going to take a village to arrive at the vision of a multicloud control plane, and we wanted to open this up early to get your help and feedback. Please see the [Roadmap](ROADMAP.md) for details on what we are planning for future releases, and the [API Reference](docs/api.md) for the status of each Crossplane API group.
 
-### Official Releases
+## Official Releases
 
 Official releases of Crossplane can be found on the [releases page](https://github.com/crossplaneio/crossplane/releases).
 Please note that it is **strongly recommended** that you use [official releases](https://github.com/crossplaneio/crossplane/releases) of Crossplane, as unreleased versions from the master branch are subject to changes and incompatibilities that will not be supported in the official releases.
