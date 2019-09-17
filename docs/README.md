@@ -24,5 +24,6 @@ The full architecture and vision of the Crossplane project is described in depth
   * [Running Resources](running-resources.md)
   * [Troubleshooting](troubleshoot.md)
 * [Concepts](concepts.md)
+* [API Reference](api.md)
 * [FAQs](faqs.md)
 * [Contributing](contributing.md)
