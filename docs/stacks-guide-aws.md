@@ -885,6 +885,6 @@ off.
 [portable-classes-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-default-resource-class.md
 [resource-classes-docs]: concepts.md#resource-claims-and-resource-classes
 
-[stacks-guide-continue]: stacks-guide.html#install-support-for-our-application-into-crossplane
+[stacks-guide-continue]: stacks-guide.md#install-support-for-our-application-into-crossplane
 [resource-claims-docs]: concepts.md#resource-claims-and-resource-classes
 [eks-user-guide]: https://docs.aws.amazon.com/eks/latest/userguide/create-public-private-vpc.html

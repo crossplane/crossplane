@@ -430,7 +430,7 @@ off.
 
 [crossplane-cli]: https://github.com/crossplaneio/crossplane-cli/tree/release-0.1
 [crossplane-azure-networking-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-resource-connectivity-mvp.md#microsoft-azure
-[stacks-guide]: stacks-guide.html
+[stacks-guide]: stacks-guide.md
 [provider-azure-guide]: cloud-providers/azure/azure-provider.md
 
 [stack-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/design-doc-stacks.md#crossplane-stacks
@@ -443,5 +443,5 @@ off.
 [azure-vnet-rule]: https://docs.microsoft.com/en-us/azure/mysql/concepts-data-access-and-security-vnet
 [azure-resource-group-docs]: https://docs.microsoft.com/en-us/azure/azure-resource-manager/resource-group-overview
 
-[stacks-guide-continue]: stacks-guide.html#install-support-for-our-application-into-crossplane
+[stacks-guide-continue]: stacks-guide.md#install-support-for-our-application-into-crossplane
 [jq]: https://stedolan.github.io/jq/
