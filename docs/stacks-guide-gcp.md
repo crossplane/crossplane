@@ -1,6 +1,6 @@
 ---
 title: "Crossplane Stacks Guide: GCP Setup"
-toc: false
+toc: true
 weight: 421
 indent: true
 ---

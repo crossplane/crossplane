@@ -1,5 +1,5 @@
 apiVersion: database.crossplane.io/v1alpha1
-kind: MySQLInstance
+kind: MySQLInstanceClass
 metadata:
   name: mysql-standard
   namespace: app-project1-dev
@@ -22,6 +22,7 @@ specTemplate:
   region: us-west2
   storageType: PD_SSD
   storageGB: 10
+  ipv4Enabled: true
   providerRef:
     name: example
     namespace: gcp-infra-dev
