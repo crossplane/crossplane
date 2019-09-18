@@ -10,8 +10,7 @@ indent: true
 ## Table of Contents
 
   1. [Introduction](#introduction)
-  1. [Before you begin](#before-you-begin)
-  1. [Install AWS stack](#install-aws-stack)
+  1. [Install the AWS stack](#install-the-aws-stack)
   1. [Configure the AWS account](#configure-the-aws-account)
   1. [Configure Crossplane Provider for
     AWS](#configure-crossplane-provider-for-aws)
@@ -21,32 +20,35 @@ indent: true
 
 ## Introduction
 
-In this guide we are focusing on WordPress stack, and will show how it could be
-deployed using AWS resources. WordPress stack uses a generic Kubernetes cluster
-and a MySQL database as its resource, which are not tied to a specific provider
-(also known as **resource claims**). Instead, these resource claims could be
-configured to use a be satisfied by a specific cloud provider.
+In this guide, we will set up a GCP provider in Crossplane so that we
+can install and use the [WordPress sample
+stack][sample-wordpress-stack], which depends on MySQL and Kubernetes!
 
-We will walk you through installing the AWS stack, configuring an aws account,
-and setting up cloud-specific resources in order to create and configure a
-network configuration in which these cloud resources can communicate with each
-other. Once the network configuration is done, we will specify a resource class
-for each resource claim type. Then we will install WordPress stack, which will
-create related external resources for each claim in AWS.
+Before we begin, you will need:
 
-## Before you begin
+* Everything from the [Crossplane Stacks Guide][stacks-guide] before the
+  cloud provider setup
+  - A `kubectl` pointing to a Crossplane control cluster
+  - The [Crossplane CLI][crossplane-cli] installed
+* An account on [AWS][aws]
 
-Before continuing in this guide, make sure that all the following are true:
+At the end, we will have:
 
-- Crossplane is installed
-- [crossplane-cli] is installed
-- `kubectl` is configured to target the Crossplane cluster
-- An aws account is available
+* A Crossplane control cluster configured to use AWS
+* The boilerplate of an AWS-based project spun up
+* Support in the control cluster for managing MySQL and Kubernetes
+  cluster dependencies
+* A slightly better understanding of:
+  - The way cloud providers are configured in Crossplane
+  - The way dependencies for cloud-portable workloads are configured in
+    Crossplane
 
-## Install AWS stack
+## Install the AWS stack
 
-Once Crossplane is installed, it can be extended to support AWS by installing
-AWS **stack**.
+After Crossplane has been installed, it can be extended with more
+functionality by installing a [Crossplane Stack][stack-docs]! Let's
+install the [stack for Amazon Web Services][stack-aws] (AWS) to add
+support for that cloud provider.
 
 The namespace where we install the stack, is also the one that our managed AWS
 resources will reside. Let's call this namespace `infra-aws`, and go ahead and
@@ -836,11 +838,21 @@ Next we'll set up a Crossplane App Stack and use it! Head [back over to the
 Stacks Guide document][stacks-guide-continue] so we can pick up where we left
 off.
 
+<!-- Links -->
+[stacks-guide]: stacks-guide.md
+
+[aws]: https://aws.amazon.com
+[stack-aws]: https://github.com/crossplaneio/stack-aws
+[sample-wordpress-stack]: https://github.com/crossplaneio/sample-stack-wordpress
+
+[stack-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/design-doc-stacks.md#crossplane-stacks
+
 [aws user]: https://docs.aws.amazon.com/mediapackage/latest/ug/setting-up-create-iam-user.html
 [Access Key]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html
 [`aws provider`]: https://github.com/crossplaneio/stack-aws/blob/master/aws/apis/v1alpha2/types.go#L43
 [`aws` command line tool]: https://aws.amazon.com/cli/
 [AWS SDK for GO]: https://docs.aws.amazon.com/sdk-for-go/v1/developer-guide/setting-up.html
+
 [installed]: https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html
 [configured]: https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html
 [AWS security credentials]: https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html

@@ -20,9 +20,9 @@ indent: true
 
 ## Introduction
 
-In this guide, we will set up an Azure provider in Crossplane so that we can
-install and use the WordPress sample stack, which depends on MySQL and
-Kubernetes!
+In this guide, we will set up a GCP provider in Crossplane so that we
+can install and use the [WordPress sample
+stack][sample-wordpress-stack], which depends on MySQL and Kubernetes!
 
 Before you begin, you will need:
 
@@ -426,6 +426,8 @@ Stacks Guide document][stacks-guide-continue] so we can pick up where we left
 off.
 
 <!-- Links -->
+[sample-wordpress-stack]: https://github.com/crossplaneio/sample-stack-wordpress
+
 [crossplane-cli]: https://github.com/crossplaneio/crossplane-cli/tree/release-0.1
 [crossplane-azure-networking-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-resource-connectivity-mvp.md#microsoft-azure
 [stacks-guide]: stacks-guide.html
