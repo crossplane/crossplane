@@ -1,16 +1,14 @@
 ---
-title: "AWS Stack Setup"
+title: "Stacks Guide: AWS Setup"
 toc: true
 weight: 530
 indent: true
 ---
 
-# Crossplane Stacks Guide: AWS Setup
+# Stacks Guide: AWS Setup
 
 ## Table of Contents
 
-  1. [Crossplane Stacks Guide: AWS Setup](#crossplane-stacks-guide-aws-setup)
-  1. [Table of Contents](#table-of-contents)
   1. [Introduction](#introduction)
   1. [Before you begin](#before-you-begin)
   1. [Install AWS stack](#install-aws-stack)

@@ -5,7 +5,7 @@ weight: 510
 indent: false
 ---
 
-# Crossplane Stacks Guide
+# Stacks Guide
 
 
 ## Table of Contents

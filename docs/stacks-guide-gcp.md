@@ -1,11 +1,11 @@
 ---
-title: "GCP Stack Setup"
+title: "Stacks Guide: GCP Setup"
 toc: true
 weight: 520
 indent: true
 ---
 
-# Crossplane Stacks Guide: GCP Setup
+# Stacks Guide: GCP Setup
 
 ## Table of Contents
 

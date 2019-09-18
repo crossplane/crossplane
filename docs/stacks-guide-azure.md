@@ -1,11 +1,11 @@
 ---
-title: "Azure Stack Setup"
+title: "Stacks Guide: Azure Setup"
 toc: true
 weight: 540
 indent: true
 ---
 
-# Crossplane Stacks Guide: Azure Setup
+# Stacks Guide: Azure Setup
 
 ## Table of Contents
 
