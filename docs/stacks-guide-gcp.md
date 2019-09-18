@@ -56,7 +56,6 @@ CLI][crossplane-cli] for this operation. Since this is an infrastructure
 stack, we need to specify that it's cluster-scoped by passing the
 `--cluster` flag.
 
-
 To install to a specific namespace, we can use the `generate-install`
 command and pipe it to `kubectl apply` instead, which gives us more
 control over how the stack's installation is handled. Everything is

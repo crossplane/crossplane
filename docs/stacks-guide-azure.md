@@ -31,6 +31,7 @@ Before you begin, you will need:
   - A `kubectl` pointing to a Crossplane control cluster
   - The [Crossplane CLI][crossplane-cli] installed
 * An account on [Azure][azure]
+* The [jq][jq] tool for interacting with some JSON, or equivalent
 
 At the end, we will have:
 
@@ -48,23 +49,26 @@ document][crossplane-concepts] for that.
 
 ## Install the Azure Stack
 
-After Crossplane has been installed, it can be extended with more functionality
-by installing a Crossplane Stack! Let's install the stack for Microsoft Azure to
-add support for that cloud provider. We can use the Crossplane CLI for this
-operation:
+After Crossplane has been installed, it can be extended with more
+functionality by installing a [Crossplane Stack][stack-docs]! Let's
+install the [stack for Microsoft Azure][stack-azure] to add
+support for that cloud provider. We can use the [Crossplane
+CLI][crossplane-cli] for this operation. Since this is an infrastructure
+stack, we need to specify that it's cluster-scoped by passing the
+`--cluster` flag.
 
-```
-kubectl crossplane stack install 'crossplane/stack-azure:master' stack-azure
-```
-To install to a particular namespace, you can use the `generate-install` command
-and pipe it to `kubectl apply` instead, which gives you more control over how
-the stack's installation is handled. Everything is Kubernetes object!
+To install to a specific namespace, we can use the `generate-install`
+command and pipe it to `kubectl apply` instead, which gives us more
+control over how the stack's installation is handled. Everything is
+a Kubernetes object!
 
-Since this is an infrastructure stack, we need to specify that it's
-cluster-scoped via `--cluster` flag.
 ```
 kubectl crossplane stack generate-install --cluster 'crossplane/stack-azure:master' stack-azure | kubectl apply --namespace crossplane-system -f -
 ```
+
+If we wanted to use whatever the current namespace is, we could have
+used `kubectl crossplane stack install` instead of using
+`generate-install`.
 
 We have installed the Azure stack into the `crossplane-system` namespace, but we
 want to group our Azure-specific resources in their own environment namespaces.
@@ -89,12 +93,12 @@ We will make use of the following services on Azure:
 *   Subnetwork
 *   Virtual Network Rule
 
-In order to utilize each of these services, you will need to follow the Adding
-Microsoft Azure to Crossplane [guide][provider-azure-guide] to obtain
+In order to utilize each of these services, you will need to follow the [Adding
+Microsoft Azure to Crossplane guide][provider-azure-guide] to obtain
 appropriate credentials in a JSON file referred to as
 `crossplane-azure-provider-key.json`.
 
-## Configure Crossplane Azure Provider 
+## Configure Crossplane Azure Provider
 
 Before creating any resources, we need to create and configure a cloud provider
 in Crossplane. This helps Crossplane know how to connect to the cloud provider.
@@ -144,7 +148,8 @@ other Crossplane resources.
 
 We also will need to use our Azure subscription id to provision some of the
 resources we will need. You can set an environment variable so that you will
-have access when creating resources that require it:
+have access when creating resources that require it. If you have a JSON
+tool like [jq][jq], you can use:
 
 ```bash
 export SUBSCRIPTION_ID=$(cat crossplane-azure-provider-key.json | jq -j '.subscriptionId')
@@ -152,11 +157,12 @@ export SUBSCRIPTION_ID=$(cat crossplane-azure-provider-key.json | jq -j '.subscr
 
 ## Set Up Network Resources
 
-Wordpress needs a SQL database and a Kubernetes cluster. But *those* two
+Wordpress needs a SQL database and a Kubernetes cluster. But **those** two
 resources need a private network to communicate securely. They must also be
-deployed into a Resource Group, a service that Azure uses to logically group
-resources together. So, we need to set up these resources before we get to the
-database and Kubernetes creation steps. Here's an example network setup:
+deployed into a [Resource Group][azure-resource-group-docs], a service
+that Azure uses to logically group resources together. So, we need to
+set up these resources before we get to the database and Kubernetes
+creation steps. Here's an example network setup:
 
 ```
 cat > network.yaml <<EOF
@@ -220,8 +226,8 @@ kubectl apply -f network.yaml
 For more details about networking and what happens when you run this command,
 see [this document with more details][crossplane-azure-networking-docs].
 
-It should not take too long for these resources to provision. You can monitor
-their status with the following command:
+It should not take too long for these resources to provision. You can
+check their statuses with the following command:
 
 ```
 kubectl describe -f network.yaml
@@ -289,21 +295,22 @@ EOF
 kubectl apply -f environment.yaml
 ```
 
-The steps that we have taken so far have been related to things that can be
-shared by all resources in all namespaces of that Crossplane cluster. Now, we
-will keep going with an app namespace which we will populate with resources that
-will help Crossplane know with what configuration it should satisfy the claims.
-You can use any namespace for your app's resources but for this tutorial we'll
-use the `app-project1-dev` namespace we created.
+The steps that we have taken so far have been related to things that can
+be shared by all resources in all namespaces of the Crossplane control
+cluster. Now, we will use a namespace specific to our application, and
+we'll populate it with resources that will help Crossplane know what
+configuration to use to satisfy our application's resource claims.
+You can use any namespace for your app's resources, but for this
+tutorial we'll use the `app-project1-dev` namespace we created.
 
 Now we need to tell Crossplane which resource classes should be used to satisfy
 our claims in that app namespace. We will create portable classes that have have
 reference to non-portable ones that we created earlier. In our claims, we can
-refer to those portable classes directly or label one as the default portable
+refer to those portable classes directly, or label one as the default portable
 class to be used in claims that do not have class reference.
 
-For example, MySQLInstanceClass is a portable class that can refer to Azure's
-SQLServerClass, which is a cloud-specific class.
+For example, `MySQLInstanceClass` is a portable class that can refer to Azure's
+`SQLServerClass`, which is a cloud-specific class.
 
 ```
 cat > namespace.yaml <<EOF
@@ -381,6 +388,7 @@ while kubectl -n azure-infra-dev get mysqlservers -o yaml | grep -q  'items: \[\
   echo -n "." >&2
   sleep 5
 done
+echo "done" >&2
 
 export MYSQL_NAME=$(kubectl -n azure-infra-dev get mysqlservers -o json | jq -j '.items[0].metadata.name')
 
@@ -390,6 +398,9 @@ EOF
 
 chmod +x vnetwatch.sh && ./vnetwatch.sh
 ```
+
+The script should be left running in the background while we go through
+the rest of the guide and install the Wordpress stack.
 
 ## Recap
 
@@ -416,14 +427,19 @@ off.
 
 <!-- Links -->
 [crossplane-cli]: https://github.com/crossplaneio/crossplane-cli/tree/release-0.1
-[crossplane-azure-networking-docs]: TODO
+[crossplane-azure-networking-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-resource-connectivity-mvp.md#microsoft-azure
 [stacks-guide]: stacks-guide.html
 [provider-azure-guide]: cloud-providers/azure/azure-provider.md
 
-[crossplane-concepts]: TODO
-[portable-claims]: TODO
+[stack-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/design-doc-stacks.md#crossplane-stacks
+[stack-azure]: https://github.com/crossplaneio/stack-azure
+
+[crossplane-concepts]: concepts.md
+[portable-classes-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-default-resource-class.md
 
 [azure]: https://azure.microsoft.com
 [azure-vnet-rule]: https://docs.microsoft.com/en-us/azure/mysql/concepts-data-access-and-security-vnet
+[azure-resource-group-docs]: https://docs.microsoft.com/en-us/azure/azure-resource-manager/resource-group-overview
 
 [stacks-guide-continue]: stacks-guide.html#install-support-for-our-application-into-crossplane
+[jq]: https://stedolan.github.io/jq/
