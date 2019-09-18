@@ -56,26 +56,26 @@ For example, for a database provisioned and managed by Crossplane, a secret will
 This secret will be propagated to the target cluster so that it can be used by the workload.
 
 ## Secure Connectivity
-To provide secure network connectivity between application deployments in a target cluster 
+To provide secure network connectivity between application deployments in a target cluster
 and the managed services they are using, Crossplane supports
-provisoining and life-cycle management of networks, subnets, peering, and firewall rules to
+provisioning and life-cycle management of networks, subnets, peering, and firewall rules to
 provide secure connectivity.
 
 ## Stacks
-Stacks extend Crossplane with new functionality. Crossplane provides Stacks for GCP, AWS, 
-and Azure that are installed with a Stack Manager that can download packages, 
-resolve dependencies, and execute controllers. 
+Stacks extend Crossplane with new functionality. Crossplane provides Stacks for GCP, AWS,
+and Azure that are installed with a Stack Manager that can download packages,
+resolve dependencies, and execute controllers.
 Stacks are designed for simplified RBAC configuration and namespace
-isolation for improved security in multi-team environments. Stacks are published to a registry 
-where they can be downloaded, explored, and organized. 
+isolation for improved security in multi-team environments. Stacks are published to a registry
+where they can be downloaded, explored, and organized.
 
 Stacks enable the community to add support for more clouds providers and and managed services.  Stacks support
-out-of-tree extensibility so they can be released on their own schedule. A CLI can init, 
-build, publish, install, and uninstall Stacks from developer laptops or 
-in continous delivery pipelines.
+out-of-tree extensibility so they can be released on their own schedule. A CLI can init,
+build, publish, install, and uninstall Stacks from developer laptops or
+in continuous delivery pipelines.
 
-Stacks for GCP, AWS, and Azure support provisioning managed services (database, cache, buckets), 
-managed clusters (GKE, EKS, AKS), and secure connectivity (networks, subnets, firewall rules). 
+Stacks for GCP, AWS, and Azure support provisioning managed services (database, cache, buckets),
+managed clusters (GKE, EKS, AKS), and secure connectivity (networks, subnets, firewall rules).
 Stacks for independent cloud offerings can be installed alongside the Stacks for GCP, AWS, and Azure
 to customize Crossplane with the right mix of managed services for your organization.
 
@@ -83,15 +83,15 @@ to customize Crossplane with the right mix of managed services for your organiza
 Crossplane has four main feature areas: Services, Stacks, Clusters and Workloads.
 
 ## Crossplane Services
-Crossplane supports provisioning managed services using `kubectl`.  It applies 
+Crossplane supports provisioning managed services using `kubectl`.  It applies
 the Kubernetes pattern for Persistent Volume (PV)
 claims and classes to managed service provisioning with support for a strong
-separation of concern between app teams and cluster administrators. 
+separation of concern between app teams and cluster administrators.
 
 App teams can choose between cloud-specific and portable services including
 managed databases, message queues, buckets, data pipelines, and more to define
 complete applications, build once, and deploy into multiple clouds using
-continuous delivery pipelines or GitOps flows. 
+continuous delivery pipelines or GitOps flows.
 
 Cluster administrators can define self-service policies and best-practice
 configurations to accelerate app delivery and improve security, so app teams can
@@ -106,8 +106,8 @@ Crossplane is designed to support the following types of managed services.
 ### Managed Kubernetes Services
 Managed Kubernetes currently supported for GKE, EKS, AKS.
 
-Kubernetes clusters are another type of resource that can be dynamically provisioned using a 
-generic resource claim by the application developer and an environment specific resource 
+Kubernetes clusters are another type of resource that can be dynamically provisioned using a
+generic resource claim by the application developer and an environment specific resource
 class by the cluster administrator.
 
 Future support for additional managed services.
@@ -116,13 +116,13 @@ Future support for additional managed services.
 Support for PostgreSQL, MySQL, and Redis.
 
 Database managed services can be statically or dynamically provisioned by Crossplane in AWS, GCP, and Azure.
-An application developer simply has to specify their general need for a database such as MySQL, 
-without any specific knowledge of what environment that database will run in or even what 
+An application developer simply has to specify their general need for a database such as MySQL,
+without any specific knowledge of what environment that database will run in or even what
 specific type of database it will be at runtime.
 
-The cluster administrator specifies a resource class that acts as a template with the 
+The cluster administrator specifies a resource class that acts as a template with the
 implementation details and policy specific to the environment that the generic MySQL resource is being deployed to.
-This enables the database to be dynamically provisioned at deployment time without the 
+This enables the database to be dynamically provisioned at deployment time without the
 application developer needing to know any of the details, which promotes portability and reusability.
 
 Future support for additional managed services.
@@ -153,18 +153,18 @@ Future support.
 Future support.
 
 ## Crossplane Stacks
-Stacks extend Crossplane with new functionality. 
+Stacks extend Crossplane with new functionality.
 
 See [Stacks](#stacks).
 
-## Crossplane Workloads 
-Crossplane includes an extensible workload scheduler that observes application 
-policies to select a suitable target cluster from a pool of available clusters. 
-The workload scheduler can be customized to consider a number of criteria including 
-capabilities, availability, reliability, cost, regions, and performance while 
+## Crossplane Workloads
+Crossplane includes an extensible workload scheduler that observes application
+policies to select a suitable target cluster from a pool of available clusters.
+The workload scheduler can be customized to consider a number of criteria including
+capabilities, availability, reliability, cost, regions, and performance while
 deploying workloads and their resources. Complex workloads can be modeled as a `KubernetesApplication`.
 
-## Crossplane Clusters 
+## Crossplane Clusters
 Crossplane supports dynamic provisioning of managed
 Kubernetes clusters from a single control plane with consistent multi-cluster
 best-practice configuration and secure connectivity between target Kubernetes
@@ -182,14 +182,14 @@ and we don't seek to reproduce that glossary here.
 However we'll summarize some commonly used concepts for convenience.
 
 ### CRD
-A standard Kubernetes Custom Resource Definition (CRD), which defines a new type of resource that can be managed declaratively. 
+A standard Kubernetes Custom Resource Definition (CRD), which defines a new type of resource that can be managed declaratively.
 This serves as the unit of management in Crossplane.
 The CRD is composed of spec and status sections and supports API level versioning (e.g., v1alpha1)
 
 ### Controller
-A standard Kubernetes Custom Controller, providing active control loops that own or more CRDs. 
-Can be implemented in different ways, such as 
-golang code (controller-runtime), templates, functions/hooks, templates, a new DSL, etc. 
+A standard Kubernetes Custom Controller, providing active control loops that own one or more CRDs.
+Can be implemented in different ways, such as
+golang code (controller-runtime), templates, functions/hooks, templates, a new DSL, etc.
 The implementation itself is versioned using semantic versioning (e.g., v1.0.4)
 
 ### Namespace
@@ -204,27 +204,29 @@ owns one or more CRDs and depends on zero or more CRDs.
 See [Stacks](#stacks).
 
 ### Stack Registry
-A registry where Stacks can be published, downloaded, explored, and categorized. 
+A registry where Stacks can be published, downloaded, explored, and categorized.
 The registry understands a Stack’s custom controller and its CRDs and indexes by both -- you could lookup a custom controller by the CRD name and vice versa.
 
 ### Stack Package Format
-The package format for Stacks that contains the Stack definition, metadata, icons, CRDs, and other Stack specific files.  
+The package format for Stacks that contains the Stack definition, metadata, icons, CRDs, and other Stack specific files.
 
 ### Stack Manager
-The component that is responsible for installing a Stack’s custom controllers and resources in Crossplane. It can download packages, resolve dependencies, install resources and execute controllers.  This component is also responsible for managing the complete life-cycle of Stacks, including upgrading them as new versions become available.
+The component that is responsible for installing a Stack’s custom controllers and resources in Crossplane.
+It can download packages, resolve dependencies, install resources and execute controllers.
+This component is also responsible for managing the complete life-cycle of Stacks, including upgrading them as new versions become available.
 
 ### Application Stack
-App Stacks simplify operations for an app by moving app lifecycle management into a Kubernetes controller 
-that owns an app CRD with a handful of settings required to deploy a new app instance, 
+App Stacks simplify operations for an app by moving app lifecycle management into a Kubernetes controller
+that owns an app CRD with a handful of settings required to deploy a new app instance,
 complete with the managed services it depends on.
 
-Application Stacks depend on Infrastructure Stacks like stack-gcp, stack-aws, 
+Application Stacks depend on Infrastructure Stacks like stack-gcp, stack-aws,
 and stack-azure to provide managed services via the Kubernetes API.
 
 ### Infrastructure Stack
 Infrastructure Stacks like stack-gcp, stack-aws, and stack-azure extend Crossplane
-to support managed service provisioning (DBaaS, cache, buckets), secure connectivity 
-(VPCs, subnets, peering, ACLs, secrets), and provisioning managed Kubernetes clusters 
+to support managed service provisioning (DBaaS, cache, buckets), secure connectivity
+(VPCs, subnets, peering, ACLs, secrets), and provisioning managed Kubernetes clusters
 on demand to further isolate the blast radius of applications.
 
 ### Cloud Provider Stack
@@ -232,18 +234,18 @@ See [infrastructure-stack](#infrastructure-stack).
 
 ### Crossplane Instance
 Crossplane is a multicloud control plane, that happens to use the Kubernetes API machinery
-as a platform for declarative management. A Crossplane Instance is an instance of a 
+as a platform for declarative management. A Crossplane Instance is an instance of a
 Kuberentes API server with the Crossplane Stacks Manager installed into it, capable of
-installing cloud provider or application Stacks to build a custom control plane for one 
+installing cloud provider or application Stacks to build a custom control plane for one
 or more environments.
 
 ### Dedicated Crossplane Instance
-Crossplane instance running on a dedicated k8s API server with no Kubernetes worker nodes. 
+Crossplane instance running on a dedicated k8s API server with no Kubernetes worker nodes.
 The Dedicated Crossplane Instance is separate from the target Kubernetes cluster(s) where
 application deployments and pods are scheduled to run.
 
 ### Embedded Crossplane Instance
-Crossplane instance running on the same Kubernetes API server as the Kubernetes target cluster 
+Crossplane instance running on the same Kubernetes API server as the Kubernetes target cluster
 where app deployments and pods will run.
 
 ### Cloud Provider
@@ -256,17 +258,17 @@ Managed service provider such as Elastic Cloud, MLab, PKS that run on cloud prov
 A Crossplane kind that connects Crossplane to a cloud provider or managed service provider.
 
 ### Infrastructure
-Infrastructure ranging from low level services like clusters and servers, 
-to higher level infrastructure like databases, message queues, buckets, 
-secure connectivity, mnaged Kubernetes, and more
+Infrastructure ranging from low level services like clusters and servers,
+to higher level infrastructure like databases, message queues, buckets,
+secure connectivity, managed Kubernetes, and more
 
 ### Infrastructure Namespace
-Crossplane supports connecting multiple cloud provider accounts from 
-a single control plane, so different environments (dev, staging, prod) can 
+Crossplane supports connecting multiple cloud provider accounts from
+a single control plane, so different environments (dev, staging, prod) can
 use separate accounts, projects, and/or credentials.
 
 The provider and resource classes for these environments can be kept separate
-using an infrastructure namepace (gcp-infra-dev, aws-infra-dev, or azure-infra-dev)
+using an infrastructure namespace (gcp-infra-dev, aws-infra-dev, or azure-infra-dev)
 for each environment. You can create as many as you like using whatever naming works best for your organization.
 
 ### Project Namespace
@@ -278,21 +280,21 @@ are kept separate and secure. Crossplane supports this model.
 See [project-namespace](#project-namespace)
 
 ### Dynamic Provisioning
-Dynamic provisioning is when an resource claim does not find a matching resource and provisions 
-a new one instead. The newly provisioned resource is automatically bound to the resource claim. 
+Dynamic provisioning is when an resource claim does not find a matching resource and provisions
+a new one instead. The newly provisioned resource is automatically bound to the resource claim.
 To enable dynamic provisioning the administrator needs to create one or more resource class objects.
 
 ### Static Provisioning
-Static provisioning is when an administrator creates the resource manually. They set the configuration required to 
-provision and manage the corresponding external resource within a cloud provider or cloud offering. 
+Static provisioning is when an administrator creates the resource manually. They set the configuration required to
+provision and manage the corresponding external resource within a cloud provider or cloud offering.
 Once provisioned, resources are available to be bound to resource claims.
 
 ### Resource
-A resource represents an external piece of infrastructure ranging from low level services like clusters and 
+A resource represents an external piece of infrastructure ranging from low level services like clusters and
 servers, to higher level infrastructure like databases, message queues, buckets, and more
 
 ### External Resource
-An actual resource that exists outside Kubernetes, typically in the cloud. 
+An actual resource that exists outside Kubernetes, typically in the cloud.
 AWS RDS and GCP Cloud Memorystore instances are external resources.
 
 ### Managed Resource
@@ -320,7 +322,7 @@ For example, Wordpress requires a MySQL database which can be satisfied by Cloud
 cloud-specific resource classes would be created for CloudSQL, RDS, and Azure DB.
 
 ### Non-Portable Resource Class
-See [cloud-specific resource class](#cloud-specific-resource-class).
+Another term for [cloud-specific resource class](#cloud-specific-resource-class).
 
 ### Portable Resource Class
 Portable Resource Classes define a named class of service that can be used by portable `Resource Claims`
@@ -340,15 +342,15 @@ thereupon such as a `Deployment` or `KubernetesApplication`.
 See [claimant](#claimant).
 
 ### Workload
-We model workloads as schedulable units of work that the user intends to run on a cloud provider. 
-Crossplane will support multiple types of workloads including container and serverless. 
-You can think of workloads as units that run your code and applications. 
-Every type of workload has a different kind of payload. 
+We model workloads as schedulable units of work that the user intends to run on a cloud provider.
+Crossplane will support multiple types of workloads including container and serverless.
+You can think of workloads as units that run your code and applications.
+Every type of workload has a different kind of payload.
 
 ### Kubernetes Application
-A `KubernetesApplication` is a type of workload, with a `KubernetesCluster` label selector 
-used for scheduling, and a series of resource templates representing resources 
-to be deployed to the scheduled cluster, and managed resources are provisoined
+A `KubernetesApplication` is a type of workload, with a `KubernetesCluster` label selector
+used for scheduling, and a series of resource templates representing resources
+to be deployed to the scheduled cluster, and managed resources are provisioned
 and securely connected to the application.
 
 ### Cluster
@@ -361,13 +363,12 @@ A Kubernetes cluster where application deployments and pods are scheduled to run
 A Managed Kubernetes cluster from a service provider such as GKE, EKS, or AKS.
 
 ### In-Tree
-In-tree means its source code lives in a core Crossplane git repository. 
+In-tree means its source code lives in a core Crossplane git repository.
 
 ### Out-of-Tree
 Out-of-tree means its source code lives outside of a core Crossplane git repository.
 
-Often used to refer to Crossplane extensions, controllers or Stacks. 
- 
-Out-of-tree extensibility enables to the community to build, release, publish, 
-and install Crossplane extensions separately from the core Crossplane repos.
+Often used to refer to Crossplane extensions, controllers or Stacks.
 
+Out-of-tree extensibility enables to the community to build, release, publish,
+and install Crossplane extensions separately from the core Crossplane repos.
