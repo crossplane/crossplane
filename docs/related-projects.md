@@ -1,7 +1,8 @@
 ---
 title: Related Projects
 toc: true
-weight: 2110
+weight: 850
+indent: true
 ---
 # Related Projects
 

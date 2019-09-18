@@ -1,5 +1,5 @@
 ---
-title: Quick Start Guide
+title: Getting Started
 toc: true
 weight: 210
 ---

@@ -1,13 +1,13 @@
 ---
-title: Adding Your Cloud Providers
+title: Connect Your Cloud Providers
 toc: true
 weight: 230
 indent: true
 ---
 
-# Adding Your Cloud Providers
+# Connect Your Cloud Provider
 
-In order for Crossplane to be able to manage resources across all your clouds, you will need to add your cloud provider credentials to Crossplane.
+In order for Crossplane to be able to manage resources across all your clouds, you will need to add your cloud provider account credentials to Crossplane.
 Use the links below for specific instructions to add each of the following cloud providers:
 
 * [Google Cloud Platform (GCP)](cloud-providers/gcp/gcp-provider.md)

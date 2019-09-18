@@ -1,7 +1,7 @@
 ---
 title: Developer Guide
 toc: true
-weight: 5010
+weight: 710
 ---
 # Developer Guide
 Welcome to the Crossplane Developer Guide!

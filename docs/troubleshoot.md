@@ -1,7 +1,7 @@
 ---
 title: Troubleshooting
-toc: false
-weight: 260
+toc: true
+weight: 820
 indent: true
 ---
 # Troubleshooting
