@@ -6,91 +6,86 @@ indent: true
 ---
 # Troubleshooting
 
-* [Crossplane Logs](#crossplane-logs)
 * [Resource Status and Conditions](#resource-status-and-conditions)
+* [Crossplane Logs](#crossplane-logs)
 * [Pausing Crossplane](#pausing-crossplane)
 * [Deleting a Resource Hangs](#deleting-a-resource-hangs)
 
+## Resource Status and Conditions
+
+Most Crossplane resources have a `status` section that can represent the current
+state of that particular resource. Running `kubectl describe` against a
+Crossplane resource will frequently give insightful information about its
+condition. For example, to determine the status of a MySQLInstance resource
+claim, run:
+
+```shell
+kubectl -n app-project1-dev describe mysqlinstance mysql-claim
+```
+
+This should produce output that includes:
+
+```console
+Status:
+  Conditions:
+    Last Transition Time:  2019-09-16T13:46:42Z
+    Reason:                Managed claim is waiting for managed resource to become bindable
+    Status:                False
+    Type:                  Ready
+    Last Transition Time:  2019-09-16T13:46:42Z
+    Reason:                Successfully reconciled managed resource
+    Status:                True
+    Type:                  Synced
+```
+
+Most Crossplane resources set exactly two condition types; `Ready` and `Synced`.
+`Ready` represents the availability of the resource itself - whether it is
+creating, deleting, available, unavailable, binding, etc. `Synced` represents
+the success of the most recent attempt to 'reconcile' the _desired_ state of the
+resource with its _actual_ state. The `Synced` condition is the first place you
+should look when a Crossplane resource is not behaving as expected.
+
 ## Crossplane Logs
 
-The first place to look to get more information or investigate a failure would
+The next place to look to get more information or investigate a failure would
 be in the Crossplane pod logs, which should be running in the
 `crossplane-system` namespace. To get the current Crossplane logs, run the
 following:
 
-```console
+```shell
 kubectl -n crossplane-system logs -lapp=crossplane
 ```
 
-## Resource Status and Conditions
-
-All of the objects that represent managed resources such as databases, clusters,
-etc. have a `status` section that can give good insight into the current state
-of that particular object. In general, simply getting the `yaml` output of a
-Crossplane object will give insightful information about its condition:
-
-```console
-kubectl get <resource-type> -o yaml
-```
-
-For example, to get complete information about an Azure AKS cluster object, the
-following command will generate the below sample (truncated) output:
-
-```console
-> kubectl -n crossplane-system get akscluster -o yaml
-...
-  status:
-    Conditions:
-    - LastTransitionTime: 2018-12-04T08:03:01Z
-      Message: 'failed to start create operation for AKS cluster aks-demo-cluster:
-        containerservice.ManagedClustersClient#CreateOrUpdate: Failure sending request:
-        StatusCode=400 -- Please see https://aka.ms/acs-sp-help for more details."'
-      Reason: failed to create cluster
-      Status: "False"
-      Type: Failed
-    - LastTransitionTime: 2018-12-04T08:03:14Z
-      Message: ""
-      Reason: ""
-      Status: "False"
-      Type: Creating
-    - LastTransitionTime: 2018-12-04T09:59:43Z
-      Message: ""
-      Reason: ""
-      Status: "True"
-      Type: Ready
-    bindingPhase: Bound
-    endpoint: crossplane-aks-14af6e93.hcp.centralus.azmk8s.io
-    state: Succeeded
-```
-
-We can see a few conditions in that AKS cluster's history. It first encountered
-a failure, then it moved into the `Creating` state, then it finally became
-`Ready` later on. Conditions that have `Status: "True"` are currently active,
-while conditions with `Status: "False"` happened in the past, but are no longer
-happening currently.
+Remember that much of Crossplane's functionality is provided by Stacks. You can
+use `kubectl logs` to view Stack logs too, though Stacks may not run in the
+`crossplane-system` namespace.
 
 ## Pausing Crossplane
 
-Sometimes, it can be useful to pause Crossplane if you want to stop it from
-actively attempting to manage your resources, for instance if you have
-encountered a bug. To pause Crossplane without deleting all of its resources,
-run the following command to simply scale down its deployment:
+Sometimes, for example when you encounter a bug. it can be useful to pause
+Crossplane if you want to stop it from actively attempting to manage your
+resources. To pause Crossplane without deleting all of its resources, run the
+following command to simply scale down its deployment:
 
-```console
+```bash
 kubectl -n crossplane-system scale --replicas=0 deployment/crossplane
 ```
 
 Once you have been able to rectify the problem or smooth things out, you can unpause Crossplane simply by scaling its deployment back up:
 
-```console
+```bash
 kubectl -n crossplane-system scale --replicas=1 deployment/crossplane
 ```
+
+Remember that much of Crossplane's functionality is provided by Stacks. You can
+use `kubectl scale` to pause Stack pods too, though Stacks may not run in the
+`crossplane-system` namespace.
 
 ## Deleting a Resource Hangs
 
 The resources that Crossplane manages will automatically be cleaned up so as not
 to leave anything running behind. This is accomplished by using finalizers, but
-in certain scenarios, the finalizer can prevent the Kubernetes object from
+in certain scenarios the finalizer can prevent the Kubernetes object from
 getting deleted.
 
 To deal with this, we essentially want to patch the object to remove its
