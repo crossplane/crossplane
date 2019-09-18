@@ -97,6 +97,7 @@ Using the newly provisioned cluster:
 
 1. Install Crossplane from alpha channel. (See the [Crossplane Installation
    Guide][crossplane-install] for more information.)
+
 ```bash
 helm repo add crossplane-alpha https://charts.crossplane.io/alpha
 helm install --name crossplane --namespace crossplane-system crossplane-alpha/crossplane
@@ -136,6 +137,7 @@ other logical distinction. For this guide, we will create a namespace called
 components.
 
 * Define a `Namespace` in `azure-infra-dev-namespace.yaml` and create it:
+
 ```yaml
 cat > azure-infra-dev.yaml <<EOF
 ---
@@ -158,13 +160,16 @@ It is essential to make sure that the Azure Service Principal is configured with
 all permissions outlined in the [provider guide][azure-provider-guide].
 
 Using Azure Service Principal `crossplane-azure-provider-key.json`:
+
 * Generate BASE64ENCODED_AZURE_PROVIDER_CREDS encoded value:
+
 ```bash
 export BASE64ENCODED_AZURE_PROVIDER_CREDS=$(base64 crossplane-azure-provider-key.json | tr -d "\n")
 ```
 
 * Define an Azure `Provider` and `Secret` in `azure-provider.yaml` and create
   them:
+
 ```yaml
 cat > azure-provider.yaml <<EOF
 ---
@@ -194,6 +199,7 @@ kubectl apply -f azure-provider.yaml
 ```
 
 * Verify Azure provider was successfully registered by the crossplane
+
 ```bash
 kubectl get providers.azure.crossplane.io -n azure-infra-dev
 kubectl get secrets -n azure-infra-dev
@@ -207,6 +213,7 @@ satisfied by an [Azure Database for MySQL][azure-mysql] instance.
 
 * Define an Azure MySQL `SQLServerClass` in `azure-mysql-standard.yaml` and
   create it:
+
 ```yaml
 cat > azure-mysql-standard.yaml <<EOF
 ---
@@ -264,6 +271,7 @@ will create a namespace called `app-project1-dev`, which we will use to group
 our Wordpress resources.
 
 * Define a `Namespace` in `app-project1-dev-namespace.yaml` and create it:
+
 ```yaml
 cat > app-project1-dev-namespace.yaml <<EOF
 ---
@@ -289,6 +297,7 @@ our Wordpress resources will live in.
 
 * Define a `MySQLInstanceClass` in `mysql-standard.yaml` for namespace
   `app-project1-dev` and create it:
+
 ```yaml
 cat > mysql-standard.yaml <<EOF
 ---
@@ -357,6 +366,7 @@ configuration for the external resource. We need a to create a claim to
 provision the MySQL database we will use with Azure.
 
 * Define a `MySQLInstance` claim in `mysql-claim.yaml` and create it:
+
 ```yaml
 cat > mysql-claim.yaml <<EOF
 apiVersion: database.crossplane.io/v1alpha1
@@ -456,12 +466,14 @@ database and our AKS cluster. We can do this by creating a [Virtual Network
 Rule][azure-vnet-rule].
 
 * Set `MYSQL_NAME` environment variable:
+
 ```bash
 export MYSQL_NAME=$(kubectl get -o json mysqlinstance mysql-claim -n app-project1-dev | jq -j '.spec.resourceRef.name')
 ```
 
 * Define a `MysqlServerVirtualNetworkRule` in `wordpress-vnet-rule.yaml` and
   create it:
+
 ```yaml
 cat > wordpress-vnet-rule.yaml <<EOF
 ---
@@ -520,6 +532,7 @@ username:  58 bytes
 ```
 
 * Define the `Deployment` and `Service` in `wordpress-app.yaml` and create it:
+
 ```yaml
 cat > wordpress-app.yaml <<EOF
 apiVersion: apps/v1
@@ -609,6 +622,7 @@ kubectl delete -f wordpress-app.yaml
 
 To delete all created resources, but leave Crossplane and the Azure stack
 running, execute the following commands:
+
 ```bash
 kubectl delete -f wordpress-vnet-rule.yaml
 kubectl delete -f mysql-claim.yaml
