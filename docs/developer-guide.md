@@ -49,7 +49,7 @@ Stacks simplify the work required to build, publish, install and manage control
 plane extensions with a powerful RBAC permission model, integrated dependency
 management, and more.
 
-The [Infra Stack Developer Guide][infra-stack-developer-guide] shows how to:
+The [Services Developer Guide][services-developer-guide] shows how to:
 
 * Extend existing Infra Stacks ([stack-gcp][stack-gcp], [stack-aws][stack-aws],
   [stack-azure][stack-azure]) to add more cloud services.
@@ -98,7 +98,7 @@ To [learn more][learn-more] checkout these [useful links][learn-more].
 [stack-wordpress]: https://github.com/crossplaneio/sample-stack-wordpress
 [stack-wordpress-registry]: https://hub.docker.com/r/crossplane/sample-stack-wordpress
 [stack-manager]: https://github.com/crossplaneio/crossplane/blob/master/design/design-doc-stacks.md#terminology
-[infra-stack-developer-guide]: developer-guide.md
+[services-developer-guide]: services-developer-guide.md
 [stack-quick-start]: https://github.com/crossplaneio/crossplane-cli#quick-start-stacks
 [kubernetes-controller]: https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/#custom-controllers
 [join-crossplane-slack]: https://slack.crossplane.io
