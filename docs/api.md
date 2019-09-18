@@ -27,7 +27,7 @@ but the key difference between the statuses are summarized below:
 
 ## Crossplane
 
-Crossplane is reponsible for all portable resources, including resource claims
+Crossplane is responsible for all portable resources, including resource claims
 (for example `MySQLInstance`) and portable resource classes (for example
 `MySQLInstanceClass). Crossplane currently supports the following API groups:
 
@@ -49,7 +49,7 @@ API Group | Status | Details
 
 ## AWS Stack
 
-The AWS Stack is reponsible for all AWS specific resources, including managed
+The AWS Stack is responsible for all AWS specific resources, including managed
 resources (for example `EKSCluster`), and cloud specific resource classes (for
 example `EKSClusterClass`) The AWS Stack currently supports the following API
 groups:
@@ -74,7 +74,7 @@ API Group | Status | Details
 
 ## Azure Stack
 
-The Azure Stack is reponsible for all Azure specific resources, including
+The Azure Stack is responsible for all Azure specific resources, including
 managed resources (for example `AKSCluster`), and cloud specific resource
 classes (for example `AKSClusterClass`) The Azure Stack currently supports the
 following API groups:
@@ -97,7 +97,7 @@ API Group | Status | Details
 
 ## GCP Stack
 
-The GCP Stack is reponsible for all GCP specific resources, including managed
+The GCP Stack is responsible for all GCP specific resources, including managed
 resources (for example `GKECluster`), and cloud specific resource classes (for
 example `GKEClusterClass`) The GCP Stack currently supports the following API
 groups:
