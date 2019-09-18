@@ -109,7 +109,7 @@ func main() {
 
 		// TODO(displague) afero.NewBasePathFs could avoid the need to track Base
 		fs := afero.NewOsFs()
-		rd := &walker.ResourceDir{Base: *extUnpackDir, Walker: afero.Afero{Fs: fs}}
+		rd := &walker.ResourceDir{Base: filepath.Clean(*extUnpackDir), Walker: afero.Afero{Fs: fs}}
 		kingpin.FatalIfError(stacks.Unpack(rd, outFile, rd.Base, *extUnpackPermissionScope), "failed to unpack stacks")
 		return
 	default:

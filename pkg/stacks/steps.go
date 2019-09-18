@@ -18,6 +18,7 @@ package stacks
 
 import (
 	"encoding/base64"
+	"fmt"
 	"mime"
 	"path/filepath"
 
@@ -32,10 +33,10 @@ import (
 
 // installStep unmarshals install.yaml bytes to API machinery Unstructured which is set on the StackPackager
 func installStep(sp StackPackager) walker.Step {
-	return func(_ string, b []byte) error {
+	return func(path string, b []byte) error {
 		install := unstructured.Unstructured{}
 		if err := yaml.Unmarshal(b, &install); err != nil {
-			return errors.Wrap(err, "invalid install")
+			return errors.Wrap(err, fmt.Sprintf("invalid install %q", path))
 		}
 
 		err := sp.SetInstall(install)
@@ -63,7 +64,7 @@ func appStep(sp StackPackager) walker.Step {
 	return func(path string, b []byte) error {
 		app := v1alpha1.AppMetadataSpec{}
 		if err := yaml.Unmarshal(b, &app); err != nil {
-			return errors.Wrap(err, "invalid app")
+			return errors.Wrap(err, fmt.Sprintf("invalid app %q", path))
 		}
 
 		sp.SetApp(app)
@@ -77,11 +78,11 @@ func crdStep(sp StackPackager) walker.Step {
 		crd := &apiextensions.CustomResourceDefinition{}
 
 		if err := yaml.Unmarshal(b, crd); err != nil {
-			return errors.Wrap(err, "invalid crd")
+			return errors.Wrap(err, fmt.Sprintf("invalid crd %q", path))
 		}
 
 		if (crd.Spec.Scope != apiextensions.NamespaceScoped) && (crd.Spec.Scope != "") {
-			return errors.New("Stack CRD must be namespaced scope")
+			return errors.New(fmt.Sprintf("Stack CRD %q must be namespaced scope", path))
 		}
 
 		sp.AddCRD(filepath.Dir(path), crd)
@@ -94,7 +95,7 @@ func groupStep(sp StackPackager) walker.Step {
 	return func(path string, b []byte) error {
 		sg := &StackGroup{}
 		if err := yaml.Unmarshal(b, sg); err != nil {
-			return errors.Wrap(err, "invalid group")
+			return errors.Wrap(err, fmt.Sprintf("invalid group %q", path))
 		}
 
 		sp.AddGroup(filepath.Dir(path), *sg)
@@ -110,7 +111,7 @@ func resourceStep(sp StackPackager) walker.Step {
 	return func(path string, b []byte) error {
 		sr := &StackResource{}
 		if err := yaml.Unmarshal(b, sr); err != nil {
-			return errors.Wrap(err, "invalid resource")
+			return errors.Wrap(err, fmt.Sprintf("invalid resource %q", path))
 		}
 
 		sp.AddResource(path, *sr)

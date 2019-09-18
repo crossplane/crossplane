@@ -19,7 +19,9 @@ package install
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
+	"path/filepath"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -88,7 +90,12 @@ func createInstallJob(i v1alpha1.StackInstaller, executorInfo *stacks.ExecutorIn
 							// "--debug" can be added to this list of Args to get debug output from the job,
 							// but note that will be included in the stdout from the pod, which makes it
 							// impossible to create the resources that the job unpacks.
-							Args: []string{"stack", "unpack", "--content-dir=/ext-pkg", "--permission-scope=" + i.PermissionScope()},
+							Args: []string{
+								"stack",
+								"unpack",
+								fmt.Sprintf("--content-dir=%s", filepath.Join("/ext-pkg", registryDirName)),
+								"--permission-scope=" + i.PermissionScope(),
+							},
 							VolumeMounts: []corev1.VolumeMount{
 								{
 									Name:      packageContentsVolumeName,
