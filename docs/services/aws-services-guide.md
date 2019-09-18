@@ -1,3 +1,10 @@
+---
+title: Using AWS Services
+toc: true
+weight: 430
+indent: true
+---
+
 # Deploying Wordpress in Amazon Web Services (AWS)
 
 This user guide will walk you through Wordpress application deployment using
@@ -22,7 +29,7 @@ local machine.
 * [AWS CLI][aws-cli]
 * [kubectl][install-kubectl]
 * [Helm][using-helm], minimum version `v2.10.0+`.
-* [jq][jq-docs] - commandline JSON processor `v1.5+`
+* [jq][jq-docs] - command line JSON processor `v1.5+`
 
 ## Preparation
 
@@ -34,9 +41,9 @@ values below or create your own.*
 
 ### Set Up an EKS Cluster
 
-We will create an EKS cluster, follwoing the steps provided in [AWS documentation] [aws-create-eks].
+We will create an EKS cluster, following the steps provided in [AWS documentation][aws-create-eks].
 
-#### Create and Configure an EKS comatible VPN
+#### Create and Configure an EKS compatible VPN
 
 First, we will need to create a VPC, and the related network resources. This can be done by creating a compatible **Cloud Formation stack**, provided in [EKS official documentation][sample-cf-stack]. This stack consumes a few parameters, that we will provide by the following variables:
 
@@ -76,7 +83,7 @@ The output of this command will look like:
 >}
 >```
 
-Creating the stack continutes in the background and  could take a few minutes to complete. You can check its status by running:
+Creating the stack continues in the background and  could take a few minutes to complete. You can check its status by running:
 
 ```bash
 aws cloudformation describe-stacks --output json --stack-name ${EKS_STACK_NAME} --region $REGION | jq -r '.Stacks[0].StackStatus'
@@ -96,7 +103,7 @@ EKS_SECURITY_GROUP=$(aws cloudformation describe-stacks --output json --stack-na
 
 #### Create an IAM Role for the EKS cluster
 
-For EKS cluster to be able to access different resources, it needs to be given the required permissions through an **IAM Role**. In this section we create a role and assign the required policies. Later we will make EKS to assume this role.
+For the EKS cluster to be able to access different resources, it needs to be given the required permissions through an **IAM Role**. In this section we create a role and assign the required policies. Later we will make EKS to assume this role.
 
 ```bash
 EKS_ROLE_NAME=crossplane-example-eks-role
@@ -105,7 +112,7 @@ EKS_ROLE_NAME=crossplane-example-eks-role
 ASSUME_POLICY='{
   "Version": "2012-10-17",
   "Statement": {
-    "Effect": "Allow", 
+    "Effect": "Allow",
     "Principal": {
       "Service": "eks.amazonaws.com"
     },
@@ -128,7 +135,7 @@ aws iam attach-role-policy --role-name "${EKS_ROLE_NAME}" --policy-arn arn:aws:i
 aws iam attach-role-policy --role-name "${EKS_ROLE_NAME}" --policy-arn arn:aws:iam::aws:policy/AmazonEKSServicePolicy > /dev/null
 ```
 
-Now lets retrieve the **arn** of this role and store it in a variable. We later assign this to the EKS.
+Now lets retrieve the **ARN** of this role and store it in a variable. We later assign this to the EKS.
 
 ```bash
 EKS_ROLE_ARN=$(aws iam get-role --output json --role-name "${EKS_ROLE_NAME}" | jq -r .Role.Arn)
@@ -150,7 +157,7 @@ aws eks create-cluster \
   --resources-vpc-config subnetIds="${SUBNET_IDS}",securityGroupIds="${EKS_SECURITY_GROUP}"
 ```
 
-At this point, an EKS cluster should be started provisioning, which could take take up to 15 minutes. You can check the status of the cluster by running:
+At this point, an EKS cluster should have started provisioning, which could take take up to 15 minutes. You can check the status of the cluster by running:
 
 ```bash
 aws eks describe-cluster --name "${CLUSTER_NAME}" --region "${REGION}" | jq -r .cluster.status
@@ -158,7 +165,7 @@ aws eks describe-cluster --name "${CLUSTER_NAME}" --region "${REGION}" | jq -r .
 
 Once the provisioning is completed, the above command will return `ACTIVE`.
 
-#### Configuring `kubectl` to communicatie with the EKS 
+#### Configuring `kubectl` to communicate with the EKS cluster
 
 Once the cluster is created and is `ACTIVE`, we configure the `kubectl` to target this cluster:
 
@@ -181,7 +188,7 @@ The output will look like:
 >Added new context arn:aws:eks:eu-west-1:123456789012:cluster/crossplane-example-cluster to /path/to/.kube/eks-config
 >```
 
-At this point, `kubectl` should be configurd to talk to the EKS cluster. To verify this run:
+At this point, `kubectl` should be configured to talk to the EKS cluster. To verify this run:
 
 ```bash
 kubectl cluster-info
@@ -201,7 +208,7 @@ Before creating the stack, we will need to create a [Key Pair][aws-key-pair]. Th
 
 ```bash
 # an arbitrary name for the keypair
-KEY_PAIR=crossplaine-example-kp
+KEY_PAIR=crossplane-example-kp
 
 # we give an arbitrary name to the workers stack.
 # this name has to be unique within an aws account and region
@@ -241,11 +248,11 @@ The output will look like:
 
 >```bash
 >{
->    "StackId": "arn:aws:cloudformation:eu-west-1:123456789012:stack/aws-serivce-example-stack 5730d720-d9d9-11e9-8662-029e8e947a9c"
+>    "StackId": "arn:aws:cloudformation:eu-west-1:123456789012:stack/aws-service-example-stack 5730d720-d9d9-11e9-8662-029e8e947a9c"
 >}
 >```
 
-Similar to VPC stack, creating the workers stack continutes in the background and could take a few minutes to complete. You can check its status by running:
+Similar to VPC stack, creating the workers stack continues in the background and could take a few minutes to complete. You can check its status by running:
 
 ```bash
 aws cloudformation describe-stacks --output json --stack-name ${WORKERS_STACK_NAME} --region ${REGION} | jq -r '.Stacks[0].StackStatus'
@@ -314,7 +321,7 @@ aws ec2 create-security-group \
   --vpc-id="${VPC_ID}" \
   --region="${REGION}" \
   --group-name="${RDS_SG_NAME}" \
-  --description="open mysql access for crossplane-example cluster" 
+  --description="open mysql access for crossplane-example cluster"
 
 # retrieve the ID for this security group
 RDS_SECURITY_GROUP_ID=$(aws ec2 describe-security-groups --filter Name=group-name,Values="${RDS_SG_NAME}" --region="${REGION}" --output=text --query="SecurityGroups[0].GroupId")
@@ -331,7 +338,7 @@ aws ec2 authorize-security-group-ingress \
   --cidr=0.0.0.0/0  > /dev/null
 ```
 
-1. A **DB Subnet Goup** needs to be created, so that the RDS instance is associated with different availability zones
+1. A **DB Subnet Group** needs to be created, so that the RDS instance is associated with different availability zones
 
 ```bash
 
@@ -348,7 +355,7 @@ aws rds create-db-subnet-group \
 
 ```
 
-These resources later will be used to create cloud-specitic MySQL resources.
+These resources later will be used to create cloud-specific MySQL resources.
 
 ### Set Up Crossplane
 
@@ -395,17 +402,18 @@ other logical distinction. For this guide, we will create a namespace called
 components.
 
 * Define a `Namespace` in `aws-infra-dev-namespace.yaml` and create it:
-```yaml
-cat > aws-infra-dev-namespace.yaml <<EOF
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: aws-infra-dev
-EOF
 
-kubectl apply -f aws-infra-dev-namespace.yam
-```
+  ```yaml
+  cat > aws-infra-dev-namespace.yaml <<EOF
+  ---
+  apiVersion: v1
+  kind: Namespace
+  metadata:
+    name: aws-infra-dev
+  EOF
+
+  kubectl apply -f aws-infra-dev-namespace.yam
+  ```
 
 * You should see the following output:
 
@@ -478,21 +486,22 @@ will create a namespace called `app-project1-dev`, which we will use to group
 our Wordpress resources.
 
 * Define a `Namespace` in `app-project1-dev-namespace.yaml` and create it:
-```yaml
-cat > app-project1-dev-namespace.yaml <<EOF
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: app-project1-dev
-EOF
 
-kubectl apply -f app-project1-dev-namespace.yaml
-```
+  ```yaml
+  cat > app-project1-dev-namespace.yaml <<EOF
+  ---
+  apiVersion: v1
+  kind: Namespace
+  metadata:
+    name: app-project1-dev
+  EOF
+
+  kubectl apply -f app-project1-dev-namespace.yaml
+  ```
 
 * You should see the following output:
 
-> namespace/app-project1-dev created
+  > namespace/app-project1-dev created
 
 #### Portable Resource Classes
 
@@ -503,35 +512,36 @@ our Wordpress resources will live in.
 
 * Define a `MySQLInstanceClass` in `mysql-standard.yaml` for namespace
   `app-project1-dev` and create it:
-```yaml
-cat > mysql-standard.yaml <<EOF
----
-apiVersion: database.crossplane.io/v1alpha1
-kind: MySQLInstanceClass
-metadata:
-  name: mysql-standard
-  namespace: app-project1-dev
-classRef:
-  kind: RDSInstanceClass
-  apiVersion: database.aws.crossplane.io/v1alpha2
-  name: aws-mysql-standard
-  namespace: aws-infra-dev
-EOF
 
-kubectl apply -f mysql-standard.yaml
-```
+  ```yaml
+  cat > mysql-standard.yaml <<EOF
+  ---
+  apiVersion: database.crossplane.io/v1alpha1
+  kind: MySQLInstanceClass
+  metadata:
+    name: mysql-standard
+    namespace: app-project1-dev
+  classRef:
+    kind: RDSInstanceClass
+    apiVersion: database.aws.crossplane.io/v1alpha2
+    name: aws-mysql-standard
+    namespace: aws-infra-dev
+  EOF
+
+  kubectl apply -f mysql-standard.yaml
+  ```
 
 * You should see the following output:
 
-> mysqlinstanceclass.database.crossplane.io/mysql-standard created
+  > mysqlinstanceclass.database.crossplane.io/mysql-standard created
 
 * You can verify creation with the following command and output:
 
-```bash
-$ kubectl get mysqlinstanceclasses -n app-project1-dev
-NAME             AGE
-mysql-standard   27s
-```
+  ```bash
+  $ kubectl get mysqlinstanceclasses -n app-project1-dev
+  NAME             AGE
+  mysql-standard   27s
+  ```
 
 Once again, you are free to create more `MySQLInstanceClass` instances in this
 namespace to define more classes of service. For instance, if you created
@@ -571,23 +581,24 @@ configuration for the external resource. We need a to create a claim to
 provision the RDS database we will use with AWS.
 
 * Define a `MySQLInstance` claim in `mysql-claim.yaml` and create it:
-```yaml
-cat > mysql-claim.yaml <<EOF
-apiVersion: database.crossplane.io/v1alpha1
-kind: MySQLInstance
-metadata:
-  name: mysql-claim
-  namespace: app-project1-dev
-spec:
-  classRef:
-    name: mysql-standard
-  writeConnectionSecretToRef:
-    name: wordpressmysql
-  engineVersion: "5.6"
-EOF
 
-kubectl apply -f mysql-claim.yaml
-```
+  ```yaml
+  cat > mysql-claim.yaml <<EOF
+  apiVersion: database.crossplane.io/v1alpha1
+  kind: MySQLInstance
+  metadata:
+    name: mysql-claim
+    namespace: app-project1-dev
+  spec:
+    classRef:
+      name: mysql-standard
+    writeConnectionSecretToRef:
+      name: wordpressmysql
+    engineVersion: "5.6"
+  EOF
+
+  kubectl apply -f mysql-claim.yaml
+  ```
 
 What we are looking for is for the `STATUS` value to become `Bound` which
 indicates the managed resource was successfully provisioned and is ready for
@@ -673,92 +684,93 @@ the claim became `Bound`.
 
 * Check to make sure `wordpressmysql` exists and is populated:
 
-```bash
-$ kubectl describe secret wordpressmysql -n app-project1-dev
-Name:         wordpressmysql
-Namespace:    app-project1-dev
-Labels:       <none>
-Annotations:  <none>
+  ```bash
+  $ kubectl describe secret wordpressmysql -n app-project1-dev
+  Name:         wordpressmysql
+  Namespace:    app-project1-dev
+  Labels:       <none>
+  Annotations:  <none>
 
-Type:  Opaque
+  Type:  Opaque
 
-Data
-====
-endpoint:  75 bytes
-password:  27 bytes
-username:  58 bytes
-```
+  Data
+  ====
+  endpoint:  75 bytes
+  password:  27 bytes
+  username:  58 bytes
+  ```
 
 * Define the `Deployment` and `Service` in `wordpress-app.yaml` and create it:
-```yaml
-cat > wordpress-app.yaml <<EOF
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  namespace: app-project1-dev
-  name: wordpress
-  labels:
-    app: wordpress
-spec:
-  selector:
-    matchLabels:
-      app: wordpress
-  template:
-    metadata:
-      labels:
-        app: wordpress
-    spec:
-      containers:
-        - name: wordpress
-          image: wordpress:4.6.1-apache
-          env:
-            - name: WORDPRESS_DB_HOST
-              valueFrom:
-                secretKeyRef:
-                  name: wordpressmysql
-                  key: endpoint
-            - name: WORDPRESS_DB_USER
-              valueFrom:
-                secretKeyRef:
-                  name: wordpressmysql
-                  key: username
-            - name: WORDPRESS_DB_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: wordpressmysql
-                  key: password
-          ports:
-            - containerPort: 80
-              name: wordpress
----
-apiVersion: v1
-kind: Service
-metadata:
-  namespace: app-project1-dev
-  name: wordpress
-  labels:
-    app: wordpress
-spec:
-  ports:
-    - port: 80
-  selector:
-    app: wordpress
-  type: LoadBalancer
-EOF
 
-kubectl apply -f wordpress-app.yaml
-```
+  ```yaml
+  cat > wordpress-app.yaml <<EOF
+  apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    namespace: app-project1-dev
+    name: wordpress
+    labels:
+      app: wordpress
+  spec:
+    selector:
+      matchLabels:
+        app: wordpress
+    template:
+      metadata:
+        labels:
+          app: wordpress
+      spec:
+        containers:
+          - name: wordpress
+            image: wordpress:4.6.1-apache
+            env:
+              - name: WORDPRESS_DB_HOST
+                valueFrom:
+                  secretKeyRef:
+                    name: wordpressmysql
+                    key: endpoint
+              - name: WORDPRESS_DB_USER
+                valueFrom:
+                  secretKeyRef:
+                    name: wordpressmysql
+                    key: username
+              - name: WORDPRESS_DB_PASSWORD
+                valueFrom:
+                  secretKeyRef:
+                    name: wordpressmysql
+                    key: password
+            ports:
+              - containerPort: 80
+                name: wordpress
+  ---
+  apiVersion: v1
+  kind: Service
+  metadata:
+    namespace: app-project1-dev
+    name: wordpress
+    labels:
+      app: wordpress
+  spec:
+    ports:
+      - port: 80
+    selector:
+      app: wordpress
+    type: LoadBalancer
+  EOF
+
+  kubectl apply -f wordpress-app.yaml
+  ```
 
 * You can verify creation with the following command and output:
 
-```bash
-$ kubectl get -f wordpress-app.yaml 
-NAME                        READY   UP-TO-DATE   AVAILABLE   AGE
-deployment.apps/wordpress   1/1     1            1           11m
+  ```bash
+  $ kubectl get -f wordpress-app.yaml
+  NAME                        READY   UP-TO-DATE   AVAILABLE   AGE
+  deployment.apps/wordpress   1/1     1            1           11m
 
-NAME                TYPE           CLUSTER-IP    EXTERNAL-IP   PORT(S)        AGE
-service/wordpress   LoadBalancer   10.0.128.30   52.168.69.6   80:32587/TCP   11m
-```
+  NAME                TYPE           CLUSTER-IP    EXTERNAL-IP   PORT(S)        AGE
+  service/wordpress   LoadBalancer   10.0.128.30   52.168.69.6   80:32587/TCP   11m
+  ```
 
 If the `EXTERNAL-IP` field of the `LoadBalancer` is `<pending>`, wait until it
 becomes available, then navigate to the address. You should see the following:
@@ -779,6 +791,7 @@ kubectl delete -f wordpress-app.yaml
 
 To delete all created resources, but leave Crossplane and the AWS stack
 running, execute the following commands:
+
 ```bash
 kubectl delete -f mysql-claim.yaml
 kubectl delete -f mysql-standard.yaml
@@ -807,7 +820,7 @@ In this guide we:
   assign an external IP address to it
 
 If you would like to try out a similar workflow using a different cloud
-provider, take a look at the other [services guides][serives]. If you would like
+provider, take a look at the other [services guides][services]. If you would like
 to learn more about stacks, checkout the [stacks guide][stacks]
 
 <!-- Named links -->
@@ -825,3 +838,4 @@ to learn more about stacks, checkout the [stacks guide][stacks]
 [aws-rds]: https://aws.amazon.com/rds/
 [services]: ../services-guide.md
 [stacks]: ../stacks-guide.md
+[aws-stack-install]: ../install-crossplane.md#aws-stack

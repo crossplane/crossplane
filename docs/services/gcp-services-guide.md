@@ -1,5 +1,5 @@
 ---
-title: "GCP Services Guide"
+title: Using GCP Services
 toc: true
 weight: 420
 indent: true
@@ -54,11 +54,11 @@ Run the following:
 export PROJECT_ID=crossplane-playground # the project that all resources reside.
 export NETWORK_NAME=default # the network that your GKE cluster lives in.
 export SUBNETWORK_NAME=default # the subnetwork that your GKE cluster lives in.
-``` 
+```
 
 ### GKE Cluster Steps
 
-We are assuming you've got a GKE cluster up and running created either via 
+We are assuming you've got a GKE cluster up and running created either via
 GCP Console or gcloud CLI. If you don't, the basic command to create one is
 the following:
 
@@ -100,6 +100,7 @@ kubectl -n kube-system create serviceaccount tiller
 kubectl create clusterrolebinding tiller --clusterrole cluster-admin --serviceaccount=kube-system:tiller
 helm init --service-account=tiller
 ```
+
 ### Crossplane Steps
 
 #### Installation
@@ -119,49 +120,53 @@ export INFRA_NAMESPACE=gcp-infra-dev
 
 #### GCP Provider
 
-It is essential to make sure that a GCP service account to be used by 
-Crossplane is configured with all the necessary permissions outlined in the 
+It is essential to make sure that a GCP service account to be used by
+Crossplane is configured with all the necessary permissions outlined in the
 [provider guide](../cloud-providers/gcp/gcp-provider.md).
 
 Using the service account json `crossplane-gcp-provider-key.json` that you
 acquired from GCP:
 
 * Generate Base64 encoded value to store in a `Secret`:
-```bash
-export BASE64ENCODED_GCP_PROVIDER_CREDS=$(base64 crossplane-gcp-provider-key.json | tr -d "\n")
-```
 
-* Define a GCP `Provider` and `Secret`:
-```bash
-cat > gcp-provider.yaml <<EOF
----
-apiVersion: v1
-data:
-  credentials.json: $BASE64ENCODED_GCP_PROVIDER_CREDS
-kind: Secret
-metadata:
-  name: gcp-provider-creds
-type: Opaque
----
-apiVersion: gcp.crossplane.io/v1alpha2
-kind: Provider
-metadata:
-  name: gcp-provider
-spec:
-  credentialsSecretRef:
-    name: gcp-provider-creds
-    key: credentials.json
-  projectID: $PROJECT_ID
-EOF
+  ```bash
+  export BASE64ENCODED_GCP_PROVIDER_CREDS=$(base64 crossplane-gcp-provider-key.json | tr -d "\n")
+  ```
 
-kubectl -n $INFRA_NAMESPACE apply -f gcp-provider.yaml
-unset BASE64ENCODED_GCP_PROVIDER_CREDS # we don't need this anymore.
-```
+  * Define a GCP `Provider` and `Secret`:
+
+    ```bash
+    cat > gcp-provider.yaml <<EOF
+    ---
+    apiVersion: v1
+    data:
+      credentials.json: $BASE64ENCODED_GCP_PROVIDER_CREDS
+    kind: Secret
+    metadata:
+      name: gcp-provider-creds
+    type: Opaque
+    ---
+    apiVersion: gcp.crossplane.io/v1alpha2
+    kind: Provider
+    metadata:
+      name: gcp-provider
+    spec:
+      credentialsSecretRef:
+        name: gcp-provider-creds
+        key: credentials.json
+      projectID: $PROJECT_ID
+    EOF
+
+    kubectl -n $INFRA_NAMESPACE apply -f gcp-provider.yaml
+    unset BASE64ENCODED_GCP_PROVIDER_CREDS # we don't need this anymore.
+    ```
+
 * Verify GCP provider was successfully registered by the crossplane
-```bash
-kubectl -n $INFRA_NAMESPACE get providers.gcp.crossplane.io
-kubectl -n $INFRA_NAMESPACE get secrets
-```
+
+  ```bash
+  kubectl -n $INFRA_NAMESPACE get providers.gcp.crossplane.io
+  kubectl -n $INFRA_NAMESPACE get secrets
+  ```
 
 #### Cloud-Specific Resource Classes
 
@@ -170,6 +175,7 @@ a specific managed service. Wordpress requires a MySQL database, which can be
 satisfied by a [Google Cloud SQL Instance](https://cloud.google.com/sql/docs/mysql/).
 
 * Define a GCP CloudSQL class `CloudsqlInstanceClass`:
+
 ```bash
 cat > gcp-mysql-standard.yaml <<EOF
 ---
@@ -194,6 +200,7 @@ EOF
 
 kubectl -n $INFRA_NAMESPACE apply -f gcp-mysql-standard.yaml
 ```
+
 * You can verify creation with the following command and output:
 
 *Command*
@@ -225,46 +232,49 @@ kubectl create namespace app-project1-dev
 
 Portable resource classes are used to define a class of service in a single
 namespace for an abstract service type. We want to define our GCP
-`CloudsqlInstanceClass` as the standard MySQL class of service in the namespace 
+`CloudsqlInstanceClass` as the standard MySQL class of service in the namespace
 that our Wordpress resources will live in.
 
-* Define a `MySQLInstanceClass` in `mysql-standard.yaml` for namespace
-  `app-project1-dev`:
-```bash
-cat > mysql-standard.yaml <<EOF
----
-apiVersion: database.crossplane.io/v1alpha1
-kind: MySQLInstanceClass
-metadata:
-  name: mysql-standard
-classRef:
-  kind: CloudsqlInstanceClass
-  apiVersion: database.gcp.crossplane.io/v1alpha2
-  name: standard-cloudsql
-  namespace: $INFRA_NAMESPACE
-EOF
+* Define a `MySQLInstanceClass` in `mysql-standard.yaml` for namespace `app-project1-dev`:
 
-kubectl -n app-project1-dev apply -f mysql-standard.yaml
-```
+  ```bash
+  cat > mysql-standard.yaml <<EOF
+  ---
+  apiVersion: database.crossplane.io/v1alpha1
+  kind: MySQLInstanceClass
+  metadata:
+    name: mysql-standard
+  classRef:
+    kind: CloudsqlInstanceClass
+    apiVersion: database.gcp.crossplane.io/v1alpha2
+    name: standard-cloudsql
+    namespace: $INFRA_NAMESPACE
+  EOF
+
+  kubectl -n app-project1-dev apply -f mysql-standard.yaml
+  ```
 
 * You can verify creation with the following command and output:
 
-*Command*
-```bash
-kubectl -n app-project1-dev get mysqlinstanceclasses
-```
-*Output*
-```bash
-NAME             AGE
-mysql-standard   27s
-```
+  *Command*
+
+  ```bash
+  kubectl -n app-project1-dev get mysqlinstanceclasses
+  ```
+
+  *Output*
+
+  ```bash
+  NAME             AGE
+  mysql-standard   27s
+  ```
 
 Once again, you are free to create more `MySQLInstanceClass` instances in this
 namespace to define more classes of service. For instance, if you created
 `mysql-gcp-large` above, you may want to create a `MySQLInstanceClass` named
 `mysql-large` that references it. You may also choose to create MySQL resource
 classes for other non-GCP providers, and reference them for a class of service
-in the `app-project1-dev` namespace. 
+in the `app-project1-dev` namespace.
 
 > Portable classes are the resource classes that are not cloud specific and
 their purpose is to refer to cloud specific resource classes that will be
@@ -280,7 +290,7 @@ our `mysql-standard` instance the default `MySQLInstanceClass` for namespace
 ```bash
 kubectl -n app-project1-dev label mysqlinstanceclass mysql-standard default="true"
 ```
-For more details about resource classes in Crossplane, see 
+For more details about resource classes in Crossplane, see
 [Default Resource Classes One-Pager](https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-default-resource-class.md).
 
 #### Resource Claims
@@ -291,28 +301,29 @@ referenced portable class to find a cloud-specific resource class to use as the
 configuration for the external resource. We need to create a claim to
 provision the MySQL database we will use in GCP.
 
-* Define a `MySQLInstance` claim in `mysql-claim.yaml`:
-> You can omit `spec.classRef` if you want to use the default MySQLInstanceClass.
-```bash
-cat > mysql-claim.yaml <<EOF
----
-apiVersion: database.crossplane.io/v1alpha1
-kind: MySQLInstance
-metadata:
-  name: mysql-claim
-spec:
-  classRef:
-    name: mysql-standard
-  engineVersion: "5.7"
-  # A secret is exported by providing the secret name
-  # to export it under. This is the name of the secret
-  # in the crossplane cluster, and it's scoped to this claim's namespace.
-  writeConnectionSecretToRef:
-    name: wordpressmysql
-EOF
+* Define a `MySQLInstance` claim in `mysql-claim.yaml`.
+You can omit `spec.classRef` if you want to use the default MySQLInstanceClass:
 
-kubectl -n app-project1-dev apply -f mysql-claim.yaml
-```
+  ```bash
+  cat > mysql-claim.yaml <<EOF
+  ---
+  apiVersion: database.crossplane.io/v1alpha1
+  kind: MySQLInstance
+  metadata:
+    name: mysql-claim
+  spec:
+    classRef:
+      name: mysql-standard
+    engineVersion: "5.7"
+    # A secret is exported by providing the secret name
+    # to export it under. This is the name of the secret
+    # in the crossplane cluster, and it's scoped to this claim's namespace.
+    writeConnectionSecretToRef:
+      name: wordpressmysql
+  EOF
+
+  kubectl -n app-project1-dev apply -f mysql-claim.yaml
+  ```
 
 What we are looking for is for `STATUS` value to become `Bound` which indicates
 the managed resource was successfully provisioned and is ready for consumption.
@@ -320,7 +331,7 @@ You can see when claim is bound using the following:
 
 *Command*
 ```bash
-kubectl -n app-project1-dev get mysqlinstances 
+kubectl -n app-project1-dev get mysqlinstances
 ```
 
 *Output*
@@ -384,65 +395,70 @@ guide. It could take a few minutes for GCP to complete CloudSQL creation.*
 #### Connecting MySQL Instance and GKE Cluster
 
 Before we install Wordpress, we need to establish connectivity between our MySQL
-database and our GKE cluster. We can do this by creating a [Private Service 
+database and our GKE cluster. We can do this by creating a [Private Service
 Connection](https://cloud.google.com/vpc/docs/configure-private-services-access).
 
-You can create it by following the instructions at the link above, or you could 
+You can create it by following the instructions at the link above, or you could
 use Crossplane to do it:
 
 * Create a `GlobalAddress` and `Connection` resources:
-```bash
-cat > network.yaml <<EOF
----
-# example-globaladdress defines the IP range that will be allocated for cloud services connecting
-# to the instances in the given Network.
-apiVersion: compute.gcp.crossplane.io/v1alpha2
-kind: GlobalAddress
-metadata:
-  name: example-globaladdress
-spec:
-  providerRef:
-    name: gcp-provider
-    namespace: $INFRA_NAMESPACE
-  reclaimPolicy: Delete
-  name: example-globaladdress
-  purpose: VPC_PEERING
-  addressType: INTERNAL
-  prefixLength: 16
-  network: projects/$PROJECT_ID/global/networks/$NETWORK_NAME
----
-# example-connection is what allows cloud services to use the allocated GlobalAddress for communication. Behind
-# the scenes, it creates a VPC peering to the network that those service instances actually live.
-apiVersion: servicenetworking.gcp.crossplane.io/v1alpha2
-kind: Connection
-metadata:
-  name: example-connection
-spec:
-  providerRef:
-    name: gcp-provider
-    namespace: $INFRA_NAMESPACE
-  reclaimPolicy: Delete
-  parent: services/servicenetworking.googleapis.com
-  network: projects/$PROJECT_ID/global/networks/$NETWORK_NAME
-  reservedPeeringRanges:
-    - example-globaladdress
-EOF
 
-kubectl -n $INFRA_NAMESPACE apply -f network.yaml
-```
+  ```bash
+  cat > network.yaml <<EOF
+  ---
+  # example-globaladdress defines the IP range that will be allocated for cloud services connecting
+  # to the instances in the given Network.
+  apiVersion: compute.gcp.crossplane.io/v1alpha2
+  kind: GlobalAddress
+  metadata:
+    name: example-globaladdress
+  spec:
+    providerRef:
+      name: gcp-provider
+      namespace: $INFRA_NAMESPACE
+    reclaimPolicy: Delete
+    name: example-globaladdress
+    purpose: VPC_PEERING
+    addressType: INTERNAL
+    prefixLength: 16
+    network: projects/$PROJECT_ID/global/networks/$NETWORK_NAME
+  ---
+  # example-connection is what allows cloud services to use the allocated GlobalAddress for communication. Behind
+  # the scenes, it creates a VPC peering to the network that those service instances actually live.
+  apiVersion: servicenetworking.gcp.crossplane.io/v1alpha2
+  kind: Connection
+  metadata:
+    name: example-connection
+  spec:
+    providerRef:
+      name: gcp-provider
+      namespace: $INFRA_NAMESPACE
+    reclaimPolicy: Delete
+    parent: services/servicenetworking.googleapis.com
+    network: projects/$PROJECT_ID/global/networks/$NETWORK_NAME
+    reservedPeeringRanges:
+      - example-globaladdress
+  EOF
+
+  kubectl -n $INFRA_NAMESPACE apply -f network.yaml
+  ```
 
 * You can verify creation with the following command and output:
 
-*Command*
-```bash
-kubectl -n $INFRA_NAMESPACE get connection example-connection -o custom-columns='NAME:.metadata.name,FIRST_CONDITION:.status.conditions[0].status,SECOND_CONDITION:.status.conditions[1].status'
-```
-*Output*
-```
-NAME                 FIRST_CONDITION   SECOND_CONDITION
-example-connection   True              True
-```
-Wait for both conditions to be true to continue.
+  *Command*
+
+  ```bash
+  kubectl -n $INFRA_NAMESPACE get connection example-connection -o custom-columns='NAME:.metadata.name,FIRST_CONDITION:.status.conditions[0].status,SECOND_CONDITION:.status.conditions[1].status'
+  ```
+
+  *Output*
+
+  ```bash
+  NAME                 FIRST_CONDITION   SECOND_CONDITION
+  example-connection   True              True
+  ```
+
+  Wait for both conditions to be true to continue.
 
 ## Install Wordpress
 
@@ -452,16 +468,16 @@ that we specified in our claim above for the Wordpress container environment
 variables. It should have been populated with our MySQL connection details after
 the claim became `Bound`.
 
-> Binding status tells you whether your resource has been provisioned and ready 
-to use. Crossplane binds the actual resource to the claim via changing  the 
-readiness condition to `Bound`. This happens only when the resource is ready 
+> Binding status tells you whether your resource has been provisioned and ready
+to use. Crossplane binds the actual resource to the claim via changing  the
+readiness condition to `Bound`. This happens only when the resource is ready
 to be consumed.
 
 * Check to make sure `wordpressmysql` exists and is populated:
 
 *Command*
 ```bash
-kubectl -n app-project1-dev describe secret wordpressmysql 
+kubectl -n app-project1-dev describe secret wordpressmysql
 ```
 
 *Output*
@@ -481,77 +497,81 @@ username:  58 bytes
 ```
 
 * Define the `Deployment` and `Service` in `wordpress.yaml`:
-```bash
-cat > wordpress.yaml <<EOF
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: wordpress
-  labels:
-    app: wordpress
-spec:
-  selector:
-    matchLabels:
-      app: wordpress
-  template:
-    metadata:
-      labels:
-        app: wordpress
-    spec:
-      containers:
-        - name: wordpress
-          image: wordpress:4.6.1-apache
-          env:
-            - name: WORDPRESS_DB_HOST
-              valueFrom:
-                secretKeyRef:
-                  name: wordpressmysql
-                  key: endpoint
-            - name: WORDPRESS_DB_USER
-              valueFrom:
-                secretKeyRef:
-                  name: wordpressmysql
-                  key: username
-            - name: WORDPRESS_DB_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: wordpressmysql
-                  key: password
-          ports:
-            - containerPort: 80
-              name: wordpress
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: wordpress
-  labels:
-    app: wordpress
-spec:
-  ports:
-    - port: 80
-  selector:
-    app: wordpress
-  type: LoadBalancer
-EOF
 
-kubectl -n app-project1-dev apply -f wordpress.yaml
-```
+  ```bash
+  cat > wordpress.yaml <<EOF
+  apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: wordpress
+    labels:
+      app: wordpress
+  spec:
+    selector:
+      matchLabels:
+        app: wordpress
+    template:
+      metadata:
+        labels:
+          app: wordpress
+      spec:
+        containers:
+          - name: wordpress
+            image: wordpress:4.6.1-apache
+            env:
+              - name: WORDPRESS_DB_HOST
+                valueFrom:
+                  secretKeyRef:
+                    name: wordpressmysql
+                    key: endpoint
+              - name: WORDPRESS_DB_USER
+                valueFrom:
+                  secretKeyRef:
+                    name: wordpressmysql
+                    key: username
+              - name: WORDPRESS_DB_PASSWORD
+                valueFrom:
+                  secretKeyRef:
+                    name: wordpressmysql
+                    key: password
+            ports:
+              - containerPort: 80
+                name: wordpress
+  ---
+  apiVersion: v1
+  kind: Service
+  metadata:
+    name: wordpress
+    labels:
+      app: wordpress
+  spec:
+    ports:
+      - port: 80
+    selector:
+      app: wordpress
+    type: LoadBalancer
+  EOF
+
+  kubectl -n app-project1-dev apply -f wordpress.yaml
+  ```
 
 * You can verify creation with the following command and output:
 
-*Command*
-```bash
-kubectl -n app-project1-dev get -f wordpress.yaml 
-```
-*Output*
-```bash
-NAME                        READY   UP-TO-DATE   AVAILABLE   AGE
-deployment.apps/wordpress   1/1     1            1           11m
+  *Command*
 
-NAME                TYPE           CLUSTER-IP    EXTERNAL-IP   PORT(S)        AGE
-service/wordpress   LoadBalancer   10.0.128.30   52.168.69.6   80:32587/TCP   11m
-```
+  ```bash
+  kubectl -n app-project1-dev get -f wordpress.yaml
+  ```
+
+  *Output*
+
+  ```bash
+  NAME                        READY   UP-TO-DATE   AVAILABLE   AGE
+  deployment.apps/wordpress   1/1     1            1           11m
+
+  NAME                TYPE           CLUSTER-IP    EXTERNAL-IP   PORT(S)        AGE
+  service/wordpress   LoadBalancer   10.0.128.30   52.168.69.6   80:32587/TCP   11m
+  ```
 
 If the `EXTERNAL-IP` field of the `LoadBalancer` is `<pending>`, wait until it
 becomes available, then navigate to the address. You should see the following:
@@ -572,6 +592,7 @@ kubectl -n app-project1-dev delete -f wordpress.yaml
 
 To delete all created resources, but leave Crossplane and the GCP stack
 running, execute the following commands:
+
 ```bash
 kubectl -n app-project1-dev delete -f mysql-claim.yaml
 kubectl -n app-project1-dev delete -f mysql-standard.yaml

@@ -29,7 +29,7 @@ local machine.
 * [kubectl][install-kubectl]
     * kubectl also be installed using the Azure CLI: `az aks install-cli`
 * [Helm][using-helm], minimum version `v2.10.0+`.
-* [jq][jq-docs] - commandline JSON processor `v1.5+`
+* [jq][jq-docs] - command line JSON processor `v1.5+`
 
 
 ## Preparation
@@ -47,7 +47,7 @@ export AKS_NAME=myAKSCluster
 export AKS_NODE_COUNT=1
 export AKS_RESOURCE_GROUP=MC_${RESOURCE_GROUP_NAME}_${AKS_NAME}_${RESOURCE_GROUP_LOCATION}
 export SUBSCRIPTION_ID=$(az account list | jq -j '.[0].id')
-``` 
+```
 
 ### Set Up AKS Cluster
 
@@ -81,7 +81,7 @@ Add Service Endpoint to AKS subnet:
 az network vnet subnet update -g $AKS_RESOURCE_GROUP --vnet-name $AKS_VNET -n aks-subnet --service-endpoints Microsoft.Sql
 ```
 
-4. Connect to AKS Cluster 
+4. Connect to AKS Cluster
 ```bash
 az aks get-credentials --resource-group $RESOURCE_GROUP_NAME --name $AKS_NAME
 ```
@@ -595,7 +595,7 @@ kubectl apply -f wordpress-app.yaml
 * You can verify creation with the following command and output:
 
 ```bash
-$ kubectl get -f wordpress-app.yaml 
+$ kubectl get -f wordpress-app.yaml
 NAME                        READY   UP-TO-DATE   AVAILABLE   AGE
 deployment.apps/wordpress   1/1     1            1           11m
 
@@ -665,7 +665,7 @@ to learn more about stacks, checkout the [stacks guide][stacks]
 [using-helm]: https://docs.helm.sh/using_helm/
 [jq-docs]: https://stedolan.github.io/jq/
 
-[aks-walthrough]: https://docs.microsoft.com/en-us/azure/aks/kubernetes-walkthrough
+[aks-walkthrough]: https://docs.microsoft.com/en-us/azure/aks/kubernetes-walkthrough
 
 [crossplane-install]: ../install-crossplane.md#alpha
 [azure-stack-install]: ../install-crossplane.md#azure-stack

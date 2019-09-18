@@ -7,13 +7,13 @@ weight: 710
 
 Welcome to the Crossplane Developer Guide!
 
-## Overview 
+## Overview
 
 Infra Stacks like [stack-gcp][stack-gcp], [stack-aws][stack-aws], and
 [stack-azure][stack-azure] extend Crossplane to support managed service
 provisioning (databases, caches, buckets), secure connectivity (VPCs, subnets,
 peering, ACLs, secrets), and provisioning managed Kubernetes clusters on demand
-to further isolate the blast radius of applications. 
+to further isolate the blast radius of applications.
 
 Infra Stacks are typically pre-built and published to the [Stacks
 registry][stack-registry], where they can be installed by a cluster
@@ -26,16 +26,16 @@ services they depend on via the Kubernetes API.
 
 App Stacks may also be pre-built and published to the [Stacks
 registry][stack-registry] where they can be deployed by application teams using
-a [`StackInstall`][crossplane-cli-usage]] kind via the Kubernetes API or with
-the [`stack install`][crossplane-cli-usage]) command.
+a [`StackInstall`][crossplane-cli-usage] kind via the Kubernetes API or with
+the [`stack install`][crossplane-cli-usage] command.
 
-## Infra Stacks 
+## Infra Stacks
 
-### Using Infra Stacks 
+### Using Infra Stacks
 
 The [Crossplane Services Guide][services-user-guide] shows how to use existing
  Infra Stacks to deploy a Wordpress `Deployment` that securely consumes a MySQL
- instance from GCP, AWS, or Azure all from `kubectl`. 
+ instance from GCP, AWS, or Azure all from `kubectl`.
 
 ### Building Infra Stacks
 
@@ -61,15 +61,14 @@ The [Services Developer Guide][services-developer-guide] shows how to:
 
 ### Using App Stacks
 
-The [Crossplane Stacks Guide][stacks-user-guide] guide shows how to use a
+The [Crossplane Stacks Guide][stack-user-guide] guide shows how to use a
 [portable App Stack][stack-wordpress-registry] that can deploy with any Infra
 Stack including: [stack-gcp][stack-gcp], [stack-aws][stack-aws], or
 [stack-azure][stack-azure].
 
 ### Building App Stacks
 
-To learn how to build a "Hello World" Stack see the [Stacks Quick
-Start][stacks-quick-start].
+To learn how to build a "Hello World" Stack see the [Stacks Quick Start][stack-quick-start].
 
 For a complete App Stack, see the [portable Wordpress App
 Stack][stack-wordpress] with a kubebuilder-based app
