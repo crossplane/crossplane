@@ -319,7 +319,7 @@ guide][stack-developer-guide].
 
 [aws-setup]: TODO
 [gcp-setup]: stacks-guide-gcp.md
-[azure-setup]: TODO
+[azure-setup]: stacks-guide-azure.md
 
 [stack-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/design-doc-stacks.md#crossplane-stacks
 [stack-quick-start]: https://github.com/crossplaneio/crossplane-cli/tree/release-0.1#quick-start-stacks
