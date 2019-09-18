@@ -165,8 +165,8 @@ Managed resources must:
 * Use the `+kubebuilder:subresource:status` [comment marker].
 
 The `Parameters` struct should be a _high fidelity_ representation of the
-writable fields of the external resource's API. Put otherwise, if your favourite
-cloud represents Favourite DB instances as a JSON object then
+writeable fields of the external resource's API. Put otherwise, if your
+favourite cloud represents Favourite DB instances as a JSON object then
 `FavouriteDBParameters` should marshal to a something as close to that JSON
 object as possible while still complying with Kubernetes API conventions.
 
@@ -318,7 +318,7 @@ an infrastructure stack), but at the time of writing all resource claim kinds
 are defined in Crossplane core. This is because resource claims can frequently
 be satisfied by binding to managed resources from more than one cloud. Consider
 [opening a Crossplane issue] to propose adding your new resource claim kind to
-Crossplane if it could be satsified by managed resources from more than one
+Crossplane if it could be satisfied by managed resources from more than one
 infrastructure stack.
 
 Resource claims must:
@@ -387,7 +387,7 @@ Portable resource classes must:
 * Directly embed a [`PortableClass`] struct.
 * Have no `Spec` field.
 * Have no `Status` field.
-* Have a corresponding List type that sastisfies the
+* Have a corresponding List type that satisfies the
   [`resource.PortableClassList`] interface.
 
 The `FancySQLInstanceClass` portable resource class would look as follows:
