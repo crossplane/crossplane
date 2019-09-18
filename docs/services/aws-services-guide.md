@@ -26,48 +26,52 @@ Crossplane managed resources and the official Wordpress Docker image.
 These tools are required to complete this guide. They must be installed on your
 local machine.
 
-* [AWS CLI][aws-cli]
+* [AWS CLI][aws-cli-install]
 * [kubectl][install-kubectl]
 * [Helm][using-helm], minimum version `v2.10.0+`.
 * [jq][jq-docs] - command line JSON processor `v1.5+`
 
 ## Preparation
 
-This guide assumes that you have setup and configured the AWS CLI.
+This guide assumes that you have already [installed][aws-cli-install] and
+[configured][aws-cli-configure].
 
-*Note: these session variables are used throughout this guide. You may use the
-values below or create your own.*
-
+*Note: the following session variables are used throughout this guide. You may
+use the values below or create your own.*
 
 ### Set Up an EKS Cluster
 
-We will create an EKS cluster, following the steps provided in [AWS documentation][aws-create-eks].
+We will create an EKS cluster, follwoing the steps provided in [AWS
+documentation][aws-create-eks].
 
 #### Create and Configure an EKS compatible VPN
 
-First, we will need to create a VPC, and the related network resources. This can be done by creating a compatible **Cloud Formation stack**, provided in [EKS official documentation][sample-cf-stack]. This stack consumes a few parameters, that we will provide by the following variables:
+First, we will need to create a VPC, and its related resources. This can be done
+by creating a compatible **CloudFormation stack**, provided in [EKS official
+documentation][sample-cf-stack]. This stack consumes a few parameters, that we
+will provide by the following variables:
 
 ```bash
 # we give an arbitrary name to the stack.
 # this name has to be unique within an aws account and region
-EKS_STACK_NAME=crossplane-example
+VPC_STACK_NAME=crossplane-example
 
 # any aws region that supports eks clusters
 REGION=eu-west-1
 
-# a sample stack that can be used to create an EKS
-# compatible VPC and other network resources
+# a sample stack that can be used to create an EKS-compatible
+# VPC and other the related resources
 STACK_URL=https://amazon-eks.s3-us-west-2.amazonaws.com/cloudformation/2019-02-11/amazon-eks-vpc-sample.yaml
 ```
 
 Once all these variables are set, create the stack:
 
 ```bash
-# Generate and run a CloudFormation Stack and get the VPC, Subnet, and Security Group associated with it
+# generate and run the CloudFormation Stack
 aws cloudformation create-stack \
   --template-url="${STACK_URL}" \
   --region "${REGION}" \
-  --stack-name "${EKS_STACK_NAME}" \
+  --stack-name "${VPC_STACK_NAME}" \
   --parameters \
     ParameterKey=VpcBlock,ParameterValue=192.168.0.0/16 \
     ParameterKey=Subnet01Block,ParameterValue=192.168.64.0/18 \
@@ -83,27 +87,33 @@ The output of this command will look like:
 >}
 >```
 
-Creating the stack continues in the background and  could take a few minutes to complete. You can check its status by running:
+Creating the stack continues in the background and  could take a few minutes to
+complete. You can check its status by running:
 
 ```bash
-aws cloudformation describe-stacks --output json --stack-name ${EKS_STACK_NAME} --region $REGION | jq -r '.Stacks[0].StackStatus'
+aws cloudformation describe-stacks --output json --stack-name ${VPC_STACK_NAME} --region $REGION | jq -r '.Stacks[0].StackStatus'
 ```
 
-Once the output of the above command is `CREATE_COMPLETE`, the stack creation is completed, and you can retrieve some of the properties of the created resources. These properties will later be consumed in other resources.
+Once the output of the above command is `CREATE_COMPLETE`, the stack creation is
+completed, and you can retrieve some of the properties of the created resources.
+These properties will later be consumed in other resources.
 
 ```bash
-VPC_ID=$(aws cloudformation describe-stacks --output json --stack-name ${EKS_STACK_NAME} --region ${REGION} | jq -r '.Stacks[0].Outputs[]|select(.OutputKey=="VpcId").OutputValue')
+VPC_ID=$(aws cloudformation describe-stacks --output json --stack-name ${VPC_STACK_NAME} --region ${REGION} | jq -r '.Stacks[0].Outputs[]|select(.OutputKey=="VpcId").OutputValue')
 
 # comma separated list of Subnet IDs
-SUBNET_IDS=$(aws cloudformation describe-stacks --output json --stack-name ${EKS_STACK_NAME} --region ${REGION} | jq -r '.Stacks[0].Outputs[]|select(.OutputKey=="SubnetIds").OutputValue')
+SUBNET_IDS=$(aws cloudformation describe-stacks --output json --stack-name ${VPC_STACK_NAME} --region ${REGION} | jq -r '.Stacks[0].Outputs[]|select(.OutputKey=="SubnetIds").OutputValue')
 
 # the ID of security group that later will be used for the EKS cluster
-EKS_SECURITY_GROUP=$(aws cloudformation describe-stacks --output json --stack-name ${EKS_STACK_NAME} --region ${REGION} | jq -r '.Stacks[0].Outputs[]|select(.OutputKey=="SecurityGroups").OutputValue')
+EKS_SECURITY_GROUP=$(aws cloudformation describe-stacks --output json --stack-name ${VPC_STACK_NAME} --region ${REGION} | jq -r '.Stacks[0].Outputs[]|select(.OutputKey=="SecurityGroups").OutputValue')
 ```
 
 #### Create an IAM Role for the EKS cluster
 
-For the EKS cluster to be able to access different resources, it needs to be given the required permissions through an **IAM Role**. In this section we create a role and assign the required policies. Later we will make EKS to assume this role.
+For the EKS cluster to be able to access different resources, it needs to be
+given the required permissions through an **IAM Role**. In this section we
+create a role and assign the required policies. Later we will make EKS to assume
+this role.
 
 ```bash
 EKS_ROLE_NAME=crossplane-example-eks-role
@@ -127,7 +137,8 @@ aws iam create-role \
   --assume-role-policy-document "${ASSUME_POLICY}"
 ```
 
-The output should be the created role in JSON. Next, you'll attach the required policies to this role:
+The output should be the created role in JSON. Next, you'll attach the required
+policies to this role:
 
 ```bash
 # attach the required policies
@@ -135,7 +146,8 @@ aws iam attach-role-policy --role-name "${EKS_ROLE_NAME}" --policy-arn arn:aws:i
 aws iam attach-role-policy --role-name "${EKS_ROLE_NAME}" --policy-arn arn:aws:iam::aws:policy/AmazonEKSServicePolicy > /dev/null
 ```
 
-Now lets retrieve the **ARN** of this role and store it in a variable. We later assign this to the EKS.
+Now lets retrieve the **ARN** of this role and store it in a variable. We later
+assign this to the EKS.
 
 ```bash
 EKS_ROLE_ARN=$(aws iam get-role --output json --role-name "${EKS_ROLE_NAME}" | jq -r .Role.Arn)
@@ -157,7 +169,8 @@ aws eks create-cluster \
   --resources-vpc-config subnetIds="${SUBNET_IDS}",securityGroupIds="${EKS_SECURITY_GROUP}"
 ```
 
-At this point, an EKS cluster should have started provisioning, which could take take up to 15 minutes. You can check the status of the cluster by running:
+An EKS cluster should have started provisioning, which could take take up to 15
+minutes. You can check the status of the cluster by periodically running:
 
 ```bash
 aws eks describe-cluster --name "${CLUSTER_NAME}" --region "${REGION}" | jq -r .cluster.status
@@ -167,7 +180,8 @@ Once the provisioning is completed, the above command will return `ACTIVE`.
 
 #### Configuring `kubectl` to communicate with the EKS cluster
 
-Once the cluster is created and is `ACTIVE`, we configure the `kubectl` to target this cluster:
+Once the cluster is created and is `ACTIVE`, we configure `kubectl` to target
+this cluster:
 
 ```bash
 # this environment variable tells kubectl what config file to use
@@ -188,7 +202,8 @@ The output will look like:
 >Added new context arn:aws:eks:eu-west-1:123456789012:cluster/crossplane-example-cluster to /path/to/.kube/eks-config
 >```
 
-At this point, `kubectl` should be configured to talk to the EKS cluster. To verify this run:
+Now `kubectl` should be configured to talk to the EKS cluster. To verify this
+run:
 
 ```bash
 kubectl cluster-info
@@ -202,15 +217,22 @@ Which should produce something like:
 
 #### Creating Worker Nodes for the EKS cluster
 
-The worker noes of an EKS cluster are not managed by the cluster itself. Instead, a set of EC2 instances, along with other resources and configurations are needed to be provisioned. In this section, we will create another Cloud Formation stack to setup a worker node configuration, which is described in [EKS official documentation][sample-workernodes-stack].
+The worker nodes of an EKS cluster are not managed by the cluster itself.
+Instead, a set of EC2 instances, along with other resources and configurations
+are needed to be provisioned. In this section, we will create another
+CloudFormation stack to setup a worker node configuration, which is described in
+[EKS official documentation][sample-workernodes-stack].
 
-Before creating the stack, we will need to create a [Key Pair][aws-key-pair]. This key pair will be used to log into the worker nodes. Even though we don't need to log into the worker nodes for the purpose of this guide, the worker stack would fail without providing it.
+Before creating the stack, we will need to create a [Key Pair][aws-key-pair].
+This key pair will be used to log into the worker nodes. Even though we don't
+need to log into the worker nodes for the purpose of this guide, the worker
+stack would fail without providing it.
 
 ```bash
 # an arbitrary name for the keypair
 KEY_PAIR=crossplane-example-kp
 
-# we give an arbitrary name to the workers stack.
+# an arbitrary name for the workers stack
 # this name has to be unique within an aws account and region
 WORKERS_STACK_NAME=crossplane-example-workers
 
@@ -221,8 +243,8 @@ NODE_IMAGE_ID="ami-0497f6feb9d494baf"
 # a sample stack that can be used to launch worker nodes
 WORKERS_STACK_URL=https://amazon-eks.s3-us-west-2.amazonaws.com/cloudformation/2019-02-11/amazon-eks-nodegroup.yaml
 
-# Generate a KeyPair. The output will be the RSA private key value
-# which we do not need and can ignore
+# generate a KeyPair. the output will be the RSA private key value
+# which we do not need and will ignore
 aws ec2 create-key-pair --key-name "${KEY_PAIR}" --region="${REGION}" > /dev/null
 
 # create the workers stack
@@ -252,13 +274,17 @@ The output will look like:
 >}
 >```
 
-Similar to VPC stack, creating the workers stack continues in the background and could take a few minutes to complete. You can check its status by running:
+Similar to the VPC stack, creating the workers stack continues in the background
+and could take a few minutes to complete. You can check its status by running:
 
 ```bash
 aws cloudformation describe-stacks --output json --stack-name ${WORKERS_STACK_NAME} --region ${REGION} | jq -r '.Stacks[0].StackStatus'
 ```
 
-Once the output of the above command is `CREATE_COMPLETE`, all worker nodes are created. Now we will need to tell EKS to let worker nodes with a certain role join the cluster. First let's retrieve the worker node role from the stack we just created, and then add that role to the **aws-auth** config map:
+Once the output of the above command is `CREATE_COMPLETE`, all worker nodes are
+created. Now we need to tell the EKS cluster to let worker nodes with a certain
+role join the cluster. First let's retrieve the worker node role from the stack
+we just created: and then add that role to the **aws-auth** config map:
 
 ```bash
 NODE_INSTANCE_ROLE=$(aws cloudformation describe-stacks --output json --stack-name ${WORKERS_STACK_NAME} --region ${REGION} | jq -r '.Stacks[0].Outputs[]|select(.OutputKey=="NodeInstanceRole").OutputValue')
@@ -289,15 +315,17 @@ This should print the following output:
 
 >```bash
 > configmap/aws-auth created
->```
+> ```
 
-Now, you can monitor that worker nodes (in this case only a single node) join the cluster:
+Now, you can monitor that worker nodes (in this case only a single node) join
+the cluster:
 
 ```bash
 kubectl get nodes
 ```
 
 >```bash
+> NAME                                            STATUS     ROLES    AGE   VERSION
 > ip-192-168-104-194.eu-west-1.compute.internal   NotReady   <none>   8s    v1.14.6-eks-5047ed
 >```
 
@@ -307,16 +335,20 @@ Congratulations! You have successfully setup and configured your EKS cluster!
 
 ### Set Up RDS Configurations
 
-In AWS an RDS database instance, will be provisioned to satisfy WordPress application's `MySQLInstanceClass` claim. In order to make an RDS instance accessible by the EKS cluster:
+In AWS an RDS database instance will be provisioned to satisfy WordPress
+application's `MySQLInstanceClass` claim. In this section we create the required
+configurations in order to make an RDS instance accessible by the EKS cluster.
 
-1. A security group should be created and assigned to the RDS, so certain traffic from the EKS is allowed
+#### RDS Security Group
+
+A security group should be created and assigned to the RDS, so certain traffic
+from the EKS cluster is allowed.
 
 ```bash
-
 # an arbitrary name for the security group
 RDS_SG_NAME="crossplane-example-rds-sg"
 
-# Generate the Security Group and add MySQL ingress to it
+# generate the security group
 aws ec2 create-security-group \
   --vpc-id="${VPC_ID}" \
   --region="${REGION}" \
@@ -327,7 +359,8 @@ aws ec2 create-security-group \
 RDS_SECURITY_GROUP_ID=$(aws ec2 describe-security-groups --filter Name=group-name,Values="${RDS_SG_NAME}" --region="${REGION}" --output=text --query="SecurityGroups[0].GroupId")
 ```
 
-After creating the security group, we add a rule to allow traffic at `MySQL` port
+After creating the security group, we add a rule to allow traffic on `MySQL`
+port
 
 ```bash
 aws ec2 authorize-security-group-ingress \
@@ -338,13 +371,17 @@ aws ec2 authorize-security-group-ingress \
   --cidr=0.0.0.0/0  > /dev/null
 ```
 
-1. A **DB Subnet Group** needs to be created, so that the RDS instance is associated with different availability zones
+#### RDS Subnet Group
+
+A **DB Subnet Group** is needed to associate the RDS instance with different
+subnets and availability zones.
 
 ```bash
-
+# an arbitrary name for the db subnet group
 DB_SUBNET_GROUP_NAME=crossplane-example-dbsubnetgroup
 
 # convert subnets to a white space separated list
+# to satisfy the command input format below
 SUBNETS_LIST="${SUBNET_IDS//,/ }"
 
 aws rds create-db-subnet-group \
@@ -352,10 +389,9 @@ aws rds create-db-subnet-group \
   --db-subnet-group-name="${DB_SUBNET_GROUP_NAME}" \
   --db-subnet-group-description="crossplane-example db subnet group" \
   --subnet-ids $SUBNETS_LIST > /dev/null
-
 ```
 
-These resources later will be used to create cloud-specific MySQL resources.
+These resources will later be used to create cloud-specific MySQL resources.
 
 ### Set Up Crossplane
 
@@ -363,6 +399,7 @@ Using the newly provisioned cluster:
 
 1. Install Crossplane from alpha channel. (See the [Crossplane Installation
    Guide][crossplane-install] for more information.)
+
 ```bash
 helm repo add crossplane-alpha https://charts.crossplane.io/alpha
 helm install --name crossplane --namespace crossplane-system crossplane-alpha/crossplane
@@ -417,18 +454,18 @@ components.
 
 * You should see the following output:
 
-> namespace/aws-infra-dev.yaml created
+> namespace/aws-infra-dev created
 
 #### AWS Provider
 
-It is essential to make sure that the AWS user credentials is configured
-in Crossplane as a provider. Please follow the steps [provider guide][aws-provider-guide]
-for more information.
+It is essential to make sure that the AWS user credentials are configured in
+Crossplane as a provider. Please follow the steps [provider
+guide][aws-provider-guide] for more information.
 
 #### Cloud-Specific Resource Classes
 
 Cloud-specific resource classes are used to define a reusable configuration for
-a specific managed service. Wordpress requires a MySQL database, which can be
+a specific managed resource. Wordpress requires a MySQL database, which can be
 satisfied by an [AWS RDS][aws-rds] instance.
 
 * Define an AWS RDS `RDSInstanceClass` in `aws-mysql-standard.yaml` and
@@ -459,7 +496,8 @@ EOF
 kubectl apply -f aws-mysql-standard.yaml
 ```
 
-Note that we are using `RDS_SECURITY_GROUP_ID` and `RDS_SG_NAME` variables here, that we configured earlier.
+Note that we are using `RDS_SECURITY_GROUP_ID` and `RDS_SG_NAME` variables here,
+that we configured earlier.
 
 * You should see the following output:
 
@@ -800,13 +838,62 @@ kubectl delete -f app-project1-dev-namespace.yaml
 kubectl delete -f aws-infra-dev-namespace.yaml
 ```
 
+### AWS Resources 
+We will also need to delete the resources that we created for the RDS database
+and EKS cluster:
+
+```bash
+# delete the db subnet group
+aws rds delete-db-subnet-group \
+  --region "${REGION}" \
+  --db-subnet-group-name="${DB_SUBNET_GROUP_NAME}"
+
+# delete the security group for RDS
+aws ec2 delete-security-group \
+  --region "${REGION}" \
+  --group-id="${RDS_SECURITY_GROUP_ID}"
+
+# delete the CloudFormation Stack for worker nodes
+aws cloudformation delete-stack \
+  --region "${REGION}" \
+  --stack-name "${WORKERS_STACK_NAME}"
+
+# delete the key-pair for worker nodes
+aws ec2 delete-key-pair --key-name "${KEY_PAIR}"
+
+# delete the EKS cluster
+aws eks delete-cluster \
+  --region "${REGION}" \
+  --name "${CLUSTER_NAME}"
+
+# detach role policies
+aws iam detach-role-policy \
+ --role-name "${EKS_ROLE_NAME}" \
+ --policy-arn arn:aws:iam::aws:policy/AmazonEKSClusterPolicy
+aws iam detach-role-policy \
+ --role-name "${EKS_ROLE_NAME}" \
+ --policy-arn arn:aws:iam::aws:policy/AmazonEKSServicePolicy
+
+# delete the cluster role
+aws iam delete-role --role-name "${EKS_ROLE_NAME}"
+
+# delete the CloudFormation Stack for vpc
+# this should be executed once all previous stes are completed
+aws cloudformation delete-stack \
+  --region "${REGION}" \
+  --stack-name "${VPC_STACK_NAME}"
+
+# delete clusters config file
+rm "${KUBECONFIG}"
+```
+
 ## Conclusion and Next Steps
 
 In this guide we:
 
 * Setup an EKS Cluster using the AWS CLI
 * Configured RDS to communicate with EKS
-* Installed Crossplane from alpha channel
+* Installed Crossplane from the alpha channel
 * Installed the AWS stack
 * Created an infrastructure (`aws-infra-dev`) and application
   (`app-project1-dev`) namespace
@@ -827,7 +914,8 @@ to learn more about stacks, checkout the [stacks guide][stacks]
 [aws-create-eks]: https://docs.aws.amazon.com/eks/latest/userguide/create-cluster.html
 [sample-cf-stack]: https://docs.aws.amazon.com/eks/latest/userguide/create-public-private-vpc.html
 [sample-workernodes-stack]: https://docs.aws.amazon.com/eks/latest/userguide/launch-workers.html
-[aws-cli]: https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html
+[aws-cli-install]: https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html
+[aws-cli-configure]: https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html
 [aws-key-pair]: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html
 [install-kubectl]: https://kubernetes.io/docs/tasks/tools/install-kubectl/
 [using-helm]: https://docs.helm.sh/using_helm/
