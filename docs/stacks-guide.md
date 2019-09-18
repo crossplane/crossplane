@@ -217,9 +217,8 @@ kubectl get -n app-project1-dev kubernetesapplicationresource
 
 For validation that these resources are spinning up, you can check in
 the usual way for your cloud provider, or you can ask for the
-statuses of some of the [cloud-specific resource
-classes][cloud-specific-resource-classes-docs] in your Crossplane control
-cluster using `kubectl`.
+statuses of some of the cloud-specific Kubernetes resources provided by
+the infrastructure stack that we installed.
 
 For more information about how Crossplane manages databases and
 Kubernetes clusters for us, see the more complete documentation about
@@ -304,8 +303,8 @@ guide][stack-developer-guide].
 *   [Crossplane Install Guide][crossplane-install-docs]
 *   [The Crossplane CLI][crossplane-cli]
 *   [Stacks Quick Start][stack-quick-start]
-*   [Stack Registry][stack-registry]
 *   [Stacks Developer Guide][stack-developer-guide]
+*   [Stack Registry][stack-registry]
 *   [Provider Stack Developer Guide][provider-stack-developer-guide]
 *   [AWS documentation][aws-docs]
 *   [GCP documentation][gcp-docs]
@@ -317,9 +316,9 @@ guide][stack-developer-guide].
 [crossplane-cli-docs]: https://github.com/crossplaneio/crossplane-cli/blob/release-0.1/README.md
 [crossplane-concepts]: concepts.md
 [crossplane-install-docs]: install-crossplane.md
-[crossplane-api-reference]: TODO
+[crossplane-api-reference]: api.md
 
-[kubernetesapplicationresource-docs]: TODO
+[kubernetesapplicationresource-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/design-doc-complex-workloads.md
 [claims-docs]: concepts.md#resource-claims-and-resource-classes
 [resource-classes-docs]: concepts.md#resource-claims-and-resource-classes
 [portable-classes-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-default-resource-class.md
@@ -336,16 +335,15 @@ guide][stack-developer-guide].
 [gcp-docs]: https://cloud.google.com/docs/
 [azure-docs]: https://docs.microsoft.com/azure/
 
-[aws-setup]: TODO
+[aws-setup]: stacks-guide-aws.md
 [gcp-setup]: stacks-guide-gcp.md
 [azure-setup]: stacks-guide-azure.md
 
 [stack-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/design-doc-stacks.md#crossplane-stacks
 [stack-quick-start]: https://github.com/crossplaneio/crossplane-cli/tree/release-0.1#quick-start-stacks
 [stack-concepts]: https://github.com/crossplaneio/crossplane/blob/master/design/design-doc-stacks.md#crossplane-stacks
+[stack-registry]: https://hub.docker.com/search?q=crossplane&type=image
 [stack-manager-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/design-doc-stacks.md#installation-flow
 [stack-format-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/design-doc-stacks.md#stack-package-format
-[stack-registry]: TODO
-[stack-developer-guide]: TODO
-[provider-stack-developer-guide]: TODO
-[cloud-specific-resource-classes-docs]: TODO
+[stack-developer-guide]: developer-guide.md
+[provider-stack-developer-guide]: developer-guide.md
