@@ -352,7 +352,7 @@ portable class of service, so an app team can provision managed services using
 
 ## B) Onboard app projects in a shared cluster
 ### Offer Portable Classes of Service in App Project Namespaces
-[Portable Resource Classes][concept-portable-stack]
+[Portable Resource Classes][concept-portable-class]
 define a named class of service that can be used by portable `Resource Claims`
 in the same namespace. When used in a project namespace, this enables the
 project to provision portable managed services using `kubectl`.
