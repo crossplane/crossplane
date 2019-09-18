@@ -1,7 +1,8 @@
 ---
 title: FAQs
 toc: true
-weight: 2110
+weight: 840
+indent: true
 ---
 # Frequently Asked Questions (FAQs)
 

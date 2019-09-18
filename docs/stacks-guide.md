@@ -1,7 +1,7 @@
 ---
-title: "Crossplane Stacks Guide"
+title: "Stacks Guide"
 toc: true
-weight: 401
+weight: 510
 indent: false
 ---
 

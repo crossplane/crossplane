@@ -1,5 +1,5 @@
 ---
-title: Provisioning a MySQL Database on GCP
+title: Provision a MySQL Database on GCP
 toc: true
 weight: 240
 indent: true

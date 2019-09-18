@@ -1,7 +1,7 @@
 ---
 title: Services Guide
 toc: true
-weight: 310
+weight: 410
 ---
 # Services Guide
 Welcome to the Crossplane Services Guide! 
