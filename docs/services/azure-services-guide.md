@@ -655,7 +655,7 @@ In this guide we:
   assign an external IP address to it
 
 If you would like to try out a similar workflow using a different cloud
-provider, take a look at the other [services guides][serives]. If you would like
+provider, take a look at the other [services guides][services]. If you would like
 to learn more about stacks, checkout the [stacks guide][stacks]
 
 <!-- Named links -->
