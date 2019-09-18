@@ -136,10 +136,10 @@ function cleanup {
 
     echo "deleting vpc orphan resources ..."
     # delete all the load balancers that are externally created in the vpc by k8s
-    vpc_loadbalanancers=($(aws elb describe-load-balancers | jq -rc --arg VPC_ID "$VPC_ID" '.LoadBalancerDescriptions | .[] | select(.VPCId == $VPC_ID) | .LoadBalancerName' ))  
-    for (( i=0; i<${#vpc_loadbalanancers[@]}; i++ )); do
-      echo "deleting load balancer ${vpc_loadbalanancers[i]}"
-      aws elb delete-load-balancer --load-balancer-name ${vpc_loadbalanancers[i]}
+    vpc_loadbalancers=($(aws elb describe-load-balancers | jq -rc --arg VPC_ID "$VPC_ID" '.LoadBalancerDescriptions | .[] | select(.VPCId == $VPC_ID) | .LoadBalancerName' ))  
+    for (( i=0; i<${#vpc_loadbalancers[@]}; i++ )); do
+      echo "deleting load balancer ${vpc_loadbalancers[i]}"
+      aws elb delete-load-balancer --load-balancer-name ${vpc_loadbalancers[i]}
     done
 
     # delete all the non-default security groups that are externally created in the vpc by k8s
