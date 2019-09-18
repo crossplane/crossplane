@@ -26,7 +26,13 @@ kubectl create namespace app-project1-dev
 
 The `Provider` and `Secret` resources work together to store your GCP account
 credentials in Kubernetes. Because these resources are GCP-specific, create them
-in the `gcp-infra-dev` namespace:
+in the `gcp-infra-dev` namespace. You will need to set the
+`$BASE64ENCODED_GCP_PROVIDER_CREDS` and `$PROJECT_ID` variables before creating:
+
+```bash
+export PROJECT_ID=[your-demo-project-id]
+export BASE64ENCODED_GCP_PROVIDER_CREDS=$(base64 crossplane-gcp-provider-key.json | tr -d "\n")
+```
 
 ```bash
 cat > provider.yaml <<EOF
