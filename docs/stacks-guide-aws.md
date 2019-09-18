@@ -21,7 +21,7 @@ indent: true
 
 ## Introduction
 
-In this guide, we will set up a GCP provider in Crossplane so that we
+In this guide, we will set up an AWS provider in Crossplane so that we
 can install and use the [WordPress sample
 stack][sample-wordpress-stack], which depends on MySQL and Kubernetes!
 
