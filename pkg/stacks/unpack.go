@@ -413,7 +413,7 @@ func NewStackPackage(baseDir string) *StackPackage {
 func Unpack(rw walker.ResourceWalker, out io.StringWriter, baseDir string, permissionScope string) error {
 	log.V(logging.Debug).Info("Unpacking stack")
 
-	sp := NewStackPackage(baseDir)
+	sp := NewStackPackage(filepath.Clean(baseDir))
 
 	rw.AddStep(appFileName, appStep(sp))
 
