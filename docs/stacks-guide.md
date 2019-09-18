@@ -43,14 +43,17 @@ Let's go!
 
 ## Concepts
 
-There are a bunch of things you might want to know to fully understand what's happening in this document. This guide won't cover them, but there are other ones that do. Here are some links!
+There are a bunch of things you might want to know to fully understand
+what's happening in this document. This guide won't cover them, but
+there are other ones that do. Here are some links!
 
 * [Crossplane concepts][crossplane-concepts]
 * [Kubernetes concepts][kubernetes-concepts]
 
 ## Before you get started
 
-This guide assumes you are using a *nix-like environment. It also assumes you have a basic working familiarity with the following:
+This guide assumes you are using a *nix-like environment. It also
+assumes you have a basic working familiarity with the following:
 
 * The terminal environment
 * Setting up cloud provider accounts for the cloud provider you want to

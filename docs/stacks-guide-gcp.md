@@ -127,14 +127,15 @@ assigned][gcp-assign-roles]:
 *   Kubernetes Engine Admin
 *   Service Account User
 
-You need to get JSON file of the service account you’ll use. In the next
-sections, this file will be referred to as
-`crossplane-gcp-provider-key.json`
+### Set up cloud provider credentials
 
-You can create the JSON file by using the [gcloud
-command][gcp-create-keys] and specifying a file name of
-`crossplane-gcp-provider-key.json`. If you use Crossplane's [GCP
-credentials script][gcp-credentials], this is taken care of for you.
+This guide assumes that you have created a JSON file which contains the
+credentials for the cloud provider. In later sections, this file will be
+referred to as `crossplane-gcp-provider-key.json`. There are quite a few
+steps involved, so the steps are in [a different document which you
+should take a look at][cloud-provider-setup-gcp] before moving to the
+next section. Or, there is also [a script in the Crossplane
+repo][gcp-credentials] which helps with creating the file.
 
 ## Configure Crossplane GCP Provider
 
@@ -497,3 +498,5 @@ where we left off.
 [crossplane-sample-gcp-network]: https://github.com/crossplaneio/crossplane/blob/master/cluster/examples/workloads/kubernetes/wordpress/gcp/network.yaml
 [crossplane-sample-gcp-environment]: https://github.com/crossplaneio/crossplane/blob/master/cluster/examples/workloads/kubernetes/wordpress/gcp/environment.yaml
 [crossplane-sample-gcp-namespace]: https://github.com/crossplaneio/crossplane/blob/master/cluster/examples/workloads/kubernetes/wordpress/gcp/namespace.yaml
+
+[cloud-provider-setup-gcp]: cloud-providers/gcp/gcp-provider.md
