@@ -1,0 +1,20 @@
+---
+apiVersion: v1
+data:
+  credentials: ((AWS_CREDS_BASE64))
+kind: Secret
+metadata:
+  name: aws-provider-creds
+  namespace: crossplane-system
+type: Opaque
+---
+apiVersion: aws.crossplane.io/v1alpha2
+kind: Provider
+metadata:
+  name: aws-provider
+  namespace: crossplane-system
+spec:
+  credentialsSecretRef:
+    key: credentials
+    name: aws-provider-creds
+  region: ((AWS_REGION))

@@ -1,79 +1,45 @@
+
 # Adding Amazon Web Services (AWS) to Crossplane
 
-In this guide, we will walk through the steps necessary to configure your AWS account to be ready for integration with Crossplane.
+In this guide, we will walk through the steps necessary to configure your AWS account to be ready for integration with Crossplane. This will be done by adding a [`aw provider`] resource type, which enables Crossplane to communicate with an AWS account. 
 
-## AWS Credentials
+## Requirements
 
-### Option 1: aws Command Line Tool
+Prior to adding AWS to Crossplane, following steps need to be taken
 
-If you have already installed and configured the [`aws` command line tool](https://aws.amazon.com/cli/), you can simply find your AWS credentials file in `~/.aws/credentials`.
+- Crossplane is installed in a k8s cluster
+- AWS Stack is installed in the same cluster
+- `kubectl` is configured to communicate with the same cluster
 
-#### Using `aws-credentials.sh`
+## Step 1: Configure `aws` CLI
 
-In the `cluster/examples` directory you will find a helper script, `aws-credentials.sh`.  This script will use the `aws` CLI to create the necessary AWS components for the Crossplane examples.  Running the final output of this command will configure your Crossplane AWS provider, RDS, and EKS resource classes.
+Crossplane uses [AWS security credentials], and stores them as a [secret] which is managed by an  [`aw provider`]  instance. In addition, the AWS default region is also used for targeting a specific region.
+Crossplane requires to have [`aws` command line tool] [installed] and [configured]. Once installed, the credentials and configuration will reside in `~/.aws/credentials` and `~/.aws/config` respectively.
 
-```console
-$ ./cluster/examples/aws-credentials.sh
-Waiting for 'CREATE_COMPLETE' from Cloudformation Stack crossplane-example-stack-25077.......................
-#
-# Run the following for the variables that are used throughout the AWS example projects
-#
-export BASE64ENCODED_AWS_PROVIDER_CREDS=$(base64 ~/.aws/credentials | tr -d "\n")
-export EKS_WORKER_KEY_NAME=crossplane-example-25077
-export EKS_ROLE_ARN=arn:aws:iam::987654321234:role/crossplane-example-role-25077
-export REGION=eu-west-1
-export EKS_VPC=vpc-085444e4ce26b55e8
-export EKS_SUBNETS=subnet-08ad61800a39c537a,subnet-0d05d23815bed79be,subnet-07adcb08485e186fc
-export EKS_SECURITY_GROUP=sg-09aaba94fe7050cf8
-export RDS_SUBNET_GROUP_NAME=crossplane-example-db-subnet-group-25077
-export RDS_SECURITY_GROUP=sg-0b586dbd763fb35ad
+## Step 2: Setup `aws` Provider
 
-#
-# For example, to use this environment as an AWS Crossplane provider:
-#
-sed -e "s|BASE64ENCODED_AWS_PROVIDER_CREDS|$(base64 ~/.aws/credentials | tr -d "\n")|g" \
-    -e "s|EKS_WORKER_KEY_NAME|$EKS_WORKER_KEY_NAME|g" \
-    -e "s|EKS_ROLE_ARN|$EKS_ROLE_ARN|g" \
-    -e "s|REGION|$REGION|g" \
-    -e "s|EKS_VPC|$EKS_VPC|g" \
-    -e "s|EKS_SUBNETS|$EKS_SUBNETS|g" \
-    -e "s|EKS_SECURITY_GROUP|$EKS_SECURITY_GROUP|g" \
-    -e "s|RDS_SUBNET_GROUP_NAME|$RDS_SUBNET_GROUP_NAME|g" \
-    -e "s|RDS_SECURITY_GROUP|$RDS_SECURITY_GROUP|g" \
-    cluster/examples/workloads/kubernetes/wordpress/aws/provider.yaml | kubectl apply -f -
+Run [setup.sh] script to read `aws` credentials and region, and create an [`aw provider`] instance in Crossplane:
 
-# Clean up after this script by deleting everything it created:
-# ./cluster/examples/aws-credentials.sh delete 25077
+```bash
+./cluster/examples/setup-aws-provider/setup.sh [--profile aws_profile]
 ```
 
-After running the helper script, a series of `export` commands will be shown.  Copy and paste the `export` commands that are provided.  These variable names will be referenced throughout the Crossplane examples, generally with a `sed` command.
+The `--profile` switch is optional and specifies the [aws named profile] that was set in Step 1. If not provided, the `default` profile will be selected.
 
-You will also see a `sed` command.  This command will configure the AWS Crossplane provider using the environment that was created by the `aws-credentials.sh` script.
+Once the script is successfully executed, Crossplane will use the specified aws account and region in the given named profile to create subsequent AWS managed resources.
 
-When you are done with the examples and have deleted all of the AWS artifacts project artifacts you can use the delete command provided by the `aws-credentials.sh` script to remove the CloudFormation Stack, VPC, and other artifacts of the script.
+You can confirm the existense of the  [`aw provider`] by running:
 
-*Note* The AWS artifacts should be removed first using Kubernetes commands (`kubectl delete ...`) as each example will explain.
-
-### Option 2: AWS Console in Web Browser
-
-If you do not have the `aws` tool installed, you can alternatively log into the [AWS console](https://aws.amazon.com/console/) and export the credentials.
-The steps to follow below are from the [AWS SDK for GO](https://docs.aws.amazon.com/sdk-for-go/v1/developer-guide/setting-up.html):
-
-1. Open the IAM console.
-1. On the navigation menu, choose Users.
-1. Choose your IAM user name (not the check box).
-1. Open the Security credentials tab, and then choose Create access key.
-1. To see the new access key, choose Show. Your credentials resemble the following:
-  - Access key ID: AKIAIOSFODNN7EXAMPLE
-  - Secret access key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-1. To download the key pair, choose Download .csv file.
-
-Then convert the `*.csv` file to the below format and save it to `~/.aws/credentials`:
-
-```
-[default]
-aws_access_key_id = AKIAIOSFODNN7EXAMPLE
-aws_secret_access_key = wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+```bash
+kubectl -n crossplane-system get provider/aws-provider
 ```
 
-After the steps above, you should have your AWS credentials stored in `~/.aws/credentials`.
+[`aw provider`]: https://github.com/crossplaneio/stack-aws/blob/master/aws/apis/v1alpha2/types.go#L43
+ [`aws` command line tool]: https://aws.amazon.com/cli/
+[AWS SDK for GO]: https://docs.aws.amazon.com/sdk-for-go/v1/developer-guide/setting-up.html
+[installed]: [https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html)
+[configured]: [https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html)
+[AWS security credentials]: https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html
+[secret]:https://kubernetes.io/docs/concepts/configuration/secret/ 
+[setup.sh]: github.com/crossplaneio/crossplane/cluster/examples/setup-aws-provider/setup.sh
+[aws named profile]: https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-profiles.html
