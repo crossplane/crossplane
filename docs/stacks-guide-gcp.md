@@ -83,6 +83,22 @@ resource claims][resource-claims-docs].
 For convenience, the next steps assume that you installed GCP stack into
 the `gcp` namespace.
 
+### Validate the installation
+
+To check to see whether our stack installed correctly, we can look at
+the status of our stack:
+
+```
+kubectl -n gcp get stack
+```
+
+It should look something like this:
+
+```
+NAME        READY   VERSION   AGE
+stack-gcp   True    0.0.1     5m19s
+```
+
 ## Configure GCP Account
 
 We will make use of the following services on GCP:
@@ -176,6 +192,21 @@ The example YAML also exists in [the Crossplane repository][crossplane-sample-gc
 The name of the `Provider` resource in the file above is `gcp-provider`;
 we'll use the name `gcp-provider` to refer to this provider when we
 configure and set up other Crossplane resources.
+
+### Validate
+
+To check on our newly created provider, we can run:
+
+```
+kubectl -n gcp get provider.gcp.crossplane.io
+```
+
+The output should look something like:
+
+```
+NAME           PROJECT-ID              AGE
+gcp-provider   crossplane-playground   37s
+```
 
 ## Set Up Network Resources
 
@@ -278,6 +309,17 @@ assumes the GCP stack is installed in `gcp` namespace:
 kubectl -n gcp get connection.servicenetworking.gcp.crossplane.io/example-connection -o custom-columns='NAME:.metadata.name,FIRST_CONDITION:.status.conditions[0].status,SECOND_CONDITION:.status.conditions[1].status'
 ```
 
+The output should look something like:
+
+```
+NAME                 FIRST_CONDITION   SECOND_CONDITION
+example-connection   True              True
+```
+
+The conditions we're checking for are `Ready` and `Synced`. The reason
+we are using `FIRST_CONDITION` and `SECOND_CONDITION` is because we
+don't know what order they'll be in when we run the command.
+
 ## Configure Provider Resources
 
 Once we have the network set up, we also need to tell Crossplane how to
@@ -331,8 +373,12 @@ EOF
 
 kubectl apply -f environment.yaml
 ```
+
 The example YAML also exists in [the Crossplane
 repository][crossplane-sample-gcp-environment].
+
+We don't need to validate that these are ready, because they don't
+require any reconciliation.
 
 The steps that we have taken so far have been related to things that can
 be shared by all resources in all namespaces of the Crossplane control
@@ -396,6 +442,9 @@ kubectl apply -f namespace.yaml
 
 The example YAML also exists in [the Crossplane
 repository][crossplane-sample-gcp-namespace].
+
+We don't need to validate that these are ready, because they don't need
+to reconcile for them to be ready.
 
 ## Recap
 
