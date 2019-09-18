@@ -17,6 +17,7 @@ indent: true
   1. [Set Up Network Configuration](#set-up-network-configuration)
   1. [Configure Provider Resources](#configure-provider-resources)
   1. [Recap](#recap)
+  1. [Next Steps](#next-steps)
 
 ## Introduction
 
@@ -31,6 +32,7 @@ Before we begin, you will need:
   - A `kubectl` pointing to a Crossplane control cluster
   - The [Crossplane CLI][crossplane-cli] installed
 * An account on [AWS][aws]
+* The [aws cli][installed]
 
 At the end, we will have:
 
@@ -80,16 +82,16 @@ namespace.
 
 ## Configure the AWS account
 
-An [aws user] with `Administrative` privileges is needed to enable Crossplane to
-create the required resources. Once the user is provisioned, an [Access Key]
+An [aws user][] with `Administrative` privileges is needed to enable Crossplane to
+create the required resources. Once the user is provisioned, an [Access Key][]
 needs to be created to enable the user to have API access. Next, using these set
-of access key credentials, one needs to have [`aws` command line tool]
-[installed] and [configured]. Then, the credentials and configuration will
+of access key credentials, one needs to have [`aws` command line tool][]
+[installed][] and [configured][]. Then, the credentials and configuration will
 reside in `~/.aws/credentials` and `~/.aws/config` respectively, which will be
 consumed in the next step.
 
 When configuring aws CLI, it is recommended that the user credentials are
-configured under a specific [aws named profile] other than `default`. In this
+configured under a specific [aws named profile][] other than `default`. In this
 guide we are assuming that the credentials are configured under
 `crossplane-user` profile, but you can use other profiles as well. Let's store
 the profile name in `aws_profile` variable to use later:
@@ -102,7 +104,7 @@ aws_profile=crossplane-user
 
 Crossplane uses the aws user credentials that was configured in the previous
 step, to create resources in AWS. These credentials will be stored as a
-[secret], and is managed them by an  [`aws provider`] instance. In addition to
+[secret][], and is managed them by an  [`aws provider`][] instance. In addition to
 the credentials, the AWS region is also read from the configuration to target a
 specific region.
 
@@ -117,7 +119,7 @@ AWS_REGION=$(awk '/["$aws_profile"]/ {getline; print $3}' ${HOME}/.aws/config)
 ```
 
 At this point, the region and the encoded credentials are stored in respective
- variables. Next, we'll need to create an instance of [`aws provider`]:
+ variables. Next, we'll need to create an instance of [`aws provider`][]:
 
 ```bash
 cat > provider.yaml <<EOF
@@ -162,7 +164,7 @@ they both need to live within the same VPC. However VPC is not the only AWS
 resource that needs to be created to enable inter-resource connectivity. In
 general, a **Network Configuration**, which is built of a set of VPCs, Subnets,
 Security Groups, Route Tables, IAM Roles and other resources, is required for
-this purpose. For more information, see [AWS resource connectivity] design
+this purpose. For more information, see [AWS resource connectivity][] design
 document.
 
 In this section we will build a simple network configuration, by creating AWS
@@ -201,8 +203,7 @@ creating these resources:
   dependent resources that require those attribute.
 
 The rest of this section creates the resources for a configuration described in
-[the EKS user
-guide](https://docs.aws.amazon.com/eks/latest/userguide/create-public-private-vpc.html).
+[the EKS user guide][eks-user-guide].
 For grouping all these resources together we will use a `CONFIG_NAME` variable,
 which will be prepended to the names of these resources in Crossplane, and their
 corresponding external resources in AWS. Keep in mind that if you create
@@ -217,7 +218,7 @@ CONFIG_NAME=aws-network-config
 
 ### VPC
 
-A [Virtual Private Network] or VPC is a virtual network in AWS.
+A [Virtual Private Network][] or VPC is a virtual network in AWS.
 
 ```bash
 # build vpc yaml
@@ -379,7 +380,7 @@ SUBNET3_ID=$(kubectl get -f "subnets.yaml" -o=jsonpath='{.items[2].status.subnet
 
 ### Internet Gateway
 
-An [Internet Gateway] enables the resources in the VPC to have access to the
+An [Internet Gateway][] enables the resources in the VPC to have access to the
 Internet. Since the WordPress application will be addressed from the internet,
 this resource is required in the network configuration.
 
@@ -419,7 +420,7 @@ IG_ID=$(kubectl get -f "internetgateway.yaml" -o=jsonpath='{.status.internetGate
 
 ### Route Table
 
-A [Route Table] sets rules to direct traffic in a virtual network. We use a
+A [Route Table][] sets rules to direct traffic in a virtual network. We use a
 Route Table to redirect internet traffic from all Subnets to the Internet
 Gateway instance that we created in previous step.
 
@@ -460,7 +461,7 @@ routetable.network.aws.crossplane.io/aws-network-config-routetable condition met
 
 ### Cluster Security Group
 
-A [Security Group] is created to later to be assigned to the EKS cluster. This
+A [Security Group][] is created to later to be assigned to the EKS cluster. This
 security group enables the cluster to communicate with the worker nodes
 
 ```bash
@@ -501,7 +502,7 @@ CLUSTER_SECURITY_GROUP_ID=$(kubectl get -f "cluster_sg.yaml" -o=jsonpath='{.stat
 
 ### Database Security Group
 
-A [Security Group] is created to later to be assigned to the RDS database
+A [Security Group][] is created to later to be assigned to the RDS database
 instance. This security group enables the database instance to accept traffic
 from the internet in a certain port.
 
@@ -550,7 +551,7 @@ RDS_SECURITY_GROUP_ID=$(kubectl get -f "rds_sg.yaml" -o=jsonpath='{.status.secur
 
 ### Database Subnet Group
 
-A [Database Subnet Group] creates a group of Subnets which can communicate with
+A [Database Subnet Group][] creates a group of Subnets which can communicate with
 an RDS database instance.
 
 ```bash
@@ -597,7 +598,7 @@ RDS_SUBNET_GROUP_NAME=$(kubectl get -f "dbsubnetgroup.yaml" -o=jsonpath='{.spec.
 
 ### Cluster IAM Role
 
-An [IAM Role] gives permissions to the principal that assumes that role. We
+An [IAM Role][] gives permissions to the principal that assumes that role. We
 Create a role to be assumed by the cluster, which later is granted the required
 permissions to talk to required resources in AWS.
 
@@ -651,7 +652,7 @@ EKS_ROLE_ARN=$(kubectl get -f "iamrole.yaml" -o=jsonpath='{.status.arn}')
 
 ### Cluster IAM Role Policies
 
-An [IAM Role Policy] grants a role a certain permission. We add two policies to
+An [IAM Role Policy][] grants a role a certain permission. We add two policies to
 the Cluster IAM Role that we created above. These policies are needed for the
 cluster to communicate with other aws resources.
 
@@ -871,3 +872,4 @@ off.
 [portable-classes-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-default-resource-class.md
 [stacks-guide-continue]: stacks-guide.html#install-support-for-our-application-into-crossplane
 [resource-claims-docs]: concepts.md#resource-claims-and-resource-classes
+[eks-user-guide]: https://docs.aws.amazon.com/eks/latest/userguide/create-public-private-vpc.html
