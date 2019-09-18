@@ -156,10 +156,10 @@ Use [stack-gcp][stack-gcp], [stack-aws][stack-aws], and [stack-azure][stack-azur
 [services-user-guide]: services-guide.md
 [stack-user-guide]: stacks-guide.md
 [stack-developer-guide]: developer-guide.md
-[stack-manager]: https://github.com/crossplaneio/crossplane/blob/master/design/design-doc-stacks.md#terminology
+[stacks-manager]: https://github.com/crossplaneio/crossplane/blob/master/design/design-doc-stacks.md#terminology
 [crossplane-cli]: https://github.com/crossplaneio/crossplane-cli
 [crossplane-cli-usage]: https://github.com/crossplaneio/crossplane-cli#usage
-[stack-sercurity-design]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-stacks-security-isolation.md
+[stack-security-design]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-stacks-security-isolation.md
 
 [stack-wordpress-registry]: https://hub.docker.com/r/crossplane/sample-stack-wordpress
 [stack-wordpress]: https://github.com/crossplaneio/sample-stack-wordpress

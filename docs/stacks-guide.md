@@ -5,7 +5,7 @@ weight: 510
 indent: false
 ---
 
-# Crossplane Stacks Guide
+# Stacks Guide
 
 
 ## Table of Contents
@@ -43,14 +43,17 @@ Let's go!
 
 ## Concepts
 
-There are a bunch of things you might want to know to fully understand what's happening in this document. This guide won't cover them, but there are other ones that do. Here are some links!
+There are a bunch of things you might want to know to fully understand
+what's happening in this document. This guide won't cover them, but
+there are other ones that do. Here are some links!
 
 * [Crossplane concepts][crossplane-concepts]
 * [Kubernetes concepts][kubernetes-concepts]
 
 ## Before you get started
 
-This guide assumes you are using a *nix-like environment. It also assumes you have a basic working familiarity with the following:
+This guide assumes you are using a *nix-like environment. It also
+assumes you have a basic working familiarity with the following:
 
 * The terminal environment
 * Setting up cloud provider accounts for the cloud provider you want to
@@ -73,8 +76,7 @@ CLI][crossplane-cli], because it's more convenient. To install it, we
 can use the one-line curl bash:
 
 ```
-RELEASE=0.0.1
-curl -sL https://raw.githubusercontent.com/crossplaneio/crossplane-cli/"${RELEASE}"/bootstrap.sh | bash
+RELEASE=release-0.1 && curl -sL https://raw.githubusercontent.com/crossplaneio/crossplane-cli/"${RELEASE}"/bootstrap.sh | RELEASE=${RELEASE} bash
 ```
 
 To use the latest release, you can use `master` as the `RELEASE` instead
@@ -103,7 +105,7 @@ documentation][crossplane-install-docs].
 
 ### Create the application namespace
 
-[Kubernetes namespaces][kubernetes-namespace-docs] are used to isolate
+[Kubernetes namespaces][kubernetes-namespaces-docs] are used to isolate
 resources in the same cluster, and we'll use them in our Crossplane
 control cluster too. Let's create a namespace for our application's
 resources. We'll call it `app-project1-dev` for the purposes of this
@@ -180,6 +182,19 @@ EOF
 kubectl apply --namespace app-project1-dev -f my-wordpress.yaml
 ```
 
+To validate that it has been set up correctly, we can run:
+
+```
+kubectl -n app-project1-dev get stack
+```
+
+The output should look something like:
+
+```
+NAME                     READY   VERSION   AGE
+sample-stack-wordpress   True    0.0.1     48s
+```
+
 If the control cluster doesn't recognize the Wordpress instance type, it
 could be because the stack is still being installed. Wait a few seconds,
 and try creating the Wordpress instance again.
@@ -203,6 +218,11 @@ kubectl get -n app-project1-dev kubernetesapplication
 kubectl get -n app-project1-dev kubernetesapplicationresource
 ```
 
+For validation that these resources are spinning up, you can check in
+the usual way for your cloud provider, or you can ask for the
+statuses of some of the cloud-specific Kubernetes resources provided by
+the infrastructure stack that we installed.
+
 For more information about how Crossplane manages databases and
 Kubernetes clusters for us, see the more complete documentation about
 [claims][claims-docs], [resource classes][resource-classes-docs], and
@@ -217,7 +237,7 @@ which represents the workload's service. Here's a way to watch for the
 ip:
 
 ```
-kubectl get kubernetesapplicationresource -n app-project1-dev -o custom-columns='NAME:.metadata.name,NAMESPACE:.spec.template.metadata.namespace,KIND:.spec.template.kind,SERVICE-EXTERNAL-IP:.status.remote.loadBalancer.ingress[0].ip' --watch
+kubectl get --watch kubernetesapplicationresource -n app-project1-dev -o custom-columns='NAME:.metadata.name,NAMESPACE:.spec.template.metadata.namespace,KIND:.spec.template.kind,SERVICE-EXTERNAL-IP:.status.remote.loadBalancer.ingress[0].ip'
 ```
 
 The ip will show up on the one which has a `Service` kind.
@@ -243,8 +263,7 @@ kubectl delete -n app-project1-dev wordpressinstance my-wordpressinstance
 We can also remove the stack, using the Crossplane CLI:
 
 ```
-kubectl crossplane stack uninstall sample-stack-wordpress -n
-app-project1-dev
+kubectl crossplane stack uninstall sample-stack-wordpress -n app-project1-dev
 ```
 
 Removing the stack removes any Wordpress instances that were created.
@@ -282,12 +301,13 @@ guide][stack-developer-guide].
 ## References
 
 *   [The Crossplane Concepts guide][crossplane-concepts]
+*   [Crossplane API Reference][crossplane-api-reference]
 *   [The Stacks Concepts guide][stack-concepts]
 *   [Crossplane Install Guide][crossplane-install-docs]
 *   [The Crossplane CLI][crossplane-cli]
 *   [Stacks Quick Start][stack-quick-start]
-*   [Stack Registry][stack-registry]
 *   [Stacks Developer Guide][stack-developer-guide]
+*   [Stack Registry][stack-registry]
 *   [Provider Stack Developer Guide][provider-stack-developer-guide]
 *   [AWS documentation][aws-docs]
 *   [GCP documentation][gcp-docs]
@@ -295,12 +315,13 @@ guide][stack-developer-guide].
 *   [Kubernetes documentation][kubernetes-docs]
 
 <!-- Named links -->
-[crossplane-cli]: https://github.com/crossplaneio/crossplane-cli
-[crossplane-cli-docs]: https://github.com/crossplaneio/crossplane-cli/blob/master/README.md
+[crossplane-cli]: https://github.com/crossplaneio/crossplane-cli/tree/release-0.1
+[crossplane-cli-docs]: https://github.com/crossplaneio/crossplane-cli/blob/release-0.1/README.md
 [crossplane-concepts]: concepts.md
 [crossplane-install-docs]: install-crossplane.md
+[crossplane-api-reference]: api.md
 
-[kubernetesapplicationresource-docs]: TODO
+[kubernetesapplicationresource-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/design-doc-complex-workloads.md
 [claims-docs]: concepts.md#resource-claims-and-resource-classes
 [resource-classes-docs]: concepts.md#resource-claims-and-resource-classes
 [portable-classes-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-default-resource-class.md
@@ -317,15 +338,15 @@ guide][stack-developer-guide].
 [gcp-docs]: https://cloud.google.com/docs/
 [azure-docs]: https://docs.microsoft.com/azure/
 
-[aws-setup]: TODO
+[aws-setup]: stacks-guide-aws.md
 [gcp-setup]: stacks-guide-gcp.md
-[azure-setup]: TODO
+[azure-setup]: stacks-guide-azure.md
 
 [stack-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/design-doc-stacks.md#crossplane-stacks
-[stack-quick-start]: https://github.com/crossplaneio/crossplane-cli#quick-start-stacks
+[stack-quick-start]: https://github.com/crossplaneio/crossplane-cli/tree/release-0.1#quick-start-stacks
 [stack-concepts]: https://github.com/crossplaneio/crossplane/blob/master/design/design-doc-stacks.md#crossplane-stacks
+[stack-registry]: https://hub.docker.com/search?q=crossplane&type=image
 [stack-manager-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/design-doc-stacks.md#installation-flow
 [stack-format-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/design-doc-stacks.md#stack-package-format
-[stack-registry]: TODO
-[stack-developer-guide]: TODO
-[provider-stack-developer-guide]: TODO
+[stack-developer-guide]: developer-guide.md
+[provider-stack-developer-guide]: developer-guide.md

@@ -1,11 +1,11 @@
 ---
-title: "GCP Stack Setup"
+title: "Stacks Guide: GCP Setup"
 toc: true
 weight: 520
 indent: true
 ---
 
-# Crossplane Stacks Guide: GCP Setup
+# Stacks Guide: GCP Setup
 
 ## Table of Contents
 
@@ -56,7 +56,6 @@ CLI][crossplane-cli] for this operation. Since this is an infrastructure
 stack, we need to specify that it's cluster-scoped by passing the
 `--cluster` flag.
 
-
 To install to a specific namespace, we can use the `generate-install`
 command and pipe it to `kubectl apply` instead, which gives us more
 control over how the stack's installation is handled. Everything is
@@ -82,6 +81,22 @@ resource claims][resource-claims-docs].
 
 For convenience, the next steps assume that you installed GCP stack into
 the `gcp` namespace.
+
+### Validate the installation
+
+To check to see whether our stack installed correctly, we can look at
+the status of our stack:
+
+```
+kubectl -n gcp get stack
+```
+
+It should look something like this:
+
+```
+NAME        READY   VERSION   AGE
+stack-gcp   True    0.0.1     5m19s
+```
 
 ## Configure GCP Account
 
@@ -111,14 +126,15 @@ assigned][gcp-assign-roles]:
 *   Kubernetes Engine Admin
 *   Service Account User
 
-You need to get JSON file of the service account you’ll use. In the next
-sections, this file will be referred to as
-`crossplane-gcp-provider-key.json`
+### Set up cloud provider credentials
 
-You can create the JSON file by using the [gcloud
-command][gcp-create-keys] and specifying a file name of
-`crossplane-gcp-provider-key.json`. If you use Crossplane's [GCP
-credentials script][gcp-credentials], this is taken care of for you.
+This guide assumes that you have created a JSON file which contains the
+credentials for the cloud provider. In later sections, this file will be
+referred to as `crossplane-gcp-provider-key.json`. There are quite a few
+steps involved, so the steps are in [a different document which you
+should take a look at][cloud-provider-setup-gcp] before moving to the
+next section. Or, there is also [a script in the Crossplane
+repo][gcp-credentials] which helps with creating the file.
 
 ## Configure Crossplane GCP Provider
 
@@ -176,6 +192,21 @@ The example YAML also exists in [the Crossplane repository][crossplane-sample-gc
 The name of the `Provider` resource in the file above is `gcp-provider`;
 we'll use the name `gcp-provider` to refer to this provider when we
 configure and set up other Crossplane resources.
+
+### Validate
+
+To check on our newly created provider, we can run:
+
+```
+kubectl -n gcp get provider.gcp.crossplane.io
+```
+
+The output should look something like:
+
+```
+NAME           PROJECT-ID              AGE
+gcp-provider   crossplane-playground   37s
+```
 
 ## Set Up Network Resources
 
@@ -278,6 +309,17 @@ assumes the GCP stack is installed in `gcp` namespace:
 kubectl -n gcp get connection.servicenetworking.gcp.crossplane.io/example-connection -o custom-columns='NAME:.metadata.name,FIRST_CONDITION:.status.conditions[0].status,SECOND_CONDITION:.status.conditions[1].status'
 ```
 
+The output should look something like:
+
+```
+NAME                 FIRST_CONDITION   SECOND_CONDITION
+example-connection   True              True
+```
+
+The conditions we're checking for are `Ready` and `Synced`. The reason
+we are using `FIRST_CONDITION` and `SECOND_CONDITION` is because we
+don't know what order they'll be in when we run the command.
+
 ## Configure Provider Resources
 
 Once we have the network set up, we also need to tell Crossplane how to
@@ -331,8 +373,12 @@ EOF
 
 kubectl apply -f environment.yaml
 ```
+
 The example YAML also exists in [the Crossplane
 repository][crossplane-sample-gcp-environment].
+
+We don't need to validate that these are ready, because they don't
+require any reconciliation.
 
 The steps that we have taken so far have been related to things that can
 be shared by all resources in all namespaces of the Crossplane control
@@ -397,6 +443,9 @@ kubectl apply -f namespace.yaml
 The example YAML also exists in [the Crossplane
 repository][crossplane-sample-gcp-namespace].
 
+We don't need to validate that these are ready, because they don't need
+to reconcile for them to be ready.
+
 ## Recap
 
 To recap what we've set up now in our environment:
@@ -421,7 +470,7 @@ the Stacks Guide document][stacks-guide-continue] so we can pick up
 where we left off.
 
 <!-- Links -->
-[crossplane-cli]: https://github.com/crossplaneio/crossplane-cli
+[crossplane-cli]: https://github.com/crossplaneio/crossplane-cli/tree/release-0.1
 [crossplane-gcp-networking-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-resource-connectivity-mvp.md#google-cloud-platform
 [stacks-guide]: stacks-guide.md
 
@@ -448,3 +497,5 @@ where we left off.
 [crossplane-sample-gcp-network]: https://github.com/crossplaneio/crossplane/blob/master/cluster/examples/workloads/kubernetes/wordpress/gcp/network.yaml
 [crossplane-sample-gcp-environment]: https://github.com/crossplaneio/crossplane/blob/master/cluster/examples/workloads/kubernetes/wordpress/gcp/environment.yaml
 [crossplane-sample-gcp-namespace]: https://github.com/crossplaneio/crossplane/blob/master/cluster/examples/workloads/kubernetes/wordpress/gcp/namespace.yaml
+
+[cloud-provider-setup-gcp]: cloud-providers/gcp/gcp-provider.md
