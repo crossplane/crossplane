@@ -390,7 +390,7 @@ while kubectl -n azure-infra-dev get mysqlservers -o yaml | grep -q  'items: \[\
 done
 echo "done" >&2
 
-export MYSQL_NAME=$(kubectl -n azure-infra-dev get mysqlservers -o json | jq -j '.items[0].metadata.name')
+export MYSQL_NAME=$(kubectl -n azure-infra-dev get mysqlservers -o=jsonpath='{.items[0].metadata.name}')
 
 sed "s/MYSQL_NAME/$MYSQL_NAME/g" vnet-rule.yaml | kubectl apply -f -
 
