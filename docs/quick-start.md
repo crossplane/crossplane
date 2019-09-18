@@ -5,17 +5,20 @@ weight: 210
 ---
 # Quick Start Guide
 
-This quick start will demonstrate using Crossplane to deploy a portable stateful workload in the cloud provider of your choice.
-It will first dynamically provision a Kubernetes cluster within the cloud provider environment, followed by a stateful application and its database to the same environment.
-The database will also be dynamically provisioned using a managed service hosted by the cloud provider.
-The Workload will be deployed into the target Kubernetes cluster, and be configured to consume the database resource in a completely portable way.
+This quick start will demonstrate using Crossplane to deploy a portable MySQL
+database on a single cloud provider, Google Cloud Platform. It serves as an initial introduction to
+Crossplane, but only displays a small portion of its functionality.
 
 The general steps for this example are as follows:
 
-1. [Install Crossplane](install-crossplane.md) into your Kubernetes cluster. 
-1. [Add a cloud provider](cloud-providers.md) for managed service provisioning.
-1. [Deploy a workload](deploy.md) (Wordpress) including the managed services it depends on (MySQL). 
+1. [Install Crossplane and the GCP stack](install-crossplane.md) into your Kubernetes cluster. 
+1. [Configure GCP credentials](cloud-providers/gcp/gcp-provider.md) in Crossplane.
+1. [Provision a MySQL database](quick-start-gcp.md) on GCP. 
 
-Additional info:
-* [Running Resources](running-resources.md)
-* [Troubleshooting](troubleshoot.md)
+## Next Steps
+
+* Add additional [cloud provider stacks](cloud-providers.md) to Crossplane.
+* Explore the [Services Guide](services-guide.md) and the [Stacks Guide](stacks-guide.md).
+* Learn more about [Crossplane concepts](concepts.md).
+* See what services are [currently supported](api.md) for each provider.
+* Build [your own stacks](developer-guide.md)!

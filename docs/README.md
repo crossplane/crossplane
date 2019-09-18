@@ -138,11 +138,6 @@ If you have any questions, please drop us a note on [Crossplane Slack][join-cros
 
 * [Quick Start Guide](quick-start.md)
 * [Getting Started](getting-started.md)
-  * [Installing Crossplane](install-crossplane.md)
-  * [Adding Your Cloud Providers](cloud-providers.md)
-  * [Deploying Workloads](deploy.md)
-  * [Running Resources](running-resources.md)
-  * [Troubleshooting](troubleshoot.md)
 * [Concepts](concepts.md)
 * [API Reference](api.md)
 * [FAQs](faqs.md)

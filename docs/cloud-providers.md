@@ -11,6 +11,7 @@ In order for Crossplane to be able to manage resources across all your clouds, y
 Use the links below for specific instructions to add each of the following cloud providers:
 
 * [Google Cloud Platform (GCP)](cloud-providers/gcp/gcp-provider.md)
+    * Required for Quick Start
 * [Microsoft Azure](cloud-providers/azure/azure-provider.md)
 * [Amazon Web Services (AWS)](cloud-providers/aws/aws-provider.md)
 
