@@ -415,7 +415,7 @@ Stacks Guide document][stacks-guide-continue] so we can pick up where we left
 off.
 
 <!-- Links -->
-[crossplane-cli]: https://github.com/crossplaneio/crossplane-cli
+[crossplane-cli]: https://github.com/crossplaneio/crossplane-cli/tree/release-0.1
 [crossplane-azure-networking-docs]: TODO
 [stacks-guide]: stacks-guide.html
 [provider-azure-guide]: cloud-providers/azure/azure-provider.md

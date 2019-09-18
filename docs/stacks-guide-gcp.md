@@ -421,7 +421,7 @@ the Stacks Guide document][stacks-guide-continue] so we can pick up
 where we left off.
 
 <!-- Links -->
-[crossplane-cli]: https://github.com/crossplaneio/crossplane-cli
+[crossplane-cli]: https://github.com/crossplaneio/crossplane-cli/tree/release-0.1
 [crossplane-gcp-networking-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-resource-connectivity-mvp.md#google-cloud-platform
 [stacks-guide]: stacks-guide.md
 

@@ -73,7 +73,7 @@ CLI][crossplane-cli], because it's more convenient. To install it, we
 can use the one-line curl bash:
 
 ```
-RELEASE=0.0.1
+RELEASE=release-0.1
 curl -sL https://raw.githubusercontent.com/crossplaneio/crossplane-cli/"${RELEASE}"/bootstrap.sh | bash
 ```
 
@@ -295,8 +295,8 @@ guide][stack-developer-guide].
 *   [Kubernetes documentation][kubernetes-docs]
 
 <!-- Named links -->
-[crossplane-cli]: https://github.com/crossplaneio/crossplane-cli
-[crossplane-cli-docs]: https://github.com/crossplaneio/crossplane-cli/blob/master/README.md
+[crossplane-cli]: https://github.com/crossplaneio/crossplane-cli/tree/release-0.1
+[crossplane-cli-docs]: https://github.com/crossplaneio/crossplane-cli/blob/release-0.1/README.md
 [crossplane-concepts]: concepts.md
 [crossplane-install-docs]: install-crossplane.md
 
@@ -322,7 +322,7 @@ guide][stack-developer-guide].
 [azure-setup]: TODO
 
 [stack-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/design-doc-stacks.md#crossplane-stacks
-[stack-quick-start]: https://github.com/crossplaneio/crossplane-cli#quick-start-stacks
+[stack-quick-start]: https://github.com/crossplaneio/crossplane-cli/tree/release-0.1#quick-start-stacks
 [stack-concepts]: https://github.com/crossplaneio/crossplane/blob/master/design/design-doc-stacks.md#crossplane-stacks
 [stack-manager-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/design-doc-stacks.md#installation-flow
 [stack-format-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/design-doc-stacks.md#stack-package-format
