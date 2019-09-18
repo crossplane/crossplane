@@ -58,7 +58,7 @@ create it:
 
 ```bash
 # the namespace that the aws infra structure resources will be created
-INFRA_NAMESPACE=infra-aws
+export INFRA_NAMESPACE=infra-aws
 # create the namespace in Crossplane
 kubectl create namespace ${INFRA_NAMESPACE}
 ```
@@ -96,7 +96,7 @@ name if you want. Let's store the profile name in a variable so we can
 use it in later steps:
 
 ```bash
-aws_profile=crossplane-user
+export aws_profile=crossplane-user
 ```
 
 ## Configure Crossplane Provider for AWS
@@ -112,10 +112,9 @@ To store the credentials as a secret, run:
 
 ```bash
 # retrieve profile's credentials, save it under 'default' profile, and base64 encode it
-AWS_CREDS_BASE64=$(cat ${HOME}/.aws/credentials | awk '/["$aws_profile"]/ {getline; print $0}' | awk 'NR==1{print "[default]"}1' | base64 | tr -d "\n")
-
+export AWS_CREDS_BASE64=$(echo -e "[default]\naws_access_key_id = $(aws configure get aws_access_key_id --profile $aws_profile)\naws_secret_access_key = $(aws configure get aws_secret_access_key --profile $aws_profile)" | base64  | tr -d "\n")
 # retrieve the profile's region from config
-AWS_REGION=$(awk '/["$aws_profile"]/ {getline; print $3}' ${HOME}/.aws/config)
+export AWS_REGION=$(aws configure get region --profile ${aws_profile})
 ```
 
 At this point, the region and the encoded credentials are stored in respective
@@ -147,6 +146,7 @@ EOF
 
 # apply it to the cluster:
 kubectl apply -f "provider.yaml"
+unset AWS_CREDS_BASE64
 ```
 
 The output will look like the following:
@@ -213,7 +213,7 @@ names. Otherwise, there will be naming conflicts.
 
 ```bash
 # the name of the aws network configuration
-CONFIG_NAME=aws-network-config
+export CONFIG_NAME=aws-network-config
 ```
 
 ### VPC
@@ -301,7 +301,7 @@ Now that we have a VPC, we can retrieve the VPCID to use in subsequent
 resources and save it to a variable:
 
 ```bash
-VPC_ID=$(kubectl get -f "vpc.yaml"  -o jsonpath='{.status.vpcId}')
+export VPC_ID=$(kubectl get -f "vpc.yaml"  -o jsonpath='{.status.vpcId}')
 ```
 
 ### Subnets
@@ -375,9 +375,9 @@ We need to retrieve the SubnetIDs for subsequent resources and save them
 to variables:
 
 ```bash
-SUBNET1_ID=$(kubectl get -f "subnets.yaml" -o=jsonpath='{.items[0].status.subnetId}')
-SUBNET2_ID=$(kubectl get -f "subnets.yaml" -o=jsonpath='{.items[1].status.subnetId}')
-SUBNET3_ID=$(kubectl get -f "subnets.yaml" -o=jsonpath='{.items[2].status.subnetId}')
+export SUBNET1_ID=$(kubectl get -f "subnets.yaml" -o=jsonpath='{.items[0].status.subnetId}')
+export SUBNET2_ID=$(kubectl get -f "subnets.yaml" -o=jsonpath='{.items[1].status.subnetId}')
+export SUBNET3_ID=$(kubectl get -f "subnets.yaml" -o=jsonpath='{.items[2].status.subnetId}')
 ```
 
 ### Internet Gateway
@@ -417,7 +417,7 @@ internetgateway.network.aws.crossplane.io/aws-network-config-internetgateway con
 Retrieve the internet gateway's ID (IG_ID) and save it in a variable:
 
 ```bash
-IG_ID=$(kubectl get -f "internetgateway.yaml" -o=jsonpath='{.status.internetGatewayId}')
+export IG_ID=$(kubectl get -f "internetgateway.yaml" -o=jsonpath='{.status.internetGatewayId}')
 ```
 
 ### Route Table
@@ -500,7 +500,7 @@ Retrieve the SecurityGroupID for cluster security group and save it to a
 variable:
 
 ```bash
-CLUSTER_SECURITY_GROUP_ID=$(kubectl get -f "cluster_sg.yaml" -o=jsonpath='{.status.securityGroupID}')
+export CLUSTER_SECURITY_GROUP_ID=$(kubectl get -f "cluster_sg.yaml" -o=jsonpath='{.status.securityGroupID}')
 ```
 
 ### Database Security Group
@@ -550,7 +550,7 @@ Retrieve the SecurityGroupID for rds security group and store it in a
 variable:
 
 ```bash
-RDS_SECURITY_GROUP_ID=$(kubectl get -f "rds_sg.yaml" -o=jsonpath='{.status.securityGroupID}')
+export RDS_SECURITY_GROUP_ID=$(kubectl get -f "rds_sg.yaml" -o=jsonpath='{.status.securityGroupID}')
 ```
 
 ### Database Subnet Group
@@ -597,7 +597,7 @@ dbsubnetgroup.storage.aws.crossplane.io/aws-network-config-dbsubnetgroup conditi
 We need to retrieve the SubnetIDs so other resources can use them:
 
 ```bash
-RDS_SUBNET_GROUP_NAME=$(kubectl get -f "dbsubnetgroup.yaml" -o=jsonpath='{.spec.groupName}')
+export RDS_SUBNET_GROUP_NAME=$(kubectl get -f "dbsubnetgroup.yaml" -o=jsonpath='{.spec.groupName}')
 ```
 
 ### Cluster IAM Role
@@ -651,7 +651,7 @@ iamrole.identity.aws.crossplane.io/aws-network-config-eks-cluster-role condition
 Retrieve the IAM Role Arn and store it in a variable:
 
 ```bash
-EKS_ROLE_ARN=$(kubectl get -f "iamrole.yaml" -o=jsonpath='{.status.arn}')
+export EKS_ROLE_ARN=$(kubectl get -f "iamrole.yaml" -o=jsonpath='{.status.arn}')
 ```
 
 ### Cluster IAM Role Policies
@@ -777,7 +777,7 @@ know how to satisfy the claims. Let's call this namespace
 
 ```bash
 # the namespace that the app resources will be created
-APP_NAMESPACE=app-project1-dev
+export APP_NAMESPACE=app-project1-dev
 # create the namespace in Crossplane
 kubectl create namespace ${APP_NAMESPACE}
 ```
@@ -803,6 +803,8 @@ kind: MySQLInstanceClass
 metadata:
   name: mysql-standard
   namespace: ${APP_NAMESPACE}
+  labels:
+    default: "true"
 classRef:
   kind: RDSInstanceClass
   apiVersion: database.aws.crossplane.io/v1alpha2
@@ -814,6 +816,8 @@ kind: KubernetesClusterClass
 metadata:
   name: k8s-standard
   namespace: ${APP_NAMESPACE}
+  labels:
+    default: "true"
 classRef:
   kind: EKSClusterClass
   apiVersion: compute.aws.crossplane.io/v1alpha2
