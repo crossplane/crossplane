@@ -40,16 +40,10 @@ create related external resources for each claim in AWS.
 
 Before continuing in this guide, make sure that all the following are true:
 
-- Crossplane is installed 
+- Crossplane is installed
 - [crossplane-cli] is installed
 - `kubectl` is configured to target the Crossplane cluster
 - An aws account is available
-
-Then make a place to work:
-
-```bash
-WORK_DIR=$(mktemp -d)
-```
 
 ## Install AWS stack
 
@@ -66,12 +60,12 @@ INFRA_NAMESPACE=infra-aws
 # create the namespace in Crossplane
 kubectl create namespace ${INFRA_NAMESPACE}
 ```
-<details> <summary>output</summary>
+
+The output will look like the following:
 
 ```bash
 namespace/infra-aws created
 ```
-</details>
 
 Now we can create the AWS stack by using Crossplane CLI.  Since this is an
 infrastructure stack, we need to specify that it's cluster-scoped via
@@ -126,7 +120,7 @@ At this point, the region and the encoded credentials are stored in respective
  variables. Next, we'll need to create an instance of [`aws provider`]:
 
 ```bash
-cat > ${WORK_DIR}/provider.yaml <<EOF
+cat > provider.yaml <<EOF
 ---
 apiVersion: v1
 data:
@@ -150,17 +144,15 @@ spec:
 EOF
 
 # apply it to the cluster:
-kubectl apply -f "${WORK_DIR}/provider.yaml"
+kubectl apply -f "provider.yaml"
 ```
 
-<details> <summary>output</summary>
+The output will look like the following:
 
 ```bash
 secret/aws-user-creds created
 provider.aws.crossplane.io/aws-provider created
 ```
-
-</details>
 
 ## Set Up Network Configuration
 
@@ -223,13 +215,13 @@ naming conflicts.
 CONFIG_NAME=aws-network-config
 ```
 
-<details> <summary>VPC</summary><blockquote>
+### VPC
 
 A [Virtual Private Network] or VPC is a virtual network in AWS.
 
 ```bash
 # build vpc yaml
-cat > ${WORK_DIR}/vpc.yaml <<EOF
+cat > vpc.yaml <<EOF
 apiVersion: network.aws.crossplane.io/v1alpha2
 kind: VPC
 metadata:
@@ -247,25 +239,23 @@ EOF
 
 # create a vpc object in Crossplane, and wait until the corresponding
 # VPC in AWS is created and is Ready to use
-apply_and_wait_until_ready "${WORK_DIR}/vpc.yaml"
+apply_and_wait_until_ready "vpc.yaml"
 ```
 
-<details> <summary>output</summary>
+Sample output:
 
 ```bash
 vpc.network.aws.crossplane.io/aws-network-config-vpc created
 vpc.network.aws.crossplane.io/aws-network-config-vpc condition met
 ```
 
-</details>
-
 Once the VPC is created, you can see the full object and its status by running
 
 ```bash
-kubectl get -f "${WORK_DIR}/vpc.yaml" -o yaml
+kubectl get -f "vpc.yaml" -o yaml
 ```
 
-<details> <summary>sample output</summary>
+The output will look like:
 
 ```yaml
 apiVersion: network.aws.crossplane.io/v1alpha2
@@ -306,23 +296,19 @@ status:
   vpcState: available
 ```
 
-</details>
-
 Now, we can retrieve the VPCID to use in subsequent resources:
 
 ```bash
-VPC_ID=$(kubectl get -f "${WORK_DIR}/vpc.yaml"  -o jsonpath='{.status.vpcId}')
+VPC_ID=$(kubectl get -f "vpc.yaml"  -o jsonpath='{.status.vpcId}')
 ```
 
-<blockquote></details>
-
-<details> <summary>Subnets</summary><blockquote>
+### Subnets
 
 In this configuration we create three public [Subnet]s.
 
 ```bash
 # build subnet yaml
-cat > ${WORK_DIR}/subnets.yaml <<EOF
+cat > subnets.yaml <<EOF
 ---
 apiVersion: network.aws.crossplane.io/v1alpha2
 kind: Subnet
@@ -369,10 +355,10 @@ EOF
 
 # create subnet objects in Crossplane, and wait until the corresponding
 # Subnets in AWS are created and Ready to use
-apply_and_wait_until_ready "${WORK_DIR}/subnets.yaml"
+apply_and_wait_until_ready "subnets.yaml"
 ```
 
-<details> <summary>output</summary>
+Sample output:
 
 ```bash
 subnet.network.aws.crossplane.io/aws-network-config-subnet1 created
@@ -383,19 +369,15 @@ subnet.network.aws.crossplane.io/aws-network-config-subnet2 condition met
 subnet.network.aws.crossplane.io/aws-network-config-subnet3 condition met
 ```
 
-</details>
-
 We need to retrieve the SubndtIDs for subsequent resources:
 
 ```bash
-SUBNET1_ID=$(kubectl get -f "${WORK_DIR}/subnets.yaml" -o=jsonpath='{.items[0].status.subnetId}')
-SUBNET2_ID=$(kubectl get -f "${WORK_DIR}/subnets.yaml" -o=jsonpath='{.items[1].status.subnetId}')
-SUBNET3_ID=$(kubectl get -f "${WORK_DIR}/subnets.yaml" -o=jsonpath='{.items[2].status.subnetId}')
+SUBNET1_ID=$(kubectl get -f "subnets.yaml" -o=jsonpath='{.items[0].status.subnetId}')
+SUBNET2_ID=$(kubectl get -f "subnets.yaml" -o=jsonpath='{.items[1].status.subnetId}')
+SUBNET3_ID=$(kubectl get -f "subnets.yaml" -o=jsonpath='{.items[2].status.subnetId}')
 ```
 
-<blockquote></details>
-
-<details> <summary>Internet Gateway</summary><blockquote>
+### Internet Gateway
 
 An [Internet Gateway] enables the resources in the VPC to have access to the
 Internet. Since the WordPress application will be addressed from the internet,
@@ -403,7 +385,7 @@ this resource is required in the network configuration.
 
 ```bash
 # build internet gateway yaml
-cat > ${WORK_DIR}/internetgateway.yaml <<EOF
+cat > internetgateway.yaml <<EOF
 apiVersion: network.aws.crossplane.io/v1alpha2
 kind: InternetGateway
 metadata:
@@ -419,27 +401,23 @@ EOF
 
 # create subnet objects in Crossplane, and wait until the corresponding
 # Subnets in AWS are created and Ready to use
-apply_and_wait_until_ready "${WORK_DIR}/internetgateway.yaml"
+apply_and_wait_until_ready "internetgateway.yaml"
 ```
 
-<details> <summary>output</summary>
+Sample output:
 
 ```bash
 internetgateway.network.aws.crossplane.io/aws-network-config-internetgateway created
 internetgateway.network.aws.crossplane.io/aws-network-config-internetgateway condition met
 ```
 
-</details>
-
 To retrieve the internete gateway ID (IG_ID):
 
 ```bash
-IG_ID=$(kubectl get -f "${WORK_DIR}/internetgateway.yaml" -o=jsonpath='{.status.internetGatewayId}')
+IG_ID=$(kubectl get -f "internetgateway.yaml" -o=jsonpath='{.status.internetGatewayId}')
 ```
 
-<blockquote></details>
-
-<details> <summary>Route Table</summary><blockquote>
+### Route Table
 
 A [Route Table] sets rules to direct traffic in a virtual network. We use a
 Route Table to redirect internet traffic from all Subnets to the Internet
@@ -447,7 +425,7 @@ Gateway instance that we created in previous step.
 
 ```bash
 # build route table yaml
-cat > ${WORK_DIR}/routetable.yaml <<EOF
+cat > routetable.yaml <<EOF
 apiVersion: network.aws.crossplane.io/v1alpha2
 kind: RouteTable
 metadata:
@@ -470,28 +448,24 @@ EOF
 
 # create a routetable object in Crossplane, and wait until the corresponding
 # Route Table in AWS is created and Ready to use
-apply_and_wait_until_ready "${WORK_DIR}/routetable.yaml"
+apply_and_wait_until_ready "routetable.yaml"
 ```
 
-<details> <summary>output</summary>
+Sample output:
 
 ```bash
 routetable.network.aws.crossplane.io/aws-network-config-routetable created
 routetable.network.aws.crossplane.io/aws-network-config-routetable condition met
 ```
 
-</details>
-
-<blockquote></details>
-
-<details> <summary>Cluster Security Group</summary><blockquote>
+### Cluster Security Group
 
 A [Security Group] is created to later to be assigned to the EKS cluster. This
 security group enables the cluster to communicate with the worker nodes
 
 ```bash
 # build the cluster security group yaml
-cat > ${WORK_DIR}/cluster_sg.yaml <<EOF
+cat > cluster_sg.yaml <<EOF
 apiVersion: network.aws.crossplane.io/v1alpha2
 kind: SecurityGroup
 metadata:
@@ -509,27 +483,23 @@ EOF
 
 # create a cluster security group object in Crossplane, and wait until the corresponding
 # Security Group in AWS is created and Ready to use
-apply_and_wait_until_ready "${WORK_DIR}/cluster_sg.yaml"
+apply_and_wait_until_ready "cluster_sg.yaml"
 ```
 
-<details> <summary>output</summary>
+Sample output:
 
 ```bash
 securitygroup.network.aws.crossplane.io/aws-network-config-cluster-sg created
 securitygroup.network.aws.crossplane.io/aws-network-config-cluster-sg condition met
 ```
 
-</details>
-
 Retrieve the SecurityGroupID for cluster security group:
 
 ```bash
-CLUSTER_SECURITY_GROUP_ID=$(kubectl get -f "${WORK_DIR}/cluster_sg.yaml" -o=jsonpath='{.status.securityGroupID}')
+CLUSTER_SECURITY_GROUP_ID=$(kubectl get -f "cluster_sg.yaml" -o=jsonpath='{.status.securityGroupID}')
 ```
 
-<blockquote></details>
-
-<details> <summary>Database Security Group</summary><blockquote>
+### Database Security Group
 
 A [Security Group] is created to later to be assigned to the RDS database
 instance. This security group enables the database instance to accept traffic
@@ -537,7 +507,7 @@ from the internet in a certain port.
 
 ```bash
 # build the rds security group yaml
-cat > ${WORK_DIR}/rds_sg.yaml <<EOF
+cat > rds_sg.yaml <<EOF
 apiVersion: network.aws.crossplane.io/v1alpha2
 kind: SecurityGroup
 metadata:
@@ -562,34 +532,30 @@ EOF
 
 # create a security group object for the rds instance in Crossplane
 # and wait until the corresponding Security Group in AWS is created and Ready to use
-apply_and_wait_until_ready "${WORK_DIR}/rds_sg.yaml"
+apply_and_wait_until_ready "rds_sg.yaml"
 ```
 
-<details> <summary>output</summary>
+Sample output:
 
 ```bash
 securitygroup.network.aws.crossplane.io/aws-network-config-rds-sg created
 securitygroup.network.aws.crossplane.io/aws-network-config-rds-sg condition met
 ```
 
-</details>
-
 Retrieve the SecurityGroupID for rds security group:
 
 ```bash
-RDS_SECURITY_GROUP_ID=$(kubectl get -f "${WORK_DIR}/rds_sg.yaml" -o=jsonpath='{.status.securityGroupID}')
+RDS_SECURITY_GROUP_ID=$(kubectl get -f "rds_sg.yaml" -o=jsonpath='{.status.securityGroupID}')
 ```
 
-<blockquote></details>
-
-<details> <summary>Database Subnet Group</summary><blockquote>
+### Database Subnet Group
 
 A [Database Subnet Group] creates a group of Subnets which can communicate with
 an RDS database instance.
 
 ```bash
 # build db subnet group yaml
-cat > ${WORK_DIR}/dbsubnetgroup.yaml <<EOF
+cat > dbsubnetgroup.yaml <<EOF
 apiVersion: storage.aws.crossplane.io/v1alpha2
 kind: DBSubnetGroup
 metadata:
@@ -613,27 +579,23 @@ EOF
 
 # create db subnet group object in Crossplane, and wait until the corresponding
 # DB Subnet Group in AWS is created and Ready to use
-apply_and_wait_until_ready "${WORK_DIR}/dbsubnetgroup.yaml"
+apply_and_wait_until_ready "dbsubnetgroup.yaml"
 ```
 
-<details> <summary>output</summary>
+Sample output:
 
 ```bash
 dbsubnetgroup.storage.aws.crossplane.io/aws-network-config-dbsubnetgroup created
 dbsubnetgroup.storage.aws.crossplane.io/aws-network-config-dbsubnetgroup condition met
 ```
 
-</details>
-
 We need to retrieve the SubndtIDs for subsequent resources:
 
 ```bash
-RDS_SUBNET_GROUP_NAME=$(kubectl get -f "${WORK_DIR}/dbsubnetgroup.yaml" -o=jsonpath='{.spec.groupName}')
+RDS_SUBNET_GROUP_NAME=$(kubectl get -f "dbsubnetgroup.yaml" -o=jsonpath='{.spec.groupName}')
 ```
 
-<blockquote></details>
-
-<details> <summary>Cluster IAM Role</summary><blockquote>
+### Cluster IAM Role
 
 An [IAM Role] gives permissions to the principal that assumes that role. We
 Create a role to be assumed by the cluster, which later is granted the required
@@ -641,7 +603,7 @@ permissions to talk to required resources in AWS.
 
 ```bash
 # build vpc yaml
-cat > ${WORK_DIR}/iamrole.yaml <<EOF
+cat > iamrole.yaml <<EOF
 apiVersion: identity.aws.crossplane.io/v1alpha2
 kind: IAMRole
 metadata:
@@ -671,27 +633,23 @@ EOF
 
 # create an IAM Role object in Crossplane, and wait until the corresponding
 # IAM Role in AWS is created and Ready to use
-apply_and_wait_until_ready "${WORK_DIR}/iamrole.yaml"
+apply_and_wait_until_ready "iamrole.yaml"
 ```
 
-<details> <summary>output</summary>
+Sample output:
 
 ```bash
 iamrole.identity.aws.crossplane.io/aws-network-config-eks-cluster-role created
 iamrole.identity.aws.crossplane.io/aws-network-config-eks-cluster-role condition met
 ```
 
-</details>
-
 To retrieve the IAM Role Arn:
 
 ```bash
-EKS_ROLE_ARN=$(kubectl get -f "${WORK_DIR}/iamrole.yaml" -o=jsonpath='{.status.arn}')
+EKS_ROLE_ARN=$(kubectl get -f "iamrole.yaml" -o=jsonpath='{.status.arn}')
 ```
 
-<blockquote></details>
-
-<details> <summary>Cluster IAM Role Policies </summary><blockquote>
+### Cluster IAM Role Policies
 
 An [IAM Role Policy] grants a role a certain permission. We add two policies to
 the Cluster IAM Role that we created above. These policies are needed for the
@@ -699,7 +657,7 @@ cluster to communicate with other aws resources.
 
 ```bash
 # build policies yaml
-cat > ${WORK_DIR}/policies.yaml <<EOF
+cat > policies.yaml <<EOF
 ---
 apiVersion: identity.aws.crossplane.io/v1alpha2
 kind: IAMRolePolicyAttachment
@@ -730,10 +688,10 @@ EOF
 
 # create IAM Role Policy objects in Crossplane, and wait until the corresponding
 # IAM Role Policies in AWS are created and Ready to use
-apply_and_wait_until_ready "${WORK_DIR}/policies.yaml"
+apply_and_wait_until_ready "policies.yaml"
 ```
 
-<details> <summary>output</summary>
+Sample output:
 
 ```bash
 iamrolepolicyattachment.identity.aws.crossplane.io/aws-network-config-role-servicepolicy created
@@ -741,10 +699,6 @@ iamrolepolicyattachment.identity.aws.crossplane.io/aws-network-config-role-clust
 iamrolepolicyattachment.identity.aws.crossplane.io/aws-network-config-role-servicepolicy condition met
 iamrolepolicyattachment.identity.aws.crossplane.io/aws-network-config-role-clusterpolicy condition met
 ```
-
-</details>
-
-<blockquote></details>
 
 ## Configure Provider Resources
 
@@ -756,7 +710,7 @@ in the previous step:
 
 ```bash
 # build resource classes yaml, by using the configured network resources
-cat > ${WORK_DIR}/resource_classes.yaml <<EOF
+cat > resource_classes.yaml <<EOF
 ---
 apiVersion: database.aws.crossplane.io/v1alpha2
 kind: RDSInstanceClass
@@ -804,7 +758,7 @@ specTemplate:
 EOF
 
 # apply the resource classes yaml to Crossplane
-kubectl apply -f "${WORK_DIR}/resource_classes.yaml"
+kubectl apply -f "resource_classes.yaml"
 ```
 
 So far we have been creating resources in `INFRA_NAMESPACE`, where all resources
@@ -834,7 +788,7 @@ provided, see the [portable classes and claims
 documentation][portable-classes-docs].
 
 ```bash
-cat > ${WORK_DIR}/portable_classes.yaml <<EOF
+cat > portable_classes.yaml <<EOF
 ---
 apiVersion: database.crossplane.io/v1alpha1
 kind: MySQLInstanceClass
@@ -860,7 +814,7 @@ classRef:
 ---
 EOF
 
-kubectl apply -f "${WORK_DIR}/portable_classes.yaml"
+kubectl apply -f "portable_classes.yaml"
 ```
 
 For more details about resource claims and how they work, see the [documentation
@@ -870,11 +824,11 @@ on resource claims][resource-claims-docs].
 
 To recap what we've set up now in our environment:
 
-* Our provider account, both on the provider side and on the Crossplane side.
-* A Network Configuration for all instances to share.
-* An EKSClusterClass and an RDSInstanceClass with the right configuration to use
+- Our provider account, both on the provider side and on the Crossplane side.
+- A Network Configuration for all instances to share.
+- An EKSClusterClass and an RDSInstanceClass with the right configuration to use
   the mentioned networking setup.
-* A namespace for our app resources to reside with default MySQLInstanceClass
+- A namespace for our app resources to reside with default MySQLInstanceClass
   and KubernetesClusterClass that refer to our EKSClusterClass and
   RDSInstanceClass.
 
@@ -883,7 +837,6 @@ To recap what we've set up now in our environment:
 Next we'll set up a Crossplane App Stack and use it! Head [back over to the
 Stacks Guide document][stacks-guide-continue] so we can pick up where we left
 off.
-
 
 [aws user]: https://docs.aws.amazon.com/mediapackage/latest/ug/setting-up-create-iam-user.html
 [Access Key]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html
