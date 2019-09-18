@@ -63,38 +63,37 @@ INFRA_NAMESPACE=infra-aws
 kubectl create namespace ${INFRA_NAMESPACE}
 ```
 
-The output will look like the following:
-
-```bash
-namespace/infra-aws created
-```
-
-Now we can create the AWS stack by using Crossplane CLI.  Since this is an
-infrastructure stack, we need to specify that it's cluster-scoped via
-`--cluster` flag.
+Now we can install the AWS stack using Crossplane CLI.  Since this is an
+infrastructure stack, we need to specify that it's cluster-scoped by
+passing the `--cluster` flag.
 
 ```bash
 kubectl crossplane stack generate-install --cluster 'crossplane/stack-aws:master' stack-aws | kubectl apply --namespace ${INFRA_NAMESPACE} -f -
 ```
 
-The next steps assume that you installed the AWS stack into the `infra-aws`
-namespace.
+The rest of the steps assume that you installed the AWS stack into the
+`infra-aws` namespace.
 
 ## Configure the AWS account
 
 An [aws user][] with `Administrative` privileges is needed to enable Crossplane to
 create the required resources. Once the user is provisioned, an [Access Key][]
-needs to be created to enable the user to have API access. Next, using these set
-of access key credentials, one needs to have [`aws` command line tool][]
-[installed][] and [configured][]. Then, the credentials and configuration will
-reside in `~/.aws/credentials` and `~/.aws/config` respectively, which will be
-consumed in the next step.
+needs to be created so the user can have API access.
 
-When configuring aws CLI, it is recommended that the user credentials are
-configured under a specific [aws named profile][] other than `default`. In this
-guide we are assuming that the credentials are configured under
-`crossplane-user` profile, but you can use other profiles as well. Let's store
-the profile name in `aws_profile` variable to use later:
+Using the set of access key credentials for the user with the right
+access, we will to have [`aws` command line tool][] [installed][], and
+then we will need to [configure it][aws-cli-configure].
+
+When the aws cli is configured, the credentials and configuration will
+be in `~/.aws/credentials` and `~/.aws/config` respectively. These will
+be consumed in the next step.
+
+When configuring the aws cli, it is recommended that the user credentials are
+configured under a specific [aws named profile][], and not under
+`default`. In this guide, we assume that the credentials are configured
+under the `crossplane-user` profile, but you can use a different profile
+name if you want. Let's store the profile name in a variable so we can
+use it in later steps:
 
 ```bash
 aws_profile=crossplane-user
@@ -102,10 +101,11 @@ aws_profile=crossplane-user
 
 ## Configure Crossplane Provider for AWS
 
-Crossplane uses the aws user credentials that was configured in the previous
-step, to create resources in AWS. These credentials will be stored as a
-[secret][], and is managed them by an  [`aws provider`][] instance. In addition to
-the credentials, the AWS region is also read from the configuration to target a
+Crossplane uses the aws user credentials that were configured in the previous
+step to create resources in AWS. These credentials will be stored as a
+[secret][] in Kubernetes, and will be used by an [aws
+provider][aws-provider-docs] instance. The AWS region is also pulled
+from the cli configuration, so that the aws provider can target a
 specific region.
 
 To store the credentials as a secret, run:
@@ -160,25 +160,25 @@ provider.aws.crossplane.io/aws-provider created
 
 When configured in AWS, WordPress resources map to an EKS cluster and an RDS
 database. In order to make the RDS instance accessible from the EKS cluster,
-they both need to live within the same VPC. However VPC is not the only AWS
+they both need to live within the same VPC. However, a VPC is not the only AWS
 resource that needs to be created to enable inter-resource connectivity. In
-general, a **Network Configuration**, which is built of a set of VPCs, Subnets,
+general, a **Network Configuration**, which consists of a set of VPCs, Subnets,
 Security Groups, Route Tables, IAM Roles and other resources, is required for
 this purpose. For more information, see [AWS resource connectivity][] design
 document.
 
-In this section we will build a simple network configuration, by creating AWS
+In this section, we will build a simple network configuration, by creating AWS
 resources that are managed by Crossplane. There are a couple of challenges when
 creating these resources:
 
-- Some of these resources depend on other ones. For instance, a Subnet is
-  dependent on a VPC, so creating a Subnet needs to be done after creating the
-  VPC.
+- Some of these resources depend on other ones. For instance, a Subnet
+  depends on a VPC, so creating a Subnet needs to be done after creating
+  the VPC.
 
-  To solve this issue, we will need to create the resoruces in order, so the
-  depependent resources are provisioned after creating their dependencies. Since
+  To solve this issue, we will need to create the resources in order, so
+  resources are provisioned after their dependencies exist. Since
   provisioning a resource might take some time, we need to make sure the
-  resource is ready, before moving forward to the next step. Let's create the
+  resource is ready before moving forward to the next step. Let's create the
   following function for this purpose:
 
   ```bash
@@ -194,22 +194,22 @@ creating these resources:
 
 - Some of these resources have identifying attributes that are
   non-deterministic. In other words, they become known after the resource is
-  provisioined. For instance, a VPC has a ID (VPC_ID) attribute which is
-  consumed by other resources (like a Subnet), and only becomes known after the
-  VPC is created.
+  provisioined. For instance, a VPC has an ID (VPC_ID) attribute which is
+  consumed by other resources (such as a Subnet), and the ID only
+  becomes known after the VPC is created.
 
   To tackle this challege, we will need to retrieve the non-deterministic
   identifiers of the resources after their creation, and inject them to the
-  dependent resources that require those attribute.
+  consumer resources that require those attributes.
 
 The rest of this section creates the resources for a configuration described in
 [the EKS user guide][eks-user-guide].
-For grouping all these resources together we will use a `CONFIG_NAME` variable,
-which will be prepended to the names of these resources in Crossplane, and their
-corresponding external resources in AWS. Keep in mind that if you create
-multiple such configuration in the same Crossplane cluster or the same AWS
-account, you will need to use different config names, otherwise there will be
-naming conflicts.
+For grouping all these resources together, we will use a `CONFIG_NAME` variable,
+which will be prepended to the names of these resources in Crossplane,
+and also their corresponding external resources in AWS. Keep in mind
+that if you create multiple such configurations in the same Crossplane
+cluster or the same AWS account, you will need to use different config
+names. Otherwise, there will be naming conflicts.
 
 ```bash
 # the name of the aws network configuration
@@ -250,13 +250,13 @@ vpc.network.aws.crossplane.io/aws-network-config-vpc created
 vpc.network.aws.crossplane.io/aws-network-config-vpc condition met
 ```
 
-Once the VPC is created, you can see the full object and its status by running
+Once the VPC is created, you can see the full object and its status by running:
 
 ```bash
 kubectl get -f "vpc.yaml" -o yaml
 ```
 
-The output will look like:
+The output will look something like:
 
 ```yaml
 apiVersion: network.aws.crossplane.io/v1alpha2
@@ -297,7 +297,8 @@ status:
   vpcState: available
 ```
 
-Now, we can retrieve the VPCID to use in subsequent resources:
+Now that we have a VPC, we can retrieve the VPCID to use in subsequent
+resources and save it to a variable:
 
 ```bash
 VPC_ID=$(kubectl get -f "vpc.yaml"  -o jsonpath='{.status.vpcId}')
@@ -305,7 +306,7 @@ VPC_ID=$(kubectl get -f "vpc.yaml"  -o jsonpath='{.status.vpcId}')
 
 ### Subnets
 
-In this configuration we create three public [Subnet]s.
+In this configuration we create three public [Subnet][]s.
 
 ```bash
 # build subnet yaml
@@ -370,7 +371,8 @@ subnet.network.aws.crossplane.io/aws-network-config-subnet2 condition met
 subnet.network.aws.crossplane.io/aws-network-config-subnet3 condition met
 ```
 
-We need to retrieve the SubndtIDs for subsequent resources:
+We need to retrieve the SubnetIDs for subsequent resources and save them
+to variables:
 
 ```bash
 SUBNET1_ID=$(kubectl get -f "subnets.yaml" -o=jsonpath='{.items[0].status.subnetId}')
@@ -380,8 +382,8 @@ SUBNET3_ID=$(kubectl get -f "subnets.yaml" -o=jsonpath='{.items[2].status.subnet
 
 ### Internet Gateway
 
-An [Internet Gateway][] enables the resources in the VPC to have access to the
-Internet. Since the WordPress application will be addressed from the internet,
+An [Internet Gateway][] allows the resources in the VPC to have access to the
+Internet. Since the WordPress application will be accessed from the internet,
 this resource is required in the network configuration.
 
 ```bash
@@ -412,7 +414,7 @@ internetgateway.network.aws.crossplane.io/aws-network-config-internetgateway cre
 internetgateway.network.aws.crossplane.io/aws-network-config-internetgateway condition met
 ```
 
-To retrieve the internete gateway ID (IG_ID):
+Retrieve the internet gateway's ID (IG_ID) and save it in a variable:
 
 ```bash
 IG_ID=$(kubectl get -f "internetgateway.yaml" -o=jsonpath='{.status.internetGatewayId}')
@@ -420,9 +422,9 @@ IG_ID=$(kubectl get -f "internetgateway.yaml" -o=jsonpath='{.status.internetGate
 
 ### Route Table
 
-A [Route Table][] sets rules to direct traffic in a virtual network. We use a
+A [Route Table][] specifies rules to direct traffic in a virtual network. We use a
 Route Table to redirect internet traffic from all Subnets to the Internet
-Gateway instance that we created in previous step.
+Gateway instance that we created in the previous step.
 
 ```bash
 # build route table yaml
@@ -461,8 +463,8 @@ routetable.network.aws.crossplane.io/aws-network-config-routetable condition met
 
 ### Cluster Security Group
 
-A [Security Group][] is created to later to be assigned to the EKS cluster. This
-security group enables the cluster to communicate with the worker nodes
+A [Security Group][] is created so that later we can assign it to the EKS cluster. This
+security group allows the cluster to communicate with the worker nodes.
 
 ```bash
 # build the cluster security group yaml
@@ -494,7 +496,8 @@ securitygroup.network.aws.crossplane.io/aws-network-config-cluster-sg created
 securitygroup.network.aws.crossplane.io/aws-network-config-cluster-sg condition met
 ```
 
-Retrieve the SecurityGroupID for cluster security group:
+Retrieve the SecurityGroupID for cluster security group and save it to a
+variable:
 
 ```bash
 CLUSTER_SECURITY_GROUP_ID=$(kubectl get -f "cluster_sg.yaml" -o=jsonpath='{.status.securityGroupID}')
@@ -502,9 +505,9 @@ CLUSTER_SECURITY_GROUP_ID=$(kubectl get -f "cluster_sg.yaml" -o=jsonpath='{.stat
 
 ### Database Security Group
 
-A [Security Group][] is created to later to be assigned to the RDS database
-instance. This security group enables the database instance to accept traffic
-from the internet in a certain port.
+A [Security Group][] is created so that later we can assign it to the RDS database
+instance. This security group allows the database instance to accept traffic
+from the internet on a certain port.
 
 ```bash
 # build the rds security group yaml
@@ -543,7 +546,8 @@ securitygroup.network.aws.crossplane.io/aws-network-config-rds-sg created
 securitygroup.network.aws.crossplane.io/aws-network-config-rds-sg condition met
 ```
 
-Retrieve the SecurityGroupID for rds security group:
+Retrieve the SecurityGroupID for rds security group and store it in a
+variable:
 
 ```bash
 RDS_SECURITY_GROUP_ID=$(kubectl get -f "rds_sg.yaml" -o=jsonpath='{.status.securityGroupID}')
@@ -590,7 +594,7 @@ dbsubnetgroup.storage.aws.crossplane.io/aws-network-config-dbsubnetgroup created
 dbsubnetgroup.storage.aws.crossplane.io/aws-network-config-dbsubnetgroup condition met
 ```
 
-We need to retrieve the SubndtIDs for subsequent resources:
+We need to retrieve the SubnetIDs so other resources can use them:
 
 ```bash
 RDS_SUBNET_GROUP_NAME=$(kubectl get -f "dbsubnetgroup.yaml" -o=jsonpath='{.spec.groupName}')
@@ -598,9 +602,9 @@ RDS_SUBNET_GROUP_NAME=$(kubectl get -f "dbsubnetgroup.yaml" -o=jsonpath='{.spec.
 
 ### Cluster IAM Role
 
-An [IAM Role][] gives permissions to the principal that assumes that role. We
-Create a role to be assumed by the cluster, which later is granted the required
-permissions to talk to required resources in AWS.
+An [IAM Role][] gives permissions to the principal which assumes that role. We
+create a role to be assumed by the cluster, which later is granted the
+permissions needed to talk to our resources in AWS.
 
 ```bash
 # build vpc yaml
@@ -644,7 +648,7 @@ iamrole.identity.aws.crossplane.io/aws-network-config-eks-cluster-role created
 iamrole.identity.aws.crossplane.io/aws-network-config-eks-cluster-role condition met
 ```
 
-To retrieve the IAM Role Arn:
+Retrieve the IAM Role Arn and store it in a variable:
 
 ```bash
 EKS_ROLE_ARN=$(kubectl get -f "iamrole.yaml" -o=jsonpath='{.status.arn}')
@@ -705,9 +709,10 @@ iamrolepolicyattachment.identity.aws.crossplane.io/aws-network-config-role-clust
 
 Once we have the network configuration set up, we also need to tell Crossplane
 how to satisfy WordPress's claims for a database and a Kubernetes cluster, using
-AWS resources. The following resource classes allow the EKSCluster and
-RDSInstance claims to be satisfied, using the network configuration we created
-in the previous step:
+AWS resources. [Resource classes][resource-classes-docs] serve as
+templates for the new claims we make. The following resource classes
+allow the claims for the database and Kubernetes cluster to be satisfied
+with the network configuration we just set up:
 
 ```bash
 # build resource classes yaml, by using the configured network resources
@@ -762,11 +767,13 @@ EOF
 kubectl apply -f "resource_classes.yaml"
 ```
 
-So far we have been creating resources in `INFRA_NAMESPACE`, where all resources
-are to configure AWS stack with the AWS account, create a network configuration,
-and define resources classes that will satisfied the claims. Now, we will create
-an app namespace and populate it with resources that are used to let Crossplane
-know how to satisfy the claims. Let's call this namespace `app-project1-dev`
+So far we have been creating resources in `$INFRA_NAMESPACE`, where a
+bunch of resources live: the ones to configure the AWS stack with the
+AWS account; to create a network configuration; and to define resources
+classes that will satisfy our claims. Now, we will create an app
+namespace and populate it with resources that are used to let Crossplane
+know how to satisfy the claims. Let's call this namespace
+`app-project1-dev`.
 
 ```bash
 # the namespace that the app resources will be created
@@ -777,8 +784,8 @@ kubectl create namespace ${APP_NAMESPACE}
 
 Now that we have a namespace, we need to tell Crossplane which resource classes
 should be used to satisfy our claims in that namespace. We will create [portable
-classes][portable-classes-docs] that have have references to the cloud-specific
-classes that we created earlier.
+classes][portable-classes-docs] that have references to the
+cloud-specific classes that we created earlier.
 
 For example, `MySQLInstanceClass` is a portable class. It may refer to AWS's
 `RDSInstanceClass`, which is a non-portable class.
@@ -825,12 +832,12 @@ on resource claims][resource-claims-docs].
 
 To recap what we've set up now in our environment:
 
-- Our provider account, both on the provider side and on the Crossplane side.
-- A Network Configuration for all instances to share.
-- An EKSClusterClass and an RDSInstanceClass with the right configuration to use
+* Our provider account, both on the provider side and on the Crossplane side.
+* A Network Configuration for all instances to share.
+* An EKSClusterClass and an RDSInstanceClass with the right configuration to use
   the mentioned networking setup.
-- A namespace for our app resources to reside with default MySQLInstanceClass
-  and KubernetesClusterClass that refer to our EKSClusterClass and
+* A namespace for our app resources, with a default MySQLInstanceClass and
+  a default KubernetesClusterClass that refer to our EKSClusterClass and
   RDSInstanceClass.
 
 ## Next Steps
@@ -850,16 +857,21 @@ off.
 
 [aws user]: https://docs.aws.amazon.com/mediapackage/latest/ug/setting-up-create-iam-user.html
 [Access Key]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html
+
 [`aws provider`]: https://github.com/crossplaneio/stack-aws/blob/master/aws/apis/v1alpha2/types.go#L43
+[aws-provider-docs]: https://github.com/crossplaneio/stack-aws/blob/master/aws/apis/v1alpha2/types.go#L43
+
 [`aws` command line tool]: https://aws.amazon.com/cli/
 [AWS SDK for GO]: https://docs.aws.amazon.com/sdk-for-go/v1/developer-guide/setting-up.html
 
 [installed]: https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html
-[configured]: https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html
+[aws-cli-configure]: https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html
 [AWS security credentials]: https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html
 [secret]: https://kubernetes.io/docs/concepts/configuration/secret/
 [aws named profile]: https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-profiles.html
+
 [crossplane-cli]: https://github.com/crossplaneio/crossplane-cli
+
 [Virtual Private Network]: https://aws.amazon.com/vpc/
 [Subnet]: https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Subnets.html#vpc-subnet-basics
 [AWS resource connectivity]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-resource-connectivity-mvp.md#amazon-web-services
@@ -869,7 +881,10 @@ off.
 [Database Subnet Group]: https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_VPC.WorkingWithRDSInstanceinaVPC.html
 [IAM Role]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles.html
 [IAM Role Policy]: https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies.html
+
 [portable-classes-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-default-resource-class.md
+[resource-classes-docs]: concepts.md#resource-claims-and-resource-classes
+
 [stacks-guide-continue]: stacks-guide.html#install-support-for-our-application-into-crossplane
 [resource-claims-docs]: concepts.md#resource-claims-and-resource-classes
 [eks-user-guide]: https://docs.aws.amazon.com/eks/latest/userguide/create-public-private-vpc.html
