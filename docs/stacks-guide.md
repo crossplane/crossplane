@@ -102,7 +102,7 @@ documentation][crossplane-install-docs].
 
 ### Create the application namespace
 
-[Kubernetes namespaces][kubernetes-namespace-docs] are used to isolate
+[Kubernetes namespaces][kubernetes-namespaces-docs] are used to isolate
 resources in the same cluster, and we'll use them in our Crossplane
 control cluster too. Let's create a namespace for our application's
 resources. We'll call it `app-project1-dev` for the purposes of this
@@ -179,6 +179,19 @@ EOF
 kubectl apply --namespace app-project1-dev -f my-wordpress.yaml
 ```
 
+To validate that it has been set up correctly, we can run:
+
+```
+kubectl -n app-project1-dev get stack
+```
+
+The output should look something like:
+
+```
+NAME                     READY   VERSION   AGE
+sample-stack-wordpress   True    0.0.1     48s
+```
+
 If the control cluster doesn't recognize the Wordpress instance type, it
 could be because the stack is still being installed. Wait a few seconds,
 and try creating the Wordpress instance again.
@@ -202,6 +215,12 @@ kubectl get -n app-project1-dev kubernetesapplication
 kubectl get -n app-project1-dev kubernetesapplicationresource
 ```
 
+For validation that these resources are spinning up, you can check in
+the usual way for your cloud provider, or you can ask for the
+statuses of some of the [cloud-specific resource
+classes][cloud-specific-resource-classes-docs] in your Crossplane control
+cluster using `kubectl`.
+
 For more information about how Crossplane manages databases and
 Kubernetes clusters for us, see the more complete documentation about
 [claims][claims-docs], [resource classes][resource-classes-docs], and
@@ -216,7 +235,7 @@ which represents the workload's service. Here's a way to watch for the
 ip:
 
 ```
-kubectl get kubernetesapplicationresource -n app-project1-dev -o custom-columns='NAME:.metadata.name,NAMESPACE:.spec.template.metadata.namespace,KIND:.spec.template.kind,SERVICE-EXTERNAL-IP:.status.remote.loadBalancer.ingress[0].ip' --watch
+kubectl get --watch kubernetesapplicationresource -n app-project1-dev -o custom-columns='NAME:.metadata.name,NAMESPACE:.spec.template.metadata.namespace,KIND:.spec.template.kind,SERVICE-EXTERNAL-IP:.status.remote.loadBalancer.ingress[0].ip'
 ```
 
 The ip will show up on the one which has a `Service` kind.
@@ -242,8 +261,7 @@ kubectl delete -n app-project1-dev wordpressinstance my-wordpressinstance
 We can also remove the stack, using the Crossplane CLI:
 
 ```
-kubectl crossplane stack uninstall sample-stack-wordpress -n
-app-project1-dev
+kubectl crossplane stack uninstall sample-stack-wordpress -n app-project1-dev
 ```
 
 Removing the stack removes any Wordpress instances that were created.
@@ -281,6 +299,7 @@ guide][stack-developer-guide].
 ## References
 
 *   [The Crossplane Concepts guide][crossplane-concepts]
+*   [Crossplane API Reference][crossplane-api-reference]
 *   [The Stacks Concepts guide][stack-concepts]
 *   [Crossplane Install Guide][crossplane-install-docs]
 *   [The Crossplane CLI][crossplane-cli]
@@ -298,6 +317,7 @@ guide][stack-developer-guide].
 [crossplane-cli-docs]: https://github.com/crossplaneio/crossplane-cli/blob/release-0.1/README.md
 [crossplane-concepts]: concepts.md
 [crossplane-install-docs]: install-crossplane.md
+[crossplane-api-reference]: TODO
 
 [kubernetesapplicationresource-docs]: TODO
 [claims-docs]: concepts.md#resource-claims-and-resource-classes
@@ -328,3 +348,4 @@ guide][stack-developer-guide].
 [stack-registry]: TODO
 [stack-developer-guide]: TODO
 [provider-stack-developer-guide]: TODO
+[cloud-specific-resource-classes-docs]: TODO
