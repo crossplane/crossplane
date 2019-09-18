@@ -14,6 +14,7 @@ The Helm chart contains all the custom resources and controllers needed to deplo
 * [Kubernetes cluster](https://kubernetes.io/docs/setup/)
   * For example [Minikube](https://kubernetes.io/docs/tasks/tools/install-minikube/), minimum version `v0.28+`
 * [Helm](https://docs.helm.sh/using_helm/), minimum version `v2.9.1+`.
+  * Make sure Helm is initialized with sufficient permissions to work on `crossplane-system` namespace.
 
 ## Installation
 
