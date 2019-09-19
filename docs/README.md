@@ -14,8 +14,7 @@ and cloud services to Crossplane with support for out-of-tree extensibility and
 independent release schedules. Crossplane includes Stacks for [GCP][stack-gcp], 
 [AWS][stack-aws], and [Azure][stack-azure] today.
 
-<h4 align="center"><img src="media/crossplane-overview.png" alt="Crossplane"
-height="400"></h4>
+<h4 align="center"><img src="media/crossplane-overview.png" alt="Crossplane"></h4>
 
 Crossplane has four main feature areas that can be used independently:
 1. Crossplane Services - provision managed services from kubectl.
