@@ -63,7 +63,7 @@ control over how the stack's installation is handled. Everything is
 a Kubernetes object!
 
 ```
-kubectl crossplane stack generate-install --cluster 'crossplane/stack-azure:master' stack-azure | kubectl apply --namespace crossplane-system -f -
+kubectl crossplane stack generate-install --cluster 'crossplane/stack-azure:v0.1.0' stack-azure | kubectl apply --namespace crossplane-system -f -
 ```
 
 If we wanted to use whatever the current namespace is, we could have

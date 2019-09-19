@@ -63,7 +63,7 @@ a Kubernetes object!
 
 ```
 kubectl create namespace gcp
-kubectl crossplane stack generate-install --cluster 'crossplane/stack-gcp:master' stack-gcp | kubectl apply --namespace gcp -f -
+kubectl crossplane stack generate-install --cluster 'crossplane/stack-gcp:v0.1.0' stack-gcp | kubectl apply --namespace gcp -f -
 ```
 
 If we wanted to use whatever the current namespace is, we could have
