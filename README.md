@@ -14,17 +14,31 @@
 [![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=crossplaneio_crossplane&metric=reliability_rating)](https://sonarcloud.io/dashboard?id=crossplaneio_crossplane)
 [![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=crossplaneio_crossplane&metric=security_rating)](https://sonarcloud.io/dashboard?id=crossplaneio_crossplane)
 
-## Overview
+# Overview
 
-Crossplane is an open source multicloud control plane. It introduces workload and resource abstractions on-top of existing managed services that enables a high degree of workload portability across cloud providers. A single crossplane enables the provisioning and full-lifecycle management of services and infrastructure across a wide range of providers, offerings, vendors, regions, and clusters. Crossplane offers a universal API for cloud computing, a workload scheduler, and a set of smart controllers that can automate work across clouds.
+Crossplane is an open source multicloud control plane to manage your
+cloud-native applications and infrastructure across environments, clusters,
+regions and clouds. It enables provisioning and full-lifecycle management
+ of applications and managed services from your choice of cloud using `kubectl`.
 
-<h4 align="center"><img src="docs/media/arch.png" alt="Crossplane" height="400"></h4>
+Crossplane can be installed into an existing Kubernetes cluster to add managed
+service provisioning or deployed as a dedicated control plane for multi-cluster
+management and workload scheduling.
 
-Crossplane presents a declarative management style API that covers a wide range of portable abstractions including databases, message queues, buckets, data pipelines, serverless, clusters, and many more coming. It’s based on the declarative resource model of the popular [Kubernetes](https://github.com/kubernetes/kubernetes) project, and applies many of the lessons learned in container orchestration to multicloud workload and resource orchestration.
+Crossplane enables the community to build and publish Stacks to add more clouds
+and cloud services to Crossplane with support for out-of-tree extensibility and
+independent release schedules. Crossplane includes Stacks for [GCP][stack-gcp], 
+[AWS][stack-aws], and [Azure][stack-azure] today.
 
-Crossplane supports a clean separation of concerns between developers and administrators. Developers define workloads without having to worry about implementation details, environment constraints, and policies. Administrators can define environment specifics, and policies. The separation of concern leads to a higher degree of reusability and reduces complexity.
+<h4 align="center"><img src="docs/media/crossplane-overview.png" alt="Crossplane"></h4>
 
-Crossplane includes a workload scheduler that can factor a number of criteria including capabilities, availability, reliability, cost, regions, and performance while deploying workloads and their resources. The scheduler works alongside specialized resource controllers to ensure policies set by administrators are honored.
+Crossplane has four main feature areas that can be used independently:
+1. [Crossplane Services](docs/README.md#crossplane-services) - provision managed services from kubectl.
+1. [Crossplane Stacks](docs/README.md#crossplane-stacks) - extend Crossplane with new functionality.
+1. [Crossplane Workloads](docs/README.md#crossplane-workloads) - define complete applications and schedule across
+   clusters, regions, and clouds.
+1. [Crossplane Clusters](docs/README.md#crossplane-clusters) - manage multiple Kubernetes clusters from a single
+   control plane.
 
 ## Architecture and Vision
 
@@ -81,5 +95,23 @@ Crossplane is under the Apache 2.0 license.
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fcrossplaneio%2Fcrossplane.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fcrossplaneio%2Fcrossplane?ref=badge_large)
 
 ## Learn More
+If you have any questions, please drop us a note on [Crossplane Slack][join-crossplane-slack] or [contact us][contact-us]!
 
-These [curated links](docs/learn-more.md) are a great resource for learning more about Crossplane including intro videos, usage, and best practices for writing Kubernetes controllers to extend Crossplane.
+* [Quick Start Guide](docs/quick-start.md)
+* [Concepts](docs/concepts.md)
+* [Services Guide](docs/services-guide.md) - upgrade an existing Kubernetes cluster
+  to support managed service provisioning from kubectl.
+* [Stacks Guide](docs/stacks-guide.md) - deploy a portable Wordpress Stack into
+  multiple clouds.
+* [API Reference](docs/api.md)
+* [Developer Guide](docs/developer-guide.md) - extend or build a Stack
+* [Contributing](CONTRIBUTING.md)
+* [FAQs](docs/faqs.md)
+* [Learn More](docs/learn-more.md)
+
+<!-- Named links -->
+[stack-gcp]: https://github.com/crossplaneio/stack-gcp
+[stack-aws]: https://github.com/crossplaneio/stack-aws
+[stack-azure]: https://github.com/crossplaneio/stack-azure
+[contact-us]: https://github.com/crossplaneio/crossplane#contact
+[join-crossplane-slack]: https://slack.crossplane.io
