@@ -421,7 +421,7 @@ metadata:
   name: stack-aws
   namespace: crossplane-system
 spec:
-  package: "crossplane/stack-aws:master"
+  package: "crossplane/stack-aws:v0.1.0"
 EOF
 
 kubectl apply -f stack-aws.yaml
@@ -838,7 +838,7 @@ kubectl delete -f app-project1-dev-namespace.yaml
 kubectl delete -f aws-infra-dev-namespace.yaml
 ```
 
-### AWS Resources 
+### AWS Resources
 We will also need to delete the resources that we created for the RDS database
 and EKS cluster:
 

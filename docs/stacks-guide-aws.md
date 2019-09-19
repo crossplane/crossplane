@@ -68,7 +68,7 @@ infrastructure stack, we need to specify that it's cluster-scoped by
 passing the `--cluster` flag.
 
 ```bash
-kubectl crossplane stack generate-install --cluster 'crossplane/stack-aws:master' stack-aws | kubectl apply --namespace ${INFRA_NAMESPACE} -f -
+kubectl crossplane stack generate-install --cluster 'crossplane/stack-aws:v0.1.0' stack-aws | kubectl apply --namespace ${INFRA_NAMESPACE} -f -
 ```
 
 The rest of the steps assume that you installed the AWS stack into the

@@ -9,4 +9,4 @@ metadata:
   name: stack-aws
   namespace: aws
 spec:
-  package: "crossplane/stack-aws:master"
+  package: "crossplane/stack-aws:v0.1.0"

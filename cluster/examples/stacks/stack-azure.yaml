@@ -9,4 +9,4 @@ metadata:
   name: stack-azure
   namespace: azure
 spec:
-  package: "crossplane/stack-azure:master"
+  package: "crossplane/stack-azure:v0.1.0"
