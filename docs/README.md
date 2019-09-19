@@ -136,20 +136,16 @@ ecosystem, the intended use cases, and comparisons to existing projects.
 If you have any questions, please drop us a note on [Crossplane Slack][join-crossplane-slack] or [contact us][contact-us]!
 
 * [Quick Start Guide](quick-start.md)
-* [Getting Started](getting-started.md)
 * [Concepts](concepts.md)
-* [API Reference](api.md)
-* [FAQs](faqs.md)
-* [Contributing](contributing.md)
-
-### Next Steps
-Use [stack-gcp][stack-gcp], [stack-aws][stack-aws], and [stack-azure][stack-azure] in the the following guides:
-* [Crossplane Service Guide][services-user-guide] - upgrade an existing Kubernetes cluster
+* [Services Guide][services-user-guide] - upgrade an existing Kubernetes cluster
   to support managed service provisioning from kubectl.
-* [Crossplane Stacks Guide][stack-user-guide] - deploy a portable Wordpress Stack into
+* [Stacks Guide][stack-user-guide] - deploy a portable Wordpress Stack into
   multiple clouds.
-
-[Learn more][learn-more] about Crossplane.
+* [API Reference](api.md)
+* [Developer Guide](developer-guide.md)
+* [Contributing](../CONTRIBUTING.md)
+* [FAQs](faqs.md)
+* [Learn More][learn-more]
 
 <!-- Named links -->
 [services-user-guide]: services-guide.md
