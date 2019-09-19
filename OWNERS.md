@@ -14,7 +14,9 @@ Here's the current list of senior maintainers:
 * Illya Chekrygin <illya@upbound.io> ([ichekrygin](https://github.com/ichekrygin))
   * Core, Controllers, GCP, AWS, Azure
 * Jared Watts <jared@upbound.io> ([jbw976](https://github.com/jbw976))
-  * Core, Controllers, GCP, AWS, Azure
+  * Stacks architecture, release engineering
+* Nic Cope <negz@upbound.io> ([negz](https://github.com/negz))
+  * Services architecture
 
 ## Maintainers
 
