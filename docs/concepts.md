@@ -232,21 +232,31 @@ on demand to further isolate the blast radius of applications.
 ### Cloud Provider Stack
 See [infrastructure-stack](#infrastructure-stack).
 
+### Cluster
+A Kubernetes cluster.
+
+### Managed Cluster
+A Managed Kubernetes cluster from a service provider such as GKE, EKS, or AKS.
+
+### Target Cluster
+A Kubernetes cluster where application deployments and pods are scheduled to run.
+
+### Control Cluster
+See [Dedicated Crossplane Instance](#dedicated-crossplane-instance).
+
 ### Crossplane Instance
-Crossplane is a multicloud control plane, that happens to use the Kubernetes API machinery
-as a platform for declarative management. A Crossplane Instance is an instance of a
-Kuberentes API server with the Crossplane Stacks Manager installed into it, capable of
-installing cloud provider or application Stacks to build a custom control plane for one
-or more environments.
+A Kubernetes cluster with:
+* Crossplane installed
+* One or more worker nodes where Crossplane controllers can run
+* Zero or more Crossplane Stacks installed
 
 ### Dedicated Crossplane Instance
-Crossplane instance running on a dedicated k8s API server with no Kubernetes worker nodes.
-The Dedicated Crossplane Instance is separate from the target Kubernetes cluster(s) where
+Crossplane instance running on a dedicated Kubernetes cluster 
+separate from the target Kubernetes cluster(s) where
 application deployments and pods are scheduled to run.
 
 ### Embedded Crossplane Instance
-Crossplane instance running on the same Kubernetes API server as the Kubernetes target cluster
-where app deployments and pods will run.
+Crossplane instance running on a Kubernetes target cluster where app deployments and pods will run.  
 
 ### Cloud Provider
 Cloud provider such as GCP, AWS, Azure offering IaaS, cloud networking, and managed services.
@@ -352,15 +362,6 @@ A `KubernetesApplication` is a type of workload, with a `KubernetesCluster` labe
 used for scheduling, and a series of resource templates representing resources
 to be deployed to the scheduled cluster, and managed resources are provisioned
 and securely connected to the application.
-
-### Cluster
-A Kubernetes cluster.
-
-### Target Cluster
-A Kubernetes cluster where application deployments and pods are scheduled to run.
-
-### Managed Cluster
-A Managed Kubernetes cluster from a service provider such as GKE, EKS, or AKS.
 
 ### In-Tree
 In-tree means its source code lives in a core Crossplane git repository.
