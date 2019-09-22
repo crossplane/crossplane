@@ -23,27 +23,27 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
-	storagev1alpha1 "github.com/crossplaneio/crossplane/apis/storage/v1alpha1"
+	computev1alpha1 "github.com/crossplaneio/crossplane/apis/compute/v1alpha1"
 )
 
-// BucketController is responsible for adding the default class controller
-// for Bucket and its corresponding reconciler to the manager with any runtime configuration.
-type BucketController struct{}
+// VirtualMachineController is responsible for adding the default class controller
+// for VirtualMachineInstance and its corresponding reconciler to the manager with any runtime configuration.
+type VirtualMachineController struct{}
 
 // SetupWithManager adds a default class controller that reconciles claims
-// of kind Bucket to a resource class that declares it as the Bucket
+// of kind VirtualMachine to a resource class that declares it as the VirtualMachine
 // default
-func (c *BucketController) SetupWithManager(mgr ctrl.Manager) error {
+func (c *VirtualMachineController) SetupWithManager(mgr ctrl.Manager) error {
 	r := resource.NewDefaultClassReconciler(mgr,
-		resource.ClaimKind(storagev1alpha1.BucketGroupVersionKind),
-		resource.PortableClassKind{Singular: storagev1alpha1.BucketClassGroupVersionKind, Plural: storagev1alpha1.BucketClassListGroupVersionKind},
+		resource.ClaimKind(computev1alpha1.VirtualMachineGroupVersionKind),
+		resource.PortableClassKind{Singular: computev1alpha1.VirtualMachineClassGroupVersionKind, Plural: computev1alpha1.VirtualMachineClassListGroupVersionKind},
 	)
 
-	name := strings.ToLower(fmt.Sprintf("%s.%s", storagev1alpha1.BucketKind, controllerBaseName))
+	name := strings.ToLower(fmt.Sprintf("%s.%s", computev1alpha1.VirtualMachineKind, controllerBaseName))
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
-		For(&storagev1alpha1.Bucket{}).
+		For(&computev1alpha1.VirtualMachine{}).
 		WithEventFilter(resource.NewPredicates(resource.HasNoPortableClassReference())).
 		WithEventFilter(resource.NewPredicates(resource.HasNoManagedResourceReference())).
 		Complete(r)

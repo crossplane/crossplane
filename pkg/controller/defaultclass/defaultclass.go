@@ -37,6 +37,10 @@ func (c *Controllers) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 
+	if err := (&VirtualMachineController{}).SetupWithManager(mgr); err != nil {
+		return err
+	}
+
 	if err := (&MySQLInstanceController{}).SetupWithManager(mgr); err != nil {
 		return err
 	}

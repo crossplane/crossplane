@@ -27,7 +27,7 @@ import (
 )
 
 // RedisClusterController is responsible for adding the default class controller
-// for RedisClusterInstance and its corresponding reconciler to the manager with any runtime configuration.
+// for RedisCluster and its corresponding reconciler to the manager with any runtime configuration.
 type RedisClusterController struct{}
 
 // SetupWithManager adds a default class controller that reconciles claims

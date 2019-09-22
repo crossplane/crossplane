@@ -27,7 +27,7 @@ import (
 )
 
 // KubernetesClusterController is responsible for adding the default class controller
-// for KubernetesClusterInstance and its corresponding reconciler to the manager with any runtime configuration.
+// for KubernetesCluster and its corresponding reconciler to the manager with any runtime configuration.
 type KubernetesClusterController struct{}
 
 // SetupWithManager adds a default class controller that reconciles claims

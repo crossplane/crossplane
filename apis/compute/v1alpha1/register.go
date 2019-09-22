@@ -58,7 +58,30 @@ var (
 	KubernetesClusterClassListGroupVersionKind = SchemeGroupVersion.WithKind(KubernetesClusterClassListKind)
 )
 
+// VirtualMachine type metadata.
+var (
+	VirtualMachineKind             = reflect.TypeOf(VirtualMachine{}).Name()
+	VirtualMachineKindAPIVersion   = VirtualMachineKind + "." + SchemeGroupVersion.String()
+	VirtualMachineGroupVersionKind = SchemeGroupVersion.WithKind(VirtualMachineKind)
+)
+
+// VirtualMachineClass type metadata.
+var (
+	VirtualMachineClassKind             = reflect.TypeOf(VirtualMachineClass{}).Name()
+	VirtualMachineClassKindAPIVersion   = VirtualMachineClassKind + "." + SchemeGroupVersion.String()
+	VirtualMachineClassGroupVersionKind = SchemeGroupVersion.WithKind(VirtualMachineClassKind)
+)
+
+// VirtualMachineClassList type metadata.
+var (
+	VirtualMachineClassListKind             = reflect.TypeOf(VirtualMachineClassList{}).Name()
+	VirtualMachineClassListKindAPIVersion   = VirtualMachineClassListKind + "." + SchemeGroupVersion.String()
+	VirtualMachineClassListGroupVersionKind = SchemeGroupVersion.WithKind(VirtualMachineClassListKind)
+)
+
 func init() {
 	SchemeBuilder.Register(&KubernetesCluster{}, &KubernetesClusterList{})
 	SchemeBuilder.Register(&KubernetesClusterClass{}, &KubernetesClusterClassList{})
+	SchemeBuilder.Register(&VirtualMachine{}, &VirtualMachineList{})
+	SchemeBuilder.Register(&VirtualMachineClass{}, &VirtualMachineClassList{})
 }
