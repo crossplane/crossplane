@@ -22,7 +22,9 @@ spec:
   group: workload.crossplane.io
   names:
     kind: KubernetesApplicationResource
+    listKind: KubernetesApplicationResourceList
     plural: kubernetesapplicationresources
+    singular: kubernetesapplicationresource
   scope: ""
   subresources: {}
   validation:
@@ -44,8 +46,8 @@ spec:
         metadata:
           type: object
         spec:
-          description: KubernetesApplicationResourceSpec specifies the configuration
-            of a Kubernetes application resource.
+          description: KubernetesApplicationResourceSpec specifies the desired state
+            of a KubernetesApplicationResource.
           properties:
             secrets:
               description: Secrets upon which this application resource depends. These
@@ -72,8 +74,8 @@ spec:
           - template
           type: object
         status:
-          description: KubernetesApplicationResourceStatus represents the status of
-            a Kubernetes application resource.
+          description: KubernetesApplicationResourceStatus represents the observed
+            state of a KubernetesApplicationResource.
           properties:
             clusterRef:
               description: Cluster to which this application has been scheduled.
@@ -113,11 +115,10 @@ spec:
               type: object
             conditionedStatus:
               description: A ConditionedStatus reflects the observed status of a managed
-                resource. Only one condition of each type may exist. Do not manipulate
-                Conditions directly - use the Set method.
+                resource. Only one condition of each type may exist.
               properties:
                 conditions:
-                  description: Conditions of the managed resource.
+                  description: Conditions of the resource.
                   items:
                     description: A Condition that may apply to a managed resource.
                     properties:
@@ -140,7 +141,7 @@ spec:
                         type: string
                       type:
                         description: Type of this condition. At most one of each condition
-                          type may apply to a managed resource at any point in time.
+                          type may apply to a resource at any point in time.
                         type: string
                     required:
                     - lastTransitionTime

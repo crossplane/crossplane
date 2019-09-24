@@ -22,13 +22,15 @@ spec:
   group: workload.crossplane.io
   names:
     kind: KubernetesApplication
+    listKind: KubernetesApplicationList
     plural: kubernetesapplications
+    singular: kubernetesapplication
   scope: ""
   subresources: {}
   validation:
     openAPIV3Schema:
       description: A KubernetesApplication defines an application deployed by Crossplane
-        to a Kubernetes cluster that is managed by Crossplane.
+        to a Kubernetes cluster, i.e. a portable KubernetesCluster resource claim.
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation
@@ -148,8 +150,8 @@ spec:
                   metadata:
                     type: object
                   spec:
-                    description: KubernetesApplicationResourceSpec specifies the configuration
-                      of a Kubernetes application resource.
+                    description: KubernetesApplicationResourceSpec specifies the desired
+                      state of a KubernetesApplicationResource.
                     properties:
                       secrets:
                         description: Secrets upon which this application resource
@@ -184,8 +186,8 @@ spec:
           - resourceTemplates
           type: object
         status:
-          description: KubernetesApplicationStatus represents the status of a Kubernetes
-            application.
+          description: KubernetesApplicationStatus represents the observed state of
+            a KubernetesApplication.
           properties:
             clusterRef:
               description: Cluster to which this application has been scheduled.
@@ -225,11 +227,10 @@ spec:
               type: object
             conditionedStatus:
               description: A ConditionedStatus reflects the observed status of a managed
-                resource. Only one condition of each type may exist. Do not manipulate
-                Conditions directly - use the Set method.
+                resource. Only one condition of each type may exist.
               properties:
                 conditions:
-                  description: Conditions of the managed resource.
+                  description: Conditions of the resource.
                   items:
                     description: A Condition that may apply to a managed resource.
                     properties:
@@ -252,7 +253,7 @@ spec:
                         type: string
                       type:
                         description: Type of this condition. At most one of each condition
-                          type may apply to a managed resource at any point in time.
+                          type may apply to a resource at any point in time.
                         type: string
                     required:
                     - lastTransitionTime

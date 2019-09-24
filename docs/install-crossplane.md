@@ -14,12 +14,15 @@ The Helm chart contains all the custom resources and controllers needed to deplo
 * [Kubernetes cluster](https://kubernetes.io/docs/setup/)
   * For example [Minikube](https://kubernetes.io/docs/tasks/tools/install-minikube/), minimum version `v0.28+`
 * [Helm](https://docs.helm.sh/using_helm/), minimum version `v2.9.1+`.
-  * Make sure Helm is initialized with sufficient permissions to work on `crossplane-system` namespace.
+  * For Helm 2, make sure Tiller is initialized with sufficient permissions to work on `crossplane-system` namespace.
 
 ## Installation
 
 Helm charts for Crossplane are currently published to the `alpha` and `master` channels.
 In the future, `beta` and `stable` will also be available.
+
+> If you're using Helm 3, make sure you create the `crossplane-system` namespace (or the namespace you'd like to install
+crossplane) beforehand since Helm 3 does not create that for you automatically anymore.
 
 ### Alpha
 
