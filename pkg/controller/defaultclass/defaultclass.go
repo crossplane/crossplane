@@ -37,7 +37,7 @@ func (c *Controllers) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 
-	if err := (&VirtualMachineController{}).SetupWithManager(mgr); err != nil {
+	if err := (&InstanceController{}).SetupWithManager(mgr); err != nil {
 		return err
 	}
 

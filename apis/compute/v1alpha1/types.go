@@ -152,91 +152,91 @@ func (kc *KubernetesClusterClassList) GetPortableClassItems() []resource.Portabl
 	return items
 }
 
-// VirtualMachineSpec specifies the desired state of a VirtualMachine.
-type VirtualMachineSpec struct {
+// InstanceSpec specifies the desired state of a Instance.
+type InstanceSpec struct {
 	runtimev1alpha1.ResourceClaimSpec `json:",inline"`
 }
 
-var _ resource.Claim = &VirtualMachine{}
+var _ resource.Claim = &Instance{}
 
 // +kubebuilder:object:root=true
 
-// A VirtualMachine is a portable resource claim that may be satisfied by
+// A Instance is a portable resource claim that may be satisfied by
 // binding to a Virtual Machine managed resource such as an AWS EC2 instance
 // or an Azure VM.
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.bindingPhase"
 // +kubebuilder:printcolumn:name="CLASS",type="string",JSONPath=".spec.classRef.name"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:subresource:status
-type VirtualMachine struct {
+type Instance struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   VirtualMachineSpec                  `json:"spec,omitempty"`
+	Spec   InstanceSpec                        `json:"spec,omitempty"`
 	Status runtimev1alpha1.ResourceClaimStatus `json:"status,omitempty"`
 }
 
-// SetBindingPhase of this VirtualMachine.
-func (vm *VirtualMachine) SetBindingPhase(p runtimev1alpha1.BindingPhase) {
+// SetBindingPhase of this Instance.
+func (vm *Instance) SetBindingPhase(p runtimev1alpha1.BindingPhase) {
 	vm.Status.SetBindingPhase(p)
 }
 
-// GetBindingPhase of this VirtualMachine.
-func (vm *VirtualMachine) GetBindingPhase() runtimev1alpha1.BindingPhase {
+// GetBindingPhase of this Instance.
+func (vm *Instance) GetBindingPhase() runtimev1alpha1.BindingPhase {
 	return vm.Status.GetBindingPhase()
 }
 
-// SetConditions of this VirtualMachine.
-func (vm *VirtualMachine) SetConditions(c ...runtimev1alpha1.Condition) {
+// SetConditions of this Instance.
+func (vm *Instance) SetConditions(c ...runtimev1alpha1.Condition) {
 	vm.Status.SetConditions(c...)
 }
 
-// SetPortableClassReference of this VirtualMachine.
-func (vm *VirtualMachine) SetPortableClassReference(r *corev1.LocalObjectReference) {
+// SetPortableClassReference of this Instance.
+func (vm *Instance) SetPortableClassReference(r *corev1.LocalObjectReference) {
 	vm.Spec.PortableClassReference = r
 }
 
-// GetPortableClassReference of this VirtualMachine.
-func (vm *VirtualMachine) GetPortableClassReference() *corev1.LocalObjectReference {
+// GetPortableClassReference of this Instance.
+func (vm *Instance) GetPortableClassReference() *corev1.LocalObjectReference {
 	return vm.Spec.PortableClassReference
 }
 
-// SetResourceReference of this VirtualMachine.
-func (vm *VirtualMachine) SetResourceReference(r *corev1.ObjectReference) {
+// SetResourceReference of this Instance.
+func (vm *Instance) SetResourceReference(r *corev1.ObjectReference) {
 	vm.Spec.ResourceReference = r
 }
 
-// GetResourceReference of this VirtualMachine.
-func (vm *VirtualMachine) GetResourceReference() *corev1.ObjectReference {
+// GetResourceReference of this Instance.
+func (vm *Instance) GetResourceReference() *corev1.ObjectReference {
 	return vm.Spec.ResourceReference
 }
 
-// SetWriteConnectionSecretToReference of this VirtualMachine.
-func (vm *VirtualMachine) SetWriteConnectionSecretToReference(r corev1.LocalObjectReference) {
+// SetWriteConnectionSecretToReference of this Instance.
+func (vm *Instance) SetWriteConnectionSecretToReference(r corev1.LocalObjectReference) {
 	vm.Spec.WriteConnectionSecretToReference = r
 }
 
-// GetWriteConnectionSecretToReference of this VirtualMachine.
-func (vm *VirtualMachine) GetWriteConnectionSecretToReference() corev1.LocalObjectReference {
+// GetWriteConnectionSecretToReference of this Instance.
+func (vm *Instance) GetWriteConnectionSecretToReference() corev1.LocalObjectReference {
 	return vm.Spec.WriteConnectionSecretToReference
 }
 
 // +kubebuilder:object:root=true
 
-// VirtualMachineList contains a list of VirtualMachine.
-type VirtualMachineList struct {
+// InstanceList contains a list of Instance.
+type InstanceList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []VirtualMachine `json:"items"`
+	Items           []Instance `json:"items"`
 }
 
 // All portable classes must satisfy the Class interface
-var _ resource.PortableClass = &VirtualMachineClass{}
+var _ resource.PortableClass = &InstanceClass{}
 
 // +kubebuilder:object:root=true
 
-// VirtualMachineClass contains a namespace-scoped Class for VirtualMachine
-type VirtualMachineClass struct {
+// InstanceClass contains a namespace-scoped Class for Instance
+type InstanceClass struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
@@ -244,30 +244,30 @@ type VirtualMachineClass struct {
 }
 
 // All portable class lists must satisfy the ClassList interface
-var _ resource.PortableClassList = &VirtualMachineClassList{}
+var _ resource.PortableClassList = &InstanceClassList{}
 
 // +kubebuilder:object:root=true
 
-// VirtualMachineClassList contains a list of VirtualMachineClass.
-type VirtualMachineClassList struct {
+// InstanceClassList contains a list of InstanceClass.
+type InstanceClassList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []VirtualMachineClass `json:"items"`
+	Items           []InstanceClass `json:"items"`
 }
 
-// SetPortableClassItems of this VirtualMachineClassList.
-func (vm *VirtualMachineClassList) SetPortableClassItems(r []resource.PortableClass) {
-	items := make([]VirtualMachineClass, 0, len(r))
+// SetPortableClassItems of this InstanceClassList.
+func (vm *InstanceClassList) SetPortableClassItems(r []resource.PortableClass) {
+	items := make([]InstanceClass, 0, len(r))
 	for i := range r {
-		if item, ok := r[i].(*VirtualMachineClass); ok {
+		if item, ok := r[i].(*InstanceClass); ok {
 			items = append(items, *item)
 		}
 	}
 	vm.Items = items
 }
 
-// GetPortableClassItems of this VirtualMachineClassList.
-func (vm *VirtualMachineClassList) GetPortableClassItems() []resource.PortableClass {
+// GetPortableClassItems of this InstanceClassList.
+func (vm *InstanceClassList) GetPortableClassItems() []resource.PortableClass {
 	items := make([]resource.PortableClass, len(vm.Items))
 	for i, item := range vm.Items {
 		item := item

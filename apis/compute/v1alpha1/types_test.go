@@ -45,6 +45,7 @@ var (
 )
 
 var _ resource.Claim = &KubernetesCluster{}
+var _ resource.Claim = &Instance{}
 
 func TestMain(m *testing.M) {
 	t := test.NewEnv(namespace, SchemeBuilder.SchemeBuilder, localtest.CRDs())
@@ -68,6 +69,44 @@ func TestKubernetes(t *testing.T) {
 
 	// Test Create
 	fetched := &KubernetesCluster{}
+	g.Expect(c.Create(ctx, created)).NotTo(HaveOccurred())
+
+	g.Expect(c.Get(ctx, key, fetched)).NotTo(HaveOccurred())
+	g.Expect(fetched).To(Equal(created))
+
+	// Test Updating the Labels
+	updated := fetched.DeepCopy()
+	updated.Labels = map[string]string{"hello": "world"}
+	updated.Spec.ResourceReference = &corev1.ObjectReference{
+		Name:      "test-class",
+		Namespace: "test-resource",
+	}
+	g.Expect(c.Update(ctx, updated)).NotTo(HaveOccurred())
+
+	g.Expect(c.Get(ctx, key, fetched)).NotTo(HaveOccurred())
+	g.Expect(fetched).To(Equal(updated))
+
+	// Test Delete
+	g.Expect(c.Delete(ctx, fetched)).NotTo(HaveOccurred())
+	g.Expect(c.Get(ctx, key, fetched)).To(HaveOccurred())
+}
+
+func TestInstance(t *testing.T) {
+	g := NewGomegaWithT(t)
+
+	created := &Instance{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+		Spec: InstanceSpec{
+			ResourceClaimSpec: runtimev1alpha1.ResourceClaimSpec{
+				PortableClassReference: &corev1.LocalObjectReference{
+					Name: "test-class",
+				},
+			},
+		},
+	}
+
+	// Test Create
+	fetched := &Instance{}
 	g.Expect(c.Create(ctx, created)).NotTo(HaveOccurred())
 
 	g.Expect(c.Get(ctx, key, fetched)).NotTo(HaveOccurred())

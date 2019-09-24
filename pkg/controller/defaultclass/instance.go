@@ -26,24 +26,24 @@ import (
 	computev1alpha1 "github.com/crossplaneio/crossplane/apis/compute/v1alpha1"
 )
 
-// VirtualMachineController is responsible for adding the default class controller
-// for VirtualMachineInstance and its corresponding reconciler to the manager with any runtime configuration.
-type VirtualMachineController struct{}
+// InstanceController is responsible for adding the default class controller
+// for Instances and its corresponding reconciler to the manager with any runtime configuration.
+type InstanceController struct{}
 
 // SetupWithManager adds a default class controller that reconciles claims
-// of kind VirtualMachine to a resource class that declares it as the VirtualMachine
+// of kind Instance to a resource class that declares it as the Instance
 // default
-func (c *VirtualMachineController) SetupWithManager(mgr ctrl.Manager) error {
+func (c *InstanceController) SetupWithManager(mgr ctrl.Manager) error {
 	r := resource.NewDefaultClassReconciler(mgr,
-		resource.ClaimKind(computev1alpha1.VirtualMachineGroupVersionKind),
-		resource.PortableClassKind{Singular: computev1alpha1.VirtualMachineClassGroupVersionKind, Plural: computev1alpha1.VirtualMachineClassListGroupVersionKind},
+		resource.ClaimKind(computev1alpha1.InstanceGroupVersionKind),
+		resource.PortableClassKind{Singular: computev1alpha1.InstanceClassGroupVersionKind, Plural: computev1alpha1.InstanceClassListGroupVersionKind},
 	)
 
-	name := strings.ToLower(fmt.Sprintf("%s.%s", computev1alpha1.VirtualMachineKind, controllerBaseName))
+	name := strings.ToLower(fmt.Sprintf("%s.%s", computev1alpha1.InstanceKind, controllerBaseName))
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
-		For(&computev1alpha1.VirtualMachine{}).
+		For(&computev1alpha1.Instance{}).
 		WithEventFilter(resource.NewPredicates(resource.HasNoPortableClassReference())).
 		WithEventFilter(resource.NewPredicates(resource.HasNoManagedResourceReference())).
 		Complete(r)

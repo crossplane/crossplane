@@ -4,34 +4,31 @@ apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   creationTimestamp: null
-  name: virtualmachines.compute.crossplane.io
+  name: instances.compute.crossplane.io
 spec:
   additionalPrinterColumns:
   - JSONPath: .status.bindingPhase
     name: STATUS
     type: string
   - JSONPath: .spec.classRef.name
-    name: CLUSTER-CLASS
-    type: string
-  - JSONPath: .spec.resourceName.name
-    name: CLUSTER-REF
+    name: CLASS
     type: string
   - JSONPath: .metadata.creationTimestamp
     name: AGE
     type: date
   group: compute.crossplane.io
   names:
-    kind: VirtualMachine
-    listKind: VirtualMachineList
-    plural: virtualmachines
-    singular: virtualmachine
+    kind: Instance
+    listKind: InstanceList
+    plural: instances
+    singular: instance
   scope: ""
   subresources:
     status: {}
   validation:
     openAPIV3Schema:
-      description: A VirtualMachine is a portable resource claim that may be satisfied
-        by binding to a Virtual Machine managed resource such as an AWS EC2 instance
+      description: A Instance is a portable resource claim that may be satisfied by
+        binding to a Virtual Machine managed resource such as an AWS EC2 instance
         or an Azure VM.
       properties:
         apiVersion:
@@ -47,7 +44,7 @@ spec:
         metadata:
           type: object
         spec:
-          description: VirtualMachineSpec specifies the desired state of a VirtualMachine.
+          description: InstanceSpec specifies the desired state of a Instance.
           properties:
             classRef:
               description: A PortableClassReference specifies the name of a portable

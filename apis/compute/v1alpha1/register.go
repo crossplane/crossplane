@@ -58,30 +58,30 @@ var (
 	KubernetesClusterClassListGroupVersionKind = SchemeGroupVersion.WithKind(KubernetesClusterClassListKind)
 )
 
-// VirtualMachine type metadata.
+// Instance type metadata.
 var (
-	VirtualMachineKind             = reflect.TypeOf(VirtualMachine{}).Name()
-	VirtualMachineKindAPIVersion   = VirtualMachineKind + "." + SchemeGroupVersion.String()
-	VirtualMachineGroupVersionKind = SchemeGroupVersion.WithKind(VirtualMachineKind)
+	InstanceKind             = reflect.TypeOf(Instance{}).Name()
+	InstanceKindAPIVersion   = InstanceKind + "." + SchemeGroupVersion.String()
+	InstanceGroupVersionKind = SchemeGroupVersion.WithKind(InstanceKind)
 )
 
-// VirtualMachineClass type metadata.
+// InstanceClass type metadata.
 var (
-	VirtualMachineClassKind             = reflect.TypeOf(VirtualMachineClass{}).Name()
-	VirtualMachineClassKindAPIVersion   = VirtualMachineClassKind + "." + SchemeGroupVersion.String()
-	VirtualMachineClassGroupVersionKind = SchemeGroupVersion.WithKind(VirtualMachineClassKind)
+	InstanceClassKind             = reflect.TypeOf(InstanceClass{}).Name()
+	InstanceClassKindAPIVersion   = InstanceClassKind + "." + SchemeGroupVersion.String()
+	InstanceClassGroupVersionKind = SchemeGroupVersion.WithKind(InstanceClassKind)
 )
 
-// VirtualMachineClassList type metadata.
+// InstanceClassList type metadata.
 var (
-	VirtualMachineClassListKind             = reflect.TypeOf(VirtualMachineClassList{}).Name()
-	VirtualMachineClassListKindAPIVersion   = VirtualMachineClassListKind + "." + SchemeGroupVersion.String()
-	VirtualMachineClassListGroupVersionKind = SchemeGroupVersion.WithKind(VirtualMachineClassListKind)
+	InstanceClassListKind             = reflect.TypeOf(InstanceClassList{}).Name()
+	InstanceClassListKindAPIVersion   = InstanceClassListKind + "." + SchemeGroupVersion.String()
+	InstanceClassListGroupVersionKind = SchemeGroupVersion.WithKind(InstanceClassListKind)
 )
 
 func init() {
 	SchemeBuilder.Register(&KubernetesCluster{}, &KubernetesClusterList{})
 	SchemeBuilder.Register(&KubernetesClusterClass{}, &KubernetesClusterClassList{})
-	SchemeBuilder.Register(&VirtualMachine{}, &VirtualMachineList{})
-	SchemeBuilder.Register(&VirtualMachineClass{}, &VirtualMachineClassList{})
+	SchemeBuilder.Register(&Instance{}, &InstanceList{})
+	SchemeBuilder.Register(&InstanceClass{}, &InstanceClassList{})
 }
