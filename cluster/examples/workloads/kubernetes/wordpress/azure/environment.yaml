@@ -1,0 +1,47 @@
+---
+# ResourceClass that defines the blueprint for how a "standard" Azure MySQL Server
+# should be dynamically provisioned
+apiVersion: database.azure.crossplane.io/v1alpha2
+kind: SQLServerClass
+metadata:
+  name: azure-mysql-standard
+  namespace: azure-infra-dev
+specTemplate:
+  adminLoginName: myadmin
+  resourceGroupName: demo-rg
+  location: Central US
+  sslEnforced: false
+  version: "5.6"
+  pricingTier:
+    tier: GeneralPurpose
+    vcores: 2
+    family: Gen5
+  storageProfile:
+    storageGB: 25
+    backupRetentionDays: 7
+    geoRedundantBackup: false
+  providerRef:
+    name: example
+    namespace: azure-infra-dev
+  reclaimPolicy: Delete
+---
+apiVersion: compute.azure.crossplane.io/v1alpha2
+kind: AKSClusterClass
+metadata:
+  name: azure-aks-standard
+  namespace: azure-infra-dev
+specTemplate:
+  resourceGroupName: demo-rg
+  vnetSubnetID: /subscriptions/${SUBSCRIPTION_ID}/resourceGroups/demo-rg/providers/Microsoft.Network/virtualNetworks/demo-vnet/subnets/demo-subnet
+  location: Central US
+  version: "1.12.8"
+  nodeCount: 1
+  nodeVMSize: Standard_B2s
+  dnsNamePrefix: crossplane-aks
+  disableRBAC: false
+  writeServicePrincipalTo:
+    name: akscluster-net
+  providerRef:
+    name: example
+    namespace: azure-infra-dev
+  reclaimPolicy: Delete
