@@ -14,7 +14,7 @@ spec:
   name: demo-rg
   location: Central US
   providerRef:
-    name: demo-azure
+    name: example
     namespace: azure-infra-dev
   reclaimPolicy: Delete
 ---
@@ -33,7 +33,7 @@ spec:
       addressPrefixes:
         - 10.2.0.0/16
   providerRef:
-    name: demo-azure
+    name: example
     namespace: azure-infra-dev
   reclaimPolicy: Delete
 ---
@@ -52,6 +52,6 @@ spec:
     serviceEndpoints:
       - service: Microsoft.Sql
   providerRef:
-    name: demo-azure
+    name: example
     namespace: azure-infra-dev
   reclaimPolicy: Delete

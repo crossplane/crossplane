@@ -10,6 +10,6 @@ spec:
   properties:
     virtualNetworkSubnetId: /subscriptions/${SUBSCRIPTION_ID}/resourceGroups/demo-rg/providers/Microsoft.Network/virtualNetworks/demo-vnet/subnets/demo-subnet
   providerRef:
-    name: demo-azure
+    name: example
     namespace: azure-infra-dev
   reclaimPolicy: Delete

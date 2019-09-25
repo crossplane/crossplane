@@ -21,7 +21,7 @@ specTemplate:
     backupRetentionDays: 7
     geoRedundantBackup: false
   providerRef:
-    name: demo-azure
+    name: example
     namespace: azure-infra-dev
   reclaimPolicy: Delete
 ---
@@ -42,6 +42,6 @@ specTemplate:
   writeServicePrincipalTo:
     name: akscluster-net
   providerRef:
-    name: demo-azure
+    name: example
     namespace: azure-infra-dev
   reclaimPolicy: Delete
