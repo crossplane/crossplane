@@ -256,7 +256,8 @@ tracked and supported.
 
 ## Relevant Issues
 
-- [crossplane-runtime #22]
+- [crossplane-runtime #22]: Allow existing resources to be "imported" into Crossplane to be managed
+- [crossplane-runtime #34]: Automatically install required operators in target cluster if not present
 
 [Rook]: https://github.com/rook/rook
 [complex workloads]: design-doc-complex-workloads.md
@@ -267,3 +268,4 @@ tracked and supported.
 [scheduler controller]: https://github.com/crossplaneio/crossplane/blob/master/pkg/controller/workload/kubernetes/scheduler/scheduler.go
 [crossplane-runtime]: https://github.com/crossplaneio/crossplane-runtime
 [crossplane-runtime #22]: https://github.com/crossplaneio/crossplane-runtime/issues/22
+[crossplane-runtime #34]: https://github.com/crossplaneio/crossplane-runtime/issues/34
