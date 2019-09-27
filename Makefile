@@ -87,13 +87,14 @@ go.test.unit: $(KUBEBUILDER)
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: vendor
 	@$(INFO) Generating CRD manifests
-	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd:trivialVersions=true paths=./apis/cache/... output:dir=cluster/charts/crossplane/crds
-	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd:trivialVersions=true paths=./apis/compute/... output:dir=cluster/charts/crossplane/crds
-	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd:trivialVersions=true paths=./apis/core/... output:dir=cluster/charts/crossplane/crds
-	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd:trivialVersions=true paths=./apis/database/... output:dir=cluster/charts/crossplane/crds
-	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd:trivialVersions=true paths=./apis/storage/... output:dir=cluster/charts/crossplane/crds
-	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd:trivialVersions=true paths=./apis/workloads/... output:dir=cluster/charts/crossplane/crds
-	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd:maxDescLen=0,trivialVersions=true paths=./apis/stacks/... output:dir=cluster/charts/crossplane/crds
+	@rm -rf cluster/charts/crossplane/templates/crds
+	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd:trivialVersions=true paths=./apis/cache/... output:dir=cluster/charts/crossplane/templates/crds
+	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd:trivialVersions=true paths=./apis/compute/... output:dir=cluster/charts/crossplane/templates/crds
+	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd:trivialVersions=true paths=./apis/core/... output:dir=cluster/charts/crossplane/templates/crds
+	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd:trivialVersions=true paths=./apis/database/... output:dir=cluster/charts/crossplane/templates/crds
+	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd:trivialVersions=true paths=./apis/storage/... output:dir=cluster/charts/crossplane/templates/crds
+	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd:trivialVersions=true paths=./apis/workload/... output:dir=cluster/charts/crossplane/templates/crds
+	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd:maxDescLen=0,trivialVersions=true paths=./apis/stacks/... output:dir=cluster/charts/crossplane/templates/crds
 	@$(OK) Generating CRD manifests
 
 # Generate a coverage report for cobertura applying exclusions on

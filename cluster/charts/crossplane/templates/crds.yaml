@@ -1,5 +1,0 @@
-{{ $root := . }}
-{{ range $path, $bytes := .Files.Glob "**.yaml" }}
----
-{{ $root.Files.Get $path }}
-{{ end }}
