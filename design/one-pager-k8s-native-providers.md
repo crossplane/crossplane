@@ -65,7 +65,36 @@ operator into a cluster, you should be able to dynamically provision a Minio
 object storage cluster into the Kubernetes cluster from your Crossplane control
 cluster. The experience would look as follows:
 
-1. Create a non-portable Rook Minio `ObjectStoreClass`
+1. Create a Kubernetes `Provider` for target cluster:
+
+```yaml
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: demo-provider-rook
+  namespace: rook-infra-dev
+type: Opaque
+data:
+  endpoint: MY_K8S_ENDPOINT
+  username: MY_K8S_USERNAME
+  password: MY_K8S_PASSWORD
+  clusterCA: MY_K8S_CLUSTER_CA
+  clientCert: MY_K8S_CLIENT_CERT
+  clientKey: MY_K8S_CLIENT_KEY
+  token: MY_K8S_TOKEN
+---
+apiVersion: kubernetes.crossplane.io/v1alpha2
+kind: Provider
+metadata:
+  name: demo-kubernetes
+  namespace: azure-infra-dev
+spec:
+  credentialsSecretRef:
+    name: demo-provider-rook
+```
+
+2. Create a non-portable Rook Minio `ObjectStoreClass`
 
 ```yaml
 apiVersion: minio.rook.crossplane.io/v1alpha1
@@ -74,11 +103,6 @@ metadata:
   name: rook-minio
   namespace: rook-infra-dev
 spec:
-  targetClusterRef:
-    apiVersion: workload.crossplane.io/v1alpha1
-    kind: KubernetesCluster
-    name: my-remote-cluster
-    namespace: rook-infra-dev
   scope:
     nodeCount: 4
     volumeClaimTemplates:
@@ -100,9 +124,12 @@ spec:
   credentials:
     name: minio-my-store-access-keys
     namespace: rook-minio
+  providerRef:
+    name: demo-kubernetes
+    namespace: rook-infra-dev
 ```
 
-2. Create a portable `BucketClass`
+3. Create a portable `BucketClass`
 
 ```yaml
 apiVersion: storage.crossplane.io/v1alpha1
@@ -117,7 +144,7 @@ classRef:
   namespace: rook-infra-dev
 ```
 
-3. Create a `Bucket` claim
+4. Create a `Bucket` claim
 
 ```yaml
 apiVersion: storage.crossplane.io/v1alpha1
@@ -157,48 +184,37 @@ reconciler in `crossplane-runtime` in the same manner as traditional
 infrastructure providers. However, instead of creating a new client for a cloud
 provider API, Kubernetes-native infrastructure providers will return a
 Kubernetes client that is configured to talk to the target cluster using the
-`targetClusterRef`. This is similar to the client configuration for the
-`KubernetesApplicationResource` [managed reconciler].
+`providerRef`. This is similar to the client configuration for the
+`KubernetesApplicationResource` [managed reconciler], except that it obtains
+Kubernetes credentials using a `Provider` object rather than a
+`KubernetesClusterObject`. This `Provider` type
+(`provider.kubernetes.crossplane.io`) should likely exist outside of the Rook
+stack (i.e. in core Crossplane) due to its generic applicability. 
 
 ## Future Considerations
 
 ### More Sophisticated Scheduling
 
-This initial proposal embeds a `targetClusterRef` field in the non-portable
-classes of a Kubernetes-native provider that specifies the cluster in which
-Kubernetes. This mitigates the need for a scheduler, but also reduces
-functionality in the following ways:
+This initial proposal embeds a `proivderRef` field in the non-portable classes
+of a Kubernetes-native provider that specifies the cluster in which resources
+should be provisioned. This mitigates the need for a scheduler, but requires
+that a `Provider` object be created in order to talk to any Kubernetes cluster,
+even if that cluster was provisioned by Crossplane. In the case that the cluster
+was provisioned by Kubernetes, the `Secret` the the `Provider` references should
+already exist in the control cluster.
 
-1. Kubernetes-native resources can only be scheduled on clusters that are
-   modeled as a `KubernetesCluster` Crossplane object in the control cluster.
-   This means if you have an existing cluster that was not provisioned by
-   Crossplane, you will be unable to provision in-cluster resources in that
-   cluster.
-1. By extension, the Kubernetes-native resources also cannot be scheduled in the
-   Crossplane control cluster.
-1. Kubernetes-native resources can only be scheduled to a single, directly
-   referenced cluster.
-
-A major step in fixing these shortcomings is tracked by [crossplane-runtime
-#22], which allows for importing of existing resources (i.e. ability to import a
-Kubernetes cluster that was not provisioned by Crossplane). Another potential
-solution would be to introduce a Kubernetes `Provider` type, which could be
-referenced by Kubernetes-native resource in order to obtain client
-configuration. With either one of these solutions, the Crossplane control
-cluster could be modeled in such a way that the managed reconciler would know to
-provision resources in its own cluster.
-
-It is also possible that we will want to be able to schedule Kubernetes-native
+It is possible that we will want to be able to schedule Kubernetes-native
 infrastructure resources in a more intelligent manner. This could include
 implementing scheduling policies that allow for resources to be provisioned
-based on geography, resource requirements, etc. However, an initial
-implementation would likely look almost identical to the reconciler used for
-`KubernetesApplication` [scheduler controller], which exposes a round-robin
-scheduler based on `KubernetesCluster` labels. Because the scheduling behavior
-for most Kubernetes-native infrastructure components will look very similar, a
-shared scheduler reconciler should be added to [crossplane-runtime]. In fact,
-the `KubernetesApplication` scheduler controller should probably make use of the
-shared `crossplane-runtime` scheduler reconciler after it is implemented.
+based on geography, resource requirements, etc. An initial scheduler
+implementation may look similar to the `KubernetesApplication` [scheduler
+controller], but instead of matching `KubernetesCluster` objects by label, it
+would use `provider.kubernetes.crossplane.io` objects. Because the scheduling
+behavior for most Kubernetes-native infrastructure components will look very
+similar, a shared scheduler reconciler should be added to [crossplane-runtime].
+In fact, the `KubernetesApplication` scheduler controller may also be able to
+make use of the shared `crossplane-runtime` scheduler reconciler after it is
+implemented.
 
 ### Generalized Managed Reconciler
 
