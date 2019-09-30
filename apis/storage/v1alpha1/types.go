@@ -17,11 +17,9 @@ limitations under the License.
 package v1alpha1
 
 import (
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
 )
 
 // A LocalPermissionType is a type of permission that may be granted to a
@@ -68,8 +66,6 @@ type BucketSpec struct {
 	LocalPermission *LocalPermissionType `json:"localPermission,omitempty"`
 }
 
-var _ resource.Claim = &Bucket{}
-
 // +kubebuilder:object:root=true
 
 // A Bucket is a portable resource claim that may be satisfied by binding to a
@@ -89,51 +85,6 @@ type Bucket struct {
 	Status runtimev1alpha1.ResourceClaimStatus `json:"status,omitempty"`
 }
 
-// SetBindingPhase of this Bucket.
-func (b *Bucket) SetBindingPhase(p runtimev1alpha1.BindingPhase) {
-	b.Status.SetBindingPhase(p)
-}
-
-// GetBindingPhase of this Bucket.
-func (b *Bucket) GetBindingPhase() runtimev1alpha1.BindingPhase {
-	return b.Status.GetBindingPhase()
-}
-
-// SetConditions of this Bucket.
-func (b *Bucket) SetConditions(c ...runtimev1alpha1.Condition) {
-	b.Status.SetConditions(c...)
-}
-
-// SetPortableClassReference of this Bucket.
-func (b *Bucket) SetPortableClassReference(r *corev1.LocalObjectReference) {
-	b.Spec.PortableClassReference = r
-}
-
-// GetPortableClassReference of this Bucket.
-func (b *Bucket) GetPortableClassReference() *corev1.LocalObjectReference {
-	return b.Spec.PortableClassReference
-}
-
-// SetResourceReference of this Bucket.
-func (b *Bucket) SetResourceReference(r *corev1.ObjectReference) {
-	b.Spec.ResourceReference = r
-}
-
-// GetResourceReference of this Bucket.
-func (b *Bucket) GetResourceReference() *corev1.ObjectReference {
-	return b.Spec.ResourceReference
-}
-
-// SetWriteConnectionSecretToReference of this Bucket.
-func (b *Bucket) SetWriteConnectionSecretToReference(r corev1.LocalObjectReference) {
-	b.Spec.WriteConnectionSecretToReference = r
-}
-
-// GetWriteConnectionSecretToReference of this Bucket.
-func (b *Bucket) GetWriteConnectionSecretToReference() corev1.LocalObjectReference {
-	return b.Spec.WriteConnectionSecretToReference
-}
-
 // +kubebuilder:object:root=true
 
 // BucketList contains a list of Bucket.
@@ -142,9 +93,6 @@ type BucketList struct {
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []Bucket `json:"items"`
 }
-
-// All portable classes must satisfy the PortableClass interface
-var _ resource.PortableClass = &BucketClass{}
 
 // +kubebuilder:object:root=true
 
@@ -156,9 +104,6 @@ type BucketClass struct {
 	runtimev1alpha1.PortableClass `json:",inline"`
 }
 
-// All portable class lists must satisfy the PortableClassList interface
-var _ resource.PortableClassList = &BucketClassList{}
-
 // +kubebuilder:object:root=true
 
 // BucketClassList contains a list of BucketClass.
@@ -166,25 +111,4 @@ type BucketClassList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []BucketClass `json:"items"`
-}
-
-// SetPortableClassItems of this BucketClassList.
-func (b *BucketClassList) SetPortableClassItems(r []resource.PortableClass) {
-	items := make([]BucketClass, 0, len(r))
-	for i := range r {
-		if item, ok := r[i].(*BucketClass); ok {
-			items = append(items, *item)
-		}
-	}
-	b.Items = items
-}
-
-// GetPortableClassItems of this BucketClassList.
-func (b *BucketClassList) GetPortableClassItems() []resource.PortableClass {
-	items := make([]resource.PortableClass, len(b.Items))
-	for i, item := range b.Items {
-		item := item
-		items[i] = resource.PortableClass(&item)
-	}
-	return items
 }

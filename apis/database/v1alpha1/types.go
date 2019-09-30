@@ -17,11 +17,9 @@ limitations under the License.
 package v1alpha1
 
 import (
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
 )
 
 // MySQLInstanceSpec specifies the desired state of a MySQLInstance.
@@ -32,8 +30,6 @@ type MySQLInstanceSpec struct {
 	// +kubebuilder:validation:Enum="5.6";"5.7"
 	EngineVersion string `json:"engineVersion,omitempty"`
 }
-
-var _ resource.Claim = &MySQLInstance{}
 
 // +kubebuilder:object:root=true
 
@@ -53,51 +49,6 @@ type MySQLInstance struct {
 	Status runtimev1alpha1.ResourceClaimStatus `json:"status,omitempty"`
 }
 
-// SetBindingPhase of this MySQLInstance.
-func (i *MySQLInstance) SetBindingPhase(p runtimev1alpha1.BindingPhase) {
-	i.Status.SetBindingPhase(p)
-}
-
-// GetBindingPhase of this MySQLInstance.
-func (i *MySQLInstance) GetBindingPhase() runtimev1alpha1.BindingPhase {
-	return i.Status.GetBindingPhase()
-}
-
-// SetConditions of this MySQLInstance.
-func (i *MySQLInstance) SetConditions(c ...runtimev1alpha1.Condition) {
-	i.Status.SetConditions(c...)
-}
-
-// SetPortableClassReference of this MySQLInstance.
-func (i *MySQLInstance) SetPortableClassReference(r *corev1.LocalObjectReference) {
-	i.Spec.PortableClassReference = r
-}
-
-// GetPortableClassReference of this MySQLInstance.
-func (i *MySQLInstance) GetPortableClassReference() *corev1.LocalObjectReference {
-	return i.Spec.PortableClassReference
-}
-
-// SetResourceReference of this MySQLInstance.
-func (i *MySQLInstance) SetResourceReference(r *corev1.ObjectReference) {
-	i.Spec.ResourceReference = r
-}
-
-// GetResourceReference of this MySQLInstance.
-func (i *MySQLInstance) GetResourceReference() *corev1.ObjectReference {
-	return i.Spec.ResourceReference
-}
-
-// SetWriteConnectionSecretToReference of this MySQLInstance.
-func (i *MySQLInstance) SetWriteConnectionSecretToReference(r corev1.LocalObjectReference) {
-	i.Spec.WriteConnectionSecretToReference = r
-}
-
-// GetWriteConnectionSecretToReference of this MySQLInstance.
-func (i *MySQLInstance) GetWriteConnectionSecretToReference() corev1.LocalObjectReference {
-	return i.Spec.WriteConnectionSecretToReference
-}
-
 // +kubebuilder:object:root=true
 
 // MySQLInstanceList contains a list of MySQLInstance.
@@ -106,9 +57,6 @@ type MySQLInstanceList struct {
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []MySQLInstance `json:"items"`
 }
-
-// All portable classes must satisfy the PortableClass interface
-var _ resource.PortableClass = &MySQLInstanceClass{}
 
 // +kubebuilder:object:root=true
 
@@ -120,9 +68,6 @@ type MySQLInstanceClass struct {
 	runtimev1alpha1.PortableClass `json:",inline"`
 }
 
-// All portable class lists must satisfy the PortableClassList interface
-var _ resource.PortableClassList = &MySQLInstanceClassList{}
-
 // +kubebuilder:object:root=true
 
 // MySQLInstanceClassList contains a list of MySQLInstanceClass.
@@ -130,27 +75,6 @@ type MySQLInstanceClassList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []MySQLInstanceClass `json:"items"`
-}
-
-// SetPortableClassItems of this MySQLInstanceClassList.
-func (my *MySQLInstanceClassList) SetPortableClassItems(r []resource.PortableClass) {
-	items := make([]MySQLInstanceClass, 0, len(r))
-	for i := range r {
-		if item, ok := r[i].(*MySQLInstanceClass); ok {
-			items = append(items, *item)
-		}
-	}
-	my.Items = items
-}
-
-// GetPortableClassItems of this MySQLInstanceClassList.
-func (my *MySQLInstanceClassList) GetPortableClassItems() []resource.PortableClass {
-	items := make([]resource.PortableClass, len(my.Items))
-	for i, item := range my.Items {
-		item := item
-		items[i] = resource.PortableClass(&item)
-	}
-	return items
 }
 
 // PostgreSQLInstanceSpec specifies the desired state of a PostgreSQLInstance.
@@ -162,8 +86,6 @@ type PostgreSQLInstanceSpec struct {
 	// +kubebuilder:validation:Enum="9.6"
 	EngineVersion string `json:"engineVersion,omitempty"`
 }
-
-var _ resource.Claim = &PostgreSQLInstance{}
 
 // +kubebuilder:object:root=true
 
@@ -184,51 +106,6 @@ type PostgreSQLInstance struct {
 	Status runtimev1alpha1.ResourceClaimStatus `json:"status,omitempty"`
 }
 
-// SetBindingPhase of this PostgreSQLInstance.
-func (i *PostgreSQLInstance) SetBindingPhase(p runtimev1alpha1.BindingPhase) {
-	i.Status.SetBindingPhase(p)
-}
-
-// GetBindingPhase of this PostgreSQLInstance.
-func (i *PostgreSQLInstance) GetBindingPhase() runtimev1alpha1.BindingPhase {
-	return i.Status.GetBindingPhase()
-}
-
-// SetConditions of this PostgreSQLInstance.
-func (i *PostgreSQLInstance) SetConditions(c ...runtimev1alpha1.Condition) {
-	i.Status.SetConditions(c...)
-}
-
-// SetPortableClassReference of this PostgreSQLInstance.
-func (i *PostgreSQLInstance) SetPortableClassReference(r *corev1.LocalObjectReference) {
-	i.Spec.PortableClassReference = r
-}
-
-// GetPortableClassReference of this PostgreSQLInstance.
-func (i *PostgreSQLInstance) GetPortableClassReference() *corev1.LocalObjectReference {
-	return i.Spec.PortableClassReference
-}
-
-// SetResourceReference of this PostgreSQLInstance.
-func (i *PostgreSQLInstance) SetResourceReference(r *corev1.ObjectReference) {
-	i.Spec.ResourceReference = r
-}
-
-// GetResourceReference of this PostgreSQLInstance.
-func (i *PostgreSQLInstance) GetResourceReference() *corev1.ObjectReference {
-	return i.Spec.ResourceReference
-}
-
-// SetWriteConnectionSecretToReference of this PostgreSQLInstance.
-func (i *PostgreSQLInstance) SetWriteConnectionSecretToReference(r corev1.LocalObjectReference) {
-	i.Spec.WriteConnectionSecretToReference = r
-}
-
-// GetWriteConnectionSecretToReference of this PostgreSQLInstance.
-func (i *PostgreSQLInstance) GetWriteConnectionSecretToReference() corev1.LocalObjectReference {
-	return i.Spec.WriteConnectionSecretToReference
-}
-
 // +kubebuilder:object:root=true
 
 // PostgreSQLInstanceList contains a list of PostgreSQLInstance.
@@ -237,9 +114,6 @@ type PostgreSQLInstanceList struct {
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []PostgreSQLInstance `json:"items"`
 }
-
-// All portable classes must satisfy the PortableClass interface
-var _ resource.PortableClass = &PostgreSQLInstanceClass{}
 
 // +kubebuilder:object:root=true
 
@@ -251,9 +125,6 @@ type PostgreSQLInstanceClass struct {
 	runtimev1alpha1.PortableClass `json:",inline"`
 }
 
-// All portable class lists must satisfy the PortableClassList interface
-var _ resource.PortableClassList = &PostgreSQLInstanceClassList{}
-
 // +kubebuilder:object:root=true
 
 // PostgreSQLInstanceClassList contains a list of PostgreSQLInstanceClass.
@@ -261,25 +132,4 @@ type PostgreSQLInstanceClassList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []PostgreSQLInstanceClass `json:"items"`
-}
-
-// SetPortableClassItems of this PostgreSQLInstanceClassList.
-func (pg *PostgreSQLInstanceClassList) SetPortableClassItems(r []resource.PortableClass) {
-	items := make([]PostgreSQLInstanceClass, 0, len(r))
-	for i := range r {
-		if item, ok := r[i].(*PostgreSQLInstanceClass); ok {
-			items = append(items, *item)
-		}
-	}
-	pg.Items = items
-}
-
-// GetPortableClassItems of this PostgreSQLInstanceClassList.
-func (pg *PostgreSQLInstanceClassList) GetPortableClassItems() []resource.PortableClass {
-	items := make([]resource.PortableClass, len(pg.Items))
-	for i, item := range pg.Items {
-		item := item
-		items[i] = resource.PortableClass(&item)
-	}
-	return items
 }
