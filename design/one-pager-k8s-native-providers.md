@@ -10,8 +10,8 @@ external resource and keeping it in sync with a Kubernetes custom resource
 (managed resource) in the Crossplane control cluster. CRUD operations are
 executed on external resources using the API provided by the infrastructure
 provider. However, there are a number of Kubernetes-native infrastructure
-providers, with more being created everyday, that only expose their API's via
-the Kubernetes API. As opposed to provisioning resources externally on
+providers, with more being created everyday, that only expose their APIs via the
+Kubernetes API. As opposed to provisioning resources externally on
 provider-owned infrastructure, a Kubernetes-native provider provisions resources
 in-cluster, meaning that they can run on-premises or anywhere else you may be
 running a Kubernetes cluster. This document proposes a common pattern for stacks
@@ -27,8 +27,8 @@ operate in this manner. `KubernetesApplication` instances are first scheduled to
 a Kubernetes cluster by the scheduler controller, which causes them to pass the
 predicates of the application controller. It uses the template(s) in the
 `KubernetesApplication` instance to create one or more
-`KubernetesApplicationResource` objects, which are then picked up by the
-resource scheduler. It is responsible for actually creating the
+`KubernetesApplicationResource` objects, which are then picked up by the managed
+resource controller. It is responsible for actually creating the
 Kubernetes-native (e.g. `Deployment`, `ConfigMap`, etc.) objects in the target
 cluster, then managing them as a managed reconciler does for an external
 resource. In this scenario, the Kubernetes-native objects are the external
@@ -51,29 +51,96 @@ non-portable class <-> managed <-> external` workflow. Kubernetes-native
 infrastructure resources, on the other hand, *should* be modeled with the same
 separation of concern that other cloud-provider resources expose.
 
-## Workflow Design
+In addition, `KubernetesApplication` resources currently can only be scheduled
+to Kubernetes clusters that were provisioned using Crossplane. This is due to
+the fact that scheduling is accomplished by looking up `KubernetesCluster`
+objects by label. This pattern prohibits the ability to schedule Kubernetes
+resources to either the Crossplane control cluster or any preexisting cluster
+that was not provisioned using Crossplane. This type of support is imperative
+for Kubernetes-native infrastructure providers and can also be added for
+`KubernetesApplication` resources by introducting a Crossplane Kubernetes
+`Provider` custom resource.
 
-The general design from a user experience perspective should differ very little
-from utilizing any other infrastructure provider stack. Developers should be
-able to request the creation of an abstract resource type via a claim, and
-cluster operators should be able to define the classes of service available to
-satisfy that claim kind.
+## Proposal: Kubernetes `Provider` Kind
 
-As an example, Rook provides the option to provision [Minio] object storage in a
-Kubernetes cluster. Assuming you have installed Rook and the corresponding Minio
-operator into a cluster, you should be able to dynamically provision a Minio
-object storage cluster into the Kubernetes cluster from your Crossplane control
-cluster. The experience would look as follows:
+Existing infrastructure stacks such as AWS and GCP install a `Provider` custom
+resource into the Crossplane control cluster which references a `Secret` that
+contains credentials to authenticate with the cloud provider API. For example, a
+GCP `Provider` may look as follows:
 
-1. Create a Kubernetes `Provider` for target cluster:
+```yaml
+---
+# GCP Admin service account secret - used by GCP Provider
+apiVersion: v1
+kind: Secret
+metadata:
+  name: example-provider-gcp
+  namespace: gcp-infra-dev
+type: Opaque
+data:
+  credentials.json: BASE64ENCODED_GCP_PROVIDER_CREDS
+---
+# GCP Provider with service account secret reference - used to provision cache resources
+apiVersion: gcp.crossplane.io/v1alpha2
+kind: Provider
+metadata:
+  name: example
+  namespace: gcp-infra-dev
+spec:
+  credentialsSecretRef:
+    name: example-provider-gcp
+    key: credentials.json
+  projectID: PROJECT_ID
+```
 
+Any GCP resource can then reference the `Provider`, which provides the necessary
+information to the resource controller so that Crossplane can manage it.
+`KubernetesApplication` resources and Kubernetes-native infrastructure providers
+provision resources using the Kubernetes API rather than a cloud provider API.
+Currently, the `KubernetesApplicationResource` controllers obtain credentials to
+a Kubernetes cluster by reading the `Secret` that Crossplane creates when a
+`KubernetesCluster` resource is created. However, this is just one example for
+how a user may want to provision resources on a Kubernetes cluster. There are
+three main scenarios, each which can be enabled by the introduction of a
+Kubernetes `Provider` kind.
+
+Managing Kubernetes resources in a **Crossplane provisioned external cluster**:
+1. Provision a `KubernetesCluster` resource claim.
+```yaml
+apiVersion: compute.crossplane.io/v1alpha1
+kind: KubernetesCluster
+metadata:
+  name: demo-cluster
+  namespace: my-infra-dev
+spec:
+  writeConnectionSecretToRef:
+    name: demo-cluster-creds
+```    
+2. Create a Kubernetes `Provider` whose `credentialsSecretRef` references the
+   `KubernetesCluster` `writeConnectionSecretToRef`.
+```yaml
+apiVersion: kubernetes.crossplane.io/v1alpha1
+kind: Provider
+metadata:
+  name: demo-k8s-provider
+  namespace: my-infra-dev
+spec:
+  credentialsSecretRef:
+    name: demo-cluster-creds
+```
+3. Provision your Kubernetes resource using the aforementioned `Provider`.
+
+Managing Kubernetes resources in an **existing external cluster**:
+1. Create a Kubernetes `Provider` whose `credentialsSecretRef` references a hand
+   curated `Secret` using the same format as that of a `KubernetesCluster`
+   claim.
 ```yaml
 ---
 apiVersion: v1
 kind: Secret
 metadata:
-  name: demo-provider-rook
-  namespace: rook-infra-dev
+  name: demo-cluster-creds
+  namespace: my-infra-dev
 type: Opaque
 data:
   endpoint: MY_K8S_ENDPOINT
@@ -84,137 +151,481 @@ data:
   clientKey: MY_K8S_CLIENT_KEY
   token: MY_K8S_TOKEN
 ---
-apiVersion: kubernetes.crossplane.io/v1alpha2
+apiVersion: kubernetes.crossplane.io/v1alpha1
 kind: Provider
 metadata:
-  name: demo-kubernetes
-  namespace: azure-infra-dev
+  name: demo-k8s-provider
+  namespace: my-infra-dev
 spec:
   credentialsSecretRef:
-    name: demo-provider-rook
+    name: demo-cluster-creds
 ```
+2. Provision your Kubernetes resource using the aforementioned `Provider`.
 
-2. Create a non-portable Rook Minio `ObjectStoreClass`
+Managing Kubernetes resources in the **Crossplane control cluster**:
+1. Create a Kubernetes `ServiceAccount` and grant it the RBAC permissions
+   required to execute necessary Kubernetes actions.
+```yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-service-account
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: my-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  - deployments
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+- apiGroups:
+  - minio.rook.io
+  - cockroachdb.rook.io
+  resources:
+  - "*"
+  verbs:
+  - "*"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: my-role-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: my-role
+subjects:
+- kind: ServiceAccount
+  name: my-service-account
+  namespace: my-infra-dev
+```
+2. Create a Kubernetes `Provider` whose `credentialsSecretRef` references the
+   aforementioned `ServiceAccount` token.
+```yaml
+apiVersion: kubernetes.crossplane.io/v1alpha1
+kind: Provider
+metadata:
+  name: demo-k8s-provider
+  namespace: my-infra-dev
+spec:
+  credentialsSecretRef:
+    # Get secret name from service account
+    name: my-service-account-secret
+```
+3. Provision your Kubernetes resource using the aforementioned `Provider`.
+
+## Proposed Workflow for `KubernetesApplication` Resources
+
+The workflow for creating `KubernetesApplication` resources will look almost
+identical to its current status, but will involve creating a Kubernetes
+`Provider` type and referencing it in the `providerRef` field if a user desires
+the `KubernetesApplication` to be provisioned to a specific target cluster. The
+ability to use the existing `clusterRef` `matchLabels` field should also
+continue to be supported, but the scheduler will now schedule using Kubernetes
+`Provider` objects with matching labels rather than `KubernetesCluster` objects.
+If a user desires to use the `providerRef` field to provision the
+`KubernetesApplication`, the workflow would look as follows: 
+
+1. Create a Kubernetes `Provider` for target cluster (using one of scenarios
+   outlined above):
 
 ```yaml
-apiVersion: minio.rook.crossplane.io/v1alpha1
-kind: ObjectStoreClass
+---
+apiVersion: kubernetes.crossplane.io/v1alpha1
+kind: Provider
 metadata:
-  name: rook-minio
-  namespace: rook-infra-dev
+  name: demo-k8s-provider
+  namespace: my-infra-dev
 spec:
+  credentialsSecretRef:
+    name: demo-cluster-creds
+```
+
+2. Create a `KubernetesApplication` that references the `Provider` in its
+   `providerRef`:
+
+```yaml
+apiVersion: workload.crossplane.io/v1alpha1
+kind: KubernetesApplication
+metadata:
+  name: wordpress-demo
+  namespace: mynamespace
+  labels:
+    app: wordpress-demo
+spec:
+  resourceSelector:
+    matchLabels:
+      app: wordpress-demo
+  providerRef:
+    name: demo-k8s-provider
+    namespace: my-infra-dev
+  resourceTemplates:
+  - metadata:
+      name: wordpress-demo-namespace
+      labels:
+        app: wordpress-demo
+    spec:
+      template:
+        apiVersion: v1
+        kind: Namespace
+        metadata:
+          name: wordpress
+          labels:
+            app: wordpress
+  - metadata:
+      name: wordpress-demo-deployment
+      labels:
+        app: wordpress-demo
+    spec:
+      secrets:
+        # This must match the writeConnectionSecretToRef field
+        # on the database claim; it is the name of the secret to
+        # pull from the crossplane cluster, from this Application's namespace.
+      - name: sql
+      template:
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          namespace: wordpress
+          name: wordpress
+          labels:
+            app: wordpress
+        spec:
+          selector:
+            matchLabels:
+              app: wordpress
+          template:
+            metadata:
+              labels:
+                app: wordpress
+            spec:
+              containers:
+                - name: wordpress
+                  image: wordpress:4.6.1-apache
+                  env:
+                    - name: WORDPRESS_DB_HOST
+                      valueFrom:
+                        secretKeyRef:
+                          name: wordpress-demo-deployment-sql
+                          key: endpoint
+                    - name: WORDPRESS_DB_USER
+                      valueFrom:
+                        secretKeyRef:
+                          name: wordpress-demo-deployment-sql
+                          key: username
+                    - name: WORDPRESS_DB_PASSWORD
+                      valueFrom:
+                        secretKeyRef:
+                          name: wordpress-demo-deployment-sql
+                          key: password
+                  ports:
+                    - containerPort: 80
+                      name: wordpress
+  - metadata:
+      name: wordpress-demo-service
+      labels:
+        app: wordpress-demo
+    spec:
+      template:
+        apiVersion: v1
+        kind: Service
+        metadata:
+          namespace: wordpress
+          name: wordpress
+          labels:
+            app: wordpress
+        spec:
+          ports:
+            - port: 80
+          selector:
+            app: wordpress
+          type: LoadBalancer
+```
+
+## Proposed Workflow for Kubernetes-Native Infrastructure Providers
+
+### Portable Resources
+
+The general design from a user experience perspective should differ very little
+from utilizing any other infrastructure provider stack. Developers should be
+able to request the creation of an abstract resource type via a claim, and
+cluster operators should be able to define the classes of service available to
+satisfy that claim kind.
+
+As an example, Rook provides the option to run [CockroachDB] in a Kubernetes
+cluster. Assuming you have installed Rook and the corresponding CockroachDB
+operator into a cluster, you should be able to dynamically provision a
+CockroachDB cluster into the Kubernetes cluster from your Crossplane control
+cluster. The experience would look as follows:
+
+1. Create a Kubernetes `Provider` for target cluster (using one of scenarios
+   outlined above):
+
+```yaml
+---
+apiVersion: kubernetes.crossplane.io/v1alpha1
+kind: Provider
+metadata:
+  name: demo-k8s-provider
+  namespace: my-infra-dev
+spec:
+  credentialsSecretRef:
+    name: demo-cluster-creds
+```
+
+2. Create a non-portable Rook CockroachDB `ClusterClass` that references the
+   `Provider` in its `providerRef`:
+
+```yaml
+apiVersion: cockroachdb.rook.crossplane.io/v1alpha1
+kind: ClusterClass
+metadata:
+  name: rook-cockroachdb
+  namespace: rook-infra-dev
+specTemplate:
+  providerRef:
+    name: demo-k8s-provider
+    namespace: my-infra-dev
+  # full documentation on all available settings can be found at:
+  # https://rook.io/docs/rook/master/cockroachdb-cluster-crd.html
   scope:
-    nodeCount: 4
+    nodeCount: 3
+    # You can only have one PersistentVolumeClaim in this list!
     volumeClaimTemplates:
     - metadata:
-        name: rook-minio-data1
+        name: rook-cockroachdb-data
       spec:
         accessModes: [ "ReadWriteOnce" ]
+        # Uncomment and specify your StorageClass, otherwise
+        # the cluster admin defined default StorageClass will be used.
+        #storageClassName: "your-cluster-storageclass"
         resources:
           requests:
-            storage: "8Gi"
-  # A key value list of annotations
+            storage: "1Gi"
+  network:
+    ports:
+    - name: http
+      port: 8080
+    - name: grpc
+      port: 26257
+  secure: false
+  cachePercent: 25
+  maxSQLMemoryPercent: 25
+  # A key/value list of annotations
   annotations:
   #  key: value
-  placement:
-    tolerations:
-    nodeAffinity:
-    podAffinity:
-    podAnyAffinity:
-  credentials:
-    name: minio-my-store-access-keys
-    namespace: rook-minio
-  providerRef:
-    name: demo-kubernetes
-    namespace: rook-infra-dev
 ```
 
-3. Create a portable `BucketClass`
+3. Create a portable `PostgreSQLInstanceClass`:
 
 ```yaml
-apiVersion: storage.crossplane.io/v1alpha1
-kind: BucketClass
+apiVersion: database.crossplane.io/v1alpha1
+kind: PostgreSQLInstanceClass
 metadata:
-  name: bucket-standard
+  name: postgresql-standard
   namespace: app-project1-dev
 classRef:
-  kind: ObjectStoreClass
-  apiVersion: minio.rook.crossplane.io/v1alpha1
-  name: rook-minio
+  kind: ClusterClass
+  apiVersion: cockroachdb.rook.crossplane.io/v1alpha1
+  name: rook-cockroachdb
   namespace: rook-infra-dev
 ```
 
-4. Create a `Bucket` claim
+4. Create a `PostgreSQLInstance` claim:
 
 ```yaml
-apiVersion: storage.crossplane.io/v1alpha1
-kind: Bucket
+apiVersion: database.crossplane.io/v1alpha1
+kind: PostgreSQLInstance
 metadata:
-  name: app-bucket
+  name: app-postgresql
   namespace: app-project1-dev
 spec:
   classRef:
-    name: bucket-standard
+    name: postgresql-standard
   writeConnectionSecretToRef:
-    name: bucketsecret
+    name: postgresqlconn
+  engineVersion: "9.6"
 ```
 
-On creation of the `Bucket` claim, the claim controller would configure and
-create an `ObjectStore` (`minio.rook.crossplane.io/v1alpha1`) instance. Then,
-the managed controller would use the Crossplane `ObjectStore` instance to create
-an `ObjectStore` (`minio.rook.io/v1alpha1`) in the target Kubernetes cluster
-where Rook and the Minio operator are installed. This workflow is similar to
-dynamic provisioning in a typical infrastructure provider:
+On creation of the `PostgreSQLInstance` claim, the claim controller would
+configure and create a `Cluster` (`cockroachdb.rook.crossplane.io/v1alpha1`)
+instance. Then, the managed controller would use the Crossplane `Cluster`
+instance to create a `Cluster` (`cockroachdb.rook.io/v1alpha1`) in the target
+Kubernetes cluster where Rook and the CockroachDB operator are installed. This
+workflow is similar to dynamic provisioning in a typical infrastructure
+provider:
 
 ![K8s Native Providers](./images/k8s-native-providers.png)
 
+### Non-Portable and Unsupported Resources
+
+Some resources exposed by Kubernetes-native infrastructure providers may not be
+initially supported by dynamic provisioning. This is true for existing
+infrastructure stacks as well, as types like `VirtualNetwork` in Azure can be
+provisioned statically, but not in the dynamic `claim <-> class` pattern. These
+types of resources may eventually be supported by portable claim types in core
+Crossplane.
+
+An example of this type of resource for Rook would be a [Minio] `ObjectStore`.
+While Crossplane does support a `Bucket` claim type for dynamic provisioning of
+object storage, the Minio `ObjectStore` type is actually setting up a storage
+service, much like AWS S3. Once an `ObjectStore` is provisioned, individual
+object storage "buckets" can be created. However, Rook does not currently expose
+a Kubernetes custom resource kind to provision buckets in the Minio object
+store, so buckets must be created directly by interacting with the Minio API.
+
+For an initial implementation of the Rook stack, users should be able to
+provision Minio `ObjectStores` statically, but support for creating buckets in
+that object store will likely either be deferred to the functionality being
+added to Rook, exposed via controller logic, or the implementation of a Minio
+stack. Deferring the functionality to Rook implementation would allow for
+`Buckets` to be created in the traditional manner by the stack, but the
+remaining two options create additional complexity.
+
+If using controller logic, the workflow would look as follows:
+
+1. Install the Rook stack into the Crossplane control cluster and create a
+   Kubernetes `Provider` kind to connect to a target cluster where the Rook and
+   Minio operators have been installed. 
+1. Create an `ObjectStore` (`minio.rook.crossplane.io`) in Crossplane, which
+   will statically provision an `ObjectStore` (`minio.rook.io`) in the target
+   cluster (additional object storage provider types, including [EdgeFS] and
+   [Ceph], are also exposed by Rook).
+1. The `ObjectStore` controller should write any required connection secrets to
+   a Kubernetes `Secret` in the Crossplane control cluster.
+1. The Rook stack should expose an additional `Provider`
+   (`objectstore.rook.crossplane.io`) kind that can reference the aforementioned
+   `Secret`. Create a `Provider` of this kind.
+1. The Rook stack should also expose `Bucket` and `BucketClass` resources that
+   reference a Rook object store `Provider`. A `Bucket` may now be provisioned
+   either dynamically using a `Bucket` claim type or the Rook `Bucket` kind
+   directly.
+
+If using a separate Minio stack, the workflow would look as follows:
+
+1. Install the Rook stack and the Minio stack into the Crossplane control
+   cluster and create a Kubernetes `Provider` kind to connect to a target
+   cluster where the Rook and Minio operators have been installed. 
+1. Create an `ObjectStore` (`minio.rook.crossplane.io`) in Crossplane, which
+   will statically provision an `ObjectStore` (`minio.rook.io`) in the target
+   cluster.
+1. The `ObjectStore` controller should write any required connection secrets to
+   a Kubernetes `Secret` in the Crossplane control cluster.
+1. The Minio stack should expose a `Provider` (`minio.crossplane.io`) kind that
+   can reference the aforementioned `Secret`. Create a `Provider` of this kind.
+1. The Minio stack should also expose `Bucket` and `BucketClass` resources that
+   reference a Minio `Provider`. A `Bucket` may now be provisioned either
+   dynamically using a `Bucket` claim type or the Minio `Bucket` kind directly.
+
+Though the Minio stack strategy is somewhat cumbersome in that multiple
+Crossplane stacks must be installed in order to provision consumable object
+storage using Rook, it is more in-line with the structure of the Crossplane
+stack isolation model. In contrast, using controller logic in the Rook stack to
+provision buckets would be a divergence from our desire to model provider APIs
+in a high-fidelity manner. **For this reason, either waiting for support to be
+natively provided by Rook or creating a separate Minio stack appears to be the
+sensible direction forward.**
+
+*Note: It may be desirable to create an `ObjectStore` claim type in Crossplane
+in order to be able dynamically provision `ObjectStores` in Rook. However, like
+the networking types in other stacks, it is likely not a pressing issue to
+support dynamic provisioning for this resource type in the initial
+implementation.*
+
 ## Technical Design
 
-### Claim Reconciler
+### The Kubernetes Provider Kind
+
+The Kubernetes `Provider` kind will be implemented in core Crossplane in a new
+API group: `kubernetes.crossplane.io`. This will allow it to be used by core
+Crossplane custom resources such as the `KubernetesApplication` as well as
+Kubernetes-native infrastructure stacks like Rook.
+
+### `KubernetesApplication` Updates
+
+The `KubernetesApplication` resource type will need to be modified to include a
+`providerRef` field so that in can reference the new Kubernetes `Provider` kind.
+However, this should be an optional field that is only required if there is no
+`clusterRef` `matchLabels` fields defined. If there is only a `clusterRef`
+`matchLabels` field and no `providerRef`, the `KubernetesApplication` [scheduler
+controller] should be modified such that it finds Kubernetes `Provider` objects
+with the labels (instead of the current implementation that gets
+`KubernetesCluster` objects with matching labels), and schedules the
+`KubernetesApplication` to them in a round-robin fashion.
+
+### Kubernetes-Native Provider Stacks
+
+Kubernetes-native provider stacks, such as Rook, should utilize the same shared
+reconcilers that existing infrastructure stacks do, but instead of implementing
+their own `Provider` kind, would utilize the core Crossplane Kubernetes
+`Provider`. 
+
+#### Claim Reconciler
 
 The claim controllers could use the same shared [claim reconciler] that other
 existing infrastructure stacks use currently, providing their own
 `ManagedConfigurators` to configure the managed resource instance using the
 referenced class.
 
-### Managed Reconciler
+#### Managed Reconciler
 
 Kubernetes-native infrastructure providers can make use of the shared managed
 reconciler in `crossplane-runtime` in the same manner as traditional
 infrastructure providers. However, instead of creating a new client for a cloud
 provider API, Kubernetes-native infrastructure providers will return a
 Kubernetes client that is configured to talk to the target cluster using the
-`providerRef`. This is similar to the client configuration for the
-`KubernetesApplicationResource` [managed reconciler], except that it obtains
-Kubernetes credentials using a `Provider` object rather than a
-`KubernetesClusterObject`. This `Provider` type
-(`provider.kubernetes.crossplane.io`) should likely exist outside of the Rook
-stack (i.e. in core Crossplane) due to its generic applicability. 
+`providerRef` to a Crossplane Kubernetes `Provider` object. 
 
 ## Future Considerations
 
+### Stack Bundles
+
+If a separate Minio stack were to be implemented as detailed above, it may
+improve user experience to provide the ability to install multiple stacks
+together. This could either be exposed through releasing bundled distributions
+(i.e. Rook with Minio / Ceph / EdgeFS / etc.) or via a [Crossplane CLI] command.
+
 ### More Sophisticated Scheduling
 
-This initial proposal embeds a `proivderRef` field in the non-portable classes
-of a Kubernetes-native provider that specifies the cluster in which resources
-should be provisioned. This mitigates the need for a scheduler, but requires
-that a `Provider` object be created in order to talk to any Kubernetes cluster,
-even if that cluster was provisioned by Crossplane. In the case that the cluster
-was provisioned by Kubernetes, the `Secret` the the `Provider` references should
-already exist in the control cluster.
-
 It is possible that we will want to be able to schedule Kubernetes-native
-infrastructure resources in a more intelligent manner. This could include
-implementing scheduling policies that allow for resources to be provisioned
-based on geography, resource requirements, etc. An initial scheduler
-implementation may look similar to the `KubernetesApplication` [scheduler
-controller], but instead of matching `KubernetesCluster` objects by label, it
-would use `provider.kubernetes.crossplane.io` objects. Because the scheduling
+infrastructure resources in a more intelligent manner than the currently
+proposed `providerRef` pattern. This could include implementing scheduling
+policies that allow for resources to be provisioned based on geography, resource
+requirements, etc. An initial scheduler implementation may look similar to the
+updated `KubernetesApplication` scheduler controller. Because the scheduling
 behavior for most Kubernetes-native infrastructure components will look very
-similar, a shared scheduler reconciler should be added to [crossplane-runtime].
+similar, a shared scheduler reconciler could be added to [crossplane-runtime].
 In fact, the `KubernetesApplication` scheduler controller may also be able to
 make use of the shared `crossplane-runtime` scheduler reconciler after it is
 implemented.
+
+### Automatic Operator Installation
+
+For any Kubernetes-native provider, there must be an operator installed in the
+target cluster for the resources to be provisioned. However, it would be nice to
+be able to provision resources in a cluster where the operator is not currently
+installed. This could be implemented by checking if the operator exists in the
+target cluster in the managed reconciler's `Create` method, and installing it if
+not. This may not be part of initial implementation, but should definitely be
+tracked and supported.
 
 ### Generalized Managed Reconciler
 
@@ -241,34 +652,24 @@ does not work for a specific resource type, manual implementation of the
 `connecter` and `external` types would always be possible, just as they are for
 existing infrastructure stacks.
 
-Implementation of the shared managed reconciler for the managed Minio
-`ObjectStore` controller (`minio.rook.crossplane.io/v1alpha1`) if a
+Implementation of the shared managed reconciler for the managed CockroachDB
+`Cluster` controller (`cockroachdb.rook.crossplane.io/v1alpha1`) if a
 `nativeExternal` type was able to be utilized could look as follows:
 
 ```go
-func (c *ObjectStoreController) SetupWithManager(mgr ctrl.Manager) error {
+func (c *ClusterController) SetupWithManager(mgr ctrl.Manager) error {
   r := resource.NewManagedReconciler(mgr,
-    resource.ManagedKind(v1alpha1.ObjectStoreGroupVersionKind),
-    resource.WithExternalConnecter(&resource.NativeConnecter{client: mgr.GetClient(), kind: v1alpha1.ObjectStore}))
+    resource.ManagedKind(v1alpha1.ClusterGroupVersionKind),
+    resource.WithExternalConnecter(&resource.NativeConnecter{client: mgr.GetClient(), kind: v1alpha1.Cluster}))
 
-  name := strings.ToLower(fmt.Sprintf("%s.%s", v1alpha1.ObjectStoreGroupKind, v1alpha1.Group))
+  name := strings.ToLower(fmt.Sprintf("%s.%s", v1alpha1.ClusterGroupKind, v1alpha1.Group))
 
   return ctrl.NewControllerManagedBy(mgr).
     Named(name).
-    For(&v1alpha1.ObjectStore{}).
+    For(&v1alpha1.Cluster{}).
     Complete(r)
 }
 ```
-
-### Automatic Operator Installation
-
-For any Kubernetes-native provider, there must be an operator installed in the
-target cluster for the resources to be provisioned. However, it would be nice to
-be able to provision resources in a cluster where the operator is not currently
-installed. This could be implemented by checking if the operator exists in the
-target cluster in the managed reconciler's `Create` method, and installing it if
-not. This may not be part of initial implementation, but should definitely be
-tracked and supported.
 
 ## Relevant Issues
 
@@ -277,7 +678,11 @@ tracked and supported.
 
 [Rook]: https://github.com/rook/rook
 [complex workloads]: design-doc-complex-workloads.md
+[CockroachDB]: https://github.com/cockroachdb/cockroach
 [Minio]: https://min.io/
+[EdgeFS]: http://edgefs.io/
+[Ceph]: https://ceph.io/
+[Crossplane CLI]: https://github.com/crossplaneio/crossplane-cli
 [client-go]: https://github.com/kubernetes/client-go
 [managed reconciler]: https://github.com/crossplaneio/crossplane/blob/14fa6dda6a3e91d5f1ac98d1020a151b02311cb1/pkg/controller/workload/kubernetes/resource/resource.go#L401
 [claim reconciler]: https://github.com/crossplaneio/crossplane-runtime/blob/master/pkg/resource/claim_reconciler.go
