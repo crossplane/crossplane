@@ -807,11 +807,10 @@ func (c *FavouriteDBInstanceClaimController) SetupWithManager(mgr ctrl.Manager) 
         // managed resource.
         resource.HasManagedResourceReferenceKind(resource.ManagedKind(v1alpha2.FavouriteDBInstanceGroupVersionKind)),
 
-        // We want to reconcile FavouriteDBInstance managed resources that were
-        // dynamically provisioned using the FavouriteDBInstanceClass. Note that
-        // this predicate will soon be replaced by resource.IsManagedKind per
-        // https://github.com/crossplaneio/crossplane-runtime/issues/28
-        resource.HasDirectClassReferenceKind(resource.NonPortableClassKind(v1alpha2.FavouriteDBInstanceClassGroupVersionKind)),
+        // We want to reconcile FavouriteDBInstance managed resources. Resources
+        // without a claim reference will be filtered by the below
+        // EnqueueRequestForClaim watch event handler.
+        resource.IsManagedKind(resource.ManagedKind(v1alpha2.FavouriteDBInstanceClassGroupVersionKind), mgr.GetScheme()),
 
         // We want to reconcile FancySQLInstance kind resource claims that
         // indirectly reference a FavouriteDBInstanceClass via a
