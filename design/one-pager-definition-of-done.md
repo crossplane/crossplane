@@ -20,15 +20,21 @@ Work means a contribution to the project, typically code.
 
 ## Definition of done
 
-A chunk of work is considered done when the following criteria have been met:
+The following criteria **MUST** be met for work to be considered done:
 
-* All code is written
 * Code is reviewed and approved
-* New behavior is documented in the documentation that will go onto the
-  crossplane website
+* Code passes linting (use `make reviewable` to lint)
 * All error conditions are reported into the log or as an event, as
   appropriate
-* Code is tested, ideally in an integration test
+* Code is tested
+
+Additionally, the following criteria **SHOULD** be met for the work to
+be considered done, as they are best practices:
+
+* Code is tested with an integration test
+* New behavior is documented in the documentation that will go onto the
+  crossplane website
+* Examples have been updated to reflect any changes
 
 ## Applying definition of done
 
