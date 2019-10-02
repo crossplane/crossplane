@@ -92,6 +92,7 @@ manifests: vendor
 	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd:trivialVersions=true paths=./apis/compute/... output:dir=cluster/charts/crossplane/templates/crds
 	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd:trivialVersions=true paths=./apis/core/... output:dir=cluster/charts/crossplane/templates/crds
 	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd:trivialVersions=true paths=./apis/database/... output:dir=cluster/charts/crossplane/templates/crds
+	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd:trivialVersions=true paths=./apis/kubernetes/... output:dir=cluster/charts/crossplane/templates/crds
 	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd:trivialVersions=true paths=./apis/storage/... output:dir=cluster/charts/crossplane/templates/crds
 	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd:trivialVersions=true paths=./apis/workload/... output:dir=cluster/charts/crossplane/templates/crds
 	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd:maxDescLen=0,trivialVersions=true paths=./apis/stacks/... output:dir=cluster/charts/crossplane/templates/crds

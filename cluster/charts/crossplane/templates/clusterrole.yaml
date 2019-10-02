@@ -31,6 +31,7 @@ rules:
   - cache.crossplane.io
   - compute.crossplane.io
   - database.crossplane.io
+  - kubernetes.crossplane.io
   - core.crossplane.io
   - stacks.crossplane.io
   - storage.crossplane.io
