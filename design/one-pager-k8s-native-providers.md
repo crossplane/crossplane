@@ -413,7 +413,7 @@ Kubernetes client that is configured to talk to the target cluster using the
 
 The ability to provision buckets in the `ObjectStore` options provided by Rook
 will need to be supported in the future. Three main options to implement this
-functionality include waiting until the functionality natively added to Rook,
+functionality include waiting until the functionality is natively added to Rook,
 exposing a Crossplane concept of a Rook bucket via controller logic, or the
 implementation of a Minio stack. Deferring the functionality to Rook
 implementation would allow for `Buckets` to be created in the traditional manner
