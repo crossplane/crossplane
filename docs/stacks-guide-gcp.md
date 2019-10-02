@@ -483,7 +483,7 @@ where we left off.
 
 [gcp]: https://cloud.google.com/
 
-[stacks-guide-continue]: stacks-guide.html#install-support-for-our-application-into-crossplane
+[stacks-guide-continue]: stacks-guide.md#install-support-for-our-application-into-crossplane
 [sample-wordpress-stack]: https://github.com/crossplaneio/sample-stack-wordpress
 [stack-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/design-doc-stacks.md#crossplane-stacks
 
