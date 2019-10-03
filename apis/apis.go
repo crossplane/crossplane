@@ -26,6 +26,7 @@ import (
 	"github.com/crossplaneio/crossplane/apis/cache"
 	"github.com/crossplaneio/crossplane/apis/compute"
 	"github.com/crossplaneio/crossplane/apis/database"
+	"github.com/crossplaneio/crossplane/apis/kubernetes"
 	"github.com/crossplaneio/crossplane/apis/stacks"
 	"github.com/crossplaneio/crossplane/apis/storage"
 	"github.com/crossplaneio/crossplane/apis/workload"
@@ -38,6 +39,7 @@ func init() {
 		compute.AddToScheme,
 		stacks.AddToScheme,
 		database.AddToScheme,
+		kubernetes.AddToScheme,
 		storage.AddToScheme,
 		workload.AddToScheme,
 	)
