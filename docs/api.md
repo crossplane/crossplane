@@ -36,6 +36,7 @@ API Group | Status | Details
 [`cache.crossplane.io/v1alpha1`] | Alpha | Cache service claims and classes.
 [`compute.crossplane.io/v1alpha1`] | Alpha | Compute service resource claims and classes.
 [`database.crossplane.io/v1alpha1`] | Alpha | Database service resource claims and classes.
+[`kubernetes.crossplane.io/v1alpha1`] | Alpha | Resources for connecting to Kubernetes clusters.
 [`storage.crossplane.io/v1alpha1`] | Alpha | Blob storage service resource claims and classes.
 [`stacks.crossplane.io/v1alpha1`] | Alpha | Resources for managing Crossplane Stacks.
 [`workload.crossplane.io/v1alpha1`] | Alpha | Resources for managing Crossplane Workloads.
@@ -43,6 +44,7 @@ API Group | Status | Details
 [`cache.crossplane.io/v1alpha1`]: api/crossplaneio/crossplane/cache-crossplane-io-v1alpha1.md
 [`compute.crossplane.io/v1alpha1`]: api/crossplaneio/crossplane/compute-crossplane-io-v1alpha1.md
 [`database.crossplane.io/v1alpha1`]: api/crossplaneio/crossplane/database-crossplane-io-v1alpha1.md
+[`kubernetes.crossplane.io/v1alpha1`]: api/crossplaneio/crossplane/kubernetes-crossplane-io-v1alpha1.md
 [`storage.crossplane.io/v1alpha1`]: api/crossplaneio/crossplane/storage-crossplane-io-v1alpha1.md
 [`stacks.crossplane.io/v1alpha1`]: api/crossplaneio/crossplane/stacks-crossplane-io-v1alpha1.md
 [`workload.crossplane.io/v1alpha1`]: api/crossplaneio/crossplane/workload-crossplane-io-v1alpha1.md
