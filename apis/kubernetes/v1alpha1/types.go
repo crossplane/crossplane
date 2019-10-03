@@ -26,6 +26,9 @@ type ProviderSpec struct {
 	// Kubernetes credentials Secret reference
 	// A Secret containing connection credentials for a Kubernetes cluster
 	// client that will be used to authenticate to this Kubernetes Provider.
+	// This will typically be the connection secret of a KubernetesCluster claim,
+	// or the secret created by a Kubernetes service account, but could also be
+	// manually configured to connect to a preexisting cluster.
 	Secret corev1.LocalObjectReference `json:"credentialsSecretRef"`
 }
 
