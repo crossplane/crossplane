@@ -31,9 +31,9 @@ ignored = [
     ]
 
 required = [
-    "k8s.io/code-generator/cmd/deepcopy-gen", # for go generate
-    "sigs.k8s.io/controller-tools/cmd/controller-gen", # for crd/rbac generation
-    "golang.org/x/tools/cmd/stringer", # for go generate
+    # Tools required to run 'go generate' code generation from vendor.
+    "sigs.k8s.io/controller-tools/cmd/controller-gen",
+    "github.com/crossplaneio/crossplane-tools/cmd/angryjet",
     ]
 
 [prune]

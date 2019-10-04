@@ -14,8 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Generate deepcopy for apis
+// Generate deepcopy methodsets
 //go:generate go run ../vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go object:headerFile=../hack/boilerplate.go.txt paths=./...
+
+// Generate crossplane-runtime methodsets (resource.Claim, etc)
+//go:generate go run ../vendor/github.com/crossplaneio/crossplane-tools/cmd/angryjet/main.go generate-methodsets --header-file=../hack/boilerplate.go.txt ./...
 
 // Package apis contains Kubernetes API groups
 package apis

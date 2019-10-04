@@ -44,6 +44,29 @@
   revision = "26a458d08504f343010861cda217017e0a1b9692"
 
 [[projects]]
+  branch = "master"
+  digest = "1:d24f5d052b22921c0cf18f863d90da47ee9589b776831225ed7612faa60fff12"
+  name = "github.com/crossplaneio/crossplane-tools"
+  packages = [
+    "cmd/angryjet",
+    "internal/comments",
+    "internal/fields",
+    "internal/generate",
+    "internal/match",
+    "internal/method",
+  ]
+  pruneopts = "UT"
+  revision = "e252b937450b2fba6a0589aafe4ba2957fbf7a77"
+
+[[projects]]
+  digest = "1:60abec4c812fc39cf7e66571da9e1758c586c258af815c4062b20d136542ff19"
+  name = "github.com/dave/jennifer"
+  packages = ["jen"]
+  pruneopts = "UT"
+  revision = "14e399b6b5e8456c66c45c955fc27b568bacb5c9"
+  version = "v1.3.0"
+
+[[projects]]
   digest = "1:ffe9824d294da03b391f44e1ae8281281b4afc1bdaa9588c9097785e3af10cec"
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
@@ -526,21 +549,17 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:5c799f34d464f32cd399372d1e5294b55cd3aa68bca691b05f131dfa912a3efa"
+  digest = "1:58e3adb59c19689c14896da0ed10a35e6637bbd4d01131764467fd69a2204229"
   name = "golang.org/x/tools"
   packages = [
-    "cmd/stringer",
     "go/ast/astutil",
     "go/gcexportdata",
     "go/internal/gcimporter",
     "go/internal/packagesdriver",
     "go/packages",
     "go/types/typeutil",
-    "imports",
     "internal/fastwalk",
     "internal/gopathwalk",
-    "internal/imports",
-    "internal/module",
     "internal/semver",
   ]
   pruneopts = "UT"
@@ -813,34 +832,6 @@
   version = "kubernetes-1.14.1"
 
 [[projects]]
-  branch = "master"
-  digest = "1:937e46834bfd618b223206d7e3d459bf0eb53ac7d05135bf809d73b8fafdf7f7"
-  name = "k8s.io/code-generator"
-  packages = [
-    "cmd/deepcopy-gen",
-    "cmd/deepcopy-gen/args",
-    "pkg/util",
-  ]
-  pruneopts = "UT"
-  revision = "c4ef572adb98ae8c6fe5f9a67d418b6906cc2df6"
-
-[[projects]]
-  branch = "master"
-  digest = "1:6dc0e912aaeea5f98199e018d3601b4c98b7549afd0cd5ef4ca025911e0a90b2"
-  name = "k8s.io/gengo"
-  packages = [
-    "args",
-    "examples/deepcopy-gen/generators",
-    "examples/set-gen/sets",
-    "generator",
-    "namer",
-    "parser",
-    "types",
-  ]
-  pruneopts = "UT"
-  revision = "e17681d19d3ac4837a019ece36c2a0ec31ffe985"
-
-[[projects]]
   digest = "1:c283ca5951eb7d723d3300762f96ff94c2ea11eaceb788279e2b7327f92e4f2a"
   name = "k8s.io/klog"
   packages = ["."]
@@ -969,13 +960,13 @@
     "github.com/crossplaneio/crossplane-runtime/pkg/resource",
     "github.com/crossplaneio/crossplane-runtime/pkg/test",
     "github.com/crossplaneio/crossplane-runtime/pkg/util",
+    "github.com/crossplaneio/crossplane-tools/cmd/angryjet",
     "github.com/ghodss/yaml",
     "github.com/google/go-cmp/cmp",
     "github.com/google/go-cmp/cmp/cmpopts",
     "github.com/onsi/gomega",
     "github.com/pkg/errors",
     "github.com/spf13/afero",
-    "golang.org/x/tools/cmd/stringer",
     "gopkg.in/alecthomas/kingpin.v2",
     "k8s.io/api/apps/v1",
     "k8s.io/api/batch/v1",
@@ -993,7 +984,6 @@
     "k8s.io/client-go/kubernetes",
     "k8s.io/client-go/kubernetes/scheme",
     "k8s.io/client-go/rest",
-    "k8s.io/code-generator/cmd/deepcopy-gen",
     "sigs.k8s.io/controller-runtime",
     "sigs.k8s.io/controller-runtime/pkg/client",
     "sigs.k8s.io/controller-runtime/pkg/client/config",
