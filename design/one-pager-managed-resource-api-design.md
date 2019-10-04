@@ -7,7 +7,6 @@
 
 * _External resource_. An actual resource that exists outside Kubernetes, typically in the cloud. AWS RDS or GCP Cloud
   Memorystore instances are external resources.
-* _Provider_. The entity that owns the physical layer of the external resource. AWS, GCP and Azure are examples of this.
 * _Managed resource_. The Crossplane representation of an external resource. The `RDSInstance` and `CloudMemorystoreInstance`
   kinds are managed resources.
 * _Claim_. The Crossplane representation of a request for the allocation of a managed resource. Resource claims
@@ -42,18 +41,16 @@ deviate so that we can reassess and improve it.
 ## Guiding Principles
 
 Our users are the stakeholders on how we make decisions. There are two types of users for managed resources:
-* Input Users: Users who configure/create/manage the resource. Crossplane Claim Controller, Cluster Admin are a few
-  examples of this type. We want our `Spec` to be sole place for them to configure everything about the resource.
+* Input Users: Users who configure/create/manage the resource. `Crossplane Claim` Controller, `Cluster Admin` are a few
+  examples of this type. We want our `Spec` to be the source of truth for them to configure everything about the resource.
 * Output Users: Users who refer to/query/use/extract information from the managed resource. We want them to be able to
   perform all read-only operations on the given resource as if they have the cloud provider's API available. This can
-  include configurations and metadata information about the resource. We also want them to access only `Status`
-  sub-resource of the managed resource because this is where the most up-to-date information about the resource is
-  stored and we are able to limit RBAC of these users to access only `Status`.
+  include configurations and metadata information about the resource.
   
 ### Naming Conventions
 
 There are two naming decisions here to make:
-* Managed resource CR name
+* Managed resource's Custom Resource (CR) name
 * Identifier string of the external resource in the cloud provider.
 
 _Name_ in this context means the identifier string for the resource in its environment. CR name is the identifier
@@ -66,39 +63,60 @@ environment. For example, in AWS, VPCs do not have a name but `VpcID` properties
 The name of the managed resource CR, which lives in our control cluster. The claim controller who creates the managed
 resource gives its name or some other entity might create the managed resource, like user themselves. So, do not assume
 that all the managed resources will have the same naming format anywhere.
-One enforcing condition is that it has to be unique amongst other instances of the CRD. The best way to guarantee that
-is to include Kubernetes UID in the name. The following format is valid as long as the length of the name is not longer
-than 253 characters. Given that we know UID is 36 characters long, name for the service you choose should be
-differentiable enough with 217 characters.
 
-For example, the following would be a good name for a CloudSQL managed resource CR:
+Crossplane lives on Kubernetes and both the user and admin interacts with it through Kubernetes APIs. For better UX
+we want to mirror what Kubernetes uses for identification of a resource as much as possible, which is name and namespace
+pair. So, the claim controller should use these two entities of the Claim that it's processing when it decides on a name.
+However, the resources in the cloud provider are in the same environment, either per project (GCP) or same account (AWS).
+In order to provide a unique name that incorporates name and namespace, claim controller should make use of `GenerateName`
+feature of resource creation. The claim controller should assign `namespace-name` to `GenerateName` field of the `ObjectMeta`
+of the managed resource and Kubernetes will automatically append `-<5 characters random string>` to that when the creation
+is completed. For example, the following will be created by the claim controller:
+```yaml
+apiVersion: database.gcp.crossplane.io/v1alpha2
+kind: CloudsqlInstance
+metadata:
+  generateName: myappnamespace-mydatabase-
+  namespace: gcp
 ```
-cloudsql-7cb46d78-4556-4904-93d2-b34f6d5ccadf
+After Kubernetes API server completes the creation, we'll see something like the following:
+```yaml
+apiVersion: database.gcp.crossplane.io/v1alpha2
+kind: CloudsqlInstance
+metadata:
+  name: myappnamespace-mydatabase-5sc8a
+  namespace: gcp
 ```
+`mydatabase` is the name of the `Claim` and `myappnamespace` is the namespace that `Claim` lives in. That way we get a
+managed resource that user can relate to what they actually created.
+
+However, there is a common case that for some resources, the provider does not allow you to specify a name or the claim
+might get bound to an existing managed resource without any need to create a new one. To show the actual name of the
+resource that's shown in the provider's UI, claim controller should copy `crossplane.io/external-name` annotation's value
+from the managed resource to its own `crossplane.io/external-name` annotation after the managed resource is bound to the
+claim.
+
+We also want to give the ability to specify the `crossplane.io/external-name` in the claim level. So, if `crossplane.io/external-name`
+is given _before_ the creation of managed resource, we should copy its value to managed resource's `crossplane.io/external-name`
+annotation before we create it. Note that you never override managed resource's annotation if it already exists. Then
+in the next reconciles, we always get the value from managed resource and copy it to `crossplane.io/external-name`
+annotation of `Claim`.
+
+Note that `crossplane.io/external-name` always shows the final value of the external resource name.
 
 #### External Resource Name
 
 Related to https://github.com/crossplaneio/crossplane/issues/624
 
-The decision for an external resource name is made by the controller of that managed resource in `Create` phase. The
-following is the possible cases:
-* The provider doesn't allow us to specify a name. Fetch it after its client's `POST` call.
+The decision for an external resource name is made by the controller of that managed resource in `Create` phase.
+Possible cases are as following:
+* The provider doesn't allow us to specify a name. Fetch it after its client's `POST` call. Override `crossplane.io/external-name`
+annotation's value with what you get as name.
 * The provider allows to specify a name.
-  1. Check whether CR name is suitable as resource's external name. If so, use it. If not;
-  2. Use `servicename-k8s UID of CR`, i.e. `cloudsql-7cb46d78-4556-4904-93d2-b34f6d5ccadf`. If that doesn't comply;
-  3. Generate your own name in the following format in a compliant way:
-```
-servicename-<random-string>
-<random-string>: lower case letters, upper case letters, integers and dash (-). Dash (-) should be neither in the
-beginning nor in the end. Until 36 characters(k8s UID length), the longer random string the better.
-```
-  4. If 3 doesn't work for you, come up with your own format that includes the name of the service if possible.
+  * If `crossplane.io/external-name` annotation has a value use it. If it's empty;
+  * Use managed resource's name and write that into `crossplane.io/external-name` annotation.
 
-Note that the managed resource might be created manually by the user, so, the CR name can be anything and you need to
-have a validation step for the CR name before you use it.
-
-In all cases, write the name to annotation with key `crossplane.io/external-name` if a value does not already exist. Use 
-the value of that annotation as external resource name in _all_ queries.
+Use the value of that annotation as external resource name in _all_ queries.
 
 #### Field Names
 
@@ -107,44 +125,9 @@ if there is a very good reason to. Naming parity makes inter-resource references
 both developers and users. This is especially handy in cases where Crossplane does not yet support the _referred_ resource
 or user may not want some of their resources in their Crossplane environment.
 
-Ideally, for the resources that do have Crossplane representations, you can append `Ref` to the field name,
-i.e. `network (string)` -> `networkRef (Network)`
-
 In some cases, we might have collisions or cases where provider field name is too similar to another field in the
 managed resource's Custom Resource fields. The section [Owner-based Struct Tree](#owner-based-struct-tree) tries to
 tackle that.
-
-#### Example
-
-```yaml
-
----
-# example-network will be the VPC that all cloud instances we'll create will use.
-apiVersion: compute.gcp.crossplane.io/v1alpha2
-kind: Network
-metadata:
-  name: network-7cb46d78-4556-4904-93d2-b34f6d5ccadf
-  namespace: gcp
-  annotations:
-    crossplane.io/external-name: "network-7cb46d78-4556-4904-93d2-b34f6d5ccadf"
-spec:
-  ...
-```
-
-```yaml
-
----
-# example-network will be the VPC that all cloud instances we'll create will use.
-apiVersion: compute.gcp.crossplane.io/v1alpha2
-kind: Network
-metadata:
-  name: <too-long-string>
-  namespace: gcp
-  annotations:
-    crossplane.io/external-name: "network-123-my-random-gen-id"
-spec:
-  ...
-```
 
 ### High Fidelity
 
@@ -159,10 +142,6 @@ variety of customizations without having to think of them in development time.
 would make it easier to work with Crossplane for users who are familiar with the given provider in many ways 
 including easier troubleshooting and cooperation with other existing infrastructure tools.
 
-Ideally, what we want is to expose all possible configurations in `Spec` for input users and whatever might be needed
- by the output users of this resource in the `Status`. Generally, it's better to just copy all fields from the
- provider's API as starting point and eliminate them one by one if needed.
-
 What goes into `Spec`:
 * Does the provider allow configuration of this parameter at _any_ point in the life cycle of the resource? Include if yes.
   This includes the fields that are late-initialized, meaning some fields could be populated by the provider when you
@@ -170,26 +149,25 @@ What goes into `Spec`:
   auto-generated resource tags or resource-specific defaults. If the provider tags the resource without us telling them to
   do so, controller should update `Spec` and input user should make changes on that current value of the field.
   Related to https://github.com/crossplaneio/crossplane-runtime/issues/10
+
+Note that the controller should make updates only to `Spec` fields that are empty. We do not override user's desired
+state and if they have no control over it in any case, do not include it in `Spec`.
+
+What goes into `Status`:
+* All fields except the ones that are chosen for `Spec`.
+
+For both `Status` and `Spec`:
 * Is this field represented as standalone managed resource? Do not include if the answer is yes.
   We should not manage an external resource in the CR other than its original external resource. For example, Azure
   VirtualNetwork object allows you to create Subnets by providing an array of Subnet objects as one of its fields. However,
   Subnet is already another managed resource supported by Crossplane. In that case, we should not allow configuration of
   Subnets through VirtualNetwork CR but require people to do it via Subnet CR. Though you might refer to it for
   configuration purposes, having two controllers managing one resource (VirtualNetwork CR and Subnet CR controllers) would
-  not work well. So, do not include it in the fields and be careful during your provider calls not to affect the other
-  resource.
+  not work well. Since the corresponding CR's controller does not manage those fields, we don't include it in the `Status`
+  as well.
   
   What if the sub-resource is not yet supported as managed resource in Crossplane? In that case, you should first
   consider implementing that managed resource, if not suitable, only then include it in the CR.
-
-Note that you should make updates to `Spec` fields that are empty. We do not override user's desired state and if they
-have no control over it in any case, do not include it in `Spec`.
-
-What goes into `Status`:
-* Does the provider give the information of that field on the first level of the query, `GET`? Include if yes.
-  For the subresource that are represented as standalone managed resource by Crossplane, include only identification
-  information instead of full object representation. For example, if received Azure VirtualNetwork object has an array
-  of Subnet objects (which is represented as standalone), represent each one by their name in a string array.
 
 ### Owner-based Struct Tree
 
@@ -305,9 +283,11 @@ Here is the flow to decide how to make the decision for `Spec` fields:
 CRUD operations with all those required fields filled.
 
 The decision flow for `Status` fields are different. The values for those fields are provided by the provider and
-overridden by the latest observation no matter what. So, it's not really important whether the fields are marked optional
-or not but for the sake of consistency we can treat all fields that are populated by the observation from provider
-as optional.
+overridden by the latest observation no matter what and we know that we'll get a full object body. However;
+* In error cases we don't want to show Go zero-values since this would be misleading about the current status. But in
+cases where the value is actually Go zero-value, we should not omit it. So, using `omitempty` makes sense.
+* `// +optional` doesn't really make sense since we always get a full object body.
+* Pointer type should be used only if the corresponding field is pointer type in the provider's SDK type.
 
 Note that some required fields by all CRUD calls might be late-initalized. For example, a config parameter can only be
 fetched from the provider and CRUD operations except `Create` requires it. In those cases, mark the field as optional
@@ -398,5 +378,18 @@ type SubnetworkParameters struct {
 	SecondaryIPRanges []*GCPSubnetworkSecondaryRange `json:"secondaryIpRanges,omitempty"`
 }
 ```
+
+## Future Considerations
+
+### Spec and Observation Drifts
+
+In cases where user changes the `Spec` and for some reason we could not update the external resource. Most of the time,
+the reconciliation will result in an error but that's not guaranteed. For example, `Update` call might be picking
+only the values that are update-able and if you changed an immutable one, there will be no error to let you know that
+we are out of sync. So, in `Observe` call of the controller there should be a comparison of `Spec` fields and the received
+object's body. In case it's not in sync, we should indicate that through a `Condition`.
+
+Generic managed reconciler's `ExternalObservation` struct could be extended by adding a field about that sync status
+and reconciler can mark the sync status in one of the `Condition`s we already have or add a new one.
 
 [glossary]: https://github.com/crossplaneio/crossplane/blob/master/docs/concepts.md#glossary
