@@ -42,7 +42,10 @@ spec:
             credentialsSecretRef:
               description: Kubernetes credentials Secret reference A Secret containing
                 connection credentials for a Kubernetes cluster client that will be
-                used to authenticate to this Kubernetes Provider.
+                used to authenticate to this Kubernetes Provider. This will typically
+                be the connection secret of a KubernetesCluster claim, or the secret
+                created by a Kubernetes service account, but could also be manually
+                configured to connect to a preexisting cluster.
               properties:
                 name:
                   description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
