@@ -148,6 +148,11 @@ Crossplane requires that these newly generated API type scaffolds be extended
 with a set of struct fields, getters, and setters that are standard to all
 Crossplane resource kinds. The fields and setters differ depending on whether
 the new resource kind is a managed resource, resource claim, or resource class.
+The getters and setter methods required to satisfy the various
+crossplane-runtime interfaces are omitted from the below examples for brevity.
+They can be added by hand, but new services are encouraged to use [`angryjet`]
+to generate them automatically using `go generate` per the `angryjet`
+documentation.
 
 Note that in many cases a suitable provider, resource claim, and portable
 resource class will already exist. Frequently adding support for a new managed
@@ -247,17 +252,6 @@ type FavouriteDBInstance struct {
     Spec   FavouriteDBInstanceSpec   `json:"spec,omitempty"`
     Status FavouriteDBInstanceStatus `json:"status,omitempty"`
 }
-
-
-// SetBindingPhase of this FavouriteDBInstance.
-func (i *FavouriteDBInstance) SetBindingPhase(p runtimev1alpha1.BindingPhase) {
-    i.Status.SetBindingPhase(p)
-}
-
-// This example omits several getters and setters that are required to satisfy
-// the resource.Managed interface in the interest of brevity. These methods all
-// set or get a field of one of the embedded structs, similar to SetBindingPhase
-// above.
 ```
 
 Note that Crossplane uses the GoDoc strings of API kinds to generate user facing
@@ -303,10 +297,6 @@ type FavouriteDBInstanceClass struct {
     // FavouriteDBInstance.
     SpecTemplate FavouriteDBInstanceSpecTemplate `json:"specTemplate,omitempty"`
 }
-
-// This example omits getters and setters that are required to satisfy the
-// resource.NonPortableClass interface in the interest of brevity. These methods
-// all set or get a field of one of the embedded structs.
 ```
 
 ### Resource Claim Kinds
@@ -368,11 +358,6 @@ type FancySQLInstance struct {
 func (i *FancySQLInstance) SetBindingPhase(p runtimev1alpha1.BindingPhase) {
     i.Status.SetBindingPhase(p)
 }
-
-// This example omits several getters and setters that are required to satisfy
-// the resource.Claim interface in the interest of brevity. These methods all
-// set or get a field of one of the embedded structs, similar to SetBindingPhase
-// above.
 ```
 
 ### Portable Resource Class Kinds
@@ -410,27 +395,6 @@ type FancySQLInstanceClassList struct {
     metav1.ListMeta `json:"metadata,omitempty"`
 
     Items           []FancySQLInstanceClass `json:"items"`
-}
-
-// SetPortableClassItems of this FancySQLInstanceClassList.
-func (rc *FancySQLInstanceClassList) SetPortableClassItems(r []resource.PortableClass) {
-    items := make([]FancySQLInstanceClass, 0, len(r))
-    for i := range r {
-        if item, ok := r[i].(*FancySQLInstanceClass); ok {
-            items = append(items, *item)
-        }
-    }
-    rc.Items = items
-}
-
-// GetPortableClassItems of this FancySQLInstanceClassList.
-func (rc *FancySQLInstanceClassList) GetPortableClassItems() []resource.PortableClass {
-    items := make([]resource.PortableClass, len(rc.Items))
-    for i, item := range rc.Items {
-        item := item
-        items[i] = resource.PortableClass(&item)
-    }
-    return items
 }
 ```
 
@@ -1046,3 +1010,4 @@ value any feedback you may have about the services development process!
 [reach out]: https://github.com/crossplaneio/crossplane#contact
 [#sig-services]: https://crossplane.slack.com/messages/sig-services
 [crossplaneio org]: https://github.com/crossplaneio
+[`angryjet`]: https://github.com/crossplaneio/crossplane-tools
