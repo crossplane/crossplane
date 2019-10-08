@@ -452,9 +452,9 @@ metadata:
     stacks.crossplane.io/resource-overview-short: "Short overview of the Resource"
     stacks.crossplane.io/resource-readme: "Readme of the Resource"
     stacks.crossplane.io/icon-data-uri: data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciLz4K
-    stacks.crossplane.io/ui-spec: |
-      uiSpecVersion: 0.3
-      uiSpec:
+    stacks.crossplane.io/ui-schema: |
+      version: 0.3
+      configSections:
       - title: Configuration
         description: Enter information specific to the configuration you wish to create.
         items:

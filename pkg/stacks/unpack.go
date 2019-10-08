@@ -51,13 +51,13 @@ const (
 	// Multiple icon types and therefore file extensions are supported: svg, png, jpg, gif
 	iconFileNamePattern = "*icon.*"
 
-	crdFileNamePattern    = "*crd.yaml"
-	uiSpecFileNamePattern = "*ui-schema.yaml"
-	yamlSeparator         = "\n---\n"
+	crdFileNamePattern      = "*crd.yaml"
+	uiSchemaFileNamePattern = "*ui-schema.yaml"
+	yamlSeparator           = "\n---\n"
 
 	// Stack annotation constants
 	annotationStackIcon             = "stacks.crossplane.io/icon-data-uri"
-	annotationStackUISpec           = "stacks.crossplane.io/ui-spec"
+	annotationStackUISchema         = "stacks.crossplane.io/ui-schema"
 	annotationStackTitle            = "stacks.crossplane.io/stack-title"
 	annotationGroupTitle            = "stacks.crossplane.io/group-title"
 	annotationGroupCategory         = "stacks.crossplane.io/group-category"
@@ -80,8 +80,8 @@ var (
 	// specific to a single resource
 	iconFileGlobalNames = []string{"icon.svg", "icon.png", "icon.jpg", "icon.jpeg", "icon.gif"}
 
-	// uiSpecFileGlobalNames is the set of supported ui schema file names at the global level.
-	uiSpecFileGlobalNames = []string{"ui-schema.yaml"}
+	// uiSchemaFileGlobalNames is the set of supported ui schema file names at the global level.
+	uiSchemaFileGlobalNames = []string{"ui-schema.yaml"}
 )
 
 // StackResource provides the Stack metadata for a CRD. This is the format for resource.yaml files.
@@ -139,12 +139,12 @@ type StackPackage struct {
 	// Stack resources will be paired based on their path and the CRD path.
 	CRDPaths map[string]string
 
-	// Groups, Icons, Resources, and UISpecs are indexed by the filepath where they were found
+	// Groups, Icons, Resources, and UISchemas are indexed by the filepath where they were found
 
 	Groups    map[string]StackGroup
 	Icons     map[string]*v1alpha1.IconSpec
 	Resources map[string]StackResource
-	UISpecs   map[string]string
+	UISchemas map[string]string
 
 	// appSet indicates if a App has been assigned through SetApp (for use by GotApp)
 	appSet bool
@@ -248,7 +248,7 @@ func (sp *StackPackage) AddResource(filepath string, sr StackResource) {
 
 // AddUI adds a resource to the StackPackage
 func (sp *StackPackage) AddUI(filepath string, ui string) {
-	sp.UISpecs[filepath] = ui
+	sp.UISchemas[filepath] = ui
 }
 
 // AddIcon adds an icon to the StackPackage
@@ -307,7 +307,7 @@ func (sp *StackPackage) applyAnnotations() {
 		sp.applyGroupAnnotations(crdPath, &crd)
 		sp.applyIconAnnotations(crdPath, &crd)
 		sp.applyResourceAnnotations(crdPath, &crd)
-		sp.applyUISpecAnnotations(crdPath, &crd)
+		sp.applyUISchemaAnnotations(crdPath, &crd)
 
 	}
 }
@@ -396,7 +396,7 @@ func NewStackPackage(baseDir string) *StackPackage {
 		Groups:    map[string]StackGroup{},
 		Icons:     map[string]*v1alpha1.IconSpec{},
 		Resources: map[string]StackResource{},
-		UISpecs:   map[string]string{},
+		UISchemas: map[string]string{},
 		baseDir:   baseDir,
 	}
 
@@ -423,7 +423,7 @@ func Unpack(rw walker.ResourceWalker, out io.StringWriter, baseDir string, permi
 	rw.AddStep(crdFileNamePattern, crdStep(sp))
 	rw.AddStep(installFileName, installStep(sp))
 	rw.AddStep(iconFileNamePattern, iconStep(sp))
-	rw.AddStep(uiSpecFileNamePattern, uiStep(sp))
+	rw.AddStep(uiSchemaFileNamePattern, uiStep(sp))
 
 	if err := rw.Walk(); err != nil {
 		return errors.Wrap(err, "failed to walk Stack filesystem")
@@ -577,24 +577,24 @@ func (sp *StackPackage) applyIconAnnotations(crdPath string, crd *apiextensions.
 	}
 }
 
-// applyUISpecAnnotations annotates ui-schema.yaml contents to the appropriate StackPackage CRDs
+// applyUISchemaAnnotations annotates ui-schema.yaml contents to the appropriate StackPackage CRDs
 // Existing ui-schema annotation values are preserved. All existing and matching ui-schema.yaml files
 // will be concatenated as a multiple document YAML.
 // A ui-schema.yaml among many CRDs applies to all neighboring and descendent CRDs,
 // a _kind_.ui-schema.yaml applies to crds with a matching kind
-func (sp *StackPackage) applyUISpecAnnotations(crdPath string, crd *apiextensions.CustomResourceDefinition) {
-	uiPathsOrdered := orderStringKeys(sp.UISpecs)
-	for _, uiSpecPath := range uiPathsOrdered {
-		if isMetadataApplicableToCRD(crdPath, uiSpecPath, uiSpecFileGlobalNames, crd.Spec.Names.Kind) {
+func (sp *StackPackage) applyUISchemaAnnotations(crdPath string, crd *apiextensions.CustomResourceDefinition) {
+	uiPathsOrdered := orderStringKeys(sp.UISchemas)
+	for _, uiSchemaPath := range uiPathsOrdered {
+		if isMetadataApplicableToCRD(crdPath, uiSchemaPath, uiSchemaFileGlobalNames, crd.Spec.Names.Kind) {
 			// the current UI schema file is applicable to the given CRD, apply its spec content to the CRD now
-			spec := strings.Trim(sp.UISpecs[uiSpecPath], "\n")
+			schema := strings.Trim(sp.UISchemas[uiSchemaPath], "\n")
 
 			// TODO(displague) are there concerns about the concatenation order of ui-schema.yaml and kind.ui-schema.yaml?
-			if len(crd.ObjectMeta.Annotations[annotationStackUISpec]) > 0 {
-				appendedUI := fmt.Sprintf("%s\n---\n%s", crd.ObjectMeta.Annotations[annotationStackUISpec], spec)
-				crd.ObjectMeta.Annotations[annotationStackUISpec] = appendedUI
+			if len(crd.ObjectMeta.Annotations[annotationStackUISchema]) > 0 {
+				appendedUI := fmt.Sprintf("%s\n---\n%s", crd.ObjectMeta.Annotations[annotationStackUISchema], schema)
+				crd.ObjectMeta.Annotations[annotationStackUISchema] = appendedUI
 			} else {
-				crd.ObjectMeta.Annotations[annotationStackUISpec] = spec
+				crd.ObjectMeta.Annotations[annotationStackUISchema] = schema
 			}
 		}
 	}
