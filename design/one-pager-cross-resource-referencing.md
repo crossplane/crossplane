@@ -1,0 +1,342 @@
+
+# Cross Resource Referencing
+
+* Owner: Javad Taheri (@soorena776)
+* Reviewers: Crossplane Maintainers
+* Status: Draft
+
+## Background
+
+Crossplane provisions and monitors external resources in third party cloud
+providers, following the declared `spec` in the corresponding managed resource
+objects. With the rise of [*gitops*][gitops doc] style provisioning, in a lot of
+scenarios where multiple interconnected resources need to be provisioned,
+resource `r2` might consume some attribute of resource `r1`. This article
+discusses such cross resource references and proposes solutions to address the
+challenges in Crossplane.
+
+## Definitions
+
+* **Managed Resource Solution**
+
+  In a lot of scenarios a single resource is not operational or very useful on
+  its own. In order to achieve a desired functionality, usually a group of
+  resources need to be provisioned and configured to communicate with each
+  other. For example in order to have an `EKS` cluster set up in AWS, in
+  addition to an `EKS` instance we also need to provision and configure the
+  required network resources like `VPC` and `Subnet`, and an `RDS` security
+  group for database access. In this article we call such set of resources which
+  together form a desired functionality or configuration, a *Managed Resource
+  Solution*, or just a *Solution* for brevity.
+
+* **Blocking and Non-Blocking Dependencies**
+
+  Imagine two resources `r1` and `r2` in a solution. We define `r2` has a
+  *blocking* dependency on `r1`, if provisioning `r2` requires any attributes of
+  `r1`. For instance, a `Subnet` has a blocking dependency on a `VPC`, since
+  `VPC.Id` is required for provisioning the `Subnet`.
+
+  In addition we define `r2` has a *non-blocking* dependency on `r1`, if `r2`
+  doesn't require any attributes of `r1` to be provisioned but the functionality
+  desired by the solution requires existence of both `r2` and `r1`. For example,
+  an `EKS` cluster needs to have the right `IAMRolePolicyAttachment` resource in
+  order to have to required permissions when accessing resources, even though it
+  does not need any attributes of `IAMRolePolicyAttachment` to be provisioned.
+
+* **Non-deterministic Resource Attribute**
+
+  We define the attribute `foo` of resource `r` *non-deterministic*, if `foo`'s
+  value only becomes known after `r` is provisioned. For example `vpcID` is a
+  non-deterministic attribute of a `VPC` resource.
+
+* **Composite Resource Attribute**
+
+  We define the attribute `foo` of resource `r` *composite*, if `foo`'s value is
+  deterministic and composed of the attributes of other resources. As an
+  example, `network` attribute of `Subnetwork` type in GCP, is formed as
+
+  `/projects/[gcp-project]/global/networks/[network-name]`
+
+  where `[gcp-project]` and `[network-name]` are attributes of other resources.
+
+## Objectives
+
+### Goals
+
+* Support `gitops` style declarative resource provisioning. Apply a directory of
+  YAML resources, which will eventually become a series of online and
+  functioning managed resources. This requires:
+  * Support to reference attributes of other resources in a resource YAML object
+  * Support for cross resource blocking dependency
+
+* Support using existing external resources to be referenced by the YAML objects
+
+### Non Goals
+
+* Support non-blocking dependencies between resources
+
+## Proposal
+
+Let's consider the following sample solution where a `VPC`, and a `Subnet` needs
+to be provisioned. The YAML object will look like following:
+
+```yaml
+---
+apiVersion: network.aws.crossplane.io/v1alpha2
+kind: VPC
+metadata:
+  namespace: cool-ns
+  name: my-vpc
+spec:
+  ...
+---
+apiVersion: network.aws.crossplane.io/v1alpha2
+kind: Subnet
+metadata:
+  namespace: cool-ns
+  name: my-subnet
+spec:
+  # this is the vpcId of the external vpc, represented by my-vpc
+  vpcId: [my-vpc_vpcId]
+  ...
+```
+
+### Cross referencing using Reference Resolvers
+
+In this example since `vpcId` is non-deterministic we will need a mechanism to
+indicate this cross reference in the YAML object. I propose the notion of
+*Reference Resolver*, as a `go` interface as following:
+
+```go
+type ReferenceResolver interface {
+  // resolves the attribute, or returns an error
+  Resolve() (string,error)
+}
+```
+
+Having this interface, we can implement `VpcIDRefResolver` as
+
+```go
+type VpcIDRefResolver struct {
+  // the list of objects that are needed for resolving vpcID
+  // in this case we only need VPC name, but we could reference more objects
+  VPCName string `json:"vpcName"`
+}
+
+func (r *VpcIDRefResolver) Resolve()(string,error){
+  // implementation for building the attribute (in this case vpcID)
+  // from the referenced objects( in this case a VPC)
+}
+```
+
+Then we can modify [Subnet type] as:
+
+```diff
+- // VPCID is the ID of the VPC.
+- VPCID string `json:"vpcId"`
++ // VPCIDRef resolves the VPCID from the refenreced VPC
++ VPCIDRef VpcIDRefResolver `json:"vpcIdRef"`
+```
+
+Now we can update the `Subnet` YAML object in the sample solution as following:
+
+```yaml
+---
+apiVersion: network.aws.crossplane.io/v1alpha2
+kind: Subnet
+metadata:
+  namespace: cool-ns
+  name: my-subnet
+spec:
+  # reference to API objects from which the vpcId will be resolved
+  vpcIdRef:
+    vpcName: my-vpc
+  ...
+---
+```
+
+Note here that we added a `Ref` suffix to the `vpcIdRef`, emphasizing that it is
+different than `vpcId`.
+
+This mechanism resolves the referenced non-deterministic attributes, as it waits
+for the specified object to become available. Until then, the `Resolve` method
+will return an error, postponing dependent resource reconciliation.
+
+For composite attributes, the corresponding reference resolver could specify all
+the required objects, and the function that produces the attribute. For instance
+consider the following solution in GCP:
+
+```yaml
+---
+apiVersion: compute.gcp.crossplane.io/v1alpha2
+kind: Network
+metadata:
+  name: my-network
+  namespace: cool-ns
+spec:
+  ...
+---
+apiVersion: compute.gcp.crossplane.io/v1alpha2
+kind: Subnetwork
+metadata:
+  name: my-subnetwork
+  namespace: cool-ns
+spec:
+  ...
+  network: /projects/myproject/global/networks/example
+  ...
+```
+
+To add `networkRef` field to the `Subnetwork`, we can implement
+`NetworkRefResolver` as:
+
+```go
+type NetworkRefResolver struct {
+  NetworkName string `json:"networkName"`
+  ProjectName string `json:"projectName"`
+}
+
+func (r *NetworkRefResolver) Resolve()(string,error){
+  
+  // GetObject is a method that returns an API object given its name  
+  n,err := GetObject(r.NetworkName)
+  if err!= nil{
+    return error
+  }
+
+  p,err := GetObject(r.ProjectName)
+  if err!= nil{
+    return error
+  }
+
+  return fmt.Sprintf("/projects/%v/global/networks/%v", n.Name, p.Name), nil
+}
+```
+
+And then update [Subnetwork type] as:
+
+```diff
+- Network string `json:"network"`
++ NetworkRef NetworkRefResolver `json:"networkRef"`
+```
+
+Finally, the YAML object for this solution can be re-written as:
+
+```yaml
+apiVersion: compute.gcp.crossplane.io/v1alpha2
+kind: Subnetwork
+metadata:
+  name: my-subnetwork
+  namespace: cool-ns
+spec:
+  ...
+  networkRef:
+    networkName: my-network
+    projectName: myproject
+  ...
+```
+
+There are a number of simplifying assumptions in this implementation. Using the
+notation we used for resources earlier:
+
+* The API group and version of `r2` and `r1` are the same
+* The namespace of `r2` and `r1` are the same
+
+#### Implementation in Crossplane
+
+To implement the above mentioned cross referencing in Crossplane, we modify the
+[Managed Reconciler] in crossplane-runtime to add `ResolveDep` stage to the
+existing stages, to have `{Observe, ResolveDep, Create, Update, Delete}` set.
+`ResolveDep` will check to see if any of the fields in the give API type are of
+interface type `ReferenceResolver`, and if so, attempts to resolve them. If
+resolution for any reason is not completed, reconciliation gets rescheduled.
+Once a reference field is resolved, its value will be stored in the equivalent
+non `Ref` field, and reconciler proceeds to the next (e.g. `Create`) stage.
+
+### Maintain High Fidelity
+
+When provisioning resources, it is desirable to support existing external
+resources which are not managed by Crossplane. For instance assume that in the
+`VPC` and `Subnet` sample solution, the `VPC` resource already exists and we
+only want to provision the `Subnet`. Since we changed the `VPCID` to `VPCIDRef`
+in the `Subnet` type, it won't be possible to use the external VPCID.
+
+To support this case, we need to keep the `VPCID` field in `Subnet`, so we
+update the modification as:
+
+```diff
+  // VPCID is the ID of the VPC.
+- VPCID string `json:"vpcId"`
++ VPCID string `json:"vpcId,omitempty"`
++ // VPCIDRef resolves the VPCID from the refenreced VPC
++ VPCIDRef VpcIDRefResolver `json:"vpcIdRef,omitempty"`
+```
+
+Note that we added `omitempty` rule to both fields, making them optional.
+
+This scheme has the following restrictions:
+
+* If none of `vpcId` or `vpcIDRef` are provided, result in an error
+* If both `vpcId` and `vpcIDRef` are provided, result in an error
+
+### Project Blocking Dependency in Resource Status
+
+Resolving a referenced attribute results in one of the following outcomes,
+ordered with higher priority:
+
+1. The referenced object is of a *different group/version*. In this case the
+   status of the resource should show an error, with a message for more details.
+
+2. The referenced object *doesn't exist*, or is not yet *Ready*. In this case
+   the status of the resource should be updated to `Queued`. Also, the resolving
+   should be re-scheduled with a *long wait*.
+
+3. The referenced object is *Ready*. In this case the value for the referenced
+   attribute is returned.
+
+If two or more referenced objects have different outcomes, the status of the
+resource should be updated to the outcome with the higher priority.
+
+### Cleaning Up a Solution
+
+After a solution is created in Crossplane by running:
+> `kubectl apply -f <directory of YAML>`
+
+it's also desirable to be able to delete it by running:
+
+> `kubectl delete -f <directory of YAML>`
+
+When deleting the managed resources of a solution in Crossplane, it is possible
+that some of the corresponding external resources cannot be deleted, as other
+resources depend on them and the cloud provider doesn't allow such deletion. For
+example in the sample solution described above, AWS blocks deletion of the
+external resource of `VPC` as long as there is an external `Subnet` which
+consumes that `VPC`.
+
+This problem will be solved automatically as all managed resources eventually
+reconcile after retrying. In the sample solution example, the `Subnet` external
+resource gets eventually deleted and hence the next attempt to delete the `VPC`
+will succeed as there will be no more depending resources. This could later be
+improved by leveraging [Foreground cascading deletion] mechanism, where
+dependent objects are deleted first.
+
+
+### Related Issues
+
+* [Inter-resource attribute
+  references](https://github.com/crossplaneio/crossplane/issues/707)
+* [Honoring inter-resource dependency when creating/deleting
+  resources](https://github.com/crossplaneio/crossplane/issues/708)
+* [Resource
+  Connectivity](https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-resource-connectivity-mvp.md)
+
+[gitops doc]: (https://www.weave.works/blog/what-is-gitops-really) 
+[Subnet type]:
+(https://github.com/crossplaneio/stack-aws/blob/master/apis/network/v1alpha2/subnet_types.go#L25-L37)
+[Subnetwork type]:
+(https://github.com/crossplaneio/stack-gcp/blob/master/apis/compute/v1alpha2/subnetwork_types.go#L144)
+
+[Managed Reconciler]:
+https://github.com/crossplaneio/crossplane-runtime/blob/master/pkg/resource/managed_reconciler.go
+[Foreground cascading deletion]:
+(https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/#foreground-cascading-deletion)
