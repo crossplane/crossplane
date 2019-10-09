@@ -245,14 +245,14 @@ metadata:
     stacks.crossplane.io/group-title: Group Title
     stacks.crossplane.io/icon-data-uri: data:image/svg+xml;base64,bW9jay1pY29uLWRhdGEtc3Zn
     stacks.crossplane.io/stack-title: Sample Crossplane Stack
-    stacks.crossplane.io/ui-spec: |-
-      uiSpecVersion: 0.3
-      uiSpec:
+    stacks.crossplane.io/ui-schema: |-
+      version: 0.3
+      configSections:
       - title: group Title
         description: group Description
       ---
-      uiSpecVersion: 0.3
-      uiSpec:
+      version: 0.3
+      configSections:
       - title: sibling Title
         description: sibling Description
   creationTimestamp: null
@@ -323,19 +323,19 @@ metadata:
     stacks.crossplane.io/resource-title: Resource Title
     stacks.crossplane.io/resource-title-plural: Resources Title
     stacks.crossplane.io/stack-title: Sample Crossplane Stack
-    stacks.crossplane.io/ui-spec: |-
-      uiSpecVersion: 0.3
-      uiSpec:
+    stacks.crossplane.io/ui-schema: |-
+      version: 0.3
+      configSections:
       - title: group Title
         description: group Description
       ---
-      uiSpecVersion: 0.3
-      uiSpec:
+      version: 0.3
+      configSections:
       - title: sibling Title
         description: sibling Description
       ---
-      uiSpecVersion: 0.3
-      uiSpec:
+      version: 0.3
+      configSections:
       - title: kind Title
         description: kind Description
   creationTimestamp: null
@@ -369,9 +369,9 @@ metadata:
     stacks.crossplane.io/group-title: Group Title
     stacks.crossplane.io/icon-data-uri: data:image/jpeg;base64,bW9jay1pY29uLWRhdGE=
     stacks.crossplane.io/stack-title: Sample Crossplane Stack
-    stacks.crossplane.io/ui-spec: |-
-      uiSpecVersion: 0.3
-      uiSpec:
+    stacks.crossplane.io/ui-schema: |-
+      version: 0.3
+      configSections:
       - title: group Title
         description: group Description
   creationTimestamp: null
@@ -530,14 +530,14 @@ metadata:
     stacks.crossplane.io/group-title: Group Title
     stacks.crossplane.io/icon-data-uri: data:image/svg+xml;base64,bW9jay1pY29uLWRhdGEtc3Zn
     stacks.crossplane.io/stack-title: Sample Crossplane Stack
-    stacks.crossplane.io/ui-spec: |-
-      uiSpecVersion: 0.3
-      uiSpec:
+    stacks.crossplane.io/ui-schema: |-
+      version: 0.3
+      configSections:
       - title: group Title
         description: group Description
       ---
-      uiSpecVersion: 0.3
-      uiSpec:
+      version: 0.3
+      configSections:
       - title: sibling Title
         description: sibling Description
   creationTimestamp: null
@@ -608,19 +608,19 @@ metadata:
     stacks.crossplane.io/resource-title: Resource Title
     stacks.crossplane.io/resource-title-plural: Resources Title
     stacks.crossplane.io/stack-title: Sample Crossplane Stack
-    stacks.crossplane.io/ui-spec: |-
-      uiSpecVersion: 0.3
-      uiSpec:
+    stacks.crossplane.io/ui-schema: |-
+      version: 0.3
+      configSections:
       - title: group Title
         description: group Description
       ---
-      uiSpecVersion: 0.3
-      uiSpec:
+      version: 0.3
+      configSections:
       - title: sibling Title
         description: sibling Description
       ---
-      uiSpecVersion: 0.3
-      uiSpec:
+      version: 0.3
+      configSections:
       - title: kind Title
         description: kind Description
   creationTimestamp: null
@@ -654,9 +654,9 @@ metadata:
     stacks.crossplane.io/group-title: Group Title
     stacks.crossplane.io/icon-data-uri: data:image/jpeg;base64,bW9jay1pY29uLWRhdGE=
     stacks.crossplane.io/stack-title: Sample Crossplane Stack
-    stacks.crossplane.io/ui-spec: |-
-      uiSpecVersion: 0.3
-      uiSpec:
+    stacks.crossplane.io/ui-schema: |-
+      version: 0.3
+      configSections:
       - title: group Title
         description: group Description
   creationTimestamp: null
@@ -1025,8 +1025,8 @@ spec:
 }
 
 func simpleUIFile(name string) string {
-	return fmt.Sprintf(`uiSpecVersion: 0.3
-uiSpec:
+	return fmt.Sprintf(`version: 0.3
+configSections:
 - title: %s Title
   description: %s Description
 `, name, name)
@@ -1276,7 +1276,7 @@ func TestIsMetadataApplicableToCRD(t *testing.T) {
 			args: args{
 				crdPath:         "/a/b/c/crd.yaml",
 				metadataPath:    "/a/b/ui-schema.yaml",
-				globalFileNames: uiSpecFileGlobalNames,
+				globalFileNames: uiSchemaFileGlobalNames,
 				crdKind:         "mytype",
 			},
 			want: true,
@@ -1286,7 +1286,7 @@ func TestIsMetadataApplicableToCRD(t *testing.T) {
 			args: args{
 				crdPath:         "/a/b/c/mytype.crd.yaml",
 				metadataPath:    "/a/b/ui-schema.yaml",
-				globalFileNames: uiSpecFileGlobalNames,
+				globalFileNames: uiSchemaFileGlobalNames,
 				crdKind:         "mytype",
 			},
 			want: true,

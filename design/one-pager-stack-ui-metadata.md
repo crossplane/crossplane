@@ -83,8 +83,8 @@ A root `ui-schema.yaml` file may be used to set global UI metadata.  This may be
 This file contains multiple sections and a variety of different input types with validation overrides, extended validation and custom error messages.
 
 ```yaml
-uiSpecVersion: 0.3
-uiSpec:
+version: 0.3
+configSections:
 - title: Configuration
   description: Enter information specific to the configuration you wish to create.
   items:
@@ -137,10 +137,10 @@ kind: CustomResourceDefinition
 metadata:
   name: rdsinstances.database.aws.crossplane.io
   annotations:
-    stacks.crossplane.io/ui-spec: |-
+    stacks.crossplane.io/ui-schema: |-
       ---
-      uiSpecVersion: 0.3
-      uiSpec:
+      version: 0.3
+      configSections:
       - title: Configuration
         description: Enter information specific to the configuration you wish to create.
         items:
@@ -183,8 +183,8 @@ metadata:
           - required: true
             customError: You must select an instance size for your configuration!
       ---
-      uiSpecVersion: 0.3
-      uiSpec:
+      version: 0.3
+      configSections:
       - title: Supplementary
         description: A supplementary UI annotation
   labels:
