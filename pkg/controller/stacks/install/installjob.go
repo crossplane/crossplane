@@ -58,7 +58,7 @@ type stackInstallJobCompleter struct {
 }
 
 func createInstallJob(i v1alpha1.StackInstaller, executorInfo *stacks.ExecutorInfo) *batchv1.Job {
-	ref := meta.AsOwner(meta.ReferenceTo(i, v1alpha1.StackGroupVersionKind))
+	ref := meta.AsOwner(meta.ReferenceTo(i, i.GroupVersionKind()))
 	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            i.GetName(),
