@@ -23,7 +23,7 @@ one or more controllers. A controller is an endless loop that:
 1. Tries to make the actual state match the desired state.
 
 A typical Crossplane managed service consists of five configuration resources
-and three controllers. The GCP Stack's support for Google Cloud Memorystore
+and four controllers. The GCP Stack's support for Google Cloud Memorystore
 illustrates this. First, the configuration resources:
 
 1. A [managed resource]. Managed resources are high-fidelity representations of
@@ -71,6 +71,13 @@ These resources are powered by:
    `CloudMemorystoreInstance`. It either binds to an explicitly referenced
    `CloudMemorystoreInstance` (static provisioning) or creates a new one and
    then binds to it (dynamic provisioning).
+1. The secret propagation controller. Like the resource claim controller, a
+   secret propagation controller exists for each kind of managed resource that
+   could satisfy a resource claim. Its job is simply to ensure that changes to
+   the connection secret of a managed resource are always propagated to the
+   connection secret of the resource claim it is bound to. The secret
+   propagation controller is optional - managed resources that only write to
+   their connection secret at creation time may omit this controller.
 1. A default resource class controller. The `RedisCluster` default resource
    class controller watches for `RedisCluster` instances that don't explicitly
    reference a managed resource _or_ a portable resource class, and sets a
@@ -850,6 +857,48 @@ func ConfigureFavouriteDBInstance(_ context.Context, cm resource.Claim, cs resou
     }
 
     return nil
+}
+```
+
+### Connection Secret Propagation Controller
+
+Managed resource kinds that may update their connection secrets after creation
+time must instantiate a connection secret propagation controller. This
+controller ensures any updates to the managed resource's connection secret are
+propagated to the connection secret of its bound resource claim.
+
+The following controller propagates any changes made to a `FavouriteDBInstance`
+connection secret to the connection secret of its bound `FancySQLInstance`:
+
+```go
+import (
+    "fmt"
+    "strings"
+
+    corev1 "k8s.io/api/core/v1"
+    ctrl "sigs.k8s.io/controller-runtime"
+    "sigs.k8s.io/controller-runtime/pkg/source"
+
+    "github.com/crossplaneio/crossplane-runtime/pkg/resource"
+    databasev1alpha1 "github.com/crossplaneio/crossplane/apis/database/v1alpha1"
+
+    "github.com/crossplaneio/stack-fcp/apis/database/v1alpha2"
+)
+
+type FavouriteDBInstanceSecretController struct{}
+
+func (c *FavouriteDBInstanceSecretController) SetupWithManager(mgr ctrl.Manager) error {
+    p := resource.NewPredicates(resource.AnyOf(
+        resource.AllOf(resource.IsControlledByKind(databasev1alpha1.FancySQLInstanceGroupVersionKind), resource.IsPropagated()),
+        resource.AllOf(resource.IsControlledByKind(v1alpha2.FavouriteDBInstanceGroupVersionKind), resource.IsPropagator()),
+    ))
+
+    return ctrl.NewControllerManagedBy(mgr).
+        Named(strings.ToLower(fmt.Sprintf("connectionsecret.%s.%s", v1alpha2.FavouriteDBInstanceKind, v1alpha2.Group))).
+        Watches(&source.Kind{Type: &corev1.Secret{}}, &resource.EnqueueRequestForPropagator{}).
+        For(&corev1.Secret{}).
+        WithEventFilter(p).
+        Complete(resource.NewSecretPropagatingReconciler(mgr))
 }
 ```
 
