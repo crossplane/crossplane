@@ -126,23 +126,16 @@ func main() {
 	mgr, err := manager.New(cfg, manager.Options{SyncPeriod: syncPeriod})
 	kingpin.FatalIfError(err, "Cannot create manager")
 
-	log.Info("Adding schemes")
-
 	// add all resources to the manager's runtime scheme
-	if err := addToScheme(mgr.GetScheme()); err != nil {
-		kingpin.FatalIfError(err, "Cannot add APIs to scheme")
-	}
-
-	log.Info("Adding controllers")
+	log.Info("Adding schemes")
+	kingpin.FatalIfError(addToScheme(mgr.GetScheme()), "Cannot add APIs to scheme")
 
 	// Setup all Controllers
-	if err := setupWithManagerFunc(mgr); err != nil {
-		kingpin.FatalIfError(err, "Cannot add controllers to manager")
-	}
-
-	log.Info("Starting the manager")
+	log.Info("Adding controllers")
+	kingpin.FatalIfError(setupWithManagerFunc(mgr), "Cannot add controllers to manager")
 
 	// Start the Cmd
+	log.Info("Starting the manager")
 	kingpin.FatalIfError(mgr.Start(signals.SetupSignalHandler()), "Cannot start controller")
 }
 
@@ -152,23 +145,17 @@ func closeOrError(c io.Closer) {
 }
 
 func controllerSetupWithManager(mgr manager.Manager) error {
-	if err := (&defaultclass.Controllers{}).SetupWithManager(mgr); err != nil {
+	c := &defaultclass.Controllers{}
+	if err := c.SetupWithManager(mgr); err != nil {
 		return err
 	}
-
-	if err := (&workload.Controllers{}).SetupWithManager(mgr); err != nil {
-		return err
-	}
-
-	return nil
+	c = &workload.Controllers{}
+	return c.SetupWithManager(mgr)
 }
 
 func stacksControllerSetupWithManager(mgr manager.Manager) error {
-	if err := (&stacksController.Controllers{}).SetupWithManager(mgr); err != nil {
-		return err
-	}
-
-	return nil
+	c := stacksController.Controllers{}
+	return c.SetupWithManager(mgr)
 }
 
 // addToScheme adds all resources to the runtime scheme.
