@@ -44,20 +44,6 @@ var (
 	KubernetesClusterGroupVersionKind = SchemeGroupVersion.WithKind(KubernetesClusterKind)
 )
 
-// KubernetesClusterClass type metadata.
-var (
-	KubernetesClusterClassKind             = reflect.TypeOf(KubernetesClusterClass{}).Name()
-	KubernetesClusterClassKindAPIVersion   = KubernetesClusterClassKind + "." + SchemeGroupVersion.String()
-	KubernetesClusterClassGroupVersionKind = SchemeGroupVersion.WithKind(KubernetesClusterClassKind)
-)
-
-// KubernetesClusterClassList type metadata.
-var (
-	KubernetesClusterClassListKind             = reflect.TypeOf(KubernetesClusterClassList{}).Name()
-	KubernetesClusterClassListKindAPIVersion   = KubernetesClusterClassListKind + "." + SchemeGroupVersion.String()
-	KubernetesClusterClassListGroupVersionKind = SchemeGroupVersion.WithKind(KubernetesClusterClassListKind)
-)
-
 // MachineInstance type metadata.
 var (
 	MachineInstanceKind             = reflect.TypeOf(MachineInstance{}).Name()
@@ -67,6 +53,5 @@ var (
 
 func init() {
 	SchemeBuilder.Register(&KubernetesCluster{}, &KubernetesClusterList{})
-	SchemeBuilder.Register(&KubernetesClusterClass{}, &KubernetesClusterClassList{})
 	SchemeBuilder.Register(&MachineInstance{}, &MachineInstanceList{})
 }

@@ -44,20 +44,6 @@ var (
 	MySQLInstanceGroupVersionKind = SchemeGroupVersion.WithKind(MySQLInstanceKind)
 )
 
-// MySQLInstanceClass type metadata.
-var (
-	MySQLInstanceClassKind             = reflect.TypeOf(MySQLInstanceClass{}).Name()
-	MySQLInstanceClassKindAPIVersion   = MySQLInstanceClassKind + "." + SchemeGroupVersion.String()
-	MySQLInstanceClassGroupVersionKind = SchemeGroupVersion.WithKind(MySQLInstanceClassKind)
-)
-
-// MySQLInstanceClassList type metadata.
-var (
-	MySQLInstanceClassListKind             = reflect.TypeOf(MySQLInstanceClassList{}).Name()
-	MySQLInstanceClassListKindAPIVersion   = MySQLInstanceClassListKind + "." + SchemeGroupVersion.String()
-	MySQLInstanceClassListGroupVersionKind = SchemeGroupVersion.WithKind(MySQLInstanceClassListKind)
-)
-
 // PostgreSQLInstance type metadata.
 var (
 	PostgreSQLInstanceKind             = reflect.TypeOf(PostgreSQLInstance{}).Name()
@@ -65,23 +51,7 @@ var (
 	PostgreSQLInstanceGroupVersionKind = SchemeGroupVersion.WithKind(PostgreSQLInstanceKind)
 )
 
-// PostgreSQLInstanceClass type metadata.
-var (
-	PostgreSQLInstanceClassKind             = reflect.TypeOf(PostgreSQLInstanceClass{}).Name()
-	PostgreSQLInstanceClassKindAPIVersion   = PostgreSQLInstanceClassKind + "." + SchemeGroupVersion.String()
-	PostgreSQLInstanceClassGroupVersionKind = SchemeGroupVersion.WithKind(PostgreSQLInstanceClassKind)
-)
-
-// PostgreSQLInstanceClassList type metadata.
-var (
-	PostgreSQLInstanceClassListKind             = reflect.TypeOf(PostgreSQLInstanceClassList{}).Name()
-	PostgreSQLInstanceClassListKindAPIVersion   = PostgreSQLInstanceClassListKind + "." + SchemeGroupVersion.String()
-	PostgreSQLInstanceClassListGroupVersionKind = SchemeGroupVersion.WithKind(PostgreSQLInstanceClassListKind)
-)
-
 func init() {
 	SchemeBuilder.Register(&MySQLInstance{}, &MySQLInstanceList{})
-	SchemeBuilder.Register(&MySQLInstanceClass{}, &MySQLInstanceClassList{})
 	SchemeBuilder.Register(&PostgreSQLInstance{}, &PostgreSQLInstanceList{})
-	SchemeBuilder.Register(&PostgreSQLInstanceClass{}, &PostgreSQLInstanceClassList{})
 }

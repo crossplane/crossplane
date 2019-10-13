@@ -10,11 +10,17 @@ spec:
   - JSONPath: .status.bindingPhase
     name: STATUS
     type: string
-  - JSONPath: .spec.classRef.name
-    name: CLASS
+  - JSONPath: .spec.classRef.kind
+    name: CLASS-KIND
     type: string
-  - JSONPath: .spec.engineVersion
-    name: VERSION
+  - JSONPath: .spec.classRef.name
+    name: CLASS-NAME
+    type: string
+  - JSONPath: .spec.resourceRef.kind
+    name: RESOURCE-KIND
+    type: string
+  - JSONPath: .spec.resourceRef.name
+    name: RESOURCE-NAME
     type: string
   - JSONPath: .metadata.creationTimestamp
     name: AGE
@@ -32,8 +38,7 @@ spec:
     openAPIV3Schema:
       description: A PostgreSQLInstance is a portable resource claim that may be satisfied
         by binding to a PostgreSQL managed resource such as an AWS RDS instance or
-        a GCP CloudSQL instance. PostgreSQLInstance is the CRD type for abstract PostgreSQL
-        database instances
+        a GCP CloudSQL instance.
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation

@@ -36,8 +36,10 @@ type KubernetesClusterSpec struct {
 // binding to a Kubernetes cluster managed resource such as an AWS EKS cluster
 // or an Azure AKS cluster.
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.bindingPhase"
-// +kubebuilder:printcolumn:name="CLUSTER-CLASS",type="string",JSONPath=".spec.classRef.name"
-// +kubebuilder:printcolumn:name="CLUSTER-REF",type="string",JSONPath=".spec.resourceName.name"
+// +kubebuilder:printcolumn:name="CLASS-KIND",type="string",JSONPath=".spec.classRef.kind"
+// +kubebuilder:printcolumn:name="CLASS-NAME",type="string",JSONPath=".spec.classRef.name"
+// +kubebuilder:printcolumn:name="RESOURCE-KIND",type="string",JSONPath=".spec.resourceRef.kind"
+// +kubebuilder:printcolumn:name="RESOURCE-NAME",type="string",JSONPath=".spec.resourceRef.name"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:subresource:status
 type KubernetesCluster struct {
@@ -57,25 +59,6 @@ type KubernetesClusterList struct {
 	Items           []KubernetesCluster `json:"items"`
 }
 
-// +kubebuilder:object:root=true
-
-// KubernetesClusterClass contains a namespace-scoped Class for KubernetesCluster
-type KubernetesClusterClass struct {
-	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty"`
-
-	runtimev1alpha1.PortableClass `json:",inline"`
-}
-
-// +kubebuilder:object:root=true
-
-// KubernetesClusterClassList contains a list of KubernetesClusterClass.
-type KubernetesClusterClassList struct {
-	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []KubernetesClusterClass `json:"items"`
-}
-
 // MachineInstanceSpec specifies the desired state of a MachineInstance.
 type MachineInstanceSpec struct {
 	runtimev1alpha1.ResourceClaimSpec `json:",inline"`
@@ -88,8 +71,10 @@ type MachineInstanceSpec struct {
 // resources such as an AWS EC2 instance or bare metal managed resources such as
 // a Packet Device.
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.bindingPhase"
-// +kubebuilder:printcolumn:name="CLASS",type="string",JSONPath=".spec.classRef.name"
-// +kubebuilder:printcolumn:name="RESOURCE",type="string",JSONPath=".spec.resourceRef.name"
+// +kubebuilder:printcolumn:name="CLASS-KIND",type="string",JSONPath=".spec.classRef.kind"
+// +kubebuilder:printcolumn:name="CLASS-NAME",type="string",JSONPath=".spec.classRef.name"
+// +kubebuilder:printcolumn:name="RESOURCE-KIND",type="string",JSONPath=".spec.resourceRef.kind"
+// +kubebuilder:printcolumn:name="RESOURCE-NAME",type="string",JSONPath=".spec.resourceRef.name"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:subresource:status
 type MachineInstance struct {

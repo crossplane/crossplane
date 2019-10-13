@@ -10,11 +10,17 @@ spec:
   - JSONPath: .status.bindingPhase
     name: STATUS
     type: string
-  - JSONPath: .spec.classRef.name
-    name: CLUSTER-CLASS
+  - JSONPath: .spec.classRef.kind
+    name: CLASS-KIND
     type: string
-  - JSONPath: .spec.resourceName.name
-    name: CLUSTER-REF
+  - JSONPath: .spec.classRef.name
+    name: CLASS-NAME
+    type: string
+  - JSONPath: .spec.resourceRef.kind
+    name: RESOURCE-KIND
+    type: string
+  - JSONPath: .spec.resourceRef.name
+    name: RESOURCE-NAME
     type: string
   - JSONPath: .metadata.creationTimestamp
     name: AGE

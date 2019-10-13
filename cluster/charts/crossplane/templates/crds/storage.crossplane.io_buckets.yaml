@@ -10,14 +10,17 @@ spec:
   - JSONPath: .status.bindingPhase
     name: STATUS
     type: string
+  - JSONPath: .spec.classRef.kind
+    name: CLASS-KIND
+    type: string
   - JSONPath: .spec.classRef.name
-    name: CLASS
+    name: CLASS-NAME
     type: string
-  - JSONPath: .spec.predefinedACL
-    name: PREDEFINED-ACL
+  - JSONPath: .spec.resourceRef.kind
+    name: RESOURCE-KIND
     type: string
-  - JSONPath: .spec.localPermission
-    name: LOCAL-PERMISSION
+  - JSONPath: .spec.resourceRef.name
+    name: RESOURCE-NAME
     type: string
   - JSONPath: .metadata.creationTimestamp
     name: AGE

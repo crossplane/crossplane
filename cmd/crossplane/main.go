@@ -31,7 +31,6 @@ import (
 
 	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
 	"github.com/crossplaneio/crossplane/apis"
-	"github.com/crossplaneio/crossplane/pkg/controller/defaultclass"
 	stacksController "github.com/crossplaneio/crossplane/pkg/controller/stacks"
 	"github.com/crossplaneio/crossplane/pkg/controller/workload"
 	"github.com/crossplaneio/crossplane/pkg/stacks"
@@ -145,11 +144,7 @@ func closeOrError(c io.Closer) {
 }
 
 func controllerSetupWithManager(mgr manager.Manager) error {
-	c := &defaultclass.Controllers{}
-	if err := c.SetupWithManager(mgr); err != nil {
-		return err
-	}
-	c = &workload.Controllers{}
+	c := &workload.Controllers{}
 	return c.SetupWithManager(mgr)
 }
 
