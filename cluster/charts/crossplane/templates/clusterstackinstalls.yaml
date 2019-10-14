@@ -1,0 +1,9 @@
+{{- range $arg := .Values.clusterStacks }}
+apiVersion: stacks.crossplane.io/v1alpha1
+kind: ClusterStackInstall
+metadata:
+  name: "stack-{{ $arg }}"
+spec:
+  package: "crossplane/stack-{{ $arg }}:master"
+---
+{{- end }}
