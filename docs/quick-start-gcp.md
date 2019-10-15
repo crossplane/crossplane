@@ -82,7 +82,7 @@ specTemplate:
   region: us-central1
   storageType: PD_SSD
   storageGB: 10
-  ipv4Address: true
+  ipv4Enabled: true
   providerRef:
     name: example
     namespace: gcp-infra-dev
