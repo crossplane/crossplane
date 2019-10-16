@@ -24,9 +24,11 @@ Stacks installer currently relies on installing a particular version of stack fr
       * on a node and then lookup that sha to see which version it's tagged against, if it's even still tagged.
       * If the latest tag on this node the same as the latest tag on that node? When did it get restarted?
 
-As a note, if a user wants to continue to install from an arbitrary tag, stack-installer will work, but behavior relying
- on detecting the tags underlying sha changing will not be as the Crossplane stack installer by convention will assume
- the immutability of tags.
+As a note, if a user wants to continue to install from an arbitrary tag, stack-installer will work as expected, but
+ behavior relying on re-tagging latest and the stack installer detecting the tags underlying container being updated
+ will not trigger a re-install as the Crossplane stack installer by convention will assume that docker tags are
+ immutable and represent a single version. Any system that relies on tagging all builds with a :latest tag for example
+ is not recommended and in practice won't work as expected.
 
 #### Why standardize on semantic versions?
 
@@ -53,13 +55,14 @@ The stack app.yaml version should always be a simple stable semantic version wit
 
 Creation dates will be tracked in the release channel versions for auditing purposes and will be iso-8601 format.
  This is the same format as kubernetes and is a well established standard. We will also include a sha id of the
- underlying stack container, which is immutable.
+ underlying stack container, which is immutable, and will be used by the installer to fetch the exact artifact
+ referenced in the release channel.
 
 The stack install CRD will get a new optional field for channel in the spec, that will include the url to the channel.
 
-There will be two static lists for channel information, namely the latest available in a channel, as well as the list of
+There will be two lists for channel information, namely the latest available in a channel, as well as the list of
  all available versions for the stack installer to manage more complicated install scenarios based on upgrade policies
- that will be defined in the future.
+ that will be further defined in the future.
 
 ### Considerations
 
@@ -72,7 +75,8 @@ Our underlying stack storage is a docker registry, which can tag versions of sta
 ### Versioning
 
 Semantic versions are widely respected as a standard to version software and are well
- understood in the software community. Helm charts rely on semantic versions.
+ understood in the software community. Helm charts rely on semantic versions, and many others. Please see examples of
+ versioning systems linked at the bottom in background research on versioning.
 
 ```
 Given a version number MAJOR.MINOR.PATCH, increment the:
@@ -88,8 +92,8 @@ Additional Info: [Semver Reading](https://semver.org/)
 Semantic versions for a stack will be managed directly in the channel metadata, and will also be represented in docker
  tags that point to the same underlying images. To avoid confusion, by convention we should never replace a semantic
  version tag of software with a different underlying artifact. We should roll forward with a PATCH version. In the event
- of a security patch we should un-publish the previous stack version when necessary, ideally after publishing a new
- higher version.
+ of a security patch we should un-publish the previous stack version when necessary, but ideally after publishing a new
+ higher version first.
 
 ### Major Versions
 
@@ -117,7 +121,8 @@ Pinned Install: The user will include a fully qualified package name and a speci
  assume an external versioning system is in use and not attempt to check for updates.
 
 Channel Install: If there is a channel set and there is no tag on the package, we will install the latest from the
- channel.
+ channel. The channel will be checked on an interval and the stacks controller will update the underlying stack based
+ on it's update policy and rules.
 
 ### Hosted artifacts
 
@@ -159,13 +164,13 @@ Consider the following scenario where the installer wishes to auto-upgrade to th
 
 To enact an upgrade in this scenario, you would update the payload to be a higher semantic version, i.e
  `{"latest": {"version": 1.2.4", ...} ... }`. The installer would then install a new stack image from
- `crossplane/aws-stack:shaofversion` by looking up the actual underlying artifact for that version. The stack installer
- status should reflect that is installing 1.2.4, with the particular sha.
+ `crossplane/aws-stack:shaofversion` by looking up the actual underlying artifact for that version in the channel.
+ The stack installer status should reflect that is installing 1.2.4, with the particular sha.
 
 If you update your release channel to something of a lesser value the stack installer would return an error that release
- channel is of a lesser version and not upgrade. Further if we pushed a version that contained pre-release info, this
+ channel is of a lesser version and not upgrade. Further, if we pushed a version that contained pre-release info, this
  would not match as a stable version and would also fail to update. Ideally we would disallow pushing invalid versions
- to channels as part of our tooling.
+ to channels as part of our internal tooling.
 
 ### Arbitrary channel support
 
