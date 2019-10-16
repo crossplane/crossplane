@@ -32,6 +32,7 @@ GO_TEST_PARALLEL := $(shell echo $$(( $(NPROCS) / 2 )))
 GO_STATIC_PACKAGES = $(GO_PROJECT)/cmd/crossplane
 GO_LDFLAGS += -X $(GO_PROJECT)/pkg/version.Version=$(VERSION)
 GO_SUBDIRS += cmd pkg apis
+GO111MODULE = on
 -include build/makelib/golang.mk
 
 # ====================================================================================
@@ -45,6 +46,9 @@ HELM_CHART_LINT_ARGS_crossplane = --set nameOverride='',imagePullSecrets=''
 
 # ====================================================================================
 # Setup Kubebuilder
+
+CRD_DIR = cluster/charts/crossplane/templates/crds
+API_DIR = ./apis/...
 
 -include build/makelib/kubebuilder.mk
 
@@ -84,18 +88,11 @@ fallthrough: submodules
 
 go.test.unit: $(KUBEBUILDER)
 
-# Generate manifests e.g. CRD, RBAC etc.
-manifests: vendor
+# Generate manifests e.g. CRD, RBAC etc. locally for Stacks API types
+# as it needs the custom "maxDescLen=0" option
+manifests: vendor kubebuilder.manifests
 	@$(INFO) Generating CRD manifests
-	@rm -rf cluster/charts/crossplane/templates/crds
-	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd:trivialVersions=true paths=./apis/cache/... output:dir=cluster/charts/crossplane/templates/crds
-	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd:trivialVersions=true paths=./apis/compute/... output:dir=cluster/charts/crossplane/templates/crds
-	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd:trivialVersions=true paths=./apis/core/... output:dir=cluster/charts/crossplane/templates/crds
-	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd:trivialVersions=true paths=./apis/database/... output:dir=cluster/charts/crossplane/templates/crds
-	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd:trivialVersions=true paths=./apis/kubernetes/... output:dir=cluster/charts/crossplane/templates/crds
-	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd:trivialVersions=true paths=./apis/storage/... output:dir=cluster/charts/crossplane/templates/crds
-	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd:trivialVersions=true paths=./apis/workload/... output:dir=cluster/charts/crossplane/templates/crds
-	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd:maxDescLen=0,trivialVersions=true paths=./apis/stacks/... output:dir=cluster/charts/crossplane/templates/crds
+	$(CONTROLLERGEN) crd:maxDescLen=0,trivialVersions=true paths=./apis/stacks/... output:dir=$(CRD_DIR)
 	@$(OK) Generating CRD manifests
 
 # Generate a coverage report for cobertura applying exclusions on
@@ -154,3 +151,17 @@ crossplane.help:
 help-special: crossplane.help
 
 .PHONY: crossplane.help help-special
+
+# target for resolving angryjet dependency
+# TODO(soorena776): move this to golang.mk in build submodule
+CROSSPLANETOOLS_ANGRYJET := $(TOOLS_HOST_DIR)/angryjet
+export CROSSPLANETOOLS_ANGRYJET
+
+$(CROSSPLANETOOLS_ANGRYJET):
+	@$(INFO) installing Crossplane AngryJet
+	@mkdir -p $(TOOLS_HOST_DIR)/tmp-angryjet || $(FAIL)
+	@GO111MODULE=off GOPATH=$(TOOLS_HOST_DIR)/tmp-angryjet GOBIN=$(TOOLS_HOST_DIR) $(GOHOST) get github.com/crossplaneio/crossplane-tools/cmd/angryjet || rm -fr $(TOOLS_HOST_DIR)/tmp-angryjet|| $(FAIL)
+	@rm -fr $(TOOLS_HOST_DIR)/tmp-angryjet
+	@$(OK) installing Crossplane AngryJet
+
+go.generate: $(CROSSPLANETOOLS_ANGRYJET)
