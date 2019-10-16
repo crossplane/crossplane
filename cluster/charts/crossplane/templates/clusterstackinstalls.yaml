@@ -4,6 +4,8 @@ apiVersion: stacks.crossplane.io/v1alpha1
 kind: ClusterStackInstall
 metadata:
   name: "stack-{{ $key }}"
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
 spec:
   package: "crossplane/stack-{{ $key }}:{{ $val.version }}"
 ---
