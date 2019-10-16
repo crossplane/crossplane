@@ -125,10 +125,8 @@ configSections:
     validation:
     - required: true
       customError: You must select an instance size for your configuration!
-resourceConditionedStatusTypes:
-- Ready
-stackConditionedStatusTypes:
-- Ready
+resourceConditionPaths:
+- .status.conditionedStatus.conditions[?(@.type=='Ready')]
 ```
 
 ### CRD Annotation Example
@@ -186,19 +184,15 @@ metadata:
           validation:
           - required: true
             customError: You must select an instance size for your configuration!
-      resourceConditionedStatusTypes:
-      - Ready
-      stackConditionedStatusTypes:
-      - Ready
+      resourceConditionPaths:
+      - .status.conditionedStatus.conditions[?(@.type=='Ready')]
       ---
       version: 0.4
       configSections:
       - title: Supplementary
         description: A supplementary UI annotation
-      resourceConditionedStatusTypes:
-      - Ready
-      stackConditionedStatusTypes:
-      - Ready
+      resourceConditionPaths:
+      - .status.conditionedStatus.conditions[?(@.type=='Ready')]
   labels:
     controller-tools.k8s.io: "1.0"
 ```

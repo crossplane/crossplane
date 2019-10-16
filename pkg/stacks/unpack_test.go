@@ -250,19 +250,15 @@ metadata:
       configSections:
       - title: group Title
         description: group Description
-      resourceConditionedStatusTypes:
-      - Ready
-      stackConditionedStatusTypes:
-      - Ready
+      resourceConditionPaths:
+      - .status.conditionedStatus.conditions[?(@.type=='Ready')]
       ---
       version: 0.4
       configSections:
       - title: sibling Title
         description: sibling Description
-      resourceConditionedStatusTypes:
-      - Ready
-      stackConditionedStatusTypes:
-      - Ready
+      resourceConditionPaths:
+      - .status.conditionedStatus.conditions[?(@.type=='Ready')]
   creationTimestamp: null
   name: siblings.samples.upbound.io
 spec:
@@ -336,28 +332,22 @@ metadata:
       configSections:
       - title: group Title
         description: group Description
-      resourceConditionedStatusTypes:
-      - Ready
-      stackConditionedStatusTypes:
-      - Ready
+      resourceConditionPaths:
+      - .status.conditionedStatus.conditions[?(@.type=='Ready')]
       ---
       version: 0.4
       configSections:
       - title: sibling Title
         description: sibling Description
-      resourceConditionedStatusTypes:
-      - Ready
-      stackConditionedStatusTypes:
-      - Ready
+      resourceConditionPaths:
+      - .status.conditionedStatus.conditions[?(@.type=='Ready')]
       ---
       version: 0.4
       configSections:
       - title: kind Title
         description: kind Description
-      resourceConditionedStatusTypes:
-      - Ready
-      stackConditionedStatusTypes:
-      - Ready
+      resourceConditionPaths:
+      - .status.conditionedStatus.conditions[?(@.type=='Ready')]
   creationTimestamp: null
   name: mytypes.samples.upbound.io
 spec:
@@ -394,10 +384,8 @@ metadata:
       configSections:
       - title: group Title
         description: group Description
-      resourceConditionedStatusTypes:
-      - Ready
-      stackConditionedStatusTypes:
-      - Ready
+      resourceConditionPaths:
+      - .status.conditionedStatus.conditions[?(@.type=='Ready')]
   creationTimestamp: null
   name: cousins.samples.upbound.io
 spec:
@@ -559,19 +547,15 @@ metadata:
       configSections:
       - title: group Title
         description: group Description
-      resourceConditionedStatusTypes:
-      - Ready
-      stackConditionedStatusTypes:
-      - Ready
+      resourceConditionPaths:
+      - .status.conditionedStatus.conditions[?(@.type=='Ready')]
       ---
       version: 0.4
       configSections:
       - title: sibling Title
         description: sibling Description
-      resourceConditionedStatusTypes:
-      - Ready
-      stackConditionedStatusTypes:
-      - Ready
+      resourceConditionPaths:
+      - .status.conditionedStatus.conditions[?(@.type=='Ready')]
   creationTimestamp: null
   name: siblings.samples.upbound.io
 spec:
@@ -645,28 +629,22 @@ metadata:
       configSections:
       - title: group Title
         description: group Description
-      resourceConditionedStatusTypes:
-      - Ready
-      stackConditionedStatusTypes:
-      - Ready
+      resourceConditionPaths:
+      - .status.conditionedStatus.conditions[?(@.type=='Ready')]
       ---
       version: 0.4
       configSections:
       - title: sibling Title
         description: sibling Description
-      resourceConditionedStatusTypes:
-      - Ready
-      stackConditionedStatusTypes:
-      - Ready
+      resourceConditionPaths:
+      - .status.conditionedStatus.conditions[?(@.type=='Ready')]
       ---
       version: 0.4
       configSections:
       - title: kind Title
         description: kind Description
-      resourceConditionedStatusTypes:
-      - Ready
-      stackConditionedStatusTypes:
-      - Ready
+      resourceConditionPaths:
+      - .status.conditionedStatus.conditions[?(@.type=='Ready')]
   creationTimestamp: null
   name: mytypes.samples.upbound.io
 spec:
@@ -703,10 +681,8 @@ metadata:
       configSections:
       - title: group Title
         description: group Description
-      resourceConditionedStatusTypes:
-      - Ready
-      stackConditionedStatusTypes:
-      - Ready
+      resourceConditionPaths:
+      - .status.conditionedStatus.conditions[?(@.type=='Ready')]
   creationTimestamp: null
   name: cousins.samples.upbound.io
 spec:
@@ -1077,10 +1053,8 @@ func simpleUIFile(name string) string {
 configSections:
 - title: %s Title
   description: %s Description
-resourceConditionedStatusTypes:
-- Ready
-stackConditionedStatusTypes:
-- Ready
+resourceConditionPaths:
+- .status.conditionedStatus.conditions[?(@.type=='Ready')]
 `, name, name)
 }
 

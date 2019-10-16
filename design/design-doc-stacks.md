@@ -468,10 +468,8 @@ metadata:
           validation:
           - minimum: 1
           - maximum: 3
-      resourceConditionedStatusTypes:
-      - Ready
-      stackConditionedStatusTypes:
-      - Ready
+      resourceConditionPaths:
+      - .status.conditionedStatus.conditions[?(@.type=='Ready')]
       ---
       additionalSpec: example
       stillYaml: true
