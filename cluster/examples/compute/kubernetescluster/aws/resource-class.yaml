@@ -8,7 +8,7 @@ classRef:
   kind: EKSClusterClass
   apiVersion: compute.aws.crossplane.io/v1alpha2
   name: ekscluster-standard
-  namespace: azure-infra-dev
+  namespace: aws-infra-dev
 ---
 apiVersion: compute.aws.crossplane.io/v1alpha2
 kind: EKSClusterClass
@@ -32,5 +32,5 @@ specTemplate:
     clusterControlPlaneSecurityGroup: #sg-01
   providerRef:
     name: example
-    namespace: azure-infra-dev
+    namespace: aws-infra-dev
   reclaimPolicy: Delete
