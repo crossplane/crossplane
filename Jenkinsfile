@@ -3,6 +3,7 @@ pipeline {
 
     parameters {
         booleanParam(defaultValue: true, description: 'Execute pipeline?', name: 'shouldBuild')
+        timeout(time: 30, unit: 'MINUTES')
     }
 
     options {
