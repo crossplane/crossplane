@@ -13,6 +13,9 @@ spec:
   - JSONPath: .spec.classRef.name
     name: CLASS
     type: string
+  - JSONPath: .spec.resourceRef.name
+    name: RESOURCE
+    type: string
   - JSONPath: .metadata.creationTimestamp
     name: AGE
     type: date
