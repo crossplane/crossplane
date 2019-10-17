@@ -47,7 +47,7 @@ illustrates this. First, the configuration resources:
 1. A portable [resource class]. Portable resource classes are a pointer from a
    resource claim to a non-portable resource class that should be used for
    dynamic provisioning. [`RedisClusterClass`] is an example of a portable
-   resource claim.
+   resource class.
 1. A provider. Providers enable access to an external system, typically by
    indicating a Kubernetes Secret containing any credentials required to
    authenticate to the system, as well as any other metadata required to
@@ -117,7 +117,7 @@ level schema of its configuration resources. These are referred to as
 scaffolding is a good starting point for any new Crossplane API kind, whether
 they'll be a managed resource, resource class, or resource claim:
 
-```shell
+```console
 # The resource claim.
 kubebuilder create api \
     --group example --version v1alpha1 --kind FancySQLInstance \
