@@ -14,4 +14,4 @@ The cloud services column will link to an Example User Guide if one is available
 | [kubernetes](kubernetes/) | Deploy a Kubernetes Cluster in any clouds. | EKS | AKS | GKE |
 | [storage](storage/)   | Provisions a object storage bucket from any cloud. | S3 | Storage | GCS |
 | [wordpress](wordpress/) | Provisions a MySQL service from any cloud and uses it in a WordPress deployment. | RDS | Azure SQL | Cloud SQL |
-| [workloads](workloads/) | Creates a WordPress Workload that runs in a Crossplane created Kubernetes cluster using a Crossplane created managed MySQL service. ([Using Complex Workloads](../../design/complex-workloads.md#complex-workloads-in-crossplane)) | [EKS + RDS](../../docs/workloads/aws/wordpress-aws.md) |  | [GKE + Cloud SQL](../../docs/workloads/gcp/wordpress-gcp.md) |
+| [workloads](workloads/) | Creates a WordPress Workload that runs in a Crossplane created Kubernetes cluster using a Crossplane created managed MySQL service. ([Using Complex Workloads](../../design/design-doc-complex-workloads.md#complex-workloads-in-crossplane)) |
