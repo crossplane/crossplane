@@ -68,3 +68,48 @@ func (cm *KubernetesCluster) SetResourceReference(r *corev1.ObjectReference) {
 func (cm *KubernetesCluster) SetWriteConnectionSecretToReference(r corev1.LocalObjectReference) {
 	cm.Spec.WriteConnectionSecretToReference = r
 }
+
+// GetBindingPhase of this MachineInstance.
+func (cm *MachineInstance) GetBindingPhase() runtimev1alpha1.BindingPhase {
+	return cm.Status.GetBindingPhase()
+}
+
+// GetPortableClassReference of this MachineInstance.
+func (cm *MachineInstance) GetPortableClassReference() *corev1.LocalObjectReference {
+	return cm.Spec.PortableClassReference
+}
+
+// GetResourceReference of this MachineInstance.
+func (cm *MachineInstance) GetResourceReference() *corev1.ObjectReference {
+	return cm.Spec.ResourceReference
+}
+
+// GetWriteConnectionSecretToReference of this MachineInstance.
+func (cm *MachineInstance) GetWriteConnectionSecretToReference() corev1.LocalObjectReference {
+	return cm.Spec.WriteConnectionSecretToReference
+}
+
+// SetBindingPhase of this MachineInstance.
+func (cm *MachineInstance) SetBindingPhase(p runtimev1alpha1.BindingPhase) {
+	cm.Status.SetBindingPhase(p)
+}
+
+// SetConditions of this MachineInstance.
+func (cm *MachineInstance) SetConditions(c ...runtimev1alpha1.Condition) {
+	cm.Status.SetConditions(c...)
+}
+
+// SetPortableClassReference of this MachineInstance.
+func (cm *MachineInstance) SetPortableClassReference(r *corev1.LocalObjectReference) {
+	cm.Spec.PortableClassReference = r
+}
+
+// SetResourceReference of this MachineInstance.
+func (cm *MachineInstance) SetResourceReference(r *corev1.ObjectReference) {
+	cm.Spec.ResourceReference = r
+}
+
+// SetWriteConnectionSecretToReference of this MachineInstance.
+func (cm *MachineInstance) SetWriteConnectionSecretToReference(r corev1.LocalObjectReference) {
+	cm.Spec.WriteConnectionSecretToReference = r
+}

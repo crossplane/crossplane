@@ -75,3 +75,35 @@ type KubernetesClusterClassList struct {
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []KubernetesClusterClass `json:"items"`
 }
+
+// MachineInstanceSpec specifies the desired state of a MachineInstance.
+type MachineInstanceSpec struct {
+	runtimev1alpha1.ResourceClaimSpec `json:",inline"`
+}
+
+// +kubebuilder:object:root=true
+
+// A MachineInstance is a portable resource claim that may be satisfied by
+// binding to a machine instance, which may include Virtual Machine managed
+// resources such as an AWS EC2 instance or bare metal managed resources such as
+// a Packet Device.
+// +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.bindingPhase"
+// +kubebuilder:printcolumn:name="CLASS",type="string",JSONPath=".spec.classRef.name"
+// +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
+// +kubebuilder:subresource:status
+type MachineInstance struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec   MachineInstanceSpec                 `json:"spec,omitempty"`
+	Status runtimev1alpha1.ResourceClaimStatus `json:"status,omitempty"`
+}
+
+// +kubebuilder:object:root=true
+
+// MachineInstanceList contains a list of Instance.
+type MachineInstanceList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []MachineInstance `json:"items"`
+}
