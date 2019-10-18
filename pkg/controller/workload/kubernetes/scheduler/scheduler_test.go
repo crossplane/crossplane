@@ -55,9 +55,15 @@ var (
 
 	clusterA = &computev1alpha1.KubernetesCluster{
 		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: "coolClusterA"},
+		Spec: computev1alpha1.KubernetesClusterSpec{ResourceClaimSpec: runtimev1alpha1.ResourceClaimSpec{
+			WriteConnectionSecretToReference: &runtimev1alpha1.LocalSecretReference{},
+		}},
 	}
 	clusterB = &computev1alpha1.KubernetesCluster{
 		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: "coolClusterB"},
+		Spec: computev1alpha1.KubernetesClusterSpec{ResourceClaimSpec: runtimev1alpha1.ResourceClaimSpec{
+			WriteConnectionSecretToReference: &runtimev1alpha1.LocalSecretReference{},
+		}},
 	}
 
 	clusters = &computev1alpha1.KubernetesClusterList{

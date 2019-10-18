@@ -410,6 +410,10 @@ func (c *clusterConnecter) config(ctx context.Context, ar *v1alpha1.KubernetesAp
 		return nil, errors.Wrapf(err, "cannot get %s %s", computev1alpha1.KubernetesClusterKind, n)
 	}
 
+	if k.Spec.WriteConnectionSecretToReference == nil {
+		return nil, errors.Errorf("%s %s has no connection secret", computev1alpha1.KubernetesClusterKind, n)
+	}
+
 	n = types.NamespacedName{Namespace: k.GetNamespace(), Name: k.Spec.WriteConnectionSecretToReference.Name}
 	s := &corev1.Secret{}
 	if err := c.kube.Get(ctx, n, s); err != nil {
