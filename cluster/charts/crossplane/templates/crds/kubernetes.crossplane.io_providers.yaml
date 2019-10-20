@@ -17,7 +17,7 @@ spec:
     listKind: ProviderList
     plural: providers
     singular: provider
-  scope: ""
+  scope: Cluster
   subresources: {}
   validation:
     openAPIV3Schema:
@@ -40,17 +40,25 @@ spec:
           description: A ProviderSpec defines the desired state of a Provider.
           properties:
             credentialsSecretRef:
-              description: Kubernetes credentials Secret reference A Secret containing
-                connection credentials for a Kubernetes cluster client that will be
-                used to authenticate to this Kubernetes Provider. This will typically
-                be the connection secret of a KubernetesCluster claim, or the secret
-                created by a Kubernetes service account, but could also be manually
-                configured to connect to a preexisting cluster.
+              description: A Secret containing connection credentials for a Kubernetes
+                cluster client that will be used to authenticate to this Kubernetes
+                Provider. This will typically be the connection secret of a KubernetesCluster
+                claim, or the secret created by a Kubernetes service account, but
+                could also be manually configured to connect to a preexisting cluster.
               properties:
-                name:
-                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                    TODO: Add other useful fields. apiVersion, kind, uid?'
+                key:
+                  description: The key to select.
                   type: string
+                name:
+                  description: Name of the secret.
+                  type: string
+                namespace:
+                  description: Namespace of the secret.
+                  type: string
+              required:
+              - key
+              - name
+              - namespace
               type: object
           required:
           - credentialsSecretRef
