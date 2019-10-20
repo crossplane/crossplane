@@ -1,0 +1,16 @@
+namespace: aws-infra
+commonLabels:
+  solution: aws-secure-connectivity
+resources:
+  - namespace.yaml
+  - iamrole.yaml
+  - iamrole_policies.yaml
+  - vpc.yaml
+  - subnets.yaml
+  - internetgateway.yaml
+  - routetable.yaml
+  - eks-securitygroup.yaml
+  - dbsubnetgroup.yaml
+  - rds-securitygroup.yaml
+  - rds-class.yaml
+  - eks-class.yaml

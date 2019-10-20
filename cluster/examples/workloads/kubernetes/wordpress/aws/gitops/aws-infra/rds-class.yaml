@@ -1,0 +1,18 @@
+---
+apiVersion: database.aws.crossplane.io/v1alpha2
+kind: RDSInstanceClass
+metadata:
+  name: standard-rds-mysql
+specTemplate:
+  class: db.t2.small
+  masterUsername: masteruser
+  securityGroupsRef:
+    - name: my-rds-sg
+  subnetGroupNameRef:
+    name: my-dbsubnetgroup
+  size: 20
+  engine: mysql
+  providerRef:
+    name: aws-provider
+    namespace: crossplane-system
+  reclaimPolicy: Delete

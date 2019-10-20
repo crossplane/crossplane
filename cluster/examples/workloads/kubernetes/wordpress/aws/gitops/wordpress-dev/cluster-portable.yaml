@@ -1,0 +1,11 @@
+### default class
+---
+apiVersion: compute.crossplane.io/v1alpha1
+kind: KubernetesClusterClass
+metadata:
+  name: k8s-standard
+classRef:
+  kind: EKSClusterClass
+  apiVersion: compute.aws.crossplane.io/v1alpha2
+  name: standard-eks-cluster
+  namespace: aws-infra

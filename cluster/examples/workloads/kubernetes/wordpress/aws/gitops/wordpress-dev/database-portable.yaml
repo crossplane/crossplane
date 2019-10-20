@@ -1,0 +1,11 @@
+### default class
+---
+apiVersion: database.crossplane.io/v1alpha1
+kind: MySQLInstanceClass
+metadata:
+  name: mysql-standard
+classRef:
+  kind: RDSInstanceClass
+  apiVersion: database.aws.crossplane.io/v1alpha2
+  name: standard-rds-mysql
+  namespace: aws-infra

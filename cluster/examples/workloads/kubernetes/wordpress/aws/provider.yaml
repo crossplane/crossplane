@@ -1,0 +1,5 @@
+apiVersion: aws.crossplane.io/v1alpha2
+kind: Provider
+metadata:
+  name: aws-provider
+  namespace: crossplane-system

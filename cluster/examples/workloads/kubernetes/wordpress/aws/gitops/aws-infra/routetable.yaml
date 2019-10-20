@@ -1,0 +1,22 @@
+apiVersion: network.aws.crossplane.io/v1alpha2
+kind: RouteTable
+metadata:
+  name: my-routetable
+spec:
+  vpcIdRef:
+    name: my-vpc
+  routes:
+    - destinationCidrBlock: 0.0.0.0/0
+      gatewayIdRef:
+        name: my-internetgateway
+  associations:
+    - subnetIdRef:
+        name: my-subnet1
+    - subnetIdRef:
+        name: my-subnet2
+    - subnetIdRef:
+        name: my-subnet3
+  reclaimPolicy: Delete
+  providerRef:
+    name: aws-provider
+    namespace: crossplane-system

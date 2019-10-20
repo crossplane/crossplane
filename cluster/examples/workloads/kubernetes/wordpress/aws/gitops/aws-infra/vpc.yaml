@@ -1,0 +1,13 @@
+---
+apiVersion: network.aws.crossplane.io/v1alpha2
+kind: VPC
+metadata:
+  name: my-vpc
+spec:
+  cidrBlock: 192.168.0.0/16
+  enableDnsSupport: true
+  enableDnsHostNames: true
+  reclaimPolicy: Delete
+  providerRef:
+    name: aws-provider
+    namespace: crossplane-system

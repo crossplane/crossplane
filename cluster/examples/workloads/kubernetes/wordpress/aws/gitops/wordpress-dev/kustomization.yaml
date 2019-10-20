@@ -1,0 +1,10 @@
+namespace: wordpress-dev
+commonLabels:
+  solution: demo-wordpress-application
+resources:
+  - namespace.yaml
+  - database-portable.yaml
+  - cluster-portable.yaml
+  - database-claim.yaml
+  - cluster-claim.yaml
+  - app.yaml

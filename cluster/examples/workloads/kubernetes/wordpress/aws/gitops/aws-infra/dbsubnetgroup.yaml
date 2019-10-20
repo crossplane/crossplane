@@ -1,0 +1,18 @@
+apiVersion: storage.aws.crossplane.io/v1alpha2
+kind: DBSubnetGroup
+metadata:
+  name: my-dbsubnetgroup
+spec:
+  groupName: my_dbsubnetgroup
+  description: EKS vpc to rds
+  subnetIdsRef:
+    - name: my-subnet1
+    - name: my-subnet2
+    - name: my-subnet3
+  tags:
+    - key: name
+      value: my-dbsubnetgroup
+  reclaimPolicy: Delete
+  providerRef:
+    name: aws-provider
+    namespace: crossplane-system

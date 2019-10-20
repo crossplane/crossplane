@@ -1,0 +1,24 @@
+apiVersion: identity.aws.crossplane.io/v1alpha2
+kind: IAMRole
+metadata:
+  name: my-eks-cluster-role
+spec:
+  roleName: a-cool-role
+  description: a role that gives a cool power
+  assumeRolePolicyDocument: |
+    {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Principal": {
+            "Service": "eks.amazonaws.com"
+          },
+          "Action": "sts:AssumeRole"
+        }
+      ]
+    }
+  reclaimPolicy: Delete
+  providerRef:
+    name: aws-provider
+    namespace: crossplane-system

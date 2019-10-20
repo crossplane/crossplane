@@ -1,0 +1,13 @@
+### cluster claim
+---
+apiVersion: compute.crossplane.io/v1alpha1
+kind: KubernetesCluster
+metadata:
+  name: wordpress-demo-cluster
+  labels:
+    app: wordpress-demo
+spec:
+  classRef:
+    name: k8s-standard
+  writeConnectionSecretToRef:
+    name: wordpress-demo-cluster

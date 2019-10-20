@@ -1,0 +1,15 @@
+### database claim
+---
+apiVersion: database.crossplane.io/v1alpha1
+kind: MySQLInstance
+metadata:
+  name: sql
+spec:
+  classRef:
+    name: mysql-standard
+  engineVersion: "5.7"
+  # A secret is exported by providing the secret name
+  # to export it under. This is the name of the secret
+  # in the crossplane cluster, and it's scoped to this claim's namespace.
+  writeConnectionSecretToRef:
+    name: sql
