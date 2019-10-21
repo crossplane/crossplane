@@ -8,19 +8,20 @@ metadata:
     default: "true"
 classRef:
   kind: CloudMemorystoreInstanceClass
-  apiVersion: cache.gcp.crossplane.io/v1alpha2
+  apiVersion: cache.gcp.crossplane.io/v1beta1
   name: gcp-redis-standard
   namespace: gcp-infra-dev
 ---
-apiVersion: cache.gcp.crossplane.io/v1alpha2
+apiVersion: cache.gcp.crossplane.io/v1beta1
 kind: CloudMemorystoreInstanceClass
 metadata:
   name: gcp-redis-standard
   namespace: gcp-infra-dev
 specTemplate:
-  tier: STANDARD_HA
-  region: us-west2
-  memorySizeGb: 1
+  forProvider:
+    tier: STANDARD_HA
+    region: us-west2
+    memorySizeGb: 1
   providerRef:
     name: example
     namespace: gcp-infra-dev
