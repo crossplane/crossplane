@@ -10,11 +10,11 @@ This page lists all active maintainers and their areas of expertise. This can be
 Here's the current list of senior maintainers:
 
 * Bassam Tabbara <bassam@upbound.io> ([bassam](https://github.com/bassam))
-  * Catch-all, architecture, strategy, build and packaging
-* Illya Chekrygin <illya@upbound.io> ([ichekrygin](https://github.com/ichekrygin))
-  * Core, Controllers, GCP, AWS, Azure
+  * Catch-all, architecture, strategy
 * Jared Watts <jared@upbound.io> ([jbw976](https://github.com/jbw976))
-  * Core, Controllers, GCP, AWS, Azure
+  * Stacks architecture, release engineering
+* Nic Cope <negz@upbound.io> ([negz](https://github.com/negz))
+  * Services architecture
 
 ## Maintainers
 
@@ -22,7 +22,7 @@ There are currently no maintainers. Maintainers will be added according to the [
 
 ## Emeritus maintainers
 
-There are currently no emeritus maintainers.  This list will be updated according to the [process for removing a maintainer](GOVERNANCE.md#removing-a-maintainer) in the [governance](GOVERNANCE.md).
+* Illya Chekrygin <illya.chekrygin@gmail.com> ([ichekrygin](https://github.com/ichekrygin))
 
 ## Friends of Crossplane
 
