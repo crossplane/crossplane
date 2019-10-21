@@ -242,12 +242,26 @@ type StackSpec struct {
 	CRDs            CRDList         `json:"customresourcedefinitions,omitempty"`
 	Controller      ControllerSpec  `json:"controller,omitempty"`
 	Permissions     PermissionsSpec `json:"permissions,omitempty"`
+	Templates       TemplatesSpec   `json:"templates,omitempty"`
 }
 
 // StackStatus represents the observed state of a Stack.
 type StackStatus struct {
 	runtimev1alpha1.ConditionedStatus `json:"conditionedStatus,omitempty"`
 	ControllerRef                     *corev1.ObjectReference `json:"controllerRef,omitempty"`
+}
+
+// BehaviorSpec defines the behaviors for a template stack CRD
+type BehaviorSpec struct {
+	Defaults  []string `json:"defaults,omitempty"`
+	Resources []string `json:"resources,omitempty"`
+	Status    []string `json:"status,omitempty"`
+}
+
+// TemplatesSpec defines the templates available in a template stack
+type TemplatesSpec struct {
+	Sources   map[string]string       `json:"sources,omitempty"`
+	Behaviors map[string]BehaviorSpec `json:"behaviors,omitempty"`
 }
 
 // AppMetadataSpec defines metadata about the stack application

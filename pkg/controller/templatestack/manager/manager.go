@@ -79,10 +79,9 @@ func (c *Controller) SetupWithManager(mgr ctrl.Manager) error {
 	stack := &v1alpha1.Stack{}
 	if data, err := findstack.MarshalJSON(); err != nil {
 		return err
-	} else {
-		if err := json.Unmarshal(data, stack); err != nil {
-			return err
-		}
+	} else if err := json.Unmarshal(data, stack); err != nil {
+		return err
+
 	}
 
 	for _, crd := range stack.Spec.CRDs {

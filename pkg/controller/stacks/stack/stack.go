@@ -37,6 +37,8 @@ import (
 	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
 	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
 	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
+
+	"github.com/crossplaneio/crossplane/pkg/stacks"
 )
 
 const (
@@ -141,6 +143,13 @@ func (h *stackHandler) create(ctx context.Context) (reconcile.Result, error) {
 		return fail(ctx, h.kube, h.ext, err)
 	}
 
+	// render template and create resources
+	// processTemplate may generate a deployment
+	// so it must precede processDeployment
+	if err := h.processTemplate(ctx); err != nil {
+		return fail(ctx, h.kube, h.ext, err)
+	}
+
 	// create controller deployment or job
 	if err := h.processDeployment(ctx); err != nil {
 		return fail(ctx, h.kube, h.ext, err)
@@ -156,7 +165,10 @@ func (h *stackHandler) create(ctx context.Context) (reconcile.Result, error) {
 }
 
 func (h *stackHandler) update(ctx context.Context) (reconcile.Result, error) {
-	log.V(logging.Debug).Info("updating not supported yet", "stack", h.ext.Name)
+	// render template and update resources
+	if err := h.processTemplate(ctx); err != nil {
+		return fail(ctx, h.kube, h.ext, err)
+	}
 	return reconcile.Result{}, nil
 }
 
@@ -226,6 +238,24 @@ func (h *stackHandler) processRBAC(ctx context.Context) error {
 		return nil
 	}
 
+	// TODO(displague) do we need an isTemplateStack()?
+	// should this be done from within processDeployment?
+	// if so, how do we reorder:
+	// - create sa with roles
+	// - grant sa access to stack
+	// - TSM deployment uses sa
+	if len(h.ext.Spec.Templates.Behaviors) > 0 {
+		roleOverStack := rbac.PolicyRule{
+			Verbs:         []string{"get"},
+			APIGroups:     []string{v1alpha1.Group},
+			Resources:     []string{"stacks"},
+			ResourceNames: []string{h.ext.GetName()},
+		}
+		h.ext.Spec.Permissions.Rules = append(
+			h.ext.Spec.Permissions.Rules,
+			roleOverStack,
+		)
+	}
 	owner := meta.AsOwner(meta.ReferenceTo(h.ext, v1alpha1.StackGroupVersionKind))
 
 	// create service account
@@ -316,6 +346,57 @@ func (h *stackHandler) processJob(ctx context.Context) error {
 
 	// save a reference to the stack's controller
 	h.ext.Status.ControllerRef = meta.ReferenceTo(j, gvk)
+
+	return nil
+}
+
+// processTemplate configures the stack-manager to listen for the types
+// a Template Stack acts on
+func (h *stackHandler) processTemplate(ctx context.Context) error {
+	templates := h.ext.Spec.Templates
+	if len(templates.Behaviors) == 0 {
+		log.V(logging.Debug).Info("stack is not a template stack", "name", h.ext.GetName())
+
+		return nil
+	}
+
+	log.V(logging.Debug).Info("stack is a template stack", "name", h.ext.GetName())
+
+	if h.ext.Status.ControllerRef == nil {
+		discoverer := stacks.KubeExecutorInfoDiscoverer{Client: h.kube}
+		executorinfo, err := discoverer.Discover(ctx)
+		if err != nil {
+			return err
+		}
+
+		// TODO(displague) what's in a name?
+		controllerDeploymentName := "tsm-" + h.ext.GetName()
+		controllerContainerName := controllerDeploymentName
+		controllerImageName := executorinfo.Image
+
+		h.ext.Spec.Controller.Deployment = &v1alpha1.ControllerDeployment{
+			Name: controllerDeploymentName,
+			Spec: apps.DeploymentSpec{
+				Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": controllerDeploymentName}},
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{"app": controllerDeploymentName},
+					},
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{
+								Name:  controllerContainerName,
+								Image: controllerImageName,
+								Args: []string{"stack", "tsm",
+									"--namespace", h.ext.GetNamespace(),
+									"--stack", h.ext.GetName()},
+							},
+						},
+					},
+				},
+			},
+		}
+	}
 
 	return nil
 }
