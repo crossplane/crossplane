@@ -143,8 +143,7 @@ metadata:
 spec:
   classRef:
     apiVersion: database.gcp.crossplane.io/v1alpha2
-    kind: CloudSQLInstance
-    namespace: us-east-1
+    kind: CloudSQLInstanceClass
     name: gitlab-experimental
   writeConnectionSecretToRef:
     name: app-postgresql-connection
