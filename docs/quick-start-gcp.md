@@ -71,18 +71,21 @@ the `gcp-infra-dev` namespace:
 
 ```bash
 cat > cloudsql.yaml <<EOF
-apiVersion: database.gcp.crossplane.io/v1alpha2
+apiVersion: database.gcp.crossplane.io/v1beta1
 kind: CloudsqlInstanceClass
 metadata:
   name: standard-cloudsql
   namespace: gcp-infra-dev
 specTemplate:
-  databaseVersion: MYSQL_5_7
-  tier: db-n1-standard-1
-  region: us-central1
-  storageType: PD_SSD
-  storageGB: 10
-  ipv4Enabled: true
+  forProvider:
+    databaseVersion: MYSQL_5_7
+    region: us-central1
+    settings:
+      tier: db-n1-standard-1
+      dataDiskType: PD_SSD
+      dataDiskSizeGb: 10
+      ipConfiguration:
+        ipv4Enabled: true
   providerRef:
     name: example
     namespace: gcp-infra-dev
@@ -109,7 +112,7 @@ metadata:
   namespace: app-project1-dev
 classRef:
   kind: CloudsqlInstanceClass
-  apiVersion: database.gcp.crossplane.io/v1alpha2
+  apiVersion: database.gcp.crossplane.io/v1beta1
   name: standard-cloudsql
   namespace: gcp-infra-dev
 EOF

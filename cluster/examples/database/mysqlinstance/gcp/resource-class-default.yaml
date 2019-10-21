@@ -7,24 +7,27 @@ metadata:
     default: "true"
 classRef:
   kind: CloudsqlInstanceClass
-  apiVersion: database.gcp.crossplane.io/v1alpha2
+  apiVersion: database.gcp.crossplane.io/v1beta1
   name: cloudsqlinstancemysql-standard
   namespace: gcp-infra-dev
 ---
 # ResourceClass that defines the blueprint for how a "standard" CloudSQL instance
 # should be dynamically provisioned
-apiVersion: database.gcp.crossplane.io/v1alpha2
+apiVersion: database.gcp.crossplane.io/v1beta1
 kind: CloudsqlInstanceClass
 metadata:
   name: cloudsqlinstancemysql-standard
   namespace: gcp-infra-dev
 specTemplate:
-  databaseVersion: MYSQL_5_6
-  tier: db-custom-1-3840
-  region: us-west2
-  storageType: PD_SSD
-  storageGB: 10
-  ipv4Enabled: true
+  forProvider:
+    databaseVersion: MYSQL_5_6
+    region: us-west2
+  settings:
+    tier: db-n1-standard-1
+    dataDiskType: PD_SSD
+    dataDiskSizeGb: 10
+    ipConfiguration:
+      ipv4Enabled: true
   providerRef:
     name: example
     namespace: gcp-infra-dev

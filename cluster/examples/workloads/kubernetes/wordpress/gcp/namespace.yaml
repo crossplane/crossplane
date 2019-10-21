@@ -13,8 +13,8 @@ metadata:
     default: "true"
 classRef:
   kind: CloudsqlInstanceClass
-  apiVersion: database.gcp.crossplane.io/v1alpha2
-  name: standard-cloudsql
+  apiVersion: database.gcp.crossplane.io/v1beta1
+  name: standard
   namespace: gcp
 ---
 apiVersion: compute.crossplane.io/v1alpha1
