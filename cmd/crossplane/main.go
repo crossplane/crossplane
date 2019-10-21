@@ -24,6 +24,7 @@ import (
 	"github.com/spf13/afero"
 	"gopkg.in/alecthomas/kingpin.v2"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	runtimelog "sigs.k8s.io/controller-runtime/pkg/runtime/log"
@@ -33,11 +34,13 @@ import (
 	"github.com/crossplaneio/crossplane/apis"
 	"github.com/crossplaneio/crossplane/pkg/controller/defaultclass"
 	stacksController "github.com/crossplaneio/crossplane/pkg/controller/stacks"
+	templatestacksController "github.com/crossplaneio/crossplane/pkg/controller/templatestack"
 	"github.com/crossplaneio/crossplane/pkg/controller/workload"
 	"github.com/crossplaneio/crossplane/pkg/stacks"
 	"github.com/crossplaneio/crossplane/pkg/stacks/walker"
 )
 
+// nolint: cyclomatic
 func main() {
 	var (
 		log = logging.Logger
@@ -60,6 +63,12 @@ func main() {
 
 		// stack manage - adds the stack manager controllers and starts their reconcile loops
 		extManageCmd = extCmd.Command("manage", "Manage stacks (run stack manager controllers)")
+
+		// stack tsm - adds the template stack manager controllers and starts
+		// their reconcile loops to manage a template stack
+		extTSMCmd       = extCmd.Command("tsm", "Template Stack Manager (run template stack manager controllers)")
+		extTSMStack     = extTSMCmd.Flag("stack", "The name of the template stack to manage").Required().String()
+		extTSMNamespace = extTSMCmd.Flag("namespace", "The namespace of the template stack to manage (defaults to POD_NAMESPACE)").Default(os.Getenv("POD_NAMESPACE")).String()
 
 		// stack unpack - performs the unpacking operation for the given stack package content
 		// directory. This command is expected to parse the content and generate manifests for stack
@@ -95,6 +104,11 @@ func main() {
 		// the "stacks manage" command is being run, the only controllers we should add to the
 		// manager are the stacks controllers
 		setupWithManagerFunc = stacksControllerSetupWithManager
+	case extTSMCmd.FullCommand():
+		// the "template stacks manager" command is being run, the only controllers we should add to the
+		// manager are the template stacks controllers
+		stack := types.NamespacedName{Namespace: *extTSMNamespace, Name: *extTSMStack}
+		setupWithManagerFunc = tsmControllerWithStack(stack)
 	case extUnpackCmd.FullCommand():
 		var outFile io.StringWriter
 		// stack unpack command was called, run the stack unpacking logic
@@ -169,6 +183,18 @@ func stacksControllerSetupWithManager(mgr manager.Manager) error {
 	}
 
 	return nil
+}
+
+func tsmControllerWithStack(stack types.NamespacedName) func(manager.Manager) error {
+	// templatestacksControllerSetupWithManager
+	return func(mgr manager.Manager) error {
+		controller := &templatestacksController.Controllers{Stack: stack}
+		if err := controller.SetupWithManager(mgr); err != nil {
+			return err
+		}
+
+		return nil
+	}
 }
 
 // addToScheme adds all resources to the runtime scheme.
