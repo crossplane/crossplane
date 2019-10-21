@@ -5,7 +5,7 @@ metadata:
 spec:
   groupName: my_dbsubnetgroup
   description: EKS vpc to rds
-  subnetIdsRef:
+  subnetIdRefs:
     - name: my-subnet1
     - name: my-subnet2
     - name: my-subnet3

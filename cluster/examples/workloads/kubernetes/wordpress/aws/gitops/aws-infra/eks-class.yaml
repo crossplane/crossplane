@@ -9,11 +9,11 @@ specTemplate:
     name: my-eks-cluster-role
   vpcIdRef:
     name: my-vpc
-  subnetIdsRef:
+  subnetIdRefs:
     - name: my-subnet1
     - name: my-subnet2
     - name: my-subnet3
-  securityGroupIdsRef:
+  securityGroupIdRefs:
     - name: my-controlplane-sg
   workerNodes:
     nodeInstanceType: m3.medium
