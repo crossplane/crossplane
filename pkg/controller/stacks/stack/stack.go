@@ -251,9 +251,16 @@ func (h *stackHandler) processRBAC(ctx context.Context) error {
 			Resources:     []string{"stacks"},
 			ResourceNames: []string{h.ext.GetName()},
 		}
+		roleFindStack := rbac.PolicyRule{
+			Verbs:     []string{"list"},
+			APIGroups: []string{v1alpha1.Group},
+			Resources: []string{"stacks"},
+		}
+
 		h.ext.Spec.Permissions.Rules = append(
 			h.ext.Spec.Permissions.Rules,
 			roleOverStack,
+			roleFindStack,
 		)
 	}
 	owner := meta.AsOwner(meta.ReferenceTo(h.ext, v1alpha1.StackGroupVersionKind))
