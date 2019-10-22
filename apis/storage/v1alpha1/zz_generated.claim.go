@@ -29,6 +29,11 @@ func (cm *Bucket) GetBindingPhase() runtimev1alpha1.BindingPhase {
 	return cm.Status.GetBindingPhase()
 }
 
+// GetCondition of this Bucket.
+func (cm *Bucket) GetCondition(ct runtimev1alpha1.ConditionType) runtimev1alpha1.Condition {
+	return cm.Status.GetCondition(ct)
+}
+
 // GetPortableClassReference of this Bucket.
 func (cm *Bucket) GetPortableClassReference() *corev1.LocalObjectReference {
 	return cm.Spec.PortableClassReference

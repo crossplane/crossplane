@@ -29,6 +29,11 @@ func (cm *KubernetesCluster) GetBindingPhase() runtimev1alpha1.BindingPhase {
 	return cm.Status.GetBindingPhase()
 }
 
+// GetCondition of this KubernetesCluster.
+func (cm *KubernetesCluster) GetCondition(ct runtimev1alpha1.ConditionType) runtimev1alpha1.Condition {
+	return cm.Status.GetCondition(ct)
+}
+
 // GetPortableClassReference of this KubernetesCluster.
 func (cm *KubernetesCluster) GetPortableClassReference() *corev1.LocalObjectReference {
 	return cm.Spec.PortableClassReference
@@ -72,6 +77,11 @@ func (cm *KubernetesCluster) SetWriteConnectionSecretToReference(r corev1.LocalO
 // GetBindingPhase of this MachineInstance.
 func (cm *MachineInstance) GetBindingPhase() runtimev1alpha1.BindingPhase {
 	return cm.Status.GetBindingPhase()
+}
+
+// GetCondition of this MachineInstance.
+func (cm *MachineInstance) GetCondition(ct runtimev1alpha1.ConditionType) runtimev1alpha1.Condition {
+	return cm.Status.GetCondition(ct)
 }
 
 // GetPortableClassReference of this MachineInstance.
