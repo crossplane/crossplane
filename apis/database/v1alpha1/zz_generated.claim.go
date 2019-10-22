@@ -29,6 +29,11 @@ func (cm *MySQLInstance) GetBindingPhase() runtimev1alpha1.BindingPhase {
 	return cm.Status.GetBindingPhase()
 }
 
+// GetCondition of this MySQLInstance.
+func (cm *MySQLInstance) GetCondition(ct runtimev1alpha1.ConditionType) runtimev1alpha1.Condition {
+	return cm.Status.GetCondition(ct)
+}
+
 // GetPortableClassReference of this MySQLInstance.
 func (cm *MySQLInstance) GetPortableClassReference() *corev1.LocalObjectReference {
 	return cm.Spec.PortableClassReference
@@ -72,6 +77,11 @@ func (cm *MySQLInstance) SetWriteConnectionSecretToReference(r corev1.LocalObjec
 // GetBindingPhase of this PostgreSQLInstance.
 func (cm *PostgreSQLInstance) GetBindingPhase() runtimev1alpha1.BindingPhase {
 	return cm.Status.GetBindingPhase()
+}
+
+// GetCondition of this PostgreSQLInstance.
+func (cm *PostgreSQLInstance) GetCondition(ct runtimev1alpha1.ConditionType) runtimev1alpha1.Condition {
+	return cm.Status.GetCondition(ct)
 }
 
 // GetPortableClassReference of this PostgreSQLInstance.
