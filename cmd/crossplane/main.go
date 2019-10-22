@@ -94,6 +94,7 @@ func main() {
 	}
 
 	var setupWithManagerFunc func(manager.Manager) error
+	managerOpts := manager.Options{SyncPeriod: syncPeriod}
 
 	// Determine the command being called and execute the corresponding logic
 	switch cmd {
@@ -108,6 +109,7 @@ func main() {
 		// the "template stacks manager" command is being run, the only controllers we should add to the
 		// manager are the template stacks controllers
 		stack := types.NamespacedName{Namespace: *extTSMNamespace, Name: *extTSMStack}
+		managerOpts.Namespace = *extTSMNamespace
 		setupWithManagerFunc = tsmControllerWithStack(stack)
 	case extUnpackCmd.FullCommand():
 		var outFile io.StringWriter
@@ -137,7 +139,7 @@ func main() {
 	log.Info("Sync period", "duration", syncPeriod.String())
 
 	// Create a new Cmd to provide shared dependencies and start components
-	mgr, err := manager.New(cfg, manager.Options{SyncPeriod: syncPeriod})
+	mgr, err := manager.New(cfg, managerOpts)
 	kingpin.FatalIfError(err, "Cannot create manager")
 
 	log.Info("Adding schemes")
