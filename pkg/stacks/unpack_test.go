@@ -246,15 +246,19 @@ metadata:
     stacks.crossplane.io/icon-data-uri: data:image/svg+xml;base64,bW9jay1pY29uLWRhdGEtc3Zn
     stacks.crossplane.io/stack-title: Sample Crossplane Stack
     stacks.crossplane.io/ui-schema: |-
-      version: 0.3
+      version: 0.4
       configSections:
       - title: group Title
         description: group Description
+      resourceConditionPaths:
+      - .status.conditionedStatus.conditions[?(@.type=='Ready')]
       ---
-      version: 0.3
+      version: 0.4
       configSections:
       - title: sibling Title
         description: sibling Description
+      resourceConditionPaths:
+      - .status.conditionedStatus.conditions[?(@.type=='Ready')]
   creationTimestamp: null
   name: siblings.samples.upbound.io
 spec:
@@ -324,20 +328,26 @@ metadata:
     stacks.crossplane.io/resource-title-plural: Resources Title
     stacks.crossplane.io/stack-title: Sample Crossplane Stack
     stacks.crossplane.io/ui-schema: |-
-      version: 0.3
+      version: 0.4
       configSections:
       - title: group Title
         description: group Description
+      resourceConditionPaths:
+      - .status.conditionedStatus.conditions[?(@.type=='Ready')]
       ---
-      version: 0.3
+      version: 0.4
       configSections:
       - title: sibling Title
         description: sibling Description
+      resourceConditionPaths:
+      - .status.conditionedStatus.conditions[?(@.type=='Ready')]
       ---
-      version: 0.3
+      version: 0.4
       configSections:
       - title: kind Title
         description: kind Description
+      resourceConditionPaths:
+      - .status.conditionedStatus.conditions[?(@.type=='Ready')]
   creationTimestamp: null
   name: mytypes.samples.upbound.io
 spec:
@@ -370,10 +380,12 @@ metadata:
     stacks.crossplane.io/icon-data-uri: data:image/jpeg;base64,bW9jay1pY29uLWRhdGE=
     stacks.crossplane.io/stack-title: Sample Crossplane Stack
     stacks.crossplane.io/ui-schema: |-
-      version: 0.3
+      version: 0.4
       configSections:
       - title: group Title
         description: group Description
+      resourceConditionPaths:
+      - .status.conditionedStatus.conditions[?(@.type=='Ready')]
   creationTimestamp: null
   name: cousins.samples.upbound.io
 spec:
@@ -531,15 +543,19 @@ metadata:
     stacks.crossplane.io/icon-data-uri: data:image/svg+xml;base64,bW9jay1pY29uLWRhdGEtc3Zn
     stacks.crossplane.io/stack-title: Sample Crossplane Stack
     stacks.crossplane.io/ui-schema: |-
-      version: 0.3
+      version: 0.4
       configSections:
       - title: group Title
         description: group Description
+      resourceConditionPaths:
+      - .status.conditionedStatus.conditions[?(@.type=='Ready')]
       ---
-      version: 0.3
+      version: 0.4
       configSections:
       - title: sibling Title
         description: sibling Description
+      resourceConditionPaths:
+      - .status.conditionedStatus.conditions[?(@.type=='Ready')]
   creationTimestamp: null
   name: siblings.samples.upbound.io
 spec:
@@ -609,20 +625,26 @@ metadata:
     stacks.crossplane.io/resource-title-plural: Resources Title
     stacks.crossplane.io/stack-title: Sample Crossplane Stack
     stacks.crossplane.io/ui-schema: |-
-      version: 0.3
+      version: 0.4
       configSections:
       - title: group Title
         description: group Description
+      resourceConditionPaths:
+      - .status.conditionedStatus.conditions[?(@.type=='Ready')]
       ---
-      version: 0.3
+      version: 0.4
       configSections:
       - title: sibling Title
         description: sibling Description
+      resourceConditionPaths:
+      - .status.conditionedStatus.conditions[?(@.type=='Ready')]
       ---
-      version: 0.3
+      version: 0.4
       configSections:
       - title: kind Title
         description: kind Description
+      resourceConditionPaths:
+      - .status.conditionedStatus.conditions[?(@.type=='Ready')]
   creationTimestamp: null
   name: mytypes.samples.upbound.io
 spec:
@@ -655,10 +677,12 @@ metadata:
     stacks.crossplane.io/icon-data-uri: data:image/jpeg;base64,bW9jay1pY29uLWRhdGE=
     stacks.crossplane.io/stack-title: Sample Crossplane Stack
     stacks.crossplane.io/ui-schema: |-
-      version: 0.3
+      version: 0.4
       configSections:
       - title: group Title
         description: group Description
+      resourceConditionPaths:
+      - .status.conditionedStatus.conditions[?(@.type=='Ready')]
   creationTimestamp: null
   name: cousins.samples.upbound.io
 spec:
@@ -1025,10 +1049,12 @@ spec:
 }
 
 func simpleUIFile(name string) string {
-	return fmt.Sprintf(`version: 0.3
+	return fmt.Sprintf(`version: 0.4
 configSections:
 - title: %s Title
   description: %s Description
+resourceConditionPaths:
+- .status.conditionedStatus.conditions[?(@.type=='Ready')]
 `, name, name)
 }
 

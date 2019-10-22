@@ -83,7 +83,7 @@ A root `ui-schema.yaml` file may be used to set global UI metadata.  This may be
 This file contains multiple sections and a variety of different input types with validation overrides, extended validation and custom error messages.
 
 ```yaml
-version: 0.3
+version: 0.4
 configSections:
 - title: Configuration
   description: Enter information specific to the configuration you wish to create.
@@ -125,6 +125,8 @@ configSections:
     validation:
     - required: true
       customError: You must select an instance size for your configuration!
+resourceConditionPaths:
+- .status.conditionedStatus.conditions[?(@.type=='Ready')]
 ```
 
 ### CRD Annotation Example
@@ -132,6 +134,7 @@ configSections:
 An example injection of the `ui-schema.yaml` as a CRD annotation follows.  Keep in mind that Kubernetes annotations are limited to 256kb (less in older versions).
 
 ```yaml
+version: 0.4
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
@@ -139,7 +142,6 @@ metadata:
   annotations:
     stacks.crossplane.io/ui-schema: |-
       ---
-      version: 0.3
       configSections:
       - title: Configuration
         description: Enter information specific to the configuration you wish to create.
@@ -182,11 +184,15 @@ metadata:
           validation:
           - required: true
             customError: You must select an instance size for your configuration!
+      resourceConditionPaths:
+      - .status.conditionedStatus.conditions[?(@.type=='Ready')]
       ---
-      version: 0.3
+      version: 0.4
       configSections:
       - title: Supplementary
         description: A supplementary UI annotation
+      resourceConditionPaths:
+      - .status.conditionedStatus.conditions[?(@.type=='Ready')]
   labels:
     controller-tools.k8s.io: "1.0"
 ```
