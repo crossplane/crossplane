@@ -4020,6 +4020,30 @@ spec:
               type: string
             source:
               type: string
+            templates:
+              properties:
+                behaviors:
+                  additionalProperties:
+                    properties:
+                      defaults:
+                        items:
+                          type: string
+                        type: array
+                      resources:
+                        items:
+                          type: string
+                        type: array
+                      status:
+                        items:
+                          type: string
+                        type: array
+                    type: object
+                  type: object
+                sources:
+                  additionalProperties:
+                    type: string
+                  type: object
+              type: object
             title:
               type: string
             version:

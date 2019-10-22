@@ -224,6 +224,7 @@ spec:
   readme: |
     Markdown describing this sample Crossplane stack project.
   source: https://github.com/crossplaneio/sample-stack
+  templates: {}
   title: Sample Crossplane Stack
   version: 0.0.1
   website: https://upbound.io
@@ -521,6 +522,7 @@ spec:
   readme: |
     Markdown describing this sample Crossplane stack project.
   source: https://github.com/crossplaneio/sample-stack
+  templates: {}
   title: Sample Crossplane Stack
   version: 0.0.1
   website: https://upbound.io
@@ -818,6 +820,7 @@ spec:
   readme: |
     Markdown describing this sample Crossplane stack project.
   source: https://github.com/crossplaneio/sample-stack
+  templates: {}
   title: Sample Crossplane Stack
   version: 0.0.1
   website: https://upbound.io
@@ -941,6 +944,7 @@ spec:
   readme: |
     Markdown describing this sample Crossplane stack project.
   source: https://github.com/crossplaneio/sample-stack
+  templates: {}
   title: Sample Crossplane Stack
   version: 0.0.1
   website: https://upbound.io
