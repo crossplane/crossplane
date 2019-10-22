@@ -81,7 +81,10 @@ func crdStep(sp StackPackager) walker.Step {
 			return errors.Wrap(err, fmt.Sprintf("invalid crd %q", path))
 		}
 
-		if (crd.Spec.Scope != apiextensions.NamespaceScoped) && (crd.Spec.Scope != "") {
+		stackIsNamespacedScope := sp.IsNamespaced()
+		crdIsNotNamespacedScope := (crd.Spec.Scope != apiextensions.NamespaceScoped) && (crd.Spec.Scope != "")
+
+		if stackIsNamespacedScope && crdIsNotNamespacedScope {
 			return errors.New(fmt.Sprintf("Stack CRD %q must be namespaced scope", path))
 		}
 
