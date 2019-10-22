@@ -29,7 +29,7 @@ type ProviderSpec struct {
 	// This will typically be the connection secret of a KubernetesCluster claim,
 	// or the secret created by a Kubernetes service account, but could also be
 	// manually configured to connect to a preexisting cluster.
-	Secret v1alpha1.SecretKeySelector `json:"credentialsSecretRef"`
+	Secret v1alpha1.SecretReference `json:"credentialsSecretRef"`
 }
 
 // +kubebuilder:object:root=true

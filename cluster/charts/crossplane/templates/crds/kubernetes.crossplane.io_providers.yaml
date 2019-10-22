@@ -46,9 +46,6 @@ spec:
                 claim, or the secret created by a Kubernetes service account, but
                 could also be manually configured to connect to a preexisting cluster.
               properties:
-                key:
-                  description: The key to select.
-                  type: string
                 name:
                   description: Name of the secret.
                   type: string
@@ -56,7 +53,6 @@ spec:
                   description: Namespace of the secret.
                   type: string
               required:
-              - key
               - name
               - namespace
               type: object
