@@ -332,20 +332,23 @@ configuration we just set up:
 ```
 cat > environment.yaml <<EOF
 ---
-apiVersion: database.gcp.crossplane.io/v1alpha2
+apiVersion: database.gcp.crossplane.io/v1beta1
 kind: CloudsqlInstanceClass
 metadata:
   name: standard-cloudsql
   namespace: gcp
 specTemplate:
-  databaseVersion: MYSQL_5_7
-  tier: db-n1-standard-1
-  region: us-central1
-  storageType: PD_SSD
-  storageGB: 10
-  # Note from GCP Docs: Your Cloud SQL instances are not created in your VPC network.
-  # They are created in the service producer network (a VPC network internal to Google) that is then connected (peered) to your VPC network.
-  privateNetwork: projects/$PROJECT_ID/global/networks/example-network
+  forProvider:
+    databaseVersion: MYSQL_5_7
+    region: us-central1
+    settings:
+      tier: db-n1-standard-1
+      dataDiskType: PD_SSD
+      dataDiskSizeGb: 10
+      # Note from GCP Docs: Your Cloud SQL instances are not created in your VPC network.
+      # They are created in the service producer network (a VPC network internal to Google) that is then connected (peered) to your VPC network.
+      ipConfiguration:
+        privateNetwork: projects/$PROJECT_ID/global/networks/example-network
   providerRef:
     name: gcp-provider
     namespace: gcp
@@ -418,7 +421,7 @@ metadata:
     default: "true"
 classRef:
   kind: CloudsqlInstanceClass
-  apiVersion: database.gcp.crossplane.io/v1alpha2
+  apiVersion: database.gcp.crossplane.io/v1beta1
   name: standard-cloudsql
   namespace: gcp
 ---

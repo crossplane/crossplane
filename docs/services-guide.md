@@ -284,17 +284,23 @@ specTemplate:
 cloudsql--mysql-standard.yaml
 ```yaml
 ---
-apiVersion: database.gcp.crossplane.io/v1alpha2
+apiVersion: database.gcp.crossplane.io/v1beta1
 kind: CloudsqlInstanceClass
 metadata:
   name: cloudsql-mysql-standard
   namespace: gcp-infra-dev
 specTemplate:
-  databaseVersion: MYSQL_5_6
-  tier: db-custom-1-3840
-  region: us-west2
-  storageType: PD_SSD
-  storageGB: 10
+  forProvider:
+    databaseVersion: MYSQL_5_6
+    region: us-central1
+    settings:
+      tier: db-n1-standard-1
+      dataDiskType: PD_SSD
+      dataDiskSizeGb: 10
+      # Note from GCP Docs: Your Cloud SQL instances are not created in your VPC network.
+      # They are created in the service producer network (a VPC network internal to Google) that is then connected (peered) to your VPC network.
+      ipConfiguration:
+        privateNetwork: projects/$PROJECT_ID/global/networks/example-network
   providerRef:
     name: demo
     namespace: gcp-infra-dev

@@ -25,17 +25,19 @@ spec:
 ---
 # ResourceClass that defines the blueprint for how a "standard" CloudSQL instance
 # should be dynamically provisioned
-apiVersion: database.gcp.crossplane.io/v1alpha2
+apiVersion: database.gcp.crossplane.io/v1beta1
 kind: CloudsqlInstanceClass
 metadata:
   name: standard
   namespace: crossplane-system
 specTemplate:
-  databaseVersion: MYSQL_5_7
-  tier: db-n1-standard-1
-  region: us-west2
-  storageType: PD_SSD
-  storageGB: 10
+  forProvider:
+    databaseVersion: MYSQL_5_7
+    region: us-west2
+    settings:
+      tier: db-n1-standard-1
+      dataDiskType: PD_SSD
+      dataDiskSizeGb: 10
   providerRef:
     name: gcp-sql-provider
     namespace: crossplane-system

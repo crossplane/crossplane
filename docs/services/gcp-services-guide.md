@@ -179,19 +179,22 @@ satisfied by a [Google Cloud SQL Instance](https://cloud.google.com/sql/docs/mys
 ```bash
 cat > gcp-mysql-standard.yaml <<EOF
 ---
-apiVersion: database.gcp.crossplane.io/v1alpha2
+apiVersion: database.gcp.crossplane.io/v1beta1
 kind: CloudsqlInstanceClass
 metadata:
   name: standard-cloudsql
 specTemplate:
-  databaseVersion: MYSQL_5_7
-  tier: db-n1-standard-1
-  region: us-central1
-  storageType: PD_SSD
-  storageGB: 10
-  # Note from GCP Docs: Your Cloud SQL instances are not created in your VPC network.
-  # They are created in the service producer network (a VPC network internal to Google) that is then connected (peered) to your VPC network.
-  privateNetwork: projects/$PROJECT_ID/global/networks/$NETWORK_NAME
+  forProvider:
+    databaseVersion: MYSQL_5_7
+    region: us-central1
+    settings:
+      tier: db-n1-standard-1
+      dataDiskType: PD_SSD
+      dataDiskSizeGb: 10
+      # Note from GCP Docs: Your Cloud SQL instances are not created in your VPC network.
+      # They are created in the service producer network (a VPC network internal to Google) that is then connected (peered) to your VPC network.
+      ipConfiguration:
+        privateNetwork: projects/$PROJECT_ID/global/networks/$NETWORK_NAME
   providerRef:
     name: gcp-provider
     namespace: $INFRA_NAMESPACE
@@ -246,7 +249,7 @@ that our Wordpress resources will live in.
     name: mysql-standard
   classRef:
     kind: CloudsqlInstanceClass
-    apiVersion: database.gcp.crossplane.io/v1alpha2
+    apiVersion: database.gcp.crossplane.io/v1beta1
     name: standard-cloudsql
     namespace: $INFRA_NAMESPACE
   EOF
@@ -370,7 +373,7 @@ Spec:
     Name:          mysql-standard
   Engine Version:  5.6
   Resource Ref:
-    API Version:  database.gcp.crossplane.io/v1alpha2
+    API Version:  database.gcp.crossplane.io/v1beta1
     Kind:         CloudsqlInstance
     Name:         mysqlinstance-6a7fe064-d888-11e9-ab90-42b6bb22213a
     Namespace:    gcp-infra-dev
