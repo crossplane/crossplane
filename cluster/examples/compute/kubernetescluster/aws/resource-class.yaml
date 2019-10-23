@@ -3,6 +3,8 @@ apiVersion: compute.aws.crossplane.io/v1alpha2
 kind: EKSClusterClass
 metadata:
   name: ekscluster-standard
+  labels:
+    example: "true"
 specTemplate:
   writeConnectionSecretsToNamespace: crossplane-system
   region: us-east-1

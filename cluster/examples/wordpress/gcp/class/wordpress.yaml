@@ -16,6 +16,9 @@ metadata:
   name: mysql-instance
 spec:
   engineVersion: "5.7"
+  classSelector:
+    matchLabels:
+      example: "true"
   writeConnectionSecretToRef:
     name: mysql-instance
 ---

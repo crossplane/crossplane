@@ -3,6 +3,8 @@ apiVersion: database.aws.crossplane.io/v1alpha2
 kind: RDSInstanceClass
 metadata:
   name: rdspostgresql-standard
+  labels:
+    example: "true"
 specTemplate:
   writeConnectionSecretsToNamespace: crossplane-system
   class: db.t2.small

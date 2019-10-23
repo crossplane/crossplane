@@ -3,6 +3,9 @@ kind: PostgreSQLInstance
 metadata:
   name: gitlab-postgresql
 spec:
+  classSelector:
+    matchLabels:
+      example: "true"
   writeConnectionSecretToRef:
     name: gitlab-postgresql
   engineVersion: "9.6"

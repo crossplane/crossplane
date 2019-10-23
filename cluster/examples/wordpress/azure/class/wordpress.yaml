@@ -3,6 +3,9 @@ kind: MySQLInstance
 metadata:
   name: mysql-instance
 spec:
+  classSelector:
+    matchLabels:
+      example: "true"
   writeConnectionSecretToRef:
     name: mysql-instance
   engineVersion: "5.7"

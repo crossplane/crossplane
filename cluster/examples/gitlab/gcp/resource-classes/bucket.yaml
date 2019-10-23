@@ -6,6 +6,8 @@ metadata:
   name: standard-gcp-bucket
   annotations:
     resource: bucket.storage.crossplane.io/v1alpha1
+  labels:
+    example: "true"
 specTemplate:
   writeConnectionSecretsToNamespace: crossplane-system
   bucketPolicyOnly:

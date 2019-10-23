@@ -3,6 +3,8 @@ apiVersion: database.aws.crossplane.io/v1alpha2
 kind: RDSInstanceClass
 metadata:
   name: standard-mysql
+  labels:
+    example: "true"
 specTemplate:
   writeConnectionSecretsToNamespace: crossplane-system
   class: db.t2.small
@@ -20,6 +22,8 @@ apiVersion: compute.aws.crossplane.io/v1alpha2
 kind: EKSClusterClass
 metadata:
   name: standard-cluster
+  labels:
+    example: "true"
 specTemplate:
   writeConnectionSecretsToNamespace: crossplane-system
   region: ((AWS_REGION))

@@ -6,6 +6,8 @@ metadata:
   name: standard-gcp-postgres
   annotations:
     resource: postgresqlinstance.database.crossplane.io/v1beta1
+  labels:
+    example: "true"
 specTemplate:
   writeConnectionSecretsToNamespace: crossplane-system
   forProvider:

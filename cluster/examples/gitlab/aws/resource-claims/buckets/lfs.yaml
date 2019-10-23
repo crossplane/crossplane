@@ -4,6 +4,9 @@ kind: Bucket
 metadata:
   name: gitlab-lfs
 spec:
+  classSelector:
+    matchLabels:
+      example: "true"
   writeConnectionSecretToRef:
     name: gitlab-lfs
   name: gitlab-demo-lfs-%s

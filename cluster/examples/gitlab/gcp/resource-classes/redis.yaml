@@ -5,6 +5,8 @@ metadata:
   name: standard-gcp-redis
   annotations:
     resource: rediscluster.cache.crossplane.io/v1alpha1
+  labels:
+    example: "true"
 specTemplate:
   writeConnectionSecretsToNamespace: crossplane-system
   forProvider:

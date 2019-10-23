@@ -3,6 +3,8 @@ apiVersion: cache.azure.crossplane.io/v1alpha2
 kind: RedisClass
 metadata:
   name: azure-redis-standard
+  labels:
+    example: "true"
 specTemplate:
   writeConnectionSecretsToNamespace: crossplane-system
   resourceGroupName: group-westus-1

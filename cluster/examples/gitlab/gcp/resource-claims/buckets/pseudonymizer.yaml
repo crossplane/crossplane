@@ -4,6 +4,9 @@ kind: Bucket
 metadata:
   name: gitlab-pseudonymizer
 spec:
+  classSelector:
+    matchLabels:
+      example: "true"
   writeConnectionSecretToRef:
     name: gitlab-pseudonymizer
   name: gitlab-demo-pseudonymizer-%s

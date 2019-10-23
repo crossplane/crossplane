@@ -4,6 +4,9 @@ kind: Bucket
 metadata:
   name: gitlab-uploads
 spec:
+  classSelector:
+    matchLabels:
+      example: "true"
   writeConnectionSecretToRef:
     name: gitlab-uploads
   name: gitlab-demo-uploads-%s

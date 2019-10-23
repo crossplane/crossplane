@@ -3,6 +3,8 @@ apiVersion: storage.aws.crossplane.io/v1alpha2
 kind: S3BucketClass
 metadata:
   name: s3bucket-standard
+  labels:
+    example: "true"
 specTemplate:
   writeConnectionSecretsToNamespace: crossplane-system
   versioning: false

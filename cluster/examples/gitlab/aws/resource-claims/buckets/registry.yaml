@@ -4,6 +4,9 @@ kind: Bucket
 metadata:
   name: gitlab-registry
 spec:
+  classSelector:
+    matchLabels:
+      example: "true"
   writeConnectionSecretToRef:
     name: gitlab-registry
   name: gitlab-demo-registry-%s

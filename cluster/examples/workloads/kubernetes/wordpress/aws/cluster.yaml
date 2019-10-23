@@ -6,5 +6,8 @@ metadata:
   labels:
     app: wordpress-demo
 spec:
+  classSelector:
+    matchLabels:
+      example: "true"
   writeConnectionSecretToRef:
     name: wordpress-demo-cluster

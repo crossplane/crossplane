@@ -4,6 +4,9 @@ kind: Bucket
 metadata:
   name: gitlab-externaldiffs
 spec:
+  classSelector:
+    matchLabels:
+      example: "true"
   writeConnectionSecretToRef:
     name: gitlab-externaldiffs
   name: gitlab-demo-externaldiffs-%s

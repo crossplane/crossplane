@@ -23,6 +23,7 @@ spec:
   providerRef:
     name: example
   writeConnectionSecretToRef:
+    namespace: crossplane-system
     name: demo-rds
   securityGroups:
 #  - vpc-default-sg - default security group for your VPC

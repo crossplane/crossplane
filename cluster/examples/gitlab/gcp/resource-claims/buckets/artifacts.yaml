@@ -4,6 +4,9 @@ kind: Bucket
 metadata:
   name: gitlab-artifacts
 spec:
+  classSelector:
+    matchLabels:
+      example: "true"
   writeConnectionSecretToRef:
     name: gitlab-artifacts
   name: gitlab-demo-artifacts-%s

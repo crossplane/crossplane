@@ -3,6 +3,8 @@ apiVersion: cache.gcp.crossplane.io/v1beta1
 kind: CloudMemorystoreInstanceClass
 metadata:
   name: gcp-redis-standard
+  labels:
+    example: "true"
 specTemplate:
   writeConnectionSecretsToNamespace: crossplane-system
   forProvider:

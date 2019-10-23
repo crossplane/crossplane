@@ -4,6 +4,9 @@ kind: MySQLInstance
 metadata:
   name: app-mysql
 spec:
+  classSelector:
+    matchLabels:
+      example: "true"
   writeConnectionSecretToRef:
     name: mysqlconn
   engineVersion: "5.6"

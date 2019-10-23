@@ -7,6 +7,8 @@ metadata:
   name: standard-aws-postgres
   annotations:
     resource: postgresqlinstance.database.crossplane.io/v1alpha1
+  labels:
+    example: "true"
 specTemplate:
   writeConnectionSecretsToNamespace: crossplane-system
   class: db.t2.small
