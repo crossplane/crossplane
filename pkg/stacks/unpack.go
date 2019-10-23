@@ -112,6 +112,7 @@ type StackPackager interface {
 	SetRBAC(v1alpha1.PermissionsSpec)
 
 	GotApp() bool
+	IsNamespaced() bool
 
 	AddGroup(string, StackGroup)
 	AddResource(string, StackResource)
@@ -183,6 +184,11 @@ func (sp *StackPackage) Yaml() (string, error) {
 	}
 
 	return builder.String(), nil
+}
+
+// IsNamespaced reports if the StackPackage is Namespaced (not Cluster Scoped)
+func (sp *StackPackage) IsNamespaced() bool {
+	return sp.Stack.Spec.PermissionScope == string(apiextensions.NamespaceScoped)
 }
 
 // SetApp sets the Stack's App metadata

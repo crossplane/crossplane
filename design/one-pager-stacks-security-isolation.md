@@ -2,7 +2,14 @@
 
 * Owner: Jared Watts (@jbw976)
 * Reviewers: Crossplane Maintainers
-* Status: Draft, revision 1.0
+* Status: Draft, revision 1.1
+
+## Revisions
+
+* 1.1
+  * Cluster stacks may own Cluster scoped CRDs
+    [#958](https://github.com/crossplaneio/crossplane/pull/958)
+  * Namespaced stacks may depend on Cluster scoped CRDs [#958](https://github.com/crossplaneio/crossplane/pull/958)
 
 ## Background
 
@@ -69,10 +76,12 @@ This is described in greater details in the sections below.
 
 A few notes on the scope of access to CRDs:
 
-* All CRDs the stack owns and depends on are expected to be namespace scoped CRDs. Access to cluster scoped CRDs will not be granted, even for Cluster Stacks.
+* All CRDs a Namespaced stack owns must be namespace scoped CRDs. Cluster scoped Stacks may own cluster scoped CRDs.
+* Namespaced and Cluster scoped Stacks may depend on a combination of namespaced or cluster scoped CRDs.
 * The allowed verbs for the CRDs the stack owns and depends on will be the same. Stacks will likely need full CRUD access, regardless of if the stack owns or depends on the CRD.
 
-In the future, other security modes could be enabled such as a more explicit model, and the allowed set of permissions and scope could be expanded, but we are intentionally starting now with a restrictive scope.
+In the future, other security modes could be enabled such as a more explicit model, and the allowed set of permissions and scope could be expanded.  We are intentionally starting
+with a restrictive scope compatible with Crossplane Managed Resource Infrastructure Stacks and [Resource Class Selection](https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-simple-class-selection.md#proposal).
 We will allow feedback and real use cases from the community to inform any decisions to potentially expand this security model.
 Any future expansions to the model should be accompanied by a thoughtful design.
 

@@ -23,6 +23,7 @@ import (
 	batch "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbac "k8s.io/api/rbac/v1"
+	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -103,10 +104,10 @@ func (si *StackInstall) Image() string { return si.Spec.Image() }
 func (si *ClusterStackInstall) Image() string { return si.Spec.Image() }
 
 // PermissionScope gets the required app.yaml permissionScope value ("Namespaced") for StackInstall
-func (si *StackInstall) PermissionScope() string { return "Namespaced" }
+func (si *StackInstall) PermissionScope() string { return string(apiextensions.NamespaceScoped) }
 
 // PermissionScope gets the required app.yaml permissionScope value ("Cluster") for ClusterStackInstall
-func (si *ClusterStackInstall) PermissionScope() string { return "Cluster" }
+func (si *ClusterStackInstall) PermissionScope() string { return string(apiextensions.ClusterScoped) }
 
 // SetConditions sets the StackInstall's Status conditions
 func (si *StackInstall) SetConditions(c ...runtimev1alpha1.Condition) {
