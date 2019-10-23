@@ -1,0 +1,8 @@
+namespace: aws-infra
+commonLabels:
+  solution: aws-secure-connectivity
+resources:
+  - namespace.yaml
+  - resource-group.yaml
+  - virtualnetwork.yaml
+  - subnet.yaml

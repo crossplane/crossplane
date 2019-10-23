@@ -1,0 +1,19 @@
+---
+# Azure Virtual Network
+apiVersion: network.azure.crossplane.io/v1alpha2
+kind: VirtualNetwork
+metadata:
+  name: my-vnet
+spec:
+  name: demo-vnet
+  resourceGroupNameRef:
+    name: my-rg
+  location: Central US
+  properties:
+    addressSpace:
+      addressPrefixes:
+        - 10.2.0.0/16
+  providerRef:
+    name: demo-azure
+    namespace: azure-provider
+  reclaimPolicy: Delete

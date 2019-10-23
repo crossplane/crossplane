@@ -1,0 +1,19 @@
+apiVersion: compute.azure.crossplane.io/v1alpha2
+kind: AKSClusterClass
+metadata:
+  name: azure-aks-standard
+specTemplate:
+  resourceGroupName: demo-rg
+  vnetSubnetID: /subscriptions/${SUBSCRIPTION_ID}/resourceGroups/demo-rg/providers/Microsoft.Network/virtualNetworks/demo-vnet/subnets/demo-subnet
+  location: Central US
+  version: "1.12.8"
+  nodeCount: 1
+  nodeVMSize: Standard_B2s
+  dnsNamePrefix: crossplane-aks
+  disableRBAC: false
+  writeServicePrincipalTo:
+    name: akscluster-net
+  providerRef:
+    name: demo-azure
+    namespace: azure-infra-dev
+  reclaimPolicy: Delete

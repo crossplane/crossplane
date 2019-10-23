@@ -1,0 +1,19 @@
+# Azure Subnet
+apiVersion: network.azure.crossplane.io/v1alpha2
+kind: Subnet
+metadata:
+  name: my-subnet
+spec:
+  name: demo-subnet
+  virtualNetworkNameRef:
+    name: my-vnet
+  resourceGroupNameRef:
+    name: my-rg
+  properties:
+    addressPrefix: 10.2.0.0/24
+    serviceEndpoints:
+      - service: Microsoft.Sql
+  providerRef:
+    name: demo-azure
+    namespace: azure-provider
+  reclaimPolicy: Delete

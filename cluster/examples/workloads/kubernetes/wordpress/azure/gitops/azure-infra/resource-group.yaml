@@ -1,0 +1,11 @@
+apiVersion: azure.crossplane.io/v1alpha2
+kind: ResourceGroup
+metadata:
+  name: my-rg
+spec:
+  name: demo-rg-e
+  location: Central US
+  providerRef:
+    name: demo-azure
+    namespace: azure-provider
+  reclaimPolicy: Delete
