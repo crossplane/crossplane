@@ -144,7 +144,7 @@ spec:
   classRef:
     apiVersion: database.gcp.crossplane.io/v1alpha2
     kind: CloudSQLInstanceClass
-    namespace: us-east-1
+    name: gitlab-experimental
   writeConnectionSecretToRef:
     name: app-postgresql-connection
 ```
