@@ -1,26 +1,14 @@
 ---
-apiVersion: cache.crossplane.io/v1alpha1
-kind: RedisClusterClass
-metadata:
-  name: redis-standard
-  namespace: app-project1-dev
-classRef:
-  kind: CloudMemorystoreInstanceClass
-  apiVersion: cache.gcp.crossplane.io/v1beta1
-  name: gcp-redis-standard
-  namespace: gcp-infra-dev
----
 apiVersion: cache.gcp.crossplane.io/v1beta1
 kind: CloudMemorystoreInstanceClass
 metadata:
   name: gcp-redis-standard
-  namespace: gcp-infra-dev
 specTemplate:
+  writeConnectionSecretsToNamespace: crossplane-system
   forProvider:
     tier: STANDARD_HA
     region: us-west2
     memorySizeGb: 1
   providerRef:
     name: example
-    namespace: gcp-infra-dev
   reclaimPolicy: Delete

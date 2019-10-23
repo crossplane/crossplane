@@ -1,21 +1,14 @@
 ---
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: azure-infra-dev
----
 # Azure Resource Group
 apiVersion: azure.crossplane.io/v1alpha2
 kind: ResourceGroup
 metadata:
   name: demo-rg
-  namespace: azure-infra-dev
 spec:
   name: demo-rg
   location: Central US
   providerRef:
     name: example
-    namespace: azure-infra-dev
   reclaimPolicy: Delete
 ---
 # Azure Virtual Network
@@ -23,7 +16,6 @@ apiVersion: network.azure.crossplane.io/v1alpha2
 kind: VirtualNetwork
 metadata:
   name: demo-vnet
-  namespace:  azure-infra-dev
 spec:
   name: demo-vnet
   resourceGroupName: demo-rg
@@ -34,7 +26,6 @@ spec:
         - 10.2.0.0/16
   providerRef:
     name: example
-    namespace: azure-infra-dev
   reclaimPolicy: Delete
 ---
 # Azure Subnet
@@ -42,7 +33,6 @@ apiVersion: network.azure.crossplane.io/v1alpha2
 kind: Subnet
 metadata:
   name: demo-subnet
-  namespace: azure-infra-dev
 spec:
   name: demo-subnet
   virtualNetworkName: demo-vnet
@@ -53,5 +43,4 @@ spec:
       - service: Microsoft.Sql
   providerRef:
     name: example
-    namespace: azure-infra-dev
   reclaimPolicy: Delete

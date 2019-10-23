@@ -4,13 +4,11 @@ apiVersion: compute.gcp.crossplane.io/v1alpha2
 kind: Network
 metadata:
   name: example-network
-  namespace: gcp
 spec:
   name: example-network
   autoCreateSubnetworks: false
   providerRef:
-    name: gcp-provider
-    namespace: gcp
+    name: example
   reclaimPolicy: Delete
   routingConfig:
     routingMode: REGIONAL
@@ -20,11 +18,9 @@ apiVersion: compute.gcp.crossplane.io/v1alpha2
 kind: Subnetwork
 metadata:
   name: example-subnetwork
-  namespace: gcp
 spec:
   providerRef:
-    name: gcp-provider
-    namespace: gcp
+    name: example
   reclaimPolicy: Delete
   name: example-subnetwork
   region: us-central1
@@ -43,11 +39,9 @@ apiVersion: compute.gcp.crossplane.io/v1alpha2
 kind: GlobalAddress
 metadata:
   name: example-globaladdress
-  namespace: gcp
 spec:
   providerRef:
-    name: gcp-provider
-    namespace: gcp
+    name: example
   reclaimPolicy: Delete
   name: example-globaladdress
   purpose: VPC_PEERING
@@ -61,11 +55,9 @@ apiVersion: servicenetworking.gcp.crossplane.io/v1alpha2
 kind: Connection
 metadata:
   name: example-connection
-  namespace: gcp
 spec:
   providerRef:
-    name: gcp-provider
-    namespace: gcp
+    name: example
   reclaimPolicy: Delete
   parent: services/servicenetworking.googleapis.com
   network: projects/crossplane-playground/global/networks/example-network

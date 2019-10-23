@@ -2,13 +2,7 @@ apiVersion: cache.crossplane.io/v1alpha1
 kind: RedisCluster
 metadata:
   name: gitlab-redis
-  namespace: default
 spec:
-  classRef:
-    kind: ReplicationGroupClass
-    apiVersion: cache.aws.crossplane.io/v1alpha2
-    name: standard-aws-redis
-    namespace: crossplane-system
   writeConnectionSecretToRef:
     name: gitlab-redis
   engineVersion: "3.2"

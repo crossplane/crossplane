@@ -1,23 +1,10 @@
 ---
-apiVersion: database.crossplane.io/v1alpha1
-kind: PostgreSQLInstanceClass
-metadata:
-  name: postgresql-standard
-  namespace: app-project1-dev
-classRef:
-  kind: SQLServerClass
-  apiVersion: database.azure.crossplane.io/v1alpha2
-  name: sqlserverpostgresql-standard
-  namespace: azure-infra-dev
----
-# ResourceClass that defines the blueprint for how a "standard" Azure PostgreSQL Server
-# should be dynamically provisioned
 apiVersion: database.azure.crossplane.io/v1alpha2
 kind: SQLServerClass
 metadata:
   name: sqlserverpostgresql-standard
-  namespace: azure-infra-dev
 specTemplate:
+  writeConnectionSecretsToNamespace: crossplane-system
   adminLoginName: myadmin
   resourceGroupName: group-westus-1
   location: West US
@@ -33,5 +20,4 @@ specTemplate:
     geoRedundantBackup: false
   providerRef:
     name: example
-    namespace: azure-infra-dev
   reclaimPolicy: Delete

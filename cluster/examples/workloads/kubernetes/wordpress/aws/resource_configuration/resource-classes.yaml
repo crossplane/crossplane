@@ -3,8 +3,8 @@ apiVersion: database.aws.crossplane.io/v1alpha2
 kind: RDSInstanceClass
 metadata:
   name: standard-mysql
-  namespace: crossplane-system
 specTemplate:
+  writeConnectionSecretsToNamespace: crossplane-system
   class: db.t2.small
   masterUsername: masteruser
   securityGroups:
@@ -13,16 +13,15 @@ specTemplate:
   size: 20
   engine: mysql
   providerRef:
-    name: aws-provider
-    namespace: crossplane-system
+    name: example
   reclaimPolicy: Delete
 ---
 apiVersion: compute.aws.crossplane.io/v1alpha2
 kind: EKSClusterClass
 metadata:
   name: standard-cluster
-  namespace: crossplane-system
 specTemplate:
+  writeConnectionSecretsToNamespace: crossplane-system
   region: ((AWS_REGION))
   roleARN: ((EKS_ROLE_ARN))
   vpcId: ((VPC_ID))
@@ -39,6 +38,5 @@ specTemplate:
     nodeGroupName: demo-nodes
     clusterControlPlaneSecurityGroup: ((EKS_SECURITY_GROUP_ID))
   providerRef:
-    name: aws-provider
-    namespace: crossplane-system
+    name: example
   reclaimPolicy: Delete

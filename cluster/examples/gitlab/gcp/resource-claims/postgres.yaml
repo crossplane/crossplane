@@ -2,13 +2,7 @@ apiVersion: database.crossplane.io/v1alpha1
 kind: PostgreSQLInstance
 metadata:
   name: gitlab-postgresql
-  namespace: default
 spec:
-  classRef:
-    kind: CloudsqlInstanceClass
-    apiVersion: database.gcp.crossplane.io/v1beta1
-    name: standard-gcp-postgres
-    namespace: crossplane-system
   writeConnectionSecretToRef:
     name: gitlab-postgresql
   engineVersion: "9.6"

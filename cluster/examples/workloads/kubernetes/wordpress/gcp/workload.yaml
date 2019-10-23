@@ -3,7 +3,6 @@ apiVersion: compute.crossplane.io/v1alpha1
 kind: KubernetesCluster
 metadata:
   name: wordpress-demo-cluster
-  namespace: mynamespace
   labels:
     app: wordpress-demo
 spec:
@@ -14,7 +13,6 @@ apiVersion: database.crossplane.io/v1alpha1
 kind: MySQLInstance
 metadata:
   name: sql
-  namespace: mynamespace
 spec:
   engineVersion: "5.7"
   # A secret is exported by providing the secret name
@@ -27,7 +25,6 @@ apiVersion: workload.crossplane.io/v1alpha1
 kind: KubernetesApplication
 metadata:
   name: wordpress-demo
-  namespace: mynamespace
   labels:
     app: wordpress-demo
 spec:

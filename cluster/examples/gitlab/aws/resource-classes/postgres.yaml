@@ -5,18 +5,15 @@ apiVersion: database.aws.crossplane.io/v1alpha2
 kind: RDSInstanceClass
 metadata:
   name: standard-aws-postgres
-  namespace: crossplane-system
   annotations:
     resource: postgresqlinstance.database.crossplane.io/v1alpha1
 specTemplate:
+  writeConnectionSecretsToNamespace: crossplane-system
   class: db.t2.small
   masterUsername: masteruser
-  securityGroups:
-   - RDS_SECURITY_GROUP
   subnetGroupName: RDS_SUBNET_GROUP_NAME
   size: 20
-  engine: postgresql
+  engine: postgres
   providerRef:
-    name: demo-aws
-    namespace: crossplane-system
+    name: example
   reclaimPolicy: Delete

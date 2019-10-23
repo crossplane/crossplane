@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 
 DECLARE_OPTS=-A
 BASE64_D_OPTS=-d
 
 if [ "$(uname)" == "Darwin" ]; then
-    DECLARE_OPTS=-a
-    BASE64_D_OPTS=-D
+  DECLARE_OPTS=-a
+  BASE64_D_OPTS=-D
 fi
 
 # Generate content of AWS connection.yaml file used in GitLab bucket secrets
@@ -15,11 +15,11 @@ fi
 # $1 - AWS service account credentials data
 #
 generate_connection_file() {
-    local access_key=$1
-    local secret_key=$2
-    local endpoint=$3
+  local access_key=$1
+  local secret_key=$2
+  local endpoint=$3
 
-cat << EOF
+  cat <<EOF
 provider: AWS
 region: ${endpoint}
 aws_access_key_id: ${access_key}
@@ -32,11 +32,11 @@ EOF
 # $1 Interoperability Access Key value
 # $2 Interoperability Secret value
 #
-generate_s3cmd_file () {
-    local access_key=$1
-    local secret_key=$2
-    local endpoint=$3
-cat << EOF
+generate_s3cmd_file() {
+  local access_key=$1
+  local secret_key=$2
+  local endpoint=$3
+  cat <<EOF
 [default]
 access_key = ${access_key}
 secret_key = ${secret_key}
@@ -45,44 +45,44 @@ bucket_location = ${endpoint}
 EOF
 }
 
-s3bucket_name () {
-    local bucket=$1
-    local ownerUID=$(kubectl  get secret gitlab-${bucket} -o json | jq -r '.metadata.ownerReferences[0].uid')
-    local s3bucketUID=$(kubectl -n crossplane-system get s3bucket bucket-${ownerUID} -o json | jq -r '.metadata.uid')
-    local nameFormat=$(kubectl -n crossplane-system get s3bucket bucket-${ownerUID} -o json | jq -r '.spec.nameFormat')
-    printf ${nameFormat} ${s3bucketUID}
+s3bucket_name() {
+  local bucket=$1
+  local ownerUID=$(kubectl get secret gitlab-${bucket} -o json | jq -r '.metadata.ownerReferences[0].uid')
+  local s3bucketUID=$(kubectl get s3bucket bucket-${ownerUID} -o json | jq -r '.metadata.uid')
+  local nameFormat=$(kubectl get s3bucket bucket-${ownerUID} -o json | jq -r '.spec.nameFormat')
+  printf ${nameFormat} ${s3bucketUID}
 }
 
 # Process crossplane bucket connection secrets and create secrets in GitLab expected format, as well as
 # GitLab Helm values file with bucket configuration
-buckets () {
-    declare ${DECLARE_OPTS} buckets
+buckets() {
+  declare ${DECLARE_OPTS} buckets
 
-    # use claim file names as bucket name enumerator
-    for f in ./cluster/examples/gitlab/aws/resource-claims/buckets/*; do
-        bucket=$(basename ${f} .yaml)
+  # use claim file names as bucket name enumerator
+  for f in ./cluster/examples/gitlab/aws/resource-claims/buckets/*; do
+    bucket=$(basename ${f} .yaml)
 
-        # retrieve interoperability access key and secret
-        endpoint=$(kubectl get secret gitlab-${bucket} -ojson | jq -r '.data.endpoint' | base64 ${BASE64_D_OPTS})
-        bucket_name=$(s3bucket_name ${bucket})
-        interop_access_key=$(kubectl get secret gitlab-${bucket} -ojson | jq -r '.data.username' | base64 ${BASE64_D_OPTS})
-        interop_secret=$(kubectl get secret gitlab-${bucket} -ojson | jq -r '.data.password' | base64 ${BASE64_D_OPTS})
+    # retrieve interoperability access key and secret
+    endpoint=$(kubectl get secret gitlab-${bucket} -ojson | jq -r '.data.endpoint' | base64 ${BASE64_D_OPTS})
+    bucket_name=$(s3bucket_name ${bucket})
+    interop_access_key=$(kubectl get secret gitlab-${bucket} -ojson | jq -r '.data.username' | base64 ${BASE64_D_OPTS})
+    interop_secret=$(kubectl get secret gitlab-${bucket} -ojson | jq -r '.data.password' | base64 ${BASE64_D_OPTS})
 
-        # create different secrets based on the bucket "type"
-        if [[ ${bucket} == 'backups'* ]]; then
-            # for backup buckets we generate secret in `s3cmd.properties` format
-            value=$(generate_s3cmd_file ${interop_access_key} ${interop_secret} ${endpoint})
-            kubectl create secret generic bucket-${bucket} --from-literal=config="${value}"
-        else
-            # for all other buckets we generate secret in `connection.yaml` format
-            value=$(generate_connection_file ${interop_access_key} ${interop_secret} ${endpoint})
-            kubectl create secret generic bucket-${bucket} --from-literal=connection="${value}"
-        fi
+    # create different secrets based on the bucket "type"
+    if [[ ${bucket} == 'backups'* ]]; then
+      # for backup buckets we generate secret in `s3cmd.properties` format
+      value=$(generate_s3cmd_file ${interop_access_key} ${interop_secret} ${endpoint})
+      kubectl create secret generic bucket-${bucket} --from-literal=config="${value}"
+    else
+      # for all other buckets we generate secret in `connection.yaml` format
+      value=$(generate_connection_file ${interop_access_key} ${interop_secret} ${endpoint})
+      kubectl create secret generic bucket-${bucket} --from-literal=connection="${value}"
+    fi
 
-        buckets[${bucket}]=${bucket_name}
-    done
+    buckets[${bucket}]=${bucket_name}
+  done
 
-cat > ${DIR}/values-buckets.yaml << EOF
+  cat >${DIR}/values-buckets.yaml <<EOF
 global:
   minio:
     enabled: false
@@ -125,10 +125,10 @@ EOF
 # $1 postgresql host name (postgresql endpoint ip address)
 # $2 postgresql username
 #
-postgresql_values_file () {
-    local host=${1}
-    local username=${2}
-cat << EOF
+postgresql_values_file() {
+  local host=${1}
+  local username=${2}
+  cat <<EOF
 global:
   psql:
     password:
@@ -144,19 +144,19 @@ EOF
 
 # Process crossplane postgres connection secret and generate Helm values file for postgresql in addition to creating
 # postgres secret for GitLab application
-posgtresql () {
-    host=$(kubectl get secret gitlab-postgresql -o json | jq -r '.data.endpoint' | base64 ${BASE64_D_OPTS})
-    user=$(kubectl get secret gitlab-postgresql -o json | jq -r '.data.username' | base64 ${BASE64_D_OPTS})
-    postgresql_values_file ${host} ${user} > ${DIR}/values-psql.yaml
+posgtresql() {
+  host=$(kubectl get secret gitlab-postgresql -o json | jq -r '.data.endpoint' | base64 ${BASE64_D_OPTS})
+  user=$(kubectl get secret gitlab-postgresql -o json | jq -r '.data.username' | base64 ${BASE64_D_OPTS})
+  postgresql_values_file ${host} ${user} >${DIR}/values-psql.yaml
 }
 
 # Generate the content of Helm values-redis.yaml file
 #
 # $1 host - ip address value for redis instance
 #
-redis_values_file () {
-    local host=${1}
-cat << EOF
+redis_values_file() {
+  local host=${1}
+  cat <<EOF
 global:
   redis:
     password:
@@ -168,9 +168,9 @@ EOF
 }
 
 # Process crossplane redis connection secret and generate Helm values file for redis.
-redis () {
-    host=$(kubectl get secret gitlab-redis -o json | jq -r '.data.endpoint' | base64 ${BASE64_D_OPTS})
-    redis_values_file ${host} > ${DIR}/values-redis.yaml
+redis() {
+  host=$(kubectl get secret gitlab-redis -o json | jq -r '.data.endpoint' | base64 ${BASE64_D_OPTS})
+  redis_values_file ${host} >${DIR}/values-redis.yaml
 }
 
 #

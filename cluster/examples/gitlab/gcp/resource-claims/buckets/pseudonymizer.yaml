@@ -3,13 +3,7 @@ apiVersion: storage.crossplane.io/v1alpha1
 kind: Bucket
 metadata:
   name: gitlab-pseudonymizer
-  namespace: default
 spec:
-  classRef:
-    kind: BucketClass
-    apiVersion: storage.gcp.crossplane.io/v1alpha2
-    name: standard-gcp-bucket
-    namespace: crossplane-system
   writeConnectionSecretToRef:
     name: gitlab-pseudonymizer
   name: gitlab-demo-pseudonymizer-%s

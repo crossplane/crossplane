@@ -1,12 +1,8 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: gcp
 ---
 apiVersion: stacks.crossplane.io/v1alpha1
 kind: ClusterStackInstall
 metadata:
   name: stack-gcp
-  namespace: gcp
+  namespace: crossplane-system
 spec:
   package: "crossplane/stack-gcp:master"

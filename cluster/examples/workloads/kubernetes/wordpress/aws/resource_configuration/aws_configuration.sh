@@ -3,42 +3,42 @@
 # This is a helper script that installs an aws configuration, on top of
 # which other aws managed resources (EKS, RDS, etc...) can communicate
 # It also could cleanup an existing configuration
-# 
+#
 # aws provider has to be created and applied to crossplane, prior to
 # performing this script
 
 set -e -o pipefail
 
 # change to script directory
-cd "$( cd "$( dirname "${BASH_SOURCE[0]}")" && pwd )"
+cd "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 CONFIG_NAME=
 NAMESPACE=
 COMMAND=
 
-while (( "$#" )); do
+while (("$#")); do
   if test -z "$2"; then
     echo "invalid value for $1 option"
     exit -1
   fi
   case "$1" in
-    -a|--action)
-      COMMAND=$2
-      shift 2
-      ;;
-    -c|--config-name)
-      CONFIG_NAME=$2
-      shift 2
-      ;;
-    -n|--namespace)
-      NAMESPACE=$2
-      shift 2
-      ;;
-    *) 
-      echo "unknown option $1"
-      exit -1
-      shift
-      ;;
+  -a | --action)
+    COMMAND=$2
+    shift 2
+    ;;
+  -c | --config-name)
+    CONFIG_NAME=$2
+    shift 2
+    ;;
+  -n | --namespace)
+    NAMESPACE=$2
+    shift 2
+    ;;
+  *)
+    echo "unknown option $1"
+    exit -1
+    shift
+    ;;
   esac
 done
 
@@ -67,20 +67,20 @@ if test -z "$NAMESPACE"; then
 fi
 
 # if NAMESPACE doesn't exit, create it
-if ! kubectl get namespace | awk 'NR!=1{print $1}'| grep -q "$NAMESPACE"; then
+if ! kubectl get namespace | awk 'NR!=1{print $1}' | grep -q "$NAMESPACE"; then
   echo "namespace $NAMESPACE doesn't exist"
   exit -1
 fi
 
 # make sure kubectl is configured
-kubectl cluster-info > /dev/null || echo "KUBECONFIG is not configured properly"
+kubectl cluster-info >/dev/null || echo "KUBECONFIG is not configured properly"
 
-AWS_REGION=$(kubectl -n crossplane-system get provider aws-provider -o=jsonpath='{.spec.region}')
+AWS_REGION=$(kubectl get provider aws-provider -o=jsonpath='{.spec.region}')
 
 # substitue_variables function accepts a file name, substitutes variable names
 # with their values, and prints out the result to stdout
 # a given file might only have a subset of env variables.
-function substitue_variables {
+function substitue_variables() {
   sed \
     -e "s|((CONFIG_NAME))|"$CONFIG_NAME"|g" \
     -e "s|((NAMESPACE))|"$NAMESPACE"|g" \
@@ -99,23 +99,23 @@ function substitue_variables {
 
 # apply_and_wait_until_ready first substitutes the variabels, then
 # applies the object, and then waits until the resource is ready
-function apply_and_wait_until_ready {
+function apply_and_wait_until_ready() {
   echo "applying $1..."
   k8s_object=$(substitue_variables "$1")
   echo "$k8s_object" | kubectl apply -f -
-  echo "$k8s_object" | kubectl wait --for=condition=Ready -f - > /dev/null
+  echo "$k8s_object" | kubectl wait --for=condition=Ready -f - >/dev/null
   all_objects="${all_objects}
 ---
 ${k8s_object}"
 }
 
 # delete_resource substitues the variables and then deletes it
-function delete_resource {
+function delete_resource() {
   echo "deleting $1..."
   substitue_variables "$1" | kubectl delete -f -
 }
 
-function cleanup {
+function cleanup() {
   echo "cleaning up..."
 
   # ignore errors in deleting resources, as some resources might already been deleted
@@ -136,15 +136,15 @@ function cleanup {
 
     echo "deleting vpc orphan resources ..."
     # delete all the load balancers that are externally created in the vpc by k8s
-    vpc_loadbalancers=($(aws elb describe-load-balancers | jq -rc --arg VPC_ID "$VPC_ID" '.LoadBalancerDescriptions | .[] | select(.VPCId == $VPC_ID) | .LoadBalancerName' ))  
-    for (( i=0; i<${#vpc_loadbalancers[@]}; i++ )); do
+    vpc_loadbalancers=($(aws elb describe-load-balancers | jq -rc --arg VPC_ID "$VPC_ID" '.LoadBalancerDescriptions | .[] | select(.VPCId == $VPC_ID) | .LoadBalancerName'))
+    for ((i = 0; i < ${#vpc_loadbalancers[@]}; i++)); do
       echo "deleting load balancer ${vpc_loadbalancers[i]}"
       aws elb delete-load-balancer --load-balancer-name ${vpc_loadbalancers[i]}
     done
 
     # delete all the non-default security groups that are externally created in the vpc by k8s
     vpc_securitygroups=($(aws ec2 describe-security-groups | jq -rc --arg VPC_ID "$VPC_ID" '.SecurityGroups | .[] | select(.VpcId == $VPC_ID and .GroupName!="default") | .GroupId'))
-    for (( i=0; i<${#vpc_securitygroups[@]}; i++ )); do
+    for ((i = 0; i < ${#vpc_securitygroups[@]}; i++)); do
       echo "deleting security group ${vpc_securitygroups[i]}"
       aws ec2 delete-security-group --group-id ${vpc_securitygroups[i]}
     done
@@ -155,9 +155,8 @@ function cleanup {
   echo "Successfully cleaned up all managed configuration resources"
 }
 
-function apply {
+function apply() {
   echo "applying configuration ${CONFIG_NAME} into namespace ${NAMESPACE}"
-  
 
   all_objects=""
 
@@ -188,25 +187,25 @@ function apply {
   apply_and_wait_until_ready rds-securitygroup.yaml
   RDS_SECURITY_GROUP_ID=$(echo "$k8s_object" | kubectl get -o=jsonpath='{.items[0].status.securityGroupID}' -f -)
 
-
   echo "Successfully applied all configuration resources"
   echo "${all_objects}" | kubectl get -f -
 
   ########################################
   # populate resource classes
 
-  substitue_variables resource-classes.yaml \
-  | kubectl apply -f -
+  substitue_variables resource-classes.yaml |
+    kubectl apply -f -
 }
 
 case "$COMMAND" in
-  apply)
-    apply
-    ;;
-  cleanup)
-    cleanup
-    ;;
-  *)
-    echo "command $COMMAND is not a valid command"
-    exit 1
+apply)
+  apply
+  ;;
+cleanup)
+  cleanup
+  ;;
+*)
+  echo "command $COMMAND is not a valid command"
+  exit 1
+  ;;
 esac

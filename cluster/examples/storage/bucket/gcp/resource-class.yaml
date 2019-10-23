@@ -1,25 +1,12 @@
-apiVersion: storage.crossplane.io/v1alpha1
-kind: BucketClass
-metadata:
-  name: bucket-standard
-  namespace: app-project1-dev
-classRef:
-  kind: BucketClass
-  apiVersion: storage.gcp.crossplane.io/v1alpha2
-  name: gcsbucket-standard
-  namespace: gcp-infra-dev
 ---
-# ResourceClass that defines the blueprint for how a "standard" GCP bucket
-# should be dynamically provisioned
 apiVersion: storage.gcp.crossplane.io/v1alpha2
 kind: BucketClass
 metadata:
   name: gcsbucket-standard
-  namespace: gcp-infra-dev
 specTemplate:
+  writeConnectionSecretsToNamespace: crossplane-system
   location: US
   storageClass: MULTI_REGIONAL
   providerRef:
     name: example
-    namespace: gcp-infra-dev
   reclaimPolicy: Delete

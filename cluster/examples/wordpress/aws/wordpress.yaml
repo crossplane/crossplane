@@ -3,13 +3,13 @@ kind: S3Bucket
 metadata:
   name: demo-bucket
 spec:
-  name: wordpress-demo-e401ddfa-4729-4b72-bcef-94922203b547
-  predefinedACL: private
+  nameFormat: wordpress-demo-%s
   versioning: false
+  region: us-east-1
   providerRef:
-    name: demo-aws-provider
-    namespace: crossplane-system
+    name: example
   writeConnectionSecretToRef:
+    namespace: crossplane-system
     name: demo-bucket-connection
 ---
 apiVersion: database.aws.crossplane.io/v1alpha2
@@ -21,8 +21,7 @@ spec:
   engine: mysql
   masterUsername: masteruser
   providerRef:
-    name: demo-aws-provider
-    namespace: crossplane-system
+    name: example
   writeConnectionSecretToRef:
     name: demo-rds
   securityGroups:

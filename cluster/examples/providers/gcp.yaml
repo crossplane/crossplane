@@ -3,8 +3,8 @@
 apiVersion: v1
 kind: Secret
 metadata:
+  namespace: crossplane-system
   name: example-provider-gcp
-  namespace: gcp-infra-dev
 type: Opaque
 data:
   credentials.json: BASE64ENCODED_GCP_PROVIDER_CREDS
@@ -14,9 +14,9 @@ apiVersion: gcp.crossplane.io/v1alpha2
 kind: Provider
 metadata:
   name: example
-  namespace: gcp-infra-dev
 spec:
   credentialsSecretRef:
+    namespace: crossplane-system
     name: example-provider-gcp
     key: credentials.json
   projectID: PROJECT_ID

@@ -3,7 +3,6 @@ apiVersion: workload.crossplane.io/v1alpha1
 kind: KubernetesApplication
 metadata:
   name: wordpress-demo
-  namespace: complex
   labels:
     app: wordpress-demo
 spec:

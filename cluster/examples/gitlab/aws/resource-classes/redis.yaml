@@ -4,10 +4,10 @@ apiVersion: cache.aws.crossplane.io/v1alpha2
 kind: ReplicationGroupClass
 metadata:
   name: standard-aws-redis
-  namespace: crossplane-system
   annotations:
     resource: rediscluster.cache.crossplane.io/v1alpha1
 specTemplate:
+  writeConnectionSecretsToNamespace: crossplane-system
   engineVersion: "3.2.4"
   cacheParameterGroupName: default.redis3.2.cluster.on
   cacheNodeType: cache.t2.micro
@@ -18,6 +18,5 @@ specTemplate:
    - REDIS_SECURITY_GROUP
   cacheSubnetGroupName: REDIS_SUBNET_GROUP
   providerRef:
-    name: demo-aws
-    namespace: crossplane-system
+    name: example
   reclaimPolicy: Delete
