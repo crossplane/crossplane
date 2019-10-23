@@ -14,8 +14,8 @@ github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973/go.mod h1:Dwedo/Wpr24
 github.com/beorn7/perks v1.0.0/go.mod h1:KWe93zE9D1o94FZ5RNwFwVgaQK1VOXiVxmqh+CedLV8=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
-github.com/crossplaneio/crossplane-runtime v0.0.0-20191022001740-a56c70ba6270 h1:enVpXD2V0pMVj9/l9UGk8LxBBjT31QWzKLtOBz/ySas=
-github.com/crossplaneio/crossplane-runtime v0.0.0-20191022001740-a56c70ba6270/go.mod h1:FMlJ6k7pUZdxQrjh0B33D2b79iBac+xcMEHTWiruXao=
+github.com/crossplaneio/crossplane-runtime v0.0.0-20191023215652-0f37bea5496e h1:tV86Qa72VNiz9HwNpCg3L4FBzPgRz1RwP1GelQn5Vxs=
+github.com/crossplaneio/crossplane-runtime v0.0.0-20191023215652-0f37bea5496e/go.mod h1:FMlJ6k7pUZdxQrjh0B33D2b79iBac+xcMEHTWiruXao=
 github.com/davecgh/go-spew v0.0.0-20151105211317-5215b55f46b2/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=

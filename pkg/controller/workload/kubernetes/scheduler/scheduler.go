@@ -61,14 +61,23 @@ func (s *roundRobinScheduler) schedule(ctx context.Context, app *workloadv1alpha
 		return reconcile.Result{Requeue: true}
 	}
 
-	if len(clusters.Items) == 0 {
+	// Filter out KubernetesCluster claims that don't specify a connection
+	// secret. We can't run a workload on a cluster that we can't connect to.
+	usable := make([]computev1alpha1.KubernetesCluster, 0)
+	for _, c := range clusters.Items {
+		if c.Spec.WriteConnectionSecretToReference != nil {
+			usable = append(usable, c)
+		}
+	}
+
+	if len(usable) == 0 {
 		app.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
 		return reconcile.Result{Requeue: true}
 	}
 
 	// Round-robin cluster selection
-	index := int(s.lastClusterIndex % uint64(len(clusters.Items)))
-	cluster := clusters.Items[index]
+	index := int(s.lastClusterIndex % uint64(len(usable)))
+	cluster := usable[index]
 	s.lastClusterIndex++
 
 	app.Status.Cluster = meta.ReferenceTo(&cluster, computev1alpha1.KubernetesClusterGroupVersionKind)

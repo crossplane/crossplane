@@ -20,6 +20,7 @@ package v1alpha1
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
 )
@@ -29,14 +30,19 @@ func (cm *RedisCluster) GetBindingPhase() runtimev1alpha1.BindingPhase {
 	return cm.Status.GetBindingPhase()
 }
 
+// GetClassReference of this RedisCluster.
+func (cm *RedisCluster) GetClassReference() *corev1.ObjectReference {
+	return cm.Spec.ClassReference
+}
+
+// GetClassSelector of this RedisCluster.
+func (cm *RedisCluster) GetClassSelector() *metav1.LabelSelector {
+	return cm.Spec.ClassSelector
+}
+
 // GetCondition of this RedisCluster.
 func (cm *RedisCluster) GetCondition(ct runtimev1alpha1.ConditionType) runtimev1alpha1.Condition {
 	return cm.Status.GetCondition(ct)
-}
-
-// GetPortableClassReference of this RedisCluster.
-func (cm *RedisCluster) GetPortableClassReference() *corev1.LocalObjectReference {
-	return cm.Spec.PortableClassReference
 }
 
 // GetResourceReference of this RedisCluster.
@@ -45,7 +51,7 @@ func (cm *RedisCluster) GetResourceReference() *corev1.ObjectReference {
 }
 
 // GetWriteConnectionSecretToReference of this RedisCluster.
-func (cm *RedisCluster) GetWriteConnectionSecretToReference() corev1.LocalObjectReference {
+func (cm *RedisCluster) GetWriteConnectionSecretToReference() *runtimev1alpha1.LocalSecretReference {
 	return cm.Spec.WriteConnectionSecretToReference
 }
 
@@ -54,14 +60,19 @@ func (cm *RedisCluster) SetBindingPhase(p runtimev1alpha1.BindingPhase) {
 	cm.Status.SetBindingPhase(p)
 }
 
+// SetClassReference of this RedisCluster.
+func (cm *RedisCluster) SetClassReference(r *corev1.ObjectReference) {
+	cm.Spec.ClassReference = r
+}
+
+// SetClassSelector of this RedisCluster.
+func (cm *RedisCluster) SetClassSelector(s *metav1.LabelSelector) {
+	cm.Spec.ClassSelector = s
+}
+
 // SetConditions of this RedisCluster.
 func (cm *RedisCluster) SetConditions(c ...runtimev1alpha1.Condition) {
 	cm.Status.SetConditions(c...)
-}
-
-// SetPortableClassReference of this RedisCluster.
-func (cm *RedisCluster) SetPortableClassReference(r *corev1.LocalObjectReference) {
-	cm.Spec.PortableClassReference = r
 }
 
 // SetResourceReference of this RedisCluster.
@@ -70,6 +81,6 @@ func (cm *RedisCluster) SetResourceReference(r *corev1.ObjectReference) {
 }
 
 // SetWriteConnectionSecretToReference of this RedisCluster.
-func (cm *RedisCluster) SetWriteConnectionSecretToReference(r corev1.LocalObjectReference) {
+func (cm *RedisCluster) SetWriteConnectionSecretToReference(r *runtimev1alpha1.LocalSecretReference) {
 	cm.Spec.WriteConnectionSecretToReference = r
 }

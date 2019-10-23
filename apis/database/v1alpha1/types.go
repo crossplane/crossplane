@@ -37,8 +37,10 @@ type MySQLInstanceSpec struct {
 // to a MySQL managed resource such as an AWS RDS instance or a GCP CloudSQL
 // instance.
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.bindingPhase"
-// +kubebuilder:printcolumn:name="CLASS",type="string",JSONPath=".spec.classRef.name"
-// +kubebuilder:printcolumn:name="VERSION",type="string",JSONPath=".spec.engineVersion"
+// +kubebuilder:printcolumn:name="CLASS-KIND",type="string",JSONPath=".spec.classRef.kind"
+// +kubebuilder:printcolumn:name="CLASS-NAME",type="string",JSONPath=".spec.classRef.name"
+// +kubebuilder:printcolumn:name="RESOURCE-KIND",type="string",JSONPath=".spec.resourceRef.kind"
+// +kubebuilder:printcolumn:name="RESOURCE-NAME",type="string",JSONPath=".spec.resourceRef.name"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:subresource:status
 type MySQLInstance struct {
@@ -58,25 +60,6 @@ type MySQLInstanceList struct {
 	Items           []MySQLInstance `json:"items"`
 }
 
-// +kubebuilder:object:root=true
-
-// MySQLInstanceClass contains a namespace-scoped portable class for MySQLInstance
-type MySQLInstanceClass struct {
-	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty"`
-
-	runtimev1alpha1.PortableClass `json:",inline"`
-}
-
-// +kubebuilder:object:root=true
-
-// MySQLInstanceClassList contains a list of MySQLInstanceClass.
-type MySQLInstanceClassList struct {
-	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []MySQLInstanceClass `json:"items"`
-}
-
 // PostgreSQLInstanceSpec specifies the desired state of a PostgreSQLInstance.
 // PostgreSQLInstance.
 type PostgreSQLInstanceSpec struct {
@@ -92,10 +75,11 @@ type PostgreSQLInstanceSpec struct {
 // A PostgreSQLInstance is a portable resource claim that may be satisfied by
 // binding to a PostgreSQL managed resource such as an AWS RDS instance or a GCP
 // CloudSQL instance.
-// PostgreSQLInstance is the CRD type for abstract PostgreSQL database instances
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.bindingPhase"
-// +kubebuilder:printcolumn:name="CLASS",type="string",JSONPath=".spec.classRef.name"
-// +kubebuilder:printcolumn:name="VERSION",type="string",JSONPath=".spec.engineVersion"
+// +kubebuilder:printcolumn:name="CLASS-KIND",type="string",JSONPath=".spec.classRef.kind"
+// +kubebuilder:printcolumn:name="CLASS-NAME",type="string",JSONPath=".spec.classRef.name"
+// +kubebuilder:printcolumn:name="RESOURCE-KIND",type="string",JSONPath=".spec.resourceRef.kind"
+// +kubebuilder:printcolumn:name="RESOURCE-NAME",type="string",JSONPath=".spec.resourceRef.name"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:subresource:status
 type PostgreSQLInstance struct {
@@ -113,23 +97,4 @@ type PostgreSQLInstanceList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []PostgreSQLInstance `json:"items"`
-}
-
-// +kubebuilder:object:root=true
-
-// PostgreSQLInstanceClass contains a namespace-scoped portable class for PostgreSQLInstance
-type PostgreSQLInstanceClass struct {
-	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty"`
-
-	runtimev1alpha1.PortableClass `json:",inline"`
-}
-
-// +kubebuilder:object:root=true
-
-// PostgreSQLInstanceClassList contains a list of PostgreSQLInstanceClass.
-type PostgreSQLInstanceClassList struct {
-	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []PostgreSQLInstanceClass `json:"items"`
 }

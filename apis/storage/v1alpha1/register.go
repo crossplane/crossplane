@@ -44,21 +44,6 @@ var (
 	BucketGroupVersionKind = SchemeGroupVersion.WithKind(BucketKind)
 )
 
-// BucketClass type metadata.
-var (
-	BucketClassKind             = reflect.TypeOf(BucketClass{}).Name()
-	BucketClassKindAPIVersion   = BucketClassKind + "." + SchemeGroupVersion.String()
-	BucketClassGroupVersionKind = SchemeGroupVersion.WithKind(BucketClassKind)
-)
-
-// BucketClassList type metadata.
-var (
-	BucketClassListKind             = reflect.TypeOf(BucketClassList{}).Name()
-	BucketClassListKindAPIVersion   = BucketClassListKind + "." + SchemeGroupVersion.String()
-	BucketClassListGroupVersionKind = SchemeGroupVersion.WithKind(BucketClassListKind)
-)
-
 func init() {
 	SchemeBuilder.Register(&Bucket{}, &BucketList{})
-	SchemeBuilder.Register(&BucketClass{}, &BucketClassList{})
 }

@@ -50,6 +50,10 @@ const (
 type BucketSpec struct {
 	runtimev1alpha1.ResourceClaimSpec `json:",inline"`
 
+	// TODO(negz): Remove these class fields? Name will be superceded by the new
+	// external naming strategy, and the other fields are almost certainly not
+	// portable across all providers.
+
 	// Name specifies the desired name of the bucket.
 	// +kubebuilder:validation:MaxLength=63
 	// +kubebuilder:validation:MinLength=3
@@ -72,9 +76,10 @@ type BucketSpec struct {
 // storage bucket PostgreSQL managed resource such as an AWS S3 bucket or Azure
 // storage container.
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.bindingPhase"
-// +kubebuilder:printcolumn:name="CLASS",type="string",JSONPath=".spec.classRef.name"
-// +kubebuilder:printcolumn:name="PREDEFINED-ACL",type="string",JSONPath=".spec.predefinedACL"
-// +kubebuilder:printcolumn:name="LOCAL-PERMISSION",type="string",JSONPath=".spec.localPermission"
+// +kubebuilder:printcolumn:name="CLASS-KIND",type="string",JSONPath=".spec.classRef.kind"
+// +kubebuilder:printcolumn:name="CLASS-NAME",type="string",JSONPath=".spec.classRef.name"
+// +kubebuilder:printcolumn:name="RESOURCE-KIND",type="string",JSONPath=".spec.resourceRef.kind"
+// +kubebuilder:printcolumn:name="RESOURCE-NAME",type="string",JSONPath=".spec.resourceRef.name"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:subresource:status
 type Bucket struct {
@@ -92,23 +97,4 @@ type BucketList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []Bucket `json:"items"`
-}
-
-// +kubebuilder:object:root=true
-
-// BucketClass contains a namespace-scoped portable class for Bucket
-type BucketClass struct {
-	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty"`
-
-	runtimev1alpha1.PortableClass `json:",inline"`
-}
-
-// +kubebuilder:object:root=true
-
-// BucketClassList contains a list of BucketClass.
-type BucketClassList struct {
-	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []BucketClass `json:"items"`
 }

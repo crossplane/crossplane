@@ -38,8 +38,10 @@ type RedisClusterSpec struct {
 // ReplicationGroup. Despite the name RedisCluster claims may bind to Redis
 // managed resources that are a single node, or not in cluster mode.
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.bindingPhase"
-// +kubebuilder:printcolumn:name="CLASS",type="string",JSONPath=".spec.classRef.name"
-// +kubebuilder:printcolumn:name="VERSION",type="string",JSONPath=".spec.engineVersion"
+// +kubebuilder:printcolumn:name="CLASS-KIND",type="string",JSONPath=".spec.classRef.kind"
+// +kubebuilder:printcolumn:name="CLASS-NAME",type="string",JSONPath=".spec.classRef.name"
+// +kubebuilder:printcolumn:name="RESOURCE-KIND",type="string",JSONPath=".spec.resourceRef.kind"
+// +kubebuilder:printcolumn:name="RESOURCE-NAME",type="string",JSONPath=".spec.resourceRef.name"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:subresource:status
 type RedisCluster struct {
@@ -57,23 +59,4 @@ type RedisClusterList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []RedisCluster `json:"items"`
-}
-
-// +kubebuilder:object:root=true
-
-// RedisClusterClass contains a namespace-scoped portable class for RedisCluster
-type RedisClusterClass struct {
-	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty"`
-
-	runtimev1alpha1.PortableClass `json:",inline"`
-}
-
-// +kubebuilder:object:root=true
-
-// RedisClusterClassList contains a list of RedisClusterClass.
-type RedisClusterClassList struct {
-	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []RedisClusterClass `json:"items"`
 }

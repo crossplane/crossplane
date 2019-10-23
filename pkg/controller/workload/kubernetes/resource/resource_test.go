@@ -68,7 +68,7 @@ var (
 		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: "coolCluster"},
 		Spec: computev1alpha1.KubernetesClusterSpec{
 			ResourceClaimSpec: runtimev1alpha1.ResourceClaimSpec{
-				WriteConnectionSecretToReference: corev1.LocalObjectReference{Name: secret.GetName()},
+				WriteConnectionSecretToReference: &runtimev1alpha1.LocalSecretReference{Name: secret.GetName()},
 			},
 		},
 	}
@@ -1128,7 +1128,10 @@ func TestConnectConfig(t *testing.T) {
 			connecter: &clusterConnecter{
 				kube: &test.MockClient{
 					MockGet: func(_ context.Context, _ client.ObjectKey, obj runtime.Object) error {
-						if actual, ok := obj.(*corev1.Secret); ok {
+						switch actual := obj.(type) {
+						case *computev1alpha1.KubernetesCluster:
+							*actual = *cluster
+						case *corev1.Secret:
 							s := secret.DeepCopy()
 							s.Data[runtimev1alpha1.ResourceCredentialsSecretEndpointKey] = []byte(malformedURL)
 							*actual = *s
@@ -1169,7 +1172,14 @@ func TestConnect(t *testing.T) {
 		{
 			name: "Successful",
 			connecter: &clusterConnecter{
-				kube:    &test.MockClient{MockGet: test.NewMockGetFn(nil)},
+				kube: &test.MockClient{
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj runtime.Object) error {
+						if actual, ok := obj.(*computev1alpha1.KubernetesCluster); ok {
+							*actual = *cluster
+						}
+						return nil
+					},
+				},
 				options: client.Options{Mapper: mockRESTMapper{}},
 			},
 			ar: kubeAR(withCluster(clusterRef)),
@@ -1181,6 +1191,23 @@ func TestConnect(t *testing.T) {
 			// client.New() code, not ours.
 			wantSD:  &remoteCluster{},
 			wantErr: nil,
+		},
+		{
+			name: "MissingConnectionSecret",
+			connecter: &clusterConnecter{
+				kube:    &test.MockClient{MockGet: test.NewMockGetFn(nil)},
+				options: client.Options{Mapper: mockRESTMapper{}},
+			},
+			ar: kubeAR(withCluster(clusterRef)),
+
+			// This empty struct is 'identical' to the actual, populated struct
+			// returned by tc.connecter.connect() because we do not compare
+			// unexported fields. We don't inspect these unexported fields
+			// because doing so would mostly be testing controller-runtime's
+			// client.New() code, not ours.
+			wantErr: errors.Wrap(
+				errors.Errorf("%s %s/%s has no connection secret", computev1alpha1.KubernetesClusterKind, cluster.GetNamespace(), cluster.GetName()),
+				"cannot create Kubernetes client configuration"),
 		},
 		{
 			name: "ConfigFailure",
