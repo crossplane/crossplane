@@ -26,10 +26,10 @@ depends on mysql and kubernetes!
 
 Before we begin, you will need:
 
-* Everything from the [Crossplane Stacks Guide][stacks-guide] before the
-  cloud provider setup
-  - A `kubectl v1.15+` pointing to a Crossplane cluster
-  - The [Crossplane CLI][crossplane-cli] installed
+* Everything from the [Crossplane Stacks Guide][stacks-guide] before the cloud
+  provider setup
+  * A `kubectl v1.15+` pointing to a Crossplane cluster
+  * The [Crossplane CLI][crossplane-cli] installed
 * An account on [AWS][aws]
 * The [aws cli][installed]
 
@@ -38,8 +38,7 @@ At the end, we will have:
 * A Crossplane cluster configured to use AWS
 * A typical AWS network configured to support secure connectivity between
   resources
-* Support in Crossplane cluster for satisfying MySQL and Kubernetes
-  claims
+* Support in Crossplane cluster for satisfying MySQL and Kubernetes claims
 * A slightly better understanding of:
   * The way AWS is configured in Crossplane
   * The way dependencies for cloud-portable workloads are configured in
@@ -47,10 +46,9 @@ At the end, we will have:
 
 ## Install the AWS stack
 
-After Crossplane has been installed, it can be extended with more
-functionality by installing a [Crossplane Stack][stack-docs]! Let's
-install the [stack for Amazon Web Services][stack-aws] (AWS) to add
-support for that cloud provider.
+After Crossplane has been installed, it can be extended with more functionality
+by installing a [Crossplane Stack][stack-docs]! Let's install the [stack for
+Amazon Web Services][stack-aws] (AWS) to add support for that cloud provider.
 
 The namespace where we install the stack, is also the one that our managed AWS
 resources will reside. The name of this namespace is arbitrary, and we are
@@ -62,8 +60,8 @@ kubectl create namespace infra-aws
 ```
 
 Now we install the AWS stack using Crossplane CLI. Since this is an
-infrastructure stack, we need to specify that it's cluster-scoped by
-passing the `--cluster` flag.
+infrastructure stack, we need to specify that it's cluster-scoped by passing the
+`--cluster` flag.
 
 ```bash
 kubectl crossplane stack generate-install --cluster 'crossplane/stack-aws:master' stack-aws | kubectl apply --namespace infra-aws -f -
@@ -74,24 +72,24 @@ The rest of the steps assume that you installed the AWS stack into the
 
 ## Configure the AWS account
 
-An [aws user][] with `Administrative` privileges is needed to enable Crossplane to
-create the required resources. Once the user is provisioned, an [Access Key][]
-needs to be created so the user can have API access.
+An [aws user][] with `Administrative` privileges is needed to enable Crossplane
+to create the required resources. Once the user is provisioned, an [Access
+Key][] needs to be created so the user can have API access.
 
-Using the set of access key credentials for the user with the right
-access, we will to have [`aws` command line tool][] [installed][], and
-then we will need to [configure it][aws-cli-configure].
+Using the set of access key credentials for the user with the right access, we
+will to have [`aws` command line tool][] [installed][], and then we will need to
+[configure it][aws-cli-configure].
 
-When the aws cli is configured, the credentials and configuration will
-be in `~/.aws/credentials` and `~/.aws/config` respectively. These will
-be consumed in the next step.
+When the aws cli is configured, the credentials and configuration will be in
+`~/.aws/credentials` and `~/.aws/config` respectively. These will be consumed in
+the next step.
 
 When configuring the aws cli, it is recommended that the user credentials are
-configured under a specific [aws named profile][], and not under
-`default`. In this guide, we assume that the credentials are configured
-under the `crossplane-user` profile, but you can use a different profile name (including `default`)
-if you want. Let's store the profile name in a variable so we can
-use it in later steps:
+configured under a specific [aws named profile][], and not under `default`. In
+this guide, we assume that the credentials are configured under the
+`crossplane-user` profile, but you can use a different profile name (including
+`default`) if you want. Let's store the profile name in a variable so we can use
+it in later steps:
 
 ```bash
 aws_profile=crossplane-user
@@ -102,9 +100,8 @@ aws_profile=crossplane-user
 Crossplane uses the aws user credentials that were configured in the previous
 step to create resources in AWS. These credentials will be stored as a
 [secret][] in Kubernetes, and will be used by an [aws
-provider][aws-provider-docs] instance. The AWS region is also pulled
-from the cli configuration, so that the aws provider can target a
-specific region.
+provider][aws-provider-docs] instance. The AWS region is also pulled from the
+cli configuration, so that the aws provider can target a specific region.
 
 To store the credentials as a secret, run:
 
@@ -134,11 +131,11 @@ apiVersion: aws.crossplane.io/v1alpha2
 kind: Provider
 metadata:
   name: aws-provider
-  namespace: infra-aws
 spec:
   credentialsSecretRef:
     key: credentials
     name: aws-user-creds
+    namespace: infra-aws
   region: ${AWS_REGION}
 EOF
 
@@ -159,26 +156,28 @@ provider.aws.crossplane.io/aws-provider created
 ## Set Up Network Configuration
 
 In this section we build a simple AWS network configuration, by creating
-corresponding Crossplane managed resources in the `infra-aws` namespace that
-we created earlier. This network configuration enables resources in WordPress
-stack to communicate securely.
-In this guide, we will use the [sample AWS network configuration] in Crossplane repository.
+corresponding Crossplane managed resources. These resources are cluster scoped,
+so don't belong to a specific namespace. This network configuration enables
+resources in WordPress stack to communicate securely. In this guide, we will use
+the [sample AWS network configuration] in Crossplane repository.
 
 ### TL;DR
 
 Apply the sample network configuration resources:
 
 ```bash
-kubectl apply -k github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/aws/gitops/aws-infra?ref=v0.4.0
+kubectl apply -k github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/aws/network-config?ref=v0.4.0
 ```
 
 And you're done! You can check the status of the provisioning by running:
 
 ```bash
-kubectl get -k github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/aws/gitops/aws-infra?ref=v0.4.0
+kubectl get -k github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/aws/network-config?ref=v0.4.0
 ```
 
-When all resources has the `Ready` condition in `True` state, the provisioning is completed. You can now move to the next section, or keep reading below for more details about the managed resources that we created.
+When all resources has the `Ready` condition in `True` state, the provisioning
+is completed. You can now move to the next section, or keep reading below for
+more details about the managed resources that we created.
 
 ### Behind the scenes
 
@@ -194,13 +193,17 @@ document.
 To inspect the resources that we created above, let's run:
 
 ```bash
-kubectl kustomize github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/aws/gitops/aws-infra?ref=v0.4.0 > network-config.yaml
+kubectl kustomize github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/aws/network-config?ref=v0.4.0 > network-config.yaml
 ```
 
 This will save the sample network configuration resources locally in
-`network-config..yaml`. Please note that AWS parameters that are used in these resources (like `cidrBlock`, `region`, etc...) are arbitrarily chosen in this solution and could be configured to implement other [configurations][eks-user-guide].
+`network-config..yaml`. Please note that AWS parameters that are used in these
+resources (like `cidrBlock`, `region`, etc...) are arbitrarily chosen in this
+solution and could be configured to implement other
+[configurations][eks-user-guide].
 
 Below we inspect each of these resources in more details.
+
 * **`VPC`** Represents an AWS [Virtual Private Network][] (VPC).
 
   ```yaml
@@ -209,7 +212,6 @@ Below we inspect each of these resources in more details.
   kind: VPC
   metadata:
     name: sample-vpc
-    namespace: infra-aws
   spec:
     cidrBlock: 192.168.0.0/16
     enableDnsSupport: true
@@ -217,7 +219,6 @@ Below we inspect each of these resources in more details.
     reclaimPolicy: Delete
     providerRef:
       name: aws-provider
-      namespace: infra-aws
   ```
 
 * **`Subnet`** Represents an AWS [Subnet][]. For this configuration we create
@@ -229,7 +230,6 @@ Below we inspect each of these resources in more details.
   kind: Subnet
   metadata:
     name: sample-subnet1
-    namespace: infra-aws
   spec:
     cidrBlock: 192.168.64.0/18
     vpcIdRef:
@@ -238,13 +238,11 @@ Below we inspect each of these resources in more details.
     reclaimPolicy: Delete
     providerRef:
       name: aws-provider
-      namespace: infra-aws
   ---
   apiVersion: network.aws.crossplane.io/v1alpha2
   kind: Subnet
   metadata:
     name: sample-subnet2
-    namespace: infra-aws
   spec:
     cidrBlock: 192.168.128.0/18
     vpcIdRef:
@@ -253,13 +251,11 @@ Below we inspect each of these resources in more details.
     reclaimPolicy: Delete
     providerRef:
       name: aws-provider
-      namespace: infra-aws
   ---
   apiVersion: network.aws.crossplane.io/v1alpha2
   kind: Subnet
   metadata:
     name: sample-subnet3
-    namespace: infra-aws
   spec:
     cidrBlock: 192.168.192.0/18
     vpcIdRef:
@@ -268,13 +264,12 @@ Below we inspect each of these resources in more details.
     reclaimPolicy: Delete
     providerRef:
       name: aws-provider
-      namespace: infra-aws
   ```
 
-* **`InternetGateway`** Represents an AWS [Internet Gateway][] which allows
-  the resources in the VPC to have access to the Internet. Since the
-  WordPress application will be accessed from the internet, this resource is
-  required in the network configuration.
+* **`InternetGateway`** Represents an AWS [Internet Gateway][] which allows the
+  resources in the VPC to have access to the Internet. Since the WordPress
+  application will be accessed from the internet, this resource is required in
+  the network configuration.
 
   ```yaml
   ---
@@ -282,14 +277,12 @@ Below we inspect each of these resources in more details.
   kind: InternetGateway
   metadata:
     name: sample-internetgateway
-    namespace: infra-aws
   spec:
     vpcIdRef:
       name: sample-vpc
     reclaimPolicy: Delete
     providerRef:
       name: aws-provider
-      namespace: infra-aws
   ```
 
 * **`RouteTable`** Represents an AWS [Route Table][], which specifies rules to
@@ -302,7 +295,6 @@ Below we inspect each of these resources in more details.
     kind: RouteTable
     metadata:
       name: sample-routetable
-      namespace: infra-aws
     spec:
       vpcIdRef:
         name: sample-vpc
@@ -311,7 +303,7 @@ Below we inspect each of these resources in more details.
           gatewayIdRef:
             name: sample-internetgateway
       associations:
-        - subnetIdRef: 
+        - subnetIdRef:
             name: sample-subnet1
         - subnetIdRef:
             name: sample-subnet2
@@ -320,7 +312,6 @@ Below we inspect each of these resources in more details.
       reclaimPolicy: Delete
       providerRef:
         name: aws-provider
-        namespace: infra-aws
     ```
 
 * **`SecurityGroup`** Represents an AWS [Security Group][], which controls
@@ -329,7 +320,7 @@ Below we inspect each of these resources in more details.
   We need two security groups in this configuration:
 
   * A security group to assign it later to the EKS cluster workers, so they have
- the right permissions to communicate with each API server
+    the right permissions to communicate with each API server
 
   ```yaml
   ---
@@ -337,7 +328,6 @@ Below we inspect each of these resources in more details.
   kind: SecurityGroup
   metadata:
     name: sample-cluster-sg
-    namespace: infra-aws
   spec:
     vpcIdRef:
       name: sample-vpc
@@ -346,7 +336,6 @@ Below we inspect each of these resources in more details.
     reclaimPolicy: Delete
     providerRef:
       name: aws-provider
-      namespace: infra-aws
   ```
 
 * A security group to assign it later to the RDS database instance, which
@@ -358,7 +347,6 @@ Below we inspect each of these resources in more details.
   kind: SecurityGroup
   metadata:
     name: sample-rds-sg
-    namespace: infra-aws
   spec:
     vpcIdRef:
       name: sample-vpc
@@ -374,7 +362,6 @@ Below we inspect each of these resources in more details.
             description: all ips
     providerRef:
       name: aws-provider
-      namespace: infra-aws
   ```
 
 * **`DBSubnetGroup`** Represents an AWS [Database Subnet Group][], which
@@ -387,7 +374,6 @@ Below we inspect each of these resources in more details.
   kind: DBSubnetGroup
   metadata:
     name: sample-dbsubnetgroup
-    namespace: infra-aws
   spec:
     groupName: sample_dbsubnetgroup
     description: EKS vpc to rds
@@ -401,13 +387,12 @@ Below we inspect each of these resources in more details.
     reclaimPolicy: Delete
     providerRef:
       name: aws-provider
-      namespace: infra-aws
   ```
 
-* **`IAMRole`** Represents An AWS [IAM Role][], which assigns a set of access policies to the
-  AWS principal that assumes it. We create a role to later add needed policies and assign it to the
-  cluster, granting the permissions it needs to communicate with other resources
-  in AWS.
+* **`IAMRole`** Represents An AWS [IAM Role][], which assigns a set of access
+  policies to the AWS principal that assumes it. We create a role to later add
+  needed policies and assign it to the cluster, granting the permissions it
+  needs to communicate with other resources in AWS.
 
   ```yaml
   ---
@@ -415,7 +400,6 @@ Below we inspect each of these resources in more details.
   kind: IAMRole
   metadata:
     name: sample-eks-cluster-role
-    namespace: infra-aws
   spec:
     roleName: sample-eks-cluster-role
     description: a role that gives a cool power
@@ -435,14 +419,12 @@ Below we inspect each of these resources in more details.
     reclaimPolicy: Delete
     providerRef:
       name: aws-provider
-      namespace: infra-aws
   ```
-
 
 * **`IAMRolePolicyAttachment`** Represents an AWS [IAM Role Policy][], which
   defines a certain permission in an IAM Role. We need two policies to create
-  and assign it to the IAM Role above, so the cluster to communicate with
-  other aws resources.
+  and assign it to the IAM Role above, so the cluster to communicate with other
+  aws resources.
 
   ```yaml
   ---
@@ -450,7 +432,6 @@ Below we inspect each of these resources in more details.
   kind: IAMRolePolicyAttachment
   metadata:
     name: sample-role-servicepolicy
-    namespace: infra-aws
   spec:
     roleNameRef:
       name: sample-eks-cluster-role
@@ -459,13 +440,11 @@ Below we inspect each of these resources in more details.
     reclaimPolicy: Delete
     providerRef:
       name: aws-provider
-      namespace: infra-aws
   ---
   apiVersion: identity.aws.crossplane.io/v1alpha2
   kind: IAMRolePolicyAttachment
   metadata:
     name: sample-role-clusterpolicy
-    namespace: infra-aws
   spec:
     roleNameRef:
       name: sample-eks-cluster-role
@@ -474,10 +453,10 @@ Below we inspect each of these resources in more details.
     reclaimPolicy: Delete
     providerRef:
       name: aws-provider
-      namespace: infra-aws
   ```
 
-As you probably have noticed, some resources are referencing other resource attributes in their YAML representations. For instance in `Subnet` YAML we have:
+As you probably have noticed, some resources are referencing other resource
+attributes in their YAML representations. For instance in `Subnet` YAML we have:
 
 ```yaml
 ...
@@ -486,7 +465,12 @@ As you probably have noticed, some resources are referencing other resource attr
 ...
 ```
 
-Such cross resource referencing is a Crossplane feature that enables managed resources to retrieve other resources attributes. This creates a *blocking dependency*, avoiding the dependent resource to be created before the referred resource is ready. In the example above, `Subnet` will be blocked until the referred `VPC` is created, and then it retrieves its `vpcId`. For more information, see [Cross Resource Referencing][].
+Such cross resource referencing is a Crossplane feature that enables managed
+resources to retrieve other resources attributes. This creates a *blocking
+dependency*, avoiding the dependent resource to be created before the referred
+resource is ready. In the example above, `Subnet` will be blocked until the
+referred `VPC` is created, and then it retrieves its `vpcId`. For more
+information, see [Cross Resource Referencing][].
 
 ## Configure Cloud-Specific Resource Classes
 
@@ -501,7 +485,7 @@ will use the [sample AWS resource classes] in Crossplane repository.
 Apply the sample sample AWS resource classes:
 
 ```bash
-kubectl apply -k github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/aws/gitops/aws-resource-classes?ref=v0.4.0
+kubectl apply -k github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/aws/aws-resource-classes?ref=v0.4.0
 ```
 
 And you're done! Note that these resources do not immediately provision external AWS resourcs.
@@ -511,15 +495,22 @@ And you're done! Note that these resources do not immediately provision external
 To inspect the resource classes that we created above, run:
 
 ```bash
-kubectl kustomize github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/aws/gitops/aws-infra?ref=v0.4.0 > resource-classes.yaml
+kubectl kustomize github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/aws/aws-resource-classes?ref=v0.4.0 > resource-classes.yaml
 ```
 
 This will save the sample resource classes YAML locally in
-`resource-classes.yaml`. As mentioned above, these resource classes serve as templates and could be configured depending on the specific needs that are needed from the underlying resources. For instance, in the sample resources the `RDSInstanceClass` has `size: 20`, which will result in RDS databases of size 20 once a claim is submitted for this class. In addition, it's possible to have multiple classes defined for the same claim kind, but our sample has defined only one class for each resource type.
+`resource-classes.yaml`. As mentioned above, these resource classes serve as
+templates and could be configured depending on the specific needs that are
+needed from the underlying resources. For instance, in the sample resources the
+`RDSInstanceClass` has `size: 20`, which will result in RDS databases of size 20
+once a claim is submitted for this class. In addition, it's possible to have
+multiple classes defined for the same claim kind, but our sample has defined
+only one class for each resource type.
 
 Below we inspect each of these resource classes in more details:
 
-* **`RDSInstanceClass`** Represents a resource that serves as a template to create a [RDS Database Instance][].
+* **`RDSInstanceClass`** Represents a resource that serves as a template to
+  create a [RDS Database Instance][].
 
   ```yaml
   ---
@@ -527,7 +518,8 @@ Below we inspect each of these resource classes in more details:
   kind: RDSInstanceClass
   metadata:
     name: standard-mysql
-    namespace: infra-aws
+    annotations:
+      resourceclass.crossplane.io/is-default-class: "true"
   specTemplate:
     class: db.t2.small
     masterUsername: masteruser
@@ -539,7 +531,6 @@ Below we inspect each of these resource classes in more details:
     engine: mysql
     providerRef:
       name: aws-provider
-      namespace: infra-aws
     reclaimPolicy: Delete
   ```
 
@@ -551,7 +542,8 @@ Below we inspect each of these resource classes in more details:
   kind: EKSClusterClass
   metadata:
     name: standard-cluster
-    namespace: infra-aws
+    annotations:
+      resourceclass.crossplane.io/is-default-class: "true"
   specTemplate:
     region: us-west-2
     roleARNRef:
@@ -573,12 +565,13 @@ Below we inspect each of these resource classes in more details:
         - name: sample-cluster-sg
     providerRef:
       name: aws-provider
-      namespace: infra-aws
     reclaimPolicy: Delete
   ```
 
-For more details about resource claims and how they work, see the [documentation
-on resource claims][resource-claims-docs].
+These resources will be the default resource classes for the corresponding
+claims (`resourceclass.crossplane.io/is-default-class: "true"` annotation). For
+more details about resource claims and how they work, see the documentation on
+[resource claims][resource-claims-docs], and [resource class selection].
 
 ## Recap
 
@@ -638,6 +631,7 @@ off.
 [resource-claims-docs]: concepts.md#resource-claims-and-resource-classes
 [eks-user-guide]: https://docs.aws.amazon.com/eks/latest/userguide/create-public-private-vpc.html
 [Cross Resource Referencing]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-cross-resource-referencing.md
-[sample AWS network configuration]: https://github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/aws/gitops/aws-infra
+[sample AWS network configuration]: https://github.com/crossplaneio/crossplane/tree/master/cluster/examples/workloads/kubernetes/wordpress/aws/network-config?ref=v0.4–
 [RDS Database Instance]: https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Overview.DBInstance.html
 [EKS Cluster]: https://docs.aws.amazon.com/eks/latest/userguide/clusters.html
+[resource class selection]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-simple-class-selection.md
