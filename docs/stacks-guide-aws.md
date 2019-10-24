@@ -14,7 +14,7 @@ indent: true
   1. [Configure the AWS account](#configure-the-aws-account)
   1. [Configure Crossplane Provider for AWS](#configure-crossplane-provider-for-aws)
   1. [Set Up Network Configuration](#set-up-network-configuration)
-  1. [Configure Cloud-Specific Resource Classes](#configure-cloud-specific-resource-classes)
+  1. [Configure Resource Classes](#configure-resource-classes)
   1. [Recap](#recap)
   1. [Next Steps](#next-steps)
 
@@ -102,9 +102,9 @@ the next step.
 
 When configuring the AWS cli, the user credentials could be configured under a
 specific [AWS named profile][], or under `default`. Without loss of generality,
-let's assume that the credentials are configured under the `aws_profile`
-profile (which could also be `default`). We'll use this profile to setup cloud
-provider in the next section.
+in this guide let's assume that the credentials are configured under the
+`aws_profile` profile (which could also be `default`). We'll use this profile to
+setup cloud provider in the next section.
 
 ## Configure Crossplane Provider for AWS
 
@@ -170,7 +170,9 @@ In this section we build a simple AWS network configuration, by creating
 corresponding Crossplane managed resources. These resources are cluster scoped,
 so don't belong to a specific namespace. This network configuration enables
 resources in WordPress stack to communicate securely. In this guide, we will use
-the [sample AWS network configuration] in Crossplane repository.
+the [sample AWS network configuration] in Crossplane repository. You can read
+more [here][crossplane-gcp-networking-docs] about network secure connectivity
+configurations in Crossplane.
 
 ### TL;DR
 
@@ -483,7 +485,7 @@ resource is ready. In the example above, `Subnet` will be blocked until the
 referred `VPC` is created, and then it retrieves its `vpcId`. For more
 information, see [Cross Resource Referencing][].
 
-## Configure Cloud-Specific Resource Classes
+## Configure Resource Classes
 
 Once we have the network configuration set up, we need to tell Crossplane how to
 satisfy WordPress's claims for a database and a Kubernetes cluster, using AWS
@@ -496,7 +498,7 @@ will use the [sample AWS resource classes] in Crossplane repository.
 Apply the sample sample AWS resource classes:
 
 ```bash
-kubectl apply -k github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/aws/aws-resource-classes?ref=v0.4.0
+kubectl apply -k github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/aws/resource-classes?ref=v0.4.0
 ```
 
 And you're done! Note that these resources do not immediately provision external AWS resourcs.
@@ -506,7 +508,7 @@ And you're done! Note that these resources do not immediately provision external
 To inspect the resource classes that we created above, run:
 
 ```bash
-kubectl kustomize github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/aws/aws-resource-classes?ref=v0.4.0 > resource-classes.yaml
+kubectl kustomize github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/aws/resource-classes?ref=v0.4.0 > resource-classes.yaml
 ```
 
 This will save the sample resource classes YAML locally in
@@ -536,7 +538,7 @@ Below we inspect each of these resource classes in more details:
     masterUsername: masteruser
     securityGroupRefs:
       - name: sample-rds-sg
-    subnetGroupNamRef:
+    subnetGroupNameRef:
       name: sample-dbsubnetgroup
     size: 20
     engine: mysql
@@ -628,8 +630,10 @@ off.
 [resource-claims-docs]: concepts.md#resource-claims-and-resource-classes
 [eks-user-guide]: https://docs.aws.amazon.com/eks/latest/userguide/create-public-private-vpc.html
 [Cross Resource Referencing]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-cross-resource-referencing.md
-[sample AWS network configuration]: https://github.com/crossplaneio/crossplane/tree/master/cluster/examples/workloads/kubernetes/wordpress/aws/network-config?ref=v0.4–
+[sample AWS network configuration]: https://github.com/crossplaneio/crossplane/tree/master/cluster/examples/workloads/kubernetes/wordpress/aws/network-config?ref=v0.4
+[sample AWS resource classes]: https://github.com/crossplaneio/crossplane/tree/master/cluster/examples/workloads/kubernetes/wordpress/aws/resource-classes?ref=v0.4
 [RDS Database Instance]: https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Overview.DBInstance.html
 [EKS Cluster]: https://docs.aws.amazon.com/eks/latest/userguide/clusters.html
 [resource-classes-docs]: concepts.md#resource-claims-and-resource-classes
 [resource class selection]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-simple-class-selection.md
+[crossplane-gcp-networking-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-resource-connectivity-mvp.md#amazon-web-services
