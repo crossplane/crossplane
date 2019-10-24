@@ -5,7 +5,7 @@
   * Javad Taheri (@soorena776)
   * Daniel Mangum (@hasheddan)
 * Reviewers: Crossplane Maintainers
-* Status: Draft
+* Status: Accepted, Revision 1.0
 
 ## Terminology
 

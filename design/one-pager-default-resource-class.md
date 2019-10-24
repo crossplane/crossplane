@@ -1,7 +1,7 @@
 # Default Resource Classes in Crossplane
 * Owner: Daniel Mangum (@hasheddan)
 * Reviewers: Crossplane Maintainers
-* Status: Accepted
+* Status: Defunct
 
 The Crossplane ecosystem exposes the concepts of [Resource Classes and Resource
 Claims](https://crossplane.io/docs/v0.2/concepts.html). Classes serve to define

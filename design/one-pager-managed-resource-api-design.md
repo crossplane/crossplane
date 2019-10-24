@@ -1,7 +1,7 @@
 # Managed Resources API Patterns
 * Owner: Muvaffak Onus (@muvaf)
 * Reviewers: Crossplane Maintainers
-* Status: Draft
+* Status: Accepted, Revision 1.0
 
 ## Terminology
 

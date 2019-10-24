@@ -1,11 +1,13 @@
 # Strongly Typed Resource Classes
 * Owner: Daniel Mangum (@hasheddan)
 * Reviewers: Crossplane Maintainers
-* Status: Accepted, revision 1.1
+* Status: Accepted, revision 1.2
 
 ## Revisions
 * 1.1
   * Added additional motivation by describing the use of annotations for UI metadata on strongly typed resource class CRD's as outlined in [#605](https://github.com/crossplaneio/crossplane/pull/605)
+* 1.2
+  * Note that policies have been replaced by simple resource class selection.
 
 ## Terminology
 
@@ -151,6 +153,11 @@ This problem can be solved by the implementation of "strongly typed" resource cl
 * Assume that the universe of possible default resource class kinds for a specific claim kind will grow arbitrarily, so a default class controller must be able to be made aware of new resource class kinds. This goal will become specifically important as we begin to [separate providers](https://github.com/crossplaneio/crossplane/issues/531) from the core Crossplane project in the form of infrastructure stacks.
 
 ## Proposal
+
+**Note: while the parts of this proposal pertaining to strongly typed resource
+  classes are still broadly accurate the concept of policies has been removed.
+  refer to the [simple resource class selection](one-pager-simple-class-selection.md)
+  design for details.**
 
 Unfortunately, strongly typed resource classes make it much more difficult to identify default resource classes. Currently, there is one default class controller per claim kind that watches for creation of their specified claim kind, then lists objects of `kind: ResourceClass` that are labeled as default for the claim kind. With an unknown number of possible kinds of resource classes that could be installed and serve as default for a claim `kind`, a default class controller can no longer list a single `ResourceClass` kind.
 
