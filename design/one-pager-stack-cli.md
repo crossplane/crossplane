@@ -1,7 +1,7 @@
 # Crossplane Stacks CLI
 * Owner: Daniel Suskin (@suskin)
 * Reviewers: Crossplane Maintainers
-* Status: Draft
+* Status: Accepted, Revision 1.0
 
 ## Introduction
 *Why does this document exist?*
