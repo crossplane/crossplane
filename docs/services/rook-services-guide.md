@@ -1,8 +1,5 @@
 ---
-title: Using Rook Services
-toc: true
-weight: 450
-indent: true
+title: Using Rook Services toc: true weight: 450 indent: true
 ---
 # Deploying Yugastore with Rook
 
@@ -12,7 +9,8 @@ cluster. To do so, we will broadly:
 
 1. Provision a GKE Kubernetes cluster
 1. Install the Rook [Yugabyte operator] into the GKE cluster
-1. Provision a YugabyteDB cluster and deploy the Yugastore app into the GKE cluster
+1. Provision a YugabyteDB cluster and deploy the Yugastore app into the GKE
+   cluster
 
 ... all using Crossplane!
 
@@ -21,8 +19,10 @@ cluster. To do so, we will broadly:
 1. [Pre-requisites](#pre-requisites)
 2. [Preparation](#preparation)
 3. [Set Up Resource Classes](#set-up-resource-classes)
-4. [Provision GKE Cluster and Install Rook Yugabyte Operator](#provision-gke-cluster-and-install-rook-yugabyte-operator)
-5. [Deploy Yugastore alongside YugabyteDB](#deploy-yugastore-alongside-yugabytedb)
+4. [Provision GKE Cluster and Install Rook Yugabyte
+   Operator](#provision-gke-cluster-and-install-rook-yugabyte-operator)
+5. [Deploy Yugastore alongside
+   YugabyteDB](#deploy-yugastore-alongside-yugabytedb)
 6. [Cleanup](#cleanup)
 7. [Conclusion and Next Steps](#conclusion-and-next-steps)
 
@@ -76,7 +76,7 @@ metadata:
   name: stack-gcp
   namespace: gcp
 spec:
-  package: "crossplane/stack-gcp:v0.2.0"
+  package: "crossplane/stack-gcp:master"
 EOF
 
 kubectl apply -f stack-gcp.yaml
@@ -98,7 +98,7 @@ metadata:
   name: stack-rook
   namespace: rook
 spec:
-  package: "crossplane/stack-rook:v0.2.0"
+  package: "crossplane/stack-rook:master"
 EOF
 
 kubectl apply -f stack-rook.yaml
@@ -166,7 +166,20 @@ will see how to use this `Provider` type further along in this guide.
 
 ## Set Up Resource Classes
 
-In order to dynamically provision resources, we need to create resources classes that contain details about how the resources should be provisioned. For Yugastore, we will need resource classes that are capable of fulfilling a `KubernetesCluster` claim and a `PostgreSQLInstance` claim:
+To keep all configuration organized in a single location, create a new
+directory:
+
+```bash
+mkdir yugastore && cd $_
+```
+
+> **TL;DR**: if you want to skip the rest of the guide and just deploy
+> Yugastore, you can run `kubectl apply -f <TODO: INSERT URL HERE>`
+
+In order to dynamically provision resources, we need to create resources classes
+that contain details about how the resources should be provisioned. For
+Yugastore, we will need resource classes that are capable of fulfilling a
+`KubernetesCluster` claim and a `PostgreSQLInstance` claim:
 
 ```bash
 cat > classes.yaml <<EOF
@@ -183,22 +196,25 @@ specTemplate:
   providerRef:
     name: gcp-provider
   reclaimPolicy: Delete
+  writeConnectionSecretsToNamespace: crossplane-system
 ---
 apiVersion: database.rook.crossplane.io/v1alpha1
 kind: YugabyteClusterClass
 metadata:
   name: yuga-cluster
+  labels:
+    app: yugastore
 specTemplate:
   providerRef:
     name: yugastore-k8s-provider
   reclaimPolicy: Delete
+  writeConnectionSecretsToNamespace: crossplane-system
   forProvider:
     name: hello-ybdb-cluster
     namespace: rook-yugabytedb
     master:
       # Replica count for Master.
       replicas: 3
-      # Mentioning network ports is optional. If some or all ports are not specified, then they will be defaulted to below-mentioned values, except for tserver-ui.
       network:
         ports:
           - name: yb-master-ui
@@ -218,8 +234,6 @@ specTemplate:
     tserver:
       # Replica count for TServer
       replicas: 3
-      # Mentioning network ports is optional. If some or all ports are not specified, then they will be defaulted to below-mentioned values, except for tserver-ui.
-      # For tserver-ui a cluster ip service will be created if the yb-tserver-ui port is explicitly mentioned. If it is not specified, only StatefulSet & headless service will be created for TServer. TServer ClusterIP service creation will be skipped. Whereas for Master, all 3 kubernetes objects will always be created.
       network:
         ports:
           - name: yb-tserver-ui
@@ -264,8 +278,8 @@ target cluster. When the `YugabyteClusterClass` is used to create a
 `YugabyteCluster` managed resource in the Crossplane control cluster, the Rook
 stack reaches out to the target Kubernetes cluster using the Kubernetes
 `Provider` referenced above and creates a Rook `YBCluster` [instance]. The stack
-trusts that the CRD kind has been installed in the target cluster and it will fail
-to provision the resource it has not (more on this below).
+trusts that the CRD kind has been installed in the target cluster and it will
+fail to provision the resource it has not (more on this below).
 
 ## Provision GKE Cluster and Install Rook Yugabyte Operator
 
@@ -300,6 +314,9 @@ metadata:
   labels:
     app: yugastore
 spec:
+  classSelector:
+    matchLabels:
+      app: yugastore
   writeConnectionSecretToRef:
     name: yugastore-k8s-secret
 EOF
@@ -307,7 +324,32 @@ EOF
 kubectl apply -f k8sclaim.yaml
 ```
 
-Here we create a namespace `yugastore-app` for our Yugastore namespaced
+You can view the status of the `KubernetesCluster` claim as it waits for the GKE
+cluster to come available:
+
+*Command*
+```bash
+kubectl get kubernetesclusters -n yugastore-app
+```
+*Output*
+```bash
+NAME            STATUS   CLASS-KIND        CLASS-NAME     RESOURCE-KIND   RESOURCE-NAME                       AGE
+yugastore-k8s   Bound    GKEClusterClass   standard-gke   GKECluster      yugastore-app-yugastore-k8s-vdhjq   23m
+```
+
+You can view the status of the `GKECluster` itself as it is created:
+
+*Command*
+```bash
+kubectl get gkeclusters.compute.gcp.crossplane.io yugastore-app-yugastore-k8s-vdhjq
+```
+*Output*
+```bash
+NAME                                STATUS   STATE     CLUSTER-NAME                               ENDPOINT        CLUSTER-CLASS   LOCATION        RECLAIM-POLICY   AGE
+yugastore-app-yugastore-k8s-vdhjq   Bound    RUNNING   gke-20a8dd85-b76c-4041-bc77-36c13ee28e37   35.224.89.145   standard-gke    us-central1-b   Delete           5m41s
+```
+
+Here we have created a namespace `yugastore-app` for our Yugastore namespaced
 resources to use and also create a Kubernetes `Provider` the references the
 secret propagated by the `KubernetesCluster` claim. If you look back at the
 `YugabyteClusterClass` we created above, this `yugastore-k8s-provider` is
@@ -321,7 +363,7 @@ apiVersion: workload.crossplane.io/v1alpha1
 kind: KubernetesApplication
 metadata:
   name: rook-yugabyte
-  namespace: gcp-infra-dev
+  namespace: yugastore-app
   labels:
     app: yugastore
 spec:
@@ -498,11 +540,39 @@ Rook Yugabyte [operator YAML] and packaging it into a Crossplane
 `KubernetesApplication` resource so that we can deploy it into our newly created
 GKE cluster.
 
-!! TODO: check successful provisioning (to be updated after CRD defs are finalized) !! 
+You can view the status of the `KubernetesApplication` as its resources are
+created:
+
+*Command*
+```bash
+kubectl get kubernetesapplication -n yugastore-app
+```
+*Output*
+```bash
+NAME            CLUSTER         STATUS      DESIRED   SUBMITTED
+rook-yugabyte   yugastore-k8s   Submitted   7         7
+```
+
+You can also view the individual `KubernetesApplicationResources` as they are
+created:
+
+*Command*
+```bash
+kubectl get kubernetesapplicationresources -n yugastore-app
+```
+*Output*
+```bash
+rook-app-namespace    Namespace                  rook-yugabytedb                 yugastore-k8s   Submitted
+rook-clusterrole      ClusterRole                rook-yugabytedb-operator        yugastore-k8s   Submitted
+rook-crds             CustomResourceDefinition   ybclusters.yugabytedb.rook.io   yugastore-k8s   Submitted
+rook-namespace        Namespace                  rook-yugabytedb-system          yugastore-k8s   Submitted
+rook-serviceaccount   Deployment                 rook-yugabytedb-operator        yugastore-k8s   Submitted
+```
 
 ## Deploy Yugastore alongside YugabyteDB
 
-Now that we have a GKE cluster up and running, we can create our YugabyteDB cluster and install Yugastore alongside it.
+Now that we have a GKE cluster up and running, we can create our YugabyteDB
+cluster and install Yugastore alongside it.
 
 ```bash
 cat > yugastore.yaml <<EOF
@@ -514,6 +584,9 @@ metadata:
   labels:
     app: yugastore
 spec:
+  classSelector:
+    matchLabels:
+      app: yugastore
   writeConnectionSecretToRef:
     name: yugastore-db-secret
 ---
@@ -568,7 +641,7 @@ spec:
             spec:
               containers:
                 - name: yugastore
-                  image: yugabyte/yugastore:latest # Pending merge of https://github.com/yugabyte/yugastore/pull/4
+                  image: gcr.io/crossplane-playground/yugastore:latest # replace with yugabyte/yugastore following merge of https://github.com/yugabyte/yugastore/pull/4
                   imagePullPolicy: Always
                   command: ["/usr/local/yugastore/bin/start-for-crossplane.sh"]
                   env:
@@ -605,26 +678,101 @@ EOF
 kubectl apply -f yugastore.yaml
 ```
 
-!! TODO: check successful provisioning (to be updated after CRD defs are finalized) !! 
-!! TODO: make sure loadbalancer IP address is propagated to `KubernetesApplicationResource` `yugastore-service` !!
+You can view the status of the `PostgreSQLInstance` claim as it waits for the
+`YugastoreCluster` to come available:
+
+*Command*
+```bash
+kubectl get postgresqlinstances -n yugastore-app
+```
+*Output*
+```bash
+NAME           STATUS   CLASS-KIND             CLASS-NAME     RESOURCE-KIND     RESOURCE-NAME                      AGE
+yugastore-db   Bound    YugabyteClusterClass   yuga-cluster   YugabyteCluster   yugastore-app-yugastore-db-t9xmf   8m38s
+```
+
+You can view the status of `YugabyteCluster` itself as it is created:
+
+*Command*
+```bash
+kubectl get yugabyteclusters.database.rook.crossplane.io yugastore-app-yugastore-db-t9xmf
+```
+*Output*
+```bash
+NAME                               AGE
+yugastore-app-yugastore-db-t9xmf   12m
+```
+
+You can view the status of the Yugastore `KubernetesApplication` as its
+resources are created:
+
+*Command*
+```bash
+kubectl get kubernetesapplication yugastore -n yugastore-app
+```
+*Output*
+```bash
+NAME        CLUSTER         STATUS      DESIRED   SUBMITTED
+yugastore   yugastore-k8s   Submitted   3         3
+```
+
+You can also view the individual `KubernetesApplicationResources` as they are
+created:
+
+*Command*
+```bash
+kubectl get kubernetesapplicationresources -n yugastore-app --selector=app=yugastore
+```
+*Output*
+```bash
+NAME                   TEMPLATE-KIND   TEMPLATE-NAME    CLUSTER         STATUS
+yugastore-deployment   Deployment      yugastore        yugastore-k8s   Submitted
+yugastore-namespace    Namespace       rook-yugastore   yugastore-k8s   Submitted
+yugastore-service      Service         yugastore        yugastore-k8s   Submitted
+```
+
+We are primarily interested in the `yugastore-service` as that is what will open
+the Yugastore app to the internet. After it is assigned an external IP address,
+it can be retrieved with the following:
+
+*Command*
+```bash
+kubectl get kubernetesapplicationresources yugastore-service -n yugastore-app -o=jsonpath='{.status.remote.loadBalancer.ingress[0].ip}'
+```
+*Output*
+```bash
+130.211.206.157
+```
+
+Now if you point your browser to port `3001` at the external IP that the service
+was assigned, you should see the Yugastore app running!
+
+![alt yugastore](yugastore.png)
 
 ## Cleanup
 
+Since all of our configuration is in a single directory, we can cleanup all of
+our infrastructure with a single command:
 
+```bash
+kubectl delete -f yugastore/
+```
 
 ## Conclusion and Next Steps
 
 In this guide we:
 
-* Setup a local Kubernetes cluster with Crossplane, stack-gcp, and stack-rook installed
+* Setup a local Kubernetes cluster with Crossplane, stack-gcp, and stack-rook
+  installed
 * Provisioned a GKE Kubernetes cluster
 * Installed the Rook Yugabyte operator into the GKE cluster
 * Created a YugabyteDB cluster in the GKE cluster
-* Deployed Yugastore to the GKE cluster, using the YugabyteDB cluster as its database
+* Deployed Yugastore to the GKE cluster, using the YugabyteDB cluster as its
+  database
 
 If you would like to try out a similar workflow using a different cloud
-provider, take a look at the other [services guides][services]. If you would like
-to learn more about stacks, checkout the [stacks guide][stacks]
+provider, take a look at the other [services guides][services]. If you would
+like to learn more about stacks, checkout the [stacks guide][stacks]
 
 <!-- Named links -->
 [Yugastore]: https://github.com/yugabyte/yugastore
