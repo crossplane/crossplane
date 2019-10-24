@@ -20,9 +20,9 @@ indent: true
 
 ## Introduction
 
-in this guide, we will set up an aws provider in crossplane so that we can
-install and use the [wordpress sample stack][sample-wordpress-stack], which
-depends on mysql and kubernetes!
+In this guide, we will set up an AWS provider in Crossplane so that we can
+install and use the [WordPress sample stack][sample-WordPress-stack], which
+depends on MySQL and Kubernetes!
 
 Before we begin, you will need:
 
@@ -52,10 +52,10 @@ Amazon Web Services][stack-aws] (AWS) to add support for that cloud provider.
 
 The namespace where we install the stack, is also the one that our managed AWS
 resources will reside. The name of this namespace is arbitrary, and we are
-calling it "`infra-aws`" in this guide. Let's create it:
+calling it `infra-aws` in this guide. Let's create it:
 
 ```bash
-# namespace for aws stack and infra resources
+# namespace for AWS stack and infra resources
 kubectl create namespace infra-aws
 ```
 
@@ -72,36 +72,31 @@ The rest of the steps assume that you installed the AWS stack into the
 
 ## Configure the AWS account
 
-An [aws user][] with `Administrative` privileges is needed to enable Crossplane
-to create the required resources. Once the user is provisioned, an [Access
-Key][] needs to be created so the user can have API access.
+An AWS [user][aws user] with `Administrative` privileges is needed to enable
+Crossplane to create the required resources. Once the user is provisioned, an
+[Access Key][] needs to be created so the user can have API access.
 
-Using the set of access key credentials for the user with the right access, we
-will to have [`aws` command line tool][] [installed][], and then we will need to
-[configure it][aws-cli-configure].
+Using the set of [access key credentials][AWS security credentials] for the user with the right access, we
+ need [install][install aws] [`aws cli`][aws command line tool], and then we
+ need to [configure it][aws-cli-configure].
 
-When the aws cli is configured, the credentials and configuration will be in
+When the AWS cli is configured, the credentials and configuration will be in
 `~/.aws/credentials` and `~/.aws/config` respectively. These will be consumed in
 the next step.
 
-When configuring the aws cli, it is recommended that the user credentials are
-configured under a specific [aws named profile][], and not under `default`. In
-this guide, we assume that the credentials are configured under the
-`crossplane-user` profile, but you can use a different profile name (including
-`default`) if you want. Let's store the profile name in a variable so we can use
-it in later steps:
-
-```bash
-aws_profile=crossplane-user
-```
+When configuring the AWS cli, the user credentials could be configured under a
+specific [AWS named profile][], or under `default`. Without loss of generality,
+let's assume that the credentials are configured under the `aws_profile`
+profile (which could also be `default`). We'll use this profile to setup cloud
+provider in the next section.
 
 ## Configure Crossplane Provider for AWS
 
-Crossplane uses the aws user credentials that were configured in the previous
+Crossplane uses the AWS user credentials that were configured in the previous
 step to create resources in AWS. These credentials will be stored as a
-[secret][] in Kubernetes, and will be used by an [aws
-provider][aws-provider-docs] instance. The AWS region is also pulled from the
-cli configuration, so that the aws provider can target a specific region.
+[secret][kubernetes secret] in Kubernetes, and will be used by an [AWS
+provider][aws provider] instance. The default AWS region is also pulled from the
+cli configuration, and added to the AWS provider.
 
 To store the credentials as a secret, run:
 
@@ -113,7 +108,7 @@ AWS_REGION=$(aws configure get region --profile ${aws_profile})
 ```
 
 At this point, the region and the encoded credentials are stored in respective
- variables. Next, we'll need to create an instance of [`aws provider`][]:
+ variables. Next, we'll need to create an instance of AWS [provider][aws provider]:
 
 ```bash
 cat > provider.yaml <<EOF
@@ -424,7 +419,7 @@ Below we inspect each of these resources in more details.
 * **`IAMRolePolicyAttachment`** Represents an AWS [IAM Role Policy][], which
   defines a certain permission in an IAM Role. We need two policies to create
   and assign it to the IAM Role above, so the cluster to communicate with other
-  aws resources.
+  AWS resources.
 
   ```yaml
   ---
@@ -590,30 +585,20 @@ off.
 
 <!-- Links -->
 [stacks-guide]: stacks-guide.md
-
 [aws]: https://aws.amazon.com
 [stack-aws]: https://github.com/crossplaneio/stack-aws
 [sample-wordpress-stack]: https://github.com/crossplaneio/sample-stack-wordpress
-
 [stack-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/design-doc-stacks.md#crossplane-stacks
-
 [aws user]: https://docs.aws.amazon.com/mediapackage/latest/ug/setting-up-create-iam-user.html
 [Access Key]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html
-
-[`aws provider`]: https://github.com/crossplaneio/stack-aws/blob/master/aws/apis/v1alpha2/types.go#L43
-[aws-provider-docs]: https://github.com/crossplaneio/stack-aws/blob/master/aws/apis/v1alpha2/types.go#L43
-
-[`aws` command line tool]: https://aws.amazon.com/cli/
-[AWS SDK for GO]: https://docs.aws.amazon.com/sdk-for-go/v1/developer-guide/setting-up.html
-
-[installed]: https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html
-[aws-cli-configure]: https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html
 [AWS security credentials]: https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html
-[secret]: https://kubernetes.io/docs/concepts/configuration/secret/
-[aws named profile]: https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-profiles.html
-
+[aws provider]: https://github.com/crossplaneio/stack-aws/blob/master/apis/v1alpha2/types.go#L43?ref=v0.4
+[aws command line tool]: https://aws.amazon.com/cli/
+[install aws]: https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html
+[aws-cli-configure]: https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html
+[kubernetes secret]: https://kubernetes.io/docs/concepts/configuration/secret/
+[AWS named profile]: https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-profiles.html
 [crossplane-cli]: https://github.com/crossplaneio/crossplane-cli
-
 [Virtual Private Network]: https://aws.amazon.com/vpc/
 [Subnet]: https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Subnets.html#vpc-subnet-basics
 [AWS resource connectivity]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-resource-connectivity-mvp.md#amazon-web-services
@@ -623,10 +608,6 @@ off.
 [Database Subnet Group]: https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_VPC.WorkingWithRDSInstanceinaVPC.html
 [IAM Role]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles.html
 [IAM Role Policy]: https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies.html
-
-[portable-classes-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-default-resource-class.md
-[resource-classes-docs]: concepts.md#resource-claims-and-resource-classes
-
 [stacks-guide-continue]: stacks-guide.md#install-support-for-our-application-into-crossplane
 [resource-claims-docs]: concepts.md#resource-claims-and-resource-classes
 [eks-user-guide]: https://docs.aws.amazon.com/eks/latest/userguide/create-public-private-vpc.html
@@ -634,4 +615,5 @@ off.
 [sample AWS network configuration]: https://github.com/crossplaneio/crossplane/tree/master/cluster/examples/workloads/kubernetes/wordpress/aws/network-config?ref=v0.4–
 [RDS Database Instance]: https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Overview.DBInstance.html
 [EKS Cluster]: https://docs.aws.amazon.com/eks/latest/userguide/clusters.html
+[resource-classes-docs]: concepts.md#resource-claims-and-resource-classes
 [resource class selection]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-simple-class-selection.md
