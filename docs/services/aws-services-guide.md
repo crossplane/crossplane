@@ -214,7 +214,7 @@ metadata:
 specTemplate:
   class: db.t2.small
   masterUsername: masteruser
-  securityGroupRefs:
+  securityGroupIdRefs:
     - name: sample-rds-sg
   subnetGroupNameRef:
     name: sample-dbsubnetgroup
