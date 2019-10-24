@@ -1,12 +1,8 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: azure
 ---
 apiVersion: stacks.crossplane.io/v1alpha1
 kind: ClusterStackInstall
 metadata:
   name: stack-azure
-  namespace: azure
+  namespace: crossplane-system
 spec:
   package: "crossplane/stack-azure:master"

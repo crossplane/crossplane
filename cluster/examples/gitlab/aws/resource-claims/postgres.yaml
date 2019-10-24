@@ -2,13 +2,10 @@ apiVersion: database.crossplane.io/v1alpha1
 kind: PostgreSQLInstance
 metadata:
   name: gitlab-postgresql
-  namespace: default
 spec:
-  classRef:
-    kind: RDSInstanceClass
-    apiVersion: database.aws.crossplane.io/v1alpha2
-    name: standard-aws-postgres
-    namespace: crossplane-system
+  classSelector:
+    matchLabels:
+      example: "true"
   writeConnectionSecretToRef:
     name: gitlab-postgresql
   engineVersion: "9.6"

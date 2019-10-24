@@ -5,15 +5,16 @@ apiVersion: storage.aws.crossplane.io/v1alpha2
 kind: S3BucketClass
 metadata:
   name: standard-aws-bucket
-  namespace: crossplane-system
   annotations:
     resource: bucket.storage.crossplane.io/v1alpha1
+  labels:
+    example: "true"
 specTemplate:
+  writeConnectionSecretsToNamespace: crossplane-system
   versioning: false
   cannedACL: private
   localPermission: ReadWrite
   region: REGION
   providerRef:
     name: demo-aws
-    namespace: crossplane-system
   reclaimPolicy: Delete

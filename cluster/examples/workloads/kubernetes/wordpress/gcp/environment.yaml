@@ -3,8 +3,10 @@ apiVersion: database.gcp.crossplane.io/v1beta1
 kind: CloudsqlInstanceClass
 metadata:
   name: standard-cloudsql
-  namespace: gcp
+  labels:
+    example: "true"
 specTemplate:
+  writeConnectionSecretsToNamespace: crossplane-system
   forProvider:
     databaseVersion: MYSQL_5_7
     region: us-central1
@@ -17,16 +19,17 @@ specTemplate:
       ipConfiguration:
         privateNetwork: projects/crossplane-playground/global/networks/example-network
   providerRef:
-    name: gcp-provider
-    namespace: gcp
+    name: example
   reclaimPolicy: Delete
 ---
 apiVersion: compute.gcp.crossplane.io/v1alpha2
 kind: GKEClusterClass
 metadata:
   name: standard-gke
-  namespace: gcp
+  labels:
+    example: "true"
 specTemplate:
+  writeConnectionSecretsToNamespace: crossplane-system
   machineType: n1-standard-1
   numNodes: 1
   zone: us-central1-b
@@ -36,6 +39,5 @@ specTemplate:
   clusterSecondaryRangeName: pods
   servicesSecondaryRangeName: services
   providerRef:
-    name: gcp-provider
-    namespace: gcp
+    name: example
   reclaimPolicy: Delete

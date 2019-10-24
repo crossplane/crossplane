@@ -1,28 +1,22 @@
 ---
-apiVersion: cache.crossplane.io/v1alpha1
-kind: RedisClusterClass
-metadata:
-  name: redis-standard
-  namespace: app-project1-dev
-classRef:
-  kind: ReplicationGroupClass
-  apiVersion: cache.aws.crossplane.io/v1alpha2
-  name: aws-redis-standard
-  namespace: aws-infra-dev
----
-apiVersion: cache.aws.crossplane.io/v1alpha2
+apiVersion: cache.aws.crossplane.io/v1beta1
 kind: ReplicationGroupClass
 metadata:
   name: aws-redis-standard
-  namespace: aws-infra-dev
+  labels:
+    example: "true"
 specTemplate:
-  engineVersion: "3.2.4"
-  cacheParameterGroupName: default.redis3.2.cluster.on
-  cacheNodeType: cache.t2.micro
-  automaticFailoverEnabled: true
-  numNodeGroups: 2
-  replicasPerNodeGroup: 2
+  writeConnectionSecretsToNamespace: crossplane-system
   providerRef:
     name: example
-    namespace: aws-infra-dev
   reclaimPolicy: Delete
+  forProvider:
+    replicationGroupDescription: "An example replication group"
+    applyModificationsImmediately: true
+    engine: "redis"
+    engineVersion: "3.2.4"
+    cacheParameterGroupName: default.redis3.2.cluster.on
+    cacheNodeType: cache.t2.micro
+    automaticFailoverEnabled: true
+    numNodeGroups: 2
+    replicasPerNodeGroup: 2

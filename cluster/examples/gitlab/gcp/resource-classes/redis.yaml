@@ -3,15 +3,16 @@ apiVersion: cache.gcp.crossplane.io/v1beta1
 kind: CloudMemorystoreInstanceClass
 metadata:
   name: standard-gcp-redis
-  namespace: crossplane-system
   annotations:
     resource: rediscluster.cache.crossplane.io/v1alpha1
+  labels:
+    example: "true"
 specTemplate:
+  writeConnectionSecretsToNamespace: crossplane-system
   forProvider:
     region: us-central1
     tier: BASIC
     memorySizeGb: 1
   providerRef:
-    name: demo-gcp
-    namespace: crossplane-system
+    name: example
   reclaimPolicy: Delete

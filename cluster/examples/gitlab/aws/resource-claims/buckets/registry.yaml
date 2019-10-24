@@ -3,13 +3,10 @@ apiVersion: storage.crossplane.io/v1alpha1
 kind: Bucket
 metadata:
   name: gitlab-registry
-  namespace: default
 spec:
-  classRef:
-    kind: S3BucketClass
-    apiVersion: storage.aws.crossplane.io/v1alpha2
-    name: standard-aws-bucket
-    namespace: crossplane-system
+  classSelector:
+    matchLabels:
+      example: "true"
   writeConnectionSecretToRef:
     name: gitlab-registry
   name: gitlab-demo-registry-%s

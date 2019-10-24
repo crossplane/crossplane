@@ -3,10 +3,12 @@ apiVersion: compute.crossplane.io/v1alpha1
 kind: KubernetesCluster
 metadata:
   name: wordpress-demo-cluster
-  namespace: mynamespace
   labels:
     app: wordpress-demo
 spec:
+  classSelector:
+    matchLabels:
+      example: "true"
   writeConnectionSecretToRef:
     name: wordpress-demo-cluster
 ---
@@ -14,9 +16,11 @@ apiVersion: database.crossplane.io/v1alpha1
 kind: MySQLInstance
 metadata:
   name: sql
-  namespace: mynamespace
 spec:
   engineVersion: "5.7"
+  classSelector:
+    matchLabels:
+      example: "true"
   # A secret is exported by providing the secret name
   # to export it under. This is the name of the secret
   # in the crossplane cluster, and it's scoped to this claim's namespace.
@@ -27,7 +31,6 @@ apiVersion: workload.crossplane.io/v1alpha1
 kind: KubernetesApplication
 metadata:
   name: wordpress-demo
-  namespace: mynamespace
   labels:
     app: wordpress-demo
 spec:

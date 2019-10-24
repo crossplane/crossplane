@@ -2,7 +2,6 @@ apiVersion: identity.aws.crossplane.io/v1alpha2
 kind: IAMRole
 metadata:
   name: ((CONFIG_NAME))-eks-cluster-role
-  namespace: ((NAMESPACE))
 spec:
   roleName: ((CONFIG_NAME))-eks-cluster-role
   description: a role that gives a cool power
@@ -21,5 +20,4 @@ spec:
     }
   reclaimPolicy: Delete
   providerRef:
-    name: aws-provider
-    namespace: crossplane-system
+    name: example

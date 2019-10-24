@@ -5,9 +5,9 @@ metadata:
   name: crossplane-wordpress-mysql
 spec:
   providerRef:
-    name: azure-sql-provider
-    namespace: crossplane-system
+    name: example
   writeConnectionSecretToRef:
+    namespace: crossplane-system
     name: demo-database-connection
   resourceGroupName: group-westus-1
   location: West US

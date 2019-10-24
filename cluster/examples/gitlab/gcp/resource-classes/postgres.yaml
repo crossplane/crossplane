@@ -4,10 +4,12 @@ apiVersion: database.gcp.crossplane.io/v1beta1
 kind: CloudsqlInstanceClass
 metadata:
   name: standard-gcp-postgres
-  namespace: crossplane-system
   annotations:
     resource: postgresqlinstance.database.crossplane.io/v1beta1
+  labels:
+    example: "true"
 specTemplate:
+  writeConnectionSecretsToNamespace: crossplane-system
   forProvider:
     databaseVersion: POSTGRES_9_6
     region: us-west2
@@ -16,6 +18,5 @@ specTemplate:
       dataDiskType: PD_SSD
       dataDiskSizeGb: 10
   providerRef:
-    name: demo-gcp
-    namespace: crossplane-system
+    name: example
   reclaimPolicy: Delete

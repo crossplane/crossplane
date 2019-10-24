@@ -3,13 +3,10 @@ apiVersion: storage.crossplane.io/v1alpha1
 kind: Bucket
 metadata:
   name: gitlab-packages
-  namespace: default
 spec:
-  classRef:
-    kind: BucketClass
-    apiVersion: storage.gcp.crossplane.io/v1alpha2
-    name: standard-gcp-bucket
-    namespace: crossplane-system
+  classSelector:
+    matchLabels:
+      example: "true"
   writeConnectionSecretToRef:
     name: gitlab-packages
   name: gitlab-demo-packages-%s

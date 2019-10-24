@@ -1,9 +1,0 @@
----
-apiVersion: compute.crossplane.io/v1alpha1
-kind: KubernetesCluster
-metadata:
-  name: app-kubernetes
-  namespace: app-project1-dev
-spec:
-  writeConnectionSecretToRef:
-    name: k8scluster

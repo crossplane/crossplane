@@ -4,19 +4,21 @@ apiVersion: storage.gcp.crossplane.io/v1alpha2
 kind: BucketClass
 metadata:
   name: standard-gcp-bucket
-  namespace: crossplane-system
   annotations:
     resource: bucket.storage.crossplane.io/v1alpha1
+  labels:
+    example: "true"
 specTemplate:
+  writeConnectionSecretsToNamespace: crossplane-system
   bucketPolicyOnly:
     enabled: true
   labels:
     app: "gitlab-demo"
   location: US
   serviceAccountSecretRef:
+    namespace: crossplane-system
     name: demo-gcs-creds
   storageClass: MULTI_REGIONAL
   providerRef:
-    name: demo-gcp
-    namespace: crossplane-system
+    name: example
   reclaimPolicy: Delete

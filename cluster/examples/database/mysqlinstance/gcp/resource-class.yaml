@@ -1,22 +1,12 @@
-apiVersion: database.crossplane.io/v1alpha1
-kind: MySQLInstanceClass
-metadata:
-  name: mysql-standard
-  namespace: app-project1-dev
-classRef:
-  kind: CloudsqlInstanceClass
-  apiVersion: database.gcp.crossplane.io/v1beta1
-  name: cloudsqlinstancemysql-standard
-  namespace: gcp-infra-dev
 ---
-# ResourceClass that defines the blueprint for how a "standard" CloudSQL instance
-# should be dynamically provisioned
 apiVersion: database.gcp.crossplane.io/v1beta1
 kind: CloudsqlInstanceClass
 metadata:
   name: cloudsqlinstancemysql-standard
-  namespace: gcp-infra-dev
+  labels:
+    example: "true"
 specTemplate:
+  writeConnectionSecretsToNamespace: crossplane-system
   forProvider:
     databaseVersion: MYSQL_5_6
     region: us-west2
@@ -28,5 +18,4 @@ specTemplate:
         ipv4Enabled: true
   providerRef:
     name: example
-    namespace: gcp-infra-dev
   reclaimPolicy: Delete

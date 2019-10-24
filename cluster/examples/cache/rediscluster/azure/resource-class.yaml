@@ -1,21 +1,12 @@
 ---
-apiVersion: cache.crossplane.io/v1alpha1
-kind: RedisClusterClass
-metadata:
-  name: redis-standard
-  namespace: app-project1-dev
-classRef:
-  kind: RedisClass
-  apiVersion: cache.azure.crossplane.io/v1alpha2
-  name: azure-redis-standard
-  namespace: azure-infra-dev
----
 apiVersion: cache.azure.crossplane.io/v1alpha2
 kind: RedisClass
 metadata:
   name: azure-redis-standard
-  namespace: azure-infra-dev
+  labels:
+    example: "true"
 specTemplate:
+  writeConnectionSecretsToNamespace: crossplane-system
   resourceGroupName: group-westus-1
   location: West US
   sku:
@@ -25,5 +16,4 @@ specTemplate:
   enableNonSslPort: true
   providerRef:
     name: example
-    namespace: azure-infra-dev
   reclaimPolicy: Delete

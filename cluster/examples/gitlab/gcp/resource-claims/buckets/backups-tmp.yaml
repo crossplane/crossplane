@@ -3,13 +3,10 @@ apiVersion: storage.crossplane.io/v1alpha1
 kind: Bucket
 metadata:
   name: gitlab-backups-tmp
-  namespace: default
 spec:
-  classRef:
-    kind: BucketClass
-    apiVersion: storage.gcp.crossplane.io/v1alpha2
-    name: standard-gcp-bucket
-    namespace: crossplane-system
+  classSelector:
+    matchLabels:
+      example: "true"
   writeConnectionSecretToRef:
     name: gitlab-backups-tmp
   name: gitlab-demo-backups-tmp-%s

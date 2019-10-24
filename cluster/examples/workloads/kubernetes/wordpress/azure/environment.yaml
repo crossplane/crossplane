@@ -5,8 +5,10 @@ apiVersion: database.azure.crossplane.io/v1alpha2
 kind: SQLServerClass
 metadata:
   name: azure-mysql-standard
-  namespace: azure-infra-dev
+  labels:
+    example: "true"
 specTemplate:
+  writeConnectionSecretsToNamespace: crossplane-system
   adminLoginName: myadmin
   resourceGroupName: demo-rg
   location: Central US
@@ -22,15 +24,16 @@ specTemplate:
     geoRedundantBackup: false
   providerRef:
     name: example
-    namespace: azure-infra-dev
   reclaimPolicy: Delete
 ---
 apiVersion: compute.azure.crossplane.io/v1alpha2
 kind: AKSClusterClass
 metadata:
   name: azure-aks-standard
-  namespace: azure-infra-dev
+  labels:
+    example: "true"
 specTemplate:
+  writeConnectionSecretsToNamespace: crossplane-system
   resourceGroupName: demo-rg
   vnetSubnetID: /subscriptions/${SUBSCRIPTION_ID}/resourceGroups/demo-rg/providers/Microsoft.Network/virtualNetworks/demo-vnet/subnets/demo-subnet
   location: Central US
@@ -43,5 +46,4 @@ specTemplate:
     name: akscluster-net
   providerRef:
     name: example
-    namespace: azure-infra-dev
   reclaimPolicy: Delete

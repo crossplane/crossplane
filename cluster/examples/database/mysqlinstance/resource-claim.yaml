@@ -3,10 +3,10 @@ apiVersion: database.crossplane.io/v1alpha1
 kind: MySQLInstance
 metadata:
   name: app-mysql
-  namespace: app-project1-dev
 spec:
-  classRef:
-    name: mysql-standard
+  classSelector:
+    matchLabels:
+      example: "true"
   writeConnectionSecretToRef:
     name: mysqlconn
   engineVersion: "5.6"

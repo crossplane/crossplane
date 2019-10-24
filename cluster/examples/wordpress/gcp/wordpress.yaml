@@ -17,8 +17,7 @@ metadata:
   name: crossplane-wordpress-cloudsql
 spec:
   providerRef:
-    name: gcp-sql-provider
-    namespace: crossplane-system
+    name: example
   forProvider:
     region: us-west2
     databaseVersion: MYSQL_5_7
@@ -27,6 +26,7 @@ spec:
       dataDiskType: PD_SSD
       dataDiskSizeGb: 10
   writeConnectionSecretToRef:
+    namespace: crossplane-system
     name: demo-database-connection
 ---
 apiVersion: extensions/v1beta1

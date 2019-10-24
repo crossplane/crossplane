@@ -1,21 +1,12 @@
 ---
-apiVersion: compute.crossplane.io/v1alpha1
-kind: KubernetesClusterClass
-metadata:
-  name: kubernetes-standard
-  namespace: app-project1-dev
-classRef:
-  kind: EKSClusterClass
-  apiVersion: compute.aws.crossplane.io/v1alpha2
-  name: ekscluster-standard
-  namespace: aws-infra-dev
----
 apiVersion: compute.aws.crossplane.io/v1alpha2
 kind: EKSClusterClass
 metadata:
   name: ekscluster-standard
-  namespace: aws-infra-dev
+  labels:
+    example: "true"
 specTemplate:
+  writeConnectionSecretsToNamespace: crossplane-system
   region: us-east-1
   roleARN: # arn:aws:iam::<account-id>:role/<role-name>
   vpcId: #vpc-01
@@ -32,5 +23,4 @@ specTemplate:
     clusterControlPlaneSecurityGroup: #sg-01
   providerRef:
     name: example
-    namespace: aws-infra-dev
   reclaimPolicy: Delete
