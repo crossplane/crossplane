@@ -31,7 +31,7 @@ Before we begin, you will need:
   * A `kubectl v1.15+` pointing to a Crossplane cluster
   * The [Crossplane CLI][crossplane-cli] installed
 * An account on [AWS][aws]
-* The [aws cli][installed]
+* The [aws cli][aws command line tool] installed
 
 At the end, we will have:
 
@@ -50,13 +50,13 @@ After Crossplane has been installed, it can be extended with more functionality
 by installing a [Crossplane Stack][stack-docs]! Let's install the [stack for
 Amazon Web Services][stack-aws] (AWS) to add support for that cloud provider.
 
-The namespace where we install the stack, is also the one that our managed AWS
-resources will reside. The name of this namespace is arbitrary, and we are
-calling it `infra-aws` in this guide. Let's create it:
+The namespace where we install the stack, is also the one that the provider
+secret will reside. The name of this namespace is arbitrary, and we are calling
+it `crossplane-system` in this guide. Let's create it:
 
 ```bash
-# namespace for AWS stack and infra resources
-kubectl create namespace infra-aws
+# namespace for AWS stack and provider secret
+kubectl create namespace crossplane-system
 ```
 
 Now we install the AWS stack using Crossplane CLI. Since this is an
@@ -64,11 +64,27 @@ infrastructure stack, we need to specify that it's cluster-scoped by passing the
 `--cluster` flag.
 
 ```bash
-kubectl crossplane stack generate-install --cluster 'crossplane/stack-aws:master' stack-aws | kubectl apply --namespace infra-aws -f -
+kubectl crossplane stack generate-install --cluster 'crossplane/stack-aws:master' stack-aws | kubectl apply --namespace crossplane-system -f -
 ```
 
-The rest of the steps assume that you installed the AWS stack into the
-`infra-aws` namespace.
+The rest of this guide assumes that the AWS stack is installed within
+`crossplane-system` namespace.
+
+### Validate the installation
+
+To check to see whether our stack installed correctly, we can look at
+the status of our stack:
+
+```
+kubectl -n crossplane-system get stack
+```
+
+It should look something like:
+
+```
+NAME        READY   VERSION   AGE
+stack-aws   True    0.0.2     45s
+```
 
 ## Configure the AWS account
 
@@ -119,7 +135,7 @@ data:
 kind: Secret
 metadata:
   name: aws-user-creds
-  namespace: infra-aws
+  namespace: crossplane-system
 type: Opaque
 ---
 apiVersion: aws.crossplane.io/v1alpha2
@@ -130,14 +146,14 @@ spec:
   credentialsSecretRef:
     key: credentials
     name: aws-user-creds
-    namespace: infra-aws
+    namespace: crossplane-system
   region: ${AWS_REGION}
 EOF
 
 # apply it to the cluster:
 kubectl apply -f "provider.yaml"
 
-# delete the credentials environment variable
+# delete the credentials variable
 unset AWS_CREDS_BASE64
 ```
 
@@ -171,7 +187,7 @@ kubectl get -k github.com/crossplaneio/crossplane//cluster/examples/workloads/ku
 ```
 
 When all resources have the `Ready` condition in `True` state, the provisioning
-is completed. You can now move to the next section, or keep reading below for
+is completed. You can now move on to the next section, or keep reading below for
 more details about the managed resources that we created.
 
 ### Behind the scenes
@@ -192,7 +208,7 @@ kubectl kustomize github.com/crossplaneio/crossplane//cluster/examples/workloads
 ```
 
 This will save the sample network configuration resources locally in
-`network-config.yaml`. Please note that AWS parameters that are used in these
+`network-config.yaml`. Please note that the AWS parameters that are used in these
 resources (like `cidrBlock`, `region`, etc...) are arbitrarily chosen in this
 solution and could be configured to implement other
 [configurations][eks-user-guide].
