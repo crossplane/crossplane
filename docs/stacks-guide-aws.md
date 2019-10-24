@@ -170,16 +170,16 @@ And you're done! You can check the status of the provisioning by running:
 kubectl get -k github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/aws/network-config?ref=v0.4.0
 ```
 
-When all resources has the `Ready` condition in `True` state, the provisioning
+When all resources have the `Ready` condition in `True` state, the provisioning
 is completed. You can now move to the next section, or keep reading below for
 more details about the managed resources that we created.
 
 ### Behind the scenes
 
 When configured in AWS, WordPress resources map to an EKS cluster and an RDS
-database. In order to make the RDS instance accessible from the EKS cluster,
+database instance. In order to make the RDS instance accessible from the EKS cluster,
 they both need to live within the same VPC. However, a VPC is not the only AWS
-resource that needs to be created to enable inter-resource connectivity. In
+resource that needs to be created to create inter-resource connectivity. In
 general, a **Network Configuration** which consists of a set of VPCs, Subnets,
 Security Groups, Route Tables, IAM Roles and other resources, is required for
 this purpose. For more information, see [AWS resource connectivity] design
@@ -192,7 +192,7 @@ kubectl kustomize github.com/crossplaneio/crossplane//cluster/examples/workloads
 ```
 
 This will save the sample network configuration resources locally in
-`network-config..yaml`. Please note that AWS parameters that are used in these
+`network-config.yaml`. Please note that AWS parameters that are used in these
 resources (like `cidrBlock`, `region`, etc...) are arbitrarily chosen in this
 solution and could be configured to implement other
 [configurations][eks-user-guide].
@@ -217,7 +217,7 @@ Below we inspect each of these resources in more details.
   ```
 
 * **`Subnet`** Represents an AWS [Subnet][]. For this configuration we create
-  one Subnet per each availability zone in the region.
+  one Subnet per each availability zone in the selected region.
 
   ```yaml
   ---
@@ -333,8 +333,8 @@ Below we inspect each of these resources in more details.
       name: aws-provider
   ```
 
-* A security group to assign it later to the RDS database instance, which
-  allows the instance to accept traffic from worker nodes.
+  * A security group to assign it later to the RDS database instance, which
+    allows the instance to accept traffic from worker nodes.
 
   ```yaml
   ---
@@ -359,9 +359,9 @@ Below we inspect each of these resources in more details.
       name: aws-provider
   ```
 
-* **`DBSubnetGroup`** Represents an AWS [Database Subnet Group][], which
-  creates a group of Subnets that can communicate with the RDS database
-  instance that we will create later.
+* **`DBSubnetGroup`** Represents an AWS [Database Subnet Group][] that stores a
+  set of existing Subnets in different availability zones, from which an IP
+  address is chosen and assigned to the RDS instance.
 
   ```yaml
   ---
@@ -385,9 +385,9 @@ Below we inspect each of these resources in more details.
   ```
 
 * **`IAMRole`** Represents An AWS [IAM Role][], which assigns a set of access
-  policies to the AWS principal that assumes it. We create a role to later add
-  needed policies and assign it to the cluster, granting the permissions it
-  needs to communicate with other resources in AWS.
+  policies to the AWS principal that assumes it. We create a role, and later add
+  policies to it and then assign the role to the cluster. This grants the
+  permissions the cluster needs to communicate with other resources in AWS.
 
   ```yaml
   ---
@@ -451,7 +451,7 @@ Below we inspect each of these resources in more details.
   ```
 
 As you probably have noticed, some resources are referencing other resource
-attributes in their YAML representations. For instance in `Subnet` YAML we have:
+attributes in their YAML representations. For instance for `Subnet` resource we have:
 
 ```yaml
 ...
