@@ -23,35 +23,32 @@ one or more controllers. A controller is an endless loop that:
 1. Tries to make the actual state match the desired state.
 
 A typical Crossplane managed service consists of five configuration resources
-and four controllers. The GCP Stack's support for Google Cloud Memorystore
+and five controllers. The GCP Stack's support for Google Cloud Memorystore
 illustrates this. First, the configuration resources:
 
-1. A [managed resource]. Managed resources are high-fidelity representations of
-   a resource in an external system such as a cloud provider's API. Managed
-   resources are _non-portable_ across external systems (i.e. cloud providers);
-   they're tightly coupled to the implementation details of the external
-   resource they represent. Managed resources are defined by a Stack. The GCP
-   Stack's [`CloudMemorystoreInstance`] resource is an example of a managed
-   resource.
-1. A [resource claim]. Resource claims are abstract declarations of a need for a
-   service. Resource claims are frequently portable across external systems.
-   Crossplane defines a series of common resource claim kinds, including
-   [`RedisCluster`]. A resource claim is satisfied by _binding_ to a managed
-   resource.
-1. A non-portable [resource class]. Non-portable resource classes represent a
-   class of a specific kind of managed resource. They are the template used to
-   create a new managed resource in order to satisfy a resource claim during
-   [dynamic provisioning]. Non-portable resource classes are tightly coupled to
-   the managed resources they template. [`CloudMemorystoreInstanceClass`] is an
-   example of a non-portable resource class.
-1. A portable [resource class]. Portable resource classes are a pointer from a
-   resource claim to a non-portable resource class that should be used for
-   dynamic provisioning. [`RedisClusterClass`] is an example of a portable
-   resource class.
+1. A [managed resource]. Managed resources are cluster scoped, high-fidelity
+   representations of a resource in an external system such as a cloud
+   provider's API. Managed resources are _non-portable_ across external systems
+   (i.e. cloud providers); they're tightly coupled to the implementation details
+   of the external resource they represent. Managed resources are defined by a
+   Stack. The GCP Stack's [`CloudMemorystoreInstance`] resource is an example of
+   a managed resource.
+1. A [resource claim]. Resource claims are namespaced abstract declarations of a
+   need for a service. Resource claims are frequently portable across external
+   systems. Crossplane defines a series of common resource claim kinds,
+   including [`RedisCluster`]. A resource claim is satisfied by _binding_ to a
+   managed resource.
+1. A [resource class]. Resource classes represent a class of a specific kind of
+   managed resource. They are the template used to create a new managed resource
+   in order to satisfy a resource claim during [dynamic provisioning]. Resource
+   classes are cluster scoped, and tightly coupled to the managed resources they
+   template. [`CloudMemorystoreInstanceClass`] is an example of a resource
+   class.
 1. A provider. Providers enable access to an external system, typically by
    indicating a Kubernetes Secret containing any credentials required to
    authenticate to the system, as well as any other metadata required to
-   connect. The GCP [`Provider`] is an example of a provider.
+   connect. Providers are cluster scoped, like managed resources and classes.
+   The GCP [`Provider`] is an example of a provider.
 
 These resources are powered by:
 
@@ -62,6 +59,16 @@ These resources are powered by:
    controller watches for changes to `CloudMemorystoreInstance` resources and
    calls Google's Cloud Memorystore API to create, update, or delete an instance
    as necessary.
+1. The resource claim scheduling controller. A claim scheduling controller
+   exists for each kind of resource class that could satisfy a resource claim.
+   This controller is unaware of any external system - it simply schedules
+   resource claims to resource classes that match their class selector labels,
+   so that they may be handled by the resource claim controller.
+1. The resource claim defaulting controller. A claim defaulting controller
+   exists for each kind of resource class that could satisfy a resource claim.
+   This controller is unaware of any external system - it allocates resource
+   claims that do not specify a class selector to a resource class annotated as
+   the default, if any, so that they may be handled by the claim controller.
 1. The resource claim controller. A resource claim controller exists for each
    kind of managed resource that could satisfy a resource claim. This controller
    is unaware of any external system - it responsible only for taking resource
@@ -78,11 +85,6 @@ These resources are powered by:
    connection secret of the resource claim it is bound to. The secret
    propagation controller is optional - managed resources that only write to
    their connection secret at creation time may omit this controller.
-1. A default resource class controller. The `RedisCluster` default resource
-   class controller watches for `RedisCluster` instances that don't explicitly
-   reference a managed resource _or_ a portable resource class, and sets a
-   default resource class if one is set. Only one instance of this defaulting
-   controller exists per resource claim kind.
 
 Crossplane does not require controllers to be written in any particular
 language. The Kubernetes API server is our API boundary, so any process capable
@@ -161,10 +163,9 @@ They can be added by hand, but new services are encouraged to use [`angryjet`]
 to generate them automatically using `go generate` per the `angryjet`
 documentation.
 
-Note that in many cases a suitable provider, resource claim, and portable
-resource class will already exist. Frequently adding support for a new managed
-service requires only the definition of a new managed resource and non-portable
-resource class.
+Note that in many cases a suitable provider and resource claim will already
+exist. Frequently adding support for a new managed service requires only the
+definition of a new managed resource and resource class.
 
 ### Managed Resource Kinds
 
@@ -175,6 +176,7 @@ Managed resources must:
 * Embed a [`ResourceSpec`] struct in their `Spec` struct.
 * Embed a `Parameters` struct in their `Spec` struct.
 * Use the `+kubebuilder:subresource:status` [comment marker].
+* Use the `+kubebuilder:resource:scope=Cluster` [comment marker].
 
 The `Parameters` struct should be a _high fidelity_ representation of the
 writeable fields of the external resource's API. Put otherwise, if your
@@ -225,7 +227,7 @@ type FavouriteDBInstanceParameters struct {
 // A FavouriteDBInstanceSpec defines the desired state of a FavouriteDBInstance.
 type FavouriteDBInstanceSpec struct {
     runtimev1alpha1.ResourceSpec  `json:",inline"`
-    FavouriteDBInstanceParameters `json:",inline"`
+    FavouriteDBInstanceParameters `json:",forProvider"`
 }
 
 // A FavouriteDBInstanceStatus represents the observed state of a
@@ -247,8 +249,6 @@ type FavouriteDBInstanceStatus struct {
     Hostname string `json:"hostname,omitempty"`
 }
 
-// +kubebuilder:object:root=true
-
 // A FavouriteDBInstance is a managed resource that represents a Favourite DB
 // instance.
 // +kubebuilder:subresource:status
@@ -264,38 +264,35 @@ type FavouriteDBInstance struct {
 Note that Crossplane uses the GoDoc strings of API kinds to generate user facing
 API documentation. __Document all fields__ and prefer GoDoc that assumes the
 reader is running `kubectl explain`, or reading an API reference, not reading
-the code.
+the code. Refer to the [Managed Resource API Patterns] one pager for more detail
+on authoring high fidelity managed resources.
 
-### Non-Portable Class Kinds
+### Resource Class Kinds
 
-The non-portable resource class kind for a particular managed resource kind are
-typically defined in the same file as their the managed resource. Non-portable
-resource classes must:
+The resource class kind for a particular managed resource kind are typically
+defined in the same file as their the managed resource. Resource classes must:
 
-* Satisfy crossplane-runtime's [`resource.NonPortableClass`] interface.
+* Satisfy crossplane-runtime's [`resource.Class`] interface.
 * Have a `SpecTemplate` struct field instead of a `Spec`.
-* Embed a [`NonPortableClassSpecTemplate`] struct in their `SpecTemplate`
-  struct.
+* Embed a [`ClassSpecTemplate`] struct in their `SpecTemplate` struct.
 * Embed their managed resource's `Parameters` struct in their `SpecTemplate`
   struct.
 * Not have a `Status` struct.
+* Use the `+kubebuilder:resource:scope=Cluster` [comment marker].
 
-A non-portable resource class for the above `FavouriteDBInstance` would look as
+A resource class for the above `FavouriteDBInstance` would look as
 follows:
 
 ```go
 // A FavouriteDBInstanceClassSpecTemplate is a template for the spec of a
 // dynamically provisioned FavouriteDBInstance.
 type FavouriteDBInstanceClassSpecTemplate struct {
-    runtimev1alpha1.NonPortableClassSpecTemplate `json:",inline"`
-    FavouriteDBInstanceParameters                `json:",inline"`
+    runtimev1alpha1.ClassSpecTemplate `json:",inline"`
+    FavouriteDBInstanceParameters     `json:",forProvider"`
 }
 
-// +kubebuilder:object:root=true
-
-// A FavouriteDBInstanceClass is a non-portable resource class. It defines the
-// desired spec of resource claims that use it to dynamically provision a
-// managed resource.
+// A FavouriteDBInstanceClass is a resource class. It defines the desired spec
+// of resource claims that use it to dynamically provision a managed resource.
 type FavouriteDBInstanceClass struct {
     metav1.TypeMeta   `json:",inline"`
     metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -308,12 +305,12 @@ type FavouriteDBInstanceClass struct {
 
 ### Resource Claim Kinds
 
-Once the underlying managed resource and its non-portable resource class have
-been defined the next step is to define the resource claim. Resource claim
-controllers typically live alongside their managed resource controllers (i.e. in
-an infrastructure stack), but at the time of writing all resource claim kinds
-are defined in Crossplane core. This is because resource claims can frequently
-be satisfied by binding to managed resources from more than one cloud. Consider
+Once the underlying managed resource and its resource class have been defined
+the next step is to define the resource claim. Resource claim controllers
+typically live alongside their managed resource controllers (i.e. in an
+infrastructure stack), but at the time of writing all resource claim kinds are
+defined in Crossplane core. This is because resource claims can frequently be
+satisfied by binding to managed resources from more than one cloud. Consider
 [opening a Crossplane issue] to propose adding your new resource claim kind to
 Crossplane if it could be satisfied by managed resources from more than one
 infrastructure stack.
@@ -324,6 +321,7 @@ Resource claims must:
 * Use (not embed) a [`ResourceClaimStatus`] struct as their `Status` field.
 * Embed a [`ResourceClaimSpec`] struct in their `Spec` struct.
 * Use the `+kubebuilder:subresource:status` [comment marker].
+* **Not** use the `+kubebuilder:resource:scope=Cluster` [comment marker].
 
 The `FancySQLInstance` resource claim would look as follows:
 
@@ -347,8 +345,6 @@ type FancySQLInstanceSpec struct {
     Version *string `json:"version,omitempty"`
 }
 
-// +kubebuilder:object:root=true
-
 // A FancySQLInstance is a portable resource claim that may be satisfied by
 // binding to FancySQL managed resources such as a Favourite Cloud FavouriteDB
 // instance or an Other Cloud AmbivalentDB instance.
@@ -367,44 +363,6 @@ func (i *FancySQLInstance) SetBindingPhase(p runtimev1alpha1.BindingPhase) {
 }
 ```
 
-### Portable Resource Class Kinds
-
-Portable resource classes are typically defined alongside the resource claim
-they align with, similar to how non-portable resource classes are defined
-alongside the managed resources they align with.
-
-Portable resource classes must:
-
-* Satisfy crossplane-runtime's [`resource.PortableClass`] interface.
-* Directly embed a [`PortableClass`] struct.
-* Have no `Spec` field.
-* Have no `Status` field.
-* Have a corresponding List type that satisfies the
-  [`resource.PortableClassList`] interface.
-
-The `FancySQLInstanceClass` portable resource class would look as follows:
-
-```go
-// FancySQLInstanceClass contains a namespace-scoped portable class for
-// FancySQLInstance
-type FancySQLInstanceClass struct {
-    metav1.TypeMeta   `json:",inline"`
-    metav1.ObjectMeta `json:"metadata,omitempty"`
-
-    runtimev1alpha1.PortableClass `json:",inline"`
-}
-
-// +kubebuilder:object:root=true
-
-// FancySQLInstanceClassList contains a list of FancySQLInstanceClass.
-type FancySQLInstanceClassList struct {
-    metav1.TypeMeta `json:",inline"`
-    metav1.ListMeta `json:"metadata,omitempty"`
-
-    Items           []FancySQLInstanceClass `json:"items"`
-}
-```
-
 ### Provider Kinds
 
 You'll typically only need to add a new Provider kind if you're creating an
@@ -415,6 +373,7 @@ Providers must:
 * Be named exactly `Provider`.
 * Have a `Spec` struct with a `Secret` field indicating where to find
   credentials for this provider.
+* Use the `+kubebuilder:resource:scope=Cluster` [comment marker].
 
 The Favourite Cloud `Provider` would look as follows. Note that the cloud to
 which it belongs should be indicated by its API group, i.e. its API Version
@@ -426,10 +385,8 @@ type ProviderSpec struct {
 
     // A Secret containing credentials for a Favourite Cloud Service Account
     // that will be used to authenticate to this Provider.
-    Secret corev1.SecretKeySelector `json:"credentialsSecretRef"`
+    Secret runtimev1alpha1.SecretKeySelector `json:"credentialsSecretRef"`
 }
-
-// +kubebuilder:object:root=true
 
 // A Provider configures a Favourite Cloud 'provider', i.e. a connection to a
 // particular Favourite Cloud project using a particular Favourite Cloud service
@@ -445,9 +402,8 @@ type Provider struct {
 ### Finishing Touches
 
 At this point we've defined all of the resource kinds necessary to start
-building controllers - a managed resource, a non-portable resource class, a
-resource claim, and a portable resource class. Before moving on to the
-controllers:
+building controllers - a managed resource, a resource class, and a resource
+claim. Before moving on to the controllers:
 
 * Add any kubebuilder [comment markers] that may be useful for your resource.
   Comment markers can be used to validate input, or add additional columns to
@@ -495,10 +451,18 @@ crossplane-runtime provides the following `reconcile.Reconcilers`:
 * The [`resource.ManagedReconciler`] reconciles managed resources with external
   systems by instantiating a client of the external API and using it to create,
   update, or delete the external resource as necessary.
+* [`resource.ClaimSchedulingReconciler`] reconciles resource claims by
+  scheduling them to a resource class that matches their class selector labels
+  (if any).
+* [`resource.ClaimDefaultingReconciler`] reconciles resource claims that omit
+  their class selector by defaulting them to a resource class annotated as the
+  default (if any).
 * [`resource.ClaimReconciler`] reconciles resource claims with managed resources
   by either binding or dynamically provisioning and then binding them.
-* [`resource.DefaultClassReconciler`] sets default resource classes for resource
-  claims that need them.
+* [`resource.SecretPropagatingReconciler`] reconciles secrets by propagating
+  their data to another secret. This controller is typically used to ensure
+  resource claim connection secrets remain in sync with the connection secrets
+  of their bound managed resources.
 
 Crossplane controllers typically differ sufficiently from those scaffolded by
 kubebuilder that there is little value in using kubebuilder to generate a
@@ -722,6 +686,140 @@ func (e *external) Delete(ctx context.Context, mg resource.Managed) error {
 }
 ```
 
+### Resource Claim Scheduling Controllers
+
+Scheduling controllers should use [`resource.NewClaimSchedulingReconciler`] to
+specify the resource claim kind it schedules and the resource class kind it
+schedules them to. Note that unlike their resource claim kinds, resource claim
+scheduling controllers are always part of the infrastructure stack that defines
+the resource class they schedule claims to. The following is an example
+controller that reconciles the `FancySQLInstance` resource claim by scheduling
+it to a `FavouriteDBInstanceClass`:
+
+```go
+import (
+    "fmt"
+    "strings"
+
+    ctrl "sigs.k8s.io/controller-runtime"
+
+    runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+    "github.com/crossplaneio/crossplane-runtime/pkg/resource"
+
+    // Note that the hypothetical FancySQL resource claim is part of Crossplane,
+    // not stack-fcp, because it is (hypothetically) portable across multiple
+    // infrastructure stacks.
+    databasev1alpha1 "github.com/crossplaneio/crossplane/apis/database/v1alpha1"
+
+    "github.com/crossplaneio/stack-fcp/apis/database/v1alpha2"
+)
+
+type PostgreSQLInstanceClaimSchedulingController struct{}
+
+// SetupWithManager instantiates a new controller using a
+// resource.ClaimSchedulingReconciler configured to reconcile FancySQLInstances
+// by scheduling them to FavouriteDBInstanceClasses.
+func (c *FancySQLInstanceClaimSchedulingController) SetupWithManager(mgr ctrl.Manager) error {
+    // It's Crossplane convention to name resource claim scheduling controllers
+    // "scheduler.claimkind.resourcekind.resourceapigroup", for example in this
+    // case "fancysqlinstance.favouritedbinstance.fcp.crossplane.io".
+    name := strings.ToLower(fmt.Sprintf("scheduler.%s.%s.%s",
+        databasev1alpha1.FancySQLInstanceKind,
+        v1alpha2.FavouriteDBInstanceKind,
+        v1alpha2.Group))
+
+    return ctrl.NewControllerManagedBy(mgr).
+        Named(name).
+        For(&databasev1alpha1.FancySQLInstance{}).
+        WithEventFilter(resource.NewPredicates(resource.AllOf(
+            // Claims must supply a class selector to be scheduled. Claims that
+            // do not supply a class selector use a default resource class, if
+            // one exists.
+            resource.HasClassSelector(),
+
+            // Claims with a class reference have either already been scheduled
+            // to a resource class, or specified one explicitly.
+            resource.HasNoClassReference(),
+
+            // Claims with a managed resource reference are either already bound
+            // to a managed resource, or are requesting to be bound to an
+            // existing managed resource.
+            resource.HasNoManagedResourceReference(),
+        ))).
+        Complete(resource.NewClaimSchedulingReconciler(mgr,
+            resource.ClaimKind(databasev1alpha1.FancySQLInstanceGroupVersionKind),
+            resource.ClassKind(v1alpha2.FavouriteDBInstanceClassGroupVersionKind),
+        ))
+}
+```
+
+### Resource Claim Defaulting Controllers
+
+Defaulting controllers are configured almost (but not quite) identically to
+scheduling controllers. They use a [`resource.NewClaimSchedulingReconciler`] to
+specify the resource claim kind they configure and the resource class kind they
+default to. Unlike their resource claim kinds, defaulting controllers are always
+part of the infrastructure stack that defines the resource class they default
+claims to. The following is an example controller that reconciles the
+`FancySQLInstance` resource claim by setting its class reference to a
+`FavouriteDBInstanceClass` annotated as the default class:
+
+```go
+import (
+    "fmt"
+    "strings"
+
+    ctrl "sigs.k8s.io/controller-runtime"
+
+    runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+    "github.com/crossplaneio/crossplane-runtime/pkg/resource"
+
+    // Note that the hypothetical FancySQL resource claim is part of Crossplane,
+    // not stack-fcp, because it is (hypothetically) portable across multiple
+    // infrastructure stacks.
+    databasev1alpha1 "github.com/crossplaneio/crossplane/apis/database/v1alpha1"
+
+    "github.com/crossplaneio/stack-fcp/apis/database/v1alpha2"
+)
+
+type PostgreSQLInstanceClaimDefaultingController struct{}
+
+// SetupWithManager instantiates a new controller using a
+// resource.ClaimDefaultingReconciler configured to reconcile FancySQLInstances
+// by scheduling them to FavouriteDBInstanceClasses.
+func (c *FancySQLInstanceClaimDefaultingController) SetupWithManager(mgr ctrl.Manager) error {
+    // It's Crossplane convention to name resource claim scheduling controllers
+    // "defaulter.claimkind.resourcekind.resourceapigroup", for example in this
+    // case "fancysqlinstance.favouritedbinstance.fcp.crossplane.io".
+    name := strings.ToLower(fmt.Sprintf("scheduler.%s.%s.%s",
+        databasev1alpha1.FancySQLInstanceKind,
+        v1alpha2.FavouriteDBInstanceKind,
+        v1alpha2.Group))
+
+    return ctrl.NewControllerManagedBy(mgr).
+        Named(name).
+        For(&databasev1alpha1.FancySQLInstance{}).
+        WithEventFilter(resource.NewPredicates(resource.AllOf(
+            // Claims with a class selector desire scheduling to a matching
+            // resource class, and are not subject to defaulting.
+            resource.HasNoClassSelector(),
+
+            // Claims with a class reference have either already been scheduled
+            // to a resource class, or specified one explicitly.
+            resource.HasNoClassReference(),
+
+            // Claims with a managed resource reference are either already bound
+            // to a managed resource, or are requesting to be bound to an
+            // existing managed resource.
+            resource.HasNoManagedResourceReference(),
+        ))).
+        Complete(resource.NewClaimDefaultingReconciler(mgr,
+            resource.ClaimKind(databasev1alpha1.FancySQLInstanceGroupVersionKind),
+            resource.ClassKind(v1alpha2.FavouriteDBInstanceClassGroupVersionKind),
+        ))
+}
+```
+
 ### Resource Claim Controllers
 
 Resource claim controllers should use [`resource.NewClaimReconciler`] to wrap a
@@ -774,6 +872,10 @@ func (c *FavouriteDBInstanceClaimController) SetupWithManager(mgr ctrl.Manager) 
     // out any requests to reconcile resources that we're not interested in.
     p := resource.NewPredicates(resource.AnyOf(
         // We want to reconcile FancySQLInstance kind resource claims that
+        // reference a FavouriteDBInstanceClass.
+        resource.HasClassReferenceKind(resource.ClassKind(v1alpha2.FavouriteDBInstanceClassGroupVersionKind),
+
+        // We want to reconcile FancySQLInstance kind resource claims that
         // explicitly set their .spec.resourceRef to a FavouriteDBInstance kind
         // managed resource.
         resource.HasManagedResourceReferenceKind(resource.ManagedKind(v1alpha2.FavouriteDBInstanceGroupVersionKind)),
@@ -782,23 +884,13 @@ func (c *FavouriteDBInstanceClaimController) SetupWithManager(mgr ctrl.Manager) 
         // without a claim reference will be filtered by the below
         // EnqueueRequestForClaim watch event handler.
         resource.IsManagedKind(resource.ManagedKind(v1alpha2.FavouriteDBInstanceClassGroupVersionKind), mgr.GetScheme()),
-
-        // We want to reconcile FancySQLInstance kind resource claims that
-        // indirectly reference a FavouriteDBInstanceClass via a
-        // FancySQLInstanceClass.
-        resource.HasIndirectClassReferenceKind(mgr.GetClient(), mgr.GetScheme(), resource.ClassKinds{
-            Portable:    databasev1alpha1.FancySQLInstanceClassGroupVersionKind,
-            NonPortable: v1alpha2.FavouriteDBInstanceClassGroupVersionKind,
-        })))
+    ))
 
     // Create a new resource claim reconciler...
     r := resource.NewClaimReconciler(mgr,
         // ..that uses the supplied claim, class, and managed resource kinds.
         resource.ClaimKind(databasev1alpha1.FancySQLInstanceGroupVersionKind),
-        resource.ClassKinds{
-            Portable:    databasev1alpha1.FancySQLInstanceClassGroupVersionKind,
-            NonPortable: v1alpha2.FavouriteDBInstanceClassGroupVersionKind,
-        },
+        resource.ClassKind(v1alpha2.FavouriteDBInstanceClassGroupVersionKind),
         resource.ManagedKind(v1alpha2.FavouriteDBInstanceGroupVersionKind),
         // The resource claim reconciler assumes managed resources do not
         // use the status subresource for compatibility with older managed
@@ -826,8 +918,8 @@ func (c *FavouriteDBInstanceClaimController) SetupWithManager(mgr ctrl.Manager) 
 }
 
 // ConfigureFavouriteDBInstance is responsible for updating the supplied managed
-// resource using the supplied non-portable resource class.
-func ConfigureFavouriteDBInstance(_ context.Context, cm resource.Claim, cs resource.NonPortableClass, mg resource.Managed) error {
+// resource using the supplied resource class.
+func ConfigureFavouriteDBInstance(_ context.Context, cm resource.Claim, cs resource.Class, mg resource.Managed) error {
     if _, ok := cm.(*databasev1alpha1.FancySQLInstance); !ok {
         return errors.New("resource claim is not a FancySQLInstance")
     }
@@ -849,7 +941,10 @@ func ConfigureFavouriteDBInstance(_ context.Context, cm resource.Claim, cs resou
             // UID. Managed resource secrets are not intended for human
             // consumption; they're copied to the resource claim's secret when
             // the resource is bound.
-            WriteConnectionSecretToReference: corev1.LocalObjectReference{Name: string(cm.GetUID())},
+            WriteConnectionSecretToReference: runtimev1alpha1.SecretReference{
+                Namespace: class.SpecTemplate.WriteConnectionSecretsToNamespace,
+                Name:      string(cm.GetUID()),
+            },
             ProviderReference:                class.SpecTemplate.ProviderReference,
             ReclaimPolicy:                    class.SpecTemplate.ReclaimPolicy,
         },
@@ -865,7 +960,10 @@ func ConfigureFavouriteDBInstance(_ context.Context, cm resource.Claim, cs resou
 Managed resource kinds that may update their connection secrets after creation
 time must instantiate a connection secret propagation controller. This
 controller ensures any updates to the managed resource's connection secret are
-propagated to the connection secret of its bound resource claim.
+propagated to the connection secret of its bound resource claim. The resource
+claim reconciler ensures managed resource and resource claim secrets are
+eligible for use with by the secret propagatation controller by adding the
+appropriate annotations and controller references.
 
 The following controller propagates any changes made to a `FavouriteDBInstance`
 connection secret to the connection secret of its bound `FancySQLInstance`:
@@ -899,49 +997,6 @@ func (c *FavouriteDBInstanceSecretController) SetupWithManager(mgr ctrl.Manager)
         For(&corev1.Secret{}).
         WithEventFilter(p).
         Complete(resource.NewSecretPropagatingReconciler(mgr))
-}
-```
-
-### Default Resource Class Controller
-
-When adding support for a new resource claim kind a default resource class
-controller is also necessary. This controller watches for resource claims that
-don't have a managed resource reference _or_ a portable resource class reference
-and sets their resource class reference to the default portable class for their
-namespace, if one exists. Default resource class controllers should live near
-the resource claim and portable resource class kind definitions; frequently in
-Crossplane proper.
-
-The following controller sets default resource classes for `FancySQLInstance`
-resource claims:
-
-```go
-import (
-    "fmt"
-    "strings"
-
-    ctrl "sigs.k8s.io/controller-runtime"
-
-    "github.com/crossplaneio/crossplane-runtime/pkg/resource"
-
-    databasev1alpha1 "github.com/crossplaneio/crossplane/apis/database/v1alpha1"
-)
-
-type FancySQLInstanceController struct{}
-
-func (c *FancySQLInstanceController) SetupWithManager(mgr ctrl.Manager) error {
-    return ctrl.NewControllerManagedBy(mgr).
-        Named(strings.ToLower(fmt.Sprintf("default.%s.%s", databasev1alpha1.FancySQLInstanceKind, databasev1alpha1.Group))).
-        For(&databasev1alpha1.FancySQLInstance{}).
-        WithEventFilter(resource.NewPredicates(resource.HasNoPortableClassReference())).
-        WithEventFilter(resource.NewPredicates(resource.HasNoManagedResourceReference())).
-        Complete(resource.NewDefaultClassReconciler(mgr,
-            resource.ClaimKind(databasev1alpha1.FancySQLInstanceGroupVersionKind),
-            resource.PortableClassKind{
-                Singular: databasev1alpha1.FancySQLInstanceClassGroupVersionKind,
-                Plural:   databasev1alpha1.FancySQLInstanceClassListGroupVersionKind,
-            },
-        ))
 }
 ```
 
@@ -1033,15 +1088,17 @@ value any feedback you may have about the services development process!
 [comment markers]: https://kubebuilder.io/reference/markers.html
 [`resource.Managed`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/resource#Managed
 [`resource.Claim`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/resource#Claim
-[`resource.PortableClass`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/resource#PortableClass
-[`resource.PortableClassList`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/resource#PortableClassList
-[`resource.NonPortableClass`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/resource#NonPortableClass
+[`resource.Class`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/resource#Class
 [`resource.ManagedReconciler`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/resource#ManagedReconciler
 [`resource.NewManagedReconciler`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/resource#NewManagedReconciler
 [`resource.ClaimReconciler`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/resource#ClaimReconciler
 [`resource.NewClaimReconciler`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/resource#NewClaimReconciler
-[`resource.DefaultClassReconciler`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/resource#DefaultClassReconciler
-[`resource.NewDefaultClassReconciler`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/resource#NewDefaultClassReconciler
+[`resource.ClaimSchedulingReconciler`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/resource#ClaimSchedulingReconciler
+[`resource.NewClaimSchedulingReconciler`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/resource#NewClaimSchedulingReconciler
+[`resource.ClaimDefaultingReconciler`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/resource#ClaimDefaultingReconciler
+[`resource.NewClaimDefaultingReconciler`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/resource#NewClaimDefaultingReconciler
+[`resource.SecretPropagatingReconciler`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/resource#SecretPropagatingReconciler
+[`resource.NewSecretPropagatingReconciler`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/resource#NewSecretPropagatingReconciler
 [`resource.ExternalConnecter`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/resource#ExternalConnecter
 [`resource.ExternalClient`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/resource#ExternalClient
 [`resource.ManagedConfigurator`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/resource#ManagedConfigurator
@@ -1049,8 +1106,7 @@ value any feedback you may have about the services development process!
 [`ResourceStatus`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1#ResourceStatus
 [`ResourceClaimSpec`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1#ResourceClaimSpec
 [`ResourceClaimStatus`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1#ResourceClaimStatus
-[`NonPortableClassSpecTemplate`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1#NonPortableClassSpecTemplate
-[`PortableClass`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1#PortableClass
+[`ClassSpecTemplate`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1#ClassSpecTemplate
 ['resource.ExternalConnecter`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/resource#ExternalConnecter
 [opening a Crossplane issue]: https://github.com/crossplaneio/crossplane/issues/new/choose
 [`GroupVersionKind`]: https://godoc.org/k8s.io/apimachinery/pkg/runtime/schema#GroupVersionKind
@@ -1060,3 +1116,4 @@ value any feedback you may have about the services development process!
 [#sig-services]: https://crossplane.slack.com/messages/sig-services
 [crossplaneio org]: https://github.com/crossplaneio
 [`angryjet`]: https://github.com/crossplaneio/crossplane-tools
+[Managed Resource API Patterns]: ../design/one-pager-managed-resource-api-design.md
