@@ -16,7 +16,7 @@ indent: true
      2. [Crossplane Steps](#crossplane-steps)
           1. [Installation](#installation)
           2. [GCP Provider](#gcp-provider)
-          3. [Cloud Specific Resource Classes](#cloud-specific-resource-classes)
+          3. [Resource Classes](#resource-classes)
           4. [Connecting MySQL Instance and GKE Cluster](#connecting-mysql-instance-and-gke-cluster)
 4. [Install Wordpress](#install-wordpress)
 5. [Clean Up](#clean-up)
@@ -209,7 +209,7 @@ including referencing the class or managed resource directly, providing labels
 that are used to match to a class, or by defaulting to a class that is annotated
 with `resourceclass.crossplane.io/is-default-class: "true"`. In the
 `CloudsqlInstanceClass` above, we added the label `app: wordpress`, so our claim
-will be scheduled to that class if specify the label in the `classSelector`. If
+will be scheduled to that class the label is specified in the `classSelector`. If
 there are multiple classes which match the specified label(s) one will be chosen
 at random.
 
@@ -312,8 +312,6 @@ Connection](https://cloud.google.com/vpc/docs/configure-private-services-access)
 
 You can create it by following the instructions at the link above, or you could
 use Crossplane to do it:
-
-!! TODO: UPDATE FOLLOWING MERGE OF https://github.com/crossplaneio/stack-gcp/pull/60 !!
 
 * Create a `GlobalAddress` and `Connection` resources:
 
@@ -505,7 +503,6 @@ If you would like to also uninstall Crossplane and the AWS stack, run the follow
 ```bash
 kubectl delete namespace crossplane-system
 ```
-
 
 ## Conclusion
 
