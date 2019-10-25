@@ -112,10 +112,11 @@ apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    app.kubernetes.io/managed-by: stack-manager
     stacks.crossplane.io/icon-data-uri: data:image/jpeg;base64,bW9jay1pY29uLWRhdGE=
     stacks.crossplane.io/stack-title: Sample Crossplane Stack
   creationTimestamp: null
+  labels:
+    app.kubernetes.io/managed-by: stack-manager
   name: mytypes.samples.upbound.io
 spec:
   group: samples.upbound.io
@@ -237,7 +238,6 @@ apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    app.kubernetes.io/managed-by: stack-manager
     stacks.crossplane.io/group-category: Group Category
     stacks.crossplane.io/group-overview: Group Overview
     stacks.crossplane.io/group-overview-short: Group Short Overview
@@ -260,6 +260,8 @@ metadata:
       resourceConditionPaths:
       - .status.conditionedStatus.conditions[?(@.type=='Ready')]
   creationTimestamp: null
+  labels:
+    app.kubernetes.io/managed-by: stack-manager
   name: siblings.samples.upbound.io
 spec:
   group: samples.upbound.io
@@ -282,10 +284,11 @@ apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    app.kubernetes.io/managed-by: stack-manager
     stacks.crossplane.io/icon-data-uri: data:image/jpeg;base64,bW9jay1pY29uLWRhdGE=
     stacks.crossplane.io/stack-title: Sample Crossplane Stack
   creationTimestamp: null
+  labels:
+    app.kubernetes.io/managed-by: stack-manager
   name: secondcousins.samples.upbound.io
 spec:
   group: samples.upbound.io
@@ -313,7 +316,6 @@ apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    app.kubernetes.io/managed-by: stack-manager
     stacks.crossplane.io/group-category: Group Category
     stacks.crossplane.io/group-overview: Group Overview
     stacks.crossplane.io/group-overview-short: Group Short Overview
@@ -349,6 +351,8 @@ metadata:
       resourceConditionPaths:
       - .status.conditionedStatus.conditions[?(@.type=='Ready')]
   creationTimestamp: null
+  labels:
+    app.kubernetes.io/managed-by: stack-manager
   name: mytypes.samples.upbound.io
 spec:
   group: samples.upbound.io
@@ -371,7 +375,6 @@ apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    app.kubernetes.io/managed-by: stack-manager
     stacks.crossplane.io/group-category: Group Category
     stacks.crossplane.io/group-overview: Group Overview
     stacks.crossplane.io/group-overview-short: Group Short Overview
@@ -387,6 +390,8 @@ metadata:
       resourceConditionPaths:
       - .status.conditionedStatus.conditions[?(@.type=='Ready')]
   creationTimestamp: null
+  labels:
+    app.kubernetes.io/managed-by: stack-manager
   name: cousins.samples.upbound.io
 spec:
   group: samples.upbound.io
@@ -534,7 +539,6 @@ apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    app.kubernetes.io/managed-by: stack-manager
     stacks.crossplane.io/group-category: Group Category
     stacks.crossplane.io/group-overview: Group Overview
     stacks.crossplane.io/group-overview-short: Group Short Overview
@@ -557,6 +561,8 @@ metadata:
       resourceConditionPaths:
       - .status.conditionedStatus.conditions[?(@.type=='Ready')]
   creationTimestamp: null
+  labels:
+    app.kubernetes.io/managed-by: stack-manager
   name: siblings.samples.upbound.io
 spec:
   group: samples.upbound.io
@@ -579,10 +585,11 @@ apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    app.kubernetes.io/managed-by: stack-manager
     stacks.crossplane.io/icon-data-uri: data:image/jpeg;base64,bW9jay1pY29uLWRhdGE=
     stacks.crossplane.io/stack-title: Sample Crossplane Stack
   creationTimestamp: null
+  labels:
+    app.kubernetes.io/managed-by: stack-manager
   name: secondcousins.samples.upbound.io
 spec:
   group: samples.upbound.io
@@ -610,7 +617,6 @@ apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    app.kubernetes.io/managed-by: stack-manager
     stacks.crossplane.io/group-category: Group Category
     stacks.crossplane.io/group-overview: Group Overview
     stacks.crossplane.io/group-overview-short: Group Short Overview
@@ -646,6 +652,8 @@ metadata:
       resourceConditionPaths:
       - .status.conditionedStatus.conditions[?(@.type=='Ready')]
   creationTimestamp: null
+  labels:
+    app.kubernetes.io/managed-by: stack-manager
   name: mytypes.samples.upbound.io
 spec:
   group: samples.upbound.io
@@ -668,7 +676,6 @@ apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    app.kubernetes.io/managed-by: stack-manager
     stacks.crossplane.io/group-category: Group Category
     stacks.crossplane.io/group-overview: Group Overview
     stacks.crossplane.io/group-overview-short: Group Short Overview
@@ -684,6 +691,8 @@ metadata:
       resourceConditionPaths:
       - .status.conditionedStatus.conditions[?(@.type=='Ready')]
   creationTimestamp: null
+  labels:
+    app.kubernetes.io/managed-by: stack-manager
   name: cousins.samples.upbound.io
 spec:
   group: samples.upbound.io
@@ -831,10 +840,11 @@ apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    app.kubernetes.io/managed-by: stack-manager
     stacks.crossplane.io/icon-data-uri: data:image/jpeg;base64,bW9jay1pY29uLWRhdGE=
     stacks.crossplane.io/stack-title: Sample Crossplane Stack
   creationTimestamp: null
+  labels:
+    app.kubernetes.io/managed-by: stack-manager
   name: mytypes.samples.upbound.io
 spec:
   group: samples.upbound.io

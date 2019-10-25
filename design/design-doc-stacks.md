@@ -428,9 +428,13 @@ spec:
   version: v1alpha1
 ```
 
-#### Example `crd.yaml` with Stack annotations
+#### Example CRD with Stack metadata
 
-It is the job of the SM or a Stack build tool to process the recommended metadata files into the final CRD installed in the cluster.  These annotations will assist Stack tools in discovery and identification of resources in cluster that can be managed.
+It is the job of the SM or a Stack build tool to process the Stack metadata
+files and the source `*.crd.yaml` files into a final CRD installed in the
+cluster.  The annotations that are applied will assist Stack tools and users
+in the discovery and identification of cluster resources that are both currently
+managed by and can be managed by Crossplane.
 
 ```yaml
 apiVersion: apiextensions.k8s.io/v1beta1
@@ -439,6 +443,7 @@ metadata:
   name: mytypes.samples.crossplane.io
   labels:
     controller-tools.k8s.io: "1.0"
+    app.kubernetes.io/managed-by: stack-manager
   annotations:
     stacks.crossplane.io/stack-title: "Crossplane Sample Stack"
     stacks.crossplane.io/group-title: "Title of the Group"
@@ -474,6 +479,11 @@ metadata:
       additionalSpec: example
       stillYaml: true
       usesSameSpecConvention: "not necessary"
+  ownerReferences:
+  - apiVersion: stacks.crossplane.io/v1alpha1
+    kind: StackInstall
+    name: stack-wordpress
+    uid: 1eb30f04-afdf-4282-bfd2-d0fb924f65d9
 spec:
   group: samples.crossplane.io
   names:
@@ -482,6 +492,37 @@ spec:
   scope: Namespaced
   version: v1alpha1
 ```
+
+#### Stack CRD Labels
+
+The labels added by Crossplane tools serve the following purpose:
+
+Label | Value | Purpose
+---|--- | ---
+`app.kubernetes.io/managed-by` | `stack-manager` | This [recommended label](https://kubernetes.io/docs/concepts/overview/working-with-objects/common-labels/) identifies the tool being used to manage the operation of the application.
+
+_Labels and annotations provided in the source CRD are preserved, such as
+`controller-tools.k8s.io` in the example above._
+
+#### Stack CRD Annotations
+
+The annotations added by Crossplane tools reflect the following metadata values:
+
+Annotation | Metadata Source | Value from Source
+---|---|---
+`stacks.crossplane.io/stack-title` | `app.yaml` | `title`
+`stacks.crossplane.io/group-title` | `group.yaml` | `title`
+`stacks.crossplane.io/group-overview` | `group.yaml` | `overview`
+`stacks.crossplane.io/group-overview-short` | `group.yaml` | `overviewShort`
+`stacks.crossplane.io/group-readme` | `group.yaml` | `readme`
+`stacks.crossplane.io/resource-category` | `resource.yaml` | `category`
+`stacks.crossplane.io/resource-title` | `resource.yaml` | `title`
+`stacks.crossplane.io/resource-title-plural` | `resource.yaml` | `titlePlural`
+`stacks.crossplane.io/resource-overview` | `resource.yaml` | `overview`
+`stacks.crossplane.io/resource-overview-short` | `resource.yaml` | `shortOverview`
+`stacks.crossplane.io/resource-readme` | `resource.yaml` | `readme`
+`stacks.crossplane.io/ui-schema` | `ui-schema.yaml` | Multi-document concatenation
+`stacks.crossplane.io/icon-data-uri` | `icon.svg` | Data URI
 
 ## Dependency Resolution
 

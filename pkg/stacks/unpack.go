@@ -70,7 +70,7 @@ const (
 	annotationResourceReadme        = "stacks.crossplane.io/resource-readme"
 	annotationResourceOverview      = "stacks.crossplane.io/resource-overview"
 	annotationResourceOverviewShort = "stacks.crossplane.io/resource-overview-short"
-	annotationKubernetesManagedBy   = "app.kubernetes.io/managed-by"
+	labelKubernetesManagedBy        = "app.kubernetes.io/managed-by"
 )
 
 var (
@@ -279,10 +279,13 @@ func (sp *StackPackage) AddIcon(path string, icon v1alpha1.IconSpec) {
 // AddCRD appends a CRD to the CRDs of this StackPackage
 // The CRD will be annotated before being added and the Stack will track ownership of this CRD.
 func (sp *StackPackage) AddCRD(path string, crd *apiextensions.CustomResourceDefinition) {
+	if crd.ObjectMeta.Labels == nil {
+		crd.ObjectMeta.Labels = map[string]string{}
+	}
 	if crd.ObjectMeta.Annotations == nil {
 		crd.ObjectMeta.Annotations = map[string]string{}
 	}
-	crd.ObjectMeta.Annotations[annotationKubernetesManagedBy] = "stack-manager"
+	crd.ObjectMeta.Labels[labelKubernetesManagedBy] = "stack-manager"
 
 	crdGVK := schema.GroupVersionKind{
 		Group:   crd.Spec.Group,
