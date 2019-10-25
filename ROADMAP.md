@@ -65,7 +65,7 @@ Any dates listed below and the specific issues that will ship in a given milesto
   * Controllers use consistent logging [#7](https://github.com/crossplaneio/crossplane/issues/7)
   * Consistent testing paradigm [#269](https://github.com/crossplaneio/crossplane/issues/269)
 
-## v0.3 - Enable Community to Build Infra Stacks
+## [v0.3 - Enable Community to Build Infra Stacks](https://github.com/crossplaneio/crossplane/releases/tag/v0.3.0)
 
 * Real-world applications on-top of Crossplane
   * GitLab [#284](https://github.com/crossplaneio/crossplane/issues/284)
@@ -88,46 +88,82 @@ Any dates listed below and the specific issues that will ship in a given milesto
   * Portable Wordpress App Stack (kubebuilder-based) published to registry [#572](https://github.com/crossplaneio/crossplane/issues/572)
   * Refresh 0.3 Docs: reflect enhancements, better on-boarding UX, easier to get started [#625](https://github.com/crossplaneio/crossplane/issues/625)
   * Crossplane.io reflects the updated roadmap / vision [crossplaneio.github.io#22](https://github.com/crossplaneio/crossplaneio.github.io/issues/22)
-  * DevOps pipeline examples for Jenkins, GitLab, GitOps using Infra Stacks [#631](https://github.com/crossplaneio/crossplane/issues/631)
 
-## v0.4 - Template App Stacks & Infra Stacks Expansion
+## v0.4.0 Initial Rook support & stable v1beta1 APIs for AWS, GCP
+* Claim-based provisioning of [Rook](https://rook.io/)-managed databases [#862](https://github.com/crossplaneio/crossplane/issues/862)
+  * Support for CockroachDB and Yugabyte DB
+
+* Stable v1beta1 Services APIs for managed databases and caches (GCP, AWS) [#863](https://github.com/crossplaneio/crossplane/issues/863)
+  * Align on shape of APIs & best practices
+    * Beta meta model w/ DB & Redis, so users can deploy to dev/test/prod
+    * Naming scheme for all resources.
+    * Managed resource name as external name for all resources.
+  * Upgrade GCP stack to v1beta1: CloudSQL and CloudMemoryInstance with high-def CRDs & controllers
+  * Upgrade AWS stack to v1beta1: RDS and ReplicationGroup with high-def CRDs & controllers
+
+* Cross-resource referencing for networks, subnets, and other resources [#707](https://github.com/crossplaneio/crossplane/issues/707) 
+  * Support `kubectl apply -f` for a directory of resources to cleanly support GitOps for both infrastructure and apps
+  * Sample infra and app repos you can `kubectl apply -f` and have a working environment quickly
+    * infrastructure (networks, subnets, managed k8s cluster, resource classes for databases, etc.)
+    * apps (e.g. kubernetes core resources for e.g. a Wordpress app plus the resource claims for managed service dependencies
+  * Update crossplane.io services guides and stacks guides to use `kubectl apply -f` technique
+
+ * Release automation for shorter release cycles and hot fixes [#864](https://github.com/crossplaneio/crossplane/issues/864) 
+   * Updating pipelines to include automation [#6](https://github.com/crossplaneio/crossplane/issues/6)
+   * SonarCloud checks for cloud provider stacks [#875](https://github.com/crossplaneio/crossplane/issues/875)
+   * crossplane-runtime build pipelines [crossplaneio/crossplane-runtime#14](https://github.com/crossplaneio/crossplane-runtime/issues/14)
+
+ * Trace utility for enhanced debugging support. [#744](https://github.com/crossplaneio/crossplane/issues/744)
+
+ * Simple Resource Class Selection [#952](https://github.com/crossplaneio/crossplane/issues/952)
+
+ * Crossplane supporting work for GitLab 12.5 Auto DevOps [#867](https://github.com/crossplaneio/crossplane/issues/867)
+
+## Under consideration for v0.5.0
+* GitLab 12.5 Auto DevOps (ADO) integration phase 1 - provision managed PostgreSQL from GitLab ADO pipelines
+  * Subset of the overall [GitLab Auto DevOps integration](https://gitlab.com/groups/gitlab-org/-/epics/1866#note_216080986) 
+  * [Crossplane as a GitLab-managed app (phase1)](https://gitlab.com/gitlab-org/gitlab/issues/34702) - provision managed PostgreSQL from GitLab ADO pipelines
+
+ * CD integration examples for GitLab, Jenkins, and ArgoCD [#631](https://github.com/crossplaneio/crossplane/issues/631)
+
+ * v1beta2 Services APIs
+   * Incorporate beta1 feedback
+   * Upgrade Azure stack to v1beta2 (AzureDB, Azure Cache for Redis)
+     * crossplaneio/stack-azure#28 Azure SQL and Redis resources v1beta1
+   * Upgrade other supported services to v1beta2 (e.g. Buckets, etc.)
+   * Code generation of API types, controller scaffolding to further streamline additional services
+
 * Stacks Manager
-  * Stack versioning, upgrade, & dependency resolution
+  * Enhancements to security and permissions/roles model
+  * Parent / child relationship annotations
+  * UI annotations
+  * CRD annotations
+
+* More real-world Stacks into multiple clouds
+  * Stack versioning and upgrade [#879](https://github.com/crossplaneio/crossplane/issues/879) 
+  * Refresh existing GitLab Stack to use latest Crossplane [#866](https://github.com/crossplaneio/crossplane/issues/866)
+  * Additional real-world apps and scenarios [#868](https://github.com/crossplaneio/crossplane/issues/868)
+  * Template Stacks - easier to build an App Stack (Preview) [#853](https://github.com/crossplaneio/crossplane/issues/853) 
   * Stacks Manager support for private repos and robot account credentials
 
-* Template App Stacks
-  * Template App Stacks to simplify declarative app management via k8s API
-  * Enhanced Stacks CLI to generate scaffolding for Template Stacks 
+* UX enhancements for debuggability and observability
+  * Resource packs for default resource classes and configuration (AWS, GCP, Azure)
+  * Visible error messages for all error cases surfaced in claims and/or eventing
+  * Static provisioning examples to highlight simplicity. 
 
-* Infra Stacks Expansion
+## Roadmap
+* Expanded Rook support
+  * Support additional Rook storage providers
+  * Install & configure Rook into a target cluster
+
+ * GitLab Auto DevOps integration phase 2 - provision managed services from GitLab pipelines
+   * Currently the auto deploy app only supports PostgreSQL DBs
+   * Support additional managed services from GitLab ADO pipelines
+   * Add support for MySQL, Redis, Buckets, and more. (GitLab 12.6)
+
+* Policy-based secure connectivity & environment configuration
   * Additional secure connectivity strategies for GCP, AWS, Azure
-  * More cloud services per provider - existing Infra Stacks
-  * More clouds providers - new Infra Stacks
-  * Multiple managed k8s offerings per cloud provider - more choice
-
-* Docs & Examples
-  * Refresh 0.4 docs: reflect enhancements, creating different types of stacks
-  * Crossplane.io updates to reflect 0.4 release and additional infra stack providers
-  * Expanded DevOps pipeline examples for continous deployment
-
-## v0.5 - Rook Infra Stack & v1beta1 Hardening
-* Rook Infra Stack
-  * Rook as a provider of claim-based provisioning for PostgreSQL, Buckets, etc. 
-  * Rook managed services using the Kubernetes Operator Pattern [#283](https://github.com/crossplaneio/crossplane/issues/283)
-  * Early support for Rook and others
-  * Seamless integration into the Resource Claim and Resource Class model
-
-* v1beta1 hardening
-  * Enhanced load and scale testing
-  * UX enhancements
-  * Address v1alpha2 feedback
-
-* Docs & examples
-  * Refresh 0.5 docs: using Rook with Crossplane, enhancements
-  * Crossplane.io updates to reflect 0.4 release and additional Infra Stack providers
-  * Expanded DevOps pipeline examples & integrations for continous deployment
-
-## Towards v1.0 - Production Ready
+  * Reuse of resource classes across environments
 
 * Enhanced Workload Scheduling
   * Region and cloud provider aware scheduling [#279](https://github.com/crossplaneio/crossplane/issues/279)
