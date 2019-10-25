@@ -1,0 +1,12 @@
+resources:
+  - iamrole.yaml
+  - iamrole-policies.yaml
+  - vpc.yaml
+  - subnets.yaml
+  - internetgateway.yaml
+  - routetable.yaml
+  - eks-securitygroup.yaml
+  - dbsubnetgroup.yaml
+  - rds-securitygroup.yaml
+  - rds-class.yaml
+  - eks-class.yaml

@@ -1,0 +1,29 @@
+---
+apiVersion: compute.aws.crossplane.io/v1alpha2
+kind: EKSClusterClass
+metadata:
+  name: standard-cluster
+  annotations:
+    resourceclass.crossplane.io/is-default-class: "true"
+specTemplate:
+  region: us-west-2
+  roleARNRef:
+    name: sample-eks-cluster-role
+  vpcIdRef:
+    name: sample-vpc
+  subnetIdRefs:
+    - name: sample-subnet1
+    - name: sample-subnet2
+    - name: sample-subnet3
+  securityGroupIdRefs:
+    - name: sample-cluster-sg
+  workerNodes:
+    nodeInstanceType: m3.medium
+    nodeAutoScalingGroupMinSize: 1
+    nodeAutoScalingGroupMaxSize: 1
+    nodeGroupName: demo-nodes
+    clusterControlPlaneSecurityGroupRef:
+      - name: sample-cluster-sg
+  providerRef:
+    name: aws-provider
+  reclaimPolicy: Delete

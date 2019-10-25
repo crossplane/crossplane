@@ -1,0 +1,20 @@
+---
+apiVersion: compute.gcp.crossplane.io/v1alpha2
+kind: Subnetwork
+metadata:
+  name: sample-subnetwork
+spec:
+  name: my-cool-subnetwork
+  region: us-central1
+  ipCidrRange: "192.168.0.0/24"
+  privateIpGoogleAccess: true
+  secondaryIpRanges:
+    - rangeName: pods
+      ipCidrRange: 10.0.0.0/8
+    - rangeName: services
+      ipCidrRange: 172.16.0.0/16
+  networkRef:
+    name: sample-network
+  reclaimPolicy: Delete
+  providerRef:
+    name: gcp-provider

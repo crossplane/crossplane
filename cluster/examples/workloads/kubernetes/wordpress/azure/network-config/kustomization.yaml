@@ -1,0 +1,4 @@
+resources:
+  - resource-group.yaml
+  - virtual-network.yaml
+  - subnet.yaml

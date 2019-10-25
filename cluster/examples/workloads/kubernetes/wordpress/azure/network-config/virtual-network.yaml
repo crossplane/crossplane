@@ -1,0 +1,17 @@
+---
+apiVersion: network.azure.crossplane.io/v1alpha2
+kind: VirtualNetwork
+metadata:
+  name: sample-vnet
+spec:
+  name: my-cool-vnet
+  resourceGroupNameRef:
+    name: sample-rg
+  location: Central US
+  properties:
+    addressSpace:
+      addressPrefixes:
+        - 10.2.0.0/16
+  reclaimPolicy: Delete
+  providerRef:
+    name: azure-provider

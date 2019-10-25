@@ -1,0 +1,11 @@
+---
+apiVersion: azure.crossplane.io/v1alpha2
+kind: ResourceGroup
+metadata:
+  name: sample-rg
+spec:
+  name: my-cool-rg
+  location: Central US
+  reclaimPolicy: Delete
+  providerRef:
+    name: azure-provider
