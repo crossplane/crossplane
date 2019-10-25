@@ -226,7 +226,7 @@ specTemplate:
   writeConnectionSecretsToNamespace: crossplane-system
 EOF
 
-kubectl apply -f mysql-standard.yaml
+kubectl apply -f aws-mysql-standard.yaml
 ```
 
 Note that we are referencing the security group and subnet group we created
