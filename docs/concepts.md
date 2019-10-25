@@ -358,22 +358,11 @@ Infrastructure ranging from low level services like clusters and servers, to
 higher level infrastructure like databases, message queues, buckets, secure
 connectivity, managed Kubernetes, and more
 
-### Infrastructure Namespace
-
-Crossplane supports connecting multiple cloud provider accounts from a single
-control plane, so different environments (dev, staging, prod) can use separate
-accounts, projects, and/or credentials.
-
-The provider and resource classes for these environments can be kept separate
-using an infrastructure namespace (gcp-infra-dev, aws-infra-dev, or
-azure-infra-dev) for each environment. You can create as many as you like using
-whatever naming works best for your organization.
-
 ### Project Namespace
 
 When running a shared control plane or cluster it's a common practice to create
 separate project namespaces (app-project1-dev) for each app project or team so
-their resource are kept separate and secure. Crossplane supports this model.
+their resources are kept separate and secure. Crossplane supports this model.
 
 ### App Project Namespace
 
@@ -424,26 +413,12 @@ The Crossplane representation of the desired configuration of a managed
 resource. Resource claims reference a resource class in order to specify how
 they should be satisfied by a managed resource.
 
-### Cloud-Specific Resource Class
+### Resource Class
 
-Cloud-specific Resource Classes capture reusable, best-practice configurations
-for a specific managed service.
-
-For example, Wordpress requires a MySQL database which can be satisfied by
-CloudSQL, RDS, or Azure DB, so cloud-specific resource classes would be created
-for CloudSQL, RDS, and Azure DB.
-
-### Non-Portable Resource Class
-
-Another term for [cloud-specific resource
-class](#cloud-specific-resource-class).
-
-### Portable Resource Class
-
-Portable Resource Classes define a named class of service that can be used by
-portable `Resource Claims` in the same namespace. When used in a project
-namespace, this enables the project to provision portable managed services using
-`kubectl`.
+Resource Classes capture reusable, best-practice configurations for a specific
+managed service. For example, Wordpress requires a MySQL database which can be
+satisfied by CloudSQL, RDS, or Azure SQL Server, so resource classes would be
+created for CloudSQL, RDS, and Azure SQL Server.
 
 ### Connection Secret
 
