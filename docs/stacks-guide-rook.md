@@ -1,7 +1,12 @@
 ---
-title: Using Rook Services toc: true weight: 450 indent: true
+title: "Stacks Guide: Rook" toc: true weight: 550 indent: true
 ---
-# Deploying Yugastore with Rook
+
+# Stacks Guide: Rook
+
+> Note: this guide does not follow along with the other stacks guides. It
+> deploys a different application (Yugastore) and involves using the GCP stack
+> along with the Rook stack.
 
 This user guide will walk you through [Yugastore] application deployment using
 Crossplane's [Rook] stack to run [YugabyteDB] in a Google Cloud [GKE] Kubernetes
@@ -65,16 +70,11 @@ helm install --name crossplane --namespace crossplane-system crossplane-alpha/cr
 
 ```bash
 cat > stack-gcp.yaml <<EOF
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: gcp
----
 apiVersion: stacks.crossplane.io/v1alpha1
 kind: ClusterStackInstall
 metadata:
   name: stack-gcp
-  namespace: gcp
+  namespace: crossplane-system
 spec:
   package: "crossplane/stack-gcp:master"
 EOF
@@ -87,16 +87,11 @@ kubectl apply -f stack-gcp.yaml
 
 ```bash
 cat > stack-rook.yaml <<EOF
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: rook
----
 apiVersion: stacks.crossplane.io/v1alpha1
 kind: ClusterStackInstall
 metadata:
   name: stack-rook
-  namespace: rook
+  namespace: crossplane-system
 spec:
   package: "crossplane/stack-rook:master"
 EOF
@@ -173,16 +168,35 @@ directory:
 mkdir yugastore && cd $_
 ```
 
-> **TL;DR**: if you want to skip the rest of the guide and just deploy
-> Yugastore, you can run `kubectl apply -f <TODO: INSERT URL HERE>`
+#### TL;DR
+
+If you want to skip the rest of the guide and just deploy Yugastore, you can
+run:
+
+```bash
+kubectl apply -k https://github.com/crossplaneio/crossplane//cluster/examples/rook/yugastore?ref=master
+```
+
+And you're done! You can check the status of the provisioning by running:
+
+```bash
+kubectl get -k https://github.com/crossplaneio/crossplane//cluster/examples/rook/yugastore?ref=master
+```
+
+If you did not opt for this shortcut, keep reading.
+
+### Resource Classes
 
 In order to dynamically provision resources, we need to create resources classes
 that contain details about how the resources should be provisioned. For
 Yugastore, we will need resource classes that are capable of fulfilling a
-`KubernetesCluster` claim and a `PostgreSQLInstance` claim:
+`KubernetesCluster` claim and a `PostgreSQLInstance` claim. The
+`GKEClusterClass` is relatively straightforward in that it configures a
+`GKECluster` and utilizes our previously created GCP `Provider` for
+provisioning.
 
 ```bash
-cat > classes.yaml <<EOF
+cat > gkeclass.yaml <<EOF
 apiVersion: compute.gcp.crossplane.io/v1alpha2
 kind: GKEClusterClass
 metadata:
@@ -197,7 +211,31 @@ specTemplate:
     name: gcp-provider
   reclaimPolicy: Delete
   writeConnectionSecretsToNamespace: crossplane-system
----
+EOF
+
+kubectl apply -f gkeclass.yaml
+```
+
+The `YugabyteClusterClass` is less clear. Starting with the provider, we
+reference a `Provider` that does not currently exist. Because resource classes
+only store configuration data, this is okay as long as the provider exists when
+the class is referenced by a claim. As previously mentioned, this provider will
+be a Kubernetes `Provider` which we will create after the `GKECluster` is
+created and its connection secret is propagated.
+
+The `forProvider` section of the `YugabyteClusterClass` also differs somewhat
+from other resource classes. While resource classes like `GKEClusterClass`
+specify configuration for a 3rd party API, `YugabyteClusterClass` specifies
+configuration for a Kubernetes [CustomResourceDefinition] (CRD) instance in a
+target cluster. When the `YugabyteClusterClass` is used to create a
+`YugabyteCluster` managed resource in the Crossplane control cluster, the Rook
+stack reaches out to the target Kubernetes cluster using the Kubernetes
+`Provider` referenced above and creates a Rook `YBCluster` [instance]. The stack
+trusts that the CRD kind has been installed in the target cluster and it will
+fail to provision the resource it has not (more on this below).
+
+```bash
+cat > yugabyteclass.yaml <<EOF
 apiVersion: database.rook.crossplane.io/v1alpha1
 kind: YugabyteClusterClass
 metadata:
@@ -258,28 +296,8 @@ specTemplate:
           storageClassName: standard
 EOF
 
-kubectl apply -f classes.yaml
+kubectl apply -f yugabyteclass.yaml
 ```
-
-The `GKEClusterClass` is relatively straightforward in that it configures a
-`GKECluster` and utilizes our previously created GCP `Provider` for connection.
-The `YugabyteClusterClass` is less clear. Starting with the provider, we
-reference a `Provider` that does not currently exist. Because resource classes
-only store configuration data, this is okay as long as the provider exists when
-the class is referenced by a claim. As previously mentioned, this provider will
-be a Kubernetes `Provider` which we will create after the `GKECluster` is
-created and its connection secret is propagated.
-
-The `forProvider` section of the `YugabyteClusterClass` also differs somewhat
-from other resource classes. While resource classes like `GKEClusterClass`
-specify configuration for a 3rd party API, `YugabyteClusterClass` specifies
-configuration for a Kubernetes [CustomResourceDefinition] (CRD) instance in a
-target cluster. When the `YugabyteClusterClass` is used to create a
-`YugabyteCluster` managed resource in the Crossplane control cluster, the Rook
-stack reaches out to the target Kubernetes cluster using the Kubernetes
-`Provider` referenced above and creates a Rook `YBCluster` [instance]. The stack
-trusts that the CRD kind has been installed in the target cluster and it will
-fail to provision the resource it has not (more on this below).
 
 ## Provision GKE Cluster and Install Rook Yugabyte Operator
 
@@ -356,6 +374,11 @@ secret propagated by the `KubernetesCluster` claim. If you look back at the
 referenced, so once the secret is propagated, the Rook stack will be able to use
 it to provision a `YugabyteCluster`. However, before we get to that, we need to
 deploy the Rook Yugabyte operator into the Kubernetes cluster.
+
+While this is quite a large set of configuration, all it is doing is taking the
+Rook Yugabyte [operator YAML] and packaging it into a Crossplane
+`KubernetesApplication` resource so that we can deploy it into our newly created
+GKE cluster.
 
 ```bash
 cat > rook-operator.yaml <<EOF
@@ -535,11 +558,6 @@ EOF
 kubectl apply -f rook-operator.yaml
 ```
 
-While this is quite a large set of configuration, all it is doing is taking the
-Rook Yugabyte [operator YAML] and packaging it into a Crossplane
-`KubernetesApplication` resource so that we can deploy it into our newly created
-GKE cluster.
-
 You can view the status of the `KubernetesApplication` as its resources are
 created:
 
@@ -568,6 +586,11 @@ rook-crds             CustomResourceDefinition   ybclusters.yugabytedb.rook.io  
 rook-namespace        Namespace                  rook-yugabytedb-system          yugastore-k8s   Submitted
 rook-serviceaccount   Deployment                 rook-yugabytedb-operator        yugastore-k8s   Submitted
 ```
+
+It is not unusual for the `rook-yugabytedb-operator` to fail on first attempt.
+It is reliant on the `ClusterRole` and will fail if it is not present when the
+container starts. However, the Crossplane `workload` controllers will take care
+of recreating it for us!
 
 ## Deploy Yugastore alongside YugabyteDB
 
@@ -641,7 +664,7 @@ spec:
             spec:
               containers:
                 - name: yugastore
-                  image: gcr.io/crossplane-playground/yugastore:latest # replace with yugabyte/yugastore following merge of https://github.com/yugabyte/yugastore/pull/4
+                  image: gcr.io/crossplane-playground/yugastore:latest
                   imagePullPolicy: Always
                   command: ["/usr/local/yugastore/bin/start-for-crossplane.sh"]
                   env:
@@ -654,6 +677,13 @@ spec:
                   ports:
                     - containerPort: 3001
                       name: yugastore
+                  livenessProbe:
+                    exec:
+                      command:
+                      - cat
+                      - healthy
+                    initialDelaySeconds: 5
+                    periodSeconds: 5
   - metadata:
       name: yugastore-service
       labels:
@@ -770,9 +800,9 @@ In this guide we:
 * Deployed Yugastore to the GKE cluster, using the YugabyteDB cluster as its
   database
 
-If you would like to try out a similar workflow using a different cloud
-provider, take a look at the other [services guides][services]. If you would
-like to learn more about stacks, checkout the [stacks guide][stacks]
+If you would like to learn more about stacks, checkout the other [stacks
+guides][stacks]. If you have an existing cluster that you want to provision
+resources in, checkout the [services guide][services].
 
 <!-- Named links -->
 [Yugastore]: https://github.com/yugabyte/yugastore
@@ -787,14 +817,14 @@ like to learn more about stacks, checkout the [stacks guide][stacks]
 [install-kubectl]: https://kubernetes.io/docs/tasks/tools/install-kubectl/
 [using-helm]: https://docs.helm.sh/using_helm/
 
-[crossplane-install]: ../install-crossplane.md#alpha
-[gcp-stack-install]: ../install-crossplane.md#gcp-stack
-[rook-stack-install]: ../install-crossplane.md#rook-stack
-[cloud-creds]: ../cloud-providers/gcp/gcp-provider.md
+[crossplane-install]: install-crossplane.md#alpha
+[gcp-stack-install]: install-crossplane.md#gcp-stack
+[rook-stack-install]: install-crossplane.md#rook-stack
+[cloud-creds]: cloud-providers/gcp/gcp-provider.md
 
 [CustomResourceDefinition]: https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/
 [instance]: https://rook.io/docs/rook/v1.1/yugabytedb-cluster-crd.html
 [operator YAML]: https://github.com/rook/rook/blob/master/cluster/examples/kubernetes/yugabytedb/operator.yaml
 
-[services]: ../services-guide.md
-[stacks]: ../stacks-guide.md
+[services]: services-guide.md
+[stacks]: stacks-guide.md
