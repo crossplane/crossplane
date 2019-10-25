@@ -1,0 +1,37 @@
+pipeline {
+    agent { label 'upbound-gce' }
+
+    parameters {
+        string(name: 'version', defaultValue: '', description: 'The version you are releasing, for example v0.4.0')
+        string(name: 'channel', defaultValue: 'alpha', description: 'Channel you are promoting the given version to, for example alpha.')
+    }
+
+    options {
+        disableConcurrentBuilds()
+        timestamps()
+    }
+
+    environment {
+        DOCKER = credentials('dockerhub-upboundci')
+        AWS = credentials('aws-upbound-bot')
+    }
+
+    stages {
+        stage('Promote Release') {
+
+            steps {
+                sh 'docker login -u="${DOCKER_USR}" -p="${DOCKER_PSW}"'
+                sh "./build/run make -j\$(nproc) promote BRANCH_NAME=${BRANCH_NAME} VERSION=${params.version} CHANNEL=${params.channel} AWS_ACCESS_KEY_ID=${AWS_USR} AWS_SECRET_ACCESS_KEY=${AWS_PSW}"
+            }
+        }
+    }
+
+    post {
+        always {
+            script {
+                sh 'make -j\$(nproc) clean'
+                deleteDir()
+            }
+        }
+    }
+}
