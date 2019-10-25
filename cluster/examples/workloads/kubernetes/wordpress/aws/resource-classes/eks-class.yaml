@@ -6,6 +6,7 @@ metadata:
   annotations:
     resourceclass.crossplane.io/is-default-class: "true"
 specTemplate:
+  writeConnectionSecretsToNamespace: crossplane-system
   region: us-west-2
   roleARNRef:
     name: sample-eks-cluster-role
@@ -23,7 +24,7 @@ specTemplate:
     nodeAutoScalingGroupMaxSize: 1
     nodeGroupName: demo-nodes
     clusterControlPlaneSecurityGroupRef:
-      - name: sample-cluster-sg
+      name: sample-cluster-sg
   providerRef:
     name: aws-provider
   reclaimPolicy: Delete
