@@ -1,0 +1,18 @@
+---
+apiVersion: network.azure.crossplane.io/v1alpha2
+kind: Subnet
+metadata:
+  name: sample-subnet
+spec:
+  name: my-cool-subnet
+  resourceGroupNameRef:
+    name: sample-rg
+  virtualNetworkNameRef:
+    name: sample-vnet
+  properties:
+    addressPrefix: 10.2.0.0/24
+    serviceEndpoints:
+      - service: Microsoft.Sql
+  reclaimPolicy: Delete
+  providerRef:
+    name: azure-provider
