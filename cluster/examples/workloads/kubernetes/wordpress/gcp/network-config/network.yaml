@@ -1,0 +1,13 @@
+---
+apiVersion: compute.gcp.crossplane.io/v1alpha2
+kind: Network
+metadata:
+  name: sample-network
+spec:
+  name: my-cool-network
+  autoCreateSubnetworks: false
+  routingConfig:
+    routingMode: REGIONAL
+  reclaimPolicy: Delete
+  providerRef:
+    name: gcp-provider
