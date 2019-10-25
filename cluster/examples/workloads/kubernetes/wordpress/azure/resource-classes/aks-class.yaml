@@ -1,0 +1,23 @@
+---
+apiVersion: compute.azure.crossplane.io/v1alpha2
+kind: AKSClusterClass
+metadata:
+  name: standard-cluster
+  annotations:
+    resourceclass.crossplane.io/is-default-class: "true"
+specTemplate:
+  resourceGroupNameRef:
+    name: sample-rg
+  vnetSubnetIDRef:
+    name: sample-subnet
+  location: Central US
+  version: "1.12.8"
+  nodeCount: 1
+  nodeVMSize: Standard_B2s
+  dnsNamePrefix: crossplane-aks
+  disableRBAC: false
+  writeServicePrincipalTo:
+    name: akscluster-net
+  reclaimPolicy: Delete
+  providerRef:
+    name: azure-provider
