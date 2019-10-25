@@ -9,38 +9,38 @@ indent: true
 
 ## Table of Contents
 
-1. [Introduction](#introduction)
-2. [Install the GCP Stack](#install-the-gcp-stack)
-3. [Configure GCP Account](#configure-gcp-account)
-4. [Configure Crossplane GCP Provider](#configure-crossplane-gcp-provider)
-5. [Set Up Network Resources](#set-up-network-resources)
-6. [Configure Provider Resources](#configure-provider-resources)
-7. [Recap](#recap)
-8. [Next Steps](#next-steps)
+  1. [Introduction](#introduction)
+  1. [Install the GCP stack](#install-the-gcp-stack)
+  1. [Configure the GCP account](#configure-the-aws-account)
+  1. [Configure Crossplane Provider for GCP](#configure-crossplane-provider-for-GCP)
+  1. [Set Up Network Configuration](#set-up-network-configuration)
+  1. [Configure Cloud-Specific Resource Classes](#configure-cloud-specific-resource-classes)
+  1. [Recap](#recap)
+  1. [Next Steps](#next-steps)
 
 ## Introduction
 
-In this guide, we will set up a GCP provider in Crossplane so that we
-can install and use the [WordPress sample
-stack][sample-wordpress-stack], which depends on MySQL and Kubernetes!
+In this guide, we will set up a GCP provider in Crossplane so that we can
+install and use the [WordPress sample stack][sample-wordpress-stack], which
+depends on MySQL and Kubernetes!
 
 Before we begin, you will need:
 
 * Everything from the [Crossplane Stacks Guide][stacks-guide] before the
   cloud provider setup
-  - A `kubectl` pointing to a Crossplane control cluster
-  - The [Crossplane CLI][crossplane-cli] installed
+  * A `kubectl v1.15+` pointing to a Crossplane cluster
+  * The [Crossplane CLI][crossplane-cli] installed
 * An account on [Google Cloud Platform][gcp]
 
 At the end, we will have:
 
 * A Crossplane control cluster configured to use GCP
-* The boilerplate of a GCP-based project spun up
-* Support in the control cluster for managing MySQL and Kubernetes
-  cluster dependencies
+* A typical GCP network configured to support secure connectivity between
+  resources
+* Support in Crossplane cluster for satisfying MySQL and Kubernetes claims
 * A slightly better understanding of:
-  - The way cloud providers are configured in Crossplane
-  - The way dependencies for cloud-portable workloads are configured in
+  * The way GCP is configured in Crossplane
+  * The way dependencies for cloud-portable workloads are configured in
     Crossplane
 
 We will **not** be teaching first principles in depth. Check out the
@@ -51,116 +51,102 @@ We will **not** be teaching first principles in depth. Check out the
 After Crossplane has been installed, it can be extended with more
 functionality by installing a [Crossplane Stack][stack-docs]! Let's
 install the [stack for Google Cloud Platform][stack-gcp] (GCP) to add
-support for that cloud provider. We can use the [Crossplane
-CLI][crossplane-cli] for this operation. Since this is an infrastructure
-stack, we need to specify that it's cluster-scoped by passing the
+support for that cloud provider.
+
+The namespace where we install the stack, is also the one that the provider
+secret will reside. The name of this namespace is arbitrary, and we are calling
+it `crossplane-system` in this guide. Let's create it:
+
+```bash
+# namespace for GCP stack and provider secret
+kubectl create namespace crossplane-system
+```
+
+Now we install the AWS stack using Crossplane CLI. Since this is an
+infrastructure stack, we need to specify that it's cluster-scoped by passing the
 `--cluster` flag.
 
-To install to a specific namespace, we can use the `generate-install`
-command and pipe it to `kubectl apply` instead, which gives us more
-control over how the stack's installation is handled. Everything is
-a Kubernetes object!
-
-```
-kubectl create namespace gcp
-kubectl crossplane stack generate-install --cluster 'crossplane/stack-gcp:master' stack-gcp | kubectl apply --namespace gcp -f -
+```bash
+kubectl crossplane stack generate-install --cluster 'crossplane/stack-gcp:master' stack-gcp | kubectl apply --namespace crossplane-system -f -
 ```
 
-If we wanted to use whatever the current namespace is, we could have
-used `kubectl crossplane stack install` instead of using
-`generate-install`.
-
-The namespace that we install the stack to is where the stack will
-create the resources it manages. When a developer requests a resource by
-creating a [resource claim][resource-claims-docs] in a namespace `mynamespace`, the
-managed cloud provider resource and any secrets will be created in the
-stack's namespace. Secrets will be copied over to `mynamespace`, and the
-claim will be bound to the original resource claim. For more details
-about resource claims and how they work, see the [documentation on
-resource claims][resource-claims-docs].
-
-For convenience, the next steps assume that you installed GCP stack into
-the `gcp` namespace.
-
-### Validate the installation
+The rest of this guide assumes that the AWS stack is installed within
+`crossplane-system` namespace.
 
 To check to see whether our stack installed correctly, we can look at
 the status of our stack:
 
-```
-kubectl -n gcp get stack
+```bash
+kubectl -n crossplane-system get stack
 ```
 
-It should look something like this:
+It should look something like:
 
-```
+```bash
 NAME        READY   VERSION   AGE
-stack-gcp   True    0.0.1     5m19s
+stack-gcp   True    0.0.2     5m19s
 ```
 
 ## Configure GCP Account
 
 We will make use of the following services on GCP:
 
-*   GKE
-*   CloudSQL Instance
-*   Network
-*   Subnetwork
-*   GlobalAddress
-*   Private Service Connection
+* GKE
+* CloudSQL Instance
+* Network
+* Subnetwork
+* GlobalAddress
+* Private Service Connection
 
-For all these to work, you need to [enable the following
-APIs][gcp-enable-apis] in your GCP project:
+For all these to work, you need to enable the following [APIs][gcp-enable-apis]
+in your GCP project:
 
-*   Compute Engine API
-*   Service Networking API
-*   Kubernetes Engine API
+* Compute Engine API
+* Service Networking API
+* Kubernetes Engine API
 
-We will also need to tell Crossplane how to use the credentials for the
-GCP account. For this exercise, the GCP account that we will tell
-Crossplane about should have the following [roles
-assigned][gcp-assign-roles]:
+We will also need to tell Crossplane how to use the credentials for the GCP
+account. For this exercise, the GCP account that we will tell Crossplane about
+should have the following [roles][gcp-assign-roles] assigned:
 
-*   Cloud SQL Admin
-*   Compute Network Admin
-*   Kubernetes Engine Admin
-*   Service Account User
+* Cloud SQL Admin
+* Compute Network Admin
+* Kubernetes Engine Admin
+* Service Account User
 
 ### Set up cloud provider credentials
 
 This guide assumes that you have created a JSON file which contains the
 credentials for the cloud provider. In later sections, this file will be
-referred to as `crossplane-gcp-provider-key.json`. There are quite a few
-steps involved, so the steps are in [a different document which you
-should take a look at][cloud-provider-setup-gcp] before moving to the
-next section. Or, there is also [a script in the Crossplane
-repo][gcp-credentials] which helps with creating the file.
+referred to as `crossplane-gcp-provider-key.json`. There are quite a few steps
+involved, so the steps are in a separate [document][cloud-provider-setup-gcp]
+which you should take a look at before moving on to the next section.
+Alternatively, you could use the [script][gcp-credentials] in Crossplane
+repo which helps with creating the file.
 
-## Configure Crossplane GCP Provider
+## Configure Crossplane Provider for GCP
 
-Before creating any resources, we need to create and configure a cloud
-provider in Crossplane. This helps Crossplane know how to connect to the cloud
-provider. All the requests from Crossplane to GCP will use the
-credentials attached to the provider object.  The following command
-assumes that you have a `crossplane-gcp-provider-key.json` file that
-belongs to the account you’d like Crossplane to use. Run the command
-after changing `[your-demo-project-id]` to your actual GCP project id.
-You should be able to get the project id from the JSON credentials file
-or from the GCP Console.
+Before creating any resources, we need to create and configure a cloud provider
+in Crossplane. This helps Crossplane know how to connect to the cloud provider.
+All the requests from Crossplane to GCP will use the credentials attached to the
+provider object. The following command assumes that you have a
+`crossplane-gcp-provider-key.json` file that belongs to the account that will be
+used by Crossplane, which has GCP project id. You should be
+able to get the project id from the JSON credentials file or from the GCP
+console. Without loss of generality, let's assume the project id is
+`crossplane-playground` in this guide.
 
+First, let's encode the credential file contents and put it in a variable:
+
+```bash
+# base64 encode the gcp credentials
+BASE64ENCODED_GCP_PROVIDER_CREDS=$(base64 crossplane-gcp-provider-key.json | tr -d "\n")
 ```
-export PROJECT_ID=[your-demo-project-id]
-export BASE64ENCODED_GCP_PROVIDER_CREDS=$(base64 crossplane-gcp-provider-key.json | tr -d "\n")
-```
 
-The environment variable `PROJECT_ID` is going to be used in multiple
-YAML files in the next steps, while `BASE64ENCODED_GCP_PROVIDER_CREDS`
-is only needed for this step.
+Now we’ll create the `Secret` resource that contains the credential, and
+ `Provider` resource which refers to that secret:
 
-Now we’ll create our `Secret` that contains the credential and
-`Provider` resource that refers to that secret:
-
-```
+```bash
 cat > provider.yaml <<EOF
 ---
 apiVersion: v1
@@ -168,157 +154,201 @@ data:
   credentials.json: $BASE64ENCODED_GCP_PROVIDER_CREDS
 kind: Secret
 metadata:
-  namespace: gcp
-  name: gcp-provider-creds
+  name: gcp-account-creds
+  namespace: crossplane-system
 type: Opaque
 ---
 apiVersion: gcp.crossplane.io/v1alpha2
 kind: Provider
 metadata:
-  namespace: gcp
   name: gcp-provider
 spec:
   credentialsSecretRef:
-    name: gcp-provider-creds
     key: credentials.json
-  projectID: $PROJECT_ID
+    name: gcp-account-creds
+    namespace: crossplane-system
+  projectID: crossplane-playground
 EOF
 
-kubectl apply -f provider.yaml
+# apply it to the cluster:
+kubectl apply -f "provider.yaml"
+
+# delete the credentials variable
+unset BASE64ENCODED_GCP_PROVIDER_CREDS
 ```
 
-The example YAML also exists in [the Crossplane repository][crossplane-sample-gcp-provider].
-
-The name of the `Provider` resource in the file above is `gcp-provider`;
-we'll use the name `gcp-provider` to refer to this provider when we
-configure and set up other Crossplane resources.
-
-### Validate
+The name of the `Provider` resource in the file above is `gcp-provider`; we'll
+use the name `gcp-provider` to refer to this provider when we configure and set
+up other Crossplane resources.
 
 To check on our newly created provider, we can run:
 
-```
-kubectl -n gcp get provider.gcp.crossplane.io
+```bash
+kubectl -n crossplane-system get provider.gcp.crossplane.io
 ```
 
 The output should look something like:
 
-```
+```bash
 NAME           PROJECT-ID              AGE
 gcp-provider   crossplane-playground   37s
 ```
 
-## Set Up Network Resources
+## Set Up Network Configuration
 
-Wordpress needs a SQL database and a Kubernetes cluster. But **those**
+In this section we build a simple GCP network configuration, by creating
+corresponding Crossplane managed resources. These resources are cluster scoped,
+so don't belong to a specific namespace. This network configuration enables
+resources in WordPress stack to communicate securely. In this guide, we will use
+the [sample GCP network configuration] in Crossplane repository.
+
+### TL;DR
+
+Apply the sample network configuration resources:
+
+```bash
+kubectl apply -k github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/gcp/network-config?ref=v0.4.0
+```
+
+And you're done! You can check the status of the provisioning by running:
+
+```bash
+kubectl get -k github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/gcp/network-config?ref=v0.4.0
+```
+
+When all resources have the `Ready` condition in `True` state, the provisioning
+is completed. You can now move on to the next section, or keep reading below for
+more details about the managed resources that we created.
+
+### Behind the scenes
+
+WordPress needs a MySQL database and a Kubernetes cluster. But these
 two resources need a private network to communicate securely. So, we
 need to set up the network before we set up the database and the
-Kubernetes cluster. Here's an example of how to set up a network:
+Kubernetes cluster.
 
-```
-cat > network.yaml <<EOF
----
-# example-network will be the VPC that all cloud instances we'll create will use.
-apiVersion: compute.gcp.crossplane.io/v1alpha2
-kind: Network
-metadata:
-  name: example-network
-  namespace: gcp
-spec:
-  name: example-network
-  autoCreateSubnetworks: false
-  providerRef:
-    name: gcp-provider
-    namespace: gcp
-  reclaimPolicy: Delete
-  routingConfig:
-    routingMode: REGIONAL
----
-# example-subnetwork defines IP ranges to be used by GKE cluster.
-apiVersion: compute.gcp.crossplane.io/v1alpha2
-kind: Subnetwork
-metadata:
-  name: example-subnetwork
-  namespace: gcp
-spec:
-  providerRef:
-    name: gcp-provider
-    namespace: gcp
-  reclaimPolicy: Delete
-  name: example-subnetwork
-  region: us-central1
-  ipCidrRange: "192.168.0.0/24"
-  privateIpGoogleAccess: true
-  secondaryIpRanges:
-    - rangeName: pods
-      ipCidrRange: 10.0.0.0/8
-    - rangeName: services
-      ipCidrRange: 172.16.0.0/16
-  network: projects/$PROJECT_ID/global/networks/example-network
----
-# example-globaladdress defines the IP range that will be allocated for cloud services connecting
-# to the instances in the given Network.
-apiVersion: compute.gcp.crossplane.io/v1alpha2
-kind: GlobalAddress
-metadata:
-  name: example-globaladdress
-  namespace: gcp
-spec:
-  providerRef:
-    name: gcp-provider
-    namespace: gcp
-  reclaimPolicy: Delete
-  name: example-globaladdress
-  purpose: VPC_PEERING
-  addressType: INTERNAL
-  prefixLength: 16
-  network: projects/$PROJECT_ID/global/networks/example-network
----
-# example-connection is what allows cloud services to use the allocated GlobalAddress for communication. Behind
-# the scenes, it creates a VPC peering to the network that those service instances actually live.
-apiVersion: servicenetworking.gcp.crossplane.io/v1alpha2
-kind: Connection
-metadata:
-  name: example-connection
-  namespace: gcp
-spec:
-  providerRef:
-    name: gcp-provider
-    namespace: gcp
-  reclaimPolicy: Delete
-  parent: services/servicenetworking.googleapis.com
-  network: projects/$PROJECT_ID/global/networks/example-network
-  reservedPeeringRanges:
-    - example-globaladdress
-EOF
+To inspect the resources that we created above, let's run:
 
-kubectl apply -f network.yaml
+```bash
+kubectl kustomize github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/gcp/network-config?ref=v0.4.0 > network-config.yaml
 ```
 
-The example YAML also exists in [the Crossplane repository][crossplane-sample-gcp-network].
+This will save the sample network configuration resources locally in
+`network-config.yaml`. Please note that the GCP parameters that are used in these
+resources (like `ipCidrRange`, `region`, etc...) are arbitrarily chosen in this
+solution and could be configured to implement other
+[configurations][crossplane-gcp-networking-docs].
 
-For more details about networking and what happens when you run this
-command, see [this document with more details][crossplane-gcp-networking-docs].
+Below we inspect each of these resources in more details.
+
+* **`Network`** Represents a GCP [Virtual Network][], that all cloud instances
+  we'll create will use.
+    
+  ```yaml
+  ---
+  apiVersion: compute.gcp.crossplane.io/v1alpha2
+  kind: Network
+  metadata:
+    name: example-network
+  spec:
+    name: example-network
+    autoCreateSubnetworks: false
+    reclaimPolicy: Delete
+    routingConfig:
+      routingMode: REGIONAL
+    providerRef:
+      name: gcp-provider
+  ```
+
+* **`Subnetwork`** Represents a GCP[Virtual Subnetwork][], which defines IP
+  ranges to be used by GKE cluster.
+
+  ```yaml
+  ---
+  apiVersion: compute.gcp.crossplane.io/v1alpha2
+  kind: Subnetwork
+  metadata:
+    name: example-subnetwork
+  spec:
+    reclaimPolicy: Delete
+    name: example-subnetwork
+    region: us-central1
+    ipCidrRange: "192.168.0.0/24"
+    privateIpGoogleAccess: true
+    secondaryIpRanges:
+      - rangeName: pods
+        ipCidrRange: 10.0.0.0/8
+      - rangeName: services
+        ipCidrRange: 172.16.0.0/16
+    networkRef:
+      name: example-network
+    providerRef:
+      name: gcp-provider
+  ```
+
+* **`GlobalAddress`** Represents a GCP [Global Address][], which defines the IP
+  range that will be allocated for cloud services connecting to the instances in the given Network.
+
+  ```yaml
+  ---
+  apiVersion: compute.gcp.crossplane.io/v1alpha2
+  kind: GlobalAddress
+  metadata:
+    name: example-globaladdress
+  spec:
+    reclaimPolicy: Delete
+    name: example-globaladdress
+    purpose: VPC_PEERING
+    addressType: INTERNAL
+    prefixLength: 16
+    networkRef:
+      name: example-network
+    providerRef:
+      name: gcp-provider
+  ```
+
+* **`Connection`** Represents a GCP [Connection][gcp-connection], which allows
+  cloud services to use the allocated GlobalAddress for communication. Behind
+  the scenes, it creates a VPC peering to the network that those service
+  instances actually live.
+
+  ```yaml
+  ---
+  apiVersion: servicenetworking.gcp.crossplane.io/v1alpha2
+  kind: Connection
+  metadata:
+    name: example-connection
+  spec:
+    reclaimPolicy: Delete
+    parent: services/servicenetworking.googleapis.com
+    networkRef:
+      name: example-network
+    reservedPeeringRanges:
+      - example-globaladdress
+    providerRef:
+      name: gcp-provider
+  ```
 
 It takes a while to create these resources in GCP. The top-level object
 is the `Connection` object; when the `Connection` is ready, everything
-else is too. We can watch it by running the following command, which
-assumes the GCP stack is installed in `gcp` namespace:
+else is ready too.
 
-```
-kubectl -n gcp get connection.servicenetworking.gcp.crossplane.io/example-connection -o custom-columns='NAME:.metadata.name,FIRST_CONDITION:.status.conditions[0].status,SECOND_CONDITION:.status.conditions[1].status'
-```
+As you probably have noticed, some resources are referencing to `Network` resource
+ in their YAML representations. For instance for `Subnetwork` resource we have:
 
-The output should look something like:
-
-```
-NAME                 FIRST_CONDITION   SECOND_CONDITION
-example-connection   True              True
+```yaml
+...
+    networkRef:
+      name: example-network
+...
 ```
 
-The conditions we're checking for are `Ready` and `Synced`. The reason
-we are using `FIRST_CONDITION` and `SECOND_CONDITION` is because we
-don't know what order they'll be in when we run the command.
+Such cross resource referencing is a Crossplane feature that enables managed
+resources to retrieve other resources attributes. This creates a *blocking
+dependency*, avoiding the dependent resource to be created before the referred
+resource is ready. In the example above, `Subnetwork` will be blocked until the
+referred `Network` is created, and then it retrieves its id. For more
+information, see [Cross Resource Referencing][].
 
 ## Configure Provider Resources
 
@@ -421,7 +451,7 @@ metadata:
     default: "true"
 classRef:
   kind: CloudsqlInstanceClass
-  apiVersion: database.gcp.crossplane.io/v1beta1
+  apiVersion: database.gcp.crossplane.io/v1alpha2
   name: standard-cloudsql
   namespace: gcp
 ---
@@ -502,3 +532,4 @@ where we left off.
 [crossplane-sample-gcp-namespace]: https://github.com/crossplaneio/crossplane/blob/master/cluster/examples/workloads/kubernetes/wordpress/gcp/namespace.yaml
 
 [cloud-provider-setup-gcp]: cloud-providers/gcp/gcp-provider.md
+[gcp-network-configuration]: https://cloud.google.com/vpc/docs/vpc
