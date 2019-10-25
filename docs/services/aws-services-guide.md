@@ -13,7 +13,7 @@ Crossplane managed resources and the official Wordpress Docker image.
 1. [Preparation](#preparation)
 1. [Create Configuration](#create-configuration)
 1. [Install Wordpress](#install-wordpress)
-1. [Uninstall](#uninstall)
+1. [Clean Up](#clean-up)
 1. [Conclusion and Next Steps](#conclusion-and-next-steps)
 
 ## Pre-requisites
@@ -194,7 +194,7 @@ EOF
 kubectl apply -f aws-sg.yaml
 ```
 
-#### Cloud-Specific Resource Classes
+#### Resource Classes
 
 Cloud-specific resource classes are used to define a reusable configuration for
 a specific managed resource. Wordpress requires a MySQL database, which can be
@@ -250,8 +250,9 @@ field `size: 100`.
 
 #### Resource Claims
 
-Resource claims are used to create external resources by binding to a resource
-class or a managed resource. This can be accomplished in a variety of ways
+Resource claims are used to create external resources by being scheduled to a
+resource class and creating new managed resource or binding to an existing
+managed resource directly. This can be accomplished in a variety of ways
 including referencing the class or managed resource directly, providing labels
 that are used to match to a class, or by defaulting to a class that is annotated
 with `resourceclass.crossplane.io/is-default-class: "true"`. In the
@@ -435,10 +436,18 @@ becomes available, then navigate to the address. You should see the following:
 
 ![alt wordpress](wordpress-start.png)
 
-## Uninstall
+## Clean Up
+
+Because we put all of our configuration in a single directory, we can delete it all with this command:
 
 ```bash
 kubectl delete -f wordpress/
+```
+
+If you would like to also uninstall Crossplane and the AWS stack, run the following command:
+
+```bash
+kubectl delete namespace crossplane-system
 ```
 
 ## Conclusion and Next Steps
@@ -451,7 +460,7 @@ In this guide we:
 * Installed the AWS stack
 * Setup an AWS `Provider` with our account
 * Created a `RDSInstanceClass` with configuration for an AWS RDS instance
-* Created a `MySQLInstance` claim that defaulted to the `mysql-standard`
+* Created a `MySQLInstance` claim that was scheduled to the `mysql-standard`
   resource class
 * Created a `Deployment` and `Service` to run Wordpress on our EKS Cluster and
   assign an external IP address to it
