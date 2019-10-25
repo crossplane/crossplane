@@ -118,7 +118,7 @@ To store the credentials as a secret, run:
 
 ```bash
 # retrieve profile's credentials, save it under 'default' profile, and base64 encode it
-AWS_CREDS_BASE64=$(echo -e "[default]\naws_access_key_id = $(aws configure get aws_access_key_id --profile $aws_profile)\naws_secret_access_key = $(aws configure get aws_secret_access_key --profile $aws_profile)" | base64  | tr -d "\n")
+BASE64ENCODED_AWS_ACCOUNT_CREDS=$(echo -e "[default]\naws_access_key_id = $(aws configure get aws_access_key_id --profile $aws_profile)\naws_secret_access_key = $(aws configure get aws_secret_access_key --profile $aws_profile)" | base64  | tr -d "\n")
 # retrieve the profile's region from config
 AWS_REGION=$(aws configure get region --profile ${aws_profile})
 ```
@@ -130,31 +130,31 @@ At this point, the region and the encoded credentials are stored in respective
 cat > provider.yaml <<EOF
 ---
 apiVersion: v1
-data:
-  credentials: ${AWS_CREDS_BASE64}
 kind: Secret
 metadata:
-  name: aws-user-creds
+  name: aws-account-creds
   namespace: crossplane-system
 type: Opaque
+data:
+  credentials: ${BASE64ENCODED_AWS_ACCOUNT_CREDS}
 ---
 apiVersion: aws.crossplane.io/v1alpha2
 kind: Provider
 metadata:
   name: aws-provider
 spec:
-  credentialsSecretRef:
-    key: credentials
-    name: aws-user-creds
-    namespace: crossplane-system
   region: ${AWS_REGION}
+  credentialsSecretRef:
+    namespace: crossplane-system
+    name: aws-account-creds
+    key: credentials
 EOF
 
 # apply it to the cluster:
 kubectl apply -f "provider.yaml"
 
 # delete the credentials variable
-unset AWS_CREDS_BASE64
+unset BASE64ENCODED_AWS_ACCOUNT_CREDS
 ```
 
 The output will look like the following:
@@ -164,13 +164,18 @@ secret/aws-user-creds created
 provider.aws.crossplane.io/aws-provider created
 ```
 
+The `aws-provider` resource will be used in other resources that we will create
+later in this guide, to provide access information to the configured AWS
+account.
+
+
 ## Set Up Network Configuration
 
 In this section we build a simple AWS network configuration, by creating
 corresponding Crossplane managed resources. These resources are cluster scoped,
 so don't belong to a specific namespace. This network configuration enables
 resources in WordPress stack to communicate securely. In this guide, we will use
-the [sample AWS network configuration] in Crossplane repository. You can read
+the [sample AWS network configuration][] in Crossplane repository. You can read
 more [here][crossplane-gcp-networking-docs] about network secure connectivity
 configurations in Crossplane.
 
@@ -197,10 +202,10 @@ more details about the managed resources that we created.
 When configured in AWS, WordPress resources map to an EKS cluster and an RDS
 database instance. In order to make the RDS instance accessible from the EKS cluster,
 they both need to live within the same VPC. However, a VPC is not the only AWS
-resource that needs to be created to create inter-resource connectivity. In
+resource that needs to be created to provide inter-resource connectivity. In
 general, a **Network Configuration** which consists of a set of VPCs, Subnets,
-Security Groups, Route Tables, IAM Roles and other resources, is required for
-this purpose. For more information, see [AWS resource connectivity] design
+Security Groups, Route Tables, IAM Roles and other resources is required for
+this purpose. For more information, see [AWS resource connectivity][aws-resource-connectivity] design
 document.
 
 To inspect the resources that we created above, let's run:
@@ -344,7 +349,7 @@ Below we inspect each of these resources in more details.
   spec:
     vpcIdRef:
       name: sample-vpc
-    groupName: sample-ekscluster-sg
+    groupName: my-cool-ekscluster-sg
     description: Cluster communication with worker nodes
     reclaimPolicy: Delete
     providerRef:
@@ -363,7 +368,7 @@ Below we inspect each of these resources in more details.
   spec:
     vpcIdRef:
       name: sample-vpc
-    groupName: sample-rds-sg
+    groupName: my-cool-rds-sg
     description: open rds access to crossplane workload
     reclaimPolicy: Delete
     ingress:
@@ -388,7 +393,7 @@ Below we inspect each of these resources in more details.
   metadata:
     name: sample-dbsubnetgroup
   spec:
-    groupName: sample_dbsubnetgroup
+    groupName: my-cool-dbsubnetgroup
     description: EKS vpc to rds
     subnetIdRefs:
       - name: sample-subnet1
@@ -396,7 +401,7 @@ Below we inspect each of these resources in more details.
       - name: sample-subnet3
     tags:
       - key: name
-        value: sample-dbsubnetgroup
+        value: my-cool-dbsubnetgroup
     reclaimPolicy: Delete
     providerRef:
       name: aws-provider
@@ -414,7 +419,7 @@ Below we inspect each of these resources in more details.
   metadata:
     name: sample-eks-cluster-role
   spec:
-    roleName: sample-eks-cluster-role
+    roleName: my-cool-eks-cluster-role
     description: a role that gives a cool power
     assumeRolePolicyDocument: |
       {
@@ -468,8 +473,7 @@ Below we inspect each of these resources in more details.
       name: aws-provider
   ```
 
-As you probably have noticed, some resources are referencing other resource
-attributes in their YAML representations. For instance for `Subnet` resource we have:
+As you probably have noticed, some resources are referencing other resources in their YAML representations. For instance for `Subnet` resource we have:
 
 ```yaml
 ...
@@ -488,10 +492,12 @@ information, see [Cross Resource Referencing][].
 ## Configure Resource Classes
 
 Once we have the network configuration set up, we need to tell Crossplane how to
-satisfy WordPress's claims for a database and a Kubernetes cluster, using AWS
-[Resource classes][resource-classes-docs]. These resources serve as templates to
-satisfy cloud-agnostic resource claims of WordPress stack. In this guide, we
-will use the [sample AWS resource classes] in Crossplane repository.
+satisfy WordPress's claims (that will be created when we later install the
+WordPress stack) for a database and a Kubernetes cluster. The [Resource Classes][resource-claims-and-classes-docs] serve as
+templates for the corresponding resource claims.
+
+In this guide, we will use
+the [sample AWS resource classes][]in Crossplane repository.
 
 ### TL;DR
 
@@ -535,8 +541,8 @@ Below we inspect each of these resource classes in more details:
       resourceclass.crossplane.io/is-default-class: "true"
   specTemplate:
     class: db.t2.small
-    masterUsername: masteruser
-    securityGroupRefs:
+    masterUsername: a-cool-masteruser
+    securityGroupIdeRefs:
       - name: sample-rds-sg
     subnetGroupNameRef:
       name: sample-dbsubnetgroup
@@ -619,7 +625,7 @@ off.
 [crossplane-cli]: https://github.com/crossplaneio/crossplane-cli
 [Virtual Private Network]: https://aws.amazon.com/vpc/
 [Subnet]: https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Subnets.html#vpc-subnet-basics
-[AWS resource connectivity]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-resource-connectivity-mvp.md#amazon-web-services
+[aws-resource-connectivity]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-resource-connectivity-mvp.md#amazon-web-services
 [Internet Gateway]: https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Internet_Gateway.html
 [Route Table]: https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Route_Tables.html
 [Security Group]: https://docs.aws.amazon.com/vpc/latest/userguide/VPC_SecurityGroups.html
