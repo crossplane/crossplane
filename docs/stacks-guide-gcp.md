@@ -69,7 +69,7 @@ it `crossplane-system` in this guide. Let's create it:
 kubectl create namespace crossplane-system
 ```
 
-Now we install the AWS stack using Crossplane CLI. Since this is an
+Now we install the GCP stack using Crossplane CLI. Since this is an
 infrastructure stack, we need to specify that it's cluster-scoped by passing the
 `--cluster` flag.
 
@@ -77,7 +77,7 @@ infrastructure stack, we need to specify that it's cluster-scoped by passing the
 kubectl crossplane stack generate-install --cluster 'crossplane/stack-gcp:master' stack-gcp | kubectl apply --namespace crossplane-system -f -
 ```
 
-The rest of this guide assumes that the AWS stack is installed within
+The rest of this guide assumes that the GCP stack is installed within
 `crossplane-system` namespace.
 
 To check to see whether our stack installed correctly, we can look at
@@ -146,7 +146,7 @@ guide.
 First, let's encode the credential file contents and put it in a variable:
 
 ```bash
-# base64 encode the gcp credentials
+# base64 encode the GCP credentials
 BASE64ENCODED_GCP_PROVIDER_CREDS=$(base64 crossplane-gcp-provider-key.json | tr -d "\n")
 ```
 
@@ -199,7 +199,7 @@ In this section we build a simple GCP network configuration, by creating
 corresponding Crossplane managed resources. These resources are cluster scoped,
 so don't belong to a specific namespace. This network configuration enables
 resources in the WordPress stack to communicate securely. In this guide, we will use
-the [sample GCP network configuration] in the Crossplane repository. You can read
+the [sample GCP network configuration][] in the Crossplane repository. You can read
 more [here][crossplane-gcp-networking-docs] about network secure connectivity
 configurations in Crossplane.
 
@@ -208,13 +208,13 @@ configurations in Crossplane.
 Apply the sample network configuration resources:
 
 ```bash
-kubectl apply -k github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/gcp/network-config?ref=v0.4.0
+kubectl apply -k github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/gcp/network-config?ref=master
 ```
 
 And you're done! You can check the status of the provisioning by running:
 
 ```bash
-kubectl get -k github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/gcp/network-config?ref=v0.4.0
+kubectl get -k github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/gcp/network-config?ref=master
 ```
 
 When all resources have the `Ready` condition in `True` state, the provisioning
@@ -231,7 +231,7 @@ Kubernetes cluster.
 To inspect the resources that we created above, let's run:
 
 ```bash
-kubectl kustomize github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/gcp/network-config?ref=v0.4.0 > network-config.yaml
+kubectl kustomize github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/gcp/network-config?ref=master > network-config.yaml
 ```
 
 This will save the sample network configuration resources locally in
@@ -242,8 +242,9 @@ solution and could be configured to implement other
 
 Below we inspect each of these resources in more details.
 
-- **`Network`** Represents a GCP [Virtual Network][], that all cloud instances
-  we'll create will use.
+- **`Network`** Represents a GCP [Virtual Private Cloud (VPC)
+  Network][gcp-network-configuration], that all cloud instances we'll create
+  will use.
 
   ```yaml
   ---
@@ -261,8 +262,8 @@ Below we inspect each of these resources in more details.
       name: gcp-provider
   ```
 
-- **`Subnetwork`** Represents a GCP[Virtual Subnetwork][], which defines IP
-  ranges to be used by GKE cluster.
+- **`Subnetwork`** Represents a GCP [Virtual Private Cloud Subnetwork][gcp-network-configuration], which
+  defines IP ranges to be used by GKE cluster.
 
   ```yaml
   ---
@@ -287,7 +288,7 @@ Below we inspect each of these resources in more details.
       name: gcp-provider
   ```
 
-- **`GlobalAddress`** Represents a GCP [Global Address][], which defines the IP
+- **`GlobalAddress`** Represents a GCP [Global Address][gcp-ip-address], which defines the IP
   range that will be allocated for cloud services connecting to the instances in the given Network.
 
   ```yaml
@@ -363,17 +364,17 @@ repository.
 Apply the sample GCP resource classes:
 
 ```bash
-kubectl apply -k github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/gcp/resource-classes?ref=v0.4.0
+kubectl apply -k github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/gcp/resource-classes?ref=master
 ```
 
-And you're done! Note that these resources do not immediately provision external AWS resourcs.
+And you're done! Note that these resources do not immediately provision external GCP resourcs.
 
 ### More Details
 
 To inspect the resource classes that we created above, run:
 
 ```bash
-kubectl kustomize github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/gcp/resource-classes?ref=v0.4.0 > resource-classes.yaml
+kubectl kustomize github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/gcp/resource-classes?ref=master > resource-classes.yaml
 ```
 
 This will save the sample resource classes YAML locally in
@@ -478,6 +479,10 @@ where we left off.
 [cloud-provider-setup-gcp]: https://github.com/crossplaneio/crossplane/blob/master/docs/cloud-providers/gcp/gcp-provider.md
 [gcp-network-configuration]: https://cloud.google.com/vpc/docs/vpc
 [Cross Resource Referencing]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-cross-resource-referencing.md
-[sample GCP resource classes]: https://github.com/crossplaneio/crossplane/tree/master/cluster/examples/workloads/kubernetes/wordpress/gcp/resource-classes?ref=v0.4
+[sample GCP resource classes]: https://github.com/crossplaneio/crossplane/tree/master/cluster/examples/workloads/kubernetes/wordpress/gcp/resource-classes?ref=master
 [gcp-cloudsql]: https://cloud.google.com/sql/
 [gcp-gke]: https://cloud.google.com/kubernetes-engine/
+[sample GCP network configuration]: https://github.com/crossplaneio/crossplane/tree/master/cluster/examples/workloads/kubernetes/wordpress/gcp/network-config?ref=master
+[gcp-ip-address]: https://cloud.google.com/compute/docs/ip-addresses/
+[gcp-connection]: https://cloud.google.com/vpc/docs/configure-private-services-access
+[resource class selection]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-simple-class-selection.md
