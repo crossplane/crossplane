@@ -4,17 +4,17 @@ data:
   credentials: ((AWS_CREDS_BASE64))
 kind: Secret
 metadata:
+  name: aws-account-creds
   namespace: crossplane-system
-  name: example-creds
 type: Opaque
 ---
 apiVersion: aws.crossplane.io/v1alpha2
 kind: Provider
 metadata:
-  name: example
+  name: aws-provider
 spec:
   credentialsSecretRef:
     namespace: crossplane-system
-    name: example-creds
+    name: aws-account-creds
     key: credentials
   region: ((AWS_REGION))
