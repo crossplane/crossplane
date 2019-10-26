@@ -77,10 +77,9 @@ guide](../cloud-providers/gco/gcp-provider.md) for more information.
 
 ### Resource Classes
 
-Cloud-specific resource classes are used to define a reusable configuration for
-a specific managed service. Wordpress requires a MySQL database, which can be
-satisfied by a [Google Cloud SQL
-Instance](https://cloud.google.com/sql/docs/mysql/).
+Resource classes are used to define a reusable configuration for a specific
+managed service. Wordpress requires a MySQL database, which can be satisfied by
+a [Google Cloud SQL Instance](https://cloud.google.com/sql/docs/mysql/).
 
 * Define a GCP CloudSQL class `CloudSQLInstanceClass`:
 
