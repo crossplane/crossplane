@@ -4,7 +4,7 @@ kind: DBSubnetGroup
 metadata:
   name: sample-dbsubnetgroup
 spec:
-  groupName: sample_dbsubnetgroup
+  groupName: my-cool-dbsubnetgroup
   description: EKS vpc to rds
   subnetIdRefs:
     - name: sample-subnet1
