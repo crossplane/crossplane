@@ -1,7 +1,7 @@
 # Welcome to Crossplane!
 
 Crossplane is an open source multicloud control plane to manage your
-cloud-native applications and infrastructure across environments, clusters,
+cloud-native infrastructure and applications across environments, clusters,
 regions and clouds. It enables provisioning and full-lifecycle management of
 applications and managed services from your choice of cloud using `kubectl`.
 
@@ -41,10 +41,11 @@ Cluster administrators can define self-service policies and best-practice
 configurations to accelerate app delivery and improve security, so app teams can
 focus on delivering their app instead of cloud-specific infrastructure details.
 
-The [Crossplane Services Guide][services-user-guide] explores related concepts
-and shows how to use Crossplane Services to deploy a Wordpress instance that
-securely consumes a managed `MySQLInstance` from GCP, AWS, or Azure from
-`kubectl`.
+Take a look at the [getting started guide][getting-started] for an introduction
+to Crossplane Services. The [Crossplane Services Guide][services-user-guide]
+also explores related concepts and shows how to use Crossplane Services to
+deploy a Wordpress instance that securely consumes a managed `MySQLInstance`
+from GCP, AWS, or Azure using `kubectl`.
 
 ## Crossplane Stacks
 
@@ -149,6 +150,7 @@ If you have any questions, please drop us a note on [Crossplane Slack][join-cros
 * [Learn More][learn-more]
 
 <!-- Named links -->
+[getting-started]: quick-start.md
 [services-user-guide]: services-guide.md
 [stack-user-guide]: stacks-guide.md
 [stack-developer-guide]: developer-guide.md
