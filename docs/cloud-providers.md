@@ -13,6 +13,5 @@ links below for cloud-specific instructions to create an account that can be
 used throughout the guides:
 
 * [Google Cloud Platform (GCP) Service Account](cloud-providers/gcp/gcp-provider.md)
-  * Required for Quick Start
 * [Microsoft Azure Service Principal](cloud-providers/azure/azure-provider.md)
 * [Amazon Web Services (AWS) IAM User](cloud-providers/aws/aws-provider.md)
