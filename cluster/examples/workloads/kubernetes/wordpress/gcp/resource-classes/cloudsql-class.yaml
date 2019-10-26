@@ -2,10 +2,11 @@
 apiVersion: database.gcp.crossplane.io/v1beta1
 kind: CloudsqlInstanceClass
 metadata:
-  name: standard-cloudsql
+  name: standard-mysql
   annotations:
     resourceclass.crossplane.io/is-default-class: "true"
 specTemplate:
+  writeConnectionSecretsToNamespace: crossplane-system
   forProvider:
     databaseVersion: MYSQL_5_7
     region: us-central1
@@ -16,6 +17,6 @@ specTemplate:
       ipConfiguration:
         privateNetworkRef:
           name: sample-network
-      reclaimPolicy: Delete
+  reclaimPolicy: Delete
   providerRef:
     name: gcp-provider
