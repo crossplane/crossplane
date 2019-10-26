@@ -1,7 +1,7 @@
 # Welcome to Crossplane!
 
 Crossplane is an open source multicloud control plane to manage your
-cloud-native infrastructure and applications across environments, clusters,
+cloud-native applications and infrastructure across environments, clusters,
 regions and clouds. It enables provisioning and full-lifecycle management of
 applications and managed services from your choice of cloud using `kubectl`.
 
