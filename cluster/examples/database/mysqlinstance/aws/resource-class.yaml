@@ -14,6 +14,7 @@ specTemplate:
 #      - sg-05adsfkaj1ksdjak
     allocatedStorage: 20
     engine: mysql
+    skipFinalSnapshotBeforeDeletion: true
   writeConnectionSecretsToNamespace: crossplane-system
   providerRef:
     name: example
