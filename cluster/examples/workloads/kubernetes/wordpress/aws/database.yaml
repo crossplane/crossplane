@@ -5,9 +5,6 @@ metadata:
   name: sql
 spec:
   engineVersion: "5.7"
-  classSelector:
-    matchLabels:
-      example: "true"
   # A secret is exported by providing the secret name
   # to export it under. This is the name of the secret
   # in the crossplane cluster, and it's scoped to this claim's namespace.

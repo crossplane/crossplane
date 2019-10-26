@@ -6,8 +6,9 @@ metadata:
   annotations:
     resourceclass.crossplane.io/is-default-class: "true"
 specTemplate:
+  writeConnectionSecretsToNamespace: crossplane-system
   class: db.t2.small
-  masterUsername: a-cool-masteruser
+  masterUsername: cool_user
   securityGroupIdRefs:
     - name: sample-rds-sg
   subnetGroupNameRef:

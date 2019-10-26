@@ -4,7 +4,7 @@ kind: IAMRole
 metadata:
   name: sample-eks-cluster-role
 spec:
-  roleName: sample-eks-cluster-role
+  roleName: my-cool-eks-cluster-role
   description: a role that gives a cool power
   assumeRolePolicyDocument: |
     {

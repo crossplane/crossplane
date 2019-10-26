@@ -8,5 +8,3 @@ resources:
   - eks-securitygroup.yaml
   - dbsubnetgroup.yaml
   - rds-securitygroup.yaml
-  - rds-class.yaml
-  - eks-class.yaml

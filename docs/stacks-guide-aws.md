@@ -553,11 +553,12 @@ Below we inspect each of these resource classes in more details:
     annotations:
       resourceclass.crossplane.io/is-default-class: "true"
   specTemplate:
+    writeConnectionSecretsToNamespace: crossplane-system
     class: db.t2.small
-    masterUsername: a-cool-masteruser
+    masterUsername: cool_user
     securityGroupIdRefs:
       - name: sample-rds-sg
-    securityGroupIdRefs:
+    subnetGroupNameRef:
       name: sample-dbsubnetgroup
     size: 20
     engine: mysql
@@ -577,6 +578,7 @@ Below we inspect each of these resource classes in more details:
     annotations:
       resourceclass.crossplane.io/is-default-class: "true"
   specTemplate:
+    writeConnectionSecretsToNamespace: crossplane-system
     region: us-west-2
     roleARNRef:
       name: sample-eks-cluster-role
@@ -594,7 +596,7 @@ Below we inspect each of these resource classes in more details:
       nodeAutoScalingGroupMaxSize: 1
       nodeGroupName: demo-nodes
       clusterControlPlaneSecurityGroupRef:
-        - name: sample-cluster-sg
+        name: sample-cluster-sg
     providerRef:
       name: aws-provider
     reclaimPolicy: Delete
