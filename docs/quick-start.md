@@ -51,10 +51,10 @@ Save the above as `stack.yaml`, and apply it by running:
 kubectl apply -f stack.yaml
 ```
 
-We've now installed Crossplane with GCP support! Take a look at the guide to
-[Crossplane installation guide] for more installation options, and to learn how
-to install support for other cloud providers such as Amazon Web Services and
-Microsoft Azure.
+We've now installed Crossplane with GCP support! Take a look at the [Crossplane
+installation guide] for more installation options, and to learn how to install
+support for other cloud providers such as Amazon Web Services and Microsoft
+Azure.
 
 ## Add Your GCP Project to Crossplane
 
