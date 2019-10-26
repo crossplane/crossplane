@@ -8,7 +8,7 @@ metadata:
 spec:
   resourceSelector:
     matchLabels:
-      app: rook-yugabyte
+      operator: rook-yugabyte
   clusterSelector:
     matchLabels:
       app: yugastore

@@ -1,17 +1,3 @@
-apiVersion: database.crossplane.io/v1alpha1
-kind: PostgreSQLInstance
-metadata:
-  name: yugastore-db
-  namespace: yugastore-app
-  labels:
-    app: yugastore
-spec:
-  classSelector:
-    matchLabels:
-      app: yugastore
-  writeConnectionSecretToRef:
-    name: yugastore-db-secret
----
 apiVersion: workload.crossplane.io/v1alpha1
 kind: KubernetesApplication
 metadata:
