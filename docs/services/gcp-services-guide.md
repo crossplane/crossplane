@@ -7,24 +7,6 @@ indent: true
 
 # GCP Services Guide
 
-## Table of Contents
-
-1. [Introduction](#introduction)
-2. [Pre-requisites](#pre-requisites)
-3. [Preparation](#preparation)
-     1. [GKE Cluster Steps](#gke-cluster-steps)
-     2. [Crossplane Steps](#crossplane-steps)
-          1. [Installation](#installation)
-          2. [GCP Provider](#gcp-provider)
-          3. [Resource Classes](#resource-classes)
-          4. [Connecting MySQL Instance and GKE Cluster](#connecting-mysql-instance-and-gke-cluster)
-4. [Install Wordpress](#install-wordpress)
-5. [Clean Up](#clean-up)
-     1. [Wordpress](#wordpress)
-     2. [Crossplane](#crossplane)
-
-## Introduction
-
 This user guide will walk you through Wordpress application deployment using
 your existing Kubernetes cluster and Crossplane managed resources. We will:
 * Install Crossplane to your cluster.
@@ -32,10 +14,23 @@ your existing Kubernetes cluster and Crossplane managed resources. We will:
 * Create network resources to get GKE cluster to connect to MySQL instance.
 * Deploy Wordpress.
 
+## Table of Contents
+
+1. [Pre-requisites](#pre-requisites)
+1. [Preparation](#preparation)
+1. [Set Up Crossplane](#set-up-crossplane)
+    1. [Install in Target Cluster](#install-in-target-cluster)
+    1. [Cloud Provider](#cloud-provider)
+    1. [Resource Classes](#resource-classes)
+    1. [Configure Managed Service Access](#configure-managed-service-access)
+1. [Provision MySQL](#provision-mysql)
+   1. [Resource Claim](#resource-claim)
+1. [Install Wordpress](#install-wordpress)
+1. [Clean Up](#clean-up)
+1. [Conclusion and Next Steps](#conclusion-and-next-steps)
+
 ## Pre-requisites
 
-* [gcloud CLI](https://cloud.google.com/sdk/docs/quickstarts)
-    * Make sure to configure the authentication after installing gcloud cli.
 * [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 * A GKE cluster.
 
@@ -44,8 +39,8 @@ your existing Kubernetes cluster and Crossplane managed resources. We will:
 This guide assumes that you have setup the gcloud CLI and are logged in to your
 desired account.
 
-*Note: environment variables are used throughout this guide. You should use
-your own values.*
+*Note: environment variables are used throughout this guide. You should use your
+own values.*
 
 Run the following:
 ```bash
@@ -54,33 +49,13 @@ export NETWORK_NAME=default # the network that your GKE cluster lives in.
 export SUBNETWORK_NAME=default # the subnetwork that your GKE cluster lives in.
 ```
 
-### GKE Cluster Steps
+## Set Up Crossplane
 
-We are assuming you've got a GKE cluster up and running created either via
-GCP Console or gcloud CLI.
+### Installation
 
-1. Connect to your GKE cluster
-```bash
-gcloud container clusters get-credentials "my-existing-cluster" --zone us-central1-a --project "${PROJECT_ID}"
-```
-
-2. Make sure `kubectl` is able to communicate with your GKE cluster
-```bash
-kubectl cluster-info
-```
-
-3. Make sure Helm is installed with permissions to work on `crossplane-system`
-namespace. The easiest way to achieve that is to run the following command
-that makes Helm's server side component `tiller` cluster admin:
-```bash
-kubectl -n kube-system create serviceaccount tiller
-kubectl create clusterrolebinding tiller --clusterrole cluster-admin --serviceaccount=kube-system:tiller
-helm init --service-account=tiller
-```
-
-### Crossplane Steps
-
-#### Installation
+Assuming you are
+[connected](https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl)
+to your GKE cluster via `kubectl`:
 
 * Install Crossplane from alpha channel using the [Crossplane Installation
   Guide](../install-crossplane.md#alpha)
@@ -94,63 +69,18 @@ directory:
 mkdir wordpress && cd $_
 ```
 
-#### GCP Provider
+### Cloud Provider
 
-It is essential to make sure that a GCP service account to be used by
-Crossplane is configured with all the necessary permissions outlined in the
-[provider guide](../cloud-providers/gcp/gcp-provider.md).
+It is essential to make sure that the GCP user credentials are configured in
+Crossplane as a provider. Please follow the steps [provider
+guide](../cloud-providers/gco/gcp-provider.md) for more information.
 
-Using the service account json `crossplane-gcp-provider-key.json` that you
-acquired from GCP:
-
-* Generate Base64 encoded value to store in a `Secret`:
-
-  ```bash
-  export BASE64ENCODED_GCP_PROVIDER_CREDS=$(base64 crossplane-gcp-provider-key.json | tr -d "\n")
-  ```
-
-  * Define a GCP `Provider` and `Secret`:
-
-    ```bash
-    cat > gcp-provider.yaml <<EOF
-    ---
-    apiVersion: v1
-    data:
-      credentials.json: $BASE64ENCODED_GCP_PROVIDER_CREDS
-    kind: Secret
-    metadata:
-      name: gcp-provider-creds
-      namespace: crossplane-system
-    type: Opaque
-    ---
-    apiVersion: gcp.crossplane.io/v1alpha2
-    kind: Provider
-    metadata:
-      name: gcp-provider
-    spec:
-      credentialsSecretRef:
-        name: gcp-provider-creds
-        namespace: crossplane-system
-        key: credentials.json
-      projectID: $PROJECT_ID
-    EOF
-
-    kubectlapply -f gcp-provider.yaml
-    unset BASE64ENCODED_GCP_PROVIDER_CREDS # we don't need this anymore.
-    ```
-
-* Verify GCP provider was successfully registered by the crossplane
-
-  ```bash
-  kubectl get providers.gcp.crossplane.io
-  kubectl -n crossplane-system get secrets
-  ```
-
-#### Cloud-Specific Resource Classes
+### Resource Classes
 
 Cloud-specific resource classes are used to define a reusable configuration for
 a specific managed service. Wordpress requires a MySQL database, which can be
-satisfied by a [Google Cloud SQL Instance](https://cloud.google.com/sql/docs/mysql/).
+satisfied by a [Google Cloud SQL
+Instance](https://cloud.google.com/sql/docs/mysql/).
 
 * Define a GCP CloudSQL class `CloudSQLInstanceClass`:
 
@@ -162,7 +92,7 @@ kind: CloudSQLInstanceClass
 metadata:
   name: standard-cloudsql
   labels:
-    app: wordpress
+    size: standard
 specTemplate:
   writeConnectionSecretsToNamespace: crossplane-system
   forProvider:
@@ -200,18 +130,95 @@ You are free to create more GCP `CloudSQLInstanceClass` instances to define more
 potential configurations. For instance, you may create `large-gcp-mysql` with
 field `storageGB: 100`.
 
-#### Resource Claims
+### Configure Managed Service Access
 
-Resource claims are used to create external resources by being scheduled to a
-resource class and creating new managed resource or binding to an existing
-managed resource directly. This can be accomplished in a variety of ways
-including referencing the class or managed resource directly, providing labels
-that are used to match to a class, or by defaulting to a class that is annotated
-with `resourceclass.crossplane.io/is-default-class: "true"`. In the
-`CloudsqlInstanceClass` above, we added the label `app: wordpress`, so our claim
-will be scheduled to that class the label is specified in the `classSelector`. If
-there are multiple classes which match the specified label(s) one will be chosen
-at random.
+Before we install Wordpress, we need to establish connectivity between the the
+MySQL database and the GKE cluster. We can do this by creating a [Private
+Service
+Connection](https://cloud.google.com/vpc/docs/configure-private-services-access).
+
+You can create it by following the instructions at the link above, or you could
+use Crossplane to do it:
+
+* Create a `GlobalAddress` and `Connection` resources:
+
+  ```bash
+  cat > network.yaml <<EOF
+  ---
+  # example-globaladdress defines the IP range that will be allocated for cloud services connecting
+  # to the instances in the given Network.
+  apiVersion: compute.gcp.crossplane.io/v1alpha2
+  kind: GlobalAddress
+  metadata:
+    name: example-globaladdress
+  spec:
+    providerRef:
+      name: gcp-provider
+    reclaimPolicy: Delete
+    name: example-globaladdress
+    purpose: VPC_PEERING
+    addressType: INTERNAL
+    prefixLength: 16
+    network: projects/$PROJECT_ID/global/networks/$NETWORK_NAME
+  ---
+  # example-connection is what allows cloud services to use the allocated GlobalAddress for communication. Behind
+  # the scenes, it creates a VPC peering to the network that those service instances actually live.
+  apiVersion: servicenetworking.gcp.crossplane.io/v1alpha2
+  kind: Connection
+  metadata:
+    name: example-connection
+  spec:
+    providerRef:
+      name: gcp-provider
+    reclaimPolicy: Delete
+    parent: services/servicenetworking.googleapis.com
+    network: projects/$PROJECT_ID/global/networks/$NETWORK_NAME
+    reservedPeeringRanges:
+      - example-globaladdress
+  EOF
+
+  kubectl apply -f network.yaml
+  ```
+
+* You can verify creation with the following command and output:
+
+  *Command*
+
+  ```bash
+  kubectl get connection example-connection -o custom-columns='NAME:.metadata.name,FIRST_CONDITION:.status.conditions[0].status,SECOND_CONDITION:.status.conditions[1].status'
+  ```
+
+  *Output*
+
+  ```bash
+  NAME                 FIRST_CONDITION   SECOND_CONDITION
+  example-connection   True              True
+  ```
+
+  Wait for both conditions to be true to continue. The conditions we're checking
+  for are `Ready` and `Synced`. The reason we are using `FIRST_CONDITION` and
+  `SECOND_CONDITION` is because we don't know what order they'll be in when we
+  run the command.
+
+## Provision 
+
+### Resource Claim
+
+Resource claims are used for dynamic provisioning of a managed resource (like a
+MySQL instance) by matching the claim to a resource class. This can be done in
+several ways: (a) rely on the default class marked
+`resourceclass.crossplane.io/is-default-class: "true"`, (b) use a
+`claim.spec.classRef` to a specific class, or (c) match on class labels using a
+`claim.spec.classSelector`.
+
+*Note: claims may also be used in [static
+provisioning](../concepts.md#dynamic-and-static-provisioning) with a reference
+to an existing managed resource.*
+
+In the `CloudsqlInstanceClass` above, we added the label `size: standard`, so
+our claim will be scheduled to that class using the label is specified in the
+`claim.spec.classSelector`. If there are multiple classes which match the
+specified label(s) one will be chosen at random.
 
 * Define a `MySQLInstance` claim in `mysql-claim.yaml`:
 
@@ -225,7 +232,7 @@ at random.
   spec:
     classSelector:
       matchLabels:
-        app: wordpress
+        size: standard
     engineVersion: "5.7"
     # A secret is exported by providing the secret name
     # to export it under. This is the name of the secret
@@ -234,12 +241,12 @@ at random.
       name: wordpressmysql
   EOF
 
-  kubectl -n app-project1-dev apply -f mysql-claim.yaml
+  kubectl apply -f mysql-claim.yaml
   ```
 
-What we are looking for is for the claim's `STATUS` value to become `Bound` which indicates
-the managed resource was successfully provisioned and is ready for consumption.
-You can see when claim is bound using the following:
+What we are looking for is for the claim's `STATUS` value to become `Bound`
+which indicates the managed resource was successfully provisioned and is ready
+for consumption. You can see when claim is bound using the following:
 
 *Command*
 ```bash
@@ -248,8 +255,8 @@ kubectl get mysqlinstances
 
 *Output*
 ```bash
-NAME          STATUS   CLASS            VERSION   AGE
-mysql-claim   Bound    mysql-standard   5.6       11m
+NAME          STATUS   CLASS-KIND         CLASS-NAME          RESOURCE-KIND      RESOURCE-NAME                                         AGE
+mysql-claim   Bound    mysql-standard     standard-cloudsql   CloudsqlInstance   mysqlinstance-6a7fe064-d888-11e9-ab90-42b6bb22213a    11m
 ```
 
 If the `STATUS` is blank, we are still waiting for the claim to become bound.
@@ -304,74 +311,6 @@ Events:                    <none>
 *Note: You must wait until the claim becomes bound before continuing with this
 guide. It could take a few minutes for GCP to complete CloudSQL creation.*
 
-#### Connecting MySQL Instance and GKE Cluster
-
-Before we install Wordpress, we need to establish connectivity between our MySQL
-database and our GKE cluster. We can do this by creating a [Private Service
-Connection](https://cloud.google.com/vpc/docs/configure-private-services-access).
-
-You can create it by following the instructions at the link above, or you could
-use Crossplane to do it:
-
-* Create a `GlobalAddress` and `Connection` resources:
-
-  ```bash
-  cat > network.yaml <<EOF
-  ---
-  # example-globaladdress defines the IP range that will be allocated for cloud services connecting
-  # to the instances in the given Network.
-  apiVersion: compute.gcp.crossplane.io/v1alpha2
-  kind: GlobalAddress
-  metadata:
-    name: example-globaladdress
-  spec:
-    providerRef:
-      name: gcp-provider
-      namespace: $INFRA_NAMESPACE
-    reclaimPolicy: Delete
-    name: example-globaladdress
-    purpose: VPC_PEERING
-    addressType: INTERNAL
-    prefixLength: 16
-    network: projects/$PROJECT_ID/global/networks/$NETWORK_NAME
-  ---
-  # example-connection is what allows cloud services to use the allocated GlobalAddress for communication. Behind
-  # the scenes, it creates a VPC peering to the network that those service instances actually live.
-  apiVersion: servicenetworking.gcp.crossplane.io/v1alpha2
-  kind: Connection
-  metadata:
-    name: example-connection
-  spec:
-    providerRef:
-      name: gcp-provider
-      namespace: $INFRA_NAMESPACE
-    reclaimPolicy: Delete
-    parent: services/servicenetworking.googleapis.com
-    network: projects/$PROJECT_ID/global/networks/$NETWORK_NAME
-    reservedPeeringRanges:
-      - example-globaladdress
-  EOF
-
-  kubectl apply -f network.yaml
-  ```
-
-* You can verify creation with the following command and output:
-
-  *Command*
-
-  ```bash
-  kubectl get connection example-connection -o custom-columns='NAME:.metadata.name,FIRST_CONDITION:.status.conditions[0].status,SECOND_CONDITION:.status.conditions[1].status'
-  ```
-
-  *Output*
-
-  ```bash
-  NAME                 FIRST_CONDITION   SECOND_CONDITION
-  example-connection   True              True
-  ```
-
-  Wait for both conditions to be true to continue.
-
 ## Install Wordpress
 
 Installing Wordpress requires creating a Kubernetes `Deployment` and load
@@ -382,8 +321,8 @@ the claim became `Bound`.
 
 > Binding status tells you whether your resource has been provisioned and ready
 to use. Crossplane binds the actual resource to the claim via changing the
-readiness condition to `Bound`. This happens only when the resource is ready
-to be consumed.
+readiness condition to `Bound`. This happens only when the resource is ready to
+be consumed.
 
 * Check to make sure `wordpressmysql` exists and is populated:
 
@@ -397,7 +336,9 @@ kubectl describe secret wordpressmysql
 Name:         wordpressmysql
 Namespace:    default
 Labels:       <none>
-Annotations:  <none>
+Annotations:  crossplane.io/propagate-from-name: c3aca763-f698-11e9-a957-12a4af141bea
+            crossplane.io/propagate-from-namespace: crossplane-system
+            crossplane.io/propagate-from-uid: c539fcef-f698-11e9-a957-12a4af141bea
 
 Type:  Opaque
 
@@ -492,19 +433,21 @@ becomes available, then navigate to the address. You should see the following:
 
 ## Clean Up
 
-Because we put all of our configuration in a single directory, we can delete it all with this command:
+Because we put all of our configuration in a single directory, we can delete it
+all with this command:
 
 ```bash
 kubectl delete -f wordpress/
 ```
 
-If you would like to also uninstall Crossplane and the AWS stack, run the following command:
+If you would like to also uninstall Crossplane and the AWS stack, run the
+following command:
 
 ```bash
 kubectl delete namespace crossplane-system
 ```
 
-## Conclusion
+## Conclusion and Next Steps
 
 We're done!
 
@@ -517,21 +460,17 @@ In this guide, we:
 * Connected our GKE cluster to our MySQL database.
 * Installed Wordpress to our GKE cluster.
 
-## Next Steps
-
 In this guide, we used an existing GKE cluster but actually Crossplane can
 provision a Kubernetes cluster from GCP just like it provisions a MySQL
 database.
 
-We deployed Wordpress using bare `Deployment` and `Service` resources
-but there is actually a Wordpress App stack that creates these resources
-for us!
+We deployed Wordpress using bare `Deployment` and `Service` resources but there
+is actually a Wordpress App stack that creates these resources for us!
 
 Check out the [stacks guides](../stacks-guide.md)!
 
 ## References
 
-* [gcloud CLI](https://cloud.google.com/sdk/docs/quickstarts)
 * [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 * [Crossplane Installation Guide](../install-crossplane.md#alpha)
 * [GCP Stack Installation](../install-crossplane.md#gcp-stack)

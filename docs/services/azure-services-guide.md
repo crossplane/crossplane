@@ -1,6 +1,10 @@
 ---
-title: Using Azure Services toc: true weight: 440 indent: true
+title: Using Azure Services
+toc: true
+weight: 440
+indent: true
 ---
+
 # Deploying Wordpress in Azure
 
 This user guide will walk you through Wordpress application deployment using
@@ -9,11 +13,18 @@ Crossplane managed resources and the official Wordpress Docker image.
 ## Table of Contents
 
 1. [Pre-requisites](#pre-requisites)
-2. [Preparation](#preparation)
-3. [Set Up Crossplane](#set-up-crossplane)
-4. [Install Wordpress](#install-wordpress)
-5. [Clean Up](#clean-up)
-6. [Conclusion and Next Steps](#conclusion-and-next-steps)
+1. [Preparation](#preparation)
+1. [Set Up Crossplane](#set-up-crossplane)
+    1. [Install in Target Cluster](#install-in-target-cluster)
+    1. [Cloud Provider](#cloud-provider)
+    1. [Resource Classes](#resource-classes)
+    1. [Configure Managed Service Access](#configure-managed-service-access)
+1. [Provision MySQL](#provision-mysql)
+   1. [Resource Claim](#resource-claim)
+   1. [Virtual Network Rule](#virtual-network-rule)
+1. [Install Wordpress](#install-wordpress)
+1. [Clean Up](#clean-up)
+1. [Conclusion and Next Steps](#conclusion-and-next-steps)
 
 ## Pre-requisites
 
@@ -32,9 +43,8 @@ local machine.
 
 This guide assumes that you have setup the Azure CLI and are logged in to your
 desired account. It also assumes that you have an existing AKS cluster in a
-Virtual Network with the `Microsoft.Sql` [service endpoint] enabled. Make sure
-to populate the environment variables below with the relevant values for your
-AKS cluster.
+Virtual Network. Make sure to populate the environment variables below with the
+relevant values for your AKS cluster.
 
 *Note: environment variables are used throughout this guide.*
 
@@ -45,24 +55,11 @@ export AKS_NAME=myAKSName
 export SUBSCRIPTION_ID=$(az account list | jq -j '.[0].id')
 ```
 
-### Connect to AKS Cluster
+## Set Up Crossplane
 
-You can connect to your AKS cluster with the following command:
+### Install in Target Cluster
 
-```bash
-az aks get-credentials --resource-group $AKS_RESOURCE_GROUP --name $AKS_NAME
-```
-
-Make sure `kubectl` is able to communicate with AKS cluster with the following
-command:
-
-```bash
-kubectl cluster-info
-```
-
-### Set Up Crossplane
-
-Using the newly provisioned cluster:
+Assuming you are [connected][aks-kubectl] to your AKS cluster via `kubectl`:
 
 1. Install Crossplane from alpha channel. (See the [Crossplane Installation
    Guide][crossplane-install] for more information.)
@@ -92,58 +89,13 @@ kubectl apply -f stack-azure.yaml
 3. Obtain Azure credentials. (See the [Cloud Provider Credentials][cloud-creds]
    docs for more information.)
 
-#### Azure Provider
+### Cloud Provider
 
-It is essential to make sure that the Azure Service Principal is configured with
-all permissions outlined in the [provider guide][azure-provider-guide].
+It is essential to make sure that the GCP user credentials are configured in
+Crossplane as a provider. Please follow the steps [provider
+guide][azure-provider-guide] for more information.
 
-Using Azure Service Principal `crossplane-azure-provider-key.json`:
-
-* Generate BASE64ENCODED_AZURE_PROVIDER_CREDS encoded value:
-
-```bash
-export BASE64ENCODED_AZURE_PROVIDER_CREDS=$(base64 crossplane-azure-provider-key.json | tr -d "\n")
-```
-
-* Define an Azure `Provider` and `Secret` in `azure-provider.yaml` and create
-  them:
-
-```yaml
-cat > azure-provider.yaml <<EOF
----
-# Azure Admin service account secret - used by Azure Provider
-apiVersion: v1
-kind: Secret
-metadata:
-  name: demo-provider-azure-dev
-  namespace: crossplane-system
-type: Opaque
-data:
-  credentials: $BASE64ENCODED_AZURE_PROVIDER_CREDS
----
-# Azure Provider with service account secret reference - used to provision resources
-apiVersion: azure.crossplane.io/v1alpha2
-kind: Provider
-metadata:
-  name: demo-azure
-spec:
-  credentialsSecretRef:
-    name: demo-provider-azure-dev
-    namespace: crossplane-system
-    key: credentials
-EOF
-
-kubectl apply -f azure-provider.yaml
-```
-
-* Verify Azure provider was successfully registered by the crossplane
-
-```bash
-kubectl get providers.azure.crossplane.io
-kubectl get secrets -n crossplane-system
-```
-
-####  Resource Classes
+###  Resource Classes
 
 To keep your resource configuration organized, start by creating a new
 directory:
@@ -167,7 +119,7 @@ kind: SQLServerClass
 metadata:
   name: azure-mysql-standard
   labels:
-    app: wordpress
+    size: standard
     demo: true
 specTemplate:
   adminLoginName: myadmin
@@ -200,7 +152,7 @@ kubectl apply -f azure-mysql-standard.yaml
 * You can verify creation with the following command and output:
 
 ```bash
-$ kubectl get sqlserverclasses -n azure-infra-dev
+$ kubectl get sqlserverclasses
 NAME                   PROVIDER-REF   RECLAIM-POLICY   AGE
 azure-mysql-standard   demo-azure     Delete           11s
 ```
@@ -209,18 +161,31 @@ You are free to create more Azure `SQLServerClass` instances to define more
 potential configurations. For instance, you may create `large-azure-mysql` with
 field `storageGB: 100`.
 
-#### Resource Claims
+### Configure Managed Service Access
 
-Resource claims are used to create external resources by being scheduled to a
-resource class and creating new managed resource or binding to an existing
-managed resource directly. This can be accomplished in a variety of ways
-including referencing the class or managed resource directly, providing labels
-that are used to match to a class, or by defaulting to a class that is annotated
-with `resourceclass.crossplane.io/is-default-class: "true"`. In the
-`SQLServerClass` above, we added the label `app: wordpress`, so our claim will
-be scheduled to that class the labels are specified in the `classSelector`. If
-there are multiple classes which match the specified label(s) one will be chosen
-at random.
+In order for the AKS cluster to talk to the MySQL Database, you must condigure a
+`Microsoft.Sql` service endpoint on the AKS Virtual Network. If you do not
+already have this configured, Azure has a [guide][service endpoint] on how to
+set it up.
+
+## Provision MySQL
+
+### Resource Claims
+
+Resource claims are used for dynamic provisioning of a managed resource (like a
+MySQL instance) by matching the claim to a resource class. This can be done in
+several ways: (a) rely on the default class marked
+`resourceclass.crossplane.io/is-default-class: "true"`, (b) use a
+`claim.spec.classRef` to a specific class, or (c) match on class labels using a
+`claim.spec.classSelector`.
+
+*Note: claims may also be used in [static provisioning] with a reference to an
+existing managed resource.*
+
+In the `SQLServerClass` above, we added the labels `size: standard` and `demo:
+true`, so our claim will be scheduled to that class using the labels are
+specified in the `claim.spec.classSelector`. If there are multiple classes which
+match the specified label(s) one will be chosen at random.
 
 * Define a `MySQLInstance` claim in `mysql-claim.yaml` and create it:
 
@@ -233,7 +198,7 @@ apiVersion: database.crossplane.io/v1alpha1
   spec:
     classSelector:
       matchLabels:
-        app: wordpress
+        size: standard
         demo: true
     engineVersion: "5.6"
     writeConnectionSecretToRef:
@@ -300,7 +265,7 @@ Events:                    <none>
 *Note: You must wait until the claim becomes bound before continuing with this
 guide. It could take a few minutes for Azure to complete MySQL creation.*
 
-#### Virtual Network Rule
+### Virtual Network Rule
 
 Before we install Wordpress, we need establish connectivity between our MySQL
 database and our AKS cluster. We can do this by creating a [Virtual Network
@@ -309,7 +274,7 @@ Rule][azure-vnet-rule].
 * Set `MYSQL_NAME` environment variable:
 
 ```bash
-export MYSQL_NAME=$(kubectl get -o json mysqlinstance mysql-claim -n app-project1-dev | jq -j '.spec.resourceRef.name')
+export MYSQL_NAME=$(kubectl get -o json mysqlinstance mysql-claim | jq -j '.spec.resourceRef.name')
 ```
 
 * Define a `MySQLServerVirtualNetworkRule` in `wordpress-vnet-rule.yaml` and
@@ -356,11 +321,13 @@ the claim became `Bound`.
 * Check to make sure `wordpressmysql` exists and is populated:
 
 ```bash
-$ kubectl describe secret wordpressmysql -n default
+$ kubectl describe secret wordpressmysql
 Name:         wordpressmysql
 Namespace:    default
 Labels:       <none>
-Annotations:  <none>
+Annotations:  crossplane.io/propagate-from-name: 6a7fe064-d888-11e9-ab90-42b6bb22213a
+            crossplane.io/propagate-from-namespace: crossplane-system
+            crossplane.io/propagate-from-uid: c539fcef-f698-11e9-a957-12a4af141bea
 
 Type:  Opaque
 
@@ -481,7 +448,7 @@ In this guide we:
 
 If you would like to try out a similar workflow using a different cloud
 provider, take a look at the other [services guides][services]. If you would
-like to learn more about stacks, checkout the [stacks guide][stacks]
+like to learn more about stacks, checkout the [stacks guide][stacks].
 
 <!-- Named links -->
 [azure-cli]: https://docs.microsoft.com/en-us/cli/azure/?view=azure-cli-latest
@@ -490,6 +457,7 @@ like to learn more about stacks, checkout the [stacks guide][stacks]
 [using-helm]: https://docs.helm.sh/using_helm/
 [jq-docs]: https://stedolan.github.io/jq/
 [service endpoint]: https://docs.microsoft.com/en-us/azure/virtual-network/virtual-network-service-endpoint-policies-overview
+[aks-kubectl]: https://docs.microsoft.com/en-us/azure/aks/kubernetes-walkthrough#connect-to-the-cluster
 
 [crossplane-install]: ../install-crossplane.md#alpha
 [azure-stack-install]: ../install-crossplane.md#azure-stack
@@ -499,6 +467,7 @@ like to learn more about stacks, checkout the [stacks guide][stacks]
 
 [azure-mysql]: https://azure.microsoft.com/en-us/services/mysql/
 [azure-vnet-rule]: https://docs.microsoft.com/en-us/azure/mysql/concepts-data-access-and-security-vnet
+[static provisioning]: ../concepts.md#dynamic-and-static-provisioning
 
 [services]: ../services-guide.md
 [stacks]: ../stacks-guide.md

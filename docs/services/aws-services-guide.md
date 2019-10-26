@@ -1,5 +1,8 @@
 ---
-title: Using AWS Services toc: true weight: 430 indent: true
+title: Using AWS Services
+toc: true
+weight: 430
+indent: true
 ---
 
 # Deploying Wordpress in Amazon Web Services (AWS)
@@ -11,7 +14,13 @@ Crossplane managed resources and the official Wordpress Docker image.
 
 1. [Pre-requisites](#pre-requisites)
 1. [Preparation](#preparation)
-1. [Create Configuration](#create-configuration)
+1. [Set Up Crossplane](#set-up-crossplane)
+    1. [Install in Target Cluster](#install-in-target-cluster)
+    1. [Cloud Provider](#cloud-provider)
+    1. [Configure Managed Service Access](#configure-managed-service-access)
+    1. [Resource Classes](#resource-classes)
+1. [Provision MySQL](#provision-mysql)
+   1. [Resource Claim](#resource-claim)
 1. [Install Wordpress](#install-wordpress)
 1. [Clean Up](#clean-up)
 1. [Conclusion and Next Steps](#conclusion-and-next-steps)
@@ -21,10 +30,8 @@ Crossplane managed resources and the official Wordpress Docker image.
 These tools are required to complete this guide. They must be installed on your
 local machine.
 
-* [AWS CLI][aws-cli-install]
 * [kubectl][install-kubectl]
 * [Helm][using-helm], minimum version `v2.10.0+`.
-* [jq][jq-docs] - command line JSON processor `v1.5+`
 
 ## Preparation
 
@@ -44,46 +51,18 @@ export SUBNET_TWO_ID=yourpublicsubnettwoid
 export SUBNET_THREE_ID=yourpublicsubnetthreeid
 ```
 
-#### Configuring `kubectl` to communicate with the EKS cluster
+## Set Up Crossplane
 
-In order to communicate with with your EKS cluster, you must configure
-`kubectl`.
-
-```bash
-# this environment variable tells kubectl what config file to use
-# its value is an arbitrary name, which will be used to name
-# the eks cluster configuration file
-export KUBECONFIG=~/.kube/eks-config
-
-# this command will populate the eks k8s config file
-aws eks update-kubeconfig \
-  --name  "${CLUSTER_NAME}"\
-  --region "${REGION}"\
-  --kubeconfig "${KUBECONFIG}"
-```
-
-The output will look like:
-
->```bash
->Added new context arn:aws:eks:eu-west-1:123456789012:cluster/crossplane-example-cluster to /path/to/.kube/eks-config
->```
-
-Now `kubectl` should be configured to talk to the EKS cluster. To verify this
-run:
+To keep your resource configuration organized, start by creating a new
+directory:
 
 ```bash
-kubectl cluster-info
+mkdir wordpress && cd $_
 ```
 
-Which should produce something like:
+### Install in Target Cluster
 
->```bash
->Kubernetes master is running at https://12E34567898A607F40B3C2FDDF42DC5.sk1.eu-west-1.eks.amazonaws.com
->```
-
-### Set Up Crossplane
-
-Using the EKS cluster:
+Assuming you are [connected][eks-kubectl] to your EKS cluster via `kubectl`:
 
 1. Install Crossplane from alpha channel. (See the [Crossplane Installation
    Guide][crossplane-install] for more information.)
@@ -118,24 +97,13 @@ kubectl apply -f stack-aws.yaml
 3. Obtain AWS credentials. (See the [Cloud Provider Credentials][cloud-creds]
    docs for more information.)
 
-### Create AWS Provider
+### Cloud Provider
 
 It is essential to make sure that the AWS user credentials are configured in
 Crossplane as a provider. Please follow the steps [provider
 guide][aws-provider-guide] for more information.
 
-## Create Configuration
-
-To keep your resource configuration organized, start by creating a new
-directory:
-
-```bash
-mkdir wordpress && cd $_
-```
-
-### RDS
-
-#### Network Resources
+### Configure Managed Service Access
 
 Before you setup an RDS instance, you will need to create a subnet group for it
 to be provisioned into, as well as a security group to determine how it can be
@@ -194,7 +162,7 @@ EOF
 kubectl apply -f aws-sg.yaml
 ```
 
-#### Resource Classes
+### Resource Classes
 
 Cloud-specific resource classes are used to define a reusable configuration for
 a specific managed resource. Wordpress requires a MySQL database, which can be
@@ -248,17 +216,24 @@ You are free to create more AWS `RDSInstanceClass` instances to define more
 potential configurations. For instance, you may create `large-aws-rds` with
 field `size: 100`.
 
-#### Resource Claims
+## Provision MySQL
 
-Resource claims are used to create external resources by being scheduled to a
-resource class and creating new managed resource or binding to an existing
-managed resource directly. This can be accomplished in a variety of ways
-including referencing the class or managed resource directly, providing labels
-that are used to match to a class, or by defaulting to a class that is annotated
-with `resourceclass.crossplane.io/is-default-class: "true"`. In the
-`RDSInstanceClass` above, we added the default annotation, so our claim will
-bind to it automatically if no other classes exist with annotation. If there are
-multiple classes annotated as default, one will be chosen at random.
+### Resource Claims
+
+Resource claims are used for dynamic provisioning of a managed resource (like a
+MySQL instance) by matching the claim to a resource class. This can be done in
+several ways: (a) rely on the default class marked
+`resourceclass.crossplane.io/is-default-class: "true"`, (b) use a
+`claim.spec.classRef` to a specific class, or (c) match on class labels using a
+`claim.spec.classSelector`.
+
+*Note: claims may also be used in [static provisioning] with a reference to an
+existing managed resource.*
+
+In the `RDSInstanceClass` above, we added the default annotation, so our claim
+will default to it automatically if no other classes exist with said annotation.
+If there are multiple classes annotated as default, one will be chosen at
+random.
 
 * Define a `MySQLInstance` claim in `mysql-claim.yaml` and create it:
 
@@ -284,7 +259,7 @@ consumption. You can see when claim is bound using the following:
 ```bash
 $ kubectl get mysqlinstances
 NAME          STATUS   CLASS-KIND         CLASS-NAME       RESOURCE-KIND   RESOURCE-NAME               AGE
-mysql-claim            RDSInstanceClass   standard-mysql   RDSInstance     default-mysql-claim-5p66w   9s
+mysql-claim   Bound    RDSInstanceClass   standard-mysql   RDSInstance     default-mysql-claim-5p66w   9s
 ```
 
 If the `STATUS` is blank, we are still waiting for the claim to become bound.
@@ -438,13 +413,15 @@ becomes available, then navigate to the address. You should see the following:
 
 ## Clean Up
 
-Because we put all of our configuration in a single directory, we can delete it all with this command:
+Because we put all of our configuration in a single directory, we can delete it
+all with this command:
 
 ```bash
 kubectl delete -f wordpress/
 ```
 
-If you would like to also uninstall Crossplane and the AWS stack, run the following command:
+If you would like to also uninstall Crossplane and the AWS stack, run the
+following command:
 
 ```bash
 kubectl delete namespace crossplane-system
@@ -454,13 +431,12 @@ kubectl delete namespace crossplane-system
 
 In this guide we:
 
-* Setup an EKS Cluster using the AWS CLI
 * Configured RDS to communicate with EKS
 * Installed Crossplane from the alpha channel
 * Installed the AWS stack
 * Setup an AWS `Provider` with our account
 * Created a `RDSInstanceClass` with configuration for an AWS RDS instance
-* Created a `MySQLInstance` claim that was scheduled to the `mysql-standard`
+* Created a `MySQLInstance` claim that was defaulted to the `mysql-standard`
   resource class
 * Created a `Deployment` and `Service` to run Wordpress on our EKS Cluster and
   assign an external IP address to it
@@ -470,11 +446,8 @@ provider, take a look at the other [services guides][services]. If you would
 like to learn more about stacks, checkout the [stacks guide][stacks].
 
 <!-- Named links -->
-[aws-cli-install]: https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html
-[aws-cli-configure]: https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html
 [install-kubectl]: https://kubernetes.io/docs/tasks/tools/install-kubectl/
 [using-helm]: https://docs.helm.sh/using_helm/
-[jq-docs]: https://stedolan.github.io/jq/
 [crossplane-install]: ../install-crossplane.md#alpha
 [cloud-creds]: ../cloud-providers.md
 [aws-provider-guide]: ../cloud-providers/aws/aws-provider.md
@@ -482,3 +455,5 @@ like to learn more about stacks, checkout the [stacks guide][stacks].
 [services]: ../services-guide.md
 [stacks]: ../stacks-guide.md
 [aws-stack-install]: ../install-crossplane.md#aws-stack
+[eks-kubectl]: https://docs.aws.amazon.com/eks/latest/userguide/create-kubeconfig.html
+[static provisioning]: ../concepts.md#dynamic-and-static-provisioning
