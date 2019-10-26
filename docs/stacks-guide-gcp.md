@@ -147,7 +147,7 @@ First, let's encode the credential file contents and put it in a variable:
 
 ```bash
 # base64 encode the GCP credentials
-BASE64ENCODED_GCP_PROVIDER_CREDS=$(base64 crossplane-gcp-provider-key.json | tr -d "\n")
+BASE64ENCODED_GCP_ACCOUNT_CREDS=$(base64 crossplane-gcp-provider-key.json | tr -d "\n")
 ```
 
 Now we’ll create the `Secret` resource that contains the credential, and
@@ -163,13 +163,14 @@ metadata:
   namespace: crossplane-system
 type: Opaque
 data:
-  credentials.json: ${BASE64ENCODED_GCP_ACCOUNT_CREDS}
+  credentials: ${BASE64ENCODED_GCP_ACCOUNT_CREDS}
 ---
 apiVersion: gcp.crossplane.io/v1alpha2
 kind: Provider
 metadata:
   name: gcp-provider
 spec:
+  # replace this with your own gcp project id
   projectID: my-cool-gcp-project
   credentialsSecretRef:
     namespace: crossplane-system
@@ -391,56 +392,57 @@ Below we inspect each of these resource classes in more details:
 - **`CloudsqlInstanceClass`** Represents a resource that serves as a template to
   create a [Cloud SQL Database Instance][gcp-cloudsql].
 
-```yaml
----
-apiVersion: database.gcp.crossplane.io/v1beta1
-kind: CloudsqlInstanceClass
-metadata:
-  name: standard-mysql
-  annotations:
-    resourceclass.crossplane.io/is-default-class: "true"
-specTemplate:
-  forProvider:
-    databaseVersion: MYSQL_5_7
-    region: us-central1
-    settings:
-      tier: db-n1-standard-1
-      dataDiskType: PD_SSD
-      dataDiskSizeGb: 10
-      ipConfiguration:
-        privateNetworkRef:
-          name: sample-network
-      reclaimPolicy: Delete
-  providerRef:
-    name: gcp-provider
-```
+  ```yaml
+  ---
+  apiVersion: database.gcp.crossplane.io/v1beta1
+  kind: CloudsqlInstanceClass
+  metadata:
+    name: standard-mysql
+    annotations:
+      resourceclass.crossplane.io/is-default-class: "true"
+  specTemplate:
+    writeConnectionSecretsToNamespace: crossplane-system
+    forProvider:
+      databaseVersion: MYSQL_5_7
+      region: us-central1
+      settings:
+        tier: db-n1-standard-1
+        dataDiskType: PD_SSD
+        dataDiskSizeGb: 10
+        ipConfiguration:
+          privateNetworkRef:
+            name: sample-network
+    reclaimPolicy: Delete
+    providerRef:
+      name: gcp-provider
+  ```
 
 - **`GKEClusterClass`** Represents a resource that serves as a template to
   create a [Kubernetes Engine][gcp-gke] (GKE).
 
-```yaml
----
-apiVersion: compute.gcp.crossplane.io/v1alpha2
-kind: GKEClusterClass
-metadata:
-  name: standard-cluster
-  annotations:
-    resourceclass.crossplane.io/is-default-class: "true"
-specTemplate:
-  machineType: n1-standard-1
-  numNodes: 1
-  zone: us-central1-b
-  networkRef:
-    name: sample-network
-  subnetworkRef:
-    name: sample-subnetwork
-  enableIPAlias: true
-  clusterSecondaryRangeName: pods
-  servicesSecondaryRangeName: services
-  reclaimPolicy: Delete
-  providerRef:
-    name: gcp-provider
-```
+  ```yaml
+  ---
+  apiVersion: compute.gcp.crossplane.io/v1alpha2
+  kind: GKEClusterClass
+  metadata:
+    name: standard-cluster
+    annotations:
+      resourceclass.crossplane.io/is-default-class: "true"
+  specTemplate:
+    machineType: n1-standard-1
+    numNodes: 1
+    zone: us-central1-b
+    networkRef:
+      name: sample-network
+    subnetworkRef:
+      name: sample-subnetwork
+    enableIPAlias: true
+    clusterSecondaryRangeName: pods
+    servicesSecondaryRangeName: services
+    reclaimPolicy: Delete
+    providerRef:
+      name: gcp-provider
+  ```
 
 These resources will be the default resource classes for the corresponding
 claims (`resourceclass.crossplane.io/is-default-class: "true"` annotation). For
