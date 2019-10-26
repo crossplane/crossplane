@@ -555,7 +555,7 @@ Below we inspect each of these resource classes in more details:
   specTemplate:
     writeConnectionSecretsToNamespace: crossplane-system
     class: db.t2.small
-    masterUsername: a-cool-masteruser
+    masterUsername: cool_user
     securityGroupIdRefs:
       - name: sample-rds-sg
     subnetGroupNameRef:
