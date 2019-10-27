@@ -6,6 +6,7 @@ metadata:
   annotations:
     resourceclass.crossplane.io/is-default-class: "true"
 specTemplate:
+  writeConnectionSecretsToNamespace: crossplane-system
   adminLoginName: my-cool-login
   resourceGroupNameRef:
     name: sample-rg
