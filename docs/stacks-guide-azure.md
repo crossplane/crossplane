@@ -122,7 +122,7 @@ a `crossplane-azure-provider-key.json` file that belongs to the account you’d
 like Crossplane to use.
 
 ```bash
-export BASE64ENCODED_AZURE_ACCOUNT_CREDS=$(base64 crossplane-azure-provider-key.json | tr -d "\n")
+BASE64ENCODED_AZURE_ACCOUNT_CREDS=$(base64 crossplane-azure-provider-key.json | tr -d "\n")
 ```
 
 Now we’ll create our `Secret` that contains the credential and `Provider`
@@ -359,6 +359,7 @@ Below we inspect each of these resource classes in more details:
     annotations:
       resourceclass.crossplane.io/is-default-class: "true"
   specTemplate:
+    writeConnectionSecretsToNamespace: crossplane-system
     adminLoginName: my-cool-login
     resourceGroupNameRef:
       name: sample-rg
@@ -430,7 +431,6 @@ apiVersion: database.azure.crossplane.io/v1alpha2
 kind: MysqlServerVirtualNetworkRule
 metadata:
   name: sample-vnet-rule
-  namespace: azure-infra-dev
 spec:
   name: my-cool-vnet-rule
   serverName: MYSQL_NAME
@@ -441,7 +441,7 @@ spec:
       name: sample-subnet
   reclaimPolicy: Delete
   providerRef:
-    name: demo-azure
+    name: azure-provider
 EOF
 
 cat > vnetwatch.sh <<'EOF'
@@ -451,7 +451,7 @@ set -e
 trap 'exit 1' SIGINT
 
 echo -n "waiting for mysql endpoint..." >&2
-while kubectl get mysqlservers -o yaml | grep -q  'items: \[\]'; do
+while kubectl get mysqlservers -o yaml | grep -q 'items: \[\]'; do
   echo -n "." >&2
   sleep 5
 done
