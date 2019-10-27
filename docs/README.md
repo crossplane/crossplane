@@ -75,7 +75,7 @@ to further isolate the blast radius of applications.
 Infra Stacks are pre-built and published to the [Stacks
 registry][stack-registry] where they can be installed by a Cluster Admin using a
 [`ClusterStackInstall`][stack-install-docs] Kubernetes API kind or with the
-[`stack install`][crossplane-cli-usage] command that installs a Stacks with
+[`stack install`][crossplane-cli-usage] command that installs a Stack with
 permissions to watch resources at a cluster level, across all namespaces.
 
 Infra Stacks are covered in both the [Crossplane Services
