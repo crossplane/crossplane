@@ -398,7 +398,7 @@ Below we inspect each of these resources in more details.
 
   ```yaml
   ---
-  apiVersion: database.aws.crossplane.io/v1alpha2
+  apiVersion: database.aws.crossplane.io/v1alpha3
   kind: DBSubnetGroup
   metadata:
     name: sample-dbsubnetgroup
@@ -546,22 +546,24 @@ Below we inspect each of these resource classes in more details:
 
   ```yaml
   ---
-  apiVersion: database.aws.crossplane.io/v1alpha2
+  apiVersion: database.aws.crossplane.io/v1beta1
   kind: RDSInstanceClass
   metadata:
     name: standard-mysql
     annotations:
       resourceclass.crossplane.io/is-default-class: "true"
   specTemplate:
+    forProvider:
+      dbInstanceClass: db.t2.small
+      masterUsername: cool_user
+      vpcSecurityGroupIDRefs:
+        - name: sample-rds-sg
+      dbSubnetGroupNameRef:
+        name: sample-dbsubnetgroup
+      allocatedStorage: 20
+      engine: mysql
+      skipFinalSnapshotBeforeDeletion: true
     writeConnectionSecretsToNamespace: crossplane-system
-    class: db.t2.small
-    masterUsername: cool_user
-    securityGroupIdRefs:
-      - name: sample-rds-sg
-    subnetGroupNameRef:
-      name: sample-dbsubnetgroup
-    size: 20
-    engine: mysql
     providerRef:
       name: aws-provider
     reclaimPolicy: Delete

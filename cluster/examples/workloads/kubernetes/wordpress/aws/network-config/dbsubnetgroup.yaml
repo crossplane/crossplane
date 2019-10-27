@@ -1,5 +1,5 @@
 ---
-apiVersion: database.aws.crossplane.io/v1alpha2
+apiVersion: database.aws.crossplane.io/v1alpha3
 kind: DBSubnetGroup
 metadata:
   name: sample-dbsubnetgroup
