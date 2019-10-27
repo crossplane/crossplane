@@ -1,5 +1,5 @@
 ---
-apiVersion: database.aws.crossplane.io/v1alpha2
+apiVersion: database.aws.crossplane.io/v1beta1
 kind: RDSInstanceClass
 metadata:
   name: standard-mysql
@@ -7,14 +7,16 @@ metadata:
     resourceclass.crossplane.io/is-default-class: "true"
 specTemplate:
   writeConnectionSecretsToNamespace: crossplane-system
-  class: db.t2.small
-  masterUsername: cool_user
-  securityGroupIdRefs:
-    - name: sample-rds-sg
-  subnetGroupNameRef:
-    name: sample-dbsubnetgroup
-  size: 20
-  engine: mysql
   providerRef:
     name: aws-provider
   reclaimPolicy: Delete
+  forProvider:
+    dbInstanceClass: db.t2.small
+    masterUsername: cool_user
+    vpcSecurityGroupIDRefs:
+      - name: sample-rds-sg
+    dbsubnetGroupNameRef:
+      name: sample-dbsubnetgroup
+    allocatedStorage: 20
+    engine: mysql
+    skipFinalSnapshotBeforeDeletion: true
