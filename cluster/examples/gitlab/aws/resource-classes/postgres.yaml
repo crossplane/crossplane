@@ -1,7 +1,7 @@
 ---
 # ResourceClass that defines the blueprint for how a "standard" RDS instance
 # should be dynamically provisioned
-apiVersion: database.aws.crossplane.io/v1alpha2
+apiVersion: database.aws.crossplane.io/v1beta1
 kind: RDSInstanceClass
 metadata:
   name: standard-aws-postgres
@@ -10,12 +10,14 @@ metadata:
   labels:
     example: "true"
 specTemplate:
+  forProvider:
+    dbInstanceClass: db.t2.small
+    masterUsername: masteruser
+    dbSubnetGroupName: RDS_SUBNET_GROUP_NAME
+    allocatedStorage: 20
+    engine: postgres
+    skipFinalSnapshotBeforeDeletion: true
   writeConnectionSecretsToNamespace: crossplane-system
-  class: db.t2.small
-  masterUsername: masteruser
-  subnetGroupName: RDS_SUBNET_GROUP_NAME
-  size: 20
-  engine: postgres
   providerRef:
     name: example
   reclaimPolicy: Delete

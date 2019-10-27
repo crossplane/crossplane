@@ -12,23 +12,25 @@ spec:
     namespace: crossplane-system
     name: demo-bucket-connection
 ---
-apiVersion: database.aws.crossplane.io/v1alpha2
+apiVersion: database.aws.crossplane.io/v1beta1
 kind: RDSInstance
 metadata:
   name: demo-database-connection
 spec:
-  class: db.t2.small
+  dbInstanceClass: db.t2.small
   engine: mysql
   masterUsername: masteruser
+#  vpcSecurityGroupIds:
+#    - vpc-default-sg - default security group for your VPC
+#    - vpc-rds-sg - security group to allow RDS connection
+  allocatedStorage: 20
+  skipFinalSnapshotBeforeDeletion: true
   providerRef:
     name: example
   writeConnectionSecretToRef:
     namespace: crossplane-system
     name: demo-rds
-  securityGroups:
-#  - vpc-default-sg - default security group for your VPC
-#  - vpc-rds-sg - security group to allow RDS connection
-  size: 20
+  reclaimPolicy: Delete
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment

@@ -474,19 +474,20 @@ satisfied by an [AWS RDS][aws-rds] instance.
 ```yaml
 cat > aws-mysql-standard.yaml <<EOF
 ---
-apiVersion: database.aws.crossplane.io/v1alpha2
+apiVersion: database.aws.crossplane.io/v1beta1
 kind: RDSInstanceClass
 metadata:
   name: aws-mysql-standard
-  namespace: aws-infra-dev
 specTemplate:
-  class: db.t2.small
-  masterUsername: masteruser
-  securityGroups:
-    - "${RDS_SECURITY_GROUP_ID}"
-  subnetGroupName: "${RDS_SG_NAME}"
-  size: 20
-  engine: mysql
+  forProvider:
+    dbInstanceClass: db.t2.small
+    masterUsername: masteruser
+    vpcSecurityGroupIds:
+      - "${RDS_SECURITY_GROUP_ID}"
+    dbSubnetGroupName: "${RDS_SG_NAME}"
+    allocatedStorage: 20
+    engine: mysql
+    skipFinalSnapshotBeforeDeletion: true
   providerRef:
     name: aws-provider
     namespace: crossplane-system
@@ -561,9 +562,8 @@ our Wordpress resources will live in.
     namespace: app-project1-dev
   classRef:
     kind: RDSInstanceClass
-    apiVersion: database.aws.crossplane.io/v1alpha2
+    apiVersion: database.aws.crossplane.io/v1beta1
     name: aws-mysql-standard
-    namespace: aws-infra-dev
   EOF
 
   kubectl apply -f mysql-standard.yaml
@@ -605,9 +605,8 @@ metadata:
     default: "true"
 classRef:
   kind: RDSInstanceClass
-  apiVersion: database.aws.crossplane.io/v1alpha2
+  apiVersion: database.aws.crossplane.io/v1beta1
   name: aws-mysql-standard
-  namespace: aws-infra-dev
 ```
 
 #### Resource Claims
@@ -673,10 +672,9 @@ Spec:
     Name:          mysql-standard
   Engine Version:  5.6
   Resource Ref:
-    API Version:  database.aws.crossplane.io/v1alpha2
-    Kind:         MySQLServer
-    Name:         mysqlinstance-6a7fe064-d888-11e9-ab90-42b6bb22213a
-    Namespace:    aws-infra-dev
+    API Version:  database.aws.crossplane.io/v1beta1
+    Kind:         RDSInstance
+    Name:         app-project1-dev-mysql-claim-8shd2
   Write Connection Secret To Ref:
     Name:  wordpressmysql
 Status:

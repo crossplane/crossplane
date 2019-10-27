@@ -262,19 +262,19 @@ Based on your cloud provider, add a **cloud-specific** `Resource Class` to your 
 rds-mysql-standard.yaml
 ```yaml
 ---
-apiVersion: database.aws.crossplane.io/v1alpha2
+apiVersion: database.aws.crossplane.io/v1beta1
 kind: RDSInstanceClass
 metadata:
   name: rds-mysql-standard
-  namespace: aws-infra-dev
 specTemplate:
-  class: db.t2.small
-  masterUsername: masteruser
-  securityGroups:
-   - # sg-ab1cdefg
-   - # sg-05adsfkaj1ksdjak
-  size: 20
-  engine: mysql
+  forProvider:
+    dbInstanceClass: db.t2.small
+    masterUsername: masteruser
+#   vpcSecurityGroupIds:
+#    - sg-ab1cdefg
+#    - sg-05adsfkaj1ksdjak
+    allocatedStorage: 20
+    engine: mysql
   providerRef:
     name: demo
     namespace: aws-infra-dev
@@ -412,7 +412,6 @@ classRef:
   kind: RDSInstanceClass
   apiVersion: database.aws.crossplane.io/v1beta1
   name: rds-mysql-standard
-  namespace: aws-infra-dev
 ```
 
 mysql-replicated.yaml
@@ -426,7 +425,6 @@ classRef:
   kind: RDSInstanceClass
   apiVersion: database.aws.crossplane.io/v1beta1
   name: rds-mysql-replicated
-  namespace: aws-infra-dev
 ```
 
 postgres-standard.yaml
@@ -442,7 +440,6 @@ classRef:
   kind: RDSInstanceClass
   apiVersion: database.aws.crossplane.io/v1beta1
   name: rds-postgres-standard
-  namespace: aws-infra-prod
 ```
 
 postgres-ha.yaml
@@ -456,7 +453,6 @@ classRef:
   kind: RDSInstanceClass
   apiVersion: database.aws.crossplane.io/v1beta1
   name: rds-postgres-ha
-  namespace: aws-infra-prod
 ```
 
 Note that some portable `Resource Classes` are marked with 
