@@ -1,5 +1,8 @@
 ---
-title: "Stacks Guide: Rook" toc: true weight: 550 indent: true
+title: "Stacks Guide: Rook"
+toc: true
+weight: 550
+indent: true
 ---
 
 # Stacks Guide: Rook
@@ -22,28 +25,23 @@ cluster. To do so, we will broadly:
 ## Table of Contents
 
 1. [Pre-requisites](#pre-requisites)
-2. [Preparation](#preparation)
-3. [Set Up Resource Classes](#set-up-resource-classes)
-4. [Provision GKE Cluster and Install Rook Yugabyte
-   Operator](#provision-gke-cluster-and-install-rook-yugabyte-operator)
-5. [Deploy Yugastore alongside
-   YugabyteDB](#deploy-yugastore-alongside-yugabytedb)
-6. [Cleanup](#cleanup)
-7. [Conclusion and Next Steps](#conclusion-and-next-steps)
-
-1. [Pre-requisites](#pre-requisites)
 1. [Preparation](#preparation)
 1. [Set Up Crossplane](#set-up-crossplane)
-    1. [Install in Standalone Control Cluster](#install-in-standalone-control-cluster)
+    1. [Install in Standalone Control
+       Cluster](#install-in-standalone-control-cluster)
     1. [GCP Provider](#gcp-provider)
     1. [Rook Provider](#rook-provider)
     1. [Resource Classes](#resource-classes)
 1. [Provision Target Cluster](#provision-target-cluster)
-    1. [Provision GKE Cluster with a Resource Claim](#provision-gke-cluster-with-a-resource-claim)
-    1. [Install Rook Yugabyte Operator with a `KubernetesApplication`](#install-rook-yugabyte-operatore-with-a-kubernetesapplication)
+    1. [Provision GKE Cluster with a Resource
+       Claim](#provision-gke-cluster-with-a-resource-claim)
+    1. [Install Rook Yugabyte Operator with a
+       KubernetesApplication](#install-rook-yugabyte-operator-with-a-kubernetesapplication)
 1. [Deploy Yugastore into Target Cluster](#deploy-yugastore-into-target-cluster)
-    1. [Provision YugabyteDB with a Resource Claim](#provision-yugabytedb-with-a-resource-claim)
-    1. [Provision Yugastore with a `KubernetesApplication`](#provision-yugastore-with-a-kubernetesapplication)
+    1. [Provision YugabyteDB with a Resource
+       Claim](#provision-yugabytedb-with-a-resource-claim)
+    1. [Provision Yugastore with a
+       KubernetesApplication](#provision-yugastore-with-a-kubernetesapplication)
 1. [Results](#results)
 1. [Cleanup](#cleanup)
 1. [Conclusion and Next Steps](#conclusion-and-next-steps)
@@ -64,8 +62,8 @@ This guide assumes that you have an existing Kubernetes cluster, which will
 serve as the Crossplane control cluster. Good options for running local
 Kubernetes clusters include [KIND] and [Minikube].
 
-In order to utilize GCP services, we must set the `PROJECT_ID` of the GCP project we
-want to use. Run the following:
+In order to utilize GCP services, we must set the `PROJECT_ID` of the GCP
+project we want to use. Run the following:
 ```bash
 export PROJECT_ID=crossplane-playground # the project that all resources reside.
 ```
@@ -394,7 +392,7 @@ referenced, so once the secret is propagated, the Rook stack will be able to use
 it to provision a `YugabyteCluster`. However, before we get to that, we need to
 deploy the Rook Yugabyte operator into the Kubernetes cluster.
 
-### Install Rook Yugabyte Operator with a `KubernetesApplication`
+### Install Rook Yugabyte Operator with a KubernetesApplication
 
 While this is quite a large set of configuration, all it is doing is taking the
 Rook Yugabyte [operator YAML] and packaging it into a Crossplane
@@ -624,8 +622,8 @@ of recreating it for us!
 
 ### Provision YugabyteDB with a Resource Claim
 
-Now that we have a GKE cluster up and running with the Rook Yugabyte operator installed, we can create our YugabyteDB
-cluster.
+Now that we have a GKE cluster up and running with the Rook Yugabyte operator
+installed, we can create our YugabyteDB cluster.
 
 ```bash
 cat > yugabyteclaim.yaml <<EOF
@@ -672,10 +670,11 @@ NAME                               AGE
 yugastore-app-yugastore-db-t9xmf   12m
 ```
 
-### Provision Yugastore with a `KubernetesApplication`
+### Provision Yugastore with a KubernetesApplication
 
-Now that we have a GKE cluster up and running with the Rook Yugabyte operator installed, we can create our YugabyteDB
-cluster and install Yugastore alongside it.
+Now that we have a GKE cluster up and running with the Rook Yugabyte operator
+installed, we can create our YugabyteDB cluster and install Yugastore alongside
+it.
 
 ```bash
 cat > yugastore.yaml <<EOF
