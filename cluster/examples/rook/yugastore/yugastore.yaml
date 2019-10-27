@@ -1,0 +1,90 @@
+apiVersion: workload.crossplane.io/v1alpha1
+kind: KubernetesApplication
+metadata:
+  name: yugastore
+  namespace: yugastore-app
+  labels:
+    app: yugastore
+spec:
+  resourceSelector:
+    matchLabels:
+      app: yugastore
+  clusterSelector:
+    matchLabels:
+      app: yugastore
+  resourceTemplates:
+  - metadata:
+      name: yugastore-namespace
+      labels:
+        app: yugastore
+    spec:
+      template:
+        apiVersion: v1
+        kind: Namespace
+        metadata:
+          name: rook-yugastore
+          labels:
+            app: yugastore
+  - metadata:
+      name: yugastore-deployment
+      labels:
+        app: yugastore
+    spec:
+      template:
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          namespace: rook-yugastore
+          name: yugastore
+          labels:
+            app: yugastore
+        spec:
+          selector:
+            matchLabels:
+              app: yugastore
+          template:
+            metadata:
+              labels:
+                app: yugastore
+            spec:
+              containers:
+                - name: yugastore
+                  image: gcr.io/crossplane-playground/yugastore:latest
+                  imagePullPolicy: Always
+                  command: ["/usr/local/yugastore/bin/start-for-crossplane.sh"]
+                  env:
+                  - name: DB_HOST
+                    value: "yb-tserver-hello-ybdb-cluster-1.yb-tservers-hello-ybdb-cluster.rook-yugabytedb.svc.cluster.local"
+                  - name: APP_HOST
+                    value: "localhost"
+                  - name: APP_PORT
+                    value: "3001"
+                  ports:
+                    - containerPort: 3001
+                      name: yugastore
+                  livenessProbe:
+                    exec:
+                      command:
+                      - cat
+                      - healthy
+                    initialDelaySeconds: 5
+                    periodSeconds: 5
+  - metadata:
+      name: yugastore-service
+      labels:
+        app: yugastore
+    spec:
+      template:
+        apiVersion: v1
+        kind: Service
+        metadata:
+          namespace: rook-yugastore
+          name: yugastore
+          labels:
+            app: yugastore
+        spec:
+          ports:
+            - port: 3001
+          selector:
+            app: yugastore
+          type: LoadBalancer

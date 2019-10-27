@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: yugastore-app
+  labels:
+    app: yugastore
+---
+apiVersion: kubernetes.crossplane.io/v1alpha1
+kind: Provider
+metadata:
+  name: yugastore-k8s-provider
+  labels:
+    app: yugastore
+spec:
+  credentialsSecretRef:
+    name: yugastore-k8s-secret
+    namespace: yugastore-app
+---
+apiVersion: compute.crossplane.io/v1alpha1
+kind: KubernetesCluster
+metadata:
+  name: yugastore-k8s
+  namespace: yugastore-app
+  labels:
+    app: yugastore
+spec:
+  classSelector:
+    matchLabels:
+      app: yugastore
+  writeConnectionSecretToRef:
+    name: yugastore-k8s-secret

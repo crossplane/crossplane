@@ -134,6 +134,31 @@ Then you can install the Azure stack into Crossplane in the `azure` namespace wi
 kubectl apply -f stack-azure.yaml
 ```
 
+### Rook Stack
+
+To get started with Rook, create a file named `stack-rook.yaml` with the following content:
+
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rook
+---
+apiVersion: stacks.crossplane.io/v1alpha1
+kind: ClusterStackInstall
+metadata:
+  name: stack-rook
+  namespace: rook
+spec:
+  package: "crossplane/stack-rook:master"
+```
+
+Then you can install the Rook stack into Crossplane in the `rook` namespace with the following command:
+
+```console
+kubectl apply -f stack-rook.yaml
+```
+
 ### Uninstalling Cloud Provider Stacks
 
 The cloud provider stacks can be uninstalled simply by deleting the stack resources from the cluster with a command similar to what's shown below.
@@ -158,6 +183,12 @@ kubectl delete -f stack-aws.yaml
 
 ```console
 kubectl delete -f stack-azure.yaml
+```
+
+#### Uninstalling Rook
+
+```console
+kubectl delete -f stack-rook.yaml
 ```
 
 ## Uninstalling the Chart
