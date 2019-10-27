@@ -410,7 +410,7 @@ metadata:
     default: true
 classRef:
   kind: RDSInstanceClass
-  apiVersion: database.aws.crossplane.io/v1alpha1
+  apiVersion: database.aws.crossplane.io/v1beta1
   name: rds-mysql-standard
   namespace: aws-infra-dev
 ```
@@ -424,7 +424,7 @@ metadata:
   namespace: app-project1-dev
 classRef:
   kind: RDSInstanceClass
-  apiVersion: database.aws.crossplane.io/v1alpha1
+  apiVersion: database.aws.crossplane.io/v1beta1
   name: rds-mysql-replicated
   namespace: aws-infra-dev
 ```
@@ -440,7 +440,7 @@ metadata:
     default: true
 classRef:
   kind: RDSInstanceClass
-  apiVersion: database.aws.crossplane.io/v1alpha1
+  apiVersion: database.aws.crossplane.io/v1beta1
   name: rds-postgres-standard
   namespace: aws-infra-prod
 ```
@@ -454,7 +454,7 @@ metadata:
   namespace: app-project1-dev
 classRef:
   kind: RDSInstanceClass
-  apiVersion: database.aws.crossplane.io/v1alpha1
+  apiVersion: database.aws.crossplane.io/v1beta1
   name: rds-postgres-ha
   namespace: aws-infra-prod
 ```

@@ -1,19 +1,21 @@
 ---
-apiVersion: database.aws.crossplane.io/v1alpha2
+apiVersion: database.aws.crossplane.io/v1beta1
 kind: RDSInstanceClass
 metadata:
   name: rdsmysql
   labels:
     example: "true"
 specTemplate:
+  forProvider:
+    dbInstanceClass: db.t2.small
+    masterUsername: masteruser
+#    vpcSecurityGroupIds:
+#      - sg-ab1cdefg
+#      - sg-05adsfkaj1ksdjak
+    allocatedStorage: 20
+    engine: mysql
+    skipFinalSnapshotBeforeDeletion: true
   writeConnectionSecretsToNamespace: crossplane-system
-  class: db.t2.small
-  masterUsername: masteruser
-  securityGroups:
-   - # sg-ab1cdefg
-   - # sg-05adsfkaj1ksdjak
-  size: 20
-  engine: mysql
   providerRef:
     name: example
   reclaimPolicy: Delete
