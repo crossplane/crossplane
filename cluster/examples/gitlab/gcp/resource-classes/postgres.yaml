@@ -1,7 +1,7 @@
 # ResourceClass that defines the blueprint for how a "standard" CloudSQL instance
 # should be dynamically provisioned
 apiVersion: database.gcp.crossplane.io/v1beta1
-kind: CloudsqlInstanceClass
+kind: CloudSQLInstanceClass
 metadata:
   name: standard-gcp-postgres
   annotations:

@@ -421,7 +421,7 @@ Spec:
   Engine Version:  5.6
   Resource Ref:
     API Version:  database.azure.crossplane.io/v1alpha2
-    Kind:         MysqlServer
+    Kind:         MySQLServer
     Name:         mysqlinstance-6a7fe064-d888-11e9-ab90-42b6bb22213a
     Namespace:    azure-infra-dev
   Write Connection Secret To Ref:
@@ -471,14 +471,14 @@ Rule][azure-vnet-rule].
 export MYSQL_NAME=$(kubectl get -o json mysqlinstance mysql-claim -n app-project1-dev | jq -j '.spec.resourceRef.name')
 ```
 
-* Define a `MysqlServerVirtualNetworkRule` in `wordpress-vnet-rule.yaml` and
+* Define a `MySQLServerVirtualNetworkRule` in `wordpress-vnet-rule.yaml` and
   create it:
 
 ```yaml
 cat > wordpress-vnet-rule.yaml <<EOF
 ---
 apiVersion: database.azure.crossplane.io/v1alpha2
-kind: MysqlServerVirtualNetworkRule
+kind: MySQLServerVirtualNetworkRule
 metadata:
   name: wordpress-vnet-rule
   namespace: app-project1-dev
@@ -649,7 +649,7 @@ In this guide we:
   `mysql-standard` in the `app-project1-dev` namespace
 * Created a `MySQLInstance` claim in the `app-project1-dev1` namespace that
   referenced `mysql-standard`
-* Created a `MysqlServerVirtualNetworkRule` to establish secure connectivity
+* Created a `MySQLServerVirtualNetworkRule` to establish secure connectivity
   between our AKS Cluster and MySQL database
 * Created a `Deployment` and `Service` to run Wordpress on our AKS Cluster and
   assign an external IP address to it

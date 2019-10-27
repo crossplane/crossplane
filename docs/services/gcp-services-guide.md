@@ -174,13 +174,13 @@ Cloud-specific resource classes are used to define a reusable configuration for
 a specific managed service. Wordpress requires a MySQL database, which can be
 satisfied by a [Google Cloud SQL Instance](https://cloud.google.com/sql/docs/mysql/).
 
-* Define a GCP CloudSQL class `CloudsqlInstanceClass`:
+* Define a GCP CloudSQL class `CloudSQLInstanceClass`:
 
 ```bash
 cat > gcp-mysql-standard.yaml <<EOF
 ---
 apiVersion: database.gcp.crossplane.io/v1beta1
-kind: CloudsqlInstanceClass
+kind: CloudSQLInstanceClass
 metadata:
   name: standard-cloudsql
 specTemplate:
@@ -216,7 +216,7 @@ NAME                   PROVIDER-REF   RECLAIM-POLICY   AGE
 standard-cloudsql      gcp-provider   Delete           11s
 ```
 
-You are free to create more GCP `CloudsqlInstanceClass` instances to define more
+You are free to create more GCP `CloudSQLInstanceClass` instances to define more
 potential configurations. For instance, you may create `large-gcp-mysql` with
 field `storageGB: 100`.
 
@@ -235,7 +235,7 @@ kubectl create namespace app-project1-dev
 
 Portable resource classes are used to define a class of service in a single
 namespace for an abstract service type. We want to define our GCP
-`CloudsqlInstanceClass` as the standard MySQL class of service in the namespace
+`CloudSQLInstanceClass` as the standard MySQL class of service in the namespace
 that our Wordpress resources will live in.
 
 * Define a `MySQLInstanceClass` in `mysql-standard.yaml` for namespace `app-project1-dev`:
@@ -248,7 +248,7 @@ that our Wordpress resources will live in.
   metadata:
     name: mysql-standard
   classRef:
-    kind: CloudsqlInstanceClass
+    kind: CloudSQLInstanceClass
     apiVersion: database.gcp.crossplane.io/v1beta1
     name: standard-cloudsql
     namespace: $INFRA_NAMESPACE
@@ -282,7 +282,7 @@ in the `app-project1-dev` namespace.
 > Portable classes are the resource classes that are not cloud specific and
 their purpose is to refer to cloud specific resource classes that will be
 used for provisioning. For example, MySQLInstanceClass is a portable class
-that can refer to CloudsqlInstanceClass (GCP) or RDSInstanceClass (AWS).
+that can refer to CloudSQLInstanceClass (GCP) or RDSInstanceClass (AWS).
 
 You may specify *one* instance of a portable class kind as *default* in each
 namespace. This means that the portable resource class instance will be applied
@@ -374,7 +374,7 @@ Spec:
   Engine Version:  5.6
   Resource Ref:
     API Version:  database.gcp.crossplane.io/v1beta1
-    Kind:         CloudsqlInstance
+    Kind:         CloudSQLInstance
     Name:         mysqlinstance-6a7fe064-d888-11e9-ab90-42b6bb22213a
     Namespace:    gcp-infra-dev
   Write Connection Secret To Ref:

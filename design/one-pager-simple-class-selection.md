@@ -279,7 +279,7 @@ Upon the creation of a `PostgreSQLInstance` without a `classRef` or
 1. Every class scheduler watching for `PostgreSQLInstance` claims has a
    reconcile queued. This example discusses the `(PostgreSQLInstance,
    CloudSQLInstanceClass)` scheduler , but `(PostgreSQLInstance,
-   RDSInstanceClass)` and `(PostgreSQLInstance, MysqlServerClass)` schedulers
+   RDSInstanceClass)` and `(PostgreSQLInstance, MySQLServerClass)` schedulers
    would run through the process in parallel.
 1. The scheduler lists all `CloudSQLInstanceClass` resources that matched the
    `PostgresSQLInstance` claim's label selectors.

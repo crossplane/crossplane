@@ -97,13 +97,13 @@ GCP provides MySQL databases using [CloudSQL] instances. Crossplane uses a
 resource and claim pattern to provision and manage cloud resources like CloudSQL
 instances - if you've ever used [persistent volumes in Kubernetes] you've seen
 this pattern before. The simplest way to start using a new MySQL instance on GCP
-is to provision a `CloudsqlInstance`, then claim it via a `MySQLInstance`. We
+is to provision a `CloudSQLInstance`, then claim it via a `MySQLInstance`. We
 call this process _static provisioning_.
 
 
 ```yaml
 apiVersion: database.gcp.crossplane.io/v1beta1
-kind: CloudsqlInstance
+kind: CloudSQLInstance
 metadata:
   name: example-cloudsql-instance
 spec:
@@ -130,7 +130,7 @@ apply it:
 kubectl apply -f cloudsql.yaml
 ```
 
-Crossplane is now creating the `CloudsqlInstance`! Before we can use it, we need
+Crossplane is now creating the `CloudSQLInstance`! Before we can use it, we need
 to claim it.
 
 ```yaml
@@ -141,7 +141,7 @@ metadata:
 spec:
   resourceRef:
     apiVersion: database.gcp.crossplane.io/v1beta1
-    kind: CloudsqlInstance
+    kind: CloudSQLInstance
     name: example-cloudsql-instance
   writeConnectionSecretToRef:
     name: example-mysql-connection-details
@@ -153,7 +153,7 @@ Save the above as `mysql.yaml`, and once again apply it:
 kubectl --namespace default apply -f mysql.yaml
 ```
 
-In Crossplane cloud provider specific resources like the `CloudsqlInstance` we
+In Crossplane cloud provider specific resources like the `CloudSQLInstance` we
 created above are called _managed resources_. They're considered infrastructure,
 like a Kubernetes `Node` or `PersistentVolume`. Managed resources exist at the
 cluster scope (they're not namespaced) and let you specify nitty-gritty provider
@@ -173,7 +173,7 @@ use!
 ```bash
 $ kubectl --namespace default get mysqlinstance example-mysql-claim
 NAME                  STATUS   CLASS-KIND   CLASS-NAME   RESOURCE-KIND      RESOURCE-NAME               AGE
-example-mysql-claim   Bound                              CloudsqlInstance   example-cloudsql-instance   4m
+example-mysql-claim   Bound                              CloudSQLInstance   example-cloudsql-instance   4m
 ```
 
 You'll find all the details you need to connect to your new MySQL instance saved
@@ -202,7 +202,7 @@ serverCACertificateCert:              1272 bytes
 ```
 
 That's all there is to static provisioning with Crossplane! We've created a
-`CloudsqlInstance` as cluster scoped infrastructure, then claimed it as a
+`CloudSQLInstance` as cluster scoped infrastructure, then claimed it as a
 `MySQLInstance`. You can use `kubectl describe` to view the detailed
 configuration and status of your `CloudSqlInstance`.
 
@@ -211,7 +211,7 @@ $ kubectl describe example-cloudsql-instance
 Name:         example-cloudsql-instance
 Annotations:  crossplane.io/external-name: example-cloudsql-instance
 API Version:  database.gcp.crossplane.io/v1beta1
-Kind:         CloudsqlInstance
+Kind:         CloudSQLInstance
 Spec:
   For Provider:
     Database Version:  MYSQL_5_6
@@ -281,7 +281,7 @@ the same settings as the `CloudSqlInstance` we provisioned earlier in the guide:
 
 ```yaml
 apiVersion: database.gcp.crossplane.io/v1beta1
-kind: CloudsqlInstanceClass
+kind: CloudSQLInstanceClass
 metadata:
   name: example-cloudsql-class
   annotations:
@@ -335,11 +335,11 @@ mysqlinstance.database.crossplane.io/example-mysql-dynamic-claim created
 
 $ kubectl get mysqlinstance example-mysql-dynamic-claim
 NAME                          STATUS   CLASS-KIND              CLASS-NAME               RESOURCE-KIND      RESOURCE-NAME                               AGE
-example-mysql-dynamic-claim            CloudsqlInstanceClass   example-cloudsql-class   CloudsqlInstance   default-example-mysql-dynamic-claim-bwpzd   47s
+example-mysql-dynamic-claim            CloudSQLInstanceClass   example-cloudsql-class   CloudSQLInstance   default-example-mysql-dynamic-claim-bwpzd   47s
 ```
 
-You just dynamically provisioned a `CloudsqlInstance`! You can find the name of
-your new `CloudsqlInstance` under the `RESOURCE-NAME` column when you run
+You just dynamically provisioned a `CloudSQLInstance`! You can find the name of
+your new `CloudSQLInstance` under the `RESOURCE-NAME` column when you run
 `kubectl describe mysqlinstance`. Reuse the resource class as many times as you
 like; simply submit more `MySQLInstance` resource claims to create more CloudSQL
 instances.

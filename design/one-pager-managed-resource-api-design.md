@@ -74,7 +74,7 @@ of the managed resource and Kubernetes will automatically append `-<5 characters
 is completed. For example, the following will be created by the claim controller:
 ```yaml
 apiVersion: database.gcp.crossplane.io/v1alpha2
-kind: CloudsqlInstance
+kind: CloudSQLInstance
 metadata:
   generateName: myappnamespace-mydatabase-
   namespace: gcp
@@ -82,7 +82,7 @@ metadata:
 After Kubernetes API server completes the creation, we'll see something like the following:
 ```yaml
 apiVersion: database.gcp.crossplane.io/v1alpha2
-kind: CloudsqlInstance
+kind: CloudSQLInstance
 metadata:
   name: myappnamespace-mydatabase-5sc8a
   namespace: gcp

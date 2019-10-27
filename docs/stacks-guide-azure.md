@@ -425,7 +425,7 @@ exists, and will create the rule if so.
 ```bash
 cat > vnet-rule.yaml <<EOF
 apiVersion: database.azure.crossplane.io/v1alpha2
-kind: MysqlServerVirtualNetworkRule
+kind: MySQLServerVirtualNetworkRule
 metadata:
   name: sample-vnet-rule
   namespace: azure-infra-dev
@@ -473,7 +473,7 @@ To recap what we've set up now in our environment:
 
 - A Crossplane Provider resource for Azure
 - A Network Configuration to have secure connectivity between resources
-- An CloudsqlInstanceClass and an GKEClusterClass with the right configuration
+- An CloudSQLInstanceClass and an GKEClusterClass with the right configuration
   to use the mentioned networking setup.
 - A script that will create our Virtual Network Rule when our MySQL database
   name comes available.

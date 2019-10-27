@@ -605,7 +605,7 @@ spec:
 # A resource class that satisfies MySQLInstance claims using CloudSQLInstance
 # managed resources.
 apiVersion: database.gcp.crossplane.io/v1alpha1
-kind: CloudsqlInstanceClass
+kind: CloudSQLInstanceClass
 metadata:
   namespace: crossplane-system
   name: default-mysqlinstance

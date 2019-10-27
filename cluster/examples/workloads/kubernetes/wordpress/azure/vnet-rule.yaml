@@ -1,5 +1,5 @@
 apiVersion: database.azure.crossplane.io/v1alpha2
-kind: MysqlServerVirtualNetworkRule
+kind: MySQLServerVirtualNetworkRule
 metadata:
   name: demo-vnet-rule
 spec:
