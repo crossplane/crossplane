@@ -214,7 +214,7 @@ several ways: (a) rely on the default class marked
 provisioning](../concepts.md#dynamic-and-static-provisioning) with a reference
 to an existing managed resource.*
 
-In the `CloudsqlInstanceClass` above, we added the label `size: standard`, so
+In the `CloudSQLInstanceClass` above, we added the label `size: standard`, so
 our claim will be scheduled to that class using the label is specified in the
 `claim.spec.classSelector`. If there are multiple classes which match the
 specified label(s) one will be chosen at random.
@@ -255,7 +255,7 @@ kubectl get mysqlinstances
 *Output*
 ```bash
 NAME          STATUS   CLASS-KIND         CLASS-NAME          RESOURCE-KIND      RESOURCE-NAME                                         AGE
-mysql-claim   Bound    mysql-standard     standard-cloudsql   CloudsqlInstance   mysqlinstance-6a7fe064-d888-11e9-ab90-42b6bb22213a    11m
+mysql-claim   Bound    mysql-standard     standard-cloudsql   CloudSQLInstance   mysqlinstance-6a7fe064-d888-11e9-ab90-42b6bb22213a    11m
 ```
 
 If the `STATUS` is blank, we are still waiting for the claim to become bound.

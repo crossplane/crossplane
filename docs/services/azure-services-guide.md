@@ -441,7 +441,7 @@ In this guide we:
   Azure
 * Created a `MySQLInstance` claim in the that was scheduled to the
   `mysql-standard` resource class
-* Created a `MysqlServerVirtualNetworkRule` to establish secure connectivity
+* Created a `MySQLServerVirtualNetworkRule` to establish secure connectivity
   between our AKS Cluster and MySQL database
 * Created a `Deployment` and `Service` to run Wordpress on our AKS Cluster and
   assign an external IP address to it
