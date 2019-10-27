@@ -1,6 +1,6 @@
 ---
 apiVersion: database.gcp.crossplane.io/v1beta1
-kind: CloudsqlInstanceClass
+kind: CloudSQLInstanceClass
 metadata:
   name: cloudsqlinstancepostgresql-standard
   labels:

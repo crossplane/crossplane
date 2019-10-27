@@ -382,20 +382,20 @@ This will save the sample resource classes YAML locally in
 `resource-classes.yaml`. As mentioned above, these resource classes serve as
 templates and could be configured depending on the specific needs that are
 needed from the underlying resources. For instance, in the sample resources the
-`CloudsqlInstanceClass` has `storageGB: 10`, which will result in databases of
+`CloudSQLInstanceClass` has `storageGB: 10`, which will result in databases of
 size 10GB once a claim is submitted for this class. In addition, it's possible
 to have multiple classes defined for the same claim kind, but our sample has
 defined only one class for each resource type.
 
 Below we inspect each of these resource classes in more details:
 
-- **`CloudsqlInstanceClass`** Represents a resource that serves as a template to
+- **`CloudSQLInstanceClass`** Represents a resource that serves as a template to
   create a [Cloud SQL Database Instance][gcp-cloudsql].
 
   ```yaml
   ---
   apiVersion: database.gcp.crossplane.io/v1beta1
-  kind: CloudsqlInstanceClass
+  kind: CloudSQLInstanceClass
   metadata:
     name: standard-mysql
     annotations:
@@ -455,7 +455,7 @@ To recap what we've set up now in our environment:
 
 - A Crossplane Provider resource for GCP
 - A Network Configuration to have secure connectivity between resources
-- An CloudsqlInstanceClass and an GKEClusterClass with the right configuration to use
+- An CloudSQLInstanceClass and an GKEClusterClass with the right configuration to use
   the mentioned networking setup.
 
 ## Next Steps

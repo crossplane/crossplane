@@ -674,7 +674,7 @@ Spec:
   Engine Version:  5.6
   Resource Ref:
     API Version:  database.aws.crossplane.io/v1alpha2
-    Kind:         MysqlServer
+    Kind:         MySQLServer
     Name:         mysqlinstance-6a7fe064-d888-11e9-ab90-42b6bb22213a
     Namespace:    aws-infra-dev
   Write Connection Secret To Ref:

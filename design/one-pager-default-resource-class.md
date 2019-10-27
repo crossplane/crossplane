@@ -135,7 +135,7 @@ would not know what `kind` they intended to bind to. While the `MySQLInstance`
 claim controller previously knew to look for objects of type `ResourceClass`
 that specified `mysqlinstance.database.crossplane.io/default:true`, there were
 now many different class `kinds` that the claim could potentially reference
-(e.g. GCP `CloudsqlInstanceClass`, AWS `RDSInstanceClass`, etc.). `Policies`
+(e.g. GCP `CloudSQLInstanceClass`, AWS `RDSInstanceClass`, etc.). `Policies`
 were introduced in order to allow the previously implemented defaulting behavior
 to continue to exist. `Policies` were namespaced and would specify a specific
 class instance by `group`, `version`, and `kind` for a claim to fall back on if

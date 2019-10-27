@@ -285,7 +285,7 @@ cloudsql--mysql-standard.yaml
 ```yaml
 ---
 apiVersion: database.gcp.crossplane.io/v1beta1
-kind: CloudsqlInstanceClass
+kind: CloudSQLInstanceClass
 metadata:
   name: cloudsql-mysql-standard
   namespace: gcp-infra-dev

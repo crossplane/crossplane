@@ -11,7 +11,7 @@ data:
   credentials.json: BASE64ENCODED_GCP_SQL_CREDS
 ---
 apiVersion: database.gcp.crossplane.io/v1beta1
-kind: CloudsqlInstance
+kind: CloudSQLInstance
 metadata:
   labels:
   name: crossplane-wordpress-cloudsql
