@@ -390,6 +390,7 @@ Below we inspect each of these resource classes in more details:
     annotations:
       resourceclass.crossplane.io/is-default-class: "true"
   specTemplate:
+    writeConnectionSecretsToNamespace: crossplane-system
     resourceGroupNameRef:
       name: sample-rg
     vnetSubnetIDRef:
@@ -402,6 +403,7 @@ Below we inspect each of these resource classes in more details:
     disableRBAC: false
     writeServicePrincipalTo:
       name: akscluster-net
+      namespace: crossplane-system
     reclaimPolicy: Delete
     providerRef:
       name: azure-provider
