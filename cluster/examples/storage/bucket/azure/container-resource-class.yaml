@@ -1,5 +1,5 @@
 ---
-apiVersion: storage.azure.crossplane.io/v1alpha2
+apiVersion: storage.azure.crossplane.io/v1alpha3
 kind: ContainerClass
 metadata:
   name: storagecontainer-standard

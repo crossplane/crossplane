@@ -63,7 +63,7 @@ connect to your GCP project. We'll do this by creating a Crossplane `Provider`
 that specifies the project name and some GCP service account credentials to use:
 
 ```yaml
-apiVersion: gcp.crossplane.io/v1alpha2
+apiVersion: gcp.crossplane.io/v1alpha3
 kind: Provider
 metadata:
   name: example-provider

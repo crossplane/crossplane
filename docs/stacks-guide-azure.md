@@ -140,7 +140,7 @@ type: Opaque
 data:
   credentials: ${BASE64ENCODED_AZURE_ACCOUNT_CREDS}
 ---
-apiVersion: azure.crossplane.io/v1alpha2
+apiVersion: azure.crossplane.io/v1alpha3
 kind: Provider
 metadata:
   name: azure-provider
@@ -230,7 +230,7 @@ Below we inspect each of these resources in more details.
 
   ```yaml
   ---
-  apiVersion: azure.crossplane.io/v1alpha2
+  apiVersion: azure.crossplane.io/v1alpha3
   kind: ResourceGroup
   metadata:
     name: sample-rg
@@ -247,7 +247,7 @@ Below we inspect each of these resources in more details.
 
   ```yaml
   ---
-  apiVersion: network.azure.crossplane.io/v1alpha2
+  apiVersion: network.azure.crossplane.io/v1alpha3
   kind: VirtualNetwork
   metadata:
     name: sample-vnet
@@ -269,7 +269,7 @@ Below we inspect each of these resources in more details.
 
   ```yaml
   ---
-  apiVersion: network.azure.crossplane.io/v1alpha2
+  apiVersion: network.azure.crossplane.io/v1alpha3
   kind: Subnet
   metadata:
     name: sample-subnet
@@ -352,7 +352,7 @@ Below we inspect each of these resource classes in more details:
 
   ```yaml
   ---
-  apiVersion: database.azure.crossplane.io/v1alpha2
+  apiVersion: database.azure.crossplane.io/v1alpha3
   kind: SQLServerClass
   metadata:
     name: standard-mysql
@@ -384,7 +384,7 @@ Below we inspect each of these resource classes in more details:
 
   ```yaml
   ---
-  apiVersion: compute.azure.crossplane.io/v1alpha2
+  apiVersion: compute.azure.crossplane.io/v1alpha3
   kind: AKSClusterClass
   metadata:
     name: standard-cluster
@@ -427,7 +427,7 @@ exists, and will create the rule if so.
 
 ```bash
 cat > vnet-rule.yaml <<EOF
-apiVersion: database.azure.crossplane.io/v1alpha2
+apiVersion: database.azure.crossplane.io/v1alpha3
 kind: MySQLServerVirtualNetworkRule
 metadata:
   name: sample-vnet-rule

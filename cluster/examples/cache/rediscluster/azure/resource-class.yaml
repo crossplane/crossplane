@@ -1,5 +1,5 @@
 ---
-apiVersion: cache.azure.crossplane.io/v1alpha2
+apiVersion: cache.azure.crossplane.io/v1alpha3
 kind: RedisClass
 metadata:
   name: azure-redis-standard

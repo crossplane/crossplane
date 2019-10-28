@@ -1,6 +1,6 @@
 # ResourceClass that defines the blueprint for how a "standard" GCP bucket
 # should be dynamically provisioned
-apiVersion: storage.gcp.crossplane.io/v1alpha2
+apiVersion: storage.gcp.crossplane.io/v1alpha3
 kind: BucketClass
 metadata:
   name: standard-gcp-bucket

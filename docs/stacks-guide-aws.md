@@ -149,7 +149,7 @@ type: Opaque
 data:
   credentials: ${BASE64ENCODED_AWS_ACCOUNT_CREDS}
 ---
-apiVersion: aws.crossplane.io/v1alpha2
+apiVersion: aws.crossplane.io/v1alpha3
 kind: Provider
 metadata:
   name: aws-provider
@@ -236,7 +236,7 @@ Below we inspect each of these resources in more details.
 
   ```yaml
   ---
-  apiVersion: network.aws.crossplane.io/v1alpha2
+  apiVersion: network.aws.crossplane.io/v1alpha3
   kind: VPC
   metadata:
     name: sample-vpc
@@ -254,7 +254,7 @@ Below we inspect each of these resources in more details.
 
   ```yaml
   ---
-  apiVersion: network.aws.crossplane.io/v1alpha2
+  apiVersion: network.aws.crossplane.io/v1alpha3
   kind: Subnet
   metadata:
     name: sample-subnet1
@@ -267,7 +267,7 @@ Below we inspect each of these resources in more details.
     providerRef:
       name: aws-provider
   ---
-  apiVersion: network.aws.crossplane.io/v1alpha2
+  apiVersion: network.aws.crossplane.io/v1alpha3
   kind: Subnet
   metadata:
     name: sample-subnet2
@@ -280,7 +280,7 @@ Below we inspect each of these resources in more details.
     providerRef:
       name: aws-provider
   ---
-  apiVersion: network.aws.crossplane.io/v1alpha2
+  apiVersion: network.aws.crossplane.io/v1alpha3
   kind: Subnet
   metadata:
     name: sample-subnet3
@@ -301,7 +301,7 @@ Below we inspect each of these resources in more details.
 
   ```yaml
   ---
-  apiVersion: network.aws.crossplane.io/v1alpha2
+  apiVersion: network.aws.crossplane.io/v1alpha3
   kind: InternetGateway
   metadata:
     name: sample-internetgateway
@@ -319,7 +319,7 @@ Below we inspect each of these resources in more details.
 
     ```yaml
     ---
-    apiVersion: network.aws.crossplane.io/v1alpha2
+    apiVersion: network.aws.crossplane.io/v1alpha3
     kind: RouteTable
     metadata:
       name: sample-routetable
@@ -352,7 +352,7 @@ Below we inspect each of these resources in more details.
 
   ```yaml
   ---
-  apiVersion: network.aws.crossplane.io/v1alpha2
+  apiVersion: network.aws.crossplane.io/v1alpha3
   kind: SecurityGroup
   metadata:
     name: sample-cluster-sg
@@ -371,7 +371,7 @@ Below we inspect each of these resources in more details.
 
   ```yaml
   ---
-  apiVersion: network.aws.crossplane.io/v1alpha2
+  apiVersion: network.aws.crossplane.io/v1alpha3
   kind: SecurityGroup
   metadata:
     name: sample-rds-sg
@@ -424,7 +424,7 @@ Below we inspect each of these resources in more details.
 
   ```yaml
   ---
-  apiVersion: identity.aws.crossplane.io/v1alpha2
+  apiVersion: identity.aws.crossplane.io/v1alpha3
   kind: IAMRole
   metadata:
     name: sample-eks-cluster-role
@@ -456,7 +456,7 @@ Below we inspect each of these resources in more details.
 
   ```yaml
   ---
-  apiVersion: identity.aws.crossplane.io/v1alpha2
+  apiVersion: identity.aws.crossplane.io/v1alpha3
   kind: IAMRolePolicyAttachment
   metadata:
     name: sample-role-servicepolicy
@@ -469,7 +469,7 @@ Below we inspect each of these resources in more details.
     providerRef:
       name: aws-provider
   ---
-  apiVersion: identity.aws.crossplane.io/v1alpha2
+  apiVersion: identity.aws.crossplane.io/v1alpha3
   kind: IAMRolePolicyAttachment
   metadata:
     name: sample-role-clusterpolicy
@@ -573,7 +573,7 @@ Below we inspect each of these resource classes in more details:
 
   ```yaml
   ---
-  apiVersion: compute.aws.crossplane.io/v1alpha2
+  apiVersion: compute.aws.crossplane.io/v1alpha3
   kind: EKSClusterClass
   metadata:
     name: standard-cluster
@@ -634,7 +634,7 @@ off.
 [aws user]: https://docs.aws.amazon.com/mediapackage/latest/ug/setting-up-create-iam-user.html
 [Access Key]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html
 [AWS security credentials]: https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html
-[aws provider]: https://github.com/crossplaneio/stack-aws/blob/master/apis/v1alpha2/types.go#L43?ref=master
+[aws provider]: https://github.com/crossplaneio/stack-aws/blob/master/apis/v1alpha3/types.go#L43?ref=master
 [aws command line tool]: https://aws.amazon.com/cli/
 [install-aws]: https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html
 [aws-cli-configure]: https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html

@@ -1,5 +1,5 @@
 ---
-apiVersion: identity.aws.crossplane.io/v1alpha2
+apiVersion: identity.aws.crossplane.io/v1alpha3
 kind: IAMRolePolicyAttachment
 metadata:
   name: sample-role-servicepolicy
@@ -12,7 +12,7 @@ spec:
   providerRef:
     name: aws-provider
 ---
-apiVersion: identity.aws.crossplane.io/v1alpha2
+apiVersion: identity.aws.crossplane.io/v1alpha3
 kind: IAMRolePolicyAttachment
 metadata:
   name: sample-role-clusterpolicy

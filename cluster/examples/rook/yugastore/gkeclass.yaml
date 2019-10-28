@@ -1,4 +1,4 @@
-apiVersion: compute.gcp.crossplane.io/v1alpha2
+apiVersion: compute.gcp.crossplane.io/v1alpha3
 kind: GKEClusterClass
 metadata:
   name: standard-gke

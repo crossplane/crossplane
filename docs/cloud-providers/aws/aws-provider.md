@@ -34,7 +34,7 @@ You can confirm the existense of the  [`aw provider`] by running:
 kubectl -n crossplane-system get provider/aws-provider
 ```
 
-[`aw provider`]: https://github.com/crossplaneio/stack-aws/blob/master/aws/apis/v1alpha2/types.go#L43
+[`aw provider`]: https://github.com/crossplaneio/stack-aws/blob/master/aws/apis/v1alpha3/types.go#L43
  [`aws` command line tool]: https://aws.amazon.com/cli/
 [AWS SDK for GO]: https://docs.aws.amazon.com/sdk-for-go/v1/developer-guide/setting-up.html
 [installed]: [https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html)

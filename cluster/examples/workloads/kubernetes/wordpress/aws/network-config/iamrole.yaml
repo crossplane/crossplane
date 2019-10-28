@@ -1,5 +1,5 @@
 ---
-apiVersion: identity.aws.crossplane.io/v1alpha2
+apiVersion: identity.aws.crossplane.io/v1alpha3
 kind: IAMRole
 metadata:
   name: sample-eks-cluster-role

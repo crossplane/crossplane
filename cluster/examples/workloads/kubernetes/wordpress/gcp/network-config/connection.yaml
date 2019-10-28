@@ -1,5 +1,5 @@
 ---
-apiVersion: servicenetworking.gcp.crossplane.io/v1alpha2
+apiVersion: servicenetworking.gcp.crossplane.io/v1alpha3
 kind: Connection
 metadata:
   name: sample-connection

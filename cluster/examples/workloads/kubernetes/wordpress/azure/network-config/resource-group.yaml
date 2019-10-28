@@ -1,5 +1,5 @@
 ---
-apiVersion: azure.crossplane.io/v1alpha2
+apiVersion: azure.crossplane.io/v1alpha3
 kind: ResourceGroup
 metadata:
   name: sample-rg
