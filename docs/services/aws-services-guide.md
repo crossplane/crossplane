@@ -113,7 +113,7 @@ accessed
 
 ```bash
 cat > aws-dbsubnet.yaml <<EOF
-apiVersion: storage.aws.crossplane.io/v1alpha2 # change me!
+apiVersion: storage.aws.crossplane.io/v1alpha3
 kind: DBSubnetGroup
 metadata:
   name: sample-dbsubnetgroup
@@ -139,7 +139,7 @@ kubectl apply -f aws-dbsubnet.yaml
 
 ```bash
 cat > aws-sg.yaml <<EOF
-apiVersion: network.aws.crossplane.io/v1alpha2
+apiVersion: network.aws.crossplane.io/v1alpha3
 kind: SecurityGroup
 metadata:
   name: sample-rds-sg
@@ -173,21 +173,22 @@ satisfied by an [AWS RDS][aws-rds] instance.
 
 ```yaml
 cat > aws-mysql-standard.yaml <<EOF
-apiVersion: database.aws.crossplane.io/v1alpha2
+apiVersion: database.aws.crossplane.io/v1beta1
 kind: RDSInstanceClass
 metadata:
   name: standard-mysql
   annotations:
     resourceclass.crossplane.io/is-default-class: "true"
 specTemplate:
-  class: db.t2.small
-  masterUsername: masteruser
-  securityGroupIdRefs:
-    - name: sample-rds-sg
-  subnetGroupNameRef:
-    name: sample-dbsubnetgroup
-  size: 20
-  engine: mysql
+  forProvider:
+    class: db.t2.small
+    masterUsername: masteruser
+    securityGroupIdRefs:
+      - name: sample-rds-sg
+    subnetGroupNameRef:
+      name: sample-dbsubnetgroup
+    size: 20
+    engine: mysql
   providerRef:
     name: aws-provider
   reclaimPolicy: Delete
@@ -284,7 +285,7 @@ Metadata:
   UID:               c3aca763-f698-11e9-a957-12a4af141bea
 Spec:
   Class Ref:
-    API Version:   database.aws.crossplane.io/v1alpha2
+    API Version:   database.aws.crossplane.io/v1beta1
     Kind:          RDSInstanceClass
     Name:          standard-mysql
     UID:           6cf90617-f698-11e9-b058-028a0ecde201

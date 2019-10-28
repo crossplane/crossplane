@@ -114,7 +114,7 @@ an [Azure Database for MySQL][azure-mysql] instance.
 ```yaml
 cat > azure-mysql-standard.yaml <<EOF
 ---
-apiVersion: database.azure.crossplane.io/v1alpha2
+apiVersion: database.azure.crossplane.io/v1alpha3
 kind: SQLServerClass
 metadata:
   name: azure-mysql-standard
@@ -243,7 +243,7 @@ Spec:
     Name:          mysql-standard
   Engine Version:  5.6
   Resource Ref:
-    API Version:  database.azure.crossplane.io/v1alpha2
+    API Version:  database.azure.crossplane.io/v1alpha3
     Kind:         MySQLServer
     Name:         mysqlinstance-6a7fe064-d888-11e9-ab90-42b6bb22213a
     Namespace:    azure-infra-dev
@@ -283,7 +283,7 @@ export MYSQL_NAME=$(kubectl get -o json mysqlinstance mysql-claim | jq -j '.spec
 ```yaml
 cat > wordpress-vnet-rule.yaml <<EOF
 ---
-apiVersion: database.azure.crossplane.io/v1alpha2
+apiVersion: database.azure.crossplane.io/v1alpha3
 kind: MySQLServerVirtualNetworkRule
 metadata:
   name: wordpress-vnet-rule

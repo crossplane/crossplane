@@ -146,7 +146,7 @@ use Crossplane to do it:
   ---
   # example-globaladdress defines the IP range that will be allocated for cloud services connecting
   # to the instances in the given Network.
-  apiVersion: compute.gcp.crossplane.io/v1alpha2
+  apiVersion: compute.gcp.crossplane.io/v1alpha3
   kind: GlobalAddress
   metadata:
     name: example-globaladdress
@@ -162,7 +162,7 @@ use Crossplane to do it:
   ---
   # example-connection is what allows cloud services to use the allocated GlobalAddress for communication. Behind
   # the scenes, it creates a VPC peering to the network that those service instances actually live.
-  apiVersion: servicenetworking.gcp.crossplane.io/v1alpha2
+  apiVersion: servicenetworking.gcp.crossplane.io/v1alpha3
   kind: Connection
   metadata:
     name: example-connection
