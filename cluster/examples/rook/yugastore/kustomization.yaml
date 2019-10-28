@@ -4,3 +4,4 @@ resources:
   - k8sclaim.yaml
   - rook-operator.yaml
   - yugastore.yaml
+  - yugabyteclaim.yaml
