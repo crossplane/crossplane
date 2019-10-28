@@ -129,7 +129,7 @@ Now we’ll create our `Secret` that contains the credential and `Provider`
 resource that refers to that secret:
 
 ```bash
-cat > provider.yaml <<EOF
+cat > provider-azure.yaml <<EOF
 ---
 apiVersion: v1
 kind: Secret
@@ -152,7 +152,7 @@ spec:
 EOF
 
 # apply it to the cluster:
-kubectl apply -f "provider.yaml"
+kubectl apply -f "provider-azure.yaml"
 
 # delete the credentials variable
 unset BASE64ENCODED_AZURE_ACCOUNT_CREDS
