@@ -181,14 +181,15 @@ metadata:
     resourceclass.crossplane.io/is-default-class: "true"
 specTemplate:
   forProvider:
-    class: db.t2.small
+    dbInstanceClass: db.t2.small
     masterUsername: masteruser
-    securityGroupIdRefs:
+    vpcSecurityGroupIDRefs:
       - name: sample-rds-sg
-    subnetGroupNameRef:
+    dbSubnetGroupNameRef:
       name: sample-dbsubnetgroup
-    size: 20
+    allocatedStorage: 20
     engine: mysql
+    skipFinalSnapshotBeforeDeletion: true
   providerRef:
     name: aws-provider
   reclaimPolicy: Delete
