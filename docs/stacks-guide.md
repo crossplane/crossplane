@@ -203,8 +203,20 @@ and try creating the Wordpress instance again.
 
 The Wordpress can take a while to spin up, because behind the scenes
 Crossplane is creating all of its dependendencies, which is a database
-and Kubernetes cluster. To check the status, we can look at the
-resources that Crossplane is creating for us:
+and Kubernetes cluster. To check the status, you can use [the trace 
+command](https://github.com/crossplaneio/crossplane-cli/tree/master/docs/trace-command.md)
+of the Crossplane CLI.
+
+```
+# Get the name of the Kubernetes Application resource which is the top level workload definiton for our Wordpress instance
+K8S_APP_NAME=$(kubectl get -n app-project1-dev kubernetesapplication -lstack=sample-stack-wordpress -o=jsonpath='{.items[0].metadata.name}')
+
+# Run the trace command
+kubectl crossplane trace -n app-project1-dev kubernetesapplication "${K8S_APP_NAME}"
+``` 
+
+You can also check the status of individual Crossplane resources that
+Crossplane is creating for us:
 
 ```
 # The claim for the database

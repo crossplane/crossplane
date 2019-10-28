@@ -6,10 +6,35 @@ indent: true
 ---
 # Troubleshooting
 
+* [Using the trace command](#using-the-trace-command)
 * [Resource Status and Conditions](#resource-status-and-conditions)
 * [Crossplane Logs](#crossplane-logs)
 * [Pausing Crossplane](#pausing-crossplane)
 * [Deleting a Resource Hangs](#deleting-a-resource-hangs)
+
+## Using the trace command
+
+The [Crossplane CLI](https://github.com/crossplaneio/crossplane-cli) trace
+command provides a holistic view for a particular object and related
+ones to ease debugging and troubleshooting process. It finds the
+relevant Crossplane resources for a given one and provides detailed
+information as well as an overview indicating what could be wrong.
+
+Usage:
+```
+kubectl crossplane trace TYPE[.GROUP] NAME [-n| --namespace NAMESPACE] [--kubeconfig KUBECONFIG] [-o| --outputFormat dot]
+```
+
+Examples:
+```
+# Trace a KubernetesApplication
+kubectl crossplane trace KubernetesApplication wordpress-app-83f04457-0b1b-4532-9691-f55cf6c0da6e -n app-project1-dev
+
+# Trace a MySQLInstance
+kubectl crossplane trace MySQLInstance wordpress-mysql-83f04457-0b1b-4532-9691-f55cf6c0da6e -n app-project1-dev
+```
+
+For more information, see [the trace command documentation](https://github.com/crossplaneio/crossplane-cli/tree/master/docs/trace-command.md).
 
 ## Resource Status and Conditions
 
