@@ -73,7 +73,7 @@ mkdir wordpress && cd $_
 
 It is essential to make sure that the GCP user credentials are configured in
 Crossplane as a provider. Please follow the steps [provider
-guide](../cloud-providers/gco/gcp-provider.md) for more information.
+guide](../cloud-providers/gcp/gcp-provider.md) for more information.
 
 ### Resource Classes
 
@@ -106,7 +106,7 @@ specTemplate:
       ipConfiguration:
         privateNetwork: projects/$PROJECT_ID/global/networks/$NETWORK_NAME
   providerRef:
-    name: example
+    name: gcp-provider
   reclaimPolicy: Delete
 EOF
 
@@ -172,8 +172,8 @@ use Crossplane to do it:
     reclaimPolicy: Delete
     parent: services/servicenetworking.googleapis.com
     network: projects/$PROJECT_ID/global/networks/$NETWORK_NAME
-    reservedPeeringRanges:
-      - example-globaladdress
+    reservedPeeringRangeRefs:
+      - name: example-globaladdress
   EOF
 
   kubectl apply -f network.yaml
@@ -184,20 +184,55 @@ use Crossplane to do it:
   *Command*
 
   ```bash
-  kubectl get connection example-connection -o custom-columns='NAME:.metadata.name,FIRST_CONDITION:.status.conditions[0].status,SECOND_CONDITION:.status.conditions[1].status'
+  kubectl describe connection.servicenetworking.gcp.crossplane.io example-connection
   ```
 
   *Output*
 
-  ```bash
-  NAME                 FIRST_CONDITION   SECOND_CONDITION
-  example-connection   True              True
+  ```yaml
+  Name:         example-connection
+  Namespace:    
+  Labels:       <none>
+  Annotations:  crossplane.io/external-name: example-connection
+                kubectl.kubernetes.io/last-applied-configuration:
+                  {"apiVersion":"servicenetworking.gcp.crossplane.io/v1alpha3","kind":"Connection","metadata":{"annotations":{},"name":"example-connection"}...
+  API Version:  servicenetworking.gcp.crossplane.io/v1alpha3
+  Kind:         Connection
+  Metadata:
+    Creation Timestamp:  2019-10-28T14:10:23Z
+    Finalizers:
+      finalizer.managedresource.crossplane.io
+    Generation:        1
+    Resource Version:  7245
+    Self Link:         /apis/servicenetworking.gcp.crossplane.io/v1alpha3/connections/example-connection
+    UID:               aeae7e4d-f98c-11e9-8275-42010a800122
+  Spec:
+    Network:  projects/crossplane-playground/global/networks/default
+    Parent:   services/servicenetworking.googleapis.com
+    Provider Ref:
+      Name:          gcp-provider
+    Reclaim Policy:  Delete
+    Reserved Peering Ranges:
+      example-globaladdress
+  Status:
+    Conditions:
+      Last Transition Time:  2019-10-28T14:10:23Z
+      Reason:                Successfully resolved managed resource references to other resources
+      Status:                True
+      Type:                  ReferencesResolved
+      Last Transition Time:  2019-10-28T14:10:23Z
+      Reason:                Managed resource is being created
+      Status:                False
+      Type:                  Ready
+      Last Transition Time:  2019-10-28T14:10:23Z
+      Reason:                Successfully reconciled managed resource
+      Status:                True
+      Type:                  Synced
+  Events:                    <none>
   ```
 
-  Wait for both conditions to be true to continue. The conditions we're checking
-  for are `Ready` and `Synced`. The reason we are using `FIRST_CONDITION` and
-  `SECOND_CONDITION` is because we don't know what order they'll be in when we
-  run the command.
+  We are looking for the `Connection` resource to report `Type: Ready` `Status:
+  True` in its `status.conditions`.
 
 ## Provision 
 
@@ -254,8 +289,8 @@ kubectl get mysqlinstances
 
 *Output*
 ```bash
-NAME          STATUS   CLASS-KIND         CLASS-NAME          RESOURCE-KIND      RESOURCE-NAME                                         AGE
-mysql-claim   Bound    mysql-standard     standard-cloudsql   CloudSQLInstance   mysqlinstance-6a7fe064-d888-11e9-ab90-42b6bb22213a    11m
+NAME          STATUS   CLASS-KIND              CLASS-NAME          RESOURCE-KIND      RESOURCE-NAME               AGE
+mysql-claim   Bound    CloudSQLInstanceClass   standard-cloudsql   CloudSQLInstance   default-mysql-claim-vtnf7   3m
 ```
 
 If the `STATUS` is blank, we are still waiting for the claim to become bound.
@@ -263,7 +298,7 @@ You can observe resource creation progression using the following:
 
 *Command*
 ```bash
-kubectl describe mysqlinstance mysql-claim --watch
+kubectl describe mysqlinstance mysql-claim
 ```
 
 *Output*
@@ -272,35 +307,41 @@ Name:         mysql-claim
 Namespace:    default
 Labels:       <none>
 Annotations:  kubectl.kubernetes.io/last-applied-configuration:
-                {"apiVersion":"database.crossplane.io/v1alpha1","kind":"MySQLInstance","metadata":{"annotations":{},"name":"mysql-claim","namespace":"team..."}}
+                {"apiVersion":"database.crossplane.io/v1alpha1","kind":"MySQLInstance","metadata":{"annotations":{},"name":"mysql-claim","namespace":"defa...
 API Version:  database.crossplane.io/v1alpha1
 Kind:         MySQLInstance
 Metadata:
-  Creation Timestamp:  2019-09-16T13:46:42Z
+  Creation Timestamp:  2019-10-28T14:18:55Z
   Finalizers:
     finalizer.resourceclaim.crossplane.io
-  Generation:        2
-  Resource Version:  4256
-  Self Link:         /apis/database.crossplane.io/v1alpha1/namespaces/app-project1-dev/mysqlinstances/mysql-claim
-  UID:               6a7fe064-d888-11e9-ab90-42b6bb22213a
+  Generation:        3
+  Resource Version:  9011
+  Self Link:         /apis/database.crossplane.io/v1alpha1/namespaces/default/mysqlinstances/mysql-claim
+  UID:               e0329d69-f98d-11e9-8275-42010a800122
 Spec:
   Class Ref:
-    Name:          mysql-standard
-  Engine Version:  5.6
+    API Version:  database.gcp.crossplane.io/v1beta1
+    Kind:         CloudSQLInstanceClass
+    Name:         standard-cloudsql
+    UID:          431580bd-f989-11e9-8275-42010a800122
+  Class Selector:
+    Match Labels:
+      Size:        standard
+  Engine Version:  5.7
   Resource Ref:
     API Version:  database.gcp.crossplane.io/v1beta1
     Kind:         CloudSQLInstance
-    Name:         mysqlinstance-6a7fe064-d888-11e9-ab90-42b6bb22213a
-    Namespace:    gcp-infra-dev
+    Name:         default-mysql-claim-vtnf7
+    UID:          e07c42c5-f98d-11e9-8275-42010a800122
   Write Connection Secret To Ref:
     Name:  wordpressmysql
 Status:
   Conditions:
-    Last Transition Time:  2019-09-16T13:46:42Z
+    Last Transition Time:  2019-10-28T14:18:56Z
     Reason:                Managed claim is waiting for managed resource to become bindable
     Status:                False
     Type:                  Ready
-    Last Transition Time:  2019-09-16T13:46:42Z
+    Last Transition Time:  2019-10-28T14:18:56Z
     Reason:                Successfully reconciled managed resource
     Status:                True
     Type:                  Synced
@@ -335,17 +376,26 @@ kubectl describe secret wordpressmysql
 Name:         wordpressmysql
 Namespace:    default
 Labels:       <none>
-Annotations:  crossplane.io/propagate-from-name: c3aca763-f698-11e9-a957-12a4af141bea
-            crossplane.io/propagate-from-namespace: crossplane-system
-            crossplane.io/propagate-from-uid: c539fcef-f698-11e9-a957-12a4af141bea
+Annotations:  crossplane.io/propagate-from-name: 330cccf5-f991-11e9-8275-42010a800122
+              crossplane.io/propagate-from-namespace: crossplane-system
+              crossplane.io/propagate-from-uid: 33581ec7-f991-11e9-8275-42010a800122
 
 Type:  Opaque
 
 Data
 ====
-endpoint:  75 bytes
-password:  27 bytes
-username:  58 bytes
+endpoint:                             10 bytes
+password:                             27 bytes
+publicIP:                             13 bytes
+serverCACertificateCert:              1272 bytes
+serverCACertificateCommonName:        98 bytes
+serverCACertificateCreateTime:        24 bytes
+serverCACertificateExpirationTime:    24 bytes
+privateIP:                            10 bytes
+serverCACertificateCertSerialNumber:  1 bytes
+serverCACertificateInstance:          25 bytes
+serverCACertificateSha1Fingerprint:   40 bytes
+username:                             4 bytes
 ```
 
 * Define the `Deployment` and `Service` in `wordpress.yaml`:
@@ -419,10 +469,10 @@ username:  58 bytes
 
   ```bash
   NAME                        READY   UP-TO-DATE   AVAILABLE   AGE
-  deployment.apps/wordpress   1/1     1            1           11m
+  deployment.apps/wordpress   1/1     1            1           77s
 
-  NAME                TYPE           CLUSTER-IP    EXTERNAL-IP   PORT(S)        AGE
-  service/wordpress   LoadBalancer   10.0.128.30   52.168.69.6   80:32587/TCP   11m
+  NAME                TYPE           CLUSTER-IP    EXTERNAL-IP      PORT(S)        AGE
+  service/wordpress   LoadBalancer   10.12.3.121   35.223.147.148   80:30287/TCP   77s
   ```
 
 If the `EXTERNAL-IP` field of the `LoadBalancer` is `<pending>`, wait until it
