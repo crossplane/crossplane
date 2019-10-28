@@ -100,7 +100,7 @@ kubectl apply -f stack-aws.yaml
 ### Cloud Provider
 
 It is essential to make sure that the AWS user credentials are configured in
-Crossplane as a provider. Please follow the steps [provider
+Crossplane as a provider. Please follow the steps in the AWS [provider
 guide][aws-provider-guide] for more information.
 
 ### Configure Managed Service Access

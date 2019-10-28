@@ -123,76 +123,9 @@ should have the following [roles][gcp-assign-roles] assigned:
 
 ### Set up cloud provider credentials
 
-This guide assumes that you have created a JSON file which contains the
-credentials for the cloud provider. In later sections, this file will be
-referred to as `crossplane-gcp-provider-key.json`. There are quite a few steps
-involved, so the steps are in a separate [document][cloud-provider-setup-gcp]
-which you should take a look at before moving on to the next section.
-Alternatively, you could use the [script][gcp-credentials] in Crossplane
-repo which helps with creating the file.
-
-## Configure Crossplane Provider for GCP
-
-Before creating any resources, we need to create and configure a GCP cloud
-provider resource in Crossplane, which stores the cloud account information in
-it. All the requests from Crossplane to GCP will use the credentials attached to
-this provider resource. The following command assumes that you have a
-`crossplane-gcp-provider-key.json` file that belongs to the account that will be
-used by Crossplane, which has GCP project id. You should be able to get the
-project id from the JSON credentials file or from the GCP console. Without loss
-of generality, let's assume the project id is `my-cool-gcp-project` in this
-guide.
-
-First, let's encode the credential file contents and put it in a variable:
-
-```bash
-# base64 encode the GCP credentials
-BASE64ENCODED_GCP_ACCOUNT_CREDS=$(base64 crossplane-gcp-provider-key.json | tr -d "\n")
-```
-
-Now we’ll create the `Secret` resource that contains the credential, and
- `Provider` resource which refers to that secret:
-
-```bash
-cat > provider-gcp.yaml <<EOF
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: gcp-account-creds
-  namespace: crossplane-system
-type: Opaque
-data:
-  credentials: ${BASE64ENCODED_GCP_ACCOUNT_CREDS}
----
-apiVersion: gcp.crossplane.io/v1alpha3
-kind: Provider
-metadata:
-  name: gcp-provider
-spec:
-  # replace this with your own gcp project id
-  projectID: my-cool-gcp-project
-  credentialsSecretRef:
-    namespace: crossplane-system
-    name: gcp-account-creds
-    key: credentials
-EOF
-
-# apply it to the cluster:
-kubectl apply -f "provider-gcp.yaml"
-
-# delete the credentials variable
-unset BASE64ENCODED_GCP_ACCOUNT_CREDS
-```
-
-The output will look like the following:
-
-```bash
-secret/gcp-user-creds created
-provider.gcp.crossplane.io/gcp-provider created
-```
-
-The `gcp-provider` resource will be used in other resources that we will create later in this guide, to provide access information to the configured GCP account.
+It is essential to make sure that the GCP user credentials are configured in
+Crossplane as a provider. Please follow the steps in the GCP [provider
+guide][gcp-provider-guide] for more information.
 
 ## Set Up Network Configuration
 
@@ -488,3 +421,4 @@ where we left off.
 [gcp-ip-address]: https://cloud.google.com/compute/docs/ip-addresses/
 [gcp-connection]: https://cloud.google.com/vpc/docs/configure-private-services-access
 [resource class selection]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-simple-class-selection.md
+[gcp-provider-guide]: loud-providers/gcp/gcp-provider.md
