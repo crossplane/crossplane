@@ -15,7 +15,6 @@ indent: true
   - [Install the AWS stack](#install-the-aws-stack)
     - [Validate the installation](#validate-the-installation)
   - [Configure the AWS account](#configure-the-aws-account)
-  - [Configure Crossplane Provider for AWS](#configure-crossplane-provider-for-aws)
   - [Set Up Network Configuration](#set-up-network-configuration)
     - [TL;DR](#tldr)
     - [Behind the scenes](#behind-the-scenes)

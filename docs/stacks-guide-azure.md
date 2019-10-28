@@ -15,7 +15,6 @@ indent: true
   - [Install the Azure Stack](#install-the-azure-stack)
     - [Validate the installation](#validate-the-installation)
   - [Configure Azure Account](#configure-azure-account)
-  - [Configure Crossplane Provider for Azure](#configure-crossplane-provider-for-azure)
   - [Set Up Network Configuration](#set-up-network-configuration)
     - [TL;DR](#tldr)
     - [Behind the scenes](#behind-the-scenes)
