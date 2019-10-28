@@ -52,6 +52,7 @@ relevant values for your AKS cluster.
 export AKS_RESOURCE_GROUP=myAKSResourceGroup
 export AKS_VNET=myAKSVnet
 export AKS_NAME=myAKSName
+export AKS_REGION=myRegion
 export SUBSCRIPTION_ID=$(az account list | jq -j '.[0].id')
 ```
 
@@ -120,11 +121,11 @@ metadata:
   name: azure-mysql-standard
   labels:
     size: standard
-    demo: true
+    demo: "true"
 specTemplate:
   adminLoginName: myadmin
   resourceGroupName: $AKS_RESOURCE_GROUP
-  location: EAST US
+  location: $AKS_REGION
   sslEnforced: false
   version: "5.6"
   pricingTier:
@@ -135,9 +136,9 @@ specTemplate:
     storageGB: 25
     backupRetentionDays: 7
     geoRedundantBackup: false
+  writeConnectionSecretsToNamespace: crossplane-system
   providerRef:
-    name: demo-azure
-    namespace: azure-infra-dev
+    name: azure-provider
   reclaimPolicy: Delete
 EOF
 
@@ -153,8 +154,8 @@ kubectl apply -f azure-mysql-standard.yaml
 
 ```bash
 $ kubectl get sqlserverclasses
-NAME                   PROVIDER-REF   RECLAIM-POLICY   AGE
-azure-mysql-standard   demo-azure     Delete           11s
+NAME                   PROVIDER-REF     RECLAIM-POLICY   AGE
+azure-mysql-standard   azure-provider   Delete           17s
 ```
 
 You are free to create more Azure `SQLServerClass` instances to define more
@@ -164,9 +165,9 @@ field `storageGB: 100`.
 ### Configure Managed Service Access
 
 In order for the AKS cluster to talk to the MySQL Database, you must condigure a
-`Microsoft.Sql` service endpoint on the AKS Virtual Network. If you do not
-already have this configured, Azure has a [guide][service endpoint] on how to
-set it up.
+`Microsoft.Sql` service endpoint on the AKS Virtual Network for all subnets. If
+you do not already have this configured, Azure has a [guide][service endpoint]
+on how to set it up.
 
 ## Provision MySQL
 
@@ -183,7 +184,7 @@ several ways: (a) rely on the default class marked
 existing managed resource.*
 
 In the `SQLServerClass` above, we added the labels `size: standard` and `demo:
-true`, so our claim will be scheduled to that class using the labels are
+"true"`, so our claim will be scheduled to that class using the labels are
 specified in the `claim.spec.classSelector`. If there are multiple classes which
 match the specified label(s) one will be chosen at random.
 
@@ -192,17 +193,17 @@ match the specified label(s) one will be chosen at random.
 ```yaml
 cat > mysql-claim.yaml <<EOF
 apiVersion: database.crossplane.io/v1alpha1
-  kind: MySQLInstance
-  metadata:
-    name: mysql-claim
-  spec:
-    classSelector:
-      matchLabels:
-        size: standard
-        demo: true
-    engineVersion: "5.6"
-    writeConnectionSecretToRef:
-      name: wordpressmysql
+kind: MySQLInstance
+metadata:
+  name: mysql-claim
+spec:
+  classSelector:
+    matchLabels:
+      size: standard
+      demo: "true"
+  engineVersion: "5.6"
+  writeConnectionSecretToRef:
+    name: wordpressmysql
 EOF
 
 kubectl apply -f mysql-claim.yaml
@@ -214,8 +215,8 @@ consumption. You can see when claim is bound using the following:
 
 ```bash
 $ kubectl get mysqlinstances
-NAME          STATUS   CLASS            VERSION   AGE
-mysql-claim   Bound    mysql-standard   5.6       11m
+NAME          STATUS   CLASS-KIND       CLASS-NAME             RESOURCE-KIND   RESOURCE-NAME               AGE
+mysql-claim   Bound    SQLServerClass   azure-mysql-standard   MySQLServer     default-mysql-claim-bm4ft   9s
 ```
 
 If the `STATUS` is blank, we are still waiting for the claim to become bound.
@@ -227,35 +228,42 @@ Name:         mysql-claim
 Namespace:    default
 Labels:       <none>
 Annotations:  kubectl.kubernetes.io/last-applied-configuration:
-                {"apiVersion":"database.crossplane.io/v1alpha1","kind":"MySQLInstance","metadata":{"annotations":{},"name":"mysql-claim","namespace":"team..."}}
+                {"apiVersion":"database.crossplane.io/v1alpha1","kind":"MySQLInstance","metadata":{"annotations":{},"name":"mysql-claim","namespace":"defa...
 API Version:  database.crossplane.io/v1alpha1
 Kind:         MySQLInstance
 Metadata:
-  Creation Timestamp:  2019-09-16T13:46:42Z
+  Creation Timestamp:  2019-10-28T15:43:28Z
   Finalizers:
     finalizer.resourceclaim.crossplane.io
-  Generation:        2
-  Resource Version:  4256
-  Self Link:         /apis/database.crossplane.io/v1alpha1/namespaces/app-project1-dev/mysqlinstances/mysql-claim
-  UID:               6a7fe064-d888-11e9-ab90-42b6bb22213a
+  Generation:        3
+  Resource Version:  11072
+  Self Link:         /apis/database.crossplane.io/v1alpha1/namespaces/default/mysqlinstances/mysql-claim
+  UID:               afff42b3-f999-11e9-a2d5-c64d758a651f
 Spec:
   Class Ref:
-    Name:          mysql-standard
+    API Version:  database.azure.crossplane.io/v1alpha3
+    Kind:         SQLServerClass
+    Name:         azure-mysql-standard
+    UID:          5710f3db-f999-11e9-a2d5-c64d758a651f
+  Class Selector:
+    Match Labels:
+      Demo:        true
+      Size:        standard
   Engine Version:  5.6
   Resource Ref:
     API Version:  database.azure.crossplane.io/v1alpha3
     Kind:         MySQLServer
-    Name:         mysqlinstance-6a7fe064-d888-11e9-ab90-42b6bb22213a
-    Namespace:    azure-infra-dev
+    Name:         default-mysql-claim-bm4ft
+    UID:          b02c1389-f999-11e9-a2d5-c64d758a651f
   Write Connection Secret To Ref:
     Name:  wordpressmysql
 Status:
   Conditions:
-    Last Transition Time:  2019-09-16T13:46:42Z
+    Last Transition Time:  2019-10-28T15:43:29Z
     Reason:                Managed claim is waiting for managed resource to become bindable
     Status:                False
     Type:                  Ready
-    Last Transition Time:  2019-09-16T13:46:42Z
+    Last Transition Time:  2019-10-28T15:43:29Z
     Reason:                Successfully reconciled managed resource
     Status:                True
     Type:                  Synced
@@ -289,13 +297,12 @@ metadata:
   name: wordpress-vnet-rule
 spec:
   name: wordpress-vnet-rule
-    serverName: ${MYSQL_NAME}
+  serverName: ${MYSQL_NAME}
   resourceGroupName: ${AKS_RESOURCE_GROUP}
   properties:
     virtualNetworkSubnetId: /subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${AKS_RESOURCE_GROUP}/providers/Microsoft.Network/virtualNetworks/${AKS_VNET}/subnets/aks-subnet
   providerRef:
-    name: demo-azure
-    namespace: azure-infra-dev
+    name: azure-provider
   reclaimPolicy: Delete
 EOF
 
@@ -305,9 +312,9 @@ kubectl apply -f wordpress-vnet-rule.yaml
 * You can verify creation with the following command and output:
 
 ```bash
-kubectl get mysqlservervirtualnetworkrules
-NAME                  AGE
-wordpress-vnet-rule   27s
+$ kubectl get mysqlservervirtualnetworkrules
+NAME                  STATE   AGE
+wordpress-vnet-rule   Ready   17s
 ```
 
 ## Install Wordpress
@@ -325,17 +332,17 @@ $ kubectl describe secret wordpressmysql
 Name:         wordpressmysql
 Namespace:    default
 Labels:       <none>
-Annotations:  crossplane.io/propagate-from-name: 6a7fe064-d888-11e9-ab90-42b6bb22213a
-            crossplane.io/propagate-from-namespace: crossplane-system
-            crossplane.io/propagate-from-uid: c539fcef-f698-11e9-a957-12a4af141bea
+Annotations:  crossplane.io/propagate-from-name: 084b9476-f99e-11e9-a2d5-c64d758a651f
+              crossplane.io/propagate-from-namespace: crossplane-system
+              crossplane.io/propagate-from-uid: 2e71f6f9-f99e-11e9-a2d5-c64d758a651f
 
 Type:  Opaque
 
 Data
 ====
-endpoint:  75 bytes
+endpoint:  50 bytes
 password:  27 bytes
-username:  58 bytes
+username:  33 bytes
 ```
 
 * Define the `Deployment` and `Service` in `wordpress-app.yaml` and create it:
