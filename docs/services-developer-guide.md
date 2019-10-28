@@ -1068,8 +1068,8 @@ value any feedback you may have about the services development process!
 [resource claim]: concepts.md#resource-claim
 [resource class]: concepts.md#resource-class
 [dynamic provisioning]: concepts.md#dynamic-and-static-provisioning
-[`CloudMemorystoreInstance`]: https://github.com/crossplaneio/stack-gcp/blob/42ebb8b71/gcp/apis/cache/v1alpha3/cloudmemorystore_instance_types.go#L146
-[`CloudMemorystoreInstanceClass`]: https://github.com/crossplaneio/stack-gcp/blob/42ebb8b71/gcp/apis/cache/v1alpha3/cloudmemorystore_instance_types.go#L237
+[`CloudMemorystoreInstance`]: https://github.com/crossplaneio/stack-gcp/blob/42ebb8b71/gcp/apis/cache/v1beta1/cloudmemorystore_instance_types.go#L146
+[`CloudMemorystoreInstanceClass`]: https://github.com/crossplaneio/stack-gcp/blob/42ebb8b71/gcp/apis/cache/v1beta1/cloudmemorystore_instance_types.go#L237
 [`Provider`]: https://github.com/crossplaneio/stack-gcp/blob/24ab7381b/gcp/apis/v1alpha3/types.go#L37
 [`RedisCluster`]: https://github.com/crossplaneio/crossplane/blob/3c6cf4e/apis/cache/v1alpha1/rediscluster_types.go#L40
 [`RedisClusterClass`]: https://github.com/crossplaneio/crossplane/blob/3c6cf4e/apis/cache/v1alpha1/rediscluster_types.go#L116
