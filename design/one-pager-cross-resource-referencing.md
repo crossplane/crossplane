@@ -3,7 +3,7 @@
 
 * Owner: Javad Taheri (@soorena776)
 * Reviewers: Crossplane Maintainers
-* Status: Draft
+* Status: Accepted
 
 ## Background
 
@@ -101,16 +101,26 @@ spec:
   ...
 ```
 
-### Cross referencing using Reference Resolvers
+### Cross referencing using Attribute Referencers
 
 In this example since `vpcId` is non-deterministic we will need a mechanism to
-indicate this cross reference in the YAML object. I propose the notion of
-*Reference Resolver*, as a `go` interface as following:
+indicate this cross reference in the YAML object. We propose the notion of
+*Attribute Referencer*, as a `go` interface as following:
 
 ```go
-type ReferenceResolver interface {
-  // resolves the attribute, or returns an error
-  Resolve() (string,error)
+type AttributeReferencer interface {
+
+	// GetStatus looks up the referenced objects in K8S api and returns a list
+	// of ReferenceStatus
+	GetStatus(context.Context, CanReference, client.Reader) ([]ReferenceStatus, error)
+
+	// Build retrieves referenced resource, as well as other non-managed
+	// resources (like a `Provider`), and builds the referenced attribute
+	Build(context.Context, CanReference, client.Reader) (string, error)
+
+	// Assign accepts a managed resource object, and assigns the given value to the
+	// corresponding property
+	Assign(CanReference, string) error
 }
 ```
 
@@ -118,24 +128,28 @@ Having this interface, we can implement `VpcIDRefResolver` as
 
 ```go
 type VpcIDRefResolver struct {
-  // the list of objects that are needed for resolving vpcID
-  // in this case we only need VPC name, but we could reference more objects
-  VPCName string `json:"vpcName"`
-}
-
-func (r *VpcIDRefResolver) Resolve()(string,error){
-  // implementation for building the attribute (in this case vpcID)
-  // from the referenced objects( in this case a VPC)
+  // the object that is needed for resolving vpcID
+  ObjectReference `json:"inline"`
 }
 ```
 
-Then we can modify [Subnet type] as:
+And then we implement the `AttributeReferencer` method sets.
+
+* **Simplifying Assumption** We assume that each `AttributeReferencer` field
+  only needs to refer to *one* resource object. If more resources are needed,
+  those resources can be referenced using other attributes of the source, or the
+  referenced resource. This assumption helps us have a consistent API with
+  Kubernetes referencer fields (e.g. with a `Ref` suffix), where an
+  `ObjectReference` field is used for referencing.
+
+
+Using `VpcIDRefResolver`, we then can modify [Subnet type] as:
 
 ```diff
 - // VPCID is the ID of the VPC.
 - VPCID string `json:"vpcId"`
 + // VPCIDRef resolves the VPCID from the refenreced VPC
-+ VPCIDRef VpcIDRefResolver `json:"vpcIdRef"`
++ VPCIDRef *VpcIDRefResolver `json:"vpcIdRef" resource:"attributereferencer"`
 ```
 
 Now we can update the `Subnet` YAML object in the sample solution as following:
@@ -150,108 +164,37 @@ metadata:
 spec:
   # reference to API objects from which the vpcId will be resolved
   vpcIdRef:
-    vpcName: my-vpc
+    name: my-vpc
   ...
 ---
 ```
 
 Note here that we added a `Ref` suffix to the `vpcIdRef`, emphasizing that it is
-different than `vpcId`.
+different than `vpcId`. In addition we used `resource:"attributereferencer"`
+tag, to explicitly indicate that this field implements that interface, which is
+used for type validation, code readability and showing the intention of the
+field explicitly.
 
 This mechanism resolves the referenced non-deterministic attributes, as it waits
-for the specified object to become available. Until then, the `Resolve` method
-will return an error, postponing dependent resource reconciliation.
+for the specified object to become available using `GetStatus` method. Once the
+referenced resource is ready, the corresponding `Build` method executes and
+retrieves the required attributes from various objects and builds the desired
+attribute. Finally, the `Assign` method assigns the built value to the right
+field in the owning object.
 
-For composite attributes, the corresponding reference resolver could specify all
-the required objects, and the function that produces the attribute. For instance
-consider the following solution in GCP:
-
-```yaml
----
-apiVersion: compute.gcp.crossplane.io/v1alpha2
-kind: Network
-metadata:
-  name: my-network
-  namespace: cool-ns
-spec:
-  ...
----
-apiVersion: compute.gcp.crossplane.io/v1alpha2
-kind: Subnetwork
-metadata:
-  name: my-subnetwork
-  namespace: cool-ns
-spec:
-  ...
-  network: /projects/myproject/global/networks/example
-  ...
-```
-
-To add `networkRef` field to the `Subnetwork`, we can implement
-`NetworkRefResolver` as:
-
-```go
-type NetworkRefResolver struct {
-  NetworkName string `json:"networkName"`
-  ProjectName string `json:"projectName"`
-}
-
-func (r *NetworkRefResolver) Resolve()(string,error){
-  
-  // GetObject is a method that returns an API object given its name  
-  n,err := GetObject(r.NetworkName)
-  if err!= nil{
-    return error
-  }
-
-  p,err := GetObject(r.ProjectName)
-  if err!= nil{
-    return error
-  }
-
-  return fmt.Sprintf("/projects/%v/global/networks/%v", n.Name, p.Name), nil
-}
-```
-
-And then update [Subnetwork type] as:
-
-```diff
-- Network string `json:"network"`
-+ NetworkRef NetworkRefResolver `json:"networkRef"`
-```
-
-Finally, the YAML object for this solution can be re-written as:
-
-```yaml
-apiVersion: compute.gcp.crossplane.io/v1alpha2
-kind: Subnetwork
-metadata:
-  name: my-subnetwork
-  namespace: cool-ns
-spec:
-  ...
-  networkRef:
-    networkName: my-network
-    projectName: myproject
-  ...
-```
-
-There are a number of simplifying assumptions in this implementation. Using the
-notation we used for resources earlier:
-
-* The API group and version of `r2` and `r1` are the same
-* The namespace of `r2` and `r1` are the same
+Using the same mechanism, composite attributes could also be referenced and
+built. In this case, the `Build` method potentially would implement a more complex
+composition logic.
 
 #### Implementation in Crossplane
 
 To implement the above mentioned cross referencing in Crossplane, we modify the
-[Managed Reconciler] in crossplane-runtime to add `ResolveDep` stage to the
-existing stages, to have `{Observe, ResolveDep, Create, Update, Delete}` set.
-`ResolveDep` will check to see if any of the fields in the give API type are of
-interface type `ReferenceResolver`, and if so, attempts to resolve them. If
+[Managed Reconciler] in crossplane-runtime to add logic to call `ResolveReferences`.
+`ResolveReferences` will check to see if any of the fields in the give API type are of
+interface type `AttributeReferencer`, and if so, attempts to resolve them. If
 resolution for any reason is not completed, reconciliation gets rescheduled.
 Once a reference field is resolved, its value will be stored in the equivalent
-non `Ref` field, and reconciler proceeds to the next (e.g. `Create`) stage.
+non `Ref` field, and reconciler proceeds to the next steps.
 
 ### Maintain High Fidelity
 
@@ -274,25 +217,31 @@ update the modification as:
 
 Note that we added `omitempty` rule to both fields, making them optional.
 
-This scheme has the following restrictions:
 
-* If none of `vpcId` or `vpcIDRef` are provided, result in an error
-* If both `vpcId` and `vpcIDRef` are provided, result in an error
+If both fields are provided `VPCIDRef` takes priority and overwrites `VPCID`
+with the resolved value.
 
 ### Project Blocking Dependency in Resource Status
 
-Resolving a referenced attribute results in one of the following outcomes,
-ordered with higher priority:
+To show the status of resolving references of a resource, we add the new
+condition type `ReferencesResolved` to the existing Managed resources
+Conditions. Resolving a referenced attribute results in one of the following
+outcomes, ordered with higher priority:
 
-1. The referenced object is of a *different group/version*. In this case the
-   status of the resource should show an error, with a message for more details.
+1. An error occurs during resolving references. In this case `ReconcileError` condition is
+   added to resources conditions, and the resource is rescheduled for
+   reconciliation.
 
 2. The referenced object *doesn't exist*, or is not yet *Ready*. In this case
-   the status of the resource should be updated to `Queued`. Also, the resolving
-   should be re-scheduled with a *long wait*.
+   the resource will be assigned with a `ReferencesResolved` condition with
+   `Status=ConditionFalse`, and its `Reason` listing the resources that don't
+   exist or are not ready. Also, the resolving should be
+   re-scheduled with a *long wait*.
 
-3. The referenced object is *Ready*. In this case the value for the referenced
-   attribute is returned.
+3. The referenced object is *Ready*. In this case
+   the resource will be assigned with a `ReferencesResolved` condition with
+   `Status=ConditionTrue`.
+
 
 If two or more referenced objects have different outcomes, the status of the
 resource should be updated to the outcome with the higher priority.
