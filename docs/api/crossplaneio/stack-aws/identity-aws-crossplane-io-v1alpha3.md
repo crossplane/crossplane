@@ -1,6 +1,6 @@
-# identity.aws.crossplane.io/v1alpha2 API Reference
+# identity.aws.crossplane.io/v1alpha3 API Reference
 
-Package v1alpha2 contains managed resources for AWS identity services such as IAM.
+Package v1alpha3 contains managed resources for AWS identity services such as IAM.
 
 This API group contains the following Crossplane resources:
 
@@ -14,7 +14,7 @@ An IAMRole is a managed resource that represents an AWS IAM Role.
 
 Name | Type | Description
 -----|------|------------
-`apiVersion` | string | `identity.aws.crossplane.io/v1alpha2`
+`apiVersion` | string | `identity.aws.crossplane.io/v1alpha3`
 `kind` | string | `IAMRole`
 `metadata` | [meta/v1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectmeta-v1-meta) | Kubernetes object metadata.
 `spec` | [IAMRoleSpec](#IAMRoleSpec) | An IAMRoleSpec defines the desired state of an IAMRole.
@@ -29,12 +29,24 @@ An IAMRolePolicyAttachment is a managed resource that represents an AWS IAM Role
 
 Name | Type | Description
 -----|------|------------
-`apiVersion` | string | `identity.aws.crossplane.io/v1alpha2`
+`apiVersion` | string | `identity.aws.crossplane.io/v1alpha3`
 `kind` | string | `IAMRolePolicyAttachment`
 `metadata` | [meta/v1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectmeta-v1-meta) | Kubernetes object metadata.
 `spec` | [IAMRolePolicyAttachmentSpec](#IAMRolePolicyAttachmentSpec) | An IAMRolePolicyAttachmentSpec defines the desired state of an IAMRolePolicyAttachment.
 `status` | [IAMRolePolicyAttachmentStatus](#IAMRolePolicyAttachmentStatus) | An IAMRolePolicyAttachmentStatus represents the observed state of an IAMRolePolicyAttachment.
 
+
+
+## IAMRoleARNReferencer
+
+IAMRoleARNReferencer is used to get the ARN from a referenced IAMRole object
+
+
+
+
+IAMRoleARNReferencer supports all fields of:
+
+* [core/v1.LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#localobjectreference-v1-core)
 
 
 ## IAMRoleExternalStatus
@@ -51,6 +63,38 @@ Name | Type | Description
 `arn` | string | ARN is the Amazon Resource Name (ARN) specifying the role. For more information about ARNs and how to use them in policies, see IAM Identifiers (http://docs.aws.amazon.com/IAM/latest/UserGuide/Using_Identifiers.html) in the IAM User Guide guide.
 `roleID` | string | RoleID is the stable and unique string identifying the role. For more information about IDs, see IAM Identifiers (http://docs.aws.amazon.com/IAM/latest/UserGuide/Using_Identifiers.html) in the Using IAM guide.
 
+
+
+## IAMRoleNameReferencer
+
+IAMRoleNameReferencer is used to get the Name from a referenced IAMRole object
+
+Appears in:
+
+* [IAMRoleNameReferencerForIAMRolePolicyAttachment](#IAMRoleNameReferencerForIAMRolePolicyAttachment)
+
+
+
+
+IAMRoleNameReferencer supports all fields of:
+
+* [core/v1.LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#localobjectreference-v1-core)
+
+
+## IAMRoleNameReferencerForIAMRolePolicyAttachment
+
+IAMRoleNameReferencerForIAMRolePolicyAttachment is an attribute referencer that retrieves Name from a referenced IAMRole
+
+Appears in:
+
+* [IAMRolePolicyAttachmentParameters](#IAMRolePolicyAttachmentParameters)
+
+
+
+
+IAMRoleNameReferencerForIAMRolePolicyAttachment supports all fields of:
+
+* [IAMRoleNameReferencer](#IAMRoleNameReferencer)
 
 
 ## IAMRoleParameters
@@ -98,6 +142,7 @@ Name | Type | Description
 -----|------|------------
 `policyArn` | string | PolicyARN is the Amazon Resource Name (ARN) of the IAM policy you want to attach.
 `roleName` | string | RoleName presents the name of the IAM role.
+`roleNameRef` | [IAMRoleNameReferencerForIAMRolePolicyAttachment](#IAMRoleNameReferencerForIAMRolePolicyAttachment) | RoleNameRef references to an IAMRole to retrieve its Name
 
 
 

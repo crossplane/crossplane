@@ -1,6 +1,6 @@
-# azure.crossplane.io/v1alpha2 API Reference
+# azure.crossplane.io/v1alpha3 API Reference
 
-Package v1alpha2 contains core resources for Microsoft Azure.
+Package v1alpha3 contains core resources for Microsoft Azure.
 
 This API group contains the following Crossplane resources:
 
@@ -14,7 +14,7 @@ A Provider configures an Azure &#39;provider&#39;, i.e. a connection to a partic
 
 Name | Type | Description
 -----|------|------------
-`apiVersion` | string | `azure.crossplane.io/v1alpha2`
+`apiVersion` | string | `azure.crossplane.io/v1alpha3`
 `kind` | string | `Provider`
 `metadata` | [meta/v1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectmeta-v1-meta) | Kubernetes object metadata.
 `spec` | [ProviderSpec](#ProviderSpec) | A ProviderSpec defines the desired state of a Provider.
@@ -28,7 +28,7 @@ A ResourceGroup is a managed resource that represents an Azure Resource Group.
 
 Name | Type | Description
 -----|------|------------
-`apiVersion` | string | `azure.crossplane.io/v1alpha2`
+`apiVersion` | string | `azure.crossplane.io/v1alpha3`
 `kind` | string | `ResourceGroup`
 `metadata` | [meta/v1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectmeta-v1-meta) | Kubernetes object metadata.
 `spec` | [ResourceGroupSpec](#ResourceGroupSpec) | A ResourceGroupSpec defines the desired state of a ResourceGroup.
@@ -47,8 +47,20 @@ Appears in:
 
 Name | Type | Description
 -----|------|------------
-`credentialsSecretRef` | [core/v1.SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#secretkeyselector-v1-core) | Azure service principal credentials json secret key reference A Secret containing JSON encoded credentials for an Azure Service Principal that will be used to authenticate to this Azure Provider.
+`credentialsSecretRef` | [v1alpha1.SecretKeySelector](../crossplane-runtime/core-crossplane-io-v1alpha1.md#secretkeyselector) | Azure service principal credentials json secret key reference A Secret containing JSON encoded credentials for an Azure Service Principal that will be used to authenticate to this Azure Provider.
 
+
+
+## ResourceGroupNameReferencer
+
+ResourceGroupNameReferencer is used to get the name from another ResourceGroup
+
+
+
+
+ResourceGroupNameReferencer supports all fields of:
+
+* [core/v1.LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#localobjectreference-v1-core)
 
 
 ## ResourceGroupSpec

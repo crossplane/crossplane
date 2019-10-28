@@ -1,6 +1,6 @@
-# cache.azure.crossplane.io/v1alpha2 API Reference
+# cache.azure.crossplane.io/v1alpha3 API Reference
 
-Package v1alpha2 contains managed resources for Azure cache services such as Redis.
+Package v1alpha3 contains managed resources for Azure cache services such as Redis.
 
 This API group contains the following Crossplane resources:
 
@@ -14,7 +14,7 @@ A Redis is a managed resource that represents an Azure Redis cluster.
 
 Name | Type | Description
 -----|------|------------
-`apiVersion` | string | `cache.azure.crossplane.io/v1alpha2`
+`apiVersion` | string | `cache.azure.crossplane.io/v1alpha3`
 `kind` | string | `Redis`
 `metadata` | [meta/v1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectmeta-v1-meta) | Kubernetes object metadata.
 `spec` | [RedisSpec](#RedisSpec) | A RedisSpec defines the desired state of a Redis.
@@ -29,7 +29,7 @@ A RedisClass is a non-portable resource class. It defines the desired spec of re
 
 Name | Type | Description
 -----|------|------------
-`apiVersion` | string | `cache.azure.crossplane.io/v1alpha2`
+`apiVersion` | string | `cache.azure.crossplane.io/v1alpha3`
 `kind` | string | `RedisClass`
 `metadata` | [meta/v1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectmeta-v1-meta) | Kubernetes object metadata.
 `specTemplate` | [RedisClassSpecTemplate](#RedisClassSpecTemplate) | SpecTemplate is a template for the spec of a dynamically provisioned Redis.
@@ -49,7 +49,7 @@ Appears in:
 
 RedisClassSpecTemplate supports all fields of:
 
-* [v1alpha1.NonPortableClassSpecTemplate](../crossplane-runtime/core-crossplane-io-v1alpha1.md#nonportableclassspectemplate)
+* [v1alpha1.ClassSpecTemplate](../crossplane-runtime/core-crossplane-io-v1alpha1.md#classspectemplate)
 * [RedisParameters](#RedisParameters)
 
 

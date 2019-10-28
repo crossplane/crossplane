@@ -1,6 +1,6 @@
-# storage.gcp.crossplane.io/v1alpha2 API Reference
+# storage.gcp.crossplane.io/v1alpha3 API Reference
 
-Package v1alpha2 contains managed resources for GCP storage services such as GCS buckets.
+Package v1alpha3 contains managed resources for GCP storage services such as GCS buckets.
 
 This API group contains the following Crossplane resources:
 
@@ -14,7 +14,7 @@ A Bucket is a managed resource that represents a Google Cloud Storage bucket.
 
 Name | Type | Description
 -----|------|------------
-`apiVersion` | string | `storage.gcp.crossplane.io/v1alpha2`
+`apiVersion` | string | `storage.gcp.crossplane.io/v1alpha3`
 `kind` | string | `Bucket`
 `metadata` | [meta/v1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectmeta-v1-meta) | Kubernetes object metadata.
 `spec` | [BucketSpec](#BucketSpec) | A BucketSpec defines the desired state of a Bucket.
@@ -24,12 +24,12 @@ Name | Type | Description
 
 ## BucketClass
 
-A BucketClass is a non-portable resource class. It defines the desired spec of resource claims that use it to dynamically provision a managed resource.
+A BucketClass is a resource class. It defines the desired spec of resource claims that use it to dynamically provision a managed resource.
 
 
 Name | Type | Description
 -----|------|------------
-`apiVersion` | string | `storage.gcp.crossplane.io/v1alpha2`
+`apiVersion` | string | `storage.gcp.crossplane.io/v1alpha3`
 `kind` | string | `BucketClass`
 `metadata` | [meta/v1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectmeta-v1-meta) | Kubernetes object metadata.
 `specTemplate` | [BucketClassSpecTemplate](#BucketClassSpecTemplate) | SpecTemplate is a template for the spec of a dynamically provisioned Bucket.
@@ -69,7 +69,7 @@ Appears in:
 
 BucketClassSpecTemplate supports all fields of:
 
-* [v1alpha1.NonPortableClassSpecTemplate](../crossplane-runtime/core-crossplane-io-v1alpha1.md#nonportableclassspectemplate)
+* [v1alpha1.ClassSpecTemplate](../crossplane-runtime/core-crossplane-io-v1alpha1.md#classspectemplate)
 * [BucketParameters](#BucketParameters)
 
 
@@ -135,7 +135,7 @@ Appears in:
 Name | Type | Description
 -----|------|------------
 `nameFormat` | string | NameFormat specifies the name of the external Bucket. The first instance of the string &#39;%s&#39; will be replaced with the Kubernetes UID of this Bucket.
-`serviceAccountSecretRef` | [core/v1.LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#localobjectreference-v1-core) | ServiceAccountSecretRef contains GCP ServiceAccount secret that will be used for bucket connection secret credentials
+`serviceAccountSecretRef` | [v1alpha1.SecretReference](../crossplane-runtime/core-crossplane-io-v1alpha1.md#secretreference) | ServiceAccountSecretRef contains GCP ServiceAccount secret that will be used for bucket connection secret credentials
 
 
 BucketParameters supports all fields of:

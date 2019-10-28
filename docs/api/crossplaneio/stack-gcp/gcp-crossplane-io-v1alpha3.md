@@ -1,6 +1,6 @@
-# gcp.crossplane.io/v1alpha2 API Reference
+# gcp.crossplane.io/v1alpha3 API Reference
 
-Package v1alpha2 contains the core resources of the Google Cloud Platform.
+Package v1alpha3 contains the core resources of the Google Cloud Platform.
 
 This API group contains the following Crossplane resources:
 
@@ -13,7 +13,7 @@ A Provider configures a GCP &#39;provider&#39;, i.e. a connection to a particula
 
 Name | Type | Description
 -----|------|------------
-`apiVersion` | string | `gcp.crossplane.io/v1alpha2`
+`apiVersion` | string | `gcp.crossplane.io/v1alpha3`
 `kind` | string | `Provider`
 `metadata` | [meta/v1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectmeta-v1-meta) | Kubernetes object metadata.
 `spec` | [ProviderSpec](#ProviderSpec) | A ProviderSpec defines the desired state of a Provider.
@@ -31,7 +31,7 @@ Appears in:
 
 Name | Type | Description
 -----|------|------------
-`credentialsSecretRef` | [core/v1.SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#secretkeyselector-v1-core) | A Secret containing JSON encoded credentials for a Google Service Account that will be used to authenticate to this GCP Provider.
+`credentialsSecretRef` | [v1alpha1.SecretKeySelector](../crossplane-runtime/core-crossplane-io-v1alpha1.md#secretkeyselector) | A Secret containing JSON encoded credentials for a Google Service Account that will be used to authenticate to this GCP Provider.
 `projectID` | string | ProjectID is the project name (not numerical ID) of this GCP Provider.
 
 

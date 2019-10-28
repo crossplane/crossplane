@@ -1,6 +1,6 @@
-# compute.azure.crossplane.io/v1alpha2 API Reference
+# compute.azure.crossplane.io/v1alpha3 API Reference
 
-Package v1alpha2 contains managed resources for Azure compute services such as AKS.
+Package v1alpha3 contains managed resources for Azure compute services such as AKS.
 
 This API group contains the following Crossplane resources:
 
@@ -14,7 +14,7 @@ An AKSCluster is a managed resource that represents an Azure Kubernetes Engine c
 
 Name | Type | Description
 -----|------|------------
-`apiVersion` | string | `compute.azure.crossplane.io/v1alpha2`
+`apiVersion` | string | `compute.azure.crossplane.io/v1alpha3`
 `kind` | string | `AKSCluster`
 `metadata` | [meta/v1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectmeta-v1-meta) | Kubernetes object metadata.
 `spec` | [AKSClusterSpec](#AKSClusterSpec) | An AKSClusterSpec defines the desired state of a AKSCluster.
@@ -29,7 +29,7 @@ An AKSClusterClass is a non-portable resource class. It defines the desired spec
 
 Name | Type | Description
 -----|------|------------
-`apiVersion` | string | `compute.azure.crossplane.io/v1alpha2`
+`apiVersion` | string | `compute.azure.crossplane.io/v1alpha3`
 `kind` | string | `AKSClusterClass`
 `metadata` | [meta/v1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectmeta-v1-meta) | Kubernetes object metadata.
 `specTemplate` | [AKSClusterClassSpecTemplate](#AKSClusterClassSpecTemplate) | SpecTemplate is a template for the spec of a dynamically provisioned AKSCluster.
@@ -49,7 +49,7 @@ Appears in:
 
 AKSClusterClassSpecTemplate supports all fields of:
 
-* [v1alpha1.NonPortableClassSpecTemplate](../crossplane-runtime/core-crossplane-io-v1alpha1.md#nonportableclassspectemplate)
+* [v1alpha1.ClassSpecTemplate](../crossplane-runtime/core-crossplane-io-v1alpha1.md#classspectemplate)
 * [AKSClusterParameters](#AKSClusterParameters)
 
 
@@ -66,14 +66,16 @@ Appears in:
 Name | Type | Description
 -----|------|------------
 `resourceGroupName` | string | ResourceGroupName is the name of the resource group that the cluster will be created in
+`resourceGroupNameRef` | [ResourceGroupNameReferencerForAKSCluster](#ResourceGroupNameReferencerForAKSCluster) | ResourceGroupNameRef - A reference to a ResourceGroup object to retrieve its name
 `location` | string | Location is the Azure location that the cluster will be created in
 `version` | string | Version is the Kubernetes version that will be deployed to the cluster
 `vnetSubnetID` | Optional string | VnetSubnetID is the subnet to which the cluster will be deployed.
+`vnetSubnetIDRef` | [SubnetIDReferencerForAKSCluster](#SubnetIDReferencerForAKSCluster) | ResourceGroupNameRef - A reference to a VnetSubnet object to retrieve its ID
 `nodeCount` | Optional int | NodeCount is the number of nodes that the cluster will initially be created with.  This can be scaled over time and defaults to 1.
 `nodeVMSize` | Optional string | NodeVMSize is the name of the worker node VM size, e.g., Standard_B2s, Standard_F2s_v2, etc.
 `dnsNamePrefix` | Optional string | DNSNamePrefix is the DNS name prefix to use with the hosted Kubernetes API server FQDN. You will use this to connect to the Kubernetes API when managing containers after creating the cluster.
 `disableRBAC` | Optional bool | DisableRBAC determines whether RBAC will be disabled or enabled in the cluster.
-`writeServicePrincipalTo` | [core/v1.LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#localobjectreference-v1-core) | WriteServicePrincipalSecretTo the specified Secret. The service principal is automatically generated and used by the AKS cluster to interact with other Azure resources.
+`writeServicePrincipalTo` | [v1alpha1.SecretReference](../crossplane-runtime/core-crossplane-io-v1alpha1.md#secretreference) | WriteServicePrincipalSecretTo the specified Secret. The service principal is automatically generated and used by the AKS cluster to interact with other Azure resources.
 
 
 
@@ -117,6 +119,38 @@ Name | Type | Description
 AKSClusterStatus supports all fields of:
 
 * [v1alpha1.ResourceStatus](../crossplane-runtime/core-crossplane-io-v1alpha1.md#resourcestatus)
+
+
+## ResourceGroupNameReferencerForAKSCluster
+
+ResourceGroupNameReferencerForAKSCluster is an attribute referencer that resolves name from a referenced ResourceGroup
+
+Appears in:
+
+* [AKSClusterParameters](#AKSClusterParameters)
+
+
+
+
+ResourceGroupNameReferencerForAKSCluster supports all fields of:
+
+* github.com/crossplaneio/stack-azure/apis/v1alpha3.ResourceGroupNameReferencer
+
+
+## SubnetIDReferencerForAKSCluster
+
+SubnetIDReferencerForAKSCluster is an attribute referencer that resolves name from a referenced ResourceGroup
+
+Appears in:
+
+* [AKSClusterParameters](#AKSClusterParameters)
+
+
+
+
+SubnetIDReferencerForAKSCluster supports all fields of:
+
+* github.com/crossplaneio/stack-azure/apis/network/v1alpha3.SubnetIDReferencer
 
 
 This API documentation was generated by `crossdocs`.

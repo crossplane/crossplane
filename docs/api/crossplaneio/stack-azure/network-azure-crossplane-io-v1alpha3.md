@@ -1,6 +1,6 @@
-# network.azure.crossplane.io/v1alpha2 API Reference
+# network.azure.crossplane.io/v1alpha3 API Reference
 
-Package v1alpha2 contains managed resources for Azure network services such as virtual networks.
+Package v1alpha3 contains managed resources for Azure network services such as virtual networks.
 
 This API group contains the following Crossplane resources:
 
@@ -14,7 +14,7 @@ A Subnet is a managed resource that represents an Azure Subnet.
 
 Name | Type | Description
 -----|------|------------
-`apiVersion` | string | `network.azure.crossplane.io/v1alpha2`
+`apiVersion` | string | `network.azure.crossplane.io/v1alpha3`
 `kind` | string | `Subnet`
 `metadata` | [meta/v1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectmeta-v1-meta) | Kubernetes object metadata.
 `spec` | [SubnetSpec](#SubnetSpec) | A SubnetSpec defines the desired state of a Subnet.
@@ -29,7 +29,7 @@ A VirtualNetwork is a managed resource that represents an Azure Virtual Network.
 
 Name | Type | Description
 -----|------|------------
-`apiVersion` | string | `network.azure.crossplane.io/v1alpha2`
+`apiVersion` | string | `network.azure.crossplane.io/v1alpha3`
 `kind` | string | `VirtualNetwork`
 `metadata` | [meta/v1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectmeta-v1-meta) | Kubernetes object metadata.
 `spec` | [VirtualNetworkSpec](#VirtualNetworkSpec) | A VirtualNetworkSpec defines the desired state of a VirtualNetwork.
@@ -52,6 +52,38 @@ Name | Type | Description
 
 
 
+## ResourceGroupNameReferencerForSubnet
+
+ResourceGroupNameReferencerForSubnet is an attribute referencer that resolves name from a referenced ResourceGroup
+
+Appears in:
+
+* [SubnetSpec](#SubnetSpec)
+
+
+
+
+ResourceGroupNameReferencerForSubnet supports all fields of:
+
+* github.com/crossplaneio/stack-azure/apis/v1alpha3.ResourceGroupNameReferencer
+
+
+## ResourceGroupNameReferencerForVirtualNetwork
+
+ResourceGroupNameReferencerForVirtualNetwork is an attribute referencer that resolves name from a referenced ResourceGroup
+
+Appears in:
+
+* [VirtualNetworkSpec](#VirtualNetworkSpec)
+
+
+
+
+ResourceGroupNameReferencerForVirtualNetwork supports all fields of:
+
+* github.com/crossplaneio/stack-azure/apis/v1alpha3.ResourceGroupNameReferencer
+
+
 ## ServiceEndpointPropertiesFormat
 
 ServiceEndpointPropertiesFormat defines properties of a service endpoint.
@@ -67,6 +99,18 @@ Name | Type | Description
 `locations` | Optional []string | Locations - A list of locations.
 `provisioningState` | Optional string | ProvisioningState - The provisioning state of the resource.
 
+
+
+## SubnetIDReferencer
+
+SubnetIDReferencer is used to get the name from another Subnet
+
+
+
+
+SubnetIDReferencer supports all fields of:
+
+* [core/v1.LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#localobjectreference-v1-core)
 
 
 ## SubnetPropertiesFormat
@@ -98,7 +142,9 @@ Name | Type | Description
 -----|------|------------
 `name` | string | Name - The name of the resource that is unique within a resource group. This name can be used to access the resource.
 `virtualNetworkName` | string | VirtualNetworkName - Name of the Subnet&#39;s virtual network.
+`virtualNetworkNameRef` | [VirtualNetworkNameReferencerForSubnet](#VirtualNetworkNameReferencerForSubnet) | VirtualNetworkNameRef references to a VirtualNetwork to retrieve its name
 `resourceGroupName` | string | ResourceGroupName - Name of the Subnet&#39;s resource group.
+`resourceGroupNameRef` | [ResourceGroupNameReferencerForSubnet](#ResourceGroupNameReferencerForSubnet) | ResourceGroupNameRef - A reference to the the Subnets&#39;s resource group.
 `properties` | [SubnetPropertiesFormat](#SubnetPropertiesFormat) | SubnetPropertiesFormat - Properties of the subnet.
 
 
@@ -128,6 +174,38 @@ Name | Type | Description
 SubnetStatus supports all fields of:
 
 * [v1alpha1.ResourceStatus](../crossplane-runtime/core-crossplane-io-v1alpha1.md#resourcestatus)
+
+
+## VirtualNetworkNameReferencer
+
+VirtualNetworkNameReferencer is used to get the name from another VirtualNetwork
+
+Appears in:
+
+* [VirtualNetworkNameReferencerForSubnet](#VirtualNetworkNameReferencerForSubnet)
+
+
+
+
+VirtualNetworkNameReferencer supports all fields of:
+
+* [core/v1.LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#localobjectreference-v1-core)
+
+
+## VirtualNetworkNameReferencerForSubnet
+
+VirtualNetworkNameReferencerForSubnet is an attribute referencer that resolves name from a referenced Network
+
+Appears in:
+
+* [SubnetSpec](#SubnetSpec)
+
+
+
+
+VirtualNetworkNameReferencerForSubnet supports all fields of:
+
+* [VirtualNetworkNameReferencer](#VirtualNetworkNameReferencer)
 
 
 ## VirtualNetworkPropertiesFormat
@@ -160,6 +238,7 @@ Name | Type | Description
 -----|------|------------
 `name` | string | Name - Name of the Virtual Network.
 `resourceGroupName` | string | ResourceGroupName - Name of the Virtual Network&#39;s resource group.
+`resourceGroupNameRef` | [ResourceGroupNameReferencerForVirtualNetwork](#ResourceGroupNameReferencerForVirtualNetwork) | ResourceGroupNameRef - A reference to the the Virtual Network&#39;s resource group.
 `properties` | [VirtualNetworkPropertiesFormat](#VirtualNetworkPropertiesFormat) | VirtualNetworkPropertiesFormat - Properties of the virtual network.
 `location` | string | Location - Resource location.
 `tags` | Optional map[string]string | Tags - Resource tags.

@@ -1,6 +1,6 @@
-# storage.azure.crossplane.io/v1alpha2 API Reference
+# storage.azure.crossplane.io/v1alpha3 API Reference
 
-Package v1alpha2 contains managed resources for Azure storage services such as containers and accounts.
+Package v1alpha3 contains managed resources for Azure storage services such as containers and accounts.
 
 This API group contains the following Crossplane resources:
 
@@ -16,7 +16,7 @@ An Account is a managed resource that represents an Azure Blob Service Account.
 
 Name | Type | Description
 -----|------|------------
-`apiVersion` | string | `storage.azure.crossplane.io/v1alpha2`
+`apiVersion` | string | `storage.azure.crossplane.io/v1alpha3`
 `kind` | string | `Account`
 `metadata` | [meta/v1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectmeta-v1-meta) | Kubernetes object metadata.
 `spec` | [AccountSpec](#AccountSpec) | An AccountSpec defines the desired state of an Account.
@@ -31,7 +31,7 @@ An AccountClass is a non-portable resource class. It defines the desired spec of
 
 Name | Type | Description
 -----|------|------------
-`apiVersion` | string | `storage.azure.crossplane.io/v1alpha2`
+`apiVersion` | string | `storage.azure.crossplane.io/v1alpha3`
 `kind` | string | `AccountClass`
 `metadata` | [meta/v1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectmeta-v1-meta) | Kubernetes object metadata.
 `specTemplate` | [AccountClassSpecTemplate](#AccountClassSpecTemplate) | SpecTemplate is a template for the spec of a dynamically provisioned Account.
@@ -45,7 +45,7 @@ A Container is a managed resource that represents an Azure Blob Storage Containe
 
 Name | Type | Description
 -----|------|------------
-`apiVersion` | string | `storage.azure.crossplane.io/v1alpha2`
+`apiVersion` | string | `storage.azure.crossplane.io/v1alpha3`
 `kind` | string | `Container`
 `metadata` | [meta/v1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectmeta-v1-meta) | Kubernetes object metadata.
 `spec` | [ContainerSpec](#ContainerSpec) | A ContainerSpec defines the desired state of a Container.
@@ -60,7 +60,7 @@ A ContainerClass is a non-portable resource class. It defines the desired spec o
 
 Name | Type | Description
 -----|------|------------
-`apiVersion` | string | `storage.azure.crossplane.io/v1alpha2`
+`apiVersion` | string | `storage.azure.crossplane.io/v1alpha3`
 `kind` | string | `ContainerClass`
 `metadata` | [meta/v1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectmeta-v1-meta) | Kubernetes object metadata.
 `specTemplate` | [ContainerClassSpecTemplate](#ContainerClassSpecTemplate) | SpecTemplate is a template for the spec of a dynamically provisioned Container.
@@ -80,7 +80,7 @@ Appears in:
 
 AccountClassSpecTemplate supports all fields of:
 
-* [v1alpha1.NonPortableClassSpecTemplate](../crossplane-runtime/core-crossplane-io-v1alpha1.md#nonportableclassspectemplate)
+* [v1alpha1.ClassSpecTemplate](../crossplane-runtime/core-crossplane-io-v1alpha1.md#classspectemplate)
 * [AccountParameters](#AccountParameters)
 
 
@@ -149,7 +149,7 @@ Appears in:
 
 ContainerClassSpecTemplate supports all fields of:
 
-* [v1alpha1.NonPortableClassSpecTemplate](../crossplane-runtime/core-crossplane-io-v1alpha1.md#nonportableclassspectemplate)
+* [v1alpha1.ClassSpecTemplate](../crossplane-runtime/core-crossplane-io-v1alpha1.md#classspectemplate)
 * [ContainerParameters](#ContainerParameters)
 
 
@@ -183,9 +183,9 @@ Appears in:
 
 Name | Type | Description
 -----|------|------------
-`writeConnectionSecretToRef` | Optional [core/v1.LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#localobjectreference-v1-core) | WriteConnectionSecretToReference specifies the name of a Secret, in the same namespace as this managed resource, to which any connection details for this managed resource should be written. Connection details frequently include the endpoint, username, and password required to connect to the managed resource.
+`writeConnectionSecretToRef` | Optional [v1alpha1.SecretReference](../crossplane-runtime/core-crossplane-io-v1alpha1.md#secretreference) | WriteConnectionSecretToReference specifies the name of a Secret, in the same namespace as this managed resource, to which any connection details for this managed resource should be written. Connection details frequently include the endpoint, username, and password required to connect to the managed resource.
 `claimRef` | Optional [core/v1.ObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectreference-v1-core) | ClaimReference specifies the resource claim to which this managed resource will be bound. ClaimReference is set automatically during dynamic provisioning. Crossplane does not currently support setting this field manually, per https://github.com/crossplaneio/crossplane-runtime/issues/19
-`classRef` | Optional [core/v1.ObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectreference-v1-core) | NonPortableClassReference specifies the non-portable resource class that was used to dynamically provision this managed resource, if any. Crossplane does not currently support setting this field manually, per https://github.com/crossplaneio/crossplane-runtime/issues/20
+`classRef` | Optional [core/v1.ObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectreference-v1-core) | ClassReference specifies the non-portable resource class that was used to dynamically provision this managed resource, if any. Crossplane does not currently support setting this field manually, per https://github.com/crossplaneio/crossplane-runtime/issues/20
 `reclaimPolicy` | Optional [v1alpha1.ReclaimPolicy](../crossplane-runtime/core-crossplane-io-v1alpha1.md#reclaimpolicy) | ReclaimPolicy specifies what will happen to the external resource this managed resource manages when the managed resource is deleted. &#34;Delete&#34; deletes the external resource, while &#34;Retain&#34; (the default) does not. Note this behaviour is subtly different from other uses of the ReclaimPolicy concept within the Kubernetes ecosystem per https://github.com/crossplaneio/crossplane-runtime/issues/21
 
 

@@ -1,6 +1,6 @@
-# aws.crossplane.io/v1alpha2 API Reference
+# aws.crossplane.io/v1alpha3 API Reference
 
-Package v1alpha2 contains core AWS resources.
+Package v1alpha3 contains core AWS resources.
 
 This API group contains the following Crossplane resources:
 
@@ -13,7 +13,7 @@ A Provider configures an AWS &#39;provider&#39;, i.e. a connection to a particul
 
 Name | Type | Description
 -----|------|------------
-`apiVersion` | string | `aws.crossplane.io/v1alpha2`
+`apiVersion` | string | `aws.crossplane.io/v1alpha3`
 `kind` | string | `Provider`
 `metadata` | [meta/v1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectmeta-v1-meta) | Kubernetes object metadata.
 `spec` | [ProviderSpec](#ProviderSpec) | A ProviderSpec defines the desired state of a Provider.
@@ -32,7 +32,7 @@ Appears in:
 Name | Type | Description
 -----|------|------------
 `region` | string | Region for managed resources created using this AWS provider.
-`credentialsSecretRef` | [core/v1.SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#secretkeyselector-v1-core) | A Secret containing INI encoded credentials for an AWS IAM role that will be used to authenticate to this AWS account.
+`credentialsSecretRef` | [v1alpha1.SecretKeySelector](../crossplane-runtime/core-crossplane-io-v1alpha1.md#secretkeyselector) | A Secret containing INI encoded credentials for an AWS IAM role that will be used to authenticate to this AWS account.
 
 
 
