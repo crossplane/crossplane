@@ -1,5 +1,5 @@
 ---
-apiVersion: network.aws.crossplane.io/v1alpha2
+apiVersion: network.aws.crossplane.io/v1alpha3
 kind: RouteTable
 metadata:
   name: sample-routetable

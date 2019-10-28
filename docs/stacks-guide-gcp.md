@@ -165,7 +165,7 @@ type: Opaque
 data:
   credentials: ${BASE64ENCODED_GCP_ACCOUNT_CREDS}
 ---
-apiVersion: gcp.crossplane.io/v1alpha2
+apiVersion: gcp.crossplane.io/v1alpha3
 kind: Provider
 metadata:
   name: gcp-provider
@@ -249,7 +249,7 @@ Below we inspect each of these resources in more details.
 
   ```yaml
   ---
-  apiVersion: compute.gcp.crossplane.io/v1alpha2
+  apiVersion: compute.gcp.crossplane.io/v1alpha3
   kind: Network
   metadata:
     name: sample-network
@@ -268,7 +268,7 @@ Below we inspect each of these resources in more details.
 
   ```yaml
   ---
-  apiVersion: compute.gcp.crossplane.io/v1alpha2
+  apiVersion: compute.gcp.crossplane.io/v1alpha3
   kind: Subnetwork
   metadata:
     name: sample-subnetwork
@@ -294,7 +294,7 @@ Below we inspect each of these resources in more details.
 
   ```yaml
   ---
-  apiVersion: compute.gcp.crossplane.io/v1alpha2
+  apiVersion: compute.gcp.crossplane.io/v1alpha3
   kind: GlobalAddress
   metadata:
     name: sample-globaladdress
@@ -317,7 +317,7 @@ Below we inspect each of these resources in more details.
 
   ```yaml
   ---
-  apiVersion: servicenetworking.gcp.crossplane.io/v1alpha2
+  apiVersion: servicenetworking.gcp.crossplane.io/v1alpha3
   kind: Connection
   metadata:
     name: sample-connection
@@ -422,7 +422,7 @@ Below we inspect each of these resource classes in more details:
 
   ```yaml
   ---
-  apiVersion: compute.gcp.crossplane.io/v1alpha2
+  apiVersion: compute.gcp.crossplane.io/v1alpha3
   kind: GKEClusterClass
   metadata:
     name: standard-cluster

@@ -496,8 +496,8 @@ import (
     "github.com/crossplaneio/crossplane-runtime/pkg/meta"
     "github.com/crossplaneio/crossplane-runtime/pkg/resource"
 
-    "github.com/crossplaneio/stack-fcp/apis/database/v1alpha2"
-    fcpv1alpha2 "github.com/crossplaneio/stack-fcp/apis/v1alpha2"
+    "github.com/crossplaneio/stack-fcp/apis/database/v1alpha3"
+    fcpv1alpha3 "github.com/crossplaneio/stack-fcp/apis/v1alpha3"
 )
 
 type FavouriteDBInstanceController struct{}
@@ -507,10 +507,10 @@ type FavouriteDBInstanceController struct{}
 // connecter, which satisfies the ExternalConnecter interface.
 func (c *FavouriteDBInstanceController) SetupWithManager(mgr ctrl.Manager) error {
     return ctrl.NewControllerManagedBy(mgr).
-        Named(strings.ToLower(fmt.Sprintf("%s.%s", v1alpha2.FavouriteDBInstanceKind, v1alpha2.Group))).
-        For(&v1alpha2.FavouriteDBInstance{}).
+        Named(strings.ToLower(fmt.Sprintf("%s.%s", v1alpha3.FavouriteDBInstanceKind, v1alpha3.Group))).
+        For(&v1alpha3.FavouriteDBInstance{}).
         Complete(resource.NewManagedReconciler(mgr,
-            resource.ManagedKind(v1alpha2.FavouriteDBInstanceGroupVersionKind),
+            resource.ManagedKind(v1alpha3.FavouriteDBInstanceGroupVersionKind),
             resource.WithExternalConnecter(&connecter{client: mgr.GetClient()})))
 }
 
@@ -525,13 +525,13 @@ func (c *connecter) Connect(ctx context.Context, mg resource.Managed) (resource.
     // FavouriteDBInstance. We told NewControllerManagedBy that this was a
     // controller For FavouriteDBInstance, so something would have to go
     // horribly wrong for us to encounter another type.
-    i, ok := mg.(*v1alpha2.FavouriteDBInstance)
+    i, ok := mg.(*v1alpha3.FavouriteDBInstance)
     if !ok {
         return nil, errors.New("managed resource is not a FavouriteDBInstance")
     }
 
     // Get the Provider referenced by the FavouriteDBInstance.
-    p := &fcpv1alpha2.Provider{}
+    p := &fcpv1alpha3.Provider{}
     if err := c.client.Get(ctx, meta.NamespacedNameOf(i.Spec.ProviderReference), p); err != nil {
         return nil, errors.Wrap(err, "cannot get Provider")
     }
@@ -556,7 +556,7 @@ type external struct{ client database.Client }
 // calls Observe in order to determine whether an external resource needs to be
 // created, updated, or deleted.
 func (e *external) Observe(ctx context.Context, mg resource.Managed) (resource.ExternalObservation, error) {
-    i, ok := mg.(*v1alpha2.FavouriteDBInstance)
+    i, ok := mg.(*v1alpha3.FavouriteDBInstance)
     if !ok {
         return resource.ExternalObservation{}, errors.New("managed resource is not a FavouriteDBInstance")
     }
@@ -623,7 +623,7 @@ func (e *external) Observe(ctx context.Context, mg resource.Managed) (resource.E
 // resource. resource.ManagedReconciler only calls Create if Observe reported
 // that the external resource did not exist.
 func (e *external) Create(ctx context.Context, mg resource.Managed) (resource.ExternalCreation, error) {
-    i, ok := mg.(*v1alpha2.FavouriteDBInstance)
+    i, ok := mg.(*v1alpha3.FavouriteDBInstance)
     if !ok {
         return resource.ExternalCreation{}, errors.New("managed resource is not a FavouriteDBInstance")
     }
@@ -655,7 +655,7 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (resource.Ex
 // managed resource. resource.ManagedReconciler only calls Update if Observe
 // reported that the external resource was not up to date.
 func (e *external) Update(ctx context.Context, mg resource.Managed) (resource.ExternalUpdate, error) {
-    i, ok := mg.(*v1alpha2.FavouriteDBInstance)
+    i, ok := mg.(*v1alpha3.FavouriteDBInstance)
     if !ok {
         return resource.ExternalUpdate{}, errors.New("managed resource is not a FavouriteDBInstance")
     }
@@ -669,7 +669,7 @@ func (e *external) Update(ctx context.Context, mg resource.Managed) (resource.Ex
 // Delete the external resource. resource.ManagedReconciler only calls Delete
 // when a managed resource with the 'Delete' reclaim policy has been deleted.
 func (e *external) Delete(ctx context.Context, mg resource.Managed) error {
-    i, ok := mg.(*v1alpha2.FavouriteDBInstance)
+    i, ok := mg.(*v1alpha3.FavouriteDBInstance)
     if !ok {
         return errors.New("managed resource is not a FavouriteDBInstance")
     }
@@ -711,7 +711,7 @@ import (
     // infrastructure stacks.
     databasev1alpha1 "github.com/crossplaneio/crossplane/apis/database/v1alpha1"
 
-    "github.com/crossplaneio/stack-fcp/apis/database/v1alpha2"
+    "github.com/crossplaneio/stack-fcp/apis/database/v1alpha3"
 )
 
 type PostgreSQLInstanceClaimSchedulingController struct{}
@@ -725,8 +725,8 @@ func (c *FancySQLInstanceClaimSchedulingController) SetupWithManager(mgr ctrl.Ma
     // case "fancysqlinstance.favouritedbinstance.fcp.crossplane.io".
     name := strings.ToLower(fmt.Sprintf("scheduler.%s.%s.%s",
         databasev1alpha1.FancySQLInstanceKind,
-        v1alpha2.FavouriteDBInstanceKind,
-        v1alpha2.Group))
+        v1alpha3.FavouriteDBInstanceKind,
+        v1alpha3.Group))
 
     return ctrl.NewControllerManagedBy(mgr).
         Named(name).
@@ -748,7 +748,7 @@ func (c *FancySQLInstanceClaimSchedulingController) SetupWithManager(mgr ctrl.Ma
         ))).
         Complete(resource.NewClaimSchedulingReconciler(mgr,
             resource.ClaimKind(databasev1alpha1.FancySQLInstanceGroupVersionKind),
-            resource.ClassKind(v1alpha2.FavouriteDBInstanceClassGroupVersionKind),
+            resource.ClassKind(v1alpha3.FavouriteDBInstanceClassGroupVersionKind),
         ))
 }
 ```
@@ -779,7 +779,7 @@ import (
     // infrastructure stacks.
     databasev1alpha1 "github.com/crossplaneio/crossplane/apis/database/v1alpha1"
 
-    "github.com/crossplaneio/stack-fcp/apis/database/v1alpha2"
+    "github.com/crossplaneio/stack-fcp/apis/database/v1alpha3"
 )
 
 type PostgreSQLInstanceClaimDefaultingController struct{}
@@ -793,8 +793,8 @@ func (c *FancySQLInstanceClaimDefaultingController) SetupWithManager(mgr ctrl.Ma
     // case "fancysqlinstance.favouritedbinstance.fcp.crossplane.io".
     name := strings.ToLower(fmt.Sprintf("scheduler.%s.%s.%s",
         databasev1alpha1.FancySQLInstanceKind,
-        v1alpha2.FavouriteDBInstanceKind,
-        v1alpha2.Group))
+        v1alpha3.FavouriteDBInstanceKind,
+        v1alpha3.Group))
 
     return ctrl.NewControllerManagedBy(mgr).
         Named(name).
@@ -815,7 +815,7 @@ func (c *FancySQLInstanceClaimDefaultingController) SetupWithManager(mgr ctrl.Ma
         ))).
         Complete(resource.NewClaimDefaultingReconciler(mgr,
             resource.ClaimKind(databasev1alpha1.FancySQLInstanceGroupVersionKind),
-            resource.ClassKind(v1alpha2.FavouriteDBInstanceClassGroupVersionKind),
+            resource.ClassKind(v1alpha3.FavouriteDBInstanceClassGroupVersionKind),
         ))
 }
 ```
@@ -851,7 +851,7 @@ import (
     // infrastructure stacks.
     databasev1alpha1 "github.com/crossplaneio/crossplane/apis/database/v1alpha1"
 
-    "github.com/crossplaneio/stack-fcp/apis/database/v1alpha2"
+    "github.com/crossplaneio/stack-fcp/apis/database/v1alpha3"
 )
 
 type FavouriteDBInstanceClaimController struct{}
@@ -864,8 +864,8 @@ func (c *FavouriteDBInstanceClaimController) SetupWithManager(mgr ctrl.Manager) 
     // "fancysqlinstance.favouritedbinstance.fcp.crossplane.io".
     name := strings.ToLower(fmt.Sprintf("%s.%s.%s",
         databasev1alpha1.FancySQLInstanceKind,
-        v1alpha2.FavouriteDBInstanceKind,
-        v1alpha2.Group))
+        v1alpha3.FavouriteDBInstanceKind,
+        v1alpha3.Group))
 
     // The controller below watches for changes to both FancySQLInstance and
     // FavouriteDBInstance kind resources. We use watch predicates to filter
@@ -873,25 +873,25 @@ func (c *FavouriteDBInstanceClaimController) SetupWithManager(mgr ctrl.Manager) 
     p := resource.NewPredicates(resource.AnyOf(
         // We want to reconcile FancySQLInstance kind resource claims that
         // reference a FavouriteDBInstanceClass.
-        resource.HasClassReferenceKind(resource.ClassKind(v1alpha2.FavouriteDBInstanceClassGroupVersionKind),
+        resource.HasClassReferenceKind(resource.ClassKind(v1alpha3.FavouriteDBInstanceClassGroupVersionKind),
 
         // We want to reconcile FancySQLInstance kind resource claims that
         // explicitly set their .spec.resourceRef to a FavouriteDBInstance kind
         // managed resource.
-        resource.HasManagedResourceReferenceKind(resource.ManagedKind(v1alpha2.FavouriteDBInstanceGroupVersionKind)),
+        resource.HasManagedResourceReferenceKind(resource.ManagedKind(v1alpha3.FavouriteDBInstanceGroupVersionKind)),
 
         // We want to reconcile FavouriteDBInstance managed resources. Resources
         // without a claim reference will be filtered by the below
         // EnqueueRequestForClaim watch event handler.
-        resource.IsManagedKind(resource.ManagedKind(v1alpha2.FavouriteDBInstanceClassGroupVersionKind), mgr.GetScheme()),
+        resource.IsManagedKind(resource.ManagedKind(v1alpha3.FavouriteDBInstanceClassGroupVersionKind), mgr.GetScheme()),
     ))
 
     // Create a new resource claim reconciler...
     r := resource.NewClaimReconciler(mgr,
         // ..that uses the supplied claim, class, and managed resource kinds.
         resource.ClaimKind(databasev1alpha1.FancySQLInstanceGroupVersionKind),
-        resource.ClassKind(v1alpha2.FavouriteDBInstanceClassGroupVersionKind),
-        resource.ManagedKind(v1alpha2.FavouriteDBInstanceGroupVersionKind),
+        resource.ClassKind(v1alpha3.FavouriteDBInstanceClassGroupVersionKind),
+        resource.ManagedKind(v1alpha3.FavouriteDBInstanceGroupVersionKind),
         // The resource claim reconciler assumes managed resources do not
         // use the status subresource for compatibility with older managed
         // resource kinds, so well behaved resources must explicitly tell the
@@ -911,7 +911,7 @@ func (c *FavouriteDBInstanceClaimController) SetupWithManager(mgr ctrl.Manager) 
     // claim it references and reconcile that claim.
     return ctrl.NewControllerManagedBy(mgr).
         Named(name).
-        Watches(&source.Kind{Type: &v1alpha2.FavouriteDBInstance{}}, &resource.EnqueueRequestForClaim{}).
+        Watches(&source.Kind{Type: &v1alpha3.FavouriteDBInstance{}}, &resource.EnqueueRequestForClaim{}).
         For(&databasev1alpha1.FancySQLInstance{}).
         WithEventFilter(p).
         Complete(r)
@@ -924,17 +924,17 @@ func ConfigureFavouriteDBInstance(_ context.Context, cm resource.Claim, cs resou
         return errors.New("resource claim is not a FancySQLInstance")
     }
 
-    class, ok := cs.(*v1alpha2.FavouriteDBInstanceClass)
+    class, ok := cs.(*v1alpha3.FavouriteDBInstanceClass)
     if !ok {
         return errors.New("resource class is not a FavouriteDBInstanceClass")
     }
 
-    instance, ok := mg.(*v1alpha2.FavouriteDBInstance)
+    instance, ok := mg.(*v1alpha3.FavouriteDBInstance)
     if !ok {
         return errors.New("managed resource is not a FavouriteDBInstance")
     }
 
-    instance.Spec = v1alpha2.FavouriteDBInstanceSpec{
+    instance.Spec = v1alpha3.FavouriteDBInstanceSpec{
         ResourceSpec: runtimev1alpha1.ResourceSpec{
             // It's typical for dynamically provisioned managed resources to
             // store their connection details in a Secret named for the claim's
@@ -980,7 +980,7 @@ import (
     "github.com/crossplaneio/crossplane-runtime/pkg/resource"
     databasev1alpha1 "github.com/crossplaneio/crossplane/apis/database/v1alpha1"
 
-    "github.com/crossplaneio/stack-fcp/apis/database/v1alpha2"
+    "github.com/crossplaneio/stack-fcp/apis/database/v1alpha3"
 )
 
 type FavouriteDBInstanceSecretController struct{}
@@ -988,11 +988,11 @@ type FavouriteDBInstanceSecretController struct{}
 func (c *FavouriteDBInstanceSecretController) SetupWithManager(mgr ctrl.Manager) error {
     p := resource.NewPredicates(resource.AnyOf(
         resource.AllOf(resource.IsControlledByKind(databasev1alpha1.FancySQLInstanceGroupVersionKind), resource.IsPropagated()),
-        resource.AllOf(resource.IsControlledByKind(v1alpha2.FavouriteDBInstanceGroupVersionKind), resource.IsPropagator()),
+        resource.AllOf(resource.IsControlledByKind(v1alpha3.FavouriteDBInstanceGroupVersionKind), resource.IsPropagator()),
     ))
 
     return ctrl.NewControllerManagedBy(mgr).
-        Named(strings.ToLower(fmt.Sprintf("connectionsecret.%s.%s", v1alpha2.FavouriteDBInstanceKind, v1alpha2.Group))).
+        Named(strings.ToLower(fmt.Sprintf("connectionsecret.%s.%s", v1alpha3.FavouriteDBInstanceKind, v1alpha3.Group))).
         Watches(&source.Kind{Type: &corev1.Secret{}}, &resource.EnqueueRequestForPropagator{}).
         For(&corev1.Secret{}).
         WithEventFilter(p).
@@ -1068,9 +1068,9 @@ value any feedback you may have about the services development process!
 [resource claim]: concepts.md#resource-claim
 [resource class]: concepts.md#resource-class
 [dynamic provisioning]: concepts.md#dynamic-and-static-provisioning
-[`CloudMemorystoreInstance`]: https://github.com/crossplaneio/stack-gcp/blob/42ebb8b71/gcp/apis/cache/v1alpha2/cloudmemorystore_instance_types.go#L146
-[`CloudMemorystoreInstanceClass`]: https://github.com/crossplaneio/stack-gcp/blob/42ebb8b71/gcp/apis/cache/v1alpha2/cloudmemorystore_instance_types.go#L237
-[`Provider`]: https://github.com/crossplaneio/stack-gcp/blob/24ab7381b/gcp/apis/v1alpha2/types.go#L37
+[`CloudMemorystoreInstance`]: https://github.com/crossplaneio/stack-gcp/blob/42ebb8b71/gcp/apis/cache/v1alpha3/cloudmemorystore_instance_types.go#L146
+[`CloudMemorystoreInstanceClass`]: https://github.com/crossplaneio/stack-gcp/blob/42ebb8b71/gcp/apis/cache/v1alpha3/cloudmemorystore_instance_types.go#L237
+[`Provider`]: https://github.com/crossplaneio/stack-gcp/blob/24ab7381b/gcp/apis/v1alpha3/types.go#L37
 [`RedisCluster`]: https://github.com/crossplaneio/crossplane/blob/3c6cf4e/apis/cache/v1alpha1/rediscluster_types.go#L40
 [`RedisClusterClass`]: https://github.com/crossplaneio/crossplane/blob/3c6cf4e/apis/cache/v1alpha1/rediscluster_types.go#L116
 [watching the API server]: https://kubernetes.io/docs/reference/using-api/api-concepts/#efficient-detection-of-changes

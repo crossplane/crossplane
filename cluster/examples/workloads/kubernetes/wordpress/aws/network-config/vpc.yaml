@@ -1,5 +1,5 @@
 ---
-apiVersion: network.aws.crossplane.io/v1alpha2
+apiVersion: network.aws.crossplane.io/v1alpha3
 kind: VPC
 metadata:
   name: sample-vpc

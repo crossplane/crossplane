@@ -1,5 +1,5 @@
 ---
-apiVersion: compute.azure.crossplane.io/v1alpha2
+apiVersion: compute.azure.crossplane.io/v1alpha3
 kind: AKSClusterClass
 metadata:
   name: standard-cluster

@@ -1,5 +1,5 @@
 ---
-apiVersion: network.aws.crossplane.io/v1alpha2
+apiVersion: network.aws.crossplane.io/v1alpha3
 kind: Subnet
 metadata:
   name: sample-subnet1
@@ -12,7 +12,7 @@ spec:
   providerRef:
     name: aws-provider
 ---
-apiVersion: network.aws.crossplane.io/v1alpha2
+apiVersion: network.aws.crossplane.io/v1alpha3
 kind: Subnet
 metadata:
   name: sample-subnet2
@@ -25,7 +25,7 @@ spec:
   providerRef:
     name: aws-provider
 ---
-apiVersion: network.aws.crossplane.io/v1alpha2
+apiVersion: network.aws.crossplane.io/v1alpha3
 kind: Subnet
 metadata:
   name: sample-subnet3

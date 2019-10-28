@@ -145,7 +145,7 @@ acquired from GCP:
       namespace: crossplane-system
     type: Opaque
     ---
-    apiVersion: gcp.crossplane.io/v1alpha2
+    apiVersion: gcp.crossplane.io/v1alpha3
     kind: Provider
     metadata:
       name: gcp-provider
@@ -212,7 +212,7 @@ provisioning.
 
 ```bash
 cat > gkeclass.yaml <<EOF
-apiVersion: compute.gcp.crossplane.io/v1alpha2
+apiVersion: compute.gcp.crossplane.io/v1alpha3
 kind: GKEClusterClass
 metadata:
   name: standard-gke
