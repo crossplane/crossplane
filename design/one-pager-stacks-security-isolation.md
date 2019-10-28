@@ -56,6 +56,33 @@ From the [Kubernetes documentation](https://kubernetes.io/docs/tasks/access-kube
 Therefore, any time a CRD is created, it will also be at the cluster scope, even if instances of the CRD are scoped to a namespace.
 This has caused confusion in the past, so it's important to clear that up here.
 
+#### Discoverability of Scope
+
+Because CRDs are cluster scoped, but our permission model for stacks is both namespaced and global we will
+ need to label CRDs to indicate which are available in a given context. As the stack-installer processes a
+ cluster or namespace stack install it needs to add labels indicating that it's crossplane environment scoped or
+ namespace scoped to a given namespace.
+
+Labels on a CRD:
+  * crossplane.io/scope={namespace|environment}
+  * namespace.crossplane.io/{namespace-name}: "true" // For namespace scope only
+
+An environment level admin could then fetch environment crd types
+
+```sh
+kubectl get crds --selector crossplane.io/scope=environment
+```
+
+A namespace admin of foo could fetch the installed CRDs
+
+```sh
+# Broken into two labels because
+# namespace limit is 63 chars,
+# label limit is 63 characters,
+# CRDs can be shared by multiple installations in different namespaces.
+kubectl get crds --selector crossplane.io/scope=namespace,namespace.crossplane.io/foo=true
+```
+
 ## Allowed Resource Access
 
 As previously stated, Crossplane is not intended to be a typical/full Kubernetes cluster to run arbitrary workloads.
@@ -87,19 +114,28 @@ Any future expansions to the model should be accompanied by a thoughtful design.
 
 ## Cluster Stacks
 
-Cluster Stacks can be thought of as a higher level of privilege than other types of stacks, similar to how kernel modules work in Linux.
-The controllers contained in a cluster stack will usually reconcile resources that are external to the cluster, for example cloud provider managed services.
-These controllers will also likely be written as full fledged controller-runtime based implementations, but that is not a requirement.
+Cluster Stacks can be thought of as a higher level of privilege than other types of stacks, similar to how kernel
+ modules work in Linux. The controllers contained in a cluster stack will usually reconcile resources that are external
+ to the cluster, for example cloud provider managed services. These controllers will also likely be written as full
+ fledged controller-runtime based implementations, but that is not a requirement.
 
 Let's look at a specific example of the [GCP cluster stack](https://github.com/crossplaneio/stack-gcp) to understand the security and isolation model more thoroughly.
 First, the user will create an instance of a `ClusterStackInstall` that specifies which cluster stack they want to install.
 Then, when the Stack Manager installs the GCP stack, a few things will happen:
 
-* All CRDs related to GCP infrastructure and services will be installed to the cluster, such as `CloudSQLInstance`, `CloudSQLInstanceClass`, `GKECluster`, `GKEClusterClass`, `Network`, `Subnetwork`, etc.
-* A `ClusterRole` will be created at the cluster level that includes the RBAC rules for the [allowed core Kubernetes kinds](#allowed-resource-access), the stack's owned CRDs, and the CRDs that it depends on.
+* All CRDs related to GCP infrastructure and services will be installed to the cluster, such as `CloudSQLInstance`,
+ `CloudSQLInstanceClass`, `GKECluster`, `GKEClusterClass`, `Network`, `Subnetwork`, etc. All CRDs will be labeled
+ `crossplane.io/scope: environment` to denote that they are from a cluster scoped install and for the environment.
+* A `ClusterRole` for the controller that we will denote as the system `ClusterRole` that includes the RBAC rules for
+  the [allowed core Kubernetes kinds](#allowed-resource-access), the stack's owned CRDs, and the CRDs that it depends
+  on. This system role is in contrast to the admin, view, and edit roles, which only provide access to the installed
+  CRDs of a stack.
+* `ClusterRoles` for admin, edit, and view will be created in the cluster scope for the stacks owned CRDs.
 * A `ServiceAccount` is created in the namespace that the stack's controller will be running.  This will serve as the runtime identity of the controller.
-* A `ClusterRoleBinding` is created at the cluster level to bind the `ClusterRole` and the namespaced `ServiceAccount`
-* A `Deployment` is created in the same namespace as the stack and it is expected to launch and manage the pod that hosts the GCP controllers.
+* A `ClusterRoleBinding` is created at the cluster level to bind to the system `ClusterRole` and the namespaced
+ `ServiceAccount`
+* A `Deployment` is created in the namespace defined in the Spec of the ClusterStackInstall and it is expected to launch
+ and manage the pod that hosts the GCP controllers.
 
 Because the stack is given a `ClusterRole` and `ClusterRoleBinding`, its permissions to the allowed resources are across all namespaces.
 
@@ -109,45 +145,41 @@ The diagram below summarizes the artifacts in the control plane after the GCP st
 
 ![Diagram of a Cluster Stack Installed](./images/cluster-stack-installed.png)
 
-### Environments
+### Environment
 
-While cluster stacks are installed at the cluster level (there is only one instance of each cluster stack), they can still support the concept of multiple "environments", each represented by a namespace.
-For example, an admin can create a namespace to model their production "environment" and another namespace to model their development "environment".
-All resources within each of those environments can share a common set of provider credentials.
-This namespaced "environment" approach provides the administrator with a way to collect or aggregate all the infrastructure and services associated with a given environment.
+Cluster stacks are installed at the cluster level (there is only one instance of each cluster stack), and there will
+ be a single environment for infrastructure which will be represented by the crossplane-system namespace as well as
+ cluster scoped resources, with a distinct set of `ClusterRole` objects that Crossplane provides for environment admins,
+  editors, and viewers. These roles can be used to grant access to subjects such as a `User` or `Group` in the
+  Crossplane control cluster with a separately created `RoleBinding` or `ClusterRoleBinding`. As such, Crossplane is
+  responsible for maintaining a set of `Roles` and users are responsible for managing `Subjects` and `Bindings`.
 
 #### Cluster Stack Single Instance Version Limitation
 
-One caveat of this approach is that because there is only a single instance of the cluster stack in the cluster, it is therefore shared across all environments.
-This means that all environments must use the same version of the stack.
-If an admin wants to try a newer version of the stack for their dev environment, it will also result in the newer version of the stack being used in the production environment as well.
+Because there is only a single instance of the cluster stack in the cluster, it is therefore shared across all
+ namespaces. This means that all namespaces must use the same version of the cluster stack. If an admin wants to try a
+ newer version of the cluster stack, it will impact all environments.
 
-This limitation could be addressed in the future by allowing multiple versions of cluster stacks installed per control plane, which would require additional complexity and design work.
-To get started, we will make the simplifying constraint that only a single version of a cluster stack can be installed and it will be shared across all namespaces (environments).
-
-#### Environment Policies
-
-Another potential advantage of supporting multiple namespace "environments" is that each one could be assigned their own specific policy, such as default resource classes.
-The production environment could have a completely different set of default resource classes than the development environment.
-Since these environments are simply represented by namespaces, they can take on any arbitrary meaning or scope.
-For example, instead of dev vs. prod, they could represent entirely other dimensions, such as a high performance environment, a cheap environment, an AWS only environment, etc.
-
-The full design for this support of different policies per environment is out of scope of this document, but this idea has interesting potential.
-Also note that in the current implementation of policies, they must be in the same namespace as the claim referencing them.
-This will likely be updated in the future to support cluster or environment scoped policies.
+This limitation could be addressed in the future by allowing multiple versions of cluster stacks installed per control
+ plane, which would require additional complexity and design work. To get started, we will make the simplifying
+ constraint that only a single version of a cluster stack can be installed and it will be shared across all namespaces.
 
 ## Namespace Stacks
 
 Namespace Stacks are likely to represent higher level "application" functionality, but are not required to do so.
-Instead of providing the infrastructure and lower level platform components for entire environments like a cluster stack, they likely will merely provide the functionality to support a single application.
-It is expected for namespace stacks to (indirectly) consume and build on functionality from cluster stacks in the form of resource claims.
-For example, a namespace stack could generate a `MySQLInstance` claim that is fulfilled through a default resource class by a cluster stack in the form of a concrete MySQL database instance.
+ Instead of providing the infrastructure and lower level platform components for environments like a cluster stack,
+ they are intended to provide the functionality to support a single application. It is expected for namespace stacks
+ to (indirectly) consume and build on functionality from cluster stacks in the form of resource claims.
 
-The key aspect of a namespace stack is that it will be installed with permissions to only watch for resources **within the namespace** it is running in.
-This provides a nice isolation as well as versioning story.
+For example, a namespace stack could generate a `MySQLInstance` claim that is fulfilled through a default resource class
+ by a cluster stack in the form of a concrete MySQL database instance.
+
+The key aspect of a namespace stack is that it will be installed with permissions to only watch for resources
+ **within the namespace** it is running in. This provides a nice isolation as well as versioning story.
 
 * **Isolation:** The namespace stack should not be able to read or write any resources outside of its target namespace.
-* **Versioning:** Multiple versions of the namespace stack can be installed within the control plane, each namespace can have their own independent version.
+* **Versioning:** Multiple versions of the namespace stack can be installed within the control plane, each namespace
+ can have their own independent version.
 
 ### Installation Flow
 
@@ -155,11 +187,19 @@ Let's look at a concrete example of what happens when the [WordPress stack](http
 
 * The user creates a `StackInstall` and specifies the WordPress stack
 * All CRDs defined by the WordPress stack will be installed into the cluster (remember that CRDs themselves are always cluster scoped).
-In the case of WordPress, a single CRD is installed that represents a WordPress application instance, `WordPressInstance`.
-* A `Role` will be created in the target namespace that includes the RBAC rules for the [allowed core Kubernetes kinds](#allowed-resource-access), the stack's owned CRDs, and the CRDs that it depends on.
-Because this is a `Role`, this only grants the given permissions to namespaced resources in the target namespace.
-* A `ServiceAccount` is created in the namespace that the stack's controller will be running that will serve as the runtime identity of the controller.
-* A `RoleBinding` is created in the target namespace to bind the namespaced `Role` and the namespaced `ServiceAccount`.
+ In the case of WordPress, a single CRD is installed that represents a WordPress application instance,
+ `WordPressInstance`. All CRDs will be labeled `crossplane.io/scope: namespace` and
+ `namespace.crossplane.io/{namespace-name}: "true"` where namespace-name is the actual namespace the stack was installed
+  into.
+* A `ClusterRole` for the controller that we will denote as a system `ClusterRole` that includes the RBAC rules for
+  the [allowed core Kubernetes kinds](#allowed-resource-access), the stack's owned CRDs, and the CRDs that it depends
+  on. This system role is in contrast to the admin, view, and edit roles, which only provide access to the installed
+  CRDs of a stack.
+* `ClusterRoles` for admin, edit, and view will be created in the cluster scope for the stacks owned CRDs.
+* A `ServiceAccount` is created in the namespace that the stack's controller will be running that will serve as the
+ runtime identity of the controller.
+* A namespaced `RoleBinding` is created in the target namespace to bind to the system `ClusterRole` and the namespaced
+ `ServiceAccount`.
 * A `Deployment` is created in the same namespace as the stack and it is expected to launch and manage the pod that hosts the WordPress controller.
 
 ### Architecture Diagram - Namespace Stack
@@ -168,7 +208,8 @@ The diagram below summarizes the artifacts in the control plane after the WordPr
 The diagram shows the result of the following sequence of actions:
 
 1. The user creates a `StackInstall` and specifies the WordPress stack
-1. The Stack Manager installs the CRDs defined in the stack, creates the necessary RBAC primitives, and starts up the WordPress controller in the same namespace as the stack.
+1. The Stack Manager installs the CRDs defined in the stack, creates the necessary RBAC primitives, and starts up the
+ WordPress controller in the same namespace as the stack.
 1. The user creates an instance of the `WordPressInstance` custom resource in the same namespace.
 1. The WordPress controller is watching for events on this CRD type in the namespace it is running in.
 1. In response to seeing the creation event for this `WordPressInstance` custom resource, the WordPress controller creates claims for the services that the instance will need, such as a MySQL database and a Kubernetes cluster.
@@ -182,12 +223,14 @@ This flow demonstrates how a namespace stack indirectly consumes a cluster stack
 
 ### Multiple Versions
 
-As previously mentioned, since namespace stacks will be installed per namespace, multiple instances of each namespace stack can be installed in the control plane.
-This also means that multiple versions of the namespace stack can be installed side by side.
-Because of the namespaced isolation, this is fine for the namespace stack's controllers, but it does cause a potential difficulty for the CRDs.
+As previously mentioned, since namespace stacks will be installed per namespace, multiple instances of each namespace
+ stack can be installed in the control plane. This also means that multiple versions of the namespace stack can be
+ installed side by side. Because of the namespaced isolation, this is fine for the namespace stack's controllers,
+ but it does cause a potential difficulty for the CRDs.
 
-The custom resource **definitions** themselves are always cluster scoped.
-If two versions of a namespace stack are installed in the control plane and they have identical CRD versions, there could be a conflict.
+The custom resource **definitions** themselves are always cluster scoped. If two versions of a namespace stack are
+ installed in the control plane and they have identical CRD versions, there could be a conflict.
+
 To illustrate this clearly, consider the following example:
 
 1. Namespace Stack `foo-v1.0` is installed along with its CRD that has version `v1beta1`
@@ -208,22 +251,27 @@ We suspect (and hope) that this newer CRD versions functionality will encourage 
 
 ### Stack Manager
 
-Currently, the Stack Manager that installs stacks into the cluster runs with a `ClusterRoleBinding` to the cluster-admin `ClusterRole` because it needs to create RBAC permissions for the arbitrary CRDs that are owned and depended on by arbitrary stacks.
-A service account cannot grant RBAC permissions that it doesn't already have itself, so to support the arbitrary permissions needs of all stacks, we are currently using the cluster-admin role.
+Currently, the Stack Manager that installs stacks into the cluster runs with a `ClusterRoleBinding` to the cluster-admin
+ `ClusterRole` because it needs to create RBAC permissions for the arbitrary CRDs that are owned and depended on by
+ arbitrary stacks. A service account cannot grant RBAC permissions that it doesn't already have itself, so to support
+ the arbitrary permissions needs of all stacks, we are currently using the cluster-admin role.
 
 This is a similar problem to what Helm's Tiller has historically had and we can consider revisiting this in the future.
-One possible solution would be to do more client side processing of stacks (instead of in-cluster processing) using the credentials and permissions of the interactive user,
-which would be similar to [Helm 3's](https://github.com/helm/community/blob/master/helm-v3/000-helm-v3.md) major design change.
+ One possible solution would be to do more client side processing of stacks (instead of in-cluster processing) using the
+ credentials and permissions of the interactive user, which would be similar to
+ [Helm 3's](https://github.com/helm/community/blob/master/helm-v3/000-helm-v3.md) major design change.
 
-However, because we are limiting the [allowed set of resources](#allowed-resource-access) that a stack can have access to, this in-cluster Stack Manager model may be acceptable.
-Furthermore, moving to a client side model may limit the full lifecycle management abilities available from an in-cluster Stack Manager, such as automatic stack upgrades.
+However, because we are limiting the [allowed set of resources](#allowed-resource-access) that a stack can have access
+ to, this in-cluster Stack Manager model may be acceptable. Furthermore, moving to a client side model may limit the
+ full lifecycle management abilities available from an in-cluster Stack Manager, such as automatic stack upgrades.
 
 A full exploration of this topic is out of scope for this version of the design document.
 
 ### Stack Package Author
 
 The author of a stack will need to specify the intended scope of permissions for their stack.
-This should be known at stack build time because the stack's controller(s) will need to know whether to watch resources in a single namespace or across all namespaces.
+This should be known at stack build time because the stack's controller(s) will need to know whether to watch resources
+ in a single namespace or across all namespaces.
 
 The `app.yaml` schema should be updated with a new field that captures the stack author's intended permission scope:
 
@@ -241,13 +289,270 @@ permissionScope: Cluster
 
 ### Stack Install
 
-Since cluster stacks and namespace stacks have differing scopes of execution in the control plane, it will be wise to allow differing access to request their installation.
-A simple way to approach this would be to create different installation request CRDs for each and then use RBAC to restrict access to them by different roles.
+Since cluster stacks and namespace stacks have differing scopes of execution in the control plane, it will be wise to
+ allow differing access to request their installation. A simple way to approach this would be to create different
+ installation request CRDs for each and then use RBAC to restrict access to them by different roles.
+
 Currently, we use a single `StackRequest` type, but going forward we should differentiate by stack type:
 
-* `ClusterStackInstall`: requests the installation of a cluster stack
-* `StackInstall`: requests the installation of a namespace stack
+* `ClusterStackInstall`: requests the installation of a cluster stack who's resources are all cluster scoped
+* `StackInstall`: requests the installation of a namespace stack who's resources are all namespace scoped
 
-With these two separate types, an administrator can allow access to installing cluster stacks to only certain restricted roles, then perhaps be more permissive with access to installing namespaced stacks.
+With these two separate types, an administrator can allow access to installing cluster stacks to only certain restricted
+ roles, then perhaps be more permissive with access to installing namespaced stacks.
 
-If the install scope type does not match what the stack author has declared within their stack metadata, an error status should be set on the install resource and installation of the stack should not proceed.
+If the install scope type does not match what the stack author has declared within their stack metadata, an error status
+ should be set on the install resource and installation of the stack should not proceed.
+
+###  Crossplane ClusterRoles / RBAC
+
+Stack manager and by extension Crossplane currently assumes that RBAC will be configured by an admin as an experience
+ largely left to the reader, but each stack-install changes the available CRDs that a particular persona need to access,
+ thus creating work and friction to our extension story for stacks. For a truly self-service model, a person who
+ installs a stack, should then be able to consume the resources that were installed as part of the machinery of
+ Crossplane.
+
+Kubernetes provides the concept of built-in roles, like cluster-admin, admin, edit, view, that provides a clear role to
+ bind to for expected behavior and Crossplane should provide the same to make secure integration with crossplane even
+ easier.
+
+Cluster / Namespace scoped stacks and stack-manager provide a very clean way to implement a concise consumption and
+ permissioning model around all Crossplane installed resources using
+ [automatic role aggregation provided by Kubernetes](https://kubernetes.io/docs/reference/access-authn-authz/rbac/#aggregated-clusterroles).
+
+ We are modeling our permissions based on default roles and bindings that kubernetes provides in
+ [built-in kubernetes roles](https://kubernetes.io/docs/reference/access-authn-authz/rbac/#default-roles-and-role-bindings).
+
+We will model our roles to define a clear separation of concerns for cluster(environment) scoped resources,
+ and namespaced resources. In our model we assume that any Cluster Stack resources are global will be for the
+ environment or infrastructure scope, whereas any namespace stack resources will be for the namespace that that stack
+ is installed into.
+
+At install time:
+ - Cluster Stack: generate a set of `ClusterRole` objects that will be aggregated to the environment
+  admin, edit, view `ClusterRole` objects.
+ - Namespaced Stack: generate a set of `ClusterRole` objects that will be aggregated to the namespace
+  specific admin, edit, view `ClusterRole` objects.
+
+#### Default Crossplane ClusterRoles
+
+The following built in roles will be installed and packaged with Crossplane, and updated with role aggregation as we
+ install additional stacks.
+
+The verbs supported in these roles(admin,edit,view) will model behavior based on existing logic around
+ [built-in kubernetes roles](https://kubernetes.io/docs/reference/access-authn-authz/rbac/#default-roles-and-role-bindings).
+
+|ClusterRole Name | Permissions |
+|:---------------------|:----------|
+| crossplane-admin | Admin: ClusterStacks, Crossplane CRDs, Namespaces, (Cluster)RoleBindings, (Cluster)Roles |
+| crossplane-env-admin | Admin: ClusterStacks, CustomResource types installed by Cluster Scoped Stacks |
+| crossplane-env-edit | Edit: ClusterStacks, CustomResource types installed by Cluster Scoped Stacks |
+| crossplane-env-view | View: CustomResource types installed by Cluster Scoped Stacks, Not permitted: secrets |
+
+We will provide a convenience group - `crossplane:master` - that binds to `crossplane-admin` with a
+ ClusterRoleBinding. This mirrors Kubernetes functionality for cluster-admin and system:master. At install time you will
+ then be able to impersonate a group that is bound to crossplane-admin.
+
+Example running a command as crossplane-admin
+```
+kubectl {any crossplane-admin operation} --as-group=crossplane:master
+```
+
+For discoverability of the roles for the environment we will add the following labels:
+ * `crossplane.io/scope: "environment"`
+
+Match labels on these roles for auto-aggregation:
+ * `rbac.crossplane.io/aggregate-to-crossplane-environment-{role}: "true"`
+
+#### ClusterRoles for a given app namespace.
+
+Each namespace provides a unit of isolation with namespaced stacks, and thus a unique set of resources, based on the
+ stacks that have been installed into that namespace. If someone were allowed to install stacks, it can't be assumed
+ that they are cluster-admin, so the stack-manager will install and manage a set of roles that will aggregate the roles
+ for the installed stacks into namespace specific roles for self-service. These roles should be bound to subjects
+ to grant access to a particular namespace for end-user integration. For any namespace that is annotated with
+ `rbac.crossplane.io/managed-roles: true` the stack-manager will ensure that ClusterRoles in the following format are
+ created for the annotated namespace.
+
+ * `crossplane:ns:{ns-name}:admin`
+ * `crossplane:ns:{ns-name}:edit`
+ * `crossplane:ns:{ns-name}:view`
+
+For discoverability of the roles for a given namespace we will add the following labels:
+ * `crossplane.io/scope: "namespace"`
+ * `namespace.crossplane.io/{namespace-name}: true`
+
+Match Roles:
+ * `rbac.crossplane.io/aggregate-to-namespace-{role}: "true"`
+ * `namespace.crossplane.io/{namespace-name}: true // to match specific namespace.`
+
+#### ClusterRoles for a given (Cluster)Stack Install
+
+For a given stack version the stack-manager will create a unique set of roles in the format
+ `stack:{repo-name}:{stack-name}:{version}:{role=system|admin|edit|view}`. All of these roles are for internal use only.
+ The system role is bound by the controller for the stack, and will include the set of dependent resources for a given
+ stack. The other (admin,edit,view) will be labeled for aggregation to their appropriate namespaced or environment
+ scoped crossplane managed roles.
+
+Consider the following example for a wordpress stack of version 1.1 from wordpressinc, you would have the following set.
+ * `stack:wordpressinc:wordpress:1.1:system` // Used by wordpress operator - stack resources + dependent resources grants
+ * `stack:wordpressinc:wordpress:1.1:admin`
+ * `stack:wordpressinc:wordpress:1.1:edit`
+ * `stack:wordpressinc:wordpress:1.1:view`
+
+If these were a from a cluster scoped stack, they would be aggregated to the built in environment roles, and if they
+ were from a namespaced stack install they would be aggregated to the corresponding [ClusterRoles for a given app
+ namespace](#clusterroles-for-a-given-app-namespace).
+
+Labels for these roles will be for aggregation purposes:
+ * `rbac.crossplane.io/aggregate-to-{install-scope}-{role}: "true"`
+ * `namespace.crossplane.io/{namespace-name}: "true"` // Only included on namespaced stacks install
+
+The format for the namespace label `namespace.crossplane.io/{namespace-name}: true`, which may seem unintuitive
+ is required to support ClusterRole aggregation. Since we will have some ClusterRoles which aggregate to more than
+ multiple namespaces and label keys must be unique, we need to encode the key/value in the key.
+
+Any additional install of this stack in an additional namespace would only require the addition of a single namespace
+ label to each existing role so it aggregated to those namespaces roles.
+
+#### Default ClusterRoles for aggregation
+
+We've defined the roles that get created that will aggregate the permissions of installed stacks and are meant to be
+ bound to RBAC subjects, like a group or User, but these roles themselves need to be seeded with initial permissions
+ so that a user who has a namespace or environment level role could for example install the first stack.
+
+Defaults that stack-manager installs that would aggregate to the crossplane-env-{role} `ClusterRole` objects,
+ for example, permission on `ClusterStackInstall` objects.
+
+ * `crossplane:stack-manager:env:default:admin`
+ * `crossplane:stack-manager:env:default:edit`
+ * `crossplane:stack-manager:env:default:view`
+
+Labels:
+ * `rbac.crossplane.io/aggregate-to-environment-{role}: "true"`
+
+Defaults that stack-manager installs that would aggregate to the crossplane:ns:{ns-name}:{role} `ClusterRole` objects,
+ for example, permissions on `StackInstall` objects.
+
+ * `crossplane:stack-manager:ns:default:admin`
+ * `crossplane:stack-manager:ns:default:edit`
+ * `crossplane:stack-manager:ns:default:view`
+
+Labels:
+ * `rbac.crossplane.io/aggregate-to-namespace-{role}: "true"`
+ * `namespace.crossplane.io/{namespace-name}: "true" // to match specific namespace.`
+
+Namespace labels on would be updated each time a namespace was annotated or deleted.
+
+#### Aggregation Examples for illustration
+
+The built in crossplane-admin `ClusterRole` object
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: crossplane-admin
+  labels:
+    crossplane.io/scope: "environment" # For discoverability for tools
+aggregationRule:
+  clusterRoleSelectors:
+  - matchLabels:
+      rbac.crossplane.io/aggregate-to-crossplane-admin: "true"
+rules: [] # Rules are automatically filled in by the controller manager.
+```
+
+An example of a namespace foo `ClusterRole` object
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: crossplane:ns:foo:view
+  labels:
+    crossplane.io/scope: "namespace" # For discoverability for tools
+    namespace.crossplane.io/foo: "true"
+aggregationRule:
+  clusterRoleSelectors:
+  - matchLabels:
+      rbac.crossplane.io/aggregate-to-namespace-view: "true"
+      namespace.crossplane.io/foo: "true" // Match installed stacks for my namespace
+rules: [] # Rules are automatically filled in by the controller manager.
+```
+
+On install of crossplane-aws stack, the stack-manager would create a ClusterRoles for each built in role. In the case of
+ crossplane-admin it would contain full access to all CRDs in the stack and look like the following for the stack admin
+ role.
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: stack:crossplane:stack-aws:1.0:admin # Unique by stack:{namespace-name}:{stack-name}:{version}:{role}s
+  labels:
+    rbac.crossplane.io/aggregate-to-crossplane-admin: "true"
+# These rules will be added to the "crossplane-admin" role based on the label above
+rules:
+- apiGroups: ["providers.aws.crossplane.io"]
+  resources: ["Provider"]
+  verbs: ["get", "list", "watch", "edit", "delete"]
+ ...
+```
+
+An example of a Wordpress namespace stack's view ClusterRole that's installed in both foo and baz namespaces.
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: stack:crossplane:wordpress:2.0:view # Unique by stack:{namespace-name}:{stack-name}:{version}:{role}
+  labels:
+      rbac.crossplane.io/aggregate-to-namespace-view: "true"
+      namespace.crossplane.io/foo: "true"
+      namespace.crossplane.io/baz: "true"
+rules:
+- apiGroups: ["wordpress.crossplane.io"]
+  resources: ["WordpressInstance"]
+  verbs: ["get", "list", "watch", "edit", "delete"]
+ ...
+```
+
+### Namespaces Management Example
+
+As part of Crossplane setup, the environment administrator would like to setup a namespace for an app team where Jane
+ is the administrator.
+
+The following would be enough for self-service.
+
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  creationTimestamp: 2019-10-16T18:25:10Z
+  name: app-team-1
+  annotations:
+    rbac.crossplane.io/managed-roles: true # Stack manager creates and will manage namespace specific ClusterRoles when it see's this.
+---
+apiVersion: rbac.authorization.k8s.io/v1
+# This role binding allows "jane" to admin the Crossplane app-team-1 namespace.
+kind: RoleBinding
+metadata:
+  name: admin-namespace
+  namespace: app-team-1
+subjects:
+- kind: User
+  name: jane # Name is case sensitive
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: crossplane:ns:app-team-1:admin
+  apiGroup: rbac.authorization.k8s.io
+```
+
+Questions/Future ideas:
+
+- A crossplane-admin that would be able to manage/create only crossplane annotated namespaces, and manage/create
+ ClusterRole bindings only to crossplane annotated roles and types.
+- It would be great if we could provide a read-acl filtered list of
+ namespaces([See issue](https://github.com/kubernetes/community/issues/1486), such that a given user could list the
+ namespaces they had been granted access to.
