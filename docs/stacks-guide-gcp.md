@@ -399,7 +399,7 @@ where we left off.
 
 <!-- Links -->
 [crossplane-concepts]: concepts.md
-[crossplane-cli]: https://github.com/crossplaneio/crossplane-cli/tree/release-0.1
+[crossplane-cli]: https://github.com/crossplaneio/crossplane-cli/tree/release-0.2
 [crossplane-gcp-networking-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-resource-connectivity-mvp.md#google-cloud-platform
 [stacks-guide]: https://github.com/crossplaneio/crossplane/blob/master/docs/stacks-guide.md
 [gcp-credentials]: https://github.com/crossplaneio/crossplane/blob/master/cluster/examples/gcp-credentials.sh

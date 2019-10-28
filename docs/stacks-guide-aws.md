@@ -554,7 +554,7 @@ off.
 [sample-wordpress-stack]: https://github.com/crossplaneio/sample-stack-wordpress
 [stack-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/design-doc-stacks.md#crossplane-stacks
 [aws command line tool]: https://aws.amazon.com/cli/
-[crossplane-cli]: https://github.com/crossplaneio/crossplane-cli
+[crossplane-cli]: https://github.com/crossplaneio/crossplane-cli/tree/release-0.2
 [Virtual Private Network]: https://aws.amazon.com/vpc/
 [Subnet]: https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Subnets.html#vpc-subnet-basics
 [aws-resource-connectivity]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-resource-connectivity-mvp.md#amazon-web-services
