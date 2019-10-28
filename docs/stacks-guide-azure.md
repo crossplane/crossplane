@@ -431,7 +431,7 @@ off.
 <!-- Links -->
 [crossplane-concepts]: concepts.md
 [sample-wordpress-stack]: https://github.com/crossplaneio/sample-stack-wordpress
-[crossplane-cli]: https://github.com/crossplaneio/crossplane-cli/tree/release-0.1
+[crossplane-cli]: https://github.com/crossplaneio/crossplane-cli/tree/release-0.2
 [crossplane-azure-networking-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-resource-connectivity-mvp.md#microsoft-azure
 [stacks-guide]: stacks-guide.md
 [provider-azure-guide]: cloud-providers/azure/azure-provider.md
