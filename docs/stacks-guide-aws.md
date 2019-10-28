@@ -138,7 +138,7 @@ variables. Next, we'll need to create an instance of AWS [provider][aws
 provider]:
 
 ```bash
-cat > provider.yaml <<EOF
+cat > provider-aws.yaml <<EOF
 ---
 apiVersion: v1
 kind: Secret
@@ -162,7 +162,7 @@ spec:
 EOF
 
 # apply it to the cluster:
-kubectl apply -f "provider.yaml"
+kubectl apply -f "provider-aws.yaml"
 
 # delete the credentials variable
 unset BASE64ENCODED_AWS_ACCOUNT_CREDS
@@ -553,6 +553,7 @@ Below we inspect each of these resource classes in more details:
     annotations:
       resourceclass.crossplane.io/is-default-class: "true"
   specTemplate:
+    writeConnectionSecretsToNamespace: crossplane-system
     forProvider:
       dbInstanceClass: db.t2.small
       masterUsername: cool_user
@@ -563,7 +564,6 @@ Below we inspect each of these resource classes in more details:
       allocatedStorage: 20
       engine: mysql
       skipFinalSnapshotBeforeDeletion: true
-    writeConnectionSecretsToNamespace: crossplane-system
     providerRef:
       name: aws-provider
     reclaimPolicy: Delete

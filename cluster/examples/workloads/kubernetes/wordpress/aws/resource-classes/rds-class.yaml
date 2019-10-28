@@ -6,16 +6,17 @@ metadata:
   annotations:
     resourceclass.crossplane.io/is-default-class: "true"
 specTemplate:
+  writeConnectionSecretsToNamespace: crossplane-system
   forProvider:
     dbInstanceClass: db.t2.small
     masterUsername: cool_user
-    vpcSecurityGroupIds:
-      - sample-rds-sg
-    dbsubnetGroupNameRef:
+    vpcSecurityGroupIDRefs:
+      - name: sample-rds-sg
+    dbSubnetGroupNameRef:
       name: sample-dbsubnetgroup
     allocatedStorage: 20
     engine: mysql
+    skipFinalSnapshotBeforeDeletion: true
   providerRef:
     name: aws-provider
-  writeConnectionSecretsToNamespace: crossplane-system
   reclaimPolicy: Delete

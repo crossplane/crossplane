@@ -154,7 +154,7 @@ Now we’ll create the `Secret` resource that contains the credential, and
  `Provider` resource which refers to that secret:
 
 ```bash
-cat > provider.yaml <<EOF
+cat > provider-gcp.yaml <<EOF
 ---
 apiVersion: v1
 kind: Secret
@@ -179,7 +179,7 @@ spec:
 EOF
 
 # apply it to the cluster:
-kubectl apply -f "provider.yaml"
+kubectl apply -f "provider-gcp.yaml"
 
 # delete the credentials variable
 unset BASE64ENCODED_GCP_ACCOUNT_CREDS
