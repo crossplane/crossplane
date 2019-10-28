@@ -5,7 +5,7 @@ weight: 430
 indent: true
 ---
 
-# Deploying Wordpress in Amazon Web Services (AWS)
+# AWS Services Guide
 
 This user guide will walk you through Wordpress application deployment using
 Crossplane managed resources and the official Wordpress Docker image.
