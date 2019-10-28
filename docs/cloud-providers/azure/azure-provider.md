@@ -59,3 +59,59 @@ The steps to perform this action are listed below:
 1. Click `API permissions`
 1. Click `Grant admin consent for Default Directory`
 1. Click `Yes`
+
+## Setup Azure Provider
+
+Before creating any resources, we need to create and configure an Azure cloud
+provider resource in Crossplane, which stores the cloud account information in
+it. All the requests from Crossplane to Azure Cloud will use the credentials
+attached to this provider resource. The following command assumes that you have
+a `crossplane-azure-provider-key.json` file that belongs to the account you’d
+like Crossplane to use.
+
+```bash
+BASE64ENCODED_AZURE_ACCOUNT_CREDS=$(base64 crossplane-azure-provider-key.json | tr -d "\n")
+```
+
+Now we’ll create our `Secret` that contains the credential and `Provider`
+resource that refers to that secret:
+
+```bash
+cat > provider.yaml <<EOF
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: azure-account-creds
+  namespace: crossplane-system
+type: Opaque
+data:
+  credentials: ${BASE64ENCODED_AZURE_ACCOUNT_CREDS}
+---
+apiVersion: azure.crossplane.io/v1alpha3
+kind: Provider
+metadata:
+  name: azure-provider
+spec:
+  credentialsSecretRef:
+    namespace: crossplane-system
+    name: azure-account-creds
+    key: credentials
+EOF
+
+# apply it to the cluster:
+kubectl apply -f "provider.yaml"
+
+# delete the credentials variable
+unset BASE64ENCODED_AZURE_ACCOUNT_CREDS
+```
+
+The output will look like the following:
+
+```bash
+secret/azure-user-creds created
+provider.azure.crossplane.io/azure-provider created
+```
+
+The `azure-provider` resource will be used in other resources that we will
+create, to provide access information to the configured Azure account.

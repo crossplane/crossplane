@@ -72,7 +72,7 @@ mkdir wordpress && cd $_
 ### Cloud Provider
 
 It is essential to make sure that the GCP user credentials are configured in
-Crossplane as a provider. Please follow the steps [provider
+Crossplane as a provider. Please follow the steps in the GCP [provider
 guide](../cloud-providers/gcp/gcp-provider.md) for more information.
 
 ### Resource Classes

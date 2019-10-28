@@ -15,7 +15,6 @@ indent: true
   - [Install the Azure Stack](#install-the-azure-stack)
     - [Validate the installation](#validate-the-installation)
   - [Configure Azure Account](#configure-azure-account)
-  - [Configure Crossplane Provider for Azure](#configure-crossplane-provider-for-azure)
   - [Set Up Network Configuration](#set-up-network-configuration)
     - [TL;DR](#tldr)
     - [Behind the scenes](#behind-the-scenes)
@@ -108,66 +107,9 @@ We will make use of the following services on Azure:
 - Subnetwork
 - Virtual Network Rule
 
-In order to utilize each of these services, you will need to follow the [Adding
-Microsoft Azure to Crossplane guide][provider-azure-guide] to obtain appropriate
-credentials in a JSON file referred to as `crossplane-azure-provider-key.json`.
-
-## Configure Crossplane Provider for Azure
-
-Before creating any resources, we need to create and configure a GCP cloud
-provider resource in Crossplane, which stores the cloud account information in
-it. All the requests from Crossplane to Azure Cloud will use the credentials
-attached to this provider resource. The following command assumes that you have
-a `crossplane-azure-provider-key.json` file that belongs to the account you’d
-like Crossplane to use.
-
-```bash
-BASE64ENCODED_AZURE_ACCOUNT_CREDS=$(base64 crossplane-azure-provider-key.json | tr -d "\n")
-```
-
-Now we’ll create our `Secret` that contains the credential and `Provider`
-resource that refers to that secret:
-
-```bash
-cat > provider-azure.yaml <<EOF
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: azure-account-creds
-  namespace: crossplane-system
-type: Opaque
-data:
-  credentials: ${BASE64ENCODED_AZURE_ACCOUNT_CREDS}
----
-apiVersion: azure.crossplane.io/v1alpha3
-kind: Provider
-metadata:
-  name: azure-provider
-spec:
-  credentialsSecretRef:
-    namespace: crossplane-system
-    name: azure-account-creds
-    key: credentials
-EOF
-
-# apply it to the cluster:
-kubectl apply -f "provider-azure.yaml"
-
-# delete the credentials variable
-unset BASE64ENCODED_AZURE_ACCOUNT_CREDS
-```
-
-The output will look like the following:
-
-```bash
-secret/azure-user-creds created
-provider.azure.crossplane.io/azure-provider created
-```
-
-The `azure-provider` resource will be used in other resources that we will
-create later in this guide, to provide access information to the configured
-Azure account.
+It is essential to make sure that the Azure user credentials are configured in
+Crossplane as a provider. Please follow the steps [provider
+guide][azure-provider-guide] for more information.
 
 ## Set Up Network Configuration
 
@@ -510,3 +452,4 @@ off.
 [sample Azure network configuration]: https://github.com/crossplaneio/crossplane/tree/master/cluster/examples/workloads/kubernetes/wordpress/azure/network-config?ref=master
 [Cross Resource Referencing]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-cross-resource-referencing.md
 [resource class selection]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-simple-class-selection.md
+[azure-provider-guide]: cloud-providers/azure/azure-provider.md

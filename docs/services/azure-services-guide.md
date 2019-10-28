@@ -92,8 +92,8 @@ kubectl apply -f stack-azure.yaml
 
 ### Cloud Provider
 
-It is essential to make sure that the GCP user credentials are configured in
-Crossplane as a provider. Please follow the steps [provider
+It is essential to make sure that the Azure user credentials are configured in
+Crossplane as a provider. Please follow the steps in the Azure [provider
 guide][azure-provider-guide] for more information.
 
 ###  Resource Classes
