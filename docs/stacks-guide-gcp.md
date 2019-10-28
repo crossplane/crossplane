@@ -421,4 +421,4 @@ where we left off.
 [gcp-ip-address]: https://cloud.google.com/compute/docs/ip-addresses/
 [gcp-connection]: https://cloud.google.com/vpc/docs/configure-private-services-access
 [resource class selection]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-simple-class-selection.md
-[gcp-provider-guide]: loud-providers/gcp/gcp-provider.md
+[gcp-provider-guide]: cloud-providers/gcp/gcp-provider.md
