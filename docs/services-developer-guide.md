@@ -94,7 +94,7 @@ controller.
 ## Getting Started
 
 At the time of writing all Crossplane Services controllers are written in Go,
-and built using [kubebuilder] v0.2.x and [crossplane-runtime].  Per [What Makes
+and built using [kubebuilder] v0.2.x and [crossplane-runtime]. Per [What Makes
 a Crossplane Managed Service] it is possible to write a controller using any
 language and tooling with a Kubernetes client, but this set of tools are the
 "[golden path]". They're well supported, broadly used, and provide a shared
@@ -117,7 +117,7 @@ The first step toward implementing a new managed service is to define the code
 level schema of its configuration resources. These are referred to as
 [resources], (resource) [kinds], and [objects] interchangeably. The kubebuilder
 scaffolding is a good starting point for any new Crossplane API kind, whether
-they'll be a managed resource, resource class, or resource claim:
+they'll be a managed resource, resource class, or resource claim.
 
 ```console
 # The resource claim.
@@ -160,8 +160,8 @@ the new resource kind is a managed resource, resource claim, or resource class.
 The getters and setter methods required to satisfy the various
 crossplane-runtime interfaces are omitted from the below examples for brevity.
 They can be added by hand, but new services are encouraged to use [`angryjet`]
-to generate them automatically using `go generate` per the `angryjet`
-documentation.
+to generate them automatically using a `//go:generate` comment per the [`angryjet`
+documentation].
 
 Note that in many cases a suitable provider and resource claim will already
 exist. Frequently adding support for a new managed service requires only the
@@ -411,6 +411,7 @@ claim. Before moving on to the controllers:
 * Run `make generate && make manifests` (or `make reviewable` if you're working
   in one of the projects in the [crossplaneio org]) to generate Custom Resource
   Definitions and additional helper methods for your new resource kinds.
+* Make sure a `//go:generate` comment exists for [angryjet] and you ran `go generate -v ./...`
 * Make sure any package documentation (i.e. `// Package v1alpha1...` GoDoc,
   including package level comment markers) are in a file named `doc.go`.
   kubebuilder adds them to `groupversion_info.go`, but several code generation
@@ -1021,7 +1022,7 @@ import (
     "sigs.k8s.io/controller-runtime/pkg/manager"
     "sigs.k8s.io/controller-runtime/pkg/runtime/signals"
 
-    "github.com/crossplaneio/crossplane/apis"
+    crossplaneapis "github.com/crossplaneio/crossplane/apis"
 
     fcpapis "github.com/crossplaneio/stack-fcp/apis"
     "github.com/crossplaneio/stack-fcp/pkg/controller"
@@ -1038,7 +1039,7 @@ func main() {
         panic(err)
     }
 
-    if err := apis.AddToScheme(mgr.GetScheme()); err != nil {
+    if err := crossplaneapis.AddToScheme(mgr.GetScheme()); err != nil {
         panic(err)
     }
 
@@ -1117,3 +1118,5 @@ value any feedback you may have about the services development process!
 [crossplaneio org]: https://github.com/crossplaneio
 [`angryjet`]: https://github.com/crossplaneio/crossplane-tools
 [Managed Resource API Patterns]: ../design/one-pager-managed-resource-api-design.md
+[Crossplane CLI]: https://github.com/crossplaneio/crossplane-cli#quick-start-stacks
+[`angryjet` documentation]: https://github.com/crossplaneio/crossplane-tools/blob/master/README.md
