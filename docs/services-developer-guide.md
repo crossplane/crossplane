@@ -161,7 +161,7 @@ The getters and setter methods required to satisfy the various
 crossplane-runtime interfaces are omitted from the below examples for brevity.
 They can be added by hand, but new services are encouraged to use [`angryjet`]
 to generate them automatically using a `//go:generate` comment per the [`angryjet`
-documentation](https://github.com/crossplaneio/crossplane-tools/blob/master/README.md).
+documentation].
 
 Note that in many cases a suitable provider and resource claim will already
 exist. Frequently adding support for a new managed service requires only the
@@ -1119,3 +1119,4 @@ value any feedback you may have about the services development process!
 [`angryjet`]: https://github.com/crossplaneio/crossplane-tools
 [Managed Resource API Patterns]: ../design/one-pager-managed-resource-api-design.md
 [Crossplane CLI]: https://github.com/crossplaneio/crossplane-cli#quick-start-stacks
+[angryjet documentation: (https://github.com/crossplaneio/crossplane-tools/blob/master/README.md)
