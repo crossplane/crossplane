@@ -5,7 +5,6 @@ Package v1alpha1 contains portable resource claims for storage services such as 
 This API group contains the following Crossplane resources:
 
 * [Bucket](#Bucket)
-* [BucketClass](#BucketClass)
 
 ## Bucket
 
@@ -20,23 +19,6 @@ Name | Type | Description
 `spec` | [BucketSpec](#BucketSpec) | BucketSpec specifies the desired state of a Bucket.
 `status` | [v1alpha1.ResourceClaimStatus](../crossplane-runtime/core-crossplane-io-v1alpha1.md#resourceclaimstatus) | 
 
-
-
-## BucketClass
-
-BucketClass contains a namespace-scoped portable class for Bucket
-
-
-Name | Type | Description
------|------|------------
-`apiVersion` | string | `storage.crossplane.io/v1alpha1`
-`kind` | string | `BucketClass`
-`metadata` | [meta/v1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectmeta-v1-meta) | Kubernetes object metadata.
-
-
-BucketClass supports all fields of:
-
-* [v1alpha1.PortableClass](../crossplane-runtime/core-crossplane-io-v1alpha1.md#portableclass)
 
 
 ## BucketSpec

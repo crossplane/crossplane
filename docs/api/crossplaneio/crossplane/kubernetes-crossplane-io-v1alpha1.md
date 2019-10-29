@@ -31,7 +31,7 @@ Appears in:
 
 Name | Type | Description
 -----|------|------------
-`credentialsSecretRef` | [core/v1.LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#localobjectreference-v1-core) | Kubernetes credentials Secret reference A Secret containing connection credentials for a Kubernetes cluster client that will be used to authenticate to this Kubernetes Provider. This will typically be the connection secret of a KubernetesCluster claim, or the secret created by a Kubernetes service account, but could also be manually configured to connect to a preexisting cluster.
+`credentialsSecretRef` | [v1alpha1.SecretReference](../crossplane-runtime/core-crossplane-io-v1alpha1.md#secretreference) | A Secret containing connection credentials for a Kubernetes cluster client that will be used to authenticate to this Kubernetes Provider. This will typically be the connection secret of a KubernetesCluster claim, or the secret created by a Kubernetes service account, but could also be manually configured to connect to a preexisting cluster.
 
 
 

@@ -1,6 +1,6 @@
-# network.aws.crossplane.io/v1alpha2 API Reference
+# network.aws.crossplane.io/v1alpha3 API Reference
 
-Package v1alpha2 contains managed resources for AWS network services such as VPC and Subnet.
+Package v1alpha3 contains managed resources for AWS network services such as VPC and Subnet.
 
 This API group contains the following Crossplane resources:
 
@@ -17,7 +17,7 @@ An InternetGateway is a managed resource that represents an AWS VPC Internet Gat
 
 Name | Type | Description
 -----|------|------------
-`apiVersion` | string | `network.aws.crossplane.io/v1alpha2`
+`apiVersion` | string | `network.aws.crossplane.io/v1alpha3`
 `kind` | string | `InternetGateway`
 `metadata` | [meta/v1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectmeta-v1-meta) | Kubernetes object metadata.
 `spec` | [InternetGatewaySpec](#InternetGatewaySpec) | An InternetGatewaySpec defines the desired state of an InternetGateway.
@@ -32,7 +32,7 @@ A RouteTable is a managed resource that represents an AWS VPC Route Table.
 
 Name | Type | Description
 -----|------|------------
-`apiVersion` | string | `network.aws.crossplane.io/v1alpha2`
+`apiVersion` | string | `network.aws.crossplane.io/v1alpha3`
 `kind` | string | `RouteTable`
 `metadata` | [meta/v1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectmeta-v1-meta) | Kubernetes object metadata.
 `spec` | [RouteTableSpec](#RouteTableSpec) | A RouteTableSpec defines the desired state of a RouteTable.
@@ -47,7 +47,7 @@ A SecurityGroup is a managed resource that represents an AWS VPC Security Group.
 
 Name | Type | Description
 -----|------|------------
-`apiVersion` | string | `network.aws.crossplane.io/v1alpha2`
+`apiVersion` | string | `network.aws.crossplane.io/v1alpha3`
 `kind` | string | `SecurityGroup`
 `metadata` | [meta/v1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectmeta-v1-meta) | Kubernetes object metadata.
 `spec` | [SecurityGroupSpec](#SecurityGroupSpec) | A SecurityGroupSpec defines the desired state of a SecurityGroup.
@@ -62,7 +62,7 @@ A Subnet is a managed resource that represents an AWS VPC Subnet.
 
 Name | Type | Description
 -----|------|------------
-`apiVersion` | string | `network.aws.crossplane.io/v1alpha2`
+`apiVersion` | string | `network.aws.crossplane.io/v1alpha3`
 `kind` | string | `Subnet`
 `metadata` | [meta/v1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectmeta-v1-meta) | Kubernetes object metadata.
 `spec` | [SubnetSpec](#SubnetSpec) | A SubnetSpec defines the desired state of a Subnet.
@@ -77,7 +77,7 @@ A VPC is a managed resource that represents an AWS Virtual Private Cloud.
 
 Name | Type | Description
 -----|------|------------
-`apiVersion` | string | `network.aws.crossplane.io/v1alpha2`
+`apiVersion` | string | `network.aws.crossplane.io/v1alpha3`
 `kind` | string | `VPC`
 `metadata` | [meta/v1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectmeta-v1-meta) | Kubernetes object metadata.
 `spec` | [VPCSpec](#VPCSpec) | A VPCSpec defines the desired state of a VPC.
@@ -98,6 +98,7 @@ Appears in:
 Name | Type | Description
 -----|------|------------
 `subnetId` | string | The ID of the subnet. A subnet ID is not returned for an implicit association.
+`subnetIdRef` | [SubnetIDReferencerForRouteTable](#SubnetIDReferencerForRouteTable) | A referencer to retrieve the ID of a subnet
 
 
 
@@ -188,6 +189,38 @@ Name | Type | Description
 
 
 
+## InternetGatewayIDReferencer
+
+InternetGatewayIDReferencer is used to get a InternetGatewayID from a InternetGateway
+
+Appears in:
+
+* [InternetGatewayIDReferencerForRouteTable](#InternetGatewayIDReferencerForRouteTable)
+
+
+
+
+InternetGatewayIDReferencer supports all fields of:
+
+* [core/v1.LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#localobjectreference-v1-core)
+
+
+## InternetGatewayIDReferencerForRouteTable
+
+InternetGatewayIDReferencerForRouteTable is an attribute referencer that resolves VPCID from a referenced VPC
+
+Appears in:
+
+* [Route](#Route)
+
+
+
+
+InternetGatewayIDReferencerForRouteTable supports all fields of:
+
+* [InternetGatewayIDReferencer](#InternetGatewayIDReferencer)
+
+
 ## InternetGatewayParameters
 
 InternetGatewayParameters define the desired state of an AWS VPC Internet Gateway.
@@ -199,7 +232,8 @@ Appears in:
 
 Name | Type | Description
 -----|------|------------
-`vpcId` | string | the VPC to attach the gateway to.
+`vpcId` | string | VPCID is the ID of the VPC.
+`vpcIdRef` | [VPCIDReferencerForInternetGateway](#VPCIDReferencerForInternetGateway) | VPCIDRef references to a VPC to and retrieves its vpcId
 
 
 
@@ -251,6 +285,7 @@ Name | Type | Description
 -----|------|------------
 `destinationCidrBlock` | string | The IPv4 CIDR address block used for the destination match. Routing decisions are based on the most specific match.
 `gatewayId` | string | The ID of an internet gateway or virtual private gateway attached to your VPC.
+`gatewayIdRef` | [InternetGatewayIDReferencerForRouteTable](#InternetGatewayIDReferencerForRouteTable) | A referencer to retrieve the ID of a gateway
 
 
 
@@ -302,6 +337,7 @@ Appears in:
 Name | Type | Description
 -----|------|------------
 `vpcId` | string | VPCID is the ID of the VPC.
+`vpcIdRef` | [VPCIDReferencerForRouteTable](#VPCIDReferencerForRouteTable) | VPCIDRef references to a VPC to and retrieves its vpcId
 `routes` | [[]Route](#Route) | the routes in the route table
 `associations` | [[]Association](#Association) | The associations between the route table and one or more subnets.
 
@@ -357,6 +393,18 @@ Name | Type | Description
 
 
 
+## SecurityGroupIDReferencer
+
+SecurityGroupIDReferencer is used to get the ID from another SecurityGroup
+
+
+
+
+SecurityGroupIDReferencer supports all fields of:
+
+* [core/v1.LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#localobjectreference-v1-core)
+
+
 ## SecurityGroupParameters
 
 SecurityGroupParameters define the desired state of an AWS VPC Security Group.
@@ -369,6 +417,7 @@ Appears in:
 Name | Type | Description
 -----|------|------------
 `vpcId` | string | VPCID is the ID of the VPC.
+`vpcIdRef` | [VPCIDReferencerForSecurityGroup](#VPCIDReferencerForSecurityGroup) | VPCIDRef references to a VPC to and retrieves its vpcId
 `description` | string | A description of the security group.
 `groupName` | string | The name of the security group.
 `ingress` | [[]IPPermission](#IPPermission) | One or more inbound rules associated with the security group.
@@ -427,6 +476,38 @@ Name | Type | Description
 
 
 
+## SubnetIDReferencer
+
+SubnetIDReferencer is used to get a SubnetID from another Subnet
+
+Appears in:
+
+* [SubnetIDReferencerForRouteTable](#SubnetIDReferencerForRouteTable)
+
+
+
+
+SubnetIDReferencer supports all fields of:
+
+* [core/v1.LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#localobjectreference-v1-core)
+
+
+## SubnetIDReferencerForRouteTable
+
+SubnetIDReferencerForRouteTable is an attribute referencer that resolves SubnetID from a referenced Subnet
+
+Appears in:
+
+* [Association](#Association)
+
+
+
+
+SubnetIDReferencerForRouteTable supports all fields of:
+
+* [SubnetIDReferencer](#SubnetIDReferencer)
+
+
 ## SubnetParameters
 
 SubnetParameters define the desired state of an AWS VPC Subnet.
@@ -441,6 +522,7 @@ Name | Type | Description
 `cidrBlock` | string | CIDRBlock is the IPv4 network range for the Subnet, in CIDR notation. For example, 10.0.0.0/18.
 `availabilityZone` | string | The Availability Zone for the subnet. Default: AWS selects one for you. If you create more than one subnet in your VPC, we may not necessarily select a different zone for each subnet.
 `vpcId` | string | VPCID is the ID of the VPC.
+`vpcIdRef` | [VPCIDReferencerForSubnet](#VPCIDReferencerForSubnet) | VPCIDRef references to a VPC to and retrieves its vpcId
 
 
 
@@ -512,6 +594,89 @@ Name | Type | Description
 `tags` | [[]Tag](#Tag) | Tags represents to current ec2 tags.
 `vpcId` | string | VPCID is the ID of the VPC.
 
+
+
+## VPCIDReferencer
+
+VPCIDReferencer is used to get a VPCID from another VPC
+
+Appears in:
+
+* [VPCIDReferencerForInternetGateway](#VPCIDReferencerForInternetGateway)
+* [VPCIDReferencerForRouteTable](#VPCIDReferencerForRouteTable)
+* [VPCIDReferencerForSecurityGroup](#VPCIDReferencerForSecurityGroup)
+* [VPCIDReferencerForSubnet](#VPCIDReferencerForSubnet)
+
+
+
+
+VPCIDReferencer supports all fields of:
+
+* [core/v1.LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#localobjectreference-v1-core)
+
+
+## VPCIDReferencerForInternetGateway
+
+VPCIDReferencerForInternetGateway is an attribute referencer that resolves VPCID from a referenced VPC
+
+Appears in:
+
+* [InternetGatewayParameters](#InternetGatewayParameters)
+
+
+
+
+VPCIDReferencerForInternetGateway supports all fields of:
+
+* [VPCIDReferencer](#VPCIDReferencer)
+
+
+## VPCIDReferencerForRouteTable
+
+VPCIDReferencerForRouteTable is an attribute referencer that resolves VPCID from a referenced VPC
+
+Appears in:
+
+* [RouteTableParameters](#RouteTableParameters)
+
+
+
+
+VPCIDReferencerForRouteTable supports all fields of:
+
+* [VPCIDReferencer](#VPCIDReferencer)
+
+
+## VPCIDReferencerForSecurityGroup
+
+VPCIDReferencerForSecurityGroup is an attribute referencer that resolves VPCID from a referenced VPC
+
+Appears in:
+
+* [SecurityGroupParameters](#SecurityGroupParameters)
+
+
+
+
+VPCIDReferencerForSecurityGroup supports all fields of:
+
+* [VPCIDReferencer](#VPCIDReferencer)
+
+
+## VPCIDReferencerForSubnet
+
+VPCIDReferencerForSubnet is an attribute referencer that resolves VPCID from a referenced VPC
+
+Appears in:
+
+* [SubnetParameters](#SubnetParameters)
+
+
+
+
+VPCIDReferencerForSubnet supports all fields of:
+
+* [VPCIDReferencer](#VPCIDReferencer)
 
 
 ## VPCParameters

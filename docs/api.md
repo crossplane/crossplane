@@ -58,21 +58,21 @@ groups:
 
 API Group | Status | Details
 --------  | ------ | -------
-[`aws.crossplane.io/v1alpha2`] | Alpha | Core AWS resources.
-[`cache.aws.crossplane.io/v1alpha2`] | Alpha | ElastiCache managed resources and classes.
-[`compute.aws.crossplane.io/v1alpha2`] | Alpha | EKS managed resources and classes.
-[`database.aws.crossplane.io/v1alpha2`] | Alpha | RDS managed resources and classes.
-[`identity.aws.crossplane.io/v1alpha2`] | Alpha | IAM managed resources and classes.
-[`network.aws.crossplane.io/v1alpha2`] | Alpha | VPC managed resources and classes.
-[`storage.aws.crossplane.io/v1alpha2`] | Alpha | S3 managed resources and classes.
+[`aws.crossplane.io/v1alpha3`] | Alpha | Core AWS resources.
+[`cache.aws.crossplane.io/v1beta1`] | Beta | ElastiCache managed resources and classes.
+[`compute.aws.crossplane.io/v1alpha3`] | Alpha | EKS managed resources and classes.
+[`database.aws.crossplane.io/v1beta1`] | Beta | RDS managed resources and classes.
+[`identity.aws.crossplane.io/v1alpha3`] | Alpha | IAM managed resources and classes.
+[`network.aws.crossplane.io/v1alpha3`] | Alpha | VPC managed resources and classes.
+[`storage.aws.crossplane.io/v1alpha3`] | Alpha | S3 managed resources and classes.
 
-[`aws.crossplane.io/v1alpha2`]: api/crossplaneio/stack-aws/aws-crossplane-io-v1alpha2.md
-[`cache.aws.crossplane.io/v1alpha2`]: api/crossplaneio/stack-aws/cache-aws-crossplane-io-v1alpha2.md
-[`compute.aws.crossplane.io/v1alpha2`]: api/crossplaneio/stack-aws/compute-aws-crossplane-io-v1alpha2.md
-[`database.aws.crossplane.io/v1alpha2`]: api/crossplaneio/stack-aws/database-aws-crossplane-io-v1alpha2.md
-[`identity.aws.crossplane.io/v1alpha2`]: api/crossplaneio/stack-aws/identity-aws-crossplane-io-v1alpha2.md
-[`network.aws.crossplane.io/v1alpha2`]: api/crossplaneio/stack-aws/network-aws-crossplane-io-v1alpha2.md
-[`storage.aws.crossplane.io/v1alpha2`]: api/crossplaneio/stack-aws/storage-aws-crossplane-io-v1alpha2.md
+[`aws.crossplane.io/v1alpha3`]: api/crossplaneio/stack-aws/aws-crossplane-io-v1alpha3.md
+[`cache.aws.crossplane.io/v1beta1`]: api/crossplaneio/stack-aws/cache-aws-crossplane-io-v1beta1.md
+[`compute.aws.crossplane.io/v1alpha3`]: api/crossplaneio/stack-aws/compute-aws-crossplane-io-v1alpha3.md
+[`database.aws.crossplane.io/v1beta1`]: api/crossplaneio/stack-aws/database-aws-crossplane-io-v1beta1.md
+[`identity.aws.crossplane.io/v1alpha3`]: api/crossplaneio/stack-aws/identity-aws-crossplane-io-v1alpha3.md
+[`network.aws.crossplane.io/v1alpha3`]: api/crossplaneio/stack-aws/network-aws-crossplane-io-v1alpha3.md
+[`storage.aws.crossplane.io/v1alpha3`]: api/crossplaneio/stack-aws/storage-aws-crossplane-io-v1alpha3.md
 
 ## Azure Stack
 
@@ -83,19 +83,19 @@ following API groups:
 
 API Group | Status | Details
 --------  | ------ | -------
-[`azure.crossplane.io/v1alpha2`] | Alpha | Core Azure resources.
-[`cache.azure.crossplane.io/v1alpha2`] | Alpha | Azure Redis managed resources and classes.
-[`compute.azure.crossplane.io/v1alpha2`] | Alpha | AKS managed resources and classes.
-[`database.azure.crossplane.io/v1alpha2`] | Alpha | Azure Database managed resources and classes.
-[`network.azure.crossplane.io/v1alpha2`] | Alpha | Virtual network managed resources and classes.
-[`storage.azure.crossplane.io/v1alpha2`] | Alpha | Azure Blob Storage managed resources and classes.
+[`azure.crossplane.io/v1alpha3`] | Alpha | Core Azure resources.
+[`cache.azure.crossplane.io/v1alpha3`] | Alpha | Azure Redis managed resources and classes.
+[`compute.azure.crossplane.io/v1alpha3`] | Alpha | AKS managed resources and classes.
+[`database.azure.crossplane.io/v1alpha3`] | Alpha | Azure Database managed resources and classes.
+[`network.azure.crossplane.io/v1alpha3`] | Alpha | Virtual network managed resources and classes.
+[`storage.azure.crossplane.io/v1alpha3`] | Alpha | Azure Blob Storage managed resources and classes.
 
-[`azure.crossplane.io/v1alpha2`]: api/crossplaneio/stack-azure/azure-crossplane-io-v1alpha2.md
-[`cache.azure.crossplane.io/v1alpha2`]: api/crossplaneio/stack-azure/cache-azure-crossplane-io-v1alpha2.md
-[`compute.azure.crossplane.io/v1alpha2`]: api/crossplaneio/stack-azure/compute-azure-crossplane-io-v1alpha2.md
-[`database.azure.crossplane.io/v1alpha2`]: api/crossplaneio/stack-azure/database-azure-crossplane-io-v1alpha2.md
-[`network.azure.crossplane.io/v1alpha2`]: api/crossplaneio/stack-azure/network-azure-crossplane-io-v1alpha2.md
-[`storage.azure.crossplane.io/v1alpha2`]: api/crossplaneio/stack-azure/storage-azure-crossplane-io-v1alpha2.md
+[`azure.crossplane.io/v1alpha3`]: api/crossplaneio/stack-azure/azure-crossplane-io-v1alpha3.md
+[`cache.azure.crossplane.io/v1alpha3`]: api/crossplaneio/stack-azure/cache-azure-crossplane-io-v1alpha3.md
+[`compute.azure.crossplane.io/v1alpha3`]: api/crossplaneio/stack-azure/compute-azure-crossplane-io-v1alpha3.md
+[`database.azure.crossplane.io/v1alpha3`]: api/crossplaneio/stack-azure/database-azure-crossplane-io-v1alpha3.md
+[`network.azure.crossplane.io/v1alpha3`]: api/crossplaneio/stack-azure/network-azure-crossplane-io-v1alpha3.md
+[`storage.azure.crossplane.io/v1alpha3`]: api/crossplaneio/stack-azure/storage-azure-crossplane-io-v1alpha3.md
 
 ## GCP Stack
 
@@ -106,18 +106,32 @@ groups:
 
 API Group | Status | Details
 --------  | ------ | -------
-[`gcp.crossplane.io/v1alpha2`] | Alpha | Core GCP resources.
-[`cache.gcp.crossplane.io/v1alpha2`] | Alpha | CloudMemorystore managed resources and classes.
-[`compute.gcp.crossplane.io/v1alpha2`] | Alpha | Compute and Kubernetes Engine managed resources and classes.
-[`database.gcp.crossplane.io/v1alpha2`] | Alpha | CloudSQL managed resources and classes.
-[`servicenetworking.gcp.crossplane.io/v1alpha2`] | Alpha | Service Networking managed resources and classes.
-[`storage.gcp.crossplane.io/v1alpha2`] | Alpha | Cloud Storage managed resources and classes.
+[`gcp.crossplane.io/v1alpha3`] | Alpha | Core GCP resources.
+[`cache.gcp.crossplane.io/v1beta1`] | Beta | CloudMemorystore managed resources and classes.
+[`compute.gcp.crossplane.io/v1alpha3`] | Alpha | Compute and Kubernetes Engine managed resources and classes.
+[`database.gcp.crossplane.io/v1beta1`] | Beta | CloudSQL managed resources and classes.
+[`servicenetworking.gcp.crossplane.io/v1alpha3`] | Alpha | Service Networking managed resources and classes.
+[`storage.gcp.crossplane.io/v1alpha3`] | Alpha | Cloud Storage managed resources and classes.
 
-[`gcp.crossplane.io/v1alpha2`]: api/crossplaneio/stack-gcp/gcp-crossplane-io-v1alpha2.md
-[`cache.gcp.crossplane.io/v1alpha2`]: api/crossplaneio/stack-gcp/cache-gcp-crossplane-io-v1alpha2.md
-[`compute.gcp.crossplane.io/v1alpha2`]: api/crossplaneio/stack-gcp/compute-gcp-crossplane-io-v1alpha2.md
-[`database.gcp.crossplane.io/v1alpha2`]: api/crossplaneio/stack-gcp/database-gcp-crossplane-io-v1alpha2.md
-[`servicenetworking.gcp.crossplane.io/v1alpha2`]: api/crossplaneio/stack-gcp/servicenetworking-gcp-crossplane-io-v1alpha2.md
-[`storage.gcp.crossplane.io/v1alpha2`]: api/crossplaneio/stack-gcp/storage-gcp-crossplane-io-v1alpha2.md
+[`gcp.crossplane.io/v1alpha3`]: api/crossplaneio/stack-gcp/gcp-crossplane-io-v1alpha3.md
+[`cache.gcp.crossplane.io/v1beta1`]: api/crossplaneio/stack-gcp/cache-gcp-crossplane-io-v1beta1.md
+[`compute.gcp.crossplane.io/v1alpha3`]: api/crossplaneio/stack-gcp/compute-gcp-crossplane-io-v1alpha3.md
+[`database.gcp.crossplane.io/v1beta1`]: api/crossplaneio/stack-gcp/database-gcp-crossplane-io-v1beta1.md
+[`servicenetworking.gcp.crossplane.io/v1alpha3`]: api/crossplaneio/stack-gcp/servicenetworking-gcp-crossplane-io-v1alpha3.md
+[`storage.gcp.crossplane.io/v1alpha3`]: api/crossplaneio/stack-gcp/storage-gcp-crossplane-io-v1alpha3.md
+
+## Rook Stack
+
+The Rook Stack is responsible for all Rook specific resources, including managed resources (for
+example `YugabyteCluster`), and stroage provider specific resource classes (for example
+`YugabyteClusterClass`) The Rook Stack currently supports the following API groups:
+
+API Group | Status | Details
+--------  | ------ | -------
+[`rook.crossplane.io/v1alpha1`] | Alpha | Core Rook resources.
+[`database.rook.crossplane.io/v1alpha1`] | Alpha | Database managed resources and classes, such as YugabyteDB and CockroachDB.
+
+[`rook.crossplane.io/v1alpha1`]: api/crossplaneio/stack-rook/rook-crossplane-io-v1alpha1.md
+[`database.rook.crossplane.io/v1alpha1`]: api/crossplaneio/stack-rook/database-rook-crossplane-io-v1alpha1.md
 
 [API Versioning]: https://kubernetes.io/docs/concepts/overview/kubernetes-api/#api-versioning

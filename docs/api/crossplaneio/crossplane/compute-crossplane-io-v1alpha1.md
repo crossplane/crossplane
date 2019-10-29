@@ -5,7 +5,7 @@ Package v1alpha1 contains portable resource claims for compute services such as 
 This API group contains the following Crossplane resources:
 
 * [KubernetesCluster](#KubernetesCluster)
-* [KubernetesClusterClass](#KubernetesClusterClass)
+* [MachineInstance](#MachineInstance)
 
 ## KubernetesCluster
 
@@ -22,21 +22,19 @@ Name | Type | Description
 
 
 
-## KubernetesClusterClass
+## MachineInstance
 
-KubernetesClusterClass contains a namespace-scoped Class for KubernetesCluster
+A MachineInstance is a portable resource claim that may be satisfied by binding to a machine instance, which may include Virtual Machine managed resources such as an AWS EC2 instance or bare metal managed resources such as a Packet Device.
 
 
 Name | Type | Description
 -----|------|------------
 `apiVersion` | string | `compute.crossplane.io/v1alpha1`
-`kind` | string | `KubernetesClusterClass`
+`kind` | string | `MachineInstance`
 `metadata` | [meta/v1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectmeta-v1-meta) | Kubernetes object metadata.
+`spec` | [MachineInstanceSpec](#MachineInstanceSpec) | MachineInstanceSpec specifies the desired state of a MachineInstance.
+`status` | [v1alpha1.ResourceClaimStatus](../crossplane-runtime/core-crossplane-io-v1alpha1.md#resourceclaimstatus) | 
 
-
-KubernetesClusterClass supports all fields of:
-
-* [v1alpha1.PortableClass](../crossplane-runtime/core-crossplane-io-v1alpha1.md#portableclass)
 
 
 ## KubernetesClusterSpec
@@ -54,6 +52,22 @@ Name | Type | Description
 
 
 KubernetesClusterSpec supports all fields of:
+
+* [v1alpha1.ResourceClaimSpec](../crossplane-runtime/core-crossplane-io-v1alpha1.md#resourceclaimspec)
+
+
+## MachineInstanceSpec
+
+MachineInstanceSpec specifies the desired state of a MachineInstance.
+
+Appears in:
+
+* [MachineInstance](#MachineInstance)
+
+
+
+
+MachineInstanceSpec supports all fields of:
 
 * [v1alpha1.ResourceClaimSpec](../crossplane-runtime/core-crossplane-io-v1alpha1.md#resourceclaimspec)
 

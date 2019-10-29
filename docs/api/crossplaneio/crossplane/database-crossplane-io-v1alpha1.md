@@ -5,9 +5,7 @@ Package v1alpha1 contains portable resource claims for database services such as
 This API group contains the following Crossplane resources:
 
 * [MySQLInstance](#MySQLInstance)
-* [MySQLInstanceClass](#MySQLInstanceClass)
 * [PostgreSQLInstance](#PostgreSQLInstance)
-* [PostgreSQLInstanceClass](#PostgreSQLInstanceClass)
 
 ## MySQLInstance
 
@@ -24,26 +22,9 @@ Name | Type | Description
 
 
 
-## MySQLInstanceClass
-
-MySQLInstanceClass contains a namespace-scoped portable class for MySQLInstance
-
-
-Name | Type | Description
------|------|------------
-`apiVersion` | string | `database.crossplane.io/v1alpha1`
-`kind` | string | `MySQLInstanceClass`
-`metadata` | [meta/v1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectmeta-v1-meta) | Kubernetes object metadata.
-
-
-MySQLInstanceClass supports all fields of:
-
-* [v1alpha1.PortableClass](../crossplane-runtime/core-crossplane-io-v1alpha1.md#portableclass)
-
-
 ## PostgreSQLInstance
 
-A PostgreSQLInstance is a portable resource claim that may be satisfied by binding to a PostgreSQL managed resource such as an AWS RDS instance or a GCP CloudSQL instance. PostgreSQLInstance is the CRD type for abstract PostgreSQL database instances
+A PostgreSQLInstance is a portable resource claim that may be satisfied by binding to a PostgreSQL managed resource such as an AWS RDS instance or a GCP CloudSQL instance.
 
 
 Name | Type | Description
@@ -54,23 +35,6 @@ Name | Type | Description
 `spec` | [PostgreSQLInstanceSpec](#PostgreSQLInstanceSpec) | PostgreSQLInstanceSpec specifies the desired state of a PostgreSQLInstance. PostgreSQLInstance.
 `status` | [v1alpha1.ResourceClaimStatus](../crossplane-runtime/core-crossplane-io-v1alpha1.md#resourceclaimstatus) | 
 
-
-
-## PostgreSQLInstanceClass
-
-PostgreSQLInstanceClass contains a namespace-scoped portable class for PostgreSQLInstance
-
-
-Name | Type | Description
------|------|------------
-`apiVersion` | string | `database.crossplane.io/v1alpha1`
-`kind` | string | `PostgreSQLInstanceClass`
-`metadata` | [meta/v1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectmeta-v1-meta) | Kubernetes object metadata.
-
-
-PostgreSQLInstanceClass supports all fields of:
-
-* [v1alpha1.PortableClass](../crossplane-runtime/core-crossplane-io-v1alpha1.md#portableclass)
 
 
 ## MySQLInstanceSpec

@@ -1,6 +1,6 @@
-# compute.gcp.crossplane.io/v1alpha2 API Reference
+# compute.gcp.crossplane.io/v1alpha3 API Reference
 
-Package v1alpha2 contains managed resources for GCP compute services such as GKE.
+Package v1alpha3 contains managed resources for GCP compute services such as GKE.
 
 This API group contains the following Crossplane resources:
 
@@ -17,7 +17,7 @@ A GKECluster is a managed resource that represents a Google Kubernetes Engine cl
 
 Name | Type | Description
 -----|------|------------
-`apiVersion` | string | `compute.gcp.crossplane.io/v1alpha2`
+`apiVersion` | string | `compute.gcp.crossplane.io/v1alpha3`
 `kind` | string | `GKECluster`
 `metadata` | [meta/v1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectmeta-v1-meta) | Kubernetes object metadata.
 `spec` | [GKEClusterSpec](#GKEClusterSpec) | A GKEClusterSpec defines the desired state of a GKECluster.
@@ -27,12 +27,12 @@ Name | Type | Description
 
 ## GKEClusterClass
 
-A GKEClusterClass is a non-portable resource class. It defines the desired spec of resource claims that use it to dynamically provision a managed resource.
+A GKEClusterClass is a resource class. It defines the desired spec of resource claims that use it to dynamically provision a managed resource.
 
 
 Name | Type | Description
 -----|------|------------
-`apiVersion` | string | `compute.gcp.crossplane.io/v1alpha2`
+`apiVersion` | string | `compute.gcp.crossplane.io/v1alpha3`
 `kind` | string | `GKEClusterClass`
 `metadata` | [meta/v1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectmeta-v1-meta) | Kubernetes object metadata.
 `specTemplate` | [GKEClusterClassSpecTemplate](#GKEClusterClassSpecTemplate) | SpecTemplate is a template for the spec of a dynamically provisioned GKECluster.
@@ -46,7 +46,7 @@ A GlobalAddress is a managed resource that represents a Google Compute Engine Gl
 
 Name | Type | Description
 -----|------|------------
-`apiVersion` | string | `compute.gcp.crossplane.io/v1alpha2`
+`apiVersion` | string | `compute.gcp.crossplane.io/v1alpha3`
 `kind` | string | `GlobalAddress`
 `metadata` | [meta/v1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectmeta-v1-meta) | Kubernetes object metadata.
 `spec` | [GlobalAddressSpec](#GlobalAddressSpec) | A GlobalAddressSpec defines the desired state of a GlobalAddress.
@@ -61,7 +61,7 @@ A Network is a managed resource that represents a Google Compute Engine VPC Netw
 
 Name | Type | Description
 -----|------|------------
-`apiVersion` | string | `compute.gcp.crossplane.io/v1alpha2`
+`apiVersion` | string | `compute.gcp.crossplane.io/v1alpha3`
 `kind` | string | `Network`
 `metadata` | [meta/v1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectmeta-v1-meta) | Kubernetes object metadata.
 `spec` | [NetworkSpec](#NetworkSpec) | A NetworkSpec defines the desired state of a Network.
@@ -76,7 +76,7 @@ A Subnetwork is a managed resource that represents a Google Compute Engine VPC S
 
 Name | Type | Description
 -----|------|------------
-`apiVersion` | string | `compute.gcp.crossplane.io/v1alpha2`
+`apiVersion` | string | `compute.gcp.crossplane.io/v1alpha3`
 `kind` | string | `Subnetwork`
 `metadata` | [meta/v1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectmeta-v1-meta) | Kubernetes object metadata.
 `spec` | [SubnetworkSpec](#SubnetworkSpec) | A SubnetworkSpec defines the desired state of a Subnetwork.
@@ -133,7 +133,7 @@ Name | Type | Description
 `description` | string | Description: An optional description of this resource. Provide this field when you create the resource.
 `gatewayIPv4` | string | GatewayIPv4: The gateway address for default routing out of the network, selected by GCP.
 `id` | uint64 | Id: The unique identifier for the resource. This identifier is defined by the server.
-`peerings` | [[]*github.com/crossplaneio/stack-gcp/gcp/apis/compute/v1alpha2.GCPNetworkPeering](#*github.com/crossplaneio/stack-gcp/gcp/apis/compute/v1alpha2.GCPNetworkPeering) | Peerings: A list of network peerings for the resource.
+`peerings` | [[]*github.com/crossplaneio/stack-gcp/apis/compute/v1alpha3.GCPNetworkPeering](#*github.com/crossplaneio/stack-gcp/apis/compute/v1alpha3.GCPNetworkPeering) | Peerings: A list of network peerings for the resource.
 `routingConfig` | [GCPNetworkRoutingConfig](#GCPNetworkRoutingConfig) | RoutingConfig: The network-level routing configuration for this network. Used by Cloud Router to determine what type of network-wide routing behavior to enforce.
 `selfLink` | string | SelfLink: Server-defined URL for the resource.
 `subnetworks` | []string | Subnetworks: Server-defined fully-qualified URLs for all subnetworks in this VPC network.
@@ -175,7 +175,7 @@ Name | Type | Description
 `network` | string | Network: The URL of the network to which this subnetwork belongs, provided by the client when initially creating the subnetwork. Only networks that are in the distributed mode can have subnetworks. This field can be set only at resource creation time.
 `privateIpGoogleAccess` | bool | PrivateIPGoogleAccess: Whether the VMs in this subnet can access Google services without assigned external IP addresses. This field can be both set at resource creation time and updated using setPrivateIPGoogleAccess.
 `region` | string | Region: URL of the region where the Subnetwork resides. This field can be set only at resource creation time.
-`secondaryIpRanges` | [[]*github.com/crossplaneio/stack-gcp/gcp/apis/compute/v1alpha2.GCPSubnetworkSecondaryRange](#*github.com/crossplaneio/stack-gcp/gcp/apis/compute/v1alpha2.GCPSubnetworkSecondaryRange) | SecondaryIPRanges: An array of configurations for secondary IP ranges for VM instances contained in this subnetwork. The primary IP of such VM must belong to the primary ipCidrRange of the subnetwork. The alias IPs may belong to either primary or secondary ranges. This field can be updated with a patch request.
+`secondaryIpRanges` | [[]*github.com/crossplaneio/stack-gcp/apis/compute/v1alpha3.GCPSubnetworkSecondaryRange](#*github.com/crossplaneio/stack-gcp/apis/compute/v1alpha3.GCPSubnetworkSecondaryRange) | SecondaryIPRanges: An array of configurations for secondary IP ranges for VM instances contained in this subnetwork. The primary IP of such VM must belong to the primary ipCidrRange of the subnetwork. The alias IPs may belong to either primary or secondary ranges. This field can be updated with a patch request.
 `selfLink` | string | SelfLink: Server-defined URL for the resource.
 
 
@@ -193,7 +193,7 @@ Appears in:
 
 GKEClusterClassSpecTemplate supports all fields of:
 
-* [v1alpha1.NonPortableClassSpecTemplate](../crossplane-runtime/core-crossplane-io-v1alpha1.md#nonportableclassspectemplate)
+* [v1alpha1.ClassSpecTemplate](../crossplane-runtime/core-crossplane-io-v1alpha1.md#classspectemplate)
 * [GKEClusterParameters](#GKEClusterParameters)
 
 
@@ -216,7 +216,9 @@ Name | Type | Description
 `zone` | Optional string | Zone specifies the name of the Google Compute Engine zone in which this cluster resides.
 `scopes` | Optional []string | Scopes are the set of Google API scopes to be made available on all of the node VMs under the &#34;default&#34; service account.
 `network` | Optional string | Network is the name of the Google Compute Engine network to which the cluster is connected. If left unspecified, the default network will be used.
+`networkRef` | [NetworkURIReferencerForGKECluster](#NetworkURIReferencerForGKECluster) | NetworkRef references to a Network and retrieves its URI
 `subnetwork` | Optional string | Subnetwork is the name of the Google Compute Engine subnetwork to which the cluster is connected.
+`subnetworkRef` | [SubnetworkURIReferencerForGKECluster](#SubnetworkURIReferencerForGKECluster) | SubnetworkRef references to a Subnetwork and retrieves its URI
 `enableIPAlias` | Optional bool | EnableIPAlias determines whether Alias IPs will be used for pod IPs in the cluster.
 `createSubnetwork` | Optional bool | CreateSubnetwork determines whether a new subnetwork will be created automatically for the cluster. Only applicable when EnableIPAlias is true.
 `nodeIPV4CIDR` | Optional string | NodeIPV4CIDR specifies the IP address range of the instance IPs in this cluster. This is applicable only if CreateSubnetwork is true. Omit this field to have a range chosen with the default size. Set it to a netmask (e.g. /24) to have a range chosen with a specific netmask.
@@ -265,6 +267,18 @@ GKEClusterStatus supports all fields of:
 * [v1alpha1.ResourceStatus](../crossplane-runtime/core-crossplane-io-v1alpha1.md#resourcestatus)
 
 
+## GlobalAddressNameReferencer
+
+GlobalAddressNameReferencer retrieves a Name from a referenced GlobalAddress object
+
+
+
+
+GlobalAddressNameReferencer supports all fields of:
+
+* [core/v1.LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#localobjectreference-v1-core)
+
+
 ## GlobalAddressParameters
 
 GlobalAddressParameters define the desired state of a Google Compute Engine Global Address. Most fields map directly to an Address: https://cloud.google.com/compute/docs/reference/rest/v1/globalAddresses
@@ -282,6 +296,7 @@ Name | Type | Description
 `ipVersion` | Optional string | IPVersion: The IP version that will be used by this address. Valid options are IPV4 or IPV6.  Possible values:   &#34;IPV4&#34;   &#34;IPV6&#34;   &#34;UNSPECIFIED_VERSION&#34;
 `name` | string | Name of the resource. The name must be 1-63 characters long, and comply with RFC1035. Specifically, the name must be 1-63 characters long and match the regular expression `[a-z]([-a-z0-9]*[a-z0-9])?`. The first character must be a lowercase letter, and all following characters (except for the last character) must be a dash, lowercase letter, or digit. The last character must be a lowercase letter or digit.
 `network` | Optional string | Network: The URL of the network in which to reserve the address. This field can only be used with INTERNAL type with the VPC_PEERING purpose.
+`networkRef` | [NetworkURIReferencerForGlobalAddress](#NetworkURIReferencerForGlobalAddress) | NetworkRef references to a Network and retrieves its URI
 `prefixLength` | Optional int64 | PrefixLength: The prefix length if the resource represents an IP range.
 `purpose` | Optional string | Purpose: The purpose of this resource, which can be one of the following values: - `GCE_ENDPOINT` for addresses that are used by VM instances, alias IP ranges, internal load balancers, and similar resources. - `DNS_RESOLVER` for a DNS resolver address in a subnetwork - `VPC_PEERING` for addresses that are reserved for VPC peer networks. - `NAT_AUTO` for addresses that are external IP addresses automatically reserved for Cloud NAT.  Possible values:   &#34;DNS_RESOLVER&#34;   &#34;GCE_ENDPOINT&#34;   &#34;NAT_AUTO&#34;   &#34;VPC_PEERING&#34;
 `subnetwork` | Optional string | Subnetwork: The URL of the subnetwork in which to reserve the address. If an IP address is specified, it must be within the subnetwork&#39;s IP range. This field can only be used with INTERNAL type with a GCE_ENDPOINT or DNS_RESOLVER purpose.
@@ -381,6 +396,72 @@ NetworkStatus supports all fields of:
 * [GCPNetworkStatus](#GCPNetworkStatus)
 
 
+## NetworkURIReferencer
+
+NetworkURIReferencer retrieves a NetworkURI from a referenced Network object
+
+Appears in:
+
+* [NetworkURIReferencerForGKECluster](#NetworkURIReferencerForGKECluster)
+* [NetworkURIReferencerForGlobalAddress](#NetworkURIReferencerForGlobalAddress)
+* [NetworkURIReferencerForSubnetwork](#NetworkURIReferencerForSubnetwork)
+
+
+
+
+NetworkURIReferencer supports all fields of:
+
+* [core/v1.LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#localobjectreference-v1-core)
+
+
+## NetworkURIReferencerForGKECluster
+
+NetworkURIReferencerForGKECluster is an attribute referencer that resolves network uri from a referenced Network and assigns it to a GKECluster
+
+Appears in:
+
+* [GKEClusterParameters](#GKEClusterParameters)
+
+
+
+
+NetworkURIReferencerForGKECluster supports all fields of:
+
+* [NetworkURIReferencer](#NetworkURIReferencer)
+
+
+## NetworkURIReferencerForGlobalAddress
+
+NetworkURIReferencerForGlobalAddress is an attribute referencer that resolves network uri from a referenced Network and assigns it to a global address object
+
+Appears in:
+
+* [GlobalAddressParameters](#GlobalAddressParameters)
+
+
+
+
+NetworkURIReferencerForGlobalAddress supports all fields of:
+
+* [NetworkURIReferencer](#NetworkURIReferencer)
+
+
+## NetworkURIReferencerForSubnetwork
+
+NetworkURIReferencerForSubnetwork is an attribute referencer that resolves network uri from a referenced Network and assigns it to a subnetwork
+
+Appears in:
+
+* [SubnetworkParameters](#SubnetworkParameters)
+
+
+
+
+NetworkURIReferencerForSubnetwork supports all fields of:
+
+* [NetworkURIReferencer](#NetworkURIReferencer)
+
+
 ## SubnetworkParameters
 
 SubnetworkParameters define the desired state of a Google Compute Engine VPC Subnetwork. Most fields map directly to a Subnetwork: https://cloud.google.com/compute/docs/reference/rest/v1/subnetworks
@@ -397,9 +478,10 @@ Name | Type | Description
 `ipCidrRange` | string | IPCIDRRange: The range of internal addresses that are owned by this subnetwork. Provide this property when you create the subnetwork. For example, 10.0.0.0/8 or 192.168.0.0/16. Ranges must be unique and non-overlapping within a network. Only IPv4 is supported. This field can be set only at resource creation time.
 `name` | string | Name: The name of the resource, provided by the client when initially creating the resource. The name must be 1-63 characters long, and comply with RFC1035. Specifically, the name must be 1-63 characters long and match the regular expression `[a-z]([-a-z0-9]*[a-z0-9])?` which means the first character must be a lowercase letter, and all following characters must be a dash, lowercase letter, or digit, except the last character, which cannot be a dash.
 `network` | string | Network: The URL of the network to which this subnetwork belongs, provided by the client when initially creating the subnetwork. Only networks that are in the distributed mode can have subnetworks. This field can be set only at resource creation time.
+`networkRef` | [NetworkURIReferencerForSubnetwork](#NetworkURIReferencerForSubnetwork) | NetworkRef references to a Network and retrieves its URI
 `privateIpGoogleAccess` | Optional bool | PrivateIPGoogleAccess: Whether the VMs in this subnet can access Google services without assigned external IP addresses. This field can be both set at resource creation time and updated using setPrivateIPGoogleAccess.
 `region` | Optional string | Region: URL of the region where the Subnetwork resides. This field can be set only at resource creation time.
-`secondaryIpRanges` | Optional [[]*github.com/crossplaneio/stack-gcp/gcp/apis/compute/v1alpha2.GCPSubnetworkSecondaryRange](#*github.com/crossplaneio/stack-gcp/gcp/apis/compute/v1alpha2.GCPSubnetworkSecondaryRange) | SecondaryIPRanges: An array of configurations for secondary IP ranges for VM instances contained in this subnetwork. The primary IP of such VM must belong to the primary ipCidrRange of the subnetwork. The alias IPs may belong to either primary or secondary ranges. This field can be updated with a patch request.
+`secondaryIpRanges` | Optional [[]*github.com/crossplaneio/stack-gcp/apis/compute/v1alpha3.GCPSubnetworkSecondaryRange](#*github.com/crossplaneio/stack-gcp/apis/compute/v1alpha3.GCPSubnetworkSecondaryRange) | SecondaryIPRanges: An array of configurations for secondary IP ranges for VM instances contained in this subnetwork. The primary IP of such VM must belong to the primary ipCidrRange of the subnetwork. The alias IPs may belong to either primary or secondary ranges. This field can be updated with a patch request.
 
 
 
@@ -435,6 +517,38 @@ SubnetworkStatus supports all fields of:
 
 * [v1alpha1.ResourceStatus](../crossplane-runtime/core-crossplane-io-v1alpha1.md#resourcestatus)
 * [GCPSubnetworkStatus](#GCPSubnetworkStatus)
+
+
+## SubnetworkURIReferencer
+
+SubnetworkURIReferencer retrieves a SubnetworkURI from a referenced Subnetwork object
+
+Appears in:
+
+* [SubnetworkURIReferencerForGKECluster](#SubnetworkURIReferencerForGKECluster)
+
+
+
+
+SubnetworkURIReferencer supports all fields of:
+
+* [core/v1.LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#localobjectreference-v1-core)
+
+
+## SubnetworkURIReferencerForGKECluster
+
+SubnetworkURIReferencerForGKECluster is an attribute referencer that resolves subnetwork uri from a referenced Subnetwork and assigns it to a GKECluster
+
+Appears in:
+
+* [GKEClusterParameters](#GKEClusterParameters)
+
+
+
+
+SubnetworkURIReferencerForGKECluster supports all fields of:
+
+* [SubnetworkURIReferencer](#SubnetworkURIReferencer)
 
 
 This API documentation was generated by `crossdocs`.
