@@ -13,7 +13,7 @@ The Helm chart contains all the custom resources and controllers needed to deplo
 
 * [Kubernetes cluster](https://kubernetes.io/docs/setup/)
   * For example [Minikube](https://kubernetes.io/docs/tasks/tools/install-minikube/), minimum version `v0.28+`
-* [Helm](https://docs.helm.sh/using_helm/), minimum version `v2.9.1+`.
+* [Helm](https://docs.helm.sh/using_helm/), minimum version `v2.12.0+`.
   * For Helm 2, make sure Tiller is initialized with sufficient permissions to work on `crossplane-system` namespace.
 
 ## Installation
@@ -55,11 +55,30 @@ helm install --name crossplane --namespace crossplane-system crossplane-master/c
 
 ## Installing Cloud Provider Stacks
 
-After Crossplane has been installed, you can add additional functionality to its control plane by installing Crossplane Stacks.
-For example, each supported cloud provider has its own corresponding stack that contains all the functionality for that particular cloud.
-After a cloud provider's stack is installed, you will be able to provision and manage resources within that cloud from Crossplane.
+You can add additional functionality to Crossplane's control plane by installing Crossplane Stacks. For example, each 
+supported cloud provider has its own corresponding stack that contains all the functionality for that particular cloud.
+After a cloud provider's stack is installed, you will be able to provision and manage resources within that cloud 
+from Crossplane.
 
-### GCP Stack
+### Installation with Helm
+
+> This method is not supported with Helm 3, please see [Manual Installation](#manual-installation) if you're using Helm 3.
+
+You can include deployment of additional infrastructure stacks into your helm installation by setting `clusterStacks.<stack-name>.deploy` to `true`.
+
+For example, the following will install `master` version of the GCP stack:
+
+```console
+helm install --name crossplane --namespace crossplane-system crossplane-master/crossplane --set clusterStacks.gcp.deploy=true --set clusterStacks.gcp.version=master
+```
+
+See [helm configuration parameters](#configuration) for supported stacks and parameters.
+
+### Manual Installation
+
+After Crossplane has been installed, it is possible to extend Crossplane's functionality by installing Crossplane stacks.
+
+#### GCP Stack
 
 To get started with Google Cloud Platform (GCP), create a file named `stack-gcp.yaml` with the following content:
 
@@ -84,7 +103,7 @@ Then you can install the GCP stack into Crossplane in the `gcp` namespace with t
 kubectl apply -f stack-gcp.yaml
 ```
 
-### AWS Stack
+#### AWS Stack
 
 To get started with Amazon Web Services (AWS), create a file named `stack-aws.yaml` with the following content:
 
@@ -109,7 +128,7 @@ Then you can install the AWS stack into Crossplane in the `aws` namespace with t
 kubectl apply -f stack-aws.yaml
 ```
 
-### Azure Stack
+#### Azure Stack
 
 To get started with Microsoft Azure, create a file named `stack-azure.yaml` with the following content:
 
@@ -134,7 +153,7 @@ Then you can install the Azure stack into Crossplane in the `azure` namespace wi
 kubectl apply -f stack-azure.yaml
 ```
 
-### Rook Stack
+#### Rook Stack
 
 To get started with Rook, create a file named `stack-rook.yaml` with the following content:
 
@@ -205,15 +224,23 @@ That command removes all Kubernetes components associated with Crossplane, inclu
 
 The following tables lists the configurable parameters of the Crossplane chart and their default values.
 
-| Parameter                 | Description                                                     | Default                                                |
-| ------------------------- | --------------------------------------------------------------- | ------------------------------------------------------ |
-| `image.repository`        | Image                                                           | `crossplane/crossplane`                                |
-| `image.tag`               | Image tag                                                       | `master`                                               |
-| `image.pullPolicy`        | Image pull policy                                               | `Always`                                               |
-| `imagePullSecrets`        | Names of image pull secrets to use                              | `dockerhub`                                            |
-| `replicas`                | The number of replicas to run for the Crossplane operator       | `1`                                                    |
-| `deploymentStrategy`      | The deployment strategy for the Crossplane operator             | `RollingUpdate`                                        |
-
+| Parameter                        | Description                                                     | Default                                                |
+| -------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------ |
+| `image.repository`               | Image                                                           | `crossplane/crossplane`                                |
+| `image.tag`                      | Image tag                                                       | `master`                                               |
+| `image.pullPolicy`               | Image pull policy                                               | `Always`                                               |
+| `imagePullSecrets`               | Names of image pull secrets to use                              | `dockerhub`                                            |
+| `replicas`                       | The number of replicas to run for the Crossplane operator       | `1`                                                    |
+| `deploymentStrategy`             | The deployment strategy for the Crossplane operator             | `RollingUpdate`                                        |
+| `clusterStacks.aws.deploy`       | Deploy AWS stack                                                | `false`    
+| `clusterStacks.aws.version`      | AWS stack version to deploy                                     | `<latest released version>`   
+| `clusterStacks.gcp.deploy`       | Deploy GCP stack                                                | `false`    
+| `clusterStacks.gcp.version`      | GCP stack version to deploy                                     | `<latest released version>`   
+| `clusterStacks.azure.deploy`     | Deploy Azure stack                                              | `false`    
+| `clusterStacks.azure.version`    | Azure stack version to deploy                                   | `<latest released version>`   
+| `clusterStacks.rook.deploy`      | Deploy Rook stack                                               | `false`    
+| `clusterStacks.rook.version`     | Rook stack version to deploy                                    | `<latest released version>`   
+ 
 ### Command Line
 
 You can pass the settings with helm command line parameters.
