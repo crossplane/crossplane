@@ -1119,4 +1119,4 @@ value any feedback you may have about the services development process!
 [`angryjet`]: https://github.com/crossplaneio/crossplane-tools
 [Managed Resource API Patterns]: ../design/one-pager-managed-resource-api-design.md
 [Crossplane CLI]: https://github.com/crossplaneio/crossplane-cli#quick-start-stacks
-[angryjet documentation]: https://github.com/crossplaneio/crossplane-tools/blob/master/README.md
+[`angryjet` documentation]: https://github.com/crossplaneio/crossplane-tools/blob/master/README.md
