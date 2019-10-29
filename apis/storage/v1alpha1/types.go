@@ -73,8 +73,7 @@ type BucketSpec struct {
 // +kubebuilder:object:root=true
 
 // A Bucket is a portable resource claim that may be satisfied by binding to a
-// storage bucket PostgreSQL managed resource such as an AWS S3 bucket or Azure
-// storage container.
+// managed resource such as an AWS S3 bucket or Azure storage container.
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.bindingPhase"
 // +kubebuilder:printcolumn:name="CLASS-KIND",type="string",JSONPath=".spec.classRef.kind"
 // +kubebuilder:printcolumn:name="CLASS-NAME",type="string",JSONPath=".spec.classRef.name"
