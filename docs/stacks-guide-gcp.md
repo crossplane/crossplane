@@ -74,7 +74,7 @@ infrastructure stack, we need to specify that it's cluster-scoped by passing the
 `--cluster` flag.
 
 ```bash
-kubectl crossplane stack generate-install --cluster 'crossplane/stack-gcp:master' stack-gcp | kubectl apply --namespace crossplane-system -f -
+kubectl crossplane stack generate-install --cluster 'crossplane/stack-gcp:v0.2.0' stack-gcp | kubectl apply --namespace crossplane-system -f -
 ```
 
 The rest of this guide assumes that the GCP stack is installed within
@@ -142,13 +142,13 @@ configurations in Crossplane.
 Apply the sample network configuration resources:
 
 ```bash
-kubectl apply -k github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/gcp/network-config?ref=master
+kubectl apply -k github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/gcp/network-config?ref=release-0.4
 ```
 
 And you're done! You can check the status of the provisioning by running:
 
 ```bash
-kubectl get -k github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/gcp/network-config?ref=master
+kubectl get -k github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/gcp/network-config?ref=release-0.4
 ```
 
 When all resources have the `Ready` condition in `True` state, the provisioning
@@ -165,7 +165,7 @@ Kubernetes cluster.
 To inspect the resources that we created above, let's run:
 
 ```bash
-kubectl kustomize github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/gcp/network-config?ref=master > network-config.yaml
+kubectl kustomize github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/gcp/network-config?ref=release-0.4 > network-config.yaml
 ```
 
 This will save the sample network configuration resources locally in
@@ -298,7 +298,7 @@ repository.
 Apply the sample GCP resource classes:
 
 ```bash
-kubectl apply -k github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/gcp/resource-classes?ref=master
+kubectl apply -k github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/gcp/resource-classes?ref=release-0.4
 ```
 
 And you're done! Note that these resources do not immediately provision external GCP resourcs.
@@ -308,7 +308,7 @@ And you're done! Note that these resources do not immediately provision external
 To inspect the resource classes that we created above, run:
 
 ```bash
-kubectl kustomize github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/gcp/resource-classes?ref=master > resource-classes.yaml
+kubectl kustomize github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/gcp/resource-classes?ref=release-0.4 > resource-classes.yaml
 ```
 
 This will save the sample resource classes YAML locally in
@@ -414,10 +414,10 @@ where we left off.
 [cloud-provider-setup-gcp]: https://github.com/crossplaneio/crossplane/blob/master/docs/cloud-providers/gcp/gcp-provider.md
 [gcp-network-configuration]: https://cloud.google.com/vpc/docs/vpc
 [Cross Resource Referencing]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-cross-resource-referencing.md
-[sample GCP resource classes]: https://github.com/crossplaneio/crossplane/tree/master/cluster/examples/workloads/kubernetes/wordpress/gcp/resource-classes?ref=master
+[sample GCP resource classes]: https://github.com/crossplaneio/crossplane/tree/master/cluster/examples/workloads/kubernetes/wordpress/gcp/resource-classes?ref=release-0.4
 [gcp-cloudsql]: https://cloud.google.com/sql/
 [gcp-gke]: https://cloud.google.com/kubernetes-engine/
-[sample GCP network configuration]: https://github.com/crossplaneio/crossplane/tree/master/cluster/examples/workloads/kubernetes/wordpress/gcp/network-config?ref=master
+[sample GCP network configuration]: https://github.com/crossplaneio/crossplane/tree/master/cluster/examples/workloads/kubernetes/wordpress/gcp/network-config?ref=release-0.4
 [gcp-ip-address]: https://cloud.google.com/compute/docs/ip-addresses/
 [gcp-connection]: https://cloud.google.com/vpc/docs/configure-private-services-access
 [resource class selection]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-simple-class-selection.md

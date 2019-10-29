@@ -55,9 +55,9 @@ helm install --name crossplane --namespace crossplane-system crossplane-master/c
 
 ## Installing Cloud Provider Stacks
 
-You can add additional functionality to Crossplane's control plane by installing Crossplane Stacks. For example, each 
+You can add additional functionality to Crossplane's control plane by installing Crossplane Stacks. For example, each
 supported cloud provider has its own corresponding stack that contains all the functionality for that particular cloud.
-After a cloud provider's stack is installed, you will be able to provision and manage resources within that cloud 
+After a cloud provider's stack is installed, you will be able to provision and manage resources within that cloud
 from Crossplane.
 
 ### Installation with Helm
@@ -94,7 +94,7 @@ metadata:
   name: stack-gcp
   namespace: gcp
 spec:
-  package: "crossplane/stack-gcp:master"
+  package: "crossplane/stack-gcp:v0.2.0"
 ```
 
 Then you can install the GCP stack into Crossplane in the `gcp` namespace with the following command:
@@ -119,7 +119,7 @@ metadata:
   name: stack-aws
   namespace: aws
 spec:
-  package: "crossplane/stack-aws:master"
+  package: "crossplane/stack-aws:v0.2.0"
 ```
 
 Then you can install the AWS stack into Crossplane in the `aws` namespace with the following command:
@@ -144,7 +144,7 @@ metadata:
   name: stack-azure
   namespace: azure
 spec:
-  package: "crossplane/stack-azure:master"
+  package: "crossplane/stack-azure:v0.2.0"
 ```
 
 Then you can install the Azure stack into Crossplane in the `azure` namespace with the following command:
@@ -169,7 +169,7 @@ metadata:
   name: stack-rook
   namespace: rook
 spec:
-  package: "crossplane/stack-rook:master"
+  package: "crossplane/stack-rook:v0.1.0"
 ```
 
 Then you can install the Rook stack into Crossplane in the `rook` namespace with the following command:
@@ -232,15 +232,15 @@ The following tables lists the configurable parameters of the Crossplane chart a
 | `imagePullSecrets`               | Names of image pull secrets to use                              | `dockerhub`                                            |
 | `replicas`                       | The number of replicas to run for the Crossplane operator       | `1`                                                    |
 | `deploymentStrategy`             | The deployment strategy for the Crossplane operator             | `RollingUpdate`                                        |
-| `clusterStacks.aws.deploy`       | Deploy AWS stack                                                | `false`    
-| `clusterStacks.aws.version`      | AWS stack version to deploy                                     | `<latest released version>`   
-| `clusterStacks.gcp.deploy`       | Deploy GCP stack                                                | `false`    
-| `clusterStacks.gcp.version`      | GCP stack version to deploy                                     | `<latest released version>`   
-| `clusterStacks.azure.deploy`     | Deploy Azure stack                                              | `false`    
-| `clusterStacks.azure.version`    | Azure stack version to deploy                                   | `<latest released version>`   
-| `clusterStacks.rook.deploy`      | Deploy Rook stack                                               | `false`    
-| `clusterStacks.rook.version`     | Rook stack version to deploy                                    | `<latest released version>`   
- 
+| `clusterStacks.aws.deploy`       | Deploy AWS stack                                                | `false`
+| `clusterStacks.aws.version`      | AWS stack version to deploy                                     | `<latest released version>`
+| `clusterStacks.gcp.deploy`       | Deploy GCP stack                                                | `false`
+| `clusterStacks.gcp.version`      | GCP stack version to deploy                                     | `<latest released version>`
+| `clusterStacks.azure.deploy`     | Deploy Azure stack                                              | `false`
+| `clusterStacks.azure.version`    | Azure stack version to deploy                                   | `<latest released version>`
+| `clusterStacks.rook.deploy`      | Deploy Rook stack                                               | `false`
+| `clusterStacks.rook.version`     | Rook stack version to deploy                                    | `<latest released version>`
+
 ### Command Line
 
 You can pass the settings with helm command line parameters.
