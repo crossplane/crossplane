@@ -138,10 +138,9 @@ spec:
  # these are references to CRDs for the resources exposed by this stack
  # by convention they are bundled in the same Package as this stack
  customresourcedefinitions:
-  owns:
-  - kind: RedisCluster
-    apiVersion: crossplane.redislabs.com/v1alpha1
-  dependsOn: []
+ - kind: RedisCluster
+   apiVersion: crossplane.redislabs.com/v1alpha1
+ dependsOn: []
   # CRDs that this stack depends on (required) are listed here
   # this data drives the dependency resolution process
  title: Redis stack for Crossplane
