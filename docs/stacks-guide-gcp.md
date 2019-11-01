@@ -91,7 +91,7 @@ It should look something like:
 
 ```bash
 NAME        READY   VERSION   AGE
-stack-gcp   True    0.0.2     5m19s
+stack-gcp   True    0.2.0     5m19s
 ```
 
 ## Configure GCP Account
