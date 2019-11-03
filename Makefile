@@ -93,6 +93,11 @@ go.test.unit: $(KUBEBUILDER)
 manifests: vendor kubebuilder.manifests
 	@$(INFO) Generating CRD manifests
 	$(CONTROLLERGEN) crd:maxDescLen=0,trivialVersions=true paths=./apis/stacks/... output:dir=$(CRD_DIR)
+# Add "helm.sh/hook: crd-install" and "helm.sh/hook-delete-policy: before-hook-creation" annotations for clusterstackinstalls and stackinstalls CRDs
+	$(eval TMPDIR := $(shell mktemp -d))
+	kustomize build cluster/charts -o $(TMPDIR)
+	mv $(TMPDIR)/apiextensions.k8s.io_v1beta1_customresourcedefinition_clusterstackinstalls.stacks.crossplane.io.yaml $(CRD_DIR)/stacks.crossplane.io_clusterstackinstalls.yaml
+	mv $(TMPDIR)/apiextensions.k8s.io_v1beta1_customresourcedefinition_stackinstalls.stacks.crossplane.io.yaml $(CRD_DIR)/stacks.crossplane.io_stackinstalls.yaml
 	@$(OK) Generating CRD manifests
 
 # Generate a coverage report for cobertura applying exclusions on
