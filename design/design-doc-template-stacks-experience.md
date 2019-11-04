@@ -2,7 +2,7 @@
 
 * Owner: Daniel Suskin (@suskin)
 * Reviewers: Crossplane Maintainers
-* Status: Draft
+* Status: Draft, revision 1.0
 
 ## Background
 
@@ -105,7 +105,7 @@ Experience, there are many things which are out of scope. These include:
 
 Also out of scope is the internal representation of configuration, and
 the implementation of the stack manager. See the [complementary
-internals-oriented Template Stack design doc](https://github.com/crossplaneio/crossplane/pull/928)
+internals-oriented Template Stack design doc](https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-template-stacks.md)
 for those details.
 
 ## Terms
@@ -123,6 +123,17 @@ for those details.
   For example, so that its controller knows how to respond to a render
   request of a known type.
 
+## How to read this document
+
+This document is intended to be read alongside the [template stacks
+experience repository](https://github.com/suskin/template-stack-experience),
+which contains realistic code samples for different pieces of the
+functionality.
+
+Additionally, for more detail about the internals of template stacks on
+the stack manager and Crossplane side, see the [design doc focused on
+this](https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-template-stacks.md)
+
 ## Design
 
 The overall flow of authoring and consuming a template stack will be
@@ -132,6 +143,7 @@ examples to help explain them.
 
 For a more complete treatment of example scenarios, see the [template
 stack experience repository](https://github.com/suskin/template-stack-experience).
+
 ### Writing
 
 Creating a template stack from scratch involves only a couple steps. The
@@ -148,7 +160,7 @@ At a high level, the steps would be as follows:
 4. Add CRD definitions; this could be done by putting CRD yaml
    definitions in `config/stack/manifests/resources` or in
    `config/crd/bases`.
-5. Add configuration to `config/stack/manifests/behaviors.yaml` to
+5. Add configuration to `stack.yaml` to
    specify how configurations are rendered.
 6. Edit `config/stack/manifests/resources/app.yaml` to specify that the
    stack will be working with all of the kinds that it will be working
@@ -163,6 +175,17 @@ would update the `dependsOn` field of the stack's `app.yaml`:
 
 ```
 kubectl crossplane stack crd init WordpressInstance wordpressinstances wordpress.samples.stacks.crossplane.io
+```
+
+There will also be a convenience flag in the `stack init` command so
+that people starting from scratch can initialize the stack and the first
+CRD with a single command:
+
+```
+$ kubectl crossplane stack init --template mygroup/mystackname --init-crd
+> CRD name: WordpressInstance
+> CRD plural: wordpressinstances
+> CRD subdomain: wordpress.samples.stacks.crossplane.io
 ```
 
 ### Building and publishing
@@ -258,37 +281,83 @@ version number on object instances which go with the stack, and that the
 version number change would underneath cause the template to be rendered
 again and applied to the cluster.
 
-### Specifying how to process render requests
+### The stack.yaml
 
-A Stack author must create a `behaviors.yaml` in order to configure how
+Configuration for the template stack will be in a `stack.yaml` file at
+the build root of the stack in the repository. For most cases, this will
+mean the `stack.yaml` lives at the root of the repository.
+
+#### Specifying how to process render requests
+
+A Stack author must create a `stack.yaml` in order to configure how
 templates are rendered in response to a render request. Here's an
 example, with comments explaining the directives:
 
 ```
-cat > config/stack/manifests/behaviors.yaml <<EOF
+cat > stack.yaml <<EOF
 # This field configures which templates are rendered in response
 # to a given object type. An instance of the object type is
 # considered to be a "render request".
-crdOutputs:
-  # This is a particular CRD which is being configured. When the
-  # controller sees an object of this type, it will do something.
-  wordpressinstance.wordpress.samples.stacks.crossplane.io/v1alpha1:
-    # These are the templates which should be rendered when an object
-    # of the type above is seen.
-    resources:
-      # These are individual files which will be rendered.
-      - kubernetescluster.yaml
-      - mysqlinstance.yaml
-      - kubernetesapplication.yaml
-    # This configures default values for the variables in the
-    # templates being rendered.
-    defaults:
-      # This is a list of files to use for default values. They
-      # will be merged together in the specified order to create
-      # the default template variables in the context.
-      - defaults.yaml
+behaviors:
+  crds:
+    # This is a particular CRD which is being configured. When the
+    # controller sees an object of this type, it will do something.
+    wordpressinstance.wordpress.samples.stacks.crossplane.io/v1alpha1:
+      # These are the templates which should be rendered when an object
+      # of the type above is seen.
+      #
+      # Defaults for the variables can be defined in the default values
+      # for the CRD fields, using the standard Kubernetes mechanism for
+      # specifying CRD field default values.
+      resources:
+        # These are individual files which will be rendered.
+        - templates/kubernetescluster.yaml
+        - templates/mysqlinstance.yaml
+        - tempaltes/kubernetesapplication.yaml
 EOF
 ```
+
+The `stack.yaml` should be in the build root of the repository. For most
+single-stack repositories, this means the root of the repository.
+
+### Specifying default values
+
+Default values will be specified in the CRD itself, using the [standard
+mechanism][kubernetes-default-values] for specifying default values for
+CRD fields. Here is an example excerpt from a realistic CRD, where the
+CRD's `spec.image` field is configured with a default:
+
+```yaml
+kind: CustomResourceDefinition
+metadata:
+  creationTimestamp: null
+  name: wordpressinstances.wordpress.samples.stacks.crossplane.io
+spec:
+  group: wordpress.samples.stacks.crossplane.io
+  names:
+    kind: WordpressInstance
+    plural: wordpressinstances
+  scope: ""
+  validation:
+    openAPIV3Schema:
+      description: WordpressInstance is the Schema for the wordpressinstances API
+      properties:
+        ...
+        spec:
+          type: object
+          properties:
+            ...
+            image:
+              type: string
+              description: A custom wordpress container image id to use
+              # Defaults are specified like this, using the schema validation for CRD fields.
+              # For more about how this works with CRDs, see:
+              # https://kubernetes.io/docs/tasks/access-kubernetes-api/custom-resources/custom-resource-definitions/#defaulting
+              default: "wordpress:4.6.1-apache"
+```
+
+For the full example, see the sample in the
+[template stack experience repository](https://github.com/suskin/template-stack-experience/tree/master/wordpress-workload/go-templates/default-variables).
 
 ### How processing objects works under the covers
 
@@ -297,17 +366,29 @@ rendering become resources is that the object's fields become the input
 for the template rendered by the controller. For more details, see the
 [detailed examples](https://github.com/suskin/template-stack-experience)
 or the [design document about the
-internals](https://github.com/crossplaneio/crossplane/pull/928).
+internals](https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-template-stacks.md).
+
+### Templating/configuration engine
+
+Template stacks will not be opinionated about which templating engine is
+used. We plan to support multiple configuration engines. The engine will
+be configurable by setting values in the `stack.yaml`.
+
+### Lifecycle hooks
+
+We expect to eventually support lifecycle hooks. See the [speculative
+design in the template stacks experience repo](https://github.com/suskin/template-stack-experience/tree/master/wordpress-workload/go-templates/lifecycle-hook)
+for more details about what that could look like.
 
 ### Internal representation of templates
 
 See the [design doc on the internals of the Template Stack
-implementation](https://github.com/crossplaneio/crossplane/pull/928).
+implementation](https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-template-stacks.md).
 
 ### The template stack controller
 
 See the [design doc on the internals of the Template Stack
-implementation](https://github.com/crossplaneio/crossplane/pull/928).
+implementation](https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-template-stacks.md).
 
 ## Example use-cases
 
@@ -338,12 +419,11 @@ be followed:
 2. Create a CRD: `kubectl crossplane stack crd init WordpressInstance
    wordpressinstances wordpress.samples.stacks.crossplane.io`
 3. Put the chart's contents into the templates folder.
-4. Create a `behaviors.yaml` and configure it to use the templates for
-   the created CRD.
+4. Create a `stack.yaml` in the root of the repostory, and configure it
+   to use the templates for the created CRD.
 5. To set up default values:
-    1. Put the contents of the chart's `values.yaml` in the templates
-       folder, and configure `behaviors.yaml` to use it as the file with
-       the default values in it.
+    1. Put the contents of the chart's `values.yaml` into the CRD's
+       [default field value definitions][kubernetes-default-values].
 6. Bundle and publish the stack.
 
 When consuming the stack, the default template values can be overridden
@@ -356,5 +436,9 @@ support all permutations of helm chart.
 
 * [Template Stack Experience](https://github.com/suskin/template-stack-experience) examples
 * [Declarative Application Management in Kubernetes](https://github.com/kubernetes/community/blob/master/contributors/design-proposals/architecture/declarative-application-management.md)
-* [Template Stacks internals design doc](https://github.com/crossplaneio/crossplane/pull/928)
+* [Template Stacks internals design doc](https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-template-stacks.md)
 * [Stacks CLI design](https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-stack-cli.md)
+* [Kubernetes default field values][kubernetes-default-values]
+
+<!-- Reference-style links -->
+[kubernetes-default-values]: https://kubernetes.io/docs/tasks/access-kubernetes-api/custom-resources/custom-resource-definitions/#defaulting
