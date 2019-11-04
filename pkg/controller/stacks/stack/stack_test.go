@@ -49,6 +49,7 @@ const (
 	namespace    = "cool-namespace"
 	uid          = types.UID("definitely-a-uuid")
 	resourceName = "cool-stack"
+	roleName     = "stack:cool-namespace:cool-stack::system"
 
 	controllerDeploymentName = "cool-controller-deployment"
 	controllerContainerName  = "cool-container"
@@ -395,7 +396,7 @@ func TestProcessRBAC_Namespaced(t *testing.T) {
 	type want struct {
 		err error
 		sa  *corev1.ServiceAccount
-		cr  *rbac.Role
+		cr  *rbac.ClusterRole
 		crb *rbac.RoleBinding
 	}
 
@@ -437,12 +438,12 @@ func TestProcessRBAC_Namespaced(t *testing.T) {
 			},
 		},
 		{
-			name: "CreateRoleError",
+			name: "CreateClusterRoleError",
 			r:    resource(withPolicyRules(defaultPolicyRules())),
 			clientFunc: func(r *v1alpha1.Stack) client.Client {
 				return &test.MockClient{
 					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error {
-						if _, ok := obj.(*rbac.Role); ok {
+						if _, ok := obj.(*rbac.ClusterRole); ok {
 							return errBoom
 						}
 						return nil
@@ -450,7 +451,7 @@ func TestProcessRBAC_Namespaced(t *testing.T) {
 				}
 			},
 			want: want{
-				err: errors.Wrap(errBoom, "failed to create role"),
+				err: errors.Wrap(errBoom, "failed to create cluster role"),
 				sa:  nil,
 				cr:  nil,
 				crb: nil,
@@ -491,10 +492,9 @@ func TestProcessRBAC_Namespaced(t *testing.T) {
 						},
 					},
 				},
-				cr: &rbac.Role{
+				cr: &rbac.ClusterRole{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      resourceName,
-						Namespace: namespace,
+						Name: roleName,
 						OwnerReferences: []metav1.OwnerReference{
 							meta.AsOwner(meta.ReferenceTo(resource(), v1alpha1.StackGroupVersionKind)),
 						},
@@ -509,7 +509,11 @@ func TestProcessRBAC_Namespaced(t *testing.T) {
 							meta.AsOwner(meta.ReferenceTo(resource(), v1alpha1.StackGroupVersionKind)),
 						},
 					},
-					RoleRef:  rbac.RoleRef{APIGroup: rbac.GroupName, Kind: "Role", Name: resourceName},
+					RoleRef: rbac.RoleRef{
+						APIGroup: rbac.GroupName,
+						Kind:     "ClusterRole",
+						Name:     roleName,
+					},
 					Subjects: []rbac.Subject{{Name: resourceName, Namespace: namespace, Kind: rbac.ServiceAccountKind}},
 				},
 			},
@@ -536,7 +540,7 @@ func TestProcessRBAC_Namespaced(t *testing.T) {
 			}
 
 			if tt.want.cr != nil {
-				got := &rbac.Role{}
+				got := &rbac.ClusterRole{}
 				assertKubernetesObject(t, g, got, tt.want.cr, handler.kube)
 			}
 
@@ -652,7 +656,7 @@ func TestProcessRBAC_Cluster(t *testing.T) {
 				},
 				cr: &rbac.ClusterRole{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: resourceName,
+						Name: roleName,
 						OwnerReferences: []metav1.OwnerReference{
 							meta.AsOwner(meta.ReferenceTo(resource(withPermissionScope("Cluster")), v1alpha1.StackGroupVersionKind)),
 						},
@@ -666,7 +670,11 @@ func TestProcessRBAC_Cluster(t *testing.T) {
 							meta.AsOwner(meta.ReferenceTo(resource(withPermissionScope("Cluster")), v1alpha1.StackGroupVersionKind)),
 						},
 					},
-					RoleRef:  rbac.RoleRef{APIGroup: rbac.GroupName, Kind: "ClusterRole", Name: resourceName},
+					RoleRef: rbac.RoleRef{
+						APIGroup: rbac.GroupName,
+						Kind:     "ClusterRole",
+						Name:     roleName,
+					},
 					Subjects: []rbac.Subject{{Name: resourceName, Namespace: namespace, Kind: rbac.ServiceAccountKind}},
 				},
 			},
