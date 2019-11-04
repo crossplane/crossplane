@@ -37,6 +37,7 @@ import (
 // +kubebuilder:object:root=true
 
 // A StackInstall requests a stack be installed to Crossplane.
+// +kubebuilder:resource:scope=Namespaced
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditionedStatus.conditions[?(@.type=='Ready')].status"
 // +kubebuilder:printcolumn:name="SOURCE",type="string",JSONPath=".spec.source"
@@ -78,6 +79,14 @@ type StackInstallSpec struct {
 	CustomResourceDefinition string `json:"crd,omitempty"`
 }
 
+// ClusterStackInstallSpec specifies details about a request to install a
+// Cluster scoped stack to Crossplane.
+type ClusterStackInstallSpec struct {
+	StackInstallSpec `json:",inline"`
+
+	ControllerNamespace string `json:"controllerNamespace,omitempty"`
+}
+
 // StackInstallStatus represents the observed state of a StackInstall.
 type StackInstallStatus struct {
 	runtimev1alpha1.ConditionedStatus `json:"conditionedStatus,omitempty"`
@@ -108,6 +117,18 @@ func (si *StackInstall) PermissionScope() string { return string(apiextensions.N
 
 // PermissionScope gets the required app.yaml permissionScope value ("Cluster") for ClusterStackInstall
 func (si *ClusterStackInstall) PermissionScope() string { return string(apiextensions.ClusterScoped) }
+
+// ControllerNamespace is the namespace where a Stack's StackInstall Job,
+// Controller, ServiceAccount, and namespaced RBAC roles will be created.
+func (si *StackInstall) ControllerNamespace() string {
+	return si.Namespace
+}
+
+// ControllerNamespace is the namespace where a Stack's ClusterStackInstall Job,
+// Controller, and ServiceAccount will be created.
+func (si *ClusterStackInstall) ControllerNamespace() string {
+	return si.Spec.ControllerNamespace
+}
 
 // SetConditions sets the StackInstall's Status conditions
 func (si *StackInstall) SetConditions(c ...runtimev1alpha1.Condition) {
@@ -179,6 +200,7 @@ type StackInstaller interface {
 
 	Image() string
 	PermissionScope() string
+	ControllerNamespace() string
 	SetConditions(c ...runtimev1alpha1.Condition)
 	InstallJob() *corev1.ObjectReference
 	SetInstallJob(*corev1.ObjectReference)
@@ -189,7 +211,9 @@ type StackInstaller interface {
 
 // +kubebuilder:object:root=true
 
-// ClusterStackInstall is the CRD type for a request to add a stack to Crossplane.
+// ClusterStackInstall is the CRD type for a request to add a stack to
+// Crossplane.
+// +kubebuilder:resource:scope=Cluster
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditionedStatus.conditions[?(@.type=='Ready')].status"
 // +kubebuilder:printcolumn:name="SOURCE",type="string",JSONPath=".spec.source"
@@ -200,8 +224,8 @@ type ClusterStackInstall struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   StackInstallSpec   `json:"spec,omitempty"`
-	Status StackInstallStatus `json:"status,omitempty"`
+	Spec   ClusterStackInstallSpec `json:"spec,omitempty"`
+	Status StackInstallStatus      `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -216,6 +240,7 @@ type ClusterStackInstallList struct {
 // +kubebuilder:object:root=true
 
 // A Stack that has been added to Crossplane.
+// +kubebuilder:resource:scope=Namespaced
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditionedStatus.conditions[?(@.type=='Ready')].status"
 // +kubebuilder:printcolumn:name="VERSION",type="string",JSONPath=".spec.version"

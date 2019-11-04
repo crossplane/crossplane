@@ -246,14 +246,14 @@ func (m *mockReadCloser) Close() (err error) {
 
 func TestHandleJobCompletion(t *testing.T) {
 	type want struct {
-		ext *v1alpha1.StackInstall
+		ext v1alpha1.StackInstaller
 		err error
 	}
 
 	tests := []struct {
 		name string
 		jc   *stackInstallJobCompleter
-		ext  *v1alpha1.StackInstall
+		ext  v1alpha1.StackInstaller
 		job  *batchv1.Job
 		want want
 	}{
@@ -398,6 +398,40 @@ func TestHandleJobCompletion(t *testing.T) {
 			job: job(),
 			want: want{
 				ext: resource(withStackRecord(&corev1.ObjectReference{Name: resourceName, Namespace: namespace})),
+				err: nil,
+			},
+		},
+		{
+			name: "HandleCSIJobCompletionSuccess",
+			jc: &stackInstallJobCompleter{
+				client: &test.MockClient{
+					MockList: func(ctx context.Context, list runtime.Object, _ ...client.ListOption) error {
+						// LIST pods returns a pod for the job
+						*list.(*corev1.PodList) = corev1.PodList{
+							Items: []corev1.Pod{{ObjectMeta: metav1.ObjectMeta{Name: jobPodName}}},
+						}
+						return nil
+					},
+					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error { return nil },
+					MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
+						// GET stack returns the stack instance that was created from the pod log output
+						*obj.(*v1alpha1.Stack) = v1alpha1.Stack{
+							ObjectMeta: metav1.ObjectMeta{Name: resourceName, Namespace: namespace},
+						}
+						return nil
+					},
+					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+				},
+				podLogReader: &mockPodLogReader{
+					MockGetPodLogReader: func(string, string) (io.ReadCloser, error) {
+						return ioutil.NopCloser(bytes.NewReader([]byte(podLogOutput))), nil
+					},
+				},
+			},
+			ext: clusterInstallResource(),
+			job: job(),
+			want: want{
+				ext: clusterInstallResource(withStackRecord(&corev1.ObjectReference{Name: resourceName, Namespace: namespace})),
 				err: nil,
 			},
 		},

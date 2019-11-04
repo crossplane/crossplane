@@ -127,7 +127,7 @@ type StackPackager interface {
 	Yaml() (string, error)
 }
 
-// StackPackage defines the artifact structure of Stacks
+// StackPackage defines the artifact structure of Stacks.
 // A fully processed Stack can be thought of as a Stack CR and
 // a collection of managed CRDs.  The Stack CR includes its
 // controller install and RBAC definitions. The managed CRDS are
@@ -448,9 +448,9 @@ func NewStackPackage(baseDir string) *StackPackage {
 	return sp
 }
 
-// Unpack writes to `out` using custom Step functions against a ResourceWalker
+// Unpack writes to `out` using custom Step functions against a ResourceWalker.
 // The custom Steps process Stack resource files and the output is multiple
-// YAML documents.  CRDs container within the stack will be annotated based
+// YAML documents.  CRDs contained within the stack will be annotated based
 // on the other Stack resource files contained within the Stack.
 //
 // baseDir is expected to be an absolute path, i.e. have a root to the path,

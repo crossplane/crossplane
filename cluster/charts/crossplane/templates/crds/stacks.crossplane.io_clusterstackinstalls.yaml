@@ -30,7 +30,7 @@ spec:
     listKind: ClusterStackInstallList
     plural: clusterstackinstalls
     singular: clusterstackinstall
-  scope: Namespaced
+  scope: Cluster
   subresources:
     status: {}
   validation:
@@ -44,6 +44,8 @@ spec:
           type: object
         spec:
           properties:
+            controllerNamespace:
+              type: string
             crd:
               type: string
             package:

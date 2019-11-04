@@ -64,7 +64,7 @@ func createInstallJob(i v1alpha1.StackInstaller, executorInfo *stacks.ExecutorIn
 	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            i.GetName(),
-			Namespace:       i.GetNamespace(),
+			Namespace:       i.ControllerNamespace(),
 			OwnerReferences: []metav1.OwnerReference{ref},
 		},
 		Spec: batchv1.JobSpec{
@@ -123,20 +123,11 @@ func createInstallJob(i v1alpha1.StackInstaller, executorInfo *stacks.ExecutorIn
 func (jc *stackInstallJobCompleter) handleJobCompletion(ctx context.Context, i v1alpha1.StackInstaller, job *batchv1.Job) error {
 	var stackRecord *v1alpha1.Stack
 
-	// find the pod associated with the given job
-	podName, err := jc.findPodNameForJob(ctx, job)
+	d, err := jc.jobLogDecoder(ctx, job)
 	if err != nil {
 		return err
 	}
 
-	// read full output from job by retrieving the logs for the job's pod
-	b, err := jc.readPodLogs(job.Namespace, podName)
-	if err != nil {
-		return err
-	}
-
-	// decode and process all resources from job output
-	d := yaml.NewYAMLOrJSONDecoder(b, 4096)
 	for {
 		obj := &unstructured.Unstructured{}
 		if err := d.Decode(&obj); err != nil {
@@ -221,33 +212,51 @@ func (jc *stackInstallJobCompleter) readPodLogs(namespace, name string) (*bytes.
 	return b, nil
 }
 
+func (jc *stackInstallJobCompleter) jobLogDecoder(ctx context.Context, job *batchv1.Job) (*yaml.YAMLOrJSONDecoder, error) {
+	// find the pod associated with the given job
+	podName, err := jc.findPodNameForJob(ctx, job)
+	if err != nil {
+		return nil, err
+	}
+
+	// read full output from job by retrieving the logs for the job's pod
+	b, err := jc.readPodLogs(job.Namespace, podName)
+	if err != nil {
+		return nil, err
+	}
+
+	// decode and process all resources from job output
+	d := yaml.NewYAMLOrJSONDecoder(b, 4096)
+	return d, err
+}
+
 // createJobOutputObject names, labels, sets ownership, and creates resources
 // resulting from a StackInstall or ClusterStackInstall. These expected
 // resources are currently CRD and Stack objects
 func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, obj *unstructured.Unstructured,
-	i stacks.KindlyIdentifier, job *batchv1.Job) error {
+	i v1alpha1.StackInstaller, job *batchv1.Job) error {
 
 	// if we decoded a non-nil unstructured object, try to create it now
 	if obj == nil {
 		return nil
 	}
 
-	// when the current object is a Stack object, make sure the name and namespace are
-	// set to match the current StackInstall (if they haven't already been set). Also,
-	// set the owner reference of the Stack to be the StackInstall.
+	// when the current object is a Stack object, make sure the name (if not set)
+	// and namespace are set to match the current StackInstall.
 	if isStackObject(obj) || isStackConfigurationObject(obj) {
 		if obj.GetName() == "" {
 			obj.SetName(i.GetName())
 		}
-		if obj.GetNamespace() == "" {
-			obj.SetNamespace(i.GetNamespace())
-		}
+
+		// Stacks should be created in the ControllerNamespace
+		obj.SetNamespace(i.ControllerNamespace())
 	}
 
 	// We want to clean up any installed CRDS when we're deleted. We can't rely
 	// on garbage collection because a namespaced object (StackInstall) can't
 	// own a cluster scoped object (CustomResourceDefinition), so we use labels
-	// instead.
+	// instead.  Likewise, a cluster scoped object (ClusterStackInstall) can not
+	// own a namespaced resources (Stack).
 	labels := stacks.ParentLabels(i)
 
 	// CRDs are labeled with the namespaces of the stacks they are managed by.

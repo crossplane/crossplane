@@ -111,7 +111,7 @@ func clusterInstallResource(rm ...resourceModifier) *v1alpha1.ClusterStackInstal
 			UID:        uid,
 			Finalizers: []string{},
 		},
-		Spec: v1alpha1.StackInstallSpec{},
+		Spec: v1alpha1.ClusterStackInstallSpec{},
 	}
 
 	for _, m := range rm {

@@ -92,8 +92,8 @@ func (c *Controller) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-// Reconcile reads that state of the StackInstall for a Instance object and makes changes based on the state read
-// and what is in the Instance.Spec
+// Reconcile reads that state of the StackInstall for a Instance object and
+// makes changes based on the state read and what is in the Instance.Spec
 func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) {
 	stackInstaller := r.stackinator()
 	log.V(logging.Debug).Info("reconciling", "kind", stackInstaller.GroupVersionKind(), "request", req)
@@ -101,7 +101,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	ctx, cancel := context.WithTimeout(context.Background(), reconcileTimeout)
 	defer cancel()
 
-	// fetch the CRD instance
+	// fetch the StackInstall or ClusterStackInstall instance
 	if err := r.kube.Get(ctx, req.NamespacedName, stackInstaller); err != nil {
 		if kerrors.IsNotFound(err) {
 			return reconcile.Result{}, nil
@@ -162,9 +162,6 @@ func (f *handlerFactory) newHandler(ctx context.Context, ext v1alpha1.StackInsta
 	}
 }
 
-// ************************************************************************************************
-// Syncing/Creating functions
-// ************************************************************************************************
 func (h *stackInstallHandler) sync(ctx context.Context) (reconcile.Result, error) {
 	if h.ext.StackRecord() == nil {
 		return h.create(ctx)
@@ -173,8 +170,11 @@ func (h *stackInstallHandler) sync(ctx context.Context) (reconcile.Result, error
 	return h.update(ctx)
 }
 
-// create performs the operation of creating the associated Stack.  This function assumes
-// that the Stack does not yet exist, so the caller should confirm that before calling.
+// create creates the install job for a Stack (if it does not exist) and calls
+// handleJobCompletion when the job is complete.
+//
+// This function assumes that the Stack does not yet exist, so the caller should
+// confirm that before calling.
 func (h *stackInstallHandler) create(ctx context.Context) (reconcile.Result, error) {
 	h.ext.SetConditions(runtimev1alpha1.Creating())
 
@@ -189,7 +189,7 @@ func (h *stackInstallHandler) create(ctx context.Context) (reconcile.Result, err
 		// there is no install job created yet, create it now
 		job := createInstallJob(h.ext, h.executorInfo)
 		if err := h.kube.Create(ctx, job); err != nil {
-			return fail(ctx, h.kube, h.ext, err)
+			return fail(ctx, h.kube, h.ext, errors.Wrap(err, "error creating install job"))
 		}
 
 		jobRef = &corev1.ObjectReference{
@@ -208,7 +208,7 @@ func (h *stackInstallHandler) create(ctx context.Context) (reconcile.Result, err
 	// the install job already exists, let's check its status and completion
 	job := &batchv1.Job{}
 	if err := h.kube.Get(ctx, meta.NamespacedNameOf(jobRef), job); err != nil {
-		return fail(ctx, h.kube, h.ext, err)
+		return fail(ctx, h.kube, h.ext, errors.Wrap(err, "error fetching install job"))
 	}
 
 	log.V(logging.Debug).Info(
@@ -222,7 +222,7 @@ func (h *stackInstallHandler) create(ctx context.Context) (reconcile.Result, err
 			case batchv1.JobComplete:
 				// the install job succeeded, process the output
 				if err := h.jobCompleter.handleJobCompletion(ctx, h.ext, job); err != nil {
-					return fail(ctx, h.kube, h.ext, err)
+					return fail(ctx, h.kube, h.ext, errors.Wrap(err, "error handling install job output"))
 				}
 
 				// the install job's completion was handled successfully, this stack install is ready
