@@ -113,7 +113,7 @@ accessed
 
 ```bash
 cat > aws-dbsubnet.yaml <<EOF
-apiVersion: storage.aws.crossplane.io/v1alpha3
+apiVersion: database.aws.crossplane.io/v1alpha3
 kind: DBSubnetGroup
 metadata:
   name: sample-dbsubnetgroup
