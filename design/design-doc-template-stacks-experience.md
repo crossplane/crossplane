@@ -4,6 +4,35 @@
 * Reviewers: Crossplane Maintainers
 * Status: Draft, revision 1.0
 
+## Outline
+
+* [Background](#background)
+* [Goals](#goals)
+* [Non-goals](#non-goals)
+* [Terms](#terms)
+* [How to read this document](#how-to-read-this-document)
+* [Design](#design)
+  * [Writing](#writing)
+    * [Adding a CRD](#adding-a-crd)
+  * [Building and publishing](#building-and-publishing)
+  * [Consuming](#consuming)
+    * [Install](#install)
+    * [Create](#create)
+    * [Delete](#delete)
+    * [Uninstall](#uninstall)
+    * [Upgrade and update](#upgrade-and-update)
+  * [The stack.yaml](#the-stackyaml)
+    * [Specifying how to process render requests](#specifying-how-to-process-render-requests)
+  * [Specifying default values](#specifying-default-values)
+  * [How processing objects works under the covers](#how-processing-objects-works-under-the-covers)
+  * [Templating/configuration engine](#templatingconfiguration-engine)
+  * [Lifecycle hooks](#lifecycle-hooks)
+  * [Internal representation of templates](#internal-representation-of-templates)
+  * [The template stack controller](#the-template-stack-controller)
+* [Example use-cases](#example-use-cases)
+  * [Helm charts](#helm-charts)
+* [Further reading](#further-reading)
+
 ## Background
 
 Managing configuration of bespoke Kubernetes applications has been a
