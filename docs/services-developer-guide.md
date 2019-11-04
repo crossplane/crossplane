@@ -98,7 +98,8 @@ and built using [kubebuilder] v0.2.x and [crossplane-runtime]. Per [What Makes
 a Crossplane Managed Service] it is possible to write a controller using any
 language and tooling with a Kubernetes client, but this set of tools are the
 "[golden path]". They're well supported, broadly used, and provide a shared
-language with the Crossplane maintainers.
+language with the Crossplane maintainers. This guide targets [crossplane-runtime
+v0.2.0].
 
 This guide assumes the reader is familiar with the Kubernetes [API Conventions]
 and the [kubebuilder book]. If you're not adding a new managed service to an
@@ -893,13 +894,6 @@ func (c *FavouriteDBInstanceClaimController) SetupWithManager(mgr ctrl.Manager) 
         resource.ClaimKind(databasev1alpha1.FancySQLInstanceGroupVersionKind),
         resource.ClassKind(v1alpha3.FavouriteDBInstanceClassGroupVersionKind),
         resource.ManagedKind(v1alpha3.FavouriteDBInstanceGroupVersionKind),
-        // The resource claim reconciler assumes managed resources do not
-        // use the status subresource for compatibility with older managed
-        // resource kinds, so well behaved resources must explicitly tell the
-        // reconciler to update the status subresource per
-        // https://github.com/crossplaneio/crossplane-runtime/issues/29
-        resource.WithManagedBinder(resource.NewAPIManagedStatusBinder(mgr.GetClient())),
-        resource.WithManagedFinalizer(resource.NewAPIManagedStatusUnbinder(mgr.GetClient())),
         // The following configurators configure how a managed resource will be
         // configured when one must be dynamically provisioned.
         resource.WithManagedConfigurators(
@@ -1078,6 +1072,7 @@ value any feedback you may have about the services development process!
 [kubebuilder]: https://kubebuilder.io/
 [controller-runtime]: https://github.com/kubernetes-sigs/controller-runtime
 [crossplane-runtime]: https://github.com/crossplaneio/crossplane-runtime/
+[crossplane-runtime v0.2.0]: https://github.com/crossplaneio/crossplane-runtime/releases/tag/v0.2.0
 [golden path]: https://charity.wtf/2018/12/02/software-sprawl-the-golden-path-and-scaling-teams-with-agency/
 [API Conventions]: https://github.com/kubernetes/community/blob/c6e1e89a/contributors/devel/sig-architecture/api-conventions.md
 [kubebuilder book]: https://book.kubebuilder.io/
