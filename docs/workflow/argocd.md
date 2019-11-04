@@ -28,7 +28,7 @@ application that consumes cloud provider resources.
     1. [Configure Dev and Prod
        Environments](#configure-dev-and-prod-environments)
 1. [Set Up an Application Pipeline](#set-up-an-application-pipeline)
-    1. [Create an Application Repository](#create-a-git-repository)
+    1. [Create an Application Repository](#create-an-application-repository)
     1. [Create an ArgoCD Project for
        Applications](#create-an-argocd-project-for-applications)
     1. [Configure an ArgoCD Application](#configure-an-argocd-application)
