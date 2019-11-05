@@ -46,7 +46,6 @@ Run the following:
 ```bash
 export PROJECT_ID=crossplane-playground # the project that all resources reside.
 export NETWORK_NAME=default # the network that your GKE cluster lives in.
-export SUBNETWORK_NAME=default # the subnetwork that your GKE cluster lives in.
 ```
 
 ## Set Up Crossplane
