@@ -1,0 +1,7 @@
+commonAnnotations:
+  helm.sh/hook: crd-install
+  helm.sh/hook-delete-policy: before-hook-creation
+
+resources:
+  - crossplane/templates/crds/stacks.crossplane.io_clusterstackinstalls.yaml
+  - crossplane/templates/crds/stacks.crossplane.io_stackinstalls.yaml

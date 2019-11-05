@@ -90,9 +90,22 @@ go.test.unit: $(KUBEBUILDER)
 
 # Generate manifests e.g. CRD, RBAC etc. locally for Stacks API types
 # as it needs the custom "maxDescLen=0" option
-manifests: vendor kubebuilder.manifests
+manifests: vendor kubebuilder.manifests $(KUSTOMIZE)
 	@$(INFO) Generating CRD manifests
 	$(CONTROLLERGEN) crd:maxDescLen=0,trivialVersions=true paths=./apis/stacks/... output:dir=$(CRD_DIR)
+# Add "helm.sh/hook: crd-install" and "helm.sh/hook-delete-policy: before-hook-creation" annotations for
+# clusterstackinstalls and stackinstalls CRDs.
+# Since Crossplane helm chart contains both CRD and ClusterStackInstall CRs, helm fails to install both together.
+# One option was to use `post-install,post-update` hooks in CR to deploy it after CRDs are installed, but this didn't
+# work reliably with "helm upgrade --install" command. Using "crd-install" hook is already suggested in helm best
+# practices doc: https://helm.sh/docs/chart_best_practices/#method-2-crd-install-hooks and we verified that it works
+# reliably for all use cases. The other hook for deletion policy is necessary to be able to redeploy helm chart after
+# it is deleted since CRDs with "crd-install" hooks will not be deleted with "helm delete" and cause next
+# "helm install" to fail.
+	$(eval TMPDIR := $(shell mktemp -d))
+	$(KUSTOMIZE) build cluster/charts -o $(TMPDIR)
+	mv $(TMPDIR)/apiextensions.k8s.io_v1beta1_customresourcedefinition_clusterstackinstalls.stacks.crossplane.io.yaml $(CRD_DIR)/stacks.crossplane.io_clusterstackinstalls.yaml
+	mv $(TMPDIR)/apiextensions.k8s.io_v1beta1_customresourcedefinition_stackinstalls.stacks.crossplane.io.yaml $(CRD_DIR)/stacks.crossplane.io_stackinstalls.yaml
 	@$(OK) Generating CRD manifests
 
 # Generate a coverage report for cobertura applying exclusions on
