@@ -99,7 +99,7 @@ a Crossplane Managed Service] it is possible to write a controller using any
 language and tooling with a Kubernetes client, but this set of tools are the
 "[golden path]". They're well supported, broadly used, and provide a shared
 language with the Crossplane maintainers. This guide targets [crossplane-runtime
-v0.2.0].
+v0.2.1].
 
 This guide assumes the reader is familiar with the Kubernetes [API Conventions]
 and the [kubebuilder book]. If you're not adding a new managed service to an
