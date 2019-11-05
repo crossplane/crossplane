@@ -1072,7 +1072,7 @@ value any feedback you may have about the services development process!
 [kubebuilder]: https://kubebuilder.io/
 [controller-runtime]: https://github.com/kubernetes-sigs/controller-runtime
 [crossplane-runtime]: https://github.com/crossplaneio/crossplane-runtime/
-[crossplane-runtime v0.2.0]: https://github.com/crossplaneio/crossplane-runtime/releases/tag/v0.2.0
+[crossplane-runtime v0.2.1]: https://github.com/crossplaneio/crossplane-runtime/releases/tag/v0.2.1
 [golden path]: https://charity.wtf/2018/12/02/software-sprawl-the-golden-path-and-scaling-teams-with-agency/
 [API Conventions]: https://github.com/kubernetes/community/blob/c6e1e89a/contributors/devel/sig-architecture/api-conventions.md
 [kubebuilder book]: https://book.kubebuilder.io/
