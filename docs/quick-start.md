@@ -42,7 +42,7 @@ metadata:
   name: stack-gcp
   namespace: crossplane-system
 spec:
-  package: "crossplane/stack-gcp:v0.2.0"
+  package: "crossplane/stack-gcp:v0.2.1"
 ```
 
 Save the above as `stack.yaml`, and apply it by running:

@@ -74,7 +74,7 @@ infrastructure stack, we need to specify that it's cluster-scoped by passing the
 `--cluster` flag.
 
 ```bash
-kubectl crossplane stack generate-install --cluster 'crossplane/stack-azure:v0.2.0' stack-azure | kubectl apply --namespace crossplane-system -f -
+kubectl crossplane stack generate-install --cluster 'crossplane/stack-azure:v0.2.1' stack-azure | kubectl apply --namespace crossplane-system -f -
 ```
 
 The rest of this guide assumes that the Azure stack is installed within
