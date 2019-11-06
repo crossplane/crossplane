@@ -43,8 +43,6 @@ In order to utilize these pre-existing resources, set environment variables that
 can be used when creating resources necessary to deploy Wordpress.
 
 ```bash
-export CLUSTER_NAME=yourclustername
-export REGION=yourclusterregion
 export VPC_ID=yourvpcid
 export SUBNET_ONE_ID=yourpublicsubnetoneid
 export SUBNET_TWO_ID=yourpublicsubnettwoid

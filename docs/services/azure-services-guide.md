@@ -51,7 +51,6 @@ relevant values for your AKS cluster.
 ```bash
 export AKS_RESOURCE_GROUP=myAKSResourceGroup
 export AKS_VNET=myAKSVnet
-export AKS_NAME=myAKSName
 export AKS_REGION=myRegion
 export SUBSCRIPTION_ID=$(az account list | jq -j '.[0].id')
 ```
