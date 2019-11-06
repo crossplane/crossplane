@@ -84,14 +84,14 @@ following API groups:
 API Group | Status | Details
 --------  | ------ | -------
 [`azure.crossplane.io/v1alpha3`] | Alpha | Core Azure resources.
-[`cache.azure.crossplane.io/v1alpha3`] | Alpha | Azure Redis managed resources and classes.
+[`cache.azure.crossplane.io/v1beta1`] | Beta | Azure Redis managed resources and classes.
 [`compute.azure.crossplane.io/v1alpha3`] | Alpha | AKS managed resources and classes.
 [`database.azure.crossplane.io/v1alpha3`] | Alpha | Azure Database managed resources and classes.
 [`network.azure.crossplane.io/v1alpha3`] | Alpha | Virtual network managed resources and classes.
 [`storage.azure.crossplane.io/v1alpha3`] | Alpha | Azure Blob Storage managed resources and classes.
 
 [`azure.crossplane.io/v1alpha3`]: api/crossplaneio/stack-azure/azure-crossplane-io-v1alpha3.md
-[`cache.azure.crossplane.io/v1alpha3`]: api/crossplaneio/stack-azure/cache-azure-crossplane-io-v1alpha3.md
+[`cache.azure.crossplane.io/v1beta1`]: api/crossplaneio/stack-azure/cache-azure-crossplane-io-v1beta1.md
 [`compute.azure.crossplane.io/v1alpha3`]: api/crossplaneio/stack-azure/compute-azure-crossplane-io-v1alpha3.md
 [`database.azure.crossplane.io/v1alpha3`]: api/crossplaneio/stack-azure/database-azure-crossplane-io-v1alpha3.md
 [`network.azure.crossplane.io/v1alpha3`]: api/crossplaneio/stack-azure/network-azure-crossplane-io-v1alpha3.md
