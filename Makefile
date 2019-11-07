@@ -79,7 +79,7 @@ fallthrough: submodules
 	@make
 
 manifests:
-	@$(WARN) Deprecated. Please run `make generate` instead.
+	@$(WARN) Deprecated. Please run make generate instead.
 
 generate: $(KUSTOMIZE) go.generate manifests.annotate
 
