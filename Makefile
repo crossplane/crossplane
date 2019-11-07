@@ -45,14 +45,6 @@ HELM_CHART_LINT_ARGS_crossplane = --set nameOverride='',imagePullSecrets=''
 -include build/makelib/helm.mk
 
 # ====================================================================================
-# Setup Kubebuilder
-
-CRD_DIR = cluster/charts/crossplane/templates/crds
-API_DIR = ./apis/...
-
--include build/makelib/kubebuilder.mk
-
-# ====================================================================================
 # Setup Kubernetes tools
 
 -include build/makelib/k8s_tools.mk
@@ -86,27 +78,32 @@ fallthrough: submodules
 	@echo Initial setup complete. Running make again . . .
 	@make
 
-go.test.unit: $(KUBEBUILDER)
+manifests:
+	@$(WARN) Deprecated. Please run `make generate` instead.
 
-# Generate manifests e.g. CRD, RBAC etc. locally for Stacks API types
-# as it needs the custom "maxDescLen=0" option
-manifests: vendor kubebuilder.manifests $(KUSTOMIZE)
-	@$(INFO) Generating CRD manifests
-	$(CONTROLLERGEN) crd:maxDescLen=0,trivialVersions=true paths=./apis/stacks/... output:dir=$(CRD_DIR)
-# Add "helm.sh/hook: crd-install" and "helm.sh/hook-delete-policy: before-hook-creation" annotations for
-# clusterstackinstalls and stackinstalls CRDs.
-# Since Crossplane helm chart contains both CRD and ClusterStackInstall CRs, helm fails to install both together.
-# One option was to use `post-install,post-update` hooks in CR to deploy it after CRDs are installed, but this didn't
-# work reliably with "helm upgrade --install" command. Using "crd-install" hook is already suggested in helm best
-# practices doc: https://helm.sh/docs/chart_best_practices/#method-2-crd-install-hooks and we verified that it works
-# reliably for all use cases. The other hook for deletion policy is necessary to be able to redeploy helm chart after
-# it is deleted since CRDs with "crd-install" hooks will not be deleted with "helm delete" and cause next
-# "helm install" to fail.
+generate: $(KUSTOMIZE) go.generate manifests.annotate
+
+
+# Add "helm.sh/hook: crd-install" and "helm.sh/hook-delete-policy:
+# before-hook-creation" annotations for clusterstackinstalls and stackinstalls
+# CRDs. Since Crossplane helm chart contains both CRD and ClusterStackInstall
+# CRs, helm fails to install both together. One option was to use
+# `post-install,post-update` hooks in CR to deploy it after CRDs are installed,
+# but this didn't work reliably with "helm upgrade --install" command. Using
+# "crd-install" hook is already suggested in helm best practices doc:
+# https://helm.sh/docs/chart_best_practices/#method-2-crd-install-hooks and we
+# verified that it works reliably for all use cases. The other hook for deletion
+# policy is necessary to be able to redeploy helm chart after it is deleted
+# since CRDs with "crd-install" hooks will not be deleted with "helm delete" and
+# cause next "helm install" to fail.
+CRD_DIR = cluster/charts/crossplane/templates/crds
+manifests.annotate:
+	@$(INFO) Annotating generated StackInstall CRD manifests
 	$(eval TMPDIR := $(shell mktemp -d))
 	$(KUSTOMIZE) build cluster/charts -o $(TMPDIR)
 	mv $(TMPDIR)/apiextensions.k8s.io_v1beta1_customresourcedefinition_clusterstackinstalls.stacks.crossplane.io.yaml $(CRD_DIR)/stacks.crossplane.io_clusterstackinstalls.yaml
 	mv $(TMPDIR)/apiextensions.k8s.io_v1beta1_customresourcedefinition_stackinstalls.stacks.crossplane.io.yaml $(CRD_DIR)/stacks.crossplane.io_stackinstalls.yaml
-	@$(OK) Generating CRD manifests
+	@$(OK) Annotated generated StackInstall CRD manifests
 
 # Generate a coverage report for cobertura applying exclusions on
 # - generated file
@@ -116,7 +113,7 @@ cobertura:
 		$(GOCOVER_COBERTURA) > $(GO_TEST_OUTPUT)/cobertura-coverage.xml
 
 # Ensure a PR is ready for review.
-reviewable: vendor generate manifests lint
+reviewable: generate lint
 
 # integration tests
 e2e.run: test-integration
@@ -147,7 +144,6 @@ run: go.build
 
 define CROSSPLANE_MAKE_HELP
 Crossplane Targets:
-    manifests          Generate manifests e.g. CRD, RBAC etc.
     cobertura          Generate a coverage report for cobertura applying exclusions on generated files.
     reviewable         Ensure a PR is ready for review.
     submodules         Update the submodules, such as the common build scripts.
@@ -164,17 +160,3 @@ crossplane.help:
 help-special: crossplane.help
 
 .PHONY: crossplane.help help-special
-
-# target for resolving angryjet dependency
-# TODO(soorena776): move this to golang.mk in build submodule
-CROSSPLANETOOLS_ANGRYJET := $(TOOLS_HOST_DIR)/angryjet
-export CROSSPLANETOOLS_ANGRYJET
-
-$(CROSSPLANETOOLS_ANGRYJET):
-	@$(INFO) installing Crossplane AngryJet
-	@mkdir -p $(TOOLS_HOST_DIR)/tmp-angryjet || $(FAIL)
-	@GO111MODULE=off GOPATH=$(TOOLS_HOST_DIR)/tmp-angryjet GOBIN=$(TOOLS_HOST_DIR) $(GOHOST) get github.com/crossplaneio/crossplane-tools/cmd/angryjet || rm -fr $(TOOLS_HOST_DIR)/tmp-angryjet|| $(FAIL)
-	@rm -fr $(TOOLS_HOST_DIR)/tmp-angryjet
-	@$(OK) installing Crossplane AngryJet
-
-go.generate: $(CROSSPLANETOOLS_ANGRYJET)
