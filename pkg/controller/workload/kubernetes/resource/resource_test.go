@@ -41,7 +41,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
 	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 	computev1alpha1 "github.com/crossplaneio/crossplane/apis/compute/v1alpha1"
 	"github.com/crossplaneio/crossplane/apis/workload/v1alpha1"
@@ -73,7 +72,7 @@ var (
 		},
 	}
 
-	clusterRef = meta.ReferenceTo(cluster, computev1alpha1.KubernetesClusterGroupVersionKind)
+	clusterRef = &v1alpha1.KubernetesClusterReference{Name: cluster.GetName()}
 
 	apiServerURL, _ = url.Parse("https://example.org")
 	malformedURL    = ":wat:"
@@ -199,9 +198,9 @@ func withDeletionTimestamp(t time.Time) kubeARModifier {
 	}
 }
 
-func withCluster(c *corev1.ObjectReference) kubeARModifier {
+func withCluster(name string) kubeARModifier {
 	return func(r *v1alpha1.KubernetesApplicationResource) {
-		r.Status.Cluster = c
+		r.Status.Cluster = &v1alpha1.KubernetesClusterReference{Name: name}
 	}
 }
 
@@ -1072,7 +1071,7 @@ func TestConnectConfig(t *testing.T) {
 				},
 				options: client.Options{Mapper: mockRESTMapper{}},
 			},
-			ar: kubeAR(withCluster(clusterRef)),
+			ar: kubeAR(withCluster(cluster.GetName())),
 			wantConfig: &rest.Config{
 				Host:     apiServerURL.String(),
 				Username: string(secret.Data[runtimev1alpha1.ResourceCredentialsSecretUserKey]),
@@ -1100,7 +1099,7 @@ func TestConnectConfig(t *testing.T) {
 				kube:    &test.MockClient{MockGet: test.NewMockGetFn(errorBoom)},
 				options: client.Options{Mapper: mockRESTMapper{}},
 			},
-			ar: kubeAR(withCluster(clusterRef)),
+			ar: kubeAR(withCluster(cluster.GetName())),
 			wantErr: errors.Wrapf(errorBoom, "cannot get %s %s/%s",
 				computev1alpha1.KubernetesClusterKind, cluster.GetNamespace(), cluster.GetName()),
 		},
@@ -1120,7 +1119,7 @@ func TestConnectConfig(t *testing.T) {
 				},
 				options: client.Options{Mapper: mockRESTMapper{}},
 			},
-			ar:      kubeAR(withCluster(clusterRef)),
+			ar:      kubeAR(withCluster(cluster.GetName())),
 			wantErr: errors.Wrapf(errorBoom, "cannot get secret %s/%s", secret.GetNamespace(), secret.GetName()),
 		},
 		{
@@ -1141,7 +1140,7 @@ func TestConnectConfig(t *testing.T) {
 				},
 				options: client.Options{Mapper: mockRESTMapper{}},
 			},
-			ar:      kubeAR(withCluster(clusterRef)),
+			ar:      kubeAR(withCluster(cluster.GetName())),
 			wantErr: errors.WithStack(errors.Errorf("cannot parse Kubernetes endpoint as URL: parse %s: missing protocol scheme", malformedURL)),
 		},
 	}
@@ -1182,7 +1181,7 @@ func TestConnect(t *testing.T) {
 				},
 				options: client.Options{Mapper: mockRESTMapper{}},
 			},
-			ar: kubeAR(withCluster(clusterRef)),
+			ar: kubeAR(withCluster(cluster.GetName())),
 
 			// This empty struct is 'identical' to the actual, populated struct
 			// returned by tc.connecter.connect() because we do not compare
@@ -1198,7 +1197,7 @@ func TestConnect(t *testing.T) {
 				kube:    &test.MockClient{MockGet: test.NewMockGetFn(nil)},
 				options: client.Options{Mapper: mockRESTMapper{}},
 			},
-			ar: kubeAR(withCluster(clusterRef)),
+			ar: kubeAR(withCluster(cluster.GetName())),
 
 			// This empty struct is 'identical' to the actual, populated struct
 			// returned by tc.connecter.connect() because we do not compare
@@ -1214,7 +1213,7 @@ func TestConnect(t *testing.T) {
 			connecter: &clusterConnecter{
 				kube: &test.MockClient{MockGet: test.NewMockGetFn(errorBoom)},
 			},
-			ar: kubeAR(withCluster(clusterRef)),
+			ar: kubeAR(withCluster(cluster.GetName())),
 			wantErr: errors.Wrapf(errorBoom, "cannot create Kubernetes client configuration: cannot get %s %s/%s",
 				computev1alpha1.KubernetesClusterKind, cluster.GetNamespace(), cluster.GetName()),
 		},
