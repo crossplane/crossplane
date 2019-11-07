@@ -37,8 +37,7 @@ spec:
   validation:
     openAPIV3Schema:
       description: A Bucket is a portable resource claim that may be satisfied by
-        binding to a storage bucket PostgreSQL managed resource such as an AWS S3
-        bucket or Azure storage container.
+        binding to a managed resource such as an AWS S3 bucket or Azure storage container.
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation
