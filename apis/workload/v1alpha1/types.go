@@ -79,6 +79,14 @@ type KubernetesApplicationResourceTemplate struct {
 	Spec KubernetesApplicationResourceSpec `json:"spec,omitempty"`
 }
 
+// A KubernetesClusterReference is a reference to a KubernetesCluster resource
+// claim in the same namespace as the referrer.
+type KubernetesClusterReference struct {
+	// Name of the referent. More info:
+	// https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+	Name string `json:"name"`
+}
+
 // KubernetesApplicationStatus represents the observed state of a
 // KubernetesApplication.
 type KubernetesApplicationStatus struct {
@@ -88,7 +96,7 @@ type KubernetesApplicationStatus struct {
 	State KubernetesApplicationState `json:"state,omitempty"`
 
 	// Cluster to which this application has been scheduled.
-	Cluster *corev1.ObjectReference `json:"clusterRef,omitempty"`
+	Cluster *KubernetesClusterReference `json:"clusterRef,omitempty"`
 
 	// Desired resources of this application, i.e. the number of resources
 	// that match this application's resource selector.
@@ -191,7 +199,7 @@ type KubernetesApplicationResourceStatus struct {
 	State KubernetesApplicationResourceState `json:"state,omitempty"`
 
 	// Cluster to which this application has been scheduled.
-	Cluster *corev1.ObjectReference `json:"clusterRef,omitempty"`
+	Cluster *KubernetesClusterReference `json:"clusterRef,omitempty"`
 
 	// Remote status of the resource templated by this application resource.
 	Remote *RemoteStatus `json:"remote,omitempty"`

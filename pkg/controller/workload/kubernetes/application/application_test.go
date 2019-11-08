@@ -33,7 +33,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
 	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 	computev1alpha1 "github.com/crossplaneio/crossplane/apis/compute/v1alpha1"
 	"github.com/crossplaneio/crossplane/apis/workload/v1alpha1"
@@ -67,7 +66,7 @@ var (
 		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: "coolCluster"},
 	}
 
-	clusterRef = meta.ReferenceTo(cluster, computev1alpha1.KubernetesClusterGroupVersionKind)
+	clusterRef = &v1alpha1.KubernetesClusterReference{cluster.GetName()}
 
 	resourceA = &v1alpha1.KubernetesApplicationResource{
 		ObjectMeta: metav1.ObjectMeta{
@@ -105,9 +104,9 @@ func withSubmittedResources(i int) kubeAppModifier {
 	return func(r *v1alpha1.KubernetesApplication) { r.Status.SubmittedResources = i }
 }
 
-func withCluster(c *corev1.ObjectReference) kubeAppModifier {
+func withCluster(name string) kubeAppModifier {
 	return func(r *v1alpha1.KubernetesApplication) {
-		r.Status.Cluster = c
+		r.Status.Cluster = &v1alpha1.KubernetesClusterReference{Name: name}
 	}
 }
 
@@ -629,7 +628,7 @@ func TestRenderTemplate(t *testing.T) {
 	}{
 		{
 			name:     "Successful",
-			app:      kubeApp(withCluster(clusterRef)),
+			app:      kubeApp(withCluster(cluster.GetName())),
 			template: &templateA,
 			want:     resourceA,
 		},

@@ -404,7 +404,7 @@ func (c *clusterConnecter) config(ctx context.Context, ar *v1alpha1.KubernetesAp
 		return nil, errors.Errorf("%s %s is not scheduled", v1alpha1.KubernetesApplicationResourceKind, n)
 	}
 
-	n = types.NamespacedName{Namespace: ar.Status.Cluster.Namespace, Name: ar.Status.Cluster.Name}
+	n = types.NamespacedName{Namespace: ar.GetNamespace(), Name: ar.Status.Cluster.Name}
 	k := &computev1alpha1.KubernetesCluster{}
 	if err := c.kube.Get(ctx, n, k); err != nil {
 		return nil, errors.Wrapf(err, "cannot get %s %s", computev1alpha1.KubernetesClusterKind, n)

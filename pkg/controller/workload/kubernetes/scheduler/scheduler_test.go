@@ -23,7 +23,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
-	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -34,7 +33,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
 	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 	computev1alpha1 "github.com/crossplaneio/crossplane/apis/compute/v1alpha1"
 	workloadv1alpha1 "github.com/crossplaneio/crossplane/apis/workload/v1alpha1"
@@ -87,9 +85,9 @@ func withDeletionTimestamp(t time.Time) kubeAppModifier {
 	}
 }
 
-func withCluster(c *corev1.ObjectReference) kubeAppModifier {
+func withCluster(name string) kubeAppModifier {
 	return func(r *workloadv1alpha1.KubernetesApplication) {
-		r.Status.Cluster = c
+		r.Status.Cluster = &workloadv1alpha1.KubernetesClusterReference{Name: name}
 	}
 }
 
@@ -131,7 +129,7 @@ func TestCreatePredicate(t *testing.T) {
 			event: event.CreateEvent{
 				Object: &workloadv1alpha1.KubernetesApplication{
 					Status: workloadv1alpha1.KubernetesApplicationStatus{
-						Cluster: &corev1.ObjectReference{Name: "coolClustetr"},
+						Cluster: &workloadv1alpha1.KubernetesClusterReference{Name: "coolClustetr"},
 					},
 				},
 			},
@@ -177,7 +175,7 @@ func TestUpdatePredicate(t *testing.T) {
 			event: event.UpdateEvent{
 				ObjectNew: &workloadv1alpha1.KubernetesApplication{
 					Status: workloadv1alpha1.KubernetesApplicationStatus{
-						Cluster: &corev1.ObjectReference{Name: "coolCluster"},
+						Cluster: &workloadv1alpha1.KubernetesClusterReference{Name: "coolCluster"},
 					},
 				},
 			},
@@ -223,7 +221,7 @@ func TestSchedule(t *testing.T) {
 			app: kubeApp(withClusterSelector(selectorAll)),
 			wantApp: kubeApp(
 				withClusterSelector(selectorAll),
-				withCluster(meta.ReferenceTo(clusterA, computev1alpha1.KubernetesClusterGroupVersionKind)),
+				withCluster(clusterA.GetName()),
 				withState(workloadv1alpha1.KubernetesApplicationStateScheduled),
 				withConditions(runtimev1alpha1.ReconcileSuccess()),
 			),
@@ -339,7 +337,7 @@ func TestReconcile(t *testing.T) {
 				kube: &test.MockClient{
 					MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
 						*obj.(*workloadv1alpha1.KubernetesApplication) = *(kubeApp(
-							withCluster(&corev1.ObjectReference{Name: "coolCluster"}),
+							withCluster("coolCluster"),
 						))
 						return nil
 					},
