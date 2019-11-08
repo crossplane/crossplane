@@ -110,24 +110,24 @@ following broadly defined steps:
 The Kubernetes [controller-runtime] project provides an [envtest] package for
 creating local control planes for testing. 
 
-2. Registering CRD's
+2. Registering CRDs
 
-For any controller's that watch CRD's to be successfully started, the CRD's must
+For any controller's that watch CRDs to be successfully started, the CRDs must
 have been successfully created in the cluster. If they are unable to be created,
 the controller's will not be started and the `Job` will immediately return an
-error. This serves as a validation test for CRD's.
+error. This serves as a validation test for CRDs.
 
 3. Registering Controllers
 
-Controller's can be registered directly with the manager by calling their
+Controllers can be registered directly with the manager by calling their
 `SetUpWithManager` functions directly. Because all claim controllers
 (`scheduling`, `defaulting`, `claim`) are now part of the individual stacks, it
 is not necessary for the Crossplane controller to be running to test the stacks.
-However, it is necessary for the Crossplane CRD's to be present.
+However, it is necessary for the Crossplane CRDs to be present.
 
 4. Starting the Manager
 
-After all controllers and CRD's are registered, the manager can be started. 
+After all controllers and CRDs are registered, the manager can be started. 
 
 5. Executing Tests
 
@@ -148,7 +148,7 @@ type jobCleanFunc func(client.Client) error
 `Clean` is a special function that must be present in all `Jobs` and always runs
 before a job exits. It specifies how to clean up any resources that are
 left-over from tests executed as part of the `Job`. While it is sufficient to
-simply destroy the control plane to delete Kubernetes built-in API types, CRD's
+simply destroy the control plane to delete Kubernetes built-in API types, CRDs
 that create external resources must be cleaned up directly to ensure the
 deletion of their external infrastructure.
 
