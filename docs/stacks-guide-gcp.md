@@ -74,10 +74,10 @@ infrastructure stack, we need to specify that it's cluster-scoped by passing the
 `--cluster` flag.
 
 ```bash
-kubectl crossplane stack generate-install --cluster 'crossplane/stack-gcp:master' stack-gcp | kubectl apply --namespace crossplane-system -f -
+kubectl crossplane stack install --cluster 'crossplane/stack-gcp:master' stack-gcp
 ```
 
-The rest of this guide assumes that the GCP stack is installed within
+The rest of this guide assumes that the GCP stack is installed within the
 `crossplane-system` namespace.
 
 To check to see whether our stack installed correctly, we can look at
