@@ -1,5 +1,5 @@
 ---
-title: "Workflow"
+title: "CD Workflow"
 toc: true
 weight: 590
 indent: false

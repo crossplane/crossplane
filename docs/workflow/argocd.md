@@ -33,6 +33,7 @@ application that consumes cloud provider resources.
        Applications](#create-an-argocd-project-for-applications)
     1. [Configure an ArgoCD Application](#configure-an-argocd-application)
     1. [Deploy](#deploy)
+1. [Customizing](#customizing)
 1. [Clean Up](#clean-up)
 1. [Next Steps](#next-steps)
 
@@ -61,8 +62,8 @@ insecure connections] on localhost to utilize port-forwarding.*
 ### Install Crossplane Components
 
 For this guide we will assume that an organization wants to enable provisioning
-of managed service on [GCP], [AWS], and [Azure]. To install Crossplane along
-with the GCP, AWS, and Azure stacks, please see the [installation guide].
+of managed service on [GCP] and [AWS]. To install Crossplane along with the GCP
+and AWS, please see the [installation guide].
 
 ## Set Up an Infrastructure Pipeline
 
@@ -109,23 +110,30 @@ and [Azure provider] configuration guides. If you are not planning on deploying
 resources on any of the three platforms, you are welcome to skip the setup of a
 `Provider` for its stack.
 
-Now we need to set up a `dev` and `prod` environment in our `infra` project. To
-do so, go to `Applications > New Application` and configure as shown below or as
-appropriate with your repository:
+Now we need to set up `dev` and `prod` environment resources for GCP in our
+`infra` project. To do so, go to `Applications > New Application` and configure
+as shown below or as appropriate with your repository:
 
-![alt argo-infra-dev-app-1](argo-infra-dev-app-1.png)
+![alt argo-infra-app-1](argo-infra-dev-app-1.png)
 
-![alt argo-infra-dev-app-2](argo-infra-dev-app-2.png)
+![alt argo-infra-app-2](argo-infra-dev-app-2.png)
 
 After creating the application, you should see healthy status and a
 visualization of all resources that were created:
 
-![alt argo-infra-dev-app-viz](argo-infra-dev-app-viz.png)
+![alt argo-infra-app-viz](argo-infra-dev-app-viz.png)
 
-After setting up the `dev` application, do the same for `prod` specifying the
-`prod` directory where `dev` was used above. On creation of the applications,
-they should automatically sync and deploy any infrastructure configuration you
-have defined in your repository.
+You will notice that resource classes have both a `dev` and `prod` version
+created, while the network resources (i.e. `Network`, `Subnetwork`,
+`GlobalAddress`, `Connection`) have only one version and it is a managed
+resource. These resources do not support dynamic provisioning and do not have
+tiers appropriate for only development or only production. Therefore, they are
+being statically provisioned and can be referenced by either the `dev` or `prod`
+versions of the resource classes created.
+
+If you would like to enable provisioning resources on AWS as well, follow the
+same steps to set up an ArgoCD application that is pointed at the [AWS
+infrastructure directory].
 
 ## Set Up an Application Pipeline
 
@@ -137,7 +145,7 @@ create pipelines to deploy applications that utilize those cloud services.
 Either choose an existing application repository or create a new one. The
 repository should include claims that can be resolved by the environment classes
 we created. If you want to use an example application, you can use Wordpress in
-[this repository]  !! TODO !!.
+[this repository].
 
 ### Create an ArgoCD Project for Applications
 
@@ -164,9 +172,35 @@ After creation of the application, you should see all resources appear in the
 visualization. You can click on the `Service` resource to get the external IP
 address of the Wordpress application when it becomes available.
 
-!! TODO !! Wordpress deployment picture here
+![alt argo-wordpress-service](argo-wordpress-service.png)
 
 If you navigate to the IP address, you should see the Wordpress start page.
+
+![alt argo-wordpress-landing](argo-wordpress-landing.png)
+
+## Customizing
+
+We have successfully deployed Wordpress on GCP with `dev` tier infrastructure.
+However, it may be desireable to provision on `prod` tier infrastructure, or
+even a different cloud provider. Assuming you also set up AWS infrastructure
+configuration in the [infrastructure](#configure-dev-and-prod-environments)
+section above, this can be accomplished with simple changes to the Wordpress
+deployment configuration. The resource claims use label selectors to be
+scheduled to a certain class. If you take a look at [the patch in our
+application configuration][app-patch], you will notice the following stanza:
+
+```yaml
+ classSelector:
+    matchLabels:
+      env: dev
+      provider: gcp
+```
+
+Simply changing these labels to `env: prod` or `provider: aws` will cause the
+resources to be provisioned on production tier infrastructure or on AWS instead
+of GCP! Furthermore, if you would like more granular options for deploying
+infrastructure, you can customize the labels on the resource classes that were
+created to include any other distinguishing traits.
 
 ## Clean Up
 
@@ -183,11 +217,12 @@ application and those resources will be removed from your cluster.
 [installation guide]: install-crossplane.md
 [GCP]: https://cloud.google.com/
 [AWS]: https://aws.amazon.com/
-[Azure]: https://azure.microsoft.com/en-us/
 
 [projects]: https://argoproj.github.io/argo-cd/operator-manual/declarative-setup/#projects
 [applications]: https://argoproj.github.io/argo-cd/operator-manual/declarative-setup/#applications
 [secrets management integrations]: https://argoproj.github.io/argo-cd/operator-manual/secret-management/
 [GCP provider]: cloud-providers/gcp/gcp-provider.md
 [AWS provider]: cloud-providers/aws/aws-provider.md
-[this repository]: https://github.com/hasheddan/crosscd
+[this repository]: https://github.com/hasheddan/crosscd/tree/master/classpacks/workflow/argo
+[app-patch]: https://github.com/hasheddan/crosscd/blob/master/classpacks/workflow/argo/app/patch.yaml
+[AWS infrastructure directory]: https://github.com/hasheddan/crosscd/tree/master/classpacks/workflow/argo/infra/aws
