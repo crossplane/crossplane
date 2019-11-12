@@ -46,6 +46,7 @@ pipeline {
                 }
             }
             steps {
+                sh './build/run make check-diff'
                 sh './build/run make vendor.check'
                 sh './build/run make -j\$(nproc) build.all'
             }
