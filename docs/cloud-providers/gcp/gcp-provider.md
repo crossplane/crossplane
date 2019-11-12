@@ -160,6 +160,14 @@ First, let's encode the credential file contents and put it in a variable:
 BASE64ENCODED_GCP_ACCOUNT_CREDS=$(base64 crossplane-gcp-provider-key.json | tr -d "\n")
 ```
 
+Next, store the project ID of the GCP project in which you would like to
+provision infrastructure as a variable:
+
+```bash
+# replace this with your own gcp project id
+PROJECT_ID: my-cool-gcp-project
+```
+
 Now we’ll create the `Secret` resource that contains the credential, and
  `Provider` resource which refers to that secret:
 
@@ -181,7 +189,7 @@ metadata:
   name: gcp-provider
 spec:
   # replace this with your own gcp project id
-  projectID: my-cool-gcp-project
+  projectID: ${PROJECT_ID}
   credentialsSecretRef:
     namespace: crossplane-system
     name: gcp-account-creds
@@ -191,8 +199,9 @@ EOF
 # apply it to the cluster:
 kubectl apply -f "provider.yaml"
 
-# delete the credentials variable
+# delete the credentials and project id variables
 unset BASE64ENCODED_GCP_ACCOUNT_CREDS
+unset PROJECT_ID
 ```
 
 The output will look like the following:
