@@ -524,7 +524,7 @@ spec:
           name: rook-yugabytedb-operator
           namespace: rook-yugabytedb-system
   - metadata:
-      name: rook-serviceaccount
+      name: rook-clusterrolebinding
       labels:
         operator: rook-yugabyte
     spec:
@@ -543,7 +543,7 @@ spec:
           name: rook-yugabytedb-operator
           namespace: rook-yugabytedb-system
   - metadata:
-      name: rook-serviceaccount
+      name: rook-deployment
       labels:
         operator: rook-yugabyte
     spec:
