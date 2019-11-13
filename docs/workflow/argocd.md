@@ -115,15 +115,15 @@ Now we need to set up `dev` and `prod` environment resources for GCP in our
 `infra` project. To do so, go to `Applications > New Application` and configure
 as shown below or as appropriate with your repository:
 
-![alt argo-infra-app-1](argo-infra-dev-app-1.png)
-
-![alt argo-infra-app-2](argo-infra-dev-app-2.png)
+|   |  |
+| ------------- | ------------- |
+| ![alt argo-infra-app-1](argo-infra-app-1.png)  | ![alt argo-infra-app-2](argo-infra-app-2.png)  |
 
 After creating the dev and prod environments in our infra project as ArgoCD
 applications, you should see healthy status and a visualization of all resources
 that were created:
 
-![alt argo-infra-app-viz](argo-infra-dev-app-viz.png)
+![alt argo-infra-app-viz](argo-infra-app-viz.png)
 
 You will notice that resource classes have both a `dev` and `prod` version
 created, while the network resources (i.e. `Network`, `Subnetwork`,
@@ -167,9 +167,9 @@ It is important to pay special attention to the namespace because our
 application resources will be namespace-scoped. Configure your application to
 looks as follows or as needed for your application:
 
-![alt argo-apps-wordpress-1](argo-apps-wordpress-1.png)
-
-![alt argo-apps-wordpress-2](argo-apps-wordpress-2.png)
+|   |  |
+| ------------- | ------------- |
+| ![alt argo-apps-wordpress-1](argo-apps-wordpress-1.png)  | ![alt argo-apps-wordpress-2](argo-apps-wordpress-2.png)  |
 
 After creation of the application, you should see all resources appear in the
 visualization. You can click on the `Service` resource to get the external IP
