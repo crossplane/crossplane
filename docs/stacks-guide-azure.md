@@ -294,28 +294,27 @@ Below we inspect each of these resource classes in more details:
 
   ```yaml
   ---
-  apiVersion: database.azure.crossplane.io/v1alpha3
+  apiVersion: database.azure.crossplane.io/v1beta1
   kind: SQLServerClass
   metadata:
     name: standard-mysql
     annotations:
       resourceclass.crossplane.io/is-default-class: "true"
   specTemplate:
+    forProvider:
+      administratorLogin: my-cool-login
+      resourceGroupNameRef:
+        name: sample-rg
+      location: Central US
+      sslEnforcement: Disabled
+      version: "5.6"
+      sku:
+        tier: GeneralPurpose
+        capacity: 2
+        family: Gen5
+      storageProfile:
+        storageMB: 25600
     writeConnectionSecretsToNamespace: crossplane-system
-    adminLoginName: my-cool-login
-    resourceGroupNameRef:
-      name: sample-rg
-    location: Central US
-    sslEnforced: false
-    version: "5.6"
-    pricingTier:
-      tier: GeneralPurpose
-      vcores: 2
-      family: Gen5
-    storageProfile:
-      storageGB: 25
-      backupRetentionDays: 7
-      geoRedundantBackup: false
     reclaimPolicy: Delete
     providerRef:
       name: azure-provider
