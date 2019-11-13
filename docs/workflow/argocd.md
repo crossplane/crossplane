@@ -33,7 +33,8 @@ application that consumes cloud provider resources.
        Applications](#create-an-argocd-project-for-applications)
     1. [Configure an ArgoCD Application](#configure-an-argocd-application)
     1. [Deploy](#deploy)
-1. [Customizing](#customizing)
+1. [Portable App Deployment to Multiple
+   Clouds](#portable-app-deployment-to-multiple-clouds)
 1. [Clean Up](#clean-up)
 1. [Next Steps](#next-steps)
 
@@ -118,8 +119,9 @@ as shown below or as appropriate with your repository:
 
 ![alt argo-infra-app-2](argo-infra-dev-app-2.png)
 
-After creating the application, you should see healthy status and a
-visualization of all resources that were created:
+After creating the dev and prod environments in our infra project as ArgoCD
+applications, you should see healthy status and a visualization of all resources
+that were created:
 
 ![alt argo-infra-app-viz](argo-infra-dev-app-viz.png)
 
@@ -129,7 +131,8 @@ created, while the network resources (i.e. `Network`, `Subnetwork`,
 resource. These resources do not support dynamic provisioning and do not have
 tiers appropriate for only development or only production. Therefore, they are
 being statically provisioned and can be referenced by either the `dev` or `prod`
-versions of the resource classes created.
+versions of the resource classes created. However, in a production scenario, it
+may be desirable to deploy separate network resources for each environment.
 
 If you would like to enable provisioning resources on AWS as well, follow the
 same steps to set up an ArgoCD application that is pointed at the [AWS
@@ -145,7 +148,7 @@ create pipelines to deploy applications that utilize those cloud services.
 Either choose an existing application repository or create a new one. The
 repository should include claims that can be resolved by the environment classes
 we created. If you want to use an example application, you can use Wordpress in
-[this repository].
+[this repository][wordpress-dir].
 
 ### Create an ArgoCD Project for Applications
 
@@ -178,7 +181,7 @@ If you navigate to the IP address, you should see the Wordpress start page.
 
 ![alt argo-wordpress-landing](argo-wordpress-landing.png)
 
-## Customizing
+## Portable App Deployment to Multiple Clouds
 
 We have successfully deployed Wordpress on GCP with `dev` tier infrastructure.
 However, it may be desireable to provision on `prod` tier infrastructure, or
@@ -209,6 +212,9 @@ application and those resources will be removed from your cluster.
 
 ## Next Steps
 
+Check out one of the other continuous delivery guides or customize your
+environments for your specific use case!
+
 <!-- Named links -->
 [ArgoCD]: https://argoproj.github.io/argo-cd/
 [kubectl]: https://kubernetes.io/docs/tasks/tools/install-kubectl/
@@ -223,6 +229,7 @@ application and those resources will be removed from your cluster.
 [secrets management integrations]: https://argoproj.github.io/argo-cd/operator-manual/secret-management/
 [GCP provider]: cloud-providers/gcp/gcp-provider.md
 [AWS provider]: cloud-providers/aws/aws-provider.md
-[this repository]: https://github.com/hasheddan/crosscd/tree/master/classpacks/workflow/argo
-[app-patch]: https://github.com/hasheddan/crosscd/blob/master/classpacks/workflow/argo/app/patch.yaml
-[AWS infrastructure directory]: https://github.com/hasheddan/crosscd/tree/master/classpacks/workflow/argo/infra/aws
+[this repository]: https://github.com/crossplaneio/crosscd/tree/master/classpacks/workflow/argo
+[wordpress-dir]: https://github.com/crossplaneio/crosscd/tree/master/classpacks/workflow/argo/app
+[app-patch]: https://github.com/crossplaneio/crosscd/blob/master/classpacks/workflow/argo/app/patch.yaml
+[AWS infrastructure directory]: https://github.com/crossplaneio/crosscd/tree/master/classpacks/workflow/argo/infra/aws
