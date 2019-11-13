@@ -114,7 +114,7 @@ an [Azure Database for MySQL][azure-mysql] instance.
 ```yaml
 cat > azure-mysql-standard.yaml <<EOF
 ---
-apiVersion: database.azure.crossplane.io/v1alpha3
+apiVersion: database.azure.crossplane.io/v1beta1
 kind: SQLServerClass
 metadata:
   name: azure-mysql-standard
@@ -122,19 +122,18 @@ metadata:
     size: standard
     demo: "true"
 specTemplate:
-  adminLoginName: myadmin
-  resourceGroupName: $AKS_RESOURCE_GROUP
-  location: $AKS_REGION
-  sslEnforced: false
-  version: "5.6"
-  pricingTier:
-    tier: GeneralPurpose
-    vcores: 2
-    family: Gen5
-  storageProfile:
-    storageGB: 25
-    backupRetentionDays: 7
-    geoRedundantBackup: false
+  forProvider:
+    administratorLogin: myadmin
+    resourceGroupName: $AKS_RESOURCE_GROUP
+    location: $AKS_REGION
+    sslEnforcement: Disabled
+    version: "5.6"
+    sku:
+      tier: GeneralPurpose
+      capacity: 2
+      family: Gen5
+    storageProfile:
+      storageMB: 25600
   writeConnectionSecretsToNamespace: crossplane-system
   providerRef:
     name: azure-provider
@@ -240,7 +239,7 @@ Metadata:
   UID:               afff42b3-f999-11e9-a2d5-c64d758a651f
 Spec:
   Class Ref:
-    API Version:  database.azure.crossplane.io/v1alpha3
+    API Version:  database.azure.crossplane.io/v1beta1
     Kind:         SQLServerClass
     Name:         azure-mysql-standard
     UID:          5710f3db-f999-11e9-a2d5-c64d758a651f
@@ -250,7 +249,7 @@ Spec:
       Size:        standard
   Engine Version:  5.6
   Resource Ref:
-    API Version:  database.azure.crossplane.io/v1alpha3
+    API Version:  database.azure.crossplane.io/v1beta1
     Kind:         MySQLServer
     Name:         default-mysql-claim-bm4ft
     UID:          b02c1389-f999-11e9-a2d5-c64d758a651f

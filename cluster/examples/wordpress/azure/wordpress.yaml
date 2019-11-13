@@ -1,4 +1,4 @@
-apiVersion: database.azure.crossplane.io/v1alpha3
+apiVersion: database.azure.crossplane.io/v1beta1
 kind: MySQLServer
 metadata:
   labels:
@@ -9,19 +9,18 @@ spec:
   writeConnectionSecretToRef:
     namespace: crossplane-system
     name: demo-database-connection
-  resourceGroupName: group-westus-1
-  location: West US
-  pricingTier:
-    tier: Basic
-    vcores: 1
-    family: Gen5
-  storageProfile:
-    storageGB: 25
-    backupRetentionDays: 7
-    geoRedundantBackup: false
-  adminLoginName: myadmin
-  version: "5.7"
-  sslEnforced: false
+  forProvider:
+    resourceGroupName: group-westus-1
+    location: West US
+    sku:
+      tier: Basic
+      capacity: 1
+      family: Gen5
+    storageProfile:
+      storageMB: 25600
+    administratorLogin: myadmin
+    version: "5.7"
+    sslEnforcement: Disabled
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
