@@ -25,7 +25,7 @@ This design intends to create a testing framework with the following attributes:
 - It is written in Go, such that it can be tested and distributed in a
   consistent and reliable manner.
 - It is configurable, meaning that it does not require all controllers and
-  resources to be tested for the same conditions.
+  resources to be tested in the same manner
 - It is pluggable, meaning that it can easily be incorporated into a new project
   with minimal time and effort.
 - It is familiar, meaning using the framework should feel like writing other
@@ -45,9 +45,8 @@ of this framework would require more effort than the return they would provide.
 ## Definition of a Successful Test
 
 As mentioned above, the framework should unopinionated about the desired outcome
-of a test. Every test should be able to define what it deems to be successful
-and the framework should merely verify that that the successful conditions are
-met or not.
+of a test. The framework provides setup, tear down, and a method to connect to
+testing environments but it not responsible for the actual execution of tests.
 
 ### Definition of a Testable Unit
 
@@ -58,6 +57,9 @@ testable.
 
 ## Proposal
 
+*Note: the integration testing package is referred to as [`athodyd`] in the
+following section.*
+
 The following sections describe a testing framework that utilizes the Go
 [testing] package to execute tests against any Kubernetes control plane. The
 framework is designed such that it can be minimally implemented in the
@@ -66,271 +68,151 @@ are written for each implementation. It is intended to evolve over time to
 reduce the amount of configuration required by each implementation, while still
 allowing flexibility to test any scenario.
 
+Importantly, the framework is only responsible for environment setup *before*
+custom controllers and API types are added and *after* they are removed.
+Everything that happens between the start and stop of the controller manager
+should be handled in the test implementations themselves.
+
 ### System Design
 
-The framework should be made up of two core components:
+The framework encompasses three broad responsibilities:
 
-- `Job`: a testing environment. A job is made up of configuration, which informs
-  the framework of how to setup the control plane, and `Tests` which test actual
-  execution against the control plane.
-- `Test`: a test is an action or set of actions to execute against the
-  Kubernetes control plane. It could involve one or more steps, each of which
-  may cause the test to fail. Each test should be a logical operation, meaning
-  that tests that involve multiple steps should still be checking a single
-  logical condition (i.e. a `TestCreateSubnetSuccessful` may create the
-  `Subnet`, then wait to make sure that its `ConditionedStatus` is `Ready:
-  True`). 
+1. Environment Setup
 
-#### Jobs
-
-A `Job` contains the following components:
+The framework sets up an environment by taking a Kubernetes REST configuration
+and installing CustomResourceDefinitions, starting a controller manager, and
+creating a client that can be used to communicate to the cluster. Because the
+framework is a wrapper around the [envtest] package from [controller-runtime] it
+can also start a local control plane if no REST configuration is applied.
+Minimal setup that just installs CRDs into an existing cluster and returns a
+controller manager would look as follows:
 
 ```go
-// A Job is a set of tests that are executed sequentially in the same cluster environment
-type Job struct {
-    Name        string
-    Description string
-    Tests       []Test
-    cfg         *JobConfig
-    runner      *testing.T
+cfg, err := config.GetConfig()
+if err != nil {
+    t.Fatal(err)
+}
+
+a, err := athodyd.New(cfg, athodyd.WithCRDDirectoryPaths([]string{"../crds"}))
+if err != nil {
+    t.Fatal(err)
 }
 ```
 
-A `JobConfig` is made up of optional values that are applied via `JobOption`
-functions:
+The return value of `athodyd.New()` is of type `*athodyd.Manager`, which
+implements the [controller-runtime] `manager.Manager` interface. This means that
+controllers and API types can be added to the manager in the same manner they
+are when the controller is being run in production:
 
 ```go
-// JobConfig is a set of configuration values for a Job
-type JobConfig struct {
-    CRDDirectoryPaths []string
-    Cluster           *rest.Config
-    Builder           OperationFn
-    Cleaner           OperationFn
-    SetupWithManager  SetupWithManagerFunc
-    AddToScheme       AddToSchemeFunc
-    SyncPeriod        *time.Duration
+addToScheme(a.GetScheme()) // add API types to the manager scheme
+controllerSetupWithManager(a) // register controllers with the manager
+```
+
+Once all setup is complete, the manager can be started with `a.Run()`.
+
+2. Environment Connection
+
+It is expected that most integration tests will want to interact with the API
+server. To do so, a client can be retrieved and injected into the test function
+at runtime.
+
+```go
+for name, tc := range cases {
+    t.Run(name, func(t *testing.T) {
+        err := tc.test(a.GetClient()) // retrieve the kubernetes client from athodyd
+        if err != nil {
+            t.Error(err)
+        }
+    })
 }
 ```
 
-An example of a `JobOption` function:
+3. Environment Cleanup
+
+Because testing controllers usually involves creating some number of CRDs, it is
+necessary to perform cleanup when external clusters are used. The framework will
+default to deleting all CRDs that were installed in environment setup during its
+cleanup if no alternative cleanup is supplied. During this step, the controller
+manager is stopped, the `Cleaner` function is executed, and the connection to
+the cluster will be terminated. If no configuration was supplied in the initial
+setup, the local control plane will be destroyed in this step as well. If your
+tests are dependent on successful cleanup, it may be desirable to fail if an
+error is returned:
 
 ```go
-// WithCRDDirectoryPaths sets custom CRD locations for a Job
-func WithCRDDirectoryPaths(crds []string) JobOption {
-    return func(j *Job) {
-        j.cfg.CRDDirectoryPaths = crds
+defer func() {
+    if err := a.Cleanup(); err != nil {
+        t.Fatal(err)
+    }
+}()
+```
+
+To override the default `Cleaner` function, pass in your own to `athodyd.New()`:
+
+```go
+a, err := athodyd.New(cfg,
+    athodyd.WithCRDDirectoryPaths([]string{"../crds"}),
+    athodyd.WithCleaner(func(*envtest.Environment, client.Client){ return nil }))
+
+if err != nil {
+    t.Fatal(err)
+}
+```
+
+The example above would not execute any action on cleanup and would always be
+successful.
+
+### Optional Configuration
+
+As previously mentioned, the framework exposes a few point of customization.
+These can be configured using `Option` functions:
+
+```go
+// WithBuilder sets a custom builder function for an Athodyd Config.
+func WithBuilder(builder OperationFn) Option {
+    return func(c *Config) {
+        c.Builder = builder
+    }
+}
+
+// WithCleaner sets a custom cleaner function for an Athodyd Config.
+func WithCleaner(cleaner OperationFn) Option {
+    return func(c *Config) {
+        c.Cleaner = cleaner
+    }
+}
+
+// WithCRDDirectoryPaths sets custom CRD locations for an Athodyd Config.
+func WithCRDDirectoryPaths(crds []string) Option {
+    return func(c *Config) {
+        c.CRDDirectoryPaths = crds
+    }
+}
+
+// WithManagerOptions sets custom options for the manager configured by Athodyd
+// Config.
+func WithManagerOptions(m manager.Options) Option {
+    return func(c *Config) {
+        c.ManagerOptions = m
     }
 }
 ```
 
-A job's primary method is `func (j *Job) Run() error` which executes the
-following broadly defined steps:
-
-1. Starting the API Server
-
-The Kubernetes [controller-runtime] project provides an [envtest] package for
-creating local control planes for testing. However, it is likely that we will
-primarily utilize remote clusters or alternative local clusters such as [KIND]
-to execute our tests. `envtest` exposes the ability to provide configuration to
-use an existing cluster instead of starting a new one locally.
-
-2. Registering CRDs
-
-For any controller's that watch CRDs to be successfully started, the CRDs must
-have been successfully created in the cluster. If they are unable to be created,
-the controller's will not be started and the `Job` will immediately return an
-error. This serves as a validation test for CRDs.
-
-3. Builder
-
-```go
-// OperationFn is a function that uses a Kubernetes client to perform and operation
-type OperationFn func(client.Client) error
-```
-
-`Builder` is responsible for doing any additional pre-test setup in the cluster.
-For instance, if you would like to install other stacks into the cluster besides
-the one that is run with your `SetupWithManager` function, this would be the
-appropriate place to do so.
-
-4. Registering Controllers
-
-Controllers can be registered directly with the manager by calling their
-`SetUpWithManager` functions directly. Because all claim controllers
-(`scheduling`, `defaulting`, `claim`) are now part of the individual stacks, it
-is not necessary for the Crossplane controller to be running to test the stacks.
-However, it is necessary for the Crossplane CRDs to be present.
-
-5. Starting the Manager
-
-After all controllers and CRDs are registered, the manager can be started. 
-
-6. Executing Tests
-
-Jobs contain a set of tests that are provided at creation time. After the
-manager is started, tests are executed by using the Go [testing] package, which
-is injected into the `Job`. Each test is executed as a [subtest]. If a test's
-`Executor` function fails, the `Job` will run its `Janitor` function (more on
-this below). If the `Janitor` function also fails, the `Job` will immediately
-begin clean up, which involves executing the `Cleaner` function, stopping the
-manager, and stopping the local control plane if an existing Kubernetes cluster
-was not specified for the tests. 
-
-7. Clean Up
-
-```go
-// OperationFn is a function that uses a Kubernetes client to perform and operation
-type OperationFn func(client.Client) error
-```
-
-`Cleaner` is a special function that must be present in all `Jobs` and always
-runs before a job exits. It specifies how to clean up any resources that are
-left-over from tests executed as part of the `Job`. While it is sufficient to
-simply destroy the control plane to delete Kubernetes built-in API types, CRDs
-that create external resources must be cleaned up directly to ensure the
-deletion of their external infrastructure. If `Cleaner` returns an `error` it
-will notify the test runner that remnant external resources may still be in
-existence.
-
-#### Tests
-
-A `Test` is made up of five components:
-
-```go
-// A Test is a logical operation in a cluster environment
-type Test struct {
-    Name        string
-    Description string
-    Executor    OperationFn
-    Janitor     OperationFn
-    Continue    bool
-}
-```
-
-1. Name
-
-The `Name` of the test should be a succinct title that describes the test's
-broad purpose.
-
-2. Description
-
-The `Description` of the test should describe the *purpose* for the test. As
-more and more integration tests build up, it can become difficult to identify
-why a certain test is being executed. The `Description` should be informative
-enough that someone who is unfamiliar with the test can debug it effectively.
-Keep in mind that the `Job` also has a description, so a test description should
-focus specifically on why that test is being run as part of the job.
-
-3. Executor Function
-
-```go
-// OperationFn is a function that uses a Kubernetes client to perform an operation.
-type OperationFn func(client.Client) error
-```
-
-The `executor` function is the logic for running an individual test. The
-function will be passed a Kubernetes client and it can execute any commands
-against the control plane. It returns an error if a command is unsuccessful or
-did not achieve the desired result.
-
-4. Janitor Function
-
-```go
-// OperationFn is a function that uses a Kubernetes client to perform an operation.
-type OperationFn func(client.Client) error
-```
-
-The `janitor` function is only executed on a test that fails. Its purpose is to
-do any clean up that may be relevant to the steps taken in that specific test.
-If a `janitor` function fails (i.e. returns an `error`), the test's parent `Job`
-will not attempt to run further tests, and will immediately commence its clean
-up process.
-
-5. Continue
-
-`Continue` determines whether subsequent tests should continue if the current
-test fails. If no value is provided, it defaults to `False`.
-
 ### Full Example
 
-*Note: the integration testing package is referred to as [`athodyd`] in the
-following example.*
-
-A full example of what a `Job` could look like is included below. This job runs
-three tests:
-
-1. `TestCreateNamespaceSuccessful`: attempts to create a new `Namespace`.
-   Because `cool-namespace` does not already exist, this will be successful
-   (`executor` will return `nil`), and the `Job` will move on to the next test.
-
-2. `TestGCPProvider`: creates a GCP `Provider` in the cluster. This is possible
-   because `athodyd` has installed the CRDs as the path we specified
-   (`../crds`), and we have supplied an `AddToScheme` function to register our
-   custom API types with the manager.
-
-3. `TestCloudSQLProvisioning`: creates a GCP `CloudSQLInstance`. Because we
-   registered our GCP controller with its `SetupWithManager` function, this
-   object will be watched by its managed reconciler. In the `executor` function
-   for this test, we wait to make sure that the `CloudSQLInstance` is
-   provisioned successfully by polling its `State` until it reports `Runnable`
-   or we timeout.
-
-4. `TestCreateYetAnotherNamespace`: attempts to create `keen-namespace`, which
-   would be successful. However, if the previous test failed, because it
-   specified `Continue: false`, this test would be skipped.
+A simple example of an integration test using `athodyd` could look as follows:
 
 ```go
-package example
-
-import (
-    "context"
-    "fmt"
-    "testing"
-    "time"
-
-    "k8s.io/apimachinery/pkg/types"
-    "k8s.io/apimachinery/pkg/util/wait"
-
-    runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
-    databasev1beta1 "github.com/crossplaneio/stack-gcp/apis/database/v1beta1"
-    "github.com/crossplaneio/stack-gcp/apis/v1alpha3"
-    "github.com/hasheddan/athodyd"
-    corev1 "k8s.io/api/core/v1"
-    metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-    "sigs.k8s.io/controller-runtime/pkg/client"
-    "sigs.k8s.io/controller-runtime/pkg/client/config"
-)
-
 // TestThis tests this
 func TestThis(t *testing.T) {
-    name := "MyExampleJob"
-    description := "An example job for testing athodyd"
-    dbVersion := "MYSQL_5_7"
-    ddt := "PD_SSD"
-    dds := int64(10)
-
-    tests := []athodyd.Test{
-        {
-            Name:        "TestCreateNamespaceSuccessful",
-            Description: "This test checks to see if a namespace is created successfully.",
-            Executor: func(c client.Client) error {
-                n := &corev1.Namespace{
-                    ObjectMeta: metav1.ObjectMeta{
-                        Name: "cool-namespace",
-                    },
-                }
-
-                return c.Create(context.TODO(), n)
-            },
-            Janitor: func(client.Client) error {
-                return nil
-            },
-            Continue: true,
-        },
-        {
-            Name:        "TestGCPProvider",
-            Description: "This test checks to see if a GCP Provider can be created successfully.",
-            Executor: func(c client.Client) error {
+    cases := map[string]struct {
+        reason string
+        test   func(c client.Client) error
+    }{
+        "CreateProvider": {
+            reason: "A GCP Provider should be created without error.",
+            test: func(c client.Client) error {
                 p := &v1alpha3.Provider{
                     ObjectMeta: metav1.ObjectMeta{
                         Name: "gcp-provider",
@@ -347,121 +229,45 @@ func TestThis(t *testing.T) {
                     },
                 }
 
-                return c.Create(context.TODO(), p)
-            },
-            Janitor: func(client.Client) error {
-                return nil
-            },
-            Continue: true,
-        },
-        {
-            Name:        "TestCloudSQLProvisioning",
-            Description: "This test checks to see if a GCP CloudSQL instance can be created successfully.",
-            Executor: func(c client.Client) error {
-                s := &databasev1beta1.CloudSQLInstance{
-                    ObjectMeta: metav1.ObjectMeta{
-                        Name: "gcp-cloudsql",
-                    },
-                    Spec: databasev1beta1.CloudSQLInstanceSpec{
-                        ResourceSpec: runtimev1alpha1.ResourceSpec{
-                            ProviderReference: &corev1.ObjectReference{
-                                Name: "gcp-provider",
-                            },
-                            ReclaimPolicy: runtimev1alpha1.ReclaimDelete,
-                        },
-                        ForProvider: databasev1beta1.CloudSQLInstanceParameters{
-                            Region:          "us-central1",
-                            DatabaseVersion: &dbVersion,
-                            Settings: databasev1beta1.Settings{
-                                Tier:           "db-n1-standard-1",
-                                DataDiskType:   &ddt,
-                                DataDiskSizeGb: &dds,
-                            },
-                        },
-                    },
-                }
-
-                if err := c.Create(context.TODO(), s); err != nil {
-                    return err
-                }
-
-                d, err := time.ParseDuration("20s")
-                if err != nil {
-                    return err
-                }
-
-                dt, err := time.ParseDuration("500s")
-                if err != nil {
-                    return err
-                }
-
-                return wait.PollImmediate(d, dt, func() (bool, error) {
-                    g := &databasev1beta1.CloudSQLInstance{}
-                    if err := c.Get(context.TODO(), types.NamespacedName{Name: "gcp-cloudsql"}, g); err != nil {
-                        return false, err
+                defer func() {
+                    if err := c.Delete(context.Background(), p); err != nil {
+                        t.Error(err)
                     }
-                    if g.Status.AtProvider.State == databasev1beta1.StateRunnable {
-                        return true, nil
-                    }
-                    return false, nil
-                })
-            },
-            Janitor: func(c client.Client) error {
-                return c.Delete(context.TODO(), &databasev1beta1.CloudSQLInstance{
-                    ObjectMeta: metav1.ObjectMeta{
-                        Name: "gcp-cloudsql-7847238946237",
-                    },
-                })
-            },
-            Continue: false,
-        },
-        {
-            Name:        "TestCreateAnotherNamespace",
-            Description: "This test creates a different namespace.",
-            Executor: func(c client.Client) error {
-                n := &corev1.Namespace{
-                    ObjectMeta: metav1.ObjectMeta{
-                        Name: "keen-namespace",
-                    },
-                }
+                }()
 
-                return c.Create(context.TODO(), n)
+                return c.Create(context.Background(), p)
             },
-            Janitor: func(client.Client) error {
-                return nil
-            },
-            Continue: true,
         },
     }
 
-    // Get existing cluster configured in local kubeconfig
     cfg, err := config.GetConfig()
     if err != nil {
         t.Fatal(err)
     }
-    
-    cleaner := func(c client.Client) error {
-        if err := c.DeleteAllOf(context.TODO(), &databasev1beta1.CloudSQLInstance{}); err != nil {
-            return err
-        }
-        
-        if err := c.DeleteAllOf(context.TODO(), &v1alpha3.Provider{}); err != nil {
-            return err
-        }
 
-        return nil
+    a, err := athodyd.New(cfg, athodyd.WithCRDDirectoryPaths([]string{"../crds"}))
+    if err != nil {
+        t.Fatal(err)
     }
 
-    job := athodyd.NewJob(name, description, tests, t,
-        athodyd.WithCluster(cfg),
-        athodyd.WithCRDDirectoryPaths([]string{"../crds"}),
-        athodyd.WithSetupWithManager(controllerSetupWithManager),
-        athodyd.WithAddToScheme(addToScheme),
-        athodyd.WithCleaner(cleaner),
-    )
+    addToScheme(a.GetScheme())
+    controllerSetupWithManager(a)
 
-    if err := job.Run(); err != nil {
-        t.Fatal(err)
+    a.Run()
+
+    defer func() {
+        if err := a.Cleanup(); err != nil {
+            t.Fatal(err)
+        }
+    }()
+
+    for name, tc := range cases {
+        t.Run(name, func(t *testing.T) {
+            err := tc.test(a.GetClient())
+            if err != nil {
+                t.Error(err)
+            }
+        })
     }
 }
 ```
@@ -471,15 +277,9 @@ func TestThis(t *testing.T) {
 This initial proposal is meant to provide a framework for implementing
 integration tests into the Crossplane ecosystem *as soon as possible*. As our
 testing suite grows, it will be desirable to move common functionality into the
-framework itself, such that new job / test implementation can be less
-burdensome. However, it should always be a goal to allow for broad
-applicability, so new features should be added as optional layers rather than
-core changes.
-
-One example of common functionality that may be desirable to implement in the
-framework itself would be a function that returns a `Test` that creates the
-supplied managed resource and waits for it to reach a `ConditionedStatus` of
-`Ready: True`. 
+framework itself, such that new test implementation can be less burdensome.
+However, it should always be a goal to allow for broad applicability, so new
+features should be added as optional layers rather than core changes.
 
 ## Inspiration
 
@@ -493,7 +293,6 @@ e2e tests].
 [envtest]: https://godoc.org/sigs.k8s.io/controller-runtime/pkg/envtest
 [testing]: https://golang.org/pkg/testing/
 [Scheme]: https://godoc.org/k8s.io/apimachinery/pkg/runtime#Scheme
-[subtest]: https://blog.golang.org/subtests
 [`athodyd`]: https://en.wikipedia.org/wiki/Ramjet
 [Kubernetes e2e tests]: https://github.com/kubernetes/community/blob/master/contributors/devel/sig-testing/e2e-tests.md
 [KIND]: https://github.com/kubernetes-sigs/kind
