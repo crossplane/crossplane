@@ -94,7 +94,7 @@ var (
 			runtimev1alpha1.ResourceCredentialsSecretCAKey:         []byte("secretCA"),
 			runtimev1alpha1.ResourceCredentialsSecretClientCertKey: []byte("clientCert"),
 			runtimev1alpha1.ResourceCredentialsSecretClientKeyKey:  []byte("clientKey"),
-			runtimev1alpha1.ResourceCredentialsTokenKey:            []byte("token"),
+			runtimev1alpha1.ResourceCredentialsSecretTokenKey:      []byte("token"),
 		},
 	}
 
@@ -1082,7 +1082,7 @@ func TestConnectConfig(t *testing.T) {
 					CertData:   secret.Data[runtimev1alpha1.ResourceCredentialsSecretClientCertKey],
 					KeyData:    secret.Data[runtimev1alpha1.ResourceCredentialsSecretClientKeyKey],
 				},
-				BearerToken: string(secret.Data[runtimev1alpha1.ResourceCredentialsTokenKey]),
+				BearerToken: string(secret.Data[runtimev1alpha1.ResourceCredentialsSecretTokenKey]),
 			},
 			wantErr: nil,
 		},

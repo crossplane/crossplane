@@ -438,7 +438,7 @@ func (c *clusterConnecter) config(ctx context.Context, ar *v1alpha1.KubernetesAp
 			CertData:   s.Data[runtimev1alpha1.ResourceCredentialsSecretClientCertKey],
 			KeyData:    s.Data[runtimev1alpha1.ResourceCredentialsSecretClientKeyKey],
 		},
-		BearerToken: string(s.Data[runtimev1alpha1.ResourceCredentialsTokenKey]),
+		BearerToken: string(s.Data[runtimev1alpha1.ResourceCredentialsSecretTokenKey]),
 	}
 
 	return config, nil
