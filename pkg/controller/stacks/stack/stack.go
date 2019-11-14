@@ -52,6 +52,12 @@ var (
 	log              = logging.Logger.WithName(controllerName)
 	resultRequeue    = reconcile.Result{Requeue: true}
 	requeueOnSuccess = reconcile.Result{RequeueAfter: requeueAfterOnSuccess}
+
+	roleVerbs = map[string][]string{
+		"admin": {"get", "list", "watch", "create", "delete", "deletecollection", "patch", "update"},
+		"edit":  {"get", "list", "watch", "create", "delete", "deletecollection", "patch", "update"},
+		"view":  {"get", "list", "watch"},
+	}
 )
 
 // Reconciler reconciles a Instance object
@@ -162,6 +168,54 @@ func (h *stackHandler) update(ctx context.Context) (reconcile.Result, error) {
 	return reconcile.Result{}, nil
 }
 
+// createPersonaClusterRoles creates admin, edit, and view clusterroles that are
+// namespace+stack+version specific
+func (h *stackHandler) createPersonaClusterRoles(ctx context.Context, owner metav1.OwnerReference) error {
+	for persona := range roleVerbs {
+		rules := []rbac.PolicyRule{}
+		for _, crd := range h.ext.Spec.CRDs {
+			rules = append(rules, rbac.PolicyRule{
+				APIGroups: []string{crd.GroupVersionKind().Group},
+				Resources: []string{crd.Kind},
+				Verbs:     roleVerbs[persona],
+			})
+		}
+		name := fmtPersonaRole(h.ext, persona)
+
+		var crossplaneScope string
+
+		if h.isNamespaced() {
+			crossplaneScope = "namespace"
+		} else {
+			crossplaneScope = "environment"
+		}
+
+		aggregationLabel := fmt.Sprintf("rbac.crossplane.io/aggregate-to-%s-%s", crossplaneScope, persona)
+
+		cr := &rbac.ClusterRole{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:            name,
+				OwnerReferences: []metav1.OwnerReference{owner},
+			},
+			Rules: rules,
+		}
+		meta.AddLabels(cr, map[string]string{
+			aggregationLabel: "true",
+		})
+
+		if h.isNamespaced() {
+			meta.AddLabels(cr, map[string]string{
+				"namespace.crossplane.io/" + h.ext.GetNamespace(): "true",
+			})
+		}
+
+		if err := h.kube.Create(ctx, cr); err != nil && !kerrors.IsAlreadyExists(err) {
+			return errors.Wrap(err, "failed to create persona cluster roles")
+		}
+	}
+	return nil
+}
+
 func (h *stackHandler) createDeploymentClusterRole(ctx context.Context, owner metav1.OwnerReference) (string, error) {
 	name := fmtPersonaRole(h.ext, "system")
 	cr := &rbac.ClusterRole{
@@ -241,14 +295,28 @@ func (h *stackHandler) processRBAC(ctx context.Context) error {
 		return err
 	}
 
+	// give the SA rolebindings to run the the stack's controller
+	var roleBindingErr error
+
 	switch apiextensions.ResourceScope(h.ext.Spec.PermissionScope) {
 	case apiextensions.ClusterScoped:
-		return h.createClusterRoleBinding(ctx, clusterRoleName, owner)
+		roleBindingErr = h.createClusterRoleBinding(ctx, clusterRoleName, owner)
 	case "", apiextensions.NamespaceScoped:
-		return h.createNamespacedRoleBinding(ctx, clusterRoleName, owner)
+		roleBindingErr = h.createNamespacedRoleBinding(ctx, clusterRoleName, owner)
+	default:
+		roleBindingErr = errors.New("invalid permissionScope for stack")
 	}
 
-	return errors.New("invalid permissionScope for stack")
+	if roleBindingErr != nil {
+		return roleBindingErr
+	}
+
+	// create persona roles
+	return h.createPersonaClusterRoles(ctx, owner)
+}
+
+func (h *stackHandler) isNamespaced() bool {
+	return apiextensions.ResourceScope(h.ext.Spec.PermissionScope) == apiextensions.NamespaceScoped
 }
 
 func (h *stackHandler) processDeployment(ctx context.Context) error {
