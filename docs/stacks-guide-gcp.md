@@ -212,7 +212,7 @@ Below we inspect each of these resources in more details.
     privateIpGoogleAccess: true
     secondaryIpRanges:
       - rangeName: pods
-        ipCidrRange: 10.0.0.0/8
+        ipCidrRange: 10.128.0.0/20
       - rangeName: services
         ipCidrRange: 172.16.0.0/16
     networkRef:
