@@ -10,7 +10,7 @@ metadata:
 specTemplate:
   forProvider:
     administratorLogin: myadmin
-    resourceGroupName: muvaf-group-westus-1
+    resourceGroupName: example-group
     location: West US
     sslEnforcement: Disabled
     version: "5.6"
