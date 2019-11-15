@@ -1,7 +1,10 @@
 
 # Adding Amazon Web Services (AWS) to Crossplane
 
-In this guide, we will walk through the steps necessary to configure your AWS account to be ready for integration with Crossplane. This will be done by adding a [`aw provider`] resource type, which enables Crossplane to communicate with an AWS account. 
+In this guide, we will walk through the steps necessary to configure your AWS
+account to be ready for integration with Crossplane. This will be done by adding
+an AWS `Provider` resource type, which enables Crossplane to communicate with an
+AWS account. 
 
 ## Requirements
 
@@ -13,22 +16,30 @@ Prior to adding AWS to Crossplane, following steps need to be taken
 
 ## Step 1: Configure `aws` CLI
 
-Crossplane uses [AWS security credentials], and stores them as a [secret] which is managed by an  [`aw provider`]  instance. In addition, the AWS default region is also used for targeting a specific region.
-Crossplane requires to have [`aws` command line tool] [installed] and [configured]. Once installed, the credentials and configuration will reside in `~/.aws/credentials` and `~/.aws/config` respectively.
+Crossplane uses [AWS security credentials], and stores them as a [secret] which
+is managed by an AWS `Provider` instance. In addition, the AWS default region is
+also used for targeting a specific region. Crossplane requires to have [`aws`
+command line tool] [installed] and [configured]. Once installed, the credentials
+and configuration will reside in `~/.aws/credentials` and `~/.aws/config`
+respectively.
 
 ## Step 2: Setup `aws` Provider
 
-Run [setup.sh] script to read `aws` credentials and region, and create an [`aw provider`] instance in Crossplane:
+Run [setup.sh] script to read `aws` credentials and region, and create an [`aw
+provider`] instance in Crossplane:
 
 ```bash
 ./cluster/examples/setup-aws-provider/setup.sh [--profile aws_profile]
 ```
 
-The `--profile` switch is optional and specifies the [aws named profile] that was set in Step 1. If not provided, the `default` profile will be selected.
+The `--profile` switch is optional and specifies the [aws named profile] that
+was set in Step 1. If not provided, the `default` profile will be selected.
 
-Once the script is successfully executed, Crossplane will use the specified aws account and region in the given named profile to create subsequent AWS managed resources.
+Once the script is successfully executed, Crossplane will use the specified aws
+account and region in the given named profile to create subsequent AWS managed
+resources.
 
-You can confirm the existense of the  [`aws provider`] by running:
+You can confirm the existense of the  AWS `Provider` by running:
 
 ```bash
 kubectl -n crossplane-system get provider/aws-provider
@@ -56,9 +67,9 @@ setup cloud provider in the next section.
 
 Crossplane uses the AWS user credentials that were configured in the previous
 step to create resources in AWS. These credentials will be stored as a
-[secret][kubernetes secret] in Kubernetes, and will be used by an [AWS
-provider][aws provider] instance. The default AWS region is also pulled from the
-cli configuration, and added to the AWS provider.
+[secret][kubernetes secret] in Kubernetes, and will be used by an AWS `Provider`
+instance. The default AWS region is also pulled from the cli configuration, and
+added to the AWS provider.
 
 To store the credentials as a secret, run:
 
@@ -70,8 +81,7 @@ AWS_REGION=$(aws configure get region --profile ${aws_profile})
 ```
 
 At this point, the region and the encoded credentials are stored in respective
-variables. Next, we'll need to create an instance of AWS [provider][aws
-provider]:
+variables. Next, we'll need to create an instance of AWS provider:
 
 ```bash
 cat > provider.yaml <<EOF
@@ -114,19 +124,17 @@ provider.aws.crossplane.io/aws-provider created
 The `aws-provider` resource will be used in other resources that we will create,
 to provide access information to the configured AWS account.
 
-[`aws provider`]: https://github.com/crossplaneio/stack-aws/blob/master/aws/apis/v1alpha3/types.go#L43
 [`aws` command line tool]: https://aws.amazon.com/cli/
 [AWS SDK for GO]: https://docs.aws.amazon.com/sdk-for-go/v1/developer-guide/setting-up.html
 [installed]: https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html
 [configured]: https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html
 [AWS security credentials]: https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html
 [secret]:https://kubernetes.io/docs/concepts/configuration/secret/ 
-[setup.sh]: github.com/crossplaneio/crossplane/cluster/examples/setup-aws-provider/setup.sh
+[setup.sh]: https://github.com/crossplaneio/crossplane/blob/master/cluster/examples/aws-setup-provider/setup.sh
 [aws named profile]: https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-profiles.html
 [aws user]: https://docs.aws.amazon.com/mediapackage/latest/ug/setting-up-create-iam-user.html
 [Access Key]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html
 [AWS security credentials]: https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html
-[aws provider]: https://github.com/crossplaneio/stack-aws/blob/master/apis/v1alpha3/types.go#L43?ref=master
 [aws command line tool]: https://aws.amazon.com/cli/
 [install-aws]: https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html
 [aws-cli-configure]: https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html

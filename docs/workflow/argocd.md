@@ -171,6 +171,8 @@ looks as follows or as needed for your application:
 | ------------- | ------------- |
 | ![alt argo-apps-wordpress-1](argo-apps-wordpress-1.png)  | ![alt argo-apps-wordpress-2](argo-apps-wordpress-2.png)  |
 
+### Deploy
+
 After creation of the application, you should see all resources appear in the
 visualization. You can click on the `Service` resource to get the external IP
 address of the Wordpress application when it becomes available.
@@ -229,6 +231,7 @@ environments for your specific use case!
 [secrets management integrations]: https://argoproj.github.io/argo-cd/operator-manual/secret-management/
 [GCP provider]: cloud-providers/gcp/gcp-provider.md
 [AWS provider]: cloud-providers/aws/aws-provider.md
+[Azure provider]: cloud-providers/azure/azure-provider.md
 [this repository]: https://github.com/crossplaneio/crosscd/tree/master/classpacks/workflow/argo
 [wordpress-dir]: https://github.com/crossplaneio/crosscd/tree/master/classpacks/workflow/argo/app
 [app-patch]: https://github.com/crossplaneio/crosscd/blob/master/classpacks/workflow/argo/app/patch.yaml
