@@ -18,14 +18,12 @@ can uncomment the below line to indicate which issue your PR fixes, for example
 Fixes #
 -->
 
-### Testing done
+### How has this code been tested?
 <!--
-How has this code been tested?
-
-Before reviewers can be confident in the correctness of a changeset,
+Before reviewers can be confident in the correctness of a pull request,
 it needs to be tested. In this section, briefly describe the testing
 that has already done or which is planned. The testing should be enough
-to help people feel comfortable in the changeset's correctness.
+to help people feel comfortable in the pull request's correctness.
 -->
 
 ### Checklist
