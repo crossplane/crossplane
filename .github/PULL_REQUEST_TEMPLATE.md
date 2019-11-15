@@ -21,9 +21,8 @@ Fixes #
 ### How has this code been tested?
 <!--
 Before reviewers can be confident in the correctness of a pull request,
-it needs to be tested. In this section, briefly describe the testing
-that has already done or which is planned. The testing should be enough
-to help people feel comfortable in the pull request's correctness.
+it needs to tested and shown to be correct. In this section, briefly
+describe the testing that has already been done or which is planned.
 -->
 
 ### Checklist
