@@ -7,7 +7,7 @@
 #
 set -e -o pipefail
 ROLES=(roles/iam.serviceAccountUser roles/cloudsql.admin roles/container.admin roles/redis.admin roles/compute.networkAdmin)
-SERVICES=(container.googleapis.com sqladmin.googleapis.com redis.googleapis.com compute.googleapis.com)
+SERVICES=(container.googleapis.com sqladmin.googleapis.com redis.googleapis.com compute.googleapis.com servicenetworking.googleapis.com)
 KEYFILE=crossplane-gcp-provider-key.json
 RAND=$RANDOM
 
