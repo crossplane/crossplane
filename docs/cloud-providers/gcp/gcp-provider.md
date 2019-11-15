@@ -20,7 +20,12 @@ Instructions for installing `gcloud` can be found in the [Google docs](https://c
 
 ### Using `gcp-credentials.sh`
 
-In the `cluster/examples` directory you will find a helper script, `gcp-credentials.sh`.  This script will prompt you for the organization, project, and billing account that will be used by `gcloud` when creating a project, service account, and credentials file (`crossplane-gcp-provider-key.json`).  The chosen project and created service account will have access to the services and roles sufficient to run the Crossplane GCP examples.
+In the `cluster/examples` directory you will find a helper script,
+[`gcp-credentials.sh`](https://raw.githubusercontent.com/crossplaneio/crossplane/master/cluster/examples/gcp-credentials.sh).
+This script will prompt you for the organization, project, and billing account that will be used by
+`gcloud` when creating a project, service account, and credentials file
+(`crossplane-gcp-provider-key.json`).  The chosen project and created service account will have
+access to the services and roles sufficient to run the Crossplane GCP examples.
 
 ```console
 $ cluster/examples/gcp-credentials.sh
@@ -157,7 +162,7 @@ First, let's encode the credential file contents and put it in a variable:
 
 ```bash
 # base64 encode the GCP credentials
-BASE64ENCODED_GCP_ACCOUNT_CREDS=$(base64 crossplane-gcp-provider-key.json | tr -d "\n")
+BASE64ENCODED_GCP_PROVIDER_CREDS=$(base64 crossplane-gcp-provider-key.json | tr -d "\n")
 ```
 
 Next, store the project ID of the GCP project in which you would like to
@@ -165,7 +170,14 @@ provision infrastructure as a variable:
 
 ```bash
 # replace this with your own gcp project id
-PROJECT_ID: my-cool-gcp-project
+PROJECT_ID=my-cool-gcp-project
+```
+
+Finally, store the namespace in which you want to save the provider's secret as a variable:
+
+```bash
+# change this namespace value if you want to use a different namespace (e.g. gitlab-managed-apps)
+PROVIDER_SECRET_NAMESPACE=crossplane-system
 ```
 
 Now we’ll create the `Secret` resource that contains the credential, and
@@ -178,10 +190,10 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: gcp-account-creds
-  namespace: crossplane-system
+  namespace: ${PROVIDER_SECRET_NAMESPACE}
 type: Opaque
 data:
-  credentials: ${BASE64ENCODED_GCP_ACCOUNT_CREDS}
+  credentials: ${BASE64ENCODED_GCP_PROVIDER_CREDS}
 ---
 apiVersion: gcp.crossplane.io/v1alpha3
 kind: Provider
@@ -191,7 +203,7 @@ spec:
   # replace this with your own gcp project id
   projectID: ${PROJECT_ID}
   credentialsSecretRef:
-    namespace: crossplane-system
+    namespace: ${PROVIDER_SECRET_NAMESPACE}
     name: gcp-account-creds
     key: credentials
 EOF
@@ -199,15 +211,14 @@ EOF
 # apply it to the cluster:
 kubectl apply -f "provider.yaml"
 
-# delete the credentials and project id variables
-unset BASE64ENCODED_GCP_ACCOUNT_CREDS
-unset PROJECT_ID
+# delete the credentials
+unset BASE64ENCODED_GCP_PROVIDER_CREDS
 ```
 
 The output will look like the following:
 
 ```bash
-secret/gcp-user-creds created
+secret/gcp-account-creds created
 provider.gcp.crossplane.io/gcp-provider created
 ```
 
