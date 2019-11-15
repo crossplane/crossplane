@@ -411,6 +411,12 @@ Template stacks will not be opinionated about which templating engine is
 used. We plan to support multiple configuration engines. The engine will
 be configurable by setting values in the `stack.yaml`.
 
+For some realistic examples of what a stack would look like when it uses
+different engines, see the [quick start example][quick-start-example].
+There are also some more details in the [stack yaml
+section](#the-stackyaml), and in the [helm charts
+section](#helm-charts).
+
 ### Lifecycle hooks
 
 We expect to eventually support lifecycle hooks. See the [speculative
@@ -472,8 +478,9 @@ by specifying fields on the render request object.
 This use-case will probably need additional thought if we want to
 support all permutations of helm chart. For more realistic and complete
 examples, see the [helm engine example][helm-engine-example] and the
-[quick start example][quick-start-example] in the template stack
-experience repository.
+helm variation of the app stack in the [quick start
+example][quick-start-example] in the template stack experience
+repository.
 
 ## Further reading
 
