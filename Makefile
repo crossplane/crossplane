@@ -83,7 +83,6 @@ manifests:
 
 generate: $(KUSTOMIZE) go.generate manifests.annotate
 
-
 # Add "helm.sh/hook: crd-install" and "helm.sh/hook-delete-policy:
 # before-hook-creation" annotations for clusterstackinstalls and stackinstalls
 # CRDs. Since Crossplane helm chart contains both CRD and ClusterStackInstall
@@ -96,8 +95,20 @@ generate: $(KUSTOMIZE) go.generate manifests.annotate
 # policy is necessary to be able to redeploy helm chart after it is deleted
 # since CRDs with "crd-install" hooks will not be deleted with "helm delete" and
 # cause next "helm install" to fail.
-CRD_DIR = cluster/charts/crossplane/templates/crds
+# "helm.sh/hook: crd-install" was deprecated in helm3 and CRDs with this annotation are
+# skipped. This results in the StackInstall and ClusterStackInstall CRDs not being
+# installed in helm3 when they have that annotation.
+# As a workaround, we first copy those CRDs under <chart>/crds directory which
+# was introduced with helm3 and ignored in helm2, then afterwards apply the annotation to
+# those CRDs under <chart>/templates/crds for helm2.
+CROSSPLANE_CHART_DIR = cluster/charts/crossplane
+CRD_DIR = $(CROSSPLANE_CHART_DIR)/templates/crds
+HELM3_CRD_DIR = $(CROSSPLANE_CHART_DIR)/crds
 manifests.annotate:
+	@$(INFO) Copying StackInstall CRD manifests for helm3 compatibility
+	cp $(CRD_DIR)/stacks.crossplane.io_stackinstalls.yaml $(HELM3_CRD_DIR)/stacks.crossplane.io_stackinstalls.yaml
+	cp $(CRD_DIR)/stacks.crossplane.io_clusterstackinstalls.yaml $(HELM3_CRD_DIR)/stacks.crossplane.io_clusterstackinstalls.yaml
+	@$(OK) Copied StackInstall CRD manifests for helm3 compatibility
 	@$(INFO) Annotating generated StackInstall CRD manifests
 	$(eval TMPDIR := $(shell mktemp -d))
 	$(KUSTOMIZE) build cluster/charts -o $(TMPDIR)
