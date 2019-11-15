@@ -204,8 +204,8 @@ In the future, we expect that we will combine `app.yaml` and
 #### Adding a CRD
 
 The tooling will make it simpler to add a CRD from scratch. For example,
-the following would create a basic CRD in the appropriate folder, and
-would update the `dependsOn` field of the stack's `app.yaml`:
+the following would create a basic CRD in the appropriate folder, so
+that it becomes part of the stack:
 
 ```
 kubectl crossplane stack crd init WordpressInstance wordpressinstances wordpress.samples.stacks.crossplane.io
