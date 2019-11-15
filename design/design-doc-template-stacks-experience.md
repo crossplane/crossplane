@@ -185,16 +185,21 @@ At a high level, the steps would be as follows:
 2. In the project directory, `kubectl crossplane stack init --template
    myorg/mystack` to create the boilerplate of the stack layout.
 3. Relative to the project directory, put the yamls in
-   `config/stack/manifests/resources/templates` .
+   `config/stack/manifests/resources/templates`, or a different
+   directory if desired.
 4. Add CRD definitions; this could be done by putting CRD yaml
    definitions in `config/stack/manifests/resources` or in
-   `config/crd/bases`.
+   `config/crd/bases`. We plan to make this simpler for the user by
+   adding a crossplane-cli command for it.
 5. Add configuration to `stack.yaml` to
    specify how configurations are rendered.
 6. Edit `config/stack/manifests/resources/app.yaml` to specify that the
    stack will be working with all of the kinds that it will be working
    with (using the `dependsOn` field).
 7. Edit `config/stack/manifests/resources/app.yaml` as appropriate.
+
+In the future, we expect that we will combine `app.yaml` and
+`stack.yaml`.
 
 #### Adding a CRD
 
@@ -331,7 +336,7 @@ behaviors:
   crds:
     # This is a particular CRD which is being configured. When the
     # controller sees an object of this type, it will do something.
-    wordpressinstance.wordpress.samples.stacks.crossplane.io/v1alpha1:
+    wordpressinstance.wordpress.samples.stacks.crossplane.io:
       # These are the templates which should be rendered when an object
       # of the type above is seen.
       #
@@ -339,15 +344,18 @@ behaviors:
       # for the CRD fields, using the standard Kubernetes mechanism for
       # specifying CRD field default values.
       resources:
-        # These are individual files which will be rendered.
-        - templates/kubernetescluster.yaml
-        - templates/mysqlinstance.yaml
-        - tempaltes/kubernetesapplication.yaml
+        # Each list item is a folder of files which will be rendered.
+        - wordpress
 EOF
 ```
 
 The `stack.yaml` should be in the build root of the repository. For most
 single-stack repositories, this means the root of the repository.
+
+For some realistic samples, see the [helm engine
+example][helm-engine-example] or the [quick start
+example][quick-start-example] in the template stack experience
+repository.
 
 ### Specifying default values
 
@@ -424,9 +432,10 @@ implementation](https://github.com/crossplaneio/crossplane/blob/master/design/on
 See the [Template Stack
 Experience](https://github.com/suskin/template-stack-experience) code
 examples for some realistic examples of how different use-cases work
-with a realistic workload.
+with a realistic workload. For a coherent user scenario, see the [quick
+start example](https://github.com/suskin/template-stack-experience/tree/master/wordpress-workload/quick-start).
 
-Examples covered by the repository all currently use go templates as the
+Examples covered by the repository mostly use go templates as the
 templating engine. The following cases are covered by the examples:
 
 * No variables at all in a set of configurations.
@@ -437,11 +446,13 @@ templating engine. The following cases are covered by the examples:
 * Multiple CRDs defined in a single Stack.
 * Multiple rendered variants of a given configuration.
 * Composing configuration using multiple Stacks.
+* A user scenario of setting up cloud provider resources and deploying
+  an application bundled as a stack.
 
 ### Helm charts
 
-To author a template stack from a simple helm chart, these steps could
-be followed:
+To author a [template stack from a simple helm
+chart][helm-engine-example], these steps could be followed:
 
 1. Create and initialize a template stack project, with a helm flag:
    `kubectl crossplane stack init --template`.
@@ -459,11 +470,15 @@ When consuming the stack, the default template values can be overridden
 by specifying fields on the render request object.
 
 This use-case will probably need additional thought if we want to
-support all permutations of helm chart.
+support all permutations of helm chart. For more realistic and complete
+examples, see the [helm engine example][helm-engine-example] and the
+[quick start example][quick-start-example] in the template stack
+experience repository.
 
 ## Further reading
 
 * [Template Stack Experience](https://github.com/suskin/template-stack-experience) examples
+* [Template Stack Experience - Quick Start Example](https://github.com/suskin/template-stack-experience/tree/master/wordpress-workload/quick-start)
 * [Declarative Application Management in Kubernetes](https://github.com/kubernetes/community/blob/master/contributors/design-proposals/architecture/declarative-application-management.md)
 * [Template Stacks internals design doc](https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-template-stacks.md)
 * [Stacks CLI design](https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-stack-cli.md)
@@ -471,3 +486,5 @@ support all permutations of helm chart.
 
 <!-- Reference-style links -->
 [kubernetes-default-values]: https://kubernetes.io/docs/tasks/access-kubernetes-api/custom-resources/custom-resource-definitions/#defaulting
+[helm-engine-example]: https://github.com/suskin/template-stack-experience/tree/master/wordpress-workload/go-templates/helm-engine
+[quick-start-example]: https://github.com/suskin/template-stack-experience/tree/master/wordpress-workload/quick-start
