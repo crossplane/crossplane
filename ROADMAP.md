@@ -119,20 +119,20 @@ Any dates listed below and the specific issues that will ship in a given milesto
 
  * Crossplane supporting work for GitLab 12.5 Auto DevOps [#867](https://github.com/crossplaneio/crossplane/issues/867)
 
-## Under consideration for v0.5.0
+## v0.5.0 Continous deployment for GitLab and ArgoCD with v1beta1 APIs
 * GitLab 12.5 Auto DevOps (ADO) integration phase 1 - provision managed PostgreSQL from GitLab ADO pipelines
   * Subset of the overall [GitLab Auto DevOps integration](https://gitlab.com/groups/gitlab-org/-/epics/1866#note_216080986) 
   * [Crossplane as a GitLab-managed app (phase1)](https://gitlab.com/gitlab-org/gitlab/issues/34702) - provision managed PostgreSQL from GitLab ADO pipelines
 
- * CD integration examples for GitLab, Jenkins, and ArgoCD [#631](https://github.com/crossplaneio/crossplane/issues/631)
+ * CD integration examples ArgoCD [#631](https://github.com/crossplaneio/crossplane/issues/631)
 
- * v1beta2 Services APIs
-   * Incorporate beta1 feedback
-   * Upgrade Azure stack to v1beta2 (AzureDB, Azure Cache for Redis)
-     * crossplaneio/stack-azure#28 Azure SQL and Redis resources v1beta1
-   * Upgrade other supported services to v1beta2 (e.g. Buckets, etc.)
-   * Code generation of API types, controller scaffolding to further streamline additional services
+* Stable v1beta1 Services APIs for managed databases and caches (Azure) [#863](https://github.com/crossplaneio/crossplane/issues/863)
+  * Upgrade Azure stack to v1beta1: Azure Database and Azure Cache for Redis with high-def CRDs & controllers
+    * crossplaneio/stack-azure#28 Azure SQL and Redis resources v1beta1
 
+* Bug fixes and test automation
+
+## Under consideration for v0.6.0
 * Stacks Manager
   * Enhancements to security and permissions/roles model
   * Parent / child relationship annotations
@@ -150,6 +150,11 @@ Any dates listed below and the specific issues that will ship in a given milesto
   * Resource packs for default resource classes and configuration (AWS, GCP, Azure)
   * Visible error messages for all error cases surfaced in claims and/or eventing
   * Static provisioning examples to highlight simplicity. 
+
+ * v1beta1 Services APIs
+   * Incorporate beta1 feedback
+   * Upgrade other supported services to v1beta1 (e.g. Buckets, etc.)
+   * Code generation of API types, controller scaffolding to further streamline additional services
 
 ## Roadmap
 * Expanded Rook support
