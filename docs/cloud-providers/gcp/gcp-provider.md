@@ -70,6 +70,9 @@ gcloud --project $EXAMPLE_PROJECT_ID services enable redis.googleapis.com
 # enable Compute API
 gcloud --project $EXAMPLE_PROJECT_ID services enable compute.googleapis.com
 
+# enable Service Networking API
+gcloud --project $EXAMPLE_PROJECT_ID services enable servicenetworking.googleapis.com
+
 # enable Additional APIs needed for the example or project
 # See `gcloud services list` for a complete list
 
@@ -134,6 +137,9 @@ Create a GCP example project which we will use to host our example GKE cluster, 
   - Click `Enable`
 - Enable `Compute Engine API`
   - Navigate to [Compute Engine API](https://console.developers.google.com/apis/api/compute.googleapis.com/overview)
+  - Click `Enable`
+- Enable `Service Networking API`
+  - Navigate to [Service Networking API](https://console.developers.google.com/apis/api/servicenetworking.googleapis.com/overview)
   - Click `Enable`
 
 ### Enable Billing
