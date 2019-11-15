@@ -93,7 +93,7 @@ metadata:
   name: stack-gcp
   namespace: crossplane-system
 spec:
-  package: "crossplane/stack-gcp:master"
+  package: "crossplane/stack-gcp:v0.3.0"
 EOF
 
 kubectl apply -f stack-gcp.yaml
@@ -110,7 +110,7 @@ metadata:
   name: stack-rook
   namespace: crossplane-system
 spec:
-  package: "crossplane/stack-rook:master"
+  package: "crossplane/stack-rook:v0.2.0"
 EOF
 
 kubectl apply -f stack-rook.yaml
@@ -182,13 +182,13 @@ If you want to skip the rest of the guide and just deploy Yugastore, you can
 run:
 
 ```bash
-kubectl apply -k https://github.com/crossplaneio/crossplane//cluster/examples/rook/yugastore?ref=master
+kubectl apply -k https://github.com/crossplaneio/crossplane//cluster/examples/rook/yugastore?ref=release-0.5
 ```
 
 And you're done! You can check the status of the provisioning by running:
 
 ```bash
-kubectl get -k https://github.com/crossplaneio/crossplane//cluster/examples/rook/yugastore?ref=master
+kubectl get -k https://github.com/crossplaneio/crossplane//cluster/examples/rook/yugastore?ref=release-0.5
 ```
 
 If you did not opt for this shortcut, keep reading.
