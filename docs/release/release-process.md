@@ -125,7 +125,7 @@ process is recommended:
 
     ```console
     git fetch --all
-    git checkout -b release-0.5 upstream/master
+    git checkout -b release-0.5 upstream/release-0.5
     git cherry-pick -x <fix commit hash>
     ```
 
