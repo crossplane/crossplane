@@ -60,6 +60,8 @@ The steps to perform this action are listed below:
 1. Click `Grant admin consent for Default Directory`
 1. Click `Yes`
 
+Note: You might need `Global Administrator` role to `Grant admin consent for Default Directory`. Please contact the administrator of your Azure subscription. To check your role, go to `Azure Active Directory` -> `Roles and administrators`. You can find your role(s) by clicking on `Your Role (Preview)`
+
 ## Setup Azure Provider
 
 Before creating any resources, we need to create and configure an Azure cloud
