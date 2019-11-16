@@ -22,25 +22,33 @@ Work means a contribution to the project, typically code.
 
 The following criteria **MUST** be met for work to be considered done:
 
-* Code is reviewed and approved
-* Code passes linting (use `make reviewable` to lint)
-* All error conditions are reported into the log or as an event, as
-  appropriate
-* Code is tested
+* Code is reviewed and approved.
+* Code passes linting (use `make reviewable` to lint).
+* Error conditions are reported as and where appropriate. For more about
+  how to think about error reporting, see our [philosophical
+  guide][error-reporting-philosophy].
+* Code is tested to an extent such that: we are confident in its
+  correctness; and future maintainers will be able to tell if they have
+  introduced a regression.
 
 Additionally, the following criteria **SHOULD** be met for the work to
 be considered done, as they are best practices:
 
-* Code is tested with an integration test
+* Code is exercised with an integration test (existing or new).
 * New behavior is documented in the documentation that will go onto the
-  crossplane website
-* Examples have been updated to reflect any changes
+  crossplane website.
+* Examples have been updated to reflect any changes.
 
 ## Applying definition of done
 
 The definition of done can be applied in the following ways:
 
 * Pull requests should not be merged until the work contained in them is
-  done.
+  done. Generally, the best practice would be to include all relevant
+  changes (such as code, tests, and documentation) in a single pull
+  request, so that it is easier to keep track of.
 * Issues tracking work should not be closed until the work being tracked
   is done.
+
+<!-- Reference links -->
+[error-reporting-philosophy]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-error-and-event-reporting.md
