@@ -27,9 +27,11 @@ import (
 	"github.com/pkg/errors"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -48,6 +50,7 @@ const (
 	labelParentNamespace = "core.crossplane.io/parent-namespace"
 	labelParentName      = "core.crossplane.io/parent-name"
 	labelParentUID       = "core.crossplane.io/parent-uid"
+	labelNamespaceFmt    = "namespace.crossplane.io/%s"
 )
 
 var (
@@ -269,6 +272,14 @@ func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, o
 		labelParentName:      i.GetName(),
 		labelParentUID:       string(i.GetUID()),
 	}
+
+	if isCRDObject(obj) {
+		labelNamespaceFmt := "namespace.crossplane.io/%s"
+		labelNamespace := fmt.Sprintf(labelNamespaceFmt, i.GetNamespace())
+
+		labels[labelNamespace] = "true"
+	}
+
 	meta.AddLabels(obj, labels)
 
 	// TODO(displague) pass/inject a controller specific logger
@@ -301,4 +312,14 @@ func isStackObject(obj *unstructured.Unstructured) bool {
 	gvk := obj.GroupVersionKind()
 	return gvk.Group == v1alpha1.Group && gvk.Version == v1alpha1.Version &&
 		strings.EqualFold(gvk.Kind, v1alpha1.StackKind)
+}
+
+func isCRDObject(obj runtime.Object) bool {
+	if obj == nil {
+		return false
+	}
+	gvk := obj.GetObjectKind().GroupVersionKind()
+
+	return apiextensions.SchemeGroupVersion == gvk.GroupVersion() &&
+		strings.EqualFold(gvk.Kind, "CustomResourceDefinition")
 }

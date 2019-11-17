@@ -117,6 +117,7 @@ metadata:
   creationTimestamp: null
   labels:
     app.kubernetes.io/managed-by: stack-manager
+    crossplane.io/scope: namespace
   name: mytypes.samples.upbound.io
 spec:
   group: samples.upbound.io
@@ -262,6 +263,7 @@ metadata:
   creationTimestamp: null
   labels:
     app.kubernetes.io/managed-by: stack-manager
+    crossplane.io/scope: namespace
   name: siblings.samples.upbound.io
 spec:
   group: samples.upbound.io
@@ -289,6 +291,7 @@ metadata:
   creationTimestamp: null
   labels:
     app.kubernetes.io/managed-by: stack-manager
+    crossplane.io/scope: namespace
   name: secondcousins.samples.upbound.io
 spec:
   group: samples.upbound.io
@@ -353,6 +356,7 @@ metadata:
   creationTimestamp: null
   labels:
     app.kubernetes.io/managed-by: stack-manager
+    crossplane.io/scope: namespace
   name: mytypes.samples.upbound.io
 spec:
   group: samples.upbound.io
@@ -392,6 +396,7 @@ metadata:
   creationTimestamp: null
   labels:
     app.kubernetes.io/managed-by: stack-manager
+    crossplane.io/scope: namespace
   name: cousins.samples.upbound.io
 spec:
   group: samples.upbound.io
@@ -563,6 +568,7 @@ metadata:
   creationTimestamp: null
   labels:
     app.kubernetes.io/managed-by: stack-manager
+    crossplane.io/scope: environment
   name: siblings.samples.upbound.io
 spec:
   group: samples.upbound.io
@@ -590,6 +596,7 @@ metadata:
   creationTimestamp: null
   labels:
     app.kubernetes.io/managed-by: stack-manager
+    crossplane.io/scope: environment
   name: secondcousins.samples.upbound.io
 spec:
   group: samples.upbound.io
@@ -654,6 +661,7 @@ metadata:
   creationTimestamp: null
   labels:
     app.kubernetes.io/managed-by: stack-manager
+    crossplane.io/scope: environment
   name: mytypes.samples.upbound.io
 spec:
   group: samples.upbound.io
@@ -693,6 +701,7 @@ metadata:
   creationTimestamp: null
   labels:
     app.kubernetes.io/managed-by: stack-manager
+    crossplane.io/scope: environment
   name: cousins.samples.upbound.io
 spec:
   group: samples.upbound.io
@@ -845,6 +854,7 @@ metadata:
   creationTimestamp: null
   labels:
     app.kubernetes.io/managed-by: stack-manager
+    crossplane.io/scope: namespace
   name: mytypes.samples.upbound.io
 spec:
   group: samples.upbound.io
