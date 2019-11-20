@@ -5,9 +5,9 @@ weight: 210
 ---
 # Getting Started
 
-This guide will demonstrate using Crossplane to deploy a portable Cloud
-Memorystore on the Google Cloud Platform (GCP). It serves as an initial
-introduction to Crossplane, but only displays a small set of its features.
+This guide will demonstrate using Crossplane to deploy a portable Redis cluster
+on the Google Cloud Platform (GCP). It serves as an initial introduction to
+Crossplane, but only displays a small set of its features.
 
 In this guide we will:
 
@@ -227,7 +227,7 @@ Spec:
     UID:          9cd9105b-0bb9-11ea-8195-42010a800088
   For Provider:
     Alternative Location Id:  us-west2-b
-    Authorized Network:       projects/crossplane-playground/global/networks/default
+    Authorized Network:       projects/my-project/global/networks/default
     Location Id:              us-west2-a
     Memory Size Gb:           1
     Redis Version:            REDIS_4_0
@@ -244,7 +244,7 @@ Status:
     Create Time:               2019-11-20T17:16:29Z
     Current Location Id:       us-west2-a
     Host:                      10.77.247.68
-    Name:                      projects/crossplane-playground/locations/us-west2/instances/example-cloudmemorystore-instance
+    Name:                      projects/my-project/locations/us-west2/instances/example-cloudmemorystore-instance
     Persistence Iam Identity:  serviceAccount:651413264395-compute@developer.gserviceaccount.com
     Port:                      6379
     State:                     READY
@@ -347,7 +347,7 @@ class selector lets you select which resource class to use by [matching its
 labels]. Resource claims like `RedisCluster` can match different kinds of
 resource class using label selectors, so you could just as easily use the exact
 same `RedisCluster` to create an Amazon Replication Group instance by creating a
-`ReplicationGroupsClass` labelled as `guide: getting-started`. When multiple
+`ReplicationGroupClass` labelled as `guide: getting-started`. When multiple
 resource classes match the class selector, a matching class is chosen at random.
 Claims can be matched to classes by either:
 
