@@ -5,9 +5,9 @@ weight: 210
 ---
 # Getting Started
 
-This guide will demonstrate using Crossplane to deploy a portable MySQL database
-on the Google Cloud Platform (GCP). It serves as an initial introduction to
-Crossplane, but only displays a small set of its features.
+This guide will demonstrate using Crossplane to deploy a portable Cloud
+Memorystore on the Google Cloud Platform (GCP). It serves as an initial
+introduction to Crossplane, but only displays a small set of its features.
 
 In this guide we will:
 
@@ -174,9 +174,9 @@ NAME                  STATUS   CLASS-KIND   CLASS-NAME   RESOURCE-KIND          
 example-redis-claim   Bound                              CloudMemorystoreInstance   example-cloudmemorystore-instance   8m39s
 ```
 
-You'll find all the details you need to connect to your new MySQL instance saved
-in the Kubernetes `Secret` you specified via `writeConnectionSecretToRef`, ready
-to [use with your Kubernetes pods].
+You'll find all the details you need to connect to your new Redis cluster
+instance saved in the Kubernetes `Secret` you specified via
+`writeConnectionSecretToRef`, ready to [use with your Kubernetes pods].
 
 ```bash
 $ kubectl --namespace default describe secret example-redis-connection-details
@@ -265,8 +265,9 @@ Status:
 ```
 
 Pay attention to the `Ready` and `Synced` conditions above. `Ready` represents
-the availability of the CloudSQL instance while `Synced` reflects whether
-Crossplane is successfully applying your specified CloudSQL configuration.
+the availability of the Cloud Memorystore instance while `Synced` reflects
+whether Crossplane is successfully applying your specified Cloud Memorystore
+configuration.
 
 ## Define a Class of Cloud Memorystore
 
