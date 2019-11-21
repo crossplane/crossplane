@@ -32,6 +32,22 @@ manage a new cloud-native application. This enables Crossplane users to:
 The full vision and architecture of the Crossplane project is described in our
 [architecture document].
 
+## Infrastructure Stacks
+
+The following infrastructure stacks are currently available for use with Crossplane. If you maintain an infrastructure stack that is not listed below, please open a PR to add it to the list!
+
+Maintained by Crossplane Org:
+
+* [stack-aws]
+* [stack-azure]
+* [stack-rook]
+* [stack-gcp]
+
+Maintained by external communities:
+
+* [stack-packet]
+* [stack-cloudscale]
+
 ## Get Started
 
 Take a look at the [getting started] guide to learn how to install Crossplane,
@@ -82,3 +98,9 @@ Crossplane is under the Apache 2.0 license.
 [Current agenda and past meeting notes]: https://docs.google.com/document/d/1q_sp2jLQsDEOX7Yug6TPOv7Fwrys6EwcF5Itxjkno7Y/edit?usp=sharing
 [Past meeting recordings]: https://www.youtube.com/playlist?list=PL510POnNVaaYYYDSICFSNWFqNbx1EMr-M
 [getting started]: https://crossplane.io/docs/master/quick-start.html
+[stack-aws]: https://github.com/crossplaneio/stack-aws
+[stack-azure]: https://github.com/crossplaneio/stack-azure
+[stack-rook]: https://github.com/crossplaneio/stack-rook
+[stack-gcp]: https://github.com/crossplaneio/stack-gcp
+[stack-packet]: https://github.com/packethost/stack-packet
+[stack-cloudscale]: https://github.com/vshn/stack-cloudscale
