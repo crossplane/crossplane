@@ -74,7 +74,7 @@ infrastructure stack, we need to specify that it's cluster-scoped by passing the
 `--cluster` flag.
 
 ```bash
-kubectl crossplane stack generate-install --cluster 'crossplane/stack-gcp:v0.3.0' stack-gcp | kubectl apply --namespace crossplane-system -f -
+kubectl crossplane stack generate-install --cluster 'crossplane/stack-gcp:v0.3.1' stack-gcp | kubectl apply --namespace crossplane-system -f -
 ```
 
 The rest of this guide assumes that the GCP stack is installed within
