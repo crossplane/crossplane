@@ -40,6 +40,13 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/stacks"
 )
 
+// Labels used to track ownership across namespaces and scopes.
+const (
+	labelInstallNamespace = "stacks.crossplane.io/install-namespace"
+	labelInstallName      = "stacks.crossplane.io/install-name"
+	labelInstallUID       = "stacks.crossplane.io/install-uid"
+)
+
 var (
 	jobBackoff                = int32(0)
 	registryDirName           = ".registry"
@@ -236,11 +243,21 @@ func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, o
 		if obj.GetNamespace() == "" {
 			obj.SetNamespace(i.GetNamespace())
 		}
+
+		obj.SetOwnerReferences([]metav1.OwnerReference{
+			meta.AsOwner(meta.ReferenceTo(i, i.GroupVersionKind())),
+		})
 	}
 
-	// set an owner reference on the object
-	obj.SetOwnerReferences([]metav1.OwnerReference{
-		meta.AsOwner(meta.ReferenceTo(i, i.GroupVersionKind())),
+	// We want to clean up any installed CRDS when we're deleted. We can't rely
+	// on garbage collection because a namespaced object (StackInstall) can't
+	// own a cluster scoped object (CustomResourceDefinition), so we use labels
+	// instead. TODO(negz): Can obj be anything other than a Stack or a
+	// CustomResourceDefinition here?
+	meta.AddLabels(obj, map[string]string{
+		labelInstallNamespace: i.GetNamespace(),
+		labelInstallName:      i.GetName(),
+		labelInstallUID:       string(i.GetUID()),
 	})
 
 	// TODO(displague) pass/inject a controller specific logger
@@ -250,8 +267,7 @@ func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, o
 		"name", obj.GetName(),
 		"namespace", obj.GetNamespace(),
 		"apiVersion", obj.GetAPIVersion(),
-		"kind", obj.GetKind(),
-		"ownerRefs", obj.GetOwnerReferences())
+		"kind", obj.GetKind())
 	if err := jc.client.Create(ctx, obj); err != nil && !kerrors.IsAlreadyExists(err) {
 		return errors.Wrapf(err, "failed to create object %s from job output %s", obj.GetName(), job.Name)
 	}

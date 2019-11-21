@@ -384,6 +384,7 @@ func TestCreate(t *testing.T) {
 			handler: &stackInstallHandler{
 				kube: &test.MockClient{
 					MockCreate:       func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error { return nil },
+					MockUpdate:       func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
 				executorInfo: &stacks.ExecutorInfo{Image: stackPackageImage},
@@ -393,6 +394,7 @@ func TestCreate(t *testing.T) {
 				result: requeueOnSuccess,
 				err:    nil,
 				ext: resource(
+					withFinalizers(installFinalizer),
 					withConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileSuccess()),
 					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: namespace}),
 				),
@@ -406,6 +408,7 @@ func TestCreate(t *testing.T) {
 						// GET Job returns an uncompleted job
 						return nil
 					},
+					MockUpdate:       func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
 				ext: resource(
@@ -415,6 +418,7 @@ func TestCreate(t *testing.T) {
 				result: requeueOnSuccess,
 				err:    nil,
 				ext: resource(
+					withFinalizers(installFinalizer),
 					withConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileSuccess()),
 					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: namespace}),
 				),
@@ -429,6 +433,7 @@ func TestCreate(t *testing.T) {
 						*obj.(*batchv1.Job) = *(job(withJobConditions(batchv1.JobComplete, "")))
 						return nil
 					},
+					MockUpdate:       func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
 				jobCompleter: &mockJobCompleter{
@@ -442,6 +447,7 @@ func TestCreate(t *testing.T) {
 				result: requeueOnSuccess,
 				err:    nil,
 				ext: resource(
+					withFinalizers(installFinalizer),
 					withConditions(runtimev1alpha1.Available(), runtimev1alpha1.ReconcileSuccess()),
 					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: namespace}),
 				),
@@ -456,6 +462,7 @@ func TestCreate(t *testing.T) {
 						*obj.(*batchv1.Job) = *(job(withJobConditions(batchv1.JobFailed, "mock job failure message")))
 						return nil
 					},
+					MockUpdate:       func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
 				jobCompleter: &mockJobCompleter{
@@ -469,6 +476,7 @@ func TestCreate(t *testing.T) {
 				result: resultRequeue,
 				err:    nil,
 				ext: resource(
+					withFinalizers(installFinalizer),
 					withConditions(
 						runtimev1alpha1.Creating(),
 						runtimev1alpha1.ReconcileError(errors.New("mock job failure message")),
