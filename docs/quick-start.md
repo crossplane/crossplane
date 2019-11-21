@@ -5,7 +5,7 @@ weight: 210
 ---
 # Getting Started
 
-This guide will demonstrate using Crossplane to deploy a portable MySQL database
+This guide will demonstrate using Crossplane to deploy a portable Redis cluster
 on the Google Cloud Platform (GCP). It serves as an initial introduction to
 Crossplane, but only displays a small set of its features.
 
@@ -13,8 +13,10 @@ In this guide we will:
 
 1. [Install Crossplane](#install-crossplane)
 1. [Add your GCP project to Crossplane](#add-your-gcp-project-to-crossplane)
-1. [Provision a MySQL instance using CloudSQL](#provision-a-mysql-instance)
-1. [Define a class of CloudSQL instance for dynamic provisioning](#define-a-class-of-cloudsql-instance)
+1. [Provision a Redis Cluster using Cloud
+   Memorystore](#provision-a-redis-cluster)
+1. [Define a class of Cloud Memorystore for dynamic
+   provisioning](#define-a-class-of-cloud-memorystore)
 
 ## Install Crossplane
 
@@ -80,278 +82,274 @@ Save the above `Provider` as `provider.yaml`, save your Google Application
 Credentials as `credentials.json`, then run:
 
 ```bash
-kubectl -n crossplane-system create secret example-gcp-credentials --from-file=credentials.json
+kubectl -n crossplane-system create secret generic example-gcp-credentials --from-file=credentials.json
 kubectl apply -f provider.yaml
 ```
 
 Crossplane can now manage your GCP project! Your service account will need the
-CloudSQL Admin role for this guide. Check out GCP's [Getting Started With
+Redis Admin role for this guide. Check out GCP's [Getting Started With
 Authentication] guide if you need help creating a service account and
 downloading its `credentials.json` file, and Crossplane's [GCP provider
 documentation] for detailed instructions on setting up your project and service
 account permissions.
 
-## Provision a MySQL Instance
+## Provision a Redis Cluster
 
-GCP provides MySQL databases using [CloudSQL] instances. Crossplane uses a
-resource and claim pattern to provision and manage cloud resources like CloudSQL
-instances - if you've ever used [persistent volumes in Kubernetes] you've seen
-this pattern before. The simplest way to start using a new MySQL instance on GCP
-is to provision a `CloudSQLInstance`, then claim it via a `MySQLInstance`. We
-call this process _static provisioning_.
+GCP provides Redis clusters using [Cloud Memorystore]. Crossplane uses a
+resource and claim pattern to provision and manage cloud resources like Cloud
+Memorystore - if you've ever used [persistent volumes in Kubernetes] you've seen
+this pattern before. The simplest way to start using a new Redis cluster on GCP
+is to provision a `CloudMemorystoreInstance`, then claim it via a
+`RedisCluster`. We call this process _static provisioning_.
 
 
 ```yaml
-apiVersion: database.gcp.crossplane.io/v1beta1
-kind: CloudSQLInstance
+apiVersion: cache.gcp.crossplane.io/v1beta1
+kind: CloudMemorystoreInstance
 metadata:
-  name: example-cloudsql-instance
+  name: example-cloudmemorystore-instance
 spec:
   providerRef:
     name: example-provider
   writeConnectionSecretToRef:
-    name: example-cloudsql-connection-details
+    name: example-cloudmemorystore-connection-details
     namespace: crossplane-system
+  reclaimPolicy: Delete
   forProvider:
-    databaseVersion: MYSQL_5_6
+    tier: STANDARD_HA
     region: us-west2
-    settings:
-      tier: db-n1-standard-1
-      dataDiskType: PD_SSD
-      dataDiskSizeGb: 10
-      ipConfiguration:
-        ipv4Enabled: true
+    memorySizeGb: 1
 ```
 
-First we create a CloudSQL instance. Save the above as `cloudsql.yaml`, then
-apply it:
+First we create a Cloud Memorystore instance. Save the above as
+`cloudmemorystore.yaml`, then apply it:
 
 ```bash
-kubectl apply -f cloudsql.yaml
+kubectl apply -f cloudmemorystore.yaml
 ```
 
-Crossplane is now creating the `CloudSQLInstance`! Before we can use it, we need
-to claim it.
+Crossplane is now creating the `CloudMemorystoreInstance`! Before we can use it,
+we need to claim it.
 
 ```yaml
-apiVersion: database.crossplane.io/v1alpha1
-kind: MySQLInstance
+apiVersion: cache.crossplane.io/v1alpha1
+kind: RedisCluster
 metadata:
-  name: example-mysql-claim
+  name: example-redis-claim
 spec:
   resourceRef:
-    apiVersion: database.gcp.crossplane.io/v1beta1
-    kind: CloudSQLInstance
-    name: example-cloudsql-instance
+    apiVersion: cache.gcp.crossplane.io/v1beta1
+    kind: CloudMemorystoreInstance
+    name: example-cloudmemorystore-instance
   writeConnectionSecretToRef:
-    name: example-mysql-connection-details
+    name: example-redis-connection-details
 ```
 
-Save the above as `mysql.yaml`, and once again apply it:
+Save the above as `redis.yaml`, and once again apply it:
 
 ```bash
-kubectl --namespace default apply -f mysql.yaml
+kubectl --namespace default apply -f redis.yaml
 ```
 
-In Crossplane cloud provider specific resources like the `CloudSQLInstance` we
-created above are called _managed resources_. They're considered infrastructure,
-like a Kubernetes `Node` or `PersistentVolume`. Managed resources exist at the
-cluster scope (they're not namespaced) and let you specify nitty-gritty provider
-specific configuration details. Managed resources that have reached `v1beta1`
-are a high fidelity representation of their underlying cloud provider resource,
-and can be updated to change their configuration after provisioning. We _claim_
-these resources by submitting a _resource claim_ like the `MySQLInstance` above.
-Resource claims are namespaced, and indicate that the managed resource they
-claim is in use by _binding_ to it. You can also use resource claims to
-_dynamically provision_ managed resources on-demand - we'll discuss that in the
-next section of this guide.
+In Crossplane cloud provider specific resources like the
+`CloudMemorystoreInstance` we created above are called _managed resources_.
+They're considered infrastructure, like a Kubernetes `Node` or
+`PersistentVolume`. Managed resources exist at the cluster scope (they're not
+namespaced) and let you specify nitty-gritty provider specific configuration
+details. Managed resources that have reached `v1beta1` are a high fidelity
+representation of their underlying cloud provider resource, and can be updated
+to change their configuration after provisioning. We _claim_ these resources by
+submitting a _resource claim_ like the `RedisCluster` above. Resource claims are
+namespaced, and indicate that the managed resource they claim is in use by
+_binding_ to it. You can also use resource claims to _dynamically provision_
+managed resources on-demand - we'll discuss that in the next section of this
+guide.
 
-Soon your new `MySQLInstance` should be online. You can use `kubectl` to
-inspect its status. If you see `Bound` under the `STATUS` column, it's ready to
-use!
+Soon your new `RedisCluster` should be online. You can use `kubectl` to inspect
+its status. If you see `Bound` under the `STATUS` column, it's ready to use!
 
 ```bash
-$ kubectl --namespace default get mysqlinstance example-mysql-claim
-NAME                  STATUS   CLASS-KIND   CLASS-NAME   RESOURCE-KIND      RESOURCE-NAME               AGE
-example-mysql-claim   Bound                              CloudSQLInstance   example-cloudsql-instance   4m
+$ kubectl --namespace default get rediscluster example-redis-claim
+NAME                  STATUS   CLASS-KIND   CLASS-NAME   RESOURCE-KIND              RESOURCE-NAME                       AGE
+example-redis-claim   Bound                              CloudMemorystoreInstance   example-cloudmemorystore-instance   8m39s
 ```
 
-You'll find all the details you need to connect to your new MySQL instance saved
-in the Kubernetes `Secret` you specified via `writeConnectionSecretToRef`, ready
-to [use with your Kubernetes pods].
+You'll find all the details you need to connect to your new Redis cluster
+instance saved in the Kubernetes `Secret` you specified via
+`writeConnectionSecretToRef`, ready to [use with your Kubernetes pods].
 
 ```bash
-$ kubectl --namespace default describe secret example-mysql-connection-details
-Name:         example-mysql-connection-details
+$ kubectl --namespace default describe secret example-redis-connection-details
+Name:         example-redis-connection-details
 Namespace:    default
+Labels:       <none>
+Annotations:  crossplane.io/propagate-from-name: example-cloudmemorystore-connection-details
+              crossplane.io/propagate-from-namespace: crossplane-system
+              crossplane.io/propagate-from-uid: 7cd8666f-0bb9-11ea-8195-42010a800088
+
 Type:  Opaque
 
 Data
 ====
-serverCACertificateCommonName:        98 bytes
-serverCACertificateInstance:          25 bytes
-username:                             4 bytes
-password:                             27 bytes
-publicIP:                             13 bytes
-serverCACertificateCertSerialNumber:  1 bytes
-serverCACertificateCreateTime:        24 bytes
-serverCACertificateExpirationTime:    24 bytes
-serverCACertificateSha1Fingerprint:   40 bytes
-endpoint:                             13 bytes
-serverCACertificateCert:              1272 bytes
+endpoint:  12 bytes
+port:      4 bytes
 ```
 
 That's all there is to static provisioning with Crossplane! We've created a
-`CloudSQLInstance` as cluster scoped infrastructure, then claimed it as a
-`MySQLInstance`. You can use `kubectl describe` to view the detailed
-configuration and status of your `CloudSqlInstance`.
+`CloudMemorystoreInstance` as cluster scoped infrastructure, then claimed it as
+a `RedisCluster`. You can use `kubectl describe` to view the detailed
+configuration and status of your `CloudMemorystoreInstance`.
 
 ```bash
-$ kubectl describe example-cloudsql-instance
-Name:         example-cloudsql-instance
-Annotations:  crossplane.io/external-name: example-cloudsql-instance
-API Version:  database.gcp.crossplane.io/v1beta1
-Kind:         CloudSQLInstance
+$ kubectl describe cloudmemorystoreinstance example-cloudmemorystore-instance
+Name:         example-cloudmemorystore-instance
+Namespace:    
+Labels:       <none>
+Annotations:  crossplane.io/external-name: example-cloudmemorystore-instance
+              kubectl.kubernetes.io/last-applied-configuration:
+                {"apiVersion":"cache.gcp.crossplane.io/v1beta1","kind":"CloudMemorystoreInstance","metadata":{"annotations":{},"name":"example-cloudmemory...
+API Version:  cache.gcp.crossplane.io/v1beta1
+Kind:         CloudMemorystoreInstance
+Metadata:
+  Creation Timestamp:  2019-11-20T17:16:27Z
+  Finalizers:
+    finalizer.managedresource.crossplane.io
+  Generation:        4
+  Resource Version:  284706
+  Self Link:         /apis/cache.gcp.crossplane.io/v1beta1/cloudmemorystoreinstances/example-cloudmemorystore-instance
+  UID:               7c9cb407-0bb9-11ea-8195-42010a800088
 Spec:
+  Claim Ref:
+    API Version:  cache.crossplane.io/v1alpha1
+    Kind:         RedisCluster
+    Name:         example-redis-claim
+    Namespace:    default
+    UID:          9cd9105b-0bb9-11ea-8195-42010a800088
   For Provider:
-    Database Version:  MYSQL_5_6
-    Gce Zone:          us-west2-b
-    Instance Type:     CLOUD_SQL_INSTANCE
-    Region:            us-west2
-    Settings:
-      Activation Policy:  ALWAYS
-      Backup Configuration:
-        Start Time:       17:00
-      Data Disk Size Gb:  10
-      Data Disk Type:     PD_SSD
-      Ip Configuration:
-        ipv4Enabled:  true
-      Location Preference:
-        Zone:               us-west2-b
-      Pricing Plan:         PER_USE
-      Replication Type:     SYNCHRONOUS
-      Storage Auto Resize:  true
-      Tier:                 db-n1-standard-1
+    Alternative Location Id:  us-west2-b
+    Authorized Network:       projects/my-project/global/networks/default
+    Location Id:              us-west2-a
+    Memory Size Gb:           1
+    Redis Version:            REDIS_4_0
+    Region:                   us-west2
+    Reserved Ip Range:        10.77.247.64/29
+    Tier:                     STANDARD_HA
   Provider Ref:
     Name:  example-provider
   Write Connection Secret To Ref:
-    Name:       example-cloudsql-connection-details
+    Name:       example-cloudmemorystore-connection-details
     Namespace:  crossplane-system
 Status:
   At Provider:
-    Backend Type:     SECOND_GEN
-    Connection Name:  my-cool-gcp-project:us-west2:example-cloudsql-instance
-    Gce Zone:         us-west2-b
-    Ip Addresses:
-      Ip Address:                   8.8.8.8
-      Type:                         PRIMARY
-    Project:                        my-cool-gcp-project
-    Self Link:                      https://www.googleapis.com/sql/v1beta4/projects/my-cool-gcp-project/instances/example-cloudsql-instance
-    Service Account Email Address:  REDACTED@gcp-sa-cloud-sql.iam.gserviceaccount.com
-    State:                          RUNNABLE
-  Binding Phase:                    Bound
+    Create Time:               2019-11-20T17:16:29Z
+    Current Location Id:       us-west2-a
+    Host:                      10.77.247.68
+    Name:                      projects/my-project/locations/us-west2/instances/example-cloudmemorystore-instance
+    Persistence Iam Identity:  serviceAccount:651413264395-compute@developer.gserviceaccount.com
+    Port:                      6379
+    State:                     READY
+  Binding Phase:               Bound
   Conditions:
-    Last Transition Time:  2019-10-25T08:09:16Z
-    Reason:                Successfully reconciled managed resource
-    Status:                True
-    Type:                  Synced
-    Last Transition Time:  2019-10-25T08:09:12Z
+    Last Transition Time:  2019-11-20T17:16:27Z
     Reason:                Successfully resolved managed resource references to other resources
     Status:                True
     Type:                  ReferencesResolved
-    Last Transition Time:  2019-10-25T08:09:16Z
+    Last Transition Time:  2019-11-20T17:20:00Z
     Reason:                Managed resource is available for use
     Status:                True
     Type:                  Ready
+    Last Transition Time:  2019-11-20T17:16:29Z
+    Reason:                Successfully reconciled managed resource
+    Status:                True
+    Type:                  Synced
 ```
 
 Pay attention to the `Ready` and `Synced` conditions above. `Ready` represents
-the availability of the CloudSQL instance while `Synced` reflects whether
-Crossplane is successfully applying your specified CloudSQL configuration.
+the availability of the Cloud Memorystore instance while `Synced` reflects
+whether Crossplane is successfully applying your specified Cloud Memorystore
+configuration.
 
-## Define a Class of CloudSQL Instance
+## Define a Class of Cloud Memorystore
 
 Now that we've learned how to statically provision and claim managed resources
 it's time to try out _dynamic provisioning_. Dynamic provisioning allows us to
 define a class of managed resource - a _resource class_ - that will be used to
 automatically satisfy resource claims when they are created.
 
-Here's a resource class that will dynamically provision Cloud SQL instances with
-the same settings as the `CloudSqlInstance` we provisioned earlier in the guide:
+Here's a resource class that will dynamically provision Cloud Memorystore with
+the same settings as the `CloudMemorystoreInstance` we provisioned earlier in
+the guide:
 
 ```yaml
-apiVersion: database.gcp.crossplane.io/v1beta1
-kind: CloudSQLInstanceClass
+apiVersion: cache.gcp.crossplane.io/v1beta1
+kind: CloudMemorystoreInstanceClass
 metadata:
-  name: example-cloudsql-class
+  name: example-cloudmemorystore-class
   annotations:
     resourceclass.crossplane.io/is-default-class: "true"
   labels:
     guide: getting-started
 specTemplate:
   providerRef:
-    name: example
+    name: example-provider
   writeConnectionSecretsToNamespace: crossplane-system
+  reclaimPolicy: Delete
   forProvider:
-    databaseVersion: MYSQL_5_6
+    tier: STANDARD_HA
     region: us-west2
-    settings:
-      tier: db-n1-standard-1
-      dataDiskType: PD_SSD
-      dataDiskSizeGb: 10
-      ipConfiguration:
-        ipv4Enabled: true
+    memorySizeGb: 1
 ```
 
-Save the above as `cloudsql-class.yaml` and apply it to enable dynamic
-provisioning of `CloudSqlInstance` managed resources:
+Save the above as `cloudmemorystore-class.yaml` and apply it to enable dynamic
+provisioning of `CloudMemorystoreInstance` managed resources:
 
 ```bash
-kubectl apply -f cloudsql-class.yaml
+kubectl apply -f cloudmemorystore-class.yaml
 ```
 
 Now you can omit the `resourceRef` when you create resource claims. Save the
-below resource claim as `mysql-dynamic-claim.yaml`:
+below resource claim as `redis-dynamic-claim.yaml`:
 
 ```yaml
-apiVersion: database.crossplane.io/v1alpha1
-kind: MySQLInstance
+apiVersion: cache.crossplane.io/v1alpha1
+kind: RedisCluster
 metadata:
-  name: example-mysql-dynamic-claim
+  name: redis-dynamic-claim
 spec:
   classSelector:
     matchLabels:
       guide: getting-started
   writeConnectionSecretToRef:
-    name: example-mysql-dynamic-connection-details
+    name: example-redis-dynamic-connection-details
 ```
 
-When you apply this `MySQLInstance` claim you'll see that it dynamically
-provisions a new `CloudSQLInstance` to satisfy the resource claim:
+When you apply this `RedisCluster` claim you'll see that it dynamically
+provisions a new `CloudMemorystoreInstance` to satisfy the resource claim:
 
 ```bash
-$ kubectl --namespace default apply -f mysql-dynamic-claim.yaml
-mysqlinstance.database.crossplane.io/example-mysql-dynamic-claim created
+$ kubectl --namespace default apply -f redis-dynamic-claim.yaml
+rediscluster.cache.crossplane.io/redis-dynamic-claim created
 
-$ kubectl get mysqlinstance example-mysql-dynamic-claim
-NAME                          STATUS   CLASS-KIND              CLASS-NAME               RESOURCE-KIND      RESOURCE-NAME                               AGE
-example-mysql-dynamic-claim            CloudSQLInstanceClass   example-cloudsql-class   CloudSQLInstance   default-example-mysql-dynamic-claim-bwpzd   47s
+$ kubectl get rediscluster redis-dynamic-claim
+NAME                  STATUS   CLASS-KIND                      CLASS-NAME                       RESOURCE-KIND              RESOURCE-NAME                       AGE
+redis-dynamic-claim            CloudMemorystoreInstanceClass   example-cloudmemorystore-class   CloudMemorystoreInstance   default-redis-dynamic-claim-hvwwd   33s
+
 ```
 
-You just dynamically provisioned a `CloudSQLInstance`! You can find the name of
-your new `CloudSQLInstance` under the `RESOURCE-NAME` column when you run
-`kubectl describe mysqlinstance`. Reuse the resource class as many times as you
-like; simply submit more `MySQLInstance` resource claims to create more CloudSQL
-instances.
+You just dynamically provisioned a `CloudMemorystoreInstance`! You can find the
+name of your new `CloudMemorystoreInstance` under the `RESOURCE-NAME` column
+when you run `kubectl describe rediscluster`. Reuse the resource class as many
+times as you like; simply submit more `RedisCluster` resource claims to create
+more Cloud Memorystore instances.
 
 You may have noticed that your resource claim included a `classSelector`. The
 class selector lets you select which resource class to use by [matching its
-labels]. Resource claims like `MySQLInstance` can match different kinds of
-resource class using label selectors, so you could just as easily use the
-exact same `MySQLInstance` to create an Amazon Relational Database Service (RDS)
-instance by creating an `RDSInstanceClass` labelled as `guide: getting-started`.
-When multiple resource classes match the class selector, a matching class is
-chosen at random. Claims can be matched to classes by either:
+labels]. Resource claims like `RedisCluster` can match different kinds of
+resource class using label selectors, so you could just as easily use the exact
+same `RedisCluster` to create an Amazon Replication Group instance by creating a
+`ReplicationGroupClass` labelled as `guide: getting-started`. When multiple
+resource classes match the class selector, a matching class is chosen at random.
+Claims can be matched to classes by either:
 
 * Specifying a `classRef` to a specific resource class.
 * Specifying a `classSelector` that matches one or more resource classes.
@@ -361,9 +359,11 @@ chosen at random. Claims can be matched to classes by either:
 ## Next Steps
 
 * Add additional [cloud provider stacks](cloud-providers.md) to Crossplane.
-* Explore the [Services Guide](services-guide.md) and the [Stacks Guide](stacks-guide.md).
+* Explore the [Services Guide](services-guide.md) and the [Stacks
+  Guide](stacks-guide.md).
 * Learn more about [Crossplane concepts](concepts.md).
-* See what managed resources are [currently supported](api.md) for each provider.
+* See what managed resources are [currently supported](api.md) for each
+  provider.
 * Build [your own stacks](developer-guide.md)!
 
 <!-- Named Links -->
@@ -375,7 +375,7 @@ chosen at random. Claims can be matched to classes by either:
 [Crossplane installation guide]: install-crossplane.md
 [Getting Started With Authentication]: https://cloud.google.com/docs/authentication/getting-started
 [GCP provider documentation]: gcp-provider.md
-[CloudSQL]: https://cloud.google.com/sql/docs/mysql/
+[Cloud Memorystore]: https://cloud.google.com/memorystore/
 [Persistent volumes in Kubernetes]: https://kubernetes.io/docs/concepts/storage/persistent-volumes/
 [use with your Kubernetes pods]: https://kubernetes.io/docs/concepts/configuration/secret/#using-secrets
 [matching its labels]: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
