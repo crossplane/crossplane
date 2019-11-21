@@ -34,7 +34,9 @@ The full vision and architecture of the Crossplane project is described in our
 
 ## Infrastructure Stacks
 
-The following infrastructure stacks are currently available for use with Crossplane. If you maintain an infrastructure stack that is not listed below, please open a PR to add it to the list!
+The following infrastructure stacks are currently available for use with
+Crossplane. If you maintain an infrastructure stack that is not listed below,
+please open a PR to add it to the list!
 
 Maintained by Crossplane Org:
 
