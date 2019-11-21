@@ -25,6 +25,7 @@ import (
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -43,6 +44,7 @@ import (
 const (
 	reconcileTimeout      = 1 * time.Minute
 	requeueAfterOnSuccess = 10 * time.Second
+	installFinalizer      = "finalizer.stackinstall.crossplane.io"
 )
 
 var (
@@ -113,6 +115,10 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	handler := r.factory.newHandler(ctx, stackInstaller, r.kube, r.kubeclient, executorinfo)
 
+	if meta.WasDeleted(stackInstaller) {
+		return handler.delete(ctx)
+	}
+
 	return handler.sync(ctx)
 }
 
@@ -121,6 +127,7 @@ type handler interface {
 	sync(context.Context) (reconcile.Result, error)
 	create(context.Context) (reconcile.Result, error)
 	update(context.Context) (reconcile.Result, error)
+	delete(context.Context) (reconcile.Result, error)
 }
 
 // stackInstallHandler is a concrete implementation of the handler interface
@@ -169,6 +176,12 @@ func (h *stackInstallHandler) sync(ctx context.Context) (reconcile.Result, error
 // that the Stack does not yet exist, so the caller should confirm that before calling.
 func (h *stackInstallHandler) create(ctx context.Context) (reconcile.Result, error) {
 	h.ext.SetConditions(runtimev1alpha1.Creating())
+
+	meta.AddFinalizer(h.ext, installFinalizer)
+	if err := h.kube.Update(ctx, h.ext); err != nil {
+		return fail(ctx, h.kube, h.ext, err)
+	}
+
 	jobRef := h.ext.InstallJob()
 
 	if jobRef == nil {
@@ -234,6 +247,31 @@ func (h *stackInstallHandler) update(ctx context.Context) (reconcile.Result, err
 	// create a new one?
 	groupversion, kind := h.ext.GroupVersionKind().ToAPIVersionAndKind()
 	log.V(logging.Debug).Info("updating not supported yet", strings.ToLower(kind)+"."+groupversion, fmt.Sprintf("%s/%s", h.ext.GetNamespace(), h.ext.GetName()))
+	return reconcile.Result{}, nil
+}
+
+func (h *stackInstallHandler) delete(ctx context.Context) (reconcile.Result, error) {
+	labels := map[string]string{
+		labelInstallNamespace: h.ext.GetNamespace(),
+		labelInstallName:      h.ext.GetName(),
+		labelInstallUID:       string(h.ext.GetUID()),
+	}
+	list := &apiextensionsv1beta1.CustomResourceDefinitionList{}
+	if err := h.kube.List(ctx, list, client.MatchingLabels(labels)); err != nil {
+		return fail(ctx, h.kube, h.ext, err)
+	}
+
+	for i := range list.Items {
+		if err := h.kube.Delete(ctx, &list.Items[i]); err != nil {
+			return fail(ctx, h.kube, h.ext, err)
+		}
+	}
+
+	meta.RemoveFinalizer(h.ext, installFinalizer)
+	if err := h.kube.Update(ctx, h.ext); err != nil {
+		return fail(ctx, h.kube, h.ext, err)
+	}
+
 	return reconcile.Result{}, nil
 }
 

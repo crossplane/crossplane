@@ -61,6 +61,9 @@ var _ reconcile.Reconciler = &Reconciler{}
 // Resource modifiers
 type resourceModifier func(v1alpha1.StackInstaller)
 
+func withFinalizers(finalizers ...string) resourceModifier {
+	return func(r v1alpha1.StackInstaller) { r.SetFinalizers(finalizers) }
+}
 func withConditions(c ...runtimev1alpha1.Condition) resourceModifier {
 	return func(r v1alpha1.StackInstaller) { r.SetConditions(c...) }
 }
@@ -123,6 +126,7 @@ type mockHandler struct {
 	MockSync   func(context.Context) (reconcile.Result, error)
 	MockCreate func(context.Context) (reconcile.Result, error)
 	MockUpdate func(context.Context) (reconcile.Result, error)
+	MockDelete func(context.Context) (reconcile.Result, error)
 }
 
 func (m *mockHandler) sync(ctx context.Context) (reconcile.Result, error) {
@@ -135,6 +139,10 @@ func (m *mockHandler) create(ctx context.Context) (reconcile.Result, error) {
 
 func (m *mockHandler) update(ctx context.Context) (reconcile.Result, error) {
 	return m.MockUpdate(ctx)
+}
+
+func (m *mockHandler) delete(ctx context.Context) (reconcile.Result, error) {
+	return m.MockDelete(ctx)
 }
 
 type mockExecutorInfoDiscoverer struct {
