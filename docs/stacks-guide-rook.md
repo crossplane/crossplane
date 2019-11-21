@@ -93,7 +93,7 @@ metadata:
   name: stack-gcp
   namespace: crossplane-system
 spec:
-  package: "crossplane/stack-gcp:v0.3.0"
+  package: "crossplane/stack-gcp:v0.3.1"
 EOF
 
 kubectl apply -f stack-gcp.yaml
@@ -110,7 +110,7 @@ metadata:
   name: stack-rook
   namespace: crossplane-system
 spec:
-  package: "crossplane/stack-rook:v0.2.0"
+  package: "crossplane/stack-rook:v0.2.1"
 EOF
 
 kubectl apply -f stack-rook.yaml
