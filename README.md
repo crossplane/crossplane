@@ -32,6 +32,13 @@ manage a new cloud-native application. This enables Crossplane users to:
 The full vision and architecture of the Crossplane project is described in our
 [architecture document].
 
+## Get Started
+
+Take a look at the [getting started] guide to learn how to install Crossplane,
+install a stack, and provision cloud infrastructure using `kubectl`. Refer to
+the Crossplane [documentation] for comprehensive guides to using Crossplane,
+including deploying an application packaged as a stack.
+
 ## Infrastructure Stacks
 
 The following infrastructure stacks are currently available for use with
@@ -44,13 +51,6 @@ please open a PR to add it to the list!
 * [stack-gcp]
 * [stack-packet]
 * [stack-cloudscale]
-
-## Get Started
-
-Take a look at the [getting started] guide to learn how to install Crossplane,
-install a stack, and provision cloud infrastructure using `kubectl`. Refer to
-the Crossplane [documentation] for comprehensive guides to using Crossplane,
-including deploying an application packaged as a stack.
 
 ## Get Involved
 
