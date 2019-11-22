@@ -38,15 +38,10 @@ The following infrastructure stacks are currently available for use with
 Crossplane. If you maintain an infrastructure stack that is not listed below,
 please open a PR to add it to the list!
 
-Maintained by Crossplane Org:
-
 * [stack-aws]
 * [stack-azure]
 * [stack-rook]
 * [stack-gcp]
-
-Maintained by external communities:
-
 * [stack-packet]
 * [stack-cloudscale]
 
