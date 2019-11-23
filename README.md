@@ -39,6 +39,19 @@ install a stack, and provision cloud infrastructure using `kubectl`. Refer to
 the Crossplane [documentation] for comprehensive guides to using Crossplane,
 including deploying an application packaged as a stack.
 
+## Infrastructure Stacks
+
+The following infrastructure stacks are currently available for use with
+Crossplane. If you maintain an infrastructure stack that is not listed below,
+please open a PR to add it to the list!
+
+* [stack-aws]
+* [stack-azure]
+* [stack-rook]
+* [stack-gcp]
+* [stack-packet]
+* [stack-cloudscale]
+
 ## Get Involved
 
 * Discuss Crossplane on [Slack] or our [developer mailing list].
@@ -82,3 +95,9 @@ Crossplane is under the Apache 2.0 license.
 [Current agenda and past meeting notes]: https://docs.google.com/document/d/1q_sp2jLQsDEOX7Yug6TPOv7Fwrys6EwcF5Itxjkno7Y/edit?usp=sharing
 [Past meeting recordings]: https://www.youtube.com/playlist?list=PL510POnNVaaYYYDSICFSNWFqNbx1EMr-M
 [getting started]: https://crossplane.io/docs/master/quick-start.html
+[stack-aws]: https://github.com/crossplaneio/stack-aws
+[stack-azure]: https://github.com/crossplaneio/stack-azure
+[stack-rook]: https://github.com/crossplaneio/stack-rook
+[stack-gcp]: https://github.com/crossplaneio/stack-gcp
+[stack-packet]: https://github.com/packethost/stack-packet
+[stack-cloudscale]: https://github.com/vshn/stack-cloudscale
