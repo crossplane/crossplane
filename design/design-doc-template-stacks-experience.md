@@ -337,15 +337,23 @@ behaviors:
     # This is a particular CRD which is being configured. When the
     # controller sees an object of this type, it will do something.
     wordpressinstance.wordpress.samples.stacks.crossplane.io:
-      # These are the templates which should be rendered when an object
-      # of the type above is seen.
-      #
-      # Defaults for the variables can be defined in the default values
-      # for the CRD fields, using the standard Kubernetes mechanism for
-      # specifying CRD field default values.
-      resources:
-        # Each list item is a folder of files which will be rendered.
-        - wordpress
+      # This is a top-level object to namespace hook configurations.
+      # There can be hooks for multiple different types of events.
+      hooks:
+        # Post create is triggered after an instance is created
+        postCreate:
+          # These are the templates which should be rendered when an object
+          # of the type above is seen.
+          #
+          # Defaults for the variables can be defined in the default values
+          # for the CRD fields, using the standard Kubernetes mechanism for
+          # specifying CRD field default values.
+          # Note that this is a list of objects, so multiple can be
+          # specified.
+          - directory: wordpress
+        # Post create is triggered after an instance is changed
+        postUpdate:
+          - directory: wordpress
 EOF
 ```
 
