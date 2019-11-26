@@ -135,7 +135,7 @@ spec:
     name: eabce854-0cd7-11ea-8d71-362b9e155667
 ```
 
-The purpose of these new resources, as their names imply, is to _aggregate_
+The purpose of these new resource kinds, as their names imply, is to _aggregate_
 resource classes and managed resources, enabling transitive one-to-many
 resource-claim-to-resource-class and resource-claim-to-managed-resource
 relationships. Both new kinds use an _aggregation rule_, like an [RBAC
@@ -155,16 +155,10 @@ metadata:
   namespace: default
   name: coolcluster
 spec:
-  resourceRef:
-    apiVersion: aggregation.crossplane.io/v1alpha1
-    kind: AggregateResource
-    name: default-coolcluster-g3bf7
-    uid: 2d45b85e-0cdd-11ea-8d71-362b9e155667
   classRef:
     apiVersion: aggregation.crossplane.io/v1alpha1
     kind: AggregateResourceClass
     name: cool-gke-cluster
-    uid: eee7e0a4-0ce2-11ea-8d71-362b9e155667
 ```
 
 The creation of the above `KubernetesCluster` claim triggers:
@@ -209,6 +203,36 @@ spec:
     name: 97efa0de-0cdd-11ea-8d71-362b9e155667
   reclaimPolicy: Delete
 ```
+
+An `AggregateResource` is not opinionated about which managed resource kinds it
+aggregates, but this does not mean it may _bind to_ arbitrary resource claim
+kinds. Crossplane is architected such that a "claim binding" controller owns
+each resource claim to managed resource combination. This allows the controller
+that handles the binding and dynamic provisioning logic for a particular managed
+resource kind to live in that managed resource's stack, alongside the controller
+that reconciles that managed resource kind with its external resource. One side
+effect of this architecture is that "nonsensical" claims are ignored. A `Bucket`
+claim will never automatically be allocated a `CloudSQLInstanceClass`, but
+nothing prevents a `Bucket` author explicitly setting its `resourceRef` to a
+`CloudSQLInstance`, or setting its `classRef` to a `CloudSQLInstanceClass`.
+However, no controller owns the "nonsensical" relationship between a `Bucket`
+and a `CloudSQLInstance`, so the claim is simply never reconciled. This would
+hold true for aggregate kinds; each stack author would choose which claim kinds
+may bind to which managed resource kinds via an `AggregateResource`. This means:
+
+* A claim would never bind to an `AggregateResource` that did not match at least
+  one managed resource that made sense for it to claim.
+* A claim would never be automatically allocated to an `AggregateResourceClass`
+  (via class selection or defaulting) that did not match at least one class of
+  managed resource that made sense for it to claim.
+* A claim would never dynamically provision anything if its `classRef` were set
+  to an `AggregateResourceClass` that did not match at least one class of
+  managed resource that made sense for it to claim.
+* In the case of partial matches, only the supported bindings are reconciled. A
+  `RedisCluster` claim may be allocated an `AggregateResourceClass` that matches
+  a `CloudMemorystoreInstanceClass` and an `EKSClusterClass`, but will only
+  dynamically provision and bind to (via an `AggregatedResource`) a
+  `CloudMemorystoreInstance`, not an `EKSCluster`.
 
 Note that a resource class such as a `GKEClusterClass` may aggregate to more
 than one `AggregateResourceClass`. This allows resource classes to be reused in
@@ -315,7 +339,7 @@ external resource] using the `crossplane.io/external-name` annotation:
   dynamically provisions.
 
 This final point may pose a problem when one resource claim may provision many
-managed resources. If a resource class set the `crossplane.io/external-name`
+managed resources. If a resource claim set the `crossplane.io/external-name`
 annotation and referenced an `AggregateResourceClass` that aggregated two
 resource classes of the same kind, both dynamically provisioned resources would
 attempt to use the same external name. External names are unique at different
@@ -837,13 +861,13 @@ This design implies the introduction of resource classes for managed resources
 that do not currently support them; there is no `ResourceGroupClass`, for
 example, because `ResourceGroup` has never had a corresponding resource claim to
 bind to. Furthermore, each infrastructure stack must instantiate an
-aggregation-aware resource claim controller for each possible (resource claim,
-managed resource) tuple. Put otherwise, if it makes _any_ sense for a particular
-managed resource to aggregate to a particular claim kind a controller must own
-that relationship. Many supporting managed resources map only to a single
-resource claim kind. A `MySQLServerVirtualNetworkRuleClass` is unlikely to be
-useful in the context of a `RedisCluster` resource claim; it likely need only
-apply to `MySQLServer` claims. Several resources however, including
+aggregation-aware resource claim controller for each possible resource claim to
+managed resource combination. Put otherwise, if it makes _any_ sense for a
+particular managed resource to aggregate to a particular claim kind a controller
+must own that relationship. Many supporting managed resources map only to a
+single resource claim kind. A `MySQLServerVirtualNetworkRuleClass` is unlikely
+to be useful in the context of a `RedisCluster` resource claim; it likely need
+only apply to `MySQLServer` claims. Several resources however, including
 `ResourceGroup` and networking constructs like `Subnetwork` could make sense to
 aggregate to almost all resource claim kinds.
 
