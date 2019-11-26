@@ -4,9 +4,18 @@
 - Reviewers: Crossplane Maintainers
 - Status: Draft
 
+**_NOTE: The focus for this design is long term and may not be implemented immediately_**
+
 ## Proposal
 
 [crossplaneio/crossplane#752](https://github.com/crossplaneio/crossplane/issues/752)
+
+#### These are the labels we are proposing to add:
+
+- **`core.crossplane.io/parent-kind`**
+- **`core.crossplane.io/parent-name`**
+- **`core.crossplane.io/parent-namespace`**
+- **`core.crossplane.io/parent-uid`**
 
 ## Problem
 
@@ -82,6 +91,7 @@ metadata:
     core.crossplane.io/parent-kind: "stack.stacks.crossplane.io"
     core.crossplane.io/parent-name: "sample-stack-wordpress"
     core.crossplane.io/parent-namespace: "app-project1-dev"
+    core.crossplane.io/parent-uid: "ec52c8c2-379f-45ec-9458-e40f070f8d2e"
     app.kubernetes.io/managed-by: stack-manager
 ...
 ```
@@ -92,17 +102,6 @@ metadata:
 apiVersion: wordpress.samples.stacks.crossplane.io/v1alpha1
 kind: WordpressInstance
 metadata:
-  annotations:
-    kubectl.kubernetes.io/last-applied-configuration: |
-      {
-        "apiVersion":"wordpress.samples.stacks.crossplane.io/v1alpha1",
-        "kind":"WordpressInstance",
-        "metadata":{
-          "annotations":{},
-          "name":"my-wordpressinstance",
-          "namespace":"app-project1-dev"
-        }
-      }
   creationTimestamp: "2019-10-23T23:47:40Z"
   generation: 1
   name: my-wordpressinstance
@@ -111,9 +110,10 @@ metadata:
   selfLink: /apis/wordpress.samples.stacks.crossplane.io/v1alpha1/namespaces/app-project1-dev/wordpressinstances/my-wordpressinstance
   uid: f2d13a15-1f9b-40a7-a173-a40abefa61bf
   labels:
-    core.crossplane.io/parent-kind: "customresourcedefinition.apiextensions.k8s.io"
+    core.crossplane.io/parent-kind: "stack.stacks.crossplane.io"
     core.crossplane.io/parent-name: "sample-stack-wordpress"
     core.crossplane.io/parent-namespace: "app-project1-dev"
+    core.crossplane.io/parent-uid: "ec52c8c2-379f-45ec-9458-e40f070f8d2e"
     app.kubernetes.io/managed-by: stack-manager
 ...
 ```
@@ -130,6 +130,7 @@ metadata:
     core.crossplane.io/parent-kind: "wordpressinstances.wordpress.samples.stacks.crossplane.io"
     core.crossplane.io/parent-name: "my-wordpressinstance"
     core.crossplane.io/parent-namespace: "app-project1-dev"
+    core.crossplane.io/parent-uid: "f2d13a15-1f9b-40a7-a173-a40abefa61bf"
     app.kubernetes.io/managed-by: stack-manager
 ...
 ```
@@ -146,6 +147,7 @@ metadata:
     core.crossplane.io/parent-kind: "wordpressinstances.wordpress.samples.stacks.crossplane.io"
     core.crossplane.io/parent-name: "my-wordpressinstance"
     core.crossplane.io/parent-namespace: "app-project1-dev"
+    core.crossplane.io/parent-uid: "f2d13a15-1f9b-40a7-a173-a40abefa61bf"
     app.kubernetes.io/managed-by: stack-manager
 ...
 ```
@@ -162,6 +164,7 @@ metadata:
     core.crossplane.io/parent-kind: "wordpressinstances.wordpress.samples.stacks.crossplane.io"
     core.crossplane.io/parent-name: "my-wordpressinstance"
     core.crossplane.io/parent-namespace: "app-project1-dev"
+    core.crossplane.io/parent-uid: "f2d13a15-1f9b-40a7-a173-a40abefa61bf"
     app.kubernetes.io/managed-by: stack-manager
 ...
 ```
