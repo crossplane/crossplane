@@ -18,6 +18,13 @@ can uncomment the below line to indicate which issue your PR fixes, for example
 Fixes #
 -->
 
+### How has this code been tested?
+<!--
+Before reviewers can be confident in the correctness of a pull request,
+it needs to tested and shown to be correct. In this section, briefly
+describe the testing that has already been done or which is planned.
+-->
+
 ### Checklist
 <!--
 Please run through the below readiness checklist. The first two items are
@@ -26,10 +33,13 @@ relevant to every Crossplane pull request.
 I have:
 - [ ] Run `make reviewable` to ensure this PR is ready for review.
 - [ ] Ensured this PR contains a neat, self documenting set of commits.
-- [ ] Updated any relevant [documentation], [examples], or [release notes].
-- [ ] Updated the RBAC permissions in [`clusterrole.yaml`] to include any new types.
+- [ ] Updated any relevant [documentation] and [examples].
+- [ ] Reported all new error conditions into the log or as an event, as
+  appropriate.
+
+For more about what we believe makes a pull request complete, see our
+[definition of done].
 
 [documentation]: https://github.com/crossplaneio/crossplane/tree/master/docs
 [examples]: https://github.com/crossplaneio/crossplane/tree/master/cluster/examples
-[release notes]: https://github.com/crossplaneio/crossplane/tree/master/PendingReleaseNotes.md
-[`clusterrole.yaml`]: https://github.com/crossplaneio/crossplane/blob/master/cluster/charts/crossplane/templates/clusterrole.yaml
+[definition of done]: https://github.com/crossplaneio/crossplane/tree/master/design/one-pager-definition-of-done.md
