@@ -1,0 +1,39 @@
+---
+apiVersion: network.aws.crossplane.io/v1alpha3
+kind: Subnet
+metadata:
+  name: subnet-a
+spec:
+  cidrBlock: 192.168.64.0/18
+  vpcIdRef:
+    name: vpc
+  availabilityZone: us-west-2a
+  reclaimPolicy: Delete
+  providerRef:
+    name: aws-provider
+---
+apiVersion: network.aws.crossplane.io/v1alpha3
+kind: Subnet
+metadata:
+  name: subnet-b
+spec:
+  cidrBlock: 192.168.128.0/18
+  vpcIdRef:
+    name: vpc
+  availabilityZone: us-west-2b
+  reclaimPolicy: Delete
+  providerRef:
+    name: aws-provider
+---
+apiVersion: network.aws.crossplane.io/v1alpha3
+kind: Subnet
+metadata:
+  name: subnet-c
+spec:
+  cidrBlock: 192.168.192.0/18
+  vpcIdRef:
+    name: vpc
+  availabilityZone: us-west-2c
+  reclaimPolicy: Delete
+  providerRef:
+    name: aws-provider

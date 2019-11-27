@@ -1,0 +1,12 @@
+apiVersion: compute.gcp.crossplane.io/v1alpha3
+kind: Network
+metadata:
+  name: network
+spec:
+  name: network
+  autoCreateSubnetworks: false
+  routingConfig:
+    routingMode: REGIONAL
+  reclaimPolicy: Delete
+  providerRef:
+    name: gcp-provider

@@ -1,0 +1,11 @@
+---
+apiVersion: azure.crossplane.io/v1alpha3
+kind: ResourceGroup
+metadata:
+  name: resourcegroup
+spec:
+  name: resourcegroup
+  location: Central US
+  reclaimPolicy: Delete
+  providerRef:
+    name: azure-provider

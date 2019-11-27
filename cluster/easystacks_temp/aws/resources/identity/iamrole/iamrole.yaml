@@ -1,0 +1,23 @@
+apiVersion: identity.aws.crossplane.io/v1alpha3
+kind: IAMRole
+metadata:
+  name: iamrole
+spec:
+  roleName: iamrole
+  description: placeholder_for_description
+  assumeRolePolicyDocument: |
+    {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Principal": {
+            "Service": "eks.amazonaws.com"
+          },
+          "Action": "sts:AssumeRole"
+        }
+      ]
+    }
+  reclaimPolicy: Delete
+  providerRef:
+    name: aws-provider

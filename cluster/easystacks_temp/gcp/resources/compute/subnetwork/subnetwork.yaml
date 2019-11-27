@@ -1,0 +1,19 @@
+apiVersion: compute.gcp.crossplane.io/v1alpha3
+kind: Subnetwork
+metadata:
+  name: subnetwork
+spec:
+  name: subnetwork
+  region: us-west2
+  ipCidrRange: "192.168.0.0/24"
+  privateIpGoogleAccess: true
+  secondaryIpRanges:
+    - rangeName: pods
+      ipCidrRange: 10.128.0.0/20
+    - rangeName: services
+      ipCidrRange: 172.16.0.0/16
+  networkRef:
+    name: network
+  reclaimPolicy: Delete
+  providerRef:
+    name: gcp-provider

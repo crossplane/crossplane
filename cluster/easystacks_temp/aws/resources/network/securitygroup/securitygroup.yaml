@@ -1,0 +1,34 @@
+# should we add security groups for replication group as well?
+---
+apiVersion: network.aws.crossplane.io/v1alpha3
+kind: SecurityGroup
+metadata:
+  name: eks-security-group
+spec:
+  vpcIdRef:
+    name: vpc
+  groupName: eks-security-group
+  description: Cluster communication with worker nodes
+  reclaimPolicy: Delete
+  providerRef:
+    name: aws-provider
+---
+apiVersion: network.aws.crossplane.io/v1alpha3
+kind: SecurityGroup
+metadata:
+  name: rds-security-group
+spec:
+  vpcIdRef:
+    name: vpc
+  groupName: rds-security-group
+  description: open rds access to crossplane workload
+  reclaimPolicy: Delete
+  ingress:
+    - fromPort: 3306
+      toPort: 3306
+      protocol: tcp
+      cidrBlocks:
+        - cidrIp: 0.0.0.0/0
+          description: all ips
+  providerRef:
+    name: aws-provider

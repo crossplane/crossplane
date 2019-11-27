@@ -1,0 +1,14 @@
+apiVersion: database.aws.crossplane.io/v1alpha3
+kind: DBSubnetGroup
+metadata:
+  name: dbsubnetgroup
+spec:
+  groupName: dbsubnetgroup
+  description: placeholder_for_description
+  subnetIdRefs:
+    - name: subnet-a
+    - name: subnet-b
+    - name: subnet-c
+  reclaimPolicy: Delete
+  providerRef:
+    name: aws-provider

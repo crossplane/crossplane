@@ -1,0 +1,21 @@
+---
+apiVersion: database.gcp.crossplane.io/v1beta1
+kind: CloudSQLInstanceClass
+metadata:
+  name: cloudsqlinstance-postgresql
+specTemplate:
+  writeConnectionSecretsToNamespace: crossplane-system
+  providerRef:
+    name: gcp-provider
+  reclaimPolicy: Delete
+  forProvider:
+    databaseVersion: POSTGRES_9_6
+    region: us-west2
+    settings:
+      tier: db-n1-standard-1
+      dataDiskType: PD_SSD
+      dataDiskSizeGb: 10
+      ipConfiguration:
+        ipv4Enabled: false
+        privateNetworkRef:
+          name: network

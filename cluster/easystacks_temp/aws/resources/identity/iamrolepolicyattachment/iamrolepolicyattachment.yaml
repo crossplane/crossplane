@@ -1,0 +1,24 @@
+---
+apiVersion: identity.aws.crossplane.io/v1alpha3
+kind: IAMRolePolicyAttachment
+metadata:
+  name: servicepolicy
+spec:
+  roleNameRef:
+    name: iamrole
+  policyArn: arn:aws:iam::aws:policy/AmazonEKSServicePolicy
+  reclaimPolicy: Delete
+  providerRef:
+    name: aws-provider
+---
+apiVersion: identity.aws.crossplane.io/v1alpha3
+kind: IAMRolePolicyAttachment
+metadata:
+  name: clusterpolicy
+spec:
+  roleNameRef:
+    name: iamrole
+  policyArn: arn:aws:iam::aws:policy/AmazonEKSClusterPolicy
+  reclaimPolicy: Delete
+  providerRef:
+    name: aws-provider

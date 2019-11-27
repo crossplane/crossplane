@@ -1,0 +1,17 @@
+---
+apiVersion: network.azure.crossplane.io/v1alpha3
+kind: VirtualNetwork
+metadata:
+  name: virtualnetwork
+spec:
+  name: virtualnetwork
+  resourceGroupNameRef:
+    name: resourcegroup
+  location: Central US
+  properties:
+    addressSpace:
+      addressPrefixes:
+        - 10.2.0.0/16
+  reclaimPolicy: Delete
+  providerRef:
+    name: azure-provider

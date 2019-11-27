@@ -1,0 +1,20 @@
+---
+apiVersion: compute.gcp.crossplane.io/v1alpha3
+kind: GKEClusterClass
+metadata:
+  name: gkecluster
+specTemplate:
+  writeConnectionSecretsToNamespace: crossplane-system
+  machineType: n1-standard-1
+  numNodes: 1
+  zone: us-west2-b
+  networkRef:
+    name: network
+  subnetworkRef:
+    name: subnetwork
+  enableIPAlias: true
+  clusterSecondaryRangeName: pods
+  servicesSecondaryRangeName: services
+  reclaimPolicy: Delete
+  providerRef:
+    name: gcp-provider
