@@ -252,9 +252,10 @@ func (h *stackInstallHandler) update(ctx context.Context) (reconcile.Result, err
 
 func (h *stackInstallHandler) delete(ctx context.Context) (reconcile.Result, error) {
 	labels := map[string]string{
-		labelInstallNamespace: h.ext.GetNamespace(),
-		labelInstallName:      h.ext.GetName(),
-		labelInstallUID:       string(h.ext.GetUID()),
+		labelParentKind:      h.ext.GetObjectKind().GroupVersionKind().Kind,
+		labelParentNamespace: h.ext.GetNamespace(),
+		labelParentName:      h.ext.GetName(),
+		labelParentUID:       string(h.ext.GetUID()),
 	}
 	list := &apiextensionsv1beta1.CustomResourceDefinitionList{}
 	if err := h.kube.List(ctx, list, client.MatchingLabels(labels)); err != nil {
@@ -262,7 +263,7 @@ func (h *stackInstallHandler) delete(ctx context.Context) (reconcile.Result, err
 	}
 
 	for i := range list.Items {
-		if err := h.kube.Delete(ctx, &list.Items[i]); err != nil {
+		if err := h.kube.Delete(ctx, &list.Items[i]); err != nil && !kerrors.IsNotFound(err) {
 			return fail(ctx, h.kube, h.ext, err)
 		}
 	}

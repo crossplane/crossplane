@@ -42,9 +42,10 @@ import (
 
 // Labels used to track ownership across namespaces and scopes.
 const (
-	labelInstallNamespace = "stacks.crossplane.io/install-namespace"
-	labelInstallName      = "stacks.crossplane.io/install-name"
-	labelInstallUID       = "stacks.crossplane.io/install-uid"
+	labelParentKind      = "core.crossplane.io/parent-kind"
+	labelParentNamespace = "core.crossplane.io/parent-namespace"
+	labelParentName      = "core.crossplane.io/parent-name"
+	labelParentUID       = "core.crossplane.io/parent-uid"
 )
 
 var (
@@ -226,6 +227,9 @@ func (jc *stackInstallJobCompleter) readPodLogs(namespace, name string) (*bytes.
 	return b, nil
 }
 
+// createJobOutputObject names, labels, sets ownership, and creates resources
+// resulting from a StackInstall or ClusterStackInstall. These expected resources
+// are currently CRD and Stack objects.
 func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, obj *unstructured.Unstructured,
 	i v1alpha1.StackInstaller, job *batchv1.Job) error {
 
@@ -234,9 +238,9 @@ func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, o
 		return nil
 	}
 
+	// when the current object is a Stack object, make sure the name and namespace are
+	// set to match the current StackInstall (if they haven't already been set)
 	if isStackObject(obj) {
-		// the current object is a Stack object, make sure the name and namespace are
-		// set to match the current StackInstall (if they haven't already been set)
 		if obj.GetName() == "" {
 			obj.SetName(i.GetName())
 		}
@@ -252,12 +256,13 @@ func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, o
 	// We want to clean up any installed CRDS when we're deleted. We can't rely
 	// on garbage collection because a namespaced object (StackInstall) can't
 	// own a cluster scoped object (CustomResourceDefinition), so we use labels
-	// instead. TODO(negz): Can obj be anything other than a Stack or a
-	// CustomResourceDefinition here?
+	// instead.
+	// TODO(displague) is it sufficient to provide the "Kind" and not full type?
 	meta.AddLabels(obj, map[string]string{
-		labelInstallNamespace: i.GetNamespace(),
-		labelInstallName:      i.GetName(),
-		labelInstallUID:       string(i.GetUID()),
+		labelParentKind:      i.GroupVersionKind().Kind,
+		labelParentNamespace: i.GetNamespace(),
+		labelParentName:      i.GetName(),
+		labelParentUID:       string(i.GetUID()),
 	})
 
 	// TODO(displague) pass/inject a controller specific logger
@@ -267,7 +272,12 @@ func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, o
 		"name", obj.GetName(),
 		"namespace", obj.GetNamespace(),
 		"apiVersion", obj.GetAPIVersion(),
-		"kind", obj.GetKind())
+		"kind", obj.GetKind(),
+		"parentKind", i.GroupVersionKind().Kind,
+		"parentName", i.GetName(),
+		"parentNamespace", i.GetNamespace(),
+		"parentUID", string(i.GetUID()),
+	)
 	if err := jc.client.Create(ctx, obj); err != nil && !kerrors.IsAlreadyExists(err) {
 		return errors.Wrapf(err, "failed to create object %s from job output %s", obj.GetName(), job.Name)
 	}
