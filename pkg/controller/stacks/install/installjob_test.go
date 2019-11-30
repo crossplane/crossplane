@@ -21,6 +21,7 @@ import (
 	"context"
 	"io"
 	"io/ioutil"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -28,11 +29,14 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/yaml"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
 	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/stacks"
@@ -134,6 +138,22 @@ spec:
 status:
  Conditions: null
 `
+
+	crdRaw = `---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: mytypes.samples.upbound.io
+spec:
+  group: samples.upbound.io
+  names:
+  kind: Mytype
+  listKind: MytypeList
+  plural: mytypes
+  singular: mytype
+  scope: Namespaced
+  version: v1alpha1
+`
 )
 
 var (
@@ -170,6 +190,30 @@ func job(jm ...jobModifier) *batchv1.Job {
 	return j
 }
 
+// unstructuredObj modifiers
+type unstructuredObjModifier func(*unstructured.Unstructured)
+
+// withUnstructuredObjLabels modifies an existing unstructured object with the given labels
+func withUnstructuredObjLabels(labels map[string]string) unstructuredObjModifier {
+	return func(u *unstructured.Unstructured) {
+		meta.AddLabels(u, labels)
+	}
+}
+
+// unstructuredObj creates a new default unstructured object (derived from the crdRaw const)
+func unstructuredObj(uom ...unstructuredObjModifier) *unstructured.Unstructured {
+	r := strings.NewReader(crdRaw)
+	d := yaml.NewYAMLOrJSONDecoder(r, 4096)
+	obj := &unstructured.Unstructured{}
+	d.Decode(&obj)
+
+	for _, m := range uom {
+		m(obj)
+	}
+
+	return obj
+}
+
 type mockJobCompleter struct {
 	MockHandleJobCompletion func(ctx context.Context, i v1alpha1.StackInstaller, job *batchv1.Job) error
 }
@@ -200,8 +244,6 @@ func (m *mockReadCloser) Close() (err error) {
 }
 
 func TestHandleJobCompletion(t *testing.T) {
-	errBoom := errors.New("boom")
-
 	type want struct {
 		ext *v1alpha1.StackInstall
 		err error
@@ -502,6 +544,95 @@ func TestCreate(t *testing.T) {
 
 			if diff := cmp.Diff(tt.want.ext, tt.handler.ext, test.EquateConditions()); diff != "" {
 				t.Errorf("create() -want, +got:\n%v", diff)
+			}
+		})
+	}
+}
+
+func TestCreateJobOutputObject(t *testing.T) {
+	wantLabels := map[string]string{
+		labelParentGroup:     "stacks.crossplane.io",
+		labelParentVersion:   "v1alpha1",
+		labelParentKind:      "StackInstall",
+		labelParentNamespace: namespace,
+		labelParentName:      resourceName,
+		labelParentUID:       uidString,
+	}
+
+	type want struct {
+		err error
+		obj *unstructured.Unstructured
+	}
+
+	tests := []struct {
+		name           string
+		jobCompleter   *stackInstallJobCompleter
+		stackInstaller *v1alpha1.StackInstall
+		job            *batchv1.Job
+		obj            *unstructured.Unstructured
+		want           want
+	}{
+		{
+			name: "NilObj",
+			jobCompleter: &stackInstallJobCompleter{
+				client: &test.MockClient{
+					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error { return nil },
+				},
+			},
+			stackInstaller: resource(),
+			job:            job(),
+			obj:            nil,
+			want: want{
+				err: nil,
+				obj: nil,
+			},
+		},
+		{
+			name: "CreateError",
+			jobCompleter: &stackInstallJobCompleter{
+				client: &test.MockClient{
+					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error {
+						return errBoom
+					},
+				},
+			},
+			stackInstaller: resource(),
+			job:            job(),
+			obj:            unstructuredObj(),
+			want: want{
+				err: errors.Wrapf(errBoom, "failed to create object mytypes.samples.upbound.io from job output cool-stackinstall"),
+				obj: unstructuredObj(withUnstructuredObjLabels(wantLabels)),
+			},
+		},
+		{
+			name: "CreateSuccess",
+			jobCompleter: &stackInstallJobCompleter{
+				client: &test.MockClient{
+					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error { return nil },
+				},
+			},
+			stackInstaller: resource(),
+			job:            job(),
+			obj:            unstructuredObj(),
+			want: want{
+				err: nil,
+				obj: unstructuredObj(withUnstructuredObjLabels(wantLabels)),
+			},
+		},
+	}
+
+	ctx := context.Background()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotErr := tt.jobCompleter.createJobOutputObject(ctx, tt.obj, tt.stackInstaller, tt.job)
+
+			if diff := cmp.Diff(tt.want.err, gotErr, test.EquateErrors()); diff != "" {
+				t.Errorf("createJobOutputObject(): -want error, +got error:\n%s", diff)
+			}
+
+			if diff := cmp.Diff(tt.want.obj, tt.obj, test.EquateConditions()); diff != "" {
+				t.Errorf("createJobOutputObject(): -want obj, +got obj:\n%v", diff)
 			}
 		})
 	}
