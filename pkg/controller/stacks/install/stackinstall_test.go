@@ -19,10 +19,12 @@ package install
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
+	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -42,13 +44,15 @@ import (
 
 const (
 	namespace         = "cool-namespace"
-	uid               = types.UID("definitely-a-uuid")
+	uidString         = "definitely-a-uuid"
+	uid               = types.UID(uidString)
 	resourceName      = "cool-stackinstall"
 	stackPackageImage = "cool/stack-package:rad"
 )
 
 var (
-	ctx = context.Background()
+	ctx     = context.Background()
+	errBoom = errors.New("boom")
 )
 
 func init() {
@@ -66,6 +70,12 @@ func withFinalizers(finalizers ...string) resourceModifier {
 }
 func withConditions(c ...runtimev1alpha1.Condition) resourceModifier {
 	return func(r v1alpha1.StackInstaller) { r.SetConditions(c...) }
+}
+
+func withDeletionTimestamp(t time.Time) resourceModifier {
+	return func(r v1alpha1.StackInstaller) {
+		r.SetDeletionTimestamp(&metav1.Time{Time: t})
+	}
 }
 
 func withInstallJob(jobRef *corev1.ObjectReference) resourceModifier {
@@ -166,7 +176,7 @@ func TestReconcile(t *testing.T) {
 		want want
 	}{
 		{
-			name: "SuccessfulSync",
+			name: "SuccessfulSyncStackInstall",
 			req:  reconcile.Request{NamespacedName: types.NamespacedName{Name: resourceName, Namespace: namespace}},
 			rec: &Reconciler{
 				kube: &test.MockClient{
@@ -194,7 +204,7 @@ func TestReconcile(t *testing.T) {
 			want: want{result: reconcile.Result{}, err: nil},
 		},
 		{
-			name: "SuccessfulSync",
+			name: "SuccessfulSyncClusterStackInstall",
 			req:  reconcile.Request{NamespacedName: types.NamespacedName{Name: resourceName, Namespace: namespace}},
 			rec: &Reconciler{
 				kube: &test.MockClient{
@@ -221,7 +231,34 @@ func TestReconcile(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{}, err: nil},
 		},
-
+		{
+			name: "SuccessfulDelete",
+			req:  reconcile.Request{NamespacedName: types.NamespacedName{Name: resourceName, Namespace: namespace}},
+			rec: &Reconciler{
+				kube: &test.MockClient{
+					MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
+						*obj.(*v1alpha1.StackInstall) = *(resource(withDeletionTimestamp(time.Now())))
+						return nil
+					},
+				},
+				stackinator: func() v1alpha1.StackInstaller { return &v1alpha1.StackInstall{} },
+				executorInfoDiscoverer: &mockExecutorInfoDiscoverer{
+					MockDiscoverExecutorInfo: func(ctx context.Context) (*stacks.ExecutorInfo, error) {
+						return &stacks.ExecutorInfo{Image: stackPackageImage}, nil
+					},
+				},
+				factory: &mockFactory{
+					MockNewHandler: func(context.Context, v1alpha1.StackInstaller, client.Client, kubernetes.Interface, *stacks.ExecutorInfo) handler {
+						return &mockHandler{
+							MockDelete: func(context.Context) (reconcile.Result, error) {
+								return reconcile.Result{}, nil
+							},
+						}
+					},
+				},
+			},
+			want: want{result: reconcile.Result{}, err: nil},
+		},
 		{
 			name: "DiscoverExecutorInfoFailed",
 			req:  reconcile.Request{NamespacedName: types.NamespacedName{Name: resourceName, Namespace: namespace}},
@@ -285,6 +322,162 @@ func TestReconcile(t *testing.T) {
 
 			if diff := cmp.Diff(tt.want.result, gotResult); diff != "" {
 				t.Errorf("Reconcile() -want, +got:\n%v", diff)
+			}
+		})
+	}
+}
+
+// TestStackInstallDelete tests the delete function of the stack install handler
+func TestStackInstallDelete(t *testing.T) {
+	tn := time.Now()
+
+	type want struct {
+		result reconcile.Result
+		err    error
+		si     *v1alpha1.StackInstall
+	}
+
+	tests := []struct {
+		name    string
+		handler *stackInstallHandler
+		want    want
+	}{
+		{
+			name: "FailList",
+			handler: &stackInstallHandler{
+				// stack install starts with a finalizer and a deletion timestamp
+				ext: resource(withFinalizers(installFinalizer), withDeletionTimestamp(tn)),
+				kube: &test.MockClient{
+					MockList: func(ctx context.Context, list runtime.Object, opts ...client.ListOption) error {
+						return errBoom
+					},
+					MockDelete:       func(ctx context.Context, obj runtime.Object, opts ...client.DeleteOption) error { return nil },
+					MockUpdate:       func(ctx context.Context, obj runtime.Object, opts ...client.UpdateOption) error { return nil },
+					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+				},
+			},
+			want: want{
+				result: resultRequeue,
+				err:    nil,
+				si: resource(
+					withFinalizers(installFinalizer),
+					withDeletionTimestamp(tn),
+					withConditions(runtimev1alpha1.ReconcileError(errBoom))),
+			},
+		},
+		{
+			name: "FailDelete",
+			handler: &stackInstallHandler{
+				// stack install starts with a finalizer and a deletion timestamp
+				ext: resource(withFinalizers(installFinalizer), withDeletionTimestamp(tn)),
+				kube: &test.MockClient{
+					MockList: func(ctx context.Context, list runtime.Object, opts ...client.ListOption) error {
+						// set the list's items to a fake list of CRDs to delete
+						list.(*apiextensionsv1beta1.CustomResourceDefinitionList).Items = []apiextensionsv1beta1.CustomResourceDefinition{
+							{
+								ObjectMeta: metav1.ObjectMeta{
+									Namespace: namespace,
+									Name:      "crdToDelete",
+								},
+							},
+						}
+						return nil
+					},
+					MockDelete: func(ctx context.Context, obj runtime.Object, opts ...client.DeleteOption) error {
+						return errBoom
+					},
+					MockUpdate:       func(ctx context.Context, obj runtime.Object, opts ...client.UpdateOption) error { return nil },
+					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+				},
+			},
+			want: want{
+				result: resultRequeue,
+				err:    nil,
+				si: resource(
+					withFinalizers(installFinalizer),
+					withDeletionTimestamp(tn),
+					withConditions(runtimev1alpha1.ReconcileError(errBoom))),
+			},
+		},
+		{
+			name: "FailUpdate",
+			handler: &stackInstallHandler{
+				// stack install starts with a finalizer and a deletion timestamp
+				ext: resource(withFinalizers(installFinalizer), withDeletionTimestamp(tn)),
+				kube: &test.MockClient{
+					MockList: func(ctx context.Context, list runtime.Object, opts ...client.ListOption) error {
+						// set the list's items to a fake list of CRDs to delete
+						list.(*apiextensionsv1beta1.CustomResourceDefinitionList).Items = []apiextensionsv1beta1.CustomResourceDefinition{
+							{
+								ObjectMeta: metav1.ObjectMeta{
+									Namespace: namespace,
+									Name:      "crdToDelete",
+								},
+							},
+						}
+						return nil
+					},
+					MockDelete: func(ctx context.Context, obj runtime.Object, opts ...client.DeleteOption) error { return nil },
+					MockUpdate: func(ctx context.Context, obj runtime.Object, opts ...client.UpdateOption) error {
+						return errBoom
+					},
+					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+				},
+			},
+			want: want{
+				result: resultRequeue,
+				err:    nil,
+				si: resource(
+					// the finalizer will have been removed from our test object at least in memory
+					// (even though the update call to the API server failed)
+					withDeletionTimestamp(tn),
+					withConditions(runtimev1alpha1.ReconcileError(errBoom))),
+			},
+		},
+		{
+			name: "SuccessfulDelete",
+			handler: &stackInstallHandler{
+				// stack install starts with a finalizer and a deletion timestamp
+				ext: resource(withFinalizers(installFinalizer), withDeletionTimestamp(tn)),
+				kube: &test.MockClient{
+					MockList: func(ctx context.Context, list runtime.Object, opts ...client.ListOption) error {
+						// set the list's items to a fake list of CRDs to delete
+						list.(*apiextensionsv1beta1.CustomResourceDefinitionList).Items = []apiextensionsv1beta1.CustomResourceDefinition{
+							{
+								ObjectMeta: metav1.ObjectMeta{
+									Namespace: namespace,
+									Name:      "crdToDelete",
+								},
+							},
+						}
+						return nil
+					},
+					MockDelete: func(ctx context.Context, obj runtime.Object, opts ...client.DeleteOption) error { return nil },
+					MockUpdate: func(ctx context.Context, obj runtime.Object, opts ...client.UpdateOption) error { return nil },
+				},
+			},
+			want: want{
+				result: reconcile.Result{},
+				err:    nil,
+				si:     resource(withDeletionTimestamp(tn)), // finalizers get removed by delete function
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotResult, gotErr := tt.handler.delete(ctx)
+
+			if diff := cmp.Diff(tt.want.err, gotErr, test.EquateErrors()); diff != "" {
+				t.Errorf("delete() -want error, +got error:\n%s", diff)
+			}
+
+			if diff := cmp.Diff(tt.want.result, gotResult); diff != "" {
+				t.Errorf("delete() -want result, +got result:\n%v", diff)
+			}
+
+			if diff := cmp.Diff(tt.want.si, tt.handler.ext, test.EquateConditions()); diff != "" {
+				t.Errorf("delete() -want stackInstall, +got stackInstall:\n%v", diff)
 			}
 		})
 	}
