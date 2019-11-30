@@ -42,6 +42,8 @@ import (
 
 // Labels used to track ownership across namespaces and scopes.
 const (
+	labelParentGroup     = "core.crossplane.io/parent-group"
+	labelParentVersion   = "core.crossplane.io/parent-version"
 	labelParentKind      = "core.crossplane.io/parent-kind"
 	labelParentNamespace = "core.crossplane.io/parent-namespace"
 	labelParentName      = "core.crossplane.io/parent-name"
@@ -239,7 +241,8 @@ func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, o
 	}
 
 	// when the current object is a Stack object, make sure the name and namespace are
-	// set to match the current StackInstall (if they haven't already been set)
+	// set to match the current StackInstall (if they haven't already been set). Also,
+	// set the owner reference of the Stack to be the StackInstall.
 	if isStackObject(obj) {
 		if obj.GetName() == "" {
 			obj.SetName(i.GetName())
@@ -257,13 +260,16 @@ func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, o
 	// on garbage collection because a namespaced object (StackInstall) can't
 	// own a cluster scoped object (CustomResourceDefinition), so we use labels
 	// instead.
-	// TODO(displague) is it sufficient to provide the "Kind" and not full type?
-	meta.AddLabels(obj, map[string]string{
-		labelParentKind:      i.GroupVersionKind().Kind,
+	gvk := i.GroupVersionKind()
+	labels := map[string]string{
+		labelParentGroup:     gvk.Group,
+		labelParentVersion:   gvk.Version,
+		labelParentKind:      gvk.Kind,
 		labelParentNamespace: i.GetNamespace(),
 		labelParentName:      i.GetName(),
 		labelParentUID:       string(i.GetUID()),
-	})
+	}
+	meta.AddLabels(obj, labels)
 
 	// TODO(displague) pass/inject a controller specific logger
 	log.V(logging.Debug).Info(
@@ -273,10 +279,12 @@ func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, o
 		"namespace", obj.GetNamespace(),
 		"apiVersion", obj.GetAPIVersion(),
 		"kind", obj.GetKind(),
-		"parentKind", i.GroupVersionKind().Kind,
-		"parentName", i.GetName(),
-		"parentNamespace", i.GetNamespace(),
-		"parentUID", string(i.GetUID()),
+		"parentGroup", labels[labelParentGroup],
+		"parentVersion", labels[labelParentVersion],
+		"parentKind", labels[labelParentKind],
+		"parentName", labels[labelParentName],
+		"parentNamespace", labels[labelParentNamespace],
+		"parentUID", labels[labelParentUID],
 	)
 	if err := jc.client.Create(ctx, obj); err != nil && !kerrors.IsAlreadyExists(err) {
 		return errors.Wrapf(err, "failed to create object %s from job output %s", obj.GetName(), job.Name)

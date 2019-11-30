@@ -37,6 +37,7 @@ import (
 	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
 	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
+	runtimeresource "github.com/crossplaneio/crossplane-runtime/pkg/resource"
 	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
 	stacks "github.com/crossplaneio/crossplane/pkg/stacks"
 )
@@ -250,9 +251,15 @@ func (h *stackInstallHandler) update(ctx context.Context) (reconcile.Result, err
 	return reconcile.Result{}, nil
 }
 
+// delete performs clean up (finalizer) actions when a StackInstall is being deleted.
+// This function ensures that all the resources (e.g., CRDs) that this StackInstall owns
+// are also cleaned up.
 func (h *stackInstallHandler) delete(ctx context.Context) (reconcile.Result, error) {
+	gvk := h.ext.GroupVersionKind()
 	labels := map[string]string{
-		labelParentKind:      h.ext.GetObjectKind().GroupVersionKind().Kind,
+		labelParentGroup:     gvk.Group,
+		labelParentVersion:   gvk.Version,
+		labelParentKind:      gvk.Kind,
 		labelParentNamespace: h.ext.GetNamespace(),
 		labelParentName:      h.ext.GetName(),
 		labelParentUID:       string(h.ext.GetUID()),
@@ -263,7 +270,7 @@ func (h *stackInstallHandler) delete(ctx context.Context) (reconcile.Result, err
 	}
 
 	for i := range list.Items {
-		if err := h.kube.Delete(ctx, &list.Items[i]); err != nil && !kerrors.IsNotFound(err) {
+		if err := h.kube.Delete(ctx, &list.Items[i]); runtimeresource.IgnoreNotFound(err) != nil {
 			return fail(ctx, h.kube, h.ext, err)
 		}
 	}
