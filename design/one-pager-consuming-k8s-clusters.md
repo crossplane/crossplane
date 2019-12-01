@@ -266,7 +266,7 @@ publish *a* cluster (i.e. create `KubernetesTarget` resources) being able to
 publish *any* cluster would be to automatically create a `KubernetesTarget` as a
 side effect for creating a `KubernetesCluster` claim. This could be implemented
 as an "opt-in feature" by adding a `publishTarget` field on the
-`KubernetesCluster claim. In scenario 3 [above](#user-workflows), this would
+`KubernetesCluster` claim. In scenario 3 [above](#user-workflows), this would
 mean that application owners would only need permissions to create
 `KubernetesCluster` claims, and thus only be able to consume their dynamically
 provisioned clusters because a `KubernetesTarget` is created by the controller
