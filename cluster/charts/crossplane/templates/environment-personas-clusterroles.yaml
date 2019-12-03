@@ -1,0 +1,167 @@
+{{- if .Values.personas.deploy }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ template "name" . }}-env-admin
+  labels:
+    rbac.crossplane.io/aggregate-to-crossplane-admin: "true"
+    app: {{ template "name" . }}
+    chart: {{ template "chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+    crossplane.io/scope: "environment"
+aggregationRule:
+  clusterRoleSelectors:
+  - matchLabels:
+      rbac.crossplane.io/aggregate-to-environment-admin: "true"
+rules: [] # Rules are automatically filled in by the controller manager.
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ template "name" . }}:stack-manager:env:default:admin
+  labels:
+    rbac.crossplane.io/aggregate-to-environment-admin: "true"
+    app: {{ template "name" . }}
+    chart: {{ template "chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+rules:
+- apiGroups:
+  - cache.crossplane.io
+  - compute.crossplane.io
+  - database.crossplane.io
+  - kubernetes.crossplane.io
+  - core.crossplane.io
+  - stacks.crossplane.io
+  - storage.crossplane.io
+  - workload.crossplane.io
+  resources:
+  - "*"
+  verbs:
+  - "*"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ template "name" . }}-env-edit
+  labels:
+    rbac.crossplane.io/aggregate-to-environment-admin: "true"
+    app: {{ template "name" . }}
+    chart: {{ template "chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+    crossplane.io/scope: "environment"
+aggregationRule:
+  clusterRoleSelectors:
+  - matchLabels:
+      rbac.crossplane.io/aggregate-to-environment-edit: "true"
+rules: [] # Rules are automatically filled in by the controller manager.
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ template "name" . }}:stack-manager:env:default:edit
+  labels:
+    rbac.crossplane.io/aggregate-to-environment-edit: "true"
+    app: {{ template "name" . }}
+    chart: {{ template "chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+rules:
+- apiGroups:
+  - cache.crossplane.io
+  - compute.crossplane.io
+  - database.crossplane.io
+  - kubernetes.crossplane.io
+  - core.crossplane.io
+  - stacks.crossplane.io
+  - storage.crossplane.io
+  - workload.crossplane.io
+  resources:
+  - "*"
+  verbs:
+  - create
+  - delete
+  - deletecollection
+  - patch
+  - update
+- apiGroups:
+  - stacks.crossplane.io
+  resources:
+  - clusterstackinstall
+  verbs:
+  - create
+  - delete
+  - deletecollection
+  - patch
+  - update
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - delete
+  - deletecollection
+  - patch
+  - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ template "name" . }}-env-view
+  labels:
+    rbac.crossplane.io/aggregate-to-environment-edit: "true"
+    app: {{ template "name" . }}
+    chart: {{ template "chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+    crossplane.io/scope: "environment"
+aggregationRule:
+  clusterRoleSelectors:
+  - matchLabels:
+      rbac.crossplane.io/aggregate-to-environment-view: "true"
+rules: [] # Rules are automatically filled in by the controller manager.
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ template "name" . }}:stack-manager:env:default:view
+  labels:
+    rbac.crossplane.io/aggregate-to-environment-view: "true"
+    app: {{ template "name" . }}
+    chart: {{ template "chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+rules:
+- apiGroups:
+  - cache.crossplane.io
+  - compute.crossplane.io
+  - database.crossplane.io
+  - kubernetes.crossplane.io
+  - core.crossplane.io
+  - stacks.crossplane.io
+  - storage.crossplane.io
+  - workload.crossplane.io
+  resources:
+  - "*"
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - stacks.crossplane.io
+  resources:
+  - clusterstackinstall
+  - clusterstack
+  verbs:
+  - get
+  - list
+  - watch
+---
+{{- end}}
