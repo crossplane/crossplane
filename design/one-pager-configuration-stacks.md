@@ -48,14 +48,14 @@ you need to refer to them in your resource classes that you author for database
 and cluster claims to use.
 
 Today, it's possible to do all this by manually configuring each resource YAML
-files and run `kubectl apply -f <directory of YAMLs>`. However, there are two areas
-that we can improve during this process:
-* The preparation phase of these YAMLs requires to be very careful and changing
-  something usually means touching a few different files. While this may not seem
-  like a big hurdle, changing some high level parameters of that environment is
-  cumbersome _after_ it's deployed.
-* A user who is familiar with AWS may not be familiar with Azure or GCP; so,
-  ready-made configuration stacks that promise the exact same setup would be
+files and run `kubectl apply -f <directory of YAMLs>`. However, there are a few
+areas that we can improve during this process:
+* The preparation phase of these YAMLs requires a user to be very careful and
+  changing something usually means touching a few different files. While this
+  may not seem like a big hurdle, changing some high level parameters of that
+  environment is cumbersome _after_ it's deployed.
+* A user who is familiar with AWS may not be familiar with Azure or GCP. So,
+  ready-made configuration stacks that promise a very similar setup would be
   useful for them to see how they can achieve similar setups and run various
   benchmarks according to their business needs.
 * After you run `kubectl apply -f <directory of YAMLs>`, a dependency graph of
@@ -70,12 +70,10 @@ configurations and be able to manage those configuration sets on a higher level.
 
 It is important that the design puts forward:
 
-* A base boilerplate package where creating a new configuration set that has a
-  controller is as easy as changing the YAML files.
-* A way to declare pre-requisites that needs to be satisfied by the cluster
-  for the configuration set to work.
-* A way to change a high level configuration by changing 1 value that is then
-  translated to the YAMLs that are already deployed.
+* A way for infrastructure owners to write their configuration sets with
+  reconciliation easier than writing a controller from scratch.
+* An easy way for users to deploy a set of pre-defined configurations that has
+  a controller which reconciles the set of the resources deployed.
 
 ## Proposal
 
@@ -92,47 +90,40 @@ input on the CR instance of that stack that user creates.
 As sky is the limit when it comes to stacks, we need to put down some general
 rules to be adhered by initial configuration stacks.
 
-* CRDs of the resources that will be deployed by the stack are declared as
-  dependency so that user knows what CR instances will be deployed by the given
-  configuration stack.
 * It should be possible to have different sets of configurations in one stack
   and user should be able to choose from them via the CR that is an instance
   of stack's CRD.
-  * Note that it's highly preferred to have 1 custom resource definition that
-    the stack uses and expose the high level variations of the parameters through
-    `spec` instead of having different custom resource definitions for each class
-    of configuration.
+  * Note that it's highly preferred to have only one custom resource definition that
+    the stack uses. You can expose the high level variations of the parameters
+    through `spec` instead of having different custom resource definitions in the
+    same stack or you can write another stack with its own CRD for that purpose.
 * A minimal high level set of configurations are exposed to the user through
-  the stack's CR, such as `Provider` reference to refer in the deployed resource
-  or `region`.
-* Controller should signal readiness of all resources in CR's status.
+  the stack's CR, such as reference to the cloud credential secret or `region`.
 * All resources should be labelled referring to the CR instance of the stack.
 * In YAMLs, resources should refer to each other using cross-resource references
   wherever possible.
-* **TBD** Controller should update the resources continuously and treat the given CR as
+* Controller should update the resources continuously and treat the given CR as
   the source of truth even though user manually changes the resources that are
   deployed by the stack.
-* **TBD** CRD of the configuration stack should be namespaced so that different
-  teams/users can create their own configured environment.
+* CRD of the configuration stack should be cluster-scoped since the author of
+  the CR instances of the configuration stack is assumed to be the infrastructure
+  owner.
 * Stack type will be `ClusterStack` as most of the resources it deploys are
   cluster-scoped.
 
-Name of the concept is **TBD**; _EasyStack_, _ConfigurationStack_,
-_EnvironmentStack_ are current candidates.
-
 ## User Experience
 
-1. Install AWS stack and create your `Provider` object named `aws-provider`.
+1. Install AWS stack and create a secret that contains AWS credentials.
 2. Install a AWS configuration stack via:
 ```yaml
 # exact apiVersion is TBD.
 apiVersion: stacks.crossplane.io/v1alpha1
 kind: ClusterStackInstall
 metadata:
-  name: easy-aws
+  name: minimal-aws
   namespace: crossplane-system
 spec:
-  package: "crossplane/easy-aws:latest"
+  package: "crossplane/minimal-aws:latest"
 ```
 
 Now, I want an environment where all my database instances and kubernetes clusters
@@ -142,28 +133,32 @@ stack does. Create the following:
 ```yaml
 # exact apiVersion is TBD.
 apiVersion: aws.configurationstacks.crossplane.io/v1alpha1
-kind: EasyAWS
+kind: MinimalAWS
 metadata:
   name: project-future
   namespace: dev
 spec:
-  providerRef:
-    name: aws-provider
+  credentialsRef:
+    name: aws-credentials
 ```
 
-Then I wait for status to become ready. After it's done, all resources are deployed.
+Then I wait for `Synced` condition to become `true`. After it's done, all resources
+are deployed.
 ```yaml
 # exact apiVersion is TBD.
 apiVersion: aws.configurationstacks.crossplane.io/v1alpha1
-kind: EasyAWS
+kind: MinimalAWS
 metadata:
-  name: project-future
-  namespace: dev
+  name: small-infra
 spec:
   providerRef:
     name: aws-provider
 status:
-  state: ready
+  conditions:
+  - lastTransitionTime: "2019-12-03T23:16:58Z"
+    reason: Successfully reconciled
+    status: "True"
+    type: Synced
 ```
 
 An example deployed resource would be:
@@ -171,10 +166,9 @@ An example deployed resource would be:
 apiVersion: database.aws.crossplane.io/v1beta1
 kind: RDSInstanceClass
 metadata:
-  name: dev-project-future-mysql
+  name: small-infra-mysql
   labels:
-    "aws.configurationstacks.crossplane.io/name": project-future
-    "aws.configurationstacks.crossplane.io/namespace": dev
+    "aws.configurationstacks.crossplane.io/name": small-infra
     "aws.configurationstacks.crossplane.io/uid": 1ca16960-973b-4d58-a6fa-5696638ec631
 specTemplate:
   writeConnectionSecretsToNamespace: crossplane-system
@@ -182,9 +176,9 @@ specTemplate:
     dbInstanceClass: db.t2.small
     masterUsername: root
     vpcSecurityGroupIDRefs:
-      - name: dev-project-future-rds-security-group
+      - name: small-infra-rds-security-group
     dbSubnetGroupNameRef:
-      name: dev-project-future-dbsubnetgroup
+      name: small-infra-dbsubnetgroup
     allocatedStorage: 20
     engine: mysql
     skipFinalSnapshotBeforeDeletion: true
@@ -193,16 +187,12 @@ specTemplate:
   reclaimPolicy: Delete
 ```
 
-Other people in different namespaces can create their own instances of `EasyAWS`
-custom resource and have their own similar environment with different names.
+There could be several instances of `MinimalAWS` custom resource and each would 
+have their own similar environment with resources that have different names.
 
 ## Technical Implementation
 
 ### Metadata of The Stack
-
-[Dependency list] has to be filled with each kind of the resource that the stack
-deploys, i.e. f the stack only deploys `RDSInstanceClass` resource, it should
-not require all AWS stack to be present.
 
 [UI annotations] should be present to make it easy for frontend software to process
 the stack.
@@ -217,8 +207,8 @@ structure inside that `resources` directory won't matter to the controller but
 it's good to separate the folders cleanly so that it's easier to fork & change.
 
 There are mainly 2 types of resources that configuration stacks will usually
-need to deploy; resource classes and managed resources. Under `resources` folder
-we can have 2 separate folders for each of those resource types; `classes` and
+need to deploy: resource classes and managed resources. Under `resources` folder
+we can have 2 separate folders for each of those resource types: `classes` and
 `services`. Under these folders, resources should be in directories recursively
 named after their group and kind. An example folder structure:
 
@@ -254,23 +244,17 @@ sense for developer to have a folder for each tier under `resources` folder.
 ### Reconciliation
 
 There are mainly 3 responsibility of the controller:
-* When all deployed resources are ready, `status.state` should be `ready`.
-  * For resource classes; if the resource exists in the api-server it's considered
-    to be ready.
-  * For managed resources; if the `Ready` condition status is `true`, then it's
-    considered to be ready.
-  * For other possible resources, the developer chooses what to look for as
-    readiness.
-* Apply; continuously reproduce the resources from YAMLs and apply it.
-* Deletion: should be done via label selector when the CR is deleted.
+* Creation: Generate the resources from YAMLs and create them.
+* Apply: Continuously reproduce the resources from YAMLs and update.
+* Deletion: When the CR is deleted, all deployed resources should be deleted
+  via owner reference relations.
 
-In the `Apply` phase, there will be some processing phasse before calling `Create`
+In the `Apply` phase, there will be some processing phase before calling `Create`
 for the resources:
 
-1. Names of the resources should be converted to the following format
-  `<CR namespace>-<CR name>-<Name given in YAML>` to prevent name collisions
-  since most of the resources stack deploys are cluster-scoped.
-  So, the name that appears on YAML files are valid for referencing each other
+1. Names of the resources should be converted to the processing phase following
+  format `<CR name>-<Name given in YAML>` to prevent name collisions.
+  So, the `metadata.name` that appears on YAML files are valid for referencing each other
   while building the stack but in actual operation, do not expect exact names
   to appear.
   * This will require cross-resource references to be scanned and replaced with
@@ -278,6 +262,17 @@ for the resources:
 2. All resources will be labelled with `name`, `namespace` and `uid` of the stack's CR instance.
 3. If there is a high level configuration in `spec` to be applied, it will be. The
   mapping of that configuration field to each resource is coded in the controller.
+  
+The controller can scan the YAML files and create a map of resources, then go
+through each resource and change the cross-resource references if the referenced
+object does appear to be in the map of resources. This mechanism would require the types
+to be known and each kind to have a way to declare the `kind` and `apiVersion`
+of the resource that every reference field they expose can work with as well as
+which fields are actually references.
+
+In that setup, for each kind that the author adds, they have to add a function
+that will find the reference fields and change their values.
+ 
 
 ## Alternatives Considered
 
@@ -288,6 +283,10 @@ for the resources:
     environment by just creating a CR instance instead of having everything in
     local.
   * Stacks do a better job for declaring CRD dependencies and UI annotation metadata.
+* Using kustomize or Go templates could save us from adding a Go function for each
+  kind we add even though this'd limit the future addition abilities it'd could
+  be preferrable.
+  * **WILL ADD BEFORE MERGE: reasons I had in mind while preparing this initally and then forgot**
 
 [Dependency list]: https://github.com/crossplaneio/crossplane/blob/98e8520e2a2285cd6944fcd67fbef427299891e8/design/design-doc-stacks.md#stack-crd
 [UI annotations]: https://github.com/crossplaneio/crossplane/blob/5758662818fc1e840adbfbf1a9fb37b87c3d5a5c/design/one-pager-stack-ui-metadata.md
