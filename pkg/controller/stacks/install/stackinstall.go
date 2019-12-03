@@ -280,6 +280,8 @@ func (h *stackInstallHandler) delete(ctx context.Context) (reconcile.Result, err
 		return fail(ctx, h.kube, h.ext, err)
 	}
 
+	// TODO(displague) delete() should remove persona clusterroles
+
 	return reconcile.Result{}, nil
 }
 

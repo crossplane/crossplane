@@ -610,9 +610,9 @@ func TestCreateJobOutputObject(t *testing.T) {
 			},
 			stackInstaller: resource(),
 			job:            job(),
-			obj:            unstructuredObj(),
+			obj:            unstructuredObj(withUnstructuredObjLabels(wantLabels)),
 			want: want{
-				err: errors.Wrapf(errBoom, "failed to create object mytypes.samples.upbound.io from job output cool-stackinstall"),
+				err: errors.Wrapf(errors.Wrapf(errBoom, "failed to create clusterrole crossplane:ns:cool-namespace:admin for stackinstall cool-stackinstall"), "failed to create namespace persona clusterroles for stackinstall cool-stackinstall from job output cool-stackinstall"),
 				obj: unstructuredObj(withUnstructuredObjLabels(wantLabels)),
 			},
 		},
