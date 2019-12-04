@@ -1,0 +1,9 @@
+configurations:
+  - kustomizeconfig.yaml
+
+resources:
+  - internetgateway.yaml
+  - routetable.yaml
+  - securitygroup.yaml
+  - vpc.yaml
+  - subnet.yaml

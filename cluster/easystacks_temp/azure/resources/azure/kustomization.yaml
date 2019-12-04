@@ -1,0 +1,10 @@
+configurations:
+  - kustomizeconfig.yaml
+
+resources:
+  - cache
+  - compute
+  - database
+  - network
+  - provider.yaml
+  - resourcegroup.yaml

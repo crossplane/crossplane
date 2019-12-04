@@ -1,0 +1,9 @@
+# This file is used to define a custom transformer for our CRDs so that Kustomize
+# can change the cross-resource object references when the referred object's
+# name changes.
+# See https://github.com/kubernetes-sigs/kustomize/blob/master/examples/transformerconfigs/crd/README.md
+nameReference:
+  - kind: Provider
+    fieldSpecs:
+      - path: specTemplate/providerRef/name
+        kind: CloudMemoryInstanceClass

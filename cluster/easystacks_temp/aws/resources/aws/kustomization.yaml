@@ -1,0 +1,7 @@
+resources:
+  - cache
+  - compute
+  - database
+  - identity
+  - network
+  - provider.yaml

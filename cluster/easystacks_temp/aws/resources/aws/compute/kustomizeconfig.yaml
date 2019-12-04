@@ -1,0 +1,27 @@
+# This file is used to define a custom transformer for our CRDs so that Kustomize
+# can change the cross-resource object references when the referred object's
+# name changes.
+# See https://github.com/kubernetes-sigs/kustomize/blob/master/examples/transformerconfigs/crd/README.md
+nameReference:
+  - kind: Provider
+    fieldSpecs:
+      - path: specTemplate/providerRef/name
+        kind: EKSClusterClass
+  - kind: VPC
+    fieldSpecs:
+      - path: specTemplate/vpcIdRef/name
+        kind: EKSClusterClass
+  - kind: Subnet
+    fieldSpecs:
+      - path: specTemplate/subnetIdRefs/name
+        kind: EKSClusterClass
+  - kind: IAMRole
+    fieldSpecs:
+      - path: specTemplate/roleARNRef/name
+        kind: EKSClusterClass
+  - kind: SecurityGroup
+    fieldSpecs:
+      - path: specTemplate/securityGroupIdRefs/name
+        kind: EKSClusterClass
+      - path: specTemplate/workerNodes/clusterControlPlaneSecurityGroupRef/name
+        kind: EKSClusterClass

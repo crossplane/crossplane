@@ -1,0 +1,31 @@
+# This file is used to define a custom transformer for our CRDs so that Kustomize
+# can change the cross-resource object references when the referred object's
+# name changes.
+# See https://github.com/kubernetes-sigs/kustomize/blob/master/examples/transformerconfigs/crd/README.md
+nameReference:
+  - kind: Network
+    fieldSpecs:
+      - path: spec/name
+        kind: Network
+      - path: spec/networkRef/name
+        kind: Subnetwork
+      - path: spec/networkRef/name
+        kind: GlobalAddress
+      - path: specTemplate/networkRef/name
+        kind: GKEClusterClass
+  - kind: Subnetwork
+    fieldSpecs:
+      - path: spec/name
+        kind: Subnetwork
+      - path: specTemplate/subnetworkRef/name
+        kind: GKEClusterClass
+  - kind: Provider
+    fieldSpecs:
+      - path: spec/providerRef/name
+        kind: Network
+      - path: spec/providerRef/name
+        kind: Subnetwork
+      - path: spec/providerRef/name
+        kind: GlobalAddress
+      - path: specTemplate/providerRef/name
+        kind: GKEClusterClass

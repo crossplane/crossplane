@@ -1,0 +1,10 @@
+apiVersion: gcp.crossplane.io/v1alpha3
+kind: Provider
+metadata:
+  name: gcp-provider
+spec:
+  credentialsSecretRef:
+    key: credentials
+    name: gcp-account-creds
+    namespace: crossplane-system
+  projectID: crossplane-playground

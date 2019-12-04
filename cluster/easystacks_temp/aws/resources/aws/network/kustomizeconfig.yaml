@@ -1,0 +1,40 @@
+# This file is used to define a custom transformer for our CRDs so that Kustomize
+# can change the cross-resource object references when the referred object's
+# name changes.
+# See https://github.com/kubernetes-sigs/kustomize/blob/master/examples/transformerconfigs/crd/README.md
+nameReference:
+  - kind: Provider
+    fieldSpecs:
+      - path: spec/providerRef/name
+        kind: InternetGateway
+      - path: spec/providerRef/name
+        kind: RouteTable
+      - path: spec/providerRef/name
+        kind: SecurityGroup
+      - path: spec/providerRef/name
+        kind: Subnet
+      - path: spec/providerRef/name
+        kind: VPC
+  - kind: VPC
+    fieldSpecs:
+      - path: spec/vpcIdRef/name
+        kind: InternetGateway
+      - path: spec/vpcIdRef/name
+        kind: RouteTable
+      - path: spec/vpcIdRef/name
+        kind: SecurityGroup
+      - path: spec/vpcIdRef/name
+        kind: Subnet
+  - kind: InternetGateway
+    fieldSpecs:
+      - path: spec/routes/gatewayIdRef/name
+        kind: RouteTable
+  - kind: Subnet
+    fieldSpecs:
+      - path: spec/associations/subnetIdRef/name
+        kind: RouteTable
+  - kind: SecurityGroup
+    fieldSpecs:
+      - path: spec/groupName
+        kind: SecurityGroup
+

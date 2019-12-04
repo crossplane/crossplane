@@ -1,0 +1,19 @@
+---
+apiVersion: cache.azure.crossplane.io/v1beta1
+kind: RedisClass
+metadata:
+  name: redis
+specTemplate:
+  writeConnectionSecretsToNamespace: crossplane-system
+  forProvider:
+    resourceGroupNameRef:
+      name: resourcegroup
+    location: Central US
+    sku:
+      name: Basic
+      family: C
+      capacity: 0
+    enableNonSslPort: true
+  providerRef:
+    name: azure-provider
+  reclaimPolicy: Delete

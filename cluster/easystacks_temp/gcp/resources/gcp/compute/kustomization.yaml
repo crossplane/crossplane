@@ -1,0 +1,8 @@
+configurations:
+  - kustomizeconfig.yaml
+
+resources:
+  - globaladdress.yaml
+  - network.yaml
+  - subnetwork.yaml
+  - gkeclusterclass.yaml

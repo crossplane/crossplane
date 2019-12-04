@@ -1,0 +1,40 @@
+---
+apiVersion: database.aws.crossplane.io/v1beta1
+kind: RDSInstanceClass
+metadata:
+  name: mysql
+specTemplate:
+  writeConnectionSecretsToNamespace: crossplane-system
+  forProvider:
+    dbInstanceClass: db.t2.small
+    masterUsername: root
+    vpcSecurityGroupIDRefs:
+      - name: rds-security-group
+    dbSubnetGroupNameRef:
+      name: dbsubnetgroup
+    allocatedStorage: 20
+    engine: mysql
+    skipFinalSnapshotBeforeDeletion: true
+  providerRef:
+    name: aws-provider
+  reclaimPolicy: Delete
+---
+apiVersion: database.aws.crossplane.io/v1beta1
+kind: RDSInstanceClass
+metadata:
+  name: postgresql
+specTemplate:
+  writeConnectionSecretsToNamespace: crossplane-system
+  forProvider:
+    dbInstanceClass: db.t2.small
+    masterUsername: root
+    vpcSecurityGroupIDRefs:
+      - name: rds-security-group
+    dbSubnetGroupNameRef:
+      name: dbsubnetgroup
+    allocatedStorage: 20
+    engine: postgresql
+    skipFinalSnapshotBeforeDeletion: true
+  providerRef:
+    name: aws-provider
+  reclaimPolicy: Delete
