@@ -70,8 +70,8 @@ configurations and be able to manage those configuration sets on a higher level.
 
 It is important that the design puts forward:
 
-* A way for infrastructure owners to write their configuration sets with
-  reconciliation easier than writing a controller from scratch.
+* A base boilerplate tooling where creating a new configuration set that has a
+  controller is as easy as changing the YAML files.
 * An easy way for users to deploy a set of pre-defined configurations that has
   a controller which reconciles the set of the resources deployed.
 
@@ -131,28 +131,27 @@ are connected to each other in a private VPC, which what this specific configura
 stack does. Create the following:
 
 ```yaml
-# exact apiVersion is TBD.
-apiVersion: aws.configurationstacks.crossplane.io/v1alpha1
-kind: MinimalAWS
-metadata:
-  name: project-future
-  namespace: dev
-spec:
-  credentialsRef:
-    name: aws-credentials
-```
-
-Then I wait for `Synced` condition to become `true`. After it's done, all resources
-are deployed.
-```yaml
-# exact apiVersion is TBD.
 apiVersion: aws.configurationstacks.crossplane.io/v1alpha1
 kind: MinimalAWS
 metadata:
   name: small-infra
 spec:
-  providerRef:
-    name: aws-provider
+  credentialsSecretRef:
+    name: aws-credentials
+    namespace: crossplane-system
+```
+
+Then I wait for `Synced` condition to become `true`. After it's done, all resources
+are deployed.
+```yaml
+apiVersion: aws.configurationstacks.crossplane.io/v1alpha1
+kind: MinimalAWS
+metadata:
+  name: small-infra
+spec:
+  credentialsSecretRef:
+    name: aws-credentials
+    namespace: crossplane-system
 status:
   conditions:
   - lastTransitionTime: "2019-12-03T23:16:58Z"
@@ -167,6 +166,11 @@ apiVersion: database.aws.crossplane.io/v1beta1
 kind: RDSInstanceClass
 metadata:
   name: small-infra-mysql
+  ownerReferences:
+  - apiVersion: aws.configurationstacks.crossplane.io/v1alpha1
+    kind: MinimalAWS
+    name: small-infra
+    uid: 1ca16960-973b-4d58-a6fa-5696638ec631
   labels:
     "aws.configurationstacks.crossplane.io/name": small-infra
     "aws.configurationstacks.crossplane.io/uid": 1ca16960-973b-4d58-a6fa-5696638ec631
@@ -183,7 +187,7 @@ specTemplate:
     engine: mysql
     skipFinalSnapshotBeforeDeletion: true
   providerRef:
-    name: aws-provider
+    name: small-infra-aws-provider
   reclaimPolicy: Delete
 ```
 
@@ -192,101 +196,86 @@ have their own similar environment with resources that have different names.
 
 ## Technical Implementation
 
-### Metadata of The Stack
+Reconciliation will mainly consist of the following steps:
 
-[UI annotations] should be present to make it easy for frontend software to process
-the stack.
+1. Edit `kustomization.yaml` to look like the following:
 
-### Folder Structure
+```yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - gcp
 
-All directories containing base YAML files should be in a top-level directory
-of the repository named `resources` so that it's easier for others to fork & change.
+namePrefix: CRNAME-
+commonLabels:
+  "gcp.configurationstacks.crossplane.io/name": CRNAME
+  "gcp.configurationstacks.crossplane.io/uid": CRUID
+```
 
-Controller will scan this folder recursively to get all YAML files. So, the folder
-structure inside that `resources` directory won't matter to the controller but
-it's good to separate the folders cleanly so that it's easier to fork & change.
+2. Call `kustomize` to generate resource YAMLs.
+3. Read the stream of YAMLs from kustomize output and apply the following logics:
+   * Add `ownerReference` that refers to the CR that is being reconciled to all objects.
+   * Change the secret reference in the `Provider` resource.
+   * Other custom things you'd like to do...
+4. _Apply_ all resources. Set reconciliation condition to success if no error is
+   present.
 
-There are mainly 2 types of resources that configuration stacks will usually
-need to deploy: resource classes and managed resources. Under `resources` folder
-we can have 2 separate folders for each of those resource types: `classes` and
-`services`. Under these folders, resources should be in directories recursively
-named after their group and kind. An example folder structure:
+Note that if the CR has deletion timestamp, we do not reconcile at all, letting
+Kubernetes garbage collection take care of the deletion of the resources.
+
+All resource YAMLs will exist in the top directory called `resources`, which looks
+like the following:
 
 ```
 ├── resources
-│   ├── classes
+│   ├── gcp
 │   │   ├── cache
-│   │   │   └── replicationgroup.yaml
+│   │   │   ├── cloudmemorystoreinstance.yaml
+│   │   │   ├── kustomization.yaml
+│   │   │   └── kustomizeconfig.yaml
 │   │   ├── compute
-│   │   │   └── ekscluster.yaml
-│   │   └── database
-│   │       ├── rdsinstancemysql.yaml
-│   │       └── rdsinstancepostgresql.yaml
-│   └── services
-│       ├── database
-│       │   └── dbsubnetgroup.yaml
-│       ├── identity
-│       │   ├── iamrole.yaml
-│       │   └── iamrolepolicyattachment.yaml
-│       └── network
-│           ├── internetgateway.yaml
-│           ├── routetable.yaml
-│           ├── securitygroup.yaml
-│           ├── subnet.yaml
-│           └── vpc.yaml
+│   │   │   ├── gkeclusterclass.yaml
+│   │   │   ├── globaladdress.yaml
+│   │   │   ├── kustomization.yaml
+│   │   │   ├── kustomizeconfig.yaml
+│   │   │   ├── network.yaml
+│   │   │   └── subnetwork.yaml
+│   │   ├── database
+│   │   │   ├── cloudsqlinstancemysql.yaml
+│   │   │   ├── kustomization.yaml
+│   │   │   └── kustomizeconfig.yaml
+│   │   ├── kustomization.yaml
+│   │   ├── provider.yaml
+│   │   └── servicenetworking
+│   │       ├── connection.yaml
+│   │       ├── kustomization.yaml
+│   │       └── kustomizeconfig.yaml
+│   └── kustomization.yaml
 ```
+
+As you see, we follow `resources/{cloud provider}/{group}/{kind}.yaml` where all
+resources of same kind are present in the same YAML.
 
 Example above is a suggestion for stacks with one tier of configuration.
 There could also be cases where one configuration stack has the YAML files for
 different tiers and a `spec` allows to deploy one of them, in that case it'd make
-sense for developer to have a folder for each tier under `resources` folder.
+sense for developer to have a folder for each tier under `resources` folder. It's
+basically up to you to try various structures as long as kustomize is able to
+work through your structure.
 
-### Reconciliation
-
-There are mainly 3 responsibility of the controller:
-* Creation: Generate the resources from YAMLs and create them.
-* Apply: Continuously reproduce the resources from YAMLs and update.
-* Deletion: When the CR is deleted, all deployed resources should be deleted
-  via owner reference relations.
-
-In the `Apply` phase, there will be some processing phase before calling `Create`
-for the resources:
-
-1. Names of the resources should be converted to the processing phase following
-  format `<CR name>-<Name given in YAML>` to prevent name collisions.
-  So, the `metadata.name` that appears on YAML files are valid for referencing each other
-  while building the stack but in actual operation, do not expect exact names
-  to appear.
-  * This will require cross-resource references to be scanned and replaced with
-    the new name by the stack controller.
-2. All resources will be labelled with `name`, `namespace` and `uid` of the stack's CR instance.
-3. If there is a high level configuration in `spec` to be applied, it will be. The
-  mapping of that configuration field to each resource is coded in the controller.
-  
-The controller can scan the YAML files and create a map of resources, then go
-through each resource and change the cross-resource references if the referenced
-object does appear to be in the map of resources. This mechanism would require the types
-to be known and each kind to have a way to declare the `kind` and `apiVersion`
-of the resource that every reference field they expose can work with as well as
-which fields are actually references.
-
-In that setup, for each kind that the author adds, they have to add a function
-that will find the reference fields and change their values.
+[UI annotations] should be present to make it easy for frontend software to process
+the stack.
  
 
 ## Alternatives Considered
 
-* Helm chart or kustomize.
+* Helm chart or kustomize directly.
   * No reconciliation to change a top level parameter.
   * No go-to place to see the readiness of the whole environment deployed.
   * Stacks provide a better interface to users by allowing to have the same
     environment by just creating a CR instance instead of having everything in
     local.
   * Stacks do a better job for declaring CRD dependencies and UI annotation metadata.
-* Using kustomize or Go templates could save us from adding a Go function for each
-  kind we add even though this'd limit the future addition abilities it'd could
-  be preferrable.
-  * **WILL ADD BEFORE MERGE: reasons I had in mind while preparing this initally and then forgot**
 
 [Dependency list]: https://github.com/crossplaneio/crossplane/blob/98e8520e2a2285cd6944fcd67fbef427299891e8/design/design-doc-stacks.md#stack-crd
 [UI annotations]: https://github.com/crossplaneio/crossplane/blob/5758662818fc1e840adbfbf1a9fb37b87c3d5a5c/design/one-pager-stack-ui-metadata.md
