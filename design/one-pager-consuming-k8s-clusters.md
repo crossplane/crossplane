@@ -72,21 +72,25 @@ This proposal can be separated into three main categories:
 
 The purpose of the `KubernetesTarget` resource is to effectively "publish"
 Kubernetes clusters for usage in a namespace. It is namespace-scoped and can
-only reference a cluster-scoped Kubernetes cluster managed resource or a
-namespace-scoped `Secret` that lives in the same namespace as the
-`KubernetesTarget`. The creation of a `KubernetesTarget` resource that
-references a Kubernetes cluster managed resource will be watched by controllers
-in stacks that provide the referenced resource type (i.e. a specific controller
-must be implemented in each stack that wishes to provide a Kubernetes cluster
-managed resource that `KubernetesApplication` resources can be scheduled to).
-These controllers will check to see if the `KubernetesTarget` references their
-cluster type and, if so, will propagate the cluster's connection `Secret` to the
-namespace of the `KubernetesTarget`. A local object reference to the `Secret`
-will then be set on the `KubernetesTarget` object. If a `KubernetesTarget` is
-created with a reference to a local `Secret`, it will be ignored by these
-controllers as the required `Secret` must already be present in the namespace.
-An example of a `KubernetesTarget` in namespace `my-app-team` that is
-referencing a GKE cluster managed resource could look as follows:
+only reference a cluster-scoped Kubernetes cluster managed resource in its
+`clusterRef` field, which will result in the setting of its
+`connectionSecretRef` field, or a local namespace-scoped `Secret` directly in
+the `connectionSecretRef` field. If both the `clusterRef` field and
+`connectionSecretRef` field are populated at time of creation, the
+`connectionSecretRef` field will take precedence. The creation of a
+`KubernetesTarget` resources will be watched by controllers in stacks that
+provide Kubernetes cluster managed resources (i.e. a specific controller must be
+implemented in each stack that wishes to provide a Kubernetes cluster managed
+resource that `KubernetesApplication` resources can be scheduled to). These
+controllers will check to see if the `KubernetesTarget` references their cluster
+type n its `clusterRef` and, if so, will propagate the cluster's connection
+`Secret` to the namespace of the `KubernetesTarget`. A local object reference to
+the `Secret` will then be set on the `KubernetesTarget` object in the
+`connectionSecretRef` field. If a `KubernetesTarget` is created with a reference
+to a local `Secret`, it will be ignored by these controllers as the required
+`Secret` must already be present in the namespace. An example of a
+`KubernetesTarget` in namespace `my-app-team` that is referencing a GKE cluster
+managed resource could look as follows:
 
 ```yaml
 apiVersion: workload.crossplane.io/v1alpha1
@@ -167,7 +171,7 @@ their namespace that references a `GKEClusterClass`, that application team
 should be able to then schedule `KubernetesApplication` resources to that
 cluster without requiring the permissions to create a `KubernetesTarget` (which
 would allow them to enable to consumption of any Kubernetes cluster managed
-resource) or asking the infrastructure owner to cerate a `KubernetesTarget` for
+resource) or asking the infrastructure owner to create a `KubernetesTarget` for
 them (which would break the self-service model).
 
 To enable this functionality, a single controller should be implemented in core
