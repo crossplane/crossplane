@@ -5,9 +5,6 @@
 
 ## Terminology
 
-* Kubernetes `Provider`: a cluster-scoped custom resource that points to any
-  Kubernetes `Secret` that contains connection information for a Kubernetes
-  cluster.
 * Kubernetes cluster **managed resource**: a cluster-scoped custom resource that
   represents the existence and configuration of a specific cloud provider's
   managed Kubernetes service (e.g. GKE, AKS, EKS).
@@ -63,29 +60,33 @@ referred to as a "Bring Your Own Cluster" scenario.
 
 ## Proposal
 
-This proposal can be separated into two main categories:
+This proposal can be separated into three main categories:
 1. The implementation of a new `KubernetesTarget` custom resource and
-   corresponding controller.
+   corresponding controllers.
 1. The modification of the scheduling behavior for `KubernetesApplication`.
+1. The implementation of a controller that automatically creates a
+   `KubernetesTarget` resource when a `KubernetesClaim` is bound to a Kubernetes
+   cluster managed resource. 
 
 ### KubernetesTarget
 
 The purpose of the `KubernetesTarget` resource is to effectively "publish"
 Kubernetes clusters for usage in a namespace. It is namespace-scoped and can
-only reference Kubernetes cluster managed resources or the Kubernetes `Provider`
-type, both of which are cluster-scoped. The creation of a `KubernetesTarget`
-resource in a namespace will be watched by a single new secret propagation
-controller, which will get the `Secret` referenced by either the Kubernetes
-cluster managed resource or Kubernetes `Provider` and propagate it to the
+only reference a cluster-scoped Kubernetes cluster managed resource or a
+namespace-scoped `Secret` that lives in the same namespace as the
+`KubernetesTarget`. The creation of a `KubernetesTarget` resource that
+references a Kubernetes cluster managed resource will be watched by controllers
+in stacks that provide the referenced resource type (i.e. a specific controller
+must be implemented in each stack that wishes to provide a Kubernetes cluster
+managed resource that `KubernetesApplication` resources can be scheduled to).
+These controllers will check to see if the `KubernetesTarget` references their
+cluster type and, if so, will propagate the cluster's connection `Secret` to the
 namespace of the `KubernetesTarget`. A local object reference to the `Secret`
-will be set on the `KubernetesTarget` object. The reasoning for referencing a
-`Provider` or Kubernetes cluster managed resource instead of a `Secret` object
-directly is to eliminate any cross-namespace references and to be explicit about
-the purpose of a `KubernetesTarget`. `Secret` objects are used for a variety of
-purposes in Kubernetes, and we are only interested in `Secret` objects that
-include Kubernetes cluster connection information in this case. An example of a
-`KubernetesTarget` in namespace `my-app-team` that is referencing a GKE cluster
-managed resource could look as follows:
+will then be set on the `KubernetesTarget` object. If a `KubernetesTarget` is
+created with a reference to a local `Secret`, it will be ignored by these
+controllers as the required `Secret` must already be present in the namespace.
+An example of a `KubernetesTarget` in namespace `my-app-team` that is
+referencing a GKE cluster managed resource could look as follows:
 
 ```yaml
 apiVersion: workload.crossplane.io/v1alpha1
@@ -95,11 +96,16 @@ metadata:
   name: enable-dev-k8s
   labels:
     env: dev
-clusterRef:
-  kind: GKECluster
-  apiVersion: compute.gcp.crossplane.io/v1alpha3
-  name: dev-k8s-cluster
+spec:
+  clusterRef:
+    kind: GKECluster
+    apiVersion: compute.gcp.crossplane.io/v1alpha3
+    name: dev-k8s-cluster
 ```
+
+Upon creation, the connection `Secret` associated with `dev-k8s-cluster` will be
+propagated to the `my-app-team` namespace and a reference to it will be set in
+the `connectionSecretRef` field of the `KubernetesTarget`.
 
 Note that `kind` and `apiVersion` are required for a `KubernetesTarget` that
 utilizes the `clusterRef` field because Crossplane cannot be knowledgeable of
@@ -107,7 +113,7 @@ every Kubernetes cluster managed resource type that may have been installed into
 the cluster.
 
 An example of a `KubernetesTarget` in namespace `my-app-team` that is
-referencing a Kubernetes `Provider` could look as follows:
+referencing a local `Secret` directly could look as follows:
 
 ```yaml
 apiVersion: workload.crossplane.io/v1alpha1
@@ -117,15 +123,17 @@ metadata:
   name: enable-dev-k8s
   labels:
     env: dev
-providerRef:
-  name: onprem-dev-k8s-cluster
+spec:
+  connectionSecretRef:
+    name: my-k8s-connection
 ```
 
-Because `KubernetesTarget` resources can point to the Kubernetes `Provider`
-resource type, any existing Kubernetes cluster that was not provisioned using
-Crossplane (including on-prem clusters) can now be targeted for provisioning
-workloads. The name is the only information needed for `providerRef` due to the
-fact that Crossplane is knowledgeable of the `Provider` kind.
+Because `KubernetesTarget` resources can point directly to a local `Secret`, any
+existing Kubernetes cluster that was not provisioned using Crossplane (including
+on-prem clusters) can now be targeted for provisioning workloads. To enable this
+functionality, a user would manually create a `Secret` containing the
+`kubeconfig` information for their cluster in the `my-app-team` namespace, then
+create a `KubernetesTarget` that references it.
 
 ### KubernetesApplication Scheduling
 
@@ -133,19 +141,47 @@ As mentioned above, `KubernetesApplication` resources are currently scheduled to
 `KubernetesCluster` claims in their namespace. With the introduction of the
 `KubernetesTarget`, `KubernetesApplication` resources can still be scheduled via
 label selectors, but will now be scheduled to a `KubernetesTarget` in their
-namespace, then use its `secretRef` to get the `Secret` that was propagated to
-the namespace from the Kubernetes cluster managed resource or Kubernetes
-`Provider` object reference. Importantly, for a `KubernetesApplication` to be
-able to be scheduled to a Kubernetes cluster, a `KubernetesTarget` that points
-to that cluster managed resource or `Provider` *must* be present in the
-namespace of the `KubernetesApplication`.
+namespace, then use its `connectionSecretRef` to get the `Secret` that was
+propagated to the namespace from the Kubernetes cluster managed resource or
+already existed due to manual creation. Importantly, for a
+`KubernetesApplication` to be able to be scheduled to a Kubernetes cluster, a
+`KubernetesTarget` that points to that cluster managed resource or local
+`Secret` *must* be present in the namespace of the `KubernetesApplication`.
 
 This change isolates the actions of *provisioning* (`KubernetesCluster` or
 cloud-specific managed resource), *publishing* (`KubernetesTarget`), and
 *consuming* (`KubernetesApplication`) Kubernetes clusters, actions which may be
 executed by [almost disjoint] sets of users. Having these actions represented by
 separate custom resources allows for more granular [RBAC] permissions around
-Kubernetes cluster usage in Crossplane. 
+Kubernetes cluster usage in Crossplane.
+
+### Automatic KubernetesTarget Creation Controller
+
+Because the ability to *publish* a Kubernetes cluster provides immense power in
+a Crossplane environment, it is desirable for Kubernetes cluster managed
+resources to be able to be consumed in the namespace that they are claimed
+without a user requiring the ability to create a `KubernetesTarget`. For
+instance, if an infrastructure owner wants to allow for an application team to
+provision some clusters dynamically by creating a `KubernetesCluster` claim in
+their namespace that references a `GKEClusterClass`, that application team
+should be able to then schedule `KubernetesApplication` resources to that
+cluster without requiring the permissions to create a `KubernetesTarget` (which
+would allow them to enable to consumption of any Kubernetes cluster managed
+resource) or asking the infrastructure owner to cerate a `KubernetesTarget` for
+them (which would break the self-service model).
+
+To enable this functionality, a single controller should be implemented in core
+Crossplane that watches for the creation of `KubernetesCluster` claim resources
+and automatically creates a `KubernetesTarget` with the `connectionSecretRef`
+set to the connection `Secret` that was propagated to the namespace.
+Importantly, this controller should also clean up the `KubernetesTarget` when
+the `KubernetesCluster` (and corresponding) `Secret` are deleted. This can be
+accomplished by setting an `ownerReference` to the `KubernetesCluster` claim on
+the `KubernetesTarget`. In addition, because this `KubernetesTarget` resource
+may be scheduled to by a `KubernetesApplication` using labels, any labels that
+are present on the `KubernetesCluster` claim should be propagated to the
+`KubernetesTarget` resource and the name of the resource should match that of
+the claim.
 
 ### User Workflows
 
@@ -161,8 +197,9 @@ a variety of use-cases.
 1. An application owner asks for an environment to deploy their application.
 1. Infrastructure owner creates a new namespace and a `KubernetesTarget` that
    points to the `dev` cluster.
-1. Application owner provisions a `KubernetesApplication` with labels that
-   select the `KubernetesTarget` referencing the `dev` cluster for provisioning.
+1. Application owner provisions a `KubernetesApplication` in that namespace with
+   labels that select the `KubernetesTarget` referencing the `dev` cluster for
+   provisioning.
 1. When ready for testing, the application owner requests access to the `stage`
    cluster, which the infrastructure owner then "publishes" by creating another
    `KubernetesTarget` in the namespace that points to the `stage` cluster.
@@ -182,9 +219,10 @@ owner and application owner.
 1. Infrastructure owner creates a new namespace.
 1. Application owner creates a `KubernetesCluster` claim in the namespace that
    references the `dev` `GKEClusterClass` and provisions a new Kubernetes
-   cluster.
-1. Application owner creates a `KubernetesTarget` to point at the newly
-   provisioned `GKECluster`.
+   cluster. This causes the creation of a `KubernetesTarget` in the namespace
+   when the connection `KubernetesCluster` claim becomes `Bound`.
+1. Application owner provisions a `KubernetesApplication` in that namespace with
+   labels that select the automatically created `KubernetesTarget`.
 1. When ready for testing, the application owner requests access to the `stage`
    cluster, which the infrastructure owner then "publishes" by creating a
    `KubernetesTarget` in the namespace that points to the `stage` cluster.
@@ -205,43 +243,33 @@ infrastructure owner (i.e. "clusters as cattle").
    Application owners are given permissions to create clusters using these
    classes as they see fit.
 1. There is one particular set of workloads that is required to be run in an
-   existing on-premises cluster (for some important reason). The infrastructure
-   owner creates a Kubernetes `Secret` with connection information to that
-   cluster in an infrastructure namespace (secrets are namespace-scoped). They
-   then create a cluster-scoped Kubernetes `Provider` that references the
-   `Secret`.
+   existing on-premises cluster (for some important reason).
 1. Application owner says that they need to run a sensitive workload on that
    cluster. Infrastructure owner creates a new namespace called
-   `super-secret-workloads` and creates a `KubernetesTarget` in that namespace
-   that references the previously created Kubernetes `Provider`.
+   `super-secret-workloads` and creates a `Secret` with the on-prem cluster's
+   `kubeconfig` information. They also create a `KubernetesTarget` in that
+   namespace that references the `Secret`.
 1. Application owner provisions a `KubernetesApplication` with labels that
    select that `KubernetesTarget` for provisioning.
 
-This example shows the power of this model, but also one of the notable
-shortcomings: if a user can publish clusters to a namespace with a
-`KubernetesTarget`, then they can consume any cluster. For the application
-owners that are doing self-service provisioning in this scenario, they will
-likely need to be able to create `KubernetesTarget` resources for their
-dynamically provisioned Kubernetes cluster managed resources. However, if they
-can do so, they could just as easily create a `KubernetesTarget` for the
-Kubernetes `Provider` that is only to be used for sensitive workloads. While it
-would be nice to restrict the clusters that could be published by users with the
-ability to create `KubernetesTarget` resources, there is not an immediately
-clear and elegant way to do so. It could be argued that only trusted users
-should have this permission level anyway, so it may be less of an issue than
-expressed here. Nevertheless, a potential solution is outlined
-[below](#future-considerations).
+This example shows the power of this model, as users are now able to consume
+clusters that were provisioned with Crossplane as well as those that may be
+pre-existing or cannot be managed by Crossplane.
 
 ## Technical Implementation
 
 The implementation of this proposal is relatively lightweight and requires
 minimal churn on any existing exposed APIs. The first step would be implementing
-the `KubernetesTarget` type in [core Crossplane]. In addition to the creation of
-the custom resource, a new controller would also be required to watch
-`KubernetesTarget` object creation and propagate `Secret` objects to its
-namespace as described above. This controller should use [predicates] to only
-reconcile `KubernetesTarget` objects that have *one* of either a `clusterRef`
-and `providerRef`. 
+the `KubernetesTarget` type in [core Crossplane]. As mentioned above, in
+addition to the creation of the custom resource, a new controller would also be
+required in each stack to watch `KubernetesTarget` object creation and propagate
+`Secret` objects to its namespace if its `clusterRef` references a Kubernetes
+cluster managed resource type supplied by that stack. These controllers should
+use [predicates] to only reconcile `KubernetesTarget` objects that reference
+their resource type and do not already have a `connectionSecretRef` set, and
+should refuse to propagate a `Secret` if the `KubernetesTarget` references a
+managed resource that is not `Bound`. The majority of this logic can be shared
+across controllers by adding a new reconciler to [crossplane-runtime].
 
 The next step would be to modify the `KubernetesApplication` [scheduling
 controller] to list `KubernetesTarget` resources in the namespace that match
@@ -254,33 +282,29 @@ referencing a `KubernetesTarget` resource with a reference to a local `Secret`
 with connection information. Because a `KubernetesApplication` is now being
 scheduled to something other than a `KubernetesCluster` claim (and may be
 scheduled to other resource types in the future), updating the `clusterRef`
-field to be named `targetRef` would be more clear. This is the only API change
-proposed by this design and will result in the increment of the
-`KubernetesApplication` `apiVersion` from `v1alpha1` to `v1alpha2`.
+field to be named `targetRef` and `clusterSelector` to `targetSelector` would be
+more clear. This is the only API change proposed by this design and will result
+in the increment of the `KubernetesApplication` `apiVersion` from `v1alpha1` to
+`v1alpha2`.
+
+Lastly, a single controller must be added to core Crossplane that watches for
+the creation of `KubernetesCluster` claims and automatically creates a
+`KubernetesTarget` resource in the namespace when the `KubernetesCluster` claim
+becomes `Bound`. As mentioned above, the created `KubernetesTarget` should have
+an `ownerReference` to the `KubernetesCluster` claim to ensure it is cleaned up
+by [garbage collection] when the claim is deleted.
 
 ## Future Considerations
 
-One feature that would eliminate a step for self-service dynamic cluster
-provisioning and also fix the issue described above of users with permissions to
-publish *a* cluster (i.e. create `KubernetesTarget` resources) being able to
-publish *any* cluster would be to automatically create a `KubernetesTarget` as a
-side effect for creating a `KubernetesCluster` claim. This could be implemented
-as an "opt-in feature" by adding a `publishTarget` field on the
-`KubernetesCluster` claim. In scenario 3 [above](#user-workflows), this would
-mean that application owners would only need permissions to create
-`KubernetesCluster` claims, and thus only be able to consume their dynamically
-provisioned clusters because a `KubernetesTarget` is created by the controller
-automatically. For clusters created by the infrastructure owner, the claims
-could just be created in a infrastructure-specific namespace as to not
-accidentally publish a cluster to an application team namespace. Importantly,
-all Kubernetes cluster managed resources created by an infrastructure owner in
-this scenario, whether provisioned statically or dynamically, should be claimed
-immediately such that application owners with permissions to create
-`KubernetesCluster` claims are not able to use a cluster that they are not
-intended to. Implementation of this functionality would increase the scope of
-this design to include implementing a new claim controller exclusively for
-`KubernetesCluster` claims, so it has been deferred to future implementation for
-the time being.
+Because the scheduling of `KubernetesApplication` resources is now isolated to
+target the `KubernetesTarget` resource, more intelligent scheduling can be
+enabled without touching other parts of the Crossplane ecosystem. Previously, a
+`KubernetesCluster` claim was used for claiming, consuming, and dynamically
+provisioning Kubernetes cluster resources so changes to the the API type related
+to scheduling (i.e. consuming) could unintentionally affect those other
+capabilities as well. Potential future scheduling improvements could involve
+price, latency, and geographic optimization by surfacing additional fields or
+labels on the `KubernetesTarget` type.
 
 <!-- Named Links -->
 [almost disjoint]: https://en.wikipedia.org/wiki/Almost_disjoint_sets
@@ -289,3 +313,5 @@ the time being.
 [scheduling controller]: https://github.com/crossplaneio/crossplane/blob/2cab9826a1d5088a87b5d24693336d228279a3a7/pkg/controller/workload/kubernetes/scheduler/scheduler.go#L57
 [remote cluster connection information]: https://github.com/crossplaneio/crossplane/blob/2cab9826a1d5088a87b5d24693336d228279a3a7/pkg/controller/workload/kubernetes/resource/resource.go#L401
 [predicates]: https://godoc.org/sigs.k8s.io/controller-runtime/pkg/predicate
+[crossplane-runtime]: https://github.com/crossplaneio/crossplane-runtime
+[garbage collection]: https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/
