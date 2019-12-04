@@ -349,13 +349,13 @@ The verbs supported in these roles(admin,edit,view) will model behavior based on
 | crossplane-env-edit | Edit: ClusterStacks, CustomResource types installed by Cluster Scoped Stacks |
 | crossplane-env-view | View: CustomResource types installed by Cluster Scoped Stacks, Not permitted: secrets |
 
-We will provide a convenience group - `crossplane:master` - that binds to `crossplane-admin` with a
+We will provide a convenience group - `crossplane:masters` - that binds to `crossplane-admin` with a
  ClusterRoleBinding. This mirrors Kubernetes functionality for cluster-admin and system:master. At install time you will
  then be able to impersonate a group that is bound to crossplane-admin.
 
 Example running a command as crossplane-admin
 ```
-kubectl {any crossplane-admin operation} --as-group=crossplane:master
+kubectl {any crossplane-admin operation} --as-group=crossplane:masters
 ```
 
 For discoverability of the roles for the environment we will add the following labels:
