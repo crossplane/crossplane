@@ -210,8 +210,12 @@ the following would create a basic CRD in the appropriate folder, so
 that it becomes part of the stack:
 
 ```
-kubectl crossplane stack crd init WordpressInstance wordpressinstances wordpress.samples.stacks.crossplane.io
+kubectl crossplane stack crd init WordpressInstance wordpress.samples.stacks.crossplane.io
 ```
+
+The command will generate a reasonable version (such as `v1alpha1`), and
+sensible list, plural, and singular names from the input; the generated
+values can be adjusted by the user in the CRD file.
 
 There will also be a convenience flag in the `stack init` command so
 that people starting from scratch can initialize the stack and the first
@@ -220,9 +224,11 @@ CRD with a single command:
 ```
 $ kubectl crossplane stack init --template mygroup/mystackname --init-crd
 > CRD name: WordpressInstance
-> CRD plural: wordpressinstances
-> CRD subdomain: wordpress.samples.stacks.crossplane.io
+> CRD api group: wordpress.samples.stacks.crossplane.io
 ```
+
+In the future, we will likely do more work in the are of making CRDs and
+their schemas simpler to write.
 
 ### Building and publishing
 
