@@ -350,9 +350,8 @@ behaviors:
 The `stack.yaml` should be in the build root of the repository. For most
 single-stack repositories, this means the root of the repository.
 
-For some realistic samples, see the [helm engine
-example][helm-engine-example] or the [quick start
-example][quick-start-example] in the template stack experience
+For a realistic sample for a complete user scenario, see the [quick
+start example][quick-start-example] in the template stack experience
 repository.
 
 ### Specifying default values
@@ -398,28 +397,67 @@ For the full example, see the sample in the
 
 The imagined implementation for how objects sent to the stack for
 rendering become resources is that the object's fields become the input
-for the template rendered by the controller. For more details, see the
-[detailed examples](https://github.com/suskin/template-stack-experience)
-or the [design document about the
+for the template rendered by the controller.
+
+For example, given this object as input:
+
+```yaml
+apiVersion: wordpress.samples.stacks.crossplane.io/v1alpha1
+kind: WordpressInstance
+metadata:
+  name: "my-wordpress-app-from-helm2"
+  namespace: dev
+spec:
+  engineVersion: "8.0"
+```
+
+The `engineVersion` field would be available to the templating engine
+which was being used, and would have a value of `8.0`. This means that
+if the engine being used were helm, the behavior would be equivalent to
+if there were a `values.yaml` passed in which looked like this:
+
+```yaml
+engineVersion: "8.0"
+```
+
+For the complete example, see the [quick start
+example][quick-start-example] in the template stack experience
+repository. The snippet was taken from the part of the example where the
+app stack is used.
+
+For more details, see the [design document about the
 internals](https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-template-stacks.md).
 
 ### Templating/configuration engine
 
 Template stacks will not be opinionated about which templating engine is
 used. We plan to support multiple configuration engines. The engine will
-be configurable by setting values in the `stack.yaml`.
+be configurable by setting values in the `stack.yaml`. Here's an example
+of a snippet from a `stack.yaml` which specifies a particular engine:
 
-For some realistic examples of what a stack would look like when it uses
-different engines, see the [quick start example][quick-start-example].
-There are also some more details in the [stack yaml
-section](#the-stackyaml), and in the [helm charts
-section](#helm-charts).
+```yaml
+behaviors:
+  engine:
+    type: kustomize
+```
+
+In some cases, the engine configuration line may be optional; the system
+may be able to infer the engine based on the structure of the stack. For
+example, if no engine is specified, and a `kustomization.yaml` is found,
+the engine could be inferred to be kustomize.
+
+For a more complete example of a user scenario, including usage of
+multiple different engines, see the [quick start
+example][quick-start-example]. There are also some more details in the
+[stack yaml section of this document](#the-stackyaml), and in the [helm
+charts section](#helm-charts).
 
 ### Lifecycle hooks
 
 We expect to eventually support lifecycle hooks. See the [speculative
 design in the template stacks experience repo](https://github.com/suskin/template-stack-experience/tree/master/wordpress-workload/go-templates/lifecycle-hook)
-for more details about what that could look like.
+for more details about what that could look like. Lifecycle hooks are
+out of the scope of this document, and will be revisited in the future.
 
 ### Internal representation of templates
 
@@ -433,25 +471,12 @@ implementation](https://github.com/crossplaneio/crossplane/blob/master/design/on
 
 ## Example use-cases
 
-See the [Template Stack
-Experience](https://github.com/suskin/template-stack-experience) code
-examples for some realistic examples of how different use-cases work
-with a realistic workload. For a coherent user scenario, see the [quick
-start example](https://github.com/suskin/template-stack-experience/tree/master/wordpress-workload/quick-start).
+For a coherent user scenario, see the [quick start
+example][quick-start-example].
 
-Examples covered by the repository mostly use go templates as the
-templating engine. The following cases are covered by the examples:
-
-* No variables at all in a set of configurations.
-* Variables in configurations with default variable values.
-* Variables in configurations, with values specified by users when a
-  render is requested.
-* Resource packs.
-* Multiple CRDs defined in a single Stack.
-* Multiple rendered variants of a given configuration.
-* Composing configuration using multiple Stacks.
-* A user scenario of setting up cloud provider resources and deploying
-  an application bundled as a stack.
+The scenario shows what it might look like for a user to set up an
+application and its infrastructure from scratch using Crossplane and
+Template Stacks. Multiple configuration engines are shown.
 
 ### Helm charts
 
@@ -461,7 +486,7 @@ chart][helm-engine-example], these steps could be followed:
 1. Create and initialize a template stack project, with a helm flag:
    `kubectl crossplane stack init --template`.
 2. Create a CRD: `kubectl crossplane stack crd init WordpressInstance
-   wordpressinstances wordpress.samples.stacks.crossplane.io`
+   wordpress.samples.stacks.crossplane.io`
 3. Put the chart's contents into the templates folder.
 4. Create a `stack.yaml` in the root of the repostory, and configure it
    to use the templates for the created CRD.
@@ -475,8 +500,7 @@ by specifying fields on the render request object.
 
 This use-case will probably need additional thought if we want to
 support all permutations of helm chart. For more realistic and complete
-examples, see the [helm engine example][helm-engine-example] and the
-helm variation of the app stack in the [quick start
+examples, see the helm variation of the app stack in the [quick start
 example][quick-start-example] in the template stack experience
 repository.
 
@@ -491,5 +515,5 @@ repository.
 
 <!-- Reference-style links -->
 [kubernetes-default-values]: https://kubernetes.io/docs/tasks/access-kubernetes-api/custom-resources/custom-resource-definitions/#defaulting
-[helm-engine-example]: https://github.com/suskin/template-stack-experience/tree/master/wordpress-workload/go-templates/helm-engine
+[helm-engine-example]: https://github.com/suskin/template-stack-experience/tree/master/wordpress-workload/quick-start/app-stack/helm2
 [quick-start-example]: https://github.com/suskin/template-stack-experience/tree/master/wordpress-workload/quick-start
