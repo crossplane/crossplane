@@ -115,14 +115,13 @@ Experience, there are many things which are out of scope. These include:
   evolve over time as people use it and gain insights about how to
   improve it.
 * Dynamic name prefixing or suffixing.
-* Support for Kustomize / overlays.
 * Automatically wrapping application configurations as Crossplane
   workloads.
 * Automatically creating resources (other than CRDs) when a stack is
   installed.
 * Updating output; the high-level idea of re-rendering and letting the
   other stacks take care of the updates seems close enough for now.
-* Updating stack. This should happen as part of the other thinking
+* Updating a stack. This should happen as part of the other thinking
   about versioning and how to update a stack's version.
 * Updating the stack manager / shared controller. Eventually we'll
   need a controller version, and knowing that seems good enough for
