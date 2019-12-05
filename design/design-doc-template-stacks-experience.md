@@ -268,19 +268,16 @@ This installs the stack from the `myorg/mystack` image, using the name `mystack`
 
 #### Create
 
-Instantiation is also very similar to any stack:
+Instantiation is also very similar to creating any object. Here is some
+sample yaml:
 
-```
-cat > my-instance.yaml <<EOF
+```yaml
 apiVersion: thing.samples.stacks.crossplane.io/v1alpha1
 kind: ThingInstance
 metadata:
   name: thinginstance-sample
 spec:
   myfield: myvalue
-EOF
-
-kubectl apply -f my-instance.yaml
 ```
 
 The difference is that underneath, the ThingInstance will be used as the
@@ -290,19 +287,6 @@ input for rendering a template.
 
 When the ThingInstance is deleted, the corresponding resources will also
 be deleted. This is the same behavior as in any stack.
-
-```
-cat > my-instance.yaml <<EOF
-apiVersion: thing.samples.stacks.crossplane.io/v1alpha1
-kind: ThingInstance
-metadata:
-  name: thinginstance-sample
-spec:
-  myfield: myvalue
-EOF
-
-kubectl delete -f my-instance.yaml
-```
 
 The instance is also deleted if the stack is uninstalled.
 
@@ -335,8 +319,7 @@ A Stack author must create a `stack.yaml` in order to configure how
 templates are rendered in response to a render request. Here's an
 example, with comments explaining the directives:
 
-```
-cat > stack.yaml <<EOF
+```yaml
 # This field configures which templates are rendered in response
 # to a given object type. An instance of the object type is
 # considered to be a "render request".
@@ -362,7 +345,6 @@ behaviors:
         # Post create is triggered after an instance is changed
         postUpdate:
           - directory: wordpress
-EOF
 ```
 
 The `stack.yaml` should be in the build root of the repository. For most
