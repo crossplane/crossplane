@@ -7,9 +7,9 @@
 ## Outline
 
 * [Background](#background)
+* [Terms](#terms)
 * [Goals](#goals)
 * [Non-goals](#non-goals)
-* [Terms](#terms)
 * [How to read this document](#how-to-read-this-document)
 * [Design](#design)
   * [Writing](#writing)
@@ -83,6 +83,22 @@ examples](https://github.com/suskin/template-stack-experience) of what
 writing and interacting with a Template Stack may look like for
 different use-cases.
 
+## Terms
+
+* A **render request** is an instance of a resource Kind recognized by
+  the Template Stack (such as a Kind defined by a custom resource). It
+  tells the stack that some configuration is desired.
+* A **template** is a chunk of configuration which will be reused by
+  the Template Stack to create configuration.
+* A **render** is the configuration which is the output of the stack's
+  controller in response to a render request. The configuration is
+  created by processing the stack's input templates using the desired
+  engine, and using the render request for context.
+* **Behaviors** are the configuration settings for a Template Stack.
+  For example, so that its controller knows how to respond to a render
+  request of a known type.
+
+
 ## Goals
 
 The goal of this document is to propose and discuss what the developer
@@ -126,30 +142,15 @@ Experience, there are many things which are out of scope. These include:
 * Updating the stack manager / shared controller. Eventually we'll
   need a controller version, and knowing that seems good enough for
   now.
-* Setting status in the CRD. This would be nice to have, but it seems
-  independent from the other stuff we're working on. It duplicates
-  information already in the system, so it's not a topmost priority at
-  this time.
+* Setting status in the render request. This would be nice to have, but
+  it seems independent from the other stuff we're working on. It
+  duplicates information already in the system, so it's not a topmost
+  priority at this time.
 
 Also out of scope is the internal representation of configuration, and
 the implementation of the stack manager. See the [complementary
 internals-oriented Template Stack design doc](https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-template-stacks.md)
 for those details.
-
-## Terms
-
-* A **render request** is an instance of a CRD recognized by the
-  Template Stack. It tells the stack that some configuration is
-  desired.
-* A **template** is a chunk of configuration which will be reused by
-  the Template Stack to create configuration.
-* A **render** is the configuration which is the output of the stack's
-  controller in response to a render request. The configuration is
-  created by processing the stack's input templates using the desired
-  engine, and using the render request for context.
-* **Behaviors** are the configuration settings for a Template Stack.
-  For example, so that its controller knows how to respond to a render
-  request of a known type.
 
 ## How to read this document
 
