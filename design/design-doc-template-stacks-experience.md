@@ -328,7 +328,7 @@ behaviors:
     # This is a particular CRD which is being configured. When the
     # controller sees an object of this type, it will do something.
     wordpressinstance.wordpress.samples.stacks.crossplane.io:
-      # This is a top-level object to namespace hook configurations.
+      # This is a top-level object to group hook configurations.
       # There can be hooks for multiple different types of events.
       hooks:
         # Post create is triggered after an instance is created
@@ -342,7 +342,7 @@ behaviors:
           # Note that this is a list of objects, so multiple can be
           # specified.
           - directory: wordpress
-        # Post create is triggered after an instance is changed
+        # Post update is triggered after an instance is changed
         postUpdate:
           - directory: wordpress
 ```
