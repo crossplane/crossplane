@@ -12,6 +12,8 @@
 
 #### These are the labels we are proposing to add:
 
+- **`core.crossplane.io/parent-group`**
+- **`core.crossplane.io/parent-version`**
 - **`core.crossplane.io/parent-kind`**
 - **`core.crossplane.io/parent-name`**
 - **`core.crossplane.io/parent-namespace`**
@@ -24,7 +26,7 @@ We can leverage CRD labels to make this easier, as long as we have a standard fo
 Additionally as long as we define this label on all children CRD's, we should then be able to query
 all children of a given parent object using those labels.
 
-Per the proposal, it seems that the closest example of what I am referring to is shown on 
+Per the proposal, it seems that the closest example of what I am referring to is shown on
 [this page][common-labels] within the `app.kubernetes.io/part-of` label. However since we are not
 exactly using these labels for the intentions defined within that page, we should use something
 following those patterns instead.
@@ -38,6 +40,13 @@ The primary reason for this was stated on [that page][common-labels]:
 
 ## Design
 
+The group, version, and kind is captured as three individual fields to provide the most flexibility
+for consumers of this metadata. Since consumers will have access to all 3 fields, they can on-demand
+build any of the numerous GVK related formats available in the ecosystem. It was initially
+considered to combine the group and version in the typical format of `my.group/v1alpha1`, but labels
+cannot contain any slash characters. Therefore, storing the group, version, and kind as separate
+fields seems reasonable.
+
 > _**Important Note**: These files are post processed yaml outputs, **NOT** static package files.
 > The purpose of showing these is only to better outline and explain the relationships with respect
 > to this specific example._
@@ -45,18 +54,39 @@ The primary reason for this was stated on [that page][common-labels]:
 Wordpress example file tree structure of the example files below:
 
 ```text
-stack.yaml
+stackinstall.yaml
 |
 `-- crd.yaml
+|
+`-- stack.yaml
     |
-    `-- resource.yaml
+    `-- wordpress.yaml
         |-- kubernetesapplication.yaml
         |-- kubernetescluster.yaml
         |-- mysqlinstance.yaml
         |-- ...
 ```
 
-### Example wordpress `stack.yaml`
+### Example wordpress `crd.yaml` (parented by `StackInstall`)
+
+```yaml
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  creationTimestamp: null
+  name: wordpressinstances.wordpress.samples.stacks.crossplane.io
+  labels:
+    core.crossplane.io/parent-group: "stacks.crossplane.io"
+    core.crossplane.io/parent-version: "v1alpha1"
+    core.crossplane.io/parent-kind: "StackInstall"
+    core.crossplane.io/parent-name: "sample-stack-wordpress"
+    core.crossplane.io/parent-namespace: "app-project1-dev"
+    core.crossplane.io/parent-uid: "858ab465-ff60-49d8-a3e7-624ce841f339"
+    app.kubernetes.io/managed-by: stack-manager
+...
+```
+
+### Example wordpress `stack.yaml` (parented by `StackInstall`)
 
 ```yaml
 apiVersion: stacks.crossplane.io/v1alpha1
@@ -76,27 +106,16 @@ metadata:
   uid: ec52c8c2-379f-45ec-9458-e40f070f8d2e
   labels:
     app.kubernetes.io/managed-by: stack-manager
-...
-```
-
-### Example wordpress `crd.yaml`
-
-```yaml
-apiVersion: apiextensions.k8s.io/v1beta1
-kind: CustomResourceDefinition
-metadata:
-  creationTimestamp: null
-  name: wordpressinstances.wordpress.samples.stacks.crossplane.io
-  labels:
-    core.crossplane.io/parent-kind: "stack.stacks.crossplane.io"
+    core.crossplane.io/parent-group: "stacks.crossplane.io"
+    core.crossplane.io/parent-version: "v1alpha1"
+    core.crossplane.io/parent-kind: "StackInstall"
     core.crossplane.io/parent-name: "sample-stack-wordpress"
     core.crossplane.io/parent-namespace: "app-project1-dev"
-    core.crossplane.io/parent-uid: "ec52c8c2-379f-45ec-9458-e40f070f8d2e"
-    app.kubernetes.io/managed-by: stack-manager
+    core.crossplane.io/parent-uid: "858ab465-ff60-49d8-a3e7-624ce841f339"
 ...
 ```
 
-### Example wordpress `resource.yaml`
+### Example wordpress `wordpress.yaml` (parented by `Stack`)
 
 ```yaml
 apiVersion: wordpress.samples.stacks.crossplane.io/v1alpha1
@@ -110,7 +129,9 @@ metadata:
   selfLink: /apis/wordpress.samples.stacks.crossplane.io/v1alpha1/namespaces/app-project1-dev/wordpressinstances/my-wordpressinstance
   uid: f2d13a15-1f9b-40a7-a173-a40abefa61bf
   labels:
-    core.crossplane.io/parent-kind: "stack.stacks.crossplane.io"
+    core.crossplane.io/parent-kind: "Stack"
+    core.crossplane.io/parent-group: "stacks.crossplane.io"
+    core.crossplane.io/parent-version: "v1alpha1"
     core.crossplane.io/parent-name: "sample-stack-wordpress"
     core.crossplane.io/parent-namespace: "app-project1-dev"
     core.crossplane.io/parent-uid: "ec52c8c2-379f-45ec-9458-e40f070f8d2e"
@@ -118,7 +139,7 @@ metadata:
 ...
 ```
 
-### Example wordpress `kubernetesapplication.yaml`
+### Example wordpress `kubernetesapplication.yaml` (parented by `WordpressInstance`)
 
 ```yaml
 apiVersion: workload.crossplane.io/v1alpha1
@@ -127,7 +148,9 @@ metadata:
   name: wordpress-app-wordpress
   labels:
     stack: sample-stack-wordpress
-    core.crossplane.io/parent-kind: "wordpressinstances.wordpress.samples.stacks.crossplane.io"
+    core.crossplane.io/parent-kind: "WordpressInstance"
+    core.crossplane.io/parent-group: "wordpress.samples.stacks.crossplane.io"
+    core.crossplane.io/parent-version: "v1alpha1"
     core.crossplane.io/parent-name: "my-wordpressinstance"
     core.crossplane.io/parent-namespace: "app-project1-dev"
     core.crossplane.io/parent-uid: "f2d13a15-1f9b-40a7-a173-a40abefa61bf"
@@ -135,7 +158,7 @@ metadata:
 ...
 ```
 
-### Example wordpress `kubernetescluster.yaml`
+### Example wordpress `kubernetescluster.yaml` (parented by `WordpressInstance`)
 
 ```yaml
 apiVersion: compute.crossplane.io/v1alpha1
@@ -144,7 +167,9 @@ metadata:
   name: wordpress-cluster-wordpress
   labels:
     stack: sample-stack-wordpress
-    core.crossplane.io/parent-kind: "wordpressinstances.wordpress.samples.stacks.crossplane.io"
+    core.crossplane.io/parent-kind: "WordpressInstance"
+    core.crossplane.io/parent-group: "wordpress.samples.stacks.crossplane.io"
+    core.crossplane.io/parent-version: "v1alpha1"
     core.crossplane.io/parent-name: "my-wordpressinstance"
     core.crossplane.io/parent-namespace: "app-project1-dev"
     core.crossplane.io/parent-uid: "f2d13a15-1f9b-40a7-a173-a40abefa61bf"
@@ -152,7 +177,7 @@ metadata:
 ...
 ```
 
-### Example wordpress `mysqlinstance.yaml`
+### Example wordpress `mysqlinstance.yaml` (parented by `WordpressInstance`)
 
 ```yaml
 apiVersion: database.crossplane.io/v1alpha1
@@ -161,7 +186,9 @@ metadata:
   name: wordpress-mysql-wordpress
   labels:
     stack: sample-stack-wordpress
-    core.crossplane.io/parent-kind: "wordpressinstances.wordpress.samples.stacks.crossplane.io"
+    core.crossplane.io/parent-kind: "WordpressInstance"
+    core.crossplane.io/parent-group: "wordpress.samples.stacks.crossplane.io"
+    core.crossplane.io/parent-version: "v1alpha1"
     core.crossplane.io/parent-name: "my-wordpressinstance"
     core.crossplane.io/parent-namespace: "app-project1-dev"
     core.crossplane.io/parent-uid: "f2d13a15-1f9b-40a7-a173-a40abefa61bf"
