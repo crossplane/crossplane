@@ -185,21 +185,23 @@ At a high level, the steps would be as follows:
 2. In the project directory, `kubectl crossplane stack init --template
    myorg/mystack` to create the boilerplate of the stack layout.
 3. Relative to the project directory, put the yamls in
-   `config/stack/manifests/resources/templates`, or a different
-   directory if desired.
+   `config/stack/manifests/resources`, or a different
+   directory if desired, so long as the directory is in the right
+   location in the stack artifact.
 4. Add CRD definitions; this could be done by putting CRD yaml
    definitions in `config/stack/manifests/resources` or in
    `config/crd/bases`. We plan to make this simpler for the user by
    adding a crossplane-cli command for it.
 5. Add configuration to `stack.yaml` to
    specify how configurations are rendered.
-6. Edit `config/stack/manifests/resources/app.yaml` to specify that the
-   stack will be working with all of the kinds that it will be working
-   with (using the `dependsOn` field).
-7. Edit `config/stack/manifests/resources/app.yaml` as appropriate.
+6. Edit `stack.yaml` to specify that the stack will be working with all
+   of the kinds that it will be working with (using the `dependsOn`
+   field).
+7. Edit `stack.yaml` as appropriate.
 
-In the future, we expect that we will combine `app.yaml` and
-`stack.yaml`.
+Note that we plan to merge `app.yaml` and `stack.yaml` into a single
+document (`stack.yaml`) in the future, so this set of steps is written
+as though that has already happened.
 
 #### Adding a CRD
 
