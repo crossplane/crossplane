@@ -55,7 +55,7 @@ func (in *MySQLInstance) DeepCopyObject() runtime.Object {
 func (in *MySQLInstanceList) DeepCopyInto(out *MySQLInstanceList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]MySQLInstance, len(*in))
@@ -130,7 +130,7 @@ func (in *PostgreSQLInstance) DeepCopyObject() runtime.Object {
 func (in *PostgreSQLInstanceList) DeepCopyInto(out *PostgreSQLInstanceList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]PostgreSQLInstance, len(*in))

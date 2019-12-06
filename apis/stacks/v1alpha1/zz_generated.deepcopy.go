@@ -116,7 +116,7 @@ func (in *ClusterStackInstall) DeepCopyObject() runtime.Object {
 func (in *ClusterStackInstallList) DeepCopyInto(out *ClusterStackInstallList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]ClusterStackInstall, len(*in))
@@ -311,7 +311,7 @@ func (in *StackInstall) DeepCopyObject() runtime.Object {
 func (in *StackInstallList) DeepCopyInto(out *StackInstallList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]StackInstall, len(*in))
@@ -384,7 +384,7 @@ func (in *StackInstallStatus) DeepCopy() *StackInstallStatus {
 func (in *StackList) DeepCopyInto(out *StackList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]Stack, len(*in))

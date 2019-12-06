@@ -379,6 +379,9 @@ func TestCreate(t *testing.T) {
 				t.Errorf("create(): -want, +got:\n%s", diff)
 			}
 
+			// NOTE(muvaf): ResourceVersion is not our concern in these tests
+			// but it gets filled up by the client.
+			tt.want.r.ResourceVersion = tt.r.ResourceVersion
 			if diff := cmp.Diff(tt.want.r, tt.r, test.EquateConditions()); diff != "" {
 				t.Errorf("create() resource: -want, +got:\n%s", diff)
 			}
@@ -913,9 +916,21 @@ func TestProcessJob(t *testing.T) {
 	}
 }
 
-func assertKubernetesObject(t *testing.T, g *GomegaWithT, got runtime.Object, want metav1.Object, kube client.Client) {
+type objectWithGVK interface {
+	runtime.Object
+	metav1.Object
+}
+
+func assertKubernetesObject(t *testing.T, g *GomegaWithT, got objectWithGVK, want metav1.Object, kube client.Client) {
 	n := types.NamespacedName{Name: want.GetName(), Namespace: want.GetNamespace()}
 	g.Expect(kube.Get(ctx, n, got)).NotTo(HaveOccurred())
+
+	// NOTE(muvaf): retrieved objects have TypeMeta and ObjectMeta.ResourceVersion
+	// filled but since we work on strong-typed objects, we don't need to check
+	// them.
+	got.GetObjectKind().SetGroupVersionKind(schema.GroupVersionKind{})
+	got.SetResourceVersion(want.GetResourceVersion())
+
 	if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
 		t.Errorf("-want, +got:\n%s", diff)
 	}

@@ -59,7 +59,7 @@ func (in *KubernetesApplication) DeepCopyObject() runtime.Object {
 func (in *KubernetesApplicationList) DeepCopyInto(out *KubernetesApplicationList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]KubernetesApplication, len(*in))
@@ -118,7 +118,7 @@ func (in *KubernetesApplicationResource) DeepCopyObject() runtime.Object {
 func (in *KubernetesApplicationResourceList) DeepCopyInto(out *KubernetesApplicationResourceList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]KubernetesApplicationResource, len(*in))
