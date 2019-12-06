@@ -89,7 +89,7 @@ Any dates listed below and the specific issues that will ship in a given milesto
   * Refresh 0.3 Docs: reflect enhancements, better on-boarding UX, easier to get started [#625](https://github.com/crossplaneio/crossplane/issues/625)
   * Crossplane.io reflects the updated roadmap / vision [crossplaneio.github.io#22](https://github.com/crossplaneio/crossplaneio.github.io/issues/22)
 
-## v0.4.0 Initial Rook support & stable v1beta1 APIs for AWS, GCP
+## [v0.4.0 Initial Rook support & stable v1beta1 APIs for AWS, GCP](https://github.com/crossplaneio/crossplane/releases/tag/v0.4.0)
 * Claim-based provisioning of [Rook](https://rook.io/)-managed databases [#862](https://github.com/crossplaneio/crossplane/issues/862)
   * Support for CockroachDB and Yugabyte DB
 
@@ -119,7 +119,7 @@ Any dates listed below and the specific issues that will ship in a given milesto
 
  * Crossplane supporting work for GitLab 12.5 Auto DevOps [#867](https://github.com/crossplaneio/crossplane/issues/867)
 
-## v0.5.0 Continous deployment for GitLab and ArgoCD with v1beta1 APIs
+## [v0.5.0 Continous deployment for GitLab and ArgoCD with v1beta1 APIs](https://github.com/crossplaneio/crossplane/releases/tag/v0.5.0)
 * GitLab 12.5 Auto DevOps (ADO) integration phase 1 - provision managed PostgreSQL from GitLab ADO pipelines
   * Subset of the overall [GitLab Auto DevOps integration](https://gitlab.com/groups/gitlab-org/-/epics/1866#note_216080986) 
   * [Crossplane as a GitLab-managed app (phase1)](https://gitlab.com/gitlab-org/gitlab/issues/34702) - provision managed PostgreSQL from GitLab ADO pipelines
