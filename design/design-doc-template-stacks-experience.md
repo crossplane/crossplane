@@ -154,10 +154,10 @@ for those details.
 
 ## How to read this document
 
-This document is intended to be read alongside the [template stacks
-experience repository](https://github.com/suskin/template-stack-experience),
-which contains realistic code samples for different pieces of the
-functionality.
+This document is intended to be read alongside the quick start example
+in the [template stacks experience repository][quick-start-example],
+which contains an example of a complete user scenario of installing an
+application and its infrastructure using Crossplane and template stacks.
 
 Additionally, for more detail about the internals of template stacks on
 the stack manager and Crossplane side, see the [design doc focused on
@@ -170,9 +170,6 @@ very similar for all scenarios. It is expected that template stacks will
 support a wide variety of scenarios, so this section will show some
 examples to help explain them.
 
-For a more complete treatment of example scenarios, see the [template
-stack experience repository](https://github.com/suskin/template-stack-experience).
-
 ### Writing
 
 Creating a template stack from scratch involves only a couple steps. The
@@ -184,7 +181,7 @@ At a high level, the steps would be as follows:
 1. Create a project directory.
 2. In the project directory, `kubectl crossplane stack init --template
    myorg/mystack` to create the boilerplate of the stack layout.
-3. Relative to the project directory, put the yamls in
+3. Relative to the project directory, put the configuration yamls in
    `config/stack/manifests/resources`, or a different
    directory if desired, so long as the directory is in the right
    location in the stack artifact.
@@ -202,6 +199,16 @@ At a high level, the steps would be as follows:
 Note that we plan to merge `app.yaml` and `stack.yaml` into a single
 document (`stack.yaml`) in the future, so this set of steps is written
 as though that has already happened.
+
+#### Specifying configuration and templates
+
+Because we plan to support multiple engines, this document won't get
+into the specifics of what templates look like. That said, if a helm
+chart were being used (for example), then the helm chart could be placed
+in a folder (such as `wordpress`) in the resources directory, and the
+stack would be configured to use that directory. Using the folder
+structure described above, that would mean that root of the helm chart
+would exist at `configu/stack/manifests/resources/wordpress`.
 
 #### Adding a CRD
 
@@ -324,6 +331,15 @@ example, with comments explaining the directives:
 # to a given object type. An instance of the object type is
 # considered to be a "render request".
 behaviors:
+  # An engine configuration here will apply to the rest of the
+  # configuration, but it could also be specified at a per-crd
+  # level, or as low as a per-hook level. Engine configurations
+  # nested deeper in the configuration hierarchy will override
+  # ones which are higher up in the hierarchy, so a hook-level
+  # configuration would override this one.
+  engine:
+    type: kustomize
+
   crds:
     # This is a particular CRD which is being configured. When the
     # controller sees an object of this type, it will do something.
@@ -420,6 +436,11 @@ if there were a `values.yaml` passed in which looked like this:
 engineVersion: "8.0"
 ```
 
+We expect the configuration to support the same things as the underlying
+engine. So, for example, nested configuration values would be supported
+just as well as they would be with a regular `values.yaml` for a helm
+chart.
+
 For the complete example, see the [quick start
 example][quick-start-example] in the template stack experience
 repository. The snippet was taken from the part of the example where the
@@ -445,6 +466,10 @@ In some cases, the engine configuration line may be optional; the system
 may be able to infer the engine based on the structure of the stack. For
 example, if no engine is specified, and a `kustomization.yaml` is found,
 the engine could be inferred to be kustomize.
+
+The engine can be specified at multiple levels; setting it under
+`behaviors` will set a default, but setting it lower down will override
+a value set at a higher level. It can be configured per hook.
 
 For a more complete example of a user scenario, including usage of
 multiple different engines, see the [quick start
@@ -506,7 +531,6 @@ repository.
 
 ## Further reading
 
-* [Template Stack Experience](https://github.com/suskin/template-stack-experience) examples
 * [Template Stack Experience - Quick Start Example](https://github.com/suskin/template-stack-experience/tree/master/wordpress-workload/quick-start)
 * [Declarative Application Management in Kubernetes](https://github.com/kubernetes/community/blob/master/contributors/design-proposals/architecture/declarative-application-management.md)
 * [Template Stacks internals design doc](https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-template-stacks.md)
