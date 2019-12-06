@@ -40,6 +40,16 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/stacks"
 )
 
+// Labels used to track ownership across namespaces and scopes.
+const (
+	labelParentGroup     = "core.crossplane.io/parent-group"
+	labelParentVersion   = "core.crossplane.io/parent-version"
+	labelParentKind      = "core.crossplane.io/parent-kind"
+	labelParentNamespace = "core.crossplane.io/parent-namespace"
+	labelParentName      = "core.crossplane.io/parent-name"
+	labelParentUID       = "core.crossplane.io/parent-uid"
+)
+
 var (
 	jobBackoff                = int32(0)
 	registryDirName           = ".registry"
@@ -219,6 +229,9 @@ func (jc *stackInstallJobCompleter) readPodLogs(namespace, name string) (*bytes.
 	return b, nil
 }
 
+// createJobOutputObject names, labels, sets ownership, and creates resources
+// resulting from a StackInstall or ClusterStackInstall. These expected resources
+// are currently CRD and Stack objects.
 func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, obj *unstructured.Unstructured,
 	i v1alpha1.StackInstaller, job *batchv1.Job) error {
 
@@ -227,21 +240,36 @@ func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, o
 		return nil
 	}
 
+	// when the current object is a Stack object, make sure the name and namespace are
+	// set to match the current StackInstall (if they haven't already been set). Also,
+	// set the owner reference of the Stack to be the StackInstall.
 	if isStackObject(obj) {
-		// the current object is a Stack object, make sure the name and namespace are
-		// set to match the current StackInstall (if they haven't already been set)
 		if obj.GetName() == "" {
 			obj.SetName(i.GetName())
 		}
 		if obj.GetNamespace() == "" {
 			obj.SetNamespace(i.GetNamespace())
 		}
+
+		obj.SetOwnerReferences([]metav1.OwnerReference{
+			meta.AsOwner(meta.ReferenceTo(i, i.GroupVersionKind())),
+		})
 	}
 
-	// set an owner reference on the object
-	obj.SetOwnerReferences([]metav1.OwnerReference{
-		meta.AsOwner(meta.ReferenceTo(i, i.GroupVersionKind())),
-	})
+	// We want to clean up any installed CRDS when we're deleted. We can't rely
+	// on garbage collection because a namespaced object (StackInstall) can't
+	// own a cluster scoped object (CustomResourceDefinition), so we use labels
+	// instead.
+	gvk := i.GroupVersionKind()
+	labels := map[string]string{
+		labelParentGroup:     gvk.Group,
+		labelParentVersion:   gvk.Version,
+		labelParentKind:      gvk.Kind,
+		labelParentNamespace: i.GetNamespace(),
+		labelParentName:      i.GetName(),
+		labelParentUID:       string(i.GetUID()),
+	}
+	meta.AddLabels(obj, labels)
 
 	// TODO(displague) pass/inject a controller specific logger
 	log.V(logging.Debug).Info(
@@ -251,7 +279,13 @@ func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, o
 		"namespace", obj.GetNamespace(),
 		"apiVersion", obj.GetAPIVersion(),
 		"kind", obj.GetKind(),
-		"ownerRefs", obj.GetOwnerReferences())
+		"parentGroup", labels[labelParentGroup],
+		"parentVersion", labels[labelParentVersion],
+		"parentKind", labels[labelParentKind],
+		"parentName", labels[labelParentName],
+		"parentNamespace", labels[labelParentNamespace],
+		"parentUID", labels[labelParentUID],
+	)
 	if err := jc.client.Create(ctx, obj); err != nil && !kerrors.IsAlreadyExists(err) {
 		return errors.Wrapf(err, "failed to create object %s from job output %s", obj.GetName(), job.Name)
 	}
