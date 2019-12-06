@@ -6,7 +6,7 @@
 ## Revisions
 
 * 1.1
-  * Added [Exceptions & Edge Cases](#exceptions-&-edge-cases) section
+  * Added [Exceptions and Edge Cases](#exceptions-and-edge-cases) section
   * Updated examples with cluster-scoped managed resource and `Provider` objects
 
 ## Terminology
@@ -379,7 +379,7 @@ type SubnetworkParameters struct {
 }
 ```
 
-### Exceptions & Edge Cases
+### Exceptions and Edge Cases
 
 Because managed resources could represent API types for any provider, there is
 potential to encounter scenarios that fall outside the rules expressed in this
