@@ -65,13 +65,14 @@ areas that we can improve during this process:
 
 ## Goals
 
-The main goal of this design is to make it easier for people to write sets of
-Crossplane resources and be able to manage those resource sets on a higher level.
+The main goal of this design is to make it easier for infrastructure operators
+who provide environments for others to build sets of environment resources and
+provide them to their users.
 
 It is important that the design puts forward:
 
-* A base boilerplate tooling where creating a new configuration set that has a
-  controller is as easy as changing the YAML files.
+* A base tooling for infrastructure operators who would like to package a set
+  of resources as a stack with minimal Go code and provide that stack to their users.
 * An easy way for users to deploy a set of pre-defined resources that has
   a controller which reconciles all resources deployed.
 
