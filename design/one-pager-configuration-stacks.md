@@ -110,7 +110,18 @@ rules to be adhered by initial configuration stacks.
   owner.
 * Stack type will be `ClusterStack` as most of the resources it deploys are
   cluster-scoped.
-
+* CRD of the configuration stack should have a boolean spec field called
+  `keepDefaultingLabels` which indicates what happens to the resource classes that
+  are marked default.
+  * By default, the zero-value of the boolean is _false_. Meaning, if user is
+    indifferent we remove that special default label from all resource classes
+    to avoid conflict and unexpected randomization between resource classes.
+  * Users who deploy the CR will need to mark this field as _true_ if they'd like
+    to keep the defaults, which is expected to appear on only one configuration
+    stack CR in the cluster.
+  * See details about [defaulting mechanism here].
+* All the labels in the configuration stack CR is propagated down to all resources
+  that it deploys.
 ## User Experience
 
 1. Install AWS stack and create a secret that contains AWS credentials.
@@ -148,6 +159,8 @@ apiVersion: aws.configurationstacks.crossplane.io/v1alpha1
 kind: MinimalAWS
 metadata:
   name: small-infra
+  labels:
+    "foo-key": bar-value
 spec:
   credentialsSecretRef:
     name: aws-credentials
@@ -174,6 +187,7 @@ metadata:
   labels:
     "aws.configurationstacks.crossplane.io/name": small-infra
     "aws.configurationstacks.crossplane.io/uid": 1ca16960-973b-4d58-a6fa-5696638ec631
+    "foo-key": bar-value
 specTemplate:
   writeConnectionSecretsToNamespace: crossplane-system
   forProvider:
@@ -280,3 +294,4 @@ the stack.
 [Dependency list]: https://github.com/crossplaneio/crossplane/blob/98e8520e2a2285cd6944fcd67fbef427299891e8/design/design-doc-stacks.md#stack-crd
 [UI annotations]: https://github.com/crossplaneio/crossplane/blob/5758662818fc1e840adbfbf1a9fb37b87c3d5a5c/design/one-pager-stack-ui-metadata.md
 [class and claim]: https://static.sched.com/hosted_files/kccncna19/2d/kcconna19-eric-tune.pdf
+[defaulting mechanism here]: https://github.com/crossplaneio/crossplane/blob/c38561d/design/one-pager-simple-class-selection.md#unopinionated-resource-claims
