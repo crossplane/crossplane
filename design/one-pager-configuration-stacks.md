@@ -1,4 +1,4 @@
-# Configuration Stacks
+# Resource Packs
 
 * Owner: Muvaffak Onus (@muvaf)
 * Reviewers: Crossplane Maintainers
@@ -55,7 +55,7 @@ areas that we can improve during this process:
   may not seem like a big hurdle, changing some high level parameters of that
   environment is cumbersome _after_ it's deployed.
 * A user who is familiar with AWS may not be familiar with Azure or GCP. So,
-  ready-made configuration stacks that promise a very similar setup would be
+  ready-made resource packs that promise a very similar setup would be
   useful for them to see how they can achieve similar setups and run various
   benchmarks according to their business needs.
 * After you run `kubectl apply -f <directory of YAMLs>`, a dependency graph of
@@ -66,14 +66,14 @@ areas that we can improve during this process:
 ## Goals
 
 The main goal of this design is to make it easier for people to write sets of
-configurations and be able to manage those configuration sets on a higher level.
+Crossplane resources and be able to manage those resource sets on a higher level.
 
 It is important that the design puts forward:
 
 * A base boilerplate tooling where creating a new configuration set that has a
   controller is as easy as changing the YAML files.
-* An easy way for users to deploy a set of pre-defined configurations that has
-  a controller which reconciles the set of the resources deployed.
+* An easy way for users to deploy a set of pre-defined resources that has
+  a controller which reconciles all resources deployed.
 
 ## Proposal
 
@@ -88,9 +88,9 @@ and updates the YAMLs that are packaged in the stack image according to user's
 input on the CR instance of that stack that user creates.
 
 As sky is the limit when it comes to stacks, we need to put down some general
-rules to be adhered by initial configuration stacks.
+rules to be adhered by initial resource packs.
 
-* It should be possible to have different sets of configurations in one stack
+* It should be possible to have different sets of resources in one stack
   and user should be able to choose from them via the CR that is an instance
   of stack's CRD.
   * Note that it's highly preferred to have only one custom resource definition that
@@ -105,12 +105,12 @@ rules to be adhered by initial configuration stacks.
 * Controller should update the resources continuously and treat the given CR as
   the source of truth even though user manually changes the resources that are
   deployed by the stack.
-* CRD of the configuration stack should be cluster-scoped since the author of
-  the CR instances of the configuration stack is assumed to be the infrastructure
+* CRD of the resource pack should be cluster-scoped since the author of
+  the CR instances of the resource pack is assumed to be the infrastructure
   owner.
 * Stack type will be `ClusterStack` as most of the resources it deploys are
   cluster-scoped.
-* CRD of the configuration stack should have a boolean spec field called
+* CRD of the resource pack should have a boolean spec field called
   `keepDefaultingLabels` which indicates what happens to the resource classes that
   are marked default.
   * By default, the zero-value of the boolean is _false_. Meaning, if user is
@@ -120,13 +120,13 @@ rules to be adhered by initial configuration stacks.
     to keep the defaults, which is expected to appear on only one configuration
     stack CR in the cluster.
   * See details about [defaulting mechanism here].
-* All the labels in the configuration stack CR is propagated down to all resources
+* All the labels in the resource pack CR is propagated down to all resources
   that it deploys.
 
 ## User Experience
 
 1. Install GCP stack and create a secret that contains GCP credentials.
-2. Install a GCP configuration stack via:
+2. Install a GCP resource pack via:
 ```yaml
 # exact apiVersion is TBD.
 apiVersion: stacks.crossplane.io/v1alpha1
@@ -143,7 +143,7 @@ are connected to each other in a private VPC, which what this specific configura
 stack does. Create the following:
 
 ```yaml
-apiVersion: gcp.configurationstacks.crossplane.io/v1alpha1
+apiVersion: gcp.resourcepacks.crossplane.io/v1alpha1
 kind: MinimalGCP
 metadata:
   name: small-infra
@@ -162,7 +162,7 @@ spec:
 Then I wait for `Synced` condition to become `true`. After it's done, all resources
 are deployed.
 ```yaml
-apiVersion: gcp.configurationstacks.crossplane.io/v1alpha1
+apiVersion: gcp.resourcepacks.crossplane.io/v1alpha1
 kind: MinimalGCP
 metadata:
   name: small-infra
@@ -242,8 +242,8 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namePrefix: <CRNAME>-
 commonLabels:
-  "gcp.configurationstacks.crossplane.io/name": <CRNAME>
-  "gcp.configurationstacks.crossplane.io/uid": <CRUID>
+  "gcp.resourcepacks.crossplane.io/name": <CRNAME>
+  "gcp.resourcepacks.crossplane.io/uid": <CRUID>
 ```
 
 2. Call custom patch functions that consumer of the reconciler provided in order
@@ -291,8 +291,8 @@ like the following:
 As you see, we follow `resources/{cloud provider}/{group}/{kind}.yaml` where all
 resources of same kind are present in the same YAML.
 
-Example above is a suggestion for stacks with one tier of configuration.
-There could also be cases where one configuration stack has the YAML files for
+Example above is a suggestion for stacks with one tier of resource pack.
+There could also be cases where one resource pack has the YAML files for
 different tiers and a `spec` allows to deploy one of them, in that case it'd make
 sense for developer to have a folder for each tier under `resources` folder. It's
 basically up to you to try various structures as long as kustomize is able to
@@ -307,7 +307,7 @@ the stack.
 
 ### Custom Patchers
 
-The configuration stack reconciler that has two types of patcher functions where
+The resource pack reconciler that has two types of patcher functions where
 developer can intercept the reconciler flow and provide their own logic:
 * `KustomizationPatcher`: Its signature includes the generic `ParentResource` object
   that represents the stack CR and `Kustomization` object that represents the
@@ -319,8 +319,8 @@ developer can intercept the reconciler flow and provide their own logic:
   * Developers who'd like to make changes to the resources generated via `kustomize`
     will provide their own functions.
 
-Configuration stack reconciler will have default patchers for the functionality
-that is expected to be common for all configuration stacks such as label propagation
+Resource pack reconciler will have default patchers for the functionality
+that is expected to be common for all resource packs such as label propagation
 from stack CR to deployed resources.
 
 ### Referencing
@@ -372,7 +372,7 @@ vars:
 - name: REGION
   objref:
     kind: MinimalGCP
-    apiVersion: gcp.configurationstacks.crossplane.io/v1alpha1
+    apiVersion: gcp.resourcepacks.crossplane.io/v1alpha1
     name: <CR NAME>
   fieldref:
     fieldpath: spec.region
