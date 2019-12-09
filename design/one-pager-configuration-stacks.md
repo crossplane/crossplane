@@ -122,19 +122,20 @@ rules to be adhered by initial configuration stacks.
   * See details about [defaulting mechanism here].
 * All the labels in the configuration stack CR is propagated down to all resources
   that it deploys.
+
 ## User Experience
 
-1. Install AWS stack and create a secret that contains AWS credentials.
-2. Install a AWS configuration stack via:
+1. Install GCP stack and create a secret that contains GCP credentials.
+2. Install a GCP configuration stack via:
 ```yaml
 # exact apiVersion is TBD.
 apiVersion: stacks.crossplane.io/v1alpha1
 kind: ClusterStackInstall
 metadata:
-  name: minimal-aws
+  name: minimal-gcp
   namespace: crossplane-system
 spec:
-  package: "crossplane/minimal-aws:latest"
+  package: "crossplane/minimal-gcp:latest"
 ```
 
 Now, I want an environment where all my database instances and kubernetes clusters
@@ -142,29 +143,39 @@ are connected to each other in a private VPC, which what this specific configura
 stack does. Create the following:
 
 ```yaml
-apiVersion: aws.configurationstacks.crossplane.io/v1alpha1
-kind: MinimalAWS
+apiVersion: gcp.configurationstacks.crossplane.io/v1alpha1
+kind: MinimalGCP
 metadata:
   name: small-infra
+  labels:
+      "foo-key": bar-value
 spec:
+  region: us-west2
+  projectID: foo-project
+  keepDefaultingAnnotations: true
   credentialsSecretRef:
-    name: aws-credentials
+    name: gcp-credentials
     namespace: crossplane-system
+    key: credentials
 ```
 
 Then I wait for `Synced` condition to become `true`. After it's done, all resources
 are deployed.
 ```yaml
-apiVersion: aws.configurationstacks.crossplane.io/v1alpha1
-kind: MinimalAWS
+apiVersion: gcp.configurationstacks.crossplane.io/v1alpha1
+kind: MinimalGCP
 metadata:
   name: small-infra
   labels:
     "foo-key": bar-value
 spec:
+  region: us-west2
+  projectID: foo-project
+  keepDefaultingAnnotations: true
   credentialsSecretRef:
-    name: aws-credentials
+    name: gcp-credentials
     namespace: crossplane-system
+    key: credentials
 status:
   conditions:
   - lastTransitionTime: "2019-12-03T23:16:58Z"
@@ -175,63 +186,73 @@ status:
 
 An example deployed resource would be:
 ```yaml
-apiVersion: database.aws.crossplane.io/v1beta1
-kind: RDSInstanceClass
+apiVersion: database.gcp.crossplane.io/v1beta1
+kind: CloudSQLInstanceClass
 metadata:
-  name: small-infra-mysql
-  ownerReferences:
-  - apiVersion: aws.configurationstacks.crossplane.io/v1alpha1
-    kind: MinimalAWS
-    name: small-infra
-    uid: 1ca16960-973b-4d58-a6fa-5696638ec631
   labels:
-    "aws.configurationstacks.crossplane.io/name": small-infra
-    "aws.configurationstacks.crossplane.io/uid": 1ca16960-973b-4d58-a6fa-5696638ec631
+    # All labels on MinimalGCP are propagated down to all resources.
     "foo-key": bar-value
+    # Default labels for all deployed resources.
+    gcp.resourcepacks.crossplane.io/name: minimal-setup
+    gcp.resourcepacks.crossplane.io/uid: 34646233-f58e-4c99-b0a8-0d766533b12c
+  annotations:
+    # The defaulting annotation is kept since keepDefaultingAnnotations was true.
+    # Otherwise, it'd have been removed.
+    resourceclass.crossplane.io/is-default-class: "true"
+  name: minimal-setup-cloudsqlinstance-mysql
+  ownerReferences:
+  # Once the referred MinimalGCP instance is deleted, this resource will be
+  # deleted by Kubernetes api-server.
+  - apiVersion: gcp.resourcepacks.crossplane.io/v1alpha1
+    kind: MinimalGCP
+    name: minimal-setup
+    uid: 34646233-f58e-4c99-b0a8-0d766533b12c
 specTemplate:
-  writeConnectionSecretsToNamespace: crossplane-system
   forProvider:
-    dbInstanceClass: db.t2.small
-    masterUsername: root
-    vpcSecurityGroupIDRefs:
-      - name: small-infra-rds-security-group
-    dbSubnetGroupNameRef:
-      name: small-infra-dbsubnetgroup
-    allocatedStorage: 20
-    engine: mysql
-    skipFinalSnapshotBeforeDeletion: true
+    databaseVersion: MYSQL_5_7
+    # Propagated from MinimalGCP instance.
+    region: us-west2
+    settings:
+      dataDiskSizeGb: 10
+      dataDiskType: PD_SSD
+      ipConfiguration:
+        ipv4Enabled: false
+        privateNetworkRef:
+          # Hard-coded value was "network" but since Network with name "network"
+          # has a new name, the ref here is also updated.
+          name: minimal-setup-network
+      tier: db-n1-standard-1
   providerRef:
-    name: small-infra-aws-provider
+    name: minimal-setup-gcp-provider
   reclaimPolicy: Delete
+  writeConnectionSecretsToNamespace: crossplane-system
+
 ```
 
-There could be several instances of `MinimalAWS` custom resource and each would 
+There could be several instances of `MinimalGCP` custom resource and each would 
 have their own similar environment with resources that have different names.
 
 ## Technical Implementation
 
 Reconciliation will mainly consist of the following steps:
-
-1. Edit `kustomization.yaml` to look like the following:
+1. A `Kustomization` overlay object will be generated that looks like the following:
 
 ```yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-resources:
-  - gcp
-
-namePrefix: CRNAME-
+namePrefix: <CRNAME>-
 commonLabels:
-  "gcp.configurationstacks.crossplane.io/name": CRNAME
-  "gcp.configurationstacks.crossplane.io/uid": CRUID
+  "gcp.configurationstacks.crossplane.io/name": <CRNAME>
+  "gcp.configurationstacks.crossplane.io/uid": <CRUID>
 ```
 
-2. Call `kustomize` to generate resource YAMLs.
-3. Read the stream of YAMLs from kustomize output and apply the following logics:
-   * Add `ownerReference` that refers to the CR that is being reconciled to all objects.
-   * Change the secret reference in the `Provider` resource.
-   * Other custom things you'd like to do...
-4. _Apply_ all resources. Set reconciliation condition to success if no error is
+2. Call custom patch functions that consumer of the reconciler provided in order
+   to make changes on `Kustomization` object.
+3. Call Kustomize and generate the resources.
+4. Read the stream of YAMLs from kustomize output.
+5. Call custom patch functions that consumer of the reconciler provided in order
+   to make changes on the generated resources before deployment.
+6. _Apply_ all resources. Set reconciliation condition to success if no error is
    present.
 
 Note that if the CR has deletion timestamp, we do not reconcile at all, letting
@@ -255,7 +276,7 @@ like the following:
 │   │   │   ├── network.yaml
 │   │   │   └── subnetwork.yaml
 │   │   ├── database
-│   │   │   ├── cloudsqlinstancemysql.yaml
+│   │   │   ├── cloudsqlinstanceclass.yaml
 │   │   │   ├── kustomization.yaml
 │   │   │   └── kustomizeconfig.yaml
 │   │   ├── kustomization.yaml
@@ -277,9 +298,123 @@ sense for developer to have a folder for each tier under `resources` folder. It'
 basically up to you to try various structures as long as kustomize is able to
 work through your structure.
 
+Note that nothing in `resources` folder is changed. The reconciler generates a
+new overlay with its own `kustomization.yaml` in a temporary directory and refers
+to the `resources` folder.
+
 [UI annotations] should be present to make it easy for frontend software to process
 the stack.
- 
+
+### Custom Patchers
+
+The configuration stack reconciler that has two types of patcher functions where
+developer can intercept the reconciler flow and provide their own logic:
+* `KustomizationPatcher`: Its signature includes the generic `ParentResource` object
+  that represents the stack CR and `Kustomization` object that represents the
+  overlay `kustomization.yaml` file.
+  * Developers who want to make additions to the default `kustomization.yaml` file
+    with data from runtime can provide their own patchers to the pipeline.
+* `ChildResourcePatcher`: Its signature includes the generic `ParentResource` object
+  as well as the list of the generated `ChildResource`s that will be deployed.
+  * Developers who'd like to make changes to the resources generated via `kustomize`
+    will provide their own functions.
+
+Configuration stack reconciler will have default patchers for the functionality
+that is expected to be common for all configuration stacks such as label propagation
+from stack CR to deployed resources.
+
+### Referencing
+
+We will use Kustomize [custom transformer configurations] to achieve the referencing
+behaviors.
+
+It's developer's responsibility to declare the reference dependencies between
+the resources. Kustomize supports the following referencers as of writing:
+* Name Referencers: If a resource references to another one, you need to declare
+  this dependency as a kustomize config so that when a different name is generated
+  for the referred resource, related references under the referrer are also
+  changed.
+* Variant Referencers: If a resource needs a value from another resource, you can
+  use `$(VALUE)` and then in `Kustomization` object, you can declare where to fetch
+  that `VALUE`. However, Kustomize requires you to explicitly declare which fields
+  of the CRD you expect to have a variant like `$(VALUE)`. So, developer needs to
+  declare this in the kustomize config file.
+  
+An example kustomize config file looks like following:
+
+```yaml
+nameReference:
+  - kind: Provider
+    fieldSpecs:
+      - path: specTemplate/providerRef/name
+        kind: CloudMemoryInstanceClass
+varReference:
+  - path: specTemplate/forProvider/region
+    kind: CloudMemorystoreInstanceClass
+```
+
+What the `nameReference` in the snippet above says is that the kind
+`CloudMemoryInstanceClass`'s field path `specTemplate/providerRef/name` refers
+to the name of the kind `Provider`. So, during transformations, if the `Provider`
+resource with name in `specTemplate.providerRef.name` of the resources with kind
+`CloudMemoryInstanceClass` ends up with a different name, go ahead and update
+the value in `specTemplate.providerRef.name`.
+
+What the `varReference` declares is that during variant calculations, the path
+`specTemplate/forProvider/region` of resources of kind `CloudMemorystoreInstanceClass`
+should be taken into consideration. If the value is bare string, nothing will be
+done. But if it's like `$(REGION)` and you did add a `Var` with name `REGION` to
+the list `Vars` of the `Kustomization` object, then the calculated value will be
+written to `specTemplate.forProvider.region` of the said resource. A `Vars` array
+looks like the following:
+```yaml
+vars:
+- name: REGION
+  objref:
+    kind: MinimalGCP
+    apiVersion: gcp.configurationstacks.crossplane.io/v1alpha1
+    name: <CR NAME>
+  fieldref:
+    fieldpath: spec.region
+```
+
+There is a tricky part when you'd like to refer a value in your CR since the CR
+instance doesn't exist in the `resources` folder. Because of this reason,
+the generic reconciler will dump the CR instance YAML file to the kustomization
+folder so that Kustomize takes it into the calculation but it will remove it
+from the resource list that Kustomize returned after the generation is completed.
+
+Here is an example flow of adding a new field, say `region`, to the stack's CR
+and use it in the child resources:
+* In the `resources` folder, go to resources that you'd like the change its `region`
+  property, put `$(REGION)` string.
+* In `kustomizeconfig.yaml`, declare the field like (create that file if it doesn't
+  exist):
+```yaml
+varReference:
+  - path: specTemplate/forProvider/region
+    kind: CloudMemorystoreInstanceClass
+```
+* In `kustomization.yaml` file of the same folder, make sure the `kustomizeconfig.yaml`
+  is declared as Kustomize configuration like:
+```yaml
+configurations:
+  - kustomizeconfig.yaml
+```
+
+* In your controller code, add a `KustomizationPatcher` that adds the necessary
+  `Var` object to the `Vars` array of `Kustomization` file that refers to your
+  CR instance and the field that you want `region` value to be taken. An example
+  `Var` object would look like:
+```go
+{
+  Name:   "REGION",
+  ObjRef: ref,
+  FieldRef: types.FieldSelector{
+    FieldPath: "spec.region",
+  },
+},
+```
 
 ## Alternatives Considered
 
@@ -295,3 +430,4 @@ the stack.
 [UI annotations]: https://github.com/crossplaneio/crossplane/blob/5758662818fc1e840adbfbf1a9fb37b87c3d5a5c/design/one-pager-stack-ui-metadata.md
 [class and claim]: https://static.sched.com/hosted_files/kccncna19/2d/kcconna19-eric-tune.pdf
 [defaulting mechanism here]: https://github.com/crossplaneio/crossplane/blob/c38561d/design/one-pager-simple-class-selection.md#unopinionated-resource-claims
+[custom transformer configurations]: https://github.com/kubernetes-sigs/kustomize/blob/master/examples/transformerconfigs/crd/README.md
