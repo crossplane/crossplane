@@ -6,7 +6,7 @@
 ## Revisions
 
 * 1.1
-  * Added [Exceptions and Edge Cases](#exceptions-and-edge-cases) section
+  * Added [Embedded Structs with Mixed Fields](#embedded-structs-with-mixed-fields) and [Optional Embedded Structs with One Field](#optional-embedded-structs-with-one-field) sections
   * Updated examples with cluster-scoped managed resource and `Provider` objects
 
 ## Terminology
@@ -173,6 +173,79 @@ For both `Status` and `Spec`:
   What if the sub-resource is not yet supported as managed resource in Crossplane? In that case, you should first
   consider implementing that managed resource, if not suitable, only then include it in the CR.
 
+#### Embedded Structs with Mixed Fields
+
+Some provider APIs include an embedded struct that may contain some fields that
+are appropriate for `spec.forProvider` and some that are meant for
+`status.atProvider`. For example:
+
+```go
+// This is the provider's representation of the API object
+type ProviderAPIObject struct {
+  // Configurable field in top-level object
+  FieldOne *string `json:"fieldOne,omitempty"`
+
+  // Non-Configurable field in top-level object
+  FieldTwo *string `json:"fieldTwo,omitempty"`
+  
+  // Embedded struct in top-level object
+  EmbeddedStructOne *EmbeddedStruct `json:"embeddedStructOne,omitempty"`
+}
+
+type EmbeddedStruct struct {
+  // This field is configurable so it should be in spec.forProvider
+  SomeConfigurableField *string `json:"someConfigurableField,omitempty"`
+
+  // This field is configurable so it should be in spec.forProvider
+  AnotherConfigurableField *string `json:"anotherConfigurableField,omitempty"`
+
+  // This field is not configurable so it should be in status.atProvider
+  SomeNonConfigurableField string `json:"someNonConfigurableField,omitempty"`
+}
+```
+
+In this case, the solution is to divide the embedded struct into
+`EmbeddedStructSpec` and `EmbeddedStructStatus`.
+
+```go
+// This is the Crossplane representation of the API object spec
+type CrossplaneAPIObjectSpec struct {
+  // Configurable field in top-level object
+  // +optional
+  FieldOne *string `json:"fieldOne,omitempty"`
+  
+  // Embedded struct in top-level object
+  // +optional
+  EmbeddedStructOne *EmbeddedStructSpec `json:"embeddedStructOne,omitempty"`
+}
+
+// Only the configurable fields in EmbeddedStruct
+type EmbeddedStructSpec struct {
+  // This field is configurable so it should be in spec.forProvider
+  // +optional
+  SomeConfigurableField *string `json:"someConfigurableField,omitempty"`
+
+  // This field is configurable so it should be in spec.forProvider
+  // +optional
+  AnotherConfigurableField *string `json:"anotherConfigurableField,omitempty"`
+}
+
+// This is the Crossplane representation of the API object status
+type CrossplaneAPIObjectStatus struct {
+  // Non-Configurable field in top-level object
+  FieldTwo *string `json:"fieldTwo,omitempty"`
+  
+  // Embedded struct in top-level object
+  EmbeddedStructOne *EmbeddedStructStatus `json:"embeddedStructOne,omitempty"`
+}
+
+// Only the non-configurable fields in EmbeddedStruct
+type EmbeddedStructStatus struct {
+  // This field is not configurable so it should be in status.atProvider
+  SomeNonConfigurableField string `json:"someNonConfigurableField,omitempty"`
+}
+```
+
 ### Owner-based Struct Tree
 
 Related to https://github.com/crossplaneio/crossplane/issues/728
@@ -330,135 +403,6 @@ type GlobalAddressParameters struct {
 }
 ```
 
-### Immutable Properties
-
-Related to https://github.com/crossplaneio/crossplane/issues/727
-
-Some of the fields that include in `Spec` can only be configured in creation call of the resource, later you cannot
-update them. However, Kubernetes Custom Resources validation mechanisms do not yet support that behavior, see https://github.com/kubernetes/enhancements/pull/1099
-for details. Until that KEP lands, we recommend using the following marker for the fields that are deemed to be immutable
-once set:
-```
-//+immutable
-```
-
-There are some solutions like admission webhooks to enforce immutability of some of the fields, however, current behavior
-is that Crossplane shows the user what the error is received when the call that includes a change in the immutable
-property is made and the most up-to-date status under `Status`. However, there are scenarios where `Update` call of the
-provider doesn't include the immutable fields at all. In that case, there will be no error to show.
-
-#### Example
-
-```
-
-type SubnetworkParameters struct {
-	// Name: The name of the resource...
-	// +immutable
-	Name string `json:"name"`
-
-	// Network: The URL of the network to which this subnetwork belongs,
-	// provided by the client when initially creating the subnetwork. Only
-	// networks that are in the distributed mode can have subnetworks. This
-	// field can be set only at resource creation time.
-	// +immutable
-	Network string `json:"network"`
-
-	// Region: URL of the region where the Subnetwork resides. This field
-	// can be set only at resource creation time.
-	// +optional
-	// +immutable
-	Region string `json:"region,omitempty"`
-
-	// SecondaryIPRanges: An array of configurations for secondary IP ranges
-	// for VM instances contained in this subnetwork. The primary IP of such
-	// VM must belong to the primary ipCidrRange of the subnetwork. The
-	// alias IPs may belong to either primary or secondary ranges. This
-	// field can be updated with a patch request.
-	// +optional
-	SecondaryIPRanges []*GCPSubnetworkSecondaryRange `json:"secondaryIpRanges,omitempty"`
-}
-```
-
-### Exceptions and Edge Cases
-
-Because managed resources could represent API types for any provider, there is
-potential to encounter scenarios that fall outside the rules expressed in this
-design document. Some common exceptions and how to address them are expressed
-below.
-
-#### Embedded Structs with Mixed Fields
-
-Some provider APIs include an embedded struct that may contain some fields that
-are appropriate for `spec.forProvider` and some that are meant for
-`status.atProvider`. For example:
-
-```go
-// This is the provider's representation of the API object
-type ProviderAPIObject struct {
-  // Configurable field in top-level object
-  FieldOne *string `json:"fieldOne,omitempty"`
-
-  // Non-Configurable field in top-level object
-  FieldTwo *string `json:"fieldTwo,omitempty"`
-  
-  // Embedded struct in top-level object
-  EmbeddedStructOne *EmbeddedStruct `json:"embeddedStructOne,omitempty"`
-}
-
-type EmbeddedStruct struct {
-  // This field is configurable so it should be in spec.forProvider
-  SomeConfigurableField *string `json:"someConfigurableField,omitempty"`
-
-  // This field is configurable so it should be in spec.forProvider
-  AnotherConfigurableField *string `json:"anotherConfigurableField,omitempty"`
-
-  // This field is not configurable so it should be in status.atProvider
-  SomeNonConfigurableField string `json:"someNonConfigurableField,omitempty"`
-}
-```
-
-In this case, the solution is to divide the embedded struct into
-`EmbeddedStructSpec` and `EmbeddedStructStatus`.
-
-```go
-// This is the Crossplane representation of the API object spec
-type CrossplaneAPIObjectSpec struct {
-  // Configurable field in top-level object
-  // +optional
-  FieldOne *string `json:"fieldOne,omitempty"`
-  
-  // Embedded struct in top-level object
-  // +optional
-  EmbeddedStructOne *EmbeddedStructSpec `json:"embeddedStructOne,omitempty"`
-}
-
-// Only the configurable fields in EmbeddedStruct
-type EmbeddedStructSpec struct {
-  // This field is configurable so it should be in spec.forProvider
-  // +optional
-  SomeConfigurableField *string `json:"someConfigurableField,omitempty"`
-
-  // This field is configurable so it should be in spec.forProvider
-  // +optional
-  AnotherConfigurableField *string `json:"anotherConfigurableField,omitempty"`
-}
-
-// This is the Crossplane representation of the API object status
-type CrossplaneAPIObjectStatus struct {
-  // Non-Configurable field in top-level object
-  FieldTwo *string `json:"fieldTwo,omitempty"`
-  
-  // Embedded struct in top-level object
-  EmbeddedStructOne *EmbeddedStructStatus `json:"embeddedStructOne,omitempty"`
-}
-
-// Only the non-configurable fields in EmbeddedStruct
-type EmbeddedStructStatus struct {
-  // This field is not configurable so it should be in status.atProvider
-  SomeNonConfigurableField string `json:"someNonConfigurableField,omitempty"`
-}
-```
-
 #### Optional Embedded Structs with One Field
 
 Some provider APIs include an embedded struct that is optional and contains only
@@ -520,6 +464,55 @@ spec:
   forProvider:
     embeddedStructOne: # valid if we do not require embedded field
     fieldOne: my-cool-field
+```
+
+### Immutable Properties
+
+Related to https://github.com/crossplaneio/crossplane/issues/727
+
+Some of the fields that include in `Spec` can only be configured in creation call of the resource, later you cannot
+update them. However, Kubernetes Custom Resources validation mechanisms do not yet support that behavior, see https://github.com/kubernetes/enhancements/pull/1099
+for details. Until that KEP lands, we recommend using the following marker for the fields that are deemed to be immutable
+once set:
+```
+//+immutable
+```
+
+There are some solutions like admission webhooks to enforce immutability of some of the fields, however, current behavior
+is that Crossplane shows the user what the error is received when the call that includes a change in the immutable
+property is made and the most up-to-date status under `Status`. However, there are scenarios where `Update` call of the
+provider doesn't include the immutable fields at all. In that case, there will be no error to show.
+
+#### Example
+
+```
+
+type SubnetworkParameters struct {
+	// Name: The name of the resource...
+	// +immutable
+	Name string `json:"name"`
+
+	// Network: The URL of the network to which this subnetwork belongs,
+	// provided by the client when initially creating the subnetwork. Only
+	// networks that are in the distributed mode can have subnetworks. This
+	// field can be set only at resource creation time.
+	// +immutable
+	Network string `json:"network"`
+
+	// Region: URL of the region where the Subnetwork resides. This field
+	// can be set only at resource creation time.
+	// +optional
+	// +immutable
+	Region string `json:"region,omitempty"`
+
+	// SecondaryIPRanges: An array of configurations for secondary IP ranges
+	// for VM instances contained in this subnetwork. The primary IP of such
+	// VM must belong to the primary ipCidrRange of the subnetwork. The
+	// alias IPs may belong to either primary or secondary ranges. This
+	// field can be updated with a patch request.
+	// +optional
+	SecondaryIPRanges []*GCPSubnetworkSecondaryRange `json:"secondaryIpRanges,omitempty"`
+}
 ```
 
 ## Future Considerations
