@@ -1,7 +1,13 @@
 # Managed Resources API Patterns
 * Owner: Muvaffak Onus (@muvaf)
 * Reviewers: Crossplane Maintainers
-* Status: Accepted, Revision 1.0
+* Status: Accepted, Revision 1.1
+
+## Revisions
+
+* 1.1
+  * Added [Embedded Structs with Mixed Fields](#embedded-structs-with-mixed-fields) and [Optional Embedded Structs with One Field](#optional-embedded-structs-with-one-field) sections
+  * Updated examples with cluster-scoped managed resource and `Provider` objects
 
 ## Terminology
 
@@ -77,7 +83,6 @@ apiVersion: database.gcp.crossplane.io/v1alpha2
 kind: CloudSQLInstance
 metadata:
   generateName: myappnamespace-mydatabase-
-  namespace: gcp
 ```
 After Kubernetes API server completes the creation, we'll see something like the following:
 ```yaml
@@ -85,7 +90,6 @@ apiVersion: database.gcp.crossplane.io/v1alpha2
 kind: CloudSQLInstance
 metadata:
   name: myappnamespace-mydatabase-5sc8a
-  namespace: gcp
 ```
 `mydatabase` is the name of the `Claim` and `myappnamespace` is the namespace that `Claim` lives in. That way we get a
 managed resource that user can relate to what they actually created.
@@ -169,6 +173,79 @@ For both `Status` and `Spec`:
   What if the sub-resource is not yet supported as managed resource in Crossplane? In that case, you should first
   consider implementing that managed resource, if not suitable, only then include it in the CR.
 
+#### Embedded Structs with Mixed Fields
+
+Some provider APIs include an embedded struct that may contain some fields that
+are appropriate for `spec.forProvider` and some that are meant for
+`status.atProvider`. For example:
+
+```go
+// This is the provider's representation of the API object
+type ProviderAPIObject struct {
+  // Configurable field in top-level object
+  FieldOne *string `json:"fieldOne,omitempty"`
+
+  // Non-Configurable field in top-level object
+  FieldTwo *string `json:"fieldTwo,omitempty"`
+  
+  // Embedded struct in top-level object
+  EmbeddedStructOne *EmbeddedStruct `json:"embeddedStructOne,omitempty"`
+}
+
+type EmbeddedStruct struct {
+  // This field is configurable so it should be in spec.forProvider
+  SomeConfigurableField *string `json:"someConfigurableField,omitempty"`
+
+  // This field is configurable so it should be in spec.forProvider
+  AnotherConfigurableField *string `json:"anotherConfigurableField,omitempty"`
+
+  // This field is not configurable so it should be in status.atProvider
+  SomeNonConfigurableField string `json:"someNonConfigurableField,omitempty"`
+}
+```
+
+In this case, the solution is to divide the embedded struct into
+`EmbeddedStructSpec` and `EmbeddedStructStatus`.
+
+```go
+// This is the Crossplane representation of the API object spec
+type CrossplaneAPIObjectSpec struct {
+  // Configurable field in top-level object
+  // +optional
+  FieldOne *string `json:"fieldOne,omitempty"`
+  
+  // Embedded struct in top-level object
+  // +optional
+  EmbeddedStructOne *EmbeddedStructSpec `json:"embeddedStructOne,omitempty"`
+}
+
+// Only the configurable fields in EmbeddedStruct
+type EmbeddedStructSpec struct {
+  // This field is configurable so it should be in spec.forProvider
+  // +optional
+  SomeConfigurableField *string `json:"someConfigurableField,omitempty"`
+
+  // This field is configurable so it should be in spec.forProvider
+  // +optional
+  AnotherConfigurableField *string `json:"anotherConfigurableField,omitempty"`
+}
+
+// This is the Crossplane representation of the API object status
+type CrossplaneAPIObjectStatus struct {
+  // Non-Configurable field in top-level object
+  FieldTwo *string `json:"fieldTwo,omitempty"`
+  
+  // Embedded struct in top-level object
+  EmbeddedStructOne *EmbeddedStructStatus `json:"embeddedStructOne,omitempty"`
+}
+
+// Only the non-configurable fields in EmbeddedStruct
+type EmbeddedStructStatus struct {
+  // This field is not configurable so it should be in status.atProvider
+  SomeNonConfigurableField string `json:"someNonConfigurableField,omitempty"`
+}
+```
+
 ### Owner-based Struct Tree
 
 Related to https://github.com/crossplaneio/crossplane/issues/728
@@ -199,13 +276,11 @@ apiVersion: compute.gcp.crossplane.io/v1alpha1
 kind: Network
 metadata:\
   name: my-legacy-network
-  namespace: crossplane-system
-  selfLink: /apis/compute.gcp.crossplane.io/v1alpha1/namespaces/crossplane-system/networks/my-legacy-network
+  selfLink: /apis/compute.gcp.crossplane.io/v1alpha1/networks/my-legacy-network
 spec:
   name: monus-legacy-network-res
   providerRef:
     name: monus-gcp
-    namespace: crossplane-system
   reclaimPolicy: Delete
   routingConfig:
     routingMode: REGIONAL
@@ -233,12 +308,10 @@ apiVersion: compute.gcp.crossplane.io/v1alpha1
 kind: Network
 metadata:
   name: my-legacy-network
-  namespace: crossplane-system
-  selfLink: /apis/compute.gcp.crossplane.io/v1alpha1/namespaces/crossplane-system/networks/my-legacy-network
+  selfLink: /apis/compute.gcp.crossplane.io/v1alpha1/networks/my-legacy-network
 spec:
   providerRef:
     name: monus-gcp
-    namespace: crossplane-system
   reclaimPolicy: Delete
   writeConnectionSecretToRef: {}
   forProvider:
@@ -328,6 +401,69 @@ type GlobalAddressParameters struct {
 	
 	...
 }
+```
+
+#### Optional Embedded Structs with One Field
+
+Some provider APIs include an embedded struct that is optional and contains only
+a single field. If this field is configurable, the embedded struct should be
+part of `spec.forProvider`. However, if the struct itself is optional, the
+single field it contains should always be **required**, *even if the provider
+marks it as optional*. For example:
+
+```go
+// This is the provider's representation of the API object
+type ProviderAPIObject struct {
+  // Configurable field in top-level object
+  FieldOne *string `json:"fieldOne,omitempty"`
+  
+  // Embedded struct in top-level object
+  EmbeddedStructOne *EmbeddedStruct `json:"embeddedStructOne,omitempty"`
+}
+
+type EmbeddedStruct struct {
+  // This field is configurable so it should be in spec.forProvider
+  SomeConfigurableField *string `json:"someConfigurableField,omitempty"`
+}
+```
+
+The corresponding Crossplane representation of the object's `Spec` should look
+as follows:
+
+```go
+// This is the Crossplane representation of the API object spec
+type CrossplaneAPIObjectSpec struct {
+  // Configurable field in top-level object
+  // +optional
+  FieldOne *string `json:"fieldOne,omitempty"`
+  
+  // Embedded struct in top-level object
+  // +optional
+  EmbeddedStructOne *EmbeddedStructSpec `json:"embeddedStructOne,omitempty"`
+}
+
+// Only the configurable fields in EmbeddedStruct
+type EmbeddedStructSpec struct {
+  // This field is configurable so it should be in spec.forProvider
+  // It is required because its parent is optional and it is the only field of its parent
+  SomeConfigurableField string `json:"someConfigurableField"`
+}
+```
+
+The reasoning for designing in this manner is to avoid the presence of
+meaningless entries in `YAML` configuration. If we *did not* do so, the
+following configuration would be valid:
+
+```yaml
+...
+spec:
+  providerRef:
+    name: provider-gcp
+  reclaimPolicy: Delete
+  writeConnectionSecretToRef: {}
+  forProvider:
+    embeddedStructOne: # valid if we do not require embedded field
+    fieldOne: my-cool-field
 ```
 
 ### Immutable Properties
