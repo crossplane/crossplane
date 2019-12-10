@@ -562,12 +562,12 @@ func TestCreate(t *testing.T) {
 
 func TestCreateJobOutputObject(t *testing.T) {
 	wantLabels := map[string]string{
-		labelParentGroup:     "stacks.crossplane.io",
-		labelParentVersion:   "v1alpha1",
-		labelParentKind:      "StackInstall",
-		labelParentNamespace: namespace,
-		labelParentName:      resourceName,
-		labelParentUID:       uidString,
+		stacks.LabelParentGroup:                   "stacks.crossplane.io",
+		stacks.LabelParentVersion:                 "v1alpha1",
+		stacks.LabelParentKind:                    "StackInstall",
+		stacks.LabelParentNamespace:               namespace,
+		stacks.LabelParentName:                    resourceName,
+		stacks.LabelParentUID:                     uidString,
 		fmt.Sprintf(labelNamespaceFmt, namespace): "true",
 	}
 
@@ -612,7 +612,7 @@ func TestCreateJobOutputObject(t *testing.T) {
 			job:            job(),
 			obj:            unstructuredObj(withUnstructuredObjLabels(wantLabels)),
 			want: want{
-				err: errors.Wrapf(errors.Wrapf(errBoom, "failed to create clusterrole crossplane:ns:cool-namespace:admin for stackinstall cool-stackinstall"), "failed to create namespace persona clusterroles for stackinstall cool-stackinstall from job output cool-stackinstall"),
+				err: errors.Wrapf(errBoom, "failed to create object mytypes.samples.upbound.io from job output cool-stackinstall"),
 				obj: unstructuredObj(withUnstructuredObjLabels(wantLabels)),
 			},
 		},

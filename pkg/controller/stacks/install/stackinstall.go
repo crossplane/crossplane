@@ -255,15 +255,7 @@ func (h *stackInstallHandler) update(ctx context.Context) (reconcile.Result, err
 // This function ensures that all the resources (e.g., CRDs) that this StackInstall owns
 // are also cleaned up.
 func (h *stackInstallHandler) delete(ctx context.Context) (reconcile.Result, error) {
-	gvk := h.ext.GroupVersionKind()
-	labels := map[string]string{
-		labelParentGroup:     gvk.Group,
-		labelParentVersion:   gvk.Version,
-		labelParentKind:      gvk.Kind,
-		labelParentNamespace: h.ext.GetNamespace(),
-		labelParentName:      h.ext.GetName(),
-		labelParentUID:       string(h.ext.GetUID()),
-	}
+	labels := stacks.ParentLabels(h.ext)
 	list := &apiextensionsv1beta1.CustomResourceDefinitionList{}
 	if err := h.kube.List(ctx, list, client.MatchingLabels(labels)); err != nil {
 		return fail(ctx, h.kube, h.ext, err)
@@ -279,8 +271,6 @@ func (h *stackInstallHandler) delete(ctx context.Context) (reconcile.Result, err
 	if err := h.kube.Update(ctx, h.ext); err != nil {
 		return fail(ctx, h.kube, h.ext, err)
 	}
-
-	// TODO(displague) delete() should remove persona clusterroles
 
 	return reconcile.Result{}, nil
 }

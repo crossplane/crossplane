@@ -25,7 +25,7 @@ import (
 	apps "k8s.io/api/apps/v1"
 	batch "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	rbac "k8s.io/api/rbac/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -37,12 +37,14 @@ import (
 	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
 	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
+	runtimeresource "github.com/crossplaneio/crossplane-runtime/pkg/resource"
 	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/stacks"
 )
 
 const (
-	controllerName     = "stack.stacks.crossplane.io"
-	clusterRoleNameFmt = "stack:%s:%s:%s:%s"
+	controllerName  = "stack.stacks.crossplane.io"
+	stacksFinalizer = "finalizer.stacks.crossplane.io"
 
 	reconcileTimeout      = 1 * time.Minute
 	requeueAfterOnSuccess = 10 * time.Second
@@ -110,6 +112,7 @@ type handler interface {
 	sync(context.Context) (reconcile.Result, error)
 	create(context.Context) (reconcile.Result, error)
 	update(context.Context) (reconcile.Result, error)
+	delete(context.Context) (reconcile.Result, error)
 }
 
 type stackHandler struct {
@@ -144,6 +147,11 @@ func (h *stackHandler) sync(ctx context.Context) (reconcile.Result, error) {
 func (h *stackHandler) create(ctx context.Context) (reconcile.Result, error) {
 	h.ext.Status.SetConditions(runtimev1alpha1.Creating())
 
+	meta.AddFinalizer(h.ext, stacksFinalizer)
+	if err := h.kube.Update(ctx, h.ext); err != nil {
+		return fail(ctx, h.kube, h.ext, err)
+	}
+
 	// create RBAC permissions
 	if err := h.processRBAC(ctx); err != nil {
 		return fail(ctx, h.kube, h.ext, err)
@@ -170,17 +178,22 @@ func (h *stackHandler) update(ctx context.Context) (reconcile.Result, error) {
 
 // createPersonaClusterRoles creates admin, edit, and view clusterroles that are
 // namespace+stack+version specific
-func (h *stackHandler) createPersonaClusterRoles(ctx context.Context, owner metav1.OwnerReference) error {
+func (h *stackHandler) createPersonaClusterRoles(ctx context.Context, labels map[string]string) error {
 	for persona := range roleVerbs {
-		rules := []rbac.PolicyRule{}
+		labelsCopy := map[string]string{}
+		for k, v := range labels {
+			labelsCopy[k] = v
+		}
+
+		rules := []rbacv1.PolicyRule{}
 		for _, crd := range h.ext.Spec.CRDs {
-			rules = append(rules, rbac.PolicyRule{
+			rules = append(rules, rbacv1.PolicyRule{
 				APIGroups: []string{crd.GroupVersionKind().Group},
 				Resources: []string{crd.Kind},
 				Verbs:     roleVerbs[persona],
 			})
 		}
-		name := fmtPersonaRole(h.ext, persona)
+		name := stacks.PersonaRoleName(h.ext, persona)
 
 		var crossplaneScope string
 
@@ -192,15 +205,17 @@ func (h *stackHandler) createPersonaClusterRoles(ctx context.Context, owner meta
 
 		aggregationLabel := fmt.Sprintf("rbac.crossplane.io/aggregate-to-%s-%s", crossplaneScope, persona)
 
-		cr := &rbac.ClusterRole{
+		cr := &rbacv1.ClusterRole{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:            name,
-				OwnerReferences: []metav1.OwnerReference{owner},
+				Name:   name,
+				Labels: labelsCopy,
 			},
 			Rules: rules,
 		}
+
 		meta.AddLabels(cr, map[string]string{
-			aggregationLabel: "true",
+			"crossplane.io/scope": crossplaneScope,
+			aggregationLabel:      "true",
 		})
 
 		if h.isNamespaced() {
@@ -216,12 +231,71 @@ func (h *stackHandler) createPersonaClusterRoles(ctx context.Context, owner meta
 	return nil
 }
 
-func (h *stackHandler) createDeploymentClusterRole(ctx context.Context, owner metav1.OwnerReference) (string, error) {
-	name := fmtPersonaRole(h.ext, "system")
-	cr := &rbac.ClusterRole{
+func generateNamespaceClusterRoles(stack *v1alpha1.Stack) (roles []*rbacv1.ClusterRole) {
+	personas := []string{"admin", "edit", "view"}
+
+	ns := stack.GetNamespace()
+	for _, persona := range personas {
+		name := fmt.Sprintf("crossplane:ns:%s:%s", ns, persona)
+
+		labels := map[string]string{
+			fmt.Sprintf(stacks.LabelNamespaceFmt, ns): "true",
+		}
+
+		role := &rbacv1.ClusterRole{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "ClusterRole",
+				APIVersion: "rbac.authorization.k8s.io/v1",
+			},
+			AggregationRule: &rbacv1.AggregationRule{
+				ClusterRoleSelectors: []metav1.LabelSelector{
+					{
+						MatchLabels: map[string]string{
+							fmt.Sprintf("rbac.crossplane.io/aggregate-to-namespace-%s", persona): "true",
+							fmt.Sprintf("namespace.crossplane.io/%s", ns):                        "true",
+						},
+					},
+					{
+						MatchLabels: map[string]string{
+							fmt.Sprintf("rbac.crossplane.io/aggregate-to-namespace-default-%s", persona): "true",
+						},
+					},
+				},
+			},
+			// TODO(displague) set parent labels?
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   name,
+				Labels: labels,
+			},
+		}
+
+		roles = append(roles, role)
+	}
+
+	return roles
+}
+
+func (h *stackHandler) createNamespaceClusterRoles(ctx context.Context) error {
+	if !h.isNamespaced() {
+		return nil
+	}
+
+	roles := generateNamespaceClusterRoles(h.ext)
+
+	for _, role := range roles {
+		if err := h.kube.Create(ctx, role); err != nil && !kerrors.IsAlreadyExists(err) {
+			return errors.Wrapf(err, "failed to create clusterrole %s for stackinstall %s", role.GetName(), h.ext.GetName())
+		}
+	}
+	return nil
+}
+
+func (h *stackHandler) createDeploymentClusterRole(ctx context.Context, labels map[string]string) (string, error) {
+	name := stacks.PersonaRoleName(h.ext, "system")
+	cr := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            name,
-			OwnerReferences: []metav1.OwnerReference{owner},
+			Name:   name,
+			Labels: labels,
 		},
 		Rules: h.ext.Spec.Permissions.Rules,
 	}
@@ -235,15 +309,15 @@ func (h *stackHandler) createDeploymentClusterRole(ctx context.Context, owner me
 
 func (h *stackHandler) createNamespacedRoleBinding(ctx context.Context, clusterRoleName string, owner metav1.OwnerReference) error {
 	// create rolebinding between service account and role
-	crb := &rbac.RoleBinding{
+	crb := &rbacv1.RoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            h.ext.Name,
 			Namespace:       h.ext.Namespace,
 			OwnerReferences: []metav1.OwnerReference{owner},
 		},
-		RoleRef: rbac.RoleRef{APIGroup: rbac.GroupName, Kind: "ClusterRole", Name: clusterRoleName},
-		Subjects: []rbac.Subject{
-			{Name: h.ext.Name, Namespace: h.ext.Namespace, Kind: rbac.ServiceAccountKind},
+		RoleRef: rbacv1.RoleRef{APIGroup: rbacv1.GroupName, Kind: "ClusterRole", Name: clusterRoleName},
+		Subjects: []rbacv1.Subject{
+			{Name: h.ext.Name, Namespace: h.ext.Namespace, Kind: rbacv1.ServiceAccountKind},
 		},
 	}
 	if err := h.kube.Create(ctx, crb); err != nil && !kerrors.IsAlreadyExists(err) {
@@ -252,16 +326,16 @@ func (h *stackHandler) createNamespacedRoleBinding(ctx context.Context, clusterR
 	return nil
 }
 
-func (h *stackHandler) createClusterRoleBinding(ctx context.Context, clusterRoleName string, owner metav1.OwnerReference) error {
+func (h *stackHandler) createClusterRoleBinding(ctx context.Context, clusterRoleName string, labels map[string]string) error {
 	// create clusterrolebinding between service account and role
-	crb := &rbac.ClusterRoleBinding{
+	crb := &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            h.ext.Name,
-			OwnerReferences: []metav1.OwnerReference{owner},
+			Name:   h.ext.Name,
+			Labels: labels,
 		},
-		RoleRef: rbac.RoleRef{APIGroup: rbac.GroupName, Kind: "ClusterRole", Name: clusterRoleName},
-		Subjects: []rbac.Subject{
-			{Name: h.ext.Name, Namespace: h.ext.Namespace, Kind: rbac.ServiceAccountKind},
+		RoleRef: rbacv1.RoleRef{APIGroup: rbacv1.GroupName, Kind: "ClusterRole", Name: clusterRoleName},
+		Subjects: []rbacv1.Subject{
+			{Name: h.ext.Name, Namespace: h.ext.Namespace, Kind: rbacv1.ServiceAccountKind},
 		},
 	}
 	if err := h.kube.Create(ctx, crb); err != nil && !kerrors.IsAlreadyExists(err) {
@@ -290,7 +364,9 @@ func (h *stackHandler) processRBAC(ctx context.Context) error {
 		return errors.Wrap(err, "failed to create service account")
 	}
 
-	clusterRoleName, err := h.createDeploymentClusterRole(ctx, owner)
+	labels := stacks.ParentLabels(h.ext)
+
+	clusterRoleName, err := h.createDeploymentClusterRole(ctx, labels)
 	if err != nil {
 		return err
 	}
@@ -300,9 +376,13 @@ func (h *stackHandler) processRBAC(ctx context.Context) error {
 
 	switch apiextensions.ResourceScope(h.ext.Spec.PermissionScope) {
 	case apiextensions.ClusterScoped:
-		roleBindingErr = h.createClusterRoleBinding(ctx, clusterRoleName, owner)
+		roleBindingErr = h.createClusterRoleBinding(ctx, clusterRoleName, labels)
 	case "", apiextensions.NamespaceScoped:
+		if nsClusterRoleErr := h.createNamespaceClusterRoles(ctx); nsClusterRoleErr != nil {
+			return nsClusterRoleErr
+		}
 		roleBindingErr = h.createNamespacedRoleBinding(ctx, clusterRoleName, owner)
+
 	default:
 		roleBindingErr = errors.New("invalid permissionScope for stack")
 	}
@@ -312,7 +392,7 @@ func (h *stackHandler) processRBAC(ctx context.Context) error {
 	}
 
 	// create persona roles
-	return h.createPersonaClusterRoles(ctx, owner)
+	return h.createPersonaClusterRoles(ctx, labels)
 }
 
 func (h *stackHandler) isNamespaced() bool {
@@ -388,15 +468,47 @@ func (h *stackHandler) processJob(ctx context.Context) error {
 	return nil
 }
 
+// delete performs clean up (finalizer) actions when a Stack is being deleted.
+// This function ensures that all the resources (ClusterRoles, ClusterRoleBindings) that this StackInstall owns
+// are also cleaned up.
+func (h *stackHandler) delete(ctx context.Context) (reconcile.Result, error) {
+	labels := stacks.ParentLabels(h.ext)
+
+	crList := &rbacv1.ClusterRoleList{}
+
+	if err := h.kube.List(ctx, crList, client.MatchingLabels(labels)); err != nil {
+		return fail(ctx, h.kube, h.ext, err)
+	}
+
+	for i := range crList.Items {
+		if err := h.kube.Delete(ctx, &crList.Items[i]); runtimeresource.IgnoreNotFound(err) != nil {
+			return fail(ctx, h.kube, h.ext, err)
+		}
+	}
+
+	crbList := &rbacv1.ClusterRoleBindingList{}
+
+	if err := h.kube.List(ctx, crbList, client.MatchingLabels(labels)); err != nil {
+		return fail(ctx, h.kube, h.ext, err)
+	}
+
+	for i := range crbList.Items {
+		if err := h.kube.Delete(ctx, &crbList.Items[i]); runtimeresource.IgnoreNotFound(err) != nil {
+			return fail(ctx, h.kube, h.ext, err)
+		}
+	}
+
+	meta.RemoveFinalizer(h.ext, stacksFinalizer)
+	if err := h.kube.Update(ctx, h.ext); err != nil {
+		return fail(ctx, h.kube, h.ext, err)
+	}
+
+	return reconcile.Result{}, nil
+}
+
 // fail - helper function to set fail condition with reason and message
 func fail(ctx context.Context, kube client.StatusClient, i *v1alpha1.Stack, err error) (reconcile.Result, error) {
 	log.V(logging.Debug).Info("failed stack", "i", i.Name, "error", err)
 	i.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
 	return resultRequeue, kube.Status().Update(ctx, i)
-}
-
-// fmtPersonaRole is a helper to ensure the persona role formatting parameters
-// are provided consistently
-func fmtPersonaRole(stack *v1alpha1.Stack, persona string) string {
-	return fmt.Sprintf(clusterRoleNameFmt, stack.GetNamespace(), stack.GetName(), stack.Spec.Version, persona)
 }

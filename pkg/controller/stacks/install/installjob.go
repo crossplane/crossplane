@@ -27,7 +27,6 @@ import (
 	"github.com/pkg/errors"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -41,17 +40,6 @@ import (
 	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
 	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/stacks"
-)
-
-// Labels used to track ownership across namespaces and scopes.
-const (
-	labelParentGroup     = "core.crossplane.io/parent-group"
-	labelParentVersion   = "core.crossplane.io/parent-version"
-	labelParentKind      = "core.crossplane.io/parent-kind"
-	labelParentNamespace = "core.crossplane.io/parent-namespace"
-	labelParentName      = "core.crossplane.io/parent-name"
-	labelParentUID       = "core.crossplane.io/parent-uid"
-	labelNamespaceFmt    = "namespace.crossplane.io/%s"
 )
 
 var (
@@ -234,70 +222,11 @@ func (jc *stackInstallJobCompleter) readPodLogs(namespace, name string) (*bytes.
 	return b, nil
 }
 
-func generateNamespaceClusterRoles(i v1alpha1.StackInstaller) (roles []*rbacv1.ClusterRole) {
-	personas := []string{"admin", "edit", "view"}
-
-	namespaced := (i.PermissionScope() == string(apiextensions.NamespaceScoped))
-	if !namespaced {
-		return
-	}
-
-	ns := i.GetNamespace()
-	for _, persona := range personas {
-		name := fmt.Sprintf("crossplane:ns:%s:%s", ns, persona)
-		role := &rbacv1.ClusterRole{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "ClusterRole",
-				APIVersion: "rbac.authorization.k8s.io/v1",
-			},
-			AggregationRule: &rbacv1.AggregationRule{
-				ClusterRoleSelectors: []metav1.LabelSelector{
-					{
-						MatchLabels: map[string]string{
-							fmt.Sprintf("rbac.crossplane.io/aggregate-to-namespace-%s", persona): "true",
-							fmt.Sprintf("namespace.crossplane.io/%s", ns):                        "true",
-						},
-					},
-					{
-						MatchLabels: map[string]string{
-							fmt.Sprintf("rbac.crossplane.io/aggregate-to-namespace-default-%s", persona): "true",
-						},
-					},
-				},
-			},
-			// TODO(displague) set parent labels?
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   name,
-				Labels: map[string]string{},
-			},
-		}
-		if namespaced {
-			labelNamespace := fmt.Sprintf(labelNamespaceFmt, ns)
-
-			role.ObjectMeta.Labels[labelNamespace] = "true"
-		}
-		roles = append(roles, role)
-	}
-
-	return roles
-}
-
-func (jc *stackInstallJobCompleter) createNamespaceClusterRoles(ctx context.Context, i v1alpha1.StackInstaller) error {
-	roles := generateNamespaceClusterRoles(i)
-
-	for _, role := range roles {
-		if err := jc.client.Create(ctx, role); err != nil && !kerrors.IsAlreadyExists(err) {
-			return errors.Wrapf(err, "failed to create clusterrole %s for stackinstall %s", role.GetName(), i.GetName())
-		}
-	}
-	return nil
-}
-
 // createJobOutputObject names, labels, sets ownership, and creates resources
 // resulting from a StackInstall or ClusterStackInstall. These expected
 // resources are currently CRD and Stack objects
 func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, obj *unstructured.Unstructured,
-	i v1alpha1.StackInstaller, job *batchv1.Job) error {
+	i stacks.KindlyIdentifier, job *batchv1.Job) error {
 
 	// if we decoded a non-nil unstructured object, try to create it now
 	if obj == nil {
@@ -324,25 +253,12 @@ func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, o
 	// on garbage collection because a namespaced object (StackInstall) can't
 	// own a cluster scoped object (CustomResourceDefinition), so we use labels
 	// instead.
-	gvk := i.GroupVersionKind()
-	labels := map[string]string{
-		labelParentGroup:     gvk.Group,
-		labelParentVersion:   gvk.Version,
-		labelParentKind:      gvk.Kind,
-		labelParentNamespace: i.GetNamespace(),
-		labelParentName:      i.GetName(),
-		labelParentUID:       string(i.GetUID()),
-	}
+	labels := stacks.ParentLabels(i)
 
 	if isCRDObject(obj) {
-		labelNamespaceFmt := "namespace.crossplane.io/%s"
-		labelNamespace := fmt.Sprintf(labelNamespaceFmt, i.GetNamespace())
+		labelNamespace := fmt.Sprintf(stacks.LabelNamespaceFmt, i.GetNamespace())
 
 		labels[labelNamespace] = "true"
-
-		if err := jc.createNamespaceClusterRoles(ctx, i); err != nil {
-			return errors.Wrapf(err, "failed to create namespace persona clusterroles for stackinstall %s from job output %s", i.GetName(), job.GetName())
-		}
 	}
 
 	meta.AddLabels(obj, labels)
@@ -355,12 +271,7 @@ func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, o
 		"namespace", obj.GetNamespace(),
 		"apiVersion", obj.GetAPIVersion(),
 		"kind", obj.GetKind(),
-		"parentGroup", labels[labelParentGroup],
-		"parentVersion", labels[labelParentVersion],
-		"parentKind", labels[labelParentKind],
-		"parentName", labels[labelParentName],
-		"parentNamespace", labels[labelParentNamespace],
-		"parentUID", labels[labelParentUID],
+		"labels", labels,
 	)
 	if err := jc.client.Create(ctx, obj); err != nil && !kerrors.IsAlreadyExists(err) {
 		return errors.Wrapf(err, "failed to create object %s from job output %s", obj.GetName(), job.Name)
