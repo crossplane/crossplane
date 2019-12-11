@@ -55,7 +55,7 @@ func (in *KubernetesCluster) DeepCopyObject() runtime.Object {
 func (in *KubernetesClusterList) DeepCopyInto(out *KubernetesClusterList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]KubernetesCluster, len(*in))
@@ -130,7 +130,7 @@ func (in *MachineInstance) DeepCopyObject() runtime.Object {
 func (in *MachineInstanceList) DeepCopyInto(out *MachineInstanceList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]MachineInstance, len(*in))
