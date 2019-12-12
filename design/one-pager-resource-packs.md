@@ -111,15 +111,15 @@ rules to be adhered by initial resource packs.
   owner.
 * Stack type will be `ClusterStack` as most of the resources it deploys are
   cluster-scoped.
-* CRD of the resource pack should have a boolean spec field called
-  `keepDefaultingLabels` which indicates what happens to the resource classes that
-  are marked default.
-  * By default, the zero-value of the boolean is _false_. Meaning, if user is
-    indifferent we remove that special default label from all resource classes
-    to avoid conflict and unexpected randomization between resource classes.
-  * Users who deploy the CR will need to mark this field as _true_ if they'd like
-    to keep the defaults, which is expected to appear on only one configuration
-    stack CR in the cluster.
+* The CR instance should indicate whether the defaulting annotation on the resource
+  classes should be kept or removed via an annotation on the CR like
+  `resourcepacks.crossplane.io/keep-defaulting-annotations: true`
+  * If this annotation is not provided, we remove that special default label
+    from all resource classes to avoid conflict and unexpected randomization
+    between default resource classes.
+  * Users who deploy the CR will need to supply this annotation with value `true`
+    if they'd like to keep the defaults, which is expected to appear on only one
+    resource pack CR in the cluster.
   * See details about [defaulting mechanism here].
 * All the labels in the resource pack CR is propagated down to all resources
   that it deploys.
@@ -140,20 +140,21 @@ spec:
 ```
 
 Now, I want an environment where all my database instances and kubernetes clusters
-are connected to each other in a private VPC, which what this specific configuration
-stack does. Create the following:
+are connected to each other in a private VPC, which what this specific resource
+pack does. Create the following:
 
 ```yaml
 apiVersion: gcp.resourcepacks.crossplane.io/v1alpha1
 kind: MinimalGCP
 metadata:
   name: small-infra
+  annotations:
+    "resourcepacks.crossplane.io/keep-defaulting-annotations": "true"
   labels:
       "foo-key": bar-value
 spec:
   region: us-west2
   projectID: foo-project
-  keepDefaultingAnnotations: true
   credentialsSecretRef:
     name: gcp-credentials
     namespace: crossplane-system
@@ -167,12 +168,13 @@ apiVersion: gcp.resourcepacks.crossplane.io/v1alpha1
 kind: MinimalGCP
 metadata:
   name: small-infra
+  annotations:
+      "resourcepacks.crossplane.io/keep-defaulting-annotations": "true"
   labels:
     "foo-key": bar-value
 spec:
   region: us-west2
   projectID: foo-project
-  keepDefaultingAnnotations: true
   credentialsSecretRef:
     name: gcp-credentials
     namespace: crossplane-system
@@ -197,7 +199,8 @@ metadata:
     gcp.resourcepacks.crossplane.io/name: minimal-setup
     gcp.resourcepacks.crossplane.io/uid: 34646233-f58e-4c99-b0a8-0d766533b12c
   annotations:
-    # The defaulting annotation is kept since keepDefaultingAnnotations was true.
+    # The defaulting annotation is kept since the annotation
+    # resourcepacks.crossplane.io/keep-defaulting-annotations on CR was true.
     # Otherwise, it'd have been removed.
     resourceclass.crossplane.io/is-default-class: "true"
   name: minimal-setup-cloudsqlinstance-mysql
@@ -236,23 +239,71 @@ have their own similar environment with resources that have different names.
 ## Technical Implementation
 
 Reconciliation will mainly consist of the following steps:
-1. A `Kustomization` overlay object will be generated that looks like the following:
+1. Create a `Kustomization` overlay object with the template (`kustomization.yaml.tmpl`)
+   that is provided by the developer in the `resources` folder. It looks like
+   the following:
 
 ```yaml
-apiVersion: kustomize.config.k8s.io/v1beta1
+# The MinimalGCP instance will be in the Kustomize resources for templating.
+# Resource pack generic controller will use this template in another directory
+# to create a final overlay for rendering. It will fill the missing runtime pieces such as name, namespace
+# and uid of the MinimalGCP instance. Then it will refer to this `resources` folder.
+#
+# NOTE: `resources` array in this file will be overridden by the controller. Use
+# kustomization.yaml file to list your resources.
+
 kind: Kustomization
-namePrefix: <CRNAME>-
+namePrefix: ""
 commonLabels:
-  "gcp.resourcepacks.crossplane.io/name": <CRNAME>
-  "gcp.resourcepacks.crossplane.io/uid": <CRUID>
+  gcp.resourcepacks.crossplane.io/name: ""
+  gcp.resourcepacks.crossplane.io/uid: ""
+
+vars:
+- name: REGION
+  objref:
+    kind: MinimalGCP
+    apiVersion: gcp.resourcepacks.crossplane.io/v1alpha1
+    name: ""
+  fieldref:
+    fieldpath: spec.region
+- name: GCP_PROJECT_ID
+  objref:
+    kind: MinimalGCP
+    apiVersion: gcp.resourcepacks.crossplane.io/v1alpha1
+    name: ""
+  fieldref:
+    fieldpath: spec.projectID
+- name: CRED_SECRET_KEY
+  objref:
+    kind: MinimalGCP
+    apiVersion: gcp.resourcepacks.crossplane.io/v1alpha1
+    name: ""
+  fieldref:
+    fieldpath: spec.credentialsSecretRef.key
+- name: CRED_SECRET_NAME
+  objref:
+    kind: MinimalGCP
+    apiVersion: gcp.resourcepacks.crossplane.io/v1alpha1
+    name: ""
+  fieldref:
+    fieldpath: spec.credentialsSecretRef.name
+- name: CRED_SECRET_NAMESPACE
+  objref:
+    kind: MinimalGCP
+    apiVersion: gcp.resourcepacks.crossplane.io/v1alpha1
+    name: ""
+  fieldref:
+    fieldpath: spec.credentialsSecretRef.namespace
 ```
 
-2. Call custom patch functions that consumer of the reconciler provided in order
-   to make changes on `Kustomization` object.
+2. Call custom Kustomization patch functions that consumer of the reconciler
+   provided in order to make changes on `Kustomization` object.
+   * One of the default patchers is `VariantFiller` where it iterates over `vars`
+     list and fills the `name`.
 3. Call Kustomize and generate the resources.
 4. Read the stream of YAMLs from kustomize output.
-5. Call custom patch functions that consumer of the reconciler provided in order
-   to make changes on the generated resources before deployment.
+5. Call child resource patch functions that consumer of the reconciler provided
+   in order to make changes on the generated resources before deployment.
 6. _Apply_ all resources. Set reconciliation condition to success if no error is
    present.
 
@@ -263,30 +314,32 @@ All resource YAMLs will exist in the top directory called `resources`, which loo
 like the following:
 
 ```
-├── resources
-│   ├── gcp
-│   │   ├── cache
-│   │   │   ├── cloudmemorystoreinstance.yaml
-│   │   │   ├── kustomization.yaml
-│   │   │   └── kustomizeconfig.yaml
-│   │   ├── compute
-│   │   │   ├── gkeclusterclass.yaml
-│   │   │   ├── globaladdress.yaml
-│   │   │   ├── kustomization.yaml
-│   │   │   ├── kustomizeconfig.yaml
-│   │   │   ├── network.yaml
-│   │   │   └── subnetwork.yaml
-│   │   ├── database
-│   │   │   ├── cloudsqlinstanceclass.yaml
-│   │   │   ├── kustomization.yaml
-│   │   │   └── kustomizeconfig.yaml
+resources
+├── gcp
+│   ├── cache
+│   │   ├── cloudmemorystoreinstance.yaml
 │   │   ├── kustomization.yaml
-│   │   ├── provider.yaml
-│   │   └── servicenetworking
-│   │       ├── connection.yaml
-│   │       ├── kustomization.yaml
-│   │       └── kustomizeconfig.yaml
-│   └── kustomization.yaml
+│   │   └── kustomizeconfig.yaml
+│   ├── compute
+│   │   ├── gkeclusterclass.yaml
+│   │   ├── globaladdress.yaml
+│   │   ├── kustomization.yaml
+│   │   ├── kustomizeconfig.yaml
+│   │   ├── network.yaml
+│   │   └── subnetwork.yaml
+│   ├── database
+│   │   ├── cloudsqlinstanceclass.yaml
+│   │   ├── kustomization.yaml
+│   │   └── kustomizeconfig.yaml
+│   ├── kustomization.yaml
+│   ├── kustomizeconfig.yaml
+│   ├── provider.yaml
+│   └── servicenetworking
+│       ├── connection.yaml
+│       ├── kustomization.yaml
+│       └── kustomizeconfig.yaml
+├── kustomization.yaml
+└── kustomization.yaml.tmpl
 ```
 
 As you see, we follow `resources/{cloud provider}/{group}/{kind}.yaml` where all
@@ -299,22 +352,28 @@ sense for developer to have a folder for each tier under `resources` folder. It'
 basically up to you to try various structures as long as kustomize is able to
 work through your structure.
 
-Note that nothing in `resources` folder is changed. The reconciler generates a
-new overlay with its own `kustomization.yaml` in a temporary directory and refers
-to the `resources` folder.
+Note that nothing in `resources` folder is changed. The reconciler would generate
+a new overlay using `kustomization.yaml.tmpl` in another directory and refer to
+this `resources` folder. The actual `kustomization.yaml` file here is just a usual
+kustomization file that could look like the following:
+
+```yaml
+resources:
+- gcp
+```
 
 [UI annotations] should be present to make it easy for frontend software to process
 the stack.
 
 ### Custom Patchers
 
-The resource pack reconciler that has two types of patcher functions where
+The resource pack reconciler has two types of patcher functions where
 developer can intercept the reconciler flow and provide their own logic:
 * `KustomizationPatcher`: Its signature includes the generic `ParentResource` object
   that represents the stack CR and `Kustomization` object that represents the
   overlay `kustomization.yaml` file.
-  * Developers who want to make additions to the default `kustomization.yaml` file
-    with data from runtime can provide their own patchers to the pipeline.
+  * Developers who want to make changes to the default `kustomization.yaml.tmpl`
+    file with data from runtime can provide their own patchers to the pipeline.
 * `ChildResourcePatcher`: Its signature includes the generic `ParentResource` object
   as well as the list of the generated `ChildResource`s that will be deployed.
   * Developers who'd like to make changes to the resources generated via `kustomize`
@@ -322,7 +381,7 @@ developer can intercept the reconciler flow and provide their own logic:
 
 Resource pack reconciler will have default patchers for the functionality
 that is expected to be common for all resource packs such as label propagation
-from stack CR to deployed resources.
+from stack CR to deployed resources, variant list filler etc.
 
 ### Referencing
 
@@ -416,6 +475,21 @@ configurations:
   },
 },
 ```
+
+## Future Considerations
+
+#### Other Templating Engines
+
+At some point, we might want to use go-template, helm or other various templating
+engines. It'd be cool to provide them as options.
+
+#### Code Generation
+
+The stack controller logic at this phase consists of only calling the generic
+reconciler. Crossplane CLI could have an ability to generate everything. Possibly,
+user could just put the `resources` folder and a YAML that describes a few parameters
+of the CRD and metadata about the stack and then CLI can generate the code, build
+the stack and pushes it as an image. No Go code involved from the user's perspective.
 
 ## Alternatives Considered
 
