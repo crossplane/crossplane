@@ -3,6 +3,8 @@ apiVersion: database.gcp.crossplane.io/v1beta1
 kind: CloudSQLInstanceClass
 metadata:
   name: cloudsqlinstance-mysql
+  annotations:
+    resourceclass.crossplane.io/is-default-class: "true"
 specTemplate:
   writeConnectionSecretsToNamespace: crossplane-system
   reclaimPolicy: Delete
@@ -10,7 +12,7 @@ specTemplate:
     name: gcp-provider
   forProvider:
     databaseVersion: MYSQL_5_7
-    region: us-west2
+    region: $(REGION)
     settings:
       tier: db-n1-standard-1
       dataDiskType: PD_SSD
@@ -31,7 +33,7 @@ specTemplate:
   reclaimPolicy: Delete
   forProvider:
     databaseVersion: POSTGRES_9_6
-    region: us-west2
+    region: $(REGION)
     settings:
       tier: db-n1-standard-1
       dataDiskType: PD_SSD

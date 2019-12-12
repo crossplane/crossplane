@@ -4,7 +4,7 @@ metadata:
   name: gcp-provider
 spec:
   credentialsSecretRef:
-    key: credentials
-    name: gcp-account-creds
-    namespace: crossplane-system
-  projectID: crossplane-playground
+    key: $(CRED_SECRET_KEY)
+    name: $(CRED_SECRET_NAME)
+    namespace: $(CRED_SECRET_NAMESPACE)
+  projectID: $(GCP_PROJECT_ID)

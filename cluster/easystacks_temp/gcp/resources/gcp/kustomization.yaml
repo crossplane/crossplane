@@ -1,3 +1,5 @@
+configurations:
+  - kustomizeconfig.yaml
 resources:
   - cache
   - compute

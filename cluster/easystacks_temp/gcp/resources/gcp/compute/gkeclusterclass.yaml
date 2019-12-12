@@ -2,12 +2,15 @@
 apiVersion: compute.gcp.crossplane.io/v1alpha3
 kind: GKEClusterClass
 metadata:
-  name: gkecluster
+  name: gkeclusterclass
+  annotations:
+    resourceclass.crossplane.io/is-default-class: "true"
 specTemplate:
   writeConnectionSecretsToNamespace: crossplane-system
   machineType: n1-standard-1
   numNodes: 1
-  zone: us-west2-b
+  locations:
+    - $(REGION)a
   networkRef:
     name: network
   subnetworkRef:

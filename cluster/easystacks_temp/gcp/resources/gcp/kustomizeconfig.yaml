@@ -2,15 +2,14 @@
 # can resolve the cross-resource object references.
 # See https://github.com/kubernetes-sigs/kustomize/blob/master/examples/transformerconfigs/crd/README.md
 
-# nameReference is used to declare which kind's name is referred in which resources.
-nameReference:
-  - kind: Provider
-    fieldSpecs:
-      - path: specTemplate/providerRef/name
-        kind: CloudMemoryInstanceClass
-
 # varReference is the list of fields that we tell Kustomize to process for
 # variants.
 varReference:
-  - path: specTemplate/forProvider/region
-    kind: CloudMemorystoreInstanceClass
+  - path: spec/credentialsSecretRef/key
+    kind: Provider
+  - path: spec/credentialsSecretRef/name
+    kind: Provider
+  - path: spec/credentialsSecretRef/namespace
+    kind: Provider
+  - path: spec/projectID
+    kind: Provider

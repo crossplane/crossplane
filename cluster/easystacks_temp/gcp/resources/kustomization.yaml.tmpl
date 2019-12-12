@@ -1,0 +1,50 @@
+# The MinimalGCP instance will be in the Kustomize resources for templating.
+# Resource pack generic controller will use this template in another directory
+# to create a final overlay for rendering. It will fill the missing runtime pieces such as name, namespace
+# and uid of the MinimalGCP instance. Then it will refer to this `resources` folder.
+#
+# NOTE: `resources` array in this file will be overridden by the controller. Use
+# kustomization.yaml file to list your resources.
+
+kind: Kustomization
+namePrefix: ""
+commonLabels:
+  gcp.resourcepacks.crossplane.io/name: ""
+  gcp.resourcepacks.crossplane.io/uid: ""
+
+vars:
+- name: REGION
+  objref:
+    kind: MinimalGCP
+    apiVersion: gcp.resourcepacks.crossplane.io/v1alpha1
+    name: ""
+  fieldref:
+    fieldpath: spec.region
+- name: GCP_PROJECT_ID
+  objref:
+    kind: MinimalGCP
+    apiVersion: gcp.resourcepacks.crossplane.io/v1alpha1
+    name: ""
+  fieldref:
+    fieldpath: spec.projectID
+- name: CRED_SECRET_KEY
+  objref:
+    kind: MinimalGCP
+    apiVersion: gcp.resourcepacks.crossplane.io/v1alpha1
+    name: ""
+  fieldref:
+    fieldpath: spec.credentialsSecretRef.key
+- name: CRED_SECRET_NAME
+  objref:
+    kind: MinimalGCP
+    apiVersion: gcp.resourcepacks.crossplane.io/v1alpha1
+    name: ""
+  fieldref:
+    fieldpath: spec.credentialsSecretRef.name
+- name: CRED_SECRET_NAMESPACE
+  objref:
+    kind: MinimalGCP
+    apiVersion: gcp.resourcepacks.crossplane.io/v1alpha1
+    name: ""
+  fieldref:
+    fieldpath: spec.credentialsSecretRef.namespace

@@ -4,7 +4,7 @@ metadata:
   name: subnetwork
 spec:
   name: subnetwork
-  region: us-west2
+  region: $(REGION)
   ipCidrRange: "192.168.0.0/24"
   privateIpGoogleAccess: true
   secondaryIpRanges:
