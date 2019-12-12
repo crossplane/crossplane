@@ -24,8 +24,18 @@ import (
 
 // Labels used to track ownership across namespaces and scopes.
 const (
+	// rbac.crossplane.io/aggregate-to-{scope}-{persona}
+	// {scope} is namespace or environment and may include "-default"
+	// persona is one of admin, edit, or view
+	LabelAggregateFmt = "rbac.crossplane.io/aggregate-to-%s-%s"
+
 	// namespace.crossplane.io/{namespace}
 	LabelNamespaceFmt = "namespace.crossplane.io/%s"
+
+	LabelScope = "crossplane.io/scope"
+
+	// crossplane:ns:{namespace}:{persona}
+	NamespaceClusterRoleNameFmt = "crossplane:ns:%s:%s"
 )
 
 // PersonaRoleName is a helper to ensure the persona role formatting parameters

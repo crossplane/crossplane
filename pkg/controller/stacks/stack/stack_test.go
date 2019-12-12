@@ -31,6 +31,7 @@ import (
 	rbac "k8s.io/api/rbac/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -176,6 +177,13 @@ func defaultControllerSpec() v1alpha1.ControllerSpec {
 	}
 }
 
+func targetNamespace(name string) corev1.Namespace {
+	return corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+		Name: name,
+		UID:  uid,
+	}}
+}
+
 func defaultPolicyRules() []rbac.PolicyRule {
 	return []rbac.PolicyRule{{APIGroups: []string{""}, Resources: []string{"configmaps", "events", "secrets"}, Verbs: []string{"*"}}}
 }
@@ -303,16 +311,15 @@ func TestCreate(t *testing.T) {
 			name: "FailRBAC",
 			r:    resource(withPolicyRules(defaultPolicyRules())),
 			clientFunc: func(r *v1alpha1.Stack) client.Client {
-				return &test.MockClient{
-					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error {
-						if _, ok := obj.(*corev1.ServiceAccount); ok {
-							return errBoom
-						}
-						return nil
-					},
-					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
-					MockUpdate:       func(ctx context.Context, obj runtime.Object, opts ...client.UpdateOption) error { return nil },
+				mc := test.NewMockClient()
+				mc.MockCreate = func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error {
+					if _, ok := obj.(*corev1.ServiceAccount); ok {
+						return errBoom
+					}
+					return nil
 				}
+				mc.MockStatusUpdate = func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil }
+				return mc
 			},
 			want: want{
 				result: resultRequeue,
@@ -333,16 +340,24 @@ func TestCreate(t *testing.T) {
 				withPolicyRules(defaultPolicyRules()),
 				withControllerSpec(defaultControllerSpec())),
 			clientFunc: func(r *v1alpha1.Stack) client.Client {
-				return &test.MockClient{
-					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error {
-						if _, ok := obj.(*apps.Deployment); ok {
-							return errBoom
-						}
-						return nil
-					},
-					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
-					MockUpdate:       func(ctx context.Context, obj runtime.Object, opts ...client.UpdateOption) error { return nil },
+				mc := test.NewMockClient()
+				mc.MockCreate = func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error {
+					if _, ok := obj.(*apps.Deployment); ok {
+						return errBoom
+					}
+					return nil
 				}
+				mc.MockGet = func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
+					switch obj := obj.(type) {
+					case *corev1.Namespace:
+						*(obj) = targetNamespace(key.Name)
+					default:
+						return errors.New("unexpected client GET call")
+					}
+					return nil
+				}
+				mc.MockStatusUpdate = func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil }
+				return mc
 			},
 			want: want{
 				result: resultRequeue,
@@ -485,14 +500,23 @@ func TestProcessRBAC_Namespaced(t *testing.T) {
 			name: "CreateRoleBindingError",
 			r:    resource(withPolicyRules(defaultPolicyRules())),
 			clientFunc: func(r *v1alpha1.Stack) client.Client {
-				return &test.MockClient{
-					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error {
-						if _, ok := obj.(*rbac.RoleBinding); ok {
-							return errBoom
-						}
-						return nil
-					},
+				mc := test.NewMockClient()
+				mc.MockCreate = func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error {
+					if _, ok := obj.(*rbac.RoleBinding); ok {
+						return errBoom
+					}
+					return nil
 				}
+				mc.MockGet = func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
+					switch obj := obj.(type) {
+					case *corev1.Namespace:
+						*obj = targetNamespace(key.Name)
+					default:
+						return errors.New("unexpected client GET call")
+					}
+					return nil
+				}
+				return mc
 			},
 			want: want{
 				err: errors.Wrap(errBoom, "failed to create role binding"),
@@ -502,9 +526,12 @@ func TestProcessRBAC_Namespaced(t *testing.T) {
 			},
 		},
 		{
-			name:       "Success",
-			r:          resource(withPermissionScope("Namespaced"), withPolicyRules(defaultPolicyRules())),
-			clientFunc: func(r *v1alpha1.Stack) client.Client { return fake.NewFakeClient(r) },
+			name: "Success",
+			r:    resource(withPermissionScope("Namespaced"), withPolicyRules(defaultPolicyRules())),
+			clientFunc: func(r *v1alpha1.Stack) client.Client {
+				tns := targetNamespace(namespace)
+				return fake.NewFakeClient(r, &tns)
+			},
 			want: want{
 				err: nil,
 				sa: &corev1.ServiceAccount{
@@ -527,10 +554,11 @@ func TestProcessRBAC_Namespaced(t *testing.T) {
 					},
 					{
 						ObjectMeta: metav1.ObjectMeta{
-							Name:            "crossplane:ns:cool-namespace:view",
-							OwnerReferences: nil,
+							Name:            "crossplane:ns:" + namespace + ":view",
+							OwnerReferences: []v1.OwnerReference{{APIVersion: "v1", Kind: "Namespace", Name: namespace, UID: uid}},
 							Labels: map[string]string{
-								"namespace.crossplane.io/cool-namespace": "true",
+								"namespace.crossplane.io/" + namespace: "true",
+								"crossplane.io/scope":                  "namespace",
 							},
 						},
 						Rules: nil,

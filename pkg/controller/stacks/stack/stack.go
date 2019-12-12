@@ -30,6 +30,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -203,7 +204,7 @@ func (h *stackHandler) createPersonaClusterRoles(ctx context.Context, labels map
 			crossplaneScope = "environment"
 		}
 
-		aggregationLabel := fmt.Sprintf("rbac.crossplane.io/aggregate-to-%s-%s", crossplaneScope, persona)
+		aggregationLabel := fmt.Sprintf(stacks.LabelAggregateFmt, crossplaneScope, persona)
 
 		cr := &rbacv1.ClusterRole{
 			ObjectMeta: metav1.ObjectMeta{
@@ -214,13 +215,14 @@ func (h *stackHandler) createPersonaClusterRoles(ctx context.Context, labels map
 		}
 
 		meta.AddLabels(cr, map[string]string{
-			"crossplane.io/scope": crossplaneScope,
-			aggregationLabel:      "true",
+			aggregationLabel: "true",
 		})
+
+		meta.AddLabels(cr, stacks.ParentLabels(h.ext))
 
 		if h.isNamespaced() {
 			meta.AddLabels(cr, map[string]string{
-				"namespace.crossplane.io/" + h.ext.GetNamespace(): "true",
+				fmt.Sprintf(stacks.LabelNamespaceFmt, h.ext.GetNamespace()): "true",
 			})
 		}
 
@@ -234,34 +236,37 @@ func (h *stackHandler) createPersonaClusterRoles(ctx context.Context, labels map
 func generateNamespaceClusterRoles(stack *v1alpha1.Stack) (roles []*rbacv1.ClusterRole) {
 	personas := []string{"admin", "edit", "view"}
 
-	ns := stack.GetNamespace()
+	nsName := stack.GetNamespace()
+
 	for _, persona := range personas {
-		name := fmt.Sprintf("crossplane:ns:%s:%s", ns, persona)
+		name := fmt.Sprintf(stacks.NamespaceClusterRoleNameFmt, nsName, persona)
 
 		labels := map[string]string{
-			fmt.Sprintf(stacks.LabelNamespaceFmt, ns): "true",
+			fmt.Sprintf(stacks.LabelNamespaceFmt, nsName): "true",
+			stacks.LabelScope: "namespace",
+		}
+
+		if persona == "admin" {
+			labels[fmt.Sprintf(stacks.LabelAggregateFmt, "crossplane", persona)] = "true"
 		}
 
 		role := &rbacv1.ClusterRole{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "ClusterRole",
-				APIVersion: "rbac.authorization.k8s.io/v1",
-			},
 			AggregationRule: &rbacv1.AggregationRule{
 				ClusterRoleSelectors: []metav1.LabelSelector{
 					{
 						MatchLabels: map[string]string{
-							fmt.Sprintf("rbac.crossplane.io/aggregate-to-namespace-%s", persona): "true",
-							fmt.Sprintf("namespace.crossplane.io/%s", ns):                        "true",
+							fmt.Sprintf(stacks.LabelAggregateFmt, "namespace", persona): "true",
+							fmt.Sprintf(stacks.LabelNamespaceFmt, nsName):               "true",
 						},
 					},
 					{
 						MatchLabels: map[string]string{
-							fmt.Sprintf("rbac.crossplane.io/aggregate-to-namespace-default-%s", persona): "true",
+							fmt.Sprintf(stacks.LabelAggregateFmt, "namespace-default", persona): "true",
 						},
 					},
 				},
 			},
+
 			// TODO(displague) set parent labels?
 			ObjectMeta: metav1.ObjectMeta{
 				Name:   name,
@@ -280,9 +285,25 @@ func (h *stackHandler) createNamespaceClusterRoles(ctx context.Context) error {
 		return nil
 	}
 
+	ns := &corev1.Namespace{}
+	nsName := h.ext.GetNamespace()
+
+	if err := h.kube.Get(ctx, types.NamespacedName{Name: nsName}, ns); err != nil {
+		return errors.Wrapf(err, "failed to get namespace %q for stackinstall %q", nsName, h.ext.GetName())
+	}
+
 	roles := generateNamespaceClusterRoles(h.ext)
 
 	for _, role := range roles {
+		role.SetOwnerReferences([]metav1.OwnerReference{
+			{
+				APIVersion: "v1",
+				Kind:       "Namespace",
+				Name:       nsName,
+				UID:        ns.GetUID(),
+			},
+		})
+
 		if err := h.kube.Create(ctx, role); err != nil && !kerrors.IsAlreadyExists(err) {
 			return errors.Wrapf(err, "failed to create clusterrole %s for stackinstall %s", role.GetName(), h.ext.GetName())
 		}
