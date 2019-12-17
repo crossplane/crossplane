@@ -106,6 +106,10 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	handler := r.factory.newHandler(ctx, i, r.kube)
 
+	if meta.WasDeleted(i) {
+		return handler.delete(ctx)
+	}
+
 	return handler.sync(ctx)
 }
 
@@ -148,8 +152,11 @@ func (h *stackHandler) sync(ctx context.Context) (reconcile.Result, error) {
 func (h *stackHandler) create(ctx context.Context) (reconcile.Result, error) {
 	h.ext.Status.SetConditions(runtimev1alpha1.Creating())
 
+	// Add the finalizer before the RBAC and Deployments. If the Deployment
+	// irreconcilably fails, the finalizer must be in place to delete the Roles
+	patchCopy := h.ext.DeepCopy()
 	meta.AddFinalizer(h.ext, stacksFinalizer)
-	if err := h.kube.Update(ctx, h.ext); err != nil {
+	if err := h.kube.Patch(ctx, h.ext, client.MergeFrom(patchCopy)); err != nil {
 		return fail(ctx, h.kube, h.ext, err)
 	}
 
@@ -490,34 +497,26 @@ func (h *stackHandler) processJob(ctx context.Context) error {
 }
 
 // delete performs clean up (finalizer) actions when a Stack is being deleted.
-// This function ensures that all the resources (ClusterRoles, ClusterRoleBindings) that this StackInstall owns
-// are also cleaned up.
+// This function ensures that all the resources (ClusterRoles,
+// ClusterRoleBindings) that this Stack owns are also cleaned up.
 func (h *stackHandler) delete(ctx context.Context) (reconcile.Result, error) {
+	log.V(logging.Debug).Info("deleting stack", "namespace", h.ext.GetNamespace(), "name", h.ext.GetName())
+
 	labels := stacks.ParentLabels(h.ext)
 
-	crList := &rbacv1.ClusterRoleList{}
+	log.V(logging.Debug).Info("deleting stack clusterroles", "namespace", h.ext.GetNamespace(), "name", h.ext.GetName())
 
-	if err := h.kube.List(ctx, crList, client.MatchingLabels(labels)); err != nil {
+	if err := h.kube.DeleteAllOf(ctx, &rbacv1.ClusterRole{}, client.MatchingLabels(labels)); runtimeresource.IgnoreNotFound(err) != nil {
 		return fail(ctx, h.kube, h.ext, err)
 	}
 
-	for i := range crList.Items {
-		if err := h.kube.Delete(ctx, &crList.Items[i]); runtimeresource.IgnoreNotFound(err) != nil {
-			return fail(ctx, h.kube, h.ext, err)
-		}
-	}
+	log.V(logging.Debug).Info("deleting stack clusterrolebindings", "namespace", h.ext.GetNamespace(), "name", h.ext.GetName())
 
-	crbList := &rbacv1.ClusterRoleBindingList{}
-
-	if err := h.kube.List(ctx, crbList, client.MatchingLabels(labels)); err != nil {
+	if err := h.kube.DeleteAllOf(ctx, &rbacv1.ClusterRoleBinding{}, client.MatchingLabels(labels)); runtimeresource.IgnoreNotFound(err) != nil {
 		return fail(ctx, h.kube, h.ext, err)
 	}
 
-	for i := range crbList.Items {
-		if err := h.kube.Delete(ctx, &crbList.Items[i]); runtimeresource.IgnoreNotFound(err) != nil {
-			return fail(ctx, h.kube, h.ext, err)
-		}
-	}
+	log.V(logging.Debug).Info("removing stack finalizer", "namespace", h.ext.GetNamespace(), "name", h.ext.GetName())
 
 	meta.RemoveFinalizer(h.ext, stacksFinalizer)
 	if err := h.kube.Update(ctx, h.ext); err != nil {
@@ -529,7 +528,8 @@ func (h *stackHandler) delete(ctx context.Context) (reconcile.Result, error) {
 
 // fail - helper function to set fail condition with reason and message
 func fail(ctx context.Context, kube client.StatusClient, i *v1alpha1.Stack, err error) (reconcile.Result, error) {
-	log.V(logging.Debug).Info("failed stack", "i", i.Name, "error", err)
+	log.V(logging.Debug).Info("failed to reconcile Stack", "namespace", i.GetNamespace(), "name", i.GetName(), "error", err)
+
 	i.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
 	return resultRequeue, kube.Status().Update(ctx, i)
 }

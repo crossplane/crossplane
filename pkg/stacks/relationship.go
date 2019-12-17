@@ -17,10 +17,9 @@ limitations under the License.
 package stacks
 
 import (
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 )
-
 
 // Labels used to track ownership across namespaces and scopes.
 const (
@@ -35,7 +34,9 @@ const (
 // KindlyIdentifier implementations provide the means to access the Name,
 // Namespace, GVK, and UID of a resource
 type KindlyIdentifier interface {
-	metav1.Object
+	GetName() string
+	GetNamespace() string
+	GetUID() types.UID
 
 	GroupVersionKind() schema.GroupVersionKind
 }

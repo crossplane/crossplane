@@ -243,10 +243,6 @@ func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, o
 		if obj.GetNamespace() == "" {
 			obj.SetNamespace(i.GetNamespace())
 		}
-
-		obj.SetOwnerReferences([]metav1.OwnerReference{
-			meta.AsOwner(meta.ReferenceTo(i, i.GroupVersionKind())),
-		})
 	}
 
 	// We want to clean up any installed CRDS when we're deleted. We can't rely

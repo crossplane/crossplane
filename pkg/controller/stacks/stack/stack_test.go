@@ -86,6 +86,11 @@ func withDeletionTimestamp(t time.Time) resourceModifier {
 		r.SetDeletionTimestamp(&metav1.Time{Time: t})
 	}
 }
+
+func withGVK(gvk schema.GroupVersionKind) resourceModifier {
+	return func(r *v1alpha1.Stack) { r.SetGroupVersionKind(gvk) }
+}
+
 func withConditions(c ...runtimev1alpha1.Condition) resourceModifier {
 	return func(r *v1alpha1.Stack) { r.Status.SetConditions(c...) }
 }
@@ -381,6 +386,7 @@ func TestCreate(t *testing.T) {
 				result: requeueOnSuccess,
 				err:    nil,
 				r: resource(
+					withGVK(v1alpha1.StackGroupVersionKind),
 					withConditions(runtimev1alpha1.Available(), runtimev1alpha1.ReconcileSuccess()),
 					withFinalizers(stacksFinalizer),
 				),
@@ -394,6 +400,7 @@ func TestCreate(t *testing.T) {
 				result: requeueOnSuccess,
 				err:    nil,
 				r: resource(
+					withGVK(v1alpha1.StackGroupVersionKind),
 					withPermissionScope("Cluster"),
 					withConditions(runtimev1alpha1.Available(), runtimev1alpha1.ReconcileSuccess()),
 					withFinalizers(stacksFinalizer),
@@ -1027,51 +1034,12 @@ func TestStackDelete(t *testing.T) {
 		want    want
 	}{
 		{
-			name: "FailList",
+			name: "FailDeleteAllOf",
 			handler: &stackHandler{
 				// stack starts with a finalizer and a deletion timestamp
 				ext: resource(withFinalizers(stacksFinalizer), withDeletionTimestamp(tn)),
 				kube: &test.MockClient{
-					MockList: func(ctx context.Context, list runtime.Object, opts ...client.ListOption) error {
-						return errBoom
-					},
-					MockDelete:       func(ctx context.Context, obj runtime.Object, opts ...client.DeleteOption) error { return nil },
-					MockUpdate:       func(ctx context.Context, obj runtime.Object, opts ...client.UpdateOption) error { return nil },
-					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
-				},
-			},
-			want: want{
-				result: resultRequeue,
-				err:    nil,
-				si: resource(
-					withFinalizers(stacksFinalizer),
-					withDeletionTimestamp(tn),
-					withConditions(runtimev1alpha1.ReconcileError(errBoom))),
-			},
-		},
-		{
-			name: "FailDelete",
-			handler: &stackHandler{
-				// stack install starts with a finalizer and a deletion timestamp
-				ext: resource(withFinalizers(stacksFinalizer), withDeletionTimestamp(tn)),
-				kube: &test.MockClient{
-					MockList: func(ctx context.Context, list runtime.Object, opts ...client.ListOption) error {
-						// set a fake list of cluster resources to delete
-						switch list := list.(type) {
-						case *rbac.ClusterRoleBindingList:
-							list.Items = []rbac.ClusterRoleBinding{{
-								ObjectMeta: metav1.ObjectMeta{Name: "crdToDelete"},
-							}}
-						case *rbac.ClusterRoleList:
-							list.Items = []rbac.ClusterRole{{
-								ObjectMeta: metav1.ObjectMeta{Name: "crdToDelete"},
-							}}
-						}
-						return nil
-					},
-					MockDelete: func(ctx context.Context, obj runtime.Object, opts ...client.DeleteOption) error {
-						return errBoom
-					},
+					MockDeleteAllOf:  func(ctx context.Context, obj runtime.Object, opts ...client.DeleteAllOfOption) error { return errBoom },
 					MockUpdate:       func(ctx context.Context, obj runtime.Object, opts ...client.UpdateOption) error { return nil },
 					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
@@ -1105,7 +1073,7 @@ func TestStackDelete(t *testing.T) {
 						}
 						return nil
 					},
-					MockDelete: func(ctx context.Context, obj runtime.Object, opts ...client.DeleteOption) error { return nil },
+					MockDeleteAllOf: func(ctx context.Context, obj runtime.Object, opts ...client.DeleteAllOfOption) error { return nil },
 					MockUpdate: func(ctx context.Context, obj runtime.Object, opts ...client.UpdateOption) error {
 						return errBoom
 					},
@@ -1142,8 +1110,8 @@ func TestStackDelete(t *testing.T) {
 						}
 						return nil
 					},
-					MockDelete: func(ctx context.Context, obj runtime.Object, opts ...client.DeleteOption) error { return nil },
-					MockUpdate: func(ctx context.Context, obj runtime.Object, opts ...client.UpdateOption) error { return nil },
+					MockDeleteAllOf: func(ctx context.Context, obj runtime.Object, opts ...client.DeleteAllOfOption) error { return nil },
+					MockUpdate:      func(ctx context.Context, obj runtime.Object, opts ...client.UpdateOption) error { return nil },
 				},
 			},
 			want: want{
