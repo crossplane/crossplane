@@ -250,6 +250,11 @@ func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, o
 	// instead.
 	labels := stacks.ParentLabels(i)
 
+	// CRDs are labeled with the namespaces of the stacks they are managed by.
+	// This will allow for a single Namespaced stack to be installed in multiple
+	// namespaces, or different stacks (possibly only differing by versions) to
+	// provide the same CRDs without the risk that a single StackInstall removal
+	// will delete a CRD until there are no remaining namespace labels.
 	if isCRDObject(obj) {
 		labelNamespace := fmt.Sprintf(stacks.LabelNamespaceFmt, i.GetNamespace())
 

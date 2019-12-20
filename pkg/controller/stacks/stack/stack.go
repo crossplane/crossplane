@@ -188,11 +188,33 @@ func (h *stackHandler) update(ctx context.Context) (reconcile.Result, error) {
 // namespace+stack+version specific
 func (h *stackHandler) createPersonaClusterRoles(ctx context.Context, labels map[string]string) error {
 	for persona := range roleVerbs {
+		name := stacks.PersonaRoleName(h.ext, persona)
+
+		// Use a copy so AddLabels doesn't mutate labels
 		labelsCopy := map[string]string{}
 		for k, v := range labels {
 			labelsCopy[k] = v
 		}
 
+		// Create labels appropriate for the scope of the ClusterRole
+		var crossplaneScope string
+
+		if h.isNamespaced() {
+			crossplaneScope = stacks.NamespaceScoped
+
+			labelNamespace := fmt.Sprintf(stacks.LabelNamespaceFmt, h.ext.GetNamespace())
+			labelsCopy[labelNamespace] = "true"
+		} else {
+			crossplaneScope = stacks.EnvironmentScoped
+		}
+
+		// Aggregation labels grant Stack CRD responsibilities
+		// to namespace or environment personas like crossplane-env-admin
+		// or crossplane:ns:default:view
+		aggregationLabel := fmt.Sprintf(stacks.LabelAggregateFmt, crossplaneScope, persona)
+		labelsCopy[aggregationLabel] = "true"
+
+		// Each ClusterRole needs persona specific rules for each CRD
 		rules := []rbacv1.PolicyRule{}
 		for _, crd := range h.ext.Spec.CRDs {
 			rules = append(rules, rbacv1.PolicyRule{
@@ -201,36 +223,14 @@ func (h *stackHandler) createPersonaClusterRoles(ctx context.Context, labels map
 				Verbs:     roleVerbs[persona],
 			})
 		}
-		name := stacks.PersonaRoleName(h.ext, persona)
 
-		var crossplaneScope string
-
-		if h.isNamespaced() {
-			crossplaneScope = stacks.NamespaceScoped
-		} else {
-			crossplaneScope = stacks.EnvironmentScoped
-		}
-
-		aggregationLabel := fmt.Sprintf(stacks.LabelAggregateFmt, crossplaneScope, persona)
-
+		// Assemble and create the ClusterRole
 		cr := &rbacv1.ClusterRole{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:   name,
 				Labels: labelsCopy,
 			},
 			Rules: rules,
-		}
-
-		meta.AddLabels(cr, map[string]string{
-			aggregationLabel: "true",
-		})
-
-		meta.AddLabels(cr, stacks.ParentLabels(h.ext))
-
-		if h.isNamespaced() {
-			meta.AddLabels(cr, map[string]string{
-				fmt.Sprintf(stacks.LabelNamespaceFmt, h.ext.GetNamespace()): "true",
-			})
 		}
 
 		if err := h.kube.Create(ctx, cr); err != nil && !kerrors.IsAlreadyExists(err) {
@@ -240,6 +240,8 @@ func (h *stackHandler) createPersonaClusterRoles(ctx context.Context, labels map
 	return nil
 }
 
+// generateNamespaceClusterRoles generates the crossplane:ns:{name}:{persona}
+// roles for a given stack's namespace.
 func generateNamespaceClusterRoles(stack *v1alpha1.Stack) (roles []*rbacv1.ClusterRole) {
 	personas := []string{"admin", "edit", "view"}
 
@@ -257,6 +259,9 @@ func generateNamespaceClusterRoles(stack *v1alpha1.Stack) (roles []*rbacv1.Clust
 			labels[fmt.Sprintf(stacks.LabelAggregateFmt, "crossplane", persona)] = "true"
 		}
 
+		// By specifying MatchLabels, ClusterRole Aggregation will pass
+		// along the rules from other ClusterRoles with the desired labels.
+		// This is why we don't define any Rules here.
 		role := &rbacv1.ClusterRole{
 			AggregationRule: &rbacv1.AggregationRule{
 				ClusterRoleSelectors: []metav1.LabelSelector{
@@ -287,21 +292,28 @@ func generateNamespaceClusterRoles(stack *v1alpha1.Stack) (roles []*rbacv1.Clust
 	return roles
 }
 
+// createNamespaceClusterRoles creates the crossplane:ns:{name}:{persona}
+// roles for a given stack's namespace
 func (h *stackHandler) createNamespaceClusterRoles(ctx context.Context) error {
 	if !h.isNamespaced() {
 		return nil
 	}
 
+	// Get the Namepsace because we need the UID for OwnerReference
 	ns := &corev1.Namespace{}
 	nsName := h.ext.GetNamespace()
 
 	if err := h.kube.Get(ctx, types.NamespacedName{Name: nsName}, ns); err != nil {
-		return errors.Wrapf(err, "failed to get namespace %q for stackinstall %q", nsName, h.ext.GetName())
+		return errors.Wrapf(err, "failed to get namespace %q for stack %q", nsName, h.ext.GetName())
 	}
 
+	// generate namespace + stack specific clusterroles for all personas
 	roles := generateNamespaceClusterRoles(h.ext)
 
 	for _, role := range roles {
+		// When the namespace is deleted, we no longer need these clusterroles.
+		// Set the ClusterRole owner to the Namespace so they are cleaned up
+		// automatically
 		role.SetOwnerReferences([]metav1.OwnerReference{
 			{
 				APIVersion: "v1",
@@ -311,8 +323,11 @@ func (h *stackHandler) createNamespaceClusterRoles(ctx context.Context) error {
 			},
 		})
 
+		// Creating the clusterroles. Since these Rules in these clusterroles
+		// are populated through aggregation from the stacks installed in the
+		// namespaces, we won't need to update them.
 		if err := h.kube.Create(ctx, role); err != nil && !kerrors.IsAlreadyExists(err) {
-			return errors.Wrapf(err, "failed to create clusterrole %s for stackinstall %s", role.GetName(), h.ext.GetName())
+			return errors.Wrapf(err, "failed to create clusterrole %s for stack %s", role.GetName(), h.ext.GetName())
 		}
 	}
 	return nil

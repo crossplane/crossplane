@@ -255,27 +255,31 @@ func (h *stackInstallHandler) update(ctx context.Context) (reconcile.Result, err
 // This function ensures that all the resources (e.g., CRDs) that this StackInstall owns
 // are also cleaned up.
 func (h *stackInstallHandler) delete(ctx context.Context) (reconcile.Result, error) {
+	// Delete all Stacks created by this StackInstall or ClusterStackInstall
 	labels := stacks.ParentLabels(h.ext)
 	if err := h.kube.DeleteAllOf(ctx, &v1alpha1.Stack{}, client.InNamespace(h.ext.GetNamespace()), client.MatchingLabels(labels)); runtimeresource.IgnoreNotFound(err) != nil {
 		return fail(ctx, h.kube, h.ext, err)
 	}
 
+	// Waiting for all Stacks to clear their finalizers and delete before
+	// deleting the CRDs that they depend on
 	stackList := &v1alpha1.StackList{}
 	if err := h.kube.List(ctx, stackList, client.MatchingLabels(labels)); err != nil {
 		return fail(ctx, h.kube, h.ext, err)
 	}
 
-	// Waiting for all Stacks to be clear their finalizers and delete before
-	// deleting the CRDs that they depend on
 	if len(stackList.Items) != 0 {
 		err := errors.New("Stack resources have not been deleted")
 		return fail(ctx, h.kube, h.ext, err)
 	}
 
+	// Once the Stacks are gone, we can remove all of the CRDs associated
+	// with the StackInstall
 	if err := h.kube.DeleteAllOf(ctx, &apiextensionsv1beta1.CustomResourceDefinition{}, client.MatchingLabels(labels)); runtimeresource.IgnoreNotFound(err) != nil {
 		return fail(ctx, h.kube, h.ext, err)
 	}
 
+	// And finally clear the StackInstall's own finalizer
 	meta.RemoveFinalizer(h.ext, installFinalizer)
 	if err := h.kube.Update(ctx, h.ext); err != nil {
 		return fail(ctx, h.kube, h.ext, err)
