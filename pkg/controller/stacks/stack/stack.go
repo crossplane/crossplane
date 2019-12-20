@@ -206,9 +206,9 @@ func (h *stackHandler) createPersonaClusterRoles(ctx context.Context, labels map
 		var crossplaneScope string
 
 		if h.isNamespaced() {
-			crossplaneScope = "namespace"
+			crossplaneScope = stacks.NamespaceScoped
 		} else {
-			crossplaneScope = "environment"
+			crossplaneScope = stacks.EnvironmentScoped
 		}
 
 		aggregationLabel := fmt.Sprintf(stacks.LabelAggregateFmt, crossplaneScope, persona)
@@ -250,7 +250,7 @@ func generateNamespaceClusterRoles(stack *v1alpha1.Stack) (roles []*rbacv1.Clust
 
 		labels := map[string]string{
 			fmt.Sprintf(stacks.LabelNamespaceFmt, nsName): "true",
-			stacks.LabelScope: "namespace",
+			stacks.LabelScope: stacks.NamespaceScoped,
 		}
 
 		if persona == "admin" {
@@ -262,8 +262,8 @@ func generateNamespaceClusterRoles(stack *v1alpha1.Stack) (roles []*rbacv1.Clust
 				ClusterRoleSelectors: []metav1.LabelSelector{
 					{
 						MatchLabels: map[string]string{
-							fmt.Sprintf(stacks.LabelAggregateFmt, "namespace", persona): "true",
-							fmt.Sprintf(stacks.LabelNamespaceFmt, nsName):               "true",
+							fmt.Sprintf(stacks.LabelAggregateFmt, stacks.NamespaceScoped, persona): "true",
+							fmt.Sprintf(stacks.LabelNamespaceFmt, nsName):                          "true",
 						},
 					},
 					{

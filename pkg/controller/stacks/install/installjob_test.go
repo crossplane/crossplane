@@ -562,13 +562,13 @@ func TestCreate(t *testing.T) {
 
 func TestCreateJobOutputObject(t *testing.T) {
 	wantLabels := map[string]string{
-		stacks.LabelParentGroup:                   "stacks.crossplane.io",
-		stacks.LabelParentVersion:                 "v1alpha1",
-		stacks.LabelParentKind:                    "StackInstall",
-		stacks.LabelParentNamespace:               namespace,
-		stacks.LabelParentName:                    resourceName,
-		stacks.LabelParentUID:                     uidString,
-		fmt.Sprintf(labelNamespaceFmt, namespace): "true",
+		stacks.LabelParentGroup:                          "stacks.crossplane.io",
+		stacks.LabelParentVersion:                        "v1alpha1",
+		stacks.LabelParentKind:                           "StackInstall",
+		stacks.LabelParentNamespace:                      namespace,
+		stacks.LabelParentName:                           resourceName,
+		stacks.LabelParentUID:                            uidString,
+		fmt.Sprintf(stacks.LabelNamespaceFmt, namespace): "true",
 	}
 
 	type want struct {

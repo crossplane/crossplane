@@ -73,7 +73,6 @@ const (
 
 	// Stack CRD Labels
 	labelKubernetesManagedBy = "app.kubernetes.io/managed-by"
-	labelScope               = "crossplane.io/scope"
 )
 
 var (
@@ -291,9 +290,9 @@ func (sp *StackPackage) AddCRD(path string, crd *apiextensions.CustomResourceDef
 	crd.ObjectMeta.Labels[labelKubernetesManagedBy] = "stack-manager"
 
 	if sp.IsNamespaced() {
-		crd.ObjectMeta.Labels[labelScope] = "namespace"
+		crd.ObjectMeta.Labels[LabelScope] = NamespaceScoped
 	} else {
-		crd.ObjectMeta.Labels[labelScope] = "environment"
+		crd.ObjectMeta.Labels[LabelScope] = EnvironmentScoped
 	}
 
 	crdGVK := schema.GroupVersionKind{

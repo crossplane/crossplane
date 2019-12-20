@@ -46,7 +46,6 @@ var (
 	jobBackoff                = int32(0)
 	registryDirName           = ".registry"
 	packageContentsVolumeName = "package-contents"
-	labelNamespaceFmt         = "namespace.crossplane.io/%s"
 )
 
 // JobCompleter is an interface for handling job completion

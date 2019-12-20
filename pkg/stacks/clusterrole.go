@@ -38,6 +38,12 @@ const (
 	NamespaceClusterRoleNameFmt = "crossplane:ns:%s:%s"
 )
 
+// Crossplane ClusterRole Scopes
+const (
+	NamespaceScoped   = "namespace"
+	EnvironmentScoped = "environment"
+)
+
 // PersonaRoleName is a helper to ensure the persona role formatting parameters
 // are provided consistently
 func PersonaRoleName(stack *v1alpha1.Stack, persona string) string {
