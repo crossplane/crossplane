@@ -158,7 +158,7 @@ rules:
   - stacks.crossplane.io
   resources:
   - clusterstackinstall
-  - clusterstack
+  - stack
   verbs:
   - get
   - list

@@ -29,6 +29,7 @@ import (
 	batch "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbac "k8s.io/api/rbac/v1"
+	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -67,6 +68,7 @@ var (
 
 func init() {
 	_ = stacks.AddToScheme(scheme.Scheme)
+	_ = apiextensionsv1beta1.AddToScheme(scheme.Scheme)
 }
 
 // Test that our Reconciler implementation satisfies the Reconciler interface.

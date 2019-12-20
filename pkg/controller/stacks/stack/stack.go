@@ -184,17 +184,55 @@ func (h *stackHandler) update(ctx context.Context) (reconcile.Result, error) {
 	return reconcile.Result{}, nil
 }
 
+func copyLabels(labels map[string]string) map[string]string {
+	labelsCopy := map[string]string{}
+	for k, v := range labels {
+		labelsCopy[k] = v
+	}
+	return labelsCopy
+}
+
+func (h *stackHandler) crdListsDiffer(crds []apiextensions.CustomResourceDefinition) bool {
+	return len(crds) != len(h.ext.Spec.CRDs)
+}
+
+// crdsFromStack fetches the CRDs of the Stack using the shared parent labels
+// TODO(displague) change this to use GET on each, the CRDs may not be ready
+func (h *stackHandler) crdsFromStack(ctx context.Context) ([]apiextensions.CustomResourceDefinition, error) {
+	// Fetch CRDs because h.ext.Spec.CRDs doesn't have plural names
+	crds := &apiextensions.CustomResourceDefinitionList{}
+	stackLabels := h.ext.GetLabels()
+	if err := h.kube.List(ctx, crds, client.MatchingLabels(map[string]string{
+		stacks.LabelParentGroup:     stackLabels[stacks.LabelParentGroup],
+		stacks.LabelParentKind:      stackLabels[stacks.LabelParentKind],
+		stacks.LabelParentName:      stackLabels[stacks.LabelParentName],
+		stacks.LabelParentNamespace: stackLabels[stacks.LabelParentNamespace],
+		stacks.LabelParentUID:       stackLabels[stacks.LabelParentUID],
+		stacks.LabelParentVersion:   stackLabels[stacks.LabelParentVersion],
+	})); err != nil {
+		return nil, errors.Wrap(err, "failed to list crds")
+	}
+
+	if h.crdListsDiffer(crds.Items) {
+		return nil, errors.New("failed to list all expected crds")
+	}
+
+	return crds.Items, nil
+}
+
 // createPersonaClusterRoles creates admin, edit, and view clusterroles that are
 // namespace+stack+version specific
 func (h *stackHandler) createPersonaClusterRoles(ctx context.Context, labels map[string]string) error {
+	crds, err := h.crdsFromStack(ctx)
+	if err != nil {
+		return err
+	}
+
 	for persona := range roleVerbs {
 		name := stacks.PersonaRoleName(h.ext, persona)
 
 		// Use a copy so AddLabels doesn't mutate labels
-		labelsCopy := map[string]string{}
-		for k, v := range labels {
-			labelsCopy[k] = v
-		}
+		labelsCopy := copyLabels(labels)
 
 		// Create labels appropriate for the scope of the ClusterRole
 		var crossplaneScope string
@@ -216,10 +254,22 @@ func (h *stackHandler) createPersonaClusterRoles(ctx context.Context, labels map
 
 		// Each ClusterRole needs persona specific rules for each CRD
 		rules := []rbacv1.PolicyRule{}
-		for _, crd := range h.ext.Spec.CRDs {
+
+		for _, crd := range crds {
+			kinds := []string{crd.Spec.Names.Plural}
+
+			if subs := crd.Spec.Subresources; subs != nil {
+				if subs.Status != nil {
+					kinds = append(kinds, crd.Spec.Names.Plural+"/status")
+				}
+				if subs.Scale != nil {
+					kinds = append(kinds, crd.Spec.Names.Plural+"/scale")
+				}
+			}
+
 			rules = append(rules, rbacv1.PolicyRule{
-				APIGroups: []string{crd.GroupVersionKind().Group},
-				Resources: []string{crd.Kind},
+				APIGroups: []string{crd.Spec.Group},
+				Resources: kinds,
 				Verbs:     roleVerbs[persona],
 			})
 		}
