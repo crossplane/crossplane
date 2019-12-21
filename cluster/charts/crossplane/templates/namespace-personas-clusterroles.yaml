@@ -21,14 +21,28 @@ rules:
   resources:
   - "*"
   verbs:
-  - "*"
+  - get
+  - list
+  - watch
+  - create
+  - delete
+  - deletecollection
+  - patch
+  - update
 - apiGroups:
   - stacks.crossplane.io
   resources:
   - stackinstalls
   - stacks
   verbs:
-  - "*"
+  - get
+  - list
+  - watch
+  - create
+  - delete
+  - deletecollection
+  - patch
+  - update
 - apiGroups:
   - rbac.authorization.k8s.io
   resources:
