@@ -342,20 +342,20 @@ The following built in roles will be installed and packaged with Crossplane, and
 The verbs supported in these roles(admin,edit,view) will model behavior based on existing logic around
  [built-in kubernetes roles](https://kubernetes.io/docs/reference/access-authn-authz/rbac/#default-roles-and-role-bindings).
 
-|ClusterRole Name | Permissions |
-|:---------------------|:----------|
-| crossplane-admin | Admin: ClusterStacks, Crossplane CRDs, Namespaces, (Cluster)RoleBindings, (Cluster)Roles |
-| crossplane-env-admin | Admin: ClusterStacks, CustomResource types installed by Cluster Scoped Stacks |
-| crossplane-env-edit | Edit: ClusterStacks, CustomResource types installed by Cluster Scoped Stacks |
-| crossplane-env-view | View: CustomResource types installed by Cluster Scoped Stacks, Not permitted: secrets |
+|ClusterRole Name | Kubernetes Counterpart | Permissions |
+|:---------------------|:----------|:----------|
+| crossplane-admin | cluster-admin | Admin: ClusterStacks, Crossplane CRDs, Namespaces, (Cluster)RoleBindings, (Cluster)Roles |
+| crossplane-env-admin | admin | Admin: ClusterStacks, CustomResource types installed by Cluster Scoped Stacks |
+| crossplane-env-edit | edit | Edit: ClusterStacks, CustomResource types installed by Cluster Scoped Stacks |
+| crossplane-env-view | view | View: CustomResource types installed by Cluster Scoped Stacks, Not permitted: secrets |
 
-We will provide a convenience group - `crossplane:master` - that binds to `crossplane-admin` with a
- ClusterRoleBinding. This mirrors Kubernetes functionality for cluster-admin and system:master. At install time you will
+We will provide a convenience group - `crossplane:masters` - that binds to `crossplane-admin` with a
+ ClusterRoleBinding. This mirrors Kubernetes functionality for `cluster-admin` and `system:masters`. At install time you will
  then be able to impersonate a group that is bound to crossplane-admin.
 
 Example running a command as crossplane-admin
 ```
-kubectl {any crossplane-admin operation} --as-group=crossplane:master
+kubectl {any crossplane-admin operation} --as-group=crossplane:masters
 ```
 
 For discoverability of the roles for the environment we will add the following labels:
@@ -369,10 +369,11 @@ Match labels on these roles for auto-aggregation:
 Each namespace provides a unit of isolation with namespaced stacks, and thus a unique set of resources, based on the
  stacks that have been installed into that namespace. If someone were allowed to install stacks, it can't be assumed
  that they are cluster-admin, so the stack-manager will install and manage a set of roles that will aggregate the roles
- for the installed stacks into namespace specific roles for self-service. These roles should be bound to subjects
- to grant access to a particular namespace for end-user integration. For any namespace that is annotated with
- `rbac.crossplane.io/managed-roles: true` the stack-manager will ensure that ClusterRoles in the following format are
- created for the annotated namespace.
+ for the installed stacks into namespace specific roles for self-service. These `ClusterRoles` should be bound to subjects
+ using a `RoleBinding` (not `ClusterRoleBinding`) to grant access to a particular namespace for end-user integration.
+
+This design calls for the stack-manager to act on any namespace that is annotated with `rbac.crossplane.io/managed-roles: true`,
+ensuring that ClusterRoles in the following format are created for the annotated namespace.
 
  * `crossplane:ns:{ns-name}:admin`
  * `crossplane:ns:{ns-name}:edit`
@@ -386,6 +387,13 @@ Match Roles:
  * `rbac.crossplane.io/aggregate-to-namespace-{role}: "true"`
  * `namespace.crossplane.io/{namespace-name}: true // to match specific namespace.`
 
+|ClusterRole Name | Kubernetes Counterpart | Permissions |
+|:---------------------|:----------|:----------|
+| crossplane:ns:{ns-name}:admin | admin | Admin: StackInstalls, Stacks, ConfigMaps, Secrets, CustomResource types installed by Namespace Scoped Stacks |
+| crossplane:ns:{ns-name}:edit | edit | Edit: StackInstalls, ConfigMaps, Secrets, CustomResource types installed by Namespace Scoped Stacks |
+| crossplane:ns:{ns-name}:view | view | View: StackInstalls, CustomResource types installed by Namespace Scoped Stacks, Not permitted: secrets |
+
+
 #### ClusterRoles for a given (Cluster)Stack Install
 
 For a given stack version the stack-manager will create a unique set of roles in the format
@@ -394,14 +402,16 @@ For a given stack version the stack-manager will create a unique set of roles in
  stack. The other (admin,edit,view) will be labeled for aggregation to their appropriate namespaced or environment
  scoped crossplane managed roles.
 
-Consider the following example for a wordpress stack of version 1.1 from wordpressinc, you would have the following set.
- * `stack:wordpressinc:wordpress:1.1:system` // Used by wordpress operator - stack resources + dependent resources grants
+Consider the following example for a wordpress stack of version 1.1 from wordpressinc (installed in a "wordpressinc" namespace),
+you would have the following set.
+
+* `stack:wordpressinc:wordpress:1.1:system` // Used by wordpress operator - stack resources + dependent resources grants
  * `stack:wordpressinc:wordpress:1.1:admin`
  * `stack:wordpressinc:wordpress:1.1:edit`
  * `stack:wordpressinc:wordpress:1.1:view`
 
 If these were a from a cluster scoped stack, they would be aggregated to the built in environment roles, and if they
- were from a namespaced stack install they would be aggregated to the corresponding [ClusterRoles for a given app
+ were from a namespaced `StackInstall` they would be aggregated to the corresponding [ClusterRoles for a given app
  namespace](#clusterroles-for-a-given-app-namespace).
 
 Labels for these roles will be for aggregation purposes:
@@ -420,6 +430,9 @@ Any additional install of this stack in an additional namespace would only requi
 We've defined the roles that get created that will aggregate the permissions of installed stacks and are meant to be
  bound to RBAC subjects, like a group or User, but these roles themselves need to be seeded with initial permissions
  so that a user who has a namespace or environment level role could for example install the first stack.
+
+These roles share a common function to the Kubernetes `system:aggregate-to-view`, `system:aggregate-to-edit`, 
+and `system:aggregate-to-admin` clusterroles.
 
 Defaults that stack-manager installs that would aggregate to the crossplane-env-{role} `ClusterRole` objects,
  for example, permission on `ClusterStackInstall` objects.
@@ -495,7 +508,7 @@ metadata:
 rules:
 - apiGroups: ["providers.aws.crossplane.io"]
   resources: ["Provider"]
-  verbs: ["get", "list", "watch", "edit", "delete"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "deletecollection", "delete"]
  ...
 ```
 
@@ -513,7 +526,7 @@ metadata:
 rules:
 - apiGroups: ["wordpress.crossplane.io"]
   resources: ["WordpressInstance"]
-  verbs: ["get", "list", "watch", "edit", "delete"]
+  verbs: ["get", "list", "watch"]
  ...
 ```
 

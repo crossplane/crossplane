@@ -27,9 +27,11 @@ import (
 	"github.com/pkg/errors"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -38,16 +40,6 @@ import (
 	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
 	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/stacks"
-)
-
-// Labels used to track ownership across namespaces and scopes.
-const (
-	labelParentGroup     = "core.crossplane.io/parent-group"
-	labelParentVersion   = "core.crossplane.io/parent-version"
-	labelParentKind      = "core.crossplane.io/parent-kind"
-	labelParentNamespace = "core.crossplane.io/parent-namespace"
-	labelParentName      = "core.crossplane.io/parent-name"
-	labelParentUID       = "core.crossplane.io/parent-uid"
 )
 
 var (
@@ -230,10 +222,10 @@ func (jc *stackInstallJobCompleter) readPodLogs(namespace, name string) (*bytes.
 }
 
 // createJobOutputObject names, labels, sets ownership, and creates resources
-// resulting from a StackInstall or ClusterStackInstall. These expected resources
-// are currently CRD and Stack objects.
+// resulting from a StackInstall or ClusterStackInstall. These expected
+// resources are currently CRD and Stack objects
 func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, obj *unstructured.Unstructured,
-	i v1alpha1.StackInstaller, job *batchv1.Job) error {
+	i stacks.KindlyIdentifier, job *batchv1.Job) error {
 
 	// if we decoded a non-nil unstructured object, try to create it now
 	if obj == nil {
@@ -250,25 +242,25 @@ func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, o
 		if obj.GetNamespace() == "" {
 			obj.SetNamespace(i.GetNamespace())
 		}
-
-		obj.SetOwnerReferences([]metav1.OwnerReference{
-			meta.AsOwner(meta.ReferenceTo(i, i.GroupVersionKind())),
-		})
 	}
 
 	// We want to clean up any installed CRDS when we're deleted. We can't rely
 	// on garbage collection because a namespaced object (StackInstall) can't
 	// own a cluster scoped object (CustomResourceDefinition), so we use labels
 	// instead.
-	gvk := i.GroupVersionKind()
-	labels := map[string]string{
-		labelParentGroup:     gvk.Group,
-		labelParentVersion:   gvk.Version,
-		labelParentKind:      gvk.Kind,
-		labelParentNamespace: i.GetNamespace(),
-		labelParentName:      i.GetName(),
-		labelParentUID:       string(i.GetUID()),
+	labels := stacks.ParentLabels(i)
+
+	// CRDs are labeled with the namespaces of the stacks they are managed by.
+	// This will allow for a single Namespaced stack to be installed in multiple
+	// namespaces, or different stacks (possibly only differing by versions) to
+	// provide the same CRDs without the risk that a single StackInstall removal
+	// will delete a CRD until there are no remaining namespace labels.
+	if isCRDObject(obj) {
+		labelNamespace := fmt.Sprintf(stacks.LabelNamespaceFmt, i.GetNamespace())
+
+		labels[labelNamespace] = "true"
 	}
+
 	meta.AddLabels(obj, labels)
 
 	// TODO(displague) pass/inject a controller specific logger
@@ -279,12 +271,7 @@ func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, o
 		"namespace", obj.GetNamespace(),
 		"apiVersion", obj.GetAPIVersion(),
 		"kind", obj.GetKind(),
-		"parentGroup", labels[labelParentGroup],
-		"parentVersion", labels[labelParentVersion],
-		"parentKind", labels[labelParentKind],
-		"parentName", labels[labelParentName],
-		"parentNamespace", labels[labelParentNamespace],
-		"parentUID", labels[labelParentUID],
+		"labels", labels,
 	)
 	if err := jc.client.Create(ctx, obj); err != nil && !kerrors.IsAlreadyExists(err) {
 		return errors.Wrapf(err, "failed to create object %s from job output %s", obj.GetName(), job.Name)
@@ -301,4 +288,14 @@ func isStackObject(obj *unstructured.Unstructured) bool {
 	gvk := obj.GroupVersionKind()
 	return gvk.Group == v1alpha1.Group && gvk.Version == v1alpha1.Version &&
 		strings.EqualFold(gvk.Kind, v1alpha1.StackKind)
+}
+
+func isCRDObject(obj runtime.Object) bool {
+	if obj == nil {
+		return false
+	}
+	gvk := obj.GetObjectKind().GroupVersionKind()
+
+	return apiextensions.SchemeGroupVersion == gvk.GroupVersion() &&
+		strings.EqualFold(gvk.Kind, "CustomResourceDefinition")
 }

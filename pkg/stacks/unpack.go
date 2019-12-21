@@ -70,7 +70,9 @@ const (
 	annotationResourceReadme        = "stacks.crossplane.io/resource-readme"
 	annotationResourceOverview      = "stacks.crossplane.io/resource-overview"
 	annotationResourceOverviewShort = "stacks.crossplane.io/resource-overview-short"
-	labelKubernetesManagedBy        = "app.kubernetes.io/managed-by"
+
+	// Stack CRD Labels
+	labelKubernetesManagedBy = "app.kubernetes.io/managed-by"
 )
 
 var (
@@ -286,6 +288,12 @@ func (sp *StackPackage) AddCRD(path string, crd *apiextensions.CustomResourceDef
 		crd.ObjectMeta.Annotations = map[string]string{}
 	}
 	crd.ObjectMeta.Labels[labelKubernetesManagedBy] = "stack-manager"
+
+	if sp.IsNamespaced() {
+		crd.ObjectMeta.Labels[LabelScope] = NamespaceScoped
+	} else {
+		crd.ObjectMeta.Labels[LabelScope] = EnvironmentScoped
+	}
 
 	crdGVK := schema.GroupVersionKind{
 		Group:   crd.Spec.Group,

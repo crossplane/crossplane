@@ -24,7 +24,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
-	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -351,7 +350,7 @@ func TestStackInstallDelete(t *testing.T) {
 					MockList: func(ctx context.Context, list runtime.Object, opts ...client.ListOption) error {
 						return errBoom
 					},
-					MockDelete:       func(ctx context.Context, obj runtime.Object, opts ...client.DeleteOption) error { return nil },
+					MockDeleteAllOf:  func(ctx context.Context, obj runtime.Object, opts ...client.DeleteAllOfOption) error { return nil },
 					MockUpdate:       func(ctx context.Context, obj runtime.Object, opts ...client.UpdateOption) error { return nil },
 					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
@@ -366,26 +365,17 @@ func TestStackInstallDelete(t *testing.T) {
 			},
 		},
 		{
-			name: "FailDelete",
+			name: "FailDeleteAllOf",
 			handler: &stackInstallHandler{
 				// stack install starts with a finalizer and a deletion timestamp
 				ext: resource(withFinalizers(installFinalizer), withDeletionTimestamp(tn)),
 				kube: &test.MockClient{
 					MockList: func(ctx context.Context, list runtime.Object, opts ...client.ListOption) error {
 						// set the list's items to a fake list of CRDs to delete
-						list.(*apiextensionsv1beta1.CustomResourceDefinitionList).Items = []apiextensionsv1beta1.CustomResourceDefinition{
-							{
-								ObjectMeta: metav1.ObjectMeta{
-									Namespace: namespace,
-									Name:      "crdToDelete",
-								},
-							},
-						}
+						list.(*v1alpha1.StackList).Items = []v1alpha1.Stack{}
 						return nil
 					},
-					MockDelete: func(ctx context.Context, obj runtime.Object, opts ...client.DeleteOption) error {
-						return errBoom
-					},
+					MockDeleteAllOf:  func(ctx context.Context, obj runtime.Object, opts ...client.DeleteAllOfOption) error { return errBoom },
 					MockUpdate:       func(ctx context.Context, obj runtime.Object, opts ...client.UpdateOption) error { return nil },
 					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
@@ -407,17 +397,11 @@ func TestStackInstallDelete(t *testing.T) {
 				kube: &test.MockClient{
 					MockList: func(ctx context.Context, list runtime.Object, opts ...client.ListOption) error {
 						// set the list's items to a fake list of CRDs to delete
-						list.(*apiextensionsv1beta1.CustomResourceDefinitionList).Items = []apiextensionsv1beta1.CustomResourceDefinition{
-							{
-								ObjectMeta: metav1.ObjectMeta{
-									Namespace: namespace,
-									Name:      "crdToDelete",
-								},
-							},
-						}
+						list.(*v1alpha1.StackList).Items = []v1alpha1.Stack{}
 						return nil
 					},
-					MockDelete: func(ctx context.Context, obj runtime.Object, opts ...client.DeleteOption) error { return nil },
+					MockDeleteAllOf: func(ctx context.Context, obj runtime.Object, opts ...client.DeleteAllOfOption) error { return nil },
+					MockDelete:      func(ctx context.Context, obj runtime.Object, opts ...client.DeleteOption) error { return nil },
 					MockUpdate: func(ctx context.Context, obj runtime.Object, opts ...client.UpdateOption) error {
 						return errBoom
 					},
@@ -435,6 +419,38 @@ func TestStackInstallDelete(t *testing.T) {
 			},
 		},
 		{
+			name: "RetryWhenStackExists",
+			handler: &stackInstallHandler{
+				// stack install starts with a finalizer and a deletion timestamp
+				ext: resource(withFinalizers(installFinalizer), withDeletionTimestamp(tn)),
+				kube: &test.MockClient{
+					MockList: func(ctx context.Context, list runtime.Object, opts ...client.ListOption) error {
+						// set the list's items to a fake list of CRDs to delete
+						list.(*v1alpha1.StackList).Items = []v1alpha1.Stack{
+							{},
+						}
+						return nil
+					},
+					MockDeleteAllOf: func(ctx context.Context, obj runtime.Object, opts ...client.DeleteAllOfOption) error { return nil },
+					MockDelete:      func(ctx context.Context, obj runtime.Object, opts ...client.DeleteOption) error { return nil },
+					MockUpdate: func(ctx context.Context, obj runtime.Object, opts ...client.UpdateOption) error {
+						return errBoom
+					},
+					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+				},
+			},
+			want: want{
+				result: resultRequeue,
+				err:    nil,
+				si: resource(
+					// the finalizer will have been removed from our test object at least in memory
+					// (even though the update call to the API server failed)
+					withDeletionTimestamp(tn),
+					withFinalizers("finalizer.stackinstall.crossplane.io"),
+					withConditions(runtimev1alpha1.ReconcileError(errors.New("Stack resources have not been deleted")))),
+			},
+		},
+		{
 			name: "SuccessfulDelete",
 			handler: &stackInstallHandler{
 				// stack install starts with a finalizer and a deletion timestamp
@@ -442,18 +458,12 @@ func TestStackInstallDelete(t *testing.T) {
 				kube: &test.MockClient{
 					MockList: func(ctx context.Context, list runtime.Object, opts ...client.ListOption) error {
 						// set the list's items to a fake list of CRDs to delete
-						list.(*apiextensionsv1beta1.CustomResourceDefinitionList).Items = []apiextensionsv1beta1.CustomResourceDefinition{
-							{
-								ObjectMeta: metav1.ObjectMeta{
-									Namespace: namespace,
-									Name:      "crdToDelete",
-								},
-							},
-						}
+						list.(*v1alpha1.StackList).Items = []v1alpha1.Stack{}
 						return nil
 					},
-					MockDelete: func(ctx context.Context, obj runtime.Object, opts ...client.DeleteOption) error { return nil },
-					MockUpdate: func(ctx context.Context, obj runtime.Object, opts ...client.UpdateOption) error { return nil },
+					MockDeleteAllOf: func(ctx context.Context, obj runtime.Object, opts ...client.DeleteAllOfOption) error { return nil },
+					MockDelete:      func(ctx context.Context, obj runtime.Object, opts ...client.DeleteOption) error { return nil },
+					MockUpdate:      func(ctx context.Context, obj runtime.Object, opts ...client.UpdateOption) error { return nil },
 				},
 			},
 			want: want{

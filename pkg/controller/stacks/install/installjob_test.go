@@ -19,6 +19,7 @@ package install
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"strings"
@@ -367,7 +368,17 @@ func TestHandleJobCompletion(t *testing.T) {
 						}
 						return nil
 					},
-					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error { return nil },
+					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error {
+						if isCRDObject(obj) {
+							if crd, ok := obj.(*unstructured.Unstructured); ok {
+								if labels := crd.GetLabels(); labels == nil || labels["namespace.crossplane.io/"+namespace] != "true" {
+									return errors.New("expected CRD namespace label")
+								}
+							}
+
+						}
+						return nil
+					},
 					MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
 						// GET stack returns the stack instance that was created from the pod log output
 						*obj.(*v1alpha1.Stack) = v1alpha1.Stack{
@@ -551,12 +562,13 @@ func TestCreate(t *testing.T) {
 
 func TestCreateJobOutputObject(t *testing.T) {
 	wantLabels := map[string]string{
-		labelParentGroup:     "stacks.crossplane.io",
-		labelParentVersion:   "v1alpha1",
-		labelParentKind:      "StackInstall",
-		labelParentNamespace: namespace,
-		labelParentName:      resourceName,
-		labelParentUID:       uidString,
+		stacks.LabelParentGroup:                          "stacks.crossplane.io",
+		stacks.LabelParentVersion:                        "v1alpha1",
+		stacks.LabelParentKind:                           "StackInstall",
+		stacks.LabelParentNamespace:                      namespace,
+		stacks.LabelParentName:                           resourceName,
+		stacks.LabelParentUID:                            uidString,
+		fmt.Sprintf(stacks.LabelNamespaceFmt, namespace): "true",
 	}
 
 	type want struct {
@@ -598,7 +610,7 @@ func TestCreateJobOutputObject(t *testing.T) {
 			},
 			stackInstaller: resource(),
 			job:            job(),
-			obj:            unstructuredObj(),
+			obj:            unstructuredObj(withUnstructuredObjLabels(wantLabels)),
 			want: want{
 				err: errors.Wrapf(errBoom, "failed to create object mytypes.samples.upbound.io from job output cool-stackinstall"),
 				obj: unstructuredObj(withUnstructuredObjLabels(wantLabels)),
