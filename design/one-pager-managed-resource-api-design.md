@@ -12,6 +12,7 @@
   * Added [how to handle sensitive input fields](#sensitive-input-fields).
   * Added [external resource labelling](#external-resource-labeling).
   * Added [cross-resource reference edge case](#pointer-types-and-markers) for types.
+  * Added a condition to enforce the status fields to be reproducible in section [High Fidelity](#high-fidelity).
 
 ## Terminology
 
@@ -189,6 +190,14 @@ For both `Status` and `Spec`:
   
   What if the sub-resource is not yet supported as managed resource in Crossplane? In that case, you should first
   consider implementing that managed resource, if not suitable, only then include it in the CR.
+
+* Can the value of this field be reproduced when the whole `Status` is deleted? Do not include if the answer is no.
+  `Status` sub-resource is the _representation_ of the current state, so, the
+  controller should be able to reproduce it as long as the state that's represented
+  is still there. In practice, this means the controller should not rely on any
+  field that is present in the `Status`.
+
+For details, see [Kubernetes API Conventions - Spec and Status].
 
 #### Embedded Structs with Mixed Fields
 
@@ -571,3 +580,4 @@ and reconciler can mark the sync status in one of the `Condition`s we already ha
 
 [glossary]: https://github.com/crossplaneio/crossplane/blob/master/docs/concepts.md#glossary
 [from crossplane-runtime]: https://github.com/crossplaneio/crossplane-runtime/blob/ca4b6b4/apis/core/v1alpha1/resource.go#L77
+[Kubernetes API Conventions - Spec and Status]: https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#spec-and-status
