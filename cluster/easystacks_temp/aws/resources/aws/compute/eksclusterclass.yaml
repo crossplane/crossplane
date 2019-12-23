@@ -3,9 +3,11 @@ apiVersion: compute.aws.crossplane.io/v1alpha3
 kind: EKSClusterClass
 metadata:
   name: ekscluster
+  annotations:
+    resourceclass.crossplane.io/is-default-class: "true"
 specTemplate:
   writeConnectionSecretsToNamespace: crossplane-system
-  region: us-west-2
+  region: $(REGION)
   roleARNRef:
     name: iamrole
   vpcIdRef:
@@ -17,7 +19,7 @@ specTemplate:
   securityGroupIdRefs:
     - name: eks-security-group
   workerNodes:
-    nodeInstanceType: t3.micro
+    nodeInstanceType: t3.small
     nodeAutoScalingGroupMinSize: 1
     nodeAutoScalingGroupMaxSize: 1
     nodeGroupName: nodegroup

@@ -3,6 +3,8 @@ apiVersion: cache.aws.crossplane.io/v1beta1
 kind: ReplicationGroupClass
 metadata:
   name: replicationgroup
+  annotations:
+    resourceclass.crossplane.io/is-default-class: "true"
 specTemplate:
   writeConnectionSecretsToNamespace: crossplane-system
   providerRef:

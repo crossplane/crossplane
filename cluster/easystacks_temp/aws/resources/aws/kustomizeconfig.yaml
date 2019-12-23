@@ -1,0 +1,15 @@
+# This file is used to define a custom transformers for our CRDs so that Kustomize
+# can resolve the cross-resource object references.
+# See https://github.com/kubernetes-sigs/kustomize/blob/master/examples/transformerconfigs/crd/README.md
+
+# varReference is the list of fields that we tell Kustomize to process for
+# variants.
+varReference:
+  - path: spec/credentialsSecretRef/key
+    kind: Provider
+  - path: spec/credentialsSecretRef/name
+    kind: Provider
+  - path: spec/credentialsSecretRef/namespace
+    kind: Provider
+  - path: spec/region
+    kind: Provider

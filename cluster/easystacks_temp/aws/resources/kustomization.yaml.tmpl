@@ -1,0 +1,43 @@
+# The MinimalAWS instance will be in the Kustomize resources for templating.
+# Resource pack generic controller will use this template in another directory
+# to create a final overlay for rendering. It will fill the missing runtime pieces such as name, namespace
+# and uid of the MinimalAWS instance. Then it will refer to this `resources` folder.
+#
+# NOTE: `resources` array in this file will be overridden by the controller. Use
+# kustomization.yaml file to list your resources.
+
+kind: Kustomization
+namePrefix: ""
+commonLabels:
+  aws.resourcepacks.crossplane.io/name: ""
+  aws.resourcepacks.crossplane.io/uid: ""
+
+vars:
+  - name: REGION
+    objref:
+      kind: MinimalAWS
+      apiVersion: aws.resourcepacks.crossplane.io/v1alpha1
+      name: ""
+    fieldref:
+      fieldpath: spec.region
+  - name: CRED_SECRET_KEY
+    objref:
+      kind: MinimalAWS
+      apiVersion: aws.resourcepacks.crossplane.io/v1alpha1
+      name: ""
+    fieldref:
+      fieldpath: spec.credentialsSecretRef.key
+  - name: CRED_SECRET_NAME
+    objref:
+      kind: MinimalAWS
+      apiVersion: aws.resourcepacks.crossplane.io/v1alpha1
+      name: ""
+    fieldref:
+      fieldpath: spec.credentialsSecretRef.name
+  - name: CRED_SECRET_NAMESPACE
+    objref:
+      kind: MinimalAWS
+      apiVersion: aws.resourcepacks.crossplane.io/v1alpha1
+      name: ""
+    fieldref:
+      fieldpath: spec.credentialsSecretRef.namespace

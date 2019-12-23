@@ -3,8 +3,8 @@ kind: Provider
 metadata:
   name: aws-provider
 spec:
-  region: us-west-2
+  region: $(REGION)
   credentialsSecretRef:
-    namespace: crossplane-system
-    name: aws-account-creds
-    key: credentials
+    namespace: $(CRED_SECRET_NAMESPACE)
+    name: $(CRED_SECRET_NAME)
+    key: $(CRED_SECRET_KEY)
