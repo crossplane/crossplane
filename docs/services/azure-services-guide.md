@@ -80,7 +80,7 @@ metadata:
   name: stack-azure
   namespace: crossplane-system
 spec:
-  package: "crossplane/stack-azure:master"
+  package: "crossplane/stack-azure:v0.4.0"
 EOF
 
 kubectl apply -f stack-azure.yaml

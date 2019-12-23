@@ -74,7 +74,7 @@ infrastructure stack, we need to specify that it's cluster-scoped by passing the
 `--cluster` flag.
 
 ```bash
-kubectl crossplane stack generate-install --cluster 'crossplane/stack-azure:master' stack-azure | kubectl apply --namespace crossplane-system -f -
+kubectl crossplane stack generate-install --cluster 'crossplane/stack-azure:v0.4.0' stack-azure | kubectl apply --namespace crossplane-system -f -
 ```
 
 The rest of this guide assumes that the Azure stack is installed within
@@ -126,13 +126,13 @@ connectivity configurations in Crossplane.
 Apply the sample network configuration resources:
 
 ```bash
-kubectl apply -k github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/azure/network-config?ref=master
+kubectl apply -k github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/azure/network-config?ref=release-0.6
 ```
 
 And you're done! You can check the status of the provisioning by running:
 
 ```bash
-kubectl get -k github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/azure/network-config?ref=master
+kubectl get -k github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/azure/network-config?ref=release-0.6
 ```
 
 When all resources have the `Ready` condition in `True` state, the provisioning
@@ -155,7 +155,7 @@ connectivity][azure-resource-connectivity] design document.
 To inspect the resources that we created above, let's run:
 
 ```bash
-kubectl kustomize github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/azure/network-config?ref=master > network-config.yaml
+kubectl kustomize github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/azure/network-config?ref=release-0.6 > network-config.yaml
 ```
 
 This will save the sample network configuration resources locally in
@@ -263,7 +263,7 @@ repository.
 Apply the sample Azure resource classes:
 
 ```bash
-kubectl apply -k github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/azure/resource-classes?ref=master
+kubectl apply -k github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/azure/resource-classes?ref=release-0.6
 ```
 
 And you're done! Note that these resources do not immediately provision external
@@ -274,7 +274,7 @@ Azure resources, as they only serve as template classes.
 To inspect the resource classes that we created above, run:
 
 ```bash
-kubectl kustomize github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/azure/resource-classes?ref=master > resource-classes.yaml
+kubectl kustomize github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/azure/resource-classes?ref=release-0.6 > resource-classes.yaml
 ```
 
 This will save the sample resource classes YAML locally in
@@ -444,11 +444,11 @@ off.
 [azure-virtual-network]: https://docs.microsoft.com/en-us/azure/virtual-network/virtual-networks-overview
 [azure-resource-connectivity]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-resource-connectivity-mvp.md#microsoft-azure
 [azure-network-configuration]: https://docs.microsoft.com/en-us/azure/virtual-network/virtual-networks-using-network-configuration-file
-[sample Azure resource classes]: https://github.com/crossplaneio/crossplane/tree/master/cluster/examples/workloads/kubernetes/wordpress/azure/resource-classes?ref=master
+[sample Azure resource classes]: https://github.com/crossplaneio/crossplane/tree/master/cluster/examples/workloads/kubernetes/wordpress/azure/resource-classes?ref=release-0.6
 [azure-mysql-database]: https://azure.microsoft.com/en-us/services/mysql/
 [azure-aks]: https://azure.microsoft.com/en-us/services/kubernetes-service/
 [resource-claims-and-classes-docs]: https://github.com/crossplaneio/crossplane/blob/master/docs/concepts.md#resource-claims-and-resource-classes
-[sample Azure network configuration]: https://github.com/crossplaneio/crossplane/tree/master/cluster/examples/workloads/kubernetes/wordpress/azure/network-config?ref=master
+[sample Azure network configuration]: https://github.com/crossplaneio/crossplane/tree/master/cluster/examples/workloads/kubernetes/wordpress/azure/network-config?ref=release-0.6
 [Cross Resource Referencing]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-cross-resource-referencing.md
 [resource class selection]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-simple-class-selection.md
 [azure-provider-guide]: cloud-providers/azure/azure-provider.md

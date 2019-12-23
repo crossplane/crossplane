@@ -44,7 +44,7 @@ metadata:
   name: stack-gcp
   namespace: crossplane-system
 spec:
-  package: "crossplane/stack-gcp:master"
+  package: "crossplane/stack-gcp:v0.4.0"
 ```
 
 Save the above as `stack.yaml`, and apply it by running:
@@ -203,7 +203,7 @@ configuration and status of your `CloudMemorystoreInstance`.
 ```bash
 $ kubectl describe cloudmemorystoreinstance example-cloudmemorystore-instance
 Name:         example-cloudmemorystore-instance
-Namespace:    
+Namespace:
 Labels:       <none>
 Annotations:  crossplane.io/external-name: example-cloudmemorystore-instance
               kubectl.kubernetes.io/last-applied-configuration:

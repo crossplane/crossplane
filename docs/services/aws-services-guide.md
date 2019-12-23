@@ -86,7 +86,7 @@ metadata:
   name: stack-aws
   namespace: crossplane-system
 spec:
-  package: "crossplane/stack-aws:master"
+  package: "crossplane/stack-aws:v0.4.0"
 EOF
 
 kubectl apply -f stack-aws.yaml
