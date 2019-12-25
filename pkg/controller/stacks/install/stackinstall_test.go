@@ -21,6 +21,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/crossplaneio/crossplane/pkg/controller/stacks/hostaware"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -123,12 +125,14 @@ func clusterInstallResource(rm ...resourceModifier) *v1alpha1.ClusterStackInstal
 
 // mock implementations
 type mockFactory struct {
-	MockNewHandler func(context.Context, v1alpha1.StackInstaller, client.Client, kubernetes.Interface, *stacks.ExecutorInfo) handler
+	MockNewHandler func(context.Context, v1alpha1.StackInstaller, client.Client, kubernetes.Interface, client.Client, kubernetes.Interface, *hostaware.Config, *stacks.ExecutorInfo) handler
 }
 
 func (f *mockFactory) newHandler(ctx context.Context, i v1alpha1.StackInstaller,
-	kube client.Client, kubeclient kubernetes.Interface, ei *stacks.ExecutorInfo) handler {
-	return f.MockNewHandler(ctx, i, kube, kubeclient, ei)
+	kube client.Client, kubeclient kubernetes.Interface,
+	hostKube client.Client, hostClient kubernetes.Interface, hostAwareConfig *hostaware.Config,
+	ei *stacks.ExecutorInfo) handler {
+	return f.MockNewHandler(ctx, i, kube, kubeclient, nil, nil, nil, ei)
 }
 
 type mockHandler struct {
@@ -191,7 +195,7 @@ func TestReconcile(t *testing.T) {
 					},
 				},
 				factory: &mockFactory{
-					MockNewHandler: func(context.Context, v1alpha1.StackInstaller, client.Client, kubernetes.Interface, *stacks.ExecutorInfo) handler {
+					MockNewHandler: func(context.Context, v1alpha1.StackInstaller, client.Client, kubernetes.Interface, client.Client, kubernetes.Interface, *hostaware.Config, *stacks.ExecutorInfo) handler {
 						return &mockHandler{
 							MockSync: func(context.Context) (reconcile.Result, error) {
 								return reconcile.Result{}, nil
@@ -219,7 +223,7 @@ func TestReconcile(t *testing.T) {
 					},
 				},
 				factory: &mockFactory{
-					MockNewHandler: func(context.Context, v1alpha1.StackInstaller, client.Client, kubernetes.Interface, *stacks.ExecutorInfo) handler {
+					MockNewHandler: func(context.Context, v1alpha1.StackInstaller, client.Client, kubernetes.Interface, client.Client, kubernetes.Interface, *hostaware.Config, *stacks.ExecutorInfo) handler {
 						return &mockHandler{
 							MockSync: func(context.Context) (reconcile.Result, error) {
 								return reconcile.Result{}, nil
@@ -247,7 +251,7 @@ func TestReconcile(t *testing.T) {
 					},
 				},
 				factory: &mockFactory{
-					MockNewHandler: func(context.Context, v1alpha1.StackInstaller, client.Client, kubernetes.Interface, *stacks.ExecutorInfo) handler {
+					MockNewHandler: func(context.Context, v1alpha1.StackInstaller, client.Client, kubernetes.Interface, client.Client, kubernetes.Interface, *hostaware.Config, *stacks.ExecutorInfo) handler {
 						return &mockHandler{
 							MockDelete: func(context.Context) (reconcile.Result, error) {
 								return reconcile.Result{}, nil
@@ -407,6 +411,19 @@ func TestStackInstallDelete(t *testing.T) {
 					},
 					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
+				hostKube: &test.MockClient{
+					MockList: func(ctx context.Context, list runtime.Object, opts ...client.ListOption) error {
+						// set the list's items to a fake list of CRDs to delete
+						list.(*v1alpha1.StackList).Items = []v1alpha1.Stack{}
+						return nil
+					},
+					MockDeleteAllOf: func(ctx context.Context, obj runtime.Object, opts ...client.DeleteAllOfOption) error { return nil },
+					MockDelete:      func(ctx context.Context, obj runtime.Object, opts ...client.DeleteOption) error { return nil },
+					MockUpdate: func(ctx context.Context, obj runtime.Object, opts ...client.UpdateOption) error {
+						return errBoom
+					},
+					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+				},
 			},
 			want: want{
 				result: resultRequeue,
@@ -465,6 +482,16 @@ func TestStackInstallDelete(t *testing.T) {
 					MockDelete:      func(ctx context.Context, obj runtime.Object, opts ...client.DeleteOption) error { return nil },
 					MockUpdate:      func(ctx context.Context, obj runtime.Object, opts ...client.UpdateOption) error { return nil },
 				},
+				hostKube: &test.MockClient{
+					MockList: func(ctx context.Context, list runtime.Object, opts ...client.ListOption) error {
+						// set the list's items to a fake list of CRDs to delete
+						list.(*v1alpha1.StackList).Items = []v1alpha1.Stack{}
+						return nil
+					},
+					MockDeleteAllOf: func(ctx context.Context, obj runtime.Object, opts ...client.DeleteAllOfOption) error { return nil },
+					MockDelete:      func(ctx context.Context, obj runtime.Object, opts ...client.DeleteOption) error { return nil },
+					MockUpdate:      func(ctx context.Context, obj runtime.Object, opts ...client.UpdateOption) error { return nil },
+				},
 			},
 			want: want{
 				result: reconcile.Result{},
@@ -513,7 +540,7 @@ func TestHandlerFactory(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := tt.factory.newHandler(ctx, resource(), nil, nil, &stacks.ExecutorInfo{Image: stackPackageImage})
+			got := tt.factory.newHandler(ctx, resource(), nil, nil, nil, nil, nil, &stacks.ExecutorInfo{Image: stackPackageImage})
 
 			diff := cmp.Diff(tt.want, got,
 				cmp.AllowUnexported(

@@ -20,7 +20,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
-	install "github.com/crossplaneio/crossplane/pkg/controller/stacks/install"
+	"github.com/crossplaneio/crossplane/pkg/controller/stacks/install"
 	"github.com/crossplaneio/crossplane/pkg/controller/stacks/stack"
 )
 

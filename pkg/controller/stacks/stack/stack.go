@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/crossplaneio/crossplane/pkg/controller/stacks/hostaware"
+
 	"github.com/pkg/errors"
 	apps "k8s.io/api/apps/v1"
 	batch "k8s.io/api/batch/v1"
@@ -65,7 +67,9 @@ var (
 
 // Reconciler reconciles a Instance object
 type Reconciler struct {
-	kube client.Client
+	kube            client.Client
+	hostKube        client.Client
+	hostAwareConfig *hostaware.Config
 	factory
 }
 
@@ -76,9 +80,24 @@ type Controller struct{}
 // SetupWithManager creates a new Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func (c *Controller) SetupWithManager(mgr ctrl.Manager) error {
+	hostKube := mgr.GetClient()
+
+	haCfg, err := hostaware.NewConfig()
+	if err != nil {
+		return err
+	}
+	if haCfg != nil {
+		hostKube, _, err = hostaware.GetClients()
+		if err != nil {
+			return err
+		}
+	}
+
 	r := &Reconciler{
-		kube:    mgr.GetClient(),
-		factory: &stackHandlerFactory{},
+		kube:            mgr.GetClient(),
+		hostKube:        hostKube,
+		hostAwareConfig: haCfg,
+		factory:         &stackHandlerFactory{},
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -104,7 +123,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{}, err
 	}
 
-	handler := r.factory.newHandler(ctx, i, r.kube)
+	handler := r.factory.newHandler(ctx, i, r.kube, r.hostKube, r.hostAwareConfig)
 
 	if meta.WasDeleted(i) {
 		return handler.delete(ctx)
@@ -121,20 +140,24 @@ type handler interface {
 }
 
 type stackHandler struct {
-	kube client.Client
-	ext  *v1alpha1.Stack
+	kube            client.Client
+	hostKube        client.Client
+	hostAwareConfig *hostaware.Config
+	ext             *v1alpha1.Stack
 }
 
 type factory interface {
-	newHandler(context.Context, *v1alpha1.Stack, client.Client) handler
+	newHandler(context.Context, *v1alpha1.Stack, client.Client, client.Client, *hostaware.Config) handler
 }
 
 type stackHandlerFactory struct{}
 
-func (f *stackHandlerFactory) newHandler(ctx context.Context, ext *v1alpha1.Stack, kube client.Client) handler {
+func (f *stackHandlerFactory) newHandler(ctx context.Context, ext *v1alpha1.Stack, kube client.Client, hostKube client.Client, hostAwareConfig *hostaware.Config) handler {
 	return &stackHandler{
-		kube: kube,
-		ext:  ext,
+		kube:            kube,
+		hostKube:        hostKube,
+		hostAwareConfig: hostAwareConfig,
+		ext:             ext,
 	}
 }
 
@@ -492,6 +515,126 @@ func (h *stackHandler) isNamespaced() bool {
 	return apiextensions.ResourceScope(h.ext.Spec.PermissionScope) == apiextensions.NamespaceScoped
 }
 
+func syncSATokenSecret(ctx context.Context, fromKube client.Client, toKube client.Client, fromSARef corev1.ObjectReference, toSecretRef corev1.ObjectReference) error {
+	// Get the ServiceAccount
+	sa := corev1.ServiceAccount{}
+	err := fromKube.Get(ctx, client.ObjectKey{
+		Name:      fromSARef.Name,
+		Namespace: fromSARef.Namespace,
+	}, &sa)
+	if kerrors.IsNotFound(err) {
+		return errors.Wrap(err, "service account is not found (not created yet?)")
+	}
+	if err != nil {
+		return errors.Wrap(err, "failed to get service account")
+	}
+	if len(sa.Secrets) < 1 {
+		return errors.New("service account token secret is not generated yet")
+	}
+	saSecretRef := sa.Secrets[0]
+	saSecretRef.Namespace = fromSARef.Namespace
+	saSecret := corev1.Secret{}
+
+	err = fromKube.Get(ctx, meta.NamespacedNameOf(&saSecretRef), &saSecret)
+
+	if err != nil {
+		return errors.Wrap(err, "failed to get service account token secret")
+	}
+	saSecretOnHost := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      toSecretRef.Name,
+			Namespace: toSecretRef.Namespace,
+		},
+		Data: saSecret.Data,
+	}
+
+	err = toKube.Create(ctx, saSecretOnHost)
+	if err != nil && !kerrors.IsAlreadyExists(err) {
+		return errors.Wrap(err, "failed to create sa token secret on target Kubernetes")
+	}
+
+	return nil
+}
+
+func (h *stackHandler) processHostAwarePod(ctx context.Context, ns string, ps *corev1.PodSpec) error {
+	// We need to copy SA token secret from host to tenant
+	saRef := corev1.ObjectReference{
+		Name:      ps.ServiceAccountName,
+		Namespace: ns,
+	}
+
+	saSecretRef := h.hostAwareConfig.ObjectReferenceOnHost(saRef.Name, saRef.Namespace)
+	err := syncSATokenSecret(ctx, h.kube, h.hostKube, saRef, saSecretRef)
+	if err != nil {
+		return errors.Wrap(err, "failed sync stack controller service account secret")
+	}
+
+	// Opt out service account token automount
+	disable := false
+	ps.AutomountServiceAccountToken = &disable
+	ps.ServiceAccountName = ""
+	ps.DeprecatedServiceAccount = ""
+
+	m := int32(420)
+	ps.Volumes = append(ps.Volumes, corev1.Volume{
+		Name: saSecretRef.Name,
+		VolumeSource: corev1.VolumeSource{
+			Secret: &corev1.SecretVolumeSource{
+				SecretName:  saSecretRef.Name,
+				DefaultMode: &m,
+			},
+		},
+	})
+
+	for i := range ps.Containers {
+		ps.Containers[i].Env = append(ps.Containers[i].Env,
+			corev1.EnvVar{
+				Name:  "KUBERNETES_SERVICE_HOST",
+				Value: h.hostAwareConfig.TenantAPIServiceHost,
+			}, corev1.EnvVar{
+				Name:  "KUBERNETES_SERVICE_PORT",
+				Value: h.hostAwareConfig.TenantAPIServicePort,
+			}, corev1.EnvVar{
+				// When POD_NAMESPACE is not set as stackinstalls namespace here, it is set as host namespace where actual
+				// pod running. This result stack controller to fails with forbidden, since their sa only allows to watch
+				// the namespace where stack is installed
+				Name:  "POD_NAMESPACE",
+				Value: h.ext.Namespace,
+			})
+
+		ps.Containers[i].VolumeMounts = append(ps.Containers[i].VolumeMounts, corev1.VolumeMount{
+			Name:      saSecretRef.Name,
+			ReadOnly:  true,
+			MountPath: "/var/run/secrets/kubernetes.io/serviceaccount",
+		})
+	}
+
+	return nil
+}
+
+func (h *stackHandler) processHostAwareDeployment(ctx context.Context, d *apps.Deployment) error {
+	if err := h.processHostAwarePod(ctx, d.Namespace, &d.Spec.Template.Spec); err != nil {
+		return err
+	}
+
+	o := h.hostAwareConfig.ObjectReferenceOnHost(d.Name, d.Namespace)
+	d.Name = o.Name
+	d.Namespace = o.Namespace
+
+	return nil
+}
+func (h *stackHandler) processHostAwareJob(ctx context.Context, j *batch.Job) error {
+	if err := h.processHostAwarePod(ctx, j.Namespace, &j.Spec.Template.Spec); err != nil {
+		return err
+	}
+
+	o := h.hostAwareConfig.ObjectReferenceOnHost(j.Name, j.Namespace)
+	j.Name = o.Name
+	j.Namespace = o.Namespace
+
+	return nil
+}
+
 func (h *stackHandler) processDeployment(ctx context.Context) error {
 	controllerDeployment := h.ext.Spec.Controller.Deployment
 	if controllerDeployment == nil {
@@ -502,7 +645,7 @@ func (h *stackHandler) processDeployment(ctx context.Context) error {
 	deploymentSpec := *controllerDeployment.Spec.DeepCopy()
 	deploymentSpec.Template.Spec.ServiceAccountName = h.ext.Name
 
-	ref := meta.AsOwner(meta.ReferenceTo(h.ext, v1alpha1.StackGroupVersionKind))
+	labels := stacks.ParentLabels(h.ext)
 	gvk := schema.GroupVersionKind{
 		Group:   apps.GroupName,
 		Kind:    "Deployment",
@@ -510,17 +653,22 @@ func (h *stackHandler) processDeployment(ctx context.Context) error {
 	}
 	d := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            controllerDeployment.Name,
-			Namespace:       h.ext.Namespace,
-			OwnerReferences: []metav1.OwnerReference{ref},
+			Name:      controllerDeployment.Name,
+			Namespace: h.ext.Namespace,
+			Labels:    labels,
 		},
 		Spec: deploymentSpec,
 	}
 
-	if err := h.kube.Create(ctx, d); err != nil && !kerrors.IsAlreadyExists(err) {
+	if h.hostAwareConfig != nil {
+		err := h.processHostAwareDeployment(ctx, d)
+		if err != nil {
+			return errors.Wrap(err, "failed process host aware stack controller deployment")
+		}
+	}
+	if err := h.hostKube.Create(ctx, d); err != nil && !kerrors.IsAlreadyExists(err) {
 		return errors.Wrap(err, "failed to create deployment")
 	}
-
 	// save a reference to the stack's controller
 	h.ext.Status.ControllerRef = meta.ReferenceTo(d, gvk)
 
@@ -537,7 +685,7 @@ func (h *stackHandler) processJob(ctx context.Context) error {
 	jobSpec := *controllerJob.Spec.DeepCopy()
 	jobSpec.Template.Spec.ServiceAccountName = h.ext.Name
 
-	ref := meta.AsOwner(meta.ReferenceTo(h.ext, v1alpha1.StackGroupVersionKind))
+	labels := stacks.ParentLabels(h.ext)
 	gvk := schema.GroupVersionKind{
 		Group:   batch.GroupName,
 		Kind:    "Job",
@@ -545,13 +693,21 @@ func (h *stackHandler) processJob(ctx context.Context) error {
 	}
 	j := &batch.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            controllerJob.Name,
-			Namespace:       h.ext.Namespace,
-			OwnerReferences: []metav1.OwnerReference{ref},
+			Name:      controllerJob.Name,
+			Namespace: h.ext.Namespace,
+			Labels:    labels,
 		},
 		Spec: jobSpec,
 	}
-	if err := h.kube.Create(ctx, j); err != nil && !kerrors.IsAlreadyExists(err) {
+
+	if h.hostAwareConfig != nil {
+		err := h.processHostAwareJob(ctx, j)
+		if err != nil {
+			return errors.Wrap(err, "failed process host aware stack controller deployment")
+		}
+	}
+
+	if err := h.hostKube.Create(ctx, j); err != nil && !kerrors.IsAlreadyExists(err) {
 		return errors.Wrap(err, "failed to create job")
 	}
 
@@ -568,6 +724,18 @@ func (h *stackHandler) delete(ctx context.Context) (reconcile.Result, error) {
 	log.V(logging.Debug).Info("deleting stack", "namespace", h.ext.GetNamespace(), "name", h.ext.GetName())
 
 	labels := stacks.ParentLabels(h.ext)
+
+	log.V(logging.Debug).Info("deleting stack controller deployment", "namespace", h.ext.GetNamespace(), "name", h.ext.GetName())
+
+	if err := h.hostKube.DeleteAllOf(ctx, &apps.Deployment{}, client.MatchingLabels(labels)); runtimeresource.IgnoreNotFound(err) != nil {
+		return fail(ctx, h.kube, h.ext, err)
+	}
+
+	log.V(logging.Debug).Info("deleting stack controller jobs", "namespace", h.ext.GetNamespace(), "name", h.ext.GetName())
+
+	if err := h.hostKube.DeleteAllOf(ctx, &batch.Job{}, client.MatchingLabels(labels)); runtimeresource.IgnoreNotFound(err) != nil {
+		return fail(ctx, h.kube, h.ext, err)
+	}
 
 	log.V(logging.Debug).Info("deleting stack clusterroles", "namespace", h.ext.GetNamespace(), "name", h.ext.GetName())
 

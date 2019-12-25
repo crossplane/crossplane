@@ -21,6 +21,9 @@ import (
 	"os"
 	"path/filepath"
 
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
+
 	"github.com/spf13/afero"
 	"gopkg.in/alecthomas/kingpin.v2"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
@@ -117,7 +120,7 @@ func main() {
 	}
 
 	// Get a config to talk to the apiserver
-	cfg, err := config.GetConfig()
+	cfg, err := getRestConfig()
 	kingpin.FatalIfError(err, "Cannot get config")
 
 	log.Info("Sync period", "duration", syncPeriod.String())
@@ -137,6 +140,15 @@ func main() {
 	// Start the Cmd
 	log.Info("Starting the manager")
 	kingpin.FatalIfError(mgr.Start(signals.SetupSignalHandler()), "Cannot start controller")
+}
+
+func getRestConfig() (cfg *rest.Config, err error) {
+	tenantKubeconfig := os.Getenv("TENANT_KUBECONFIG")
+	if tenantKubeconfig != "" {
+		return clientcmd.BuildConfigFromFlags("", tenantKubeconfig)
+	}
+
+	return config.GetConfig()
 }
 
 func closeOrError(c io.Closer) {

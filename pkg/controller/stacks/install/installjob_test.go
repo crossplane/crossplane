@@ -440,6 +440,11 @@ func TestCreate(t *testing.T) {
 					MockUpdate:       func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
+				hostKube: &test.MockClient{
+					MockCreate:       func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error { return nil },
+					MockUpdate:       func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+				},
 				executorInfo: &stacks.ExecutorInfo{Image: stackPackageImage},
 				ext:          resource(),
 			},
@@ -457,6 +462,14 @@ func TestCreate(t *testing.T) {
 			name: "InstallJobNotCompleted",
 			handler: &stackInstallHandler{
 				kube: &test.MockClient{
+					MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
+						// GET Job returns an uncompleted job
+						return nil
+					},
+					MockUpdate:       func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+				},
+				hostKube: &test.MockClient{
 					MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
 						// GET Job returns an uncompleted job
 						return nil
@@ -489,6 +502,15 @@ func TestCreate(t *testing.T) {
 					MockUpdate:       func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
+				hostKube: &test.MockClient{
+					MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
+						// GET Job returns a successful/completed job
+						*obj.(*batchv1.Job) = *(job(withJobConditions(batchv1.JobComplete, "")))
+						return nil
+					},
+					MockUpdate:       func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+				},
 				jobCompleter: &mockJobCompleter{
 					MockHandleJobCompletion: func(ctx context.Context, i v1alpha1.StackInstaller, job *batchv1.Job) error { return nil },
 				},
@@ -510,6 +532,15 @@ func TestCreate(t *testing.T) {
 			name: "HandleFailedInstallJob",
 			handler: &stackInstallHandler{
 				kube: &test.MockClient{
+					MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
+						// GET Job returns a failed job
+						*obj.(*batchv1.Job) = *(job(withJobConditions(batchv1.JobFailed, "mock job failure message")))
+						return nil
+					},
+					MockUpdate:       func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+				},
+				hostKube: &test.MockClient{
 					MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
 						// GET Job returns a failed job
 						*obj.(*batchv1.Job) = *(job(withJobConditions(batchv1.JobFailed, "mock job failure message")))

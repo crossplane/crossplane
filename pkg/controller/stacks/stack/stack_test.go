@@ -22,6 +22,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/crossplaneio/crossplane/pkg/controller/stacks/hostaware"
+
 	"github.com/google/go-cmp/cmp"
 	. "github.com/onsi/gomega"
 	"github.com/pkg/errors"
@@ -131,11 +133,11 @@ func resource(rm ...resourceModifier) *v1alpha1.Stack {
 // mockFactory and mockHandler
 // ************************************************************************************************
 type mockFactory struct {
-	MockNewHandler func(context.Context, *v1alpha1.Stack, client.Client) handler
+	MockNewHandler func(context.Context, *v1alpha1.Stack, client.Client, client.Client, *hostaware.Config) handler
 }
 
-func (f *mockFactory) newHandler(ctx context.Context, r *v1alpha1.Stack, c client.Client) handler {
-	return f.MockNewHandler(ctx, r, c)
+func (f *mockFactory) newHandler(ctx context.Context, r *v1alpha1.Stack, c client.Client, h client.Client, hc *hostaware.Config) handler {
+	return f.MockNewHandler(ctx, r, c, nil, nil)
 }
 
 type mockHandler struct {
@@ -242,7 +244,7 @@ func TestReconcile(t *testing.T) {
 					},
 				},
 				factory: &mockFactory{
-					MockNewHandler: func(context.Context, *v1alpha1.Stack, client.Client) handler {
+					MockNewHandler: func(context.Context, *v1alpha1.Stack, client.Client, client.Client, *hostaware.Config) handler {
 						return &mockHandler{
 							MockSync: func(context.Context) (reconcile.Result, error) {
 								return reconcile.Result{}, nil
@@ -414,8 +416,9 @@ func TestCreate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			handler := &stackHandler{
-				kube: tt.clientFunc(tt.r),
-				ext:  tt.r,
+				kube:     tt.clientFunc(tt.r),
+				hostKube: tt.clientFunc(tt.r),
+				ext:      tt.r,
 			}
 
 			got, err := handler.create(ctx)
@@ -858,9 +861,7 @@ func TestProcessDeployment(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      controllerDeploymentName,
 						Namespace: namespace,
-						OwnerReferences: []metav1.OwnerReference{
-							meta.AsOwner(meta.ReferenceTo(resource(), v1alpha1.StackGroupVersionKind)),
-						},
+						Labels:    stackspkg.ParentLabels(resource(withControllerSpec(defaultControllerSpec()))),
 					},
 					Spec: apps.DeploymentSpec{
 						Template: corev1.PodTemplateSpec{
@@ -887,8 +888,9 @@ func TestProcessDeployment(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			g := NewGomegaWithT(t)
 			handler := &stackHandler{
-				kube: tt.clientFunc(tt.r),
-				ext:  tt.r,
+				kube:     tt.clientFunc(tt.r),
+				hostKube: tt.clientFunc(tt.r),
+				ext:      tt.r,
 			}
 
 			err := handler.processDeployment(ctx)
@@ -899,7 +901,7 @@ func TestProcessDeployment(t *testing.T) {
 
 			if tt.want.d != nil {
 				got := &apps.Deployment{}
-				assertKubernetesObject(t, g, got, tt.want.d, handler.kube)
+				assertKubernetesObject(t, g, got, tt.want.d, handler.hostKube)
 			}
 
 			if diff := cmp.Diff(tt.want.controllerRef, handler.ext.Status.ControllerRef); diff != "" {
@@ -963,9 +965,7 @@ func TestProcessJob(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      controllerJobName,
 						Namespace: namespace,
-						OwnerReferences: []metav1.OwnerReference{
-							meta.AsOwner(meta.ReferenceTo(resource(), v1alpha1.StackGroupVersionKind)),
-						},
+						Labels:    stackspkg.ParentLabels(resource(withControllerSpec(defaultControllerSpec()))),
 					},
 					Spec: batch.JobSpec{
 						Template: corev1.PodTemplateSpec{
@@ -993,8 +993,9 @@ func TestProcessJob(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			g := NewGomegaWithT(t)
 			handler := &stackHandler{
-				kube: tt.clientFunc(tt.r),
-				ext:  tt.r,
+				kube:     tt.clientFunc(tt.r),
+				hostKube: tt.clientFunc(tt.r),
+				ext:      tt.r,
 			}
 
 			err := handler.processJob(ctx)
@@ -1005,7 +1006,7 @@ func TestProcessJob(t *testing.T) {
 
 			if tt.want.j != nil {
 				got := &batch.Job{}
-				assertKubernetesObject(t, g, got, tt.want.j, handler.kube)
+				assertKubernetesObject(t, g, got, tt.want.j, handler.hostKube)
 			}
 
 			if diff := cmp.Diff(tt.want.controllerRef, handler.ext.Status.ControllerRef); diff != "" {
@@ -1041,6 +1042,11 @@ func TestStackDelete(t *testing.T) {
 				// stack starts with a finalizer and a deletion timestamp
 				ext: resource(withFinalizers(stacksFinalizer), withDeletionTimestamp(tn)),
 				kube: &test.MockClient{
+					MockDeleteAllOf:  func(ctx context.Context, obj runtime.Object, opts ...client.DeleteAllOfOption) error { return errBoom },
+					MockUpdate:       func(ctx context.Context, obj runtime.Object, opts ...client.UpdateOption) error { return nil },
+					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+				},
+				hostKube: &test.MockClient{
 					MockDeleteAllOf:  func(ctx context.Context, obj runtime.Object, opts ...client.DeleteAllOfOption) error { return errBoom },
 					MockUpdate:       func(ctx context.Context, obj runtime.Object, opts ...client.UpdateOption) error { return nil },
 					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
@@ -1081,6 +1087,27 @@ func TestStackDelete(t *testing.T) {
 					},
 					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
+				hostKube: &test.MockClient{
+					MockList: func(ctx context.Context, list runtime.Object, opts ...client.ListOption) error {
+						// set a fake list of cluster resources to delete
+						switch list := list.(type) {
+						case *rbac.ClusterRoleBindingList:
+							list.Items = []rbac.ClusterRoleBinding{{
+								ObjectMeta: metav1.ObjectMeta{Name: "crdToDelete"},
+							}}
+						case *rbac.ClusterRoleList:
+							list.Items = []rbac.ClusterRole{{
+								ObjectMeta: metav1.ObjectMeta{Name: "crdToDelete"},
+							}}
+						}
+						return nil
+					},
+					MockDeleteAllOf: func(ctx context.Context, obj runtime.Object, opts ...client.DeleteAllOfOption) error { return nil },
+					MockUpdate: func(ctx context.Context, obj runtime.Object, opts ...client.UpdateOption) error {
+						return errBoom
+					},
+					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+				},
 			},
 			want: want{
 				result: resultRequeue,
@@ -1098,6 +1125,24 @@ func TestStackDelete(t *testing.T) {
 				// stack install starts with a finalizer and a deletion timestamp
 				ext: resource(withFinalizers(stacksFinalizer), withDeletionTimestamp(tn)),
 				kube: &test.MockClient{
+					MockList: func(ctx context.Context, list runtime.Object, opts ...client.ListOption) error {
+						// set a fake list of cluster resources to delete
+						switch list := list.(type) {
+						case *rbac.ClusterRoleBindingList:
+							list.Items = []rbac.ClusterRoleBinding{{
+								ObjectMeta: metav1.ObjectMeta{Name: "crdToDelete"},
+							}}
+						case *rbac.ClusterRoleList:
+							list.Items = []rbac.ClusterRole{{
+								ObjectMeta: metav1.ObjectMeta{Name: "crdToDelete"},
+							}}
+						}
+						return nil
+					},
+					MockDeleteAllOf: func(ctx context.Context, obj runtime.Object, opts ...client.DeleteAllOfOption) error { return nil },
+					MockUpdate:      func(ctx context.Context, obj runtime.Object, opts ...client.UpdateOption) error { return nil },
+				},
+				hostKube: &test.MockClient{
 					MockList: func(ctx context.Context, list runtime.Object, opts ...client.ListOption) error {
 						// set a fake list of cluster resources to delete
 						switch list := list.(type) {

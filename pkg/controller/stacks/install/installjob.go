@@ -24,6 +24,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/crossplaneio/crossplane/pkg/controller/stacks/hostaware"
+
 	"github.com/pkg/errors"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -56,16 +58,26 @@ type jobCompleter interface {
 // StackInstallJobCompleter is a concrete implementation of the jobCompleter interface
 type stackInstallJobCompleter struct {
 	client       client.Client
+	hostClient   client.Client
 	podLogReader Reader
 }
 
-func createInstallJob(i v1alpha1.StackInstaller, executorInfo *stacks.ExecutorInfo) *batchv1.Job {
-	ref := meta.AsOwner(meta.ReferenceTo(i, i.GroupVersionKind()))
+func createInstallJob(i v1alpha1.StackInstaller, executorInfo *stacks.ExecutorInfo, hacfg *hostaware.Config) *batchv1.Job {
+	name := i.GetName()
+	namespace := i.GetNamespace()
+
+	if hacfg != nil {
+		// We need to map all install jobs on tenant Kubernetes into a single namespace on host cluster.
+		o := hacfg.ObjectReferenceOnHost(name, namespace)
+		name = o.Name
+		namespace = o.Namespace
+	}
+
 	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            i.GetName(),
-			Namespace:       i.GetNamespace(),
-			OwnerReferences: []metav1.OwnerReference{ref},
+			Name:      name,
+			Namespace: namespace,
+			Labels:    stacks.ParentLabels(i),
 		},
 		Spec: batchv1.JobSpec{
 			BackoffLimit: &jobBackoff,
