@@ -1,0 +1,14 @@
+replicas: 1
+
+deploymentStrategy: RollingUpdate
+
+image:
+  repository: crossplane/crossplane
+  tag: %%VERSION%%
+  pullPolicy: Always
+
+args:
+- '--debug'
+
+imagePullSecrets:
+- dockerhub

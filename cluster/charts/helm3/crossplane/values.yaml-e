@@ -1,0 +1,31 @@
+replicas: 1
+
+deploymentStrategy: RollingUpdate
+
+image:
+  repository: crossplane/crossplane
+  tag: %%VERSION%%
+  pullPolicy: Always
+
+args:
+- '--debug'
+
+imagePullSecrets:
+- dockerhub
+
+personas:
+  deploy: true
+
+clusterStacks:
+  aws:
+    version: master
+    deploy: false
+  gcp:
+    version: master
+    deploy: false
+  azure:
+    version: master
+    deploy: false
+  rook:
+    version: master
+    deploy: false
