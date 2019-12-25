@@ -34,7 +34,7 @@ nameReference:
 # varReference is the list of fields that we tell Kustomize to process for
 # variants.
 varReference:
-  - path: specTemplate/locations
+  - path: specTemplate/zone
     kind: GKEClusterClass
   - path: spec/region
     kind: Subnetwork

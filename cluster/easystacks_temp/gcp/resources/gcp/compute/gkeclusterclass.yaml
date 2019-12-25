@@ -9,8 +9,7 @@ specTemplate:
   writeConnectionSecretsToNamespace: crossplane-system
   machineType: n1-standard-1
   numNodes: 1
-  locations:
-    - $(REGION)a
+  zone: $(REGION)-b
   networkRef:
     name: network
   subnetworkRef:

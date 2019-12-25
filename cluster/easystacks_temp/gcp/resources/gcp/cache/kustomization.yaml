@@ -2,4 +2,4 @@ configurations:
   - kustomizeconfig.yaml
 
 resources:
-  - cloudmemorystoreinstance.yaml
+  - cloudmemorystoreinstanceclass.yaml
