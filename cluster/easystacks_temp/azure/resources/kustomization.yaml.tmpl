@@ -1,0 +1,43 @@
+# The MinimalAzure instance will be in the Kustomize resources for templating.
+# Resource pack generic controller will use this template in another directory
+# to create a final overlay for rendering. It will fill the missing runtime pieces such as name, namespace
+# and uid of the MinimalAzure instance. Then it will refer to this `resources` folder.
+#
+# NOTE: `resources` array in this file will be overridden by the controller. Use
+# kustomization.yaml file to list your resources.
+
+kind: Kustomization
+namePrefix: ""
+commonLabels:
+  azure.resourcepacks.crossplane.io/name: ""
+  azure.resourcepacks.crossplane.io/uid: ""
+
+vars:
+  - name: LOCATION
+    objref:
+      kind: MinimalAzure
+      apiVersion: azure.resourcepacks.crossplane.io/v1alpha1
+      name: ""
+    fieldref:
+      fieldpath: spec.location
+  - name: CRED_SECRET_KEY
+    objref:
+      kind: MinimalAzure
+      apiVersion: azure.resourcepacks.crossplane.io/v1alpha1
+      name: ""
+    fieldref:
+      fieldpath: spec.credentialsSecretRef.key
+  - name: CRED_SECRET_NAME
+    objref:
+      kind: MinimalAzure
+      apiVersion: azure.resourcepacks.crossplane.io/v1alpha1
+      name: ""
+    fieldref:
+      fieldpath: spec.credentialsSecretRef.name
+  - name: CRED_SECRET_NAMESPACE
+    objref:
+      kind: MinimalAzure
+      apiVersion: azure.resourcepacks.crossplane.io/v1alpha1
+      name: ""
+    fieldref:
+      fieldpath: spec.credentialsSecretRef.namespace

@@ -25,3 +25,9 @@ nameReference:
     fieldSpecs:
       - path: spec/name
         kind: Subnet
+
+# varReference is the list of fields that we tell Kustomize to process for
+# variants.
+varReference:
+  - kind: VirtualNetwork
+    path: spec/location

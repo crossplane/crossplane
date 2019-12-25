@@ -6,12 +6,18 @@ nameReference:
   - kind: Provider
     fieldSpecs:
       - path: specTemplate/providerRef/name
-        kind: RedisClass
+        kind: AKSClusterClass
   - kind: ResourceGroup
     fieldSpecs:
       - path: specTemplate/resourceGroupNameRef/name
-        kind: RedisClass
+        kind: AKSClusterClass
   - kind: Subnet
     fieldSpecs:
       - path: specTemplate/vnetSubnetIDRef/name
         kind: AKSClusterClass
+
+# varReference is the list of fields that we tell Kustomize to process for
+# variants.
+varReference:
+  - kind: AKSClusterClass
+    path: specTemplate/location

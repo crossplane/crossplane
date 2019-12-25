@@ -7,7 +7,7 @@ spec:
   name: virtualnetwork
   resourceGroupNameRef:
     name: resourcegroup
-  location: Central US
+  location: $(LOCATION)
   properties:
     addressSpace:
       addressPrefixes:

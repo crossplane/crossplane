@@ -11,3 +11,9 @@ nameReference:
     fieldSpecs:
       - path: specTemplate/forProvider/resourceGroupNameRef/name
         kind: RedisClass
+
+# varReference is the list of fields that we tell Kustomize to process for
+# variants.
+varReference:
+  - kind: RedisClass
+    path: specTemplate/forProvider/location

@@ -5,7 +5,7 @@ metadata:
   name: resourcegroup
 spec:
   name: resourcegroup
-  location: Central US
+  location: $(LOCATION)
   reclaimPolicy: Delete
   providerRef:
     name: azure-provider

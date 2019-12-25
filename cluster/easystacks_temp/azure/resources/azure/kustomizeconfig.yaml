@@ -7,3 +7,15 @@ nameReference:
     fieldSpecs:
       - path: spec/providerRef/name
         kind: ResourceGroup
+
+# varReference is the list of fields that we tell Kustomize to process for
+# variants.
+varReference:
+  - path: spec/credentialsSecretRef/key
+    kind: Provider
+  - path: spec/credentialsSecretRef/name
+    kind: Provider
+  - path: spec/credentialsSecretRef/namespace
+    kind: Provider
+  - path: spec/location
+    kind: ResourceGroup

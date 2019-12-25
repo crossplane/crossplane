@@ -4,6 +4,6 @@ metadata:
   name: azure-provider
 spec:
   credentialsSecretRef:
-    namespace: crossplane-system
-    name: azure-account-creds
-    key: credentials
+    namespace: $(CRED_SECRET_NAMESPACE)
+    name: $(CRED_SECRET_NAME)
+    key: $(CRED_SECRET_KEY)

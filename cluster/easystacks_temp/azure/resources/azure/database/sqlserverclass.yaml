@@ -3,17 +3,20 @@ apiVersion: database.azure.crossplane.io/v1beta1
 kind: SQLServerClass
 metadata:
   name: sqlservermysql
+  annotations:
+    resourceclass.crossplane.io/is-default-class: "true"
 specTemplate:
   forProvider:
-    administratorLogin: root
+    administratorLogin: myadmin
     resourceGroupNameRef:
       name: resourcegroup
-    location: Central US
+    location: $(LOCATION)
     sslEnforcement: Disabled
     version: "5.6"
     sku:
-      tier: Basic
-      capacity: 1
+      # Basic tier does not support VNet connection rule.
+      tier: GeneralPurpose
+      capacity: 2
       family: Gen5
     storageProfile:
       storageMB: 8192
@@ -30,15 +33,16 @@ metadata:
   name: sqlserverpostgresql
 specTemplate:
   forProvider:
-    administratorLogin: root
+    administratorLogin: myadmin
     resourceGroupNameRef:
       name: resourcegroup
-    location: Central US
+    location: $(LOCATION)
     sslEnforcement: Disabled
     version: "9.6"
     sku:
-      tier: Basic
-      capacity: 1
+      # Basic tier does not support VNet connection rule.
+      tier: GeneralPurpose
+      capacity: 2
       family: Gen5
     storageProfile:
       storageMB: 8192

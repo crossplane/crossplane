@@ -2,4 +2,4 @@ configurations:
   - kustomizeconfig.yaml
 
 resources:
-  - akscluster.yaml
+  - aksclusterclass.yaml

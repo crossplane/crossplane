@@ -2,4 +2,4 @@ configurations:
   - kustomizeconfig.yaml
 
 resources:
-  - redis.yaml
+  - redisclass.yaml
