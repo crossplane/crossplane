@@ -515,8 +515,11 @@ func (h *stackHandler) isNamespaced() bool {
 	return apiextensions.ResourceScope(h.ext.Spec.PermissionScope) == apiextensions.NamespaceScoped
 }
 
-func syncSATokenSecret(ctx context.Context, fromKube client.Client, toKube client.Client, fromSARef corev1.ObjectReference, toSecretRef corev1.ObjectReference) error {
+func (h *stackHandler) syncSATokenSecret(ctx context.Context, owner metav1.OwnerReference, fromSARef corev1.ObjectReference, toSecretRef corev1.ObjectReference) error {
 	// Get the ServiceAccount
+	fromKube := h.kube
+	toKube := h.hostKube
+
 	sa := corev1.ServiceAccount{}
 	err := fromKube.Get(ctx, client.ObjectKey{
 		Name:      fromSARef.Name,
@@ -542,8 +545,9 @@ func syncSATokenSecret(ctx context.Context, fromKube client.Client, toKube clien
 	}
 	saSecretOnHost := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      toSecretRef.Name,
-			Namespace: toSecretRef.Namespace,
+			Name:            toSecretRef.Name,
+			Namespace:       toSecretRef.Namespace,
+			OwnerReferences: []metav1.OwnerReference{owner},
 		},
 		Data: saSecret.Data,
 	}
@@ -556,19 +560,7 @@ func syncSATokenSecret(ctx context.Context, fromKube client.Client, toKube clien
 	return nil
 }
 
-func (h *stackHandler) processHostAwarePod(ctx context.Context, ns string, ps *corev1.PodSpec) error {
-	// We need to copy SA token secret from host to tenant
-	saRef := corev1.ObjectReference{
-		Name:      ps.ServiceAccountName,
-		Namespace: ns,
-	}
-
-	saSecretRef := h.hostAwareConfig.ObjectReferenceOnHost(saRef.Name, saRef.Namespace)
-	err := syncSATokenSecret(ctx, h.kube, h.hostKube, saRef, saSecretRef)
-	if err != nil {
-		return errors.Wrap(err, "failed sync stack controller service account secret")
-	}
-
+func (h *stackHandler) prepareHostAwarePodSpec(tokenSecret string, ps *corev1.PodSpec) error {
 	// Opt out service account token automount
 	disable := false
 	ps.AutomountServiceAccountToken = &disable
@@ -577,10 +569,10 @@ func (h *stackHandler) processHostAwarePod(ctx context.Context, ns string, ps *c
 
 	m := int32(420)
 	ps.Volumes = append(ps.Volumes, corev1.Volume{
-		Name: saSecretRef.Name,
+		Name: "sa-token",
 		VolumeSource: corev1.VolumeSource{
 			Secret: &corev1.SecretVolumeSource{
-				SecretName:  saSecretRef.Name,
+				SecretName:  tokenSecret,
 				DefaultMode: &m,
 			},
 		},
@@ -603,7 +595,7 @@ func (h *stackHandler) processHostAwarePod(ctx context.Context, ns string, ps *c
 			})
 
 		ps.Containers[i].VolumeMounts = append(ps.Containers[i].VolumeMounts, corev1.VolumeMount{
-			Name:      saSecretRef.Name,
+			Name:      "sa-token",
 			ReadOnly:  true,
 			MountPath: "/var/run/secrets/kubernetes.io/serviceaccount",
 		})
@@ -612,8 +604,8 @@ func (h *stackHandler) processHostAwarePod(ctx context.Context, ns string, ps *c
 	return nil
 }
 
-func (h *stackHandler) processHostAwareDeployment(ctx context.Context, d *apps.Deployment) error {
-	if err := h.processHostAwarePod(ctx, d.Namespace, &d.Spec.Template.Spec); err != nil {
+func (h *stackHandler) prepareHostAwareDeployment(d *apps.Deployment, tokenSecret string) error {
+	if err := h.prepareHostAwarePodSpec(tokenSecret, &d.Spec.Template.Spec); err != nil {
 		return err
 	}
 
@@ -623,8 +615,8 @@ func (h *stackHandler) processHostAwareDeployment(ctx context.Context, d *apps.D
 
 	return nil
 }
-func (h *stackHandler) processHostAwareJob(ctx context.Context, j *batch.Job) error {
-	if err := h.processHostAwarePod(ctx, j.Namespace, &j.Spec.Template.Spec); err != nil {
+func (h *stackHandler) prepareHostAwareJob(j *batch.Job, tokenSecret string) error {
+	if err := h.prepareHostAwarePodSpec(tokenSecret, &j.Spec.Template.Spec); err != nil {
 		return err
 	}
 
@@ -659,15 +651,29 @@ func (h *stackHandler) processDeployment(ctx context.Context) error {
 		},
 		Spec: deploymentSpec,
 	}
-
+	var saRef corev1.ObjectReference
+	var saSecretRef corev1.ObjectReference
 	if h.hostAwareConfig != nil {
-		err := h.processHostAwareDeployment(ctx, d)
+		// We need to copy SA token secret from host to tenant
+		saRef = corev1.ObjectReference{
+			Name:      d.Spec.Template.Spec.ServiceAccountName,
+			Namespace: d.Namespace,
+		}
+		saSecretRef = h.hostAwareConfig.ObjectReferenceOnHost(saRef.Name, saRef.Namespace)
+		err := h.prepareHostAwareDeployment(d, saSecretRef.Name)
 		if err != nil {
 			return errors.Wrap(err, "failed process host aware stack controller deployment")
 		}
 	}
 	if err := h.hostKube.Create(ctx, d); err != nil && !kerrors.IsAlreadyExists(err) {
 		return errors.Wrap(err, "failed to create deployment")
+	}
+	if h.hostAwareConfig != nil {
+		owner := meta.AsOwner(meta.ReferenceTo(d, gvk))
+		err := h.syncSATokenSecret(ctx, owner, saRef, saSecretRef)
+		if err != nil {
+			return errors.Wrap(err, "failed sync stack controller service account secret")
+		}
 	}
 	// save a reference to the stack's controller
 	h.ext.Status.ControllerRef = meta.ReferenceTo(d, gvk)
@@ -700,10 +706,18 @@ func (h *stackHandler) processJob(ctx context.Context) error {
 		Spec: jobSpec,
 	}
 
+	var saRef corev1.ObjectReference
+	var saSecretRef corev1.ObjectReference
 	if h.hostAwareConfig != nil {
-		err := h.processHostAwareJob(ctx, j)
+		// We need to copy SA token secret from host to tenant
+		saRef = corev1.ObjectReference{
+			Name:      j.Spec.Template.Spec.ServiceAccountName,
+			Namespace: j.Namespace,
+		}
+		saSecretRef = h.hostAwareConfig.ObjectReferenceOnHost(saRef.Name, saRef.Namespace)
+		err := h.prepareHostAwareJob(j, saSecretRef.Name)
 		if err != nil {
-			return errors.Wrap(err, "failed process host aware stack controller deployment")
+			return errors.Wrap(err, "failed process host aware stack controller job")
 		}
 	}
 
@@ -711,6 +725,13 @@ func (h *stackHandler) processJob(ctx context.Context) error {
 		return errors.Wrap(err, "failed to create job")
 	}
 
+	if h.hostAwareConfig != nil {
+		owner := meta.AsOwner(meta.ReferenceTo(j, gvk))
+		err := h.syncSATokenSecret(ctx, owner, saRef, saSecretRef)
+		if err != nil {
+			return errors.Wrap(err, "failed sync stack controller service account secret")
+		}
+	}
 	// save a reference to the stack's controller
 	h.ext.Status.ControllerRef = meta.ReferenceTo(j, gvk)
 
@@ -725,15 +746,20 @@ func (h *stackHandler) delete(ctx context.Context) (reconcile.Result, error) {
 
 	labels := stacks.ParentLabels(h.ext)
 
+	stackControllerNamespace := h.ext.GetNamespace()
+	if h.hostAwareConfig != nil {
+		stackControllerNamespace = h.hostAwareConfig.HostControllerNamespace
+	}
+
 	log.V(logging.Debug).Info("deleting stack controller deployment", "namespace", h.ext.GetNamespace(), "name", h.ext.GetName())
 
-	if err := h.hostKube.DeleteAllOf(ctx, &apps.Deployment{}, client.MatchingLabels(labels)); runtimeresource.IgnoreNotFound(err) != nil {
+	if err := h.hostKube.DeleteAllOf(ctx, &apps.Deployment{}, client.MatchingLabels(labels), client.InNamespace(stackControllerNamespace)); runtimeresource.IgnoreNotFound(err) != nil {
 		return fail(ctx, h.kube, h.ext, err)
 	}
 
 	log.V(logging.Debug).Info("deleting stack controller jobs", "namespace", h.ext.GetNamespace(), "name", h.ext.GetName())
 
-	if err := h.hostKube.DeleteAllOf(ctx, &batch.Job{}, client.MatchingLabels(labels)); runtimeresource.IgnoreNotFound(err) != nil {
+	if err := h.hostKube.DeleteAllOf(ctx, &batch.Job{}, client.MatchingLabels(labels), client.InNamespace(stackControllerNamespace)); runtimeresource.IgnoreNotFound(err) != nil {
 		return fail(ctx, h.kube, h.ext, err)
 	}
 

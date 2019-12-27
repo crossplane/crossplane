@@ -54,7 +54,7 @@ func NewConfig() (*Config, error) {
 // ObjectReferenceOnHost maps object with given name and namespace into single controller namespace
 func (c *Config) ObjectReferenceOnHost(name, namespace string) corev1.ObjectReference {
 	return corev1.ObjectReference{
-		Name:      fmt.Sprintf("%s-%s", namespace, name),
+		Name:      fmt.Sprintf("%s.%s", namespace, name),
 		Namespace: c.HostControllerNamespace,
 	}
 }

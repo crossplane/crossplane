@@ -45,11 +45,13 @@ spec:
               fieldPath: metadata.namespace
         {{- if .Values.hostedConfig.enabled }}
         - name: TENANT_KUBECONFIG
-          value: /var/run/secrets/tenant/config
+          value: /var/run/secrets/tenant/kubeconfig
         - name: TENANT_KUBERNETES_SERVICE_HOST
-          value: {{ .Values.hostedConfig.tenantKubernetesServiceHost }}
+          value: {{ .Values.hostedConfig.tenantKubernetesServiceHost | quote }}
         - name: TENANT_KUBERNETES_SERVICE_PORT
-          value: {{ .Values.hostedConfig.tenantKubernetesServicePort }}
+          value: {{ .Values.hostedConfig.tenantKubernetesServicePort | quote }}
+        - name: CONTROLLER_NAMESPACE
+          value: {{ .Values.hostedConfig.controllerNamespace | quote }}
         {{- end }}
         resources:
           limits:

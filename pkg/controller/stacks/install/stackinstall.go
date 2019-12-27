@@ -25,16 +25,16 @@ import (
 
 	"github.com/crossplaneio/crossplane/pkg/controller/stacks/hostaware"
 
+	"github.com/pkg/errors"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
-	"github.com/pkg/errors"
 
 	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
@@ -308,9 +308,15 @@ func (h *stackInstallHandler) delete(ctx context.Context) (reconcile.Result, err
 		return fail(ctx, h.kube, h.ext, err)
 	}
 
+	stackControllerNamespace := h.ext.GetNamespace()
+	if h.hostAwareConfig != nil {
+		stackControllerNamespace = h.hostAwareConfig.HostControllerNamespace
+	}
+
 	// Once the Stacks are gone, we can remove install job associated with the StackInstall using hostKube since jobs
 	// were deployed into host Kubernetes cluster.
-	if err := h.hostKube.DeleteAllOf(ctx, &batchv1.Job{}, client.MatchingLabels(labels)); runtimeresource.IgnoreNotFound(err) != nil {
+	if err := h.hostKube.DeleteAllOf(ctx, &batchv1.Job{}, client.MatchingLabels(labels),
+		client.InNamespace(stackControllerNamespace), client.PropagationPolicy(metav1.DeletePropagationForeground)); runtimeresource.IgnoreNotFound(err) != nil {
 		return fail(ctx, h.kube, h.ext, err)
 	}
 

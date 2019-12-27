@@ -211,7 +211,7 @@ func (jc *stackInstallJobCompleter) findPodsForJob(ctx context.Context, job *bat
 		"job-name": job.Name,
 	}
 	nsSelector := client.InNamespace(job.Namespace)
-	if err := jc.client.List(ctx, podList, labelSelector, nsSelector); err != nil {
+	if err := jc.hostClient.List(ctx, podList, labelSelector, nsSelector); err != nil {
 		return nil, err
 	}
 

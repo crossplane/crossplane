@@ -40,15 +40,15 @@ spec:
             cpu: 100m
             memory: 256Mi
       {{- if .Values.hostedConfig.enabled }}
-      env:
-        - name: KUBERNETES_SERVICE_HOST
-          value: {{ .Values.hostedConfig.tenantKubernetesServiceHost }}
-        - name: KUBERNETES_SERVICE_PORT
-          value: {{ .Values.hostedConfig.tenantKubernetesServicePort }}
-      volumeMounts:
-        - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
-          name: sa-token
-          readOnly: true
+        env:
+          - name: KUBERNETES_SERVICE_HOST
+            value: {{ .Values.hostedConfig.tenantKubernetesServiceHost | quote }}
+          - name: KUBERNETES_SERVICE_PORT
+            value: {{ .Values.hostedConfig.tenantKubernetesServicePort | quote }}
+        volumeMounts:
+          - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+            name: sa-token
+            readOnly: true
       automountServiceAccountToken: false
       serviceAccount: ""
       serviceAccountName: ""

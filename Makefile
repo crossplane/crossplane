@@ -40,7 +40,7 @@ GO111MODULE = on
 
 HELM_BASE_URL = https://charts.crossplane.io
 HELM_S3_BUCKET = crossplane.charts
-HELM_CHARTS = crossplane
+HELM_CHARTS = crossplane crossplane-types crossplane-controllers
 HELM_CHART_LINT_ARGS_crossplane = --set nameOverride='',imagePullSecrets=''
 -include build/makelib/helm.mk
 
