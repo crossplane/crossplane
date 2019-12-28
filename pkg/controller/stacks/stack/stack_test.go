@@ -1042,14 +1042,10 @@ func TestStackDelete(t *testing.T) {
 				// stack starts with a finalizer and a deletion timestamp
 				ext: resource(withFinalizers(stacksFinalizer), withDeletionTimestamp(tn)),
 				kube: &test.MockClient{
-					MockDeleteAllOf:  func(ctx context.Context, obj runtime.Object, opts ...client.DeleteAllOfOption) error { return errBoom },
-					MockUpdate:       func(ctx context.Context, obj runtime.Object, opts ...client.UpdateOption) error { return nil },
 					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
 				hostKube: &test.MockClient{
-					MockDeleteAllOf:  func(ctx context.Context, obj runtime.Object, opts ...client.DeleteAllOfOption) error { return errBoom },
-					MockUpdate:       func(ctx context.Context, obj runtime.Object, opts ...client.UpdateOption) error { return nil },
-					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+					MockDeleteAllOf: func(ctx context.Context, obj runtime.Object, opts ...client.DeleteAllOfOption) error { return errBoom },
 				},
 			},
 			want: want{
@@ -1088,25 +1084,7 @@ func TestStackDelete(t *testing.T) {
 					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
 				hostKube: &test.MockClient{
-					MockList: func(ctx context.Context, list runtime.Object, opts ...client.ListOption) error {
-						// set a fake list of cluster resources to delete
-						switch list := list.(type) {
-						case *rbac.ClusterRoleBindingList:
-							list.Items = []rbac.ClusterRoleBinding{{
-								ObjectMeta: metav1.ObjectMeta{Name: "crdToDelete"},
-							}}
-						case *rbac.ClusterRoleList:
-							list.Items = []rbac.ClusterRole{{
-								ObjectMeta: metav1.ObjectMeta{Name: "crdToDelete"},
-							}}
-						}
-						return nil
-					},
 					MockDeleteAllOf: func(ctx context.Context, obj runtime.Object, opts ...client.DeleteAllOfOption) error { return nil },
-					MockUpdate: func(ctx context.Context, obj runtime.Object, opts ...client.UpdateOption) error {
-						return errBoom
-					},
-					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
 			},
 			want: want{
@@ -1143,22 +1121,7 @@ func TestStackDelete(t *testing.T) {
 					MockUpdate:      func(ctx context.Context, obj runtime.Object, opts ...client.UpdateOption) error { return nil },
 				},
 				hostKube: &test.MockClient{
-					MockList: func(ctx context.Context, list runtime.Object, opts ...client.ListOption) error {
-						// set a fake list of cluster resources to delete
-						switch list := list.(type) {
-						case *rbac.ClusterRoleBindingList:
-							list.Items = []rbac.ClusterRoleBinding{{
-								ObjectMeta: metav1.ObjectMeta{Name: "crdToDelete"},
-							}}
-						case *rbac.ClusterRoleList:
-							list.Items = []rbac.ClusterRole{{
-								ObjectMeta: metav1.ObjectMeta{Name: "crdToDelete"},
-							}}
-						}
-						return nil
-					},
 					MockDeleteAllOf: func(ctx context.Context, obj runtime.Object, opts ...client.DeleteAllOfOption) error { return nil },
-					MockUpdate:      func(ctx context.Context, obj runtime.Object, opts ...client.UpdateOption) error { return nil },
 				},
 			},
 			want: want{

@@ -62,13 +62,13 @@ type stackInstallJobCompleter struct {
 	podLogReader Reader
 }
 
-func createInstallJob(i v1alpha1.StackInstaller, executorInfo *stacks.ExecutorInfo, hacfg *hostaware.Config) *batchv1.Job {
+func createInstallJob(i v1alpha1.StackInstaller, executorInfo *stacks.ExecutorInfo, haCfg *hostaware.Config) *batchv1.Job {
 	name := i.GetName()
 	namespace := i.GetNamespace()
 
-	if hacfg != nil {
+	if haCfg != nil {
 		// We need to map all install jobs on tenant Kubernetes into a single namespace on host cluster.
-		o := hacfg.ObjectReferenceOnHost(name, namespace)
+		o := haCfg.ObjectReferenceOnHost(name, namespace)
 		name = o.Name
 		namespace = o.Namespace
 	}

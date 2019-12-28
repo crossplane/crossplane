@@ -1,3 +1,19 @@
+/*
+Copyright 2019 The Crossplane Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package hostaware
 
 import (
@@ -9,7 +25,10 @@ import (
 )
 
 const (
-	envTenantKubeconfig            = "TENANT_KUBECONFIG"
+	// EnvTenantKubeconfig is the environment variable pointing to kubeconfig file of custom resource Kubernetes API
+	// (a.k.a Tenant Kubernetes). This environment variable is the main switch enabling Stack Manager hosted mode.
+	EnvTenantKubeconfig = "TENANT_KUBECONFIG"
+
 	envControllerNamespace         = "CONTROLLER_NAMESPACE"
 	envTenantKubernetesServiceHost = "TENANT_KUBERNETES_SERVICE_HOST"
 	envTenantKubernetesServicePort = "TENANT_KUBERNETES_SERVICE_PORT"
@@ -27,7 +46,7 @@ type Config struct {
 
 // NewConfig returns a new HostAwareConfig based on the available environment variables.
 func NewConfig() (*Config, error) {
-	tenantKubeconfig := os.Getenv(envTenantKubeconfig)
+	tenantKubeconfig := os.Getenv(EnvTenantKubeconfig)
 	if tenantKubeconfig == "" {
 		return nil, nil
 	}

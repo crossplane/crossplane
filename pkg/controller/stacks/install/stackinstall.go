@@ -60,7 +60,6 @@ var (
 type Reconciler struct {
 	sync.Mutex
 	kube            client.Client
-	kubeClient      kubernetes.Interface
 	hostKube        client.Client
 	hostClient      kubernetes.Interface
 	hostAwareConfig *hostaware.Config
@@ -81,8 +80,8 @@ func (c *Controller) SetupWithManager(mgr ctrl.Manager) error {
 	controllerName, stackInstaller := c.StackInstallCreator()
 
 	kube := mgr.GetClient()
-	kubeClient := kubernetes.NewForConfigOrDie(mgr.GetConfig())
-	hostKube, hostClient := kube, kubeClient
+	hostKube := kube
+	hostClient := kubernetes.NewForConfigOrDie(mgr.GetConfig())
 
 	haCfg, err := hostaware.NewConfig()
 	if err != nil {
@@ -99,7 +98,6 @@ func (c *Controller) SetupWithManager(mgr ctrl.Manager) error {
 
 	r := &Reconciler{
 		kube:                   kube,
-		kubeClient:             kubeClient,
 		hostKube:               hostKube,
 		hostClient:             hostClient,
 		hostAwareConfig:        haCfg,
@@ -135,7 +133,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return fail(ctx, r.kube, stackInstaller, err)
 	}
 
-	handler := r.factory.newHandler(ctx, stackInstaller, r.kube, r.kubeClient, r.hostKube, r.hostClient, r.hostAwareConfig, executorinfo)
+	handler := r.factory.newHandler(ctx, stackInstaller, r.kube, r.hostKube, r.hostClient, r.hostAwareConfig, executorinfo)
 
 	if meta.WasDeleted(stackInstaller) {
 		return handler.delete(ctx)
@@ -164,20 +162,14 @@ type stackInstallHandler struct {
 
 // factory is an interface for creating new handlers
 type factory interface {
-	newHandler(context.Context, v1alpha1.StackInstaller, client.Client, kubernetes.Interface, client.Client, kubernetes.Interface, *hostaware.Config, *stacks.ExecutorInfo) handler
+	newHandler(context.Context, v1alpha1.StackInstaller, client.Client, client.Client, kubernetes.Interface, *hostaware.Config, *stacks.ExecutorInfo) handler
 }
 
 type handlerFactory struct{}
 
-func (f *handlerFactory) newHandler(ctx context.Context, ext v1alpha1.StackInstaller,
-	kube client.Client, kubeclient kubernetes.Interface,
+func (f *handlerFactory) newHandler(ctx context.Context, ext v1alpha1.StackInstaller, kube client.Client,
 	hostKube client.Client, hostClient kubernetes.Interface, hostAwareConfig *hostaware.Config,
 	ei *stacks.ExecutorInfo) handler {
-
-	jc := kubeclient
-	if hostClient != nil {
-		jc = hostClient
-	}
 
 	return &stackInstallHandler{
 		ext:             ext,
@@ -189,7 +181,7 @@ func (f *handlerFactory) newHandler(ctx context.Context, ext v1alpha1.StackInsta
 			client:     kube,
 			hostClient: hostKube,
 			podLogReader: &K8sReader{
-				Client: jc,
+				Client: hostClient,
 			},
 		},
 	}

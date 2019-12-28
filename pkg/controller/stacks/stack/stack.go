@@ -51,6 +51,13 @@ const (
 
 	reconcileTimeout      = 1 * time.Minute
 	requeueAfterOnSuccess = 10 * time.Second
+
+	errHostAwareModeNotEnabled            = "host aware mode is not enabled"
+	errFailedToPrepareHostAwareDeployment = "failed to prepare host aware stack controller deployment"
+	errFailedToPrepareHostAwareJob        = "failed to prepare host aware stack controller job"
+	errFailedToCreateDeployment           = "failed to create deployment"
+	errFailedToCreateJob                  = "failed to create job"
+	errFailedToSyncSASecret               = "failed sync stack controller service account secret"
 )
 
 var (
@@ -561,15 +568,19 @@ func (h *stackHandler) syncSATokenSecret(ctx context.Context, owner metav1.Owner
 }
 
 func (h *stackHandler) prepareHostAwarePodSpec(tokenSecret string, ps *corev1.PodSpec) error {
+	if h.hostAwareConfig == nil {
+		return errors.New(errHostAwareModeNotEnabled)
+	}
 	// Opt out service account token automount
 	disable := false
 	ps.AutomountServiceAccountToken = &disable
 	ps.ServiceAccountName = ""
 	ps.DeprecatedServiceAccount = ""
 
+	saVolume := "sa-token"
 	m := int32(420)
 	ps.Volumes = append(ps.Volumes, corev1.Volume{
-		Name: "sa-token",
+		Name: saVolume,
 		VolumeSource: corev1.VolumeSource{
 			Secret: &corev1.SecretVolumeSource{
 				SecretName:  tokenSecret,
@@ -577,27 +588,30 @@ func (h *stackHandler) prepareHostAwarePodSpec(tokenSecret string, ps *corev1.Po
 			},
 		},
 	})
-
+	envK8SServiceHost := "KUBERNETES_SERVICE_HOST"
+	envK8SServicePort := "KUBERNETES_SERVICE_HOST"
+	envPodNamespace := "POD_NAMESPACE"
+	saMountPath := "/var/run/secrets/kubernetes.io/serviceaccount"
 	for i := range ps.Containers {
 		ps.Containers[i].Env = append(ps.Containers[i].Env,
 			corev1.EnvVar{
-				Name:  "KUBERNETES_SERVICE_HOST",
+				Name:  envK8SServiceHost,
 				Value: h.hostAwareConfig.TenantAPIServiceHost,
 			}, corev1.EnvVar{
-				Name:  "KUBERNETES_SERVICE_PORT",
+				Name:  envK8SServicePort,
 				Value: h.hostAwareConfig.TenantAPIServicePort,
 			}, corev1.EnvVar{
 				// When POD_NAMESPACE is not set as stackinstalls namespace here, it is set as host namespace where actual
 				// pod running. This result stack controller to fails with forbidden, since their sa only allows to watch
 				// the namespace where stack is installed
-				Name:  "POD_NAMESPACE",
+				Name:  envPodNamespace,
 				Value: h.ext.Namespace,
 			})
 
 		ps.Containers[i].VolumeMounts = append(ps.Containers[i].VolumeMounts, corev1.VolumeMount{
-			Name:      "sa-token",
+			Name:      saVolume,
 			ReadOnly:  true,
-			MountPath: "/var/run/secrets/kubernetes.io/serviceaccount",
+			MountPath: saMountPath,
 		})
 	}
 
@@ -605,6 +619,9 @@ func (h *stackHandler) prepareHostAwarePodSpec(tokenSecret string, ps *corev1.Po
 }
 
 func (h *stackHandler) prepareHostAwareDeployment(d *apps.Deployment, tokenSecret string) error {
+	if h.hostAwareConfig == nil {
+		return errors.New(errHostAwareModeNotEnabled)
+	}
 	if err := h.prepareHostAwarePodSpec(tokenSecret, &d.Spec.Template.Spec); err != nil {
 		return err
 	}
@@ -616,6 +633,10 @@ func (h *stackHandler) prepareHostAwareDeployment(d *apps.Deployment, tokenSecre
 	return nil
 }
 func (h *stackHandler) prepareHostAwareJob(j *batch.Job, tokenSecret string) error {
+	if h.hostAwareConfig == nil {
+		return errors.New(errHostAwareModeNotEnabled)
+	}
+
 	if err := h.prepareHostAwarePodSpec(tokenSecret, &j.Spec.Template.Spec); err != nil {
 		return err
 	}
@@ -661,18 +682,19 @@ func (h *stackHandler) processDeployment(ctx context.Context) error {
 		}
 		saSecretRef = h.hostAwareConfig.ObjectReferenceOnHost(saRef.Name, saRef.Namespace)
 		err := h.prepareHostAwareDeployment(d, saSecretRef.Name)
+
 		if err != nil {
-			return errors.Wrap(err, "failed process host aware stack controller deployment")
+			return errors.Wrap(err, errFailedToPrepareHostAwareDeployment)
 		}
 	}
 	if err := h.hostKube.Create(ctx, d); err != nil && !kerrors.IsAlreadyExists(err) {
-		return errors.Wrap(err, "failed to create deployment")
+		return errors.Wrap(err, errFailedToCreateDeployment)
 	}
 	if h.hostAwareConfig != nil {
 		owner := meta.AsOwner(meta.ReferenceTo(d, gvk))
 		err := h.syncSATokenSecret(ctx, owner, saRef, saSecretRef)
 		if err != nil {
-			return errors.Wrap(err, "failed sync stack controller service account secret")
+			return errors.Wrap(err, errFailedToSyncSASecret)
 		}
 	}
 	// save a reference to the stack's controller
@@ -717,19 +739,19 @@ func (h *stackHandler) processJob(ctx context.Context) error {
 		saSecretRef = h.hostAwareConfig.ObjectReferenceOnHost(saRef.Name, saRef.Namespace)
 		err := h.prepareHostAwareJob(j, saSecretRef.Name)
 		if err != nil {
-			return errors.Wrap(err, "failed process host aware stack controller job")
+			return errors.Wrap(err, errFailedToPrepareHostAwareJob)
 		}
 	}
 
 	if err := h.hostKube.Create(ctx, j); err != nil && !kerrors.IsAlreadyExists(err) {
-		return errors.Wrap(err, "failed to create job")
+		return errors.Wrap(err, errFailedToCreateJob)
 	}
 
 	if h.hostAwareConfig != nil {
 		owner := meta.AsOwner(meta.ReferenceTo(j, gvk))
 		err := h.syncSATokenSecret(ctx, owner, saRef, saSecretRef)
 		if err != nil {
-			return errors.Wrap(err, "failed sync stack controller service account secret")
+			return errors.Wrap(err, errFailedToSyncSASecret)
 		}
 	}
 	// save a reference to the stack's controller
