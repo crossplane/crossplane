@@ -21,8 +21,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/crossplaneio/crossplane/pkg/controller/stacks/hostaware"
-
 	"github.com/pkg/errors"
 	apps "k8s.io/api/apps/v1"
 	batch "k8s.io/api/batch/v1"
@@ -42,6 +40,7 @@ import (
 	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
 	runtimeresource "github.com/crossplaneio/crossplane-runtime/pkg/resource"
 	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/controller/stacks/host"
 	"github.com/crossplaneio/crossplane/pkg/stacks"
 )
 
@@ -52,12 +51,23 @@ const (
 	reconcileTimeout      = 1 * time.Minute
 	requeueAfterOnSuccess = 10 * time.Second
 
-	errHostAwareModeNotEnabled            = "host aware mode is not enabled"
-	errFailedToPrepareHostAwareDeployment = "failed to prepare host aware stack controller deployment"
-	errFailedToPrepareHostAwareJob        = "failed to prepare host aware stack controller job"
-	errFailedToCreateDeployment           = "failed to create deployment"
-	errFailedToCreateJob                  = "failed to create job"
-	errFailedToSyncSASecret               = "failed sync stack controller service account secret"
+	saVolumeName      = "sa-token"
+	envK8SServiceHost = "KUBERNETES_SERVICE_HOST"
+	envK8SServicePort = "KUBERNETES_SERVICE_PORT"
+	envPodNamespace   = "POD_NAMESPACE"
+	saMountPath       = "/var/run/secrets/kubernetes.io/serviceaccount"
+
+	errHostAwareModeNotEnabled                  = "host aware mode is not enabled"
+	errFailedToPrepareHostAwareDeployment       = "failed to prepare host aware stack controller deployment"
+	errFailedToPrepareHostAwareJob              = "failed to prepare host aware stack controller job"
+	errFailedToCreateDeployment                 = "failed to create deployment"
+	errFailedToCreateJob                        = "failed to create job"
+	errFailedToSyncSASecret                     = "failed sync stack controller service account secret"
+	errServiceAccountNotFound                   = "service account is not found (not created yet?)"
+	errFailedToGetServiceAccount                = "failed to get service account"
+	errServiceAccountTokenSecretNotGeneratedYet = "service account token secret is not generated yet"
+	errFailedToGetServiceAccountTokenSecret     = "failed to get service account token secret"
+	errFailedToCreateTokenSecret                = "failed to create sa token secret on target Kubernetes"
 )
 
 var (
@@ -70,13 +80,15 @@ var (
 		"edit":  {"get", "list", "watch", "create", "delete", "deletecollection", "patch", "update"},
 		"view":  {"get", "list", "watch"},
 	}
+
+	disableAutoMount = false
 )
 
 // Reconciler reconciles a Instance object
 type Reconciler struct {
-	kube            client.Client
-	hostKube        client.Client
-	hostAwareConfig *hostaware.Config
+	kube         client.Client
+	hostKube     client.Client
+	hostedConfig *host.HostedConfig
 	factory
 }
 
@@ -87,24 +99,21 @@ type Controller struct{}
 // SetupWithManager creates a new Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func (c *Controller) SetupWithManager(mgr ctrl.Manager) error {
-	hostKube := mgr.GetClient()
-
-	haCfg, err := hostaware.NewConfig()
+	hostKube, _, err := host.GetClients()
 	if err != nil {
 		return err
 	}
-	if haCfg != nil {
-		hostKube, _, err = hostaware.GetClients()
-		if err != nil {
-			return err
-		}
+
+	hCfg, err := host.NewHostedConfig()
+	if err != nil {
+		return err
 	}
 
 	r := &Reconciler{
-		kube:            mgr.GetClient(),
-		hostKube:        hostKube,
-		hostAwareConfig: haCfg,
-		factory:         &stackHandlerFactory{},
+		kube:         mgr.GetClient(),
+		hostKube:     hostKube,
+		hostedConfig: hCfg,
+		factory:      &stackHandlerFactory{},
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -130,7 +139,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{}, err
 	}
 
-	handler := r.factory.newHandler(ctx, i, r.kube, r.hostKube, r.hostAwareConfig)
+	handler := r.factory.newHandler(ctx, i, r.kube, r.hostKube, r.hostedConfig)
 
 	if meta.WasDeleted(i) {
 		return handler.delete(ctx)
@@ -149,17 +158,17 @@ type handler interface {
 type stackHandler struct {
 	kube            client.Client
 	hostKube        client.Client
-	hostAwareConfig *hostaware.Config
+	hostAwareConfig *host.HostedConfig
 	ext             *v1alpha1.Stack
 }
 
 type factory interface {
-	newHandler(context.Context, *v1alpha1.Stack, client.Client, client.Client, *hostaware.Config) handler
+	newHandler(context.Context, *v1alpha1.Stack, client.Client, client.Client, *host.HostedConfig) handler
 }
 
 type stackHandlerFactory struct{}
 
-func (f *stackHandlerFactory) newHandler(ctx context.Context, ext *v1alpha1.Stack, kube client.Client, hostKube client.Client, hostAwareConfig *hostaware.Config) handler {
+func (f *stackHandlerFactory) newHandler(ctx context.Context, ext *v1alpha1.Stack, kube client.Client, hostKube client.Client, hostAwareConfig *host.HostedConfig) handler {
 	return &stackHandler{
 		kube:            kube,
 		hostKube:        hostKube,
@@ -532,14 +541,15 @@ func (h *stackHandler) syncSATokenSecret(ctx context.Context, owner metav1.Owner
 		Name:      fromSARef.Name,
 		Namespace: fromSARef.Namespace,
 	}, &sa)
+
 	if kerrors.IsNotFound(err) {
-		return errors.Wrap(err, "service account is not found (not created yet?)")
+		return errors.Wrap(err, errServiceAccountNotFound)
 	}
 	if err != nil {
-		return errors.Wrap(err, "failed to get service account")
+		return errors.Wrap(err, errFailedToGetServiceAccount)
 	}
 	if len(sa.Secrets) < 1 {
-		return errors.New("service account token secret is not generated yet")
+		return errors.New(errServiceAccountTokenSecretNotGeneratedYet)
 	}
 	saSecretRef := sa.Secrets[0]
 	saSecretRef.Namespace = fromSARef.Namespace
@@ -548,7 +558,7 @@ func (h *stackHandler) syncSATokenSecret(ctx context.Context, owner metav1.Owner
 	err = fromKube.Get(ctx, meta.NamespacedNameOf(&saSecretRef), &saSecret)
 
 	if err != nil {
-		return errors.Wrap(err, "failed to get service account token secret")
+		return errors.Wrap(err, errFailedToGetServiceAccountTokenSecret)
 	}
 	saSecretOnHost := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -561,7 +571,7 @@ func (h *stackHandler) syncSATokenSecret(ctx context.Context, owner metav1.Owner
 
 	err = toKube.Create(ctx, saSecretOnHost)
 	if err != nil && !kerrors.IsAlreadyExists(err) {
-		return errors.Wrap(err, "failed to create sa token secret on target Kubernetes")
+		return errors.Wrap(err, errFailedToCreateTokenSecret)
 	}
 
 	return nil
@@ -572,26 +582,18 @@ func (h *stackHandler) prepareHostAwarePodSpec(tokenSecret string, ps *corev1.Po
 		return errors.New(errHostAwareModeNotEnabled)
 	}
 	// Opt out service account token automount
-	disable := false
-	ps.AutomountServiceAccountToken = &disable
+	ps.AutomountServiceAccountToken = &disableAutoMount
 	ps.ServiceAccountName = ""
 	ps.DeprecatedServiceAccount = ""
 
-	saVolume := "sa-token"
-	m := int32(420)
 	ps.Volumes = append(ps.Volumes, corev1.Volume{
-		Name: saVolume,
+		Name: saVolumeName,
 		VolumeSource: corev1.VolumeSource{
 			Secret: &corev1.SecretVolumeSource{
-				SecretName:  tokenSecret,
-				DefaultMode: &m,
+				SecretName: tokenSecret,
 			},
 		},
 	})
-	envK8SServiceHost := "KUBERNETES_SERVICE_HOST"
-	envK8SServicePort := "KUBERNETES_SERVICE_HOST"
-	envPodNamespace := "POD_NAMESPACE"
-	saMountPath := "/var/run/secrets/kubernetes.io/serviceaccount"
 	for i := range ps.Containers {
 		ps.Containers[i].Env = append(ps.Containers[i].Env,
 			corev1.EnvVar{
@@ -609,7 +611,7 @@ func (h *stackHandler) prepareHostAwarePodSpec(tokenSecret string, ps *corev1.Po
 			})
 
 		ps.Containers[i].VolumeMounts = append(ps.Containers[i].VolumeMounts, corev1.VolumeMount{
-			Name:      saVolume,
+			Name:      saVolumeName,
 			ReadOnly:  true,
 			MountPath: saMountPath,
 		})

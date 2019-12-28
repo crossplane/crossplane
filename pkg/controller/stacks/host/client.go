@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package hostaware
+package host
 
 import (
 	"github.com/pkg/errors"
@@ -23,7 +23,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
 
-// GetClients is the function to get Host configuration in case workload and resource API's are different
+// GetClients is the function to get Host Kubernetes clients with in cluster config
 func GetClients() (client.Client, *kubernetes.Clientset, error) {
 	cfg, err := config.GetConfig()
 	if err != nil {

@@ -21,7 +21,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/crossplaneio/crossplane/pkg/controller/stacks/hostaware"
+	"github.com/crossplaneio/crossplane/pkg/controller/stacks/host"
 
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -145,7 +145,7 @@ func main() {
 }
 
 func getRestConfig() (cfg *rest.Config, err error) {
-	tenantKubeconfig := os.Getenv(hostaware.EnvTenantKubeconfig)
+	tenantKubeconfig := os.Getenv(host.EnvTenantKubeconfig)
 	if tenantKubeconfig != "" {
 		return clientcmd.BuildConfigFromFlags("", tenantKubeconfig)
 	}

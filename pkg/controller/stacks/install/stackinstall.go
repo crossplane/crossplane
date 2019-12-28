@@ -23,8 +23,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/crossplaneio/crossplane/pkg/controller/stacks/hostaware"
-
 	"github.com/pkg/errors"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -41,7 +39,8 @@ import (
 	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
 	runtimeresource "github.com/crossplaneio/crossplane-runtime/pkg/resource"
 	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
-	stacks "github.com/crossplaneio/crossplane/pkg/stacks"
+	"github.com/crossplaneio/crossplane/pkg/controller/stacks/host"
+	"github.com/crossplaneio/crossplane/pkg/stacks"
 )
 
 const (
@@ -56,14 +55,23 @@ var (
 	requeueOnSuccess = reconcile.Result{RequeueAfter: requeueAfterOnSuccess}
 )
 
+// k8sClients holds the clients for Kubernetes
+type k8sClients struct {
+	// kube is controller runtime client for resource (a.k.a tenant) Kubernetes where all custom resources live
+	kube client.Client
+	// hostKube is controller runtime client for workload (a.k.a host) Kubernetes where jobs for stack installs and
+	// stack controller deployments/jobs created.
+	hostKube client.Client
+	// hostClient is client-go kubernetes client to read logs of stack install pods.
+	hostClient kubernetes.Interface
+}
+
 // Reconciler reconciles a Instance object
 type Reconciler struct {
 	sync.Mutex
-	kube            client.Client
-	hostKube        client.Client
-	hostClient      kubernetes.Interface
-	hostAwareConfig *hostaware.Config
-	stackinator     func() v1alpha1.StackInstaller
+	k8sClients
+	hostedConfig *host.HostedConfig
+	stackinator  func() v1alpha1.StackInstaller
 	factory
 	executorInfoDiscoverer stacks.ExecutorInfoDiscoverer
 }
@@ -80,27 +88,25 @@ func (c *Controller) SetupWithManager(mgr ctrl.Manager) error {
 	controllerName, stackInstaller := c.StackInstallCreator()
 
 	kube := mgr.GetClient()
-	hostKube := kube
-	hostClient := kubernetes.NewForConfigOrDie(mgr.GetConfig())
-
-	haCfg, err := hostaware.NewConfig()
+	hostKube, hostClient, err := host.GetClients()
 	if err != nil {
 		return err
 	}
-	if haCfg != nil {
-		hostKube, hostClient, err = hostaware.GetClients()
-		if err != nil {
-			return err
-		}
+
+	hCfg, err := host.NewHostedConfig()
+	if err != nil {
+		return err
 	}
 
 	discoverer := &stacks.KubeExecutorInfoDiscoverer{Client: hostKube}
 
 	r := &Reconciler{
-		kube:                   kube,
-		hostKube:               hostKube,
-		hostClient:             hostClient,
-		hostAwareConfig:        haCfg,
+		k8sClients: k8sClients{
+			kube:       kube,
+			hostKube:   hostKube,
+			hostClient: hostClient,
+		},
+		hostedConfig:           hCfg,
 		stackinator:            stackInstaller,
 		factory:                &handlerFactory{},
 		executorInfoDiscoverer: discoverer,
@@ -133,7 +139,11 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return fail(ctx, r.kube, stackInstaller, err)
 	}
 
-	handler := r.factory.newHandler(ctx, stackInstaller, r.kube, r.hostKube, r.hostClient, r.hostAwareConfig, executorinfo)
+	handler := r.factory.newHandler(ctx, stackInstaller, k8sClients{
+		kube:       r.kube,
+		hostKube:   r.hostKube,
+		hostClient: r.hostClient,
+	}, r.hostedConfig, executorinfo)
 
 	if meta.WasDeleted(stackInstaller) {
 		return handler.delete(ctx)
@@ -154,7 +164,7 @@ type handler interface {
 type stackInstallHandler struct {
 	kube            client.Client
 	hostKube        client.Client
-	hostAwareConfig *hostaware.Config
+	hostAwareConfig *host.HostedConfig
 	jobCompleter    jobCompleter
 	executorInfo    *stacks.ExecutorInfo
 	ext             v1alpha1.StackInstaller
@@ -162,26 +172,25 @@ type stackInstallHandler struct {
 
 // factory is an interface for creating new handlers
 type factory interface {
-	newHandler(context.Context, v1alpha1.StackInstaller, client.Client, client.Client, kubernetes.Interface, *hostaware.Config, *stacks.ExecutorInfo) handler
+	newHandler(context.Context, v1alpha1.StackInstaller, k8sClients, *host.HostedConfig, *stacks.ExecutorInfo) handler
 }
 
 type handlerFactory struct{}
 
-func (f *handlerFactory) newHandler(ctx context.Context, ext v1alpha1.StackInstaller, kube client.Client,
-	hostKube client.Client, hostClient kubernetes.Interface, hostAwareConfig *hostaware.Config,
+func (f *handlerFactory) newHandler(ctx context.Context, ext v1alpha1.StackInstaller, k8s k8sClients, hostAwareConfig *host.HostedConfig,
 	ei *stacks.ExecutorInfo) handler {
 
 	return &stackInstallHandler{
 		ext:             ext,
-		kube:            kube,
-		hostKube:        hostKube,
+		kube:            k8s.kube,
+		hostKube:        k8s.hostKube,
 		hostAwareConfig: hostAwareConfig,
 		executorInfo:    ei,
 		jobCompleter: &stackInstallJobCompleter{
-			client:     kube,
-			hostClient: hostKube,
+			client:     k8s.kube,
+			hostClient: k8s.hostKube,
 			podLogReader: &K8sReader{
-				Client: hostClient,
+				Client: k8s.hostClient,
 			},
 		},
 	}

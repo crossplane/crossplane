@@ -40,6 +40,7 @@ import (
 	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
 	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/controller/stacks/host"
 	"github.com/crossplaneio/crossplane/pkg/stacks"
 )
 
@@ -460,6 +461,30 @@ func TestCreate(t *testing.T) {
 					withFinalizers(installFinalizer),
 					withConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileSuccess()),
 					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: namespace}),
+				),
+			},
+		},
+		{
+			name: "CreateInstallJobHosted",
+			handler: &stackInstallHandler{
+				kube: &test.MockClient{
+					MockUpdate:       func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+				},
+				hostKube: &test.MockClient{
+					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error { return nil },
+				},
+				hostAwareConfig: &host.HostedConfig{HostControllerNamespace: hostControllerNamespace},
+				executorInfo:    &stacks.ExecutorInfo{Image: stackPackageImage},
+				ext:             resource(),
+			},
+			want: want{
+				result: requeueOnSuccess,
+				err:    nil,
+				ext: resource(
+					withFinalizers(installFinalizer),
+					withConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileSuccess()),
+					withInstallJob(&corev1.ObjectReference{Name: fmt.Sprintf("%s.%s", namespace, resourceName), Namespace: hostControllerNamespace}),
 				),
 			},
 		},

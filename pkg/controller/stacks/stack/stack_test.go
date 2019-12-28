@@ -22,8 +22,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/crossplaneio/crossplane/pkg/controller/stacks/hostaware"
-
 	"github.com/google/go-cmp/cmp"
 	. "github.com/onsi/gomega"
 	"github.com/pkg/errors"
@@ -34,7 +32,6 @@ import (
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -48,14 +45,16 @@ import (
 	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 	"github.com/crossplaneio/crossplane/apis/stacks"
 	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/controller/stacks/host"
 	stackspkg "github.com/crossplaneio/crossplane/pkg/stacks"
 )
 
 const (
-	namespace    = "cool-namespace"
-	uid          = types.UID("definitely-a-uuid")
-	resourceName = "cool-stack"
-	roleName     = "stack:cool-namespace:cool-stack::system"
+	namespace               = "cool-namespace"
+	hostControllerNamespace = "controller-namespace"
+	uid                     = types.UID("definitely-a-uuid")
+	resourceName            = "cool-stack"
+	roleName                = "stack:cool-namespace:cool-stack::system"
 
 	controllerDeploymentName = "cool-controller-deployment"
 	controllerContainerName  = "cool-container"
@@ -111,6 +110,43 @@ func withPermissionScope(permissionScope string) resourceModifier {
 	return func(r *v1alpha1.Stack) { r.Spec.PermissionScope = permissionScope }
 }
 
+type saModifier func(*corev1.ServiceAccount)
+
+func withTokenSecret(ref corev1.ObjectReference) saModifier {
+	return func(sa *corev1.ServiceAccount) { sa.Secrets = append(sa.Secrets, ref) }
+}
+
+func sa(sm ...saModifier) *corev1.ServiceAccount {
+	s := &corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      resourceName,
+			Namespace: namespace,
+		},
+		ImagePullSecrets:             nil,
+		AutomountServiceAccountToken: nil,
+	}
+
+	for _, m := range sm {
+		m(s)
+	}
+	return s
+}
+func saSecret() *corev1.Secret {
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      resourceName,
+			Namespace: namespace,
+		},
+		Data: saTokenData(),
+	}
+}
+
+func saTokenData() map[string][]byte {
+	return map[string][]byte{
+		"token": []byte("token-val"),
+	}
+}
+
 func resource(rm ...resourceModifier) *v1alpha1.Stack {
 	r := &v1alpha1.Stack{
 		ObjectMeta: metav1.ObjectMeta{
@@ -133,10 +169,10 @@ func resource(rm ...resourceModifier) *v1alpha1.Stack {
 // mockFactory and mockHandler
 // ************************************************************************************************
 type mockFactory struct {
-	MockNewHandler func(context.Context, *v1alpha1.Stack, client.Client, client.Client, *hostaware.Config) handler
+	MockNewHandler func(context.Context, *v1alpha1.Stack, client.Client, client.Client, *host.HostedConfig) handler
 }
 
-func (f *mockFactory) newHandler(ctx context.Context, r *v1alpha1.Stack, c client.Client, h client.Client, hc *hostaware.Config) handler {
+func (f *mockFactory) newHandler(ctx context.Context, r *v1alpha1.Stack, c client.Client, h client.Client, hc *host.HostedConfig) handler {
 	return f.MockNewHandler(ctx, r, c, nil, nil)
 }
 
@@ -179,6 +215,7 @@ func defaultControllerSpec() v1alpha1.ControllerSpec {
 								Image: controllerImageName,
 							},
 						},
+						ServiceAccountName: "some-sa-which-will-be-overridden-with-stack-name",
 					},
 				},
 			},
@@ -244,7 +281,7 @@ func TestReconcile(t *testing.T) {
 					},
 				},
 				factory: &mockFactory{
-					MockNewHandler: func(context.Context, *v1alpha1.Stack, client.Client, client.Client, *hostaware.Config) handler {
+					MockNewHandler: func(context.Context, *v1alpha1.Stack, client.Client, client.Client, *host.HostedConfig) handler {
 						return &mockHandler{
 							MockSync: func(context.Context) (reconcile.Result, error) {
 								return reconcile.Result{}, nil
@@ -567,7 +604,7 @@ func TestProcessRBAC_Namespaced(t *testing.T) {
 					{
 						ObjectMeta: metav1.ObjectMeta{
 							Name:            "crossplane:ns:" + namespace + ":view",
-							OwnerReferences: []v1.OwnerReference{{APIVersion: "v1", Kind: "Namespace", Name: namespace, UID: uid}},
+							OwnerReferences: []metav1.OwnerReference{{APIVersion: "v1", Kind: "Namespace", Name: namespace, UID: uid}},
 							Labels: map[string]string{
 								"namespace.crossplane.io/" + namespace: "true",
 								"crossplane.io/scope":                  "namespace",
@@ -808,6 +845,158 @@ func TestProcessRBAC_Cluster(t *testing.T) {
 }
 
 // ************************************************************************************************
+// TestSyncSATokenSecret
+// ************************************************************************************************
+func TestSyncSATokenSecret(t *testing.T) {
+	errBoom := errors.New("boom")
+
+	type want struct {
+		err error
+		s   *corev1.Secret
+	}
+
+	tests := []struct {
+		name           string
+		initObjs       []runtime.Object
+		clientFunc     func(initObjs ...runtime.Object) client.Client
+		hostClientFunc func() client.Client
+		hostawareCfg   *host.HostedConfig
+		want           want
+	}{
+		{
+			name:           "SANotFound",
+			initObjs:       []runtime.Object{},
+			clientFunc:     fake.NewFakeClient,
+			hostClientFunc: func() client.Client { return fake.NewFakeClient() },
+			want: want{
+				err: errors.Wrap(errors.New(fmt.Sprintf("serviceaccounts \"%s\" not found", resourceName)),
+					errServiceAccountNotFound),
+			},
+		},
+		{
+			name:     "FailedToGetSA",
+			initObjs: []runtime.Object{},
+			clientFunc: func(initObjs ...runtime.Object) client.Client {
+				return &test.MockClient{
+					MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
+						if _, ok := obj.(*corev1.ServiceAccount); ok {
+							return errBoom
+						}
+						return nil
+					},
+				}
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errFailedToGetServiceAccount),
+			},
+		},
+		{
+			name:           "TokenSecretNotGenerated",
+			initObjs:       []runtime.Object{sa(), saSecret()},
+			clientFunc:     fake.NewFakeClient,
+			hostClientFunc: func() client.Client { return fake.NewFakeClient() },
+			want: want{
+				err: errors.New(errServiceAccountTokenSecretNotGeneratedYet),
+			},
+		},
+		{
+			name:           "TokenSecretNotFound",
+			initObjs:       []runtime.Object{sa(withTokenSecret(corev1.ObjectReference{Name: resourceName, Namespace: namespace}))},
+			clientFunc:     fake.NewFakeClient,
+			hostClientFunc: func() client.Client { return fake.NewFakeClient() },
+			want: want{
+				err: errors.Wrap(errors.New(fmt.Sprintf("secrets \"%s\" not found", resourceName)),
+					errFailedToGetServiceAccountTokenSecret),
+			},
+		},
+		{
+			name:       "FailedToCreateSecret",
+			initObjs:   []runtime.Object{sa(withTokenSecret(corev1.ObjectReference{Name: resourceName, Namespace: namespace})), saSecret()},
+			clientFunc: fake.NewFakeClient,
+			hostClientFunc: func() client.Client {
+				return &test.MockClient{
+					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error {
+						if _, ok := obj.(*corev1.Secret); ok {
+							return errBoom
+						}
+						return nil
+					},
+				}
+			},
+			hostawareCfg: &host.HostedConfig{HostControllerNamespace: hostControllerNamespace},
+			want: want{
+				err: errors.Wrap(errBoom, errFailedToCreateTokenSecret),
+			},
+		},
+		{
+			name:       "Success",
+			initObjs:   []runtime.Object{sa(withTokenSecret(corev1.ObjectReference{Name: resourceName, Namespace: namespace})), saSecret()},
+			clientFunc: fake.NewFakeClient,
+			hostClientFunc: func() client.Client {
+				return fake.NewFakeClient()
+			},
+			hostawareCfg: &host.HostedConfig{HostControllerNamespace: hostControllerNamespace},
+			want: want{
+				err: nil,
+				s: &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      fmt.Sprintf("%s.%s", namespace, resourceName),
+						Namespace: hostControllerNamespace,
+						OwnerReferences: []metav1.OwnerReference{
+							{
+								Name:       controllerDeploymentName,
+								APIVersion: "apps/v1",
+								Kind:       "Deployment",
+							},
+						},
+					},
+					Data: saTokenData(),
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := NewGomegaWithT(t)
+			initObjs := append(tt.initObjs)
+			handler := &stackHandler{
+				kube: tt.clientFunc(initObjs...),
+			}
+			if tt.hostawareCfg == nil {
+				handler.hostKube = handler.kube
+			} else {
+				handler.hostKube = tt.hostClientFunc()
+			}
+
+			owner := metav1.OwnerReference{
+				Name:       controllerDeploymentName,
+				Kind:       "Deployment",
+				APIVersion: "apps/v1",
+			}
+			fromSARef := corev1.ObjectReference{
+				Name:      resourceName,
+				Namespace: namespace,
+			}
+			toSecretRef := corev1.ObjectReference{
+				Name:      fmt.Sprintf("%s.%s", namespace, resourceName),
+				Namespace: hostControllerNamespace,
+			}
+			err := handler.syncSATokenSecret(ctx, owner, fromSARef, toSecretRef)
+
+			if diff := cmp.Diff(tt.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("syncSATokenSecret -want error, +got error:\n%s", diff)
+			}
+
+			if tt.want.s != nil {
+				got := &corev1.Secret{}
+				assertKubernetesObject(t, g, got, tt.want.s, handler.hostKube)
+			}
+		})
+	}
+}
+
+// ************************************************************************************************
 // TestProcessDeployment
 // ************************************************************************************************
 func TestProcessDeployment(t *testing.T) {
@@ -820,15 +1009,18 @@ func TestProcessDeployment(t *testing.T) {
 	}
 
 	tests := []struct {
-		name       string
-		r          *v1alpha1.Stack
-		clientFunc func(*v1alpha1.Stack) client.Client
-		want       want
+		name           string
+		r              *v1alpha1.Stack
+		initObjs       []runtime.Object
+		clientFunc     func(initObjs ...runtime.Object) client.Client
+		hostClientFunc func() client.Client
+		hostawareCfg   *host.HostedConfig
+		want           want
 	}{
 		{
 			name:       "NoControllerRequested",
 			r:          resource(),
-			clientFunc: func(r *v1alpha1.Stack) client.Client { return fake.NewFakeClient(r) },
+			clientFunc: fake.NewFakeClient,
 			want: want{
 				err:           nil,
 				d:             nil,
@@ -838,7 +1030,7 @@ func TestProcessDeployment(t *testing.T) {
 		{
 			name: "CreateDeploymentError",
 			r:    resource(withControllerSpec(defaultControllerSpec())),
-			clientFunc: func(r *v1alpha1.Stack) client.Client {
+			clientFunc: func(initObjs ...runtime.Object) client.Client {
 				return &test.MockClient{
 					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error {
 						return errBoom
@@ -852,9 +1044,55 @@ func TestProcessDeployment(t *testing.T) {
 			},
 		},
 		{
+			name:       "CreateDeploymentErrorHosted",
+			r:          resource(withControllerSpec(defaultControllerSpec())),
+			clientFunc: fake.NewFakeClient,
+			hostClientFunc: func() client.Client {
+				return &test.MockClient{
+					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error {
+						return errBoom
+					},
+				}
+			},
+			hostawareCfg: &host.HostedConfig{
+				HostControllerNamespace: hostControllerNamespace,
+			},
+			want: want{
+				err:           errors.Wrap(errBoom, "failed to create deployment"),
+				d:             nil,
+				controllerRef: nil,
+			},
+		},
+		{
+			name:       "HostedError_SyncSATokenFailedToCreateSecret",
+			r:          resource(withControllerSpec(defaultControllerSpec())),
+			initObjs:   []runtime.Object{sa(withTokenSecret(corev1.ObjectReference{Name: resourceName, Namespace: namespace})), saSecret()},
+			clientFunc: fake.NewFakeClient,
+			hostClientFunc: func() client.Client {
+				return &test.MockClient{
+					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error {
+						if _, ok := obj.(*corev1.Secret); ok {
+							return errBoom
+						}
+						return nil
+					},
+				}
+			},
+			hostawareCfg: &host.HostedConfig{
+				HostControllerNamespace: hostControllerNamespace,
+			},
+			want: want{
+				err: errors.Wrap(
+					errors.Wrap(errBoom, errFailedToCreateTokenSecret),
+					errFailedToSyncSASecret),
+				d:             nil,
+				controllerRef: nil,
+			},
+		},
+		{
 			name:       "Success",
 			r:          resource(withControllerSpec(defaultControllerSpec())),
-			clientFunc: func(r *v1alpha1.Stack) client.Client { return fake.NewFakeClient(r) },
+			clientFunc: fake.NewFakeClient,
 			want: want{
 				err: nil,
 				d: &apps.Deployment{
@@ -882,15 +1120,92 @@ func TestProcessDeployment(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:           "SuccessHosted",
+			r:              resource(withControllerSpec(defaultControllerSpec())),
+			initObjs:       []runtime.Object{sa(withTokenSecret(corev1.ObjectReference{Name: resourceName, Namespace: namespace})), saSecret()},
+			clientFunc:     fake.NewFakeClient,
+			hostClientFunc: func() client.Client { return fake.NewFakeClient() },
+			hostawareCfg: &host.HostedConfig{
+				HostControllerNamespace: hostControllerNamespace,
+			},
+			want: want{
+				err: nil,
+				d: &apps.Deployment{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      fmt.Sprintf("%s.%s", namespace, controllerDeploymentName),
+						Namespace: hostControllerNamespace,
+						Labels:    stackspkg.ParentLabels(resource(withControllerSpec(defaultControllerSpec()))),
+					},
+					Spec: apps.DeploymentSpec{
+						Template: corev1.PodTemplateSpec{
+							Spec: corev1.PodSpec{
+								ServiceAccountName:           "",
+								AutomountServiceAccountToken: &disableAutoMount,
+								Containers: []corev1.Container{
+									{
+										Name:  controllerContainerName,
+										Image: controllerImageName,
+										Env: []corev1.EnvVar{
+											{
+												Name:  envK8SServiceHost,
+												Value: "",
+											},
+											{
+												Name:  envK8SServicePort,
+												Value: "",
+											},
+											{
+												Name:  envPodNamespace,
+												Value: namespace,
+											},
+										},
+										VolumeMounts: []corev1.VolumeMount{
+											{
+												Name:      saVolumeName,
+												ReadOnly:  true,
+												MountPath: saMountPath,
+											},
+										},
+									},
+								},
+								Volumes: []corev1.Volume{
+									{
+										Name: saVolumeName,
+										VolumeSource: corev1.VolumeSource{
+											Secret: &corev1.SecretVolumeSource{
+												SecretName: fmt.Sprintf("%s.%s", namespace, resourceName),
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				controllerRef: &corev1.ObjectReference{
+					Name:       fmt.Sprintf("%s.%s", namespace, controllerDeploymentName),
+					Namespace:  hostControllerNamespace,
+					Kind:       "Deployment",
+					APIVersion: "apps/v1",
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			g := NewGomegaWithT(t)
+			initObjs := append(tt.initObjs, tt.r)
 			handler := &stackHandler{
-				kube:     tt.clientFunc(tt.r),
-				hostKube: tt.clientFunc(tt.r),
-				ext:      tt.r,
+				kube:            tt.clientFunc(initObjs...),
+				hostAwareConfig: tt.hostawareCfg,
+				ext:             tt.r,
+			}
+			if tt.hostawareCfg == nil {
+				handler.hostKube = handler.kube
+			} else {
+				handler.hostKube = tt.hostClientFunc()
 			}
 
 			err := handler.processDeployment(ctx)
@@ -924,15 +1239,18 @@ func TestProcessJob(t *testing.T) {
 	}
 
 	tests := []struct {
-		name       string
-		r          *v1alpha1.Stack
-		clientFunc func(*v1alpha1.Stack) client.Client
-		want       want
+		name           string
+		r              *v1alpha1.Stack
+		initObjs       []runtime.Object
+		clientFunc     func(initObjs ...runtime.Object) client.Client
+		hostClientFunc func() client.Client
+		hostawareCfg   *host.HostedConfig
+		want           want
 	}{
 		{
 			name:       "NoControllerRequested",
 			r:          resource(),
-			clientFunc: func(r *v1alpha1.Stack) client.Client { return fake.NewFakeClient(r) },
+			clientFunc: fake.NewFakeClient,
 			want: want{
 				err:           nil,
 				j:             nil,
@@ -942,7 +1260,7 @@ func TestProcessJob(t *testing.T) {
 		{
 			name: "CreateJobError",
 			r:    resource(withControllerSpec(defaultJobControllerSpec())),
-			clientFunc: func(r *v1alpha1.Stack) client.Client {
+			clientFunc: func(initObjs ...runtime.Object) client.Client {
 				return &test.MockClient{
 					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error {
 						return errBoom
@@ -956,9 +1274,35 @@ func TestProcessJob(t *testing.T) {
 			},
 		},
 		{
+			name:       "HostedError_SyncSATokenFailedToCreateSecret",
+			r:          resource(withControllerSpec(defaultJobControllerSpec())),
+			initObjs:   []runtime.Object{sa(withTokenSecret(corev1.ObjectReference{Name: resourceName, Namespace: namespace})), saSecret()},
+			clientFunc: fake.NewFakeClient,
+			hostClientFunc: func() client.Client {
+				return &test.MockClient{
+					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error {
+						if _, ok := obj.(*corev1.Secret); ok {
+							return errBoom
+						}
+						return nil
+					},
+				}
+			},
+			hostawareCfg: &host.HostedConfig{
+				HostControllerNamespace: hostControllerNamespace,
+			},
+			want: want{
+				err: errors.Wrap(
+					errors.Wrap(errBoom, errFailedToCreateTokenSecret),
+					errFailedToSyncSASecret),
+				j:             nil,
+				controllerRef: nil,
+			},
+		},
+		{
 			name:       "Success",
 			r:          resource(withControllerSpec(defaultJobControllerSpec())),
-			clientFunc: func(r *v1alpha1.Stack) client.Client { return fake.NewFakeClient(r) },
+			clientFunc: fake.NewFakeClient,
 			want: want{
 				err: nil,
 				j: &batch.Job{
@@ -987,15 +1331,93 @@ func TestProcessJob(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:           "SuccessHosted",
+			r:              resource(withControllerSpec(defaultJobControllerSpec())),
+			initObjs:       []runtime.Object{sa(withTokenSecret(corev1.ObjectReference{Name: resourceName, Namespace: namespace})), saSecret()},
+			clientFunc:     fake.NewFakeClient,
+			hostClientFunc: func() client.Client { return fake.NewFakeClient() },
+			hostawareCfg: &host.HostedConfig{
+				HostControllerNamespace: hostControllerNamespace,
+			},
+			want: want{
+				err: nil,
+				j: &batch.Job{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      fmt.Sprintf("%s.%s", namespace, controllerJobName),
+						Namespace: hostControllerNamespace,
+						Labels:    stackspkg.ParentLabels(resource(withControllerSpec(defaultControllerSpec()))),
+					},
+					Spec: batch.JobSpec{
+						Template: corev1.PodTemplateSpec{
+							Spec: corev1.PodSpec{
+								RestartPolicy:                corev1.RestartPolicyNever,
+								ServiceAccountName:           "",
+								AutomountServiceAccountToken: &disableAutoMount,
+								Containers: []corev1.Container{
+									{
+										Name:  controllerContainerName,
+										Image: controllerImageName,
+										Env: []corev1.EnvVar{
+											{
+												Name:  envK8SServiceHost,
+												Value: "",
+											},
+											{
+												Name:  envK8SServicePort,
+												Value: "",
+											},
+											{
+												Name:  envPodNamespace,
+												Value: namespace,
+											},
+										},
+										VolumeMounts: []corev1.VolumeMount{
+											{
+												Name:      saVolumeName,
+												ReadOnly:  true,
+												MountPath: saMountPath,
+											},
+										},
+									},
+								},
+								Volumes: []corev1.Volume{
+									{
+										Name: saVolumeName,
+										VolumeSource: corev1.VolumeSource{
+											Secret: &corev1.SecretVolumeSource{
+												SecretName: fmt.Sprintf("%s.%s", namespace, resourceName),
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				controllerRef: &corev1.ObjectReference{
+					Name:       fmt.Sprintf("%s.%s", namespace, controllerJobName),
+					Namespace:  hostControllerNamespace,
+					Kind:       "Job",
+					APIVersion: "batch/v1",
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			g := NewGomegaWithT(t)
+			initObjs := append(tt.initObjs, tt.r)
 			handler := &stackHandler{
-				kube:     tt.clientFunc(tt.r),
-				hostKube: tt.clientFunc(tt.r),
-				ext:      tt.r,
+				kube:            tt.clientFunc(initObjs...),
+				hostAwareConfig: tt.hostawareCfg,
+				ext:             tt.r,
+			}
+			if tt.hostawareCfg == nil {
+				handler.hostKube = handler.kube
+			} else {
+				handler.hostKube = tt.hostClientFunc()
 			}
 
 			err := handler.processJob(ctx)
@@ -1047,6 +1469,60 @@ func TestStackDelete(t *testing.T) {
 				hostKube: &test.MockClient{
 					MockDeleteAllOf: func(ctx context.Context, obj runtime.Object, opts ...client.DeleteAllOfOption) error { return errBoom },
 				},
+			},
+			want: want{
+				result: resultRequeue,
+				err:    nil,
+				si: resource(
+					withFinalizers(stacksFinalizer),
+					withDeletionTimestamp(tn),
+					withConditions(runtimev1alpha1.ReconcileError(errBoom))),
+			},
+		},
+		{
+			name: "FailDeleteAllOfDeploymentsHosted",
+			handler: &stackHandler{
+				// stack starts with a finalizer and a deletion timestamp
+				ext: resource(withFinalizers(stacksFinalizer), withDeletionTimestamp(tn)),
+				kube: &test.MockClient{
+					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+				},
+				hostKube: &test.MockClient{
+					MockDeleteAllOf: func(ctx context.Context, obj runtime.Object, opts ...client.DeleteAllOfOption) error {
+						if _, ok := obj.(*apps.Deployment); ok {
+							return errBoom
+						}
+						return nil
+					},
+				},
+				hostAwareConfig: &host.HostedConfig{HostControllerNamespace: hostControllerNamespace},
+			},
+			want: want{
+				result: resultRequeue,
+				err:    nil,
+				si: resource(
+					withFinalizers(stacksFinalizer),
+					withDeletionTimestamp(tn),
+					withConditions(runtimev1alpha1.ReconcileError(errBoom))),
+			},
+		},
+		{
+			name: "FailDeleteAllOfJobsHosted",
+			handler: &stackHandler{
+				// stack starts with a finalizer and a deletion timestamp
+				ext: resource(withFinalizers(stacksFinalizer), withDeletionTimestamp(tn)),
+				kube: &test.MockClient{
+					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+				},
+				hostKube: &test.MockClient{
+					MockDeleteAllOf: func(ctx context.Context, obj runtime.Object, opts ...client.DeleteAllOfOption) error {
+						if _, ok := obj.(*batch.Job); ok {
+							return errBoom
+						}
+						return nil
+					},
+				},
+				hostAwareConfig: &host.HostedConfig{HostControllerNamespace: hostControllerNamespace},
 			},
 			want: want{
 				result: resultRequeue,
@@ -1146,6 +1622,144 @@ func TestStackDelete(t *testing.T) {
 
 			if diff := cmp.Diff(tt.want.si, tt.handler.ext, test.EquateConditions()); diff != "" {
 				t.Errorf("delete() -want stackInstall, +got stackInstall:\n%v", diff)
+			}
+		})
+	}
+}
+
+func Test_stackHandler_prepareHostAwareJob(t *testing.T) {
+	type fields struct {
+		kube            client.Client
+		hostKube        client.Client
+		hostAwareConfig *host.HostedConfig
+		ext             *v1alpha1.Stack
+	}
+	type args struct {
+		tokenSecret string
+		j           *batch.Job
+	}
+	type want struct {
+		err error
+	}
+	cases := map[string]struct {
+		fields
+		args
+		want
+	}{
+		"hostAwareNotEnabled": {
+			fields: fields{},
+			args: args{
+				tokenSecret: resourceName,
+				j:           nil,
+			},
+			want: want{
+				err: errors.New(errHostAwareModeNotEnabled),
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			h := &stackHandler{
+				kube:            tc.fields.kube,
+				hostKube:        tc.fields.hostKube,
+				hostAwareConfig: tc.fields.hostAwareConfig,
+				ext:             tc.fields.ext,
+			}
+			gotErr := h.prepareHostAwareJob(tc.args.j, tc.args.tokenSecret)
+			if diff := cmp.Diff(tc.want.err, gotErr, test.EquateErrors()); diff != "" {
+				t.Fatalf("prepareHostAwareDeployment(...): -want error, +got error: %s", diff)
+			}
+		})
+	}
+}
+
+func Test_stackHandler_prepareHostAwareDeployment(t *testing.T) {
+	type fields struct {
+		kube            client.Client
+		hostKube        client.Client
+		hostAwareConfig *host.HostedConfig
+		ext             *v1alpha1.Stack
+	}
+	type args struct {
+		tokenSecret string
+		d           *apps.Deployment
+	}
+	type want struct {
+		err error
+	}
+	cases := map[string]struct {
+		fields
+		args
+		want
+	}{
+		"hostAwareNotEnabled": {
+			fields: fields{},
+			args: args{
+				tokenSecret: resourceName,
+				d:           nil,
+			},
+			want: want{
+				err: errors.New(errHostAwareModeNotEnabled),
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			h := &stackHandler{
+				kube:            tc.fields.kube,
+				hostKube:        tc.fields.hostKube,
+				hostAwareConfig: tc.fields.hostAwareConfig,
+				ext:             tc.fields.ext,
+			}
+			gotErr := h.prepareHostAwareDeployment(tc.args.d, tc.args.tokenSecret)
+			if diff := cmp.Diff(tc.want.err, gotErr, test.EquateErrors()); diff != "" {
+				t.Fatalf("prepareHostAwareDeployment(...): -want error, +got error: %s", diff)
+			}
+		})
+	}
+}
+
+func Test_stackHandler_prepareHostAwarePodSpec(t *testing.T) {
+	type fields struct {
+		kube            client.Client
+		hostKube        client.Client
+		hostAwareConfig *host.HostedConfig
+		ext             *v1alpha1.Stack
+	}
+	type args struct {
+		tokenSecret string
+		ps          *corev1.PodSpec
+	}
+	type want struct {
+		err error
+	}
+	cases := map[string]struct {
+		fields
+		args
+		want
+	}{
+		"hostAwareNotEnabled": {
+			fields: fields{},
+			args: args{
+				tokenSecret: resourceName,
+				ps:          nil,
+			},
+			want: want{
+				err: errors.New(errHostAwareModeNotEnabled),
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			h := &stackHandler{
+				kube:            tc.fields.kube,
+				hostKube:        tc.fields.hostKube,
+				hostAwareConfig: tc.fields.hostAwareConfig,
+				ext:             tc.fields.ext,
+			}
+			gotErr := h.prepareHostAwarePodSpec(tc.args.tokenSecret, tc.args.ps)
+			if diff := cmp.Diff(tc.want.err, gotErr, test.EquateErrors()); diff != "" {
+				t.Fatalf("prepareHostAwarePodSpec(...): -want error, +got error: %s", diff)
 			}
 		})
 	}

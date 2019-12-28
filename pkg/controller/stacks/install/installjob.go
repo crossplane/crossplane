@@ -24,8 +24,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/crossplaneio/crossplane/pkg/controller/stacks/hostaware"
-
 	"github.com/pkg/errors"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -41,6 +39,7 @@ import (
 	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
 	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
 	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/controller/stacks/host"
 	"github.com/crossplaneio/crossplane/pkg/stacks"
 )
 
@@ -62,7 +61,7 @@ type stackInstallJobCompleter struct {
 	podLogReader Reader
 }
 
-func createInstallJob(i v1alpha1.StackInstaller, executorInfo *stacks.ExecutorInfo, haCfg *hostaware.Config) *batchv1.Job {
+func createInstallJob(i v1alpha1.StackInstaller, executorInfo *stacks.ExecutorInfo, haCfg *host.HostedConfig) *batchv1.Job {
 	name := i.GetName()
 	namespace := i.GetNamespace()
 

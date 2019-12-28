@@ -21,8 +21,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/crossplaneio/crossplane/pkg/controller/stacks/hostaware"
-
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -31,7 +29,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -40,15 +37,17 @@ import (
 	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 	stacksapi "github.com/crossplaneio/crossplane/apis/stacks"
 	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/controller/stacks/host"
 	"github.com/crossplaneio/crossplane/pkg/stacks"
 )
 
 const (
-	namespace         = "cool-namespace"
-	uidString         = "definitely-a-uuid"
-	uid               = types.UID(uidString)
-	resourceName      = "cool-stackinstall"
-	stackPackageImage = "cool/stack-package:rad"
+	namespace               = "cool-namespace"
+	hostControllerNamespace = "controller-namespace"
+	uidString               = "definitely-a-uuid"
+	uid                     = types.UID(uidString)
+	resourceName            = "cool-stackinstall"
+	stackPackageImage       = "cool/stack-package:rad"
 )
 
 var (
@@ -125,13 +124,12 @@ func clusterInstallResource(rm ...resourceModifier) *v1alpha1.ClusterStackInstal
 
 // mock implementations
 type mockFactory struct {
-	MockNewHandler func(context.Context, v1alpha1.StackInstaller, client.Client, client.Client, kubernetes.Interface, *hostaware.Config, *stacks.ExecutorInfo) handler
+	MockNewHandler func(context.Context, v1alpha1.StackInstaller, k8sClients, *host.HostedConfig, *stacks.ExecutorInfo) handler
 }
 
-func (f *mockFactory) newHandler(ctx context.Context, i v1alpha1.StackInstaller, kube client.Client,
-	hostKube client.Client, hostClient kubernetes.Interface, hostAwareConfig *hostaware.Config,
+func (f *mockFactory) newHandler(ctx context.Context, i v1alpha1.StackInstaller, k8s k8sClients, hostAwareConfig *host.HostedConfig,
 	ei *stacks.ExecutorInfo) handler {
-	return f.MockNewHandler(ctx, i, kube, hostKube, hostClient, hostAwareConfig, ei)
+	return f.MockNewHandler(ctx, i, k8s, hostAwareConfig, ei)
 }
 
 type mockHandler struct {
@@ -181,11 +179,15 @@ func TestReconcile(t *testing.T) {
 			name: "SuccessfulSyncStackInstall",
 			req:  reconcile.Request{NamespacedName: types.NamespacedName{Name: resourceName, Namespace: namespace}},
 			rec: &Reconciler{
-				kube: &test.MockClient{
-					MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
-						*obj.(*v1alpha1.StackInstall) = *(resource())
-						return nil
+				k8sClients: k8sClients{
+					kube: &test.MockClient{
+						MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
+							*obj.(*v1alpha1.StackInstall) = *(resource())
+							return nil
+						},
 					},
+					hostKube:   nil,
+					hostClient: nil,
 				},
 				stackinator: func() v1alpha1.StackInstaller { return &v1alpha1.StackInstall{} },
 				executorInfoDiscoverer: &mockExecutorInfoDiscoverer{
@@ -194,7 +196,7 @@ func TestReconcile(t *testing.T) {
 					},
 				},
 				factory: &mockFactory{
-					MockNewHandler: func(context.Context, v1alpha1.StackInstaller, client.Client, client.Client, kubernetes.Interface, *hostaware.Config, *stacks.ExecutorInfo) handler {
+					MockNewHandler: func(context.Context, v1alpha1.StackInstaller, k8sClients, *host.HostedConfig, *stacks.ExecutorInfo) handler {
 						return &mockHandler{
 							MockSync: func(context.Context) (reconcile.Result, error) {
 								return reconcile.Result{}, nil
@@ -209,10 +211,12 @@ func TestReconcile(t *testing.T) {
 			name: "SuccessfulSyncClusterStackInstall",
 			req:  reconcile.Request{NamespacedName: types.NamespacedName{Name: resourceName, Namespace: namespace}},
 			rec: &Reconciler{
-				kube: &test.MockClient{
-					MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
-						*obj.(*v1alpha1.ClusterStackInstall) = *(clusterInstallResource())
-						return nil
+				k8sClients: k8sClients{
+					kube: &test.MockClient{
+						MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
+							*obj.(*v1alpha1.ClusterStackInstall) = *(clusterInstallResource())
+							return nil
+						},
 					},
 				},
 				stackinator: func() v1alpha1.StackInstaller { return &v1alpha1.ClusterStackInstall{} },
@@ -222,7 +226,7 @@ func TestReconcile(t *testing.T) {
 					},
 				},
 				factory: &mockFactory{
-					MockNewHandler: func(context.Context, v1alpha1.StackInstaller, client.Client, client.Client, kubernetes.Interface, *hostaware.Config, *stacks.ExecutorInfo) handler {
+					MockNewHandler: func(context.Context, v1alpha1.StackInstaller, k8sClients, *host.HostedConfig, *stacks.ExecutorInfo) handler {
 						return &mockHandler{
 							MockSync: func(context.Context) (reconcile.Result, error) {
 								return reconcile.Result{}, nil
@@ -237,10 +241,12 @@ func TestReconcile(t *testing.T) {
 			name: "SuccessfulDelete",
 			req:  reconcile.Request{NamespacedName: types.NamespacedName{Name: resourceName, Namespace: namespace}},
 			rec: &Reconciler{
-				kube: &test.MockClient{
-					MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
-						*obj.(*v1alpha1.StackInstall) = *(resource(withDeletionTimestamp(time.Now())))
-						return nil
+				k8sClients: k8sClients{
+					kube: &test.MockClient{
+						MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
+							*obj.(*v1alpha1.StackInstall) = *(resource(withDeletionTimestamp(time.Now())))
+							return nil
+						},
 					},
 				},
 				stackinator: func() v1alpha1.StackInstaller { return &v1alpha1.StackInstall{} },
@@ -250,7 +256,7 @@ func TestReconcile(t *testing.T) {
 					},
 				},
 				factory: &mockFactory{
-					MockNewHandler: func(context.Context, v1alpha1.StackInstaller, client.Client, client.Client, kubernetes.Interface, *hostaware.Config, *stacks.ExecutorInfo) handler {
+					MockNewHandler: func(context.Context, v1alpha1.StackInstaller, k8sClients, *host.HostedConfig, *stacks.ExecutorInfo) handler {
 						return &mockHandler{
 							MockDelete: func(context.Context) (reconcile.Result, error) {
 								return reconcile.Result{}, nil
@@ -265,12 +271,14 @@ func TestReconcile(t *testing.T) {
 			name: "DiscoverExecutorInfoFailed",
 			req:  reconcile.Request{NamespacedName: types.NamespacedName{Name: resourceName, Namespace: namespace}},
 			rec: &Reconciler{
-				kube: &test.MockClient{
-					MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
-						*obj.(*v1alpha1.StackInstall) = *(resource())
-						return nil
+				k8sClients: k8sClients{
+					kube: &test.MockClient{
+						MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
+							*obj.(*v1alpha1.StackInstall) = *(resource())
+							return nil
+						},
+						MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 					},
-					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
 				stackinator: func() v1alpha1.StackInstaller { return &v1alpha1.StackInstall{} },
 				executorInfoDiscoverer: &mockExecutorInfoDiscoverer{
@@ -286,9 +294,11 @@ func TestReconcile(t *testing.T) {
 			name: "ResourceNotFound",
 			req:  reconcile.Request{NamespacedName: types.NamespacedName{Name: resourceName, Namespace: namespace}},
 			rec: &Reconciler{
-				kube: &test.MockClient{
-					MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
-						return kerrors.NewNotFound(schema.GroupResource{Group: v1alpha1.Group}, key.Name)
+				k8sClients: k8sClients{
+					kube: &test.MockClient{
+						MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
+							return kerrors.NewNotFound(schema.GroupResource{Group: v1alpha1.Group}, key.Name)
+						},
 					},
 				},
 				stackinator:            func() v1alpha1.StackInstaller { return &v1alpha1.StackInstall{} },
@@ -301,9 +311,11 @@ func TestReconcile(t *testing.T) {
 			name: "ResourceGetError",
 			req:  reconcile.Request{NamespacedName: types.NamespacedName{Name: resourceName, Namespace: namespace}},
 			rec: &Reconciler{
-				kube: &test.MockClient{
-					MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
-						return errors.New("test-get-error")
+				k8sClients: k8sClients{
+					kube: &test.MockClient{
+						MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
+							return errors.New("test-get-error")
+						},
 					},
 				},
 				stackinator:            func() v1alpha1.StackInstaller { return &v1alpha1.StackInstall{} },
@@ -520,7 +532,7 @@ func TestHandlerFactory(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := tt.factory.newHandler(ctx, resource(), nil, nil, nil, nil, &stacks.ExecutorInfo{Image: stackPackageImage})
+			got := tt.factory.newHandler(ctx, resource(), k8sClients{}, nil, &stacks.ExecutorInfo{Image: stackPackageImage})
 
 			diff := cmp.Diff(tt.want, got,
 				cmp.AllowUnexported(

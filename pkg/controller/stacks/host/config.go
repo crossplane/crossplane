@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package hostaware
+package host
 
 import (
 	"fmt"
@@ -36,16 +36,16 @@ const (
 	errMissingEnvVar = "host aware mode activated but %s env var is not set"
 )
 
-// Config is the configuration for Host Aware Mode where different Kubernetes API's are used for workload
+// HostedConfig is the configuration for Host Aware Mode where different Kubernetes API's are used for workload
 // scheduling and custom resources.
-type Config struct {
+type HostedConfig struct {
 	HostControllerNamespace string
 	TenantAPIServiceHost    string
 	TenantAPIServicePort    string
 }
 
-// NewConfig returns a new HostAwareConfig based on the available environment variables.
-func NewConfig() (*Config, error) {
+// NewHostedConfig returns a new HostAwareConfig based on the available environment variables.
+func NewHostedConfig() (*HostedConfig, error) {
 	tenantKubeconfig := os.Getenv(EnvTenantKubeconfig)
 	if tenantKubeconfig == "" {
 		return nil, nil
@@ -63,7 +63,7 @@ func NewConfig() (*Config, error) {
 		return nil, errors.New(fmt.Sprintf(errMissingEnvVar, envTenantKubernetesServicePort))
 	}
 
-	return &Config{
+	return &HostedConfig{
 		HostControllerNamespace: ns,
 		TenantAPIServiceHost:    apiHost,
 		TenantAPIServicePort:    apiPort,
@@ -71,7 +71,7 @@ func NewConfig() (*Config, error) {
 }
 
 // ObjectReferenceOnHost maps object with given name and namespace into single controller namespace
-func (c *Config) ObjectReferenceOnHost(name, namespace string) corev1.ObjectReference {
+func (c *HostedConfig) ObjectReferenceOnHost(name, namespace string) corev1.ObjectReference {
 	return corev1.ObjectReference{
 		Name:      fmt.Sprintf("%s.%s", namespace, name),
 		Namespace: c.HostControllerNamespace,
