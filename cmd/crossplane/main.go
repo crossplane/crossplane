@@ -145,6 +145,10 @@ func main() {
 }
 
 func getRestConfig() (cfg *rest.Config, err error) {
+	// EnvTenantKubeconfig is the switch for Stack Manager hosted mode where Kubernetes Apiserver for stack controllers
+	// pods and custom resources are different. When set, it points to custom resource Kubernetes Apiserver. Despite
+	// this function is common for Crossplane and Stack Manager, EnvTenantKubeconfig is never set for Crossplane pod,
+	// hence there is no need for an extra check here.
 	tenantKubeconfig := os.Getenv(host.EnvTenantKubeconfig)
 	if tenantKubeconfig != "" {
 		return clientcmd.BuildConfigFromFlags("", tenantKubeconfig)

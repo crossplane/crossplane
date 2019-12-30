@@ -23,7 +23,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
 
-// GetClients is the function to get Host Kubernetes clients with in cluster config
+// GetClients is the function to get Host Kubernetes (where install and controller pods scheduled) clients with in
+// cluster config. This function is called regardless of hosted mode being enabled:
+// Hosted Mode Off (Standard Installation):
+// - resource (tenant) kube client => in cluster config
+// - host kube clients => in cluster config
+// Hosted Mode On:
+// - resource (tenant) kube client => via EnvTenantKubeconfig
+// - host kube clients => in cluster config
 func GetClients() (client.Client, *kubernetes.Clientset, error) {
 	cfg, err := config.GetConfig()
 	if err != nil {

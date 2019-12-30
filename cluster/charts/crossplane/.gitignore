@@ -1,2 +1,8 @@
 values.yaml
 values.yaml-e
+
+crds
+templates
+!templates/NOTES.txt
+!templates/_helpers.tpl
+!templates/clusterstackinstalls.yaml

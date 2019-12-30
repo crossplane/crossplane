@@ -57,7 +57,7 @@ var (
 
 // k8sClients holds the clients for Kubernetes
 type k8sClients struct {
-	// kube is controller runtime client for resource (a.k.a tenant) Kubernetes where all custom resources live
+	// kube is controller runtime client for resource (a.k.a tenant) Kubernetes where all custom resources live.
 	kube client.Client
 	// hostKube is controller runtime client for workload (a.k.a host) Kubernetes where jobs for stack installs and
 	// stack controller deployments/jobs created.

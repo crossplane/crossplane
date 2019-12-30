@@ -86,7 +86,10 @@ var (
 
 // Reconciler reconciles a Instance object
 type Reconciler struct {
-	kube         client.Client
+	// kube is controller runtime client for resource (a.k.a tenant) Kubernetes where all custom resources live.
+	kube client.Client
+	// hostKube is controller runtime client for workload (a.k.a host) Kubernetes where jobs for stack installs and
+	// stack controller deployments/jobs created.
 	hostKube     client.Client
 	hostedConfig *host.HostedConfig
 	factory
@@ -156,7 +159,10 @@ type handler interface {
 }
 
 type stackHandler struct {
-	kube            client.Client
+	// kube is controller runtime client for resource (a.k.a tenant) Kubernetes where all custom resources live.
+	kube client.Client
+	// hostKube is controller runtime client for workload (a.k.a host) Kubernetes where jobs for stack installs and
+	// stack controller deployments/jobs created.
 	hostKube        client.Client
 	hostAwareConfig *host.HostedConfig
 	ext             *v1alpha1.Stack
@@ -531,7 +537,10 @@ func (h *stackHandler) isNamespaced() bool {
 	return apiextensions.ResourceScope(h.ext.Spec.PermissionScope) == apiextensions.NamespaceScoped
 }
 
-func (h *stackHandler) syncSATokenSecret(ctx context.Context, owner metav1.OwnerReference, fromSARef corev1.ObjectReference, toSecretRef corev1.ObjectReference) error {
+// syncSATokenSecret function copies service account token secret from custom resource Kubernetes (a.k.a tenant
+// Kubernetes) to Host Cluster. This secret then mounted to stack controller pods so that they can authenticate.
+func (h *stackHandler) syncSATokenSecret(ctx context.Context, owner metav1.OwnerReference,
+	fromSARef corev1.ObjectReference, toSecretRef corev1.ObjectReference) error {
 	// Get the ServiceAccount
 	fromKube := h.kube
 	toKube := h.hostKube
@@ -577,6 +586,14 @@ func (h *stackHandler) syncSATokenSecret(ctx context.Context, owner metav1.Owner
 	return nil
 }
 
+// prepareHostAwarePodSpec modifies input pod spec as follows, such that it communicates with custom resource
+// Kubernetes Apiserver (a.k.a. tenant Kubernetes) rather than the apiserver of the Kubernetes Cluster where the pod
+// runs inside (a.k.a. Host Cluster):
+// - Set KUBERNETES_SERVICE_HOST
+// - Set KUBERNETES_SERVICE_PORT
+// - Disabled automountServiceAccountToken
+// - Unset serviceAccountName
+// - Mount service account token secret which is copied from custom resource Kubernetes apiserver
 func (h *stackHandler) prepareHostAwarePodSpec(tokenSecret string, ps *corev1.PodSpec) error {
 	if h.hostAwareConfig == nil {
 		return errors.New(errHostAwareModeNotEnabled)
@@ -604,7 +621,7 @@ func (h *stackHandler) prepareHostAwarePodSpec(tokenSecret string, ps *corev1.Po
 				Value: h.hostAwareConfig.TenantAPIServicePort,
 			}, corev1.EnvVar{
 				// When POD_NAMESPACE is not set as stackinstalls namespace here, it is set as host namespace where actual
-				// pod running. This result stack controller to fails with forbidden, since their sa only allows to watch
+				// pod running. This result stack controller to fail with forbidden, since their sa only allows to watch
 				// the namespace where stack is installed
 				Name:  envPodNamespace,
 				Value: h.ext.Namespace,

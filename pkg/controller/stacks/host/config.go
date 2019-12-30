@@ -36,20 +36,26 @@ const (
 	errMissingEnvVar = "host aware mode activated but %s env var is not set"
 )
 
-// HostedConfig is the configuration for Host Aware Mode where different Kubernetes API's are used for workload
+// HostedConfig is the configuration for Host Aware Mode where different Kubernetes API's are used for pod
 // scheduling and custom resources.
 type HostedConfig struct {
+	// HostControllerNamespace is the namespace on Host Cluster where install and controller jobs/deployments will be
+	// deployed.
 	HostControllerNamespace string
-	TenantAPIServiceHost    string
-	TenantAPIServicePort    string
+	// TenantAPIServiceHost is Kubernetes Apiserver Host for custom resources (a.k.a Tenant Kubernetes)
+	TenantAPIServiceHost string
+	// TenantAPIServicePort is Kubernetes Apiserver Port for custom resources (a.k.a Tenant Kubernetes)
+	TenantAPIServicePort string
 }
 
 // NewHostedConfig returns a new HostAwareConfig based on the available environment variables.
 func NewHostedConfig() (*HostedConfig, error) {
 	tenantKubeconfig := os.Getenv(EnvTenantKubeconfig)
 	if tenantKubeconfig == "" {
+		// Hosted Mode is off, regular installation.
 		return nil, nil
 	}
+	// Hosted Mode is on, we need all the following environment variables to be set.
 	ns := os.Getenv(envControllerNamespace)
 	if ns == "" {
 		return nil, errors.New(fmt.Sprintf(errMissingEnvVar, envControllerNamespace))
@@ -70,7 +76,7 @@ func NewHostedConfig() (*HostedConfig, error) {
 	}, nil
 }
 
-// ObjectReferenceOnHost maps object with given name and namespace into single controller namespace
+// ObjectReferenceOnHost maps object with given name and namespace into single controller namespace on Host Cluster.
 func (c *HostedConfig) ObjectReferenceOnHost(name, namespace string) corev1.ObjectReference {
 	return corev1.ObjectReference{
 		Name:      fmt.Sprintf("%s.%s", namespace, name),
