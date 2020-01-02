@@ -79,15 +79,6 @@ spec:
           description: KubernetesApplicationResourceStatus represents the observed
             state of a KubernetesApplicationResource.
           properties:
-            clusterRef:
-              description: Cluster to which this application has been scheduled.
-              properties:
-                name:
-                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
-                  type: string
-              required:
-              - name
-              type: object
             conditionedStatus:
               description: A ConditionedStatus reflects the observed status of a managed
                 resource. Only one condition of each type may exist.
@@ -139,6 +130,15 @@ spec:
             state:
               description: State of the application.
               type: string
+            targetRef:
+              description: Target to which this application has been scheduled.
+              properties:
+                name:
+                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                  type: string
+              required:
+              - name
+              type: object
           type: object
       type: object
   version: v1alpha1

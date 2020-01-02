@@ -34,7 +34,6 @@ import (
 
 	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane-runtime/pkg/test"
-	computev1alpha1 "github.com/crossplaneio/crossplane/apis/compute/v1alpha1"
 	workloadv1alpha1 "github.com/crossplaneio/crossplane/apis/workload/v1alpha1"
 )
 
@@ -51,21 +50,21 @@ var (
 
 	selectorAll = &metav1.LabelSelector{}
 
-	clusterA = &computev1alpha1.KubernetesCluster{
-		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: "coolClusterA"},
-		Spec: computev1alpha1.KubernetesClusterSpec{ResourceClaimSpec: runtimev1alpha1.ResourceClaimSpec{
-			WriteConnectionSecretToReference: &runtimev1alpha1.LocalSecretReference{},
-		}},
+	targetA = &workloadv1alpha1.KubernetesTarget{
+		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: "coolTargetA"},
+		Spec: workloadv1alpha1.KubernetesTargetSpec{
+			ConnectionSecretRef: &runtimev1alpha1.LocalSecretReference{},
+		},
 	}
-	clusterB = &computev1alpha1.KubernetesCluster{
-		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: "coolClusterB"},
-		Spec: computev1alpha1.KubernetesClusterSpec{ResourceClaimSpec: runtimev1alpha1.ResourceClaimSpec{
-			WriteConnectionSecretToReference: &runtimev1alpha1.LocalSecretReference{},
-		}},
+	targetB = &workloadv1alpha1.KubernetesTarget{
+		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: "coolTargetB"},
+		Spec: workloadv1alpha1.KubernetesTargetSpec{
+			ConnectionSecretRef: &runtimev1alpha1.LocalSecretReference{},
+		},
 	}
 
-	clusters = &computev1alpha1.KubernetesClusterList{
-		Items: []computev1alpha1.KubernetesCluster{*clusterA, *clusterB},
+	targets = &workloadv1alpha1.KubernetesTargetList{
+		Items: []workloadv1alpha1.KubernetesTarget{*targetA, *targetB},
 	}
 )
 
@@ -85,15 +84,15 @@ func withDeletionTimestamp(t time.Time) kubeAppModifier {
 	}
 }
 
-func withCluster(name string) kubeAppModifier {
+func withTarget(name string) kubeAppModifier {
 	return func(r *workloadv1alpha1.KubernetesApplication) {
-		r.Status.Cluster = &workloadv1alpha1.KubernetesClusterReference{Name: name}
+		r.Status.Target = &workloadv1alpha1.KubernetesTargetReference{Name: name}
 	}
 }
 
-func withClusterSelector(s *metav1.LabelSelector) kubeAppModifier {
+func withTargetSelector(s *metav1.LabelSelector) kubeAppModifier {
 	return func(r *workloadv1alpha1.KubernetesApplication) {
-		r.Spec.ClusterSelector = s
+		r.Spec.TargetSelector = s
 	}
 }
 
@@ -118,7 +117,7 @@ func TestCreatePredicate(t *testing.T) {
 			event: event.CreateEvent{
 				Object: &workloadv1alpha1.KubernetesApplication{
 					Status: workloadv1alpha1.KubernetesApplicationStatus{
-						Cluster: nil,
+						Target: nil,
 					},
 				},
 			},
@@ -129,7 +128,7 @@ func TestCreatePredicate(t *testing.T) {
 			event: event.CreateEvent{
 				Object: &workloadv1alpha1.KubernetesApplication{
 					Status: workloadv1alpha1.KubernetesApplicationStatus{
-						Cluster: &workloadv1alpha1.KubernetesClusterReference{Name: "coolClustetr"},
+						Target: &workloadv1alpha1.KubernetesTargetReference{Name: "coolTarget"},
 					},
 				},
 			},
@@ -164,7 +163,7 @@ func TestUpdatePredicate(t *testing.T) {
 			event: event.UpdateEvent{
 				ObjectNew: &workloadv1alpha1.KubernetesApplication{
 					Status: workloadv1alpha1.KubernetesApplicationStatus{
-						Cluster: nil,
+						Target: nil,
 					},
 				},
 			},
@@ -175,7 +174,7 @@ func TestUpdatePredicate(t *testing.T) {
 			event: event.UpdateEvent{
 				ObjectNew: &workloadv1alpha1.KubernetesApplication{
 					Status: workloadv1alpha1.KubernetesApplicationStatus{
-						Cluster: &workloadv1alpha1.KubernetesClusterReference{Name: "coolCluster"},
+						Target: &workloadv1alpha1.KubernetesTargetReference{Name: "coolTarget"},
 					},
 				},
 			},
@@ -213,46 +212,46 @@ func TestSchedule(t *testing.T) {
 			scheduler: &roundRobinScheduler{
 				kube: &test.MockClient{
 					MockList: func(_ context.Context, obj runtime.Object, _ ...client.ListOption) error {
-						*obj.(*computev1alpha1.KubernetesClusterList) = *clusters
+						*obj.(*workloadv1alpha1.KubernetesTargetList) = *targets
 						return nil
 					},
 				},
 			},
-			app: kubeApp(withClusterSelector(selectorAll)),
+			app: kubeApp(withTargetSelector(selectorAll)),
 			wantApp: kubeApp(
-				withClusterSelector(selectorAll),
-				withCluster(clusterA.GetName()),
+				withTargetSelector(selectorAll),
+				withTarget(targetA.GetName()),
 				withState(workloadv1alpha1.KubernetesApplicationStateScheduled),
 				withConditions(runtimev1alpha1.ReconcileSuccess()),
 			),
 			wantResult: reconcile.Result{Requeue: false},
 		},
 		{
-			name: "ErrorListingClusters",
+			name: "ErrorListingTargets",
 			scheduler: &roundRobinScheduler{
 				kube: &test.MockClient{MockList: test.NewMockListFn(errorBoom)},
 			},
-			app: kubeApp(withClusterSelector(selectorAll)),
+			app: kubeApp(withTargetSelector(selectorAll)),
 			wantApp: kubeApp(
-				withClusterSelector(selectorAll),
+				withTargetSelector(selectorAll),
 				withState(workloadv1alpha1.KubernetesApplicationStatePending),
 				withConditions(runtimev1alpha1.ReconcileError(errorBoom)),
 			),
 			wantResult: reconcile.Result{Requeue: true},
 		},
 		{
-			name: "NoMatchingClusters",
+			name: "NoMatchingTargets",
 			scheduler: &roundRobinScheduler{
 				kube: &test.MockClient{
 					MockList: func(_ context.Context, obj runtime.Object, _ ...client.ListOption) error {
-						*obj.(*computev1alpha1.KubernetesClusterList) = computev1alpha1.KubernetesClusterList{}
+						*obj.(*workloadv1alpha1.KubernetesTargetList) = workloadv1alpha1.KubernetesTargetList{}
 						return nil
 					},
 				},
 			},
-			app: kubeApp(withClusterSelector(selectorAll)),
+			app: kubeApp(withTargetSelector(selectorAll)),
 			wantApp: kubeApp(
-				withClusterSelector(selectorAll),
+				withTargetSelector(selectorAll),
 				withState(workloadv1alpha1.KubernetesApplicationStatePending),
 				withConditions(runtimev1alpha1.ReconcileSuccess()),
 			),
@@ -337,7 +336,7 @@ func TestReconcile(t *testing.T) {
 				kube: &test.MockClient{
 					MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
 						*obj.(*workloadv1alpha1.KubernetesApplication) = *(kubeApp(
-							withCluster("coolCluster"),
+							withTarget("coolTarget"),
 						))
 						return nil
 					},

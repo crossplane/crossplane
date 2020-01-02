@@ -50,51 +50,6 @@ spec:
           description: A KubernetesApplicationSpec specifies the resources of a Kubernetes
             application.
           properties:
-            clusterSelector:
-              description: ClusterSelector selects the clusters to which this application
-                may be scheduled. Leave both match labels and expressions empty to
-                match any cluster.
-              properties:
-                matchExpressions:
-                  description: matchExpressions is a list of label selector requirements.
-                    The requirements are ANDed.
-                  items:
-                    description: A label selector requirement is a selector that contains
-                      values, a key, and an operator that relates the key and values.
-                    properties:
-                      key:
-                        description: key is the label key that the selector applies
-                          to.
-                        type: string
-                      operator:
-                        description: operator represents a key's relationship to a
-                          set of values. Valid operators are In, NotIn, Exists and
-                          DoesNotExist.
-                        type: string
-                      values:
-                        description: values is an array of string values. If the operator
-                          is In or NotIn, the values array must be non-empty. If the
-                          operator is Exists or DoesNotExist, the values array must
-                          be empty. This array is replaced during a strategic merge
-                          patch.
-                        items:
-                          type: string
-                        type: array
-                    required:
-                    - key
-                    - operator
-                    type: object
-                  type: array
-                matchLabels:
-                  additionalProperties:
-                    type: string
-                  description: matchLabels is a map of {key,value} pairs. A single
-                    {key,value} in the matchLabels map is equivalent to an element
-                    of matchExpressions, whose key field is "key", the operator is
-                    "In", and the values array contains only "value". The requirements
-                    are ANDed.
-                  type: object
-              type: object
             resourceSelector:
               description: ResourceSelector selects the KubernetesApplicationResources
                 that are managed by this KubernetesApplication. Note that a KubernetesApplication
@@ -182,24 +137,60 @@ spec:
                     type: object
                 type: object
               type: array
+            targetSelector:
+              description: TargetSelector selects the targets to which this application
+                may be scheduled. Leave both match labels and expressions empty to
+                match any target.
+              properties:
+                matchExpressions:
+                  description: matchExpressions is a list of label selector requirements.
+                    The requirements are ANDed.
+                  items:
+                    description: A label selector requirement is a selector that contains
+                      values, a key, and an operator that relates the key and values.
+                    properties:
+                      key:
+                        description: key is the label key that the selector applies
+                          to.
+                        type: string
+                      operator:
+                        description: operator represents a key's relationship to a
+                          set of values. Valid operators are In, NotIn, Exists and
+                          DoesNotExist.
+                        type: string
+                      values:
+                        description: values is an array of string values. If the operator
+                          is In or NotIn, the values array must be non-empty. If the
+                          operator is Exists or DoesNotExist, the values array must
+                          be empty. This array is replaced during a strategic merge
+                          patch.
+                        items:
+                          type: string
+                        type: array
+                    required:
+                    - key
+                    - operator
+                    type: object
+                  type: array
+                matchLabels:
+                  additionalProperties:
+                    type: string
+                  description: matchLabels is a map of {key,value} pairs. A single
+                    {key,value} in the matchLabels map is equivalent to an element
+                    of matchExpressions, whose key field is "key", the operator is
+                    "In", and the values array contains only "value". The requirements
+                    are ANDed.
+                  type: object
+              type: object
           required:
-          - clusterSelector
           - resourceSelector
           - resourceTemplates
+          - targetSelector
           type: object
         status:
           description: KubernetesApplicationStatus represents the observed state of
             a KubernetesApplication.
           properties:
-            clusterRef:
-              description: Cluster to which this application has been scheduled.
-              properties:
-                name:
-                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
-                  type: string
-              required:
-              - name
-              type: object
             conditionedStatus:
               description: A ConditionedStatus reflects the observed status of a managed
                 resource. Only one condition of each type may exist.
@@ -250,6 +241,15 @@ spec:
                 desired resources that have been successfully submitted to their scheduled
                 Kubernetes cluster.
               type: integer
+            targetRef:
+              description: Target to which this application has been scheduled.
+              properties:
+                name:
+                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                  type: string
+              required:
+              - name
+              type: object
           type: object
       type: object
   version: v1alpha1

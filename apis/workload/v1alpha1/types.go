@@ -58,10 +58,10 @@ type KubernetesApplicationSpec struct {
 	// TODO(muvaf): Only MatchLabels field of LabelSelector is used. Incorporate
 	// MatchExpressions as well when it's available as controller-runtime ListOption
 
-	// ClusterSelector selects the clusters to which this application may be
+	// TargetSelector selects the targets to which this application may be
 	// scheduled. Leave both match labels and expressions empty to match any
-	// cluster.
-	ClusterSelector *metav1.LabelSelector `json:"clusterSelector"`
+	// target.
+	TargetSelector *metav1.LabelSelector `json:"targetSelector"`
 
 	// TODO(negz): Use a validation webhook to ensure the below templates have
 	// unique names.
@@ -79,9 +79,9 @@ type KubernetesApplicationResourceTemplate struct {
 	Spec KubernetesApplicationResourceSpec `json:"spec,omitempty"`
 }
 
-// A KubernetesClusterReference is a reference to a KubernetesCluster resource
+// A KubernetesTargetReference is a reference to a KubernetesTarget resource
 // claim in the same namespace as the referrer.
-type KubernetesClusterReference struct {
+type KubernetesTargetReference struct {
 	// Name of the referent. More info:
 	// https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
 	Name string `json:"name"`
@@ -95,8 +95,8 @@ type KubernetesApplicationStatus struct {
 	// State of the application.
 	State KubernetesApplicationState `json:"state,omitempty"`
 
-	// Cluster to which this application has been scheduled.
-	Cluster *KubernetesClusterReference `json:"clusterRef,omitempty"`
+	// Target to which this application has been scheduled.
+	Target *KubernetesTargetReference `json:"targetRef,omitempty"`
 
 	// Desired resources of this application, i.e. the number of resources
 	// that match this application's resource selector.
@@ -198,8 +198,8 @@ type KubernetesApplicationResourceStatus struct {
 	// State of the application.
 	State KubernetesApplicationResourceState `json:"state,omitempty"`
 
-	// Cluster to which this application has been scheduled.
-	Cluster *KubernetesClusterReference `json:"clusterRef,omitempty"`
+	// Target to which this application has been scheduled.
+	Target *KubernetesTargetReference `json:"targetRef,omitempty"`
 
 	// Remote status of the resource templated by this application resource.
 	Remote *RemoteStatus `json:"remote,omitempty"`
@@ -230,4 +230,34 @@ type KubernetesApplicationResourceList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []KubernetesApplicationResource `json:"items"`
+}
+
+// KubernetesTargetSpec specifies the desired state of a KubernetesTarget.
+type KubernetesTargetSpec struct {
+	// Reference to a Kubernetes cluster managed resource.
+	ClusterRef *corev1.ObjectReference `json:"clusterRef,omitempty"`
+
+	// Reference to a connection secret that can be used to schedule to an
+	// external Kubernetes cluster.
+	ConnectionSecretRef *runtimev1alpha1.LocalSecretReference `json:"connectionSecretRef,omitempty"`
+}
+
+// +kubebuilder:object:root=true
+
+// A KubernetesTarget is a scheduling target for a Kubernetes Application.
+// +kubebuilder:printcolumn:name="CLUSTER",type="string",JSONPath=".spec.clusterRef.name"
+type KubernetesTarget struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec KubernetesTargetSpec `json:"spec"`
+}
+
+// +kubebuilder:object:root=true
+
+// KubernetesTargetList contains a list of KubernetesTarget.
+type KubernetesTargetList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []KubernetesTarget `json:"items"`
 }

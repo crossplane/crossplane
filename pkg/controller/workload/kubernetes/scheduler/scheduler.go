@@ -30,7 +30,6 @@ import (
 
 	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
-	computev1alpha1 "github.com/crossplaneio/crossplane/apis/compute/v1alpha1"
 	workloadv1alpha1 "github.com/crossplaneio/crossplane/apis/workload/v1alpha1"
 )
 
@@ -47,24 +46,24 @@ type scheduler interface {
 }
 
 type roundRobinScheduler struct {
-	kube             client.Client
-	lastClusterIndex uint64
+	kube            client.Client
+	lastTargetIndex uint64
 }
 
 func (s *roundRobinScheduler) schedule(ctx context.Context, app *workloadv1alpha1.KubernetesApplication) reconcile.Result {
 	app.Status.State = workloadv1alpha1.KubernetesApplicationStatePending
 
-	clusters := &computev1alpha1.KubernetesClusterList{}
-	if err := s.kube.List(ctx, clusters, client.InNamespace(app.GetNamespace()), client.MatchingLabels(app.Spec.ClusterSelector.MatchLabels)); err != nil {
+	clusters := &workloadv1alpha1.KubernetesTargetList{}
+	if err := s.kube.List(ctx, clusters, client.InNamespace(app.GetNamespace()), client.MatchingLabels(app.Spec.TargetSelector.MatchLabels)); err != nil {
 		app.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}
 	}
 
-	// Filter out KubernetesCluster claims that don't specify a connection
+	// Filter out KubernetesTargets that don't specify a connection
 	// secret. We can't run a workload on a cluster that we can't connect to.
-	usable := make([]computev1alpha1.KubernetesCluster, 0)
+	usable := make([]workloadv1alpha1.KubernetesTarget, 0)
 	for _, c := range clusters.Items {
-		if c.Spec.WriteConnectionSecretToReference != nil {
+		if c.Spec.ConnectionSecretRef != nil {
 			usable = append(usable, c)
 		}
 	}
@@ -74,12 +73,12 @@ func (s *roundRobinScheduler) schedule(ctx context.Context, app *workloadv1alpha
 		return reconcile.Result{Requeue: true}
 	}
 
-	// Round-robin cluster selection
-	index := int(s.lastClusterIndex % uint64(len(usable)))
-	cluster := usable[index]
-	s.lastClusterIndex++
+	// Round-robin target selection
+	index := int(s.lastTargetIndex % uint64(len(usable)))
+	target := usable[index]
+	s.lastTargetIndex++
 
-	app.Status.Cluster = &workloadv1alpha1.KubernetesClusterReference{Name: cluster.Name}
+	app.Status.Target = &workloadv1alpha1.KubernetesTargetReference{Name: target.Name}
 	app.Status.State = workloadv1alpha1.KubernetesApplicationStateScheduled
 	app.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
 
@@ -87,23 +86,23 @@ func (s *roundRobinScheduler) schedule(ctx context.Context, app *workloadv1alpha
 }
 
 // CreatePredicate accepts KubernetesApplications that have not yet been
-// scheduled to a KubernetesCluster.
+// scheduled to a KubernetesTarget.
 func CreatePredicate(e event.CreateEvent) bool {
 	wl, ok := e.Object.(*workloadv1alpha1.KubernetesApplication)
 	if !ok {
 		return false
 	}
-	return wl.Status.Cluster == nil
+	return wl.Status.Target == nil
 }
 
 // UpdatePredicate accepts KubernetesApplications that have not yet been
-// scheduled to a KubernetesCluster.
+// scheduled to a KubernetesTarget.
 func UpdatePredicate(e event.UpdateEvent) bool {
 	wl, ok := e.ObjectNew.(*workloadv1alpha1.KubernetesApplication)
 	if !ok {
 		return false
 	}
-	return wl.Status.Cluster == nil
+	return wl.Status.Target == nil
 }
 
 // Controller is responsible for adding the Scheduler
@@ -125,13 +124,13 @@ func (c *Controller) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-// A Reconciler schedules KubernetesApplications to KubernetesClusters.
+// A Reconciler schedules KubernetesApplications to KubernetesTargets.
 type Reconciler struct {
 	kube      client.Client
 	scheduler scheduler
 }
 
-// Reconcile attempts to schedule a KubernetesApplication to a KubernetesCluster
+// Reconcile attempts to schedule a KubernetesApplication to a KubernetesTarget
 // that matches its cluster selector.
 func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) {
 	log.V(logging.Debug).Info("reconciling", "kind", workloadv1alpha1.KubernetesApplicationKindAPIVersion, "request", req)
@@ -153,7 +152,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	}
 
 	// Someone already scheduled this application.
-	if app.Status.Cluster != nil {
+	if app.Status.Target != nil {
 		return reconcile.Result{RequeueAfter: requeueOnSuccess}, nil
 	}
 

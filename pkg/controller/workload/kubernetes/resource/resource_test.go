@@ -42,7 +42,6 @@ import (
 
 	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane-runtime/pkg/test"
-	computev1alpha1 "github.com/crossplaneio/crossplane/apis/compute/v1alpha1"
 	"github.com/crossplaneio/crossplane/apis/workload/v1alpha1"
 )
 
@@ -63,16 +62,14 @@ var (
 	}
 	ctx = context.Background()
 
-	cluster = &computev1alpha1.KubernetesCluster{
-		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: "coolCluster"},
-		Spec: computev1alpha1.KubernetesClusterSpec{
-			ResourceClaimSpec: runtimev1alpha1.ResourceClaimSpec{
-				WriteConnectionSecretToReference: &runtimev1alpha1.LocalSecretReference{Name: secret.GetName()},
-			},
+	target = &v1alpha1.KubernetesTarget{
+		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: "coolTarget"},
+		Spec: v1alpha1.KubernetesTargetSpec{
+			ConnectionSecretRef: &runtimev1alpha1.LocalSecretReference{Name: secret.GetName()},
 		},
 	}
 
-	clusterRef = &v1alpha1.KubernetesClusterReference{Name: cluster.GetName()}
+	targetRef = &v1alpha1.KubernetesTargetReference{Name: target.GetName()}
 
 	apiServerURL, _ = url.Parse("https://example.org")
 	malformedURL    = ":wat:"
@@ -198,9 +195,9 @@ func withDeletionTimestamp(t time.Time) kubeARModifier {
 	}
 }
 
-func withCluster(name string) kubeARModifier {
+func withTarget(name string) kubeARModifier {
 	return func(r *v1alpha1.KubernetesApplicationResource) {
-		r.Status.Cluster = &v1alpha1.KubernetesClusterReference{Name: name}
+		r.Status.Target = &v1alpha1.KubernetesTargetReference{Name: name}
 	}
 }
 
@@ -237,7 +234,7 @@ func TestCreatePredicate(t *testing.T) {
 			event: event.CreateEvent{
 				Object: &v1alpha1.KubernetesApplicationResource{
 					Status: v1alpha1.KubernetesApplicationResourceStatus{
-						Cluster: clusterRef,
+						Target: targetRef,
 					},
 				},
 			},
@@ -279,7 +276,7 @@ func TestUpdatePredicate(t *testing.T) {
 			event: event.UpdateEvent{
 				ObjectNew: &v1alpha1.KubernetesApplicationResource{
 					Status: v1alpha1.KubernetesApplicationResourceStatus{
-						Cluster: clusterRef,
+						Target: targetRef,
 					},
 				},
 			},
@@ -1044,19 +1041,19 @@ func TestConnectConfig(t *testing.T) {
 				kube: &test.MockClient{
 					MockGet: func(_ context.Context, got client.ObjectKey, obj runtime.Object) error {
 						switch actual := obj.(type) {
-						case *computev1alpha1.KubernetesCluster:
+						case *v1alpha1.KubernetesTarget:
 							want := client.ObjectKey{
-								Namespace: cluster.GetNamespace(),
-								Name:      cluster.GetName(),
+								Namespace: target.GetNamespace(),
+								Name:      target.GetName(),
 							}
 							if diff := cmp.Diff(want, got); diff != "" {
 								return errors.Errorf("MockGet(Secret): -want, +got: %s", diff)
 							}
-							*actual = *cluster
+							*actual = *target
 
 						case *corev1.Secret:
 							want := client.ObjectKey{
-								Namespace: cluster.GetNamespace(),
+								Namespace: target.GetNamespace(),
 								Name:      secret.GetName(),
 							}
 							if diff := cmp.Diff(want, got); diff != "" {
@@ -1071,7 +1068,7 @@ func TestConnectConfig(t *testing.T) {
 				},
 				options: client.Options{Mapper: mockRESTMapper{}},
 			},
-			ar: kubeAR(withCluster(cluster.GetName())),
+			ar: kubeAR(withTarget(target.GetName())),
 			wantConfig: &rest.Config{
 				Host:     apiServerURL.String(),
 				Username: string(secret.Data[runtimev1alpha1.ResourceCredentialsSecretUserKey]),
@@ -1094,14 +1091,14 @@ func TestConnectConfig(t *testing.T) {
 				v1alpha1.KubernetesApplicationResourceKind, objectMeta.GetNamespace(), objectMeta.GetName()),
 		},
 		{
-			name: "GetKubernetesClusterFailed",
+			name: "GetKubernetesTargetFailed",
 			connecter: &clusterConnecter{
 				kube:    &test.MockClient{MockGet: test.NewMockGetFn(errorBoom)},
 				options: client.Options{Mapper: mockRESTMapper{}},
 			},
-			ar: kubeAR(withCluster(cluster.GetName())),
+			ar: kubeAR(withTarget(target.GetName())),
 			wantErr: errors.Wrapf(errorBoom, "cannot get %s %s/%s",
-				computev1alpha1.KubernetesClusterKind, cluster.GetNamespace(), cluster.GetName()),
+				v1alpha1.KubernetesTargetKind, target.GetNamespace(), target.GetName()),
 		},
 		{
 			name: "GetConnectionSecretFailed",
@@ -1109,8 +1106,8 @@ func TestConnectConfig(t *testing.T) {
 				kube: &test.MockClient{
 					MockGet: func(_ context.Context, _ client.ObjectKey, obj runtime.Object) error {
 						switch actual := obj.(type) {
-						case *computev1alpha1.KubernetesCluster:
-							*actual = *cluster
+						case *v1alpha1.KubernetesTarget:
+							*actual = *target
 						case *corev1.Secret:
 							return errorBoom
 						}
@@ -1119,7 +1116,7 @@ func TestConnectConfig(t *testing.T) {
 				},
 				options: client.Options{Mapper: mockRESTMapper{}},
 			},
-			ar:      kubeAR(withCluster(cluster.GetName())),
+			ar:      kubeAR(withTarget(target.GetName())),
 			wantErr: errors.Wrapf(errorBoom, "cannot get secret %s/%s", secret.GetNamespace(), secret.GetName()),
 		},
 		{
@@ -1128,8 +1125,8 @@ func TestConnectConfig(t *testing.T) {
 				kube: &test.MockClient{
 					MockGet: func(_ context.Context, _ client.ObjectKey, obj runtime.Object) error {
 						switch actual := obj.(type) {
-						case *computev1alpha1.KubernetesCluster:
-							*actual = *cluster
+						case *v1alpha1.KubernetesTarget:
+							*actual = *target
 						case *corev1.Secret:
 							s := secret.DeepCopy()
 							s.Data[runtimev1alpha1.ResourceCredentialsSecretEndpointKey] = []byte(malformedURL)
@@ -1140,7 +1137,7 @@ func TestConnectConfig(t *testing.T) {
 				},
 				options: client.Options{Mapper: mockRESTMapper{}},
 			},
-			ar:      kubeAR(withCluster(cluster.GetName())),
+			ar:      kubeAR(withTarget(target.GetName())),
 			wantErr: errors.WithStack(errors.Errorf("cannot parse Kubernetes endpoint as URL: parse %s: missing protocol scheme", malformedURL)),
 		},
 	}
@@ -1173,15 +1170,15 @@ func TestConnect(t *testing.T) {
 			connecter: &clusterConnecter{
 				kube: &test.MockClient{
 					MockGet: func(_ context.Context, _ client.ObjectKey, obj runtime.Object) error {
-						if actual, ok := obj.(*computev1alpha1.KubernetesCluster); ok {
-							*actual = *cluster
+						if actual, ok := obj.(*v1alpha1.KubernetesTarget); ok {
+							*actual = *target
 						}
 						return nil
 					},
 				},
 				options: client.Options{Mapper: mockRESTMapper{}},
 			},
-			ar: kubeAR(withCluster(cluster.GetName())),
+			ar: kubeAR(withTarget(target.GetName())),
 
 			// This empty struct is 'identical' to the actual, populated struct
 			// returned by tc.connecter.connect() because we do not compare
@@ -1197,7 +1194,7 @@ func TestConnect(t *testing.T) {
 				kube:    &test.MockClient{MockGet: test.NewMockGetFn(nil)},
 				options: client.Options{Mapper: mockRESTMapper{}},
 			},
-			ar: kubeAR(withCluster(cluster.GetName())),
+			ar: kubeAR(withTarget(target.GetName())),
 
 			// This empty struct is 'identical' to the actual, populated struct
 			// returned by tc.connecter.connect() because we do not compare
@@ -1205,7 +1202,7 @@ func TestConnect(t *testing.T) {
 			// because doing so would mostly be testing controller-runtime's
 			// client.New() code, not ours.
 			wantErr: errors.Wrap(
-				errors.Errorf("%s %s/%s has no connection secret", computev1alpha1.KubernetesClusterKind, cluster.GetNamespace(), cluster.GetName()),
+				errors.Errorf("%s %s/%s has no connection secret", v1alpha1.KubernetesTargetKind, target.GetNamespace(), target.GetName()),
 				"cannot create Kubernetes client configuration"),
 		},
 		{
@@ -1213,9 +1210,9 @@ func TestConnect(t *testing.T) {
 			connecter: &clusterConnecter{
 				kube: &test.MockClient{MockGet: test.NewMockGetFn(errorBoom)},
 			},
-			ar: kubeAR(withCluster(cluster.GetName())),
+			ar: kubeAR(withTarget(target.GetName())),
 			wantErr: errors.Wrapf(errorBoom, "cannot create Kubernetes client configuration: cannot get %s %s/%s",
-				computev1alpha1.KubernetesClusterKind, cluster.GetNamespace(), cluster.GetName()),
+				v1alpha1.KubernetesTargetKind, target.GetNamespace(), target.GetName()),
 		},
 	}
 
