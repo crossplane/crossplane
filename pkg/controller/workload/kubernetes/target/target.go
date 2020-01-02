@@ -110,9 +110,6 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			Namespace:       req.Namespace,
 			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.ReferenceTo(cluster, computev1alpha1.KubernetesClusterGroupVersionKind))},
 		},
-		Spec: workloadv1alpha1.KubernetesTargetSpec{
-			ConnectionSecretRef: cluster.GetWriteConnectionSecretToReference(),
-		},
 	}
 
 	_, err := util.CreateOrUpdate(ctx, r.kube, target, func() error {
@@ -121,6 +118,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		}
 
 		target.Spec.ConnectionSecretRef = cluster.GetWriteConnectionSecretToReference()
+		target.SetLabels(cluster.GetLabels())
 
 		return nil
 	})

@@ -65,6 +65,12 @@ func withWriteConnectionSecretToRef(s *runtimev1alpha1.LocalSecretReference) kub
 	}
 }
 
+func withLabels(l map[string]string) kubeClusterModifier {
+	return func(r *computev1alpha1.KubernetesCluster) {
+		r.SetLabels(l)
+	}
+}
+
 func kubeCluster(rm ...kubeClusterModifier) *computev1alpha1.KubernetesCluster {
 	r := &computev1alpha1.KubernetesCluster{ObjectMeta: objectMeta}
 
@@ -86,6 +92,12 @@ func withOwnerReferences(o []metav1.OwnerReference) kubeTargetModifier {
 func withConnectionSecretRef(s *runtimev1alpha1.LocalSecretReference) kubeTargetModifier {
 	return func(r *workloadv1alpha1.KubernetesTarget) {
 		r.Spec.ConnectionSecretRef = s
+	}
+}
+
+func withTargetLabels(l map[string]string) kubeTargetModifier {
+	return func(r *workloadv1alpha1.KubernetesTarget) {
+		r.SetLabels(l)
 	}
 }
 
@@ -248,7 +260,7 @@ func TestReconcile(t *testing.T) {
 						if key == clusterKey {
 							*obj.(*computev1alpha1.KubernetesCluster) = *kubeCluster(withWriteConnectionSecretToRef(
 								&runtimev1alpha1.LocalSecretReference{Name: "super-secret"},
-							))
+							), withLabels(map[string]string{"dev": "true"}))
 							return nil
 						}
 
@@ -265,7 +277,9 @@ func TestReconcile(t *testing.T) {
 									Controller: &controller,
 								},
 							},
-						), withConnectionSecretRef(&runtimev1alpha1.LocalSecretReference{Name: "super-secret"}))
+						),
+							withConnectionSecretRef(&runtimev1alpha1.LocalSecretReference{Name: "super-secret"}),
+							withTargetLabels(map[string]string{"dev": "true"}))
 						if diff := cmp.Diff(want, got); diff != "" {
 							t.Errorf("-want, +got:\n%s", diff)
 						}
@@ -285,7 +299,7 @@ func TestReconcile(t *testing.T) {
 						case client.ObjectKey{Namespace: namespace, Name: name}:
 							*obj.(*computev1alpha1.KubernetesCluster) = *kubeCluster(withWriteConnectionSecretToRef(
 								&runtimev1alpha1.LocalSecretReference{Name: "super-secret"},
-							))
+							), withLabels(map[string]string{"dev": "true"}))
 						case client.ObjectKey{Namespace: namespace, Name: targetName}:
 							*obj.(*workloadv1alpha1.KubernetesTarget) = *kubeTarget(withOwnerReferences(
 								[]metav1.OwnerReference{
@@ -297,7 +311,9 @@ func TestReconcile(t *testing.T) {
 										Controller: &controller,
 									},
 								},
-							), withConnectionSecretRef(&runtimev1alpha1.LocalSecretReference{Name: "wrong-secret"}))
+							),
+								withConnectionSecretRef(&runtimev1alpha1.LocalSecretReference{Name: "super-secret"}),
+								withTargetLabels(map[string]string{"not": "dev"}))
 						}
 						return nil
 					},
@@ -312,7 +328,9 @@ func TestReconcile(t *testing.T) {
 									Controller: &controller,
 								},
 							},
-						), withConnectionSecretRef(&runtimev1alpha1.LocalSecretReference{Name: "super-secret"}))
+						),
+							withConnectionSecretRef(&runtimev1alpha1.LocalSecretReference{Name: "super-secret"}),
+							withTargetLabels(map[string]string{"dev": "true"}))
 						if diff := cmp.Diff(want, got); diff != "" {
 							t.Errorf("-want, +got:\n%s", diff)
 						}
@@ -332,7 +350,7 @@ func TestReconcile(t *testing.T) {
 						case client.ObjectKey{Namespace: namespace, Name: name}:
 							*obj.(*computev1alpha1.KubernetesCluster) = *kubeCluster(withWriteConnectionSecretToRef(
 								&runtimev1alpha1.LocalSecretReference{Name: "super-secret"},
-							))
+							), withLabels(map[string]string{"dev": "true"}))
 						case client.ObjectKey{Namespace: namespace, Name: targetName}:
 							*obj.(*workloadv1alpha1.KubernetesTarget) = *kubeTarget(withOwnerReferences(
 								[]metav1.OwnerReference{
@@ -359,7 +377,9 @@ func TestReconcile(t *testing.T) {
 									Controller: &controller,
 								},
 							},
-						), withConnectionSecretRef(&runtimev1alpha1.LocalSecretReference{Name: "super-secret"}))
+						),
+							withConnectionSecretRef(&runtimev1alpha1.LocalSecretReference{Name: "super-secret"}),
+							withTargetLabels(map[string]string{"dev": "true"}))
 						if diff := cmp.Diff(want, got); diff != "" {
 							t.Errorf("-want, +got:\n%s", diff)
 						}
