@@ -58,18 +58,18 @@ resourceStatus:
       lastTransitionTime: .status.someRandomStatuses.SyncFailure.updatedTime
   states:
     Online:
-    - Ready: 'True'
-      Synchronized: 'True'
-      SyncFailure: 'False'
-    - Ready: 'True'
-      Synchronized: 'True'
+    - Ready: True
+      Synchronized: True
+      SyncFailure: False
+    - Ready: True
+      Synchronized: True
       SyncFailure: not 'True'
     Offline:
-    - Ready: 'False'
-      Synchronized: 'False'
-    - Ready: 'True'
+    - Ready: False
+      Synchronized: False
+    - Ready: True
       Synchronized: not 'True'
-      SyncFailure: 'True'
+      SyncFailure: True
     Warning:
     - Ready: 'False'
       Synchronized: 'True'
