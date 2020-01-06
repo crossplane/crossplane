@@ -11,12 +11,14 @@ represent high level _"stop-light"_ conditions.
 
 The high level conditions would be:
 - Online
+  > _When a resource instance is fully available for use with no errors or failures_
 - Offline
+  > _When a resource instance is **not** available for use, potentially with many errors and failures_
 - Warning
+  > _When a resource instance is **Online** but may have some errors or failures that do not affect its "Readiness"_
 - Unknown
-
-The **Unknown** condition is interesting because this would be returned if the conditions were annotated but we cannot
-verify a known state based on the given rules. _(Essentially a default case in a switch block)_.
+  > _This would be returned if the conditions were annotated but we cannot verify a known state based on the given rules._
+  > _(Essentially a default case in a switch block)_
 
 ## Design
 
