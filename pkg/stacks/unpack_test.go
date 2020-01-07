@@ -251,15 +251,15 @@ metadata:
       configSections:
       - title: group Title
         description: group Description
-      resourceConditionPaths:
-      - .status.conditionedStatus.conditions[?(@.type=='Ready')]
+      printerColumns:
+        Ready: .status.conditionedStatus.conditions[?(@.type=='Ready')]
       ---
       version: 0.4
       configSections:
       - title: sibling Title
         description: sibling Description
-      resourceConditionPaths:
-      - .status.conditionedStatus.conditions[?(@.type=='Ready')]
+      printerColumns:
+        Ready: .status.conditionedStatus.conditions[?(@.type=='Ready')]
   creationTimestamp: null
   labels:
     app.kubernetes.io/managed-by: stack-manager
@@ -337,22 +337,22 @@ metadata:
       configSections:
       - title: group Title
         description: group Description
-      resourceConditionPaths:
-      - .status.conditionedStatus.conditions[?(@.type=='Ready')]
+      printerColumns:
+        Ready: .status.conditionedStatus.conditions[?(@.type=='Ready')]
       ---
       version: 0.4
       configSections:
       - title: sibling Title
         description: sibling Description
-      resourceConditionPaths:
-      - .status.conditionedStatus.conditions[?(@.type=='Ready')]
+      printerColumns:
+        Ready: .status.conditionedStatus.conditions[?(@.type=='Ready')]
       ---
       version: 0.4
       configSections:
       - title: kind Title
         description: kind Description
-      resourceConditionPaths:
-      - .status.conditionedStatus.conditions[?(@.type=='Ready')]
+      printerColumns:
+        Ready: .status.conditionedStatus.conditions[?(@.type=='Ready')]
   creationTimestamp: null
   labels:
     app.kubernetes.io/managed-by: stack-manager
@@ -391,8 +391,8 @@ metadata:
       configSections:
       - title: group Title
         description: group Description
-      resourceConditionPaths:
-      - .status.conditionedStatus.conditions[?(@.type=='Ready')]
+      printerColumns:
+        Ready: .status.conditionedStatus.conditions[?(@.type=='Ready')]
   creationTimestamp: null
   labels:
     app.kubernetes.io/managed-by: stack-manager
@@ -556,15 +556,15 @@ metadata:
       configSections:
       - title: group Title
         description: group Description
-      resourceConditionPaths:
-      - .status.conditionedStatus.conditions[?(@.type=='Ready')]
+      printerColumns:
+        Ready: .status.conditionedStatus.conditions[?(@.type=='Ready')]
       ---
       version: 0.4
       configSections:
       - title: sibling Title
         description: sibling Description
-      resourceConditionPaths:
-      - .status.conditionedStatus.conditions[?(@.type=='Ready')]
+      printerColumns:
+        Ready: .status.conditionedStatus.conditions[?(@.type=='Ready')]
   creationTimestamp: null
   labels:
     app.kubernetes.io/managed-by: stack-manager
@@ -642,22 +642,22 @@ metadata:
       configSections:
       - title: group Title
         description: group Description
-      resourceConditionPaths:
-      - .status.conditionedStatus.conditions[?(@.type=='Ready')]
+      printerColumns:
+        Ready: .status.conditionedStatus.conditions[?(@.type=='Ready')]
       ---
       version: 0.4
       configSections:
       - title: sibling Title
         description: sibling Description
-      resourceConditionPaths:
-      - .status.conditionedStatus.conditions[?(@.type=='Ready')]
+      printerColumns:
+        Ready: .status.conditionedStatus.conditions[?(@.type=='Ready')]
       ---
       version: 0.4
       configSections:
       - title: kind Title
         description: kind Description
-      resourceConditionPaths:
-      - .status.conditionedStatus.conditions[?(@.type=='Ready')]
+      printerColumns:
+        Ready: .status.conditionedStatus.conditions[?(@.type=='Ready')]
   creationTimestamp: null
   labels:
     app.kubernetes.io/managed-by: stack-manager
@@ -696,8 +696,8 @@ metadata:
       configSections:
       - title: group Title
         description: group Description
-      resourceConditionPaths:
-      - .status.conditionedStatus.conditions[?(@.type=='Ready')]
+      printerColumns:
+        Ready: .status.conditionedStatus.conditions[?(@.type=='Ready')]
   creationTimestamp: null
   labels:
     app.kubernetes.io/managed-by: stack-manager
@@ -1073,8 +1073,8 @@ func simpleUIFile(name string) string {
 configSections:
 - title: %s Title
   description: %s Description
-resourceConditionPaths:
-- .status.conditionedStatus.conditions[?(@.type=='Ready')]
+printerColumns:
+  Ready: .status.conditionedStatus.conditions[?(@.type=='Ready')]
 `, name, name)
 }
 
