@@ -40,7 +40,7 @@ import (
 	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
 	runtimeresource "github.com/crossplaneio/crossplane-runtime/pkg/resource"
 	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/controller/stacks/host"
+	"github.com/crossplaneio/crossplane/pkg/controller/stacks/hosted"
 	"github.com/crossplaneio/crossplane/pkg/stacks"
 )
 
@@ -91,8 +91,23 @@ type Reconciler struct {
 	// hostKube is controller runtime client for workload (a.k.a host) Kubernetes where jobs for stack installs and
 	// stack controller deployments/jobs created.
 	hostKube     client.Client
-	hostedConfig *host.HostedConfig
+	hostedConfig *hosted.Config
 	factory
+}
+
+// SMReconciler (Stack Manager Reconciler) reconciles on Stack, StackInstall or ClusterStackInstall custom resources.
+type SMReconciler interface {
+	SetHostedConfig(cfg *hosted.Config)
+}
+
+// SMReconcilerOption is used to configure a SMReconciler
+type SMReconcilerOption func(r SMReconciler)
+
+// WithHostedConfig returns a SMReconcilerOption configuring SMReconciler with input host aware config
+func WithHostedConfig(hCfg *hosted.Config) SMReconcilerOption {
+	return func(r SMReconciler) {
+		r.SetHostedConfig(hCfg)
+	}
 }
 
 // Controller is responsible for adding the Stack
@@ -101,22 +116,20 @@ type Controller struct{}
 
 // SetupWithManager creates a new Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
-func (c *Controller) SetupWithManager(mgr ctrl.Manager) error {
-	hostKube, _, err := host.GetClients()
-	if err != nil {
-		return err
-	}
-
-	hCfg, err := host.NewHostedConfig()
+func (c *Controller) SetupWithManager(mgr ctrl.Manager, smo ...SMReconcilerOption) error {
+	hostKube, _, err := hosted.GetClients()
 	if err != nil {
 		return err
 	}
 
 	r := &Reconciler{
-		kube:         mgr.GetClient(),
-		hostKube:     hostKube,
-		hostedConfig: hCfg,
-		factory:      &stackHandlerFactory{},
+		kube:     mgr.GetClient(),
+		hostKube: hostKube,
+		factory:  &stackHandlerFactory{},
+	}
+
+	for _, opt := range smo {
+		opt(r)
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -151,6 +164,11 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	return handler.sync(ctx)
 }
 
+// SetHostedConfig sets host aware config for Reconciler
+func (r *Reconciler) SetHostedConfig(cfg *hosted.Config) {
+	r.hostedConfig = cfg
+}
+
 type handler interface {
 	sync(context.Context) (reconcile.Result, error)
 	create(context.Context) (reconcile.Result, error)
@@ -164,17 +182,17 @@ type stackHandler struct {
 	// hostKube is controller runtime client for workload (a.k.a host) Kubernetes where jobs for stack installs and
 	// stack controller deployments/jobs created.
 	hostKube        client.Client
-	hostAwareConfig *host.HostedConfig
+	hostAwareConfig *hosted.Config
 	ext             *v1alpha1.Stack
 }
 
 type factory interface {
-	newHandler(context.Context, *v1alpha1.Stack, client.Client, client.Client, *host.HostedConfig) handler
+	newHandler(context.Context, *v1alpha1.Stack, client.Client, client.Client, *hosted.Config) handler
 }
 
 type stackHandlerFactory struct{}
 
-func (f *stackHandlerFactory) newHandler(ctx context.Context, ext *v1alpha1.Stack, kube client.Client, hostKube client.Client, hostAwareConfig *host.HostedConfig) handler {
+func (f *stackHandlerFactory) newHandler(ctx context.Context, ext *v1alpha1.Stack, kube client.Client, hostKube client.Client, hostAwareConfig *hosted.Config) handler {
 	return &stackHandler{
 		kube:            kube,
 		hostKube:        hostKube,

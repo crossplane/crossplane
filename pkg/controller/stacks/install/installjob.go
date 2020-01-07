@@ -39,7 +39,7 @@ import (
 	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
 	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
 	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/controller/stacks/host"
+	"github.com/crossplaneio/crossplane/pkg/controller/stacks/hosted"
 	"github.com/crossplaneio/crossplane/pkg/stacks"
 )
 
@@ -61,7 +61,7 @@ type stackInstallJobCompleter struct {
 	podLogReader Reader
 }
 
-func createInstallJob(i v1alpha1.StackInstaller, executorInfo *stacks.ExecutorInfo, hCfg *host.HostedConfig) *batchv1.Job {
+func createInstallJob(i v1alpha1.StackInstaller, executorInfo *stacks.ExecutorInfo, hCfg *hosted.Config) *batchv1.Job {
 	name := i.GetName()
 	namespace := i.GetNamespace()
 

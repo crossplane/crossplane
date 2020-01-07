@@ -40,7 +40,7 @@ import (
 	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
 	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/controller/stacks/host"
+	"github.com/crossplaneio/crossplane/pkg/controller/stacks/hosted"
 	"github.com/crossplaneio/crossplane/pkg/stacks"
 )
 
@@ -474,7 +474,7 @@ func TestCreate(t *testing.T) {
 				hostKube: &test.MockClient{
 					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error { return nil },
 				},
-				hostAwareConfig: &host.HostedConfig{HostControllerNamespace: hostControllerNamespace},
+				hostAwareConfig: &hosted.Config{HostControllerNamespace: hostControllerNamespace},
 				executorInfo:    &stacks.ExecutorInfo{Image: stackPackageImage},
 				ext:             resource(),
 			},

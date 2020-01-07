@@ -23,6 +23,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/crossplaneio/crossplane/pkg/controller/stacks/stack"
+
 	"github.com/pkg/errors"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -39,7 +41,7 @@ import (
 	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
 	runtimeresource "github.com/crossplaneio/crossplane-runtime/pkg/resource"
 	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/controller/stacks/host"
+	"github.com/crossplaneio/crossplane/pkg/controller/stacks/hosted"
 	"github.com/crossplaneio/crossplane/pkg/stacks"
 )
 
@@ -70,7 +72,7 @@ type k8sClients struct {
 type Reconciler struct {
 	sync.Mutex
 	k8sClients
-	hostedConfig *host.HostedConfig
+	hostedConfig *hosted.Config
 	stackinator  func() v1alpha1.StackInstaller
 	factory
 	executorInfoDiscoverer stacks.ExecutorInfoDiscoverer
@@ -84,16 +86,11 @@ type Controller struct {
 
 // SetupWithManager creates a new Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
-func (c *Controller) SetupWithManager(mgr ctrl.Manager) error {
+func (c *Controller) SetupWithManager(mgr ctrl.Manager, smo ...stack.SMReconcilerOption) error {
 	controllerName, stackInstaller := c.StackInstallCreator()
 
 	kube := mgr.GetClient()
-	hostKube, hostClient, err := host.GetClients()
-	if err != nil {
-		return err
-	}
-
-	hCfg, err := host.NewHostedConfig()
+	hostKube, hostClient, err := hosted.GetClients()
 	if err != nil {
 		return err
 	}
@@ -106,11 +103,15 @@ func (c *Controller) SetupWithManager(mgr ctrl.Manager) error {
 			hostKube:   hostKube,
 			hostClient: hostClient,
 		},
-		hostedConfig:           hCfg,
 		stackinator:            stackInstaller,
 		factory:                &handlerFactory{},
 		executorInfoDiscoverer: discoverer,
 	}
+
+	for _, opt := range smo {
+		opt(r)
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(controllerName).
 		For(stackInstaller()).
@@ -152,6 +153,11 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	return handler.sync(ctx)
 }
 
+// SetHostedConfig sets host aware config for Reconciler
+func (r *Reconciler) SetHostedConfig(cfg *hosted.Config) {
+	r.hostedConfig = cfg
+}
+
 // handler is an interface for handling reconciliation requests
 type handler interface {
 	sync(context.Context) (reconcile.Result, error)
@@ -164,7 +170,7 @@ type handler interface {
 type stackInstallHandler struct {
 	kube            client.Client
 	hostKube        client.Client
-	hostAwareConfig *host.HostedConfig
+	hostAwareConfig *hosted.Config
 	jobCompleter    jobCompleter
 	executorInfo    *stacks.ExecutorInfo
 	ext             v1alpha1.StackInstaller
@@ -172,12 +178,12 @@ type stackInstallHandler struct {
 
 // factory is an interface for creating new handlers
 type factory interface {
-	newHandler(context.Context, v1alpha1.StackInstaller, k8sClients, *host.HostedConfig, *stacks.ExecutorInfo) handler
+	newHandler(context.Context, v1alpha1.StackInstaller, k8sClients, *hosted.Config, *stacks.ExecutorInfo) handler
 }
 
 type handlerFactory struct{}
 
-func (f *handlerFactory) newHandler(ctx context.Context, ext v1alpha1.StackInstaller, k8s k8sClients, hostAwareConfig *host.HostedConfig,
+func (f *handlerFactory) newHandler(ctx context.Context, ext v1alpha1.StackInstaller, k8s k8sClients, hostAwareConfig *hosted.Config,
 	ei *stacks.ExecutorInfo) handler {
 
 	return &stackInstallHandler{

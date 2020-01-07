@@ -45,7 +45,7 @@ import (
 	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 	"github.com/crossplaneio/crossplane/apis/stacks"
 	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/controller/stacks/host"
+	"github.com/crossplaneio/crossplane/pkg/controller/stacks/hosted"
 	stackspkg "github.com/crossplaneio/crossplane/pkg/stacks"
 )
 
@@ -169,10 +169,10 @@ func resource(rm ...resourceModifier) *v1alpha1.Stack {
 // mockFactory and mockHandler
 // ************************************************************************************************
 type mockFactory struct {
-	MockNewHandler func(context.Context, *v1alpha1.Stack, client.Client, client.Client, *host.HostedConfig) handler
+	MockNewHandler func(context.Context, *v1alpha1.Stack, client.Client, client.Client, *hosted.Config) handler
 }
 
-func (f *mockFactory) newHandler(ctx context.Context, r *v1alpha1.Stack, c client.Client, h client.Client, hc *host.HostedConfig) handler {
+func (f *mockFactory) newHandler(ctx context.Context, r *v1alpha1.Stack, c client.Client, h client.Client, hc *hosted.Config) handler {
 	return f.MockNewHandler(ctx, r, c, nil, nil)
 }
 
@@ -281,7 +281,7 @@ func TestReconcile(t *testing.T) {
 					},
 				},
 				factory: &mockFactory{
-					MockNewHandler: func(context.Context, *v1alpha1.Stack, client.Client, client.Client, *host.HostedConfig) handler {
+					MockNewHandler: func(context.Context, *v1alpha1.Stack, client.Client, client.Client, *hosted.Config) handler {
 						return &mockHandler{
 							MockSync: func(context.Context) (reconcile.Result, error) {
 								return reconcile.Result{}, nil
@@ -860,7 +860,7 @@ func TestSyncSATokenSecret(t *testing.T) {
 		initObjs       []runtime.Object
 		clientFunc     func(initObjs ...runtime.Object) client.Client
 		hostClientFunc func() client.Client
-		hostawareCfg   *host.HostedConfig
+		hostawareCfg   *hosted.Config
 		want           want
 	}{
 		{
@@ -923,7 +923,7 @@ func TestSyncSATokenSecret(t *testing.T) {
 					},
 				}
 			},
-			hostawareCfg: &host.HostedConfig{HostControllerNamespace: hostControllerNamespace},
+			hostawareCfg: &hosted.Config{HostControllerNamespace: hostControllerNamespace},
 			want: want{
 				err: errors.Wrap(errBoom, errFailedToCreateTokenSecret),
 			},
@@ -935,7 +935,7 @@ func TestSyncSATokenSecret(t *testing.T) {
 			hostClientFunc: func() client.Client {
 				return fake.NewFakeClient()
 			},
-			hostawareCfg: &host.HostedConfig{HostControllerNamespace: hostControllerNamespace},
+			hostawareCfg: &hosted.Config{HostControllerNamespace: hostControllerNamespace},
 			want: want{
 				err: nil,
 				s: &corev1.Secret{
@@ -1014,7 +1014,7 @@ func TestProcessDeployment(t *testing.T) {
 		initObjs       []runtime.Object
 		clientFunc     func(initObjs ...runtime.Object) client.Client
 		hostClientFunc func() client.Client
-		hostawareCfg   *host.HostedConfig
+		hostawareCfg   *hosted.Config
 		want           want
 	}{
 		{
@@ -1054,7 +1054,7 @@ func TestProcessDeployment(t *testing.T) {
 					},
 				}
 			},
-			hostawareCfg: &host.HostedConfig{
+			hostawareCfg: &hosted.Config{
 				HostControllerNamespace: hostControllerNamespace,
 			},
 			want: want{
@@ -1078,7 +1078,7 @@ func TestProcessDeployment(t *testing.T) {
 					},
 				}
 			},
-			hostawareCfg: &host.HostedConfig{
+			hostawareCfg: &hosted.Config{
 				HostControllerNamespace: hostControllerNamespace,
 			},
 			want: want{
@@ -1126,7 +1126,7 @@ func TestProcessDeployment(t *testing.T) {
 			initObjs:       []runtime.Object{sa(withTokenSecret(corev1.ObjectReference{Name: resourceName, Namespace: namespace})), saSecret()},
 			clientFunc:     fake.NewFakeClient,
 			hostClientFunc: func() client.Client { return fake.NewFakeClient() },
-			hostawareCfg: &host.HostedConfig{
+			hostawareCfg: &hosted.Config{
 				HostControllerNamespace: hostControllerNamespace,
 			},
 			want: want{
@@ -1244,7 +1244,7 @@ func TestProcessJob(t *testing.T) {
 		initObjs       []runtime.Object
 		clientFunc     func(initObjs ...runtime.Object) client.Client
 		hostClientFunc func() client.Client
-		hostawareCfg   *host.HostedConfig
+		hostawareCfg   *hosted.Config
 		want           want
 	}{
 		{
@@ -1288,7 +1288,7 @@ func TestProcessJob(t *testing.T) {
 					},
 				}
 			},
-			hostawareCfg: &host.HostedConfig{
+			hostawareCfg: &hosted.Config{
 				HostControllerNamespace: hostControllerNamespace,
 			},
 			want: want{
@@ -1337,7 +1337,7 @@ func TestProcessJob(t *testing.T) {
 			initObjs:       []runtime.Object{sa(withTokenSecret(corev1.ObjectReference{Name: resourceName, Namespace: namespace})), saSecret()},
 			clientFunc:     fake.NewFakeClient,
 			hostClientFunc: func() client.Client { return fake.NewFakeClient() },
-			hostawareCfg: &host.HostedConfig{
+			hostawareCfg: &hosted.Config{
 				HostControllerNamespace: hostControllerNamespace,
 			},
 			want: want{
@@ -1495,7 +1495,7 @@ func TestStackDelete(t *testing.T) {
 						return nil
 					},
 				},
-				hostAwareConfig: &host.HostedConfig{HostControllerNamespace: hostControllerNamespace},
+				hostAwareConfig: &hosted.Config{HostControllerNamespace: hostControllerNamespace},
 			},
 			want: want{
 				result: resultRequeue,
@@ -1522,7 +1522,7 @@ func TestStackDelete(t *testing.T) {
 						return nil
 					},
 				},
-				hostAwareConfig: &host.HostedConfig{HostControllerNamespace: hostControllerNamespace},
+				hostAwareConfig: &hosted.Config{HostControllerNamespace: hostControllerNamespace},
 			},
 			want: want{
 				result: resultRequeue,
@@ -1631,7 +1631,7 @@ func Test_stackHandler_prepareHostAwareJob(t *testing.T) {
 	type fields struct {
 		kube            client.Client
 		hostKube        client.Client
-		hostAwareConfig *host.HostedConfig
+		hostAwareConfig *hosted.Config
 		ext             *v1alpha1.Stack
 	}
 	type args struct {
@@ -1677,7 +1677,7 @@ func Test_stackHandler_prepareHostAwareDeployment(t *testing.T) {
 	type fields struct {
 		kube            client.Client
 		hostKube        client.Client
-		hostAwareConfig *host.HostedConfig
+		hostAwareConfig *hosted.Config
 		ext             *v1alpha1.Stack
 	}
 	type args struct {
@@ -1723,7 +1723,7 @@ func Test_stackHandler_prepareHostAwarePodSpec(t *testing.T) {
 	type fields struct {
 		kube            client.Client
 		hostKube        client.Client
-		hostAwareConfig *host.HostedConfig
+		hostAwareConfig *hosted.Config
 		ext             *v1alpha1.Stack
 	}
 	type args struct {

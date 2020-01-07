@@ -1,8 +1,7 @@
-package host
+package hosted
 
 import (
 	"fmt"
-	"os"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -14,75 +13,56 @@ import (
 
 func TestNewConfig(t *testing.T) {
 	type args struct {
-		env map[string]string
+		hostControllerNamespace string
+		tenantAPIServiceHost    string
+		tenantAPIServicePort    string
 	}
 	type want struct {
-		out *HostedConfig
+		out *Config
 		err error
 	}
 	cases := map[string]struct {
 		args
 		want
 	}{
-		"HostedModeDisabled": {
-			args: args{
-				env: nil,
-			},
-			want: want{
-				out: nil,
-				err: nil,
-			},
-		},
 		"MissingControllerNamespace": {
 			args: args{
-				env: map[string]string{
-					EnvTenantKubeconfig:            "path/to/test",
-					envTenantKubernetesServiceHost: "test-apiserver",
-					envTenantKubernetesServicePort: "6443",
-				},
+				tenantAPIServiceHost: "test-apiserver",
+				tenantAPIServicePort: "6443",
 			},
 			want: want{
 				out: nil,
-				err: errors.New(fmt.Sprintf(errMissingEnvVar, envControllerNamespace)),
+				err: errors.New(fmt.Sprintf(errMissingOption, "hostControllerNamespace")),
 			},
 		},
 		"MissingHost": {
 			args: args{
-				env: map[string]string{
-					EnvTenantKubeconfig:            "path/to/test",
-					envControllerNamespace:         "test-ns",
-					envTenantKubernetesServicePort: "6443",
-				},
+				hostControllerNamespace: "test-ns",
+				tenantAPIServicePort:    "6443",
 			},
 			want: want{
 				out: nil,
-				err: errors.New(fmt.Sprintf(errMissingEnvVar, envTenantKubernetesServiceHost)),
+				err: errors.New(fmt.Sprintf(errMissingOption, "tenantAPIServiceHost")),
 			},
 		},
 		"MissingPort": {
 			args: args{
-				env: map[string]string{
-					EnvTenantKubeconfig:            "path/to/test",
-					envControllerNamespace:         "test-ns",
-					envTenantKubernetesServiceHost: "test-apiserver",
-				},
+				hostControllerNamespace: "test-ns",
+				tenantAPIServiceHost:    "test-apiserver",
 			},
 			want: want{
 				out: nil,
-				err: errors.New(fmt.Sprintf(errMissingEnvVar, envTenantKubernetesServicePort)),
+				err: errors.New(fmt.Sprintf(errMissingOption, "tenantAPIServicePort")),
 			},
 		},
 		"Success": {
 			args: args{
-				env: map[string]string{
-					EnvTenantKubeconfig:            "path/to/test",
-					envControllerNamespace:         "test-ns",
-					envTenantKubernetesServiceHost: "test-apiserver",
-					envTenantKubernetesServicePort: "6443",
-				},
+				hostControllerNamespace: "test-ns",
+				tenantAPIServiceHost:    "test-apiserver",
+				tenantAPIServicePort:    "6443",
 			},
 			want: want{
-				out: &HostedConfig{
+				out: &Config{
 					HostControllerNamespace: "test-ns",
 					TenantAPIServiceHost:    "test-apiserver",
 					TenantAPIServicePort:    "6443",
@@ -93,16 +73,12 @@ func TestNewConfig(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			os.Clearenv()
-			for k, v := range tc.env {
-				os.Setenv(k, v)
-			}
-			got, gotErr := NewHostedConfig()
+			got, gotErr := NewConfig(tc.hostControllerNamespace, tc.tenantAPIServiceHost, tc.tenantAPIServicePort)
 			if diff := cmp.Diff(tc.want.err, gotErr, test.EquateErrors()); diff != "" {
-				t.Fatalf("NewHostedConfig(...): -want error, +got error: %s", diff)
+				t.Fatalf("NewConfig(...): -want error, +got error: %s", diff)
 			}
 			if diff := cmp.Diff(tc.want.out, got); diff != "" {
-				t.Errorf("NewHostedConfig(...): -want result, +got result: %s", diff)
+				t.Errorf("NewConfig(...): -want result, +got result: %s", diff)
 			}
 		})
 	}
@@ -138,7 +114,7 @@ func TestConfig_ObjectReferenceOnHost(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			c := &HostedConfig{
+			c := &Config{
 				HostControllerNamespace: tc.hostControllerNamespace,
 			}
 			got := c.ObjectReferenceOnHost(tc.name, tc.namespace)

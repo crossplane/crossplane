@@ -37,7 +37,7 @@ import (
 	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 	stacksapi "github.com/crossplaneio/crossplane/apis/stacks"
 	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/controller/stacks/host"
+	"github.com/crossplaneio/crossplane/pkg/controller/stacks/hosted"
 	"github.com/crossplaneio/crossplane/pkg/stacks"
 )
 
@@ -124,10 +124,10 @@ func clusterInstallResource(rm ...resourceModifier) *v1alpha1.ClusterStackInstal
 
 // mock implementations
 type mockFactory struct {
-	MockNewHandler func(context.Context, v1alpha1.StackInstaller, k8sClients, *host.HostedConfig, *stacks.ExecutorInfo) handler
+	MockNewHandler func(context.Context, v1alpha1.StackInstaller, k8sClients, *hosted.Config, *stacks.ExecutorInfo) handler
 }
 
-func (f *mockFactory) newHandler(ctx context.Context, i v1alpha1.StackInstaller, k8s k8sClients, hostAwareConfig *host.HostedConfig,
+func (f *mockFactory) newHandler(ctx context.Context, i v1alpha1.StackInstaller, k8s k8sClients, hostAwareConfig *hosted.Config,
 	ei *stacks.ExecutorInfo) handler {
 	return f.MockNewHandler(ctx, i, k8s, hostAwareConfig, ei)
 }
@@ -196,7 +196,7 @@ func TestReconcile(t *testing.T) {
 					},
 				},
 				factory: &mockFactory{
-					MockNewHandler: func(context.Context, v1alpha1.StackInstaller, k8sClients, *host.HostedConfig, *stacks.ExecutorInfo) handler {
+					MockNewHandler: func(context.Context, v1alpha1.StackInstaller, k8sClients, *hosted.Config, *stacks.ExecutorInfo) handler {
 						return &mockHandler{
 							MockSync: func(context.Context) (reconcile.Result, error) {
 								return reconcile.Result{}, nil
@@ -226,7 +226,7 @@ func TestReconcile(t *testing.T) {
 					},
 				},
 				factory: &mockFactory{
-					MockNewHandler: func(context.Context, v1alpha1.StackInstaller, k8sClients, *host.HostedConfig, *stacks.ExecutorInfo) handler {
+					MockNewHandler: func(context.Context, v1alpha1.StackInstaller, k8sClients, *hosted.Config, *stacks.ExecutorInfo) handler {
 						return &mockHandler{
 							MockSync: func(context.Context) (reconcile.Result, error) {
 								return reconcile.Result{}, nil
@@ -256,7 +256,7 @@ func TestReconcile(t *testing.T) {
 					},
 				},
 				factory: &mockFactory{
-					MockNewHandler: func(context.Context, v1alpha1.StackInstaller, k8sClients, *host.HostedConfig, *stacks.ExecutorInfo) handler {
+					MockNewHandler: func(context.Context, v1alpha1.StackInstaller, k8sClients, *hosted.Config, *stacks.ExecutorInfo) handler {
 						return &mockHandler{
 							MockDelete: func(context.Context) (reconcile.Result, error) {
 								return reconcile.Result{}, nil

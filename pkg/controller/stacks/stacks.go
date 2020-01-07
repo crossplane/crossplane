@@ -28,7 +28,7 @@ import (
 type Controllers struct{}
 
 // SetupWithManager adds all Stack controllers to the manager.
-func (c *Controllers) SetupWithManager(mgr ctrl.Manager) error {
+func (c *Controllers) SetupWithManager(mgr ctrl.Manager, smo ...stack.SMReconcilerOption) error {
 	creators := []func() (string, func() v1alpha1.StackInstaller){
 		newStackInstall, newClusterStackInstall,
 	}
@@ -36,12 +36,12 @@ func (c *Controllers) SetupWithManager(mgr ctrl.Manager) error {
 	for _, creator := range creators {
 		if err := (&install.Controller{
 			StackInstallCreator: creator,
-		}).SetupWithManager(mgr); err != nil {
+		}).SetupWithManager(mgr, smo...); err != nil {
 			return err
 		}
 	}
 
-	if err := (&stack.Controller{}).SetupWithManager(mgr); err != nil {
+	if err := (&stack.Controller{}).SetupWithManager(mgr, smo...); err != nil {
 		return err
 	}
 
