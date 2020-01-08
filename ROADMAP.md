@@ -132,22 +132,45 @@ Any dates listed below and the specific issues that will ship in a given milesto
 
 * Bug fixes and test automation
 
-## Under consideration for v0.6.0
+## [v0.6.0 Aggregated Stack Roles, GKECluster to v1beta1, test automation](https://github.com/crossplaneio/crossplane/releases/tag/v0.6.0)
+* The Stack Manager supports more granular management of permissions for cluster (environment) and namespace (workspace) scoped stacks.
+  * Default admin, editor, and viewer roles automatically updated as Stacks are installed/uninstalled.
+  * Admins can create role bindings to these roles, to simplify granting user permissions.
+  * Details in the [design doc](https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-stacks-security-isolation.md).
+* GKE cluster support has moved to `v1beta1` with node pool support.
+  * The `v1alpha3` GKE cluster support has been left intact and can run side by side with v1beta1 
+* Integration test framework in the crossplane-runtime, reducing the burden to provide integration test coverage across all projects and prevent regressions.
+* Helm 2 and 3 compatibility, Crossplane and all of its CRDs are supported to be installed by both Helm2 and Helm3
+* Design and architecture documents:
+  * ["Easy config stacks"](https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-resource-packs.md)
+  * [Consuming any Kubernetes cluster for workload scheduling](https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-consuming-k8s-clusters.md)
+  * [User experience for template stacks](https://github.com/crossplaneio/crossplane/blob/master/design/design-doc-template-stacks-experience.md).
+* [Bug fixes and other closed issues](https://github.com/crossplaneio/crossplane/milestone/6?closed=1)
+
+## v0.7.0
+* KubernetesTarget kind for scheduling KubernetesApplications [#859](https://github.com/crossplaneio/crossplane/issues/859)
+* Versioning and upgrade support [#879](https://github.com/crossplaneio/crossplane/issues/879)
+  * Design one-pager [#435](https://github.com/crossplaneio/crossplane/issues/435)
+* Template Stacks - easier to build App & Config Stacks (Preview) [#853](https://github.com/crossplaneio/crossplane/issues/853) 
+* GCP storage buckets to v1beta1 [crossplaneio/stack-gcp#130](https://github.com/crossplaneio/stack-gcp/issues/130)
+* GCP networking resources to v1beta1 [crossplaneio/stack-gcp#131](https://github.com/crossplaneio/stack-gcp/issues/131)
+* Improved logging and eventing [crossplaneio/crossplane-runtime#104](https://github.com/crossplaneio/crossplane-runtime/issues/104)
+* Integration testing
+  * Integration testing support [#1033](https://github.com/crossplaneio/crossplane/issues/1033)
+  * GCP integration tests [crossplaneio/stack-gcp#87](https://github.com/crossplaneio/stack-gcp/issues/87)
+
+## Roadmap
 * Stacks Manager
-  * Enhancements to security and permissions/roles model
-  * Parent / child relationship annotations
-  * UI annotations
-  * CRD annotations
+  * Versioning and upgrade [#879](https://github.com/crossplaneio/crossplane/issues/879) 
+
+* GCP: DNS, SSL, and Ingress support #1123 [#1123](https://github.com/crossplaneio/crossplane/issues/1123)
 
 * More real-world Stacks into multiple clouds
-  * Stack versioning and upgrade [#879](https://github.com/crossplaneio/crossplane/issues/879) 
   * Refresh existing GitLab Stack to use latest Crossplane [#866](https://github.com/crossplaneio/crossplane/issues/866)
   * Additional real-world apps and scenarios [#868](https://github.com/crossplaneio/crossplane/issues/868)
-  * Template Stacks - easier to build an App Stack (Preview) [#853](https://github.com/crossplaneio/crossplane/issues/853) 
   * Stacks Manager support for private repos and robot account credentials
 
 * UX enhancements for debuggability and observability
-  * Resource packs for default resource classes and configuration (AWS, GCP, Azure)
   * Visible error messages for all error cases surfaced in claims and/or eventing
   * Static provisioning examples to highlight simplicity. 
 
@@ -156,7 +179,6 @@ Any dates listed below and the specific issues that will ship in a given milesto
    * Upgrade other supported services to v1beta1 (e.g. Buckets, etc.)
    * Code generation of API types, controller scaffolding to further streamline additional services
 
-## Roadmap
 * Expanded Rook support
   * Support additional Rook storage providers
   * Install & configure Rook into a target cluster
