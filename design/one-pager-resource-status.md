@@ -9,7 +9,7 @@
 As a stack author there is currently no way to author rules that combine arbitrary conditions of a given state to
 represent high level _"stop-light"_ conditions.
 
-The high level conditions would be:
+The high level conditions should be:
 - Online
   > _When a resource instance is fully available for use with no errors or failures_
 - Offline
@@ -98,14 +98,16 @@ bare minimum.
 
 The `states` key should follow these rules:
 
-- There are 3 nested keys which you can define:
+- There are 3 nested keys which you should define:
   > `Online`
 
   > `Offline`
 
   > `Warning`
 
-  - There is technically a 4th state (`Unknown`) but that is defined automatically as a default status catch.
+  - There is technically another state (`Unknown`) but that is defined automatically as a default status catch.
+
+  _You can define other states if you wish, but the 3 mentioned above are the **standard recommended states**_
 
 - Each key should contain an array of objects. Each object contains a collection of **AND** comparisons, and each object
 within the array is treated as **OR** comparisons to adjacent objects.
