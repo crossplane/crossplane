@@ -66,7 +66,7 @@ var (
 		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: "coolCluster"},
 	}
 
-	clusterRef = &v1alpha1.KubernetesClusterReference{cluster.GetName()}
+	clusterRef = &v1alpha1.KubernetesClusterReference{Name: cluster.GetName()}
 
 	resourceA = &v1alpha1.KubernetesApplicationResource{
 		ObjectMeta: metav1.ObjectMeta{
