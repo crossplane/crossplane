@@ -18,6 +18,8 @@ package main
 
 import (
 	"io"
+	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 
@@ -46,6 +48,8 @@ var (
 	log = logging.Logger
 )
 
+type setupWithManagerFunc func(manager.Manager) error
+
 func main() {
 	var (
 		// top level app definition
@@ -66,10 +70,8 @@ func main() {
 
 		// stack manage - adds the stack manager controllers and starts their reconcile loops
 		extManageCmd                     = extCmd.Command("manage", "Manage stacks (run stack manager controllers)")
-		extManageTenantKubeconfig        = extManageCmd.Flag("tenant-kubeconfig", "The absolute path of the kubeconfig file to Tenant Kubernetes instance. Setting this will activate host aware mode of Stack Manager").String()
-		extManageHostControllerNamespace = extManageCmd.Flag("host-controller-namespace", "The namespace on Host Cluster where install and controller jobs/deployments will be created (required for host aware mode, ignored otherwise)").String()
-		extManageTenantAPIServerHost     = extManageCmd.Flag("tenant-apiserver-host", "The Kubernetes apiserver Host for Tenant Kubernetes instance (required for host aware mode, ignored otherwise)").String()
-		extManageTenantAPIServerPort     = extManageCmd.Flag("tenant-apiserver-port", "The Kubernetes apiserver Port for Tenant Kubernetes instance (required for host aware mode, ignored otherwise)").String()
+		extManageHostControllerNamespace = extManageCmd.Flag("host-controller-namespace", "The namespace on Host Cluster where install and controller jobs/deployments will be created. Setting this will activate host aware mode of Stack Manager").String()
+		extManageTenantKubeconfig        = extManageCmd.Flag("tenant-kubeconfig", "The absolute path of the kubeconfig file to Tenant Kubernetes instance (required for host aware mode, ignored otherwise).").ExistingFile()
 
 		// stack unpack - performs the unpacking operation for the given stack package content
 		// directory. This command is expected to parse the content and generate manifests for stack
@@ -94,17 +96,17 @@ func main() {
 		runtimelog.SetLogger(zl)
 	}
 
-	var setupWithManagerFunc func(manager.Manager, appConfig) error
+	var setupWithManager setupWithManagerFunc
 
 	// Determine the command being called and execute the corresponding logic
 	switch cmd {
 	case crossplaneCmd.FullCommand():
 		// the default Crossplane command is being run, add all the regular controllers to the manager
-		setupWithManagerFunc = controllerSetupWithManager
+		setupWithManager = crossplaneControllerSetupWithManager
 	case extManageCmd.FullCommand():
 		// the "stacks manage" command is being run, the only controllers we should add to the
 		// manager are the stacks controllers
-		setupWithManagerFunc = stacksControllerSetupWithManager
+		setupWithManager = getStacksControllerSetupWithManagerFunc(*extManageHostControllerNamespace)
 	case extUnpackCmd.FullCommand():
 		var outFile io.StringWriter
 		// stack unpack command was called, run the stack unpacking logic
@@ -125,19 +127,10 @@ func main() {
 	default:
 		kingpin.FatalUsage("unknown command %s", cmd)
 	}
-	// Prepare appConfig using flags
-	cfg := appConfig{
-		smConfig: stackManagerConfig{
-			tenantKubeconfig:        *extManageTenantKubeconfig,
-			hostControllerNamespace: *extManageHostControllerNamespace,
-			tenantAPIServiceHost:    *extManageTenantAPIServerHost,
-			tenantAPIServicePort:    *extManageTenantAPIServerPort,
-		},
-	}
 
 	// Get a config to talk to the apiserver
-	restCfg, err := getRestConfig(cfg)
-	kingpin.FatalIfError(err, "Cannot get config")
+	restCfg, err := getRestConfig(*extManageTenantKubeconfig)
+	kingpin.FatalIfError(err, "Cannot get rest config")
 
 	log.Info("Sync period", "duration", syncPeriod.String())
 
@@ -150,33 +143,14 @@ func main() {
 	kingpin.FatalIfError(addToScheme(mgr.GetScheme()), "Cannot add APIs to scheme")
 
 	// Setup all Controllers
-	log.Info("Adding controllers")
-	kingpin.FatalIfError(setupWithManagerFunc(mgr, cfg), "Cannot add controllers to manager")
+	kingpin.FatalIfError(setupWithManager(mgr), "Cannot add controllers to manager")
 
 	// Start the Cmd
 	log.Info("Starting the manager")
 	kingpin.FatalIfError(mgr.Start(signals.SetupSignalHandler()), "Cannot start controller")
 }
 
-type appConfig struct {
-	smConfig stackManagerConfig
-}
-
-type stackManagerConfig struct {
-	// tenantKubeconfig is the switch for Stack Manager hosted mode where Kubernetes Apiserver for stack controllers
-	// pods and custom resources are different. When set, it points to custom resource Kubernetes Apiserver.
-	tenantKubeconfig string
-	// hostControllerNamespace is the namespace on Host Cluster where install and controller jobs/deployments will be
-	// deployed.
-	hostControllerNamespace string
-	// tenantAPIServiceHost is Kubernetes Apiserver Host for custom resources (a.k.a Tenant Kubernetes)
-	tenantAPIServiceHost string
-	// tenantAPIServicePort is Kubernetes Apiserver Port for custom resources (a.k.a Tenant Kubernetes)
-	tenantAPIServicePort string
-}
-
-func getRestConfig(appCfg appConfig) (restCfg *rest.Config, err error) {
-	tenantKubeconfig := appCfg.smConfig.tenantKubeconfig
+func getRestConfig(tenantKubeconfig string) (restCfg *rest.Config, err error) {
 	if tenantKubeconfig != "" {
 		return clientcmd.BuildConfigFromFlags("", tenantKubeconfig)
 	}
@@ -184,29 +158,42 @@ func getRestConfig(appCfg appConfig) (restCfg *rest.Config, err error) {
 	return config.GetConfig()
 }
 
+func getHostPort(urlHost string) (host string, port string, err error) {
+	u, err := url.Parse(urlHost)
+	if err != nil {
+		return "", "", err
+	}
+	return net.SplitHostPort(u.Host)
+}
+
 func closeOrError(c io.Closer) {
 	err := c.Close()
 	kingpin.FatalIfError(err, "Cannot close file")
 }
 
-func controllerSetupWithManager(mgr manager.Manager, _ appConfig) error {
+func crossplaneControllerSetupWithManager(mgr manager.Manager) error {
 	c := &workload.Controllers{}
 	return c.SetupWithManager(mgr)
 }
 
-func stacksControllerSetupWithManager(mgr manager.Manager, cfg appConfig) error {
-	c := stacksController.Controllers{}
-	smc := cfg.smConfig
-	if smc.tenantKubeconfig != "" {
-		hc, err := hosted.NewConfig(smc.hostControllerNamespace, smc.tenantAPIServiceHost, smc.tenantAPIServicePort)
-		if err != nil {
-			return err
+func getStacksControllerSetupWithManagerFunc(hostControllerNamespace string) setupWithManagerFunc {
+	return func(mgr manager.Manager) error {
+		c := stacksController.Controllers{}
+		if hostControllerNamespace != "" {
+			//hostControllerNamespace is set => stack manager host aware mode enabled
+			// TODO(hasan): handle if url does not have a port (i.e. default to 443)
+			host, port, err := getHostPort(mgr.GetConfig().Host)
+			kingpin.FatalIfError(err, "Cannot get host port from tenant kubeconfig")
+			hc, err := hosted.NewConfig(hostControllerNamespace, host, port)
+			if err != nil {
+				return err
+			}
+			log.Info("Stack Manager host aware mode enabled")
+			return c.SetupWithManager(mgr, stack.WithHostedConfig(hc))
 		}
-		log.Info("Stack Manager host aware mode enabled")
-		return c.SetupWithManager(mgr, stack.WithHostedConfig(hc))
+		log.Info("Stack Manager host aware mode -not- enabled")
+		return c.SetupWithManager(mgr)
 	}
-	log.Info("Stack Manager host aware mode -not- enabled")
-	return c.SetupWithManager(mgr)
 }
 
 // addToScheme adds all resources to the runtime scheme.

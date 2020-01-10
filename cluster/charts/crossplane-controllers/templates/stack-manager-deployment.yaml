@@ -30,10 +30,6 @@ spec:
         {{- if .Values.hostedConfig.enabled }}
         - --tenant-kubeconfig
         - /var/run/secrets/tenant/kubeconfig
-        - --tenant-apiserver-host
-        - {{ .Values.hostedConfig.tenantKubernetesServiceHost | quote }}
-        - --tenant-apiserver-port
-        - {{ .Values.hostedConfig.tenantKubernetesServicePort | quote }}
         - --host-controller-namespace
         - {{ .Values.hostedConfig.controllerNamespace | quote }}
         {{- end }}
