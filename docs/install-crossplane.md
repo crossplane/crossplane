@@ -94,7 +94,7 @@ metadata:
   name: stack-gcp
   namespace: gcp
 spec:
-  package: "crossplane/stack-gcp:v0.4.0"
+  package: "crossplane/stack-gcp:v0.4.1"
 ```
 
 Then you can install the GCP stack into Crossplane in the `gcp` namespace with the following command:
