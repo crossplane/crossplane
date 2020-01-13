@@ -265,7 +265,7 @@ Name | Type | Description
 `authorizedNetworks` | Optional [[]*github.com/crossplaneio/stack-gcp/apis/database/v1beta1.ACLEntry](#*github.com/crossplaneio/stack-gcp/apis/database/v1beta1.ACLEntry) | AuthorizedNetworks: The list of external networks that are allowed to connect to the instance using the IP. In CIDR notation, also known as &#39;slash&#39; notation (e.g. 192.168.100.0/24).
 `ipv4Enabled` | Optional bool | Ipv4Enabled: Whether the instance should be assigned an IP address or not.
 `privateNetwork` | Optional string | PrivateNetwork: The resource link for the VPC network from which the Cloud SQL instance is accessible for private IP. For example, /projects/myProject/global/networks/default. This setting can be updated, but it cannot be removed after it is set.
-`privateNetworkRef` | [NetworkURIReferencerForCloudSQLInstance](#NetworkURIReferencerForCloudSQLInstance) | PrivateNetworkRef references to a Network and retrieves its URI
+`privateNetworkRef` | [NetworkURIReferencerForCloudSQLInstance](#NetworkURIReferencerForCloudSQLInstance) | PrivateNetworkRef sets the PrivateNetwork field by resolving the resource link of the referenced Crossplane Network managed resource. The Network must have an active Service Networking connection peering before resolution will proceed. https://cloud.google.com/vpc/docs/configure-private-services-access
 `requireSsl` | Optional bool | RequireSsl: Whether SSL connections over IP should be enforced or not.
 
 
@@ -318,7 +318,7 @@ Name | Type | Description
 
 ## NetworkURIReferencerForCloudSQLInstance
 
-NetworkURIReferencerForCloudSQLInstance is an attribute referencer that resolves network uri from a referenced Network and assigns it to a CloudSQLInstance
+NetworkURIReferencerForCloudSQLInstance resolves references from a CloudSQLInstance to a Network by returning the referenced Network&#39;s resource link, e.g. /projects/example/global/networks/example.
 
 Appears in:
 
@@ -329,7 +329,7 @@ Appears in:
 
 NetworkURIReferencerForCloudSQLInstance supports all fields of:
 
-* github.com/crossplaneio/stack-gcp/apis/compute/v1alpha3.NetworkURIReferencer
+* [core/v1.LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#localobjectreference-v1-core)
 
 
 ## OnPremisesConfiguration
