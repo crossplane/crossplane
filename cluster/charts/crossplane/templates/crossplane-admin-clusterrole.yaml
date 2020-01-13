@@ -8,7 +8,7 @@ metadata:
     chart: {{ template "chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
-    crossplane.io/scope: "environment"
+    crossplane.io/scope: "system"
 aggregationRule:
   clusterRoleSelectors:
   - matchLabels:
