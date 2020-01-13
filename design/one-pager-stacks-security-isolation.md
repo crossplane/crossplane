@@ -358,6 +358,9 @@ Example running a command as crossplane-admin
 kubectl {any crossplane-admin operation} --as-group=crossplane:masters
 ```
 
+For discoverability of the system role (`crossplane-admin`) we will add the following labels:
+ * `crossplane.io/scope: "system"`
+
 For discoverability of the roles for the environment we will add the following labels:
  * `crossplane.io/scope: "environment"`
 
@@ -467,11 +470,27 @@ kind: ClusterRole
 metadata:
   name: crossplane-admin
   labels:
-    crossplane.io/scope: "environment" # For discoverability for tools
+    crossplane.io/scope: "system" # For discoverability for tools
 aggregationRule:
   clusterRoleSelectors:
   - matchLabels:
       rbac.crossplane.io/aggregate-to-crossplane-admin: "true"
+rules: [] # Rules are automatically filled in by the controller manager.
+```
+
+An example of an environment `admin` `ClusterRole` object
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: crossplane-env-admin
+  labels:
+    crossplane.io/scope: "environment" # For discoverability for tools
+aggregationRule:
+  clusterRoleSelectors:
+  - matchLabels:
+      rbac.crossplane.io/aggregate-to-environment-admin: "true"
 rules: [] # Rules are automatically filled in by the controller manager.
 ```
 
