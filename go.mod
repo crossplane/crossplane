@@ -1,6 +1,6 @@
 module github.com/crossplaneio/crossplane
 
-go 1.12
+go 1.13
 
 require (
 	github.com/crossplaneio/crossplane-runtime v0.3.0
