@@ -37,10 +37,13 @@ spec:
         metadata:
           type: object
         spec:
-          description: KubernetesTargetSpec specifies the desired state of a KubernetesTarget.
+          description: A TargetSpec defines the common fields of objects used for
+            exposing infrastructure to workloads that can be scheduled to.
           properties:
             clusterRef:
-              description: Reference to a Kubernetes cluster managed resource.
+              description: A ResourceReference specifies an existing managed resource,
+                in any namespace, which this target should attempt to propagate a
+                connection secret from.
               properties:
                 apiVersion:
                   description: API version of the referent.
@@ -76,8 +79,11 @@ spec:
                   type: string
               type: object
             connectionSecretRef:
-              description: Reference to a connection secret that can be used to schedule
-                to an external Kubernetes cluster.
+              description: WriteConnectionSecretToReference specifies the name of
+                a Secret, in the same namespace as this target, to which any connection
+                details for this target should be written or already exist. Connection
+                secrets referenced by a target should contain information for connecting
+                to a resource that allows for scheduling of workloads.
               properties:
                 name:
                   description: Name of the secret.
@@ -85,6 +91,43 @@ spec:
               required:
               - name
               type: object
+          type: object
+        status:
+          description: A TargetStatus defines the observed status a target.
+          properties:
+            conditions:
+              description: Conditions of the resource.
+              items:
+                description: A Condition that may apply to a resource.
+                properties:
+                  lastTransitionTime:
+                    description: LastTransitionTime is the last time this condition
+                      transitioned from one status to another.
+                    format: date-time
+                    type: string
+                  message:
+                    description: A Message containing details about this condition's
+                      last transition from one status to another, if any.
+                    type: string
+                  reason:
+                    description: A Reason for this condition's last transition from
+                      one status to another.
+                    type: string
+                  status:
+                    description: Status of this condition; is it currently True, False,
+                      or Unknown?
+                    type: string
+                  type:
+                    description: Type of this condition. At most one of each condition
+                      type may apply to a resource at any point in time.
+                    type: string
+                required:
+                - lastTransitionTime
+                - reason
+                - status
+                - type
+                type: object
+              type: array
           type: object
       required:
       - spec

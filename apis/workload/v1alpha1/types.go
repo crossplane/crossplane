@@ -232,16 +232,6 @@ type KubernetesApplicationResourceList struct {
 	Items           []KubernetesApplicationResource `json:"items"`
 }
 
-// KubernetesTargetSpec specifies the desired state of a KubernetesTarget.
-type KubernetesTargetSpec struct {
-	// Reference to a Kubernetes cluster managed resource.
-	ClusterRef *corev1.ObjectReference `json:"clusterRef,omitempty"`
-
-	// Reference to a connection secret that can be used to schedule to an
-	// external Kubernetes cluster.
-	ConnectionSecretRef *runtimev1alpha1.LocalSecretReference `json:"connectionSecretRef,omitempty"`
-}
-
 // +kubebuilder:object:root=true
 
 // A KubernetesTarget is a scheduling target for a Kubernetes Application.
@@ -250,7 +240,8 @@ type KubernetesTarget struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec KubernetesTargetSpec `json:"spec"`
+	Spec   runtimev1alpha1.TargetSpec   `json:"spec"`
+	Status runtimev1alpha1.TargetStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true

@@ -95,7 +95,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		if kerrors.IsNotFound(err) {
 			return reconcile.Result{Requeue: false}, nil
 		}
-		return reconcile.Result{Requeue: false}, errors.Wrap(err, errGetKubernetesCluster)
+		return reconcile.Result{}, errors.Wrap(err, errGetKubernetesCluster)
 	}
 
 	// This KubernetesCluster has been deleted. The KubernetesTarget will be
@@ -107,7 +107,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	target := &workloadv1alpha1.KubernetesTarget{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            fmt.Sprintf("%s-target", cluster.GetUID()),
-			Namespace:       req.Namespace,
+			Namespace:       cluster.GetNamespace(),
 			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.ReferenceTo(cluster, computev1alpha1.KubernetesClusterGroupVersionKind))},
 		},
 	}
@@ -117,7 +117,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			return errors.New(errTargetConflict)
 		}
 
-		target.Spec.ConnectionSecretRef = cluster.GetWriteConnectionSecretToReference()
+		target.SetWriteConnectionSecretToReference(cluster.GetWriteConnectionSecretToReference())
 		target.SetLabels(cluster.GetLabels())
 
 		return nil

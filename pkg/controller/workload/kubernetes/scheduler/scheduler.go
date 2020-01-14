@@ -63,7 +63,7 @@ func (s *roundRobinScheduler) schedule(ctx context.Context, app *workloadv1alpha
 	// secret. We can't run a workload on a cluster that we can't connect to.
 	usable := make([]workloadv1alpha1.KubernetesTarget, 0)
 	for _, c := range clusters.Items {
-		if c.Spec.ConnectionSecretRef != nil {
+		if c.GetWriteConnectionSecretToReference() != nil {
 			usable = append(usable, c)
 		}
 	}

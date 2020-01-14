@@ -80,13 +80,13 @@ spec:
             state of a KubernetesApplicationResource.
           properties:
             conditionedStatus:
-              description: A ConditionedStatus reflects the observed status of a managed
-                resource. Only one condition of each type may exist.
+              description: A ConditionedStatus reflects the observed status of a resource.
+                Only one condition of each type may exist.
               properties:
                 conditions:
                   description: Conditions of the resource.
                   items:
-                    description: A Condition that may apply to a managed resource.
+                    description: A Condition that may apply to a resource.
                     properties:
                       lastTransitionTime:
                         description: LastTransitionTime is the last time this condition

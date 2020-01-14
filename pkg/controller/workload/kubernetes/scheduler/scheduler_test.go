@@ -52,14 +52,14 @@ var (
 
 	targetA = &workloadv1alpha1.KubernetesTarget{
 		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: "coolTargetA"},
-		Spec: workloadv1alpha1.KubernetesTargetSpec{
-			ConnectionSecretRef: &runtimev1alpha1.LocalSecretReference{},
+		Spec: runtimev1alpha1.TargetSpec{
+			WriteConnectionSecretToReference: &runtimev1alpha1.LocalSecretReference{},
 		},
 	}
 	targetB = &workloadv1alpha1.KubernetesTarget{
 		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: "coolTargetB"},
-		Spec: workloadv1alpha1.KubernetesTargetSpec{
-			ConnectionSecretRef: &runtimev1alpha1.LocalSecretReference{},
+		Spec: runtimev1alpha1.TargetSpec{
+			WriteConnectionSecretToReference: &runtimev1alpha1.LocalSecretReference{},
 		},
 	}
 

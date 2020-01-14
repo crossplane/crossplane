@@ -91,7 +91,7 @@ func withOwnerReferences(o []metav1.OwnerReference) kubeTargetModifier {
 
 func withConnectionSecretRef(s *runtimev1alpha1.LocalSecretReference) kubeTargetModifier {
 	return func(r *workloadv1alpha1.KubernetesTarget) {
-		r.Spec.ConnectionSecretRef = s
+		r.SetWriteConnectionSecretToReference(s)
 	}
 }
 

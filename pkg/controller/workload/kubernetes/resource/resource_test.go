@@ -64,8 +64,8 @@ var (
 
 	target = &v1alpha1.KubernetesTarget{
 		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: "coolTarget"},
-		Spec: v1alpha1.KubernetesTargetSpec{
-			ConnectionSecretRef: &runtimev1alpha1.LocalSecretReference{Name: secret.GetName()},
+		Spec: runtimev1alpha1.TargetSpec{
+			WriteConnectionSecretToReference: &runtimev1alpha1.LocalSecretReference{Name: secret.GetName()},
 		},
 	}
 
