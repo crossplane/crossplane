@@ -525,13 +525,36 @@ Annotation | Metadata Source | Value from Source
 
 ## Dependency Resolution
 
-When a Stack requires types and functionality defined by another Stack, this dependency needs to be resolved and fulfilled.
-All dependencies are expressed by the CRDs that are required, as opposed to the Stack or package that defines them.
-Packages are units of publishing, pulling and versioning, they are not a unit of consumption.
+When a Stack requires types and functionality defined by another Stack, this
+dependency needs to be resolved and fulfilled. Dependencies may be expressed by
+the CRDs that are required or by the versioned Stack package that defines them.
 
-Therefore, If the required CRDs don’t exist, the registry must be queried for what package defines them.
-The registry maintains an index of package contents so that it can easily answer questions like this.
-The full set of packages and Stacks that a Stack depend on will be downloaded, unpacked and installed before installation of the Stack itself can proceed.
+There are three forms of Stack manual consumption during installation:
+
+* Stack Packages
+* Stack Channel
+* API Group/Version descriptions (CRD)
+
+In comparison, only two of these forms may be used by a Stack to assert and
+resolve dependencies.  Stack Channels are not an option for Stack dependency
+declarations. (TODO: why not?)
+
+Dependencies specified as API Group/Version references must be fulfilled in one
+of three ways:
+
+* Installed Resources
+* Registry Query by CRD
+* Stack Package (Registry OCI)
+
+If the CRDs described in the dependency don’t exist, the registry must be
+queried for the package defining them. The registry maintains an index of
+package contents so that it can easily answer questions like this. The full set
+of packages and Stacks that a Stack depend on will be downloaded, unpacked,
+examined, and installed before installation of the Stack itself can proceed.
+
+(TODO: all at once or in sequence?)
+
+### 
 
 ## Package Processing
 
