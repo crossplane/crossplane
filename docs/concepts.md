@@ -208,10 +208,17 @@ See [Stacks](#stacks).
 
 Crossplane includes an extensible workload scheduler that observes application
 policies to select a suitable target cluster from a pool of available clusters.
-The workload scheduler can be customized to consider a number of criteria
+Workloads are modeled as `KubernetesApplication` resources, which model other
+resources in-line. For instance, a single `KubernetesApplication` may contain
+templates for creating a `Deployment`, `Service`, `PersistentVolume`, and
+`PersistentVolumeClaim` in the target cluster. When a `KubernetesApplication` is
+scheduled to an appropriate target, Crossplane connects to the cluster and
+creates the defined resources from its templates. Currently, the workload
+scheduler selects a suitable target cluster based on [label
+selectors](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors).
+In the future, the workload scheduler will consider a number of criteria
 including capabilities, availability, reliability, cost, regions, and
-performance while deploying workloads and their resources. Complex workloads can
-be modeled as a `KubernetesApplication`.
+performance while deploying workloads and their resources.
 
 ## Crossplane Clusters
 
