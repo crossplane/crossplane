@@ -121,7 +121,7 @@ will be implemented as a solution.
 One extra artifact that needs to deleted per Stack uninstallation is the token secret created on Host Cluster. This will
 be achieved by setting owner of that secret as Stack Controller Deployment which also lives same Cluster/Namespace.
 
-### Packaging Changes
+### Crossplane Helm Chart Changes
 
 We need to deploy crossplane types and roles (CRDs and RBACs) separately from Crossplane and Stack Manager pods. This
 could be realized by introducing some new helm parameters to existing Crossplane helm chart, however,
@@ -207,5 +207,5 @@ To configure a Pod against Tenant Instance API Server:
     1. Set `spec.automountServiceAccountToken` as false
     2. Unset `spec.serviceAccountName`
     3. Unset `spec.deprecatedServiceAccount`
-4. Mount service account token secret copied from CC to path
+4. Mount service account token secret copied from Tenant Instance API Server to path
  `/var/run/secrets/kubernetes.io/serviceaccount`
