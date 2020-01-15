@@ -15,7 +15,7 @@ spec:
   - JSONPath: .spec.template.metadata.name
     name: TEMPLATE-NAME
     type: string
-  - JSONPath: .status.clusterRef.name
+  - JSONPath: .status.targetRef.name
     name: CLUSTER
     type: string
   - JSONPath: .status.state

@@ -9,7 +9,7 @@ metadata:
   name: kubernetesapplications.workload.crossplane.io
 spec:
   additionalPrinterColumns:
-  - JSONPath: .status.clusterRef.name
+  - JSONPath: .status.targetRef.name
     name: CLUSTER
     type: string
   - JSONPath: .status.state

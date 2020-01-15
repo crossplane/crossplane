@@ -112,7 +112,7 @@ type KubernetesApplicationStatus struct {
 
 // A KubernetesApplication defines an application deployed by Crossplane to a
 // Kubernetes cluster, i.e. a portable KubernetesCluster resource claim.
-// +kubebuilder:printcolumn:name="CLUSTER",type="string",JSONPath=".status.clusterRef.name"
+// +kubebuilder:printcolumn:name="CLUSTER",type="string",JSONPath=".status.targetRef.name"
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.state"
 // +kubebuilder:printcolumn:name="DESIRED",type="integer",JSONPath=".status.desiredResources"
 // +kubebuilder:printcolumn:name="SUBMITTED",type="integer",JSONPath=".status.submittedResources"
@@ -212,7 +212,7 @@ type KubernetesApplicationResourceStatus struct {
 // scheduled KubernetesCluster.
 // +kubebuilder:printcolumn:name="TEMPLATE-KIND",type="string",JSONPath=".spec.template.kind"
 // +kubebuilder:printcolumn:name="TEMPLATE-NAME",type="string",JSONPath=".spec.template.metadata.name"
-// +kubebuilder:printcolumn:name="CLUSTER",type="string",JSONPath=".status.clusterRef.name"
+// +kubebuilder:printcolumn:name="CLUSTER",type="string",JSONPath=".status.targetRef.name"
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.state"
 type KubernetesApplicationResource struct {
 	metav1.TypeMeta   `json:",inline"`
