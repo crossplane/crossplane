@@ -137,7 +137,7 @@ func TestClusterIsBound(t *testing.T) {
 			want: false,
 		},
 		"NotAKubernetesCluster": {
-			obj:  &computev1alpha1.MachineInstance{},
+			obj:  nil,
 			want: false,
 		},
 	}
