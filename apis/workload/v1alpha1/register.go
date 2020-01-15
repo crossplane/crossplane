@@ -51,7 +51,15 @@ var (
 	KubernetesApplicationResourceGroupVersionKind = SchemeGroupVersion.WithKind(KubernetesApplicationResourceKind)
 )
 
+// KubernetesTarget type metadata.
+var (
+	KubernetesTargetKind             = reflect.TypeOf(KubernetesTarget{}).Name()
+	KubernetesTargetKindAPIVersion   = KubernetesTargetKind + "." + SchemeGroupVersion.String()
+	KubernetesTargetGroupVersionKind = SchemeGroupVersion.WithKind(KubernetesTargetKind)
+)
+
 func init() {
 	SchemeBuilder.Register(&KubernetesApplication{}, &KubernetesApplicationList{})
 	SchemeBuilder.Register(&KubernetesApplicationResource{}, &KubernetesApplicationResourceList{})
+	SchemeBuilder.Register(&KubernetesTarget{}, &KubernetesTargetList{})
 }

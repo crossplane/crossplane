@@ -34,7 +34,6 @@ import (
 
 	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane-runtime/pkg/test"
-	computev1alpha1 "github.com/crossplaneio/crossplane/apis/compute/v1alpha1"
 	"github.com/crossplaneio/crossplane/apis/workload/v1alpha1"
 )
 
@@ -62,11 +61,11 @@ var (
 		},
 	}
 
-	cluster = &computev1alpha1.KubernetesCluster{
-		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: "coolCluster"},
+	target = &v1alpha1.KubernetesTarget{
+		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: "coolTarget"},
 	}
 
-	clusterRef = &v1alpha1.KubernetesClusterReference{Name: cluster.GetName()}
+	targetRef = &v1alpha1.KubernetesTargetReference{Name: target.GetName()}
 
 	resourceA = &v1alpha1.KubernetesApplicationResource{
 		ObjectMeta: metav1.ObjectMeta{
@@ -80,8 +79,8 @@ var (
 		},
 		Spec: templateA.Spec,
 		Status: v1alpha1.KubernetesApplicationResourceStatus{
-			State:   v1alpha1.KubernetesApplicationResourceStateScheduled,
-			Cluster: clusterRef,
+			State:  v1alpha1.KubernetesApplicationResourceStateScheduled,
+			Target: targetRef,
 		},
 	}
 )
@@ -104,9 +103,9 @@ func withSubmittedResources(i int) kubeAppModifier {
 	return func(r *v1alpha1.KubernetesApplication) { r.Status.SubmittedResources = i }
 }
 
-func withCluster(name string) kubeAppModifier {
+func withTarget(name string) kubeAppModifier {
 	return func(r *v1alpha1.KubernetesApplication) {
-		r.Status.Cluster = &v1alpha1.KubernetesClusterReference{Name: name}
+		r.Status.Target = &v1alpha1.KubernetesTargetReference{Name: name}
 	}
 }
 
@@ -137,7 +136,7 @@ func TestCreatePredicate(t *testing.T) {
 			event: event.CreateEvent{
 				Object: &v1alpha1.KubernetesApplication{
 					Status: v1alpha1.KubernetesApplicationStatus{
-						Cluster: clusterRef,
+						Target: targetRef,
 					},
 				},
 			},
@@ -179,7 +178,7 @@ func TestUpdatePredicate(t *testing.T) {
 			event: event.UpdateEvent{
 				ObjectNew: &v1alpha1.KubernetesApplication{
 					Status: v1alpha1.KubernetesApplicationStatus{
-						Cluster: clusterRef,
+						Target: targetRef,
 					},
 				},
 			},
@@ -628,7 +627,7 @@ func TestRenderTemplate(t *testing.T) {
 	}{
 		{
 			name:     "Successful",
-			app:      kubeApp(withCluster(cluster.GetName())),
+			app:      kubeApp(withTarget(target.GetName())),
 			template: &templateA,
 			want:     resourceA,
 		},

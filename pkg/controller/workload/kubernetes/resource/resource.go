@@ -42,7 +42,6 @@ import (
 	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
 	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
-	computev1alpha1 "github.com/crossplaneio/crossplane/apis/compute/v1alpha1"
 	"github.com/crossplaneio/crossplane/apis/workload/v1alpha1"
 )
 
@@ -69,23 +68,23 @@ var (
 )
 
 // CreatePredicate accepts KubernetesApplicationResources that have been
-// scheduled to a KubernetesCluster.
+// scheduled to a KubernetesTarget.
 func CreatePredicate(event event.CreateEvent) bool {
 	wl, ok := event.Object.(*v1alpha1.KubernetesApplicationResource)
 	if !ok {
 		return false
 	}
-	return wl.Status.Cluster != nil
+	return wl.Status.Target != nil
 }
 
 // UpdatePredicate accepts KubernetesApplicationResources that have been
-// scheduled to a KubernetesCluster.
+// scheduled to a KubernetesTarget.
 func UpdatePredicate(event event.UpdateEvent) bool {
 	wl, ok := event.ObjectNew.(*v1alpha1.KubernetesApplicationResource)
 	if !ok {
 		return false
 	}
-	return wl.Status.Cluster != nil
+	return wl.Status.Target != nil
 }
 
 // Controller is responsible for adding the Instance
@@ -107,14 +106,14 @@ func (c *Controller) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-// A syncer can sync resources with a KubernetesCluster.
+// A syncer can sync resources with a KubernetesTarget.
 type syncer interface {
 	// sync the supplied resource with the external store. Returns true if the
 	// resource requires further reconciliation.
 	sync(ctx context.Context, ar *v1alpha1.KubernetesApplicationResource, secrets []corev1.Secret) reconcile.Result
 }
 
-// A deleter can delete resources from a KubernetesCluster.
+// A deleter can delete resources from a KubernetesTarget.
 type deleter interface {
 	// delete the supplied resource from the external store. Returns true if the
 	// resource requires further reconciliation.
@@ -122,7 +121,7 @@ type deleter interface {
 }
 
 // A syncdeleter can sync and delete KubernetesApplicationResources in a
-// KubernetesCluster.
+// KubernetesTarget.
 type syncdeleter interface {
 	syncer
 	deleter
@@ -401,21 +400,21 @@ type clusterConnecter struct {
 
 func (c *clusterConnecter) config(ctx context.Context, ar *v1alpha1.KubernetesApplicationResource) (*rest.Config, error) {
 	n := types.NamespacedName{Namespace: ar.GetNamespace(), Name: ar.GetName()}
-	if ar.Status.Cluster == nil {
+	if ar.Status.Target == nil {
 		return nil, errors.Errorf("%s %s is not scheduled", v1alpha1.KubernetesApplicationResourceKind, n)
 	}
 
-	n = types.NamespacedName{Namespace: ar.GetNamespace(), Name: ar.Status.Cluster.Name}
-	k := &computev1alpha1.KubernetesCluster{}
+	n = types.NamespacedName{Namespace: ar.GetNamespace(), Name: ar.Status.Target.Name}
+	k := &v1alpha1.KubernetesTarget{}
 	if err := c.kube.Get(ctx, n, k); err != nil {
-		return nil, errors.Wrapf(err, "cannot get %s %s", computev1alpha1.KubernetesClusterKind, n)
+		return nil, errors.Wrapf(err, "cannot get %s %s", v1alpha1.KubernetesTargetKind, n)
 	}
 
-	if k.Spec.WriteConnectionSecretToReference == nil {
-		return nil, errors.Errorf("%s %s has no connection secret", computev1alpha1.KubernetesClusterKind, n)
+	if k.GetWriteConnectionSecretToReference() == nil {
+		return nil, errors.Errorf("%s %s has no connection secret", v1alpha1.KubernetesTargetKind, n)
 	}
 
-	n = types.NamespacedName{Namespace: k.GetNamespace(), Name: k.Spec.WriteConnectionSecretToReference.Name}
+	n = types.NamespacedName{Namespace: k.GetNamespace(), Name: k.GetWriteConnectionSecretToReference().Name}
 	s := &corev1.Secret{}
 	if err := c.kube.Get(ctx, n, s); err != nil {
 		return nil, errors.Wrapf(err, "cannot get secret %s", n)
@@ -449,7 +448,7 @@ func (c *clusterConnecter) config(ctx context.Context, ar *v1alpha1.KubernetesAp
 	return config, nil
 }
 
-// connect returns a syncdeleter backed by a KubernetesCluster.
+// connect returns a syncdeleter backed by a KubernetesTarget.
 // Cluster credentials are read from a Crossplane connection secret.
 func (c *clusterConnecter) connect(ctx context.Context, ar *v1alpha1.KubernetesApplicationResource) (syncdeleter, error) {
 	config, err := c.config(ctx, ar)

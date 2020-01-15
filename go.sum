@@ -55,8 +55,8 @@ github.com/coreos/go-semver v0.3.0/go.mod h1:nnelYz7RCh+5ahJtPPxZlU+153eP4D4r3Ee
 github.com/coreos/go-systemd v0.0.0-20180511133405-39ca1b05acc7/go.mod h1:F5haX7vjVVG0kc13fIWeqUViNPyEJxv/OmvnBo0Yme4=
 github.com/coreos/pkg v0.0.0-20180108230652-97fdf19511ea/go.mod h1:E3G3o1h8I7cfcXa63jLwjI0eiQQMgzzUDFVpN/nH/eA=
 github.com/cpuguy83/go-md2man v1.0.10/go.mod h1:SmD6nW6nTyfqj6ABTjUi3V3JVMnlJmwcJI5acqYI6dE=
-github.com/crossplaneio/crossplane-runtime v0.3.0 h1:d3937o6XhVUcm/bqgUPUjTo/OjVlAjh1c7rx4VPJoV8=
-github.com/crossplaneio/crossplane-runtime v0.3.0/go.mod h1:aVLQmXiPeb/jhGGQFIxx4Rc1CFC6xq2BA6A3neLZIHA=
+github.com/crossplaneio/crossplane-runtime v0.3.1-0.20200114203641-5ece4af54b32 h1:DbviwPKTeGZmmJWcv5CWimCot2sNP8qRzeIOse/KxBM=
+github.com/crossplaneio/crossplane-runtime v0.3.1-0.20200114203641-5ece4af54b32/go.mod h1:aVLQmXiPeb/jhGGQFIxx4Rc1CFC6xq2BA6A3neLZIHA=
 github.com/crossplaneio/crossplane-tools v0.0.0-20191023215726-61fa1eff2a2e h1:8Z29akSDYcbywc/brATpfeE425jBTMZdZQuD9eV6cCk=
 github.com/crossplaneio/crossplane-tools v0.0.0-20191023215726-61fa1eff2a2e/go.mod h1:fzQeWDvZvzaC4N8vPjTubQocGnwzQ4cuZM6949+T43U=
 github.com/dave/jennifer v1.3.0 h1:p3tl41zjjCZTNBytMwrUuiAnherNUZktlhPTKoF/sEk=

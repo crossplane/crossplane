@@ -214,7 +214,7 @@ spec:
             conditions:
               description: Conditions of the resource.
               items:
-                description: A Condition that may apply to a managed resource.
+                description: A Condition that may apply to a resource.
                 properties:
                   lastTransitionTime:
                     description: LastTransitionTime is the last time this condition

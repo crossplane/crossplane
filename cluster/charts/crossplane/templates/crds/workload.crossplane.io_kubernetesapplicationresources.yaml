@@ -15,7 +15,7 @@ spec:
   - JSONPath: .spec.template.metadata.name
     name: TEMPLATE-NAME
     type: string
-  - JSONPath: .status.clusterRef.name
+  - JSONPath: .status.targetRef.name
     name: CLUSTER
     type: string
   - JSONPath: .status.state
@@ -79,23 +79,14 @@ spec:
           description: KubernetesApplicationResourceStatus represents the observed
             state of a KubernetesApplicationResource.
           properties:
-            clusterRef:
-              description: Cluster to which this application has been scheduled.
-              properties:
-                name:
-                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
-                  type: string
-              required:
-              - name
-              type: object
             conditionedStatus:
-              description: A ConditionedStatus reflects the observed status of a managed
-                resource. Only one condition of each type may exist.
+              description: A ConditionedStatus reflects the observed status of a resource.
+                Only one condition of each type may exist.
               properties:
                 conditions:
                   description: Conditions of the resource.
                   items:
-                    description: A Condition that may apply to a managed resource.
+                    description: A Condition that may apply to a resource.
                     properties:
                       lastTransitionTime:
                         description: LastTransitionTime is the last time this condition
@@ -139,6 +130,15 @@ spec:
             state:
               description: State of the application.
               type: string
+            targetRef:
+              description: Target to which this application has been scheduled.
+              properties:
+                name:
+                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                  type: string
+              required:
+              - name
+              type: object
           type: object
       type: object
   version: v1alpha1
