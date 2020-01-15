@@ -42,7 +42,7 @@ const (
 	namespace  = "coolNamespace"
 	name       = "coolCluster"
 	uid        = types.UID("definitely-a-uuid")
-	targetName = "definitely-a-uuid-target"
+	targetName = "definitely-a-uuid"
 )
 
 var (
