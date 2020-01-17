@@ -6,6 +6,7 @@ This API group contains the following Crossplane resources:
 
 * [KubernetesApplication](#KubernetesApplication)
 * [KubernetesApplicationResource](#KubernetesApplicationResource)
+* [KubernetesTarget](#KubernetesTarget)
 
 ## KubernetesApplication
 
@@ -34,6 +35,21 @@ Name | Type | Description
 `metadata` | [meta/v1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectmeta-v1-meta) | Kubernetes object metadata.
 `spec` | [KubernetesApplicationResourceSpec](#KubernetesApplicationResourceSpec) | KubernetesApplicationResourceSpec specifies the desired state of a KubernetesApplicationResource.
 `status` | [KubernetesApplicationResourceStatus](#KubernetesApplicationResourceStatus) | KubernetesApplicationResourceStatus represents the observed state of a KubernetesApplicationResource.
+
+
+
+## KubernetesTarget
+
+A KubernetesTarget is a scheduling target for a Kubernetes Application.
+
+
+Name | Type | Description
+-----|------|------------
+`apiVersion` | string | `workload.crossplane.io/v1alpha1`
+`kind` | string | `KubernetesTarget`
+`metadata` | [meta/v1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectmeta-v1-meta) | Kubernetes object metadata.
+`spec` | [v1alpha1.TargetSpec](../crossplane-runtime/core-crossplane-io-v1alpha1.md#targetspec) | 
+`status` | [v1alpha1.TargetStatus](../crossplane-runtime/core-crossplane-io-v1alpha1.md#targetstatus) | 
 
 
 
@@ -76,7 +92,7 @@ Name | Type | Description
 -----|------|------------
 `conditionedStatus` | [v1alpha1.ConditionedStatus](../crossplane-runtime/core-crossplane-io-v1alpha1.md#conditionedstatus) | 
 `state` | [KubernetesApplicationResourceState](#KubernetesApplicationResourceState) | State of the application.
-`clusterRef` | [core/v1.ObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectreference-v1-core) | Cluster to which this application has been scheduled.
+`targetRef` | [KubernetesTargetReference](#KubernetesTargetReference) | Target to which this application has been scheduled.
 `remote` | [RemoteStatus](#RemoteStatus) | Remote status of the resource templated by this application resource.
 
 
@@ -109,7 +125,7 @@ Appears in:
 Name | Type | Description
 -----|------|------------
 `resourceSelector` | [meta/v1.LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#labelselector-v1-meta) | ResourceSelector selects the KubernetesApplicationResources that are managed by this KubernetesApplication. Note that a KubernetesApplication will never adopt orphaned KubernetesApplicationResources, and thus this selector serves only to help match a KubernetesApplication to its KubernetesApplicationResources.
-`clusterSelector` | [meta/v1.LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#labelselector-v1-meta) | ClusterSelector selects the clusters to which this application may be scheduled. Leave both match labels and expressions empty to match any cluster.
+`targetSelector` | [meta/v1.LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#labelselector-v1-meta) | TargetSelector selects the targets to which this application may be scheduled. Leave both match labels and expressions empty to match any target.
 `resourceTemplates` | [[]KubernetesApplicationResourceTemplate](#KubernetesApplicationResourceTemplate) | ResourceTemplates specifies a set of Kubernetes application resources managed by this application.
 
 
@@ -136,9 +152,25 @@ Name | Type | Description
 -----|------|------------
 `conditionedStatus` | [v1alpha1.ConditionedStatus](../crossplane-runtime/core-crossplane-io-v1alpha1.md#conditionedstatus) | 
 `state` | [KubernetesApplicationState](#KubernetesApplicationState) | State of the application.
-`clusterRef` | [core/v1.ObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectreference-v1-core) | Cluster to which this application has been scheduled.
+`targetRef` | [KubernetesTargetReference](#KubernetesTargetReference) | Target to which this application has been scheduled.
 `desiredResources` | int | Desired resources of this application, i.e. the number of resources that match this application&#39;s resource selector.
 `submittedResources` | int | Submitted resources of this workload, i.e. the subset of desired resources that have been successfully submitted to their scheduled Kubernetes cluster.
+
+
+
+## KubernetesTargetReference
+
+A KubernetesTargetReference is a reference to a KubernetesTarget resource claim in the same namespace as the referrer.
+
+Appears in:
+
+* [KubernetesApplicationResourceStatus](#KubernetesApplicationResourceStatus)
+* [KubernetesApplicationStatus](#KubernetesApplicationStatus)
+
+
+Name | Type | Description
+-----|------|------------
+`name` | string | Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
 
 
 

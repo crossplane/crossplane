@@ -8,7 +8,7 @@ This API group contains the following Crossplane resources:
 
 ## Bucket
 
-A Bucket is a portable resource claim that may be satisfied by binding to a storage bucket PostgreSQL managed resource such as an AWS S3 bucket or Azure storage container.
+A Bucket is a portable resource claim that may be satisfied by binding to a managed resource such as an AWS S3 bucket or Azure storage container.
 
 
 Name | Type | Description

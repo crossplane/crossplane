@@ -39,13 +39,13 @@ Name | Type | Description
 -----|------|------------
 `writeConnectionSecretsToNamespace` | string | WriteConnectionSecretsToNamespace specifies the namespace in which the connection secrets of managed resources dynamically provisioned using this claim will be created.
 `providerRef` | [core/v1.ObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectreference-v1-core) | ProviderReference specifies the provider that will be used to create, observe, update, and delete managed resources that are dynamically provisioned using this resource class.
-`reclaimPolicy` | Optional [ReclaimPolicy](#ReclaimPolicy) | ReclaimPolicy specifies what will happen to external resources when managed resources dynamically provisioned using this resource class are deleted. &#34;Delete&#34; deletes the external resource, while &#34;Retain&#34; (the default) does not. Note this behaviour is subtly different from other uses of the ReclaimPolicy concept within the Kubernetes ecosystem per https://github.com/crossplaneio/crossplane-runtime/issues/21
+`reclaimPolicy` | Optional [ReclaimPolicy](#ReclaimPolicy) | ReclaimPolicy specifies what will happen to managed resources dynamically provisioned using this class when their resource claims are deleted, and what will happen to their underlying external resource when they are deleted. The &#34;Delete&#34; policy causes the managed resource to be deleted when its bound resource claim is deleted, and in turn causes the external resource to be deleted when its managed resource is deleted. The &#34;Retain&#34; policy causes the managed resource to be retained, in binding phase &#34;Released&#34;, when its resource claim is deleted, and in turn causes the external resource to be retained when its managed resource is deleted. The &#34;Retain&#34; policy is used when no policy is specified, however the &#34;Delete&#34; policy is set at dynamic provisioning time if no policy is set.
 
 
 
 ## Condition
 
-A Condition that may apply to a managed resource.
+A Condition that may apply to a resource.
 
 Appears in:
 
@@ -82,12 +82,13 @@ Appears in:
 
 ## ConditionedStatus
 
-A ConditionedStatus reflects the observed status of a managed resource. Only one condition of each type may exist.
+A ConditionedStatus reflects the observed status of a resource. Only one condition of each type may exist.
 
 Appears in:
 
 * [ResourceClaimStatus](#ResourceClaimStatus)
 * [ResourceStatus](#ResourceStatus)
+* [TargetStatus](#TargetStatus)
 
 
 Name | Type | Description
@@ -103,11 +104,23 @@ A LocalSecretReference is a reference to a secret in the same namespace as the r
 Appears in:
 
 * [ResourceClaimSpec](#ResourceClaimSpec)
+* [TargetSpec](#TargetSpec)
 
 
 Name | Type | Description
 -----|------|------------
 `name` | string | Name of the secret.
+
+
+
+## ProviderSpec
+
+A ProviderSpec defines the common way to get to the necessary objects to connect to the provider.
+
+
+Name | Type | Description
+-----|------|------------
+`credentialsSecretRef` | [SecretKeySelector](#SecretKeySelector) | CredentialsSecretRef references a specific secret&#39;s key that contains the credentials that are used to connect to the provider.
 
 
 
@@ -159,7 +172,7 @@ Name | Type | Description
 `claimRef` | Optional [core/v1.ObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectreference-v1-core) | ClaimReference specifies the resource claim to which this managed resource will be bound. ClaimReference is set automatically during dynamic provisioning. Crossplane does not currently support setting this field manually, per https://github.com/crossplaneio/crossplane-runtime/issues/19
 `classRef` | Optional [core/v1.ObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectreference-v1-core) | ClassReference specifies the resource class that was used to dynamically provision this managed resource, if any. Crossplane does not currently support setting this field manually, per https://github.com/crossplaneio/crossplane-runtime/issues/20
 `providerRef` | [core/v1.ObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectreference-v1-core) | ProviderReference specifies the provider that will be used to create, observe, update, and delete this managed resource.
-`reclaimPolicy` | Optional [ReclaimPolicy](#ReclaimPolicy) | ReclaimPolicy specifies what will happen to the external resource this managed resource manages when the managed resource is deleted. &#34;Delete&#34; deletes the external resource, while &#34;Retain&#34; (the default) does not. Note this behaviour is subtly different from other uses of the ReclaimPolicy concept within the Kubernetes ecosystem per https://github.com/crossplaneio/crossplane-runtime/issues/21
+`reclaimPolicy` | Optional [ReclaimPolicy](#ReclaimPolicy) | ReclaimPolicy specifies what will happen to this managed resource when its resource claim is deleted, and what will happen to the underlying external resource when the managed resource is deleted. The &#34;Delete&#34; policy causes the managed resource to be deleted when its bound resource claim is deleted, and in turn causes the external resource to be deleted when its managed resource is deleted. The &#34;Retain&#34; policy causes the managed resource to be retained, in binding phase &#34;Released&#34;, when its resource claim is deleted, and in turn causes the external resource to be retained when its managed resource is deleted. The &#34;Retain&#34; policy is used when no policy is specified.
 
 
 
@@ -179,6 +192,10 @@ ResourceStatus supports all fields of:
 ## SecretKeySelector
 
 A SecretKeySelector is a reference to a secret key in an arbitrary namespace.
+
+Appears in:
+
+* [ProviderSpec](#ProviderSpec)
 
 
 Name | Type | Description
@@ -206,6 +223,30 @@ Name | Type | Description
 `name` | string | Name of the secret.
 `namespace` | string | Namespace of the secret.
 
+
+
+## TargetSpec
+
+A TargetSpec defines the common fields of objects used for exposing infrastructure to workloads that can be scheduled to.
+
+
+Name | Type | Description
+-----|------|------------
+`connectionSecretRef` | Optional [LocalSecretReference](#LocalSecretReference) | WriteConnectionSecretToReference specifies the name of a Secret, in the same namespace as this target, to which any connection details for this target should be written or already exist. Connection secrets referenced by a target should contain information for connecting to a resource that allows for scheduling of workloads.
+`clusterRef` | Optional [core/v1.ObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectreference-v1-core) | A ResourceReference specifies an existing managed resource, in any namespace, which this target should attempt to propagate a connection secret from.
+
+
+
+## TargetStatus
+
+A TargetStatus defines the observed status a target.
+
+
+
+
+TargetStatus supports all fields of:
+
+* [ConditionedStatus](#ConditionedStatus)
 
 
 This API documentation was generated by `crossdocs`.
