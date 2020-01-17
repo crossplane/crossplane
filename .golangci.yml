@@ -134,6 +134,10 @@ issues:
         - scopelint
         - unparam
 
+    - path: zz_generated\.deepcopy\.go
+      linters:
+        - scopelint
+
     # Ease some gocritic warnings on test files.
     - path: _test\.go
       text: "(unnamedResult|exitAfterDefer)"
