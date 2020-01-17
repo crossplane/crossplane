@@ -51,9 +51,11 @@ HELM_CHART_LINT_ARGS_crossplane = --set nameOverride='',imagePullSecrets=''
 
 # ====================================================================================
 # Setup Images
+# Due to the way that the shared build logic works, images should
+# all be in folders at the same level (no additional levels of nesting).
 
 DOCKER_REGISTRY = crossplane
-IMAGES = crossplane
+IMAGES = crossplane resource-engine-helm2 resource-engine-kubectl
 -include build/makelib/image.mk
 
 # ====================================================================================

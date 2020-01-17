@@ -34,6 +34,12 @@ import (
 // installStep unmarshals install.yaml bytes to API machinery Unstructured which is set on the StackPackager
 func installStep(sp StackPackager) walker.Step {
 	return func(path string, b []byte) error {
+		if len(b) == 0 {
+			// Installs are optional, so if one doesn't exist, we want to skip it.
+			// Ideally we'd log some output here for humans who are debugging
+			return nil
+		}
+
 		install := unstructured.Unstructured{}
 		if err := yaml.Unmarshal(b, &install); err != nil {
 			return errors.Wrap(err, fmt.Sprintf("invalid install %q", path))
@@ -68,6 +74,20 @@ func appStep(sp StackPackager) walker.Step {
 		}
 
 		sp.SetApp(app)
+		return nil
+	}
+}
+
+// behaviorStep unmarshals stack.yaml bytes
+func behaviorStep(sp StackPackager) walker.Step {
+	return func(path string, b []byte) error {
+		// unstructured is used so that 'omitempty' will be respected after unmarshaling and marshaling
+		config := unstructured.Unstructured{}
+		if err := yaml.Unmarshal(b, &config); err != nil {
+			return errors.Wrap(err, fmt.Sprintf("invalid stack configuration at %q", path))
+		}
+
+		sp.SetBehavior(config)
 		return nil
 	}
 }

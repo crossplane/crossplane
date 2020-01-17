@@ -44,6 +44,7 @@ const (
 	resourceFileNamePattern = "*resource.yaml"
 	groupFileName           = "group.yaml"
 	appFileName             = "app.yaml"
+	stackFileName           = "stack.yaml"
 
 	// iconFileNamePattern is the pattern used when walking the stack package and looking for icon files.
 	// Icon files that are for a single resource can be prefixed with the kind of the resource, e.g.,
@@ -110,6 +111,7 @@ type StackGroup struct {
 // StackPackager implentations can build a stack from Stack resources and emit the Yaml artifact
 type StackPackager interface {
 	SetApp(v1alpha1.AppMetadataSpec)
+	SetBehavior(unstructured.Unstructured)
 	SetInstall(unstructured.Unstructured) error
 	SetRBAC(v1alpha1.PermissionsSpec)
 
@@ -133,6 +135,11 @@ type StackPackager interface {
 type StackPackage struct {
 	// Stack is the Kubernetes API Stack representation
 	Stack v1alpha1.Stack
+
+	// TODO roll stack configuration into Stack, most likely
+	// The reason this is unstructured is so that we don't
+	// fill in empty fields that were omitted in the yaml
+	Behavior unstructured.Unstructured
 
 	// CRDs map CRD files contained within a Stack by their GVK
 	CRDs map[string]apiextensions.CustomResourceDefinition
@@ -185,6 +192,22 @@ func (sp *StackPackage) Yaml() (string, error) {
 		return "", errors.Wrap(err, "could not write YAML output to buffer")
 	}
 
+	// Behaviors are optional, so we skip it if it doesn't exist
+	if len(sp.Behavior.Object) > 0 {
+		bb, err := yaml.Marshal(sp.Behavior.Object)
+		if err != nil {
+			return "", errors.Wrap(err, "could not marshal behavior")
+		}
+
+		if _, err := builder.WriteString(yamlSeparator); err != nil {
+			return "", errors.Wrap(err, "could not write behavior YAML output to buffer")
+		}
+
+		if _, err := builder.Write(bb); err != nil {
+			return "", errors.Wrap(err, "could not write behavior YAML output to buffer")
+		}
+	}
+
 	return builder.String(), nil
 }
 
@@ -197,6 +220,11 @@ func (sp *StackPackage) IsNamespaced() bool {
 func (sp *StackPackage) SetApp(app v1alpha1.AppMetadataSpec) {
 	sp.Stack.Spec.AppMetadataSpec = app
 	sp.appSet = true
+}
+
+// SetBehavior sets the Stack's Behavior configuration
+func (sp *StackPackage) SetBehavior(behavior unstructured.Unstructured) {
+	sp.Behavior = behavior
 }
 
 // SetInstall sets the Stack controller's install method from a Deployment or Job
@@ -433,6 +461,7 @@ func Unpack(rw walker.ResourceWalker, out io.StringWriter, baseDir string, permi
 	sp := NewStackPackage(filepath.Clean(baseDir))
 
 	rw.AddStep(appFileName, appStep(sp))
+	rw.AddStep(stackFileName, behaviorStep(sp))
 
 	rw.AddStep(groupFileName, groupStep(sp))
 

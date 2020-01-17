@@ -1,0 +1,7 @@
+kind: ClusterStackInstall
+apiVersion: stacks.crossplane.io/v1alpha1
+
+metadata:
+  name: helm2-template-stack
+spec:
+  package: crossplane/sample-stack-claim-test:helm2

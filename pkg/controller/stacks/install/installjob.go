@@ -44,7 +44,7 @@ import (
 
 var (
 	jobBackoff                = int32(0)
-	registryDirName           = ".registry"
+	registryDirName           = "/.registry"
 	packageContentsVolumeName = "package-contents"
 )
 
@@ -235,7 +235,7 @@ func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, o
 	// when the current object is a Stack object, make sure the name and namespace are
 	// set to match the current StackInstall (if they haven't already been set). Also,
 	// set the owner reference of the Stack to be the StackInstall.
-	if isStackObject(obj) {
+	if isStackObject(obj) || isStackConfigurationObject(obj) {
 		if obj.GetName() == "" {
 			obj.SetName(i.GetName())
 		}
@@ -281,13 +281,31 @@ func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, o
 }
 
 func isStackObject(obj *unstructured.Unstructured) bool {
+	log.V(logging.Debug).Info("Checking GVK for object", "obj", obj)
 	if obj == nil {
 		return false
 	}
 
 	gvk := obj.GroupVersionKind()
+	log.V(logging.Debug).Info("Object GVK", "obj", obj, "gvk", gvk)
 	return gvk.Group == v1alpha1.Group && gvk.Version == v1alpha1.Version &&
 		strings.EqualFold(gvk.Kind, v1alpha1.StackKind)
+}
+
+func isStackConfigurationObject(obj *unstructured.Unstructured) bool {
+	log.V(logging.Debug).Info("Checking GVK for object", "obj", obj)
+	if obj == nil {
+		return false
+	}
+
+	gvk := obj.GroupVersionKind()
+
+	if gvk.Group == v1alpha1.Group && gvk.Version == v1alpha1.Version &&
+		strings.EqualFold(gvk.Kind, v1alpha1.StackConfigurationKind) {
+		return true
+	}
+
+	return false
 }
 
 func isCRDObject(obj runtime.Object) bool {

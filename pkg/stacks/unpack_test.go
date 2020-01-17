@@ -63,6 +63,24 @@ spec:
             fieldRef:
               fieldPath: metadata.namespace
 `
+	simpleBehaviorStackFile = `---
+apiVersion: stacks.crossplane.io/v1alpha1
+kind: StackConfiguration
+metadata:
+  name: template-stack-test
+
+spec:
+  behaviors:
+    crds:
+      SampleClaim.samples.stacks.crossplane.io/v1alpha1:
+        hooks:
+          reconcile:
+          - directory: 'resources'
+    engine:
+      type: helm2
+    source:
+      image: crossplane/sample-stack-claim-test:helm2
+`
 
 	simpleJobInstallFile = `apiVersion: batch/v1
 kind: Job
@@ -231,6 +249,121 @@ spec:
   website: https://upbound.io
 status:
   conditionedStatus: {}
+`
+	expectedSimpleBehaviorStackOutput = `
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    stacks.crossplane.io/icon-data-uri: data:image/jpeg;base64,bW9jay1pY29uLWRhdGE=
+    stacks.crossplane.io/stack-title: Sample Crossplane Stack
+  creationTimestamp: null
+  labels:
+    app.kubernetes.io/managed-by: stack-manager
+    crossplane.io/scope: namespace
+  name: mytypes.samples.upbound.io
+spec:
+  group: samples.upbound.io
+  names:
+    kind: Mytype
+    listKind: MytypeList
+    plural: mytypes
+    singular: mytype
+  scope: Namespaced
+  version: v1alpha1
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: null
+  storedVersions: null
+
+---
+apiVersion: stacks.crossplane.io/v1alpha1
+kind: Stack
+metadata:
+  creationTimestamp: null
+spec:
+  category: Category
+  company: Upbound
+  controller: {}
+  customresourcedefinitions:
+  - apiVersion: samples.upbound.io/v1alpha1
+    kind: Mytype
+  dependsOn:
+  - crd: foo.mystack.example.org/v1alpha1
+  - crd: '*.yourstack.example.org/v1alpha2'
+  icons:
+  - base64Data: bW9jay1pY29uLWRhdGE=
+    mediatype: image/jpeg
+  keywords:
+  - samples
+  - examples
+  - tutorials
+  license: Apache-2.0
+  maintainers:
+  - email: jared@upbound.io
+    name: Jared Watts
+  overview: text overview
+  overviewShort: short text overview
+  owners:
+  - email: bassam@upbound.io
+    name: Bassam Tabbara
+  permissionScope: Namespaced
+  permissions:
+    rules:
+    - apiGroups:
+      - ""
+      resources:
+      - configmaps
+      - events
+      - secrets
+      verbs:
+      - '*'
+    - apiGroups:
+      - samples.upbound.io
+      resources:
+      - mytypes
+      verbs:
+      - '*'
+    - apiGroups:
+      - mystack.example.org
+      resources:
+      - foo
+      verbs:
+      - '*'
+    - apiGroups:
+      - yourstack.example.org
+      resources:
+      - '*'
+      verbs:
+      - '*'
+  readme: |
+    Markdown describing this sample Crossplane stack project.
+  source: https://github.com/crossplaneio/sample-stack
+  title: Sample Crossplane Stack
+  version: 0.0.1
+  website: https://upbound.io
+status:
+  conditionedStatus: {}
+
+---
+apiVersion: stacks.crossplane.io/v1alpha1
+kind: StackConfiguration
+metadata:
+  name: template-stack-test
+spec:
+  behaviors:
+    crds:
+      SampleClaim.samples.stacks.crossplane.io/v1alpha1:
+        hooks:
+          reconcile:
+          - directory: resources
+    engine:
+      type: helm2
+    source:
+      image: crossplane/sample-stack-claim-test:helm2
 `
 
 	expectedComplexDeploymentStackOutput = `
@@ -1116,6 +1249,22 @@ func TestUnpack(t *testing.T) {
 			}(),
 			root: "ext-dir",
 			want: want{output: expectedSimpleDeploymentStackOutput, err: nil},
+		},
+		{
+			name: "SimpleBehaviorStack",
+			fs: func() afero.Fs {
+				fs := afero.NewMemMapFs()
+				fs.MkdirAll("ext-dir", 0755)
+				afero.WriteFile(fs, "ext-dir/icon.jpg", []byte("mock-icon-data"), 0644)
+				afero.WriteFile(fs, "ext-dir/app.yaml", []byte(simpleAppFile("Namespaced")), 0644)
+				afero.WriteFile(fs, "ext-dir/stack.yaml", []byte(simpleBehaviorStackFile), 0644)
+				crdDir := "ext-dir/resources/samples.upbound.io/mytype/v1alpha1"
+				fs.MkdirAll(crdDir, 0755)
+				afero.WriteFile(fs, filepath.Join(crdDir, "mytype.v1alpha1.crd.yaml"), []byte(simpleCRDFile("mytype")), 0644)
+				return fs
+			}(),
+			root: "ext-dir",
+			want: want{output: expectedSimpleBehaviorStackOutput, err: nil},
 		},
 		{
 			name: "ComplexDeploymentStack",
