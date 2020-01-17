@@ -9,7 +9,7 @@ spec:
   resourceSelector:
     matchLabels:
       operator: rook-yugabyte
-  clusterSelector:
+  targetSelector:
     matchLabels:
       app: yugastore
   resourceTemplates:
