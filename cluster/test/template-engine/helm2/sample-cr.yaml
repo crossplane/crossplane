@@ -1,0 +1,9 @@
+---
+apiVersion: samples.stacks.crossplane.io/v1alpha1
+kind: SampleClaim
+metadata:
+  name: sample-claim-test
+spec:
+  config:
+    mode: debug
+  nameOverride: mycustomname-helm2

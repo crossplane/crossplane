@@ -1,0 +1,10 @@
+Release: {{.Release.Name}}
+
+Chart Name: {{.Chart.Name}}
+Chart Description: {{.Chart.Description}}
+Chart Version: {{.Chart.Version}}
+Chart API Version: {{.Chart.ApiVersion}}
+Chart Application Version: {{.Chart.AppVersion}}
+
+Kube Version: {{.Capabilities.KubeVersion}}
+Tiller Version: {{.Capabilities.TillerVersion}}

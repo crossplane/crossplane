@@ -20,7 +20,9 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/spf13/afero"
 	"gopkg.in/alecthomas/kingpin.v2"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
@@ -34,6 +36,7 @@ import (
 	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
 	"github.com/crossplaneio/crossplane/apis"
 	stacksController "github.com/crossplaneio/crossplane/pkg/controller/stacks"
+	templatesController "github.com/crossplaneio/crossplane/pkg/controller/stacks/templates"
 	"github.com/crossplaneio/crossplane/pkg/controller/workload"
 	"github.com/crossplaneio/crossplane/pkg/stacks"
 	"github.com/crossplaneio/crossplane/pkg/stacks/walker"
@@ -60,7 +63,8 @@ func main() {
 		extCmd = app.Command("stack", "Perform operations on stacks")
 
 		// stack manage - adds the stack manager controllers and starts their reconcile loops
-		extManageCmd = extCmd.Command("manage", "Manage stacks (run stack manager controllers)")
+		extManageCmd     = extCmd.Command("manage", "Manage stacks (run stack manager controllers)")
+		supportTemplates = extManageCmd.Flag("templates", "Enable support for template stacks").Bool()
 
 		// stack unpack - performs the unpacking operation for the given stack package content
 		// directory. This command is expected to parse the content and generate manifests for stack
@@ -85,17 +89,35 @@ func main() {
 		runtimelog.SetLogger(zl)
 	}
 
-	var setupWithManagerFunc func(manager.Manager) error
-
 	// Determine the command being called and execute the corresponding logic
 	switch cmd {
 	case crossplaneCmd.FullCommand():
 		// the default Crossplane command is being run, add all the regular controllers to the manager
-		setupWithManagerFunc = controllerSetupWithManager
+		mgr := setupManager(log, syncPeriod)
+
+		log.Info("Adding controllers")
+		kingpin.FatalIfError(controllerSetupWithManager(mgr), "Cannot add controllers to manager")
+
+		// Start the Cmd
+		log.Info("Starting the manager")
+		kingpin.FatalIfError(mgr.Start(signals.SetupSignalHandler()), "Cannot start controller")
 	case extManageCmd.FullCommand():
 		// the "stacks manage" command is being run, the only controllers we should add to the
 		// manager are the stacks controllers
-		setupWithManagerFunc = stacksControllerSetupWithManager
+
+		mgr := setupManager(log, syncPeriod)
+
+		log.Info("Adding controllers")
+		kingpin.FatalIfError(stacksControllerSetupWithManager(mgr), "Cannot add controllers to manager")
+
+		if *supportTemplates {
+			log.Info("Adding template controllers")
+			kingpin.FatalIfError(stacksTemplateControllerSetupWithManager(mgr), "Cannot add template controllers to manager")
+		}
+
+		// Start the Cmd
+		log.Info("Starting the manager")
+		kingpin.FatalIfError(mgr.Start(signals.SetupSignalHandler()), "Cannot start controller")
 	case extUnpackCmd.FullCommand():
 		var outFile io.StringWriter
 		// stack unpack command was called, run the stack unpacking logic
@@ -112,11 +134,13 @@ func main() {
 		fs := afero.NewOsFs()
 		rd := &walker.ResourceDir{Base: filepath.Clean(*extUnpackDir), Walker: afero.Afero{Fs: fs}}
 		kingpin.FatalIfError(stacks.Unpack(rd, outFile, rd.Base, *extUnpackPermissionScope), "failed to unpack stacks")
-		return
 	default:
 		kingpin.FatalUsage("unknown command %s", cmd)
 	}
 
+}
+
+func setupManager(log logr.Logger, syncPeriod *time.Duration) manager.Manager {
 	// Get a config to talk to the apiserver
 	cfg, err := config.GetConfig()
 	kingpin.FatalIfError(err, "Cannot get config")
@@ -131,13 +155,7 @@ func main() {
 	log.Info("Adding schemes")
 	kingpin.FatalIfError(addToScheme(mgr.GetScheme()), "Cannot add APIs to scheme")
 
-	// Setup all Controllers
-	log.Info("Adding controllers")
-	kingpin.FatalIfError(setupWithManagerFunc(mgr), "Cannot add controllers to manager")
-
-	// Start the Cmd
-	log.Info("Starting the manager")
-	kingpin.FatalIfError(mgr.Start(signals.SetupSignalHandler()), "Cannot start controller")
+	return mgr
 }
 
 func closeOrError(c io.Closer) {
@@ -152,6 +170,11 @@ func controllerSetupWithManager(mgr manager.Manager) error {
 
 func stacksControllerSetupWithManager(mgr manager.Manager) error {
 	c := stacksController.Controllers{}
+	return c.SetupWithManager(mgr)
+}
+
+func stacksTemplateControllerSetupWithManager(mgr manager.Manager) error {
+	c := templatesController.Controllers{}
 	return c.SetupWithManager(mgr)
 }
 

@@ -1,0 +1,6 @@
+# RBAC ClusterRoles will be generated permitting this stack to use all verbs on all
+# resources in the groups listed below.
+permissionScope: Cluster
+
+# License SPDX name: https://spdx.org/licenses/
+license: Apache-2.0
