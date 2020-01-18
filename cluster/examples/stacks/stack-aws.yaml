@@ -5,4 +5,4 @@ metadata:
   name: stack-aws
   namespace: crossplane-system
 spec:
-  package: "crossplane/stack-aws:master"
+  package: "crossplane/stack-aws:v0.5.0"
