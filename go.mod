@@ -3,8 +3,8 @@ module github.com/crossplaneio/crossplane
 go 1.13
 
 require (
-	github.com/crossplaneio/crossplane-runtime v0.3.1-0.20200114203641-5ece4af54b32
-	github.com/crossplaneio/crossplane-tools v0.0.0-20191023215726-61fa1eff2a2e
+	github.com/crossplaneio/crossplane-runtime v0.4.0
+	github.com/crossplaneio/crossplane-tools v0.0.0-20191220202319-9033bd8a02ce
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-logr/logr v0.1.0
 	github.com/google/go-cmp v0.3.1
