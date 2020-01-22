@@ -147,19 +147,32 @@ Any dates listed below and the specific issues that will ship in a given milesto
   * [User experience for template stacks](https://github.com/crossplaneio/crossplane/blob/master/design/design-doc-template-stacks-experience.md).
 * [Bug fixes and other closed issues](https://github.com/crossplaneio/crossplane/milestone/6?closed=1)
 
-## v0.7.0
+## [v0.7.0 Deploy Workloads to any Kubernetes Cluster, including bare-metal!](https://github.com/crossplaneio/crossplane/releases/tag/v0.7.0)
 * KubernetesTarget kind for scheduling KubernetesApplications [#859](https://github.com/crossplaneio/crossplane/issues/859)
-* Versioning and upgrade support [#879](https://github.com/crossplaneio/crossplane/issues/879)
-  * Design one-pager [#435](https://github.com/crossplaneio/crossplane/issues/435)
+* Improved the UI schema for resources supported by Crossplane stacks [#38](https://github.com/upbound/crossplane-graphql/issues/38)
+* GCP integration tests [crossplaneio/stack-gcp#87](https://github.com/crossplaneio/stack-gcp/issues/87)
+* Template Stacks (experimental): integrate template engine controllers with stack manager [#36](https://github.com/upbound/stacks-marketplace-squad/issues/36)
+
+## v0.8.0
 * Template Stacks - easier to build App & Config Stacks (Preview) [#853](https://github.com/crossplaneio/crossplane/issues/853) 
+* Easy stacks for ready-to-run cloud environments (GCP, AWS, Azure) [#1136](https://github.com/crossplaneio/crossplane/issues/1136)
+  * Spin up secure cloud environments (nets, subnets, secure service connectivity, k8s clusters, resource classes, etc.) with just a few lines of yaml 
+* Host-aware Stack Manager [#1038](https://github.com/crossplaneio/crossplane/issues/1038)
+  * Enables deploying multiple Crossplane instances watching different Kubernetes API servers (i.e. multiple API servers running in different namespaces) on a single Host Kubernetes cluster.
+* Designs for:
+   * Defining your own claim kinds [#1106](https://github.com/crossplaneio/crossplane/issues/1106) 
+   * Allowing a claim to be satisfied by multiple resources [#1105](https://github.com/crossplaneio/crossplane/issues/1105)
+   * Versioning and upgrade support [#879](https://github.com/crossplaneio/crossplane/issues/879), [#435](https://github.com/crossplaneio/crossplane/issues/435)
 * GCP storage buckets to v1beta1 [crossplaneio/stack-gcp#130](https://github.com/crossplaneio/stack-gcp/issues/130)
 * GCP networking resources to v1beta1 [crossplaneio/stack-gcp#131](https://github.com/crossplaneio/stack-gcp/issues/131)
 * Improved logging and eventing [crossplaneio/crossplane-runtime#104](https://github.com/crossplaneio/crossplane-runtime/issues/104)
-* Integration testing
-  * Integration testing support [#1033](https://github.com/crossplaneio/crossplane/issues/1033)
-  * GCP integration tests [crossplaneio/stack-gcp#87](https://github.com/crossplaneio/stack-gcp/issues/87)
 
 ## Roadmap
+* Integration testing
+  * Integration testing support [#1033](https://github.com/crossplaneio/crossplane/issues/1033)
+  * AWS Stack integration tests 
+  * Azure Stack integration tests 
+
 * Stacks Manager
   * Versioning and upgrade [#879](https://github.com/crossplaneio/crossplane/issues/879) 
 
