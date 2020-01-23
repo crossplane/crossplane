@@ -526,35 +526,46 @@ Annotation | Metadata Source | Value from Source
 ## Dependency Resolution
 
 When a Stack requires types and functionality defined by another Stack, this
-dependency needs to be resolved and fulfilled. Dependencies may be expressed by
-the CRDs that are required or by the versioned Stack package that defines them.
+dependency needs to be resolved and fulfilled.
 
-There are three forms of Stack manual consumption during installation:
+### Presentation
 
-* Stack Packages
-* Stack Channel
-* API Group/Version descriptions (CRD)
+Stack Packages are units of publishing, pulling and versioning, they are not a
+unit of consumption. Inline with this, all Stack dependencies are presented as a
+list of the CRDs that are required, not by the Stack or package that defines
+them.
 
-In comparison, only two of these forms may be used by a Stack to assert and
-resolve dependencies.  Stack Channels are not an option for Stack dependency
-declarations. (TODO: why not?)
+Therefore, If the required CRDs don’t already exist in the cluster, a registry
+could be queried to identify the packages that provide that CRD. Several
+packages may offer the same CRDs. In an open ecosystem, selection of the most
+appropriate matching package should be left to the user and user interfaces.
+Automatic dependency resolution of Stack packages is not offered by the Stack
+Manager, but it could be offered by user interfaces such as the Crossplane CLI.
 
-Dependencies specified as API Group/Version references must be fulfilled in one
-of three ways:
+For example, the Crossplane CLI could offer an `install` argument that queries a
+registry for the dependencies of a package prior to installation.  This custom
+registry will need to maintains an index of packages and their dependencies.
 
-* Installed Resources
-* Registry Query by CRD
-* Stack Package (Registry OCI)
+The full set of packages and Stacks that a Stack depend on will be listed. The
+CLI will then need to query the dependencies of those Stacks, and their
+dependencies until a complete list of packages are known. Local caching
+optimizations and a complete registry listing feature would be recommended for this process.
 
-If the CRDs described in the dependency don’t exist, the registry must be
-queried for the package defining them. The registry maintains an index of
-package contents so that it can easily answer questions like this. The full set
-of packages and Stacks that a Stack depend on will be downloaded, unpacked,
-examined, and installed before installation of the Stack itself can proceed.
+### Expression
 
-(TODO: all at once or in sequence?)
+Dependencies are ultimately expressed in Crossplane clusters by two features:
 
-### 
+* installation of the dependent Stacks
+* addition of RBAC rules for Stacks to access the resources provided by the dependency
+
+Currently, the RBAC rules associated with Stack dependencies are provided within
+a single ClusterRole. This is coupled with the RBAC rules associated with the
+owned resources of the Stack.
+
+To simplify the reconciliation of dependencies and owned RBAC rules, each
+Stack's owned resources should use independent ClusterRules. RoleBindings or
+ClusterRoleBindings can then reuse these ClusterRoles across many Stacks that
+share the same dependencies.
 
 ## Package Processing
 
