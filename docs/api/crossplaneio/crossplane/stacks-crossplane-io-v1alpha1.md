@@ -6,6 +6,7 @@ This API group contains the following Crossplane resources:
 
 * [ClusterStackInstall](#ClusterStackInstall)
 * [Stack](#Stack)
+* [StackConfiguration](#StackConfiguration)
 * [StackInstall](#StackInstall)
 
 ## ClusterStackInstall
@@ -35,6 +36,21 @@ Name | Type | Description
 `metadata` | [meta/v1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectmeta-v1-meta) | Kubernetes object metadata.
 `spec` | [StackSpec](#StackSpec) | StackSpec specifies the desired state of a Stack.
 `status` | [StackStatus](#StackStatus) | StackStatus represents the observed state of a Stack.
+
+
+
+## StackConfiguration
+
+StackConfiguration is the Schema for the stackconfigurations API
+
+
+Name | Type | Description
+-----|------|------------
+`apiVersion` | string | `stacks.crossplane.io/v1alpha1`
+`kind` | string | `StackConfiguration`
+`metadata` | [meta/v1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectmeta-v1-meta) | Kubernetes object metadata.
+`spec` | [StackConfigurationSpec](#StackConfigurationSpec) | StackConfigurationSpec defines the desired state of StackConfiguration
+`status` | [StackConfigurationStatus](#StackConfigurationStatus) | StackConfigurationStatus defines the observed state of StackConfiguration
 
 
 
@@ -147,6 +163,32 @@ Name | Type | Description
 
 
 
+## GVK
+
+GVK should be in domain format, so Kind.group/version Alias of string.
+
+
+## HookConfiguration
+
+HookConfiguration is the configuration for an individual hook which will be executed in response to an event.
+
+
+Name | Type | Description
+-----|------|------------
+`engine` | [ResourceEngineConfiguration](#ResourceEngineConfiguration) | ResourceEngineConfiguration represents a configuration for a resource engine, such as helm2 or kustomize.
+`directory` | string | 
+
+
+
+## HookConfigurations
+
+HookConfigurations is a list of hook configurations. Alias of []github.com/crossplaneio/crossplane/apis/stacks/v1alpha1.HookConfiguration.
+
+Appears in:
+
+* [StackConfigurationBehavior](#StackConfigurationBehavior)
+
+
 ## IconSpec
 
 IconSpec defines the icon for a stack
@@ -176,6 +218,95 @@ Name | Type | Description
 -----|------|------------
 `rules` | [[]rbac/v1.PolicyRule](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#policyrule-v1-rbac) | 
 
+
+
+## ResourceEngineConfiguration
+
+ResourceEngineConfiguration represents a configuration for a resource engine, such as helm2 or kustomize.
+
+Appears in:
+
+* [HookConfiguration](#HookConfiguration)
+* [StackConfigurationBehavior](#StackConfigurationBehavior)
+* [StackConfigurationBehaviors](#StackConfigurationBehaviors)
+
+
+Name | Type | Description
+-----|------|------------
+`type` | string | 
+
+
+
+## StackConfigurationBehavior
+
+StackConfigurationBehavior specifies an individual behavior, by listing resources which should be processed.
+
+Appears in:
+
+* [StackConfigurationBehaviors](#StackConfigurationBehaviors)
+
+
+Name | Type | Description
+-----|------|------------
+`hooks` | [map[string]github.com/crossplaneio/crossplane/apis/stacks/v1alpha1.HookConfigurations](#HookConfigurations) | The key for Hooks is an event name which represents the lifecycle event that the controller should respond to. There are certain events that are recognized. Currently, only &#34;reoncile&#34; is recognized.
+`engine` | [ResourceEngineConfiguration](#ResourceEngineConfiguration) | ResourceEngineConfiguration represents a configuration for a resource engine, such as helm2 or kustomize.
+
+
+
+## StackConfigurationBehaviors
+
+StackConfigurationBehaviors specifies behaviors for the stack
+
+Appears in:
+
+* [StackConfigurationSpec](#StackConfigurationSpec)
+
+
+Name | Type | Description
+-----|------|------------
+`crds` | [map[github.com/crossplaneio/crossplane/apis/stacks/v1alpha1.GVK]github.com/crossplaneio/crossplane/apis/stacks/v1alpha1.StackConfigurationBehavior](#StackConfigurationBehavior) | 
+`engine` | [ResourceEngineConfiguration](#ResourceEngineConfiguration) | ResourceEngineConfiguration represents a configuration for a resource engine, such as helm2 or kustomize.
+`source` | [StackConfigurationSource](#StackConfigurationSource) | Theoretically, source and engine could be specified at a per-crd level or per-hook level as well.
+
+
+
+## StackConfigurationSource
+
+StackConfigurationSource is the stack image which this stack configuration is from. In the future, other source types may be supported, such as a URL.
+
+Appears in:
+
+* [StackConfigurationBehaviors](#StackConfigurationBehaviors)
+
+
+Name | Type | Description
+-----|------|------------
+`image` | string | a container image id
+
+
+
+## StackConfigurationSpec
+
+StackConfigurationSpec defines the desired state of StackConfiguration
+
+Appears in:
+
+* [StackConfiguration](#StackConfiguration)
+
+
+Name | Type | Description
+-----|------|------------
+`behaviors` | [StackConfigurationBehaviors](#StackConfigurationBehaviors) | Important: Run &#34;make&#34; to regenerate code after modifying this file
+
+
+
+## StackConfigurationStatus
+
+StackConfigurationStatus defines the observed state of StackConfiguration
+
+Appears in:
+
+* [StackConfiguration](#StackConfiguration)
 
 
 ## StackInstallSpec

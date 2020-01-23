@@ -20,7 +20,7 @@ import (
 	"reflect"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"sigs.k8s.io/controller-runtime/pkg/runtime/scheme"
+	"sigs.k8s.io/controller-runtime/pkg/scheme"
 )
 
 // Package type metadata.
@@ -58,8 +58,16 @@ var (
 	StackGroupVersionKind = SchemeGroupVersion.WithKind(StackKind)
 )
 
+// StackConfiguration type metadata
+var (
+	StackConfigurationKind             = reflect.TypeOf(StackConfiguration{}).Name()
+	StackConfigurationKindAPIVersion   = StackConfigurationKind + "." + SchemeGroupVersion.String()
+	StackConfigurationGroupVersionKind = SchemeGroupVersion.WithKind(StackConfigurationKind)
+)
+
 func init() {
 	SchemeBuilder.Register(&ClusterStackInstall{}, &ClusterStackInstallList{})
 	SchemeBuilder.Register(&StackInstall{}, &StackInstallList{})
 	SchemeBuilder.Register(&Stack{}, &StackList{})
+	SchemeBuilder.Register(&StackConfiguration{}, &StackConfigurationList{})
 }

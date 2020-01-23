@@ -9,7 +9,7 @@ spec:
   resourceSelector:
     matchLabels:
       app: yugastore
-  clusterSelector:
+  targetSelector:
     matchLabels:
       app: yugastore
   resourceTemplates:

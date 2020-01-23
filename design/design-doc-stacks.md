@@ -472,8 +472,8 @@ metadata:
           validation:
           - minimum: 1
           - maximum: 3
-      resourceConditionPaths:
-      - .status.conditionedStatus.conditions[?(@.type=='Ready')]
+      printerColumns:
+        Ready: .status.conditionedStatus.conditions[?(@.type=='Ready')]
       ---
       additionalSpec: example
       stillYaml: true

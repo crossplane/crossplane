@@ -9,7 +9,7 @@ spec:
   resourceSelector:
     matchLabels:
       app: wordpress-demo
-  clusterSelector:
+  targetSelector:
     matchLabels:
       app: wordpress-demo
   resourceTemplates:

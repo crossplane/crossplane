@@ -22,6 +22,7 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/controller/workload/kubernetes/application"
 	"github.com/crossplaneio/crossplane/pkg/controller/workload/kubernetes/resource"
 	"github.com/crossplaneio/crossplane/pkg/controller/workload/kubernetes/scheduler"
+	"github.com/crossplaneio/crossplane/pkg/controller/workload/kubernetes/target"
 )
 
 // Controllers passes down config and adds individual controllers to the manager.
@@ -38,6 +39,10 @@ func (c *Controllers) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	if err := (&scheduler.Controller{}).SetupWithManager(mgr); err != nil {
+		return err
+	}
+
+	if err := (&target.Controller{}).SetupWithManager(mgr); err != nil {
 		return err
 	}
 

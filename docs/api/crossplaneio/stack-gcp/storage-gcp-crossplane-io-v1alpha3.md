@@ -47,12 +47,12 @@ Appears in:
 
 Name | Type | Description
 -----|------|------------
-`entity` | string | 
-`entityId` | string | 
-`role` | string | 
-`domain` | string | 
-`email` | string | 
-`projectTeam` | [ProjectTeam](#ProjectTeam) | 
+`entity` | string | Entity refers to a user or group. They are sometimes referred to as grantees. It could be in the form of: &#34;user-&lt;userId&gt;&#34;, &#34;user-&lt;email&gt;&#34;, &#34;group-&lt;groupId&gt;&#34;, &#34;group-&lt;email&gt;&#34;, &#34;domain-&lt;domain&gt;&#34; and &#34;project-team-&lt;projectId&gt;&#34;.  Or one of the predefined constants: AllUsers, AllAuthenticatedUsers.
+`role` | string | Role is the access permission for the entity. Valid values are &#34;OWNER&#34;, &#34;READER&#34; and &#34;WRITER&#34;
+`entityId` | string | EntityID is the ID for the entity, if any.
+`domain` | string | The domain associated with the entity, if any.
+`email` | string | The email address associated with the entity, if any.
+`projectTeam` | [ProjectTeam](#ProjectTeam) | ProjectTeam that is associated with the entity, if any.
 
 
 
@@ -356,8 +356,8 @@ Appears in:
 
 Name | Type | Description
 -----|------|------------
-`projectNumber` | string | 
-`team` | string | 
+`projectNumber` | string | ProjectNumber is the number of the project.
+`team` | string | The team. Acceptable values are: &#34;editors&#34;, &#34;owners&#34; or &#34;viewers&#34;
 
 
 

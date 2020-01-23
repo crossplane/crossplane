@@ -36,6 +36,20 @@ Name | Type | Description
 
 
 
+## AsyncOperation
+
+AsyncOperation is used to save Azure Async operation details.
+
+
+Name | Type | Description
+-----|------|------------
+`method` | string | Method is HTTP method that the initial request is made with.
+`pollingUrl` | string | PollingURL is used to fetch the status of the given operation.
+`status` | string | Status represents the status of the operation.
+`errorMessage` | string | ErrorMessage represents the error that occurred during the operation.
+
+
+
 ## ProviderSpec
 
 A ProviderSpec defines the desired state of a Provider.
@@ -45,10 +59,11 @@ Appears in:
 * [Provider](#Provider)
 
 
-Name | Type | Description
------|------|------------
-`credentialsSecretRef` | [v1alpha1.SecretKeySelector](../crossplane-runtime/core-crossplane-io-v1alpha1.md#secretkeyselector) | Azure service principal credentials json secret key reference A Secret containing JSON encoded credentials for an Azure Service Principal that will be used to authenticate to this Azure Provider.
 
+
+ProviderSpec supports all fields of:
+
+* [v1alpha1.ProviderSpec](../crossplane-runtime/core-crossplane-io-v1alpha1.md#providerspec)
 
 
 ## ResourceGroupNameReferencer

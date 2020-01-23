@@ -125,8 +125,8 @@ configSections:
     validation:
     - required: true
       customError: You must select an instance size for your configuration!
-resourceConditionPaths:
-- .status.conditionedStatus.conditions[?(@.type=='Ready')]
+printerColumns:
+  Ready: .status.conditionedStatus.conditions[?(@.type=='Ready')]
 ```
 
 ### CRD Annotation Example
@@ -142,6 +142,7 @@ metadata:
   annotations:
     stacks.crossplane.io/ui-schema: |-
       ---
+      version: 0.4
       configSections:
       - title: Configuration
         description: Enter information specific to the configuration you wish to create.
@@ -184,15 +185,15 @@ metadata:
           validation:
           - required: true
             customError: You must select an instance size for your configuration!
-      resourceConditionPaths:
-      - .status.conditionedStatus.conditions[?(@.type=='Ready')]
+      printerColumns:
+        Ready: .status.conditionedStatus.conditions[?(@.type=='Ready')]
       ---
       version: 0.4
       configSections:
       - title: Supplementary
         description: A supplementary UI annotation
-      resourceConditionPaths:
-      - .status.conditionedStatus.conditions[?(@.type=='Ready')]
+      printerColumns:
+        Ready: .status.conditionedStatus.conditions[?(@.type=='Ready')]
   labels:
     controller-tools.k8s.io: "1.0"
 ```

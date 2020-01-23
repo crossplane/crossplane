@@ -146,6 +146,7 @@ Name | Type | Description
 `userVisibleState` | string | UserVisibleState - A state of a server that is visible to user.
 `fullyQualifiedDomainName` | string | FullyQualifiedDomainName - The fully qualified domain name of a server.
 `masterServerId` | string | MasterServerID - The master server id of a replica server.
+`lastOperation` | github.com/crossplaneio/stack-azure/apis/v1alpha3.AsyncOperation | LastOperation represents the state of the last operation started by the controller.
 
 
 

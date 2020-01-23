@@ -53,23 +53,23 @@ type syncer interface {
 }
 
 // CreatePredicate accepts KubernetesApplications that have been scheduled to a
-// KubernetesCluster.
+// KubernetesTarget.
 func CreatePredicate(event event.CreateEvent) bool {
 	wl, ok := event.Object.(*v1alpha1.KubernetesApplication)
 	if !ok {
 		return false
 	}
-	return wl.Status.Cluster != nil
+	return wl.Status.Target != nil
 }
 
 // UpdatePredicate accepts KubernetesApplications that have been scheduled to a
-// KubernetesCluster.
+// KubernetesTarget.
 func UpdatePredicate(event event.UpdateEvent) bool {
 	wl, ok := event.ObjectNew.(*v1alpha1.KubernetesApplication)
 	if !ok {
 		return false
 	}
-	return wl.Status.Cluster != nil
+	return wl.Status.Target != nil
 }
 
 // Add the KubernetesApplication scheduler reconciler to the supplied manager.
@@ -197,7 +197,7 @@ func renderTemplate(app *v1alpha1.KubernetesApplication, template *v1alpha1.Kube
 	ar.SetAnnotations(template.GetAnnotations())
 
 	ar.Spec = template.Spec
-	ar.Status.Cluster = app.Status.Cluster
+	ar.Status.Target = app.Status.Target
 	ar.Status.State = v1alpha1.KubernetesApplicationResourceStateScheduled
 
 	return ar

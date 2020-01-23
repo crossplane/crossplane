@@ -199,11 +199,26 @@ If the control cluster doesn't recognize the Wordpress instance type, it
 could be because the stack is still being installed. Wait a few seconds,
 and try creating the Wordpress instance again.
 
-### Wait
+### Wait for Claims
 
-The Wordpress can take a while to spin up, because behind the scenes
-Crossplane is creating all of its dependendencies, which is a database
-and Kubernetes cluster. To check the status, you can use [the trace 
+The Wordpress instance can take a while to spin up, because behind the scenes
+the Crossplane Stack is creating all of its dependendencies using Crossplane resources.
+
+The resources we are waiting for are:
+
+* `MySQLInstance` - a claim for a MySQL database, that could be provisioned by CloudSQL, RDS, or Azure Database, for example
+* `KubernetesCluster` - a claim for a Kubernetes cluster that could be provided by GKE, AKS, EKS, or others
+* `KubernetesApplication` - a workload to deploy on a Kubernetes cluster
+
+When the database and cluster claims have become available, their `Ready` condition will become `Available`
+and they will provide a reference to a secret with credentials for the provisioned service.
+
+The powerful `KubernetesApplication` Crossplane resource bundles native Kubernetes resource types and manages
+them on a target cluster. The `KubernetesApplication` deployed by this Wordpress Stack includes
+a `Namespace`, `Deployment`, and `Service`.  The `KubernetesApplication` resource will become
+available once the Kubernetes resources have been created on the target cluster.
+
+To check the status, you can use [the trace
 command](https://github.com/crossplaneio/crossplane-cli/tree/master/docs/trace-command.md)
 of the Crossplane CLI.
 

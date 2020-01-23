@@ -94,12 +94,12 @@ controller.
 ## Getting Started
 
 At the time of writing all Crossplane Services controllers are written in Go,
-and built using [kubebuilder] v0.2.x and [crossplane-runtime]. Per [What Makes
-a Crossplane Managed Service] it is possible to write a controller using any
+and built using [kubebuilder] v0.2.x and [crossplane-runtime]. Per [What Makes a
+Crossplane Managed Service] it is possible to write a controller using any
 language and tooling with a Kubernetes client, but this set of tools are the
 "[golden path]". They're well supported, broadly used, and provide a shared
 language with the Crossplane maintainers. This guide targets [crossplane-runtime
-v0.2.1].
+v0.4.0].
 
 This guide assumes the reader is familiar with the Kubernetes [API Conventions]
 and the [kubebuilder book]. If you're not adding a new managed service to an
@@ -127,8 +127,7 @@ kubebuilder create api \
     --resource=true --controller=false
 ```
 
-The above command should produce a scaffold similar to the below
-example:
+The above command should produce a scaffold similar to the below example:
 
 ```go
 type FancySQLInstanceSpec struct {
@@ -161,8 +160,8 @@ the new resource kind is a managed resource, resource claim, or resource class.
 The getters and setter methods required to satisfy the various
 crossplane-runtime interfaces are omitted from the below examples for brevity.
 They can be added by hand, but new services are encouraged to use [`angryjet`]
-to generate them automatically using a `//go:generate` comment per the [`angryjet`
-documentation].
+to generate them automatically using a `//go:generate` comment per the
+[`angryjet` documentation].
 
 Note that in many cases a suitable provider and resource claim will already
 exist. Frequently adding support for a new managed service requires only the
@@ -228,7 +227,7 @@ type FavouriteDBInstanceParameters struct {
 // A FavouriteDBInstanceSpec defines the desired state of a FavouriteDBInstance.
 type FavouriteDBInstanceSpec struct {
     runtimev1alpha1.ResourceSpec  `json:",inline"`
-    FavouriteDBInstanceParameters `json:",forProvider"`
+    ForProvider FavouriteDBInstanceParameters `json:",forProvider"`
 }
 
 // A FavouriteDBInstanceStatus represents the observed state of a
@@ -257,7 +256,7 @@ type FavouriteDBInstance struct {
     metav1.TypeMeta   `json:",inline"`
     metav1.ObjectMeta `json:"metadata,omitempty"`
 
-    Spec   FavouriteDBInstanceSpec   `json:"spec,omitempty"`
+    Spec   FavouriteDBInstanceSpec   `json:"spec"`
     Status FavouriteDBInstanceStatus `json:"status,omitempty"`
 }
 ```
@@ -276,20 +275,19 @@ defined in the same file as their the managed resource. Resource classes must:
 * Satisfy crossplane-runtime's [`resource.Class`] interface.
 * Have a `SpecTemplate` struct field instead of a `Spec`.
 * Embed a [`ClassSpecTemplate`] struct in their `SpecTemplate` struct.
-* Embed their managed resource's `Parameters` struct in their `SpecTemplate`
-  struct.
+* Embed their managed resource's `Parameters` struct as `ForProvider` in their
+  `SpecTemplate` struct.
 * Not have a `Status` struct.
 * Use the `+kubebuilder:resource:scope=Cluster` [comment marker].
 
-A resource class for the above `FavouriteDBInstance` would look as
-follows:
+A resource class for the above `FavouriteDBInstance` would look as follows:
 
 ```go
 // A FavouriteDBInstanceClassSpecTemplate is a template for the spec of a
 // dynamically provisioned FavouriteDBInstance.
 type FavouriteDBInstanceClassSpecTemplate struct {
     runtimev1alpha1.ClassSpecTemplate `json:",inline"`
-    FavouriteDBInstanceParameters     `json:",forProvider"`
+    ForProvider FavouriteDBInstanceParameters     `json:",forProvider"`
 }
 
 // A FavouriteDBInstanceClass is a resource class. It defines the desired spec
@@ -372,8 +370,7 @@ infrastructure stack that adds support for a new infrastructure provider.
 Providers must:
 
 * Be named exactly `Provider`.
-* Have a `Spec` struct with a `Secret` field indicating where to find
-  credentials for this provider.
+* Embed a [`ProviderSpec`] struct in their `Spec` struct.
 * Use the `+kubebuilder:resource:scope=Cluster` [comment marker].
 
 The Favourite Cloud `Provider` would look as follows. Note that the cloud to
@@ -383,10 +380,12 @@ would be `favouritecloud.crossplane.io/v1alpha1` or similar.
 ```go
 // A ProviderSpec defines the desired state of a Provider.
 type ProviderSpec struct {
+    runtimev1alpha1.ProviderSpec `json:",inline"`
 
-    // A Secret containing credentials for a Favourite Cloud Service Account
-    // that will be used to authenticate to this Provider.
-    Secret runtimev1alpha1.SecretKeySelector `json:"credentialsSecretRef"`
+    // Information required outside of the Secret referenced in the embedded
+    // runtimev1alpha1.ProviderSpec that is required to authenticate to the provider.
+    // ProjectID is used as an example here.
+    ProjectID string `json:"projectID"`
 }
 
 // A Provider configures a Favourite Cloud 'provider', i.e. a connection to a
@@ -396,7 +395,7 @@ type Provider struct {
     metav1.TypeMeta   `json:",inline"`
     metav1.ObjectMeta `json:"metadata,omitempty"`
 
-    Spec ProviderSpec `json:"spec,omitempty"`
+    Spec ProviderSpec `json:"spec"`
 }
 ```
 
@@ -412,7 +411,8 @@ claim. Before moving on to the controllers:
 * Run `make generate && make manifests` (or `make reviewable` if you're working
   in one of the projects in the [crossplaneio org]) to generate Custom Resource
   Definitions and additional helper methods for your new resource kinds.
-* Make sure a `//go:generate` comment exists for [angryjet] and you ran `go generate -v ./...`
+* Make sure a `//go:generate` comment exists for [angryjet] and you ran `go
+  generate -v ./...`
 * Make sure any package documentation (i.e. `// Package v1alpha1...` GoDoc,
   including package level comment markers) are in a file named `doc.go`.
   kubebuilder adds them to `groupversion_info.go`, but several code generation
@@ -450,21 +450,25 @@ Crossplane-specific tasks.
 
 crossplane-runtime provides the following `reconcile.Reconcilers`:
 
-* The [`resource.ManagedReconciler`] reconciles managed resources with external
-  systems by instantiating a client of the external API and using it to create,
-  update, or delete the external resource as necessary.
-* [`resource.ClaimSchedulingReconciler`] reconciles resource claims by
-  scheduling them to a resource class that matches their class selector labels
+* The [`managed.Reconciler`] reconciles managed resources with external systems
+  by instantiating a client of the external API and using it to create, update,
+  or delete the external resource as necessary.
+* [`claimscheduling.Reconciler`] reconciles resource claims by scheduling them
+  to a resource class that matches their class selector labels (if any).
+* [`claimdefaulting.Reconciler`] reconciles resource claims that omit their
+  class selector by defaulting them to a resource class annotated as the default
   (if any).
-* [`resource.ClaimDefaultingReconciler`] reconciles resource claims that omit
-  their class selector by defaulting them to a resource class annotated as the
-  default (if any).
-* [`resource.ClaimReconciler`] reconciles resource claims with managed resources
+* [`claimbinding.Reconciler`] reconciles resource claims with managed resources
   by either binding or dynamically provisioning and then binding them.
-* [`resource.SecretPropagatingReconciler`] reconciles secrets by propagating
-  their data to another secret. This controller is typically used to ensure
-  resource claim connection secrets remain in sync with the connection secrets
-  of their bound managed resources.
+* [`secret.NewReconciler`] reconciles secrets by propagating their data to
+  another secret. This controller is typically used to ensure resource claim
+  connection secrets remain in sync with the connection secrets of their bound
+  managed resources.
+* [`target.Reconciler`] reconciles `KubernetesTarget` resources that reference
+  managed resources that provide a hosted Kubernetes service (i.e. GKE, EKS,
+  AKS). This controller is used to propagate the connection information of the
+  referenced Kubernetes cluster to the namespace of the `KubernetesTarget` in
+  the form of a secret.
 
 Crossplane controllers typically differ sufficiently from those scaffolded by
 kubebuilder that there is little value in using kubebuilder to generate a
@@ -472,12 +476,12 @@ controller scaffold.
 
 ### Managed Resource Controllers
 
-Managed resource controllers should use [`resource.NewManagedReconciler`] to
-wrap a managed-resource specific implementation of
-[`resource.ExternalConnecter`]. Parts of `resource.ManagedReconciler`'s
-behaviour is customisable; refer to the [`resource.NewManagedReconciler`] GoDoc
-for a list of options. The following is an example controller for the
-`FavouriteDBInstance` managed resource we defined earlier:
+Managed resource controllers should use [`managed.NewReconciler`] to wrap a
+managed-resource specific implementation of [`managed.ExternalConnecter`]. Parts
+of `managed.Reconciler`'s behaviour is customisable; refer to the
+[`managed.NewReconciler`] GoDoc for a list of options. The following is an
+example controller for the `FavouriteDBInstance` managed resource we defined
+earlier:
 
 ```go
 import (
@@ -497,6 +501,7 @@ import (
     runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
     "github.com/crossplaneio/crossplane-runtime/pkg/meta"
     "github.com/crossplaneio/crossplane-runtime/pkg/resource"
+    "github.com/crossplaneio/crossplane-runtime/pkg/reconciler/managed"
 
     "github.com/crossplaneio/stack-fcp/apis/database/v1alpha3"
     fcpv1alpha3 "github.com/crossplaneio/stack-fcp/apis/v1alpha3"
@@ -504,16 +509,16 @@ import (
 
 type FavouriteDBInstanceController struct{}
 
-// SetupWithManager instantiates a new controller using a resource.ManagedReconciler
+// SetupWithManager instantiates a new controller using a managed.Reconciler
 // configured to reconcile FavouriteDBInstances using an ExternalClient produced by
 // connecter, which satisfies the ExternalConnecter interface.
 func (c *FavouriteDBInstanceController) SetupWithManager(mgr ctrl.Manager) error {
     return ctrl.NewControllerManagedBy(mgr).
         Named(strings.ToLower(fmt.Sprintf("%s.%s", v1alpha3.FavouriteDBInstanceKind, v1alpha3.Group))).
         For(&v1alpha3.FavouriteDBInstance{}).
-        Complete(resource.NewManagedReconciler(mgr,
+        Complete(managed.NewReconciler(mgr,
             resource.ManagedKind(v1alpha3.FavouriteDBInstanceGroupVersionKind),
-            resource.WithExternalConnecter(&connecter{client: mgr.GetClient()})))
+            managed.WithExternalConnecter(&connecter{client: mgr.GetClient()})))
 }
 
 // Connecter satisfies the resource.ExternalConnecter interface.
@@ -522,7 +527,7 @@ type connecter struct{ client client.Client }
 // Connect to the supplied resource.Managed (presumed to be a
 // FavouriteDBInstance) by using the Provider it references to create a new
 // database client.
-func (c *connecter) Connect(ctx context.Context, mg resource.Managed) (resource.ExternalClient, error) {
+func (c *connecter) Connect(ctx context.Context, mg resource.Managed) (managed.ExternalClient, error) {
     // Assert that resource.Managed we were passed in fact contains a
     // FavouriteDBInstance. We told NewControllerManagedBy that this was a
     // controller For FavouriteDBInstance, so something would have to go
@@ -554,13 +559,13 @@ func (c *connecter) Connect(ctx context.Context, mg resource.Managed) (resource.
 // External satisfies the resource.ExternalClient interface.
 type external struct{ client database.Client }
 
-// Observe the existing external resource, if any. The resource.ManagedReconciler
+// Observe the existing external resource, if any. The managed.Reconciler
 // calls Observe in order to determine whether an external resource needs to be
 // created, updated, or deleted.
-func (e *external) Observe(ctx context.Context, mg resource.Managed) (resource.ExternalObservation, error) {
+func (e *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
     i, ok := mg.(*v1alpha3.FavouriteDBInstance)
     if !ok {
-        return resource.ExternalObservation{}, errors.New("managed resource is not a FavouriteDBInstance")
+        return managed.ExternalObservation{}, errors.New("managed resource is not a FavouriteDBInstance")
     }
 
     // Use our FavouriteDB API client to get an up to date view of the external
@@ -568,17 +573,17 @@ func (e *external) Observe(ctx context.Context, mg resource.Managed) (resource.E
     existing, err := e.client.GetInstance(ctx, i.Spec.Name)
 
     // If we encounter an error indicating the external resource does not exist
-    // we want to let the resource.ManagedReconciler know so it can create it.
+    // we want to let the managed.Reconciler know so it can create it.
     if database.IsNotFound(err) {
-        return resource.ExternalObservation{ResourceExists: false}, nil
+        return managed.ExternalObservation{ResourceExists: false}, nil
     }
 
     // Any other errors are wrapped (as is good Go practice) and returned to the
-    // resource.ManagedReconciler. It will update the "Synced" status condition
+    // managed.Reconciler. It will update the "Synced" status condition
     // of the managed resource to reflect that the most recent reconcile failed
     // and ensure the reconcile is reattempted after a brief wait.
     if err != nil {
-        return resource.ExternalObservation{}, errors.Wrap(err, "cannot get instance")
+        return managed.ExternalObservation{}, errors.Wrap(err, "cannot get instance")
     }
 
     // The external resource exists. Copy any output-only fields to their
@@ -609,10 +614,10 @@ func (e *external) Observe(ctx context.Context, mg resource.Managed) (resource.E
     // the actual fanciness level matches our desired fanciness level. Any
     // ConnectionDetails we return will be published to the managed resource's
     // connection secret if it specified one.
-    o := resource.ExternalObservation{
+    o := managed.ExternalObservation{
         ResourceExists:   true,
         ResourceUpToDate: existing.GetFancinessLevel == i.Spec.FancinessLevel,
-        ConnectionDetails: resource.ConnectionDetails{
+        ConnectionDetails: managed.ConnectionDetails{
             runtimev1alpha1.ResourceCredentialsSecretUserKey:     []byte(existing.GetUsername()),
             runtimev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(existing.GetHostname()),
         },
@@ -622,12 +627,12 @@ func (e *external) Observe(ctx context.Context, mg resource.Managed) (resource.E
 }
 
 // Create a new external resource based on the specification of our managed
-// resource. resource.ManagedReconciler only calls Create if Observe reported
+// resource. managed.Reconciler only calls Create if Observe reported
 // that the external resource did not exist.
-func (e *external) Create(ctx context.Context, mg resource.Managed) (resource.ExternalCreation, error) {
+func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.ExternalCreation, error) {
     i, ok := mg.(*v1alpha3.FavouriteDBInstance)
     if !ok {
-        return resource.ExternalCreation{}, errors.New("managed resource is not a FavouriteDBInstance")
+        return managed.ExternalCreation{}, errors.New("managed resource is not a FavouriteDBInstance")
     }
     // Indicate that we're about to create the instance. Remember ExternalClient
     // authors can use a bespoke condition reason here in cases where Creating
@@ -635,10 +640,10 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (resource.Ex
     i.SetConditions(runtimev1alpha1.Creating())
 
     // Create must return any connection details that are set or returned only
-    // at creation time. The resource.ManagedReconciler will merge any details
+    // at creation time. The managed.Reconciler will merge any details
     // with those returned during the Observe phase.
     password := database.GeneratePassword()
-    cd := resource.ConnectionDetails{runtimev1alpha1.ResourceCredentialsSecretPasswordKey: []byte(password)}
+    cd := managed.ConnectionDetails{runtimev1alpha1.ResourceCredentialsSecretPasswordKey: []byte(password)}
 
     // Create a new instance.
     new := database.Instance{Name: i.Name, FancinessLevel: i.FancinessLevel, Version: i.Version}
@@ -650,25 +655,25 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (resource.Ex
     // resource controllers are advised to avoid unintentially 'adoptign' an
     // existing, unrelated external resource, per
     // https://github.com/crossplaneio/crossplane-runtime/issues/27
-    return resource.ExternalCreation{ConnectionDetails: cd}, errors.Wrap(resource.Ignore(database.IsExists, err), "cannot create instance")
+    return managed.ExternalCreation{ConnectionDetails: cd}, errors.Wrap(resource.Ignore(database.IsExists, err), "cannot create instance")
 }
 
 // Update the existing external resource to match the specifications of our
-// managed resource. resource.ManagedReconciler only calls Update if Observe
+// managed resource. managed.Reconciler only calls Update if Observe
 // reported that the external resource was not up to date.
-func (e *external) Update(ctx context.Context, mg resource.Managed) (resource.ExternalUpdate, error) {
+func (e *external) Update(ctx context.Context, mg resource.Managed) (managed.ExternalUpdate, error) {
     i, ok := mg.(*v1alpha3.FavouriteDBInstance)
     if !ok {
-        return resource.ExternalUpdate{}, errors.New("managed resource is not a FavouriteDBInstance")
+        return managed.ExternalUpdate{}, errors.New("managed resource is not a FavouriteDBInstance")
     }
 
     // Recall that FancinessLevel is the only field that we _can_ update.
     new := database.Instance{Name: i.Name, FancinessLevel: i.FancinessLevel}
     err := e.client.UpdateInstance(ctx, new)
-    return resource.ExternalUpdate{}, errors.Wrap(err, "cannot update instance")
+    return managed.ExternalUpdate{}, errors.Wrap(err, "cannot update instance")
 }
 
-// Delete the external resource. resource.ManagedReconciler only calls Delete
+// Delete the external resource. managed.Reconciler only calls Delete
 // when a managed resource with the 'Delete' reclaim policy has been deleted.
 func (e *external) Delete(ctx context.Context, mg resource.Managed) error {
     i, ok := mg.(*v1alpha3.FavouriteDBInstance)
@@ -690,13 +695,13 @@ func (e *external) Delete(ctx context.Context, mg resource.Managed) error {
 
 ### Resource Claim Scheduling Controllers
 
-Scheduling controllers should use [`resource.NewClaimSchedulingReconciler`] to
-specify the resource claim kind it schedules and the resource class kind it
-schedules them to. Note that unlike their resource claim kinds, resource claim
-scheduling controllers are always part of the infrastructure stack that defines
-the resource class they schedule claims to. The following is an example
-controller that reconciles the `FancySQLInstance` resource claim by scheduling
-it to a `FavouriteDBInstanceClass`:
+Scheduling controllers should use [`claimscheduling.NewReconciler`] to specify
+the resource claim kind it schedules and the resource class kind it schedules
+them to. Note that unlike their resource claim kinds, resource claim scheduling
+controllers are always part of the infrastructure stack that defines the
+resource class they schedule claims to. The following is an example controller
+that reconciles the `FancySQLInstance` resource claim by scheduling it to a
+`FavouriteDBInstanceClass`:
 
 ```go
 import (
@@ -707,6 +712,7 @@ import (
 
     runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
     "github.com/crossplaneio/crossplane-runtime/pkg/resource"
+    "github.com/crossplaneio/crossplane-runtime/pkg/reconciler/claimscheduling"
 
     // Note that the hypothetical FancySQL resource claim is part of Crossplane,
     // not stack-fcp, because it is (hypothetically) portable across multiple
@@ -748,7 +754,7 @@ func (c *FancySQLInstanceClaimSchedulingController) SetupWithManager(mgr ctrl.Ma
             // existing managed resource.
             resource.HasNoManagedResourceReference(),
         ))).
-        Complete(resource.NewClaimSchedulingReconciler(mgr,
+        Complete(claimscheduling.NewReconciler(mgr,
             resource.ClaimKind(databasev1alpha1.FancySQLInstanceGroupVersionKind),
             resource.ClassKind(v1alpha3.FavouriteDBInstanceClassGroupVersionKind),
         ))
@@ -758,13 +764,13 @@ func (c *FancySQLInstanceClaimSchedulingController) SetupWithManager(mgr ctrl.Ma
 ### Resource Claim Defaulting Controllers
 
 Defaulting controllers are configured almost (but not quite) identically to
-scheduling controllers. They use a [`resource.NewClaimSchedulingReconciler`] to
-specify the resource claim kind they configure and the resource class kind they
-default to. Unlike their resource claim kinds, defaulting controllers are always
-part of the infrastructure stack that defines the resource class they default
-claims to. The following is an example controller that reconciles the
-`FancySQLInstance` resource claim by setting its class reference to a
-`FavouriteDBInstanceClass` annotated as the default class:
+scheduling controllers. They use a [`claimdefaulting.NewReconciler`] to specify
+the resource claim kind they configure and the resource class kind they default
+to. Unlike their resource claim kinds, defaulting controllers are always part of
+the infrastructure stack that defines the resource class they default claims to.
+The following is an example controller that reconciles the `FancySQLInstance`
+resource claim by setting its class reference to a `FavouriteDBInstanceClass`
+annotated as the default class:
 
 ```go
 import (
@@ -775,6 +781,7 @@ import (
 
     runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
     "github.com/crossplaneio/crossplane-runtime/pkg/resource"
+    "github.com/crossplaneio/crossplane-runtime/pkg/reconciler/claimdefaulting"
 
     // Note that the hypothetical FancySQL resource claim is part of Crossplane,
     // not stack-fcp, because it is (hypothetically) portable across multiple
@@ -815,7 +822,7 @@ func (c *FancySQLInstanceClaimDefaultingController) SetupWithManager(mgr ctrl.Ma
             // existing managed resource.
             resource.HasNoManagedResourceReference(),
         ))).
-        Complete(resource.NewClaimDefaultingReconciler(mgr,
+        Complete(claimdefaulting.NewReconciler(mgr,
             resource.ClaimKind(databasev1alpha1.FancySQLInstanceGroupVersionKind),
             resource.ClassKind(v1alpha3.FavouriteDBInstanceClassGroupVersionKind),
         ))
@@ -824,15 +831,15 @@ func (c *FancySQLInstanceClaimDefaultingController) SetupWithManager(mgr ctrl.Ma
 
 ### Resource Claim Controllers
 
-Resource claim controllers should use [`resource.NewClaimReconciler`] to wrap a
-managed-resource specific implementation of [`resource.ManagedConfigurator`].
-Parts of `resource.ClaimReconciler`'s behaviour is customisable; refer to the
-[`resource.NewClaimReconciler`] GoDoc for a list of options. Note that unlike
-their resource claim kinds, resource claim controllers are always part of the
-infrastructure stack that defines the managed resource they reconcile claims
-with. The following is an example controller that reconciles the
-`FancySQLInstance` resource claim with the `FavouriteDBInstance` managed
-resource:
+Resource claim controllers should use [`claimbinding.NewReconciler`] to wrap a
+managed-resource specific implementation of
+[`claimbinding.ManagedConfigurator`]. Parts of `claimbinding.Reconciler`'s
+behaviour is customisable; refer to the [`claimbinding.NewReconciler`] GoDoc for
+a list of options. Note that unlike their resource claim kinds, resource claim
+controllers are always part of the infrastructure stack that defines the managed
+resource they reconcile claims with. The following is an example controller that
+reconciles the `FancySQLInstance` resource claim with the `FavouriteDBInstance`
+managed resource:
 
 ```go
 import (
@@ -847,6 +854,7 @@ import (
 
     runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
     "github.com/crossplaneio/crossplane-runtime/pkg/resource"
+    "github.com/crossplaneio/crossplane-runtime/pkg/reconciler/claimbinding"
 
     // Note that the hypothetical FancySQL resource claim is part of Crossplane,
     // not stack-fcp, because it is (hypothetically) portable across multiple
@@ -889,16 +897,16 @@ func (c *FavouriteDBInstanceClaimController) SetupWithManager(mgr ctrl.Manager) 
     ))
 
     // Create a new resource claim reconciler...
-    r := resource.NewClaimReconciler(mgr,
+    r := claimbinding.NewReconciler(mgr,
         // ..that uses the supplied claim, class, and managed resource kinds.
         resource.ClaimKind(databasev1alpha1.FancySQLInstanceGroupVersionKind),
         resource.ClassKind(v1alpha3.FavouriteDBInstanceClassGroupVersionKind),
         resource.ManagedKind(v1alpha3.FavouriteDBInstanceGroupVersionKind),
         // The following configurators configure how a managed resource will be
         // configured when one must be dynamically provisioned.
-        resource.WithManagedConfigurators(
-            resource.ManagedConfiguratorFn(ConfigureFavouriteDBInstance),
-            resource.NewObjectMetaConfigurator(mgr.GetScheme()),
+        claimbinding.WithManagedConfigurators(
+            claimbinding.ManagedConfiguratorFn(ConfigureFavouriteDBInstance),
+            claimbinding.NewObjectMetaConfigurator(mgr.GetScheme()),
         ))
 
     // Note that we watch for both FancySQLInstance and FavouriteDBInstance
@@ -973,6 +981,7 @@ import (
     "sigs.k8s.io/controller-runtime/pkg/source"
 
     "github.com/crossplaneio/crossplane-runtime/pkg/resource"
+    "github.com/crossplaneio/crossplane-runtime/pkg/reconciler/secret"
     databasev1alpha1 "github.com/crossplaneio/crossplane/apis/database/v1alpha1"
 
     "github.com/crossplaneio/stack-fcp/apis/database/v1alpha3"
@@ -988,10 +997,59 @@ func (c *FavouriteDBInstanceSecretController) SetupWithManager(mgr ctrl.Manager)
 
     return ctrl.NewControllerManagedBy(mgr).
         Named(strings.ToLower(fmt.Sprintf("connectionsecret.%s.%s", v1alpha3.FavouriteDBInstanceKind, v1alpha3.Group))).
-        Watches(&source.Kind{Type: &corev1.Secret{}}, &resource.EnqueueRequestForPropagator{}).
+        Watches(&source.Kind{Type: &corev1.Secret{}}, &resource.EnqueueRequestForPropagated{}).
         For(&corev1.Secret{}).
         WithEventFilter(p).
-        Complete(resource.NewSecretPropagatingReconciler(mgr))
+        Complete(secret.NewReconciler(mgr))
+}
+```
+
+### Target Controller
+
+Managed resources that represent a hosted Kubernetes cluster can be referenced
+by `KubernetesTarget` resources in a namespace where `KubernetesApplication`
+resources want to be created and scheduled to the remote cluster. This
+controller evaluates if a newly created `KubernetesTarget` references its hosted
+Kubernetes cluster managed resource, and if so, propagates its connection
+information to the namespace of the `KubernetesTarget`. It will also set
+annotations on the propagated secret in case there is a connection secret
+controller that is set to continously propagate the connection information as it
+changes.
+
+The following controller propagates the connection secret of a
+`FavouriteCluster` to the namespace of a `KubernetesTarget` that references it.
+Note that `FavouriteCluster` is used instead of `FavouriteDBInstance` due to the
+fact that Target controllers are currently only utilized for managed resources
+that represent a hosted Kubernetes cluster offering.
+
+```go
+import (
+    "fmt"
+    "strings"
+
+    ctrl "sigs.k8s.io/controller-runtime"
+
+    "github.com/crossplaneio/crossplane-runtime/pkg/reconciler/target"
+    "github.com/crossplaneio/crossplane-runtime/pkg/resource"
+    workloadv1alpha1 "github.com/crossplaneio/crossplane/apis/workload/v1alpha1"
+
+    "github.com/crossplaneio/stack-fcp/apis/compute/v1alpha3"
+)
+
+type FavoriteClusterTargetController struct{}
+
+func (c *FavouriteClusterTargetController) SetupWithManager(mgr ctrl.Manager) error {
+    p := resource.NewPredicates(resource.HasManagedResourceReferenceKind(resource.ManagedKind(v1alpha3.FavouriteClusterGroupVersionKind)))
+
+    r := target.NewReconciler(mgr,
+        resource.TargetKind(workloadv1alpha1.KubernetesTargetGroupVersionKind),
+        resource.ManagedKind(v1alpha3.FavouriteClusterGroupVersionKind))
+
+    return ctrl.NewControllerManagedBy(mgr).
+        Named(strings.ToLower(fmt.Sprintf("kubernetestarget.%s.%s", v1alpha3.FavouriteClusterKind, v1alpha3.Group))).
+        For(&workloadv1alpha1.KubernetesTarget{}).
+        WithEventFilter(p).
+        Complete(r)
 }
 ```
 
@@ -1014,7 +1072,7 @@ import (
 
     "sigs.k8s.io/controller-runtime/pkg/client/config"
     "sigs.k8s.io/controller-runtime/pkg/manager"
-    "sigs.k8s.io/controller-runtime/pkg/runtime/signals"
+    "sigs.k8s.io/controller-runtime/pkg/manager/signals"
 
     crossplaneapis "github.com/crossplaneio/crossplane/apis"
 
@@ -1063,16 +1121,16 @@ value any feedback you may have about the services development process!
 [resource claim]: concepts.md#resource-claim
 [resource class]: concepts.md#resource-class
 [dynamic provisioning]: concepts.md#dynamic-and-static-provisioning
-[`CloudMemorystoreInstance`]: https://github.com/crossplaneio/stack-gcp/blob/42ebb8b71/gcp/apis/cache/v1beta1/cloudmemorystore_instance_types.go#L146
-[`CloudMemorystoreInstanceClass`]: https://github.com/crossplaneio/stack-gcp/blob/42ebb8b71/gcp/apis/cache/v1beta1/cloudmemorystore_instance_types.go#L237
-[`Provider`]: https://github.com/crossplaneio/stack-gcp/blob/24ab7381b/gcp/apis/v1alpha3/types.go#L37
+[`CloudMemorystoreInstance`]: https://github.com/crossplaneio/stack-gcp/blob/85a6ed3c669a021f1d61be51b2cbe2714b0bc70b/apis/cache/v1beta1/cloudmemorystore_instance_types.go#L184
+[`CloudMemorystoreInstanceClass`]: https://github.com/crossplaneio/stack-gcp/blob/85a6ed3c669a021f1d61be51b2cbe2714b0bc70b/apis/cache/v1beta1/cloudmemorystore_instance_types.go#L217
+[`Provider`]: https://github.com/crossplaneio/stack-gcp/blob/85a6ed3c669a021f1d61be51b2cbe2714b0bc70b/apis/v1alpha3/types.go#L41
 [`RedisCluster`]: https://github.com/crossplaneio/crossplane/blob/3c6cf4e/apis/cache/v1alpha1/rediscluster_types.go#L40
 [`RedisClusterClass`]: https://github.com/crossplaneio/crossplane/blob/3c6cf4e/apis/cache/v1alpha1/rediscluster_types.go#L116
 [watching the API server]: https://kubernetes.io/docs/reference/using-api/api-concepts/#efficient-detection-of-changes
 [kubebuilder]: https://kubebuilder.io/
 [controller-runtime]: https://github.com/kubernetes-sigs/controller-runtime
 [crossplane-runtime]: https://github.com/crossplaneio/crossplane-runtime/
-[crossplane-runtime v0.2.1]: https://github.com/crossplaneio/crossplane-runtime/releases/tag/v0.2.1
+[crossplane-runtime v0.4.0]: https://github.com/crossplaneio/crossplane-runtime/releases/tag/v0.4.0
 [golden path]: https://charity.wtf/2018/12/02/software-sprawl-the-golden-path-and-scaling-teams-with-agency/
 [API Conventions]: https://github.com/kubernetes/community/blob/c6e1e89a/contributors/devel/sig-architecture/api-conventions.md
 [kubebuilder book]: https://book.kubebuilder.io/
@@ -1085,25 +1143,26 @@ value any feedback you may have about the services development process!
 [`resource.Managed`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/resource#Managed
 [`resource.Claim`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/resource#Claim
 [`resource.Class`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/resource#Class
-[`resource.ManagedReconciler`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/resource#ManagedReconciler
-[`resource.NewManagedReconciler`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/resource#NewManagedReconciler
-[`resource.ClaimReconciler`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/resource#ClaimReconciler
-[`resource.NewClaimReconciler`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/resource#NewClaimReconciler
-[`resource.ClaimSchedulingReconciler`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/resource#ClaimSchedulingReconciler
-[`resource.NewClaimSchedulingReconciler`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/resource#NewClaimSchedulingReconciler
-[`resource.ClaimDefaultingReconciler`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/resource#ClaimDefaultingReconciler
-[`resource.NewClaimDefaultingReconciler`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/resource#NewClaimDefaultingReconciler
-[`resource.SecretPropagatingReconciler`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/resource#SecretPropagatingReconciler
-[`resource.NewSecretPropagatingReconciler`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/resource#NewSecretPropagatingReconciler
-[`resource.ExternalConnecter`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/resource#ExternalConnecter
-[`resource.ExternalClient`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/resource#ExternalClient
-[`resource.ManagedConfigurator`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/resource#ManagedConfigurator
+[`managed.Reconciler`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/reconciler/managed#Reconciler
+[`managed.NewReconciler`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/reconciler/managed#NewReconciler
+[`claimbinding.Reconciler`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/reconciler/claimbinding#Reconciler
+[`claimbinding.NewReconciler`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/reconciler/claimbinding#NewReconciler
+[`claimscheduling.Reconciler`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/reconciler/claimscheduling#Reconciler
+[`claimscheduling.NewReconciler`]: https://github.com/crossplaneio/crossplane-runtime/blob/master/pkg/reconciler/claimscheduling/reconciler.go#L83
+[`claimdefaulting.Reconciler`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/reconciler/claimdefaulting#Reconciler
+[`claimdefaulting.NewReconciler`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/reconciler/claimdefaulting#NewReconciler
+[`secret.NewReconciler`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/reconciler/secret#NewReconciler
+[`managed.ExternalConnecter`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/reconciler/managed#ExternalConnecter
+[`managed.ExternalClient`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/reconciler/managed#ExternalClient
+[`claimbinding.ManagedConfigurator`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/reconciler/claimbinding#ManagedConfigurator
+[`target.Reconciler`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/reconciler/target#Reconciler
 [`ResourceSpec`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1#ResourceSpec
 [`ResourceStatus`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1#ResourceStatus
 [`ResourceClaimSpec`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1#ResourceClaimSpec
 [`ResourceClaimStatus`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1#ResourceClaimStatus
 [`ClassSpecTemplate`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1#ClassSpecTemplate
-['resource.ExternalConnecter`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/resource#ExternalConnecter
+[`ProviderSpec`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1#ProviderSpec
+['managed.ExternalConnecter`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/reconciler/managed#ExternalConnecter
 [opening a Crossplane issue]: https://github.com/crossplaneio/crossplane/issues/new/choose
 [`GroupVersionKind`]: https://godoc.org/k8s.io/apimachinery/pkg/runtime/schema#GroupVersionKind
 [`reconcile.Reconciler`]: https://godoc.org/sigs.k8s.io/controller-runtime/pkg/reconcile#Reconciler
