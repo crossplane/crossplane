@@ -43,19 +43,6 @@ rules:
   - deletecollection
   - patch
   - update
-- apiGroups:
-  - rbac.authorization.k8s.io
-  resources:
-  - rolebindings
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - delete
-  - deletecollection
-  - patch
-  - update
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -79,16 +66,6 @@ rules:
   - workload.crossplane.io
   resources:
   - "*"
-  verbs:
-  - create
-  - delete
-  - deletecollection
-  - patch
-  - update
-- apiGroups:
-  - stacks.crossplane.io
-  resources:
-  - stackinstalls
   verbs:
   - create
   - delete
