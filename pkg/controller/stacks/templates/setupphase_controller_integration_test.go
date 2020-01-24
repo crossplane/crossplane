@@ -22,8 +22,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
-	"github.com/crossplaneio/crossplane-runtime/pkg/test/integration"
 	corev1 "k8s.io/api/core/v1"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -33,6 +31,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
+	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
+	"github.com/crossplaneio/crossplane-runtime/pkg/test/integration"
 	"github.com/crossplaneio/crossplane/apis"
 	"github.com/crossplaneio/crossplane/pkg/test"
 )
@@ -115,7 +115,6 @@ func TestRenderControllerCreation(t *testing.T) {
 	}
 
 	var cfg *rest.Config
-	cfg = nil
 
 	i, err := integration.New(cfg,
 		integration.WithCRDPaths("../../../../cluster/charts/crossplane/templates/crds"),

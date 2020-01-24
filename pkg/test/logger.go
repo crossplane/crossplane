@@ -22,28 +22,37 @@ import (
 	"github.com/go-logr/logr"
 )
 
+// TestLogger is intended to allow a test to reliably capture logger output. This is useful for
+// tests which are more on the integration end of the spectrum, which may have complicated behavior
+// happening underneath that we want to observe. For example, integration testing with a controller.
+// It's mostly copied from logr's test logger implementation.
 type TestLogger struct {
 	T      *testing.T
 	name   string
 	values []interface{}
 }
 
+// Info logs at the info level.
 func (log TestLogger) Info(msg string, args ...interface{}) {
 	log.T.Logf("name=%s msg='%s' values=%v args=%v", log.name, msg, log.values, args)
 }
 
-func (_ TestLogger) Enabled() bool {
+// Enabled always returns false
+func (TestLogger) Enabled() bool {
 	return false
 }
 
+// Error logs an error
 func (log TestLogger) Error(err error, msg string, args ...interface{}) {
 	log.T.Logf("name=%s msg='%s' err='%v' -- values=%v args=%v", log.name, msg, err, log.values, args)
 }
 
+// V would normally set the log level, but is a noop in this implementation.
 func (log TestLogger) V(v int) logr.InfoLogger {
 	return log
 }
 
+// WithName sets a name field which will be included in every log line.
 func (log TestLogger) WithName(name string) logr.Logger {
 	return TestLogger{
 		T:      log.T,
@@ -52,6 +61,7 @@ func (log TestLogger) WithName(name string) logr.Logger {
 	}
 }
 
+// WithValues sets values to include in every log line.
 func (log TestLogger) WithValues(_ ...interface{}) logr.Logger {
 	return TestLogger{
 		T:      log.T,

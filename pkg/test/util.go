@@ -24,6 +24,7 @@ import (
 	"github.com/ghodss/yaml"
 )
 
+// WaitFor is for waiting until a check returns that the check worked. It times out after the specified interval.
 func WaitFor(ctx context.Context, interval time.Duration, check func(chan error)) error {
 	timeout, cancel := context.WithTimeout(ctx, interval)
 	defer cancel()
@@ -31,16 +32,11 @@ func WaitFor(ctx context.Context, interval time.Duration, check func(chan error)
 	ch := make(chan error, 1)
 	stop := make(chan bool, 1)
 
-	// TODO this needs to have some synchronization between the check and the loop running the check,
-	// so that the loop does not run again if the check passes. Currently the check is able to keep going
-	// until the context is canceled, which could be in the middle of a check.
-	// It's either that or set the expectation that the check is an idempotent function which can be
-	// killed at any time, and the test should be okay with that.
 	go func() {
 		for {
 			select {
 			case <-stop:
-				break
+				return
 			default:
 				check(ch)
 			}
@@ -57,6 +53,7 @@ func WaitFor(ctx context.Context, interval time.Duration, check func(chan error)
 	}
 }
 
+// UnmarshalFromFile reads a yaml file and unmarshals it into an object
 func UnmarshalFromFile(path string, obj interface{}) error {
 	dat, err := ioutil.ReadFile(path)
 	if err != nil {

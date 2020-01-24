@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/discovery"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -86,6 +87,7 @@ func (r *SetupPhaseReconciler) setup(sc *v1alpha1.StackConfiguration) error {
 		return err
 	}
 
+	rcErrors := make([]string, 0)
 	for _, b := range behaviors {
 		gvk := b.gvk
 		// TODO it'd be great to create the CRD for the user if it doesn't exist yet - /ht @muvaf for this idea
@@ -107,13 +109,18 @@ func (r *SetupPhaseReconciler) setup(sc *v1alpha1.StackConfiguration) error {
 		if _, ok := r.renderControllers[rc]; !ok {
 			if rr, err := r.newRenderController(gvk, event, configName); err != nil {
 				// TODO what do we want to do if some of the registrations succeed and some of them fail?
-				r.Log.Error(err, "Error creating new render controller!", "gvk", gvk)
+				r.Log.Error(err, "error creating new render controller", "gvk", gvk)
+				rcErrors = append(rcErrors, err.Error())
 			} else {
 				r.renderControllers[rc] = rr
 			}
 		} else {
 			r.Log.V(logging.Debug).Info("Not creating controller for render coordinate; one already exists", "renderCoordinate", rc)
 		}
+	}
+
+	if len(rcErrors) > 0 {
+		return fmt.Errorf(strings.Join(rcErrors, "; "))
 	}
 
 	return nil
@@ -149,11 +156,6 @@ func (r *SetupPhaseReconciler) getBehaviors(sc *v1alpha1.StackConfiguration) []b
 
 // newRenderController creates and configures a render controller for the given stack configuration.
 func (r *SetupPhaseReconciler) newRenderController(gvk *schema.GroupVersionKind, event string, configName types.NamespacedName) (*RenderPhaseReconciler, error) {
-	// TODO
-	// - In the future, we may want to be able to stop listening when a stack is uninstalled.
-	// - What if we have multiple controller workers watching the stack configuration? Do we need to worry about trying to not
-	//   create multiple render controllers for a single gvk?
-
 	apiType := &unstructured.Unstructured{}
 	apiType.SetGroupVersionKind(*gvk)
 
@@ -165,9 +167,20 @@ func (r *SetupPhaseReconciler) newRenderController(gvk *schema.GroupVersionKind,
 		ConfigName: configName,
 	}
 
-	r.Log.V(logging.Debug).Info("Adding new controller to manager")
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(r.Manager.GetConfig())
 
-	err := ctrl.NewControllerManagedBy(r.Manager).
+	if err != nil {
+		return nil, err
+	}
+
+	if hasGvk, err := HasGVK(discoveryClient, gvk); err != nil {
+		return nil, err
+	} else if !hasGvk {
+		return nil, fmt.Errorf("Could not find requested GVK %s", gvk)
+	}
+
+	r.Log.V(logging.Debug).Info("Adding new controller to manager", "type", gvk)
+	err = ctrl.NewControllerManagedBy(r.Manager).
 		For(apiType).
 		Owns(&batchv1.Job{}).
 		Complete(reconciler)
@@ -196,4 +209,24 @@ func NewSetupPhaseReconciler(c client.Client, l logr.Logger, m manager.Manager) 
 		Manager:           m,
 		renderControllers: map[renderCoordinate]*RenderPhaseReconciler{},
 	}
+}
+
+// HasGVK is (mostly) copied from here: https://github.com/kubernetes/kubectl/blob/7ee592cfa6faa7bf554fbcf30bdfd0c87c02461d/pkg/generate/versioned/generator.go#L221
+// It mostly exists to check for potential CRD lookup errors before they happen, such as when a setup controller is creating a render phase controller.
+func HasGVK(client discovery.DiscoveryInterface, gvk *schema.GroupVersionKind) (bool, error) {
+	resources, err := client.ServerResourcesForGroupVersion(gvk.GroupVersion().String())
+	if kerrors.IsNotFound(err) {
+		// entire group is missing
+		return false, nil
+	}
+	if err != nil {
+		// other errors error
+		return false, fmt.Errorf("failed to discover supported resources: %v", err)
+	}
+	for _, serverResource := range resources.APIResources {
+		if serverResource.Kind == gvk.Kind {
+			return true, nil
+		}
+	}
+	return false, nil
 }
