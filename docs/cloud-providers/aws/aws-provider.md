@@ -25,8 +25,8 @@ respectively.
 
 ## Step 2: Setup `aws` Provider
 
-Run [setup.sh] script to read `aws` credentials and region, and create an [`aw
-provider`] instance in Crossplane:
+Run [setup.sh] script to read `aws` credentials and region, and create an `aws
+provider` instance in Crossplane:
 
 ```bash
 ./cluster/examples/setup-aws-provider/setup.sh [--profile aws_profile]
