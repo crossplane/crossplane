@@ -21,16 +21,25 @@ The Helm chart contains all the custom resources and controllers needed to deplo
 Helm charts for Crossplane are currently published to the `alpha` and `master` channels.
 In the future, `beta` and `stable` will also be available.
 
-> If you're using Helm 3, make sure you create the `crossplane-system` namespace (or the namespace you'd like to install
-crossplane) beforehand since Helm 3 does not create that for you automatically anymore.
-
 ### Alpha
 
 The alpha channel is the most recent release of Crossplane that is considered ready for testing by the community.
 
+*Note: if installing Crossplane into a Kubernetes cluster that is running a version older than 1.15, Helm 2 installation is recommended. If using Helm 2, [Tiller](https://v2.helm.sh/docs/install/#installing-tiller) must be installed.* 
+
+Install with Helm 2:
+
 ```console
 helm repo add crossplane-alpha https://charts.crossplane.io/alpha
 helm install --name crossplane --namespace crossplane-system crossplane-alpha/crossplane
+```
+
+Install with Helm 3:
+
+```console
+kubectl create namespace crossplane-system
+helm repo add crossplane-alpha https://charts.crossplane.io/alpha
+helm install crossplane --namespace crossplane-system crossplane-alpha/crossplane
 ```
 
 ### Master
@@ -41,9 +50,11 @@ It is recommended to use one of the more stable channels, but if you want the ab
 
 To install the Helm chart from master, you will need to pass the specific version returned by the `search` command:
 
+Install with Helm 2:
+
 ```console
 helm repo add crossplane-master https://charts.crossplane.io/master/
-helm search crossplane
+helm search crossplane --devel
 helm install --name crossplane --namespace crossplane-system crossplane-master/crossplane --version <version>
 ```
 
@@ -51,6 +62,15 @@ For example:
 
 ```console
 helm install --name crossplane --namespace crossplane-system crossplane-master/crossplane --version 0.0.0-249.637ccf9
+```
+
+Install with Helm 3:
+
+```console
+kubectl create namespace crossplane-system
+helm repo add crossplane-master https://charts.crossplane.io/master/
+helm search repo crossplane --devel
+helm install crossplane --namespace crossplane-system crossplane-master/crossplane --version <version> --devel
 ```
 
 ## Installing Cloud Provider Stacks
@@ -62,14 +82,21 @@ from Crossplane.
 
 ### Installation with Helm
 
-> This method is not supported with Helm 3, please see [Manual Installation](#manual-installation) if you're using Helm 3.
-
 You can include deployment of additional infrastructure stacks into your helm installation by setting `clusterStacks.<stack-name>.deploy` to `true`.
 
-For example, the following will install `master` version of the GCP stack:
+For example, the following will install `master` version of the GCP stack.
+
+Using Helm 2:
 
 ```console
-helm install --name crossplane --namespace crossplane-system crossplane-master/crossplane --set clusterStacks.gcp.deploy=true --set clusterStacks.gcp.version=master
+helm install --name crossplane --namespace crossplane-system crossplane-master/crossplane --version <version> --set clusterStacks.gcp.deploy=true --set clusterStacks.gcp.version=master
+```
+
+Using Helm 3:
+
+```console
+kubectl create namespace crossplane-system
+helm install crossplane --namespace crossplane-system crossplane-master/crossplane --version <version> --set clusterStacks.gcp.deploy=true --set clusterStacks.gcp.version=master --devel
 ```
 
 See [helm configuration parameters](#configuration) for supported stacks and parameters.
