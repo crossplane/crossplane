@@ -489,6 +489,55 @@ func TestCreate(t *testing.T) {
 			},
 		},
 		{
+			name: "HandleFailedInstallJobHosted",
+			handler: &stackInstallHandler{
+				kube: &test.MockClient{
+					MockUpdate:       func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+				},
+				hostKube: &test.MockClient{
+					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error { return errBoom },
+				},
+				hostAwareConfig: &hosted.Config{HostControllerNamespace: hostControllerNamespace},
+				executorInfo:    &stacks.ExecutorInfo{Image: stackPackageImage},
+				ext:             resource(),
+			},
+			want: want{
+				result: resultRequeue,
+				err:    nil,
+				ext: resource(
+					withFinalizers(installFinalizer),
+					withConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileError(errBoom)),
+					withInstallJob(nil),
+				),
+			},
+		},
+		{
+			name: "FailedToGetInstallJob",
+			handler: &stackInstallHandler{
+				kube: &test.MockClient{
+					MockUpdate:       func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+				},
+				hostKube: &test.MockClient{
+					MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
+						return errBoom
+					},
+				},
+				ext: resource(
+					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: namespace})),
+			},
+			want: want{
+				result: resultRequeue,
+				err:    nil,
+				ext: resource(
+					withFinalizers(installFinalizer),
+					withConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileError(errBoom)),
+					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: namespace}),
+				),
+			},
+		},
+		{
 			name: "InstallJobNotCompleted",
 			handler: &stackInstallHandler{
 				kube: &test.MockClient{

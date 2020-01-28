@@ -18,8 +18,6 @@ package main
 
 import (
 	"io"
-	"net"
-	"net/url"
 	"os"
 	"path/filepath"
 	"time"
@@ -40,8 +38,6 @@ import (
 	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
 	"github.com/crossplaneio/crossplane/apis"
 	stacksController "github.com/crossplaneio/crossplane/pkg/controller/stacks"
-	"github.com/crossplaneio/crossplane/pkg/controller/stacks/hosted"
-	"github.com/crossplaneio/crossplane/pkg/controller/stacks/stack"
 	templatesController "github.com/crossplaneio/crossplane/pkg/controller/stacks/templates"
 	"github.com/crossplaneio/crossplane/pkg/controller/workload"
 	"github.com/crossplaneio/crossplane/pkg/stacks"
@@ -180,20 +176,7 @@ func controllerSetupWithManager(mgr manager.Manager) error {
 
 func stacksControllerSetupWithManager(mgr manager.Manager, hostControllerNamespace string) error {
 	c := stacksController.Controllers{}
-	if hostControllerNamespace != "" {
-		//hostControllerNamespace is set => stack manager host aware mode enabled
-		// TODO(hasan): handle if url does not have a port (i.e. default to 443)
-		host, port, err := getHostPort(mgr.GetConfig().Host)
-		kingpin.FatalIfError(err, "Cannot get host port from tenant kubeconfig")
-		hc, err := hosted.NewConfig(hostControllerNamespace, host, port)
-		if err != nil {
-			return err
-		}
-		log.Info("Stack Manager host aware mode enabled")
-		return c.SetupWithManager(mgr, stack.WithHostedConfig(hc))
-	}
-	log.Info("Stack Manager host aware mode -not- enabled")
-	return c.SetupWithManager(mgr)
+	return c.SetupWithManager(mgr, hostControllerNamespace)
 }
 
 func stacksTemplateControllerSetupWithManager(mgr manager.Manager) error {
@@ -220,12 +203,4 @@ func getRestConfig(tenantKubeconfig string) (restCfg *rest.Config, err error) {
 	}
 
 	return config.GetConfig()
-}
-
-func getHostPort(urlHost string) (host string, port string, err error) {
-	u, err := url.Parse(urlHost)
-	if err != nil {
-		return "", "", err
-	}
-	return net.SplitHostPort(u.Host)
 }

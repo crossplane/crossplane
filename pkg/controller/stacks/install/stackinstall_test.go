@@ -405,6 +405,35 @@ func TestStackInstallDelete(t *testing.T) {
 			},
 		},
 		{
+			name: "FailDeleteAllOfHosted",
+			handler: &stackInstallHandler{
+				// stack install starts with a finalizer and a deletion timestamp
+				ext:             resource(withFinalizers(installFinalizer), withDeletionTimestamp(tn)),
+				hostAwareConfig: &hosted.Config{HostControllerNamespace: hostControllerNamespace},
+				kube: &test.MockClient{
+					MockList: func(ctx context.Context, list runtime.Object, opts ...client.ListOption) error {
+						// set the list's items to a fake list of CRDs to delete
+						list.(*v1alpha1.StackList).Items = []v1alpha1.Stack{}
+						return nil
+					},
+					MockDeleteAllOf:  func(ctx context.Context, obj runtime.Object, opts ...client.DeleteAllOfOption) error { return nil },
+					MockUpdate:       func(ctx context.Context, obj runtime.Object, opts ...client.UpdateOption) error { return nil },
+					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+				},
+				hostKube: &test.MockClient{
+					MockDeleteAllOf: func(ctx context.Context, obj runtime.Object, opts ...client.DeleteAllOfOption) error { return errBoom },
+				},
+			},
+			want: want{
+				result: resultRequeue,
+				err:    nil,
+				si: resource(
+					withFinalizers(installFinalizer),
+					withDeletionTimestamp(tn),
+					withConditions(runtimev1alpha1.ReconcileError(errBoom))),
+			},
+		},
+		{
 			name: "FailUpdate",
 			handler: &stackInstallHandler{
 				// stack install starts with a finalizer and a deletion timestamp
@@ -542,6 +571,39 @@ func TestHandlerFactory(t *testing.T) {
 				))
 			if diff != "" {
 				t.Errorf("newHandler() -want, +got:\n%v", diff)
+			}
+		})
+	}
+}
+
+func TestSetHostedConfig(t *testing.T) {
+	type args struct {
+		hCfg *hosted.Config
+	}
+	cases := map[string]struct {
+		args
+	}{
+		"empty": {
+			args: args{
+				hCfg: &hosted.Config{},
+			},
+		},
+		"withValues": {
+			args: args{
+				hCfg: &hosted.Config{
+					HostControllerNamespace: "test-ns",
+					TenantAPIServiceHost:    "https://api.server",
+					TenantAPIServicePort:    "1234",
+				},
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			r := &Reconciler{}
+			r.SetHostedConfig(tc.args.hCfg)
+			if diff := cmp.Diff(tc.args.hCfg, r.hostedConfig); diff != "" {
+				t.Errorf("WithHostedConfig: -want result, +got result: %s", diff)
 			}
 		})
 	}
