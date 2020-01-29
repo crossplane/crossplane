@@ -47,19 +47,6 @@ rules:
   - deletecollection
   - patch
   - update
-- apiGroups:
-  - rbac.authorization.k8s.io
-  resources:
-  - clusterrolebindings
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - delete
-  - deletecollection
-  - patch
-  - update
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -95,21 +82,10 @@ rules:
   - database.crossplane.io
   - kubernetes.crossplane.io
   - core.crossplane.io
-  - stacks.crossplane.io
   - storage.crossplane.io
   - workload.crossplane.io
   resources:
   - "*"
-  verbs:
-  - create
-  - delete
-  - deletecollection
-  - patch
-  - update
-- apiGroups:
-  - stacks.crossplane.io
-  resources:
-  - clusterstackinstall
   verbs:
   - create
   - delete
