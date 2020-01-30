@@ -18,14 +18,27 @@ personas:
 
 clusterStacks:
   aws:
+    name: aws
     version: master
     deploy: false
+    image: crossplane/stack-aws
   gcp:
+    name: gcp
     version: master
     deploy: false
+    image: crossplane/stack-gcp
   azure:
+    name: azure
     version: master
     deploy: false
+    image: crossplane/stack-azure
   rook:
+    name: rook
     version: master
     deploy: false
+    image: crossplane/stack-rook
+  other:
+    name: ""
+    version: ""
+    deploy: false
+    image: ""

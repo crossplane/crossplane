@@ -3,9 +3,9 @@
 apiVersion: stacks.crossplane.io/v1alpha1
 kind: ClusterStackInstall
 metadata:
-  name: "stack-{{ $key }}"
+  name: "{{ required "stack name cannot be empty" $val.name }}"
 spec:
-  package: "crossplane/stack-{{ $key }}:{{ $val.version }}"
+  package: "{{ required "stack image cannot be empty" $val.image }}:{{ required "stack version cannot be empty" $val.version }}"
 ---
 {{- end }}
 {{- end }}
