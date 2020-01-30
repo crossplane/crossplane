@@ -99,6 +99,18 @@ kubectl create namespace crossplane-system
 helm install crossplane --namespace crossplane-system crossplane-master/crossplane --version <version> --set clusterStacks.gcp.deploy=true --set clusterStacks.gcp.version=master --devel
 ```
 
+It is also possible to install any valid stack during Crossplane installation:
+
+```console
+kubectl create namespace crossplane-system
+helm install crossplane --namespace crossplane-system crossplane-master/crossplane --version <version> \
+  --set clusterStacks.other.name=[my_stack_name] \
+  --set clusterStacks.other.image=[my_stack_image_url] \
+  --set clusterStacks.other.version=[my_stack_version] \
+  --set clusterStacks.other.deploy=true \
+  --devel
+```
+
 See [helm configuration parameters](#configuration) for supported stacks and parameters.
 
 ### Manual Installation
@@ -251,23 +263,23 @@ That command removes all Kubernetes components associated with Crossplane, inclu
 
 The following tables lists the configurable parameters of the Crossplane chart and their default values.
 
-| Parameter                        | Description                                                     | Default                                                |
-| -------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------ |
-| `image.repository`               | Image                                                           | `crossplane/crossplane`                                |
-| `image.tag`                      | Image tag                                                       | `master`                                               |
-| `image.pullPolicy`               | Image pull policy                                               | `Always`                                               |
-| `imagePullSecrets`               | Names of image pull secrets to use                              | `dockerhub`                                            |
-| `replicas`                       | The number of replicas to run for the Crossplane operator       | `1`                                                    |
-| `deploymentStrategy`             | The deployment strategy for the Crossplane operator             | `RollingUpdate`                                        |
-| `clusterStacks.aws.deploy`       | Deploy AWS stack                                                | `false`    
-| `clusterStacks.aws.version`      | AWS stack version to deploy                                     | `<latest released version>`   
-| `clusterStacks.gcp.deploy`       | Deploy GCP stack                                                | `false`    
-| `clusterStacks.gcp.version`      | GCP stack version to deploy                                     | `<latest released version>`   
-| `clusterStacks.azure.deploy`     | Deploy Azure stack                                              | `false`    
-| `clusterStacks.azure.version`    | Azure stack version to deploy                                   | `<latest released version>`   
-| `clusterStacks.rook.deploy`      | Deploy Rook stack                                               | `false`    
-| `clusterStacks.rook.version`     | Rook stack version to deploy                                    | `<latest released version>`   
-| `personas.deploy`                | Install roles and bindings for Crossplane user personas        | `true`     
+| Parameter                     | Description                                               | Default                     |
+| ----------------------------- | --------------------------------------------------------- | --------------------------- |
+| `image.repository`            | Image                                                     | `crossplane/crossplane`     |
+| `image.tag`                   | Image tag                                                 | `master`                    |
+| `image.pullPolicy`            | Image pull policy                                         | `Always`                    |
+| `imagePullSecrets`            | Names of image pull secrets to use                        | `dockerhub`                 |
+| `replicas`                    | The number of replicas to run for the Crossplane operator | `1`                         |
+| `deploymentStrategy`          | The deployment strategy for the Crossplane operator       | `RollingUpdate`             |
+| `clusterStacks.aws.deploy`    | Deploy AWS stack                                          | `false`                     |
+| `clusterStacks.aws.version`   | AWS stack version to deploy                               | `<latest released version>` |
+| `clusterStacks.gcp.deploy`    | Deploy GCP stack                                          | `false`                     |
+| `clusterStacks.gcp.version`   | GCP stack version to deploy                               | `<latest released version>` |
+| `clusterStacks.azure.deploy`  | Deploy Azure stack                                        | `false`                     |
+| `clusterStacks.azure.version` | Azure stack version to deploy                             | `<latest released version>` |
+| `clusterStacks.rook.deploy`   | Deploy Rook stack                                         | `false`                     |
+| `clusterStacks.rook.version`  | Rook stack version to deploy                              | `<latest released version>` |
+| `personas.deploy`             | Install roles and bindings for Crossplane user personas   | `true`                      |
  
 ### Command Line
 
