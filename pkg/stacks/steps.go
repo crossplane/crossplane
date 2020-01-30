@@ -78,8 +78,8 @@ func appStep(sp StackPackager) walker.Step {
 	}
 }
 
-// behaviorStep unmarshals stack.yaml bytes
-func behaviorStep(sp StackPackager) walker.Step {
+// stackConfigStep unmarshals stack.yaml bytes
+func stackConfigStep(sp StackPackager) walker.Step {
 	return func(path string, b []byte) error {
 		// unstructured is used so that 'omitempty' will be respected after unmarshaling and marshaling
 		config := unstructured.Unstructured{}
@@ -87,7 +87,27 @@ func behaviorStep(sp StackPackager) walker.Step {
 			return errors.Wrap(err, fmt.Sprintf("invalid stack configuration at %q", path))
 		}
 
-		sp.SetBehavior(config)
+		sp.SetStackConfig(config)
+		return nil
+	}
+}
+
+// behaviorStep unmarshals behavior.yaml bytes
+func behaviorStep(sp StackPackager) walker.Step {
+	return func(path string, b []byte) error {
+		behavior := v1alpha1.Behavior{}
+		if err := yaml.Unmarshal(b, &behavior); err != nil {
+			return errors.Wrap(err, fmt.Sprintf("invalid behavior configuration at %q", path))
+		}
+
+		cleanPath := filepath.Clean(behavior.Source.Path)
+		switch cleanPath {
+		case "/", ".", "":
+			return errors.New(fmt.Sprintf("Behavior source path cannot be empty, '/', or '.'"))
+		}
+		behavior.Source.Path = cleanPath
+
+		sp.SetBehavior(behavior)
 		return nil
 	}
 }

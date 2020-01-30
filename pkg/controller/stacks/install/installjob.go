@@ -32,7 +32,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -51,7 +50,7 @@ var (
 
 // JobCompleter is an interface for handling job completion
 type jobCompleter interface {
-	handleJobCompletion(ctx context.Context, i v1alpha1.StackInstaller, job *batchv1.Job) error
+	handleJobCompletion(ctx context.Context, i stacks.KindlyIdentifier, job *batchv1.Job) error
 }
 
 // StackInstallJobCompleter is a concrete implementation of the jobCompleter interface
@@ -62,7 +61,7 @@ type stackInstallJobCompleter struct {
 	log          logging.Logger
 }
 
-func createInstallJob(i v1alpha1.StackInstaller, executorInfo *stacks.ExecutorInfo, hCfg *hosted.Config) *batchv1.Job {
+func createInstallJob(i v1alpha1.StackInstaller, executorInfo *stacks.ExecutorInfo, hCfg *hosted.Config, tscImage string) *batchv1.Job {
 	name := i.GetName()
 	namespace := i.GetNamespace()
 
@@ -86,7 +85,7 @@ func createInstallJob(i v1alpha1.StackInstaller, executorInfo *stacks.ExecutorIn
 					RestartPolicy: corev1.RestartPolicyNever,
 					InitContainers: []corev1.Container{
 						{
-							Name:    "stack-package",
+							Name:    "stack-copy-to-volume",
 							Image:   i.Image(),
 							Command: []string{"cp", "-R", registryDirName, "/ext-pkg/"},
 							VolumeMounts: []corev1.VolumeMount{
@@ -99,7 +98,7 @@ func createInstallJob(i v1alpha1.StackInstaller, executorInfo *stacks.ExecutorIn
 					},
 					Containers: []corev1.Container{
 						{
-							Name:  "stack-executor",
+							Name:  "stack-unpack-and-output",
 							Image: executorInfo.Image,
 							// "--debug" can be added to this list of Args to get debug output from the job,
 							// but note that will be included in the stdout from the pod, which makes it
@@ -109,6 +108,7 @@ func createInstallJob(i v1alpha1.StackInstaller, executorInfo *stacks.ExecutorIn
 								"unpack",
 								fmt.Sprintf("--content-dir=%s", filepath.Join("/ext-pkg", registryDirName)),
 								"--permission-scope=" + i.PermissionScope(),
+								"--templating-controller-image=" + tscImage,
 							},
 							VolumeMounts: []corev1.VolumeMount{
 								{
@@ -132,9 +132,7 @@ func createInstallJob(i v1alpha1.StackInstaller, executorInfo *stacks.ExecutorIn
 	}
 }
 
-func (jc *stackInstallJobCompleter) handleJobCompletion(ctx context.Context, i v1alpha1.StackInstaller, job *batchv1.Job) error {
-	var stackRecord *v1alpha1.Stack
-
+func (jc *stackInstallJobCompleter) handleJobCompletion(ctx context.Context, i stacks.KindlyIdentifier, job *batchv1.Job) error {
 	// find the pod associated with the given job
 	podName, err := jc.findPodNameForJob(ctx, job)
 	if err != nil {
@@ -163,29 +161,7 @@ func (jc *stackInstallJobCompleter) handleJobCompletion(ctx context.Context, i v
 		if err := jc.createJobOutputObject(ctx, obj, i, job); err != nil {
 			return err
 		}
-
-		if isStackObject(obj) {
-			// we just created the stack record, try to fetch it now so that it can be returned
-			stackRecord = &v1alpha1.Stack{}
-			n := types.NamespacedName{Name: obj.GetName(), Namespace: obj.GetNamespace()}
-			if err := jc.client.Get(ctx, n, stackRecord); err != nil {
-				return errors.Wrapf(err, "failed to retrieve created stack record %s/%s from job %s", obj.GetNamespace(), obj.GetName(), job.Name)
-			}
-		}
 	}
-
-	if stackRecord == nil {
-		return errors.Errorf("failed to find a stack record from job %s", job.Name)
-	}
-
-	// save a reference to the stack record in the status of the stack install
-	i.SetStackRecord(&corev1.ObjectReference{
-		APIVersion: stackRecord.APIVersion,
-		Kind:       stackRecord.Kind,
-		Name:       stackRecord.Name,
-		Namespace:  stackRecord.Namespace,
-		UID:        stackRecord.ObjectMeta.UID,
-	})
 
 	return nil
 }
@@ -233,9 +209,9 @@ func (jc *stackInstallJobCompleter) readPodLogs(namespace, name string) (*bytes.
 	return b, nil
 }
 
-// createJobOutputObject names, labels, sets ownership, and creates resources
-// resulting from a StackInstall or ClusterStackInstall. These expected
-// resources are currently CRD and Stack objects
+// createJobOutputObject names, labels, and creates resources in the API
+// Expected resources are CRD, Stack, StackDefinition, & StackConfiguration
+// nolint:gocyclo
 func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, obj *unstructured.Unstructured,
 	i stacks.KindlyIdentifier, job *batchv1.Job) error {
 
@@ -247,12 +223,20 @@ func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, o
 	// when the current object is a Stack object, make sure the name and namespace are
 	// set to match the current StackInstall (if they haven't already been set). Also,
 	// set the owner reference of the Stack to be the StackInstall.
-	if isStackObject(obj) || isStackConfigurationObject(obj) {
+	if isStackObject(obj) || isStackDefinitionObject(obj) || isStackConfigurationObject(obj) {
 		if obj.GetName() == "" {
 			obj.SetName(i.GetName())
 		}
 		if obj.GetNamespace() == "" {
 			obj.SetNamespace(i.GetNamespace())
+		}
+	}
+
+	// StackDefinition controllers need the name of the StackDefinition
+	// which, by design, matches the StackInstall
+	if isStackDefinitionObject(obj) {
+		if err := setStackDefinitionControllerEnv(obj, i.GetNamespace(), i.GetName()); err != nil {
+			return err
 		}
 	}
 
@@ -301,6 +285,17 @@ func isStackObject(obj *unstructured.Unstructured) bool {
 		strings.EqualFold(gvk.Kind, v1alpha1.StackKind)
 }
 
+func isStackDefinitionObject(obj *unstructured.Unstructured) bool {
+	if obj == nil {
+		return false
+	}
+
+	gvk := obj.GroupVersionKind()
+
+	return gvk.Group == v1alpha1.Group && gvk.Version == v1alpha1.Version &&
+		strings.EqualFold(gvk.Kind, v1alpha1.StackDefinitionKind)
+}
+
 func isStackConfigurationObject(obj *unstructured.Unstructured) bool {
 	if obj == nil {
 		return false
@@ -324,4 +319,50 @@ func isCRDObject(obj runtime.Object) bool {
 
 	return apiextensions.SchemeGroupVersion == gvk.GroupVersion() &&
 		strings.EqualFold(gvk.Kind, "CustomResourceDefinition")
+}
+
+func setStackDefinitionControllerEnv(obj *unstructured.Unstructured, namespace, name string) error {
+	env := []corev1.EnvVar{{
+		Name:  stacks.StackDefinitionNamespaceEnv,
+		Value: namespace,
+	}, {
+		Name:  stacks.StackDefinitionNameEnv,
+		Value: name,
+	}}
+
+	// use convert functions because SetUnstructuredContent is unwieldy
+	sd, err := convertToStackDefinition(obj)
+	if err != nil {
+		return err
+	}
+
+	ts := &sd.Spec.Controller.Deployment.Spec.Template.Spec
+	ts.Containers[0].Env = append(ts.Containers[0].Env, env...)
+
+	if u, err := convertToUnstructured(sd); err == nil {
+		u.DeepCopyInto(obj)
+	}
+
+	return err
+}
+
+// convertToUnstructured takes a Kubernetes object and converts it into
+// *unstructured.Unstructured that can be used as KubernetesApplication template.
+func convertToUnstructured(o *v1alpha1.StackDefinition) (*unstructured.Unstructured, error) {
+	u, err := runtime.DefaultUnstructuredConverter.ToUnstructured(o)
+	if err != nil {
+		return nil, err
+	}
+
+	return &unstructured.Unstructured{Object: u}, nil
+}
+
+// convertToStackDefinition takes a Kubernetes object and converts it into
+// *v1alpha1.StackDefinition
+func convertToStackDefinition(o *unstructured.Unstructured) (*v1alpha1.StackDefinition, error) {
+	sd := &v1alpha1.StackDefinition{}
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(o.UnstructuredContent(), sd); err != nil {
+		return &v1alpha1.StackDefinition{}, err
+	}
+	return sd, nil
 }

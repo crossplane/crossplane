@@ -20,6 +20,7 @@ import (
 	"context"
 	"time"
 
+	rbacv1 "k8s.io/api/rbac/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -67,7 +68,10 @@ func (r *StackDefinitionReconciler) Reconcile(req ctrl.Request) (ctrl.Result, er
 			s.SetNamespace(req.Namespace)
 			s.SetName(req.Name)
 			r.Log.Debug("Stack not found; creating from stack definition", "request", req, "stackDefinition", i)
-			return ctrl.Result{}, r.createStack(ctx, i, s)
+			if err = r.createStack(ctx, i, s); err != nil && !kerrors.IsAlreadyExists(err) {
+				r.Log.Debug("Error creating a Stack from StackDefinition", "request", req, "stackDefinition", i, "error", err)
+				return ctrl.Result{}, err
+			}
 		}
 
 		r.Log.Debug("Error fetching stack", "request", req, "stackDefinition", i, "error", err)
@@ -79,24 +83,25 @@ func (r *StackDefinitionReconciler) Reconcile(req ctrl.Request) (ctrl.Result, er
 }
 
 func (r *StackDefinitionReconciler) createStack(ctx context.Context, sd *v1alpha1.StackDefinition, s *v1alpha1.Stack) error {
-	deepCopyStackDefinitionToStack(sd, s)
+	sd.DeepCopyIntoStack(s)
 	s.SetOwnerReferences([]metav1.OwnerReference{
 		*metav1.NewControllerRef(sd, v1alpha1.StackDefinitionGroupVersionKind),
 	})
+
+	rule := rbacv1.PolicyRule{
+		Verbs:         []string{"get", "list", "watch"},
+		APIGroups:     []string{"stacks.crossplane.io"},
+		Resources:     []string{"stackdefinitions", "stackdefinitions/status"},
+		ResourceNames: []string{sd.GetName()},
+	}
+	s.Spec.Permissions.Rules = append(s.Spec.Permissions.Rules, rule)
 	return r.Client.Create(ctx, s)
 }
 
 func (r *StackDefinitionReconciler) syncStack(ctx context.Context, sd *v1alpha1.StackDefinition, s *v1alpha1.Stack) error {
-	deepCopyStackDefinitionToStack(sd, s)
-	return r.Client.Update(ctx, s)
-}
-
-func deepCopyStackDefinitionToStack(sd *v1alpha1.StackDefinition, s *v1alpha1.Stack) {
-	s.Spec.AppMetadataSpec = *sd.Spec.AppMetadataSpec.DeepCopy()
-	s.Spec.CRDs = sd.Spec.CRDs.DeepCopy()
-	s.Spec.Controller = *sd.Spec.Controller.DeepCopy()
-	s.Spec.Permissions = *sd.Spec.Permissions.DeepCopy()
-	s.ObjectMeta.SetLabels(sd.ObjectMeta.GetLabels())
+	sCopy := s.DeepCopy()
+	sd.DeepCopyIntoStack(sCopy)
+	return r.Client.Patch(ctx, s, client.MergeFrom(sCopy))
 }
 
 // NewStackDefinitionReconciler creates a stack definition reconciler and initializes all of its fields.

@@ -28,6 +28,7 @@ import (
 	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -44,6 +45,15 @@ const (
 	groupFileName           = "group.yaml"
 	appFileName             = "app.yaml"
 	stackFileName           = "stack.yaml"
+	behaviorFileName        = "behavior.yaml"
+
+	// StackDefinitionNamespaceEnv is an environment variable used in the
+	// StackDefinition controllers deployment to find the StackDefinition
+	StackDefinitionNamespaceEnv = "SD_NAMESPACE"
+
+	// StackDefinitionNameEnv is an environment variable used in the
+	// StackDefinition controllers deployment to find the StackDefinition
+	StackDefinitionNameEnv = "SD_NAME"
 
 	// iconFileNamePattern is the pattern used when walking the stack package and looking for icon files.
 	// Icon files that are for a single resource can be prefixed with the kind of the resource, e.g.,
@@ -108,9 +118,10 @@ type StackGroup struct {
 // StackPackager implentations can build a stack from Stack resources and emit the Yaml artifact
 type StackPackager interface {
 	SetApp(v1alpha1.AppMetadataSpec)
-	SetBehavior(unstructured.Unstructured)
+	SetBehavior(v1alpha1.Behavior)
 	SetInstall(unstructured.Unstructured) error
 	SetRBAC(v1alpha1.PermissionsSpec)
+	SetStackConfig(unstructured.Unstructured)
 
 	GotApp() bool
 	IsNamespaced() bool
@@ -136,7 +147,10 @@ type StackPackage struct {
 	// TODO roll stack configuration into Stack, most likely
 	// The reason this is unstructured is so that we don't
 	// fill in empty fields that were omitted in the yaml
-	Behavior unstructured.Unstructured
+	StackConfig unstructured.Unstructured
+
+	// StackDefinition is the Kubernetes API Stack representation
+	StackDefinition v1alpha1.StackDefinition
 
 	// CRDs map CRD files contained within a Stack by their GVK
 	CRDs map[string]apiextensions.CustomResourceDefinition
@@ -156,15 +170,20 @@ type StackPackage struct {
 	// appSet indicates if a App has been assigned through SetApp (for use by GotApp)
 	appSet bool
 
+	// behaviorSet indicates if a Behavior has been assigned through SetBehavior (for use by GotBehavior)
+	behaviorSet bool
+
 	// baseDir is the directory that serves as the base of the stack package (it should be absolute)
 	baseDir string
+
+	// tmplCtrlImage is the Template Controller image to handle template stacks
+	tmplCtrlImage string
 }
 
 // Yaml returns a multiple document YAML representation of the Stack Package
 // This YAML includes the Stack itself and and all CRDs managed by that Stack.
 func (sp *StackPackage) Yaml() (string, error) {
-	var builder strings.Builder
-
+	builder := &strings.Builder{}
 	builder.WriteString(yamlSeparator)
 
 	// For testing, we want a predictable output order for CRDs
@@ -172,36 +191,29 @@ func (sp *StackPackage) Yaml() (string, error) {
 
 	for _, k := range orderedKeys {
 		crd := sp.CRDs[k]
-		b, err := yaml.Marshal(crd)
-		if err != nil {
-			return "", errors.Wrap(err, fmt.Sprintf("could not marshal CRD (%s)", k))
+		if err := writeYaml(builder, crd, "CRD"); err != nil {
+			return "", err
 		}
-		builder.Write(b)
-		builder.WriteString(yamlSeparator)
 	}
 
-	b, err := yaml.Marshal(sp.Stack)
-	if err != nil {
-		return "", errors.Wrap(err, "could not marshal Stack")
-	}
+	if sp.GotBehavior() {
+		sp.Stack.DeepCopyIntoStackDefinition(&sp.StackDefinition)
 
-	if _, err := builder.Write(b); err != nil {
-		return "", errors.Wrap(err, "could not write YAML output to buffer")
-	}
-
-	// Behaviors are optional, so we skip it if it doesn't exist
-	if len(sp.Behavior.Object) > 0 {
-		bb, err := yaml.Marshal(sp.Behavior.Object)
-		if err != nil {
-			return "", errors.Wrap(err, "could not marshal behavior")
+		// New Format, using 'behavior.yaml'
+		if err := writeYaml(builder, sp.StackDefinition, "StackDefinition"); err != nil {
+			return "", err
+		}
+	} else if sp.GotApp() {
+		// Old Format, using 'app.yaml'
+		if err := writeYaml(builder, sp.Stack, "Stack"); err != nil {
+			return "", err
 		}
 
-		if _, err := builder.WriteString(yamlSeparator); err != nil {
-			return "", errors.Wrap(err, "could not write behavior YAML output to buffer")
-		}
-
-		if _, err := builder.Write(bb); err != nil {
-			return "", errors.Wrap(err, "could not write behavior YAML output to buffer")
+		// Behaviors are optional, so we skip it if it doesn't exist
+		if len(sp.StackConfig.Object) > 0 {
+			if err := writeYaml(builder, sp.StackConfig.Object, "StackConfig"); err != nil {
+				return "", err
+			}
 		}
 	}
 
@@ -215,13 +227,87 @@ func (sp *StackPackage) IsNamespaced() bool {
 
 // SetApp sets the Stack's App metadata
 func (sp *StackPackage) SetApp(app v1alpha1.AppMetadataSpec) {
-	sp.Stack.Spec.AppMetadataSpec = app
+	app.DeepCopyInto(&sp.Stack.Spec.AppMetadataSpec)
+
 	sp.appSet = true
 }
 
-// SetBehavior sets the Stack's Behavior configuration
-func (sp *StackPackage) SetBehavior(behavior unstructured.Unstructured) {
-	sp.Behavior = behavior
+// SetStackConfig sets the Stack's Behavior using StackConfig
+func (sp *StackPackage) SetStackConfig(config unstructured.Unstructured) {
+	sp.StackConfig = config
+}
+
+func (sp *StackPackage) createBehaviorController(sd v1alpha1.Behavior) appsv1.DeploymentSpec {
+	controllerContainerName := "stack-behavior-manager"
+
+	behaviorDirName := strings.TrimRight(sd.Source.Path, "/")
+	behaviorContentsVolumeName := "behaviors"
+	behaviorMountPoint := "/behaviors"
+	spec := appsv1.DeploymentSpec{
+		Selector: &metav1.LabelSelector{MatchLabels: map[string]string{}},
+		Template: corev1.PodTemplateSpec{
+			Spec: corev1.PodSpec{
+				RestartPolicy: corev1.RestartPolicyAlways,
+				InitContainers: []corev1.Container{
+					{
+						Name:    "stack-behavior-copy-to-manager",
+						Image:   sd.Source.Image,
+						Command: []string{"cp", "-R", behaviorDirName + "/.", behaviorMountPoint},
+						VolumeMounts: []corev1.VolumeMount{
+							{
+								Name:      behaviorContentsVolumeName,
+								MountPath: behaviorMountPoint,
+							},
+						},
+					},
+				},
+				Containers: []corev1.Container{
+					{
+						Name:  controllerContainerName,
+						Image: sp.tmplCtrlImage,
+						// the environment variables are known and applied
+						// to containers at a higher level than unpack
+						Command: []string{"/manager"},
+						Args: []string{
+							"--resources-dir", behaviorMountPoint,
+							"--stack-definition-namespace", "$(" + StackDefinitionNamespaceEnv + ")",
+							"--stack-definition-name", "$(" + StackDefinitionNameEnv + ")",
+						},
+						VolumeMounts: []corev1.VolumeMount{
+							{
+								Name:      behaviorContentsVolumeName,
+								MountPath: behaviorMountPoint,
+							},
+						},
+					},
+				},
+				Volumes: []corev1.Volume{
+					{
+						Name: behaviorContentsVolumeName,
+						VolumeSource: corev1.VolumeSource{
+							EmptyDir: &corev1.EmptyDirVolumeSource{},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	return spec
+}
+
+// SetBehavior sets the Stack's Behavior
+// This is primarily for defining Template Stack behaviors
+func (sp *StackPackage) SetBehavior(sd v1alpha1.Behavior) {
+	sd.DeepCopyInto(&sp.StackDefinition.Spec.Behavior)
+
+	// Set Stack deployment, which StackDefinition YAML will include
+	spec := sp.createBehaviorController(sd)
+	sp.Stack.Spec.Controller.Deployment = &v1alpha1.ControllerDeployment{
+		Spec: spec,
+	}
+
+	sp.behaviorSet = true
 }
 
 // SetInstall sets the Stack controller's install method from a Deployment or Job
@@ -238,7 +324,6 @@ func (sp *StackPackage) SetInstall(install unstructured.Unstructured) error {
 		}
 
 		sp.Stack.Spec.Controller.Deployment = &v1alpha1.ControllerDeployment{
-			Name: install.GetName(),
 			Spec: deployment.Spec,
 		}
 	case "Job":
@@ -252,7 +337,6 @@ func (sp *StackPackage) SetInstall(install unstructured.Unstructured) error {
 		}
 
 		sp.Stack.Spec.Controller.Job = &v1alpha1.ControllerJob{
-			Name: install.GetName(),
 			Spec: job.Spec,
 		}
 	}
@@ -267,6 +351,11 @@ func (sp *StackPackage) SetRBAC(rbac v1alpha1.PermissionsSpec) {
 // GotApp reveals if the AppMetadataSpec has been set
 func (sp *StackPackage) GotApp() bool {
 	return sp.appSet
+}
+
+// GotBehavior reveals if the BehaviorSpec has been set
+func (sp *StackPackage) GotBehavior() bool {
+	return sp.behaviorSet
 }
 
 // AddGroup adds a group to the StackPackage
@@ -422,24 +511,30 @@ func (sp *StackPackage) applyRules() error {
 }
 
 // NewStackPackage returns a StackPackage with maps created
-func NewStackPackage(baseDir string) *StackPackage {
+func NewStackPackage(baseDir, tmplCtrlImage string) *StackPackage {
 	// create a Stack record and populate it with the relevant package contents
-	v, k := v1alpha1.StackGroupVersionKind.ToAPIVersionAndKind()
+	sv, sk := v1alpha1.StackGroupVersionKind.ToAPIVersionAndKind()
+	sdv, sdk := v1alpha1.StackDefinitionGroupVersionKind.ToAPIVersionAndKind()
 
 	sp := &StackPackage{
 		Stack: v1alpha1.Stack{
-			TypeMeta: metav1.TypeMeta{APIVersion: v, Kind: k},
+			TypeMeta: metav1.TypeMeta{APIVersion: sv, Kind: sk},
 			ObjectMeta: metav1.ObjectMeta{
 				Annotations: map[string]string{},
 			},
 		},
-		CRDs:      map[string]apiextensions.CustomResourceDefinition{},
-		CRDPaths:  map[string]string{},
-		Groups:    map[string]StackGroup{},
-		Icons:     map[string]*v1alpha1.IconSpec{},
-		Resources: map[string]StackResource{},
-		UISchemas: map[string]string{},
-		baseDir:   baseDir,
+		StackDefinition: v1alpha1.StackDefinition{
+			TypeMeta:   metav1.TypeMeta{APIVersion: sdv, Kind: sdk},
+			ObjectMeta: metav1.ObjectMeta{},
+		},
+		CRDs:          map[string]apiextensions.CustomResourceDefinition{},
+		CRDPaths:      map[string]string{},
+		Groups:        map[string]StackGroup{},
+		Icons:         map[string]*v1alpha1.IconSpec{},
+		Resources:     map[string]StackResource{},
+		UISchemas:     map[string]string{},
+		baseDir:       baseDir,
+		tmplCtrlImage: tmplCtrlImage,
 	}
 
 	return sp
@@ -452,12 +547,12 @@ func NewStackPackage(baseDir string) *StackPackage {
 //
 // baseDir is expected to be an absolute path, i.e. have a root to the path,
 // at the very least "/".
-func Unpack(rw walker.ResourceWalker, out io.StringWriter, baseDir string, permissionScope string) error {
-	sp := NewStackPackage(filepath.Clean(baseDir))
+func Unpack(rw walker.ResourceWalker, out io.StringWriter, baseDir, permissionScope string, tsControllerImage string) error {
+	sp := NewStackPackage(filepath.Clean(baseDir), tsControllerImage)
 
 	rw.AddStep(appFileName, appStep(sp))
-	rw.AddStep(stackFileName, behaviorStep(sp))
-
+	rw.AddStep(stackFileName, stackConfigStep(sp))
+	rw.AddStep(behaviorFileName, behaviorStep(sp))
 	rw.AddStep(groupFileName, groupStep(sp))
 
 	rw.AddStep(resourceFileNamePattern, resourceStep(sp))
@@ -665,4 +760,16 @@ func isMetadataApplicableToCRD(crdPath, metadataPath string, globalFileNames []s
 	// check to see if the metadata file name starts with the kind of the given CRD, if it does
 	// then we consider that a match.  e.g. mytype.icon.svg is applicable to a CRD with kind mytype
 	return strings.HasPrefix(metadataBasename, strings.ToLower(crdKind)+".")
+}
+
+// writeYaml writes the supplied object as Yaml with a separator
+func writeYaml(w io.Writer, o interface{}, hint string) error {
+	b, err := yaml.Marshal(o)
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("could not marshal %s", hint))
+	}
+	if _, err := w.Write(append(b, []byte(yamlSeparator)...)); err != nil {
+		return errors.Wrap(err, "could not write YAML output to buffer")
+	}
+	return nil
 }

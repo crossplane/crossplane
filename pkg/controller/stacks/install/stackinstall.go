@@ -29,6 +29,7 @@ import (
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -69,17 +70,18 @@ type k8sClients struct {
 type Reconciler struct {
 	sync.Mutex
 	k8sClients
-	hostedConfig           *hosted.Config
-	stackinator            func() v1alpha1.StackInstaller
-	executorInfoDiscoverer stacks.ExecutorInfoDiscoverer
-	log                    logging.Logger
+	hostedConfig             *hosted.Config
+	stackinator              func() v1alpha1.StackInstaller
+	executorInfoDiscoverer   stacks.ExecutorInfoDiscoverer
+	templatesControllerImage string
+	log                      logging.Logger
 
 	factory
 }
 
 // SetupClusterStackInstall adds a controller that reconciles
 // ClusterStackInstalls.
-func SetupClusterStackInstall(mgr ctrl.Manager, l logging.Logger, hostControllerNamespace string) error {
+func SetupClusterStackInstall(mgr ctrl.Manager, l logging.Logger, hostControllerNamespace, tsControllerImage string) error {
 	name := "stacks/" + strings.ToLower(v1alpha1.ClusterStackInstallKind)
 	stackinator := func() v1alpha1.StackInstaller { return &v1alpha1.ClusterStackInstall{} }
 
@@ -102,11 +104,12 @@ func SetupClusterStackInstall(mgr ctrl.Manager, l logging.Logger, hostController
 			hostKube:   hostKube,
 			hostClient: hostClient,
 		},
-		hostedConfig:           hc,
-		stackinator:            stackinator,
-		factory:                &handlerFactory{},
-		executorInfoDiscoverer: &stacks.KubeExecutorInfoDiscoverer{Client: hostKube},
-		log:                    l.WithValues("controller", name),
+		hostedConfig:             hc,
+		stackinator:              stackinator,
+		factory:                  &handlerFactory{},
+		executorInfoDiscoverer:   &stacks.KubeExecutorInfoDiscoverer{Client: hostKube},
+		templatesControllerImage: tsControllerImage,
+		log:                      l.WithValues("controller", name),
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -116,7 +119,7 @@ func SetupClusterStackInstall(mgr ctrl.Manager, l logging.Logger, hostController
 }
 
 // SetupStackInstall adds a controller that reconciles StackInstalls.
-func SetupStackInstall(mgr ctrl.Manager, l logging.Logger, hostControllerNamespace string) error {
+func SetupStackInstall(mgr ctrl.Manager, l logging.Logger, hostControllerNamespace, tsControllerImage string) error {
 	name := "stacks/" + strings.ToLower(v1alpha1.StackInstallKind)
 	stackinator := func() v1alpha1.StackInstaller { return &v1alpha1.StackInstall{} }
 
@@ -139,11 +142,12 @@ func SetupStackInstall(mgr ctrl.Manager, l logging.Logger, hostControllerNamespa
 			hostKube:   hostKube,
 			hostClient: hostClient,
 		},
-		hostedConfig:           hc,
-		stackinator:            stackinator,
-		factory:                &handlerFactory{},
-		executorInfoDiscoverer: &stacks.KubeExecutorInfoDiscoverer{Client: hostKube},
-		log:                    l.WithValues("controller", name),
+		hostedConfig:             hc,
+		stackinator:              stackinator,
+		factory:                  &handlerFactory{},
+		executorInfoDiscoverer:   &stacks.KubeExecutorInfoDiscoverer{Client: hostKube},
+		templatesControllerImage: tsControllerImage,
+		log:                      l.WithValues("controller", name),
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -178,7 +182,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		kube:       r.kube,
 		hostKube:   r.hostKube,
 		hostClient: r.hostClient,
-	}, r.hostedConfig, executorinfo)
+	}, r.hostedConfig, executorinfo, r.templatesControllerImage)
 
 	if meta.WasDeleted(stackInstaller) {
 		return handler.delete(ctx)
@@ -197,23 +201,25 @@ type handler interface {
 
 // stackInstallHandler is a concrete implementation of the handler interface
 type stackInstallHandler struct {
-	kube            client.Client
-	hostKube        client.Client
-	hostAwareConfig *hosted.Config
-	jobCompleter    jobCompleter
-	executorInfo    *stacks.ExecutorInfo
-	ext             v1alpha1.StackInstaller
-	log             logging.Logger
+	kube                     client.Client
+	hostKube                 client.Client
+	hostAwareConfig          *hosted.Config
+	jobCompleter             jobCompleter
+	executorInfo             *stacks.ExecutorInfo
+	ext                      v1alpha1.StackInstaller
+	templatesControllerImage string
+
+	log logging.Logger
 }
 
 // factory is an interface for creating new handlers
 type factory interface {
-	newHandler(logging.Logger, v1alpha1.StackInstaller, k8sClients, *hosted.Config, *stacks.ExecutorInfo) handler
+	newHandler(logging.Logger, v1alpha1.StackInstaller, k8sClients, *hosted.Config, *stacks.ExecutorInfo, string) handler
 }
 
 type handlerFactory struct{}
 
-func (f *handlerFactory) newHandler(log logging.Logger, ext v1alpha1.StackInstaller, k8s k8sClients, hostAwareConfig *hosted.Config, ei *stacks.ExecutorInfo) handler {
+func (f *handlerFactory) newHandler(log logging.Logger, ext v1alpha1.StackInstaller, k8s k8sClients, hostAwareConfig *hosted.Config, ei *stacks.ExecutorInfo, templatesControllerImage string) handler {
 
 	return &stackInstallHandler{
 		ext:             ext,
@@ -229,7 +235,8 @@ func (f *handlerFactory) newHandler(log logging.Logger, ext v1alpha1.StackInstal
 			},
 			log: log,
 		},
-		log: log,
+		log:                      log,
+		templatesControllerImage: templatesControllerImage,
 	}
 }
 
@@ -237,28 +244,58 @@ func (f *handlerFactory) newHandler(log logging.Logger, ext v1alpha1.StackInstal
 // Syncing/Creating functions
 // ************************************************************************************************
 func (h *stackInstallHandler) sync(ctx context.Context) (reconcile.Result, error) {
-	if h.ext.StackRecord() == nil {
+	sr := h.ext.StackRecord()
+	if sr == nil || sr.UID == "" {
+		// If we observe the Stack, InstallJob succeeded and we're done.
+		nn := types.NamespacedName{Name: h.ext.GetName(), Namespace: h.ext.GetNamespace()}
+		s := &v1alpha1.Stack{}
+
+		if err := h.kube.Get(ctx, nn, s); err != nil && !kerrors.IsNotFound(err) {
+			return fail(ctx, h.kube, h.ext, err)
+		} else if err == nil {
+			// Set a reference to the Stack record in StackInstall status
+			h.ext.SetStackRecord(&corev1.ObjectReference{
+				APIVersion: s.APIVersion,
+				Kind:       s.Kind,
+				Name:       s.Name,
+				Namespace:  s.Namespace,
+				UID:        s.ObjectMeta.UID,
+			})
+			h.ext.SetConditions(runtimev1alpha1.Available(), runtimev1alpha1.ReconcileSuccess())
+
+			return requeueOnSuccess, h.kube.Status().Update(ctx, h.ext)
+		}
+
 		return h.create(ctx)
 	}
 
 	return h.update(ctx)
 }
 
-// create performs the operation of creating the associated Stack.  This function assumes
-// that the Stack does not yet exist, so the caller should confirm that before calling.
+// create resources (Job, StackDefinition) that yield an associated Stack
+// An installjob will be created to unpack the stack image. A Stack or
+// StackDefinition and CRDs should then be output. The output will be awaited
+// before calling handleJobCompletion.
+// A Stack is expected to be created by handleJobCompletion or by
+// StackDefinition reconciliation.
+// StackInstall sync will then assume this Stack in its StackRef.
 func (h *stackInstallHandler) create(ctx context.Context) (reconcile.Result, error) {
 	h.ext.SetConditions(runtimev1alpha1.Creating())
 
+	patchCopy := h.ext.DeepCopyObject()
 	meta.AddFinalizer(h.ext, installFinalizer)
-	if err := h.kube.Update(ctx, h.ext); err != nil {
+
+	if err := h.kube.Patch(ctx, h.ext, client.MergeFrom(patchCopy)); err != nil {
 		return fail(ctx, h.kube, h.ext, err)
 	}
 
+	// Create the InstallJob that will produce the CRDs and Stack
+	// StackDefinition or StackConfiguration
 	jobRef := h.ext.InstallJob()
 
 	if jobRef == nil {
 		// there is no install job created yet, create it now
-		job := createInstallJob(h.ext, h.executorInfo, h.hostAwareConfig)
+		job := createInstallJob(h.ext, h.executorInfo, h.hostAwareConfig, h.templatesControllerImage)
 
 		if err := h.hostKube.Create(ctx, job); err != nil {
 			return fail(ctx, h.kube, h.ext, err)
@@ -277,6 +314,10 @@ func (h *stackInstallHandler) create(ctx context.Context) (reconcile.Result, err
 		return requeueOnSuccess, h.kube.Status().Update(ctx, h.ext)
 	}
 
+	return h.awaitInstallJob(ctx, jobRef)
+}
+
+func (h *stackInstallHandler) awaitInstallJob(ctx context.Context, jobRef *corev1.ObjectReference) (reconcile.Result, error) {
 	// the install job already exists, let's check its status and completion
 	job := &batchv1.Job{}
 
@@ -293,13 +334,13 @@ func (h *stackInstallHandler) create(ctx context.Context) (reconcile.Result, err
 		if c.Status == corev1.ConditionTrue {
 			switch c.Type {
 			case batchv1.JobComplete:
-				// the install job succeeded, process the output
+				// the installjob succeeded, process the output
 				if err := h.jobCompleter.handleJobCompletion(ctx, h.ext, job); err != nil {
 					return fail(ctx, h.kube, h.ext, err)
 				}
 
-				// the install job's completion was handled successfully, this stack install is ready
-				h.ext.SetConditions(runtimev1alpha1.Available(), runtimev1alpha1.ReconcileSuccess())
+				// the installjob output was handled successfully
+				h.ext.SetConditions(runtimev1alpha1.ReconcileSuccess())
 				return requeueOnSuccess, h.kube.Status().Update(ctx, h.ext)
 			case batchv1.JobFailed:
 				// the install job failed, report the failure
@@ -328,8 +369,22 @@ func (h *stackInstallHandler) update(ctx context.Context) (reconcile.Result, err
 // This function ensures that all the resources (e.g., CRDs) that this StackInstall owns
 // are also cleaned up.
 func (h *stackInstallHandler) delete(ctx context.Context) (reconcile.Result, error) {
-	// Delete all Stacks created by this StackInstall or ClusterStackInstall
 	labels := stacks.ParentLabels(h.ext)
+
+	// Delete all StackDefintions created by this StackInstall or
+	// ClusterStackInstall
+	if err := h.kube.DeleteAllOf(ctx, &v1alpha1.StackDefinition{}, client.InNamespace(h.ext.GetNamespace()), client.MatchingLabels(labels)); runtimeresource.IgnoreNotFound(err) != nil {
+		return fail(ctx, h.kube, h.ext, err)
+	}
+
+	// Waiting for all StackDefinitions to clear their finalizers and delete
+	// before deleting the Stacks they may co-manage
+	sdList := &v1alpha1.StackDefinitionList{}
+	if err := h.kube.List(ctx, sdList, client.MatchingLabels(labels)); err != nil {
+		return fail(ctx, h.kube, h.ext, err)
+	}
+
+	// Delete all Stacks created by this StackInstall or ClusterStackInstall
 	if err := h.kube.DeleteAllOf(ctx, &v1alpha1.Stack{}, client.InNamespace(h.ext.GetNamespace()), client.MatchingLabels(labels)); runtimeresource.IgnoreNotFound(err) != nil {
 		return fail(ctx, h.kube, h.ext, err)
 	}

@@ -113,3 +113,27 @@ type StackDefinitionList struct {
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []StackDefinition `json:"items"`
 }
+
+// DeepCopyIntoStack copies a StackDefinition to a Stack
+func (sd *StackDefinition) DeepCopyIntoStack(s *Stack) {
+	sd.Spec.AppMetadataSpec.DeepCopyInto(&s.Spec.AppMetadataSpec)
+	sd.Spec.CRDs.DeepCopyInto(&s.Spec.CRDs)
+	sd.Spec.Controller.DeepCopyInto(&s.Spec.Controller)
+	sd.Spec.Permissions.DeepCopyInto(&s.Spec.Permissions)
+	if s.Labels == nil {
+		s.Labels = map[string]string{}
+	}
+	for key, val := range sd.Labels {
+		s.Labels[key] = val
+	}
+}
+
+// DeepCopyIntoStackDefinition copies a Stack to a StackDefinition
+// TODO(displague) should this reside in types.go with the Stack type
+func (s *Stack) DeepCopyIntoStackDefinition(sd *StackDefinition) {
+	s.Spec.AppMetadataSpec.DeepCopyInto(&sd.Spec.AppMetadataSpec)
+	s.Spec.CRDs.DeepCopyInto(&sd.Spec.CRDs)
+	s.Spec.Controller.DeepCopyInto(&sd.Spec.Controller)
+	s.Spec.Permissions.DeepCopyInto(&sd.Spec.Permissions)
+	sd.ObjectMeta.SetLabels(s.ObjectMeta.GetLabels())
+}
