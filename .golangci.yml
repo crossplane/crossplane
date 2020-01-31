@@ -1,6 +1,9 @@
 run:
   deadline: 2m
 
+  skip-files:
+  - "zz_generated\\..+\\.go$"
+
 output:
   # colored-line-number|line-number|json|tab|checkstyle|code-climate, default is "colored-line-number"
   format: colored-line-number
@@ -133,10 +136,6 @@ issues:
         - gosec
         - scopelint
         - unparam
-
-    - path: zz_generated\.deepcopy\.go
-      linters:
-        - scopelint
 
     # Ease some gocritic warnings on test files.
     - path: _test\.go
