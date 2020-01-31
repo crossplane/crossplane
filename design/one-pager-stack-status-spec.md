@@ -2,7 +2,7 @@
 
 - Owner: Steven Rathbauer ([@rathpc](https://github.com/rathpc))
 - Reviewers: Crossplane Maintainers
-- Status: Draft, revision 1.0
+- Status: Draft, revision 2.0
 
 ## Proposal
 
@@ -15,7 +15,7 @@ type and status it would also be helpful to have some additional details about t
 or lastTransitionTime.
 
 This should assume that condition statuses are following a particular condition convention, similar to that of a
-[podcondition]
+[PodCondition]
 
 The conditions should contain at least the following keys:
 - type
@@ -39,7 +39,7 @@ This 1-pager will identify the key that should be added and what that structure 
 
 #### New key to be added to the `ui-schema.yaml` file:
 
-- `printerColumns` _(this is a string or map of key/value pairs)_
+- `printerColumns` _(map of key/value pairs)_
 
 The `printerColumns` key could potentially look like this:
 
@@ -48,7 +48,8 @@ version: 0.4
 configSections: 
 - title: Title
   description: Description
-printerColumns: .status.conditionedStatus.conditions
+printerColumns:
+  JSONPath: .status.conditionedStatus.conditions
 ```
 
 - This means that you are defining the location of an array containing condition objects located at the JSONPath:
@@ -56,7 +57,7 @@ printerColumns: .status.conditionedStatus.conditions
 
   - That path could contain any number of condition objects that can be exposed to a GUI.
 
-  - Additionally this would assume that this array contains objects following the [podcondition] convention. By default
+  - Additionally this would assume that this array contains objects following the [PodCondition] convention. By default
   the column title is defined by the condition type, and the value is defined by the condition status.
 
 The `printerColumns` key could also look like this:
@@ -74,12 +75,12 @@ printerColumns:
 
 > \<status type>: \<JSONPath to condition object>
 
-- This uses the map of key/value pairs to define the individual printer columns you would like to expose to a GUI.
+- This uses a map of key/value pairs to define the individual printer columns you would like to expose to a GUI.
 
 - This means that you are defining the specific condition object per key(_column title_) located at a JSONPath.
 
-  - Additionally this would assume that these paths also contain objects following the [podcondition] convention.
+  - Additionally this would assume that these paths also contain objects following the [PodCondition] convention.
   
     - However, now by default, the column title is defined by the `key` you have assigned a JSONPath value to.
 
-[podcondition]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.16/#podcondition-v1-core
+[PodCondition]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.16/#podcondition-v1-core

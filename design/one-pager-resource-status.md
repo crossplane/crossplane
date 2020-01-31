@@ -2,7 +2,7 @@
 
 - Owner: Steven Rathbauer ([@rathpc](https://github.com/rathpc))
 - Reviewers: Crossplane Maintainers
-- Status: Draft
+- Status: Draft, revision 1.0
 
 ## Problem
 
@@ -22,8 +22,7 @@ The high level conditions should be:
 
 ## Design
 
-In contrast to the design [here](https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-stack-status-spec.md),
-this design is meant to handle combinations of arbitrary statuses to determine a high level "overall" status.
+This design is meant to handle combinations of arbitrary statuses to determine a high level "overall" status.
 
 The following examples are meant to be added to a `ui-schema.yaml` file. The `resourceStatus` key should be added as a root key in that file.
 
@@ -32,7 +31,8 @@ The following examples are meant to be added to a `ui-schema.yaml` file. The `re
 ```yaml
 # Example 1
 resourceStatus:
-  paths: .status.conditionedStatus.conditions
+  paths:
+    JSONPath: .status.conditionedStatus.conditions
   states:
     Online:
     - Ready: 'True'
@@ -52,12 +52,18 @@ resourceStatus:
 # Example 2
 resourceStatus:
   paths:
-    Ready: .status.conditionedStatus.conditions[?(@.type=='Ready')]
-    Synchronized: .status.conditionedStatus.conditions[?(@.type=='Synchronized')]
-    SyncFailure: # Example 2a
-      status: .status.someRandomStatuses.SyncFailure.value
-      message: .status.someRandomStatuses.SyncFailure.text
-      lastTransitionTime: .status.someRandomStatuses.SyncFailure.updatedTime
+    JSONPath: .status.conditionedStatus.conditions # Example 2a
+    customConditions: # Example 2b
+      Ready:
+        JSONPath: .status.conditionedStatus.conditions[?(@.type=='Ready')]
+      Synchronized:
+        JSONPath: .status.conditionedStatus.conditions[?(@.type=='Synchronized')]
+      SyncFailure:
+        JSONPath: .status.conditionedStatus.conditions[?(@.type=='SyncFailure')] # Example 2c
+        customConditionProps: # Example 2d
+          status: .status.someRandomStatuses.SyncFailure.value
+          message: .status.someRandomStatuses.SyncFailure.text
+          lastTransitionTime: .status.someRandomStatuses.SyncFailure.updatedTime
   states:
     Online:
     - Ready: True
@@ -78,20 +84,28 @@ resourceStatus:
       SyncFailure: 'True'
 ```
 
-There are two main keys within `resourceStatus`. The first is `paths` which can be a string or map of key/value pairs. Additionally the key/value pairs can be set as <string>: <string> **OR** <string>: <object>.
+There are two main keys within `resourceStatus`. The first is `paths` which is an object.
 
 To expand on how to set the `paths` key a bit:
 
 - If the **states** are using status types that can all be found within a single conditions array that follow the object
-structure of a standard [PodCondition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#podcondition-v1-core),
-then you can just set the `paths` key to the JSONPath of that conditions array. (_[Example 1](#example-1)_)
+structure of a standard [PodCondition], then you can just define a `JSONPath` key set to the JSONPath of that conditions
+array. (_[Example 1](#example-1)_)
 
-- If the states are using status types from various or arbitrary locations, then you can individually set each path as a
-**key**/**value** pair. (_[Example 2](#example-2)_)
-  > \<status type> / \<JSONPath to condition object>
+- If the states are using status types from various or arbitrary locations, then you can individually set each type as a
+**key** of that status type name which will be an object within a `customConditions` key inside of the `paths` key.
+Then, just like in the previous example, you can just define a `JSONPath` key set to the JSONPath of that specific
+condition object. (_[Example 2](#example-2)_) (_[Example 2b](#example-2)_)
+
+- If you define both a _base_ `JSONPath` key as well as keys within a `customConditions` key, the `customConditions`
+keys will act as overrides if the same keys exist in the conditions array you provided. (_[Example 2a](#example-2)_)
 
 - Lastly, if you want to be very explicit about the individual values of a particular status type, you can set JSONPaths
-for each individual condition key. (_[Example 2a](#example-2)_)
+for each individual condition key within a `customConditionProps` key. (_[Example 2d](#example-2)_)
+
+- Similarly as above, if you define both a _base_ `JSONPath` key as well as keys within a `customConditionProps` key,
+the `customConditionProps` keys will act as overrides if the same props exist in the condition object you provided.
+(_[Example 2c](#example-2)_)
 
 - As a rule of thumb, you will need to define the `status`, `message` and `lastTransitionTime` for a path key, at the
 bare minimum.
@@ -130,8 +144,11 @@ within the array is treated as **OR** comparisons to adjacent objects.
     }
     ```
 
-- The keys in the objects should relate to the condition types found in the `paths` key and the values should be
+- The keys in the objects should correlate to the condition types found in the `paths` key and the values should be
 whatever is required to meet that particular criteria.
 
   - You can also define a logical not by typing `not` before the value you are comparing against so that you can
   specify that a certain key **should not** equal a particular value.
+
+
+[PodCondition]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.16/#podcondition-v1-core
