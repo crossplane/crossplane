@@ -22,8 +22,6 @@ import (
 	"sync"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/crossplaneio/crossplane-runtime/pkg/util"
 )
 
 var (
@@ -65,10 +63,10 @@ func (eif *KubeExecutorInfoDiscoverer) Discover(ctx context.Context) (*ExecutorI
 		return &ExecutorInfo{Image: image}, nil
 	}
 
-	if pod, err := util.GetRunningPod(ctx, eif.Client); err != nil {
+	if pod, err := GetRunningPod(ctx, eif.Client); err != nil {
 		log.Error(err, "failed to get running pod")
 		return nil, err
-	} else if image, err = util.GetContainerImage(pod, ""); err != nil {
+	} else if image, err = GetContainerImage(pod, ""); err != nil {
 		log.Error(err, "failed to get image for pod", "image", image)
 		return nil, err
 	}
