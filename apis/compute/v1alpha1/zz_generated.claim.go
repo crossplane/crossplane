@@ -19,10 +19,9 @@ limitations under the License.
 package v1alpha1
 
 import (
+	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
 )
 
 // GetBindingPhase of this KubernetesCluster.
