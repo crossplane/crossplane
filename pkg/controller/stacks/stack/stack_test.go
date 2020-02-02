@@ -41,6 +41,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
 	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
 	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 	"github.com/crossplaneio/crossplane/apis/stacks"
@@ -169,11 +170,11 @@ func resource(rm ...resourceModifier) *v1alpha1.Stack {
 // mockFactory and mockHandler
 // ************************************************************************************************
 type mockFactory struct {
-	MockNewHandler func(context.Context, *v1alpha1.Stack, client.Client, client.Client, *hosted.Config) handler
+	MockNewHandler func(logging.Logger, *v1alpha1.Stack, client.Client, client.Client, *hosted.Config) handler
 }
 
-func (f *mockFactory) newHandler(ctx context.Context, r *v1alpha1.Stack, c client.Client, h client.Client, hc *hosted.Config) handler {
-	return f.MockNewHandler(ctx, r, c, nil, nil)
+func (f *mockFactory) newHandler(log logging.Logger, r *v1alpha1.Stack, c client.Client, h client.Client, hc *hosted.Config) handler {
+	return f.MockNewHandler(log, r, c, nil, nil)
 }
 
 type mockHandler struct {
@@ -281,7 +282,7 @@ func TestReconcile(t *testing.T) {
 					},
 				},
 				factory: &mockFactory{
-					MockNewHandler: func(context.Context, *v1alpha1.Stack, client.Client, client.Client, *hosted.Config) handler {
+					MockNewHandler: func(logging.Logger, *v1alpha1.Stack, client.Client, client.Client, *hosted.Config) handler {
 						return &mockHandler{
 							MockSync: func(context.Context) (reconcile.Result, error) {
 								return reconcile.Result{}, nil
@@ -289,6 +290,7 @@ func TestReconcile(t *testing.T) {
 						}
 					},
 				},
+				log: logging.NewNopLogger(),
 			},
 			want: want{result: reconcile.Result{}, err: nil},
 		},
@@ -302,6 +304,7 @@ func TestReconcile(t *testing.T) {
 					},
 				},
 				factory: nil,
+				log:     logging.NewNopLogger(),
 			},
 			want: want{result: reconcile.Result{}, err: nil},
 		},
@@ -315,6 +318,7 @@ func TestReconcile(t *testing.T) {
 					},
 				},
 				factory: nil,
+				log:     logging.NewNopLogger(),
 			},
 			want: want{result: reconcile.Result{}, err: fmt.Errorf("test-get-error")},
 		},
@@ -456,6 +460,7 @@ func TestCreate(t *testing.T) {
 				kube:     tt.clientFunc(tt.r),
 				hostKube: tt.clientFunc(tt.r),
 				ext:      tt.r,
+				log:      logging.NewNopLogger(),
 			}
 
 			got, err := handler.create(ctx)
@@ -1469,6 +1474,7 @@ func TestStackDelete(t *testing.T) {
 				hostKube: &test.MockClient{
 					MockDeleteAllOf: func(ctx context.Context, obj runtime.Object, opts ...client.DeleteAllOfOption) error { return errBoom },
 				},
+				log: logging.NewNopLogger(),
 			},
 			want: want{
 				result: resultRequeue,
@@ -1496,6 +1502,7 @@ func TestStackDelete(t *testing.T) {
 					},
 				},
 				hostAwareConfig: &hosted.Config{HostControllerNamespace: hostControllerNamespace},
+				log:             logging.NewNopLogger(),
 			},
 			want: want{
 				result: resultRequeue,
@@ -1523,6 +1530,7 @@ func TestStackDelete(t *testing.T) {
 					},
 				},
 				hostAwareConfig: &hosted.Config{HostControllerNamespace: hostControllerNamespace},
+				log:             logging.NewNopLogger(),
 			},
 			want: want{
 				result: resultRequeue,
@@ -1562,6 +1570,7 @@ func TestStackDelete(t *testing.T) {
 				hostKube: &test.MockClient{
 					MockDeleteAllOf: func(ctx context.Context, obj runtime.Object, opts ...client.DeleteAllOfOption) error { return nil },
 				},
+				log: logging.NewNopLogger(),
 			},
 			want: want{
 				result: resultRequeue,
@@ -1599,6 +1608,7 @@ func TestStackDelete(t *testing.T) {
 				hostKube: &test.MockClient{
 					MockDeleteAllOf: func(ctx context.Context, obj runtime.Object, opts ...client.DeleteAllOfOption) error { return nil },
 				},
+				log: logging.NewNopLogger(),
 			},
 			want: want{
 				result: reconcile.Result{},

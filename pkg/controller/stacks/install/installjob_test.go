@@ -37,6 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
 	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
 	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
@@ -298,6 +299,7 @@ func TestHandleJobCompletion(t *testing.T) {
 						return nil, errBoom
 					},
 				},
+				log: logging.NewNopLogger(),
 			},
 			ext: resource(),
 			job: job(),
@@ -331,6 +333,7 @@ func TestHandleJobCompletion(t *testing.T) {
 						}, nil
 					},
 				},
+				log: logging.NewNopLogger(),
 			},
 			ext: resource(),
 			job: job(),
@@ -356,6 +359,7 @@ func TestHandleJobCompletion(t *testing.T) {
 						return ioutil.NopCloser(bytes.NewReader([]byte(podLogOutputMalformed))), nil
 					},
 				},
+				log: logging.NewNopLogger(),
 			},
 			ext: resource(),
 			job: job(),
@@ -402,6 +406,7 @@ func TestHandleJobCompletion(t *testing.T) {
 						return ioutil.NopCloser(bytes.NewReader([]byte(podLogOutput))), nil
 					},
 				},
+				log: logging.NewNopLogger(),
 			},
 			ext: resource(),
 			job: job(),
@@ -453,6 +458,7 @@ func TestCreate(t *testing.T) {
 				},
 				executorInfo: &stacks.ExecutorInfo{Image: stackPackageImage},
 				ext:          resource(),
+				log:          logging.NewNopLogger(),
 			},
 			want: want{
 				result: requeueOnSuccess,
@@ -477,6 +483,7 @@ func TestCreate(t *testing.T) {
 				hostAwareConfig: &hosted.Config{HostControllerNamespace: hostControllerNamespace},
 				executorInfo:    &stacks.ExecutorInfo{Image: stackPackageImage},
 				ext:             resource(),
+				log:             logging.NewNopLogger(),
 			},
 			want: want{
 				result: requeueOnSuccess,
@@ -501,6 +508,7 @@ func TestCreate(t *testing.T) {
 				hostAwareConfig: &hosted.Config{HostControllerNamespace: hostControllerNamespace},
 				executorInfo:    &stacks.ExecutorInfo{Image: stackPackageImage},
 				ext:             resource(),
+				log:             logging.NewNopLogger(),
 			},
 			want: want{
 				result: resultRequeue,
@@ -526,6 +534,7 @@ func TestCreate(t *testing.T) {
 				},
 				ext: resource(
 					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: namespace})),
+				log: logging.NewNopLogger(),
 			},
 			want: want{
 				result: resultRequeue,
@@ -552,6 +561,7 @@ func TestCreate(t *testing.T) {
 				},
 				ext: resource(
 					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: namespace})),
+				log: logging.NewNopLogger(),
 			},
 			want: want{
 				result: requeueOnSuccess,
@@ -583,6 +593,7 @@ func TestCreate(t *testing.T) {
 				executorInfo: &stacks.ExecutorInfo{Image: stackPackageImage},
 				ext: resource(
 					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: namespace})),
+				log: logging.NewNopLogger(),
 			},
 			want: want{
 				result: requeueOnSuccess,
@@ -614,6 +625,7 @@ func TestCreate(t *testing.T) {
 				executorInfo: &stacks.ExecutorInfo{Image: stackPackageImage},
 				ext: resource(
 					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: namespace})),
+				log: logging.NewNopLogger(),
 			},
 			want: want{
 				result: resultRequeue,
@@ -680,6 +692,7 @@ func TestCreateJobOutputObject(t *testing.T) {
 				client: &test.MockClient{
 					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error { return nil },
 				},
+				log: logging.NewNopLogger(),
 			},
 			stackInstaller: resource(),
 			job:            job(),
@@ -697,6 +710,7 @@ func TestCreateJobOutputObject(t *testing.T) {
 						return errBoom
 					},
 				},
+				log: logging.NewNopLogger(),
 			},
 			stackInstaller: resource(),
 			job:            job(),
@@ -712,6 +726,7 @@ func TestCreateJobOutputObject(t *testing.T) {
 				client: &test.MockClient{
 					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error { return nil },
 				},
+				log: logging.NewNopLogger(),
 			},
 			stackInstaller: resource(),
 			job:            job(),

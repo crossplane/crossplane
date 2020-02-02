@@ -22,7 +22,6 @@ import (
 	"path/filepath"
 
 	"github.com/ghodss/yaml"
-	"github.com/go-logr/logr"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -37,7 +36,7 @@ import (
 
 // Helm2EngineRunner creates resources from files which are specified in the helm2 format
 type Helm2EngineRunner struct {
-	Log logr.Logger
+	Log logging.Logger
 }
 
 const (
@@ -72,16 +71,16 @@ func (her *Helm2EngineRunner) CreateConfig(claim *unstructured.Unstructured, hc 
 	s, ok := claim.Object[spec]
 
 	if !ok {
-		her.Log.V(logging.Debug).Info("Spec not found on claim; not creating engine configuration", "claim", claim)
+		her.Log.Debug("Spec not found on claim; not creating engine configuration", "claim", claim)
 	}
 
-	her.Log.V(logging.Debug).Info("Converting configuration", "spec", s)
+	her.Log.Debug("Converting configuration", "spec", s)
 	configContents, err := yaml.Marshal(s)
 
-	her.Log.V(logging.Debug).Info("Configuration contents as yaml", "configContents", configContents)
+	her.Log.Debug("Configuration contents as yaml", "configContents", configContents)
 
 	if err != nil {
-		her.Log.Error(err, "Error marshaling claim spec as yaml!", "claim", claim)
+		her.Log.Info("Error marshaling claim spec as yaml!", "claim", claim, "error", err)
 		return nil, err
 	}
 
@@ -106,7 +105,7 @@ func (her *Helm2EngineRunner) CreateConfig(claim *unstructured.Unstructured, hc 
 	}
 
 	configName := string(claim.GetUID())
-	generatedMap, err := generateConfigMap(configName, configKeyName, stringConfigContents, her.Log)
+	generatedMap, err := generateConfigMap(configName, configKeyName, stringConfigContents)
 
 	if err != nil {
 		her.Log.Info("Error generating config map!", "claim", claim, "error", err)
@@ -115,7 +114,7 @@ func (her *Helm2EngineRunner) CreateConfig(claim *unstructured.Unstructured, hc 
 
 	generatedMap.SetNamespace(claim.GetNamespace())
 
-	her.Log.V(logging.Debug).Info("Generated config map to pass engine configuration", "configMap", generatedMap)
+	her.Log.Debug("Generated config map to pass engine configuration", "configMap", generatedMap)
 
 	return generatedMap, err
 }
@@ -261,7 +260,7 @@ func (her *Helm2EngineRunner) RunEngine(ctx context.Context, client client.Clien
 }
 
 // NewHelm2EngineRunner is a convenience method to create a new Helm2EngineRunner.
-func NewHelm2EngineRunner(log logr.Logger) *Helm2EngineRunner {
+func NewHelm2EngineRunner(log logging.Logger) *Helm2EngineRunner {
 	return &Helm2EngineRunner{
 		Log: log,
 	}

@@ -22,7 +22,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-logr/logr"
 	batchv1 "k8s.io/api/batch/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -33,13 +32,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
+
 	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
 )
 
 // SetupPhaseReconciler reconciles a stack configuration object
 type SetupPhaseReconciler struct {
 	Client            client.Client
-	Log               logr.Logger
+	Log               logging.Logger
 	Manager           manager.Manager
 	renderControllers map[renderCoordinate]*RenderPhaseReconciler
 }
@@ -107,12 +107,12 @@ func (r *SetupPhaseReconciler) setup(sc *v1alpha1.StackConfiguration) error {
 		if _, ok := r.renderControllers[rc]; !ok {
 			if rr, err := r.newRenderController(gvk, event, configName); err != nil {
 				// TODO what do we want to do if some of the registrations succeed and some of them fail?
-				r.Log.Error(err, "Error creating new render controller!", "gvk", gvk)
+				r.Log.Info("Error creating new render controller!", "gvk", gvk, "error", err)
 			} else {
 				r.renderControllers[rc] = rr
 			}
 		} else {
-			r.Log.V(logging.Debug).Info("Not creating controller for render coordinate; one already exists", "renderCoordinate", rc)
+			r.Log.Debug("Not creating controller for render coordinate; one already exists", "renderCoordinate", rc)
 		}
 	}
 
@@ -159,13 +159,13 @@ func (r *SetupPhaseReconciler) newRenderController(gvk *schema.GroupVersionKind,
 
 	reconciler := &RenderPhaseReconciler{
 		Client:     r.Manager.GetClient(),
-		Log:        ctrl.Log.WithName("controllers").WithName(fmt.Sprintf("%s.%s/%s", gvk.Kind, gvk.Group, gvk.Version)),
+		Log:        logging.NewNopLogger(), // TODO(negz): Plumb up a real implementation.
 		GVK:        gvk,
 		EventName:  event,
 		ConfigName: configName,
 	}
 
-	r.Log.V(logging.Debug).Info("Adding new controller to manager")
+	r.Log.Debug("Adding new controller to manager")
 
 	err := ctrl.NewControllerManagedBy(r.Manager).
 		For(apiType).
@@ -189,7 +189,7 @@ func (r *SetupPhaseReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 // NewSetupPhaseReconciler creates a setup phase reconciler and initializes all of its fields.
 // It mostly exists to initialize its internal render controller map.
-func NewSetupPhaseReconciler(c client.Client, l logr.Logger, m manager.Manager) *SetupPhaseReconciler {
+func NewSetupPhaseReconciler(c client.Client, l logging.Logger, m manager.Manager) *SetupPhaseReconciler {
 	return &SetupPhaseReconciler{
 		Client:            c,
 		Log:               l,

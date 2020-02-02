@@ -17,6 +17,7 @@ limitations under the License.
 package templates
 
 import (
+	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
@@ -27,7 +28,8 @@ type Controllers struct{}
 func (c *Controllers) SetupWithManager(mgr ctrl.Manager) error {
 	if err := NewSetupPhaseReconciler(
 		mgr.GetClient(),
-		ctrl.Log.WithName("controllers").WithName("StackConfiguration"),
+		// TODO(negz): Plumb in a real logger.
+		logging.NewNopLogger().WithValues("controller", "stackconfiguration"),
 		mgr,
 	).SetupWithManager(mgr); err != nil {
 		return err

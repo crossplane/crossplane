@@ -34,6 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
 	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 	stacksapi "github.com/crossplaneio/crossplane/apis/stacks"
 	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
@@ -124,12 +125,11 @@ func clusterInstallResource(rm ...resourceModifier) *v1alpha1.ClusterStackInstal
 
 // mock implementations
 type mockFactory struct {
-	MockNewHandler func(context.Context, v1alpha1.StackInstaller, k8sClients, *hosted.Config, *stacks.ExecutorInfo) handler
+	MockNewHandler func(logging.Logger, v1alpha1.StackInstaller, k8sClients, *hosted.Config, *stacks.ExecutorInfo) handler
 }
 
-func (f *mockFactory) newHandler(ctx context.Context, i v1alpha1.StackInstaller, k8s k8sClients, hostAwareConfig *hosted.Config,
-	ei *stacks.ExecutorInfo) handler {
-	return f.MockNewHandler(ctx, i, k8s, hostAwareConfig, ei)
+func (f *mockFactory) newHandler(log logging.Logger, i v1alpha1.StackInstaller, k8s k8sClients, hostAwareConfig *hosted.Config, ei *stacks.ExecutorInfo) handler {
+	return f.MockNewHandler(log, i, k8s, hostAwareConfig, ei)
 }
 
 type mockHandler struct {
@@ -196,7 +196,7 @@ func TestReconcile(t *testing.T) {
 					},
 				},
 				factory: &mockFactory{
-					MockNewHandler: func(context.Context, v1alpha1.StackInstaller, k8sClients, *hosted.Config, *stacks.ExecutorInfo) handler {
+					MockNewHandler: func(logging.Logger, v1alpha1.StackInstaller, k8sClients, *hosted.Config, *stacks.ExecutorInfo) handler {
 						return &mockHandler{
 							MockSync: func(context.Context) (reconcile.Result, error) {
 								return reconcile.Result{}, nil
@@ -204,6 +204,7 @@ func TestReconcile(t *testing.T) {
 						}
 					},
 				},
+				log: logging.NewNopLogger(),
 			},
 			want: want{result: reconcile.Result{}, err: nil},
 		},
@@ -226,7 +227,7 @@ func TestReconcile(t *testing.T) {
 					},
 				},
 				factory: &mockFactory{
-					MockNewHandler: func(context.Context, v1alpha1.StackInstaller, k8sClients, *hosted.Config, *stacks.ExecutorInfo) handler {
+					MockNewHandler: func(logging.Logger, v1alpha1.StackInstaller, k8sClients, *hosted.Config, *stacks.ExecutorInfo) handler {
 						return &mockHandler{
 							MockSync: func(context.Context) (reconcile.Result, error) {
 								return reconcile.Result{}, nil
@@ -234,6 +235,7 @@ func TestReconcile(t *testing.T) {
 						}
 					},
 				},
+				log: logging.NewNopLogger(),
 			},
 			want: want{result: reconcile.Result{}, err: nil},
 		},
@@ -256,7 +258,7 @@ func TestReconcile(t *testing.T) {
 					},
 				},
 				factory: &mockFactory{
-					MockNewHandler: func(context.Context, v1alpha1.StackInstaller, k8sClients, *hosted.Config, *stacks.ExecutorInfo) handler {
+					MockNewHandler: func(logging.Logger, v1alpha1.StackInstaller, k8sClients, *hosted.Config, *stacks.ExecutorInfo) handler {
 						return &mockHandler{
 							MockDelete: func(context.Context) (reconcile.Result, error) {
 								return reconcile.Result{}, nil
@@ -264,6 +266,7 @@ func TestReconcile(t *testing.T) {
 						}
 					},
 				},
+				log: logging.NewNopLogger(),
 			},
 			want: want{result: reconcile.Result{}, err: nil},
 		},
@@ -287,6 +290,7 @@ func TestReconcile(t *testing.T) {
 					},
 				},
 				factory: nil,
+				log:     logging.NewNopLogger(),
 			},
 			want: want{result: resultRequeue, err: nil},
 		},
@@ -304,6 +308,7 @@ func TestReconcile(t *testing.T) {
 				stackinator:            func() v1alpha1.StackInstaller { return &v1alpha1.StackInstall{} },
 				executorInfoDiscoverer: nil,
 				factory:                nil,
+				log:                    logging.NewNopLogger(),
 			},
 			want: want{result: reconcile.Result{}, err: nil},
 		},
@@ -321,6 +326,7 @@ func TestReconcile(t *testing.T) {
 				stackinator:            func() v1alpha1.StackInstaller { return &v1alpha1.StackInstall{} },
 				executorInfoDiscoverer: nil,
 				factory:                nil,
+				log:                    logging.NewNopLogger(),
 			},
 			want: want{result: reconcile.Result{}, err: errors.New("test-get-error")},
 		},
@@ -551,17 +557,22 @@ func TestHandlerFactory(t *testing.T) {
 			name:    "SimpleCreate",
 			factory: &handlerFactory{},
 			want: &stackInstallHandler{
-				kube:         nil,
-				jobCompleter: &stackInstallJobCompleter{client: nil, podLogReader: &K8sReader{Client: nil}},
+				kube: nil,
+				jobCompleter: &stackInstallJobCompleter{
+					client:       nil,
+					podLogReader: &K8sReader{Client: nil},
+					log:          logging.NewNopLogger(),
+				},
 				executorInfo: &stacks.ExecutorInfo{Image: stackPackageImage},
 				ext:          resource(),
+				log:          logging.NewNopLogger(),
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := tt.factory.newHandler(ctx, resource(), k8sClients{}, nil, &stacks.ExecutorInfo{Image: stackPackageImage})
+			got := tt.factory.newHandler(logging.NewNopLogger(), resource(), k8sClients{}, nil, &stacks.ExecutorInfo{Image: stackPackageImage})
 
 			diff := cmp.Diff(tt.want, got,
 				cmp.AllowUnexported(

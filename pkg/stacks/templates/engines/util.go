@@ -19,13 +19,12 @@ package engines
 import (
 	"fmt"
 
-	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/kubectl/pkg/util/hash"
 )
 
 // The main reason this exists as its own method is to encapsulate the hashing logic
-func generateConfigMap(name string, fileName string, fileContents string, log logr.Logger) (*corev1.ConfigMap, error) {
+func generateConfigMap(name, fileName, fileContents string) (*corev1.ConfigMap, error) {
 	cm := &corev1.ConfigMap{}
 	cm.Name = name
 	cm.Data = map[string]string{}
@@ -33,7 +32,6 @@ func generateConfigMap(name string, fileName string, fileContents string, log lo
 	cm.Data[fileName] = fileContents
 	h, err := hash.ConfigMapHash(cm)
 	if err != nil {
-		log.Info("Error hashing config map!", "error", err)
 		return cm, err
 	}
 	cm.Name = fmt.Sprintf("%s-%s", cm.Name, h)
