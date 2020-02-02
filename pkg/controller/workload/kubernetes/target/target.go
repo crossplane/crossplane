@@ -18,6 +18,7 @@ package target
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -37,15 +38,12 @@ import (
 )
 
 const (
-	controllerName   = "autotarget.workload.crossplane.io"
 	reconcileTimeout = 1 * time.Minute
 
 	errGetKubernetesCluster = "unable to get KubernetesCluster"
 	errCreateOrUpdateTarget = "unable to create or update KubernetesTarget"
 	errTargetConflict       = "cannot establish control of existing KubernetesTarget"
 )
-
-var log = logging.Logger.WithName("controller." + controllerName)
 
 func clusterIsBound(obj runtime.Object) bool {
 	r, ok := obj.(*computev1alpha1.KubernetesCluster)
@@ -63,14 +61,19 @@ type Controller struct{}
 // SetupWithManager creates a new Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func (c *Controller) SetupWithManager(mgr ctrl.Manager) error {
+	name := "autotarget/" + strings.ToLower(computev1alpha1.KubernetesClusterKind)
+
 	r := &Reconciler{
 		kube: mgr.GetClient(),
+
+		// TODO(negz): Plumb up a real logging implementation.
+		log: logging.NewNopLogger().WithValues("controller", name),
 	}
 
 	p := resource.NewPredicates(clusterIsBound)
 
 	return ctrl.NewControllerManagedBy(mgr).
-		Named(controllerName).
+		Named(name).
 		For(&computev1alpha1.KubernetesCluster{}).
 		WithEventFilter(p).
 		Complete(r)
@@ -79,11 +82,12 @@ func (c *Controller) SetupWithManager(mgr ctrl.Manager) error {
 // A Reconciler creates KubernetesTargets for KubernetesClusters.
 type Reconciler struct {
 	kube client.Client
+	log  logging.Logger
 }
 
 // Reconcile attempts to create a KubernetesTarget for a KubernetesCluster.
 func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) {
-	log.V(logging.Debug).Info("reconciling", "kind", workloadv1alpha1.KubernetesTargetKindAPIVersion, "request", req)
+	r.log.Debug("Reconciling", "request", req)
 
 	ctx, cancel := context.WithTimeout(context.Background(), reconcileTimeout)
 	defer cancel()

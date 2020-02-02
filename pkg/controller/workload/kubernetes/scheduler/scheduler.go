@@ -18,6 +18,7 @@ package scheduler
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -34,12 +35,9 @@ import (
 )
 
 const (
-	controllerName   = "scheduler.workload.crossplane.io"
 	reconcileTimeout = 1 * time.Minute
 	requeueOnSuccess = 2 * time.Minute
 )
-
-var log = logging.Logger.WithName("controller." + controllerName)
 
 type scheduler interface {
 	schedule(ctx context.Context, app *workloadv1alpha1.KubernetesApplication) reconcile.Result
@@ -112,13 +110,16 @@ type Controller struct{}
 // SetupWithManager creates a new Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func (c *Controller) SetupWithManager(mgr ctrl.Manager) error {
+	name := "scheduler/" + strings.ToLower(workloadv1alpha1.KubernetesApplicationKind)
+
 	r := &Reconciler{
 		kube:      mgr.GetClient(),
 		scheduler: &roundRobinScheduler{kube: mgr.GetClient()},
+		log:       logging.NewNopLogger().WithValues("controller", name),
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		Named(controllerName).
+		Named(name).
 		For(&workloadv1alpha1.KubernetesApplication{}).
 		WithEventFilter(&predicate.Funcs{CreateFunc: CreatePredicate, UpdateFunc: UpdatePredicate}).
 		Complete(r)
@@ -128,12 +129,13 @@ func (c *Controller) SetupWithManager(mgr ctrl.Manager) error {
 type Reconciler struct {
 	kube      client.Client
 	scheduler scheduler
+	log       logging.Logger
 }
 
 // Reconcile attempts to schedule a KubernetesApplication to a KubernetesTarget
 // that matches its cluster selector.
 func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) {
-	log.V(logging.Debug).Info("reconciling", "kind", workloadv1alpha1.KubernetesApplicationKindAPIVersion, "request", req)
+	r.log.Debug("Reconciling", "kind", "request", req)
 
 	ctx, cancel := context.WithTimeout(context.Background(), reconcileTimeout)
 	defer cancel()

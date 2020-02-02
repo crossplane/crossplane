@@ -33,6 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
 	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 	workloadv1alpha1 "github.com/crossplaneio/crossplane/apis/workload/v1alpha1"
 )
@@ -302,6 +303,7 @@ func TestReconcile(t *testing.T) {
 				kube: &test.MockClient{
 					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, name)),
 				},
+				log: logging.NewNopLogger(),
 			},
 			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
 			wantResult: reconcile.Result{Requeue: false},
@@ -311,6 +313,7 @@ func TestReconcile(t *testing.T) {
 			name: "FailedToGetExtantKubernetesApplication",
 			rec: &Reconciler{
 				kube: &test.MockClient{MockGet: test.NewMockGetFn(errorBoom)},
+				log:  logging.NewNopLogger(),
 			},
 			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
 			wantResult: reconcile.Result{Requeue: false},
@@ -325,6 +328,7 @@ func TestReconcile(t *testing.T) {
 						return nil
 					},
 				},
+				log: logging.NewNopLogger(),
 			},
 			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
 			wantResult: reconcile.Result{Requeue: false},
@@ -341,6 +345,7 @@ func TestReconcile(t *testing.T) {
 						return nil
 					},
 				},
+				log: logging.NewNopLogger(),
 			},
 			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
 			wantResult: reconcile.Result{RequeueAfter: requeueOnSuccess},
@@ -357,6 +362,7 @@ func TestReconcile(t *testing.T) {
 					MockUpdate: test.NewMockUpdateFn(nil),
 				},
 				scheduler: &mockScheduler{mockSchedule: newMockscheduleFn(reconcile.Result{Requeue: false})},
+				log:       logging.NewNopLogger(),
 			},
 			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
 			wantResult: reconcile.Result{Requeue: false},
@@ -373,6 +379,7 @@ func TestReconcile(t *testing.T) {
 					MockUpdate: test.NewMockUpdateFn(errorBoom),
 				},
 				scheduler: &mockScheduler{mockSchedule: newMockscheduleFn(reconcile.Result{Requeue: false})},
+				log:       logging.NewNopLogger(),
 			},
 			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
 			wantResult: reconcile.Result{Requeue: false},

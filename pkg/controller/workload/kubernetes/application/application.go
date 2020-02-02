@@ -18,6 +18,7 @@ package application
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -25,14 +26,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
 	util "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
@@ -41,12 +38,9 @@ import (
 )
 
 const (
-	controllerName   = "kubernetesapplication.workload.crossplane.io"
 	reconcileTimeout = 1 * time.Minute
 	requeueOnWait    = 30 * time.Second
 )
-
-var log = logging.Logger.WithName("controller." + controllerName)
 
 type syncer interface {
 	sync(ctx context.Context, app *v1alpha1.KubernetesApplication) reconcile.Result
@@ -72,38 +66,6 @@ func UpdatePredicate(event event.UpdateEvent) bool {
 	return wl.Status.Target != nil
 }
 
-// Add the KubernetesApplication scheduler reconciler to the supplied manager.
-// Reconcilers are triggered when either the application or any of its resources
-// change.
-func Add(mgr manager.Manager) error {
-	kube := mgr.GetClient()
-	r := &Reconciler{
-		kube: kube,
-		local: &localCluster{
-			ar: &applicationResourceClient{kube: kube},
-			gc: &applicationResourceGarbageCollector{kube: kube},
-		},
-	}
-	c, err := controller.New(controllerName, mgr, controller.Options{Reconciler: r})
-	if err != nil {
-		return errors.Wrap(err, "cannot create Kubernetes controller")
-	}
-
-	if err := c.Watch(
-		&source.Kind{Type: &v1alpha1.KubernetesApplicationResource{}},
-		&handler.EnqueueRequestForOwner{OwnerType: &v1alpha1.KubernetesApplication{}, IsController: true},
-	); err != nil {
-		return errors.Wrapf(err, "cannot watch for %s", v1alpha1.KubernetesApplicationResourceKind)
-	}
-
-	err = c.Watch(
-		&source.Kind{Type: &v1alpha1.KubernetesApplication{}},
-		&handler.EnqueueRequestForObject{},
-		&predicate.Funcs{CreateFunc: CreatePredicate, UpdateFunc: UpdatePredicate},
-	)
-	return errors.Wrapf(err, "cannot watch for %s", v1alpha1.KubernetesApplicationKind)
-}
-
 // Controller is responsible for adding the KubernetesApplication
 // controller and its corresponding reconciler to the manager with any runtime configuration.
 type Controller struct{}
@@ -111,6 +73,8 @@ type Controller struct{}
 // SetupWithManager creates a new Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func (c *Controller) SetupWithManager(mgr ctrl.Manager) error {
+	name := "workload/" + strings.ToLower(v1alpha1.KubernetesApplicationKind)
+
 	kube := mgr.GetClient()
 	r := &Reconciler{
 		kube: kube,
@@ -118,10 +82,12 @@ func (c *Controller) SetupWithManager(mgr ctrl.Manager) error {
 			ar: &applicationResourceClient{kube: kube},
 			gc: &applicationResourceGarbageCollector{kube: kube},
 		},
+		// TODO(negz): Plumb in a real logger.
+		log: logging.NewNopLogger().WithValues("controller", name),
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		Named(controllerName).
+		Named(name).
 		For(&v1alpha1.KubernetesApplication{}).
 		Owns(&v1alpha1.KubernetesApplicationResource{}).
 		WithEventFilter(&predicate.Funcs{CreateFunc: CreatePredicate, UpdateFunc: UpdatePredicate}).
@@ -295,12 +261,13 @@ func (gc *applicationResourceGarbageCollector) process(ctx context.Context, app 
 type Reconciler struct {
 	kube  client.Client
 	local syncer
+	log   logging.Logger
 }
 
 // Reconcile scheduled KubernetesApplications by managing their templated
 // KubernetesApplicationResources.
 func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) {
-	log.V(logging.Debug).Info("reconciling", "kind", v1alpha1.KubernetesApplicationKindAPIVersion, "request", req)
+	r.log.Debug("Reconciling", "kind", "request", req)
 
 	ctx, cancel := context.WithTimeout(context.Background(), reconcileTimeout)
 	defer cancel()
