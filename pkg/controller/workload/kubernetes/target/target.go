@@ -54,29 +54,18 @@ func clusterIsBound(obj runtime.Object) bool {
 	return r.GetBindingPhase() == runtimev1alpha1.BindingPhaseBound
 }
 
-// Controller is responsible for adding the KubernetesTarget auto-creation
-// controller and its corresponding reconciler to the manager with any runtime configuration.
-type Controller struct{}
-
-// SetupWithManager creates a new Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
-// and Start it when the Manager is Started.
-func (c *Controller) SetupWithManager(mgr ctrl.Manager) error {
+// Setup adds a controller that creates KubernetesTargets for
+// KubernetesClusters.
+func Setup(mgr ctrl.Manager, l logging.Logger) error {
 	name := "autotarget/" + strings.ToLower(computev1alpha1.KubernetesClusterKind)
-
-	r := &Reconciler{
-		kube: mgr.GetClient(),
-
-		// TODO(negz): Plumb up a real logging implementation.
-		log: logging.NewNopLogger().WithValues("controller", name),
-	}
-
-	p := resource.NewPredicates(clusterIsBound)
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&computev1alpha1.KubernetesCluster{}).
-		WithEventFilter(p).
-		Complete(r)
+		WithEventFilter(resource.NewPredicates(clusterIsBound)).
+		Complete(&Reconciler{
+			kube: mgr.GetClient(),
+			log:  l.WithValues("controller", name)})
 }
 
 // A Reconciler creates KubernetesTargets for KubernetesClusters.

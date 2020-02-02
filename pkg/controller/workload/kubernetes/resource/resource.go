@@ -83,27 +83,19 @@ func UpdatePredicate(event event.UpdateEvent) bool {
 	return wl.Status.Target != nil
 }
 
-// Controller is responsible for adding the Instance
-// controller and its corresponding reconciler to the manager with any runtime configuration.
-type Controller struct{}
-
-// SetupWithManager creates a new Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
-// and Start it when the Manager is Started.
-func (c *Controller) SetupWithManager(mgr ctrl.Manager) error {
+// Setup adds a controller that reconciles KubernetesApplicationResources.
+func Setup(mgr ctrl.Manager, l logging.Logger) error {
 	name := "workload/" + strings.ToLower(v1alpha1.KubernetesApplicationResourceKind)
-
-	r := &Reconciler{
-		connecter: &clusterConnecter{kube: mgr.GetClient()},
-		kube:      mgr.GetClient(),
-		// TODO(negz): Plumb in a real implementation.
-		log: logging.NewNopLogger().WithValues("controller", name),
-	}
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&v1alpha1.KubernetesApplicationResource{}).
 		WithEventFilter(&predicate.Funcs{CreateFunc: CreatePredicate, UpdateFunc: UpdatePredicate}).
-		Complete(r)
+		Complete(&Reconciler{
+			connecter: &clusterConnecter{kube: mgr.GetClient()},
+			kube:      mgr.GetClient(),
+			log:       l.WithValues("controller", name),
+		})
 }
 
 // A syncer can sync resources with a KubernetesTarget.

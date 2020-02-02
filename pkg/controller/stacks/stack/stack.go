@@ -19,6 +19,7 @@ package stack
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -45,7 +46,6 @@ import (
 )
 
 const (
-	controllerName  = "stack.stacks.crossplane.io"
 	stacksFinalizer = "finalizer.stacks.crossplane.io"
 
 	reconcileTimeout      = 1 * time.Minute
@@ -110,34 +110,24 @@ func WithHostedConfig(hCfg *hosted.Config) SMReconcilerOption {
 	}
 }
 
-// Controller is responsible for adding the Stack
-// controller and its corresponding reconciler to the manager with any runtime configuration.
-type Controller struct{}
+// Setup adds a controller that reconciles Stacks.
+func Setup(mgr ctrl.Manager, l logging.Logger) error {
+	name := "stacks/" + strings.ToLower(v1alpha1.StackKind)
 
-// SetupWithManager creates a new Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
-// and Start it when the Manager is Started.
-func (c *Controller) SetupWithManager(mgr ctrl.Manager, smo ...SMReconcilerOption) error {
 	hostKube, _, err := hosted.GetClients()
 	if err != nil {
 		return err
 	}
 
-	r := &Reconciler{
-		kube:     mgr.GetClient(),
-		hostKube: hostKube,
-		factory:  &stackHandlerFactory{},
-		// TODO(negz): Plumb up a real implementation.
-		log: logging.NewNopLogger(),
-	}
-
-	for _, opt := range smo {
-		opt(r)
-	}
-
 	return ctrl.NewControllerManagedBy(mgr).
-		Named(controllerName).
+		Named(name).
 		For(&v1alpha1.Stack{}).
-		Complete(r)
+		Complete(&Reconciler{
+			kube:     mgr.GetClient(),
+			hostKube: hostKube,
+			factory:  &stackHandlerFactory{},
+			log:      l.WithValues("controller", name),
+		})
 }
 
 // Reconcile reads that state of the Stack for a Instance object and makes changes based on the state read

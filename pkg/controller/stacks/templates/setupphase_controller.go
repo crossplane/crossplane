@@ -29,7 +29,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
 
@@ -38,9 +37,9 @@ import (
 
 // SetupPhaseReconciler reconciles a stack configuration object
 type SetupPhaseReconciler struct {
+	Manager           ctrl.Manager
 	Client            client.Client
 	Log               logging.Logger
-	Manager           manager.Manager
 	renderControllers map[renderCoordinate]*RenderPhaseReconciler
 }
 
@@ -157,9 +156,10 @@ func (r *SetupPhaseReconciler) newRenderController(gvk *schema.GroupVersionKind,
 	apiType := &unstructured.Unstructured{}
 	apiType.SetGroupVersionKind(*gvk)
 
+	name := "stacks/" + strings.ToLower(gvk.Kind)
 	reconciler := &RenderPhaseReconciler{
-		Client:     r.Manager.GetClient(),
-		Log:        logging.NewNopLogger(), // TODO(negz): Plumb up a real implementation.
+		Client:     r.Client,
+		Log:        r.Log.WithValues("controller", name),
 		GVK:        gvk,
 		EventName:  event,
 		ConfigName: configName,
@@ -168,6 +168,7 @@ func (r *SetupPhaseReconciler) newRenderController(gvk *schema.GroupVersionKind,
 	r.Log.Debug("Adding new controller to manager")
 
 	err := ctrl.NewControllerManagedBy(r.Manager).
+		Named(name).
 		For(apiType).
 		Owns(&batchv1.Job{}).
 		Complete(reconciler)
@@ -180,20 +181,13 @@ func (r *SetupPhaseReconciler) newRenderController(gvk *schema.GroupVersionKind,
 	return reconciler, nil
 }
 
-// SetupWithManager is a convenience method to register the reconciler with a controller manager.
-func (r *SetupPhaseReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&v1alpha1.StackConfiguration{}).
-		Complete(r)
-}
-
 // NewSetupPhaseReconciler creates a setup phase reconciler and initializes all of its fields.
 // It mostly exists to initialize its internal render controller map.
-func NewSetupPhaseReconciler(c client.Client, l logging.Logger, m manager.Manager) *SetupPhaseReconciler {
+func NewSetupPhaseReconciler(mgr ctrl.Manager, l logging.Logger) *SetupPhaseReconciler {
 	return &SetupPhaseReconciler{
-		Client:            c,
+		Manager:           mgr,
+		Client:            mgr.GetClient(),
 		Log:               l,
-		Manager:           m,
 		renderControllers: map[renderCoordinate]*RenderPhaseReconciler{},
 	}
 }

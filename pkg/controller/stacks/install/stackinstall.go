@@ -40,7 +40,6 @@ import (
 	runtimeresource "github.com/crossplaneio/crossplane-runtime/pkg/resource"
 	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/controller/stacks/hosted"
-	"github.com/crossplaneio/crossplane/pkg/controller/stacks/stack"
 	"github.com/crossplaneio/crossplane/pkg/stacks"
 )
 
@@ -78,45 +77,66 @@ type Reconciler struct {
 	factory
 }
 
-// Controller is responsible for adding the StackInstall
-// controller and its corresponding reconciler to the manager with any runtime configuration.
-type Controller struct {
-	StackInstallCreator func() (string, func() v1alpha1.StackInstaller)
-}
+// SetupClusterStackInstall adds a controller that reconciles
+// ClusterStackInstalls.
+func SetupClusterStackInstall(mgr ctrl.Manager, l logging.Logger) error {
+	name := "stacks/" + strings.ToLower(v1alpha1.ClusterStackInstallKind)
+	stackinator := func() v1alpha1.StackInstaller { return &v1alpha1.ClusterStackInstall{} }
 
-// SetupWithManager creates a new Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
-// and Start it when the Manager is Started.
-func (c *Controller) SetupWithManager(mgr ctrl.Manager, smo ...stack.SMReconcilerOption) error {
-	controllerName, stackInstaller := c.StackInstallCreator()
+	// Fail early if ClusterStackInstall is not registered with the scheme.
+	stackinator()
 
-	kube := mgr.GetClient()
 	hostKube, hostClient, err := hosted.GetClients()
 	if err != nil {
 		return err
 	}
 
-	discoverer := &stacks.KubeExecutorInfoDiscoverer{Client: hostKube}
-
 	r := &Reconciler{
 		k8sClients: k8sClients{
-			kube:       kube,
+			kube:       mgr.GetClient(),
 			hostKube:   hostKube,
 			hostClient: hostClient,
 		},
-		stackinator:            stackInstaller,
+		stackinator:            stackinator,
 		factory:                &handlerFactory{},
-		executorInfoDiscoverer: discoverer,
-		// TODO(negz): Plumb in a real logger.
-		log: logging.NewNopLogger(),
-	}
-
-	for _, opt := range smo {
-		opt(r)
+		executorInfoDiscoverer: &stacks.KubeExecutorInfoDiscoverer{Client: hostKube},
+		log:                    l.WithValues("controller", name),
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		Named(controllerName).
-		For(stackInstaller()).
+		Named(name).
+		For(&v1alpha1.ClusterStackInstall{}).
+		Complete(r)
+}
+
+// SetupStackInstall adds a controller that reconciles StackInstalls.
+func SetupStackInstall(mgr ctrl.Manager, l logging.Logger) error {
+	name := "stacks/" + strings.ToLower(v1alpha1.StackInstallKind)
+	stackinator := func() v1alpha1.StackInstaller { return &v1alpha1.StackInstall{} }
+
+	// Fail early if StackInstall is not registered with the scheme.
+	stackinator()
+
+	hostKube, hostClient, err := hosted.GetClients()
+	if err != nil {
+		return err
+	}
+
+	r := &Reconciler{
+		k8sClients: k8sClients{
+			kube:       mgr.GetClient(),
+			hostKube:   hostKube,
+			hostClient: hostClient,
+		},
+		stackinator:            stackinator,
+		factory:                &handlerFactory{},
+		executorInfoDiscoverer: &stacks.KubeExecutorInfoDiscoverer{Client: hostKube},
+		log:                    l.WithValues("controller", name),
+	}
+
+	return ctrl.NewControllerManagedBy(mgr).
+		Named(name).
+		For(&v1alpha1.StackInstall{}).
 		Complete(r)
 }
 

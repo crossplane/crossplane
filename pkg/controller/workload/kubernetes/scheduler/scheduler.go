@@ -103,26 +103,19 @@ func UpdatePredicate(e event.UpdateEvent) bool {
 	return wl.Status.Target == nil
 }
 
-// Controller is responsible for adding the Scheduler
-// controller and its corresponding reconciler to the manager with any runtime configuration.
-type Controller struct{}
-
-// SetupWithManager creates a new Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
-// and Start it when the Manager is Started.
-func (c *Controller) SetupWithManager(mgr ctrl.Manager) error {
+// Setup adds a controller that schedules KubernetesApplications.
+func Setup(mgr ctrl.Manager, l logging.Logger) error {
 	name := "scheduler/" + strings.ToLower(workloadv1alpha1.KubernetesApplicationKind)
-
-	r := &Reconciler{
-		kube:      mgr.GetClient(),
-		scheduler: &roundRobinScheduler{kube: mgr.GetClient()},
-		log:       logging.NewNopLogger().WithValues("controller", name),
-	}
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&workloadv1alpha1.KubernetesApplication{}).
 		WithEventFilter(&predicate.Funcs{CreateFunc: CreatePredicate, UpdateFunc: UpdatePredicate}).
-		Complete(r)
+		Complete(&Reconciler{
+			kube:      mgr.GetClient(),
+			scheduler: &roundRobinScheduler{kube: mgr.GetClient()},
+			log:       l.WithValues("controller", name),
+		})
 }
 
 // A Reconciler schedules KubernetesApplications to KubernetesTargets.

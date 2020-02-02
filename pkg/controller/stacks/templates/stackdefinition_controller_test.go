@@ -33,6 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
+	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
 	"github.com/crossplaneio/crossplane-runtime/pkg/test/integration"
 	"github.com/crossplaneio/crossplane/apis"
 	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
@@ -169,7 +170,7 @@ func TestStackDefinitionController(t *testing.T) {
 				// Now we reconcile
 				reconciler := StackDefinitionReconciler{
 					Client: c,
-					Log:    ctrl.Log,
+					Log:    logging.NewNopLogger(),
 				}
 				reconcileRequest := ctrl.Request{
 					NamespacedName: nn,

@@ -66,32 +66,23 @@ func UpdatePredicate(event event.UpdateEvent) bool {
 	return wl.Status.Target != nil
 }
 
-// Controller is responsible for adding the KubernetesApplication
-// controller and its corresponding reconciler to the manager with any runtime configuration.
-type Controller struct{}
-
-// SetupWithManager creates a new Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
-// and Start it when the Manager is Started.
-func (c *Controller) SetupWithManager(mgr ctrl.Manager) error {
+// Setup adds a controller that reconciles KubernetesApplications.
+func Setup(mgr ctrl.Manager, l logging.Logger) error {
 	name := "workload/" + strings.ToLower(v1alpha1.KubernetesApplicationKind)
-
-	kube := mgr.GetClient()
-	r := &Reconciler{
-		kube: kube,
-		local: &localCluster{
-			ar: &applicationResourceClient{kube: kube},
-			gc: &applicationResourceGarbageCollector{kube: kube},
-		},
-		// TODO(negz): Plumb in a real logger.
-		log: logging.NewNopLogger().WithValues("controller", name),
-	}
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&v1alpha1.KubernetesApplication{}).
 		Owns(&v1alpha1.KubernetesApplicationResource{}).
 		WithEventFilter(&predicate.Funcs{CreateFunc: CreatePredicate, UpdateFunc: UpdatePredicate}).
-		Complete(r)
+		Complete(&Reconciler{
+			kube: mgr.GetClient(),
+			local: &localCluster{
+				ar: &applicationResourceClient{kube: mgr.GetClient()},
+				gc: &applicationResourceGarbageCollector{kube: mgr.GetClient()},
+			},
+			log: l.WithValues("controller", name),
+		})
 }
 
 // localCluster is a syncDeleter that syncs and deletes resources from the same
