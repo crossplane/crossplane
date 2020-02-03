@@ -33,5 +33,12 @@ func (c *Controllers) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 
+	if err := NewStackDefinitionReconciler(
+		mgr.GetClient(),
+		ctrl.Log.WithName("controllers").WithName("StackDefinition"),
+	).SetupWithManager(mgr); err != nil {
+		return err
+	}
+
 	return nil
 }
