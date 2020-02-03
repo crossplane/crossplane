@@ -130,15 +130,22 @@ Use the value of that annotation as external resource name in _all_ queries.
 #### External Resource Labeling
 
 If the external resource supports labelling, we should label it with the managed
-resource name. While this is helpful for services with non-deterministic naming,
-it'd benefit the services that allow you to name the external resource, too,
-since the labels could be used for searching and batch operations on the cloud level.
-The key to use in those labels is `crossplane.io/resource-name` and the value is
-the name of the managed resource. An example would look like:
+resource name and kind. This is helpful in variety of scenarios like:
+* Identify services with non-deterministic naming, for example AWS VPC.
+* Provider level operations that are done via label filtering, for example search
+  and batch operations.
+* Find a resource in the provider UI and construct an easy `kubectl` query on
+  Crossplane cluster to find the associated resource, like `kubectl get <kind> <name>`
+  
+The keys to use in labels are like the following:
 ```
-A tag for a VPC in AWS:
-  "crossplane.io/resource-name": "myappnamespace-mynetwork-5sc8a"
+A tag set for a VPC in AWS:
+  "crossplane.io/name": "myappnamespace-mynetwork-5sc8a"
+  "crossplane.io/kind": "vpc.network.aws.crossplane.io"
 ```
+
+In cases where the characters `.` and `/` are not allowed in key string, `-`
+should be used. If that's not allowed, too, then those characters should be omitted.
 
 #### Field Names
 
@@ -176,6 +183,13 @@ Note that the controller should make updates only to `Spec` fields that are empt
 state and if they have no control over it in any case, do not include it in `Spec`.
 
 What goes into `Status`:
+
+* Can the value of this field be reproduced when the whole `Status` is deleted? Do not include if the answer is no.
+  `Status` sub-resource is the _representation_ of the current state, so, the
+  controller should be able to reproduce it as long as the resource is still there.
+  In practice, this means controller of that managed resource should not have to
+  rely on `Status` fields of its custom resource while operating.
+  
 * All fields except the ones that are chosen for `Spec`.
 
 For both `Status` and `Spec`:
@@ -190,12 +204,6 @@ For both `Status` and `Spec`:
   
   What if the sub-resource is not yet supported as managed resource in Crossplane? In that case, you should first
   consider implementing that managed resource, if not suitable, only then include it in the CR.
-
-* Can the value of this field be reproduced when the whole `Status` is deleted? Do not include if the answer is no.
-  `Status` sub-resource is the _representation_ of the current state, so, the
-  controller should be able to reproduce it as long as the state that's represented
-  is still there. In practice, this means the controller should not rely on any
-  field that is present in the `Status`.
 
 For details, see [Kubernetes API Conventions - Spec and Status].
 
