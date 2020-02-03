@@ -94,21 +94,21 @@ CRD_DIR = $(CROSSPLANE_TYPES_CHART_DIR)/crds
 CROSSPLANE_CHART_HELM2_CRD_DIR = $(CROSSPLANE_CHART_DIR)/templates/crds
 CROSSPLANE_CHART_HELM3_CRD_DIR = $(CROSSPLANE_CHART_DIR)/crds
 
-TYPE_MANIFESTS = clusterrole.yaml clusterrolebinding.yaml crossplane-admin-clusterrole.yaml \
-  environment-personas-clusterroles.yaml namespace-personas-clusterroles.yaml serviceaccount.yaml \
-  stack-manager-clusterrolebinding.yaml stack-manager-serviceaccount.yaml
-CONTROLLER_MANIFESTS = deployment.yaml stack-manager-deployment.yaml
+TYPE_MANIFESTS = $(wildcard $(CROSSPLANE_TYPES_CHART_DIR)/templates/*.yaml)
+CONTROLLER_MANIFESTS = $(filter-out $(wildcard $(CROSSPLANE_CONTROLLERS_CHART_DIR)/templates/stack-manager-host-*.yaml), $(wildcard $(CROSSPLANE_CONTROLLERS_CHART_DIR)/templates/*.yaml))
 
+# This target copies manifests in crossplane-controllers and crossplane-types chart into crossplane chart.
 manifests.prepare:
 	@$(INFO) Copying CRD manifests to Crossplane chart
-	mkdir -p $(CROSSPLANE_CHART_HELM2_CRD_DIR)
+	rm -r $(CROSSPLANE_CHART_HELM2_CRD_DIR)
+	mkdir $(CROSSPLANE_CHART_HELM2_CRD_DIR)
 	cp $(CRD_DIR)/* $(CROSSPLANE_CHART_HELM2_CRD_DIR)
 	@$(OK) Copied CRD manifests to Crossplane chart
 	@$(INFO) Copying controller manifests to Crossplane chart
-	cp $(addprefix $(CROSSPLANE_CONTROLLERS_CHART_DIR)/templates/, $(CONTROLLER_MANIFESTS)) $(CROSSPLANE_CHART_DIR)/templates
+	cp $(CONTROLLER_MANIFESTS) $(CROSSPLANE_CHART_DIR)/templates
 	@$(OK) Copied controller manifests to Crossplane chart
 	@$(INFO) Copying type manifests to Crossplane chart
-	cp $(addprefix $(CROSSPLANE_TYPES_CHART_DIR)/templates/, $(TYPE_MANIFESTS)) $(CROSSPLANE_CHART_DIR)/templates
+	cp $(TYPE_MANIFESTS) $(CROSSPLANE_CHART_DIR)/templates
 	@$(OK) Copied type manifests to Crossplane chart
 
 
@@ -132,6 +132,7 @@ manifests.prepare:
 # those CRDs under <chart>/templates/crds for helm2.
 manifests.annotate:
 	@$(INFO) Copying StackInstall CRD manifests for helm3 compatibility
+	rm -r $(CROSSPLANE_CHART_HELM3_CRD_DIR)
 	mkdir -p $(CROSSPLANE_CHART_HELM3_CRD_DIR)
 	cp $(CRD_DIR)/stacks.crossplane.io_stackinstalls.yaml $(CROSSPLANE_CHART_HELM3_CRD_DIR)/stacks.crossplane.io_stackinstalls.yaml
 	cp $(CRD_DIR)/stacks.crossplane.io_clusterstackinstalls.yaml $(CROSSPLANE_CHART_HELM3_CRD_DIR)/stacks.crossplane.io_clusterstackinstalls.yaml
