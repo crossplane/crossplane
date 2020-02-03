@@ -380,19 +380,15 @@ metadata:
     stacks.crossplane.io/icon-data-uri: data:image/svg+xml;base64,bW9jay1pY29uLWRhdGEtc3Zn
     stacks.crossplane.io/stack-title: Sample Crossplane Stack
     stacks.crossplane.io/ui-schema: |-
-      version: 0.4
+      version: 0.5
       configSections:
       - title: group Title
         description: group Description
-      printerColumns:
-        Ready: .status.conditionedStatus.conditions[?(@.type=='Ready')]
       ---
-      version: 0.4
+      version: 0.5
       configSections:
       - title: sibling Title
         description: sibling Description
-      printerColumns:
-        Ready: .status.conditionedStatus.conditions[?(@.type=='Ready')]
   creationTimestamp: null
   labels:
     app.kubernetes.io/managed-by: stack-manager
@@ -466,26 +462,20 @@ metadata:
     stacks.crossplane.io/resource-title-plural: Resources Title
     stacks.crossplane.io/stack-title: Sample Crossplane Stack
     stacks.crossplane.io/ui-schema: |-
-      version: 0.4
+      version: 0.5
       configSections:
       - title: group Title
         description: group Description
-      printerColumns:
-        Ready: .status.conditionedStatus.conditions[?(@.type=='Ready')]
       ---
-      version: 0.4
+      version: 0.5
       configSections:
       - title: sibling Title
         description: sibling Description
-      printerColumns:
-        Ready: .status.conditionedStatus.conditions[?(@.type=='Ready')]
       ---
-      version: 0.4
+      version: 0.5
       configSections:
       - title: kind Title
         description: kind Description
-      printerColumns:
-        Ready: .status.conditionedStatus.conditions[?(@.type=='Ready')]
   creationTimestamp: null
   labels:
     app.kubernetes.io/managed-by: stack-manager
@@ -520,12 +510,10 @@ metadata:
     stacks.crossplane.io/icon-data-uri: data:image/jpeg;base64,bW9jay1pY29uLWRhdGE=
     stacks.crossplane.io/stack-title: Sample Crossplane Stack
     stacks.crossplane.io/ui-schema: |-
-      version: 0.4
+      version: 0.5
       configSections:
       - title: group Title
         description: group Description
-      printerColumns:
-        Ready: .status.conditionedStatus.conditions[?(@.type=='Ready')]
   creationTimestamp: null
   labels:
     app.kubernetes.io/managed-by: stack-manager
@@ -685,19 +673,15 @@ metadata:
     stacks.crossplane.io/icon-data-uri: data:image/svg+xml;base64,bW9jay1pY29uLWRhdGEtc3Zn
     stacks.crossplane.io/stack-title: Sample Crossplane Stack
     stacks.crossplane.io/ui-schema: |-
-      version: 0.4
+      version: 0.5
       configSections:
       - title: group Title
         description: group Description
-      printerColumns:
-        Ready: .status.conditionedStatus.conditions[?(@.type=='Ready')]
       ---
-      version: 0.4
+      version: 0.5
       configSections:
       - title: sibling Title
         description: sibling Description
-      printerColumns:
-        Ready: .status.conditionedStatus.conditions[?(@.type=='Ready')]
   creationTimestamp: null
   labels:
     app.kubernetes.io/managed-by: stack-manager
@@ -771,26 +755,20 @@ metadata:
     stacks.crossplane.io/resource-title-plural: Resources Title
     stacks.crossplane.io/stack-title: Sample Crossplane Stack
     stacks.crossplane.io/ui-schema: |-
-      version: 0.4
+      version: 0.5
       configSections:
       - title: group Title
         description: group Description
-      printerColumns:
-        Ready: .status.conditionedStatus.conditions[?(@.type=='Ready')]
       ---
-      version: 0.4
+      version: 0.5
       configSections:
       - title: sibling Title
         description: sibling Description
-      printerColumns:
-        Ready: .status.conditionedStatus.conditions[?(@.type=='Ready')]
       ---
-      version: 0.4
+      version: 0.5
       configSections:
       - title: kind Title
         description: kind Description
-      printerColumns:
-        Ready: .status.conditionedStatus.conditions[?(@.type=='Ready')]
   creationTimestamp: null
   labels:
     app.kubernetes.io/managed-by: stack-manager
@@ -825,12 +803,10 @@ metadata:
     stacks.crossplane.io/icon-data-uri: data:image/jpeg;base64,bW9jay1pY29uLWRhdGE=
     stacks.crossplane.io/stack-title: Sample Crossplane Stack
     stacks.crossplane.io/ui-schema: |-
-      version: 0.4
+      version: 0.5
       configSections:
       - title: group Title
         description: group Description
-      printerColumns:
-        Ready: .status.conditionedStatus.conditions[?(@.type=='Ready')]
   creationTimestamp: null
   labels:
     app.kubernetes.io/managed-by: stack-manager
@@ -1202,12 +1178,10 @@ spec:
 }
 
 func simpleUIFile(name string) string {
-	return fmt.Sprintf(`version: 0.4
+	return fmt.Sprintf(`version: 0.5
 configSections:
 - title: %s Title
   description: %s Description
-printerColumns:
-  Ready: .status.conditionedStatus.conditions[?(@.type=='Ready')]
 `, name, name)
 }
 

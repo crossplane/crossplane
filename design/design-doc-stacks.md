@@ -457,7 +457,7 @@ metadata:
     stacks.crossplane.io/resource-readme: "Readme of the Resource"
     stacks.crossplane.io/icon-data-uri: data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciLz4K
     stacks.crossplane.io/ui-schema: |
-      version: 0.4
+      version: 0.5
       configSections:
       - title: Configuration
         description: Enter information specific to the configuration you wish to create.
@@ -472,8 +472,6 @@ metadata:
           validation:
           - minimum: 1
           - maximum: 3
-      printerColumns:
-        Ready: .status.conditionedStatus.conditions[?(@.type=='Ready')]
       ---
       additionalSpec: example
       stillYaml: true

@@ -36,8 +36,6 @@ Field | Description
 Field | Description
 --- | ---
 `initialConfig` | A boolean **or** an object containing two optional fields (`order`, `required`) which instructs the UI to include this resource in the initial configuration step.<br /><br />By default if this field is not included at all it will be assumed as a **false** value and not included as part of the the initial configuration. If it is set to **true** it will be included and required to be configured.<br /><br />If defined as an object, you can give the `order` field a number value and prescribe the order of the overall configuration form flow. Additionally if the type of `initialConfig` is determined to be an object it will be assumed that this configuration should be inlcuded and required during the configuration flow.<br /><br />If you would like this configuration to be included, but optional (_skippable_) during the configuration flow, you must set the `required` field within that object to **false**.
-`printerColumns` | A string or a map of key/value pairs that define custom printer columns. See [Stack status spec](one-pager-stack-status-spec.md) for more info.
-`singletonResourceName` | A string that defines the resource name in advance to restrict multiple instances.<br /><br />If you include this field, the UI will hide the resource name field that is automatically included during configuration of a resource and use this value as the resource name. Due to the restriction of creating more than one resource instance with the same name, this forces the resource to be a singleton.
 
 `initialConfig` **Example**:
 
