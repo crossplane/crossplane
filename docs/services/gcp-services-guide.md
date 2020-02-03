@@ -31,7 +31,7 @@ your existing Kubernetes cluster and Crossplane managed resources. We will:
 
 ## Pre-requisites
 
-* [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
+* [kubectl]
 * A GKE cluster.
 
 ## Preparation
@@ -52,14 +52,10 @@ export NETWORK_NAME=default # the network that your GKE cluster lives in.
 
 ### Installation
 
-Assuming you are
-[connected](https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl)
-to your GKE cluster via `kubectl`:
+Assuming you are [connected] to your GKE cluster via `kubectl`:
 
-* Install Crossplane from alpha channel using the [Crossplane Installation
-  Guide](../install-crossplane.md#alpha)
-* Install the GCP stack into Crossplane using the [GCP stack
-  section](../install-crossplane.md#gcp-stack) of the install guide.
+* Install Crossplane from alpha channel using the [Crossplane Installation Guide]
+* Install the GCP stack into Crossplane using the [GCP stack section] of the install guide.
 
 To keep your resource configuration organized, start by creating a new
 directory:
@@ -71,14 +67,13 @@ mkdir wordpress && cd $_
 ### Cloud Provider
 
 It is essential to make sure that the GCP user credentials are configured in
-Crossplane as a provider. Please follow the steps in the GCP [provider
-guide](../cloud-providers/gcp/gcp-provider.md) for more information.
+Crossplane as a provider. Please follow the steps in the GCP [provider guide] for more information.
 
 ### Resource Classes
 
 Resource classes are used to define a reusable configuration for a specific
 managed service. Wordpress requires a MySQL database, which can be satisfied by
-a [Google Cloud SQL Instance](https://cloud.google.com/sql/docs/mysql/).
+a [Google Cloud SQL Instance].
 
 * Define a GCP CloudSQL class `CloudSQLInstanceClass`:
 
@@ -131,9 +126,7 @@ field `storageGB: 100`.
 ### Configure Managed Service Access
 
 Before we install Wordpress, we need to establish connectivity between the the
-MySQL database and the GKE cluster. We can do this by creating a [Private
-Service
-Connection](https://cloud.google.com/vpc/docs/configure-private-services-access).
+MySQL database and the GKE cluster. We can do this by creating a [Private Service Connection].
 
 You can create it by following the instructions at the link above, or you could
 use Crossplane to do it:
@@ -188,7 +181,7 @@ use Crossplane to do it:
 
   *Output*
 
-  ```yaml
+  ```
   Name:         example-connection
   Namespace:    
   Labels:       <none>
@@ -244,8 +237,7 @@ several ways: (a) rely on the default class marked
 `claim.spec.classRef` to a specific class, or (c) match on class labels using a
 `claim.spec.classSelector`.
 
-*Note: claims may also be used in [static
-provisioning](../concepts.md#dynamic-and-static-provisioning) with a reference
+*Note: claims may also be used in [static provisioning] with a reference
 to an existing managed resource.*
 
 In the `CloudSQLInstanceClass` above, we added the label `size: standard`, so
@@ -515,14 +507,15 @@ database.
 We deployed Wordpress using bare `Deployment` and `Service` resources but there
 is actually a Wordpress App stack that creates these resources for us!
 
-Check out the [stacks guides](../stacks-guide.md)!
+Check out the [stacks guides]!
 
-## References
+[kubectl]: https://kubernetes.io/docs/tasks/tools/install-kubectl
+[connected]: https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl
+[Crossplane Installation Guide]: ../install-crossplane.md#alpha
+[GCP stack section]: ../install-crossplane.md#gcp-stack
+[provider guide]: ../cloud-providers/gcp/gcp-provider.md
+[Google Cloud SQL Instance]: https://cloud.google.com/sql/docs/mysql/
+[Private Service Connection]: https://cloud.google.com/vpc/docs/configure-private-services-access
+[static provisioning]: ../concepts.md#dynamic-and-static-provisioning
+[stacks guides]: ../stacks-guide.md
 
-* [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
-* [Crossplane Installation Guide](../install-crossplane.md#alpha)
-* [GCP Stack Installation](../install-crossplane.md#gcp-stack)
-* [GCP Provider Guide](../cloud-providers/gcp/gcp-provider.md)
-* [Google Cloud SQL Instance](https://cloud.google.com/sql/docs/mysql/)
-* [Default Resource Classes One-Pager](https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-default-resource-class.md)
-* [Google Private Service Connection](https://cloud.google.com/vpc/docs/configure-private-services-access)
