@@ -1,13 +1,18 @@
 # Managed Resources API Patterns
 * Owner: Muvaffak Onus (@muvaf)
 * Reviewers: Crossplane Maintainers
-* Status: Accepted, Revision 1.1
+* Status: Accepted, Revision 1.2
 
 ## Revisions
 
-* 1.1
+* 1.1 - Daniel Mangum (@hasheddan)
   * Added [Embedded Structs with Mixed Fields](#embedded-structs-with-mixed-fields) and [Optional Embedded Structs with One Field](#optional-embedded-structs-with-one-field) sections
   * Updated examples with cluster-scoped managed resource and `Provider` objects
+* 1.2 - Muvaffak Onus (@muvaf)
+  * Added [how to handle sensitive input fields](#sensitive-input-fields).
+  * Added [external resource labelling](#external-resource-labeling).
+  * Added [cross-resource reference edge case](#pointer-types-and-markers) for types.
+  * Added a condition to enforce the status fields to be reproducible in section [High Fidelity](#high-fidelity).
 
 ## Terminology
 
@@ -115,12 +120,32 @@ Related to https://github.com/crossplaneio/crossplane/issues/624
 The decision for an external resource name is made by the controller of that managed resource in `Create` phase.
 Possible cases are as following:
 * The provider doesn't allow us to specify a name. Fetch it after its client's `POST` call. Override `crossplane.io/external-name`
-annotation's value with what you get as name.
+  annotation's value with what you get as name.
 * The provider allows to specify a name.
   * If `crossplane.io/external-name` annotation has a value use it. If it's empty;
   * Use managed resource's name and write that into `crossplane.io/external-name` annotation.
 
 Use the value of that annotation as external resource name in _all_ queries.
+
+#### External Resource Labeling
+
+If the external resource supports labelling, we should label it with the managed
+resource name and kind. This is helpful in variety of scenarios like:
+* Identify services with non-deterministic naming, for example AWS VPC.
+* Provider level operations that are done via label filtering, for example search
+  and batch operations.
+* Find a resource in the provider UI and construct an easy `kubectl` query on
+  Crossplane cluster to find the associated resource, like `kubectl get <kind> <name>`
+  
+The keys to use in labels are like the following:
+```
+A tag set for a VPC in AWS:
+  "crossplane.io/name": "myappnamespace-mynetwork-5sc8a"
+  "crossplane.io/kind": "vpc.network.aws.crossplane.io"
+```
+
+In cases where the characters `.` and `/` are not allowed in key string, `-`
+should be used. If that's not allowed, too, then those characters should be omitted.
 
 #### Field Names
 
@@ -158,6 +183,13 @@ Note that the controller should make updates only to `Spec` fields that are empt
 state and if they have no control over it in any case, do not include it in `Spec`.
 
 What goes into `Status`:
+
+* Can the value of this field be reproduced when the whole `Status` is deleted? Do not include if the answer is no.
+  `Status` sub-resource is the _representation_ of the current state, so, the
+  controller should be able to reproduce it as long as the resource is still there.
+  In practice, this means controller of that managed resource should not have to
+  rely on `Status` fields of its custom resource while operating.
+  
 * All fields except the ones that are chosen for `Spec`.
 
 For both `Status` and `Spec`:
@@ -172,6 +204,8 @@ For both `Status` and `Spec`:
   
   What if the sub-resource is not yet supported as managed resource in Crossplane? In that case, you should first
   consider implementing that managed resource, if not suitable, only then include it in the CR.
+
+For details, see [Kubernetes API Conventions - Spec and Status].
 
 #### Embedded Structs with Mixed Fields
 
@@ -245,6 +279,23 @@ type EmbeddedStructStatus struct {
   SomeNonConfigurableField string `json:"someNonConfigurableField,omitempty"`
 }
 ```
+
+#### Sensitive Input Fields
+
+Some cloud services can take sensitive input such as passwords, certificates or
+tokens. However, exposing those fields on the CR is not the best way to handle it.
+For such fields, the field name should be `<field-name>SecretRef` and the type
+of that field should be `SecretKeySelector`([from crossplane-runtime]). The controller
+should fetch the value from the given secret and populate the field in the provider's
+corresponding SDK object.
+
+In case the secret reference is not provided **and** the field is a required one,
+such as password, the controller should generate it randomly. Then it has to make
+sure that:
+* GoDoc comment explicitly states that if `<field-name>SecretRef` is not populated,
+  a random value will be generated for it.
+* The generated value ends up in the connection details secret that is published
+  by the controller so that no information is lost or not exposed to the user.
 
 ### Owner-based Struct Tree
 
@@ -354,6 +405,13 @@ Here is the flow to decide how to make the decision for `Spec` fields:
 1. Start with assuming all fields are optional.
 2. Convert the fields to required if any of CRUD calls you make requires them, i.e. it should be possible to call all
 CRUD operations with all those required fields filled.
+
+There is an edge case where `FieldA` is required but there is also `FieldARef`,
+which means in the runtime that reference will be resolved and `FieldA` will be
+populated. If there is a guarantee that no call will be made to the provider until
+`FieldA` is populated (at the time of this writing, there is), you need to add
+`omitempty` as struct tag so that Kubernetes allows the creation of the resource
+with only `FieldARef` populated.
 
 The decision flow for `Status` fields are different. The values for those fields are provided by the provider and
 overridden by the latest observation no matter what and we know that we'll get a full object body. However;
@@ -529,3 +587,5 @@ Generic managed reconciler's `ExternalObservation` struct could be extended by a
 and reconciler can mark the sync status in one of the `Condition`s we already have or add a new one.
 
 [glossary]: https://github.com/crossplaneio/crossplane/blob/master/docs/concepts.md#glossary
+[from crossplane-runtime]: https://github.com/crossplaneio/crossplane-runtime/blob/ca4b6b4/apis/core/v1alpha1/resource.go#L77
+[Kubernetes API Conventions - Spec and Status]: https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#spec-and-status
