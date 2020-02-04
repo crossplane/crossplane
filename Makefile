@@ -40,7 +40,7 @@ GO111MODULE = on
 
 HELM_BASE_URL = https://charts.crossplane.io
 HELM_S3_BUCKET = crossplane.charts
-HELM_CHARTS = crossplane
+HELM_CHARTS = crossplane crossplane-types crossplane-controllers
 HELM_CHART_LINT_ARGS_crossplane = --set nameOverride='',imagePullSecrets=''
 -include build/makelib/helm.mk
 
@@ -83,7 +83,34 @@ fallthrough: submodules
 manifests:
 	@$(WARN) Deprecated. Please run make generate instead.
 
-generate: $(KUSTOMIZE) go.generate manifests.annotate
+generate: $(KUSTOMIZE) go.generate manifests.prepare manifests.annotate
+
+
+CROSSPLANE_TYPES_CHART_DIR = cluster/charts/crossplane-types
+CROSSPLANE_CONTROLLERS_CHART_DIR = cluster/charts/crossplane-controllers
+CROSSPLANE_CHART_DIR = cluster/charts/crossplane
+
+CRD_DIR = $(CROSSPLANE_TYPES_CHART_DIR)/crds
+CROSSPLANE_CHART_HELM2_CRD_DIR = $(CROSSPLANE_CHART_DIR)/templates/crds
+CROSSPLANE_CHART_HELM3_CRD_DIR = $(CROSSPLANE_CHART_DIR)/crds
+
+TYPE_MANIFESTS = $(wildcard $(CROSSPLANE_TYPES_CHART_DIR)/templates/*.yaml)
+CONTROLLER_MANIFESTS = $(filter-out $(wildcard $(CROSSPLANE_CONTROLLERS_CHART_DIR)/templates/stack-manager-host-*.yaml), $(wildcard $(CROSSPLANE_CONTROLLERS_CHART_DIR)/templates/*.yaml))
+
+# This target copies manifests in crossplane-controllers and crossplane-types chart into crossplane chart.
+manifests.prepare:
+	@$(INFO) Copying CRD manifests to Crossplane chart
+	rm -r $(CROSSPLANE_CHART_HELM2_CRD_DIR)
+	mkdir $(CROSSPLANE_CHART_HELM2_CRD_DIR)
+	cp $(CRD_DIR)/* $(CROSSPLANE_CHART_HELM2_CRD_DIR)
+	@$(OK) Copied CRD manifests to Crossplane chart
+	@$(INFO) Copying controller manifests to Crossplane chart
+	cp $(CONTROLLER_MANIFESTS) $(CROSSPLANE_CHART_DIR)/templates
+	@$(OK) Copied controller manifests to Crossplane chart
+	@$(INFO) Copying type manifests to Crossplane chart
+	cp $(TYPE_MANIFESTS) $(CROSSPLANE_CHART_DIR)/templates
+	@$(OK) Copied type manifests to Crossplane chart
+
 
 # Add "helm.sh/hook: crd-install" and "helm.sh/hook-delete-policy:
 # before-hook-creation" annotations for clusterstackinstalls and stackinstalls
@@ -103,19 +130,18 @@ generate: $(KUSTOMIZE) go.generate manifests.annotate
 # As a workaround, we first copy those CRDs under <chart>/crds directory which
 # was introduced with helm3 and ignored in helm2, then afterwards apply the annotation to
 # those CRDs under <chart>/templates/crds for helm2.
-CROSSPLANE_CHART_DIR = cluster/charts/crossplane
-CRD_DIR = $(CROSSPLANE_CHART_DIR)/templates/crds
-HELM3_CRD_DIR = $(CROSSPLANE_CHART_DIR)/crds
 manifests.annotate:
 	@$(INFO) Copying StackInstall CRD manifests for helm3 compatibility
-	cp $(CRD_DIR)/stacks.crossplane.io_stackinstalls.yaml $(HELM3_CRD_DIR)/stacks.crossplane.io_stackinstalls.yaml
-	cp $(CRD_DIR)/stacks.crossplane.io_clusterstackinstalls.yaml $(HELM3_CRD_DIR)/stacks.crossplane.io_clusterstackinstalls.yaml
+	rm -r $(CROSSPLANE_CHART_HELM3_CRD_DIR)
+	mkdir -p $(CROSSPLANE_CHART_HELM3_CRD_DIR)
+	cp $(CRD_DIR)/stacks.crossplane.io_stackinstalls.yaml $(CROSSPLANE_CHART_HELM3_CRD_DIR)/stacks.crossplane.io_stackinstalls.yaml
+	cp $(CRD_DIR)/stacks.crossplane.io_clusterstackinstalls.yaml $(CROSSPLANE_CHART_HELM3_CRD_DIR)/stacks.crossplane.io_clusterstackinstalls.yaml
 	@$(OK) Copied StackInstall CRD manifests for helm3 compatibility
 	@$(INFO) Annotating generated StackInstall CRD manifests
 	$(eval TMPDIR := $(shell mktemp -d))
 	$(KUSTOMIZE) build cluster/charts -o $(TMPDIR)
-	mv $(TMPDIR)/apiextensions.k8s.io_v1beta1_customresourcedefinition_clusterstackinstalls.stacks.crossplane.io.yaml $(CRD_DIR)/stacks.crossplane.io_clusterstackinstalls.yaml
-	mv $(TMPDIR)/apiextensions.k8s.io_v1beta1_customresourcedefinition_stackinstalls.stacks.crossplane.io.yaml $(CRD_DIR)/stacks.crossplane.io_stackinstalls.yaml
+	mv $(TMPDIR)/apiextensions.k8s.io_v1beta1_customresourcedefinition_clusterstackinstalls.stacks.crossplane.io.yaml $(CROSSPLANE_CHART_HELM2_CRD_DIR)/stacks.crossplane.io_clusterstackinstalls.yaml
+	mv $(TMPDIR)/apiextensions.k8s.io_v1beta1_customresourcedefinition_stackinstalls.stacks.crossplane.io.yaml $(CROSSPLANE_CHART_HELM2_CRD_DIR)/stacks.crossplane.io_stackinstalls.yaml
 	@$(OK) Annotated generated StackInstall CRD manifests
 
 # Generate a coverage report for cobertura applying exclusions on

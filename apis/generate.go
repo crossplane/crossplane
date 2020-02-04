@@ -20,13 +20,13 @@ limitations under the License.
 // https://github.com/golang/go/wiki/Modules#how-can-i-track-tool-dependencies-for-a-module
 
 // Remove existing CRDs
-//go:generate rm -rf ../cluster/charts/crossplane/templates/crds
+//go:generate rm -rf ../cluster/charts/crossplane-types/crds
 
 // Generate deepcopy methodsets and CRD manifests
-//go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=../hack/boilerplate.go.txt paths=./... crd:trivialVersions=true output:artifacts:config=../cluster/charts/crossplane/templates/crds
+//go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=../hack/boilerplate.go.txt paths=./... crd:trivialVersions=true output:artifacts:config=../cluster/charts/crossplane-types/crds
 
 // Re-generate stack CRD manifests without descriptions.
-//go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen paths=./stacks/... crd:maxDescLen=0,trivialVersions=true output:artifacts:config=../cluster/charts/crossplane/templates/crds
+//go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen paths=./stacks/... crd:maxDescLen=0,trivialVersions=true output:artifacts:config=../cluster/charts/crossplane-types/crds
 
 // Generate crossplane-runtime methodsets (resource.Claim, etc)
 //go:generate go run -tags generate github.com/crossplaneio/crossplane-tools/cmd/angryjet generate-methodsets --header-file=../hack/boilerplate.go.txt ./...

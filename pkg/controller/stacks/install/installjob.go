@@ -39,6 +39,7 @@ import (
 	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
 	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
 	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/controller/stacks/hosted"
 	"github.com/crossplaneio/crossplane/pkg/stacks"
 )
 
@@ -56,16 +57,26 @@ type jobCompleter interface {
 // StackInstallJobCompleter is a concrete implementation of the jobCompleter interface
 type stackInstallJobCompleter struct {
 	client       client.Client
+	hostClient   client.Client
 	podLogReader Reader
 }
 
-func createInstallJob(i v1alpha1.StackInstaller, executorInfo *stacks.ExecutorInfo) *batchv1.Job {
-	ref := meta.AsOwner(meta.ReferenceTo(i, i.GroupVersionKind()))
+func createInstallJob(i v1alpha1.StackInstaller, executorInfo *stacks.ExecutorInfo, hCfg *hosted.Config) *batchv1.Job {
+	name := i.GetName()
+	namespace := i.GetNamespace()
+
+	if hCfg != nil {
+		// In Hosted Mode, we need to map all install jobs on tenant Kubernetes into a single namespace on host cluster.
+		o := hCfg.ObjectReferenceOnHost(name, namespace)
+		name = o.Name
+		namespace = o.Namespace
+	}
+
 	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            i.GetName(),
-			Namespace:       i.GetNamespace(),
-			OwnerReferences: []metav1.OwnerReference{ref},
+			Name:      name,
+			Namespace: namespace,
+			Labels:    stacks.ParentLabels(i),
 		},
 		Spec: batchv1.JobSpec{
 			BackoffLimit: &jobBackoff,
@@ -199,7 +210,7 @@ func (jc *stackInstallJobCompleter) findPodsForJob(ctx context.Context, job *bat
 		"job-name": job.Name,
 	}
 	nsSelector := client.InNamespace(job.Namespace)
-	if err := jc.client.List(ctx, podList, labelSelector, nsSelector); err != nil {
+	if err := jc.hostClient.List(ctx, podList, labelSelector, nsSelector); err != nil {
 		return nil, err
 	}
 

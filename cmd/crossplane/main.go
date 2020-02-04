@@ -27,6 +27,8 @@ import (
 	"gopkg.in/alecthomas/kingpin.v2"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	runtimelog "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -42,10 +44,12 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/stacks/walker"
 )
 
+var (
+	log = logging.Logger
+)
+
 func main() {
 	var (
-		log = logging.Logger
-
 		// top level app definition
 		app        = kingpin.New(filepath.Base(os.Args[0]), "An open source multicloud control plane.").DefaultEnvars()
 		debug      = app.Flag("debug", "Run with debug logging.").Short('d').Bool()
@@ -63,8 +67,10 @@ func main() {
 		extCmd = app.Command("stack", "Perform operations on stacks")
 
 		// stack manage - adds the stack manager controllers and starts their reconcile loops
-		extManageCmd     = extCmd.Command("manage", "Manage stacks (run stack manager controllers)")
-		supportTemplates = extManageCmd.Flag("templates", "Enable support for template stacks").Bool()
+		extManageCmd                     = extCmd.Command("manage", "Manage stacks (run stack manager controllers)")
+		supportTemplates                 = extManageCmd.Flag("templates", "Enable support for template stacks").Bool()
+		extManageHostControllerNamespace = extManageCmd.Flag("host-controller-namespace", "The namespace on Host Cluster where install and controller jobs/deployments will be created. Setting this will activate host aware mode of Stack Manager").String()
+		extManageTenantKubeconfig        = extManageCmd.Flag("tenant-kubeconfig", "The absolute path of the kubeconfig file to Tenant Kubernetes instance (required for host aware mode, ignored otherwise).").ExistingFile()
 
 		// stack unpack - performs the unpacking operation for the given stack package content
 		// directory. This command is expected to parse the content and generate manifests for stack
@@ -93,7 +99,7 @@ func main() {
 	switch cmd {
 	case crossplaneCmd.FullCommand():
 		// the default Crossplane command is being run, add all the regular controllers to the manager
-		mgr := setupManager(log, syncPeriod)
+		mgr := setupManager(log, syncPeriod, "")
 
 		log.Info("Adding controllers")
 		kingpin.FatalIfError(controllerSetupWithManager(mgr), "Cannot add controllers to manager")
@@ -105,10 +111,10 @@ func main() {
 		// the "stacks manage" command is being run, the only controllers we should add to the
 		// manager are the stacks controllers
 
-		mgr := setupManager(log, syncPeriod)
+		mgr := setupManager(log, syncPeriod, *extManageTenantKubeconfig)
 
 		log.Info("Adding controllers")
-		kingpin.FatalIfError(stacksControllerSetupWithManager(mgr), "Cannot add controllers to manager")
+		kingpin.FatalIfError(stacksControllerSetupWithManager(mgr, *extManageHostControllerNamespace), "Cannot add controllers to manager")
 
 		if *supportTemplates {
 			log.Info("Adding template controllers")
@@ -140,15 +146,15 @@ func main() {
 
 }
 
-func setupManager(log logr.Logger, syncPeriod *time.Duration) manager.Manager {
+func setupManager(log logr.Logger, syncPeriod *time.Duration, kubeconfig string) manager.Manager {
 	// Get a config to talk to the apiserver
-	cfg, err := config.GetConfig()
-	kingpin.FatalIfError(err, "Cannot get config")
+	restCfg, err := getRestConfig(kubeconfig)
+	kingpin.FatalIfError(err, "Cannot get rest config")
 
 	log.Info("Sync period", "duration", syncPeriod.String())
 
 	// Create a new Cmd to provide shared dependencies and start components
-	mgr, err := manager.New(cfg, manager.Options{SyncPeriod: syncPeriod})
+	mgr, err := manager.New(restCfg, manager.Options{SyncPeriod: syncPeriod})
 	kingpin.FatalIfError(err, "Cannot create manager")
 
 	// add all resources to the manager's runtime scheme
@@ -168,9 +174,9 @@ func controllerSetupWithManager(mgr manager.Manager) error {
 	return c.SetupWithManager(mgr)
 }
 
-func stacksControllerSetupWithManager(mgr manager.Manager) error {
+func stacksControllerSetupWithManager(mgr manager.Manager, hostControllerNamespace string) error {
 	c := stacksController.Controllers{}
-	return c.SetupWithManager(mgr)
+	return c.SetupWithManager(mgr, hostControllerNamespace)
 }
 
 func stacksTemplateControllerSetupWithManager(mgr manager.Manager) error {
@@ -189,4 +195,12 @@ func addToScheme(scheme *runtime.Scheme) error {
 	}
 
 	return nil
+}
+
+func getRestConfig(tenantKubeconfig string) (restCfg *rest.Config, err error) {
+	if tenantKubeconfig != "" {
+		return clientcmd.BuildConfigFromFlags("", tenantKubeconfig)
+	}
+
+	return config.GetConfig()
 }

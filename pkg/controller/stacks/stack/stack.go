@@ -40,6 +40,7 @@ import (
 	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
 	runtimeresource "github.com/crossplaneio/crossplane-runtime/pkg/resource"
 	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/controller/stacks/hosted"
 	"github.com/crossplaneio/crossplane/pkg/stacks"
 )
 
@@ -49,6 +50,24 @@ const (
 
 	reconcileTimeout      = 1 * time.Minute
 	requeueAfterOnSuccess = 10 * time.Second
+
+	saVolumeName      = "sa-token"
+	envK8SServiceHost = "KUBERNETES_SERVICE_HOST"
+	envK8SServicePort = "KUBERNETES_SERVICE_PORT"
+	envPodNamespace   = "POD_NAMESPACE"
+	saMountPath       = "/var/run/secrets/kubernetes.io/serviceaccount"
+
+	errHostAwareModeNotEnabled                  = "host aware mode is not enabled"
+	errFailedToPrepareHostAwareDeployment       = "failed to prepare host aware stack controller deployment"
+	errFailedToPrepareHostAwareJob              = "failed to prepare host aware stack controller job"
+	errFailedToCreateDeployment                 = "failed to create deployment"
+	errFailedToCreateJob                        = "failed to create job"
+	errFailedToSyncSASecret                     = "failed sync stack controller service account secret"
+	errServiceAccountNotFound                   = "service account is not found (not created yet?)"
+	errFailedToGetServiceAccount                = "failed to get service account"
+	errServiceAccountTokenSecretNotGeneratedYet = "service account token secret is not generated yet"
+	errFailedToGetServiceAccountTokenSecret     = "failed to get service account token secret"
+	errFailedToCreateTokenSecret                = "failed to create sa token secret on target Kubernetes"
 )
 
 var (
@@ -61,12 +80,34 @@ var (
 		"edit":  {"get", "list", "watch", "create", "delete", "deletecollection", "patch", "update"},
 		"view":  {"get", "list", "watch"},
 	}
+
+	disableAutoMount = false
 )
 
 // Reconciler reconciles a Instance object
 type Reconciler struct {
+	// kube is controller runtime client for resource (a.k.a tenant) Kubernetes where all custom resources live.
 	kube client.Client
+	// hostKube is controller runtime client for workload (a.k.a host) Kubernetes where jobs for stack installs and
+	// stack controller deployments/jobs created.
+	hostKube     client.Client
+	hostedConfig *hosted.Config
 	factory
+}
+
+// SMReconciler (Stack Manager Reconciler) reconciles on Stack, StackInstall or ClusterStackInstall custom resources.
+type SMReconciler interface {
+	SetHostedConfig(cfg *hosted.Config)
+}
+
+// SMReconcilerOption is used to configure a SMReconciler
+type SMReconcilerOption func(r SMReconciler)
+
+// WithHostedConfig returns a SMReconcilerOption configuring SMReconciler with input host aware config
+func WithHostedConfig(hCfg *hosted.Config) SMReconcilerOption {
+	return func(r SMReconciler) {
+		r.SetHostedConfig(hCfg)
+	}
 }
 
 // Controller is responsible for adding the Stack
@@ -75,10 +116,20 @@ type Controller struct{}
 
 // SetupWithManager creates a new Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
-func (c *Controller) SetupWithManager(mgr ctrl.Manager) error {
+func (c *Controller) SetupWithManager(mgr ctrl.Manager, smo ...SMReconcilerOption) error {
+	hostKube, _, err := hosted.GetClients()
+	if err != nil {
+		return err
+	}
+
 	r := &Reconciler{
-		kube:    mgr.GetClient(),
-		factory: &stackHandlerFactory{},
+		kube:     mgr.GetClient(),
+		hostKube: hostKube,
+		factory:  &stackHandlerFactory{},
+	}
+
+	for _, opt := range smo {
+		opt(r)
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -104,13 +155,18 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{}, err
 	}
 
-	handler := r.factory.newHandler(ctx, i, r.kube)
+	handler := r.factory.newHandler(ctx, i, r.kube, r.hostKube, r.hostedConfig)
 
 	if meta.WasDeleted(i) {
 		return handler.delete(ctx)
 	}
 
 	return handler.sync(ctx)
+}
+
+// SetHostedConfig sets host aware config for Reconciler
+func (r *Reconciler) SetHostedConfig(cfg *hosted.Config) {
+	r.hostedConfig = cfg
 }
 
 type handler interface {
@@ -121,20 +177,27 @@ type handler interface {
 }
 
 type stackHandler struct {
+	// kube is controller runtime client for resource (a.k.a tenant) Kubernetes where all custom resources live.
 	kube client.Client
-	ext  *v1alpha1.Stack
+	// hostKube is controller runtime client for workload (a.k.a host) Kubernetes where jobs for stack installs and
+	// stack controller deployments/jobs created.
+	hostKube        client.Client
+	hostAwareConfig *hosted.Config
+	ext             *v1alpha1.Stack
 }
 
 type factory interface {
-	newHandler(context.Context, *v1alpha1.Stack, client.Client) handler
+	newHandler(context.Context, *v1alpha1.Stack, client.Client, client.Client, *hosted.Config) handler
 }
 
 type stackHandlerFactory struct{}
 
-func (f *stackHandlerFactory) newHandler(ctx context.Context, ext *v1alpha1.Stack, kube client.Client) handler {
+func (f *stackHandlerFactory) newHandler(ctx context.Context, ext *v1alpha1.Stack, kube client.Client, hostKube client.Client, hostAwareConfig *hosted.Config) handler {
 	return &stackHandler{
-		kube: kube,
-		ext:  ext,
+		kube:            kube,
+		hostKube:        hostKube,
+		hostAwareConfig: hostAwareConfig,
+		ext:             ext,
 	}
 }
 
@@ -492,6 +555,136 @@ func (h *stackHandler) isNamespaced() bool {
 	return apiextensions.ResourceScope(h.ext.Spec.PermissionScope) == apiextensions.NamespaceScoped
 }
 
+// syncSATokenSecret function copies service account token secret from custom resource Kubernetes (a.k.a tenant
+// Kubernetes) to Host Cluster. This secret then mounted to stack controller pods so that they can authenticate.
+func (h *stackHandler) syncSATokenSecret(ctx context.Context, owner metav1.OwnerReference,
+	fromSARef corev1.ObjectReference, toSecretRef corev1.ObjectReference) error {
+	// Get the ServiceAccount
+	fromKube := h.kube
+	toKube := h.hostKube
+
+	sa := corev1.ServiceAccount{}
+	err := fromKube.Get(ctx, client.ObjectKey{
+		Name:      fromSARef.Name,
+		Namespace: fromSARef.Namespace,
+	}, &sa)
+
+	if kerrors.IsNotFound(err) {
+		return errors.Wrap(err, errServiceAccountNotFound)
+	}
+	if err != nil {
+		return errors.Wrap(err, errFailedToGetServiceAccount)
+	}
+	if len(sa.Secrets) < 1 {
+		return errors.New(errServiceAccountTokenSecretNotGeneratedYet)
+	}
+	saSecretRef := sa.Secrets[0]
+	saSecretRef.Namespace = fromSARef.Namespace
+	saSecret := corev1.Secret{}
+
+	err = fromKube.Get(ctx, meta.NamespacedNameOf(&saSecretRef), &saSecret)
+
+	if err != nil {
+		return errors.Wrap(err, errFailedToGetServiceAccountTokenSecret)
+	}
+	saSecretOnHost := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            toSecretRef.Name,
+			Namespace:       toSecretRef.Namespace,
+			OwnerReferences: []metav1.OwnerReference{owner},
+		},
+		Data: saSecret.Data,
+	}
+
+	err = toKube.Create(ctx, saSecretOnHost)
+	if err != nil && !kerrors.IsAlreadyExists(err) {
+		return errors.Wrap(err, errFailedToCreateTokenSecret)
+	}
+
+	return nil
+}
+
+// prepareHostAwarePodSpec modifies input pod spec as follows, such that it communicates with custom resource
+// Kubernetes Apiserver (a.k.a. tenant Kubernetes) rather than the apiserver of the Kubernetes Cluster where the pod
+// runs inside (a.k.a. Host Cluster):
+// - Set KUBERNETES_SERVICE_HOST
+// - Set KUBERNETES_SERVICE_PORT
+// - Disabled automountServiceAccountToken
+// - Unset serviceAccountName
+// - Mount service account token secret which is copied from custom resource Kubernetes apiserver
+func (h *stackHandler) prepareHostAwarePodSpec(tokenSecret string, ps *corev1.PodSpec) error {
+	if h.hostAwareConfig == nil {
+		return errors.New(errHostAwareModeNotEnabled)
+	}
+	// Opt out service account token automount
+	ps.AutomountServiceAccountToken = &disableAutoMount
+	ps.ServiceAccountName = ""
+	ps.DeprecatedServiceAccount = ""
+
+	ps.Volumes = append(ps.Volumes, corev1.Volume{
+		Name: saVolumeName,
+		VolumeSource: corev1.VolumeSource{
+			Secret: &corev1.SecretVolumeSource{
+				SecretName: tokenSecret,
+			},
+		},
+	})
+	for i := range ps.Containers {
+		ps.Containers[i].Env = append(ps.Containers[i].Env,
+			corev1.EnvVar{
+				Name:  envK8SServiceHost,
+				Value: h.hostAwareConfig.TenantAPIServiceHost,
+			}, corev1.EnvVar{
+				Name:  envK8SServicePort,
+				Value: h.hostAwareConfig.TenantAPIServicePort,
+			}, corev1.EnvVar{
+				// When POD_NAMESPACE is not set as stackinstalls namespace here, it is set as host namespace where actual
+				// pod running. This result stack controller to fail with forbidden, since their sa only allows to watch
+				// the namespace where stack is installed
+				Name:  envPodNamespace,
+				Value: h.ext.Namespace,
+			})
+
+		ps.Containers[i].VolumeMounts = append(ps.Containers[i].VolumeMounts, corev1.VolumeMount{
+			Name:      saVolumeName,
+			ReadOnly:  true,
+			MountPath: saMountPath,
+		})
+	}
+
+	return nil
+}
+
+func (h *stackHandler) prepareHostAwareDeployment(d *apps.Deployment, tokenSecret string) error {
+	if h.hostAwareConfig == nil {
+		return errors.New(errHostAwareModeNotEnabled)
+	}
+	if err := h.prepareHostAwarePodSpec(tokenSecret, &d.Spec.Template.Spec); err != nil {
+		return err
+	}
+
+	o := h.hostAwareConfig.ObjectReferenceOnHost(d.Name, d.Namespace)
+	d.Name = o.Name
+	d.Namespace = o.Namespace
+
+	return nil
+}
+func (h *stackHandler) prepareHostAwareJob(j *batch.Job, tokenSecret string) error {
+	if h.hostAwareConfig == nil {
+		return errors.New(errHostAwareModeNotEnabled)
+	}
+
+	if err := h.prepareHostAwarePodSpec(tokenSecret, &j.Spec.Template.Spec); err != nil {
+		return err
+	}
+
+	o := h.hostAwareConfig.ObjectReferenceOnHost(j.Name, j.Namespace)
+	j.Name = o.Name
+	j.Namespace = o.Namespace
+
+	return nil
+}
+
 func (h *stackHandler) processDeployment(ctx context.Context) error {
 	controllerDeployment := h.ext.Spec.Controller.Deployment
 	if controllerDeployment == nil {
@@ -502,7 +695,7 @@ func (h *stackHandler) processDeployment(ctx context.Context) error {
 	deploymentSpec := *controllerDeployment.Spec.DeepCopy()
 	deploymentSpec.Template.Spec.ServiceAccountName = h.ext.Name
 
-	ref := meta.AsOwner(meta.ReferenceTo(h.ext, v1alpha1.StackGroupVersionKind))
+	labels := stacks.ParentLabels(h.ext)
 	gvk := schema.GroupVersionKind{
 		Group:   apps.GroupName,
 		Kind:    "Deployment",
@@ -510,17 +703,37 @@ func (h *stackHandler) processDeployment(ctx context.Context) error {
 	}
 	d := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            controllerDeployment.Name,
-			Namespace:       h.ext.Namespace,
-			OwnerReferences: []metav1.OwnerReference{ref},
+			Name:      controllerDeployment.Name,
+			Namespace: h.ext.Namespace,
+			Labels:    labels,
 		},
 		Spec: deploymentSpec,
 	}
+	var saRef corev1.ObjectReference
+	var saSecretRef corev1.ObjectReference
+	if h.hostAwareConfig != nil {
+		// We need to copy SA token secret from host to tenant
+		saRef = corev1.ObjectReference{
+			Name:      d.Spec.Template.Spec.ServiceAccountName,
+			Namespace: d.Namespace,
+		}
+		saSecretRef = h.hostAwareConfig.ObjectReferenceOnHost(saRef.Name, saRef.Namespace)
+		err := h.prepareHostAwareDeployment(d, saSecretRef.Name)
 
-	if err := h.kube.Create(ctx, d); err != nil && !kerrors.IsAlreadyExists(err) {
-		return errors.Wrap(err, "failed to create deployment")
+		if err != nil {
+			return errors.Wrap(err, errFailedToPrepareHostAwareDeployment)
+		}
 	}
-
+	if err := h.hostKube.Create(ctx, d); err != nil && !kerrors.IsAlreadyExists(err) {
+		return errors.Wrap(err, errFailedToCreateDeployment)
+	}
+	if h.hostAwareConfig != nil {
+		owner := meta.AsOwner(meta.ReferenceTo(d, gvk))
+		err := h.syncSATokenSecret(ctx, owner, saRef, saSecretRef)
+		if err != nil {
+			return errors.Wrap(err, errFailedToSyncSASecret)
+		}
+	}
 	// save a reference to the stack's controller
 	h.ext.Status.ControllerRef = meta.ReferenceTo(d, gvk)
 
@@ -537,7 +750,7 @@ func (h *stackHandler) processJob(ctx context.Context) error {
 	jobSpec := *controllerJob.Spec.DeepCopy()
 	jobSpec.Template.Spec.ServiceAccountName = h.ext.Name
 
-	ref := meta.AsOwner(meta.ReferenceTo(h.ext, v1alpha1.StackGroupVersionKind))
+	labels := stacks.ParentLabels(h.ext)
 	gvk := schema.GroupVersionKind{
 		Group:   batch.GroupName,
 		Kind:    "Job",
@@ -545,16 +758,39 @@ func (h *stackHandler) processJob(ctx context.Context) error {
 	}
 	j := &batch.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            controllerJob.Name,
-			Namespace:       h.ext.Namespace,
-			OwnerReferences: []metav1.OwnerReference{ref},
+			Name:      controllerJob.Name,
+			Namespace: h.ext.Namespace,
+			Labels:    labels,
 		},
 		Spec: jobSpec,
 	}
-	if err := h.kube.Create(ctx, j); err != nil && !kerrors.IsAlreadyExists(err) {
-		return errors.Wrap(err, "failed to create job")
+
+	var saRef corev1.ObjectReference
+	var saSecretRef corev1.ObjectReference
+	if h.hostAwareConfig != nil {
+		// We need to copy SA token secret from host to tenant
+		saRef = corev1.ObjectReference{
+			Name:      j.Spec.Template.Spec.ServiceAccountName,
+			Namespace: j.Namespace,
+		}
+		saSecretRef = h.hostAwareConfig.ObjectReferenceOnHost(saRef.Name, saRef.Namespace)
+		err := h.prepareHostAwareJob(j, saSecretRef.Name)
+		if err != nil {
+			return errors.Wrap(err, errFailedToPrepareHostAwareJob)
+		}
 	}
 
+	if err := h.hostKube.Create(ctx, j); err != nil && !kerrors.IsAlreadyExists(err) {
+		return errors.Wrap(err, errFailedToCreateJob)
+	}
+
+	if h.hostAwareConfig != nil {
+		owner := meta.AsOwner(meta.ReferenceTo(j, gvk))
+		err := h.syncSATokenSecret(ctx, owner, saRef, saSecretRef)
+		if err != nil {
+			return errors.Wrap(err, errFailedToSyncSASecret)
+		}
+	}
 	// save a reference to the stack's controller
 	h.ext.Status.ControllerRef = meta.ReferenceTo(j, gvk)
 
@@ -568,6 +804,23 @@ func (h *stackHandler) delete(ctx context.Context) (reconcile.Result, error) {
 	log.V(logging.Debug).Info("deleting stack", "namespace", h.ext.GetNamespace(), "name", h.ext.GetName())
 
 	labels := stacks.ParentLabels(h.ext)
+
+	stackControllerNamespace := h.ext.GetNamespace()
+	if h.hostAwareConfig != nil {
+		stackControllerNamespace = h.hostAwareConfig.HostControllerNamespace
+	}
+
+	log.V(logging.Debug).Info("deleting stack controller deployment", "namespace", h.ext.GetNamespace(), "name", h.ext.GetName())
+
+	if err := h.hostKube.DeleteAllOf(ctx, &apps.Deployment{}, client.MatchingLabels(labels), client.InNamespace(stackControllerNamespace)); runtimeresource.IgnoreNotFound(err) != nil {
+		return fail(ctx, h.kube, h.ext, err)
+	}
+
+	log.V(logging.Debug).Info("deleting stack controller jobs", "namespace", h.ext.GetNamespace(), "name", h.ext.GetName())
+
+	if err := h.hostKube.DeleteAllOf(ctx, &batch.Job{}, client.MatchingLabels(labels), client.InNamespace(stackControllerNamespace)); runtimeresource.IgnoreNotFound(err) != nil {
+		return fail(ctx, h.kube, h.ext, err)
+	}
 
 	log.V(logging.Debug).Info("deleting stack clusterroles", "namespace", h.ext.GetNamespace(), "name", h.ext.GetName())
 

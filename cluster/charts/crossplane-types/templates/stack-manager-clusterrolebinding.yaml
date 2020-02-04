@@ -1,0 +1,24 @@
+# the stack manager ClusterRoleBinding is to the cluster-admin ClusterRole because it needs to
+# create arbitrary RBAC permissions for arbitrary stacks.  A service account cannot grant RBAC
+# permissions that it doesn't already have itself, so to support the arbitrary permissions needs of
+# all stacks, we are using the cluster-admin role.
+#
+# Note that this is scoped to just the stack manager and not to all of Crossplane (which uses a
+# separate service account and role/binding).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ template "name" . }}-stack-manager
+  labels:
+    app: {{ template "name" . }}
+    chart: {{ template "chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+- kind: ServiceAccount
+  name: stack-manager
+  namespace: {{ .Release.Namespace }}

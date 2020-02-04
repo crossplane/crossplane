@@ -40,6 +40,7 @@ import (
 	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
 	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
+	"github.com/crossplaneio/crossplane/pkg/controller/stacks/hosted"
 	"github.com/crossplaneio/crossplane/pkg/stacks"
 )
 
@@ -261,11 +262,13 @@ func TestHandleJobCompletion(t *testing.T) {
 			name: "NoPodsFoundForJob",
 			jc: &stackInstallJobCompleter{
 				client: &test.MockClient{
+					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+				},
+				hostClient: &test.MockClient{
 					MockList: func(ctx context.Context, list runtime.Object, _ ...client.ListOption) error {
 						// LIST pods returns an empty list
 						return nil
 					},
-					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
 			},
 			ext: resource(),
@@ -279,6 +282,9 @@ func TestHandleJobCompletion(t *testing.T) {
 			name: "FailToGetJobPodLogs",
 			jc: &stackInstallJobCompleter{
 				client: &test.MockClient{
+					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+				},
+				hostClient: &test.MockClient{
 					MockList: func(ctx context.Context, list runtime.Object, _ ...client.ListOption) error {
 						// LIST pods returns a pod for the job
 						*list.(*corev1.PodList) = corev1.PodList{
@@ -286,7 +292,6 @@ func TestHandleJobCompletion(t *testing.T) {
 						}
 						return nil
 					},
-					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
 				podLogReader: &mockPodLogReader{
 					MockGetPodLogReader: func(string, string) (io.ReadCloser, error) {
@@ -305,6 +310,9 @@ func TestHandleJobCompletion(t *testing.T) {
 			name: "FailToReadJobPodLogStream",
 			jc: &stackInstallJobCompleter{
 				client: &test.MockClient{
+					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+				},
+				hostClient: &test.MockClient{
 					MockList: func(ctx context.Context, list runtime.Object, _ ...client.ListOption) error {
 						// LIST pods returns a pod for the job
 						*list.(*corev1.PodList) = corev1.PodList{
@@ -312,7 +320,6 @@ func TestHandleJobCompletion(t *testing.T) {
 						}
 						return nil
 					},
-					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
 				podLogReader: &mockPodLogReader{
 					MockGetPodLogReader: func(string, string) (io.ReadCloser, error) {
@@ -335,7 +342,7 @@ func TestHandleJobCompletion(t *testing.T) {
 		{
 			name: "FailToParseJobPodLogOutput",
 			jc: &stackInstallJobCompleter{
-				client: &test.MockClient{
+				hostClient: &test.MockClient{
 					MockList: func(ctx context.Context, list runtime.Object, _ ...client.ListOption) error {
 						// LIST pods returns a pod for the job
 						*list.(*corev1.PodList) = corev1.PodList{
@@ -361,13 +368,6 @@ func TestHandleJobCompletion(t *testing.T) {
 			name: "HandleJobCompletionSuccess",
 			jc: &stackInstallJobCompleter{
 				client: &test.MockClient{
-					MockList: func(ctx context.Context, list runtime.Object, _ ...client.ListOption) error {
-						// LIST pods returns a pod for the job
-						*list.(*corev1.PodList) = corev1.PodList{
-							Items: []corev1.Pod{{ObjectMeta: metav1.ObjectMeta{Name: jobPodName}}},
-						}
-						return nil
-					},
 					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error {
 						if isCRDObject(obj) {
 							if crd, ok := obj.(*unstructured.Unstructured); ok {
@@ -387,6 +387,15 @@ func TestHandleJobCompletion(t *testing.T) {
 						return nil
 					},
 					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+				},
+				hostClient: &test.MockClient{
+					MockList: func(ctx context.Context, list runtime.Object, _ ...client.ListOption) error {
+						// LIST pods returns a pod for the job
+						*list.(*corev1.PodList) = corev1.PodList{
+							Items: []corev1.Pod{{ObjectMeta: metav1.ObjectMeta{Name: jobPodName}}},
+						}
+						return nil
+					},
 				},
 				podLogReader: &mockPodLogReader{
 					MockGetPodLogReader: func(string, string) (io.ReadCloser, error) {
@@ -436,9 +445,11 @@ func TestCreate(t *testing.T) {
 			name: "CreateInstallJob",
 			handler: &stackInstallHandler{
 				kube: &test.MockClient{
-					MockCreate:       func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error { return nil },
 					MockUpdate:       func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+				},
+				hostKube: &test.MockClient{
+					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error { return nil },
 				},
 				executorInfo: &stacks.ExecutorInfo{Image: stackPackageImage},
 				ext:          resource(),
@@ -454,15 +465,90 @@ func TestCreate(t *testing.T) {
 			},
 		},
 		{
+			name: "CreateInstallJobHosted",
+			handler: &stackInstallHandler{
+				kube: &test.MockClient{
+					MockUpdate:       func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+				},
+				hostKube: &test.MockClient{
+					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error { return nil },
+				},
+				hostAwareConfig: &hosted.Config{HostControllerNamespace: hostControllerNamespace},
+				executorInfo:    &stacks.ExecutorInfo{Image: stackPackageImage},
+				ext:             resource(),
+			},
+			want: want{
+				result: requeueOnSuccess,
+				err:    nil,
+				ext: resource(
+					withFinalizers(installFinalizer),
+					withConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileSuccess()),
+					withInstallJob(&corev1.ObjectReference{Name: fmt.Sprintf("%s.%s", namespace, resourceName), Namespace: hostControllerNamespace}),
+				),
+			},
+		},
+		{
+			name: "HandleFailedInstallJobHosted",
+			handler: &stackInstallHandler{
+				kube: &test.MockClient{
+					MockUpdate:       func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+				},
+				hostKube: &test.MockClient{
+					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error { return errBoom },
+				},
+				hostAwareConfig: &hosted.Config{HostControllerNamespace: hostControllerNamespace},
+				executorInfo:    &stacks.ExecutorInfo{Image: stackPackageImage},
+				ext:             resource(),
+			},
+			want: want{
+				result: resultRequeue,
+				err:    nil,
+				ext: resource(
+					withFinalizers(installFinalizer),
+					withConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileError(errBoom)),
+					withInstallJob(nil),
+				),
+			},
+		},
+		{
+			name: "FailedToGetInstallJob",
+			handler: &stackInstallHandler{
+				kube: &test.MockClient{
+					MockUpdate:       func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+				},
+				hostKube: &test.MockClient{
+					MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
+						return errBoom
+					},
+				},
+				ext: resource(
+					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: namespace})),
+			},
+			want: want{
+				result: resultRequeue,
+				err:    nil,
+				ext: resource(
+					withFinalizers(installFinalizer),
+					withConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileError(errBoom)),
+					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: namespace}),
+				),
+			},
+		},
+		{
 			name: "InstallJobNotCompleted",
 			handler: &stackInstallHandler{
 				kube: &test.MockClient{
+					MockUpdate:       func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+				},
+				hostKube: &test.MockClient{
 					MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
 						// GET Job returns an uncompleted job
 						return nil
 					},
-					MockUpdate:       func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
-					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
 				ext: resource(
 					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: namespace})),
@@ -481,13 +567,15 @@ func TestCreate(t *testing.T) {
 			name: "HandleSuccessfulInstallJob",
 			handler: &stackInstallHandler{
 				kube: &test.MockClient{
+					MockUpdate:       func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+				},
+				hostKube: &test.MockClient{
 					MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
 						// GET Job returns a successful/completed job
 						*obj.(*batchv1.Job) = *(job(withJobConditions(batchv1.JobComplete, "")))
 						return nil
 					},
-					MockUpdate:       func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
-					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
 				jobCompleter: &mockJobCompleter{
 					MockHandleJobCompletion: func(ctx context.Context, i v1alpha1.StackInstaller, job *batchv1.Job) error { return nil },
@@ -510,13 +598,15 @@ func TestCreate(t *testing.T) {
 			name: "HandleFailedInstallJob",
 			handler: &stackInstallHandler{
 				kube: &test.MockClient{
+					MockUpdate:       func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+				},
+				hostKube: &test.MockClient{
 					MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
 						// GET Job returns a failed job
 						*obj.(*batchv1.Job) = *(job(withJobConditions(batchv1.JobFailed, "mock job failure message")))
 						return nil
 					},
-					MockUpdate:       func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
-					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
 				jobCompleter: &mockJobCompleter{
 					MockHandleJobCompletion: func(ctx context.Context, i v1alpha1.StackInstaller, job *batchv1.Job) error { return nil },
