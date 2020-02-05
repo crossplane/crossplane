@@ -1,0 +1,7 @@
+Thanks for installing Crossplane!
+
+Your next steps are:
+
+1. Install Stacks: https://crossplane.io/docs/master/install-crossplane.html#manual-installation
+2. Configure Providers: https://crossplane.io/docs/master/cloud-providers.html
+3. Use Services: https://crossplane.io/docs/master/services-guide.html
