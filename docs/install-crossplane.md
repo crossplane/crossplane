@@ -267,7 +267,8 @@ The following tables lists the configurable parameters of the Crossplane chart a
 | `clusterStacks.azure.version`    | Azure stack version to deploy                                   | `<latest released version>`   
 | `clusterStacks.rook.deploy`      | Deploy Rook stack                                               | `false`    
 | `clusterStacks.rook.version`     | Rook stack version to deploy                                    | `<latest released version>`   
-| `personas.deploy`                | Install roles and bindings for Crossplane user personas        | `true`     
+| `personas.deploy`                | Install roles and bindings for Crossplane user personas         | `true`     
+| `templateStacks.enabled`         | Enable experimental template stacks support                     | `false`     
  
 ### Command Line
 

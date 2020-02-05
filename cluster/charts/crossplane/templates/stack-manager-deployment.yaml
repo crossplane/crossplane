@@ -33,6 +33,9 @@ spec:
         - --host-controller-namespace
         - {{ .Values.hostedConfig.controllerNamespace | quote }}
         {{- end }}
+        {{- if .Values.templateStacks.enabled }}
+        - --templates
+        {{- end }}
         {{- range $arg := .Values.args }}
         - {{ $arg }}
         {{- end }}
