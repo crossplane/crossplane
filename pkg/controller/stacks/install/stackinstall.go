@@ -79,7 +79,7 @@ type Reconciler struct {
 
 // SetupClusterStackInstall adds a controller that reconciles
 // ClusterStackInstalls.
-func SetupClusterStackInstall(mgr ctrl.Manager, l logging.Logger) error {
+func SetupClusterStackInstall(mgr ctrl.Manager, l logging.Logger, hostControllerNamespace string) error {
 	name := "stacks/" + strings.ToLower(v1alpha1.ClusterStackInstallKind)
 	stackinator := func() v1alpha1.StackInstaller { return &v1alpha1.ClusterStackInstall{} }
 
@@ -91,12 +91,18 @@ func SetupClusterStackInstall(mgr ctrl.Manager, l logging.Logger) error {
 		return err
 	}
 
+	hc, err := hosted.NewConfigForHost(hostControllerNamespace, mgr.GetConfig().Host)
+	if err != nil {
+		return err
+	}
+
 	r := &Reconciler{
 		k8sClients: k8sClients{
 			kube:       mgr.GetClient(),
 			hostKube:   hostKube,
 			hostClient: hostClient,
 		},
+		hostedConfig:           hc,
 		stackinator:            stackinator,
 		factory:                &handlerFactory{},
 		executorInfoDiscoverer: &stacks.KubeExecutorInfoDiscoverer{Client: hostKube},
@@ -110,7 +116,7 @@ func SetupClusterStackInstall(mgr ctrl.Manager, l logging.Logger) error {
 }
 
 // SetupStackInstall adds a controller that reconciles StackInstalls.
-func SetupStackInstall(mgr ctrl.Manager, l logging.Logger) error {
+func SetupStackInstall(mgr ctrl.Manager, l logging.Logger, hostControllerNamespace string) error {
 	name := "stacks/" + strings.ToLower(v1alpha1.StackInstallKind)
 	stackinator := func() v1alpha1.StackInstaller { return &v1alpha1.StackInstall{} }
 
@@ -122,12 +128,18 @@ func SetupStackInstall(mgr ctrl.Manager, l logging.Logger) error {
 		return err
 	}
 
+	hc, err := hosted.NewConfigForHost(hostControllerNamespace, mgr.GetConfig().Host)
+	if err != nil {
+		return err
+	}
+
 	r := &Reconciler{
 		k8sClients: k8sClients{
 			kube:       mgr.GetClient(),
 			hostKube:   hostKube,
 			hostClient: hostClient,
 		},
+		hostedConfig:           hc,
 		stackinator:            stackinator,
 		factory:                &handlerFactory{},
 		executorInfoDiscoverer: &stacks.KubeExecutorInfoDiscoverer{Client: hostKube},
@@ -173,11 +185,6 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	}
 
 	return handler.sync(ctx)
-}
-
-// SetHostedConfig sets host aware config for Reconciler
-func (r *Reconciler) SetHostedConfig(cfg *hosted.Config) {
-	r.hostedConfig = cfg
 }
 
 // handler is an interface for handling reconciliation requests

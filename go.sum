@@ -66,8 +66,6 @@ github.com/coreos/go-semver v0.3.0/go.mod h1:nnelYz7RCh+5ahJtPPxZlU+153eP4D4r3Ee
 github.com/coreos/go-systemd v0.0.0-20180511133405-39ca1b05acc7/go.mod h1:F5haX7vjVVG0kc13fIWeqUViNPyEJxv/OmvnBo0Yme4=
 github.com/coreos/pkg v0.0.0-20180108230652-97fdf19511ea/go.mod h1:E3G3o1h8I7cfcXa63jLwjI0eiQQMgzzUDFVpN/nH/eA=
 github.com/cpuguy83/go-md2man v1.0.10/go.mod h1:SmD6nW6nTyfqj6ABTjUi3V3JVMnlJmwcJI5acqYI6dE=
-github.com/crossplaneio/crossplane-runtime v0.4.0 h1:uw8g7KY0isnJEcUzJv+r6IGIRDhwspbemL/d183n0CE=
-github.com/crossplaneio/crossplane-runtime v0.4.0/go.mod h1:UTemZ8u+bvHkQMHpdsZ2z/dTHC7tRkXc2K6Z9N26KQI=
 github.com/crossplaneio/crossplane-runtime v0.4.1-0.20200201005410-a6bb086be888 h1:vO/7jO4Vz1+1IxNximywy5Sr/dj5vwFKhii9x4pyz+Q=
 github.com/crossplaneio/crossplane-runtime v0.4.1-0.20200201005410-a6bb086be888/go.mod h1:97hx6LIBkjI0fjfMGPRCOGI7Pm6qUhoN9zTCWrP4XvU=
 github.com/crossplaneio/crossplane-tools v0.0.0-20191220202319-9033bd8a02ce h1:V7cUPRBxbJr0siRHn459gb6hfMXaEA+pGm0Yt5aXdhQ=
@@ -570,7 +568,6 @@ k8s.io/client-go v0.0.0-20190918160344-1fbdaa4c8d90 h1:mLmhKUm1X+pXu0zXMEzNsOF5E
 k8s.io/client-go v0.0.0-20190918160344-1fbdaa4c8d90/go.mod h1:J69/JveO6XESwVgG53q3Uz5OSfgsv4uxpScmmyYOOlk=
 k8s.io/client-go v0.17.0 h1:8QOGvUGdqDMFrm9sD6IUFl256BcffynGoe80sxgTEDg=
 k8s.io/client-go v0.17.0/go.mod h1:TYgR6EUHs6k45hb6KWjVD6jFZvJV4gHDikv/It0xz+k=
-k8s.io/client-go v11.0.0+incompatible h1:LBbX2+lOwY9flffWlJM7f1Ct8V2SRNiMRDFeiwnJo9o=
 k8s.io/code-generator v0.0.0-20190912054826-cd179ad6a269/go.mod h1:V5BD6M4CyaN5m+VthcclXWsVcT1Hu+glwa1bi3MIsyE=
 k8s.io/code-generator v0.17.0/go.mod h1:DVmfPQgxQENqDIzVR2ddLXMH34qeszkKSdH/N+s+38s=
 k8s.io/component-base v0.0.0-20190918160511-547f6c5d7090/go.mod h1:933PBGtQFJky3TEwYx4aEPZ4IxqhWh3R6DCmzqIn1hA=

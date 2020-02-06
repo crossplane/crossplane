@@ -124,3 +124,158 @@ func TestConfig_ObjectReferenceOnHost(t *testing.T) {
 		})
 	}
 }
+
+func TestGetHostPort(t *testing.T) {
+	type args struct {
+		urlHost string
+	}
+
+	type want struct {
+		host string
+		port string
+		err  error
+	}
+	cases := map[string]struct {
+		args
+		want
+	}{
+		"Regular": {
+			args: args{
+				urlHost: "https://apiserver:6443",
+			},
+			want: want{
+				host: "apiserver",
+				port: "6443",
+			},
+		},
+		"RegularWithIP": {
+			args: args{
+				urlHost: "https://111.222.111.222:6443",
+			},
+			want: want{
+				host: "111.222.111.222",
+				port: "6443",
+			},
+		},
+		"NoPortHTTP": {
+			args: args{
+				urlHost: "http://apiserver",
+			},
+			want: want{
+				host: "apiserver",
+				port: "80",
+			},
+		},
+		"NoPortHTTPS": {
+			args: args{
+				urlHost: "https://apiserver",
+			},
+			want: want{
+				host: "apiserver",
+				port: "443",
+			},
+		},
+		"NoPortHTTPSWithIP": {
+			args: args{
+				urlHost: "https://111.222.111.222",
+			},
+			want: want{
+				host: "111.222.111.222",
+				port: "443",
+			},
+		},
+		"InvalidURL": {
+			args: args{
+				urlHost: string(0x7f),
+			},
+			want: want{
+				err: errors.Wrap(errors.New("parse \u007f: net/url: invalid control character in URL"), "cannot parse URL"),
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			gotHost, gotPort, gotErr := getHostPort(tc.args.urlHost)
+			if diff := cmp.Diff(tc.want.err, gotErr, test.EquateErrors()); diff != "" {
+				t.Errorf("getHostPort(...): -want error, +got error:\n %s", diff)
+			}
+			if diff := cmp.Diff(tc.want.host, gotHost); diff != "" {
+				t.Errorf("getHostPort(...): -want host, +got result:\n %s", diff)
+			}
+			if diff := cmp.Diff(tc.want.port, gotPort); diff != "" {
+				t.Errorf("getHostPort(...): -want port, +got result:\n %s", diff)
+			}
+		})
+	}
+}
+
+func TestNewConfigForHost(t *testing.T) {
+	type args struct {
+		server                  string
+		hostControllerNamespace string
+	}
+
+	type want struct {
+		config *Config
+		err    error
+	}
+	cases := map[string]struct {
+		args
+		want
+	}{
+		"RegularNonHosted": {
+			args: args{
+				server:                  "https://apiserver",
+				hostControllerNamespace: "",
+			},
+			want: want{
+				config: nil,
+			},
+		},
+		"ErrorHostedMissingHost": {
+			args: args{
+				server:                  "",
+				hostControllerNamespace: "test-controllers-ns",
+			},
+			want: want{
+				config: nil,
+			},
+		},
+		"ErrorHostedInvalidHost": {
+			args: args{
+				server:                  string(0x7f),
+				hostControllerNamespace: "test-controllers-ns",
+			},
+			want: want{
+				config: nil,
+				err:    errors.Wrap(errors.New("cannot parse URL: parse \u007f: net/url: invalid control character in URL"), "cannot get host port from tenant kubeconfig"),
+			},
+		},
+		"RegularHosted": {
+			args: args{
+				server:                  "https://apiserver:6443",
+				hostControllerNamespace: "test-controllers-ns",
+			},
+			want: want{
+				config: &Config{
+					HostControllerNamespace: "test-controllers-ns",
+					TenantAPIServiceHost:    "apiserver",
+					TenantAPIServicePort:    "6443",
+				},
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got, gotErr := NewConfigForHost(tc.args.hostControllerNamespace, tc.args.server)
+			if diff := cmp.Diff(tc.want.err, gotErr, test.EquateErrors()); diff != "" {
+				t.Errorf("NewConfigForHost(...): -want error, +got error:\n %s", diff)
+			}
+
+			if diff := cmp.Diff(tc.want.config, got); diff != "" {
+				t.Errorf("NewConfigForHost(...): -want result, +got result:\n %s", diff)
+			}
+		})
+	}
+
+}

@@ -6,7 +6,6 @@ require (
 	github.com/crossplaneio/crossplane-runtime v0.4.1-0.20200201005410-a6bb086be888
 	github.com/crossplaneio/crossplane-tools v0.0.0-20191220202319-9033bd8a02ce
 	github.com/ghodss/yaml v1.0.0
-	github.com/go-logr/logr v0.1.0
 	github.com/google/go-cmp v0.3.1
 	github.com/onsi/gomega v1.7.0
 	github.com/pkg/errors v0.8.1

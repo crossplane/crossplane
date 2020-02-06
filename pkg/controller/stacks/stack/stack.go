@@ -95,23 +95,8 @@ type Reconciler struct {
 	factory
 }
 
-// SMReconciler (Stack Manager Reconciler) reconciles on Stack, StackInstall or ClusterStackInstall custom resources.
-type SMReconciler interface {
-	SetHostedConfig(cfg *hosted.Config)
-}
-
-// SMReconcilerOption is used to configure a SMReconciler
-type SMReconcilerOption func(r SMReconciler)
-
-// WithHostedConfig returns a SMReconcilerOption configuring SMReconciler with input host aware config
-func WithHostedConfig(hCfg *hosted.Config) SMReconcilerOption {
-	return func(r SMReconciler) {
-		r.SetHostedConfig(hCfg)
-	}
-}
-
 // Setup adds a controller that reconciles Stacks.
-func Setup(mgr ctrl.Manager, l logging.Logger) error {
+func Setup(mgr ctrl.Manager, l logging.Logger, hostControllerNamespace string) error {
 	name := "stacks/" + strings.ToLower(v1alpha1.StackKind)
 
 	hostKube, _, err := hosted.GetClients()
@@ -119,15 +104,23 @@ func Setup(mgr ctrl.Manager, l logging.Logger) error {
 		return err
 	}
 
+	hc, err := hosted.NewConfigForHost(hostControllerNamespace, mgr.GetConfig().Host)
+	if err != nil {
+		return err
+	}
+
+	r := &Reconciler{
+		kube:         mgr.GetClient(),
+		hostKube:     hostKube,
+		hostedConfig: hc,
+		factory:      &stackHandlerFactory{},
+		log:          l.WithValues("controller", name),
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&v1alpha1.Stack{}).
-		Complete(&Reconciler{
-			kube:     mgr.GetClient(),
-			hostKube: hostKube,
-			factory:  &stackHandlerFactory{},
-			log:      l.WithValues("controller", name),
-		})
+		Complete(r)
 }
 
 // Reconcile reads that state of the Stack for a Instance object and makes changes based on the state read
@@ -154,11 +147,6 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	}
 
 	return handler.sync(ctx)
-}
-
-// SetHostedConfig sets host aware config for Reconciler
-func (r *Reconciler) SetHostedConfig(cfg *hosted.Config) {
-	r.hostedConfig = cfg
 }
 
 type handler interface {

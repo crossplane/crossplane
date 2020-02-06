@@ -37,10 +37,6 @@ import (
 	"github.com/crossplaneio/crossplane/pkg/stacks/walker"
 )
 
-var (
-	log = logging.Logger
-)
-
 func main() {
 	var (
 		app        = kingpin.New(filepath.Base(os.Args[0]), "An open source multicloud control plane.").DefaultEnvars()
@@ -56,10 +52,10 @@ func main() {
 		// permissions, the SM itself must have cluster-admin permissions. We
 		// isolate these elevated permissions as much as possible by running the
 		// Crossplane stack manager in its own isolated deployment.
-		extManageCmd              = extCmd.Command("manage", "Start Crosplane Stack Manager controllers")
-		extManageSupportTemplates = extManageCmd.Flag("templates", "Enable support for template stacks").Bool()
-		// extManageHostControllerNamespace = extManageCmd.Flag("host-controller-namespace", "The namespace on Host Cluster where install and controller jobs/deployments will be created. Setting this will activate host aware mode of Stack Manager").String()
-		extManageTenantKubeconfig = extManageCmd.Flag("tenant-kubeconfig", "The absolute path of the kubeconfig file to Tenant Kubernetes instance (required for host aware mode, ignored otherwise).").ExistingFile()
+		extManageCmd                     = extCmd.Command("manage", "Start Crosplane Stack Manager controllers")
+		extManageSupportTemplates        = extManageCmd.Flag("templates", "Enable support for template stacks").Bool()
+		extManageHostControllerNamespace = extManageCmd.Flag("host-controller-namespace", "The namespace on Host Cluster where install and controller jobs/deployments will be created. Setting this will activate host aware mode of Stack Manager").String()
+		extManageTenantKubeconfig        = extManageCmd.Flag("tenant-kubeconfig", "The absolute path of the kubeconfig file to Tenant Kubernetes instance (required for host aware mode, ignored otherwise).").ExistingFile()
 
 		// Unpack the given stack package content. This command is expected to
 		// parse the content and generate manifests for stack related artifacts
@@ -112,9 +108,7 @@ func main() {
 
 		kingpin.FatalIfError(apis.AddToScheme(mgr.GetScheme()), "Cannot add core Crossplane APIs to scheme")
 		kingpin.FatalIfError(apiextensionsv1beta1.AddToScheme(mgr.GetScheme()), "Cannot add API extensions to scheme")
-
-		// TODO(negz): Plumb down namespace.
-		kingpin.FatalIfError(stacks.Setup(mgr, log), "Cannot add stacks controllers to manager")
+		kingpin.FatalIfError(stacks.Setup(mgr, log, *extManageHostControllerNamespace), "Cannot add stacks controllers to manager")
 
 		if *extManageSupportTemplates {
 			kingpin.FatalIfError(templates.SetupStackConfigurations(mgr, log), "Cannot add stack configuration controller to manager")

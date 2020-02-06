@@ -586,36 +586,3 @@ func TestHandlerFactory(t *testing.T) {
 		})
 	}
 }
-
-func TestSetHostedConfig(t *testing.T) {
-	type args struct {
-		hCfg *hosted.Config
-	}
-	cases := map[string]struct {
-		args
-	}{
-		"empty": {
-			args: args{
-				hCfg: &hosted.Config{},
-			},
-		},
-		"withValues": {
-			args: args{
-				hCfg: &hosted.Config{
-					HostControllerNamespace: "test-ns",
-					TenantAPIServiceHost:    "https://api.server",
-					TenantAPIServicePort:    "1234",
-				},
-			},
-		},
-	}
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			r := &Reconciler{}
-			r.SetHostedConfig(tc.args.hCfg)
-			if diff := cmp.Diff(tc.args.hCfg, r.hostedConfig); diff != "" {
-				t.Errorf("WithHostedConfig: -want result, +got result: %s", diff)
-			}
-		})
-	}
-}
