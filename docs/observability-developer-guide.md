@@ -109,12 +109,8 @@ The longer version is:
 * Scenario 2 is best served by metrics, because they can be aggregated and
   understood as a whole. And because they can be used to track things over time.
 * Scenario 3 is best served by either logging that contains all the information
-  about and leading up to the event. Or, if available, some sort of error event
-  reporting system which captures all of the relevant information in one place
-  (for example, a well-configured project in [Sentry]). In
-  my experience, the larger a fleet gets, the less useful logging is, and the
-  more useful the error event reporting system becomes. Request-tracing systems
-  are also useful for this scenario.
+  about and leading up to the event. Request-tracing systems are also useful for
+  this scenario.
 * Scenario 4 is usually logs, maybe at a more verbose level than normal. But it
   could be an attached debugger or some other type of tool. It could also be a
   test suite.
@@ -190,7 +186,6 @@ implementations.
 [not yet implemented]: https://github.com/crossplaneio/crossplane/issues/314
 [Events]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.16/#event-v1-core
 [debugging an application cluster]: https://kubernetes.io/docs/tasks/debug-application-cluster/
-[Sentry]: https://sentry.io
 [Dave Cheney article]: https://dave.cheney.net/2015/11/05/lets-talk-about-logging
 [`event`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/event
 [`logging`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/logging
