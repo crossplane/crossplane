@@ -33,6 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
 	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 	"github.com/crossplaneio/crossplane/apis/workload/v1alpha1"
 )
@@ -388,6 +389,7 @@ func TestReconcile(t *testing.T) {
 						return kerrors.NewNotFound(schema.GroupResource{}, name)
 					},
 				},
+				log: logging.NewNopLogger(),
 			},
 			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
 			wantResult: reconcile.Result{Requeue: false},
@@ -397,6 +399,7 @@ func TestReconcile(t *testing.T) {
 			name: "FailedToGetExtantKubernetesApplication",
 			rec: &Reconciler{
 				kube: &test.MockClient{MockGet: test.NewMockGetFn(errorBoom)},
+				log:  logging.NewNopLogger(),
 			},
 			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
 			wantResult: reconcile.Result{Requeue: false},
@@ -407,6 +410,7 @@ func TestReconcile(t *testing.T) {
 			rec: &Reconciler{
 				kube:  &test.MockClient{MockGet: test.NewMockGetFn(nil), MockUpdate: test.NewMockUpdateFn(nil)},
 				local: &mockSyncer{mockSync: newMockSyncFn(reconcile.Result{Requeue: false})},
+				log:   logging.NewNopLogger(),
 			},
 			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
 			wantResult: reconcile.Result{Requeue: false},
@@ -416,6 +420,7 @@ func TestReconcile(t *testing.T) {
 			rec: &Reconciler{
 				kube:  &test.MockClient{MockGet: test.NewMockGetFn(nil), MockUpdate: test.NewMockUpdateFn(errorBoom)},
 				local: &mockSyncer{mockSync: newMockSyncFn(reconcile.Result{Requeue: false})},
+				log:   logging.NewNopLogger(),
 			},
 			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
 			wantResult: reconcile.Result{Requeue: false},

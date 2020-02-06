@@ -59,6 +59,7 @@ type stackInstallJobCompleter struct {
 	client       client.Client
 	hostClient   client.Client
 	podLogReader Reader
+	log          logging.Logger
 }
 
 func createInstallJob(i v1alpha1.StackInstaller, executorInfo *stacks.ExecutorInfo, hCfg *hosted.Config) *batchv1.Job {
@@ -274,8 +275,7 @@ func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, o
 
 	meta.AddLabels(obj, labels)
 
-	// TODO(displague) pass/inject a controller specific logger
-	log.V(logging.Debug).Info(
+	jc.log.Debug(
 		"creating object from job output",
 		"job", job.Name,
 		"name", obj.GetName(),
@@ -292,19 +292,16 @@ func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, o
 }
 
 func isStackObject(obj *unstructured.Unstructured) bool {
-	log.V(logging.Debug).Info("Checking GVK for object", "obj", obj)
 	if obj == nil {
 		return false
 	}
 
 	gvk := obj.GroupVersionKind()
-	log.V(logging.Debug).Info("Object GVK", "obj", obj, "gvk", gvk)
 	return gvk.Group == v1alpha1.Group && gvk.Version == v1alpha1.Version &&
 		strings.EqualFold(gvk.Kind, v1alpha1.StackKind)
 }
 
 func isStackConfigurationObject(obj *unstructured.Unstructured) bool {
-	log.V(logging.Debug).Info("Checking GVK for object", "obj", obj)
 	if obj == nil {
 		return false
 	}

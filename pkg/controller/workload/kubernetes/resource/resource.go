@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -46,8 +47,7 @@ import (
 )
 
 const (
-	controllerName   = "kubernetesapplicationresource." + v1alpha1.Group
-	finalizerName    = "finalizer." + controllerName
+	finalizerName    = "finalizer.kubernetesapplicationresource." + v1alpha1.Group
 	reconcileTimeout = 1 * time.Minute
 
 	// The time we wait before requeueing a speculative reconcile.
@@ -61,10 +61,6 @@ var (
 	RemoteControllerNamespace = v1alpha1.KubernetesApplicationGroupVersionKind.GroupKind().String() + "/namespace"
 	RemoteControllerName      = v1alpha1.KubernetesApplicationGroupVersionKind.GroupKind().String() + "/name"
 	RemoteControllerUID       = v1alpha1.KubernetesApplicationGroupVersionKind.GroupKind().String() + "/uid"
-)
-
-var (
-	log = logging.Logger.WithName("controller." + controllerName)
 )
 
 // CreatePredicate accepts KubernetesApplicationResources that have been
@@ -87,23 +83,19 @@ func UpdatePredicate(event event.UpdateEvent) bool {
 	return wl.Status.Target != nil
 }
 
-// Controller is responsible for adding the Instance
-// controller and its corresponding reconciler to the manager with any runtime configuration.
-type Controller struct{}
-
-// SetupWithManager creates a new Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
-// and Start it when the Manager is Started.
-func (c *Controller) SetupWithManager(mgr ctrl.Manager) error {
-	r := &Reconciler{
-		connecter: &clusterConnecter{kube: mgr.GetClient()},
-		kube:      mgr.GetClient(),
-	}
+// Setup adds a controller that reconciles KubernetesApplicationResources.
+func Setup(mgr ctrl.Manager, l logging.Logger) error {
+	name := "workload/" + strings.ToLower(v1alpha1.KubernetesApplicationResourceKind)
 
 	return ctrl.NewControllerManagedBy(mgr).
-		Named(controllerName).
+		Named(name).
 		For(&v1alpha1.KubernetesApplicationResource{}).
 		WithEventFilter(&predicate.Funcs{CreateFunc: CreatePredicate, UpdateFunc: UpdatePredicate}).
-		Complete(r)
+		Complete(&Reconciler{
+			connecter: &clusterConnecter{kube: mgr.GetClient()},
+			kube:      mgr.GetClient(),
+			log:       l.WithValues("controller", name),
+		})
 }
 
 // A syncer can sync resources with a KubernetesTarget.
@@ -468,12 +460,13 @@ func (c *clusterConnecter) connect(ctx context.Context, ar *v1alpha1.KubernetesA
 type Reconciler struct {
 	connecter
 	kube client.Client
+	log  logging.Logger
 }
 
 // Reconcile scheduled Kubernetes application resources by propagating them to
 // their scheduled Kubernetes cluster.
 func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) {
-	log.V(logging.Debug).Info("reconciling", "kind", v1alpha1.KubernetesApplicationResourceKindAPIVersion, "request", req)
+	r.log.Debug("Reconciling", "request", req)
 
 	ctx, cancel := context.WithTimeout(context.Background(), reconcileTimeout)
 	defer cancel()
@@ -514,7 +507,7 @@ func (r *Reconciler) getConnectionSecrets(ctx context.Context, ar *v1alpha1.Kube
 		n := types.NamespacedName{Namespace: ar.GetNamespace(), Name: ref.Name}
 		if err := r.kube.Get(ctx, n, &s); err != nil {
 			ar.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
-			log.V(logging.Debug).Info("error getting connection secret", "namespace", n.Namespace, "name", n.Name, "err", err)
+			r.log.Debug("error getting connection secret", "namespace", n.Namespace, "name", n.Name, "err", err)
 			continue
 		}
 		secrets = append(secrets, s)

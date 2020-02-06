@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
 	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 
 	computev1alpha1 "github.com/crossplaneio/crossplane/apis/compute/v1alpha1"
@@ -166,6 +167,7 @@ func TestReconcile(t *testing.T) {
 				kube: &test.MockClient{
 					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, name)),
 				},
+				log: logging.NewNopLogger(),
 			},
 			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
 			wantResult: reconcile.Result{Requeue: false},
@@ -176,6 +178,7 @@ func TestReconcile(t *testing.T) {
 				kube: &test.MockClient{
 					MockGet: test.NewMockGetFn(errorBoom),
 				},
+				log: logging.NewNopLogger(),
 			},
 			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
 			wantResult: reconcile.Result{Requeue: false},
@@ -189,6 +192,7 @@ func TestReconcile(t *testing.T) {
 						return nil
 					},
 				},
+				log: logging.NewNopLogger(),
 			},
 			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
 			wantResult: reconcile.Result{Requeue: false},
@@ -222,6 +226,7 @@ func TestReconcile(t *testing.T) {
 						return errorBoom
 					}),
 				},
+				log: logging.NewNopLogger(),
 			},
 			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
 			wantResult: reconcile.Result{},
@@ -247,6 +252,7 @@ func TestReconcile(t *testing.T) {
 						return nil
 					},
 				},
+				log: logging.NewNopLogger(),
 			},
 			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
 			wantResult: reconcile.Result{},
@@ -286,6 +292,7 @@ func TestReconcile(t *testing.T) {
 						return nil
 					}),
 				},
+				log: logging.NewNopLogger(),
 			},
 			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
 			wantResult: reconcile.Result{},
@@ -337,6 +344,7 @@ func TestReconcile(t *testing.T) {
 						return nil
 					}),
 				},
+				log: logging.NewNopLogger(),
 			},
 			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
 			wantResult: reconcile.Result{},
@@ -386,6 +394,7 @@ func TestReconcile(t *testing.T) {
 						return nil
 					}),
 				},
+				log: logging.NewNopLogger(),
 			},
 			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
 			wantResult: reconcile.Result{},

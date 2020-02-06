@@ -34,7 +34,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
 	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
 	"github.com/crossplaneio/crossplane/pkg/stacks/walker"
 )
@@ -77,8 +76,6 @@ const (
 )
 
 var (
-	log = logging.Logger.WithName("stacks")
-
 	// iconFileGlobalNames is the set of supported icon file names at the global level, i.e. not
 	// specific to a single resource
 	iconFileGlobalNames = []string{"icon.svg", "icon.png", "icon.jpg", "icon.jpeg", "icon.gif"}
@@ -456,8 +453,6 @@ func NewStackPackage(baseDir string) *StackPackage {
 // baseDir is expected to be an absolute path, i.e. have a root to the path,
 // at the very least "/".
 func Unpack(rw walker.ResourceWalker, out io.StringWriter, baseDir string, permissionScope string) error {
-	log.V(logging.Debug).Info("Unpacking stack")
-
 	sp := NewStackPackage(filepath.Clean(baseDir))
 
 	rw.AddStep(appFileName, appStep(sp))

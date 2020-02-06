@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -54,7 +53,7 @@ import (
 //   and the contents of the stack. The outputs are the resources to apply.
 type RenderPhaseReconciler struct {
 	Client     client.Client
-	Log        logr.Logger
+	Log        logging.Logger
 	GVK        *schema.GroupVersionKind
 	EventName  string
 	ConfigName types.NamespacedName
@@ -99,7 +98,7 @@ func (r *RenderPhaseReconciler) render(ctx context.Context, claim *unstructured.
 
 	if trb == nil {
 		// TODO error condition with a real error returned
-		r.Log.V(logging.Debug).Info("Couldn't find a configured behavior!",
+		r.Log.Debug("Couldn't find a configured behavior!",
 			"claim", claim,
 			"configuration", cfg,
 		)
@@ -117,7 +116,7 @@ func (r *RenderPhaseReconciler) render(ctx context.Context, claim *unstructured.
 		if engineType == engines.Helm2EngineType {
 			engineRunner = engines.NewHelm2EngineRunner(r.Log)
 		} else {
-			r.Log.V(logging.Debug).Info("Unrecognized engine type! Skipping hook.", "claim", claim, "hookConfig", hookCfg)
+			r.Log.Debug("Unrecognized engine type! Skipping hook.", "claim", claim, "hookConfig", hookCfg)
 			continue
 		}
 
@@ -126,13 +125,13 @@ func (r *RenderPhaseReconciler) render(ctx context.Context, claim *unstructured.
 		// engineCfg, err := r.createBehaviorEngineConfiguration(ctx, claim, &hookCfg)
 
 		if err != nil {
-			r.Log.Error(err, "Error creating engine configuration!", "claim", claim, "hookConfig", hookCfg)
+			r.Log.Info("Error creating engine configuration!", "claim", claim, "hookConfig", hookCfg, "error", err)
 			return err
 		}
 
 		err = r.createConfigMap(ctx, cm)
 		if err != nil {
-			r.Log.Error(err, "Error creating config map!", "claim", claim, "hookConfig", hookCfg)
+			r.Log.Info("Error creating config map!", "claim", claim, "hookConfig", hookCfg, "error", err)
 			return err
 		}
 
@@ -154,7 +153,7 @@ func (r *RenderPhaseReconciler) render(ctx context.Context, claim *unstructured.
 func (r *RenderPhaseReconciler) createConfigMap(ctx context.Context, cm *corev1.ConfigMap) error {
 	if err := r.Client.Create(ctx, cm); err != nil {
 		if kerrors.IsAlreadyExists(err) {
-			r.Log.V(logging.Debug).Info("Config map already exists! Ignoring error", "configMap", cm)
+			r.Log.Debug("Config map already exists! Ignoring error", "configMap", cm)
 		} else {
 			// One might consider logging an error here, but the logging is handled at a higher level
 			// where more context can be logged.
@@ -176,11 +175,11 @@ func (r *RenderPhaseReconciler) getStackConfiguration(
 	sc := &v1alpha1.StackConfiguration{}
 	if err := r.Client.Get(ctx, r.ConfigName, sc); err != nil {
 		// TODO if the error is that the config no longer exists, we may want to kill this controller. But, maybe that'll be handled at a different level.
-		r.Log.Info("getStackConfiguration returning early because of error fetching configuration", "err", err, "claim", claim)
+		r.Log.Info("getStackConfiguration returning early because of error fetching configuration", "error", err, "claim", claim)
 		return nil, err
 	}
 
-	r.Log.V(logging.Debug).Info("getStackConfiguration returning configuration", "configuration", sc)
+	r.Log.Debug("getStackConfiguration returning configuration", "configuration", sc)
 	return sc, nil
 }
 
@@ -236,10 +235,10 @@ func (r *RenderPhaseReconciler) getBehavior(
 		// If no engine is specified at the hook *or* CRD level, we want to use the engine specified at the configuration level.
 		if cfg.Engine.Type == "" {
 			if scb.Engine.Type != "" {
-				r.Log.V(logging.Debug).Info("Inheriting engine for hook from CRD-level behavior configuration", "engineType", scb.Engine.Type)
+				r.Log.Debug("Inheriting engine for hook from CRD-level behavior configuration", "engineType", scb.Engine.Type)
 				cfg.Engine.Type = scb.Engine.Type
 			} else {
-				r.Log.V(logging.Debug).Info("Inheriting engine for hook from top-level behavior configuration", "engineType", sc.Spec.Behaviors.Engine.Type)
+				r.Log.Debug("Inheriting engine for hook from top-level behavior configuration", "engineType", sc.Spec.Behaviors.Engine.Type)
 				cfg.Engine.Type = sc.Spec.Behaviors.Engine.Type
 			}
 		}
@@ -247,7 +246,7 @@ func (r *RenderPhaseReconciler) getBehavior(
 		resolvedCfgs = append(resolvedCfgs, cfg)
 	}
 
-	r.Log.V(logging.Debug).Info("Returning hook configurations", "hook configurations", resolvedCfgs)
+	r.Log.Debug("Returning hook configurations", "hook configurations", resolvedCfgs)
 
 	return resolvedCfgs
 }

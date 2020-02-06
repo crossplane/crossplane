@@ -30,7 +30,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplaneio/crossplane-runtime/pkg/test"
-	"github.com/crossplaneio/crossplane-runtime/pkg/util"
 )
 
 var (
@@ -62,6 +61,8 @@ func TestExecutorInfoImage(t *testing.T) {
 }
 
 func TestExecutorInfoDiscoverer_Discover(t *testing.T) {
+	err := errors.New("error")
+
 	type want struct {
 		ei  *ExecutorInfo
 		err error
@@ -78,13 +79,13 @@ func TestExecutorInfoDiscoverer_Discover(t *testing.T) {
 			d: &KubeExecutorInfoDiscoverer{
 				Client: &test.MockClient{
 					MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
-						return errors.New("test-get-pod-error")
+						return err
 					},
 				},
 			},
 			want: want{
 				ei:  nil,
-				err: errors.New("test-get-pod-error"),
+				err: errors.Wrap(err, "failed to get running pod"),
 			},
 		},
 		{
@@ -99,7 +100,7 @@ func TestExecutorInfoDiscoverer_Discover(t *testing.T) {
 			},
 			want: want{
 				ei:  nil,
-				err: errors.New("failed to find image for container "),
+				err: errors.Wrap(errors.New("failed to find image for container "), "failed to get image for pod"),
 			},
 		},
 		{
@@ -146,8 +147,8 @@ func TestExecutorInfoDiscoverer_Discover(t *testing.T) {
 			initialEnvVars := saveEnvVars()
 			defer restoreEnvVars(initialEnvVars)
 
-			os.Setenv(util.PodNameEnvVar, "podName")
-			os.Setenv(util.PodNamespaceEnvVar, "podNamespace")
+			os.Setenv(PodNameEnvVar, "podName")
+			os.Setenv(PodNamespaceEnvVar, "podNamespace")
 			os.Setenv(PodImageNameEnvVar, tt.imageName)
 
 			got, gotErr := tt.d.Discover(ctx)
@@ -170,12 +171,12 @@ type envvars struct {
 
 func saveEnvVars() envvars {
 	return envvars{
-		podName:      os.Getenv(util.PodNameEnvVar),
-		podNamespace: os.Getenv(util.PodNamespaceEnvVar),
+		podName:      os.Getenv(PodNameEnvVar),
+		podNamespace: os.Getenv(PodNamespaceEnvVar),
 	}
 }
 
 func restoreEnvVars(initialEnvVars envvars) {
-	os.Setenv(util.PodNameEnvVar, initialEnvVars.podName)
-	os.Setenv(util.PodNamespaceEnvVar, initialEnvVars.podNamespace)
+	os.Setenv(PodNameEnvVar, initialEnvVars.podName)
+	os.Setenv(PodNamespaceEnvVar, initialEnvVars.podNamespace)
 }

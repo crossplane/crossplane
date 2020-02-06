@@ -41,6 +41,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
 	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 	"github.com/crossplaneio/crossplane/apis/workload/v1alpha1"
 )
@@ -1298,6 +1299,7 @@ func TestReconcile(t *testing.T) {
 						return kerrors.NewNotFound(schema.GroupResource{}, key.Name)
 					},
 				},
+				log: logging.NewNopLogger(),
 			},
 			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
 			wantResult: reconcile.Result{Requeue: false},
@@ -1307,6 +1309,7 @@ func TestReconcile(t *testing.T) {
 			name: "FailedToGetExtantKAR",
 			rec: &Reconciler{
 				kube: &test.MockClient{MockGet: test.NewMockGetFn(errorBoom)},
+				log:  logging.NewNopLogger(),
 			},
 			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
 			wantResult: reconcile.Result{Requeue: false},
@@ -1335,6 +1338,7 @@ func TestReconcile(t *testing.T) {
 						return nil
 					},
 				},
+				log: logging.NewNopLogger(),
 			},
 			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
 			wantResult: reconcile.Result{Requeue: true},
@@ -1361,6 +1365,7 @@ func TestReconcile(t *testing.T) {
 						return nil
 					},
 				},
+				log: logging.NewNopLogger(),
 			},
 			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
 			wantResult: reconcile.Result{Requeue: false},
@@ -1376,6 +1381,7 @@ func TestReconcile(t *testing.T) {
 					},
 					MockUpdate: test.NewMockUpdateFn(nil),
 				},
+				log: logging.NewNopLogger(),
 			},
 			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
 			wantResult: reconcile.Result{Requeue: false},
@@ -1391,6 +1397,7 @@ func TestReconcile(t *testing.T) {
 					},
 					MockUpdate: test.NewMockUpdateFn(errorBoom),
 				},
+				log: logging.NewNopLogger(),
 			},
 			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
 			wantResult: reconcile.Result{Requeue: false},
@@ -1401,6 +1408,7 @@ func TestReconcile(t *testing.T) {
 			rec: &Reconciler{
 				connecter: &mockConnecter{mockConnect: newMockConnectFn(noopSyncDeleter, nil)},
 				kube:      &test.MockClient{MockGet: test.NewMockGetFn(nil), MockUpdate: test.NewMockUpdateFn(nil)},
+				log:       logging.NewNopLogger(),
 			},
 			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
 			wantResult: reconcile.Result{Requeue: false},
@@ -1410,6 +1418,7 @@ func TestReconcile(t *testing.T) {
 			rec: &Reconciler{
 				connecter: &mockConnecter{mockConnect: newMockConnectFn(noopSyncDeleter, nil)},
 				kube:      &test.MockClient{MockGet: test.NewMockGetFn(nil), MockUpdate: test.NewMockUpdateFn(errorBoom)},
+				log:       logging.NewNopLogger(),
 			},
 			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
 			wantResult: reconcile.Result{Requeue: false},
@@ -1448,6 +1457,7 @@ func TestGetConnectionSecrets(t *testing.T) {
 						return nil
 					},
 				},
+				log: logging.NewNopLogger(),
 			},
 			ar: kubeAR(
 				withSecrets(secretLocalObjectRef),
@@ -1461,6 +1471,7 @@ func TestGetConnectionSecrets(t *testing.T) {
 			name: "Failed",
 			rec: &Reconciler{
 				kube: &test.MockClient{MockGet: test.NewMockGetFn(errorBoom)},
+				log:  logging.NewNopLogger(),
 			},
 			ar: kubeAR(
 				withSecrets(secretLocalObjectRef),

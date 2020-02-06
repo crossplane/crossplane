@@ -19,32 +19,25 @@ package workload
 import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
+	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
+
 	"github.com/crossplaneio/crossplane/pkg/controller/workload/kubernetes/application"
 	"github.com/crossplaneio/crossplane/pkg/controller/workload/kubernetes/resource"
 	"github.com/crossplaneio/crossplane/pkg/controller/workload/kubernetes/scheduler"
 	"github.com/crossplaneio/crossplane/pkg/controller/workload/kubernetes/target"
 )
 
-// Controllers passes down config and adds individual controllers to the manager.
-type Controllers struct{}
-
-// SetupWithManager adds all workload controllers to the manager.
-func (c *Controllers) SetupWithManager(mgr ctrl.Manager) error {
-	if err := (&application.Controller{}).SetupWithManager(mgr); err != nil {
-		return err
+// Setup workload controllers.
+func Setup(mgr ctrl.Manager, l logging.Logger) error {
+	for _, setup := range []func(ctrl.Manager, logging.Logger) error{
+		application.Setup,
+		resource.Setup,
+		scheduler.Setup,
+		target.Setup,
+	} {
+		if err := setup(mgr, l); err != nil {
+			return err
+		}
 	}
-
-	if err := (&resource.Controller{}).SetupWithManager(mgr); err != nil {
-		return err
-	}
-
-	if err := (&scheduler.Controller{}).SetupWithManager(mgr); err != nil {
-		return err
-	}
-
-	if err := (&target.Controller{}).SetupWithManager(mgr); err != nil {
-		return err
-	}
-
 	return nil
 }

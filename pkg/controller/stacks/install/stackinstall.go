@@ -23,8 +23,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/crossplaneio/crossplane/pkg/controller/stacks/stack"
-
 	"github.com/pkg/errors"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -52,7 +50,6 @@ const (
 )
 
 var (
-	log              = logging.Logger.WithName("stackinstall.stacks.crossplane.io")
 	resultRequeue    = reconcile.Result{Requeue: true}
 	requeueOnSuccess = reconcile.Result{RequeueAfter: requeueAfterOnSuccess}
 )
@@ -72,49 +69,86 @@ type k8sClients struct {
 type Reconciler struct {
 	sync.Mutex
 	k8sClients
-	hostedConfig *hosted.Config
-	stackinator  func() v1alpha1.StackInstaller
-	factory
+	hostedConfig           *hosted.Config
+	stackinator            func() v1alpha1.StackInstaller
 	executorInfoDiscoverer stacks.ExecutorInfoDiscoverer
+	log                    logging.Logger
+
+	factory
 }
 
-// Controller is responsible for adding the StackInstall
-// controller and its corresponding reconciler to the manager with any runtime configuration.
-type Controller struct {
-	StackInstallCreator func() (string, func() v1alpha1.StackInstaller)
-}
+// SetupClusterStackInstall adds a controller that reconciles
+// ClusterStackInstalls.
+func SetupClusterStackInstall(mgr ctrl.Manager, l logging.Logger, hostControllerNamespace string) error {
+	name := "stacks/" + strings.ToLower(v1alpha1.ClusterStackInstallKind)
+	stackinator := func() v1alpha1.StackInstaller { return &v1alpha1.ClusterStackInstall{} }
 
-// SetupWithManager creates a new Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
-// and Start it when the Manager is Started.
-func (c *Controller) SetupWithManager(mgr ctrl.Manager, smo ...stack.SMReconcilerOption) error {
-	controllerName, stackInstaller := c.StackInstallCreator()
+	// Fail early if ClusterStackInstall is not registered with the scheme.
+	stackinator()
 
-	kube := mgr.GetClient()
 	hostKube, hostClient, err := hosted.GetClients()
 	if err != nil {
 		return err
 	}
 
-	discoverer := &stacks.KubeExecutorInfoDiscoverer{Client: hostKube}
+	hc, err := hosted.NewConfigForHost(hostControllerNamespace, mgr.GetConfig().Host)
+	if err != nil {
+		return err
+	}
 
 	r := &Reconciler{
 		k8sClients: k8sClients{
-			kube:       kube,
+			kube:       mgr.GetClient(),
 			hostKube:   hostKube,
 			hostClient: hostClient,
 		},
-		stackinator:            stackInstaller,
+		hostedConfig:           hc,
+		stackinator:            stackinator,
 		factory:                &handlerFactory{},
-		executorInfoDiscoverer: discoverer,
-	}
-
-	for _, opt := range smo {
-		opt(r)
+		executorInfoDiscoverer: &stacks.KubeExecutorInfoDiscoverer{Client: hostKube},
+		log:                    l.WithValues("controller", name),
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		Named(controllerName).
-		For(stackInstaller()).
+		Named(name).
+		For(&v1alpha1.ClusterStackInstall{}).
+		Complete(r)
+}
+
+// SetupStackInstall adds a controller that reconciles StackInstalls.
+func SetupStackInstall(mgr ctrl.Manager, l logging.Logger, hostControllerNamespace string) error {
+	name := "stacks/" + strings.ToLower(v1alpha1.StackInstallKind)
+	stackinator := func() v1alpha1.StackInstaller { return &v1alpha1.StackInstall{} }
+
+	// Fail early if StackInstall is not registered with the scheme.
+	stackinator()
+
+	hostKube, hostClient, err := hosted.GetClients()
+	if err != nil {
+		return err
+	}
+
+	hc, err := hosted.NewConfigForHost(hostControllerNamespace, mgr.GetConfig().Host)
+	if err != nil {
+		return err
+	}
+
+	r := &Reconciler{
+		k8sClients: k8sClients{
+			kube:       mgr.GetClient(),
+			hostKube:   hostKube,
+			hostClient: hostClient,
+		},
+		hostedConfig:           hc,
+		stackinator:            stackinator,
+		factory:                &handlerFactory{},
+		executorInfoDiscoverer: &stacks.KubeExecutorInfoDiscoverer{Client: hostKube},
+		log:                    l.WithValues("controller", name),
+	}
+
+	return ctrl.NewControllerManagedBy(mgr).
+		Named(name).
+		For(&v1alpha1.StackInstall{}).
 		Complete(r)
 }
 
@@ -122,7 +156,7 @@ func (c *Controller) SetupWithManager(mgr ctrl.Manager, smo ...stack.SMReconcile
 // and what is in the Instance.Spec
 func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) {
 	stackInstaller := r.stackinator()
-	log.V(logging.Debug).Info("reconciling", "kind", stackInstaller.GroupVersionKind(), "request", req)
+	r.log.Debug("Reconciling", "request", req)
 
 	ctx, cancel := context.WithTimeout(context.Background(), reconcileTimeout)
 	defer cancel()
@@ -140,7 +174,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return fail(ctx, r.kube, stackInstaller, err)
 	}
 
-	handler := r.factory.newHandler(ctx, stackInstaller, k8sClients{
+	handler := r.factory.newHandler(r.log, stackInstaller, k8sClients{
 		kube:       r.kube,
 		hostKube:   r.hostKube,
 		hostClient: r.hostClient,
@@ -151,11 +185,6 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	}
 
 	return handler.sync(ctx)
-}
-
-// SetHostedConfig sets host aware config for Reconciler
-func (r *Reconciler) SetHostedConfig(cfg *hosted.Config) {
-	r.hostedConfig = cfg
 }
 
 // handler is an interface for handling reconciliation requests
@@ -174,17 +203,17 @@ type stackInstallHandler struct {
 	jobCompleter    jobCompleter
 	executorInfo    *stacks.ExecutorInfo
 	ext             v1alpha1.StackInstaller
+	log             logging.Logger
 }
 
 // factory is an interface for creating new handlers
 type factory interface {
-	newHandler(context.Context, v1alpha1.StackInstaller, k8sClients, *hosted.Config, *stacks.ExecutorInfo) handler
+	newHandler(logging.Logger, v1alpha1.StackInstaller, k8sClients, *hosted.Config, *stacks.ExecutorInfo) handler
 }
 
 type handlerFactory struct{}
 
-func (f *handlerFactory) newHandler(ctx context.Context, ext v1alpha1.StackInstaller, k8s k8sClients, hostAwareConfig *hosted.Config,
-	ei *stacks.ExecutorInfo) handler {
+func (f *handlerFactory) newHandler(log logging.Logger, ext v1alpha1.StackInstaller, k8s k8sClients, hostAwareConfig *hosted.Config, ei *stacks.ExecutorInfo) handler {
 
 	return &stackInstallHandler{
 		ext:             ext,
@@ -198,7 +227,9 @@ func (f *handlerFactory) newHandler(ctx context.Context, ext v1alpha1.StackInsta
 			podLogReader: &K8sReader{
 				Client: k8s.hostClient,
 			},
+			log: log,
 		},
+		log: log,
 	}
 }
 
@@ -241,7 +272,7 @@ func (h *stackInstallHandler) create(ctx context.Context) (reconcile.Result, err
 		// Save a reference to the install job we just created
 		h.ext.SetInstallJob(jobRef)
 		h.ext.SetConditions(runtimev1alpha1.ReconcileSuccess())
-		log.V(logging.Debug).Info("created install job", "jobRef", jobRef, "jobOwnerRefs", job.OwnerReferences)
+		h.log.Debug("created install job", "jobRef", jobRef, "jobOwnerRefs", job.OwnerReferences)
 
 		return requeueOnSuccess, h.kube.Status().Update(ctx, h.ext)
 	}
@@ -253,7 +284,7 @@ func (h *stackInstallHandler) create(ctx context.Context) (reconcile.Result, err
 		return fail(ctx, h.kube, h.ext, err)
 	}
 
-	log.V(logging.Debug).Info(
+	h.log.Debug(
 		"checking install job status",
 		"job", fmt.Sprintf("%s/%s", job.Namespace, job.Name),
 		"conditions", job.Status.Conditions)
@@ -279,7 +310,7 @@ func (h *stackInstallHandler) create(ctx context.Context) (reconcile.Result, err
 
 	// the job hasn't completed yet, so requeue and check again next time
 	h.ext.SetConditions(runtimev1alpha1.ReconcileSuccess())
-	log.V(logging.Debug).Info("install job not complete", "job", fmt.Sprintf("%s/%s", job.Namespace, job.Name))
+	h.log.Debug("install job not complete", "job", fmt.Sprintf("%s/%s", job.Namespace, job.Name))
 
 	return requeueOnSuccess, h.kube.Status().Update(ctx, h.ext)
 }
@@ -289,7 +320,7 @@ func (h *stackInstallHandler) update(ctx context.Context) (reconcile.Result, err
 	// changed the package they wanted installed? Shouldn't they delete the StackInstall and
 	// create a new one?
 	groupversion, kind := h.ext.GroupVersionKind().ToAPIVersionAndKind()
-	log.V(logging.Debug).Info("updating not supported yet", strings.ToLower(kind)+"."+groupversion, fmt.Sprintf("%s/%s", h.ext.GetNamespace(), h.ext.GetName()))
+	h.log.Debug("updating not supported yet", strings.ToLower(kind)+"."+groupversion, fmt.Sprintf("%s/%s", h.ext.GetNamespace(), h.ext.GetName()))
 	return reconcile.Result{}, nil
 }
 
@@ -348,7 +379,6 @@ func (h *stackInstallHandler) delete(ctx context.Context) (reconcile.Result, err
 
 // fail - helper function to set fail condition with reason and message
 func fail(ctx context.Context, kube client.StatusClient, i v1alpha1.StackInstaller, err error) (reconcile.Result, error) {
-	log.V(logging.Debug).Info("failed stack install", "i", i.GetName(), "error", err)
 	i.SetConditions(runtimev1alpha1.ReconcileError(err))
 	return resultRequeue, kube.Status().Update(ctx, i)
 }

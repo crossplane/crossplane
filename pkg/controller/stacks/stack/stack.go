@@ -19,6 +19,7 @@ package stack
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -45,7 +46,6 @@ import (
 )
 
 const (
-	controllerName  = "stack.stacks.crossplane.io"
 	stacksFinalizer = "finalizer.stacks.crossplane.io"
 
 	reconcileTimeout      = 1 * time.Minute
@@ -71,7 +71,6 @@ const (
 )
 
 var (
-	log              = logging.Logger.WithName(controllerName)
 	resultRequeue    = reconcile.Result{Requeue: true}
 	requeueOnSuccess = reconcile.Result{RequeueAfter: requeueAfterOnSuccess}
 
@@ -92,48 +91,34 @@ type Reconciler struct {
 	// stack controller deployments/jobs created.
 	hostKube     client.Client
 	hostedConfig *hosted.Config
+	log          logging.Logger
 	factory
 }
 
-// SMReconciler (Stack Manager Reconciler) reconciles on Stack, StackInstall or ClusterStackInstall custom resources.
-type SMReconciler interface {
-	SetHostedConfig(cfg *hosted.Config)
-}
+// Setup adds a controller that reconciles Stacks.
+func Setup(mgr ctrl.Manager, l logging.Logger, hostControllerNamespace string) error {
+	name := "stacks/" + strings.ToLower(v1alpha1.StackKind)
 
-// SMReconcilerOption is used to configure a SMReconciler
-type SMReconcilerOption func(r SMReconciler)
-
-// WithHostedConfig returns a SMReconcilerOption configuring SMReconciler with input host aware config
-func WithHostedConfig(hCfg *hosted.Config) SMReconcilerOption {
-	return func(r SMReconciler) {
-		r.SetHostedConfig(hCfg)
-	}
-}
-
-// Controller is responsible for adding the Stack
-// controller and its corresponding reconciler to the manager with any runtime configuration.
-type Controller struct{}
-
-// SetupWithManager creates a new Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
-// and Start it when the Manager is Started.
-func (c *Controller) SetupWithManager(mgr ctrl.Manager, smo ...SMReconcilerOption) error {
 	hostKube, _, err := hosted.GetClients()
 	if err != nil {
 		return err
 	}
 
-	r := &Reconciler{
-		kube:     mgr.GetClient(),
-		hostKube: hostKube,
-		factory:  &stackHandlerFactory{},
+	hc, err := hosted.NewConfigForHost(hostControllerNamespace, mgr.GetConfig().Host)
+	if err != nil {
+		return err
 	}
 
-	for _, opt := range smo {
-		opt(r)
+	r := &Reconciler{
+		kube:         mgr.GetClient(),
+		hostKube:     hostKube,
+		hostedConfig: hc,
+		factory:      &stackHandlerFactory{},
+		log:          l.WithValues("controller", name),
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		Named(controllerName).
+		Named(name).
 		For(&v1alpha1.Stack{}).
 		Complete(r)
 }
@@ -141,7 +126,7 @@ func (c *Controller) SetupWithManager(mgr ctrl.Manager, smo ...SMReconcilerOptio
 // Reconcile reads that state of the Stack for a Instance object and makes changes based on the state read
 // and what is in the Instance.Spec
 func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) {
-	log.V(logging.Debug).Info("reconciling", "kind", v1alpha1.StackKindAPIVersion, "request", req)
+	r.log.Debug("Reconciling", "request", req)
 
 	ctx, cancel := context.WithTimeout(context.Background(), reconcileTimeout)
 	defer cancel()
@@ -155,18 +140,13 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{}, err
 	}
 
-	handler := r.factory.newHandler(ctx, i, r.kube, r.hostKube, r.hostedConfig)
+	handler := r.factory.newHandler(r.log, i, r.kube, r.hostKube, r.hostedConfig)
 
 	if meta.WasDeleted(i) {
 		return handler.delete(ctx)
 	}
 
 	return handler.sync(ctx)
-}
-
-// SetHostedConfig sets host aware config for Reconciler
-func (r *Reconciler) SetHostedConfig(cfg *hosted.Config) {
-	r.hostedConfig = cfg
 }
 
 type handler interface {
@@ -184,20 +164,22 @@ type stackHandler struct {
 	hostKube        client.Client
 	hostAwareConfig *hosted.Config
 	ext             *v1alpha1.Stack
+	log             logging.Logger
 }
 
 type factory interface {
-	newHandler(context.Context, *v1alpha1.Stack, client.Client, client.Client, *hosted.Config) handler
+	newHandler(logging.Logger, *v1alpha1.Stack, client.Client, client.Client, *hosted.Config) handler
 }
 
 type stackHandlerFactory struct{}
 
-func (f *stackHandlerFactory) newHandler(ctx context.Context, ext *v1alpha1.Stack, kube client.Client, hostKube client.Client, hostAwareConfig *hosted.Config) handler {
+func (f *stackHandlerFactory) newHandler(log logging.Logger, ext *v1alpha1.Stack, kube client.Client, hostKube client.Client, hostAwareConfig *hosted.Config) handler {
 	return &stackHandler{
 		kube:            kube,
 		hostKube:        hostKube,
 		hostAwareConfig: hostAwareConfig,
 		ext:             ext,
+		log:             log,
 	}
 }
 
@@ -220,20 +202,24 @@ func (h *stackHandler) create(ctx context.Context) (reconcile.Result, error) {
 	patchCopy := h.ext.DeepCopy()
 	meta.AddFinalizer(h.ext, stacksFinalizer)
 	if err := h.kube.Patch(ctx, h.ext, client.MergeFrom(patchCopy)); err != nil {
+		h.log.Debug("failed to add finalizer", "error", err)
 		return fail(ctx, h.kube, h.ext, err)
 	}
 
 	// create RBAC permissions
 	if err := h.processRBAC(ctx); err != nil {
+		h.log.Debug("failed to create RBAC permissions", "error", err)
 		return fail(ctx, h.kube, h.ext, err)
 	}
 
 	// create controller deployment or job
 	if err := h.processDeployment(ctx); err != nil {
+		h.log.Debug("failed to create deployment", "error", err)
 		return fail(ctx, h.kube, h.ext, err)
 	}
 
 	if err := h.processJob(ctx); err != nil {
+		h.log.Debug("failed to create job", "error", err)
 		return fail(ctx, h.kube, h.ext, err)
 	}
 
@@ -243,7 +229,6 @@ func (h *stackHandler) create(ctx context.Context) (reconcile.Result, error) {
 }
 
 func (h *stackHandler) update(ctx context.Context) (reconcile.Result, error) {
-	log.V(logging.Debug).Info("updating not supported yet", "stack", h.ext.Name)
 	return reconcile.Result{}, nil
 }
 
@@ -801,43 +786,37 @@ func (h *stackHandler) processJob(ctx context.Context) error {
 // This function ensures that all the resources (ClusterRoles,
 // ClusterRoleBindings) that this Stack owns are also cleaned up.
 func (h *stackHandler) delete(ctx context.Context) (reconcile.Result, error) {
-	log.V(logging.Debug).Info("deleting stack", "namespace", h.ext.GetNamespace(), "name", h.ext.GetName())
+	h.log.Debug("deleting stack", "namespace", h.ext.GetNamespace(), "name", h.ext.GetName())
 
 	labels := stacks.ParentLabels(h.ext)
-
 	stackControllerNamespace := h.ext.GetNamespace()
 	if h.hostAwareConfig != nil {
 		stackControllerNamespace = h.hostAwareConfig.HostControllerNamespace
 	}
 
-	log.V(logging.Debug).Info("deleting stack controller deployment", "namespace", h.ext.GetNamespace(), "name", h.ext.GetName())
-
 	if err := h.hostKube.DeleteAllOf(ctx, &apps.Deployment{}, client.MatchingLabels(labels), client.InNamespace(stackControllerNamespace)); runtimeresource.IgnoreNotFound(err) != nil {
+		h.log.Debug("deleting stack controller deployment", "namespace", h.ext.GetNamespace(), "name", h.ext.GetName())
 		return fail(ctx, h.kube, h.ext, err)
 	}
-
-	log.V(logging.Debug).Info("deleting stack controller jobs", "namespace", h.ext.GetNamespace(), "name", h.ext.GetName())
 
 	if err := h.hostKube.DeleteAllOf(ctx, &batch.Job{}, client.MatchingLabels(labels), client.InNamespace(stackControllerNamespace)); runtimeresource.IgnoreNotFound(err) != nil {
+		h.log.Debug("deleting stack controller jobs", "namespace", h.ext.GetNamespace(), "name", h.ext.GetName())
 		return fail(ctx, h.kube, h.ext, err)
 	}
-
-	log.V(logging.Debug).Info("deleting stack clusterroles", "namespace", h.ext.GetNamespace(), "name", h.ext.GetName())
 
 	if err := h.kube.DeleteAllOf(ctx, &rbacv1.ClusterRole{}, client.MatchingLabels(labels)); runtimeresource.IgnoreNotFound(err) != nil {
+		h.log.Debug("failed to delete stack clusterroles", "error", err, "namespace", h.ext.GetNamespace(), "name", h.ext.GetName())
 		return fail(ctx, h.kube, h.ext, err)
 	}
-
-	log.V(logging.Debug).Info("deleting stack clusterrolebindings", "namespace", h.ext.GetNamespace(), "name", h.ext.GetName())
 
 	if err := h.kube.DeleteAllOf(ctx, &rbacv1.ClusterRoleBinding{}, client.MatchingLabels(labels)); runtimeresource.IgnoreNotFound(err) != nil {
+		h.log.Debug("failed to delete stack clusterrolebindings", "error", err, "namespace", h.ext.GetNamespace(), "name", h.ext.GetName())
 		return fail(ctx, h.kube, h.ext, err)
 	}
-
-	log.V(logging.Debug).Info("removing stack finalizer", "namespace", h.ext.GetNamespace(), "name", h.ext.GetName())
 
 	meta.RemoveFinalizer(h.ext, stacksFinalizer)
 	if err := h.kube.Update(ctx, h.ext); err != nil {
+		h.log.Debug("failed to remove stack finalizer", "error", err, "namespace", h.ext.GetNamespace(), "name", h.ext.GetName())
 		return fail(ctx, h.kube, h.ext, err)
 	}
 
@@ -846,8 +825,6 @@ func (h *stackHandler) delete(ctx context.Context) (reconcile.Result, error) {
 
 // fail - helper function to set fail condition with reason and message
 func fail(ctx context.Context, kube client.StatusClient, i *v1alpha1.Stack, err error) (reconcile.Result, error) {
-	log.V(logging.Debug).Info("failed to reconcile Stack", "namespace", i.GetNamespace(), "name", i.GetName(), "error", err)
-
 	i.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
 	return resultRequeue, kube.Status().Update(ctx, i)
 }

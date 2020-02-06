@@ -17,69 +17,53 @@ limitations under the License.
 package main
 
 import (
-	"io"
 	"os"
 	"path/filepath"
-	"time"
 
-	"github.com/go-logr/logr"
 	"github.com/spf13/afero"
 	"gopkg.in/alecthomas/kingpin.v2"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"sigs.k8s.io/controller-runtime/pkg/client/config"
-	runtimelog "sigs.k8s.io/controller-runtime/pkg/log"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
 
 	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
 	"github.com/crossplaneio/crossplane/apis"
-	stacksController "github.com/crossplaneio/crossplane/pkg/controller/stacks"
-	templatesController "github.com/crossplaneio/crossplane/pkg/controller/stacks/templates"
+	"github.com/crossplaneio/crossplane/pkg/controller/stacks"
+	"github.com/crossplaneio/crossplane/pkg/controller/stacks/templates"
 	"github.com/crossplaneio/crossplane/pkg/controller/workload"
-	"github.com/crossplaneio/crossplane/pkg/stacks"
+	stack "github.com/crossplaneio/crossplane/pkg/stacks"
 	"github.com/crossplaneio/crossplane/pkg/stacks/walker"
-)
-
-var (
-	log = logging.Logger
 )
 
 func main() {
 	var (
-		// top level app definition
 		app        = kingpin.New(filepath.Base(os.Args[0]), "An open source multicloud control plane.").DefaultEnvars()
 		debug      = app.Flag("debug", "Run with debug logging.").Short('d').Bool()
-		syncPeriod = app.Flag("sync", "Controller manager sync period duration such as 300ms, 1.5h or 2h45m").
-				Short('s').Default("1h").Duration()
+		syncPeriod = app.Flag("sync", "Controller manager sync period duration such as 300ms, 1.5h or 2h45m").Short('s').Default("1h").Duration()
 
-		// default crossplane command and args, this is the default main entry point for Crossplane's
-		// multi-cloud control plane functionality
-		crossplaneCmd = app.Command(filepath.Base(os.Args[0]), "An open source multicloud control plane.").Default()
+		crossplaneCmd = app.Command(filepath.Base(os.Args[0]), "Start core Crossplane controllers.").Default()
 
-		// stacks  commands and args, these are the main entry points for Crossplane's stack manager (SM).
-		// The SM runs as a separate pod from the main Crossplane pod because in order to install stacks that
-		// have arbitrary permissions, the SM itself must have cluster-admin permissions.  We isolate these elevated
-		// permissions as much as possible by running the Crossplane stack manager in its own isolate deployment.
 		extCmd = app.Command("stack", "Perform operations on stacks")
 
-		// stack manage - adds the stack manager controllers and starts their reconcile loops
-		extManageCmd                     = extCmd.Command("manage", "Manage stacks (run stack manager controllers)")
-		supportTemplates                 = extManageCmd.Flag("templates", "Enable support for template stacks").Bool()
+		// The stack manager runs as a separate pod from the core Crossplane
+		// controllers because in order to install stacks that have arbitrary
+		// permissions, the SM itself must have cluster-admin permissions. We
+		// isolate these elevated permissions as much as possible by running the
+		// Crossplane stack manager in its own isolated deployment.
+		extManageCmd                     = extCmd.Command("manage", "Start Crosplane Stack Manager controllers")
+		extManageSupportTemplates        = extManageCmd.Flag("templates", "Enable support for template stacks").Bool()
 		extManageHostControllerNamespace = extManageCmd.Flag("host-controller-namespace", "The namespace on Host Cluster where install and controller jobs/deployments will be created. Setting this will activate host aware mode of Stack Manager").String()
 		extManageTenantKubeconfig        = extManageCmd.Flag("tenant-kubeconfig", "The absolute path of the kubeconfig file to Tenant Kubernetes instance (required for host aware mode, ignored otherwise).").ExistingFile()
 
-		// stack unpack - performs the unpacking operation for the given stack package content
-		// directory. This command is expected to parse the content and generate manifests for stack
-		// related artifacts to stdout so that the SM can read the output and use the Kubernetes API to
-		// create the artifacts.
-		//
-		// Users are not expected to run this command themselves, the stack manager itself should
-		// execute this command.
-		extUnpackCmd             = extCmd.Command("unpack", "Unpack a stack")
+		// Unpack the given stack package content. This command is expected to
+		// parse the content and generate manifests for stack related artifacts
+		// to stdout so that the SM can read the output and use the Kubernetes
+		// API to create the artifacts. Users are not expected to run this
+		// command themselves, the stack manager itself should execute this
+		// command.
+		extUnpackCmd             = extCmd.Command("unpack", "Unpack a Stack").Alias("unstack")
 		extUnpackDir             = extUnpackCmd.Flag("content-dir", "The absolute path of the directory that contains the stack contents").Required().String()
 		extUnpackOutfile         = extUnpackCmd.Flag("outfile", "The file where the YAML Stack record and CRD artifacts will be written").String()
 		extUnpackPermissionScope = extUnpackCmd.Flag("permission-scope", "The permission-scope that the stack must request (Namespaced, Cluster)").Default("Namespaced").String()
@@ -87,120 +71,79 @@ func main() {
 	cmd := kingpin.MustParse(app.Parse(os.Args[1:]))
 
 	zl := zap.New(zap.UseDevMode(*debug))
-	logging.SetLogger(zl)
 	if *debug {
 		// The controller-runtime runs with a no-op logger by default. It is
 		// *very* verbose even at info level, so we only provide it a real
 		// logger when we're running in debug mode.
-		runtimelog.SetLogger(zl)
+		ctrl.SetLogger(zl)
 	}
 
-	// Determine the command being called and execute the corresponding logic
+	// TODO(negz): Is there a reason these distinct pieces of functionality
+	// should all be part of the same binary? Should we break them up?
 	switch cmd {
+
 	case crossplaneCmd.FullCommand():
-		// the default Crossplane command is being run, add all the regular controllers to the manager
-		mgr := setupManager(log, syncPeriod, "")
+		log := logging.NewLogrLogger(zl.WithName("crossplane"))
+		log.Debug("Starting", "sync-period", syncPeriod.String())
 
-		log.Info("Adding controllers")
-		kingpin.FatalIfError(controllerSetupWithManager(mgr), "Cannot add controllers to manager")
+		cfg, err := ctrl.GetConfig()
+		kingpin.FatalIfError(err, "Cannot get config")
 
-		// Start the Cmd
-		log.Info("Starting the manager")
-		kingpin.FatalIfError(mgr.Start(signals.SetupSignalHandler()), "Cannot start controller")
+		mgr, err := ctrl.NewManager(cfg, ctrl.Options{SyncPeriod: syncPeriod})
+		kingpin.FatalIfError(err, "Cannot create manager")
+
+		kingpin.FatalIfError(apis.AddToScheme(mgr.GetScheme()), "Cannot add core Crossplane APIs to scheme")
+		kingpin.FatalIfError(workload.Setup(mgr, log), "Cannot setup workload controllers")
+		kingpin.FatalIfError(mgr.Start(ctrl.SetupSignalHandler()), "Cannot start controller manager")
+
 	case extManageCmd.FullCommand():
-		// the "stacks manage" command is being run, the only controllers we should add to the
-		// manager are the stacks controllers
+		log := logging.NewLogrLogger(zl.WithName("stack-manager"))
+		log.Debug("Starting", "sync-period", syncPeriod.String())
 
-		mgr := setupManager(log, syncPeriod, *extManageTenantKubeconfig)
+		cfg, err := getRestConfig(*extManageTenantKubeconfig)
+		kingpin.FatalIfError(err, "Cannot get config")
 
-		log.Info("Adding controllers")
-		kingpin.FatalIfError(stacksControllerSetupWithManager(mgr, *extManageHostControllerNamespace), "Cannot add controllers to manager")
+		mgr, err := ctrl.NewManager(cfg, ctrl.Options{SyncPeriod: syncPeriod})
+		kingpin.FatalIfError(err, "Cannot create manager")
 
-		if *supportTemplates {
-			log.Info("Adding template controllers")
-			kingpin.FatalIfError(stacksTemplateControllerSetupWithManager(mgr), "Cannot add template controllers to manager")
+		kingpin.FatalIfError(apis.AddToScheme(mgr.GetScheme()), "Cannot add core Crossplane APIs to scheme")
+		kingpin.FatalIfError(apiextensionsv1beta1.AddToScheme(mgr.GetScheme()), "Cannot add API extensions to scheme")
+		kingpin.FatalIfError(stacks.Setup(mgr, log, *extManageHostControllerNamespace), "Cannot add stacks controllers to manager")
+
+		if *extManageSupportTemplates {
+			kingpin.FatalIfError(templates.SetupStackConfigurations(mgr, log), "Cannot add stack configuration controller to manager")
+			kingpin.FatalIfError(templates.SetupStackDefinitions(mgr, log), "Cannot add stack definition controller to manager")
 		}
 
-		// Start the Cmd
-		log.Info("Starting the manager")
-		kingpin.FatalIfError(mgr.Start(signals.SetupSignalHandler()), "Cannot start controller")
+		kingpin.FatalIfError(mgr.Start(ctrl.SetupSignalHandler()), "Cannot start controller manager")
+
 	case extUnpackCmd.FullCommand():
-		var outFile io.StringWriter
-		// stack unpack command was called, run the stack unpacking logic
-		if extUnpackOutfile == nil || *extUnpackOutfile == "" {
-			outFile = os.Stdout
-		} else {
-			openFile, err := os.Create(*extUnpackOutfile)
-			kingpin.FatalIfError(err, "Cannot create outfile")
-			defer closeOrError(openFile)
-			outFile = openFile
+		log := logging.NewLogrLogger(zl.WithName("stacks"))
+
+		outFile := os.Stdout
+		if *extUnpackOutfile != "" {
+			f, err := os.Create(*extUnpackOutfile)
+			kingpin.FatalIfError(err, "Cannot create output file")
+			defer kingpin.FatalIfError(f.Close(), "Cannot close file")
+			outFile = f
 		}
+		log.Debug("Unpacking stack", "to", outFile.Name())
 
 		// TODO(displague) afero.NewBasePathFs could avoid the need to track Base
 		fs := afero.NewOsFs()
 		rd := &walker.ResourceDir{Base: filepath.Clean(*extUnpackDir), Walker: afero.Afero{Fs: fs}}
-		kingpin.FatalIfError(stacks.Unpack(rd, outFile, rd.Base, *extUnpackPermissionScope), "failed to unpack stacks")
+		kingpin.FatalIfError(stack.Unpack(rd, outFile, rd.Base, *extUnpackPermissionScope), "failed to unpack stacks")
+
 	default:
 		kingpin.FatalUsage("unknown command %s", cmd)
 	}
-
 }
 
-func setupManager(log logr.Logger, syncPeriod *time.Duration, kubeconfig string) manager.Manager {
-	// Get a config to talk to the apiserver
-	restCfg, err := getRestConfig(kubeconfig)
-	kingpin.FatalIfError(err, "Cannot get rest config")
-
-	log.Info("Sync period", "duration", syncPeriod.String())
-
-	// Create a new Cmd to provide shared dependencies and start components
-	mgr, err := manager.New(restCfg, manager.Options{SyncPeriod: syncPeriod})
-	kingpin.FatalIfError(err, "Cannot create manager")
-
-	// add all resources to the manager's runtime scheme
-	log.Info("Adding schemes")
-	kingpin.FatalIfError(addToScheme(mgr.GetScheme()), "Cannot add APIs to scheme")
-
-	return mgr
-}
-
-func closeOrError(c io.Closer) {
-	err := c.Close()
-	kingpin.FatalIfError(err, "Cannot close file")
-}
-
-func controllerSetupWithManager(mgr manager.Manager) error {
-	c := &workload.Controllers{}
-	return c.SetupWithManager(mgr)
-}
-
-func stacksControllerSetupWithManager(mgr manager.Manager, hostControllerNamespace string) error {
-	c := stacksController.Controllers{}
-	return c.SetupWithManager(mgr, hostControllerNamespace)
-}
-
-func stacksTemplateControllerSetupWithManager(mgr manager.Manager) error {
-	c := templatesController.Controllers{}
-	return c.SetupWithManager(mgr)
-}
-
-// addToScheme adds all resources to the runtime scheme.
-func addToScheme(scheme *runtime.Scheme) error {
-	if err := apis.AddToScheme(scheme); err != nil {
-		return err
+func getRestConfig(kubeconfigPath string) (*rest.Config, error) {
+	if kubeconfigPath == "" {
+		return ctrl.GetConfig()
 	}
-
-	if err := apiextensionsv1beta1.AddToScheme(scheme); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func getRestConfig(tenantKubeconfig string) (restCfg *rest.Config, err error) {
-	if tenantKubeconfig != "" {
-		return clientcmd.BuildConfigFromFlags("", tenantKubeconfig)
-	}
-
-	return config.GetConfig()
+	return clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfigPath},
+		&clientcmd.ConfigOverrides{}).ClientConfig()
 }

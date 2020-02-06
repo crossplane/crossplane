@@ -17,28 +17,30 @@ limitations under the License.
 package templates
 
 import (
+	"strings"
+
 	ctrl "sigs.k8s.io/controller-runtime"
+
+	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
+	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
 )
 
-// Controllers passes down config and adds individual controllers to the manager.
-type Controllers struct{}
+// SetupStackConfigurations adds a controller that reconciles StackConfigurations.
+func SetupStackConfigurations(mgr ctrl.Manager, l logging.Logger) error {
+	name := "stacks/" + strings.ToLower(v1alpha1.StackConfigurationKind)
 
-// SetupWithManager adds all Stack controllers to the manager.
-func (c *Controllers) SetupWithManager(mgr ctrl.Manager) error {
-	if err := NewSetupPhaseReconciler(
-		mgr.GetClient(),
-		ctrl.Log.WithName("controllers").WithName("StackConfiguration"),
-		mgr,
-	).SetupWithManager(mgr); err != nil {
-		return err
-	}
+	return ctrl.NewControllerManagedBy(mgr).
+		Named(name).
+		For(&v1alpha1.StackConfiguration{}).
+		Complete(NewSetupPhaseReconciler(mgr, l.WithValues("controller", "stackconfiguration")))
+}
 
-	if err := NewStackDefinitionReconciler(
-		mgr.GetClient(),
-		ctrl.Log.WithName("controllers").WithName("StackDefinition"),
-	).SetupWithManager(mgr); err != nil {
-		return err
-	}
+// SetupStackDefinitions adds a controller that reconciles StackDefinitions.
+func SetupStackDefinitions(mgr ctrl.Manager, l logging.Logger) error {
+	name := "stacks/" + strings.ToLower(v1alpha1.StackDefinitionKind)
 
-	return nil
+	return ctrl.NewControllerManagedBy(mgr).
+		Named(name).
+		For(&v1alpha1.StackDefinition{}).
+		Complete(NewStackDefinitionReconciler(mgr.GetClient(), l.WithValues("controller", "stackconfiguration")))
 }

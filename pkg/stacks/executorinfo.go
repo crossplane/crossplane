@@ -21,6 +21,7 @@ import (
 	"os"
 	"sync"
 
+	"github.com/pkg/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -63,12 +64,12 @@ func (eif *KubeExecutorInfoDiscoverer) Discover(ctx context.Context) (*ExecutorI
 		return &ExecutorInfo{Image: image}, nil
 	}
 
-	if pod, err := GetRunningPod(ctx, eif.Client); err != nil {
-		log.Error(err, "failed to get running pod")
-		return nil, err
-	} else if image, err = GetContainerImage(pod, ""); err != nil {
-		log.Error(err, "failed to get image for pod", "image", image)
-		return nil, err
+	pod, err := GetRunningPod(ctx, eif.Client)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get running pod")
+	}
+	if image, err = GetContainerImage(pod, ""); err != nil {
+		return nil, errors.Wrap(err, "failed to get image for pod")
 	}
 
 	return &ExecutorInfo{Image: image}, nil

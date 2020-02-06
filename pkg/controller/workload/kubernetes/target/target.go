@@ -18,6 +18,7 @@ package target
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -37,15 +38,12 @@ import (
 )
 
 const (
-	controllerName   = "autotarget.workload.crossplane.io"
 	reconcileTimeout = 1 * time.Minute
 
 	errGetKubernetesCluster = "unable to get KubernetesCluster"
 	errCreateOrUpdateTarget = "unable to create or update KubernetesTarget"
 	errTargetConflict       = "cannot establish control of existing KubernetesTarget"
 )
-
-var log = logging.Logger.WithName("controller." + controllerName)
 
 func clusterIsBound(obj runtime.Object) bool {
 	r, ok := obj.(*computev1alpha1.KubernetesCluster)
@@ -56,34 +54,29 @@ func clusterIsBound(obj runtime.Object) bool {
 	return r.GetBindingPhase() == runtimev1alpha1.BindingPhaseBound
 }
 
-// Controller is responsible for adding the KubernetesTarget auto-creation
-// controller and its corresponding reconciler to the manager with any runtime configuration.
-type Controller struct{}
-
-// SetupWithManager creates a new Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
-// and Start it when the Manager is Started.
-func (c *Controller) SetupWithManager(mgr ctrl.Manager) error {
-	r := &Reconciler{
-		kube: mgr.GetClient(),
-	}
-
-	p := resource.NewPredicates(clusterIsBound)
+// Setup adds a controller that creates KubernetesTargets for
+// KubernetesClusters.
+func Setup(mgr ctrl.Manager, l logging.Logger) error {
+	name := "autotarget/" + strings.ToLower(computev1alpha1.KubernetesClusterKind)
 
 	return ctrl.NewControllerManagedBy(mgr).
-		Named(controllerName).
+		Named(name).
 		For(&computev1alpha1.KubernetesCluster{}).
-		WithEventFilter(p).
-		Complete(r)
+		WithEventFilter(resource.NewPredicates(clusterIsBound)).
+		Complete(&Reconciler{
+			kube: mgr.GetClient(),
+			log:  l.WithValues("controller", name)})
 }
 
 // A Reconciler creates KubernetesTargets for KubernetesClusters.
 type Reconciler struct {
 	kube client.Client
+	log  logging.Logger
 }
 
 // Reconcile attempts to create a KubernetesTarget for a KubernetesCluster.
 func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) {
-	log.V(logging.Debug).Info("reconciling", "kind", workloadv1alpha1.KubernetesTargetKindAPIVersion, "request", req)
+	r.log.Debug("Reconciling", "request", req)
 
 	ctx, cancel := context.WithTimeout(context.Background(), reconcileTimeout)
 	defer cancel()
