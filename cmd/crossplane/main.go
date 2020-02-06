@@ -127,7 +127,7 @@ func main() {
 			defer kingpin.FatalIfError(f.Close(), "Cannot close file")
 			outFile = f
 		}
-		log.Info("Unpacking stack", "to", outFile.Name())
+		log.Debug("Unpacking stack", "to", outFile.Name())
 
 		// TODO(displague) afero.NewBasePathFs could avoid the need to track Base
 		fs := afero.NewOsFs()
