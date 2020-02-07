@@ -67,7 +67,7 @@ Appears in:
 
 Name | Type | Description
 -----|------|------------
-`engineVersion` | string | EngineVersion specifies the desired PostgreSQL engine version, e.g. 9.6.
+`engineVersion` | string | EngineVersion specifies the desired PostgreSQL engine version. Allowed Versions: 9.6 and 11.
 
 
 PostgreSQLInstanceSpec supports all fields of:
