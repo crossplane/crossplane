@@ -65,7 +65,7 @@ type MySQLInstanceList struct {
 type PostgreSQLInstanceSpec struct {
 	runtimev1alpha1.ResourceClaimSpec `json:",inline"`
 
-	// EngineVersion specifies the desired PostgreSQL engine version, e.g. 9.6.
+	// EngineVersion specifies the desired PostgreSQL engine version. Allowed Versions: 9.6 and 11.
 	// +kubebuilder:validation:Enum="9.6";"11"
 	EngineVersion string `json:"engineVersion,omitempty"`
 }
