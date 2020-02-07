@@ -146,6 +146,7 @@ spec:
                 e.g. 9.6.
               enum:
               - "9.6"
+              - "11"
               type: string
             resourceRef:
               description: A ResourceReference specifies an existing managed resource,
