@@ -7,6 +7,7 @@ This API group contains the following Crossplane resources:
 * [ClusterStackInstall](#ClusterStackInstall)
 * [Stack](#Stack)
 * [StackConfiguration](#StackConfiguration)
+* [StackDefinition](#StackDefinition)
 * [StackInstall](#StackInstall)
 
 ## ClusterStackInstall
@@ -54,6 +55,21 @@ Name | Type | Description
 
 
 
+## StackDefinition
+
+StackDefinition is the Schema for the StackDefinitions API
+
+
+Name | Type | Description
+-----|------|------------
+`apiVersion` | string | `stacks.crossplane.io/v1alpha1`
+`kind` | string | `StackDefinition`
+`metadata` | [meta/v1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectmeta-v1-meta) | Kubernetes object metadata.
+`spec` | [StackDefinitionSpec](#StackDefinitionSpec) | StackDefinitionSpec defines the desired state of StackDefinition
+`status` | [StackDefinitionStatus](#StackDefinitionStatus) | StackDefinitionStatus defines the observed state of StackDefinition
+
+
+
 ## StackInstall
 
 A StackInstall requests a stack be installed to Crossplane.
@@ -75,6 +91,7 @@ AppMetadataSpec defines metadata about the stack application
 
 Appears in:
 
+* [StackDefinitionSpec](#StackDefinitionSpec)
 * [StackSpec](#StackSpec)
 
 
@@ -96,6 +113,39 @@ Name | Type | Description
 `license` | string | 
 `dependsOn` | [[]StackInstallSpec](#StackInstallSpec) | DependsOn is the list of CRDs that this stack depends on. This data drives the dependency resolution process.
 `permissionScope` | string | 
+
+
+
+## Behavior
+
+Behavior specifies the behavior for the stack, if the stack has behaviors instead of a controller
+
+Appears in:
+
+* [StackDefinitionSpec](#StackDefinitionSpec)
+
+
+Name | Type | Description
+-----|------|------------
+`crd` | [BehaviorCRD](#BehaviorCRD) | BehaviorCRD represents the CRD which the stack&#39;s behavior controller will watch. When CRs of this CRD kind appear and are modified in the cluster, the behavior will execute.
+`engine` | [StackResourceEngineConfiguration](#StackResourceEngineConfiguration) | StackResourceEngineConfiguration represents a configuration for a resource engine, such as helm2 or kustomize.
+`source` | [StackDefinitionSource](#StackDefinitionSource) | Theoretically, source and engine could be specified at a per-hook level as well.
+
+
+
+## BehaviorCRD
+
+BehaviorCRD represents the CRD which the stack&#39;s behavior controller will watch. When CRs of this CRD kind appear and are modified in the cluster, the behavior will execute.
+
+Appears in:
+
+* [Behavior](#Behavior)
+
+
+Name | Type | Description
+-----|------|------------
+`apiVersion` | string | 
+`kind` | string | 
 
 
 
@@ -153,6 +203,7 @@ ControllerSpec defines the controller that implements the logic for a stack, whi
 
 Appears in:
 
+* [StackDefinitionSpec](#StackDefinitionSpec)
 * [StackSpec](#StackSpec)
 
 
@@ -160,6 +211,22 @@ Name | Type | Description
 -----|------|------------
 `deployment` | [ControllerDeployment](#ControllerDeployment) | 
 `job` | [ControllerJob](#ControllerJob) | 
+
+
+
+## FieldBinding
+
+FieldBinding describes a field binding of a transformation from the triggering CR to an object for configuring the resource engine. It connects a field in the source object to a field in the destination object.
+
+Appears in:
+
+* [KustomizeEngineOverlay](#KustomizeEngineOverlay)
+
+
+Name | Type | Description
+-----|------|------------
+`from` | string | 
+`to` | string | 
 
 
 
@@ -205,12 +272,47 @@ Name | Type | Description
 
 
 
+## KustomizeEngineConfiguration
+
+KustomizeEngineConfiguration provides kustomize-specific engine configuration.
+
+Appears in:
+
+* [StackResourceEngineConfiguration](#StackResourceEngineConfiguration)
+
+
+Name | Type | Description
+-----|------|------------
+`overlays` | [[]KustomizeEngineOverlay](#KustomizeEngineOverlay) | 
+`kustomization` | [meta/v1/unstructured.Unstructured](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#unstructured-unstructured-v1) | 
+
+
+
+## KustomizeEngineOverlay
+
+KustomizeEngineOverlay configures the stack behavior controller to transform the input CR into some output objects for the underlying resource engine. This is expected to be interpreted by the engine-specific logic in the controller.
+
+Appears in:
+
+* [KustomizeEngineConfiguration](#KustomizeEngineConfiguration)
+
+
+Name | Type | Description
+-----|------|------------
+`apiVersion` | string | 
+`kind` | string | 
+`name` | string | 
+`bindings` | [[]FieldBinding](#FieldBinding) | 
+
+
+
 ## PermissionsSpec
 
 PermissionsSpec defines the permissions that a stack will require to operate.
 
 Appears in:
 
+* [StackDefinitionSpec](#StackDefinitionSpec)
 * [StackSpec](#StackSpec)
 
 
@@ -309,6 +411,53 @@ Appears in:
 * [StackConfiguration](#StackConfiguration)
 
 
+## StackDefinitionSource
+
+StackDefinitionSource is the stack image which this stack configuration is from. In the future, other source types may be supported, such as a URL.
+
+Appears in:
+
+* [Behavior](#Behavior)
+
+
+Name | Type | Description
+-----|------|------------
+`image` | string | a container image id
+`path` | string | The path to the files to process in the source
+
+
+
+## StackDefinitionSpec
+
+StackDefinitionSpec defines the desired state of StackDefinition
+
+Appears in:
+
+* [StackDefinition](#StackDefinition)
+
+
+Name | Type | Description
+-----|------|------------
+`customresourcedefinitions` | [CRDList](#CRDList) | CRDList is the full list of CRDs that this stack owns and depends on
+`controller` | [ControllerSpec](#ControllerSpec) | ControllerSpec defines the controller that implements the logic for a stack, which can come in different flavors. A golang code (controller-runtime) controller with a managing Deployment is all that is supported currently, but more types will come in the future (e.g., templates, functions/hooks, templates, a new DSL, etc.
+`permissions` | [PermissionsSpec](#PermissionsSpec) | PermissionsSpec defines the permissions that a stack will require to operate.
+`behavior` | [Behavior](#Behavior) | Behavior specifies the behavior for the stack, if the stack has behaviors instead of a controller
+
+
+StackDefinitionSpec supports all fields of:
+
+* [AppMetadataSpec](#AppMetadataSpec)
+
+
+## StackDefinitionStatus
+
+StackDefinitionStatus defines the observed state of StackDefinition
+
+Appears in:
+
+* [StackDefinition](#StackDefinition)
+
+
 ## StackInstallSpec
 
 StackInstallSpec specifies details about a request to install a stack to Crossplane.
@@ -349,6 +498,22 @@ Name | Type | Description
 ## StackInstaller
 
 StackInstaller provides a common interface for StackInstall and ClusterStackInstall to share controller and reconciler logic
+
+
+## StackResourceEngineConfiguration
+
+StackResourceEngineConfiguration represents a configuration for a resource engine, such as helm2 or kustomize.
+
+Appears in:
+
+* [Behavior](#Behavior)
+
+
+Name | Type | Description
+-----|------|------------
+`type` | string | Type is the engine type, such as &#34;helm2&#34; or &#34;kustomize&#34;
+`kustomize` | [KustomizeEngineConfiguration](#KustomizeEngineConfiguration) | Because different engine configurations could specify conflicting field names, we want to namespace the engines with engine-specific keys
+
 
 
 ## StackSpec
