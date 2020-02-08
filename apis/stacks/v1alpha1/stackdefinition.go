@@ -19,6 +19,8 @@ package v1alpha1
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
+	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
 )
 
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
@@ -120,12 +122,7 @@ func (sd *StackDefinition) DeepCopyIntoStack(s *Stack) {
 	sd.Spec.CRDs.DeepCopyInto(&s.Spec.CRDs)
 	sd.Spec.Controller.DeepCopyInto(&s.Spec.Controller)
 	sd.Spec.Permissions.DeepCopyInto(&s.Spec.Permissions)
-	if s.Labels == nil {
-		s.Labels = map[string]string{}
-	}
-	for key, val := range sd.Labels {
-		s.Labels[key] = val
-	}
+	meta.AddLabels(s, sd.GetLabels())
 }
 
 // DeepCopyIntoStackDefinition copies a Stack to a StackDefinition
@@ -135,5 +132,5 @@ func (s *Stack) DeepCopyIntoStackDefinition(sd *StackDefinition) {
 	s.Spec.CRDs.DeepCopyInto(&sd.Spec.CRDs)
 	s.Spec.Controller.DeepCopyInto(&sd.Spec.Controller)
 	s.Spec.Permissions.DeepCopyInto(&sd.Spec.Permissions)
-	sd.ObjectMeta.SetLabels(s.ObjectMeta.GetLabels())
+	meta.AddLabels(sd, s.GetLabels())
 }

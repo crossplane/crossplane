@@ -336,11 +336,13 @@ func setStackDefinitionControllerEnv(obj *unstructured.Unstructured, namespace, 
 		return err
 	}
 
-	ts := &sd.Spec.Controller.Deployment.Spec.Template.Spec
-	ts.Containers[0].Env = append(ts.Containers[0].Env, env...)
+	if d := sd.Spec.Controller.Deployment; d != nil {
+		c := d.Spec.Template.Spec.Containers
+		c[0].Env = append(c[0].Env, env...)
 
-	if u, err := convertToUnstructured(sd); err == nil {
-		u.DeepCopyInto(obj)
+		if u, err := convertToUnstructured(sd); err == nil {
+			u.DeepCopyInto(obj)
+		}
 	}
 
 	return err

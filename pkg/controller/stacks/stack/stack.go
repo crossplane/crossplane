@@ -670,46 +670,37 @@ func (h *stackHandler) prepareHostAwareJob(j *batch.Job, tokenSecret string) err
 	return nil
 }
 
-func (h *stackHandler) prepareDeployment() *apps.Deployment {
+func (h *stackHandler) prepareDeployment(d *apps.Deployment) {
 	controllerDeployment := h.ext.Spec.Controller.Deployment
 	if controllerDeployment == nil {
-		return nil
+		return
 	}
+
+	controllerDeployment.Spec.DeepCopyInto(&d.Spec)
 
 	// force the deployment to use stack opinionated names and service account
 	name := h.ext.Name + "-controller"
 	matchLabels := map[string]string{"app": name}
-	deploymentSpec := *controllerDeployment.Spec.DeepCopy()
-	deploymentSpec.Template.Spec.ServiceAccountName = h.ext.Name
-	deploymentSpec.Template.SetName(name)
-	dtLabels := deploymentSpec.Template.GetLabels()
-	if dtLabels == nil {
-		dtLabels = map[string]string{}
-	}
-	for k, v := range matchLabels {
-		dtLabels[k] = v
-	}
-	deploymentSpec.Template.SetLabels(dtLabels)
-	deploymentSpec.Selector = &metav1.LabelSelector{MatchLabels: matchLabels}
-
 	labels := stacks.ParentLabels(h.ext)
 
-	return &apps.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: h.ext.Namespace,
-			Labels:    labels,
-		},
-		Spec: deploymentSpec,
-	}
+	d.SetName(name)
+	d.SetNamespace(h.ext.Namespace)
+	meta.AddLabels(d, labels)
+
+	d.Spec.Template.Spec.ServiceAccountName = h.ext.Name
+	d.Spec.Template.SetName(name)
+	meta.AddLabels(&d.Spec.Template, matchLabels)
+	d.Spec.Selector = &metav1.LabelSelector{MatchLabels: matchLabels}
 }
 
 func (h *stackHandler) processDeployment(ctx context.Context) error {
-	d := h.prepareDeployment()
-
-	if d == nil {
+	if h.ext.Spec.Controller.Deployment == nil {
 		return nil
 	}
+
+	d := &apps.Deployment{}
+
+	h.prepareDeployment(d)
 
 	gvk := schema.GroupVersionKind{
 		Group:   apps.GroupName,

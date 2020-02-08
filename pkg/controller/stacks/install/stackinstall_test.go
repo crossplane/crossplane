@@ -49,7 +49,7 @@ const (
 	uid                     = types.UID(uidString)
 	resourceName            = "cool-stackinstall"
 	stackPackageImage       = "cool/stack-package:rad"
-	tsControllerImage       = "crossplane/ts-controller:0.0.0"
+	tsControllerImage       = "cool/fake-ts-controller:0.0.0"
 )
 
 var (
