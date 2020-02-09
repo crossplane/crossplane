@@ -1,5 +1,0 @@
-apiVersion: v1
-appVersion: "0.0.1"
-description: A sample Helm chart
-name: sample-template-stack
-version: 0.0.1
