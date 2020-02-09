@@ -26,15 +26,17 @@ import (
 )
 
 // Setup Crossplane Stacks controllers.
-func Setup(mgr ctrl.Manager, l logging.Logger, hostControllerNamespace string) error {
-	for _, setup := range []func(ctrl.Manager, logging.Logger, string) error{
-		install.SetupStackInstall,
-		install.SetupClusterStackInstall,
-		stack.Setup,
-	} {
-		if err := setup(mgr, l, hostControllerNamespace); err != nil {
-			return err
-		}
+func Setup(mgr ctrl.Manager, l logging.Logger, hostControllerNamespace, tsControllerImage string) error {
+	if err := install.SetupStackInstall(mgr, l, hostControllerNamespace, tsControllerImage); err != nil {
+		return err
+	}
+
+	if err := install.SetupClusterStackInstall(mgr, l, hostControllerNamespace, tsControllerImage); err != nil {
+		return err
+	}
+
+	if err := stack.Setup(mgr, l, hostControllerNamespace); err != nil {
+		return err
 	}
 
 	return nil

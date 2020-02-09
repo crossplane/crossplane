@@ -670,30 +670,44 @@ func (h *stackHandler) prepareHostAwareJob(j *batch.Job, tokenSecret string) err
 	return nil
 }
 
-func (h *stackHandler) processDeployment(ctx context.Context) error {
+func (h *stackHandler) prepareDeployment(d *apps.Deployment) {
 	controllerDeployment := h.ext.Spec.Controller.Deployment
 	if controllerDeployment == nil {
+		return
+	}
+
+	controllerDeployment.Spec.DeepCopyInto(&d.Spec)
+
+	// force the deployment to use stack opinionated names and service account
+	name := h.ext.Name + "-controller"
+	matchLabels := map[string]string{"app": name}
+	labels := stacks.ParentLabels(h.ext)
+
+	d.SetName(name)
+	d.SetNamespace(h.ext.Namespace)
+	meta.AddLabels(d, labels)
+
+	d.Spec.Template.Spec.ServiceAccountName = h.ext.Name
+	d.Spec.Template.SetName(name)
+	meta.AddLabels(&d.Spec.Template, matchLabels)
+	d.Spec.Selector = &metav1.LabelSelector{MatchLabels: matchLabels}
+}
+
+func (h *stackHandler) processDeployment(ctx context.Context) error {
+	if h.ext.Spec.Controller.Deployment == nil {
 		return nil
 	}
 
-	// ensure the deployment is set to use this stack's service account that we created
-	deploymentSpec := *controllerDeployment.Spec.DeepCopy()
-	deploymentSpec.Template.Spec.ServiceAccountName = h.ext.Name
+	d := &apps.Deployment{}
 
-	labels := stacks.ParentLabels(h.ext)
+	h.prepareDeployment(d)
+
 	gvk := schema.GroupVersionKind{
 		Group:   apps.GroupName,
 		Kind:    "Deployment",
 		Version: apps.SchemeGroupVersion.Version,
 	}
-	d := &apps.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      controllerDeployment.Name,
-			Namespace: h.ext.Namespace,
-			Labels:    labels,
-		},
-		Spec: deploymentSpec,
-	}
+
 	var saRef corev1.ObjectReference
 	var saSecretRef corev1.ObjectReference
 	if h.hostAwareConfig != nil {
@@ -734,6 +748,8 @@ func (h *stackHandler) processJob(ctx context.Context) error {
 	// ensure the job is set to use this stack's service account that we created
 	jobSpec := *controllerJob.Spec.DeepCopy()
 	jobSpec.Template.Spec.ServiceAccountName = h.ext.Name
+	name := h.ext.Name + "-job"
+	jobSpec.Template.SetName(name)
 
 	labels := stacks.ParentLabels(h.ext)
 	gvk := schema.GroupVersionKind{
@@ -743,7 +759,7 @@ func (h *stackHandler) processJob(ctx context.Context) error {
 	}
 	j := &batch.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      controllerJob.Name,
+			Name:      name,
 			Namespace: h.ext.Namespace,
 			Labels:    labels,
 		},

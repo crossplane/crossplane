@@ -57,10 +57,10 @@ const (
 	resourceName            = "cool-stack"
 	roleName                = "stack:cool-namespace:cool-stack::system"
 
-	controllerDeploymentName = "cool-controller-deployment"
+	controllerDeploymentName = "cool-stack-controller"
 	controllerContainerName  = "cool-container"
 	controllerImageName      = "cool/controller-image:rad"
-	controllerJobName        = "cool-controller-job"
+	controllerJobName        = "cool-stack-job"
 )
 
 var (
@@ -1107,7 +1107,18 @@ func TestProcessDeployment(t *testing.T) {
 						Labels:    stackspkg.ParentLabels(resource(withControllerSpec(defaultControllerSpec()))),
 					},
 					Spec: apps.DeploymentSpec{
+						Selector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								"app": controllerDeploymentName,
+							},
+						},
 						Template: corev1.PodTemplateSpec{
+							ObjectMeta: metav1.ObjectMeta{
+								Labels: map[string]string{
+									"app": controllerDeploymentName,
+								},
+								Name: controllerDeploymentName,
+							},
 							Spec: corev1.PodSpec{
 								ServiceAccountName: resourceName,
 								Containers: []corev1.Container{
@@ -1143,7 +1154,18 @@ func TestProcessDeployment(t *testing.T) {
 						Labels:    stackspkg.ParentLabels(resource(withControllerSpec(defaultControllerSpec()))),
 					},
 					Spec: apps.DeploymentSpec{
+						Selector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								"app": controllerDeploymentName,
+							},
+						},
 						Template: corev1.PodTemplateSpec{
+							ObjectMeta: metav1.ObjectMeta{
+								Labels: map[string]string{
+									"app": controllerDeploymentName,
+								},
+								Name: controllerDeploymentName,
+							},
 							Spec: corev1.PodSpec{
 								ServiceAccountName:           "",
 								AutomountServiceAccountToken: &disableAutoMount,
@@ -1318,6 +1340,7 @@ func TestProcessJob(t *testing.T) {
 					},
 					Spec: batch.JobSpec{
 						Template: corev1.PodTemplateSpec{
+							ObjectMeta: metav1.ObjectMeta{Name: controllerJobName},
 							Spec: corev1.PodSpec{
 								RestartPolicy:      corev1.RestartPolicyNever,
 								ServiceAccountName: resourceName,
@@ -1355,6 +1378,9 @@ func TestProcessJob(t *testing.T) {
 					},
 					Spec: batch.JobSpec{
 						Template: corev1.PodTemplateSpec{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: controllerJobName,
+							},
 							Spec: corev1.PodSpec{
 								RestartPolicy:                corev1.RestartPolicyNever,
 								ServiceAccountName:           "",

@@ -35,6 +35,10 @@ spec:
         {{- end }}
         {{- if .Values.templateStacks.enabled }}
         - --templates
+        {{- if .Values.templateStacks.controllerImage }}
+        - --templating-controller-image
+        - {{ .Values.templateStacks.controllerImage | quote }}
+        {{- end }}
         {{- end }}
         {{- range $arg := .Values.args }}
         - {{ $arg }}

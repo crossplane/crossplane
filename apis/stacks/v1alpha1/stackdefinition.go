@@ -19,6 +19,8 @@ package v1alpha1
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
+	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
 )
 
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
@@ -112,4 +114,23 @@ type StackDefinitionList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []StackDefinition `json:"items"`
+}
+
+// DeepCopyIntoStack copies a StackDefinition to a Stack
+func (sd *StackDefinition) DeepCopyIntoStack(s *Stack) {
+	sd.Spec.AppMetadataSpec.DeepCopyInto(&s.Spec.AppMetadataSpec)
+	sd.Spec.CRDs.DeepCopyInto(&s.Spec.CRDs)
+	sd.Spec.Controller.DeepCopyInto(&s.Spec.Controller)
+	sd.Spec.Permissions.DeepCopyInto(&s.Spec.Permissions)
+	meta.AddLabels(s, sd.GetLabels())
+}
+
+// DeepCopyIntoStackDefinition copies a Stack to a StackDefinition
+// TODO(displague) should this reside in types.go with the Stack type
+func (s *Stack) DeepCopyIntoStackDefinition(sd *StackDefinition) {
+	s.Spec.AppMetadataSpec.DeepCopyInto(&sd.Spec.AppMetadataSpec)
+	s.Spec.CRDs.DeepCopyInto(&sd.Spec.CRDs)
+	s.Spec.Controller.DeepCopyInto(&sd.Spec.Controller)
+	s.Spec.Permissions.DeepCopyInto(&sd.Spec.Permissions)
+	meta.AddLabels(sd, s.GetLabels())
 }

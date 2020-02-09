@@ -21,7 +21,7 @@ import (
 )
 
 func TestIconStep(t *testing.T) {
-	sp := NewStackPackage("/")
+	sp := NewStackPackage("/", "crossplane/ts-controller:0.0.0")
 	step := iconStep(sp)
 	step("/icon.png", []byte("base64me"))
 

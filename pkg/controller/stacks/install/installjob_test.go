@@ -218,10 +218,10 @@ func unstructuredObj(uom ...unstructuredObjModifier) *unstructured.Unstructured 
 }
 
 type mockJobCompleter struct {
-	MockHandleJobCompletion func(ctx context.Context, i v1alpha1.StackInstaller, job *batchv1.Job) error
+	MockHandleJobCompletion func(ctx context.Context, i stacks.KindlyIdentifier, job *batchv1.Job) error
 }
 
-func (m *mockJobCompleter) handleJobCompletion(ctx context.Context, i v1alpha1.StackInstaller, job *batchv1.Job) error {
+func (m *mockJobCompleter) handleJobCompletion(ctx context.Context, i stacks.KindlyIdentifier, job *batchv1.Job) error {
 	return m.MockHandleJobCompletion(ctx, i, job)
 }
 
@@ -411,7 +411,7 @@ func TestHandleJobCompletion(t *testing.T) {
 			ext: resource(),
 			job: job(),
 			want: want{
-				ext: resource(withStackRecord(&corev1.ObjectReference{Name: resourceName, Namespace: namespace})),
+				ext: resource(),
 				err: nil,
 			},
 		},
@@ -450,7 +450,9 @@ func TestCreate(t *testing.T) {
 			name: "CreateInstallJob",
 			handler: &stackInstallHandler{
 				kube: &test.MockClient{
-					MockUpdate:       func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+					MockPatch: func(_ context.Context, obj runtime.Object, patch client.Patch, _ ...client.PatchOption) error {
+						return nil
+					},
 					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
 				hostKube: &test.MockClient{
@@ -474,7 +476,9 @@ func TestCreate(t *testing.T) {
 			name: "CreateInstallJobHosted",
 			handler: &stackInstallHandler{
 				kube: &test.MockClient{
-					MockUpdate:       func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+					MockPatch: func(_ context.Context, obj runtime.Object, patch client.Patch, _ ...client.PatchOption) error {
+						return nil
+					},
 					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
 				hostKube: &test.MockClient{
@@ -499,7 +503,9 @@ func TestCreate(t *testing.T) {
 			name: "HandleFailedInstallJobHosted",
 			handler: &stackInstallHandler{
 				kube: &test.MockClient{
-					MockUpdate:       func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+					MockPatch: func(_ context.Context, obj runtime.Object, patch client.Patch, _ ...client.PatchOption) error {
+						return nil
+					},
 					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
 				hostKube: &test.MockClient{
@@ -524,7 +530,9 @@ func TestCreate(t *testing.T) {
 			name: "FailedToGetInstallJob",
 			handler: &stackInstallHandler{
 				kube: &test.MockClient{
-					MockUpdate:       func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+					MockPatch: func(_ context.Context, obj runtime.Object, patch client.Patch, _ ...client.PatchOption) error {
+						return nil
+					},
 					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
 				hostKube: &test.MockClient{
@@ -550,7 +558,9 @@ func TestCreate(t *testing.T) {
 			name: "InstallJobNotCompleted",
 			handler: &stackInstallHandler{
 				kube: &test.MockClient{
-					MockUpdate:       func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+					MockPatch: func(_ context.Context, obj runtime.Object, patch client.Patch, _ ...client.PatchOption) error {
+						return nil
+					},
 					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
 				hostKube: &test.MockClient{
@@ -577,7 +587,9 @@ func TestCreate(t *testing.T) {
 			name: "HandleSuccessfulInstallJob",
 			handler: &stackInstallHandler{
 				kube: &test.MockClient{
-					MockUpdate:       func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+					MockPatch: func(_ context.Context, obj runtime.Object, patch client.Patch, _ ...client.PatchOption) error {
+						return nil
+					},
 					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
 				hostKube: &test.MockClient{
@@ -588,7 +600,7 @@ func TestCreate(t *testing.T) {
 					},
 				},
 				jobCompleter: &mockJobCompleter{
-					MockHandleJobCompletion: func(ctx context.Context, i v1alpha1.StackInstaller, job *batchv1.Job) error { return nil },
+					MockHandleJobCompletion: func(ctx context.Context, i stacks.KindlyIdentifier, job *batchv1.Job) error { return nil },
 				},
 				executorInfo: &stacks.ExecutorInfo{Image: stackPackageImage},
 				ext: resource(
@@ -600,7 +612,7 @@ func TestCreate(t *testing.T) {
 				err:    nil,
 				ext: resource(
 					withFinalizers(installFinalizer),
-					withConditions(runtimev1alpha1.Available(), runtimev1alpha1.ReconcileSuccess()),
+					withConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileSuccess()),
 					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: namespace}),
 				),
 			},
@@ -609,7 +621,9 @@ func TestCreate(t *testing.T) {
 			name: "HandleFailedInstallJob",
 			handler: &stackInstallHandler{
 				kube: &test.MockClient{
-					MockUpdate:       func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+					MockPatch: func(_ context.Context, obj runtime.Object, patch client.Patch, _ ...client.PatchOption) error {
+						return nil
+					},
 					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
 				hostKube: &test.MockClient{
@@ -620,7 +634,7 @@ func TestCreate(t *testing.T) {
 					},
 				},
 				jobCompleter: &mockJobCompleter{
-					MockHandleJobCompletion: func(ctx context.Context, i v1alpha1.StackInstaller, job *batchv1.Job) error { return nil },
+					MockHandleJobCompletion: func(ctx context.Context, i stacks.KindlyIdentifier, job *batchv1.Job) error { return nil },
 				},
 				executorInfo: &stacks.ExecutorInfo{Image: stackPackageImage},
 				ext: resource(

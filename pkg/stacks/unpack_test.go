@@ -63,12 +63,12 @@ spec:
             fieldRef:
               fieldPath: metadata.namespace
 `
-	simpleBehaviorStackFile = `---
+
+	simpleStackConfigFile = `---
 apiVersion: stacks.crossplane.io/v1alpha1
 kind: StackConfiguration
 metadata:
   name: template-stack-test
-
 spec:
   behaviors:
     crds:
@@ -80,6 +80,19 @@ spec:
       type: helm2
     source:
       image: crossplane/sample-stack-claim-test:helm2
+`
+
+	simpleBehaviorFile = `
+crd:
+  kind: SampleClaim
+  apiVersion: samples.stacks.crossplane.io/v1alpha1
+engine:
+  type: helm2
+reconcile:
+  path: 'resources'
+source:
+  image: crossplane/sample-stack-claim-test:helm2
+  path: /path
 `
 
 	simpleJobInstallFile = `apiVersion: batch/v1
@@ -163,7 +176,7 @@ spec:
   company: Upbound
   controller:
     deployment:
-      name: crossplane-sample-stack
+      name: ""
       spec:
         replicas: 1
         selector:
@@ -249,8 +262,11 @@ spec:
   website: https://upbound.io
 status:
   conditionedStatus: {}
+
+---
 `
-	expectedSimpleBehaviorStackOutput = `
+
+	expectedSimpleStackConfigurationStackOutput = `
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
@@ -364,6 +380,157 @@ spec:
       type: helm2
     source:
       image: crossplane/sample-stack-claim-test:helm2
+
+---
+`
+	expectedSimpleBehaviorStackOutput = `
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    stacks.crossplane.io/icon-data-uri: data:image/jpeg;base64,bW9jay1pY29uLWRhdGE=
+    stacks.crossplane.io/stack-title: Sample Crossplane Stack
+  creationTimestamp: null
+  labels:
+    app.kubernetes.io/managed-by: stack-manager
+    crossplane.io/scope: namespace
+  name: mytypes.samples.upbound.io
+spec:
+  group: samples.upbound.io
+  names:
+    kind: Mytype
+    listKind: MytypeList
+    plural: mytypes
+    singular: mytype
+  scope: Namespaced
+  version: v1alpha1
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: null
+  storedVersions: null
+
+---
+apiVersion: stacks.crossplane.io/v1alpha1
+kind: StackDefinition
+metadata:
+  creationTimestamp: null
+spec:
+  behavior:
+    crd:
+      apiVersion: samples.stacks.crossplane.io/v1alpha1
+      kind: SampleClaim
+    engine:
+      type: helm2
+    source:
+      image: crossplane/sample-stack-claim-test:helm2
+      path: /path
+  category: Category
+  company: Upbound
+  controller:
+    deployment:
+      name: ""
+      spec:
+        selector: {}
+        strategy: {}
+        template:
+          metadata:
+            creationTimestamp: null
+          spec:
+            containers:
+            - args:
+              - --resources-dir
+              - /behaviors
+              - --stack-definition-namespace
+              - $(SD_NAMESPACE)
+              - --stack-definition-name
+              - $(SD_NAME)
+              command:
+              - /manager
+              image: crossplane/ts-controller:0.0.0
+              name: stack-behavior-manager
+              resources: {}
+              volumeMounts:
+              - mountPath: /behaviors
+                name: behaviors
+            initContainers:
+            - command:
+              - cp
+              - -R
+              - /path/.
+              - /behaviors
+              image: crossplane/sample-stack-claim-test:helm2
+              name: stack-behavior-copy-to-manager
+              resources: {}
+              volumeMounts:
+              - mountPath: /behaviors
+                name: behaviors
+            restartPolicy: Always
+            volumes:
+            - emptyDir: {}
+              name: behaviors
+  customresourcedefinitions:
+  - apiVersion: samples.upbound.io/v1alpha1
+    kind: Mytype
+  dependsOn:
+  - crd: foo.mystack.example.org/v1alpha1
+  - crd: '*.yourstack.example.org/v1alpha2'
+  icons:
+  - base64Data: bW9jay1pY29uLWRhdGE=
+    mediatype: image/jpeg
+  keywords:
+  - samples
+  - examples
+  - tutorials
+  license: Apache-2.0
+  maintainers:
+  - email: jared@upbound.io
+    name: Jared Watts
+  overview: text overview
+  overviewShort: short text overview
+  owners:
+  - email: bassam@upbound.io
+    name: Bassam Tabbara
+  permissionScope: Namespaced
+  permissions:
+    rules:
+    - apiGroups:
+      - ""
+      resources:
+      - configmaps
+      - events
+      - secrets
+      verbs:
+      - '*'
+    - apiGroups:
+      - samples.upbound.io
+      resources:
+      - mytypes
+      verbs:
+      - '*'
+    - apiGroups:
+      - mystack.example.org
+      resources:
+      - foo
+      verbs:
+      - '*'
+    - apiGroups:
+      - yourstack.example.org
+      resources:
+      - '*'
+      verbs:
+      - '*'
+  readme: |
+    Markdown describing this sample Crossplane stack project.
+  source: https://github.com/crossplaneio/sample-stack
+  title: Sample Crossplane Stack
+  version: 0.0.1
+  website: https://upbound.io
+status: {}
+
+---
 `
 
 	expectedComplexDeploymentStackOutput = `
@@ -545,7 +712,7 @@ spec:
   company: Upbound
   controller:
     deployment:
-      name: crossplane-sample-stack
+      name: ""
       spec:
         replicas: 1
         selector:
@@ -657,6 +824,8 @@ spec:
   website: https://upbound.io
 status:
   conditionedStatus: {}
+
+---
 `
 
 	expectedComplexInfraStackOutput = `
@@ -838,7 +1007,7 @@ spec:
   company: Upbound
   controller:
     deployment:
-      name: crossplane-sample-stack
+      name: ""
       spec:
         replicas: 1
         selector:
@@ -950,6 +1119,8 @@ spec:
   website: https://upbound.io
 status:
   conditionedStatus: {}
+
+---
 `
 
 	expectedSimpleJobStackOutput = `
@@ -991,7 +1162,7 @@ spec:
   company: Upbound
   controller:
     job:
-      name: crossplane-sample-install-job
+      name: ""
       spec:
         backoffLimit: 4
         completions: 1
@@ -1075,6 +1246,8 @@ spec:
   website: https://upbound.io
 status:
   conditionedStatus: {}
+
+---
 `
 )
 
@@ -1225,13 +1398,29 @@ func TestUnpack(t *testing.T) {
 			want: want{output: expectedSimpleDeploymentStackOutput, err: nil},
 		},
 		{
+			name: "SimpleStackConfigurationStack",
+			fs: func() afero.Fs {
+				fs := afero.NewMemMapFs()
+				fs.MkdirAll("ext-dir", 0755)
+				afero.WriteFile(fs, "ext-dir/icon.jpg", []byte("mock-icon-data"), 0644)
+				afero.WriteFile(fs, "ext-dir/app.yaml", []byte(simpleAppFile("Namespaced")), 0644)
+				afero.WriteFile(fs, "ext-dir/stack.yaml", []byte(simpleStackConfigFile), 0644)
+				crdDir := "ext-dir/resources/samples.upbound.io/mytype/v1alpha1"
+				fs.MkdirAll(crdDir, 0755)
+				afero.WriteFile(fs, filepath.Join(crdDir, "mytype.v1alpha1.crd.yaml"), []byte(simpleCRDFile("mytype")), 0644)
+				return fs
+			}(),
+			root: "ext-dir",
+			want: want{output: expectedSimpleStackConfigurationStackOutput, err: nil},
+		},
+		{
 			name: "SimpleBehaviorStack",
 			fs: func() afero.Fs {
 				fs := afero.NewMemMapFs()
 				fs.MkdirAll("ext-dir", 0755)
 				afero.WriteFile(fs, "ext-dir/icon.jpg", []byte("mock-icon-data"), 0644)
 				afero.WriteFile(fs, "ext-dir/app.yaml", []byte(simpleAppFile("Namespaced")), 0644)
-				afero.WriteFile(fs, "ext-dir/stack.yaml", []byte(simpleBehaviorStackFile), 0644)
+				afero.WriteFile(fs, "ext-dir/behavior.yaml", []byte(simpleBehaviorFile), 0644)
 				crdDir := "ext-dir/resources/samples.upbound.io/mytype/v1alpha1"
 				fs.MkdirAll(crdDir, 0755)
 				afero.WriteFile(fs, filepath.Join(crdDir, "mytype.v1alpha1.crd.yaml"), []byte(simpleCRDFile("mytype")), 0644)
@@ -1302,7 +1491,7 @@ func TestUnpack(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := &bytes.Buffer{}
 			rd := &walker.ResourceDir{Base: tt.root, Walker: afero.Afero{Fs: tt.fs}}
-			err := Unpack(rd, got, tt.root, "Namespaced")
+			err := Unpack(rd, got, tt.root, "Namespaced", "crossplane/ts-controller:0.0.0")
 
 			if diff := cmp.Diff(tt.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("Unpack() -want error, +got error:\n%s", diff)
@@ -1374,7 +1563,7 @@ func TestUnpackCluster(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := &bytes.Buffer{}
 			rd := &walker.ResourceDir{Base: tt.root, Walker: afero.Afero{Fs: tt.fs}}
-			err := Unpack(rd, got, tt.root, "Cluster")
+			err := Unpack(rd, got, tt.root, "Cluster", "crossplane/ts-controller:0.0.0")
 
 			if diff := cmp.Diff(tt.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("Unpack() -want error, +got error:\n%s", diff)
