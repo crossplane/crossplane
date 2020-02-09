@@ -289,8 +289,8 @@ func (h *stackInstallHandler) create(ctx context.Context) (reconcile.Result, err
 		return fail(ctx, h.kube, h.ext, err)
 	}
 
-	// Create the InstallJob that will produce the CRDs and Stack
-	// StackDefinition or StackConfiguration
+	// Create the InstallJob that will produce the CRDs, Stack, and
+	// StackDefinition
 	jobRef := h.ext.InstallJob()
 
 	if jobRef == nil {

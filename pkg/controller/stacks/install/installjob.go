@@ -210,7 +210,7 @@ func (jc *stackInstallJobCompleter) readPodLogs(namespace, name string) (*bytes.
 }
 
 // createJobOutputObject names, labels, and creates resources in the API
-// Expected resources are CRD, Stack, StackDefinition, & StackConfiguration
+// Expected resources are CRD, Stack, & StackDefinition
 // nolint:gocyclo
 func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, obj *unstructured.Unstructured,
 	i stacks.KindlyIdentifier, job *batchv1.Job) error {
@@ -223,7 +223,7 @@ func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, o
 	// when the current object is a Stack object, make sure the name and namespace are
 	// set to match the current StackInstall (if they haven't already been set). Also,
 	// set the owner reference of the Stack to be the StackInstall.
-	if isStackObject(obj) || isStackDefinitionObject(obj) || isStackConfigurationObject(obj) {
+	if isStackObject(obj) || isStackDefinitionObject(obj) {
 		if obj.GetName() == "" {
 			obj.SetName(i.GetName())
 		}
@@ -294,21 +294,6 @@ func isStackDefinitionObject(obj *unstructured.Unstructured) bool {
 
 	return gvk.Group == v1alpha1.Group && gvk.Version == v1alpha1.Version &&
 		strings.EqualFold(gvk.Kind, v1alpha1.StackDefinitionKind)
-}
-
-func isStackConfigurationObject(obj *unstructured.Unstructured) bool {
-	if obj == nil {
-		return false
-	}
-
-	gvk := obj.GroupVersionKind()
-
-	if gvk.Group == v1alpha1.Group && gvk.Version == v1alpha1.Version &&
-		strings.EqualFold(gvk.Kind, v1alpha1.StackConfigurationKind) {
-		return true
-	}
-
-	return false
 }
 
 func isCRDObject(obj runtime.Object) bool {

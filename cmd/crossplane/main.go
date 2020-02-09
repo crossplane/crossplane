@@ -125,7 +125,6 @@ func main() {
 				kingpin.Fatalf("--templating-controller-image is required with --templates")
 			}
 
-			kingpin.FatalIfError(templates.SetupStackConfigurations(mgr, log), "Cannot add stack configuration controller to manager")
 			kingpin.FatalIfError(templates.SetupStackDefinitions(mgr, log), "Cannot add stack definition controller to manager")
 		}
 

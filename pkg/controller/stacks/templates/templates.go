@@ -25,16 +25,6 @@ import (
 	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
 )
 
-// SetupStackConfigurations adds a controller that reconciles StackConfigurations.
-func SetupStackConfigurations(mgr ctrl.Manager, l logging.Logger) error {
-	name := "stacks/" + strings.ToLower(v1alpha1.StackConfigurationGroupKind)
-
-	return ctrl.NewControllerManagedBy(mgr).
-		Named(name).
-		For(&v1alpha1.StackConfiguration{}).
-		Complete(NewSetupPhaseReconciler(mgr, l.WithValues("controller", "stackconfiguration")))
-}
-
 // SetupStackDefinitions adds a controller that reconciles StackDefinitions.
 func SetupStackDefinitions(mgr ctrl.Manager, l logging.Logger) error {
 	name := "stacks/" + strings.ToLower(v1alpha1.StackDefinitionGroupKind)

@@ -61,14 +61,6 @@ var (
 	StackGroupVersionKind = SchemeGroupVersion.WithKind(StackKind)
 )
 
-// StackConfiguration type metadata
-var (
-	StackConfigurationKind             = reflect.TypeOf(StackConfiguration{}).Name()
-	StackConfigurationGroupKind        = schema.GroupKind{Group: Group, Kind: StackConfigurationKind}.String()
-	StackConfigurationKindAPIVersion   = StackConfigurationKind + "." + SchemeGroupVersion.String()
-	StackConfigurationGroupVersionKind = SchemeGroupVersion.WithKind(StackConfigurationKind)
-)
-
 // StackDefinition type metadata
 var (
 	StackDefinitionKind             = reflect.TypeOf(StackDefinition{}).Name()
@@ -81,6 +73,5 @@ func init() {
 	SchemeBuilder.Register(&ClusterStackInstall{}, &ClusterStackInstallList{})
 	SchemeBuilder.Register(&StackInstall{}, &StackInstallList{})
 	SchemeBuilder.Register(&Stack{}, &StackList{})
-	SchemeBuilder.Register(&StackConfiguration{}, &StackConfigurationList{})
 	SchemeBuilder.Register(&StackDefinition{}, &StackDefinitionList{})
 }

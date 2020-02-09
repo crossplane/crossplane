@@ -78,20 +78,6 @@ func appStep(sp StackPackager) walker.Step {
 	}
 }
 
-// stackConfigStep unmarshals stack.yaml bytes
-func stackConfigStep(sp StackPackager) walker.Step {
-	return func(path string, b []byte) error {
-		// unstructured is used so that 'omitempty' will be respected after unmarshaling and marshaling
-		config := unstructured.Unstructured{}
-		if err := yaml.Unmarshal(b, &config); err != nil {
-			return errors.Wrap(err, fmt.Sprintf("invalid stack configuration at %q", path))
-		}
-
-		sp.SetStackConfig(config)
-		return nil
-	}
-}
-
 // behaviorStep unmarshals behavior.yaml bytes
 func behaviorStep(sp StackPackager) walker.Step {
 	return func(path string, b []byte) error {
