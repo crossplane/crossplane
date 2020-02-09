@@ -59,9 +59,7 @@ const (
 
 	errHostAwareModeNotEnabled                  = "host aware mode is not enabled"
 	errFailedToPrepareHostAwareDeployment       = "failed to prepare host aware stack controller deployment"
-	errFailedToPrepareHostAwareJob              = "failed to prepare host aware stack controller job"
 	errFailedToCreateDeployment                 = "failed to create deployment"
-	errFailedToCreateJob                        = "failed to create job"
 	errFailedToSyncSASecret                     = "failed sync stack controller service account secret"
 	errServiceAccountNotFound                   = "service account is not found (not created yet?)"
 	errFailedToGetServiceAccount                = "failed to get service account"
@@ -87,8 +85,9 @@ var (
 type Reconciler struct {
 	// kube is controller runtime client for resource (a.k.a tenant) Kubernetes where all custom resources live.
 	kube client.Client
-	// hostKube is controller runtime client for workload (a.k.a host) Kubernetes where jobs for stack installs and
-	// stack controller deployments/jobs created.
+	// hostKube is controller runtime client for workload (a.k.a host)
+	// Kubernetes where jobs for stack installs and stack controller deployments
+	// created.
 	hostKube     client.Client
 	hostedConfig *hosted.Config
 	log          logging.Logger
@@ -159,8 +158,9 @@ type handler interface {
 type stackHandler struct {
 	// kube is controller runtime client for resource (a.k.a tenant) Kubernetes where all custom resources live.
 	kube client.Client
-	// hostKube is controller runtime client for workload (a.k.a host) Kubernetes where jobs for stack installs and
-	// stack controller deployments/jobs created.
+	// hostKube is controller runtime client for workload (a.k.a host)
+	// Kubernetes where jobs for stack installs and stack controller deployments
+	// created.
 	hostKube        client.Client
 	hostAwareConfig *hosted.Config
 	ext             *v1alpha1.Stack
@@ -215,11 +215,6 @@ func (h *stackHandler) create(ctx context.Context) (reconcile.Result, error) {
 	// create controller deployment or job
 	if err := h.processDeployment(ctx); err != nil {
 		h.log.Debug("failed to create deployment", "error", err)
-		return fail(ctx, h.kube, h.ext, err)
-	}
-
-	if err := h.processJob(ctx); err != nil {
-		h.log.Debug("failed to create job", "error", err)
 		return fail(ctx, h.kube, h.ext, err)
 	}
 
@@ -735,65 +730,6 @@ func (h *stackHandler) processDeployment(ctx context.Context) error {
 	}
 	// save a reference to the stack's controller
 	h.ext.Status.ControllerRef = meta.ReferenceTo(d, gvk)
-
-	return nil
-}
-
-func (h *stackHandler) processJob(ctx context.Context) error {
-	controllerJob := h.ext.Spec.Controller.Job
-	if controllerJob == nil {
-		return nil
-	}
-
-	// ensure the job is set to use this stack's service account that we created
-	jobSpec := *controllerJob.Spec.DeepCopy()
-	jobSpec.Template.Spec.ServiceAccountName = h.ext.Name
-	name := h.ext.Name + "-job"
-	jobSpec.Template.SetName(name)
-
-	labels := stacks.ParentLabels(h.ext)
-	gvk := schema.GroupVersionKind{
-		Group:   batch.GroupName,
-		Kind:    "Job",
-		Version: batch.SchemeGroupVersion.Version,
-	}
-	j := &batch.Job{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: h.ext.Namespace,
-			Labels:    labels,
-		},
-		Spec: jobSpec,
-	}
-
-	var saRef corev1.ObjectReference
-	var saSecretRef corev1.ObjectReference
-	if h.hostAwareConfig != nil {
-		// We need to copy SA token secret from host to tenant
-		saRef = corev1.ObjectReference{
-			Name:      j.Spec.Template.Spec.ServiceAccountName,
-			Namespace: j.Namespace,
-		}
-		saSecretRef = h.hostAwareConfig.ObjectReferenceOnHost(saRef.Name, saRef.Namespace)
-		err := h.prepareHostAwareJob(j, saSecretRef.Name)
-		if err != nil {
-			return errors.Wrap(err, errFailedToPrepareHostAwareJob)
-		}
-	}
-
-	if err := h.hostKube.Create(ctx, j); err != nil && !kerrors.IsAlreadyExists(err) {
-		return errors.Wrap(err, errFailedToCreateJob)
-	}
-
-	if h.hostAwareConfig != nil {
-		owner := meta.AsOwner(meta.ReferenceTo(j, gvk))
-		err := h.syncSATokenSecret(ctx, owner, saRef, saSecretRef)
-		if err != nil {
-			return errors.Wrap(err, errFailedToSyncSASecret)
-		}
-	}
-	// save a reference to the stack's controller
-	h.ext.Status.ControllerRef = meta.ReferenceTo(j, gvk)
 
 	return nil
 }

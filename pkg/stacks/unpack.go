@@ -27,7 +27,6 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
-	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
@@ -312,8 +311,7 @@ func (sp *StackPackage) SetBehavior(sd v1alpha1.Behavior) {
 
 // SetInstall sets the Stack controller's install method from a Deployment or Job
 func (sp *StackPackage) SetInstall(install unstructured.Unstructured) error {
-	switch install.GetKind() {
-	case "Deployment":
+	if install.GetKind() == "Deployment" {
 		deployment := appsv1.Deployment{}
 		b, err := install.MarshalJSON()
 		if err != nil {
@@ -325,19 +323,6 @@ func (sp *StackPackage) SetInstall(install unstructured.Unstructured) error {
 
 		sp.Stack.Spec.Controller.Deployment = &v1alpha1.ControllerDeployment{
 			Spec: deployment.Spec,
-		}
-	case "Job":
-		job := batchv1.Job{}
-		b, err := install.MarshalJSON()
-		if err != nil {
-			return err
-		}
-		if err := json.Unmarshal(b, &job); err != nil {
-			return err
-		}
-
-		sp.Stack.Spec.Controller.Job = &v1alpha1.ControllerJob{
-			Spec: job.Spec,
 		}
 	}
 	return nil
