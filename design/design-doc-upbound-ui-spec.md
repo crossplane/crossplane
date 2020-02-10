@@ -2,7 +2,7 @@
 
 * Owner: Steven Rathbauer ([@rathpc](https://github.com/rathpc))
 * Reviewers: Upbound Maintainers, Crossplane Maintainers
-* Status: Accepted
+* Status: Accepted, revision 1.0
 
 ## Terms
 
@@ -143,6 +143,7 @@ initialConfig:
     Property | Description
     --- | ---
     `controlType` | **singleSelect**
+    `default` | An array containing a single value which is a string to be set as the selected value on render in the UI. This value should also appear in the `enum` property.
     `enum` | An array of strings to be used as the dropdown values and labels
     `name` | A string to describe this dropdown. This value is used to manage this dropdown in the UI and should contain only letters, numbers, dashes or underscores.
     `path` | The JSONPath for this dropdown
@@ -165,6 +166,7 @@ initialConfig:
     Property | Description
     --- | ---
     `controlType` | **multipleSelect**
+    `default` | An array of strings to set as the selected value(s) on render in the UI. These values should also appear in the `enum` property.
     `enum` | An array of strings to be used as the dropdown values and labels
     `name` | A string to describe this dropdown. This value is used to manage this dropdown in the UI and should contain only letters, numbers, dashes or underscores.
     `path` | The JSONPath for this dropdown
