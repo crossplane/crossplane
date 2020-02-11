@@ -31,7 +31,6 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -338,99 +337,6 @@ func (h *stackHandler) createPersonaClusterRoles(ctx context.Context, labels map
 	return nil
 }
 
-// generateNamespaceClusterRoles generates the crossplane:ns:{name}:{persona}
-// roles for a given stack's namespace.
-func generateNamespaceClusterRoles(stack *v1alpha1.Stack) (roles []*rbacv1.ClusterRole) {
-	personas := []string{"admin", "edit", "view"}
-
-	nsName := stack.GetNamespace()
-
-	for _, persona := range personas {
-		name := fmt.Sprintf(stacks.NamespaceClusterRoleNameFmt, nsName, persona)
-
-		labels := map[string]string{
-			fmt.Sprintf(stacks.LabelNamespaceFmt, nsName): "true",
-			stacks.LabelScope: stacks.NamespaceScoped,
-		}
-
-		if persona == "admin" {
-			labels[fmt.Sprintf(stacks.LabelAggregateFmt, "crossplane", persona)] = "true"
-		}
-
-		// By specifying MatchLabels, ClusterRole Aggregation will pass
-		// along the rules from other ClusterRoles with the desired labels.
-		// This is why we don't define any Rules here.
-		role := &rbacv1.ClusterRole{
-			AggregationRule: &rbacv1.AggregationRule{
-				ClusterRoleSelectors: []metav1.LabelSelector{
-					{
-						MatchLabels: map[string]string{
-							fmt.Sprintf(stacks.LabelAggregateFmt, stacks.NamespaceScoped, persona): "true",
-							fmt.Sprintf(stacks.LabelNamespaceFmt, nsName):                          "true",
-						},
-					},
-					{
-						MatchLabels: map[string]string{
-							fmt.Sprintf(stacks.LabelAggregateFmt, "namespace-default", persona): "true",
-						},
-					},
-				},
-			},
-
-			// TODO(displague) set parent labels?
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   name,
-				Labels: labels,
-			},
-		}
-
-		roles = append(roles, role)
-	}
-
-	return roles
-}
-
-// createNamespaceClusterRoles creates the crossplane:ns:{name}:{persona}
-// roles for a given stack's namespace
-func (h *stackHandler) createNamespaceClusterRoles(ctx context.Context) error {
-	if !h.isNamespaced() {
-		return nil
-	}
-
-	// Get the Namepsace because we need the UID for OwnerReference
-	ns := &corev1.Namespace{}
-	nsName := h.ext.GetNamespace()
-
-	if err := h.kube.Get(ctx, types.NamespacedName{Name: nsName}, ns); err != nil {
-		return errors.Wrapf(err, "failed to get namespace %q for stack %q", nsName, h.ext.GetName())
-	}
-
-	// generate namespace + stack specific clusterroles for all personas
-	roles := generateNamespaceClusterRoles(h.ext)
-
-	for _, role := range roles {
-		// When the namespace is deleted, we no longer need these clusterroles.
-		// Set the ClusterRole owner to the Namespace so they are cleaned up
-		// automatically
-		role.SetOwnerReferences([]metav1.OwnerReference{
-			{
-				APIVersion: "v1",
-				Kind:       "Namespace",
-				Name:       nsName,
-				UID:        ns.GetUID(),
-			},
-		})
-
-		// Creating the clusterroles. Since these Rules in these clusterroles
-		// are populated through aggregation from the stacks installed in the
-		// namespaces, we won't need to update them.
-		if err := h.kube.Create(ctx, role); err != nil && !kerrors.IsAlreadyExists(err) {
-			return errors.Wrapf(err, "failed to create clusterrole %s for stack %s", role.GetName(), h.ext.GetName())
-		}
-	}
-	return nil
-}
-
 func (h *stackHandler) createDeploymentClusterRole(ctx context.Context, labels map[string]string) (string, error) {
 	name := stacks.PersonaRoleName(h.ext, "system")
 	cr := &rbacv1.ClusterRole{
@@ -519,9 +425,6 @@ func (h *stackHandler) processRBAC(ctx context.Context) error {
 	case apiextensions.ClusterScoped:
 		roleBindingErr = h.createClusterRoleBinding(ctx, clusterRoleName, labels)
 	case "", apiextensions.NamespaceScoped:
-		if nsClusterRoleErr := h.createNamespaceClusterRoles(ctx); nsClusterRoleErr != nil {
-			return nsClusterRoleErr
-		}
 		roleBindingErr = h.createNamespacedRoleBinding(ctx, clusterRoleName, owner)
 
 	default:

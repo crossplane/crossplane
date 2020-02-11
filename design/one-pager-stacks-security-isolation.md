@@ -375,8 +375,8 @@ Each namespace provides a unit of isolation with namespaced stacks, and thus a u
  for the installed stacks into namespace specific roles for self-service. These `ClusterRoles` should be bound to subjects
  using a `RoleBinding` (not `ClusterRoleBinding`) to grant access to a particular namespace for end-user integration.
 
-This design calls for the stack-manager to act on any namespace that is annotated with `rbac.crossplane.io/managed-roles: true`,
-ensuring that ClusterRoles in the following format are created for the annotated namespace.
+This design calls for the stack-manager to act on any namespace that is labeled with `rbac.crossplane.io/managed-roles: true`,
+ensuring that ClusterRoles in the following format are created for the labeled namespace.
 
  * `crossplane:ns:{ns-name}:admin`
  * `crossplane:ns:{ns-name}:edit`
@@ -502,7 +502,7 @@ kind: ClusterRole
 metadata:
   name: crossplane:ns:foo:view
   labels:
-    crossplane.io/scope: "namespace" # For discoverability for tools
+    crossplane.io/scope: "namespace" # For discoverability by tools
     namespace.crossplane.io/foo: "true"
 aggregationRule:
   clusterRoleSelectors:
@@ -562,7 +562,7 @@ kind: Namespace
 metadata:
   creationTimestamp: 2019-10-16T18:25:10Z
   name: app-team-1
-  annotations:
+  labels:
     rbac.crossplane.io/managed-roles: true # Stack manager creates and will manage namespace specific ClusterRoles when it see's this.
 ---
 apiVersion: rbac.authorization.k8s.io/v1
