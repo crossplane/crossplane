@@ -40,6 +40,7 @@ var (
 // StackInstall type metadata.
 var (
 	StackInstallKind             = reflect.TypeOf(StackInstall{}).Name()
+	StackInstallGroupKind        = schema.GroupKind{Group: Group, Kind: StackInstallKind}.String()
 	StackInstallKindAPIVersion   = StackInstallKind + "." + SchemeGroupVersion.String()
 	StackInstallGroupVersionKind = SchemeGroupVersion.WithKind(StackInstallKind)
 )
@@ -47,6 +48,7 @@ var (
 // ClusterStackInstall type metadata.
 var (
 	ClusterStackInstallKind             = reflect.TypeOf(ClusterStackInstall{}).Name()
+	ClusterStackInstallGroupKind        = schema.GroupKind{Group: Group, Kind: ClusterStackInstallKind}.String()
 	ClusterStackInstallKindAPIVersion   = ClusterStackInstallKind + "." + SchemeGroupVersion.String()
 	ClusterStackInstallGroupVersionKind = SchemeGroupVersion.WithKind(ClusterStackInstallKind)
 )
@@ -54,6 +56,7 @@ var (
 // Stack type metadata.
 var (
 	StackKind             = reflect.TypeOf(Stack{}).Name()
+	StackGroupKind        = schema.GroupKind{Group: Group, Kind: StackKind}.String()
 	StackKindAPIVersion   = StackKind + "." + SchemeGroupVersion.String()
 	StackGroupVersionKind = SchemeGroupVersion.WithKind(StackKind)
 )
@@ -61,6 +64,7 @@ var (
 // StackConfiguration type metadata
 var (
 	StackConfigurationKind             = reflect.TypeOf(StackConfiguration{}).Name()
+	StackConfigurationGroupKind        = schema.GroupKind{Group: Group, Kind: StackConfigurationKind}.String()
 	StackConfigurationKindAPIVersion   = StackConfigurationKind + "." + SchemeGroupVersion.String()
 	StackConfigurationGroupVersionKind = SchemeGroupVersion.WithKind(StackConfigurationKind)
 )
@@ -68,6 +72,7 @@ var (
 // StackDefinition type metadata
 var (
 	StackDefinitionKind             = reflect.TypeOf(StackDefinition{}).Name()
+	StackDefinitionGroupKind        = schema.GroupKind{Group: Group, Kind: StackDefinitionKind}.String()
 	StackDefinitionKindAPIVersion   = StackDefinitionKind + "." + SchemeGroupVersion.String()
 	StackDefinitionGroupVersionKind = SchemeGroupVersion.WithKind(StackDefinitionKind)
 )

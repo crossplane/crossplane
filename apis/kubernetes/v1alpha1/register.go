@@ -40,6 +40,7 @@ var (
 // Provider type metadata.
 var (
 	ProviderKind             = reflect.TypeOf(Provider{}).Name()
+	ProviderGroupKind        = schema.GroupKind{Group: Group, Kind: ProviderKind}.String()
 	ProviderKindAPIVersion   = ProviderKind + "." + SchemeGroupVersion.String()
 	ProviderGroupVersionKind = SchemeGroupVersion.WithKind(ProviderKind)
 )

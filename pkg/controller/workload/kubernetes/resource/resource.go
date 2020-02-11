@@ -85,7 +85,7 @@ func UpdatePredicate(event event.UpdateEvent) bool {
 
 // Setup adds a controller that reconciles KubernetesApplicationResources.
 func Setup(mgr ctrl.Manager, l logging.Logger) error {
-	name := "workload/" + strings.ToLower(v1alpha1.KubernetesApplicationResourceKind)
+	name := "workload/" + strings.ToLower(v1alpha1.KubernetesApplicationResourceGroupKind)
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).

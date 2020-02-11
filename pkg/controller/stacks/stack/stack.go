@@ -97,7 +97,7 @@ type Reconciler struct {
 
 // Setup adds a controller that reconciles Stacks.
 func Setup(mgr ctrl.Manager, l logging.Logger, hostControllerNamespace string) error {
-	name := "stacks/" + strings.ToLower(v1alpha1.StackKind)
+	name := "stacks/" + strings.ToLower(v1alpha1.StackGroupKind)
 
 	hostKube, _, err := hosted.GetClients()
 	if err != nil {
