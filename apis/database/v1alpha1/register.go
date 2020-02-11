@@ -40,6 +40,7 @@ var (
 // MySQLInstance type metadata.
 var (
 	MySQLInstanceKind             = reflect.TypeOf(MySQLInstance{}).Name()
+	MySQLInstanceGroupKind        = schema.GroupKind{Group: Group, Kind: MySQLInstanceKind}.String()
 	MySQLInstanceKindAPIVersion   = MySQLInstanceKind + "." + SchemeGroupVersion.String()
 	MySQLInstanceGroupVersionKind = SchemeGroupVersion.WithKind(MySQLInstanceKind)
 )
@@ -47,6 +48,7 @@ var (
 // PostgreSQLInstance type metadata.
 var (
 	PostgreSQLInstanceKind             = reflect.TypeOf(PostgreSQLInstance{}).Name()
+	PostgreSQLInstanceGroupKind        = schema.GroupKind{Group: Group, Kind: PostgreSQLInstanceKind}.String()
 	PostgreSQLInstanceKindAPIVersion   = PostgreSQLInstanceKind + "." + SchemeGroupVersion.String()
 	PostgreSQLInstanceGroupVersionKind = SchemeGroupVersion.WithKind(PostgreSQLInstanceKind)
 )

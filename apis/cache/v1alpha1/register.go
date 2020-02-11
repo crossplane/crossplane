@@ -40,6 +40,7 @@ var (
 // RedisCluster type metadata.
 var (
 	RedisClusterKind             = reflect.TypeOf(RedisCluster{}).Name()
+	RedisClusterGroupKind        = schema.GroupKind{Group: Group, Kind: RedisClusterKind}.String()
 	RedisClusterKindAPIVersion   = RedisClusterKind + "." + SchemeGroupVersion.String()
 	RedisClusterGroupVersionKind = SchemeGroupVersion.WithKind(RedisClusterKind)
 )

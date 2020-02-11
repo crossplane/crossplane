@@ -105,7 +105,7 @@ func UpdatePredicate(e event.UpdateEvent) bool {
 
 // Setup adds a controller that schedules KubernetesApplications.
 func Setup(mgr ctrl.Manager, l logging.Logger) error {
-	name := "scheduler/" + strings.ToLower(workloadv1alpha1.KubernetesApplicationKind)
+	name := "scheduler/" + strings.ToLower(workloadv1alpha1.KubernetesApplicationGroupKind)
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).

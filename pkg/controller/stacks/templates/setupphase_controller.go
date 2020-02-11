@@ -156,7 +156,7 @@ func (r *SetupPhaseReconciler) newRenderController(gvk *schema.GroupVersionKind,
 	apiType := &unstructured.Unstructured{}
 	apiType.SetGroupVersionKind(*gvk)
 
-	name := "stacks/" + strings.ToLower(gvk.Kind)
+	name := "stacks/" + strings.ToLower(gvk.GroupKind().String())
 	reconciler := &RenderPhaseReconciler{
 		Client:     r.Client,
 		Log:        r.Log.WithValues("controller", name),

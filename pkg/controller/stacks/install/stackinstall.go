@@ -82,7 +82,7 @@ type Reconciler struct {
 // SetupClusterStackInstall adds a controller that reconciles
 // ClusterStackInstalls.
 func SetupClusterStackInstall(mgr ctrl.Manager, l logging.Logger, hostControllerNamespace, tsControllerImage string) error {
-	name := "stacks/" + strings.ToLower(v1alpha1.ClusterStackInstallKind)
+	name := "stacks/" + strings.ToLower(v1alpha1.ClusterStackInstallGroupKind)
 	stackinator := func() v1alpha1.StackInstaller { return &v1alpha1.ClusterStackInstall{} }
 
 	// Fail early if ClusterStackInstall is not registered with the scheme.
@@ -120,7 +120,7 @@ func SetupClusterStackInstall(mgr ctrl.Manager, l logging.Logger, hostController
 
 // SetupStackInstall adds a controller that reconciles StackInstalls.
 func SetupStackInstall(mgr ctrl.Manager, l logging.Logger, hostControllerNamespace, tsControllerImage string) error {
-	name := "stacks/" + strings.ToLower(v1alpha1.StackInstallKind)
+	name := "stacks/" + strings.ToLower(v1alpha1.StackInstallGroupKind)
 	stackinator := func() v1alpha1.StackInstaller { return &v1alpha1.StackInstall{} }
 
 	// Fail early if StackInstall is not registered with the scheme.

@@ -40,6 +40,7 @@ var (
 // KubernetesCluster type metadata.
 var (
 	KubernetesClusterKind             = reflect.TypeOf(KubernetesCluster{}).Name()
+	KubernetesClusterGroupKind        = schema.GroupKind{Group: Group, Kind: KubernetesClusterKind}.String()
 	KubernetesClusterKindAPIVersion   = KubernetesClusterKind + "." + SchemeGroupVersion.String()
 	KubernetesClusterGroupVersionKind = SchemeGroupVersion.WithKind(KubernetesClusterKind)
 )
@@ -47,6 +48,7 @@ var (
 // MachineInstance type metadata.
 var (
 	MachineInstanceKind             = reflect.TypeOf(MachineInstance{}).Name()
+	MachineInstanceGroupKind        = schema.GroupKind{Group: Group, Kind: MachineInstanceKind}.String()
 	MachineInstanceKindAPIVersion   = MachineInstanceKind + "." + SchemeGroupVersion.String()
 	MachineInstanceGroupVersionKind = SchemeGroupVersion.WithKind(MachineInstanceKind)
 )

@@ -27,7 +27,7 @@ import (
 
 // SetupStackConfigurations adds a controller that reconciles StackConfigurations.
 func SetupStackConfigurations(mgr ctrl.Manager, l logging.Logger) error {
-	name := "stacks/" + strings.ToLower(v1alpha1.StackConfigurationKind)
+	name := "stacks/" + strings.ToLower(v1alpha1.StackConfigurationGroupKind)
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
@@ -37,7 +37,7 @@ func SetupStackConfigurations(mgr ctrl.Manager, l logging.Logger) error {
 
 // SetupStackDefinitions adds a controller that reconciles StackDefinitions.
 func SetupStackDefinitions(mgr ctrl.Manager, l logging.Logger) error {
-	name := "stacks/" + strings.ToLower(v1alpha1.StackDefinitionKind)
+	name := "stacks/" + strings.ToLower(v1alpha1.StackDefinitionGroupKind)
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).

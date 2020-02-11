@@ -40,6 +40,7 @@ var (
 // KubernetesApplication type metadata.
 var (
 	KubernetesApplicationKind             = reflect.TypeOf(KubernetesApplication{}).Name()
+	KubernetesApplicationGroupKind        = schema.GroupKind{Group: Group, Kind: KubernetesApplicationKind}.String()
 	KubernetesApplicationKindAPIVersion   = KubernetesApplicationKind + "." + SchemeGroupVersion.String()
 	KubernetesApplicationGroupVersionKind = SchemeGroupVersion.WithKind(KubernetesApplicationKind)
 )
@@ -47,6 +48,7 @@ var (
 // KubernetesApplicationResource type metadata.
 var (
 	KubernetesApplicationResourceKind             = reflect.TypeOf(KubernetesApplicationResource{}).Name()
+	KubernetesApplicationResourceGroupKind        = schema.GroupKind{Group: Group, Kind: KubernetesApplicationResourceKind}.String()
 	KubernetesApplicationResourceKindAPIVersion   = KubernetesApplicationResourceKind + "." + SchemeGroupVersion.String()
 	KubernetesApplicationResourceGroupVersionKind = SchemeGroupVersion.WithKind(KubernetesApplicationResourceKind)
 )
@@ -54,6 +56,7 @@ var (
 // KubernetesTarget type metadata.
 var (
 	KubernetesTargetKind             = reflect.TypeOf(KubernetesTarget{}).Name()
+	KubernetesTargetGroupKind        = schema.GroupKind{Group: Group, Kind: KubernetesTargetKind}.String()
 	KubernetesTargetKindAPIVersion   = KubernetesTargetKind + "." + SchemeGroupVersion.String()
 	KubernetesTargetGroupVersionKind = SchemeGroupVersion.WithKind(KubernetesTargetKind)
 )

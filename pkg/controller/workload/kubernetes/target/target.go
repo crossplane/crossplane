@@ -57,7 +57,7 @@ func clusterIsBound(obj runtime.Object) bool {
 // Setup adds a controller that creates KubernetesTargets for
 // KubernetesClusters.
 func Setup(mgr ctrl.Manager, l logging.Logger) error {
-	name := "autotarget/" + strings.ToLower(computev1alpha1.KubernetesClusterKind)
+	name := "autotarget/" + strings.ToLower(computev1alpha1.KubernetesClusterGroupKind)
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
