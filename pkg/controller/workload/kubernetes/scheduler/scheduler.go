@@ -128,7 +128,7 @@ type Reconciler struct {
 // Reconcile attempts to schedule a KubernetesApplication to a KubernetesTarget
 // that matches its cluster selector.
 func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) {
-	r.log.Debug("Reconciling", "kind", "request", req)
+	r.log.Debug("Reconciling", "request", req)
 
 	ctx, cancel := context.WithTimeout(context.Background(), reconcileTimeout)
 	defer cancel()
