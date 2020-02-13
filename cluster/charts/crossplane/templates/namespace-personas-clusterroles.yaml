@@ -49,7 +49,7 @@ kind: ClusterRole
 metadata:
   name: {{ template "name" . }}:stack-manager:ns:default:edit
   labels:
-    rbac.crossplane.io/aggregate-to-namespace-admin: "true"
+    rbac.crossplane.io/aggregate-to-namespace-default-admin: "true"
     rbac.crossplane.io/aggregate-to-namespace-default-edit: "true"
     app: {{ template "name" . }}
     chart: {{ template "chart" . }}
@@ -92,7 +92,7 @@ kind: ClusterRole
 metadata:
   name: {{ template "name" . }}:stack-manager:ns:default:view
   labels:
-    rbac.crossplane.io/aggregate-to-namespace-edit: "true"
+    rbac.crossplane.io/aggregate-to-namespace-default-edit: "true"
     rbac.crossplane.io/aggregate-to-namespace-default-view: "true"
     app: {{ template "name" . }}
     chart: {{ template "chart" . }}
