@@ -295,9 +295,12 @@ func (h *stackInstallHandler) create(ctx context.Context) (reconcile.Result, err
 
 	if jobRef == nil {
 		// there is no install job created yet, create it now
-		job := createInstallJob(h.ext, h.executorInfo, h.hostAwareConfig, h.templatesControllerImage)
+		job, err := createInstallJob(h.ext, h.executorInfo, h.hostAwareConfig, h.templatesControllerImage)
+		if err != nil {
+			return fail(ctx, h.kube, h.ext, err)
+		}
 
-		if err := h.hostKube.Create(ctx, job); err != nil {
+		if err = h.hostKube.Create(ctx, job); err != nil {
 			return fail(ctx, h.kube, h.ext, err)
 		}
 

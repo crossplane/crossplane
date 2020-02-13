@@ -61,7 +61,7 @@ type stackInstallJobCompleter struct {
 	log          logging.Logger
 }
 
-func createInstallJob(i v1alpha1.StackInstaller, executorInfo *stacks.ExecutorInfo, hCfg *hosted.Config, tscImage string) *batchv1.Job {
+func createInstallJob(i v1alpha1.StackInstaller, executorInfo *stacks.ExecutorInfo, hCfg *hosted.Config, tscImage string) (*batchv1.Job, error) {
 	name := i.GetName()
 	namespace := i.GetNamespace()
 
@@ -70,6 +70,11 @@ func createInstallJob(i v1alpha1.StackInstaller, executorInfo *stacks.ExecutorIn
 		o := hCfg.ObjectReferenceOnHost(name, namespace)
 		name = o.Name
 		namespace = o.Namespace
+	}
+
+	img, err := i.Image()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse stack image and source")
 	}
 
 	return &batchv1.Job{
@@ -86,7 +91,7 @@ func createInstallJob(i v1alpha1.StackInstaller, executorInfo *stacks.ExecutorIn
 					InitContainers: []corev1.Container{
 						{
 							Name:    "stack-copy-to-volume",
-							Image:   i.Image(),
+							Image:   img,
 							Command: []string{"cp", "-R", registryDirName, "/ext-pkg/"},
 							VolumeMounts: []corev1.VolumeMount{
 								{
@@ -129,7 +134,7 @@ func createInstallJob(i v1alpha1.StackInstaller, executorInfo *stacks.ExecutorIn
 				},
 			},
 		},
-	}
+	}, nil
 }
 
 func (jc *stackInstallJobCompleter) handleJobCompletion(ctx context.Context, i stacks.KindlyIdentifier, job *batchv1.Job) error {

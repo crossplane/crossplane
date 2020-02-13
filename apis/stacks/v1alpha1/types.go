@@ -17,8 +17,11 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"fmt"
+	"net/url"
+	"strconv"
+	"strings"
 
+	"github.com/pkg/errors"
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbac "k8s.io/api/rbac/v1"
@@ -28,6 +31,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+)
+
+const (
+	defaultRegistryPort   = 5000
+	defaultRegistryScheme = "https"
 )
 
 // TODO: how do we pretty print conditioned status items? There may be multiple of them, and they
@@ -85,22 +93,104 @@ type StackInstallStatus struct {
 	StackRecord *corev1.ObjectReference `json:"stackRecord,omitempty"`
 }
 
-// Image returns the fully qualified image name for the StackInstallSpec.
-// based on the fully qualified image name format of hostname[:port]/username/reponame[:tag]
-func (spec StackInstallSpec) Image() string {
-	if spec.Source == "" {
-		// there is no package source, simply return the package name
-		return spec.Package
+type StackImage struct {
+	Scheme string
+	Host   string
+	Port   int
+	Prefix string
+	Path   string
+	Tag    string
+}
+
+// String builds a string URI from a StackImage source and path
+func (s *StackImage) String() string {
+	b := ""
+
+	// If Host is not set, we ignore Path and Protocol
+	if s.Host != "" {
+		// omit the default scheme
+		if s.Scheme != "" && s.Scheme != defaultRegistryScheme {
+			b = b + s.Scheme + "://"
+		}
+		b = b + s.Host
+		// omit the default port
+		if s.Port != 0 && s.Port != defaultRegistryPort {
+			b = b + ":" + strconv.Itoa(s.Port)
+		}
+
+		if prefix := strings.Trim(s.Prefix, "/"); prefix != "" {
+			b = b + "/" + prefix
+		}
+		b = b + "/"
+	}
+	b = b + s.Path
+	if s.Tag != "" {
+		b = b + ":" + s.Tag
 	}
 
-	return fmt.Sprintf("%s/%s", spec.Source, spec.Package)
+	return b
+}
+
+// FromStackInstaller populates a StackImage by parsing StackInstaller
+// Source and Package
+func (s *StackImage) FromStackInstaller(src, pkg string) error {
+	if src != "" {
+		if !strings.Contains(src, "://") {
+			src = defaultRegistryScheme + "://" + src
+		}
+		u, err := url.Parse(src)
+		if err != nil {
+			return errors.Wrap(err, "failed to parse source")
+		}
+
+		s.Scheme = u.Scheme
+		hostPort := strings.SplitN(u.Host, ":", 2)
+		s.Host = hostPort[0]
+		if len(hostPort) == 2 {
+			s.Port, err = strconv.Atoi(hostPort[1])
+			if err != nil {
+				return errors.Wrap(err, "failed to parse source port")
+			}
+		}
+		s.Prefix = u.Path
+	}
+
+	imageWithTag := strings.SplitN(pkg, ":", 2)
+	s.Path = imageWithTag[0]
+	if len(imageWithTag) == 2 {
+		s.Tag = imageWithTag[1]
+	}
+	return nil
+}
+
+// Image returns the fully qualified image name for the StackInstallSpec.
+// based on the fully qualified image name format of hostname[:port]/username/reponame[:tag]
+func (spec StackInstallSpec) Image() (*StackImage, error) {
+	img := &StackImage{}
+	if err := img.FromStackInstaller(spec.Source, spec.Package); err != nil {
+		return nil, err
+	}
+	return img, nil
+}
+
+// ImageStr calls Image and immediately converts it to string
+func (spec StackInstallSpec) ImageStr() (string, error) {
+	img, err := spec.Image()
+	if err != nil {
+		return "", err
+	}
+	return img.String(), nil
 }
 
 // Image gets the Spec.Image of the StackInstall
-func (si *StackInstall) Image() string { return si.Spec.Image() }
+func (si *StackInstall) Image() (string, error) {
+	return si.Spec.ImageStr()
+}
 
 // Image gets the Spec.Image of the ClusterStackInstall
-func (si *ClusterStackInstall) Image() string { return si.Spec.Image() }
+func (si *ClusterStackInstall) Image() (string, error) {
+	return si.Spec.ImageStr()
+}
 
 // PermissionScope gets the required app.yaml permissionScope value ("Namespaced") for StackInstall
 func (si *StackInstall) PermissionScope() string { return string(apiextensions.NamespaceScoped) }
@@ -176,7 +266,7 @@ type StackInstaller interface {
 	metav1.Object
 	runtime.Object
 
-	Image() string
+	Image() (string, error)
 	PermissionScope() string
 	SetConditions(c ...runtimev1alpha1.Condition)
 	InstallJob() *corev1.ObjectReference
