@@ -19,10 +19,10 @@ package v1alpha1
 import (
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 
 	"github.com/crossplaneio/crossplane-runtime/pkg/test"
-	"github.com/google/go-cmp/cmp"
 )
 
 var (

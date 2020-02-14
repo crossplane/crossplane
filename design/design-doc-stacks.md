@@ -59,7 +59,11 @@ This section describes the end to end installation flow implemented by the Stack
 * The SM starts up with a default “source” registry (e.g. `registry.crossplane.io`) that contains packages (bundles of a Stack and its custom controllers and CRDs) published to it
 * User creates a custom resource instance that represents their desire to install a new Stack in the cluster, for example `ClusterStackInstall` or `StackInstall`.
 The CRD type used here will depend on what type of Stack they wish to install, but will always include everything needed to successfully run that Stack, such as:
-  * an optional source registry that can be any arbitrary registry location.  If this field is not specified then the SM's default source registry will be used.
+  * an optional source registry that can be any arbitrary registry location.
+    If a registry source is provided and the controller image does not include a
+    source, the controller image will use the registry source provided in the StackInstall.
+    If this field is not specified then the SM's default source registry
+    will be used.
   * One of the following must be specified:
     * package name (`gitlab`) OR
     * CRD name (`gitlabcluster.gitlab.com/v1alpha1`)

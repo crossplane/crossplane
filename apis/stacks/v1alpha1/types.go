@@ -93,6 +93,8 @@ type StackInstallStatus struct {
 	StackRecord *corev1.ObjectReference `json:"stackRecord,omitempty"`
 }
 
+// StackImage defines the URI properties relevant to Registry Images,
+// specifically Stack images
 type StackImage struct {
 	Scheme string
 	Host   string
@@ -110,30 +112,30 @@ func (s *StackImage) String() string {
 	if s.Host != "" {
 		// omit the default scheme
 		if s.Scheme != "" && s.Scheme != defaultRegistryScheme {
-			b = b + s.Scheme + "://"
+			b += s.Scheme + "://"
 		}
-		b = b + s.Host
+		b += s.Host
 		// omit the default port
 		if s.Port != 0 && s.Port != defaultRegistryPort {
-			b = b + ":" + strconv.Itoa(s.Port)
+			b += ":" + strconv.Itoa(s.Port)
 		}
 
 		if prefix := strings.Trim(s.Prefix, "/"); prefix != "" {
-			b = b + "/" + prefix
+			b += "/" + prefix
 		}
-		b = b + "/"
+		b += "/"
 	}
-	b = b + s.Path
+	b += s.Path
 	if s.Tag != "" {
-		b = b + ":" + s.Tag
+		b += ":" + s.Tag
 	}
 
 	return b
 }
 
-// FromStackInstaller populates a StackImage by parsing StackInstaller
+// FromSourcePackage populates a StackImage by parsing StackInstaller
 // Source and Package
-func (s *StackImage) FromStackInstaller(src, pkg string) error {
+func (s *StackImage) FromSourcePackage(src, pkg string) error {
 	if src != "" {
 		if !strings.Contains(src, "://") {
 			src = defaultRegistryScheme + "://" + src
@@ -167,7 +169,7 @@ func (s *StackImage) FromStackInstaller(src, pkg string) error {
 // based on the fully qualified image name format of hostname[:port]/username/reponame[:tag]
 func (spec StackInstallSpec) Image() (*StackImage, error) {
 	img := &StackImage{}
-	if err := img.FromStackInstaller(spec.Source, spec.Package); err != nil {
+	if err := img.FromSourcePackage(spec.Source, spec.Package); err != nil {
 		return nil, err
 	}
 	return img, nil
@@ -190,6 +192,16 @@ func (si *StackInstall) Image() (string, error) {
 // Image gets the Spec.Image of the ClusterStackInstall
 func (si *ClusterStackInstall) Image() (string, error) {
 	return si.Spec.ImageStr()
+}
+
+// GetSpec gets the Spec of the StackInstall
+func (si *StackInstall) GetSpec() StackInstallSpec {
+	return si.Spec
+}
+
+// GetSpec gets the Spec of the ClusterStackInstall
+func (si *ClusterStackInstall) GetSpec() StackInstallSpec {
+	return si.Spec
 }
 
 // PermissionScope gets the required app.yaml permissionScope value ("Namespaced") for StackInstall
@@ -267,6 +279,7 @@ type StackInstaller interface {
 	runtime.Object
 
 	Image() (string, error)
+	GetSpec() StackInstallSpec
 	PermissionScope() string
 	SetConditions(c ...runtimev1alpha1.Condition)
 	InstallJob() *corev1.ObjectReference

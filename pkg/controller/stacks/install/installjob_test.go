@@ -218,10 +218,10 @@ func unstructuredObj(uom ...unstructuredObjModifier) *unstructured.Unstructured 
 }
 
 type mockJobCompleter struct {
-	MockHandleJobCompletion func(ctx context.Context, i stacks.KindlyIdentifier, job *batchv1.Job) error
+	MockHandleJobCompletion func(ctx context.Context, i v1alpha1.StackInstaller, job *batchv1.Job) error
 }
 
-func (m *mockJobCompleter) handleJobCompletion(ctx context.Context, i stacks.KindlyIdentifier, job *batchv1.Job) error {
+func (m *mockJobCompleter) handleJobCompletion(ctx context.Context, i v1alpha1.StackInstaller, job *batchv1.Job) error {
 	return m.MockHandleJobCompletion(ctx, i, job)
 }
 
@@ -600,7 +600,7 @@ func TestCreate(t *testing.T) {
 					},
 				},
 				jobCompleter: &mockJobCompleter{
-					MockHandleJobCompletion: func(ctx context.Context, i stacks.KindlyIdentifier, job *batchv1.Job) error { return nil },
+					MockHandleJobCompletion: func(ctx context.Context, i v1alpha1.StackInstaller, job *batchv1.Job) error { return nil },
 				},
 				executorInfo: &stacks.ExecutorInfo{Image: stackPackageImage},
 				ext: resource(
@@ -634,7 +634,7 @@ func TestCreate(t *testing.T) {
 					},
 				},
 				jobCompleter: &mockJobCompleter{
-					MockHandleJobCompletion: func(ctx context.Context, i stacks.KindlyIdentifier, job *batchv1.Job) error { return nil },
+					MockHandleJobCompletion: func(ctx context.Context, i v1alpha1.StackInstaller, job *batchv1.Job) error { return nil },
 				},
 				executorInfo: &stacks.ExecutorInfo{Image: stackPackageImage},
 				ext: resource(
