@@ -375,7 +375,7 @@ Each namespace provides a unit of isolation with namespaced stacks, and thus a u
  for the installed stacks into namespace specific roles for self-service. These `ClusterRoles` should be bound to subjects
  using a `RoleBinding` (not `ClusterRoleBinding`) to grant access to a particular namespace for end-user integration.
 
-This design calls for the stack-manager to act on any namespace that is labeled with `rbac.crossplane.io/managed-roles: true`,
+This design calls for the stack-manager to act on any namespace that is labeled with `rbac.crossplane.io/managed-roles: "true"`,
 ensuring that ClusterRoles in the following format are created for the labeled namespace.
 
  * `crossplane:ns:{ns-name}:admin`
@@ -384,11 +384,11 @@ ensuring that ClusterRoles in the following format are created for the labeled n
 
 For discoverability of the roles for a given namespace we will add the following labels:
  * `crossplane.io/scope: "namespace"`
- * `namespace.crossplane.io/{namespace-name}: true`
+ * `namespace.crossplane.io/{namespace-name}: "true"`
 
 Match Roles:
  * `rbac.crossplane.io/aggregate-to-namespace-{role}: "true"`
- * `namespace.crossplane.io/{namespace-name}: true // to match specific namespace.`
+ * `namespace.crossplane.io/{namespace-name}: "true" // to match specific namespace.`
 
 |ClusterRole Name | Kubernetes Counterpart | Permissions |
 |:---------------------|:----------|:----------|
@@ -421,7 +421,7 @@ Labels for these roles will be for aggregation purposes:
  * `rbac.crossplane.io/aggregate-to-{install-scope}-{role}: "true"`
  * `namespace.crossplane.io/{namespace-name}: "true"` // Only included on namespaced stacks install
 
-The format for the namespace label `namespace.crossplane.io/{namespace-name}: true`, which may seem unintuitive
+The format for the namespace label `namespace.crossplane.io/{namespace-name}: "true"`, which may seem unintuitive
  is required to support ClusterRole aggregation. Since we will have some ClusterRoles which aggregate to more than
  multiple namespaces and label keys must be unique, we need to encode the key/value in the key.
 
@@ -563,7 +563,7 @@ metadata:
   creationTimestamp: 2019-10-16T18:25:10Z
   name: app-team-1
   labels:
-    rbac.crossplane.io/managed-roles: true # Stack manager creates and will manage namespace specific ClusterRoles when it see's this.
+    rbac.crossplane.io/managed-roles: "true" # Stack manager creates and will manage namespace specific ClusterRoles when it see's this.
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 # This role binding allows "jane" to admin the Crossplane app-team-1 namespace.
