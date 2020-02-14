@@ -22,6 +22,7 @@ import (
 	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
 
 	"github.com/crossplaneio/crossplane/pkg/controller/stacks/install"
+	"github.com/crossplaneio/crossplane/pkg/controller/stacks/persona"
 	"github.com/crossplaneio/crossplane/pkg/controller/stacks/stack"
 )
 
@@ -35,6 +36,9 @@ func Setup(mgr ctrl.Manager, l logging.Logger, hostControllerNamespace, tsContro
 		return err
 	}
 
+	if err := persona.Setup(mgr, l); err != nil {
+		return nil
+	}
 	if err := stack.Setup(mgr, l, hostControllerNamespace); err != nil {
 		return err
 	}

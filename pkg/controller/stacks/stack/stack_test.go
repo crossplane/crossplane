@@ -584,32 +584,6 @@ func TestProcessRBAC_Namespaced(t *testing.T) {
 						},
 						Rules: defaultPolicyRules(),
 					},
-					{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:            "crossplane:ns:" + namespace + ":view",
-							OwnerReferences: []metav1.OwnerReference{{APIVersion: "v1", Kind: "Namespace", Name: namespace, UID: uid}},
-							Labels: map[string]string{
-								"namespace.crossplane.io/" + namespace: "true",
-								"crossplane.io/scope":                  "namespace",
-							},
-						},
-						Rules: nil,
-						AggregationRule: &rbac.AggregationRule{
-							ClusterRoleSelectors: []metav1.LabelSelector{
-								{
-									MatchLabels: map[string]string{
-										"namespace.crossplane.io/cool-namespace":         "true",
-										"rbac.crossplane.io/aggregate-to-namespace-view": "true",
-									},
-								},
-								{
-									MatchLabels: map[string]string{
-										"rbac.crossplane.io/aggregate-to-namespace-default-view": "true",
-									},
-								},
-							},
-						},
-					},
 				},
 				crb: &rbac.RoleBinding{
 					ObjectMeta: metav1.ObjectMeta{
