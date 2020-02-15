@@ -43,7 +43,6 @@ const (
 	resourceFileNamePattern = "*resource.yaml"
 	groupFileName           = "group.yaml"
 	appFileName             = "app.yaml"
-	stackFileName           = "stack.yaml"
 	behaviorFileName        = "behavior.yaml"
 
 	// StackDefinitionNamespaceEnv is an environment variable used in the
@@ -120,7 +119,6 @@ type StackPackager interface {
 	SetBehavior(v1alpha1.Behavior)
 	SetInstall(unstructured.Unstructured) error
 	SetRBAC(v1alpha1.PermissionsSpec)
-	SetStackConfig(unstructured.Unstructured)
 
 	GotApp() bool
 	IsNamespaced() bool
@@ -142,11 +140,6 @@ type StackPackager interface {
 type StackPackage struct {
 	// Stack is the Kubernetes API Stack representation
 	Stack v1alpha1.Stack
-
-	// TODO roll stack configuration into Stack, most likely
-	// The reason this is unstructured is so that we don't
-	// fill in empty fields that were omitted in the yaml
-	StackConfig unstructured.Unstructured
 
 	// StackDefinition is the Kubernetes API Stack representation
 	StackDefinition v1alpha1.StackDefinition
@@ -207,13 +200,6 @@ func (sp *StackPackage) Yaml() (string, error) {
 		if err := writeYaml(builder, sp.Stack, "Stack"); err != nil {
 			return "", err
 		}
-
-		// Behaviors are optional, so we skip it if it doesn't exist
-		if len(sp.StackConfig.Object) > 0 {
-			if err := writeYaml(builder, sp.StackConfig.Object, "StackConfig"); err != nil {
-				return "", err
-			}
-		}
 	}
 
 	return builder.String(), nil
@@ -229,11 +215,6 @@ func (sp *StackPackage) SetApp(app v1alpha1.AppMetadataSpec) {
 	app.DeepCopyInto(&sp.Stack.Spec.AppMetadataSpec)
 
 	sp.appSet = true
-}
-
-// SetStackConfig sets the Stack's Behavior using StackConfig
-func (sp *StackPackage) SetStackConfig(config unstructured.Unstructured) {
-	sp.StackConfig = config
 }
 
 func (sp *StackPackage) createBehaviorController(sd v1alpha1.Behavior) appsv1.DeploymentSpec {
@@ -536,7 +517,6 @@ func Unpack(rw walker.ResourceWalker, out io.StringWriter, baseDir, permissionSc
 	sp := NewStackPackage(filepath.Clean(baseDir), tsControllerImage)
 
 	rw.AddStep(appFileName, appStep(sp))
-	rw.AddStep(stackFileName, stackConfigStep(sp))
 	rw.AddStep(behaviorFileName, behaviorStep(sp))
 	rw.AddStep(groupFileName, groupStep(sp))
 

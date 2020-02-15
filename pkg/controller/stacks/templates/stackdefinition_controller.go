@@ -47,7 +47,7 @@ const (
 // +kubebuilder:rbac:groups=stacks.crossplane.io,resources=stackconfigurations,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=stacks.crossplane.io,resources=stackconfigurations/status,verbs=get;update;patch
 
-// Reconcile watches for stack configurations and configures render phase controllers in response to a stack configuration
+// Reconcile watches for stackdefinition and creates a Stack in response
 func (r *StackDefinitionReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), stackDefinitionTimeout)
 	defer cancel()
