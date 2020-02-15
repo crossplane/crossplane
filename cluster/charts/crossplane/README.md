@@ -19,8 +19,6 @@ In the future, `beta` and `stable` will also be available.
 
 The alpha channel is the most recent release of Crossplane that is considered ready for testing by the community.
 
-*Note: if installing Crossplane into a Kubernetes cluster that is running a version older than 1.15, Helm 2 installation is recommended. If using Helm 2, [Tiller](https://v2.helm.sh/docs/install/#installing-tiller) must be installed.* 
-
 Install with Helm 2:
 
 ```console
@@ -30,10 +28,17 @@ helm install --name crossplane --namespace crossplane-system crossplane-alpha/cr
 
 Install with Helm 3:
 
+If your Kubernetes version is lower than 1.15 and you'd like to install Crossplane via Helm 3, you'll need Helm v3.1.0+ that has the flag `--disable-openapi-validation`.
+
 ```console
 kubectl create namespace crossplane-system
 helm repo add crossplane-alpha https://charts.crossplane.io/alpha
+
+# Kubernetes 1.15 and newer versions
 helm install crossplane --namespace crossplane-system crossplane-alpha/crossplane
+
+# Kubernetes 1.14 and older versions
+helm install crossplane --namespace crossplane-system crossplane-alpha/crossplane --disable-openapi-validation
 ```
 
 ### Master
@@ -60,11 +65,18 @@ helm install --name crossplane --namespace crossplane-system crossplane-master/c
 
 Install with Helm 3:
 
+If your Kubernetes version is lower than 1.15 and you'd like to install Crossplane via Helm 3, you'll need Helm v3.1.0+.
+
 ```console
 kubectl create namespace crossplane-system
 helm repo add crossplane-master https://charts.crossplane.io/master/
 helm search repo crossplane --devel
+
+# Kubernetes 1.15 and newer versions
 helm install crossplane --namespace crossplane-system crossplane-master/crossplane --version <version> --devel
+
+# Kubernetes 1.14 and older versions
+helm install crossplane --namespace crossplane-system crossplane-master/crossplane --version <version> --devel --disable-openapi-validation
 ```
 
 ## Installing Cloud Provider Stacks
