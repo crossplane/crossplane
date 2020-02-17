@@ -1,6 +1,6 @@
-# servicenetworking.gcp.crossplane.io/v1alpha3 API Reference
+# servicenetworking.gcp.crossplane.io/v1beta1 API Reference
 
-Package v1alpha3 contains managed resources for GCP service networking services such as connections.
+Package v1beta1 contains managed resources for GCP service networking services such as connections.
 
 This API group contains the following Crossplane resources:
 
@@ -13,11 +13,27 @@ A Connection is a managed resource that represents a Google Cloud Service Networ
 
 Name | Type | Description
 -----|------|------------
-`apiVersion` | string | `servicenetworking.gcp.crossplane.io/v1alpha3`
+`apiVersion` | string | `servicenetworking.gcp.crossplane.io/v1beta1`
 `kind` | string | `Connection`
 `metadata` | [meta/v1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectmeta-v1-meta) | Kubernetes object metadata.
 `spec` | [ConnectionSpec](#ConnectionSpec) | A ConnectionSpec defines the desired state of a Connection.
 `status` | [ConnectionStatus](#ConnectionStatus) | A ConnectionStatus represents the observed state of a Connection.
+
+
+
+## ConnectionObservation
+
+ConnectionObservation is used to show the observed state of the Connection.
+
+Appears in:
+
+* [ConnectionStatus](#ConnectionStatus)
+
+
+Name | Type | Description
+-----|------|------------
+`peering` | string | Peering: The name of the VPC Network Peering connection that was created by the service producer.
+`service` | string | Service: The name of the peering service that&#39;s associated with this connection, in the following format: `services/{service name}`.
 
 
 
@@ -33,10 +49,10 @@ Appears in:
 Name | Type | Description
 -----|------|------------
 `parent` | string | Parent: The service that is managing peering connectivity for a service producer&#39;s organization. For Google services that support this functionality, this value is services/servicenetworking.googleapis.com.
-`network` | string | Network: The name of service consumer&#39;s VPC network that&#39;s connected with service producer network, in the following format: `projects/{project}/global/networks/{network}`. `{project}` is a project number, such as in `12345` that includes the VPC service consumer&#39;s VPC network. `{network}` is the name of the service consumer&#39;s VPC network.
-`networkRef` | [NetworkURIReferencerForConnection](#NetworkURIReferencerForConnection) | NetworkRef references to a Network and retrieves its URI
+`network` | Optional string | Network: The name of service consumer&#39;s VPC network that&#39;s connected with service producer network, in the following format: `projects/{project}/global/networks/{network}`. `{project}` is a project number, such as in `12345` that includes the VPC service consumer&#39;s VPC network. `{network}` is the name of the service consumer&#39;s VPC network.
+`networkRef` | Optional [NetworkURIReferencerForConnection](#NetworkURIReferencerForConnection) | NetworkRef references to a Network and retrieves its URI
 `reservedPeeringRanges` | Optional []string | ReservedPeeringRanges: The name of one or more allocated IP address ranges for this service producer of type `PEERING`.
-`reservedPeeringRangeRefs` | [[]*github.com/crossplaneio/stack-gcp/apis/servicenetworking/v1alpha3.GlobalAddressNameReferencerForConnection](#*github.com/crossplaneio/stack-gcp/apis/servicenetworking/v1alpha3.GlobalAddressNameReferencerForConnection) | ReservedPeeringRangeRefs is a set of references to GlobalAddress objects
+`reservedPeeringRangeRefs` | Optional [[]*github.com/crossplaneio/stack-gcp/apis/servicenetworking/v1beta1.GlobalAddressNameReferencerForConnection](#*github.com/crossplaneio/stack-gcp/apis/servicenetworking/v1beta1.GlobalAddressNameReferencerForConnection) | ReservedPeeringRangeRefs is a set of references to GlobalAddress objects
 
 
 
@@ -49,12 +65,14 @@ Appears in:
 * [Connection](#Connection)
 
 
+Name | Type | Description
+-----|------|------------
+`forProvider` | [ConnectionParameters](#ConnectionParameters) | ConnectionParameters define the desired state of a Google Cloud Service Networking Connection. Most fields map direct to a Connection: https://cloud.google.com/service-infrastructure/docs/service-networking/reference/rest/v1/services.connections#Connection
 
 
 ConnectionSpec supports all fields of:
 
 * [v1alpha1.ResourceSpec](../crossplane-runtime/core-crossplane-io-v1alpha1.md#resourcespec)
-* [ConnectionParameters](#ConnectionParameters)
 
 
 ## ConnectionStatus
@@ -68,8 +86,7 @@ Appears in:
 
 Name | Type | Description
 -----|------|------------
-`peering` | string | Peering: The name of the VPC Network Peering connection that was created by the service producer.
-`service` | string | Service: The name of the peering service that&#39;s associated with this connection, in the following format: `services/{service name}`.
+`atProvider` | [ConnectionObservation](#ConnectionObservation) | ConnectionObservation is used to show the observed state of the Connection.
 
 
 ConnectionStatus supports all fields of:
@@ -86,7 +103,7 @@ GlobalAddressNameReferencerForConnection is an attribute referencer that resolve
 
 GlobalAddressNameReferencerForConnection supports all fields of:
 
-* github.com/crossplaneio/stack-gcp/apis/compute/v1alpha3.GlobalAddressNameReferencer
+* github.com/crossplaneio/stack-gcp/apis/compute/v1beta1.GlobalAddressNameReferencer
 
 
 ## NetworkURIReferencerForConnection
@@ -102,7 +119,7 @@ Appears in:
 
 NetworkURIReferencerForConnection supports all fields of:
 
-* github.com/crossplaneio/stack-gcp/apis/compute/v1alpha3.NetworkURIReferencer
+* github.com/crossplaneio/stack-gcp/apis/compute/v1beta1.NetworkURIReferencer
 
 
 This API documentation was generated by `crossdocs`.

@@ -79,7 +79,7 @@ Appears in:
 
 Name | Type | Description
 -----|------|------------
-`forProvider` | [CloudSQLInstanceParameters](#CloudSQLInstanceParameters) | CloudSQLInstanceParameters define the desired state of a Google CloudSQL instance.
+`forProvider` | [CloudSQLInstanceParameters](#CloudSQLInstanceParameters) | CloudSQLInstanceParameters define the desired state of a Google CloudSQL instance. Most of its fields are direct mirror of GCP DatabaseInstance object. See https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1beta4/instances#DatabaseInstance
 
 
 CloudSQLInstanceClassSpecTemplate supports all fields of:
@@ -116,7 +116,7 @@ Name | Type | Description
 
 ## CloudSQLInstanceParameters
 
-CloudSQLInstanceParameters define the desired state of a Google CloudSQL instance.
+CloudSQLInstanceParameters define the desired state of a Google CloudSQL instance. Most of its fields are direct mirror of GCP DatabaseInstance object. See https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1beta4/instances#DatabaseInstance
 
 Appears in:
 
@@ -152,7 +152,7 @@ Appears in:
 
 Name | Type | Description
 -----|------|------------
-`forProvider` | [CloudSQLInstanceParameters](#CloudSQLInstanceParameters) | CloudSQLInstanceParameters define the desired state of a Google CloudSQL instance.
+`forProvider` | [CloudSQLInstanceParameters](#CloudSQLInstanceParameters) | CloudSQLInstanceParameters define the desired state of a Google CloudSQL instance. Most of its fields are direct mirror of GCP DatabaseInstance object. See https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1beta4/instances#DatabaseInstance
 
 
 CloudSQLInstanceSpec supports all fields of:
