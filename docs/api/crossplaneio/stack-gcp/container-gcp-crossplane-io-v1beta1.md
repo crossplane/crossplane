@@ -278,7 +278,7 @@ Appears in:
 
 Name | Type | Description
 -----|------|------------
-`forProvider` | [GKEClusterParameters](#GKEClusterParameters) | GKEClusterParameters define the desired state of a Google Kubernetes Engine cluster.
+`forProvider` | [GKEClusterParameters](#GKEClusterParameters) | GKEClusterParameters define the desired state of a Google Kubernetes Engine cluster. Most of its fields are direct mirror of GCP Cluster object. See https://cloud.google.com/kubernetes-engine/docs/reference/rest/v1/projects.locations.clusters#Cluster
 
 
 GKEClusterClassSpecTemplate supports all fields of:
@@ -321,7 +321,7 @@ Name | Type | Description
 
 ## GKEClusterParameters
 
-GKEClusterParameters define the desired state of a Google Kubernetes Engine cluster.
+GKEClusterParameters define the desired state of a Google Kubernetes Engine cluster. Most of its fields are direct mirror of GCP Cluster object. See https://cloud.google.com/kubernetes-engine/docs/reference/rest/v1/projects.locations.clusters#Cluster
 
 Appears in:
 
@@ -379,7 +379,7 @@ Appears in:
 
 Name | Type | Description
 -----|------|------------
-`forProvider` | [GKEClusterParameters](#GKEClusterParameters) | GKEClusterParameters define the desired state of a Google Kubernetes Engine cluster.
+`forProvider` | [GKEClusterParameters](#GKEClusterParameters) | GKEClusterParameters define the desired state of a Google Kubernetes Engine cluster. Most of its fields are direct mirror of GCP Cluster object. See https://cloud.google.com/kubernetes-engine/docs/reference/rest/v1/projects.locations.clusters#Cluster
 
 
 GKEClusterSpec supports all fields of:
@@ -701,7 +701,7 @@ Appears in:
 
 NetworkURIReferencerForGKECluster supports all fields of:
 
-* github.com/crossplaneio/stack-gcp/apis/compute/v1alpha3.NetworkURIReferencer
+* github.com/crossplaneio/stack-gcp/apis/compute/v1beta1.NetworkURIReferencer
 
 
 ## NodeConfigClusterStatus
@@ -942,7 +942,7 @@ Appears in:
 
 SubnetworkURIReferencerForGKECluster supports all fields of:
 
-* github.com/crossplaneio/stack-gcp/apis/compute/v1alpha3.SubnetworkURIReferencer
+* github.com/crossplaneio/stack-gcp/apis/compute/v1beta1.SubnetworkURIReferencer
 
 
 ## TierSettings

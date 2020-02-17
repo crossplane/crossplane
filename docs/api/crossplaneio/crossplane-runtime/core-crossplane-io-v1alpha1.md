@@ -120,7 +120,7 @@ A ProviderSpec defines the common way to get to the necessary objects to connect
 
 Name | Type | Description
 -----|------|------------
-`credentialsSecretRef` | [SecretKeySelector](#SecretKeySelector) | CredentialsSecretRef references a specific secret&#39;s key that contains the credentials that are used to connect to the provider.
+`credentialsSecretRef` | Optional [SecretKeySelector](#SecretKeySelector) | CredentialsSecretRef references a specific secret&#39;s key that contains the credentials that are used to connect to the provider.
 
 
 

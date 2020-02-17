@@ -32,6 +32,7 @@ Appears in:
 Name | Type | Description
 -----|------|------------
 `region` | string | Region for managed resources created using this AWS provider.
+`useServiceAccount` | Optional bool | UseServiceAccount indicates to use an IAM Role associated Kubernetes ServiceAccount for authentication instead of a credentials Secret. https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html  If set to true, credentialsSecretRef will be ignored.
 
 
 ProviderSpec supports all fields of:
