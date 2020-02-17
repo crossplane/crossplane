@@ -73,7 +73,7 @@ infrastructure stack, we need to specify that it's cluster-scoped by passing the
 `--cluster` flag.
 
 ```bash
-kubectl crossplane stack generate-install --cluster 'crossplane/stack-aws:master' stack-aws | kubectl apply --namespace crossplane-system -f -
+kubectl crossplane stack generate-install --cluster 'crossplane/stack-aws:v0.6.0' stack-aws | kubectl apply --namespace crossplane-system -f -
 ```
 
 The rest of this guide assumes that the AWS stack is installed within
@@ -116,13 +116,13 @@ configurations in Crossplane.
 Apply the sample network configuration resources:
 
 ```bash
-kubectl apply -k github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/aws/network-config?ref=master
+kubectl apply -k github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/aws/network-config?ref=release-0.8
 ```
 
 And you're done! You can check the status of the provisioning by running:
 
 ```bash
-kubectl get -k github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/aws/network-config?ref=master
+kubectl get -k github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/aws/network-config?ref=release-0.8
 ```
 
 When all resources have the `Ready` condition in `True` state, the provisioning
@@ -143,7 +143,7 @@ connectivity][aws-resource-connectivity] design document.
 To inspect the resources that we created above, let's run:
 
 ```bash
-kubectl kustomize github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/aws/network-config?ref=master > network-config.yaml
+kubectl kustomize github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/aws/network-config?ref=release-0.8 > network-config.yaml
 ```
 
 This will save the sample network configuration resources locally in
@@ -438,7 +438,7 @@ repository.
 Apply the sample AWS resource classes:
 
 ```bash
-kubectl apply -k github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/aws/resource-classes?ref=master
+kubectl apply -k github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/aws/resource-classes?ref=release-0.8
 ```
 
 And you're done! Note that these resources do not immediately provision external
@@ -449,7 +449,7 @@ AWS resources, as they only serve as as template classes.
 To inspect the resource classes that we created above, run:
 
 ```bash
-kubectl kustomize github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/aws/resource-classes?ref=master > resource-classes.yaml
+kubectl kustomize github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/aws/resource-classes?ref=release-0.8 > resource-classes.yaml
 ```
 
 This will save the sample resource classes YAML locally in
@@ -568,8 +568,8 @@ off.
 [resource-claims-docs]: concepts.md#resource-claims-and-resource-classes
 [eks-user-guide]: https://docs.aws.amazon.com/eks/latest/userguide/create-public-private-vpc.html
 [Cross Resource Referencing]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-cross-resource-referencing.md
-[sample AWS network configuration]: https://github.com/crossplaneio/crossplane/tree/master/cluster/examples/workloads/kubernetes/wordpress/aws/network-config?ref=master
-[sample AWS resource classes]: https://github.com/crossplaneio/crossplane/tree/master/cluster/examples/workloads/kubernetes/wordpress/aws/resource-classes?ref=master
+[sample AWS network configuration]: https://github.com/crossplaneio/crossplane/tree/master/cluster/examples/workloads/kubernetes/wordpress/aws/network-config?ref=release-0.8
+[sample AWS resource classes]: https://github.com/crossplaneio/crossplane/tree/master/cluster/examples/workloads/kubernetes/wordpress/aws/resource-classes?ref=release-0.8
 [RDS Database Instance]: https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Overview.DBInstance.html
 [EKS Cluster]: https://docs.aws.amazon.com/eks/latest/userguide/clusters.html
 [resource-classes-docs]: concepts.md#resource-claims-and-resource-classes

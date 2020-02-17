@@ -5,4 +5,4 @@ metadata:
   name: stack-azure
   namespace: crossplane-system
 spec:
-  package: "crossplane/stack-azure:master"
+  package: "crossplane/stack-azure:v0.6.0"
