@@ -27,6 +27,7 @@ import (
 	"github.com/pkg/errors"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -60,7 +61,7 @@ type stackInstallJobCompleter struct {
 	log          logging.Logger
 }
 
-func prepareInstallJob(name, namespace, permissionScope, img, stackManagerImage, tscImage string, labels map[string]string) *batchv1.Job {
+func prepareInstallJob(name, namespace, permissionScope, img, stackManagerImage, tscImage string, stackManagerPullPolicy corev1.PullPolicy, imagePullPolicy corev1.PullPolicy, labels map[string]string, imagePullSecrets []corev1.LocalObjectReference) *batchv1.Job {
 	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -71,12 +72,14 @@ func prepareInstallJob(name, namespace, permissionScope, img, stackManagerImage,
 			BackoffLimit: &jobBackoff,
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
-					RestartPolicy: corev1.RestartPolicyNever,
+					ImagePullSecrets: imagePullSecrets,
+					RestartPolicy:    corev1.RestartPolicyNever,
 					InitContainers: []corev1.Container{
 						{
-							Name:    "stack-copy-to-volume",
-							Image:   img,
-							Command: []string{"cp", "-R", registryDirName, "/ext-pkg/"},
+							Name:            "stack-copy-to-volume",
+							Image:           img,
+							ImagePullPolicy: imagePullPolicy,
+							Command:         []string{"cp", "-R", registryDirName, "/ext-pkg/"},
 							VolumeMounts: []corev1.VolumeMount{
 								{
 									Name:      packageContentsVolumeName,
@@ -87,8 +90,9 @@ func prepareInstallJob(name, namespace, permissionScope, img, stackManagerImage,
 					},
 					Containers: []corev1.Container{
 						{
-							Name:  "stack-unpack-and-output",
-							Image: stackManagerImage,
+							Name:            "stack-unpack-and-output",
+							Image:           stackManagerImage,
+							ImagePullPolicy: stackManagerPullPolicy,
 							// "--debug" can be added to this list of Args to get debug output from the job,
 							// but note that will be included in the stdout from the pod, which makes it
 							// impossible to create the resources that the job unpacks.
@@ -209,35 +213,35 @@ func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, o
 		return nil
 	}
 
-	// when the current object is a Stack object, make sure the name and namespace are
-	// set to match the current StackInstall (if they haven't already been set). Also,
-	// set the owner reference of the Stack to be the StackInstall.
-	if isStackObject(obj) || isStackDefinitionObject(obj) {
+	ns := i.GetNamespace()
+
+	// Modify Stack and StackDefinition resources based on StackInstall
+	isStack := isStackObject(obj)
+	isStackDefinition := !isStack && isStackDefinitionObject(obj)
+
+	if isStack || isStackDefinition {
+		name := i.GetName()
 		if obj.GetName() == "" {
-			obj.SetName(i.GetName())
+			obj.SetName(name)
 		}
 		if obj.GetNamespace() == "" {
-			obj.SetNamespace(i.GetNamespace())
-		}
-	}
-
-	// Stack controllers should inherit the StackInstall source unless a
-	// source is already defined in the Stack (install.yaml).
-	if isStackObject(obj) {
-		if err := setStackDeploymentImageSource(obj, i); err != nil {
-			return err
-		}
-	}
-
-	// StackDefinition controllers need the name of the StackDefinition
-	// which, by design, matches the StackInstall
-	if isStackDefinitionObject(obj) {
-		if err := setStackDefinitionControllerEnv(obj, i.GetNamespace(), i.GetName()); err != nil {
-			return err
+			obj.SetNamespace(ns)
 		}
 
-		// inherit the StackInstall source (as is done for Stacks)
-		if err := setStackDefinitionDeploymentImageSource(obj, i); err != nil {
+		modifiers := []stackSpecModifier{
+			controllerPullSetter(i.GetImagePullPolicy(), i.GetImagePullSecrets()),
+			controllerImageSourcer(i),
+			saAnnotationSetter(i.GetServiceAccountAnnotations()),
+		}
+
+		// StackDefinition controllers need the name of the StackDefinition
+		// which, by design, matches the StackInstall
+		if isStackDefinition {
+			modifiers = append(modifiers, controllerEnvSetter(ns, name))
+			if err := setupStackDefinitionController(obj, modifiers...); err != nil {
+				return err
+			}
+		} else if err := setupStackController(obj, modifiers...); err != nil {
 			return err
 		}
 	}
@@ -254,7 +258,7 @@ func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, o
 	// provide the same CRDs without the risk that a single StackInstall removal
 	// will delete a CRD until there are no remaining namespace labels.
 	if isCRDObject(obj) {
-		labelNamespace := fmt.Sprintf(stacks.LabelNamespaceFmt, i.GetNamespace())
+		labelNamespace := fmt.Sprintf(stacks.LabelNamespaceFmt, ns)
 
 		labels[labelNamespace] = "true"
 	}
@@ -277,60 +281,8 @@ func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, o
 	return nil
 }
 
-// setDeploymentImageSource updates the images in ControllerDeployment
-// containers using the given src
-func setDeploymentImageSource(d *v1alpha1.ControllerDeployment, src imageWithSourcer) {
-	ics := d.Spec.Template.Spec.InitContainers
-	for i := range ics {
-		if img, err := src.ImageWithSource(ics[i].Image); err == nil {
-			ics[i].Image = img
-		}
-	}
-
-	cs := d.Spec.Template.Spec.Containers
-	for i := range cs {
-		if img, err := src.ImageWithSource(cs[i].Image); err == nil {
-			cs[i].Image = img
-		}
-	}
-}
-
-func setStackDeploymentImageSource(obj *unstructured.Unstructured, src imageWithSourcer) error {
-	// use convert functions because SetUnstructuredContent is unwieldy
-	s, err := convertToStack(obj)
-	if err != nil {
-		return err
-	}
-
-	if d := s.Spec.Controller.Deployment; d != nil {
-		setDeploymentImageSource(d, src)
-		if u, err := convertStackToUnstructured(s); err == nil {
-			u.DeepCopyInto(obj)
-		}
-	}
-
-	return err
-}
-
 type imageWithSourcer interface {
 	ImageWithSource(string) (string, error)
-}
-
-func setStackDefinitionDeploymentImageSource(obj *unstructured.Unstructured, src imageWithSourcer) error {
-	// use convert functions because SetUnstructuredContent is unwieldy
-	s, err := convertToStackDefinition(obj)
-	if err != nil {
-		return err
-	}
-
-	if d := s.Spec.Controller.Deployment; d != nil {
-		setDeploymentImageSource(d, src)
-		if u, err := convertStackDefinitionToUnstructured(s); err == nil {
-			u.DeepCopyInto(obj)
-		}
-	}
-
-	return err
 }
 
 func isStackObject(obj stacks.KindlyIdentifier) bool {
@@ -364,14 +316,10 @@ func isCRDObject(obj runtime.Object) bool {
 		strings.EqualFold(gvk.Kind, "CustomResourceDefinition")
 }
 
-func setStackDefinitionControllerEnv(obj *unstructured.Unstructured, namespace, name string) error {
-	env := []corev1.EnvVar{{
-		Name:  stacks.StackDefinitionNamespaceEnv,
-		Value: namespace,
-	}, {
-		Name:  stacks.StackDefinitionNameEnv,
-		Value: name,
-	}}
+func setupStackDefinitionController(obj *unstructured.Unstructured, modifiers ...stackSpecModifier) error {
+	if len(modifiers) == 0 {
+		return nil
+	}
 
 	// use convert functions because SetUnstructuredContent is unwieldy
 	sd, err := convertToStackDefinition(obj)
@@ -379,17 +327,128 @@ func setStackDefinitionControllerEnv(obj *unstructured.Unstructured, namespace, 
 		return err
 	}
 
-	if d := sd.Spec.Controller.Deployment; d != nil {
-		c := d.Spec.Template.Spec.Containers
-		c[0].Env = append(c[0].Env, env...)
-
-		if u, err := convertStackDefinitionToUnstructured(sd); err == nil {
-			u.DeepCopyInto(obj)
+	spec := sd.Spec.DeepCopy()
+	for _, m := range modifiers {
+		if err := m(&spec.StackSpec); err != nil {
+			return err
 		}
+	}
+	spec.StackSpec.DeepCopyInto(&sd.Spec.StackSpec)
+
+	if u, err := convertStackDefinitionToUnstructured(sd); err == nil {
+		u.DeepCopyInto(obj)
 	}
 
 	return err
 }
+
+func setupStackController(obj *unstructured.Unstructured, modifiers ...stackSpecModifier) error {
+	if len(modifiers) == 0 {
+		return nil
+	}
+
+	// use convert functions because SetUnstructuredContent is unwieldy
+	s, err := convertToStack(obj)
+	if err != nil {
+		return err
+	}
+
+	spec := s.Spec.DeepCopy()
+	for _, m := range modifiers {
+		if err := m(spec); err != nil {
+			return err
+		}
+	}
+	spec.DeepCopyInto(&s.Spec)
+
+	if u, err := convertStackToUnstructured(s); err == nil {
+		u.DeepCopyInto(obj)
+	}
+
+	return err
+}
+
+func controllerEnvSetter(namespace, name string) stackSpecModifier {
+	return func(spec *v1alpha1.StackSpec) error {
+		env := []corev1.EnvVar{{
+			Name:  stacks.StackDefinitionNamespaceEnv,
+			Value: namespace,
+		}, {
+			Name:  stacks.StackDefinitionNameEnv,
+			Value: name,
+		}}
+
+		if d := spec.Controller.Deployment; d != nil {
+			cs := d.Spec.Template.Spec.Containers
+			cs[0].Env = append(cs[0].Env, env...)
+		}
+		return nil
+	}
+}
+
+func controllerImageSourcer(src imageWithSourcer) stackSpecModifier {
+	return func(spec *v1alpha1.StackSpec) error {
+		d := spec.Controller.Deployment
+		if d == nil {
+			return nil
+		}
+
+		ics := d.Spec.Template.Spec.InitContainers
+		for i := range ics {
+			if img, err := src.ImageWithSource(ics[i].Image); err == nil {
+				ics[i].Image = img
+			}
+		}
+
+		cs := d.Spec.Template.Spec.Containers
+		for i := range cs {
+			if img, err := src.ImageWithSource(cs[i].Image); err == nil {
+				cs[i].Image = img
+			}
+		}
+		return nil
+	}
+}
+
+func controllerPullSetter(imagePullPolicy v1.PullPolicy, imagePullSecrets []v1.LocalObjectReference) stackSpecModifier {
+	return func(spec *v1alpha1.StackSpec) error {
+		if d := spec.Controller.Deployment; d != nil {
+			spec := &d.Spec.Template.Spec
+
+			spec.ImagePullSecrets = append(spec.ImagePullSecrets, imagePullSecrets...)
+
+			for i := range spec.InitContainers {
+				spec.InitContainers[i].ImagePullPolicy = imagePullPolicy
+			}
+
+			for i := range spec.Containers {
+				spec.Containers[i].ImagePullPolicy = imagePullPolicy
+			}
+		}
+
+		return nil
+	}
+}
+
+func saAnnotationSetter(annotations map[string]string) stackSpecModifier {
+	return func(spec *v1alpha1.StackSpec) error {
+		if len(annotations) == 0 {
+			return nil
+		}
+
+		if spec.Controller.ServiceAccount == nil {
+			spec.Controller.ServiceAccount = &v1alpha1.ServiceAccountOptions{Annotations: map[string]string{}}
+		}
+
+		for k, v := range annotations {
+			spec.Controller.ServiceAccount.Annotations[k] = v
+		}
+
+		return nil
+	}
+}
+
+type stackSpecModifier func(spec *v1alpha1.StackSpec) error
 
 // convertStackDefinitionToUnstructured takes a StackDefinition and converts it
 // to *unstructured.Unstructured

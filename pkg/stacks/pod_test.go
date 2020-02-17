@@ -183,50 +183,7 @@ func TestGetSpecContainerImage(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetSpecContainerImage(tt.pod.Spec, tt.containerName, tt.initContainer)
-
-			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
-				t.Errorf("GetSpecContainerImage() want error != got error:\n%s", diff)
-			}
-
-			if diff := cmp.Diff(got, tt.want.image); diff != "" {
-				t.Errorf("GetSpecContainerImage() got != want:\n%v", diff)
-			}
-		})
-	}
-}
-
-func TestGetContainerImage(t *testing.T) {
-	type want struct {
-		image string
-		err   error
-	}
-
-	tests := []struct {
-		name          string
-		pod           *v1.Pod
-		containerName string
-		want          want
-	}{
-		{
-			name: "SingleContainer",
-			pod: &v1.Pod{
-				Spec: v1.PodSpec{
-					Containers: []v1.Container{
-						{Name: "foo", Image: "foo-image"},
-					},
-				},
-			},
-			containerName: "foo",
-			want: want{
-				image: "foo-image",
-				err:   nil,
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetContainerImage(tt.pod, tt.containerName)
+			got, err := GetContainerImage(tt.pod, tt.containerName, tt.initContainer)
 
 			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
 				t.Errorf("GetContainerImage() want error != got error:\n%s", diff)
@@ -234,6 +191,85 @@ func TestGetContainerImage(t *testing.T) {
 
 			if diff := cmp.Diff(got, tt.want.image); diff != "" {
 				t.Errorf("GetContainerImage() got != want:\n%v", diff)
+			}
+		})
+	}
+}
+
+func TestGetContainerImagePullPolicy(t *testing.T) {
+	type want struct {
+		imagePullPolicy v1.PullPolicy
+		err             error
+	}
+
+	tests := []struct {
+		name          string
+		pod           *v1.Pod
+		containerName string
+		initContainer bool
+		want          want
+	}{
+		{
+			name: "SingleContainer",
+			pod: &v1.Pod{
+				Spec: v1.PodSpec{
+					Containers: []v1.Container{
+						{Name: "foo", Image: "foo-image", ImagePullPolicy: v1.PullAlways},
+					},
+				},
+			},
+			containerName: "foo",
+			want: want{
+				imagePullPolicy: v1.PullAlways,
+				err:             nil,
+			},
+		},
+		{
+			name: "InitContainer",
+			pod: &v1.Pod{
+				Spec: v1.PodSpec{
+					InitContainers: []v1.Container{
+						{Name: "foo", Image: "foo-image", ImagePullPolicy: v1.PullAlways},
+					},
+					Containers: []v1.Container{
+						{Name: "bar", Image: "bar-image"},
+					},
+				},
+			},
+			containerName: "foo",
+			initContainer: true,
+			want: want{
+				imagePullPolicy: v1.PullAlways,
+				err:             nil,
+			},
+		},
+		{
+			name: "NoMatches",
+			pod: &v1.Pod{
+				Spec: v1.PodSpec{
+					Containers: []v1.Container{
+						{Name: "bar", Image: "bar-image"},
+						{Name: "foo", Image: "foo-image"},
+					},
+				},
+			},
+			containerName: "baz",
+			want: want{
+				imagePullPolicy: "",
+				err:             errors.New("failed to find image for container baz"),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := GetContainerImagePullPolicy(tt.pod, tt.containerName, tt.initContainer)
+
+			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
+				t.Errorf("GetContainerImagePullPolicy() want error != got error:\n%s", diff)
+			}
+
+			if diff := cmp.Diff(got, tt.want.imagePullPolicy); diff != "" {
+				t.Errorf("GetContainerImagePullPolicy() got != want:\n%v", diff)
 			}
 		})
 	}

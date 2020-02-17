@@ -22,19 +22,32 @@ import (
 	"sync"
 
 	"github.com/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var (
-	// PodImageNameEnvVar is the env variable for setting the image name used for the stack manager unpack/install process.
-	// When this env variable is not set the parent Pod will be detected and the associated image will be used.
-	// Overriding this variable is only useful when debugging the main stack manager process, since there is no Pod to detect.
+	// PodImageNameEnvVar is the env variable for setting the image name used
+	// for the stack manager unpack/install process. When this env variable is
+	// not set the parent Pod will be detected and the associated image will be
+	// used. Overriding this variable is only useful when debugging the main
+	// stack manager process, since there is no Pod to detect. Use of this env
+	// variable requires use of its ImagePullPolicy counterpart.
 	PodImageNameEnvVar = "STACK_MANAGER_IMAGE"
+
+	// PodImagePullPolicyEnvVar is the env variable for setting the image pull
+	// policy used for the stack manager unpack/install process. When this env
+	// variable is not set the parent Pod will be detected and the associated
+	// image pull policy will be used. Overriding this variable is only useful
+	// when debugging the main stack manager process, since there is no Pod to
+	// detect. Use of this env variable requires use of its Image counterpart.
+	PodImagePullPolicyEnvVar = "STACK_MANAGER_IMAGEPULLPOLICY"
 )
 
 // ExecutorInfo stores information about an executing container
 type ExecutorInfo struct {
-	Image string
+	Image           string
+	ImagePullPolicy corev1.PullPolicy
 }
 
 // KubeExecutorInfoDiscoverer discovers container information about an executing Kubernetes pod
@@ -54,23 +67,27 @@ func (eif *KubeExecutorInfoDiscoverer) Discover(ctx context.Context) (*ExecutorI
 	eif.mutex.Lock()
 	defer eif.mutex.Unlock()
 
-	if eif.Image != "" {
+	if eif.Image != "" && eif.ImagePullPolicy != "" {
 		return &eif.ExecutorInfo, nil
 	}
 
 	image := os.Getenv(PodImageNameEnvVar)
+	imagePullPolicy := corev1.PullPolicy(os.Getenv(PodImagePullPolicyEnvVar))
 
-	if image != "" {
-		return &ExecutorInfo{Image: image}, nil
+	if image != "" && imagePullPolicy != "" {
+		return &ExecutorInfo{Image: image, ImagePullPolicy: imagePullPolicy}, nil
 	}
 
 	pod, err := GetRunningPod(ctx, eif.Client)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get running pod")
 	}
-	if image, err = GetContainerImage(pod, ""); err != nil {
+	if image, err = GetContainerImage(pod, "", false); err != nil {
 		return nil, errors.Wrap(err, "failed to get image for pod")
 	}
+	if imagePullPolicy, err = GetContainerImagePullPolicy(pod, "", false); err != nil {
+		return nil, errors.Wrap(err, "failed to get imagepullpolicy for pod")
+	}
 
-	return &ExecutorInfo{Image: image}, nil
+	return &ExecutorInfo{Image: image, ImagePullPolicy: imagePullPolicy}, nil
 }

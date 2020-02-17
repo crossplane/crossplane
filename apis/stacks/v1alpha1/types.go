@@ -31,9 +31,6 @@ import (
 	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 )
 
-// TODO: how do we pretty print conditioned status items? There may be multiple of them, and they
-// can have varying status (e.g., True, False, Unknown)
-
 // +kubebuilder:object:root=true
 
 // A StackInstall requests a stack be installed to Crossplane.
@@ -63,6 +60,8 @@ type StackInstallList struct {
 // StackInstallSpec specifies details about a request to install a stack to
 // Crossplane.
 type StackInstallSpec struct {
+	StackControllerOptions `json:",inline"`
+
 	// Source is the domain name for the stack registry hosting the stack being requested,
 	// e.g., registry.crossplane.io
 	Source string `json:"source,omitempty"`
@@ -76,6 +75,25 @@ type StackInstallSpec struct {
 	// CRD is known, but the package name that contains it is not known.
 	// Either Package or CustomResourceDefinition can be specified.
 	CustomResourceDefinition string `json:"crd,omitempty"`
+}
+
+// StackControllerOptions allow for changes in the Stack extraction and
+// deployment controllers. These can affect how images are fetched and how Stack
+// derived resources are created.
+type StackControllerOptions struct {
+	// ImagePullSecrets are named secrets in the same workspace that can be used
+	// to fetch Stacks from private repositories and to run controllers from
+	// private repositories
+	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
+
+	// ImagePullPolicy defines the pull policy for all images used during Stack
+	// extraction and when running the Stack controller.
+	// https://kubernetes.io/docs/concepts/configuration/overview/#container-images
+	ImagePullPolicy corev1.PullPolicy `json:"imagePullPolicy,omitempty"`
+
+	// ServiceAccount options allow for changes to the ServiceAccount
+	// the Stack Manager creates for the Stack's controller
+	ServiceAccount *ServiceAccountOptions `json:"serviceAccount,omitempty"`
 }
 
 // StackInstallStatus represents the observed state of a StackInstall.
@@ -171,6 +189,80 @@ func (si *ClusterStackInstall) SetConditions(c ...runtimev1alpha1.Condition) {
 	si.Status.SetConditions(c...)
 }
 
+// GetImagePullSecrets gets the ImagePullSecrets of the ClusterStackInstall Spec
+func (si *ClusterStackInstall) GetImagePullSecrets() []corev1.LocalObjectReference {
+	return si.Spec.ImagePullSecrets
+}
+
+// GetImagePullSecrets gets the ImagePullSecrets of the StackInstall Spec
+func (si *StackInstall) GetImagePullSecrets() []corev1.LocalObjectReference {
+	return si.Spec.ImagePullSecrets
+}
+
+// SetImagePullSecrets sets the ImagePullSecrets of the StackInstall Spec
+func (si *StackInstall) SetImagePullSecrets(secrets []corev1.LocalObjectReference) {
+	si.Spec.ImagePullSecrets = secrets
+}
+
+// SetImagePullSecrets sets the ImagePullSecrets of the ClusterStackInstall Spec
+func (si *ClusterStackInstall) SetImagePullSecrets(secrets []corev1.LocalObjectReference) {
+	si.Spec.ImagePullSecrets = secrets
+}
+
+// GetImagePullPolicy gets the ImagePullPolicy of the ClusterStackInstall Spec
+func (si *ClusterStackInstall) GetImagePullPolicy() corev1.PullPolicy {
+	return si.Spec.ImagePullPolicy
+}
+
+// GetImagePullPolicy gets the ImagePullPolicy of the StackInstall Spec
+func (si *StackInstall) GetImagePullPolicy() corev1.PullPolicy {
+	return si.Spec.ImagePullPolicy
+}
+
+// SetImagePullPolicy sets the ImagePullPolicy of the StackInstall Spec
+func (si *StackInstall) SetImagePullPolicy(policy corev1.PullPolicy) {
+	si.Spec.ImagePullPolicy = policy
+}
+
+// SetImagePullPolicy sets the ImagePullPolicy of the ClusterStackInstall Spec
+func (si *ClusterStackInstall) SetImagePullPolicy(policy corev1.PullPolicy) {
+	si.Spec.ImagePullPolicy = policy
+}
+
+// GetServiceAccountAnnotations gets the Annotations of the ClusterStackInstall
+// Spec ServiceAccount
+func (si *ClusterStackInstall) GetServiceAccountAnnotations() map[string]string {
+	if si.Spec.ServiceAccount == nil {
+		return map[string]string{}
+	}
+	return si.Spec.ServiceAccount.Annotations
+}
+
+// GetServiceAccountAnnotations gets the Annotations of the StackInstall Spec ServiceAccount
+func (si *StackInstall) GetServiceAccountAnnotations() map[string]string {
+	if si.Spec.ServiceAccount == nil {
+		return map[string]string{}
+	}
+	return si.Spec.ServiceAccount.Annotations
+}
+
+// SetServiceAccountAnnotations sets the Annotations of the StackInstall Spec ServiceAccount
+func (si *StackInstall) SetServiceAccountAnnotations(annotations map[string]string) {
+	if si.Spec.ServiceAccount == nil {
+		si.Spec.ServiceAccount = &ServiceAccountOptions{}
+	}
+	si.Spec.ServiceAccount.Annotations = annotations
+}
+
+// SetServiceAccountAnnotations sets the Annotations of the ClusterStackInstall
+// Spec ServiceAccount
+func (si *ClusterStackInstall) SetServiceAccountAnnotations(annotations map[string]string) {
+	if si.Spec.ServiceAccount == nil {
+		si.Spec.ServiceAccount = &ServiceAccountOptions{}
+	}
+	si.Spec.ServiceAccount.Annotations = annotations
+}
+
 // InstallJob gets the ClusterStackInstall's Status InstallJob
 func (si *ClusterStackInstall) InstallJob() *corev1.ObjectReference {
 	return si.Status.InstallJob
@@ -230,15 +322,21 @@ type StackInstaller interface {
 	runtime.Object
 
 	GetPackage() string
-	SetSource(string)
+	GetImagePullPolicy() corev1.PullPolicy
+	GetImagePullSecrets() []corev1.LocalObjectReference
+	GetServiceAccountAnnotations() map[string]string
+	GroupVersionKind() schema.GroupVersionKind
 	ImageWithSource(string) (string, error)
+	InstallJob() *corev1.ObjectReference
 	PermissionScope() string
 	SetConditions(c ...runtimev1alpha1.Condition)
-	InstallJob() *corev1.ObjectReference
+	SetImagePullPolicy(corev1.PullPolicy)
+	SetImagePullSecrets([]corev1.LocalObjectReference)
+	SetServiceAccountAnnotations(map[string]string)
+	SetSource(string)
+	SetStackRecord(*corev1.ObjectReference)
 	SetInstallJob(*corev1.ObjectReference)
 	StackRecord() *corev1.ObjectReference
-	SetStackRecord(*corev1.ObjectReference)
-	GroupVersionKind() schema.GroupVersionKind
 }
 
 // +kubebuilder:object:root=true
@@ -299,6 +397,17 @@ type StackSpec struct {
 	Permissions     PermissionsSpec `json:"permissions,omitempty"`
 }
 
+// ServiceAccountAnnotations guarantees a map of annotations from a StackSpec
+func (spec StackSpec) ServiceAccountAnnotations() map[string]string {
+	annotations := map[string]string{}
+	if sa := spec.Controller.ServiceAccount; sa != nil {
+		for k, v := range sa.Annotations {
+			annotations[k] = v
+		}
+	}
+	return annotations
+}
+
 // StackStatus represents the observed state of a Stack.
 type StackStatus struct {
 	runtimev1alpha1.ConditionedStatus `json:"conditionedStatus,omitempty"`
@@ -350,12 +459,17 @@ type ContributorSpec struct {
 	Email string `json:"email,omitempty"`
 }
 
-// ControllerSpec defines the controller that implements the logic for a stack, which can come
-// in different flavors. A golang code (controller-runtime) controller with a managing Deployment
-// is all that is supported currently, but more types will come in the future (e.g., templates,
-// functions/hooks, templates, a new DSL, etc.
+// ControllerSpec defines the controller that implements the logic for a stack,
+// which can come in different flavors.
 type ControllerSpec struct {
+	StackControllerOptions `json:",inline"`
+
 	Deployment *ControllerDeployment `json:"deployment,omitempty"`
+}
+
+// ServiceAccountOptions augment the ServiceAccount created by the Stack controller
+type ServiceAccountOptions struct {
+	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
 // ControllerDeployment defines a controller for a stack that is managed by a Deployment.
