@@ -4,10 +4,10 @@ kind: Network
 metadata:
   name: sample-network
 spec:
-  name: my-cool-network
-  autoCreateSubnetworks: false
-  routingConfig:
-    routingMode: REGIONAL
+  forProvider:
+    autoCreateSubnetworks: false
+    routingConfig:
+      routingMode: REGIONAL
   reclaimPolicy: Delete
   providerRef:
     name: gcp-provider

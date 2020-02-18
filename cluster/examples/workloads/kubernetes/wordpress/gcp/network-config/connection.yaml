@@ -1,14 +1,15 @@
 ---
-apiVersion: servicenetworking.gcp.crossplane.io/v1alpha3
+apiVersion: servicenetworking.gcp.crossplane.io/v1beta2
 kind: Connection
 metadata:
   name: sample-connection
 spec:
-  parent: services/servicenetworking.googleapis.com
-  networkRef:
-    name: sample-network
-  reservedPeeringRangeRefs:
-    - name: sample-globaladdress
+  forProvider:
+    parent: services/servicenetworking.googleapis.com
+    networkRef:
+      name: sample-network
+    reservedPeeringRangeRefs:
+      - name: sample-globaladdress
   reclaimPolicy: Delete
   providerRef:
     name: gcp-provider

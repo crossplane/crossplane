@@ -182,15 +182,15 @@ Below we inspect each of these resources in more details.
 
   ```yaml
   ---
-  apiVersion: compute.gcp.crossplane.io/v1alpha3
+  apiVersion: compute.gcp.crossplane.io/v1beta1
   kind: Network
   metadata:
     name: sample-network
   spec:
-    name: my-cool-network
-    autoCreateSubnetworks: false
-    routingConfig:
-      routingMode: REGIONAL
+    forProvider:
+      autoCreateSubnetworks: false
+      routingConfig:
+        routingMode: REGIONAL
     reclaimPolicy: Delete
     providerRef:
       name: gcp-provider
@@ -201,22 +201,22 @@ Below we inspect each of these resources in more details.
 
   ```yaml
   ---
-  apiVersion: compute.gcp.crossplane.io/v1alpha3
+  apiVersion: compute.gcp.crossplane.io/v1beta1
   kind: Subnetwork
   metadata:
     name: sample-subnetwork
   spec:
-    name: my-cool-subnetwork
-    region: us-central1
-    ipCidrRange: "192.168.0.0/24"
-    privateIpGoogleAccess: true
-    secondaryIpRanges:
-      - rangeName: pods
-        ipCidrRange: 10.128.0.0/20
-      - rangeName: services
-        ipCidrRange: 172.16.0.0/16
-    networkRef:
-      name: sample-network
+    forProvider:
+      region: us-central1
+      ipCidrRange: "192.168.0.0/24"
+      privateIpGoogleAccess: true
+      secondaryIpRanges:
+        - rangeName: pods
+          ipCidrRange: 10.128.0.0/20
+        - rangeName: services
+          ipCidrRange: 172.16.0.0/16
+      networkRef:
+        name: sample-network
     reclaimPolicy: Delete
     providerRef:
       name: gcp-provider
@@ -227,17 +227,17 @@ Below we inspect each of these resources in more details.
 
   ```yaml
   ---
-  apiVersion: compute.gcp.crossplane.io/v1alpha3
+  apiVersion: compute.gcp.crossplane.io/v1beta1
   kind: GlobalAddress
   metadata:
     name: sample-globaladdress
   spec:
-    name: my-cool-globaladdress
-    purpose: VPC_PEERING
-    addressType: INTERNAL
-    prefixLength: 16
-    networkRef:
-      name: sample-network
+    forProvider:
+      purpose: VPC_PEERING
+      addressType: INTERNAL
+      prefixLength: 16
+      networkRef:
+        name: sample-network
     reclaimPolicy: Delete
     providerRef:
       name: gcp-provider
@@ -250,16 +250,17 @@ Below we inspect each of these resources in more details.
 
   ```yaml
   ---
-  apiVersion: servicenetworking.gcp.crossplane.io/v1alpha3
+  apiVersion: servicenetworking.gcp.crossplane.io/v1beta1
   kind: Connection
   metadata:
     name: sample-connection
   spec:
-    parent: services/servicenetworking.googleapis.com
-    networkRef:
-      name: sample-network
-    reservedPeeringRangeRefs:
-      - name: sample-globaladdress
+    forProvider:
+      parent: services/servicenetworking.googleapis.com
+      networkRef:
+        name: sample-network
+      reservedPeeringRangeRefs:
+        - name: sample-globaladdress
     reclaimPolicy: Delete
     providerRef:
       name: gcp-provider
