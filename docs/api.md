@@ -111,6 +111,7 @@ API Group | Status | Details
 [`gcp.crossplane.io/v1alpha3`] | Alpha | Core GCP resources.
 [`cache.gcp.crossplane.io/v1beta1`] | Beta | CloudMemorystore managed resources and classes.
 [`compute.gcp.crossplane.io/v1alpha3`] | Alpha | Compute Engine managed resources and classes.
+[`compute.gcp.crossplane.io/v1beta1`] | Beta | Compute Engine managed resources and classes.
 [`container.gcp.crossplane.io/v1alpha1`] | Alpha | Kubernetes Engine managed resources and classes.
 [`container.gcp.crossplane.io/v1beta1`] | Beta | Kubernetes Engine managed resources and classes.
 [`database.gcp.crossplane.io/v1beta1`] | Beta | CloudSQL managed resources and classes.
@@ -120,6 +121,7 @@ API Group | Status | Details
 [`gcp.crossplane.io/v1alpha3`]: api/crossplaneio/stack-gcp/gcp-crossplane-io-v1alpha3.md
 [`cache.gcp.crossplane.io/v1beta1`]: api/crossplaneio/stack-gcp/cache-gcp-crossplane-io-v1beta1.md
 [`compute.gcp.crossplane.io/v1alpha3`]: api/crossplaneio/stack-gcp/compute-gcp-crossplane-io-v1alpha3.md
+[`compute.gcp.crossplane.io/v1beta1`]: api/crossplaneio/stack-gcp/compute-gcp-crossplane-io-v1beta1.md
 [`container.gcp.crossplane.io/v1alpha1`]: api/crossplaneio/stack-gcp/container-gcp-crossplane-io-v1alpha1.md
 [`container.gcp.crossplane.io/v1beta1`]: api/crossplaneio/stack-gcp/container-gcp-crossplane-io-v1beta1.md
 [`database.gcp.crossplane.io/v1beta1`]: api/crossplaneio/stack-gcp/database-gcp-crossplane-io-v1beta1.md
