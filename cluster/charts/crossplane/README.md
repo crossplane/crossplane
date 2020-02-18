@@ -127,7 +127,7 @@ metadata:
   name: stack-gcp
   namespace: gcp
 spec:
-  package: "crossplane/stack-gcp:master"
+  package: "crossplane/stack-gcp:v0.6.0"
 ```
 
 Then you can install the GCP stack into Crossplane in the `gcp` namespace with the following command:
@@ -177,7 +177,7 @@ metadata:
   name: stack-azure
   namespace: azure
 spec:
-  package: "crossplane/stack-azure:master"
+  package: "crossplane/stack-azure:v0.6.0"
 ```
 
 Then you can install the Azure stack into Crossplane in the `azure` namespace with the following command:
