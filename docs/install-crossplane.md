@@ -133,7 +133,7 @@ metadata:
   name: stack-gcp
   namespace: gcp
 spec:
-  package: "crossplane/stack-gcp:master"
+  package: "crossplane/stack-gcp:v0.6.0"
 ```
 
 Then you can install the GCP stack into Crossplane in the `gcp` namespace with the following command:
@@ -158,7 +158,7 @@ metadata:
   name: stack-aws
   namespace: aws
 spec:
-  package: "crossplane/stack-aws:master"
+  package: "crossplane/stack-aws:v0.6.0"
 ```
 
 Then you can install the AWS stack into Crossplane in the `aws` namespace with the following command:
@@ -183,7 +183,7 @@ metadata:
   name: stack-azure
   namespace: azure
 spec:
-  package: "crossplane/stack-azure:master"
+  package: "crossplane/stack-azure:v0.6.0"
 ```
 
 Then you can install the Azure stack into Crossplane in the `azure` namespace with the following command:
@@ -208,7 +208,7 @@ metadata:
   name: stack-rook
   namespace: rook
 spec:
-  package: "crossplane/stack-rook:master"
+  package: "crossplane/stack-rook:v0.4.0"
 ```
 
 Then you can install the Rook stack into Crossplane in the `rook` namespace with the following command:
