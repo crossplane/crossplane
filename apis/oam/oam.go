@@ -14,34 +14,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package apis contains Kubernetes API groups
-package apis
+// Package oam contains Kubernetes API groups for OAM resources.
+// Refer to https://github.com/oam-dev/spec for more details.
+package oam
 
 import (
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/crossplane/crossplane/apis/cache"
-	"github.com/crossplane/crossplane/apis/compute"
-	"github.com/crossplane/crossplane/apis/database"
-	"github.com/crossplane/crossplane/apis/kubernetes"
-	"github.com/crossplane/crossplane/apis/oam"
-	"github.com/crossplane/crossplane/apis/stacks"
-	"github.com/crossplane/crossplane/apis/storage"
-	"github.com/crossplane/crossplane/apis/workload"
+	"github.com/crossplane/crossplane/apis/oam/v1alpha2"
 )
 
 func init() {
-	// Register the types with the Scheme so the components can map objects to GroupVersionKinds and back
-	AddToSchemes = append(AddToSchemes,
-		cache.AddToScheme,
-		compute.AddToScheme,
-		database.AddToScheme,
-		kubernetes.AddToScheme,
-		oam.AddToScheme,
-		stacks.AddToScheme,
-		storage.AddToScheme,
-		workload.AddToScheme,
-	)
+	// Register the types with the Scheme so the resources can map objects to GroupVersionKinds and back
+	AddToSchemes = append(AddToSchemes, v1alpha2.SchemeBuilder.AddToScheme)
 }
 
 // AddToSchemes may be used to add all resources defined in the project to a Scheme
