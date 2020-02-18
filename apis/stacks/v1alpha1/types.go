@@ -17,11 +17,9 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"net/url"
-	"strconv"
 	"strings"
 
-	"github.com/pkg/errors"
+	"github.com/docker/distribution/reference"
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbac "k8s.io/api/rbac/v1"
@@ -31,11 +29,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
-)
-
-const (
-	defaultRegistryPort   = 5000
-	defaultRegistryScheme = "https"
 )
 
 // TODO: how do we pretty print conditioned status items? There may be multiple of them, and they
@@ -93,105 +86,43 @@ type StackInstallStatus struct {
 	StackRecord *corev1.ObjectReference `json:"stackRecord,omitempty"`
 }
 
-// StackImage defines the URI properties relevant to Registry Images,
-// specifically Stack images
-type StackImage struct {
-	Scheme string
-	Host   string
-	Port   int
-	Prefix string
-	Path   string
-	Tag    string
+// Image returns the Package prefixed with a source (if available).
+// If the package format is not understood it is returned unmodified to be
+// handled by Kubernetes.
+func (spec StackInstallSpec) Image() string {
+	image, err := spec.ImageWithSource(spec.Package)
+	if err != nil {
+		return spec.Package
+	}
+	return image
 }
 
-// String builds a string URI from a StackImage source and path
-func (s *StackImage) String() string {
-	b := ""
-
-	// If Host is not set, we ignore Path and Protocol
-	if s.Host != "" {
-		// omit the default scheme
-		if s.Scheme != "" && s.Scheme != defaultRegistryScheme {
-			b += s.Scheme + "://"
-		}
-		b += s.Host
-		// omit the default port
-		if s.Port != 0 && s.Port != defaultRegistryPort {
-			b += ":" + strconv.Itoa(s.Port)
-		}
-
-		if prefix := strings.Trim(s.Prefix, "/"); prefix != "" {
-			b += "/" + prefix
-		}
-		b += "/"
-	}
-	b += s.Path
-	if s.Tag != "" {
-		b += ":" + s.Tag
+// ImageWithSource applies a source to a container image URI only if the image
+// does not appear to contain a source. Source is some combination of scheme,
+// host, port, and prefix where host is required.
+func (spec StackInstallSpec) ImageWithSource(image string) (string, error) {
+	// no alternate source to substitute
+	if len(spec.Source) == 0 {
+		return image, nil
 	}
 
-	return b
-}
+	// prepend source to image when it does not have a source
+	named, err := reference.ParseNormalizedNamed(image)
 
-// FromSourcePackage populates a StackImage by parsing StackInstaller
-// Source and Package
-func (s *StackImage) FromSourcePackage(src, pkg string) error {
-	if src != "" {
-		if !strings.Contains(src, "://") {
-			src = defaultRegistryScheme + "://" + src
-		}
-		u, err := url.Parse(src)
-		if err != nil {
-			return errors.Wrap(err, "failed to parse source")
-		}
-
-		s.Scheme = u.Scheme
-		hostPort := strings.SplitN(u.Host, ":", 2)
-		s.Host = hostPort[0]
-		if len(hostPort) == 2 {
-			s.Port, err = strconv.Atoi(hostPort[1])
-			if err != nil {
-				return errors.Wrap(err, "failed to parse source port")
-			}
-		}
-		s.Prefix = u.Path
-	}
-
-	imageWithTag := strings.SplitN(pkg, ":", 2)
-	s.Path = imageWithTag[0]
-	if len(imageWithTag) == 2 {
-		s.Tag = imageWithTag[1]
-	}
-	return nil
-}
-
-// Image returns the fully qualified image name for the StackInstallSpec.
-// based on the fully qualified image name format of hostname[:port]/username/reponame[:tag]
-func (spec StackInstallSpec) Image() (*StackImage, error) {
-	img := &StackImage{}
-	if err := img.FromSourcePackage(spec.Source, spec.Package); err != nil {
-		return nil, err
-	}
-	return img, nil
-}
-
-// ImageStr calls Image and immediately converts it to string
-func (spec StackInstallSpec) ImageStr() (string, error) {
-	img, err := spec.Image()
 	if err != nil {
 		return "", err
 	}
-	return img.String(), nil
-}
 
-// Image gets the Spec.Image of the StackInstall
-func (si *StackInstall) Image() (string, error) {
-	return si.Spec.ImageStr()
-}
+	// reference.Domain returns docker.io when no domain is found. If the image
+	// didn't explicitly start with docker.io, ignore it. In these cases, we
+	// want to apply the StackInstall source.
+	domain := reference.Domain(named)
+	if strings.Index(image, domain) != 0 {
+		return strings.Trim(spec.Source, "/") + "/" + image, nil
+	}
 
-// Image gets the Spec.Image of the ClusterStackInstall
-func (si *ClusterStackInstall) Image() (string, error) {
-	return si.Spec.ImageStr()
+	// image contained a source
+	return image, nil
 }
 
 // GetSpec gets the Spec of the StackInstall
@@ -278,7 +209,6 @@ type StackInstaller interface {
 	metav1.Object
 	runtime.Object
 
-	Image() (string, error)
 	GetSpec() StackInstallSpec
 	PermissionScope() string
 	SetConditions(c ...runtimev1alpha1.Condition)

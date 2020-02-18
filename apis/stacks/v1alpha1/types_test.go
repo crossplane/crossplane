@@ -20,9 +20,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/pkg/errors"
-
-	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 )
 
 var (
@@ -31,19 +28,20 @@ var (
 	_ StackInstaller = &ClusterStackInstall{}
 )
 
-func TestStackInstallSpec_Image(t *testing.T) {
+func TestStackInstallSpec_ImageWithSource(t *testing.T) {
 	type want struct {
 		url string
-		err error
 	}
 
 	tests := []struct {
-		name string
-		spec StackInstallSpec
-		want want
+		name   string
+		reason string
+		spec   StackInstallSpec
+		want   want
 	}{
 		{
-			name: "NoPackageSource",
+			name:   "NoPackageSource",
+			reason: "Packages without StackInstall source should be unchanged",
 			spec: StackInstallSpec{
 				Package: "cool/package:rad",
 			},
@@ -52,7 +50,19 @@ func TestStackInstallSpec_Image(t *testing.T) {
 			},
 		},
 		{
-			name: "PackageSourceSpecified",
+			name:   "PackageSourceSpecified",
+			reason: "Sourceless packages should inherit StackInstall source",
+			spec: StackInstallSpec{
+				Source:  "foo.bar",
+				Package: "cool/package:rad",
+			},
+			want: want{
+				url: "foo.bar/cool/package:rad",
+			},
+		},
+		{
+			name:   "DockerSourceSpecified",
+			reason: "Docker hub sources should not have special treatment",
 			spec: StackInstallSpec{
 				Source:  "registry.hub.docker.com",
 				Package: "cool/package:rad",
@@ -62,39 +72,36 @@ func TestStackInstallSpec_Image(t *testing.T) {
 			},
 		},
 		{
-			name: "SourceWithProtocol",
+			name:   "SourceWithProtocol",
+			reason: "Sources should honor host, port, and prefix",
 			spec: StackInstallSpec{
-				Source:  "http://insecure:3000/prefix/",
+				Source:  "insecure:3000/prefix/",
 				Package: "cool/tagless-package",
 			},
 			want: want{
-				url: "http://insecure:3000/prefix/cool/tagless-package",
+				url: "insecure:3000/prefix/cool/tagless-package",
 			},
 		},
 		{
-			name: "InvalidSource",
+			name:   "InvalidSource",
+			reason: "Invalid sources should not deter ImageWithSource",
 			spec: StackInstallSpec{
-				Source:  "http://bad:host:and:port",
+				Source:  "bad:host:and:port",
 				Package: "cool/tagless-package",
 			},
 			want: want{
-				err: errors.Wrap(errors.New("parse http://bad:host:and:port: invalid port \":port\" after host"), "failed to parse source"),
+				url: "bad:host:and:port/cool/tagless-package",
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := tt.spec.ImageStr()
+			got := tt.spec.Image()
 
 			if diff := cmp.Diff(tt.want.url, got); diff != "" {
-				t.Errorf("Image() url -want, +got:\n%v", diff)
+				t.Errorf("Reason: %s\n-want, +got:\n%v", tt.reason, diff)
 			}
-
-			if diff := cmp.Diff(tt.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("Image() err -want, +got:\n%v", diff)
-			}
-
 		})
 	}
 }

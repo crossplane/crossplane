@@ -61,7 +61,7 @@ type stackInstallJobCompleter struct {
 	log          logging.Logger
 }
 
-func createInstallJob(i v1alpha1.StackInstaller, executorInfo *stacks.ExecutorInfo, hCfg *hosted.Config, tscImage string) (*batchv1.Job, error) {
+func createInstallJob(i v1alpha1.StackInstaller, executorInfo *stacks.ExecutorInfo, hCfg *hosted.Config, tscImage string) *batchv1.Job {
 	name := i.GetName()
 	namespace := i.GetNamespace()
 
@@ -72,9 +72,10 @@ func createInstallJob(i v1alpha1.StackInstaller, executorInfo *stacks.ExecutorIn
 		namespace = o.Namespace
 	}
 
-	img, err := i.Image()
+	img, err := i.GetSpec().ImageWithSource(i.GetSpec().Package)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse stack image and source")
+		// Applying the source is best-effort
+		img = i.GetSpec().Package
 	}
 
 	return &batchv1.Job{
@@ -134,7 +135,7 @@ func createInstallJob(i v1alpha1.StackInstaller, executorInfo *stacks.ExecutorIn
 				},
 			},
 		},
-	}, nil
+	}
 }
 
 func (jc *stackInstallJobCompleter) handleJobCompletion(ctx context.Context, i v1alpha1.StackInstaller, job *batchv1.Job) error {
@@ -240,8 +241,7 @@ func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, o
 	// Stack controllers should inherit the StackInstall source unless a
 	// source is already defined in the Stack (install.yaml).
 	if isStackObject(obj) {
-		src := i.GetSpec().Source
-		if err := setStackDeploymentImageSource(obj, src); err != nil {
+		if err := setStackDeploymentImageSource(obj, i.GetSpec()); err != nil {
 			return err
 		}
 	}
@@ -254,8 +254,7 @@ func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, o
 		}
 
 		// inherit the StackInstall source (as is done for Stacks)
-		src := i.GetSpec().Source
-		if err := setStackDefinitionDeploymentImageSource(obj, src); err != nil {
+		if err := setStackDefinitionDeploymentImageSource(obj, i.GetSpec()); err != nil {
 			return err
 		}
 	}
@@ -296,20 +295,24 @@ func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, o
 }
 
 // setDeploymentImageSource updates the images in ControllerDeployment
-// containers to include a given source in the image uri
-func setDeploymentImageSource(d *v1alpha1.ControllerDeployment, src string) {
+// containers using the given src
+func setDeploymentImageSource(d *v1alpha1.ControllerDeployment, src imageWithSourcer) {
 	ics := d.Spec.Template.Spec.InitContainers
 	for i := range ics {
-		ics[i].Image = applySource(src, ics[i].Image)
+		if img, err := src.ImageWithSource(ics[i].Image); err == nil {
+			ics[i].Image = img
+		}
 	}
 
 	cs := d.Spec.Template.Spec.Containers
 	for i := range cs {
-		cs[i].Image = applySource(src, cs[i].Image)
+		if img, err := src.ImageWithSource(cs[i].Image); err == nil {
+			cs[i].Image = img
+		}
 	}
 }
 
-func setStackDeploymentImageSource(obj *unstructured.Unstructured, src string) error {
+func setStackDeploymentImageSource(obj *unstructured.Unstructured, src imageWithSourcer) error {
 	// use convert functions because SetUnstructuredContent is unwieldy
 	s, err := convertToStack(obj)
 	if err != nil {
@@ -326,7 +329,11 @@ func setStackDeploymentImageSource(obj *unstructured.Unstructured, src string) e
 	return err
 }
 
-func setStackDefinitionDeploymentImageSource(obj *unstructured.Unstructured, src string) error {
+type imageWithSourcer interface {
+	ImageWithSource(string) (string, error)
+}
+
+func setStackDefinitionDeploymentImageSource(obj *unstructured.Unstructured, src imageWithSourcer) error {
 	// use convert functions because SetUnstructuredContent is unwieldy
 	s, err := convertToStackDefinition(obj)
 	if err != nil {
@@ -341,27 +348,6 @@ func setStackDefinitionDeploymentImageSource(obj *unstructured.Unstructured, src
 	}
 
 	return err
-}
-
-// applySource applies a source to a container image URI only if the image does
-// not appear to contain a source. Source is some combination of scheme, host,
-// port, and prefix where host is required. If the source and image can not be
-// combined safely the unmodified image is returned.
-func applySource(source, image string) string {
-	// assume images with more than one slash are source qualified
-	// TODO(displague) are image uris like hostname/image possible?
-	if p := strings.Split(image, "/"); len(p) > 2 {
-		return image
-	}
-
-	s := v1alpha1.StackImage{}
-
-	// applying a source path is done optimistically, fall back to
-	// using the image as given
-	if err := s.FromSourcePackage(source, image); err != nil {
-		return image
-	}
-	return s.String()
 }
 
 func isStackObject(obj *unstructured.Unstructured) bool {
