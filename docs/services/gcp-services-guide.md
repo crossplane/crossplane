@@ -138,34 +138,35 @@ use Crossplane to do it:
   ---
   # example-globaladdress defines the IP range that will be allocated for cloud services connecting
   # to the instances in the given Network.
-  apiVersion: compute.gcp.crossplane.io/v1alpha3
+  apiVersion: compute.gcp.crossplane.io/v1beta1
   kind: GlobalAddress
   metadata:
     name: example-globaladdress
   spec:
+    forProvider:
+      purpose: VPC_PEERING
+      addressType: INTERNAL
+      prefixLength: 16
+      network: projects/$PROJECT_ID/global/networks/$NETWORK_NAME
     providerRef:
       name: gcp-provider
     reclaimPolicy: Delete
-    name: example-globaladdress
-    purpose: VPC_PEERING
-    addressType: INTERNAL
-    prefixLength: 16
-    network: projects/$PROJECT_ID/global/networks/$NETWORK_NAME
   ---
   # example-connection is what allows cloud services to use the allocated GlobalAddress for communication. Behind
   # the scenes, it creates a VPC peering to the network that those service instances actually live.
-  apiVersion: servicenetworking.gcp.crossplane.io/v1alpha3
+  apiVersion: servicenetworking.gcp.crossplane.io/v1beta1
   kind: Connection
   metadata:
     name: example-connection
   spec:
+    forProvider:
+      parent: services/servicenetworking.googleapis.com
+      network: projects/$PROJECT_ID/global/networks/$NETWORK_NAME
+      reservedPeeringRangeRefs:
+        - name: example-globaladdress
     providerRef:
       name: gcp-provider
     reclaimPolicy: Delete
-    parent: services/servicenetworking.googleapis.com
-    network: projects/$PROJECT_ID/global/networks/$NETWORK_NAME
-    reservedPeeringRangeRefs:
-      - name: example-globaladdress
   EOF
 
   kubectl apply -f network.yaml
@@ -187,8 +188,8 @@ use Crossplane to do it:
   Labels:       <none>
   Annotations:  crossplane.io/external-name: example-connection
                 kubectl.kubernetes.io/last-applied-configuration:
-                  {"apiVersion":"servicenetworking.gcp.crossplane.io/v1alpha3","kind":"Connection","metadata":{"annotations":{},"name":"example-connection"}...
-  API Version:  servicenetworking.gcp.crossplane.io/v1alpha3
+                  {"apiVersion":"servicenetworking.gcp.crossplane.io/v1beta1","kind":"Connection","metadata":{"annotations":{},"name":"example-connection"}...
+  API Version:  servicenetworking.gcp.crossplane.io/v1beta1
   Kind:         Connection
   Metadata:
     Creation Timestamp:  2019-10-28T14:10:23Z
@@ -196,7 +197,7 @@ use Crossplane to do it:
       finalizer.managedresource.crossplane.io
     Generation:        1
     Resource Version:  7245
-    Self Link:         /apis/servicenetworking.gcp.crossplane.io/v1alpha3/connections/example-connection
+    Self Link:         /apis/servicenetworking.gcp.crossplane.io/v1beta1/connections/example-connection
     UID:               aeae7e4d-f98c-11e9-8275-42010a800122
   Spec:
     Network:  projects/crossplane-playground/global/networks/default
