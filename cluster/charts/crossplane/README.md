@@ -120,6 +120,32 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: gcp
+---
+apiVersion: stacks.crossplane.io/v1alpha1
+kind: ClusterStackInstall
+metadata:
+  name: stack-gcp
+  namespace: gcp
+spec:
+  package: "crossplane/stack-gcp:master"
+```
+
+Then you can install the GCP stack into Crossplane in the `gcp` namespace with the following command:
+
+```console
+kubectl apply -f stack-gcp.yaml
+```
+
+#### AWS Stack
+
+To get started with Amazon Web Services (AWS), create a file named `stack-aws.yaml` with the following content:
+
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: aws
+---
 apiVersion: stacks.crossplane.io/v1alpha1
 kind: ClusterStackInstall
 metadata:
@@ -144,6 +170,32 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: azure
+---
+apiVersion: stacks.crossplane.io/v1alpha1
+kind: ClusterStackInstall
+metadata:
+  name: stack-azure
+  namespace: azure
+spec:
+  package: "crossplane/stack-azure:master"
+```
+
+Then you can install the Azure stack into Crossplane in the `azure` namespace with the following command:
+
+```console
+kubectl apply -f stack-azure.yaml
+```
+
+#### Rook Stack
+
+To get started with Rook, create a file named `stack-rook.yaml` with the following content:
+
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rook
+---
 apiVersion: stacks.crossplane.io/v1alpha1
 kind: ClusterStackInstall
 metadata:
