@@ -49,7 +49,7 @@ Appears in:
 
 EKSClusterClassSpecTemplate supports all fields of:
 
-* github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ClassSpecTemplate
+* [v1alpha1.ClassSpecTemplate](../crossplane-runtime/core-crossplane-io-v1alpha1.md#classspectemplate)
 * [EKSClusterParameters](#EKSClusterParameters)
 
 
@@ -94,7 +94,7 @@ Appears in:
 
 EKSClusterSpec supports all fields of:
 
-* github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ResourceSpec
+* [v1alpha1.ResourceSpec](../crossplane-runtime/core-crossplane-io-v1alpha1.md#resourcespec)
 * [EKSClusterParameters](#EKSClusterParameters)
 
 
@@ -118,7 +118,7 @@ Name | Type | Description
 
 EKSClusterStatus supports all fields of:
 
-* github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ResourceStatus
+* [v1alpha1.ResourceStatus](../crossplane-runtime/core-crossplane-io-v1alpha1.md#resourcestatus)
 
 
 ## EKSRegion
@@ -143,7 +143,7 @@ Appears in:
 
 IAMRoleARNReferencerForEKSCluster supports all fields of:
 
-* github.com/crossplaneio/stack-aws/apis/identity/v1alpha3.IAMRoleARNReferencer
+* github.com/crossplane/stack-aws/apis/identity/v1alpha3.IAMRoleARNReferencer
 
 
 ## MapRole
@@ -189,7 +189,7 @@ SecurityGroupIDReferencerForEKSCluster is an attribute referencer that resolves 
 
 SecurityGroupIDReferencerForEKSCluster supports all fields of:
 
-* github.com/crossplaneio/stack-aws/apis/network/v1alpha3.SecurityGroupIDReferencer
+* github.com/crossplane/stack-aws/apis/network/v1alpha3.SecurityGroupIDReferencer
 
 
 ## SecurityGroupIDReferencerForEKSWorkerNodes
@@ -205,7 +205,7 @@ Appears in:
 
 SecurityGroupIDReferencerForEKSWorkerNodes supports all fields of:
 
-* github.com/crossplaneio/stack-aws/apis/network/v1alpha3.SecurityGroupIDReferencer
+* github.com/crossplane/stack-aws/apis/network/v1alpha3.SecurityGroupIDReferencer
 
 
 ## SubnetIDReferencerForEKSCluster
@@ -217,7 +217,7 @@ SubnetIDReferencerForEKSCluster is an attribute referencer that resolves SubnetI
 
 SubnetIDReferencerForEKSCluster supports all fields of:
 
-* github.com/crossplaneio/stack-aws/apis/network/v1alpha3.SubnetIDReferencer
+* github.com/crossplane/stack-aws/apis/network/v1alpha3.SubnetIDReferencer
 
 
 ## VPCIDReferencerForEKSCluster
@@ -233,7 +233,7 @@ Appears in:
 
 VPCIDReferencerForEKSCluster supports all fields of:
 
-* github.com/crossplaneio/stack-aws/apis/network/v1alpha3.VPCIDReferencer
+* github.com/crossplane/stack-aws/apis/network/v1alpha3.VPCIDReferencer
 
 
 ## WorkerNodesSpec

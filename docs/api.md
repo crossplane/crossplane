@@ -41,13 +41,13 @@ API Group | Status | Details
 [`stacks.crossplane.io/v1alpha1`] | Alpha | Resources for managing Crossplane Stacks.
 [`workload.crossplane.io/v1alpha1`] | Alpha | Resources for managing Crossplane Workloads.
 
-[`cache.crossplane.io/v1alpha1`]: api/crossplaneio/crossplane/cache-crossplane-io-v1alpha1.md
-[`compute.crossplane.io/v1alpha1`]: api/crossplaneio/crossplane/compute-crossplane-io-v1alpha1.md
-[`database.crossplane.io/v1alpha1`]: api/crossplaneio/crossplane/database-crossplane-io-v1alpha1.md
-[`kubernetes.crossplane.io/v1alpha1`]: api/crossplaneio/crossplane/kubernetes-crossplane-io-v1alpha1.md
-[`storage.crossplane.io/v1alpha1`]: api/crossplaneio/crossplane/storage-crossplane-io-v1alpha1.md
-[`stacks.crossplane.io/v1alpha1`]: api/crossplaneio/crossplane/stacks-crossplane-io-v1alpha1.md
-[`workload.crossplane.io/v1alpha1`]: api/crossplaneio/crossplane/workload-crossplane-io-v1alpha1.md
+[`cache.crossplane.io/v1alpha1`]: api/crossplane/crossplane/cache-crossplane-io-v1alpha1.md
+[`compute.crossplane.io/v1alpha1`]: api/crossplane/crossplane/compute-crossplane-io-v1alpha1.md
+[`database.crossplane.io/v1alpha1`]: api/crossplane/crossplane/database-crossplane-io-v1alpha1.md
+[`kubernetes.crossplane.io/v1alpha1`]: api/crossplane/crossplane/kubernetes-crossplane-io-v1alpha1.md
+[`storage.crossplane.io/v1alpha1`]: api/crossplane/crossplane/storage-crossplane-io-v1alpha1.md
+[`stacks.crossplane.io/v1alpha1`]: api/crossplane/crossplane/stacks-crossplane-io-v1alpha1.md
+[`workload.crossplane.io/v1alpha1`]: api/crossplane/crossplane/workload-crossplane-io-v1alpha1.md
 
 ## AWS Stack
 
@@ -66,13 +66,13 @@ API Group | Status | Details
 [`network.aws.crossplane.io/v1alpha3`] | Alpha | VPC managed resources and classes.
 [`storage.aws.crossplane.io/v1alpha3`] | Alpha | S3 managed resources and classes.
 
-[`aws.crossplane.io/v1alpha3`]: api/crossplaneio/stack-aws/aws-crossplane-io-v1alpha3.md
-[`cache.aws.crossplane.io/v1beta1`]: api/crossplaneio/stack-aws/cache-aws-crossplane-io-v1beta1.md
-[`compute.aws.crossplane.io/v1alpha3`]: api/crossplaneio/stack-aws/compute-aws-crossplane-io-v1alpha3.md
-[`database.aws.crossplane.io/v1beta1`]: api/crossplaneio/stack-aws/database-aws-crossplane-io-v1beta1.md
-[`identity.aws.crossplane.io/v1alpha3`]: api/crossplaneio/stack-aws/identity-aws-crossplane-io-v1alpha3.md
-[`network.aws.crossplane.io/v1alpha3`]: api/crossplaneio/stack-aws/network-aws-crossplane-io-v1alpha3.md
-[`storage.aws.crossplane.io/v1alpha3`]: api/crossplaneio/stack-aws/storage-aws-crossplane-io-v1alpha3.md
+[`aws.crossplane.io/v1alpha3`]: api/crossplane/stack-aws/aws-crossplane-io-v1alpha3.md
+[`cache.aws.crossplane.io/v1beta1`]: api/crossplane/stack-aws/cache-aws-crossplane-io-v1beta1.md
+[`compute.aws.crossplane.io/v1alpha3`]: api/crossplane/stack-aws/compute-aws-crossplane-io-v1alpha3.md
+[`database.aws.crossplane.io/v1beta1`]: api/crossplane/stack-aws/database-aws-crossplane-io-v1beta1.md
+[`identity.aws.crossplane.io/v1alpha3`]: api/crossplane/stack-aws/identity-aws-crossplane-io-v1alpha3.md
+[`network.aws.crossplane.io/v1alpha3`]: api/crossplane/stack-aws/network-aws-crossplane-io-v1alpha3.md
+[`storage.aws.crossplane.io/v1alpha3`]: api/crossplane/stack-aws/storage-aws-crossplane-io-v1alpha3.md
 
 ## Azure Stack
 
@@ -91,13 +91,13 @@ API Group | Status | Details
 [`network.azure.crossplane.io/v1alpha3`] | Alpha | Virtual network managed resources and classes.
 [`storage.azure.crossplane.io/v1alpha3`] | Alpha | Azure Blob Storage managed resources and classes.
 
-[`azure.crossplane.io/v1alpha3`]: api/crossplaneio/stack-azure/azure-crossplane-io-v1alpha3.md
-[`cache.azure.crossplane.io/v1beta1`]: api/crossplaneio/stack-azure/cache-azure-crossplane-io-v1beta1.md
-[`compute.azure.crossplane.io/v1alpha3`]: api/crossplaneio/stack-azure/compute-azure-crossplane-io-v1alpha3.md
-[`database.azure.crossplane.io/v1alpha3`]: api/crossplaneio/stack-azure/database-azure-crossplane-io-v1alpha3.md
-[`database.azure.crossplane.io/v1beta1`]: api/crossplaneio/stack-azure/database-azure-crossplane-io-v1beta1.md
-[`network.azure.crossplane.io/v1alpha3`]: api/crossplaneio/stack-azure/network-azure-crossplane-io-v1alpha3.md
-[`storage.azure.crossplane.io/v1alpha3`]: api/crossplaneio/stack-azure/storage-azure-crossplane-io-v1alpha3.md
+[`azure.crossplane.io/v1alpha3`]: api/crossplane/stack-azure/azure-crossplane-io-v1alpha3.md
+[`cache.azure.crossplane.io/v1beta1`]: api/crossplane/stack-azure/cache-azure-crossplane-io-v1beta1.md
+[`compute.azure.crossplane.io/v1alpha3`]: api/crossplane/stack-azure/compute-azure-crossplane-io-v1alpha3.md
+[`database.azure.crossplane.io/v1alpha3`]: api/crossplane/stack-azure/database-azure-crossplane-io-v1alpha3.md
+[`database.azure.crossplane.io/v1beta1`]: api/crossplane/stack-azure/database-azure-crossplane-io-v1beta1.md
+[`network.azure.crossplane.io/v1alpha3`]: api/crossplane/stack-azure/network-azure-crossplane-io-v1alpha3.md
+[`storage.azure.crossplane.io/v1alpha3`]: api/crossplane/stack-azure/storage-azure-crossplane-io-v1alpha3.md
 
 ## GCP Stack
 
@@ -118,15 +118,15 @@ API Group | Status | Details
 [`servicenetworking.gcp.crossplane.io/v1alpha3`] | Alpha | Service Networking managed resources and classes.
 [`storage.gcp.crossplane.io/v1alpha3`] | Alpha | Cloud Storage managed resources and classes.
 
-[`gcp.crossplane.io/v1alpha3`]: api/crossplaneio/stack-gcp/gcp-crossplane-io-v1alpha3.md
-[`cache.gcp.crossplane.io/v1beta1`]: api/crossplaneio/stack-gcp/cache-gcp-crossplane-io-v1beta1.md
-[`compute.gcp.crossplane.io/v1alpha3`]: api/crossplaneio/stack-gcp/compute-gcp-crossplane-io-v1alpha3.md
-[`compute.gcp.crossplane.io/v1beta1`]: api/crossplaneio/stack-gcp/compute-gcp-crossplane-io-v1beta1.md
-[`container.gcp.crossplane.io/v1alpha1`]: api/crossplaneio/stack-gcp/container-gcp-crossplane-io-v1alpha1.md
-[`container.gcp.crossplane.io/v1beta1`]: api/crossplaneio/stack-gcp/container-gcp-crossplane-io-v1beta1.md
-[`database.gcp.crossplane.io/v1beta1`]: api/crossplaneio/stack-gcp/database-gcp-crossplane-io-v1beta1.md
-[`servicenetworking.gcp.crossplane.io/v1alpha3`]: api/crossplaneio/stack-gcp/servicenetworking-gcp-crossplane-io-v1alpha3.md
-[`storage.gcp.crossplane.io/v1alpha3`]: api/crossplaneio/stack-gcp/storage-gcp-crossplane-io-v1alpha3.md
+[`gcp.crossplane.io/v1alpha3`]: api/crossplane/stack-gcp/gcp-crossplane-io-v1alpha3.md
+[`cache.gcp.crossplane.io/v1beta1`]: api/crossplane/stack-gcp/cache-gcp-crossplane-io-v1beta1.md
+[`compute.gcp.crossplane.io/v1alpha3`]: api/crossplane/stack-gcp/compute-gcp-crossplane-io-v1alpha3.md
+[`compute.gcp.crossplane.io/v1beta1`]: api/crossplane/stack-gcp/compute-gcp-crossplane-io-v1beta1.md
+[`container.gcp.crossplane.io/v1alpha1`]: api/crossplane/stack-gcp/container-gcp-crossplane-io-v1alpha1.md
+[`container.gcp.crossplane.io/v1beta1`]: api/crossplane/stack-gcp/container-gcp-crossplane-io-v1beta1.md
+[`database.gcp.crossplane.io/v1beta1`]: api/crossplane/stack-gcp/database-gcp-crossplane-io-v1beta1.md
+[`servicenetworking.gcp.crossplane.io/v1alpha3`]: api/crossplane/stack-gcp/servicenetworking-gcp-crossplane-io-v1alpha3.md
+[`storage.gcp.crossplane.io/v1alpha3`]: api/crossplane/stack-gcp/storage-gcp-crossplane-io-v1alpha3.md
 
 ## Rook Stack
 
@@ -139,7 +139,7 @@ API Group | Status | Details
 [`rook.crossplane.io/v1alpha1`] | Alpha | Core Rook resources.
 [`database.rook.crossplane.io/v1alpha1`] | Alpha | Database managed resources and classes, such as YugabyteDB and CockroachDB.
 
-[`rook.crossplane.io/v1alpha1`]: api/crossplaneio/stack-rook/rook-crossplane-io-v1alpha1.md
-[`database.rook.crossplane.io/v1alpha1`]: api/crossplaneio/stack-rook/database-rook-crossplane-io-v1alpha1.md
+[`rook.crossplane.io/v1alpha1`]: api/crossplane/stack-rook/rook-crossplane-io-v1alpha1.md
+[`database.rook.crossplane.io/v1alpha1`]: api/crossplane/stack-rook/database-rook-crossplane-io-v1alpha1.md
 
 [API Versioning]: https://kubernetes.io/docs/concepts/overview/kubernetes-api/#api-versioning

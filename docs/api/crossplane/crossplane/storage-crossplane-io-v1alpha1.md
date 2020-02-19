@@ -17,7 +17,7 @@ Name | Type | Description
 `kind` | string | `Bucket`
 `metadata` | [meta/v1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectmeta-v1-meta) | Kubernetes object metadata.
 `spec` | [BucketSpec](#BucketSpec) | BucketSpec specifies the desired state of a Bucket.
-`status` | github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ResourceClaimStatus | 
+`status` | [v1alpha1.ResourceClaimStatus](../crossplane-runtime/core-crossplane-io-v1alpha1.md#resourceclaimstatus) | 
 
 
 
@@ -39,7 +39,7 @@ Name | Type | Description
 
 BucketSpec supports all fields of:
 
-* github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ResourceClaimSpec
+* [v1alpha1.ResourceClaimSpec](../crossplane-runtime/core-crossplane-io-v1alpha1.md#resourceclaimspec)
 
 
 ## LocalPermissionType

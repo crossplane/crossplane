@@ -80,7 +80,7 @@ Appears in:
 
 AccountClassSpecTemplate supports all fields of:
 
-* github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ClassSpecTemplate
+* [v1alpha1.ClassSpecTemplate](../crossplane-runtime/core-crossplane-io-v1alpha1.md#classspectemplate)
 * [AccountParameters](#AccountParameters)
 
 
@@ -115,7 +115,7 @@ Appears in:
 
 AccountSpec supports all fields of:
 
-* github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ResourceSpec
+* [v1alpha1.ResourceSpec](../crossplane-runtime/core-crossplane-io-v1alpha1.md#resourcespec)
 * [AccountParameters](#AccountParameters)
 
 
@@ -132,7 +132,7 @@ Appears in:
 
 AccountStatus supports all fields of:
 
-* github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ResourceStatus
+* [v1alpha1.ResourceStatus](../crossplane-runtime/core-crossplane-io-v1alpha1.md#resourcestatus)
 * [StorageAccountStatus](#StorageAccountStatus)
 
 
@@ -149,7 +149,7 @@ Appears in:
 
 ContainerClassSpecTemplate supports all fields of:
 
-* github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ClassSpecTemplate
+* [v1alpha1.ClassSpecTemplate](../crossplane-runtime/core-crossplane-io-v1alpha1.md#classspectemplate)
 * [ContainerParameters](#ContainerParameters)
 
 
@@ -183,10 +183,10 @@ Appears in:
 
 Name | Type | Description
 -----|------|------------
-`writeConnectionSecretToRef` | Optional github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.SecretReference | WriteConnectionSecretToReference specifies the name of a Secret, in the same namespace as this managed resource, to which any connection details for this managed resource should be written. Connection details frequently include the endpoint, username, and password required to connect to the managed resource.
-`claimRef` | Optional [core/v1.ObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectreference-v1-core) | ClaimReference specifies the resource claim to which this managed resource will be bound. ClaimReference is set automatically during dynamic provisioning. Crossplane does not currently support setting this field manually, per https://github.com/crossplaneio/crossplane-runtime/issues/19
-`classRef` | Optional [core/v1.ObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectreference-v1-core) | ClassReference specifies the non-portable resource class that was used to dynamically provision this managed resource, if any. Crossplane does not currently support setting this field manually, per https://github.com/crossplaneio/crossplane-runtime/issues/20
-`reclaimPolicy` | Optional github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ReclaimPolicy | ReclaimPolicy specifies what will happen to the external resource this managed resource manages when the managed resource is deleted. &#34;Delete&#34; deletes the external resource, while &#34;Retain&#34; (the default) does not. Note this behaviour is subtly different from other uses of the ReclaimPolicy concept within the Kubernetes ecosystem per https://github.com/crossplaneio/crossplane-runtime/issues/21
+`writeConnectionSecretToRef` | Optional [v1alpha1.SecretReference](../crossplane-runtime/core-crossplane-io-v1alpha1.md#secretreference) | WriteConnectionSecretToReference specifies the name of a Secret, in the same namespace as this managed resource, to which any connection details for this managed resource should be written. Connection details frequently include the endpoint, username, and password required to connect to the managed resource.
+`claimRef` | Optional [core/v1.ObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectreference-v1-core) | ClaimReference specifies the resource claim to which this managed resource will be bound. ClaimReference is set automatically during dynamic provisioning. Crossplane does not currently support setting this field manually, per https://github.com/crossplane/crossplane-runtime/issues/19
+`classRef` | Optional [core/v1.ObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectreference-v1-core) | ClassReference specifies the non-portable resource class that was used to dynamically provision this managed resource, if any. Crossplane does not currently support setting this field manually, per https://github.com/crossplane/crossplane-runtime/issues/20
+`reclaimPolicy` | Optional [v1alpha1.ReclaimPolicy](../crossplane-runtime/core-crossplane-io-v1alpha1.md#reclaimpolicy) | ReclaimPolicy specifies what will happen to the external resource this managed resource manages when the managed resource is deleted. &#34;Delete&#34; deletes the external resource, while &#34;Retain&#34; (the default) does not. Note this behaviour is subtly different from other uses of the ReclaimPolicy concept within the Kubernetes ecosystem per https://github.com/crossplane/crossplane-runtime/issues/21
 
 
 ContainerSpec supports all fields of:
@@ -210,7 +210,7 @@ Name | Type | Description
 
 ContainerStatus supports all fields of:
 
-* github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ResourceStatus
+* [v1alpha1.ResourceStatus](../crossplane-runtime/core-crossplane-io-v1alpha1.md#resourcestatus)
 
 
 ## CustomDomain

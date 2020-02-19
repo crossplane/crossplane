@@ -259,7 +259,7 @@ tuple. This allows an infrastructure stack that adds support for a managed
 resource to implement the dynamic provisioning and claim binding logic for said
 managed resource without having to touch Crossplane core. Put otherwise, the GCP
 stack can enable `CloudSQLInstance` resources to satisfy `MySQLInstance` claims
-without teaching `crossplaneio/crossplane` how to dynamically provision a
+without teaching `crossplane/crossplane` how to dynamically provision a
 `CloudSQLInstance`. This same pattern would be applied to class scheduler
 controllers - one controller would be responsible for each possible (resource
 claim, resource class) tuple.

@@ -31,7 +31,7 @@ Appears in:
 
 Name | Type | Description
 -----|------|------------
-`credentialsSecretRef` | github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.SecretReference | A Secret containing connection credentials for a Kubernetes cluster client that will be used to authenticate to this Kubernetes Provider. This will typically be the connection secret of a KubernetesCluster claim, or the secret created by a Kubernetes service account, but could also be manually configured to connect to a preexisting cluster.
+`credentialsSecretRef` | [v1alpha1.SecretReference](../crossplane-runtime/core-crossplane-io-v1alpha1.md#secretreference) | A Secret containing connection credentials for a Kubernetes cluster client that will be used to authenticate to this Kubernetes Provider. This will typically be the connection secret of a KubernetesCluster claim, or the secret created by a Kubernetes service account, but could also be manually configured to connect to a preexisting cluster.
 
 
 

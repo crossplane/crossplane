@@ -87,7 +87,7 @@ Any dates listed below and the specific issues that will ship in a given milesto
   * Infra Stack Developer Guide [#610](https://github.com/crossplane/crossplane/issues/610)
   * Portable Wordpress App Stack (kubebuilder-based) published to registry [#572](https://github.com/crossplane/crossplane/issues/572)
   * Refresh 0.3 Docs: reflect enhancements, better on-boarding UX, easier to get started [#625](https://github.com/crossplane/crossplane/issues/625)
-  * Crossplane.io reflects the updated roadmap / vision [crossplaneio.github.io#22](https://github.com/crossplane/crossplaneio.github.io/issues/22)
+  * Crossplane.io reflects the updated roadmap / vision [crossplane.github.io#22](https://github.com/crossplane/crossplane.github.io/issues/22)
 
 ## [v0.4.0 Initial Rook support & stable v1beta1 APIs for AWS, GCP](https://github.com/crossplane/crossplane/releases/tag/v0.4.0)
 * Claim-based provisioning of [Rook](https://rook.io/)-managed databases [#862](https://github.com/crossplane/crossplane/issues/862)
@@ -111,7 +111,7 @@ Any dates listed below and the specific issues that will ship in a given milesto
  * Release automation for shorter release cycles and hot fixes [#864](https://github.com/crossplane/crossplane/issues/864) 
    * Updating pipelines to include automation [#6](https://github.com/crossplane/crossplane/issues/6)
    * SonarCloud checks for cloud provider stacks [#875](https://github.com/crossplane/crossplane/issues/875)
-   * crossplane-runtime build pipelines [crossplaneio/crossplane-runtime#14](https://github.com/crossplane/crossplane-runtime/issues/14)
+   * crossplane-runtime build pipelines [crossplane/crossplane-runtime#14](https://github.com/crossplane/crossplane-runtime/issues/14)
 
  * Trace utility for enhanced debugging support. [#744](https://github.com/crossplane/crossplane/issues/744)
 
@@ -128,7 +128,7 @@ Any dates listed below and the specific issues that will ship in a given milesto
 
 * Stable v1beta1 Services APIs for managed databases and caches (Azure) [#863](https://github.com/crossplane/crossplane/issues/863)
   * Upgrade Azure stack to v1beta1: Azure Database and Azure Cache for Redis with high-def CRDs & controllers
-    * crossplaneio/stack-azure#28 Azure SQL and Redis resources v1beta1
+    * crossplane/stack-azure#28 Azure SQL and Redis resources v1beta1
 
 * Bug fixes and test automation
 
@@ -150,7 +150,7 @@ Any dates listed below and the specific issues that will ship in a given milesto
 ## [v0.7.0 Deploy Workloads to any Kubernetes Cluster, including bare-metal!](https://github.com/crossplane/crossplane/releases/tag/v0.7.0)
 * KubernetesTarget kind for scheduling KubernetesApplications [#859](https://github.com/crossplane/crossplane/issues/859)
 * Improved the UI schema for resources supported by Crossplane stacks [#38](https://github.com/upbound/crossplane-graphql/issues/38)
-* GCP integration tests [crossplaneio/stack-gcp#87](https://github.com/crossplane/stack-gcp/issues/87)
+* GCP integration tests [crossplane/stack-gcp#87](https://github.com/crossplane/stack-gcp/issues/87)
 * Template Stacks (experimental): integrate template engine controllers with stack manager [#36](https://github.com/upbound/stacks-marketplace-squad/issues/36)
 
 ## v0.8.0
@@ -163,9 +163,9 @@ Any dates listed below and the specific issues that will ship in a given milesto
    * Defining your own claim kinds [#1106](https://github.com/crossplane/crossplane/issues/1106) 
    * Allowing a claim to be satisfied by multiple resources [#1105](https://github.com/crossplane/crossplane/issues/1105)
    * Versioning and upgrade support [#879](https://github.com/crossplane/crossplane/issues/879), [#435](https://github.com/crossplane/crossplane/issues/435)
-* GCP storage buckets to v1beta1 [crossplaneio/stack-gcp#130](https://github.com/crossplane/stack-gcp/issues/130)
-* GCP networking resources to v1beta1 [crossplaneio/stack-gcp#131](https://github.com/crossplane/stack-gcp/issues/131)
-* Improved logging and eventing [crossplaneio/crossplane-runtime#104](https://github.com/crossplane/crossplane-runtime/issues/104)
+* GCP storage buckets to v1beta1 [crossplane/stack-gcp#130](https://github.com/crossplane/stack-gcp/issues/130)
+* GCP networking resources to v1beta1 [crossplane/stack-gcp#131](https://github.com/crossplane/stack-gcp/issues/131)
+* Improved logging and eventing [crossplane/crossplane-runtime#104](https://github.com/crossplane/crossplane-runtime/issues/104)
 
 ## Roadmap
 * Integration testing

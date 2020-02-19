@@ -634,7 +634,7 @@ spec:
       …
       containers:
       - name: template-stack-manager
-        image: crossplaneio/template-stack-manager:latest
+        image: crossplane/template-stack-manager:latest
         args: ["--stack", "stackname"]
 ```
 

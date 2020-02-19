@@ -409,7 +409,7 @@ claim. Before moving on to the controllers:
   Comment markers can be used to validate input, or add additional columns to
   the standard `kubectl get` output, among other things.
 * Run `make generate && make manifests` (or `make reviewable` if you're working
-  in one of the projects in the [crossplaneio org]) to generate Custom Resource
+  in one of the projects in the [crossplane org]) to generate Custom Resource
   Definitions and additional helper methods for your new resource kinds.
 * Make sure a `//go:generate` comment exists for [angryjet] and you ran `go
   generate -v ./...`
@@ -1056,7 +1056,7 @@ func (c *FavouriteClusterTargetController) SetupWithManager(mgr ctrl.Manager) er
 ### Wrapping Up
 
 Once all your controllers are in place you'll want to test them. Note that most
-projects under the [crossplaneio org] [favor] table driven tests that use Go's
+projects under the [crossplane org] [favor] table driven tests that use Go's
 standard library `testing` package over kubebuilder's Gingko based tests.
 
 Finally, don't forget to plumb any newly added resource kinds and controllers up
@@ -1169,7 +1169,7 @@ value any feedback you may have about the services development process!
 [favor]: https://github.com/crossplane/crossplane/issues/452
 [reach out]: https://github.com/crossplane/crossplane#contact
 [#sig-services]: https://crossplane.slack.com/messages/sig-services
-[crossplaneio org]: https://github.com/crossplane
+[crossplane org]: https://github.com/crossplane
 [`angryjet`]: https://github.com/crossplane/crossplane-tools
 [Managed Resource API Patterns]: ../design/one-pager-managed-resource-api-design.md
 [Crossplane CLI]: https://github.com/crossplane/crossplane-cli#quick-start-stacks
