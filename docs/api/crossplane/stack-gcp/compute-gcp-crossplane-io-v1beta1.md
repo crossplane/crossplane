@@ -124,7 +124,7 @@ Name | Type | Description
 
 GlobalAddressSpec supports all fields of:
 
-* github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ResourceSpec
+* [v1alpha1.ResourceSpec](../crossplane-runtime/core-crossplane-io-v1alpha1.md#resourcespec)
 
 
 ## GlobalAddressStatus
@@ -143,7 +143,7 @@ Name | Type | Description
 
 GlobalAddressStatus supports all fields of:
 
-* github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ResourceStatus
+* [v1alpha1.ResourceStatus](../crossplane-runtime/core-crossplane-io-v1alpha1.md#resourcestatus)
 
 
 ## NetworkObservation
@@ -230,7 +230,7 @@ Name | Type | Description
 
 NetworkSpec supports all fields of:
 
-* github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ResourceSpec
+* [v1alpha1.ResourceSpec](../crossplane-runtime/core-crossplane-io-v1alpha1.md#resourcespec)
 
 
 ## NetworkStatus
@@ -249,7 +249,7 @@ Name | Type | Description
 
 NetworkStatus supports all fields of:
 
-* github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ResourceStatus
+* [v1alpha1.ResourceStatus](../crossplane-runtime/core-crossplane-io-v1alpha1.md#resourcestatus)
 
 
 ## NetworkURIReferencer
@@ -370,7 +370,7 @@ Name | Type | Description
 
 SubnetworkSpec supports all fields of:
 
-* github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ResourceSpec
+* [v1alpha1.ResourceSpec](../crossplane-runtime/core-crossplane-io-v1alpha1.md#resourcespec)
 
 
 ## SubnetworkStatus
@@ -389,7 +389,7 @@ Name | Type | Description
 
 SubnetworkStatus supports all fields of:
 
-* github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ResourceStatus
+* [v1alpha1.ResourceStatus](../crossplane-runtime/core-crossplane-io-v1alpha1.md#resourcestatus)
 
 
 ## SubnetworkURIReferencer

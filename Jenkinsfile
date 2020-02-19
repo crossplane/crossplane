@@ -26,7 +26,7 @@ pipeline {
             steps {
                 script {
                     if (env.CHANGE_ID != null) {
-                        def json = sh (script: "curl -s https://api.github.com/repos/crossplaneio/crossplane/pulls/${env.CHANGE_ID}", returnStdout: true).trim()
+                        def json = sh (script: "curl -s https://api.github.com/repos/crossplane/crossplane/pulls/${env.CHANGE_ID}", returnStdout: true).trim()
                         def body = evaluateJson(json,'${json.body}')
                         if (body.contains("[skip ci]")) {
                             echo ("'[skip ci]' spotted in PR body text.")
@@ -141,7 +141,7 @@ pipeline {
                             "-Dsonar.pullrequest.branch=${env.BRANCH_NAME} " +
                             "-Dsonar.pullrequest.key=${env.CHANGE_ID}  " +
                             "-Dsonar.pullrequest.provider=github " +
-                            "-Dsonar.pullrequest.github.repository=crossplaneio/${env.REPOSITORY_NAME}"
+                            "-Dsonar.pullrequest.github.repository=crossplane/${env.REPOSITORY_NAME}"
                     }
                 }
 

@@ -150,7 +150,7 @@ Appears in:
 
 DBSubnetGroupNameReferencerForRDSInstance supports all fields of:
 
-* github.com/crossplaneio/stack-aws/apis/database/v1alpha3.DBSubnetGroupNameReferencer
+* github.com/crossplane/stack-aws/apis/database/v1alpha3.DBSubnetGroupNameReferencer
 
 
 ## DomainMembership
@@ -201,7 +201,7 @@ Appears in:
 
 IAMRoleARNReferencerForRDSInstanceMonitoringRole supports all fields of:
 
-* github.com/crossplaneio/stack-aws/apis/identity/v1alpha3.IAMRoleARNReferencer
+* github.com/crossplane/stack-aws/apis/identity/v1alpha3.IAMRoleARNReferencer
 
 
 ## IAMRoleNameReferencerForRDSInstanceDomainRole
@@ -217,7 +217,7 @@ Appears in:
 
 IAMRoleNameReferencerForRDSInstanceDomainRole supports all fields of:
 
-* github.com/crossplaneio/stack-aws/apis/identity/v1alpha3.IAMRoleNameReferencer
+* github.com/crossplane/stack-aws/apis/identity/v1alpha3.IAMRoleNameReferencer
 
 
 ## OptionGroupMembership
@@ -312,7 +312,7 @@ Name | Type | Description
 
 RDSInstanceClassSpecTemplate supports all fields of:
 
-* github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ClassSpecTemplate
+* [v1alpha1.ClassSpecTemplate](../crossplane-runtime/core-crossplane-io-v1alpha1.md#classspectemplate)
 
 
 ## RDSInstanceObservation
@@ -435,7 +435,7 @@ Name | Type | Description
 
 RDSInstanceSpec supports all fields of:
 
-* github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ResourceSpec
+* [v1alpha1.ResourceSpec](../crossplane-runtime/core-crossplane-io-v1alpha1.md#resourcespec)
 
 
 ## RDSInstanceState
@@ -459,7 +459,7 @@ Name | Type | Description
 
 RDSInstanceStatus supports all fields of:
 
-* github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ResourceStatus
+* [v1alpha1.ResourceStatus](../crossplane-runtime/core-crossplane-io-v1alpha1.md#resourcestatus)
 
 
 ## ScalingConfiguration
@@ -522,7 +522,7 @@ VPCSecurityGroupIDReferencerForRDSInstance is an attribute referencer that resol
 
 VPCSecurityGroupIDReferencerForRDSInstance supports all fields of:
 
-* github.com/crossplaneio/stack-aws/apis/network/v1alpha3.SecurityGroupIDReferencer
+* github.com/crossplane/stack-aws/apis/network/v1alpha3.SecurityGroupIDReferencer
 
 
 ## VPCSecurityGroupMembership

@@ -250,7 +250,7 @@ Appears in:
 
 InternetGatewaySpec supports all fields of:
 
-* github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ResourceSpec
+* [v1alpha1.ResourceSpec](../crossplane-runtime/core-crossplane-io-v1alpha1.md#resourcespec)
 * [InternetGatewayParameters](#InternetGatewayParameters)
 
 
@@ -267,7 +267,7 @@ Appears in:
 
 InternetGatewayStatus supports all fields of:
 
-* github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ResourceStatus
+* [v1alpha1.ResourceStatus](../crossplane-runtime/core-crossplane-io-v1alpha1.md#resourcestatus)
 * [InternetGatewayExternalStatus](#InternetGatewayExternalStatus)
 
 
@@ -356,7 +356,7 @@ Appears in:
 
 RouteTableSpec supports all fields of:
 
-* github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ResourceSpec
+* [v1alpha1.ResourceSpec](../crossplane-runtime/core-crossplane-io-v1alpha1.md#resourcespec)
 * [RouteTableParameters](#RouteTableParameters)
 
 
@@ -373,7 +373,7 @@ Appears in:
 
 RouteTableStatus supports all fields of:
 
-* github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ResourceStatus
+* [v1alpha1.ResourceStatus](../crossplane-runtime/core-crossplane-io-v1alpha1.md#resourcestatus)
 * [RouteTableExternalStatus](#RouteTableExternalStatus)
 
 
@@ -438,7 +438,7 @@ Appears in:
 
 SecurityGroupSpec supports all fields of:
 
-* github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ResourceSpec
+* [v1alpha1.ResourceSpec](../crossplane-runtime/core-crossplane-io-v1alpha1.md#resourcespec)
 * [SecurityGroupParameters](#SecurityGroupParameters)
 
 
@@ -455,7 +455,7 @@ Appears in:
 
 SecurityGroupStatus supports all fields of:
 
-* github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ResourceStatus
+* [v1alpha1.ResourceStatus](../crossplane-runtime/core-crossplane-io-v1alpha1.md#resourcestatus)
 * [SecurityGroupExternalStatus](#SecurityGroupExternalStatus)
 
 
@@ -539,7 +539,7 @@ Appears in:
 
 SubnetSpec supports all fields of:
 
-* github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ResourceSpec
+* [v1alpha1.ResourceSpec](../crossplane-runtime/core-crossplane-io-v1alpha1.md#resourcespec)
 * [SubnetParameters](#SubnetParameters)
 
 
@@ -556,7 +556,7 @@ Appears in:
 
 SubnetStatus supports all fields of:
 
-* github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ResourceStatus
+* [v1alpha1.ResourceStatus](../crossplane-runtime/core-crossplane-io-v1alpha1.md#resourcestatus)
 * [SubnetExternalStatus](#SubnetExternalStatus)
 
 
@@ -709,7 +709,7 @@ Appears in:
 
 VPCSpec supports all fields of:
 
-* github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ResourceSpec
+* [v1alpha1.ResourceSpec](../crossplane-runtime/core-crossplane-io-v1alpha1.md#resourcespec)
 * [VPCParameters](#VPCParameters)
 
 
@@ -726,7 +726,7 @@ Appears in:
 
 VPCStatus supports all fields of:
 
-* github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ResourceStatus
+* [v1alpha1.ResourceStatus](../crossplane-runtime/core-crossplane-io-v1alpha1.md#resourcestatus)
 * [VPCExternalStatus](#VPCExternalStatus)
 
 

@@ -136,7 +136,7 @@ Name | Type | Description
 
 ReplicationGroupClassSpecTemplate supports all fields of:
 
-* github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ClassSpecTemplate
+* [v1alpha1.ClassSpecTemplate](../crossplane-runtime/core-crossplane-io-v1alpha1.md#classspectemplate)
 
 
 ## ReplicationGroupObservation
@@ -237,7 +237,7 @@ Name | Type | Description
 
 ReplicationGroupSpec supports all fields of:
 
-* github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ResourceSpec
+* [v1alpha1.ResourceSpec](../crossplane-runtime/core-crossplane-io-v1alpha1.md#resourcespec)
 
 
 ## ReplicationGroupStatus
@@ -256,7 +256,7 @@ Name | Type | Description
 
 ReplicationGroupStatus supports all fields of:
 
-* github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ResourceStatus
+* [v1alpha1.ResourceStatus](../crossplane-runtime/core-crossplane-io-v1alpha1.md#resourcestatus)
 
 
 ## ReshardingStatus

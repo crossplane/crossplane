@@ -159,7 +159,7 @@ Appears in:
 
 IAMRolePolicyAttachmentSpec supports all fields of:
 
-* github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ResourceSpec
+* [v1alpha1.ResourceSpec](../crossplane-runtime/core-crossplane-io-v1alpha1.md#resourcespec)
 * [IAMRolePolicyAttachmentParameters](#IAMRolePolicyAttachmentParameters)
 
 
@@ -176,7 +176,7 @@ Appears in:
 
 IAMRolePolicyAttachmentStatus supports all fields of:
 
-* github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ResourceStatus
+* [v1alpha1.ResourceStatus](../crossplane-runtime/core-crossplane-io-v1alpha1.md#resourcestatus)
 * [IAMRolePolicyAttachmentExternalStatus](#IAMRolePolicyAttachmentExternalStatus)
 
 
@@ -193,7 +193,7 @@ Appears in:
 
 IAMRoleSpec supports all fields of:
 
-* github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ResourceSpec
+* [v1alpha1.ResourceSpec](../crossplane-runtime/core-crossplane-io-v1alpha1.md#resourcespec)
 * [IAMRoleParameters](#IAMRoleParameters)
 
 
@@ -210,7 +210,7 @@ Appears in:
 
 IAMRoleStatus supports all fields of:
 
-* github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ResourceStatus
+* [v1alpha1.ResourceStatus](../crossplane-runtime/core-crossplane-io-v1alpha1.md#resourcestatus)
 * [IAMRoleExternalStatus](#IAMRoleExternalStatus)
 
 

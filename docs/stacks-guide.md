@@ -76,7 +76,7 @@ CLI][crossplane-cli], because it's more convenient. To install it, we
 can use the one-line curl bash:
 
 ```
-RELEASE=v0.2.0 && curl -sL https://raw.githubusercontent.com/crossplaneio/crossplane-cli/"${RELEASE}"/bootstrap.sh | RELEASE=${RELEASE} bash
+RELEASE=v0.2.0 && curl -sL https://raw.githubusercontent.com/crossplane/crossplane-cli/"${RELEASE}"/bootstrap.sh | RELEASE=${RELEASE} bash
 ```
 
 To use the latest release, you can use `master` as the `RELEASE` instead

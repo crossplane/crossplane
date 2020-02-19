@@ -69,7 +69,7 @@ Appears in:
 
 BucketClassSpecTemplate supports all fields of:
 
-* github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ClassSpecTemplate
+* [v1alpha1.ClassSpecTemplate](../crossplane-runtime/core-crossplane-io-v1alpha1.md#classspectemplate)
 * [BucketParameters](#BucketParameters)
 
 
@@ -135,7 +135,7 @@ Appears in:
 Name | Type | Description
 -----|------|------------
 `nameFormat` | string | NameFormat specifies the name of the external Bucket. The first instance of the string &#39;%s&#39; will be replaced with the Kubernetes UID of this Bucket.
-`serviceAccountSecretRef` | github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.SecretReference | ServiceAccountSecretRef contains GCP ServiceAccount secret that will be used for bucket connection secret credentials
+`serviceAccountSecretRef` | [v1alpha1.SecretReference](../crossplane-runtime/core-crossplane-io-v1alpha1.md#secretreference) | ServiceAccountSecretRef contains GCP ServiceAccount secret that will be used for bucket connection secret credentials
 
 
 BucketParameters supports all fields of:
@@ -173,7 +173,7 @@ Appears in:
 
 BucketSpec supports all fields of:
 
-* github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ResourceSpec
+* [v1alpha1.ResourceSpec](../crossplane-runtime/core-crossplane-io-v1alpha1.md#resourcespec)
 * [BucketParameters](#BucketParameters)
 
 
@@ -215,7 +215,7 @@ Name | Type | Description
 
 BucketStatus supports all fields of:
 
-* github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ResourceStatus
+* [v1alpha1.ResourceStatus](../crossplane-runtime/core-crossplane-io-v1alpha1.md#resourcestatus)
 
 
 ## BucketUpdatableAttrs

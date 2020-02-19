@@ -21,7 +21,7 @@ Instructions for installing `gcloud` can be found in the [Google docs](https://c
 ### Using `gcp-credentials.sh`
 
 In the `cluster/examples` directory you will find a helper script,
-[`gcp-credentials.sh`](https://raw.githubusercontent.com/crossplaneio/crossplane/master/cluster/examples/gcp-credentials.sh).
+[`gcp-credentials.sh`](https://raw.githubusercontent.com/crossplane/crossplane/master/cluster/examples/gcp-credentials.sh).
 This script will prompt you for the organization, project, and billing account that will be used by
 `gcloud` when creating a project, service account, and credentials file
 (`crossplane-gcp-provider-key.json`).  The chosen project and created service account will have

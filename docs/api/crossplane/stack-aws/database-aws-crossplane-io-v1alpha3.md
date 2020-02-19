@@ -83,7 +83,7 @@ Appears in:
 
 DBSubnetGroupSpec supports all fields of:
 
-* github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ResourceSpec
+* [v1alpha1.ResourceSpec](../crossplane-runtime/core-crossplane-io-v1alpha1.md#resourcespec)
 * [DBSubnetGroupParameters](#DBSubnetGroupParameters)
 
 
@@ -100,7 +100,7 @@ Appears in:
 
 DBSubnetGroupStatus supports all fields of:
 
-* github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ResourceStatus
+* [v1alpha1.ResourceStatus](../crossplane-runtime/core-crossplane-io-v1alpha1.md#resourcestatus)
 * [DBSubnetGroupExternalStatus](#DBSubnetGroupExternalStatus)
 
 
@@ -129,7 +129,7 @@ SubnetIDReferencerForDBSubnetGroup is an attribute referencer that resolves Subn
 
 SubnetIDReferencerForDBSubnetGroup supports all fields of:
 
-* github.com/crossplaneio/stack-aws/apis/network/v1alpha3.SubnetIDReferencer
+* github.com/crossplane/stack-aws/apis/network/v1alpha3.SubnetIDReferencer
 
 
 ## Tag

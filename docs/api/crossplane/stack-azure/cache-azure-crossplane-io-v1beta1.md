@@ -52,7 +52,7 @@ Name | Type | Description
 
 RedisClassSpecTemplate supports all fields of:
 
-* github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ClassSpecTemplate
+* [v1alpha1.ClassSpecTemplate](../crossplane-runtime/core-crossplane-io-v1alpha1.md#classspectemplate)
 
 
 ## RedisObservation
@@ -121,7 +121,7 @@ Name | Type | Description
 
 RedisSpec supports all fields of:
 
-* github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ResourceSpec
+* [v1alpha1.ResourceSpec](../crossplane-runtime/core-crossplane-io-v1alpha1.md#resourcespec)
 
 
 ## RedisStatus
@@ -140,7 +140,7 @@ Name | Type | Description
 
 RedisStatus supports all fields of:
 
-* github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ResourceStatus
+* [v1alpha1.ResourceStatus](../crossplane-runtime/core-crossplane-io-v1alpha1.md#resourcestatus)
 
 
 ## ResourceGroupNameReferencerForRedis
@@ -156,7 +156,7 @@ Appears in:
 
 ResourceGroupNameReferencerForRedis supports all fields of:
 
-* github.com/crossplaneio/stack-azure/apis/v1alpha3.ResourceGroupNameReferencer
+* github.com/crossplane/stack-azure/apis/v1alpha3.ResourceGroupNameReferencer
 
 
 ## SKU

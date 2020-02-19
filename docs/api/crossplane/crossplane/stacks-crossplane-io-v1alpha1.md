@@ -341,7 +341,7 @@ Appears in:
 
 Name | Type | Description
 -----|------|------------
-`conditionedStatus` | github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ConditionedStatus | 
+`conditionedStatus` | [v1alpha1.ConditionedStatus](../crossplane-runtime/core-crossplane-io-v1alpha1.md#conditionedstatus) | 
 `installJob` | [core/v1.ObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectreference-v1-core) | 
 `stackRecord` | [core/v1.ObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectreference-v1-core) | 
 
@@ -400,7 +400,7 @@ Appears in:
 
 Name | Type | Description
 -----|------|------------
-`conditionedStatus` | github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ConditionedStatus | 
+`conditionedStatus` | [v1alpha1.ConditionedStatus](../crossplane-runtime/core-crossplane-io-v1alpha1.md#conditionedstatus) | 
 `controllerRef` | [core/v1.ObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.15/#objectreference-v1-core) | 
 
 

@@ -84,7 +84,7 @@ Name | Type | Description
 
 CloudSQLInstanceClassSpecTemplate supports all fields of:
 
-* github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ClassSpecTemplate
+* [v1alpha1.ClassSpecTemplate](../crossplane-runtime/core-crossplane-io-v1alpha1.md#classspectemplate)
 
 
 ## CloudSQLInstanceObservation
@@ -157,7 +157,7 @@ Name | Type | Description
 
 CloudSQLInstanceSpec supports all fields of:
 
-* github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ResourceSpec
+* [v1alpha1.ResourceSpec](../crossplane-runtime/core-crossplane-io-v1alpha1.md#resourcespec)
 
 
 ## CloudSQLInstanceStatus
@@ -176,7 +176,7 @@ Name | Type | Description
 
 CloudSQLInstanceStatus supports all fields of:
 
-* github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1.ResourceStatus
+* [v1alpha1.ResourceStatus](../crossplane-runtime/core-crossplane-io-v1alpha1.md#resourcestatus)
 
 
 ## DatabaseFlags
