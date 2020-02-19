@@ -19,11 +19,11 @@ package stacks
 import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
-	"github.com/crossplaneio/crossplane/pkg/controller/stacks/install"
-	"github.com/crossplaneio/crossplane/pkg/controller/stacks/persona"
-	"github.com/crossplaneio/crossplane/pkg/controller/stacks/stack"
+	"github.com/crossplane/crossplane/pkg/controller/stacks/install"
+	"github.com/crossplane/crossplane/pkg/controller/stacks/persona"
+	"github.com/crossplane/crossplane/pkg/controller/stacks/stack"
 )
 
 // Setup Crossplane Stacks controllers.

@@ -20,7 +20,7 @@ package compute
 import (
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/crossplaneio/crossplane/apis/compute/v1alpha1"
+	"github.com/crossplane/crossplane/apis/compute/v1alpha1"
 )
 
 func init() {

@@ -154,24 +154,24 @@ If you have any questions, please drop us a note on [Crossplane Slack][join-cros
 [services-user-guide]: services-guide.md
 [stack-user-guide]: stacks-guide.md
 [stack-developer-guide]: developer-guide.md
-[stacks-manager]: https://github.com/crossplaneio/crossplane/blob/master/design/design-doc-stacks.md#terminology
-[crossplane-cli]: https://github.com/crossplaneio/crossplane-cli
-[crossplane-cli-usage]: https://github.com/crossplaneio/crossplane-cli#usage
-[stack-security-design]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-stacks-security-isolation.md
+[stacks-manager]: https://github.com/crossplane/crossplane/blob/master/design/design-doc-stacks.md#terminology
+[crossplane-cli]: https://github.com/crossplane/crossplane-cli
+[crossplane-cli-usage]: https://github.com/crossplane/crossplane-cli#usage
+[stack-security-design]: https://github.com/crossplane/crossplane/blob/master/design/one-pager-stacks-security-isolation.md
 
 [stack-wordpress-registry]: https://hub.docker.com/r/crossplane/sample-stack-wordpress
-[stack-wordpress]: https://github.com/crossplaneio/sample-stack-wordpress
+[stack-wordpress]: https://github.com/crossplane/sample-stack-wordpress
 
-[stack-gcp]: https://github.com/crossplaneio/stack-gcp
-[stack-aws]: https://github.com/crossplaneio/stack-aws
-[stack-azure]: https://github.com/crossplaneio/stack-azure
+[stack-gcp]: https://github.com/crossplane/stack-gcp
+[stack-aws]: https://github.com/crossplane/stack-aws
+[stack-azure]: https://github.com/crossplane/stack-azure
 [stack-registry]: https://hub.docker.com/search?q=crossplane&type=image
-[stack-install-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/design-doc-stacks.md#installation-flow
+[stack-install-docs]: https://github.com/crossplane/crossplane/blob/master/design/design-doc-stacks.md#installation-flow
 
-[k8s-app-design]: https://github.com/crossplaneio/crossplane/blob/master/design/design-doc-complex-workloads.md#design
+[k8s-app-design]: https://github.com/crossplane/crossplane/blob/master/design/design-doc-complex-workloads.md#design
 
 [arch-doc]: https://docs.google.com/document/d/1whncqdUeU2cATGEJhHvzXWC9xdK29Er45NJeoemxebo/edit?usp=sharing
 
-[contact-us]: https://github.com/crossplaneio/crossplane#contact
+[contact-us]: https://github.com/crossplane/crossplane#contact
 [join-crossplane-slack]: https://slack.crossplane.io
 [learn-more]: learn-more.md

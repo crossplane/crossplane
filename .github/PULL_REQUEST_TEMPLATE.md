@@ -40,6 +40,6 @@ I have:
 For more about what we believe makes a pull request complete, see our
 [definition of done].
 
-[documentation]: https://github.com/crossplaneio/crossplane/tree/master/docs
-[examples]: https://github.com/crossplaneio/crossplane/tree/master/cluster/examples
-[definition of done]: https://github.com/crossplaneio/crossplane/tree/master/design/one-pager-definition-of-done.md
+[documentation]: https://github.com/crossplane/crossplane/tree/master/docs
+[examples]: https://github.com/crossplane/crossplane/tree/master/cluster/examples
+[definition of done]: https://github.com/crossplane/crossplane/tree/master/design/one-pager-definition-of-done.md

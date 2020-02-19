@@ -9,12 +9,12 @@ maintainers:
   - name: Crossplane Maintainers
     email: info@crossplane.io
 source:
-- https://github.com/crossplaneio/crossplane
-- https://github.com/crossplaneio/crossplane-runtime
-- https://github.com/crossplaneio/stack-aws
-- https://github.com/crossplaneio/stack-azure
-- https://github.com/crossplaneio/stack-gcp
-- https://github.com/crossplaneio/stack-rook
+- https://github.com/crossplane/crossplane
+- https://github.com/crossplane/crossplane-runtime
+- https://github.com/crossplane/stack-aws
+- https://github.com/crossplane/stack-azure
+- https://github.com/crossplane/stack-gcp
+- https://github.com/crossplane/stack-rook
 keywords:
 - clusters as cattle
 - infrastructure

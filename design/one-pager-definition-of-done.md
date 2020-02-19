@@ -51,4 +51,4 @@ The definition of done can be applied in the following ways:
   is done.
 
 <!-- Reference links -->
-[error-reporting-philosophy]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-error-and-event-reporting.md
+[error-reporting-philosophy]: https://github.com/crossplane/crossplane/blob/master/design/one-pager-error-and-event-reporting.md

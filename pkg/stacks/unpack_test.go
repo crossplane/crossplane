@@ -27,9 +27,9 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/afero"
 
-	"github.com/crossplaneio/crossplane-runtime/pkg/test"
-	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/stacks/walker"
+	"github.com/crossplane/crossplane-runtime/pkg/test"
+	"github.com/crossplane/crossplane/apis/stacks/v1alpha1"
+	"github.com/crossplane/crossplane/pkg/stacks/walker"
 )
 
 const (
@@ -212,7 +212,7 @@ spec:
       - '*'
   readme: |
     Markdown describing this sample Crossplane stack project.
-  source: https://github.com/crossplaneio/sample-stack
+  source: https://github.com/crossplane/sample-stack
   title: Sample Crossplane Stack
   version: 0.0.1
   website: https://upbound.io
@@ -363,7 +363,7 @@ spec:
       - '*'
   readme: |
     Markdown describing this sample Crossplane stack project.
-  source: https://github.com/crossplaneio/sample-stack
+  source: https://github.com/crossplane/sample-stack
   title: Sample Crossplane Stack
   version: 0.0.1
   website: https://upbound.io
@@ -657,7 +657,7 @@ spec:
       - '*'
   readme: |
     Markdown describing this sample Crossplane stack project.
-  source: https://github.com/crossplaneio/sample-stack
+  source: https://github.com/crossplane/sample-stack
   title: Sample Crossplane Stack
   version: 0.0.1
   website: https://upbound.io
@@ -952,7 +952,7 @@ spec:
       - '*'
   readme: |
     Markdown describing this sample Crossplane stack project.
-  source: https://github.com/crossplaneio/sample-stack
+  source: https://github.com/crossplane/sample-stack
   title: Sample Crossplane Stack
   version: 0.0.1
   website: https://upbound.io
@@ -1012,7 +1012,7 @@ keywords:
 
 # Links to more information about the application (about page, source code, etc.)
 website: "https://upbound.io"
-source: "https://github.com/crossplaneio/sample-stack"
+source: "https://github.com/crossplane/sample-stack"
 
 permissionScope: %q
 

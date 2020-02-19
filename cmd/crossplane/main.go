@@ -28,13 +28,13 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
-	"github.com/crossplaneio/crossplane/apis"
-	"github.com/crossplaneio/crossplane/pkg/controller/stacks"
-	"github.com/crossplaneio/crossplane/pkg/controller/stacks/templates"
-	"github.com/crossplaneio/crossplane/pkg/controller/workload"
-	stack "github.com/crossplaneio/crossplane/pkg/stacks"
-	"github.com/crossplaneio/crossplane/pkg/stacks/walker"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane/apis"
+	"github.com/crossplane/crossplane/pkg/controller/stacks"
+	"github.com/crossplane/crossplane/pkg/controller/stacks/templates"
+	"github.com/crossplane/crossplane/pkg/controller/workload"
+	stack "github.com/crossplane/crossplane/pkg/stacks"
+	"github.com/crossplane/crossplane/pkg/stacks/walker"
 )
 
 func main() {

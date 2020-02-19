@@ -103,4 +103,4 @@ the subcommand dispatch functionality that kubectl provides, and that
 saves some time. In the future, it may very well be a single plugin
 instead.
 
-[stack cli github]: https://github.com/crossplaneio/crossplane-cli
+[stack cli github]: https://github.com/crossplane/crossplane-cli

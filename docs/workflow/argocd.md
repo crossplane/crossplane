@@ -232,7 +232,7 @@ environments for your specific use case!
 [GCP provider]: cloud-providers/gcp/gcp-provider.md
 [AWS provider]: cloud-providers/aws/aws-provider.md
 [Azure provider]: cloud-providers/azure/azure-provider.md
-[this repository]: https://github.com/crossplaneio/crosscd/tree/master/classpacks/workflow/argo
-[wordpress-dir]: https://github.com/crossplaneio/crosscd/tree/master/classpacks/workflow/argo/app
-[app-patch]: https://github.com/crossplaneio/crosscd/blob/master/classpacks/workflow/argo/app/patch.yaml
-[AWS infrastructure directory]: https://github.com/crossplaneio/crosscd/tree/master/classpacks/workflow/argo/infra/aws
+[this repository]: https://github.com/crossplane/crosscd/tree/master/classpacks/workflow/argo
+[wordpress-dir]: https://github.com/crossplane/crosscd/tree/master/classpacks/workflow/argo/app
+[app-patch]: https://github.com/crossplane/crosscd/blob/master/classpacks/workflow/argo/app/patch.yaml
+[AWS infrastructure directory]: https://github.com/crossplane/crosscd/tree/master/classpacks/workflow/argo/infra/aws

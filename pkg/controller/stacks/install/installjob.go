@@ -35,11 +35,11 @@ import (
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
-	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
-	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/controller/stacks/hosted"
-	"github.com/crossplaneio/crossplane/pkg/stacks"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/pkg/meta"
+	"github.com/crossplane/crossplane/apis/stacks/v1alpha1"
+	"github.com/crossplane/crossplane/pkg/controller/stacks/hosted"
+	"github.com/crossplane/crossplane/pkg/stacks"
 )
 
 var (

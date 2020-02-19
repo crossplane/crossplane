@@ -2,7 +2,7 @@
 # Setup Project
 
 PROJECT_NAME := crossplane
-PROJECT_REPO := github.com/crossplaneio/$(PROJECT_NAME)
+PROJECT_REPO := github.com/crossplane/$(PROJECT_NAME)
 
 PLATFORMS ?= linux_amd64 linux_arm64
 # -include will silently skip missing files, which allows us
@@ -63,7 +63,7 @@ IMAGES = crossplane
 
 SOURCE_DOCS_DIR = docs
 DEST_DOCS_DIR = docs
-DOCS_GIT_REPO = https://$(GIT_API_TOKEN)@github.com/crossplaneio/crossplaneio.github.io.git
+DOCS_GIT_REPO = https://$(GIT_API_TOKEN)@github.com/crossplane/crossplane.github.io.git
 -include build/makelib/docs.mk
 
 # ====================================================================================

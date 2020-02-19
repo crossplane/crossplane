@@ -260,7 +260,7 @@ following steps can be taken:
 1. Change all `Policy` types to `Class` types and include a `classRef` field
    instead of a `defaultClassRef` field. This would require updating the
    `crossplane-runtime` embeddable struct
-   [`Policy`](https://github.com/crossplaneio/crossplane-runtime/blob/e4d61ee2805af680baf16fc2a1d8f79538d0f9bb/apis/core/v1alpha1/resource.go#L93),
+   [`Policy`](https://github.com/crossplane/crossplane-runtime/blob/e4d61ee2805af680baf16fc2a1d8f79538d0f9bb/apis/core/v1alpha1/resource.go#L93),
    then bumping the dependency in core Crossplane. It would also require all
    embedded `Policy` structs to be renamed to `Class`.
 1. Alter all claim controllers (which live in provider stacks) to accept a
@@ -274,7 +274,7 @@ following steps can be taken:
    use it directly (this functionality should not be used until the concept of a
    strongly typed claim is introduced). This will involve updating the logic of
    the [shared claim
-   reconciler](https://github.com/crossplaneio/crossplane-runtime/blob/e4d61ee2805af680baf16fc2a1d8f79538d0f9bb/pkg/resource/claim_reconciler.go#L281)
+   reconciler](https://github.com/crossplane/crossplane-runtime/blob/e4d61ee2805af680baf16fc2a1d8f79538d0f9bb/pkg/resource/claim_reconciler.go#L281)
    in `crossplane-runtime`. It should require minimal updates to the actual
    claim controllers in each of the provider stacks in order to indicate the
    portable class `kind` that they should use (example below).
@@ -396,10 +396,10 @@ classRef:
 To implement this functionality, the following steps must be taken:
 
 1. Update [default class controller
-   predicates](https://github.com/crossplaneio/crossplane-runtime/blob/e4d61ee2805af680baf16fc2a1d8f79538d0f9bb/pkg/resource/predicates.go#L60)
+   predicates](https://github.com/crossplane/crossplane-runtime/blob/e4d61ee2805af680baf16fc2a1d8f79538d0f9bb/pkg/resource/predicates.go#L60)
    to accept resource claims that do not have a `classRef`.
 1. Update the [shared default class
-   reconciler](https://github.com/crossplaneio/crossplane-runtime/blob/e4d61ee2805af680baf16fc2a1d8f79538d0f9bb/pkg/resource/defaultclass.go#L106)
+   reconciler](https://github.com/crossplane/crossplane-runtime/blob/e4d61ee2805af680baf16fc2a1d8f79538d0f9bb/pkg/resource/defaultclass.go#L106)
    to set the `classRef` of a claim to the portable class in its `namespace`
    with the `default` label. If multiple portable classes for that claim kind
    with the `default` label (e.g. multiple default `MySQLInstanceClass` for a
@@ -426,6 +426,6 @@ reconcilers to omit a portable class kind.
 ## Questions and Open Issues
 
 * Loose classRef matching for resource claims -
-  [#723](https://github.com/crossplaneio/crossplane/issues/723)
+  [#723](https://github.com/crossplane/crossplane/issues/723)
 * Claim portability improvements -
-  [#703](https://github.com/crossplaneio/crossplane/issues/703)
+  [#703](https://github.com/crossplane/crossplane/issues/703)

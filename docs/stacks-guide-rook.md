@@ -182,13 +182,13 @@ If you want to skip the rest of the guide and just deploy Yugastore, you can
 run:
 
 ```bash
-kubectl apply -k https://github.com/crossplaneio/crossplane//cluster/examples/rook/yugastore?ref=master
+kubectl apply -k https://github.com/crossplane/crossplane//cluster/examples/rook/yugastore?ref=master
 ```
 
 And you're done! You can check the status of the provisioning by running:
 
 ```bash
-kubectl get -k https://github.com/crossplaneio/crossplane//cluster/examples/rook/yugastore?ref=master
+kubectl get -k https://github.com/crossplane/crossplane//cluster/examples/rook/yugastore?ref=master
 ```
 
 If you did not opt for this shortcut, keep reading.
@@ -867,7 +867,7 @@ resources in, checkout the [services guide][services].
 [CustomResourceDefinition]: https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/
 [instance]: https://rook.io/docs/rook/v1.1/yugabytedb-cluster-crd.html
 [operator YAML]: https://github.com/rook/rook/blob/master/cluster/examples/kubernetes/yugabytedb/operator.yaml
-[complex-workload-design]: https://github.com/crossplaneio/crossplane/blob/master/design/design-doc-complex-workloads.md#design
+[complex-workload-design]: https://github.com/crossplane/crossplane/blob/master/design/design-doc-complex-workloads.md#design
 
 [services]: services-guide.md
 [stacks]: stacks-guide.md

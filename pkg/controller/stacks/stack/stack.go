@@ -35,13 +35,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
-	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
-	runtimeresource "github.com/crossplaneio/crossplane-runtime/pkg/resource"
-	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/controller/stacks/hosted"
-	"github.com/crossplaneio/crossplane/pkg/stacks"
+	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/pkg/meta"
+	runtimeresource "github.com/crossplane/crossplane-runtime/pkg/resource"
+	"github.com/crossplane/crossplane/apis/stacks/v1alpha1"
+	"github.com/crossplane/crossplane/pkg/controller/stacks/hosted"
+	"github.com/crossplane/crossplane/pkg/stacks"
 )
 
 const (

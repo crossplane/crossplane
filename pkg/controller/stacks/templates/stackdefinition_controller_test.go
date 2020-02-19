@@ -33,10 +33,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
-	"github.com/crossplaneio/crossplane-runtime/pkg/test/integration"
-	"github.com/crossplaneio/crossplane/apis"
-	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/pkg/test/integration"
+	"github.com/crossplane/crossplane/apis"
+	"github.com/crossplane/crossplane/apis/stacks/v1alpha1"
 )
 
 const (
@@ -118,7 +118,7 @@ spec:
 )
 
 func TestStackDefinitionController(t *testing.T) {
-	t.Skip("Skipping so that this test will not run in CI, until we have better support for it. For more context, see https://github.com/crossplaneio/crossplane/issues/1033")
+	t.Skip("Skipping so that this test will not run in CI, until we have better support for it. For more context, see https://github.com/crossplane/crossplane/issues/1033")
 
 	cases := map[string]struct {
 		reason string

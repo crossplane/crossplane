@@ -21,8 +21,8 @@ import (
 
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
-	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane/apis/stacks/v1alpha1"
 )
 
 // SetupStackDefinitions adds a controller that reconciles StackDefinitions.

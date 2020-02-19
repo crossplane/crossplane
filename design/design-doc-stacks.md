@@ -8,7 +8,7 @@ This document aims to provide details about the experience and implementation fo
 ## Revisions
 
 * 1.1
-  * Renamed Extensions concept to Stacks (`Stack` code references are unaffected) [#571](https://github.com/crossplaneio/crossplane/issues/571)
+  * Renamed Extensions concept to Stacks (`Stack` code references are unaffected) [#571](https://github.com/crossplane/crossplane/issues/571)
   * Added additional Questions and Open Issues
 
 ## Experience
@@ -261,11 +261,11 @@ Strictly speaking, `install.yaml` is optional, but a Stack bereft of this file w
 
 ## Example Package Files
 
-A concrete examples of this package format can be examined at <https://github.com/crossplaneio/sample-stack>.
+A concrete examples of this package format can be examined at <https://github.com/crossplane/sample-stack>.
 
 A Git repository may choose to include the `.registry` directory with all of the files described above but that may not always be the case.  Stacks are easy to create as build artifacts through a combination of shell scripting, Make, Docker, or any other tool-chain or process that can produce an OCI image.
 
-An example project that processes the artifacts of Kubebuilder 2 to create a Stack is available at <https://github.com/crossplaneio/sample-stack-wordpress>.
+An example project that processes the artifacts of Kubebuilder 2 to create a Stack is available at <https://github.com/crossplane/sample-stack-wordpress>.
 
 ### Example `app.yaml`
 
@@ -311,7 +311,7 @@ keywords:
 
 # Links to more information about the application (about page, source code, etc.)
 website: "https://crossplane.io"
-source: "https://github.com/crossplaneio/sample-stack"
+source: "https://github.com/crossplane/sample-stack"
 
 # License SPDX name: https://spdx.org/licenses/
 license: Apache-2.0
@@ -584,11 +584,11 @@ Details on the installation and runtime security and isolation of stacks can be 
 ## Questions and Open Issues
 
 * Offloading redundant Stack Manager functionality to Stack building tools
-* Dependency resolution design: [#434](https://github.com/crossplaneio/crossplane/issues/434)
-* Updating/Upgrading Stack: [#435](https://github.com/crossplaneio/crossplane/issues/435)
-* Support installation of stacks from private registries [#505](https://github.com/crossplaneio/crossplane/issues/505)
-* Figure out model for crossplane core vs stacks [#531](https://github.com/crossplaneio/crossplane/issues/531)
-* Prototype alternate stack implementations [#548](https://github.com/crossplaneio/crossplane/issues/548)
+* Dependency resolution design: [#434](https://github.com/crossplane/crossplane/issues/434)
+* Updating/Upgrading Stack: [#435](https://github.com/crossplane/crossplane/issues/435)
+* Support installation of stacks from private registries [#505](https://github.com/crossplane/crossplane/issues/505)
+* Figure out model for crossplane core vs stacks [#531](https://github.com/crossplane/crossplane/issues/531)
+* Prototype alternate stack implementations [#548](https://github.com/crossplane/crossplane/issues/548)
 * Is there a benefit to `kind.version.` prefixed `crd.yaml` filenames
   * Should this be the only name prefix?
   * Should this be the primary means of disambiguating related CRD, UI, and Resource files in the same directory to each other?

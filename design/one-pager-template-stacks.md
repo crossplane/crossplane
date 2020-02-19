@@ -95,15 +95,15 @@ This design is also not heavily concerned with the format of the `Stack` object
 or the layout of the Stack filesystem. Those topics will be discussed in another
 one-pager or subsequent updates to this design. It is assumed that the reader
 has some familiarity with [`Stack`
-resources](https://github.com/crossplaneio/crossplane/blob/master/design/design-doc-stacks.md#stack-crd)
-and the way [they are automatically created from StackInstall resources](https://github.com/crossplaneio/crossplane/blob/master/design/design-doc-stacks.md#installation-flow).
+resources](https://github.com/crossplane/crossplane/blob/master/design/design-doc-stacks.md#stack-crd)
+and the way [they are automatically created from StackInstall resources](https://github.com/crossplane/crossplane/blob/master/design/design-doc-stacks.md#installation-flow).
 
 Stack resources that are managed as Template Stacks should require Namespaced
 scoping. Cluster scoped Template Stacks may require additional thinking.
 
 The ultimate Stack format will need to be open for use by multiple Template
 Stack Engines, as the format will certainly undergo changes from this proposal through the
-[Template Stacks UX design](https://github.com/crossplaneio/crossplane/issues/915).
+[Template Stacks UX design](https://github.com/crossplane/crossplane/issues/915).
 
 Additional thinking to support multiple template engines is not in scope for
 this proposal. Can multiple engines be used from a single Template Stack? Can
@@ -185,7 +185,7 @@ limited in two ways:
 * Replacement values can not be taken from other resources
 
 Template Stacks will provide both of these advantages. _([Cross resource
-references](https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-cross-resource-referencing.md)
+references](https://github.com/crossplane/crossplane/blob/master/design/one-pager-cross-resource-referencing.md)
 also provide this feature for Stacks with custom controllers.)_
 
 Common template value files today live on developer or operator laptops where
@@ -723,7 +723,7 @@ When used with Crossplane, the Stack Manager administrator may desire a more
 opinionated approach, restricting Template Stacks to use on known types,
 specifically Crossplane managed types.
 
-These are features and challenges to investigate in a [future design](https://github.com/crossplaneio/crossplane/issues/899).
+These are features and challenges to investigate in a [future design](https://github.com/crossplane/crossplane/issues/899).
 
 ### Life Cycle and Updates
 
@@ -804,7 +804,7 @@ What happens when the `dependsOn` or `customresourcedefinitions` field of a
 deleted. When and how should the RBAC roles be updated?
 
 These are questions left for future designs affecting all types of Stacks, not
-just Template Stacks. See the [Stacks versioning and upgrading epic (#879)](https://github.com/crossplaneio/crossplane/issues/879) for more on that.
+just Template Stacks. See the [Stacks versioning and upgrading epic (#879)](https://github.com/crossplane/crossplane/issues/879) for more on that.
 
 ##### Template Stack life cycle
 
@@ -1028,7 +1028,7 @@ spec:
 ```
 
 In response to a `StackInstall` request, the Stack Manager will do [its normal
-work](https://github.com/crossplaneio/crossplane/blob/master/design/design-doc-stacks.md#installation-flow)
+work](https://github.com/crossplane/crossplane/blob/master/design/design-doc-stacks.md#installation-flow)
 and [some extra work](#Resource-life-cycle) to create a `Stack` resource and
 apply the appropriate `template` and `templateStatus` bodies to that `Stack`
 resource. It will also create a `Deployment` and `ServiceAccount` for the TSM.
@@ -1096,15 +1096,15 @@ status:
 
 ## Related Issues
 
-* [#853](https://github.com/crossplaneio/crossplane/issues/853) **Epic**
+* [#853](https://github.com/crossplane/crossplane/issues/853) **Epic**
   Template based Stacks
-* [#877](https://github.com/crossplaneio/crossplane/issues/877) Produce a
+* [#877](https://github.com/crossplane/crossplane/issues/877) Produce a
   one-pager design for a Template Stack Controller #877
-* [#878](https://github.com/crossplaneio/crossplane/issues/878) Template Stacks
+* [#878](https://github.com/crossplane/crossplane/issues/878) Template Stacks
   should be reconciled through some controller
-* [#879](https://github.com/crossplaneio/crossplane/issues/879) Stacks
+* [#879](https://github.com/crossplane/crossplane/issues/879) Stacks
   versioning and upgrading
-* [#914](https://github.com/crossplaneio/crossplane/issues/914) Document key
+* [#914](https://github.com/crossplane/crossplane/issues/914) Document key
   problems that template stacks solve for k8s app deployments
-* [#915](https://github.com/crossplaneio/crossplane/issues/915) Template Stacks
+* [#915](https://github.com/crossplane/crossplane/issues/915) Template Stacks
   UX: overall experience; modeling, design thinking; UX

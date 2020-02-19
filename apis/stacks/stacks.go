@@ -20,7 +20,7 @@ package stacks
 import (
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
+	"github.com/crossplane/crossplane/apis/stacks/v1alpha1"
 )
 
 func init() {

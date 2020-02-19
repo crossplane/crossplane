@@ -26,9 +26,9 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
-	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
+	"github.com/crossplane/crossplane/apis/stacks/v1alpha1"
 )
 
 // StackDefinitionReconciler copies a StackDefinition over to a Stack.

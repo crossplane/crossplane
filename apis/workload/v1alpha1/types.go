@@ -23,7 +23,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 )
 
 // KubernetesApplicationState represents the state of a Kubernetes application.
@@ -43,7 +43,7 @@ const (
 // application.
 type KubernetesApplicationSpec struct {
 	// TODO(negz): Ensure the below selectors cannot be updated - only set at
-	// creation time per https://github.com/crossplaneio/crossplane/issues/727
+	// creation time per https://github.com/crossplane/crossplane/issues/727
 
 	// TODO(negz): Ensure ResourceSelector matches the labels of all templated
 	// KubernetesApplicationResources.

@@ -1,10 +1,10 @@
-module github.com/crossplaneio/crossplane
+module github.com/crossplane/crossplane
 
 go 1.13
 
 require (
-	github.com/crossplaneio/crossplane-runtime v0.5.0
-	github.com/crossplaneio/crossplane-tools v0.0.0-20200214190114-c7c4365eeb95
+	github.com/crossplane/crossplane-runtime v0.5.1-0.20200219022054-8948e50564b1
+	github.com/crossplane/crossplane-tools v0.0.0-20200219001116-bb8b2ce46330
 	github.com/ghodss/yaml v1.0.0
 	github.com/google/go-cmp v0.3.1
 	github.com/onsi/gomega v1.7.0

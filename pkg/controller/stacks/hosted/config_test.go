@@ -8,7 +8,7 @@ import (
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/crossplaneio/crossplane-runtime/pkg/test"
+	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
 
 func TestNewConfig(t *testing.T) {

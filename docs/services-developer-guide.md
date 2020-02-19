@@ -208,7 +208,7 @@ should look as follows:
 type FavouriteDBInstanceParameters struct {
 
     // We're still working on a standard for naming external resources. See
-    // https://github.com/crossplaneio/crossplane/issues/624 for context.
+    // https://github.com/crossplane/crossplane/issues/624 for context.
 
     // Name of this instance.
     Name string `json:"name"`
@@ -498,13 +498,13 @@ import (
     // An API client of the hypothetical FavouriteDB service.
     "github.com/fcp-sdk/v1/services/database"
 
-    runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
-    "github.com/crossplaneio/crossplane-runtime/pkg/meta"
-    "github.com/crossplaneio/crossplane-runtime/pkg/resource"
-    "github.com/crossplaneio/crossplane-runtime/pkg/reconciler/managed"
+    runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+    "github.com/crossplane/crossplane-runtime/pkg/meta"
+    "github.com/crossplane/crossplane-runtime/pkg/resource"
+    "github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 
-    "github.com/crossplaneio/stack-fcp/apis/database/v1alpha3"
-    fcpv1alpha3 "github.com/crossplaneio/stack-fcp/apis/v1alpha3"
+    "github.com/crossplane/stack-fcp/apis/database/v1alpha3"
+    fcpv1alpha3 "github.com/crossplane/stack-fcp/apis/v1alpha3"
 )
 
 type FavouriteDBInstanceController struct{}
@@ -654,7 +654,7 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
     // an error if asked to create a resource that already exists. Real managed
     // resource controllers are advised to avoid unintentially 'adoptign' an
     // existing, unrelated external resource, per
-    // https://github.com/crossplaneio/crossplane-runtime/issues/27
+    // https://github.com/crossplane/crossplane-runtime/issues/27
     return managed.ExternalCreation{ConnectionDetails: cd}, errors.Wrap(resource.Ignore(database.IsExists, err), "cannot create instance")
 }
 
@@ -710,16 +710,16 @@ import (
 
     ctrl "sigs.k8s.io/controller-runtime"
 
-    runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
-    "github.com/crossplaneio/crossplane-runtime/pkg/resource"
-    "github.com/crossplaneio/crossplane-runtime/pkg/reconciler/claimscheduling"
+    runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+    "github.com/crossplane/crossplane-runtime/pkg/resource"
+    "github.com/crossplane/crossplane-runtime/pkg/reconciler/claimscheduling"
 
     // Note that the hypothetical FancySQL resource claim is part of Crossplane,
     // not stack-fcp, because it is (hypothetically) portable across multiple
     // infrastructure stacks.
-    databasev1alpha1 "github.com/crossplaneio/crossplane/apis/database/v1alpha1"
+    databasev1alpha1 "github.com/crossplane/crossplane/apis/database/v1alpha1"
 
-    "github.com/crossplaneio/stack-fcp/apis/database/v1alpha3"
+    "github.com/crossplane/stack-fcp/apis/database/v1alpha3"
 )
 
 type PostgreSQLInstanceClaimSchedulingController struct{}
@@ -779,16 +779,16 @@ import (
 
     ctrl "sigs.k8s.io/controller-runtime"
 
-    runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
-    "github.com/crossplaneio/crossplane-runtime/pkg/resource"
-    "github.com/crossplaneio/crossplane-runtime/pkg/reconciler/claimdefaulting"
+    runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+    "github.com/crossplane/crossplane-runtime/pkg/resource"
+    "github.com/crossplane/crossplane-runtime/pkg/reconciler/claimdefaulting"
 
     // Note that the hypothetical FancySQL resource claim is part of Crossplane,
     // not stack-fcp, because it is (hypothetically) portable across multiple
     // infrastructure stacks.
-    databasev1alpha1 "github.com/crossplaneio/crossplane/apis/database/v1alpha1"
+    databasev1alpha1 "github.com/crossplane/crossplane/apis/database/v1alpha1"
 
-    "github.com/crossplaneio/stack-fcp/apis/database/v1alpha3"
+    "github.com/crossplane/stack-fcp/apis/database/v1alpha3"
 )
 
 type PostgreSQLInstanceClaimDefaultingController struct{}
@@ -852,16 +852,16 @@ import (
     ctrl "sigs.k8s.io/controller-runtime"
     "sigs.k8s.io/controller-runtime/pkg/source"
 
-    runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
-    "github.com/crossplaneio/crossplane-runtime/pkg/resource"
-    "github.com/crossplaneio/crossplane-runtime/pkg/reconciler/claimbinding"
+    runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+    "github.com/crossplane/crossplane-runtime/pkg/resource"
+    "github.com/crossplane/crossplane-runtime/pkg/reconciler/claimbinding"
 
     // Note that the hypothetical FancySQL resource claim is part of Crossplane,
     // not stack-fcp, because it is (hypothetically) portable across multiple
     // infrastructure stacks.
-    databasev1alpha1 "github.com/crossplaneio/crossplane/apis/database/v1alpha1"
+    databasev1alpha1 "github.com/crossplane/crossplane/apis/database/v1alpha1"
 
-    "github.com/crossplaneio/stack-fcp/apis/database/v1alpha3"
+    "github.com/crossplane/stack-fcp/apis/database/v1alpha3"
 )
 
 type FavouriteDBInstanceClaimController struct{}
@@ -980,11 +980,11 @@ import (
     ctrl "sigs.k8s.io/controller-runtime"
     "sigs.k8s.io/controller-runtime/pkg/source"
 
-    "github.com/crossplaneio/crossplane-runtime/pkg/resource"
-    "github.com/crossplaneio/crossplane-runtime/pkg/reconciler/secret"
-    databasev1alpha1 "github.com/crossplaneio/crossplane/apis/database/v1alpha1"
+    "github.com/crossplane/crossplane-runtime/pkg/resource"
+    "github.com/crossplane/crossplane-runtime/pkg/reconciler/secret"
+    databasev1alpha1 "github.com/crossplane/crossplane/apis/database/v1alpha1"
 
-    "github.com/crossplaneio/stack-fcp/apis/database/v1alpha3"
+    "github.com/crossplane/stack-fcp/apis/database/v1alpha3"
 )
 
 type FavouriteDBInstanceSecretController struct{}
@@ -1029,11 +1029,11 @@ import (
 
     ctrl "sigs.k8s.io/controller-runtime"
 
-    "github.com/crossplaneio/crossplane-runtime/pkg/reconciler/target"
-    "github.com/crossplaneio/crossplane-runtime/pkg/resource"
-    workloadv1alpha1 "github.com/crossplaneio/crossplane/apis/workload/v1alpha1"
+    "github.com/crossplane/crossplane-runtime/pkg/reconciler/target"
+    "github.com/crossplane/crossplane-runtime/pkg/resource"
+    workloadv1alpha1 "github.com/crossplane/crossplane/apis/workload/v1alpha1"
 
-    "github.com/crossplaneio/stack-fcp/apis/compute/v1alpha3"
+    "github.com/crossplane/stack-fcp/apis/compute/v1alpha3"
 )
 
 type FavoriteClusterTargetController struct{}
@@ -1074,10 +1074,10 @@ import (
     "sigs.k8s.io/controller-runtime/pkg/manager"
     "sigs.k8s.io/controller-runtime/pkg/manager/signals"
 
-    crossplaneapis "github.com/crossplaneio/crossplane/apis"
+    crossplaneapis "github.com/crossplane/crossplane/apis"
 
-    fcpapis "github.com/crossplaneio/stack-fcp/apis"
-    "github.com/crossplaneio/stack-fcp/pkg/controller"
+    fcpapis "github.com/crossplane/stack-fcp/apis"
+    "github.com/crossplane/stack-fcp/pkg/controller"
 )
 
 func main() {
@@ -1121,56 +1121,56 @@ value any feedback you may have about the services development process!
 [resource claim]: concepts.md#resource-claim
 [resource class]: concepts.md#resource-class
 [dynamic provisioning]: concepts.md#dynamic-and-static-provisioning
-[`CloudMemorystoreInstance`]: https://github.com/crossplaneio/stack-gcp/blob/85a6ed3c669a021f1d61be51b2cbe2714b0bc70b/apis/cache/v1beta1/cloudmemorystore_instance_types.go#L184
-[`CloudMemorystoreInstanceClass`]: https://github.com/crossplaneio/stack-gcp/blob/85a6ed3c669a021f1d61be51b2cbe2714b0bc70b/apis/cache/v1beta1/cloudmemorystore_instance_types.go#L217
-[`Provider`]: https://github.com/crossplaneio/stack-gcp/blob/85a6ed3c669a021f1d61be51b2cbe2714b0bc70b/apis/v1alpha3/types.go#L41
-[`RedisCluster`]: https://github.com/crossplaneio/crossplane/blob/3c6cf4e/apis/cache/v1alpha1/rediscluster_types.go#L40
-[`RedisClusterClass`]: https://github.com/crossplaneio/crossplane/blob/3c6cf4e/apis/cache/v1alpha1/rediscluster_types.go#L116
+[`CloudMemorystoreInstance`]: https://github.com/crossplane/stack-gcp/blob/85a6ed3c669a021f1d61be51b2cbe2714b0bc70b/apis/cache/v1beta1/cloudmemorystore_instance_types.go#L184
+[`CloudMemorystoreInstanceClass`]: https://github.com/crossplane/stack-gcp/blob/85a6ed3c669a021f1d61be51b2cbe2714b0bc70b/apis/cache/v1beta1/cloudmemorystore_instance_types.go#L217
+[`Provider`]: https://github.com/crossplane/stack-gcp/blob/85a6ed3c669a021f1d61be51b2cbe2714b0bc70b/apis/v1alpha3/types.go#L41
+[`RedisCluster`]: https://github.com/crossplane/crossplane/blob/3c6cf4e/apis/cache/v1alpha1/rediscluster_types.go#L40
+[`RedisClusterClass`]: https://github.com/crossplane/crossplane/blob/3c6cf4e/apis/cache/v1alpha1/rediscluster_types.go#L116
 [watching the API server]: https://kubernetes.io/docs/reference/using-api/api-concepts/#efficient-detection-of-changes
 [kubebuilder]: https://kubebuilder.io/
 [controller-runtime]: https://github.com/kubernetes-sigs/controller-runtime
-[crossplane-runtime]: https://github.com/crossplaneio/crossplane-runtime/
-[crossplane-runtime v0.4.0]: https://github.com/crossplaneio/crossplane-runtime/releases/tag/v0.4.0
+[crossplane-runtime]: https://github.com/crossplane/crossplane-runtime/
+[crossplane-runtime v0.4.0]: https://github.com/crossplane/crossplane-runtime/releases/tag/v0.4.0
 [golden path]: https://charity.wtf/2018/12/02/software-sprawl-the-golden-path-and-scaling-teams-with-agency/
 [API Conventions]: https://github.com/kubernetes/community/blob/c6e1e89a/contributors/devel/sig-architecture/api-conventions.md
 [kubebuilder book]: https://book.kubebuilder.io/
-[Stacks quick start]: https://github.com/crossplaneio/crossplane-cli/blob/357d18e7b/README.md#quick-start-stacks
+[Stacks quick start]: https://github.com/crossplane/crossplane-cli/blob/357d18e7b/README.md#quick-start-stacks
 [resources]: https://kubebuilder.io/cronjob-tutorial/gvks.html#kinds-and-resources
 [kinds]: https://kubebuilder.io/cronjob-tutorial/gvks.html#kinds-and-resources
 [objects]: https://kubernetes.io/docs/concepts/#kubernetes-objects
 [comment marker]: https://kubebuilder.io/reference/markers.html
 [comment markers]: https://kubebuilder.io/reference/markers.html
-[`resource.Managed`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/resource#Managed
-[`resource.Claim`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/resource#Claim
-[`resource.Class`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/resource#Class
-[`managed.Reconciler`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/reconciler/managed#Reconciler
-[`managed.NewReconciler`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/reconciler/managed#NewReconciler
-[`claimbinding.Reconciler`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/reconciler/claimbinding#Reconciler
-[`claimbinding.NewReconciler`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/reconciler/claimbinding#NewReconciler
-[`claimscheduling.Reconciler`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/reconciler/claimscheduling#Reconciler
-[`claimscheduling.NewReconciler`]: https://github.com/crossplaneio/crossplane-runtime/blob/master/pkg/reconciler/claimscheduling/reconciler.go#L83
-[`claimdefaulting.Reconciler`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/reconciler/claimdefaulting#Reconciler
-[`claimdefaulting.NewReconciler`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/reconciler/claimdefaulting#NewReconciler
-[`secret.NewReconciler`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/reconciler/secret#NewReconciler
-[`managed.ExternalConnecter`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/reconciler/managed#ExternalConnecter
-[`managed.ExternalClient`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/reconciler/managed#ExternalClient
-[`claimbinding.ManagedConfigurator`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/reconciler/claimbinding#ManagedConfigurator
-[`target.Reconciler`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/reconciler/target#Reconciler
-[`ResourceSpec`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1#ResourceSpec
-[`ResourceStatus`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1#ResourceStatus
-[`ResourceClaimSpec`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1#ResourceClaimSpec
-[`ResourceClaimStatus`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1#ResourceClaimStatus
-[`ClassSpecTemplate`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1#ClassSpecTemplate
-[`ProviderSpec`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1#ProviderSpec
-['managed.ExternalConnecter`]: https://godoc.org/github.com/crossplaneio/crossplane-runtime/pkg/reconciler/managed#ExternalConnecter
-[opening a Crossplane issue]: https://github.com/crossplaneio/crossplane/issues/new/choose
+[`resource.Managed`]: https://godoc.org/github.com/crossplane/crossplane-runtime/pkg/resource#Managed
+[`resource.Claim`]: https://godoc.org/github.com/crossplane/crossplane-runtime/pkg/resource#Claim
+[`resource.Class`]: https://godoc.org/github.com/crossplane/crossplane-runtime/pkg/resource#Class
+[`managed.Reconciler`]: https://godoc.org/github.com/crossplane/crossplane-runtime/pkg/reconciler/managed#Reconciler
+[`managed.NewReconciler`]: https://godoc.org/github.com/crossplane/crossplane-runtime/pkg/reconciler/managed#NewReconciler
+[`claimbinding.Reconciler`]: https://godoc.org/github.com/crossplane/crossplane-runtime/pkg/reconciler/claimbinding#Reconciler
+[`claimbinding.NewReconciler`]: https://godoc.org/github.com/crossplane/crossplane-runtime/pkg/reconciler/claimbinding#NewReconciler
+[`claimscheduling.Reconciler`]: https://godoc.org/github.com/crossplane/crossplane-runtime/pkg/reconciler/claimscheduling#Reconciler
+[`claimscheduling.NewReconciler`]: https://github.com/crossplane/crossplane-runtime/blob/master/pkg/reconciler/claimscheduling/reconciler.go#L83
+[`claimdefaulting.Reconciler`]: https://godoc.org/github.com/crossplane/crossplane-runtime/pkg/reconciler/claimdefaulting#Reconciler
+[`claimdefaulting.NewReconciler`]: https://godoc.org/github.com/crossplane/crossplane-runtime/pkg/reconciler/claimdefaulting#NewReconciler
+[`secret.NewReconciler`]: https://godoc.org/github.com/crossplane/crossplane-runtime/pkg/reconciler/secret#NewReconciler
+[`managed.ExternalConnecter`]: https://godoc.org/github.com/crossplane/crossplane-runtime/pkg/reconciler/managed#ExternalConnecter
+[`managed.ExternalClient`]: https://godoc.org/github.com/crossplane/crossplane-runtime/pkg/reconciler/managed#ExternalClient
+[`claimbinding.ManagedConfigurator`]: https://godoc.org/github.com/crossplane/crossplane-runtime/pkg/reconciler/claimbinding#ManagedConfigurator
+[`target.Reconciler`]: https://godoc.org/github.com/crossplane/crossplane-runtime/pkg/reconciler/target#Reconciler
+[`ResourceSpec`]: https://godoc.org/github.com/crossplane/crossplane-runtime/apis/core/v1alpha1#ResourceSpec
+[`ResourceStatus`]: https://godoc.org/github.com/crossplane/crossplane-runtime/apis/core/v1alpha1#ResourceStatus
+[`ResourceClaimSpec`]: https://godoc.org/github.com/crossplane/crossplane-runtime/apis/core/v1alpha1#ResourceClaimSpec
+[`ResourceClaimStatus`]: https://godoc.org/github.com/crossplane/crossplane-runtime/apis/core/v1alpha1#ResourceClaimStatus
+[`ClassSpecTemplate`]: https://godoc.org/github.com/crossplane/crossplane-runtime/apis/core/v1alpha1#ClassSpecTemplate
+[`ProviderSpec`]: https://godoc.org/github.com/crossplane/crossplane-runtime/apis/core/v1alpha1#ProviderSpec
+['managed.ExternalConnecter`]: https://godoc.org/github.com/crossplane/crossplane-runtime/pkg/reconciler/managed#ExternalConnecter
+[opening a Crossplane issue]: https://github.com/crossplane/crossplane/issues/new/choose
 [`GroupVersionKind`]: https://godoc.org/k8s.io/apimachinery/pkg/runtime/schema#GroupVersionKind
 [`reconcile.Reconciler`]: https://godoc.org/sigs.k8s.io/controller-runtime/pkg/reconcile#Reconciler
-[favor]: https://github.com/crossplaneio/crossplane/issues/452
-[reach out]: https://github.com/crossplaneio/crossplane#contact
+[favor]: https://github.com/crossplane/crossplane/issues/452
+[reach out]: https://github.com/crossplane/crossplane#contact
 [#sig-services]: https://crossplane.slack.com/messages/sig-services
-[crossplaneio org]: https://github.com/crossplaneio
-[`angryjet`]: https://github.com/crossplaneio/crossplane-tools
+[crossplaneio org]: https://github.com/crossplane
+[`angryjet`]: https://github.com/crossplane/crossplane-tools
 [Managed Resource API Patterns]: ../design/one-pager-managed-resource-api-design.md
-[Crossplane CLI]: https://github.com/crossplaneio/crossplane-cli#quick-start-stacks
-[`angryjet` documentation]: https://github.com/crossplaneio/crossplane-tools/blob/master/README.md
+[Crossplane CLI]: https://github.com/crossplane/crossplane-cli#quick-start-stacks
+[`angryjet` documentation]: https://github.com/crossplane/crossplane-tools/blob/master/README.md

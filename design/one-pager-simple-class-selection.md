@@ -407,16 +407,16 @@ configuration complexity. Controllers are well understood and the path of least
 resistance, but class matching is likely a good use case to port to a webhook in
 future.
 
-[strongly typed]: https://github.com/crossplaneio/crossplane/blob/69e69c/design/one-pager-strongly-typed-class.md
-[we identified]: https://github.com/crossplaneio/crossplane/issues/723
-[portable resource classes]: https://github.com/crossplaneio/crossplane/blob/69e69c/design/one-pager-default-resource-class.md
-[community members]: https://github.com/crossplaneio/crossplane/issues/703#issuecomment-536958545
-[provided feedback]: https://github.com/crossplaneio/crossplane/issues/922
+[strongly typed]: https://github.com/crossplane/crossplane/blob/69e69c/design/one-pager-strongly-typed-class.md
+[we identified]: https://github.com/crossplane/crossplane/issues/723
+[portable resource classes]: https://github.com/crossplane/crossplane/blob/69e69c/design/one-pager-default-resource-class.md
+[community members]: https://github.com/crossplane/crossplane/issues/703#issuecomment-536958545
+[provided feedback]: https://github.com/crossplane/crossplane/issues/922
 [Crossplane glossary]: https://crossplane.io/docs/v0.3/concepts.html#glossary
 [label selectors]: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors
-[stack]: https://github.com/crossplaneio/crossplane/blob/f7cfadb090/design/design-doc-stacks.md
-[teaching each resource claim controller]: https://github.com/crossplaneio/crossplane/issues/113
-[Workload scheduling]: https://github.com/crossplaneio/crossplane/blob/master/design/design-doc-workload-scheduler.md
+[stack]: https://github.com/crossplane/crossplane/blob/f7cfadb090/design/design-doc-stacks.md
+[teaching each resource claim controller]: https://github.com/crossplane/crossplane/issues/113
+[Workload scheduling]: https://github.com/crossplane/crossplane/blob/master/design/design-doc-workload-scheduler.md
 [lowest common denominator]: https://thenewstack.io/avoiding-least-common-denominator-approach-hybrid-clouds/
 [states that]: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/ 
 [cannot be done using label selectors]: https://github.com/kubernetes/kubernetes/issues/44703#issuecomment-324826356

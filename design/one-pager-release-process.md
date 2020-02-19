@@ -6,18 +6,18 @@ The current lifecycle process for a new version of the Crossplane software has g
 through the `v0.3` release, but also has a number of shortcomings. A summary of the current process
 that is very succinct, and skips many of the details, would look like the following:
 
-1. The maintainer team creates a [milestone](https://github.com/crossplaneio/crossplane/milestones)
+1. The maintainer team creates a [milestone](https://github.com/crossplane/crossplane/milestones)
    to represent the current/active release
 1. Issues are added to the milestone and taken through their lifecycle on the [project
-   board](https://github.com/crossplaneio/crossplane/projects)
+   board](https://github.com/crossplane/crossplane/projects)
 1. The community continues to discuss the scope of the milestone and what issues should be included,
    through up front planning sessions, backlog grooming, and daily stand-ups
 1. When all issues for the milestone have been completed and merged into `master`, the official
    release process begins
     1. The HEAD commit from `master` is tagged with the release version (e.g.,
-       [`v0.3.0`](https://github.com/crossplaneio/crossplane/releases/tag/v0.3.0)) and the release
+       [`v0.3.0`](https://github.com/crossplane/crossplane/releases/tag/v0.3.0)) and the release
        branch is created (e.g.,
-       [`release-0.3`](https://github.com/crossplaneio/crossplane/tree/release-0.3))
+       [`release-0.3`](https://github.com/crossplane/crossplane/tree/release-0.3))
     1. Build all release artifacts of the software (e.g., binaries, container images, Helm charts,
        documentation, stack packages) for all supported architectures (`amd64`, `arm64`)
     1. Publish all artifacts to their hosted locations (GitHub, Docker Hub, crossplane.io, S3, etc.)
@@ -205,13 +205,13 @@ should consider more formal notion of feature gates in the future to be even mor
 new features that are not fully completed yet.
 
 We have captured this "golden master" philosophy in more detail in our "definition of done"
-statement in [#857](https://github.com/crossplaneio/crossplane/pull/857).
+statement in [#857](https://github.com/crossplane/crossplane/pull/857).
 
 ## Release Pipeline Automation
 
 Crossplane already has [build automation pipelines](https://jenkinsci.upbound.io/blue/pipelines/)
 set up in Jenkins, as well as a
-[`Jenkinsfile`](https://github.com/crossplaneio/crossplane/blob/master/Jenkinsfile) to drive these
+[`Jenkinsfile`](https://github.com/crossplane/crossplane/blob/master/Jenkinsfile) to drive these
 pipelines. However, these only perform building and testing from `master` and PRs, and publishing
 from `master`. More pipelines are needed to complete the automation of our release process.
 
@@ -229,7 +229,7 @@ promoting releases, etc. It has a ton of generally useful and helpful value for 
 releasing projects.
 
 However, the build submodule does also have some usability issues because of its reliance on `make`
-which has been captured in [#852](https://github.com/crossplaneio/crossplane/issues/852). Making
+which has been captured in [#852](https://github.com/crossplane/crossplane/issues/852). Making
 updates to its behavior or adding new functionality has a fairly steep learning curve and cost,
 partly due to not all assumptions and behavior being thoroughly documented. We could consider
 implementing this build and release functionality using another platform or framework, but that
@@ -249,7 +249,7 @@ details about them.
   [`crossplane/crossplane`](https://jenkinsci.upbound.io/blue/organizations/jenkins/crossplane%2Fbuild/activity)
   pipeline. However, this pipeline does not correctly identify the release version, so its
   publishing step does not result in the correct semver container image being published. It is
-  believed that [#330](https://github.com/crossplaneio/crossplane/issues/330) may be the root cause
+  believed that [#330](https://github.com/crossplane/crossplane/issues/330) may be the root cause
   for this and we should fix this issue to get automatic publishing of release builds.
 
 * **tag**: This new pipeline would be run on the release branch when we have identified the release
@@ -273,14 +273,14 @@ details about them.
 ## Stack Releases
 
 While this document has so far described the release process improvements for the [main Crossplane
-repository](https://github.com/crossplaneio/crossplane), there are also some infrastructure stacks
+repository](https://github.com/crossplane/crossplane), there are also some infrastructure stacks
 that the Crossplane community currently owns and is responsible for releasing, such as
-[`stack-gcp`](https://github.com/crossplaneio/stack-gcp). Since these stack repositories currently
+[`stack-gcp`](https://github.com/crossplane/stack-gcp). Since these stack repositories currently
 also take advantage of the build submodule, they will also follow a very similar process as
 Crossplane and receive a similar set of improvements.
 
 Recall that a Stack is simply just an [OCI
-image](https://github.com/crossplaneio/crossplane/blob/master/design/design-doc-stacks.md#stack-package-format).
+image](https://github.com/crossplane/crossplane/blob/master/design/design-doc-stacks.md#stack-package-format).
 Therefore, the build and publishing process can follow essentially the same process that Crossplane
 uses. Other functionality in the build submodule, such as creating a Helm chart, is not necessary
 for Stacks, but relevant functionality should definitely be reused. For example, building and
@@ -288,7 +288,7 @@ publishing the stack package, tagging and creating a release branch, promoting t
 
 The GCP, AWS, and Azure stacks will all receive new `tag` and `promote` pipelines similar to
 Crossplane, as well as receive a fix for
-[#330](https://github.com/crossplaneio/crossplane/issues/330).
+[#330](https://github.com/crossplane/crossplane/issues/330).
 
 Note that each Stack can be released independently and on their own schedule, but for now they will
 follow the same monthly release schedule as Crossplane so the community can receive frequent
@@ -298,13 +298,13 @@ release on their own schedule even when other Stacks or Crossplane itself is not
 ## Package Versioning
 
 Some of the Crossplane source code repositories are expected to be imported as packages only, for
-example [crossplane-runtime](https://github.com/crossplaneio/crossplane-runtime). This means that
+example [crossplane-runtime](https://github.com/crossplane/crossplane-runtime). This means that
 they have no release artifacts that need to be published nor follow all the processes described in
 this document. However, since many repositories depend on this code, it would still be wise to
 specify a versioning strategy that it will follow.
 
 As described in [crossplane-runtime
-#11](https://github.com/crossplaneio/crossplane-runtime/issues/11), the upstream controller-runtime
+#11](https://github.com/crossplane/crossplane-runtime/issues/11), the upstream controller-runtime
 versioning process is reasonable and communicates the compatibility guarantees for each tagged
 version. Full details of this policy can be read in the [controller-runtime versioning
 doc](https://github.com/kubernetes-sigs/controller-runtime/blob/master/VERSIONING.md), but here are
