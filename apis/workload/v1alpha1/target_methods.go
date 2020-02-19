@@ -15,14 +15,14 @@ limitations under the License.
 */
 
 // TODO(hasheddan): generate these methods with angryjet
-// Ref: https://github.com/crossplaneio/crossplane-tools/issues/14
+// Ref: https://github.com/crossplane/crossplane-tools/issues/14
 
 package v1alpha1
 
 import (
 	corev1 "k8s.io/api/core/v1"
 
-	runtimev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 )
 
 // GetCondition of this KubernetesTarget.

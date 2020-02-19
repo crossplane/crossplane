@@ -501,8 +501,8 @@ the stack and pushes it as an image. No Go code involved from the user's perspec
     local.
   * Stacks do a better job for declaring CRD dependencies and UI annotation metadata.
 
-[Dependency list]: https://github.com/crossplaneio/crossplane/blob/98e8520e2a2285cd6944fcd67fbef427299891e8/design/design-doc-stacks.md#stack-crd
-[UI annotations]: https://github.com/crossplaneio/crossplane/blob/5758662818fc1e840adbfbf1a9fb37b87c3d5a5c/design/one-pager-stack-ui-metadata.md
+[Dependency list]: https://github.com/crossplane/crossplane/blob/98e8520e2a2285cd6944fcd67fbef427299891e8/design/design-doc-stacks.md#stack-crd
+[UI annotations]: https://github.com/crossplane/crossplane/blob/5758662818fc1e840adbfbf1a9fb37b87c3d5a5c/design/one-pager-stack-ui-metadata.md
 [class and claim]: https://static.sched.com/hosted_files/kccncna19/2d/kcconna19-eric-tune.pdf
-[defaulting mechanism here]: https://github.com/crossplaneio/crossplane/blob/c38561d/design/one-pager-simple-class-selection.md#unopinionated-resource-claims
+[defaulting mechanism here]: https://github.com/crossplane/crossplane/blob/c38561d/design/one-pager-simple-class-selection.md#unopinionated-resource-claims
 [custom transformer configurations]: https://github.com/kubernetes-sigs/kustomize/blob/master/examples/transformerconfigs/crd/README.md

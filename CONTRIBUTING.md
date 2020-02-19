@@ -71,12 +71,12 @@ in CI if linter warnings are introduced:
 
 ```bash
 $ make build
-==> Linting /REDACTED/go/src/github.com/crossplaneio/crossplane/cluster/charts/crossplane
+==> Linting /REDACTED/go/src/github.com/crossplane/crossplane/cluster/charts/crossplane
 [INFO] Chart.yaml: icon is recommended
 
 1 chart(s) linted, no failures
 20:31:42 [ .. ] helm dep crossplane 0.1.0-136.g2dfb012.dirty
-No requirements found in /REDACTED/go/src/github.com/crossplaneio/crossplane/cluster/charts/crossplane/charts.
+No requirements found in /REDACTED/go/src/github.com/crossplane/crossplane/cluster/charts/crossplane/charts.
 20:31:42 [ OK ] helm dep crossplane 0.1.0-136.g2dfb012.dirty
 20:31:42 [ .. ] golangci-lint
 pkg/clients/azure/redis/redis.go:35:7: exported const `NamePrefix` should have comment or be unexported (golint)

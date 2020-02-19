@@ -126,13 +126,13 @@ connectivity configurations in Crossplane.
 Apply the sample network configuration resources:
 
 ```bash
-kubectl apply -k github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/azure/network-config?ref=master
+kubectl apply -k github.com/crossplane/crossplane//cluster/examples/workloads/kubernetes/wordpress/azure/network-config?ref=master
 ```
 
 And you're done! You can check the status of the provisioning by running:
 
 ```bash
-kubectl get -k github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/azure/network-config?ref=master
+kubectl get -k github.com/crossplane/crossplane//cluster/examples/workloads/kubernetes/wordpress/azure/network-config?ref=master
 ```
 
 When all resources have the `Ready` condition in `True` state, the provisioning
@@ -155,7 +155,7 @@ connectivity][azure-resource-connectivity] design document.
 To inspect the resources that we created above, let's run:
 
 ```bash
-kubectl kustomize github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/azure/network-config?ref=master > network-config.yaml
+kubectl kustomize github.com/crossplane/crossplane//cluster/examples/workloads/kubernetes/wordpress/azure/network-config?ref=master > network-config.yaml
 ```
 
 This will save the sample network configuration resources locally in
@@ -263,7 +263,7 @@ repository.
 Apply the sample Azure resource classes:
 
 ```bash
-kubectl apply -k github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/azure/resource-classes?ref=master
+kubectl apply -k github.com/crossplane/crossplane//cluster/examples/workloads/kubernetes/wordpress/azure/resource-classes?ref=master
 ```
 
 And you're done! Note that these resources do not immediately provision external
@@ -274,7 +274,7 @@ Azure resources, as they only serve as template classes.
 To inspect the resource classes that we created above, run:
 
 ```bash
-kubectl kustomize github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/azure/resource-classes?ref=master > resource-classes.yaml
+kubectl kustomize github.com/crossplane/crossplane//cluster/examples/workloads/kubernetes/wordpress/azure/resource-classes?ref=master > resource-classes.yaml
 ```
 
 This will save the sample resource classes YAML locally in
@@ -429,26 +429,26 @@ off.
 
 <!-- Links -->
 [crossplane-concepts]: concepts.md
-[sample-wordpress-stack]: https://github.com/crossplaneio/sample-stack-wordpress
-[crossplane-cli]: https://github.com/crossplaneio/crossplane-cli/tree/release-0.2
-[crossplane-azure-networking-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-resource-connectivity-mvp.md#microsoft-azure
+[sample-wordpress-stack]: https://github.com/crossplane/sample-stack-wordpress
+[crossplane-cli]: https://github.com/crossplane/crossplane-cli/tree/release-0.2
+[crossplane-azure-networking-docs]: https://github.com/crossplane/crossplane/blob/master/design/one-pager-resource-connectivity-mvp.md#microsoft-azure
 [stacks-guide]: stacks-guide.md
 [provider-azure-guide]: cloud-providers/azure/azure-provider.md
-[stack-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/design-doc-stacks.md#crossplane-stacks
-[stack-azure]: https://github.com/crossplaneio/stack-azure
+[stack-docs]: https://github.com/crossplane/crossplane/blob/master/design/design-doc-stacks.md#crossplane-stacks
+[stack-azure]: https://github.com/crossplane/stack-azure
 [azure]: https://azure.microsoft.com
 [azure-vnet-rule]: https://docs.microsoft.com/en-us/azure/mysql/concepts-data-access-and-security-vnet
 [azure-resource-group-docs]: https://docs.microsoft.com/en-us/azure/azure-resource-manager/resource-group-overview
 [stacks-guide-continue]: stacks-guide.md#install-support-for-our-application-into-crossplane
 [jq]: https://stedolan.github.io/jq/
 [azure-virtual-network]: https://docs.microsoft.com/en-us/azure/virtual-network/virtual-networks-overview
-[azure-resource-connectivity]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-resource-connectivity-mvp.md#microsoft-azure
+[azure-resource-connectivity]: https://github.com/crossplane/crossplane/blob/master/design/one-pager-resource-connectivity-mvp.md#microsoft-azure
 [azure-network-configuration]: https://docs.microsoft.com/en-us/azure/virtual-network/virtual-networks-using-network-configuration-file
-[sample Azure resource classes]: https://github.com/crossplaneio/crossplane/tree/master/cluster/examples/workloads/kubernetes/wordpress/azure/resource-classes?ref=master
+[sample Azure resource classes]: https://github.com/crossplane/crossplane/tree/master/cluster/examples/workloads/kubernetes/wordpress/azure/resource-classes?ref=master
 [azure-mysql-database]: https://azure.microsoft.com/en-us/services/mysql/
 [azure-aks]: https://azure.microsoft.com/en-us/services/kubernetes-service/
-[resource-claims-and-classes-docs]: https://github.com/crossplaneio/crossplane/blob/master/docs/concepts.md#resource-claims-and-resource-classes
-[sample Azure network configuration]: https://github.com/crossplaneio/crossplane/tree/master/cluster/examples/workloads/kubernetes/wordpress/azure/network-config?ref=master
-[Cross Resource Referencing]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-cross-resource-referencing.md
-[resource class selection]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-simple-class-selection.md
+[resource-claims-and-classes-docs]: https://github.com/crossplane/crossplane/blob/master/docs/concepts.md#resource-claims-and-resource-classes
+[sample Azure network configuration]: https://github.com/crossplane/crossplane/tree/master/cluster/examples/workloads/kubernetes/wordpress/azure/network-config?ref=master
+[Cross Resource Referencing]: https://github.com/crossplane/crossplane/blob/master/design/one-pager-cross-resource-referencing.md
+[resource class selection]: https://github.com/crossplane/crossplane/blob/master/design/one-pager-simple-class-selection.md
 [azure-provider-guide]: cloud-providers/azure/azure-provider.md

@@ -138,6 +138,6 @@ existing cluster are provided in the service guides for:
 [stack-guide-aws]: stacks-guide-aws.md
 [stack-guide-azure]: stacks-guide-azure.md
 
-[contact-us]: https://github.com/crossplaneio/crossplane#contact
+[contact-us]: https://github.com/crossplane/crossplane#contact
 [join-crossplane-slack]: https://slack.crossplane.io
 [learn-more]: learn-more.md

@@ -4,7 +4,7 @@ designs must transition through up to three of the following phases:
 
 
 1. Proposals. A proposal is simply a Github issue against this reposistory with
-   the [`proposal` label](https://github.com/crossplaneio/crossplane/issues?utf8=%E2%9C%93&q=is%3Aissue+label%3Aproposal).
+   the [`proposal` label](https://github.com/crossplane/crossplane/issues?utf8=%E2%9C%93&q=is%3Aissue+label%3Aproposal).
    Proposals need not be more than two to three paragraphs.
 2. One-pagers. A One-pager is a brief document pitching an idea for further
    experimentation. One-pagers, as the name suggests, are usually around one

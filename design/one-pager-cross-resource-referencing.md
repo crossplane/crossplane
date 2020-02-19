@@ -273,19 +273,19 @@ dependent objects are deleted first.
 ### Related Issues
 
 * [Inter-resource attribute
-  references](https://github.com/crossplaneio/crossplane/issues/707)
+  references](https://github.com/crossplane/crossplane/issues/707)
 * [Honoring inter-resource dependency when creating/deleting
-  resources](https://github.com/crossplaneio/crossplane/issues/708)
+  resources](https://github.com/crossplane/crossplane/issues/708)
 * [Resource
-  Connectivity](https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-resource-connectivity-mvp.md)
+  Connectivity](https://github.com/crossplane/crossplane/blob/master/design/one-pager-resource-connectivity-mvp.md)
 
 [gitops doc]: (https://www.weave.works/blog/what-is-gitops-really) 
 [Subnet type]:
-(https://github.com/crossplaneio/stack-aws/blob/master/apis/network/v1alpha2/subnet_types.go#L25-L37)
+(https://github.com/crossplane/stack-aws/blob/master/apis/network/v1alpha2/subnet_types.go#L25-L37)
 [Subnetwork type]:
-(https://github.com/crossplaneio/stack-gcp/blob/master/apis/compute/v1alpha2/subnetwork_types.go#L144)
+(https://github.com/crossplane/stack-gcp/blob/master/apis/compute/v1alpha2/subnetwork_types.go#L144)
 
 [Managed Reconciler]:
-https://github.com/crossplaneio/crossplane-runtime/blob/master/pkg/resource/managed_reconciler.go
+https://github.com/crossplane/crossplane-runtime/blob/master/pkg/resource/managed_reconciler.go
 [Foreground cascading deletion]:
 (https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/#foreground-cascading-deletion)

@@ -116,13 +116,13 @@ configurations in Crossplane.
 Apply the sample network configuration resources:
 
 ```bash
-kubectl apply -k github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/aws/network-config?ref=master
+kubectl apply -k github.com/crossplane/crossplane//cluster/examples/workloads/kubernetes/wordpress/aws/network-config?ref=master
 ```
 
 And you're done! You can check the status of the provisioning by running:
 
 ```bash
-kubectl get -k github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/aws/network-config?ref=master
+kubectl get -k github.com/crossplane/crossplane//cluster/examples/workloads/kubernetes/wordpress/aws/network-config?ref=master
 ```
 
 When all resources have the `Ready` condition in `True` state, the provisioning
@@ -143,7 +143,7 @@ connectivity][aws-resource-connectivity] design document.
 To inspect the resources that we created above, let's run:
 
 ```bash
-kubectl kustomize github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/aws/network-config?ref=master > network-config.yaml
+kubectl kustomize github.com/crossplane/crossplane//cluster/examples/workloads/kubernetes/wordpress/aws/network-config?ref=master > network-config.yaml
 ```
 
 This will save the sample network configuration resources locally in
@@ -438,7 +438,7 @@ repository.
 Apply the sample AWS resource classes:
 
 ```bash
-kubectl apply -k github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/aws/resource-classes?ref=master
+kubectl apply -k github.com/crossplane/crossplane//cluster/examples/workloads/kubernetes/wordpress/aws/resource-classes?ref=master
 ```
 
 And you're done! Note that these resources do not immediately provision external
@@ -449,7 +449,7 @@ AWS resources, as they only serve as as template classes.
 To inspect the resource classes that we created above, run:
 
 ```bash
-kubectl kustomize github.com/crossplaneio/crossplane//cluster/examples/workloads/kubernetes/wordpress/aws/resource-classes?ref=master > resource-classes.yaml
+kubectl kustomize github.com/crossplane/crossplane//cluster/examples/workloads/kubernetes/wordpress/aws/resource-classes?ref=master > resource-classes.yaml
 ```
 
 This will save the sample resource classes YAML locally in
@@ -550,14 +550,14 @@ off.
 [crossplane-concepts]: concepts.md
 [stacks-guide]: stacks-guide.md
 [aws]: https://aws.amazon.com
-[stack-aws]: https://github.com/crossplaneio/stack-aws
-[sample-wordpress-stack]: https://github.com/crossplaneio/sample-stack-wordpress
-[stack-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/design-doc-stacks.md#crossplane-stacks
+[stack-aws]: https://github.com/crossplane/stack-aws
+[sample-wordpress-stack]: https://github.com/crossplane/sample-stack-wordpress
+[stack-docs]: https://github.com/crossplane/crossplane/blob/master/design/design-doc-stacks.md#crossplane-stacks
 [aws command line tool]: https://aws.amazon.com/cli/
-[crossplane-cli]: https://github.com/crossplaneio/crossplane-cli/tree/release-0.2
+[crossplane-cli]: https://github.com/crossplane/crossplane-cli/tree/release-0.2
 [Virtual Private Network]: https://aws.amazon.com/vpc/
 [Subnet]: https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Subnets.html#vpc-subnet-basics
-[aws-resource-connectivity]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-resource-connectivity-mvp.md#amazon-web-services
+[aws-resource-connectivity]: https://github.com/crossplane/crossplane/blob/master/design/one-pager-resource-connectivity-mvp.md#amazon-web-services
 [Internet Gateway]: https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Internet_Gateway.html
 [Route Table]: https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Route_Tables.html
 [Security Group]: https://docs.aws.amazon.com/vpc/latest/userguide/VPC_SecurityGroups.html
@@ -567,12 +567,12 @@ off.
 [stacks-guide-continue]: stacks-guide.md#install-support-for-our-application-into-crossplane
 [resource-claims-docs]: concepts.md#resource-claims-and-resource-classes
 [eks-user-guide]: https://docs.aws.amazon.com/eks/latest/userguide/create-public-private-vpc.html
-[Cross Resource Referencing]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-cross-resource-referencing.md
-[sample AWS network configuration]: https://github.com/crossplaneio/crossplane/tree/master/cluster/examples/workloads/kubernetes/wordpress/aws/network-config?ref=master
-[sample AWS resource classes]: https://github.com/crossplaneio/crossplane/tree/master/cluster/examples/workloads/kubernetes/wordpress/aws/resource-classes?ref=master
+[Cross Resource Referencing]: https://github.com/crossplane/crossplane/blob/master/design/one-pager-cross-resource-referencing.md
+[sample AWS network configuration]: https://github.com/crossplane/crossplane/tree/master/cluster/examples/workloads/kubernetes/wordpress/aws/network-config?ref=master
+[sample AWS resource classes]: https://github.com/crossplane/crossplane/tree/master/cluster/examples/workloads/kubernetes/wordpress/aws/resource-classes?ref=master
 [RDS Database Instance]: https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Overview.DBInstance.html
 [EKS Cluster]: https://docs.aws.amazon.com/eks/latest/userguide/clusters.html
 [resource-classes-docs]: concepts.md#resource-claims-and-resource-classes
-[resource class selection]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-simple-class-selection.md
-[crossplane-aws-networking-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-resource-connectivity-mvp.md#amazon-web-services
+[resource class selection]: https://github.com/crossplane/crossplane/blob/master/design/one-pager-simple-class-selection.md
+[crossplane-aws-networking-docs]: https://github.com/crossplane/crossplane/blob/master/design/one-pager-resource-connectivity-mvp.md#amazon-web-services
 [aws-provider-guide]: cloud-providers/aws/aws-provider.md

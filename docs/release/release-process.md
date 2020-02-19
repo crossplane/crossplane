@@ -38,11 +38,11 @@ This document will cover the release process for all of the repositories that th
 maintains and publishes regular versioned artifacts from. This set of repositories covers both core
 Crossplane and the set of Stacks that Crossplane currently maintains:
 
-* [`crossplane`](https://github.com/crossplaneio/crossplane)
-* [`stack-gcp`](https://github.com/crossplaneio/stack-gcp)
-* [`stack-aws`](https://github.com/crossplaneio/stack-aws)
-* [`stack-azure`](https://github.com/crossplaneio/stack-azure)
-* [`stack-rook`](https://github.com/crossplaneio/stack-rook)
+* [`crossplane`](https://github.com/crossplane/crossplane)
+* [`stack-gcp`](https://github.com/crossplane/stack-gcp)
+* [`stack-aws`](https://github.com/crossplane/stack-aws)
+* [`stack-azure`](https://github.com/crossplane/stack-azure)
+* [`stack-rook`](https://github.com/crossplane/stack-rook)
 
 
 The release process for Stacks is almost identical to that of core Crossplane because they use the
@@ -57,7 +57,7 @@ following conditions should be met:
 * All expected features should be ["complete"](#857) and merged into master. This includes user
   guides, examples, API documentation via [crossdocs](https://github.com/negz/crossdocs/), and test
   updates.
-* All issues in the [milestone](https://github.com/crossplaneio/crossplane/milestones) should be
+* All issues in the [milestone](https://github.com/crossplane/crossplane/milestones) should be
   closed
 * Sanity testing has been performed on `master`
 
@@ -73,7 +73,7 @@ process](https://github.com/upbound/build/blob/master/makelib/common.mk#L182-L19
 describe --tags`.
 
 > **NOTE:** The `tag` pipeline does not yet support extra tags in the version number, such as
-`v0.5.0-rc`.  [#330](https://github.com/crossplaneio/crossplane/issues/330) will be resolved when
+`v0.5.0-rc`.  [#330](https://github.com/crossplane/crossplane/issues/330) will be resolved when
 this functionality is available.  In the meantime, manually tagging and pushing to the repo
 required.
 
@@ -87,7 +87,7 @@ v0.5.0-rc
 ```
 
 After the tag pipeline has succeeded, verify in the [GitHub
-UI](https://github.com/crossplaneio/crossplane/tags) that the tag was successfully applied to the
+UI](https://github.com/crossplane/crossplane/tags) that the tag was successfully applied to the
 correct commit.
 
 ### Create Release Branch
@@ -98,7 +98,7 @@ you just use the branch selector drop down and type in the name of the new relea
 
 If this is the first ever release branch being created in a repo (uncommon), you should also set up
 branch protection rules for the `release-*` pattern.  You can find existing examples in the
-[Crossplane repo settings](https://github.com/crossplaneio/crossplane/settings/branches).
+[Crossplane repo settings](https://github.com/crossplane/crossplane/settings/branches).
 
 At this point, the `HEAD` commit in the release branch will be our release candidate.  The build
 pipeline will automatically be started due to the create branch event, so we can start to perform
@@ -139,12 +139,12 @@ yet.
 
 We're getting close to starting the official release, so you should take this opportunity to draft
 up the release notes. You can create a [new release draft
-here](https://github.com/crossplaneio/crossplane/releases/new).  Make sure you select "This is a
+here](https://github.com/crossplane/crossplane/releases/new).  Make sure you select "This is a
 pre-release" and hit "Save draft" when you are ready to share and collect feedback.  Do **not** hit
 "Publish release" yet.
 
 You can see and follow the template and structure from [previous
-releases](https://github.com/crossplaneio/crossplane/releases).
+releases](https://github.com/crossplane/crossplane/releases).
 
 ### Stack Release Process
 
@@ -200,16 +200,16 @@ Back in the core Crossplane repository, we need to update the release branch doc
 point to the freshly released stack versions.
 
 * Documentation, such as [Installation
-  instructions](https://github.com/crossplaneio/crossplane/blob/master/docs/install-crossplane.md#installing-cloud-provider-stacks),
+  instructions](https://github.com/crossplane/crossplane/blob/master/docs/install-crossplane.md#installing-cloud-provider-stacks),
   and [Stack
-  guides](https://github.com/crossplaneio/crossplane/blob/master/docs/stacks-guide-gcp.md).
+  guides](https://github.com/crossplane/crossplane/blob/master/docs/stacks-guide-gcp.md).
   * searching for `:master` will help a lot here
   * `kubectl -k` statements will contain `?ref=master`, which should be updated to the release
     branch name instead, e.g. `?ref=release-0.4`
 * Examples, such as [`StackInstall` yaml
-  files](https://github.com/crossplaneio/crossplane/tree/master/cluster/examples/stacks)
+  files](https://github.com/crossplane/crossplane/tree/master/cluster/examples/stacks)
 * [Helm chart
-  defaults](https://github.com/crossplaneio/crossplane/blob/master/cluster/charts/crossplane/values.yaml.tmpl)
+  defaults](https://github.com/crossplane/crossplane/blob/master/cluster/charts/crossplane/values.yaml.tmpl)
   for stack versions
 
 ### Tag Core Crossplane
@@ -255,7 +255,7 @@ the release has been promoted to the right channel.
 ### Publish Release Notes
 
 Now that the release has been published and verified, you can publish the [release
-notes](https://github.com/crossplaneio/crossplane/releases) that you drafted earlier. After
+notes](https://github.com/crossplane/crossplane/releases) that you drafted earlier. After
 incorporating all feedback, you can now click on the "Publish release" button.
 
 This will send an email notification with the release notes to all watchers of the repo.

@@ -20,7 +20,7 @@ package storage
 import (
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/crossplaneio/crossplane/apis/storage/v1alpha1"
+	"github.com/crossplane/crossplane/apis/storage/v1alpha1"
 )
 
 func init() {

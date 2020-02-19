@@ -654,8 +654,8 @@ The closest examples of the controller following this design paradigm are:
 
 
 
-*   [GCP Bucket Controller](https://github.com/crossplaneio/crossplane/blob/master/pkg/controller/gcp/storage/bucket.go)
-*   [Azure Storage Account Controller](https://github.com/crossplaneio/crossplane/blob/master/pkg/controller/azure/storage/account/account.go)
+*   [GCP Bucket Controller](https://github.com/crossplane/crossplane/blob/master/pkg/controller/gcp/storage/bucket.go)
+*   [Azure Storage Account Controller](https://github.com/crossplane/crossplane/blob/master/pkg/controller/azure/storage/account/account.go)
 
 
 ## References

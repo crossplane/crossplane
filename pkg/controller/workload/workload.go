@@ -19,12 +19,12 @@ package workload
 import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
-	"github.com/crossplaneio/crossplane/pkg/controller/workload/kubernetes/application"
-	"github.com/crossplaneio/crossplane/pkg/controller/workload/kubernetes/resource"
-	"github.com/crossplaneio/crossplane/pkg/controller/workload/kubernetes/scheduler"
-	"github.com/crossplaneio/crossplane/pkg/controller/workload/kubernetes/target"
+	"github.com/crossplane/crossplane/pkg/controller/workload/kubernetes/application"
+	"github.com/crossplane/crossplane/pkg/controller/workload/kubernetes/resource"
+	"github.com/crossplane/crossplane/pkg/controller/workload/kubernetes/scheduler"
+	"github.com/crossplane/crossplane/pkg/controller/workload/kubernetes/target"
 )
 
 // Setup workload controllers.

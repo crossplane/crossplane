@@ -32,5 +32,5 @@ If you want to make a change in `crossplane` helm chart, please consider followi
 reflected to `crossplane` helm chart. 
 - If the file to change exists in `crossplane-controller/templates`, change there and run `make generate`. Change should
 be reflected to `crossplane` helm chart. 
-- If you want to add a new manifests, please check [this design doc](https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-host-aware-stack-manager.md#crossplane-helm-chart-changes)
+- If you want to add a new manifests, please check [this design doc](https://github.com/crossplane/crossplane/blob/master/design/one-pager-host-aware-stack-manager.md#crossplane-helm-chart-changes)
 to decide in which chart your manifest should go to.

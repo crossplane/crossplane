@@ -8,7 +8,7 @@
 
 ## Proposal
 
-[crossplaneio/crossplane#752](https://github.com/crossplaneio/crossplane/issues/752)
+[crossplaneio/crossplane#752](https://github.com/crossplane/crossplane/issues/752)
 
 #### These are the labels we are proposing to add:
 

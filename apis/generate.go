@@ -29,11 +29,11 @@ limitations under the License.
 //go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen paths=./stacks/... crd:maxDescLen=0,trivialVersions=true output:artifacts:config=../cluster/charts/crossplane-types/crds
 
 // Generate crossplane-runtime methodsets (resource.Claim, etc)
-//go:generate go run -tags generate github.com/crossplaneio/crossplane-tools/cmd/angryjet generate-methodsets --header-file=../hack/boilerplate.go.txt ./...
+//go:generate go run -tags generate github.com/crossplane/crossplane-tools/cmd/angryjet generate-methodsets --header-file=../hack/boilerplate.go.txt ./...
 
 package apis
 
 import (
-	_ "github.com/crossplaneio/crossplane-tools/cmd/angryjet" //nolint:typecheck
-	_ "sigs.k8s.io/controller-tools/cmd/controller-gen"       //nolint:typecheck
+	_ "github.com/crossplane/crossplane-tools/cmd/angryjet" //nolint:typecheck
+	_ "sigs.k8s.io/controller-tools/cmd/controller-gen"     //nolint:typecheck
 )

@@ -115,7 +115,7 @@ Note that `crossplane.io/external-name` always shows the final value of the exte
 
 #### External Resource Name
 
-Related to https://github.com/crossplaneio/crossplane/issues/624
+Related to https://github.com/crossplane/crossplane/issues/624
 
 The decision for an external resource name is made by the controller of that managed resource in `Create` phase.
 Possible cases are as following:
@@ -160,7 +160,7 @@ tackle that.
 
 ### High Fidelity
 
-Related to https://github.com/crossplaneio/crossplane/issues/621 and https://github.com/crossplaneio/crossplane/issues/530
+Related to https://github.com/crossplane/crossplane/issues/621 and https://github.com/crossplane/crossplane/issues/530
 
 Crossplane managed resources should expose everything that provider exposes to its users as much as possible. A few 
 benefits of that high fidelity:
@@ -177,7 +177,7 @@ What goes into `Spec`:
   actually create the resource but it also gives you the ability to change them. An example for this could be
   auto-generated resource tags or resource-specific defaults. If the provider tags the resource without us telling them to
   do so, controller should update `Spec` and input user should make changes on that current value of the field.
-  Related to https://github.com/crossplaneio/crossplane-runtime/issues/10
+  Related to https://github.com/crossplane/crossplane-runtime/issues/10
 
 Note that the controller should make updates only to `Spec` fields that are empty. We do not override user's desired
 state and if they have no control over it in any case, do not include it in `Spec`.
@@ -299,7 +299,7 @@ sure that:
 
 ### Owner-based Struct Tree
 
-Related to https://github.com/crossplaneio/crossplane/issues/728
+Related to https://github.com/crossplane/crossplane/issues/728
 
 The provider API can be assumed as the owner of its configuration and output fields since the decisions around these
 fields are left to them. It makes sense to separate those fields from Crossplane or Kubernetes-related fields for a few
@@ -389,7 +389,7 @@ status:
 
 ### Pointer Types and Markers
 
-Related to https://github.com/crossplaneio/crossplane/issues/741
+Related to https://github.com/crossplane/crossplane/issues/741
 
 For any field, the developer can choose whether to use pointer type or value type, i.e. `*bool` vs `bool`. The main
 difference here is their zero-value, which gets used when the field is left empty. We follow Kubernetes conventions
@@ -526,7 +526,7 @@ spec:
 
 ### Immutable Properties
 
-Related to https://github.com/crossplaneio/crossplane/issues/727
+Related to https://github.com/crossplane/crossplane/issues/727
 
 Some of the fields that include in `Spec` can only be configured in creation call of the resource, later you cannot
 update them. However, Kubernetes Custom Resources validation mechanisms do not yet support that behavior, see https://github.com/kubernetes/enhancements/pull/1099
@@ -586,6 +586,6 @@ object's body. In case it's not in sync, we should indicate that through a `Cond
 Generic managed reconciler's `ExternalObservation` struct could be extended by adding a field about that sync status
 and reconciler can mark the sync status in one of the `Condition`s we already have or add a new one.
 
-[glossary]: https://github.com/crossplaneio/crossplane/blob/master/docs/concepts.md#glossary
-[from crossplane-runtime]: https://github.com/crossplaneio/crossplane-runtime/blob/ca4b6b4/apis/core/v1alpha1/resource.go#L77
+[glossary]: https://github.com/crossplane/crossplane/blob/master/docs/concepts.md#glossary
+[from crossplane-runtime]: https://github.com/crossplane/crossplane-runtime/blob/ca4b6b4/apis/core/v1alpha1/resource.go#L77
 [Kubernetes API Conventions - Spec and Status]: https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#spec-and-status

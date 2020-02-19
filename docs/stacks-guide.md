@@ -219,7 +219,7 @@ a `Namespace`, `Deployment`, and `Service`.  The `KubernetesApplication` resourc
 available once the Kubernetes resources have been created on the target cluster.
 
 To check the status, you can use [the trace
-command](https://github.com/crossplaneio/crossplane-cli/tree/master/docs/trace-command.md)
+command](https://github.com/crossplane/crossplane-cli/tree/master/docs/trace-command.md)
 of the Crossplane CLI.
 
 ```
@@ -342,16 +342,16 @@ guide][stack-developer-guide].
 *   [Kubernetes documentation][kubernetes-docs]
 
 <!-- Named links -->
-[crossplane-cli]: https://github.com/crossplaneio/crossplane-cli/tree/release-0.2
-[crossplane-cli-docs]: https://github.com/crossplaneio/crossplane-cli/blob/release-0.2/README.md
+[crossplane-cli]: https://github.com/crossplane/crossplane-cli/tree/release-0.2
+[crossplane-cli-docs]: https://github.com/crossplane/crossplane-cli/blob/release-0.2/README.md
 [crossplane-concepts]: concepts.md
 [crossplane-install-docs]: install-crossplane.md
 [crossplane-api-reference]: api.md
 
-[kubernetesapplicationresource-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/design-doc-complex-workloads.md
+[kubernetesapplicationresource-docs]: https://github.com/crossplane/crossplane/blob/master/design/design-doc-complex-workloads.md
 [claims-docs]: concepts.md#resource-claims-and-resource-classes
 [resource-classes-docs]: concepts.md#resource-claims-and-resource-classes
-[portable-classes-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-default-resource-class.md
+[portable-classes-docs]: https://github.com/crossplane/crossplane/blob/master/design/one-pager-default-resource-class.md
 [workloads-docs]: concepts.md#resources-and-workloads
 
 [kubernetes-concepts]: https://kubernetes.io/docs/concepts/
@@ -369,11 +369,11 @@ guide][stack-developer-guide].
 [gcp-setup]: stacks-guide-gcp.md
 [azure-setup]: stacks-guide-azure.md
 
-[stack-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/design-doc-stacks.md#crossplane-stacks
-[stack-quick-start]: https://github.com/crossplaneio/crossplane-cli/tree/release-0.2#quick-start-stacks
-[stack-concepts]: https://github.com/crossplaneio/crossplane/blob/master/design/design-doc-stacks.md#crossplane-stacks
+[stack-docs]: https://github.com/crossplane/crossplane/blob/master/design/design-doc-stacks.md#crossplane-stacks
+[stack-quick-start]: https://github.com/crossplane/crossplane-cli/tree/release-0.2#quick-start-stacks
+[stack-concepts]: https://github.com/crossplane/crossplane/blob/master/design/design-doc-stacks.md#crossplane-stacks
 [stack-registry]: https://hub.docker.com/search?q=crossplane&type=image
-[stack-manager-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/design-doc-stacks.md#installation-flow
-[stack-format-docs]: https://github.com/crossplaneio/crossplane/blob/master/design/design-doc-stacks.md#stack-package-format
+[stack-manager-docs]: https://github.com/crossplane/crossplane/blob/master/design/design-doc-stacks.md#installation-flow
+[stack-format-docs]: https://github.com/crossplane/crossplane/blob/master/design/design-doc-stacks.md#stack-package-format
 [stack-developer-guide]: developer-guide.md
 [provider-stack-developer-guide]: developer-guide.md

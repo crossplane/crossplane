@@ -70,12 +70,12 @@ bundles in Kubernetes.
 
 On the Crossplane side, the extensibility model is still relatively new.
 In the most recent release, the concept of
-[Stacks](https://github.com/crossplaneio/crossplane/blob/master/design/design-doc-stacks.md)
+[Stacks](https://github.com/crossplane/crossplane/blob/master/design/design-doc-stacks.md)
 was introduced, and the first version of some [tooling to help write
-Stacks](https://github.com/crossplaneio/crossplane-cli) was also
+Stacks](https://github.com/crossplane/crossplane-cli) was also
 introduced. The Crossplane project has been working toward making Stacks
 [easier to
-write](https://github.com/crossplaneio/crossplane/issues/853), ideally
+write](https://github.com/crossplane/crossplane/issues/853), ideally
 to the point where an author doesn't need to write a full controller.
 The easier version of Stacks is being called "Template Stacks". There is
 now [a repository with some
@@ -149,7 +149,7 @@ Experience, there are many things which are out of scope. These include:
 
 Also out of scope is the internal representation of configuration, and
 the implementation of the stack manager. See the [complementary
-internals-oriented Template Stack design doc](https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-template-stacks.md)
+internals-oriented Template Stack design doc](https://github.com/crossplane/crossplane/blob/master/design/one-pager-template-stacks.md)
 for those details.
 
 ## How to read this document
@@ -161,7 +161,7 @@ application and its infrastructure using Crossplane and template stacks.
 
 Additionally, for more detail about the internals of template stacks on
 the stack manager and Crossplane side, see the [design doc focused on
-this](https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-template-stacks.md)
+this](https://github.com/crossplane/crossplane/blob/master/design/one-pager-template-stacks.md)
 
 ## Design
 
@@ -447,7 +447,7 @@ repository. The snippet was taken from the part of the example where the
 app stack is used.
 
 For more details, see the [design document about the
-internals](https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-template-stacks.md).
+internals](https://github.com/crossplane/crossplane/blob/master/design/one-pager-template-stacks.md).
 
 ### Templating/configuration engine
 
@@ -487,12 +487,12 @@ out of the scope of this document, and will be revisited in the future.
 ### Internal representation of templates
 
 See the [design doc on the internals of the Template Stack
-implementation](https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-template-stacks.md).
+implementation](https://github.com/crossplane/crossplane/blob/master/design/one-pager-template-stacks.md).
 
 ### The template stack controller
 
 See the [design doc on the internals of the Template Stack
-implementation](https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-template-stacks.md).
+implementation](https://github.com/crossplane/crossplane/blob/master/design/one-pager-template-stacks.md).
 
 ## Example use-cases
 
@@ -533,8 +533,8 @@ repository.
 
 * [Template Stack Experience - Quick Start Example](https://github.com/suskin/template-stack-experience/tree/master/wordpress-workload/quick-start)
 * [Declarative Application Management in Kubernetes](https://github.com/kubernetes/community/blob/master/contributors/design-proposals/architecture/declarative-application-management.md)
-* [Template Stacks internals design doc](https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-template-stacks.md)
-* [Stacks CLI design](https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-stack-cli.md)
+* [Template Stacks internals design doc](https://github.com/crossplane/crossplane/blob/master/design/one-pager-template-stacks.md)
+* [Stacks CLI design](https://github.com/crossplane/crossplane/blob/master/design/one-pager-stack-cli.md)
 * [Kubernetes default field values][kubernetes-default-values]
 
 <!-- Reference-style links -->

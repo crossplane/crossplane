@@ -19,7 +19,7 @@ package stacks
 import (
 	"fmt"
 
-	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
+	"github.com/crossplane/crossplane/apis/stacks/v1alpha1"
 )
 
 // Labels used to track ownership across namespaces and scopes.

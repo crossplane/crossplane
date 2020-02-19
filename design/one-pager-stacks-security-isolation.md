@@ -8,8 +8,8 @@
 
 * 1.1
   * Cluster stacks may own Cluster scoped CRDs
-    [#958](https://github.com/crossplaneio/crossplane/pull/958)
-  * Namespaced stacks may depend on Cluster scoped CRDs [#958](https://github.com/crossplaneio/crossplane/pull/958)
+    [#958](https://github.com/crossplane/crossplane/pull/958)
+  * Namespaced stacks may depend on Cluster scoped CRDs [#958](https://github.com/crossplane/crossplane/pull/958)
 
 ## Background
 
@@ -108,7 +108,7 @@ A few notes on the scope of access to CRDs:
 * The allowed verbs for the CRDs the stack owns and depends on will be the same. Stacks will likely need full CRUD access, regardless of if the stack owns or depends on the CRD.
 
 In the future, other security modes could be enabled such as a more explicit model, and the allowed set of permissions and scope could be expanded.  We are intentionally starting
-with a restrictive scope compatible with Crossplane Managed Resource Infrastructure Stacks and [Resource Class Selection](https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-simple-class-selection.md#proposal).
+with a restrictive scope compatible with Crossplane Managed Resource Infrastructure Stacks and [Resource Class Selection](https://github.com/crossplane/crossplane/blob/master/design/one-pager-simple-class-selection.md#proposal).
 We will allow feedback and real use cases from the community to inform any decisions to potentially expand this security model.
 Any future expansions to the model should be accompanied by a thoughtful design.
 
@@ -119,7 +119,7 @@ Cluster Stacks can be thought of as a higher level of privilege than other types
  to the cluster, for example cloud provider managed services. These controllers will also likely be written as full
  fledged controller-runtime based implementations, but that is not a requirement.
 
-Let's look at a specific example of the [GCP cluster stack](https://github.com/crossplaneio/stack-gcp) to understand the security and isolation model more thoroughly.
+Let's look at a specific example of the [GCP cluster stack](https://github.com/crossplane/stack-gcp) to understand the security and isolation model more thoroughly.
 First, the user will create an instance of a `ClusterStackInstall` that specifies which cluster stack they want to install.
 Then, when the Stack Manager installs the GCP stack, a few things will happen:
 
@@ -183,7 +183,7 @@ The key aspect of a namespace stack is that it will be installed with permission
 
 ### Installation Flow
 
-Let's look at a concrete example of what happens when the [WordPress stack](https://github.com/crossplaneio/sample-stack-wordpress/) is installed into Crossplane in a target namespace of the user's choice:
+Let's look at a concrete example of what happens when the [WordPress stack](https://github.com/crossplane/sample-stack-wordpress/) is installed into Crossplane in a target namespace of the user's choice:
 
 * The user creates a `StackInstall` and specifies the WordPress stack
 * All CRDs defined by the WordPress stack will be installed into the cluster (remember that CRDs themselves are always cluster scoped).
@@ -214,7 +214,7 @@ The diagram shows the result of the following sequence of actions:
 1. The WordPress controller is watching for events on this CRD type in the namespace it is running in.
 1. In response to seeing the creation event for this `WordPressInstance` custom resource, the WordPress controller creates claims for the services that the instance will need, such as a MySQL database and a Kubernetes cluster.
     1. Note: in order to have permissions to create instances of MySQL and Kubernetes cluster claims, the Wordpress stack will have to have declared those CRD types as dependencies.
-    Full support of [dependency resolution](https://github.com/crossplaneio/crossplane/issues/434) is out of scope for this design document.
+    Full support of [dependency resolution](https://github.com/crossplane/crossplane/issues/434) is out of scope for this design document.
 1. These claims are then serviced by the default resource classes in the environment that point to specific provisioners that were previously installed as part of a cluster stack.
 
 This flow demonstrates how a namespace stack indirectly consumes a cluster stack and is represented in the diagram below:

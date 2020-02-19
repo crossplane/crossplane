@@ -79,7 +79,7 @@ the maintainers per the voting process below.
 * Triage GitHub issues and perform pull request reviews for other maintainers and the community.
   The areas of specialization listed in [OWNERS.md](OWNERS.md) can be used to help with routing
   an issue/question to the right person.
-* During GitHub issue triage, apply all applicable [labels](https://github.com/crossplaneio/crossplane/labels)
+* During GitHub issue triage, apply all applicable [labels](https://github.com/crossplane/crossplane/labels)
   to each new issue. Labels are extremely useful for future issue follow up. Which labels to apply
   is somewhat subjective so just use your best judgment. A few of the most important labels that are
   not self explanatory are:

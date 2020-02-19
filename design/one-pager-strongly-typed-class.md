@@ -5,7 +5,7 @@
 
 ## Revisions
 * 1.1
-  * Added additional motivation by describing the use of annotations for UI metadata on strongly typed resource class CRD's as outlined in [#605](https://github.com/crossplaneio/crossplane/pull/605)
+  * Added additional motivation by describing the use of annotations for UI metadata on strongly typed resource class CRD's as outlined in [#605](https://github.com/crossplane/crossplane/pull/605)
 * 1.2
   * Note that policies have been replaced by simple resource class selection.
 
@@ -150,7 +150,7 @@ This problem can be solved by the implementation of "strongly typed" resource cl
 * Enable schema documentation and validation for resource classes.
 * Enable the ability to inject type-specific annotations into resource class kinds.
 * Continue to support configuring a default resource class to be set upon resource claims that do not specify a class.
-* Assume that the universe of possible default resource class kinds for a specific claim kind will grow arbitrarily, so a default class controller must be able to be made aware of new resource class kinds. This goal will become specifically important as we begin to [separate providers](https://github.com/crossplaneio/crossplane/issues/531) from the core Crossplane project in the form of infrastructure stacks.
+* Assume that the universe of possible default resource class kinds for a specific claim kind will grow arbitrarily, so a default class controller must be able to be made aware of new resource class kinds. This goal will become specifically important as we begin to [separate providers](https://github.com/crossplane/crossplane/issues/531) from the core Crossplane project in the form of infrastructure stacks.
 
 ## Proposal
 
@@ -279,4 +279,4 @@ The movement to strongly typed resource classes provides an opportunity to injec
 
 ## Relevant Issues
 
-[#90](https://github.com/crossplaneio/crossplane/issues/90)
+[#90](https://github.com/crossplane/crossplane/issues/90)

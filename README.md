@@ -1,4 +1,4 @@
-[![Build Status](https://jenkinsci.upbound.io/buildStatus/icon?job=crossplaneio/crossplane/build/master)](https://jenkinsci.upbound.io/blue/organizations/jenkins/crossplaneio%2Fcrossplane%2Fbuild/activity) [![GitHub release](https://img.shields.io/github/release/crossplaneio/crossplane/all.svg?style=flat-square)](https://github.com/crossplaneio/crossplane/releases) [![Docker Pulls](https://img.shields.io/docker/pulls/crossplane/crossplane.svg)](https://img.shields.io/docker/pulls/crossplane/crossplane.svg) [![Go Report Card](https://goreportcard.com/badge/github.com/crossplaneio/crossplane)](https://goreportcard.com/report/github.com/crossplaneio/crossplane) [![Slack](https://slack.crossplane.io/badge.svg)](https://slack.crossplane.io) [![Twitter Follow](https://img.shields.io/twitter/follow/crossplane_io.svg?style=social&label=Follow)](https://twitter.com/intent/follow?screen_name=crossplane_io&user_id=788180534543339520)
+[![Build Status](https://jenkinsci.upbound.io/buildStatus/icon?job=crossplaneio/crossplane/build/master)](https://jenkinsci.upbound.io/blue/organizations/jenkins/crossplaneio%2Fcrossplane%2Fbuild/activity) [![GitHub release](https://img.shields.io/github/release/crossplaneio/crossplane/all.svg?style=flat-square)](https://github.com/crossplane/crossplane/releases) [![Docker Pulls](https://img.shields.io/docker/pulls/crossplane/crossplane.svg)](https://img.shields.io/docker/pulls/crossplane/crossplane.svg) [![Go Report Card](https://goreportcard.com/badge/github.com/crossplane/crossplane)](https://goreportcard.com/report/github.com/crossplane/crossplane) [![Slack](https://slack.crossplane.io/badge.svg)](https://slack.crossplane.io) [![Twitter Follow](https://img.shields.io/twitter/follow/crossplane_io.svg?style=social&label=Follow)](https://twitter.com/intent/follow?screen_name=crossplane_io&user_id=788180534543339520)
 
 ![Crossplane](docs/media/banner.png)
 
@@ -89,15 +89,15 @@ Crossplane is under the Apache 2.0 license.
 [developer mailing list]: https://groups.google.com/forum/#!forum/crossplane-dev
 [Twitter]: https://twitter.com/crossplane_io
 [Email]: mailto:info@crossplane.io
-[issue against Crossplane]: https://github.com/crossplaneio/crossplane/issues
+[issue against Crossplane]: https://github.com/crossplane/crossplane/issues
 [contributing guide]: CONTRIBUTING.md
 [Tuesday at 9:00am Pacific Time]: https://www.thetimezoneconverter.com/?t=9:00&tz=PT%20%28Pacific%20Time%29
 [Current agenda and past meeting notes]: https://docs.google.com/document/d/1q_sp2jLQsDEOX7Yug6TPOv7Fwrys6EwcF5Itxjkno7Y/edit?usp=sharing
 [Past meeting recordings]: https://www.youtube.com/playlist?list=PL510POnNVaaYYYDSICFSNWFqNbx1EMr-M
 [getting started]: https://crossplane.io/docs/master/quick-start.html
-[stack-aws]: https://github.com/crossplaneio/stack-aws
-[stack-azure]: https://github.com/crossplaneio/stack-azure
-[stack-rook]: https://github.com/crossplaneio/stack-rook
-[stack-gcp]: https://github.com/crossplaneio/stack-gcp
+[stack-aws]: https://github.com/crossplane/stack-aws
+[stack-azure]: https://github.com/crossplane/stack-azure
+[stack-rook]: https://github.com/crossplane/stack-rook
+[stack-gcp]: https://github.com/crossplane/stack-gcp
 [stack-packet]: https://github.com/packethost/stack-packet
 [stack-cloudscale]: https://github.com/vshn/stack-cloudscale

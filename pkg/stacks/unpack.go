@@ -34,8 +34,8 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/stacks/walker"
+	"github.com/crossplane/crossplane/apis/stacks/v1alpha1"
+	"github.com/crossplane/crossplane/pkg/stacks/walker"
 )
 
 const (

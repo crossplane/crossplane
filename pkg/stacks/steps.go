@@ -27,8 +27,8 @@ import (
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/crossplaneio/crossplane/apis/stacks/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/stacks/walker"
+	"github.com/crossplane/crossplane/apis/stacks/v1alpha1"
+	"github.com/crossplane/crossplane/pkg/stacks/walker"
 )
 
 // installStep unmarshals install.yaml bytes to API machinery Unstructured which is set on the StackPackager

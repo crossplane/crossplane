@@ -20,13 +20,13 @@ package apis
 import (
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/crossplaneio/crossplane/apis/cache"
-	"github.com/crossplaneio/crossplane/apis/compute"
-	"github.com/crossplaneio/crossplane/apis/database"
-	"github.com/crossplaneio/crossplane/apis/kubernetes"
-	"github.com/crossplaneio/crossplane/apis/stacks"
-	"github.com/crossplaneio/crossplane/apis/storage"
-	"github.com/crossplaneio/crossplane/apis/workload"
+	"github.com/crossplane/crossplane/apis/cache"
+	"github.com/crossplane/crossplane/apis/compute"
+	"github.com/crossplane/crossplane/apis/database"
+	"github.com/crossplane/crossplane/apis/kubernetes"
+	"github.com/crossplane/crossplane/apis/stacks"
+	"github.com/crossplane/crossplane/apis/storage"
+	"github.com/crossplane/crossplane/apis/workload"
 )
 
 func init() {
