@@ -168,13 +168,13 @@ release branch with the official version tag. You can do this by running the `ta
 release branch of each Stack:
 
 * [`stack-gcp` tag
-  pipeline](https://jenkinsci.upbound.io/blue/organizations/jenkins/crossplaneio%2Fstack-gcp-pipelines%2Fstack-gcp-tag/branches)
+  pipeline](https://jenkinsci.upbound.io/blue/organizations/jenkins/crossplane%2Fstack-gcp-pipelines%2Fstack-gcp-tag/branches)
 * [`stack-aws` tag
-  pipeline](https://jenkinsci.upbound.io/blue/organizations/jenkins/crossplaneio%2Fstack-aws-pipelines%2Fstack-aws-tag/branches/)
+  pipeline](https://jenkinsci.upbound.io/blue/organizations/jenkins/crossplane%2Fstack-aws-pipelines%2Fstack-aws-tag/branches/)
 * [`stack-azure` tag
-  pipeline](https://jenkinsci.upbound.io/blue/organizations/jenkins/crossplaneio%2Fstack-azure-pipelines%2Fstack-azure-tag/branches/)
+  pipeline](https://jenkinsci.upbound.io/blue/organizations/jenkins/crossplane%2Fstack-azure-pipelines%2Fstack-azure-tag/branches/)
 * [`stack-rook` tag
-  pipeline](https://jenkinsci.upbound.io/blue/organizations/jenkins/crossplaneio%2Fstack-rook-pipelines%2Fstack-rook-tag/branches/)
+  pipeline](https://jenkinsci.upbound.io/blue/organizations/jenkins/crossplane%2Fstack-rook-pipelines%2Fstack-rook-tag/branches/)
 
 Run the tag pipeline by clicking the Run button in the Jenkins UI in the correct release branch's
 row. You will be prompted for the version you are tagging, e.g., `v0.5.0` as well as the commit
@@ -215,7 +215,7 @@ point to the freshly released stack versions.
 ### Tag Core Crossplane
 
 Similar to running the `tag` pipelines for each stack, now it's time to run the [`tag`
-pipeline](https://jenkinsci.upbound.io/blue/organizations/jenkins/crossplaneio%2Fcrossplane%2Fcrossplane-tag/branches)
+pipeline](https://jenkinsci.upbound.io/blue/organizations/jenkins/crossplane%2Fcrossplane%2Fcrossplane-tag/branches)
 for core Crossplane.  In fact, the [instructions](#stack-tag-pipeline) are exactly the same:
 
 * Run the `tag` pipeline on the release branch
@@ -226,7 +226,7 @@ for core Crossplane.  In fact, the [instructions](#stack-tag-pipeline) are exact
 ### Build and Release Core Crossplane
 
 After tagging is complete, ensure the [normal build
-pipeline](https://jenkinsci.upbound.io/blue/organizations/jenkins/crossplaneio%2Fcrossplane%2Fbuild/branches)
+pipeline](https://jenkinsci.upbound.io/blue/organizations/jenkins/crossplane%2Fcrossplane%2Fbuild/branches)
 is run on the release branch.  This will be the official release build with an official version
 number and all of its release artifacts will be published.
 
