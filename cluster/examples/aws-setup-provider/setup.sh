@@ -36,7 +36,7 @@ kubectl cluster-info > /dev/null || echo "KUBECONFIG is not configured properly"
 aws_profile="${aws_profile:-default}"
 
 # if region is not provided, retrieve aws profile region from config
-AWS_REGION=$(awk '/["$aws_profile"]/ {getline; print $3}' ${HOME}/.aws/config)
+AWS_REGION=$(aws configure get region --profile $aws_profile)
 
 # retrieve aws profile credentials, save it under 'default' profile, and base64 encode it
 AWS_CREDS_BASE64=$(cat ${HOME}/.aws/credentials | awk '/["$aws_profile"]/ {getline; print $0}' | awk 'NR==1{print "[default]"}1' | base64 | tr -d "\n")
