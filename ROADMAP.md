@@ -153,28 +153,54 @@ Any dates listed below and the specific issues that will ship in a given milesto
 * GCP integration tests [crossplane/stack-gcp#87](https://github.com/crossplane/stack-gcp/issues/87)
 * Template Stacks (experimental): integrate template engine controllers with stack manager [#36](https://github.com/upbound/stacks-marketplace-squad/issues/36)
 
-## v0.8.0
-* Template Stacks - easier to build App & Config Stacks (Preview) [#853](https://github.com/crossplane/crossplane/issues/853) 
-* Easy stacks for ready-to-run cloud environments (GCP, AWS, Azure) [#1136](https://github.com/crossplane/crossplane/issues/1136)
-  * Spin up secure cloud environments (nets, subnets, secure service connectivity, k8s clusters, resource classes, etc.) with just a few lines of yaml 
-* Host-aware Stack Manager [#1038](https://github.com/crossplane/crossplane/issues/1038)
-  * Enables deploying multiple Crossplane instances watching different Kubernetes API servers (i.e. multiple API servers running in different namespaces) on a single Host Kubernetes cluster.
-* Designs for:
-   * Defining your own claim kinds [#1106](https://github.com/crossplane/crossplane/issues/1106) 
-   * Allowing a claim to be satisfied by multiple resources [#1105](https://github.com/crossplane/crossplane/issues/1105)
-   * Versioning and upgrade support [#879](https://github.com/crossplane/crossplane/issues/879), [#435](https://github.com/crossplane/crossplane/issues/435)
-* GCP storage buckets to v1beta1 [crossplane/stack-gcp#130](https://github.com/crossplane/stack-gcp/issues/130)
-* GCP networking resources to v1beta1 [crossplane/stack-gcp#131](https://github.com/crossplane/stack-gcp/issues/131)
-* Improved logging and eventing [crossplane/crossplane-runtime#104](https://github.com/crossplane/crossplane-runtime/issues/104)
+## [v0.8.0 Stacks simplify cloud-native app and infrastructure provisioning](https://github.com/crossplane/crossplane/releases/tag/v0.8.0)
+- Stacks for ready-to-run cloud environments (GCP, AWS, Azure) [#1136](https://github.com/crossplane/crossplane/issues/1136)
+  - Spin up secure cloud environments with just a few lines of yaml 
+  - Single CR creates networks, subnets, secure service connectivity, k8s clusters, resource classes, etc.
+- PostgreSQL 11 support on the `PostgreSQLInstance` claim 
+  - thanks first-time contributor @vasartori! [#1245](https://github.com/crossplane/crossplane/pull/1245)
+- Improved logging and eventing 
+  - [Observability Developer Guide](https://crossplane.io/docs/v0.8/observability-developer-guide.html) for logging and eventing in Crossplane controllers
+  - [crossplane/crossplane-runtime#104](https://github.com/crossplane/crossplane-runtime/issues/104) instrumentation and updated all cloud provider stacks
+- Enable [stack-aws](https://github.com/crossplane/stack-aws) to authenticate to the AWS API using [IAM Roles for Service Accounts](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html)
+  - when running on EKS [stack-aws#126](https://github.com/crossplane/stack-aws/pull/126)
+- Host-aware Stack Manager [#1038](https://github.com/crossplane/crossplane/issues/1038)
+  - Enables deploying multiple Crossplane instances watching different Kubernetes API servers on a single Host Kubernetes cluster.
+- RBAC group and role refinements
+- Support default select values in the UI schema for Crossplane resources
+- Template Stacks (alpha)
+  - Kustomize and helm engine support for pluggable rendering
+  - Ported [stack-minimal-gcp](https://github.com/crossplane/stack-minimal-gcp/pull/1) and [sample-stack-wordpress](https://github.com/crossplane/sample-stack-wordpress/pull/31) to use Template Stacks
+  - Published [stack-minimal-gcp](https://hub.docker.com/r/crossplane/stack-minimal-gcp/tags) and [sample-stack-wordpress](https://hub.docker.com/r/crossplane/sample-stack-wordpress/tags) to https://hub.docker.com/u/crossplane
+
+## v0.9.0
+* Incorporate versioning and upgrade design feedback [#1160](https://github.com/crossplane/crossplane/issues/1160)
+* Rename GitHub org from [crossplaneio](https://github.com/crossplaneio) to [crossplane](https://github.com/crossplane)
+* Crossplane as an [OAM](https://oam.dev/) (Open Application Model) runtime 
+  * Revised [Kubernetes-friendly OAM spec](https://github.com/oam-dev/spec/pull/304/files)
+  * OAM App Config Controller support [#1268](https://github.com/crossplane/crossplane/issues/1268)
+  * Enhance Crossplane to support a choice of local and remote workload scheduling
+
+* Template Stacks 
+  * hardening and UX refinements
+  * [stack-minimal-gcp](https://github.com/crossplane/stack-minimal-gcp) enhancements for clean delete
+  * port [stack-minimal-aws](https://github.com/crossplane/stack-minimal-aws) and [stack-minimal-azure](https://github.com/crossplane/stack-minimal-azure) to Template Stacks
+
+* Stacks Manager support for private repos and robot account credentials
+* Release process and efficiency improvements
 
 ## Roadmap
+* Versioning and upgrade support [#879](https://github.com/crossplane/crossplane/issues/879) 
+
 * Integration testing
   * Integration testing support [#1033](https://github.com/crossplane/crossplane/issues/1033)
   * AWS Stack integration tests 
   * Azure Stack integration tests 
 
-* Stacks Manager
-  * Versioning and upgrade [#879](https://github.com/crossplane/crossplane/issues/879) 
+* Designs for:
+   * Defining your own claim kinds [#1106](https://github.com/crossplane/crossplane/issues/1106) 
+   * Allowing a claim to be satisfied by multiple resources [#1105](https://github.com/crossplane/crossplane/issues/1105)
+   * Versioning and upgrade support [#879](https://github.com/crossplane/crossplane/issues/879), [#435](https://github.com/crossplane/crossplane/issues/435)
 
 * GCP: DNS, SSL, and Ingress support #1123 [#1123](https://github.com/crossplane/crossplane/issues/1123)
 
@@ -191,6 +217,8 @@ Any dates listed below and the specific issues that will ship in a given milesto
    * Incorporate beta1 feedback
    * Upgrade other supported services to v1beta1 (e.g. Buckets, etc.)
    * Code generation of API types, controller scaffolding to further streamline additional services
+   * GCP storage buckets to v1beta1 [crossplane/stack-gcp#130](https://github.com/crossplane/stack-gcp/issues/130)
+   * GCP networking resources to v1beta1 [crossplane/stack-gcp#131](https://github.com/crossplane/stack-gcp/issues/131)
 
 * Expanded Rook support
   * Support additional Rook storage providers
