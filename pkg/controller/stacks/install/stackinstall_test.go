@@ -91,6 +91,10 @@ func withStackRecord(stackRecord *corev1.ObjectReference) resourceModifier {
 	return func(r v1alpha1.StackInstaller) { r.SetStackRecord(stackRecord) }
 }
 
+func withSource(src string) resourceModifier {
+	return func(r v1alpha1.StackInstaller) { spec := r.GetSpec(); spec.Source = src }
+}
+
 func resource(rm ...resourceModifier) *v1alpha1.StackInstall {
 	r := &v1alpha1.StackInstall{
 		ObjectMeta: metav1.ObjectMeta{

@@ -350,7 +350,7 @@ func setStackDefinitionDeploymentImageSource(obj *unstructured.Unstructured, src
 	return err
 }
 
-func isStackObject(obj *unstructured.Unstructured) bool {
+func isStackObject(obj stacks.KindlyIdentifier) bool {
 	if obj == nil {
 		return false
 	}
@@ -360,7 +360,7 @@ func isStackObject(obj *unstructured.Unstructured) bool {
 		strings.EqualFold(gvk.Kind, v1alpha1.StackKind)
 }
 
-func isStackDefinitionObject(obj *unstructured.Unstructured) bool {
+func isStackDefinitionObject(obj stacks.KindlyIdentifier) bool {
 	if obj == nil {
 		return false
 	}
