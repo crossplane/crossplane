@@ -18,6 +18,7 @@ pipeline {
         DOCKER = credentials('dockerhub-upboundci')
         AWS = credentials('aws-upbound-bot')
         GITHUB_UPBOUND_BOT = credentials('github-upbound-jenkins')
+        CODECOV_TOKEN = credentials('codecov-crossplane')
     }
 
     stages {
@@ -96,36 +97,16 @@ pipeline {
             }
         }
 
-        stage('Record Coverage') {
+        stage('Publish Coverage to Codecov') {
             when {
-                allOf {
-                    branch 'master';
-                    expression {
-                        return env.shouldBuild != "false"
-                    }
+                expression {
+                    return env.shouldBuild != "false"
                 }
             }
             steps {
                 script {
-                    currentBuild.result = 'SUCCESS'
-                 }
-                step([$class: 'MasterCoverageAction', scmVars: [GIT_URL: env.GIT_URL]])
-            }
-        }
-
-        stage('PR Coverage to Github') {
-            when {
-                allOf {
-                    not { branch 'master' };
-                    expression { return env.CHANGE_ID != null };
-                    expression { return env.shouldBuild != "false"}
+                    sh 'curl -s https://codecov.io/bash | bash -s -- -c -f _output/tests/**/coverage.txt -F unittests'
                 }
-            }
-            steps {
-                script {
-                    currentBuild.result = 'SUCCESS'
-                }
-                step([$class: 'CompareCoverageAction', publishResultAs: 'comment', scmVars: [GIT_URL: env.GIT_URL]])
             }
         }
 
