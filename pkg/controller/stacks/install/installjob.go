@@ -38,7 +38,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane/apis/stacks/v1alpha1"
-	"github.com/crossplane/crossplane/pkg/controller/stacks/hosted"
 	"github.com/crossplane/crossplane/pkg/stacks"
 )
 
@@ -50,7 +49,7 @@ var (
 
 // JobCompleter is an interface for handling job completion
 type jobCompleter interface {
-	handleJobCompletion(ctx context.Context, i stacks.KindlyIdentifier, job *batchv1.Job) error
+	handleJobCompletion(ctx context.Context, i v1alpha1.StackInstaller, job *batchv1.Job) error
 }
 
 // StackInstallJobCompleter is a concrete implementation of the jobCompleter interface
@@ -61,22 +60,12 @@ type stackInstallJobCompleter struct {
 	log          logging.Logger
 }
 
-func createInstallJob(i v1alpha1.StackInstaller, executorInfo *stacks.ExecutorInfo, hCfg *hosted.Config, tscImage string) *batchv1.Job {
-	name := i.GetName()
-	namespace := i.GetNamespace()
-
-	if hCfg != nil {
-		// In Hosted Mode, we need to map all install jobs on tenant Kubernetes into a single namespace on host cluster.
-		o := hCfg.ObjectReferenceOnHost(name, namespace)
-		name = o.Name
-		namespace = o.Namespace
-	}
-
+func prepareInstallJob(name, namespace, permissionScope, img, stackManagerImage, tscImage string, labels map[string]string) *batchv1.Job {
 	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
-			Labels:    stacks.ParentLabels(i),
+			Labels:    labels,
 		},
 		Spec: batchv1.JobSpec{
 			BackoffLimit: &jobBackoff,
@@ -86,7 +75,7 @@ func createInstallJob(i v1alpha1.StackInstaller, executorInfo *stacks.ExecutorIn
 					InitContainers: []corev1.Container{
 						{
 							Name:    "stack-copy-to-volume",
-							Image:   i.Image(),
+							Image:   img,
 							Command: []string{"cp", "-R", registryDirName, "/ext-pkg/"},
 							VolumeMounts: []corev1.VolumeMount{
 								{
@@ -99,7 +88,7 @@ func createInstallJob(i v1alpha1.StackInstaller, executorInfo *stacks.ExecutorIn
 					Containers: []corev1.Container{
 						{
 							Name:  "stack-unpack-and-output",
-							Image: executorInfo.Image,
+							Image: stackManagerImage,
 							// "--debug" can be added to this list of Args to get debug output from the job,
 							// but note that will be included in the stdout from the pod, which makes it
 							// impossible to create the resources that the job unpacks.
@@ -107,7 +96,7 @@ func createInstallJob(i v1alpha1.StackInstaller, executorInfo *stacks.ExecutorIn
 								"stack",
 								"unpack",
 								fmt.Sprintf("--content-dir=%s", filepath.Join("/ext-pkg", registryDirName)),
-								"--permission-scope=" + i.PermissionScope(),
+								"--permission-scope=" + permissionScope,
 								"--templating-controller-image=" + tscImage,
 							},
 							VolumeMounts: []corev1.VolumeMount{
@@ -132,7 +121,7 @@ func createInstallJob(i v1alpha1.StackInstaller, executorInfo *stacks.ExecutorIn
 	}
 }
 
-func (jc *stackInstallJobCompleter) handleJobCompletion(ctx context.Context, i stacks.KindlyIdentifier, job *batchv1.Job) error {
+func (jc *stackInstallJobCompleter) handleJobCompletion(ctx context.Context, i v1alpha1.StackInstaller, job *batchv1.Job) error {
 	// find the pod associated with the given job
 	podName, err := jc.findPodNameForJob(ctx, job)
 	if err != nil {
@@ -213,7 +202,7 @@ func (jc *stackInstallJobCompleter) readPodLogs(namespace, name string) (*bytes.
 // Expected resources are CRD, Stack, & StackDefinition
 // nolint:gocyclo
 func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, obj *unstructured.Unstructured,
-	i stacks.KindlyIdentifier, job *batchv1.Job) error {
+	i v1alpha1.StackInstaller, job *batchv1.Job) error {
 
 	// if we decoded a non-nil unstructured object, try to create it now
 	if obj == nil {
@@ -232,10 +221,23 @@ func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, o
 		}
 	}
 
+	// Stack controllers should inherit the StackInstall source unless a
+	// source is already defined in the Stack (install.yaml).
+	if isStackObject(obj) {
+		if err := setStackDeploymentImageSource(obj, i); err != nil {
+			return err
+		}
+	}
+
 	// StackDefinition controllers need the name of the StackDefinition
 	// which, by design, matches the StackInstall
 	if isStackDefinitionObject(obj) {
 		if err := setStackDefinitionControllerEnv(obj, i.GetNamespace(), i.GetName()); err != nil {
+			return err
+		}
+
+		// inherit the StackInstall source (as is done for Stacks)
+		if err := setStackDefinitionDeploymentImageSource(obj, i); err != nil {
 			return err
 		}
 	}
@@ -275,7 +277,63 @@ func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, o
 	return nil
 }
 
-func isStackObject(obj *unstructured.Unstructured) bool {
+// setDeploymentImageSource updates the images in ControllerDeployment
+// containers using the given src
+func setDeploymentImageSource(d *v1alpha1.ControllerDeployment, src imageWithSourcer) {
+	ics := d.Spec.Template.Spec.InitContainers
+	for i := range ics {
+		if img, err := src.ImageWithSource(ics[i].Image); err == nil {
+			ics[i].Image = img
+		}
+	}
+
+	cs := d.Spec.Template.Spec.Containers
+	for i := range cs {
+		if img, err := src.ImageWithSource(cs[i].Image); err == nil {
+			cs[i].Image = img
+		}
+	}
+}
+
+func setStackDeploymentImageSource(obj *unstructured.Unstructured, src imageWithSourcer) error {
+	// use convert functions because SetUnstructuredContent is unwieldy
+	s, err := convertToStack(obj)
+	if err != nil {
+		return err
+	}
+
+	if d := s.Spec.Controller.Deployment; d != nil {
+		setDeploymentImageSource(d, src)
+		if u, err := convertStackToUnstructured(s); err == nil {
+			u.DeepCopyInto(obj)
+		}
+	}
+
+	return err
+}
+
+type imageWithSourcer interface {
+	ImageWithSource(string) (string, error)
+}
+
+func setStackDefinitionDeploymentImageSource(obj *unstructured.Unstructured, src imageWithSourcer) error {
+	// use convert functions because SetUnstructuredContent is unwieldy
+	s, err := convertToStackDefinition(obj)
+	if err != nil {
+		return err
+	}
+
+	if d := s.Spec.Controller.Deployment; d != nil {
+		setDeploymentImageSource(d, src)
+		if u, err := convertStackDefinitionToUnstructured(s); err == nil {
+			u.DeepCopyInto(obj)
+		}
+	}
+
+	return err
+}
+
+func isStackObject(obj stacks.KindlyIdentifier) bool {
 	if obj == nil {
 		return false
 	}
@@ -285,7 +343,7 @@ func isStackObject(obj *unstructured.Unstructured) bool {
 		strings.EqualFold(gvk.Kind, v1alpha1.StackKind)
 }
 
-func isStackDefinitionObject(obj *unstructured.Unstructured) bool {
+func isStackDefinitionObject(obj stacks.KindlyIdentifier) bool {
 	if obj == nil {
 		return false
 	}
@@ -325,7 +383,7 @@ func setStackDefinitionControllerEnv(obj *unstructured.Unstructured, namespace, 
 		c := d.Spec.Template.Spec.Containers
 		c[0].Env = append(c[0].Env, env...)
 
-		if u, err := convertToUnstructured(sd); err == nil {
+		if u, err := convertStackDefinitionToUnstructured(sd); err == nil {
 			u.DeepCopyInto(obj)
 		}
 	}
@@ -333,15 +391,36 @@ func setStackDefinitionControllerEnv(obj *unstructured.Unstructured, namespace, 
 	return err
 }
 
-// convertToUnstructured takes a Kubernetes object and converts it into
-// *unstructured.Unstructured that can be used as KubernetesApplication template.
-func convertToUnstructured(o *v1alpha1.StackDefinition) (*unstructured.Unstructured, error) {
+// convertStackDefinitionToUnstructured takes a StackDefinition and converts it
+// to *unstructured.Unstructured
+func convertStackDefinitionToUnstructured(o *v1alpha1.StackDefinition) (*unstructured.Unstructured, error) {
 	u, err := runtime.DefaultUnstructuredConverter.ToUnstructured(o)
 	if err != nil {
 		return nil, err
 	}
 
 	return &unstructured.Unstructured{Object: u}, nil
+}
+
+// convertStackToUnstructured takes a Stack and converts it to
+// *unstructured.Unstructured
+func convertStackToUnstructured(o *v1alpha1.Stack) (*unstructured.Unstructured, error) {
+	u, err := runtime.DefaultUnstructuredConverter.ToUnstructured(o)
+	if err != nil {
+		return nil, err
+	}
+
+	return &unstructured.Unstructured{Object: u}, nil
+}
+
+// convertToStack takes a Kubernetes object and converts it into
+// *v1alpha1.Stack
+func convertToStack(o *unstructured.Unstructured) (*v1alpha1.Stack, error) {
+	s := &v1alpha1.Stack{}
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(o.UnstructuredContent(), s); err != nil {
+		return &v1alpha1.Stack{}, err
+	}
+	return s, nil
 }
 
 // convertToStackDefinition takes a Kubernetes object and converts it into

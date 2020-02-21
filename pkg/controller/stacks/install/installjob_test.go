@@ -32,6 +32,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -48,8 +49,10 @@ import (
 const (
 	jobPodName            = "job-pod-123"
 	podLogOutputMalformed = `)(&not valid yaml?()!`
-	podLogOutput          = `
----
+	podLogOutput          = crdRaw + "\n" + stackRaw
+	stackInstallSource    = "example.host"
+
+	crdRaw = `---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
@@ -57,14 +60,14 @@ metadata:
 spec:
   group: samples.upbound.io
   names:
-  kind: Mytype
-  listKind: MytypeList
-  plural: mytypes
-  singular: mytype
+    kind: Mytype
+    listKind: MytypeList
+    plural: mytypes
+    singular: mytype
   scope: Namespaced
   version: v1alpha1
-
----
+`
+	stackRaw = `---
 apiVersion: stacks.crossplane.io/v1alpha1
 kind: Stack
 metadata:
@@ -82,6 +85,7 @@ spec:
         strategy: {}
         template:
           metadata:
+            creationTimestamp: null
             labels:
               core.crossplane.io/name: crossplane-sample-stack
             name: sample-stack-controller
@@ -98,10 +102,11 @@ spec:
                     fieldPath: metadata.namespace
               image: crossplane/sample-stack:latest
               name: sample-stack-controller
+              resources: {}
   customresourcedefinitions:
   - apiVersion: samples.upbound.io/v1alpha1
     kind: Mytype
-  description: |
+  overview: |
     Markdown describing this sample Crossplane stack project.
   icons:
   - base64Data: bW9jay1pY29uLWRh
@@ -139,29 +144,17 @@ spec:
   title: Sample Crossplane Stack
   version: 0.0.1
 status:
- Conditions: null
-`
-
-	crdRaw = `---
-apiVersion: apiextensions.k8s.io/v1beta1
-kind: CustomResourceDefinition
-metadata:
-  name: mytypes.samples.upbound.io
-spec:
-  group: samples.upbound.io
-  names:
-  kind: Mytype
-  listKind: MytypeList
-  plural: mytypes
-  singular: mytype
-  scope: Namespaced
-  version: v1alpha1
+ conditionedStatus: {}
 `
 )
 
 var (
 	_ jobCompleter = &stackInstallJobCompleter{}
 )
+
+func nsLabel(ns string) string {
+	return fmt.Sprintf(stacks.LabelNamespaceFmt, ns)
+}
 
 // Job modifiers
 type jobModifier func(*batchv1.Job)
@@ -174,6 +167,17 @@ func withJobConditions(jobConditionType batchv1.JobConditionType, message string
 				Status:  corev1.ConditionTrue,
 				Message: message,
 			},
+		}
+	}
+}
+
+func withJobSource(src string) jobModifier {
+	return func(j *batchv1.Job) {
+		for _, c := range j.Spec.Template.Spec.InitContainers {
+			c.Image = src + "/" + c.Image
+		}
+		for _, c := range j.Spec.Template.Spec.Containers {
+			c.Image = src + "/" + c.Image
 		}
 	}
 }
@@ -203,9 +207,17 @@ func withUnstructuredObjLabels(labels map[string]string) unstructuredObjModifier
 	}
 }
 
-// unstructuredObj creates a new default unstructured object (derived from the crdRaw const)
-func unstructuredObj(uom ...unstructuredObjModifier) *unstructured.Unstructured {
-	r := strings.NewReader(crdRaw)
+// withUnstructuredObjLabels modifies an existing unstructured object with the given labels
+func withUnstructuredObjNamespacedName(nn types.NamespacedName) unstructuredObjModifier {
+	return func(u *unstructured.Unstructured) {
+		u.SetNamespace(nn.Namespace)
+		u.SetName(nn.Name)
+	}
+}
+
+// unstructuredObj creates a new default unstructured object (derived from yaml)
+func unstructuredObj(raw string, uom ...unstructuredObjModifier) *unstructured.Unstructured {
+	r := strings.NewReader(raw)
 	d := yaml.NewYAMLOrJSONDecoder(r, 4096)
 	obj := &unstructured.Unstructured{}
 	d.Decode(&obj)
@@ -218,10 +230,10 @@ func unstructuredObj(uom ...unstructuredObjModifier) *unstructured.Unstructured 
 }
 
 type mockJobCompleter struct {
-	MockHandleJobCompletion func(ctx context.Context, i stacks.KindlyIdentifier, job *batchv1.Job) error
+	MockHandleJobCompletion func(ctx context.Context, i v1alpha1.StackInstaller, job *batchv1.Job) error
 }
 
-func (m *mockJobCompleter) handleJobCompletion(ctx context.Context, i stacks.KindlyIdentifier, job *batchv1.Job) error {
+func (m *mockJobCompleter) handleJobCompletion(ctx context.Context, i v1alpha1.StackInstaller, job *batchv1.Job) error {
 	return m.MockHandleJobCompletion(ctx, i, job)
 }
 
@@ -415,6 +427,65 @@ func TestHandleJobCompletion(t *testing.T) {
 				err: nil,
 			},
 		},
+		{
+			name: "HandleJobCompletionWithSource",
+			jc: &stackInstallJobCompleter{
+				client: &test.MockClient{
+					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error {
+						if u, ok := obj.(*unstructured.Unstructured); ok {
+							if isStackObject(u) {
+								s, err := convertToStack(u)
+								if err != nil {
+									return err
+								}
+								d := s.Spec.Controller.Deployment
+								if d == nil {
+									return errors.New("expected Stack controller deployment")
+								}
+								if len(d.Spec.Template.Spec.Containers) == 0 {
+									return errors.New("expected Stack controller deployment containers")
+								}
+								for _, c := range d.Spec.Template.Spec.Containers {
+									if strings.Index(c.Image, stackInstallSource) != 0 {
+										return errors.New("expected Stack controller deployment containers to start with stackinstall source")
+									}
+								}
+							}
+						}
+						return nil
+					},
+					MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
+						// GET stack returns the stack instance that was created from the pod log output
+						*obj.(*v1alpha1.Stack) = v1alpha1.Stack{
+							ObjectMeta: metav1.ObjectMeta{Name: resourceName, Namespace: namespace},
+						}
+						return nil
+					},
+					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+				},
+				hostClient: &test.MockClient{
+					MockList: func(ctx context.Context, list runtime.Object, _ ...client.ListOption) error {
+						// LIST pods returns a pod for the job
+						*list.(*corev1.PodList) = corev1.PodList{
+							Items: []corev1.Pod{{ObjectMeta: metav1.ObjectMeta{Name: jobPodName}}},
+						}
+						return nil
+					},
+				},
+				podLogReader: &mockPodLogReader{
+					MockGetPodLogReader: func(string, string) (io.ReadCloser, error) {
+						return ioutil.NopCloser(bytes.NewReader([]byte(podLogOutput))), nil
+					},
+				},
+				log: logging.NewNopLogger(),
+			},
+			ext: resource(withSource(stackInstallSource)),
+			job: job(withJobSource(stackInstallSource)),
+			want: want{
+				ext: resource(withSource(stackInstallSource)),
+				err: nil,
+			},
+		},
 	}
 
 	ctx := context.Background()
@@ -600,7 +671,7 @@ func TestCreate(t *testing.T) {
 					},
 				},
 				jobCompleter: &mockJobCompleter{
-					MockHandleJobCompletion: func(ctx context.Context, i stacks.KindlyIdentifier, job *batchv1.Job) error { return nil },
+					MockHandleJobCompletion: func(ctx context.Context, i v1alpha1.StackInstaller, job *batchv1.Job) error { return nil },
 				},
 				executorInfo: &stacks.ExecutorInfo{Image: stackPackageImage},
 				ext: resource(
@@ -634,7 +705,7 @@ func TestCreate(t *testing.T) {
 					},
 				},
 				jobCompleter: &mockJobCompleter{
-					MockHandleJobCompletion: func(ctx context.Context, i stacks.KindlyIdentifier, job *batchv1.Job) error { return nil },
+					MockHandleJobCompletion: func(ctx context.Context, i v1alpha1.StackInstaller, job *batchv1.Job) error { return nil },
 				},
 				executorInfo: &stacks.ExecutorInfo{Image: stackPackageImage},
 				ext: resource(
@@ -677,14 +748,13 @@ func TestCreate(t *testing.T) {
 }
 
 func TestCreateJobOutputObject(t *testing.T) {
-	wantLabels := map[string]string{
-		stacks.LabelParentGroup:                          "stacks.crossplane.io",
-		stacks.LabelParentVersion:                        "v1alpha1",
-		stacks.LabelParentKind:                           "StackInstall",
-		stacks.LabelParentNamespace:                      namespace,
-		stacks.LabelParentName:                           resourceName,
-		stacks.LabelParentUID:                            uidString,
-		fmt.Sprintf(stacks.LabelNamespaceFmt, namespace): "true",
+	wantedParentLabels := map[string]string{
+		stacks.LabelParentGroup:     "stacks.crossplane.io",
+		stacks.LabelParentVersion:   "v1alpha1",
+		stacks.LabelParentKind:      "StackInstall",
+		stacks.LabelParentNamespace: namespace,
+		stacks.LabelParentName:      resourceName,
+		stacks.LabelParentUID:       uidString,
 	}
 
 	type want struct {
@@ -728,10 +798,15 @@ func TestCreateJobOutputObject(t *testing.T) {
 			},
 			stackInstaller: resource(),
 			job:            job(),
-			obj:            unstructuredObj(withUnstructuredObjLabels(wantLabels)),
+			obj: unstructuredObj(crdRaw,
+				withUnstructuredObjLabels(wantedParentLabels),
+			),
 			want: want{
 				err: errors.Wrapf(errBoom, "failed to create object mytypes.samples.upbound.io from job output cool-stackinstall"),
-				obj: unstructuredObj(withUnstructuredObjLabels(wantLabels)),
+				obj: unstructuredObj(crdRaw,
+					withUnstructuredObjLabels(wantedParentLabels),
+					withUnstructuredObjLabels(map[string]string{nsLabel(namespace): "true"}),
+				),
 			},
 		},
 		{
@@ -744,10 +819,32 @@ func TestCreateJobOutputObject(t *testing.T) {
 			},
 			stackInstaller: resource(),
 			job:            job(),
-			obj:            unstructuredObj(),
+			obj:            unstructuredObj(crdRaw),
 			want: want{
 				err: nil,
-				obj: unstructuredObj(withUnstructuredObjLabels(wantLabels)),
+				obj: unstructuredObj(crdRaw,
+					withUnstructuredObjLabels(wantedParentLabels),
+					withUnstructuredObjLabels(map[string]string{nsLabel(namespace): "true"}),
+				),
+			},
+		},
+		{
+			name: "CreateSuccessfulStack",
+			jobCompleter: &stackInstallJobCompleter{
+				client: &test.MockClient{
+					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error { return nil },
+				},
+				log: logging.NewNopLogger(),
+			},
+			stackInstaller: resource(),
+			job:            job(),
+			obj:            unstructuredObj(stackRaw),
+			want: want{
+				err: nil,
+				obj: unstructuredObj(stackRaw,
+					withUnstructuredObjLabels(wantedParentLabels),
+					withUnstructuredObjNamespacedName(types.NamespacedName{Namespace: namespace, Name: resourceName}),
+				),
 			},
 		},
 	}

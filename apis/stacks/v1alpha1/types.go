@@ -17,8 +17,9 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"fmt"
+	"strings"
 
+	"github.com/docker/distribution/reference"
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbac "k8s.io/api/rbac/v1"
@@ -85,22 +86,74 @@ type StackInstallStatus struct {
 	StackRecord *corev1.ObjectReference `json:"stackRecord,omitempty"`
 }
 
-// Image returns the fully qualified image name for the StackInstallSpec.
-// based on the fully qualified image name format of hostname[:port]/username/reponame[:tag]
+// Image returns the Package prefixed with a source (if available).
+// If the package format is not understood it is returned unmodified to be
+// handled by Kubernetes.
 func (spec StackInstallSpec) Image() string {
-	if spec.Source == "" {
-		// there is no package source, simply return the package name
+	image, err := spec.ImageWithSource(spec.Package)
+	if err != nil {
 		return spec.Package
 	}
-
-	return fmt.Sprintf("%s/%s", spec.Source, spec.Package)
+	return image
 }
 
-// Image gets the Spec.Image of the StackInstall
-func (si *StackInstall) Image() string { return si.Spec.Image() }
+// ImageWithSource applies a source to a container image URI only if the image
+// does not appear to contain a source. Source is some combination of scheme,
+// host, port, and prefix where host is required.
+func (spec StackInstallSpec) ImageWithSource(image string) (string, error) {
+	// no alternate source to substitute
+	if len(spec.Source) == 0 {
+		return image, nil
+	}
 
-// Image gets the Spec.Image of the ClusterStackInstall
-func (si *ClusterStackInstall) Image() string { return si.Spec.Image() }
+	// prepend source to image when it does not have a source
+	named, err := reference.ParseNormalizedNamed(image)
+
+	if err != nil {
+		return "", err
+	}
+
+	// reference.Domain returns docker.io when no domain is found. If the image
+	// didn't explicitly start with docker.io, ignore it. In these cases, we
+	// want to apply the StackInstall source.
+	domain := reference.Domain(named)
+	if strings.Index(image, domain) != 0 {
+		return strings.Trim(spec.Source, "/") + "/" + image, nil
+	}
+
+	// image contained a source
+	return image, nil
+}
+
+// GetPackage gets the Spec of the StackInstall
+func (si *StackInstall) GetPackage() string {
+	return si.Spec.Package
+}
+
+// GetPackage gets the Spec of the ClusterStackInstall
+func (si *ClusterStackInstall) GetPackage() string {
+	return si.Spec.Package
+}
+
+// SetSource sets the Source of the StackInstall Spec
+func (si *StackInstall) SetSource(src string) {
+	si.Spec.Source = src
+}
+
+// SetSource sets the Source of the ClusterStackInstall Spec
+func (si *ClusterStackInstall) SetSource(src string) {
+	si.Spec.Source = src
+}
+
+// ImageWithSource modifies the supplied image with the source of the StackInstall
+func (si *StackInstall) ImageWithSource(img string) (string, error) {
+	return si.Spec.ImageWithSource(img)
+}
+
+// ImageWithSource modifies the supplied image with the source of the ClusterStackInstall
+func (si *ClusterStackInstall) ImageWithSource(img string) (string, error) {
+	return si.Spec.ImageWithSource(img)
+}
 
 // PermissionScope gets the required app.yaml permissionScope value ("Namespaced") for StackInstall
 func (si *StackInstall) PermissionScope() string { return string(apiextensions.NamespaceScoped) }
@@ -176,7 +229,9 @@ type StackInstaller interface {
 	metav1.Object
 	runtime.Object
 
-	Image() string
+	GetPackage() string
+	SetSource(string)
+	ImageWithSource(string) (string, error)
 	PermissionScope() string
 	SetConditions(c ...runtimev1alpha1.Condition)
 	InstallJob() *corev1.ObjectReference
