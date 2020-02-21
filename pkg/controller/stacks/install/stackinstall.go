@@ -295,7 +295,7 @@ func (h *stackInstallHandler) create(ctx context.Context) (reconcile.Result, err
 
 	if jobRef == nil {
 		// there is no install job created yet, create it now
-		job := createInstallJob(h.ext, h.executorInfo, h.hostAwareConfig, h.templatesControllerImage)
+		job := h.createInstallJob()
 
 		if err := h.hostKube.Create(ctx, job); err != nil {
 			return fail(ctx, h.kube, h.ext, err)
@@ -315,6 +315,32 @@ func (h *stackInstallHandler) create(ctx context.Context) (reconcile.Result, err
 	}
 
 	return h.awaitInstallJob(ctx, jobRef)
+}
+
+func (h *stackInstallHandler) createInstallJob() *batchv1.Job {
+	i := h.ext
+	executorInfo := h.executorInfo
+	hCfg := h.hostAwareConfig
+	tscImage := h.templatesControllerImage
+	name := i.GetName()
+	namespace := i.GetNamespace()
+
+	if hCfg != nil {
+		// In Hosted Mode, we need to map all install jobs on tenant Kubernetes into a single namespace on host cluster.
+		o := hCfg.ObjectReferenceOnHost(name, namespace)
+		name = o.Name
+		namespace = o.Namespace
+	}
+
+	pkg := i.GetPackage()
+	img, err := i.ImageWithSource(pkg)
+	if err != nil {
+		// Applying the source is best-effort
+		h.log.Debug("not applying stackinstall source to installjob image due to error", "pkg", pkg, "err", err)
+		img = pkg
+	}
+
+	return prepareInstallJob(name, namespace, i.PermissionScope(), img, executorInfo.Image, tscImage, stacks.ParentLabels(i))
 }
 
 func (h *stackInstallHandler) awaitInstallJob(ctx context.Context, jobRef *corev1.ObjectReference) (reconcile.Result, error) {

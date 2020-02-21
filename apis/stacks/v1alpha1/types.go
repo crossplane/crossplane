@@ -125,14 +125,34 @@ func (spec StackInstallSpec) ImageWithSource(image string) (string, error) {
 	return image, nil
 }
 
-// GetSpec gets the Spec of the StackInstall
-func (si *StackInstall) GetSpec() *StackInstallSpec {
-	return &si.Spec
+// GetPackage gets the Spec of the StackInstall
+func (si *StackInstall) GetPackage() string {
+	return si.Spec.Package
 }
 
-// GetSpec gets the Spec of the ClusterStackInstall
-func (si *ClusterStackInstall) GetSpec() *StackInstallSpec {
-	return &si.Spec
+// GetPackage gets the Spec of the ClusterStackInstall
+func (si *ClusterStackInstall) GetPackage() string {
+	return si.Spec.Package
+}
+
+// SetSource sets the Source of the StackInstall Spec
+func (si *StackInstall) SetSource(src string) {
+	si.Spec.Source = src
+}
+
+// SetSource sets the Source of the ClusterStackInstall Spec
+func (si *ClusterStackInstall) SetSource(src string) {
+	si.Spec.Source = src
+}
+
+// ImageWithSource modifies the supplied image with the source of the StackInstall
+func (si *StackInstall) ImageWithSource(img string) (string, error) {
+	return si.Spec.ImageWithSource(img)
+}
+
+// ImageWithSource modifies the supplied image with the source of the ClusterStackInstall
+func (si *ClusterStackInstall) ImageWithSource(img string) (string, error) {
+	return si.Spec.ImageWithSource(img)
 }
 
 // PermissionScope gets the required app.yaml permissionScope value ("Namespaced") for StackInstall
@@ -209,7 +229,9 @@ type StackInstaller interface {
 	metav1.Object
 	runtime.Object
 
-	GetSpec() *StackInstallSpec
+	GetPackage() string
+	SetSource(string)
+	ImageWithSource(string) (string, error)
 	PermissionScope() string
 	SetConditions(c ...runtimev1alpha1.Condition)
 	InstallJob() *corev1.ObjectReference

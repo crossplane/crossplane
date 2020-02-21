@@ -92,7 +92,7 @@ func withStackRecord(stackRecord *corev1.ObjectReference) resourceModifier {
 }
 
 func withSource(src string) resourceModifier {
-	return func(r v1alpha1.StackInstaller) { spec := r.GetSpec(); spec.Source = src }
+	return func(r v1alpha1.StackInstaller) { r.SetSource(src) }
 }
 
 func resource(rm ...resourceModifier) *v1alpha1.StackInstall {

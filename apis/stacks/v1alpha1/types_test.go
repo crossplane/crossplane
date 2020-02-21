@@ -93,6 +93,17 @@ func TestStackInstallSpec_ImageWithSource(t *testing.T) {
 				url: "bad:host:and:port/cool/tagless-package",
 			},
 		},
+		{
+			name:   "PackageContainsSourceAlready",
+			reason: "Packages that contain a source already should have that source honored",
+			spec: StackInstallSpec{
+				Source:  "foo.bar",
+				Package: "my.registry/cool/tagless-package",
+			},
+			want: want{
+				url: "my.registry/cool/tagless-package",
+			},
+		},
 	}
 
 	for _, tt := range tests {
