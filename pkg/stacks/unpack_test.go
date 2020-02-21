@@ -262,6 +262,7 @@ spec:
       apiVersion: samples.stacks.crossplane.io/v1alpha1
       kind: SampleClaim
     engine:
+      controllerImage: crossplane/ts-controller:0.0.0
       type: helm2
     source:
       image: crossplane/sample-stack-claim-test:helm2

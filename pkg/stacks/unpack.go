@@ -122,6 +122,7 @@ type StackPackager interface {
 
 	GotApp() bool
 	IsNamespaced() bool
+	GetDefaultTmplCtrlImage() string
 
 	AddGroup(string, StackGroup)
 	AddResource(string, StackResource)
@@ -168,8 +169,13 @@ type StackPackage struct {
 	// baseDir is the directory that serves as the base of the stack package (it should be absolute)
 	baseDir string
 
-	// tmplCtrlImage is the Template Controller image to handle template stacks
-	tmplCtrlImage string
+	// defaultTmplCtrlImage is the Template Controller image to handle template stacks
+	defaultTmplCtrlImage string
+}
+
+// GetDefaultTmplCtrlImage returns the default templating controller image path.
+func (sp *StackPackage) GetDefaultTmplCtrlImage() string {
+	return sp.defaultTmplCtrlImage
 }
 
 // Yaml returns a multiple document YAML representation of the Stack Package
@@ -244,7 +250,7 @@ func (sp *StackPackage) createBehaviorController(sd v1alpha1.Behavior) appsv1.De
 				Containers: []corev1.Container{
 					{
 						Name:  controllerContainerName,
-						Image: sp.tmplCtrlImage,
+						Image: sd.Engine.ControllerImage,
 						// the environment variables are known and applied
 						// to containers at a higher level than unpack
 						Command: []string{"/manager"},
@@ -493,14 +499,14 @@ func NewStackPackage(baseDir, tmplCtrlImage string) *StackPackage {
 			TypeMeta:   metav1.TypeMeta{APIVersion: sdv, Kind: sdk},
 			ObjectMeta: metav1.ObjectMeta{},
 		},
-		CRDs:          map[string]apiextensions.CustomResourceDefinition{},
-		CRDPaths:      map[string]string{},
-		Groups:        map[string]StackGroup{},
-		Icons:         map[string]*v1alpha1.IconSpec{},
-		Resources:     map[string]StackResource{},
-		UISchemas:     map[string]string{},
-		baseDir:       baseDir,
-		tmplCtrlImage: tmplCtrlImage,
+		CRDs:                 map[string]apiextensions.CustomResourceDefinition{},
+		CRDPaths:             map[string]string{},
+		Groups:               map[string]StackGroup{},
+		Icons:                map[string]*v1alpha1.IconSpec{},
+		Resources:            map[string]StackResource{},
+		UISchemas:            map[string]string{},
+		baseDir:              baseDir,
+		defaultTmplCtrlImage: tmplCtrlImage,
 	}
 
 	return sp
