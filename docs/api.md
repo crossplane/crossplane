@@ -125,7 +125,7 @@ API Group | Status | Details
 [`container.gcp.crossplane.io/v1alpha1`]: api/crossplane/stack-gcp/container-gcp-crossplane-io-v1alpha1.md
 [`container.gcp.crossplane.io/v1beta1`]: api/crossplane/stack-gcp/container-gcp-crossplane-io-v1beta1.md
 [`database.gcp.crossplane.io/v1beta1`]: api/crossplane/stack-gcp/database-gcp-crossplane-io-v1beta1.md
-[`servicenetworking.gcp.crossplane.io/v1alpha3`]: api/crossplane/stack-gcp/servicenetworking-gcp-crossplane-io-v1alpha3.md
+[`servicenetworking.gcp.crossplane.io/v1beta1`]: api/crossplane/stack-gcp/servicenetworking-gcp-crossplane-io-v1beta1.md
 [`storage.gcp.crossplane.io/v1alpha3`]: api/crossplane/stack-gcp/storage-gcp-crossplane-io-v1alpha3.md
 
 ## Rook Stack
