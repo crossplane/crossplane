@@ -275,7 +275,7 @@ The following tables lists the configurable parameters of the Crossplane chart a
 | `clusterStacks.rook.version`     | Rook stack version to deploy                                    | `<latest released version>`   
 | `personas.deploy`                | Install roles and bindings for Crossplane user personas         | `true`     
 | `templateStacks.enabled`         | Enable experimental template stacks support                     | `true`     
-| `templateStacks.controllerImage` | Template Stack controller image                                 | `crossplane/templating-controller:0.2.0`
+| `templateStacks.controllerImage` | Template Stack controller image                                 | `crossplane/templating-controller:v0.2.1`
  
 ### Command Line
 
