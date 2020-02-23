@@ -115,7 +115,7 @@ API Group | Status | Details
 [`container.gcp.crossplane.io/v1alpha1`] | Alpha | Kubernetes Engine managed resources and classes.
 [`container.gcp.crossplane.io/v1beta1`] | Beta | Kubernetes Engine managed resources and classes.
 [`database.gcp.crossplane.io/v1beta1`] | Beta | CloudSQL managed resources and classes.
-[`servicenetworking.gcp.crossplane.io/v1alpha3`] | Alpha | Service Networking managed resources and classes.
+[`servicenetworking.gcp.crossplane.io/v1beta1`] | Alpha | Service Networking managed resources and classes.
 [`storage.gcp.crossplane.io/v1alpha3`] | Alpha | Cloud Storage managed resources and classes.
 
 [`gcp.crossplane.io/v1alpha3`]: api/crossplaneio/stack-gcp/gcp-crossplane-io-v1alpha3.md
@@ -125,7 +125,7 @@ API Group | Status | Details
 [`container.gcp.crossplane.io/v1alpha1`]: api/crossplaneio/stack-gcp/container-gcp-crossplane-io-v1alpha1.md
 [`container.gcp.crossplane.io/v1beta1`]: api/crossplaneio/stack-gcp/container-gcp-crossplane-io-v1beta1.md
 [`database.gcp.crossplane.io/v1beta1`]: api/crossplaneio/stack-gcp/database-gcp-crossplane-io-v1beta1.md
-[`servicenetworking.gcp.crossplane.io/v1alpha3`]: api/crossplaneio/stack-gcp/servicenetworking-gcp-crossplane-io-v1alpha3.md
+[`servicenetworking.gcp.crossplane.io/v1alpha3`]: api/crossplaneio/stack-gcp/servicenetworking-gcp-crossplane-io-v1beta1.md
 [`storage.gcp.crossplane.io/v1alpha3`]: api/crossplaneio/stack-gcp/storage-gcp-crossplane-io-v1alpha3.md
 
 ## Rook Stack
