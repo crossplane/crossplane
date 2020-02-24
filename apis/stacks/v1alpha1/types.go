@@ -322,9 +322,12 @@ type AppMetadataSpec struct {
 	Source        string            `json:"source,omitempty"`
 	License       string            `json:"license,omitempty"`
 
-	// DependsOn is the list of CRDs that this stack depends on. This data drives the
-	// dependency resolution process.
+	// DependsOn is the list of CRDs that this stack depends on. This data
+	// drives the RBAC generation process.
 	DependsOn []StackInstallSpec `json:"dependsOn,omitempty"`
+
+	// +kubebuilder:validation:Enum=Provider;Stack;Application
+	PackageType string `json:"packageType,omitempty"`
 
 	// +kubebuilder:validation:Enum=Cluster;Namespaced
 	PermissionScope string `json:"permissionScope,omitempty"`

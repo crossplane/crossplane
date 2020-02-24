@@ -181,6 +181,7 @@ spec:
   owners:
   - email: bassam@upbound.io
     name: Bassam Tabbara
+  packageType: Application
   permissionScope: Namespaced
   permissions:
     rules:
@@ -332,6 +333,7 @@ spec:
   owners:
   - email: bassam@upbound.io
     name: Bassam Tabbara
+  packageType: Application
   permissionScope: Namespaced
   permissions:
     rules:
@@ -606,6 +608,7 @@ spec:
   owners:
   - email: bassam@upbound.io
     name: Bassam Tabbara
+  packageType: Application
   permissionScope: Namespaced
   permissions:
     rules:
@@ -901,6 +904,7 @@ spec:
   owners:
   - email: bassam@upbound.io
     name: Bassam Tabbara
+  packageType: Provider
   permissionScope: Cluster
   permissions:
     rules:
@@ -968,7 +972,7 @@ var (
 	_ StackPackager = &StackPackage{}
 )
 
-func simpleAppFile(permissionScope string) string {
+func simpleAppFile(permissionScope, packageType string) string {
 	return fmt.Sprintf(`# Human readable title of application.
 title: Sample Crossplane Stack
 
@@ -1013,12 +1017,12 @@ keywords:
 # Links to more information about the application (about page, source code, etc.)
 website: "https://upbound.io"
 source: "https://github.com/crossplane/sample-stack"
-
+packageType: %q
 permissionScope: %q
 
 # License SPDX name: https://spdx.org/licenses/
 license: Apache-2.0
-`, permissionScope)
+`, packageType, permissionScope)
 }
 
 func simpleCRDFile(singular string) string {
@@ -1099,7 +1103,7 @@ func TestUnpack(t *testing.T) {
 				fs := afero.NewMemMapFs()
 				fs.MkdirAll("ext-dir", 0755)
 				afero.WriteFile(fs, "ext-dir/icon.jpg", []byte("mock-icon-data"), 0644)
-				afero.WriteFile(fs, "ext-dir/app.yaml", []byte(simpleAppFile("Namespaced")), 0644)
+				afero.WriteFile(fs, "ext-dir/app.yaml", []byte(simpleAppFile("Namespaced", "Application")), 0644)
 				afero.WriteFile(fs, "ext-dir/install.yaml", []byte(simpleDeploymentInstallFile), 0644)
 				crdDir := "ext-dir/resources/samples.upbound.io/mytype/v1alpha1"
 				fs.MkdirAll(crdDir, 0755)
@@ -1115,7 +1119,7 @@ func TestUnpack(t *testing.T) {
 				fs := afero.NewMemMapFs()
 				fs.MkdirAll("ext-dir", 0755)
 				afero.WriteFile(fs, "ext-dir/icon.jpg", []byte("mock-icon-data"), 0644)
-				afero.WriteFile(fs, "ext-dir/app.yaml", []byte(simpleAppFile("Namespaced")), 0644)
+				afero.WriteFile(fs, "ext-dir/app.yaml", []byte(simpleAppFile("Namespaced", "Application")), 0644)
 				afero.WriteFile(fs, "ext-dir/behavior.yaml", []byte(simpleBehaviorFile), 0644)
 				crdDir := "ext-dir/resources/samples.upbound.io/mytype/v1alpha1"
 				fs.MkdirAll(crdDir, 0755)
@@ -1146,7 +1150,7 @@ func TestUnpack(t *testing.T) {
 				}
 
 				afero.WriteFile(fs, "ext-dir/icon.jpg", []byte("mock-icon-data"), 0644)
-				afero.WriteFile(fs, "ext-dir/app.yaml", []byte(simpleAppFile("Namespaced")), 0644)
+				afero.WriteFile(fs, "ext-dir/app.yaml", []byte(simpleAppFile("Namespaced", "Application")), 0644)
 				afero.WriteFile(fs, "ext-dir/install.yaml", []byte(simpleDeploymentInstallFile), 0644)
 				afero.WriteFile(fs, filepath.Join(groupDir, "group.yaml"), []byte(simpleGroupFile), 0644)
 				afero.WriteFile(fs, filepath.Join(groupDir, "ui-schema.yaml"), []byte(simpleUIFile("group")), 0644)
@@ -1217,7 +1221,7 @@ func TestUnpackCluster(t *testing.T) {
 				}
 
 				afero.WriteFile(fs, "ext-dir/icon.jpg", []byte("mock-icon-data"), 0644)
-				afero.WriteFile(fs, "ext-dir/app.yaml", []byte(simpleAppFile("Cluster")), 0644)
+				afero.WriteFile(fs, "ext-dir/app.yaml", []byte(simpleAppFile("Cluster", "Provider")), 0644)
 				afero.WriteFile(fs, "ext-dir/install.yaml", []byte(simpleDeploymentInstallFile), 0644)
 				afero.WriteFile(fs, filepath.Join(groupDir, "group.yaml"), []byte(simpleGroupFile), 0644)
 				afero.WriteFile(fs, filepath.Join(groupDir, "ui-schema.yaml"), []byte(simpleUIFile("group")), 0644)

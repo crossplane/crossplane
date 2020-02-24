@@ -320,6 +320,14 @@ source: "https://github.com/crossplane/sample-stack"
 # License SPDX name: https://spdx.org/licenses/
 license: Apache-2.0
 
+# Type of package represented. Supported values are:
+#
+# - Provider
+# - Stack
+# - Application
+packageType: Provider
+
+
 # Scope of roles needed by the stack once installed in the control plane,
 # current supported values are:
 #
