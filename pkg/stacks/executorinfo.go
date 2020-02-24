@@ -62,19 +62,21 @@ type ExecutorInfoDiscoverer interface {
 	Discover(context.Context) (*ExecutorInfo, error)
 }
 
-// Discover the container image from the predefined Stack Manager pod
+// Discover the container image from the predefined Stack Manager pod.
+// ExecutorInfo is not expected to change at runtime, so lookups will be cached.
+// Clear the cache by reseting Image before running Discover.
 func (eif *KubeExecutorInfoDiscoverer) Discover(ctx context.Context) (*ExecutorInfo, error) {
 	eif.mutex.Lock()
 	defer eif.mutex.Unlock()
 
-	if eif.Image != "" && eif.ImagePullPolicy != "" {
+	if eif.Image != "" {
 		return &eif.ExecutorInfo, nil
 	}
 
 	image := os.Getenv(PodImageNameEnvVar)
 	imagePullPolicy := corev1.PullPolicy(os.Getenv(PodImagePullPolicyEnvVar))
 
-	if image != "" && imagePullPolicy != "" {
+	if image != "" {
 		return &ExecutorInfo{Image: image, ImagePullPolicy: imagePullPolicy}, nil
 	}
 

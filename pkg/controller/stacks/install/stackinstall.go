@@ -340,8 +340,17 @@ func (h *stackInstallHandler) createInstallJob() *batchv1.Job {
 		img = pkg
 	}
 
-	// TODO(displague) this has grown too wide. make a params struct
-	return prepareInstallJob(name, namespace, i.PermissionScope(), img, executorInfo.Image, tscImage, executorInfo.ImagePullPolicy, i.GetImagePullPolicy(), stacks.ParentLabels(i), i.GetImagePullSecrets())
+	return prepareInstallJob(prepareInstallJobParams{
+		name:                   name,
+		namespace:              namespace,
+		permissionScope:        i.PermissionScope(),
+		img:                    img,
+		stackManagerImage:      executorInfo.Image,
+		tscImage:               tscImage,
+		stackManagerPullPolicy: executorInfo.ImagePullPolicy,
+		imagePullPolicy:        i.GetImagePullPolicy(),
+		labels:                 stacks.ParentLabels(i),
+		imagePullSecrets:       i.GetImagePullSecrets()})
 }
 
 func (h *stackInstallHandler) awaitInstallJob(ctx context.Context, jobRef *corev1.ObjectReference) (reconcile.Result, error) {

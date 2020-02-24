@@ -61,24 +61,37 @@ type stackInstallJobCompleter struct {
 	log          logging.Logger
 }
 
-func prepareInstallJob(name, namespace, permissionScope, img, stackManagerImage, tscImage string, stackManagerPullPolicy corev1.PullPolicy, imagePullPolicy corev1.PullPolicy, labels map[string]string, imagePullSecrets []corev1.LocalObjectReference) *batchv1.Job {
+type prepareInstallJobParams struct {
+	name                   string
+	namespace              string
+	permissionScope        string
+	img                    string
+	stackManagerImage      string
+	tscImage               string
+	stackManagerPullPolicy corev1.PullPolicy
+	imagePullPolicy        corev1.PullPolicy
+	labels                 map[string]string
+	imagePullSecrets       []corev1.LocalObjectReference
+}
+
+func prepareInstallJob(p prepareInstallJobParams) *batchv1.Job {
 	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-			Labels:    labels,
+			Name:      p.name,
+			Namespace: p.namespace,
+			Labels:    p.labels,
 		},
 		Spec: batchv1.JobSpec{
 			BackoffLimit: &jobBackoff,
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
-					ImagePullSecrets: imagePullSecrets,
+					ImagePullSecrets: p.imagePullSecrets,
 					RestartPolicy:    corev1.RestartPolicyNever,
 					InitContainers: []corev1.Container{
 						{
 							Name:            "stack-copy-to-volume",
-							Image:           img,
-							ImagePullPolicy: imagePullPolicy,
+							Image:           p.img,
+							ImagePullPolicy: p.imagePullPolicy,
 							Command:         []string{"cp", "-R", registryDirName, "/ext-pkg/"},
 							VolumeMounts: []corev1.VolumeMount{
 								{
@@ -91,8 +104,8 @@ func prepareInstallJob(name, namespace, permissionScope, img, stackManagerImage,
 					Containers: []corev1.Container{
 						{
 							Name:            "stack-unpack-and-output",
-							Image:           stackManagerImage,
-							ImagePullPolicy: stackManagerPullPolicy,
+							Image:           p.stackManagerImage,
+							ImagePullPolicy: p.stackManagerPullPolicy,
 							// "--debug" can be added to this list of Args to get debug output from the job,
 							// but note that will be included in the stdout from the pod, which makes it
 							// impossible to create the resources that the job unpacks.
@@ -100,8 +113,8 @@ func prepareInstallJob(name, namespace, permissionScope, img, stackManagerImage,
 								"stack",
 								"unpack",
 								fmt.Sprintf("--content-dir=%s", filepath.Join("/ext-pkg", registryDirName)),
-								"--permission-scope=" + permissionScope,
-								"--templating-controller-image=" + tscImage,
+								"--permission-scope=" + p.permissionScope,
+								"--templating-controller-image=" + p.tscImage,
 							},
 							VolumeMounts: []corev1.VolumeMount{
 								{
