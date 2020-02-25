@@ -232,13 +232,12 @@ func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, o
 		return nil
 	}
 
-	ns := i.GetNamespace()
-
 	// Modify Stack and StackDefinition resources based on StackInstall
 	isStack := isStackObject(obj)
 	isStackDefinition := !isStack && isStackDefinitionObject(obj)
 
 	if isStack || isStackDefinition {
+		ns := i.GetNamespace()
 		name := i.GetName()
 		if obj.GetName() == "" {
 			obj.SetName(name)
@@ -265,23 +264,9 @@ func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, o
 		}
 	}
 
-	// We want to clean up any installed CRDS when we're deleted. We can't rely
-	// on garbage collection because a namespaced object (StackInstall) can't
-	// own a cluster scoped object (CustomResourceDefinition), so we use labels
-	// instead.
+	// TODO(displague) parentlabels can only express a single parent, CRDs
+	// may have multiple contributing "parents"
 	labels := stacks.ParentLabels(i)
-
-	// CRDs are labeled with the namespaces of the stacks they are managed by.
-	// This will allow for a single Namespaced stack to be installed in multiple
-	// namespaces, or different stacks (possibly only differing by versions) to
-	// provide the same CRDs without the risk that a single StackInstall removal
-	// will delete a CRD until there are no remaining namespace labels.
-	if isCRDObject(obj) {
-		labelNamespace := fmt.Sprintf(stacks.LabelNamespaceFmt, ns)
-
-		labels[labelNamespace] = "true"
-	}
-
 	meta.AddLabels(obj, labels)
 
 	jc.log.Debug(

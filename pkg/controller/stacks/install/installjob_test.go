@@ -29,9 +29,11 @@ import (
 	"github.com/pkg/errors"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -373,6 +375,13 @@ func nsLabel(ns string) string {
 // Job modifiers
 type jobModifier func(*batchv1.Job)
 
+func withJobName(nn types.NamespacedName) jobModifier {
+	return func(j *batchv1.Job) {
+		j.SetNamespace(nn.Namespace)
+		j.SetName(nn.Name)
+	}
+}
+
 func withJobConditions(jobConditionType batchv1.JobConditionType, message string) jobModifier {
 	return func(j *batchv1.Job) {
 		j.Status.Conditions = []batchv1.JobCondition{
@@ -630,14 +639,6 @@ func TestHandleJobCompletion(t *testing.T) {
 			jc: &stackInstallJobCompleter{
 				client: &test.MockClient{
 					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error {
-						if isCRDObject(obj) {
-							if crd, ok := obj.(*unstructured.Unstructured); ok {
-								if labels := crd.GetLabels(); labels == nil || labels["namespace.crossplane.io/"+namespace] != "true" {
-									return errors.New("expected CRD namespace label")
-								}
-							}
-
-						}
 						return nil
 					},
 					MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
@@ -824,6 +825,10 @@ func TestCreate(t *testing.T) {
 		ext    *v1alpha1.StackInstall
 	}
 
+	noJobs := func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
+		return kerrors.NewNotFound(schema.GroupResource{Group: "batch", Resource: "Job"}, key.String())
+	}
+
 	tests := []struct {
 		name    string
 		handler *stackInstallHandler
@@ -839,6 +844,7 @@ func TestCreate(t *testing.T) {
 					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
 				hostKube: &test.MockClient{
+					MockGet:    noJobs,
 					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error { return nil },
 				},
 				executorInfo: &stacks.ExecutorInfo{Image: stackPackageImage},
@@ -859,12 +865,45 @@ func TestCreate(t *testing.T) {
 			name: "CreateInstallJobHosted",
 			handler: &stackInstallHandler{
 				kube: &test.MockClient{
+
 					MockPatch: func(_ context.Context, obj runtime.Object, patch client.Patch, _ ...client.PatchOption) error {
 						return nil
 					},
 					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
 				hostKube: &test.MockClient{
+					MockGet:    noJobs,
+					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error { return nil },
+				},
+				hostAwareConfig: &hosted.Config{HostControllerNamespace: hostControllerNamespace},
+				executorInfo:    &stacks.ExecutorInfo{Image: stackPackageImage},
+				ext:             resource(),
+				log:             logging.NewNopLogger(),
+			},
+			want: want{
+				result: requeueOnSuccess,
+				err:    nil,
+				ext: resource(
+					withFinalizers(installFinalizer),
+					withConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileSuccess()),
+					withInstallJob(&corev1.ObjectReference{Name: fmt.Sprintf("%s.%s", namespace, resourceName), Namespace: hostControllerNamespace}),
+				),
+			},
+		},
+		{
+			name: "ExistingInstallJobHosted",
+			handler: &stackInstallHandler{
+				kube: &test.MockClient{
+					MockPatch: func(_ context.Context, obj runtime.Object, patch client.Patch, _ ...client.PatchOption) error {
+						return nil
+					},
+					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+				},
+				hostKube: &test.MockClient{
+					MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
+						*obj.(*batchv1.Job) = *(job(withJobName(types.NamespacedName{Name: fmt.Sprintf("%s.%s", namespace, resourceName), Namespace: hostControllerNamespace})))
+						return nil
+					},
 					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error { return nil },
 				},
 				hostAwareConfig: &hosted.Config{HostControllerNamespace: hostControllerNamespace},
@@ -892,6 +931,7 @@ func TestCreate(t *testing.T) {
 					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 				},
 				hostKube: &test.MockClient{
+					MockGet:    noJobs,
 					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error { return errBoom },
 				},
 				hostAwareConfig: &hosted.Config{HostControllerNamespace: hostControllerNamespace},
@@ -1117,7 +1157,6 @@ func TestCreateJobOutputObject(t *testing.T) {
 				err: errors.Wrapf(errBoom, "failed to create object %s from job output %s", crdName, resourceName),
 				obj: unstructuredObj(crdRaw,
 					withUnstructuredObjLabels(wantedParentLabels),
-					withUnstructuredObjLabels(map[string]string{nsLabel(namespace): "true"}),
 				),
 			},
 		},
@@ -1136,7 +1175,6 @@ func TestCreateJobOutputObject(t *testing.T) {
 				err: nil,
 				obj: unstructuredObj(crdRaw,
 					withUnstructuredObjLabels(wantedParentLabels),
-					withUnstructuredObjLabels(map[string]string{nsLabel(namespace): "true"}),
 				),
 			},
 		},

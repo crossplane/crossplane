@@ -30,7 +30,8 @@ const (
 	LabelAggregateFmt = "rbac.crossplane.io/aggregate-to-%s-%s"
 
 	// namespace.crossplane.io/{namespace}
-	LabelNamespaceFmt = "namespace.crossplane.io/%s"
+	LabelNamespacePrefix = "namespace.crossplane.io/"
+	LabelNamespaceFmt    = LabelNamespacePrefix + "%s"
 
 	LabelScope = "crossplane.io/scope"
 

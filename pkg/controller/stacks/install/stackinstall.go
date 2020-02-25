@@ -29,6 +29,7 @@ import (
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -297,7 +298,21 @@ func (h *stackInstallHandler) create(ctx context.Context) (reconcile.Result, err
 		// there is no install job created yet, create it now
 		job := h.createInstallJob()
 
-		if err := h.hostKube.Create(ctx, job); err != nil {
+		// remove any stale jobs that would prevent the stack from installing
+		// correctly
+		existingJob := &batchv1.Job{ObjectMeta: metav1.ObjectMeta{Name: job.Name, Namespace: job.Namespace}}
+
+		switch err := h.hostKube.Get(ctx, types.NamespacedName{Name: job.Name, Namespace: job.Namespace}, existingJob); {
+		case err == nil:
+			if labels.Conflicts(existingJob.GetLabels(), job.GetLabels()) {
+				return fail(ctx, h.kube, h.ext, errors.Errorf("stale job %s/%s prevents stackinstall", existingJob.Namespace, existingJob.Name))
+			}
+			*job = *existingJob
+		case kerrors.IsNotFound(err):
+			if err := h.hostKube.Create(ctx, job); err != nil {
+				return fail(ctx, h.kube, h.ext, err)
+			}
+		case err != nil:
 			return fail(ctx, h.kube, h.ext, err)
 		}
 
@@ -393,11 +408,7 @@ func (h *stackInstallHandler) awaitInstallJob(ctx context.Context, jobRef *corev
 }
 
 func (h *stackInstallHandler) update(ctx context.Context) (reconcile.Result, error) {
-	// TODO: should updates of the StackInstall be supported? what would that even mean, they
-	// changed the package they wanted installed? Shouldn't they delete the StackInstall and
-	// create a new one?
-	groupversion, kind := h.ext.GroupVersionKind().ToAPIVersionAndKind()
-	h.log.Debug("updating not supported yet", strings.ToLower(kind)+"."+groupversion, fmt.Sprintf("%s/%s", h.ext.GetNamespace(), h.ext.GetName()))
+	h.debugWithName("updating not supported yet")
 	return reconcile.Result{}, nil
 }
 
@@ -449,9 +460,7 @@ func (h *stackInstallHandler) delete(ctx context.Context) (reconcile.Result, err
 		return fail(ctx, h.kube, h.ext, err)
 	}
 
-	// Once the Stacks are gone, we can remove all of the CRDs associated
-	// with the StackInstall
-	if err := h.kube.DeleteAllOf(ctx, &apiextensionsv1beta1.CustomResourceDefinition{}, client.MatchingLabels(labels)); err != nil {
+	if err := h.deleteOrphanedCRDs(ctx); err != nil {
 		return fail(ctx, h.kube, h.ext, err)
 	}
 
@@ -464,9 +473,45 @@ func (h *stackInstallHandler) delete(ctx context.Context) (reconcile.Result, err
 	return reconcile.Result{}, nil
 }
 
+// deleteOrphanedCRDs will delete CRDs with managed-by label and NO stack parent
+// labels. we can't predict these names, so fetch all and then filter locally
+// for any crds that still contain the labels
+//
+// TODO(displague) stackinstall delete and install can race and delete CRDs
+// whose Stack resources have not yet claimed the CRDs.
+func (h *stackInstallHandler) deleteOrphanedCRDs(ctx context.Context) error {
+	crds := &apiextensionsv1beta1.CustomResourceDefinitionList{}
+	if err := h.kube.List(ctx, crds, client.MatchingLabels{stacks.LabelKubernetesManagedBy: "stack-manager"}); err != nil {
+		h.debugWithName("failed to list CRDs")
+		return err
+	}
+	for i := range crds.Items {
+		// check for LabelNamespacePrefix to avoid deleting CRDs
+		// installed before LabelMultiParentPrefix was introduced
+		if stacks.HasPrefixedLabel(&crds.Items[i], stacks.LabelMultiParentPrefix, stacks.LabelNamespacePrefix) {
+			continue
+		}
+
+		h.debugWithName("deleting orphaned CRD", "crd", crds.Items[i].GetName())
+		if err := h.kube.Delete(ctx, &crds.Items[i]); runtimeresource.IgnoreNotFound(err) != nil {
+			h.debugWithName("failed to delete CRD", "crd", crds.Items[i].GetName())
+			return err
+		}
+	}
+	return nil
+}
+
 // ************************************************************************************************
 // Helper functions
 // ************************************************************************************************
+
+// debugWithName reduces the noise of Debug statements by including StackInstall
+// details. This helper shouldn't be used if stackinstall naming details are
+// obvious and redundant to other debug parameters.
+func (h *stackInstallHandler) debugWithName(msg string, keysAndValues ...interface{}) {
+	kv := []interface{}{"namespace", h.ext.GetNamespace(), "name", h.ext.GetName()}
+	h.log.Debug(msg, append(kv, keysAndValues...)...)
+}
 
 // fail - helper function to set fail condition with reason and message
 func fail(ctx context.Context, kube client.StatusClient, i v1alpha1.StackInstaller, err error) (reconcile.Result, error) {
