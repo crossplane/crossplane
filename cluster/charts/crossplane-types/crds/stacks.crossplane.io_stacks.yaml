@@ -2793,6 +2793,12 @@ spec:
                     type: string
                 type: object
               type: array
+            packageType:
+              enum:
+              - Provider
+              - Stack
+              - Application
+              type: string
             permissionScope:
               enum:
               - Cluster
