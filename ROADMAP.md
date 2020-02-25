@@ -176,7 +176,7 @@ Any dates listed below and the specific issues that will ship in a given milesto
 ## v0.9.0
 * Incorporate versioning and upgrade design feedback [#1160](https://github.com/crossplane/crossplane/issues/1160)
 * Rename GitHub org from [crossplaneio](https://github.com/crossplaneio) to [crossplane](https://github.com/crossplane)
-* Crossplane as an [OAM](https://oam.dev/) (Open Application Model) runtime 
+* Experimental support for [OAM](https://oam.dev/) (Open Application Model) API types
   * Revised [Kubernetes-friendly OAM spec](https://github.com/oam-dev/spec/pull/304/files)
   * OAM App Config Controller support [#1268](https://github.com/crossplane/crossplane/issues/1268)
   * Enhance Crossplane to support a choice of local and remote workload scheduling
