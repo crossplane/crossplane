@@ -92,7 +92,9 @@ func behaviorStep(sp StackPackager) walker.Step {
 			return errors.New(fmt.Sprintf("Behavior source path cannot be empty, '/', or '.'"))
 		}
 		behavior.Source.Path = cleanPath
-
+		if behavior.Engine.ControllerImage == "" {
+			behavior.Engine.ControllerImage = sp.GetDefaultTmplCtrlImage()
+		}
 		sp.SetBehavior(behavior)
 		return nil
 	}

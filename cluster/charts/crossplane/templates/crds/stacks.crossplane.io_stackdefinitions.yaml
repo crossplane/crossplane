@@ -40,6 +40,8 @@ spec:
                   type: object
                 engine:
                   properties:
+                    controllerImage:
+                      type: string
                     kustomize:
                       properties:
                         kustomization:

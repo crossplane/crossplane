@@ -61,10 +61,16 @@ type BehaviorCRD struct {
 
 // StackResourceEngineConfiguration represents a configuration for a resource engine, such as helm2 or kustomize.
 type StackResourceEngineConfiguration struct {
+	// ControllerImage is the image of the generic controller used to reconcile
+	// the instances of the given CRDs. If empty, it is populated by stack manager
+	// during unpack with default value.
+	// +optional
+	ControllerImage string `json:"controllerImage,omitempty"`
 	// Type is the engine type, such as "helm2" or "kustomize"
 	Type string `json:"type"`
 	// Because different engine configurations could specify conflicting field names,
 	// we want to namespace the engines with engine-specific keys
+	// +optional
 	Kustomize *KustomizeEngineConfiguration `json:"kustomize,omitempty"`
 }
 
