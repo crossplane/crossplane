@@ -30,7 +30,7 @@ import (
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -59,6 +59,7 @@ const (
 	errHostAwareModeNotEnabled                  = "host aware mode is not enabled"
 	errFailedToPrepareHostAwareDeployment       = "failed to prepare host aware stack controller deployment"
 	errFailedToCreateDeployment                 = "failed to create deployment"
+	errFailedToGetDeployment                    = "failed to get deployment"
 	errFailedToSyncSASecret                     = "failed sync stack controller service account secret"
 	errServiceAccountNotFound                   = "service account is not found (not created yet?)"
 	errFailedToGetServiceAccount                = "failed to get service account"
@@ -610,11 +611,7 @@ func (h *stackHandler) processDeployment(ctx context.Context) error {
 
 	h.prepareDeployment(d)
 
-	gvk := schema.GroupVersionKind{
-		Group:   apps.GroupName,
-		Kind:    "Deployment",
-		Version: apps.SchemeGroupVersion.Version,
-	}
+	gvk := apps.SchemeGroupVersion.WithKind("Deployment")
 
 	var saRef corev1.ObjectReference
 	var saSecretRef corev1.ObjectReference
@@ -631,9 +628,17 @@ func (h *stackHandler) processDeployment(ctx context.Context) error {
 			return errors.Wrap(err, errFailedToPrepareHostAwareDeployment)
 		}
 	}
-	if err := h.hostKube.Create(ctx, d); err != nil && !kerrors.IsAlreadyExists(err) {
-		return errors.Wrap(err, errFailedToCreateDeployment)
+
+	err := h.hostKube.Get(ctx, types.NamespacedName{Name: d.GetName(), Namespace: d.GetNamespace()}, d)
+	if kerrors.IsNotFound(err) {
+		if err := h.hostKube.Create(ctx, d); err != nil {
+			return errors.Wrap(err, errFailedToCreateDeployment)
+		}
 	}
+	if err != nil && !kerrors.IsNotFound(err) {
+		return errors.Wrap(err, errFailedToGetDeployment)
+	}
+
 	if h.hostAwareConfig != nil {
 		owner := meta.AsOwner(meta.ReferenceTo(d, gvk))
 		err := h.syncSATokenSecret(ctx, owner, saRef, saSecretRef)
