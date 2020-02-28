@@ -196,6 +196,73 @@ spec:
             env:
 ```
 
+### Modifying the Stack via StackInstall
+
+The StackInstall spec can include parameters to adjust the composition of the
+Stack resource and behaviors of the StackManager and the Stack's controller.
+
+For example, a private registry can be used as the source of the Stack package
+and the controller.  Both OCI images can be fetched using the necessary
+registry secret and an appropriate pull policy using StackInstall parameters.
+The service account that is created to run the Stack controller can also be
+modified from the StackInstall resource.
+
+```yaml
+apiVersion: stacks.crossplane.io/v1alpha1
+kind: StackInstall
+spec:
+  source: private.registry.example.com
+  package: private-user/image
+  imagePullSecrets:
+  - name: private-registry-secret
+  imagePullPolicy: Always
+  serviceAccount:
+    annotations:
+      iam-service-annotation: "special-value"
+```
+
+The SM, when handling this StackInstall resource, will produce a Stack resource
+that has been modified in the following key ways:
+
+```yaml
+apiVersion: stacks.crossplane.io/v1alpha1
+kind: Stack
+spec:
+  controller:
+    deployment:
+      spec:
+        template:
+          spec:
+            containers:
+            - image: private.registry.example.com/...
+              imagePullPolicy: Always
+            imagePullSecrets:
+            - name: private-registry-secret
+  serviceAccount:
+    annotations:
+      iam-service-annotation: "special-value"
+```
+
+The Stack package and controller image will be prefixed with the `StackInstall`
+`source` if provided. If the controller image already includes a registry, the
+`source` will not be used for the controller image. `StackDefinition` resources
+produced by the SM will also be affected. Their `behavior` images and
+the generic templating-controller will be fetched from the same source.
+
+The `ServiceAccount` created to run the controller deployment will include the
+specified annotations when `serviceAccount.annotations` are provided in the
+`StackInstall`.
+
+The `Deployment` created for the Stack controller will include the
+`StackInstall` specified `imagePullPolicy` and `imagePullSecrets`.
+
+The `initContainer` of the `Job` used by the SM, which copies the stack package
+to a shared volume, will use the `imagePullPolicy` and `imagePullSecrets`
+specified in the `StackInstall` to access the stack image. The SM's package
+processing (`stack unpack`) container used in this `Job` will, however, rely on
+the same `imagePullPolicy` used on the SM responsible for processing the
+`StackInstall`.
+
 ## Stack Package Format
 
 A Stack package is the bundle that contains the custom controller definition, CRDs, icons, and other metadata for a given Stack.

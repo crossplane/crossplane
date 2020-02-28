@@ -145,25 +145,71 @@ the [full Stack documentation][stack-docs].
 
 We can use the [Crossplane CLI][crossplane-cli] to install our stack which adds support for
 Wordpress. Let's install it into a namespace for our project, which
-we'll call `app-project1-dev` for the purposes of this guide. To install
-to the current namespace, `install` can be used, but since we want to
-install to a specific namespace, we will use `generate-install`:
+we'll call `app-project1-dev` for the purposes of this guide. After creating the
+namespace, we can use `kubectl crossplane stack install`:
 
+```console
+kubectl crossplane stack install --namespace app-project1-dev 'crossplane/sample-stack-wordpress:latest' 'sample-stack-wordpress'
 ```
-kubectl crossplane stack generate-install 'crossplane/sample-stack-wordpress:latest' 'sample-stack-wordpress' | kubectl apply --namespace app-project1-dev -f -
+
+An alternative to `install` is to use the `generate-install` command and
+pipe the output to `kubectl apply`.  Everything is a Kubernetes object!
+
+```yaml
+apiVersion: stacks.crossplane.io/v1alpha1
+kind: StackInstall
+metadata:
+  name: sample-stack-wordpress
+  namespace: app-project1-dev
+spec:
+  package: crossplane/sample-stack-wordpress:latest
 ```
 
-Using the `generate-install` command and piping the output to `kubectl
-apply` instead of using the `install` command gives us more control over
-how the stack's installation is handled. Everything is a Kubernetes
-object!
+Using `generate-install` gives us more control over how the stack's installation
+is handled. You could use this to provide extra arguments, for example:
 
-This pulls the stack package from a registry to install it into
-Crossplane. For more details about how to use the CLI, see the
-[documentation for the CLI][crossplane-cli-docs]. For more details about how stacks work behind
-the scenes, see the documentation about the [stack
-manager][stack-manager-docs] and the [stack
-format][stack-format-docs].
+```console
+kubectl crossplane stack generate-install \
+  'crossplane/sample-stack-wordpress:latest' 'sample-stack-wordpress' \
+  | kubectl --context app-cluster --as-user joy --namespace app-project1-dev apply -f -
+````
+
+The Crossplane Stack Manager processes StackInstall resources by pulling the
+stack package from a registry and creating a Stack resource to extend the
+capabilities of Crossplane.
+
+Advanced registry settings can be defined in the `StackInstall` `spec`,
+including:
+
+* `source` defines the registry from which the Stack package and controller
+  should be pulled.
+* `imagePullSecrets` are similar to `imagePullSecrets` on Pods. These secrets
+  will be used to fetch the Stack package and run the controller. See the
+  Kubernetes documentation on [pulling images from a private
+  registry][kubernetes-private-registry] for more details.
+* `imagePullPolicy` is similar to `imagePullPolicy` on Pods. This policy will be
+  used when fetching the Stack package and running the controller.
+* `serviceAccount.annotations` allow for extra annotations to be given to the
+  Stack controller. This can be helpful in environments where other services
+  grant Service Accounts IAM roles based on annotations.
+
+```yaml
+apiVersion: stacks.crossplane.io/v1alpha1
+kind: StackInstall
+metadata:
+  name: sample-stack-wordpress
+  namespace: app-project1-dev
+spec:
+  package: crossplane/sample-stack-wordpress:latest
+  source: private.registry.example.com
+  imagePullSecrets:
+    - private-registry-secret
+```
+
+For more details about how to use the CLI, see the [documentation for the
+CLI][crossplane-cli-docs]. For more details about how stacks work behind the
+scenes, see the documentation about the [stack manager][stack-manager-docs] and
+the [stack format][stack-format-docs].
 
 ## Create a Wordpress
 
@@ -357,6 +403,7 @@ guide][stack-developer-guide].
 [kubernetes-concepts]: https://kubernetes.io/docs/concepts/
 [kubernetes-docs]: https://kubernetes.io/docs/home/
 [kubernetes-namespaces-docs]: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/
+[kubernetes-private-registry]: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
 [kubectl-docs]: https://kubernetes.io/docs/reference/generated/kubectl/kubectl-commands
 
 [helm-install]: https://github.com/helm/helm#install
@@ -372,7 +419,7 @@ guide][stack-developer-guide].
 [stack-docs]: https://github.com/crossplane/crossplane/blob/master/design/design-doc-stacks.md#crossplane-stacks
 [stack-quick-start]: https://github.com/crossplane/crossplane-cli/tree/release-0.2#quick-start-stacks
 [stack-concepts]: https://github.com/crossplane/crossplane/blob/master/design/design-doc-stacks.md#crossplane-stacks
-[stack-registry]: https://hub.docker.com/search?q=crossplane&type=image
+[stack-registry]: https://hub.docker.com/search?q=crossplane%2Fstack-&type=image
 [stack-manager-docs]: https://github.com/crossplane/crossplane/blob/master/design/design-doc-stacks.md#installation-flow
 [stack-format-docs]: https://github.com/crossplane/crossplane/blob/master/design/design-doc-stacks.md#stack-package-format
 [stack-developer-guide]: developer-guide.md

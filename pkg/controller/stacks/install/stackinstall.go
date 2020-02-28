@@ -250,7 +250,7 @@ func (h *stackInstallHandler) sync(ctx context.Context) (reconcile.Result, error
 		nn := types.NamespacedName{Name: h.ext.GetName(), Namespace: h.ext.GetNamespace()}
 		s := &v1alpha1.Stack{}
 
-		if err := h.kube.Get(ctx, nn, s); err != nil && !kerrors.IsNotFound(err) {
+		if err := h.kube.Get(ctx, nn, s); runtimeresource.IgnoreNotFound(err) != nil {
 			return fail(ctx, h.kube, h.ext, err)
 		} else if err == nil {
 			// Set a reference to the Stack record in StackInstall status
@@ -340,7 +340,17 @@ func (h *stackInstallHandler) createInstallJob() *batchv1.Job {
 		img = pkg
 	}
 
-	return prepareInstallJob(name, namespace, i.PermissionScope(), img, executorInfo.Image, tscImage, stacks.ParentLabels(i))
+	return prepareInstallJob(prepareInstallJobParams{
+		name:                   name,
+		namespace:              namespace,
+		permissionScope:        i.PermissionScope(),
+		img:                    img,
+		stackManagerImage:      executorInfo.Image,
+		tscImage:               tscImage,
+		stackManagerPullPolicy: executorInfo.ImagePullPolicy,
+		imagePullPolicy:        i.GetImagePullPolicy(),
+		labels:                 stacks.ParentLabels(i),
+		imagePullSecrets:       i.GetImagePullSecrets()})
 }
 
 func (h *stackInstallHandler) awaitInstallJob(ctx context.Context, jobRef *corev1.ObjectReference) (reconcile.Result, error) {
@@ -399,7 +409,7 @@ func (h *stackInstallHandler) delete(ctx context.Context) (reconcile.Result, err
 
 	// Delete all StackDefintions created by this StackInstall or
 	// ClusterStackInstall
-	if err := h.kube.DeleteAllOf(ctx, &v1alpha1.StackDefinition{}, client.InNamespace(h.ext.GetNamespace()), client.MatchingLabels(labels)); runtimeresource.IgnoreNotFound(err) != nil {
+	if err := h.kube.DeleteAllOf(ctx, &v1alpha1.StackDefinition{}, client.InNamespace(h.ext.GetNamespace()), client.MatchingLabels(labels)); err != nil {
 		return fail(ctx, h.kube, h.ext, err)
 	}
 
@@ -411,7 +421,7 @@ func (h *stackInstallHandler) delete(ctx context.Context) (reconcile.Result, err
 	}
 
 	// Delete all Stacks created by this StackInstall or ClusterStackInstall
-	if err := h.kube.DeleteAllOf(ctx, &v1alpha1.Stack{}, client.InNamespace(h.ext.GetNamespace()), client.MatchingLabels(labels)); runtimeresource.IgnoreNotFound(err) != nil {
+	if err := h.kube.DeleteAllOf(ctx, &v1alpha1.Stack{}, client.InNamespace(h.ext.GetNamespace()), client.MatchingLabels(labels)); err != nil {
 		return fail(ctx, h.kube, h.ext, err)
 	}
 
@@ -435,13 +445,13 @@ func (h *stackInstallHandler) delete(ctx context.Context) (reconcile.Result, err
 	// Once the Stacks are gone, we can remove install job associated with the StackInstall using hostKube since jobs
 	// were deployed into host Kubernetes cluster.
 	if err := h.hostKube.DeleteAllOf(ctx, &batchv1.Job{}, client.MatchingLabels(labels),
-		client.InNamespace(stackControllerNamespace), client.PropagationPolicy(metav1.DeletePropagationForeground)); runtimeresource.IgnoreNotFound(err) != nil {
+		client.InNamespace(stackControllerNamespace), client.PropagationPolicy(metav1.DeletePropagationForeground)); err != nil {
 		return fail(ctx, h.kube, h.ext, err)
 	}
 
 	// Once the Stacks are gone, we can remove all of the CRDs associated
 	// with the StackInstall
-	if err := h.kube.DeleteAllOf(ctx, &apiextensionsv1beta1.CustomResourceDefinition{}, client.MatchingLabels(labels)); runtimeresource.IgnoreNotFound(err) != nil {
+	if err := h.kube.DeleteAllOf(ctx, &apiextensionsv1beta1.CustomResourceDefinition{}, client.MatchingLabels(labels)); err != nil {
 		return fail(ctx, h.kube, h.ext, err)
 	}
 

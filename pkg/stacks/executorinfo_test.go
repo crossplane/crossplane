@@ -25,6 +25,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -134,7 +135,7 @@ func TestExecutorInfoDiscoverer_Discover(t *testing.T) {
 				},
 			},
 			want: want{
-				ei:  &ExecutorInfo{Image: "foo-image"},
+				ei:  &ExecutorInfo{Image: "foo-image", ImagePullPolicy: v1.PullAlways},
 				err: nil,
 			},
 		},
@@ -150,6 +151,7 @@ func TestExecutorInfoDiscoverer_Discover(t *testing.T) {
 			os.Setenv(PodNameEnvVar, "podName")
 			os.Setenv(PodNamespaceEnvVar, "podNamespace")
 			os.Setenv(PodImageNameEnvVar, tt.imageName)
+			os.Setenv(PodImagePullPolicyEnvVar, "Always")
 
 			got, gotErr := tt.d.Discover(ctx)
 

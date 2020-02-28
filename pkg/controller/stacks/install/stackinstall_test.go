@@ -95,6 +95,14 @@ func withSource(src string) resourceModifier {
 	return func(r v1alpha1.StackInstaller) { r.SetSource(src) }
 }
 
+func withImagePullPolicy(policy corev1.PullPolicy) resourceModifier {
+	return func(r v1alpha1.StackInstaller) { r.SetImagePullPolicy(policy) }
+}
+
+func withImagePullSecrets(secrets []corev1.LocalObjectReference) resourceModifier {
+	return func(r v1alpha1.StackInstaller) { r.SetImagePullSecrets(secrets) }
+}
+
 func resource(rm ...resourceModifier) *v1alpha1.StackInstall {
 	r := &v1alpha1.StackInstall{
 		ObjectMeta: metav1.ObjectMeta{

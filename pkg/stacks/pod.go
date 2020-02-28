@@ -53,24 +53,42 @@ func GetRunningPod(ctx context.Context, kube client.Client) (*v1.Pod, error) {
 	return pod, err
 }
 
-// GetContainerImage will get the container image for the container with the given name in the
-// given pod.
-func GetContainerImage(pod *v1.Pod, name string) (string, error) {
-	return GetSpecContainerImage(pod.Spec, name, false)
+// GetContainerImage will get the container image for the container with the
+// given name in the given pod.
+func GetContainerImage(pod *v1.Pod, name string, initContainer bool) (string, error) {
+	c, err := GetSpecContainer(pod.Spec, name, initContainer)
+
+	if err != nil {
+		return "", err
+	}
+
+	return c.Image, nil
 }
 
-// GetSpecContainerImage will get the container image for the container with the given name in the
-// given pod spec.
-func GetSpecContainerImage(spec v1.PodSpec, name string, initContainer bool) (string, error) {
+// GetContainerImagePullPolicy will get the container image pull policy for the
+// container with the given name in the given pod.
+func GetContainerImagePullPolicy(pod *v1.Pod, name string, initContainer bool) (v1.PullPolicy, error) {
+	c, err := GetSpecContainer(pod.Spec, name, initContainer)
+
+	if err != nil {
+		return v1.PullPolicy(""), err
+	}
+
+	return c.ImagePullPolicy, nil
+}
+
+// GetSpecContainer will get the container with the given name in the given
+// pod spec.
+func GetSpecContainer(spec v1.PodSpec, name string, initContainer bool) (v1.Container, error) {
 	containers := spec.Containers
 	if initContainer {
 		containers = spec.InitContainers
 	}
 	image, err := GetMatchingContainer(containers, name)
 	if err != nil {
-		return "", err
+		return v1.Container{}, err
 	}
-	return image.Image, nil
+	return image, nil
 }
 
 // GetMatchingContainer returns the container from the given set of containers that matches the

@@ -2784,6 +2784,22 @@ spec:
                   - name
                   - spec
                   type: object
+                imagePullPolicy:
+                  type: string
+                imagePullSecrets:
+                  items:
+                    properties:
+                      name:
+                        type: string
+                    type: object
+                  type: array
+                serviceAccount:
+                  properties:
+                    annotations:
+                      additionalProperties:
+                        type: string
+                      type: object
+                  type: object
               type: object
             customresourcedefinitions:
               items:
@@ -2799,8 +2815,24 @@ spec:
                 properties:
                   crd:
                     type: string
+                  imagePullPolicy:
+                    type: string
+                  imagePullSecrets:
+                    items:
+                      properties:
+                        name:
+                          type: string
+                      type: object
+                    type: array
                   package:
                     type: string
+                  serviceAccount:
+                    properties:
+                      annotations:
+                        additionalProperties:
+                          type: string
+                        type: object
+                    type: object
                   source:
                     type: string
                 type: object

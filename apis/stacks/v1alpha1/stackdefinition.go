@@ -27,11 +27,9 @@ import (
 
 // StackDefinitionSpec defines the desired state of StackDefinition
 type StackDefinitionSpec struct {
-	AppMetadataSpec `json:",inline"`
-	CRDs            CRDList         `json:"customresourcedefinitions,omitempty"`
-	Controller      ControllerSpec  `json:"controller,omitempty"`
-	Permissions     PermissionsSpec `json:"permissions,omitempty"`
-	Behavior        Behavior        `json:"behavior,omitempty"`
+	StackSpec `json:",inline"`
+
+	Behavior Behavior `json:"behavior,omitempty"`
 }
 
 // StackDefinitionSource is the stack image which this stack configuration is from.
