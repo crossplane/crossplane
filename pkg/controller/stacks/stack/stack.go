@@ -592,13 +592,12 @@ func (h *stackHandler) prepareDeployment(d *apps.Deployment) {
 	d.Spec.Selector = &metav1.LabelSelector{MatchLabels: matchLabels}
 	d.Spec.Template.Spec.ImagePullSecrets = h.ext.Spec.Controller.ImagePullSecrets
 
-	if policy := h.ext.Spec.Controller.ImagePullPolicy; policy != "" {
-		for i := range d.Spec.Template.Spec.InitContainers {
-			d.Spec.Template.Spec.InitContainers[i].ImagePullPolicy = policy
-		}
-		for i := range d.Spec.Template.Spec.Containers {
-			d.Spec.Template.Spec.Containers[i].ImagePullPolicy = policy
-		}
+	policy := h.ext.Spec.Controller.ImagePullPolicy
+	for i := range d.Spec.Template.Spec.InitContainers {
+		d.Spec.Template.Spec.InitContainers[i].ImagePullPolicy = policy
+	}
+	for i := range d.Spec.Template.Spec.Containers {
+		d.Spec.Template.Spec.Containers[i].ImagePullPolicy = policy
 	}
 }
 

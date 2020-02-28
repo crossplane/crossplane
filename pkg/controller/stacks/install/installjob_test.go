@@ -51,12 +51,13 @@ const (
 	podLogOutputMalformed = `)(&not valid yaml?()!`
 	podLogOutput          = crdRaw + "\n" + stackRaw
 	stackInstallSource    = "example.host"
+	crdName               = "mytypes.samples.upbound.io"
 
 	crdRaw = `---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  name: mytypes.samples.upbound.io
+  name: ` + crdName + `
 spec:
   group: samples.upbound.io
   names:
@@ -67,6 +68,109 @@ spec:
   scope: Namespaced
   version: v1alpha1
 `
+	stackDefinitionRaw = `---
+apiVersion: stacks.crossplane.io/v1alpha1
+kind: StackDefinition
+metadata:
+  creationTimestamp: null
+spec:
+  behavior:
+    crd:
+      apiVersion: samples.upbound.io/v1alpha1
+      kind: Mytype
+    engine:
+      type: helm3
+    source:
+      image: crossplane/sample-stack:latest
+      path: helm-chart
+  company: Upbound
+  controller:
+    deployment:
+      name: crossplane-sample-stack
+      spec:
+        selector: {}
+        strategy: {}
+        template:
+          metadata:
+            creationTimestamp: null
+          spec:
+            containers:
+            - args:
+              - --resources-dir
+              - /behaviors
+              - --stack-definition-namespace
+              - $(SD_NAMESPACE)
+              - --stack-definition-name
+              - $(SD_NAME)
+              command:
+              - /manager
+              image: crossplane/templating-controller:v0.2.1
+              name: stack-behavior-manager
+              resources: {}
+              volumeMounts:
+              - mountPath: /behaviors
+                name: behaviors
+            initContainers:
+            - command:
+              - cp
+              - -R
+              - helm-chart/.
+              - /behaviors
+              image: crossplane/sample-stack-wordpress:0.1.0
+              name: stack-behavior-copy-to-manager
+              resources: {}
+              volumeMounts:
+              - mountPath: /behaviors
+                name: behaviors
+            restartPolicy: Always
+            volumes:
+            - emptyDir: {}
+              name: behaviors
+  customresourcedefinitions:
+  - apiVersion: samples.upbound.io/v1alpha1
+    kind: Mytype
+  overview: |
+    Markdown describing this sample Crossplane stack project.
+  icons:
+  - base64Data: bW9jay1pY29uLWRh
+    mediatype: image/jpeg
+  keywords:
+  - samples
+  - examples
+  - tutorials
+  license: Apache-2.0
+  maintainers:
+  - email: jared@upbound.io
+    name: Jared Watts
+  owners:
+  - email: bassam@upbound.io
+    name: Bassam Tabbara
+  permissionScope: Namespaced
+  permissions:
+    rules:
+    - apiGroups:
+      - ""
+      resources:
+      - configmaps
+      - events
+      - secrets
+      verbs:
+      - '*'
+    - apiGroups:
+      - samples.upbound.io/v1alpha1
+      resources:
+      - mytypes
+      verbs:
+      - '*'
+  readme: |-
+    ### Readme
+  source: https://github.com/crossplane/sample-stack
+  title: Sample Crossplane Stack
+  version: 0.0.1
+  website: https://upbound.io
+status: {}
+`
+
 	stackRaw = `---
 apiVersion: stacks.crossplane.io/v1alpha1
 kind: Stack
@@ -145,6 +249,116 @@ spec:
   version: 0.0.1
 status:
  conditionedStatus: {}
+`
+
+	// TODO(displague) use crossplane-runtime.pavement to set the
+	// container envs on stackDefinitionRaw instead of copying it here
+	expectedStackDefinitionRaw = `---
+apiVersion: stacks.crossplane.io/v1alpha1
+kind: StackDefinition
+metadata:
+  creationTimestamp: null
+spec:
+  behavior:
+    crd:
+      apiVersion: samples.upbound.io/v1alpha1
+      kind: Mytype
+    engine:
+      type: helm3
+    source:
+      image: crossplane/sample-stack:latest
+      path: helm-chart
+  company: Upbound
+  controller:
+    deployment:
+      name: crossplane-sample-stack
+      spec:
+        selector: {}
+        strategy: {}
+        template:
+          metadata:
+            creationTimestamp: null
+          spec:
+            containers:
+            - args:
+              - --resources-dir
+              - /behaviors
+              - --stack-definition-namespace
+              - $(SD_NAMESPACE)
+              - --stack-definition-name
+              - $(SD_NAME)
+              command:
+              - /manager
+              env:
+                - name: SD_NAMESPACE
+                  value: cool-namespace
+                - name: SD_NAME
+                  value: cool-stackinstall
+              image: crossplane/templating-controller:v0.2.1
+              name: stack-behavior-manager
+              resources: {}
+              volumeMounts:
+              - mountPath: /behaviors
+                name: behaviors
+            initContainers:
+            - command:
+              - cp
+              - -R
+              - helm-chart/.
+              - /behaviors
+              image: crossplane/sample-stack-wordpress:0.1.0
+              name: stack-behavior-copy-to-manager
+              resources: {}
+              volumeMounts:
+              - mountPath: /behaviors
+                name: behaviors
+            restartPolicy: Always
+            volumes:
+            - emptyDir: {}
+              name: behaviors
+  customresourcedefinitions:
+  - apiVersion: samples.upbound.io/v1alpha1
+    kind: Mytype
+  overview: |
+    Markdown describing this sample Crossplane stack project.
+  icons:
+  - base64Data: bW9jay1pY29uLWRh
+    mediatype: image/jpeg
+  keywords:
+  - samples
+  - examples
+  - tutorials
+  license: Apache-2.0
+  maintainers:
+  - email: jared@upbound.io
+    name: Jared Watts
+  owners:
+  - email: bassam@upbound.io
+    name: Bassam Tabbara
+  permissionScope: Namespaced
+  permissions:
+    rules:
+    - apiGroups:
+      - ""
+      resources:
+      - configmaps
+      - events
+      - secrets
+      verbs:
+      - '*'
+    - apiGroups:
+      - samples.upbound.io/v1alpha1
+      resources:
+      - mytypes
+      verbs:
+      - '*'
+  readme: |-
+    ### Readme
+  source: https://github.com/crossplane/sample-stack
+  title: Sample Crossplane Stack
+  version: 0.0.1
+  website: https://upbound.io
+status: {}
 `
 )
 
@@ -381,6 +595,37 @@ func TestHandleJobCompletion(t *testing.T) {
 			},
 		},
 		{
+			name: "FailToCreate",
+			jc: &stackInstallJobCompleter{
+				client: &test.MockClient{
+					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error {
+						return errBoom
+					},
+				},
+				podLogReader: &mockPodLogReader{
+					MockGetPodLogReader: func(string, string) (io.ReadCloser, error) {
+						return ioutil.NopCloser(bytes.NewReader([]byte(podLogOutput))), nil
+					},
+				},
+				hostClient: &test.MockClient{
+					MockList: func(ctx context.Context, list runtime.Object, _ ...client.ListOption) error {
+						// LIST pods returns a pod for the job
+						*list.(*corev1.PodList) = corev1.PodList{
+							Items: []corev1.Pod{{ObjectMeta: metav1.ObjectMeta{Name: jobPodName}}},
+						}
+						return nil
+					},
+				},
+				log: logging.NewNopLogger(),
+			},
+			ext: resource(),
+			job: job(),
+			want: want{
+				ext: resource(),
+				err: errors.Wrapf(errBoom, "failed to create object %s from job output %s", crdName, resourceName),
+			},
+		},
+		{
 			name: "HandleJobCompletionSuccess",
 			jc: &stackInstallJobCompleter{
 				client: &test.MockClient{
@@ -483,6 +728,73 @@ func TestHandleJobCompletion(t *testing.T) {
 			job: job(withJobSource(stackInstallSource)),
 			want: want{
 				ext: resource(withSource(stackInstallSource)),
+				err: nil,
+			},
+		},
+		{
+			name: "HandleJobCompletionWithPullPolicy",
+			jc: &stackInstallJobCompleter{
+				client: &test.MockClient{
+					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error {
+						if u, ok := obj.(*unstructured.Unstructured); ok {
+							if isStackObject(u) {
+								s, err := convertToStack(u)
+								if err != nil {
+									return err
+								}
+								d := s.Spec.Controller.Deployment
+								if d == nil {
+									return errors.New("expected Stack controller deployment")
+								}
+								if len(d.Spec.Template.Spec.Containers) == 0 {
+									return errors.New("expected Stack controller deployment containers")
+								}
+								for _, c := range d.Spec.Template.Spec.Containers {
+									if c.ImagePullPolicy != corev1.PullAlways {
+										return errors.New("expected Stack controller deployment containers to have Always pull policy")
+									}
+								}
+							}
+						}
+						return nil
+					},
+					MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
+						// GET stack returns the stack instance that was created from the pod log output
+						*obj.(*v1alpha1.Stack) = v1alpha1.Stack{
+							ObjectMeta: metav1.ObjectMeta{Name: resourceName, Namespace: namespace},
+						}
+						return nil
+					},
+					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+				},
+				hostClient: &test.MockClient{
+					MockList: func(ctx context.Context, list runtime.Object, _ ...client.ListOption) error {
+						// LIST pods returns a pod for the job
+						*list.(*corev1.PodList) = corev1.PodList{
+							Items: []corev1.Pod{{ObjectMeta: metav1.ObjectMeta{Name: jobPodName}}},
+						}
+						return nil
+					},
+				},
+				podLogReader: &mockPodLogReader{
+					MockGetPodLogReader: func(string, string) (io.ReadCloser, error) {
+						return ioutil.NopCloser(bytes.NewReader([]byte(podLogOutput))), nil
+					},
+				},
+				log: logging.NewNopLogger(),
+			},
+			ext: resource(
+				withSource(stackInstallSource),
+				withImagePullPolicy(corev1.PullAlways),
+				withImagePullSecrets([]corev1.LocalObjectReference{{Name: "foo"}}),
+			),
+			job: job(withJobSource(stackInstallSource)),
+			want: want{
+				ext: resource(
+					withSource(stackInstallSource),
+					withImagePullPolicy(corev1.PullAlways),
+					withImagePullSecrets([]corev1.LocalObjectReference{{Name: "foo"}}),
+				),
 				err: nil,
 			},
 		},
@@ -802,7 +1114,7 @@ func TestCreateJobOutputObject(t *testing.T) {
 				withUnstructuredObjLabels(wantedParentLabels),
 			),
 			want: want{
-				err: errors.Wrapf(errBoom, "failed to create object mytypes.samples.upbound.io from job output cool-stackinstall"),
+				err: errors.Wrapf(errBoom, "failed to create object %s from job output %s", crdName, resourceName),
 				obj: unstructuredObj(crdRaw,
 					withUnstructuredObjLabels(wantedParentLabels),
 					withUnstructuredObjLabels(map[string]string{nsLabel(namespace): "true"}),
@@ -842,6 +1154,25 @@ func TestCreateJobOutputObject(t *testing.T) {
 			want: want{
 				err: nil,
 				obj: unstructuredObj(stackRaw,
+					withUnstructuredObjLabels(wantedParentLabels),
+					withUnstructuredObjNamespacedName(types.NamespacedName{Namespace: namespace, Name: resourceName}),
+				),
+			},
+		},
+		{
+			name: "CreateSuccessfulStackDefinition",
+			jobCompleter: &stackInstallJobCompleter{
+				client: &test.MockClient{
+					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error { return nil },
+				},
+				log: logging.NewNopLogger(),
+			},
+			stackInstaller: resource(),
+			job:            job(),
+			obj:            unstructuredObj(stackDefinitionRaw),
+			want: want{
+				err: nil,
+				obj: unstructuredObj(expectedStackDefinitionRaw,
 					withUnstructuredObjLabels(wantedParentLabels),
 					withUnstructuredObjNamespacedName(types.NamespacedName{Namespace: namespace, Name: resourceName}),
 				),
