@@ -465,7 +465,9 @@ type ContributorSpec struct {
 // ControllerSpec defines the controller that implements the logic for a stack,
 // which can come in different flavors.
 type ControllerSpec struct {
-	StackControllerOptions `json:",inline"`
+	// ServiceAccount options allow for changes to the ServiceAccount
+	// the Stack Manager creates for the Stack's controller
+	ServiceAccount *ServiceAccountOptions `json:"serviceAccount,omitempty"`
 
 	Deployment *ControllerDeployment `json:"deployment,omitempty"`
 }

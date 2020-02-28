@@ -80,6 +80,8 @@ var _ reconcile.Reconciler = &Reconciler{}
 // ************************************************************************************************
 type resourceModifier func(*v1alpha1.Stack)
 
+type deploymentSpecModifier func(*apps.DeploymentSpec)
+
 func withFinalizers(finalizers ...string) resourceModifier {
 	return func(r *v1alpha1.Stack) { r.SetFinalizers(finalizers) }
 }
@@ -114,6 +116,25 @@ type saModifier func(*corev1.ServiceAccount)
 
 func withTokenSecret(ref corev1.ObjectReference) saModifier {
 	return func(sa *corev1.ServiceAccount) { sa.Secrets = append(sa.Secrets, ref) }
+}
+
+func withDeploymentPullSecrets(secrets ...string) deploymentSpecModifier {
+	return func(ds *apps.DeploymentSpec) {
+		for i := range secrets {
+			ds.Template.Spec.ImagePullSecrets = append(ds.Template.Spec.ImagePullSecrets, corev1.LocalObjectReference{Name: secrets[i]})
+		}
+	}
+}
+
+func withDeploymentPullPolicy(policy corev1.PullPolicy) deploymentSpecModifier {
+	return func(ds *apps.DeploymentSpec) {
+		for i := range ds.Template.Spec.InitContainers {
+			ds.Template.Spec.InitContainers[i].ImagePullPolicy = policy
+		}
+		for i := range ds.Template.Spec.Containers {
+			ds.Template.Spec.Containers[i].ImagePullPolicy = policy
+		}
+	}
 }
 
 func sa(sm ...saModifier) *corev1.ServiceAccount {
@@ -202,25 +223,67 @@ func (m *mockHandler) delete(ctx context.Context) (reconcile.Result, error) {
 // ************************************************************************************************
 // Default initializer functions
 // ************************************************************************************************
-func defaultControllerSpec() v1alpha1.ControllerSpec {
-	return v1alpha1.ControllerSpec{
+
+func withDeploymentTmplMeta(name, namespace string, labels map[string]string) deploymentSpecModifier {
+	return func(ds *apps.DeploymentSpec) {
+		ds.Template.SetName(name)
+		ds.Template.SetNamespace(namespace)
+		meta.AddLabels(&ds.Template, labels)
+	}
+}
+
+func withDeploymentMatchLabels(labels map[string]string) deploymentSpecModifier {
+	return func(ds *apps.DeploymentSpec) {
+		if ds.Selector.MatchLabels == nil {
+			ds.Selector.MatchLabels = map[string]string{}
+		}
+
+		for k, v := range labels {
+			ds.Selector.MatchLabels[k] = v
+		}
+
+		meta.AddLabels(&ds.Template, labels)
+	}
+}
+
+func withDeploymentContainer(name, image string) deploymentSpecModifier {
+	return func(ds *apps.DeploymentSpec) {
+		ds.Template.Spec.Containers = append(ds.Template.Spec.Containers, corev1.Container{Name: name, Image: image})
+	}
+}
+
+func withDeploymentSA(name string) deploymentSpecModifier {
+	return func(ds *apps.DeploymentSpec) {
+		ds.Template.Spec.ServiceAccountName = name
+	}
+
+}
+func deploymentSpec(dsm ...deploymentSpecModifier) *apps.DeploymentSpec {
+	ds := &apps.DeploymentSpec{Selector: &metav1.LabelSelector{}}
+
+	for _, m := range dsm {
+		m(ds)
+	}
+	return ds
+}
+
+func defaultControllerSpec(dsm ...deploymentSpecModifier) v1alpha1.ControllerSpec {
+	m := append(
+		append([]deploymentSpecModifier{},
+			withDeploymentContainer(controllerContainerName, controllerImageName),
+			withDeploymentSA("some-sa-which-will-be-overridden-with-stack-name"),
+		), dsm...,
+	)
+	ds := deploymentSpec(m...)
+
+	cs := v1alpha1.ControllerSpec{
 		Deployment: &v1alpha1.ControllerDeployment{
 			Name: controllerDeploymentName,
-			Spec: apps.DeploymentSpec{
-				Template: corev1.PodTemplateSpec{
-					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{
-							{
-								Name:  controllerContainerName,
-								Image: controllerImageName,
-							},
-						},
-						ServiceAccountName: "some-sa-which-will-be-overridden-with-stack-name",
-					},
-				},
-			},
+			Spec: *ds,
 		},
 	}
+
+	return cs
 }
 
 func targetNamespace(name string) corev1.Namespace {
@@ -1058,27 +1121,68 @@ func TestProcessDeployment(t *testing.T) {
 						Namespace: namespace,
 						Labels:    stackspkg.ParentLabels(resource(withControllerSpec(defaultControllerSpec()))),
 					},
-					Spec: apps.DeploymentSpec{
-						Selector: &metav1.LabelSelector{
-							MatchLabels: map[string]string{
-								"app": controllerDeploymentName,
-							},
-						},
-						Template: corev1.PodTemplateSpec{
-							ObjectMeta: metav1.ObjectMeta{
-								Labels: map[string]string{
-									"app": controllerDeploymentName,
-								},
-								Name: controllerDeploymentName,
-							},
-							Spec: corev1.PodSpec{
-								ServiceAccountName: resourceName,
-								Containers: []corev1.Container{
-									{Name: controllerContainerName, Image: controllerImageName},
-								},
-							},
-						},
+					Spec: *deploymentSpec(
+						withDeploymentTmplMeta(controllerDeploymentName, "", nil),
+						withDeploymentMatchLabels(map[string]string{"app": controllerDeploymentName}),
+						withDeploymentSA(resourceName),
+						withDeploymentContainer(controllerContainerName, controllerImageName),
+					),
+				},
+				controllerRef: &corev1.ObjectReference{
+					Name:       controllerDeploymentName,
+					Namespace:  namespace,
+					Kind:       "Deployment",
+					APIVersion: "apps/v1",
+				},
+			},
+		},
+		{
+			name:       "SuccessPullPolicy",
+			r:          resource(withControllerSpec(defaultControllerSpec(withDeploymentPullPolicy(corev1.PullAlways)))),
+			clientFunc: fake.NewFakeClient,
+			want: want{
+				err: nil,
+				d: &apps.Deployment{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      controllerDeploymentName,
+						Namespace: namespace,
+						Labels:    stackspkg.ParentLabels(resource(withControllerSpec(defaultControllerSpec()))),
 					},
+					Spec: *deploymentSpec(
+						withDeploymentTmplMeta(controllerDeploymentName, "", nil),
+						withDeploymentMatchLabels(map[string]string{"app": controllerDeploymentName}),
+						withDeploymentSA(resourceName),
+						withDeploymentContainer(controllerContainerName, controllerImageName),
+						withDeploymentPullPolicy(corev1.PullAlways),
+					),
+				},
+				controllerRef: &corev1.ObjectReference{
+					Name:       controllerDeploymentName,
+					Namespace:  namespace,
+					Kind:       "Deployment",
+					APIVersion: "apps/v1",
+				},
+			},
+		},
+		{
+			name:       "SuccessPullSecrets",
+			r:          resource(withControllerSpec(defaultControllerSpec(withDeploymentPullSecrets("foo")))),
+			clientFunc: fake.NewFakeClient,
+			want: want{
+				err: nil,
+				d: &apps.Deployment{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      controllerDeploymentName,
+						Namespace: namespace,
+						Labels:    stackspkg.ParentLabels(resource(withControllerSpec(defaultControllerSpec()))),
+					},
+					Spec: *deploymentSpec(
+						withDeploymentTmplMeta(controllerDeploymentName, "", nil),
+						withDeploymentMatchLabels(map[string]string{"app": controllerDeploymentName}),
+						withDeploymentSA(resourceName),
+						withDeploymentContainer(controllerContainerName, controllerImageName),
+						withDeploymentPullSecrets("foo"),
+					),
 				},
 				controllerRef: &corev1.ObjectReference{
 					Name:       controllerDeploymentName,
