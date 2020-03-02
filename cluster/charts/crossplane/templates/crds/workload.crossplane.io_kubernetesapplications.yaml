@@ -9,7 +9,7 @@ metadata:
   name: kubernetesapplications.workload.crossplane.io
 spec:
   additionalPrinterColumns:
-  - JSONPath: .status.targetRef.name
+  - JSONPath: .spec.targetRef.name
     name: CLUSTER
     type: string
   - JSONPath: .status.state
@@ -28,7 +28,8 @@ spec:
     plural: kubernetesapplications
     singular: kubernetesapplication
   scope: Namespaced
-  subresources: {}
+  subresources:
+    status: {}
   validation:
     openAPIV3Schema:
       description: A KubernetesApplication defines an application deployed by Crossplane
@@ -125,6 +126,15 @@ spec:
                               type: string
                           type: object
                         type: array
+                      targetRef:
+                        description: Target to which this application has been scheduled.
+                        properties:
+                          name:
+                            description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                            type: string
+                        required:
+                        - name
+                        type: object
                       template:
                         description: A Template for a Kubernetes resource to be submitted
                           to the KubernetesCluster to which this application resource
@@ -137,6 +147,15 @@ spec:
                     type: object
                 type: object
               type: array
+            targetRef:
+              description: Target to which this application has been scheduled.
+              properties:
+                name:
+                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                  type: string
+              required:
+              - name
+              type: object
             targetSelector:
               description: TargetSelector selects the targets to which this application
                 may be scheduled. Leave both match labels and expressions empty to
@@ -185,7 +204,6 @@ spec:
           required:
           - resourceSelector
           - resourceTemplates
-          - targetSelector
           type: object
         status:
           description: KubernetesApplicationStatus represents the observed state of
@@ -241,15 +259,6 @@ spec:
                 desired resources that have been successfully submitted to their scheduled
                 Kubernetes cluster.
               type: integer
-            targetRef:
-              description: Target to which this application has been scheduled.
-              properties:
-                name:
-                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
-                  type: string
-              required:
-              - name
-              type: object
           type: object
       type: object
   version: v1alpha1

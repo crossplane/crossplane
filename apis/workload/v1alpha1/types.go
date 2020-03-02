@@ -61,7 +61,12 @@ type KubernetesApplicationSpec struct {
 	// TargetSelector selects the targets to which this application may be
 	// scheduled. Leave both match labels and expressions empty to match any
 	// target.
-	TargetSelector *metav1.LabelSelector `json:"targetSelector"`
+	// +optional
+	TargetSelector *metav1.LabelSelector `json:"targetSelector,omitempty"`
+
+	// Target to which this application has been scheduled.
+	// +optional
+	Target *KubernetesTargetReference `json:"targetRef,omitempty"`
 
 	// TODO(negz): Use a validation webhook to ensure the below templates have
 	// unique names.
@@ -95,9 +100,6 @@ type KubernetesApplicationStatus struct {
 	// State of the application.
 	State KubernetesApplicationState `json:"state,omitempty"`
 
-	// Target to which this application has been scheduled.
-	Target *KubernetesTargetReference `json:"targetRef,omitempty"`
-
 	// Desired resources of this application, i.e. the number of resources
 	// that match this application's resource selector.
 	DesiredResources int `json:"desiredResources,omitempty"`
@@ -112,7 +114,8 @@ type KubernetesApplicationStatus struct {
 
 // A KubernetesApplication defines an application deployed by Crossplane to a
 // Kubernetes cluster, i.e. a portable KubernetesCluster resource claim.
-// +kubebuilder:printcolumn:name="CLUSTER",type="string",JSONPath=".status.targetRef.name"
+// +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="CLUSTER",type="string",JSONPath=".spec.targetRef.name"
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.state"
 // +kubebuilder:printcolumn:name="DESIRED",type="integer",JSONPath=".status.desiredResources"
 // +kubebuilder:printcolumn:name="SUBMITTED",type="integer",JSONPath=".status.submittedResources"
@@ -161,6 +164,10 @@ type KubernetesApplicationResourceSpec struct {
 	// metadata.
 	Template *unstructured.Unstructured `json:"template"`
 
+	// Target to which this application has been scheduled.
+	// +optional
+	Target *KubernetesTargetReference `json:"targetRef,omitempty"`
+
 	// Secrets upon which this application resource depends. These secrets will
 	// be propagated to the Kubernetes cluster to which this application is
 	// scheduled.
@@ -198,9 +205,6 @@ type KubernetesApplicationResourceStatus struct {
 	// State of the application.
 	State KubernetesApplicationResourceState `json:"state,omitempty"`
 
-	// Target to which this application has been scheduled.
-	Target *KubernetesTargetReference `json:"targetRef,omitempty"`
-
 	// Remote status of the resource templated by this application resource.
 	Remote *RemoteStatus `json:"remote,omitempty"`
 }
@@ -210,9 +214,10 @@ type KubernetesApplicationResourceStatus struct {
 // A KubernetesApplicationResource is a resource of a Kubernetes application.
 // Each resource templates a single Kubernetes resource to be deployed to its
 // scheduled KubernetesCluster.
+// +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="TEMPLATE-KIND",type="string",JSONPath=".spec.template.kind"
 // +kubebuilder:printcolumn:name="TEMPLATE-NAME",type="string",JSONPath=".spec.template.metadata.name"
-// +kubebuilder:printcolumn:name="CLUSTER",type="string",JSONPath=".status.targetRef.name"
+// +kubebuilder:printcolumn:name="CLUSTER",type="string",JSONPath=".spec.targetRef.name"
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.state"
 type KubernetesApplicationResource struct {
 	metav1.TypeMeta   `json:",inline"`
