@@ -122,6 +122,12 @@ func prepareInstallJob(p prepareInstallJobParams) *batchv1.Job {
 									MountPath: "/ext-pkg",
 								},
 							},
+							Env: []v1.EnvVar{
+								{
+									Name:  stacks.StackImageEnv,
+									Value: p.img,
+								},
+							},
 						},
 					},
 					Volumes: []corev1.Volume{

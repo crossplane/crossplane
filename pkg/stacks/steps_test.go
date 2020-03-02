@@ -18,10 +18,14 @@ package stacks
 
 import (
 	"testing"
+
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
 )
 
 func TestIconStep(t *testing.T) {
-	sp := NewStackPackage("/", "crossplane/ts-controller:0.0.0")
+	sp := NewStackPackage("/", "crossplane/ts-controller:0.0.0", logging.NewLogrLogger(zap.Logger(true)))
 	step := iconStep(sp)
 	step("/icon.png", []byte("base64me"))
 

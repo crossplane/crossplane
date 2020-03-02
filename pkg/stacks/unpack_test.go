@@ -19,6 +19,7 @@ package stacks
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -26,7 +27,9 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	"github.com/spf13/afero"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 	"github.com/crossplane/crossplane/apis/stacks/v1alpha1"
 	"github.com/crossplane/crossplane/pkg/stacks/walker"
@@ -973,8 +976,8 @@ var (
 	_ StackPackager = &StackPackage{}
 )
 
-func simpleAppFile(permissionScope, packageType string) string {
-	return fmt.Sprintf(`# Human readable title of application.
+func simpleAppFile(permissionScope, packageType string, includeVersion bool) string {
+	appFile := `# Human readable title of application.
 title: Sample Crossplane Stack
 
 # Markdown description of this entry
@@ -983,11 +986,6 @@ readme: |
 
 overview: text overview
 overviewShort: short text overview
-
-# Version of project (optional)
-# If omitted the version will be filled with the docker tag
-# If set it must match the docker tag
-version: 0.0.1
 
 # Maintainer names and emails.
 maintainers:
@@ -1023,7 +1021,18 @@ permissionScope: %q
 
 # License SPDX name: https://spdx.org/licenses/
 license: Apache-2.0
-`, packageType, permissionScope)
+`
+
+	if includeVersion {
+		appFile += `
+# Version of project (optional)
+# If omitted the version will be filled with the docker tag
+# If set it must match the docker tag
+version: 0.0.1
+    `
+	}
+
+	return fmt.Sprintf(appFile, packageType, permissionScope)
 }
 
 func simpleCRDFile(singular string) string {
@@ -1082,10 +1091,11 @@ func TestUnpack(t *testing.T) {
 	}
 
 	tests := []struct {
-		name string
-		fs   afero.Fs
-		root string
-		want want
+		name       string
+		stackImage string
+		fs         afero.Fs
+		root       string
+		want       want
 	}{
 		{
 			// unpack should fail to find the install.yaml file
@@ -1104,7 +1114,7 @@ func TestUnpack(t *testing.T) {
 				fs := afero.NewMemMapFs()
 				fs.MkdirAll("ext-dir", 0755)
 				afero.WriteFile(fs, "ext-dir/icon.jpg", []byte("mock-icon-data"), 0644)
-				afero.WriteFile(fs, "ext-dir/app.yaml", []byte(simpleAppFile("Namespaced", "Application")), 0644)
+				afero.WriteFile(fs, "ext-dir/app.yaml", []byte(simpleAppFile("Namespaced", "Application", true)), 0644)
 				afero.WriteFile(fs, "ext-dir/install.yaml", []byte(simpleDeploymentInstallFile), 0644)
 				crdDir := "ext-dir/resources/samples.upbound.io/mytype/v1alpha1"
 				fs.MkdirAll(crdDir, 0755)
@@ -1115,12 +1125,29 @@ func TestUnpack(t *testing.T) {
 			want: want{output: expectedSimpleDeploymentStackOutput, err: nil},
 		},
 		{
+			name: "ReadVersionFromStackImage",
+			fs: func() afero.Fs {
+				fs := afero.NewMemMapFs()
+				fs.MkdirAll("ext-dir", 0755)
+				afero.WriteFile(fs, "ext-dir/icon.jpg", []byte("mock-icon-data"), 0644)
+				afero.WriteFile(fs, "ext-dir/app.yaml", []byte(simpleAppFile("Namespaced", "Application", false)), 0644)
+				afero.WriteFile(fs, "ext-dir/install.yaml", []byte(simpleDeploymentInstallFile), 0644)
+				crdDir := "ext-dir/resources/samples.upbound.io/mytype/v1alpha1"
+				fs.MkdirAll(crdDir, 0755)
+				afero.WriteFile(fs, filepath.Join(crdDir, "mytype.v1alpha1.crd.yaml"), []byte(simpleCRDFile("mytype")), 0644)
+				return fs
+			}(),
+			root:       "ext-dir",
+			want:       want{output: expectedSimpleDeploymentStackOutput, err: nil},
+			stackImage: "crossplane/sample-stack:0.0.1",
+		},
+		{
 			name: "SimpleBehaviorStack",
 			fs: func() afero.Fs {
 				fs := afero.NewMemMapFs()
 				fs.MkdirAll("ext-dir", 0755)
 				afero.WriteFile(fs, "ext-dir/icon.jpg", []byte("mock-icon-data"), 0644)
-				afero.WriteFile(fs, "ext-dir/app.yaml", []byte(simpleAppFile("Namespaced", "Application")), 0644)
+				afero.WriteFile(fs, "ext-dir/app.yaml", []byte(simpleAppFile("Namespaced", "Application", true)), 0644)
 				afero.WriteFile(fs, "ext-dir/behavior.yaml", []byte(simpleBehaviorFile), 0644)
 				crdDir := "ext-dir/resources/samples.upbound.io/mytype/v1alpha1"
 				fs.MkdirAll(crdDir, 0755)
@@ -1151,7 +1178,7 @@ func TestUnpack(t *testing.T) {
 				}
 
 				afero.WriteFile(fs, "ext-dir/icon.jpg", []byte("mock-icon-data"), 0644)
-				afero.WriteFile(fs, "ext-dir/app.yaml", []byte(simpleAppFile("Namespaced", "Application")), 0644)
+				afero.WriteFile(fs, "ext-dir/app.yaml", []byte(simpleAppFile("Namespaced", "Application", true)), 0644)
 				afero.WriteFile(fs, "ext-dir/install.yaml", []byte(simpleDeploymentInstallFile), 0644)
 				afero.WriteFile(fs, filepath.Join(groupDir, "group.yaml"), []byte(simpleGroupFile), 0644)
 				afero.WriteFile(fs, filepath.Join(groupDir, "ui-schema.yaml"), []byte(simpleUIFile("group")), 0644)
@@ -1176,7 +1203,10 @@ func TestUnpack(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := &bytes.Buffer{}
 			rd := &walker.ResourceDir{Base: tt.root, Walker: afero.Afero{Fs: tt.fs}}
-			err := Unpack(rd, got, tt.root, "Namespaced", "crossplane/ts-controller:0.0.0")
+
+			os.Setenv(StackImageEnv, tt.stackImage)
+			err := Unpack(rd, got, tt.root, "Namespaced", "crossplane/ts-controller:0.0.0", logging.NewLogrLogger(zap.Logger(true)))
+			os.Unsetenv(StackImageEnv)
 
 			if diff := cmp.Diff(tt.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("Unpack() -want error, +got error:\n%s", diff)
@@ -1222,7 +1252,7 @@ func TestUnpackCluster(t *testing.T) {
 				}
 
 				afero.WriteFile(fs, "ext-dir/icon.jpg", []byte("mock-icon-data"), 0644)
-				afero.WriteFile(fs, "ext-dir/app.yaml", []byte(simpleAppFile("Cluster", "Provider")), 0644)
+				afero.WriteFile(fs, "ext-dir/app.yaml", []byte(simpleAppFile("Cluster", "Provider", true)), 0644)
 				afero.WriteFile(fs, "ext-dir/install.yaml", []byte(simpleDeploymentInstallFile), 0644)
 				afero.WriteFile(fs, filepath.Join(groupDir, "group.yaml"), []byte(simpleGroupFile), 0644)
 				afero.WriteFile(fs, filepath.Join(groupDir, "ui-schema.yaml"), []byte(simpleUIFile("group")), 0644)
@@ -1248,7 +1278,7 @@ func TestUnpackCluster(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := &bytes.Buffer{}
 			rd := &walker.ResourceDir{Base: tt.root, Walker: afero.Afero{Fs: tt.fs}}
-			err := Unpack(rd, got, tt.root, "Cluster", "crossplane/ts-controller:0.0.0")
+			err := Unpack(rd, got, tt.root, "Cluster", "crossplane/ts-controller:0.0.0", logging.NewLogrLogger(zap.Logger(true)))
 
 			if diff := cmp.Diff(tt.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("Unpack() -want error, +got error:\n%s", diff)

@@ -20,10 +20,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 
+	"github.com/docker/distribution/reference"
 	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
@@ -34,6 +36,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane/apis/stacks/v1alpha1"
 	"github.com/crossplane/crossplane/pkg/stacks/walker"
 )
@@ -52,6 +55,11 @@ const (
 	// StackDefinitionNameEnv is an environment variable used in the
 	// StackDefinition controllers deployment to find the StackDefinition
 	StackDefinitionNameEnv = "SD_NAME"
+
+	// StackImageEnv is an environment variable used by the unpack job to select
+	// the stack version if there is no version provided in the application
+	// metadata.
+	StackImageEnv = "STACK_IMAGE"
 
 	// iconFileNamePattern is the pattern used when walking the stack package and looking for icon files.
 	// Icon files that are for a single resource can be prefixed with the kind of the resource, e.g.,
@@ -171,6 +179,8 @@ type StackPackage struct {
 
 	// defaultTmplCtrlImage is the Template Controller image to handle template stacks
 	defaultTmplCtrlImage string
+
+	log logging.Logger
 }
 
 // GetDefaultTmplCtrlImage returns the default templating controller image path.
@@ -219,6 +229,21 @@ func (sp *StackPackage) IsNamespaced() bool {
 // SetApp sets the Stack's App metadata
 func (sp *StackPackage) SetApp(app v1alpha1.AppMetadataSpec) {
 	app.DeepCopyInto(&sp.Stack.Spec.AppMetadataSpec)
+
+	if sp.Stack.Spec.AppMetadataSpec.Version == "" {
+		iv := os.Getenv(StackImageEnv)
+		sp.log.Debug("No stack version found in app metadata; reading version from environment instead", "versionFromEnvironment", iv)
+
+		ref, err := reference.Parse(iv)
+
+		if err != nil {
+			sp.log.Debug("Unable to parse image reference. Ignoring image reference.", "imageReference", iv, "err", err)
+		} else if tagged, ok := ref.(reference.Tagged); ok {
+			sp.Stack.Spec.AppMetadataSpec.Version = tagged.Tag()
+		} else {
+			sp.log.Debug("No tag found on image reference. Ignoring image reference.", "imageReference", iv)
+		}
+	}
 
 	sp.appSet = true
 }
@@ -483,7 +508,7 @@ func (sp *StackPackage) applyRules() error {
 }
 
 // NewStackPackage returns a StackPackage with maps created
-func NewStackPackage(baseDir, tmplCtrlImage string) *StackPackage {
+func NewStackPackage(baseDir, tmplCtrlImage string, log logging.Logger) *StackPackage {
 	// create a Stack record and populate it with the relevant package contents
 	sv, sk := v1alpha1.StackGroupVersionKind.ToAPIVersionAndKind()
 	sdv, sdk := v1alpha1.StackDefinitionGroupVersionKind.ToAPIVersionAndKind()
@@ -507,6 +532,7 @@ func NewStackPackage(baseDir, tmplCtrlImage string) *StackPackage {
 		UISchemas:            map[string]string{},
 		baseDir:              baseDir,
 		defaultTmplCtrlImage: tmplCtrlImage,
+		log:                  log,
 	}
 
 	return sp
@@ -519,8 +545,9 @@ func NewStackPackage(baseDir, tmplCtrlImage string) *StackPackage {
 //
 // baseDir is expected to be an absolute path, i.e. have a root to the path,
 // at the very least "/".
-func Unpack(rw walker.ResourceWalker, out io.StringWriter, baseDir, permissionScope string, tsControllerImage string) error {
-	sp := NewStackPackage(filepath.Clean(baseDir), tsControllerImage)
+func Unpack(rw walker.ResourceWalker, out io.StringWriter, baseDir, permissionScope string, tsControllerImage string, log logging.Logger) error {
+	l := log.WithValues("operation", "unpack")
+	sp := NewStackPackage(filepath.Clean(baseDir), tsControllerImage, l)
 
 	rw.AddStep(appFileName, appStep(sp))
 	rw.AddStep(behaviorFileName, behaviorStep(sp))
