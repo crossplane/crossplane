@@ -2732,15 +2732,6 @@ spec:
                   - name
                   - spec
                   type: object
-                imagePullPolicy:
-                  type: string
-                imagePullSecrets:
-                  items:
-                    properties:
-                      name:
-                        type: string
-                    type: object
-                  type: array
                 serviceAccount:
                   properties:
                     annotations:
