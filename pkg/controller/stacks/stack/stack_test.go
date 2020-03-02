@@ -44,6 +44,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
+
 	"github.com/crossplane/crossplane/apis/stacks"
 	"github.com/crossplane/crossplane/apis/stacks/v1alpha1"
 	"github.com/crossplane/crossplane/pkg/controller/stacks/hosted"
@@ -379,6 +380,8 @@ func TestCreate(t *testing.T) {
 					switch obj := obj.(type) {
 					case *corev1.Namespace:
 						*(obj) = targetNamespace(key.Name)
+					case *apps.Deployment:
+						return kerrors.NewNotFound(schema.GroupResource{Group: "apps", Resource: "Deployment"}, key.String())
 					default:
 						return errors.New("unexpected client GET call")
 					}
@@ -958,6 +961,13 @@ func TestSyncSATokenSecret(t *testing.T) {
 // ************************************************************************************************
 func TestProcessDeployment(t *testing.T) {
 	errBoom := errors.New("boom")
+	testDep := &apps.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      resourceName,
+			Namespace: namespace,
+			UID:       uid,
+		},
+	}
 
 	type want struct {
 		err           error
@@ -985,10 +995,38 @@ func TestProcessDeployment(t *testing.T) {
 			},
 		},
 		{
+			name: "GetDeploymentSuccess",
+			r:    resource(withControllerSpec(defaultControllerSpec())),
+			clientFunc: func(initObjs ...runtime.Object) client.Client {
+				return &test.MockClient{
+					MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
+						switch o := obj.(type) {
+						case *apps.Deployment:
+							testDep.DeepCopyInto(o)
+							return nil
+						default:
+							return errors.New("unexpected client GET call")
+						}
+					},
+				}
+			},
+			want: want{
+				controllerRef: meta.ReferenceTo(testDep, apps.SchemeGroupVersion.WithKind("Deployment")),
+			},
+		},
+		{
 			name: "CreateDeploymentError",
 			r:    resource(withControllerSpec(defaultControllerSpec())),
 			clientFunc: func(initObjs ...runtime.Object) client.Client {
 				return &test.MockClient{
+					MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
+						switch obj.(type) {
+						case *apps.Deployment:
+							return kerrors.NewNotFound(schema.GroupResource{Group: "apps", Resource: "Deployment"}, key.String())
+						default:
+							return errors.New("unexpected client GET call")
+						}
+					},
 					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error {
 						return errBoom
 					},
@@ -1006,6 +1044,14 @@ func TestProcessDeployment(t *testing.T) {
 			clientFunc: fake.NewFakeClient,
 			hostClientFunc: func() client.Client {
 				return &test.MockClient{
+					MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
+						switch obj.(type) {
+						case *apps.Deployment:
+							return kerrors.NewNotFound(schema.GroupResource{Group: "apps", Resource: "Deployment"}, key.String())
+						default:
+							return errors.New("unexpected client GET call")
+						}
+					},
 					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error {
 						return errBoom
 					},
@@ -1027,6 +1073,7 @@ func TestProcessDeployment(t *testing.T) {
 			clientFunc: fake.NewFakeClient,
 			hostClientFunc: func() client.Client {
 				return &test.MockClient{
+					MockGet: test.NewMockGetFn(nil),
 					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error {
 						if _, ok := obj.(*corev1.Secret); ok {
 							return errBoom
