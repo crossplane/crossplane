@@ -7,6 +7,9 @@ This document aims to provide details about the experience and implementation fo
 
 ## Revisions
 
+Stack packages include the version of this document that they follow within
+their primary metadata file, currently the `apiVersion` field of `/.registry/app.yaml`.
+
 * 1.1
   * Renamed Extensions concept to Stacks (`Stack` code references are unaffected) [#571](https://github.com/crossplane/crossplane/issues/571)
   * Added additional Questions and Open Issues
@@ -274,6 +277,14 @@ An example project that processes the artifacts of Kubebuilder 2 to create a Sta
 ### Example `app.yaml`
 
 ```yaml
+# This example conforms to version 0.1.0 of the package format
+apiVersion: 0.1.0
+
+# Version of project (optional)
+# If omitted the version will be filled with the docker tag
+# If set it must match the docker tag
+version: 0.0.1
+
 # Human readable title of application.
 title: Sample Crossplane Stack
 
@@ -284,11 +295,6 @@ overview: |
 # Markdown description of this entry
 readme: |
  *Markdown* describing the sample Crossplane Stack project in more detail
-
-# Version of project (optional)
-# If omitted the version will be filled with the docker tag
-# If set it must match the docker tag
-version: 0.0.1
 
 # Maintainer names and emails.
 maintainers:
