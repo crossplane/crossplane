@@ -193,8 +193,6 @@ func (c *remoteCluster) sync(ctx context.Context, ar *v1alpha1.KubernetesApplica
 func (c *remoteCluster) delete(ctx context.Context, ar *v1alpha1.KubernetesApplicationResource, secrets []corev1.Secret) (v1alpha1.KubernetesApplicationResourceState, error) {
 	// Our CRD requires template to be specified, but just in case...
 	if ar.Spec.Template == nil {
-		// ar.Status.State = v1alpha1.KubernetesApplicationResourceStateFailed
-		// ar.Status.SetConditions(runtimev1alpha1.ReconcileError(errMissingTemplate))
 		return v1alpha1.KubernetesApplicationResourceStateFailed, errMissingTemplate
 	}
 
@@ -206,8 +204,6 @@ func (c *remoteCluster) delete(ctx context.Context, ar *v1alpha1.KubernetesAppli
 	setRemoteController(ar, template)
 
 	if err := c.unstructured.delete(ctx, template); err != nil {
-		// ar.Status.State = v1alpha1.KubernetesApplicationResourceStateFailed
-		// ar.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
 		return v1alpha1.KubernetesApplicationResourceStateFailed, err
 	}
 
@@ -218,8 +214,6 @@ func (c *remoteCluster) delete(ctx context.Context, ar *v1alpha1.KubernetesAppli
 		setRemoteController(ar, template)
 
 		if err := c.secret.delete(ctx, template); err != nil {
-			// ar.Status.State = v1alpha1.KubernetesApplicationResourceStateFailed
-			// ar.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
 			return v1alpha1.KubernetesApplicationResourceStateFailed, err
 		}
 	}
@@ -473,6 +467,9 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	}
 
 	meta.AddFinalizer(ar, finalizerName)
+	if err := r.kube.Update(ctx, ar); err != nil {
+		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrapf(err, "cannot update %s %s", v1alpha1.KubernetesApplicationResourceKind, req.NamespacedName)
+	}
 
 	cluster, err := r.connect(ctx, ar)
 	if err != nil {
@@ -495,7 +492,6 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			ar.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
 			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrapf(r.kube.Status().Update(ctx, ar), "cannot update status %s %s", v1alpha1.KubernetesApplicationResourceKind, req.NamespacedName)
 		}
-
 		meta.RemoveFinalizer(ar, finalizerName)
 		return reconcile.Result{Requeue: false}, errors.Wrapf(r.kube.Update(ctx, ar), "cannot update %s %s", v1alpha1.KubernetesApplicationResourceKind, req.NamespacedName)
 	}

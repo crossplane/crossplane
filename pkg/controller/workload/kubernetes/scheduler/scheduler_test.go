@@ -386,8 +386,21 @@ func TestReconcile(t *testing.T) {
 						*obj.(*workloadv1alpha1.KubernetesApplication) = *(kubeApp())
 						return nil
 					},
-					MockUpdate:       test.NewMockUpdateFn(nil),
-					MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
+					MockUpdate: test.NewMockUpdateFn(nil),
+					MockStatusUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						got := obj.(*workloadv1alpha1.KubernetesApplication)
+
+						want := kubeApp(
+							withConditions(runtimev1alpha1.ReconcileSuccess()),
+							withState(workloadv1alpha1.KubernetesApplicationStateScheduled),
+						)
+
+						if diff := cmp.Diff(want, got); diff != "" {
+							return errors.Errorf("MockUpdate: -want, +got: %s", diff)
+						}
+
+						return nil
+					},
 				},
 				scheduler: &mockScheduler{mockSchedule: newMockscheduleFn(nil)},
 				log:       logging.NewNopLogger(),
@@ -404,7 +417,17 @@ func TestReconcile(t *testing.T) {
 						*obj.(*workloadv1alpha1.KubernetesApplication) = *(kubeApp())
 						return nil
 					},
-					MockUpdate:       test.NewMockUpdateFn(nil),
+					MockUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						got := obj.(*workloadv1alpha1.KubernetesApplication)
+
+						want := kubeApp(withTarget(targetA.GetName()))
+
+						if diff := cmp.Diff(want, got); diff != "" {
+							return errors.Errorf("MockUpdate: -want, +got: %s", diff)
+						}
+
+						return nil
+					},
 					MockStatusUpdate: test.NewMockStatusUpdateFn(errorBoom),
 				},
 				scheduler: &mockScheduler{mockSchedule: newMockscheduleFn(nil)},
@@ -422,8 +445,20 @@ func TestReconcile(t *testing.T) {
 						*obj.(*workloadv1alpha1.KubernetesApplication) = *(kubeApp())
 						return nil
 					},
-					MockUpdate:       test.NewMockUpdateFn(errorBoom),
-					MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
+					MockStatusUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						got := obj.(*workloadv1alpha1.KubernetesApplication)
+
+						want := kubeApp(
+							withConditions(runtimev1alpha1.ReconcileError(errorBoom)),
+							withState(workloadv1alpha1.KubernetesApplicationStatePending),
+						)
+
+						if diff := cmp.Diff(want, got); diff != "" {
+							return errors.Errorf("MockUpdate: -want, +got: %s", diff)
+						}
+
+						return nil
+					},
 				},
 				scheduler: &mockScheduler{mockSchedule: newMockscheduleFn(errorBoom)},
 				log:       logging.NewNopLogger(),
@@ -440,7 +475,6 @@ func TestReconcile(t *testing.T) {
 						*obj.(*workloadv1alpha1.KubernetesApplication) = *(kubeApp())
 						return nil
 					},
-					MockUpdate:       test.NewMockUpdateFn(errorBoom),
 					MockStatusUpdate: test.NewMockStatusUpdateFn(errorBoom),
 				},
 				scheduler: &mockScheduler{mockSchedule: newMockscheduleFn(errorBoom)},

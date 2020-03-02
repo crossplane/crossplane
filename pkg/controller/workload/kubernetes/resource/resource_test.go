@@ -1253,7 +1253,7 @@ func TestReconcile(t *testing.T) {
 						)
 
 						if diff := cmp.Diff(want, got); diff != "" {
-							return errors.Errorf("MockUpdate: -want, +got: %s", diff)
+							return errors.Errorf("MockStatusUpdate: -want, +got: %s", diff)
 						}
 
 						return nil
@@ -1278,7 +1278,7 @@ func TestReconcile(t *testing.T) {
 						)
 
 						if diff := cmp.Diff(want, got); diff != "" {
-							return errors.Errorf("MockUpdate: -want, +got: %s", diff)
+							return errors.Errorf("MockStatusUpdate: -want, +got: %s", diff)
 						}
 
 						return nil
@@ -1299,6 +1299,16 @@ func TestReconcile(t *testing.T) {
 						*obj.(*v1alpha1.KubernetesApplicationResource) = *(kubeAR())
 						return nil
 					},
+					MockUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						got := obj.(*v1alpha1.KubernetesApplicationResource)
+						want := kubeAR(withFinalizers(finalizerName))
+
+						if diff := cmp.Diff(want, got); diff != "" {
+							return errors.Errorf("MockUpdate: -want, +got: %s", diff)
+						}
+
+						return nil
+					},
 					MockStatusUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 						got := obj.(*v1alpha1.KubernetesApplicationResource)
 
@@ -1308,7 +1318,7 @@ func TestReconcile(t *testing.T) {
 						)
 
 						if diff := cmp.Diff(want, got); diff != "" {
-							return errors.Errorf("MockUpdate: -want, +got: %s", diff)
+							return errors.Errorf("MockStatusUpdate: -want, +got: %s", diff)
 						}
 
 						return nil
@@ -1332,9 +1342,13 @@ func TestReconcile(t *testing.T) {
 					},
 					MockUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 						got := obj.(*v1alpha1.KubernetesApplicationResource)
-						want := kubeAR(withDeletionTimestamp(deleteTime))
+						want := kubeAR(
+							withDeletionTimestamp(deleteTime),
+						)
 
-						if diff := cmp.Diff(want, got); diff != "" {
+						// We ignore finalizers because the first update call
+						// should have one but the second should not.
+						if diff := cmp.Diff(want, got, cmpopts.IgnoreFields(v1alpha1.KubernetesApplicationResource{}, "ObjectMeta.Finalizers")); diff != "" {
 							return errors.Errorf("MockUpdate: -want, +got: %s", diff)
 						}
 
@@ -1352,10 +1366,23 @@ func TestReconcile(t *testing.T) {
 				connecter: &mockConnecter{mockConnect: newMockConnectFn(noopSyncDeleter, nil)},
 				kube: &test.MockClient{
 					MockGet: func(_ context.Context, _ client.ObjectKey, obj runtime.Object) error {
-						*obj.(*v1alpha1.KubernetesApplicationResource) = *(kubeAR(withDeletionTimestamp(time.Now())))
+						*obj.(*v1alpha1.KubernetesApplicationResource) = *(kubeAR(withDeletionTimestamp(deleteTime)))
 						return nil
 					},
-					MockUpdate: test.NewMockUpdateFn(nil),
+					MockUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						got := obj.(*v1alpha1.KubernetesApplicationResource)
+						want := kubeAR(
+							withDeletionTimestamp(deleteTime),
+						)
+
+						// We ignore finalizers because the first update call
+						// should have one but the second should not.
+						if diff := cmp.Diff(want, got, cmpopts.IgnoreFields(v1alpha1.KubernetesApplicationResource{}, "ObjectMeta.Finalizers")); diff != "" {
+							return errors.Errorf("MockUpdate: -want, +got: %s", diff)
+						}
+
+						return nil
+					},
 				},
 				log: logging.NewNopLogger(),
 			},
@@ -1374,6 +1401,19 @@ func TestReconcile(t *testing.T) {
 						*obj.(*v1alpha1.KubernetesApplicationResource) = *(kubeAR(withDeletionTimestamp(deleteTime)))
 						return nil
 					},
+					MockUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						got := obj.(*v1alpha1.KubernetesApplicationResource)
+						want := kubeAR(
+							withDeletionTimestamp(deleteTime),
+							withFinalizers(finalizerName),
+						)
+
+						if diff := cmp.Diff(want, got); diff != "" {
+							return errors.Errorf("MockUpdate: -want, +got: %s", diff)
+						}
+
+						return nil
+					},
 					MockStatusUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 						got := obj.(*v1alpha1.KubernetesApplicationResource)
 
@@ -1385,7 +1425,7 @@ func TestReconcile(t *testing.T) {
 						)
 
 						if diff := cmp.Diff(want, got); diff != "" {
-							return errors.Errorf("MockUpdate: -want, +got: %s", diff)
+							return errors.Errorf("MockStatusUpdate: -want, +got: %s", diff)
 						}
 
 						return nil
@@ -1401,8 +1441,35 @@ func TestReconcile(t *testing.T) {
 			rec: &Reconciler{
 				connecter: &mockConnecter{mockConnect: newMockConnectFn(noopSyncDeleter, nil)},
 				kube: &test.MockClient{
-					MockGet:          test.NewMockGetFn(nil),
-					MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj runtime.Object) error {
+						*obj.(*v1alpha1.KubernetesApplicationResource) = *(kubeAR())
+						return nil
+					},
+					MockUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						got := obj.(*v1alpha1.KubernetesApplicationResource)
+						want := kubeAR(withFinalizers(finalizerName))
+
+						if diff := cmp.Diff(want, got); diff != "" {
+							return errors.Errorf("MockUpdate: -want, +got: %s", diff)
+						}
+
+						return nil
+					},
+					MockStatusUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						got := obj.(*v1alpha1.KubernetesApplicationResource)
+
+						want := kubeAR(
+							withFinalizers(finalizerName),
+							withState(v1alpha1.KubernetesApplicationResourceStateSubmitted),
+							withConditions(runtimev1alpha1.ReconcileSuccess()),
+						)
+
+						if diff := cmp.Diff(want, got); diff != "" {
+							return errors.Errorf("MockStatusUpdate: -want, +got: %s", diff)
+						}
+
+						return nil
+					},
 				},
 				log: logging.NewNopLogger(),
 			},
@@ -1421,6 +1488,16 @@ func TestReconcile(t *testing.T) {
 						*obj.(*v1alpha1.KubernetesApplicationResource) = *(kubeAR())
 						return nil
 					},
+					MockUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						got := obj.(*v1alpha1.KubernetesApplicationResource)
+						want := kubeAR(withFinalizers(finalizerName))
+
+						if diff := cmp.Diff(want, got); diff != "" {
+							return errors.Errorf("MockUpdate: -want, +got: %s", diff)
+						}
+
+						return nil
+					},
 					MockStatusUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 						got := obj.(*v1alpha1.KubernetesApplicationResource)
 
@@ -1431,7 +1508,7 @@ func TestReconcile(t *testing.T) {
 						)
 
 						if diff := cmp.Diff(want, got); diff != "" {
-							return errors.Errorf("MockUpdate: -want, +got: %s", diff)
+							return errors.Errorf("MockStatusUpdate: -want, +got: %s", diff)
 						}
 
 						return nil

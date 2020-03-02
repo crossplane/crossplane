@@ -330,8 +330,11 @@ func TestSync(t *testing.T) {
 
 type mockSyncFn func(ctx context.Context, app *v1alpha1.KubernetesApplication) (v1alpha1.KubernetesApplicationState, error)
 
-func newMockSyncFn(s v1alpha1.KubernetesApplicationState, e error) mockSyncFn {
-	return func(_ context.Context, _ *v1alpha1.KubernetesApplication) (v1alpha1.KubernetesApplicationState, error) {
+func newMockSyncFn(s v1alpha1.KubernetesApplicationState, submit bool, e error) mockSyncFn {
+	return func(_ context.Context, a *v1alpha1.KubernetesApplication) (v1alpha1.KubernetesApplicationState, error) {
+		if submit {
+			a.Status.SubmittedResources = a.Status.DesiredResources
+		}
 		return s, e
 	}
 }
@@ -379,8 +382,29 @@ func TestReconcile(t *testing.T) {
 		{
 			name: "ApplicationSyncedSuccessfully",
 			rec: &Reconciler{
-				kube:  &test.MockClient{MockGet: test.NewMockGetFn(nil), MockUpdate: test.NewMockUpdateFn(nil)},
-				local: &mockSyncer{mockSync: newMockSyncFn(v1alpha1.KubernetesApplicationStateSubmitted, nil)},
+				kube: &test.MockClient{
+					MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
+						*obj.(*v1alpha1.KubernetesApplication) = *(kubeApp(withDesiredResources(3)))
+						return nil
+					},
+					MockStatusUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						got := obj.(*v1alpha1.KubernetesApplication)
+
+						want := kubeApp(
+							withConditions(runtimev1alpha1.ReconcileSuccess()),
+							withState(v1alpha1.KubernetesApplicationStateSubmitted),
+							withDesiredResources(3),
+							withSubmittedResources(3),
+						)
+
+						if diff := cmp.Diff(want, got); diff != "" {
+							return errors.Errorf("MockUpdate: -want, +got: %s", diff)
+						}
+
+						return nil
+					},
+				},
+				local: &mockSyncer{mockSync: newMockSyncFn(v1alpha1.KubernetesApplicationStateSubmitted, true, nil)},
 				log:   logging.NewNopLogger(),
 			},
 			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
@@ -389,13 +413,13 @@ func TestReconcile(t *testing.T) {
 		{
 			name: "ApplicationSyncFailure",
 			rec: &Reconciler{
-				kube:  &test.MockClient{MockGet: test.NewMockGetFn(nil), MockUpdate: test.NewMockUpdateFn(errorBoom)},
-				local: &mockSyncer{mockSync: newMockSyncFn(v1alpha1.KubernetesApplicationStateFailed, errorBoom)},
+				kube:  &test.MockClient{MockGet: test.NewMockGetFn(nil), MockStatusUpdate: test.NewMockStatusUpdateFn(errorBoom)},
+				local: &mockSyncer{mockSync: newMockSyncFn(v1alpha1.KubernetesApplicationStateFailed, false, errorBoom)},
 				log:   logging.NewNopLogger(),
 			},
 			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
 			wantResult: reconcile.Result{RequeueAfter: shortWait},
-			wantErr:    errors.Wrapf(errorBoom, "cannot update %s %s/%s", v1alpha1.KubernetesApplicationKind, namespace, name),
+			wantErr:    errors.Wrapf(errorBoom, "cannot update status %s %s/%s", v1alpha1.KubernetesApplicationKind, namespace, name),
 		},
 	}
 

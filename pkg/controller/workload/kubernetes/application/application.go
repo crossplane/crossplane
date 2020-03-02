@@ -265,12 +265,12 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	if err != nil {
 		app.Status.State = state
 		app.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
-		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrapf(r.kube.Update(ctx, app), "cannot update %s %s", v1alpha1.KubernetesApplicationKind, req.NamespacedName)
+		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrapf(r.kube.Status().Update(ctx, app), "cannot update status %s %s", v1alpha1.KubernetesApplicationKind, req.NamespacedName)
 	}
 
 	app.Status.State = state
 	app.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
-	return reconcile.Result{RequeueAfter: longWait}, errors.Wrapf(r.kube.Update(ctx, app), "cannot update %s %s", v1alpha1.KubernetesApplicationKind, req.NamespacedName)
+	return reconcile.Result{RequeueAfter: longWait}, errors.Wrapf(r.kube.Status().Update(ctx, app), "cannot update status %s %s", v1alpha1.KubernetesApplicationKind, req.NamespacedName)
 }
 
 func getControllerName(obj metav1.Object) string {
