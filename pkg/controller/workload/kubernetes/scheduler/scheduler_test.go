@@ -87,7 +87,7 @@ func withDeletionTimestamp(t time.Time) kubeAppModifier {
 
 func withTarget(name string) kubeAppModifier {
 	return func(r *workloadv1alpha1.KubernetesApplication) {
-		r.Status.Target = &workloadv1alpha1.KubernetesTargetReference{Name: name}
+		r.Spec.Target = &workloadv1alpha1.KubernetesTargetReference{Name: name}
 	}
 }
 
@@ -117,7 +117,7 @@ func TestCreatePredicate(t *testing.T) {
 			name: "UnscheduledCluster",
 			event: event.CreateEvent{
 				Object: &workloadv1alpha1.KubernetesApplication{
-					Status: workloadv1alpha1.KubernetesApplicationStatus{
+					Spec: workloadv1alpha1.KubernetesApplicationSpec{
 						Target: nil,
 					},
 				},
@@ -128,7 +128,7 @@ func TestCreatePredicate(t *testing.T) {
 			name: "ScheduledCluster",
 			event: event.CreateEvent{
 				Object: &workloadv1alpha1.KubernetesApplication{
-					Status: workloadv1alpha1.KubernetesApplicationStatus{
+					Spec: workloadv1alpha1.KubernetesApplicationSpec{
 						Target: &workloadv1alpha1.KubernetesTargetReference{Name: "coolTarget"},
 					},
 				},
@@ -163,7 +163,7 @@ func TestUpdatePredicate(t *testing.T) {
 			name: "UnscheduledCluster",
 			event: event.UpdateEvent{
 				ObjectNew: &workloadv1alpha1.KubernetesApplication{
-					Status: workloadv1alpha1.KubernetesApplicationStatus{
+					Spec: workloadv1alpha1.KubernetesApplicationSpec{
 						Target: nil,
 					},
 				},
@@ -174,7 +174,7 @@ func TestUpdatePredicate(t *testing.T) {
 			name: "ScheduledCluster",
 			event: event.UpdateEvent{
 				ObjectNew: &workloadv1alpha1.KubernetesApplication{
-					Status: workloadv1alpha1.KubernetesApplicationStatus{
+					Spec: workloadv1alpha1.KubernetesApplicationSpec{
 						Target: &workloadv1alpha1.KubernetesTargetReference{Name: "coolTarget"},
 					},
 				},
@@ -202,11 +202,11 @@ func TestUpdatePredicate(t *testing.T) {
 
 func TestSchedule(t *testing.T) {
 	cases := []struct {
-		name       string
-		scheduler  scheduler
-		app        *workloadv1alpha1.KubernetesApplication
-		wantApp    *workloadv1alpha1.KubernetesApplication
-		wantResult reconcile.Result
+		name      string
+		scheduler scheduler
+		app       *workloadv1alpha1.KubernetesApplication
+		wantApp   *workloadv1alpha1.KubernetesApplication
+		wantErr   error
 	}{
 		{
 			name: "SuccessfulSchedule",
@@ -216,29 +216,60 @@ func TestSchedule(t *testing.T) {
 						*obj.(*workloadv1alpha1.KubernetesTargetList) = *targets
 						return nil
 					},
+					MockUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						got := obj.(*workloadv1alpha1.KubernetesApplication)
+
+						want := kubeApp(
+							withTargetSelector(selectorAll),
+							withTarget(targetA.GetName()),
+						)
+
+						if diff := cmp.Diff(want, got); diff != "" {
+							return errors.Errorf("MockUpdate: -want, +got: %s", diff)
+						}
+
+						return nil
+					},
 				},
 			},
 			app: kubeApp(withTargetSelector(selectorAll)),
 			wantApp: kubeApp(
 				withTargetSelector(selectorAll),
 				withTarget(targetA.GetName()),
-				withState(workloadv1alpha1.KubernetesApplicationStateScheduled),
-				withConditions(runtimev1alpha1.ReconcileSuccess()),
 			),
-			wantResult: reconcile.Result{Requeue: false},
+		},
+		{
+			name: "SuccessfulScheduleNoSelector",
+			scheduler: &roundRobinScheduler{
+				kube: &test.MockClient{
+					MockList: func(_ context.Context, obj runtime.Object, _ ...client.ListOption) error {
+						*obj.(*workloadv1alpha1.KubernetesTargetList) = *targets
+						return nil
+					},
+					MockUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						got := obj.(*workloadv1alpha1.KubernetesApplication)
+
+						want := kubeApp(withTarget(targetA.GetName()))
+
+						if diff := cmp.Diff(want, got); diff != "" {
+							return errors.Errorf("MockUpdate: -want, +got: %s", diff)
+						}
+
+						return nil
+					},
+				},
+			},
+			app:     kubeApp(),
+			wantApp: kubeApp(withTarget(targetA.GetName())),
 		},
 		{
 			name: "ErrorListingTargets",
 			scheduler: &roundRobinScheduler{
 				kube: &test.MockClient{MockList: test.NewMockListFn(errorBoom)},
 			},
-			app: kubeApp(withTargetSelector(selectorAll)),
-			wantApp: kubeApp(
-				withTargetSelector(selectorAll),
-				withState(workloadv1alpha1.KubernetesApplicationStatePending),
-				withConditions(runtimev1alpha1.ReconcileError(errorBoom)),
-			),
-			wantResult: reconcile.Result{Requeue: true},
+			app:     kubeApp(withTargetSelector(selectorAll)),
+			wantApp: kubeApp(withTargetSelector(selectorAll)),
+			wantErr: errors.Wrap(errorBoom, errListTargets),
 		},
 		{
 			name: "NoMatchingTargets",
@@ -250,21 +281,17 @@ func TestSchedule(t *testing.T) {
 					},
 				},
 			},
-			app: kubeApp(withTargetSelector(selectorAll)),
-			wantApp: kubeApp(
-				withTargetSelector(selectorAll),
-				withState(workloadv1alpha1.KubernetesApplicationStatePending),
-				withConditions(runtimev1alpha1.ReconcileSuccess()),
-			),
-			wantResult: reconcile.Result{Requeue: true},
+			app:     kubeApp(withTargetSelector(selectorAll)),
+			wantApp: kubeApp(withTargetSelector(selectorAll)),
+			wantErr: errors.New(errNoUsableTargets),
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			gotResult := tc.scheduler.schedule(ctx, tc.app)
+			gotErr := tc.scheduler.schedule(ctx, tc.app)
 
-			if diff := cmp.Diff(tc.wantResult, gotResult); diff != "" {
+			if diff := cmp.Diff(tc.wantErr, gotErr, test.EquateErrors()); diff != "" {
 				t.Errorf("tc.scheduler.Schedule(...): -want, +got:\n%s", diff)
 			}
 
@@ -275,17 +302,17 @@ func TestSchedule(t *testing.T) {
 	}
 }
 
-type mockScheduleFn func(ctx context.Context, app *workloadv1alpha1.KubernetesApplication) reconcile.Result
+type mockScheduleFn func(ctx context.Context, app *workloadv1alpha1.KubernetesApplication) error
 
-func newMockscheduleFn(r reconcile.Result) mockScheduleFn {
-	return func(_ context.Context, _ *workloadv1alpha1.KubernetesApplication) reconcile.Result { return r }
+func newMockscheduleFn(r error) mockScheduleFn {
+	return func(_ context.Context, _ *workloadv1alpha1.KubernetesApplication) error { return r }
 }
 
 type mockScheduler struct {
 	mockSchedule mockScheduleFn
 }
 
-func (s *mockScheduler) schedule(ctx context.Context, app *workloadv1alpha1.KubernetesApplication) reconcile.Result {
+func (s *mockScheduler) schedule(ctx context.Context, app *workloadv1alpha1.KubernetesApplication) error {
 	return s.mockSchedule(ctx, app)
 }
 
@@ -348,7 +375,7 @@ func TestReconcile(t *testing.T) {
 				log: logging.NewNopLogger(),
 			},
 			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
-			wantResult: reconcile.Result{RequeueAfter: requeueOnSuccess},
+			wantResult: reconcile.Result{Requeue: false},
 			wantErr:    nil,
 		},
 		{
@@ -359,14 +386,33 @@ func TestReconcile(t *testing.T) {
 						*obj.(*workloadv1alpha1.KubernetesApplication) = *(kubeApp())
 						return nil
 					},
-					MockUpdate: test.NewMockUpdateFn(nil),
+					MockUpdate:       test.NewMockUpdateFn(nil),
+					MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
 				},
-				scheduler: &mockScheduler{mockSchedule: newMockscheduleFn(reconcile.Result{Requeue: false})},
+				scheduler: &mockScheduler{mockSchedule: newMockscheduleFn(nil)},
 				log:       logging.NewNopLogger(),
 			},
 			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
-			wantResult: reconcile.Result{Requeue: false},
+			wantResult: reconcile.Result{},
 			wantErr:    nil,
+		},
+		{
+			name: "SchedulingSuccessfulStatusUpdateFailed",
+			rec: &Reconciler{
+				kube: &test.MockClient{
+					MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
+						*obj.(*workloadv1alpha1.KubernetesApplication) = *(kubeApp())
+						return nil
+					},
+					MockUpdate:       test.NewMockUpdateFn(nil),
+					MockStatusUpdate: test.NewMockStatusUpdateFn(errorBoom),
+				},
+				scheduler: &mockScheduler{mockSchedule: newMockscheduleFn(nil)},
+				log:       logging.NewNopLogger(),
+			},
+			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
+			wantResult: reconcile.Result{},
+			wantErr:    errors.Wrap(errorBoom, errUpdateKubernetesApplicationStatus),
 		},
 		{
 			name: "SchedulingFailed",
@@ -376,14 +422,33 @@ func TestReconcile(t *testing.T) {
 						*obj.(*workloadv1alpha1.KubernetesApplication) = *(kubeApp())
 						return nil
 					},
-					MockUpdate: test.NewMockUpdateFn(errorBoom),
+					MockUpdate:       test.NewMockUpdateFn(errorBoom),
+					MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
 				},
-				scheduler: &mockScheduler{mockSchedule: newMockscheduleFn(reconcile.Result{Requeue: false})},
+				scheduler: &mockScheduler{mockSchedule: newMockscheduleFn(errorBoom)},
 				log:       logging.NewNopLogger(),
 			},
 			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
-			wantResult: reconcile.Result{Requeue: false},
-			wantErr:    errors.Wrapf(errorBoom, "cannot update %s %s/%s", workloadv1alpha1.KubernetesApplicationKind, namespace, name),
+			wantResult: reconcile.Result{RequeueAfter: shortWait},
+			wantErr:    nil,
+		},
+		{
+			name: "SchedulingFailedStatusUpdateFailed",
+			rec: &Reconciler{
+				kube: &test.MockClient{
+					MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
+						*obj.(*workloadv1alpha1.KubernetesApplication) = *(kubeApp())
+						return nil
+					},
+					MockUpdate:       test.NewMockUpdateFn(errorBoom),
+					MockStatusUpdate: test.NewMockStatusUpdateFn(errorBoom),
+				},
+				scheduler: &mockScheduler{mockSchedule: newMockscheduleFn(errorBoom)},
+				log:       logging.NewNopLogger(),
+			},
+			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
+			wantResult: reconcile.Result{RequeueAfter: shortWait},
+			wantErr:    errors.Wrap(errorBoom, errUpdateKubernetesApplicationStatus),
 		},
 	}
 

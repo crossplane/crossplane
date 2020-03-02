@@ -39,11 +39,15 @@ import (
 
 const (
 	reconcileTimeout = 1 * time.Minute
-	requeueOnWait    = 30 * time.Second
+	shortWait        = 30 * time.Second
+	longWait         = 1 * time.Minute
+
+	errGarbageCollect = "failed to garbage collect KubernetesApplicationResources"
+	errSyncTemplate   = "failed to sync template with KubernetesApplicationResource"
 )
 
 type syncer interface {
-	sync(ctx context.Context, app *v1alpha1.KubernetesApplication) reconcile.Result
+	sync(ctx context.Context, app *v1alpha1.KubernetesApplication) (v1alpha1.KubernetesApplicationState, error)
 }
 
 // CreatePredicate accepts KubernetesApplications that have been scheduled to a
@@ -53,7 +57,7 @@ func CreatePredicate(event event.CreateEvent) bool {
 	if !ok {
 		return false
 	}
-	return wl.Status.Target != nil
+	return wl.Spec.Target != nil
 }
 
 // UpdatePredicate accepts KubernetesApplications that have been scheduled to a
@@ -63,7 +67,7 @@ func UpdatePredicate(event event.UpdateEvent) bool {
 	if !ok {
 		return false
 	}
-	return wl.Status.Target != nil
+	return wl.Spec.Target != nil
 }
 
 // Setup adds a controller that reconciles KubernetesApplications.
@@ -92,15 +96,13 @@ type localCluster struct {
 	gc garbageCollector
 }
 
-func (c *localCluster) sync(ctx context.Context, app *v1alpha1.KubernetesApplication) reconcile.Result {
+func (c *localCluster) sync(ctx context.Context, app *v1alpha1.KubernetesApplication) (v1alpha1.KubernetesApplicationState, error) {
 	app.Status.DesiredResources = len(app.Spec.ResourceTemplates)
 	app.Status.SubmittedResources = 0
 
 	// Garbage collect any resource we control but no longer have templates for.
 	if err := c.gc.process(ctx, app); err != nil {
-		app.Status.State = v1alpha1.KubernetesApplicationStateFailed
-		app.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
-		return reconcile.Result{Requeue: true}
+		return v1alpha1.KubernetesApplicationStateFailed, errors.Wrap(err, errGarbageCollect)
 	}
 
 	// Create or update all resources with extant templates.
@@ -112,31 +114,19 @@ func (c *localCluster) sync(ctx context.Context, app *v1alpha1.KubernetesApplica
 		}
 
 		if err != nil {
-			app.Status.State = v1alpha1.KubernetesApplicationStateFailed
-			app.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
-			return reconcile.Result{Requeue: true}
+			return v1alpha1.KubernetesApplicationStateFailed, errors.Wrap(err, errSyncTemplate)
 		}
 	}
 
 	if app.Status.SubmittedResources == 0 {
-		// Note we set _state_ scheduled, and _status_ pending here. The pending
-		// state and status have different meanings; the former means "pending
-		// scheduling to a Kubernetes cluster" while the latter means "pending
-		// successful reconciliation".
-		app.Status.State = v1alpha1.KubernetesApplicationStateScheduled
-		app.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
-		return reconcile.Result{RequeueAfter: requeueOnWait}
+		return v1alpha1.KubernetesApplicationStateScheduled, nil
 	}
 
 	if app.Status.SubmittedResources < app.Status.DesiredResources {
-		app.Status.State = v1alpha1.KubernetesApplicationStatePartial
-		app.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
-		return reconcile.Result{RequeueAfter: requeueOnWait}
+		return v1alpha1.KubernetesApplicationStatePartial, nil
 	}
 
-	app.Status.State = v1alpha1.KubernetesApplicationStateSubmitted
-	app.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
-	return reconcile.Result{Requeue: false}
+	return v1alpha1.KubernetesApplicationStateSubmitted, nil
 }
 
 // renderTemplate produces a KubernetesApplicationResource from the supplied
@@ -154,7 +144,7 @@ func renderTemplate(app *v1alpha1.KubernetesApplication, template *v1alpha1.Kube
 	ar.SetAnnotations(template.GetAnnotations())
 
 	ar.Spec = template.Spec
-	ar.Status.Target = app.Status.Target
+	ar.Spec.Target = app.Spec.Target
 	ar.Status.State = v1alpha1.KubernetesApplicationResourceStateScheduled
 
 	return ar
@@ -271,7 +261,16 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{Requeue: false}, errors.Wrapf(err, "cannot get %s %s", v1alpha1.KubernetesApplicationKind, req.NamespacedName)
 	}
 
-	return r.local.sync(ctx, app), errors.Wrapf(r.kube.Update(ctx, app), "cannot update %s %s", v1alpha1.KubernetesApplicationKind, req.NamespacedName)
+	state, err := r.local.sync(ctx, app)
+	if err != nil {
+		app.Status.State = state
+		app.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
+		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrapf(r.kube.Update(ctx, app), "cannot update %s %s", v1alpha1.KubernetesApplicationKind, req.NamespacedName)
+	}
+
+	app.Status.State = state
+	app.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
+	return reconcile.Result{RequeueAfter: longWait}, errors.Wrapf(r.kube.Update(ctx, app), "cannot update %s %s", v1alpha1.KubernetesApplicationKind, req.NamespacedName)
 }
 
 func getControllerName(obj metav1.Object) string {
