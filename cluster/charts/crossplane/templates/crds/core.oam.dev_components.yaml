@@ -48,6 +48,9 @@ spec:
                 description: A ComponentParameter defines a configurable parameter
                   of a component.
                 properties:
+                  description:
+                    description: Description of this parameter.
+                    type: string
                   fieldPaths:
                     description: FieldPaths specifies an array of fields within this
                       Component's workload that will be overwritten by the value of

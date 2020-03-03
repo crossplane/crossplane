@@ -153,6 +153,10 @@ type ComponentParameter struct {
 	// supplied when authoring an ApplicationConfiguration.
 	// +optional
 	Required *bool `json:"required,omitempty"`
+
+	// Description of this parameter.
+	// +optional
+	Description *string `json:"description,omitempty"`
 }
 
 // A ComponentSpec defines the desired state of a Component.
