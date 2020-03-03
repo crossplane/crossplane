@@ -218,12 +218,12 @@ func TestRenderWorkload(t *testing.T) {
 		want   want
 	}{
 		"UnmarshalError": {
-			reason: "Errors unmarshalling YAML should be returned",
+			reason: "Errors unmarshalling JSON should be returned",
 			args: args{
-				data: []byte(`{metadata`),
+				data: []byte(`wat`),
 			},
 			want: want{
-				err: errors.Wrapf(errors.New("error converting YAML to JSON: yaml: line 1: did not find expected ',' or '}'"), errUnmarshalWorkload),
+				err: errors.Wrapf(errors.New("invalid character 'w' looking for beginning of value"), errUnmarshalWorkload),
 			},
 		},
 		"SetStringError": {
@@ -305,12 +305,12 @@ func TestRenderTrait(t *testing.T) {
 		want   want
 	}{
 		"UnmarshalError": {
-			reason: "Errors unmarshalling YAML should be returned",
+			reason: "Errors unmarshalling JSON should be returned",
 			args: args{
-				data: []byte(`{metadata`),
+				data: []byte(`wat`),
 			},
 			want: want{
-				err: errors.Wrapf(errors.New("error converting YAML to JSON: yaml: line 1: did not find expected ',' or '}'"), errUnmarshalTrait),
+				err: errors.Wrapf(errors.New("invalid character 'w' looking for beginning of value"), errUnmarshalTrait),
 			},
 		},
 		"Success": {

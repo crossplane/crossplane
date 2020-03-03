@@ -18,8 +18,8 @@ package applicationconfiguration
 
 import (
 	"context"
+	"encoding/json"
 
-	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -132,7 +132,7 @@ func (fn ResourceRenderFn) Render(data []byte, p ...Parameter) (*unstructured.Un
 func renderWorkload(data []byte, p ...Parameter) (*unstructured.Unstructured, error) {
 	// TODO(negz): Is there a better decoder to use here?
 	w := &fieldpath.Paved{}
-	if err := yaml.Unmarshal(data, w); err != nil {
+	if err := json.Unmarshal(data, w); err != nil {
 		return nil, errors.Wrap(err, errUnmarshalWorkload)
 	}
 
@@ -158,7 +158,7 @@ func renderWorkload(data []byte, p ...Parameter) (*unstructured.Unstructured, er
 func renderTrait(data []byte, _ ...Parameter) (*unstructured.Unstructured, error) {
 	// TODO(negz): Is there a better decoder to use here?
 	u := &unstructured.Unstructured{}
-	if err := yaml.Unmarshal(data, u); err != nil {
+	if err := json.Unmarshal(data, u); err != nil {
 		return nil, errors.Wrap(err, errUnmarshalTrait)
 	}
 	return u, nil
