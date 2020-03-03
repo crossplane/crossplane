@@ -6,7 +6,9 @@
 This document describes a basic workflow for utilizing OAM types as implemented
 in [1276](https://github.com/crossplane/crossplane/pull/1276). The controllers
 described are for an initial POC and will be moved out of core Crossplane in
-later iterations.
+later iterations. For a complete picture of the long-term implementation, take a
+look at the [OAM Runtime Architecture
+doc](https://docs.google.com/document/d/11AYNGhvry_B3l_tO3Yyv1f9tDoezZOpGIYV56oZwb5s/edit#heading=h.x458enhyy1sq).
 
 ## 1. Crossplane Installation
 
@@ -48,8 +50,8 @@ The OAM-related controllers will also be started on installation:
 ## 2. Component Creation
 
 Users create a `Component` to define a unit of deployment that can be included
-in an `ApplicationConfiguration`. A `Component` must specify a
-`WorkloadDefinition`.
+in an `ApplicationConfiguration`. A `Component` workload; a custom resource with
+a corresponding `WorkloadDefinition`.
 
 ```yaml
 apiVersion: core.oam.dev/v1alpha2
