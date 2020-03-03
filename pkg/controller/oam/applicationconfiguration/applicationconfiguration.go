@@ -196,6 +196,10 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	log.Debug("Successfully applied components", "workloads", len(workloads))
 	r.record.Event(ac, event.Normal(reasonApplyComponents, "Successfully applied components", "workloads", strconv.Itoa(len(workloads))))
 
+	// Kubernetes garbage collection will (by default) reap workloads and traits
+	// when the appconfig that controls them (in the controller reference sense)
+	// is deleted. Here we cover the case in which a component or one of its
+	// traits is removed from an extant appconfig.
 	for _, e := range r.gc.Eligible(ac.GetNamespace(), ac.Status.Workloads, workloads) {
 		// https://github.com/golang/go/wiki/CommonMistakes#using-reference-to-loop-iterator-variable
 		e := e
@@ -210,7 +214,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, ac), errUpdateAppConfigStatus)
 		}
 		log.Debug("Garbage collected resource")
-		r.record.Event(ac, event.Normal(reasonGGComponent, "Successfully applied components", "workloads", strconv.Itoa(len(workloads))))
+		record.Event(ac, event.Normal(reasonGGComponent, "Successfully garbage collected component"))
 	}
 
 	ac.Status.Workloads = make([]v1alpha2.WorkloadStatus, len(workloads))
