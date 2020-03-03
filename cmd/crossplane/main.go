@@ -30,6 +30,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane/apis"
+	"github.com/crossplane/crossplane/pkg/controller/oam"
 	"github.com/crossplane/crossplane/pkg/controller/stacks"
 	"github.com/crossplane/crossplane/pkg/controller/stacks/templates"
 	"github.com/crossplane/crossplane/pkg/controller/workload"
@@ -99,6 +100,7 @@ func main() {
 		kingpin.FatalIfError(err, "Cannot create manager")
 
 		kingpin.FatalIfError(apis.AddToScheme(mgr.GetScheme()), "Cannot add core Crossplane APIs to scheme")
+		kingpin.FatalIfError(oam.Setup(mgr, log), "Cannot setup OAM controllers")
 		kingpin.FatalIfError(workload.Setup(mgr, log), "Cannot setup workload controllers")
 		kingpin.FatalIfError(mgr.Start(ctrl.SetupSignalHandler()), "Cannot start controller manager")
 
