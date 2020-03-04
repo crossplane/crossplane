@@ -15,7 +15,7 @@ spec:
   - JSONPath: .spec.template.metadata.name
     name: TEMPLATE-NAME
     type: string
-  - JSONPath: .status.targetRef.name
+  - JSONPath: .spec.targetRef.name
     name: CLUSTER
     type: string
   - JSONPath: .status.state
@@ -28,7 +28,8 @@ spec:
     plural: kubernetesapplicationresources
     singular: kubernetesapplicationresource
   scope: Namespaced
-  subresources: {}
+  subresources:
+    status: {}
   validation:
     openAPIV3Schema:
       description: A KubernetesApplicationResource is a resource of a Kubernetes application.
@@ -65,6 +66,15 @@ spec:
                     type: string
                 type: object
               type: array
+            targetRef:
+              description: Target to which this application has been scheduled.
+              properties:
+                name:
+                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                  type: string
+              required:
+              - name
+              type: object
             template:
               description: A Template for a Kubernetes resource to be submitted to
                 the KubernetesCluster to which this application resource is scheduled.
@@ -130,15 +140,6 @@ spec:
             state:
               description: State of the application.
               type: string
-            targetRef:
-              description: Target to which this application has been scheduled.
-              properties:
-                name:
-                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
-                  type: string
-              required:
-              - name
-              type: object
           type: object
       type: object
   version: v1alpha1

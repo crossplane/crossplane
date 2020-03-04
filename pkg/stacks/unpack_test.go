@@ -977,7 +977,10 @@ var (
 )
 
 func simpleAppFile(permissionScope, packageType string, includeVersion bool) string {
-	appFile := `# Human readable title of application.
+	appFile := `# apiVersion this app.yaml conforms to
+apiVersion: 0.1.0
+
+# Human readable title of application.
 title: Sample Crossplane Stack
 
 # Markdown description of this entry

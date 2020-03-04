@@ -68,12 +68,12 @@ func iconStep(sp StackPackager) walker.Step {
 // appStep unmarshals app.yaml bytes to AppMetadataSpec which is set on the StackPackager
 func appStep(sp StackPackager) walker.Step {
 	return func(path string, b []byte) error {
-		app := v1alpha1.AppMetadataSpec{}
+		app := v1alpha1.PackageMetadataSpec{}
 		if err := yaml.Unmarshal(b, &app); err != nil {
 			return errors.Wrap(err, fmt.Sprintf("invalid app %q", path))
 		}
 
-		sp.SetApp(app)
+		sp.SetApp(app.AppMetadataSpec)
 		return nil
 	}
 }

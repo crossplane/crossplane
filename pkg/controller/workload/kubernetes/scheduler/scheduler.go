@@ -36,11 +36,16 @@ import (
 
 const (
 	reconcileTimeout = 1 * time.Minute
-	requeueOnSuccess = 2 * time.Minute
+	shortWait        = 30 * time.Second
+
+	errUpdateKubernetesApplicationStatus = "failed to update KubernetesApplication status"
+	errUpdateKubernetesApplication       = "failed to update KubernetesApplication"
+	errNoUsableTargets                   = "failed to find a usable KubernetesTarget for scheduling"
+	errListTargets                       = "failed to list KubernetesTargets in KubernetesApplication namespace"
 )
 
 type scheduler interface {
-	schedule(ctx context.Context, app *workloadv1alpha1.KubernetesApplication) reconcile.Result
+	schedule(ctx context.Context, app *workloadv1alpha1.KubernetesApplication) error
 }
 
 type roundRobinScheduler struct {
@@ -48,13 +53,14 @@ type roundRobinScheduler struct {
 	lastTargetIndex uint64
 }
 
-func (s *roundRobinScheduler) schedule(ctx context.Context, app *workloadv1alpha1.KubernetesApplication) reconcile.Result {
-	app.Status.State = workloadv1alpha1.KubernetesApplicationStatePending
-
+func (s *roundRobinScheduler) schedule(ctx context.Context, app *workloadv1alpha1.KubernetesApplication) error {
+	var targetLabels map[string]string
+	if app.Spec.TargetSelector != nil {
+		targetLabels = app.Spec.TargetSelector.MatchLabels
+	}
 	clusters := &workloadv1alpha1.KubernetesTargetList{}
-	if err := s.kube.List(ctx, clusters, client.InNamespace(app.GetNamespace()), client.MatchingLabels(app.Spec.TargetSelector.MatchLabels)); err != nil {
-		app.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
-		return reconcile.Result{Requeue: true}
+	if err := s.kube.List(ctx, clusters, client.InNamespace(app.GetNamespace()), client.MatchingLabels(targetLabels)); err != nil {
+		return errors.Wrap(err, errListTargets)
 	}
 
 	// Filter out KubernetesTargets that don't specify a connection
@@ -67,8 +73,7 @@ func (s *roundRobinScheduler) schedule(ctx context.Context, app *workloadv1alpha
 	}
 
 	if len(usable) == 0 {
-		app.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
-		return reconcile.Result{Requeue: true}
+		return errors.New(errNoUsableTargets)
 	}
 
 	// Round-robin target selection
@@ -76,11 +81,8 @@ func (s *roundRobinScheduler) schedule(ctx context.Context, app *workloadv1alpha
 	target := usable[index]
 	s.lastTargetIndex++
 
-	app.Status.Target = &workloadv1alpha1.KubernetesTargetReference{Name: target.Name}
-	app.Status.State = workloadv1alpha1.KubernetesApplicationStateScheduled
-	app.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
-
-	return reconcile.Result{Requeue: false}
+	app.Spec.Target = &workloadv1alpha1.KubernetesTargetReference{Name: target.Name}
+	return errors.Wrap(s.kube.Update(ctx, app), errUpdateKubernetesApplication)
 }
 
 // CreatePredicate accepts KubernetesApplications that have not yet been
@@ -90,7 +92,7 @@ func CreatePredicate(e event.CreateEvent) bool {
 	if !ok {
 		return false
 	}
-	return wl.Status.Target == nil
+	return wl.Spec.Target == nil
 }
 
 // UpdatePredicate accepts KubernetesApplications that have not yet been
@@ -100,7 +102,7 @@ func UpdatePredicate(e event.UpdateEvent) bool {
 	if !ok {
 		return false
 	}
-	return wl.Status.Target == nil
+	return wl.Spec.Target == nil
 }
 
 // Setup adds a controller that schedules KubernetesApplications.
@@ -147,9 +149,17 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	}
 
 	// Someone already scheduled this application.
-	if app.Status.Target != nil {
-		return reconcile.Result{RequeueAfter: requeueOnSuccess}, nil
+	if app.Spec.Target != nil {
+		return reconcile.Result{}, nil
 	}
 
-	return r.scheduler.schedule(ctx, app), errors.Wrapf(r.kube.Update(ctx, app), "cannot update %s %s", workloadv1alpha1.KubernetesApplicationKind, req.NamespacedName)
+	if err := r.scheduler.schedule(ctx, app); err != nil {
+		app.Status.State = workloadv1alpha1.KubernetesApplicationStatePending
+		app.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
+		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.kube.Status().Update(ctx, app), errUpdateKubernetesApplicationStatus)
+	}
+
+	app.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
+	app.Status.State = workloadv1alpha1.KubernetesApplicationStateScheduled
+	return reconcile.Result{}, errors.Wrap(r.kube.Status().Update(ctx, app), errUpdateKubernetesApplicationStatus)
 }

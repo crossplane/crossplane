@@ -198,7 +198,7 @@ func withDeletionTimestamp(t time.Time) kubeARModifier {
 
 func withTarget(name string) kubeARModifier {
 	return func(r *v1alpha1.KubernetesApplicationResource) {
-		r.Status.Target = &v1alpha1.KubernetesTargetReference{Name: name}
+		r.Spec.Target = &v1alpha1.KubernetesTargetReference{Name: name}
 	}
 }
 
@@ -234,7 +234,7 @@ func TestCreatePredicate(t *testing.T) {
 			name: "ScheduledCluster",
 			event: event.CreateEvent{
 				Object: &v1alpha1.KubernetesApplicationResource{
-					Status: v1alpha1.KubernetesApplicationResourceStatus{
+					Spec: v1alpha1.KubernetesApplicationResourceSpec{
 						Target: targetRef,
 					},
 				},
@@ -276,7 +276,7 @@ func TestUpdatePredicate(t *testing.T) {
 			name: "ScheduledCluster",
 			event: event.UpdateEvent{
 				ObjectNew: &v1alpha1.KubernetesApplicationResource{
-					Status: v1alpha1.KubernetesApplicationResourceStatus{
+					Spec: v1alpha1.KubernetesApplicationResourceSpec{
 						Target: targetRef,
 					},
 				},
@@ -365,12 +365,12 @@ func (m *mockSecretClient) delete(ctx context.Context, template *corev1.Secret) 
 
 func TestSync(t *testing.T) {
 	cases := []struct {
-		name       string
-		syncer     syncer
-		ar         *v1alpha1.KubernetesApplicationResource
-		secrets    []corev1.Secret
-		wantAR     *v1alpha1.KubernetesApplicationResource
-		wantResult reconcile.Result
+		name      string
+		syncer    syncer
+		ar        *v1alpha1.KubernetesApplicationResource
+		secrets   []corev1.Secret
+		wantState v1alpha1.KubernetesApplicationResourceState
+		wantErr   error
 	}{
 		{
 			name: "Successful",
@@ -409,27 +409,16 @@ func TestSync(t *testing.T) {
 					},
 				},
 			},
-			ar:      kubeAR(withTemplate(template(serviceWithoutNamespace))),
-			secrets: []corev1.Secret{*secret},
-			wantAR: kubeAR(
-				withTemplate(template(serviceWithoutNamespace)),
-				withFinalizers(finalizerName),
-				withConditions(runtimev1alpha1.ReconcileSuccess()),
-				withState(v1alpha1.KubernetesApplicationResourceStateSubmitted),
-				withRemoteStatus(remoteStatus),
-			),
-			wantResult: reconcile.Result{RequeueAfter: aLongWait},
+			ar:        kubeAR(withTemplate(template(serviceWithoutNamespace))),
+			secrets:   []corev1.Secret{*secret},
+			wantState: v1alpha1.KubernetesApplicationResourceStateSubmitted,
 		},
 		{
-			name:   "MissingTemplate",
-			syncer: &remoteCluster{},
-			ar:     kubeAR(),
-			wantAR: kubeAR(
-				withFinalizers(finalizerName),
-				withConditions(runtimev1alpha1.ReconcileError(errMissingTemplate)),
-				withState(v1alpha1.KubernetesApplicationResourceStateFailed),
-			),
-			wantResult: reconcile.Result{Requeue: true},
+			name:      "MissingTemplate",
+			syncer:    &remoteCluster{},
+			ar:        kubeAR(),
+			wantState: v1alpha1.KubernetesApplicationResourceStateFailed,
+			wantErr:   errMissingTemplate,
 		},
 		{
 			name: "SecretSyncPreservesType",
@@ -457,31 +446,19 @@ func TestSync(t *testing.T) {
 					},
 				},
 			},
-			ar:      kubeAR(withTemplate(template(serviceWithoutNamespace))),
-			secrets: []corev1.Secret{*secretWithExplicitType},
-			wantAR: kubeAR(
-				withTemplate(template(serviceWithoutNamespace)),
-				withFinalizers(finalizerName),
-				withConditions(runtimev1alpha1.ReconcileSuccess()),
-				withState(v1alpha1.KubernetesApplicationResourceStateSubmitted),
-				withRemoteStatus(remoteStatus),
-			),
-			wantResult: reconcile.Result{RequeueAfter: aLongWait},
+			ar:        kubeAR(withTemplate(template(serviceWithoutNamespace))),
+			secrets:   []corev1.Secret{*secretWithExplicitType},
+			wantState: v1alpha1.KubernetesApplicationResourceStateSubmitted,
 		},
 		{
 			name: "SecretSyncFailed",
 			syncer: &remoteCluster{
 				secret: &mockSecretClient{mockSync: newMockSyncSecretFn(errorBoom)},
 			},
-			ar:      kubeAR(withTemplate(template(serviceWithoutNamespace))),
-			secrets: []corev1.Secret{*secret},
-			wantAR: kubeAR(
-				withTemplate(template(serviceWithoutNamespace)),
-				withFinalizers(finalizerName),
-				withConditions(runtimev1alpha1.ReconcileError(errorBoom)),
-				withState(v1alpha1.KubernetesApplicationResourceStateFailed),
-			),
-			wantResult: reconcile.Result{Requeue: true},
+			ar:        kubeAR(withTemplate(template(serviceWithoutNamespace))),
+			secrets:   []corev1.Secret{*secret},
+			wantState: v1alpha1.KubernetesApplicationResourceStateFailed,
+			wantErr:   errorBoom,
 		},
 		{
 			name: "ResourceSyncFailed",
@@ -493,41 +470,29 @@ func TestSync(t *testing.T) {
 				withFinalizers(finalizerName),
 				withRemoteStatus(remoteStatus),
 			),
-			wantAR: kubeAR(
-				withTemplate(template(serviceWithoutNamespace)),
-				withFinalizers(finalizerName),
-				withRemoteStatus(remoteStatus),
-				withConditions(runtimev1alpha1.ReconcileError(errorBoom)),
-				withState(v1alpha1.KubernetesApplicationResourceStateFailed),
-			),
-			wantResult: reconcile.Result{Requeue: true},
+			wantState: v1alpha1.KubernetesApplicationResourceStateFailed,
+			wantErr:   errorBoom,
 		},
 		{
 			name: "ResourceSyncRefreshedStatusThenFailed",
 			syncer: &remoteCluster{
 				unstructured: &mockUnstructuredClient{mockSync: newMockSyncUnstructuredFn(remoteStatus, errorBoom)},
 			},
-			ar: kubeAR(withTemplate(template(serviceWithoutNamespace))),
-			wantAR: kubeAR(
-				withTemplate(template(serviceWithoutNamespace)),
-				withFinalizers(finalizerName),
-				withConditions(runtimev1alpha1.ReconcileError(errorBoom)),
-				withState(v1alpha1.KubernetesApplicationResourceStateFailed),
-				withRemoteStatus(remoteStatus),
-			),
-			wantResult: reconcile.Result{Requeue: true},
+			ar:        kubeAR(withTemplate(template(serviceWithoutNamespace))),
+			wantState: v1alpha1.KubernetesApplicationResourceStateFailed,
+			wantErr:   errorBoom,
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			gotResult := tc.syncer.sync(ctx, tc.ar, tc.secrets)
+			gotState, gotErr := tc.syncer.sync(ctx, tc.ar, tc.secrets)
 
-			if diff := cmp.Diff(tc.wantResult, gotResult); diff != "" {
+			if diff := cmp.Diff(tc.wantErr, gotErr, test.EquateErrors()); diff != "" {
 				t.Errorf("tc.syncer.sync(...): -want, +got:\n%s", diff)
 			}
 
-			if diff := cmp.Diff(tc.wantAR, tc.ar); diff != "" {
+			if diff := cmp.Diff(tc.wantState, gotState); diff != "" {
 				t.Errorf("app: -want, +got:\n%s", diff)
 			}
 		})
@@ -536,12 +501,12 @@ func TestSync(t *testing.T) {
 
 func TestDelete(t *testing.T) {
 	cases := []struct {
-		name       string
-		deleter    deleter
-		ar         *v1alpha1.KubernetesApplicationResource
-		secrets    []corev1.Secret
-		wantAR     *v1alpha1.KubernetesApplicationResource
-		wantResult reconcile.Result
+		name      string
+		deleter   deleter
+		ar        *v1alpha1.KubernetesApplicationResource
+		secrets   []corev1.Secret
+		wantState v1alpha1.KubernetesApplicationResourceState
+		wantErr   error
 	}{
 		{
 			name: "Successful",
@@ -583,12 +548,8 @@ func TestDelete(t *testing.T) {
 				withFinalizers(finalizerName),
 				withTemplate(template(service)),
 			),
-			secrets: []corev1.Secret{*secret},
-			wantAR: kubeAR(
-				withConditions(runtimev1alpha1.ReconcileSuccess()),
-				withTemplate(template(service)),
-			),
-			wantResult: reconcile.Result{Requeue: false},
+			secrets:   []corev1.Secret{*secret},
+			wantState: v1alpha1.KubernetesApplicationResourceStateSubmitted,
 		},
 		{
 			name:    "MissingTemplate",
@@ -596,12 +557,8 @@ func TestDelete(t *testing.T) {
 			ar: kubeAR(
 				withFinalizers(finalizerName),
 			),
-			wantAR: kubeAR(
-				withFinalizers(finalizerName),
-				withConditions(runtimev1alpha1.ReconcileError(errMissingTemplate)),
-				withState(v1alpha1.KubernetesApplicationResourceStateFailed),
-			),
-			wantResult: reconcile.Result{Requeue: true},
+			wantState: v1alpha1.KubernetesApplicationResourceStateFailed,
+			wantErr:   errMissingTemplate,
 		},
 		{
 			name: "SecretDeleteFailed",
@@ -613,14 +570,9 @@ func TestDelete(t *testing.T) {
 				withFinalizers(finalizerName),
 				withTemplate(template(serviceWithoutNamespace)),
 			),
-			secrets: []corev1.Secret{*secret},
-			wantAR: kubeAR(
-				withFinalizers(finalizerName),
-				withTemplate(template(serviceWithoutNamespace)),
-				withConditions(runtimev1alpha1.ReconcileError(errorBoom)),
-				withState(v1alpha1.KubernetesApplicationResourceStateFailed),
-			),
-			wantResult: reconcile.Result{Requeue: true},
+			secrets:   []corev1.Secret{*secret},
+			wantState: v1alpha1.KubernetesApplicationResourceStateFailed,
+			wantErr:   errorBoom,
 		},
 		{
 			name: "ResourceDeleteFailed",
@@ -631,25 +583,20 @@ func TestDelete(t *testing.T) {
 				withFinalizers(finalizerName),
 				withTemplate(template(serviceWithoutNamespace)),
 			),
-			wantAR: kubeAR(
-				withFinalizers(finalizerName),
-				withTemplate(template(serviceWithoutNamespace)),
-				withConditions(runtimev1alpha1.ReconcileError(errorBoom)),
-				withState(v1alpha1.KubernetesApplicationResourceStateFailed),
-			),
-			wantResult: reconcile.Result{Requeue: true},
+			wantState: v1alpha1.KubernetesApplicationResourceStateFailed,
+			wantErr:   errorBoom,
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			gotResult := tc.deleter.delete(ctx, tc.ar, tc.secrets)
+			gotState, gotErr := tc.deleter.delete(ctx, tc.ar, tc.secrets)
 
-			if diff := cmp.Diff(tc.wantResult, gotResult); diff != "" {
+			if diff := cmp.Diff(tc.wantErr, gotErr, test.EquateErrors()); diff != "" {
 				t.Errorf("tc.deleter.delete(...): -want, +got:\n%s", diff)
 			}
 
-			if diff := cmp.Diff(tc.wantAR, tc.ar); diff != "" {
+			if diff := cmp.Diff(tc.wantState, gotState); diff != "" {
 				t.Errorf("AR: -want, +got:\n%s", diff)
 			}
 		})
@@ -1233,19 +1180,19 @@ func TestConnect(t *testing.T) {
 	}
 }
 
-type mockSyncFn func(ctx context.Context, ar *v1alpha1.KubernetesApplicationResource, secrets []corev1.Secret) reconcile.Result
+type mockSyncFn func(ctx context.Context, ar *v1alpha1.KubernetesApplicationResource, secrets []corev1.Secret) (v1alpha1.KubernetesApplicationResourceState, error)
 
-func newMockSyncFn(r reconcile.Result) mockSyncFn {
-	return func(ctx context.Context, ar *v1alpha1.KubernetesApplicationResource, secrets []corev1.Secret) reconcile.Result {
-		return r
+func newMockSyncFn(s v1alpha1.KubernetesApplicationResourceState, e error) mockSyncFn {
+	return func(ctx context.Context, ar *v1alpha1.KubernetesApplicationResource, secrets []corev1.Secret) (v1alpha1.KubernetesApplicationResourceState, error) {
+		return s, e
 	}
 }
 
-type mockDeleteFn func(ctx context.Context, ar *v1alpha1.KubernetesApplicationResource, secrets []corev1.Secret) reconcile.Result
+type mockDeleteFn func(ctx context.Context, ar *v1alpha1.KubernetesApplicationResource, secrets []corev1.Secret) (v1alpha1.KubernetesApplicationResourceState, error)
 
-func newMockDeleteFn(r reconcile.Result) mockDeleteFn {
-	return func(ctx context.Context, ar *v1alpha1.KubernetesApplicationResource, secrets []corev1.Secret) reconcile.Result {
-		return r
+func newMockDeleteFn(s v1alpha1.KubernetesApplicationResourceState, e error) mockDeleteFn {
+	return func(ctx context.Context, ar *v1alpha1.KubernetesApplicationResource, secrets []corev1.Secret) (v1alpha1.KubernetesApplicationResourceState, error) {
+		return s, e
 	}
 }
 
@@ -1254,17 +1201,17 @@ type mockSyncDeleter struct {
 	mockDelete mockDeleteFn
 }
 
-func (m *mockSyncDeleter) sync(ctx context.Context, ar *v1alpha1.KubernetesApplicationResource, secrets []corev1.Secret) reconcile.Result {
+func (m *mockSyncDeleter) sync(ctx context.Context, ar *v1alpha1.KubernetesApplicationResource, secrets []corev1.Secret) (v1alpha1.KubernetesApplicationResourceState, error) {
 	return m.mockSync(ctx, ar, secrets)
 }
 
-func (m *mockSyncDeleter) delete(ctx context.Context, ar *v1alpha1.KubernetesApplicationResource, secrets []corev1.Secret) reconcile.Result {
+func (m *mockSyncDeleter) delete(ctx context.Context, ar *v1alpha1.KubernetesApplicationResource, secrets []corev1.Secret) (v1alpha1.KubernetesApplicationResourceState, error) {
 	return m.mockDelete(ctx, ar, secrets)
 }
 
 var noopSyncDeleter = &mockSyncDeleter{
-	mockSync:   newMockSyncFn(reconcile.Result{Requeue: false}),
-	mockDelete: newMockDeleteFn(reconcile.Result{Requeue: false}),
+	mockSync:   newMockSyncFn(v1alpha1.KubernetesApplicationResourceStateSubmitted, nil),
+	mockDelete: newMockDeleteFn(v1alpha1.KubernetesApplicationResourceStateSubmitted, nil),
 }
 
 type mockConnectFn func(ctx context.Context, ar *v1alpha1.KubernetesApplicationResource) (syncdeleter, error)
@@ -1298,6 +1245,19 @@ func TestReconcile(t *testing.T) {
 					MockGet: func(_ context.Context, key client.ObjectKey, _ runtime.Object) error {
 						return kerrors.NewNotFound(schema.GroupResource{}, key.Name)
 					},
+					MockStatusUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						got := obj.(*v1alpha1.KubernetesApplicationResource)
+
+						want := kubeAR(
+							withConditions(runtimev1alpha1.ReconcileError(errorBoom)),
+						)
+
+						if diff := cmp.Diff(want, got); diff != "" {
+							return errors.Errorf("MockStatusUpdate: -want, +got: %s", diff)
+						}
+
+						return nil
+					},
 				},
 				log: logging.NewNopLogger(),
 			},
@@ -1308,11 +1268,26 @@ func TestReconcile(t *testing.T) {
 		{
 			name: "FailedToGetExtantKAR",
 			rec: &Reconciler{
-				kube: &test.MockClient{MockGet: test.NewMockGetFn(errorBoom)},
-				log:  logging.NewNopLogger(),
+				kube: &test.MockClient{
+					MockGet: test.NewMockGetFn(errorBoom),
+					MockStatusUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						got := obj.(*v1alpha1.KubernetesApplicationResource)
+
+						want := kubeAR(
+							withConditions(runtimev1alpha1.ReconcileError(errorBoom)),
+						)
+
+						if diff := cmp.Diff(want, got); diff != "" {
+							return errors.Errorf("MockStatusUpdate: -want, +got: %s", diff)
+						}
+
+						return nil
+					},
+				},
+				log: logging.NewNopLogger(),
 			},
 			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
-			wantResult: reconcile.Result{Requeue: false},
+			wantResult: reconcile.Result{RequeueAfter: shortWait},
 			wantErr:    errors.Wrapf(errorBoom, "cannot get %s %s/%s", v1alpha1.KubernetesApplicationResourceKind, namespace, name),
 		},
 		{
@@ -1326,13 +1301,24 @@ func TestReconcile(t *testing.T) {
 					},
 					MockUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 						got := obj.(*v1alpha1.KubernetesApplicationResource)
+						want := kubeAR(withFinalizers(finalizerName))
+
+						if diff := cmp.Diff(want, got); diff != "" {
+							return errors.Errorf("MockUpdate: -want, +got: %s", diff)
+						}
+
+						return nil
+					},
+					MockStatusUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						got := obj.(*v1alpha1.KubernetesApplicationResource)
 
 						want := kubeAR(
+							withFinalizers(finalizerName),
 							withConditions(runtimev1alpha1.ReconcileError(errorBoom)),
 						)
 
 						if diff := cmp.Diff(want, got); diff != "" {
-							return errors.Errorf("MockUpdate: -want, +got: %s", diff)
+							return errors.Errorf("MockStatusUpdate: -want, +got: %s", diff)
 						}
 
 						return nil
@@ -1341,7 +1327,7 @@ func TestReconcile(t *testing.T) {
 				log: logging.NewNopLogger(),
 			},
 			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
-			wantResult: reconcile.Result{Requeue: true},
+			wantResult: reconcile.Result{RequeueAfter: shortWait},
 		},
 		{
 			name: "KARDeletedButCannotConnect",
@@ -1356,9 +1342,13 @@ func TestReconcile(t *testing.T) {
 					},
 					MockUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 						got := obj.(*v1alpha1.KubernetesApplicationResource)
-						want := kubeAR(withDeletionTimestamp(deleteTime))
+						want := kubeAR(
+							withDeletionTimestamp(deleteTime),
+						)
 
-						if diff := cmp.Diff(want, got); diff != "" {
+						// We ignore finalizers because the first update call
+						// should have one but the second should not.
+						if diff := cmp.Diff(want, got, cmpopts.IgnoreFields(v1alpha1.KubernetesApplicationResource{}, "ObjectMeta.Finalizers")); diff != "" {
 							return errors.Errorf("MockUpdate: -want, +got: %s", diff)
 						}
 
@@ -1376,10 +1366,23 @@ func TestReconcile(t *testing.T) {
 				connecter: &mockConnecter{mockConnect: newMockConnectFn(noopSyncDeleter, nil)},
 				kube: &test.MockClient{
 					MockGet: func(_ context.Context, _ client.ObjectKey, obj runtime.Object) error {
-						*obj.(*v1alpha1.KubernetesApplicationResource) = *(kubeAR(withDeletionTimestamp(time.Now())))
+						*obj.(*v1alpha1.KubernetesApplicationResource) = *(kubeAR(withDeletionTimestamp(deleteTime)))
 						return nil
 					},
-					MockUpdate: test.NewMockUpdateFn(nil),
+					MockUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						got := obj.(*v1alpha1.KubernetesApplicationResource)
+						want := kubeAR(
+							withDeletionTimestamp(deleteTime),
+						)
+
+						// We ignore finalizers because the first update call
+						// should have one but the second should not.
+						if diff := cmp.Diff(want, got, cmpopts.IgnoreFields(v1alpha1.KubernetesApplicationResource{}, "ObjectMeta.Finalizers")); diff != "" {
+							return errors.Errorf("MockUpdate: -want, +got: %s", diff)
+						}
+
+						return nil
+					},
 				},
 				log: logging.NewNopLogger(),
 			},
@@ -1389,40 +1392,132 @@ func TestReconcile(t *testing.T) {
 		{
 			name: "KARDeleteFailure",
 			rec: &Reconciler{
-				connecter: &mockConnecter{mockConnect: newMockConnectFn(noopSyncDeleter, nil)},
+				connecter: &mockConnecter{mockConnect: newMockConnectFn(&mockSyncDeleter{
+					mockSync:   newMockSyncFn(v1alpha1.KubernetesApplicationResourceStateSubmitted, nil),
+					mockDelete: newMockDeleteFn(v1alpha1.KubernetesApplicationResourceStateFailed, errorBoom),
+				}, nil)},
 				kube: &test.MockClient{
 					MockGet: func(_ context.Context, _ client.ObjectKey, obj runtime.Object) error {
-						*obj.(*v1alpha1.KubernetesApplicationResource) = *(kubeAR(withDeletionTimestamp(time.Now())))
+						*obj.(*v1alpha1.KubernetesApplicationResource) = *(kubeAR(withDeletionTimestamp(deleteTime)))
 						return nil
 					},
-					MockUpdate: test.NewMockUpdateFn(errorBoom),
+					MockUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						got := obj.(*v1alpha1.KubernetesApplicationResource)
+						want := kubeAR(
+							withDeletionTimestamp(deleteTime),
+							withFinalizers(finalizerName),
+						)
+
+						if diff := cmp.Diff(want, got); diff != "" {
+							return errors.Errorf("MockUpdate: -want, +got: %s", diff)
+						}
+
+						return nil
+					},
+					MockStatusUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						got := obj.(*v1alpha1.KubernetesApplicationResource)
+
+						want := kubeAR(
+							withFinalizers(finalizerName),
+							withDeletionTimestamp(deleteTime),
+							withState(v1alpha1.KubernetesApplicationResourceStateFailed),
+							withConditions(runtimev1alpha1.ReconcileError(errorBoom)),
+						)
+
+						if diff := cmp.Diff(want, got); diff != "" {
+							return errors.Errorf("MockStatusUpdate: -want, +got: %s", diff)
+						}
+
+						return nil
+					},
 				},
 				log: logging.NewNopLogger(),
 			},
 			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
-			wantResult: reconcile.Result{Requeue: false},
-			wantErr:    errors.Wrapf(errorBoom, "cannot update %s %s/%s", v1alpha1.KubernetesApplicationResourceKind, namespace, name),
+			wantResult: reconcile.Result{RequeueAfter: shortWait},
 		},
 		{
 			name: "KARSyncedSuccessfully",
 			rec: &Reconciler{
 				connecter: &mockConnecter{mockConnect: newMockConnectFn(noopSyncDeleter, nil)},
-				kube:      &test.MockClient{MockGet: test.NewMockGetFn(nil), MockUpdate: test.NewMockUpdateFn(nil)},
-				log:       logging.NewNopLogger(),
+				kube: &test.MockClient{
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj runtime.Object) error {
+						*obj.(*v1alpha1.KubernetesApplicationResource) = *(kubeAR())
+						return nil
+					},
+					MockUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						got := obj.(*v1alpha1.KubernetesApplicationResource)
+						want := kubeAR(withFinalizers(finalizerName))
+
+						if diff := cmp.Diff(want, got); diff != "" {
+							return errors.Errorf("MockUpdate: -want, +got: %s", diff)
+						}
+
+						return nil
+					},
+					MockStatusUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						got := obj.(*v1alpha1.KubernetesApplicationResource)
+
+						want := kubeAR(
+							withFinalizers(finalizerName),
+							withState(v1alpha1.KubernetesApplicationResourceStateSubmitted),
+							withConditions(runtimev1alpha1.ReconcileSuccess()),
+						)
+
+						if diff := cmp.Diff(want, got); diff != "" {
+							return errors.Errorf("MockStatusUpdate: -want, +got: %s", diff)
+						}
+
+						return nil
+					},
+				},
+				log: logging.NewNopLogger(),
 			},
 			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
-			wantResult: reconcile.Result{Requeue: false},
+			wantResult: reconcile.Result{RequeueAfter: longWait},
 		},
 		{
 			name: "KARSyncFailure",
 			rec: &Reconciler{
-				connecter: &mockConnecter{mockConnect: newMockConnectFn(noopSyncDeleter, nil)},
-				kube:      &test.MockClient{MockGet: test.NewMockGetFn(nil), MockUpdate: test.NewMockUpdateFn(errorBoom)},
-				log:       logging.NewNopLogger(),
+				connecter: &mockConnecter{mockConnect: newMockConnectFn(&mockSyncDeleter{
+					mockSync:   newMockSyncFn(v1alpha1.KubernetesApplicationResourceStateFailed, errorBoom),
+					mockDelete: newMockDeleteFn(v1alpha1.KubernetesApplicationResourceStateSubmitted, nil),
+				}, nil)},
+				kube: &test.MockClient{
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj runtime.Object) error {
+						*obj.(*v1alpha1.KubernetesApplicationResource) = *(kubeAR())
+						return nil
+					},
+					MockUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						got := obj.(*v1alpha1.KubernetesApplicationResource)
+						want := kubeAR(withFinalizers(finalizerName))
+
+						if diff := cmp.Diff(want, got); diff != "" {
+							return errors.Errorf("MockUpdate: -want, +got: %s", diff)
+						}
+
+						return nil
+					},
+					MockStatusUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						got := obj.(*v1alpha1.KubernetesApplicationResource)
+
+						want := kubeAR(
+							withFinalizers(finalizerName),
+							withState(v1alpha1.KubernetesApplicationResourceStateFailed),
+							withConditions(runtimev1alpha1.ReconcileError(errorBoom)),
+						)
+
+						if diff := cmp.Diff(want, got); diff != "" {
+							return errors.Errorf("MockStatusUpdate: -want, +got: %s", diff)
+						}
+
+						return nil
+					},
+				},
+				log: logging.NewNopLogger(),
 			},
 			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
-			wantResult: reconcile.Result{Requeue: false},
-			wantErr:    errors.Wrapf(errorBoom, "cannot update %s %s/%s", v1alpha1.KubernetesApplicationResourceKind, namespace, name),
+			wantResult: reconcile.Result{RequeueAfter: shortWait},
 		},
 	}
 
