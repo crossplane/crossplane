@@ -145,7 +145,7 @@ func main() {
 		// TODO(displague) afero.NewBasePathFs could avoid the need to track Base
 		fs := afero.NewOsFs()
 		rd := &walker.ResourceDir{Base: filepath.Clean(*extUnpackDir), Walker: afero.Afero{Fs: fs}}
-		kingpin.FatalIfError(stack.Unpack(rd, outFile, rd.Base, *extUnpackPermissionScope, *extUnpackTemplatesController), "failed to unpack stacks")
+		kingpin.FatalIfError(stack.Unpack(rd, outFile, rd.Base, *extUnpackPermissionScope, *extUnpackTemplatesController, log), "failed to unpack stacks")
 
 	default:
 		kingpin.FatalUsage("unknown command %s", cmd)
