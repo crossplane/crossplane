@@ -81,7 +81,7 @@ func (r *components) Render(ctx context.Context, ac *v1alpha2.ApplicationConfigu
 			return nil, errors.Wrapf(err, errFmtGetComponent, acc.ComponentName)
 		}
 
-		p, err := r.params.Resolve(c.Spec.Parameters, ac.Spec.Components[i].ParameterValues)
+		p, err := r.params.Resolve(c.Spec.Parameters, acc.ParameterValues)
 		if err != nil {
 			return nil, errors.Wrapf(err, errFmtResolveParams, acc.ComponentName)
 		}
@@ -102,7 +102,6 @@ func (r *components) Render(ctx context.Context, ac *v1alpha2.ApplicationConfigu
 				return nil, errors.Wrapf(err, errFmtRenderTrait, acc.ComponentName)
 			}
 
-			ref := metav1.NewControllerRef(ac, v1alpha2.ApplicationConfigurationGroupVersionKind)
 			t.SetOwnerReferences([]metav1.OwnerReference{*ref})
 			t.SetNamespace(ac.GetNamespace())
 
@@ -136,17 +135,17 @@ func renderWorkload(data []byte, p ...Parameter) (*unstructured.Unstructured, er
 		return nil, errors.Wrap(err, errUnmarshalWorkload)
 	}
 
-	for _, p := range p {
-		for _, path := range p.FieldPaths {
+	for _, param := range p {
+		for _, path := range param.FieldPaths {
 			// TODO(negz): Infer parameter type from workload OpenAPI schema.
-			switch p.Value.Type {
+			switch param.Value.Type {
 			case intstr.String:
-				if err := w.SetString(path, p.Value.StrVal); err != nil {
-					return nil, errors.Wrapf(err, errFmtSetParam, p.Name)
+				if err := w.SetString(path, param.Value.StrVal); err != nil {
+					return nil, errors.Wrapf(err, errFmtSetParam, param.Name)
 				}
 			case intstr.Int:
-				if err := w.SetNumber(path, float64(p.Value.IntVal)); err != nil {
-					return nil, errors.Wrapf(err, errFmtSetParam, p.Name)
+				if err := w.SetNumber(path, float64(param.Value.IntVal)); err != nil {
+					return nil, errors.Wrapf(err, errFmtSetParam, param.Name)
 				}
 			}
 		}
