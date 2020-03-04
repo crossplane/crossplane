@@ -414,6 +414,14 @@ type StackStatus struct {
 	ControllerRef                     *corev1.ObjectReference `json:"controllerRef,omitempty"`
 }
 
+// PackageMetadataSpec defines metadata about the stack application
+// and package contents
+type PackageMetadataSpec struct {
+	APIVersion string `json:"apiVersion,omitempty"`
+
+	AppMetadataSpec `json:",inline"`
+}
+
 // AppMetadataSpec defines metadata about the stack application
 type AppMetadataSpec struct {
 	Title         string            `json:"title,omitempty"`

@@ -974,7 +974,10 @@ var (
 )
 
 func simpleAppFile(permissionScope, packageType string) string {
-	return fmt.Sprintf(`# Human readable title of application.
+	return fmt.Sprintf(`# apiVersion this app.yaml conforms to
+apiVersion: 0.1.0
+
+# Human readable title of application.
 title: Sample Crossplane Stack
 
 # Markdown description of this entry
