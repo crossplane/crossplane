@@ -38,6 +38,9 @@ spec:
     required: true
     fieldPaths:
     - metadata.name
+  - name: image
+    fieldPaths:
+    - spec.containers[0].image
 ---
 apiVersion: core.oam.dev/v1alpha2
 kind: ApplicationConfiguration
@@ -49,6 +52,8 @@ spec:
     parameterValues:
     - name: instance-name
       value: example-appconfig-workload
+    - name: image
+      value: wordpress:php7.2
     traits:
     - trait:
         apiVersion: core.oam.dev/v1alpha2
