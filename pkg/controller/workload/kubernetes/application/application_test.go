@@ -52,6 +52,7 @@ var (
 	templateA = v1alpha1.KubernetesApplicationResourceTemplate{
 		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: "coolTemplateA"},
 		Spec: v1alpha1.KubernetesApplicationResourceSpec{
+			Target:  targetRef,
 			Secrets: []corev1.LocalObjectReference{{Name: "coolSecretA"}},
 		},
 	}
@@ -80,8 +81,7 @@ var (
 		},
 		Spec: templateA.Spec,
 		Status: v1alpha1.KubernetesApplicationResourceStatus{
-			State:  v1alpha1.KubernetesApplicationResourceStateScheduled,
-			Target: targetRef,
+			State: v1alpha1.KubernetesApplicationResourceStateScheduled,
 		},
 	}
 )
@@ -106,7 +106,7 @@ func withSubmittedResources(i int) kubeAppModifier {
 
 func withTarget(name string) kubeAppModifier {
 	return func(r *v1alpha1.KubernetesApplication) {
-		r.Status.Target = &v1alpha1.KubernetesTargetReference{Name: name}
+		r.Spec.Target = &v1alpha1.KubernetesTargetReference{Name: name}
 	}
 }
 
@@ -136,7 +136,7 @@ func TestCreatePredicate(t *testing.T) {
 			name: "ScheduledCluster",
 			event: event.CreateEvent{
 				Object: &v1alpha1.KubernetesApplication{
-					Status: v1alpha1.KubernetesApplicationStatus{
+					Spec: v1alpha1.KubernetesApplicationSpec{
 						Target: targetRef,
 					},
 				},
@@ -178,7 +178,7 @@ func TestUpdatePredicate(t *testing.T) {
 			name: "ScheduledCluster",
 			event: event.UpdateEvent{
 				ObjectNew: &v1alpha1.KubernetesApplication{
-					Status: v1alpha1.KubernetesApplicationStatus{
+					Spec: v1alpha1.KubernetesApplicationSpec{
 						Target: targetRef,
 					},
 				},
@@ -243,11 +243,11 @@ func (gc *mockGarbageCollector) process(ctx context.Context, app *v1alpha1.Kuber
 
 func TestSync(t *testing.T) {
 	cases := []struct {
-		name       string
-		syncer     syncer
-		app        *v1alpha1.KubernetesApplication
-		wantApp    *v1alpha1.KubernetesApplication
-		wantResult reconcile.Result
+		name      string
+		syncer    syncer
+		app       *v1alpha1.KubernetesApplication
+		wantState v1alpha1.KubernetesApplicationState
+		wantErr   error
 	}{
 		{
 			name: "NoResourcesSubmitted",
@@ -255,15 +255,8 @@ func TestSync(t *testing.T) {
 				ar: &mockARSyncer{mockSync: newMockARSyncFn(false, nil)},
 				gc: &mockGarbageCollector{mockProcess: newMockProcessFn(nil)},
 			},
-			app: kubeApp(withTemplates(templateA)),
-			wantApp: kubeApp(
-				withTemplates(templateA),
-				withState(v1alpha1.KubernetesApplicationStateScheduled),
-				withConditions(runtimev1alpha1.ReconcileSuccess()),
-				withDesiredResources(1),
-				withSubmittedResources(0),
-			),
-			wantResult: reconcile.Result{RequeueAfter: requeueOnWait},
+			app:       kubeApp(withTemplates(templateA)),
+			wantState: v1alpha1.KubernetesApplicationStateScheduled,
 		},
 		{
 			name: "PartialResourcesSubmitted",
@@ -281,15 +274,8 @@ func TestSync(t *testing.T) {
 				},
 				gc: &mockGarbageCollector{mockProcess: newMockProcessFn(nil)},
 			},
-			app: kubeApp(withTemplates(templateA, templateB)),
-			wantApp: kubeApp(
-				withTemplates(templateA, templateB),
-				withState(v1alpha1.KubernetesApplicationStatePartial),
-				withConditions(runtimev1alpha1.ReconcileSuccess()),
-				withDesiredResources(2),
-				withSubmittedResources(1),
-			),
-			wantResult: reconcile.Result{RequeueAfter: requeueOnWait},
+			app:       kubeApp(withTemplates(templateA, templateB)),
+			wantState: v1alpha1.KubernetesApplicationStatePartial,
 		},
 		{
 			name: "AllResourcesSubmitted",
@@ -302,15 +288,8 @@ func TestSync(t *testing.T) {
 				},
 				gc: &mockGarbageCollector{mockProcess: newMockProcessFn(nil)},
 			},
-			app: kubeApp(withTemplates(templateA, templateB)),
-			wantApp: kubeApp(
-				withTemplates(templateA, templateB),
-				withState(v1alpha1.KubernetesApplicationStateSubmitted),
-				withConditions(runtimev1alpha1.ReconcileSuccess()),
-				withDesiredResources(2),
-				withSubmittedResources(2),
-			),
-			wantResult: reconcile.Result{Requeue: false},
+			app:       kubeApp(withTemplates(templateA, templateB)),
+			wantState: v1alpha1.KubernetesApplicationStateSubmitted,
 		},
 		{
 			name: "GarbageCollectionFailed",
@@ -318,14 +297,9 @@ func TestSync(t *testing.T) {
 				ar: &mockARSyncer{mockSync: newMockARSyncFn(false, nil)},
 				gc: &mockGarbageCollector{mockProcess: newMockProcessFn(errorBoom)},
 			},
-			app: kubeApp(withTemplates(templateA)),
-			wantApp: kubeApp(
-				withTemplates(templateA),
-				withState(v1alpha1.KubernetesApplicationStateFailed),
-				withConditions(runtimev1alpha1.ReconcileError(errorBoom)),
-				withDesiredResources(1),
-			),
-			wantResult: reconcile.Result{Requeue: true},
+			app:       kubeApp(withTemplates(templateA)),
+			wantState: v1alpha1.KubernetesApplicationStateFailed,
+			wantErr:   errors.Wrap(errorBoom, errGarbageCollect),
 		},
 		{
 			name: "SyncApplicationResourceFailed",
@@ -333,43 +307,43 @@ func TestSync(t *testing.T) {
 				ar: &mockARSyncer{mockSync: newMockARSyncFn(false, errorBoom)},
 				gc: &mockGarbageCollector{mockProcess: newMockProcessFn(nil)},
 			},
-			app: kubeApp(withTemplates(templateA)),
-			wantApp: kubeApp(
-				withTemplates(templateA),
-				withState(v1alpha1.KubernetesApplicationStateFailed),
-				withConditions(runtimev1alpha1.ReconcileError(errorBoom)),
-				withDesiredResources(1),
-			),
-			wantResult: reconcile.Result{Requeue: true},
+			app:       kubeApp(withTemplates(templateA)),
+			wantState: v1alpha1.KubernetesApplicationStateFailed,
+			wantErr:   errors.Wrap(errorBoom, errSyncTemplate),
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			gotResult := tc.syncer.sync(ctx, tc.app)
+			gotState, gotErr := tc.syncer.sync(ctx, tc.app)
 
-			if diff := cmp.Diff(tc.wantResult, gotResult); diff != "" {
+			if diff := cmp.Diff(tc.wantErr, gotErr, test.EquateErrors()); diff != "" {
 				t.Errorf("tc.sd.Sync(...): -want, +got:\n%s", diff)
 			}
 
-			if diff := cmp.Diff(tc.wantApp, tc.app); diff != "" {
-				t.Errorf("app: -want, +got:\n%s", diff)
+			if diff := cmp.Diff(tc.wantState, gotState); diff != "" {
+				t.Errorf("tc.sd.Sync(...): -want, +got:\n%s", diff)
 			}
 		})
 	}
 }
 
-type mockSyncFn func(ctx context.Context, app *v1alpha1.KubernetesApplication) reconcile.Result
+type mockSyncFn func(ctx context.Context, app *v1alpha1.KubernetesApplication) (v1alpha1.KubernetesApplicationState, error)
 
-func newMockSyncFn(r reconcile.Result) mockSyncFn {
-	return func(_ context.Context, _ *v1alpha1.KubernetesApplication) reconcile.Result { return r }
+func newMockSyncFn(s v1alpha1.KubernetesApplicationState, submit bool, e error) mockSyncFn {
+	return func(_ context.Context, a *v1alpha1.KubernetesApplication) (v1alpha1.KubernetesApplicationState, error) {
+		if submit {
+			a.Status.SubmittedResources = a.Status.DesiredResources
+		}
+		return s, e
+	}
 }
 
 type mockSyncer struct {
 	mockSync mockSyncFn
 }
 
-func (sd *mockSyncer) sync(ctx context.Context, app *v1alpha1.KubernetesApplication) reconcile.Result {
+func (sd *mockSyncer) sync(ctx context.Context, app *v1alpha1.KubernetesApplication) (v1alpha1.KubernetesApplicationState, error) {
 	return sd.mockSync(ctx, app)
 }
 
@@ -408,23 +382,44 @@ func TestReconcile(t *testing.T) {
 		{
 			name: "ApplicationSyncedSuccessfully",
 			rec: &Reconciler{
-				kube:  &test.MockClient{MockGet: test.NewMockGetFn(nil), MockUpdate: test.NewMockUpdateFn(nil)},
-				local: &mockSyncer{mockSync: newMockSyncFn(reconcile.Result{Requeue: false})},
+				kube: &test.MockClient{
+					MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
+						*obj.(*v1alpha1.KubernetesApplication) = *(kubeApp(withDesiredResources(3)))
+						return nil
+					},
+					MockStatusUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						got := obj.(*v1alpha1.KubernetesApplication)
+
+						want := kubeApp(
+							withConditions(runtimev1alpha1.ReconcileSuccess()),
+							withState(v1alpha1.KubernetesApplicationStateSubmitted),
+							withDesiredResources(3),
+							withSubmittedResources(3),
+						)
+
+						if diff := cmp.Diff(want, got); diff != "" {
+							return errors.Errorf("MockUpdate: -want, +got: %s", diff)
+						}
+
+						return nil
+					},
+				},
+				local: &mockSyncer{mockSync: newMockSyncFn(v1alpha1.KubernetesApplicationStateSubmitted, true, nil)},
 				log:   logging.NewNopLogger(),
 			},
 			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
-			wantResult: reconcile.Result{Requeue: false},
+			wantResult: reconcile.Result{RequeueAfter: longWait},
 		},
 		{
 			name: "ApplicationSyncFailure",
 			rec: &Reconciler{
-				kube:  &test.MockClient{MockGet: test.NewMockGetFn(nil), MockUpdate: test.NewMockUpdateFn(errorBoom)},
-				local: &mockSyncer{mockSync: newMockSyncFn(reconcile.Result{Requeue: false})},
+				kube:  &test.MockClient{MockGet: test.NewMockGetFn(nil), MockStatusUpdate: test.NewMockStatusUpdateFn(errorBoom)},
+				local: &mockSyncer{mockSync: newMockSyncFn(v1alpha1.KubernetesApplicationStateFailed, false, errorBoom)},
 				log:   logging.NewNopLogger(),
 			},
 			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
-			wantResult: reconcile.Result{Requeue: false},
-			wantErr:    errors.Wrapf(errorBoom, "cannot update %s %s/%s", v1alpha1.KubernetesApplicationKind, namespace, name),
+			wantResult: reconcile.Result{RequeueAfter: shortWait},
+			wantErr:    errors.Wrapf(errorBoom, "cannot update status %s %s/%s", v1alpha1.KubernetesApplicationKind, namespace, name),
 		},
 	}
 
