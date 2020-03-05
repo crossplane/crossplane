@@ -288,7 +288,7 @@ e2e tests].
 
 <!-- Named Links -->
 
-[current-integration-tests]: https://github.com/crossplane/stack-gcp/blob/master/cluster/local/integration_tests.sh
+[current-integration-tests]: https://github.com/crossplane/provider-gcp/blob/master/cluster/local/integration_tests.sh
 [controller-runtime]: https://github.com/kubernetes-sigs/controller-runtime
 [envtest]: https://godoc.org/sigs.k8s.io/controller-runtime/pkg/envtest
 [testing]: https://golang.org/pkg/testing/

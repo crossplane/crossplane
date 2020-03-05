@@ -119,7 +119,7 @@ Cluster Stacks can be thought of as a higher level of privilege than other types
  to the cluster, for example cloud provider managed services. These controllers will also likely be written as full
  fledged controller-runtime based implementations, but that is not a requirement.
 
-Let's look at a specific example of the [GCP cluster stack](https://github.com/crossplane/stack-gcp) to understand the security and isolation model more thoroughly.
+Let's look at a specific example of the [GCP cluster stack](https://github.com/crossplane/provider-gcp) to understand the security and isolation model more thoroughly.
 First, the user will create an instance of a `ClusterStackInstall` that specifies which cluster stack they want to install.
 Then, when the Stack Manager installs the GCP stack, a few things will happen:
 
@@ -520,7 +520,7 @@ On install of crossplane-aws stack, the stack-manager would create a ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: stack:crossplane:stack-aws:1.0:admin # Unique by stack:{namespace-name}:{stack-name}:{version}:{role}s
+  name: stack:crossplane:provider-aws:1.0:admin # Unique by stack:{namespace-name}:{stack-name}:{version}:{role}s
   labels:
     rbac.crossplane.io/aggregate-to-crossplane-admin: "true"
 # These rules will be added to the "crossplane-admin" role based on the label above

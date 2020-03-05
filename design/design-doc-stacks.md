@@ -102,7 +102,7 @@ metadata:
   name: gcp-from-package
 spec:
   source: registry.crossplane.io
-  package: crossplane/stack-gcp:v0.1.0
+  package: crossplane/provider-gcp:v0.1.0
 status:
   conditions:
   - type: Ready

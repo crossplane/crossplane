@@ -2,7 +2,7 @@
 apiVersion: stacks.crossplane.io/v1alpha1
 kind: ClusterStackInstall
 metadata:
-  name: stack-gcp
+  name: provider-gcp
   namespace: crossplane-system
 spec:
-  package: "crossplane/stack-gcp:master"
+  package: "crossplane/provider-gcp:master"
