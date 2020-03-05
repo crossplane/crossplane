@@ -1,0 +1,66 @@
+---
+apiVersion: core.oam.dev/v1alpha2
+kind: TraitDefinition
+metadata:
+  name: manualscalertraits.core.oam.dev
+spec:
+  definitionRef:
+    name: manualscalertraits.core.oam.dev
+---
+apiVersion: core.oam.dev/v1alpha2
+kind: WorkloadDefinition
+metadata:
+  name: containerizedworkloads.core.oam.dev
+spec:
+  definitionRef:
+    name: containerizedworkloads.core.oam.dev
+---
+apiVersion: core.oam.dev/v1alpha2
+kind: Component
+metadata:
+  name: example-component
+spec:
+  workload:
+    apiVersion: core.oam.dev/v1alpha2
+    kind: ContainerizedWorkload
+    spec:
+      containers:
+      - name: wordpress
+        image: wordpress:4.6.1-apache
+        # TODO(negz): Allow environment variables to be set from a secret? OAM
+        # doesn't have a concept of Kubernetes secrets, so we will likely need
+        # to abstract this somehow.
+        ports:
+        - containerPort: 80
+          name: wordpress
+  parameters:
+  - name: instance-name
+    required: true
+    fieldPaths:
+    - metadata.name
+  - name: image
+    fieldPaths:
+    - spec.containers[0].image
+---
+apiVersion: core.oam.dev/v1alpha2
+kind: ApplicationConfiguration
+metadata:
+  name: example-appconfig
+spec:
+  components:
+  - componentName: example-component
+    parameterValues:
+    - name: instance-name
+      value: example-appconfig-workload
+    - name: image
+      value: wordpress:php7.2
+    traits:
+    - trait:
+        apiVersion: core.oam.dev/v1alpha2
+        kind: ManualScalerTrait
+        metadata:
+          # TODO(negz): This name can be omitted and generated automatically if
+          # each trait kind may apply only once to a component/workload.
+          name:  example-appconfig-trait
+        spec:
+          replicaCount: 3
