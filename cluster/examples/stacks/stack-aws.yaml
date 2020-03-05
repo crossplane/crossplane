@@ -2,7 +2,7 @@
 apiVersion: stacks.crossplane.io/v1alpha1
 kind: ClusterStackInstall
 metadata:
-  name: stack-aws
+  name: provider-aws
   namespace: crossplane-system
 spec:
-  package: "crossplane/stack-aws:master"
+  package: "crossplane/provider-aws:master"

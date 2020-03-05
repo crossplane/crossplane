@@ -128,7 +128,7 @@ Any dates listed below and the specific issues that will ship in a given milesto
 
 * Stable v1beta1 Services APIs for managed databases and caches (Azure) [#863](https://github.com/crossplane/crossplane/issues/863)
   * Upgrade Azure stack to v1beta1: Azure Database and Azure Cache for Redis with high-def CRDs & controllers
-    * crossplane/stack-azure#28 Azure SQL and Redis resources v1beta1
+    * crossplane/provider-azure#28 Azure SQL and Redis resources v1beta1
 
 * Bug fixes and test automation
 
@@ -150,7 +150,7 @@ Any dates listed below and the specific issues that will ship in a given milesto
 ## [v0.7.0 Deploy Workloads to any Kubernetes Cluster, including bare-metal!](https://github.com/crossplane/crossplane/releases/tag/v0.7.0)
 * KubernetesTarget kind for scheduling KubernetesApplications [#859](https://github.com/crossplane/crossplane/issues/859)
 * Improved the UI schema for resources supported by Crossplane stacks [#38](https://github.com/upbound/crossplane-graphql/issues/38)
-* GCP integration tests [crossplane/stack-gcp#87](https://github.com/crossplane/stack-gcp/issues/87)
+* GCP integration tests [crossplane/provider-gcp#87](https://github.com/crossplane/provider-gcp/issues/87)
 * Template Stacks (experimental): integrate template engine controllers with stack manager [#36](https://github.com/upbound/stacks-marketplace-squad/issues/36)
 
 ## [v0.8.0 Stacks simplify cloud-native app and infrastructure provisioning](https://github.com/crossplane/crossplane/releases/tag/v0.8.0)
@@ -162,8 +162,8 @@ Any dates listed below and the specific issues that will ship in a given milesto
 - Improved logging and eventing 
   - [Observability Developer Guide](https://crossplane.io/docs/v0.8/observability-developer-guide.html) for logging and eventing in Crossplane controllers
   - [crossplane/crossplane-runtime#104](https://github.com/crossplane/crossplane-runtime/issues/104) instrumentation and updated all cloud provider stacks
-- Enable [stack-aws](https://github.com/crossplane/stack-aws) to authenticate to the AWS API using [IAM Roles for Service Accounts](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html)
-  - when running on EKS [stack-aws#126](https://github.com/crossplane/stack-aws/pull/126)
+- Enable [provider-aws](https://github.com/crossplane/provider-aws) to authenticate to the AWS API using [IAM Roles for Service Accounts](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html)
+  - when running on EKS [provider-aws#126](https://github.com/crossplane/provider-aws/pull/126)
 - Host-aware Stack Manager [#1038](https://github.com/crossplane/crossplane/issues/1038)
   - Enables deploying multiple Crossplane instances watching different Kubernetes API servers on a single Host Kubernetes cluster.
 - RBAC group and role refinements
@@ -217,8 +217,8 @@ Any dates listed below and the specific issues that will ship in a given milesto
    * Incorporate beta1 feedback
    * Upgrade other supported services to v1beta1 (e.g. Buckets, etc.)
    * Code generation of API types, controller scaffolding to further streamline additional services
-   * GCP storage buckets to v1beta1 [crossplane/stack-gcp#130](https://github.com/crossplane/stack-gcp/issues/130)
-   * GCP networking resources to v1beta1 [crossplane/stack-gcp#131](https://github.com/crossplane/stack-gcp/issues/131)
+   * GCP storage buckets to v1beta1 [crossplane/provider-gcp#130](https://github.com/crossplane/provider-gcp/issues/130)
+   * GCP networking resources to v1beta1 [crossplane/provider-gcp#131](https://github.com/crossplane/provider-gcp/issues/131)
 
 * Expanded Rook support
   * Support additional Rook storage providers

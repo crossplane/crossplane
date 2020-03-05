@@ -11,10 +11,10 @@ maintainers:
 source:
 - https://github.com/crossplane/crossplane
 - https://github.com/crossplane/crossplane-runtime
-- https://github.com/crossplane/stack-aws
-- https://github.com/crossplane/stack-azure
-- https://github.com/crossplane/stack-gcp
-- https://github.com/crossplane/stack-rook
+- https://github.com/crossplane/provider-aws
+- https://github.com/crossplane/provider-azure
+- https://github.com/crossplane/provider-gcp
+- https://github.com/crossplane/provider-rook
 keywords:
 - clusters as cattle
 - infrastructure

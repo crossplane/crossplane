@@ -92,7 +92,7 @@ by prepending `<namespace>.` to object name. For example:
  | Tenant Instance | Host Cluster |
  | :---: | :---: |
  | Namespace / Name | Namespace / Name |
- | crossplane-system / stack-gcp | tenant-n-controllers / crossplane-system.stack-gcp |
+ | crossplane-system / provider-gcp | tenant-n-controllers / crossplane-system.provider-gcp |
  | dev / stack-wordpress | tenant-n-controllers / dev.stack-wordpress |
 
 This mapping will cause a length limit to resource names as follows:
@@ -108,7 +108,7 @@ Right now, this will effect:
 
 However, considering the following, this should not cause a new limitation for Crossplane:
 
-- There are already labels holding some resource names (e.g. `core.crossplane.io/parent-name: stack-gcp`) and Kubernetes
+- There are already labels holding some resource names (e.g. `core.crossplane.io/parent-name: provider-gcp`) and Kubernetes
  Labels are [limited to 63 chars](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#syntax-and-character-set)
 - Kubernetes namespaces are limited to 63 chars
  

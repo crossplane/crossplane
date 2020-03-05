@@ -275,7 +275,7 @@ details about them.
 While this document has so far described the release process improvements for the [main Crossplane
 repository](https://github.com/crossplane/crossplane), there are also some infrastructure stacks
 that the Crossplane community currently owns and is responsible for releasing, such as
-[`stack-gcp`](https://github.com/crossplane/stack-gcp). Since these stack repositories currently
+[`provider-gcp`](https://github.com/crossplane/provider-gcp). Since these stack repositories currently
 also take advantage of the build submodule, they will also follow a very similar process as
 Crossplane and receive a similar set of improvements.
 

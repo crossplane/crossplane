@@ -281,9 +281,9 @@ dependent objects are deleted first.
 
 [gitops doc]: (https://www.weave.works/blog/what-is-gitops-really) 
 [Subnet type]:
-(https://github.com/crossplane/stack-aws/blob/master/apis/network/v1alpha2/subnet_types.go#L25-L37)
+(https://github.com/crossplane/provider-aws/blob/master/apis/network/v1alpha2/subnet_types.go#L25-L37)
 [Subnetwork type]:
-(https://github.com/crossplane/stack-gcp/blob/master/apis/compute/v1alpha2/subnetwork_types.go#L144)
+(https://github.com/crossplane/provider-gcp/blob/master/apis/compute/v1alpha2/subnetwork_types.go#L144)
 
 [Managed Reconciler]:
 https://github.com/crossplane/crossplane-runtime/blob/master/pkg/resource/managed_reconciler.go
