@@ -3,9 +3,9 @@
 apiVersion: stacks.crossplane.io/v1alpha1
 kind: ClusterStackInstall
 metadata:
-  name: "stack-{{ $key }}"
+  name: "provider-{{ $key }}"
 spec:
-  package: "crossplane/stack-{{ $key }}:{{ $val.version }}"
+  package: "crossplane/provider-{{ $key }}:{{ $val.version }}"
 ---
 {{- end }}
 {{- end }}
