@@ -207,7 +207,7 @@ point to the freshly released stack versions.
   * `kubectl -k` statements will contain `?ref=master`, which should be updated to the release
     branch name instead, e.g. `?ref=release-0.4`
 * Examples, such as [`StackInstall` yaml
-  files](https://github.com/crossplane/crossplane/tree/master/cluster/examples/stacks)
+  files](https://github.com/crossplane/crossplane/tree/master/cluster/examples/providers)
 * [Helm chart
   defaults](https://github.com/crossplane/crossplane/blob/master/cluster/charts/crossplane/values.yaml.tmpl)
   for stack versions
