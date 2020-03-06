@@ -40,7 +40,7 @@ type acParam func(*v1alpha2.ApplicationConfiguration)
 
 func withConditions(c ...runtimev1alpha1.Condition) acParam {
 	return func(ac *v1alpha2.ApplicationConfiguration) {
-		ac.Status.SetConditions(c...)
+		ac.SetConditions(c...)
 	}
 }
 

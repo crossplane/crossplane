@@ -181,7 +181,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	if err != nil {
 		log.Debug("Cannot render components", "error", err, "requeue-after", time.Now().Add(shortWait))
 		r.record.Event(ac, event.Warning(reasonCannotRenderComponents, err))
-		ac.Status.SetConditions(v1alpha1.ReconcileError(errors.Wrap(err, errRenderComponents)))
+		ac.SetConditions(v1alpha1.ReconcileError(errors.Wrap(err, errRenderComponents)))
 		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, ac), errUpdateAppConfigStatus)
 	}
 	log.Debug("Successfully rendered components", "workloads", len(workloads))
@@ -190,7 +190,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	if err := r.workloads.Apply(ctx, workloads); err != nil {
 		log.Debug("Cannot apply components", "error", err, "requeue-after", time.Now().Add(shortWait))
 		r.record.Event(ac, event.Warning(reasonCannotApplyComponents, err))
-		ac.Status.SetConditions(v1alpha1.ReconcileError(errors.Wrap(err, errApplyComponents)))
+		ac.SetConditions(v1alpha1.ReconcileError(errors.Wrap(err, errApplyComponents)))
 		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, ac), errUpdateAppConfigStatus)
 	}
 	log.Debug("Successfully applied components", "workloads", len(workloads))
@@ -210,7 +210,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		if err := r.client.Delete(ctx, &e); resource.IgnoreNotFound(err) != nil {
 			log.Debug("Cannot garbage collect component", "error", err, "requeue-after", time.Now().Add(shortWait))
 			record.Event(ac, event.Warning(reasonCannotGGComponents, err))
-			ac.Status.SetConditions(v1alpha1.ReconcileError(errors.Wrap(err, errGCComponent)))
+			ac.SetConditions(v1alpha1.ReconcileError(errors.Wrap(err, errGCComponent)))
 			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, ac), errUpdateAppConfigStatus)
 		}
 		log.Debug("Garbage collected resource")
@@ -222,7 +222,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		ac.Status.Workloads[i] = workloads[i].Status()
 	}
 
-	ac.Status.SetConditions(v1alpha1.ReconcileSuccess())
+	ac.SetConditions(v1alpha1.ReconcileSuccess())
 	return reconcile.Result{RequeueAfter: longWait}, errors.Wrap(r.client.Status().Update(ctx, ac), errUpdateAppConfigStatus)
 }
 
