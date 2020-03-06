@@ -368,10 +368,6 @@ var (
 	_ jobCompleter = &stackInstallJobCompleter{}
 )
 
-func nsLabel(ns string) string {
-	return fmt.Sprintf(stacks.LabelNamespaceFmt, ns)
-}
-
 // Job modifiers
 type jobModifier func(*batchv1.Job)
 

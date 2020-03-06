@@ -474,8 +474,9 @@ func (h *stackInstallHandler) delete(ctx context.Context) (reconcile.Result, err
 }
 
 // deleteOrphanedCRDs will delete CRDs with managed-by label and NO stack parent
-// labels. we can't predict these names, so fetch all and then filter locally
-// for any crds that still contain the labels
+// labels. we can't predict these names, so fetch all crds from any stackinstall
+// and then locally filter out any crds that still contain labels indicating
+// they are in use.
 //
 // TODO(displague) stackinstall delete and install can race and delete CRDs
 // whose Stack resources have not yet claimed the CRDs.

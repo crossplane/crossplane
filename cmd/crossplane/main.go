@@ -115,9 +115,7 @@ func main() {
 		kingpin.FatalIfError(err, "Cannot create manager")
 
 		kingpin.FatalIfError(apis.AddToScheme(mgr.GetScheme()), "Cannot add core Crossplane APIs to scheme")
-
 		kingpin.FatalIfError(apiextensionsv1beta1.AddToScheme(mgr.GetScheme()), "Cannot add API extensions to scheme")
-
 		kingpin.FatalIfError(stacks.Setup(mgr, log, *extManageHostControllerNamespace, *extManageTemplatesController), "Cannot add stacks controllers to manager")
 
 		if *extManageTemplatesController != "" {

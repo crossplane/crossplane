@@ -30,7 +30,7 @@ import (
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	runtime "k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -131,7 +131,6 @@ func Setup(mgr ctrl.Manager, l logging.Logger, hostControllerNamespace string) e
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&v1alpha1.Stack{}).
-		Owns(&apiextensions.CustomResourceDefinition{}).
 		Complete(r)
 }
 
@@ -258,8 +257,35 @@ func copyLabels(labels map[string]string) map[string]string {
 	return labelsCopy
 }
 
-func (h *stackHandler) crdListsDiffer(crds []apiextensions.CustomResourceDefinition) bool {
-	return len(crds) != len(h.ext.Spec.CRDs)
+// crdListFulfillsStack verifies that all CRDs provided by the stack are present
+// among the given crds.  Error will describe a mismatch, if any. Extra CRDs in
+// the crds will be ignored.
+func crdListFulfilled(want v1alpha1.CRDList, got []apiextensions.CustomResourceDefinition) error {
+	for _, crdWant := range want {
+		group := crdWant.GroupVersionKind().Group
+		version := crdWant.GroupVersionKind().Version
+		kind := crdWant.GroupVersionKind().Kind
+
+		found := false
+		for i := range got {
+			if got[i].Spec.Group != group {
+				continue
+			}
+
+			if got[i].Spec.Names.Kind != kind {
+				continue
+			}
+
+			if crdVersionExists(&got[i], version) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("Missing CRD with APIVersion %q and Kind %q", crdWant.APIVersion, crdWant.Kind)
+		}
+	}
+	return nil
 }
 
 func crdVersionExists(crd *apiextensions.CustomResourceDefinition, version string) bool {
@@ -272,6 +298,9 @@ func crdVersionExists(crd *apiextensions.CustomResourceDefinition, version strin
 }
 
 // crdsFromStack fetches the CRDs of the Stack using the shared parent labels
+// All matching CRD resources are returned. This may not be a complete list, as
+// needed for deleting CRDs.  Errors will only result from API queries. Use
+// crdListsDiffer for CRD comparisons.
 func (h *stackHandler) crdsFromStack(ctx context.Context) ([]apiextensions.CustomResourceDefinition, error) {
 	results := []apiextensions.CustomResourceDefinition{}
 	for _, crdWant := range h.ext.Spec.CRDs {
@@ -289,30 +318,17 @@ func (h *stackHandler) crdsFromStack(ctx context.Context) ([]apiextensions.Custo
 			return nil, errors.Wrap(err, "CRDs could not be listed")
 		}
 
-		// expected count is 1 if we could filter by fields
-		if len(crds.Items) == 0 {
-			return nil, fmt.Errorf("CRDs not found filtering by "+crdAPIGroupField+" %s", group)
-		}
-
-		found := false
 		for i := range crds.Items {
 			if crds.Items[i].Spec.Names.Kind != kind {
 				continue
 			}
 			if !crdVersionExists(&crds.Items[i], version) {
-				return nil, fmt.Errorf("CRD not found, expecting %s with version %s", crdWant, version)
+				// this is not an error condition when listing matching CRDs
+				// crdListsDiffer will treat this as an mismatch
+				continue
 			}
-			found = true
 			results = append(results, crds.Items[i])
 		}
-		if !found {
-			return nil, fmt.Errorf("CRD not found, expecting %s", crdWant)
-		}
-
-	}
-
-	if h.crdListsDiffer(results) {
-		return nil, errors.New("CRDs found do not match expected CRDs")
 	}
 
 	return results, nil
@@ -323,6 +339,10 @@ type crdHandler func(ctx context.Context, crds []apiextensions.CustomResourceDef
 func (h *stackHandler) processCRDs(ctx context.Context, crdHandlers ...crdHandler) error {
 	crds, err := h.crdsFromStack(ctx)
 	if err != nil {
+		return err
+	}
+
+	if err := crdListFulfilled(h.ext.Spec.CRDs, crds); err != nil {
 		return err
 	}
 
@@ -570,7 +590,11 @@ func (h *stackHandler) processRBAC(ctx context.Context) error {
 }
 
 func (h *stackHandler) isNamespaced() bool {
-	return apiextensions.ResourceScope(h.ext.Spec.PermissionScope) == apiextensions.NamespaceScoped
+	switch apiextensions.ResourceScope(h.ext.Spec.PermissionScope) {
+	case apiextensions.NamespaceScoped, apiextensions.ResourceScope(""):
+		return true
+	}
+	return false
 }
 
 // syncSATokenSecret function copies service account token secret from custom resource Kubernetes (a.k.a tenant
@@ -826,6 +850,10 @@ func (h *stackHandler) delete(ctx context.Context) (reconcile.Result, error) {
 // TODO(displague) if single-parent labels exist, matching this stack,
 // delete them
 func (h *stackHandler) removeCRDLabels(ctx context.Context) error {
+	// crds may be an incomplete list if CRDs were manually removed.
+	// This is ok since we won't need to remove labels on deleted crds.
+	// If crds are omitted based on other differences (mismatched
+	// versions) those crds are in a weird state and will be missed here.
 	crds, err := h.crdsFromStack(ctx)
 	if err != nil {
 		h.log.Debug("failed to fetch CRDs for stack", "error", err, "name", h.ext.GetName())
@@ -853,6 +881,9 @@ func (h *stackHandler) removeCRDLabels(ctx context.Context) error {
 		crdPatch := client.MergeFrom(crds[i].DeepCopy())
 
 		meta.RemoveLabels(&crds[i], labelMultiParent)
+
+		// TODO(displague) remove matching single parent labels? should we pick
+		// another parent at random? what value is there in these labels?
 
 		// clear the namespace label after the last parent stack is removed
 		if !stacks.HasPrefixedLabel(&crds[i], labelMultiParentNSPrefix) {
