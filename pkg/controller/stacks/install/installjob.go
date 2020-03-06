@@ -247,7 +247,17 @@ func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, o
 			obj.SetNamespace(ns)
 		}
 
+		// The package isn't *quite* what we will use as the image
+		pkg := i.GetPackage()
+		stackImg, err := i.ImageWithSource(pkg)
+		if err != nil {
+			// Applying the source is best-effort
+			jc.log.Debug("not applying stack envelope image source to stack controller image due to error", "pkg", pkg, "err", err)
+			stackImg = pkg
+		}
+
 		modifiers := []stackSpecModifier{
+			controllerImageInjector(stackImg),
 			controllerPullSetter(i.GetImagePullPolicy(), i.GetImagePullSecrets()),
 			controllerImageSourcer(i),
 			saAnnotationSetter(i.GetServiceAccountAnnotations()),
@@ -425,6 +435,34 @@ func controllerImageSourcer(src imageWithSourcer) stackSpecModifier {
 				cs[i].Image = img
 			}
 		}
+		return nil
+	}
+}
+
+// controllerImageInjector adds a stack image to a stack or stack definition
+// spec, if there isn't one specified. The reason this exists is so that a stack
+// author can use the same image for their stack envelope (the image which is unpacked)
+// and their stack controller (the image which runs in the cluster), because that
+// is a common pattern, and it's inconvenient to manage the image names separately
+// if there are two sources of truth instead of a single source of truth.
+func controllerImageInjector(stackImage string) stackSpecModifier {
+	return func(spec *v1alpha1.StackSpec) error {
+		if d := spec.Controller.Deployment; d != nil {
+			spec := &d.Spec.Template.Spec
+
+			for i := range spec.InitContainers {
+				if spec.InitContainers[i].Image == "" {
+					spec.InitContainers[i].Image = stackImage
+				}
+			}
+
+			for i := range spec.Containers {
+				if spec.Containers[i].Image == "" {
+					spec.Containers[i].Image = stackImage
+				}
+			}
+		}
+
 		return nil
 	}
 }
