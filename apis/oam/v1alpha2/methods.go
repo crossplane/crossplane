@@ -33,12 +33,12 @@ func (tr *ManualScalerTrait) SetConditions(c ...runtimev1alpha1.Condition) {
 }
 
 // GetWorkloadReference of this ManualScalerTrait.
-func (tr *ManualScalerTrait) GetWorkloadReference() WorkloadReference {
+func (tr *ManualScalerTrait) GetWorkloadReference() OAMReference {
 	return tr.Spec.WorkloadReference
 }
 
 // SetWorkloadReference of this ManualScalerTrait.
-func (tr *ManualScalerTrait) SetWorkloadReference(r WorkloadReference) {
+func (tr *ManualScalerTrait) SetWorkloadReference(r OAMReference) {
 	tr.Spec.WorkloadReference = r
 }
 
