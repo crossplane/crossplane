@@ -247,14 +247,7 @@ func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, o
 			obj.SetNamespace(ns)
 		}
 
-		// The package isn't *quite* what we will use as the image
-		pkg := i.GetPackage()
-		stackImg, err := i.ImageWithSource(pkg)
-		if err != nil {
-			// Applying the source is best-effort
-			jc.log.Debug("not applying stack envelope image source to stack controller image due to error", "pkg", pkg, "err", err)
-			stackImg = pkg
-		}
+		stackImg := i.GetPackage()
 
 		modifiers := []stackSpecModifier{
 			controllerImageInjector(stackImg),
@@ -447,6 +440,12 @@ func controllerImageSourcer(src imageWithSourcer) stackSpecModifier {
 // if there are two sources of truth instead of a single source of truth.
 func controllerImageInjector(stackImage string) stackSpecModifier {
 	return func(spec *v1alpha1.StackSpec) error {
+		// If the stack image is empty, we don't need to propagate an empty string
+		// down into more fields
+		if stackImage == "" {
+			return nil
+		}
+
 		if d := spec.Controller.Deployment; d != nil {
 			spec := &d.Spec.Template.Spec
 

@@ -49,7 +49,6 @@ import (
 const (
 	jobPodName                   = "job-pod-123"
 	podLogOutputMalformed        = `)(&not valid yaml?()!`
-	podLogOutput                 = crdRaw + "\n" + stackRaw
 	stackInstallSource           = "example.host"
 	stackEnvelopeImage           = "crossplane/sample-stack:latest"
 	stackDefinitionEnvelopeImage = "crossplane/sample-stack-wordpress:0.1.0"
@@ -70,372 +69,7 @@ spec:
   scope: Namespaced
   version: v1alpha1
 `
-	stackDefinitionRaw = `---
-apiVersion: stacks.crossplane.io/v1alpha1
-kind: StackDefinition
-metadata:
-  creationTimestamp: null
-spec:
-  behavior:
-    crd:
-      apiVersion: samples.upbound.io/v1alpha1
-      kind: Mytype
-    engine:
-      type: helm3
-    source:
-      image: crossplane/sample-stack:latest
-      path: helm-chart
-  company: Upbound
-  controller:
-    deployment:
-      name: crossplane-sample-stack
-      spec:
-        selector: {}
-        strategy: {}
-        template:
-          metadata:
-            creationTimestamp: null
-          spec:
-            containers:
-            - args:
-              - --resources-dir
-              - /behaviors
-              - --stack-definition-namespace
-              - $(SD_NAMESPACE)
-              - --stack-definition-name
-              - $(SD_NAME)
-              command:
-              - /manager
-              image: crossplane/templating-controller:v0.2.1
-              name: stack-behavior-manager
-              resources: {}
-              volumeMounts:
-              - mountPath: /behaviors
-                name: behaviors
-            initContainers:
-            - command:
-              - cp
-              - -R
-              - helm-chart/.
-              - /behaviors
-              image: crossplane/sample-stack-wordpress:0.1.0
-              name: stack-behavior-copy-to-manager
-              resources: {}
-              volumeMounts:
-              - mountPath: /behaviors
-                name: behaviors
-            restartPolicy: Always
-            volumes:
-            - emptyDir: {}
-              name: behaviors
-  customresourcedefinitions:
-  - apiVersion: samples.upbound.io/v1alpha1
-    kind: Mytype
-  overview: |
-    Markdown describing this sample Crossplane stack project.
-  icons:
-  - base64Data: bW9jay1pY29uLWRh
-    mediatype: image/jpeg
-  keywords:
-  - samples
-  - examples
-  - tutorials
-  license: Apache-2.0
-  maintainers:
-  - email: jared@upbound.io
-    name: Jared Watts
-  owners:
-  - email: bassam@upbound.io
-    name: Bassam Tabbara
-  permissionScope: Namespaced
-  permissions:
-    rules:
-    - apiGroups:
-      - ""
-      resources:
-      - configmaps
-      - events
-      - secrets
-      verbs:
-      - '*'
-    - apiGroups:
-      - samples.upbound.io/v1alpha1
-      resources:
-      - mytypes
-      verbs:
-      - '*'
-  readme: |-
-    ### Readme
-  source: https://github.com/crossplane/sample-stack
-  title: Sample Crossplane Stack
-  version: 0.0.1
-  website: https://upbound.io
-status: {}
-`
 
-	stackDefinitionRawNoControllerImage = `---
-apiVersion: stacks.crossplane.io/v1alpha1
-kind: StackDefinition
-metadata:
-  creationTimestamp: null
-spec:
-  behavior:
-    crd:
-      apiVersion: samples.upbound.io/v1alpha1
-      kind: Mytype
-    engine:
-      type: helm3
-    source:
-      image: crossplane/sample-stack:latest
-      path: helm-chart
-  company: Upbound
-  controller:
-    deployment:
-      name: crossplane-sample-stack
-      spec:
-        selector: {}
-        strategy: {}
-        template:
-          metadata:
-            creationTimestamp: null
-          spec:
-            containers:
-            - args:
-              - --resources-dir
-              - /behaviors
-              - --stack-definition-namespace
-              - $(SD_NAMESPACE)
-              - --stack-definition-name
-              - $(SD_NAME)
-              command:
-              - /manager
-              image: crossplane/templating-controller:v0.2.1
-              name: stack-behavior-manager
-              resources: {}
-              volumeMounts:
-              - mountPath: /behaviors
-                name: behaviors
-            initContainers:
-            - command:
-              - cp
-              - -R
-              - helm-chart/.
-              - /behaviors
-              name: stack-behavior-copy-to-manager
-              resources: {}
-              volumeMounts:
-              - mountPath: /behaviors
-                name: behaviors
-            restartPolicy: Always
-            volumes:
-            - emptyDir: {}
-              name: behaviors
-  customresourcedefinitions:
-  - apiVersion: samples.upbound.io/v1alpha1
-    kind: Mytype
-  overview: |
-    Markdown describing this sample Crossplane stack project.
-  icons:
-  - base64Data: bW9jay1pY29uLWRh
-    mediatype: image/jpeg
-  keywords:
-  - samples
-  - examples
-  - tutorials
-  license: Apache-2.0
-  maintainers:
-  - email: jared@upbound.io
-    name: Jared Watts
-  owners:
-  - email: bassam@upbound.io
-    name: Bassam Tabbara
-  permissionScope: Namespaced
-  permissions:
-    rules:
-    - apiGroups:
-      - ""
-      resources:
-      - configmaps
-      - events
-      - secrets
-      verbs:
-      - '*'
-    - apiGroups:
-      - samples.upbound.io/v1alpha1
-      resources:
-      - mytypes
-      verbs:
-      - '*'
-  readme: |-
-    ### Readme
-  source: https://github.com/crossplane/sample-stack
-  title: Sample Crossplane Stack
-  version: 0.0.1
-  website: https://upbound.io
-status: {}
-`
-
-	stackRaw = `---
-apiVersion: stacks.crossplane.io/v1alpha1
-kind: Stack
-metadata:
-  creationTimestamp: null
-spec:
-  company: Upbound
-  controller:
-    deployment:
-      name: crossplane-sample-stack
-      spec:
-        replicas: 1
-        selector:
-          matchLabels:
-            core.crossplane.io/name: crossplane-sample-stack
-        strategy: {}
-        template:
-          metadata:
-            creationTimestamp: null
-            labels:
-              core.crossplane.io/name: crossplane-sample-stack
-            name: sample-stack-controller
-          spec:
-            containers:
-            - env:
-              - name: POD_NAME
-                valueFrom:
-                  fieldRef:
-                    fieldPath: metadata.name
-              - name: POD_NAMESPACE
-                valueFrom:
-                  fieldRef:
-                    fieldPath: metadata.namespace
-              image: crossplane/sample-stack:latest
-              name: sample-stack-controller
-              resources: {}
-  customresourcedefinitions:
-  - apiVersion: samples.upbound.io/v1alpha1
-    kind: Mytype
-  overview: |
-    Markdown describing this sample Crossplane stack project.
-  icons:
-  - base64Data: bW9jay1pY29uLWRh
-    mediatype: image/jpeg
-  keywords:
-  - samples
-  - examples
-  - tutorials
-  license: Apache-2.0
-  website: https://upbound.io
-  source: https://github.com/crossplane/sample-stack
-  maintainers:
-  - email: jared@upbound.io
-    name: Jared Watts
-  owners:
-  - email: bassam@upbound.io
-    name: Bassam Tabbara
-  permissions:
-    rules:
-    - apiGroups:
-      - ""
-      resources:
-      - configmaps
-      - events
-      - secrets
-      verbs:
-      - '*'
-    - apiGroups:
-      - samples.upbound.io/v1alpha1
-      resources:
-      - mytypes
-      verbs:
-      - '*'
-  permissionScope: Namespaced
-  title: Sample Crossplane Stack
-  version: 0.0.1
-status:
- conditionedStatus: {}
-`
-
-	stackRawNoControllerImage = `---
-apiVersion: stacks.crossplane.io/v1alpha1
-kind: Stack
-metadata:
-  creationTimestamp: null
-spec:
-  company: Upbound
-  controller:
-    deployment:
-      name: crossplane-sample-stack
-      spec:
-        replicas: 1
-        selector:
-          matchLabels:
-            core.crossplane.io/name: crossplane-sample-stack
-        strategy: {}
-        template:
-          metadata:
-            creationTimestamp: null
-            labels:
-              core.crossplane.io/name: crossplane-sample-stack
-            name: sample-stack-controller
-          spec:
-            containers:
-            - env:
-              - name: POD_NAME
-                valueFrom:
-                  fieldRef:
-                    fieldPath: metadata.name
-              - name: POD_NAMESPACE
-                valueFrom:
-                  fieldRef:
-                    fieldPath: metadata.namespace
-              name: sample-stack-controller
-              resources: {}
-  customresourcedefinitions:
-  - apiVersion: samples.upbound.io/v1alpha1
-    kind: Mytype
-  overview: |
-    Markdown describing this sample Crossplane stack project.
-  icons:
-  - base64Data: bW9jay1pY29uLWRh
-    mediatype: image/jpeg
-  keywords:
-  - samples
-  - examples
-  - tutorials
-  license: Apache-2.0
-  website: https://upbound.io
-  source: https://github.com/crossplane/sample-stack
-  maintainers:
-  - email: jared@upbound.io
-    name: Jared Watts
-  owners:
-  - email: bassam@upbound.io
-    name: Bassam Tabbara
-  permissions:
-    rules:
-    - apiGroups:
-      - ""
-      resources:
-      - configmaps
-      - events
-      - secrets
-      verbs:
-      - '*'
-    - apiGroups:
-      - samples.upbound.io/v1alpha1
-      resources:
-      - mytypes
-      verbs:
-      - '*'
-  permissionScope: Namespaced
-  title: Sample Crossplane Stack
-  version: 0.0.1
-status:
- conditionedStatus: {}
-`
-
-	// TODO(displague) use crossplane-runtime.pavement to set the
-	// container envs on stackDefinitionRaw instead of copying it here
 	expectedStackDefinitionRaw = `---
 apiVersion: stacks.crossplane.io/v1alpha1
 kind: StackDefinition
@@ -546,8 +180,208 @@ status: {}
 )
 
 var (
-	_ jobCompleter = &stackInstallJobCompleter{}
+	_            jobCompleter = &stackInstallJobCompleter{}
+	podLogOutput              = crdRaw + "\n" + stackRaw("crossplane/sample-stack:latest")
 )
+
+func stackRaw(controllerImage string) string {
+	tmpl := `---
+apiVersion: stacks.crossplane.io/v1alpha1
+kind: Stack
+metadata:
+  creationTimestamp: null
+spec:
+  company: Upbound
+  controller:
+    deployment:
+      name: crossplane-sample-stack
+      spec:
+        replicas: 1
+        selector:
+          matchLabels:
+            core.crossplane.io/name: crossplane-sample-stack
+        strategy: {}
+        template:
+          metadata:
+            creationTimestamp: null
+            labels:
+              core.crossplane.io/name: crossplane-sample-stack
+            name: sample-stack-controller
+          spec:
+            containers:
+            - env:
+              - name: POD_NAME
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.name
+              - name: POD_NAMESPACE
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.namespace
+              %sname: sample-stack-controller
+              resources: {}
+  customresourcedefinitions:
+  - apiVersion: samples.upbound.io/v1alpha1
+    kind: Mytype
+  overview: |
+    Markdown describing this sample Crossplane stack project.
+  icons:
+  - base64Data: bW9jay1pY29uLWRh
+    mediatype: image/jpeg
+  keywords:
+  - samples
+  - examples
+  - tutorials
+  license: Apache-2.0
+  website: https://upbound.io
+  source: https://github.com/crossplane/sample-stack
+  maintainers:
+  - email: jared@upbound.io
+    name: Jared Watts
+  owners:
+  - email: bassam@upbound.io
+    name: Bassam Tabbara
+  permissions:
+    rules:
+    - apiGroups:
+      - ""
+      resources:
+      - configmaps
+      - events
+      - secrets
+      verbs:
+      - '*'
+    - apiGroups:
+      - samples.upbound.io/v1alpha1
+      resources:
+      - mytypes
+      verbs:
+      - '*'
+  permissionScope: Namespaced
+  title: Sample Crossplane Stack
+  version: 0.0.1
+status:
+ conditionedStatus: {}
+`
+	if controllerImage != "" {
+		// The spaces are used for formatting the next line. This is a quick and dirty way
+		// to optionally insert an additional line into the output.
+		return fmt.Sprintf(tmpl, fmt.Sprintf("image: %s\n              ", controllerImage))
+	}
+
+	return fmt.Sprintf(tmpl, "")
+}
+
+func stackDefinitionRaw(controllerImage string) string {
+	tmpl := `---
+apiVersion: stacks.crossplane.io/v1alpha1
+kind: StackDefinition
+metadata:
+  creationTimestamp: null
+spec:
+  behavior:
+    crd:
+      apiVersion: samples.upbound.io/v1alpha1
+      kind: Mytype
+    engine:
+      type: helm3
+    source:
+      image: crossplane/sample-stack:latest
+      path: helm-chart
+  company: Upbound
+  controller:
+    deployment:
+      name: crossplane-sample-stack
+      spec:
+        selector: {}
+        strategy: {}
+        template:
+          metadata:
+            creationTimestamp: null
+          spec:
+            containers:
+            - args:
+              - --resources-dir
+              - /behaviors
+              - --stack-definition-namespace
+              - $(SD_NAMESPACE)
+              - --stack-definition-name
+              - $(SD_NAME)
+              command:
+              - /manager
+              image: crossplane/templating-controller:v0.2.1
+              name: stack-behavior-manager
+              resources: {}
+              volumeMounts:
+              - mountPath: /behaviors
+                name: behaviors
+            initContainers:
+            - command:
+              - cp
+              - -R
+              - helm-chart/.
+              - /behaviors
+              %sname: stack-behavior-copy-to-manager
+              resources: {}
+              volumeMounts:
+              - mountPath: /behaviors
+                name: behaviors
+            restartPolicy: Always
+            volumes:
+            - emptyDir: {}
+              name: behaviors
+  customresourcedefinitions:
+  - apiVersion: samples.upbound.io/v1alpha1
+    kind: Mytype
+  overview: |
+    Markdown describing this sample Crossplane stack project.
+  icons:
+  - base64Data: bW9jay1pY29uLWRh
+    mediatype: image/jpeg
+  keywords:
+  - samples
+  - examples
+  - tutorials
+  license: Apache-2.0
+  maintainers:
+  - email: jared@upbound.io
+    name: Jared Watts
+  owners:
+  - email: bassam@upbound.io
+    name: Bassam Tabbara
+  permissionScope: Namespaced
+  permissions:
+    rules:
+    - apiGroups:
+      - ""
+      resources:
+      - configmaps
+      - events
+      - secrets
+      verbs:
+      - '*'
+    - apiGroups:
+      - samples.upbound.io/v1alpha1
+      resources:
+      - mytypes
+      verbs:
+      - '*'
+  readme: |-
+    ### Readme
+  source: https://github.com/crossplane/sample-stack
+  title: Sample Crossplane Stack
+  version: 0.0.1
+  website: https://upbound.io
+status: {}
+`
+	if controllerImage != "" {
+		// The spaces are used for formatting the next line. This is a quick and dirty way
+		// to optionally insert an additional line into the output.
+		return fmt.Sprintf(tmpl, fmt.Sprintf("image: %s\n              ", controllerImage))
+	}
+
+	return fmt.Sprintf(tmpl, "")
+}
 
 func nsLabel(ns string) string {
 	return fmt.Sprintf(stacks.LabelNamespaceFmt, ns)
@@ -1333,10 +1167,10 @@ func TestCreateJobOutputObject(t *testing.T) {
 			},
 			stackInstaller: resource(),
 			job:            job(),
-			obj:            unstructuredObj(stackRaw),
+			obj:            unstructuredObj(stackRaw("crossplane/sample-stack:latest")),
 			want: want{
 				err: nil,
-				obj: unstructuredObj(stackRaw,
+				obj: unstructuredObj(stackRaw("crossplane/sample-stack:latest"),
 					withUnstructuredObjLabels(wantedParentLabels),
 					withUnstructuredObjNamespacedName(types.NamespacedName{Namespace: namespace, Name: resourceName}),
 				),
@@ -1352,7 +1186,7 @@ func TestCreateJobOutputObject(t *testing.T) {
 			},
 			stackInstaller: resource(),
 			job:            job(),
-			obj:            unstructuredObj(stackDefinitionRaw),
+			obj:            unstructuredObj(stackDefinitionRaw("crossplane/sample-stack-wordpress:0.1.0")),
 			want: want{
 				err: nil,
 				obj: unstructuredObj(expectedStackDefinitionRaw,
@@ -1371,10 +1205,10 @@ func TestCreateJobOutputObject(t *testing.T) {
 			},
 			stackInstaller: resource(withPackage(stackEnvelopeImage)),
 			job:            job(),
-			obj:            unstructuredObj(stackRawNoControllerImage),
+			obj:            unstructuredObj(stackRaw("")),
 			want: want{
 				err: nil,
-				obj: unstructuredObj(stackRaw,
+				obj: unstructuredObj(stackRaw("crossplane/sample-stack:latest"),
 					withUnstructuredObjLabels(wantedParentLabels),
 					withUnstructuredObjNamespacedName(types.NamespacedName{Namespace: namespace, Name: resourceName}),
 				),
@@ -1390,7 +1224,7 @@ func TestCreateJobOutputObject(t *testing.T) {
 			},
 			stackInstaller: resource(withPackage(stackDefinitionEnvelopeImage)),
 			job:            job(),
-			obj:            unstructuredObj(stackDefinitionRawNoControllerImage),
+			obj:            unstructuredObj(stackDefinitionRaw("")),
 			want: want{
 				err: nil,
 				obj: unstructuredObj(expectedStackDefinitionRaw,
@@ -1409,10 +1243,10 @@ func TestCreateJobOutputObject(t *testing.T) {
 			},
 			stackInstaller: resource(withPackage("thisImageShouldBeIgnored:becauseTheStackSpecifiesAnExplicitImage")),
 			job:            job(),
-			obj:            unstructuredObj(stackRaw),
+			obj:            unstructuredObj(stackRaw("crossplane/sample-stack:latest")),
 			want: want{
 				err: nil,
-				obj: unstructuredObj(stackRaw,
+				obj: unstructuredObj(stackRaw("crossplane/sample-stack:latest"),
 					withUnstructuredObjLabels(wantedParentLabels),
 					withUnstructuredObjNamespacedName(types.NamespacedName{Namespace: namespace, Name: resourceName}),
 				),
@@ -1428,7 +1262,7 @@ func TestCreateJobOutputObject(t *testing.T) {
 			},
 			stackInstaller: resource(withPackage("thisImageShouldBeIgnored:becauseTheStackSpecifiesAnExplicitImage")),
 			job:            job(),
-			obj:            unstructuredObj(stackDefinitionRaw),
+			obj:            unstructuredObj(stackDefinitionRaw("crossplane/sample-stack-wordpress:0.1.0")),
 			want: want{
 				err: nil,
 				obj: unstructuredObj(expectedStackDefinitionRaw,
