@@ -30,7 +30,6 @@ import (
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -50,7 +49,6 @@ const (
 	labelValueNamespaceMember    = "true"
 	labelValueAggregationEnabled = "true"
 	labelValueActiveParentStack  = "true"
-	crdAPIGroupField             = "spec.group"
 
 	reconcileTimeout      = 1 * time.Minute
 	requeueAfterOnSuccess = 10 * time.Second
@@ -119,14 +117,6 @@ func Setup(mgr ctrl.Manager, l logging.Logger, hostControllerNamespace string) e
 		hostedConfig: hc,
 		factory:      &stackHandlerFactory{},
 		log:          l.WithValues("controller", name),
-	}
-
-	// A cache index lets us use MatchingFields on API fields not indexed
-	if err := mgr.GetFieldIndexer().IndexField(&apiextensions.CustomResourceDefinition{}, crdAPIGroupField, func(rawObj runtime.Object) []string {
-		crd := rawObj.(*apiextensions.CustomResourceDefinition)
-		return []string{crd.Spec.Group}
-	}); err != nil {
-		return err
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -307,28 +297,28 @@ func crdVersionExists(crd *apiextensions.CustomResourceDefinition, version strin
 // for. Errors will only result from API queries.
 func (h *stackHandler) crdsFromStack(ctx context.Context) ([]apiextensions.CustomResourceDefinition, error) {
 	results := []apiextensions.CustomResourceDefinition{}
+	crds := &apiextensions.CustomResourceDefinitionList{}
+
+	if len(h.ext.Spec.CRDs) == 0 {
+		return results, nil
+	}
+
+	// fake client used during testing doesn't work with nil
+	listOpts := &client.ListOptions{}
+
+	if err := h.kube.List(ctx, crds, listOpts); err != nil {
+		return nil, errors.Wrap(err, "CRDs could not be listed")
+	}
+
 	for _, crdWant := range h.ext.Spec.CRDs {
 		group := crdWant.GroupVersionKind().Group
 		version := crdWant.GroupVersionKind().Version
 		kind := crdWant.GroupVersionKind().Kind
 
-		// would include spec.names.kind if cache indexer supported >1 fields
-		fieldSelector := client.MatchingFields{
-			crdAPIGroupField: group,
-		}
-		crds := &apiextensions.CustomResourceDefinitionList{}
-
-		if err := h.kube.List(ctx, crds, fieldSelector); err != nil {
-			return nil, errors.Wrap(err, "CRDs could not be listed")
-		}
-
 		for i := range crds.Items {
-			if crds.Items[i].Spec.Names.Kind != kind {
-				continue
-			}
-			if !crdVersionExists(&crds.Items[i], version) {
-				// this is not an error condition when listing matching CRDs
-				// crdListsDiffer will treat this as an mismatch
+			if crds.Items[i].Spec.Group != group ||
+				crds.Items[i].Spec.Names.Kind != kind ||
+				!crdVersionExists(&crds.Items[i], version) {
 				continue
 			}
 			results = append(results, crds.Items[i])
