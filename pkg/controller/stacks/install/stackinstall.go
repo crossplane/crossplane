@@ -298,8 +298,11 @@ func (h *stackInstallHandler) create(ctx context.Context) (reconcile.Result, err
 		// there is no install job created yet, create it now
 		job := h.createInstallJob()
 
-		// remove any stale jobs that would prevent the stack from installing
-		// correctly
+		// if an install job with our name already exists, compare the labels
+		// (specifically parent labels). If they match, adopt this job - we must
+		// have failed to update the jobref on a previous reconciliation.
+		// if the install job does not belong to this stackinstall, block
+		// reconciliation and report it until the problem is resolved.
 		existingJob := &batchv1.Job{ObjectMeta: metav1.ObjectMeta{Name: job.Name, Namespace: job.Namespace}}
 
 		switch err := h.hostKube.Get(ctx, types.NamespacedName{Name: job.Name, Namespace: job.Namespace}, existingJob); {
@@ -412,65 +415,90 @@ func (h *stackInstallHandler) update(ctx context.Context) (reconcile.Result, err
 	return reconcile.Result{}, nil
 }
 
-// delete performs clean up (finalizer) actions when a StackInstall is being deleted.
-// This function ensures that all the resources (e.g., CRDs) that this StackInstall owns
-// are also cleaned up.
+// delete performs clean up (finalizer) actions when a StackInstall is being
+// deleted. This function ensures that all the resources (e.g., CRDs) that this
+// StackInstall owns are also cleaned up.
 func (h *stackInstallHandler) delete(ctx context.Context) (reconcile.Result, error) {
 	labels := stacks.ParentLabels(h.ext)
 
-	// Delete all StackDefintions created by this StackInstall or
-	// ClusterStackInstall
-	if err := h.kube.DeleteAllOf(ctx, &v1alpha1.StackDefinition{}, client.InNamespace(h.ext.GetNamespace()), client.MatchingLabels(labels)); err != nil {
-		return fail(ctx, h.kube, h.ext, err)
-	}
-
-	// Waiting for all StackDefinitions to clear their finalizers and delete
-	// before deleting the Stacks they may co-manage
-	sdList := &v1alpha1.StackDefinitionList{}
-	if err := h.kube.List(ctx, sdList, client.MatchingLabels(labels)); err != nil {
-		return fail(ctx, h.kube, h.ext, err)
-	}
-
-	// Delete all Stacks created by this StackInstall or ClusterStackInstall
-	if err := h.kube.DeleteAllOf(ctx, &v1alpha1.Stack{}, client.InNamespace(h.ext.GetNamespace()), client.MatchingLabels(labels)); err != nil {
-		return fail(ctx, h.kube, h.ext, err)
-	}
-
-	// Waiting for all Stacks to clear their finalizers and delete before
-	// deleting the CRDs that they depend on
-	stackList := &v1alpha1.StackList{}
-	if err := h.kube.List(ctx, stackList, client.MatchingLabels(labels)); err != nil {
-		return fail(ctx, h.kube, h.ext, err)
-	}
-
-	if len(stackList.Items) != 0 {
-		err := errors.New("Stack resources have not been deleted")
-		return fail(ctx, h.kube, h.ext, err)
-	}
-
-	stackControllerNamespace := h.ext.GetNamespace()
-	if h.hostAwareConfig != nil {
-		stackControllerNamespace = h.hostAwareConfig.HostControllerNamespace
-	}
-
-	// Once the Stacks are gone, we can remove install job associated with the StackInstall using hostKube since jobs
-	// were deployed into host Kubernetes cluster.
-	if err := h.hostKube.DeleteAllOf(ctx, &batchv1.Job{}, client.MatchingLabels(labels),
-		client.InNamespace(stackControllerNamespace), client.PropagationPolicy(metav1.DeletePropagationForeground)); err != nil {
-		return fail(ctx, h.kube, h.ext, err)
-	}
-
-	if err := h.deleteOrphanedCRDs(ctx); err != nil {
-		return fail(ctx, h.kube, h.ext, err)
-	}
-
-	// And finally clear the StackInstall's own finalizer
-	meta.RemoveFinalizer(h.ext, installFinalizer)
-	if err := h.kube.Update(ctx, h.ext); err != nil {
-		return fail(ctx, h.kube, h.ext, err)
+	for _, df := range []deleteReq{
+		h.stackDefinitionDeleter(labels),
+		// clear finalizers before deleting the Stacks they may co-manage
+		h.stackDefinitionFinalizerWaiter(labels),
+		h.stackDeleter(labels),
+		// clear finalizers before deleting the CRDs they depend on
+		h.stackFinalizerWaiter(labels),
+		// Once the Stacks are gone, we can remove install job associated with
+		// the StackInstall using hostKube since jobs were deployed into host
+		// Kubernetes cluster.
+		h.installJobDeleter(labels),
+		// Clear out orphaned CRDs and orphaned parent labels on CRDs
+		h.deleteOrphanedCRDs,
+		h.removeCRDParentLabels(labels),
+		// And finally clear the StackInstall's own finalizer
+		h.removeFinalizer,
+	} {
+		if err := df(ctx); err != nil {
+			return fail(ctx, h.kube, h.ext, err)
+		}
 	}
 
 	return reconcile.Result{}, nil
+}
+
+type deleteReq func(context.Context) error
+
+// stackDefinitionDeleter deletes all StackDefintions created by this
+// StackInstall or ClusterStackInstall
+func (h *stackInstallHandler) stackDefinitionDeleter(labels map[string]string) deleteReq {
+	return func(ctx context.Context) error {
+		return h.kube.DeleteAllOf(ctx, &v1alpha1.StackDefinition{}, client.InNamespace(h.ext.GetNamespace()), client.MatchingLabels(labels))
+	}
+}
+
+// stackDefinitionFinalizerWaiter waits for all StackDefinitions to clear their
+// finalizers and delete
+func (h *stackInstallHandler) stackDefinitionFinalizerWaiter(labels map[string]string) deleteReq {
+	return func(ctx context.Context) error {
+		sdList := &v1alpha1.StackDefinitionList{}
+		return h.kube.List(ctx, sdList, client.MatchingLabels(labels))
+	}
+}
+
+// stackDeleter deletes all Stacks created by this StackInstall or ClusterStackInstall
+func (h *stackInstallHandler) stackDeleter(labels map[string]string) deleteReq {
+	return func(ctx context.Context) error {
+		return h.kube.DeleteAllOf(ctx, &v1alpha1.Stack{}, client.InNamespace(h.ext.GetNamespace()), client.MatchingLabels(labels))
+	}
+}
+
+// Waiting for all Stacks to clear their finalizers and delete
+func (h *stackInstallHandler) stackFinalizerWaiter(labels map[string]string) deleteReq {
+	return func(ctx context.Context) error {
+		stackList := &v1alpha1.StackList{}
+		if err := h.kube.List(ctx, stackList, client.MatchingLabels(labels)); err != nil {
+			return err
+		}
+
+		if len(stackList.Items) != 0 {
+			return errors.New("Stack resources have not been deleted")
+		}
+		return nil
+	}
+}
+
+// installJobDeleter deletes the install jobs belonging to the stackinstall
+// found on the host client
+func (h *stackInstallHandler) installJobDeleter(labels map[string]string) deleteReq {
+	return func(ctx context.Context) error {
+		stackControllerNamespace := h.ext.GetNamespace()
+		if h.hostAwareConfig != nil {
+			stackControllerNamespace = h.hostAwareConfig.HostControllerNamespace
+		}
+
+		return h.hostKube.DeleteAllOf(ctx, &batchv1.Job{}, client.MatchingLabels(labels),
+			client.InNamespace(stackControllerNamespace), client.PropagationPolicy(metav1.DeletePropagationForeground))
+	}
 }
 
 // deleteOrphanedCRDs will delete CRDs with managed-by label and NO stack parent
@@ -482,7 +510,7 @@ func (h *stackInstallHandler) delete(ctx context.Context) (reconcile.Result, err
 // whose Stack resources have not yet claimed the CRDs.
 func (h *stackInstallHandler) deleteOrphanedCRDs(ctx context.Context) error {
 	crds := &apiextensionsv1beta1.CustomResourceDefinitionList{}
-	if err := h.kube.List(ctx, crds, client.MatchingLabels{stacks.LabelKubernetesManagedBy: "stack-manager"}); err != nil {
+	if err := h.kube.List(ctx, crds, client.MatchingLabels{stacks.LabelKubernetesManagedBy: stacks.LabelValueStackManager}); err != nil {
 		h.debugWithName("failed to list CRDs")
 		return err
 	}
@@ -500,6 +528,39 @@ func (h *stackInstallHandler) deleteOrphanedCRDs(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+// removeCRDParentLabels will remove unused ParentLabels from CRDs, these labels
+// are no longer used on CRDs by Crossplane, replaced with multi parent labels
+func (h *stackInstallHandler) removeCRDParentLabels(labels map[string]string) deleteReq {
+	return func(ctx context.Context) error {
+		crdList := &apiextensionsv1beta1.CustomResourceDefinitionList{}
+		if err := h.kube.List(ctx, crdList, client.MatchingLabels(labels)); err != nil {
+			return err
+		} else if len(crdList.Items) > 0 {
+			crds := crdList.Items
+			for i := range crds {
+				crdLabels := crds[i].GetLabels()
+				crdPatch := client.MergeFrom(crds[i].DeepCopy())
+
+				for label := range labels {
+					delete(crdLabels, label)
+				}
+
+				h.log.Debug("removing parent labels from CRD", "parent", "name", crds[i].GetName())
+				if err := h.kube.Patch(ctx, &crds[i], crdPatch); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	}
+}
+
+// removeFinalizer removes the finalizer from the StackInstall resource
+func (h *stackInstallHandler) removeFinalizer(ctx context.Context) error {
+	meta.RemoveFinalizer(h.ext, installFinalizer)
+	return h.kube.Update(ctx, h.ext)
 }
 
 // ************************************************************************************************

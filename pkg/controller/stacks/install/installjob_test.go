@@ -1169,9 +1169,7 @@ func TestCreateJobOutputObject(t *testing.T) {
 			obj:            unstructuredObj(crdRaw),
 			want: want{
 				err: nil,
-				obj: unstructuredObj(crdRaw,
-					withUnstructuredObjLabels(wantedParentLabels),
-				),
+				obj: unstructuredObj(crdRaw),
 			},
 		},
 		{

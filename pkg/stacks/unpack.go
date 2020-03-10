@@ -89,6 +89,9 @@ const (
 
 	// LabelKubernetesManagedBy identifies the resource manager
 	LabelKubernetesManagedBy = "app.kubernetes.io/managed-by"
+
+	// LabelValueStackManager is the Crossplane Stack Manager managed-by value
+	LabelValueStackManager = "stack-manager"
 )
 
 var (
@@ -398,7 +401,7 @@ func (sp *StackPackage) AddCRD(path string, crd *apiextensions.CustomResourceDef
 	if crd.ObjectMeta.Annotations == nil {
 		crd.ObjectMeta.Annotations = map[string]string{}
 	}
-	crd.ObjectMeta.Labels[LabelKubernetesManagedBy] = "stack-manager"
+	crd.ObjectMeta.Labels[LabelKubernetesManagedBy] = LabelValueStackManager
 
 	if sp.IsNamespaced() {
 		crd.ObjectMeta.Labels[LabelScope] = NamespaceScoped

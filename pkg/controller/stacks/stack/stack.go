@@ -46,11 +46,11 @@ import (
 )
 
 const (
-	stacksFinalizer    = "finalizer.stacks.crossplane.io"
-	namespaceMember    = "true"
-	aggregationEnabled = "true"
-	activeParentStack  = "true"
-	crdAPIGroupField   = "spec.group"
+	stacksFinalizer              = "finalizer.stacks.crossplane.io"
+	labelValueNamespaceMember    = "true"
+	labelValueAggregationEnabled = "true"
+	labelValueActiveParentStack  = "true"
+	crdAPIGroupField             = "spec.group"
 
 	reconcileTimeout      = 1 * time.Minute
 	requeueAfterOnSuccess = 10 * time.Second
@@ -121,6 +121,7 @@ func Setup(mgr ctrl.Manager, l logging.Logger, hostControllerNamespace string) e
 		log:          l.WithValues("controller", name),
 	}
 
+	// A cache index lets us use MatchingFields on API fields not indexed
 	if err := mgr.GetFieldIndexer().IndexField(&apiextensions.CustomResourceDefinition{}, crdAPIGroupField, func(rawObj runtime.Object) []string {
 		crd := rawObj.(*apiextensions.CustomResourceDefinition)
 		return []string{crd.Spec.Group}
@@ -225,10 +226,12 @@ func (h *stackHandler) create(ctx context.Context) (reconcile.Result, error) {
 	}
 
 	crdHandlers := []crdHandler{
+		h.createListFulfilledCRDHandler(),
 		h.createNamespaceLabelsCRDHandler(),
 		h.createMultipleParentLabelsCRDHandler(),
 		h.createPersonaClusterRolesCRDHandler(),
 	}
+
 	if err := h.processCRDs(ctx, crdHandlers...); err != nil {
 		h.log.Debug("failed to process stack CRDs", "error", err)
 		return fail(ctx, h.kube, h.ext, err)
@@ -297,10 +300,11 @@ func crdVersionExists(crd *apiextensions.CustomResourceDefinition, version strin
 	return false
 }
 
-// crdsFromStack fetches the CRDs of the Stack using the shared parent labels
-// All matching CRD resources are returned. This may not be a complete list, as
-// needed for deleting CRDs.  Errors will only result from API queries. Use
-// crdListsDiffer for CRD comparisons.
+// crdsFromStack API fetches the CRDs of the Stack
+//
+// The CRDs returned by this method represent those both provided the Stack spec
+// and present in the API. Use crdListFulfilled to ensure all CRDs are accounted
+// for. Errors will only result from API queries.
 func (h *stackHandler) crdsFromStack(ctx context.Context) ([]apiextensions.CustomResourceDefinition, error) {
 	results := []apiextensions.CustomResourceDefinition{}
 	for _, crdWant := range h.ext.Spec.CRDs {
@@ -342,16 +346,20 @@ func (h *stackHandler) processCRDs(ctx context.Context, crdHandlers ...crdHandle
 		return err
 	}
 
-	if err := crdListFulfilled(h.ext.Spec.CRDs, crds); err != nil {
-		return err
-	}
-
 	for _, handler := range crdHandlers {
 		if err := handler(ctx, crds); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// createListFulfilledCRDHandler provides a handler which verifies all
+// Stack expected CRDs are present in the provided list
+func (h *stackHandler) createListFulfilledCRDHandler() crdHandler {
+	return func(_ context.Context, crds []apiextensions.CustomResourceDefinition) error {
+		return crdListFulfilled(h.ext.Spec.CRDs, crds)
+	}
 }
 
 // createNamespaceLabelsCRDHandler provides a handler which labels CRDs with the
@@ -362,17 +370,17 @@ func (h *stackHandler) createNamespaceLabelsCRDHandler() crdHandler {
 		for i := range crds {
 			labels := crds[i].GetLabels()
 
-			if labels[stacks.LabelKubernetesManagedBy] != "stack-manager" {
+			if labels[stacks.LabelKubernetesManagedBy] != stacks.LabelValueStackManager {
 				continue
 			}
 
-			if labels[labelNamespace] == namespaceMember {
+			if labels[labelNamespace] == labelValueNamespaceMember {
 				continue
 			}
 
 			crdPatch := client.MergeFrom(crds[i].DeepCopy())
 
-			labels[labelNamespace] = namespaceMember
+			labels[labelNamespace] = labelValueNamespaceMember
 			crds[i].SetLabels(labels)
 
 			h.log.Debug("adding labels for CRD", "labelNamespace", labelNamespace, "name", crds[i].GetName())
@@ -397,17 +405,17 @@ func (h *stackHandler) createMultipleParentLabelsCRDHandler() crdHandler {
 		for i := range crds {
 			labels := crds[i].GetLabels()
 
-			if labels[stacks.LabelKubernetesManagedBy] != "stack-manager" {
+			if labels[stacks.LabelKubernetesManagedBy] != stacks.LabelValueStackManager {
 				continue
 			}
 
-			if labels[labelMultiParent] == activeParentStack {
+			if labels[labelMultiParent] == labelValueActiveParentStack {
 				continue
 			}
 
 			crdPatch := client.MergeFrom(crds[i].DeepCopy())
 
-			labels[labelMultiParent] = activeParentStack
+			labels[labelMultiParent] = labelValueActiveParentStack
 			crds[i].SetLabels(labels)
 
 			h.log.Debug("adding labels for CRD", "labelMultiParent", labelMultiParent, "name", crds[i].GetName())
@@ -439,7 +447,7 @@ func (h *stackHandler) createPersonaClusterRolesCRDHandler() crdHandler {
 				crossplaneScope = stacks.NamespaceScoped
 
 				labelNamespace := fmt.Sprintf(stacks.LabelNamespaceFmt, h.ext.GetNamespace())
-				labelsCopy[labelNamespace] = namespaceMember
+				labelsCopy[labelNamespace] = labelValueNamespaceMember
 			} else {
 				crossplaneScope = stacks.EnvironmentScoped
 			}
@@ -448,7 +456,7 @@ func (h *stackHandler) createPersonaClusterRolesCRDHandler() crdHandler {
 			// to namespace or environment personas like crossplane-env-admin
 			// or crossplane:ns:default:view
 			aggregationLabel := fmt.Sprintf(stacks.LabelAggregateFmt, crossplaneScope, persona)
-			labelsCopy[aggregationLabel] = aggregationEnabled
+			labelsCopy[aggregationLabel] = labelValueAggregationEnabled
 
 			// Each ClusterRole needs persona specific rules for each CRD
 			rules := []rbacv1.PolicyRule{}
@@ -870,7 +878,7 @@ func (h *stackHandler) removeCRDLabels(ctx context.Context) error {
 	for i := range crds {
 		name := crds[i].GetName()
 		labels := crds[i].GetLabels()
-		if labels[stacks.LabelKubernetesManagedBy] != "stack-manager" {
+		if labels[stacks.LabelKubernetesManagedBy] != stacks.LabelValueStackManager {
 			h.log.Debug("skipping stack label removal for unmanaged CRD", "name", name)
 
 			continue

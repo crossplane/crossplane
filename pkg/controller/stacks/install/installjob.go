@@ -251,6 +251,9 @@ func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, o
 			saAnnotationSetter(i.GetServiceAccountAnnotations()),
 		}
 
+		labels := stacks.ParentLabels(i)
+		meta.AddLabels(obj, labels)
+
 		// StackDefinition controllers need the name of the StackDefinition
 		// which, by design, matches the StackInstall
 		if isStackDefinition {
@@ -263,11 +266,6 @@ func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, o
 		}
 	}
 
-	// TODO(displague) parentlabels can only express a single parent, CRDs
-	// may have multiple contributing "parents"
-	labels := stacks.ParentLabels(i)
-	meta.AddLabels(obj, labels)
-
 	jc.log.Debug(
 		"creating object from job output",
 		"job", job.Name,
@@ -275,7 +273,6 @@ func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, o
 		"namespace", obj.GetNamespace(),
 		"apiVersion", obj.GetAPIVersion(),
 		"kind", obj.GetKind(),
-		"labels", labels,
 	)
 	if err := jc.client.Create(ctx, obj); err != nil && !kerrors.IsAlreadyExists(err) {
 		return errors.Wrapf(err, "failed to create object %s from job output %s", obj.GetName(), job.Name)
