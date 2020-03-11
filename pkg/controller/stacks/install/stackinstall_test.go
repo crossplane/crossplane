@@ -100,6 +100,19 @@ func withStackRecord(stackRecord *corev1.ObjectReference) resourceModifier {
 	return func(r v1alpha1.StackInstaller) { r.SetStackRecord(stackRecord) }
 }
 
+// withPackage allows a test to set a StackInstaller's package
+// Another option would have been to modify the interface to allow this,
+// but it is preferable if we treat the package field as immutable.
+func withPackage(pkg string) resourceModifier {
+	return func(r v1alpha1.StackInstaller) {
+		if si, ok := r.(*v1alpha1.StackInstall); ok {
+			si.Spec.Package = pkg
+		} else if csi, ok := r.(*v1alpha1.ClusterStackInstall); ok {
+			csi.Spec.Package = pkg
+		}
+	}
+}
+
 func withSource(src string) resourceModifier {
 	return func(r v1alpha1.StackInstaller) { r.SetSource(src) }
 }
