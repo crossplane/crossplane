@@ -17,6 +17,9 @@ limitations under the License.
 package stacks
 
 import (
+	"strings"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -29,6 +32,10 @@ const (
 	LabelParentNamespace = "core.crossplane.io/parent-namespace"
 	LabelParentName      = "core.crossplane.io/parent-name"
 	LabelParentUID       = "core.crossplane.io/parent-uid"
+
+	LabelMultiParentPrefix   = "parent.stacks.crossplane.io/"
+	LabelMultiParentNSFormat = "parent.stacks.crossplane.io/%s"
+	LabelMultiParentFormat   = LabelMultiParentNSFormat + "-%s"
 )
 
 // KindlyIdentifier implementations provide the means to access the Name,
@@ -54,4 +61,17 @@ func ParentLabels(i KindlyIdentifier) map[string]string {
 		LabelParentUID:       string(i.GetUID()),
 	}
 	return labels
+}
+
+// HasPrefixedLabel checks if any label on an Object starts with any of the
+// provided prefixes
+func HasPrefixedLabel(obj metav1.Object, prefixes ...string) bool {
+	for k := range obj.GetLabels() {
+		for _, prefix := range prefixes {
+			if strings.HasPrefix(k, prefix) {
+				return true
+			}
+		}
+	}
+	return false
 }

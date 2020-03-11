@@ -45,7 +45,10 @@ import (
 )
 
 const (
-	stacksFinalizer = "finalizer.stacks.crossplane.io"
+	stacksFinalizer              = "finalizer.stacks.crossplane.io"
+	labelValueNamespaceMember    = "true"
+	labelValueAggregationEnabled = "true"
+	labelValueActiveParentStack  = "true"
 
 	reconcileTimeout      = 1 * time.Minute
 	requeueAfterOnSuccess = 10 * time.Second
@@ -212,6 +215,18 @@ func (h *stackHandler) create(ctx context.Context) (reconcile.Result, error) {
 		return fail(ctx, h.kube, h.ext, err)
 	}
 
+	crdHandlers := []crdHandler{
+		h.createListFulfilledCRDHandler(),
+		h.createNamespaceLabelsCRDHandler(),
+		h.createMultipleParentLabelsCRDHandler(),
+		h.createPersonaClusterRolesCRDHandler(),
+	}
+
+	if err := h.processCRDs(ctx, crdHandlers...); err != nil {
+		h.log.Debug("failed to process stack CRDs", "error", err)
+		return fail(ctx, h.kube, h.ext, err)
+	}
+
 	// create controller deployment or job
 	if err := h.processDeployment(ctx); err != nil {
 		h.log.Debug("failed to create deployment", "error", err)
@@ -235,102 +250,242 @@ func copyLabels(labels map[string]string) map[string]string {
 	return labelsCopy
 }
 
-func (h *stackHandler) crdListsDiffer(crds []apiextensions.CustomResourceDefinition) bool {
-	return len(crds) != len(h.ext.Spec.CRDs)
+// crdListFulfillsStack verifies that all CRDs provided by the stack are present
+// among the given crds.  Error will describe a mismatch, if any. Extra CRDs in
+// the crds will be ignored.
+func crdListFulfilled(want v1alpha1.CRDList, got []apiextensions.CustomResourceDefinition) error {
+	for _, crdWant := range want {
+		group := crdWant.GroupVersionKind().Group
+		version := crdWant.GroupVersionKind().Version
+		kind := crdWant.GroupVersionKind().Kind
+
+		found := false
+		for i := range got {
+			if got[i].Spec.Group != group {
+				continue
+			}
+
+			if got[i].Spec.Names.Kind != kind {
+				continue
+			}
+
+			if crdVersionExists(&got[i], version) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("Missing CRD with APIVersion %q and Kind %q", crdWant.APIVersion, crdWant.Kind)
+		}
+	}
+	return nil
 }
 
-// crdsFromStack fetches the CRDs of the Stack using the shared parent labels
-// TODO(displague) change this to use GET on each, the CRDs may not be ready
+func crdVersionExists(crd *apiextensions.CustomResourceDefinition, version string) bool {
+	for _, v := range crd.Spec.Versions {
+		if v.Name == version {
+			return true
+		}
+	}
+	return false
+}
+
+// crdsFromStack API fetches the CRDs of the Stack
+//
+// The CRDs returned by this method represent those both provided the Stack spec
+// and present in the API. Use crdListFulfilled to ensure all CRDs are accounted
+// for. Errors will only result from API queries.
 func (h *stackHandler) crdsFromStack(ctx context.Context) ([]apiextensions.CustomResourceDefinition, error) {
-	// Fetch CRDs because h.ext.Spec.CRDs doesn't have plural names
+	results := []apiextensions.CustomResourceDefinition{}
 	crds := &apiextensions.CustomResourceDefinitionList{}
-	stackLabels := h.ext.GetLabels()
-	if err := h.kube.List(ctx, crds, client.MatchingLabels(map[string]string{
-		stacks.LabelParentGroup:     stackLabels[stacks.LabelParentGroup],
-		stacks.LabelParentKind:      stackLabels[stacks.LabelParentKind],
-		stacks.LabelParentName:      stackLabels[stacks.LabelParentName],
-		stacks.LabelParentNamespace: stackLabels[stacks.LabelParentNamespace],
-		stacks.LabelParentUID:       stackLabels[stacks.LabelParentUID],
-		stacks.LabelParentVersion:   stackLabels[stacks.LabelParentVersion],
-	})); err != nil {
-		return nil, errors.Wrap(err, "failed to list crds")
+
+	if len(h.ext.Spec.CRDs) == 0 {
+		return results, nil
 	}
 
-	if h.crdListsDiffer(crds.Items) {
-		return nil, errors.New("failed to list all expected crds")
+	// fake client used during testing doesn't work with nil
+	listOpts := &client.ListOptions{}
+
+	if err := h.kube.List(ctx, crds, listOpts); err != nil {
+		return nil, errors.Wrap(err, "CRDs could not be listed")
 	}
 
-	return crds.Items, nil
+	for _, crdWant := range h.ext.Spec.CRDs {
+		group := crdWant.GroupVersionKind().Group
+		version := crdWant.GroupVersionKind().Version
+		kind := crdWant.GroupVersionKind().Kind
+
+		for i := range crds.Items {
+			if crds.Items[i].Spec.Group != group ||
+				crds.Items[i].Spec.Names.Kind != kind ||
+				!crdVersionExists(&crds.Items[i], version) {
+				continue
+			}
+			results = append(results, crds.Items[i])
+		}
+	}
+
+	return results, nil
 }
 
-// createPersonaClusterRoles creates admin, edit, and view clusterroles that are
-// namespace+stack+version specific
-func (h *stackHandler) createPersonaClusterRoles(ctx context.Context, labels map[string]string) error {
+type crdHandler func(ctx context.Context, crds []apiextensions.CustomResourceDefinition) error
+
+func (h *stackHandler) processCRDs(ctx context.Context, crdHandlers ...crdHandler) error {
 	crds, err := h.crdsFromStack(ctx)
 	if err != nil {
 		return err
 	}
 
-	for persona := range roleVerbs {
-		name := stacks.PersonaRoleName(h.ext, persona)
-
-		// Use a copy so AddLabels doesn't mutate labels
-		labelsCopy := copyLabels(labels)
-
-		// Create labels appropriate for the scope of the ClusterRole
-		var crossplaneScope string
-
-		if h.isNamespaced() {
-			crossplaneScope = stacks.NamespaceScoped
-
-			labelNamespace := fmt.Sprintf(stacks.LabelNamespaceFmt, h.ext.GetNamespace())
-			labelsCopy[labelNamespace] = "true"
-		} else {
-			crossplaneScope = stacks.EnvironmentScoped
-		}
-
-		// Aggregation labels grant Stack CRD responsibilities
-		// to namespace or environment personas like crossplane-env-admin
-		// or crossplane:ns:default:view
-		aggregationLabel := fmt.Sprintf(stacks.LabelAggregateFmt, crossplaneScope, persona)
-		labelsCopy[aggregationLabel] = "true"
-
-		// Each ClusterRole needs persona specific rules for each CRD
-		rules := []rbacv1.PolicyRule{}
-
-		for _, crd := range crds {
-			kinds := []string{crd.Spec.Names.Plural}
-
-			if subs := crd.Spec.Subresources; subs != nil {
-				if subs.Status != nil {
-					kinds = append(kinds, crd.Spec.Names.Plural+"/status")
-				}
-				if subs.Scale != nil {
-					kinds = append(kinds, crd.Spec.Names.Plural+"/scale")
-				}
-			}
-
-			rules = append(rules, rbacv1.PolicyRule{
-				APIGroups: []string{crd.Spec.Group},
-				Resources: kinds,
-				Verbs:     roleVerbs[persona],
-			})
-		}
-
-		// Assemble and create the ClusterRole
-		cr := &rbacv1.ClusterRole{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   name,
-				Labels: labelsCopy,
-			},
-			Rules: rules,
-		}
-
-		if err := h.kube.Create(ctx, cr); err != nil && !kerrors.IsAlreadyExists(err) {
-			return errors.Wrap(err, "failed to create persona cluster roles")
+	for _, handler := range crdHandlers {
+		if err := handler(ctx, crds); err != nil {
+			return err
 		}
 	}
 	return nil
+}
+
+// createListFulfilledCRDHandler provides a handler which verifies all
+// Stack expected CRDs are present in the provided list
+func (h *stackHandler) createListFulfilledCRDHandler() crdHandler {
+	return func(_ context.Context, crds []apiextensions.CustomResourceDefinition) error {
+		return crdListFulfilled(h.ext.Spec.CRDs, crds)
+	}
+}
+
+// createNamespaceLabelsCRDHandler provides a handler which labels CRDs with the
+// namespaces of the stacks they are managed by.
+func (h *stackHandler) createNamespaceLabelsCRDHandler() crdHandler {
+	labelNamespace := fmt.Sprintf(stacks.LabelNamespaceFmt, h.ext.GetNamespace())
+	return func(ctx context.Context, crds []apiextensions.CustomResourceDefinition) error {
+		for i := range crds {
+			labels := crds[i].GetLabels()
+
+			if labels[stacks.LabelKubernetesManagedBy] != stacks.LabelValueStackManager {
+				continue
+			}
+
+			if labels[labelNamespace] == labelValueNamespaceMember {
+				continue
+			}
+
+			crdPatch := client.MergeFrom(crds[i].DeepCopy())
+
+			labels[labelNamespace] = labelValueNamespaceMember
+			crds[i].SetLabels(labels)
+
+			h.log.Debug("adding labels for CRD", "labelNamespace", labelNamespace, "name", crds[i].GetName())
+			if err := h.kube.Patch(ctx, &crds[i], crdPatch); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+}
+
+// createMultipleParentLabelsCRDHandler provides a handler which labels CRDs
+// with the stacks they are managed by. This will allow for a single Namespaced
+// stack to be installed in multiple namespaces, or different stacks (possibly
+// only differing by versions) to provide the same CRDs without the risk that a
+// single StackInstall removal will delete a CRD until there are no remaining
+// stack parent labels.
+func (h *stackHandler) createMultipleParentLabelsCRDHandler() crdHandler {
+	labelMultiParent := fmt.Sprintf(stacks.LabelMultiParentFormat, h.ext.GetNamespace(), h.ext.GetName())
+
+	return func(ctx context.Context, crds []apiextensions.CustomResourceDefinition) error {
+		for i := range crds {
+			labels := crds[i].GetLabels()
+
+			if labels[stacks.LabelKubernetesManagedBy] != stacks.LabelValueStackManager {
+				continue
+			}
+
+			if labels[labelMultiParent] == labelValueActiveParentStack {
+				continue
+			}
+
+			crdPatch := client.MergeFrom(crds[i].DeepCopy())
+
+			labels[labelMultiParent] = labelValueActiveParentStack
+			crds[i].SetLabels(labels)
+
+			h.log.Debug("adding labels for CRD", "labelMultiParent", labelMultiParent, "name", crds[i].GetName())
+			if err := h.kube.Patch(ctx, &crds[i], crdPatch); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+}
+
+// createPersonaClusterRolesCRDHandler provides a handler which creates admin,
+// edit, and view clusterroles that are namespace+stack+version specific
+func (h *stackHandler) createPersonaClusterRolesCRDHandler() crdHandler {
+	labels := stacks.ParentLabels(h.ext)
+
+	return func(ctx context.Context, crds []apiextensions.CustomResourceDefinition) error {
+
+		for persona := range roleVerbs {
+			name := stacks.PersonaRoleName(h.ext, persona)
+
+			// Use a copy so AddLabels doesn't mutate labels
+			labelsCopy := copyLabels(labels)
+
+			// Create labels appropriate for the scope of the ClusterRole
+			var crossplaneScope string
+
+			if h.isNamespaced() {
+				crossplaneScope = stacks.NamespaceScoped
+
+				labelNamespace := fmt.Sprintf(stacks.LabelNamespaceFmt, h.ext.GetNamespace())
+				labelsCopy[labelNamespace] = labelValueNamespaceMember
+			} else {
+				crossplaneScope = stacks.EnvironmentScoped
+			}
+
+			// Aggregation labels grant Stack CRD responsibilities
+			// to namespace or environment personas like crossplane-env-admin
+			// or crossplane:ns:default:view
+			aggregationLabel := fmt.Sprintf(stacks.LabelAggregateFmt, crossplaneScope, persona)
+			labelsCopy[aggregationLabel] = labelValueAggregationEnabled
+
+			// Each ClusterRole needs persona specific rules for each CRD
+			rules := []rbacv1.PolicyRule{}
+
+			for _, crd := range crds {
+				kinds := []string{crd.Spec.Names.Plural}
+
+				if subs := crd.Spec.Subresources; subs != nil {
+					if subs.Status != nil {
+						kinds = append(kinds, crd.Spec.Names.Plural+"/status")
+					}
+					if subs.Scale != nil {
+						kinds = append(kinds, crd.Spec.Names.Plural+"/scale")
+					}
+				}
+
+				rules = append(rules, rbacv1.PolicyRule{
+					APIGroups: []string{crd.Spec.Group},
+					Resources: kinds,
+					Verbs:     roleVerbs[persona],
+				})
+			}
+
+			// Assemble and create the ClusterRole
+			cr := &rbacv1.ClusterRole{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:   name,
+					Labels: labelsCopy,
+				},
+				Rules: rules,
+			}
+
+			if err := h.kube.Create(ctx, cr); err != nil && !kerrors.IsAlreadyExists(err) {
+				return errors.Wrap(err, "failed to create persona cluster roles")
+			}
+		}
+		return nil
+	}
+
 }
 
 func (h *stackHandler) createDeploymentClusterRole(ctx context.Context, labels map[string]string) (string, error) {
@@ -428,16 +583,16 @@ func (h *stackHandler) processRBAC(ctx context.Context) error {
 		roleBindingErr = errors.New("invalid permissionScope for stack")
 	}
 
-	if roleBindingErr != nil {
-		return roleBindingErr
-	}
+	return roleBindingErr
 
-	// create persona roles
-	return h.createPersonaClusterRoles(ctx, labels)
 }
 
 func (h *stackHandler) isNamespaced() bool {
-	return apiextensions.ResourceScope(h.ext.Spec.PermissionScope) == apiextensions.NamespaceScoped
+	switch apiextensions.ResourceScope(h.ext.Spec.PermissionScope) {
+	case apiextensions.NamespaceScoped, apiextensions.ResourceScope(""):
+		return true
+	}
+	return false
 }
 
 // syncSATokenSecret function copies service account token secret from custom resource Kubernetes (a.k.a tenant
@@ -675,6 +830,10 @@ func (h *stackHandler) delete(ctx context.Context) (reconcile.Result, error) {
 		return fail(ctx, h.kube, h.ext, err)
 	}
 
+	if err := h.removeCRDLabels(ctx); err != nil {
+		return fail(ctx, h.kube, h.ext, err)
+	}
+
 	meta.RemoveFinalizer(h.ext, stacksFinalizer)
 	if err := h.kube.Update(ctx, h.ext); err != nil {
 		h.log.Debug("failed to remove stack finalizer", "error", err, "namespace", h.ext.GetNamespace(), "name", h.ext.GetName())
@@ -682,6 +841,60 @@ func (h *stackHandler) delete(ctx context.Context) (reconcile.Result, error) {
 	}
 
 	return reconcile.Result{}, nil
+}
+
+// removeCRDLabels Removes all labels added to CRDs by this Stack, leaving the
+// CRDs and labels left by other stacks in place
+// TODO(displague) if single-parent labels exist, matching this stack,
+// delete them
+func (h *stackHandler) removeCRDLabels(ctx context.Context) error {
+	// crds may be an incomplete list if CRDs were manually removed.
+	// This is ok since we won't need to remove labels on deleted crds.
+	// If crds are omitted based on other differences (mismatched
+	// versions) those crds are in a weird state and will be missed here.
+	crds, err := h.crdsFromStack(ctx)
+	if err != nil {
+		h.log.Debug("failed to fetch CRDs for stack", "error", err, "name", h.ext.GetName())
+		return err
+	}
+
+	stackName := h.ext.GetName()
+	stackNS := h.ext.GetNamespace()
+
+	labelMultiParentNSPrefix := fmt.Sprintf(stacks.LabelMultiParentNSFormat, stackNS)
+	labelMultiParent := fmt.Sprintf(stacks.LabelMultiParentFormat, stackNS, stackName)
+	labelNamespace := fmt.Sprintf(stacks.LabelNamespaceFmt, stackNS)
+
+	for i := range crds {
+		name := crds[i].GetName()
+		labels := crds[i].GetLabels()
+		if labels[stacks.LabelKubernetesManagedBy] != stacks.LabelValueStackManager {
+			h.log.Debug("skipping stack label removal for unmanaged CRD", "name", name)
+
+			continue
+		}
+
+		h.log.Debug("removing labels from CRD", "labelMultiParent", labelMultiParent, "labelNamespace", labelNamespace, "name", name)
+
+		crdPatch := client.MergeFrom(crds[i].DeepCopy())
+
+		meta.RemoveLabels(&crds[i], labelMultiParent)
+
+		// TODO(displague) remove matching single parent labels? should we pick
+		// another parent at random? what value is there in these labels?
+
+		// clear the namespace label after the last parent stack is removed
+		if !stacks.HasPrefixedLabel(&crds[i], labelMultiParentNSPrefix) {
+			meta.RemoveLabels(&crds[i], labelNamespace)
+		}
+
+		if err := h.kube.Patch(ctx, &crds[i], crdPatch); err != nil {
+			h.log.Debug("failed to patch CRD", "error", err, "name", name)
+
+			return err
+		}
+	}
+	return nil
 }
 
 // fail - helper function to set fail condition with reason and message

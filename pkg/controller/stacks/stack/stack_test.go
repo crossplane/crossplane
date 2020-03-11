@@ -19,12 +19,14 @@ package stack
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
 	. "github.com/onsi/gomega"
 	"github.com/pkg/errors"
+
 	apps "k8s.io/api/apps/v1"
 	batch "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -56,7 +58,7 @@ const (
 	hostControllerNamespace = "controller-namespace"
 	uid                     = types.UID("definitely-a-uuid")
 	resourceName            = "cool-stack"
-	roleName                = "stack:cool-namespace:cool-stack::system"
+	roleName                = "stack:cool-namespace:cool-stack:0.0.1:system"
 
 	controllerDeploymentName = "cool-stack-controller"
 	controllerContainerName  = "cool-container"
@@ -85,6 +87,14 @@ type deploymentSpecModifier func(*apps.DeploymentSpec)
 
 func withFinalizers(finalizers ...string) resourceModifier {
 	return func(r *v1alpha1.Stack) { r.SetFinalizers(finalizers) }
+}
+
+func withResourceVersion(version string) resourceModifier {
+	return func(r *v1alpha1.Stack) { r.SetResourceVersion(version) }
+}
+
+func withCRDs(crds ...metav1.TypeMeta) resourceModifier {
+	return func(r *v1alpha1.Stack) { r.Spec.CRDs = crds }
 }
 
 func withDeletionTimestamp(t time.Time) resourceModifier {
@@ -177,7 +187,11 @@ func resource(rm ...resourceModifier) *v1alpha1.Stack {
 			UID:        uid,
 			Finalizers: []string{},
 		},
-		Spec: v1alpha1.StackSpec{},
+		Spec: v1alpha1.StackSpec{
+			AppMetadataSpec: v1alpha1.AppMetadataSpec{
+				Version: "0.0.1",
+			},
+		},
 	}
 
 	for _, m := range rm {
@@ -478,6 +492,7 @@ func TestCreate(t *testing.T) {
 					withGVK(v1alpha1.StackGroupVersionKind),
 					withConditions(runtimev1alpha1.Available(), runtimev1alpha1.ReconcileSuccess()),
 					withFinalizers(stacksFinalizer),
+					withResourceVersion("2"),
 				),
 			},
 		},
@@ -493,6 +508,7 @@ func TestCreate(t *testing.T) {
 					withPermissionScope("Cluster"),
 					withConditions(runtimev1alpha1.Available(), runtimev1alpha1.ReconcileSuccess()),
 					withFinalizers(stacksFinalizer),
+					withResourceVersion("2"),
 				),
 			},
 		},
@@ -517,9 +533,6 @@ func TestCreate(t *testing.T) {
 				t.Errorf("create(): -want, +got:\n%s", diff)
 			}
 
-			// NOTE(muvaf): ResourceVersion is not our concern in these tests
-			// but it gets filled up by the client.
-			tt.want.r.ResourceVersion = tt.r.ResourceVersion
 			if diff := cmp.Diff(tt.want.r, tt.r, test.EquateConditions()); diff != "" {
 				t.Errorf("create() resource: -want, +got:\n%s", diff)
 			}
@@ -802,7 +815,12 @@ func TestProcessRBAC_Cluster(t *testing.T) {
 						Name:      resourceName,
 						Namespace: namespace,
 						OwnerReferences: []metav1.OwnerReference{
-							meta.AsOwner(meta.ReferenceTo(resource(withPermissionScope("Cluster")), v1alpha1.StackGroupVersionKind)),
+							meta.AsOwner(
+								meta.ReferenceTo(resource(
+									withPermissionScope("Cluster")),
+									v1alpha1.StackGroupVersionKind,
+								),
+							),
 						},
 					},
 				},
@@ -1688,6 +1706,778 @@ func Test_stackHandler_prepareHostAwarePodSpec(t *testing.T) {
 	}
 }
 
+type crdModifier func(*apiextensionsv1beta1.CustomResourceDefinition)
+
+func withCRDVersion(version string) crdModifier {
+	return func(c *apiextensionsv1beta1.CustomResourceDefinition) {
+		c.Spec.Version = version
+		c.Spec.Versions = append(c.Spec.Versions, apiextensionsv1beta1.CustomResourceDefinitionVersion{Name: version})
+	}
+}
+
+func withCRDScope(scope apiextensionsv1beta1.ResourceScope) crdModifier {
+	return func(c *apiextensionsv1beta1.CustomResourceDefinition) {
+		c.Spec.Scope = scope
+	}
+}
+
+func withCRDLabels(labels map[string]string) crdModifier {
+	return func(c *apiextensionsv1beta1.CustomResourceDefinition) {
+		meta.AddLabels(c, labels)
+	}
+}
+
+func withCRDSubresources() crdModifier {
+	return func(c *apiextensionsv1beta1.CustomResourceDefinition) {
+		c.Spec.Subresources = &apiextensionsv1beta1.CustomResourceSubresources{
+			Status: &apiextensionsv1beta1.CustomResourceSubresourceStatus{},
+			Scale:  &apiextensionsv1beta1.CustomResourceSubresourceScale{},
+		}
+	}
+}
+
+func withCRDGroupKind(group, kind string) crdModifier {
+	singular := strings.ToLower(kind)
+	plural := singular + "s"
+	list := kind + "List"
+
+	return func(c *apiextensionsv1beta1.CustomResourceDefinition) {
+		c.Spec.Group = group
+		c.Spec.Names.Kind = kind
+		c.Spec.Names.Plural = plural
+		c.Spec.Names.ListKind = list
+		c.Spec.Names.Singular = singular
+		c.SetName(plural + "." + group)
+	}
+}
+
+func crd(cm ...crdModifier) apiextensionsv1beta1.CustomResourceDefinition {
+	// basic crd with defaults
+	t := true
+	c := apiextensionsv1beta1.CustomResourceDefinition{
+		Spec: apiextensionsv1beta1.CustomResourceDefinitionSpec{
+			Scope: "Namespaced",
+			Conversion: &apiextensionsv1beta1.CustomResourceConversion{
+				Strategy:                 apiextensionsv1beta1.NoneConverter,
+				WebhookClientConfig:      nil,
+				ConversionReviewVersions: nil,
+			},
+			PreserveUnknownFields: &t,
+		},
+	}
+	for _, m := range cm {
+		m(&c)
+	}
+	return c
+}
+
+type crModifier func(*rbac.ClusterRole)
+
+func withClusterRoleLabels(labels map[string]string) crModifier {
+	return func(cr *rbac.ClusterRole) {
+		meta.AddLabels(cr, labels)
+	}
+}
+
+func withClusterRoleRules(rules []rbac.PolicyRule) crModifier {
+	return func(cr *rbac.ClusterRole) {
+		cr.Rules = append(cr.Rules, rules...)
+
+	}
+}
+
+func clusterRole(name string, crm ...crModifier) rbac.ClusterRole {
+	c := rbac.ClusterRole{}
+	c.SetName(name)
+	for _, m := range crm {
+		m(&c)
+	}
+	return c
+}
+
+func Test_crdListFulfilled(t *testing.T) {
+	type args struct {
+		want v1alpha1.CRDList
+		got  []apiextensionsv1beta1.CustomResourceDefinition
+	}
+
+	const (
+		group      = "samples.upbound.io"
+		version    = "v1alpha1"
+		kind       = "Mytype"
+		plural     = "mytypes"
+		apiVersion = group + "/" + version
+	)
+
+	tests := []struct {
+		name    string
+		args    args
+		wantErr error
+	}{
+		{
+			name: "MissingFromCRDList",
+			args: args{v1alpha1.CRDList{
+				metav1.TypeMeta{Kind: kind, APIVersion: apiVersion},
+			}, []apiextensionsv1beta1.CustomResourceDefinition{}},
+			wantErr: fmt.Errorf(`Missing CRD with APIVersion %q and Kind %q`, apiVersion, kind),
+		},
+		{
+			name: "WrongCRDVersion",
+			args: args{v1alpha1.CRDList{
+				metav1.TypeMeta{Kind: kind, APIVersion: apiVersion},
+			}, []apiextensionsv1beta1.CustomResourceDefinition{
+				crd(
+					withCRDGroupKind(group, kind),
+					withCRDVersion("foo"),
+				)}},
+			wantErr: fmt.Errorf(`Missing CRD with APIVersion %q and Kind %q`, apiVersion, kind),
+		},
+		{
+			name: "DifferentCRDKind",
+			args: args{v1alpha1.CRDList{
+				metav1.TypeMeta{Kind: kind, APIVersion: apiVersion},
+			}, []apiextensionsv1beta1.CustomResourceDefinition{
+				crd(
+					withCRDGroupKind(group, "foo"),
+					withCRDVersion(version),
+				)}},
+			wantErr: fmt.Errorf(`Missing CRD with APIVersion %q and Kind %q`, apiVersion, kind),
+		},
+		{
+			name: "PartialMatch",
+			args: args{v1alpha1.CRDList{
+				metav1.TypeMeta{Kind: kind, APIVersion: apiVersion},
+				metav1.TypeMeta{Kind: kind + "z", APIVersion: apiVersion},
+			}, []apiextensionsv1beta1.CustomResourceDefinition{crd(
+				withCRDGroupKind(group, kind),
+				withCRDVersion(version),
+			)}},
+			wantErr: fmt.Errorf(`Missing CRD with APIVersion %q and Kind %q`, apiVersion, kind+"z"),
+		},
+		{
+			name: "Success",
+			args: args{v1alpha1.CRDList{
+				metav1.TypeMeta{Kind: kind, APIVersion: apiVersion},
+			}, []apiextensionsv1beta1.CustomResourceDefinition{crd(
+				withCRDGroupKind(group, kind),
+				withCRDVersion(version),
+			)}},
+			wantErr: nil,
+		},
+		{
+			name: "SuccessMultiple",
+			args: args{v1alpha1.CRDList{
+				metav1.TypeMeta{Kind: kind, APIVersion: apiVersion},
+				metav1.TypeMeta{Kind: kind + "z", APIVersion: apiVersion},
+			}, []apiextensionsv1beta1.CustomResourceDefinition{
+				crd(withCRDGroupKind(group, kind),
+					withCRDVersion(version),
+				),
+				crd(withCRDGroupKind(group, kind+"z"),
+					withCRDVersion(version),
+				)}},
+			wantErr: nil,
+		},
+		{
+			name: "SuccessWithExtra",
+			args: args{v1alpha1.CRDList{metav1.TypeMeta{Kind: kind, APIVersion: apiVersion}}, []apiextensionsv1beta1.CustomResourceDefinition{
+				crd(withCRDGroupKind(group, kind),
+					withCRDVersion(version),
+				),
+				crd(withCRDGroupKind(group, kind+"z"),
+					withCRDVersion(version),
+				)}},
+			wantErr: nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotErr := crdListFulfilled(tt.args.want, tt.args.got)
+
+			if diff := cmp.Diff(tt.wantErr, gotErr, test.EquateErrors()); diff != "" {
+				t.Fatalf("crdListFulfilled(...): -want error, +got error: %s", diff)
+			}
+		})
+	}
+}
+
+func Test_stackHandler_crdsFromStack(t *testing.T) {
+	type fields struct {
+		kube            client.Client
+		hostKube        client.Client
+		hostAwareConfig *hosted.Config
+		ext             *v1alpha1.Stack
+		log             logging.Logger
+	}
+	type args struct {
+		ctx context.Context
+	}
+
+	const (
+		group      = "samples.upbound.io"
+		version    = "v1alpha1"
+		kind       = "Mytype"
+		plural     = "mytypes"
+		apiVersion = group + "/" + version
+	)
+
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    []apiextensionsv1beta1.CustomResourceDefinition
+		wantErr error
+	}{
+		{
+			name: "MissingFromCRDList",
+			fields: fields{
+				ext: resource(withCRDs(metav1.TypeMeta{Kind: kind, APIVersion: apiVersion})),
+				kube: &test.MockClient{
+					MockList: test.NewMockListFn(nil),
+				},
+			},
+			args:    args{context.TODO()},
+			want:    []apiextensionsv1beta1.CustomResourceDefinition{},
+			wantErr: nil,
+		},
+		{
+			name: "ErrorListingCRDs",
+			fields: fields{
+				ext: resource(withCRDs(metav1.TypeMeta{Kind: kind, APIVersion: apiVersion})),
+				kube: &test.MockClient{
+					MockList: test.NewMockListFn(errBoom),
+				},
+			},
+			args:    args{context.TODO()},
+			want:    nil,
+			wantErr: errors.Wrap(errBoom, "CRDs could not be listed"),
+		},
+		{
+			name: "MissingCRDVersion",
+			fields: fields{
+				ext: resource(withCRDs(metav1.TypeMeta{Kind: kind, APIVersion: apiVersion})),
+				kube: &test.MockClient{
+					MockList: func(_ context.Context, list runtime.Object, _ ...client.ListOption) error {
+						switch list := list.(type) {
+						case *apiextensionsv1beta1.CustomResourceDefinitionList:
+							list.Items = append(list.Items,
+								crd(
+									withCRDGroupKind(group, kind),
+									withCRDVersion("foo"),
+								),
+							)
+						default:
+							return errors.New("unexpected list for testing")
+						}
+						return nil
+					},
+				},
+			},
+			want:    []apiextensionsv1beta1.CustomResourceDefinition{},
+			wantErr: nil,
+		},
+		{
+			name: "MissingCRDKind",
+			fields: fields{
+				ext: resource(withCRDs(metav1.TypeMeta{Kind: kind, APIVersion: apiVersion})),
+				kube: &test.MockClient{
+					MockList: func(_ context.Context, list runtime.Object, _ ...client.ListOption) error {
+						switch list := list.(type) {
+						case *apiextensionsv1beta1.CustomResourceDefinitionList:
+							list.Items = append(list.Items,
+								crd(
+									withCRDGroupKind(group, "Differentkind"),
+									withCRDVersion(version),
+								),
+							)
+						default:
+							return errors.New("unexpected list for testing")
+						}
+						return nil
+					},
+				},
+			},
+			want:    []apiextensionsv1beta1.CustomResourceDefinition{},
+			wantErr: nil,
+		},
+		{
+			name: "Success",
+			fields: fields{
+				ext: resource(withCRDs(metav1.TypeMeta{Kind: kind, APIVersion: apiVersion})),
+				kube: &test.MockClient{
+					MockList: func(_ context.Context, list runtime.Object, _ ...client.ListOption) error {
+						switch list := list.(type) {
+						case *apiextensionsv1beta1.CustomResourceDefinitionList:
+							list.Items = append(list.Items,
+								crd(
+									withCRDGroupKind(group, kind), withCRDVersion(version),
+								),
+							)
+						default:
+							return errors.New("unexpected list for testing")
+						}
+						return nil
+					},
+				},
+			},
+			args: args{context.TODO()},
+			want: []apiextensionsv1beta1.CustomResourceDefinition{
+				crd(withCRDGroupKind(group, kind), withCRDVersion(version)),
+			},
+			wantErr: nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := &stackHandler{
+				kube:            tt.fields.kube,
+				hostKube:        tt.fields.hostKube,
+				hostAwareConfig: tt.fields.hostAwareConfig,
+				ext:             tt.fields.ext,
+				log:             tt.fields.log,
+			}
+			got, gotErr := h.crdsFromStack(tt.args.ctx)
+
+			if diff := cmp.Diff(tt.wantErr, gotErr, test.EquateErrors()); diff != "" {
+				t.Fatalf("stackHandler.crdsFromStack(...): -want error, +got error: %s", diff)
+			}
+
+			if diff := cmp.Diff(tt.want, got, test.EquateErrors()); diff != "" {
+				t.Fatalf("stackHandler.crdsFromStack(...): -want, +got: %s", diff)
+			}
+		})
+	}
+}
+
+func Test_stackHandler_createNamespaceLabelsCRDHandler(t *testing.T) {
+	type fields struct {
+		clientFunc func() client.Client
+		ext        *v1alpha1.Stack
+	}
+	type args struct {
+		ctx  context.Context
+		crds []apiextensionsv1beta1.CustomResourceDefinition
+	}
+
+	const (
+		group      = "samples.upbound.io"
+		version    = "v1alpha1"
+		kind       = "Mytype"
+		plural     = "mytypes"
+		apiVersion = group + "/" + version
+	)
+
+	var (
+		nsLabel = fmt.Sprintf(stackspkg.LabelNamespaceFmt, namespace)
+	)
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    []apiextensionsv1beta1.CustomResourceDefinition
+		wantErr error
+	}{
+		{
+			name: "MissingCRD",
+			fields: fields{
+				ext: resource(),
+				clientFunc: func() client.Client {
+					return fake.NewFakeClient()
+				},
+			},
+			args: args{
+				ctx: context.TODO(),
+				crds: []apiextensionsv1beta1.CustomResourceDefinition{
+					crd(
+						withCRDGroupKind(group, kind),
+						withCRDVersion(version),
+						withCRDLabels(map[string]string{stackspkg.LabelKubernetesManagedBy: stackspkg.LabelValueStackManager}),
+					)},
+			},
+			want: []apiextensionsv1beta1.CustomResourceDefinition{},
+			wantErr: kerrors.NewNotFound(
+				schema.GroupResource{Group: "apiextensions.k8s.io", Resource: "customresourcedefinitions"},
+				plural+"."+group),
+		},
+		{
+			name: "UnmanagedCRD",
+			fields: fields{
+				ext: resource(),
+				clientFunc: func() client.Client {
+					c := crd(withCRDGroupKind(group, kind),
+						withCRDVersion(version))
+					return fake.NewFakeClient(&c)
+				},
+			},
+			args: args{
+				ctx: context.TODO(),
+				crds: []apiextensionsv1beta1.CustomResourceDefinition{
+					crd(withCRDGroupKind(group, kind),
+						withCRDVersion(version))},
+			},
+			want: []apiextensionsv1beta1.CustomResourceDefinition{
+				crd(withCRDGroupKind(group, kind),
+					withCRDVersion(version))},
+		},
+		{
+			name: "ManagedCRD",
+			fields: fields{
+				ext: resource(),
+				clientFunc: func() client.Client {
+					c := crd(withCRDGroupKind(group, kind),
+						withCRDVersion(version),
+						withCRDLabels(map[string]string{stackspkg.LabelKubernetesManagedBy: stackspkg.LabelValueStackManager}))
+					return fake.NewFakeClient(&c)
+				},
+			},
+			args: args{
+				ctx: context.TODO(),
+				crds: []apiextensionsv1beta1.CustomResourceDefinition{
+					crd(withCRDGroupKind(group, kind),
+						withCRDVersion(version),
+						withCRDLabels(map[string]string{stackspkg.LabelKubernetesManagedBy: stackspkg.LabelValueStackManager}))},
+			},
+			want: []apiextensionsv1beta1.CustomResourceDefinition{
+				crd(withCRDGroupKind(group, kind),
+					withCRDVersion(version),
+					withCRDLabels(map[string]string{stackspkg.LabelKubernetesManagedBy: stackspkg.LabelValueStackManager, nsLabel: "true"}))},
+		},
+		{
+			name: "ManagedCRDAlreadyLabeled",
+			fields: fields{
+				ext: resource(),
+				clientFunc: func() client.Client {
+					c := crd(
+						withCRDGroupKind(group, kind),
+						withCRDVersion(version),
+						withCRDLabels(map[string]string{stackspkg.LabelKubernetesManagedBy: stackspkg.LabelValueStackManager, nsLabel: "true"}))
+					return fake.NewFakeClient(&c)
+				},
+			},
+			args: args{
+				ctx: context.TODO(),
+				crds: []apiextensionsv1beta1.CustomResourceDefinition{
+					crd(
+						withCRDGroupKind(group, kind),
+						withCRDVersion(version),
+						withCRDLabels(map[string]string{stackspkg.LabelKubernetesManagedBy: stackspkg.LabelValueStackManager, nsLabel: "true"}))},
+			},
+			want: []apiextensionsv1beta1.CustomResourceDefinition{
+				crd(withCRDGroupKind(group, kind),
+					withCRDVersion(version),
+					withCRDLabels(map[string]string{stackspkg.LabelKubernetesManagedBy: stackspkg.LabelValueStackManager, nsLabel: "true"}))},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := NewGomegaWithT(t)
+
+			h := &stackHandler{
+				kube: tt.fields.clientFunc(),
+				ext:  tt.fields.ext,
+				log:  logging.NewNopLogger(),
+			}
+			fn := h.createNamespaceLabelsCRDHandler()
+			gotErr := fn(tt.args.ctx, tt.args.crds)
+
+			if diff := cmp.Diff(tt.wantErr, gotErr, test.EquateErrors()); diff != "" {
+				t.Fatalf("stackHandler.createNamespaceLabelsCRDHandler.fn(...): -want error, +got error: %s", diff)
+			}
+
+			if tt.want != nil {
+				for _, wanted := range tt.want {
+					got := &apiextensionsv1beta1.CustomResourceDefinition{}
+					assertKubernetesObject(t, g, got, &wanted, h.kube)
+				}
+			}
+		})
+	}
+}
+
+func Test_stackHandler_createMultipleParentLabelsCRDHandler(t *testing.T) {
+	type fields struct {
+		clientFunc func() client.Client
+		ext        *v1alpha1.Stack
+	}
+	type args struct {
+		ctx  context.Context
+		crds []apiextensionsv1beta1.CustomResourceDefinition
+	}
+
+	const (
+		group      = "samples.upbound.io"
+		version    = "v1alpha1"
+		kind       = "Mytype"
+		plural     = "mytypes"
+		apiVersion = group + "/" + version
+	)
+
+	var (
+		label = fmt.Sprintf(stackspkg.LabelMultiParentFormat, namespace, resourceName)
+	)
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    []apiextensionsv1beta1.CustomResourceDefinition
+		wantErr error
+	}{
+		{
+			name: "MissingCRD",
+			fields: fields{
+				ext: resource(),
+				clientFunc: func() client.Client {
+					return fake.NewFakeClient()
+				},
+			},
+			args: args{
+				ctx: context.TODO(),
+				crds: []apiextensionsv1beta1.CustomResourceDefinition{
+					crd(
+						withCRDGroupKind(group, kind),
+						withCRDVersion(version),
+						withCRDLabels(map[string]string{stackspkg.LabelKubernetesManagedBy: stackspkg.LabelValueStackManager}),
+					),
+				},
+			},
+			want: []apiextensionsv1beta1.CustomResourceDefinition{},
+			wantErr: kerrors.NewNotFound(
+				schema.GroupResource{Group: "apiextensions.k8s.io", Resource: "customresourcedefinitions"},
+				plural+"."+group),
+		},
+		{
+			name: "UnmanagedCRD",
+			fields: fields{
+				ext: resource(),
+				clientFunc: func() client.Client {
+					c := crd(withCRDGroupKind(group, kind),
+						withCRDVersion(version))
+					return fake.NewFakeClient(&c)
+				},
+			},
+			args: args{
+				ctx: context.TODO(),
+				crds: []apiextensionsv1beta1.CustomResourceDefinition{
+					crd(withCRDGroupKind(group, kind),
+						withCRDVersion(version))},
+			},
+			want: []apiextensionsv1beta1.CustomResourceDefinition{
+				crd(withCRDGroupKind(group, kind),
+					withCRDVersion(version))},
+		},
+		{
+			name: "ManagedCRD",
+			fields: fields{
+				ext: resource(),
+				clientFunc: func() client.Client {
+					c := crd(withCRDGroupKind(group, kind),
+						withCRDVersion(version),
+						withCRDLabels(map[string]string{stackspkg.LabelKubernetesManagedBy: stackspkg.LabelValueStackManager}))
+					return fake.NewFakeClient(&c)
+				},
+			},
+			args: args{
+				ctx: context.TODO(),
+				crds: []apiextensionsv1beta1.CustomResourceDefinition{
+					crd(withCRDGroupKind(group, kind),
+						withCRDVersion(version),
+						withCRDLabels(map[string]string{stackspkg.LabelKubernetesManagedBy: stackspkg.LabelValueStackManager}))},
+			},
+			want: []apiextensionsv1beta1.CustomResourceDefinition{
+				crd(withCRDGroupKind(group, kind),
+					withCRDVersion(version),
+					withCRDLabels(map[string]string{stackspkg.LabelKubernetesManagedBy: stackspkg.LabelValueStackManager, label: "true"}))},
+		},
+		{
+			name: "ManagedCRDAlreadyLabeled",
+			fields: fields{
+				ext: resource(),
+				clientFunc: func() client.Client {
+					c := crd(withCRDGroupKind(group, kind),
+						withCRDVersion(version),
+						withCRDLabels(map[string]string{stackspkg.LabelKubernetesManagedBy: stackspkg.LabelValueStackManager, label: "true"}))
+					return fake.NewFakeClient(&c)
+				},
+			},
+			args: args{
+				ctx: context.TODO(),
+				crds: []apiextensionsv1beta1.CustomResourceDefinition{
+					crd(withCRDGroupKind(group, kind),
+						withCRDVersion(version),
+						withCRDLabels(map[string]string{stackspkg.LabelKubernetesManagedBy: stackspkg.LabelValueStackManager, label: "true"}))},
+			},
+			want: []apiextensionsv1beta1.CustomResourceDefinition{
+				crd(withCRDGroupKind(group, kind),
+					withCRDVersion(version),
+					withCRDLabels(map[string]string{stackspkg.LabelKubernetesManagedBy: stackspkg.LabelValueStackManager, label: "true"}))},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := NewGomegaWithT(t)
+
+			h := &stackHandler{
+				kube: tt.fields.clientFunc(),
+				ext:  tt.fields.ext,
+				log:  logging.NewNopLogger(),
+			}
+			fn := h.createMultipleParentLabelsCRDHandler()
+			gotErr := fn(tt.args.ctx, tt.args.crds)
+
+			if diff := cmp.Diff(tt.wantErr, gotErr, test.EquateErrors()); diff != "" {
+				t.Fatalf("stackHandler.createMultipleParentLabelsCRDHandler.fn(...): -want error, +got error: %s", diff)
+			}
+
+			if tt.want != nil {
+				for _, wanted := range tt.want {
+					got := &apiextensionsv1beta1.CustomResourceDefinition{}
+					assertKubernetesObject(t, g, got, &wanted, h.kube)
+				}
+			}
+		})
+	}
+}
+
+func Test_stackHandler_createPersonaClusterRolesCRDHandler(t *testing.T) {
+	type fields struct {
+		clientFunc func() client.Client
+		ext        *v1alpha1.Stack
+	}
+	type args struct {
+		ctx  context.Context
+		crds []apiextensionsv1beta1.CustomResourceDefinition
+	}
+
+	const (
+		group      = "samples.upbound.io"
+		version    = "v1alpha1"
+		kind       = "Mytype"
+		plural     = "mytypes"
+		apiVersion = group + "/" + version
+	)
+
+	var (
+		name = stackspkg.PersonaRoleName(resource(), "view")
+	)
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    []rbac.ClusterRole
+		wantErr error
+	}{
+		{
+			name: "CreateFailed",
+			fields: fields{
+				ext: resource(),
+				clientFunc: func() client.Client {
+					return &test.MockClient{MockCreate: test.NewMockCreateFn(errBoom)}
+				},
+			},
+			args: args{
+				ctx: context.TODO(),
+				crds: []apiextensionsv1beta1.CustomResourceDefinition{
+					crd(withCRDGroupKind(group, kind),
+						withCRDVersion(version))},
+			},
+			want:    nil,
+			wantErr: errors.Wrap(errBoom, "failed to create persona cluster roles"),
+		},
+		{
+			name: "ExistingClusterRole",
+			fields: fields{
+				ext: resource(),
+				clientFunc: func() client.Client {
+					c := clusterRole(name)
+					return fake.NewFakeClient(&c)
+				},
+			},
+			args: args{
+				ctx: context.TODO(),
+				crds: []apiextensionsv1beta1.CustomResourceDefinition{
+					crd(withCRDGroupKind(group, kind),
+						withCRDVersion(version))},
+			},
+			want: []rbac.ClusterRole{clusterRole(name)},
+		},
+		{
+			name: "WithSubresources",
+			fields: fields{
+				ext: resource(),
+				clientFunc: func() client.Client {
+					return fake.NewFakeClient()
+				},
+			},
+			args: args{
+				ctx: context.TODO(),
+				crds: []apiextensionsv1beta1.CustomResourceDefinition{
+					crd(withCRDGroupKind(group, kind),
+						withCRDVersion(version),
+						withCRDSubresources())},
+			},
+			want: []rbac.ClusterRole{clusterRole(name, withClusterRoleLabels(map[string]string{
+				"core.crossplane.io/parent-group":                "",
+				"core.crossplane.io/parent-kind":                 "",
+				"core.crossplane.io/parent-name":                 "cool-stack",
+				"core.crossplane.io/parent-namespace":            "cool-namespace",
+				"core.crossplane.io/parent-uid":                  "definitely-a-uuid",
+				"core.crossplane.io/parent-version":              "",
+				"namespace.crossplane.io/cool-namespace":         "true",
+				"rbac.crossplane.io/aggregate-to-namespace-view": "true",
+			}), withClusterRoleRules([]rbac.PolicyRule{{Verbs: []string{"get", "list", "watch"}, APIGroups: []string{group}, Resources: []string{plural, plural + "/status", plural + "/scale"}}}))},
+		},
+		{
+			name: "WithClusterScope",
+			fields: fields{
+				ext: resource(withPermissionScope("Cluster")),
+				clientFunc: func() client.Client {
+					return fake.NewFakeClient()
+				},
+			},
+			args: args{
+				ctx: context.TODO(),
+				crds: []apiextensionsv1beta1.CustomResourceDefinition{
+					crd(withCRDGroupKind(group, kind),
+						withCRDVersion(version),
+						withCRDScope(apiextensionsv1beta1.ClusterScoped))},
+			},
+			want: []rbac.ClusterRole{clusterRole(name, withClusterRoleLabels(map[string]string{
+				"core.crossplane.io/parent-group":                  "",
+				"core.crossplane.io/parent-kind":                   "",
+				"core.crossplane.io/parent-name":                   "cool-stack",
+				"core.crossplane.io/parent-namespace":              "cool-namespace",
+				"core.crossplane.io/parent-uid":                    "definitely-a-uuid",
+				"core.crossplane.io/parent-version":                "",
+				"rbac.crossplane.io/aggregate-to-environment-view": "true",
+			}), withClusterRoleRules([]rbac.PolicyRule{{Verbs: []string{"get", "list", "watch"}, APIGroups: []string{group}, Resources: []string{plural}}}))},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := NewGomegaWithT(t)
+
+			h := &stackHandler{
+				kube: tt.fields.clientFunc(),
+				ext:  tt.fields.ext,
+				log:  logging.NewNopLogger(),
+			}
+			fn := h.createPersonaClusterRolesCRDHandler()
+			gotErr := fn(tt.args.ctx, tt.args.crds)
+
+			if diff := cmp.Diff(tt.wantErr, gotErr, test.EquateErrors()); diff != "" {
+				t.Fatalf("stackHandler.createPersonaClusterRolesCRDHandler.fn(...): -want error, +got error: %s", diff)
+			}
+
+			if tt.want != nil {
+				for _, wanted := range tt.want {
+					got := &rbac.ClusterRole{}
+					assertKubernetesObject(t, g, got, &wanted, h.kube)
+				}
+			}
+		})
+	}
+}
+
 func assertKubernetesObject(t *testing.T, g *GomegaWithT, got objectWithGVK, want metav1.Object, kube client.Client) {
 	n := types.NamespacedName{Name: want.GetName(), Namespace: want.GetNamespace()}
 	g.Expect(kube.Get(ctx, n, got)).NotTo(HaveOccurred())
@@ -1700,5 +2490,154 @@ func assertKubernetesObject(t *testing.T, g *GomegaWithT, got objectWithGVK, wan
 
 	if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
 		t.Errorf("-want, +got:\n%s", diff)
+	}
+}
+
+func Test_stackHandler_removeCRDLabels(t *testing.T) {
+	type fields struct {
+		clientFn func() client.Client
+		ext      *v1alpha1.Stack
+	}
+
+	const (
+		group      = "samples.upbound.io"
+		version    = "v1alpha1"
+		kind       = "Mytype"
+		plural     = "mytypes"
+		apiVersion = group + "/" + version
+	)
+
+	var (
+		label = fmt.Sprintf(stackspkg.LabelMultiParentFormat, namespace, resourceName)
+	)
+
+	tests := []struct {
+		name    string
+		fields  fields
+		want    []apiextensionsv1beta1.CustomResourceDefinition
+		wantErr error
+	}{
+		{
+			name: "CouldNotListCRDs",
+			fields: fields{
+				ext: resource(withCRDs(metav1.TypeMeta{Kind: kind, APIVersion: apiVersion})),
+				clientFn: func() client.Client {
+					return &test.MockClient{
+						MockList: test.NewMockListFn(errBoom),
+					}
+				},
+			},
+			wantErr: errors.Wrap(errBoom, "CRDs could not be listed"),
+		},
+		{
+			name: "UnmanagedCRD",
+			fields: fields{
+				ext: resource(withCRDs(metav1.TypeMeta{Kind: kind, APIVersion: apiVersion})),
+				clientFn: func() client.Client {
+					c := crd(withCRDGroupKind(group, kind),
+						withCRDVersion(version))
+					return fake.NewFakeClient(&c)
+				},
+			},
+			want: []apiextensionsv1beta1.CustomResourceDefinition{
+				crd(withCRDGroupKind(group, kind),
+					withCRDVersion(version))},
+		},
+		{
+			name: "ManagedWithoutMultiParentLabel",
+			fields: fields{
+				ext: resource(withCRDs(metav1.TypeMeta{Kind: kind, APIVersion: apiVersion})),
+				clientFn: func() client.Client {
+					c := crd(withCRDGroupKind(group, kind),
+						withCRDVersion(version),
+						withCRDLabels(map[string]string{stackspkg.LabelKubernetesManagedBy: stackspkg.LabelValueStackManager}))
+					return fake.NewFakeClient(&c)
+				},
+			},
+			want: []apiextensionsv1beta1.CustomResourceDefinition{
+				crd(withCRDGroupKind(group, kind),
+					withCRDVersion(version),
+					withCRDLabels(map[string]string{stackspkg.LabelKubernetesManagedBy: stackspkg.LabelValueStackManager}))},
+		},
+		{
+			name: "PatchFailed",
+			fields: fields{
+				ext: resource(withCRDs(metav1.TypeMeta{Kind: kind, APIVersion: apiVersion})),
+				clientFn: func() client.Client {
+					c := crd(withCRDGroupKind(group, kind),
+						withCRDVersion(version),
+						withCRDLabels(map[string]string{stackspkg.LabelKubernetesManagedBy: stackspkg.LabelValueStackManager}))
+					f := fake.NewFakeClient(&c)
+					return &test.MockClient{
+						MockList:  f.List,
+						MockPatch: test.NewMockPatchFn(errBoom),
+					}
+				},
+			},
+			wantErr: errBoom,
+		},
+		{
+			name: "ManagedWithMultiParentLabel",
+			fields: fields{
+				ext: resource(withCRDs(metav1.TypeMeta{Kind: kind, APIVersion: apiVersion})),
+				clientFn: func() client.Client {
+					c := crd(withCRDGroupKind(group, kind),
+						withCRDVersion(version),
+						withCRDLabels(map[string]string{stackspkg.LabelKubernetesManagedBy: stackspkg.LabelValueStackManager, label: "true"}))
+					return fake.NewFakeClient(&c)
+				},
+			},
+			want: []apiextensionsv1beta1.CustomResourceDefinition{
+				crd(withCRDGroupKind(group, kind),
+					withCRDVersion(version),
+					withCRDLabels(map[string]string{stackspkg.LabelKubernetesManagedBy: stackspkg.LabelValueStackManager}))},
+		},
+		{
+			name: "StacksSharingOneOfTwoCRDs",
+			fields: fields{
+				ext: resource(withCRDs(metav1.TypeMeta{Kind: kind, APIVersion: apiVersion}, metav1.TypeMeta{Kind: kind + "2", APIVersion: apiVersion})),
+				clientFn: func() client.Client {
+					c := crd(withCRDGroupKind(group, kind),
+						withCRDVersion(version),
+						withCRDLabels(map[string]string{stackspkg.LabelKubernetesManagedBy: stackspkg.LabelValueStackManager, label: "true"}))
+					c2 := crd(withCRDGroupKind(group, kind+"2"),
+						withCRDVersion(version),
+						withCRDLabels(map[string]string{stackspkg.LabelKubernetesManagedBy: stackspkg.LabelValueStackManager, label: "true", label + ".stack2": "true"}))
+
+					return fake.NewFakeClient(&c, &c2)
+				},
+			},
+			want: []apiextensionsv1beta1.CustomResourceDefinition{
+				crd(withCRDGroupKind(group, kind),
+					withCRDVersion(version),
+					withCRDLabels(map[string]string{stackspkg.LabelKubernetesManagedBy: stackspkg.LabelValueStackManager})),
+				crd(withCRDGroupKind(group, kind+"2"),
+					withCRDVersion(version),
+					withCRDLabels(map[string]string{stackspkg.LabelKubernetesManagedBy: stackspkg.LabelValueStackManager, label + ".stack2": "true"})),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := NewGomegaWithT(t)
+
+			h := &stackHandler{
+				kube: tt.fields.clientFn(),
+				ext:  tt.fields.ext,
+				log:  logging.NewNopLogger(),
+			}
+			gotErr := h.removeCRDLabels(context.TODO())
+
+			if diff := cmp.Diff(tt.wantErr, gotErr, test.EquateErrors()); diff != "" {
+				t.Errorf("-want error, +got error:\n%s", diff)
+			}
+
+			if tt.want != nil {
+				for _, wanted := range tt.want {
+					got := &apiextensionsv1beta1.CustomResourceDefinition{}
+					assertKubernetesObject(t, g, got, &wanted, h.kube)
+				}
+			}
+		})
 	}
 }

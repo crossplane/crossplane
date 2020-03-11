@@ -28,7 +28,6 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
-	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -232,13 +231,12 @@ func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, o
 		return nil
 	}
 
-	ns := i.GetNamespace()
-
 	// Modify Stack and StackDefinition resources based on StackInstall
 	isStack := isStackObject(obj)
 	isStackDefinition := !isStack && isStackDefinitionObject(obj)
 
 	if isStack || isStackDefinition {
+		ns := i.GetNamespace()
 		name := i.GetName()
 		if obj.GetName() == "" {
 			obj.SetName(name)
@@ -253,6 +251,9 @@ func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, o
 			saAnnotationSetter(i.GetServiceAccountAnnotations()),
 		}
 
+		labels := stacks.ParentLabels(i)
+		meta.AddLabels(obj, labels)
+
 		// StackDefinition controllers need the name of the StackDefinition
 		// which, by design, matches the StackInstall
 		if isStackDefinition {
@@ -265,25 +266,6 @@ func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, o
 		}
 	}
 
-	// We want to clean up any installed CRDS when we're deleted. We can't rely
-	// on garbage collection because a namespaced object (StackInstall) can't
-	// own a cluster scoped object (CustomResourceDefinition), so we use labels
-	// instead.
-	labels := stacks.ParentLabels(i)
-
-	// CRDs are labeled with the namespaces of the stacks they are managed by.
-	// This will allow for a single Namespaced stack to be installed in multiple
-	// namespaces, or different stacks (possibly only differing by versions) to
-	// provide the same CRDs without the risk that a single StackInstall removal
-	// will delete a CRD until there are no remaining namespace labels.
-	if isCRDObject(obj) {
-		labelNamespace := fmt.Sprintf(stacks.LabelNamespaceFmt, ns)
-
-		labels[labelNamespace] = "true"
-	}
-
-	meta.AddLabels(obj, labels)
-
 	jc.log.Debug(
 		"creating object from job output",
 		"job", job.Name,
@@ -291,7 +273,6 @@ func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, o
 		"namespace", obj.GetNamespace(),
 		"apiVersion", obj.GetAPIVersion(),
 		"kind", obj.GetKind(),
-		"labels", labels,
 	)
 	if err := jc.client.Create(ctx, obj); err != nil && !kerrors.IsAlreadyExists(err) {
 		return errors.Wrapf(err, "failed to create object %s from job output %s", obj.GetName(), job.Name)
@@ -323,16 +304,6 @@ func isStackDefinitionObject(obj stacks.KindlyIdentifier) bool {
 
 	return gvk.Group == v1alpha1.Group && gvk.Version == v1alpha1.Version &&
 		strings.EqualFold(gvk.Kind, v1alpha1.StackDefinitionKind)
-}
-
-func isCRDObject(obj runtime.Object) bool {
-	if obj == nil {
-		return false
-	}
-	gvk := obj.GetObjectKind().GroupVersionKind()
-
-	return apiextensions.SchemeGroupVersion == gvk.GroupVersion() &&
-		strings.EqualFold(gvk.Kind, "CustomResourceDefinition")
 }
 
 func setupStackDefinitionController(obj *unstructured.Unstructured, modifiers ...stackSpecModifier) error {

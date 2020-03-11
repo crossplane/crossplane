@@ -18,12 +18,17 @@ package install
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	. "github.com/onsi/gomega"
 	"github.com/pkg/errors"
+
 	corev1 "k8s.io/api/core/v1"
+	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -31,10 +36,12 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 	stacksapi "github.com/crossplane/crossplane/apis/stacks"
 	"github.com/crossplane/crossplane/apis/stacks/v1alpha1"
@@ -59,6 +66,8 @@ var (
 
 func init() {
 	_ = stacksapi.AddToScheme(scheme.Scheme)
+	_ = apiextensions.AddToScheme(scheme.Scheme)
+
 }
 
 // Test that our Reconciler implementation satisfies the Reconciler interface.
@@ -181,8 +190,9 @@ func (m *mockExecutorInfoDiscoverer) Discover(ctx context.Context) (*stacks.Exec
 
 func TestReconcile(t *testing.T) {
 	type want struct {
-		result reconcile.Result
-		err    error
+		result       reconcile.Result
+		stackInstall *v1alpha1.StackInstall
+		err          error
 	}
 
 	tests := []struct {
@@ -311,6 +321,76 @@ func TestReconcile(t *testing.T) {
 			want: want{result: resultRequeue, err: nil},
 		},
 		{
+			name: "ConflictingInstallJobFound",
+			req:  reconcile.Request{NamespacedName: types.NamespacedName{Name: resourceName, Namespace: namespace}},
+			rec: &Reconciler{
+				k8sClients: k8sClients{
+					hostKube: func() client.Client {
+						si := resource()
+						labels := stacks.ParentLabels(si)
+						labels[stacks.LabelParentUID] = "different-parent-uid"
+						job := job()
+						job.SetLabels(labels)
+						return fake.NewFakeClient(job)
+					}(),
+					kube: func() client.Client {
+						si := resource()
+						return fake.NewFakeClient(si)
+					}(),
+				},
+				stackinator: func() v1alpha1.StackInstaller { return &v1alpha1.StackInstall{} },
+				executorInfoDiscoverer: &mockExecutorInfoDiscoverer{
+					MockDiscoverExecutorInfo: func(ctx context.Context) (*stacks.ExecutorInfo, error) {
+						return &stacks.ExecutorInfo{Image: stackPackageImage}, nil
+					},
+				},
+				factory: &handlerFactory{},
+				log:     logging.NewNopLogger(),
+			},
+			want: want{result: resultRequeue, err: nil,
+				stackInstall: resource(
+					withFinalizers(installFinalizer),
+					withConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileError(errors.Errorf("stale job %s/%s prevents stackinstall", namespace, resourceName))),
+				)},
+		},
+		{
+			name: "InstallJobFound",
+			req:  reconcile.Request{NamespacedName: types.NamespacedName{Name: resourceName, Namespace: namespace}},
+			rec: &Reconciler{
+				k8sClients: k8sClients{
+					hostKube: func() client.Client {
+						si := resource()
+						labels := stacks.ParentLabels(si)
+						job := job()
+						job.SetLabels(labels)
+						return fake.NewFakeClient(job)
+					}(),
+					kube: func() client.Client {
+						si := resource()
+						return fake.NewFakeClient(si)
+					}(),
+				},
+				stackinator: func() v1alpha1.StackInstaller { return &v1alpha1.StackInstall{} },
+				executorInfoDiscoverer: &mockExecutorInfoDiscoverer{
+					MockDiscoverExecutorInfo: func(ctx context.Context) (*stacks.ExecutorInfo, error) {
+						return &stacks.ExecutorInfo{Image: stackPackageImage}, nil
+					},
+				},
+				factory: &handlerFactory{},
+				log:     logging.NewNopLogger(),
+			},
+			want: want{result: requeueOnSuccess, err: nil,
+				stackInstall: resource(
+					withFinalizers(installFinalizer),
+					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: namespace}),
+					withConditions(
+						runtimev1alpha1.Creating(),
+						runtimev1alpha1.ReconcileSuccess(),
+					),
+				),
+			},
+		},
+		{
 			name: "ResourceNotFound",
 			req:  reconcile.Request{NamespacedName: types.NamespacedName{Name: resourceName, Namespace: namespace}},
 			rec: &Reconciler{
@@ -350,6 +430,8 @@ func TestReconcile(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			g := NewGomegaWithT(t)
+
 			gotResult, gotErr := tt.rec.Reconcile(tt.req)
 
 			if diff := cmp.Diff(tt.want.err, gotErr, test.EquateErrors()); diff != "" {
@@ -358,6 +440,11 @@ func TestReconcile(t *testing.T) {
 
 			if diff := cmp.Diff(tt.want.result, gotResult); diff != "" {
 				t.Errorf("Reconcile() -want, +got:\n%v", diff)
+			}
+
+			if tt.want.stackInstall != nil {
+				got := &v1alpha1.StackInstall{}
+				assertKubernetesObject(t, g, got, tt.want.stackInstall, tt.rec.kube)
 			}
 		})
 	}
@@ -621,4 +708,386 @@ func TestHandlerFactory(t *testing.T) {
 			}
 		})
 	}
+}
+
+type crdModifier func(*apiextensions.CustomResourceDefinition)
+
+func withCRDVersion(version string) crdModifier {
+	return func(c *apiextensions.CustomResourceDefinition) {
+		c.Spec.Version = version
+		c.Spec.Versions = append(c.Spec.Versions, apiextensions.CustomResourceDefinitionVersion{Name: version})
+	}
+}
+
+func withCRDLabels(labels map[string]string) crdModifier {
+	return func(c *apiextensions.CustomResourceDefinition) {
+		meta.AddLabels(c, labels)
+	}
+}
+
+func withCRDGroupKind(group, kind string) crdModifier {
+	singular := strings.ToLower(kind)
+	plural := singular + "s"
+	list := kind + "List"
+
+	return func(c *apiextensions.CustomResourceDefinition) {
+		c.Spec.Group = group
+		c.Spec.Names.Kind = kind
+		c.Spec.Names.Plural = plural
+		c.Spec.Names.ListKind = list
+		c.Spec.Names.Singular = singular
+		c.SetName(plural + "." + group)
+	}
+}
+
+func crd(cm ...crdModifier) apiextensions.CustomResourceDefinition {
+	// basic crd with defaults
+	t := true
+	c := apiextensions.CustomResourceDefinition{
+		Spec: apiextensions.CustomResourceDefinitionSpec{
+			Scope: "Namespaced",
+			Conversion: &apiextensions.CustomResourceConversion{
+				Strategy:                 apiextensions.NoneConverter,
+				WebhookClientConfig:      nil,
+				ConversionReviewVersions: nil,
+			},
+			PreserveUnknownFields: &t,
+		},
+	}
+	for _, m := range cm {
+		m(&c)
+	}
+	return c
+}
+
+func Test_stackInstallHandler_deleteOrphanedCRDs(t *testing.T) {
+	type fields struct {
+		clientFunc func() client.Client
+		ext        *v1alpha1.StackInstall
+	}
+
+	const (
+		group      = "samples.upbound.io"
+		version    = "v1alpha1"
+		kind       = "Mytype"
+		plural     = "mytypes"
+		apiVersion = group + "/" + version
+	)
+
+	var (
+		label   = fmt.Sprintf(stacks.LabelMultiParentFormat, namespace, resourceName)
+		nsLabel = fmt.Sprintf(stacks.LabelNamespaceFmt, namespace)
+	)
+	tests := []struct {
+		name     string
+		fields   fields
+		want     []apiextensions.CustomResourceDefinition
+		unwanted []apiextensions.CustomResourceDefinition
+		wantErr  error
+	}{
+		{
+			name: "FailedList",
+			fields: fields{
+				ext: resource(),
+				clientFunc: func() client.Client {
+					return &test.MockClient{
+						MockList: test.NewMockListFn(errBoom),
+					}
+				},
+			},
+			want:    []apiextensions.CustomResourceDefinition{},
+			wantErr: errBoom,
+		},
+		{
+			name: "FailedDelete",
+			fields: fields{
+				ext: resource(),
+				clientFunc: func() client.Client {
+					c := crd(withCRDGroupKind(group, kind),
+						withCRDVersion(version),
+						withCRDLabels(map[string]string{stacks.LabelKubernetesManagedBy: stacks.LabelValueStackManager}),
+					)
+					f := fake.NewFakeClient(&c)
+					return &test.MockClient{
+						MockList:   f.List,
+						MockDelete: test.NewMockDeleteFn(errBoom),
+					}
+				},
+			},
+			wantErr: errBoom,
+		},
+		{
+			name: "Unmanaged",
+			fields: fields{
+				ext: resource(),
+				clientFunc: func() client.Client {
+					c := crd(withCRDGroupKind(group, kind),
+						withCRDVersion(version))
+					return fake.NewFakeClient(&c)
+				},
+			},
+			want: []apiextensions.CustomResourceDefinition{
+				crd(withCRDGroupKind(group, kind),
+					withCRDVersion(version))},
+		},
+		{
+			name: "AlreadyDeleted",
+			fields: fields{
+				ext: resource(),
+				clientFunc: func() client.Client {
+					c := crd(
+						withCRDGroupKind(group, kind),
+						withCRDVersion(version),
+						withCRDLabels(map[string]string{stacks.LabelKubernetesManagedBy: stacks.LabelValueStackManager}),
+					)
+					f := fake.NewFakeClient(&c)
+					return &test.MockClient{
+						MockList:   f.List,
+						MockGet:    f.Get,
+						MockDelete: test.NewMockDeleteFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+					}
+				},
+			},
+			want: []apiextensions.CustomResourceDefinition{},
+		},
+		{
+			name: "StillInUseDiscoveryLabels",
+			fields: fields{
+				ext: resource(),
+				clientFunc: func() client.Client {
+					c := crd(
+						withCRDGroupKind(group, kind),
+						withCRDVersion(version),
+						withCRDLabels(map[string]string{stacks.LabelKubernetesManagedBy: stacks.LabelValueStackManager, nsLabel: "true"}),
+					)
+					return fake.NewFakeClient(&c)
+				},
+			},
+			want: []apiextensions.CustomResourceDefinition{
+				crd(
+					withCRDGroupKind(group, kind),
+					withCRDVersion(version),
+					withCRDLabels(map[string]string{stacks.LabelKubernetesManagedBy: stacks.LabelValueStackManager, nsLabel: "true"}),
+				),
+			},
+		},
+		{
+			name: "StillInUseMultiParentLabels",
+			fields: fields{
+				ext: resource(),
+				clientFunc: func() client.Client {
+					c := crd(
+						withCRDGroupKind(group, kind),
+						withCRDVersion(version),
+						withCRDLabels(map[string]string{stacks.LabelKubernetesManagedBy: stacks.LabelValueStackManager, label: "true"}),
+					)
+					return fake.NewFakeClient(&c)
+				},
+			},
+			want: []apiextensions.CustomResourceDefinition{
+				crd(
+					withCRDGroupKind(group, kind),
+					withCRDVersion(version),
+					withCRDLabels(map[string]string{stacks.LabelKubernetesManagedBy: stacks.LabelValueStackManager, label: "true"}),
+				),
+			},
+		},
+		{
+			name: "SafeToDelete",
+			fields: fields{
+				ext: resource(),
+				clientFunc: func() client.Client {
+					c := crd(
+						withCRDGroupKind(group, kind),
+						withCRDVersion(version),
+						withCRDLabels(map[string]string{stacks.LabelKubernetesManagedBy: stacks.LabelValueStackManager}),
+					)
+					return fake.NewFakeClient(&c)
+				},
+			},
+			unwanted: []apiextensions.CustomResourceDefinition{crd(withCRDGroupKind(group, kind))},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := NewGomegaWithT(t)
+
+			h := &stackInstallHandler{
+				kube: tt.fields.clientFunc(),
+				ext:  tt.fields.ext,
+				log:  logging.NewNopLogger(),
+			}
+			gotErr := h.deleteOrphanedCRDs(context.TODO())
+
+			if diff := cmp.Diff(tt.wantErr, gotErr, test.EquateErrors()); diff != "" {
+				t.Fatalf("stackHandler.deleteOrphanedCRDs(...): -want error, +got error: %s", diff)
+			}
+
+			if tt.want != nil {
+				for _, wanted := range tt.want {
+					got := &apiextensions.CustomResourceDefinition{}
+					assertKubernetesObject(t, g, got, &wanted, h.kube)
+				}
+			}
+
+			if tt.unwanted != nil {
+				for _, unwanted := range tt.unwanted {
+					got := &apiextensions.CustomResourceDefinition{}
+					assertNoKubernetesObject(t, g, got, &unwanted, h.kube)
+				}
+			}
+
+		})
+	}
+}
+
+func Test_stackInstallHandler_removeCRDParentLabels(t *testing.T) {
+	type fields struct {
+		clientFunc func() client.Client
+		ext        *v1alpha1.StackInstall
+	}
+
+	const (
+		group      = "samples.upbound.io"
+		version    = "v1alpha1"
+		kind       = "Mytype"
+		plural     = "mytypes"
+		apiVersion = group + "/" + version
+	)
+
+	var (
+		labels = stacks.ParentLabels(resource())
+	)
+	tests := []struct {
+		name     string
+		fields   fields
+		want     []apiextensions.CustomResourceDefinition
+		unwanted []apiextensions.CustomResourceDefinition
+		wantErr  error
+	}{
+		{
+			name: "FailedList",
+			fields: fields{
+				ext: resource(),
+				clientFunc: func() client.Client {
+					return &test.MockClient{
+						MockList: test.NewMockListFn(errBoom),
+					}
+				},
+			},
+			want:    []apiextensions.CustomResourceDefinition{},
+			wantErr: errBoom,
+		},
+		{
+			name: "FailedPatch",
+			fields: fields{
+				ext: resource(),
+				clientFunc: func() client.Client {
+					c := crd(
+						withCRDGroupKind(group, kind),
+						withCRDVersion(version),
+						withCRDLabels(labels),
+					)
+					f := fake.NewFakeClient(&c)
+					return &test.MockClient{
+						MockList:  f.List,
+						MockPatch: test.NewMockPatchFn(errBoom),
+					}
+				},
+			},
+			wantErr: errBoom,
+		},
+		{
+			name: "Unlabeled",
+			fields: fields{
+				ext: resource(),
+				clientFunc: func() client.Client {
+					c := crd(withCRDGroupKind(group, kind),
+						withCRDVersion(version))
+					f := fake.NewFakeClient(&c)
+					return &test.MockClient{
+						MockList:  f.List,
+						MockPatch: test.NewMockPatchFn(errBoom),
+					}
+				},
+			},
+			want:    []apiextensions.CustomResourceDefinition{},
+			wantErr: nil,
+		},
+		{
+			name: "Labeled",
+			fields: fields{
+				ext: resource(),
+				clientFunc: func() client.Client {
+					c := crd(
+						withCRDGroupKind(group, kind),
+						withCRDVersion(version),
+						withCRDLabels(labels),
+					)
+					return fake.NewFakeClient(&c)
+				},
+			},
+			want: []apiextensions.CustomResourceDefinition{crd(
+				withCRDGroupKind(group, kind),
+				withCRDVersion(version),
+			),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := NewGomegaWithT(t)
+
+			h := &stackInstallHandler{
+				kube: tt.fields.clientFunc(),
+				ext:  tt.fields.ext,
+				log:  logging.NewNopLogger(),
+			}
+			gotErr := h.removeCRDParentLabels(labels)(context.TODO())
+
+			if diff := cmp.Diff(tt.wantErr, gotErr, test.EquateErrors()); diff != "" {
+				t.Fatalf("stackHandler.deleteOrphanedCRDs(...): -want error, +got error: %s", diff)
+			}
+
+			if tt.want != nil {
+				for _, wanted := range tt.want {
+					got := &apiextensions.CustomResourceDefinition{}
+					assertKubernetesObject(t, g, got, &wanted, h.kube)
+				}
+			}
+
+			if tt.unwanted != nil {
+				for _, unwanted := range tt.unwanted {
+					got := &apiextensions.CustomResourceDefinition{}
+					assertNoKubernetesObject(t, g, got, &unwanted, h.kube)
+				}
+			}
+
+		})
+	}
+}
+
+type objectWithGVK interface {
+	runtime.Object
+	metav1.Object
+}
+
+func assertKubernetesObject(t *testing.T, g *GomegaWithT, got objectWithGVK, want metav1.Object, kube client.Client) {
+	n := types.NamespacedName{Name: want.GetName(), Namespace: want.GetNamespace()}
+	g.Expect(kube.Get(ctx, n, got)).NotTo(HaveOccurred())
+
+	// NOTE(muvaf): retrieved objects have TypeMeta and
+	// ObjectMeta.ResourceVersion filled but since we work on strong-typed
+	// objects, we don't need to check them.
+	got.GetObjectKind().SetGroupVersionKind(schema.GroupVersionKind{})
+	got.SetResourceVersion(want.GetResourceVersion())
+
+	if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
+		t.Errorf("-want, +got:\n%s", diff)
+	}
+}
+
+func assertNoKubernetesObject(t *testing.T, g *GomegaWithT, got runtime.Object, unwanted metav1.Object, kube client.Client) {
+	n := types.NamespacedName{Name: unwanted.GetName(), Namespace: unwanted.GetNamespace()}
+	g.Expect(kube.Get(ctx, n, got)).To(HaveOccurred())
 }

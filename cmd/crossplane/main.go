@@ -105,7 +105,7 @@ func main() {
 		kingpin.FatalIfError(mgr.Start(ctrl.SetupSignalHandler()), "Cannot start controller manager")
 
 	case extManageCmd.FullCommand():
-		log := logging.NewLogrLogger(zl.WithName("stack-manager"))
+		log := logging.NewLogrLogger(zl.WithName(stack.LabelValueStackManager))
 		log.Debug("Starting", "sync-period", syncPeriod.String())
 
 		cfg, err := getRestConfig(*extManageTenantKubeconfig)
