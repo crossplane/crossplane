@@ -302,14 +302,39 @@ func TestSync(t *testing.T) {
 			wantErr:   errors.Wrap(errorBoom, errGarbageCollect),
 		},
 		{
-			name: "SyncApplicationResourceFailed",
+			name: "SyncApplicationResourceFailedSingle",
 			syncer: &localCluster{
 				ar: &mockARSyncer{mockSync: newMockARSyncFn(false, errorBoom)},
 				gc: &mockGarbageCollector{mockProcess: newMockProcessFn(nil)},
 			},
 			app:       kubeApp(withTemplates(templateA)),
 			wantState: v1alpha1.KubernetesApplicationStateFailed,
-			wantErr:   errors.Wrap(errorBoom, errSyncTemplate),
+			wantErr:   errors.Wrap(condenseErrors([]error{errorBoom}), errSyncTemplate),
+		},
+		{
+			name: "SyncApplicationResourceFailedMultiple",
+			syncer: &localCluster{
+				ar: &mockARSyncer{mockSync: newMockARSyncFn(false, errorBoom)},
+				gc: &mockGarbageCollector{mockProcess: newMockProcessFn(nil)},
+			},
+			app:       kubeApp(withTemplates(templateA, templateB)),
+			wantState: v1alpha1.KubernetesApplicationStateFailed,
+			wantErr:   errors.Wrap(condenseErrors([]error{errorBoom, errorBoom}), errSyncTemplate),
+		},
+		{
+			name: "SyncApplicationResourceFailedPartial",
+			syncer: &localCluster{
+				ar: &mockARSyncer{mockSync: func(_ context.Context, r *v1alpha1.KubernetesApplicationResource) (bool, error) {
+					if r.Name == "coolTemplateA" {
+						return false, errorBoom
+					}
+					return true, nil
+				}},
+				gc: &mockGarbageCollector{mockProcess: newMockProcessFn(nil)},
+			},
+			app:       kubeApp(withTemplates(templateA, templateB)),
+			wantState: v1alpha1.KubernetesApplicationStatePartial,
+			wantErr:   errors.Wrap(condenseErrors([]error{errorBoom}), errSyncTemplate),
 		},
 	}
 

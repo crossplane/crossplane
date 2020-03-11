@@ -18,6 +18,7 @@ package application
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -100,6 +101,8 @@ func (c *localCluster) sync(ctx context.Context, app *v1alpha1.KubernetesApplica
 	app.Status.DesiredResources = len(app.Spec.ResourceTemplates)
 	app.Status.SubmittedResources = 0
 
+	var errs []error
+
 	// Garbage collect any resource we control but no longer have templates for.
 	if err := c.gc.process(ctx, app); err != nil {
 		return v1alpha1.KubernetesApplicationStateFailed, errors.Wrap(err, errGarbageCollect)
@@ -114,8 +117,12 @@ func (c *localCluster) sync(ctx context.Context, app *v1alpha1.KubernetesApplica
 		}
 
 		if err != nil {
-			return v1alpha1.KubernetesApplicationStateFailed, errors.Wrap(err, errSyncTemplate)
+			errs = append(errs, err)
 		}
+	}
+
+	if len(errs) == app.Status.DesiredResources {
+		return v1alpha1.KubernetesApplicationStateFailed, errors.Wrap(condenseErrors(errs), errSyncTemplate)
 	}
 
 	if app.Status.SubmittedResources == 0 {
@@ -123,7 +130,7 @@ func (c *localCluster) sync(ctx context.Context, app *v1alpha1.KubernetesApplica
 	}
 
 	if app.Status.SubmittedResources < app.Status.DesiredResources {
-		return v1alpha1.KubernetesApplicationStatePartial, nil
+		return v1alpha1.KubernetesApplicationStatePartial, errors.Wrap(condenseErrors(errs), errSyncTemplate)
 	}
 
 	return v1alpha1.KubernetesApplicationStateSubmitted, nil
@@ -280,4 +287,11 @@ func getControllerName(obj metav1.Object) string {
 	}
 
 	return c.Name
+}
+
+func condenseErrors(errs []error) error {
+	if len(errs) == 0 {
+		return nil
+	}
+	return fmt.Errorf("%s", errs)
 }
