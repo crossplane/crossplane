@@ -93,12 +93,13 @@ type Reconciler struct {
 	// created.
 	hostKube     client.Client
 	hostedConfig *hosted.Config
+	restrictCore bool
 	log          logging.Logger
 	factory
 }
 
 // Setup adds a controller that reconciles Stacks.
-func Setup(mgr ctrl.Manager, l logging.Logger, hostControllerNamespace string) error {
+func Setup(mgr ctrl.Manager, l logging.Logger, hostControllerNamespace string, restrictCore bool) error {
 	name := "stacks/" + strings.ToLower(v1alpha1.StackGroupKind)
 
 	hostKube, _, err := hosted.GetClients()
@@ -115,6 +116,7 @@ func Setup(mgr ctrl.Manager, l logging.Logger, hostControllerNamespace string) e
 		kube:         mgr.GetClient(),
 		hostKube:     hostKube,
 		hostedConfig: hc,
+		restrictCore: restrictCore,
 		factory:      &stackHandlerFactory{},
 		log:          l.WithValues("controller", name),
 	}
@@ -142,7 +144,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{}, err
 	}
 
-	handler := r.factory.newHandler(r.log, i, r.kube, r.hostKube, r.hostedConfig)
+	handler := r.factory.newHandler(r.log, i, r.kube, r.hostKube, r.hostedConfig, r.restrictCore)
 
 	if meta.WasDeleted(i) {
 		return handler.delete(ctx)
@@ -166,21 +168,23 @@ type stackHandler struct {
 	// created.
 	hostKube        client.Client
 	hostAwareConfig *hosted.Config
+	restrictCore    bool
 	ext             *v1alpha1.Stack
 	log             logging.Logger
 }
 
 type factory interface {
-	newHandler(logging.Logger, *v1alpha1.Stack, client.Client, client.Client, *hosted.Config) handler
+	newHandler(logging.Logger, *v1alpha1.Stack, client.Client, client.Client, *hosted.Config, bool) handler
 }
 
 type stackHandlerFactory struct{}
 
-func (f *stackHandlerFactory) newHandler(log logging.Logger, ext *v1alpha1.Stack, kube client.Client, hostKube client.Client, hostAwareConfig *hosted.Config) handler {
+func (f *stackHandlerFactory) newHandler(log logging.Logger, ext *v1alpha1.Stack, kube client.Client, hostKube client.Client, hostAwareConfig *hosted.Config, restrictCore bool) handler {
 	return &stackHandler{
 		kube:            kube,
 		hostKube:        hostKube,
 		hostAwareConfig: hostAwareConfig,
+		restrictCore:    restrictCore,
 		ext:             ext,
 		log:             log,
 	}
@@ -488,6 +492,61 @@ func (h *stackHandler) createPersonaClusterRolesCRDHandler() crdHandler {
 
 }
 
+func stringSlicesEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// policiesEqual verifies that two RBAC policy rules match
+//
+// TODO(displague) Any difference in the order of the policies array fields
+// will result in a mismatch. This is suitable for permitting RBAC rules
+// expected to have come from 'stack unpack', but may need to be revisited if
+// other tools are creating Stack resources.
+func policiesEqual(a, b rbacv1.PolicyRule) bool {
+	return stringSlicesEqual(a.APIGroups, b.APIGroups) &&
+		stringSlicesEqual(a.NonResourceURLs, b.NonResourceURLs) &&
+		stringSlicesEqual(a.ResourceNames, b.ResourceNames) &&
+		stringSlicesEqual(a.Resources, b.Resources) &&
+		stringSlicesEqual(a.Verbs, b.Verbs)
+}
+
+func isDefaultStackPolicy(rule rbacv1.PolicyRule) bool {
+	for _, permitted := range stacks.StackCoreRBACRules {
+		if policiesEqual(rule, permitted) {
+			return true
+		}
+	}
+	return false
+}
+
+func (h *stackHandler) validateStackPermissions() error {
+	if h.restrictCore {
+		for _, r := range h.ext.Spec.Permissions.Rules {
+			if isDefaultStackPolicy(r) {
+				continue
+			}
+
+			for _, g := range r.APIGroups {
+				if !strings.Contains(g, ".") ||
+					strings.HasSuffix(g, "k8s.io") {
+					return errors.Errorf("access to APIGroup %q is restricted", g)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
 func (h *stackHandler) createDeploymentClusterRole(ctx context.Context, labels map[string]string) (string, error) {
 	name := stacks.PersonaRoleName(h.ext, "system")
 	cr := &rbacv1.ClusterRole{
@@ -564,6 +623,10 @@ func (h *stackHandler) processRBAC(ctx context.Context) error {
 	}
 
 	labels := stacks.ParentLabels(h.ext)
+
+	if err := h.validateStackPermissions(); err != nil {
+		return err
+	}
 
 	clusterRoleName, err := h.createDeploymentClusterRole(ctx, labels)
 	if err != nil {

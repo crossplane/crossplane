@@ -205,11 +205,11 @@ func resource(rm ...resourceModifier) *v1alpha1.Stack {
 // mockFactory and mockHandler
 // ************************************************************************************************
 type mockFactory struct {
-	MockNewHandler func(logging.Logger, *v1alpha1.Stack, client.Client, client.Client, *hosted.Config) handler
+	MockNewHandler func(logging.Logger, *v1alpha1.Stack, client.Client, client.Client, *hosted.Config, bool) handler
 }
 
-func (f *mockFactory) newHandler(log logging.Logger, r *v1alpha1.Stack, c client.Client, h client.Client, hc *hosted.Config) handler {
-	return f.MockNewHandler(log, r, c, nil, nil)
+func (f *mockFactory) newHandler(log logging.Logger, r *v1alpha1.Stack, c client.Client, h client.Client, hc *hosted.Config, restrictCore bool) handler {
+	return f.MockNewHandler(log, r, c, nil, nil, restrictCore)
 }
 
 type mockHandler struct {
@@ -338,7 +338,7 @@ func TestReconcile(t *testing.T) {
 					},
 				},
 				factory: &mockFactory{
-					MockNewHandler: func(logging.Logger, *v1alpha1.Stack, client.Client, client.Client, *hosted.Config) handler {
+					MockNewHandler: func(logging.Logger, *v1alpha1.Stack, client.Client, client.Client, *hosted.Config, bool) handler {
 						return &mockHandler{
 							MockSync: func(context.Context) (reconcile.Result, error) {
 								return reconcile.Result{}, nil
