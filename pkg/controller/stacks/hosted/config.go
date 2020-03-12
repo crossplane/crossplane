@@ -22,9 +22,20 @@ import (
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
+
+	"github.com/crossplane/crossplane/pkg/stacks/truncate"
 )
 
 const (
+	// AnnotationTenantNameFmt with a resource singular applied provides the
+	// annotation key used to identify tenant resources by name on the host side
+	AnnotationTenantNameFmt = "tenant.crossplane.io/%s-name"
+
+	// AnnotationTenantNamespaceFmt with a resource singular applied provides
+	// the annotation key used to identify tenant resources by namespace on the
+	// host side
+	AnnotationTenantNamespaceFmt = "tenant.crossplane.io/%s-namespace"
+
 	errMissingOption = "host aware mode activated but %s is not set"
 )
 
@@ -59,11 +70,27 @@ func NewConfig(hostControllerNamespace, tenantAPIServiceHost, tenantAPIServicePo
 	}, nil
 }
 
-// ObjectReferenceOnHost maps object with given name and namespace into single controller namespace on Host Cluster.
+// ObjectReferenceOnHost maps object with given name and namespace into single
+// controller namespace on Host Cluster.
+// The resource name on the host cluster is truncated to label value length
+// because the name may be used in labels defined by an admission controller, as
+// is the case for jobs and deployments.
 func (c *Config) ObjectReferenceOnHost(name, namespace string) corev1.ObjectReference {
 	return corev1.ObjectReference{
-		Name:      fmt.Sprintf("%s.%s", namespace, name),
+		Name:      truncate.LabelValue(fmt.Sprintf("%s.%s", namespace, name)),
 		Namespace: c.HostControllerNamespace,
+	}
+}
+
+// ObjectReferenceAnnotationsOnHost returns a map for use as annotations on the
+// host to identify the named tenant resource
+func ObjectReferenceAnnotationsOnHost(singular, name, namespace string) map[string]string {
+	nameLabel := fmt.Sprintf(AnnotationTenantNameFmt, singular)
+	nsLabel := fmt.Sprintf(AnnotationTenantNamespaceFmt, singular)
+
+	return map[string]string{
+		nameLabel: name,
+		nsLabel:   namespace,
 	}
 }
 

@@ -1270,9 +1270,10 @@ func TestProcessDeployment(t *testing.T) {
 				err: nil,
 				d: &apps.Deployment{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      fmt.Sprintf("%s.%s", namespace, controllerDeploymentName),
-						Namespace: hostControllerNamespace,
-						Labels:    stackspkg.ParentLabels(resource(withControllerSpec(defaultControllerSpec()))),
+						Name:        fmt.Sprintf("%s.%s", namespace, controllerDeploymentName),
+						Namespace:   hostControllerNamespace,
+						Labels:      stackspkg.ParentLabels(resource(withControllerSpec(defaultControllerSpec()))),
+						Annotations: hosted.ObjectReferenceAnnotationsOnHost("stack", resourceName, namespace),
 					},
 					Spec: apps.DeploymentSpec{
 						Selector: &metav1.LabelSelector{
@@ -2213,7 +2214,7 @@ func Test_stackHandler_createMultipleParentLabelsCRDHandler(t *testing.T) {
 	)
 
 	var (
-		label = fmt.Sprintf(stackspkg.LabelMultiParentFormat, namespace, resourceName)
+		label = stackspkg.MultiParentLabel(resource())
 	)
 	tests := []struct {
 		name    string
@@ -2508,7 +2509,7 @@ func Test_stackHandler_removeCRDLabels(t *testing.T) {
 	)
 
 	var (
-		label = fmt.Sprintf(stackspkg.LabelMultiParentFormat, namespace, resourceName)
+		label = stackspkg.MultiParentLabel(resource())
 	)
 
 	tests := []struct {

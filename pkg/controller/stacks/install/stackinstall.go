@@ -336,6 +336,8 @@ func (h *stackInstallHandler) create(ctx context.Context) (reconcile.Result, err
 }
 
 func (h *stackInstallHandler) createInstallJob() *batchv1.Job {
+	var annotations map[string]string
+
 	i := h.ext
 	executorInfo := h.executorInfo
 	hCfg := h.hostAwareConfig
@@ -344,6 +346,8 @@ func (h *stackInstallHandler) createInstallJob() *batchv1.Job {
 	namespace := i.GetNamespace()
 
 	if hCfg != nil {
+		annotations = hosted.ObjectReferenceAnnotationsOnHost("stackinstall", name, namespace)
+
 		// In Hosted Mode, we need to map all install jobs on tenant Kubernetes into a single namespace on host cluster.
 		o := hCfg.ObjectReferenceOnHost(name, namespace)
 		name = o.Name
@@ -368,6 +372,7 @@ func (h *stackInstallHandler) createInstallJob() *batchv1.Job {
 		stackManagerPullPolicy: executorInfo.ImagePullPolicy,
 		imagePullPolicy:        i.GetImagePullPolicy(),
 		labels:                 stacks.ParentLabels(i),
+		annotations:            annotations,
 		imagePullSecrets:       i.GetImagePullSecrets()})
 }
 

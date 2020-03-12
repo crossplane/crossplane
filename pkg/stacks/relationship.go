@@ -17,11 +17,14 @@ limitations under the License.
 package stacks
 
 import (
+	"fmt"
 	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+
+	"github.com/crossplane/crossplane/pkg/stacks/truncate"
 )
 
 // Labels used to track ownership across namespaces and scopes.
@@ -33,9 +36,19 @@ const (
 	LabelParentName      = "core.crossplane.io/parent-name"
 	LabelParentUID       = "core.crossplane.io/parent-uid"
 
-	LabelMultiParentPrefix   = "parent.stacks.crossplane.io/"
+	LabelMultiParentPrefix = "parent.stacks.crossplane.io/"
+
 	LabelMultiParentNSFormat = "parent.stacks.crossplane.io/%s"
-	LabelMultiParentFormat   = LabelMultiParentNSFormat + "-%s"
+
+	// LabelMultiParentFormat defines the format for combining a
+	// LabelMultiParentNSFormat with a named resource
+	LabelMultiParentFormat = "%s-%s"
+
+	// preserveNSLength is the number of characters using the label name that
+	// will be dedicated to identifying the namespace. This length will include
+	// truncation characters if the namespace exceeds this length.
+	// example: parent.stacks.crossplane.io/{up to 32 chars of NS}-{Name}
+	preserveNSLength = 32
 )
 
 // KindlyIdentifier implementations provide the means to access the Name,
@@ -48,16 +61,54 @@ type KindlyIdentifier interface {
 	GroupVersionKind() schema.GroupVersionKind
 }
 
+// MultiParentLabelPrefix returns the NS specific prefix of a multi-parent label
+// for resources co-owned by a set of Stacks.
+//
+// This prefix is suitable for identifying resources labeled within a given
+// namespace. The prefix may include a predictable truncation suffix if the
+// namespace exceeds 32 characters. This truncation length permits another 32
+// characters for a (potentially truncated) resource name to be appended to the
+// label.
+func MultiParentLabelPrefix(stackParent metav1.Object) string {
+	ns := stackParent.GetNamespace()
+
+	// guaranteed not to error based on the lengths of values we are supplying
+	truncated, _ := truncate.Truncate(ns, preserveNSLength, truncate.DefaultSuffixLength)
+	return fmt.Sprintf(LabelMultiParentNSFormat, truncated)
+}
+
+// MultiParentLabel returns a label name identifying the namespaced name of the
+// stack resource that co-owns another resource
+//
+// The label returned is based on the MultiParentLabelPrefix, which may include
+// a truncation suffix, and is then potentially truncated again to fit in the
+// complete label length restrictions.
+func MultiParentLabel(stackParent metav1.Object) string {
+	prefix := MultiParentLabelPrefix(stackParent)
+
+	// guaranteed 2 parts based on LabelMultiParentNSFormat
+	prefixParts := strings.SplitN(prefix, "/", 2)
+
+	n := stackParent.GetName()
+	full := fmt.Sprintf(LabelMultiParentFormat, prefixParts[1], n)
+
+	truncated := fmt.Sprintf(LabelMultiParentNSFormat, truncate.LabelName(full))
+
+	return truncated
+}
+
 // ParentLabels returns a map of labels referring to the given resource
 func ParentLabels(i KindlyIdentifier) map[string]string {
 	gvk := i.GroupVersionKind()
 
+	// namespaces and names may be 253 characters, while label values may not
+	// exceed 63
 	labels := map[string]string{
 		LabelParentGroup:     gvk.Group,
 		LabelParentVersion:   gvk.Version,
 		LabelParentKind:      gvk.Kind,
-		LabelParentNamespace: i.GetNamespace(),
-		LabelParentName:      i.GetName(),
+		LabelParentNamespace: truncate.LabelValue(i.GetNamespace()),
+		LabelParentName:      truncate.LabelValue(i.GetName()),
 		LabelParentUID:       string(i.GetUID()),
 	}
 	return labels
