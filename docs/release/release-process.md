@@ -14,7 +14,7 @@ level sequential overview for how to run the release process.
 1. **branch**: Create a new release branch using the GitHub UI for each repo
 1. **release stacks**: Run the release process for each **stack** that we maintain
     1. **test** Test builds from the release branch, fix any critical bugs that are found
-    1. **version**: Update all version information in the stack metadata, docs, and integration
+    1. **version**: Update all version information in the docs, and integration
        tests in the release branch
     1. **tag**: Run the tag pipeline to tag the release branch with an official semver
     1. **build/publish**: Run build pipeline to publish build with official semver
@@ -154,8 +154,6 @@ themselves and does not directly apply to core Crossplane.
 
 In the **release branch** for each Stack, you should update the version tag or metadata in:
 
-* `app.yaml` - `version`
-* `install.yaml` - `image`
 * `integration_tests.sh` - `STACK_IMAGE`
 * `*.resource.yaml` - docs links in markdown
   * Not all of these `*.resource.yaml` files have links that need to be updated, they are infrequent
