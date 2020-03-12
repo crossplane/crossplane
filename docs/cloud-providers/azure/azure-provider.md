@@ -14,20 +14,20 @@ This assumes that you have already [set up the Azure CLI client](https://docs.mi
 
 Create a JSON file that contains all the information needed to connect and authenticate to Azure:
 
-```console
+```bash
 # create service principal with Owner role
 az ad sp create-for-rbac --sdk-auth --role Owner > crossplane-azure-provider-key.json
 ```
 
 Take note of the `clientID` value from the JSON file that we just created, and save it to an environment variable:
 
-```console
+```bash
 export AZURE_CLIENT_ID=<clientId value from json file>
 ```
 
 Now add the required permissions to the service principal that will allow it to manage the necessary resources in Azure:
 
-```console
+```bash
 # add required Azure Active Directory permissions
 az ad app permission add --id ${AZURE_CLIENT_ID} --api 00000002-0000-0000-c000-000000000000 --api-permissions 1cda74f2-2616-4834-b122-5cb1b07f8a59=Role 78c8a3c8-a07e-4b9e-af1b-b5ccab50a175=Role
 
@@ -41,26 +41,17 @@ You might see an error similar to the following, but that is OK, the permissions
 Operation failed with status: 'Conflict'. Details: 409 Client Error: Conflict for url: https://graph.windows.net/e7985bc4-a3b3-4f37-b9d2-fa256023b1ae/oauth2PermissionGrants?api-version=1.6
 ```
 
+Finally, you need to grant admin permissions on the Azure Active Directory to the service principal because it will need to create other service principals for your `AKSCluster`:
+```bash
+# grant admin consent to the service princinpal you created
+az ad app permission admin-consent --id "${AZURE_CLIENT_ID}"
+```
+
+Note: You might need `Global Administrator` role to `Grant admin consent for Default Directory`. Please contact the administrator of your Azure subscription. To check your role, go to `Azure Active Directory` -> `Roles and administrators`. You can find your role(s) by clicking on `Your Role (Preview)`
+
 After these steps are completed, you should have the following file on your local filesystem:
 
 * `crossplane-azure-provider-key.json`
-
-## Grant Consent to Application Permissions
-
-One more step is required to fully grant the permissions to the new service principal.
-From the Azure Portal, you need to grant consent for the permissions using an admin account.
-The steps to perform this action are listed below:
-
-1. `echo ${AZURE_CLIENT_ID}` and note this ID value
-1. Navigate to the Azure Portal: https://portal.azure.com
-1. Click `Azure Active Directory`, or find it in the `All services` list
-1. Click `App registrations (Preview)`
-1. Click on the application from the list where the application (client) ID matches the value from step 1
-1. Click `API permissions`
-1. Click `Grant admin consent for Default Directory`
-1. Click `Yes`
-
-Note: You might need `Global Administrator` role to `Grant admin consent for Default Directory`. Please contact the administrator of your Azure subscription. To check your role, go to `Azure Active Directory` -> `Roles and administrators`. You can find your role(s) by clicking on `Your Role (Preview)`
 
 ## Setup Azure Provider
 
