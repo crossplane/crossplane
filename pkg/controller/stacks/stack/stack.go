@@ -528,18 +528,38 @@ func isDefaultStackPolicy(rule rbacv1.PolicyRule) bool {
 	return false
 }
 
+func isPermittedAPIGroup(apigroup string) bool {
+	return strings.Contains(apigroup, ".") &&
+		!strings.HasSuffix(apigroup, "k8s.io")
+}
+
+func isPermittedStackPolicy(rule rbacv1.PolicyRule) bool {
+	if isDefaultStackPolicy(rule) {
+		return true
+	}
+
+	if len(rule.NonResourceURLs) > 0 {
+		return false
+	}
+
+	if len(rule.APIGroups) == 0 {
+		return false
+	}
+
+	for _, g := range rule.APIGroups {
+		if !isPermittedAPIGroup(g) {
+			return false
+		}
+	}
+	return true
+}
+
 func (h *stackHandler) validateStackPermissions() error {
 	if h.restrictCore {
-		for _, r := range h.ext.Spec.Permissions.Rules {
-			if isDefaultStackPolicy(r) {
-				continue
-			}
-
-			for _, g := range r.APIGroups {
-				if !strings.Contains(g, ".") ||
-					strings.HasSuffix(g, "k8s.io") {
-					return errors.Errorf("access to APIGroup %q is restricted", g)
-				}
+		for _, rule := range h.ext.Spec.Permissions.Rules {
+			if !isPermittedStackPolicy(rule) {
+				h.log.Debug("restricted rule found in stack spec permissions", "namespace", h.ext.GetNamespace(), "name", h.ext.GetName(), "rule", rule)
+				return errors.Errorf("permissions contain a restricted rule")
 			}
 		}
 	}
