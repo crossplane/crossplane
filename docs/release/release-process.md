@@ -14,7 +14,7 @@ level sequential overview for how to run the release process.
 1. **branch**: Create a new release branch using the GitHub UI for each repo
 1. **release stacks**: Run the release process for each **stack** that we maintain
     1. **test** Test builds from the release branch, fix any critical bugs that are found
-    1. **version**: Update all version information in the stack metadata, docs, and integration
+    1. **version**: Update all version information in the docs, and integration
        tests in the release branch
     1. **tag**: Run the tag pipeline to tag the release branch with an official semver
     1. **build/publish**: Run build pipeline to publish build with official semver
@@ -39,10 +39,10 @@ maintains and publishes regular versioned artifacts from. This set of repositori
 Crossplane and the set of Stacks that Crossplane currently maintains:
 
 * [`crossplane`](https://github.com/crossplane/crossplane)
-* [`stack-gcp`](https://github.com/crossplane/stack-gcp)
-* [`stack-aws`](https://github.com/crossplane/stack-aws)
-* [`stack-azure`](https://github.com/crossplane/stack-azure)
-* [`stack-rook`](https://github.com/crossplane/stack-rook)
+* [`provider-gcp`](https://github.com/crossplane/provider-gcp)
+* [`provider-aws`](https://github.com/crossplane/provider-aws)
+* [`provider-azure`](https://github.com/crossplane/provider-azure)
+* [`provider-rook`](https://github.com/crossplane/provider-rook)
 
 
 The release process for Stacks is almost identical to that of core Crossplane because they use the
@@ -154,8 +154,6 @@ themselves and does not directly apply to core Crossplane.
 
 In the **release branch** for each Stack, you should update the version tag or metadata in:
 
-* `app.yaml` - `version`
-* `install.yaml` - `image`
 * `integration_tests.sh` - `STACK_IMAGE`
 * `*.resource.yaml` - docs links in markdown
   * Not all of these `*.resource.yaml` files have links that need to be updated, they are infrequent
@@ -167,14 +165,14 @@ Now that the Stacks are all tested and their version metadata has been updated, 
 release branch with the official version tag. You can do this by running the `tag` pipeline on the
 release branch of each Stack:
 
-* [`stack-gcp` tag
-  pipeline](https://jenkinsci.upbound.io/blue/organizations/jenkins/crossplane%2Fstack-gcp-pipelines%2Fstack-gcp-tag/branches)
-* [`stack-aws` tag
-  pipeline](https://jenkinsci.upbound.io/blue/organizations/jenkins/crossplane%2Fstack-aws-pipelines%2Fstack-aws-tag/branches/)
-* [`stack-azure` tag
-  pipeline](https://jenkinsci.upbound.io/blue/organizations/jenkins/crossplane%2Fstack-azure-pipelines%2Fstack-azure-tag/branches/)
-* [`stack-rook` tag
-  pipeline](https://jenkinsci.upbound.io/blue/organizations/jenkins/crossplane%2Fstack-rook-pipelines%2Fstack-rook-tag/branches/)
+* [`provider-gcp` tag
+  pipeline](https://jenkinsci.upbound.io/blue/organizations/jenkins/crossplane%2Fprovider-gcp-pipelines%2Fprovider-gcp-tag/branches)
+* [`provider-aws` tag
+  pipeline](https://jenkinsci.upbound.io/blue/organizations/jenkins/crossplane%2Fprovider-aws-pipelines%2Fprovider-aws-tag/branches/)
+* [`provider-azure` tag
+  pipeline](https://jenkinsci.upbound.io/blue/organizations/jenkins/crossplane%2Fprovider-azure-pipelines%2Fprovider-azure-tag/branches/)
+* [`provider-rook` tag
+  pipeline](https://jenkinsci.upbound.io/blue/organizations/jenkins/crossplane%2Fprovider-rook-pipelines%2Fprovider-rook-tag/branches/)
 
 Run the tag pipeline by clicking the Run button in the Jenkins UI in the correct release branch's
 row. You will be prompted for the version you are tagging, e.g., `v0.5.0` as well as the commit

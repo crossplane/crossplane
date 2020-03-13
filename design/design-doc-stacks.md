@@ -418,7 +418,18 @@ dependsOn:
 
 ### Example `install.yaml`
 
-The `install.yaml` file is expected to conform to a standard Kubernetes YAML file describing a single `Deployment` object.
+The `install.yaml` file is expected to conform to a standard Kubernetes
+YAML file describing a single `Deployment` object. The only exception is
+that the `image` field in the container spec objects is optional. If it
+is omitted, it will be filled in by the stack manager with the value of
+the image specified in the stack install object used to install the
+stack. Leaving it out makes it easier to manage the versions of images
+if the CRDs and the controller live in the same image.
+
+Additionally, if an image is specified for the `Deployment` object, and
+the stack is installed with an explicit source registry, the registry
+will be injected into the image field if it does not already specify a
+registry.
 
 ```yaml
 apiVersion: apps/v1
@@ -440,7 +451,12 @@ spec:
     spec:
       containers:
       - name: sample-stack-controller
-        image: crossplane/sample-stack:latest
+        # The `image:` field is optional. If omitted, it will be
+        # filled in by the stack manager, using the same image
+        # name and tag as the package on the StackInstall object.
+        # We recommend omitting it unless you know you need it.
+        #
+        # image: crossplane/sample-stack:latest
         env:
         - name: POD_NAME
           valueFrom:
