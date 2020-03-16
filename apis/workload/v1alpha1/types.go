@@ -21,7 +21,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 
 	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 )
@@ -162,7 +162,7 @@ type KubernetesApplicationResourceSpec struct {
 	// resource must be understood by the KubernetesCluster. Crossplane requires
 	// only that the resource contains standard Kubernetes type and object
 	// metadata.
-	Template *unstructured.Unstructured `json:"template"`
+	Template runtime.RawExtension `json:"template"`
 
 	// Target to which this application has been scheduled.
 	// +optional

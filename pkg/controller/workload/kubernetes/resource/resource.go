@@ -43,6 +43,7 @@ import (
 	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
+	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane/apis/workload/v1alpha1"
 )
 
@@ -55,7 +56,18 @@ const (
 	shortWait = 30 * time.Second
 )
 
-var errMissingTemplate = errors.New(v1alpha1.KubernetesApplicationResourceKind + " must include a template")
+var (
+	errUnmarshalTemplate = "cannot unmarshal template"
+	errUpdateStatusFmt   = "cannot update status %s %s"
+	errGetKey            = "cannot take object key from resource"
+	errDeleteResource    = "cannot delete resource"
+	errGetResource       = "cannot get resource"
+	errSyncResource      = "cannot sync resource"
+	errCreateResource    = "cannot create resource"
+	errDeleteSecret      = "cannot delete secret"
+	errGetSecret         = "cannot get secret"
+	errSyncSecret        = "cannot sync secret"
+)
 
 // Ownership annotations
 var (
@@ -120,11 +132,11 @@ type syncdeleter interface {
 }
 
 type unstructuredSyncer interface {
-	sync(ctx context.Context, template *unstructured.Unstructured) (*v1alpha1.RemoteStatus, error)
+	sync(ctx context.Context, data []byte) (*v1alpha1.RemoteStatus, error)
 }
 
 type unstructuredDeleter interface {
-	delete(ctx context.Context, template *unstructured.Unstructured) error
+	delete(ctx context.Context, data []byte) error
 }
 
 type unstructuredSyncDeleter interface {
@@ -153,12 +165,14 @@ type remoteCluster struct {
 func (c *remoteCluster) sync(ctx context.Context, ar *v1alpha1.KubernetesApplicationResource, secrets []corev1.Secret) (v1alpha1.KubernetesApplicationResourceState, error) {
 	meta.AddFinalizer(ar, finalizerName)
 
-	// Our CRD requires template to be specified, but just in case...
-	if ar.Spec.Template == nil {
-		return v1alpha1.KubernetesApplicationResourceStateFailed, errMissingTemplate
+	// We copy the resource template here so we can modify its namespace and
+	// remote controller annotations without persisting those changes back to
+	// the KubernetesApplicationResource.
+	template := &unstructured.Unstructured{}
+	if err := json.Unmarshal(ar.Spec.Template.Raw, template); err != nil {
+		return v1alpha1.KubernetesApplicationResourceStateFailed, errors.Wrap(err, errUnmarshalTemplate)
 	}
-
-	templates := createSecretTemplates(secrets, ar.Spec.Template.GetNamespace(), ar.GetName())
+	templates := createSecretTemplates(secrets, template.GetNamespace(), ar.GetName())
 	for i := range templates {
 		template := &templates[i]
 		ensureNamespace(template)
@@ -169,14 +183,15 @@ func (c *remoteCluster) sync(ctx context.Context, ar *v1alpha1.KubernetesApplica
 		}
 	}
 
-	// We copy the resource template here so we can modify its namespace and
-	// remote controller annotations without persisting those changes back to
-	// the KubernetesApplicationResource.
-	template := ar.Spec.Template.DeepCopy()
 	ensureNamespace(template)
 	setRemoteController(ar, template)
 
-	status, err := c.unstructured.sync(ctx, template)
+	raw, err := json.Marshal(template)
+	if err != nil {
+		return v1alpha1.KubernetesApplicationResourceStateFailed, errors.Wrap(err, errUnmarshalTemplate)
+	}
+
+	status, err := c.unstructured.sync(ctx, raw)
 	// It's possible we read the remote object's status, but returned an error
 	// because we failed to update said object. We still want to reflect the
 	// latest remote status in this scenario.
@@ -191,23 +206,21 @@ func (c *remoteCluster) sync(ctx context.Context, ar *v1alpha1.KubernetesApplica
 }
 
 func (c *remoteCluster) delete(ctx context.Context, ar *v1alpha1.KubernetesApplicationResource, secrets []corev1.Secret) (v1alpha1.KubernetesApplicationResourceState, error) {
-	// Our CRD requires template to be specified, but just in case...
-	if ar.Spec.Template == nil {
-		return v1alpha1.KubernetesApplicationResourceStateFailed, errMissingTemplate
-	}
-
 	// We copy the resource template here so we can modify its namespace and
 	// remote controller annotations without persisting those changes back to
 	// the KubernetesApplicationResource.
-	template := ar.Spec.Template.DeepCopy()
+	template := &unstructured.Unstructured{}
+	if err := json.Unmarshal(ar.Spec.Template.Raw, template); err != nil {
+		return v1alpha1.KubernetesApplicationResourceStateFailed, errors.Wrap(err, errUnmarshalTemplate)
+	}
 	ensureNamespace(template)
 	setRemoteController(ar, template)
 
-	if err := c.unstructured.delete(ctx, template); err != nil {
+	if err := c.unstructured.delete(ctx, ar.Spec.Template.Raw); err != nil {
 		return v1alpha1.KubernetesApplicationResourceStateFailed, err
 	}
 
-	templates := createSecretTemplates(secrets, ar.Spec.Template.GetNamespace(), ar.GetName())
+	templates := createSecretTemplates(secrets, template.GetNamespace(), ar.GetName())
 	for i := range templates {
 		template := &templates[i]
 		ensureNamespace(template)
@@ -244,31 +257,39 @@ type unstructuredClient struct {
 	kube client.Client
 }
 
-func (c *unstructuredClient) sync(ctx context.Context, template *unstructured.Unstructured) (*v1alpha1.RemoteStatus, error) {
+func (c *unstructuredClient) sync(ctx context.Context, data []byte) (*v1alpha1.RemoteStatus, error) {
 	// We make another copy of our template here so we can compare the template
 	// as passed to this method with the remote resource.
+	template := &unstructured.Unstructured{}
+	if err := json.Unmarshal(data, template); err != nil {
+		return nil, errors.Wrap(err, errUnmarshalTemplate)
+	}
+
 	remote := template.DeepCopy()
+
 	key, err := client.ObjectKeyFromObject(remote)
 	if err != nil {
-		return nil, errors.Wrap(err, "cannot take object key from resource")
+		return nil, errors.Wrap(err, errGetKey)
 	}
+
+	// TODO(hasheddan): this Get operation and subsequent controller check can
+	// be eliminated once resource.Apply is refactored to accept arbitrary
+	// ApplyOption functions.
 	if err := c.kube.Get(ctx, key, remote); err != nil {
 		if kerrors.IsNotFound(err) {
-			return nil, errors.Wrap(c.kube.Create(ctx, remote), "cannot create resource")
+			return nil, errors.Wrap(c.kube.Create(ctx, remote), errCreateResource)
 		}
-		return nil, errors.Wrap(err, "cannot get resource")
+		return nil, errors.Wrap(err, errGetResource)
 	}
 	if !haveSameController(remote, template) {
 		return nil, errors.Wrap(errors.Errorf("%s %s/%s exists and is not controlled by %s %s",
 			remote.GetObjectKind().GroupVersionKind().Kind, remote.GetNamespace(), remote.GetName(),
-			v1alpha1.KubernetesApplicationResourceKind, template.GetAnnotations()[RemoteControllerName]), "cannot sync resource")
+			v1alpha1.KubernetesApplicationResourceKind, template.GetAnnotations()[RemoteControllerName]), errSyncResource)
 	}
 
-	// Propagate the 'status' field of remote (if any) before we overwrite
-	// it with our template.
 	rs := getRemoteStatus(remote)
 
-	return rs, errors.Wrap(c.kube.Patch(ctx, remote, client.MergeFrom(template)), "cannot patch resource")
+	return rs, errors.Wrap(resource.Apply(ctx, c.kube, template), errSyncResource)
 }
 
 func getRemoteStatus(u runtime.Unstructured) *v1alpha1.RemoteStatus {
@@ -293,14 +314,23 @@ func getRemoteStatus(u runtime.Unstructured) *v1alpha1.RemoteStatus {
 	return remote
 }
 
-func (c *unstructuredClient) delete(ctx context.Context, template *unstructured.Unstructured) error {
-	n := types.NamespacedName{Namespace: template.GetNamespace(), Name: template.GetName()}
+func (c *unstructuredClient) delete(ctx context.Context, data []byte) error {
+	template := &unstructured.Unstructured{}
+	if err := json.Unmarshal(data, template); err != nil {
+		return errors.Wrap(err, errUnmarshalTemplate)
+	}
+
+	key, err := client.ObjectKeyFromObject(template)
+	if err != nil {
+		return errors.Wrap(err, errGetKey)
+	}
+
 	remote := template.DeepCopy()
-	if err := c.kube.Get(ctx, n, remote); err != nil {
+	if err := c.kube.Get(ctx, key, remote); err != nil {
 		if kerrors.IsNotFound(err) {
 			return nil
 		}
-		return errors.Wrapf(err, "cannot get resource %s", n)
+		return errors.Wrapf(err, errGetResource)
 	}
 
 	// The object exists, but we don't own it.
@@ -309,7 +339,7 @@ func (c *unstructuredClient) delete(ctx context.Context, template *unstructured.
 	}
 
 	// The object exists and we own it. Delete it.
-	return errors.Wrapf(c.kube.Delete(ctx, remote), "cannot delete resource %s", n)
+	return errors.Wrapf(c.kube.Delete(ctx, remote), errDeleteResource)
 }
 
 type secretClient struct {
@@ -343,7 +373,7 @@ func (c *secretClient) sync(ctx context.Context, template *corev1.Secret) error 
 		return nil
 	})
 
-	return errors.Wrap(err, "cannot sync secret")
+	return errors.Wrap(err, errSyncSecret)
 }
 
 func (c *secretClient) delete(ctx context.Context, template *corev1.Secret) error {
@@ -354,7 +384,7 @@ func (c *secretClient) delete(ctx context.Context, template *corev1.Secret) erro
 		if kerrors.IsNotFound(err) {
 			return nil
 		}
-		return errors.Wrapf(err, "cannot get secret %s", n)
+		return errors.Wrapf(err, errGetSecret)
 	}
 
 	// We don't own the existing object.
@@ -363,7 +393,7 @@ func (c *secretClient) delete(ctx context.Context, template *corev1.Secret) erro
 	}
 
 	// We own the existing object. delete it.
-	return errors.Wrapf(c.kube.Delete(ctx, remote), "cannot delete secret %s", n)
+	return errors.Wrapf(c.kube.Delete(ctx, remote), errDeleteSecret)
 }
 
 // A connecter returns a createsyncdeletekeyer that can create, sync, and delete
@@ -477,10 +507,10 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		// because it doesn't exist we assume the cluster was deleted.
 		if ar.GetDeletionTimestamp() != nil && kerrors.IsNotFound(errors.Cause(err)) {
 			meta.RemoveFinalizer(ar, finalizerName)
-			return reconcile.Result{Requeue: false}, errors.Wrapf(r.kube.Update(ctx, ar), "cannot update %s %s", v1alpha1.KubernetesApplicationResourceKind, req.NamespacedName)
+			return reconcile.Result{Requeue: false}, errors.Wrapf(r.kube.Update(ctx, ar), errUpdateStatusFmt, v1alpha1.KubernetesApplicationResourceKind, req.NamespacedName)
 		}
 		ar.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
-		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrapf(r.kube.Status().Update(ctx, ar), "cannot update status %s %s", v1alpha1.KubernetesApplicationResourceKind, req.NamespacedName)
+		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrapf(r.kube.Status().Update(ctx, ar), errUpdateStatusFmt, v1alpha1.KubernetesApplicationResourceKind, req.NamespacedName)
 	}
 
 	secrets := r.getConnectionSecrets(ctx, ar)
@@ -490,22 +520,22 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		if err != nil {
 			ar.Status.State = state
 			ar.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
-			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrapf(r.kube.Status().Update(ctx, ar), "cannot update status %s %s", v1alpha1.KubernetesApplicationResourceKind, req.NamespacedName)
+			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrapf(r.kube.Status().Update(ctx, ar), errUpdateStatusFmt, v1alpha1.KubernetesApplicationResourceKind, req.NamespacedName)
 		}
 		meta.RemoveFinalizer(ar, finalizerName)
-		return reconcile.Result{Requeue: false}, errors.Wrapf(r.kube.Update(ctx, ar), "cannot update %s %s", v1alpha1.KubernetesApplicationResourceKind, req.NamespacedName)
+		return reconcile.Result{Requeue: false}, errors.Wrapf(r.kube.Update(ctx, ar), errUpdateStatusFmt, v1alpha1.KubernetesApplicationResourceKind, req.NamespacedName)
 	}
 
 	state, err := cluster.sync(ctx, ar, secrets)
 	if err != nil {
 		ar.Status.State = state
 		ar.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
-		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrapf(r.kube.Status().Update(ctx, ar), "cannot update status %s %s", v1alpha1.KubernetesApplicationResourceKind, req.NamespacedName)
+		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrapf(r.kube.Status().Update(ctx, ar), errUpdateStatusFmt, v1alpha1.KubernetesApplicationResourceKind, req.NamespacedName)
 	}
 
 	ar.Status.State = state
 	ar.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
-	return reconcile.Result{RequeueAfter: longWait}, errors.Wrapf(r.kube.Status().Update(ctx, ar), "cannot update status %s %s", v1alpha1.KubernetesApplicationResourceKind, req.NamespacedName)
+	return reconcile.Result{RequeueAfter: longWait}, errors.Wrapf(r.kube.Status().Update(ctx, ar), errUpdateStatusFmt, v1alpha1.KubernetesApplicationResourceKind, req.NamespacedName)
 }
 
 func (r *Reconciler) getConnectionSecrets(ctx context.Context, ar *v1alpha1.KubernetesApplicationResource) []corev1.Secret {
