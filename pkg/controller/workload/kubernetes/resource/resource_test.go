@@ -55,6 +55,7 @@ const (
 
 var (
 	errorBoom  = errors.New("boom")
+	errJSON    = errors.New("unexpected end of JSON input")
 	objectMeta = metav1.ObjectMeta{
 		Namespace:  namespace,
 		Name:       name,
@@ -122,6 +123,10 @@ var (
 	}
 
 	serviceWithoutNamespace = &corev1.Service{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Service",
+			APIVersion: "v1",
+		},
 		// Note we purposefully omit the namespace here in order to test our
 		// namespace defaulting logic.
 		ObjectMeta: metav1.ObjectMeta{
@@ -172,6 +177,11 @@ func template(s *corev1.Service) *unstructured.Unstructured {
 	return u
 }
 
+func rawTemplate(s *corev1.Service) []byte {
+	b, _ := json.Marshal(s)
+	return b
+}
+
 type kubeARModifier func(*v1alpha1.KubernetesApplicationResource)
 
 func withFinalizers(f ...string) kubeARModifier {
@@ -210,7 +220,8 @@ func withSecrets(s ...corev1.LocalObjectReference) kubeARModifier {
 
 func withTemplate(t *unstructured.Unstructured) kubeARModifier {
 	return func(r *v1alpha1.KubernetesApplicationResource) {
-		r.Spec.Template = t
+		raw, _ := json.Marshal(t)
+		r.Spec.Template = runtime.RawExtension{Raw: raw}
 	}
 }
 
@@ -309,18 +320,18 @@ func TestUpdatePredicate(t *testing.T) {
 	}
 }
 
-type mockSyncUnstructuredFn func(ctx context.Context, template *unstructured.Unstructured) (*v1alpha1.RemoteStatus, error)
+type mockSyncUnstructuredFn func(ctx context.Context, data []byte) (*v1alpha1.RemoteStatus, error)
 
 func newMockSyncUnstructuredFn(s *v1alpha1.RemoteStatus, err error) mockSyncUnstructuredFn {
-	return func(_ context.Context, _ *unstructured.Unstructured) (*v1alpha1.RemoteStatus, error) {
+	return func(_ context.Context, _ []byte) (*v1alpha1.RemoteStatus, error) {
 		return s, err
 	}
 }
 
-type mockDeleteUnstructuredFn func(ctx context.Context, template *unstructured.Unstructured) error
+type mockDeleteUnstructuredFn func(ctx context.Context, data []byte) error
 
 func newMockDeleteUnstructuredFn(err error) mockDeleteUnstructuredFn {
-	return func(_ context.Context, _ *unstructured.Unstructured) error {
+	return func(_ context.Context, _ []byte) error {
 		return err
 	}
 }
@@ -330,12 +341,12 @@ type mockUnstructuredClient struct {
 	mockDelete mockDeleteUnstructuredFn
 }
 
-func (m *mockUnstructuredClient) sync(ctx context.Context, template *unstructured.Unstructured) (*v1alpha1.RemoteStatus, error) {
-	return m.mockSync(ctx, template)
+func (m *mockUnstructuredClient) sync(ctx context.Context, data []byte) (*v1alpha1.RemoteStatus, error) {
+	return m.mockSync(ctx, data)
 }
 
-func (m *mockUnstructuredClient) delete(ctx context.Context, template *unstructured.Unstructured) error {
-	return m.mockDelete(ctx, template)
+func (m *mockUnstructuredClient) delete(ctx context.Context, data []byte) error {
+	return m.mockDelete(ctx, data)
 }
 
 type mockSyncSecretFn func(ctx context.Context, template *corev1.Secret) error
@@ -376,7 +387,7 @@ func TestSync(t *testing.T) {
 			name: "Successful",
 			syncer: &remoteCluster{
 				unstructured: &mockUnstructuredClient{
-					mockSync: func(_ context.Context, got *unstructured.Unstructured) (*v1alpha1.RemoteStatus, error) {
+					mockSync: func(_ context.Context, data []byte) (*v1alpha1.RemoteStatus, error) {
 						want := template(serviceWithoutNamespace)
 						want.SetNamespace(corev1.NamespaceDefault)
 						want.SetAnnotations(map[string]string{
@@ -384,7 +395,10 @@ func TestSync(t *testing.T) {
 							RemoteControllerName:      objectMeta.GetName(),
 							RemoteControllerUID:       string(objectMeta.GetUID()),
 						})
+						got := &unstructured.Unstructured{}
+						_ = json.Unmarshal(data, got)
 						if diff := cmp.Diff(want, got); diff != "" {
+							fmt.Println(diff)
 							return nil, errors.Errorf("mockSync: -want, +got: %s", diff)
 						}
 
@@ -418,13 +432,13 @@ func TestSync(t *testing.T) {
 			syncer:    &remoteCluster{},
 			ar:        kubeAR(),
 			wantState: v1alpha1.KubernetesApplicationResourceStateFailed,
-			wantErr:   errMissingTemplate,
+			wantErr:   errors.Wrap(errJSON, errUnmarshalTemplate),
 		},
 		{
 			name: "SecretSyncPreservesType",
 			syncer: &remoteCluster{
 				unstructured: &mockUnstructuredClient{
-					mockSync: func(_ context.Context, got *unstructured.Unstructured) (*v1alpha1.RemoteStatus, error) {
+					mockSync: func(_ context.Context, _ []byte) (*v1alpha1.RemoteStatus, error) {
 						return remoteStatus, nil
 					},
 				},
@@ -512,13 +526,15 @@ func TestDelete(t *testing.T) {
 			name: "Successful",
 			deleter: &remoteCluster{
 				unstructured: &mockUnstructuredClient{
-					mockDelete: func(_ context.Context, got *unstructured.Unstructured) error {
+					mockDelete: func(_ context.Context, data []byte) error {
 						want := template(service)
 						want.SetAnnotations(map[string]string{
 							RemoteControllerNamespace: objectMeta.GetNamespace(),
 							RemoteControllerName:      objectMeta.GetName(),
 							RemoteControllerUID:       string(objectMeta.GetUID()),
 						})
+						got := &unstructured.Unstructured{}
+						_ = json.Unmarshal(data, got)
 						if diff := cmp.Diff(want, got); diff != "" {
 							errors.Errorf("unstructured mockDelete: -want, +got: %s", diff)
 						}
@@ -558,7 +574,7 @@ func TestDelete(t *testing.T) {
 				withFinalizers(finalizerName),
 			),
 			wantState: v1alpha1.KubernetesApplicationResourceStateFailed,
-			wantErr:   errMissingTemplate,
+			wantErr:   errors.Wrap(errJSON, errUnmarshalTemplate),
 		},
 		{
 			name: "SecretDeleteFailed",
@@ -607,7 +623,7 @@ func TestSyncUnstructured(t *testing.T) {
 	cases := []struct {
 		name         string
 		unstructured unstructuredSyncer
-		template     *unstructured.Unstructured
+		template     []byte
 		wantStatus   *v1alpha1.RemoteStatus
 		wantErr      error
 	}{
@@ -636,7 +652,7 @@ func TestSyncUnstructured(t *testing.T) {
 					},
 				},
 			},
-			template:   template(service),
+			template:   rawTemplate(service),
 			wantStatus: remoteStatus,
 			wantErr:    nil,
 		},
@@ -652,7 +668,7 @@ func TestSyncUnstructured(t *testing.T) {
 					},
 				},
 			},
-			template:   template(service),
+			template:   rawTemplate(service),
 			wantStatus: nil,
 			wantErr: errors.WithStack(errors.Errorf("cannot sync resource: Service %s/%s exists and is not controlled by %s %s",
 				existingService.GetNamespace(),
@@ -674,7 +690,7 @@ func TestSyncUnstructured(t *testing.T) {
 					},
 				},
 			},
-			template:   template(service),
+			template:   rawTemplate(service),
 			wantStatus: nil,
 			wantErr:    nil,
 		},
@@ -686,18 +702,18 @@ func TestSyncUnstructured(t *testing.T) {
 					MockCreate: test.NewMockCreateFn(errorBoom),
 				},
 			},
-			template:   template(service),
+			template:   rawTemplate(service),
 			wantStatus: nil,
-			wantErr:    errors.Wrap(errorBoom, "cannot create resource"),
+			wantErr:    errors.Wrap(errorBoom, errCreateResource),
 		},
 		{
 			name: "GetFailed",
 			unstructured: &unstructuredClient{
 				kube: &test.MockClient{MockGet: test.NewMockGetFn(errorBoom)},
 			},
-			template:   template(service),
+			template:   rawTemplate(service),
 			wantStatus: nil,
-			wantErr:    errors.Wrap(errorBoom, "cannot get resource"),
+			wantErr:    errors.Wrap(errorBoom, errGetResource),
 		},
 		{
 			name: "PatchFailed",
@@ -707,9 +723,9 @@ func TestSyncUnstructured(t *testing.T) {
 					MockPatch: test.NewMockPatchFn(errorBoom),
 				},
 			},
-			template:   template(service),
+			template:   rawTemplate(service),
 			wantStatus: remoteStatus,
-			wantErr:    errors.Wrap(errorBoom, "cannot patch resource"),
+			wantErr:    errors.Wrap(errors.Wrap(errorBoom, "cannot patch object"), errSyncResource),
 		},
 	}
 
@@ -760,7 +776,7 @@ func TestDeleteUnstructured(t *testing.T) {
 	cases := []struct {
 		name         string
 		unstructured unstructuredDeleter
-		template     *unstructured.Unstructured
+		template     []byte
 		wantErr      error
 	}{
 		{
@@ -774,7 +790,7 @@ func TestDeleteUnstructured(t *testing.T) {
 					MockDelete: test.NewMockDeleteFn(nil),
 				},
 			},
-			template: template(service),
+			template: rawTemplate(service),
 			wantErr:  nil,
 		},
 		{
@@ -786,7 +802,7 @@ func TestDeleteUnstructured(t *testing.T) {
 					},
 				},
 			},
-			template: template(service),
+			template: rawTemplate(service),
 		},
 		{
 			name: "ExistingResourceHasNoRemoteController",
@@ -800,15 +816,15 @@ func TestDeleteUnstructured(t *testing.T) {
 					},
 				},
 			},
-			template: template(service),
+			template: rawTemplate(service),
 		},
 		{
 			name: "GetExistingResourceFailed",
 			unstructured: &unstructuredClient{
 				kube: &test.MockClient{MockGet: test.NewMockGetFn(errorBoom)},
 			},
-			template: template(service),
-			wantErr:  errors.Wrapf(errorBoom, "cannot get resource %s/%s", service.GetNamespace(), service.GetName()),
+			template: rawTemplate(service),
+			wantErr:  errors.Wrapf(errorBoom, errGetResource),
 		},
 	}
 
@@ -886,7 +902,7 @@ func TestSyncSecret(t *testing.T) {
 				},
 			},
 			template: secret,
-			wantErr:  errors.Wrap(errorBoom, "cannot sync secret"),
+			wantErr:  errors.Wrap(errorBoom, errSyncSecret),
 		},
 	}
 
@@ -953,7 +969,7 @@ func TestDeleteSecret(t *testing.T) {
 				kube: &test.MockClient{MockGet: test.NewMockGetFn(errorBoom)},
 			},
 			template: secret,
-			wantErr:  errors.Wrapf(errorBoom, "cannot get secret %s/%s", secret.GetNamespace(), secret.GetName()),
+			wantErr:  errors.Wrapf(errorBoom, errGetSecret),
 		},
 	}
 
