@@ -227,7 +227,7 @@ type FavouriteDBInstanceParameters struct {
 // A FavouriteDBInstanceSpec defines the desired state of a FavouriteDBInstance.
 type FavouriteDBInstanceSpec struct {
     runtimev1alpha1.ResourceSpec  `json:",inline"`
-    ForProvider FavouriteDBInstanceParameters `json:",forProvider"`
+    ForProvider FavouriteDBInstanceParameters `json:"forProvider"`
 }
 
 // A FavouriteDBInstanceStatus represents the observed state of a
@@ -287,7 +287,7 @@ A resource class for the above `FavouriteDBInstance` would look as follows:
 // dynamically provisioned FavouriteDBInstance.
 type FavouriteDBInstanceClassSpecTemplate struct {
     runtimev1alpha1.ClassSpecTemplate `json:",inline"`
-    ForProvider FavouriteDBInstanceParameters     `json:",forProvider"`
+    ForProvider FavouriteDBInstanceParameters     `json:"forProvider"`
 }
 
 // A FavouriteDBInstanceClass is a resource class. It defines the desired spec
