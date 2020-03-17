@@ -1,0 +1,22 @@
+{
+	"name": "Go Dev container for crossplane/crossplane repo",
+	"dockerFile": "Dockerfile",
+	"runArgs": [ "--cap-add=SYS_PTRACE", "--security-opt", "seccomp=unconfined" ],
+
+	"settings": { 
+		"terminal.integrated.shell.linux": "/bin/bash",
+		"go.gopath": "/go",
+		"go.inferGopath": true,
+		"go.useLanguageServer": true
+	},
+
+	"postCreateCommand": "go version",
+
+	"remoteUser": "vscode",
+
+	"extensions": [
+		"ms-vscode.go"
+	],
+
+	"mounts": [ "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind" ]
+}

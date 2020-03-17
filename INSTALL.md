@@ -50,6 +50,10 @@ If you're running the build container on macOS using Docker for Mac, the build c
 build/reset
 ```
 
+## Building in Visual Studio Code's Dev Container
+
+If you use [Visual Studio Code](https://code.visualstudio.com/), you can also use the dev container defined under the `.devcontainer` directory to have a predictable dev environment on GNU/Linux. Follow [these instructions](https://code.visualstudio.com/remote-tutorials/containers/getting-started) to setup the Dev Container extension in Visual Studio Code.
+
 ## Building for other platforms
 
 You can also run the build for all supported platforms:
