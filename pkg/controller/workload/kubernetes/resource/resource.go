@@ -132,11 +132,11 @@ type syncdeleter interface {
 }
 
 type unstructuredSyncer interface {
-	sync(ctx context.Context, data []byte) (*v1alpha1.RemoteStatus, error)
+	sync(ctx context.Context, template *unstructured.Unstructured) (*v1alpha1.RemoteStatus, error)
 }
 
 type unstructuredDeleter interface {
-	delete(ctx context.Context, data []byte) error
+	delete(ctx context.Context, template *unstructured.Unstructured) error
 }
 
 type unstructuredSyncDeleter interface {
@@ -165,9 +165,6 @@ type remoteCluster struct {
 func (c *remoteCluster) sync(ctx context.Context, ar *v1alpha1.KubernetesApplicationResource, secrets []corev1.Secret) (v1alpha1.KubernetesApplicationResourceState, error) {
 	meta.AddFinalizer(ar, finalizerName)
 
-	// We copy the resource template here so we can modify its namespace and
-	// remote controller annotations without persisting those changes back to
-	// the KubernetesApplicationResource.
 	template := &unstructured.Unstructured{}
 	if err := json.Unmarshal(ar.Spec.Template.Raw, template); err != nil {
 		return v1alpha1.KubernetesApplicationResourceStateFailed, errors.Wrap(err, errUnmarshalTemplate)
@@ -186,12 +183,7 @@ func (c *remoteCluster) sync(ctx context.Context, ar *v1alpha1.KubernetesApplica
 	ensureNamespace(template)
 	setRemoteController(ar, template)
 
-	raw, err := json.Marshal(template)
-	if err != nil {
-		return v1alpha1.KubernetesApplicationResourceStateFailed, errors.Wrap(err, errUnmarshalTemplate)
-	}
-
-	status, err := c.unstructured.sync(ctx, raw)
+	status, err := c.unstructured.sync(ctx, template)
 	// It's possible we read the remote object's status, but returned an error
 	// because we failed to update said object. We still want to reflect the
 	// latest remote status in this scenario.
@@ -206,9 +198,6 @@ func (c *remoteCluster) sync(ctx context.Context, ar *v1alpha1.KubernetesApplica
 }
 
 func (c *remoteCluster) delete(ctx context.Context, ar *v1alpha1.KubernetesApplicationResource, secrets []corev1.Secret) (v1alpha1.KubernetesApplicationResourceState, error) {
-	// We copy the resource template here so we can modify its namespace and
-	// remote controller annotations without persisting those changes back to
-	// the KubernetesApplicationResource.
 	template := &unstructured.Unstructured{}
 	if err := json.Unmarshal(ar.Spec.Template.Raw, template); err != nil {
 		return v1alpha1.KubernetesApplicationResourceStateFailed, errors.Wrap(err, errUnmarshalTemplate)
@@ -216,11 +205,7 @@ func (c *remoteCluster) delete(ctx context.Context, ar *v1alpha1.KubernetesAppli
 	ensureNamespace(template)
 	setRemoteController(ar, template)
 
-	raw, err := json.Marshal(template)
-	if err != nil {
-		return v1alpha1.KubernetesApplicationResourceStateFailed, errors.Wrap(err, errUnmarshalTemplate)
-	}
-	if err := c.unstructured.delete(ctx, raw); err != nil {
+	if err := c.unstructured.delete(ctx, template); err != nil {
 		return v1alpha1.KubernetesApplicationResourceStateFailed, err
 	}
 
@@ -261,14 +246,7 @@ type unstructuredClient struct {
 	kube client.Client
 }
 
-func (c *unstructuredClient) sync(ctx context.Context, data []byte) (*v1alpha1.RemoteStatus, error) {
-	// We make another copy of our template here so we can compare the template
-	// as passed to this method with the remote resource.
-	template := &unstructured.Unstructured{}
-	if err := json.Unmarshal(data, template); err != nil {
-		return nil, errors.Wrap(err, errUnmarshalTemplate)
-	}
-
+func (c *unstructuredClient) sync(ctx context.Context, template *unstructured.Unstructured) (*v1alpha1.RemoteStatus, error) {
 	remote := template.DeepCopy()
 
 	key, err := client.ObjectKeyFromObject(remote)
@@ -318,12 +296,7 @@ func getRemoteStatus(u runtime.Unstructured) *v1alpha1.RemoteStatus {
 	return remote
 }
 
-func (c *unstructuredClient) delete(ctx context.Context, data []byte) error {
-	template := &unstructured.Unstructured{}
-	if err := json.Unmarshal(data, template); err != nil {
-		return errors.Wrap(err, errUnmarshalTemplate)
-	}
-
+func (c *unstructuredClient) delete(ctx context.Context, template *unstructured.Unstructured) error {
 	remote := template.DeepCopy()
 
 	key, err := client.ObjectKeyFromObject(remote)
