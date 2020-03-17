@@ -216,7 +216,11 @@ func (c *remoteCluster) delete(ctx context.Context, ar *v1alpha1.KubernetesAppli
 	ensureNamespace(template)
 	setRemoteController(ar, template)
 
-	if err := c.unstructured.delete(ctx, ar.Spec.Template.Raw); err != nil {
+	raw, err := json.Marshal(template)
+	if err != nil {
+		return v1alpha1.KubernetesApplicationResourceStateFailed, errors.Wrap(err, errUnmarshalTemplate)
+	}
+	if err := c.unstructured.delete(ctx, raw); err != nil {
 		return v1alpha1.KubernetesApplicationResourceStateFailed, err
 	}
 
@@ -320,17 +324,18 @@ func (c *unstructuredClient) delete(ctx context.Context, data []byte) error {
 		return errors.Wrap(err, errUnmarshalTemplate)
 	}
 
-	key, err := client.ObjectKeyFromObject(template)
+	remote := template.DeepCopy()
+
+	key, err := client.ObjectKeyFromObject(remote)
 	if err != nil {
 		return errors.Wrap(err, errGetKey)
 	}
 
-	remote := template.DeepCopy()
 	if err := c.kube.Get(ctx, key, remote); err != nil {
 		if kerrors.IsNotFound(err) {
 			return nil
 		}
-		return errors.Wrapf(err, errGetResource)
+		return errors.Wrap(err, errGetResource)
 	}
 
 	// The object exists, but we don't own it.
@@ -339,7 +344,7 @@ func (c *unstructuredClient) delete(ctx context.Context, data []byte) error {
 	}
 
 	// The object exists and we own it. Delete it.
-	return errors.Wrapf(c.kube.Delete(ctx, remote), errDeleteResource)
+	return errors.Wrap(c.kube.Delete(ctx, remote), errDeleteResource)
 }
 
 type secretClient struct {
@@ -384,7 +389,7 @@ func (c *secretClient) delete(ctx context.Context, template *corev1.Secret) erro
 		if kerrors.IsNotFound(err) {
 			return nil
 		}
-		return errors.Wrapf(err, errGetSecret)
+		return errors.Wrap(err, errGetSecret)
 	}
 
 	// We don't own the existing object.
@@ -393,7 +398,7 @@ func (c *secretClient) delete(ctx context.Context, template *corev1.Secret) erro
 	}
 
 	// We own the existing object. delete it.
-	return errors.Wrapf(c.kube.Delete(ctx, remote), errDeleteSecret)
+	return errors.Wrap(c.kube.Delete(ctx, remote), errDeleteSecret)
 }
 
 // A connecter returns a createsyncdeletekeyer that can create, sync, and delete
@@ -435,7 +440,7 @@ func (c *clusterConnecter) config(ctx context.Context, ar *v1alpha1.KubernetesAp
 
 	u, err := url.Parse(string(s.Data[runtimev1alpha1.ResourceCredentialsSecretEndpointKey]))
 	if err != nil {
-		return nil, errors.Wrapf(err, "cannot parse Kubernetes endpoint as URL")
+		return nil, errors.Wrap(err, "cannot parse Kubernetes endpoint as URL")
 	}
 
 	config := &rest.Config{
