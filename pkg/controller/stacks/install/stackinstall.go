@@ -346,7 +346,11 @@ func (h *stackInstallHandler) createInstallJob() *batchv1.Job {
 	namespace := i.GetNamespace()
 
 	if hCfg != nil {
-		annotations = hosted.ObjectReferenceAnnotationsOnHost("stackinstall", name, namespace)
+		singular := "stackinstall"
+		if i.PermissionScope() == string(apiextensionsv1beta1.ClusterScoped) {
+			singular = "clusterstackinstall"
+		}
+		annotations = hosted.ObjectReferenceAnnotationsOnHost(singular, name, namespace)
 
 		// In Hosted Mode, we need to map all install jobs on tenant Kubernetes into a single namespace on host cluster.
 		o := hCfg.ObjectReferenceOnHost(name, namespace)

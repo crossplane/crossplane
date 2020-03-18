@@ -82,6 +82,11 @@ func Test_truncate(t *testing.T) {
 			want:    "-agzq",
 			wantErr: false,
 		},
+		{
+			name: "hosted-stack-ns-example",
+			args: args{str: "cool-namespace-abcdefghijklmnopqrstuvwxyz", length: 32, suffixLength: 5},
+			want: "cool-namespace-abcdefghijkl-lzi4",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -154,6 +159,12 @@ func TestLabelValue(t *testing.T) {
 			name: "truncate",
 			args: args{str: str253},
 			want: strings.Repeat("1234567890", 5) + "1234567-ij43w",
+		},
+
+		{
+			name: "hosted-stack-ns-and-name-example",
+			args: args{str: "cool-namespace-abcdefghijkl-lzi4.cool-stack-abcdefghijklmnopqrstuvwxyz"},
+			want: "cool-namespace-abcdefghijkl-lzi4.cool-stack-abcdefghijklm-h4q4b",
 		},
 	}
 	for _, tt := range tests {

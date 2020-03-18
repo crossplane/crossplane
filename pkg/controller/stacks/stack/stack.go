@@ -713,24 +713,6 @@ func (h *stackHandler) prepareHostAwareDeployment(d *apps.Deployment, tokenSecre
 
 	return nil
 }
-func (h *stackHandler) prepareHostAwareJob(j *batch.Job, tokenSecret string) error {
-	if h.hostAwareConfig == nil {
-		return errors.New(errHostAwareModeNotEnabled)
-	}
-
-	if err := h.prepareHostAwarePodSpec(tokenSecret, &j.Spec.Template.Spec); err != nil {
-		return err
-	}
-
-	o := h.hostAwareConfig.ObjectReferenceOnHost(j.Name, j.Namespace)
-	j.Name = o.Name
-	j.Namespace = o.Namespace
-
-	a := hosted.ObjectReferenceAnnotationsOnHost("stack", h.ext.GetName(), h.ext.GetNamespace())
-	meta.AddAnnotations(j, a)
-
-	return nil
-}
 
 func (h *stackHandler) prepareDeployment(d *apps.Deployment) {
 	controllerDeployment := h.ext.Spec.Controller.Deployment

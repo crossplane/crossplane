@@ -20,6 +20,9 @@ limitations under the License.
 package truncate
 
 import (
+	// sha1 is not cryptographically secure, but that is not a goal. we require
+	// predictable and uniform text transformation. Any checksum function with
+	// even distribution would suffice.
 	"crypto/sha1" // nolint:blacklist
 	"encoding/base32"
 	"fmt"
@@ -68,9 +71,7 @@ func Truncate(str string, length, suffixLength int) (string, error) {
 		return "", fmt.Errorf("truncate suffixLength is less than minimum: %d < 2", suffixLength)
 	}
 
-	// sha1 is not cryptographically secure, but that is not a goal.
-	// we require predictable and uniform text transformation. Any checksum
-	// function with even distribution would suffice.
+	// See the import comment regarding use of sha1
 	// nolint:gosec
 	checksum := sha1.Sum([]byte(str))
 	retained := length - suffixLength
