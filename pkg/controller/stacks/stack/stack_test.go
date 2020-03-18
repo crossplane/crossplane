@@ -1170,7 +1170,8 @@ func TestProcessDeployment(t *testing.T) {
 			clientFunc: fake.NewFakeClient,
 			hostClientFunc: func() client.Client {
 				return &test.MockClient{
-					MockGet: test.NewMockGetFn(nil),
+					MockList: test.NewMockListFn(nil),
+					MockGet:  test.NewMockGetFn(nil),
 					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error {
 						if _, ok := obj.(*corev1.Secret); ok {
 							return errBoom
@@ -1712,7 +1713,7 @@ func Test_stackHandler_prepareHostAwareDeployment(t *testing.T) {
 				d:           nil,
 			},
 			want: want{
-				err: errors.New(errHostAwareModeNotEnabled),
+				err: nil,
 			},
 		},
 	}

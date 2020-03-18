@@ -320,12 +320,12 @@ func (si *ClusterStackInstall) GroupVersionKind() schema.GroupVersionKind {
 type StackInstaller interface {
 	metav1.Object
 	runtime.Object
+	schema.ObjectKind
 
 	GetPackage() string
 	GetImagePullPolicy() corev1.PullPolicy
 	GetImagePullSecrets() []corev1.LocalObjectReference
 	GetServiceAccountAnnotations() map[string]string
-	GroupVersionKind() schema.GroupVersionKind
 	ImageWithSource(string) (string, error)
 	InstallJob() *corev1.ObjectReference
 	PermissionScope() string

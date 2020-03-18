@@ -27,6 +27,9 @@ import (
 )
 
 const (
+	// uidLength is the length of a UIDv4 string with separators
+	uidLength = 36
+
 	// AnnotationTenantNameFmt with a CR `singular` name applied provides the
 	// annotation key used to identify tenant resources by name on the host side
 	// Example: tenant.crossplane.io/stackinstall-name
@@ -102,6 +105,43 @@ func ObjectReferenceAnnotationsOnHost(singular, name, namespace string) map[stri
 		nameLabel: name,
 		nsLabel:   namespace,
 	}
+}
+
+// ImagePullSecretPrefixOnHost returns the prefix of a host secret given the
+// tenant secret name and namespace
+func ImagePullSecretPrefixOnHost(tenantNS string, name string) string {
+	const maxSecretLength = 253
+	const separatorLength = 1
+	maxSize := maxSecretLength - uidLength - separatorLength
+	hostSecPrefix, _ := truncate.Truncate(fmt.Sprintf("%s.%s", tenantNS, name), maxSize, truncate.DefaultSuffixLength)
+	return hostSecPrefix
+}
+
+// ImagePullSecretPrefixesOnHost takes a tenant namespace and list of tenant
+// secret names and returns a list of secrets names prefixed with the namespace,
+// potentially truncated, for use as secret name prefixes on the host
+func ImagePullSecretPrefixesOnHost(tenantNS string, imagePullSecrets []corev1.LocalObjectReference) []corev1.LocalObjectReference {
+	prefixRefs := []corev1.LocalObjectReference{}
+	for _, ref := range imagePullSecrets {
+		hostSecPrefix := ImagePullSecretPrefixOnHost(tenantNS, ref.Name)
+		prefixRefs = append(prefixRefs, corev1.LocalObjectReference{Name: hostSecPrefix})
+	}
+	return prefixRefs
+}
+
+// ImagePullSecretsOnHost takes a tenant namespace and list of image pull
+// secrets and returns a list of UUID suffixed secret names for use on the host.
+// The names of these secrets are prefixed by ImagePullSecretPrefixesOnHost
+func ImagePullSecretsOnHost(tenantNS string, imagePullSecrets []corev1.LocalObjectReference) ([]corev1.LocalObjectReference, error) {
+	refs := ImagePullSecretPrefixesOnHost(tenantNS, imagePullSecrets)
+	for i := range refs {
+		uid, err := uuidName()
+		if err != nil {
+			return nil, err
+		}
+		refs[i].Name += "." + uid
+	}
+	return refs, nil
 }
 
 // NewConfigForHost returns a host aware config given a controller namespace

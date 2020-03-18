@@ -283,10 +283,11 @@ func (h *stackInstallHandler) sync(ctx context.Context) (reconcile.Result, error
 func (h *stackInstallHandler) create(ctx context.Context) (reconcile.Result, error) {
 	h.ext.SetConditions(runtimev1alpha1.Creating())
 
-	patchCopy := h.ext.DeepCopyObject()
+	stackInstallPatch := client.MergeFrom(h.ext.DeepCopyObject())
 	meta.AddFinalizer(h.ext, installFinalizer)
 
-	if err := h.kube.Patch(ctx, h.ext, client.MergeFrom(patchCopy)); err != nil {
+	err := h.kube.Patch(ctx, h.ext, stackInstallPatch)
+	if err != nil {
 		return fail(ctx, h.kube, h.ext, err)
 	}
 
@@ -295,68 +296,126 @@ func (h *stackInstallHandler) create(ctx context.Context) (reconcile.Result, err
 	jobRef := h.ext.InstallJob()
 
 	if jobRef == nil {
-		// there is no install job created yet, create it now
-		job := h.createInstallJob()
-
-		// if an install job with our name already exists, compare the labels
-		// (specifically parent labels). If they match, adopt this job - we must
-		// have failed to update the jobref on a previous reconciliation.
-		// if the install job does not belong to this stackinstall, block
-		// reconciliation and report it until the problem is resolved.
-		existingJob := &batchv1.Job{ObjectMeta: metav1.ObjectMeta{Name: job.Name, Namespace: job.Namespace}}
-
-		switch err := h.hostKube.Get(ctx, types.NamespacedName{Name: job.Name, Namespace: job.Namespace}, existingJob); {
-		case err == nil:
-			if labels.Conflicts(existingJob.GetLabels(), job.GetLabels()) {
-				return fail(ctx, h.kube, h.ext, errors.Errorf("stale job %s/%s prevents stackinstall", existingJob.Namespace, existingJob.Name))
-			}
-			*job = *existingJob
-		case kerrors.IsNotFound(err):
-			if err := h.hostKube.Create(ctx, job); err != nil {
-				return fail(ctx, h.kube, h.ext, err)
-			}
-		case err != nil:
+		if jobRef, err = h.findOrCreateInstallJob(ctx); err != nil {
 			return fail(ctx, h.kube, h.ext, err)
 		}
 
-		jobRef = &corev1.ObjectReference{
-			Name:      job.Name,
-			Namespace: job.Namespace,
-		}
-
-		// Save a reference to the install job we just created
+		// Save a reference to the install job we just created or found
 		h.ext.SetInstallJob(jobRef)
 		h.ext.SetConditions(runtimev1alpha1.ReconcileSuccess())
-		h.log.Debug("created install job", "jobRef", jobRef, "jobOwnerRefs", job.OwnerReferences)
+		h.log.Debug("created install job", "jobRef", jobRef)
 
-		return requeueOnSuccess, h.kube.Status().Update(ctx, h.ext)
+		return requeueOnSuccess, h.kube.Status().Patch(ctx, h.ext, stackInstallPatch)
 	}
 
 	return h.awaitInstallJob(ctx, jobRef)
 }
 
-func (h *stackInstallHandler) createInstallJob() *batchv1.Job {
+// findOrCreateInstallJob finds or creates an install job for the stackinstall.
+// In host-aware configurations this will also create host copies of any
+// imagePullSecrets.
+//
+// if an install job with the expected name already exists, compare the labels
+// (specifically parent labels). If they match, adopt this job - we must have
+// failed to update the jobref on a previous reconciliation. if the install job
+// does not belong to this stackinstall, block reconciliation and report it
+// until the problem is resolved.
+func (h *stackInstallHandler) findOrCreateInstallJob(ctx context.Context) (*corev1.ObjectReference, error) {
 	var annotations map[string]string
-
 	i := h.ext
-	executorInfo := h.executorInfo
-	hCfg := h.hostAwareConfig
-	tscImage := h.templatesControllerImage
+
 	name := i.GetName()
 	namespace := i.GetNamespace()
+	imagePullSecrets := append([]corev1.LocalObjectReference{}, i.GetImagePullSecrets()...)
+	pLabels := stacks.ParentLabels(i)
 
-	if hCfg != nil {
+	if hCfg := h.hostAwareConfig; hCfg != nil {
 		singular := "stackinstall"
 		if i.PermissionScope() == string(apiextensionsv1beta1.ClusterScoped) {
 			singular = "clusterstackinstall"
 		}
+
 		annotations = hosted.ObjectReferenceAnnotationsOnHost(singular, name, namespace)
 
-		// In Hosted Mode, we need to map all install jobs on tenant Kubernetes into a single namespace on host cluster.
-		o := hCfg.ObjectReferenceOnHost(name, namespace)
-		name = o.Name
-		namespace = o.Namespace
+		// Generate names for the image pull secrets that will reside on the
+		// host. Secret names are required for the Job, but the Job UID is
+		// required for the secrets. After creating the Job, the list of host
+		// secret names can be paired with their original tenant secrets names
+		// allowing the source secrets to be copied into their host counterpart.
+		// UIDs suffixes are used in the host secret name to prevent the
+		// guessing of names which could be abused by other tenant Stack
+		// Deployments.
+		hostImagePullSecrets, err := hosted.ImagePullSecretsOnHost(namespace, imagePullSecrets)
+		if err != nil {
+			return nil, err
+		}
+		imagePullSecrets = hostImagePullSecrets
+
+		// In Hosted Mode, we need to map all install jobs on tenant
+		// Kubernetes into a single namespace on host cluster.
+		hostJobRef := hCfg.ObjectReferenceOnHost(name, namespace)
+		name = hostJobRef.Name
+		namespace = hostJobRef.Namespace
 	}
+
+	job := &batchv1.Job{}
+	existingJob := &batchv1.Job{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace}}
+
+	switch getErr := h.hostKube.Get(ctx, types.NamespacedName{Name: name, Namespace: namespace}, existingJob); {
+	case getErr == nil:
+		// a matching job was found, unless the labels conflict, its ours
+		if labels.Conflicts(existingJob.GetLabels(), pLabels) {
+			return nil, errors.Errorf("stale job %s/%s prevents stackinstall", existingJob.Namespace, existingJob.Name)
+		}
+		*job = *existingJob
+	case kerrors.IsNotFound(getErr):
+		// there is no install job created yet, create it now
+		job = h.prepareInstallJob(name, namespace, pLabels, annotations, imagePullSecrets)
+
+		if createErr := h.hostKube.Create(ctx, job); createErr != nil {
+			return nil, createErr
+		}
+		h.debugWithName("created job", "uid", job.UID)
+	case getErr != nil:
+		return nil, getErr
+	}
+
+	// Set the GVK explicitly so APIGroup and Kind are not empty strings
+	// within SyncImagePullSecrets, resulting in an invalid owner reference
+	jobGVK := batchv1.SchemeGroupVersion.WithKind("Job")
+	job.SetGroupVersionKind(jobGVK)
+	jobRef := meta.ReferenceTo(job, jobGVK)
+
+	if err := h.finalizeHostInstallJob(ctx, job); err != nil {
+		return nil, err
+	}
+
+	return jobRef, nil
+}
+
+// finalizeHostInstallJob prepares a paused host install job to run by copying
+// any necessary image pull secrets to the host and finally enabling the job
+// with the host copies of the image pull secrets
+func (h *stackInstallHandler) finalizeHostInstallJob(ctx context.Context, job *batchv1.Job) error {
+	if h.hostAwareConfig == nil {
+		return nil
+	}
+
+	err := hosted.SyncImagePullSecrets(ctx,
+		h.kube,
+		h.hostKube,
+		h.ext.GetNamespace(),
+		h.ext.GetImagePullSecrets(),
+		job.Spec.Template.Spec.ImagePullSecrets,
+		job)
+
+	return err
+}
+
+func (h *stackInstallHandler) prepareInstallJob(name, namespace string, labels, annotations map[string]string, imagePullSecrets []corev1.LocalObjectReference) *batchv1.Job {
+	i := h.ext
+	executorInfo := h.executorInfo
+	tscImage := h.templatesControllerImage
 
 	pkg := i.GetPackage()
 	img, err := i.ImageWithSource(pkg)
@@ -366,7 +425,7 @@ func (h *stackInstallHandler) createInstallJob() *batchv1.Job {
 		img = pkg
 	}
 
-	return prepareInstallJob(prepareInstallJobParams{
+	return buildInstallJob(buildInstallJobParams{
 		name:                   name,
 		namespace:              namespace,
 		permissionScope:        i.PermissionScope(),
@@ -375,9 +434,9 @@ func (h *stackInstallHandler) createInstallJob() *batchv1.Job {
 		tscImage:               tscImage,
 		stackManagerPullPolicy: executorInfo.ImagePullPolicy,
 		imagePullPolicy:        i.GetImagePullPolicy(),
-		labels:                 stacks.ParentLabels(i),
+		labels:                 labels,
 		annotations:            annotations,
-		imagePullSecrets:       i.GetImagePullSecrets()})
+		imagePullSecrets:       imagePullSecrets})
 }
 
 func (h *stackInstallHandler) awaitInstallJob(ctx context.Context, jobRef *corev1.ObjectReference) (reconcile.Result, error) {
