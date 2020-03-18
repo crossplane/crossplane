@@ -2821,6 +2821,7 @@ spec:
               - Provider
               - Stack
               - Application
+              - Addon
               type: string
             permissionScope:
               enum:
