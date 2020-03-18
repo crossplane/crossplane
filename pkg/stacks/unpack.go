@@ -95,6 +95,14 @@ const (
 )
 
 var (
+	// StackCoreRBACRules are the rules that all Stack controllers receive
+	StackCoreRBACRules = []rbacv1.PolicyRule{{
+		APIGroups:     []string{""},
+		ResourceNames: []string{},
+		Resources:     []string{"configmaps", "events", "secrets"},
+		Verbs:         []string{"*"},
+	}}
+
 	// iconFileGlobalNames is the set of supported icon file names at the global level, i.e. not
 	// specific to a single resource
 	iconFileGlobalNames = []string{"icon.svg", "icon.png", "icon.jpg", "icon.jpeg", "icon.gif"}
@@ -446,35 +454,27 @@ func (sp *StackPackage) applyAnnotations() {
 // generateRBAC generates a RBAC policy rule for the given kind and group.
 // Note that apiGroup should not contain a version, only the group, e.g., database.crossplane.io
 // RBAC policy rules are intended to be versionless.
-func generateRBAC(apiKinds []string, apiGroup string) rbacv1.PolicyRule {
+func generateRBAC(apiKinds []string, apiGroup string, verbs []string) rbacv1.PolicyRule {
 	return rbacv1.PolicyRule{
 		APIGroups:     []string{apiGroup},
 		ResourceNames: []string{},
 		Resources:     apiKinds,
-		Verbs:         []string{"*"},
+		Verbs:         verbs,
 	}
 }
 
 // applyRules adds RBAC rules to the Stack for standard Stack needs and to fulfill dependencies
-func (sp *StackPackage) applyRules() error {
-	core := rbacv1.PolicyRule{
-		APIGroups:     []string{""},
-		ResourceNames: []string{},
-		Resources:     []string{"configmaps", "events", "secrets"},
-		Verbs:         []string{"*"},
-	}
-
+func (sp *StackPackage) applyRules() (v1alpha1.PermissionsSpec, error) {
 	// standard rules that all Stacks get
-	rbac := v1alpha1.PermissionsSpec{Rules: []rbacv1.PolicyRule{
-		core,
-	}}
+	rbac := v1alpha1.PermissionsSpec{Rules: StackCoreRBACRules}
+	allVerbs := []string{"*"}
 
 	// owned CRD rules
 	orderedKeys := orderStackCRDKeys(sp.CRDs)
 	for _, k := range orderedKeys {
 		crd := sp.CRDs[k]
 		kinds := []string{crd.Spec.Names.Plural}
-
+		verbs := allVerbs
 		if subs := crd.Spec.Subresources; subs != nil {
 			if subs.Status != nil {
 				kinds = append(kinds, crd.Spec.Names.Plural+"/status")
@@ -483,7 +483,7 @@ func (sp *StackPackage) applyRules() error {
 				kinds = append(kinds, crd.Spec.Names.Plural+"/scale")
 			}
 		}
-		rule := generateRBAC(kinds, crd.Spec.Group)
+		rule := generateRBAC(kinds, crd.Spec.Group, verbs)
 		rbac.Rules = append(rbac.Rules, rule)
 	}
 
@@ -498,16 +498,15 @@ func (sp *StackPackage) applyRules() error {
 			}
 
 			gk := schema.ParseGroupKind(crd)
-			if gk.Group == "" || gk.Kind == "" {
-				return errors.New(fmt.Sprintf("cannot parse CustomResourceDefinition %q as Kind and Group", crd))
+			if gk.Kind == "" {
+				return v1alpha1.PermissionsSpec{}, errors.New(fmt.Sprintf("cannot parse CustomResourceDefinition %q as Kind and Group", crd))
 			}
-			rule := generateRBAC([]string{gk.Kind}, gk.Group)
+			rule := generateRBAC([]string{gk.Kind}, gk.Group, allVerbs)
 			rbac.Rules = append(rbac.Rules, rule)
 		}
 	}
 
-	sp.SetRBAC(rbac)
-	return nil
+	return rbac, nil
 }
 
 // NewStackPackage returns a StackPackage with maps created
@@ -574,9 +573,11 @@ func Unpack(rw walker.ResourceWalker, out io.StringWriter, baseDir, permissionSc
 		return errors.New(fmt.Sprintf("Stack permissionScope %q is not permitted by unpack invocation parameters (expected %q)", sp.Stack.Spec.PermissionScope, permissionScope))
 	}
 
-	if err := sp.applyRules(); err != nil {
+	perms, err := sp.applyRules()
+	if err != nil {
 		return err
 	}
+	sp.SetRBAC(perms)
 
 	sp.applyAnnotations()
 

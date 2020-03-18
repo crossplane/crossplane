@@ -19,7 +19,9 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/spf13/afero"
 	"gopkg.in/alecthomas/kingpin.v2"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
@@ -38,92 +40,132 @@ import (
 	"github.com/crossplane/crossplane/pkg/stacks/walker"
 )
 
+type fullCommand struct {
+	clause  *kingpin.CmdClause
+	handler func()
+}
+
+type appReq struct {
+	app        *kingpin.Application
+	zl         logr.Logger
+	syncPeriod *time.Duration
+}
+
 func main() {
-	var (
-		app        = kingpin.New(filepath.Base(os.Args[0]), "An open source multicloud control plane.").DefaultEnvars()
-		debug      = app.Flag("debug", "Run with debug logging.").Short('d').Bool()
-		syncPeriod = app.Flag("sync", "Controller manager sync period duration such as 300ms, 1.5h or 2h45m").Short('s').Default("1h").Duration()
+	baseCmd := filepath.Base(os.Args[0])
+	args := os.Args[1:]
 
-		crossplaneCmd = app.Command(filepath.Base(os.Args[0]), "Start core Crossplane controllers.").Default()
+	app := kingpin.New(baseCmd, "An open source multicloud control plane.").DefaultEnvars()
+	debug := app.Flag("debug", "Run with debug logging.").Short('d').Bool()
+	syncPeriod := app.Flag("sync", "Controller manager sync period duration such as 300ms, 1.5h or 2h45m").Short('s').Default("1h").Duration()
 
-		extCmd = app.Command("stack", "Perform operations on stacks")
+	a := appReq{
+		app:        app,
+		zl:         zap.New(zap.UseDevMode(*debug)),
+		syncPeriod: syncPeriod,
+	}
 
-		// The stack manager runs as a separate pod from the core Crossplane
-		// controllers because in order to install stacks that have arbitrary
-		// permissions, the SM itself must have cluster-admin permissions. We
-		// isolate these elevated permissions as much as possible by running the
-		// Crossplane stack manager in its own isolated deployment.
-		extManageCmd                 = extCmd.Command("manage", "Start Crosplane Stack Manager controllers")
-		extManageTemplates           = extManageCmd.Flag("templates", "Enable support for template stacks").Bool()
-		extManageTemplatesController = extManageCmd.Flag("templating-controller-image", "The image of the Template Stacks controller (implies --templates)").Default("").String()
+	commands := []fullCommand{}
+	commands = append(commands, a.crossplaneCmd(baseCmd)...)
+	commands = append(commands, a.stackCmd()...)
 
-		extManageHostControllerNamespace = extManageCmd.Flag("host-controller-namespace", "The namespace on Host Cluster where install and controller jobs/deployments will be created. Setting this will activate host aware mode of Stack Manager").String()
-		extManageTenantKubeconfig        = extManageCmd.Flag("tenant-kubeconfig", "The absolute path of the kubeconfig file to Tenant Kubernetes instance (required for host aware mode, ignored otherwise).").ExistingFile()
+	cmdGiven := kingpin.MustParse(app.Parse(args))
 
-		// Unpack the given stack package content. This command is expected to
-		// parse the content and generate manifests for stack related artifacts
-		// to stdout so that the SM can read the output and use the Kubernetes
-		// API to create the artifacts.
-		//
-		// Users are not expected to run this command themselves, the stack
-		// manager itself should execute this command.
-		//
-		// Unpack does not interact with the Kubernetes API.
-		extUnpackCmd                 = extCmd.Command("unpack", "Unpack a Stack").Alias("unstack")
-		extUnpackDir                 = extUnpackCmd.Flag("content-dir", "The absolute path of the directory that contains the stack contents").Required().String()
-		extUnpackOutfile             = extUnpackCmd.Flag("outfile", "The file where the YAML Stack record and CRD artifacts will be written").String()
-		extUnpackPermissionScope     = extUnpackCmd.Flag("permission-scope", "The permission-scope that the stack must request (Namespaced, Cluster)").Default("Namespaced").String()
-		extUnpackTemplatesController = extUnpackCmd.Flag("templating-controller-image", "The image of the Template Stacks controller").Default("").String()
-	)
-	cmd := kingpin.MustParse(app.Parse(os.Args[1:]))
-
-	zl := zap.New(zap.UseDevMode(*debug))
 	if *debug {
 		// The controller-runtime runs with a no-op logger by default. It is
 		// *very* verbose even at info level, so we only provide it a real
 		// logger when we're running in debug mode.
-		ctrl.SetLogger(zl)
+		ctrl.SetLogger(a.zl)
 	}
 
-	// TODO(negz): Is there a reason these distinct pieces of functionality
-	// should all be part of the same binary? Should we break them up?
-	switch cmd {
+	knownCmd := false
+	for _, cmd := range commands {
+		if cmdGiven == cmd.clause.FullCommand() {
+			knownCmd = true
+			cmd.handler()
+			break
+		}
+	}
 
-	case crossplaneCmd.FullCommand():
-		log := logging.NewLogrLogger(zl.WithName("crossplane"))
-		log.Debug("Starting", "sync-period", syncPeriod.String())
+	if !knownCmd {
+		kingpin.FatalUsage("unknown command %s", cmdGiven)
+	}
+}
+
+// crossplaneCmd provides the fullCommand for the default command
+//
+// The default command runs the controllers for all Crossplane resources except
+// stack resources.
+func (a appReq) crossplaneCmd(baseCmd string) []fullCommand {
+	crossplaneCmd := a.app.Command(baseCmd, "Start core Crossplane controllers.").Default()
+
+	return []fullCommand{{crossplaneCmd, func() {
+		log := logging.NewLogrLogger(a.zl.WithName("crossplane"))
+		log.Debug("Starting", "sync-period", a.syncPeriod.String())
 
 		cfg, err := ctrl.GetConfig()
 		kingpin.FatalIfError(err, "Cannot get config")
 
-		mgr, err := ctrl.NewManager(cfg, ctrl.Options{SyncPeriod: syncPeriod})
+		mgr, err := ctrl.NewManager(cfg, ctrl.Options{SyncPeriod: a.syncPeriod})
 		kingpin.FatalIfError(err, "Cannot create manager")
 
 		kingpin.FatalIfError(apis.AddToScheme(mgr.GetScheme()), "Cannot add core Crossplane APIs to scheme")
 		kingpin.FatalIfError(oam.Setup(mgr, log), "Cannot setup OAM controllers")
 		kingpin.FatalIfError(workload.Setup(mgr, log), "Cannot setup workload controllers")
 		kingpin.FatalIfError(mgr.Start(ctrl.SetupSignalHandler()), "Cannot start controller manager")
+	}}}
+}
 
-	case extManageCmd.FullCommand():
-		log := logging.NewLogrLogger(zl.WithName(stack.LabelValueStackManager))
-		log.Debug("Starting", "sync-period", syncPeriod.String())
+// stackCmd provides the fullCommand for the "stack" command
+func (a appReq) stackCmd() []fullCommand {
+	stackCmd := a.app.Command("stack", "Perform operations on stacks")
+	return []fullCommand{
+		a.stackManageCmd(stackCmd),
+		a.stackUnpackCmd(stackCmd),
+	}
+}
 
-		cfg, err := getRestConfig(*extManageTenantKubeconfig)
+// stackManageCmd provides the fullCommand for the "stack manage" command
+//
+// The stack manager runs as a separate pod from the core Crossplane
+// controllers because in order to install stacks that have arbitrary
+// permissions, the SM itself must have cluster-admin permissions. We
+// isolate these elevated permissions as much as possible by running the
+// Crossplane stack manager in its own isolated deployment.
+func (a appReq) stackManageCmd(stackCmd *kingpin.CmdClause) fullCommand {
+	stackManageCmd := stackCmd.Command("manage", "Start Crossplane Stack Manager controllers")
+
+	stackManageRestrictCore := stackManageCmd.Flag("restrict-core-apigroups", "Enable API group restrictions for Stacks. When enabled, APIs that Stacks depend on and own must contain a dot (\".\") and may not end with \"k8s.io\". When omitted, all groups are permitted.").Default("false").Bool()
+	stackManageTemplates := stackManageCmd.Flag("templates", "Enable support for template stacks").Bool()
+	stackManageTemplatesController := stackManageCmd.Flag("templating-controller-image", "The image of the Template Stacks controller (implies --templates)").Default("").String()
+
+	stackManageHostControllerNamespace := stackManageCmd.Flag("host-controller-namespace", "The namespace on Host Cluster where install and controller jobs/deployments will be created. Setting this will activate host aware mode of Stack Manager").String()
+	stackManageTenantKubeconfig := stackManageCmd.Flag("tenant-kubeconfig", "The absolute path of the kubeconfig file to Tenant Kubernetes instance (required for host aware mode, ignored otherwise).").ExistingFile()
+
+	return fullCommand{stackManageCmd, func() {
+		log := logging.NewLogrLogger(a.zl.WithName(stack.LabelValueStackManager))
+		log.Debug("Starting", "sync-period", a.syncPeriod.String())
+
+		if *stackManageRestrictCore {
+			log.Debug("Restricting core group use in the Stacks")
+		}
+
+		cfg, err := getRestConfig(*stackManageTenantKubeconfig)
 		kingpin.FatalIfError(err, "Cannot get config")
 
-		mgr, err := ctrl.NewManager(cfg, ctrl.Options{SyncPeriod: syncPeriod})
+		mgr, err := ctrl.NewManager(cfg, ctrl.Options{SyncPeriod: a.syncPeriod})
 		kingpin.FatalIfError(err, "Cannot create manager")
 
 		kingpin.FatalIfError(apis.AddToScheme(mgr.GetScheme()), "Cannot add core Crossplane APIs to scheme")
 		kingpin.FatalIfError(apiextensionsv1beta1.AddToScheme(mgr.GetScheme()), "Cannot add API extensions to scheme")
-		kingpin.FatalIfError(stacks.Setup(mgr, log, *extManageHostControllerNamespace, *extManageTemplatesController), "Cannot add stacks controllers to manager")
+		kingpin.FatalIfError(stacks.Setup(mgr, log, *stackManageHostControllerNamespace, *stackManageTemplatesController, *stackManageRestrictCore), "Cannot add stacks controllers to manager")
 
-		if *extManageTemplatesController != "" {
-			*extManageTemplates = true
+		if *stackManageTemplatesController != "" {
+			*stackManageTemplates = true
 		}
 
-		if *extManageTemplates {
-			if *extManageTemplatesController == "" {
+		if *stackManageTemplates {
+			if *stackManageTemplatesController == "" {
 				kingpin.Fatalf("--templating-controller-image is required with --templates")
 			}
 
@@ -131,13 +173,33 @@ func main() {
 		}
 
 		kingpin.FatalIfError(mgr.Start(ctrl.SetupSignalHandler()), "Cannot start controller manager")
+	}}
+}
 
-	case extUnpackCmd.FullCommand():
-		log := logging.NewLogrLogger(zl.WithName("stacks"))
+// stackUnpackCmd provides the fullCommand for the "stack unpack" command
+//
+// Unpack the given stack package content. This command is expected to
+// parse the content and generate manifests for stack related artifacts
+// to stdout so that the SM can read the output and use the Kubernetes
+// API to create the artifacts.
+//
+// Users are not expected to run this command themselves, the stack
+// manager itself should execute this command.
+//
+// Unpack does not interact with the Kubernetes API.
+func (a appReq) stackUnpackCmd(stackCmd *kingpin.CmdClause) fullCommand {
+	stackUnpackCmd := stackCmd.Command("unpack", "Unpack a Stack").Alias("unstack")
+	stackUnpackDir := stackUnpackCmd.Flag("content-dir", "The absolute path of the directory that contains the stack contents").Required().String()
+	stackUnpackOutfile := stackUnpackCmd.Flag("outfile", "The file where the YAML Stack record and CRD artifacts will be written").String()
+	stackUnpackPermissionScope := stackUnpackCmd.Flag("permission-scope", "The permission-scope that the stack must request (Namespaced, Cluster)").Default("Namespaced").String()
+	stackUnpackTemplatesController := stackUnpackCmd.Flag("templating-controller-image", "The image of the Template Stacks controller").Default("").String()
+
+	return fullCommand{stackUnpackCmd, func() {
+		log := logging.NewLogrLogger(a.zl.WithName("stacks"))
 
 		outFile := os.Stdout
-		if *extUnpackOutfile != "" {
-			f, err := os.Create(*extUnpackOutfile)
+		if *stackUnpackOutfile != "" {
+			f, err := os.Create(*stackUnpackOutfile)
 			kingpin.FatalIfError(err, "Cannot create output file")
 			defer kingpin.FatalIfError(f.Close(), "Cannot close file")
 			outFile = f
@@ -146,12 +208,9 @@ func main() {
 
 		// TODO(displague) afero.NewBasePathFs could avoid the need to track Base
 		fs := afero.NewOsFs()
-		rd := &walker.ResourceDir{Base: filepath.Clean(*extUnpackDir), Walker: afero.Afero{Fs: fs}}
-		kingpin.FatalIfError(stack.Unpack(rd, outFile, rd.Base, *extUnpackPermissionScope, *extUnpackTemplatesController, log), "failed to unpack stacks")
-
-	default:
-		kingpin.FatalUsage("unknown command %s", cmd)
-	}
+		rd := &walker.ResourceDir{Base: filepath.Clean(*stackUnpackDir), Walker: afero.Afero{Fs: fs}}
+		kingpin.FatalIfError(stack.Unpack(rd, outFile, rd.Base, *stackUnpackPermissionScope, *stackUnpackTemplatesController, log), "failed to unpack stacks")
+	}}
 }
 
 func getRestConfig(kubeconfigPath string) (*rest.Config, error) {

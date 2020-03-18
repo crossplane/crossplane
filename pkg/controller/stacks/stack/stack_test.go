@@ -205,11 +205,11 @@ func resource(rm ...resourceModifier) *v1alpha1.Stack {
 // mockFactory and mockHandler
 // ************************************************************************************************
 type mockFactory struct {
-	MockNewHandler func(logging.Logger, *v1alpha1.Stack, client.Client, client.Client, *hosted.Config) handler
+	MockNewHandler func(logging.Logger, *v1alpha1.Stack, client.Client, client.Client, *hosted.Config, bool) handler
 }
 
-func (f *mockFactory) newHandler(log logging.Logger, r *v1alpha1.Stack, c client.Client, h client.Client, hc *hosted.Config) handler {
-	return f.MockNewHandler(log, r, c, nil, nil)
+func (f *mockFactory) newHandler(log logging.Logger, r *v1alpha1.Stack, c client.Client, h client.Client, hc *hosted.Config, restrictCore bool) handler {
+	return f.MockNewHandler(log, r, c, nil, nil, restrictCore)
 }
 
 type mockHandler struct {
@@ -338,7 +338,7 @@ func TestReconcile(t *testing.T) {
 					},
 				},
 				factory: &mockFactory{
-					MockNewHandler: func(logging.Logger, *v1alpha1.Stack, client.Client, client.Client, *hosted.Config) handler {
+					MockNewHandler: func(logging.Logger, *v1alpha1.Stack, client.Client, client.Client, *hosted.Config, bool) handler {
 						return &mockHandler{
 							MockSync: func(context.Context) (reconcile.Result, error) {
 								return reconcile.Result{}, nil
@@ -2637,6 +2637,285 @@ func Test_stackHandler_removeCRDLabels(t *testing.T) {
 					got := &apiextensionsv1beta1.CustomResourceDefinition{}
 					assertKubernetesObject(t, g, got, &wanted, h.kube)
 				}
+			}
+		})
+	}
+}
+
+func Test_stackHandler_validateStackPermissions(t *testing.T) {
+	everything := []rbac.PolicyRule{{
+		APIGroups: []string{"*"},
+		Resources: []string{"*"},
+		Verbs:     []string{"*"},
+	}}
+
+	mixed := append(stackspkg.StackCoreRBACRules, everything...)
+	tests := []struct {
+		name         string
+		restrictCore bool
+		ext          *v1alpha1.Stack
+		wantErr      error
+	}{
+		{
+			name:         "DefaultPolicy",
+			restrictCore: true,
+			ext:          resource(withPolicyRules(stackspkg.StackCoreRBACRules)),
+			wantErr:      nil,
+		},
+		{
+			name:         "DefaultPolicyWithoutRestrictions",
+			restrictCore: false,
+			ext:          resource(withPolicyRules(stackspkg.StackCoreRBACRules)),
+			wantErr:      nil,
+		},
+		{
+			name:         "EverythingPolicy",
+			restrictCore: true,
+			ext:          resource(withPolicyRules(everything)),
+			wantErr:      errors.New("permissions contain a restricted rule"),
+		},
+		{
+			name:         "EverythingPolicyWithoutRestrictions",
+			restrictCore: false,
+			ext:          resource(withPolicyRules(everything)),
+			wantErr:      nil,
+		},
+		{
+			name:         "MixedPolicy",
+			restrictCore: true,
+			ext:          resource(withPolicyRules(mixed)),
+			wantErr:      errors.New("permissions contain a restricted rule"),
+		},
+		{
+			name:         "MixedPolicyWithoutRestrictions",
+			restrictCore: false,
+			ext:          resource(withPolicyRules(mixed)),
+			wantErr:      nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := &stackHandler{
+				restrictCore: tt.restrictCore,
+				ext:          tt.ext,
+				log:          logging.NewNopLogger(),
+			}
+			gotErr := h.validateStackPermissions()
+
+			if diff := cmp.Diff(tt.wantErr, gotErr, test.EquateErrors()); diff != "" {
+				t.Errorf("-want error, +got error:\n%s", diff)
+			}
+		})
+	}
+}
+
+func Test_policiesEqual(t *testing.T) {
+	tests := []struct {
+		name string
+		a    rbac.PolicyRule
+		b    rbac.PolicyRule
+		want bool
+	}{
+		{
+			name: "EmptyMatch",
+			a:    rbac.PolicyRule{},
+			b:    rbac.PolicyRule{},
+			want: true,
+		},
+		{
+			name: "APIGroups",
+			a:    rbac.PolicyRule{APIGroups: []string{"foo"}},
+			b:    rbac.PolicyRule{APIGroups: []string{"bar"}},
+			want: false,
+		},
+		{
+			name: "Resources",
+			a:    rbac.PolicyRule{Resources: []string{"foo"}},
+			b:    rbac.PolicyRule{Resources: []string{"bar"}},
+			want: false,
+		},
+		{
+			name: "Verbs",
+			a:    rbac.PolicyRule{Verbs: []string{"foo"}},
+			b:    rbac.PolicyRule{Verbs: []string{"bar"}},
+			want: false,
+		},
+		{
+			name: "ResourceNames",
+			a:    rbac.PolicyRule{ResourceNames: []string{"foo"}},
+			b:    rbac.PolicyRule{ResourceNames: []string{"bar"}},
+			want: false,
+		},
+		{
+			name: "NonResourceURLs",
+			a:    rbac.PolicyRule{NonResourceURLs: []string{"foo"}},
+			b:    rbac.PolicyRule{NonResourceURLs: []string{"bar"}},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := policiesEqual(tt.a, tt.b)
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Errorf("policiesEqual(), -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func Test_isDefaultStackPolicy(t *testing.T) {
+	tests := []struct {
+		name   string
+		policy rbac.PolicyRule
+		want   bool
+	}{
+		{
+			name:   "EmptyPolicy",
+			policy: rbac.PolicyRule{},
+			want:   false,
+		},
+		{
+			name:   "DefaultPolicy",
+			policy: stackspkg.StackCoreRBACRules[0],
+			want:   true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isDefaultStackPolicy(tt.policy)
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Errorf("isDefaultStackPolicy(), -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func Test_isPermittedAPIGroup(t *testing.T) {
+	tests := []struct {
+		name     string
+		apiGroup string
+		want     bool
+	}{
+		{
+			name:     "DotLess",
+			apiGroup: "",
+			want:     false,
+		},
+		{
+			name:     "k8s.io",
+			apiGroup: "foo.k8s.io",
+			want:     false,
+		},
+		{
+			name:     "Permitted",
+			apiGroup: "foo.stack.example.com",
+			want:     true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isPermittedAPIGroup(tt.apiGroup)
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Errorf("isPermittedAPIGroup(), -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func Test_isPermittedStackPolicy(t *testing.T) {
+	tests := []struct {
+		name   string
+		policy rbac.PolicyRule
+		want   bool
+	}{
+		{
+			name:   "EmptyPolicy",
+			policy: rbac.PolicyRule{},
+			want:   false,
+		},
+		{
+			name:   "EmptyAPIGroup",
+			policy: rbac.PolicyRule{APIGroups: []string{""}, Resources: []string{"*"}, Verbs: []string{"*"}},
+			want:   false,
+		},
+		{
+			name:   "Everything",
+			policy: rbac.PolicyRule{APIGroups: []string{"*"}, Resources: []string{"*"}, Verbs: []string{"*"}},
+			want:   false,
+		},
+		{
+			name:   "NonResourceURLPolicy",
+			policy: rbac.PolicyRule{NonResourceURLs: []string{"foo"}},
+			want:   false,
+		},
+		{
+			name:   "DefaultPolicy",
+			policy: stackspkg.StackCoreRBACRules[0],
+			want:   true,
+		},
+		{
+			name: "PermittedPolicy",
+			policy: rbac.PolicyRule{
+				APIGroups: []string{"foo.bar", "bar.foo"},
+				Resources: []string{"foo", "bar"},
+				Verbs:     []string{"*"},
+			},
+			want: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isPermittedStackPolicy(tt.policy)
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Errorf("isPermittedStackPolicy(), -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func Test_stringSlicesEqual(t *testing.T) {
+	tests := []struct {
+		name string
+		a    []string
+		b    []string
+		want bool
+	}{
+		{
+			name: "Empty",
+			a:    []string{},
+			b:    []string{},
+			want: true,
+		},
+		{
+			name: "Uneven",
+			a:    []string{"a"},
+			b:    []string{"a", "b"},
+			want: false,
+		},
+		{
+			name: "OrderMatters",
+			a:    []string{"b", "a"},
+			b:    []string{"a", "b"},
+			want: false,
+		},
+		{
+			name: "Mismatched",
+			a:    []string{"b", "a"},
+			b:    []string{"c", "d"},
+			want: false,
+		},
+		{
+			name: "Matched",
+			a:    []string{"a", "b", "c"},
+			b:    []string{"a", "b", "c"},
+			want: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := stringSlicesEqual(tt.a, tt.b)
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Errorf("stringSlicesEqual(), -want, +got:\n%s", diff)
 			}
 		})
 	}
