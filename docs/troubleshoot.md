@@ -11,6 +11,7 @@ indent: true
 * [Crossplane Logs](#crossplane-logs)
 * [Pausing Crossplane](#pausing-crossplane)
 * [Deleting a Resource Hangs](#deleting-a-resource-hangs)
+* [Host-Aware Resource Debugging](#host-aware-resource-debugging)
 
 ## Using the trace command
 
@@ -131,3 +132,16 @@ For example, for a Workload object (`workloads.compute.crossplane.io`) named
 ```console
 kubectl patch workloads.compute.crossplane.io test-workload -p '{"metadata":{"finalizers": []}}' --type=merge
 ```
+
+## Host-Aware Resource Debugging
+
+Stack resources (including the Stack, service accounts, deployments, and jobs) are usually easy to identify by name. These resource names are based on the name used in the StackInstall or Stack resource.
+
+In some cases, the full name of a Stack resource, which could be up to 253 characters long, can not be represented in the created resources. For example, jobs and deployment names may not exceed 63 characters because these names are turned into resource label values which impose a 63 character limit. Stack created resources whose names would otherwise not be permitted in the Kubernetes API will be truncated with a unique suffix.
+
+When running the Stack Manager in host-aware mode, tenant stack resources created in the host controller namespace generally reuse the Stack names: "{tenant namespace}.{tenant name}".  In order to avoid the name length restrictions, these resources may be truncated at either or both of the namespace segment or over the entire name.  In these cases resource labels, owner references, and annotations should be consulted to identify the responsible Stack.
+
+* [Relationship Labels](https://github.com/crossplane/crossplane/blob/master/design/one-pager-stack-relationship-labels.md)
+* [Owner References](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/#owners-and-dependents)
+* Annotations: `tenant.crossplane.io/{singular}-name` and `tenant.crossplane.io/{singular}-namespace` (_singular_ may be `stackinstall`, `clusterstackinstall` or `stack`)
+
