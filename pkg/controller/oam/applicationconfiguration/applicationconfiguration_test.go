@@ -208,7 +208,7 @@ func TestReconciler(t *testing.T) {
 								withConditions(runtimev1alpha1.ReconcileSuccess()),
 								withWorkloadStatuses(v1alpha2.WorkloadStatus{
 									ComponentName: componentName,
-									Reference: v1alpha2.WorkloadReference{
+									Reference: runtimev1alpha1.TypedReference{
 										APIVersion: workload.GetAPIVersion(),
 										Kind:       workload.GetKind(),
 										Name:       workload.GetName(),
@@ -288,7 +288,7 @@ func TestWorkloadStatus(t *testing.T) {
 			},
 			want: v1alpha2.WorkloadStatus{
 				ComponentName: componentName,
-				Reference: v1alpha2.WorkloadReference{
+				Reference: runtimev1alpha1.TypedReference{
 					APIVersion: workload.GetAPIVersion(),
 					Kind:       workload.GetKind(),
 					Name:       workload.GetName(),
@@ -296,7 +296,7 @@ func TestWorkloadStatus(t *testing.T) {
 				},
 				Traits: []v1alpha2.WorkloadTrait{
 					{
-						Reference: v1alpha2.TraitReference{
+						Reference: runtimev1alpha1.TypedReference{
 							APIVersion: trait.GetAPIVersion(),
 							Kind:       trait.GetKind(),
 							Name:       trait.GetName(),
@@ -352,7 +352,7 @@ func TestEligible(t *testing.T) {
 				namespace: namespace,
 				ws: []v1alpha2.WorkloadStatus{
 					{
-						Reference: v1alpha2.WorkloadReference{
+						Reference: runtimev1alpha1.TypedReference{
 							APIVersion: workload.GetAPIVersion(),
 							Kind:       workload.GetKind(),
 							Name:       workload.GetName(),
@@ -360,7 +360,7 @@ func TestEligible(t *testing.T) {
 						},
 						Traits: []v1alpha2.WorkloadTrait{
 							{
-								Reference: v1alpha2.TraitReference{
+								Reference: runtimev1alpha1.TypedReference{
 									APIVersion: trait.GetAPIVersion(),
 									Kind:       trait.GetKind(),
 									Name:       trait.GetName(),
@@ -380,7 +380,7 @@ func TestEligible(t *testing.T) {
 				namespace: namespace,
 				ws: []v1alpha2.WorkloadStatus{
 					{
-						Reference: v1alpha2.WorkloadReference{
+						Reference: runtimev1alpha1.TypedReference{
 							APIVersion: workload.GetAPIVersion(),
 							Kind:       workload.GetKind(),
 							Name:       workload.GetName(),
@@ -388,7 +388,7 @@ func TestEligible(t *testing.T) {
 						},
 						Traits: []v1alpha2.WorkloadTrait{
 							{
-								Reference: v1alpha2.TraitReference{
+								Reference: runtimev1alpha1.TypedReference{
 									APIVersion: trait.GetAPIVersion(),
 									Kind:       trait.GetKind(),
 									Name:       trait.GetName(),
@@ -407,7 +407,7 @@ func TestEligible(t *testing.T) {
 				namespace: namespace,
 				ws: []v1alpha2.WorkloadStatus{
 					{
-						Reference: v1alpha2.WorkloadReference{
+						Reference: runtimev1alpha1.TypedReference{
 							APIVersion: workload.GetAPIVersion(),
 							Kind:       workload.GetKind(),
 							Name:       workload.GetName(),
@@ -415,7 +415,7 @@ func TestEligible(t *testing.T) {
 						},
 						Traits: []v1alpha2.WorkloadTrait{
 							{
-								Reference: v1alpha2.TraitReference{
+								Reference: runtimev1alpha1.TypedReference{
 									APIVersion: trait.GetAPIVersion(),
 									Kind:       trait.GetKind(),
 									Name:       trait.GetName(),

@@ -19,7 +19,6 @@ package v1alpha2
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
@@ -224,26 +223,10 @@ type ComponentTrait struct {
 	Trait runtime.RawExtension `json:"trait"`
 }
 
-// A ScopeReference refers to an OAM scope resource.
-type ScopeReference struct {
-	// APIVersion of the referenced scope.
-	APIVersion string `json:"apiVersion"`
-
-	// Kind of the referenced scope.
-	Kind string `json:"kind"`
-
-	// Name of the referenced scope.
-	Name string `json:"name"`
-
-	// UID of the referenced scope.
-	// +optional
-	UID *types.UID `json:"uid,omitempty"`
-}
-
 // A ComponentScope specifies a scope in which a component should exist.
 type ComponentScope struct {
 	// A ScopeReference must refer to an OAM scope resource.
-	ScopeReference ScopeReference `json:"scopeRef"`
+	ScopeReference runtimev1alpha1.TypedReference `json:"scopeRef"`
 }
 
 // An ApplicationConfigurationComponent specifies a component of an
@@ -275,43 +258,13 @@ type ApplicationConfigurationSpec struct {
 	Components []ApplicationConfigurationComponent `json:"components"`
 }
 
-// A WorkloadReference refers to an OAM workload resource.
-type WorkloadReference struct {
-	// APIVersion of the referenced workload.
-	APIVersion string `json:"apiVersion"`
-
-	// Kind of the referenced workload.
-	Kind string `json:"kind"`
-
-	// Name of the referenced workload.
-	Name string `json:"name"`
-
-	// UID of the referenced workload.
-	UID types.UID `json:"uid"`
-}
-
-// A TraitReference refers to an OAM workload trait.
-type TraitReference struct {
-	// APIVersion of the referenced workload.
-	APIVersion string `json:"apiVersion"`
-
-	// Kind of the referenced workload.
-	Kind string `json:"kind"`
-
-	// Name of the referenced workload.
-	Name string `json:"name"`
-
-	// UID of the referenced workload.
-	UID types.UID `json:"uid"`
-}
-
 // A TraitStatus represents the state of a trait.
 type TraitStatus string
 
 // A WorkloadTrait represents a trait associated with a workload.
 type WorkloadTrait struct {
 	// Reference to a trait created by an ApplicationConfiguration.
-	Reference TraitReference `json:"traitRef"`
+	Reference runtimev1alpha1.TypedReference `json:"traitRef"`
 }
 
 // A WorkloadStatus represents the status of a workload.
@@ -320,7 +273,7 @@ type WorkloadStatus struct {
 	ComponentName string `json:"componentName,omitempty"`
 
 	// Reference to a workload created by an ApplicationConfiguration.
-	Reference WorkloadReference `json:"workloadRef,omitempty"`
+	Reference runtimev1alpha1.TypedReference `json:"workloadRef,omitempty"`
 
 	// Traits associated with this workload.
 	Traits []WorkloadTrait `json:"traits,omitempty"`

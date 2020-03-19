@@ -20,7 +20,12 @@ package v1alpha2
 
 import (
 	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+
+	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
+
+var _ resource.Trait = &ManualScalerTrait{}
+var _ resource.Workload = &ContainerizedWorkload{}
 
 // GetCondition of this ManualScalerTrait.
 func (tr *ManualScalerTrait) GetCondition(ct runtimev1alpha1.ConditionType) runtimev1alpha1.Condition {
@@ -33,12 +38,12 @@ func (tr *ManualScalerTrait) SetConditions(c ...runtimev1alpha1.Condition) {
 }
 
 // GetWorkloadReference of this ManualScalerTrait.
-func (tr *ManualScalerTrait) GetWorkloadReference() WorkloadReference {
+func (tr *ManualScalerTrait) GetWorkloadReference() runtimev1alpha1.TypedReference {
 	return tr.Spec.WorkloadReference
 }
 
 // SetWorkloadReference of this ManualScalerTrait.
-func (tr *ManualScalerTrait) SetWorkloadReference(r WorkloadReference) {
+func (tr *ManualScalerTrait) SetWorkloadReference(r runtimev1alpha1.TypedReference) {
 	tr.Spec.WorkloadReference = r
 }
 

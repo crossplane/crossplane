@@ -28,7 +28,7 @@ type ManualScalerTraitSpec struct {
 	ReplicaCount int32 `json:"replicaCount"`
 
 	// WorkloadReference to the workload this trait applies to.
-	WorkloadReference WorkloadReference `json:"workloadRef"`
+	WorkloadReference runtimev1alpha1.TypedReference `json:"workloadRef"`
 }
 
 // A ManualScalerTraitStatus represents the observed state of a

@@ -68,6 +68,21 @@ spec:
                       description: A ContainerConfigFile specifies a configuration
                         file that should be written within a container.
                       properties:
+                        fromSecret:
+                          description: FromSecret is a secret key reference which
+                            can be used to assign a value to be written to the configuration
+                            file at the given path in the container.
+                          properties:
+                            key:
+                              description: The key to select.
+                              type: string
+                            name:
+                              description: The name of the secret.
+                              type: string
+                          required:
+                          - key
+                          - name
+                          type: object
                         path:
                           description: Path within the container at which the configuration
                             file should be written.
@@ -78,7 +93,6 @@ spec:
                           type: string
                       required:
                       - path
-                      - value
                       type: object
                     type: array
                   env:
@@ -88,6 +102,20 @@ spec:
                       description: A ContainerEnvVar specifies an environment variable
                         that should be set within a container.
                       properties:
+                        fromSecret:
+                          description: FromSecret is a secret key reference which
+                            can be used to assign a value to the environment variable.
+                          properties:
+                            key:
+                              description: The key to select.
+                              type: string
+                            name:
+                              description: The name of the secret.
+                              type: string
+                          required:
+                          - key
+                          - name
+                          type: object
                         name:
                           description: Name of the environment variable. Must be composed
                             of valid Unicode letter and number characters, as well
@@ -99,7 +127,6 @@ spec:
                           type: string
                       required:
                       - name
-                      - value
                       type: object
                     type: array
                   image:
@@ -472,20 +499,21 @@ spec:
             resources:
               description: Resources managed by this containerised workload.
               items:
-                description: A ResourceReference refers to an resource managed by
-                  an OAM resource.
+                description: A TypedReference refers to an object by Name, Kind, and
+                  APIVersion. It is commonly used to reference cluster-scoped objects
+                  or objects where the namespace is already known.
                 properties:
                   apiVersion:
-                    description: APIVersion of the referenced resource.
+                    description: APIVersion of the referenced object.
                     type: string
                   kind:
-                    description: Kind of the referenced resource.
+                    description: Kind of the referenced object.
                     type: string
                   name:
-                    description: Name of the referenced resource.
+                    description: Name of the referenced object.
                     type: string
                   uid:
-                    description: UID of the referenced resource.
+                    description: UID of the referenced object.
                     type: string
                 required:
                 - apiVersion

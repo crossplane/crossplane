@@ -45,22 +45,21 @@ spec:
               description: WorkloadReference to the workload this trait applies to.
               properties:
                 apiVersion:
-                  description: APIVersion of the referenced workload.
+                  description: APIVersion of the referenced object.
                   type: string
                 kind:
-                  description: Kind of the referenced workload.
+                  description: Kind of the referenced object.
                   type: string
                 name:
-                  description: Name of the referenced workload.
+                  description: Name of the referenced object.
                   type: string
                 uid:
-                  description: UID of the referenced workload.
+                  description: UID of the referenced object.
                   type: string
               required:
               - apiVersion
               - kind
               - name
-              - uid
               type: object
           required:
           - replicaCount

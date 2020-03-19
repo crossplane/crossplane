@@ -30,9 +30,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
+
 	"github.com/crossplane/crossplane/apis/oam/v1alpha2"
 )
 
@@ -243,7 +245,7 @@ type Workload struct {
 func (w Workload) Status() v1alpha2.WorkloadStatus {
 	acw := v1alpha2.WorkloadStatus{
 		ComponentName: w.ComponentName,
-		Reference: v1alpha2.WorkloadReference{
+		Reference: runtimev1alpha1.TypedReference{
 			APIVersion: w.Workload.GetAPIVersion(),
 			Kind:       w.Workload.GetKind(),
 			Name:       w.Workload.GetName(),
@@ -252,7 +254,7 @@ func (w Workload) Status() v1alpha2.WorkloadStatus {
 		Traits: make([]v1alpha2.WorkloadTrait, len(w.Traits)),
 	}
 	for i := range w.Traits {
-		acw.Traits[i].Reference = v1alpha2.TraitReference{
+		acw.Traits[i].Reference = runtimev1alpha1.TypedReference{
 			APIVersion: w.Traits[i].GetAPIVersion(),
 			Kind:       w.Traits[i].GetKind(),
 			Name:       w.Traits[i].GetName(),
