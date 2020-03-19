@@ -59,6 +59,9 @@ func main() {
 	debug := app.Flag("debug", "Run with debug logging.").Short('d').Bool()
 	syncPeriod := app.Flag("sync", "Controller manager sync period duration such as 300ms, 1.5h or 2h45m").Short('s').Default("1h").Duration()
 
+	// populate debug early
+	_, _ = app.Parse(args)
+
 	a := appReq{
 		app:        app,
 		zl:         zap.New(zap.UseDevMode(*debug)),
