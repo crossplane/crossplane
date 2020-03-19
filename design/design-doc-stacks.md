@@ -398,6 +398,7 @@ license: Apache-2.0
 # - Provider
 # - Stack
 # - Application
+# - Addon
 packageType: Provider
 
 
