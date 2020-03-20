@@ -6,6 +6,7 @@ require (
 	github.com/crossplane/crossplane-runtime v0.5.1-0.20200320220925-da385a76bc9b
 	github.com/crossplane/crossplane-tools v0.0.0-20200219001116-bb8b2ce46330
 	github.com/docker/distribution v2.7.1+incompatible
+	github.com/evanphx/json-patch v4.5.0+incompatible
 	github.com/ghodss/yaml v1.0.0
 	github.com/google/go-cmp v0.3.1
 	github.com/onsi/gomega v1.7.0
