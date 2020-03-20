@@ -53,7 +53,16 @@ var (
 	PostgreSQLInstanceGroupVersionKind = SchemeGroupVersion.WithKind(PostgreSQLInstanceKind)
 )
 
+// NoSQLInstance type metadata.
+var (
+	NoSQLInstanceKind             = reflect.TypeOf(NoSQLInstance{}).Name()
+	NoSQLInstanceGroupKind        = schema.GroupKind{Group: Group, Kind: NoSQLInstanceKind}.String()
+	NoSQLInstanceKindAPIVersion   = NoSQLInstanceKind + "." + SchemeGroupVersion.String()
+	NoSQLInstanceGroupVersionKind = SchemeGroupVersion.WithKind(NoSQLInstanceKind)
+)
+
 func init() {
 	SchemeBuilder.Register(&MySQLInstance{}, &MySQLInstanceList{})
 	SchemeBuilder.Register(&PostgreSQLInstance{}, &PostgreSQLInstanceList{})
+	SchemeBuilder.Register(&NoSQLInstance{}, &NoSQLInstanceList{})
 }

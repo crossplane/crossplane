@@ -84,6 +84,66 @@ func (cm *MySQLInstance) SetWriteConnectionSecretToReference(r *runtimev1alpha1.
 	cm.Spec.WriteConnectionSecretToReference = r
 }
 
+// GetBindingPhase of this NoSQLInstance.
+func (cm *NoSQLInstance) GetBindingPhase() runtimev1alpha1.BindingPhase {
+	return cm.Status.GetBindingPhase()
+}
+
+// GetClassReference of this NoSQLInstance.
+func (cm *NoSQLInstance) GetClassReference() *corev1.ObjectReference {
+	return cm.Spec.ClassReference
+}
+
+// GetClassSelector of this NoSQLInstance.
+func (cm *NoSQLInstance) GetClassSelector() *metav1.LabelSelector {
+	return cm.Spec.ClassSelector
+}
+
+// GetCondition of this NoSQLInstance.
+func (cm *NoSQLInstance) GetCondition(ct runtimev1alpha1.ConditionType) runtimev1alpha1.Condition {
+	return cm.Status.GetCondition(ct)
+}
+
+// GetResourceReference of this NoSQLInstance.
+func (cm *NoSQLInstance) GetResourceReference() *corev1.ObjectReference {
+	return cm.Spec.ResourceReference
+}
+
+// GetWriteConnectionSecretToReference of this NoSQLInstance.
+func (cm *NoSQLInstance) GetWriteConnectionSecretToReference() *runtimev1alpha1.LocalSecretReference {
+	return cm.Spec.WriteConnectionSecretToReference
+}
+
+// SetBindingPhase of this NoSQLInstance.
+func (cm *NoSQLInstance) SetBindingPhase(p runtimev1alpha1.BindingPhase) {
+	cm.Status.SetBindingPhase(p)
+}
+
+// SetClassReference of this NoSQLInstance.
+func (cm *NoSQLInstance) SetClassReference(r *corev1.ObjectReference) {
+	cm.Spec.ClassReference = r
+}
+
+// SetClassSelector of this NoSQLInstance.
+func (cm *NoSQLInstance) SetClassSelector(s *metav1.LabelSelector) {
+	cm.Spec.ClassSelector = s
+}
+
+// SetConditions of this NoSQLInstance.
+func (cm *NoSQLInstance) SetConditions(c ...runtimev1alpha1.Condition) {
+	cm.Status.SetConditions(c...)
+}
+
+// SetResourceReference of this NoSQLInstance.
+func (cm *NoSQLInstance) SetResourceReference(r *corev1.ObjectReference) {
+	cm.Spec.ResourceReference = r
+}
+
+// SetWriteConnectionSecretToReference of this NoSQLInstance.
+func (cm *NoSQLInstance) SetWriteConnectionSecretToReference(r *runtimev1alpha1.LocalSecretReference) {
+	cm.Spec.WriteConnectionSecretToReference = r
+}
+
 // GetBindingPhase of this PostgreSQLInstance.
 func (cm *PostgreSQLInstance) GetBindingPhase() runtimev1alpha1.BindingPhase {
 	return cm.Status.GetBindingPhase()

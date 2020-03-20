@@ -98,3 +98,36 @@ type PostgreSQLInstanceList struct {
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []PostgreSQLInstance `json:"items"`
 }
+
+// NoSQLInstanceSpec specifies the desired state of a NoSQLInstance.
+type NoSQLInstanceSpec struct {
+	runtimev1alpha1.ResourceClaimSpec `json:",inline"`
+}
+
+// +kubebuilder:object:root=true
+
+// A NoSQLInstance is a portable resource claim that may be satisfied by binding
+// to a NoSQL managed resource such as an AWS DynamoDB or an Azure CosmosDB instance.
+// +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.bindingPhase"
+// +kubebuilder:printcolumn:name="CLASS-KIND",type="string",JSONPath=".spec.classRef.kind"
+// +kubebuilder:printcolumn:name="CLASS-NAME",type="string",JSONPath=".spec.classRef.name"
+// +kubebuilder:printcolumn:name="RESOURCE-KIND",type="string",JSONPath=".spec.resourceRef.kind"
+// +kubebuilder:printcolumn:name="RESOURCE-NAME",type="string",JSONPath=".spec.resourceRef.name"
+// +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
+// +kubebuilder:subresource:status
+type NoSQLInstance struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec   NoSQLInstanceSpec                   `json:"spec,omitempty"`
+	Status runtimev1alpha1.ResourceClaimStatus `json:"status,omitempty"`
+}
+
+// +kubebuilder:object:root=true
+
+// NoSQLInstanceList contains a list of NoSQLInstance.
+type NoSQLInstanceList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []NoSQLInstance `json:"items"`
+}
