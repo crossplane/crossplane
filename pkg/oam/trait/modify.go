@@ -41,7 +41,8 @@ var (
 	deploymentKind = reflect.TypeOf(appsv1.Deployment{}).Name()
 )
 
-// DeploymentFromKubeAppAccessor gets deployments from a KubernetesApplication.
+// DeploymentFromKubeAppAccessor finds deployments in a KubernetesApplication
+// and applies the supplied modifier function to them.
 func DeploymentFromKubeAppAccessor(ctx context.Context, obj runtime.Object, t resource.Trait, m trait.ModifyFn) error {
 	a, ok := obj.(*workloadv1alpha1.KubernetesApplication)
 	if !ok {
