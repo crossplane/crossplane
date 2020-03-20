@@ -38,16 +38,24 @@ const (
 
 	LabelMultiParentPrefix = "parent.stacks.crossplane.io/"
 
-	LabelMultiParentNSFormat = "parent.stacks.crossplane.io/%s"
+	LabelMultiParentNSFormat = LabelMultiParentPrefix + "%s"
 
 	// LabelMultiParentFormat defines the format for combining a
 	// LabelMultiParentNSFormat with a named resource
+	// Example:
+	// fmt.Sprintf(LabelMultiParentFormat,
+	//   fmt.Sprintf(LabelMultiParentNSFormat,
+	//   nsName,
+	// ), resourceName)
 	LabelMultiParentFormat = "%s-%s"
 
 	// preserveNSLength is the number of characters using the label name that
 	// will be dedicated to identifying the namespace. This length will include
-	// truncation characters if the namespace exceeds this length.
-	// example: parent.stacks.crossplane.io/{up to 32 chars of NS}-{Name}
+	// truncation characters if the namespace exceeds this length. example:
+	// parent.stacks.crossplane.io/{up to 32 chars of NS}-{Name}
+	//
+	// NOTE: Changes to this length will prevent resources from be discovered
+	// and could lead to the deletion or recreation of resources.
 	preserveNSLength = 32
 )
 
@@ -69,6 +77,12 @@ type KindlyIdentifier interface {
 // namespace exceeds 32 characters. This truncation length permits another 32
 // characters for a (potentially truncated) resource name to be appended to the
 // label.
+//
+// Example: MultiParentLabelPrefix(resource.SetNamespace("foo")) ->
+//   "parent.stacks.crossplane.io/foo"
+//
+// A namespace name over 32 characters will be truncated in the returned label
+// prefix.
 func MultiParentLabelPrefix(stackParent metav1.Object) string {
 	ns := stackParent.GetNamespace()
 
@@ -83,10 +97,17 @@ func MultiParentLabelPrefix(stackParent metav1.Object) string {
 // The label returned is based on the MultiParentLabelPrefix, which may include
 // a truncation suffix, and is then potentially truncated again to fit in the
 // complete label length restrictions.
+//
+// Example: MultiParentLabel(resource.SetNamespace("foo").SetName("bar").) ->
+//   "parent.stacks.crossplane.io/foo-bar"
+//
+// A namespace name over 32 characters will be truncated in the returned label
+// prefix, if the namespace and name, combined exceed 63 characters an
+// additional truncation will be included.
 func MultiParentLabel(stackParent metav1.Object) string {
 	prefix := MultiParentLabelPrefix(stackParent)
 
-	// guaranteed 2 parts based on LabelMultiParentNSFormat
+	// guaranteed at least 2 parts based on LabelMultiParentNSFormat
 	prefixParts := strings.SplitN(prefix, "/", 2)
 
 	n := stackParent.GetName()

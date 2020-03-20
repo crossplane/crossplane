@@ -23,7 +23,7 @@ import (
 	// sha1 is not cryptographically secure, but that is not a goal. we require
 	// predictable and uniform text transformation. Any checksum function with
 	// even distribution would suffice.
-	"crypto/sha1" // nolint:blacklist
+	"crypto/sha1" // nolint:gosec
 	"encoding/base32"
 	"fmt"
 	"strings"
@@ -51,9 +51,19 @@ const (
 // Truncate replaces the suffixLength number of trailing characters from str
 // with a consistent hash fragment based on that string. The suffix will include
 // a leading hyphen.
+//
 // An error will be returned if the truncation length is less than the
 // suffixLength, or truncation length is greater than sha1Length, or the suffix
 // length is less than 2.
+//
+// Example:
+// If the base32 sum of a digest of "aaaaaaaaaaa" is "ovo", with a suffix length of 4:
+//
+// Truncating this string to a length of 11 would result in "aaaaaaaaaaa"
+// Truncating this string to a length of 8 would result in "aaaa-ovo"
+// Truncating this string to a length of 7 would result in "aaa-ovo"
+// Truncating this string to a length of 5 would result in "a-ovo"
+// Truncating this string to a length of 4 would result in "-ovo"
 func Truncate(str string, length, suffixLength int) (string, error) {
 	if len(str) <= length {
 		return str, nil

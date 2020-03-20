@@ -790,7 +790,7 @@ func Test_stackInstallHandler_deleteOrphanedCRDs(t *testing.T) {
 	var (
 		nsLabel = fmt.Sprintf(stacks.LabelNamespaceFmt, namespace)
 
-		// MultiParentLabels refer to a stack name. while resource() is a
+		// MultiParentLabels refer to a stack name. While resource() is a
 		// stackinstall, it is an object that has a name that matches the stack
 		label = stacks.MultiParentLabel(resource())
 	)

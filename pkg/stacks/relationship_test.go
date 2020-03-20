@@ -121,10 +121,7 @@ func TestMultiParentLabel(t *testing.T) {
 		{
 			name:        "TruncatedNS",
 			stackParent: resource(sixtyThreeAs+"z", resourceName, uidString),
-			// notice ukl4i is also the suffix with 64 a's because the sum is
-			// generated from the whole string. In the NS prefix only 27
-			// characters from the original are preserved.
-			want: "parent.stacks.crossplane.io/aaaaaaaaaaaaaaaaaaaaaaaaaa-ukl4i-" + resourceName,
+			want:        "parent.stacks.crossplane.io/aaaaaaaaaaaaaaaaaaaaaaaaaa-ukl4i-" + resourceName,
 		},
 		{
 			name:        "NotTruncatedOnNameLength",

@@ -27,13 +27,15 @@ import (
 )
 
 const (
-	// AnnotationTenantNameFmt with a resource singular applied provides the
+	// AnnotationTenantNameFmt with a CR `singular` name applied provides the
 	// annotation key used to identify tenant resources by name on the host side
+	// Example: tenant.crossplane.io/stackinstall-name
 	AnnotationTenantNameFmt = "tenant.crossplane.io/%s-name"
 
-	// AnnotationTenantNamespaceFmt with a resource singular applied provides
+	// AnnotationTenantNamespaceFmt with a CR `singular` name applied provides
 	// the annotation key used to identify tenant resources by namespace on the
 	// host side
+	// Example: tenant.crossplane.io/stack-namespace
 	AnnotationTenantNamespaceFmt = "tenant.crossplane.io/%s-namespace"
 
 	errMissingOption = "host aware mode activated but %s is not set"
@@ -70,11 +72,13 @@ func NewConfig(hostControllerNamespace, tenantAPIServiceHost, tenantAPIServicePo
 	}, nil
 }
 
-// ObjectReferenceOnHost maps object with given name and namespace into single
-// controller namespace on Host Cluster.
-// The resource name on the host cluster is truncated to label value length
-// because the name may be used in labels defined by an admission controller, as
-// is the case for jobs and deployments.
+// ObjectReferenceOnHost maps objects with a given name and namespace into a
+// single controller namespace on the Host Cluster.
+//
+// The resource name on the host cluster may be truncated from the original
+// tenant name to fit label value length.  The resource name may be used as a
+// label, as is the case for jobs and deployments where the admission controller
+// generates labels based on the resource name.
 func (c *Config) ObjectReferenceOnHost(name, namespace string) corev1.ObjectReference {
 	return corev1.ObjectReference{
 		Name:      truncate.LabelValue(fmt.Sprintf("%s.%s", namespace, name)),
@@ -83,7 +87,13 @@ func (c *Config) ObjectReferenceOnHost(name, namespace string) corev1.ObjectRefe
 }
 
 // ObjectReferenceAnnotationsOnHost returns a map for use as annotations on the
-// host to identify the named tenant resource
+// host to identify the named tenant resource. This annotation is used for
+// reference purposes to define a relationship to a single resource of a
+// specific kind. For example, this could be used to declare the tenant
+// stackinstall resource that is related to a host install job.
+//
+// On a host the original tenant resource name may be truncated away.
+// Annotations provide a way to store the original name without truncation.
 func ObjectReferenceAnnotationsOnHost(singular, name, namespace string) map[string]string {
 	nameLabel := fmt.Sprintf(AnnotationTenantNameFmt, singular)
 	nsLabel := fmt.Sprintf(AnnotationTenantNamespaceFmt, singular)

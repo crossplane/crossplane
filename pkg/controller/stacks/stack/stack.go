@@ -724,7 +724,8 @@ func (h *stackHandler) prepareDeployment(d *apps.Deployment) {
 
 	// force the deployment to use stack opinionated names and service account
 	suffix := "-controller"
-	name, _ := truncate.Truncate(h.ext.Name, truncate.LabelValueLength-len(suffix), truncate.DefaultSuffixLength)
+	size := truncate.LabelValueLength - len(suffix)
+	name, _ := truncate.Truncate(h.ext.Name, size, truncate.DefaultSuffixLength)
 	name += suffix
 	matchLabels := map[string]string{"app": name}
 	labels := stacks.ParentLabels(h.ext)
