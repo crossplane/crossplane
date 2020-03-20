@@ -22,10 +22,9 @@ import (
 	"github.com/pkg/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-
-	"github.com/crossplane/crossplane/apis/oam/v1alpha2"
 )
 
 // Reconcile error strings.
@@ -62,7 +61,7 @@ func (a *workloads) Apply(ctx context.Context, w []Workload) error {
 		for i := range wl.Traits {
 			t := &wl.Traits[i]
 
-			ref := v1alpha2.WorkloadReference{
+			ref := runtimev1alpha1.TypedReference{
 				APIVersion: wl.Workload.GetAPIVersion(),
 				Kind:       wl.Workload.GetKind(),
 				Name:       wl.Workload.GetName(),

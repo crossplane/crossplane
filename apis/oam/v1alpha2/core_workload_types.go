@@ -19,7 +19,6 @@ package v1alpha2
 import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
@@ -44,6 +43,15 @@ const (
 	CPUArchitectureARM   CPUArchitecture = "arm"
 	CPUArchitectureARM64 CPUArchitecture = "arm64"
 )
+
+// A SecretKeySelector is a reference to a secret key in an arbitrary namespace.
+type SecretKeySelector struct {
+	// The name of the secret.
+	Name string `json:"name"`
+
+	// The key to select.
+	Key string `json:"key"`
+}
 
 // TODO(negz): The OAM spec calls for float64 quantities in some cases, but this
 // is incompatible with controller-gen and Kubernetes API conventions. We should
@@ -162,7 +170,13 @@ type ContainerEnvVar struct {
 	Name string `json:"name"`
 
 	// Value of the environment variable.
-	Value string `json:"value"`
+	// +optional
+	Value *string `json:"value,omitempty"`
+
+	// FromSecret is a secret key reference which can be used to assign a value
+	// to the environment variable.
+	// +optional
+	FromSecret *SecretKeySelector `json:"fromSecret,omitempty"`
 }
 
 // A ContainerConfigFile specifies a configuration file that should be written
@@ -173,7 +187,14 @@ type ContainerConfigFile struct {
 	Path string `json:"path"`
 
 	// Value that should be written to the configuration file.
-	Value string `json:"value"`
+	// +optional
+	Value *string `json:"value,omitempty"`
+
+	// FromSecret is a secret key reference which can be used to assign a value
+	// to be written to the configuration file at the given path in the
+	// container.
+	// +optional
+	FromSecret *SecretKeySelector `json:"fromSecret,omitempty"`
 }
 
 // A TransportProtocol represents a transport layer protocol.
@@ -351,29 +372,13 @@ type ContainerizedWorkloadSpec struct {
 	Containers []Container `json:"containers"`
 }
 
-// A ResourceReference refers to an resource managed by an OAM resource.
-type ResourceReference struct {
-	// APIVersion of the referenced resource.
-	APIVersion string `json:"apiVersion"`
-
-	// Kind of the referenced resource.
-	Kind string `json:"kind"`
-
-	// Name of the referenced resource.
-	Name string `json:"name"`
-
-	// UID of the referenced resource.
-	// +optional
-	UID *types.UID `json:"uid,omitempty"`
-}
-
 // A ContainerizedWorkloadStatus represents the observed state of a
 // ContainerizedWorkload.
 type ContainerizedWorkloadStatus struct {
 	runtimev1alpha1.ConditionedStatus `json:",inline"`
 
 	// Resources managed by this containerised workload.
-	Resources []ResourceReference `json:"resources,omitempty"`
+	Resources []runtimev1alpha1.TypedReference `json:"resources,omitempty"`
 }
 
 // +kubebuilder:object:root=true

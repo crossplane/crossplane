@@ -85,16 +85,16 @@ spec:
                             resource.
                           properties:
                             apiVersion:
-                              description: APIVersion of the referenced scope.
+                              description: APIVersion of the referenced object.
                               type: string
                             kind:
-                              description: Kind of the referenced scope.
+                              description: Kind of the referenced object.
                               type: string
                             name:
-                              description: Name of the referenced scope.
+                              description: Name of the referenced object.
                               type: string
                             uid:
-                              description: UID of the referenced scope.
+                              description: UID of the referenced object.
                               type: string
                           required:
                           - apiVersion
@@ -182,22 +182,21 @@ spec:
                           description: Reference to a trait created by an ApplicationConfiguration.
                           properties:
                             apiVersion:
-                              description: APIVersion of the referenced workload.
+                              description: APIVersion of the referenced object.
                               type: string
                             kind:
-                              description: Kind of the referenced workload.
+                              description: Kind of the referenced object.
                               type: string
                             name:
-                              description: Name of the referenced workload.
+                              description: Name of the referenced object.
                               type: string
                             uid:
-                              description: UID of the referenced workload.
+                              description: UID of the referenced object.
                               type: string
                           required:
                           - apiVersion
                           - kind
                           - name
-                          - uid
                           type: object
                       required:
                       - traitRef
@@ -207,22 +206,21 @@ spec:
                     description: Reference to a workload created by an ApplicationConfiguration.
                     properties:
                       apiVersion:
-                        description: APIVersion of the referenced workload.
+                        description: APIVersion of the referenced object.
                         type: string
                       kind:
-                        description: Kind of the referenced workload.
+                        description: Kind of the referenced object.
                         type: string
                       name:
-                        description: Name of the referenced workload.
+                        description: Name of the referenced object.
                         type: string
                       uid:
-                        description: UID of the referenced workload.
+                        description: UID of the referenced object.
                         type: string
                     required:
                     - apiVersion
                     - kind
                     - name
-                    - uid
                     type: object
                 type: object
               type: array
