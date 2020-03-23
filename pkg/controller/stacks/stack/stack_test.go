@@ -63,6 +63,7 @@ const (
 	controllerDeploymentName = "cool-stack-controller"
 	controllerContainerName  = "cool-container"
 	controllerImageName      = "cool/controller-image:rad"
+	dashAlphabet             = "-abcdefghijklmnopqrstuvwxyz"
 )
 
 var (
@@ -111,6 +112,13 @@ func withConditions(c ...runtimev1alpha1.Condition) resourceModifier {
 	return func(r *v1alpha1.Stack) { r.Status.SetConditions(c...) }
 }
 
+func withNamespacedName(nsn types.NamespacedName) resourceModifier {
+	return func(r *v1alpha1.Stack) {
+		r.SetNamespace(nsn.Namespace)
+		r.SetName(nsn.Name)
+	}
+}
+
 func withControllerSpec(cs v1alpha1.ControllerSpec) resourceModifier {
 	return func(r *v1alpha1.Stack) { r.Spec.Controller = cs }
 }
@@ -127,6 +135,13 @@ type saModifier func(*corev1.ServiceAccount)
 
 func withTokenSecret(ref corev1.ObjectReference) saModifier {
 	return func(sa *corev1.ServiceAccount) { sa.Secrets = append(sa.Secrets, ref) }
+}
+
+func withSANamespacedName(nsn types.NamespacedName) saModifier {
+	return func(s *corev1.ServiceAccount) {
+		s.SetNamespace(nsn.Namespace)
+		s.SetName(nsn.Name)
+	}
 }
 
 func withDeploymentPullSecrets(secrets ...string) deploymentSpecModifier {
@@ -163,7 +178,8 @@ func sa(sm ...saModifier) *corev1.ServiceAccount {
 	}
 	return s
 }
-func saSecret() *corev1.Secret {
+
+func saSecret(resourceName, namespace string) *corev1.Secret {
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      resourceName,
@@ -933,7 +949,7 @@ func TestSyncSATokenSecret(t *testing.T) {
 		},
 		{
 			name:           "TokenSecretNotGenerated",
-			initObjs:       []runtime.Object{sa(), saSecret()},
+			initObjs:       []runtime.Object{sa(), saSecret(resourceName, namespace)},
 			clientFunc:     fake.NewFakeClient,
 			hostClientFunc: func() client.Client { return fake.NewFakeClient() },
 			want: want{
@@ -952,7 +968,7 @@ func TestSyncSATokenSecret(t *testing.T) {
 		},
 		{
 			name:       "FailedToCreateSecret",
-			initObjs:   []runtime.Object{sa(withTokenSecret(corev1.ObjectReference{Name: resourceName, Namespace: namespace})), saSecret()},
+			initObjs:   []runtime.Object{sa(withTokenSecret(corev1.ObjectReference{Name: resourceName, Namespace: namespace})), saSecret(resourceName, namespace)},
 			clientFunc: fake.NewFakeClient,
 			hostClientFunc: func() client.Client {
 				return &test.MockClient{
@@ -971,7 +987,7 @@ func TestSyncSATokenSecret(t *testing.T) {
 		},
 		{
 			name:       "Success",
-			initObjs:   []runtime.Object{sa(withTokenSecret(corev1.ObjectReference{Name: resourceName, Namespace: namespace})), saSecret()},
+			initObjs:   []runtime.Object{sa(withTokenSecret(corev1.ObjectReference{Name: resourceName, Namespace: namespace})), saSecret(resourceName, namespace)},
 			clientFunc: fake.NewFakeClient,
 			hostClientFunc: func() client.Client {
 				return fake.NewFakeClient()
@@ -1150,7 +1166,7 @@ func TestProcessDeployment(t *testing.T) {
 		{
 			name:       "HostedError_SyncSATokenFailedToCreateSecret",
 			r:          resource(withControllerSpec(defaultControllerSpec())),
-			initObjs:   []runtime.Object{sa(withTokenSecret(corev1.ObjectReference{Name: resourceName, Namespace: namespace})), saSecret()},
+			initObjs:   []runtime.Object{sa(withTokenSecret(corev1.ObjectReference{Name: resourceName, Namespace: namespace})), saSecret(resourceName, namespace)},
 			clientFunc: fake.NewFakeClient,
 			hostClientFunc: func() client.Client {
 				return &test.MockClient{
@@ -1260,7 +1276,7 @@ func TestProcessDeployment(t *testing.T) {
 		{
 			name:           "SuccessHosted",
 			r:              resource(withControllerSpec(defaultControllerSpec())),
-			initObjs:       []runtime.Object{sa(withTokenSecret(corev1.ObjectReference{Name: resourceName, Namespace: namespace})), saSecret()},
+			initObjs:       []runtime.Object{sa(withTokenSecret(corev1.ObjectReference{Name: resourceName, Namespace: namespace})), saSecret(resourceName, namespace)},
 			clientFunc:     fake.NewFakeClient,
 			hostClientFunc: func() client.Client { return fake.NewFakeClient() },
 			hostawareCfg: &hosted.Config{
@@ -1270,9 +1286,10 @@ func TestProcessDeployment(t *testing.T) {
 				err: nil,
 				d: &apps.Deployment{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      fmt.Sprintf("%s.%s", namespace, controllerDeploymentName),
-						Namespace: hostControllerNamespace,
-						Labels:    stackspkg.ParentLabels(resource(withControllerSpec(defaultControllerSpec()))),
+						Name:        fmt.Sprintf("%s.%s", namespace, controllerDeploymentName),
+						Namespace:   hostControllerNamespace,
+						Labels:      stackspkg.ParentLabels(resource(withControllerSpec(defaultControllerSpec()))),
+						Annotations: hosted.ObjectReferenceAnnotationsOnHost("stack", resourceName, namespace),
 					},
 					Spec: apps.DeploymentSpec{
 						Selector: &metav1.LabelSelector{
@@ -1333,6 +1350,107 @@ func TestProcessDeployment(t *testing.T) {
 				},
 				controllerRef: &corev1.ObjectReference{
 					Name:       fmt.Sprintf("%s.%s", namespace, controllerDeploymentName),
+					Namespace:  hostControllerNamespace,
+					Kind:       "Deployment",
+					APIVersion: "apps/v1",
+				},
+			},
+		},
+		{
+			name: "SuccessHostedTruncated",
+			r: resource(
+				withNamespacedName(types.NamespacedName{
+					Name:      resourceName + dashAlphabet,
+					Namespace: namespace + dashAlphabet,
+				}),
+				withControllerSpec(defaultControllerSpec())),
+			initObjs: []runtime.Object{sa(
+				withSANamespacedName(types.NamespacedName{
+					Name:      resourceName + dashAlphabet,
+					Namespace: namespace + dashAlphabet,
+				}),
+				withTokenSecret(corev1.ObjectReference{
+					Name:      resourceName + dashAlphabet,
+					Namespace: namespace + dashAlphabet,
+				})), saSecret(resourceName+dashAlphabet, namespace+dashAlphabet)},
+			clientFunc:     fake.NewFakeClient,
+			hostClientFunc: func() client.Client { return fake.NewFakeClient() },
+			hostawareCfg: &hosted.Config{
+				HostControllerNamespace: hostControllerNamespace,
+			},
+			want: want{
+				err: nil,
+				d: &apps.Deployment{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "cool-namespace-abcdefghijklmnopqrstuvwxyz.cool-stack-abcd-u7d2t",
+						Namespace: hostControllerNamespace,
+						Labels: stackspkg.ParentLabels(resource(
+							withNamespacedName(types.NamespacedName{
+								Name:      resourceName + dashAlphabet,
+								Namespace: namespace + dashAlphabet,
+							}),
+							withControllerSpec(defaultControllerSpec()))),
+						Annotations: hosted.ObjectReferenceAnnotationsOnHost("stack", resourceName+dashAlphabet, namespace+dashAlphabet),
+					},
+					Spec: apps.DeploymentSpec{
+						Selector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								"app": resourceName + dashAlphabet + "-controller",
+							},
+						},
+						Template: corev1.PodTemplateSpec{
+							ObjectMeta: metav1.ObjectMeta{
+								Labels: map[string]string{
+									"app": resourceName + dashAlphabet + "-controller",
+								},
+								Name: resourceName + dashAlphabet + "-controller",
+							},
+							Spec: corev1.PodSpec{
+								ServiceAccountName:           "",
+								AutomountServiceAccountToken: &disableAutoMount,
+								Containers: []corev1.Container{
+									{
+										Name:  controllerContainerName,
+										Image: controllerImageName,
+										Env: []corev1.EnvVar{
+											{
+												Name:  envK8SServiceHost,
+												Value: "",
+											},
+											{
+												Name:  envK8SServicePort,
+												Value: "",
+											},
+											{
+												Name:  envPodNamespace,
+												Value: namespace + dashAlphabet,
+											},
+										},
+										VolumeMounts: []corev1.VolumeMount{
+											{
+												Name:      saVolumeName,
+												ReadOnly:  true,
+												MountPath: saMountPath,
+											},
+										},
+									},
+								},
+								Volumes: []corev1.Volume{
+									{
+										Name: saVolumeName,
+										VolumeSource: corev1.VolumeSource{
+											Secret: &corev1.SecretVolumeSource{
+												SecretName: "cool-namespace-abcdefghijklmnopqrstuvwxyz.cool-stack-abcd-7u42t",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				controllerRef: &corev1.ObjectReference{
+					Name:       "cool-namespace-abcdefghijklmnopqrstuvwxyz.cool-stack-abcd-u7d2t",
 					Namespace:  hostControllerNamespace,
 					Kind:       "Deployment",
 					APIVersion: "apps/v1",
@@ -1563,52 +1681,6 @@ func TestStackDelete(t *testing.T) {
 
 			if diff := cmp.Diff(tt.want.si, tt.handler.ext, test.EquateConditions()); diff != "" {
 				t.Errorf("delete() -want stackInstall, +got stackInstall:\n%v", diff)
-			}
-		})
-	}
-}
-
-func Test_stackHandler_prepareHostAwareJob(t *testing.T) {
-	type fields struct {
-		kube            client.Client
-		hostKube        client.Client
-		hostAwareConfig *hosted.Config
-		ext             *v1alpha1.Stack
-	}
-	type args struct {
-		tokenSecret string
-		j           *batch.Job
-	}
-	type want struct {
-		err error
-	}
-	cases := map[string]struct {
-		fields
-		args
-		want
-	}{
-		"hostAwareNotEnabled": {
-			fields: fields{},
-			args: args{
-				tokenSecret: resourceName,
-				j:           nil,
-			},
-			want: want{
-				err: errors.New(errHostAwareModeNotEnabled),
-			},
-		},
-	}
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			h := &stackHandler{
-				kube:            tc.fields.kube,
-				hostKube:        tc.fields.hostKube,
-				hostAwareConfig: tc.fields.hostAwareConfig,
-				ext:             tc.fields.ext,
-			}
-			gotErr := h.prepareHostAwareJob(tc.args.j, tc.args.tokenSecret)
-			if diff := cmp.Diff(tc.want.err, gotErr, test.EquateErrors()); diff != "" {
-				t.Fatalf("prepareHostAwareDeployment(...): -want error, +got error: %s", diff)
 			}
 		})
 	}
@@ -2213,7 +2285,7 @@ func Test_stackHandler_createMultipleParentLabelsCRDHandler(t *testing.T) {
 	)
 
 	var (
-		label = fmt.Sprintf(stackspkg.LabelMultiParentFormat, namespace, resourceName)
+		label = stackspkg.MultiParentLabel(resource())
 	)
 	tests := []struct {
 		name    string
@@ -2508,7 +2580,7 @@ func Test_stackHandler_removeCRDLabels(t *testing.T) {
 	)
 
 	var (
-		label = fmt.Sprintf(stackspkg.LabelMultiParentFormat, namespace, resourceName)
+		label = stackspkg.MultiParentLabel(resource())
 	)
 
 	tests := []struct {

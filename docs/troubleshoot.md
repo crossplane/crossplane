@@ -11,6 +11,7 @@ indent: true
 * [Crossplane Logs](#crossplane-logs)
 * [Pausing Crossplane](#pausing-crossplane)
 * [Deleting a Resource Hangs](#deleting-a-resource-hangs)
+* [Host-Aware Resource Debugging](#host-aware-resource-debugging)
 
 ## Using the trace command
 
@@ -130,4 +131,82 @@ For example, for a Workload object (`workloads.compute.crossplane.io`) named
 
 ```console
 kubectl patch workloads.compute.crossplane.io test-workload -p '{"metadata":{"finalizers": []}}' --type=merge
+```
+
+## Host-Aware Resource Debugging
+
+Stack resources (including the Stack, service accounts, deployments, and jobs)
+are usually easy to identify by name. These resource names are based on the name
+used in the StackInstall or Stack resource.
+
+In some cases, the full name of a Stack resource, which could be up to 253
+characters long, can not be represented in the created resources. For example,
+jobs and deployment names may not exceed 63 characters because these names are
+turned into resource label values which impose a 63 character limit. Stack
+created resources whose names would otherwise not be permitted in the Kubernetes
+API will be truncated with a unique suffix.
+
+When running the Stack Manager in host-aware mode, tenant stack resources
+created in the host controller namespace generally reuse the Stack names:
+"{tenant namespace}.{tenant name}".  In order to avoid the name length
+restrictions, these resources may be truncated at either or both of the
+namespace segment or over the entire name.  In these cases resource labels,
+owner references, and annotations should be consulted to identify the
+responsible Stack.
+
+* [Relationship Labels](https://github.com/crossplane/crossplane/blob/master/design/one-pager-stack-relationship-labels.md)
+* [Owner References](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/#owners-and-dependents)
+* Annotations: `tenant.crossplane.io/{singular}-name` and
+  `tenant.crossplane.io/{singular}-namespace` (_singular_ may be `stackinstall`,
+  `clusterstackinstall` or `stack`)
+
+### Example
+
+Long resource names may be present on the tenant.
+
+```console
+$ name=stack-with-a-really-long-resource-name-so-long-that-it-will-be-truncated
+$ ns=this-is-just-a-really-long-namespace-name-at-the-character-max
+$ kubectl create ns $ns
+$ kubectl crossplane stack install --namespace $ns crossplane/sample-stack-wordpress:0.1.1 $name
+```
+
+When used as host resource names, the stack namespace and stack are concatenated
+ to form host names, as well as labels.  These resource names and label values
+ must be truncated to fit the 63 character limit on label values.
+
+```console
+$ kubectl --context=crossplane-host -n tenant-controllers get job -o yaml
+apiVersion: v1
+items:
+- apiVersion: batch/v1
+  kind: Job
+  metadata:
+    annotations:
+      tenant.crossplane.io/stackinstall-name: stack-with-a-really-long-resource-name-so-long-that-it-will-be-truncated
+      tenant.crossplane.io/stackinstall-namespace: this-is-just-a-really-long-namespace-name-at-the-character-max
+    creationTimestamp: "2020-03-20T17:06:25Z"
+    labels:
+      core.crossplane.io/parent-group: stacks.crossplane.io
+      core.crossplane.io/parent-kind: StackInstall
+      core.crossplane.io/parent-name: stack-with-a-really-long-resource-name-so-long-that-it-wi-alqdw
+      core.crossplane.io/parent-namespace: this-is-just-a-really-long-namespace-name-at-the-character-max
+      core.crossplane.io/parent-uid: 596705e4-a28e-47c9-a907-d2732f07a85e
+      core.crossplane.io/parent-version: v1alpha1
+    name: this-is-just-a-really-long-namespace-name-at-the-characte-egoav
+    namespace: tenant-controllers
+  spec:
+    backoffLimit: 0
+    completions: 1
+    parallelism: 1
+    selector:
+      matchLabels:
+        controller-uid: 8f290bf2-8c91-494a-a76b-27c2ccb9e0a8
+    template:
+      metadata:
+        creationTimestamp: null
+        labels:
+          controller-uid: 8f290bf2-8c91-494a-a76b-27c2ccb9e0a8
+          job-name: this-is-just-a-really-long-namespace-name-at-the-characte-egoav
+  ...
 ```

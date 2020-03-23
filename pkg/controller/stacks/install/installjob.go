@@ -70,15 +70,17 @@ type prepareInstallJobParams struct {
 	stackManagerPullPolicy corev1.PullPolicy
 	imagePullPolicy        corev1.PullPolicy
 	labels                 map[string]string
+	annotations            map[string]string
 	imagePullSecrets       []corev1.LocalObjectReference
 }
 
 func prepareInstallJob(p prepareInstallJobParams) *batchv1.Job {
 	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      p.name,
-			Namespace: p.namespace,
-			Labels:    p.labels,
+			Name:        p.name,
+			Namespace:   p.namespace,
+			Labels:      p.labels,
+			Annotations: p.annotations,
 		},
 		Spec: batchv1.JobSpec{
 			BackoffLimit: &jobBackoff,

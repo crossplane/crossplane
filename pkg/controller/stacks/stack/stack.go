@@ -42,6 +42,7 @@ import (
 	"github.com/crossplane/crossplane/apis/stacks/v1alpha1"
 	"github.com/crossplane/crossplane/pkg/controller/stacks/hosted"
 	"github.com/crossplane/crossplane/pkg/stacks"
+	"github.com/crossplane/crossplane/pkg/stacks/truncate"
 )
 
 const (
@@ -393,7 +394,7 @@ func (h *stackHandler) createNamespaceLabelsCRDHandler() crdHandler {
 // single StackInstall removal will delete a CRD until there are no remaining
 // stack parent labels.
 func (h *stackHandler) createMultipleParentLabelsCRDHandler() crdHandler {
-	labelMultiParent := fmt.Sprintf(stacks.LabelMultiParentFormat, h.ext.GetNamespace(), h.ext.GetName())
+	labelMultiParent := stacks.MultiParentLabel(h.ext)
 
 	return func(ctx context.Context, crds []apiextensions.CustomResourceDefinition) error {
 		for i := range crds {
@@ -790,20 +791,8 @@ func (h *stackHandler) prepareHostAwareDeployment(d *apps.Deployment, tokenSecre
 	d.Name = o.Name
 	d.Namespace = o.Namespace
 
-	return nil
-}
-func (h *stackHandler) prepareHostAwareJob(j *batch.Job, tokenSecret string) error {
-	if h.hostAwareConfig == nil {
-		return errors.New(errHostAwareModeNotEnabled)
-	}
-
-	if err := h.prepareHostAwarePodSpec(tokenSecret, &j.Spec.Template.Spec); err != nil {
-		return err
-	}
-
-	o := h.hostAwareConfig.ObjectReferenceOnHost(j.Name, j.Namespace)
-	j.Name = o.Name
-	j.Namespace = o.Namespace
+	a := hosted.ObjectReferenceAnnotationsOnHost("stack", h.ext.GetName(), h.ext.GetNamespace())
+	meta.AddAnnotations(d, a)
 
 	return nil
 }
@@ -817,7 +806,10 @@ func (h *stackHandler) prepareDeployment(d *apps.Deployment) {
 	controllerDeployment.Spec.DeepCopyInto(&d.Spec)
 
 	// force the deployment to use stack opinionated names and service account
-	name := h.ext.Name + "-controller"
+	suffix := "-controller"
+	size := truncate.LabelValueLength - len(suffix)
+	name, _ := truncate.Truncate(h.ext.Name, size, truncate.DefaultSuffixLength)
+	name += suffix
 	matchLabels := map[string]string{"app": name}
 	labels := stacks.ParentLabels(h.ext)
 
@@ -941,11 +933,10 @@ func (h *stackHandler) removeCRDLabels(ctx context.Context) error {
 		return err
 	}
 
-	stackName := h.ext.GetName()
 	stackNS := h.ext.GetNamespace()
 
-	labelMultiParentNSPrefix := fmt.Sprintf(stacks.LabelMultiParentNSFormat, stackNS)
-	labelMultiParent := fmt.Sprintf(stacks.LabelMultiParentFormat, stackNS, stackName)
+	labelMultiParentNSPrefix := stacks.MultiParentLabelPrefix(h.ext)
+	labelMultiParent := stacks.MultiParentLabel(h.ext)
 	labelNamespace := fmt.Sprintf(stacks.LabelNamespaceFmt, stackNS)
 
 	for i := range crds {
