@@ -172,7 +172,6 @@ func (c *remoteCluster) sync(ctx context.Context, ar *v1alpha1.KubernetesApplica
 	templates := createSecretTemplates(secrets, template.GetNamespace(), ar.GetName())
 	for i := range templates {
 		template := &templates[i]
-		ensureNamespace(template)
 		setRemoteController(ar, template)
 
 		if err := c.secret.sync(ctx, template); err != nil {
@@ -180,7 +179,6 @@ func (c *remoteCluster) sync(ctx context.Context, ar *v1alpha1.KubernetesApplica
 		}
 	}
 
-	ensureNamespace(template)
 	setRemoteController(ar, template)
 
 	status, err := c.unstructured.sync(ctx, template)
@@ -202,7 +200,6 @@ func (c *remoteCluster) delete(ctx context.Context, ar *v1alpha1.KubernetesAppli
 	if err := json.Unmarshal(ar.Spec.Template.Raw, template); err != nil {
 		return v1alpha1.KubernetesApplicationResourceStateFailed, errors.Wrap(err, errUnmarshalTemplate)
 	}
-	ensureNamespace(template)
 	setRemoteController(ar, template)
 
 	if err := c.unstructured.delete(ctx, template); err != nil {
@@ -212,7 +209,6 @@ func (c *remoteCluster) delete(ctx context.Context, ar *v1alpha1.KubernetesAppli
 	templates := createSecretTemplates(secrets, template.GetNamespace(), ar.GetName())
 	for i := range templates {
 		template := &templates[i]
-		ensureNamespace(template)
 		setRemoteController(ar, template)
 
 		if err := c.secret.delete(ctx, template); err != nil {
@@ -564,11 +560,4 @@ func haveSameController(a, b metav1.Object) bool {
 	}
 
 	return a.GetAnnotations()[RemoteControllerUID] == b.GetAnnotations()[RemoteControllerUID]
-}
-
-func ensureNamespace(obj metav1.Object) {
-	if obj.GetNamespace() != "" {
-		return
-	}
-	obj.SetNamespace(corev1.NamespaceDefault)
 }

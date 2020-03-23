@@ -383,8 +383,8 @@ func TestSync(t *testing.T) {
 			syncer: &remoteCluster{
 				unstructured: &mockUnstructuredClient{
 					mockSync: func(_ context.Context, got *unstructured.Unstructured) (*v1alpha1.RemoteStatus, error) {
-						want := template(serviceWithoutNamespace)
-						want.SetNamespace(corev1.NamespaceDefault)
+						want := template(service)
+						want.SetNamespace(namespace)
 						want.SetAnnotations(map[string]string{
 							RemoteControllerNamespace: objectMeta.GetNamespace(),
 							RemoteControllerName:      objectMeta.GetName(),
@@ -402,7 +402,7 @@ func TestSync(t *testing.T) {
 					mockSync: func(_ context.Context, got *corev1.Secret) error {
 						want := secret.DeepCopy()
 						want.SetName(fmt.Sprintf("%s-%s", objectMeta.GetName(), secret.GetName()))
-						want.SetNamespace(corev1.NamespaceDefault)
+						want.SetNamespace(namespace)
 						want.SetAnnotations(map[string]string{
 							RemoteControllerNamespace: objectMeta.GetNamespace(),
 							RemoteControllerName:      objectMeta.GetName(),
@@ -416,7 +416,7 @@ func TestSync(t *testing.T) {
 					},
 				},
 			},
-			ar:        kubeAR(withTemplate(template(serviceWithoutNamespace))),
+			ar:        kubeAR(withTemplate(template(service))),
 			secrets:   []corev1.Secret{*secret},
 			wantState: v1alpha1.KubernetesApplicationResourceStateSubmitted,
 		},
@@ -439,7 +439,7 @@ func TestSync(t *testing.T) {
 					mockSync: func(_ context.Context, got *corev1.Secret) error {
 						want := secretWithExplicitType.DeepCopy()
 						want.SetName(fmt.Sprintf("%s-%s", objectMeta.GetName(), secretWithExplicitType.GetName()))
-						want.SetNamespace(corev1.NamespaceDefault)
+						want.SetNamespace(namespace)
 						want.SetAnnotations(map[string]string{
 							RemoteControllerNamespace: objectMeta.GetNamespace(),
 							RemoteControllerName:      objectMeta.GetName(),
@@ -453,7 +453,7 @@ func TestSync(t *testing.T) {
 					},
 				},
 			},
-			ar:        kubeAR(withTemplate(template(serviceWithoutNamespace))),
+			ar:        kubeAR(withTemplate(template(service))),
 			secrets:   []corev1.Secret{*secretWithExplicitType},
 			wantState: v1alpha1.KubernetesApplicationResourceStateSubmitted,
 		},
