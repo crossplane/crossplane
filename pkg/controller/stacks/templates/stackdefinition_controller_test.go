@@ -18,47 +18,41 @@ package templates
 
 import (
 	"context"
-	"fmt"
+	"strings"
 	"testing"
-	"time"
 
-	"github.com/ghodss/yaml"
-	corev1 "k8s.io/api/core/v1"
-	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	"github.com/google/go-cmp/cmp"
+	"github.com/pkg/errors"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/rest"
+	"k8s.io/apimachinery/pkg/util/yaml"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	"github.com/crossplane/crossplane-runtime/pkg/test/integration"
-	"github.com/crossplane/crossplane/apis"
+	"github.com/crossplane/crossplane-runtime/pkg/test"
+
 	"github.com/crossplane/crossplane/apis/stacks/v1alpha1"
 )
 
 const (
-	testStackDefinition = `
----
+	testStackDefinitionYAML = `---
 apiVersion: stacks.crossplane.io/v1alpha1
 kind: StackDefinition
-
 metadata:
   name: 'minimal-gcp'
-
+  namespace: 'crossplane-system'
 spec:
   behaviors:
     engine:
       type: kustomize
-
       kustomize:
         kustomization:
           namePrefix: mystuff
           commonLabels:
             group: minimal-gcp-stuff
-
         overlays:
         - apiVersion: gcp.crossplane.io/v1alpha3
           kind: Provider
@@ -74,15 +68,12 @@ spec:
           bindings:
             - from: "spec.region"
               to: "data.region"
-
     source:
       image: 'crossplane/minimal-gcp:0.0.1'
       path: resources/minimal-gcp
-
     crd:
       apiVersion: gcp.resourcepacks.crossplane.io/v1alpha1
       kind: MinimalGCP
-
   title: "Minimal GCP Environment"
   readme: ""
   overview: "This stack provisions a private network and creates resource classes that has minimal node settings and refer to that private network."
@@ -105,7 +96,6 @@ spec:
   website: "httos://upbound.io"
   source: "https://github.com/muvaf/minimal-gcp"
   permissionScope: Cluster
-
   dependsOn:
     - crd: '*.cache.gcp.crossplane.io/v1beta1'
     - crd: '*.compute.gcp.crossplane.io/v1alpha3'
@@ -115,126 +105,148 @@ spec:
     - crd: '*.gcp.crossplane.io/v1alpha3'
   license: Apache-2.0
 `
+	testStackYAML = `---
+metadata:
+  creationTimestamp: null
+  name: minimal-gcp
+  namespace: crossplane-system
+  ownerReferences:
+  - apiVersion: stacks.crossplane.io/v1alpha1
+    blockOwnerDeletion: true
+    controller: true
+    kind: StackDefinition
+    name: minimal-gcp
+    uid: ""
+spec:
+  category: Environment Stack
+  company: Upbound
+  controller: {}
+  customresourcedefinitions: []
+  dependsOn:
+  - crd: '*.cache.gcp.crossplane.io/v1beta1'
+  - crd: '*.compute.gcp.crossplane.io/v1alpha3'
+  - crd: '*.database.gcp.crossplane.io/v1beta1'
+  - crd: '*.storage.gcp.crossplane.io/v1alpha3'
+  - crd: '*.servicenetworking.gcp.crossplane.io/v1alpha3'
+  - crd: '*.gcp.crossplane.io/v1alpha3'
+  keywords:
+  - easy
+  - resource class
+  - private network
+  - cheap
+  - minimal
+  license: Apache-2.0
+  maintainers:
+  - email: monus@upbound.io
+    name: Muvaffak Onus
+  overview: This stack provisions a private network and creates resource classes that
+    has minimal node settings and refer to that private network.
+  overviewShort: Start using GCP with Crossplane without needing to create your own
+    resource classes!
+  owners:
+  - email: monus@upbound.io
+    name: Muvaffak Onus
+  permissionScope: Cluster
+  permissions:
+    rules:
+    - apiGroups:
+      - stacks.crossplane.io
+      resourceNames:
+      - minimal-gcp
+      resources:
+      - stackdefinitions
+      - stackdefinitions/status
+      verbs:
+      - get
+      - list
+      - watch
+  source: https://github.com/muvaf/minimal-gcp
+  title: Minimal GCP Environment
+  version: "1.0"
+  website: httos://upbound.io
+status:
+  conditionedStatus: {}
+
+`
 )
 
 func TestStackDefinitionController(t *testing.T) {
-	t.Skip("Skipping so that this test will not run in CI, until we have better support for it. For more context, see https://github.com/crossplane/crossplane/issues/1033")
+	// Add our test data to the "cluster"
+	testDef := &v1alpha1.StackDefinition{}
+	parse(testStackDefinitionYAML, testDef)
+	testStack := &v1alpha1.Stack{}
+	parse(testStackYAML, testStack)
+	type args struct {
+		def  *v1alpha1.StackDefinition
+		kube client.Client
+	}
+	type want struct {
+		stack *v1alpha1.Stack
+		err   error
+		rec   ctrl.Result
+	}
 
 	cases := map[string]struct {
+		args
+		want
 		reason string
-		test   func(c client.Client, mgr manager.Manager) error
 	}{
 		"CreateStack": {
 			reason: "should create a stack which doesn't exist yet",
-			test: func(c client.Client, mgr manager.Manager) error {
-				namespace := "test-stackdefinition-controller"
-				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-				defer cancel()
-
-				// Set up test namespace
-				n := &corev1.Namespace{}
-				n.SetName(namespace)
-				if err := c.Create(ctx, n); err != nil {
-					t.Log("CreateStack(): returning error result when trying to create namespace.", "err", err)
-					return err
-				}
-
-				// Add our test data to the "cluster"
-				u := &unstructured.Unstructured{}
-				if err := yaml.Unmarshal([]byte(testStackDefinition), u); err != nil {
-					t.Log("CreateStack(): returning error result when unmarshaling stack definition.", "err", err)
-					return err
-				}
-
-				u.SetNamespace(namespace)
-				if err := c.Create(ctx, u); err != nil {
-					t.Log("CreateStack(): returning error result when creating stack definition.", "err", err)
-					return err
-				}
-
-				name := u.GetName()
-				nn := types.NamespacedName{
-					Namespace: namespace,
-					Name:      name,
-				}
-
-				// A paranoid test may check for the precondition that the expected result Stack
-				// does not exist at this time. Let's be paranoid.
-				s := &v1alpha1.Stack{}
-				if err := c.Get(ctx, nn, s); err == nil {
-					t.Error("CreateStack(): returning error result when fetching created stack\ngot = err: nil\nwant = err: not found", "err", err, "stack", s)
-				} else if !kerrors.IsNotFound(err) {
-					t.Errorf("CreateStack(): returning error result when fetching created stack\ngot = err: %v\nwant = err: not found", err)
-				}
-
-				// Now we reconcile
-				reconciler := StackDefinitionReconciler{
-					Client: c,
-					Log:    logging.NewNopLogger(),
-				}
-				reconcileRequest := ctrl.Request{
-					NamespacedName: nn,
-				}
-				res, err := reconciler.Reconcile(reconcileRequest)
-
-				// We want our reconcile to succeed
-				if res.Requeue || res.RequeueAfter != 0 || err != nil {
-					return fmt.Errorf("CreateStack(): reconcile did not complete successfully.\ngot = result: %v, err: %v\nwant = Requeue: false, RequeueAfter: 0, err: nil", res, err)
-				}
-
-				// Now that our reconcile has succeeded, we expect the stack to exist
-				ss := &v1alpha1.Stack{}
-				if err := c.Get(ctx, nn, ss); err != nil {
-					t.Log("CreateStack(): returning error result when fetching created stack", "err", err, "stack", s)
-					return err
-				}
-
-				// NOTE the test does not check the fields of the stack. Ideally it would, for correctness guarantees
-
-				return nil
+			args: args{
+				def: testDef,
+				kube: &test.MockClient{
+					MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
+						switch o := obj.(type) {
+						case *v1alpha1.StackDefinition:
+							testDef.DeepCopyInto(o)
+							return nil
+						case *v1alpha1.Stack:
+							return kerrors.NewNotFound(schema.GroupResource{}, testStack.Name)
+						default:
+							return errors.New("boom")
+						}
+					},
+					MockCreate: func(_ context.Context, obj runtime.Object, opts ...client.CreateOption) error {
+						switch s := obj.(type) {
+						case *v1alpha1.Stack:
+							if diff := cmp.Diff(testStack, s); diff != "" {
+								t.Errorf("Reconcile: -want, +got:\n%s", diff)
+							}
+							return nil
+						default:
+							return errors.New("boom")
+						}
+					},
+				},
+			},
+			want: want{
+				stack: testStack,
+				rec:   ctrl.Result{RequeueAfter: longWait},
 			},
 		},
 	}
 
-	var cfg *rest.Config
-
-	i, err := integration.New(cfg,
-		integration.WithCRDPaths("../../../../cluster/charts/crossplane/templates/crds"),
-		integration.WithCleaners(
-			integration.NewCRDCleaner(),
-			integration.NewCRDDirCleaner()),
-	)
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := apis.AddToScheme(i.GetScheme()); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := corev1.AddToScheme(i.GetScheme()); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := apiextensions.AddToScheme(i.GetScheme()); err != nil {
-		t.Fatal(err)
-	}
-
-	i.Run()
-
-	defer func() {
-		if err := i.Cleanup(); err != nil {
-			t.Fatal(err)
-		}
-	}()
-
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			err := tc.test(i.GetClient(), i)
-			if err != nil {
-				t.Error(err)
+			r := &StackDefinitionReconciler{Client: tc.kube, Log: logging.NewNopLogger()}
+			res, err := r.Reconcile(ctrl.Request{NamespacedName: types.NamespacedName{
+				Namespace: tc.args.def.Namespace,
+				Name:      tc.args.def.Name,
+			}})
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("Reconcile: -want, +got:\n%s", diff)
+			}
+			if diff := cmp.Diff(tc.want.rec, res); diff != "" {
+				t.Errorf("Reconcile: -want, +got:\n%s", diff)
 			}
 		})
+	}
+}
+
+func parse(data string, obj runtime.Object) {
+	dec := yaml.NewYAMLOrJSONDecoder(strings.NewReader(data), 4096)
+	if err := dec.Decode(obj); err != nil {
+		panic("cannot parse the test YAML")
 	}
 }
