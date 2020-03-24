@@ -1,31 +1,39 @@
 # Adding Microsoft Azure to Crossplane
 
-In this guide, we will walk through the steps necessary to configure your Azure account to be ready for integration with Crossplane.
-The general steps we will take are summarized below:
+In this guide, we will walk through the steps necessary to configure your Azure
+account to be ready for integration with Crossplane. The general steps we will
+take are summarized below:
 
-* Create a new service principal (account) that Crossplane will use to create and manage Azure resources
+* Create a new service principal (account) that Crossplane will use to create
+  and manage Azure resources
 * Add the required permissions to the account
 * Consent to the permissions using an administrator account
 
 ## Preparing your Microsoft Azure Account
 
-In order to manage resources in Azure, you must provide credentials for a Azure service principal that Crossplane can use to authenticate.
-This assumes that you have already [set up the Azure CLI client](https://docs.microsoft.com/en-us/cli/azure/authenticate-azure-cli?view=azure-cli-latest) with your credentials.
+In order to manage resources in Azure, you must provide credentials for a Azure
+service principal that Crossplane can use to authenticate. This assumes that you
+have already [set up the Azure CLI
+client](https://docs.microsoft.com/en-us/cli/azure/authenticate-azure-cli?view=azure-cli-latest)
+with your credentials.
 
-Create a JSON file that contains all the information needed to connect and authenticate to Azure:
+Create a JSON file that contains all the information needed to connect and
+authenticate to Azure:
 
 ```bash
 # create service principal with Owner role
 az ad sp create-for-rbac --sdk-auth --role Owner > crossplane-azure-provider-key.json
 ```
 
-Take note of the `clientID` value from the JSON file that we just created, and save it to an environment variable:
+Take note of the `clientID` value from the JSON file that we just created, and
+save it to an environment variable:
 
 ```bash
 export AZURE_CLIENT_ID=<clientId value from json file>
 ```
 
-Now add the required permissions to the service principal that will allow it to manage the necessary resources in Azure:
+Now add the required permissions to the service principal that will allow it to
+manage the necessary resources in Azure:
 
 ```bash
 # add required Azure Active Directory permissions
@@ -35,21 +43,28 @@ az ad app permission add --id ${AZURE_CLIENT_ID} --api 00000002-0000-0000-c000-0
 az ad app permission grant --id ${AZURE_CLIENT_ID} --api 00000002-0000-0000-c000-000000000000 --expires never
 ```
 
-You might see an error similar to the following, but that is OK, the permissions should have gone through still:
+You might see an error similar to the following, but that is OK, the permissions
+should have gone through still:
 
 ```console
 Operation failed with status: 'Conflict'. Details: 409 Client Error: Conflict for url: https://graph.windows.net/e7985bc4-a3b3-4f37-b9d2-fa256023b1ae/oauth2PermissionGrants?api-version=1.6
 ```
 
-Finally, you need to grant admin permissions on the Azure Active Directory to the service principal because it will need to create other service principals for your `AKSCluster`:
+Finally, you need to grant admin permissions on the Azure Active Directory to
+the service principal because it will need to create other service principals
+for your `AKSCluster`:
 ```bash
 # grant admin consent to the service princinpal you created
 az ad app permission admin-consent --id "${AZURE_CLIENT_ID}"
 ```
 
-Note: You might need `Global Administrator` role to `Grant admin consent for Default Directory`. Please contact the administrator of your Azure subscription. To check your role, go to `Azure Active Directory` -> `Roles and administrators`. You can find your role(s) by clicking on `Your Role (Preview)`
+Note: You might need `Global Administrator` role to `Grant admin consent for
+Default Directory`. Please contact the administrator of your Azure subscription.
+To check your role, go to `Azure Active Directory` -> `Roles and
+administrators`. You can find your role(s) by clicking on `Your Role (Preview)`
 
-After these steps are completed, you should have the following file on your local filesystem:
+After these steps are completed, you should have the following file on your
+local filesystem:
 
 * `crossplane-azure-provider-key.json`
 
