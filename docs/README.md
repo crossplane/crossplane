@@ -11,8 +11,8 @@ features:
 - Management and scheduling of configuration data across multiple Kubernetes
   clusters.
 - Separation of concern between [infrastructure
-  owners](1_infra_owners/0_overview.md), [application
-  owners](2_app_owners/0_overview.md), and
+  owners](1_infra_operators/0_overview.md), [application
+  owners](2_app_operators/0_overview.md), and
   [developers](3_developers/0_overview.md).
 - Infrastructure agnostic packaging of applications and their dependencies.
 - Scheduling applications into different clusters, zones, and regions.
