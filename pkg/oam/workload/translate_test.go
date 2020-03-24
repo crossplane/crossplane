@@ -36,6 +36,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
+
 	workloadv1alpha1 "github.com/crossplane/crossplane/apis/workload/v1alpha1"
 )
 
@@ -68,12 +69,6 @@ func dmWithContainerPorts(ports ...int32) deploymentModifier {
 			Name:  containerName,
 			Ports: p,
 		})
-	}
-}
-
-func dmWithReplicas(r *int32) deploymentModifier {
-	return func(d *appsv1.Deployment) {
-		d.Spec.Replicas = r
 	}
 }
 

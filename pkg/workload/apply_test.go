@@ -19,11 +19,13 @@ package workload
 import (
 	"context"
 	"encoding/json"
+	"reflect"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -34,7 +36,77 @@ import (
 	workloadv1alpha1 "github.com/crossplane/crossplane/apis/workload/v1alpha1"
 )
 
-var replicas = int32(3)
+var (
+	workloadName = "test-workload"
+	workloadUID  = "a-very-unique-identifier"
+
+	replicas      = int32(3)
+	containerName = "test-container"
+	portName      = "test-port"
+)
+
+var (
+	deploymentKind       = reflect.TypeOf(appsv1.Deployment{}).Name()
+	deploymentAPIVersion = appsv1.SchemeGroupVersion.String()
+)
+
+type deploymentModifier func(*appsv1.Deployment)
+
+func dmWithContainerPorts(ports ...int32) deploymentModifier {
+	return func(d *appsv1.Deployment) {
+		p := []corev1.ContainerPort{}
+		for _, port := range ports {
+			p = append(p, corev1.ContainerPort{
+				Name:          portName,
+				ContainerPort: port,
+			})
+		}
+		d.Spec.Template.Spec.Containers = append(d.Spec.Template.Spec.Containers, corev1.Container{
+			Name:  containerName,
+			Ports: p,
+		})
+	}
+}
+
+func dmWithReplicas(r *int32) deploymentModifier {
+	return func(d *appsv1.Deployment) {
+		d.Spec.Replicas = r
+	}
+}
+
+func deployment(mod ...deploymentModifier) *appsv1.Deployment {
+	d := &appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       deploymentKind,
+			APIVersion: deploymentAPIVersion,
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              workloadName,
+			CreationTimestamp: metav1.NewTime(time.Date(0, 0, 0, 0, 0, 0, 0, time.Local)),
+		},
+		Spec: appsv1.DeploymentSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"test-label": workloadUID,
+				},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					CreationTimestamp: metav1.NewTime(time.Date(0, 0, 0, 0, 0, 0, 0, time.Local)),
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{},
+				},
+			},
+		},
+	}
+
+	for _, m := range mod {
+		m(d)
+	}
+
+	return d
+}
 
 type kubeAppModifier func(*workloadv1alpha1.KubernetesApplication)
 
