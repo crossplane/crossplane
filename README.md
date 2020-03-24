@@ -2,55 +2,66 @@
 
 ![Crossplane](docs/media/banner.png)
 
-[Crossplane] is the open source multicloud control plane. With Crossplane you
-can manage your applications and infrastructure across clouds, regions, and
-clusters. Crossplane is composable and Kubernetes native. Deploy it to an
-existing Kubernetes cluster to manage cloud infrastructure like databases,
-buckets, and caches using `kubectl`. Deploy it standalone to manage Kubernetes
-clusters, the workloads running on them, and the cloud infrastructure those
-workloads depend upon.
+Crossplane is an open source control plane that allows you to manage
+applications and infrastructure the Kubernetes way. It provides the following
+features:
 
-## Architecture
+- Deployment and management of cloud provider managed services using the
+  Kubernetes API.
+- Management and scheduling of configuration data across multiple Kubernetes
+  clusters.
+- Separation of concern between [infrastructure
+  owners](docs/1_infra_operators/0_overview.md), [application
+  owners](docs/2_app_operators/0_overview.md), and
+  [developers](docs/3_developers/0_overview.md).
+- Infrastructure agnostic packaging of applications and their dependencies.
+- Scheduling applications into different clusters, zones, and regions.
 
-![Architecture diagram](docs/media/crossplane-overview.png)
+Crossplane does not:
 
-Crossplane builds on the Kubernetes control plane. It is composed of [Stacks] -
-easy to install packages of Kubernetes [custom resources and controllers] that
-extend Crossplane with new functionality. A stack can extend Crossplane with the
-ability to manage the infrastructure of a new cloud provider, or to deploy and
-manage a new cloud-native application. This enables Crossplane users to:
+- Require that you run your workloads on Kubernetes.
+- Manage the data plane across Kubernetes clusters.
+- Manage or provision non-hosted Kubernetes clusters.
 
-1. Install the **infrastructure stacks** for their desired clouds to enable
-   on-demand, **cloud-portable provisioning of infrastructure** services like
-   databases, caches, and Kubernetes clusters.
-1. Define **portable application workloads**, including their cloud
-   infrastructure dependencies, and schedule them to the most appropriate
-   infrastructure across any cloud.
-1. Package their workloads as an **application stack** that others may easily
-   deploy.
+Crossplane can be [installed](docs/1_install.md) into any Kubernetes cluster,
+and is compatible with any Kubernetes-native project. It manages external
+services by installing [Custom Resource
+Definitions](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/)
+(CRDs) and
+[reconciling](https://kubernetes.io/docs/concepts/architecture/controller/)
+instances of those Custom Resources. Crossplane is built to be extensible,
+meaning that anyone can add functionality for an new or existing cloud provider.
+
+Crossplane is comprised of four main components:
+
+1. **Core Crossplane**: the set of Kubernetes CRDs and controllers that manage
+   installation of `providers`, `stacks`, and `applications`, as well as the
+   scheduling of configuration data to remote Kubernetes clusters.
+2. **Providers**: the set of Kubernetes CRDs and controllers that provision and
+   manage services on cloud providers. A cloud provider is any service that
+   exposes infrastructure via an API.
+    - Examples: [Google Cloud
+      Platform](https://github.com/crossplane/provider-gcp), [Amazon Web
+      Services](https://github.com/crossplane/provider-aws),
+      [Azure](https://github.com/crossplane/provider-azure),
+      [Alibaba](https://github.com/crossplane/provider-alibaba),
+      [Github](https://github.com/crossplane/provider-github)
+3. **Stacks**: a bundled set of custom resources that together represent an
+   environment on a cloud provider. The bundle of instances can be created by a
+   single custom resource.
+   - Examples: [Stack Minimal
+     GCP](https://github.com/crossplane/stack-minimal-gcp), [Stack Minimal
+     AWS](https://github.com/crossplane/stack-minimal-aws), [Stack Minimal
+     Azure](https://github.com/crossplane/stack-minimal-azure)
+4. **Applications**: a deployable unit of code and configuration, which, when
+   created, may involve provisioning new services which are managed by a
+   `provider`, or consuming services created by a `stack`.
+    - Examples: [Wordpress](https://github.com/crossplane/app-wordpress)
 
 The full vision and architecture of the Crossplane project is described in our
 [architecture document].
 
-## Get Started
-
-Take a look at the [getting started] guide to learn how to install Crossplane,
-install a stack, and provision cloud infrastructure using `kubectl`. Refer to
-the Crossplane [documentation] for comprehensive guides to using Crossplane,
-including deploying an application packaged as a stack.
-
-## Infrastructure Providers
-
-The following infrastructure providers are currently available for use with
-Crossplane. If you maintain an infrastructure stack that is not listed below,
-please open a PR to add it to the list!
-
-* [provider-aws]
-* [provider-azure]
-* [provider-rook]
-* [provider-gcp]
-* [stack-packet]
-* [stack-cloudscale]
+For more information, take a look at the official Crossplane [documentation].
 
 ## Get Involved
 
@@ -82,8 +93,6 @@ Crossplane is under the Apache 2.0 license.
 
 [Crossplane]: https://crossplane.io
 [documentation]: https://crossplane.io/docs/latest
-[Stacks]: docs/README.md#crossplane-stacks
-[custom resources and controllers]: https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/
 [architecture document]: https://docs.google.com/document/d/1whncqdUeU2cATGEJhHvzXWC9xdK29Er45NJeoemxebo/edit?usp=sharing
 [Slack]: https://slack.crossplane.io
 [developer mailing list]: https://groups.google.com/forum/#!forum/crossplane-dev
@@ -94,10 +103,3 @@ Crossplane is under the Apache 2.0 license.
 [Tuesday at 9:00am Pacific Time]: https://www.thetimezoneconverter.com/?t=9:00&tz=PT%20%28Pacific%20Time%29
 [Current agenda and past meeting notes]: https://docs.google.com/document/d/1q_sp2jLQsDEOX7Yug6TPOv7Fwrys6EwcF5Itxjkno7Y/edit?usp=sharing
 [Past meeting recordings]: https://www.youtube.com/playlist?list=PL510POnNVaaYYYDSICFSNWFqNbx1EMr-M
-[getting started]: https://crossplane.io/docs/master/quick-start.html
-[provider-aws]: https://github.com/crossplane/provider-aws
-[provider-azure]: https://github.com/crossplane/provider-azure
-[provider-rook]: https://github.com/crossplane/provider-rook
-[provider-gcp]: https://github.com/crossplane/provider-gcp
-[stack-packet]: https://github.com/packethost/stack-packet
-[stack-cloudscale]: https://github.com/vshn/stack-cloudscale
