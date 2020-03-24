@@ -42,6 +42,8 @@ type StackDefinitionReconciler struct {
 
 const (
 	stackDefinitionTimeout = 60 * time.Second
+
+	longWait = 60 * time.Second
 )
 
 // +kubebuilder:rbac:groups=stacks.crossplane.io,resources=stackconfigurations,verbs=get;list;watch;create;update;patch;delete
@@ -63,23 +65,24 @@ func (r *StackDefinitionReconciler) Reconcile(req ctrl.Request) (ctrl.Result, er
 	}
 
 	s := &v1alpha1.Stack{}
-	if err := r.Client.Get(ctx, req.NamespacedName, s); err != nil {
-		if kerrors.IsNotFound(err) {
-			s.SetNamespace(req.Namespace)
-			s.SetName(req.Name)
-			r.Log.Debug("Stack not found; creating from stack definition", "request", req, "stackDefinition", i)
-			if err = r.createStack(ctx, i, s); err != nil && !kerrors.IsAlreadyExists(err) {
-				r.Log.Debug("Error creating a Stack from StackDefinition", "request", req, "stackDefinition", i, "error", err)
-				return ctrl.Result{}, err
-			}
+	err := r.Client.Get(ctx, req.NamespacedName, s)
+	if kerrors.IsNotFound(err) {
+		s.SetNamespace(req.Namespace)
+		s.SetName(req.Name)
+		r.Log.Debug("Stack not found; creating from stack definition", "request", req, "stackDefinition", i)
+		if err := r.createStack(ctx, i, s); err != nil && !kerrors.IsAlreadyExists(err) {
+			r.Log.Debug("Error creating a Stack from StackDefinition", "request", req, "stackDefinition", i, "error", err)
+			return ctrl.Result{}, err
 		}
-
+		return ctrl.Result{RequeueAfter: longWait}, nil
+	}
+	if err != nil && !kerrors.IsNotFound(err) {
 		r.Log.Debug("Error fetching stack", "request", req, "stackDefinition", i, "error", err)
 		return ctrl.Result{}, err
 	}
 
 	r.Log.Debug("Stack exists; updating from stack definition", "request", req, "stackDefinition", i, "stack", s)
-	return ctrl.Result{}, r.syncStack(ctx, i, s)
+	return ctrl.Result{RequeueAfter: longWait}, r.syncStack(ctx, i, s)
 }
 
 func (r *StackDefinitionReconciler) createStack(ctx context.Context, sd *v1alpha1.StackDefinition, s *v1alpha1.Stack) error {
