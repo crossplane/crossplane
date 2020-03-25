@@ -28,14 +28,14 @@ in your cluster.
 
 The steps for using a Crossplane application involve defining your
 infrastructure, installing the application, then creating an instance of that
-application. In the [previous section](stack.md), we completed the first step by
-creating our `MinimalGCP` instance. In contrast to the GCP provider and Minimal
-GCP stack, the Wordpress application will be installed with a `StackInstall`
-instead of a `ClusterStackInstall`. This means that the installation will only
-be available in the namespace that we specify. You can read more about the
-difference between the two in the [infrastructure
-operators](infra_operators/packaging_a_stack.md) and [application
-operators](app_operators/packaging_an_app.md) guides.
+application. In the [previous section](6_stack.md), we completed the first step
+by creating our `MinimalGCP` instance. In contrast to the GCP provider and
+Minimal GCP stack, the Wordpress application will be installed with a
+`StackInstall` instead of a `ClusterStackInstall`. This means that the
+installation will only be available in the namespace that we specify. You can
+read more about the difference between the two in the [infrastructure
+operators](1_infra_operators/3_packaging_a_stack.md) and [application
+operators](2_app_operators/1_packaging_an_app.md) guides.
 
 Create a file named `wordpress-install.yaml` with the following content:
 
@@ -46,7 +46,7 @@ metadata:
   name: app-wordpress
   namespace: cp-quickstart
 spec:
-  package: crossplane/app-wordpress:v0.2.0
+  package: crossplane/app-wordpress:master
 ```
 
 Then create it in your cluster:
@@ -62,7 +62,7 @@ When we do, a `KubernetesCluster` claim and a `MySQLInstance` claim will be
 created in the namespace, as well as a `KubernetesApplication` that contains the
 Wordpress application components. The claims will be satisfied by the
 `GKEClusterClass` and `CloudSQLInstanceClass` we created in the [previous
-section](stack.md). Let's create a `WordpressInstance` and see what happens.
+section](6_stack.md). Let's create a `WordpressInstance` and see what happens.
 
 Create a file named `my-wordpress.yaml` with the following content:
 
@@ -187,9 +187,9 @@ Now you are familiar with **Providers**, **Stacks**, and **Applications**. The
 next step is to build and deploy your own. Take a look at the following guides
 to learn more:
 
-- [Infrastructure Operators](infra_operators/installing_a_stack.md)
-- [Application Operators](app_operators/packaging_an_app.md)
-- [Developers](developers/requesting_infrastructure.md)
+- [Infrastructure Operators](1_infra_operators/1_installing_a_stack.md)
+- [Application Operators](2_app_operators/1_packaging_an_app.md)
+- [Developers](3_developers/1_requesting_infrastructure.md)
 
 ## Clean Up
 
