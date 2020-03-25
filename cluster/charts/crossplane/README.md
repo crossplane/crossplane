@@ -93,11 +93,11 @@ helm install crossplane --namespace crossplane-system crossplane-master/crosspla
 ## Installing Infrastructure Providers
 
 You can add additional functionality to Crossplane's control plane by installing
-Crossplane Providers. For example, each supported cloud provider has its own
-corresponding Crossplane provider that contains all the functionality for that
-particular cloud. After a cloud provider's infrastructure provider is installed,
-you will be able to provision and manage resources within that cloud from
-Crossplane.
+`providers`. For example, each supported cloud provider has its own
+corresponding Crossplane `provider` that contains all the functionality for that
+particular cloud. After a cloud provider's infrastructure `provider` is
+installed, you will be able to provision and manage resources within that cloud
+from Crossplane.
 
 ### Installation with Helm
 
