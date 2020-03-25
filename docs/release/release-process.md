@@ -23,6 +23,17 @@ with a very high level sequential overview for how to run the release process.
        semver
     1. **build/publish**: Run build pipeline to publish build with official
        semver
+1. **release template stacks**: Run the release process for each
+   **template stack** that we maintain. Note that the process for
+   template stacks is slightly different from the stack release process.
+    1. **test** Test builds from the release branch (typically
+       `master`), fix any critical bugs that are found
+    1. **version**: Update all version information in the docs, as
+       appropriate
+    1. **tag**: Run the tag pipeline to tag the release branch with an
+       official semver
+    1. **build/publish**: Run the publish pipeline to publish build with
+       official semver
 1. **docs/examples**: In Crossplane's release branch, update all examples, docs,
    and integration tests to reference the new versions
 1. **tag**: Run the tag pipeline to tag Crossplane's release branch with an
@@ -215,6 +226,94 @@ officially published.
 
 After the release build succeeds, verify that the correctly versioned Stack
 images have been pushed to Docker Hub.
+
+### Template Stack Release Process
+
+The Template Stacks we maintain are slightly different from the
+controller-based stacks that we maintain. Their processes are similar
+but a little simpler. This section will walk through how to release the
+Template Stacks themselves, and does not directly apply to core
+Crossplane.
+
+For Template Stacks, we do not use release branches unless we need to
+make a patch release. In the future we may need a more robust branching
+strategy, but for now we are not using branches because it is simpler.
+
+Note that Template Stacks **do not** require any code changes to update
+the version.
+
+### Template Stack Tag And Publish Pipeline
+
+Here is the list of all template stacks:
+
+* [`stack-minimal-gcp`](https://github.com/crossplane/stack-minimal-gcp)
+* [`stack-minimal-aws`](https://github.com/crossplane/stack-minimal-aws)
+* [`stack-minimal-azure`](https://github.com/crossplane/stack-minimal-azure)
+* [`app-wordpress`](https://github.com/crossplane/app-wordpress)
+
+Each one should be released as part of a complete release, using the
+instructions below. To read even more about the template stack release
+process, see [the release section of this
+document](https://github.com/crossplane/cicd/blob/master/docs/pipelines.md#how-do-i-cut-a-release)
+
+Note that there's also the
+[`templating-controller`](https://github.com/crossplane/templating-controller),
+which supports template stacks. It is possible that it **may** need to
+be released as well, but typically is released independently from
+Crossplane.
+
+#### Tag the Template Stack
+
+Once a template stack is tested and ready for cutting a semver release,
+we will want to tag the repository with the new release version. In most
+cases, to get the version, take a look at the most recent tag in the
+repo, and increment the minor version. For example, if the most recent
+tag was `v0.2.0`, the new tag should be `v0.3.0`.
+
+Run the template stack's tag job on Jenkins, against the `master`
+branch. Enter in the new tag to use. If the current release candidate is
+not the head of `master`, enter in the commit to tag.
+
+You can find the tag pipeline for the individual stack by going to the
+[crossplane org in
+Jenkins](https://jenkinsci.upbound.io/job/crossplane/), finding the
+folder with the same name as the template stack, and then going to the
+`tag` job group. Then going to the `master` branch job under the group.
+For example, here is [a link to the stack-minimal-gcp tag job for
+master](https://jenkinsci.upbound.io/job/crossplane/job/stack-minimal-gcp/job/tag/job/master/).
+
+> **Note:** The first time you run a pipeline on a new branch, you won't get prompted for the values
+> to input. The build will quickly fail and then you can run (not replay) it a second time to be
+> prompted.  This is a Jenkins bug that is tracked by
+> [#41929](https://issues.jenkins-ci.org/browse/JENKINS-41929) and has been open for almost 3 years,
+> so don't hold your breath.
+
+#### Publish the Template Stack
+
+After the tag pipeline has been run and the repository has been tagged,
+you can run the `publish` job for the template stack. For example,
+here's a [link to the stack-minimal-gcp publish
+job](https://jenkinsci.upbound.io/job/crossplane/job/stack-minimal-gcp/job/publish/job/master/).
+This will kick off the official release build and upon success, all
+release artifacts will be officially published. This should also be run
+from the `master` branch in most cases. Or, if a release branch was
+used, from the release branch. The tag parameter should be used, and the
+tag for the current release should be used. For example, if the new tag
+we created was `v0.3.0`, we would want to provide `v0.3.0` for the
+`publish` job.
+
+#### Verify the Template Stack was Published
+
+After the publish build succeeds, verify that the correctly versioned
+template stack images have been pushed to Docker Hub.
+
+### Template Stack Patch Releases
+
+To do a patch release with a template stack, create a release branch
+from the minor version tag on the `master` branch, if a release branch
+doesn't already exist. Then, the regular tagging and publishing process
+for template stacks can be followed, incrementing the patch version to
+get the new release tag.
 
 ### Core Crossplane release
 
