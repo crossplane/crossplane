@@ -1,4 +1,3 @@
-
 # Adding Amazon Web Services (AWS) to Crossplane
 
 In this guide, we will walk through the steps necessary to configure your AWS
