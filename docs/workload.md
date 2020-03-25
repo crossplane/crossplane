@@ -328,7 +328,7 @@ Events:      <none>
 > then manually creating a `KubernetesTarget` to point at it. This is an
 > advanced workflow, and additional information can be found in the
 > [infrastructure operator
-> documentation](/1_infra_operators/1_manually_adding_clusters.md).*
+> documentation](/infra_operators/manually_adding_clusters.md).*
 
 ## Clean Up
 
