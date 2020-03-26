@@ -11,9 +11,9 @@ features:
 - Management and scheduling of configuration data across multiple Kubernetes
   clusters.
 - Separation of concern between [infrastructure
-  owners](docs/1_infra_operators/0_overview.md), [application
-  owners](docs/2_app_operators/0_overview.md), and
-  [developers](docs/3_developers/0_overview.md).
+  owners](docs/infra_operators/overview.md), [application
+  owners](docs/app_operators/overview.md), and
+  [developers](docs/developers/overview.md).
 - Infrastructure agnostic packaging of applications and their dependencies.
 - Scheduling applications into different clusters, zones, and regions.
 
@@ -23,9 +23,9 @@ Crossplane does not:
 - Manage the data plane across Kubernetes clusters.
 - Manage or provision non-hosted Kubernetes clusters.
 
-Crossplane can be [installed](docs/1_install.md) into any Kubernetes cluster,
-and is compatible with any Kubernetes-native project. It manages external
-services by installing [Custom Resource
+Crossplane can be [installed](docs/install.md) into any Kubernetes cluster, and
+is compatible with any Kubernetes-native project. It manages external services
+by installing [Custom Resource
 Definitions](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/)
 (CRDs) and
 [reconciling](https://kubernetes.io/docs/concepts/architecture/controller/)
