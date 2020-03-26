@@ -16,7 +16,7 @@ Where Crossplane differs from an infrastructure as code tool is that it
 continues to manage your resources after they are created. Let's take a look at
 a simple example. We will use GCP for this quick start, but you can achieve the
 same functionality of any of the providers mentioned in the
-[installation](install.md) and [configuration](configure.md) sections. You
+[installation](1_install.md) and [configuration](2_configure.md) sections. You
 should have your provider of choice installed and should have created a
 `Provider` resource with the necessary credentials. We will use a [GCP
 `Provider`](cloud-providers/gcp/gcp-provider.md) resource with name
@@ -256,7 +256,7 @@ redis-connection-details-static   Opaque                                2      3
 We have now created and prepared an external managed service for usage using
 only `kubectl`, but it was a fairly manual process that required familiarity
 with the underlying Redis implementation (Cloud Memorystore). This can be made
-easier with [*dynamic provisioning*](dynamic.md).
+easier with [*dynamic provisioning*](4_dynamic.md).
 
 ## Clean Up
 
