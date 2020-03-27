@@ -18,8 +18,7 @@ Crossplane control cluster is configured.
 [Wordpress](https://wordpress.org/) is a relatively simple monolithic
 application that only requires compute to run its containerized binary and a
 connection to a MySQL database. Wordpress is typically installed in a Kubernetes
-cluster using its official [Helm
-chart](https://github.com/bitnami/charts/tree/master/bitnami/wordpress).
+cluster using its official [Helm chart](https://github.com/bitnami/charts/tree/master/bitnami/wordpress).
 Crossplane applications let you define your application using common
 configuration tools such as [Helm](https://helm.sh/) and
 [Kustomize](https://kustomize.io/), but represent them as a
@@ -33,9 +32,7 @@ creating our `MinimalGCP` instance. In contrast to the GCP provider and Minimal
 GCP stack, the Wordpress application will be installed with a `StackInstall`
 instead of a `ClusterStackInstall`. This means that the installation will only
 be available in the namespace that we specify. You can read more about the
-difference between the two in the [infrastructure
-operators](infra_operators/packaging_a_stack.md) and [application
-operators](app_operators/packaging_an_app.md) guides.
+difference between the two in the [infrastructure operators](infra_operators/packaging_a_stack.md) and [application operators](app_operators/packaging_an_app.md) guides.
 
 Create a file named `wordpress-install.yaml` with the following content:
 
@@ -61,8 +58,7 @@ using a single
 When we do, a `KubernetesCluster` claim and a `MySQLInstance` claim will be
 created in the namespace, as well as a `KubernetesApplication` that contains the
 Wordpress application components. The claims will be satisfied by the
-`GKEClusterClass` and `CloudSQLInstanceClass` we created in the [previous
-section](stack.md). Let's create a `WordpressInstance` and see what happens.
+`GKEClusterClass` and `CloudSQLInstanceClass` we created in the [previous section](stack.md). Let's create a `WordpressInstance` and see what happens.
 
 Create a file named `my-wordpress.yaml` with the following content:
 

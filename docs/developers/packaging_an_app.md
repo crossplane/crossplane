@@ -16,8 +16,7 @@ Kubernetes configuration tools, such as [Helm](https://helm.sh/) and
 ## Setting up a Repository
 
 The required components of an application repository are minimal. For example,
-the required components of the [Wordpress
-application](https://github.com/crossplane/app-wordpress) we deployed in the
+the required components of the [Wordpress application](https://github.com/crossplane/app-wordpress) we deployed in the
 quick start are the following:
 
 ```

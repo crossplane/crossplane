@@ -15,8 +15,7 @@ projects, but instead to motivate why Crossplane was created.
 ## Open Service Broker and Service Catalog
 
 The [Open Service Broker](https://www.openservicebrokerapi.org/) and the
-[Kubernetes Service
-Catalog](https://kubernetes.io/docs/concepts/extend-kubernetes/service-catalog/)
+[Kubernetes Service Catalog](https://kubernetes.io/docs/concepts/extend-kubernetes/service-catalog/)
 are able to dynamically provision managed services in multiple cloud providers
 from Kubernetes. As a result it shares similar goals with Crossplane. However,
 service broker is not designed for workload portability, does not have a good

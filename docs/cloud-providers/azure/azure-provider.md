@@ -13,8 +13,7 @@ take are summarized below:
 
 In order to manage resources in Azure, you must provide credentials for a Azure
 service principal that Crossplane can use to authenticate. This assumes that you
-have already [set up the Azure CLI
-client](https://docs.microsoft.com/en-us/cli/azure/authenticate-azure-cli?view=azure-cli-latest)
+have already [set up the Azure CLI client](https://docs.microsoft.com/en-us/cli/azure/authenticate-azure-cli?view=azure-cli-latest)
 with your credentials.
 
 Create a JSON file that contains all the information needed to connect and

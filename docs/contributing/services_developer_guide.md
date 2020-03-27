@@ -27,21 +27,21 @@ A typical Crossplane managed service consists of five configuration resources
 and five controllers. The GCP Provider's support for Google Cloud Memorystore
 illustrates this. First, the configuration resources:
 
-1. A [managed resource]. Managed resources are cluster scoped, high-fidelity
+1. A managed resource. Managed resources are cluster scoped, high-fidelity
    representations of a resource in an external system such as a cloud
    provider's API. Managed resources are _non-portable_ across external systems
    (i.e. cloud providers); they're tightly coupled to the implementation details
    of the external resource they represent. Managed resources are defined by a
    Provider. The GCP Provider's [`CloudMemorystoreInstance`] resource is an
    example of a managed resource.
-1. A [resource claim]. Resource claims are namespaced abstract declarations of a
+1. A resource claim. Resource claims are namespaced abstract declarations of a
    need for a service. Resource claims are frequently portable across external
    systems. Crossplane defines a series of common resource claim kinds,
    including [`RedisCluster`]. A resource claim is satisfied by _binding_ to a
    managed resource.
-1. A [resource class]. Resource classes represent a class of a specific kind of
+1. A resource class. Resource classes represent a class of a specific kind of
    managed resource. They are the template used to create a new managed resource
-   in order to satisfy a resource claim during [dynamic provisioning]. Resource
+   in order to satisfy a resource claim during dynamic provisioning. Resource
    classes are cluster scoped, and tightly coupled to the managed resources they
    template. [`CloudMemorystoreInstanceClass`] is an example of a resource
    class.
@@ -1119,10 +1119,6 @@ and implementing support for new managed services. [#sig-services] would highly
 value any feedback you may have about the services development process!
 
 [What Makes a Crossplane Managed Service]: #what-makes-a-crossplane-managed-service
-[managed resource]: concepts.md#managed-resource
-[resource claim]: concepts.md#resource-claim
-[resource class]: concepts.md#resource-class
-[dynamic provisioning]: concepts.md#dynamic-and-static-provisioning
 [`CloudMemorystoreInstance`]: https://github.com/crossplane/provider-gcp/blob/85a6ed3c669a021f1d61be51b2cbe2714b0bc70b/apis/cache/v1beta1/cloudmemorystore_instance_types.go#L184
 [`CloudMemorystoreInstanceClass`]: https://github.com/crossplane/provider-gcp/blob/85a6ed3c669a021f1d61be51b2cbe2714b0bc70b/apis/cache/v1beta1/cloudmemorystore_instance_types.go#L217
 [`Provider`]: https://github.com/crossplane/provider-gcp/blob/85a6ed3c669a021f1d61be51b2cbe2714b0bc70b/apis/v1alpha3/types.go#L41
