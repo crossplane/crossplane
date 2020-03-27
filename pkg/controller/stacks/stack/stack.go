@@ -95,15 +95,16 @@ type Reconciler struct {
 	// hostKube is controller runtime client for workload (a.k.a host)
 	// Kubernetes where jobs for stack installs and stack controller deployments
 	// created.
-	hostKube     client.Client
-	hostedConfig *hosted.Config
-	restrictCore bool
-	log          logging.Logger
+	hostKube             client.Client
+	hostedConfig         *hosted.Config
+	restrictCore         bool
+	forceImagePullPolicy string
+	log                  logging.Logger
 	factory
 }
 
 // Setup adds a controller that reconciles Stacks.
-func Setup(mgr ctrl.Manager, l logging.Logger, hostControllerNamespace string, restrictCore bool) error {
+func Setup(mgr ctrl.Manager, l logging.Logger, hostControllerNamespace string, restrictCore bool, forceImagePullPolicy string) error {
 	name := "stacks/" + strings.ToLower(v1alpha1.StackGroupKind)
 
 	hostKube, _, err := hosted.GetClients()
@@ -117,12 +118,13 @@ func Setup(mgr ctrl.Manager, l logging.Logger, hostControllerNamespace string, r
 	}
 
 	r := &Reconciler{
-		kube:         mgr.GetClient(),
-		hostKube:     hostKube,
-		hostedConfig: hc,
-		restrictCore: restrictCore,
-		factory:      &stackHandlerFactory{},
-		log:          l.WithValues("controller", name),
+		kube:                 mgr.GetClient(),
+		hostKube:             hostKube,
+		hostedConfig:         hc,
+		restrictCore:         restrictCore,
+		forceImagePullPolicy: forceImagePullPolicy,
+		factory:              &stackHandlerFactory{},
+		log:                  l.WithValues("controller", name),
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -148,7 +150,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{}, err
 	}
 
-	handler := r.factory.newHandler(r.log, i, r.kube, r.hostKube, r.hostedConfig, r.restrictCore)
+	handler := r.factory.newHandler(r.log, i, r.kube, r.hostKube, r.hostedConfig, r.restrictCore, r.forceImagePullPolicy)
 
 	if meta.WasDeleted(i) {
 		return handler.delete(ctx)
@@ -170,27 +172,29 @@ type stackHandler struct {
 	// hostKube is controller runtime client for workload (a.k.a host)
 	// Kubernetes where jobs for stack installs and stack controller deployments
 	// created.
-	hostKube        client.Client
-	hostAwareConfig *hosted.Config
-	restrictCore    bool
-	ext             *v1alpha1.Stack
-	log             logging.Logger
+	hostKube             client.Client
+	hostAwareConfig      *hosted.Config
+	restrictCore         bool
+	forceImagePullPolicy string
+	ext                  *v1alpha1.Stack
+	log                  logging.Logger
 }
 
 type factory interface {
-	newHandler(logging.Logger, *v1alpha1.Stack, client.Client, client.Client, *hosted.Config, bool) handler
+	newHandler(logging.Logger, *v1alpha1.Stack, client.Client, client.Client, *hosted.Config, bool, string) handler
 }
 
 type stackHandlerFactory struct{}
 
-func (f *stackHandlerFactory) newHandler(log logging.Logger, ext *v1alpha1.Stack, kube client.Client, hostKube client.Client, hostAwareConfig *hosted.Config, restrictCore bool) handler {
+func (f *stackHandlerFactory) newHandler(log logging.Logger, ext *v1alpha1.Stack, kube client.Client, hostKube client.Client, hostAwareConfig *hosted.Config, restrictCore bool, forceImagePullPolicy string) handler {
 	return &stackHandler{
-		kube:            kube,
-		hostKube:        hostKube,
-		hostAwareConfig: hostAwareConfig,
-		restrictCore:    restrictCore,
-		ext:             ext,
-		log:             log,
+		kube:                 kube,
+		hostKube:             hostKube,
+		hostAwareConfig:      hostAwareConfig,
+		restrictCore:         restrictCore,
+		forceImagePullPolicy: forceImagePullPolicy,
+		ext:                  ext,
+		log:                  log,
 	}
 }
 
@@ -845,6 +849,18 @@ func (h *stackHandler) prepareDeployment(d *apps.Deployment) {
 	meta.AddLabels(d, labels)
 
 	d.Spec.Template.Spec.ServiceAccountName = h.ext.Name
+
+	if h.forceImagePullPolicy != "" {
+		for _, c := range [][]corev1.Container{
+			d.Spec.Template.Spec.Containers,
+			d.Spec.Template.Spec.InitContainers,
+		} {
+			for i := range c {
+				c[i].ImagePullPolicy = corev1.PullPolicy(h.forceImagePullPolicy)
+			}
+		}
+	}
+
 	d.Spec.Template.SetName(name)
 	meta.AddLabels(&d.Spec.Template, matchLabels)
 	d.Spec.Selector = &metav1.LabelSelector{MatchLabels: matchLabels}

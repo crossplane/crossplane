@@ -75,6 +75,7 @@ type Reconciler struct {
 	stackinator              func() v1alpha1.StackInstaller
 	executorInfoDiscoverer   stacks.ExecutorInfoDiscoverer
 	templatesControllerImage string
+	forceImagePullPolicy     string
 	log                      logging.Logger
 
 	factory
@@ -120,7 +121,7 @@ func SetupClusterStackInstall(mgr ctrl.Manager, l logging.Logger, hostController
 }
 
 // SetupStackInstall adds a controller that reconciles StackInstalls.
-func SetupStackInstall(mgr ctrl.Manager, l logging.Logger, hostControllerNamespace, tsControllerImage string) error {
+func SetupStackInstall(mgr ctrl.Manager, l logging.Logger, hostControllerNamespace, tsControllerImage, forceImagePullPolicy string) error {
 	name := "stacks/" + strings.ToLower(v1alpha1.StackInstallGroupKind)
 	stackinator := func() v1alpha1.StackInstaller { return &v1alpha1.StackInstall{} }
 
@@ -148,6 +149,7 @@ func SetupStackInstall(mgr ctrl.Manager, l logging.Logger, hostControllerNamespa
 		factory:                  &handlerFactory{},
 		executorInfoDiscoverer:   &stacks.KubeExecutorInfoDiscoverer{Client: hostKube},
 		templatesControllerImage: tsControllerImage,
+		forceImagePullPolicy:     forceImagePullPolicy,
 		log:                      l.WithValues("controller", name),
 	}
 
@@ -179,11 +181,17 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return fail(ctx, r.kube, stackInstaller, err)
 	}
 
-	handler := r.factory.newHandler(r.log, stackInstaller, k8sClients{
-		kube:       r.kube,
-		hostKube:   r.hostKube,
-		hostClient: r.hostClient,
-	}, r.hostedConfig, executorinfo, r.templatesControllerImage)
+	handler := r.factory.newHandler(r.log, stackInstaller,
+		k8sClients{
+			kube:       r.kube,
+			hostKube:   r.hostKube,
+			hostClient: r.hostClient,
+		},
+		r.hostedConfig,
+		executorinfo,
+		r.templatesControllerImage,
+		r.forceImagePullPolicy,
+	)
 
 	if meta.WasDeleted(stackInstaller) {
 		return handler.delete(ctx)
@@ -209,18 +217,19 @@ type stackInstallHandler struct {
 	executorInfo             *stacks.ExecutorInfo
 	ext                      v1alpha1.StackInstaller
 	templatesControllerImage string
+	forceImagePullPolicy     string
 
 	log logging.Logger
 }
 
 // factory is an interface for creating new handlers
 type factory interface {
-	newHandler(logging.Logger, v1alpha1.StackInstaller, k8sClients, *hosted.Config, *stacks.ExecutorInfo, string) handler
+	newHandler(logging.Logger, v1alpha1.StackInstaller, k8sClients, *hosted.Config, *stacks.ExecutorInfo, string, string) handler
 }
 
 type handlerFactory struct{}
 
-func (f *handlerFactory) newHandler(log logging.Logger, ext v1alpha1.StackInstaller, k8s k8sClients, hostAwareConfig *hosted.Config, ei *stacks.ExecutorInfo, templatesControllerImage string) handler {
+func (f *handlerFactory) newHandler(log logging.Logger, ext v1alpha1.StackInstaller, k8s k8sClients, hostAwareConfig *hosted.Config, ei *stacks.ExecutorInfo, templatesControllerImage, forceImagePullPolicy string) handler {
 
 	return &stackInstallHandler{
 		ext:             ext,
@@ -238,6 +247,7 @@ func (f *handlerFactory) newHandler(log logging.Logger, ext v1alpha1.StackInstal
 		},
 		log:                      log,
 		templatesControllerImage: templatesControllerImage,
+		forceImagePullPolicy:     forceImagePullPolicy,
 	}
 }
 
@@ -425,6 +435,11 @@ func (h *stackInstallHandler) prepareInstallJob(name, namespace string, labels, 
 		img = pkg
 	}
 
+	imagePullPolicy := corev1.PullPolicy(h.forceImagePullPolicy)
+	if imagePullPolicy == "" {
+		imagePullPolicy = i.GetImagePullPolicy()
+	}
+
 	return buildInstallJob(buildInstallJobParams{
 		name:                   name,
 		namespace:              namespace,
@@ -433,7 +448,7 @@ func (h *stackInstallHandler) prepareInstallJob(name, namespace string, labels, 
 		stackManagerImage:      executorInfo.Image,
 		tscImage:               tscImage,
 		stackManagerPullPolicy: executorInfo.ImagePullPolicy,
-		imagePullPolicy:        i.GetImagePullPolicy(),
+		imagePullPolicy:        imagePullPolicy,
 		labels:                 labels,
 		annotations:            annotations,
 		imagePullSecrets:       imagePullSecrets})

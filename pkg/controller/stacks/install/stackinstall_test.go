@@ -58,6 +58,7 @@ const (
 	resourceName            = "cool-stackinstall"
 	stackPackageImage       = "cool/stack-package:rad"
 	tsControllerImage       = "cool/fake-ts-controller:0.0.0"
+	noForcedImagePullPolicy = ""
 )
 
 var (
@@ -173,11 +174,11 @@ func clusterInstallResource(rm ...resourceModifier) *v1alpha1.ClusterStackInstal
 
 // mock implementations
 type mockFactory struct {
-	MockNewHandler func(logging.Logger, v1alpha1.StackInstaller, k8sClients, *hosted.Config, *stacks.ExecutorInfo, string) handler
+	MockNewHandler func(logging.Logger, v1alpha1.StackInstaller, k8sClients, *hosted.Config, *stacks.ExecutorInfo, string, string) handler
 }
 
-func (f *mockFactory) newHandler(log logging.Logger, i v1alpha1.StackInstaller, k8s k8sClients, hostAwareConfig *hosted.Config, ei *stacks.ExecutorInfo, tsControllerImage string) handler {
-	return f.MockNewHandler(log, i, k8s, hostAwareConfig, ei, tsControllerImage)
+func (f *mockFactory) newHandler(log logging.Logger, i v1alpha1.StackInstaller, k8s k8sClients, hostAwareConfig *hosted.Config, ei *stacks.ExecutorInfo, tsControllerImage, forceImagePullPolicy string) handler {
+	return f.MockNewHandler(log, i, k8s, hostAwareConfig, ei, tsControllerImage, forceImagePullPolicy)
 }
 
 type mockHandler struct {
@@ -245,7 +246,7 @@ func TestReconcile(t *testing.T) {
 					},
 				},
 				factory: &mockFactory{
-					MockNewHandler: func(logging.Logger, v1alpha1.StackInstaller, k8sClients, *hosted.Config, *stacks.ExecutorInfo, string) handler {
+					MockNewHandler: func(logging.Logger, v1alpha1.StackInstaller, k8sClients, *hosted.Config, *stacks.ExecutorInfo, string, string) handler {
 						return &mockHandler{
 							MockSync: func(context.Context) (reconcile.Result, error) {
 								return reconcile.Result{}, nil
@@ -276,7 +277,7 @@ func TestReconcile(t *testing.T) {
 					},
 				},
 				factory: &mockFactory{
-					MockNewHandler: func(logging.Logger, v1alpha1.StackInstaller, k8sClients, *hosted.Config, *stacks.ExecutorInfo, string) handler {
+					MockNewHandler: func(logging.Logger, v1alpha1.StackInstaller, k8sClients, *hosted.Config, *stacks.ExecutorInfo, string, string) handler {
 						return &mockHandler{
 							MockSync: func(context.Context) (reconcile.Result, error) {
 								return reconcile.Result{}, nil
@@ -338,7 +339,7 @@ func TestReconcile(t *testing.T) {
 					},
 				},
 				factory: &mockFactory{
-					MockNewHandler: func(logging.Logger, v1alpha1.StackInstaller, k8sClients, *hosted.Config, *stacks.ExecutorInfo, string) handler {
+					MockNewHandler: func(logging.Logger, v1alpha1.StackInstaller, k8sClients, *hosted.Config, *stacks.ExecutorInfo, string, string) handler {
 						return &mockHandler{
 							MockDelete: func(context.Context) (reconcile.Result, error) {
 								return reconcile.Result{}, nil
@@ -788,7 +789,7 @@ func TestHandlerFactory(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := tt.factory.newHandler(logging.NewNopLogger(), resource(), k8sClients{}, nil, &stacks.ExecutorInfo{Image: stackPackageImage}, tsControllerImage)
+			got := tt.factory.newHandler(logging.NewNopLogger(), resource(), k8sClients{}, nil, &stacks.ExecutorInfo{Image: stackPackageImage}, tsControllerImage, noForcedImagePullPolicy)
 
 			diff := cmp.Diff(tt.want, got,
 				cmp.AllowUnexported(

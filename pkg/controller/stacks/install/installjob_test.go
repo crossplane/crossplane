@@ -419,6 +419,54 @@ func withJobSource(src string) jobModifier {
 	}
 }
 
+// withJobPullPolicy sets the image pull policy on the InitContainer, whose
+// container is derived from the stack. The non-init containers are not affected
+// since they reflect the imagePullPolicy of the stack-manager itself
+func withJobPullPolicy(pullPolicy corev1.PullPolicy) jobModifier {
+	return func(j *batchv1.Job) {
+		ics := j.Spec.Template.Spec.InitContainers
+		for i := range ics {
+			ics[i].ImagePullPolicy = pullPolicy
+		}
+	}
+}
+
+// withJobExpectations sets default job expectations
+func withJobExpectations() jobModifier {
+	return func(j *batchv1.Job) {
+		zero := int32(0)
+		j.SetResourceVersion("1")
+		j.SetGroupVersionKind(batchv1.SchemeGroupVersion.WithKind("Job"))
+		j.SetLabels(stacks.ParentLabels(resource()))
+		j.Spec.BackoffLimit = &zero
+		j.Spec.Template.Spec.Volumes = []corev1.Volume{{
+			Name:         "package-contents",
+			VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+		}}
+		j.Spec.Template.Spec.InitContainers = []corev1.Container{{
+			Name:         "stack-copy-to-volume",
+			Command:      []string{"cp", "-R", "/.registry", "/ext-pkg/"},
+			VolumeMounts: []corev1.VolumeMount{{Name: "package-contents", MountPath: "/ext-pkg"}},
+		}}
+		j.Spec.Template.Spec.Containers = []corev1.Container{
+			{
+				Name:  "stack-unpack-and-output",
+				Image: stackPackageImage,
+				Args: []string{
+					"stack",
+					"unpack",
+					"--content-dir=/ext-pkg/.registry",
+					"--permission-scope=Namespaced",
+					"--templating-controller-image=",
+				},
+				Env:          []corev1.EnvVar{{Name: "STACK_IMAGE"}},
+				VolumeMounts: []corev1.VolumeMount{{Name: "package-contents", MountPath: "/ext-pkg"}},
+			},
+		}
+		j.Spec.Template.Spec.RestartPolicy = "Never"
+	}
+}
+
 func job(jm ...jobModifier) *batchv1.Job {
 	j := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -848,6 +896,7 @@ func TestCreate(t *testing.T) {
 		result reconcile.Result
 		err    error
 		ext    *v1alpha1.StackInstall
+		job    *batchv1.Job
 	}
 
 	noJobs := func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
@@ -890,6 +939,43 @@ func TestCreate(t *testing.T) {
 						Kind:       "Job",
 						APIVersion: batchv1.SchemeGroupVersion.String(),
 					}),
+				),
+			},
+		},
+		{
+			name: "CreateInstallJobForcedPullPolicy",
+			handler: &stackInstallHandler{
+				forceImagePullPolicy: string(corev1.PullAlways),
+				kube: &test.MockClient{
+					MockPatch: func(_ context.Context, obj runtime.Object, patch client.Patch, _ ...client.PatchOption) error {
+						return nil
+					},
+					MockStatusPatch: func(_ context.Context, obj runtime.Object, patch client.Patch, _ ...client.PatchOption) error {
+						return nil
+					},
+				},
+				hostKube:     fake.NewFakeClient(),
+				executorInfo: &stacks.ExecutorInfo{Image: stackPackageImage},
+				ext:          resource(withImagePullPolicy(corev1.PullNever)),
+				log:          logging.NewNopLogger(),
+			},
+			want: want{
+				result: requeueOnSuccess,
+				err:    nil,
+				ext: resource(
+					withImagePullPolicy(corev1.PullNever),
+					withFinalizers(installFinalizer),
+					withConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileSuccess()),
+					withInstallJob(&corev1.ObjectReference{
+						Name:       resourceName,
+						Namespace:  namespace,
+						Kind:       "Job",
+						APIVersion: batchv1.SchemeGroupVersion.String(),
+					}),
+				),
+				job: job(
+					withJobExpectations(),
+					withJobPullPolicy(corev1.PullAlways),
 				),
 			},
 		},
@@ -1187,6 +1273,24 @@ func TestCreate(t *testing.T) {
 			if diff := cmp.Diff(tt.want.ext, tt.handler.ext, test.EquateConditions()); diff != "" {
 				t.Errorf("create() -want, +got:\n%v", diff)
 			}
+
+			if tt.want.job != nil {
+				gotJob := &batchv1.Job{}
+				gotErr := tt.handler.hostKube.Get(context.TODO(), types.NamespacedName{Name: tt.want.job.GetName(), Namespace: tt.want.job.GetNamespace()}, gotJob)
+
+				if diff := cmp.Diff(nil, gotErr, test.EquateErrors()); diff != "" {
+					t.Errorf("create() -want job error, +got job error:\n%s", diff)
+				}
+
+				if diff := cmp.Diff(tt.want.job, gotJob); diff != "" {
+					t.Errorf("create() -want job, +got job:\n%v", diff)
+				}
+			}
+
+			if diff := cmp.Diff(tt.want.ext, tt.handler.ext, test.EquateConditions()); diff != "" {
+				t.Errorf("create() -want, +got:\n%v", diff)
+			}
+
 		})
 	}
 }
