@@ -100,12 +100,10 @@ Crossplane will immediately create the managed resources and classes that are
 part of the Minimal GCP stack.
 
 Now that we have general set of infrastructure and classes defined in our
-cluster, it is time to deploy some applications. In the [previous
-section](workload.md), we bundled resources into a `KubernetesApplication` and
+cluster, it is time to deploy some applications. In the [previous section](workload.md), we bundled resources into a `KubernetesApplication` and
 created it in the control cluster. This is useful for applications that are
 deployed infrequently and are not widely distributed, but can be a burden for
-someone who is not familiar with the architecture to manage. In the [next
-section](app.md) we will explore how Crossplane *Applications* make it possible
+someone who is not familiar with the architecture to manage. In the [next section](app.md) we will explore how Crossplane *Applications* make it possible
 to package and distribute your configuration, including managed services that an
 application consumes.
 

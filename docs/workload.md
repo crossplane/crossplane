@@ -327,8 +327,7 @@ Events:      <none>
 > made possible by storing the base64 encoded `kubeconfig` data in a `Secret`,
 > then manually creating a `KubernetesTarget` to point at it. This is an
 > advanced workflow, and additional information can be found in the
-> [infrastructure operator
-> documentation](/infra_operators/manually_adding_clusters.md).*
+> [infrastructure operator documentation](/infra_operators/manually_adding_clusters.md).*
 
 ## Clean Up
 

@@ -18,14 +18,12 @@ a simple example. We will use GCP for this quick start, but you can achieve the
 same functionality of any of the providers mentioned in the
 [installation](install.md) and [configuration](configure.md) sections. You
 should have your provider of choice installed and should have created a
-`Provider` resource with the necessary credentials. We will use a [GCP
-`Provider`](cloud-providers/gcp/gcp-provider.md) resource with name
+`Provider` resource with the necessary credentials. We will use a [GCP `Provider`](cloud-providers/gcp/gcp-provider.md) resource with name
 `gcp-provider` below.
 
 ## Statically Provision a Redis Cluster on GCP
 
-GCP provides Redis clusters using [Cloud
-Memorystore](https://cloud.google.com/memorystore). The GCP Crossplane provider
+GCP provides Redis clusters using [Cloud Memorystore](https://cloud.google.com/memorystore). The GCP Crossplane provider
 installs a `CloudMemorystoreInstance`
 [CustomResourceDefinition](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/)
 (CRD) which makes the API type available in your Kubernetes cluster. Creating an
@@ -178,8 +176,7 @@ You will also see that the `CloudMemorystoreInstance` resource is still
 reporting `Status: Unbound`. This is because we have not *claimed* it for usage
 yet.
 
-Crossplane follows a similar pattern to [Kubernetes persistent
-volumes](https://kubernetes.io/docs/concepts/storage/persistent-volumes/). When
+Crossplane follows a similar pattern to [Kubernetes persistent volumes](https://kubernetes.io/docs/concepts/storage/persistent-volumes/). When
 you statically provision a resource in Crossplane, the external resource is also
 created. However, when you want to use a resource, you create an
 application-focused **claim** for it. In this case, we will create a

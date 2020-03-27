@@ -36,8 +36,7 @@ kubectl crossplane trace KubernetesApplication wordpress-app-83f04457-0b1b-4532-
 kubectl crossplane trace MySQLInstance wordpress-mysql-83f04457-0b1b-4532-9691-f55cf6c0da6e -n app-project1-dev
 ```
 
-For more information, see [the trace command
-documentation](https://github.com/crossplane/crossplane-cli/tree/master/docs/trace-command.md).
+For more information, see [the trace command documentation](https://github.com/crossplane/crossplane-cli/tree/master/docs/trace-command.md).
 
 ## Resource Status and Conditions
 
@@ -156,10 +155,8 @@ namespace segment or over the entire name.  In these cases resource labels,
 owner references, and annotations should be consulted to identify the
 responsible Stack.
 
-* [Relationship
-  Labels](https://github.com/crossplane/crossplane/blob/master/design/one-pager-stack-relationship-labels.md)
-* [Owner
-  References](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/#owners-and-dependents)
+* [Relationship Labels](https://github.com/crossplane/crossplane/blob/master/design/one-pager-stack-relationship-labels.md)
+* [Owner References](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/#owners-and-dependents)
 * Annotations: `tenant.crossplane.io/{singular}-name` and
   `tenant.crossplane.io/{singular}-namespace` (_singular_ may be `stackinstall`,
   `clusterstackinstall` or `stack`)

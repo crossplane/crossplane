@@ -253,8 +253,7 @@ Here is the list of all template stacks:
 
 Each one should be released as part of a complete release, using the
 instructions below. To read even more about the template stack release
-process, see [the release section of this
-document](https://github.com/crossplane/cicd/blob/master/docs/pipelines.md#how-do-i-cut-a-release)
+process, see [the release section of this document](https://github.com/crossplane/cicd/blob/master/docs/pipelines.md#how-do-i-cut-a-release)
 
 Note that there's also the
 [`templating-controller`](https://github.com/crossplane/templating-controller),
@@ -275,12 +274,10 @@ branch. Enter in the new tag to use. If the current release candidate is
 not the head of `master`, enter in the commit to tag.
 
 You can find the tag pipeline for the individual stack by going to the
-[crossplane org in
-Jenkins](https://jenkinsci.upbound.io/job/crossplane/), finding the
+[crossplane org in Jenkins](https://jenkinsci.upbound.io/job/crossplane/), finding the
 folder with the same name as the template stack, and then going to the
 `tag` job group. Then going to the `master` branch job under the group.
-For example, here is [a link to the stack-minimal-gcp tag job for
-master](https://jenkinsci.upbound.io/job/crossplane/job/stack-minimal-gcp/job/tag/job/master/).
+For example, here is [a link to the stack-minimal-gcp tag job for master](https://jenkinsci.upbound.io/job/crossplane/job/stack-minimal-gcp/job/tag/job/master/).
 
 > **Note:** The first time you run a pipeline on a new branch, you won't get prompted for the values
 > to input. The build will quickly fail and then you can run (not replay) it a second time to be
@@ -292,8 +289,7 @@ master](https://jenkinsci.upbound.io/job/crossplane/job/stack-minimal-gcp/job/ta
 
 After the tag pipeline has been run and the repository has been tagged,
 you can run the `publish` job for the template stack. For example,
-here's a [link to the stack-minimal-gcp publish
-job](https://jenkinsci.upbound.io/job/crossplane/job/stack-minimal-gcp/job/publish/job/master/).
+here's a [link to the stack-minimal-gcp publish job](https://jenkinsci.upbound.io/job/crossplane/job/stack-minimal-gcp/job/publish/job/master/).
 This will kick off the official release build and upon success, all
 release artifacts will be officially published. This should also be run
 from the `master` branch in most cases. Or, if a release branch was
@@ -322,22 +318,18 @@ docs and examples to point to the freshly released stack versions.
 
 * Documentation, such as [Installation
   instructions](https://github.com/crossplane/crossplane/blob/master/docs/install-crossplane.md#installing-cloud-provider-stacks),
-  and [Stack
-  guides](https://github.com/crossplane/crossplane/blob/master/docs/stacks-guide-gcp.md).
+  and [Stack guides](https://github.com/crossplane/crossplane/blob/master/docs/stacks-guide-gcp.md).
   * searching for `:master` will help a lot here
   * `kubectl -k` statements will contain `?ref=master`, which should be updated
     to the release branch name instead, e.g. `?ref=release-0.4`
-* Examples, such as [`StackInstall` yaml
-  files](https://github.com/crossplane/crossplane/tree/master/cluster/examples/providers)
-* [Helm chart
-  defaults](https://github.com/crossplane/crossplane/blob/master/cluster/charts/crossplane/values.yaml.tmpl)
+* Examples, such as [`StackInstall` yaml files](https://github.com/crossplane/crossplane/tree/master/cluster/examples/providers)
+* [Helm chart defaults](https://github.com/crossplane/crossplane/blob/master/cluster/charts/crossplane/values.yaml.tmpl)
   for stack versions
 
 ### Tag Core Crossplane
 
 Similar to running the `tag` pipelines for each stack, now it's time to run the
-[`tag`
-pipeline](https://jenkinsci.upbound.io/blue/organizations/jenkins/crossplane%2Fcrossplane%2Fcrossplane-tag/branches)
+[`tag` pipeline](https://jenkinsci.upbound.io/blue/organizations/jenkins/crossplane%2Fcrossplane%2Fcrossplane-tag/branches)
 for core Crossplane.  In fact, the [instructions](#stack-tag-pipeline) are
 exactly the same:
 
@@ -348,8 +340,7 @@ exactly the same:
 
 ### Build and Release Core Crossplane
 
-After tagging is complete, ensure the [normal build
-pipeline](https://jenkinsci.upbound.io/blue/organizations/jenkins/crossplane%2Fcrossplane%2Fbuild/branches)
+After tagging is complete, ensure the [normal build pipeline](https://jenkinsci.upbound.io/blue/organizations/jenkins/crossplane%2Fcrossplane%2Fbuild/branches)
 is run on the release branch.  This will be the official release build with an
 official version number and all of its release artifacts will be published.
 
@@ -420,5 +411,4 @@ steps.  Please refer to details for each step in the sections above.
 * Run promote pipeline to promote the patch release to the `alpha` channel
 
 <!-- Named links -->
-[github-ui-create-branch]:
-https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/creating-and-deleting-branches-within-your-repository
+[github-ui-create-branch]: https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/creating-and-deleting-branches-within-your-repository

@@ -20,8 +20,7 @@ a web browser. You can choose whichever you are more comfortable with.
 If you have the `gcloud` tool installed, you can run the commands below from the
 crossplane directory.
 
-Instructions for installing `gcloud` can be found in the [Google
-docs](https://cloud.google.com/sdk/install).
+Instructions for installing `gcloud` can be found in the [Google docs](https://cloud.google.com/sdk/install).
 
 ### Using `gcp-credentials.sh`
 
@@ -112,12 +111,10 @@ Create a GCP example project which we will use to host our example GKE cluster,
 as well as our example CloudSQL instance.
 
 - Login into [GCP Console](https://console.cloud.google.com)
-- Create a [new
-  project](https://console.cloud.google.com/flows/enableapi?apiid=container.googleapis.com,sqladmin.googleapis.com,redis.googleapis.com)
+- Create a [new project](https://console.cloud.google.com/flows/enableapi?apiid=container.googleapis.com,sqladmin.googleapis.com,redis.googleapis.com)
   (either stand alone or under existing organization)
 - Create Example Service Account
-  - Navigate to: [Create Service
-    Account](https://console.cloud.google.com/iam-admin/serviceaccounts)
+  - Navigate to: [Create Service Account](https://console.cloud.google.com/iam-admin/serviceaccounts)
   - `Service Account Name`: type "example"
   - `Service Account ID`: leave auto assigned
   - `Service Account Description`: type "Crossplane example"
@@ -148,24 +145,20 @@ as well as our example CloudSQL instance.
       - Save (copy or move) this file into example (this) directory, with new
         name `crossplane-gcp-provider-key.json`
 - Enable `Cloud SQL API`
-  - Navigate to [Cloud SQL Admin
-    API](https://console.developers.google.com/apis/api/sqladmin.googleapis.com/overview)
+  - Navigate to [Cloud SQL Admin API](https://console.developers.google.com/apis/api/sqladmin.googleapis.com/overview)
   - Click `Enable`
 - Enable `Kubernetes Engine API`
-  - Navigate to [Kubernetes Engine
-    API](https://console.developers.google.com/apis/api/container.googleapis.com/overview)
+  - Navigate to [Kubernetes Engine API](https://console.developers.google.com/apis/api/container.googleapis.com/overview)
   - Click `Enable`
 - Enable `Cloud Memorystore for Redis`
   - Navigate to [Cloud Memorystore for
     Redis](https://console.developers.google.com/apis/api/redis.googleapis.com/overview)
   - Click `Enable`
 - Enable `Compute Engine API`
-  - Navigate to [Compute Engine
-    API](https://console.developers.google.com/apis/api/compute.googleapis.com/overview)
+  - Navigate to [Compute Engine API](https://console.developers.google.com/apis/api/compute.googleapis.com/overview)
   - Click `Enable`
 - Enable `Service Networking API`
-  - Navigate to [Service Networking
-    API](https://console.developers.google.com/apis/api/servicenetworking.googleapis.com/overview)
+  - Navigate to [Service Networking API](https://console.developers.google.com/apis/api/servicenetworking.googleapis.com/overview)
   - Click `Enable`
 
 ### Enable Billing
