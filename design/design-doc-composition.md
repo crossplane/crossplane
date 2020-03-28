@@ -514,6 +514,21 @@ spec:
   serviceAccountRef:
     namespace: crossplane-system
     name: wordpresses.apps.example.org
+  # An optional default composition that will be set automatically for any
+  # Wordpress custom resources that omit both their compositeSelector and their
+  # compositeRef.
+  defaultComposition:
+    apiVersion: crossplane.io
+    kind: Composition
+    name: local-wordpress
+  # An optional forced composition that will be set automatically for any
+  # Wordpress custom resource, overriding their compositeSelector and their
+  # compositeRef. If defaultComposition and forceComposition are both set, the
+  # forced composition wins.
+  forceComposition:
+    apiVersion: crossplane.io
+    kind: Composition
+    name: wordpresses.apps.example.org
 ```
 
 When an application developer authors the above `kind: ApplicationDefinition`
@@ -537,11 +552,10 @@ spec:
   # defines the Wordpress resource.
   application:
     # Multiple compositions may potentially satisfy a particular kind of
-    # application. Exactly one composition may be annotated as the default for
-    # a particular kind of application. Each application instance may influence
-    # which composition is used via label selectors. This could be used, for
-    # example, to determine whether a Wordpress application renders to a
-    # KubernetesApplication or to a plain old Kubernetes Deployment.
+    # application. Each application instance may influence which composition is
+    # used via label selectors. This could be used, for example, to determine
+    # whether a Wordpress application renders to a KubernetesApplication or to a
+    # plain old Kubernetes Deployment.
     compositionSelector:
       matchLabels:
         compute: kubernetes
@@ -638,7 +652,22 @@ spec:
   # infrastructure resource that Crossplane is able to create.
   serviceAccountRef:
     namespace: crossplane-system
-    name: wordpresses.apps.example.org
+    name: mysqlinstances.database.example.org
+  # An optional default composition that will be set automatically for any
+  # MySQLInstance custom resources that omit both their compositeSelector and
+  # their compositeRef.
+  defaultComposition:
+    apiVersion: crossplane.io
+    kind: Composition
+    name: cheap-rds
+  # An optional forced composition that will be set automatically for any
+  # MySQLInstance custom resource, overriding their compositeSelector and their
+  # compositeRef. If defaultComposition and forceComposition are both set, the
+  # forced composition wins.
+  forceComposition:
+    apiVersion: crossplane.io
+    kind: Composition
+    name: mysqlinstances.database.example.org
 ```
 
 When an application developer authors the above `kind: InfrastructureDefinition`
@@ -661,11 +690,10 @@ spec:
   # that defines the MySQLInstance resource.
   infrastructure:
     # Multiple compositions may potentially satisfy a particular kind of
-    # infrastructure. Exactly one composition may be annotated as the default
-    # for a particular kind of infrastructure. Each infrastructure instance may
-    # influence which composition is used via label selectors. This could be
-    # used, for example, to determine whether a GCP CloudSQLInstance or an Azure
-    # SQLServer based composition satisfied this MySQLInstance.
+    # infrastructure. Each infrastructure instance may influence which
+    # composition is used via label selectors. This could be used, for example,
+    # to determine whether a GCP CloudSQLInstance or an Azure SQLServer based
+    # composition satisfied this MySQLInstance.
     compositionSelector:
      matchLabels:
        connectivity: private
