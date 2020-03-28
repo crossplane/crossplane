@@ -53,6 +53,12 @@ const (
 	resourceVersion = "coolVersion"
 )
 
+// url.Parse returns a slightly different error string in Go 1.14 than in prior versions.
+func urlParseError(s string) error {
+	_, err := url.Parse(s)
+	return err
+}
+
 var (
 	errorBoom  = errors.New("boom")
 	errJSON    = errors.New("unexpected end of JSON input")
@@ -1093,7 +1099,7 @@ func TestConnectConfig(t *testing.T) {
 				options: client.Options{Mapper: mockRESTMapper{}},
 			},
 			ar:      kubeAR(withTarget(target.GetName())),
-			wantErr: errors.WithStack(errors.Errorf("cannot parse Kubernetes endpoint as URL: parse %s: missing protocol scheme", malformedURL)),
+			wantErr: errors.WithStack(errors.Wrap(urlParseError(malformedURL), "cannot parse Kubernetes endpoint as URL")),
 		},
 	}
 

@@ -2,6 +2,7 @@ package hosted
 
 import (
 	"fmt"
+	"net/url"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -10,6 +11,12 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
+
+// url.Parse returns a slightly different error string in Go 1.14 than in prior versions.
+func urlParseError(s string) error {
+	_, err := url.Parse(s)
+	return err
+}
 
 func TestNewConfig(t *testing.T) {
 	type args struct {
@@ -189,7 +196,7 @@ func TestGetHostPort(t *testing.T) {
 				urlHost: string(0x7f),
 			},
 			want: want{
-				err: errors.Wrap(errors.New("parse \u007f: net/url: invalid control character in URL"), "cannot parse URL"),
+				err: errors.Wrap(urlParseError(string(0x7f)), "cannot parse URL"),
 			},
 		},
 	}
@@ -248,7 +255,7 @@ func TestNewConfigForHost(t *testing.T) {
 			},
 			want: want{
 				config: nil,
-				err:    errors.Wrap(errors.New("cannot parse URL: parse \u007f: net/url: invalid control character in URL"), "cannot get host port from tenant kubeconfig"),
+				err:    errors.Wrap(errors.Wrap(urlParseError(string(0x7f)), "cannot parse URL"), "cannot get host port from tenant kubeconfig"),
 			},
 		},
 		"RegularHosted": {
