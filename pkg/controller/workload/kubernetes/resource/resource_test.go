@@ -1686,7 +1686,7 @@ func TestHaveSameController(t *testing.T) {
 			want: false,
 		},
 		{
-			name: "HasDifferentController",
+			name: "HasDifferentUID",
 			a:    service,
 			b: &corev1.Service{
 				ObjectMeta: metav1.ObjectMeta{
@@ -1697,7 +1697,7 @@ func TestHaveSameController(t *testing.T) {
 					},
 				},
 			},
-			want: false,
+			want: true,
 		},
 	}
 

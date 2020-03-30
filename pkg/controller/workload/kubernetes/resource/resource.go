@@ -559,5 +559,12 @@ func haveSameController(a, b metav1.Object) bool {
 		return false
 	}
 
-	return a.GetAnnotations()[RemoteControllerUID] == b.GetAnnotations()[RemoteControllerUID]
+	// NOTE(hasheddan): we set an annotation for the UID of the remote
+	// controller but do not check that it matches because it would prohibit a
+	// lost KubernetesApplication from re-establishing ownership of its remote
+	// resources.
+	if a.GetAnnotations()[RemoteControllerNamespace] != b.GetAnnotations()[RemoteControllerNamespace] {
+		return false
+	}
+	return a.GetAnnotations()[RemoteControllerName] == b.GetAnnotations()[RemoteControllerName]
 }
