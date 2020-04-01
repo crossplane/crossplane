@@ -33,12 +33,7 @@ spec:
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         name: {{ .Chart.Name }}
         resources:
-          limits:
-            cpu: 100m
-            memory: 512Mi
-          requests:
-            cpu: 100m
-            memory: 256Mi
+          {{- toYaml .Values.resourcesCrossplane | nindent 12 }}
       {{- if .Values.hostedConfig.enabled }}
         env:
           - name: KUBERNETES_SERVICE_HOST

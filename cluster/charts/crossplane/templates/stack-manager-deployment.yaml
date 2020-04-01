@@ -57,12 +57,7 @@ spec:
             fieldRef:
               fieldPath: metadata.namespace
         resources:
-          limits:
-            cpu: 100m
-            memory: 512Mi
-          requests:
-            cpu: 100m
-            memory: 256Mi
+          {{- toYaml .Values.resourcesStackManager | nindent 12 }}
       {{- if .Values.hostedConfig.enabled }}
         volumeMounts:
           - mountPath: /var/run/secrets/tenant
