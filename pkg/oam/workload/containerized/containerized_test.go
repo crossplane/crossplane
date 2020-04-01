@@ -65,7 +65,8 @@ func deployment(mod ...deploymentModifier) *appsv1.Deployment {
 			APIVersion: deploymentAPIVersion,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: cwName,
+			Name:      cwName,
+			Namespace: defaultNamespace,
 		},
 		Spec: appsv1.DeploymentSpec{
 			Selector: &metav1.LabelSelector{

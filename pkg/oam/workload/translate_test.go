@@ -80,6 +80,7 @@ func deployment(mod ...deploymentModifier) *appsv1.Deployment {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:              workloadName,
+			Namespace:         workloadNamespace,
 			CreationTimestamp: metav1.NewTime(time.Date(0, 0, 0, 0, 0, 0, 0, time.Local)),
 		},
 		Spec: appsv1.DeploymentSpec{
@@ -128,7 +129,8 @@ func service(mod ...serviceModifier) *corev1.Service {
 			APIVersion: serviceAPIVersion,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: workloadName,
+			Name:      workloadName,
+			Namespace: workloadNamespace,
 			Labels: map[string]string{
 				LabelKey: workloadUID,
 			},

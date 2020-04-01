@@ -112,7 +112,8 @@ func ServiceInjector(ctx context.Context, w resource.Workload, objs []resource.O
 				APIVersion: serviceAPIVersion,
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name: d.GetName(),
+				Name:      d.GetName(),
+				Namespace: d.GetNamespace(),
 				Labels: map[string]string{
 					LabelKey: string(w.GetUID()),
 				},
