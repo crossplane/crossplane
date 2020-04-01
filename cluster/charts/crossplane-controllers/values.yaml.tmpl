@@ -26,3 +26,19 @@ hostedConfig:
 templateStacks:
   enabled: true
   controllerImage: crossplane/templating-controller:v0.2.1
+
+resourcesCrossplane:
+  limits:
+    cpu: 100m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+
+resourcesStackManager:
+  limits:
+    cpu: 100m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi

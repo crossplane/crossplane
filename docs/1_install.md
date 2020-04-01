@@ -311,7 +311,15 @@ and their default values.
 | `personas.deploy`                | Install roles and bindings for Crossplane user personas         | `true`     
 | `templateStacks.enabled`         | Enable experimental template stacks support                     | `true`     
 | `templateStacks.controllerImage` | Template Stack controller image                                 | `crossplane/templating-controller:v0.2.1`
- 
+| `resourcesCrossplane.limits.cpu`        | CPU resource limits for Crossplane                       | `100m`
+| `resourcesCrossplane.limits.memory`     | Memory resource limits for Crossplane                    | `512Mi`
+| `resourcesCrossplane.requests.cpu`      | CPU resource requests for Crossplane                     | `100m`
+| `resourcesCrossplane.requests.memory`   | Memory resource requests for Crossplane                  | `256Mi`
+| `resourcesStackManager.limits.cpu`      | CPU resource limits for StackManager                     | `100m`
+| `resourcesStackManager.limits.memory`   | Memory resource limits for StackManager                  | `512Mi`
+| `resourcesStackManager.requests.cpu`    | CPU resource requests for StackManager                   | `100m`
+| `resourcesStackManager.requests.memory` | Memory resource requests for StackManager                | `256Mi`
+
 ### Command Line
 
 You can pass the settings with helm command line parameters. Specify each
