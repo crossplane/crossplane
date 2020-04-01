@@ -60,7 +60,7 @@ type stackInstallJobCompleter struct {
 	log          logging.Logger
 }
 
-type prepareInstallJobParams struct {
+type buildInstallJobParams struct {
 	name                   string
 	namespace              string
 	permissionScope        string
@@ -74,7 +74,7 @@ type prepareInstallJobParams struct {
 	imagePullSecrets       []corev1.LocalObjectReference
 }
 
-func prepareInstallJob(p prepareInstallJobParams) *batchv1.Job {
+func buildInstallJob(p buildInstallJobParams) *batchv1.Job {
 	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        p.name,

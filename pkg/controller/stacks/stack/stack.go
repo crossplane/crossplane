@@ -60,11 +60,14 @@ const (
 	envPodNamespace   = "POD_NAMESPACE"
 	saMountPath       = "/var/run/secrets/kubernetes.io/serviceaccount"
 
-	errHostAwareModeNotEnabled                  = "host aware mode is not enabled"
-	errFailedToPrepareHostAwareDeployment       = "failed to prepare host aware stack controller deployment"
-	errFailedToCreateDeployment                 = "failed to create deployment"
+	errHostAwareModeNotEnabled            = "host aware mode is not enabled"
+	errFailedToPrepareHostAwareDeployment = "failed to prepare host aware stack controller deployment"
+	errFailedToCreateDeployment           = "failed to create deployment"
+	errFailedToGenerateSecretNames        = "failed to generate host secret names"
+
 	errFailedToGetDeployment                    = "failed to get deployment"
-	errFailedToSyncSASecret                     = "failed sync stack controller service account secret"
+	errFailedToSyncSASecret                     = "failed to sync stack controller service account secret"
+	errFailedToSyncImagePullSecrets             = "failed to sync stack controller image pull secrets"
 	errServiceAccountNotFound                   = "service account is not found (not created yet?)"
 	errFailedToGetServiceAccount                = "failed to get service account"
 	errServiceAccountTokenSecretNotGeneratedYet = "service account token secret is not generated yet"
@@ -232,7 +235,7 @@ func (h *stackHandler) create(ctx context.Context) (reconcile.Result, error) {
 		return fail(ctx, h.kube, h.ext, err)
 	}
 
-	// create controller deployment or job
+	// create controller deployment
 	if err := h.processDeployment(ctx); err != nil {
 		h.log.Debug("failed to create deployment", "error", err)
 		return fail(ctx, h.kube, h.ext, err)
@@ -779,12 +782,37 @@ func (h *stackHandler) prepareHostAwarePodSpec(tokenSecret string, ps *corev1.Po
 	return nil
 }
 
+func (h *stackHandler) hostSARefs(d *apps.Deployment) (corev1.ObjectReference, corev1.ObjectReference) {
+	var saRef corev1.ObjectReference
+	var saSecretRef corev1.ObjectReference
+
+	// We need to copy SA token secret from host to tenant
+	saRef = corev1.ObjectReference{
+		Name:      d.Spec.Template.Spec.ServiceAccountName,
+		Namespace: d.Namespace,
+	}
+
+	if h.hostAwareConfig != nil {
+		saSecretRef = h.hostAwareConfig.ObjectReferenceOnHost(saRef.Name, saRef.Namespace)
+	} else {
+		saSecretRef = saRef
+	}
+	return saRef, saSecretRef
+}
+
 func (h *stackHandler) prepareHostAwareDeployment(d *apps.Deployment, tokenSecret string) error {
 	if h.hostAwareConfig == nil {
-		return errors.New(errHostAwareModeNotEnabled)
+		return nil
 	}
-	if err := h.prepareHostAwarePodSpec(tokenSecret, &d.Spec.Template.Spec); err != nil {
-		return err
+
+	err := h.prepareHostAwarePodSpec(tokenSecret, &d.Spec.Template.Spec)
+	if err != nil {
+		return errors.Wrap(err, errFailedToPrepareHostAwareDeployment)
+	}
+
+	d.Spec.Template.Spec.ImagePullSecrets, err = hosted.ImagePullSecretsOnHost(d.Namespace, d.Spec.Template.Spec.ImagePullSecrets)
+	if err != nil {
+		return errors.Wrap(err, errFailedToGenerateSecretNames)
 	}
 
 	o := h.hostAwareConfig.ObjectReferenceOnHost(d.Name, d.Namespace)
@@ -793,7 +821,6 @@ func (h *stackHandler) prepareHostAwareDeployment(d *apps.Deployment, tokenSecre
 
 	a := hosted.ObjectReferenceAnnotationsOnHost("stack", h.ext.GetName(), h.ext.GetNamespace())
 	meta.AddAnnotations(d, a)
-
 	return nil
 }
 
@@ -828,49 +855,57 @@ func (h *stackHandler) processDeployment(ctx context.Context) error {
 		return nil
 	}
 
+	var err error
 	d := &apps.Deployment{}
-
 	h.prepareDeployment(d)
+	saRef, saSecretRef := h.hostSARefs(d)
+
+	if err = h.prepareHostAwareDeployment(d, saSecretRef.Name); err != nil {
+		return err
+	}
+
+	err = h.hostKube.Get(ctx, types.NamespacedName{Name: d.GetName(), Namespace: d.GetNamespace()}, d)
+
+	if err != nil {
+		if kerrors.IsNotFound(err) {
+			if err := h.hostKube.Create(ctx, d); err != nil {
+				return errors.Wrap(err, errFailedToCreateDeployment)
+			}
+		} else {
+			return errors.Wrap(err, errFailedToGetDeployment)
+		}
+	}
 
 	gvk := apps.SchemeGroupVersion.WithKind("Deployment")
+	d.SetGroupVersionKind(gvk)
 
-	var saRef corev1.ObjectReference
-	var saSecretRef corev1.ObjectReference
-	if h.hostAwareConfig != nil {
-		// We need to copy SA token secret from host to tenant
-		saRef = corev1.ObjectReference{
-			Name:      d.Spec.Template.Spec.ServiceAccountName,
-			Namespace: d.Namespace,
-		}
-		saSecretRef = h.hostAwareConfig.ObjectReferenceOnHost(saRef.Name, saRef.Namespace)
-		err := h.prepareHostAwareDeployment(d, saSecretRef.Name)
-
-		if err != nil {
-			return errors.Wrap(err, errFailedToPrepareHostAwareDeployment)
-		}
+	if err := h.finalizeAwareHostDeployment(ctx, d, saRef, saSecretRef); err != nil {
+		return err
 	}
 
-	err := h.hostKube.Get(ctx, types.NamespacedName{Name: d.GetName(), Namespace: d.GetNamespace()}, d)
-	if kerrors.IsNotFound(err) {
-		if err := h.hostKube.Create(ctx, d); err != nil {
-			return errors.Wrap(err, errFailedToCreateDeployment)
-		}
-	}
-	if err != nil && !kerrors.IsNotFound(err) {
-		return errors.Wrap(err, errFailedToGetDeployment)
-	}
-
-	if h.hostAwareConfig != nil {
-		owner := meta.AsOwner(meta.ReferenceTo(d, gvk))
-		err := h.syncSATokenSecret(ctx, owner, saRef, saSecretRef)
-		if err != nil {
-			return errors.Wrap(err, errFailedToSyncSASecret)
-		}
-	}
 	// save a reference to the stack's controller
 	h.ext.Status.ControllerRef = meta.ReferenceTo(d, gvk)
 
 	return nil
+}
+
+// finalizeAwareHostDeployment copies tenant secrets, including image pull
+// secrets and service accounts tokens, to the host for use in the deployment.
+// The supplied deployment is modified to operate in the host environment.
+func (h *stackHandler) finalizeAwareHostDeployment(ctx context.Context, d *apps.Deployment, saRef, saSecretRef corev1.ObjectReference) error {
+	if h.hostAwareConfig == nil {
+		return nil
+	}
+
+	err := hosted.SyncImagePullSecrets(ctx, h.kube, h.hostKube, h.ext.GetNamespace(), h.ext.Spec.Controller.Deployment.Spec.Template.Spec.ImagePullSecrets, d.Spec.Template.Spec.ImagePullSecrets, d)
+	if err != nil {
+		return errors.Wrap(err, errFailedToSyncImagePullSecrets)
+	}
+
+	owner := meta.AsOwner(meta.ReferenceTo(d, d.GroupVersionKind()))
+	err = h.syncSATokenSecret(ctx, owner, saRef, saSecretRef)
+
+	return errors.Wrap(err, errFailedToSyncSASecret)
 }
 
 // delete performs clean up (finalizer) actions when a Stack is being deleted.

@@ -27,6 +27,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/pkg/errors"
 
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -79,6 +80,11 @@ type resourceModifier func(v1alpha1.StackInstaller)
 func withFinalizers(finalizers ...string) resourceModifier {
 	return func(r v1alpha1.StackInstaller) { r.SetFinalizers(finalizers) }
 }
+
+func withResourceVersion(version string) resourceModifier {
+	return func(r v1alpha1.StackInstaller) { r.SetResourceVersion(version) }
+}
+
 func withConditions(c ...runtimev1alpha1.Condition) resourceModifier {
 	return func(r v1alpha1.StackInstaller) { r.SetConditions(c...) }
 }
@@ -123,6 +129,10 @@ func withImagePullPolicy(policy corev1.PullPolicy) resourceModifier {
 
 func withImagePullSecrets(secrets []corev1.LocalObjectReference) resourceModifier {
 	return func(r v1alpha1.StackInstaller) { r.SetImagePullSecrets(secrets) }
+}
+
+func withGVK(gvk schema.GroupVersionKind) resourceModifier {
+	return func(r v1alpha1.StackInstaller) { r.SetGroupVersionKind(gvk) }
 }
 
 func resource(rm ...resourceModifier) *v1alpha1.StackInstall {
@@ -279,6 +289,37 @@ func TestReconcile(t *testing.T) {
 			want: want{result: reconcile.Result{}, err: nil},
 		},
 		{
+			name: "SuccessfulSyncFoundStack",
+			req:  reconcile.Request{NamespacedName: types.NamespacedName{Name: resourceName, Namespace: namespace}},
+			rec: &Reconciler{
+				k8sClients: k8sClients{
+					kube: fake.NewFakeClient(
+						resource(),
+						&v1alpha1.Stack{ObjectMeta: metav1.ObjectMeta{Name: resourceName, Namespace: namespace, UID: uid}},
+					),
+					hostKube:   nil,
+					hostClient: nil,
+				},
+				stackinator: func() v1alpha1.StackInstaller { return &v1alpha1.StackInstall{} },
+				executorInfoDiscoverer: &mockExecutorInfoDiscoverer{
+					MockDiscoverExecutorInfo: func(ctx context.Context) (*stacks.ExecutorInfo, error) {
+						return &stacks.ExecutorInfo{Image: stackPackageImage}, nil
+					},
+				},
+				factory: &handlerFactory{},
+				log:     logging.NewNopLogger(),
+			},
+			want: want{result: requeueOnSuccess,
+				stackInstall: resource(
+					withStackRecord(&corev1.ObjectReference{
+						Name: resourceName, Namespace: namespace, UID: uid, Kind: v1alpha1.StackKind,
+						APIVersion: v1alpha1.StackGroupVersionKind.GroupVersion().String(),
+					}),
+					withConditions(runtimev1alpha1.Available(), runtimev1alpha1.ReconcileSuccess()),
+					withFinalizers(),
+				), err: nil},
+		},
+		{
 			name: "SuccessfulDelete",
 			req:  reconcile.Request{NamespacedName: types.NamespacedName{Name: resourceName, Namespace: namespace}},
 			rec: &Reconciler{
@@ -308,6 +349,40 @@ func TestReconcile(t *testing.T) {
 				log: logging.NewNopLogger(),
 			},
 			want: want{result: reconcile.Result{}, err: nil},
+		},
+		{
+			name: "StackGetFailed",
+			req:  reconcile.Request{NamespacedName: types.NamespacedName{Name: resourceName, Namespace: namespace}},
+			rec: &Reconciler{
+				k8sClients: k8sClients{
+					kube: &test.MockClient{
+						MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
+							switch obj := obj.(type) {
+							case *v1alpha1.StackInstall:
+								*obj = *(resource())
+							case *v1alpha1.Stack:
+								return errBoom
+							}
+							return nil
+						},
+						MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+					},
+					hostKube:   nil,
+					hostClient: nil,
+				},
+				stackinator: func() v1alpha1.StackInstaller { return &v1alpha1.StackInstall{} },
+				executorInfoDiscoverer: &mockExecutorInfoDiscoverer{
+					MockDiscoverExecutorInfo: func(ctx context.Context) (*stacks.ExecutorInfo, error) {
+						return &stacks.ExecutorInfo{Image: stackPackageImage}, nil
+					},
+				},
+				factory: &handlerFactory{},
+				log:     logging.NewNopLogger(),
+			},
+			want: want{result: resultRequeue,
+				stackInstall: resource(),
+				err:          nil,
+			},
 		},
 		{
 			name: "DiscoverExecutorInfoFailed",
@@ -395,7 +470,12 @@ func TestReconcile(t *testing.T) {
 			want: want{result: requeueOnSuccess, err: nil,
 				stackInstall: resource(
 					withFinalizers(installFinalizer),
-					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: namespace}),
+					withInstallJob(&corev1.ObjectReference{
+						Name:       resourceName,
+						Namespace:  namespace,
+						Kind:       "Job",
+						APIVersion: batchv1.SchemeGroupVersion.String(),
+					}),
 					withConditions(
 						runtimev1alpha1.Creating(),
 						runtimev1alpha1.ReconcileSuccess(),

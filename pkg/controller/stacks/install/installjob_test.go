@@ -37,6 +37,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
@@ -424,6 +425,10 @@ func job(jm ...jobModifier) *batchv1.Job {
 			Namespace: namespace,
 			Name:      resourceName,
 		},
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Job",
+			APIVersion: batchv1.SchemeGroupVersion.String(),
+		},
 	}
 
 	for _, m := range jm {
@@ -463,6 +468,13 @@ func unstructuredObj(raw string, uom ...unstructuredObjModifier) *unstructured.U
 	}
 
 	return obj
+}
+
+func secret(name, namespace string) *corev1.Secret {
+	return &corev1.Secret{ObjectMeta: metav1.ObjectMeta{
+		Name:      name,
+		Namespace: namespace,
+	}}
 }
 
 type mockJobCompleter struct {
@@ -854,7 +866,9 @@ func TestCreate(t *testing.T) {
 					MockPatch: func(_ context.Context, obj runtime.Object, patch client.Patch, _ ...client.PatchOption) error {
 						return nil
 					},
-					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+					MockStatusPatch: func(_ context.Context, obj runtime.Object, patch client.Patch, _ ...client.PatchOption) error {
+						return nil
+					},
 				},
 				hostKube: &test.MockClient{
 					MockGet:    noJobs,
@@ -870,7 +884,12 @@ func TestCreate(t *testing.T) {
 				ext: resource(
 					withFinalizers(installFinalizer),
 					withConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileSuccess()),
-					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: namespace}),
+					withInstallJob(&corev1.ObjectReference{
+						Name:       resourceName,
+						Namespace:  namespace,
+						Kind:       "Job",
+						APIVersion: batchv1.SchemeGroupVersion.String(),
+					}),
 				),
 			},
 		},
@@ -882,11 +901,14 @@ func TestCreate(t *testing.T) {
 					MockPatch: func(_ context.Context, obj runtime.Object, patch client.Patch, _ ...client.PatchOption) error {
 						return nil
 					},
-					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+					MockStatusPatch: func(_ context.Context, obj runtime.Object, patch client.Patch, _ ...client.PatchOption) error {
+						return nil
+					},
 				},
 				hostKube: &test.MockClient{
 					MockGet:    noJobs,
 					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error { return nil },
+					MockList:   func(ctx context.Context, obj runtime.Object, _ ...client.ListOption) error { return nil },
 				},
 				hostAwareConfig: &hosted.Config{HostControllerNamespace: hostControllerNamespace},
 				executorInfo:    &stacks.ExecutorInfo{Image: stackPackageImage},
@@ -899,7 +921,43 @@ func TestCreate(t *testing.T) {
 				ext: resource(
 					withFinalizers(installFinalizer),
 					withConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileSuccess()),
-					withInstallJob(&corev1.ObjectReference{Name: fmt.Sprintf("%s.%s", namespace, resourceName), Namespace: hostControllerNamespace}),
+					withInstallJob(&corev1.ObjectReference{
+						Name:       fmt.Sprintf("%s.%s", namespace, resourceName),
+						Namespace:  hostControllerNamespace,
+						Kind:       "Job",
+						APIVersion: batchv1.SchemeGroupVersion.String(),
+					}),
+				),
+			},
+		},
+		{
+			name: "CreateInstallJobHostedWithPullSecrets",
+			handler: &stackInstallHandler{
+				kube: fake.NewFakeClient(
+					secret("secret", namespace),
+					resource(withImagePullSecrets([]corev1.LocalObjectReference{{Name: "secret"}})),
+				),
+				hostKube:        fake.NewFakeClient(),
+				hostAwareConfig: &hosted.Config{HostControllerNamespace: hostControllerNamespace},
+				executorInfo:    &stacks.ExecutorInfo{Image: stackPackageImage},
+				ext:             resource(withImagePullSecrets([]corev1.LocalObjectReference{{Name: "secret"}})),
+				log:             logging.NewNopLogger(),
+			},
+			want: want{
+				result: requeueOnSuccess,
+				err:    nil,
+				ext: resource(
+					withFinalizers(installFinalizer),
+					withImagePullSecrets([]corev1.LocalObjectReference{{Name: "secret"}}),
+					withConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileSuccess()),
+					withInstallJob(&corev1.ObjectReference{
+						Name:       fmt.Sprintf("%s.%s", namespace, resourceName),
+						Namespace:  hostControllerNamespace,
+						Kind:       "Job",
+						APIVersion: batchv1.SchemeGroupVersion.String(),
+					}),
+					withGVK(v1alpha1.StackInstallGroupVersionKind),
+					withResourceVersion("2"),
 				),
 			},
 		},
@@ -910,15 +968,21 @@ func TestCreate(t *testing.T) {
 					MockPatch: func(_ context.Context, obj runtime.Object, patch client.Patch, _ ...client.PatchOption) error {
 						return nil
 					},
-					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
-				},
-				hostKube: &test.MockClient{
-					MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
-						*obj.(*batchv1.Job) = *(job(withJobName(types.NamespacedName{Name: fmt.Sprintf("%s.%s", namespace, resourceName), Namespace: hostControllerNamespace})))
+					MockStatusPatch: func(_ context.Context, obj runtime.Object, patch client.Patch, _ ...client.PatchOption) error {
 						return nil
 					},
-					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error { return nil },
+					MockStatusUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						return nil
+					},
 				},
+				hostKube: func() client.Client {
+					c := fake.NewFakeClient(job(withJobName(types.NamespacedName{Name: fmt.Sprintf("%s.%s", namespace, resourceName), Namespace: hostControllerNamespace})))
+					return &test.MockClient{
+						MockList:   c.List,
+						MockCreate: test.NewMockCreateFn(errBoom),
+						MockGet:    c.Get,
+					}
+				}(),
 				hostAwareConfig: &hosted.Config{HostControllerNamespace: hostControllerNamespace},
 				executorInfo:    &stacks.ExecutorInfo{Image: stackPackageImage},
 				ext:             resource(),
@@ -930,7 +994,12 @@ func TestCreate(t *testing.T) {
 				ext: resource(
 					withFinalizers(installFinalizer),
 					withConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileSuccess()),
-					withInstallJob(&corev1.ObjectReference{Name: fmt.Sprintf("%s.%s", namespace, resourceName), Namespace: hostControllerNamespace}),
+					withInstallJob(&corev1.ObjectReference{
+						Name:       fmt.Sprintf("%s.%s", namespace, resourceName),
+						Namespace:  hostControllerNamespace,
+						Kind:       "Job",
+						APIVersion: batchv1.SchemeGroupVersion.String(),
+					}),
 				),
 			},
 		},
@@ -941,7 +1010,9 @@ func TestCreate(t *testing.T) {
 					MockPatch: func(_ context.Context, obj runtime.Object, patch client.Patch, _ ...client.PatchOption) error {
 						return nil
 					},
-					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+					MockStatusUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						return nil
+					},
 				},
 				hostKube: &test.MockClient{
 					MockGet:    noJobs,
@@ -969,7 +1040,9 @@ func TestCreate(t *testing.T) {
 					MockPatch: func(_ context.Context, obj runtime.Object, patch client.Patch, _ ...client.PatchOption) error {
 						return nil
 					},
-					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+					MockStatusUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						return nil
+					},
 				},
 				hostKube: &test.MockClient{
 					MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
@@ -997,7 +1070,9 @@ func TestCreate(t *testing.T) {
 					MockPatch: func(_ context.Context, obj runtime.Object, patch client.Patch, _ ...client.PatchOption) error {
 						return nil
 					},
-					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+					MockStatusUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						return nil
+					},
 				},
 				hostKube: &test.MockClient{
 					MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
@@ -1026,7 +1101,9 @@ func TestCreate(t *testing.T) {
 					MockPatch: func(_ context.Context, obj runtime.Object, patch client.Patch, _ ...client.PatchOption) error {
 						return nil
 					},
-					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+					MockStatusUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						return nil
+					},
 				},
 				hostKube: &test.MockClient{
 					MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
@@ -1060,7 +1137,9 @@ func TestCreate(t *testing.T) {
 					MockPatch: func(_ context.Context, obj runtime.Object, patch client.Patch, _ ...client.PatchOption) error {
 						return nil
 					},
-					MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
+					MockStatusUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						return nil
+					},
 				},
 				hostKube: &test.MockClient{
 					MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
