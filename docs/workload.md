@@ -151,7 +151,7 @@ spec:
       app: helloworld
   targetSelector:
     matchLabels:
-      cluster: helloworld
+      cluster: hello-world
   resourceTemplates:
     - metadata:
         name: helloworld-namespace
@@ -223,7 +223,7 @@ matching labels to the stanza we included on our `KubernetesApplication`:
 ```
 targetSelector:
   matchLabels:
-    cluster: helloworld
+    cluster: hello-world
 ```
 
 Because we only have one `KubernetesTarget` with these labels in the
