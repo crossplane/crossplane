@@ -37,6 +37,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
+	oamv1alpha2 "github.com/crossplane/crossplane/apis/oam/v1alpha2"
 	workloadv1alpha1 "github.com/crossplane/crossplane/apis/workload/v1alpha1"
 )
 
@@ -68,6 +69,29 @@ func dmWithContainerPorts(ports ...int32) deploymentModifier {
 		d.Spec.Template.Spec.Containers = append(d.Spec.Template.Spec.Containers, corev1.Container{
 			Name:  containerName,
 			Ports: p,
+		})
+	}
+}
+
+func dmWithContainerEnvFromSecrets(secrets ...string) deploymentModifier {
+	return func(d *appsv1.Deployment) {
+		var env []corev1.EnvVar
+		for _, s := range secrets {
+			env = append(env, corev1.EnvVar{
+				Name: "SECRET_ENV",
+				ValueFrom: &corev1.EnvVarSource{
+					SecretKeyRef: &corev1.SecretKeySelector{
+						Key: "secretkey",
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: s,
+						},
+					},
+				},
+			})
+		}
+		d.Spec.Template.Spec.Containers = append(d.Spec.Template.Spec.Containers, corev1.Container{
+			Name: containerName,
+			Env:  env,
 		})
 	}
 }
@@ -154,6 +178,9 @@ var _ workload.TranslationWrapper = KubeAppWrapper
 
 func TestKubeAppWrapper(t *testing.T) {
 	deployBytes, _ := json.Marshal(deployment())
+	deployBytesWithSecretModified, _ := json.Marshal(deployment(dmWithContainerEnvFromSecrets(fmt.Sprintf("%s-%s-%s", workloadName, "deployment", "test"))))
+	deployBytesWithSecret, _ := json.Marshal(deployment(dmWithContainerEnvFromSecrets("test")))
+
 	type args struct {
 		w resource.Workload
 		o []resource.Object
@@ -177,7 +204,7 @@ func TestKubeAppWrapper(t *testing.T) {
 			want: want{},
 		},
 		"SuccessfulWrapDeployment": {
-			reason: "A Deployment should be able to be wrapped in a KubernetesApplication.",
+			reason: "A Deployment should be able to be wrapped in a KubernetesApplicationResourceTemplate.",
 			args: args{
 				w: &fake.Workload{
 					ObjectMeta: metav1.ObjectMeta{
@@ -206,6 +233,79 @@ func TestKubeAppWrapper(t *testing.T) {
 							},
 							Spec: workloadv1alpha1.KubernetesApplicationResourceSpec{
 								Template: runtime.RawExtension{Raw: deployBytes},
+							},
+						},
+					},
+				},
+			}},
+			}},
+		"SuccessfulCWWrapDeploymentWithSecrets": {
+			reason: "A Deployment for a ContainerizedWorkload should be able to be wrapped in a KubernetesApplicationResourceTemplate and Secrets should be added.",
+			args: args{
+				w: &oamv1alpha2.ContainerizedWorkload{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      workloadName,
+						Namespace: workloadNamespace,
+						UID:       types.UID(workloadUID),
+					},
+				},
+				o: []resource.Object{deployment(dmWithContainerEnvFromSecrets("test"))},
+			},
+			want: want{result: []resource.Object{&workloadv1alpha1.KubernetesApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: workloadName,
+				},
+				Spec: workloadv1alpha1.KubernetesApplicationSpec{
+					ResourceSelector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							LabelKey: workloadUID,
+						},
+					},
+					ResourceTemplates: []workloadv1alpha1.KubernetesApplicationResourceTemplate{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name:   fmt.Sprintf("%s-%s", workloadName, "deployment"),
+								Labels: map[string]string{LabelKey: workloadUID},
+							},
+							Spec: workloadv1alpha1.KubernetesApplicationResourceSpec{
+								Secrets:  []corev1.LocalObjectReference{{Name: "test"}},
+								Template: runtime.RawExtension{Raw: deployBytesWithSecretModified},
+							},
+						},
+					},
+				},
+			}},
+			}},
+		"WrapDeploymentIgnoreSecretsNotCW": {
+			reason: "A Deployment that is not for a ContainerizedWorkload should be able to be wrapped in a KubernetesApplicationResourceTemplate and Secrets should be ignored.",
+			args: args{
+				w: &fake.Workload{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      workloadName,
+						Namespace: workloadNamespace,
+						UID:       types.UID(workloadUID),
+					},
+				},
+				o: []resource.Object{deployment(dmWithContainerEnvFromSecrets("test"))},
+			},
+			want: want{result: []resource.Object{&workloadv1alpha1.KubernetesApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: workloadName,
+				},
+				Spec: workloadv1alpha1.KubernetesApplicationSpec{
+					ResourceSelector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							LabelKey: workloadUID,
+						},
+					},
+					ResourceTemplates: []workloadv1alpha1.KubernetesApplicationResourceTemplate{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name:   fmt.Sprintf("%s-%s", workloadName, "deployment"),
+								Labels: map[string]string{LabelKey: workloadUID},
+							},
+							Spec: workloadv1alpha1.KubernetesApplicationResourceSpec{
+								Template: runtime.RawExtension{Raw: deployBytesWithSecret},
 							},
 						},
 					},
@@ -341,6 +441,110 @@ func TestServiceInjector(t *testing.T) {
 
 			if diff := cmp.Diff(tc.want.result, r); diff != "" {
 				t.Errorf("\nReason: %s\nServiceInjector(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestGetSecretsFromCWDeployment(t *testing.T) {
+	type args struct {
+		w resource.Workload
+		o resource.Object
+		p string
+	}
+
+	type want struct {
+		result []corev1.LocalObjectReference
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"NotAContainerizedWorkload": {
+			reason: "Workloads that are not ContainerizedWorkloads should not be parsed for secrets.",
+			args: args{
+				w: &fake.Workload{},
+			},
+			want: want{},
+		},
+		"NotADeployment": {
+			reason: "Objects rendered from a ContainerizedWorkload that are not Deployments should not be parsed for secrets.",
+			args: args{
+				w: &oamv1alpha2.ContainerizedWorkload{},
+				o: &corev1.Service{},
+			},
+			want: want{},
+		},
+		"SuccessfulSingleSecretSingleContainer": {
+			reason: "A single secret used in a single container should be added to the KAR template secrets.",
+			args: args{
+				w: &oamv1alpha2.ContainerizedWorkload{},
+				o: deployment(dmWithContainerEnvFromSecrets("test")),
+			},
+			want: want{
+				result: []corev1.LocalObjectReference{{Name: "test"}},
+			},
+		},
+		"SuccessfulMultipleDifferentSecretSingleContainer": {
+			reason: "Multiple unique secrets on the same container should be each added to the KAR template secrets.",
+			args: args{
+				w: &oamv1alpha2.ContainerizedWorkload{},
+				o: deployment(dmWithContainerEnvFromSecrets("test-one", "test-two")),
+			},
+			want: want{
+				result: []corev1.LocalObjectReference{
+					{Name: "test-one"},
+					{Name: "test-two"},
+				},
+			},
+		},
+		"SuccessfulMultipleSameSecretSingleContainer": {
+			reason: "Multiple secrets of the same secret on the same container should only be added to the KAR template secrets once.",
+			args: args{
+				w: &oamv1alpha2.ContainerizedWorkload{},
+				o: deployment(dmWithContainerEnvFromSecrets("test", "test")),
+			},
+			want: want{
+				result: []corev1.LocalObjectReference{
+					{Name: "test"},
+				},
+			},
+		},
+		"SuccessfulSingleSecretMultipleContainer": {
+			reason: "The same secret used in multiple containers should only be added to the KAR template secrets once.",
+			args: args{
+				w: &oamv1alpha2.ContainerizedWorkload{},
+				o: deployment(dmWithContainerEnvFromSecrets("test"), dmWithContainerEnvFromSecrets("test")),
+			},
+			want: want{
+				result: []corev1.LocalObjectReference{
+					{Name: "test"},
+				},
+			},
+		},
+		"SuccessfulMultipleSecretMultipleContainer": {
+			reason: "Multiple unique secrets on multiple containers should each be to the KAR template secrets.",
+			args: args{
+				w: &oamv1alpha2.ContainerizedWorkload{},
+				o: deployment(dmWithContainerEnvFromSecrets("test-one"), dmWithContainerEnvFromSecrets("test-two")),
+			},
+			want: want{
+				result: []corev1.LocalObjectReference{
+					{Name: "test-one"},
+					{Name: "test-two"},
+				},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			r := secretsForCWDeployment(tc.args.w, tc.args.o, tc.args.p)
+
+			if diff := cmp.Diff(tc.want.result, r); diff != "" {
+				t.Errorf("\nReason: %s\ngetSecretsFromCWDeployment(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}

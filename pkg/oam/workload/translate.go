@@ -32,6 +32,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
+	oamv1alpha2 "github.com/crossplane/crossplane/apis/oam/v1alpha2"
 	workloadv1alpha1 "github.com/crossplane/crossplane/apis/workload/v1alpha1"
 )
 
@@ -56,6 +57,13 @@ func KubeAppWrapper(ctx context.Context, w resource.Workload, objs []resource.Ob
 	app := &workloadv1alpha1.KubernetesApplication{}
 
 	for _, o := range objs {
+		karName := fmt.Sprintf("%s-%s", o.GetName(), strings.ToLower(o.GetObjectKind().GroupVersionKind().Kind))
+
+		// NOTE(hasheddan): this updates the Deployment's Secret reference by
+		// prepending the KubernetesApplicationResource name and returns the
+		// Secrets that need to be added to the
+		// KubernetesApplicationResourceTemplate.
+		secrets := secretsForCWDeployment(w, o, karName)
 		b, err := json.Marshal(o)
 		if err != nil {
 			return nil, errors.Wrap(err, errWrapInKubeApp)
@@ -63,12 +71,13 @@ func KubeAppWrapper(ctx context.Context, w resource.Workload, objs []resource.Ob
 
 		kart := workloadv1alpha1.KubernetesApplicationResourceTemplate{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: fmt.Sprintf("%s-%s", o.GetName(), strings.ToLower(o.GetObjectKind().GroupVersionKind().Kind)),
+				Name: karName,
 				Labels: map[string]string{
 					LabelKey: string(w.GetUID()),
 				},
 			},
 			Spec: workloadv1alpha1.KubernetesApplicationResourceSpec{
+				Secrets:  secrets,
 				Template: runtime.RawExtension{Raw: b},
 			},
 		}
@@ -142,4 +151,44 @@ func ServiceInjector(ctx context.Context, w resource.Workload, objs []resource.O
 		break
 	}
 	return objs, nil
+}
+
+// NOTE(hasheddan): secretsForCWDeployment is a temporary solution for adding
+// Secrets used by the Deployment rendered from a ContainerizedWorkload to the
+// KubernetesApplicationResourceTemplate it is wrapped in. It also updates the
+// Deployment's Secret reference to the name that the
+// KubernetesApplicationResource controller will propagate it with.
+func secretsForCWDeployment(w resource.Workload, o resource.Object, prefix string) []corev1.LocalObjectReference {
+	if _, ok := w.(*oamv1alpha2.ContainerizedWorkload); !ok {
+		return nil
+	}
+
+	d, ok := o.(*appsv1.Deployment)
+	if !ok {
+		return nil
+	}
+
+	secretRefs := map[string]corev1.LocalObjectReference{}
+	for _, c := range d.Spec.Template.Spec.Containers {
+		for _, e := range c.Env {
+			if e.ValueFrom != nil && e.ValueFrom.SecretKeyRef != nil {
+				secretRefs[e.ValueFrom.SecretKeyRef.LocalObjectReference.Name] = e.ValueFrom.SecretKeyRef.LocalObjectReference
+
+				// NOTE(hasheddan): we must update the name of the Secret in the
+				// Deployment because the KubernetesApplication controller will
+				// propagate the Secret to the remote cluster prefixed with the
+				// KubernetesApplicationResource name.
+				e.ValueFrom.SecretKeyRef.LocalObjectReference.Name = fmt.Sprintf("%s-%s", prefix, e.ValueFrom.SecretKeyRef.LocalObjectReference.Name)
+			}
+		}
+	}
+
+	secrets := make([]corev1.LocalObjectReference, len(secretRefs))
+	count := 0
+	for _, s := range secretRefs {
+		secrets[count] = s
+		count++
+	}
+
+	return secrets
 }
