@@ -1032,8 +1032,6 @@ spec:
               - $(SD_NAMESPACE)
               - --stack-definition-name
               - $(SD_NAME)
-              command:
-              - /manager
               image: crossplane/ts-controller:0.0.0
               name: stack-behavior-manager
               resources: {}
