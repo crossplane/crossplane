@@ -41,6 +41,7 @@ type Command struct {
 	TemplatingControllerImage string
 	HostControllerNamespace   string
 	TenantKubeConfig          string
+	ForceImagePullPolicy      string
 }
 
 // FromKingpin produces the stack manager command from a Kingpin command.
@@ -52,6 +53,7 @@ func FromKingpin(cmd *kingpin.CmdClause) *Command {
 	cmd.Flag("templating-controller-image", "The image of the template stacks controller").StringVar(&c.TemplatingControllerImage)
 	cmd.Flag("host-controller-namespace", "The namespace on Host Cluster where install and controller jobs/deployments will be created. Setting this will activate host aware mode of Stack Manager").StringVar(&c.HostControllerNamespace)
 	cmd.Flag("tenant-kubeconfig", "The absolute path of the kubeconfig file to Tenant Kubernetes instance (required for host aware mode, ignored otherwise).").ExistingFileVar(&c.TenantKubeConfig)
+	cmd.Flag("force-image-pull-policy", "All containers created by the StackManager in service of StackInstall and Stack resources will use the specified imagePullPolicy").StringVar(&c.ForceImagePullPolicy)
 	return c
 }
 
@@ -81,7 +83,7 @@ func (c *Command) Run(log logging.Logger) error {
 		return errors.Wrap(err, "Cannot add API extensions to scheme")
 	}
 
-	if err := stacks.Setup(mgr, log, c.HostControllerNamespace, c.TemplatingControllerImage, c.RestrictCoreAPIGroups); err != nil {
+	if err := stacks.Setup(mgr, log, c.HostControllerNamespace, c.TemplatingControllerImage, c.RestrictCoreAPIGroups, c.ForceImagePullPolicy); err != nil {
 		return errors.Wrap(err, "Cannot add stacks controllers to manager")
 	}
 

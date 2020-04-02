@@ -221,11 +221,11 @@ func resource(rm ...resourceModifier) *v1alpha1.Stack {
 // mockFactory and mockHandler
 // ************************************************************************************************
 type mockFactory struct {
-	MockNewHandler func(logging.Logger, *v1alpha1.Stack, client.Client, client.Client, *hosted.Config, bool) handler
+	MockNewHandler func(logging.Logger, *v1alpha1.Stack, client.Client, client.Client, *hosted.Config, bool, string) handler
 }
 
-func (f *mockFactory) newHandler(log logging.Logger, r *v1alpha1.Stack, c client.Client, h client.Client, hc *hosted.Config, restrictCore bool) handler {
-	return f.MockNewHandler(log, r, c, nil, nil, restrictCore)
+func (f *mockFactory) newHandler(log logging.Logger, r *v1alpha1.Stack, c client.Client, h client.Client, hc *hosted.Config, restrictCore bool, forceImagePullPolicy string) handler {
+	return f.MockNewHandler(log, r, c, nil, nil, restrictCore, forceImagePullPolicy)
 }
 
 type mockHandler struct {
@@ -354,7 +354,7 @@ func TestReconcile(t *testing.T) {
 					},
 				},
 				factory: &mockFactory{
-					MockNewHandler: func(logging.Logger, *v1alpha1.Stack, client.Client, client.Client, *hosted.Config, bool) handler {
+					MockNewHandler: func(logging.Logger, *v1alpha1.Stack, client.Client, client.Client, *hosted.Config, bool, string) handler {
 						return &mockHandler{
 							MockSync: func(context.Context) (reconcile.Result, error) {
 								return reconcile.Result{}, nil
@@ -1073,13 +1073,14 @@ func TestProcessDeployment(t *testing.T) {
 	}
 
 	tests := []struct {
-		name           string
-		r              *v1alpha1.Stack
-		initObjs       []runtime.Object
-		clientFunc     func(initObjs ...runtime.Object) client.Client
-		hostClientFunc func() client.Client
-		hostawareCfg   *hosted.Config
-		want           want
+		name                 string
+		r                    *v1alpha1.Stack
+		initObjs             []runtime.Object
+		clientFunc           func(initObjs ...runtime.Object) client.Client
+		hostClientFunc       func() client.Client
+		hostawareCfg         *hosted.Config
+		forceImagePullPolicy string
+		want                 want
 	}{
 		{
 			name:       "NoControllerRequested",
@@ -1246,6 +1247,42 @@ func TestProcessDeployment(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "SuccessForcedPullPolicy",
+			r: resource(
+				withControllerSpec(
+					defaultControllerSpec(
+						withDeploymentPullPolicy(corev1.PullNever),
+					),
+				),
+			),
+			forceImagePullPolicy: string(corev1.PullAlways),
+			clientFunc:           fake.NewFakeClient,
+			want: want{
+				err: nil,
+				d: &apps.Deployment{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      controllerDeploymentName,
+						Namespace: namespace,
+						Labels:    stackspkg.ParentLabels(resource(withControllerSpec(defaultControllerSpec()))),
+					},
+					Spec: *deploymentSpec(
+						withDeploymentTmplMeta(controllerDeploymentName, "", nil),
+						withDeploymentMatchLabels(map[string]string{"app": controllerDeploymentName}),
+						withDeploymentSA(resourceName),
+						withDeploymentContainer(controllerContainerName, controllerImageName),
+						withDeploymentPullPolicy(corev1.PullAlways),
+					),
+				},
+				controllerRef: &corev1.ObjectReference{
+					Name:       controllerDeploymentName,
+					Namespace:  namespace,
+					Kind:       "Deployment",
+					APIVersion: "apps/v1",
+				},
+			},
+		},
+
 		{
 			name:       "SuccessPullSecrets",
 			r:          resource(withControllerSpec(defaultControllerSpec(withDeploymentPullSecrets("foo")))),
@@ -1465,9 +1502,10 @@ func TestProcessDeployment(t *testing.T) {
 			g := NewGomegaWithT(t)
 			initObjs := append(tt.initObjs, tt.r)
 			handler := &stackHandler{
-				kube:            tt.clientFunc(initObjs...),
-				hostAwareConfig: tt.hostawareCfg,
-				ext:             tt.r,
+				kube:                 tt.clientFunc(initObjs...),
+				hostAwareConfig:      tt.hostawareCfg,
+				ext:                  tt.r,
+				forceImagePullPolicy: tt.forceImagePullPolicy,
 			}
 			if tt.hostawareCfg == nil {
 				handler.hostKube = handler.kube

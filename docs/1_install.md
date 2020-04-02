@@ -319,6 +319,7 @@ and their default values.
 | `resourcesStackManager.limits.memory`   | Memory resource limits for StackManager                  | `512Mi`
 | `resourcesStackManager.requests.cpu`    | CPU resource requests for StackManager                   | `100m`
 | `resourcesStackManager.requests.memory` | Memory resource requests for StackManager                | `256Mi`
+| `forceImagePullPolicy`           | Force the named ImagePullPolicy on Stack install and containers | ``
 
 ### Command Line
 
