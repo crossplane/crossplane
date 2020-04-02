@@ -287,9 +287,12 @@ func (sp *StackPackage) createBehaviorController(sd v1alpha1.Behavior) appsv1.De
 					{
 						Name:  controllerContainerName,
 						Image: sd.Engine.ControllerImage,
-						// the environment variables are known and applied
-						// to containers at a higher level than unpack
-						Command: []string{"/manager"},
+						// The Command field is omitted and we are relying on
+						// the controller's image to explicitly define its
+						// entrypoint
+						//
+						// the environment variables are known and applied to
+						// containers at a higher level than unpack
 						Args: []string{
 							"--resources-dir", behaviorMountPoint,
 							"--stack-definition-namespace", "$(" + StackDefinitionNamespaceEnv + ")",
