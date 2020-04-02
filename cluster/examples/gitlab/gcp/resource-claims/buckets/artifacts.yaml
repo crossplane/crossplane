@@ -9,4 +9,3 @@ spec:
       example: "true"
   writeConnectionSecretToRef:
     name: gitlab-artifacts
-  name: gitlab-demo-artifacts-%s

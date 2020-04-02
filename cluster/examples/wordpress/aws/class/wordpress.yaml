@@ -3,7 +3,6 @@ kind: Bucket
 metadata:
   name: demo-bucket
 spec:
-  name: wordpress-demo-e401ddfa-4729-4b72-bcef-94922203b547
   predefinedACL: Private
   writeConnectionSecretToRef:
     name: demo-bucket

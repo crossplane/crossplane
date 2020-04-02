@@ -47,10 +47,7 @@ EOF
 
 s3bucket_name() {
   local bucket=$1
-  local ownerUID=$(kubectl get secret gitlab-${bucket} -o json | jq -r '.metadata.ownerReferences[0].uid')
-  local s3bucketUID=$(kubectl get s3bucket bucket-${ownerUID} -o json | jq -r '.metadata.uid')
-  local nameFormat=$(kubectl get s3bucket bucket-${ownerUID} -o json | jq -r '.spec.nameFormat')
-  printf ${nameFormat} ${s3bucketUID}
+  kubectl get bucket "gitlab-${bucket}" -o json | jq -r '.metadata.annotations["crossplane.io/external-name"]'
 }
 
 # Process crossplane bucket connection secrets and create secrets in GitLab expected format, as well as
