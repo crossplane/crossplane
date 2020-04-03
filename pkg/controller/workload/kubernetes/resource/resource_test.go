@@ -397,7 +397,6 @@ func TestSync(t *testing.T) {
 							RemoteControllerUID:       string(objectMeta.GetUID()),
 						})
 						if diff := cmp.Diff(want, got); diff != "" {
-							fmt.Println(diff)
 							return nil, errors.Errorf("mockSync: -want, +got: %s", diff)
 						}
 
