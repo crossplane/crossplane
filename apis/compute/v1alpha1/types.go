@@ -35,6 +35,7 @@ type KubernetesClusterSpec struct {
 // A KubernetesCluster is a portable resource claim that may be satisfied by
 // binding to a Kubernetes cluster managed resource such as an AWS EKS cluster
 // or an Azure AKS cluster.
+// +kubebuilder:resource:categories={crossplane,claim}
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.bindingPhase"
 // +kubebuilder:printcolumn:name="CLASS-KIND",type="string",JSONPath=".spec.classRef.kind"
 // +kubebuilder:printcolumn:name="CLASS-NAME",type="string",JSONPath=".spec.classRef.name"
@@ -70,6 +71,7 @@ type MachineInstanceSpec struct {
 // binding to a machine instance, which may include Virtual Machine managed
 // resources such as an AWS EC2 instance or bare metal managed resources such as
 // a Packet Device.
+// +kubebuilder:resource:categories={crossplane,claim}
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.bindingPhase"
 // +kubebuilder:printcolumn:name="CLASS-KIND",type="string",JSONPath=".spec.classRef.kind"
 // +kubebuilder:printcolumn:name="CLASS-NAME",type="string",JSONPath=".spec.classRef.name"

@@ -23,6 +23,8 @@ spec:
     type: string
   group: workload.crossplane.io
   names:
+    categories:
+    - crossplane
     kind: KubernetesApplicationResource
     listKind: KubernetesApplicationResourceList
     plural: kubernetesapplicationresources

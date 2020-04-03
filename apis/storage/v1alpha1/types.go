@@ -74,6 +74,7 @@ type BucketSpec struct {
 
 // A Bucket is a portable resource claim that may be satisfied by binding to a
 // managed resource such as an AWS S3 bucket or Azure storage container.
+// +kubebuilder:resource:categories={crossplane,claim}
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.bindingPhase"
 // +kubebuilder:printcolumn:name="CLASS-KIND",type="string",JSONPath=".spec.classRef.kind"
 // +kubebuilder:printcolumn:name="CLASS-NAME",type="string",JSONPath=".spec.classRef.name"

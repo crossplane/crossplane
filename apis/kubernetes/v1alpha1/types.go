@@ -37,7 +37,7 @@ type ProviderSpec struct {
 // A Provider configures a Kubernetes 'provider', i.e. a connection to a particular
 // Kubernetes cluster using the referenced Secret.
 // +kubebuilder:printcolumn:name="SECRET-NAME",type="string",JSONPath=".spec.credentialsSecretRef.name",priority=1
-// +kubebuilder:resource:scope=Cluster
+// +kubebuilder:resource:scope=Cluster,categories=crossplane
 type Provider struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

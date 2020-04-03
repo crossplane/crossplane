@@ -384,6 +384,7 @@ type ContainerizedWorkloadStatus struct {
 // +kubebuilder:object:root=true
 
 // A ContainerizedWorkload is a workload that runs OCI containers.
+// +kubebuilder:resource:categories={crossplane,oam}
 // +kubebuilder:subresource:status
 type ContainerizedWorkload struct {
 	metav1.TypeMeta   `json:",inline"`

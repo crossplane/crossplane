@@ -34,6 +34,7 @@ import (
 // +kubebuilder:object:root=true
 
 // A StackInstall requests a stack be installed to Crossplane.
+// +kubebuilder:resource:categories=crossplane
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditionedStatus.conditions[?(@.type=='Ready')].status"
 // +kubebuilder:printcolumn:name="SOURCE",type="string",JSONPath=".spec.source"
@@ -342,6 +343,7 @@ type StackInstaller interface {
 // +kubebuilder:object:root=true
 
 // ClusterStackInstall is the CRD type for a request to add a stack to Crossplane.
+// +kubebuilder:resource:categories=crossplane
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditionedStatus.conditions[?(@.type=='Ready')].status"
 // +kubebuilder:printcolumn:name="SOURCE",type="string",JSONPath=".spec.source"
@@ -368,6 +370,7 @@ type ClusterStackInstallList struct {
 // +kubebuilder:object:root=true
 
 // A Stack that has been added to Crossplane.
+// +kubebuilder:resource:categories=crossplane
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditionedStatus.conditions[?(@.type=='Ready')].status"
 // +kubebuilder:printcolumn:name="VERSION",type="string",JSONPath=".spec.version"

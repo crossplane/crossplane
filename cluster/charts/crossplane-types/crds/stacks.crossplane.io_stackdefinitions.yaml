@@ -10,6 +10,8 @@ metadata:
 spec:
   group: stacks.crossplane.io
   names:
+    categories:
+    - crossplane
     kind: StackDefinition
     listKind: StackDefinitionList
     plural: stackdefinitions

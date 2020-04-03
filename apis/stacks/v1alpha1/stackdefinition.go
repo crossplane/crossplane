@@ -103,6 +103,7 @@ type StackDefinitionStatus struct {
 // +kubebuilder:object:root=true
 
 // StackDefinition is the Schema for the StackDefinitions API
+// +kubebuilder:resource:categories=crossplane
 type StackDefinition struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
