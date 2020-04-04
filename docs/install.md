@@ -177,7 +177,7 @@ metadata:
   name: provider-aws
   namespace: aws
 spec:
-  package: "crossplane/provider-aws:v0.7.0"
+  package: "crossplane/provider-aws:v0.7.1"
 ```
 
 Then you can install the AWS provider into Crossplane in the `aws` namespace
@@ -300,18 +300,18 @@ and their default values.
 | `imagePullSecrets`               | Names of image pull secrets to use                              | `dockerhub`                                            |
 | `replicas`                       | The number of replicas to run for the Crossplane operator       | `1`                                                    |
 | `deploymentStrategy`             | The deployment strategy for the Crossplane operator             | `RollingUpdate`                                        |
-| `clusterStacks.aws.deploy`       | Deploy AWS stack                                                | `false`    
-| `clusterStacks.aws.version`      | AWS provider version to deploy                                     | `<latest released version>`   
-| `clusterStacks.gcp.deploy`       | Deploy GCP stack                                                | `false`    
-| `clusterStacks.gcp.version`      | GCP provider version to deploy                                     | `<latest released version>`   
-| `clusterStacks.azure.deploy`     | Deploy Azure stack                                              | `false`    
-| `clusterStacks.azure.version`    | Azure provider version to deploy                                   | `<latest released version>`   
-| `clusterStacks.rook.deploy`      | Deploy Rook stack                                               | `false`    
-| `clusterStacks.rook.version`     | Rook provider version to deploy                                    | `<latest released version>`   
-| `personas.deploy`                | Install roles and bindings for Crossplane user personas         | `true`     
-| `templateStacks.enabled`         | Enable experimental template stacks support                     | `true`     
+| `clusterStacks.aws.deploy`       | Deploy AWS stack                                                | `false`
+| `clusterStacks.aws.version`      | AWS provider version to deploy                                     | `<latest released version>`
+| `clusterStacks.gcp.deploy`       | Deploy GCP stack                                                | `false`
+| `clusterStacks.gcp.version`      | GCP provider version to deploy                                     | `<latest released version>`
+| `clusterStacks.azure.deploy`     | Deploy Azure stack                                              | `false`
+| `clusterStacks.azure.version`    | Azure provider version to deploy                                   | `<latest released version>`
+| `clusterStacks.rook.deploy`      | Deploy Rook stack                                               | `false`
+| `clusterStacks.rook.version`     | Rook provider version to deploy                                    | `<latest released version>`
+| `personas.deploy`                | Install roles and bindings for Crossplane user personas         | `true`
+| `templateStacks.enabled`         | Enable experimental template stacks support                     | `true`
 | `templateStacks.controllerImage` | Template Stack controller image                                 | `crossplane/templating-controller:v0.2.1`
- 
+
 ### Command Line
 
 You can pass the settings with helm command line parameters. Specify each
