@@ -259,7 +259,7 @@ spec:
                       - name
                       type: object
                     type: array
-                  readiessProbe:
+                  readinessProbe:
                     description: A ReadinessProbe assesses whether this container
                       is ready to serve requests. Containers that fail readiness probes
                       will be withdrawn from service.
