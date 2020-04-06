@@ -29,6 +29,9 @@ spec:
     type: date
   group: cache.crossplane.io
   names:
+    categories:
+    - crossplane
+    - claim
     kind: RedisCluster
     listKind: RedisClusterList
     plural: redisclusters

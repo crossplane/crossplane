@@ -14,6 +14,8 @@ spec:
     type: string
   group: workload.crossplane.io
   names:
+    categories:
+    - crossplane
     kind: KubernetesTarget
     listKind: KubernetesTargetList
     plural: kubernetestargets

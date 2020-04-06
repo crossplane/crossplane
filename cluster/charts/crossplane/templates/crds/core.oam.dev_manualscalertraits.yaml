@@ -10,6 +10,9 @@ metadata:
 spec:
   group: core.oam.dev
   names:
+    categories:
+    - crossplane
+    - oam
     kind: ManualScalerTrait
     listKind: ManualScalerTraitList
     plural: manualscalertraits

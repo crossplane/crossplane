@@ -26,6 +26,8 @@ spec:
     type: date
   group: stacks.crossplane.io
   names:
+    categories:
+    - crossplane
     kind: StackInstall
     listKind: StackInstallList
     plural: stackinstalls

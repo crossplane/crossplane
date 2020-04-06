@@ -29,6 +29,9 @@ spec:
     type: date
   group: compute.crossplane.io
   names:
+    categories:
+    - crossplane
+    - claim
     kind: KubernetesCluster
     listKind: KubernetesClusterList
     plural: kubernetesclusters
