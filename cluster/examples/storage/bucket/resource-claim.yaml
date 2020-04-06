@@ -10,6 +10,5 @@ spec:
       # containers. Uncomment one of the below if you need one of either.
       # kind: account
       # kind: container
-  name: crossplane-example-%s
   writeConnectionSecretToRef:
     name: bucket

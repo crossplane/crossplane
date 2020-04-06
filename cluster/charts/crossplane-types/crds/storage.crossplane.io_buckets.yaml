@@ -151,11 +151,6 @@ spec:
               - Write
               - ReadWrite
               type: string
-            name:
-              description: Name specifies the desired name of the bucket.
-              maxLength: 63
-              minLength: 3
-              type: string
             predefinedACL:
               description: PredefinedACL specifies a predefined ACL (e.g. Private,
                 ReadWrite, etc) to be applied to the bucket.

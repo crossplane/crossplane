@@ -50,14 +50,8 @@ const (
 type BucketSpec struct {
 	runtimev1alpha1.ResourceClaimSpec `json:",inline"`
 
-	// TODO(negz): Remove these class fields? Name will be superceded by the new
-	// external naming strategy, and the other fields are almost certainly not
+	// TODO(negz): Remove these class fields? Fields are almost certainly not
 	// portable across all providers.
-
-	// Name specifies the desired name of the bucket.
-	// +kubebuilder:validation:MaxLength=63
-	// +kubebuilder:validation:MinLength=3
-	Name string `json:"name,omitempty"`
 
 	// PredefinedACL specifies a predefined ACL (e.g. Private, ReadWrite, etc)
 	// to be applied to the bucket.

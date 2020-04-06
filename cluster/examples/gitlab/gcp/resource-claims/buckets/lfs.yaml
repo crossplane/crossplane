@@ -9,4 +9,3 @@ spec:
       example: "true"
   writeConnectionSecretToRef:
     name: gitlab-lfs
-  name: gitlab-demo-lfs-%s

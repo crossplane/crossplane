@@ -9,4 +9,3 @@ spec:
       example: "true"
   writeConnectionSecretToRef:
     name: gitlab-pseudonymizer
-  name: gitlab-demo-pseudonymizer-%s

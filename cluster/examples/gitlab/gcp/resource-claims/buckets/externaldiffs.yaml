@@ -9,4 +9,3 @@ spec:
       example: "true"
   writeConnectionSecretToRef:
     name: gitlab-externaldiffs
-  name: gitlab-demo-externaldiffs-%s

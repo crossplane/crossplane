@@ -9,4 +9,3 @@ spec:
       example: "true"
   writeConnectionSecretToRef:
     name: gitlab-backups
-  name: gitlab-demo-backups-%s
