@@ -344,7 +344,7 @@ type Container struct {
 	// requests. Containers that fail readiness probes will be withdrawn from
 	// service.
 	// +optional
-	ReadinessProbe *ContainerHealthProbe `json:"readiessProbe,omitempty"`
+	ReadinessProbe *ContainerHealthProbe `json:"readinessProbe,omitempty"`
 
 	// TODO(negz): Ideally the key within this secret would be configurable, but
 	// the current OAM spec allows only a secret name.
