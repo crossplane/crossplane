@@ -1,5 +1,5 @@
 /*
-Copyright 2019 The Crossplane Authors.
+Copyright 2020 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,36 +14,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package apis contains Kubernetes API groups
-package apis
+// Package apiextensions contains Kubernetes API groups for extension types of Crossplane.
+package apiextensions
 
 import (
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/crossplane/crossplane/apis/apiextensions"
-	"github.com/crossplane/crossplane/apis/cache"
-	"github.com/crossplane/crossplane/apis/compute"
-	"github.com/crossplane/crossplane/apis/database"
-	"github.com/crossplane/crossplane/apis/kubernetes"
-	"github.com/crossplane/crossplane/apis/oam"
-	"github.com/crossplane/crossplane/apis/stacks"
-	"github.com/crossplane/crossplane/apis/storage"
-	"github.com/crossplane/crossplane/apis/workload"
+	"github.com/crossplane/crossplane/apis/storage/v1alpha1"
 )
 
 func init() {
 	// Register the types with the Scheme so the components can map objects to GroupVersionKinds and back
-	AddToSchemes = append(AddToSchemes,
-		apiextensions.AddToScheme,
-		cache.AddToScheme,
-		compute.AddToScheme,
-		database.AddToScheme,
-		kubernetes.AddToScheme,
-		oam.AddToScheme,
-		stacks.AddToScheme,
-		storage.AddToScheme,
-		workload.AddToScheme,
-	)
+	AddToSchemes = append(AddToSchemes, v1alpha1.SchemeBuilder.AddToScheme)
 }
 
 // AddToSchemes may be used to add all resources defined in the project to a Scheme
