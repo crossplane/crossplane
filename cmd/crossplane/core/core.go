@@ -21,13 +21,15 @@ import (
 
 	"github.com/pkg/errors"
 	"gopkg.in/alecthomas/kingpin.v2"
+	crds "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	ctrl "sigs.k8s.io/controller-runtime"
 
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	oamapis "github.com/crossplane/oam-kubernetes-runtime/apis/core"
 	"github.com/crossplane/oam-kubernetes-runtime/pkg/controller/oam"
 
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane/apis"
+	"github.com/crossplane/crossplane/pkg/controller/apiextensions/infrastructure"
 	"github.com/crossplane/crossplane/pkg/controller/workload"
 )
 
@@ -58,6 +60,10 @@ func (c *Command) Run(log logging.Logger) error {
 		return errors.Wrap(err, "Cannot create manager")
 	}
 
+	if err := crds.AddToScheme(mgr.GetScheme()); err != nil {
+		return errors.Wrap(err, "Cannot add Kubernetes APIs to scheme")
+	}
+
 	if err := apis.AddToScheme(mgr.GetScheme()); err != nil {
 		return errors.Wrap(err, "Cannot add core Crossplane APIs to scheme")
 	}
@@ -72,6 +78,10 @@ func (c *Command) Run(log logging.Logger) error {
 
 	if err := workload.Setup(mgr, log); err != nil {
 		return errors.Wrap(err, "Cannot setup workload controllers")
+	}
+
+	if err := infrastructure.Setup(mgr, log); err != nil {
+		return errors.Wrap(err, "Cannot setup infrastructure definition controller")
 	}
 
 	return errors.Wrap(mgr.Start(ctrl.SetupSignalHandler()), "Cannot start controller manager")
