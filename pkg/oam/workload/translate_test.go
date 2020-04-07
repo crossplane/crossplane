@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -543,7 +544,7 @@ func TestGetSecretsFromCWDeployment(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			r := secretsForCWDeployment(tc.args.w, tc.args.o, tc.args.p)
 
-			if diff := cmp.Diff(tc.want.result, r); diff != "" {
+			if diff := cmp.Diff(tc.want.result, r, cmpopts.SortSlices(func(i, j corev1.LocalObjectReference) bool { return i.Name < j.Name })); diff != "" {
 				t.Errorf("\nReason: %s\ngetSecretsFromCWDeployment(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
