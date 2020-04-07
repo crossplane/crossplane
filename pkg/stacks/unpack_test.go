@@ -304,6 +304,7 @@ spec:
       - samples.upbound.io
       resources:
       - siblings
+      - siblings/finalizers
       verbs:
       - '*'
     - apiGroups:
@@ -312,18 +313,21 @@ spec:
       - secondcousins
       - secondcousins/status
       - secondcousins/scale
+      - secondcousins/finalizers
       verbs:
       - '*'
     - apiGroups:
       - samples.upbound.io
       resources:
       - mytypes
+      - mytypes/finalizers
       verbs:
       - '*'
     - apiGroups:
       - samples.upbound.io
       resources:
       - cousins
+      - cousins/finalizers
       verbs:
       - '*'
     - apiGroups:
@@ -600,6 +604,7 @@ spec:
       - samples.upbound.io
       resources:
       - siblings
+      - siblings/finalizers
       verbs:
       - '*'
     - apiGroups:
@@ -608,18 +613,21 @@ spec:
       - secondcousins
       - secondcousins/status
       - secondcousins/scale
+      - secondcousins/finalizers
       verbs:
       - '*'
     - apiGroups:
       - samples.upbound.io
       resources:
       - mytypes
+      - mytypes/finalizers
       verbs:
       - '*'
     - apiGroups:
       - samples.upbound.io
       resources:
       - cousins
+      - cousins/finalizers
       verbs:
       - '*'
     - apiGroups:
@@ -932,6 +940,7 @@ spec:
       - samples.upbound.io
       resources:
       - mytypes
+      - mytypes/finalizers
       verbs:
       - '*'
     - apiGroups:
@@ -1091,6 +1100,7 @@ spec:
       - samples.upbound.io
       resources:
       - mytypes
+      - mytypes/finalizers
       verbs:
       - '*'
     - apiGroups:

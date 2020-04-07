@@ -486,6 +486,16 @@ func (sp *StackPackage) applyRules() (v1alpha1.PermissionsSpec, error) {
 				kinds = append(kinds, crd.Spec.Names.Plural+"/scale")
 			}
 		}
+
+		// For the stack controller to set a controller owner reference on CRs
+		// that it owns, in some settings (OpenShift 4.3), it is necessary to
+		// give the controller access to a finalizers subresource, even if the
+		// crd does not present this subresource. External controllers will look
+		// for this rule. The error produced without it is: "cannot set
+		// blockOwnerDeletion if an ownerReference refers to a resource you
+		// can't set finalizers on"
+		kinds = append(kinds, crd.Spec.Names.Plural+"/finalizers")
+
 		rule := generateRBAC(kinds, crd.Spec.Group, verbs)
 		rbac.Rules = append(rbac.Rules, rule)
 	}
