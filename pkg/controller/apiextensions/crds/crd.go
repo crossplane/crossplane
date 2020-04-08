@@ -17,19 +17,18 @@ limitations under the License.
 package crds
 
 import (
-	"bytes"
 	"fmt"
 
-	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
+
+	"github.com/ghodss/yaml"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
-	kyaml "k8s.io/apimachinery/pkg/util/yaml"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 )
 
 const (
-	errDecodeCRDTemplate = "cannot decode given crd spec template"
+	errConvertCRDTemplate = "cannot convert given crd spec template into actual crd spec"
 )
 
 // CRDOption is used to manipulate base crd.
@@ -111,10 +110,9 @@ func InfraValidation() CRDOption {
 
 // GenerateInfraCRD returns a CRD that is generated with the information in cr.
 func GenerateInfraCRD(cr *v1alpha1.InfrastructureDefinition) (*v1beta1.CustomResourceDefinition, error) {
-	dec := kyaml.NewYAMLOrJSONDecoder(bytes.NewReader(cr.Spec.CRDSpecTemplate.Raw), 4096)
-	crdSpec := &v1beta1.CustomResourceDefinitionSpec{}
-	if err := dec.Decode(crdSpec); err != nil {
-		return nil, errors.Wrap(err, errDecodeCRDTemplate)
+	crdSpec, err := v1alpha1.FromShallow(cr.Spec.CRDSpecTemplate)
+	if err != nil {
+		return nil, errors.Wrap(err, errConvertCRDTemplate)
 	}
 	base := BaseCRD(InfraValidation())
 	base.SetName(cr.GetName())

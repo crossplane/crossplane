@@ -18,7 +18,6 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 )
@@ -30,14 +29,9 @@ type InfrastructureDefinitionSpec struct {
 	// user of the defined kind.
 	ConnectionSecretKeys []string `json:"connectionSecretKeys,omitempty"`
 
-	// TODO(muvaf): As of this writing, CustomResourceDefinitionSpec structs
-	// do not have proper jsontags(validation substruct in particular), hence
-	// cannot be used as the type of the template. For now, it's RawExtension,
-	// but we definitely need to revisit so that proper validation is in place.
-
 	// CRDSpecTemplate is the base CRD template. The final CRD will have additional
 	// fields to the base template to accommodate Crossplane machinery.
-	CRDSpecTemplate runtime.RawExtension `json:"crdSpecTemplate,omitempty"`
+	CRDSpecTemplate CustomResourceDefinitionSpec `json:"crdSpecTemplate,omitempty"`
 }
 
 // InfrastructureDefinitionStatus shows the observed state of the definition.
