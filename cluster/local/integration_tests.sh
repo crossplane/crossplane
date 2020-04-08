@@ -60,7 +60,6 @@ fi
 
 echo_step "creating k8s cluster using kind"
 "${KIND}" create cluster --name="${K8S_CLUSTER}"
-export KUBECONFIG="$("${KIND}" get kubeconfig-path --name="${K8S_CLUSTER}")"
 
 # tag crossplane image and load it to kind cluster
 docker tag "${BUILD_IMAGE}" "${CROSSPLANE_IMAGE}"
