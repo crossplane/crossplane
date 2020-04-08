@@ -141,6 +141,43 @@ Stack resources (including the Stack, service accounts, deployments, and jobs)
 are usually easy to identify by name. These resource names are based on the name
 used in the StackInstall or Stack resource.
 
+### Resource Location
+
+In a host-aware configuration, these resources may be divided between the host
+and the tenant.
+
+The host, which runs the Stack controller, does not need (or get) the CRDs used
+by the Stack controller. The Stack controller connects to the tenant Kubernetes
+API to watch the owned types of the Stack (which is why the CRDs are only
+installed on the Tenant).
+
+Kind                  | Name               | Place
+----                  | -----              | ------
+pod                   | crossplane         | Host (ns: tenantFoo-system)
+pod                   | stack-manager      | Host (ns: tenantFoo-system)
+job                   | (stack installjob) | Host (ns: tenantFoo-controllers)
+pod                   | (stack controller) | Host (ns: tenantFoo-controllers)
+
+Kind                  | Name                                    | Place
+----                  | -----                                   | ------
+crd                   | Stack, SI, CSI                          | Tenant
+Stack                 | wordpress                               | Tenant
+StackInstall          | wordpress                               | Tenant
+crd                   | KubernetesEngine, MysqlInstance, ...    | Tenant
+crd                   | GKEInstance, CloudSQLInstance, ...      | Tenant
+(rbac)                | (stack controller)                      | Tenant
+(rbac)                | (workspace owner, crossplane-admin)     | Tenant
+(rbac)                | (stack:namespace:1.2.3:admin)           | Tenant
+crd                   | WordpressInstance                       | Tenant
+WordpressInstance     | wp-instance                             | Tenant
+KubernetesApplication | wp-instance                             | Tenant
+
+Kind                  | Name                                    | Place
+----                  | -----                                   | ------
+pod                   | wp-instance (from KubernetesAplication) | New Cluster
+
+### Name Truncation
+
 In some cases, the full name of a Stack resource, which could be up to 253
 characters long, can not be represented in the created resources. For example,
 jobs and deployment names may not exceed 63 characters because these names are
@@ -164,7 +201,7 @@ responsible Stack.
   `tenant.crossplane.io/{singular}-namespace` (_singular_ may be `stackinstall`,
   `clusterstackinstall` or `stack`)
 
-### Example
+#### Example
 
 Long resource names may be present on the tenant.
 
