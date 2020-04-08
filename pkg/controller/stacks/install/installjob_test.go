@@ -1302,7 +1302,6 @@ func TestCreateJobOutputObject(t *testing.T) {
 		stacks.LabelParentKind:      "StackInstall",
 		stacks.LabelParentNamespace: namespace,
 		stacks.LabelParentName:      resourceName,
-		stacks.LabelParentUID:       uidString,
 	}
 
 	type want struct {

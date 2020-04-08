@@ -410,39 +410,6 @@ func TestReconcile(t *testing.T) {
 			want: want{result: resultRequeue, err: nil},
 		},
 		{
-			name: "ConflictingInstallJobFound",
-			req:  reconcile.Request{NamespacedName: types.NamespacedName{Name: resourceName, Namespace: namespace}},
-			rec: &Reconciler{
-				k8sClients: k8sClients{
-					hostKube: func() client.Client {
-						si := resource()
-						labels := stacks.ParentLabels(si)
-						labels[stacks.LabelParentUID] = "different-parent-uid"
-						job := job()
-						job.SetLabels(labels)
-						return fake.NewFakeClient(job)
-					}(),
-					kube: func() client.Client {
-						si := resource()
-						return fake.NewFakeClient(si)
-					}(),
-				},
-				stackinator: func() v1alpha1.StackInstaller { return &v1alpha1.StackInstall{} },
-				executorInfoDiscoverer: &mockExecutorInfoDiscoverer{
-					MockDiscoverExecutorInfo: func(ctx context.Context) (*stacks.ExecutorInfo, error) {
-						return &stacks.ExecutorInfo{Image: stackPackageImage}, nil
-					},
-				},
-				factory: &handlerFactory{},
-				log:     logging.NewNopLogger(),
-			},
-			want: want{result: resultRequeue, err: nil,
-				stackInstall: resource(
-					withFinalizers(installFinalizer),
-					withConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileError(errors.Errorf("stale job %s/%s prevents stackinstall", namespace, resourceName))),
-				)},
-		},
-		{
 			name: "InstallJobFound",
 			req:  reconcile.Request{NamespacedName: types.NamespacedName{Name: resourceName, Namespace: namespace}},
 			rec: &Reconciler{
