@@ -21,6 +21,10 @@ import (
 	"strings"
 	"time"
 
+	"sigs.k8s.io/controller-runtime/pkg/controller"
+
+	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+
 	"github.com/pkg/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -36,9 +40,15 @@ import (
 )
 
 const (
-	shortWait = 30 * time.Second
-	longWait  = 1 * time.Minute
-	timeout   = 2 * time.Minute
+	shortWait      = 30 * time.Second
+	longWait       = 1 * time.Minute
+	timeout        = 2 * time.Minute
+	maxConcurrency = 5
+
+	errGetInfraDef         = "cannot get infrastructure definition"
+	errGenerateCRD         = "cannot generate crd for given infrastructure definition"
+	errApplyCRD            = "cannot apply the generated crd"
+	errUpdateInfrDefStatus = "cannot update status of infrastructure definition"
 )
 
 // Setup adds a controller that reconciles ApplicationConfigurations.
@@ -48,6 +58,7 @@ func Setup(mgr ctrl.Manager, _ logging.Logger) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&v1alpha1.InfrastructureDefinition{}).
+		WithOptions(controller.Options{MaxConcurrentReconciles: maxConcurrency}).
 		Complete(NewReconciler(mgr))
 }
 
@@ -80,18 +91,31 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	cr := &v1alpha1.InfrastructureDefinition{}
 	if err := r.client.Get(ctx, req.NamespacedName, cr); err != nil {
-		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), "cannot get infrastructure definition")
+		log.Debug(errGetInfraDef, "error", err)
+		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetInfraDef)
 	}
+
+	log = log.WithValues(
+		"uid", cr.GetUID(),
+		"version", cr.GetResourceVersion(),
+		"name", cr.GetName(),
+	)
+
 	generated, err := crds.GenerateInfraCRD(cr)
 	if err != nil {
-		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(err, "cannot generate crd for given infrastructure definition")
+		log.Debug(errGenerateCRD, "error", err)
+		cr.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errGenerateCRD)))
+		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateInfrDefStatus)
 	}
 	if err := resource.Apply(ctx, r.client, generated); err != nil {
-		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(err, "cannot apply the generated crd")
+		log.Debug(errApplyCRD, "error", err)
+		cr.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errApplyCRD)))
+		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateInfrDefStatus)
 	}
 
-	// todo(muvaf): make sure the controller of the generated type is up and
+	// TODO(muvaf): make sure the controller of the generated type is up and
 	// running.
 
-	return reconcile.Result{RequeueAfter: longWait}, nil
+	cr.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
+	return reconcile.Result{RequeueAfter: longWait}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateInfrDefStatus)
 }

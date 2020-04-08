@@ -28,6 +28,10 @@ import (
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 )
 
+const (
+	errDecodeCRDTemplate = "cannot decode given crd spec template"
+)
+
 // CRDOption is used to manipulate base crd.
 type CRDOption func(*v1beta1.CustomResourceDefinition)
 
@@ -88,7 +92,7 @@ func InfraValidation() CRDOption {
 		crd.Spec.Scope = v1beta1.ClusterScoped
 		spec := &map[string]v1beta1.JSONSchemaProps{}
 		if err := yaml.Unmarshal([]byte(v1alpha1.InfraSpecProps), spec); err != nil {
-			// todo(muvaf): never panic.
+			// TODO(muvaf): never panic.
 			panic(fmt.Sprintf("constant string could not be parsed: %s", err.Error()))
 		}
 		for k, v := range *spec {
@@ -96,7 +100,7 @@ func InfraValidation() CRDOption {
 		}
 		status := &map[string]v1beta1.JSONSchemaProps{}
 		if err := yaml.Unmarshal([]byte(v1alpha1.InfraStatusProps), status); err != nil {
-			// todo(muvaf): never panic.
+			// TODO(muvaf): never panic.
 			panic(fmt.Sprintf("constant string could not be parsed: %s", err.Error()))
 		}
 		for k, v := range *status {
@@ -110,16 +114,32 @@ func GenerateInfraCRD(cr *v1alpha1.InfrastructureDefinition) (*v1beta1.CustomRes
 	dec := kyaml.NewYAMLOrJSONDecoder(bytes.NewReader(cr.Spec.CRDSpecTemplate.Raw), 4096)
 	crdSpec := &v1beta1.CustomResourceDefinitionSpec{}
 	if err := dec.Decode(crdSpec); err != nil {
-		return nil, errors.Wrap(err, "cannot decode given crd spec template")
+		return nil, errors.Wrap(err, errDecodeCRDTemplate)
 	}
 	base := BaseCRD(InfraValidation())
 	base.SetName(cr.GetName())
 	base.Spec.Group = crdSpec.Group
 	base.Spec.Version = crdSpec.Version
+	base.Spec.Versions = crdSpec.Versions
 	base.Spec.Names = crdSpec.Names
-	// todo(muvaf): make access paths safe.
-	for k, v := range crdSpec.Validation.OpenAPIV3Schema.Properties["spec"].Properties {
+	base.Spec.AdditionalPrinterColumns = crdSpec.AdditionalPrinterColumns
+	base.Spec.Conversion = crdSpec.Conversion
+	for k, v := range getSpecProps(*crdSpec) {
 		base.Spec.Validation.OpenAPIV3Schema.Properties["spec"].Properties[k] = v
 	}
 	return base, nil
+}
+
+func getSpecProps(template v1beta1.CustomResourceDefinitionSpec) map[string]v1beta1.JSONSchemaProps {
+	switch {
+	case template.Validation == nil:
+		return nil
+	case template.Validation.OpenAPIV3Schema == nil:
+		return nil
+	case len(template.Validation.OpenAPIV3Schema.Properties) == 0:
+		return nil
+	case len(template.Validation.OpenAPIV3Schema.Properties["spec"].Properties) == 0:
+		return nil
+	}
+	return template.Validation.OpenAPIV3Schema.Properties["spec"].Properties
 }
