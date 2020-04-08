@@ -29,7 +29,8 @@ import (
 	"github.com/crossplane/oam-kubernetes-runtime/pkg/controller/oam"
 
 	"github.com/crossplane/crossplane/apis"
-	"github.com/crossplane/crossplane/pkg/controller/apiextensions/infrastructure"
+	"github.com/crossplane/crossplane/pkg/controller/apiextensions/definer"
+	"github.com/crossplane/crossplane/pkg/controller/oam"
 	"github.com/crossplane/crossplane/pkg/controller/workload"
 )
 
@@ -80,7 +81,7 @@ func (c *Command) Run(log logging.Logger) error {
 		return errors.Wrap(err, "Cannot setup workload controllers")
 	}
 
-	if err := infrastructure.Setup(mgr, log); err != nil {
+	if err := definer.Setup(mgr, log); err != nil {
 		return errors.Wrap(err, "Cannot setup infrastructure definition controller")
 	}
 

@@ -67,6 +67,17 @@ func FromShallow(in CustomResourceDefinitionSpec) (*v1beta1.CustomResourceDefini
 	return out, nil
 }
 
+// IsEstablished is a helper function to check whether api-server is ready
+// to accept the instances of registered CRD.
+func IsEstablished(crd v1beta1.CustomResourceDefinition) bool {
+	for _, c := range crd.Status.Conditions {
+		if c.Type == v1beta1.Established {
+			return c.Status == v1beta1.ConditionTrue
+		}
+	}
+	return false
+}
+
 // CustomResourceDefinitionSpec is a shallow copy of actual v1beta1.CustomResourceDefinitionSpec
 type CustomResourceDefinitionSpec struct {
 	// group is the API group of the defined custom resource.

@@ -45,6 +45,14 @@ var (
 	InfrastructureDefinitionGroupVersionKind = SchemeGroupVersion.WithKind(InfrastructureDefinitionKind)
 )
 
+// Bucket type metadata.
+var (
+	CompositionKind             = reflect.TypeOf(Composition{}).Name()
+	CompositionGroupKind        = schema.GroupKind{Group: Group, Kind: CompositionKind}.String()
+	CompositionKindAPIVersion   = CompositionKind + "." + SchemeGroupVersion.String()
+	CompositionGroupVersionKind = SchemeGroupVersion.WithKind(CompositionKind)
+)
+
 func init() {
 	SchemeBuilder.Register(&InfrastructureDefinition{}, &InfrastructureDefinitionList{})
 }

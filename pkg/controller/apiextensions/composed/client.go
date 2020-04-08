@@ -1,0 +1,212 @@
+/*
+Copyright 2020 The Crossplane Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package composed
+
+import (
+	"context"
+
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+)
+
+// todo: this should be in crossplane-runtime.
+
+// TODO(muvaf): Investigate registering a new type to the scheme in the runtime.
+
+// NewClientForUnregistered returns a client.Client that will convert the given
+// object to unstructured.Unstructured and then do the requested operation if GVK
+// is not registered in the given scheme.
+func NewClientForUnregistered(c client.Client, s *runtime.Scheme, converter runtime.UnstructuredConverter) client.Client {
+	return &unregisteredClient{
+		kube:      c,
+		scheme:    s,
+		converter: converter,
+	}
+}
+
+type unregisteredClient struct {
+	kube      client.Client
+	scheme    *runtime.Scheme
+	converter runtime.UnstructuredConverter
+}
+
+// Get retrieves an obj for the given object key from the Kubernetes Cluster.
+// obj must be a struct pointer so that obj can be updated with the response
+// returned by the Server.
+func (c *unregisteredClient) Get(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
+	if isRegistered(c.scheme, obj) {
+		return c.kube.Get(ctx, key, obj)
+	}
+	u := &unstructured.Unstructured{}
+	u.SetGroupVersionKind(obj.GetObjectKind().GroupVersionKind())
+	if err := c.kube.Get(ctx, key, u); err != nil {
+		return err
+	}
+	return c.converter.FromUnstructured(u.UnstructuredContent(), obj)
+}
+
+// List retrieves list of objects for a given namespace and list options. On a
+// successful call, Items field in the list will be populated with the
+// result returned from the server.
+func (c *unregisteredClient) List(ctx context.Context, list runtime.Object, opts ...client.ListOption) error {
+	if isRegistered(c.scheme, list) {
+		return c.kube.List(ctx, list, opts...)
+	}
+	u := &unstructured.UnstructuredList{}
+	u.SetGroupVersionKind(list.GetObjectKind().GroupVersionKind())
+	if err := c.kube.List(ctx, u, opts...); err != nil {
+		return err
+	}
+	// todo(muvaf): manually test this.
+	return c.converter.FromUnstructured(u.UnstructuredContent(), list)
+}
+
+// Create saves the object obj in the Kubernetes cluster.
+func (c *unregisteredClient) Create(ctx context.Context, obj runtime.Object, opts ...client.CreateOption) error {
+	if isRegistered(c.scheme, obj) {
+		return c.kube.Create(ctx, obj, opts...)
+	}
+	u := &unstructured.Unstructured{}
+	m, err := c.converter.ToUnstructured(obj)
+	if err != nil {
+		return err
+	}
+	u.SetUnstructuredContent(m)
+	u.SetGroupVersionKind(obj.GetObjectKind().GroupVersionKind())
+	if err := c.kube.Create(ctx, u, opts...); err != nil {
+		return err
+	}
+	return c.converter.FromUnstructured(u.UnstructuredContent(), obj)
+}
+
+// Delete deletes the given obj from Kubernetes cluster.
+func (c *unregisteredClient) Delete(ctx context.Context, obj runtime.Object, opts ...client.DeleteOption) error {
+	if isRegistered(c.scheme, obj) {
+		return c.kube.Delete(ctx, obj, opts...)
+	}
+	u := &unstructured.Unstructured{}
+	u.SetGroupVersionKind(obj.GetObjectKind().GroupVersionKind())
+	return c.kube.Delete(ctx, u, opts...)
+}
+
+// Update updates the given obj in the Kubernetes cluster. obj must be a
+// struct pointer so that obj can be updated with the content returned by the Server.
+func (c *unregisteredClient) Update(ctx context.Context, obj runtime.Object, opts ...client.UpdateOption) error {
+	if isRegistered(c.scheme, obj) {
+		return c.kube.Update(ctx, obj, opts...)
+	}
+	u := &unstructured.Unstructured{}
+	m, err := c.converter.ToUnstructured(obj)
+	if err != nil {
+		return err
+	}
+	u.SetUnstructuredContent(m)
+	u.SetGroupVersionKind(obj.GetObjectKind().GroupVersionKind())
+	if err := c.kube.Update(ctx, u, opts...); err != nil {
+		return err
+	}
+	return c.converter.FromUnstructured(u.UnstructuredContent(), obj)
+}
+
+// Patch patches the given obj in the Kubernetes cluster. obj must be a
+// struct pointer so that obj can be updated with the content returned by the Server.
+func (c *unregisteredClient) Patch(ctx context.Context, obj runtime.Object, patch client.Patch, opts ...client.PatchOption) error {
+	if isRegistered(c.scheme, obj) {
+		return c.kube.Patch(ctx, obj, patch, opts...)
+	}
+	u := &unstructured.Unstructured{}
+	m, err := c.converter.ToUnstructured(obj)
+	if err != nil {
+		return err
+	}
+	u.SetUnstructuredContent(m)
+	u.SetGroupVersionKind(obj.GetObjectKind().GroupVersionKind())
+	if err := c.kube.Patch(ctx, u, patch, opts...); err != nil {
+		return err
+	}
+	return c.converter.FromUnstructured(u.UnstructuredContent(), obj)
+}
+
+// DeleteAllOf deletes all objects of the given type matching the given options.
+func (c *unregisteredClient) DeleteAllOf(ctx context.Context, obj runtime.Object, opts ...client.DeleteAllOfOption) error {
+	if isRegistered(c.scheme, obj) {
+		return c.kube.DeleteAllOf(ctx, obj, opts...)
+	}
+	u := &unstructured.Unstructured{}
+	u.SetGroupVersionKind(obj.GetObjectKind().GroupVersionKind())
+	return c.kube.DeleteAllOf(ctx, u, opts...)
+}
+
+func (c *unregisteredClient) Status() client.StatusWriter {
+	return &unregisteredStatusClient{
+		kube:      c.kube.Status(),
+		scheme:    c.scheme,
+		converter: runtime.DefaultUnstructuredConverter,
+	}
+}
+
+type unregisteredStatusClient struct {
+	kube      client.StatusWriter
+	scheme    *runtime.Scheme
+	converter runtime.UnstructuredConverter
+}
+
+// Update updates the fields corresponding to the status subresource for the
+// given obj. obj must be a struct pointer so that obj can be updated
+// with the content returned by the Server.
+func (c *unregisteredStatusClient) Update(ctx context.Context, obj runtime.Object, opts ...client.UpdateOption) error {
+	if isRegistered(c.scheme, obj) {
+		return c.kube.Update(ctx, obj, opts...)
+	}
+	u := &unstructured.Unstructured{}
+	m, err := c.converter.ToUnstructured(obj)
+	if err != nil {
+		return err
+	}
+	u.SetUnstructuredContent(m)
+	u.SetGroupVersionKind(obj.GetObjectKind().GroupVersionKind())
+	if err := c.kube.Update(ctx, u, opts...); err != nil {
+		return err
+	}
+	return c.converter.FromUnstructured(u.UnstructuredContent(), obj)
+}
+
+// Patch patches the given object's subresource. obj must be a struct
+// pointer so that obj can be updated with the content returned by the
+// Server.
+func (c *unregisteredStatusClient) Patch(ctx context.Context, obj runtime.Object, patch client.Patch, opts ...client.PatchOption) error {
+	if isRegistered(c.scheme, obj) {
+		return c.kube.Patch(ctx, obj, patch, opts...)
+	}
+	u := &unstructured.Unstructured{}
+	m, err := c.converter.ToUnstructured(obj)
+	if err != nil {
+		return err
+	}
+	u.SetUnstructuredContent(m)
+	u.SetGroupVersionKind(obj.GetObjectKind().GroupVersionKind())
+	if err := c.kube.Patch(ctx, u, patch, opts...); err != nil {
+		return err
+	}
+	return c.converter.FromUnstructured(u.UnstructuredContent(), obj)
+}
+
+func isRegistered(s *runtime.Scheme, obj runtime.Object) bool {
+	_, _, err := s.ObjectKinds(obj)
+	return !runtime.IsNotRegisteredError(err)
+}

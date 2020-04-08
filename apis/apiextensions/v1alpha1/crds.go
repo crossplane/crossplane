@@ -16,9 +16,16 @@ limitations under the License.
 
 package v1alpha1
 
-// TODO(muvaf): Consider generating the validations of the types in runtime
-// so that we don't forget to update here when there are changes in those
-// structs.
+import (
+	"fmt"
+
+	"github.com/ghodss/yaml"
+	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+)
+
+// TODO(muvaf): Consider generating the validations of the types in build time
+// and reading them in runtime so that we don't forget to update the validations
+// when there is a change in internal representations.
 
 // InfraSpecProps is OpenAPIV3Schema for spec fields that Crossplane uses for
 // Infrastructure kinds.
@@ -186,3 +193,95 @@ conditions:
     type: object
   type: array
 `
+
+const (
+	errConvertCRDTemplate = "cannot convert given crd spec template into actual crd spec"
+)
+
+// NOTE(muvaf): We use v1beta1.CustomResourceDefinition for backward compatibility
+// with clusters pre-1.16
+
+// TODO(muvaf): There can be 2 base CRD YAMLs for infra and app and they can be
+// generated during build time and read in runtime.
+
+// BaseCRD returns a base template for generating a CRD.
+func BaseCRD(opts ...func(*v1beta1.CustomResourceDefinition)) *v1beta1.CustomResourceDefinition {
+	falseVal := false
+	// TODO(muvaf): Add proper descriptions.
+	crd := &v1beta1.CustomResourceDefinition{
+		Spec: v1beta1.CustomResourceDefinitionSpec{
+			PreserveUnknownFields: &falseVal,
+			Subresources: &v1beta1.CustomResourceSubresources{
+				Status: &v1beta1.CustomResourceSubresourceStatus{},
+			},
+			Validation: &v1beta1.CustomResourceValidation{
+				OpenAPIV3Schema: &v1beta1.JSONSchemaProps{
+					Type: "object",
+					Properties: map[string]v1beta1.JSONSchemaProps{
+						"apiVersion": {
+							Type: "string",
+						},
+						"kind": {
+							Type: "string",
+						},
+						"metadata": {
+							// NOTE(muvaf): api-server takes care of validating
+							// metadata.
+							Type: "object",
+						},
+						"spec": {
+							Type:       "object",
+							Properties: map[string]v1beta1.JSONSchemaProps{},
+						},
+						"status": {
+							Type:       "object",
+							Properties: map[string]v1beta1.JSONSchemaProps{},
+						},
+					},
+				},
+			},
+		},
+	}
+	for _, f := range opts {
+		f(crd)
+	}
+	return crd
+}
+
+// InfraValidation returns a CRDOption that adds infrastructure related fields
+// to the base CRD.
+func InfraValidation() func(*v1beta1.CustomResourceDefinition) {
+	return func(crd *v1beta1.CustomResourceDefinition) {
+		crd.Spec.Scope = v1beta1.ClusterScoped
+		spec := &map[string]v1beta1.JSONSchemaProps{}
+		if err := yaml.Unmarshal([]byte(InfraSpecProps), spec); err != nil {
+			// TODO(muvaf): never panic.
+			panic(fmt.Sprintf("constant string could not be parsed: %s", err.Error()))
+		}
+		for k, v := range *spec {
+			crd.Spec.Validation.OpenAPIV3Schema.Properties["spec"].Properties[k] = v
+		}
+		status := &map[string]v1beta1.JSONSchemaProps{}
+		if err := yaml.Unmarshal([]byte(InfraStatusProps), status); err != nil {
+			// TODO(muvaf): never panic.
+			panic(fmt.Sprintf("constant string could not be parsed: %s", err.Error()))
+		}
+		for k, v := range *status {
+			crd.Spec.Validation.OpenAPIV3Schema.Properties["status"].Properties[k] = v
+		}
+	}
+}
+
+func getSpecProps(template v1beta1.CustomResourceDefinitionSpec) map[string]v1beta1.JSONSchemaProps {
+	switch {
+	case template.Validation == nil:
+		return nil
+	case template.Validation.OpenAPIV3Schema == nil:
+		return nil
+	case len(template.Validation.OpenAPIV3Schema.Properties) == 0:
+		return nil
+	case len(template.Validation.OpenAPIV3Schema.Properties["spec"].Properties) == 0:
+		return nil
+	}
+	return template.Validation.OpenAPIV3Schema.Properties["spec"].Properties
+}

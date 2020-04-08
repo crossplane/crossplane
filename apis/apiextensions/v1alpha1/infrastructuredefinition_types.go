@@ -17,6 +17,13 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"fmt"
+	"strings"
+
+	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	"github.com/pkg/errors"
+	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
@@ -62,4 +69,41 @@ type InfrastructureDefinitionList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []InfrastructureDefinition `json:"items"`
+}
+
+// GetCRDName returns the name of the CRD that this InfrastructureDefinition
+// controls.
+func (in InfrastructureDefinition) GetCRDName() string {
+	return strings.ToLower(fmt.Sprintf("%s.%s", in.Spec.CRDSpecTemplate.Names.Plural, in.Spec.CRDSpecTemplate.Group))
+}
+
+// GetCRDGroupVersionKind returns the schema.GroupVersionKind of the CRD that this
+// InfrastructureDefinition instance will define.
+func (in InfrastructureDefinition) GetCRDGroupVersionKind() schema.GroupVersionKind {
+	return schema.GroupVersionKind{
+		Group:   in.Spec.CRDSpecTemplate.Group,
+		Version: in.Spec.CRDSpecTemplate.Version,
+		Kind:    in.Spec.CRDSpecTemplate.Names.Kind,
+	}
+}
+
+// GenerateCRD returns generated CRD with given CRD Spec Template applied as
+// overlay.
+func (in *InfrastructureDefinition) GenerateCRD() (*v1beta1.CustomResourceDefinition, error) {
+	crdSpec, err := FromShallow(in.Spec.CRDSpecTemplate)
+	if err != nil {
+		return nil, errors.Wrap(err, errConvertCRDTemplate)
+	}
+	base := BaseCRD(InfraValidation())
+	base.SetName(in.GetName())
+	base.Spec.Group = crdSpec.Group
+	base.Spec.Version = crdSpec.Version
+	base.Spec.Versions = crdSpec.Versions
+	base.Spec.Names = crdSpec.Names
+	base.Spec.AdditionalPrinterColumns = crdSpec.AdditionalPrinterColumns
+	base.Spec.Conversion = crdSpec.Conversion
+	for k, v := range getSpecProps(*crdSpec) {
+		base.Spec.Validation.OpenAPIV3Schema.Properties["spec"].Properties[k] = v
+	}
+	return base, nil
 }
