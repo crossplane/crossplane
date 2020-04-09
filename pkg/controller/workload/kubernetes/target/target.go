@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -40,6 +41,10 @@ const (
 	errGetKubernetesCluster = "unable to get KubernetesCluster"
 	errCreateOrUpdateTarget = "unable to create or update KubernetesTarget"
 )
+
+// LabelKeyAutoTarget indicates that a target was automatically created for a
+// KubernetesCluster claim.
+const LabelKeyAutoTarget = "autotarget.crossplane.io/for-kubernetescluster"
 
 func clusterIsBound(obj runtime.Object) bool {
 	r, ok := obj.(*computev1alpha1.KubernetesCluster)
@@ -99,8 +104,22 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	target.SetName(cluster.GetName())
 	target.SetWriteConnectionSecretToReference(cluster.GetWriteConnectionSecretToReference())
 	target.SetLabels(cluster.GetLabels())
+	meta.AddLabels(target, cluster.GetLabels())
+	meta.AddLabels(target, map[string]string{LabelKeyAutoTarget: cluster.GetName()})
 	meta.AddOwnerReference(target, meta.AsController(meta.ReferenceTo(cluster, computev1alpha1.KubernetesClusterGroupVersionKind)))
 
-	err := r.client.Apply(ctx, target, resource.MustBeControllableBy(cluster.GetUID()))
+	err := r.client.Apply(ctx, target,
+		MustHaveLabel(LabelKeyAutoTarget, cluster.GetName()),
+		resource.MustBeControllableBy(cluster.GetUID()))
 	return reconcile.Result{}, errors.Wrap(err, errCreateOrUpdateTarget)
+}
+
+// MustHaveLabel requires that the current object must have the supplied label.
+func MustHaveLabel(k, v string) resource.ApplyOption {
+	return func(_ context.Context, current, _ runtime.Object) error {
+		if current.(metav1.Object).GetLabels()[k] != v {
+			return errors.Errorf("existing object is not labelled '%s: %s'", k, v)
+		}
+		return nil
+	}
 }
