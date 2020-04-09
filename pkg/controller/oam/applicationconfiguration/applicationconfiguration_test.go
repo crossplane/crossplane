@@ -25,11 +25,11 @@ import (
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
@@ -70,14 +70,12 @@ func TestReconciler(t *testing.T) {
 	workload.SetKind("workload")
 	workload.SetNamespace(namespace)
 	workload.SetName("workload")
-	workload.SetUID(types.UID("workload-uid"))
 
 	trait := &unstructured.Unstructured{}
 	trait.SetAPIVersion("v")
 	trait.SetKind("trait")
 	trait.SetNamespace(namespace)
 	trait.SetName("trait")
-	trait.SetUID(types.UID("trait-uid"))
 
 	type args struct {
 		m manager.Manager
@@ -154,7 +152,7 @@ func TestReconciler(t *testing.T) {
 					WithRenderer(ComponentRenderFn(func(_ context.Context, _ *v1alpha2.ApplicationConfiguration) ([]Workload, error) {
 						return []Workload{{Workload: workload}}, nil
 					})),
-					WithApplicator(WorkloadApplyFn(func(_ context.Context, _ []Workload) error {
+					WithApplicator(WorkloadApplyFn(func(_ context.Context, _ []Workload, _ ...resource.ApplyOption) error {
 						return errBoom
 					})),
 				},
@@ -184,7 +182,7 @@ func TestReconciler(t *testing.T) {
 					WithRenderer(ComponentRenderFn(func(_ context.Context, _ *v1alpha2.ApplicationConfiguration) ([]Workload, error) {
 						return []Workload{}, nil
 					})),
-					WithApplicator(WorkloadApplyFn(func(_ context.Context, _ []Workload) error {
+					WithApplicator(WorkloadApplyFn(func(_ context.Context, _ []Workload, _ ...resource.ApplyOption) error {
 						return nil
 					})),
 					WithGarbageCollector(GarbageCollectorFn(func(_ string, _ []v1alpha2.WorkloadStatus, _ []Workload) []unstructured.Unstructured {
@@ -212,7 +210,6 @@ func TestReconciler(t *testing.T) {
 										APIVersion: workload.GetAPIVersion(),
 										Kind:       workload.GetKind(),
 										Name:       workload.GetName(),
-										UID:        workload.GetUID(),
 									},
 								}),
 							)
@@ -228,7 +225,7 @@ func TestReconciler(t *testing.T) {
 					WithRenderer(ComponentRenderFn(func(_ context.Context, _ *v1alpha2.ApplicationConfiguration) ([]Workload, error) {
 						return []Workload{{ComponentName: componentName, Workload: workload}}, nil
 					})),
-					WithApplicator(WorkloadApplyFn(func(_ context.Context, _ []Workload) error {
+					WithApplicator(WorkloadApplyFn(func(_ context.Context, _ []Workload, _ ...resource.ApplyOption) error {
 						return nil
 					})),
 					WithGarbageCollector(GarbageCollectorFn(func(_ string, _ []v1alpha2.WorkloadStatus, _ []Workload) []unstructured.Unstructured {
@@ -267,14 +264,12 @@ func TestWorkloadStatus(t *testing.T) {
 	workload.SetKind("workload")
 	workload.SetNamespace(namespace)
 	workload.SetName("workload")
-	workload.SetUID(types.UID("workload-uid"))
 
 	trait := &unstructured.Unstructured{}
 	trait.SetAPIVersion("v")
 	trait.SetKind("trait")
 	trait.SetNamespace(namespace)
 	trait.SetName("trait")
-	trait.SetUID(types.UID("trait-uid"))
 
 	cases := map[string]struct {
 		w    Workload
@@ -292,7 +287,6 @@ func TestWorkloadStatus(t *testing.T) {
 					APIVersion: workload.GetAPIVersion(),
 					Kind:       workload.GetKind(),
 					Name:       workload.GetName(),
-					UID:        workload.GetUID(),
 				},
 				Traits: []v1alpha2.WorkloadTrait{
 					{
@@ -300,7 +294,6 @@ func TestWorkloadStatus(t *testing.T) {
 							APIVersion: trait.GetAPIVersion(),
 							Kind:       trait.GetKind(),
 							Name:       trait.GetName(),
-							UID:        trait.GetUID(),
 						},
 					},
 				},
@@ -327,14 +320,12 @@ func TestEligible(t *testing.T) {
 	workload.SetKind("workload")
 	workload.SetNamespace(namespace)
 	workload.SetName("workload")
-	workload.SetUID(types.UID("workload-uid"))
 
 	trait := &unstructured.Unstructured{}
 	trait.SetAPIVersion("v")
 	trait.SetKind("trait")
 	trait.SetNamespace(namespace)
 	trait.SetName("trait")
-	trait.SetUID(types.UID("trait-uid"))
 
 	type args struct {
 		namespace string
@@ -356,7 +347,6 @@ func TestEligible(t *testing.T) {
 							APIVersion: workload.GetAPIVersion(),
 							Kind:       workload.GetKind(),
 							Name:       workload.GetName(),
-							UID:        workload.GetUID(),
 						},
 						Traits: []v1alpha2.WorkloadTrait{
 							{
@@ -364,7 +354,6 @@ func TestEligible(t *testing.T) {
 									APIVersion: trait.GetAPIVersion(),
 									Kind:       trait.GetKind(),
 									Name:       trait.GetName(),
-									UID:        trait.GetUID(),
 								},
 							},
 						},
@@ -384,7 +373,6 @@ func TestEligible(t *testing.T) {
 							APIVersion: workload.GetAPIVersion(),
 							Kind:       workload.GetKind(),
 							Name:       workload.GetName(),
-							UID:        workload.GetUID(),
 						},
 						Traits: []v1alpha2.WorkloadTrait{
 							{
@@ -392,7 +380,6 @@ func TestEligible(t *testing.T) {
 									APIVersion: trait.GetAPIVersion(),
 									Kind:       trait.GetKind(),
 									Name:       trait.GetName(),
-									UID:        trait.GetUID(),
 								},
 							},
 						},
@@ -411,7 +398,6 @@ func TestEligible(t *testing.T) {
 							APIVersion: workload.GetAPIVersion(),
 							Kind:       workload.GetKind(),
 							Name:       workload.GetName(),
-							UID:        workload.GetUID(),
 						},
 						Traits: []v1alpha2.WorkloadTrait{
 							{
@@ -419,7 +405,6 @@ func TestEligible(t *testing.T) {
 									APIVersion: trait.GetAPIVersion(),
 									Kind:       trait.GetKind(),
 									Name:       trait.GetName(),
-									UID:        trait.GetUID(),
 								},
 							},
 						},

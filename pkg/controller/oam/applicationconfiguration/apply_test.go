@@ -22,13 +22,11 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
 
@@ -58,57 +56,36 @@ func TestApplyWorkloads(t *testing.T) {
 
 	cases := map[string]struct {
 		reason string
-		client client.Client
+		client resource.Applicator
 		args   args
 		want   error
 	}{
 		"ApplyWorkloadError": {
 			reason: "Errors applying a workload should be reflected as a status condition",
-			client: &test.MockClient{
-				// We're testing through to resource.Apply, which starts
-				// by trying to get the applied object.
-				MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
-					if w, ok := o.(*unstructured.Unstructured); ok && w.GetUID() == workload.GetUID() {
-						return errBoom
-					}
-					return nil
-				}),
-			},
+			client: resource.ApplyFn(func(_ context.Context, o runtime.Object, _ ...resource.ApplyOption) error {
+				if w, ok := o.(*unstructured.Unstructured); ok && w.GetUID() == workload.GetUID() {
+					return errBoom
+				}
+				return nil
+			}),
 			args: args{w: []Workload{{Workload: workload}}},
-			want: errors.Wrapf(errors.Wrap(errBoom, "cannot get object"), errFmtApplyWorkload, workload.GetName()),
+			want: errors.Wrapf(errBoom, errFmtApplyWorkload, workload.GetName()),
 		},
 		"ApplyTraitError": {
 			reason: "Errors applying a trait should be reflected as a status condition",
-			client: &test.MockClient{
-				// We're testing through to resource.Apply, which starts
-				// by trying to get the applied object and then creates
-				// it if it does not exist.
-				MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
-					if w, ok := o.(*unstructured.Unstructured); ok && w.GetUID() == workload.GetUID() {
-						return kerrors.NewNotFound(schema.GroupResource{}, "")
-					}
-					if t, ok := o.(*unstructured.Unstructured); ok && t.GetUID() == trait.GetUID() {
-						return errBoom
-					}
-					return nil
-				}),
-				MockCreate: test.NewMockCreateFn(nil),
-			},
+			client: resource.ApplyFn(func(_ context.Context, o runtime.Object, _ ...resource.ApplyOption) error {
+				if t, ok := o.(*unstructured.Unstructured); ok && t.GetUID() == trait.GetUID() {
+					return errBoom
+				}
+				return nil
+			}),
 			args: args{w: []Workload{{Workload: workload, Traits: []unstructured.Unstructured{*trait}}}},
-			want: errors.Wrapf(errors.Wrap(errBoom, "cannot get object"), errFmtApplyTrait, trait.GetName()),
+			want: errors.Wrapf(errBoom, errFmtApplyTrait, trait.GetName()),
 		},
 		"Success": {
 			reason: "Applied workloads and traits should be returned as a set of UIDs",
-			client: &test.MockClient{
-				// We're testing through to resource.Apply, which starts
-				// by trying to get the applied object and then creates
-				// it if it does not exist.
-				MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
-					return kerrors.NewNotFound(schema.GroupResource{}, "")
-				}),
-				MockCreate: test.NewMockCreateFn(nil),
-			},
-			args: args{w: []Workload{{Workload: workload, Traits: []unstructured.Unstructured{*trait}}}},
+			client: resource.ApplyFn(func(_ context.Context, o runtime.Object, _ ...resource.ApplyOption) error { return nil }),
+			args:   args{w: []Workload{{Workload: workload, Traits: []unstructured.Unstructured{*trait}}}},
 		},
 	}
 

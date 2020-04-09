@@ -20,7 +20,6 @@ import (
 	"context"
 
 	"github.com/pkg/errors"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
@@ -37,25 +36,24 @@ const (
 // A WorkloadApplicator creates or updates workloads and their traits.
 type WorkloadApplicator interface {
 	// Apply a workload and its traits.
-	Apply(ctx context.Context, w []Workload) error
+	Apply(ctx context.Context, w []Workload, ao ...resource.ApplyOption) error
 }
 
 // A WorkloadApplyFn creates or updates workloads and their traits.
-type WorkloadApplyFn func(ctx context.Context, w []Workload) error
+type WorkloadApplyFn func(ctx context.Context, w []Workload, ao ...resource.ApplyOption) error
 
 // Apply a workload and its traits.
-func (fn WorkloadApplyFn) Apply(ctx context.Context, w []Workload) error {
-	return fn(ctx, w)
+func (fn WorkloadApplyFn) Apply(ctx context.Context, w []Workload, ao ...resource.ApplyOption) error {
+	return fn(ctx, w, ao...)
 }
 
 type workloads struct {
-	client client.Client
+	client resource.Applicator
 }
 
-func (a *workloads) Apply(ctx context.Context, w []Workload) error {
+func (a *workloads) Apply(ctx context.Context, w []Workload, ao ...resource.ApplyOption) error {
 	for _, wl := range w {
-		// TODO(negz): Update to resource.APIPatchingApplicator.
-		if err := resource.Apply(ctx, a.client, wl.Workload, resource.ControllersMustMatch()); err != nil { // nolint:staticcheck
+		if err := a.client.Apply(ctx, wl.Workload, ao...); err != nil {
 			return errors.Wrapf(err, errFmtApplyWorkload, wl.Workload.GetName())
 		}
 
@@ -66,14 +64,12 @@ func (a *workloads) Apply(ctx context.Context, w []Workload) error {
 				APIVersion: wl.Workload.GetAPIVersion(),
 				Kind:       wl.Workload.GetKind(),
 				Name:       wl.Workload.GetName(),
-				UID:        wl.Workload.GetUID(),
 			}
 			if err := fieldpath.Pave(t.UnstructuredContent()).SetValue("spec.workloadRef", ref); err != nil {
 				return errors.Wrapf(err, errFmtSetWorkloadRef, t.GetName(), wl.Workload.GetName())
 			}
 
-			// TODO(negz): Update to resource.APIPatchingApplicator.
-			if err := resource.Apply(ctx, a.client, t, resource.ControllersMustMatch()); err != nil { // nolint:staticcheck
+			if err := a.client.Apply(ctx, t, ao...); err != nil {
 				return errors.Wrapf(err, errFmtApplyTrait, t.GetName())
 			}
 		}

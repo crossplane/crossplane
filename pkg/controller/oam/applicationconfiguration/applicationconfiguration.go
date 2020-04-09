@@ -24,7 +24,6 @@ import (
 
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -145,7 +144,7 @@ func NewReconciler(m ctrl.Manager, o ...ReconcilerOption) *Reconciler {
 			trait:    ResourceRenderFn(renderTrait),
 		},
 		workloads: &workloads{
-			client: m.GetClient(),
+			client: resource.NewAPIPatchingApplicator(m.GetClient()),
 		},
 		gc:     GarbageCollectorFn(eligible),
 		log:    logging.NewNopLogger(),
@@ -189,7 +188,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	log.Debug("Successfully rendered components", "workloads", len(workloads))
 	r.record.Event(ac, event.Normal(reasonRenderComponents, "Successfully rendered components", "workloads", strconv.Itoa(len(workloads))))
 
-	if err := r.workloads.Apply(ctx, workloads); err != nil {
+	if err := r.workloads.Apply(ctx, workloads, resource.MustBeControllableBy(ac.GetUID())); err != nil {
 		log.Debug("Cannot apply components", "error", err, "requeue-after", time.Now().Add(shortWait))
 		r.record.Event(ac, event.Warning(reasonCannotApplyComponents, err))
 		ac.SetConditions(v1alpha1.ReconcileError(errors.Wrap(err, errApplyComponents)))
@@ -249,7 +248,6 @@ func (w Workload) Status() v1alpha2.WorkloadStatus {
 			APIVersion: w.Workload.GetAPIVersion(),
 			Kind:       w.Workload.GetKind(),
 			Name:       w.Workload.GetName(),
-			UID:        w.Workload.GetUID(),
 		},
 		Traits: make([]v1alpha2.WorkloadTrait, len(w.Traits)),
 	}
@@ -258,7 +256,6 @@ func (w Workload) Status() v1alpha2.WorkloadStatus {
 			APIVersion: w.Traits[i].GetAPIVersion(),
 			Kind:       w.Traits[i].GetKind(),
 			Name:       w.Traits[i].GetName(),
-			UID:        w.Traits[i].GetUID(),
 		}
 	}
 	return acw
@@ -280,34 +277,42 @@ func (fn GarbageCollectorFn) Eligible(namespace string, ws []v1alpha2.WorkloadSt
 }
 
 func eligible(namespace string, ws []v1alpha2.WorkloadStatus, w []Workload) []unstructured.Unstructured {
-	applied := make(map[types.UID]bool)
+	applied := make(map[runtimev1alpha1.TypedReference]bool)
 	for _, wl := range w {
-		applied[wl.Workload.GetUID()] = true
+		r := runtimev1alpha1.TypedReference{
+			APIVersion: wl.Workload.GetAPIVersion(),
+			Kind:       wl.Workload.GetKind(),
+			Name:       wl.Workload.GetName(),
+		}
+		applied[r] = true
 		for _, t := range wl.Traits {
-			applied[t.GetUID()] = true
+			r := runtimev1alpha1.TypedReference{
+				APIVersion: t.GetAPIVersion(),
+				Kind:       t.GetKind(),
+				Name:       t.GetName(),
+			}
+			applied[r] = true
 		}
 	}
 	eligible := make([]unstructured.Unstructured, 0)
 	for _, s := range ws {
 
-		if !applied[s.Reference.UID] {
+		if !applied[s.Reference] {
 			w := &unstructured.Unstructured{}
 			w.SetAPIVersion(s.Reference.APIVersion)
 			w.SetKind(s.Reference.Kind)
 			w.SetNamespace(namespace)
 			w.SetName(s.Reference.Name)
-			w.SetUID(s.Reference.UID)
 			eligible = append(eligible, *w)
 		}
 
 		for _, ts := range s.Traits {
-			if !applied[ts.Reference.UID] {
+			if !applied[ts.Reference] {
 				t := &unstructured.Unstructured{}
 				t.SetAPIVersion(ts.Reference.APIVersion)
 				t.SetKind(ts.Reference.Kind)
 				t.SetNamespace(namespace)
 				t.SetName(ts.Reference.Name)
-				t.SetUID(ts.Reference.UID)
 				eligible = append(eligible, *t)
 			}
 		}
