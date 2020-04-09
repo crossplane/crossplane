@@ -83,6 +83,12 @@ func Test_truncate(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name:    "TruncatedOnDot",
+			args:    args{str: "1234.678901", length: 10, suffixLength: 5},
+			want:    "1234-kjwi",
+			wantErr: false,
+		},
+		{
 			name: "hosted-stack-ns-example",
 			args: args{str: "cool-namespace-abcdefghijklmnopqrstuvwxyz", length: 32, suffixLength: 5},
 			want: "cool-namespace-abcdefghijkl-lzi4",
