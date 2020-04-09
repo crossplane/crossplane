@@ -33,6 +33,8 @@ import (
 
 	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/pkg/meta"
+	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	computev1alpha1 "github.com/crossplane/crossplane/apis/compute/v1alpha1"
@@ -40,16 +42,14 @@ import (
 )
 
 const (
-	namespace  = "coolNamespace"
-	name       = "coolCluster"
-	uid        = types.UID("definitely-a-uuid")
-	targetName = "definitely-a-uuid"
+	namespace = "coolNamespace"
+	name      = "coolCluster"
+	uid       = types.UID("definitely-a-uuid")
 )
 
 var (
 	errorBoom  = errors.New("boom")
 	objectMeta = metav1.ObjectMeta{Namespace: namespace, Name: name, UID: uid}
-	targetMeta = metav1.ObjectMeta{Namespace: namespace, Name: targetName}
 )
 
 type kubeClusterModifier func(*computev1alpha1.KubernetesCluster)
@@ -74,36 +74,6 @@ func withLabels(l map[string]string) kubeClusterModifier {
 
 func kubeCluster(rm ...kubeClusterModifier) *computev1alpha1.KubernetesCluster {
 	r := &computev1alpha1.KubernetesCluster{ObjectMeta: objectMeta}
-
-	for _, m := range rm {
-		m(r)
-	}
-
-	return r
-}
-
-type kubeTargetModifier func(*workloadv1alpha1.KubernetesTarget)
-
-func withOwnerReferences(o []metav1.OwnerReference) kubeTargetModifier {
-	return func(r *workloadv1alpha1.KubernetesTarget) {
-		r.SetOwnerReferences(o)
-	}
-}
-
-func withConnectionSecretRef(s *runtimev1alpha1.LocalSecretReference) kubeTargetModifier {
-	return func(r *workloadv1alpha1.KubernetesTarget) {
-		r.SetWriteConnectionSecretToReference(s)
-	}
-}
-
-func withTargetLabels(l map[string]string) kubeTargetModifier {
-	return func(r *workloadv1alpha1.KubernetesTarget) {
-		r.SetLabels(l)
-	}
-}
-
-func kubeTarget(rm ...kubeTargetModifier) *workloadv1alpha1.KubernetesTarget {
-	r := &workloadv1alpha1.KubernetesTarget{ObjectMeta: targetMeta}
 
 	for _, m := range rm {
 		m(r)
@@ -154,8 +124,6 @@ func TestClusterIsBound(t *testing.T) {
 }
 
 func TestReconcile(t *testing.T) {
-	controller := true
-
 	cases := map[string]struct {
 		rec        *Reconciler
 		req        reconcile.Request
@@ -164,8 +132,10 @@ func TestReconcile(t *testing.T) {
 	}{
 		"FailedToGetNonExistentKubernetesCluster": {
 			rec: &Reconciler{
-				kube: &test.MockClient{
-					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, name)),
+				client: resource.ClientApplicator{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, name)),
+					},
 				},
 				log: logging.NewNopLogger(),
 			},
@@ -175,8 +145,10 @@ func TestReconcile(t *testing.T) {
 		},
 		"FailedToGetExtantKubernetesCluster": {
 			rec: &Reconciler{
-				kube: &test.MockClient{
-					MockGet: test.NewMockGetFn(errorBoom),
+				client: resource.ClientApplicator{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(errorBoom),
+					},
 				},
 				log: logging.NewNopLogger(),
 			},
@@ -186,10 +158,12 @@ func TestReconcile(t *testing.T) {
 		},
 		"KubernetesClusterDeleted": {
 			rec: &Reconciler{
-				kube: &test.MockClient{
-					MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
-						*obj.(*computev1alpha1.KubernetesCluster) = *(kubeCluster(withDeletionTimestamp(time.Now())))
-						return nil
+				client: resource.ClientApplicator{
+					Client: &test.MockClient{
+						MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
+							*obj.(*computev1alpha1.KubernetesCluster) = *(kubeCluster(withDeletionTimestamp(time.Now())))
+							return nil
+						},
 					},
 				},
 				log: logging.NewNopLogger(),
@@ -198,31 +172,18 @@ func TestReconcile(t *testing.T) {
 			wantResult: reconcile.Result{Requeue: false},
 			wantErr:    nil,
 		},
-		"FailedToUpdateKubernetesTarget": {
+		"FailedToApplyTarget": {
 			rec: &Reconciler{
-				kube: &test.MockClient{
-					MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
-						switch key {
-						case client.ObjectKey{Namespace: namespace, Name: name}:
+				client: resource.ClientApplicator{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
 							*obj.(*computev1alpha1.KubernetesCluster) = *kubeCluster(withWriteConnectionSecretToRef(
 								&runtimev1alpha1.LocalSecretReference{Name: "super-secret"},
-							))
-						case client.ObjectKey{Namespace: namespace, Name: targetName}:
-							*obj.(*workloadv1alpha1.KubernetesTarget) = *kubeTarget(withOwnerReferences(
-								[]metav1.OwnerReference{
-									{
-										UID:        uid,
-										Name:       name,
-										Kind:       computev1alpha1.KubernetesClusterKind,
-										APIVersion: computev1alpha1.SchemeGroupVersion.String(),
-										Controller: &controller,
-									},
-								},
-							), withConnectionSecretRef(&runtimev1alpha1.LocalSecretReference{Name: "wrong-secret"}))
-						}
-						return nil
+							), withLabels(map[string]string{"dev": "true"}))
+							return nil
+						}),
 					},
-					MockUpdate: test.NewMockUpdateFn(nil, func(got runtime.Object) error {
+					Applicator: resource.ApplyFn(func(_ context.Context, _ runtime.Object, _ ...resource.ApplyOption) error {
 						return errorBoom
 					}),
 				},
@@ -232,164 +193,29 @@ func TestReconcile(t *testing.T) {
 			wantResult: reconcile.Result{},
 			wantErr:    errors.Wrap(errorBoom, errCreateOrUpdateTarget),
 		},
-		"KubernetesTargetConflict": {
+		"SuccessfulApplyTarget": {
 			rec: &Reconciler{
-				kube: &test.MockClient{
-					MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
-						switch key {
-						case client.ObjectKey{Namespace: namespace, Name: name}:
-							*obj.(*computev1alpha1.KubernetesCluster) = *kubeCluster()
-						case client.ObjectKey{Namespace: namespace, Name: targetName}:
-							*obj.(*workloadv1alpha1.KubernetesTarget) = *kubeTarget(withOwnerReferences(
-								[]metav1.OwnerReference{
-									{
-										UID:        "wrong-uid",
-										Controller: &controller,
-									},
-								},
-							))
-						}
-						return nil
-					},
-				},
-				log: logging.NewNopLogger(),
-			},
-			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
-			wantResult: reconcile.Result{},
-			wantErr:    errors.Wrap(errors.New(errTargetConflict), errCreateOrUpdateTarget),
-		},
-		"SuccessfulCreateTarget": {
-			rec: &Reconciler{
-				kube: &test.MockClient{
-					MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
-						clusterKey := client.ObjectKey{Namespace: namespace, Name: name}
-						if key == clusterKey {
+				client: resource.ClientApplicator{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
 							*obj.(*computev1alpha1.KubernetesCluster) = *kubeCluster(withWriteConnectionSecretToRef(
 								&runtimev1alpha1.LocalSecretReference{Name: "super-secret"},
 							), withLabels(map[string]string{"dev": "true"}))
 							return nil
-						}
+						}),
+					},
+					Applicator: resource.ApplyFn(func(_ context.Context, got runtime.Object, _ ...resource.ApplyOption) error {
+						want := &workloadv1alpha1.KubernetesTarget{}
+						want.SetNamespace(kubeCluster().GetNamespace())
+						want.SetName(kubeCluster().GetName())
+						want.SetWriteConnectionSecretToReference(&runtimev1alpha1.LocalSecretReference{Name: "super-secret"})
+						want.SetLabels(kubeCluster().GetLabels())
+						meta.AddLabels(want, map[string]string{"dev": "true"})
+						meta.AddLabels(want, map[string]string{LabelKeyAutoTarget: kubeCluster().GetName()})
+						meta.AddOwnerReference(want, meta.AsController(meta.ReferenceTo(kubeCluster(), computev1alpha1.KubernetesClusterGroupVersionKind)))
 
-						return kerrors.NewNotFound(schema.GroupResource{}, "")
-					},
-					MockCreate: test.NewMockCreateFn(nil, func(got runtime.Object) error {
-						want := kubeTarget(withOwnerReferences(
-							[]metav1.OwnerReference{
-								{
-									UID:        uid,
-									Name:       name,
-									Kind:       computev1alpha1.KubernetesClusterKind,
-									APIVersion: computev1alpha1.SchemeGroupVersion.String(),
-									Controller: &controller,
-								},
-							},
-						),
-							withConnectionSecretRef(&runtimev1alpha1.LocalSecretReference{Name: "super-secret"}),
-							withTargetLabels(map[string]string{"dev": "true"}))
-						if diff := cmp.Diff(want, got); diff != "" {
-							t.Errorf("-want, +got:\n%s", diff)
-						}
-						return nil
-					}),
-				},
-				log: logging.NewNopLogger(),
-			},
-			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
-			wantResult: reconcile.Result{},
-			wantErr:    nil,
-		},
-		"SuccessfulUpdateExistingFilledTarget": {
-			rec: &Reconciler{
-				kube: &test.MockClient{
-					MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
-						switch key {
-						case client.ObjectKey{Namespace: namespace, Name: name}:
-							*obj.(*computev1alpha1.KubernetesCluster) = *kubeCluster(withWriteConnectionSecretToRef(
-								&runtimev1alpha1.LocalSecretReference{Name: "super-secret"},
-							), withLabels(map[string]string{"dev": "true"}))
-						case client.ObjectKey{Namespace: namespace, Name: targetName}:
-							*obj.(*workloadv1alpha1.KubernetesTarget) = *kubeTarget(withOwnerReferences(
-								[]metav1.OwnerReference{
-									{
-										UID:        uid,
-										Name:       name,
-										Kind:       computev1alpha1.KubernetesClusterKind,
-										APIVersion: computev1alpha1.SchemeGroupVersion.String(),
-										Controller: &controller,
-									},
-								},
-							),
-								withConnectionSecretRef(&runtimev1alpha1.LocalSecretReference{Name: "super-secret"}),
-								withTargetLabels(map[string]string{"not": "dev"}))
-						}
-						return nil
-					},
-					MockUpdate: test.NewMockUpdateFn(nil, func(got runtime.Object) error {
-						want := kubeTarget(withOwnerReferences(
-							[]metav1.OwnerReference{
-								{
-									UID:        uid,
-									Name:       name,
-									Kind:       computev1alpha1.KubernetesClusterKind,
-									APIVersion: computev1alpha1.SchemeGroupVersion.String(),
-									Controller: &controller,
-								},
-							},
-						),
-							withConnectionSecretRef(&runtimev1alpha1.LocalSecretReference{Name: "super-secret"}),
-							withTargetLabels(map[string]string{"dev": "true"}))
-						if diff := cmp.Diff(want, got); diff != "" {
-							t.Errorf("-want, +got:\n%s", diff)
-						}
-						return nil
-					}),
-				},
-				log: logging.NewNopLogger(),
-			},
-			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
-			wantResult: reconcile.Result{},
-			wantErr:    nil,
-		},
-		"SuccessfulUpdateExistingEmptyTarget": {
-			rec: &Reconciler{
-				kube: &test.MockClient{
-					MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
-						switch key {
-						case client.ObjectKey{Namespace: namespace, Name: name}:
-							*obj.(*computev1alpha1.KubernetesCluster) = *kubeCluster(withWriteConnectionSecretToRef(
-								&runtimev1alpha1.LocalSecretReference{Name: "super-secret"},
-							), withLabels(map[string]string{"dev": "true"}))
-						case client.ObjectKey{Namespace: namespace, Name: targetName}:
-							*obj.(*workloadv1alpha1.KubernetesTarget) = *kubeTarget(withOwnerReferences(
-								[]metav1.OwnerReference{
-									{
-										UID:        uid,
-										Name:       name,
-										Kind:       computev1alpha1.KubernetesClusterKind,
-										APIVersion: computev1alpha1.SchemeGroupVersion.String(),
-										Controller: &controller,
-									},
-								},
-							))
-						}
-						return nil
-					},
-					MockUpdate: test.NewMockUpdateFn(nil, func(got runtime.Object) error {
-						want := kubeTarget(withOwnerReferences(
-							[]metav1.OwnerReference{
-								{
-									UID:        uid,
-									Name:       name,
-									Kind:       computev1alpha1.KubernetesClusterKind,
-									APIVersion: computev1alpha1.SchemeGroupVersion.String(),
-									Controller: &controller,
-								},
-							},
-						),
-							withConnectionSecretRef(&runtimev1alpha1.LocalSecretReference{Name: "super-secret"}),
-							withTargetLabels(map[string]string{"dev": "true"}))
-						if diff := cmp.Diff(want, got); diff != "" {
-							t.Errorf("-want, +got:\n%s", diff)
+						if diff := cmp.Diff(got, want); diff != "" {
+							t.Errorf("Apply: -want, +got:\n %s", diff)
 						}
 						return nil
 					}),
@@ -412,6 +238,47 @@ func TestReconcile(t *testing.T) {
 
 			if diff := cmp.Diff(tc.wantResult, gotResult); diff != "" {
 				t.Errorf("tc.rec.Reconcile(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+func TestMustHaveLabel(t *testing.T) {
+	key := "cool"
+	value := "very"
+
+	type args struct {
+		ctx     context.Context
+		current runtime.Object
+		desired runtime.Object
+	}
+	cases := map[string]struct {
+		k    string
+		v    string
+		args args
+		want error
+	}{
+		"MissingLabel": {
+			k: key,
+			v: value,
+			args: args{
+				current: &workloadv1alpha1.KubernetesTarget{},
+			},
+			want: errors.Errorf("existing object is not labelled '%s: %s'", key, value),
+		},
+		"HasLabel": {
+			k: key,
+			v: value,
+			args: args{
+				current: &workloadv1alpha1.KubernetesTarget{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{key: value}}},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			err := MustHaveLabel(tc.k, tc.v)(tc.args.ctx, tc.args.current, tc.args.desired)
+			if diff := cmp.Diff(tc.want, err, test.EquateErrors()); diff != "" {
+				t.Errorf("MustHaveLabel: want error != got error:\n%s", diff)
 			}
 		})
 	}

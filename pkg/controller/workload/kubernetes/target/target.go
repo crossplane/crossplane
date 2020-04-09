@@ -25,8 +25,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	util "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
@@ -42,8 +40,11 @@ const (
 
 	errGetKubernetesCluster = "unable to get KubernetesCluster"
 	errCreateOrUpdateTarget = "unable to create or update KubernetesTarget"
-	errTargetConflict       = "cannot establish control of existing KubernetesTarget"
 )
+
+// LabelKeyAutoTarget indicates that a target was automatically created for a
+// KubernetesCluster claim.
+const LabelKeyAutoTarget = "autotarget.crossplane.io/for-kubernetescluster"
 
 func clusterIsBound(obj runtime.Object) bool {
 	r, ok := obj.(*computev1alpha1.KubernetesCluster)
@@ -64,14 +65,17 @@ func Setup(mgr ctrl.Manager, l logging.Logger) error {
 		For(&computev1alpha1.KubernetesCluster{}).
 		WithEventFilter(resource.NewPredicates(clusterIsBound)).
 		Complete(&Reconciler{
-			kube: mgr.GetClient(),
-			log:  l.WithValues("controller", name)})
+			client: resource.ClientApplicator{
+				Client:     mgr.GetClient(),
+				Applicator: resource.NewAPIUpdatingApplicator(mgr.GetClient()),
+			},
+			log: l.WithValues("controller", name)})
 }
 
 // A Reconciler creates KubernetesTargets for KubernetesClusters.
 type Reconciler struct {
-	kube client.Client
-	log  logging.Logger
+	client resource.ClientApplicator
+	log    logging.Logger
 }
 
 // Reconcile attempts to create a KubernetesTarget for a KubernetesCluster.
@@ -82,7 +86,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	defer cancel()
 
 	cluster := &computev1alpha1.KubernetesCluster{}
-	if err := r.kube.Get(ctx, req.NamespacedName, cluster); err != nil {
+	if err := r.client.Get(ctx, req.NamespacedName, cluster); err != nil {
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetKubernetesCluster)
 	}
 
@@ -92,28 +96,30 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{Requeue: false}, nil
 	}
 
-	target := &workloadv1alpha1.KubernetesTarget{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            string(cluster.GetUID()),
-			Namespace:       cluster.GetNamespace(),
-			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.ReferenceTo(cluster, computev1alpha1.KubernetesClusterGroupVersionKind))},
-		},
-	}
+	// The Target secret reference is set to match the KubernetesCluster and all
+	// labels are propagated. Subsequent updates to the secret reference or
+	// labels of the KubernetesCluster will also be propagated to the Target.
+	target := &workloadv1alpha1.KubernetesTarget{}
+	target.SetNamespace(cluster.GetNamespace())
+	target.SetName(cluster.GetName())
+	target.SetWriteConnectionSecretToReference(cluster.GetWriteConnectionSecretToReference())
+	target.SetLabels(cluster.GetLabels())
+	meta.AddLabels(target, cluster.GetLabels())
+	meta.AddLabels(target, map[string]string{LabelKeyAutoTarget: cluster.GetName()})
+	meta.AddOwnerReference(target, meta.AsController(meta.ReferenceTo(cluster, computev1alpha1.KubernetesClusterGroupVersionKind)))
 
-	_, err := util.CreateOrUpdate(ctx, r.kube, target, func() error {
-		if c := metav1.GetControllerOf(target); c == nil || c.UID != cluster.GetUID() {
-			return errors.New(errTargetConflict)
-		}
-
-		// The Target secret reference is set to match the KubernetesCluster and
-		// all labels are propagated. Subsequent updates to the secret reference
-		// or labels of the KubernetesCluster will also be propagated to the
-		// Target.
-		target.SetWriteConnectionSecretToReference(cluster.GetWriteConnectionSecretToReference())
-		target.SetLabels(cluster.GetLabels())
-
-		return nil
-	})
-
+	err := r.client.Apply(ctx, target,
+		MustHaveLabel(LabelKeyAutoTarget, cluster.GetName()),
+		resource.MustBeControllableBy(cluster.GetUID()))
 	return reconcile.Result{}, errors.Wrap(err, errCreateOrUpdateTarget)
+}
+
+// MustHaveLabel requires that the current object must have the supplied label.
+func MustHaveLabel(k, v string) resource.ApplyOption {
+	return func(_ context.Context, current, _ runtime.Object) error {
+		if current.(metav1.Object).GetLabels()[k] != v {
+			return errors.Errorf("existing object is not labelled '%s: %s'", k, v)
+		}
+		return nil
+	}
 }
