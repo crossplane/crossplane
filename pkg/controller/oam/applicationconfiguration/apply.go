@@ -54,7 +54,8 @@ type workloads struct {
 
 func (a *workloads) Apply(ctx context.Context, w []Workload) error {
 	for _, wl := range w {
-		if err := resource.Apply(ctx, a.client, wl.Workload, resource.ControllersMustMatch()); err != nil {
+		// TODO(negz): Update to resource.APIPatchingApplicator.
+		if err := resource.Apply(ctx, a.client, wl.Workload, resource.ControllersMustMatch()); err != nil { // nolint:staticcheck
 			return errors.Wrapf(err, errFmtApplyWorkload, wl.Workload.GetName())
 		}
 
@@ -71,7 +72,8 @@ func (a *workloads) Apply(ctx context.Context, w []Workload) error {
 				return errors.Wrapf(err, errFmtSetWorkloadRef, t.GetName(), wl.Workload.GetName())
 			}
 
-			if err := resource.Apply(ctx, a.client, t, resource.ControllersMustMatch()); err != nil {
+			// TODO(negz): Update to resource.APIPatchingApplicator.
+			if err := resource.Apply(ctx, a.client, t, resource.ControllersMustMatch()); err != nil { // nolint:staticcheck
 				return errors.Wrapf(err, errFmtApplyTrait, t.GetName())
 			}
 		}

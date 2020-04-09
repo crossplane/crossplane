@@ -3,7 +3,7 @@ module github.com/crossplane/crossplane
 go 1.13
 
 require (
-	github.com/crossplane/crossplane-runtime v0.6.0
+	github.com/crossplane/crossplane-runtime v0.6.1-0.20200406020956-f9d4e859f450
 	github.com/crossplane/crossplane-tools v0.0.0-20200219001116-bb8b2ce46330
 	github.com/docker/distribution v2.7.1+incompatible
 	github.com/evanphx/json-patch v4.5.0+incompatible
