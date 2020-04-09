@@ -33,10 +33,12 @@ import (
 
 	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	computev1alpha1 "github.com/crossplane/crossplane/apis/compute/v1alpha1"
+	workloadv1alpha1 "github.com/crossplane/crossplane/apis/workload/v1alpha1"
 )
 
 const (
@@ -202,7 +204,19 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					},
-					Applicator: resource.ApplyFn(func(_ context.Context, _ runtime.Object, _ ...resource.ApplyOption) error {
+					Applicator: resource.ApplyFn(func(_ context.Context, got runtime.Object, _ ...resource.ApplyOption) error {
+						want := &workloadv1alpha1.KubernetesTarget{}
+						want.SetNamespace(kubeCluster().GetNamespace())
+						want.SetName(kubeCluster().GetName())
+						want.SetWriteConnectionSecretToReference(&runtimev1alpha1.LocalSecretReference{Name: "super-secret"})
+						want.SetLabels(kubeCluster().GetLabels())
+						meta.AddLabels(want, map[string]string{"dev": "true"})
+						meta.AddLabels(want, map[string]string{LabelKeyAutoTarget: kubeCluster().GetName()})
+						meta.AddOwnerReference(want, meta.AsController(meta.ReferenceTo(kubeCluster(), computev1alpha1.KubernetesClusterGroupVersionKind)))
+
+						if diff := cmp.Diff(got, want); diff != "" {
+							t.Errorf("Apply: -want, +got:\n %s", diff)
+						}
 						return nil
 					}),
 				},
@@ -224,6 +238,47 @@ func TestReconcile(t *testing.T) {
 
 			if diff := cmp.Diff(tc.wantResult, gotResult); diff != "" {
 				t.Errorf("tc.rec.Reconcile(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+func TestMustHaveLabel(t *testing.T) {
+	key := "cool"
+	value := "very"
+
+	type args struct {
+		ctx     context.Context
+		current runtime.Object
+		desired runtime.Object
+	}
+	cases := map[string]struct {
+		k    string
+		v    string
+		args args
+		want error
+	}{
+		"MissingLabel": {
+			k: key,
+			v: value,
+			args: args{
+				current: &workloadv1alpha1.KubernetesTarget{},
+			},
+			want: errors.Errorf("existing object is not labelled '%s: %s'", key, value),
+		},
+		"HasLabel": {
+			k: key,
+			v: value,
+			args: args{
+				current: &workloadv1alpha1.KubernetesTarget{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{key: value}}},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			err := MustHaveLabel(tc.k, tc.v)(tc.args.ctx, tc.args.current, tc.args.desired)
+			if diff := cmp.Diff(tc.want, err, test.EquateErrors()); diff != "" {
+				t.Errorf("MustHaveLabel: want error != got error:\n%s", diff)
 			}
 		})
 	}
