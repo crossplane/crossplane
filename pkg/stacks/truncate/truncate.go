@@ -56,8 +56,11 @@ const (
 // suffixLength, or truncation length is greater than sha1Length, or the suffix
 // length is less than 2.
 //
-// Example:
-// If the base32 sum of a digest of "aaaaaaaaaaa" is "ovo", with a suffix length of 4:
+// Any final "." characters in the truncated text will be removed to satisfy
+// DNS-1123 labeling.
+//
+// Example: If the base32 sum of a digest of "aaaaaaaaaaa" is "ovo", with a
+// suffix length of 4:
 //
 // Truncating this string to a length of 11 would result in "aaaaaaaaaaa"
 // Truncating this string to a length of 8 would result in "aaaa-ovo"
@@ -84,14 +87,15 @@ func Truncate(str string, length, suffixLength int) (string, error) {
 	// See the import comment regarding use of sha1
 	// nolint:gosec
 	checksum := sha1.Sum([]byte(str))
-	retained := length - suffixLength
+	retainedLength := length - suffixLength
+	retained := strings.TrimRight(str[0:retainedLength], ".")
 
 	// base64 includes "/" which can only occur once in label names
 	b32 := base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(checksum[:])
 	separator := "-"
 	suffix := strings.ToLower(b32[0 : suffixLength-len(separator)])
 
-	return fmt.Sprintf("%s%s%s", str[0:retained], separator, suffix), nil
+	return fmt.Sprintf("%s%s%s", retained, separator, suffix), nil
 }
 
 // LabelName predictably truncates the supplied string using label name
