@@ -42,7 +42,7 @@ const (
 apiVersion: stacks.crossplane.io/v1alpha1
 kind: StackDefinition
 metadata:
-  name: 'minimal-gcp'
+  name: 'my-gcp'
   namespace: 'crossplane-system'
 spec:
   behaviors:
@@ -52,7 +52,7 @@ spec:
         kustomization:
           namePrefix: mystuff
           commonLabels:
-            group: minimal-gcp-stuff
+            group: my-gcp-stuff
         overlays:
         - apiVersion: gcp.crossplane.io/v1alpha3
           kind: Provider
@@ -69,12 +69,12 @@ spec:
             - from: "spec.region"
               to: "data.region"
     source:
-      image: 'crossplane/minimal-gcp:0.0.1'
-      path: resources/minimal-gcp
+      image: 'crossplane/stack-gcp-sample:0.3.0'
+      path: kustomize
     crd:
-      apiVersion: gcp.resourcepacks.crossplane.io/v1alpha1
-      kind: MinimalGCP
-  title: "Minimal GCP Environment"
+      apiVersion: gcp.stacks.crossplane.io/v1alpha1
+      kind: GCPSample
+  title: "GCP Sample Environment"
   readme: ""
   overview: "This stack provisions a private network and creates resource classes that has minimal node settings and refer to that private network."
   overviewShort: "Start using GCP with Crossplane without needing to create your own resource classes!"
@@ -93,8 +93,8 @@ spec:
    - "private network"
    - "cheap"
    - "minimal"
-  website: "httos://upbound.io"
-  source: "https://github.com/muvaf/minimal-gcp"
+  website: "https://upbound.io"
+  source: "https://github.com/crossplane/stack-gcp-sample"
   permissionScope: Cluster
   dependsOn:
     - crd: '*.cache.gcp.crossplane.io/v1beta1'
@@ -108,14 +108,14 @@ spec:
 	testStackYAML = `---
 metadata:
   creationTimestamp: null
-  name: minimal-gcp
+  name: my-gcp
   namespace: crossplane-system
   ownerReferences:
   - apiVersion: stacks.crossplane.io/v1alpha1
     blockOwnerDeletion: true
     controller: true
     kind: StackDefinition
-    name: minimal-gcp
+    name: my-gcp
     uid: ""
 spec:
   category: Environment Stack
@@ -152,7 +152,7 @@ spec:
     - apiGroups:
       - stacks.crossplane.io
       resourceNames:
-      - minimal-gcp
+      - my-gcp
       resources:
       - stackdefinitions
       - stackdefinitions/status
@@ -160,10 +160,10 @@ spec:
       - get
       - list
       - watch
-  source: https://github.com/muvaf/minimal-gcp
-  title: Minimal GCP Environment
+  source: https://github.com/crossplane/stack-gcp-sample
+  title: GCP Sample Environment
   version: "1.0"
-  website: httos://upbound.io
+  website: https://upbound.io
 status:
   conditionedStatus: {}
 

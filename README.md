@@ -49,10 +49,9 @@ Crossplane is comprised of four main components:
 3. **Stacks**: a bundled set of custom resources that together represent an
    environment on a cloud provider. The bundle of instances can be created by a
    single custom resource.
-   - Examples: [Stack Minimal
-     GCP](https://github.com/crossplane/stack-minimal-gcp), [Stack Minimal
-     AWS](https://github.com/crossplane/stack-minimal-aws), [Stack Minimal
-     Azure](https://github.com/crossplane/stack-minimal-azure)
+   - Examples: [GCP Sample Stack](https://github.com/crossplane/stack-gcp-sample),
+     [AWS Sample Stack](https://github.com/crossplane/stack-aws-sample),
+     [Azure Sample Stack](https://github.com/crossplane/stack-azure-sample)
 4. **Applications**: a deployable unit of code and configuration, which, when
    created, may involve provisioning new services which are managed by a
    `provider`, or consuming services created by a `stack`.

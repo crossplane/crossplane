@@ -22,9 +22,9 @@ classes into a single unit that can be installed into your cluster as a
 Let's take a look at installing a minimal stack for commonly used GCP resources.
 
 
-## Installing and Using the Minimal GCP Stack
+## Installing and Using the GCP Sample Stack
 
-[Minimal GCP](https://github.com/crossplane/stack-minimal-gcp) is a Crossplane
+[GCP Sample Stack](https://github.com/crossplane/stack-gcp-sample) is a Crossplane
 stack that includes the following managed resources:
 
 * `Network`
@@ -42,7 +42,7 @@ provisioned `Network`, `Subnetwork`, etc.
 * `CloudSQLInstanceClass`
 * `CloudMemorystoreInstanceClass`
 
-The Minimal GCP stack will also create a `Provider` resource for us, so we can
+The GCP sample stack will also create a `Provider` resource for us, so we can
 go ahead and delete the one we have been using:
 
 ```
@@ -51,36 +51,36 @@ kubectl delete provider.gcp.crossplane.io gcp-provider
 
 Now, similar to how we installed the GCP provider at the beginning, we can
 install a Crossplane stack with a `ClusterStackInstall`. Create the a file named
-`stack-min-gcp.yaml` with the following content:
+`stack-gcp-sample.yaml` with the following content:
 
 ```yaml
 apiVersion: stacks.crossplane.io/v1alpha1
 kind: ClusterStackInstall
 metadata:
-  name: minimal-gcp
+  name: stack-gcp-sample
   namespace: crossplane-system
 spec:
-  package: crossplane/stack-minimal-gcp:master
+  package: crossplane/stack-gcp-sample:master
 ```
 
 Then create it in your cluster:
 
 ```
-kubectl apply -f stack-min-gcp.yaml
+kubectl apply -f stack-gcp-sample.yaml
 ```
 
 Creating this resource does not actually cause any of the resources listed above
 to be created. Instead it creates a
 [CustomResourceDefinition](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/)
 in your cluster that allows you to repeatedly create instance of the environment
-defined by the stack. To create an instance of the Minimal GCP stack, create a
-file named `my-min-gcp.yaml` with the following content:
+defined by the stack. To create an instance of the GCP sample stack, create a
+file named `my-gcp.yaml` with the following content:
 
 ```yaml
-apiVersion: gcp.resourcepacks.crossplane.io/v1alpha1
-kind: MinimalGCP
+apiVersion: gcp.stacks.crossplane.io/v1alpha1
+kind: GCPSample
 metadata:
-  name: my-min-gcp
+  name: my-gcp
 spec:
   region: us-west2
   projectID: <your-project-id> # replace with the project ID you created your Provider with earlier
@@ -93,11 +93,11 @@ spec:
 Then create the instance:
 
 ```
-kubectl apply -f my-min-gcp.yaml
+kubectl apply -f my-gcp.yaml
 ```
 
 Crossplane will immediately create the managed resources and classes that are
-part of the Minimal GCP stack.
+part of the GCP sample stack.
 
 Now that we have general set of infrastructure and classes defined in our
 cluster, it is time to deploy some applications. In the [previous
@@ -116,5 +116,5 @@ if you do not intend to go through the next section and would like to clean up
 the resources created in this section, run the following command:
 
 ```
-kubectl delete -f my-min-gcp.yaml
+kubectl delete -f my-gcp.yaml
 ```

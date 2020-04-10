@@ -29,8 +29,8 @@ in your cluster.
 The steps for using a Crossplane application involve defining your
 infrastructure, installing the application, then creating an instance of that
 application. In the [previous section](6_stack.md), we completed the first step
-by creating our `MinimalGCP` instance. In contrast to the GCP provider and
-Minimal GCP stack, the Wordpress application will be installed with a
+by creating our `GCPSample` instance. In contrast to the GCP provider and
+GCP sample stack, the Wordpress application will be installed with a
 `StackInstall` instead of a `ClusterStackInstall`. This means that the
 installation will only be available in the namespace that we specify. You can
 read more about the difference between the two in the [infrastructure
@@ -73,7 +73,7 @@ metadata:
   name: my-wordpress
   namespace: cp-quickstart
 spec:
-  provisionPolicy: ProvisionNewCluster 
+  provisionPolicy: ProvisionNewCluster
 ```
 
 Then create it in your cluster:
@@ -90,7 +90,7 @@ kubectl -n cp-quickstart get kubernetesclusters
 
 ```
 NAME                   STATUS   CLASS-KIND        CLASS-NAME                   RESOURCE-KIND   RESOURCE-NAME                              AGE
-my-wordpress-cluster            GKEClusterClass   my-min-gcp-gkeclusterclass   GKECluster      cp-quickstart-my-wordpress-cluster-jxftn   19s
+my-wordpress-cluster            GKEClusterClass   my-gcp-gkeclusterclass       GKECluster      cp-quickstart-my-wordpress-cluster-jxftn   19s
 ```
 
 ```
@@ -99,7 +99,7 @@ kubectl -n cp-quickstart get mysqlinstances
 
 ```
 NAME               STATUS   CLASS-KIND              CLASS-NAME                               RESOURCE-KIND      RESOURCE-NAME                          AGE
-my-wordpress-sql            CloudSQLInstanceClass   my-min-gcp-cloudsqlinstanceclass-mysql   CloudSQLInstance   cp-quickstart-my-wordpress-sql-vz9r7   30s
+my-wordpress-sql            CloudSQLInstanceClass   my-gcp-cloudsqlinstanceclass-mysql       CloudSQLInstance   cp-quickstart-my-wordpress-sql-vz9r7   30s
 ```
 
 ```
@@ -108,7 +108,7 @@ kubectl -n cp-quickstart get kubernetesapplications
 
 ```
 NAME               CLUSTER   STATUS    DESIRED   SUBMITTED
-my-wordpress-app             Pending             
+my-wordpress-app             Pending
 ```
 
 It will take some time for the `GKECluster` and `CloudSQLInstance` to be
@@ -198,5 +198,5 @@ following commands:
 
 ```
 kubectl delete -f my-wordpress.yaml
-kubectl delete -f my-min-gcp.yaml
+kubectl delete -f my-gcp.yaml
 ```
