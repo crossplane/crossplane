@@ -28,10 +28,12 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
+	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -279,11 +281,75 @@ func (jc *stackInstallJobCompleter) createJobOutputObject(ctx context.Context, o
 		"apiVersion", obj.GetAPIVersion(),
 		"kind", obj.GetKind(),
 	)
-	if err := jc.client.Create(ctx, obj); err != nil && !kerrors.IsAlreadyExists(err) {
-		return errors.Wrapf(err, "failed to create object %s from job output %s", obj.GetName(), job.Name)
+
+	if err := jc.client.Create(ctx, obj); err != nil {
+		if !kerrors.IsAlreadyExists(err) {
+			return errors.Wrapf(err, "failed to create object %s from job output %s", obj.GetName(), job.Name)
+		}
+
+		if !isCRD(obj) {
+			return nil
+		}
+
+		if err := jc.replaceCRD(ctx, obj); err != nil {
+			return errors.Wrapf(err, "can not update existing CRD %s from job %s", obj.GetName(), job.Name)
+		}
 	}
 
 	return nil
+}
+
+func (jc *stackInstallJobCompleter) replaceCRD(ctx context.Context, obj *unstructured.Unstructured) error {
+	existing := &apiextensions.CustomResourceDefinition{}
+	nsn := types.NamespacedName{
+		Namespace: obj.GetNamespace(),
+		Name:      obj.GetName(),
+	}
+
+	if err := jc.client.Get(ctx, nsn, existing); err != nil {
+		return errors.Wrapf(err, "failed to fetch existing crd")
+	}
+
+	if meta.WasDeleted(existing) {
+		return errors.Errorf("failed due to pending deletion of existing crd")
+	}
+
+	crd, err := convertToCRD(obj)
+	if err != nil {
+		return errors.Wrapf(err, "failed to convert unstructured crd from job log")
+	}
+
+	if !crdIsVersionsInclusive(existing, crd) {
+		return errors.Errorf("failed due to replacement crd lacking required versions")
+	}
+
+	// TODO(displague) reconsider preferring existing annotations over new
+	// annotations (example: new ui metadata)
+	meta.AddLabels(obj, existing.GetLabels())
+	meta.AddAnnotations(obj, existing.GetAnnotations())
+
+	return jc.client.Update(ctx, obj)
+}
+
+// TODO(displague) this is copied from stacks. centralize.
+func crdVersionExists(crd *apiextensions.CustomResourceDefinition, version string) bool {
+	for _, v := range crd.Spec.Versions {
+		if v.Name == version {
+			return true
+		}
+	}
+	return false
+}
+
+// crdIsVersionsInclusive verifies that all versions included in the existing
+// crd are available in the replacement crd
+func crdIsVersionsInclusive(existing, replacement *apiextensions.CustomResourceDefinition) bool {
+	for _, v := range existing.Spec.Versions {
+		if !crdVersionExists(replacement, v.Name) {
+			return false
+		}
+	}
+	return true
 }
 
 type imageWithSourcer interface {
@@ -298,6 +364,16 @@ func isStackObject(obj stacks.KindlyIdentifier) bool {
 	gvk := obj.GroupVersionKind()
 	return gvk.Group == v1alpha1.Group && gvk.Version == v1alpha1.Version &&
 		strings.EqualFold(gvk.Kind, v1alpha1.StackKind)
+}
+
+func isCRD(obj stacks.KindlyIdentifier) bool {
+	if obj == nil {
+		return false
+	}
+
+	gvk := obj.GroupVersionKind()
+	return apiextensions.SchemeGroupVersion == gvk.GroupVersion() &&
+		strings.EqualFold(gvk.Kind, "CustomResourceDefinition")
 }
 
 func isStackDefinitionObject(obj stacks.KindlyIdentifier) bool {
@@ -517,6 +593,16 @@ func convertToStackDefinition(o *unstructured.Unstructured) (*v1alpha1.StackDefi
 	sd := &v1alpha1.StackDefinition{}
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(o.UnstructuredContent(), sd); err != nil {
 		return &v1alpha1.StackDefinition{}, err
+	}
+	return sd, nil
+}
+
+// convertToCRD takes a Kubernetes object and converts it into
+// *apiextensions.CustomResourceDefinition
+func convertToCRD(o *unstructured.Unstructured) (*apiextensions.CustomResourceDefinition, error) {
+	sd := &apiextensions.CustomResourceDefinition{}
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(o.UnstructuredContent(), sd); err != nil {
+		return nil, err
 	}
 	return sd, nil
 }

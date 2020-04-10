@@ -24,8 +24,10 @@ import (
 	"io/ioutil"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
+	. "github.com/onsi/gomega"
 	"github.com/pkg/errors"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -501,6 +503,24 @@ func withUnstructuredObjNamespacedName(nn types.NamespacedName) unstructuredObjM
 	return func(u *unstructured.Unstructured) {
 		u.SetNamespace(nn.Namespace)
 		u.SetName(nn.Name)
+	}
+}
+
+func unstructuredAsCRD(mods ...crdModifier) unstructuredObjModifier {
+	return func(u *unstructured.Unstructured) {
+		crd, err := convertToCRD(u)
+		if err != nil {
+			panic(err)
+		}
+
+		for _, m := range mods {
+			m(crd)
+		}
+		o, err := runtime.DefaultUnstructuredConverter.ToUnstructured(crd)
+		if err != nil {
+			panic(err)
+		}
+		u.Object = o
 	}
 }
 
@@ -1351,18 +1371,14 @@ func TestCreateJobOutputObject(t *testing.T) {
 			),
 			want: want{
 				err: errors.Wrapf(errBoom, "failed to create object %s from job output %s", crdName, resourceName),
-				obj: unstructuredObj(crdRaw,
-					withUnstructuredObjLabels(wantedParentLabels),
-				),
+				obj: nil,
 			},
 		},
 		{
 			name: "CreateSuccess",
 			jobCompleter: &stackInstallJobCompleter{
-				client: &test.MockClient{
-					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error { return nil },
-				},
-				log: logging.NewNopLogger(),
+				client: fake.NewFakeClient(),
+				log:    logging.NewNopLogger(),
 			},
 			stackInstaller: resource(),
 			job:            job(),
@@ -1375,10 +1391,8 @@ func TestCreateJobOutputObject(t *testing.T) {
 		{
 			name: "CreateSuccessfulStack",
 			jobCompleter: &stackInstallJobCompleter{
-				client: &test.MockClient{
-					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error { return nil },
-				},
-				log: logging.NewNopLogger(),
+				client: fake.NewFakeClient(),
+				log:    logging.NewNopLogger(),
 			},
 			stackInstaller: resource(),
 			job:            job(),
@@ -1394,10 +1408,8 @@ func TestCreateJobOutputObject(t *testing.T) {
 		{
 			name: "CreateSuccessfulStackDefinition",
 			jobCompleter: &stackInstallJobCompleter{
-				client: &test.MockClient{
-					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error { return nil },
-				},
-				log: logging.NewNopLogger(),
+				client: fake.NewFakeClient(),
+				log:    logging.NewNopLogger(),
 			},
 			stackInstaller: resource(),
 			job:            job(),
@@ -1413,10 +1425,8 @@ func TestCreateJobOutputObject(t *testing.T) {
 		{
 			name: "CreateSuccessfulStackWithInjectedControllerImage",
 			jobCompleter: &stackInstallJobCompleter{
-				client: &test.MockClient{
-					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error { return nil },
-				},
-				log: logging.NewNopLogger(),
+				client: fake.NewFakeClient(),
+				log:    logging.NewNopLogger(),
 			},
 			stackInstaller: resource(withPackage(stackEnvelopeImage)),
 			job:            job(),
@@ -1432,10 +1442,8 @@ func TestCreateJobOutputObject(t *testing.T) {
 		{
 			name: "CreateSuccessfulStackDefinitionWithInjectedControllerImage",
 			jobCompleter: &stackInstallJobCompleter{
-				client: &test.MockClient{
-					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error { return nil },
-				},
-				log: logging.NewNopLogger(),
+				client: fake.NewFakeClient(),
+				log:    logging.NewNopLogger(),
 			},
 			stackInstaller: resource(withPackage(stackDefinitionEnvelopeImage)),
 			job:            job(),
@@ -1451,10 +1459,8 @@ func TestCreateJobOutputObject(t *testing.T) {
 		{
 			name: "CreateSuccessfulStackWithDifferentControllerImage",
 			jobCompleter: &stackInstallJobCompleter{
-				client: &test.MockClient{
-					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error { return nil },
-				},
-				log: logging.NewNopLogger(),
+				client: fake.NewFakeClient(),
+				log:    logging.NewNopLogger(),
 			},
 			stackInstaller: resource(withPackage("thisImageShouldBeIgnored:becauseTheStackSpecifiesAnExplicitImage")),
 			job:            job(),
@@ -1470,10 +1476,8 @@ func TestCreateJobOutputObject(t *testing.T) {
 		{
 			name: "CreateSuccessfulStackDefinitionWithDifferentControllerImage",
 			jobCompleter: &stackInstallJobCompleter{
-				client: &test.MockClient{
-					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error { return nil },
-				},
-				log: logging.NewNopLogger(),
+				client: fake.NewFakeClient(),
+				log:    logging.NewNopLogger(),
 			},
 			stackInstaller: resource(withPackage("thisImageShouldBeIgnored:becauseTheStackSpecifiesAnExplicitImage")),
 			job:            job(),
@@ -1486,21 +1490,100 @@ func TestCreateJobOutputObject(t *testing.T) {
 				),
 			},
 		},
+		{
+			name: "FailedCantGetCRD",
+			jobCompleter: &stackInstallJobCompleter{
+				client: func() client.Client {
+					crd := crd(withCRDGroupKind("samples.upbound.io", "Mytype"))
+					fc := fake.NewFakeClient(&crd)
+					return &test.MockClient{
+						MockCreate: fc.Create,
+						MockGet:    test.NewMockGetFn(errBoom),
+						MockUpdate: test.NewMockUpdateFn(errors.New("trap")),
+					}
+				}(),
+				log: logging.NewNopLogger(),
+			},
+			stackInstaller: resource(),
+			job:            job(),
+			obj:            unstructuredObj(crdRaw),
+			want: want{
+				err: errors.Wrapf(errors.Wrap(errBoom, "failed to fetch existing crd"), "can not update existing CRD %s from job %s", "mytypes.samples.upbound.io", "cool-stackinstall"),
+				obj: nil,
+			},
+		},
+		{
+			name: "FailedCRDBeingDeleted",
+			jobCompleter: &stackInstallJobCompleter{
+				client: func() client.Client {
+					crd := crd(withCRDGroupKind("samples.upbound.io", "Mytype"), withCRDDeletionTimestamp(time.Date(2020, 04, 01, 0, 0, 0, 0, time.UTC)))
+					return fake.NewFakeClient(&crd)
+				}(),
+				log: logging.NewNopLogger(),
+			},
+			stackInstaller: resource(),
+			job:            job(),
+			obj:            unstructuredObj(crdRaw),
+			want: want{
+				err: errors.Wrapf(errors.New("failed due to pending deletion of existing crd"), "can not update existing CRD %s from job %s", "mytypes.samples.upbound.io", "cool-stackinstall"),
+				obj: nil,
+			},
+		},
+		{
+			name: "FailedIncompatibleCRDExists",
+			jobCompleter: &stackInstallJobCompleter{
+				client: func() client.Client {
+					crd := crd(withCRDGroupKind("samples.upbound.io", "Mytype"), withCRDVersion("existing"))
+					return fake.NewFakeClient(&crd)
+				}(),
+				log: logging.NewNopLogger(),
+			},
+			stackInstaller: resource(),
+			job:            job(),
+			obj:            unstructuredObj(crdRaw),
+			want: want{
+				err: errors.Wrapf(errors.New("failed due to replacement crd lacking required versions"), "can not update existing CRD %s from job %s", "mytypes.samples.upbound.io", "cool-stackinstall"),
+				obj: nil,
+			},
+		},
+		{
+			name: "SuccessUpdatingCRD",
+			jobCompleter: &stackInstallJobCompleter{
+				client: func() client.Client {
+					crd := crd(withCRDGroupKind("samples.upbound.io", "Mytype"), withCRDLabels(map[string]string{"foo": "bar"}))
+					return fake.NewFakeClient(&crd)
+				}(),
+				log: logging.NewNopLogger(),
+			},
+			stackInstaller: resource(),
+			job:            job(),
+			obj:            unstructuredObj(crdRaw, unstructuredAsCRD(withCRDVersion("new"))),
+			want: want{
+				err: nil,
+				obj: unstructuredObj(crdRaw, unstructuredAsCRD(withCRDVersion("new"), withCRDLabels(map[string]string{"foo": "bar"}))),
+			},
+		},
 	}
 
 	ctx := context.Background()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			g := NewGomegaWithT(t)
+
 			gotErr := tt.jobCompleter.createJobOutputObject(ctx, tt.obj, tt.stackInstaller, tt.job)
 
 			if diff := cmp.Diff(tt.want.err, gotErr, test.EquateErrors()); diff != "" {
 				t.Errorf("createJobOutputObject(): -want error, +got error:\n%s", diff)
 			}
 
-			if diff := cmp.Diff(tt.want.obj, tt.obj, test.EquateConditions()); diff != "" {
-				t.Errorf("createJobOutputObject(): -want obj, +got obj:\n%v", diff)
+			if tt.want.obj != nil {
+				gvk := tt.want.obj.GroupVersionKind()
+				got := &unstructured.Unstructured{}
+				got.SetGroupVersionKind(gvk)
+				assertKubernetesObject(t, g, got, tt.want.obj, tt.jobCompleter.client)
 			}
+
 		})
 	}
 }

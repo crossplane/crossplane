@@ -834,6 +834,12 @@ func withCRDGroupKind(group, kind string) crdModifier {
 	}
 }
 
+func withCRDDeletionTimestamp(t time.Time) crdModifier {
+	return func(r *apiextensions.CustomResourceDefinition) {
+		r.SetDeletionTimestamp(&metav1.Time{Time: t})
+	}
+}
+
 func crd(cm ...crdModifier) apiextensions.CustomResourceDefinition {
 	// basic crd with defaults
 	t := true
@@ -1176,10 +1182,9 @@ func assertKubernetesObject(t *testing.T, g *GomegaWithT, got objectWithGVK, wan
 	// NOTE(muvaf): retrieved objects have TypeMeta and
 	// ObjectMeta.ResourceVersion filled but since we work on strong-typed
 	// objects, we don't need to check them.
-	got.GetObjectKind().SetGroupVersionKind(schema.GroupVersionKind{})
 	got.SetResourceVersion(want.GetResourceVersion())
 
-	if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
+	if diff := cmp.Diff(want, got, test.EquateConditions(), ignoreGVK()); diff != "" {
 		t.Errorf("-want, +got:\n%s", diff)
 	}
 }
@@ -1187,4 +1192,24 @@ func assertKubernetesObject(t *testing.T, g *GomegaWithT, got objectWithGVK, wan
 func assertNoKubernetesObject(t *testing.T, g *GomegaWithT, got runtime.Object, unwanted metav1.Object, kube client.Client) {
 	n := types.NamespacedName{Name: unwanted.GetName(), Namespace: unwanted.GetNamespace()}
 	g.Expect(kube.Get(ctx, n, got)).To(HaveOccurred())
+}
+
+// ignoreGVK returns a cmp.Option that ignores the unstructured.Unstructured
+// root map strings identified by r
+func ignoreGVK() cmp.Option {
+	return cmp.FilterPath(func(p cmp.Path) bool {
+		s := p.GoString()
+		roots := []string{"apiVersion", "kind"}
+		for _, root := range roots {
+			if s == `{*unstructured.Unstructured}.Object["`+root+`"].(string)` {
+				return true
+			}
+		}
+
+		if strings.HasSuffix(s, "TypeMeta.APIVersion") || strings.HasSuffix(s, "TypeMeta.Kind") {
+			return true
+		}
+
+		return false
+	}, cmp.Ignore())
 }
