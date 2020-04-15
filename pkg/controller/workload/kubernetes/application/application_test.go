@@ -19,6 +19,7 @@ package application
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
@@ -34,6 +35,7 @@ import (
 
 	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 	"github.com/crossplane/crossplane/apis/workload/v1alpha1"
 )
@@ -90,6 +92,10 @@ type kubeAppModifier func(*v1alpha1.KubernetesApplication)
 
 func withConditions(c ...runtimev1alpha1.Condition) kubeAppModifier {
 	return func(r *v1alpha1.KubernetesApplication) { r.Status.SetConditions(c...) }
+}
+
+func withDeletionTimestamp(t *metav1.Time) kubeAppModifier {
+	return func(r *v1alpha1.KubernetesApplication) { r.DeletionTimestamp = t }
 }
 
 func withState(s v1alpha1.KubernetesApplicationState) kubeAppModifier {
@@ -336,6 +342,15 @@ func TestSync(t *testing.T) {
 			wantState: v1alpha1.KubernetesApplicationStatePartial,
 			wantErr:   errors.Wrap(condenseErrors([]error{errorBoom}), errSyncTemplate),
 		},
+		{
+			name: "ApplicationDeletedDoNotSync",
+			syncer: &localCluster{
+				ar: &mockARSyncer{mockSync: newMockARSyncFn(false, errorBoom)},
+				gc: &mockGarbageCollector{mockProcess: newMockProcessFn(nil)},
+			},
+			app:       kubeApp(withDeletionTimestamp(&metav1.Time{Time: time.Now()})),
+			wantState: v1alpha1.KubernetesApplicationStateDeleted,
+		},
 	}
 
 	for _, tc := range cases {
@@ -357,6 +372,9 @@ type mockSyncFn func(ctx context.Context, app *v1alpha1.KubernetesApplication) (
 
 func newMockSyncFn(s v1alpha1.KubernetesApplicationState, submit bool, e error) mockSyncFn {
 	return func(_ context.Context, a *v1alpha1.KubernetesApplication) (v1alpha1.KubernetesApplicationState, error) {
+		if meta.WasDeleted(a) {
+			return v1alpha1.KubernetesApplicationStateDeleted, e
+		}
 		if submit {
 			a.Status.SubmittedResources = a.Status.DesiredResources
 		}
@@ -373,6 +391,8 @@ func (sd *mockSyncer) sync(ctx context.Context, app *v1alpha1.KubernetesApplicat
 }
 
 func TestReconcile(t *testing.T) {
+	delTime := time.Now()
+
 	cases := []struct {
 		name       string
 		rec        *Reconciler
@@ -430,6 +450,41 @@ func TestReconcile(t *testing.T) {
 					},
 				},
 				local: &mockSyncer{mockSync: newMockSyncFn(v1alpha1.KubernetesApplicationStateSubmitted, true, nil)},
+				log:   logging.NewNopLogger(),
+			},
+			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
+			wantResult: reconcile.Result{RequeueAfter: longWait},
+		},
+		{
+			name: "ApplicationDeletedDoNotSync",
+			rec: &Reconciler{
+				kube: &test.MockClient{
+					MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
+						*obj.(*v1alpha1.KubernetesApplication) = *(kubeApp(
+							withDesiredResources(3),
+							withState(v1alpha1.KubernetesApplicationStateSubmitted),
+							withDeletionTimestamp(&metav1.Time{Time: delTime}),
+						))
+						return nil
+					},
+					MockStatusUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						got := obj.(*v1alpha1.KubernetesApplication)
+
+						want := kubeApp(
+							withConditions(runtimev1alpha1.ReconcileSuccess()),
+							withDeletionTimestamp(&metav1.Time{Time: delTime}),
+							withState(v1alpha1.KubernetesApplicationStateDeleted),
+							withDesiredResources(3),
+						)
+
+						if diff := cmp.Diff(want, got); diff != "" {
+							return errors.Errorf("MockUpdate: -want, +got: %s", diff)
+						}
+
+						return nil
+					},
+				},
+				local: &mockSyncer{mockSync: newMockSyncFn(v1alpha1.KubernetesApplicationStateDeleted, true, nil)},
 				log:   logging.NewNopLogger(),
 			},
 			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
