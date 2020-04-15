@@ -83,7 +83,7 @@ compositionSelector:
         are ANDed.
       type: object
   type: object
-composedRefs:
+resourceRefs:
   description: A ResourceReference specifies an existing managed resource,
     in any namespace, to which this resource claim should attempt to bind.
     Omit the resource reference to enable dynamic provisioning using a

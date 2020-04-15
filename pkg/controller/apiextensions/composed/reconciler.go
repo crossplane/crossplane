@@ -19,14 +19,16 @@ package composed
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
+
+	v1alpha12 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -35,7 +37,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	v1alpha12 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
@@ -135,11 +136,12 @@ func (c *ControllerEngine) Start(name string, gvk schema.GroupVersionKind) error
 
 // newInstanceReconciler returns a new *instanceReconciler.
 func newInstanceReconciler(name string, mgr manager.Manager, gvk schema.GroupVersionKind, log logging.Logger) *instanceReconciler {
-	ni := func() *instance.InfraInstance {
+	ni := func() instance.CompositionInstance {
 		cr := &instance.InfraInstance{}
 		cr.SetGroupVersionKind(gvk)
 		return cr
 	}
+
 	cl := NewClientForUnregistered(mgr.GetClient(), mgr.GetScheme(), runtime.DefaultUnstructuredConverter)
 	kube := resource.ClientApplicator{
 		Client:     cl,
@@ -160,23 +162,87 @@ func defaultCRComposition(kube client.Client) crComposition {
 	}
 }
 
+// SpecOps lists the operations that are done on the spec of instance.
+type SpecOps interface {
+	ResolveSelector(ctx context.Context, cr instance.CompositionInstance) error
+}
+
 type crComposition struct {
 	SpecOps
+}
+
+type TargetReconciler interface {
+	Apply(context.Context, v1.ObjectReference, v1alpha1.TargetResource) (v1.ObjectReference, error)
+	GetConnectionDetails(context.Context, v1.ObjectReference, v1alpha1.TargetResource) (managed.ConnectionDetails, error)
+}
+
+type APITargetReconciler struct {
+	client   resource.ClientApplicator
+	instance instance.CompositionInstance
+}
+
+func (r *APITargetReconciler) Apply(ctx context.Context, ref v1.ObjectReference, target v1alpha1.TargetResource) (v1.ObjectReference, error) {
+	result := target.Base.DeepCopy()
+	paved := fieldpath.Pave(r.instance.UnstructuredContent())
+	for i, patch := range target.Patches {
+		if err := patch.Patch(paved, result); err != nil {
+			return v1.ObjectReference{}, errors.Wrap(err, fmt.Sprintf("cannot apply the patch at index %d on result", i))
+		}
+	}
+	result.SetGenerateName(fmt.Sprintf("%s-", r.instance.GetName()))
+	result.SetName(ref.Name)
+	result.SetNamespace(ref.Namespace)
+	if err := r.client.Apply(ctx, result, resource.MustBeControllableBy(r.instance.GetUID())); err != nil {
+		return v1.ObjectReference{}, errors.Wrap(err, "cannot apply the target resource")
+	}
+	return *meta.ReferenceTo(result, result.GroupVersionKind()), nil
+}
+
+func (r *APITargetReconciler) GetConnectionDetails(ctx context.Context, ref v1.ObjectReference, target v1alpha1.TargetResource) (managed.ConnectionDetails, error) {
+	u := &unstructured.Unstructured{}
+	if err := r.client.Get(ctx, meta.NamespacedNameOf(&ref), u); err != nil {
+		return nil, err
+	}
+	// TODO(muvaf): An unstructured.Unstructured based ManagedInstance struct
+	// similar to InfraInstance would make these things easier.
+	secretRefObj, exists, err := unstructured.NestedMap(u.UnstructuredContent(), strings.Split("spec.writeConnectionSecretToRef", ".")...)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, nil
+	}
+	secretRef := &v1.ObjectReference{}
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(secretRefObj, secretRef); err != nil {
+		return nil, err
+	}
+	secret := &v1.Secret{}
+	if err := r.client.Get(ctx, meta.NamespacedNameOf(secretRef), secret); err != nil {
+		return nil, err
+	}
+	out := managed.ConnectionDetails{}
+	for _, pair := range target.ConnectionDetails {
+		key := pair.FromConnectionSecretKey
+		if pair.Name != nil {
+			key = *pair.Name
+		}
+		out[key] = secret.Data[pair.FromConnectionSecretKey]
+	}
+	return out, nil
 }
 
 // instanceReconciler reconciles the generic CRD that is generated via InfrastructureDefinition.
 type instanceReconciler struct {
 	client      resource.ClientApplicator // todo: only target reconciler needs this. use client.Client when you separate the two
-	newInstance func() *instance.InfraInstance
+	newInstance func() instance.CompositionInstance
 	composition crComposition
-	//targets     crTargetResources
 
 	log    logging.Logger
 	record event.Recorder
 }
 
 // Reconcile reconciles given custom resource.
-func (r *instanceReconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) {
+func (r *instanceReconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) { // nolint:gocyclo
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
@@ -190,31 +256,48 @@ func (r *instanceReconciler) Reconcile(req reconcile.Request) (reconcile.Result,
 	}
 
 	comp := &v1alpha1.Composition{}
-	if err := r.client.Get(ctx, types.NamespacedName{Name: cr.Spec.CompositionReference.Name}, comp); err != nil {
+	if err := r.client.Get(ctx, meta.NamespacedNameOf(cr.GetCompositionReference()), comp); err != nil {
 		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(err, "cannot fetch the composition")
 	}
-
+	tr := &APITargetReconciler{
+		client:   r.client,
+		instance: cr,
+	}
+	refs := cr.GetResourceReferences()
 	for i, target := range comp.Spec.To {
-		if _, err := r.ReconcileTargetResource(ctx, cr, target, i); err != nil {
+		ref := v1.ObjectReference{}
+		newRef := v1.ObjectReference{}
+		var err error
+		if len(refs) > i {
+			ref = refs[i]
+		}
+		newRef, err = tr.Apply(ctx, ref, target)
+		if err != nil {
 			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(err, "cannot reconcile one of the target resources")
 		}
-	}
-	isReady := true
-	for _, targetRef := range cr.Spec.ResourceReferences {
-		c, err := r.CheckTargetResource(ctx, targetRef)
-		if err != nil {
-			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(err, "cannot check one of the target resources")
+		if len(refs) <= i {
+			refs = append(refs, newRef)
+		} else {
+			refs[i] = newRef
 		}
-		if c.Status != v1.ConditionTrue {
-			isReady = false
-			break
+		cr.SetResourceReferences(refs)
+		if err := r.client.Update(ctx, cr); err != nil {
+			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(err, "cannot update instance cr")
 		}
 	}
-	if isReady {
-		cr.Status.SetConditions(v1alpha12.Available())
-		return reconcile.Result{RequeueAfter: longWait}, errors.Wrap(r.client.Status().Update(ctx, cr), "cannot update the status of the instance")
-	}
-	return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, cr), "cannot update the status of the instance")
+	cr.SetConditions(v1alpha12.ReconcileSuccess())
+	return reconcile.Result{RequeueAfter: longWait}, errors.Wrap(r.client.Status().Update(ctx, cr), "cannot update status of instance cr")
+
+	//conn := managed.ConnectionDetails{}
+	//for i, ref := range cr.GetResourceReferences() {
+	//	out, err := tr.GetConnectionDetails(ctx, ref, comp.Spec.To[i])
+	//	if err != nil {
+	//		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(err, "cannot get connection details")
+	//	}
+	//	for key, val := range out {
+	//		conn[key] = val
+	//	}
+	//}
 
 	// generate actual CR
 	//   overlay patches to the base
@@ -224,48 +307,4 @@ func (r *instanceReconciler) Reconcile(req reconcile.Request) (reconcile.Result,
 	// fetch the secret of CR, choose the given keys and return the values in a map.
 
 	// main reconciler will publish the keys to the instance secret.
-}
-
-func (r *instanceReconciler) ReconcileTargetResource(ctx context.Context, cr *instance.InfraInstance, target v1alpha1.TargetResource, index int) (managed.ConnectionDetails, error) {
-	result := target.Base.DeepCopy()
-	from, err := runtime.DefaultUnstructuredConverter.ToUnstructured(cr)
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot convert composition instance to unstructured object")
-	}
-	fromPaved := fieldpath.Pave(from)
-	for i, patch := range target.Patches {
-		// todo: figure out a better interface for this Patch function.
-		if err := patch.Patch(fromPaved, result); err != nil {
-			return nil, errors.Wrap(err, fmt.Sprintf("cannot apply the patch at index %d on result", i))
-		}
-	}
-	// TODO(muvaf): assumes that cr is cluster-scoped.
-	result.SetGenerateName(fmt.Sprintf("%s-", cr.GetName()))
-	if len(cr.Spec.ResourceReferences) > index {
-		if cr.Spec.ResourceReferences[index].GroupVersionKind() != result.GroupVersionKind() {
-			return nil, errors.New(fmt.Sprintf("resource reference at index %d is not of the same kind with the resource in composition at the same index", index))
-		}
-		result.SetName(cr.Spec.ResourceReferences[index].Name)
-		result.SetNamespace(cr.Spec.ResourceReferences[index].Name)
-	}
-	if err := r.client.Apply(ctx, result, resource.MustBeControllableBy(cr.GetUID())); err != nil {
-		return nil, errors.Wrap(err, "cannot apply the target resource")
-	}
-	// todo: assumes that this function is called in the right order.
-	if len(cr.Spec.ResourceReferences) < index {
-		cr.Spec.ResourceReferences = append(cr.Spec.ResourceReferences, *meta.ReferenceTo(result, result.GroupVersionKind()))
-	}
-	// todo TODO NOW: HANDLE SECRETS
-	return nil, nil
-}
-
-func (r *instanceReconciler) CheckTargetResource(ctx context.Context, ref v1.ObjectReference) (v1alpha12.Condition, error) {
-	u := &unstructured.Unstructured{}
-	u.SetGroupVersionKind(ref.GroupVersionKind())
-	// NamespacedNameOf should accept value as it doesn't manipulate the input
-	if err := r.client.Get(ctx, meta.NamespacedNameOf(&ref), u); err != nil {
-		return v1alpha12.Condition{}, err
-	}
-	c, err := GetCondition(u, v1alpha12.TypeReady)
-	return c, errors.Wrap(err, "cannot fetch the conditions from target resource")
 }

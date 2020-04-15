@@ -184,11 +184,13 @@ func (r *reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, definer), errUpdateInfraDefStatus)
 		}
 
+		// todo: shorter wait?
+
 		// It takes a while for api-server to be able to work with the new kind.
 		if !v1alpha1.IsEstablished(*crd) {
 			log.Debug(waitingCRDEstablish)
 			definer.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.New(waitingCRDEstablish)))
-			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, definer), errUpdateInfraDefStatus)
+			return reconcile.Result{RequeueAfter: 3 * time.Second}, errors.Wrap(r.client.Status().Update(ctx, definer), errUpdateInfraDefStatus)
 		}
 
 		// We know that CRD is ready and we are in control of it. So, we'll spin up

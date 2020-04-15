@@ -37,20 +37,23 @@ type SelectorResolver struct {
 }
 
 // ResolveSelector resolves selector to a reference if it doesn't exist.
-func (r *SelectorResolver) ResolveSelector(ctx context.Context, cr *instance.InfraInstance) error {
-	if cr.Spec.CompositionReference != nil {
+func (r *SelectorResolver) ResolveSelector(ctx context.Context, cr instance.CompositionInstance) error {
+	if cr.GetCompositionReference() != nil {
 		return nil
 	}
-	if cr.Spec.CompositionSelector == nil {
+	sel := cr.GetCompositionSelector()
+	if sel == nil {
 		return errors.New("no composition selector to resolve")
 	}
 	list := &v1alpha1.CompositionList{}
-	if err := r.client.List(ctx, list, client.MatchingLabels(cr.Spec.CompositionSelector.MatchLabels)); err != nil {
+	if err := r.client.List(ctx, list, client.MatchingLabels(sel.MatchLabels)); err != nil {
 		return err
 	}
 	if len(list.Items) == 0 {
 		return errors.New("no composition has been found that has the given labels")
 	}
-	cr.Spec.CompositionReference = meta.ReferenceTo(&list.Items[0], v1alpha1.CompositionGroupVersionKind)
+	// TODO(muvaf): need to block the deletion of composition via finalizer once it's selected since it's integral to this resource.
+	// TODO(muvaf): We don't rely on UID in practice. It should not be there because it will make confusion if the resource is backed up and restored to another cluster
+	cr.SetCompositionReference(meta.ReferenceTo(&list.Items[0], v1alpha1.CompositionGroupVersionKind))
 	return r.client.Update(ctx, cr)
 }

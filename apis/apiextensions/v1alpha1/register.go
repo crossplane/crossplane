@@ -55,4 +55,5 @@ var (
 
 func init() {
 	SchemeBuilder.Register(&InfrastructureDefinition{}, &InfrastructureDefinitionList{})
+	SchemeBuilder.Register(&Composition{}, &CompositionList{})
 }
