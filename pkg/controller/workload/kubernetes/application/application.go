@@ -98,15 +98,24 @@ type localCluster struct {
 }
 
 func (c *localCluster) sync(ctx context.Context, app *v1alpha1.KubernetesApplication) (v1alpha1.KubernetesApplicationState, error) {
-	app.Status.DesiredResources = len(app.Spec.ResourceTemplates)
-	app.Status.SubmittedResources = 0
-
 	var errs []error
+
+	// If App was deleted, do not attempt to sync. The KubernetesApplication is
+	// blocked on deletion of all KubernetesApplicationResources that have
+	// controller references to it. If we attempt to create or update while a
+	// subset of those KubernetesApplicationResources have not yet been deleted,
+	// we may be creating a resource that we intend to be deleted.
+	if meta.WasDeleted(app) {
+		return v1alpha1.KubernetesApplicationStateDeleted, nil
+	}
 
 	// Garbage collect any resource we control but no longer have templates for.
 	if err := c.gc.process(ctx, app); err != nil {
 		return v1alpha1.KubernetesApplicationStateFailed, errors.Wrap(err, errGarbageCollect)
 	}
+
+	app.Status.DesiredResources = len(app.Spec.ResourceTemplates)
+	app.Status.SubmittedResources = 0
 
 	// Create or update all resources with extant templates.
 	for i := range app.Spec.ResourceTemplates {
