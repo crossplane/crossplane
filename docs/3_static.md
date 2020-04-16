@@ -15,20 +15,16 @@ configuration and submits it to the cloud provider.
 Where Crossplane differs from an infrastructure as code tool is that it
 continues to manage your resources after they are created. Let's take a look at
 a simple example. We will use GCP for this quick start, but you can achieve the
-same functionality of any of the providers mentioned in the
-[installation](1_install.md) and [configuration](2_configure.md) sections. You
-should have your provider of choice installed and should have created a
-`Provider` resource with the necessary credentials. We will use a [GCP
-`Provider`](cloud-providers/gcp/gcp-provider.md) resource with name
-`gcp-provider` below.
+same functionality of any of the providers mentioned in the [installation] and
+[configuration] sections. You should have your provider of choice installed and
+should have created a `Provider` resource with the necessary credentials. We
+will use a [GCP `Provider`] resource with name `gcp-provider` below.
 
 ## Statically Provision a Redis Cluster on GCP
 
-GCP provides Redis clusters using [Cloud
-Memorystore](https://cloud.google.com/memorystore). The GCP Crossplane provider
-installs a `CloudMemorystoreInstance`
-[CustomResourceDefinition](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/)
-(CRD) which makes the API type available in your Kubernetes cluster. Creating an
+GCP provides Redis clusters using [Cloud Memorystore]. The GCP Crossplane
+provider installs a `CloudMemorystoreInstance` [CustomResourceDefinition] (CRD)
+which makes the API type available in your Kubernetes cluster. Creating an
 instance of this CRD will result in the creation of a corresponding Cloud
 Memorystore instance on GCP. CRDs like `CloudMemorystoreInstance` are referred
 to as **Managed Resources** in Crossplane.
@@ -63,8 +59,7 @@ spec:
 ```
 
 > *Note: there is no namespace defined on our configuration for the
-> `CloudMemorystoreInstance` above because it is
-> [cluster-scoped](https://kubernetes.io/docs/tasks/access-kubernetes-api/custom-resources/custom-resource-definitions/#create-a-customresourcedefinition).*
+> `CloudMemorystoreInstance` above because it is [cluster-scoped].*
 
 Now, create a `CloudMemorystoreInstance` in your cluster with the following
 command:
@@ -178,8 +173,7 @@ You will also see that the `CloudMemorystoreInstance` resource is still
 reporting `Status: Unbound`. This is because we have not *claimed* it for usage
 yet.
 
-Crossplane follows a similar pattern to [Kubernetes persistent
-volumes](https://kubernetes.io/docs/concepts/storage/persistent-volumes/). When
+Crossplane follows a similar pattern to [Kubernetes persistent volumes]. When
 you statically provision a resource in Crossplane, the external resource is also
 created. However, when you want to use a resource, you create an
 application-focused **claim** for it. In this case, we will create a
@@ -256,7 +250,7 @@ redis-connection-details-static   Opaque                                2      3
 We have now created and prepared an external managed service for usage using
 only `kubectl`, but it was a fairly manual process that required familiarity
 with the underlying Redis implementation (Cloud Memorystore). This can be made
-easier with [*dynamic provisioning*](4_dynamic.md).
+easier with *[dynamic provisioning]*.
 
 ## Clean Up
 
@@ -266,3 +260,14 @@ following command:
 ```
 kubectl delete -f redis-cluster-static.yaml
 ```
+
+<!-- Named Links -->
+
+[installation]: install.md
+[configuration]: configure.md
+[GCP `Provider`]: cloud-providers/gcp/gcp-provider.md
+[Cloud Memorystore]: https://cloud.google.com/memorystore
+[CustomResourceDefinition]: https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/
+[cluster-scoped]: https://kubernetes.io/docs/tasks/access-kubernetes-api/custom-resources/custom-resource-definitions/#create-a-customresourcedefinition
+[Kubernetes persistent volumes]: https://kubernetes.io/docs/concepts/storage/persistent-volumes/
+[dynamic provisioning]: dynamic.md

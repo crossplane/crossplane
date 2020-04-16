@@ -7,20 +7,19 @@ indent: true
 
 # Troubleshooting
 
-* [Using the trace command](#using-the-trace-command)
-* [Resource Status and Conditions](#resource-status-and-conditions)
-* [Crossplane Logs](#crossplane-logs)
-* [Pausing Crossplane](#pausing-crossplane)
-* [Deleting a Resource Hangs](#deleting-a-resource-hangs)
-* [Host-Aware Resource Debugging](#host-aware-resource-debugging)
+* [Using the trace command]
+* [Resource Status and Conditions]
+* [Crossplane Logs]
+* [Pausing Crossplane]
+* [Deleting a Resource Hangs]
+* [Host-Aware Resource Debugging]
 
 ## Using the trace command
 
-The [Crossplane CLI](https://github.com/crossplane/crossplane-cli) trace command
-provides a holistic view for a particular object and related ones to ease
-debugging and troubleshooting process. It finds the relevant Crossplane
-resources for a given one and provides detailed information as well as an
-overview indicating what could be wrong.
+The [Crossplane CLI] trace command provides a holistic view for a particular
+object and related ones to ease debugging and troubleshooting process. It finds
+the relevant Crossplane resources for a given one and provides detailed
+information as well as an overview indicating what could be wrong.
 
 Usage:
 ```
@@ -36,8 +35,7 @@ kubectl crossplane trace KubernetesApplication wordpress-app-83f04457-0b1b-4532-
 kubectl crossplane trace MySQLInstance wordpress-mysql-83f04457-0b1b-4532-9691-f55cf6c0da6e -n app-project1-dev
 ```
 
-For more information, see [the trace command
-documentation](https://github.com/crossplane/crossplane-cli/tree/master/docs/trace-command.md).
+For more information, see [the trace command documentation].
 
 ## Resource Status and Conditions
 
@@ -193,10 +191,8 @@ namespace segment or over the entire name.  In these cases resource labels,
 owner references, and annotations should be consulted to identify the
 responsible Stack.
 
-* [Relationship
-  Labels](https://github.com/crossplane/crossplane/blob/master/design/one-pager-stack-relationship-labels.md)
-* [Owner
-  References](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/#owners-and-dependents)
+* [Relationship Labels]
+* [Owner References]
 * Annotations: `tenant.crossplane.io/{singular}-name` and
   `tenant.crossplane.io/{singular}-namespace` (_singular_ may be `stackinstall`,
   `clusterstackinstall` or `stack`)
@@ -251,3 +247,16 @@ items:
           job-name: this-is-just-a-really-long-namespace-name-at-the-characte-egoav
   ...
 ```
+
+<!-- Named Links -->
+
+[Using the trace command]: #using-the-trace-command
+[Resource Status and Conditions]: #resource-status-and-conditions
+[Crossplane Logs]: #crossplane-logs
+[Pausing Crossplane]: #pausing-crossplane
+[Deleting a Resource Hangs]: #deleting-a-resource-hangs
+[Host-Aware Resource Debugging]: #host-aware-resource-debugging
+[Crossplane CLI]: https://github.com/crossplane/crossplane-cli
+[the trace command documentation]: https://github.com/crossplane/crossplane-cli/tree/master/docs/trace-command.md
+[Relationship Labels]: https://github.com/crossplane/crossplane/blob/master/design/one-pager-stack-relationship-labels.md
+[Owner References]: https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/#owners-and-dependents

@@ -9,12 +9,9 @@ weight: 5
 In the previous two examples, we provisioned infrastructure that is consumed by
 some form of application. However, many providers expose services that you run
 your application on. The most obvious example of this type of service would be a
-managed Kubernetes service, such as
-[GKE](https://cloud.google.com/kubernetes-engine),
-[EKS](https://aws.amazon.com/eks/), or
-[AKS](https://azure.microsoft.com/en-us/services/kubernetes-service/).
-Crossplane not only provisions and manages these types of infrastructure, but
-also allows you to schedule workloads to them.
+managed Kubernetes service, such as [GKE], [EKS], or [AKS]. Crossplane not only
+provisions and manages these types of infrastructure, but also allows you to
+schedule workloads to them.
 
 In the case of a Kubernetes cluster, Crossplane lets you schedule to remote
 Kubernetes clusters from a single *control cluster*. The remote cluster may have
@@ -101,10 +98,9 @@ k8scluster            GKEClusterClass   gkecluster-standard   GKECluster      cp
 ```
 
 As you may have guessed, the connection information for a `KubernetesCluster`
-claim contains
-[kubeconfig](https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/)
-information. Once the `KubernetesCluster` claim is bound, you can view the
-contents of the `Secret` in the `cp-quickstart` namespace:
+claim contains [kubeconfig] information. Once the `KubernetesCluster` claim is
+bound, you can view the contents of the `Secret` in the `cp-quickstart`
+namespace:
 
 ```
 kubectl -n cp-quickstart describe secret k8scluster
@@ -327,8 +323,7 @@ Events:      <none>
 > made possible by storing the base64 encoded `kubeconfig` data in a `Secret`,
 > then manually creating a `KubernetesTarget` to point at it. This is an
 > advanced workflow, and additional information can be found in the
-> [infrastructure operator
-> documentation](/1_infra_operators/1_manually_adding_clusters.md).*
+> [infrastructure operator documentation].*
 
 ## Clean Up
 
@@ -339,3 +334,11 @@ following commands:
 kubectl delete -f helloworld.yaml
 kubectl delete -f k8s-cluster.yaml
 ```
+
+<!-- Named Links -->
+
+[GKE]: https://cloud.google.com/kubernetes-engine
+[EKS]: https://aws.amazon.com/eks/
+[AKS]: https://azure.microsoft.com/en-us/services/kubernetes-service/
+[kubeconfig]: https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/
+[infrastructure operator documentation]: 1_infra_operators/1_manually_adding_clusters.md

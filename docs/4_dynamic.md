@@ -15,7 +15,7 @@ possible by *dynamic provisioning*.
 
 ## Dynamically Provision a Redis Cluster on GCP
 
-In the [previous example](3_static.md), we created a `CloudMemorystoreInstance`
+In the [previous example], we created a `CloudMemorystoreInstance`
 then claimed it directly with a `RedisCluster` claim. With dynamic provisioning,
 we can instead create a *resource class* then request request creation of a
 managed resource (and subsequent creation of its external implementation) using
@@ -51,7 +51,7 @@ specTemplate:
 > *Note: similar to a managed resource, there is no namespace defined on our
 > configuration for the `CloudMemorystoreInstanceClass` above because resource
 > classes are
-> [cluster-scoped](https://kubernetes.io/docs/tasks/access-kubernetes-api/custom-resources/custom-resource-definitions/#create-a-customresourcedefinition).*
+> [cluster-scoped].*
 
 You will notice that this looks very similar to the
 `CloudMemorystoreInstanceClass` we created in the previous example. It has the
@@ -170,7 +170,7 @@ consuming infrastructure, and we can create as many `RedisCluster` claims as we
 want with the reusable configuration defined in our
 `CloudMemorystoreInstanceClass`.
 
-Continue to the [next section](5_workload.md) to learn how Crossplane can
+Continue to the [next section] to learn how Crossplane can
 schedule workloads to remote Kubernetes clusters!
 
 ## Clean Up
@@ -181,3 +181,9 @@ following command:
 ```
 kubectl delete -f redis-cluster-dynamic.yaml
 ```
+
+<!-- Named Links -->
+
+[previous example]: 3_static.md
+[cluster-scoped]: https://kubernetes.io/docs/tasks/access-kubernetes-api/custom-resources/custom-resource-definitions/#create-a-customresourcedefinition
+[next section]: 5_workload.md

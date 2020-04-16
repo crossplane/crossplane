@@ -7,11 +7,11 @@ indent: true
 
 # Manually Adding Existing Kubernetes Clusters
 
-As discussed in the section on [scheduling applications to remote
-clusters](../5_workload.md), Crossplane allows you to import existing Kubernetes
-clusters for scheduling. This can be done for any cluster for which you have a
-`kubeconfig`. Crossplane will be given the same permissions to the remote
-cluster that are provided to the user in your `kubeconfig`.
+As discussed in the section on [scheduling applications to remote clusters],
+Crossplane allows you to import existing Kubernetes clusters for scheduling.
+This can be done for any cluster for which you have a `kubeconfig`. Crossplane
+will be given the same permissions to the remote cluster that are provided to
+the user in your `kubeconfig`.
 
 The first step is creating a `Secret` with the base64 encoded data of your
 `kubeconfig`. This can be done with the following command (assumes data is in
@@ -48,3 +48,6 @@ kubectl apply -f myk8starget.yaml
 
 You can now create a `KubernetesApplication` in the `cp-infra-ops` namespace and
 your remote cluster will be a scheduling option.
+
+<!-- Named Links -->
+[scheduling applications to remote clusters]: ../5_workload.md
