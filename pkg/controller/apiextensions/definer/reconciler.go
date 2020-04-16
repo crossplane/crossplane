@@ -24,7 +24,6 @@ import (
 	"github.com/pkg/errors"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -42,9 +41,9 @@ import (
 )
 
 const (
-	// todo: consider adding _shorterWait_ for non-error cases where the result
-	// is expected to be quick. for example, deletion takes unnecessarily long
-	// in golden path.
+	// TODO(muvaf): consider adding _shorterWait_ for non-error cases where the result
+	// is expected to be quick. For example, deletion or CRD establishment takes
+	// unnecessarily long just because shortWait is 10 seconds.
 	shortWait      = 10 * time.Second
 	longWait       = 1 * time.Minute
 	timeout        = 2 * time.Minute
@@ -73,6 +72,7 @@ func Setup(mgr ctrl.Manager, log logging.Logger) error {
 		WithLogger(log),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))))
 
+	// TODO(muvaf): register this reconciler to events from CRDs, too.
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&v1alpha1.InfrastructureDefinition{}).
@@ -82,12 +82,12 @@ func Setup(mgr ctrl.Manager, log logging.Logger) error {
 
 // NewReconciler returns a new *reconciler.
 func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) reconcile.Reconciler {
-	kube := composed.NewClientForUnregistered(mgr.GetClient(), mgr.GetScheme(), runtime.DefaultUnstructuredConverter)
-	newDefinerFn := func() CRDDefiner { return &v1alpha1.InfrastructureDefinition{} }
+	kube := composed.NewClientForUnregistered(mgr.GetClient())
+	newDefinerFn := func() Definer { return &v1alpha1.InfrastructureDefinition{} }
 	r := &reconciler{
 		client:     kube,
 		Finalizer:  resource.NewAPIFinalizer(kube, finalizerName),
-		crd:        NewAPIDefaultCRDManager(kube),
+		crd:        NewAPIInfrastructureClient(kube),
 		mgr:        mgr,
 		newDefiner: newDefinerFn,
 		log:        logging.NewNopLogger(),
@@ -130,8 +130,8 @@ type reconciler struct {
 	mgr    manager.Manager
 	ctrl   *composed.ControllerEngine
 	resource.Finalizer
-	crd        CRDManager
-	newDefiner func() CRDDefiner
+	crd        Client
+	newDefiner func() Definer
 
 	log      logging.Logger
 	recorder event.Recorder
@@ -184,10 +184,8 @@ func (r *reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, definer), errUpdateInfraDefStatus)
 		}
 
-		// todo: shorter wait?
-
 		// It takes a while for api-server to be able to work with the new kind.
-		if !v1alpha1.IsEstablished(*crd) {
+		if !v1alpha1.IsEstablished(crd.Status) {
 			log.Debug(waitingCRDEstablish)
 			definer.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.New(waitingCRDEstablish)))
 			return reconcile.Result{RequeueAfter: 3 * time.Second}, errors.Wrap(r.client.Status().Update(ctx, definer), errUpdateInfraDefStatus)
@@ -195,7 +193,8 @@ func (r *reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 		// We know that CRD is ready and we are in control of it. So, we'll spin up
 		// an instance controller to reconcile it.
-		if err := r.ctrl.Start(definer.GetCRDName(), definer.GetCRDGroupVersionKind()); err != nil {
+		reconciler := composed.NewCompositeReconciler(definer.GetCRDName(), r.mgr, definer.GetCRDGroupVersionKind(), r.log, definer)
+		if err := r.ctrl.Start(definer.GetCRDName(), definer.GetCRDGroupVersionKind(), reconciler); err != nil {
 			log.Debug(errCannotStartController, "error", err)
 			definer.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errCannotStartController)))
 			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, definer), errCannotStartController)
@@ -250,7 +249,7 @@ func (r *reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			definer.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errDeleteCRD)))
 			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, definer), errUpdateInfraDefStatus)
 		}
-		// todo: register this reconciler to events from CRDs, too.
+
 		definer.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, definer), errUpdateInfraDefStatus)
 	}

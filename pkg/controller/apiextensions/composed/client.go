@@ -19,38 +19,40 @@ package composed
 import (
 	"context"
 
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1/instance"
 )
 
-// todo: this should be in crossplane-runtime.
+// UnstructuredWrapper allows the *unstructured.Unstructured to be accessed.
+type UnstructuredWrapper interface {
+	GetUnstructured() *unstructured.Unstructured
+}
 
-// TODO(muvaf): Investigate registering a new type to the scheme in the runtime.
+// UnstructuredListWrapper allows the *unstructured.UnstructuredList to be accessed.
+type UnstructuredListWrapper interface {
+	GetUnstructuredList() *unstructured.UnstructuredList
+}
 
 // NewClientForUnregistered returns a client.Client that will convert the given
 // object to unstructured.Unstructured and then do the requested operation if GVK
 // is not registered in the given scheme.
-func NewClientForUnregistered(c client.Client, s *runtime.Scheme, converter runtime.UnstructuredConverter) client.Client {
+func NewClientForUnregistered(c client.Client) client.Client {
 	return &unregisteredClient{
-		kube:      c,
-		scheme:    s,
-		converter: converter,
+		kube: c,
 	}
 }
 
 type unregisteredClient struct {
-	kube      client.Client
-	scheme    *runtime.Scheme
-	converter runtime.UnstructuredConverter
+	kube client.Client
 }
 
 // Get retrieves an obj for the given object key from the Kubernetes Cluster.
 // obj must be a struct pointer so that obj can be updated with the response
 // returned by the Server.
 func (c *unregisteredClient) Get(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
-	if u, ok := obj.(instance.CompositionInstance); ok {
+	if u, ok := obj.(UnstructuredWrapper); ok {
 		return c.kube.Get(ctx, key, u.GetUnstructured())
 	}
 	return c.kube.Get(ctx, key, obj)
@@ -60,7 +62,7 @@ func (c *unregisteredClient) Get(ctx context.Context, key client.ObjectKey, obj 
 // successful call, Items field in the list will be populated with the
 // result returned from the server.
 func (c *unregisteredClient) List(ctx context.Context, list runtime.Object, opts ...client.ListOption) error {
-	if u, ok := list.(instance.CompositionInstanceList); ok {
+	if u, ok := list.(UnstructuredListWrapper); ok {
 		return c.kube.List(ctx, u.GetUnstructuredList(), opts...)
 	}
 	return c.kube.List(ctx, list, opts...)
@@ -68,7 +70,7 @@ func (c *unregisteredClient) List(ctx context.Context, list runtime.Object, opts
 
 // Create saves the object obj in the Kubernetes cluster.
 func (c *unregisteredClient) Create(ctx context.Context, obj runtime.Object, opts ...client.CreateOption) error {
-	if u, ok := obj.(instance.CompositionInstance); ok {
+	if u, ok := obj.(UnstructuredWrapper); ok {
 		return c.kube.Create(ctx, u.GetUnstructured(), opts...)
 	}
 	return c.kube.Create(ctx, obj, opts...)
@@ -76,7 +78,7 @@ func (c *unregisteredClient) Create(ctx context.Context, obj runtime.Object, opt
 
 // Delete deletes the given obj from Kubernetes cluster.
 func (c *unregisteredClient) Delete(ctx context.Context, obj runtime.Object, opts ...client.DeleteOption) error {
-	if u, ok := obj.(instance.CompositionInstance); ok {
+	if u, ok := obj.(UnstructuredWrapper); ok {
 		return c.kube.Delete(ctx, u.GetUnstructured(), opts...)
 	}
 	return c.kube.Delete(ctx, obj, opts...)
@@ -85,7 +87,7 @@ func (c *unregisteredClient) Delete(ctx context.Context, obj runtime.Object, opt
 // Update updates the given obj in the Kubernetes cluster. obj must be a
 // struct pointer so that obj can be updated with the content returned by the Server.
 func (c *unregisteredClient) Update(ctx context.Context, obj runtime.Object, opts ...client.UpdateOption) error {
-	if u, ok := obj.(instance.CompositionInstance); ok {
+	if u, ok := obj.(UnstructuredWrapper); ok {
 		return c.kube.Update(ctx, u.GetUnstructured(), opts...)
 	}
 	return c.kube.Update(ctx, obj, opts...)
@@ -94,7 +96,7 @@ func (c *unregisteredClient) Update(ctx context.Context, obj runtime.Object, opt
 // Patch patches the given obj in the Kubernetes cluster. obj must be a
 // struct pointer so that obj can be updated with the content returned by the Server.
 func (c *unregisteredClient) Patch(ctx context.Context, obj runtime.Object, patch client.Patch, opts ...client.PatchOption) error {
-	if u, ok := obj.(instance.CompositionInstance); ok {
+	if u, ok := obj.(UnstructuredWrapper); ok {
 		return c.kube.Patch(ctx, u.GetUnstructured(), patch, opts...)
 	}
 	return c.kube.Patch(ctx, obj, patch, opts...)
@@ -102,7 +104,7 @@ func (c *unregisteredClient) Patch(ctx context.Context, obj runtime.Object, patc
 
 // DeleteAllOf deletes all objects of the given type matching the given options.
 func (c *unregisteredClient) DeleteAllOf(ctx context.Context, obj runtime.Object, opts ...client.DeleteAllOfOption) error {
-	if u, ok := obj.(instance.CompositionInstance); ok {
+	if u, ok := obj.(UnstructuredWrapper); ok {
 		return c.kube.DeleteAllOf(ctx, u.GetUnstructured(), opts...)
 	}
 	return c.kube.DeleteAllOf(ctx, obj, opts...)
@@ -110,23 +112,19 @@ func (c *unregisteredClient) DeleteAllOf(ctx context.Context, obj runtime.Object
 
 func (c *unregisteredClient) Status() client.StatusWriter {
 	return &unregisteredStatusClient{
-		kube:      c.kube.Status(),
-		scheme:    c.scheme,
-		converter: runtime.DefaultUnstructuredConverter,
+		kube: c.kube.Status(),
 	}
 }
 
 type unregisteredStatusClient struct {
-	kube      client.StatusWriter
-	scheme    *runtime.Scheme
-	converter runtime.UnstructuredConverter
+	kube client.StatusWriter
 }
 
 // Update updates the fields corresponding to the status subresource for the
 // given obj. obj must be a struct pointer so that obj can be updated
 // with the content returned by the Server.
 func (c *unregisteredStatusClient) Update(ctx context.Context, obj runtime.Object, opts ...client.UpdateOption) error {
-	if u, ok := obj.(instance.CompositionInstance); ok {
+	if u, ok := obj.(UnstructuredWrapper); ok {
 		return c.kube.Update(ctx, u.GetUnstructured(), opts...)
 	}
 	return c.kube.Update(ctx, obj, opts...)
@@ -136,7 +134,7 @@ func (c *unregisteredStatusClient) Update(ctx context.Context, obj runtime.Objec
 // pointer so that obj can be updated with the content returned by the
 // Server.
 func (c *unregisteredStatusClient) Patch(ctx context.Context, obj runtime.Object, patch client.Patch, opts ...client.PatchOption) error {
-	if u, ok := obj.(instance.CompositionInstance); ok {
+	if u, ok := obj.(UnstructuredWrapper); ok {
 		return c.kube.Patch(ctx, u.GetUnstructured(), patch, opts...)
 	}
 	return c.kube.Patch(ctx, obj, patch, opts...)

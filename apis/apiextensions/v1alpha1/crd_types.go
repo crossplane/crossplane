@@ -35,10 +35,8 @@ func FromShallow(in CustomResourceDefinitionSpec) (*v1beta1.CustomResourceDefini
 		Group:                    in.Group,
 		Version:                  in.Version,
 		Names:                    in.Names,
-		Subresources:             in.Subresources,
 		AdditionalPrinterColumns: in.AdditionalPrinterColumns,
 		Conversion:               in.Conversion,
-		PreserveUnknownFields:    in.PreserveUnknownFields,
 	}
 	if in.Validation != nil {
 		s := &v1beta1.JSONSchemaProps{}
@@ -69,8 +67,8 @@ func FromShallow(in CustomResourceDefinitionSpec) (*v1beta1.CustomResourceDefini
 
 // IsEstablished is a helper function to check whether api-server is ready
 // to accept the instances of registered CRD.
-func IsEstablished(crd v1beta1.CustomResourceDefinition) bool {
-	for _, c := range crd.Status.Conditions {
+func IsEstablished(s v1beta1.CustomResourceDefinitionStatus) bool {
+	for _, c := range s.Conditions {
 		if c.Type == v1beta1.Established {
 			return c.Status == v1beta1.ConditionTrue
 		}
@@ -104,11 +102,6 @@ type CustomResourceDefinitionSpec struct {
 	// Top-level and per-version schemas are mutually exclusive.
 	// +optional
 	Validation *CustomResourceValidation `json:"validation,omitempty" protobuf:"bytes,5,opt,name=validation"`
-	// subresources specify what subresources the defined custom resource has.
-	// If present, this field configures subresources for all versions.
-	// Top-level and per-version subresources are mutually exclusive.
-	// +optional
-	Subresources *v1beta1.CustomResourceSubresources `json:"subresources,omitempty" protobuf:"bytes,6,opt,name=subresources"`
 	// versions is the list of all API versions of the defined custom resource.
 	// Optional if `version` is specified.
 	// The name of the first item in the `versions` list must match the `version` field if `version` and `versions` are both specified.
@@ -132,17 +125,6 @@ type CustomResourceDefinitionSpec struct {
 	// conversion defines conversion settings for the CRD.
 	// +optional
 	Conversion *v1beta1.CustomResourceConversion `json:"conversion,omitempty" protobuf:"bytes,9,opt,name=conversion"`
-
-	// preserveUnknownFields indicates that object fields which are not specified
-	// in the OpenAPI schema should be preserved when persisting to storage.
-	// apiVersion, kind, metadata and known fields inside metadata are always preserved.
-	// If false, schemas must be defined for all versions.
-	// Defaults to true in v1beta for backwards compatibility.
-	// Deprecated: will be required to be false in v1. Preservation of unknown fields can be specified
-	// in the validation schema using the `x-kubernetes-preserve-unknown-fields: true` extension.
-	// See https://kubernetes.io/docs/tasks/access-kubernetes-api/custom-resources/custom-resource-definitions/#pruning-versus-preserving-unknown-fields for details.
-	// +optional
-	PreserveUnknownFields *bool `json:"preserveUnknownFields,omitempty" protobuf:"varint,10,opt,name=preserveUnknownFields"`
 }
 
 // CustomResourceDefinitionVersion describes a version for CRD.

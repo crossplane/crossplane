@@ -25,20 +25,20 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
 
-// CRDDefiner has properties that are used to create a CRD.
-type CRDDefiner interface {
+// Definer has properties that are used to create a CustomResourceDefinition.
+type Definer interface {
 	resource.Object
 
 	GetCRDName() string
 	GetCRDGroupVersionKind() schema.GroupVersionKind
 	GenerateCRD() (*v1beta1.CustomResourceDefinition, error)
+	GetConnectionSecretKeys() []string
 }
 
-// CRDManager does the necessary operations to manage the lifecycle of the generated
-// CRD.
-type CRDManager interface {
-	Get(context.Context, CRDDefiner) (*v1beta1.CustomResourceDefinition, error)
-	DeleteInstances(context.Context, CRDDefiner) (bool, error)
-	Delete(context.Context, CRDDefiner) error
-	Apply(context.Context, CRDDefiner) error
+// Client does the necessary operations to manage the lifecycle of a CustomResourceDefinition.
+type Client interface {
+	Get(context.Context, Definer) (*v1beta1.CustomResourceDefinition, error)
+	DeleteInstances(context.Context, Definer) (bool, error)
+	Delete(context.Context, Definer) error
+	Apply(context.Context, Definer) error
 }

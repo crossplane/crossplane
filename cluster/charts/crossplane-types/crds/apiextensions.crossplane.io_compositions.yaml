@@ -59,8 +59,8 @@ spec:
             to:
               description: To is the list of target resources that make up the composition.
               items:
-                description: TargetResource is used to provide information about how
-                  the target resource should be processed.
+                description: ComposedTemplate is used to provide information about
+                  how the composed resource should be processed.
                 properties:
                   base:
                     description: Base is the target resource that the patches will
@@ -82,7 +82,8 @@ spec:
                         name:
                           description: Name of the connection secret key that will
                             be propagated to the connection secret of the composition
-                            instance.
+                            instance. Leave empty if you'd like to use the same key
+                            name.
                           type: string
                       required:
                       - fromConnectionSecretKey
@@ -102,7 +103,8 @@ spec:
                         toFieldPath:
                           description: ToFieldPath is the path of the field on the
                             base resource whose value will be changed with the result
-                            of transforms.
+                            of transforms. Leave empty if you'd like to propagate
+                            to the same path on the target resource.
                           type: string
                         transforms:
                           description: Transforms are the list of functions that are
@@ -122,6 +124,7 @@ spec:
                                   operations such as multiplication.
                                 properties:
                                   multiply:
+                                    description: Multiply the value.
                                     format: int64
                                     type: integer
                                 type: object

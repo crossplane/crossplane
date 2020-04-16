@@ -107,3 +107,9 @@ func (in *InfrastructureDefinition) GenerateCRD() (*v1beta1.CustomResourceDefini
 	}
 	return base, nil
 }
+
+// GetConnectionSecretKeys returns the set of allowed keys to filter the connection
+// secret.
+func (in *InfrastructureDefinition) GetConnectionSecretKeys() []string {
+	return in.Spec.ConnectionSecretKeys
+}

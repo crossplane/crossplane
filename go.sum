@@ -72,6 +72,9 @@ github.com/coreos/pkg v0.0.0-20160727233714-3ac0863d7acf/go.mod h1:E3G3o1h8I7cfc
 github.com/coreos/pkg v0.0.0-20180108230652-97fdf19511ea/go.mod h1:E3G3o1h8I7cfcXa63jLwjI0eiQQMgzzUDFVpN/nH/eA=
 github.com/cpuguy83/go-md2man v1.0.10/go.mod h1:SmD6nW6nTyfqj6ABTjUi3V3JVMnlJmwcJI5acqYI6dE=
 github.com/creack/pty v1.1.7/go.mod h1:lj5s0c3V2DBrqTV7llrYr5NG6My20zk30Fl46Y7DoTY=
+github.com/crossplane/crossplane-runtime v0.7.1-0.20200417213225-dab52011b1a5 h1:/aPN2KCcWycpGD/f/Dl8RSFT1IoaseF8L3EDN858NPQ=
+github.com/crossplane/crossplane-runtime v0.7.1-0.20200417213225-dab52011b1a5/go.mod h1:e12p4X6dbtqd9GOnph78Epd6aezyvmcMM1+6aQy3VzY=
+github.com/crossplane/crossplane-runtime v0.7.1-0.20200421211018-be37c50cc2ab/go.mod h1:e12p4X6dbtqd9GOnph78Epd6aezyvmcMM1+6aQy3VzY=
 github.com/crossplane/crossplane-tools v0.0.0-20200219001116-bb8b2ce46330 h1:zxdYGQnQbfyZSnRbKUJ16x5lRzkUTbH+uumVq03ijYo=
 github.com/crossplane/crossplane-tools v0.0.0-20200219001116-bb8b2ce46330/go.mod h1:C735A9X0x0lR8iGVOOxb49Mt70Ua4EM2b7PGaRPBLd4=
 github.com/crossplane/oam-kubernetes-runtime v0.0.0-20200422175842-afde24fdf35b h1:V6ynh8p2gbPtisz2FHQM8cMpo4xscljzR5cEax8dtdM=

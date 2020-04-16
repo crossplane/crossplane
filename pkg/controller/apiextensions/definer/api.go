@@ -24,12 +24,12 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metaapi "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1/instance"
 )
 
 const (
@@ -37,27 +37,27 @@ const (
 	errGenerateCRD            = "cannot generate crd for given infrastructure definition"
 )
 
-// NewAPIDefaultCRDManager returns a new APIDefaultCRDManager.
-func NewAPIDefaultCRDManager(client client.Client) CRDManager {
-	return &APIDefaultCRDManager{client: resource.ClientApplicator{
+// NewAPIInfrastructureClient returns a new APIInfrastructureClient.
+func NewAPIInfrastructureClient(client client.Client) Client {
+	return &APIInfrastructureClient{client: resource.ClientApplicator{
 		Client:     client,
 		Applicator: resource.NewAPIPatchingApplicator(client),
 	}}
 }
 
-// APIDefaultCRDManager manages the generated CRD.
-type APIDefaultCRDManager struct {
+// APIInfrastructureClient manages the generated CRD.
+type APIInfrastructureClient struct {
 	client resource.ClientApplicator
 }
 
 // Get fetches the CRD.
-func (m *APIDefaultCRDManager) Get(ctx context.Context, definer CRDDefiner) (*v1beta1.CustomResourceDefinition, error) {
+func (m *APIInfrastructureClient) Get(ctx context.Context, definer Definer) (*v1beta1.CustomResourceDefinition, error) {
 	crd := &v1beta1.CustomResourceDefinition{}
 	return crd, m.client.Get(ctx, types.NamespacedName{Name: definer.GetCRDName()}, crd)
 }
 
 // Apply applies the CRD that the definer generates.
-func (m *APIDefaultCRDManager) Apply(ctx context.Context, definer CRDDefiner) error {
+func (m *APIInfrastructureClient) Apply(ctx context.Context, definer Definer) error {
 	generated, err := definer.GenerateCRD()
 	if err != nil {
 		return errors.Wrap(err, errGenerateCRD)
@@ -67,7 +67,7 @@ func (m *APIDefaultCRDManager) Apply(ctx context.Context, definer CRDDefiner) er
 }
 
 // Delete the generated CRD.
-func (m *APIDefaultCRDManager) Delete(ctx context.Context, definer CRDDefiner) error {
+func (m *APIInfrastructureClient) Delete(ctx context.Context, definer Definer) error {
 	crd := &v1beta1.CustomResourceDefinition{}
 	err := m.client.Get(ctx, types.NamespacedName{Name: definer.GetCRDName()}, crd)
 	if resource.IgnoreNotFound(err) != nil {
@@ -84,10 +84,10 @@ func (m *APIDefaultCRDManager) Delete(ctx context.Context, definer CRDDefiner) e
 
 // DeleteInstances deletes all instances of the generated CRD in all namespaces
 // and returns whether there are any remaining instances.
-func (m *APIDefaultCRDManager) DeleteInstances(ctx context.Context, definer CRDDefiner) (bool, error) {
+func (m *APIInfrastructureClient) DeleteInstances(ctx context.Context, definer Definer) (bool, error) {
 	// Empty namespace option covers all namespaces in case CRD is namespace-scoped.
 	// If it is cluster-scoped, it doesn't have any effect.
-	list := &instance.InfraInstanceList{}
+	list := &unstructured.UnstructuredList{}
 	list.SetGroupVersionKind(definer.GetCRDGroupVersionKind())
 	err := m.client.List(ctx, list, client.InNamespace(""))
 	switch {
@@ -103,7 +103,7 @@ func (m *APIDefaultCRDManager) DeleteInstances(ctx context.Context, definer CRDD
 	// owner has its own finalizer that depends on having no instance of the CRD
 	// because it cannot go away before stopping the controller.
 	// So, we need to delete all instances of CRD manually here.
-	obj := &instance.InfraInstance{}
+	obj := &unstructured.Unstructured{}
 	obj.SetGroupVersionKind(definer.GetCRDGroupVersionKind())
 	return false, resource.Ignore(metaapi.IsNoMatchError, m.client.DeleteAllOf(ctx, obj, client.InNamespace("")))
 }

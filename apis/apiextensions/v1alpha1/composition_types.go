@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -52,7 +52,7 @@ type CompositionSpec struct {
 	From TypeReference `json:"from"`
 
 	// To is the list of target resources that make up the composition.
-	To []TargetResource `json:"to"`
+	To []ComposedTemplate `json:"to"`
 }
 
 // TypeReference is used to refer to a type for declaring compatibility.
@@ -64,17 +64,19 @@ type TypeReference struct {
 	Kind string `json:"kind"`
 }
 
-// TargetResource is used to provide information about how the target resource
+// ComposedTemplate is used to provide information about how the composed resource
 // should be processed.
-type TargetResource struct {
+type ComposedTemplate struct {
 	// Base is the target resource that the patches will be applied on.
-	Base unstructured.Unstructured `json:"base"`
+	Base runtime.RawExtension `json:"base"`
 
 	// Patches will be applied as overlay to the base resource.
+	// +optional
 	Patches []Patch `json:"patches,omitempty"`
 
 	// ConnectionDetails lists the propagation secret keys from this target
 	// resource to the composition instance connection secret.
+	// +optional
 	ConnectionDetails []ConnectionDetail `json:"connectionDetails,omitempty"`
 }
 
@@ -88,17 +90,32 @@ type Patch struct {
 	FromFieldPath string `json:"fromFieldPath"`
 
 	// ToFieldPath is the path of the field on the base resource whose value will
-	// be changed with the result of transforms.
+	// be changed with the result of transforms. Leave empty if you'd like to
+	// propagate to the same path on the target resource.
+	// +optional
 	ToFieldPath string `json:"toFieldPath,omitempty"`
 
 	// Transforms are the list of functions that are used as a FIFO pipe for the
 	// input to be transformed.
+	// +optional
 	Transforms []Transform `json:"transforms,omitempty"`
 }
 
 // Patch runs transformers and patches the target resource.
-func (c *Patch) Patch(from *fieldpath.Paved, to *unstructured.Unstructured) error {
-	in, err := from.GetValue(c.FromFieldPath)
+func (c *Patch) Patch(from, to runtime.Object) error {
+	var fromMap map[string]interface{}
+	switch u := from.(type) {
+	case runtime.Unstructured:
+		fromMap = u.UnstructuredContent()
+	default:
+		obj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(from)
+		if err != nil {
+			return err
+		}
+		fromMap = obj
+	}
+	fromPaved := fieldpath.Pave(fromMap)
+	in, err := fromPaved.GetValue(c.FromFieldPath)
 	if err != nil {
 		return err
 	}
@@ -109,12 +126,17 @@ func (c *Patch) Patch(from *fieldpath.Paved, to *unstructured.Unstructured) erro
 			return errors.Wrap(err, errTransformAtIndex(i))
 		}
 	}
-	paved := fieldpath.Pave(to.UnstructuredContent())
-	if err := paved.SetValue(c.ToFieldPath, out); err != nil {
+	if u, ok := to.(runtime.Unstructured); ok {
+		return fieldpath.Pave(u.UnstructuredContent()).SetValue(c.ToFieldPath, out)
+	}
+	toMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(to)
+	if err != nil {
 		return err
 	}
-	to.SetUnstructuredContent(paved.UnstructuredContent())
-	return nil
+	if err := fieldpath.Pave(toMap).SetValue(c.ToFieldPath, out); err != nil {
+		return err
+	}
+	return runtime.DefaultUnstructuredConverter.FromUnstructured(toMap, to)
 }
 
 // Transform is a unit of process whose input is transformed into an output with
@@ -125,9 +147,11 @@ type Transform struct {
 	Type string `json:"type"`
 
 	// Math is used to transform input via mathematical operations such as multiplication.
+	// +optional
 	Math *MathTransform `json:"math,omitempty"`
 
 	// Map uses input as key in the given map and returns the value.
+	// +optional
 	Map *MapTransform `json:"map,omitempty"`
 }
 
@@ -142,7 +166,7 @@ func (t *Transform) Transform(input interface{}) (interface{}, error) {
 	case "map":
 		transformer = t.Map
 	default:
-		return 0, errors.New(errTypeNotSupported(t.Type))
+		return nil, errors.New(errTypeNotSupported(t.Type))
 	}
 	if transformer == nil {
 		return nil, errors.New(errConfigMissing(t.Type))
@@ -154,6 +178,8 @@ func (t *Transform) Transform(input interface{}) (interface{}, error) {
 // MathTransform conducts mathematical operations on the input with the given
 // configuration in its properties.
 type MathTransform struct {
+	// Multiply the value.
+	// +optional
 	Multiply *int64 `json:"multiply,omitempty"`
 }
 
@@ -174,10 +200,8 @@ func (m *MathTransform) Resolve(input interface{}) (interface{}, error) {
 
 // MapTransform returns a value for the input from the given map.
 type MapTransform struct {
-	// TODO(muvaf): Using map is not recommended by Kubernetes API conventions.
-	// Should we make it an array even though it's exactly what maps are for?
-
 	// Pairs is the map that will be used for transform.
+	// +optional
 	Pairs map[string]string `json:",inline"`
 }
 
@@ -199,7 +223,9 @@ func (m *MapTransform) Resolve(input interface{}) (interface{}, error) {
 // information from one secret to another.
 type ConnectionDetail struct {
 	// Name of the connection secret key that will be propagated to the
-	// connection secret of the composition instance.
+	// connection secret of the composition instance. Leave empty if you'd like
+	// to use the same key name.
+	// +optional
 	Name *string `json:"name,omitempty"`
 
 	// FromConnectionSecretKey is the key that will be used to fetch the value

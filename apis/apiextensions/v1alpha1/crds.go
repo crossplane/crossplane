@@ -23,17 +23,12 @@ import (
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 )
 
-// TODO(muvaf): Consider generating the validations of the types in build time
-// and reading them in runtime so that we don't forget to update the validations
-// when there is a change in internal representations.
-
-// InfraSpecProps is OpenAPIV3Schema for spec fields that Crossplane uses for
+// InfraCompositeSpecProps is OpenAPIV3Schema for spec fields that Crossplane uses for
 // Infrastructure kinds.
-const InfraSpecProps = `
+const InfraCompositeSpecProps = `
 compositionRef:
-  description: A ClassReference specifies a resource class that will be
-    used to dynamically provision a managed resource when the resource
-    claim is created.
+  description: A composition reference specifies a composition that will be
+    used to configure the composed resources.
   properties:
     apiVersion:
       description: API version of the referent.
@@ -69,9 +64,9 @@ compositionRef:
       type: string
   type: object
 compositionSelector:
-  description: A ClassSelector specifies labels that will be used to select
-    a resource class for this claim. If multiple classes match the labels
-    one will be chosen at random.
+  description: A CompositionSelector specifies labels that will be used to select
+    a composition for this composite to be configured. If multiple compositions
+    match the labels one will be chosen at random.
   properties:
     matchLabels:
       additionalProperties:
@@ -84,11 +79,8 @@ compositionSelector:
       type: object
   type: object
 resourceRefs:
-  description: A ResourceReference specifies an existing managed resource,
-    in any namespace, to which this resource claim should attempt to bind.
-    Omit the resource reference to enable dynamic provisioning using a
-    resource class; the resource reference will be automatically populated
-    by Crossplane.
+  description: The list of the composed resources that are provisioned for this
+    composite resource.
   items:
     type: object
     properties:
@@ -130,11 +122,8 @@ resourceRefs:
     - name
   type: array
 writeConnectionSecretToRef:
-  description: WriteConnectionSecretToReference specifies the name of
-    a Secret, in the same namespace as this resource claim, to which any
-    connection details for this resource claim should be written. Connection
-    details frequently include the endpoint, username, and password required
-    to connect to the managed resource bound to this resource claim.
+  description: WriteConnectionSecretsToNamespace specifies the namespace
+    in which the connection secret of the composite resource will be created.
   properties:
     name:
       description: Name of the secret.
@@ -144,9 +133,9 @@ writeConnectionSecretToRef:
   type: object
 `
 
-// InfraStatusProps is OpenAPIV3Schema for status fields that Crossplane uses for
+// InfraCompositeStatusProps is OpenAPIV3Schema for status fields that Crossplane uses for
 // Infrastructure kinds.
-const InfraStatusProps = `
+const InfraCompositeStatusProps = `
 bindingPhase:
   description: Phase represents the binding phase of a managed resource
     or claim. Unbindable resources cannot be bound, typically because
@@ -254,7 +243,7 @@ func InfraValidation() func(*v1beta1.CustomResourceDefinition) {
 	return func(crd *v1beta1.CustomResourceDefinition) {
 		crd.Spec.Scope = v1beta1.ClusterScoped
 		spec := &map[string]v1beta1.JSONSchemaProps{}
-		if err := yaml.Unmarshal([]byte(InfraSpecProps), spec); err != nil {
+		if err := yaml.Unmarshal([]byte(InfraCompositeSpecProps), spec); err != nil {
 			// TODO(muvaf): never panic.
 			panic(fmt.Sprintf("constant string could not be parsed: %s", err.Error()))
 		}
@@ -262,7 +251,7 @@ func InfraValidation() func(*v1beta1.CustomResourceDefinition) {
 			crd.Spec.Validation.OpenAPIV3Schema.Properties["spec"].Properties[k] = v
 		}
 		status := &map[string]v1beta1.JSONSchemaProps{}
-		if err := yaml.Unmarshal([]byte(InfraStatusProps), status); err != nil {
+		if err := yaml.Unmarshal([]byte(InfraCompositeStatusProps), status); err != nil {
 			// TODO(muvaf): never panic.
 			panic(fmt.Sprintf("constant string could not be parsed: %s", err.Error()))
 		}

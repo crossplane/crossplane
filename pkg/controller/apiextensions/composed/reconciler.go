@@ -18,293 +18,149 @@ package composed
 
 import (
 	"context"
-	"fmt"
-	"strings"
 	"time"
-
-	v1alpha12 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
-	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
-	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1/instance"
+	"github.com/crossplane/crossplane/pkg/controller/apiextensions/composed/api"
 )
 
 const (
 	shortWait = 30 * time.Second
 	longWait  = 1 * time.Minute
 	timeout   = 2 * time.Minute
+
+	finalizer = "finalizer.apiextensions.crossplane.io"
 )
 
-// NewControllerEngine returns a new ControllerEngine instance.
-func NewControllerEngine(mgr manager.Manager, log logging.Logger) *ControllerEngine {
-	return &ControllerEngine{
-		mgr: mgr,
-		m:   map[string]chan struct{}{},
-		log: log,
+// ConnectionSecretFilterer returns a set of allowed keys.
+type ConnectionSecretFilterer interface {
+	GetConnectionSecretKeys() []string
+}
+
+// A ConnectionPublisher manages the supplied ConnectionDetails for the
+// supplied resource. ManagedPublishers must handle the case in which
+// the supplied ConnectionDetails are empty.
+type ConnectionPublisher interface {
+	// PublishConnection details for the supplied resource. Publishing
+	// must be additive; i.e. if details (a, b, c) are published, subsequently
+	// publicing details (b, c, d) should update (b, c) but not remove a.
+	PublishConnection(ctx context.Context, owner resource.ConnectionSecretOwner, c managed.ConnectionDetails) error
+
+	// UnpublishConnection details for the supplied resource.
+	UnpublishConnection(ctx context.Context, owner resource.ConnectionSecretOwner, c managed.ConnectionDetails) error
+}
+
+// NewCompositeReconciler returns a new *compositeReconciler.
+func NewCompositeReconciler(name string, mgr manager.Manager, gvk schema.GroupVersionKind, log logging.Logger, filterer ConnectionSecretFilterer) reconcile.Reconciler {
+	nc := func() Composite { return api.NewCompositeResource(api.WithGroupVersionKind(gvk)) }
+	kube := NewClientForUnregistered(mgr.GetClient())
+
+	return &compositeReconciler{
+		client:       kube,
+		newComposite: nc,
+		Resolver:     NewSelectorResolver(kube),
+		composed:     NewAPIComposedReconciler(kube),
+		connection:   NewAPIFilteredSecretPublisher(kube, filterer.GetConnectionSecretKeys()),
+		finalizer:    resource.NewAPIFinalizer(kube, finalizer),
+		log:          log,
+		record:       event.NewAPIRecorder(mgr.GetEventRecorderFor(name)),
 	}
 }
 
-// ControllerEngine provides tooling for starting and stopping controllers
-// in runtime after the manager is started.
-type ControllerEngine struct {
-	mgr manager.Manager
-	m   map[string]chan struct{}
-
-	log logging.Logger
+// ComposableReconciler is able to reconcile a member of the composite resource.
+type ComposableReconciler interface {
+	Reconcile(ctx context.Context, cr Composite, composedRef v1.ObjectReference, tmpl v1alpha1.ComposedTemplate) (Observation, error)
 }
 
-// Stop stops the controller that reconciles the given CRD.
-func (c *ControllerEngine) Stop(name string) error {
-	stop, ok := c.m[name]
-	if !ok {
-		return nil
-	}
-	close(stop)
-	delete(c.m, name)
-	return nil
+// Resolver selects the composition reference with the information given as selector.
+type Resolver interface {
+	ResolveSelector(ctx context.Context, cr Composite) error
 }
 
-// Start starts an instance controller that will reconcile given CRD.
-func (c *ControllerEngine) Start(name string, gvk schema.GroupVersionKind) error {
-	stop, exists := c.m[name]
-	// todo(muvaf): when a channel is closed, does it become nil? Find a way
-	// to check on the controller to see whether it crashed and needs a restart.
-	if exists && stop != nil {
-		return nil
-	}
-	stop = make(chan struct{})
-	c.m[name] = stop
-	ca, err := cache.New(c.mgr.GetConfig(), cache.Options{
-		Scheme: c.mgr.GetScheme(),
-		Mapper: c.mgr.GetRESTMapper(),
-	})
-	if err != nil {
-		return err
-	}
-	go func() {
-		<-c.mgr.Leading()
-		if err := ca.Start(stop); err != nil {
-			c.log.Debug("cannot start controller cache", "controller", name, "error", err)
-		}
-	}()
-	ca.WaitForCacheSync(stop)
+// compositeReconciler reconciles the generic CRD that is generated via InfrastructureDefinition.
+type compositeReconciler struct {
+	client       client.Client
+	newComposite func() Composite
+	composed     ComposableReconciler
+	connection   ConnectionPublisher
+	finalizer    resource.Finalizer
 
-	ctrl, err := controller.NewUnmanaged(name, c.mgr,
-		controller.Options{
-			Reconciler: newInstanceReconciler(name, c.mgr, gvk, c.log),
-		})
-	if err != nil {
-		return errors.Wrap(err, "cannot create an unmanaged controller")
-	}
-	u := &unstructured.Unstructured{}
-	u.SetGroupVersionKind(gvk)
-	if err := ctrl.Watch(source.NewKindWithCache(u, ca), &handler.EnqueueRequestForObject{}); err != nil {
-		return errors.Wrap(err, "cannot set watch parameters on controller")
-	}
-
-	go func() {
-		<-c.mgr.Leading()
-		// todo: handle the case where controller crashes since we deleted the CRD
-		c.log.Info("instance controller", "starting the controller", name)
-		if err := ctrl.Start(stop); err != nil {
-			c.log.Debug("instance controller", "cannot start controller", name, "error", err)
-		}
-		c.log.Info("instance controller", "controller has been stopped", name)
-	}()
-
-	return nil
-}
-
-// newInstanceReconciler returns a new *instanceReconciler.
-func newInstanceReconciler(name string, mgr manager.Manager, gvk schema.GroupVersionKind, log logging.Logger) *instanceReconciler {
-	ni := func() instance.CompositionInstance {
-		cr := &instance.InfraInstance{}
-		cr.SetGroupVersionKind(gvk)
-		return cr
-	}
-
-	cl := NewClientForUnregistered(mgr.GetClient(), mgr.GetScheme(), runtime.DefaultUnstructuredConverter)
-	kube := resource.ClientApplicator{
-		Client:     cl,
-		Applicator: resource.NewAPIPatchingApplicator(cl),
-	}
-	return &instanceReconciler{
-		client:      kube,
-		newInstance: ni,
-		composition: defaultCRComposition(kube),
-		log:         log,
-		record:      event.NewAPIRecorder(mgr.GetEventRecorderFor(name)),
-	}
-}
-
-func defaultCRComposition(kube client.Client) crComposition {
-	return crComposition{
-		SpecOps: &SelectorResolver{client: kube},
-	}
-}
-
-// SpecOps lists the operations that are done on the spec of instance.
-type SpecOps interface {
-	ResolveSelector(ctx context.Context, cr instance.CompositionInstance) error
-}
-
-type crComposition struct {
-	SpecOps
-}
-
-type TargetReconciler interface {
-	Apply(context.Context, v1.ObjectReference, v1alpha1.TargetResource) (v1.ObjectReference, error)
-	GetConnectionDetails(context.Context, v1.ObjectReference, v1alpha1.TargetResource) (managed.ConnectionDetails, error)
-}
-
-type APITargetReconciler struct {
-	client   resource.ClientApplicator
-	instance instance.CompositionInstance
-}
-
-func (r *APITargetReconciler) Apply(ctx context.Context, ref v1.ObjectReference, target v1alpha1.TargetResource) (v1.ObjectReference, error) {
-	result := target.Base.DeepCopy()
-	paved := fieldpath.Pave(r.instance.UnstructuredContent())
-	for i, patch := range target.Patches {
-		if err := patch.Patch(paved, result); err != nil {
-			return v1.ObjectReference{}, errors.Wrap(err, fmt.Sprintf("cannot apply the patch at index %d on result", i))
-		}
-	}
-	result.SetGenerateName(fmt.Sprintf("%s-", r.instance.GetName()))
-	result.SetName(ref.Name)
-	result.SetNamespace(ref.Namespace)
-	if err := r.client.Apply(ctx, result, resource.MustBeControllableBy(r.instance.GetUID())); err != nil {
-		return v1.ObjectReference{}, errors.Wrap(err, "cannot apply the target resource")
-	}
-	return *meta.ReferenceTo(result, result.GroupVersionKind()), nil
-}
-
-func (r *APITargetReconciler) GetConnectionDetails(ctx context.Context, ref v1.ObjectReference, target v1alpha1.TargetResource) (managed.ConnectionDetails, error) {
-	u := &unstructured.Unstructured{}
-	if err := r.client.Get(ctx, meta.NamespacedNameOf(&ref), u); err != nil {
-		return nil, err
-	}
-	// TODO(muvaf): An unstructured.Unstructured based ManagedInstance struct
-	// similar to InfraInstance would make these things easier.
-	secretRefObj, exists, err := unstructured.NestedMap(u.UnstructuredContent(), strings.Split("spec.writeConnectionSecretToRef", ".")...)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, nil
-	}
-	secretRef := &v1.ObjectReference{}
-	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(secretRefObj, secretRef); err != nil {
-		return nil, err
-	}
-	secret := &v1.Secret{}
-	if err := r.client.Get(ctx, meta.NamespacedNameOf(secretRef), secret); err != nil {
-		return nil, err
-	}
-	out := managed.ConnectionDetails{}
-	for _, pair := range target.ConnectionDetails {
-		key := pair.FromConnectionSecretKey
-		if pair.Name != nil {
-			key = *pair.Name
-		}
-		out[key] = secret.Data[pair.FromConnectionSecretKey]
-	}
-	return out, nil
-}
-
-// instanceReconciler reconciles the generic CRD that is generated via InfrastructureDefinition.
-type instanceReconciler struct {
-	client      resource.ClientApplicator // todo: only target reconciler needs this. use client.Client when you separate the two
-	newInstance func() instance.CompositionInstance
-	composition crComposition
+	// TODO(muvaf): Implement `Initializer` interface to be satisfied by both
+	// selector resolver and empty connection secret ref defaulter.
+	Resolver
 
 	log    logging.Logger
 	record event.Recorder
 }
 
 // Reconcile reconciles given custom resource.
-func (r *instanceReconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) { // nolint:gocyclo
+func (r *compositeReconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) { // nolint:gocyclo
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	cr := r.newInstance()
+	cr := r.newComposite()
 	if err := r.client.Get(ctx, req.NamespacedName, cr); err != nil {
-		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), "cannot get instance")
+		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), "cannot get composite resource")
 	}
 
-	if err := r.composition.ResolveSelector(ctx, cr); err != nil {
+	if meta.WasDeleted(cr) && len(cr.GetResourceReferences()) == 0 {
+		if err := r.finalizer.RemoveFinalizer(ctx, cr); err != nil {
+			return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), "cannot remove finalizer")
+		}
+		return reconcile.Result{}, nil
+	}
+
+	if err := r.ResolveSelector(ctx, cr); err != nil {
 		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(err, "cannot resolve composition selector")
 	}
-
+	// TODO(muvaf): We should lock the deletion of Composition via finalizer
+	// because its deletion will break the field propagation.
 	comp := &v1alpha1.Composition{}
 	if err := r.client.Get(ctx, meta.NamespacedNameOf(cr.GetCompositionReference()), comp); err != nil {
-		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(err, "cannot fetch the composition")
+		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(err, "cannot get the composition")
 	}
-	tr := &APITargetReconciler{
-		client:   r.client,
-		instance: cr,
+
+	if err := r.finalizer.AddFinalizer(ctx, cr); err != nil {
+		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(err, "cannot add finalizer")
 	}
-	refs := cr.GetResourceReferences()
-	for i, target := range comp.Spec.To {
-		ref := v1.ObjectReference{}
-		newRef := v1.ObjectReference{}
-		var err error
-		if len(refs) > i {
-			ref = refs[i]
-		}
-		newRef, err = tr.Apply(ctx, ref, target)
+
+	// We start with empty ObjectRefs and fill them up as they are provisioned.
+	refs := make([]v1.ObjectReference, len(comp.Spec.To))
+	copy(refs, cr.GetResourceReferences())
+	conn := managed.ConnectionDetails{}
+	for i, composedRef := range refs {
+		obs, err := r.composed.Reconcile(ctx, cr, composedRef, comp.Spec.To[i])
 		if err != nil {
-			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(err, "cannot reconcile one of the target resources")
+			return reconcile.Result{RequeueAfter: shortWait}, err
 		}
-		if len(refs) <= i {
-			refs = append(refs, newRef)
-		} else {
-			refs[i] = newRef
-		}
+		refs[i] = obs.Ref
 		cr.SetResourceReferences(refs)
 		if err := r.client.Update(ctx, cr); err != nil {
-			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(err, "cannot update instance cr")
+			return reconcile.Result{RequeueAfter: shortWait}, err
+		}
+		for key, val := range obs.ConnectionDetails {
+			conn[key] = val
 		}
 	}
-	cr.SetConditions(v1alpha12.ReconcileSuccess())
-	return reconcile.Result{RequeueAfter: longWait}, errors.Wrap(r.client.Status().Update(ctx, cr), "cannot update status of instance cr")
 
-	//conn := managed.ConnectionDetails{}
-	//for i, ref := range cr.GetResourceReferences() {
-	//	out, err := tr.GetConnectionDetails(ctx, ref, comp.Spec.To[i])
-	//	if err != nil {
-	//		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(err, "cannot get connection details")
-	//	}
-	//	for key, val := range out {
-	//		conn[key] = val
-	//	}
-	//}
+	if err := r.connection.PublishConnection(ctx, cr, conn); err != nil {
+		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(err, "cannot publish connection secret")
+	}
 
-	// generate actual CR
-	//   overlay patches to the base
-	// check relative index on spec ref. if it exists and same kind, add metadata. (array will have same order as composition)
-	// apply generated CR -> this will also retrieve it from api-server.
-	// write ref to instance spec if relative index is empty
-	// fetch the secret of CR, choose the given keys and return the values in a map.
-
-	// main reconciler will publish the keys to the instance secret.
+	cr.SetConditions(runtimev1alpha1.ReconcileSuccess())
+	return reconcile.Result{RequeueAfter: longWait}, errors.Wrap(r.client.Status().Update(ctx, cr), "cannot update status of composite resource")
 }
