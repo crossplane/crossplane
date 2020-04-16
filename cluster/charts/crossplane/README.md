@@ -6,11 +6,9 @@ resources and controllers needed to deploy and configure Crossplane.
 
 ## Pre-requisites
 
-* [Kubernetes cluster](https://kubernetes.io/docs/setup/)
-  * For example
-    [Minikube](https://kubernetes.io/docs/tasks/tools/install-minikube/),
-    minimum version `v0.28+`
-* [Helm](https://docs.helm.sh/using_helm/), minimum version `v2.12.0+`.
+* [Kubernetes cluster]
+  * For example [Minikube], minimum version `v0.28+`
+* [Helm], minimum version `v2.12.0+`.
   * For Helm 2, make sure Tiller is initialized with sufficient permissions to
     work on `crossplane-system` namespace.
 
@@ -350,3 +348,9 @@ image:
 imagePullSecrets:
 - dockerhub
 ```
+
+<!-- Named Links -->
+
+[Kubernetes cluster]: https://kubernetes.io/docs/setup/
+[Minikube]: https://kubernetes.io/docs/tasks/tools/install-minikube/
+[Helm]: https://docs.helm.sh/using_helm/
