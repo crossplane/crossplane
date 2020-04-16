@@ -50,4 +50,4 @@ You can now create a `KubernetesApplication` in the `cp-infra-ops` namespace and
 your remote cluster will be a scheduling option.
 
 <!-- Named Links -->
-[scheduling applications to remote clusters]: ../5_workload.md
+[scheduling applications to remote clusters]: ../workload.md

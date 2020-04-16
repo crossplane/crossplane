@@ -184,6 +184,6 @@ kubectl delete -f redis-cluster-dynamic.yaml
 
 <!-- Named Links -->
 
-[previous example]: 3_static.md
+[previous example]: static.md
 [cluster-scoped]: https://kubernetes.io/docs/tasks/access-kubernetes-api/custom-resources/custom-resource-definitions/#create-a-customresourcedefinition
-[next section]: 5_workload.md
+[next section]: workload.md

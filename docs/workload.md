@@ -341,4 +341,4 @@ kubectl delete -f k8s-cluster.yaml
 [EKS]: https://aws.amazon.com/eks/
 [AKS]: https://azure.microsoft.com/en-us/services/kubernetes-service/
 [kubeconfig]: https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/
-[infrastructure operator documentation]: 1_infra_operators/1_manually_adding_clusters.md
+[infrastructure operator documentation]: infra_operators/manually_adding_clusters.md

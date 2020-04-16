@@ -48,10 +48,10 @@ Crossplane is comprised of four main components:
 
 <!-- Named Links -->
 
-[infrastructure owners]: 1_infra_operators/0_overview.md
-[application owners]: 2_app_operators/0_overview.md
-[developers]: 3_developers/0_overview.md
-[installed]: 1_install.md
+[infrastructure owners]: infra_operators/overview.md
+[application owners]: app_operators/overview.md
+[developers]: developers/overview.md
+[installed]: install.md
 [Custom Resource Definitions]: https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/
 [reconciling]: https://kubernetes.io/docs/concepts/architecture/controller/
 [Google Cloud Platform]: https://github.com/crossplane/provider-gcp

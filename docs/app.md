@@ -201,9 +201,9 @@ kubectl delete -f my-gcp.yaml
 [Helm]: https://helm.sh/
 [Kustomize]: https://kustomize.io/
 [CustomResourceDefinition]: https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/
-[previous section]: 6_stack.md
-[infrastructure operators]: 1_infra_operators/3_packaging_a_stack.md
-[application operators]: 2_app_operators/1_packaging_an_app.md
-[Infrastructure Operators]: 1_infra_operators/1_installing_a_stack.md
-[Application Operators]: 2_app_operators/1_packaging_an_app.md
-[Developers]: 3_developers/1_requesting_infrastructure.md
+[previous section]: stack.md
+[infrastructure operators]: infra_operators/packaging_a_stack.md
+[application operators]: app_operators/packaging_an_app.md
+[Infrastructure Operators]: infra_operators/installing_a_stack.md
+[Application Operators]: app_operators/packaging_an_app.md
+[Developers]: developers/requesting_infrastructure.md

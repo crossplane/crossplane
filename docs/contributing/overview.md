@@ -17,6 +17,6 @@ documentation you would like to see in this section.
 
 <!-- Named Link -->
 
-[Services Developer Guide]: 1_services_developer_guide.md
-[Observability Developer Guide]: 2_observability_developer_guide.md
-[Troubleshoot]: 3_troubleshoot.md
+[Services Developer Guide]: services_developer_guide.md
+[Observability Developer Guide]: observability_developer_guide.md
+[Troubleshoot]: troubleshoot.md

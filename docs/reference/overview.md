@@ -14,6 +14,6 @@ The reference documentation includes answers to frequently asked questions, info
 
 <!-- Named Links -->
 
-[Frequently Asked Questions]: 1_faqs.md
-[Learn More]: 2_learn_more.md
-[Related Projects]: 3_related_projects.md
+[Frequently Asked Questions]: faqs.md
+[Learn More]: learn_more.md
+[Related Projects]: related_projects.md

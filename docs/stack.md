@@ -121,5 +121,5 @@ kubectl delete -f my-gcp.yaml
 
 [CustomResourceDefinition]: https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/
 [GCP Sample Stack]: https://github.com/crossplane/stack-gcp-sample
-[previous section]: 5_workload.md
-[next section]: 7_app.md
+[previous section]: workload.md
+[next section]: app.md
