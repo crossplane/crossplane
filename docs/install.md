@@ -298,16 +298,16 @@ and their default values.
 | `imagePullSecrets`               | Names of image pull secrets to use                              | `dockerhub`                                            |
 | `replicas`                       | The number of replicas to run for the Crossplane operator       | `1`                                                    |
 | `deploymentStrategy`             | The deployment strategy for the Crossplane operator             | `RollingUpdate`                                        |
-| `clusterStacks.aws.deploy`       | Deploy AWS stack                                                | `false`    
-| `clusterStacks.aws.version`      | AWS provider version to deploy                                     | `<latest released version>`   
-| `clusterStacks.gcp.deploy`       | Deploy GCP stack                                                | `false`    
-| `clusterStacks.gcp.version`      | GCP provider version to deploy                                     | `<latest released version>`   
-| `clusterStacks.azure.deploy`     | Deploy Azure stack                                              | `false`    
-| `clusterStacks.azure.version`    | Azure provider version to deploy                                   | `<latest released version>`   
-| `clusterStacks.rook.deploy`      | Deploy Rook stack                                               | `false`    
-| `clusterStacks.rook.version`     | Rook provider version to deploy                                    | `<latest released version>`   
-| `personas.deploy`                | Install roles and bindings for Crossplane user personas         | `true`     
-| `templateStacks.enabled`         | Enable experimental template stacks support                     | `true`     
+| `clusterStacks.aws.deploy`       | Deploy AWS stack                                                | `false`
+| `clusterStacks.aws.version`      | AWS provider version to deploy                                     | `<latest released version>`
+| `clusterStacks.gcp.deploy`       | Deploy GCP stack                                                | `false`
+| `clusterStacks.gcp.version`      | GCP provider version to deploy                                     | `<latest released version>`
+| `clusterStacks.azure.deploy`     | Deploy Azure stack                                              | `false`
+| `clusterStacks.azure.version`    | Azure provider version to deploy                                   | `<latest released version>`
+| `clusterStacks.rook.deploy`      | Deploy Rook stack                                               | `false`
+| `clusterStacks.rook.version`     | Rook provider version to deploy                                    | `<latest released version>`
+| `personas.deploy`                | Install roles and bindings for Crossplane user personas         | `true`
+| `templateStacks.enabled`         | Enable experimental template stacks support                     | `true`
 | `templateStacks.controllerImage` | Template Stack controller image                                 | `crossplane/templating-controller:v0.2.1`
 | `resourcesCrossplane.limits.cpu`        | CPU resource limits for Crossplane                       | `100m`
 | `resourcesCrossplane.limits.memory`     | Memory resource limits for Crossplane                    | `512Mi`
@@ -318,6 +318,7 @@ and their default values.
 | `resourcesStackManager.requests.cpu`    | CPU resource requests for StackManager                   | `100m`
 | `resourcesStackManager.requests.memory` | Memory resource requests for StackManager                | `256Mi`
 | `forceImagePullPolicy`           | Force the named ImagePullPolicy on Stack install and containers | ``
+| `restrictCoreApigroups`          | Enable API group restrictions for Stacks (e.g. when restricted, Stacks cannot use core Kubernetes types such as `Pod`) | `false` |
 
 ### Command Line
 
