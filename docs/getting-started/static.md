@@ -2,6 +2,7 @@
 title: Static Provisioning
 toc: true
 weight: 3
+indent: true
 ---
 
 # Static Provisioning

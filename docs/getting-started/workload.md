@@ -2,6 +2,7 @@
 title: Scheduling Workloads
 toc: true
 weight: 5
+indent: true
 ---
 
 # Scheduling Workloads to Remote Clusters
@@ -323,7 +324,7 @@ Events:      <none>
 > made possible by storing the base64 encoded `kubeconfig` data in a `Secret`,
 > then manually creating a `KubernetesTarget` to point at it. This is an
 > advanced workflow, and additional information can be found in the
-> [infrastructure operator documentation].*
+> [guide on manually adding clusters].*
 
 ## Clean Up
 
@@ -341,4 +342,4 @@ kubectl delete -f k8s-cluster.yaml
 [EKS]: https://aws.amazon.com/eks/
 [AKS]: https://azure.microsoft.com/en-us/services/kubernetes-service/
 [kubeconfig]: https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/
-[infrastructure operator documentation]: infra_operators/manually_adding_clusters.md
+[guide on manually adding clusters]: ../guides/manually_adding_clusters.md

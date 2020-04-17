@@ -10,8 +10,8 @@ features:
   Kubernetes API.
 - Management and scheduling of configuration data across multiple Kubernetes
   clusters.
-- Separation of concern between [infrastructure owners], [application owners],
-  and [developers].
+- Separation of concern between infrastructure owners, application owners, and
+  developers.
 - Infrastructure agnostic packaging of applications and their dependencies.
 - Scheduling applications into different clusters, zones, and regions.
 
@@ -48,10 +48,7 @@ Crossplane is comprised of four main components:
 
 <!-- Named Links -->
 
-[infrastructure owners]: infra_operators/overview.md
-[application owners]: app_operators/overview.md
-[developers]: developers/overview.md
-[installed]: install.md
+[installed]: getting-started/install.md
 [Custom Resource Definitions]: https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/
 [reconciling]: https://kubernetes.io/docs/concepts/architecture/controller/
 [Google Cloud Platform]: https://github.com/crossplane/provider-gcp

@@ -1,7 +1,7 @@
 ---
 title: Guides
 toc: true
-weight: 600
+weight: 200
 ---
 
 # Guides
