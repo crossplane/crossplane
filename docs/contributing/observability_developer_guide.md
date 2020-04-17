@@ -184,6 +184,8 @@ Keep the following in mind when using the above libraries:
 Finally, when in doubt, aim for consistency with existing Crossplane controller
 implementations.
 
+<!-- Named Links -->
+
 [not yet implemented]: https://github.com/crossplane/crossplane/issues/314
 [Events]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.16/#event-v1-core
 [debugging an application cluster]: https://kubernetes.io/docs/tasks/debug-application-cluster/

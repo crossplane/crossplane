@@ -15,27 +15,20 @@ Crossplane control cluster is configured.
 
 ## Deploying the Wordpress Application on GCP
 
-[Wordpress](https://wordpress.org/) is a relatively simple monolithic
-application that only requires compute to run its containerized binary and a
-connection to a MySQL database. Wordpress is typically installed in a Kubernetes
-cluster using its official [Helm
-chart](https://github.com/bitnami/charts/tree/master/bitnami/wordpress).
-Crossplane applications let you define your application using common
-configuration tools such as [Helm](https://helm.sh/) and
-[Kustomize](https://kustomize.io/), but represent them as a
-[CustomResourceDefinition](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/)
-in your cluster.
+[Wordpress] is a relatively simple monolithic application that only requires
+compute to run its containerized binary and a connection to a MySQL database.
+Wordpress is typically installed in a Kubernetes cluster using its official
+[Helm chart]. Crossplane applications let you define your application using
+common configuration tools such as [Helm] and [Kustomize], but represent them as
+a [CustomResourceDefinition] in your cluster.
 
 The steps for using a Crossplane application involve defining your
 infrastructure, installing the application, then creating an instance of that
-application. In the [previous section](6_stack.md), we completed the first step
-by creating our `GCPSample` instance. In contrast to the GCP provider and
-GCP sample stack, the Wordpress application will be installed with a
-`StackInstall` instead of a `ClusterStackInstall`. This means that the
-installation will only be available in the namespace that we specify. You can
-read more about the difference between the two in the [infrastructure
-operators](1_infra_operators/3_packaging_a_stack.md) and [application
-operators](2_app_operators/1_packaging_an_app.md) guides.
+application. In the [previous section], we completed the first step by creating
+our `GCPSample` instance. In contrast to the GCP provider and GCP sample stack,
+the Wordpress application will be installed with a `StackInstall` instead of a
+`ClusterStackInstall`. This means that the installation will only be available
+in the namespace that we specify.
 
 Create a file named `wordpress-install.yaml` with the following content:
 
@@ -56,13 +49,12 @@ kubectl apply -f wordpress-install.yaml
 ```
 
 We can now create Wordpress instances in the `crossplane-quickstart` namespace
-using a single
-[CustomResourceDefinition](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/).
-When we do, a `KubernetesCluster` claim and a `MySQLInstance` claim will be
-created in the namespace, as well as a `KubernetesApplication` that contains the
-Wordpress application components. The claims will be satisfied by the
-`GKEClusterClass` and `CloudSQLInstanceClass` we created in the [previous
-section](6_stack.md). Let's create a `WordpressInstance` and see what happens.
+using a single `CustomResourceDefinition`. When we do, a `KubernetesCluster`
+claim and a `MySQLInstance` claim will be created in the namespace, as well as a
+`KubernetesApplication` that contains the Wordpress application components. The
+claims will be satisfied by the `GKEClusterClass` and `CloudSQLInstanceClass` we
+created in the [previous section]. Let's create a `WordpressInstance` and see
+what happens.
 
 Create a file named `my-wordpress.yaml` with the following content:
 
@@ -187,9 +179,9 @@ Now you are familiar with **Providers**, **Stacks**, and **Applications**. The
 next step is to build and deploy your own. Take a look at the following guides
 to learn more:
 
-- [Infrastructure Operators](1_infra_operators/1_installing_a_stack.md)
-- [Application Operators](2_app_operators/1_packaging_an_app.md)
-- [Developers](3_developers/1_requesting_infrastructure.md)
+- [Infrastructure Operators]
+- [Application Operators]
+- [Developers]
 
 ## Clean Up
 
@@ -200,3 +192,15 @@ following commands:
 kubectl delete -f my-wordpress.yaml
 kubectl delete -f my-gcp.yaml
 ```
+
+<!-- Named Links -->
+
+[Wordpress]: https://wordpress.org/
+[Helm chart]: https://github.com/bitnami/charts/tree/master/bitnami/wordpress
+[Helm]: https://helm.sh/
+[Kustomize]: https://kustomize.io/
+[CustomResourceDefinition]: https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/
+[previous section]: stack.md
+[Infrastructure Operators]: infra_operators/overview.md
+[Application Operators]: app_operators/overview.md
+[Developers]: developers/overview.md

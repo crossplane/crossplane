@@ -123,6 +123,8 @@ provider.aws.crossplane.io/aws-provider created
 The `aws-provider` resource will be used in other resources that we will create,
 to provide access information to the configured AWS account.
 
+<!-- Named Links -->
+
 [`aws` command line tool]: https://aws.amazon.com/cli/
 [AWS SDK for GO]: https://docs.aws.amazon.com/sdk-for-go/v1/developer-guide/setting-up.html
 [installed]: https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html

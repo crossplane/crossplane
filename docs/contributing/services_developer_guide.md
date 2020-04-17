@@ -1118,6 +1118,8 @@ to [reach out] to the Crossplane maintainers and community for help designing
 and implementing support for new managed services. [#sig-services] would highly
 value any feedback you may have about the services development process!
 
+<!-- Named Links -->
+
 [What Makes a Crossplane Managed Service]: #what-makes-a-crossplane-managed-service
 [managed resource]: concepts.md#managed-resource
 [resource claim]: concepts.md#resource-claim

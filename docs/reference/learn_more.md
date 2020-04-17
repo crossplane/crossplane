@@ -34,5 +34,6 @@ If you have any questions, please drop us a note on [Crossplane Slack][join-cros
 - Email us: [info@crossplane.io](mailto:info@crossplane.io)
 
 <!-- Named links -->
+
 [join-crossplane-slack]: https://slack.crossplane.io
 [contact-us]: https://github.com/crossplane/crossplane#contact

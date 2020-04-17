@@ -10,15 +10,14 @@ indent: true
 In the quick start guide, we demonstrated how Wordpress can be installed as a
 Crossplane `Application`. Now we want to learn more about how to package any
 application in a similar fashion. The good news is that we can use common
-Kubernetes configuration tools, such as [Helm](https://helm.sh/) and
-[Kustomize](https://kustomize.io/), which you may already be familiar with.
+Kubernetes configuration tools, such as [Helm] and [Kustomize], which you may
+already be familiar with.
 
 ## Setting up a Repository
 
 The required components of an application repository are minimal. For example,
-the required components of the [Wordpress
-application](https://github.com/crossplane/app-wordpress) we deployed in the
-quick start are the following:
+the required components of the [Wordpress application] we deployed in the quick
+start are the following:
 
 ```
 ├── Dockerfile
@@ -138,9 +137,8 @@ license: Apache-2.0
 
 While the `app.yaml` is responsible for metadata, that `behavior.yaml` is
 responsible for operations. It is where you tell Crossplane how to create
-resources in the cluster when an instance of the
-[CustomResourceDefinition](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/)
-that represents your application is created. Take a look at the Wordpress
+resources in the cluster when an instance of the [CustomResourceDefinition] that
+represents your application is created. Take a look at the Wordpress
 `behavior.yaml` for reference:
 
 ```yaml
@@ -162,9 +160,8 @@ The `icon.svg` file is a logo for your application.
 The `resources/` directory contains the CustomResourceDefinition (CRD) that
 Crossplane watches to apply the configuration data you supply. For the Wordpress
 application, this is `wordpress.apps.crossplane.io_wordpressinstances.crd.yaml`.
-CRDs can be generated from `go` code using projects like
-[controller-tools](https://github.com/kubernetes-sigs/controller-tools), or can
-be written by hand. 
+CRDs can be generated from `go` code using projects like [controller-tools], or
+can be written by hand. 
 
 You can also supply metadata files for your CRD, which can be parsed by a user
 interface. The files must match the name of the CRD kind for your application:
@@ -174,9 +171,8 @@ interface. The files must match the name of the CRD kind for your application:
 - `<your-kind>.ui-schema.yaml`: the configurable fields on your CRD that you
   wish to be displayed in a UI
 
-Crossplane will take these files and apply them as
-[annotations](https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/)
-on the installed application. They can then be parsed by a user interface.
+Crossplane will take these files and apply them as [annotations] on the
+installed application. They can then be parsed by a user interface.
 
 ### Configuration Directory
 
@@ -191,3 +187,12 @@ in the directory should match the `engine` field in your
 CRD as variables in the manifests. For instance, the `provisionPolicy` field in
 the `spec` of the `WordpressInstance` CRD will be passed to the Helm chart
 defined in the `helm-chart/` directory.
+
+<!-- Named Links -->
+
+[Helm]: https://helm.sh/
+[Kustomize]: https://kustomize.io/
+[Wordpress application]: https://github.com/crossplane/app-wordpress
+[CustomResourceDefinition]: https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/
+[controller-tools]: https://github.com/kubernetes-sigs/controller-tools
+[annotations]: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
