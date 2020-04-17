@@ -13,10 +13,8 @@ documentation you would like to see in this section.
 
 1. [Services Developer Guide]
 2. [Observability Developer Guide]
-3. [Troubleshoot]
 
 <!-- Named Link -->
 
 [Services Developer Guide]: services_developer_guide.md
 [Observability Developer Guide]: observability_developer_guide.md
-[Troubleshoot]: troubleshoot.md

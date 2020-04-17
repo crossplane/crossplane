@@ -28,8 +28,7 @@ application. In the [previous section], we completed the first step by creating
 our `GCPSample` instance. In contrast to the GCP provider and GCP sample stack,
 the Wordpress application will be installed with a `StackInstall` instead of a
 `ClusterStackInstall`. This means that the installation will only be available
-in the namespace that we specify. You can read more about the difference between
-the two in the [infrastructure operators] and [application operators] guides.
+in the namespace that we specify.
 
 Create a file named `wordpress-install.yaml` with the following content:
 
@@ -202,8 +201,6 @@ kubectl delete -f my-gcp.yaml
 [Kustomize]: https://kustomize.io/
 [CustomResourceDefinition]: https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/
 [previous section]: stack.md
-[infrastructure operators]: infra_operators/packaging_a_stack.md
-[application operators]: app_operators/packaging_an_app.md
-[Infrastructure Operators]: infra_operators/installing_a_stack.md
-[Application Operators]: app_operators/packaging_an_app.md
-[Developers]: developers/requesting_infrastructure.md
+[Infrastructure Operators]: infra_operators/overview.md
+[Application Operators]: app_operators/overview.md
+[Developers]: developers/overview.md
