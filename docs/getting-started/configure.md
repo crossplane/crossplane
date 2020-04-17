@@ -2,6 +2,7 @@
 title: Configure
 toc: true
 weight: 2
+indent: true
 ---
 
 # Configure Your Cloud Provider Account
@@ -20,6 +21,6 @@ provisioning resources!
 
 <!-- Named Links -->
 
-[Google Cloud Platform (GCP) Service Account]: cloud-providers/gcp/gcp-provider.md
-[Microsoft Azure Service Principal]: cloud-providers/azure/azure-provider.md
-[Amazon Web Services (AWS) IAM User]: cloud-providers/aws/aws-provider.md
+[Google Cloud Platform (GCP) Service Account]: ../cloud-providers/gcp/gcp-provider.md
+[Microsoft Azure Service Principal]: ../cloud-providers/azure/azure-provider.md
+[Amazon Web Services (AWS) IAM User]: ../cloud-providers/aws/aws-provider.md

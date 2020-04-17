@@ -2,6 +2,7 @@
 title: Stacks
 toc: true
 weight: 6
+indent: true
 ---
 
 # Defining Infrastructure Environments with Stacks

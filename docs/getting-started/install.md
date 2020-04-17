@@ -2,6 +2,7 @@
 title: Install
 toc: true
 weight: 1
+indent: true
 ---
 
 # Install Crossplane

@@ -1,7 +1,7 @@
 ---
 title: Manually Adding Existing Kubernetes Clusters
 toc: true
-weight: 101
+weight: 201
 indent: true
 ---
 

@@ -1,7 +1,7 @@
 ---
 title: FAQs
 toc: true
-weight: 501
+weight: 301
 indent: true
 ---
 

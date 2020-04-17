@@ -2,6 +2,7 @@
 title: Applications
 toc: true
 weight: 7
+indent: true
 ---
 
 # From Workloads to Apps
@@ -176,12 +177,8 @@ Navigating to the address in your browser should take you to the Wordpress
 welcome page.
 
 Now you are familiar with **Providers**, **Stacks**, and **Applications**. The
-next step is to build and deploy your own. Take a look at the following guides
-to learn more:
-
-- [Infrastructure Operators]
-- [Application Operators]
-- [Developers]
+next step is to build and deploy your own. Take a look at some of our [guides]
+to learn more.
 
 ## Clean Up
 
@@ -201,6 +198,4 @@ kubectl delete -f my-gcp.yaml
 [Kustomize]: https://kustomize.io/
 [CustomResourceDefinition]: https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/
 [previous section]: stack.md
-[Infrastructure Operators]: infra_operators/overview.md
-[Application Operators]: app_operators/overview.md
-[Developers]: developers/overview.md
+[guides]: ../guides/guides.md
