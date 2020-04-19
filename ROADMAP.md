@@ -150,6 +150,7 @@ Any dates listed below and the specific issues that will ship in a given milesto
 ## [v0.7.0 Deploy Workloads to any Kubernetes Cluster, including bare-metal!](https://github.com/crossplane/crossplane/releases/tag/v0.7.0)
 * KubernetesTarget kind for scheduling KubernetesApplications [#859](https://github.com/crossplane/crossplane/issues/859)
 * Improved the UI schema for resources supported by Crossplane stacks [#38](https://github.com/upbound/crossplane-graphql/issues/38)
+* GCP networking resources to v1beta1 [crossplane/provider-gcp#131](https://github.com/crossplane/provider-gcp/issues/131)
 * GCP integration tests [crossplane/provider-gcp#87](https://github.com/crossplane/provider-gcp/issues/87)
 * Template Stacks (experimental): integrate template engine controllers with stack manager [#36](https://github.com/upbound/stacks-marketplace-squad/issues/36)
 
@@ -173,21 +174,65 @@ Any dates listed below and the specific issues that will ship in a given milesto
   - Ported [stack-minimal-gcp](https://github.com/crossplane/stack-minimal-gcp/pull/1) and [sample-stack-wordpress](https://github.com/crossplane/sample-stack-wordpress/pull/31) to use Template Stacks
   - Published [stack-minimal-gcp](https://hub.docker.com/r/crossplane/stack-minimal-gcp/tags) and [sample-stack-wordpress](https://hub.docker.com/r/crossplane/sample-stack-wordpress/tags) to https://hub.docker.com/u/crossplane
 
-## v0.9.0
-* Incorporate versioning and upgrade design feedback [#1160](https://github.com/crossplane/crossplane/issues/1160)
+## [v0.9.0 Providers, Stacks, Apps, Addons](https://github.com/crossplane/crossplane/releases/tag/v0.9.0)
 * Rename GitHub org from [crossplaneio](https://github.com/crossplaneio) to [crossplane](https://github.com/crossplane)
+* Docs overhaul (part 1/2) - https://crossplane.io/docs
+* New `packageType` options in `app.yaml`, including: `Provider`, `Stack`, `Application`, and `Addon` (#1348) plus repo name updates: [#1300](https://github.com/crossplane/crossplane/issues/1300)
+  - [provider-gcp](https://github.com/crossplane/provider-gcp)
+  - [provider-aws](https://github.com/crossplane/provider-aws)
+  - [provider-azure](https://github.com/crossplane/provider-azure)
+  - [stack-gcp-sample](https://github.com/crossplane/stack-gcp-sample)
+  - [stack-aws-sample](https://github.com/crossplane/stack-aws-sample)
+  - [stack-azure-sample](https://github.com/crossplane/stack-azure-sample)
+  - [app-wordpress](https://github.com/crossplane/app-wordpress)
+  - [addon-oam-kubernetes-remote](https://github.com/crossplane/addon-oam-kubernetes-remote)
+* Incorporate versioning and upgrade design feedback [#1160](https://github.com/crossplane/crossplane/issues/1160)
+* Support for NoSQL database claims. Providers may now offer managed services that can be bound to this claim type. [#1356](https://github.com/crossplane/crossplane/issues/1356)
+* `KubernetesApplication` now supports:
+   - updates propagated to objects in a remote Kubernetes cluster. [#1341 ](https://github.com/crossplane/crossplane/issues/1341)
+   - scheduling directly to a `KubernetesTarget` in the same namespace as a `KubernetesApplication`. [#1315 ](https://github.com/crossplane/crossplane/issues/1315 )
+* Experimental support for [OAM](https://oam.dev/) (Open Application Model) API types:
+  * Revised [Kubernetes-friendly OAM spec](https://github.com/oam-dev/spec/pull/304/files)
+  * OAM App Config Controller support [#1268](https://github.com/crossplane/crossplane/issues/1268)
+  * Enhance Crossplane to support a choice of local and remote workload scheduling
+* Security enhanced mode with `stack manage --restrict-core-apigroups`, which restricts packages from being installed with permissions on the core API group. [#1333 ](https://github.com/crossplane/crossplane/issues/1333)
+* Stacks Manager support for private repos and robot account credentials
+* Release process and efficiency improvements
+
+
+## v0.10.0
+* Backup/restore support - e.g. with Velero
+  - Allow a KubernetesApplication to be backed up and restored [crossplane#1382](https://crossplane/crossplane/issues/#1382)
+  - Allow connection secrets to be backed up and restored [crossplane-runtime#140](https://crossplane/crossplane-runtime/issues/#140)
+  - Support backup and restore of all GCP managed resources [provider-gcp#207](https://crossplane/provider-gcp/issues/#207)
+  - Support backup and restore of all Azure managed resources [provider-azure#128](https://crossplane/provider-azure/issues/#128)
+  - Support backup and restore of all AWS managed resources [provider-aws#181](https://crossplane/provider-gcp/issues/#181)
+  - Allow Stack, StackInstall, StackDefinition to be backed up and restored [crossplane#1389](https://crossplane/crossplane/issues/#1389)
+  - Backup and Restore doc [crossplane#1353](https://crossplane/crossplane/issues/#1353)
+
+* v1beta1 quality conformance doc [#933](https://github.com/crossplane/crossplane/issues/933)
+* v1beta1 quality for AWS API types  
+  - Networking and VPC [crossplane/provider-aws#145](https://github.com/crossplane/provider-aws/issues/145)
+
+* AWS Provider: additional API types [crossplane/provider-aws#149](https://github.com/crossplane/provider-aws/issues/149)
+  - DynamoDB [crossplane/provider-aws#147](https://github.com/crossplane/provider-aws/issues/147)
+  - SQS [crossplane/provider-aws#170](https://github.com/crossplane/provider-aws/issues/170)
+  - Cert Manager [crossplane/provider-aws#171](https://github.com/crossplane/provider-aws/issues/171)
+  - DNS [crossplane/provider-aws#172](https://github.com/crossplane/provider-aws/issues/172)
+
+* Basic versioning and upgrade support [#1334](https://github.com/crossplane/crossplane/issues/1334)
+
+* Resource composition - experimental MVP [#1343](https://github.com/crossplane/crossplane/issues/1343)
+
 * Experimental support for [OAM](https://oam.dev/) (Open Application Model) API types
   * Revised [Kubernetes-friendly OAM spec](https://github.com/oam-dev/spec/pull/304/files)
   * OAM App Config Controller support [#1268](https://github.com/crossplane/crossplane/issues/1268)
   * Enhance Crossplane to support a choice of local and remote workload scheduling
+  * OAM sample app: [crossplane/app-service-tracker](https://github.com/crossplane/app-service-tracker)
 
-* Template Stacks 
-  * hardening and UX refinements
-  * [stack-minimal-gcp](https://github.com/crossplane/stack-minimal-gcp) enhancements for clean delete
-  * port [stack-minimal-aws](https://github.com/crossplane/stack-minimal-aws) and [stack-minimal-azure](https://github.com/crossplane/stack-minimal-azure) to Template Stacks
-
-* Stacks Manager support for private repos and robot account credentials
-* Release process and efficiency improvements
+* Docs overhaul (part 2/2) - https://crossplane.io/docs
+  * Documentation (and diagrams) about data model in Crossplane (including both application and infrastructure)
+  * Updated docs sidebar
 
 ## Roadmap
 * Versioning and upgrade support [#879](https://github.com/crossplane/crossplane/issues/879) 
@@ -218,7 +263,7 @@ Any dates listed below and the specific issues that will ship in a given milesto
    * Upgrade other supported services to v1beta1 (e.g. Buckets, etc.)
    * Code generation of API types, controller scaffolding to further streamline additional services
    * GCP storage buckets to v1beta1 [crossplane/provider-gcp#130](https://github.com/crossplane/provider-gcp/issues/130)
-   * GCP networking resources to v1beta1 [crossplane/provider-gcp#131](https://github.com/crossplane/provider-gcp/issues/131)
+   * AWS S3 buckets [crossplane/provider-aws#99](https://github.com/crossplane/provider-aws/issues/99)
 
 * Expanded Rook support
   * Support additional Rook storage providers
