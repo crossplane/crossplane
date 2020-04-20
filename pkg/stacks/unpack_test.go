@@ -68,12 +68,10 @@ metadata:
     stacks.crossplane.io/icon-data-uri: data:image/svg+xml;base64,bW9jay1pY29uLWRhdGEtc3Zn
     stacks.crossplane.io/stack-title: Sample Crossplane Stack
     stacks.crossplane.io/ui-schema: |-
-      version: 0.5
       configSections:
       - title: group Title
         description: group Description
       ---
-      version: 0.5
       configSections:
       - title: sibling Title
         description: sibling Description
@@ -150,17 +148,14 @@ metadata:
     stacks.crossplane.io/resource-title-plural: Resources Title
     stacks.crossplane.io/stack-title: Sample Crossplane Stack
     stacks.crossplane.io/ui-schema: |-
-      version: 0.5
       configSections:
       - title: group Title
         description: group Description
       ---
-      version: 0.5
       configSections:
       - title: sibling Title
         description: sibling Description
       ---
-      version: 0.5
       configSections:
       - title: kind Title
         description: kind Description
@@ -198,7 +193,6 @@ metadata:
     stacks.crossplane.io/icon-data-uri: data:image/jpeg;base64,bW9jay1pY29uLWRhdGE=
     stacks.crossplane.io/stack-title: Sample Crossplane Stack
     stacks.crossplane.io/ui-schema: |-
-      version: 0.5
       configSections:
       - title: group Title
         description: group Description
@@ -368,12 +362,10 @@ metadata:
     stacks.crossplane.io/icon-data-uri: data:image/svg+xml;base64,bW9jay1pY29uLWRhdGEtc3Zn
     stacks.crossplane.io/stack-title: Sample Crossplane Stack
     stacks.crossplane.io/ui-schema: |-
-      version: 0.5
       configSections:
       - title: group Title
         description: group Description
       ---
-      version: 0.5
       configSections:
       - title: sibling Title
         description: sibling Description
@@ -450,17 +442,14 @@ metadata:
     stacks.crossplane.io/resource-title-plural: Resources Title
     stacks.crossplane.io/stack-title: Sample Crossplane Stack
     stacks.crossplane.io/ui-schema: |-
-      version: 0.5
       configSections:
       - title: group Title
         description: group Description
       ---
-      version: 0.5
       configSections:
       - title: sibling Title
         description: sibling Description
       ---
-      version: 0.5
       configSections:
       - title: kind Title
         description: kind Description
@@ -498,7 +487,6 @@ metadata:
     stacks.crossplane.io/icon-data-uri: data:image/jpeg;base64,bW9jay1pY29uLWRhdGE=
     stacks.crossplane.io/stack-title: Sample Crossplane Stack
     stacks.crossplane.io/ui-schema: |-
-      version: 0.5
       configSections:
       - title: group Title
         description: group Description
@@ -829,8 +817,7 @@ spec:
 }
 
 func simpleUIFile(name string) string {
-	return fmt.Sprintf(`version: 0.5
-configSections:
+	return fmt.Sprintf(`configSections:
 - title: %s Title
   description: %s Description
 `, name, name)

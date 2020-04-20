@@ -2,7 +2,12 @@
 
 * Owner: Steven Rathbauer ([@rathpc](https://github.com/rathpc))
 * Reviewers: Upbound Maintainers, Crossplane Maintainers
-* Status: Accepted, revision 1.0
+* Status: Accepted, revision 1.1
+
+## Revisions
+
+* 1.1 - Dan Mangum (@hasheddan)
+  * Removed references to `version` field in `ui-schema.yaml` required fields.
 
 ## Terms
 
@@ -29,7 +34,6 @@ OpenAPI v3
 Field | Description
 --- | ---
 `configSections` | An array of sections to display during the configuration of a resource. Each section should contain a `title` field, `items` field and optionally a `description` field.<br /><br />`title`: A string that labels the section.<br />`description`: A string which optionally provides additional details, instructions or context around the section.<br />`items`: An array of item objects to display within the section. [See below for details on currently supported items](#supportedItems).
-`version` | A number formatted per semantic versioning spec <https://semver.org/> for the version of the `ui-schema.yaml` file. This should be updated whenever the `ui-schema.yaml` file is updated.<br /><br />**Example**:<br />`0.1.0`
 
 ### Optional Fields
 
