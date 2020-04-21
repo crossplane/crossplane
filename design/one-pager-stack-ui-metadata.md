@@ -2,7 +2,12 @@
 
 * Owner: Steven Rathbauer ([@rathpc](https://github.com/rathpc)), Marques Johansson ([@displague](https://github.com/displague))
 * Reviewers: Crossplane Maintainers
-* Status: Draft, revision 1.0
+* Status: Draft, revision 1.1
+
+## Revisions
+
+* 1.1 - Dan Mangum (@hasheddan)
+  * Removed references to `version` field in `ui-schema.yaml` required fields.
 
 ## Terms
 
@@ -101,7 +106,6 @@ This file contains multiple sections and a variety of different input types with
 validation and custom error messages.
 
 ```yaml
-version: 0.5
 configSections:
 - title: Configuration
   description: Enter information specific to the configuration you wish to create.
@@ -151,7 +155,6 @@ An example injection of the `ui-schema.yaml` as a CRD annotation follows. Keep i
 limited to 256kb (less in older versions).
 
 ```yaml
-version: 0.5
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
@@ -159,7 +162,6 @@ metadata:
   annotations:
     stacks.crossplane.io/ui-schema: |-
       ---
-      version: 0.5
       configSections:
       - title: Configuration
         description: Enter information specific to the configuration you wish to create.
@@ -203,7 +205,6 @@ metadata:
           - required: true
             customError: You must select an instance size for your configuration!
       ---
-      version: 0.5
       configSections:
       - title: Supplementary
         description: A supplementary UI annotation
