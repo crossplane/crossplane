@@ -17,7 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"fmt"
+	"github.com/pkg/errors"
 
 	"github.com/ghodss/yaml"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
@@ -190,11 +190,13 @@ const (
 // NOTE(muvaf): We use v1beta1.CustomResourceDefinition for backward compatibility
 // with clusters pre-1.16
 
-// TODO(muvaf): There can be 2 base CRD YAMLs for infra and app and they can be
-// generated during build time and read in runtime.
+// TODO(muvaf): Every field on top level spec could be a DefinitionOption that is
+// reused, although it is known that only two different kinds will be generated.
+
+type DefinitionOption func(*v1beta1.CustomResourceDefinition) error
 
 // BaseCRD returns a base template for generating a CRD.
-func BaseCRD(opts ...func(*v1beta1.CustomResourceDefinition)) *v1beta1.CustomResourceDefinition {
+func BaseCRD(opts ...DefinitionOption) (*v1beta1.CustomResourceDefinition, error) {
 	falseVal := false
 	// TODO(muvaf): Add proper descriptions.
 	crd := &v1beta1.CustomResourceDefinition{
@@ -232,28 +234,28 @@ func BaseCRD(opts ...func(*v1beta1.CustomResourceDefinition)) *v1beta1.CustomRes
 		},
 	}
 	for _, f := range opts {
-		f(crd)
+		if err := f(crd); err != nil {
+			return nil, err
+		}
 	}
-	return crd
+	return crd, nil
 }
 
 // InfraValidation returns a CRDOption that adds infrastructure related fields
 // to the base CRD.
-func InfraValidation() func(*v1beta1.CustomResourceDefinition) {
-	return func(crd *v1beta1.CustomResourceDefinition) {
+func InfraValidation() DefinitionOption {
+	return func(crd *v1beta1.CustomResourceDefinition) error {
 		crd.Spec.Scope = v1beta1.ClusterScoped
 		spec := &map[string]v1beta1.JSONSchemaProps{}
 		if err := yaml.Unmarshal([]byte(InfraCompositeSpecProps), spec); err != nil {
-			// TODO(muvaf): never panic.
-			panic(fmt.Sprintf("constant string could not be parsed: %s", err.Error()))
+			return errors.Wrap(err, "constant string could not be parsed")
 		}
 		for k, v := range *spec {
 			crd.Spec.Validation.OpenAPIV3Schema.Properties["spec"].Properties[k] = v
 		}
 		status := &map[string]v1beta1.JSONSchemaProps{}
 		if err := yaml.Unmarshal([]byte(InfraCompositeStatusProps), status); err != nil {
-			// TODO(muvaf): never panic.
-			panic(fmt.Sprintf("constant string could not be parsed: %s", err.Error()))
+			return errors.Wrap(err, "constant string could not be parsed")
 		}
 		for k, v := range *status {
 			crd.Spec.Validation.OpenAPIV3Schema.Properties["status"].Properties[k] = v

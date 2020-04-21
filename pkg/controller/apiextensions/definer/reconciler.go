@@ -35,6 +35,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 	"github.com/crossplane/crossplane/pkg/controller/apiextensions/composite"
@@ -82,7 +83,7 @@ func Setup(mgr ctrl.Manager, log logging.Logger) error {
 
 // NewReconciler returns a new *reconciler.
 func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) reconcile.Reconciler {
-	kube := composite.NewClientForUnregistered(mgr.GetClient())
+	kube := unstructured.NewClient(mgr.GetClient())
 	newDefinerFn := func() Definer { return &v1alpha1.InfrastructureDefinition{} }
 	r := &reconciler{
 		client:     kube,
@@ -234,7 +235,7 @@ func (r *reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		if !allGone {
 			log.Debug(waitingInstanceDeletion, "info", err)
 			definer.Status.SetConditions(runtimev1alpha1.ReconcileSuccess().WithMessage(waitingInstanceDeletion))
-			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, definer), errUpdateInfraDefStatus)
+			return reconcile.Result{RequeueAfter: 3 * time.Second}, errors.Wrap(r.client.Status().Update(ctx, definer), errUpdateInfraDefStatus)
 		}
 		// Controller should be stopped before the deletion of CRD so that it
 		// doesn't crash.

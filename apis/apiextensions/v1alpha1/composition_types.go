@@ -105,7 +105,7 @@ type Patch struct {
 func (c *Patch) Patch(from, to runtime.Object) error {
 	var fromMap map[string]interface{}
 	switch u := from.(type) {
-	case runtime.Unstructured:
+	case interface{ UnstructuredContent() map[string]interface{} }:
 		fromMap = u.UnstructuredContent()
 	default:
 		obj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(from)
@@ -114,8 +114,8 @@ func (c *Patch) Patch(from, to runtime.Object) error {
 		}
 		fromMap = obj
 	}
-	fromPaved := fieldpath.Pave(fromMap)
-	in, err := fromPaved.GetValue(c.FromFieldPath)
+
+	in, err := fieldpath.Pave(fromMap).GetValue(c.FromFieldPath)
 	if err != nil {
 		return err
 	}
@@ -126,17 +126,20 @@ func (c *Patch) Patch(from, to runtime.Object) error {
 			return errors.Wrap(err, errTransformAtIndex(i))
 		}
 	}
-	if u, ok := to.(runtime.Unstructured); ok {
+
+	switch u := to.(type) {
+	case interface{ UnstructuredContent() map[string]interface{} }:
 		return fieldpath.Pave(u.UnstructuredContent()).SetValue(c.ToFieldPath, out)
+	default:
+		toMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(to)
+		if err != nil {
+			return err
+		}
+		if err := fieldpath.Pave(toMap).SetValue(c.ToFieldPath, out); err != nil {
+			return err
+		}
+		return runtime.DefaultUnstructuredConverter.FromUnstructured(toMap, to)
 	}
-	toMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(to)
-	if err != nil {
-		return err
-	}
-	if err := fieldpath.Pave(toMap).SetValue(c.ToFieldPath, out); err != nil {
-		return err
-	}
-	return runtime.DefaultUnstructuredConverter.FromUnstructured(toMap, to)
 }
 
 // Transform is a unit of process whose input is transformed into an output with

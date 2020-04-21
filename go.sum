@@ -307,8 +307,8 @@ github.com/modern-go/reflect2 v1.0.1 h1:9f412s+6RmYXLWZSEzVVgPGK7C2PphHj5RJrvfx9
 github.com/modern-go/reflect2 v1.0.1/go.mod h1:bx2lNnkwVCuqBIxFjflWJWanXIb3RllmbCylyMrvgv0=
 github.com/munnerz/goautoneg v0.0.0-20120707110453-a547fc61f48d/go.mod h1:+n7T8mK8HuQTcFwEeznm/DIxMOiR9yIdICNftLE1DvQ=
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822/go.mod h1:+n7T8mK8HuQTcFwEeznm/DIxMOiR9yIdICNftLE1DvQ=
-github.com/muvaf/crossplane-runtime v0.0.0-20200421001124-4a7ece2ff53b h1:nEGxXms83ArRimEDoT9BEnkowQzxsICAZla6IR4JWpQ=
-github.com/muvaf/crossplane-runtime v0.0.0-20200421001124-4a7ece2ff53b/go.mod h1:e12p4X6dbtqd9GOnph78Epd6aezyvmcMM1+6aQy3VzY=
+github.com/muvaf/crossplane-runtime v0.0.0-20200421144204-9357d0ab18fa h1:Lzuk0hVIn6KYCcCZAmnX12N7nMuVlz0jjFD+HsK375I=
+github.com/muvaf/crossplane-runtime v0.0.0-20200421144204-9357d0ab18fa/go.mod h1:e12p4X6dbtqd9GOnph78Epd6aezyvmcMM1+6aQy3VzY=
 github.com/mwitkow/go-conntrack v0.0.0-20161129095857-cc309e4a2223/go.mod h1:qRWi+5nqEBWmkhHvq77mSJWrCKwh8bxhgT7d/eI7P4U=
 github.com/mxk/go-flowrate v0.0.0-20140419014527-cca7078d478f h1:y5//uYreIhSUg3J1GEMiLbxo1LJaP8RfCpH6pymGZus=
 github.com/mxk/go-flowrate v0.0.0-20140419014527-cca7078d478f/go.mod h1:ZdcZmHo+o7JKHSa8/e818NopupXU1YMK5fe1lsApnBw=

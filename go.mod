@@ -4,7 +4,7 @@ go 1.13
 
 replace sigs.k8s.io/controller-runtime => github.com/negz/controller-runtime v0.5.1-0.20200326231846-15460aedd9b7
 
-replace github.com/crossplane/crossplane-runtime => github.com/muvaf/crossplane-runtime v0.0.0-20200421001124-4a7ece2ff53b
+replace github.com/crossplane/crossplane-runtime => github.com/muvaf/crossplane-runtime v0.0.0-20200421144204-9357d0ab18fa
 
 require (
 	github.com/crossplane/crossplane-runtime v0.7.1-0.20200421211018-be37c50cc2ab

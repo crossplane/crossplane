@@ -52,7 +52,7 @@ type ConnectionSecretFilterer interface {
 }
 
 // A ConnectionPublisher manages the supplied ConnectionDetails for the
-// supplied resource. ManagedPublishers must handle the case in which
+// supplied resource. Publishers must handle the case in which
 // the supplied ConnectionDetails are empty.
 type ConnectionPublisher interface {
 	// PublishConnection details for the supplied resource. Publishing
@@ -67,7 +67,7 @@ type ConnectionPublisher interface {
 // NewCompositeReconciler returns a new *compositeReconciler.
 func NewCompositeReconciler(name string, mgr manager.Manager, gvk schema.GroupVersionKind, log logging.Logger, filterer ConnectionSecretFilterer) reconcile.Reconciler {
 	nc := func() resource.Composite { return unstructured.NewComposite(unstructured.WithGroupVersionKind(gvk)) }
-	kube := NewClientForUnregistered(mgr.GetClient())
+	kube := unstructured.NewClient(mgr.GetClient())
 
 	return &compositeReconciler{
 		client:       kube,
