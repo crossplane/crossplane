@@ -14,11 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package composed
+package composite
 
 import (
 	"context"
 	"fmt"
+
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
@@ -32,7 +34,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
-	"github.com/crossplane/crossplane/pkg/controller/apiextensions/composed/api"
 )
 
 // Observation is the result of composed reconciliation.
@@ -58,28 +59,28 @@ type APIComposedReconciler struct {
 
 // Reconcile tries to bring the composed resource into the desired state. It
 // creates the resource if the given reference is empty.
-func (r *APIComposedReconciler) Reconcile(ctx context.Context, cr Composite, composedRef v1.ObjectReference, tmpl v1alpha1.ComposedTemplate) (Observation, error) {
+func (r *APIComposedReconciler) Reconcile(ctx context.Context, cr resource.Composite, composedRef v1.ObjectReference, tmpl v1alpha1.ComposedTemplate) (Observation, error) {
 	// Deletion of the composite resource has been triggered. We make deletion
 	// the deletion call and report back success only if the call returns NotFound.
 	if meta.WasDeleted(cr) {
 		if composedRef.Name == "" {
 			return Observation{}, nil
 		}
-		err := r.client.Delete(ctx, api.NewComposableResource(api.FromReference(composedRef)))
+		err := r.client.Delete(ctx, unstructured.NewComposed(unstructured.FromReference(composedRef)))
 		if resource.IgnoreNotFound(err) != nil {
 			return Observation{}, err
 		}
 		return Observation{}, nil
 	}
 
-	var composed Composable
+	var composed resource.Composable
 	if composedRef.Name == "" {
-		composed = api.NewComposableResource()
+		composed = unstructured.NewComposed()
 		if err := r.Configure(cr, composed, tmpl); err != nil {
 			return Observation{}, err
 		}
 	} else {
-		composed = api.NewComposableResource(api.FromReference(composedRef))
+		composed = unstructured.NewComposed(unstructured.FromReference(composedRef))
 		if err := r.client.Get(ctx, types.NamespacedName{Name: composed.GetName(), Namespace: composed.GetNamespace()}, composed); err != nil {
 			return Observation{}, err
 		}

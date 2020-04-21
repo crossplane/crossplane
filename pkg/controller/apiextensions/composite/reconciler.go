@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package composed
+package composite
 
 import (
 	"context"
@@ -33,9 +33,9 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
-	"github.com/crossplane/crossplane/pkg/controller/apiextensions/composed/api"
 )
 
 const (
@@ -66,7 +66,7 @@ type ConnectionPublisher interface {
 
 // NewCompositeReconciler returns a new *compositeReconciler.
 func NewCompositeReconciler(name string, mgr manager.Manager, gvk schema.GroupVersionKind, log logging.Logger, filterer ConnectionSecretFilterer) reconcile.Reconciler {
-	nc := func() Composite { return api.NewCompositeResource(api.WithGroupVersionKind(gvk)) }
+	nc := func() resource.Composite { return unstructured.NewComposite(unstructured.WithGroupVersionKind(gvk)) }
 	kube := NewClientForUnregistered(mgr.GetClient())
 
 	return &compositeReconciler{
@@ -83,18 +83,18 @@ func NewCompositeReconciler(name string, mgr manager.Manager, gvk schema.GroupVe
 
 // ComposableReconciler is able to reconcile a member of the composite resource.
 type ComposableReconciler interface {
-	Reconcile(ctx context.Context, cr Composite, composedRef v1.ObjectReference, tmpl v1alpha1.ComposedTemplate) (Observation, error)
+	Reconcile(ctx context.Context, cr resource.Composite, composedRef v1.ObjectReference, tmpl v1alpha1.ComposedTemplate) (Observation, error)
 }
 
 // Resolver selects the composition reference with the information given as selector.
 type Resolver interface {
-	ResolveSelector(ctx context.Context, cr Composite) error
+	ResolveSelector(ctx context.Context, cr resource.Composite) error
 }
 
 // compositeReconciler reconciles the generic CRD that is generated via InfrastructureDefinition.
 type compositeReconciler struct {
 	client       client.Client
-	newComposite func() Composite
+	newComposite func() resource.Composite
 	composed     ComposableReconciler
 	connection   ConnectionPublisher
 	finalizer    resource.Finalizer

@@ -37,7 +37,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
-	"github.com/crossplane/crossplane/pkg/controller/apiextensions/composed"
+	"github.com/crossplane/crossplane/pkg/controller/apiextensions/composite"
 )
 
 const (
@@ -82,7 +82,7 @@ func Setup(mgr ctrl.Manager, log logging.Logger) error {
 
 // NewReconciler returns a new *reconciler.
 func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) reconcile.Reconciler {
-	kube := composed.NewClientForUnregistered(mgr.GetClient())
+	kube := composite.NewClientForUnregistered(mgr.GetClient())
 	newDefinerFn := func() Definer { return &v1alpha1.InfrastructureDefinition{} }
 	r := &reconciler{
 		client:     kube,
@@ -99,7 +99,7 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) reconcile.Reco
 	}
 	// TODO(muvaf): we don't have a use case but it'd be consistent if we allowed
 	// different controller engines to be configured via ReconcilerOption.
-	r.ctrl = composed.NewControllerEngine(mgr, r.log)
+	r.ctrl = composite.NewControllerEngine(mgr, r.log)
 	return r
 }
 
@@ -128,7 +128,7 @@ func WithRecorder(recorder event.Recorder) ReconcilerOption {
 type reconciler struct {
 	client client.Client
 	mgr    manager.Manager
-	ctrl   *composed.ControllerEngine
+	ctrl   *composite.ControllerEngine
 	resource.Finalizer
 	crd        Client
 	newDefiner func() Definer
@@ -193,7 +193,7 @@ func (r *reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 		// We know that CRD is ready and we are in control of it. So, we'll spin up
 		// an instance controller to reconcile it.
-		reconciler := composed.NewCompositeReconciler(definer.GetCRDName(), r.mgr, definer.GetCRDGroupVersionKind(), r.log, definer)
+		reconciler := composite.NewCompositeReconciler(definer.GetCRDName(), r.mgr, definer.GetCRDGroupVersionKind(), r.log, definer)
 		if err := r.ctrl.Start(definer.GetCRDName(), definer.GetCRDGroupVersionKind(), reconciler); err != nil {
 			log.Debug(errCannotStartController, "error", err)
 			definer.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errCannotStartController)))

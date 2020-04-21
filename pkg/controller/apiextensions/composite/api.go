@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package composed
+package composite
 
 import (
 	"context"
@@ -90,7 +90,7 @@ type SelectorResolver struct {
 }
 
 // ResolveSelector resolves selector to a reference if it doesn't exist.
-func (r *SelectorResolver) ResolveSelector(ctx context.Context, cr Composite) error {
+func (r *SelectorResolver) ResolveSelector(ctx context.Context, cr resource.Composite) error {
 	if cr.GetCompositionReference() != nil {
 		return nil
 	}
