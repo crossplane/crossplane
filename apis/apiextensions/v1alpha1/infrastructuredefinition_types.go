@@ -94,7 +94,10 @@ func (in *InfrastructureDefinition) GenerateCRD() (*v1beta1.CustomResourceDefini
 	if err != nil {
 		return nil, errors.Wrap(err, errConvertCRDTemplate)
 	}
-	base := BaseCRD(InfraValidation())
+	base, err := BaseCRD(InfraValidation())
+	if err != nil {
+		return nil, err
+	}
 	base.SetName(in.GetName())
 	base.Spec.Group = crdSpec.Group
 	base.Spec.Version = crdSpec.Version
@@ -102,6 +105,8 @@ func (in *InfrastructureDefinition) GenerateCRD() (*v1beta1.CustomResourceDefini
 	base.Spec.Names = crdSpec.Names
 	base.Spec.AdditionalPrinterColumns = crdSpec.AdditionalPrinterColumns
 	base.Spec.Conversion = crdSpec.Conversion
+	base.SetLabels(in.GetLabels())
+	base.SetAnnotations(in.GetAnnotations())
 	for k, v := range getSpecProps(*crdSpec) {
 		base.Spec.Validation.OpenAPIV3Schema.Properties["spec"].Properties[k] = v
 	}

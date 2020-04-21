@@ -193,10 +193,8 @@ const (
 // TODO(muvaf): Every field on top level spec could be a DefinitionOption that is
 // reused, although it is known that only two different kinds will be generated.
 
-type DefinitionOption func(*v1beta1.CustomResourceDefinition) error
-
 // BaseCRD returns a base template for generating a CRD.
-func BaseCRD(opts ...DefinitionOption) (*v1beta1.CustomResourceDefinition, error) {
+func BaseCRD(opts ...func(*v1beta1.CustomResourceDefinition) error) (*v1beta1.CustomResourceDefinition, error) {
 	falseVal := false
 	// TODO(muvaf): Add proper descriptions.
 	crd := &v1beta1.CustomResourceDefinition{
@@ -243,7 +241,7 @@ func BaseCRD(opts ...DefinitionOption) (*v1beta1.CustomResourceDefinition, error
 
 // InfraValidation returns a CRDOption that adds infrastructure related fields
 // to the base CRD.
-func InfraValidation() DefinitionOption {
+func InfraValidation() func(*v1beta1.CustomResourceDefinition) error {
 	return func(crd *v1beta1.CustomResourceDefinition) error {
 		crd.Spec.Scope = v1beta1.ClusterScoped
 		spec := &map[string]v1beta1.JSONSchemaProps{}
@@ -260,6 +258,7 @@ func InfraValidation() DefinitionOption {
 		for k, v := range *status {
 			crd.Spec.Validation.OpenAPIV3Schema.Properties["status"].Properties[k] = v
 		}
+		return nil
 	}
 }
 

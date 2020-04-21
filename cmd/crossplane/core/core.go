@@ -62,7 +62,7 @@ func (c *Command) Run(log logging.Logger) error {
 	}
 
 	if err := crds.AddToScheme(mgr.GetScheme()); err != nil {
-		return errors.Wrap(err, "Cannot add Kubernetes APIs to scheme")
+		return errors.Wrap(err, "Cannot add CustomResourceDefinition API to scheme")
 	}
 
 	if err := apis.AddToScheme(mgr.GetScheme()); err != nil {

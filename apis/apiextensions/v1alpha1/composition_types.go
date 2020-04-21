@@ -121,25 +121,23 @@ func (c *Patch) Patch(from, to runtime.Object) error {
 	}
 	out := in
 	for i, f := range c.Transforms {
-		out, err = f.Transform(out)
-		if err != nil {
+		if out, err = f.Transform(out); err != nil {
 			return errors.Wrap(err, errTransformAtIndex(i))
 		}
 	}
 
-	switch u := to.(type) {
-	case interface{ UnstructuredContent() map[string]interface{} }:
+	if u, ok := to.(interface{ UnstructuredContent() map[string]interface{} }); ok {
 		return fieldpath.Pave(u.UnstructuredContent()).SetValue(c.ToFieldPath, out)
-	default:
-		toMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(to)
-		if err != nil {
-			return err
-		}
-		if err := fieldpath.Pave(toMap).SetValue(c.ToFieldPath, out); err != nil {
-			return err
-		}
-		return runtime.DefaultUnstructuredConverter.FromUnstructured(toMap, to)
 	}
+
+	toMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(to)
+	if err != nil {
+		return err
+	}
+	if err := fieldpath.Pave(toMap).SetValue(c.ToFieldPath, out); err != nil {
+		return err
+	}
+	return runtime.DefaultUnstructuredConverter.FromUnstructured(toMap, to)
 }
 
 // Transform is a unit of process whose input is transformed into an output with

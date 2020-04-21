@@ -109,7 +109,7 @@ func (r *SelectorResolver) ResolveSelector(ctx context.Context, cr resource.Comp
 	var chosen *v1alpha1.Composition
 	for _, comp := range list.Items {
 		if comp.Spec.From.APIVersion == apiVersion && comp.Spec.From.Kind == kind {
-			chosen = &comp
+			chosen = comp.DeepCopy()
 			break
 		}
 	}
