@@ -105,8 +105,19 @@ func (r *SelectorResolver) ResolveSelector(ctx context.Context, cr resource.Comp
 	if len(list.Items) == 0 {
 		return errors.New("no composition has been found that has the given labels")
 	}
+	apiVersion, kind := cr.GetObjectKind().GroupVersionKind().ToAPIVersionAndKind()
+	var chosen *v1alpha1.Composition
+	for _, comp := range list.Items {
+		if comp.Spec.From.APIVersion == apiVersion && comp.Spec.From.Kind == kind {
+			chosen = &comp
+			break
+		}
+	}
+	if chosen == nil {
+		return errors.New("no compatible composition has been found that has the given labels")
+	}
 	// TODO(muvaf): need to block the deletion of composition via finalizer once it's selected since it's integral to this resource.
 	// TODO(muvaf): We don't rely on UID in practice. It should not be there because it will make confusion if the resource is backed up and restored to another cluster
-	cr.SetCompositionReference(meta.ReferenceTo(&list.Items[0], v1alpha1.CompositionGroupVersionKind))
+	cr.SetCompositionReference(meta.ReferenceTo(chosen, v1alpha1.CompositionGroupVersionKind))
 	return r.client.Update(ctx, cr)
 }
