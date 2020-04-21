@@ -39,6 +39,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
+	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane/apis/stacks/v1alpha1"
 	"github.com/crossplane/crossplane/pkg/stacks"
 )
@@ -328,7 +329,7 @@ func (jc *stackInstallJobCompleter) replaceCRD(ctx context.Context, obj *unstruc
 	meta.AddLabels(obj, existing.GetLabels())
 	meta.AddAnnotations(obj, existing.GetAnnotations())
 
-	return jc.client.Update(ctx, obj)
+	return resource.NewAPIPatchingApplicator(jc.client).Apply(ctx, obj)
 }
 
 // TODO(displague) this is copied from stacks. centralize.
