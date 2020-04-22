@@ -122,14 +122,20 @@ resourceRefs:
     - name
   type: array
 writeConnectionSecretToRef:
-  description: WriteConnectionSecretsToNamespace specifies the namespace
-    in which the connection secret of the composite resource will be created.
+  description: WriteConnectionSecretToReference specifies the namespace and name of a
+    Secret to which any connection details for this composite resource should
+    be written. Connection details frequently include the endpoint, username,
+    and password required to connect to the resource.
   properties:
     name:
       description: Name of the secret.
       type: string
+    namespace:
+      description: Name of the secret.
+      type: string
   required:
   - name
+  - namespace
   type: object
 `
 

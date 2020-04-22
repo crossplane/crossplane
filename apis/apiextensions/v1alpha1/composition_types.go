@@ -53,6 +53,23 @@ type CompositionSpec struct {
 
 	// To is the list of target resources that make up the composition.
 	To []ComposedTemplate `json:"to"`
+
+	// ReclaimPolicy specifies what will happen to composite resource dynamically
+	// provisioned using this composition when their namespaced referrer is deleted.
+	// The "Delete" policy causes the composite resource to be deleted
+	// when its namespaced referrer is deleted. The "Retain" policy causes
+	// the composite resource to be retained, in binding phase
+	// "Released", when its namespaced referrer is deleted.
+	// The "Retain" policy is used when no policy is specified, however the
+	// "Delete" policy is set at dynamic provisioning time if no policy is set.
+	// +optional
+	// +kubebuilder:validation:Enum=Retain;Delete
+	ReclaimPolicy v1alpha1.ReclaimPolicy `json:"reclaimPolicy,omitempty"`
+
+	// WriteConnectionSecretsToNamespace specifies the namespace in which the
+	// connection secrets of composite resource dynamically provisioned using
+	// this composition will be created.
+	WriteConnectionSecretsToNamespace string `json:"writeConnectionSecretsToNamespace"`
 }
 
 // TypeReference is used to refer to a type for declaring compatibility.

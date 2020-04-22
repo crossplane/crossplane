@@ -30,7 +30,6 @@ import (
 
 	"github.com/crossplane/crossplane/apis"
 	"github.com/crossplane/crossplane/pkg/controller/apiextensions/definition"
-	"github.com/crossplane/crossplane/pkg/controller/oam"
 	"github.com/crossplane/crossplane/pkg/controller/workload"
 )
 

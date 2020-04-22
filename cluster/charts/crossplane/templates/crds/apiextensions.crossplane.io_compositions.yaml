@@ -56,6 +56,19 @@ spec:
               - apiVersion
               - kind
               type: object
+            reclaimPolicy:
+              description: ReclaimPolicy specifies what will happen to composite resource
+                dynamically provisioned using this composition when their namespaced
+                referrer is deleted. The "Delete" policy causes the composite resource
+                to be deleted when its namespaced referrer is deleted. The "Retain"
+                policy causes the composite resource to be retained, in binding phase
+                "Released", when its namespaced referrer is deleted. The "Retain"
+                policy is used when no policy is specified, however the "Delete" policy
+                is set at dynamic provisioning time if no policy is set.
+              enum:
+              - Retain
+              - Delete
+              type: string
             to:
               description: To is the list of target resources that make up the composition.
               items:
@@ -143,9 +156,15 @@ spec:
                 - base
                 type: object
               type: array
+            writeConnectionSecretsToNamespace:
+              description: WriteConnectionSecretsToNamespace specifies the namespace
+                in which the connection secrets of composite resource dynamically
+                provisioned using this composition will be created.
+              type: string
           required:
           - from
           - to
+          - writeConnectionSecretsToNamespace
           type: object
         status:
           description: CompositionStatus shows the observed state of the composition.

@@ -119,7 +119,7 @@ func (r *APIComposedReconciler) Overlay(composite, composed resource.Object, pat
 			return errors.Wrap(err, fmt.Sprintf("cannot apply the patch at index %d on result", i))
 		}
 	}
-	err := meta.AddControllerReference(composed, meta.AsOwner(meta.ReferenceTo(composite, composite.GetObjectKind().GroupVersionKind())))
+	err := meta.AddControllerReference(composed, meta.AsController(meta.ReferenceTo(composite, composite.GetObjectKind().GroupVersionKind())))
 	return errors.Wrap(err, "cannot add controller ref to composed resource")
 }
 
