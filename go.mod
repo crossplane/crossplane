@@ -3,12 +3,13 @@ module github.com/crossplane/crossplane
 go 1.13
 
 require (
-	github.com/crossplane/crossplane-runtime v0.6.1-0.20200406020956-f9d4e859f450
+	github.com/crossplane/crossplane-runtime v0.7.1-0.20200421211018-be37c50cc2ab
 	github.com/crossplane/crossplane-tools v0.0.0-20200219001116-bb8b2ce46330
+	github.com/crossplane/oam-kubernetes-runtime v0.0.0-20200422175842-afde24fdf35b
 	github.com/docker/distribution v2.7.1+incompatible
 	github.com/evanphx/json-patch v4.5.0+incompatible
 	github.com/ghodss/yaml v1.0.0
-	github.com/google/go-cmp v0.3.1
+	github.com/google/go-cmp v0.4.0
 	github.com/google/uuid v1.1.1
 	github.com/onsi/gomega v1.7.0
 	github.com/opencontainers/go-digest v1.0.0-rc1 // indirect

@@ -23,6 +23,8 @@ import (
 	"gopkg.in/alecthomas/kingpin.v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 
+	oamapis "github.com/crossplane/oam-kubernetes-runtime/apis/core"
+
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane/apis"
 	"github.com/crossplane/crossplane/pkg/controller/oam"
@@ -58,6 +60,10 @@ func (c *Command) Run(log logging.Logger) error {
 
 	if err := apis.AddToScheme(mgr.GetScheme()); err != nil {
 		return errors.Wrap(err, "Cannot add core Crossplane APIs to scheme")
+	}
+
+	if err := oamapis.AddToScheme(mgr.GetScheme()); err != nil {
+		return errors.Wrap(err, "Cannot add core OAM APIs to scheme")
 	}
 
 	if err := oam.Setup(mgr, log); err != nil {
