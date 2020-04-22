@@ -24,10 +24,10 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	oamapis "github.com/crossplane/oam-kubernetes-runtime/apis/core"
+	"github.com/crossplane/oam-kubernetes-runtime/pkg/controller/oam"
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane/apis"
-	"github.com/crossplane/crossplane/pkg/controller/oam"
 	"github.com/crossplane/crossplane/pkg/controller/workload"
 )
 
