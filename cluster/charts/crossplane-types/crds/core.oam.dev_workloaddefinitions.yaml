@@ -1,0 +1,72 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.2.4
+  creationTimestamp: null
+  name: workloaddefinitions.core.oam.dev
+spec:
+  additionalPrinterColumns:
+  - JSONPath: .spec.definitionRef.name
+    name: DEFINITION-NAME
+    type: string
+  group: core.oam.dev
+  names:
+    categories:
+    - crossplane
+    - oam
+    kind: WorkloadDefinition
+    listKind: WorkloadDefinitionList
+    plural: workloaddefinitions
+    singular: workloaddefinition
+  scope: Cluster
+  subresources: {}
+  validation:
+    openAPIV3Schema:
+      description: A WorkloadDefinition registers a kind of Kubernetes custom resource
+        as a valid OAM workload kind by referencing its CustomResourceDefinition.
+        The CRD is used to validate the schema of the workload when it is embedded
+        in an OAM Component.
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          description: A WorkloadDefinitionSpec defines the desired state of a WorkloadDefinition.
+          properties:
+            definitionRef:
+              description: Reference to the CustomResourceDefinition that defines
+                this workload kind.
+              properties:
+                name:
+                  description: Name of the referenced CustomResourceDefinition.
+                  type: string
+              required:
+              - name
+              type: object
+          required:
+          - definitionRef
+          type: object
+      type: object
+  version: v1alpha2
+  versions:
+  - name: v1alpha2
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

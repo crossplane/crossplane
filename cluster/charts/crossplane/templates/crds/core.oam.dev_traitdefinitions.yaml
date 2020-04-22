@@ -1,0 +1,80 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.2.4
+  creationTimestamp: null
+  name: traitdefinitions.core.oam.dev
+spec:
+  additionalPrinterColumns:
+  - JSONPath: .spec.definitionRef.name
+    name: DEFINITION-NAME
+    type: string
+  group: core.oam.dev
+  names:
+    categories:
+    - crossplane
+    - oam
+    kind: TraitDefinition
+    listKind: TraitDefinitionList
+    plural: traitdefinitions
+    singular: traitdefinition
+  scope: Cluster
+  subresources: {}
+  validation:
+    openAPIV3Schema:
+      description: A TraitDefinition registers a kind of Kubernetes custom resource
+        as a valid OAM trait kind by referencing its CustomResourceDefinition. The
+        CRD is used to validate the schema of the trait when it is embedded in an
+        OAM ApplicationConfiguration.
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          description: A TraitDefinitionSpec defines the desired state of a TraitDefinition.
+          properties:
+            appliesToWorkloads:
+              description: AppliesToWorkloads specifies the list of workload kinds
+                this trait applies to. Workload kinds are specified in kind.group/version
+                format, e.g. server.core.oam.dev/v1alpha2. Traits that omit this field
+                apply to all workload kinds.
+              items:
+                type: string
+              type: array
+            definitionRef:
+              description: Reference to the CustomResourceDefinition that defines
+                this trait kind.
+              properties:
+                name:
+                  description: Name of the referenced CustomResourceDefinition.
+                  type: string
+              required:
+              - name
+              type: object
+          required:
+          - definitionRef
+          type: object
+      type: object
+  version: v1alpha2
+  versions:
+  - name: v1alpha2
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

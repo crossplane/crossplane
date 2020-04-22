@@ -83,7 +83,8 @@ fallthrough: submodules
 manifests:
 	@$(WARN) Deprecated. Please run make generate instead.
 
-generate: $(KUSTOMIZE) go.generate manifests.prepare manifests.annotate
+generate: $(KUSTOMIZE) go.vendor go.generate manifests.prepare manifests.annotate
+	@$(OK) Finished vendoring and generating
 
 
 CROSSPLANE_TYPES_CHART_DIR = cluster/charts/crossplane-types
