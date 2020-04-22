@@ -136,7 +136,7 @@ func withGVK(gvk schema.GroupVersionKind) resourceModifier {
 	return func(r v1alpha1.StackInstaller) { r.SetGroupVersionKind(gvk) }
 }
 
-func resource(rm ...resourceModifier) *v1alpha1.StackInstall {
+func stackInstallResource(rm ...resourceModifier) *v1alpha1.StackInstall {
 	r := &v1alpha1.StackInstall{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:  namespace,
@@ -232,7 +232,7 @@ func TestReconcile(t *testing.T) {
 				k8sClients: k8sClients{
 					kube: &test.MockClient{
 						MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
-							*obj.(*v1alpha1.StackInstall) = *(resource())
+							*obj.(*v1alpha1.StackInstall) = *(stackInstallResource())
 							return nil
 						},
 					},
@@ -295,7 +295,7 @@ func TestReconcile(t *testing.T) {
 			rec: &Reconciler{
 				k8sClients: k8sClients{
 					kube: fake.NewFakeClient(
-						resource(),
+						stackInstallResource(),
 						&v1alpha1.Stack{ObjectMeta: metav1.ObjectMeta{Name: resourceName, Namespace: namespace, UID: uid}},
 					),
 					hostKube:   nil,
@@ -311,7 +311,7 @@ func TestReconcile(t *testing.T) {
 				log:     logging.NewNopLogger(),
 			},
 			want: want{result: requeueOnSuccess,
-				stackInstall: resource(
+				stackInstall: stackInstallResource(
 					withStackRecord(&corev1.ObjectReference{
 						Name: resourceName, Namespace: namespace, UID: uid, Kind: v1alpha1.StackKind,
 						APIVersion: v1alpha1.StackGroupVersionKind.GroupVersion().String(),
@@ -327,7 +327,7 @@ func TestReconcile(t *testing.T) {
 				k8sClients: k8sClients{
 					kube: &test.MockClient{
 						MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
-							*obj.(*v1alpha1.StackInstall) = *(resource(withDeletionTimestamp(time.Now())))
+							*obj.(*v1alpha1.StackInstall) = *(stackInstallResource(withDeletionTimestamp(time.Now())))
 							return nil
 						},
 					},
@@ -360,7 +360,7 @@ func TestReconcile(t *testing.T) {
 						MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
 							switch obj := obj.(type) {
 							case *v1alpha1.StackInstall:
-								*obj = *(resource())
+								*obj = *(stackInstallResource())
 							case *v1alpha1.Stack:
 								return errBoom
 							}
@@ -381,7 +381,7 @@ func TestReconcile(t *testing.T) {
 				log:     logging.NewNopLogger(),
 			},
 			want: want{result: resultRequeue,
-				stackInstall: resource(),
+				stackInstall: stackInstallResource(),
 				err:          nil,
 			},
 		},
@@ -392,7 +392,7 @@ func TestReconcile(t *testing.T) {
 				k8sClients: k8sClients{
 					kube: &test.MockClient{
 						MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
-							*obj.(*v1alpha1.StackInstall) = *(resource())
+							*obj.(*v1alpha1.StackInstall) = *(stackInstallResource())
 							return nil
 						},
 						MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
@@ -415,7 +415,7 @@ func TestReconcile(t *testing.T) {
 			rec: &Reconciler{
 				k8sClients: k8sClients{
 					hostKube: func() client.Client {
-						si := resource()
+						si := stackInstallResource()
 						labels := stacks.ParentLabels(si)
 						labels[stacks.LabelParentUID] = "different-parent-uid"
 						job := job()
@@ -423,7 +423,7 @@ func TestReconcile(t *testing.T) {
 						return fake.NewFakeClient(job)
 					}(),
 					kube: func() client.Client {
-						si := resource()
+						si := stackInstallResource()
 						return fake.NewFakeClient(si)
 					}(),
 				},
@@ -437,7 +437,7 @@ func TestReconcile(t *testing.T) {
 				log:     logging.NewNopLogger(),
 			},
 			want: want{result: resultRequeue, err: nil,
-				stackInstall: resource(
+				stackInstall: stackInstallResource(
 					withFinalizers(installFinalizer),
 					withConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileError(errors.Errorf("stale job %s/%s prevents stackinstall", namespace, resourceName))),
 				)},
@@ -448,14 +448,14 @@ func TestReconcile(t *testing.T) {
 			rec: &Reconciler{
 				k8sClients: k8sClients{
 					hostKube: func() client.Client {
-						si := resource()
+						si := stackInstallResource()
 						labels := stacks.ParentLabels(si)
 						job := job()
 						job.SetLabels(labels)
 						return fake.NewFakeClient(job)
 					}(),
 					kube: func() client.Client {
-						si := resource()
+						si := stackInstallResource()
 						return fake.NewFakeClient(si)
 					}(),
 				},
@@ -469,7 +469,7 @@ func TestReconcile(t *testing.T) {
 				log:     logging.NewNopLogger(),
 			},
 			want: want{result: requeueOnSuccess, err: nil,
-				stackInstall: resource(
+				stackInstall: stackInstallResource(
 					withFinalizers(installFinalizer),
 					withInstallJob(&corev1.ObjectReference{
 						Name:       resourceName,
@@ -563,7 +563,7 @@ func TestStackInstallDelete(t *testing.T) {
 			name: "FailList",
 			handler: &stackInstallHandler{
 				// stack install starts with a finalizer and a deletion timestamp
-				ext: resource(withFinalizers(installFinalizer), withDeletionTimestamp(tn)),
+				ext: stackInstallResource(withFinalizers(installFinalizer), withDeletionTimestamp(tn)),
 				kube: &test.MockClient{
 					MockList: func(ctx context.Context, list runtime.Object, opts ...client.ListOption) error {
 						return errBoom
@@ -576,7 +576,7 @@ func TestStackInstallDelete(t *testing.T) {
 			want: want{
 				result: resultRequeue,
 				err:    nil,
-				si: resource(
+				si: stackInstallResource(
 					withFinalizers(installFinalizer),
 					withDeletionTimestamp(tn),
 					withConditions(runtimev1alpha1.ReconcileError(errBoom))),
@@ -586,7 +586,7 @@ func TestStackInstallDelete(t *testing.T) {
 			name: "FailDeleteAllOf",
 			handler: &stackInstallHandler{
 				// stack install starts with a finalizer and a deletion timestamp
-				ext: resource(withFinalizers(installFinalizer), withDeletionTimestamp(tn)),
+				ext: stackInstallResource(withFinalizers(installFinalizer), withDeletionTimestamp(tn)),
 				kube: &test.MockClient{
 					MockList: func(ctx context.Context, list runtime.Object, opts ...client.ListOption) error {
 						switch list := list.(type) {
@@ -605,7 +605,7 @@ func TestStackInstallDelete(t *testing.T) {
 			want: want{
 				result: resultRequeue,
 				err:    nil,
-				si: resource(
+				si: stackInstallResource(
 					withFinalizers(installFinalizer),
 					withDeletionTimestamp(tn),
 					withConditions(runtimev1alpha1.ReconcileError(errBoom))),
@@ -615,7 +615,7 @@ func TestStackInstallDelete(t *testing.T) {
 			name: "FailDeleteAllOfHosted",
 			handler: &stackInstallHandler{
 				// stack install starts with a finalizer and a deletion timestamp
-				ext:             resource(withFinalizers(installFinalizer), withDeletionTimestamp(tn)),
+				ext:             stackInstallResource(withFinalizers(installFinalizer), withDeletionTimestamp(tn)),
 				hostAwareConfig: &hosted.Config{HostControllerNamespace: hostControllerNamespace},
 				kube: &test.MockClient{
 					MockList: func(ctx context.Context, list runtime.Object, opts ...client.ListOption) error {
@@ -639,7 +639,7 @@ func TestStackInstallDelete(t *testing.T) {
 			want: want{
 				result: resultRequeue,
 				err:    nil,
-				si: resource(
+				si: stackInstallResource(
 					withFinalizers(installFinalizer),
 					withDeletionTimestamp(tn),
 					withConditions(runtimev1alpha1.ReconcileError(errBoom))),
@@ -649,7 +649,7 @@ func TestStackInstallDelete(t *testing.T) {
 			name: "FailUpdate",
 			handler: &stackInstallHandler{
 				// stack install starts with a finalizer and a deletion timestamp
-				ext: resource(withFinalizers(installFinalizer), withDeletionTimestamp(tn)),
+				ext: stackInstallResource(withFinalizers(installFinalizer), withDeletionTimestamp(tn)),
 				kube: &test.MockClient{
 					MockList: func(ctx context.Context, list runtime.Object, opts ...client.ListOption) error {
 						switch list := list.(type) {
@@ -673,7 +673,7 @@ func TestStackInstallDelete(t *testing.T) {
 			want: want{
 				result: resultRequeue,
 				err:    nil,
-				si: resource(
+				si: stackInstallResource(
 					// the finalizer will have been removed from our test object at least in memory
 					// (even though the update call to the API server failed)
 					withDeletionTimestamp(tn),
@@ -684,7 +684,7 @@ func TestStackInstallDelete(t *testing.T) {
 			name: "RetryWhenStackExists",
 			handler: &stackInstallHandler{
 				// stack install starts with a finalizer and a deletion timestamp
-				ext: resource(withFinalizers(installFinalizer), withDeletionTimestamp(tn)),
+				ext: stackInstallResource(withFinalizers(installFinalizer), withDeletionTimestamp(tn)),
 				kube: &test.MockClient{
 					MockList: func(ctx context.Context, list runtime.Object, opts ...client.ListOption) error {
 						switch list := list.(type) {
@@ -706,7 +706,7 @@ func TestStackInstallDelete(t *testing.T) {
 			want: want{
 				result: resultRequeue,
 				err:    nil,
-				si: resource(
+				si: stackInstallResource(
 					// the finalizer will have been removed from our test object at least in memory
 					// (even though the update call to the API server failed)
 					withDeletionTimestamp(tn),
@@ -718,7 +718,7 @@ func TestStackInstallDelete(t *testing.T) {
 			name: "SuccessfulDelete",
 			handler: &stackInstallHandler{
 				// stack install starts with a finalizer and a deletion timestamp
-				ext: resource(withFinalizers(installFinalizer), withDeletionTimestamp(tn)),
+				ext: stackInstallResource(withFinalizers(installFinalizer), withDeletionTimestamp(tn)),
 				kube: &test.MockClient{
 					MockList: func(ctx context.Context, list runtime.Object, opts ...client.ListOption) error {
 						switch list := list.(type) {
@@ -739,7 +739,7 @@ func TestStackInstallDelete(t *testing.T) {
 			want: want{
 				result: reconcile.Result{},
 				err:    nil,
-				si:     resource(withDeletionTimestamp(tn)), // finalizers get removed by delete function
+				si:     stackInstallResource(withDeletionTimestamp(tn)), // finalizers get removed by delete function
 			},
 		},
 	}
@@ -780,7 +780,7 @@ func TestHandlerFactory(t *testing.T) {
 					log:          logging.NewNopLogger(),
 				},
 				executorInfo:             &stacks.ExecutorInfo{Image: stackPackageImage},
-				ext:                      resource(),
+				ext:                      stackInstallResource(),
 				log:                      logging.NewNopLogger(),
 				templatesControllerImage: tsControllerImage,
 			},
@@ -789,7 +789,7 @@ func TestHandlerFactory(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := tt.factory.newHandler(logging.NewNopLogger(), resource(), k8sClients{}, nil, &stacks.ExecutorInfo{Image: stackPackageImage}, tsControllerImage, noForcedImagePullPolicy)
+			got := tt.factory.newHandler(logging.NewNopLogger(), stackInstallResource(), k8sClients{}, nil, &stacks.ExecutorInfo{Image: stackPackageImage}, tsControllerImage, noForcedImagePullPolicy)
 
 			diff := cmp.Diff(tt.want, got,
 				cmp.AllowUnexported(
@@ -877,9 +877,9 @@ func Test_stackInstallHandler_deleteOrphanedCRDs(t *testing.T) {
 	var (
 		nsLabel = fmt.Sprintf(stacks.LabelNamespaceFmt, namespace)
 
-		// MultiParentLabels refer to a stack name. While resource() is a
+		// MultiParentLabels refer to a stack name. While stackInstallResource() is a
 		// stackinstall, it is an object that has a name that matches the stack
-		label = stacks.MultiParentLabel(resource())
+		label = stacks.MultiParentLabel(stackInstallResource())
 	)
 	tests := []struct {
 		name     string
@@ -891,7 +891,7 @@ func Test_stackInstallHandler_deleteOrphanedCRDs(t *testing.T) {
 		{
 			name: "FailedList",
 			fields: fields{
-				ext: resource(),
+				ext: stackInstallResource(),
 				clientFunc: func() client.Client {
 					return &test.MockClient{
 						MockList: test.NewMockListFn(errBoom),
@@ -904,7 +904,7 @@ func Test_stackInstallHandler_deleteOrphanedCRDs(t *testing.T) {
 		{
 			name: "FailedDelete",
 			fields: fields{
-				ext: resource(),
+				ext: stackInstallResource(),
 				clientFunc: func() client.Client {
 					c := crd(withCRDGroupKind(group, kind),
 						withCRDVersion(version),
@@ -922,7 +922,7 @@ func Test_stackInstallHandler_deleteOrphanedCRDs(t *testing.T) {
 		{
 			name: "Unmanaged",
 			fields: fields{
-				ext: resource(),
+				ext: stackInstallResource(),
 				clientFunc: func() client.Client {
 					c := crd(withCRDGroupKind(group, kind),
 						withCRDVersion(version))
@@ -936,7 +936,7 @@ func Test_stackInstallHandler_deleteOrphanedCRDs(t *testing.T) {
 		{
 			name: "AlreadyDeleted",
 			fields: fields{
-				ext: resource(),
+				ext: stackInstallResource(),
 				clientFunc: func() client.Client {
 					c := crd(
 						withCRDGroupKind(group, kind),
@@ -956,7 +956,7 @@ func Test_stackInstallHandler_deleteOrphanedCRDs(t *testing.T) {
 		{
 			name: "StillInUseDiscoveryLabels",
 			fields: fields{
-				ext: resource(),
+				ext: stackInstallResource(),
 				clientFunc: func() client.Client {
 					c := crd(
 						withCRDGroupKind(group, kind),
@@ -977,7 +977,7 @@ func Test_stackInstallHandler_deleteOrphanedCRDs(t *testing.T) {
 		{
 			name: "StillInUseMultiParentLabels",
 			fields: fields{
-				ext: resource(),
+				ext: stackInstallResource(),
 				clientFunc: func() client.Client {
 					c := crd(
 						withCRDGroupKind(group, kind),
@@ -998,7 +998,7 @@ func Test_stackInstallHandler_deleteOrphanedCRDs(t *testing.T) {
 		{
 			name: "SafeToDelete",
 			fields: fields{
-				ext: resource(),
+				ext: stackInstallResource(),
 				clientFunc: func() client.Client {
 					c := crd(
 						withCRDGroupKind(group, kind),
@@ -1059,7 +1059,7 @@ func Test_stackInstallHandler_removeCRDParentLabels(t *testing.T) {
 	)
 
 	var (
-		labels = stacks.ParentLabels(resource())
+		labels = stacks.ParentLabels(stackInstallResource())
 	)
 	tests := []struct {
 		name     string
@@ -1071,7 +1071,7 @@ func Test_stackInstallHandler_removeCRDParentLabels(t *testing.T) {
 		{
 			name: "FailedList",
 			fields: fields{
-				ext: resource(),
+				ext: stackInstallResource(),
 				clientFunc: func() client.Client {
 					return &test.MockClient{
 						MockList: test.NewMockListFn(errBoom),
@@ -1084,7 +1084,7 @@ func Test_stackInstallHandler_removeCRDParentLabels(t *testing.T) {
 		{
 			name: "FailedPatch",
 			fields: fields{
-				ext: resource(),
+				ext: stackInstallResource(),
 				clientFunc: func() client.Client {
 					c := crd(
 						withCRDGroupKind(group, kind),
@@ -1103,7 +1103,7 @@ func Test_stackInstallHandler_removeCRDParentLabels(t *testing.T) {
 		{
 			name: "Unlabeled",
 			fields: fields{
-				ext: resource(),
+				ext: stackInstallResource(),
 				clientFunc: func() client.Client {
 					c := crd(withCRDGroupKind(group, kind),
 						withCRDVersion(version))
@@ -1120,7 +1120,7 @@ func Test_stackInstallHandler_removeCRDParentLabels(t *testing.T) {
 		{
 			name: "Labeled",
 			fields: fields{
-				ext: resource(),
+				ext: stackInstallResource(),
 				clientFunc: func() client.Client {
 					c := crd(
 						withCRDGroupKind(group, kind),

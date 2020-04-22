@@ -66,6 +66,9 @@ metadata:
   name: ` + crdName + `
 spec:
   group: samples.upbound.io
+  conversion:
+    strategy: None
+  preserveUnknownFields: true
   names:
     kind: Mytype
     listKind: MytypeList
@@ -439,7 +442,7 @@ func withJobExpectations() jobModifier {
 		zero := int32(0)
 		j.SetResourceVersion("1")
 		j.SetGroupVersionKind(batchv1.SchemeGroupVersion.WithKind("Job"))
-		j.SetLabels(stacks.ParentLabels(resource()))
+		j.SetLabels(stacks.ParentLabels(stackInstallResource()))
 		j.Spec.BackoffLimit = &zero
 		j.Spec.Template.Spec.Volumes = []corev1.Volume{{
 			Name:         "package-contents",
@@ -600,10 +603,10 @@ func TestHandleJobCompletion(t *testing.T) {
 					},
 				},
 			},
-			ext: resource(),
+			ext: stackInstallResource(),
 			job: job(),
 			want: want{
-				ext: resource(),
+				ext: stackInstallResource(),
 				err: errors.Errorf("pod list for job %s should only have 1 item, actual: 0", resourceName),
 			},
 		},
@@ -629,10 +632,10 @@ func TestHandleJobCompletion(t *testing.T) {
 				},
 				log: logging.NewNopLogger(),
 			},
-			ext: resource(),
+			ext: stackInstallResource(),
 			job: job(),
 			want: want{
-				ext: resource(),
+				ext: stackInstallResource(),
 				err: errors.Wrapf(errBoom, "failed to get logs request stream from pod %s", jobPodName),
 			},
 		},
@@ -663,10 +666,10 @@ func TestHandleJobCompletion(t *testing.T) {
 				},
 				log: logging.NewNopLogger(),
 			},
-			ext: resource(),
+			ext: stackInstallResource(),
 			job: job(),
 			want: want{
-				ext: resource(),
+				ext: stackInstallResource(),
 				err: errors.Wrapf(errBoom, "failed to copy logs request stream from pod %s", jobPodName),
 			},
 		},
@@ -689,10 +692,10 @@ func TestHandleJobCompletion(t *testing.T) {
 				},
 				log: logging.NewNopLogger(),
 			},
-			ext: resource(),
+			ext: stackInstallResource(),
 			job: job(),
 			want: want{
-				ext: resource(),
+				ext: stackInstallResource(),
 				err: errors.WithStack(errors.Errorf("failed to parse output from job %s: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type map[string]interface {}", resourceName)),
 			},
 		},
@@ -720,10 +723,10 @@ func TestHandleJobCompletion(t *testing.T) {
 				},
 				log: logging.NewNopLogger(),
 			},
-			ext: resource(),
+			ext: stackInstallResource(),
 			job: job(),
 			want: want{
-				ext: resource(),
+				ext: stackInstallResource(),
 				err: errors.Wrapf(errBoom, "failed to create object %s from job output %s", crdName, resourceName),
 			},
 		},
@@ -759,10 +762,10 @@ func TestHandleJobCompletion(t *testing.T) {
 				},
 				log: logging.NewNopLogger(),
 			},
-			ext: resource(),
+			ext: stackInstallResource(),
 			job: job(),
 			want: want{
-				ext: resource(),
+				ext: stackInstallResource(),
 				err: nil,
 			},
 		},
@@ -818,10 +821,10 @@ func TestHandleJobCompletion(t *testing.T) {
 				},
 				log: logging.NewNopLogger(),
 			},
-			ext: resource(withSource(stackInstallSource)),
+			ext: stackInstallResource(withSource(stackInstallSource)),
 			job: job(withJobSource(stackInstallSource)),
 			want: want{
-				ext: resource(withSource(stackInstallSource)),
+				ext: stackInstallResource(withSource(stackInstallSource)),
 				err: nil,
 			},
 		},
@@ -877,14 +880,14 @@ func TestHandleJobCompletion(t *testing.T) {
 				},
 				log: logging.NewNopLogger(),
 			},
-			ext: resource(
+			ext: stackInstallResource(
 				withSource(stackInstallSource),
 				withImagePullPolicy(corev1.PullAlways),
 				withImagePullSecrets([]corev1.LocalObjectReference{{Name: "foo"}}),
 			),
 			job: job(withJobSource(stackInstallSource)),
 			want: want{
-				ext: resource(
+				ext: stackInstallResource(
 					withSource(stackInstallSource),
 					withImagePullPolicy(corev1.PullAlways),
 					withImagePullSecrets([]corev1.LocalObjectReference{{Name: "foo"}}),
@@ -944,13 +947,13 @@ func TestCreate(t *testing.T) {
 					MockCreate: func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error { return nil },
 				},
 				executorInfo: &stacks.ExecutorInfo{Image: stackPackageImage},
-				ext:          resource(),
+				ext:          stackInstallResource(),
 				log:          logging.NewNopLogger(),
 			},
 			want: want{
 				result: requeueOnSuccess,
 				err:    nil,
-				ext: resource(
+				ext: stackInstallResource(
 					withFinalizers(installFinalizer),
 					withConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileSuccess()),
 					withInstallJob(&corev1.ObjectReference{
@@ -976,13 +979,13 @@ func TestCreate(t *testing.T) {
 				},
 				hostKube:     fake.NewFakeClient(),
 				executorInfo: &stacks.ExecutorInfo{Image: stackPackageImage},
-				ext:          resource(withImagePullPolicy(corev1.PullNever)),
+				ext:          stackInstallResource(withImagePullPolicy(corev1.PullNever)),
 				log:          logging.NewNopLogger(),
 			},
 			want: want{
 				result: requeueOnSuccess,
 				err:    nil,
-				ext: resource(
+				ext: stackInstallResource(
 					withImagePullPolicy(corev1.PullNever),
 					withFinalizers(installFinalizer),
 					withConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileSuccess()),
@@ -1018,13 +1021,13 @@ func TestCreate(t *testing.T) {
 				},
 				hostAwareConfig: &hosted.Config{HostControllerNamespace: hostControllerNamespace},
 				executorInfo:    &stacks.ExecutorInfo{Image: stackPackageImage},
-				ext:             resource(),
+				ext:             stackInstallResource(),
 				log:             logging.NewNopLogger(),
 			},
 			want: want{
 				result: requeueOnSuccess,
 				err:    nil,
-				ext: resource(
+				ext: stackInstallResource(
 					withFinalizers(installFinalizer),
 					withConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileSuccess()),
 					withInstallJob(&corev1.ObjectReference{
@@ -1041,18 +1044,18 @@ func TestCreate(t *testing.T) {
 			handler: &stackInstallHandler{
 				kube: fake.NewFakeClient(
 					secret("secret", namespace),
-					resource(withImagePullSecrets([]corev1.LocalObjectReference{{Name: "secret"}})),
+					stackInstallResource(withImagePullSecrets([]corev1.LocalObjectReference{{Name: "secret"}})),
 				),
 				hostKube:        fake.NewFakeClient(),
 				hostAwareConfig: &hosted.Config{HostControllerNamespace: hostControllerNamespace},
 				executorInfo:    &stacks.ExecutorInfo{Image: stackPackageImage},
-				ext:             resource(withImagePullSecrets([]corev1.LocalObjectReference{{Name: "secret"}})),
+				ext:             stackInstallResource(withImagePullSecrets([]corev1.LocalObjectReference{{Name: "secret"}})),
 				log:             logging.NewNopLogger(),
 			},
 			want: want{
 				result: requeueOnSuccess,
 				err:    nil,
-				ext: resource(
+				ext: stackInstallResource(
 					withFinalizers(installFinalizer),
 					withImagePullSecrets([]corev1.LocalObjectReference{{Name: "secret"}}),
 					withConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileSuccess()),
@@ -1091,13 +1094,13 @@ func TestCreate(t *testing.T) {
 				}(),
 				hostAwareConfig: &hosted.Config{HostControllerNamespace: hostControllerNamespace},
 				executorInfo:    &stacks.ExecutorInfo{Image: stackPackageImage},
-				ext:             resource(),
+				ext:             stackInstallResource(),
 				log:             logging.NewNopLogger(),
 			},
 			want: want{
 				result: requeueOnSuccess,
 				err:    nil,
-				ext: resource(
+				ext: stackInstallResource(
 					withFinalizers(installFinalizer),
 					withConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileSuccess()),
 					withInstallJob(&corev1.ObjectReference{
@@ -1126,13 +1129,13 @@ func TestCreate(t *testing.T) {
 				},
 				hostAwareConfig: &hosted.Config{HostControllerNamespace: hostControllerNamespace},
 				executorInfo:    &stacks.ExecutorInfo{Image: stackPackageImage},
-				ext:             resource(),
+				ext:             stackInstallResource(),
 				log:             logging.NewNopLogger(),
 			},
 			want: want{
 				result: resultRequeue,
 				err:    nil,
-				ext: resource(
+				ext: stackInstallResource(
 					withFinalizers(installFinalizer),
 					withConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileError(errBoom)),
 					withInstallJob(nil),
@@ -1155,14 +1158,14 @@ func TestCreate(t *testing.T) {
 						return errBoom
 					},
 				},
-				ext: resource(
+				ext: stackInstallResource(
 					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: namespace})),
 				log: logging.NewNopLogger(),
 			},
 			want: want{
 				result: resultRequeue,
 				err:    nil,
-				ext: resource(
+				ext: stackInstallResource(
 					withFinalizers(installFinalizer),
 					withConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileError(errBoom)),
 					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: namespace}),
@@ -1186,14 +1189,14 @@ func TestCreate(t *testing.T) {
 						return nil
 					},
 				},
-				ext: resource(
+				ext: stackInstallResource(
 					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: namespace})),
 				log: logging.NewNopLogger(),
 			},
 			want: want{
 				result: requeueOnSuccess,
 				err:    nil,
-				ext: resource(
+				ext: stackInstallResource(
 					withFinalizers(installFinalizer),
 					withConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileSuccess()),
 					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: namespace}),
@@ -1222,14 +1225,14 @@ func TestCreate(t *testing.T) {
 					MockHandleJobCompletion: func(ctx context.Context, i v1alpha1.StackInstaller, job *batchv1.Job) error { return nil },
 				},
 				executorInfo: &stacks.ExecutorInfo{Image: stackPackageImage},
-				ext: resource(
+				ext: stackInstallResource(
 					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: namespace})),
 				log: logging.NewNopLogger(),
 			},
 			want: want{
 				result: requeueOnSuccess,
 				err:    nil,
-				ext: resource(
+				ext: stackInstallResource(
 					withFinalizers(installFinalizer),
 					withConditions(runtimev1alpha1.Creating(), runtimev1alpha1.ReconcileSuccess()),
 					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: namespace}),
@@ -1258,14 +1261,14 @@ func TestCreate(t *testing.T) {
 					MockHandleJobCompletion: func(ctx context.Context, i v1alpha1.StackInstaller, job *batchv1.Job) error { return nil },
 				},
 				executorInfo: &stacks.ExecutorInfo{Image: stackPackageImage},
-				ext: resource(
+				ext: stackInstallResource(
 					withInstallJob(&corev1.ObjectReference{Name: resourceName, Namespace: namespace})),
 				log: logging.NewNopLogger(),
 			},
 			want: want{
 				result: resultRequeue,
 				err:    nil,
-				ext: resource(
+				ext: stackInstallResource(
 					withFinalizers(installFinalizer),
 					withConditions(
 						runtimev1alpha1.Creating(),
@@ -1346,7 +1349,7 @@ func TestCreateJobOutputObject(t *testing.T) {
 				},
 				log: logging.NewNopLogger(),
 			},
-			stackInstaller: resource(),
+			stackInstaller: stackInstallResource(),
 			job:            job(),
 			obj:            nil,
 			want: want{
@@ -1364,7 +1367,7 @@ func TestCreateJobOutputObject(t *testing.T) {
 				},
 				log: logging.NewNopLogger(),
 			},
-			stackInstaller: resource(),
+			stackInstaller: stackInstallResource(),
 			job:            job(),
 			obj: unstructuredObj(crdRaw,
 				withUnstructuredObjLabels(wantedParentLabels),
@@ -1380,7 +1383,7 @@ func TestCreateJobOutputObject(t *testing.T) {
 				client: fake.NewFakeClient(),
 				log:    logging.NewNopLogger(),
 			},
-			stackInstaller: resource(),
+			stackInstaller: stackInstallResource(),
 			job:            job(),
 			obj:            unstructuredObj(crdRaw),
 			want: want{
@@ -1394,7 +1397,7 @@ func TestCreateJobOutputObject(t *testing.T) {
 				client: fake.NewFakeClient(),
 				log:    logging.NewNopLogger(),
 			},
-			stackInstaller: resource(),
+			stackInstaller: stackInstallResource(),
 			job:            job(),
 			obj:            unstructuredObj(stackRaw("crossplane/sample-stack:latest")),
 			want: want{
@@ -1411,7 +1414,7 @@ func TestCreateJobOutputObject(t *testing.T) {
 				client: fake.NewFakeClient(),
 				log:    logging.NewNopLogger(),
 			},
-			stackInstaller: resource(),
+			stackInstaller: stackInstallResource(),
 			job:            job(),
 			obj:            unstructuredObj(stackDefinitionRaw("crossplane/sample-stack-wordpress:0.1.0")),
 			want: want{
@@ -1428,7 +1431,7 @@ func TestCreateJobOutputObject(t *testing.T) {
 				client: fake.NewFakeClient(),
 				log:    logging.NewNopLogger(),
 			},
-			stackInstaller: resource(withPackage(stackEnvelopeImage)),
+			stackInstaller: stackInstallResource(withPackage(stackEnvelopeImage)),
 			job:            job(),
 			obj:            unstructuredObj(stackRaw("")),
 			want: want{
@@ -1445,7 +1448,7 @@ func TestCreateJobOutputObject(t *testing.T) {
 				client: fake.NewFakeClient(),
 				log:    logging.NewNopLogger(),
 			},
-			stackInstaller: resource(withPackage(stackDefinitionEnvelopeImage)),
+			stackInstaller: stackInstallResource(withPackage(stackDefinitionEnvelopeImage)),
 			job:            job(),
 			obj:            unstructuredObj(stackDefinitionRaw("")),
 			want: want{
@@ -1462,7 +1465,7 @@ func TestCreateJobOutputObject(t *testing.T) {
 				client: fake.NewFakeClient(),
 				log:    logging.NewNopLogger(),
 			},
-			stackInstaller: resource(withPackage("thisImageShouldBeIgnored:becauseTheStackSpecifiesAnExplicitImage")),
+			stackInstaller: stackInstallResource(withPackage("thisImageShouldBeIgnored:becauseTheStackSpecifiesAnExplicitImage")),
 			job:            job(),
 			obj:            unstructuredObj(stackRaw("crossplane/sample-stack:latest")),
 			want: want{
@@ -1479,7 +1482,7 @@ func TestCreateJobOutputObject(t *testing.T) {
 				client: fake.NewFakeClient(),
 				log:    logging.NewNopLogger(),
 			},
-			stackInstaller: resource(withPackage("thisImageShouldBeIgnored:becauseTheStackSpecifiesAnExplicitImage")),
+			stackInstaller: stackInstallResource(withPackage("thisImageShouldBeIgnored:becauseTheStackSpecifiesAnExplicitImage")),
 			job:            job(),
 			obj:            unstructuredObj(stackDefinitionRaw("crossplane/sample-stack-wordpress:0.1.0")),
 			want: want{
@@ -1504,7 +1507,7 @@ func TestCreateJobOutputObject(t *testing.T) {
 				}(),
 				log: logging.NewNopLogger(),
 			},
-			stackInstaller: resource(),
+			stackInstaller: stackInstallResource(),
 			job:            job(),
 			obj:            unstructuredObj(crdRaw),
 			want: want{
@@ -1521,7 +1524,7 @@ func TestCreateJobOutputObject(t *testing.T) {
 				}(),
 				log: logging.NewNopLogger(),
 			},
-			stackInstaller: resource(),
+			stackInstaller: stackInstallResource(),
 			job:            job(),
 			obj:            unstructuredObj(crdRaw),
 			want: want{
@@ -1538,7 +1541,7 @@ func TestCreateJobOutputObject(t *testing.T) {
 				}(),
 				log: logging.NewNopLogger(),
 			},
-			stackInstaller: resource(),
+			stackInstaller: stackInstallResource(),
 			job:            job(),
 			obj:            unstructuredObj(crdRaw),
 			want: want{
@@ -1555,7 +1558,7 @@ func TestCreateJobOutputObject(t *testing.T) {
 				}(),
 				log: logging.NewNopLogger(),
 			},
-			stackInstaller: resource(),
+			stackInstaller: stackInstallResource(),
 			job:            job(),
 			obj:            unstructuredObj(crdRaw, unstructuredAsCRD(withCRDVersion("new"))),
 			want: want{
