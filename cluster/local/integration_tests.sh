@@ -113,39 +113,45 @@ for name in $MUST_HAVE_DEPLOYMENTS; do
 done
 
 echo_step "check for pods statuses"
-echo
-echo "-------- pods"
-pods=$("${KUBECTL}" -n "${CROSSPLANE_NAMESPACE}" get pods)
-echo "$pods"
-while read -r pod_stat; do 
-    name=$(echo "$pod_stat" | awk '{print $1}')
-    echo_sub_step "inspecting pod '${name}'"
-
-    echo_info "check if is ready"
-    IFS='/' read -ra ready_status_parts <<< "$(echo "$pod_stat" | awk '{print $2}')"
-    if (( ${ready_status_parts[0]} < ${ready_status_parts[1]} )); then
-        echo_error "is not ready"
-        exit -1
-    else
-        echo_step_completed
-    fi
-
-    echo_info "check if is running"
-    if $(echo "$pod_stat" | awk '{print $3}' | grep -ivq 'Running'); then
-        echo_error "is not running"
-        exit -1
-    else
-        echo_step_completed
-    fi 
-
-    echo_info "check if has restarts"
-    if (( $(echo "$pod_stat" | awk '{print $4}') > 0 )); then
-        echo_error "has restarts"
-        exit -1
-    else
-        echo_step_completed
-    fi
+for (( i=1; i<=5; i++ ))
+do  
+    echo_sub_step "pod check #$i"
     echo
-done <<< "$(echo "$pods" | awk 'FNR>1')"
+    echo "-------- pods"
+    pods=$("${KUBECTL}" -n "${CROSSPLANE_NAMESPACE}" get pods)
+    echo "$pods"
+    while read -r pod_stat; do 
+        name=$(echo "$pod_stat" | awk '{print $1}')
+        echo_sub_step "inspecting pod '${name}'"
+
+        echo_info "check if is ready"
+        IFS='/' read -ra ready_status_parts <<< "$(echo "$pod_stat" | awk '{print $2}')"
+        if (( ${ready_status_parts[0]} < ${ready_status_parts[1]} )); then
+            echo_error "is not ready"
+            exit -1
+        else
+            echo_step_completed
+        fi
+
+        echo_info "check if is running"
+        if $(echo "$pod_stat" | awk '{print $3}' | grep -ivq 'Running'); then
+            echo_error "is not running"
+            exit -1
+        else
+            echo_step_completed
+        fi 
+
+        echo_info "check if has restarts"
+        if (( $(echo "$pod_stat" | awk '{print $4}') > 0 )); then
+            echo_error "has restarts"
+            exit -1
+        else
+            echo_step_completed
+        fi
+        echo
+    done <<< "$(echo "$pods" | awk 'FNR>1')"
+    sleep 5
+done
+
 
 echo_success "Integration tests succeeded!"
