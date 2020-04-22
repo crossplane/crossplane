@@ -25,6 +25,9 @@ limitations under the License.
 // Generate deepcopy methodsets and CRD manifests
 //go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=../hack/boilerplate.go.txt paths=./... crd:trivialVersions=true output:artifacts:config=../cluster/charts/crossplane-types/crds
 
+// Generate CRDs for OAM types in oam-kubernetes-runtime
+//go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen crd paths=../vendor/github.com/crossplane/oam-kubernetes-runtime/apis/... crd:trivialVersions=true output:artifacts:config=../cluster/charts/crossplane-types/crds
+
 // Re-generate stack CRD manifests without descriptions.
 //go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen paths=./stacks/... crd:maxDescLen=0,trivialVersions=true output:artifacts:config=../cluster/charts/crossplane-types/crds
 
