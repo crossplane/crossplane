@@ -21,7 +21,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
-	"github.com/crossplane/crossplane/pkg/controller/oam/applicationconfiguration"
+	"github.com/crossplane/oam-kubernetes-runtime/pkg/controller/oam/applicationconfiguration"
 )
 
 // Setup workload controllers.
