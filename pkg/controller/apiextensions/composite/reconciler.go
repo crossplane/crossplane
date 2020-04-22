@@ -44,6 +44,8 @@ const (
 	timeout   = 2 * time.Minute
 
 	finalizer = "finalizer.apiextensions.crossplane.io"
+
+	errUpdateCompositeStatus = "cannot update composite status"
 )
 
 // ConnectionSecretFilterer returns a set of allowed keys.
@@ -119,23 +121,27 @@ func (r *compositeReconciler) Reconcile(req reconcile.Request) (reconcile.Result
 
 	if meta.WasDeleted(cr) && len(cr.GetResourceReferences()) == 0 {
 		if err := r.finalizer.RemoveFinalizer(ctx, cr); err != nil {
-			return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), "cannot remove finalizer")
+			cr.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(resource.IgnoreNotFound(err), "cannot remove finalizer")))
+			return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateCompositeStatus)
 		}
 		return reconcile.Result{}, nil
 	}
 
 	if err := r.ResolveSelector(ctx, cr); err != nil {
-		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(err, "cannot resolve composition selector")
+		cr.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, "cannot resolve composition selector")))
+		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateCompositeStatus)
 	}
 	// TODO(muvaf): We should lock the deletion of Composition via finalizer
 	// because its deletion will break the field propagation.
 	comp := &v1alpha1.Composition{}
 	if err := r.client.Get(ctx, meta.NamespacedNameOf(cr.GetCompositionReference()), comp); err != nil {
-		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(err, "cannot get the composition")
+		cr.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, "cannot get the composition")))
+		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateCompositeStatus)
 	}
 
 	if err := r.finalizer.AddFinalizer(ctx, cr); err != nil {
-		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(err, "cannot add finalizer")
+		cr.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, "cannot add finalizer")))
+		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateCompositeStatus)
 	}
 
 	// TODO(muvaf): Since the composed reconciler returns only reference, it can
@@ -151,12 +157,14 @@ func (r *compositeReconciler) Reconcile(req reconcile.Request) (reconcile.Result
 	for i, composedRef := range refs {
 		obs, err := r.composed.Reconcile(ctx, cr, composedRef, comp.Spec.To[i])
 		if err != nil {
-			return reconcile.Result{RequeueAfter: shortWait}, err
+			cr.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, "cannot reconcile composed resource")))
+			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateCompositeStatus)
 		}
 		refs[i] = obs.Ref
 		cr.SetResourceReferences(refs)
 		if err := r.client.Update(ctx, cr); err != nil {
-			return reconcile.Result{RequeueAfter: shortWait}, err
+			cr.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, "cannot update composite spec")))
+			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateCompositeStatus)
 		}
 		for key, val := range obs.ConnectionDetails {
 			conn[key] = val
@@ -164,9 +172,10 @@ func (r *compositeReconciler) Reconcile(req reconcile.Request) (reconcile.Result
 	}
 
 	if err := r.connection.PublishConnection(ctx, cr, conn); err != nil {
-		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(err, "cannot publish connection secret")
+		cr.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, "cannot publish connection secret")))
+		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateCompositeStatus)
 	}
 
 	cr.SetConditions(runtimev1alpha1.ReconcileSuccess())
-	return reconcile.Result{RequeueAfter: longWait}, errors.Wrap(r.client.Status().Update(ctx, cr), "cannot update status of composite resource")
+	return reconcile.Result{RequeueAfter: longWait}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateCompositeStatus)
 }
