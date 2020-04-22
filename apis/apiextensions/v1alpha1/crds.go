@@ -17,7 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"github.com/pkg/errors"
+	"fmt"
 
 	"github.com/ghodss/yaml"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
@@ -194,7 +194,7 @@ const (
 // reused, although it is known that only two different kinds will be generated.
 
 // BaseCRD returns a base template for generating a CRD.
-func BaseCRD(opts ...func(*v1beta1.CustomResourceDefinition) error) (*v1beta1.CustomResourceDefinition, error) {
+func BaseCRD(opts ...func(*v1beta1.CustomResourceDefinition)) *v1beta1.CustomResourceDefinition {
 	falseVal := false
 	// TODO(muvaf): Add proper descriptions.
 	crd := &v1beta1.CustomResourceDefinition{
@@ -232,33 +232,30 @@ func BaseCRD(opts ...func(*v1beta1.CustomResourceDefinition) error) (*v1beta1.Cu
 		},
 	}
 	for _, f := range opts {
-		if err := f(crd); err != nil {
-			return nil, err
-		}
+		f(crd)
 	}
-	return crd, nil
+	return crd
 }
 
 // InfraValidation returns a CRDOption that adds infrastructure related fields
 // to the base CRD.
-func InfraValidation() func(*v1beta1.CustomResourceDefinition) error {
-	return func(crd *v1beta1.CustomResourceDefinition) error {
+func InfraValidation() func(*v1beta1.CustomResourceDefinition) {
+	return func(crd *v1beta1.CustomResourceDefinition) {
 		crd.Spec.Scope = v1beta1.ClusterScoped
 		spec := &map[string]v1beta1.JSONSchemaProps{}
 		if err := yaml.Unmarshal([]byte(InfraCompositeSpecProps), spec); err != nil {
-			return errors.Wrap(err, "constant string could not be parsed")
+			panic(fmt.Sprintf("constant infrastructure composite spec props could not be parsed: %s", err.Error()))
 		}
 		for k, v := range *spec {
 			crd.Spec.Validation.OpenAPIV3Schema.Properties["spec"].Properties[k] = v
 		}
 		status := &map[string]v1beta1.JSONSchemaProps{}
 		if err := yaml.Unmarshal([]byte(InfraCompositeStatusProps), status); err != nil {
-			return errors.Wrap(err, "constant string could not be parsed")
+			panic(fmt.Sprintf("constant infrastructure composite status props could not be parsed: %s", err.Error()))
 		}
 		for k, v := range *status {
 			crd.Spec.Validation.OpenAPIV3Schema.Properties["status"].Properties[k] = v
 		}
-		return nil
 	}
 }
 

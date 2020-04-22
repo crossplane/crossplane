@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package definer
+package definition
 
 import (
 	"context"
@@ -194,8 +194,8 @@ func (r *reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 		// We know that CRD is ready and we are in control of it. So, we'll spin up
 		// an instance controller to reconcile it.
-		reconciler := composite.NewCompositeReconciler(definer.GetCRDName(), r.mgr, definer.GetCRDGroupVersionKind(), r.log, definer)
-		if err := r.ctrl.Start(definer.GetCRDName(), definer.GetCRDGroupVersionKind(), reconciler); err != nil {
+		reconciler := composite.NewCompositeReconciler(definer.GetName(), r.mgr, definer.GetDefinedGroupVersionKind(), r.log, definer)
+		if err := r.ctrl.Start(definer.GetName(), definer.GetDefinedGroupVersionKind(), reconciler); err != nil {
 			log.Debug(errCannotStartController, "error", err)
 			definer.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errCannotStartController)))
 			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, definer), errCannotStartController)
@@ -211,7 +211,7 @@ func (r *reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		if !exists {
 			// Controller probably crashed if it's still up but we need to
 			// clean up.
-			if err := r.ctrl.Stop(definer.GetCRDName()); err != nil {
+			if err := r.ctrl.Stop(definer.GetName()); err != nil {
 				log.Debug(errStopController, "error", err)
 				return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(err, errStopController)
 			}
@@ -224,7 +224,7 @@ func (r *reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			}
 			return reconcile.Result{Requeue: false}, nil
 		}
-		allGone, err := r.crd.DeleteInstances(ctx, definer)
+		allGone, err := r.crd.DeleteCustomResources(ctx, definer)
 		if err != nil {
 			log.Debug("cannot delete instances of crd", "error", err)
 			definer.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, "cannot delete instances of crd")))
@@ -239,13 +239,12 @@ func (r *reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		}
 		// Controller should be stopped before the deletion of CRD so that it
 		// doesn't crash.
-		if err := r.ctrl.Stop(definer.GetCRDName()); err != nil {
+		if err := r.ctrl.Stop(definer.GetName()); err != nil {
 			log.Debug(errStopController, "error", err)
 			definer.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, "cannot stop controller")))
 			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, definer), errUpdateInfraDefStatus)
 		}
-		err = r.crd.Delete(ctx, definer)
-		if resource.IgnoreNotFound(err) != nil {
+		if resource.IgnoreNotFound(r.crd.Delete(ctx, definer)) != nil {
 			log.Debug(errDeleteCRD, "error", err)
 			definer.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errDeleteCRD)))
 			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, definer), errUpdateInfraDefStatus)

@@ -167,7 +167,7 @@ type ComponentSpec struct {
 	// +kubebuilder:pruning:PreserveUnknownFields
 	Workload runtime.RawExtension `json:"workload"`
 
-	// CustomFields exposed by this component. ApplicationConfigurations that
+	// Parameters exposed by this component. ApplicationConfigurations that
 	// reference this component may specify values for these parameters, which
 	// will in turn be injected into the embedded workload.
 	// +optional

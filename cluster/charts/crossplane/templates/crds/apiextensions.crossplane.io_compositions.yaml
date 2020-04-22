@@ -148,7 +148,7 @@ spec:
           - to
           type: object
         status:
-          description: CompositionStatus shows the observed state of the definition.
+          description: CompositionStatus shows the observed state of the composition.
           properties:
             conditions:
               description: Conditions of the resource.

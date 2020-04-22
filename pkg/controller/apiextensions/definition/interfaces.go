@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package definer
+package definition
 
 import (
 	"context"
@@ -29,8 +29,7 @@ import (
 type Definer interface {
 	resource.Object
 
-	GetCRDName() string
-	GetCRDGroupVersionKind() schema.GroupVersionKind
+	GetDefinedGroupVersionKind() schema.GroupVersionKind
 	GenerateCRD() (*v1beta1.CustomResourceDefinition, error)
 	GetConnectionSecretKeys() []string
 }
@@ -38,7 +37,7 @@ type Definer interface {
 // Client does the necessary operations to manage the lifecycle of a CustomResourceDefinition.
 type Client interface {
 	Get(context.Context, Definer) (*v1beta1.CustomResourceDefinition, error)
-	DeleteInstances(context.Context, Definer) (bool, error)
+	DeleteCustomResources(context.Context, Definer) (bool, error)
 	Delete(context.Context, Definer) error
 	Apply(context.Context, Definer) error
 }

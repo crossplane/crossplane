@@ -219,11 +219,6 @@ func (in *CustomResourceDefinitionVersion) DeepCopyInto(out *CustomResourceDefin
 		*out = new(CustomResourceValidation)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.Subresources != nil {
-		in, out := &in.Subresources, &out.Subresources
-		*out = new(v1beta1.CustomResourceSubresources)
-		(*in).DeepCopyInto(*out)
-	}
 	if in.AdditionalPrinterColumns != nil {
 		in, out := &in.AdditionalPrinterColumns, &out.AdditionalPrinterColumns
 		*out = make([]v1beta1.CustomResourceColumnDefinition, len(*in))

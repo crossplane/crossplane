@@ -14,14 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package definer
+package definition
 
 import (
 	"context"
 
 	"github.com/pkg/errors"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metaapi "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -53,7 +52,7 @@ type APIInfrastructureClient struct {
 // Get fetches the CRD.
 func (m *APIInfrastructureClient) Get(ctx context.Context, definer Definer) (*v1beta1.CustomResourceDefinition, error) {
 	crd := &v1beta1.CustomResourceDefinition{}
-	return crd, m.client.Get(ctx, types.NamespacedName{Name: definer.GetCRDName()}, crd)
+	return crd, m.client.Get(ctx, types.NamespacedName{Name: definer.GetName()}, crd)
 }
 
 // Apply applies the CRD that the definer generates.
@@ -69,27 +68,22 @@ func (m *APIInfrastructureClient) Apply(ctx context.Context, definer Definer) er
 // Delete the generated CRD.
 func (m *APIInfrastructureClient) Delete(ctx context.Context, definer Definer) error {
 	crd := &v1beta1.CustomResourceDefinition{}
-	err := m.client.Get(ctx, types.NamespacedName{Name: definer.GetCRDName()}, crd)
-	if resource.IgnoreNotFound(err) != nil {
-		return err
-	}
-	if kerrors.IsNotFound(err) {
-		return nil
+	err := m.client.Get(ctx, types.NamespacedName{Name: definer.GetName()}, crd)
+	if err != nil {
+		return errors.Wrap(resource.IgnoreNotFound(err), "cannot not get crd")
 	}
 	if !metav1.IsControlledBy(crd, definer) {
 		return errors.New(errDeleteNonControlledCRD)
 	}
-	return resource.IgnoreNotFound(m.client.Delete(ctx, crd))
+	return errors.Wrap(resource.IgnoreNotFound(m.client.Delete(ctx, crd)), "cannot delete crd")
 }
 
-// DeleteInstances deletes all instances of the generated CRD in all namespaces
+// DeleteCustomResources deletes all instances of the generated CRD in all namespaces
 // and returns whether there are any remaining instances.
-func (m *APIInfrastructureClient) DeleteInstances(ctx context.Context, definer Definer) (bool, error) {
-	// Empty namespace option covers all namespaces in case CRD is namespace-scoped.
-	// If it is cluster-scoped, it doesn't have any effect.
+func (m *APIInfrastructureClient) DeleteCustomResources(ctx context.Context, definer Definer) (bool, error) {
 	list := &unstructured.UnstructuredList{}
-	list.SetGroupVersionKind(definer.GetCRDGroupVersionKind())
-	err := m.client.List(ctx, list, client.InNamespace(""))
+	list.SetGroupVersionKind(definer.GetDefinedGroupVersionKind())
+	err := m.client.List(ctx, list)
 	switch {
 	case metaapi.IsNoMatchError(err):
 		return true, nil
@@ -104,6 +98,6 @@ func (m *APIInfrastructureClient) DeleteInstances(ctx context.Context, definer D
 	// because it cannot go away before stopping the controller.
 	// So, we need to delete all instances of CRD manually here.
 	obj := &unstructured.Unstructured{}
-	obj.SetGroupVersionKind(definer.GetCRDGroupVersionKind())
-	return false, resource.Ignore(metaapi.IsNoMatchError, m.client.DeleteAllOf(ctx, obj, client.InNamespace("")))
+	obj.SetGroupVersionKind(definer.GetDefinedGroupVersionKind())
+	return false, resource.Ignore(metaapi.IsNoMatchError, m.client.DeleteAllOf(ctx, obj))
 }

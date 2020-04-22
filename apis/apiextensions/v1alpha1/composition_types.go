@@ -101,18 +101,11 @@ type Patch struct {
 	Transforms []Transform `json:"transforms,omitempty"`
 }
 
-// Patch runs transformers and patches the target resource.
-func (c *Patch) Patch(from, to runtime.Object) error {
-	var fromMap map[string]interface{}
-	switch u := from.(type) {
-	case interface{ UnstructuredContent() map[string]interface{} }:
-		fromMap = u.UnstructuredContent()
-	default:
-		obj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(from)
-		if err != nil {
-			return err
-		}
-		fromMap = obj
+// Apply runs transformers and patches the target resource.
+func (c *Patch) Apply(from, to runtime.Object) error {
+	fromMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(from)
+	if err != nil {
+		return err
 	}
 
 	in, err := fieldpath.Pave(fromMap).GetValue(c.FromFieldPath)
@@ -140,12 +133,21 @@ func (c *Patch) Patch(from, to runtime.Object) error {
 	return runtime.DefaultUnstructuredConverter.FromUnstructured(toMap, to)
 }
 
+// TransformType is type of the transform function to be chosen.
+type TransformType string
+
+// Accepted TransformTypes.
+const (
+	TransformTypeMap  TransformType = "map"
+	TransformTypeMath TransformType = "math"
+)
+
 // Transform is a unit of process whose input is transformed into an output with
 // the supplied configuration.
 type Transform struct {
 
 	// Type of the transform to be run.
-	Type string `json:"type"`
+	Type TransformType `json:"type"`
 
 	// Math is used to transform input via mathematical operations such as multiplication.
 	// +optional
@@ -162,18 +164,18 @@ func (t *Transform) Transform(input interface{}) (interface{}, error) {
 		Resolve(input interface{}) (interface{}, error)
 	}
 	switch t.Type {
-	case "math":
+	case TransformTypeMath:
 		transformer = t.Math
-	case "map":
+	case TransformTypeMap:
 		transformer = t.Map
 	default:
-		return nil, errors.New(errTypeNotSupported(t.Type))
+		return nil, errors.New(errTypeNotSupported(string(t.Type)))
 	}
 	if transformer == nil {
-		return nil, errors.New(errConfigMissing(t.Type))
+		return nil, errors.New(errConfigMissing(string(t.Type)))
 	}
 	out, err := transformer.Resolve(input)
-	return out, errors.Wrap(err, errTransformWithType(t.Type))
+	return out, errors.Wrap(err, errTransformWithType(string(t.Type)))
 }
 
 // MathTransform conducts mathematical operations on the input with the given
@@ -234,7 +236,7 @@ type ConnectionDetail struct {
 	FromConnectionSecretKey string `json:"fromConnectionSecretKey"`
 }
 
-// CompositionStatus shows the observed state of the definition.
+// CompositionStatus shows the observed state of the composition.
 type CompositionStatus struct {
 	v1alpha1.ConditionedStatus `json:",inline"`
 }

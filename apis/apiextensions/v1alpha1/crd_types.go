@@ -50,7 +50,6 @@ func FromShallow(in CustomResourceDefinitionSpec) (*v1beta1.CustomResourceDefini
 			Name:                     version.Name,
 			Served:                   version.Served,
 			Storage:                  version.Storage,
-			Subresources:             version.Subresources,
 			AdditionalPrinterColumns: version.AdditionalPrinterColumns,
 		}
 		if version.Schema != nil {
@@ -142,11 +141,6 @@ type CustomResourceDefinitionVersion struct {
 	// Per-version schemas must not all be set to identical values (top-level validation schema should be used instead).
 	// +optional
 	Schema *CustomResourceValidation `json:"schema,omitempty" protobuf:"bytes,4,opt,name=schema"`
-	// subresources specify what subresources this version of the defined custom resource have.
-	// Top-level and per-version subresources are mutually exclusive.
-	// Per-version subresources must not all be set to identical values (top-level subresources should be used instead).
-	// +optional
-	Subresources *v1beta1.CustomResourceSubresources `json:"subresources,omitempty" protobuf:"bytes,5,opt,name=subresources"`
 	// additionalPrinterColumns specifies additional columns returned in Table output.
 	// See https://kubernetes.io/docs/reference/using-api/api-concepts/#receiving-resources-as-tables for details.
 	// Top-level and per-version columns are mutually exclusive.

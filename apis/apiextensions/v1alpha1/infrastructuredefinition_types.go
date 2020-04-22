@@ -17,9 +17,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"fmt"
-	"strings"
-
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/pkg/errors"
@@ -71,15 +68,9 @@ type InfrastructureDefinitionList struct {
 	Items           []InfrastructureDefinition `json:"items"`
 }
 
-// GetCRDName returns the name of the CRD that this InfrastructureDefinition
-// controls.
-func (in InfrastructureDefinition) GetCRDName() string {
-	return strings.ToLower(fmt.Sprintf("%s.%s", in.Spec.CRDSpecTemplate.Names.Plural, in.Spec.CRDSpecTemplate.Group))
-}
-
-// GetCRDGroupVersionKind returns the schema.GroupVersionKind of the CRD that this
+// GetDefinedGroupVersionKind returns the schema.GroupVersionKind of the CRD that this
 // InfrastructureDefinition instance will define.
-func (in InfrastructureDefinition) GetCRDGroupVersionKind() schema.GroupVersionKind {
+func (in InfrastructureDefinition) GetDefinedGroupVersionKind() schema.GroupVersionKind {
 	return schema.GroupVersionKind{
 		Group:   in.Spec.CRDSpecTemplate.Group,
 		Version: in.Spec.CRDSpecTemplate.Version,
@@ -94,10 +85,7 @@ func (in *InfrastructureDefinition) GenerateCRD() (*v1beta1.CustomResourceDefini
 	if err != nil {
 		return nil, errors.Wrap(err, errConvertCRDTemplate)
 	}
-	base, err := BaseCRD(InfraValidation())
-	if err != nil {
-		return nil, err
-	}
+	base := BaseCRD(InfraValidation())
 	base.SetName(in.GetName())
 	base.Spec.Group = crdSpec.Group
 	base.Spec.Version = crdSpec.Version

@@ -24,7 +24,6 @@ import (
 
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/json"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -60,17 +59,14 @@ type APIComposedReconciler struct {
 // Reconcile tries to bring the composed resource into the desired state. It
 // creates the resource if the given reference is empty.
 func (r *APIComposedReconciler) Reconcile(ctx context.Context, cr resource.Composite, composedRef v1.ObjectReference, tmpl v1alpha1.ComposedTemplate) (Observation, error) {
-	// Deletion of the composite resource has been triggered. We make deletion
-	// the deletion call and report back success only if the call returns NotFound.
+	// Deletion of the composite resource has been triggered. We make the deletion
+	// call and report back success only if the call returns NotFound.
 	if meta.WasDeleted(cr) {
 		if composedRef.Name == "" {
 			return Observation{}, nil
 		}
 		err := r.client.Delete(ctx, unstructured.NewComposed(unstructured.FromReference(composedRef)))
-		if resource.IgnoreNotFound(err) != nil {
-			return Observation{}, err
-		}
-		return Observation{}, nil
+		return Observation{}, resource.IgnoreNotFound(err)
 	}
 
 	var composed resource.Composable
@@ -107,44 +103,40 @@ func (r *APIComposedReconciler) Reconcile(ctx context.Context, cr resource.Compo
 }
 
 // Configure the composed object with given template and composite metadata.
-func (r *APIComposedReconciler) Configure(cr, composed resource.Object, tmpl v1alpha1.ComposedTemplate) error {
+func (r *APIComposedReconciler) Configure(composite, composed resource.Object, tmpl v1alpha1.ComposedTemplate) error {
 	if err := json.Unmarshal(tmpl.Base.Raw, composed); err != nil {
 		return err
 	}
-	composed.SetGenerateName(fmt.Sprintf("%s-", cr.GetName()))
+	composed.SetGenerateName(fmt.Sprintf("%s-", composite.GetName()))
 	return nil
 }
 
 // Overlay applies an overlay to the resource with the information from parent
 // composite resource.
-func (r *APIComposedReconciler) Overlay(cr, composed resource.Object, patches []v1alpha1.Patch) error {
+func (r *APIComposedReconciler) Overlay(composite, composed resource.Object, patches []v1alpha1.Patch) error {
 	for i, patch := range patches {
-		if err := patch.Patch(cr, composed); err != nil {
+		if err := patch.Apply(composite, composed); err != nil {
 			return errors.Wrap(err, fmt.Sprintf("cannot apply the patch at index %d on result", i))
 		}
 	}
-	err := meta.AddControllerReference(composed, meta.AsOwner(meta.ReferenceTo(cr, cr.GetObjectKind().GroupVersionKind())))
+	err := meta.AddControllerReference(composed, meta.AsOwner(meta.ReferenceTo(composite, composite.GetObjectKind().GroupVersionKind())))
 	return errors.Wrap(err, "cannot add controller ref to composed resource")
 }
 
 // GetConnectionDetails returns the ConnectionDetails of the resource if a reference
 // to the connection secret exists.
-func (r *APIComposedReconciler) GetConnectionDetails(ctx context.Context, composed resource.ConnectionSecretWriterTo, filter []v1alpha1.ConnectionDetail) (managed.ConnectionDetails, error) {
+func (r *APIComposedReconciler) GetConnectionDetails(ctx context.Context, composed resource.ConnectionSecretWriterTo, conversion []v1alpha1.ConnectionDetail) (managed.ConnectionDetails, error) {
 	secretRef := composed.GetWriteConnectionSecretToReference()
 	if secretRef == nil {
 		return nil, nil
 	}
 	secret := &v1.Secret{}
 	err := r.client.Get(ctx, types.NamespacedName{Namespace: secretRef.Namespace, Name: secretRef.Name}, secret)
-	if resource.IgnoreNotFound(err) != nil {
-		return nil, err
-	}
-	// The secret is not published because the resource is not ready yet
-	if kerrors.IsNotFound(err) {
-		return nil, nil
+	if err != nil {
+		return nil, resource.IgnoreNotFound(err)
 	}
 	out := managed.ConnectionDetails{}
-	for _, pair := range filter {
+	for _, pair := range conversion {
 		key := pair.FromConnectionSecretKey
 		if pair.Name != nil {
 			key = *pair.Name

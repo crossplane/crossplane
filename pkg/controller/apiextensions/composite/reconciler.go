@@ -57,11 +57,11 @@ type ConnectionSecretFilterer interface {
 type ConnectionPublisher interface {
 	// PublishConnection details for the supplied resource. Publishing
 	// must be additive; i.e. if details (a, b, c) are published, subsequently
-	// publicing details (b, c, d) should update (b, c) but not remove a.
-	PublishConnection(ctx context.Context, owner resource.ConnectionSecretOwner, c managed.ConnectionDetails) error
+	// publishing details (b, c, d) should update (b, c) but not remove a.
+	PublishConnection(ctx context.Context, o resource.ConnectionSecretOwner, c managed.ConnectionDetails) error
 
 	// UnpublishConnection details for the supplied resource.
-	UnpublishConnection(ctx context.Context, owner resource.ConnectionSecretOwner, c managed.ConnectionDetails) error
+	UnpublishConnection(ctx context.Context, o resource.ConnectionSecretOwner, c managed.ConnectionDetails) error
 }
 
 // NewCompositeReconciler returns a new *compositeReconciler.
@@ -138,7 +138,13 @@ func (r *compositeReconciler) Reconcile(req reconcile.Request) (reconcile.Result
 		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(err, "cannot add finalizer")
 	}
 
-	// We start with empty ObjectRefs and fill them up as they are provisioned.
+	// TODO(muvaf): Since the composed reconciler returns only reference, it can
+	// be parallelized via go routines.
+
+	// In order to iterate over all composition targets, we create an empty ref
+	// array with the same length. Then copy the already provisioned ones into
+	// that array to not create new ones because composed reconciler assumes that
+	// if the reference is empty, it needs to create the resource.
 	refs := make([]v1.ObjectReference, len(comp.Spec.To))
 	copy(refs, cr.GetResourceReferences())
 	conn := managed.ConnectionDetails{}

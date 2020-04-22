@@ -44,7 +44,7 @@ spec:
           description: A ComponentSpec defines the desired state of a Component.
           properties:
             parameters:
-              description: CustomFields exposed by this component. ApplicationConfigurations
+              description: Parameters exposed by this component. ApplicationConfigurations
                 that reference this component may specify values for these parameters,
                 which will in turn be injected into the embedded workload.
               items:

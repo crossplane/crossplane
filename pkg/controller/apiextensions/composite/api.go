@@ -41,24 +41,24 @@ type APIFilteredSecretPublisher struct {
 	filter []string
 }
 
-// NewAPIFilteredSecretPublisher returns a new APIFilteredSecretPublisher.
-func NewAPIFilteredSecretPublisher(c client.Client, filter []string) *APIFilteredSecretPublisher {
-	// NOTE(negz): We transparently inject an APIPatchingApplicator in order to maintain
-	// backward compatibility with the original API of this function.
+// NewAPIFilteredSecretPublisher returns a ConnectionPublisher that only
+// publishes connection secret keys that are included in the supplied filter.
+func NewAPIFilteredSecretPublisher(c client.Client, filter []string) ConnectionPublisher {
 	return &APIFilteredSecretPublisher{client: resource.NewAPIPatchingApplicator(c), filter: filter}
 }
 
 // PublishConnection publishes the supplied ConnectionDetails to a Secret in the
 // same namespace as the supplied Managed resource. It is a no-op if the secret
 // already exists with the supplied ConnectionDetails.
-func (a *APIFilteredSecretPublisher) PublishConnection(ctx context.Context, owner resource.ConnectionSecretOwner, c managed.ConnectionDetails) error {
+func (a *APIFilteredSecretPublisher) PublishConnection(ctx context.Context, o resource.ConnectionSecretOwner, c managed.ConnectionDetails) error {
 	// This resource does not want to expose a connection secret.
-	if owner.GetWriteConnectionSecretToReference() == nil {
+	if o.GetWriteConnectionSecretToReference() == nil {
 		return nil
 	}
 
-	s := resource.ConnectionSecretFor(owner, owner.GetObjectKind().GroupVersionKind())
+	s := resource.ConnectionSecretFor(o, o.GetObjectKind().GroupVersionKind())
 	m := map[string]bool{}
+	// TODO(muvaf): Should empty filter allow all keys?
 	for _, key := range a.filter {
 		m[key] = true
 	}
@@ -68,7 +68,7 @@ func (a *APIFilteredSecretPublisher) PublishConnection(ctx context.Context, owne
 		}
 	}
 
-	return errors.Wrap(a.client.Apply(ctx, s, resource.ConnectionSecretMustBeControllableBy(owner.GetUID())), errApplySecret)
+	return errors.Wrap(a.client.Apply(ctx, s, resource.ConnectionSecretMustBeControllableBy(o.GetUID())), errApplySecret)
 }
 
 // UnpublishConnection is no-op since PublishConnection only creates resources
@@ -91,6 +91,11 @@ type SelectorResolver struct {
 
 // ResolveSelector resolves selector to a reference if it doesn't exist.
 func (r *SelectorResolver) ResolveSelector(ctx context.Context, cr resource.Composite) error {
+	// TODO(muvaf): need to block the deletion of composition via finalizer once
+	// it's selected since it's integral to this resource.
+	// TODO(muvaf): We don't rely on UID in practice. It should not be there
+	// because it will make confusion if the resource is backed up and restored
+	// to another cluster
 	if cr.GetCompositionReference() != nil {
 		return nil
 	}
@@ -100,24 +105,15 @@ func (r *SelectorResolver) ResolveSelector(ctx context.Context, cr resource.Comp
 	}
 	list := &v1alpha1.CompositionList{}
 	if err := r.client.List(ctx, list, client.MatchingLabels(sel.MatchLabels)); err != nil {
-		return err
-	}
-	if len(list.Items) == 0 {
-		return errors.New("no composition has been found that has the given labels")
+		return errors.Wrap(err, "cannot list compositions")
 	}
 	apiVersion, kind := cr.GetObjectKind().GroupVersionKind().ToAPIVersionAndKind()
-	var chosen *v1alpha1.Composition
 	for _, comp := range list.Items {
-		if comp.Spec.From.APIVersion == apiVersion && comp.Spec.From.Kind == kind {
-			chosen = comp.DeepCopy()
-			break
+		if comp.Spec.From.APIVersion != apiVersion || comp.Spec.From.Kind != kind {
+			continue
 		}
+		cr.SetCompositionReference(meta.ReferenceTo(comp.DeepCopy(), v1alpha1.CompositionGroupVersionKind))
+		return errors.Wrap(r.client.Update(ctx, cr), "cannot update composite resource")
 	}
-	if chosen == nil {
-		return errors.New("no compatible composition has been found that has the given labels")
-	}
-	// TODO(muvaf): need to block the deletion of composition via finalizer once it's selected since it's integral to this resource.
-	// TODO(muvaf): We don't rely on UID in practice. It should not be there because it will make confusion if the resource is backed up and restored to another cluster
-	cr.SetCompositionReference(meta.ReferenceTo(chosen, v1alpha1.CompositionGroupVersionKind))
-	return r.client.Update(ctx, cr)
+	return errors.New("no compatible composition has been found that has the given labels")
 }
