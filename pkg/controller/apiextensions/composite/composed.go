@@ -30,7 +30,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 )
@@ -65,7 +65,7 @@ func (r *APIComposedReconciler) Reconcile(ctx context.Context, cr resource.Compo
 		if composedRef.Name == "" {
 			return Observation{}, nil
 		}
-		err := r.client.Delete(ctx, unstructured.NewComposed(unstructured.FromReference(composedRef)))
+		err := r.client.Delete(ctx, composed.New(composed.FromReference(composedRef)))
 		// We return empty reference only in case the object is truly deleted.
 		if kerrors.IsNotFound(err) {
 			return Observation{}, nil
@@ -73,31 +73,31 @@ func (r *APIComposedReconciler) Reconcile(ctx context.Context, cr resource.Compo
 		return Observation{Ref: composedRef}, resource.IgnoreNotFound(err)
 	}
 
-	var composed resource.Composable
+	var cd resource.Composed
 	if composedRef.Name == "" {
-		composed = unstructured.NewComposed()
-		if err := r.Configure(cr, composed, tmpl); err != nil {
+		cd = composed.New()
+		if err := r.Configure(cr, cd, tmpl); err != nil {
 			return Observation{}, err
 		}
 	} else {
-		composed = unstructured.NewComposed(unstructured.FromReference(composedRef))
-		if err := r.client.Get(ctx, types.NamespacedName{Name: composed.GetName(), Namespace: composed.GetNamespace()}, composed); err != nil {
+		cd = composed.New(composed.FromReference(composedRef))
+		if err := r.client.Get(ctx, types.NamespacedName{Name: cd.GetName(), Namespace: cd.GetNamespace()}, cd); err != nil {
 			return Observation{}, err
 		}
 	}
 
 	// Patches are continuously applied from the Composite resource to the composed.
-	if err := r.Overlay(cr, composed, tmpl.Patches); err != nil {
+	if err := r.Overlay(cr, cd, tmpl.Patches); err != nil {
 		return Observation{}, err
 	}
 
 	obs := Observation{}
-	if err := r.client.Apply(ctx, composed, resource.MustBeControllableBy(cr.GetUID())); err != nil {
+	if err := r.client.Apply(ctx, cd, resource.MustBeControllableBy(cr.GetUID())); err != nil {
 		return Observation{}, err
 	}
-	obs.Ref = *meta.ReferenceTo(composed, composed.GetObjectKind().GroupVersionKind())
+	obs.Ref = *meta.ReferenceTo(cd, cd.GetObjectKind().GroupVersionKind())
 
-	conn, err := r.GetConnectionDetails(ctx, composed, tmpl.ConnectionDetails)
+	conn, err := r.GetConnectionDetails(ctx, cd, tmpl.ConnectionDetails)
 	if err != nil {
 		return Observation{}, err
 	}

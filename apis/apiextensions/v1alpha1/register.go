@@ -37,7 +37,7 @@ var (
 	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
 )
 
-// Bucket type metadata.
+// InInfrastructureDefinition type metadata.
 var (
 	InfrastructureDefinitionKind             = reflect.TypeOf(InfrastructureDefinition{}).Name()
 	InfrastructureDefinitionGroupKind        = schema.GroupKind{Group: Group, Kind: InfrastructureDefinitionKind}.String()
@@ -45,7 +45,15 @@ var (
 	InfrastructureDefinitionGroupVersionKind = SchemeGroupVersion.WithKind(InfrastructureDefinitionKind)
 )
 
-// Bucket type metadata.
+// InInfrastructurePublication type metadata.
+var (
+	InfrastructurePublicationKind             = reflect.TypeOf(InfrastructurePublication{}).Name()
+	InfrastructurePublicationGroupKind        = schema.GroupKind{Group: Group, Kind: InfrastructurePublicationKind}.String()
+	InfrastructurePublicationKindAPIVersion   = InfrastructurePublicationKind + "." + SchemeGroupVersion.String()
+	InfrastructurePublicationGroupVersionKind = SchemeGroupVersion.WithKind(InfrastructurePublicationKind)
+)
+
+// Composition type metadata.
 var (
 	CompositionKind             = reflect.TypeOf(Composition{}).Name()
 	CompositionGroupKind        = schema.GroupKind{Group: Group, Kind: CompositionKind}.String()
@@ -55,5 +63,6 @@ var (
 
 func init() {
 	SchemeBuilder.Register(&InfrastructureDefinition{}, &InfrastructureDefinitionList{})
+	SchemeBuilder.Register(&InfrastructurePublication{}, &InfrastructurePublicationList{})
 	SchemeBuilder.Register(&Composition{}, &CompositionList{})
 }

@@ -23,8 +23,9 @@ spec:
     status: {}
   validation:
     openAPIV3Schema:
-      description: InfrastructureDefinition is used to define a resource claim that
-        can be scheduled to one of the available compatible compositions.
+      description: An InfrastructureDefinition defines a new kind of composite infrastructure
+        resource. The new resource is composed of other composite or managed infrastructure
+        resources.
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation

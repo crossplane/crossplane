@@ -2029,6 +2029,8 @@ spec:
                                     fsGroup:
                                       format: int64
                                       type: integer
+                                    fsGroupChangePolicy:
+                                      type: string
                                     runAsGroup:
                                       format: int64
                                       type: integer

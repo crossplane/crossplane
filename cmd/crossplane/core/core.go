@@ -29,7 +29,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane/apis"
-	"github.com/crossplane/crossplane/pkg/controller/apiextensions/definition"
+	"github.com/crossplane/crossplane/pkg/controller/apiextensions"
 	"github.com/crossplane/crossplane/pkg/controller/workload"
 )
 
@@ -80,8 +80,8 @@ func (c *Command) Run(log logging.Logger) error {
 		return errors.Wrap(err, "Cannot setup workload controllers")
 	}
 
-	if err := definition.Setup(mgr, log); err != nil {
-		return errors.Wrap(err, "Cannot setup infrastructure definition controller")
+	if err := apiextensions.Setup(mgr, log); err != nil {
+		return errors.Wrap(err, "Cannot setup API extension controllers")
 	}
 
 	return errors.Wrap(mgr.Start(ctrl.SetupSignalHandler()), "Cannot start controller manager")
