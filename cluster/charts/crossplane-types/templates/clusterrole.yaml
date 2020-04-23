@@ -37,6 +37,7 @@ rules:
   - storage.crossplane.io
   - workload.crossplane.io
   - core.oam.dev
+  - apiextensions.crossplane.io
   resources:
   - "*"
   verbs:
