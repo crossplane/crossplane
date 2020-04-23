@@ -20,10 +20,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
-
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/json"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -31,6 +30,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 )
@@ -66,7 +66,11 @@ func (r *APIComposedReconciler) Reconcile(ctx context.Context, cr resource.Compo
 			return Observation{}, nil
 		}
 		err := r.client.Delete(ctx, unstructured.NewComposed(unstructured.FromReference(composedRef)))
-		return Observation{}, resource.IgnoreNotFound(err)
+		// We return empty reference only in case the object is truly deleted.
+		if kerrors.IsNotFound(err) {
+			return Observation{}, nil
+		}
+		return Observation{Ref: composedRef}, resource.IgnoreNotFound(err)
 	}
 
 	var composed resource.Composable

@@ -99,12 +99,13 @@ func (r *SelectorResolver) ResolveSelector(ctx context.Context, cr resource.Comp
 	if cr.GetCompositionReference() != nil {
 		return nil
 	}
+	labels := map[string]string{}
 	sel := cr.GetCompositionSelector()
-	if sel == nil {
-		return errors.New("no composition selector to resolve")
+	if sel != nil {
+		labels = sel.MatchLabels
 	}
 	list := &v1alpha1.CompositionList{}
-	if err := r.client.List(ctx, list, client.MatchingLabels(sel.MatchLabels)); err != nil {
+	if err := r.client.List(ctx, list, client.MatchingLabels(labels)); err != nil {
 		return errors.Wrap(err, "cannot list compositions")
 	}
 	apiVersion, kind := cr.GetObjectKind().GroupVersionKind().ToAPIVersionAndKind()
