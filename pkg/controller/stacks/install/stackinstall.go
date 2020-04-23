@@ -176,6 +176,12 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{}, err
 	}
 
+	meta.AddFinalizer(stackInstaller, installFinalizer)
+	err := r.kube.Update(ctx, stackInstaller)
+	if err != nil {
+		return fail(ctx, r.kube, stackInstaller, err)
+	}
+
 	executorinfo, err := r.executorInfoDiscoverer.Discover(ctx)
 	if err != nil {
 		return fail(ctx, r.kube, stackInstaller, err)
@@ -524,6 +530,11 @@ func (h *stackInstallHandler) delete(ctx context.Context) (reconcile.Result, err
 		if err := df(ctx); err != nil {
 			return fail(ctx, h.kube, h.ext, err)
 		}
+	}
+
+	meta.RemoveFinalizer(h.ext, installFinalizer)
+	if err := h.kube.Update(ctx, h.ext); err != nil {
+		return fail(ctx, h.kube, h.ext, err)
 	}
 
 	return reconcile.Result{}, nil

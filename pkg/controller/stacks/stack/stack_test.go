@@ -352,6 +352,7 @@ func TestReconcile(t *testing.T) {
 						*obj.(*v1alpha1.Stack) = *(resource())
 						return nil
 					},
+					MockUpdate: test.NewMockUpdateFn(nil),
 				},
 				factory: &mockFactory{
 					MockNewHandler: func(logging.Logger, *v1alpha1.Stack, client.Client, client.Client, *hosted.Config, bool, string) handler {
@@ -431,7 +432,9 @@ func TestCreate(t *testing.T) {
 	}{
 		{
 			name: "FailRBAC",
-			r:    resource(withPolicyRules(defaultPolicyRules())),
+			r: resource(
+				withPolicyRules(defaultPolicyRules()),
+				withFinalizers(stacksFinalizer)),
 			clientFunc: func(r *v1alpha1.Stack) client.Client {
 				mc := test.NewMockClient()
 				mc.MockCreate = func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error {
@@ -460,7 +463,8 @@ func TestCreate(t *testing.T) {
 			name: "FailDeployment",
 			r: resource(
 				withPolicyRules(defaultPolicyRules()),
-				withControllerSpec(defaultControllerSpec())),
+				withControllerSpec(defaultControllerSpec()),
+				withFinalizers(stacksFinalizer)),
 			clientFunc: func(r *v1alpha1.Stack) client.Client {
 				mc := test.NewMockClient()
 				mc.MockCreate = func(ctx context.Context, obj runtime.Object, _ ...client.CreateOption) error {
@@ -498,8 +502,11 @@ func TestCreate(t *testing.T) {
 			},
 		},
 		{
-			name:       "SuccessfulCreate",
-			r:          resource(),
+			name: "SuccessfulCreate",
+			r: resource(
+				withGVK(v1alpha1.StackGroupVersionKind),
+				withFinalizers(stacksFinalizer),
+				withResourceVersion("1")),
 			clientFunc: func(r *v1alpha1.Stack) client.Client { return fake.NewFakeClient(r) },
 			want: want{
 				result: requeueOnSuccess,
@@ -513,8 +520,12 @@ func TestCreate(t *testing.T) {
 			},
 		},
 		{
-			name:       "SuccessfulClusterCreate",
-			r:          resource(withPermissionScope("Cluster")),
+			name: "SuccessfulClusterCreate",
+			r: resource(
+				withPermissionScope("Cluster"),
+				withGVK(v1alpha1.StackGroupVersionKind),
+				withFinalizers(stacksFinalizer),
+				withResourceVersion("1")),
 			clientFunc: func(r *v1alpha1.Stack) client.Client { return fake.NewFakeClient(r) },
 			want: want{
 				result: requeueOnSuccess,
@@ -2531,7 +2542,6 @@ func Test_stackHandler_createPersonaClusterRolesCRDHandler(t *testing.T) {
 				"core.crossplane.io/parent-kind":                 "",
 				"core.crossplane.io/parent-name":                 "cool-stack",
 				"core.crossplane.io/parent-namespace":            "cool-namespace",
-				"core.crossplane.io/parent-uid":                  "definitely-a-uuid",
 				"core.crossplane.io/parent-version":              "",
 				"namespace.crossplane.io/cool-namespace":         "true",
 				"rbac.crossplane.io/aggregate-to-namespace-view": "true",
@@ -2557,7 +2567,6 @@ func Test_stackHandler_createPersonaClusterRolesCRDHandler(t *testing.T) {
 				"core.crossplane.io/parent-kind":                   "",
 				"core.crossplane.io/parent-name":                   "cool-stack",
 				"core.crossplane.io/parent-namespace":              "cool-namespace",
-				"core.crossplane.io/parent-uid":                    "definitely-a-uuid",
 				"core.crossplane.io/parent-version":                "",
 				"rbac.crossplane.io/aggregate-to-environment-view": "true",
 			}), withClusterRoleRules([]rbac.PolicyRule{{Verbs: []string{"get", "list", "watch"}, APIGroups: []string{group}, Resources: []string{plural}}}))},

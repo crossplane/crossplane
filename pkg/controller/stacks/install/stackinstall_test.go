@@ -235,6 +235,7 @@ func TestReconcile(t *testing.T) {
 							*obj.(*v1alpha1.StackInstall) = *(stackInstallResource())
 							return nil
 						},
+						MockUpdate: test.NewMockUpdateFn(nil),
 					},
 					hostKube:   nil,
 					hostClient: nil,
@@ -268,6 +269,7 @@ func TestReconcile(t *testing.T) {
 							*obj.(*v1alpha1.ClusterStackInstall) = *(clusterInstallResource())
 							return nil
 						},
+						MockUpdate: test.NewMockUpdateFn(nil),
 					},
 				},
 				stackinator: func() v1alpha1.StackInstaller { return &v1alpha1.ClusterStackInstall{} },
@@ -317,7 +319,7 @@ func TestReconcile(t *testing.T) {
 						APIVersion: v1alpha1.StackGroupVersionKind.GroupVersion().String(),
 					}),
 					withConditions(runtimev1alpha1.Available(), runtimev1alpha1.ReconcileSuccess()),
-					withFinalizers(),
+					withFinalizers(installFinalizer),
 				), err: nil},
 		},
 		{
@@ -330,6 +332,7 @@ func TestReconcile(t *testing.T) {
 							*obj.(*v1alpha1.StackInstall) = *(stackInstallResource(withDeletionTimestamp(time.Now())))
 							return nil
 						},
+						MockUpdate: test.NewMockUpdateFn(nil),
 					},
 				},
 				stackinator: func() v1alpha1.StackInstaller { return &v1alpha1.StackInstall{} },
@@ -366,6 +369,7 @@ func TestReconcile(t *testing.T) {
 							}
 							return nil
 						},
+						MockUpdate:       test.NewMockUpdateFn(nil),
 						MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 					},
 					hostKube:   nil,
@@ -395,6 +399,7 @@ func TestReconcile(t *testing.T) {
 							*obj.(*v1alpha1.StackInstall) = *(stackInstallResource())
 							return nil
 						},
+						MockUpdate:       test.NewMockUpdateFn(nil),
 						MockStatusUpdate: func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil },
 					},
 				},
@@ -417,7 +422,7 @@ func TestReconcile(t *testing.T) {
 					hostKube: func() client.Client {
 						si := stackInstallResource()
 						labels := stacks.ParentLabels(si)
-						labels[stacks.LabelParentUID] = "different-parent-uid"
+						labels[stacks.LabelParentNamespace] = "not-cool-namespace"
 						job := job()
 						job.SetLabels(labels)
 						return fake.NewFakeClient(job)
