@@ -14,8 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package v1alpha1 contains portable resource claims for storage services such
-// as buckets.
+// Package v1alpha1 contains API types that extend the Crossplane API.
 // +kubebuilder:object:generate=true
 // +groupName=apiextensions.crossplane.io
 // +versionName=v1alpha1

@@ -3,7 +3,7 @@ module github.com/crossplane/crossplane
 go 1.13
 
 require (
-	github.com/crossplane/crossplane-runtime v0.7.1-0.20200424213213-10ecf0f09a8a
+	github.com/crossplane/crossplane-runtime v0.7.1-0.20200427001631-3dbd603092ac
 	github.com/crossplane/crossplane-tools v0.0.0-20200219001116-bb8b2ce46330
 	github.com/crossplane/oam-kubernetes-runtime v0.0.0-20200422175842-afde24fdf35b
 	github.com/docker/distribution v2.7.1+incompatible
