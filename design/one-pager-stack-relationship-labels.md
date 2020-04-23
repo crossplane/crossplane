@@ -2,9 +2,16 @@
 
 - Owner: Steven Rathbauer ([@rathpc](https://github.com/rathpc))
 - Reviewers: Crossplane Maintainers
-- Status: Draft
+- Status: Draft, Revision 1.1
 
 **_NOTE: The focus for this design is long term and may not be implemented immediately_**
+
+## Revisions
+
+* 1.1 - Dan Mangum ([@hasheddan](https://github.com/hasheddan))
+  * Removed references to `core.crossplane.io/parent-uid` label as it no longer
+    applied in order to enable backup and restore of stacks
+    ([crossplane/crossplane#1389](https://github.com/crossplane/crossplane/issues/1389)).
 
 ## Proposal
 
@@ -17,7 +24,6 @@
 - **`core.crossplane.io/parent-kind`**
 - **`core.crossplane.io/parent-name`**
 - **`core.crossplane.io/parent-namespace`**
-- **`core.crossplane.io/parent-uid`**
 
 ## Problem
 
@@ -81,7 +87,6 @@ metadata:
     core.crossplane.io/parent-kind: "StackInstall"
     core.crossplane.io/parent-name: "sample-stack-wordpress"
     core.crossplane.io/parent-namespace: "app-project1-dev"
-    core.crossplane.io/parent-uid: "858ab465-ff60-49d8-a3e7-624ce841f339"
     app.kubernetes.io/managed-by: stack-manager
 ...
 ```
@@ -111,7 +116,6 @@ metadata:
     core.crossplane.io/parent-kind: "StackInstall"
     core.crossplane.io/parent-name: "sample-stack-wordpress"
     core.crossplane.io/parent-namespace: "app-project1-dev"
-    core.crossplane.io/parent-uid: "858ab465-ff60-49d8-a3e7-624ce841f339"
 ...
 ```
 
@@ -134,7 +138,6 @@ metadata:
     core.crossplane.io/parent-version: "v1alpha1"
     core.crossplane.io/parent-name: "sample-stack-wordpress"
     core.crossplane.io/parent-namespace: "app-project1-dev"
-    core.crossplane.io/parent-uid: "ec52c8c2-379f-45ec-9458-e40f070f8d2e"
     app.kubernetes.io/managed-by: stack-manager
 ...
 ```
@@ -153,7 +156,6 @@ metadata:
     core.crossplane.io/parent-version: "v1alpha1"
     core.crossplane.io/parent-name: "my-wordpressinstance"
     core.crossplane.io/parent-namespace: "app-project1-dev"
-    core.crossplane.io/parent-uid: "f2d13a15-1f9b-40a7-a173-a40abefa61bf"
     app.kubernetes.io/managed-by: stack-manager
 ...
 ```
@@ -172,7 +174,6 @@ metadata:
     core.crossplane.io/parent-version: "v1alpha1"
     core.crossplane.io/parent-name: "my-wordpressinstance"
     core.crossplane.io/parent-namespace: "app-project1-dev"
-    core.crossplane.io/parent-uid: "f2d13a15-1f9b-40a7-a173-a40abefa61bf"
     app.kubernetes.io/managed-by: stack-manager
 ...
 ```
@@ -191,7 +192,6 @@ metadata:
     core.crossplane.io/parent-version: "v1alpha1"
     core.crossplane.io/parent-name: "my-wordpressinstance"
     core.crossplane.io/parent-namespace: "app-project1-dev"
-    core.crossplane.io/parent-uid: "f2d13a15-1f9b-40a7-a173-a40abefa61bf"
     app.kubernetes.io/managed-by: stack-manager
 ...
 ```
