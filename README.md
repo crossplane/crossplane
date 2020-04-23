@@ -67,7 +67,7 @@ For more information, take a look at the official Crossplane [documentation].
 * Follow us on [Twitter], or contact us via [Email].
 * Join our regular community meetings.
 
-The Crossplane community meeting takes place every other [Tuesday at 9:00am
+The Crossplane community meeting takes place every other [Monday at 10:00am
 Pacific Time]. Anyone who wants to discuss the direction of the project, design
 and implementation reviews, or raise general questions with the broader
 community is encouraged to join.
@@ -98,6 +98,6 @@ Crossplane is under the Apache 2.0 license.
 [Email]: mailto:info@crossplane.io
 [issue against Crossplane]: https://github.com/crossplane/crossplane/issues
 [contributing guide]: CONTRIBUTING.md
-[Tuesday at 9:00am Pacific Time]: https://www.thetimezoneconverter.com/?t=9:00&tz=PT%20%28Pacific%20Time%29
+[Monday at 10:00am Pacific Time]: https://www.thetimezoneconverter.com/?t=10:00&tz=PT%20%28Pacific%20Time%29
 [Current agenda and past meeting notes]: https://docs.google.com/document/d/1q_sp2jLQsDEOX7Yug6TPOv7Fwrys6EwcF5Itxjkno7Y/edit?usp=sharing
 [Past meeting recordings]: https://www.youtube.com/playlist?list=PL510POnNVaaYYYDSICFSNWFqNbx1EMr-M
