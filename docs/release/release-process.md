@@ -426,18 +426,21 @@ If everything looks good with the official versioned release that we just
 published, we can go ahead and run the `promote` pipeline for the core
 crossplane and provider repos. This is a very quick pipeline that doesn't
 rebuild anything, it simply makes metadata changes to the published release to
-also include the last release in the channel of your choice. Currently, we only
-support the `alpha` channel.
+also include the release in the channel of your choice.
+
+Currently, we only support the `master` and `alpha` channels.
 
 For the core crossplane and each provider repo, run the `promote` pipeline on
 the release branch and input the version you would like to promote (e.g.
-`v0.5.0`) and the channel you'd like to promote it to (e.g. `alpha`).  The first
-time you run this pipeline on a new release branch, you will not be prompted for
-values, so the pipeline will fail. Just run (not replay) it a second time to be
-prompted.
+`v0.5.0`) and the channel you'd like to promote it to.  The first time you run
+this pipeline on a new release branch, you will not be prompted for values, so
+the pipeline will fail. Just run (not replay) it a second time to be prompted.
 
-After the `promote` pipeline has succeeded, verify on DockerHub and the Helm
-chart repository that the release has been promoted to the right channel.
+* Run `promote` pipeline for `master` channel
+* Run `promote` pipeline for `alpha` channel
+
+After the `promote` pipelines have succeeded, verify on DockerHub and the Helm
+chart repository that the release has been promoted to the right channels.
 
 ### Publish Release Notes
 
@@ -478,4 +481,5 @@ steps.  Please refer to details for each step in the sections above.
 * Run the normal build pipeline on the release branch to build and publish the
   release
 * Publish release notes
-* Run promote pipeline to promote the patch release to the `alpha` channel
+* Run promote pipeline to promote the patch release to the `master` and `alpha`
+  channels
