@@ -39,10 +39,9 @@ type InfrastructurePublicationStatus struct {
 // An InfrastructurePublication publishes a defined kind of composite
 // infrastructure resource. Published infrastructure resources may be bound to
 // an application via an infrastructure requirement.
-// +kubebuilder:resource:categories={crossplane}
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:subresource:status
-// +kubebuilder:resource:scope=Cluster
+// +kubebuilder:resource:scope=Cluster,categories=crossplane
 type InfrastructurePublication struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

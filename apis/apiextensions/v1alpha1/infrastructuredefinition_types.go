@@ -133,10 +133,9 @@ type InfrastructureDefinitionStatus struct {
 // An InfrastructureDefinition defines a new kind of composite infrastructure
 // resource. The new resource is composed of other composite or managed
 // infrastructure resources.
-// +kubebuilder:resource:categories={crossplane}
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:subresource:status
-// +kubebuilder:resource:scope=Cluster
+// +kubebuilder:resource:scope=Cluster,categories=crossplane
 type InfrastructureDefinition struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
