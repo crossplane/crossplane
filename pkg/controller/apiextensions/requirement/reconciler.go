@@ -396,10 +396,10 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		log.Debug("Composite resource is not yet ready")
 		record.Event(rq, event.Normal(reasonWaitingToBind, "Composite resource is not yet ready"))
 
-		// TODO(negz): Watch the kind of composite resource we're concerned with
-		// so that we don't need to requeue here.
+		// We should be watching the composite resource and will have a request
+		// queued if it changes.
 		rq.SetConditions(Waiting(), v1alpha1.ReconcileSuccess())
-		return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, rq), errUpdateRequirementStatus)
+		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, rq), errUpdateRequirementStatus)
 	}
 
 	if cp.GetRequirementReference() == nil {
