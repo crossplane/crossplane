@@ -60,7 +60,6 @@ func TestParentLabels(t *testing.T) {
 			want: map[string]string{
 				LabelParentNamespace: namespace,
 				LabelParentName:      resourceName,
-				LabelParentUID:       uidString,
 				LabelParentGroup:     "",
 				LabelParentKind:      "",
 				LabelParentVersion:   "",
@@ -72,7 +71,6 @@ func TestParentLabels(t *testing.T) {
 			want: map[string]string{
 				LabelParentNamespace: sixtyThreeAs,
 				LabelParentName:      sixtyThreeAs,
-				LabelParentUID:       uidString,
 				LabelParentGroup:     "",
 				LabelParentKind:      "",
 				LabelParentVersion:   "",
@@ -84,7 +82,6 @@ func TestParentLabels(t *testing.T) {
 			want: map[string]string{
 				LabelParentNamespace: truncatedAsAndZ,
 				LabelParentName:      truncatedAsAndZ,
-				LabelParentUID:       uidString,
 				LabelParentGroup:     "",
 				LabelParentKind:      "",
 				LabelParentVersion:   "",
