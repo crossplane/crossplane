@@ -142,17 +142,23 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	defer cancel()
 
 	// fetch the CRD instance
-	i := &v1alpha1.Stack{}
-	if err := r.kube.Get(ctx, req.NamespacedName, i); err != nil {
+	stack := &v1alpha1.Stack{}
+	if err := r.kube.Get(ctx, req.NamespacedName, stack); err != nil {
 		if kerrors.IsNotFound(err) {
 			return reconcile.Result{}, nil
 		}
 		return reconcile.Result{}, err
 	}
 
-	handler := r.factory.newHandler(r.log, i, r.kube, r.hostKube, r.hostedConfig, r.restrictCore, r.forceImagePullPolicy)
+	meta.AddFinalizer(stack, stacksFinalizer)
+	err := r.kube.Update(ctx, stack)
+	if err != nil {
+		return fail(ctx, r.kube, stack, err)
+	}
 
-	if meta.WasDeleted(i) {
+	handler := r.factory.newHandler(r.log, stack, r.kube, r.hostKube, r.hostedConfig, r.restrictCore, r.forceImagePullPolicy)
+
+	if meta.WasDeleted(stack) {
 		return handler.delete(ctx)
 	}
 
@@ -211,15 +217,6 @@ func (h *stackHandler) sync(ctx context.Context) (reconcile.Result, error) {
 
 func (h *stackHandler) create(ctx context.Context) (reconcile.Result, error) {
 	h.ext.Status.SetConditions(runtimev1alpha1.Creating())
-
-	// Add the finalizer before the RBAC and Deployments. If the Deployment
-	// irreconcilably fails, the finalizer must be in place to delete the Roles
-	patchCopy := h.ext.DeepCopy()
-	meta.AddFinalizer(h.ext, stacksFinalizer)
-	if err := h.kube.Patch(ctx, h.ext, client.MergeFrom(patchCopy)); err != nil {
-		h.log.Debug("failed to add finalizer", "error", err)
-		return fail(ctx, h.kube, h.ext, err)
-	}
 
 	// create RBAC permissions
 	if err := h.processRBAC(ctx); err != nil {

@@ -65,7 +65,6 @@ var (
 				stacks.LabelParentKind:                 "",
 				stacks.LabelParentName:                 namespace,
 				stacks.LabelParentNamespace:            "",
-				stacks.LabelParentUID:                  string(uid),
 				stacks.LabelParentVersion:              "",
 			},
 		},

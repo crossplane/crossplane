@@ -34,7 +34,6 @@ const (
 	LabelParentKind      = "core.crossplane.io/parent-kind"
 	LabelParentNamespace = "core.crossplane.io/parent-namespace"
 	LabelParentName      = "core.crossplane.io/parent-name"
-	LabelParentUID       = "core.crossplane.io/parent-uid"
 
 	LabelMultiParentPrefix = "parent.stacks.crossplane.io/"
 
@@ -130,7 +129,6 @@ func ParentLabels(i KindlyIdentifier) map[string]string {
 		LabelParentKind:      gvk.Kind,
 		LabelParentNamespace: truncate.LabelValue(i.GetNamespace()),
 		LabelParentName:      truncate.LabelValue(i.GetName()),
-		LabelParentUID:       string(i.GetUID()),
 	}
 	return labels
 }
