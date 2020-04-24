@@ -97,14 +97,14 @@ type Reconciler struct {
 	// created.
 	hostKube             client.Client
 	hostedConfig         *hosted.Config
-	restrictCore         bool
+	allowCore            bool
 	forceImagePullPolicy string
 	log                  logging.Logger
 	factory
 }
 
 // Setup adds a controller that reconciles Stacks.
-func Setup(mgr ctrl.Manager, l logging.Logger, hostControllerNamespace string, restrictCore bool, forceImagePullPolicy string) error {
+func Setup(mgr ctrl.Manager, l logging.Logger, hostControllerNamespace string, allowCore bool, forceImagePullPolicy string) error {
 	name := "stacks/" + strings.ToLower(v1alpha1.StackGroupKind)
 
 	hostKube, _, err := hosted.GetClients()
@@ -121,7 +121,7 @@ func Setup(mgr ctrl.Manager, l logging.Logger, hostControllerNamespace string, r
 		kube:                 mgr.GetClient(),
 		hostKube:             hostKube,
 		hostedConfig:         hc,
-		restrictCore:         restrictCore,
+		allowCore:            allowCore,
 		forceImagePullPolicy: forceImagePullPolicy,
 		factory:              &stackHandlerFactory{},
 		log:                  l.WithValues("controller", name),
@@ -156,7 +156,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return fail(ctx, r.kube, stack, err)
 	}
 
-	handler := r.factory.newHandler(r.log, stack, r.kube, r.hostKube, r.hostedConfig, r.restrictCore, r.forceImagePullPolicy)
+	handler := r.factory.newHandler(r.log, stack, r.kube, r.hostKube, r.hostedConfig, r.allowCore, r.forceImagePullPolicy)
 
 	if meta.WasDeleted(stack) {
 		return handler.delete(ctx)
@@ -180,7 +180,7 @@ type stackHandler struct {
 	// created.
 	hostKube             client.Client
 	hostAwareConfig      *hosted.Config
-	restrictCore         bool
+	allowCore            bool
 	forceImagePullPolicy string
 	ext                  *v1alpha1.Stack
 	log                  logging.Logger
@@ -192,12 +192,12 @@ type factory interface {
 
 type stackHandlerFactory struct{}
 
-func (f *stackHandlerFactory) newHandler(log logging.Logger, ext *v1alpha1.Stack, kube client.Client, hostKube client.Client, hostAwareConfig *hosted.Config, restrictCore bool, forceImagePullPolicy string) handler {
+func (f *stackHandlerFactory) newHandler(log logging.Logger, ext *v1alpha1.Stack, kube client.Client, hostKube client.Client, hostAwareConfig *hosted.Config, allowCore bool, forceImagePullPolicy string) handler {
 	return &stackHandler{
 		kube:                 kube,
 		hostKube:             hostKube,
 		hostAwareConfig:      hostAwareConfig,
-		restrictCore:         restrictCore,
+		allowCore:            allowCore,
 		forceImagePullPolicy: forceImagePullPolicy,
 		ext:                  ext,
 		log:                  log,
@@ -560,7 +560,7 @@ func isPermittedStackPolicy(rule rbacv1.PolicyRule) bool {
 }
 
 func (h *stackHandler) validateStackPermissions() error {
-	if h.restrictCore {
+	if !h.allowCore {
 		for _, rule := range h.ext.Spec.Permissions.Rules {
 			if !isPermittedStackPolicy(rule) {
 				h.log.Debug("restricted rule found in stack spec permissions", "namespace", h.ext.GetNamespace(), "name", h.ext.GetName(), "rule", rule)

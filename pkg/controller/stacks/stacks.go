@@ -27,7 +27,7 @@ import (
 )
 
 // Setup Crossplane Stacks controllers.
-func Setup(mgr ctrl.Manager, l logging.Logger, hostControllerNamespace, tsControllerImage string, restrictCore bool, forceImagePullPolicy string) error {
+func Setup(mgr ctrl.Manager, l logging.Logger, hostControllerNamespace, tsControllerImage string, allowCore bool, forceImagePullPolicy string) error {
 	if err := install.SetupStackInstall(mgr, l, hostControllerNamespace, tsControllerImage, forceImagePullPolicy); err != nil {
 		return err
 	}
@@ -39,7 +39,7 @@ func Setup(mgr ctrl.Manager, l logging.Logger, hostControllerNamespace, tsContro
 	if err := persona.Setup(mgr, l); err != nil {
 		return nil
 	}
-	if err := stack.Setup(mgr, l, hostControllerNamespace, restrictCore, forceImagePullPolicy); err != nil {
+	if err := stack.Setup(mgr, l, hostControllerNamespace, allowCore, forceImagePullPolicy); err != nil {
 		return err
 	}
 

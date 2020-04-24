@@ -44,8 +44,8 @@ spec:
         - --force-image-pull-policy
         - {{ .Values.forceImagePullPolicy | quote }}
         {{- end }}
-        {{- if .Values.restrictCoreApigroups }}
-        - --restrict-core-apigroups
+        {{- if .Values.insecureAllowAllApigroups }}
+        - --insecure-allow-all-apigroups
         {{- end }}
         {{- range $arg := .Values.args }}
         - {{ $arg }}

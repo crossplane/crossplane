@@ -224,8 +224,8 @@ type mockFactory struct {
 	MockNewHandler func(logging.Logger, *v1alpha1.Stack, client.Client, client.Client, *hosted.Config, bool, string) handler
 }
 
-func (f *mockFactory) newHandler(log logging.Logger, r *v1alpha1.Stack, c client.Client, h client.Client, hc *hosted.Config, restrictCore bool, forceImagePullPolicy string) handler {
-	return f.MockNewHandler(log, r, c, nil, nil, restrictCore, forceImagePullPolicy)
+func (f *mockFactory) newHandler(log logging.Logger, r *v1alpha1.Stack, c client.Client, h client.Client, hc *hosted.Config, allowCore bool, forceImagePullPolicy string) handler {
+	return f.MockNewHandler(log, r, c, nil, nil, allowCore, forceImagePullPolicy)
 }
 
 type mockHandler struct {
@@ -2771,54 +2771,54 @@ func Test_stackHandler_validateStackPermissions(t *testing.T) {
 
 	mixed := append(stackspkg.StackCoreRBACRules, everything...)
 	tests := []struct {
-		name         string
-		restrictCore bool
-		ext          *v1alpha1.Stack
-		wantErr      error
+		name      string
+		allowCore bool
+		ext       *v1alpha1.Stack
+		wantErr   error
 	}{
 		{
-			name:         "DefaultPolicy",
-			restrictCore: true,
-			ext:          resource(withPolicyRules(stackspkg.StackCoreRBACRules)),
-			wantErr:      nil,
+			name:      "DefaultPolicy",
+			allowCore: true,
+			ext:       resource(withPolicyRules(stackspkg.StackCoreRBACRules)),
+			wantErr:   nil,
 		},
 		{
-			name:         "DefaultPolicyWithoutRestrictions",
-			restrictCore: false,
-			ext:          resource(withPolicyRules(stackspkg.StackCoreRBACRules)),
-			wantErr:      nil,
+			name:      "DefaultPolicyWithoutRestrictions",
+			allowCore: false,
+			ext:       resource(withPolicyRules(stackspkg.StackCoreRBACRules)),
+			wantErr:   nil,
 		},
 		{
-			name:         "EverythingPolicy",
-			restrictCore: true,
-			ext:          resource(withPolicyRules(everything)),
-			wantErr:      errors.New("permissions contain a restricted rule"),
+			name:      "EverythingPolicy",
+			allowCore: true,
+			ext:       resource(withPolicyRules(everything)),
+			wantErr:   errors.New("permissions contain a restricted rule"),
 		},
 		{
-			name:         "EverythingPolicyWithoutRestrictions",
-			restrictCore: false,
-			ext:          resource(withPolicyRules(everything)),
-			wantErr:      nil,
+			name:      "EverythingPolicyWithoutRestrictions",
+			allowCore: false,
+			ext:       resource(withPolicyRules(everything)),
+			wantErr:   nil,
 		},
 		{
-			name:         "MixedPolicy",
-			restrictCore: true,
-			ext:          resource(withPolicyRules(mixed)),
-			wantErr:      errors.New("permissions contain a restricted rule"),
+			name:      "MixedPolicy",
+			allowCore: true,
+			ext:       resource(withPolicyRules(mixed)),
+			wantErr:   errors.New("permissions contain a restricted rule"),
 		},
 		{
-			name:         "MixedPolicyWithoutRestrictions",
-			restrictCore: false,
-			ext:          resource(withPolicyRules(mixed)),
-			wantErr:      nil,
+			name:      "MixedPolicyWithoutRestrictions",
+			allowCore: false,
+			ext:       resource(withPolicyRules(mixed)),
+			wantErr:   nil,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			h := &stackHandler{
-				restrictCore: tt.restrictCore,
-				ext:          tt.ext,
-				log:          logging.NewNopLogger(),
+				allowCore: tt.allowCore,
+				ext:       tt.ext,
+				log:       logging.NewNopLogger(),
 			}
 			gotErr := h.validateStackPermissions()
 
