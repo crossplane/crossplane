@@ -60,6 +60,7 @@ func FromKingpin(cmd *kingpin.CmdClause) *Command {
 }
 
 // Run the stack manager.
+// nolint:gocyclo
 func (c *Command) Run(log logging.Logger) error {
 	log.Debug("Starting", "sync-period", c.Sync.String())
 

@@ -319,7 +319,8 @@ and their default values.
 | `resourcesStackManager.requests.cpu`    | CPU resource requests for StackManager                   | `100m`
 | `resourcesStackManager.requests.memory` | Memory resource requests for StackManager                | `256Mi`
 | `forceImagePullPolicy`           | Force the named ImagePullPolicy on Stack install and containers | ``
-| `restrictCoreApigroups`          | Enable API group restrictions for Stacks (e.g. when restricted, Stacks cannot use core Kubernetes types such as `Pod`) | `false` |
+| `insecureAllowAllApigroups`      | Enable core Kubernetes API group permissions for Stacks. When enabled, Stacks may declare dependency on core Kubernetes API types.) | `false` |
+| `insecurePassFullDeployment`     | Enable stacks to pass their full deployment, including security context. When omitted, Stacks deployments will have security context removed and all containers will have `allowPrivilegeEscalation` set to false. | `false` |
 
 ### Command Line
 

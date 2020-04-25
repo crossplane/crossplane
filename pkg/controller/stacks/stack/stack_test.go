@@ -295,19 +295,6 @@ func withDeploymentSecurityContext(sc *corev1.PodSecurityContext) deploymentSpec
 	}
 }
 
-func withDeploymentContainerImagePullPolicy(imagePullPolicy string) deploymentSpecModifier {
-	return func(ds *apps.DeploymentSpec) {
-		for _, c := range [][]corev1.Container{
-			ds.Template.Spec.Containers,
-			ds.Template.Spec.InitContainers,
-		} {
-			for i := range c {
-				c[i].ImagePullPolicy = corev1.PullPolicy(imagePullPolicy)
-			}
-		}
-	}
-}
-
 func withDeploymentContainerSecurityContext(sc *corev1.SecurityContext) deploymentSpecModifier {
 	return func(ds *apps.DeploymentSpec) {
 		for _, c := range [][]corev1.Container{

@@ -47,6 +47,9 @@ spec:
         {{- if .Values.insecureAllowAllApigroups }}
         - --insecure-allow-all-apigroups
         {{- end }}
+        {{- if .Values.insecurePassFullDeployment }}
+        - --insecure-pass-full-deployment
+        {{- end }}
         {{- range $arg := .Values.args }}
         - {{ $arg }}
         {{- end }}
