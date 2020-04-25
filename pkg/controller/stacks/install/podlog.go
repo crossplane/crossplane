@@ -19,6 +19,7 @@ package install
 import (
 	"io"
 
+	"golang.org/x/net/context"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -36,5 +37,5 @@ type K8sReader struct {
 // GetReader gets a log reader for the specified pod
 func (r *K8sReader) GetReader(namespace, name string) (io.ReadCloser, error) {
 	req := r.Client.CoreV1().Pods(namespace).GetLogs(name, &corev1.PodLogOptions{})
-	return req.Stream()
+	return req.Stream(context.TODO())
 }

@@ -34,6 +34,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 )
@@ -47,6 +48,12 @@ const (
 
 	errUpdateCompositeStatus = "cannot update composite status"
 )
+
+// ControllerName returns the recommended name for controllers that use this
+// package to reconcile a particular kind of composite resource.
+func ControllerName(name string) string {
+	return "composite/" + name
+}
 
 // ConnectionSecretFilterer returns a set of allowed keys.
 type ConnectionSecretFilterer interface {
@@ -66,12 +73,12 @@ type ConnectionPublisher interface {
 	UnpublishConnection(ctx context.Context, o resource.ConnectionSecretOwner, c managed.ConnectionDetails) error
 }
 
-// NewCompositeReconciler returns a new *compositeReconciler.
-func NewCompositeReconciler(name string, mgr manager.Manager, gvk schema.GroupVersionKind, log logging.Logger, filterer ConnectionSecretFilterer) reconcile.Reconciler {
-	nc := func() resource.Composite { return unstructured.NewComposite(unstructured.WithGroupVersionKind(gvk)) }
+// NewReconciler returns a new Reconciler
+func NewReconciler(mgr manager.Manager, gvk schema.GroupVersionKind, log logging.Logger, filterer ConnectionSecretFilterer) *Reconciler {
+	nc := func() resource.Composite { return composite.New(composite.WithGroupVersionKind(gvk)) }
 	kube := unstructured.NewClient(mgr.GetClient())
 
-	return &compositeReconciler{
+	return &Reconciler{
 		client:       kube,
 		newComposite: nc,
 		Resolver:     NewSelectorResolver(kube),
@@ -79,7 +86,7 @@ func NewCompositeReconciler(name string, mgr manager.Manager, gvk schema.GroupVe
 		connection:   NewAPIFilteredSecretPublisher(kube, filterer.GetConnectionSecretKeys()),
 		finalizer:    resource.NewAPIFinalizer(kube, finalizer),
 		log:          log,
-		record:       event.NewAPIRecorder(mgr.GetEventRecorderFor(name)),
+		record:       event.NewNopRecorder(),
 	}
 }
 
@@ -93,8 +100,8 @@ type Resolver interface {
 	ResolveSelector(ctx context.Context, cr resource.Composite) error
 }
 
-// compositeReconciler reconciles the generic CRD that is generated via InfrastructureDefinition.
-type compositeReconciler struct {
+// Reconciler reconciles the generic CRD that is generated via InfrastructureDefinition.
+type Reconciler struct {
 	client       client.Client
 	newComposite func() resource.Composite
 	composed     ComposableReconciler
@@ -110,7 +117,7 @@ type compositeReconciler struct {
 }
 
 // Reconcile reconciles given custom resource.
-func (r *compositeReconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) { // nolint:gocyclo
+func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) { // nolint:gocyclo
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 

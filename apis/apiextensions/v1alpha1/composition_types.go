@@ -262,10 +262,9 @@ type CompositionStatus struct {
 
 // Composition defines the group of resources to be created when a compatible
 // type is created with reference to the composition.
-// +kubebuilder:resource:categories={crossplane}
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:subresource:status
-// +kubebuilder:resource:scope=Cluster
+// +kubebuilder:resource:scope=Cluster,categories=crossplane
 type Composition struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
