@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	kmeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -83,7 +82,7 @@ func Setup(mgr ctrl.Manager, log logging.Logger) error {
 	// TODO(muvaf): register this reconciler to events from CRDs, too.
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
-		For(&v1alpha1.InfrastructureDefinition{}).
+		For(&v1alpha1.InfrastructurePublication{}).
 		WithOptions(ctrlr.Options{MaxConcurrentReconciles: maxConcurrency}).
 		Complete(r)
 }
@@ -263,14 +262,6 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		// owner has its own finalizer that depends on having no instance of the CRD
 		// because it cannot go away before stopping the controller.
 		// So, we need to delete all instances of CRD manually here.
-		obj := &kunstructured.Unstructured{}
-		obj.SetGroupVersionKind(Published(d.GetDefinedGroupVersionKind()))
-		if err := r.client.DeleteAllOf(ctx, obj); err != nil && !kmeta.IsNoMatchError(err) && !kerrors.IsNotFound(err) {
-			log.Debug("cannot delete published resources", "error", err)
-			p.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, "cannot delete published resources")))
-			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateInfraPubStatus)
-		}
-
 		l := &kunstructured.UnstructuredList{}
 		l.SetGroupVersionKind(Published(d.GetDefinedGroupVersionKind()))
 		if err := r.client.List(ctx, l); resource.Ignore(kmeta.IsNoMatchError, err) != nil {
@@ -282,6 +273,16 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		// Controller should be stopped only after all instances are gone so that
 		// deletion logic of the instances are processed by the controller.
 		if len(l.Items) > 0 {
+			// TODO(negz): For some reason DeleteAllOf does not work here,
+			// despite working just fine in the definition controller. Possibly
+			// due to requirements being namespaced rather than cluster scoped?
+			for i := range l.Items {
+				if err := r.client.Delete(ctx, &l.Items[i]); resource.IgnoreNotFound(err) != nil {
+					log.Debug("cannot delete published resource", "error", err)
+					p.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, "cannot delete published resource")))
+					return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateInfraPubStatus)
+				}
+			}
 			log.Debug(waitingInstanceDeletion, "info", err)
 			p.Status.SetConditions(runtimev1alpha1.ReconcileSuccess().WithMessage(waitingInstanceDeletion))
 			return reconcile.Result{RequeueAfter: 3 * time.Second}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateInfraPubStatus)
