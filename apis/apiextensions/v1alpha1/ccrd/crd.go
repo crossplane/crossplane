@@ -24,9 +24,7 @@ package ccrd
 
 import (
 	"encoding/json"
-	"fmt"
 
-	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -223,18 +221,10 @@ func getSpecProps(template v1beta1.CustomResourceDefinitionSpec) map[string]v1be
 func DefinesCompositeInfrastructure() Option {
 	return func(crd *v1beta1.CustomResourceDefinition) error {
 		crd.Spec.Scope = v1beta1.ClusterScoped
-		spec := &map[string]v1beta1.JSONSchemaProps{}
-		if err := yaml.Unmarshal([]byte(DefinedInfrastructureSpecProps), spec); err != nil {
-			panic(fmt.Sprintf("constant infrastructure composite spec props could not be parsed: %s", err.Error()))
-		}
-		for k, v := range *spec {
+		for k, v := range DefinedInfrastructureSpecProps() {
 			crd.Spec.Validation.OpenAPIV3Schema.Properties["spec"].Properties[k] = v
 		}
-		status := &map[string]v1beta1.JSONSchemaProps{}
-		if err := yaml.Unmarshal([]byte(DefinedInfrastructureStatusProps), status); err != nil {
-			panic(fmt.Sprintf("constant infrastructure composite status props could not be parsed: %s", err.Error()))
-		}
-		for k, v := range *status {
+		for k, v := range InfrastructureStatusProps() {
 			crd.Spec.Validation.OpenAPIV3Schema.Properties["status"].Properties[k] = v
 		}
 		return nil
@@ -246,18 +236,10 @@ func DefinesCompositeInfrastructure() Option {
 func PublishesCompositeInfrastructure() Option {
 	return func(crd *v1beta1.CustomResourceDefinition) error {
 		crd.Spec.Scope = v1beta1.NamespaceScoped
-		spec := &map[string]v1beta1.JSONSchemaProps{}
-		if err := yaml.Unmarshal([]byte(PublishedInfrastructureSpecProps), spec); err != nil {
-			panic(fmt.Sprintf("constant infrastructure composite spec props could not be parsed: %s", err.Error()))
-		}
-		for k, v := range *spec {
+		for k, v := range PublishedInfrastructureSpecProps() {
 			crd.Spec.Validation.OpenAPIV3Schema.Properties["spec"].Properties[k] = v
 		}
-		status := &map[string]v1beta1.JSONSchemaProps{}
-		if err := yaml.Unmarshal([]byte(PublishedInfrastructureStatusProps), status); err != nil {
-			panic(fmt.Sprintf("constant infrastructure composite status props could not be parsed: %s", err.Error()))
-		}
-		for k, v := range *status {
+		for k, v := range InfrastructureStatusProps() {
 			crd.Spec.Validation.OpenAPIV3Schema.Properties["status"].Properties[k] = v
 		}
 		return nil

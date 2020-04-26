@@ -16,170 +16,141 @@ limitations under the License.
 
 package ccrd
 
+import "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+
 // TODO(negz): Add descriptions to schema fields.
 
 // DefinedInfrastructureSpecProps is a partial OpenAPIV3Schema for the spec
-// fields that Crossplane expects to be present for all composite infrastructure
+// fields that Crossplane expects to be present for all defined infrastructure
 // resources.
-const DefinedInfrastructureSpecProps = `
-compositionRef:
-  properties:
-    name:
-      type: string
-  required:
-  - name
-  type: object
-compositionSelector:
-  properties:
-    matchLabels:
-      additionalProperties:
-        type: string
-      type: object
-  required:
-  - matchLabels
-  type: object
-resourceRefs:
-  items:
-    type: object
-    properties:
-      apiVersion:
-        type: string
-      kind:
-        type: string
-      name:
-        type: string
-      uid:
-        type: string
-    required:
-    - apiVersion
-    - kind
-    - name
-  type: array
-requirementRef:
-  properties:
-    name:
-      type: string
-    namespace:
-      type: string
-  required:
-  - name
-  - namespace
-  type: object
-writeConnectionSecretToRef:
-  properties:
-    name:
-      description: Name of the secret.
-      type: string
-    namespace:
-      description: Name of the secret.
-      type: string
-  required:
-  - name
-  - namespace
-  type: object
-`
-
-// DefinedInfrastructureStatusProps is a partial OpenAPIV3Schema for the
-// status fields that Crossplane expects to be present for all composite
-// infrastructure resources.
-const DefinedInfrastructureStatusProps = `
-bindingPhase:
-  enum:
-  - Unbindable
-  - Unbound
-  - Bound
-  - Released
-  type: string
-conditions:
-  description: Conditions of the resource.
-  items:
-    properties:
-      lastTransitionTime:
-        format: date-time
-        type: string
-      message:
-        type: string
-      reason:
-        type: string
-      status:
-        type: string
-      type:
-        type: string
-    required:
-    - lastTransitionTime
-    - reason
-    - status
-    - type
-    type: object
-  type: array
-`
+func DefinedInfrastructureSpecProps() map[string]v1beta1.JSONSchemaProps {
+	return map[string]v1beta1.JSONSchemaProps{
+		"compositionRef": {
+			Type:     "object",
+			Required: []string{"name"},
+			Properties: map[string]v1beta1.JSONSchemaProps{
+				"name": {Type: "string"},
+			},
+		},
+		"compositionSelector": {
+			Type:     "object",
+			Required: []string{"matchLabels"},
+			Properties: map[string]v1beta1.JSONSchemaProps{
+				"matchLabels": {
+					Type: "object",
+					AdditionalProperties: &v1beta1.JSONSchemaPropsOrBool{
+						Allows: true,
+						Schema: &v1beta1.JSONSchemaProps{Type: "string"},
+					},
+				},
+			},
+		},
+		"requirementRef": {
+			Type:     "object",
+			Required: []string{"name", "namespace"},
+			Properties: map[string]v1beta1.JSONSchemaProps{
+				"name":      {Type: "string"},
+				"namespace": {Type: "string"},
+			},
+		},
+		"resourceRefs": {
+			Type: "array",
+			Items: &v1beta1.JSONSchemaPropsOrArray{
+				Schema: &v1beta1.JSONSchemaProps{
+					Type: "object",
+					Properties: map[string]v1beta1.JSONSchemaProps{
+						"apiVersion": {Type: "string"},
+						"name":       {Type: "string"},
+						"kind":       {Type: "string"},
+						"uid":        {Type: "string"},
+					},
+					Required: []string{"apiVersion", "kind", "name"},
+				},
+			},
+		},
+		"writeConnectionSecretToRef": {
+			Type:     "object",
+			Required: []string{"name", "namespace"},
+			Properties: map[string]v1beta1.JSONSchemaProps{
+				"name":      {Type: "string"},
+				"namespace": {Type: "string"},
+			},
+		},
+	}
+}
 
 // PublishedInfrastructureSpecProps is a partial OpenAPIV3Schema for the spec
 // fields that Crossplane expects to be present for all published infrastructure
 // resources.
-const PublishedInfrastructureSpecProps = `
-compositionRef:
-  properties:
-    name:
-      type: string
-  required:
-  - name
-  type: object
-compositionSelector:
-  properties:
-    matchLabels:
-      additionalProperties:
-        type: string
-      type: object
-  required:
-  - matchLabels
-  type: object
-resourceRef:
-  properties:
-    name:
-      type: string
-  required:
-  - name
-  type: object
-writeConnectionSecretToRef:
-  properties:
-    name:
-      type: string
-  required:
-  - name
-  type: object
-`
+func PublishedInfrastructureSpecProps() map[string]v1beta1.JSONSchemaProps {
+	return map[string]v1beta1.JSONSchemaProps{
+		"compositionRef": {
+			Type:     "object",
+			Required: []string{"name"},
+			Properties: map[string]v1beta1.JSONSchemaProps{
+				"name": {Type: "string"},
+			},
+		},
+		"compositionSelector": {
+			Type:     "object",
+			Required: []string{"matchLabels"},
+			Properties: map[string]v1beta1.JSONSchemaProps{
+				"matchLabels": {
+					Type: "object",
+					AdditionalProperties: &v1beta1.JSONSchemaPropsOrBool{
+						Allows: true,
+						Schema: &v1beta1.JSONSchemaProps{Type: "string"},
+					},
+				},
+			},
+		},
+		"resourceRef": {
+			Type:     "object",
+			Required: []string{"name"},
+			Properties: map[string]v1beta1.JSONSchemaProps{
+				"name": {Type: "string"},
+			},
+		},
+		"writeConnectionSecretToRef": {
+			Type:     "object",
+			Required: []string{"name"},
+			Properties: map[string]v1beta1.JSONSchemaProps{
+				"name": {Type: "string"},
+			},
+		},
+	}
+}
 
-// PublishedInfrastructureStatusProps is a partial OpenAPIV3Schema for the
-// status fields that Crossplane expects to be present for all composite
+// InfrastructureStatusProps is a partial OpenAPIV3Schema for the status fields
+// that Crossplane expects to be present for all defined or published
 // infrastructure resources.
-const PublishedInfrastructureStatusProps = `
-bindingPhase:
-  enum:
-  - Unbindable
-  - Unbound
-  - Bound
-  - Released
-  type: string
-conditions:
-  items:
-    properties:
-      lastTransitionTime:
-        format: date-time
-        type: string
-      message:
-        type: string
-      reason:
-        type: string
-      status:
-        type: string
-      type:
-        type: string
-    required:
-    - lastTransitionTime
-    - reason
-    - status
-    - type
-    type: object
-  type: array
-`
+func InfrastructureStatusProps() map[string]v1beta1.JSONSchemaProps {
+	return map[string]v1beta1.JSONSchemaProps{
+		"bindingPhase": {
+			Type: "string",
+			Enum: []v1beta1.JSON{
+				{Raw: []byte(`"Unbindable"`)},
+				{Raw: []byte(`"Unbound"`)},
+				{Raw: []byte(`"Bound"`)},
+				{Raw: []byte(`"Released"`)},
+			},
+		},
+		"conditions": {
+			Description: "Conditions of the resource.",
+			Type:        "array",
+			Items: &v1beta1.JSONSchemaPropsOrArray{
+				Schema: &v1beta1.JSONSchemaProps{
+					Type:     "object",
+					Required: []string{"lastTransitionTime", "reason", "status", "type"},
+					Properties: map[string]v1beta1.JSONSchemaProps{
+						"lastTransitionTime": {Type: "string", Format: "date-time"},
+						"message":            {Type: "string"},
+						"reason":             {Type: "string"},
+						"status":             {Type: "string"},
+						"type":               {Type: "string"},
+					},
+				},
+			},
+		},
+	}
+}
