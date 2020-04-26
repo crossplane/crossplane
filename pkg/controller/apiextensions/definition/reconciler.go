@@ -164,7 +164,7 @@ func (r *reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		"name", definer.GetName(),
 	)
 
-	crd, err := ccrd.New(ccrd.ForInfrastructureDefinition(definer), ccrd.DefinesCompositeInfrastructure())
+	crd, err := ccrd.New(ccrd.ForInfrastructureDefinition(definer))
 	if err != nil {
 		log.Debug(errNewCRD, "error", err)
 		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(err, errNewCRD)

@@ -34,22 +34,10 @@ func (in *CRDSpecTemplate) DeepCopyInto(out *CRDSpecTemplate) {
 		*out = new(CustomResourceValidation)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.Versions != nil {
-		in, out := &in.Versions, &out.Versions
-		*out = make([]CustomResourceDefinitionVersion, len(*in))
-		for i := range *in {
-			(*in)[i].DeepCopyInto(&(*out)[i])
-		}
-	}
 	if in.AdditionalPrinterColumns != nil {
 		in, out := &in.AdditionalPrinterColumns, &out.AdditionalPrinterColumns
 		*out = make([]v1beta1.CustomResourceColumnDefinition, len(*in))
 		copy(*out, *in)
-	}
-	if in.Conversion != nil {
-		in, out := &in.Conversion, &out.Conversion
-		*out = new(v1beta1.CustomResourceConversion)
-		(*in).DeepCopyInto(*out)
 	}
 }
 

@@ -20,6 +20,32 @@ import "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 
 // TODO(negz): Add descriptions to schema fields.
 
+// BaseProps is a partial OpenAPIV3Schema for the spec fields that Crossplane
+// expects to be present for all CRDs that it creates.
+func BaseProps() map[string]v1beta1.JSONSchemaProps {
+	return map[string]v1beta1.JSONSchemaProps{
+		"apiVersion": {
+			Type: "string",
+		},
+		"kind": {
+			Type: "string",
+		},
+		"metadata": {
+			// NOTE(muvaf): api-server takes care of validating
+			// metadata.
+			Type: "object",
+		},
+		"spec": {
+			Type:       "object",
+			Properties: map[string]v1beta1.JSONSchemaProps{},
+		},
+		"status": {
+			Type:       "object",
+			Properties: map[string]v1beta1.JSONSchemaProps{},
+		},
+	}
+}
+
 // DefinedInfrastructureSpecProps is a partial OpenAPIV3Schema for the spec
 // fields that Crossplane expects to be present for all defined infrastructure
 // resources.
