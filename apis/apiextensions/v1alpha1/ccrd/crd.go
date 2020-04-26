@@ -31,6 +31,7 @@ import (
 	"k8s.io/utils/pointer"
 
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
+
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 )
 
@@ -44,7 +45,8 @@ const (
 )
 
 const (
-	errNewSpec = "cannot generate CustomResourceDefinition from crdSpecTemplate"
+	errNewSpec         = "cannot generate CustomResourceDefinition from crdSpecTemplate"
+	errParseValidation = "cannot parse validation schema"
 )
 
 // NOTE(muvaf): We use v1beta1.CustomResourceDefinition for backward
@@ -58,7 +60,6 @@ type Option func(*v1beta1.CustomResourceDefinition) error
 
 // New produces a new CustomResourceDefinition.
 func New(o ...Option) (*v1beta1.CustomResourceDefinition, error) {
-	// TODO(muvaf): Add proper descriptions.
 	crd := &v1beta1.CustomResourceDefinition{
 		Spec: v1beta1.CustomResourceDefinitionSpec{
 			PreserveUnknownFields: pointer.BoolPtr(false),
@@ -67,28 +68,8 @@ func New(o ...Option) (*v1beta1.CustomResourceDefinition, error) {
 			},
 			Validation: &v1beta1.CustomResourceValidation{
 				OpenAPIV3Schema: &v1beta1.JSONSchemaProps{
-					Type: "object",
-					Properties: map[string]v1beta1.JSONSchemaProps{
-						"apiVersion": {
-							Type: "string",
-						},
-						"kind": {
-							Type: "string",
-						},
-						"metadata": {
-							// NOTE(muvaf): api-server takes care of validating
-							// metadata.
-							Type: "object",
-						},
-						"spec": {
-							Type:       "object",
-							Properties: map[string]v1beta1.JSONSchemaProps{},
-						},
-						"status": {
-							Type:       "object",
-							Properties: map[string]v1beta1.JSONSchemaProps{},
-						},
-					},
+					Type:       "object",
+					Properties: BaseProps(),
 				},
 			},
 		},
@@ -119,12 +100,18 @@ func ForInfrastructureDefinition(d *v1alpha1.InfrastructureDefinition) Option {
 
 		crd.Spec.Group = spec.Group
 		crd.Spec.Version = spec.Version
-		crd.Spec.Versions = spec.Versions
 		crd.Spec.Names = spec.Names
 		crd.Spec.AdditionalPrinterColumns = spec.AdditionalPrinterColumns
-		crd.Spec.Conversion = spec.Conversion
-		for k, v := range getSpecProps(*spec) {
+		for k, v := range getSpecProps(spec) {
 			crd.Spec.Validation.OpenAPIV3Schema.Properties["spec"].Properties[k] = v
+		}
+
+		crd.Spec.Scope = v1beta1.ClusterScoped
+		for k, v := range DefinedInfrastructureSpecProps() {
+			crd.Spec.Validation.OpenAPIV3Schema.Properties["spec"].Properties[k] = v
+		}
+		for k, v := range InfrastructureStatusProps() {
+			crd.Spec.Validation.OpenAPIV3Schema.Properties["status"].Properties[k] = v
 		}
 
 		return nil
@@ -156,11 +143,17 @@ func PublishesInfrastructureDefinition(d *v1alpha1.InfrastructureDefinition, p *
 
 		crd.Spec.Group = spec.Group
 		crd.Spec.Version = spec.Version
-		crd.Spec.Versions = spec.Versions
 		crd.Spec.AdditionalPrinterColumns = spec.AdditionalPrinterColumns
-		crd.Spec.Conversion = spec.Conversion
-		for k, v := range getSpecProps(*spec) {
+		for k, v := range getSpecProps(spec) {
 			crd.Spec.Validation.OpenAPIV3Schema.Properties["spec"].Properties[k] = v
+		}
+
+		crd.Spec.Scope = v1beta1.NamespaceScoped
+		for k, v := range PublishedInfrastructureSpecProps() {
+			crd.Spec.Validation.OpenAPIV3Schema.Properties["spec"].Properties[k] = v
+		}
+		for k, v := range InfrastructureStatusProps() {
+			crd.Spec.Validation.OpenAPIV3Schema.Properties["status"].Properties[k] = v
 		}
 
 		return nil
@@ -168,36 +161,19 @@ func PublishesInfrastructureDefinition(d *v1alpha1.InfrastructureDefinition, p *
 }
 
 // NewSpec produces a CustomResourceDefinitionSpec from the supplied template.
-func NewSpec(t v1alpha1.CRDSpecTemplate) (*v1beta1.CustomResourceDefinitionSpec, error) {
-	out := &v1beta1.CustomResourceDefinitionSpec{
+func NewSpec(t v1alpha1.CRDSpecTemplate) (v1beta1.CustomResourceDefinitionSpec, error) {
+	out := v1beta1.CustomResourceDefinitionSpec{
 		Group:                    t.Group,
 		Version:                  t.Version,
 		Names:                    t.Names,
 		AdditionalPrinterColumns: t.AdditionalPrinterColumns,
-		Conversion:               t.Conversion,
 	}
 	if t.Validation != nil {
 		s := &v1beta1.JSONSchemaProps{}
 		if err := json.Unmarshal(t.Validation.OpenAPIV3Schema.Raw, s); err != nil {
-			return nil, err
+			return v1beta1.CustomResourceDefinitionSpec{}, errors.Wrap(err, errParseValidation)
 		}
 		out.Validation = &v1beta1.CustomResourceValidation{OpenAPIV3Schema: s}
-	}
-	for _, version := range t.Versions {
-		v := v1beta1.CustomResourceDefinitionVersion{
-			Name:                     version.Name,
-			Served:                   version.Served,
-			Storage:                  version.Storage,
-			AdditionalPrinterColumns: version.AdditionalPrinterColumns,
-		}
-		if version.Schema != nil {
-			s := &v1beta1.JSONSchemaProps{}
-			if err := json.Unmarshal(version.Schema.OpenAPIV3Schema.Raw, s); err != nil {
-				return nil, err
-			}
-			v.Schema = &v1beta1.CustomResourceValidation{OpenAPIV3Schema: s}
-		}
-		out.Versions = append(out.Versions, v)
 	}
 	return out, nil
 }
@@ -214,36 +190,6 @@ func getSpecProps(template v1beta1.CustomResourceDefinitionSpec) map[string]v1be
 		return nil
 	}
 	return template.Validation.OpenAPIV3Schema.Properties["spec"].Properties
-}
-
-// DefinesCompositeInfrastructure adds the validation fields required by all
-// defined infrastructure resources to a CustomResourceDefinition.
-func DefinesCompositeInfrastructure() Option {
-	return func(crd *v1beta1.CustomResourceDefinition) error {
-		crd.Spec.Scope = v1beta1.ClusterScoped
-		for k, v := range DefinedInfrastructureSpecProps() {
-			crd.Spec.Validation.OpenAPIV3Schema.Properties["spec"].Properties[k] = v
-		}
-		for k, v := range InfrastructureStatusProps() {
-			crd.Spec.Validation.OpenAPIV3Schema.Properties["status"].Properties[k] = v
-		}
-		return nil
-	}
-}
-
-// PublishesCompositeInfrastructure adds the validation fields required by all
-// published infrastructure resources to a CustomResourceDefinition.
-func PublishesCompositeInfrastructure() Option {
-	return func(crd *v1beta1.CustomResourceDefinition) error {
-		crd.Spec.Scope = v1beta1.NamespaceScoped
-		for k, v := range PublishedInfrastructureSpecProps() {
-			crd.Spec.Validation.OpenAPIV3Schema.Properties["spec"].Properties[k] = v
-		}
-		for k, v := range InfrastructureStatusProps() {
-			crd.Spec.Validation.OpenAPIV3Schema.Properties["status"].Properties[k] = v
-		}
-		return nil
-	}
 }
 
 // IsEstablished is a helper function to check whether api-server is ready

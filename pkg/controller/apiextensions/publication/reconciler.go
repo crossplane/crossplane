@@ -177,7 +177,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateInfraPubStatus)
 	}
 
-	crd, err := ccrd.New(ccrd.PublishesInfrastructureDefinition(d, p), ccrd.PublishesCompositeInfrastructure())
+	crd, err := ccrd.New(ccrd.PublishesInfrastructureDefinition(d, p))
 	if err != nil {
 		log.Debug(errNewCRD, "error", err)
 		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(err, errNewCRD)
