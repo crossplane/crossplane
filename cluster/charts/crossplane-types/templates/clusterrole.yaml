@@ -7,6 +7,25 @@ metadata:
     chart: {{ template "chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
+aggregationRule:
+  clusterRoleSelectors:
+  - matchLabels:
+      rbac.crossplane.io/aggregate-to-crossplane-admin: "true"
+  - matchLabels:
+      rbac.crossplane.io/aggregate-to-crossplane: "true"
+rules: []
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ template "name" . }}:system:aggregate-to-crossplane
+  labels:
+    app: {{ template "name" . }}
+    chart: {{ template "chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+    crossplane.io/scope: "system"
+    rbac.crossplane.io/aggregate-to-crossplane: "true"
 rules:
 - apiGroups:
   - ""
@@ -33,6 +52,7 @@ rules:
   - watch
   - create
   - update
+  - patch
 - apiGroups:
   - cache.crossplane.io
   - compute.crossplane.io
