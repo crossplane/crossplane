@@ -22,6 +22,7 @@ import (
 	"github.com/pkg/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
@@ -114,6 +115,11 @@ func (r *SelectorResolver) ResolveSelector(ctx context.Context, cr resource.Comp
 			continue
 		}
 		cr.SetCompositionReference(meta.ReferenceTo(comp.DeepCopy(), v1alpha1.CompositionGroupVersionKind))
+		cr.SetReclaimPolicy(comp.Spec.ReclaimPolicy)
+		cr.SetWriteConnectionSecretToReference(&runtimev1alpha1.SecretReference{
+			Name:      string(cr.GetUID()),
+			Namespace: comp.Spec.WriteConnectionSecretsToNamespace,
+		})
 		return errors.Wrap(r.client.Update(ctx, cr), "cannot update composite resource")
 	}
 	return errors.New("no compatible composition has been found that has the given labels")
