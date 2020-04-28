@@ -159,6 +159,12 @@ func PublishedInfrastructureSpecProps() map[string]v1beta1.JSONSchemaProps {
 // infrastructure resources.
 func InfrastructureStatusProps() map[string]v1beta1.JSONSchemaProps {
 	return map[string]v1beta1.JSONSchemaProps{
+		"composedResources": {
+			Type: "integer",
+		},
+		"readyResources": {
+			Type: "integer",
+		},
 		"bindingPhase": {
 			Type: "string",
 			Enum: []v1beta1.JSON{
