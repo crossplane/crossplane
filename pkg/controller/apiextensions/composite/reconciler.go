@@ -20,6 +20,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -34,6 +35,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
@@ -43,14 +45,21 @@ const (
 	shortWait = 30 * time.Second
 	longWait  = 1 * time.Minute
 	timeout   = 2 * time.Minute
+)
 
-	finalizer = "finalizer.apiextensions.crossplane.io"
-
-	errUpdateCompositeStatus = "cannot update composite status"
+// Error strings
+const (
+	errGet          = "cannot get composite infrastructure resource"
+	errUpdate       = "cannot update composite infrastructure resource"
+	errUpdateStatus = "cannot update composite infrastructure resource status"
+	errSelectComp   = "cannot select Composition"
+	errGetComp      = "cannot get Composition"
+	errReconcile    = "cannot reconcile composed infrastructure resource"
+	errPublish      = "cannot publish connection details"
 )
 
 // ControllerName returns the recommended name for controllers that use this
-// package to reconcile a particular kind of composite resource.
+// package to reconcile a particular kind of composite infrastructure resource.
 func ControllerName(name string) string {
 	return "composite/" + name
 }
@@ -73,83 +82,143 @@ type ConnectionPublisher interface {
 	UnpublishConnection(ctx context.Context, o resource.ConnectionSecretOwner, c managed.ConnectionDetails) error
 }
 
-// NewReconciler returns a new Reconciler
-func NewReconciler(mgr manager.Manager, gvk schema.GroupVersionKind, log logging.Logger, filterer ConnectionSecretFilterer) *Reconciler {
-	nc := func() resource.Composite { return composite.New(composite.WithGroupVersionKind(gvk)) }
-	kube := unstructured.NewClient(mgr.GetClient())
-
-	return &Reconciler{
-		client:       kube,
-		newComposite: nc,
-		Resolver:     NewSelectorResolver(kube),
-		composed:     NewAPIComposedReconciler(kube),
-		connection:   NewAPIFilteredSecretPublisher(kube, filterer.GetConnectionSecretKeys()),
-		finalizer:    resource.NewAPIFinalizer(kube, finalizer),
-		log:          log,
-		record:       event.NewNopRecorder(),
-	}
+// A Composer composes infrastructure resources.
+type Composer interface {
+	Compose(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1alpha1.ComposedTemplate) (Observation, error)
 }
 
-// ComposableReconciler is able to reconcile a member of the composite resource.
-type ComposableReconciler interface {
-	Reconcile(ctx context.Context, cr resource.Composite, composedRef v1.ObjectReference, tmpl v1alpha1.ComposedTemplate) (Observation, error)
-}
-
-// Resolver selects the composition reference with the information given as selector.
-type Resolver interface {
+// SelectorResolver selects the composition reference with the information given
+// as selector.
+type SelectorResolver interface {
 	ResolveSelector(ctx context.Context, cr resource.Composite) error
 }
 
-// Reconciler reconciles the generic CRD that is generated via InfrastructureDefinition.
+// ReconcilerOption is used to configure the Reconciler.
+type ReconcilerOption func(*Reconciler)
+
+// WithLogger specifies how the Reconciler should log messages.
+func WithLogger(log logging.Logger) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.log = log
+	}
+}
+
+// WithRecorder specifies how the Reconciler should record Kubernetes events.
+func WithRecorder(er event.Recorder) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.record = er
+	}
+}
+
+// WithSelectorResolver specifies how the Reconciler should publish
+// connection secrets.
+func WithSelectorResolver(p SelectorResolver) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.composite.SelectorResolver = p
+	}
+}
+
+// WithConnectionPublisher specifies how the Reconciler should publish
+// connection secrets.
+func WithConnectionPublisher(p ConnectionPublisher) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.composite.ConnectionPublisher = p
+	}
+}
+
+// WithComposer specifies how the Reconciler should compose resources.
+func WithComposer(rc Composer) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.resource = rc
+	}
+}
+
+type compositeResource struct {
+	SelectorResolver
+	ConnectionPublisher
+}
+
+// NewReconciler returns a new Reconciler of composite infrastructure resources.
+func NewReconciler(mgr manager.Manager, of resource.CompositeKind, opts ...ReconcilerOption) *Reconciler {
+	nc := func() resource.Composite {
+		return composite.New(composite.WithGroupVersionKind(schema.GroupVersionKind(of)))
+	}
+	kube := unstructured.NewClient(mgr.GetClient())
+
+	r := &Reconciler{
+		client:       kube,
+		newComposite: nc,
+
+		composite: compositeResource{
+			SelectorResolver:    NewAPISelectorResolver(kube),
+			ConnectionPublisher: NewAPIFilteredSecretPublisher(kube, []string{}),
+		},
+
+		resource: NewAPIComposer(kube),
+
+		log:    logging.NewNopLogger(),
+		record: event.NewNopRecorder(),
+	}
+
+	for _, f := range opts {
+		f(r)
+	}
+	return r
+}
+
+// A Reconciler reconciles composite infrastructure resources.
 type Reconciler struct {
 	client       client.Client
 	newComposite func() resource.Composite
-	composed     ComposableReconciler
-	connection   ConnectionPublisher
-	finalizer    resource.Finalizer
 
-	// TODO(muvaf): Implement `Initializer` interface to be satisfied by both
-	// selector resolver and empty connection secret ref defaulter.
-	Resolver
+	composite compositeResource
+	resource  Composer
 
 	log    logging.Logger
 	record event.Recorder
 }
 
-// Reconcile reconciles given custom resource.
-func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) { // nolint:gocyclo
+// Reconcile a composite infrastructure resource.
+func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) {
+
+	log := r.log.WithValues("request", req)
+	log.Debug("Reconciling")
+
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	cr := r.newComposite()
 	if err := r.client.Get(ctx, req.NamespacedName, cr); err != nil {
-		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), "cannot get composite resource")
+		log.Debug(errGet, "error", err)
+		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGet)
 	}
 
-	if meta.WasDeleted(cr) && len(cr.GetResourceReferences()) == 0 {
-		if err := r.finalizer.RemoveFinalizer(ctx, cr); err != nil {
-			cr.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(resource.IgnoreNotFound(err), "cannot remove finalizer")))
-			return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateCompositeStatus)
-		}
-		return reconcile.Result{}, nil
+	log = log.WithValues(
+		"uid", cr.GetUID(),
+		"version", cr.GetResourceVersion(),
+		"name", cr.GetName(),
+	)
+
+	if err := r.composite.ResolveSelector(ctx, cr); err != nil {
+		log.Debug(errSelectComp, "error", err)
+		cr.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errSelectComp)))
+		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
-	if err := r.ResolveSelector(ctx, cr); err != nil {
-		cr.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, "cannot resolve composition selector")))
-		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateCompositeStatus)
-	}
 	// TODO(muvaf): We should lock the deletion of Composition via finalizer
 	// because its deletion will break the field propagation.
 	comp := &v1alpha1.Composition{}
 	if err := r.client.Get(ctx, meta.NamespacedNameOf(cr.GetCompositionReference()), comp); err != nil {
-		cr.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, "cannot get the composition")))
-		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateCompositeStatus)
+		log.Debug(errGetComp, "error", err)
+		cr.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errGetComp)))
+		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
-	if err := r.finalizer.AddFinalizer(ctx, cr); err != nil {
-		cr.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, "cannot add finalizer")))
-		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateCompositeStatus)
-	}
+	log = log.WithValues(
+		"composition-uid", comp.GetUID(),
+		"composition-version", comp.GetResourceVersion(),
+		"composition-name", comp.GetName(),
+	)
 
 	// TODO(muvaf): Since the composed reconciler returns only reference, it can
 	// be parallelized via go routines.
@@ -161,28 +230,46 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	refs := make([]v1.ObjectReference, len(comp.Spec.To))
 	copy(refs, cr.GetResourceReferences())
 	conn := managed.ConnectionDetails{}
-	for i, composedRef := range refs {
-		obs, err := r.composed.Reconcile(ctx, cr, composedRef, comp.Spec.To[i])
+	for i, ref := range refs {
+		tmpl := comp.Spec.To[i]
+
+		obs, err := r.resource.Compose(ctx, cr, composed.New(composed.FromReference(ref)), tmpl)
 		if err != nil {
-			cr.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, "cannot reconcile composed resource")))
-			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateCompositeStatus)
+			log.Debug(errReconcile, "error", err)
+			cr.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errReconcile)))
+			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
 		}
-		refs[i] = obs.Ref
-		cr.SetResourceReferences(refs)
-		if err := r.client.Update(ctx, cr); err != nil {
-			cr.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, "cannot update composite spec")))
-			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateCompositeStatus)
-		}
+
 		for key, val := range obs.ConnectionDetails {
 			conn[key] = val
 		}
+
+		// We need to update our composite resource with any new or updated
+		// references to the resources it composes. We do this immediately after
+		// each composed resource has been reconciled to ensure that we don't
+		// forget all of our references if we hit an error. We avoid calling
+		// update if the reconcile didn't change anything.
+		if cmp.Equal(refs[i], obs.Ref) {
+			continue
+		}
+
+		refs[i] = obs.Ref
+		cr.SetResourceReferences(refs)
+		if err := r.client.Update(ctx, cr); err != nil {
+			log.Debug(errUpdate, "error", err)
+			cr.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errUpdate)))
+			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
+		}
 	}
 
-	if err := r.connection.PublishConnection(ctx, cr, conn); err != nil {
-		cr.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, "cannot publish connection secret")))
-		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateCompositeStatus)
+	if err := r.composite.PublishConnection(ctx, cr, conn); err != nil {
+		cr.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errPublish)))
+		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
 	}
+
+	// TODO(negz): Diff the desired vs Ready resources and use that to determine
+	// whether this composite resource is ready.
 
 	cr.SetConditions(runtimev1alpha1.ReconcileSuccess())
-	return reconcile.Result{RequeueAfter: longWait}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateCompositeStatus)
+	return reconcile.Result{RequeueAfter: longWait}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
 }

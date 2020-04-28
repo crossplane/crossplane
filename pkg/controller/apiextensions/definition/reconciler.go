@@ -361,9 +361,11 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	}
 
 	o := kcontroller.Options{Reconciler: composite.NewReconciler(r.mgr,
-		d.GetDefinedGroupVersionKind(),
-		r.log.WithValues("controller", composite.ControllerName(d.GetName())),
-		d)}
+		resource.CompositeKind(d.GetDefinedGroupVersionKind()),
+		composite.WithConnectionPublisher(composite.NewAPIFilteredSecretPublisher(r.client, d.GetConnectionSecretKeys())),
+		composite.WithLogger(log.WithValues("controller", composite.ControllerName(d.GetName()))),
+		composite.WithRecorder(event.NewAPIRecorder(r.mgr.GetEventRecorderFor(composite.ControllerName(d.GetName())))),
+	)}
 
 	u := &kunstructured.Unstructured{}
 	u.SetGroupVersionKind(d.GetDefinedGroupVersionKind())
