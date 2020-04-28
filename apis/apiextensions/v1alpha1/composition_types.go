@@ -155,8 +155,9 @@ type TransformType string
 
 // Accepted TransformTypes.
 const (
-	TransformTypeMap  TransformType = "map"
-	TransformTypeMath TransformType = "math"
+	TransformTypeMap    TransformType = "map"
+	TransformTypeMath   TransformType = "math"
+	TransformTypeString TransformType = "string"
 )
 
 // Transform is a unit of process whose input is transformed into an output with
@@ -166,13 +167,19 @@ type Transform struct {
 	// Type of the transform to be run.
 	Type TransformType `json:"type"`
 
-	// Math is used to transform input via mathematical operations such as multiplication.
+	// Math is used to transform the input via mathematical operations such as
+	// multiplication.
 	// +optional
 	Math *MathTransform `json:"math,omitempty"`
 
-	// Map uses input as key in the given map and returns the value.
+	// Map uses the input as a key in the given map and returns the value.
 	// +optional
 	Map *MapTransform `json:"map,omitempty"`
+
+	// String is used to transform the input into a string or a different kind
+	// of string. Note that the input does not necessarily need to be a string.
+	// +optional
+	String *StringTransform `json:"string,omitempty"`
 }
 
 // Transform calls the appropriate Transformer.
@@ -185,6 +192,8 @@ func (t *Transform) Transform(input interface{}) (interface{}, error) {
 		transformer = t.Math
 	case TransformTypeMap:
 		transformer = t.Map
+	case TransformTypeString:
+		transformer = t.String
 	default:
 		return nil, errors.New(errTypeNotSupported(string(t.Type)))
 	}
@@ -220,6 +229,8 @@ func (m *MathTransform) Resolve(input interface{}) (interface{}, error) {
 
 // MapTransform returns a value for the input from the given map.
 type MapTransform struct {
+	// TODO(negz): Are Pairs really optional if a MapTransform was specified?
+
 	// Pairs is the map that will be used for transform.
 	// +optional
 	Pairs map[string]string `json:",inline"`
@@ -237,6 +248,18 @@ func (m *MapTransform) Resolve(input interface{}) (interface{}, error) {
 	default:
 		return nil, errors.New(errMapTypeNotSupported(reflect.TypeOf(input).String()))
 	}
+}
+
+// A StringTransform returns a string given the supplied input.
+type StringTransform struct {
+	// Format the input using a Go format string. See
+	// https://golang.org/pkg/fmt/ for details.
+	Format string `json:"fmt"`
+}
+
+// Resolve runs the String transform.
+func (s *StringTransform) Resolve(input interface{}) (interface{}, error) {
+	return fmt.Sprintf(s.Format, input), nil
 }
 
 // ConnectionDetail includes the information about the propagation of the connection
