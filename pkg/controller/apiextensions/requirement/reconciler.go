@@ -41,8 +41,8 @@ import (
 )
 
 const (
-	requirementFinalizerName    = "finalizer.resourcerequirement.crossplane.io"
-	requirementReconcileTimeout = 1 * time.Minute
+	finalizer        = "finalizer.apiextensions.crossplane.io"
+	reconcileTimeout = 1 * time.Minute
 
 	aShortWait = 30 * time.Second
 )
@@ -60,18 +60,25 @@ const (
 
 // Event reasons.
 const (
-	reasonCannotGetResource       event.Reason = "CannotGetCompositeResource"
-	reasonCannotConfigureResource event.Reason = "CannotConfigureCompositeResource"
-	reasonCannotCreateResource    event.Reason = "CannotCreateCompositeResource"
-	reasonCannotPropagate         event.Reason = "CannotPropagateConnectionDetails"
-	reasonCannotBind              event.Reason = "CannotBindCompositeResource"
-	reasonCannotUnbind            event.Reason = "CannotUnbindCompositeResource"
+	reasonBind      event.Reason = "BindCompositeResource"
+	reasonUnbind    event.Reason = "UnbindCompositeResource"
+	reasonConfigure event.Reason = "ConfigureCompositeResource"
+	reasonPropagate event.Reason = "PropagateConnectionSecret"
 
-	reasonResourceNotFound event.Reason = "CompositeResourceNotFound"
-	reasonCreatedResource  event.Reason = "CreatedCompositeResource"
-	reasonWaitingToBind    event.Reason = "WaitingToBind"
-	reasonBound            event.Reason = "BoundCompositeResource"
-	reasonUnbound          event.Reason = "UnboundCompositeResource"
+	/*
+		reasonGetResource       event.Reason = "CannotGetCompositeResource"
+		reasonConfigureResource event.Reason = "CannotConfigureCompositeResource"
+		reasonCreateResource    event.Reason = "CannotCreateCompositeResource"
+		reasonPropagate         event.Reason = "CannotPropagateConnectionDetails"
+		reasonBind              event.Reason = "CannotBindCompositeResource"
+		reasonUnbind            event.Reason = "CannotUnbindCompositeResource"
+
+		reasonResourceNotFound event.Reason = "CompositeResourceNotFound"
+		reasonCreatedResource  event.Reason = "CreatedCompositeResource"
+		reasonWaitingToBind    event.Reason = "WaitingToBind"
+		reasonBound            event.Reason = "BoundCompositeResource"
+		reasonUnbound          event.Reason = "UnboundCompositeResource"
+	*/
 )
 
 // ControllerName returns the recommended name for controllers that use this
@@ -178,7 +185,7 @@ type crRequirement struct {
 
 func defaultCRRequirement(c client.Client, t runtime.ObjectTyper) crRequirement {
 	return crRequirement{
-		Finalizer: resource.NewAPIFinalizer(c, requirementFinalizerName),
+		Finalizer: resource.NewAPIFinalizer(c, finalizer),
 		Binder:    NewAPIBinder(c, t),
 	}
 }
@@ -270,7 +277,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	log := r.log.WithValues("request", req)
 	log.Debug("Reconciling")
 
-	ctx, cancel := context.WithTimeout(context.Background(), requirementReconcileTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), reconcileTimeout)
 	defer cancel()
 
 	rq := r.newRequirement()
@@ -302,7 +309,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			// have their requirement reference set, so we can't expect to be queued
 			// implicitly when the composite resource we want to bind to appears.
 			log.Debug("Referenced composite resource not found", "requeue-after", time.Now().Add(aShortWait))
-			record.Event(rq, event.Normal(reasonResourceNotFound, "Referenced composite resource not found"))
+			record.Event(rq, event.Warning(reasonBind, err))
 			rq.SetConditions(Waiting(), v1alpha1.ReconcileSuccess())
 			return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, rq), errUpdateRequirementStatus)
 		}
@@ -311,7 +318,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			// implicitly due to the status update. Otherwise we want to retry
 			// after a brief wait, in case this was a transient error.
 			log.Debug("Cannot get referenced composite resource", "error", err, "requeue-after", time.Now().Add(aShortWait))
-			record.Event(rq, event.Warning(reasonCannotGetResource, err))
+			record.Event(rq, event.Warning(reasonBind, err))
 			rq.SetConditions(v1alpha1.ReconcileError(err))
 			return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, rq), errUpdateRequirementStatus)
 		}
@@ -325,19 +332,20 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			// implicitly due to the status update. Otherwise we want to retry
 			// after a brief wait, in case this was a transient error.
 			log.Debug("Cannot unbind requirement", "error", err, "requeue-after", time.Now().Add(aShortWait))
-			record.Event(rq, event.Warning(reasonCannotUnbind, err))
+			record.Event(rq, event.Warning(reasonUnbind, err))
 			rq.SetConditions(v1alpha1.Deleting(), v1alpha1.ReconcileError(err))
 			return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, rq), errUpdateRequirementStatus)
 		}
 
 		log.Debug("Successfully unbound composite resource")
-		record.Event(rq, event.Normal(reasonUnbound, "Successfully unbound composite resource"))
+		record.Event(rq, event.Normal(reasonUnbind, "Successfully unbound composite resource"))
 
 		if err := r.requirement.RemoveFinalizer(ctx, rq); err != nil {
 			// If we didn't hit this error last time we'll be requeued
 			// implicitly due to the status update. Otherwise we want to retry
 			// after a brief wait, in case this was a transient error.
 			log.Debug("Cannot remove finalizer", "error", err, "requeue-after", time.Now().Add(aShortWait))
+			record.Event(rq, event.Warning(reasonUnbind, err))
 			rq.SetConditions(v1alpha1.Deleting(), v1alpha1.ReconcileError(err))
 			return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, rq), errUpdateRequirementStatus)
 		}
@@ -365,7 +373,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			// after a brief wait, in case this was a transient error or some
 			// issue with the resource class was resolved.
 			log.Debug("Cannot configure composite resource", "error", err, "requeue-after", time.Now().Add(aShortWait))
-			record.Event(rq, event.Warning(reasonCannotConfigureResource, err))
+			record.Event(rq, event.Warning(reasonConfigure, err))
 			rq.SetConditions(v1alpha1.Creating(), v1alpha1.ReconcileError(err))
 			return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, rq), errUpdateRequirementStatus)
 		}
@@ -380,13 +388,13 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			// implicitly due to the status update. Otherwise we want to retry
 			// after a brief wait, in case this was a transient error.
 			log.Debug("Cannot create composite resource", "error", err, "requeue-after", time.Now().Add(aShortWait))
-			record.Event(rq, event.Warning(reasonCannotCreateResource, err))
+			record.Event(rq, event.Warning(reasonConfigure, err))
 			rq.SetConditions(v1alpha1.Creating(), v1alpha1.ReconcileError(err))
 			return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, rq), errUpdateRequirementStatus)
 		}
 
 		log.Debug("Successfully created composite resource")
-		record.Event(rq, event.Normal(reasonCreatedResource, "Successfully created composite resource"))
+		record.Event(rq, event.Normal(reasonConfigure, "Successfully configured composite resource"))
 	}
 
 	// TODO(negz): Check for TypeReady, not TypeSynced. Composite resources do
@@ -394,7 +402,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	// useful until the resources they compose are ready.
 	if !resource.IsConditionTrue(cp.GetCondition(v1alpha1.TypeSynced)) {
 		log.Debug("Composite resource is not yet ready")
-		record.Event(rq, event.Normal(reasonWaitingToBind, "Composite resource is not yet ready"))
+		record.Event(rq, event.Normal(reasonBind, "Composite resource is not yet ready"))
 
 		// We should be watching the composite resource and will have a request
 		// queued if it changes.
@@ -402,29 +410,28 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, rq), errUpdateRequirementStatus)
 	}
 
-	if cp.GetRequirementReference() == nil {
-		if err := r.requirement.AddFinalizer(ctx, rq); err != nil {
-			// If we didn't hit this error last time we'll be requeued
-			// implicitly due to the status update. Otherwise we want to retry
-			// after a brief wait, in case this was a transient error.
-			log.Debug("Cannot add resource requirement finalizer", "error", err, "requeue-after", time.Now().Add(aShortWait))
-			rq.SetConditions(v1alpha1.Creating(), v1alpha1.ReconcileError(err))
-			return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, rq), errUpdateRequirementStatus)
-		}
-
-		if err := r.requirement.Bind(ctx, rq, cp); err != nil {
-			// If we didn't hit this error last time we'll be requeued implicitly
-			// due to the status update. Otherwise we want to retry after a brief
-			// wait, in case this was a transient error.
-			log.Debug("Cannot bind to composite resource", "error", err, "requeue-after", time.Now().Add(aShortWait))
-			record.Event(rq, event.Warning(reasonCannotBind, err))
-			rq.SetConditions(Waiting(), v1alpha1.ReconcileError(err))
-			return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, rq), errUpdateRequirementStatus)
-		}
-
-		log.Debug("Successfully bound composite resource")
-		record.Event(rq, event.Normal(reasonBound, "Successfully bound composite resource"))
+	if err := r.requirement.AddFinalizer(ctx, rq); err != nil {
+		// If we didn't hit this error last time we'll be requeued
+		// implicitly due to the status update. Otherwise we want to retry
+		// after a brief wait, in case this was a transient error.
+		log.Debug("Cannot add resource requirement finalizer", "error", err, "requeue-after", time.Now().Add(aShortWait))
+		record.Event(rq, event.Warning(reasonBind, err))
+		rq.SetConditions(v1alpha1.Creating(), v1alpha1.ReconcileError(err))
+		return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, rq), errUpdateRequirementStatus)
 	}
+
+	if err := r.requirement.Bind(ctx, rq, cp); err != nil {
+		// If we didn't hit this error last time we'll be requeued implicitly
+		// due to the status update. Otherwise we want to retry after a brief
+		// wait, in case this was a transient error.
+		log.Debug("Cannot bind to composite resource", "error", err, "requeue-after", time.Now().Add(aShortWait))
+		record.Event(rq, event.Warning(reasonBind, err))
+		rq.SetConditions(Waiting(), v1alpha1.ReconcileError(err))
+		return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, rq), errUpdateRequirementStatus)
+	}
+
+	log.Debug("Successfully bound composite resource")
+	record.Event(rq, event.Normal(reasonBind, "Successfully bound composite resource"))
 
 	if err := r.composite.PropagateConnection(ctx, rq, cp); err != nil {
 		// If we didn't hit this error last time we'll be requeued implicitly
@@ -432,13 +439,16 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		// wait in case this was a transient error, or the resource connection
 		// secret is created.
 		log.Debug("Cannot propagate connection details from composite resource to requirement", "error", err, "requeue-after", time.Now().Add(aShortWait))
-		record.Event(rq, event.Warning(reasonCannotPropagate, err))
+		record.Event(rq, event.Warning(reasonPropagate, err))
 		rq.SetConditions(Waiting(), v1alpha1.ReconcileError(err))
 		return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, rq), errUpdateRequirementStatus)
 	}
 
+	// We have a watch on both the requirement and its composite, so there's no
+	// need to requeue here.
+	record.Event(rq, event.Normal(reasonPropagate, "Successfully propagated connection details from composite resource"))
 	rq.SetConditions(v1alpha1.Available(), v1alpha1.ReconcileSuccess())
-	return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, rq), errUpdateRequirementStatus)
+	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, rq), errUpdateRequirementStatus)
 }
 
 // Waiting returns a condition that indicates the resource requirement is

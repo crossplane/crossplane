@@ -24,8 +24,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 )
 
 // Error strings.
@@ -34,6 +36,7 @@ const (
 	errUpdateRequirement = "cannot update resource requirement"
 	errUpdateComposite   = "cannot update composite resource"
 	errDeleteComposite   = "cannot delete composite resource"
+	errBindConflict      = "cannot bind composite resource that references a different requirement"
 )
 
 // An APICompositeCreator creates resources by submitting them to a Kubernetes
@@ -83,8 +86,14 @@ func NewAPIBinder(c client.Client, t runtime.ObjectTyper) *APIBinder {
 
 // Bind the supplied requirement to the supplied composite.
 func (a *APIBinder) Bind(ctx context.Context, rq resource.Requirement, cp resource.Composite) error {
+	existing := cp.GetRequirementReference()
+	proposed := meta.ReferenceTo(rq, resource.MustGetKind(rq, a.typer))
 
-	cp.SetRequirementReference(meta.ReferenceTo(rq, resource.MustGetKind(rq, a.typer)))
+	if existing != nil && (existing.Namespace != proposed.Namespace || existing.Name != proposed.Name) {
+		return errors.New(errBindConflict)
+	}
+
+	cp.SetRequirementReference(proposed)
 	if err := a.client.Update(ctx, cp); err != nil {
 		return errors.Wrap(err, errUpdateComposite)
 	}
@@ -102,8 +111,7 @@ func (a *APIBinder) Bind(ctx context.Context, rq resource.Requirement, cp resour
 // removing the composite resource's requirement reference, and if the composite
 // resource's reclaim policy is "Delete", deleting it.
 func (a *APIBinder) Unbind(ctx context.Context, _ resource.Requirement, cp resource.Composite) error {
-	// TODO(negz): Does this work for unstructured resources?
-	cp.SetRequirementReference(nil)
+	RemoveRequirementReference(cp)
 
 	if err := a.client.Update(ctx, cp); err != nil {
 		return errors.Wrap(resource.IgnoreNotFound(err), errUpdateComposite)
@@ -117,4 +125,22 @@ func (a *APIBinder) Unbind(ctx context.Context, _ resource.Requirement, cp resou
 	}
 
 	return errors.Wrap(resource.IgnoreNotFound(a.client.Delete(ctx, cp)), errDeleteComposite)
+}
+
+// RemoveRequirementReference removes the requirement reference from the
+// supplied resource.Composite if it contains a *composite.Unstructured.
+func RemoveRequirementReference(cp resource.Composite) {
+	ucp, ok := cp.(*composite.Unstructured)
+	if !ok {
+		return
+	}
+
+	i, _ := fieldpath.Pave(ucp.Object).GetValue("spec")
+	spec, ok := i.(map[string]interface{})
+	if !ok {
+		return
+	}
+
+	// TODO(negz): Make this a constant in the ccrd package?
+	delete(spec, "requirementRef")
 }
