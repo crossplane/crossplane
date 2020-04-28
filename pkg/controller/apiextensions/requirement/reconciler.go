@@ -302,6 +302,31 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 		err := r.client.Get(ctx, meta.NamespacedNameOf(ref), cp)
 		if kerrors.IsNotFound(err) {
+
+			// Our composite was not found, but we're being deleted too. There's
+			// nothing to finalize.
+			if meta.WasDeleted(rq) {
+				// TODO(negz): Can we refactor to avoid this deletion logic that
+				// is almost identical to the meta.WasDeleted block below?
+				log = log.WithValues("deletion-timestamp", rq.GetDeletionTimestamp())
+				if err := r.requirement.RemoveFinalizer(ctx, rq); err != nil {
+					// If we didn't hit this error last time we'll be requeued
+					// implicitly due to the status update. Otherwise we want to retry
+					// after a brief wait, in case this was a transient error.
+					log.Debug("Cannot remove finalizer", "error", err, "requeue-after", time.Now().Add(aShortWait))
+					record.Event(rq, event.Warning(reasonUnbind, err))
+					rq.SetConditions(v1alpha1.Deleting(), v1alpha1.ReconcileError(err))
+					return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, rq), errUpdateRequirementStatus)
+				}
+
+				// We've successfully deleted our requirement and removed our finalizer. If we
+				// assume we were the only controller that added a finalizer to this
+				// requirement then it should no longer exist and thus there is no point
+				// trying to update its status.
+				log.Debug("Successfully deleted resource requirement")
+				return reconcile.Result{Requeue: false}, nil
+			}
+
 			// If the composite resource we explicitly reference doesn't exist yet
 			// we want to retry after a brief wait, in case it is created. We
 			// must explicitly requeue because our EnqueueRequestForRequirement
@@ -397,10 +422,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		record.Event(rq, event.Normal(reasonConfigure, "Successfully configured composite resource"))
 	}
 
-	// TODO(negz): Check for TypeReady, not TypeSynced. Composite resources do
-	// not yet set the latter, but their connection secret is probably not very
-	// useful until the resources they compose are ready.
-	if !resource.IsConditionTrue(cp.GetCondition(v1alpha1.TypeSynced)) {
+	if !resource.IsConditionTrue(cp.GetCondition(v1alpha1.TypeReady)) {
 		log.Debug("Composite resource is not yet ready")
 		record.Event(rq, event.Normal(reasonBind, "Composite resource is not yet ready"))
 
