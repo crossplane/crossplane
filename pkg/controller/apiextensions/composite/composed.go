@@ -89,45 +89,40 @@ func (r *APIComposer) Compose(ctx context.Context, cp resource.Composite, cd res
 		}
 	}
 
-	// NOTE(negz): We use AddOwnerReference rather than AddControllerReference
-	// because we don't need the latter to check whether a controller reference
-	// is already set.
+	conn := managed.ConnectionDetails{}
+	sref := cd.GetWriteConnectionSecretToReference()
+	if sref != nil {
+		// It's possible that the composed resource does want to write a
+		// connection secret but has not yet. We presume this isn't an issue and
+		// that we'll propagate any connection details during a future
+		// iteration.
+		s := &corev1.Secret{}
+		nn := types.NamespacedName{Namespace: sref.Namespace, Name: sref.Name}
+		if err := r.client.Get(ctx, nn, s); resource.IgnoreNotFound(err) != nil {
+			return Observation{}, errors.Wrap(err, errGetSecret)
+		}
+
+		for _, pair := range t.ConnectionDetails {
+			key := pair.FromConnectionSecretKey
+			if pair.Name != nil {
+				key = *pair.Name
+			}
+			conn[key] = s.Data[pair.FromConnectionSecretKey]
+		}
+	}
+
+	// We use AddOwnerReference rather than AddControllerReference because we
+	// don't need the latter to check whether a controller reference is already
+	// set.
 	meta.AddOwnerReference(cd, meta.AsController(meta.ReferenceTo(cp, cp.GetObjectKind().GroupVersionKind())))
 	if err := r.client.Apply(ctx, cd, resource.MustBeControllableBy(cp.GetUID())); err != nil {
 		return Observation{}, errors.Wrap(err, errApply)
 	}
 
-	ready := resource.IsConditionTrue(cd.GetCondition(runtimev1alpha1.TypeReady))
-	ref := *meta.ReferenceTo(cd, cd.GetObjectKind().GroupVersionKind())
-	sref := cd.GetWriteConnectionSecretToReference()
-
-	// The composed resource does not want to write a connection secret.
-	if sref == nil {
-		return Observation{Ref: ref, Ready: ready}, nil
-	}
-
-	s := &corev1.Secret{}
-	nn := types.NamespacedName{Namespace: sref.Namespace, Name: sref.Name}
-	if err := r.client.Get(ctx, nn, s); err != nil {
-		// The composed resource does want to write a connection secret but has
-		// not yet. We presume this isn't an issue and that we'll propagate any
-		// connection details during a future iteration.
-		return Observation{Ref: ref, Ready: ready}, errors.Wrap(resource.IgnoreNotFound(err), errGetSecret)
-	}
-
 	obs := Observation{
 		Ref:               *meta.ReferenceTo(cd, cd.GetObjectKind().GroupVersionKind()),
-		ConnectionDetails: managed.ConnectionDetails{},
-		Ready:             ready,
+		Ready:             resource.IsConditionTrue(cd.GetCondition(runtimev1alpha1.TypeReady)),
+		ConnectionDetails: conn,
 	}
-
-	for _, pair := range t.ConnectionDetails {
-		key := pair.FromConnectionSecretKey
-		if pair.Name != nil {
-			key = *pair.Name
-		}
-		obs.ConnectionDetails[key] = s.Data[pair.FromConnectionSecretKey]
-	}
-
 	return obs, nil
 }
