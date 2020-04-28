@@ -222,6 +222,12 @@ func TestForInfrastructureDefinition(t *testing.T) {
 							Properties: map[string]v1beta1.JSONSchemaProps{
 
 								// From InfrastructureStatusProps()
+								"composedResources": {
+									Type: "integer",
+								},
+								"readyResources": {
+									Type: "integer",
+								},
 								"bindingPhase": {
 									Type: "string",
 									Enum: []v1beta1.JSON{
@@ -405,6 +411,12 @@ func TestPublishesInfrastructureDefinition(t *testing.T) {
 							Properties: map[string]v1beta1.JSONSchemaProps{
 
 								// From InfrastructureStatusProps()
+								"composedResources": {
+									Type: "integer",
+								},
+								"readyResources": {
+									Type: "integer",
+								},
 								"bindingPhase": {
 									Type: "string",
 									Enum: []v1beta1.JSON{
