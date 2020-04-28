@@ -131,17 +131,31 @@ spec:
                               map:
                                 additionalProperties:
                                   type: string
-                                description: Map uses input as key in the given map
-                                  and returns the value.
+                                description: Map uses the input as a key in the given
+                                  map and returns the value.
                                 type: object
                               math:
-                                description: Math is used to transform input via mathematical
-                                  operations such as multiplication.
+                                description: Math is used to transform the input via
+                                  mathematical operations such as multiplication.
                                 properties:
                                   multiply:
                                     description: Multiply the value.
                                     format: int64
                                     type: integer
+                                type: object
+                              string:
+                                description: String is used to transform the input
+                                  into a string or a different kind of string. Note
+                                  that the input does not necessarily need to be a
+                                  string.
+                                properties:
+                                  fmt:
+                                    description: Format the input using a Go format
+                                      string. See https://golang.org/pkg/fmt/ for
+                                      details.
+                                    type: string
+                                required:
+                                - fmt
                                 type: object
                               type:
                                 description: Type of the transform to be run.
