@@ -102,6 +102,13 @@ func DefinedInfrastructureSpecProps() map[string]v1beta1.JSONSchemaProps {
 				"namespace": {Type: "string"},
 			},
 		},
+		"reclaimPolicy": {
+			Type: "string",
+			Enum: []v1beta1.JSON{
+				{Raw: []byte(`"Retain"`)},
+				{Raw: []byte(`"Delete"`)},
+			},
+		},
 	}
 }
 
