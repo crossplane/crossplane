@@ -22,13 +22,14 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	kmeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
-	ctrlr "sigs.k8s.io/controller-runtime/pkg/controller"
+	kcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -47,29 +48,61 @@ import (
 )
 
 const (
-	// TODO(muvaf): consider adding _shorterWait_ for non-error cases where the result
-	// is expected to be quick. For example, deletion or CRD establishment takes
-	// unnecessarily long just because shortWait is 10 seconds.
-	shortWait      = 10 * time.Second
-	longWait       = 1 * time.Minute
+	tinyWait  = 3 * time.Second
+	shortWait = 30 * time.Second
+
 	timeout        = 2 * time.Minute
 	maxConcurrency = 5
-	finalizerName  = "finalizer.apiextensions.crossplane.io"
+	finalizer      = "finalizer.apiextensions.crossplane.io"
 
-	errGetInfraDef           = "cannot get infrastructure definition"
-	errNewCRD                = "cannot generate CRD from infrastructure definition"
-	errGetCRD                = "cannot get CRD"
-	errApplyCRD              = "cannot apply the generated CRD"
-	errUpdateInfraDefStatus  = "cannot update status of infrastructure definition"
-	errCannotStartController = "cannot start controller"
-	errAddFinalizer          = "cannot add finalizer"
-	errRemoveFinalizer       = "cannot remove finalizer"
-	errDeleteCRD             = "cannot delete crd"
-
-	waitingInstanceDeletion   = "waiting for all cr instances to be gone"
-	waitingCRDEstablish       = "waiting for crd to be established"
-	errNotControllerByDefiner = "cannot start a controller for a crd that this definer does not control"
+	errGetInfraDef     = "cannot get InfrastructureDefinition"
+	errNewCRD          = "cannot generate CustomResourceDefinition"
+	errGetCRD          = "cannot get CustomResourceDefinition"
+	errApplyCRD        = "cannot apply the generated CustomResourceDefinition"
+	errUpdateStatus    = "cannot update status of InfrastructureDefinition"
+	errStartController = "cannot start controller"
+	errAddFinalizer    = "cannot add finalizer"
+	errRemoveFinalizer = "cannot remove finalizer"
+	errDeleteCRD       = "cannot delete CustomResourceDefinition"
+	errListCRs         = "cannot list defined custom resources"
+	errDeleteCRs       = "cannot delete defined custom resources"
 )
+
+// Wait strings.
+const (
+	waitCRDelete     = "waiting for defined custom resources to be deleted"
+	waitCRDEstablish = "waiting for CustomResourceDefinition to be established"
+)
+
+// Event reasons.
+const (
+	reasonRenderCRD event.Reason = "RenderCustomResourceDefinition"
+	reasonDeleteDef event.Reason = "DeleteInfrastructureDefinition"
+	reasonApplyDef  event.Reason = "ApplyInfrastructureDefinition"
+)
+
+// A ControllerEngine can start and stop Kubernetes controllers on demand.
+type ControllerEngine interface {
+	IsRunning(name string) bool
+	Start(name string, o kcontroller.Options, w ...controller.Watch) error
+	Stop(name string)
+}
+
+// A CRDRenderer renders an InfrastructureDefinition's corresponding
+// CustomResourceDefinition.
+type CRDRenderer interface {
+	Render(d *v1alpha1.InfrastructureDefinition) (*v1beta1.CustomResourceDefinition, error)
+}
+
+// A CRDRenderFn renders an InfrastructureDefinition's corresponding
+// CustomResourceDefinition.
+type CRDRenderFn func(d *v1alpha1.InfrastructureDefinition) (*v1beta1.CustomResourceDefinition, error)
+
+// Render the supplied InfrastructureDefinition's corresponding
+// CustomResourceDefinition.
+func (fn CRDRenderFn) Render(d *v1alpha1.InfrastructureDefinition) (*v1beta1.CustomResourceDefinition, error) {
+	return fn(d)
+}
 
 // Setup adds a controller that reconciles ApplicationConfigurations.
 func Setup(mgr ctrl.Manager, log logging.Logger) error {
@@ -78,27 +111,88 @@ func Setup(mgr ctrl.Manager, log logging.Logger) error {
 		WithLogger(log.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))))
 
-	// TODO(muvaf): register this reconciler to events from CRDs, too.
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&v1alpha1.InfrastructureDefinition{}).
-		WithOptions(ctrlr.Options{MaxConcurrentReconciles: maxConcurrency}).
+		Owns(&v1beta1.CustomResourceDefinition{}).
+		WithOptions(kcontroller.Options{MaxConcurrentReconciles: maxConcurrency}).
 		Complete(r)
 }
 
-// NewReconciler returns a new *reconciler.
-func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) reconcile.Reconciler {
+// ReconcilerOption is used to configure the Reconciler.
+type ReconcilerOption func(*Reconciler)
+
+// WithLogger specifies how the Reconciler should log messages.
+func WithLogger(log logging.Logger) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.log = log
+	}
+}
+
+// WithRecorder specifies how the Reconciler should record Kubernetes events.
+func WithRecorder(er event.Recorder) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.record = er
+	}
+}
+
+// WithFinalizer specifies how the Reconciler should finalize
+// InfrastructureDefinitions.
+func WithFinalizer(f resource.Finalizer) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.definition.Finalizer = f
+	}
+}
+
+// WithControllerEngine specifies how the Reconciler should manage the
+// lifecycles of composite controllers.
+func WithControllerEngine(c ControllerEngine) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.definition.ControllerEngine = c
+	}
+}
+
+// WithCRDRenderer specifies how the Reconciler should render an
+// InfrastructureDefinition's corresponding CustomResourceDefinition.
+func WithCRDRenderer(c CRDRenderer) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.definition.CRDRenderer = c
+	}
+}
+
+type definition struct {
+	CRDRenderer
+	ControllerEngine
+	resource.Finalizer
+}
+
+// NewReconciler returns a Reconciler of InfrastructureDefinitions.
+func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 	kube := unstructured.NewClient(mgr.GetClient())
-	r := &reconciler{
+	rd := func(d *v1alpha1.InfrastructureDefinition) (*v1beta1.CustomResourceDefinition, error) {
+		return ccrd.New(ccrd.ForInfrastructureDefinition(d))
+	}
+
+	r := &Reconciler{
+		mgr: mgr,
+
+		// TODO(negz): We don't need to patch (it's fine to overwrite an
+		// existing CRD's fields when applying) but we can't use
+		// resource.APIUpdatingApplicator due to the below issue.
+		// https://github.com/crossplane/crossplane-runtime/issues/165
 		client: resource.ClientApplicator{
 			Client:     kube,
 			Applicator: resource.NewAPIPatchingApplicator(kube),
 		},
-		mgr:       mgr,
-		ctrl:      controller.NewEngine(mgr),
-		Finalizer: resource.NewAPIFinalizer(kube, finalizerName),
-		log:       logging.NewNopLogger(),
-		recorder:  event.NewNopRecorder(),
+
+		definition: definition{
+			CRDRenderer:      CRDRenderFn(rd),
+			ControllerEngine: controller.NewEngine(mgr),
+			Finalizer:        resource.NewAPIFinalizer(kube, finalizer),
+		},
+
+		log:    logging.NewNopLogger(),
+		record: event.NewNopRecorder(),
 	}
 
 	for _, f := range opts {
@@ -107,197 +201,182 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) reconcile.Reco
 	return r
 }
 
-// ReconcilerOption is used to configure the definer reconciler.
-type ReconcilerOption func(*reconciler)
-
-// WithLogger returns a ReconcilerOption that configures the definer reconciler
-// with given logger.
-func WithLogger(log logging.Logger) ReconcilerOption {
-	return func(r *reconciler) {
-		r.log = log
-	}
-}
-
-// WithRecorder returns a ReconcilerOption that configures the definer reconciler
-// with given event.Recorder.
-func WithRecorder(recorder event.Recorder) ReconcilerOption {
-	return func(r *reconciler) {
-		r.recorder = recorder
-	}
-}
-
-// TODO(muvaf): There are three things that are managed: definer, crd and controller.
-// We should consider having nice sub structs to represent those separately. This
-// will probably be a must when it's used by AppDefinition as well.
-type reconciler struct {
+// A Reconciler reconciles InfrastructureDefinitions.
+type Reconciler struct {
 	client resource.ClientApplicator
 	mgr    manager.Manager
-	ctrl   *controller.Engine
-	resource.Finalizer
 
-	log      logging.Logger
-	recorder event.Recorder
+	definition definition
+
+	log    logging.Logger
+	record event.Recorder
 }
 
-// Reconcile is the loop function of reconciliation.
-func (r *reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) { // nolint:gocyclo
+// TODO(muvaf,negz): Consider deduplicating this Reconciler with the
+// InfrastructurePublication and (as yet unwritten) ApplicationDefinition
+// reconcilers.
+
+// Reconcile an InfrastructureDefinition.
+func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) { // nolint:gocyclo
+	// NOTE(negz): Like most Reconcile methods, this one is over our cyclomatic
+	// complexity goal. Be wary when adding branches, and look for functionality
+	// that could be reasonably moved into an injected dependency.
+
 	log := r.log.WithValues("request", req)
 	log.Debug("Reconciling")
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	// TODO(muvaf): this will be generic as there will be ApplicationDefinition
-	// type, too.
-	definer := &v1alpha1.InfrastructureDefinition{}
-	if err := r.client.Get(ctx, req.NamespacedName, definer); err != nil {
+	d := &v1alpha1.InfrastructureDefinition{}
+	if err := r.client.Get(ctx, req.NamespacedName, d); err != nil {
 		// In case object is not found, most likely the object was deleted and
-		// then disappeared while the event was in the processing queue. We don't
-		// need to take any action in that case.
+		// then disappeared while the event was in the processing queue. We
+		// don't need to take any action in that case.
 		log.Debug(errGetInfraDef, "error", err)
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetInfraDef)
 	}
 
 	log = log.WithValues(
-		"uid", definer.GetUID(),
-		"version", definer.GetResourceVersion(),
-		"name", definer.GetName(),
+		"uid", d.GetUID(),
+		"version", d.GetResourceVersion(),
+		"name", d.GetName(),
 	)
 
-	crd, err := ccrd.New(ccrd.ForInfrastructureDefinition(definer))
+	crd, err := r.definition.Render(d)
 	if err != nil {
 		log.Debug(errNewCRD, "error", err)
-		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(err, errNewCRD)
+		r.record.Event(d, event.Warning(reasonRenderCRD, err))
+		d.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errNewCRD)))
+		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 	}
 
-	nn := types.NamespacedName{Name: crd.GetName()}
-	if err := r.client.Get(ctx, nn, crd); resource.IgnoreNotFound(err) != nil {
-		log.Debug(errGetCRD, "error", err)
-		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(err, errGetCRD)
-	}
+	if meta.WasDeleted(d) {
+		d.Status.SetConditions(v1alpha1.Deleting())
+		r.record.Event(d, event.Normal(reasonDeleteDef, "Deleting InfrastructureDefinition"))
 
-	// We make sure the CRD that we'll start a controller for is not marked for
-	// deletion so that when it does get deleted our controller and cache don't
-	// crash. Since we are the ones explicitly calling deletion of CRD after
-	// all instances are gone, it should be OK not start the controller.
-	if meta.WasCreated(crd) && !meta.WasDeleted(crd) {
-		// TODO(muvaf): controller and establishment checks could go into controller
-		// engine.
-
-		// We only want to operate on CRDs we own.
-		if !metav1.IsControlledBy(crd, definer) {
-			log.Debug(errNotControllerByDefiner)
-			definer.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.New(errNotControllerByDefiner)))
-			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, definer), errUpdateInfraDefStatus)
+		nn := types.NamespacedName{Name: crd.GetName()}
+		if err := r.client.Get(ctx, nn, crd); resource.IgnoreNotFound(err) != nil {
+			r.record.Event(d, event.Warning(reasonDeleteDef, err))
+			d.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errGetCRD)))
+			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 		}
 
-		// It takes a while for api-server to be able to work with the new kind.
-		if !ccrd.IsEstablished(crd.Status) {
-			log.Debug(waitingCRDEstablish)
-			definer.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.New(waitingCRDEstablish)))
-			return reconcile.Result{RequeueAfter: 3 * time.Second}, errors.Wrap(r.client.Status().Update(ctx, definer), errUpdateInfraDefStatus)
-		}
+		// The CRD has no creation timestamp, or we don't control it. Most
+		// likely we successfully deleted it on a previous reconcile. It's also
+		// possible that we're being asked to delete it before we got around to
+		// creating it, or that we lost control of it around the same time we
+		// were deleted. In the (presumably exceedingly rare) latter case we'll
+		// orphan the CRD.
+		if !meta.WasCreated(crd) || !metav1.IsControlledBy(crd, d) {
+			// It's likely that we've already stopped this controller on a
+			// previous reconcile, but we try again just in case. This is a
+			// no-op if the controller was already stopped.
+			r.definition.Stop(composite.ControllerName(d.GetName()))
 
-		// We know that CRD is ready and we are in control of it. So, we'll spin up
-		// an instance controller to reconcile it.
-		o := ctrlr.Options{Reconciler: composite.NewReconciler(r.mgr,
-			definer.GetDefinedGroupVersionKind(),
-			r.log.WithValues("controller", composite.ControllerName(definer.GetName())),
-			definer)}
-		u := &kunstructured.Unstructured{}
-		u.SetGroupVersionKind(definer.GetDefinedGroupVersionKind())
-
-		if err := r.ctrl.Start(composite.ControllerName(definer.GetName()), o, controller.For(u, &handler.EnqueueRequestForObject{})); err != nil {
-			log.Debug(errCannotStartController, "error", err)
-			definer.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errCannotStartController)))
-			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, definer), errCannotStartController)
-		}
-		// TODO(muvaf): Consider using _Established_ condition for Definers
-		// similar to CRD.
-
-		// If the CRD is established and controller is up, then we are available.
-		definer.Status.SetConditions(runtimev1alpha1.Available())
-	}
-
-	if meta.WasDeleted(definer) {
-		if !meta.WasCreated(crd) {
-			// Controller probably crashed if it's still up but we need to clean
-			// up.
-			r.ctrl.Stop(composite.ControllerName(definer.GetName()))
-
-			// At this point, CRD is deleted and controller is not running. The
-			// cleanup has been completed, we can remove the finalizer.
-			if err := r.RemoveFinalizer(ctx, definer); err != nil {
+			if err := r.definition.RemoveFinalizer(ctx, d); err != nil {
 				log.Debug(errRemoveFinalizer, "error", err)
-				definer.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errRemoveFinalizer)))
-				return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, definer), errUpdateInfraDefStatus)
+				r.record.Event(d, event.Warning(reasonDeleteDef, err))
+				d.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errRemoveFinalizer)))
+				return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 			}
+
+			// We're all done deleting and have removed our finalizer. There's
+			// no need to requeue because there's nothing left to do.
+			r.record.Event(d, event.Normal(reasonDeleteDef, "Successfully deleted InfrastructureDefinition"))
 			return reconcile.Result{Requeue: false}, nil
 		}
 
-		// We only want to operate on CRDs we own.
-		if !metav1.IsControlledBy(crd, definer) {
-			log.Debug(errNotControllerByDefiner)
-			definer.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.New(errNotControllerByDefiner)))
-			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, definer), errUpdateInfraDefStatus)
-		}
-
-		// NOTE(muvaf): When user deletes InfrastructureDefinition object the deletion
-		// signal does not cascade to the owned resource until owner is gone. But
-		// owner has its own finalizer that depends on having no instance of the CRD
-		// because it cannot go away before stopping the controller.
-		// So, we need to delete all instances of CRD manually here.
+		// NOTE(muvaf): When user deletes InfrastructureDefinition object the
+		// deletion signal does not cascade to the owned resource until owner is
+		// gone. But owner has its own finalizer that depends on having no
+		// instance of the CRD because it cannot go away before stopping the
+		// controller. So, we need to delete all instances of CRD manually here.
 		o := &kunstructured.Unstructured{}
-		o.SetGroupVersionKind(definer.GetDefinedGroupVersionKind())
+		o.SetGroupVersionKind(d.GetDefinedGroupVersionKind())
 		if err := r.client.DeleteAllOf(ctx, o); err != nil && !kmeta.IsNoMatchError(err) && !kerrors.IsNotFound(err) {
-			log.Debug("cannot delete defined resources", "error", err)
-			definer.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, "cannot delete defined resources")))
-			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, definer), errUpdateInfraDefStatus)
+			log.Debug(errDeleteCRs, "error", err)
+			r.record.Event(d, event.Warning(reasonDeleteDef, err))
+			d.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errDeleteCRs)))
+			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 		}
 
 		l := &kunstructured.UnstructuredList{}
-		l.SetGroupVersionKind(definer.GetDefinedGroupVersionKind())
+		l.SetGroupVersionKind(d.GetDefinedGroupVersionKind())
 		if err := r.client.List(ctx, l); resource.Ignore(kmeta.IsNoMatchError, err) != nil {
-			log.Debug("cannot list defined resources", "error", err)
-			definer.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, "cannot list defined resources")))
-			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, definer), errUpdateInfraDefStatus)
+			log.Debug(errListCRs, "error", err)
+			r.record.Event(d, event.Warning(reasonDeleteDef, err))
+			d.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errListCRs)))
+			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 		}
 
-		// Controller should be stopped only after all instances are gone so that
-		// deletion logic of the instances are processed by the controller.
+		// Controller should be stopped only after all instances are gone so
+		// that deletion logic of the instances are processed by the controller.
 		if len(l.Items) > 0 {
-			log.Debug(waitingInstanceDeletion, "info", err)
-			definer.Status.SetConditions(runtimev1alpha1.ReconcileSuccess().WithMessage(waitingInstanceDeletion))
-			return reconcile.Result{RequeueAfter: 3 * time.Second}, errors.Wrap(r.client.Status().Update(ctx, definer), errUpdateInfraDefStatus)
+			log.Debug(waitCRDelete)
+			r.record.Event(d, event.Normal(reasonDeleteDef, waitCRDelete))
+			d.Status.SetConditions(runtimev1alpha1.ReconcileSuccess().WithMessage(waitCRDelete))
+			return reconcile.Result{RequeueAfter: 3 * time.Second}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 		}
-		// Controller should be stopped before the deletion of CRD so that it
-		// doesn't crash.
-		r.ctrl.Stop(definer.GetName())
+
+		// The controller should be stopped before the deletion of CRD so that
+		// it doesn't crash.
+		r.definition.Stop(composite.ControllerName(d.GetName()))
+
 		if err := r.client.Delete(ctx, crd); resource.IgnoreNotFound(err) != nil {
 			log.Debug(errDeleteCRD, "error", err)
-			definer.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errDeleteCRD)))
-			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, definer), errUpdateInfraDefStatus)
+			r.record.Event(d, event.Warning(reasonDeleteDef, err))
+			d.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errDeleteCRD)))
+			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 		}
 
-		definer.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, definer), errUpdateInfraDefStatus)
+		// We should be requeued implicitly because we're watching the
+		// CustomResourceDefinition that we just deleted, but we requeue after
+		// a tiny wait just in case the CRD isn't gone after the first requeue.
+		log.Debug("Stopped composite controller and deleted CustomResourceDefinition")
+		r.record.Event(d, event.Normal(reasonDeleteDef, "Stopped composite controller and deleted CustomResourceDefinition"))
+		d.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
+		return reconcile.Result{RequeueAfter: tinyWait}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 	}
 
-	// We will do some operations now that we will have to cleanup, so, we need
-	// a finalizer to have the chance.
-	if err := r.AddFinalizer(ctx, definer); err != nil {
+	if err := r.definition.AddFinalizer(ctx, d); err != nil {
 		log.Debug(errAddFinalizer, "error", err)
-		definer.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errAddFinalizer)))
-		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, definer), errUpdateInfraDefStatus)
+		r.record.Event(d, event.Warning(reasonApplyDef, err))
+		d.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errAddFinalizer)))
+		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 	}
 
-	// At this point, we are sure that either CRD does not exist or it had been
-	// created by us. We create if it doesn't exist and update if it does.
-	if err := r.client.Apply(ctx, crd, resource.MustBeControllableBy(definer.GetUID())); err != nil {
+	if err := r.client.Apply(ctx, crd, resource.MustBeControllableBy(d.GetUID())); err != nil {
 		log.Debug(errApplyCRD, "error", err)
-		definer.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errApplyCRD)))
-		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, definer), errUpdateInfraDefStatus)
+		r.record.Event(d, event.Warning(reasonApplyDef, err))
+		d.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errApplyCRD)))
+		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 	}
-	definer.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
-	return reconcile.Result{RequeueAfter: longWait}, errors.Wrap(r.client.Status().Update(ctx, definer), errUpdateInfraDefStatus)
+
+	if !ccrd.IsEstablished(crd.Status) {
+		log.Debug(waitCRDEstablish)
+		r.record.Event(d, event.Normal(reasonApplyDef, waitCRDEstablish))
+		d.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.New(waitCRDEstablish)))
+		return reconcile.Result{RequeueAfter: 3 * time.Second}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
+	}
+
+	o := kcontroller.Options{Reconciler: composite.NewReconciler(r.mgr,
+		d.GetDefinedGroupVersionKind(),
+		r.log.WithValues("controller", composite.ControllerName(d.GetName())),
+		d)}
+
+	u := &kunstructured.Unstructured{}
+	u.SetGroupVersionKind(d.GetDefinedGroupVersionKind())
+
+	if err := r.definition.Start(composite.ControllerName(d.GetName()), o, controller.For(u, &handler.EnqueueRequestForObject{})); err != nil {
+		log.Debug(errStartController, "error", err)
+		r.record.Event(d, event.Warning(reasonApplyDef, err))
+		d.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errStartController)))
+		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, d), errStartController)
+	}
+
+	d.Status.SetConditions(v1alpha1.Started())
+	d.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
+	r.record.Event(d, event.Normal(reasonApplyDef, "Applied CustomResourceDefinition and (re)started composite controller"))
+	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 }
