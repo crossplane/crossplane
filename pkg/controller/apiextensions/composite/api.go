@@ -78,19 +78,19 @@ func (a *APIFilteredSecretPublisher) UnpublishConnection(_ context.Context, _ re
 	return nil
 }
 
-// NewSelectorResolver returns a SelectorResolver for composite resource.
-func NewSelectorResolver(c client.Client) Resolver {
-	return &SelectorResolver{client: c}
+// NewAPISelectorResolver returns a SelectorResolver for composite resource.
+func NewAPISelectorResolver(c client.Client) SelectorResolver {
+	return &APISelectorResolver{client: c}
 }
 
-// SelectorResolver is used to resolve the composition selector on the instance
+// APISelectorResolver is used to resolve the composition selector on the instance
 // to composition reference.
-type SelectorResolver struct {
+type APISelectorResolver struct {
 	client client.Client
 }
 
 // ResolveSelector resolves selector to a reference if it doesn't exist.
-func (r *SelectorResolver) ResolveSelector(ctx context.Context, cr resource.Composite) error {
+func (r *APISelectorResolver) ResolveSelector(ctx context.Context, cr resource.Composite) error {
 	// TODO(muvaf): need to block the deletion of composition via finalizer once
 	// it's selected since it's integral to this resource.
 	// TODO(muvaf): We don't rely on UID in practice. It should not be there
