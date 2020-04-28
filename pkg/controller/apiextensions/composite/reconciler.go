@@ -289,8 +289,6 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
-	r.record.Event(cr, event.Normal(reasonPublish, "Successfully published connection details"))
-
 	// TODO(negz): Update status.composedResources and status.readyResources if
 	// and when https://github.com/crossplane/crossplane-runtime/pull/166 lands.
 
