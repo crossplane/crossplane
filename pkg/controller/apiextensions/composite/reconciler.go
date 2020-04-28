@@ -58,6 +58,13 @@ const (
 	errPublish      = "cannot publish connection details"
 )
 
+// Event reasons.
+const (
+	reasonResolve event.Reason = "SelectComposition"
+	reasonCompose event.Reason = "ComposeResources"
+	reasonPublish event.Reason = "PublishConnectionSecret"
+)
+
 // ControllerName returns the recommended name for controllers that use this
 // package to reconcile a particular kind of composite infrastructure resource.
 func ControllerName(name string) string {
@@ -179,7 +186,10 @@ type Reconciler struct {
 }
 
 // Reconcile a composite infrastructure resource.
-func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) {
+func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) { // nolint:gocyclo
+	// NOTE(negz): Like most Reconcile methods, this one is over our cyclomatic
+	// complexity goal. Be wary when adding branches, and look for functionality
+	// that could be reasonably moved into an injected dependency.
 
 	log := r.log.WithValues("request", req)
 	log.Debug("Reconciling")
@@ -201,15 +211,18 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	if err := r.composite.ResolveSelector(ctx, cr); err != nil {
 		log.Debug(errSelectComp, "error", err)
+		r.record.Event(cr, event.Warning(reasonResolve, err))
 		cr.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errSelectComp)))
 		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
 	}
+	r.record.Event(cr, event.Normal(reasonResolve, "Successfully selected composition"))
 
 	// TODO(muvaf): We should lock the deletion of Composition via finalizer
 	// because its deletion will break the field propagation.
 	comp := &v1alpha1.Composition{}
 	if err := r.client.Get(ctx, meta.NamespacedNameOf(cr.GetCompositionReference()), comp); err != nil {
 		log.Debug(errGetComp, "error", err)
+		r.record.Event(cr, event.Warning(reasonCompose, err))
 		cr.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errGetComp)))
 		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
 	}
@@ -230,18 +243,24 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	refs := make([]v1.ObjectReference, len(comp.Spec.To))
 	copy(refs, cr.GetResourceReferences())
 	conn := managed.ConnectionDetails{}
+	ready := 0
 	for i, ref := range refs {
 		tmpl := comp.Spec.To[i]
 
 		obs, err := r.resource.Compose(ctx, cr, composed.New(composed.FromReference(ref)), tmpl)
 		if err != nil {
 			log.Debug(errReconcile, "error", err)
+			r.record.Event(cr, event.Warning(reasonCompose, err))
 			cr.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errReconcile)))
 			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
 		}
 
 		for key, val := range obs.ConnectionDetails {
 			conn[key] = val
+		}
+
+		if obs.Ready {
+			ready++
 		}
 
 		// We need to update our composite resource with any new or updated
@@ -257,19 +276,36 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		cr.SetResourceReferences(refs)
 		if err := r.client.Update(ctx, cr); err != nil {
 			log.Debug(errUpdate, "error", err)
+			r.record.Event(cr, event.Warning(reasonCompose, err))
 			cr.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errUpdate)))
 			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
 		}
 	}
 
 	if err := r.composite.PublishConnection(ctx, cr, conn); err != nil {
+		log.Debug(errPublish, "error", err)
+		r.record.Event(cr, event.Warning(reasonPublish, err))
 		cr.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errPublish)))
 		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
-	// TODO(negz): Diff the desired vs Ready resources and use that to determine
-	// whether this composite resource is ready.
+	r.record.Event(cr, event.Normal(reasonPublish, "Successfully published connection details"))
 
+	// TODO(negz): Update status.composedResources and status.readyResources if
+	// and when https://github.com/crossplane/crossplane-runtime/pull/166 lands.
+
+	// TODO(negz): Add a bespoke 'partial' TypeReady condition?
+	wait := longWait
+	switch {
+	case ready == 0:
+		cr.SetConditions(runtimev1alpha1.Creating())
+		wait = shortWait
+	case ready == len(refs):
+		cr.SetConditions(runtimev1alpha1.Available())
+	}
+
+	r.record.Event(cr, event.Normal(reasonPublish, "Successfully published connection details"))
+	r.record.Event(cr, event.Normal(reasonCompose, "Successfully composed resources"))
 	cr.SetConditions(runtimev1alpha1.ReconcileSuccess())
-	return reconcile.Result{RequeueAfter: longWait}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
+	return reconcile.Result{RequeueAfter: wait}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
 }

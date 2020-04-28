@@ -21,10 +21,11 @@ import (
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/json"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
@@ -44,7 +45,7 @@ const (
 
 // Observation is the result of composed reconciliation.
 type Observation struct {
-	Ref               v1.ObjectReference
+	Ref               corev1.ObjectReference
 	ConnectionDetails managed.ConnectionDetails
 	Ready             bool
 }
@@ -96,12 +97,13 @@ func (r *APIComposer) Compose(ctx context.Context, cp resource.Composite, cd res
 		return Observation{}, errors.Wrap(err, errApply)
 	}
 
+	ready := resource.IsConditionTrue(cd.GetCondition(runtimev1alpha1.TypeReady))
 	ref := *meta.ReferenceTo(cd, cd.GetObjectKind().GroupVersionKind())
 	sref := cd.GetWriteConnectionSecretToReference()
 
 	// The composed resource does not want to write a connection secret.
 	if sref == nil {
-		return Observation{Ref: ref}, nil
+		return Observation{Ref: ref, Ready: ready}, nil
 	}
 
 	s := &corev1.Secret{}
@@ -110,12 +112,13 @@ func (r *APIComposer) Compose(ctx context.Context, cp resource.Composite, cd res
 		// The composed resource does want to write a connection secret but has
 		// not yet. We presume this isn't an issue and that we'll propagate any
 		// connection details during a future iteration.
-		return Observation{Ref: ref}, errors.Wrap(resource.IgnoreNotFound(err), errGetSecret)
+		return Observation{Ref: ref, Ready: ready}, errors.Wrap(resource.IgnoreNotFound(err), errGetSecret)
 	}
 
 	obs := Observation{
 		Ref:               *meta.ReferenceTo(cd, cd.GetObjectKind().GroupVersionKind()),
 		ConnectionDetails: managed.ConnectionDetails{},
+		Ready:             ready,
 	}
 
 	for _, pair := range t.ConnectionDetails {
