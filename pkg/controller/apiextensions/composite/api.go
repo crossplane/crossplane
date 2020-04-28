@@ -22,6 +22,7 @@ import (
 	"github.com/pkg/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
@@ -78,19 +79,19 @@ func (a *APIFilteredSecretPublisher) UnpublishConnection(_ context.Context, _ re
 	return nil
 }
 
-// NewSelectorResolver returns a SelectorResolver for composite resource.
-func NewSelectorResolver(c client.Client) Resolver {
-	return &SelectorResolver{client: c}
+// NewAPISelectorResolver returns a SelectorResolver for composite resource.
+func NewAPISelectorResolver(c client.Client) SelectorResolver {
+	return &APISelectorResolver{client: c}
 }
 
-// SelectorResolver is used to resolve the composition selector on the instance
+// APISelectorResolver is used to resolve the composition selector on the instance
 // to composition reference.
-type SelectorResolver struct {
+type APISelectorResolver struct {
 	client client.Client
 }
 
 // ResolveSelector resolves selector to a reference if it doesn't exist.
-func (r *SelectorResolver) ResolveSelector(ctx context.Context, cr resource.Composite) error {
+func (r *APISelectorResolver) ResolveSelector(ctx context.Context, cr resource.Composite) error {
 	// TODO(muvaf): need to block the deletion of composition via finalizer once
 	// it's selected since it's integral to this resource.
 	// TODO(muvaf): We don't rely on UID in practice. It should not be there
@@ -113,7 +114,14 @@ func (r *SelectorResolver) ResolveSelector(ctx context.Context, cr resource.Comp
 		if comp.Spec.From.APIVersion != apiVersion || comp.Spec.From.Kind != kind {
 			continue
 		}
+
 		cr.SetCompositionReference(meta.ReferenceTo(comp.DeepCopy(), v1alpha1.CompositionGroupVersionKind))
+		cr.SetReclaimPolicy(comp.Spec.ReclaimPolicy)
+		cr.SetWriteConnectionSecretToReference(&runtimev1alpha1.SecretReference{
+			Name:      string(cr.GetUID()),
+			Namespace: comp.Spec.WriteConnectionSecretsToNamespace,
+		})
+
 		return errors.Wrap(r.client.Update(ctx, cr), "cannot update composite resource")
 	}
 	return errors.New("no compatible composition has been found that has the given labels")

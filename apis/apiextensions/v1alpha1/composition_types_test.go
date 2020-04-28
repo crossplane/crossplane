@@ -144,3 +144,51 @@ func TestMathResolve(t *testing.T) {
 		})
 	}
 }
+
+func TestStringResolve(t *testing.T) {
+
+	type args struct {
+		fmts string
+		i    interface{}
+	}
+	type want struct {
+		o   interface{}
+		err error
+	}
+
+	cases := map[string]struct {
+		args
+		want
+	}{
+		"FmtString": {
+			args: args{
+				fmts: "verycool%s",
+				i:    "thing",
+			},
+			want: want{
+				o: "verycoolthing",
+			},
+		},
+		"FmtInteger": {
+			args: args{
+				fmts: "the largest %d",
+				i:    8,
+			},
+			want: want{
+				o: "the largest 8",
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got, err := (&StringTransform{Format: tc.fmts}).Resolve(tc.i)
+
+			if diff := cmp.Diff(tc.want.o, got); diff != "" {
+				t.Errorf("Resolve(b): -want, +got:\n%s", diff)
+			}
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("Resolve(b): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}

@@ -21,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
@@ -59,20 +58,25 @@ func Configure(_ context.Context, rq resource.Requirement, cp resource.Composite
 	if !ok {
 		return errors.New("requirement spec was not an object")
 	}
-	delete(spec, "resourceRef")
-	delete(spec, "connectionSecretRef")
 
-	_ = fieldpath.Pave(ucp.Object).SetValue("spec", spec)
-
-	// TODO(negz): Set reclaim policy and connection secret somehow? Mostly the
-	// spec of the composite is a direct copy of the spec of the requirement,
-	// but these are the exception to the rule. They're set by the composition,
-	// which the requirement may not hold an opinion about
-	cp.SetReclaimPolicy(v1alpha1.ReclaimDelete)
-	cp.SetWriteConnectionSecretToReference(&v1alpha1.SecretReference{
-		Namespace: rq.GetNamespace(),
-		Name:      string(rq.GetUID()),
-	})
-
+	// TODO(negz): Make these filtered keys constants in the ccrds package?
+	_ = fieldpath.Pave(ucp.Object).SetValue("spec", filter(spec, "resourceRef", "writeConnectionSecretToRef"))
 	return nil
+}
+
+func filter(in map[string]interface{}, keys ...string) map[string]interface{} {
+	filter := map[string]bool{}
+	for _, k := range keys {
+		filter[k] = true
+	}
+
+	out := map[string]interface{}{}
+	for k, v := range in {
+		if filter[k] {
+			continue
+		}
+
+		out[k] = v
+	}
+	return out
 }
