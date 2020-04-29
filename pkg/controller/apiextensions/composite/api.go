@@ -116,13 +116,39 @@ func (r *APISelectorResolver) ResolveSelector(ctx context.Context, cr resource.C
 		}
 
 		cr.SetCompositionReference(meta.ReferenceTo(comp.DeepCopy(), v1alpha1.CompositionGroupVersionKind))
-		cr.SetReclaimPolicy(comp.Spec.ReclaimPolicy)
-		cr.SetWriteConnectionSecretToReference(&runtimev1alpha1.SecretReference{
-			Name:      string(cr.GetUID()),
-			Namespace: comp.Spec.WriteConnectionSecretsToNamespace,
-		})
 
 		return errors.Wrap(r.client.Update(ctx, cr), "cannot update composite resource")
 	}
 	return errors.New("no compatible composition has been found that has the given labels")
+}
+
+// NewAPIConfigurator returns a Configurator that configures a
+// composite resource using its composition.
+func NewAPIConfigurator(c client.Client) *APIConfigurator {
+	return &APIConfigurator{client: c}
+}
+
+// An APIConfigurator configures a composite resource using its
+// composition.
+type APIConfigurator struct {
+	client client.Client
+}
+
+// Configure the supplied composite resource using its composition.
+func (c *APIConfigurator) Configure(ctx context.Context, cr resource.Composite, cp *v1alpha1.Composition) error {
+	if cr.GetReclaimPolicy() != "" && cr.GetWriteConnectionSecretToReference() != nil {
+		return nil
+	}
+
+	if cr.GetReclaimPolicy() == "" {
+		cr.SetReclaimPolicy(cp.Spec.ReclaimPolicy)
+	}
+	if cr.GetWriteConnectionSecretToReference() == nil {
+		cr.SetWriteConnectionSecretToReference(&runtimev1alpha1.SecretReference{
+			Name:      string(cr.GetUID()),
+			Namespace: cp.Spec.WriteConnectionSecretsToNamespace,
+		})
+	}
+
+	return errors.Wrap(c.client.Update(ctx, cr), "cannot update composite resource")
 }
