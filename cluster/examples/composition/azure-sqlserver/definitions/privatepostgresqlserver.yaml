@@ -1,6 +1,5 @@
 ---
-# This allows Crossplane to manage our new "PrivatePostgreSQLServer" composite
-# resource and the resources it composes.
+# This allows Crossplane to manage our new composite resource.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -15,13 +14,6 @@ rules:
   - privatepostgresqlservers/status
   - privatepostgresqlserverrequirements
   - privatepostgresqlserverrequirements/status
-  verbs:
-  - "*"
-- apiGroups:
-  - database.azure.crossplane.io
-  resources:
-  - postgresqlservers
-  - postgresqlservervirtualnetworkrules
   verbs:
   - "*"
 ---
