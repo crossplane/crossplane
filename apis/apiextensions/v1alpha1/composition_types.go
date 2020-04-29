@@ -126,6 +126,15 @@ func (c *Patch) Apply(from, to runtime.Object) error {
 	}
 
 	in, err := fieldpath.Pave(fromMap).GetValue(c.FromFieldPath)
+	if fieldpath.IsNotFound(err) {
+		// A composition may want to opportunistically patch from a field path
+		// that may or may not exist in the composite, for example by patching
+		// {fromFieldPath: metadata.labels, toFieldPath: metadata.labels}. We
+		// don't consider a reference to a non-existent path to be an issue; if
+		// the relevant toFieldPath is required by the composed resource we'll
+		// report that fact when we attempt to reconcile the composite.
+		return nil
+	}
 	if err != nil {
 		return err
 	}
