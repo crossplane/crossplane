@@ -368,6 +368,16 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{Requeue: false}, nil
 	}
 
+	if err := r.requirement.AddFinalizer(ctx, rq); err != nil {
+		// If we didn't hit this error last time we'll be requeued
+		// implicitly due to the status update. Otherwise we want to retry
+		// after a brief wait, in case this was a transient error.
+		log.Debug("Cannot add resource requirement finalizer", "error", err, "requeue-after", time.Now().Add(aShortWait))
+		record.Event(rq, event.Warning(reasonBind, err))
+		rq.SetConditions(v1alpha1.Creating(), v1alpha1.ReconcileError(err))
+		return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, rq), errUpdateRequirementStatus)
+	}
+
 	// Requirement reconcilers (should) watch for either requirements with a resource ref,
 	// requirements with a class ref, or composite resources with a requirement ref. In the
 	// first case the composite resource always exists by the time we get here. In
@@ -415,16 +425,6 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		// queued if it changes.
 		rq.SetConditions(Waiting(), v1alpha1.ReconcileSuccess())
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, rq), errUpdateRequirementStatus)
-	}
-
-	if err := r.requirement.AddFinalizer(ctx, rq); err != nil {
-		// If we didn't hit this error last time we'll be requeued
-		// implicitly due to the status update. Otherwise we want to retry
-		// after a brief wait, in case this was a transient error.
-		log.Debug("Cannot add resource requirement finalizer", "error", err, "requeue-after", time.Now().Add(aShortWait))
-		record.Event(rq, event.Warning(reasonBind, err))
-		rq.SetConditions(v1alpha1.Creating(), v1alpha1.ReconcileError(err))
-		return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, rq), errUpdateRequirementStatus)
 	}
 
 	if err := r.requirement.Bind(ctx, rq, cp); err != nil {
