@@ -54,6 +54,7 @@ const (
 	errUpdateStatus = "cannot update composite infrastructure resource status"
 	errSelectComp   = "cannot select Composition"
 	errGetComp      = "cannot get Composition"
+	errConfigure    = "cannot configure composite infrastructure resource"
 	errReconcile    = "cannot reconcile composed infrastructure resource"
 	errPublish      = "cannot publish connection details"
 )
@@ -100,6 +101,12 @@ type SelectorResolver interface {
 	ResolveSelector(ctx context.Context, cr resource.Composite) error
 }
 
+// A Configurator configures a composite resource using its
+// composition.
+type Configurator interface {
+	Configure(ctx context.Context, cr resource.Composite, cp *v1alpha1.Composition) error
+}
+
 // ReconcilerOption is used to configure the Reconciler.
 type ReconcilerOption func(*Reconciler)
 
@@ -125,6 +132,14 @@ func WithSelectorResolver(p SelectorResolver) ReconcilerOption {
 	}
 }
 
+// WithConfigurator specifies how the Reconciler should configure
+// composite resources using their composition
+func WithConfigurator(c Configurator) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.composite.Configurator = c
+	}
+}
+
 // WithConnectionPublisher specifies how the Reconciler should publish
 // connection secrets.
 func WithConnectionPublisher(p ConnectionPublisher) ReconcilerOption {
@@ -142,6 +157,7 @@ func WithComposer(rc Composer) ReconcilerOption {
 
 type compositeResource struct {
 	SelectorResolver
+	Configurator
 	ConnectionPublisher
 }
 
@@ -158,6 +174,7 @@ func NewReconciler(mgr manager.Manager, of resource.CompositeKind, opts ...Recon
 
 		composite: compositeResource{
 			SelectorResolver:    NewAPISelectorResolver(kube),
+			Configurator:        NewAPIConfigurator(kube),
 			ConnectionPublisher: NewAPIFilteredSecretPublisher(kube, []string{}),
 		},
 
@@ -224,6 +241,13 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		log.Debug(errGetComp, "error", err)
 		r.record.Event(cr, event.Warning(reasonCompose, err))
 		cr.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errGetComp)))
+		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
+	}
+
+	if err := r.composite.Configure(ctx, cr, comp); err != nil {
+		log.Debug(errConfigure, "error", err)
+		r.record.Event(cr, event.Warning(reasonCompose, err))
+		cr.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errConfigure)))
 		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
